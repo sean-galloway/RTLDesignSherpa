@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Mon Sep 28 19:02:23 2026
+| Date         : Tue Sep 29 01:42:41 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command      : report_timing_summary -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axis4_master_monlite__xc7a100tcsg324-1/timing_summary.txt -max_paths 10
 | Design       : axis4_master_monlite
@@ -138,10 +138,10 @@ Table of Contents
 
     WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
     -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
-     -2.445     -466.025                    383                 1342        0.098        0.000                      0                 1342        4.500        0.000                       0                   736  
+      0.599        0.000                      0                 1541        0.098        0.000                      0                 1541        4.500        0.000                       0                   935  
 
 
-Timing constraints are not met.
+All user specified timing constraints are met.
 
 
 ------------------------------------------------------------------------------------------------
@@ -161,7 +161,7 @@ aclk   {0.000 5.000}      10.000          100.000
 
 Clock             WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
 -----             -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
-aclk               -2.445     -466.025                    383                 1342        0.098        0.000                      0                 1342        4.500        0.000                       0                   736  
+aclk                0.599        0.000                      0                 1541        0.098        0.000                      0                 1541        4.500        0.000                       0                   935  
 
 
 ------------------------------------------------------------------------------------------------
@@ -192,7 +192,7 @@ Path Group    From Clock    To Clock          WNS(ns)      TNS(ns)  TNS Failing 
 From Clock:  aclk
   To Clock:  aclk
 
-Setup :          383  Failing Endpoints,  Worst Slack       -2.445ns,  Total Violation     -466.025ns
+Setup :            0  Failing Endpoints,  Worst Slack        0.599ns,  Total Violation        0.000ns
 Hold  :            0  Failing Endpoints,  Worst Slack        0.098ns,  Total Violation        0.000ns
 PW    :            0  Failing Endpoints,  Worst Slack        4.500ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
@@ -200,20 +200,20 @@ PW    :            0  Failing Endpoints,  Worst Slack        4.500ns,  Total Vio
 
 Max Delay Paths
 --------------------------------------------------------------------------------------
-Slack (VIOLATED) :        -2.445ns  (required time - arrival time)
-  Source:                 cfg_timeout_cycles[11]
-                            (input port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[13]/D
+Slack (MET) :             0.599ns  (required time - arrival time)
+  Source:                 gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[0]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[95]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
+  Path Type:              Max at Slow Process Corner
   Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
-  Data Path Delay:        10.365ns  (logic 2.904ns (28.017%)  route 7.461ns (71.983%))
-  Logic Levels:           16  (CARRY4=5 LUT4=1 LUT5=2 LUT6=8)
-  Input Delay:            3.000ns
-  Clock Path Skew:        0.924ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
-    Source Clock Delay      (SCD):    0.000ns
+  Data Path Delay:        5.392ns  (logic 0.580ns (10.756%)  route 4.812ns (89.244%))
+  Logic Levels:           1  (LUT6=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -0.973ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.973ns
     Clock Pessimism Removal (CPR):    0.000ns
   Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -224,76 +224,41 @@ Slack (VIOLATED) :        -2.445ns  (required time - arrival time)
     Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
-                         input delay                  3.000     3.000    
-                                                      0.000     3.000 f  cfg_timeout_cycles[11] (IN)
-                         net (fo=8, unset)            0.973     3.973    gen_monitor_lite.u_axis_monitor_lite/cfg_timeout_cycles[11]
-    SLICE_X45Y99         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  gen_monitor_lite.u_axis_monitor_lite/r_q[1][15]_i_11/O
-                         net (fo=21, routed)          0.531     4.628    gen_monitor_lite.u_axis_monitor_lite/r_q[1][15]_i_11_n_0
-    SLICE_X45Y99         LUT6 (Prop_lut6_I3_O)        0.124     4.752 r  gen_monitor_lite.u_axis_monitor_lite/r_q[1][14]_i_8/O
-                         net (fo=66, routed)          1.391     6.143    gen_monitor_lite.u_axis_monitor_lite/r_q[1][14]_i_8_n_0
-    SLICE_X44Y102        LUT5 (Prop_lut5_I2_O)        0.124     6.267 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_15/O
-                         net (fo=1, routed)           0.000     6.267    gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_15_n_0
-    SLICE_X44Y102        CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     6.668 f  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_reg_i_9/CO[3]
-                         net (fo=1, routed)           0.623     7.291    gen_monitor_lite.u_axis_monitor_lite/w_tmo_pkt1
-    SLICE_X40Y102        LUT6 (Prop_lut6_I3_O)        0.124     7.415 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_8/O
-                         net (fo=2, routed)           0.170     7.585    gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_8_n_0
-    SLICE_X40Y102        LUT6 (Prop_lut6_I5_O)        0.124     7.709 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_2/O
-                         net (fo=24, routed)          0.915     8.624    gen_monitor_lite.u_axis_monitor_lite/cfg_timeout_enable_0
-    SLICE_X46Y105        LUT6 (Prop_lut6_I2_O)        0.124     8.748 f  gen_monitor_lite.u_axis_monitor_lite/r_q[1][82]_i_6/O
-                         net (fo=82, routed)          0.692     9.440    gen_monitor_lite.u_axis_monitor_lite/r_q[1][82]_i_6_n_0
-    SLICE_X47Y104        LUT4 (Prop_lut4_I1_O)        0.124     9.564 r  gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_5/O
-                         net (fo=2, routed)           0.584    10.148    gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_5_n_0
-    SLICE_X47Y105        LUT6 (Prop_lut6_I0_O)        0.124    10.272 r  gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_4/O
-                         net (fo=6, routed)           0.867    11.139    gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_4_n_0
-    SLICE_X47Y106        LUT6 (Prop_lut6_I4_O)        0.124    11.263 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_9/O
-                         net (fo=1, routed)           0.412    11.675    gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_9_n_0
-    SLICE_X45Y106        LUT6 (Prop_lut6_I4_O)        0.124    11.799 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_3/O
-                         net (fo=1, routed)           0.000    11.799    gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_3_n_0
-    SLICE_X45Y106        CARRY4 (Prop_carry4_S[2]_CO[3])
-                                                      0.398    12.197 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[3]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.197    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[3]_i_2_n_0
-    SLICE_X45Y107        CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114    12.311 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.311    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]_i_2_n_0
-    SLICE_X45Y108        CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114    12.425 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[11]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.425    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[11]_i_2_n_0
-    SLICE_X45Y109        CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.334    12.759 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[15]_i_4/O[1]
-                         net (fo=1, routed)           0.303    13.062    gen_monitor_lite.u_axis_monitor_lite/r_dropped0[13]
-    SLICE_X44Y110        LUT5 (Prop_lut5_I4_O)        0.303    13.365 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[13]_i_1/O
-                         net (fo=1, routed)           0.000    13.365    gen_monitor_lite.u_axis_monitor_lite/r_dropped[13]_i_1_n_0
-    SLICE_X44Y110        FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[13]/D
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=934, unset)          0.973     0.973    gen_monitor_lite.u_axis_monitor_lite/aclk
+    SLICE_X47Y88         FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X47Y88         FDCE (Prop_fdce_C_Q)         0.456     1.429 r  gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[0]/Q
+                         net (fo=86, routed)          3.839     5.268    gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg_n_0_[0]
+    SLICE_X44Y80         LUT6 (Prop_lut6_I3_O)        0.124     5.392 r  gen_monitor_lite.u_axis_monitor_lite/monbus_packet[95]_INST_0/O
+                         net (fo=0)                   0.973     6.365    monbus_packet[95]
+                                                                      r  monbus_packet[95] (OUT)
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)      10.000    10.000 r  
-                                                      0.000    10.000 r  aclk (IN)
-                         net (fo=735, unset)          0.924    10.924    gen_monitor_lite.u_axis_monitor_lite/aclk
-    SLICE_X44Y110        FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[13]/C
-                         clock pessimism              0.000    10.924    
-                         clock uncertainty           -0.035    10.889    
-    SLICE_X44Y110        FDCE (Setup_fdce_C_D)        0.031    10.920    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[13]
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
   -------------------------------------------------------------------
-                         required time                         10.920    
-                         arrival time                         -13.365    
+                         required time                          6.965    
+                         arrival time                          -6.365    
   -------------------------------------------------------------------
-                         slack                                 -2.445    
+                         slack                                  0.599    
 
-Slack (VIOLATED) :        -2.374ns  (required time - arrival time)
-  Source:                 cfg_timeout_cycles[11]
-                            (input port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[15]/D
+Slack (MET) :             0.729ns  (required time - arrival time)
+  Source:                 gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[1]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[16]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
+  Path Type:              Max at Slow Process Corner
   Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
-  Data Path Delay:        10.342ns  (logic 2.886ns (27.907%)  route 7.456ns (72.093%))
-  Logic Levels:           16  (CARRY4=5 LUT4=1 LUT5=2 LUT6=8)
-  Input Delay:            3.000ns
-  Clock Path Skew:        0.924ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
-    Source Clock Delay      (SCD):    0.000ns
+  Data Path Delay:        5.262ns  (logic 0.580ns (11.021%)  route 4.682ns (88.979%))
+  Logic Levels:           1  (LUT6=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -0.973ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.973ns
     Clock Pessimism Removal (CPR):    0.000ns
   Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -304,76 +269,41 @@ Slack (VIOLATED) :        -2.374ns  (required time - arrival time)
     Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
-                         input delay                  3.000     3.000    
-                                                      0.000     3.000 f  cfg_timeout_cycles[11] (IN)
-                         net (fo=8, unset)            0.973     3.973    gen_monitor_lite.u_axis_monitor_lite/cfg_timeout_cycles[11]
-    SLICE_X45Y99         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  gen_monitor_lite.u_axis_monitor_lite/r_q[1][15]_i_11/O
-                         net (fo=21, routed)          0.531     4.628    gen_monitor_lite.u_axis_monitor_lite/r_q[1][15]_i_11_n_0
-    SLICE_X45Y99         LUT6 (Prop_lut6_I3_O)        0.124     4.752 r  gen_monitor_lite.u_axis_monitor_lite/r_q[1][14]_i_8/O
-                         net (fo=66, routed)          1.391     6.143    gen_monitor_lite.u_axis_monitor_lite/r_q[1][14]_i_8_n_0
-    SLICE_X44Y102        LUT5 (Prop_lut5_I2_O)        0.124     6.267 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_15/O
-                         net (fo=1, routed)           0.000     6.267    gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_15_n_0
-    SLICE_X44Y102        CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     6.668 f  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_reg_i_9/CO[3]
-                         net (fo=1, routed)           0.623     7.291    gen_monitor_lite.u_axis_monitor_lite/w_tmo_pkt1
-    SLICE_X40Y102        LUT6 (Prop_lut6_I3_O)        0.124     7.415 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_8/O
-                         net (fo=2, routed)           0.170     7.585    gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_8_n_0
-    SLICE_X40Y102        LUT6 (Prop_lut6_I5_O)        0.124     7.709 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_2/O
-                         net (fo=24, routed)          0.915     8.624    gen_monitor_lite.u_axis_monitor_lite/cfg_timeout_enable_0
-    SLICE_X46Y105        LUT6 (Prop_lut6_I2_O)        0.124     8.748 f  gen_monitor_lite.u_axis_monitor_lite/r_q[1][82]_i_6/O
-                         net (fo=82, routed)          0.692     9.440    gen_monitor_lite.u_axis_monitor_lite/r_q[1][82]_i_6_n_0
-    SLICE_X47Y104        LUT4 (Prop_lut4_I1_O)        0.124     9.564 r  gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_5/O
-                         net (fo=2, routed)           0.584    10.148    gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_5_n_0
-    SLICE_X47Y105        LUT6 (Prop_lut6_I0_O)        0.124    10.272 r  gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_4/O
-                         net (fo=6, routed)           0.867    11.139    gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_4_n_0
-    SLICE_X47Y106        LUT6 (Prop_lut6_I4_O)        0.124    11.263 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_9/O
-                         net (fo=1, routed)           0.412    11.675    gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_9_n_0
-    SLICE_X45Y106        LUT6 (Prop_lut6_I4_O)        0.124    11.799 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_3/O
-                         net (fo=1, routed)           0.000    11.799    gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_3_n_0
-    SLICE_X45Y106        CARRY4 (Prop_carry4_S[2]_CO[3])
-                                                      0.398    12.197 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[3]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.197    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[3]_i_2_n_0
-    SLICE_X45Y107        CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114    12.311 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.311    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]_i_2_n_0
-    SLICE_X45Y108        CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114    12.425 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[11]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.425    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[11]_i_2_n_0
-    SLICE_X45Y109        CARRY4 (Prop_carry4_CI_O[3])
-                                                      0.313    12.738 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[15]_i_4/O[3]
-                         net (fo=1, routed)           0.298    13.036    gen_monitor_lite.u_axis_monitor_lite/r_dropped0[15]
-    SLICE_X42Y109        LUT5 (Prop_lut5_I4_O)        0.306    13.342 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[15]_i_1/O
-                         net (fo=1, routed)           0.000    13.342    gen_monitor_lite.u_axis_monitor_lite/r_dropped[15]_i_1_n_0
-    SLICE_X42Y109        FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[15]/D
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=934, unset)          0.973     0.973    gen_monitor_lite.u_axis_monitor_lite/aclk
+    SLICE_X45Y90         FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X45Y90         FDCE (Prop_fdce_C_Q)         0.456     1.429 r  gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[1]/Q
+                         net (fo=85, routed)          3.709     5.138    gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg_n_0_[1]
+    SLICE_X55Y94         LUT6 (Prop_lut6_I4_O)        0.124     5.262 r  gen_monitor_lite.u_axis_monitor_lite/monbus_packet[16]_INST_0/O
+                         net (fo=0)                   0.973     6.235    monbus_packet[16]
+                                                                      r  monbus_packet[16] (OUT)
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)      10.000    10.000 r  
-                                                      0.000    10.000 r  aclk (IN)
-                         net (fo=735, unset)          0.924    10.924    gen_monitor_lite.u_axis_monitor_lite/aclk
-    SLICE_X42Y109        FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[15]/C
-                         clock pessimism              0.000    10.924    
-                         clock uncertainty           -0.035    10.889    
-    SLICE_X42Y109        FDCE (Setup_fdce_C_D)        0.079    10.968    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[15]
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
   -------------------------------------------------------------------
-                         required time                         10.968    
-                         arrival time                         -13.342    
+                         required time                          6.965    
+                         arrival time                          -6.235    
   -------------------------------------------------------------------
-                         slack                                 -2.374    
+                         slack                                  0.729    
 
-Slack (VIOLATED) :        -2.350ns  (required time - arrival time)
-  Source:                 cfg_timeout_cycles[11]
-                            (input port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[14]/D
+Slack (MET) :             0.849ns  (required time - arrival time)
+  Source:                 gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[1]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[18]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
+  Path Type:              Max at Slow Process Corner
   Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
-  Data Path Delay:        10.270ns  (logic 2.808ns (27.342%)  route 7.462ns (72.658%))
-  Logic Levels:           16  (CARRY4=5 LUT4=1 LUT5=2 LUT6=8)
-  Input Delay:            3.000ns
-  Clock Path Skew:        0.924ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
-    Source Clock Delay      (SCD):    0.000ns
+  Data Path Delay:        5.142ns  (logic 0.580ns (11.279%)  route 4.562ns (88.721%))
+  Logic Levels:           1  (LUT6=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -0.973ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.973ns
     Clock Pessimism Removal (CPR):    0.000ns
   Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -384,76 +314,41 @@ Slack (VIOLATED) :        -2.350ns  (required time - arrival time)
     Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
-                         input delay                  3.000     3.000    
-                                                      0.000     3.000 f  cfg_timeout_cycles[11] (IN)
-                         net (fo=8, unset)            0.973     3.973    gen_monitor_lite.u_axis_monitor_lite/cfg_timeout_cycles[11]
-    SLICE_X45Y99         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  gen_monitor_lite.u_axis_monitor_lite/r_q[1][15]_i_11/O
-                         net (fo=21, routed)          0.531     4.628    gen_monitor_lite.u_axis_monitor_lite/r_q[1][15]_i_11_n_0
-    SLICE_X45Y99         LUT6 (Prop_lut6_I3_O)        0.124     4.752 r  gen_monitor_lite.u_axis_monitor_lite/r_q[1][14]_i_8/O
-                         net (fo=66, routed)          1.391     6.143    gen_monitor_lite.u_axis_monitor_lite/r_q[1][14]_i_8_n_0
-    SLICE_X44Y102        LUT5 (Prop_lut5_I2_O)        0.124     6.267 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_15/O
-                         net (fo=1, routed)           0.000     6.267    gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_15_n_0
-    SLICE_X44Y102        CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     6.668 f  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_reg_i_9/CO[3]
-                         net (fo=1, routed)           0.623     7.291    gen_monitor_lite.u_axis_monitor_lite/w_tmo_pkt1
-    SLICE_X40Y102        LUT6 (Prop_lut6_I3_O)        0.124     7.415 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_8/O
-                         net (fo=2, routed)           0.170     7.585    gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_8_n_0
-    SLICE_X40Y102        LUT6 (Prop_lut6_I5_O)        0.124     7.709 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_2/O
-                         net (fo=24, routed)          0.915     8.624    gen_monitor_lite.u_axis_monitor_lite/cfg_timeout_enable_0
-    SLICE_X46Y105        LUT6 (Prop_lut6_I2_O)        0.124     8.748 f  gen_monitor_lite.u_axis_monitor_lite/r_q[1][82]_i_6/O
-                         net (fo=82, routed)          0.692     9.440    gen_monitor_lite.u_axis_monitor_lite/r_q[1][82]_i_6_n_0
-    SLICE_X47Y104        LUT4 (Prop_lut4_I1_O)        0.124     9.564 r  gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_5/O
-                         net (fo=2, routed)           0.584    10.148    gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_5_n_0
-    SLICE_X47Y105        LUT6 (Prop_lut6_I0_O)        0.124    10.272 r  gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_4/O
-                         net (fo=6, routed)           0.867    11.139    gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_4_n_0
-    SLICE_X47Y106        LUT6 (Prop_lut6_I4_O)        0.124    11.263 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_9/O
-                         net (fo=1, routed)           0.412    11.675    gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_9_n_0
-    SLICE_X45Y106        LUT6 (Prop_lut6_I4_O)        0.124    11.799 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_3/O
-                         net (fo=1, routed)           0.000    11.799    gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_3_n_0
-    SLICE_X45Y106        CARRY4 (Prop_carry4_S[2]_CO[3])
-                                                      0.398    12.197 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[3]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.197    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[3]_i_2_n_0
-    SLICE_X45Y107        CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114    12.311 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.311    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]_i_2_n_0
-    SLICE_X45Y108        CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114    12.425 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[11]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.425    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[11]_i_2_n_0
-    SLICE_X45Y109        CARRY4 (Prop_carry4_CI_O[2])
-                                                      0.239    12.664 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[15]_i_4/O[2]
-                         net (fo=1, routed)           0.304    12.968    gen_monitor_lite.u_axis_monitor_lite/r_dropped0[14]
-    SLICE_X44Y108        LUT5 (Prop_lut5_I4_O)        0.302    13.270 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[14]_i_1/O
-                         net (fo=1, routed)           0.000    13.270    gen_monitor_lite.u_axis_monitor_lite/r_dropped[14]_i_1_n_0
-    SLICE_X44Y108        FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[14]/D
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=934, unset)          0.973     0.973    gen_monitor_lite.u_axis_monitor_lite/aclk
+    SLICE_X45Y90         FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X45Y90         FDCE (Prop_fdce_C_Q)         0.456     1.429 r  gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[1]/Q
+                         net (fo=85, routed)          3.589     5.018    gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg_n_0_[1]
+    SLICE_X52Y93         LUT6 (Prop_lut6_I4_O)        0.124     5.142 r  gen_monitor_lite.u_axis_monitor_lite/monbus_packet[18]_INST_0/O
+                         net (fo=0)                   0.973     6.115    monbus_packet[18]
+                                                                      r  monbus_packet[18] (OUT)
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)      10.000    10.000 r  
-                                                      0.000    10.000 r  aclk (IN)
-                         net (fo=735, unset)          0.924    10.924    gen_monitor_lite.u_axis_monitor_lite/aclk
-    SLICE_X44Y108        FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[14]/C
-                         clock pessimism              0.000    10.924    
-                         clock uncertainty           -0.035    10.889    
-    SLICE_X44Y108        FDCE (Setup_fdce_C_D)        0.031    10.920    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[14]
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
   -------------------------------------------------------------------
-                         required time                         10.920    
-                         arrival time                         -13.270    
+                         required time                          6.965    
+                         arrival time                          -6.115    
   -------------------------------------------------------------------
-                         slack                                 -2.350    
+                         slack                                  0.849    
 
-Slack (VIOLATED) :        -2.317ns  (required time - arrival time)
-  Source:                 cfg_timeout_cycles[11]
-                            (input port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[9]/D
+Slack (MET) :             0.859ns  (required time - arrival time)
+  Source:                 gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[0]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[17]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
+  Path Type:              Max at Slow Process Corner
   Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
-  Data Path Delay:        10.237ns  (logic 2.790ns (27.254%)  route 7.447ns (72.746%))
-  Logic Levels:           15  (CARRY4=4 LUT4=1 LUT5=2 LUT6=8)
-  Input Delay:            3.000ns
-  Clock Path Skew:        0.924ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
-    Source Clock Delay      (SCD):    0.000ns
+  Data Path Delay:        5.133ns  (logic 0.580ns (11.300%)  route 4.553ns (88.700%))
+  Logic Levels:           1  (LUT6=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -0.973ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.973ns
     Clock Pessimism Removal (CPR):    0.000ns
   Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -464,73 +359,41 @@ Slack (VIOLATED) :        -2.317ns  (required time - arrival time)
     Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
-                         input delay                  3.000     3.000    
-                                                      0.000     3.000 f  cfg_timeout_cycles[11] (IN)
-                         net (fo=8, unset)            0.973     3.973    gen_monitor_lite.u_axis_monitor_lite/cfg_timeout_cycles[11]
-    SLICE_X45Y99         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  gen_monitor_lite.u_axis_monitor_lite/r_q[1][15]_i_11/O
-                         net (fo=21, routed)          0.531     4.628    gen_monitor_lite.u_axis_monitor_lite/r_q[1][15]_i_11_n_0
-    SLICE_X45Y99         LUT6 (Prop_lut6_I3_O)        0.124     4.752 r  gen_monitor_lite.u_axis_monitor_lite/r_q[1][14]_i_8/O
-                         net (fo=66, routed)          1.391     6.143    gen_monitor_lite.u_axis_monitor_lite/r_q[1][14]_i_8_n_0
-    SLICE_X44Y102        LUT5 (Prop_lut5_I2_O)        0.124     6.267 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_15/O
-                         net (fo=1, routed)           0.000     6.267    gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_15_n_0
-    SLICE_X44Y102        CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     6.668 f  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_reg_i_9/CO[3]
-                         net (fo=1, routed)           0.623     7.291    gen_monitor_lite.u_axis_monitor_lite/w_tmo_pkt1
-    SLICE_X40Y102        LUT6 (Prop_lut6_I3_O)        0.124     7.415 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_8/O
-                         net (fo=2, routed)           0.170     7.585    gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_8_n_0
-    SLICE_X40Y102        LUT6 (Prop_lut6_I5_O)        0.124     7.709 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_2/O
-                         net (fo=24, routed)          0.915     8.624    gen_monitor_lite.u_axis_monitor_lite/cfg_timeout_enable_0
-    SLICE_X46Y105        LUT6 (Prop_lut6_I2_O)        0.124     8.748 f  gen_monitor_lite.u_axis_monitor_lite/r_q[1][82]_i_6/O
-                         net (fo=82, routed)          0.692     9.440    gen_monitor_lite.u_axis_monitor_lite/r_q[1][82]_i_6_n_0
-    SLICE_X47Y104        LUT4 (Prop_lut4_I1_O)        0.124     9.564 r  gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_5/O
-                         net (fo=2, routed)           0.584    10.148    gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_5_n_0
-    SLICE_X47Y105        LUT6 (Prop_lut6_I0_O)        0.124    10.272 r  gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_4/O
-                         net (fo=6, routed)           0.867    11.139    gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_4_n_0
-    SLICE_X47Y106        LUT6 (Prop_lut6_I4_O)        0.124    11.263 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_9/O
-                         net (fo=1, routed)           0.412    11.675    gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_9_n_0
-    SLICE_X45Y106        LUT6 (Prop_lut6_I4_O)        0.124    11.799 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_3/O
-                         net (fo=1, routed)           0.000    11.799    gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_3_n_0
-    SLICE_X45Y106        CARRY4 (Prop_carry4_S[2]_CO[3])
-                                                      0.398    12.197 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[3]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.197    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[3]_i_2_n_0
-    SLICE_X45Y107        CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114    12.311 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.311    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]_i_2_n_0
-    SLICE_X45Y108        CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.334    12.645 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[11]_i_2/O[1]
-                         net (fo=1, routed)           0.289    12.934    gen_monitor_lite.u_axis_monitor_lite/r_dropped0[9]
-    SLICE_X43Y108        LUT5 (Prop_lut5_I4_O)        0.303    13.237 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[9]_i_1/O
-                         net (fo=1, routed)           0.000    13.237    gen_monitor_lite.u_axis_monitor_lite/r_dropped[9]_i_1_n_0
-    SLICE_X43Y108        FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[9]/D
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=934, unset)          0.973     0.973    gen_monitor_lite.u_axis_monitor_lite/aclk
+    SLICE_X47Y88         FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X47Y88         FDCE (Prop_fdce_C_Q)         0.456     1.429 r  gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[0]/Q
+                         net (fo=86, routed)          3.580     5.009    gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg_n_0_[0]
+    SLICE_X54Y92         LUT6 (Prop_lut6_I3_O)        0.124     5.133 r  gen_monitor_lite.u_axis_monitor_lite/monbus_packet[17]_INST_0/O
+                         net (fo=0)                   0.973     6.106    monbus_packet[17]
+                                                                      r  monbus_packet[17] (OUT)
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)      10.000    10.000 r  
-                                                      0.000    10.000 r  aclk (IN)
-                         net (fo=735, unset)          0.924    10.924    gen_monitor_lite.u_axis_monitor_lite/aclk
-    SLICE_X43Y108        FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[9]/C
-                         clock pessimism              0.000    10.924    
-                         clock uncertainty           -0.035    10.889    
-    SLICE_X43Y108        FDCE (Setup_fdce_C_D)        0.031    10.920    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[9]
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
   -------------------------------------------------------------------
-                         required time                         10.920    
-                         arrival time                         -13.237    
+                         required time                          6.965    
+                         arrival time                          -6.106    
   -------------------------------------------------------------------
-                         slack                                 -2.317    
+                         slack                                  0.859    
 
-Slack (VIOLATED) :        -2.303ns  (required time - arrival time)
-  Source:                 cfg_timeout_cycles[11]
-                            (input port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[11]/D
+Slack (MET) :             0.967ns  (required time - arrival time)
+  Source:                 gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[1]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[7]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
+  Path Type:              Max at Slow Process Corner
   Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
-  Data Path Delay:        10.221ns  (logic 2.772ns (27.122%)  route 7.449ns (72.878%))
-  Logic Levels:           15  (CARRY4=4 LUT4=1 LUT5=2 LUT6=8)
-  Input Delay:            3.000ns
-  Clock Path Skew:        0.924ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
-    Source Clock Delay      (SCD):    0.000ns
+  Data Path Delay:        5.024ns  (logic 0.580ns (11.543%)  route 4.444ns (88.457%))
+  Logic Levels:           1  (LUT6=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -0.973ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.973ns
     Clock Pessimism Removal (CPR):    0.000ns
   Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -541,73 +404,41 @@ Slack (VIOLATED) :        -2.303ns  (required time - arrival time)
     Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
-                         input delay                  3.000     3.000    
-                                                      0.000     3.000 f  cfg_timeout_cycles[11] (IN)
-                         net (fo=8, unset)            0.973     3.973    gen_monitor_lite.u_axis_monitor_lite/cfg_timeout_cycles[11]
-    SLICE_X45Y99         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  gen_monitor_lite.u_axis_monitor_lite/r_q[1][15]_i_11/O
-                         net (fo=21, routed)          0.531     4.628    gen_monitor_lite.u_axis_monitor_lite/r_q[1][15]_i_11_n_0
-    SLICE_X45Y99         LUT6 (Prop_lut6_I3_O)        0.124     4.752 r  gen_monitor_lite.u_axis_monitor_lite/r_q[1][14]_i_8/O
-                         net (fo=66, routed)          1.391     6.143    gen_monitor_lite.u_axis_monitor_lite/r_q[1][14]_i_8_n_0
-    SLICE_X44Y102        LUT5 (Prop_lut5_I2_O)        0.124     6.267 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_15/O
-                         net (fo=1, routed)           0.000     6.267    gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_15_n_0
-    SLICE_X44Y102        CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     6.668 f  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_reg_i_9/CO[3]
-                         net (fo=1, routed)           0.623     7.291    gen_monitor_lite.u_axis_monitor_lite/w_tmo_pkt1
-    SLICE_X40Y102        LUT6 (Prop_lut6_I3_O)        0.124     7.415 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_8/O
-                         net (fo=2, routed)           0.170     7.585    gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_8_n_0
-    SLICE_X40Y102        LUT6 (Prop_lut6_I5_O)        0.124     7.709 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_2/O
-                         net (fo=24, routed)          0.915     8.624    gen_monitor_lite.u_axis_monitor_lite/cfg_timeout_enable_0
-    SLICE_X46Y105        LUT6 (Prop_lut6_I2_O)        0.124     8.748 f  gen_monitor_lite.u_axis_monitor_lite/r_q[1][82]_i_6/O
-                         net (fo=82, routed)          0.692     9.440    gen_monitor_lite.u_axis_monitor_lite/r_q[1][82]_i_6_n_0
-    SLICE_X47Y104        LUT4 (Prop_lut4_I1_O)        0.124     9.564 r  gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_5/O
-                         net (fo=2, routed)           0.584    10.148    gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_5_n_0
-    SLICE_X47Y105        LUT6 (Prop_lut6_I0_O)        0.124    10.272 r  gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_4/O
-                         net (fo=6, routed)           0.867    11.139    gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_4_n_0
-    SLICE_X47Y106        LUT6 (Prop_lut6_I4_O)        0.124    11.263 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_9/O
-                         net (fo=1, routed)           0.412    11.675    gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_9_n_0
-    SLICE_X45Y106        LUT6 (Prop_lut6_I4_O)        0.124    11.799 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_3/O
-                         net (fo=1, routed)           0.000    11.799    gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_3_n_0
-    SLICE_X45Y106        CARRY4 (Prop_carry4_S[2]_CO[3])
-                                                      0.398    12.197 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[3]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.197    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[3]_i_2_n_0
-    SLICE_X45Y107        CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114    12.311 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.311    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]_i_2_n_0
-    SLICE_X45Y108        CARRY4 (Prop_carry4_CI_O[3])
-                                                      0.313    12.624 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[11]_i_2/O[3]
-                         net (fo=1, routed)           0.291    12.915    gen_monitor_lite.u_axis_monitor_lite/r_dropped0[11]
-    SLICE_X43Y108        LUT5 (Prop_lut5_I4_O)        0.306    13.221 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[11]_i_1/O
-                         net (fo=1, routed)           0.000    13.221    gen_monitor_lite.u_axis_monitor_lite/r_dropped[11]_i_1_n_0
-    SLICE_X43Y108        FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[11]/D
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=934, unset)          0.973     0.973    gen_monitor_lite.u_axis_monitor_lite/aclk
+    SLICE_X45Y90         FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X45Y90         FDCE (Prop_fdce_C_Q)         0.456     1.429 r  gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[1]/Q
+                         net (fo=85, routed)          3.471     4.900    gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg_n_0_[1]
+    SLICE_X55Y83         LUT6 (Prop_lut6_I4_O)        0.124     5.024 r  gen_monitor_lite.u_axis_monitor_lite/monbus_packet[7]_INST_0/O
+                         net (fo=0)                   0.973     5.997    monbus_packet[7]
+                                                                      r  monbus_packet[7] (OUT)
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)      10.000    10.000 r  
-                                                      0.000    10.000 r  aclk (IN)
-                         net (fo=735, unset)          0.924    10.924    gen_monitor_lite.u_axis_monitor_lite/aclk
-    SLICE_X43Y108        FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[11]/C
-                         clock pessimism              0.000    10.924    
-                         clock uncertainty           -0.035    10.889    
-    SLICE_X43Y108        FDCE (Setup_fdce_C_D)        0.029    10.918    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[11]
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
   -------------------------------------------------------------------
-                         required time                         10.918    
-                         arrival time                         -13.221    
+                         required time                          6.965    
+                         arrival time                          -5.997    
   -------------------------------------------------------------------
-                         slack                                 -2.303    
+                         slack                                  0.967    
 
-Slack (VIOLATED) :        -2.282ns  (required time - arrival time)
-  Source:                 cfg_timeout_cycles[11]
-                            (input port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[12]/D
+Slack (MET) :             0.973ns  (required time - arrival time)
+  Source:                 gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[0]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[36]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
+  Path Type:              Max at Slow Process Corner
   Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
-  Data Path Delay:        10.248ns  (logic 2.788ns (27.206%)  route 7.460ns (72.794%))
-  Logic Levels:           16  (CARRY4=5 LUT4=1 LUT5=2 LUT6=8)
-  Input Delay:            3.000ns
-  Clock Path Skew:        0.924ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
-    Source Clock Delay      (SCD):    0.000ns
+  Data Path Delay:        5.019ns  (logic 0.580ns (11.557%)  route 4.439ns (88.443%))
+  Logic Levels:           1  (LUT6=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -0.973ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.973ns
     Clock Pessimism Removal (CPR):    0.000ns
   Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -618,76 +449,41 @@ Slack (VIOLATED) :        -2.282ns  (required time - arrival time)
     Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
-                         input delay                  3.000     3.000    
-                                                      0.000     3.000 f  cfg_timeout_cycles[11] (IN)
-                         net (fo=8, unset)            0.973     3.973    gen_monitor_lite.u_axis_monitor_lite/cfg_timeout_cycles[11]
-    SLICE_X45Y99         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  gen_monitor_lite.u_axis_monitor_lite/r_q[1][15]_i_11/O
-                         net (fo=21, routed)          0.531     4.628    gen_monitor_lite.u_axis_monitor_lite/r_q[1][15]_i_11_n_0
-    SLICE_X45Y99         LUT6 (Prop_lut6_I3_O)        0.124     4.752 r  gen_monitor_lite.u_axis_monitor_lite/r_q[1][14]_i_8/O
-                         net (fo=66, routed)          1.391     6.143    gen_monitor_lite.u_axis_monitor_lite/r_q[1][14]_i_8_n_0
-    SLICE_X44Y102        LUT5 (Prop_lut5_I2_O)        0.124     6.267 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_15/O
-                         net (fo=1, routed)           0.000     6.267    gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_15_n_0
-    SLICE_X44Y102        CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     6.668 f  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_reg_i_9/CO[3]
-                         net (fo=1, routed)           0.623     7.291    gen_monitor_lite.u_axis_monitor_lite/w_tmo_pkt1
-    SLICE_X40Y102        LUT6 (Prop_lut6_I3_O)        0.124     7.415 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_8/O
-                         net (fo=2, routed)           0.170     7.585    gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_8_n_0
-    SLICE_X40Y102        LUT6 (Prop_lut6_I5_O)        0.124     7.709 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_2/O
-                         net (fo=24, routed)          0.915     8.624    gen_monitor_lite.u_axis_monitor_lite/cfg_timeout_enable_0
-    SLICE_X46Y105        LUT6 (Prop_lut6_I2_O)        0.124     8.748 f  gen_monitor_lite.u_axis_monitor_lite/r_q[1][82]_i_6/O
-                         net (fo=82, routed)          0.692     9.440    gen_monitor_lite.u_axis_monitor_lite/r_q[1][82]_i_6_n_0
-    SLICE_X47Y104        LUT4 (Prop_lut4_I1_O)        0.124     9.564 r  gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_5/O
-                         net (fo=2, routed)           0.584    10.148    gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_5_n_0
-    SLICE_X47Y105        LUT6 (Prop_lut6_I0_O)        0.124    10.272 r  gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_4/O
-                         net (fo=6, routed)           0.867    11.139    gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_4_n_0
-    SLICE_X47Y106        LUT6 (Prop_lut6_I4_O)        0.124    11.263 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_9/O
-                         net (fo=1, routed)           0.412    11.675    gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_9_n_0
-    SLICE_X45Y106        LUT6 (Prop_lut6_I4_O)        0.124    11.799 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_3/O
-                         net (fo=1, routed)           0.000    11.799    gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_3_n_0
-    SLICE_X45Y106        CARRY4 (Prop_carry4_S[2]_CO[3])
-                                                      0.398    12.197 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[3]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.197    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[3]_i_2_n_0
-    SLICE_X45Y107        CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114    12.311 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.311    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]_i_2_n_0
-    SLICE_X45Y108        CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114    12.425 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[11]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.425    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[11]_i_2_n_0
-    SLICE_X45Y109        CARRY4 (Prop_carry4_CI_O[0])
-                                                      0.222    12.647 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[15]_i_4/O[0]
-                         net (fo=1, routed)           0.302    12.949    gen_monitor_lite.u_axis_monitor_lite/r_dropped0[12]
-    SLICE_X42Y109        LUT5 (Prop_lut5_I4_O)        0.299    13.248 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[12]_i_1/O
-                         net (fo=1, routed)           0.000    13.248    gen_monitor_lite.u_axis_monitor_lite/r_dropped[12]_i_1_n_0
-    SLICE_X42Y109        FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[12]/D
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=934, unset)          0.973     0.973    gen_monitor_lite.u_axis_monitor_lite/aclk
+    SLICE_X47Y88         FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X47Y88         FDCE (Prop_fdce_C_Q)         0.456     1.429 r  gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[0]/Q
+                         net (fo=86, routed)          3.466     4.895    gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg_n_0_[0]
+    SLICE_X36Y82         LUT6 (Prop_lut6_I3_O)        0.124     5.019 r  gen_monitor_lite.u_axis_monitor_lite/monbus_packet[36]_INST_0/O
+                         net (fo=0)                   0.973     5.992    monbus_packet[36]
+                                                                      r  monbus_packet[36] (OUT)
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)      10.000    10.000 r  
-                                                      0.000    10.000 r  aclk (IN)
-                         net (fo=735, unset)          0.924    10.924    gen_monitor_lite.u_axis_monitor_lite/aclk
-    SLICE_X42Y109        FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[12]/C
-                         clock pessimism              0.000    10.924    
-                         clock uncertainty           -0.035    10.889    
-    SLICE_X42Y109        FDCE (Setup_fdce_C_D)        0.077    10.966    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[12]
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
   -------------------------------------------------------------------
-                         required time                         10.966    
-                         arrival time                         -13.248    
+                         required time                          6.965    
+                         arrival time                          -5.992    
   -------------------------------------------------------------------
-                         slack                                 -2.282    
+                         slack                                  0.973    
 
-Slack (VIOLATED) :        -2.223ns  (required time - arrival time)
-  Source:                 cfg_timeout_cycles[11]
-                            (input port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[10]/D
+Slack (MET) :             1.004ns  (required time - arrival time)
+  Source:                 gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[1]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[1]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
+  Path Type:              Max at Slow Process Corner
   Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
-  Data Path Delay:        10.144ns  (logic 2.694ns (26.559%)  route 7.450ns (73.441%))
-  Logic Levels:           15  (CARRY4=4 LUT4=1 LUT5=2 LUT6=8)
-  Input Delay:            3.000ns
-  Clock Path Skew:        0.924ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
-    Source Clock Delay      (SCD):    0.000ns
+  Data Path Delay:        4.987ns  (logic 0.580ns (11.630%)  route 4.407ns (88.370%))
+  Logic Levels:           1  (LUT6=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -0.973ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.973ns
     Clock Pessimism Removal (CPR):    0.000ns
   Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -698,73 +494,41 @@ Slack (VIOLATED) :        -2.223ns  (required time - arrival time)
     Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
-                         input delay                  3.000     3.000    
-                                                      0.000     3.000 f  cfg_timeout_cycles[11] (IN)
-                         net (fo=8, unset)            0.973     3.973    gen_monitor_lite.u_axis_monitor_lite/cfg_timeout_cycles[11]
-    SLICE_X45Y99         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  gen_monitor_lite.u_axis_monitor_lite/r_q[1][15]_i_11/O
-                         net (fo=21, routed)          0.531     4.628    gen_monitor_lite.u_axis_monitor_lite/r_q[1][15]_i_11_n_0
-    SLICE_X45Y99         LUT6 (Prop_lut6_I3_O)        0.124     4.752 r  gen_monitor_lite.u_axis_monitor_lite/r_q[1][14]_i_8/O
-                         net (fo=66, routed)          1.391     6.143    gen_monitor_lite.u_axis_monitor_lite/r_q[1][14]_i_8_n_0
-    SLICE_X44Y102        LUT5 (Prop_lut5_I2_O)        0.124     6.267 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_15/O
-                         net (fo=1, routed)           0.000     6.267    gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_15_n_0
-    SLICE_X44Y102        CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     6.668 f  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_reg_i_9/CO[3]
-                         net (fo=1, routed)           0.623     7.291    gen_monitor_lite.u_axis_monitor_lite/w_tmo_pkt1
-    SLICE_X40Y102        LUT6 (Prop_lut6_I3_O)        0.124     7.415 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_8/O
-                         net (fo=2, routed)           0.170     7.585    gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_8_n_0
-    SLICE_X40Y102        LUT6 (Prop_lut6_I5_O)        0.124     7.709 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_2/O
-                         net (fo=24, routed)          0.915     8.624    gen_monitor_lite.u_axis_monitor_lite/cfg_timeout_enable_0
-    SLICE_X46Y105        LUT6 (Prop_lut6_I2_O)        0.124     8.748 f  gen_monitor_lite.u_axis_monitor_lite/r_q[1][82]_i_6/O
-                         net (fo=82, routed)          0.692     9.440    gen_monitor_lite.u_axis_monitor_lite/r_q[1][82]_i_6_n_0
-    SLICE_X47Y104        LUT4 (Prop_lut4_I1_O)        0.124     9.564 r  gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_5/O
-                         net (fo=2, routed)           0.584    10.148    gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_5_n_0
-    SLICE_X47Y105        LUT6 (Prop_lut6_I0_O)        0.124    10.272 r  gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_4/O
-                         net (fo=6, routed)           0.867    11.139    gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_4_n_0
-    SLICE_X47Y106        LUT6 (Prop_lut6_I4_O)        0.124    11.263 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_9/O
-                         net (fo=1, routed)           0.412    11.675    gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_9_n_0
-    SLICE_X45Y106        LUT6 (Prop_lut6_I4_O)        0.124    11.799 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_3/O
-                         net (fo=1, routed)           0.000    11.799    gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_3_n_0
-    SLICE_X45Y106        CARRY4 (Prop_carry4_S[2]_CO[3])
-                                                      0.398    12.197 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[3]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.197    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[3]_i_2_n_0
-    SLICE_X45Y107        CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114    12.311 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.311    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]_i_2_n_0
-    SLICE_X45Y108        CARRY4 (Prop_carry4_CI_O[2])
-                                                      0.239    12.550 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[11]_i_2/O[2]
-                         net (fo=1, routed)           0.292    12.842    gen_monitor_lite.u_axis_monitor_lite/r_dropped0[10]
-    SLICE_X43Y108        LUT5 (Prop_lut5_I4_O)        0.302    13.144 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[10]_i_1/O
-                         net (fo=1, routed)           0.000    13.144    gen_monitor_lite.u_axis_monitor_lite/r_dropped[10]_i_1_n_0
-    SLICE_X43Y108        FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[10]/D
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=934, unset)          0.973     0.973    gen_monitor_lite.u_axis_monitor_lite/aclk
+    SLICE_X45Y90         FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X45Y90         FDCE (Prop_fdce_C_Q)         0.456     1.429 r  gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[1]/Q
+                         net (fo=85, routed)          3.434     4.863    gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg_n_0_[1]
+    SLICE_X55Y82         LUT6 (Prop_lut6_I3_O)        0.124     4.987 r  gen_monitor_lite.u_axis_monitor_lite/monbus_packet[1]_INST_0/O
+                         net (fo=0)                   0.973     5.960    monbus_packet[1]
+                                                                      r  monbus_packet[1] (OUT)
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)      10.000    10.000 r  
-                                                      0.000    10.000 r  aclk (IN)
-                         net (fo=735, unset)          0.924    10.924    gen_monitor_lite.u_axis_monitor_lite/aclk
-    SLICE_X43Y108        FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[10]/C
-                         clock pessimism              0.000    10.924    
-                         clock uncertainty           -0.035    10.889    
-    SLICE_X43Y108        FDCE (Setup_fdce_C_D)        0.032    10.921    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[10]
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
   -------------------------------------------------------------------
-                         required time                         10.921    
-                         arrival time                         -13.144    
+                         required time                          6.965    
+                         arrival time                          -5.960    
   -------------------------------------------------------------------
-                         slack                                 -2.223    
+                         slack                                  1.004    
 
-Slack (VIOLATED) :        -2.217ns  (required time - arrival time)
-  Source:                 cfg_timeout_cycles[11]
-                            (input port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[5]/D
+Slack (MET) :             1.006ns  (required time - arrival time)
+  Source:                 gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[1]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[23]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
+  Path Type:              Max at Slow Process Corner
   Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
-  Data Path Delay:        10.137ns  (logic 2.676ns (26.398%)  route 7.461ns (73.602%))
-  Logic Levels:           14  (CARRY4=3 LUT4=1 LUT5=2 LUT6=8)
-  Input Delay:            3.000ns
-  Clock Path Skew:        0.924ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
-    Source Clock Delay      (SCD):    0.000ns
+  Data Path Delay:        4.986ns  (logic 0.580ns (11.634%)  route 4.406ns (88.366%))
+  Logic Levels:           1  (LUT6=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -0.973ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.973ns
     Clock Pessimism Removal (CPR):    0.000ns
   Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -775,70 +539,41 @@ Slack (VIOLATED) :        -2.217ns  (required time - arrival time)
     Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
-                         input delay                  3.000     3.000    
-                                                      0.000     3.000 f  cfg_timeout_cycles[11] (IN)
-                         net (fo=8, unset)            0.973     3.973    gen_monitor_lite.u_axis_monitor_lite/cfg_timeout_cycles[11]
-    SLICE_X45Y99         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  gen_monitor_lite.u_axis_monitor_lite/r_q[1][15]_i_11/O
-                         net (fo=21, routed)          0.531     4.628    gen_monitor_lite.u_axis_monitor_lite/r_q[1][15]_i_11_n_0
-    SLICE_X45Y99         LUT6 (Prop_lut6_I3_O)        0.124     4.752 r  gen_monitor_lite.u_axis_monitor_lite/r_q[1][14]_i_8/O
-                         net (fo=66, routed)          1.391     6.143    gen_monitor_lite.u_axis_monitor_lite/r_q[1][14]_i_8_n_0
-    SLICE_X44Y102        LUT5 (Prop_lut5_I2_O)        0.124     6.267 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_15/O
-                         net (fo=1, routed)           0.000     6.267    gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_15_n_0
-    SLICE_X44Y102        CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     6.668 f  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_reg_i_9/CO[3]
-                         net (fo=1, routed)           0.623     7.291    gen_monitor_lite.u_axis_monitor_lite/w_tmo_pkt1
-    SLICE_X40Y102        LUT6 (Prop_lut6_I3_O)        0.124     7.415 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_8/O
-                         net (fo=2, routed)           0.170     7.585    gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_8_n_0
-    SLICE_X40Y102        LUT6 (Prop_lut6_I5_O)        0.124     7.709 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_2/O
-                         net (fo=24, routed)          0.915     8.624    gen_monitor_lite.u_axis_monitor_lite/cfg_timeout_enable_0
-    SLICE_X46Y105        LUT6 (Prop_lut6_I2_O)        0.124     8.748 f  gen_monitor_lite.u_axis_monitor_lite/r_q[1][82]_i_6/O
-                         net (fo=82, routed)          0.692     9.440    gen_monitor_lite.u_axis_monitor_lite/r_q[1][82]_i_6_n_0
-    SLICE_X47Y104        LUT4 (Prop_lut4_I1_O)        0.124     9.564 r  gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_5/O
-                         net (fo=2, routed)           0.584    10.148    gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_5_n_0
-    SLICE_X47Y105        LUT6 (Prop_lut6_I0_O)        0.124    10.272 r  gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_4/O
-                         net (fo=6, routed)           0.867    11.139    gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_4_n_0
-    SLICE_X47Y106        LUT6 (Prop_lut6_I4_O)        0.124    11.263 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_9/O
-                         net (fo=1, routed)           0.412    11.675    gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_9_n_0
-    SLICE_X45Y106        LUT6 (Prop_lut6_I4_O)        0.124    11.799 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_3/O
-                         net (fo=1, routed)           0.000    11.799    gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_3_n_0
-    SLICE_X45Y106        CARRY4 (Prop_carry4_S[2]_CO[3])
-                                                      0.398    12.197 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[3]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.197    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[3]_i_2_n_0
-    SLICE_X45Y107        CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.334    12.531 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]_i_2/O[1]
-                         net (fo=1, routed)           0.303    12.834    gen_monitor_lite.u_axis_monitor_lite/r_dropped0[5]
-    SLICE_X44Y108        LUT5 (Prop_lut5_I4_O)        0.303    13.137 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[5]_i_1/O
-                         net (fo=1, routed)           0.000    13.137    gen_monitor_lite.u_axis_monitor_lite/r_dropped[5]_i_1_n_0
-    SLICE_X44Y108        FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[5]/D
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=934, unset)          0.973     0.973    gen_monitor_lite.u_axis_monitor_lite/aclk
+    SLICE_X45Y90         FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X45Y90         FDCE (Prop_fdce_C_Q)         0.456     1.429 r  gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[1]/Q
+                         net (fo=85, routed)          3.433     4.862    gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg_n_0_[1]
+    SLICE_X53Y94         LUT6 (Prop_lut6_I4_O)        0.124     4.986 r  gen_monitor_lite.u_axis_monitor_lite/monbus_packet[23]_INST_0/O
+                         net (fo=0)                   0.973     5.959    monbus_packet[23]
+                                                                      r  monbus_packet[23] (OUT)
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)      10.000    10.000 r  
-                                                      0.000    10.000 r  aclk (IN)
-                         net (fo=735, unset)          0.924    10.924    gen_monitor_lite.u_axis_monitor_lite/aclk
-    SLICE_X44Y108        FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[5]/C
-                         clock pessimism              0.000    10.924    
-                         clock uncertainty           -0.035    10.889    
-    SLICE_X44Y108        FDCE (Setup_fdce_C_D)        0.031    10.920    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[5]
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
   -------------------------------------------------------------------
-                         required time                         10.920    
-                         arrival time                         -13.137    
+                         required time                          6.965    
+                         arrival time                          -5.959    
   -------------------------------------------------------------------
-                         slack                                 -2.217    
+                         slack                                  1.006    
 
-Slack (VIOLATED) :        -2.215ns  (required time - arrival time)
-  Source:                 cfg_timeout_cycles[11]
-                            (input port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[8]/D
+Slack (MET) :             1.031ns  (required time - arrival time)
+  Source:                 gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[0]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[90]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
+  Path Type:              Max at Slow Process Corner
   Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
-  Data Path Delay:        10.135ns  (logic 2.674ns (26.383%)  route 7.461ns (73.617%))
-  Logic Levels:           15  (CARRY4=4 LUT4=1 LUT5=2 LUT6=8)
-  Input Delay:            3.000ns
-  Clock Path Skew:        0.924ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
-    Source Clock Delay      (SCD):    0.000ns
+  Data Path Delay:        4.960ns  (logic 0.580ns (11.693%)  route 4.380ns (88.307%))
+  Logic Levels:           1  (LUT6=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -0.973ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.973ns
     Clock Pessimism Removal (CPR):    0.000ns
   Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -849,73 +584,41 @@ Slack (VIOLATED) :        -2.215ns  (required time - arrival time)
     Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
-                         input delay                  3.000     3.000    
-                                                      0.000     3.000 f  cfg_timeout_cycles[11] (IN)
-                         net (fo=8, unset)            0.973     3.973    gen_monitor_lite.u_axis_monitor_lite/cfg_timeout_cycles[11]
-    SLICE_X45Y99         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  gen_monitor_lite.u_axis_monitor_lite/r_q[1][15]_i_11/O
-                         net (fo=21, routed)          0.531     4.628    gen_monitor_lite.u_axis_monitor_lite/r_q[1][15]_i_11_n_0
-    SLICE_X45Y99         LUT6 (Prop_lut6_I3_O)        0.124     4.752 r  gen_monitor_lite.u_axis_monitor_lite/r_q[1][14]_i_8/O
-                         net (fo=66, routed)          1.391     6.143    gen_monitor_lite.u_axis_monitor_lite/r_q[1][14]_i_8_n_0
-    SLICE_X44Y102        LUT5 (Prop_lut5_I2_O)        0.124     6.267 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_15/O
-                         net (fo=1, routed)           0.000     6.267    gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_15_n_0
-    SLICE_X44Y102        CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     6.668 f  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_reg_i_9/CO[3]
-                         net (fo=1, routed)           0.623     7.291    gen_monitor_lite.u_axis_monitor_lite/w_tmo_pkt1
-    SLICE_X40Y102        LUT6 (Prop_lut6_I3_O)        0.124     7.415 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_8/O
-                         net (fo=2, routed)           0.170     7.585    gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_8_n_0
-    SLICE_X40Y102        LUT6 (Prop_lut6_I5_O)        0.124     7.709 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_2/O
-                         net (fo=24, routed)          0.915     8.624    gen_monitor_lite.u_axis_monitor_lite/cfg_timeout_enable_0
-    SLICE_X46Y105        LUT6 (Prop_lut6_I2_O)        0.124     8.748 f  gen_monitor_lite.u_axis_monitor_lite/r_q[1][82]_i_6/O
-                         net (fo=82, routed)          0.692     9.440    gen_monitor_lite.u_axis_monitor_lite/r_q[1][82]_i_6_n_0
-    SLICE_X47Y104        LUT4 (Prop_lut4_I1_O)        0.124     9.564 r  gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_5/O
-                         net (fo=2, routed)           0.584    10.148    gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_5_n_0
-    SLICE_X47Y105        LUT6 (Prop_lut6_I0_O)        0.124    10.272 r  gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_4/O
-                         net (fo=6, routed)           0.867    11.139    gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_4_n_0
-    SLICE_X47Y106        LUT6 (Prop_lut6_I4_O)        0.124    11.263 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_9/O
-                         net (fo=1, routed)           0.412    11.675    gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_9_n_0
-    SLICE_X45Y106        LUT6 (Prop_lut6_I4_O)        0.124    11.799 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_3/O
-                         net (fo=1, routed)           0.000    11.799    gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_3_n_0
-    SLICE_X45Y106        CARRY4 (Prop_carry4_S[2]_CO[3])
-                                                      0.398    12.197 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[3]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.197    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[3]_i_2_n_0
-    SLICE_X45Y107        CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114    12.311 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.311    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]_i_2_n_0
-    SLICE_X45Y108        CARRY4 (Prop_carry4_CI_O[0])
-                                                      0.222    12.533 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[11]_i_2/O[0]
-                         net (fo=1, routed)           0.303    12.836    gen_monitor_lite.u_axis_monitor_lite/r_dropped0[8]
-    SLICE_X44Y107        LUT5 (Prop_lut5_I4_O)        0.299    13.135 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[8]_i_1/O
-                         net (fo=1, routed)           0.000    13.135    gen_monitor_lite.u_axis_monitor_lite/r_dropped[8]_i_1_n_0
-    SLICE_X44Y107        FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[8]/D
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=934, unset)          0.973     0.973    gen_monitor_lite.u_axis_monitor_lite/aclk
+    SLICE_X47Y88         FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X47Y88         FDCE (Prop_fdce_C_Q)         0.456     1.429 r  gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[0]/Q
+                         net (fo=86, routed)          3.407     4.836    gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg_n_0_[0]
+    SLICE_X41Y80         LUT6 (Prop_lut6_I3_O)        0.124     4.960 r  gen_monitor_lite.u_axis_monitor_lite/monbus_packet[90]_INST_0/O
+                         net (fo=0)                   0.973     5.933    monbus_packet[90]
+                                                                      r  monbus_packet[90] (OUT)
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)      10.000    10.000 r  
-                                                      0.000    10.000 r  aclk (IN)
-                         net (fo=735, unset)          0.924    10.924    gen_monitor_lite.u_axis_monitor_lite/aclk
-    SLICE_X44Y107        FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[8]/C
-                         clock pessimism              0.000    10.924    
-                         clock uncertainty           -0.035    10.889    
-    SLICE_X44Y107        FDCE (Setup_fdce_C_D)        0.031    10.920    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[8]
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
   -------------------------------------------------------------------
-                         required time                         10.920    
-                         arrival time                         -13.135    
+                         required time                          6.965    
+                         arrival time                          -5.933    
   -------------------------------------------------------------------
-                         slack                                 -2.215    
+                         slack                                  1.031    
 
-Slack (VIOLATED) :        -2.145ns  (required time - arrival time)
-  Source:                 cfg_timeout_cycles[11]
-                            (input port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]/D
+Slack (MET) :             1.127ns  (required time - arrival time)
+  Source:                 gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[0]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[39]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
+  Path Type:              Max at Slow Process Corner
   Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
-  Data Path Delay:        10.115ns  (logic 2.658ns (26.279%)  route 7.457ns (73.721%))
-  Logic Levels:           14  (CARRY4=3 LUT4=1 LUT5=2 LUT6=8)
-  Input Delay:            3.000ns
-  Clock Path Skew:        0.924ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
-    Source Clock Delay      (SCD):    0.000ns
+  Data Path Delay:        4.864ns  (logic 0.580ns (11.924%)  route 4.284ns (88.076%))
+  Logic Levels:           1  (LUT6=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -0.973ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.973ns
     Clock Pessimism Removal (CPR):    0.000ns
   Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -926,55 +629,26 @@ Slack (VIOLATED) :        -2.145ns  (required time - arrival time)
     Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
-                         input delay                  3.000     3.000    
-                                                      0.000     3.000 f  cfg_timeout_cycles[11] (IN)
-                         net (fo=8, unset)            0.973     3.973    gen_monitor_lite.u_axis_monitor_lite/cfg_timeout_cycles[11]
-    SLICE_X45Y99         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  gen_monitor_lite.u_axis_monitor_lite/r_q[1][15]_i_11/O
-                         net (fo=21, routed)          0.531     4.628    gen_monitor_lite.u_axis_monitor_lite/r_q[1][15]_i_11_n_0
-    SLICE_X45Y99         LUT6 (Prop_lut6_I3_O)        0.124     4.752 r  gen_monitor_lite.u_axis_monitor_lite/r_q[1][14]_i_8/O
-                         net (fo=66, routed)          1.391     6.143    gen_monitor_lite.u_axis_monitor_lite/r_q[1][14]_i_8_n_0
-    SLICE_X44Y102        LUT5 (Prop_lut5_I2_O)        0.124     6.267 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_15/O
-                         net (fo=1, routed)           0.000     6.267    gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_15_n_0
-    SLICE_X44Y102        CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     6.668 f  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_reg_i_9/CO[3]
-                         net (fo=1, routed)           0.623     7.291    gen_monitor_lite.u_axis_monitor_lite/w_tmo_pkt1
-    SLICE_X40Y102        LUT6 (Prop_lut6_I3_O)        0.124     7.415 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_8/O
-                         net (fo=2, routed)           0.170     7.585    gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_8_n_0
-    SLICE_X40Y102        LUT6 (Prop_lut6_I5_O)        0.124     7.709 r  gen_monitor_lite.u_axis_monitor_lite/r_tmo_pkt_fired_i_2/O
-                         net (fo=24, routed)          0.915     8.624    gen_monitor_lite.u_axis_monitor_lite/cfg_timeout_enable_0
-    SLICE_X46Y105        LUT6 (Prop_lut6_I2_O)        0.124     8.748 f  gen_monitor_lite.u_axis_monitor_lite/r_q[1][82]_i_6/O
-                         net (fo=82, routed)          0.692     9.440    gen_monitor_lite.u_axis_monitor_lite/r_q[1][82]_i_6_n_0
-    SLICE_X47Y104        LUT4 (Prop_lut4_I1_O)        0.124     9.564 r  gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_5/O
-                         net (fo=2, routed)           0.584    10.148    gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_5_n_0
-    SLICE_X47Y105        LUT6 (Prop_lut6_I0_O)        0.124    10.272 r  gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_4/O
-                         net (fo=6, routed)           0.867    11.139    gen_monitor_lite.u_axis_monitor_lite/r_q[2][83]_i_4_n_0
-    SLICE_X47Y106        LUT6 (Prop_lut6_I4_O)        0.124    11.263 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_9/O
-                         net (fo=1, routed)           0.412    11.675    gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_9_n_0
-    SLICE_X45Y106        LUT6 (Prop_lut6_I4_O)        0.124    11.799 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_3/O
-                         net (fo=1, routed)           0.000    11.799    gen_monitor_lite.u_axis_monitor_lite/r_dropped[3]_i_3_n_0
-    SLICE_X45Y106        CARRY4 (Prop_carry4_S[2]_CO[3])
-                                                      0.398    12.197 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[3]_i_2/CO[3]
-                         net (fo=1, routed)           0.000    12.197    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[3]_i_2_n_0
-    SLICE_X45Y107        CARRY4 (Prop_carry4_CI_O[3])
-                                                      0.313    12.510 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]_i_2/O[3]
-                         net (fo=1, routed)           0.299    12.809    gen_monitor_lite.u_axis_monitor_lite/r_dropped0[7]
-    SLICE_X42Y107        LUT5 (Prop_lut5_I4_O)        0.306    13.115 r  gen_monitor_lite.u_axis_monitor_lite/r_dropped[7]_i_1/O
-                         net (fo=1, routed)           0.000    13.115    gen_monitor_lite.u_axis_monitor_lite/r_dropped[7]_i_1_n_0
-    SLICE_X42Y107        FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]/D
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=934, unset)          0.973     0.973    gen_monitor_lite.u_axis_monitor_lite/aclk
+    SLICE_X47Y88         FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X47Y88         FDCE (Prop_fdce_C_Q)         0.456     1.429 r  gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg[0]/Q
+                         net (fo=86, routed)          3.311     4.740    gen_monitor_lite.u_axis_monitor_lite/r_q_rp_reg_n_0_[0]
+    SLICE_X30Y81         LUT6 (Prop_lut6_I3_O)        0.124     4.864 r  gen_monitor_lite.u_axis_monitor_lite/monbus_packet[39]_INST_0/O
+                         net (fo=0)                   0.973     5.837    monbus_packet[39]
+                                                                      r  monbus_packet[39] (OUT)
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)      10.000    10.000 r  
-                                                      0.000    10.000 r  aclk (IN)
-                         net (fo=735, unset)          0.924    10.924    gen_monitor_lite.u_axis_monitor_lite/aclk
-    SLICE_X42Y107        FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]/C
-                         clock pessimism              0.000    10.924    
-                         clock uncertainty           -0.035    10.889    
-    SLICE_X42Y107        FDCE (Setup_fdce_C_D)        0.081    10.970    gen_monitor_lite.u_axis_monitor_lite/r_dropped_reg[7]
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
   -------------------------------------------------------------------
-                         required time                         10.970    
-                         arrival time                         -13.115    
+                         required time                          6.965    
+                         arrival time                          -5.837    
   -------------------------------------------------------------------
-                         slack                                 -2.145    
+                         slack                                  1.127    
 
 
 
@@ -1001,37 +675,76 @@ Slack (MET) :             0.098ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=735, unset)          0.410     0.410    u_core/t_channel/aclk
-    SLICE_X47Y89         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][32]/C
+                         net (fo=934, unset)          0.410     0.410    u_core/t_channel/aclk
+    SLICE_X47Y71         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][32]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X47Y89         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_core/t_channel/g_slot[1].r_data_reg[1][32]/Q
+    SLICE_X47Y71         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_core/t_channel/g_slot[1].r_data_reg[1][32]/Q
                          net (fo=1, routed)           0.054     0.605    u_core/t_channel/g_slot[1].r_data_reg[1][32]
-    SLICE_X46Y89         LUT5 (Prop_lut5_I4_O)        0.045     0.650 r  u_core/t_channel/g_slot[0].r_data[0][32]_i_1/O
+    SLICE_X46Y71         LUT5 (Prop_lut5_I4_O)        0.045     0.650 r  u_core/t_channel/g_slot[0].r_data[0][32]_i_1/O
                          net (fo=1, routed)           0.000     0.650    u_core/t_channel/g_slot[0].r_data[0][32]_i_1_n_0
-    SLICE_X46Y89         FDCE                                         r  u_core/t_channel/g_slot[0].r_data_reg[0][32]/D
+    SLICE_X46Y71         FDCE                                         r  u_core/t_channel/g_slot[0].r_data_reg[0][32]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=735, unset)          0.432     0.432    u_core/t_channel/aclk
-    SLICE_X46Y89         FDCE                                         r  u_core/t_channel/g_slot[0].r_data_reg[0][32]/C
+                         net (fo=934, unset)          0.432     0.432    u_core/t_channel/aclk
+    SLICE_X46Y71         FDCE                                         r  u_core/t_channel/g_slot[0].r_data_reg[0][32]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X46Y89         FDCE (Hold_fdce_C_D)         0.121     0.553    u_core/t_channel/g_slot[0].r_data_reg[0][32]
+    SLICE_X46Y71         FDCE (Hold_fdce_C_D)         0.121     0.553    u_core/t_channel/g_slot[0].r_data_reg[0][32]
   -------------------------------------------------------------------
                          required time                         -0.553    
                          arrival time                           0.650    
   -------------------------------------------------------------------
                          slack                                  0.098    
 
-Slack (MET) :             0.098ns  (arrival time - required time)
-  Source:                 u_core/t_channel/g_slot[2].r_data_reg[2][36]/C
+Slack (MET) :             0.116ns  (arrival time - required time)
+  Source:                 gen_monitor_lite.u_axis_monitor_lite/r_stall_cycles_reg[31]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_core/t_channel/g_slot[1].r_data_reg[1][36]/D
+  Destination:            gen_monitor_lite.u_axis_monitor_lite/r_e_stall_cycles_reg[31]/D
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
-  Data Path Delay:        0.240ns  (logic 0.186ns (77.466%)  route 0.054ns (22.534%))
+  Data Path Delay:        0.209ns  (logic 0.141ns (67.454%)  route 0.068ns (32.546%))
+  Logic Levels:           0  
+  Clock Path Skew:        0.022ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.432ns
+    Source Clock Delay      (SCD):    0.410ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=934, unset)          0.410     0.410    gen_monitor_lite.u_axis_monitor_lite/aclk
+    SLICE_X31Y93         FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_stall_cycles_reg[31]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X31Y93         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  gen_monitor_lite.u_axis_monitor_lite/r_stall_cycles_reg[31]/Q
+                         net (fo=4, routed)           0.068     0.619    gen_monitor_lite.u_axis_monitor_lite/r_stall_cycles[31]
+    SLICE_X31Y93         FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_e_stall_cycles_reg[31]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=934, unset)          0.432     0.432    gen_monitor_lite.u_axis_monitor_lite/aclk
+    SLICE_X31Y93         FDCE                                         r  gen_monitor_lite.u_axis_monitor_lite/r_e_stall_cycles_reg[31]/C
+                         clock pessimism              0.000     0.432    
+    SLICE_X31Y93         FDCE (Hold_fdce_C_D)         0.071     0.503    gen_monitor_lite.u_axis_monitor_lite/r_e_stall_cycles_reg[31]
+  -------------------------------------------------------------------
+                         required time                         -0.503    
+                         arrival time                           0.619    
+  -------------------------------------------------------------------
+                         slack                                  0.116    
+
+Slack (MET) :             0.130ns  (arrival time - required time)
+  Source:                 u_core/t_channel/g_slot[2].r_data_reg[2][25]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_core/t_channel/g_slot[1].r_data_reg[1][25]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.243ns  (logic 0.186ns (76.391%)  route 0.057ns (23.609%))
   Logic Levels:           1  (LUT5=1)
   Clock Path Skew:        0.022ns (DCD - SCD - CPR)
     Destination Clock Delay (DCD):    0.432ns
@@ -1042,32 +755,73 @@ Slack (MET) :             0.098ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=735, unset)          0.410     0.410    u_core/t_channel/aclk
-    SLICE_X39Y89         FDCE                                         r  u_core/t_channel/g_slot[2].r_data_reg[2][36]/C
+                         net (fo=934, unset)          0.410     0.410    u_core/t_channel/aclk
+    SLICE_X41Y69         FDCE                                         r  u_core/t_channel/g_slot[2].r_data_reg[2][25]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X39Y89         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_core/t_channel/g_slot[2].r_data_reg[2][36]/Q
-                         net (fo=1, routed)           0.054     0.605    u_core/t_channel/g_slot[2].r_data_reg[2][36]
-    SLICE_X38Y89         LUT5 (Prop_lut5_I4_O)        0.045     0.650 r  u_core/t_channel/g_slot[1].r_data[1][36]_i_1/O
-                         net (fo=1, routed)           0.000     0.650    u_core/t_channel/g_slot[1].r_data[1][36]_i_1_n_0
-    SLICE_X38Y89         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][36]/D
+    SLICE_X41Y69         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_core/t_channel/g_slot[2].r_data_reg[2][25]/Q
+                         net (fo=1, routed)           0.057     0.609    u_core/t_channel/g_slot[2].r_data_reg[2][25]
+    SLICE_X40Y69         LUT5 (Prop_lut5_I4_O)        0.045     0.654 r  u_core/t_channel/g_slot[1].r_data[1][25]_i_1/O
+                         net (fo=1, routed)           0.000     0.654    u_core/t_channel/g_slot[1].r_data[1][25]_i_1_n_0
+    SLICE_X40Y69         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][25]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=735, unset)          0.432     0.432    u_core/t_channel/aclk
-    SLICE_X38Y89         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][36]/C
+                         net (fo=934, unset)          0.432     0.432    u_core/t_channel/aclk
+    SLICE_X40Y69         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][25]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X38Y89         FDCE (Hold_fdce_C_D)         0.121     0.553    u_core/t_channel/g_slot[1].r_data_reg[1][36]
+    SLICE_X40Y69         FDCE (Hold_fdce_C_D)         0.092     0.524    u_core/t_channel/g_slot[1].r_data_reg[1][25]
   -------------------------------------------------------------------
-                         required time                         -0.553    
-                         arrival time                           0.650    
+                         required time                         -0.524    
+                         arrival time                           0.654    
   -------------------------------------------------------------------
-                         slack                                  0.098    
+                         slack                                  0.130    
+
+Slack (MET) :             0.130ns  (arrival time - required time)
+  Source:                 u_core/t_channel/g_slot[3].r_data_reg[3][14]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_core/t_channel/g_slot[2].r_data_reg[2][14]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.243ns  (logic 0.186ns (76.391%)  route 0.057ns (23.609%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.022ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.432ns
+    Source Clock Delay      (SCD):    0.410ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=934, unset)          0.410     0.410    u_core/t_channel/aclk
+    SLICE_X41Y72         FDCE                                         r  u_core/t_channel/g_slot[3].r_data_reg[3][14]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X41Y72         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_core/t_channel/g_slot[3].r_data_reg[3][14]/Q
+                         net (fo=1, routed)           0.057     0.609    u_core/t_channel/g_slot[3].r_data_reg[3][14]
+    SLICE_X40Y72         LUT5 (Prop_lut5_I4_O)        0.045     0.654 r  u_core/t_channel/g_slot[2].r_data[2][14]_i_1/O
+                         net (fo=1, routed)           0.000     0.654    u_core/t_channel/g_slot[2].r_data[2][14]_i_1_n_0
+    SLICE_X40Y72         FDCE                                         r  u_core/t_channel/g_slot[2].r_data_reg[2][14]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=934, unset)          0.432     0.432    u_core/t_channel/aclk
+    SLICE_X40Y72         FDCE                                         r  u_core/t_channel/g_slot[2].r_data_reg[2][14]/C
+                         clock pessimism              0.000     0.432    
+    SLICE_X40Y72         FDCE (Hold_fdce_C_D)         0.092     0.524    u_core/t_channel/g_slot[2].r_data_reg[2][14]
+  -------------------------------------------------------------------
+                         required time                         -0.524    
+                         arrival time                           0.654    
+  -------------------------------------------------------------------
+                         slack                                  0.130    
 
 Slack (MET) :             0.131ns  (arrival time - required time)
-  Source:                 u_core/t_channel/g_slot[1].r_data_reg[1][0]/C
+  Source:                 u_core/t_channel/g_slot[2].r_data_reg[2][45]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_core/t_channel/g_slot[0].r_data_reg[0][0]/D
+  Destination:            u_core/t_channel/g_slot[1].r_data_reg[1][45]/D
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
   Path Type:              Hold (Min at Fast Process Corner)
@@ -1083,22 +837,22 @@ Slack (MET) :             0.131ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=735, unset)          0.410     0.410    u_core/t_channel/aclk
-    SLICE_X53Y88         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][0]/C
+                         net (fo=934, unset)          0.410     0.410    u_core/t_channel/aclk
+    SLICE_X41Y70         FDCE                                         r  u_core/t_channel/g_slot[2].r_data_reg[2][45]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X53Y88         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_core/t_channel/g_slot[1].r_data_reg[1][0]/Q
-                         net (fo=1, routed)           0.058     0.609    u_core/t_channel/g_slot[1].r_data_reg[1][0]
-    SLICE_X52Y88         LUT5 (Prop_lut5_I4_O)        0.045     0.654 r  u_core/t_channel/g_slot[0].r_data[0][0]_i_1/O
-                         net (fo=1, routed)           0.000     0.654    u_core/t_channel/g_slot[0].r_data[0][0]_i_1_n_0
-    SLICE_X52Y88         FDCE                                         r  u_core/t_channel/g_slot[0].r_data_reg[0][0]/D
+    SLICE_X41Y70         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_core/t_channel/g_slot[2].r_data_reg[2][45]/Q
+                         net (fo=1, routed)           0.058     0.609    u_core/t_channel/g_slot[2].r_data_reg[2][45]
+    SLICE_X40Y70         LUT5 (Prop_lut5_I4_O)        0.045     0.654 r  u_core/t_channel/g_slot[1].r_data[1][45]_i_1/O
+                         net (fo=1, routed)           0.000     0.654    u_core/t_channel/g_slot[1].r_data[1][45]_i_1_n_0
+    SLICE_X40Y70         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][45]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=735, unset)          0.432     0.432    u_core/t_channel/aclk
-    SLICE_X52Y88         FDCE                                         r  u_core/t_channel/g_slot[0].r_data_reg[0][0]/C
+                         net (fo=934, unset)          0.432     0.432    u_core/t_channel/aclk
+    SLICE_X40Y70         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][45]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X52Y88         FDCE (Hold_fdce_C_D)         0.092     0.524    u_core/t_channel/g_slot[0].r_data_reg[0][0]
+    SLICE_X40Y70         FDCE (Hold_fdce_C_D)         0.092     0.524    u_core/t_channel/g_slot[1].r_data_reg[1][45]
   -------------------------------------------------------------------
                          required time                         -0.524    
                          arrival time                           0.654    
@@ -1106,9 +860,9 @@ Slack (MET) :             0.131ns  (arrival time - required time)
                          slack                                  0.131    
 
 Slack (MET) :             0.132ns  (arrival time - required time)
-  Source:                 u_core/t_channel/g_slot[2].r_data_reg[2][17]/C
+  Source:                 u_core/t_channel/g_slot[1].r_data_reg[1][18]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_core/t_channel/g_slot[1].r_data_reg[1][17]/D
+  Destination:            u_core/t_channel/g_slot[0].r_data_reg[0][18]/D
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
   Path Type:              Hold (Min at Fast Process Corner)
@@ -1124,22 +878,22 @@ Slack (MET) :             0.132ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=735, unset)          0.410     0.410    u_core/t_channel/aclk
-    SLICE_X51Y91         FDCE                                         r  u_core/t_channel/g_slot[2].r_data_reg[2][17]/C
+                         net (fo=934, unset)          0.410     0.410    u_core/t_channel/aclk
+    SLICE_X39Y69         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][18]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X51Y91         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_core/t_channel/g_slot[2].r_data_reg[2][17]/Q
-                         net (fo=1, routed)           0.087     0.638    u_core/t_channel/g_slot[2].r_data_reg[2][17]
-    SLICE_X50Y91         LUT5 (Prop_lut5_I4_O)        0.045     0.683 r  u_core/t_channel/g_slot[1].r_data[1][17]_i_1/O
-                         net (fo=1, routed)           0.000     0.683    u_core/t_channel/g_slot[1].r_data[1][17]_i_1_n_0
-    SLICE_X50Y91         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][17]/D
+    SLICE_X39Y69         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_core/t_channel/g_slot[1].r_data_reg[1][18]/Q
+                         net (fo=1, routed)           0.087     0.638    u_core/t_channel/g_slot[1].r_data_reg[1][18]
+    SLICE_X38Y69         LUT5 (Prop_lut5_I4_O)        0.045     0.683 r  u_core/t_channel/g_slot[0].r_data[0][18]_i_1/O
+                         net (fo=1, routed)           0.000     0.683    u_core/t_channel/g_slot[0].r_data[0][18]_i_1_n_0
+    SLICE_X38Y69         FDCE                                         r  u_core/t_channel/g_slot[0].r_data_reg[0][18]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=735, unset)          0.432     0.432    u_core/t_channel/aclk
-    SLICE_X50Y91         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][17]/C
+                         net (fo=934, unset)          0.432     0.432    u_core/t_channel/aclk
+    SLICE_X38Y69         FDCE                                         r  u_core/t_channel/g_slot[0].r_data_reg[0][18]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X50Y91         FDCE (Hold_fdce_C_D)         0.120     0.552    u_core/t_channel/g_slot[1].r_data_reg[1][17]
+    SLICE_X38Y69         FDCE (Hold_fdce_C_D)         0.120     0.552    u_core/t_channel/g_slot[0].r_data_reg[0][18]
   -------------------------------------------------------------------
                          required time                         -0.552    
                          arrival time                           0.683    
@@ -1147,9 +901,9 @@ Slack (MET) :             0.132ns  (arrival time - required time)
                          slack                                  0.132    
 
 Slack (MET) :             0.132ns  (arrival time - required time)
-  Source:                 u_core/t_channel/g_slot[2].r_data_reg[2][23]/C
+  Source:                 u_core/t_channel/g_slot[2].r_data_reg[2][16]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_core/t_channel/g_slot[1].r_data_reg[1][23]/D
+  Destination:            u_core/t_channel/g_slot[1].r_data_reg[1][16]/D
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
   Path Type:              Hold (Min at Fast Process Corner)
@@ -1165,22 +919,63 @@ Slack (MET) :             0.132ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=735, unset)          0.410     0.410    u_core/t_channel/aclk
-    SLICE_X39Y89         FDCE                                         r  u_core/t_channel/g_slot[2].r_data_reg[2][23]/C
+                         net (fo=934, unset)          0.410     0.410    u_core/t_channel/aclk
+    SLICE_X43Y74         FDCE                                         r  u_core/t_channel/g_slot[2].r_data_reg[2][16]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X39Y89         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_core/t_channel/g_slot[2].r_data_reg[2][23]/Q
-                         net (fo=1, routed)           0.087     0.638    u_core/t_channel/g_slot[2].r_data_reg[2][23]
-    SLICE_X38Y89         LUT5 (Prop_lut5_I4_O)        0.045     0.683 r  u_core/t_channel/g_slot[1].r_data[1][23]_i_1/O
-                         net (fo=1, routed)           0.000     0.683    u_core/t_channel/g_slot[1].r_data[1][23]_i_1_n_0
-    SLICE_X38Y89         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][23]/D
+    SLICE_X43Y74         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_core/t_channel/g_slot[2].r_data_reg[2][16]/Q
+                         net (fo=1, routed)           0.087     0.638    u_core/t_channel/g_slot[2].r_data_reg[2][16]
+    SLICE_X42Y74         LUT5 (Prop_lut5_I4_O)        0.045     0.683 r  u_core/t_channel/g_slot[1].r_data[1][16]_i_1/O
+                         net (fo=1, routed)           0.000     0.683    u_core/t_channel/g_slot[1].r_data[1][16]_i_1_n_0
+    SLICE_X42Y74         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][16]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=735, unset)          0.432     0.432    u_core/t_channel/aclk
-    SLICE_X38Y89         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][23]/C
+                         net (fo=934, unset)          0.432     0.432    u_core/t_channel/aclk
+    SLICE_X42Y74         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][16]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X38Y89         FDCE (Hold_fdce_C_D)         0.120     0.552    u_core/t_channel/g_slot[1].r_data_reg[1][23]
+    SLICE_X42Y74         FDCE (Hold_fdce_C_D)         0.120     0.552    u_core/t_channel/g_slot[1].r_data_reg[1][16]
+  -------------------------------------------------------------------
+                         required time                         -0.552    
+                         arrival time                           0.683    
+  -------------------------------------------------------------------
+                         slack                                  0.132    
+
+Slack (MET) :             0.132ns  (arrival time - required time)
+  Source:                 u_core/t_channel/g_slot[3].r_data_reg[3][40]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_core/t_channel/g_slot[2].r_data_reg[2][40]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.273ns  (logic 0.186ns (68.106%)  route 0.087ns (31.894%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.022ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.432ns
+    Source Clock Delay      (SCD):    0.410ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=934, unset)          0.410     0.410    u_core/t_channel/aclk
+    SLICE_X47Y68         FDCE                                         r  u_core/t_channel/g_slot[3].r_data_reg[3][40]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X47Y68         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_core/t_channel/g_slot[3].r_data_reg[3][40]/Q
+                         net (fo=1, routed)           0.087     0.638    u_core/t_channel/g_slot[3].r_data_reg[3][40]
+    SLICE_X46Y68         LUT5 (Prop_lut5_I4_O)        0.045     0.683 r  u_core/t_channel/g_slot[2].r_data[2][40]_i_1/O
+                         net (fo=1, routed)           0.000     0.683    u_core/t_channel/g_slot[2].r_data[2][40]_i_1_n_0
+    SLICE_X46Y68         FDCE                                         r  u_core/t_channel/g_slot[2].r_data_reg[2][40]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=934, unset)          0.432     0.432    u_core/t_channel/aclk
+    SLICE_X46Y68         FDCE                                         r  u_core/t_channel/g_slot[2].r_data_reg[2][40]/C
+                         clock pessimism              0.000     0.432    
+    SLICE_X46Y68         FDCE (Hold_fdce_C_D)         0.120     0.552    u_core/t_channel/g_slot[2].r_data_reg[2][40]
   -------------------------------------------------------------------
                          required time                         -0.552    
                          arrival time                           0.683    
@@ -1188,50 +983,9 @@ Slack (MET) :             0.132ns  (arrival time - required time)
                          slack                                  0.132    
 
 Slack (MET) :             0.135ns  (arrival time - required time)
-  Source:                 u_core/t_channel/g_slot[1].r_data_reg[1][31]/C
+  Source:                 u_core/t_channel/g_slot[2].r_data_reg[2][27]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_core/t_channel/g_slot[0].r_data_reg[0][31]/D
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Path Group:             aclk
-  Path Type:              Hold (Min at Fast Process Corner)
-  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
-  Data Path Delay:        0.277ns  (logic 0.186ns (67.123%)  route 0.091ns (32.877%))
-  Logic Levels:           1  (LUT5=1)
-  Clock Path Skew:        0.022ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    0.432ns
-    Source Clock Delay      (SCD):    0.410ns
-    Clock Pessimism Removal (CPR):    -0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=735, unset)          0.410     0.410    u_core/t_channel/aclk
-    SLICE_X47Y89         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][31]/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X47Y89         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_core/t_channel/g_slot[1].r_data_reg[1][31]/Q
-                         net (fo=1, routed)           0.091     0.642    u_core/t_channel/g_slot[1].r_data_reg[1][31]
-    SLICE_X46Y89         LUT5 (Prop_lut5_I4_O)        0.045     0.687 r  u_core/t_channel/g_slot[0].r_data[0][31]_i_1/O
-                         net (fo=1, routed)           0.000     0.687    u_core/t_channel/g_slot[0].r_data[0][31]_i_1_n_0
-    SLICE_X46Y89         FDCE                                         r  u_core/t_channel/g_slot[0].r_data_reg[0][31]/D
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=735, unset)          0.432     0.432    u_core/t_channel/aclk
-    SLICE_X46Y89         FDCE                                         r  u_core/t_channel/g_slot[0].r_data_reg[0][31]/C
-                         clock pessimism              0.000     0.432    
-    SLICE_X46Y89         FDCE (Hold_fdce_C_D)         0.121     0.553    u_core/t_channel/g_slot[0].r_data_reg[0][31]
-  -------------------------------------------------------------------
-                         required time                         -0.553    
-                         arrival time                           0.687    
-  -------------------------------------------------------------------
-                         slack                                  0.135    
-
-Slack (MET) :             0.135ns  (arrival time - required time)
-  Source:                 u_core/t_channel/g_slot[3].r_data_reg[3][0]/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_core/t_channel/g_slot[2].r_data_reg[2][0]/D
+  Destination:            u_core/t_channel/g_slot[1].r_data_reg[1][27]/D
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
   Path Type:              Hold (Min at Fast Process Corner)
@@ -1247,63 +1001,22 @@ Slack (MET) :             0.135ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=735, unset)          0.410     0.410    u_core/t_channel/aclk
-    SLICE_X55Y88         FDCE                                         r  u_core/t_channel/g_slot[3].r_data_reg[3][0]/C
+                         net (fo=934, unset)          0.410     0.410    u_core/t_channel/aclk
+    SLICE_X43Y71         FDCE                                         r  u_core/t_channel/g_slot[2].r_data_reg[2][27]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X55Y88         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_core/t_channel/g_slot[3].r_data_reg[3][0]/Q
-                         net (fo=1, routed)           0.091     0.642    u_core/t_channel/g_slot[3].r_data_reg[3][0]
-    SLICE_X54Y88         LUT5 (Prop_lut5_I4_O)        0.045     0.687 r  u_core/t_channel/g_slot[2].r_data[2][0]_i_1/O
-                         net (fo=1, routed)           0.000     0.687    u_core/t_channel/g_slot[2].r_data[2][0]_i_1_n_0
-    SLICE_X54Y88         FDCE                                         r  u_core/t_channel/g_slot[2].r_data_reg[2][0]/D
+    SLICE_X43Y71         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_core/t_channel/g_slot[2].r_data_reg[2][27]/Q
+                         net (fo=1, routed)           0.091     0.642    u_core/t_channel/g_slot[2].r_data_reg[2][27]
+    SLICE_X42Y71         LUT5 (Prop_lut5_I4_O)        0.045     0.687 r  u_core/t_channel/g_slot[1].r_data[1][27]_i_1/O
+                         net (fo=1, routed)           0.000     0.687    u_core/t_channel/g_slot[1].r_data[1][27]_i_1_n_0
+    SLICE_X42Y71         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][27]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=735, unset)          0.432     0.432    u_core/t_channel/aclk
-    SLICE_X54Y88         FDCE                                         r  u_core/t_channel/g_slot[2].r_data_reg[2][0]/C
+                         net (fo=934, unset)          0.432     0.432    u_core/t_channel/aclk
+    SLICE_X42Y71         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][27]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X54Y88         FDCE (Hold_fdce_C_D)         0.121     0.553    u_core/t_channel/g_slot[2].r_data_reg[2][0]
-  -------------------------------------------------------------------
-                         required time                         -0.553    
-                         arrival time                           0.687    
-  -------------------------------------------------------------------
-                         slack                                  0.135    
-
-Slack (MET) :             0.135ns  (arrival time - required time)
-  Source:                 u_core/t_channel/g_slot[3].r_data_reg[3][6]/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_core/t_channel/g_slot[2].r_data_reg[2][6]/D
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Path Group:             aclk
-  Path Type:              Hold (Min at Fast Process Corner)
-  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
-  Data Path Delay:        0.277ns  (logic 0.186ns (67.123%)  route 0.091ns (32.877%))
-  Logic Levels:           1  (LUT5=1)
-  Clock Path Skew:        0.022ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    0.432ns
-    Source Clock Delay      (SCD):    0.410ns
-    Clock Pessimism Removal (CPR):    -0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=735, unset)          0.410     0.410    u_core/t_channel/aclk
-    SLICE_X55Y91         FDCE                                         r  u_core/t_channel/g_slot[3].r_data_reg[3][6]/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X55Y91         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_core/t_channel/g_slot[3].r_data_reg[3][6]/Q
-                         net (fo=1, routed)           0.091     0.642    u_core/t_channel/g_slot[3].r_data_reg[3][6]
-    SLICE_X54Y91         LUT5 (Prop_lut5_I4_O)        0.045     0.687 r  u_core/t_channel/g_slot[2].r_data[2][6]_i_1/O
-                         net (fo=1, routed)           0.000     0.687    u_core/t_channel/g_slot[2].r_data[2][6]_i_1_n_0
-    SLICE_X54Y91         FDCE                                         r  u_core/t_channel/g_slot[2].r_data_reg[2][6]/D
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=735, unset)          0.432     0.432    u_core/t_channel/aclk
-    SLICE_X54Y91         FDCE                                         r  u_core/t_channel/g_slot[2].r_data_reg[2][6]/C
-                         clock pessimism              0.000     0.432    
-    SLICE_X54Y91         FDCE (Hold_fdce_C_D)         0.121     0.553    u_core/t_channel/g_slot[2].r_data_reg[2][6]
+    SLICE_X42Y71         FDCE (Hold_fdce_C_D)         0.121     0.553    u_core/t_channel/g_slot[1].r_data_reg[1][27]
   -------------------------------------------------------------------
                          required time                         -0.553    
                          arrival time                           0.687    
@@ -1311,14 +1024,14 @@ Slack (MET) :             0.135ns  (arrival time - required time)
                          slack                                  0.135    
 
 Slack (MET) :             0.157ns  (arrival time - required time)
-  Source:                 u_core/t_channel/g_slot[2].r_data_reg[2][37]/C
+  Source:                 u_core/t_channel/g_slot[3].r_data_reg[3][32]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_core/t_channel/g_slot[1].r_data_reg[1][37]/D
+  Destination:            u_core/t_channel/g_slot[2].r_data_reg[2][32]/D
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
-  Data Path Delay:        0.300ns  (logic 0.186ns (62.101%)  route 0.114ns (37.899%))
+  Data Path Delay:        0.299ns  (logic 0.186ns (62.140%)  route 0.113ns (37.860%))
   Logic Levels:           1  (LUT5=1)
   Clock Path Skew:        0.022ns (DCD - SCD - CPR)
     Destination Clock Delay (DCD):    0.432ns
@@ -1329,68 +1042,27 @@ Slack (MET) :             0.157ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=735, unset)          0.410     0.410    u_core/t_channel/aclk
-    SLICE_X37Y88         FDCE                                         r  u_core/t_channel/g_slot[2].r_data_reg[2][37]/C
+                         net (fo=934, unset)          0.410     0.410    u_core/t_channel/aclk
+    SLICE_X45Y71         FDCE                                         r  u_core/t_channel/g_slot[3].r_data_reg[3][32]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X37Y88         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_core/t_channel/g_slot[2].r_data_reg[2][37]/Q
-                         net (fo=1, routed)           0.114     0.665    u_core/t_channel/g_slot[2].r_data_reg[2][37]
-    SLICE_X38Y89         LUT5 (Prop_lut5_I4_O)        0.045     0.710 r  u_core/t_channel/g_slot[1].r_data[1][37]_i_1/O
-                         net (fo=1, routed)           0.000     0.710    u_core/t_channel/g_slot[1].r_data[1][37]_i_1_n_0
-    SLICE_X38Y89         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][37]/D
+    SLICE_X45Y71         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_core/t_channel/g_slot[3].r_data_reg[3][32]/Q
+                         net (fo=1, routed)           0.113     0.664    u_core/t_channel/g_slot[3].r_data_reg[3][32]
+    SLICE_X46Y72         LUT5 (Prop_lut5_I4_O)        0.045     0.709 r  u_core/t_channel/g_slot[2].r_data[2][32]_i_1/O
+                         net (fo=1, routed)           0.000     0.709    u_core/t_channel/g_slot[2].r_data[2][32]_i_1_n_0
+    SLICE_X46Y72         FDCE                                         r  u_core/t_channel/g_slot[2].r_data_reg[2][32]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=735, unset)          0.432     0.432    u_core/t_channel/aclk
-    SLICE_X38Y89         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][37]/C
+                         net (fo=934, unset)          0.432     0.432    u_core/t_channel/aclk
+    SLICE_X46Y72         FDCE                                         r  u_core/t_channel/g_slot[2].r_data_reg[2][32]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X38Y89         FDCE (Hold_fdce_C_D)         0.121     0.553    u_core/t_channel/g_slot[1].r_data_reg[1][37]
+    SLICE_X46Y72         FDCE (Hold_fdce_C_D)         0.121     0.553    u_core/t_channel/g_slot[2].r_data_reg[2][32]
   -------------------------------------------------------------------
                          required time                         -0.553    
-                         arrival time                           0.710    
+                         arrival time                           0.709    
   -------------------------------------------------------------------
                          slack                                  0.157    
-
-Slack (MET) :             0.159ns  (arrival time - required time)
-  Source:                 u_core/t_channel/g_slot[2].r_data_reg[2][24]/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_core/t_channel/g_slot[1].r_data_reg[1][24]/D
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Path Group:             aclk
-  Path Type:              Hold (Min at Fast Process Corner)
-  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
-  Data Path Delay:        0.272ns  (logic 0.186ns (68.463%)  route 0.086ns (31.537%))
-  Logic Levels:           1  (LUT5=1)
-  Clock Path Skew:        0.022ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    0.432ns
-    Source Clock Delay      (SCD):    0.410ns
-    Clock Pessimism Removal (CPR):    -0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=735, unset)          0.410     0.410    u_core/t_channel/aclk
-    SLICE_X44Y89         FDCE                                         r  u_core/t_channel/g_slot[2].r_data_reg[2][24]/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X44Y89         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_core/t_channel/g_slot[2].r_data_reg[2][24]/Q
-                         net (fo=1, routed)           0.086     0.637    u_core/t_channel/g_slot[2].r_data_reg[2][24]
-    SLICE_X45Y89         LUT5 (Prop_lut5_I4_O)        0.045     0.682 r  u_core/t_channel/g_slot[1].r_data[1][24]_i_1/O
-                         net (fo=1, routed)           0.000     0.682    u_core/t_channel/g_slot[1].r_data[1][24]_i_1_n_0
-    SLICE_X45Y89         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][24]/D
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=735, unset)          0.432     0.432    u_core/t_channel/aclk
-    SLICE_X45Y89         FDCE                                         r  u_core/t_channel/g_slot[1].r_data_reg[1][24]/C
-                         clock pessimism              0.000     0.432    
-    SLICE_X45Y89         FDCE (Hold_fdce_C_D)         0.091     0.523    u_core/t_channel/g_slot[1].r_data_reg[1][24]
-  -------------------------------------------------------------------
-                         required time                         -0.523    
-                         arrival time                           0.682    
-  -------------------------------------------------------------------
-                         slack                                  0.159    
 
 
 
@@ -1403,37 +1075,37 @@ Waveform(ns):       { 0.000 5.000 }
 Period(ns):         10.000
 Sources:            { aclk }
 
-Check Type        Corner  Lib Pin  Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location       Pin
-Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X44Y102  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[0]/C
-Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X43Y104  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[10]/C
-Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X43Y104  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[11]/C
-Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X43Y105  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[12]/C
-Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X43Y105  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[13]/C
-Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X43Y105  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[14]/C
-Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X43Y105  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[15]/C
-Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X44Y102  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[1]/C
-Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X43Y102  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[2]/C
-Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X43Y102  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[3]/C
-Low Pulse Width   Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X44Y102  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[0]/C
-Low Pulse Width   Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X44Y102  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[0]/C
-Low Pulse Width   Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X43Y104  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[10]/C
-Low Pulse Width   Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X43Y104  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[10]/C
-Low Pulse Width   Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X43Y104  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[11]/C
-Low Pulse Width   Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X43Y104  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[11]/C
-Low Pulse Width   Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X43Y105  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[12]/C
-Low Pulse Width   Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X43Y105  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[12]/C
-Low Pulse Width   Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X43Y105  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[13]/C
-Low Pulse Width   Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X43Y105  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[13]/C
-High Pulse Width  Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X44Y102  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[0]/C
-High Pulse Width  Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X44Y102  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[0]/C
-High Pulse Width  Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X43Y104  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[10]/C
-High Pulse Width  Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X43Y104  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[10]/C
-High Pulse Width  Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X43Y104  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[11]/C
-High Pulse Width  Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X43Y104  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[11]/C
-High Pulse Width  Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X43Y105  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[12]/C
-High Pulse Width  Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X43Y105  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[12]/C
-High Pulse Width  Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X43Y105  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[13]/C
-High Pulse Width  Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X43Y105  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[13]/C
+Check Type        Corner  Lib Pin  Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location      Pin
+Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X48Y93  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[0]/C
+Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X47Y95  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[10]/C
+Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X49Y97  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[11]/C
+Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X49Y97  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[12]/C
+Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X49Y97  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[13]/C
+Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X49Y97  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[14]/C
+Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X49Y97  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[15]/C
+Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X48Y93  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[1]/C
+Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X48Y93  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[2]/C
+Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X48Y93  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[3]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X48Y93  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[0]/C
+Low Pulse Width   Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X48Y93  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[0]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X47Y95  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[10]/C
+Low Pulse Width   Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X47Y95  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[10]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X49Y97  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[11]/C
+Low Pulse Width   Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X49Y97  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[11]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X49Y97  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[12]/C
+Low Pulse Width   Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X49Y97  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[12]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X49Y97  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[13]/C
+Low Pulse Width   Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X49Y97  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[13]/C
+High Pulse Width  Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X48Y93  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[0]/C
+High Pulse Width  Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X48Y93  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[0]/C
+High Pulse Width  Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X47Y95  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[10]/C
+High Pulse Width  Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X47Y95  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[10]/C
+High Pulse Width  Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X49Y97  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[11]/C
+High Pulse Width  Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X49Y97  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[11]/C
+High Pulse Width  Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X49Y97  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[12]/C
+High Pulse Width  Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X49Y97  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[12]/C
+High Pulse Width  Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X49Y97  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[13]/C
+High Pulse Width  Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X49Y97  gen_monitor_lite.u_axis_monitor_lite/r_beat_stamp_reg[13]/C
 
 
 

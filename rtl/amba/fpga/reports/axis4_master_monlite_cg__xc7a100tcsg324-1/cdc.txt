@@ -1,12 +1,12 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 ---------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Tue Sep 29 01:42:59 2026
+| Date         : Tue Sep 29 01:42:52 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
-| Command      : report_cdc -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axis4_master_monlite_cg__xc7k325tffg900-2/cdc.txt
+| Command      : report_cdc -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axis4_master_monlite_cg__xc7a100tcsg324-1/cdc.txt
 | Design       : axis4_master_monlite_cg
-| Device       : 7k325t-ffg900
-| Speed File   : -2  PRODUCTION 1.12 2017-02-17
+| Device       : 7a100t-csg324
+| Speed File   : -1  PRODUCTION 1.23 2018-06-13
 | Design State : Routed
 ---------------------------------------------------------------------------------------------------------------------------------------------
 

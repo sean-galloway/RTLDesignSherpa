@@ -12,18 +12,18 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 2 | done (kept for history) |
+| [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-003** — axis_monitor_lite decides events and counts drops in one cycle: misses 10 ns on Artix-7 by 1.18 ns (16 levels into r_dropped)
 
 
 ## Closed
 
+- **ISSUE-003** — axis_monitor_lite decides events and counts drops in one cycle: misses 10 ns on Artix-7 by 1.18 ns (16 levels into r_dropped) -- CLOSED 2026-09-29 (fixed): event stage added; Artix-7 -1.18 -> +1.65 ns, Kintex-7 +1.87 ns, 6 levels
 - **ISSUE-002** — the latency-threshold event reaches r_dropped combinationally from the R handshake: 11.7 ns, 21 levels on Artix-7 at 10 ns -- CLOSED 2026-09-28 (fixed): compare moved a stage later with a held payload; the Artix-7 lite fixture meets, +0.443 ns
 - **ISSUE-001** — which monitored instances should switch to the lite (all of them did; measured and validated on silicon, TASK-001 section 17)

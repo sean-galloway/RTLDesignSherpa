@@ -1,12 +1,12 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Tue Sep 29 01:42:56 2026
+| Date         : Tue Sep 29 01:42:48 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
-| Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axis4_master_monlite_cg__xc7k325tffg900-2/utilization_hier.txt
+| Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axis4_master_monlite_cg__xc7a100tcsg324-1/utilization_hier.txt
 | Design       : axis4_master_monlite_cg
-| Device       : xc7k325tffg900-2
-| Speed File   : -2
+| Device       : xc7a100tcsg324-1
+| Speed File   : -1
 | Design State : Routed
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -22,7 +22,7 @@ Table of Contents
 +-----------------------------+----------------------+------------+------------+---------+------+-----+--------+--------+------------+
 |           Instance          |        Module        | Total LUTs | Logic LUTs | LUTRAMs | SRLs | FFs | RAMB36 | RAMB18 | DSP Blocks |
 +-----------------------------+----------------------+------------+------------+---------+------+-----+--------+--------+------------+
-| axis4_master_monlite_cg     |                (top) |       1570 |       1570 |       0 |    0 | 949 |      0 |      0 |          0 |
+| axis4_master_monlite_cg     |                (top) |       1571 |       1571 |       0 |    0 | 949 |      0 |      0 |          0 |
 |   (axis4_master_monlite_cg) |                (top) |          0 |          0 |       0 |    0 |   0 |      0 |      0 |          0 |
 |   u_monlite                 | axis4_master_monlite |       1548 |       1548 |       0 |    0 | 935 |      0 |      0 |          0 |
 +-----------------------------+----------------------+------------+------------+---------+------+-----+--------+--------+------------+

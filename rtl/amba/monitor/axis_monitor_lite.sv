@@ -259,21 +259,57 @@ module axis_monitor_lite
         return r;
     endfunction
 
+    // ------------------------------------------------------------------
+    // Event stage. The candidates are decided in the cycle they happen (the
+    // age and stall compares against the config, the ID/DEST compares) and
+    // REGISTERED here with the values their payloads need; the picks, the
+    // payload muxes, the queue writes and the drop count all run from these
+    // flops a cycle later. Deciding and queueing in one cycle chained the
+    // compares into the pick, the 85-bit mux and the drop-count adder -- 16
+    // to 19 logic levels, 10.4 ns on an Artix-7 -1 (monitor-lite ISSUE-003);
+    // the AXI lite made the same split under ISSUE-002. A clear in either
+    // cycle discards the event.
+    // ------------------------------------------------------------------
+    logic [NC-1:0]        r_e_cand;
+    logic [IW-1:0]        r_e_tid, r_e_prev_tid;
+    logic [DESTW-1:0]     r_e_tdest, r_e_prev_tdest;
+    logic [31:0]          r_e_stall_cycles, r_e_beats_now, r_e_pkt_beats, r_e_pkt_count;
+    logic [15:0]          r_e_stall_age, r_e_beat_age;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_e_cand <= '0; r_e_tid <= '0; r_e_prev_tid <= '0; r_e_tdest <= '0; r_e_prev_tdest <= '0;
+            r_e_stall_cycles <= '0; r_e_beats_now <= '0; r_e_pkt_beats <= '0; r_e_pkt_count <= '0;
+            r_e_stall_age <= '0; r_e_beat_age <= '0;
+        end else begin
+            r_e_cand         <= clear ? '0 : w_cand;
+            r_e_tid          <= axis_tid;
+            r_e_tdest        <= axis_tdest;
+            r_e_prev_tid     <= r_pkt_tid;
+            r_e_prev_tdest   <= r_pkt_tdest;
+            r_e_stall_cycles <= r_stall_cycles;
+            r_e_beats_now    <= w_pkt_beats_now;
+            r_e_pkt_beats    <= r_pkt_beats;
+            r_e_pkt_count    <= r_pkt_count;
+            r_e_stall_age    <= 16'(w_stall_age);
+            r_e_beat_age     <= 16'(w_beat_age);
+        end
+    )
+
     function automatic axis_entry_t cand_entry(input logic [3:0] idx);
         axis_entry_t e;
-        e = '{ptype: PktTypeError, code: 8'h00, chan: 9'(axis_tid), data: 64'h0};
+        e = '{ptype: PktTypeError, code: 8'h00, chan: 9'(r_e_tid), data: 64'h0};
         case (idx)
-            4'd10: begin e.ptype = PktTypeError;      e.code = 8'(AXIS_ERR_VALID_TIMING);    e.data = {r_stall_cycles, r_pkt_count}; end
-            4'd9:  begin e.ptype = PktTypeError;      e.code = 8'(AXIS_ERR_STRB_INVALID);    e.data = {w_pkt_beats_now, r_pkt_count}; end
-            4'd8:  begin e.ptype = PktTypeTimeout;    e.code = 8'(AXIS_TIMEOUT_HANDSHAKE);   e.data = {r_stall_cycles, 16'(w_stall_age), cfg_timeout_cnt}; end
-            4'd7:  begin e.ptype = PktTypeTimeout;    e.code = 8'(AXIS_TIMEOUT_PACKET);      e.data = {r_pkt_beats, 16'(w_beat_age), cfg_timeout_cnt}; end
-            4'd6:  begin e.ptype = PktTypeCompletion; e.code = 8'(AXIS_COMPL_STREAM_END);    e.data = {16'(axis_tid), 16'(axis_tdest), w_pkt_beats_now}; end
-            4'd5:  begin e.ptype = PktTypeCredit;     e.code = 8'(AXIS_CREDIT_BACKPRESSURE); e.data = {r_stall_cycles, cfg_stall_threshold}; end
-            4'd4:  begin e.ptype = PktTypeChannel;    e.code = 8'(AXIS_CHAN_ID_CHANGE);      e.data = {16'(r_pkt_tid), 16'(axis_tid), w_pkt_beats_now}; end
-            4'd3:  begin e.ptype = PktTypeChannel;    e.code = 8'(AXIS_CHAN_DEST_CHANGE);    e.data = {16'(r_pkt_tdest), 16'(axis_tdest), w_pkt_beats_now}; end
-            4'd2:  begin e.ptype = PktTypeStream;     e.code = 8'(AXIS_STREAM_START);        e.data = {16'(axis_tid), 16'(axis_tdest), r_pkt_count}; end
-            4'd1:  begin e.ptype = PktTypeStream;     e.code = 8'(AXIS_STREAM_PAUSE);        e.data = {r_pkt_beats, r_pkt_count}; end
-            default: begin e.ptype = PktTypeStream;   e.code = 8'(AXIS_STREAM_RESUME);       e.data = {r_pkt_beats, r_pkt_count}; end
+            4'd10: begin e.ptype = PktTypeError;      e.code = 8'(AXIS_ERR_VALID_TIMING);    e.data = {r_e_stall_cycles, r_e_pkt_count}; end
+            4'd9:  begin e.ptype = PktTypeError;      e.code = 8'(AXIS_ERR_STRB_INVALID);    e.data = {r_e_beats_now, r_e_pkt_count}; end
+            4'd8:  begin e.ptype = PktTypeTimeout;    e.code = 8'(AXIS_TIMEOUT_HANDSHAKE);   e.data = {r_e_stall_cycles, r_e_stall_age, cfg_timeout_cnt}; end
+            4'd7:  begin e.ptype = PktTypeTimeout;    e.code = 8'(AXIS_TIMEOUT_PACKET);      e.data = {r_e_pkt_beats, r_e_beat_age, cfg_timeout_cnt}; end
+            4'd6:  begin e.ptype = PktTypeCompletion; e.code = 8'(AXIS_COMPL_STREAM_END);    e.data = {16'(r_e_tid), 16'(r_e_tdest), r_e_beats_now}; end
+            4'd5:  begin e.ptype = PktTypeCredit;     e.code = 8'(AXIS_CREDIT_BACKPRESSURE); e.data = {r_e_stall_cycles, cfg_stall_threshold}; end
+            4'd4:  begin e.ptype = PktTypeChannel;    e.code = 8'(AXIS_CHAN_ID_CHANGE);      e.data = {16'(r_e_prev_tid), 16'(r_e_tid), r_e_beats_now}; end
+            4'd3:  begin e.ptype = PktTypeChannel;    e.code = 8'(AXIS_CHAN_DEST_CHANGE);    e.data = {16'(r_e_prev_tdest), 16'(r_e_tdest), r_e_beats_now}; end
+            4'd2:  begin e.ptype = PktTypeStream;     e.code = 8'(AXIS_STREAM_START);        e.data = {16'(r_e_tid), 16'(r_e_tdest), r_e_pkt_count}; end
+            4'd1:  begin e.ptype = PktTypeStream;     e.code = 8'(AXIS_STREAM_PAUSE);        e.data = {r_e_pkt_beats, r_e_pkt_count}; end
+            default: begin e.ptype = PktTypeStream;   e.code = 8'(AXIS_STREAM_RESUME);       e.data = {r_e_pkt_beats, r_e_pkt_count}; end
         endcase
         return e;
     endfunction
@@ -282,12 +318,12 @@ module axis_monitor_lite
     logic [3:0]    w_i1, w_i2;
     logic          w_fire1, w_fire2;
     logic [3:0]    w_ev_n;
-    assign w_i1    = first_idx(w_cand);
-    assign w_cand2 = w_cand & ~(NC'(1) << w_i1);
+    assign w_i1    = first_idx(r_e_cand);
+    assign w_cand2 = r_e_cand & ~(NC'(1) << w_i1);
     assign w_i2    = first_idx(w_cand2);
-    assign w_fire1 = (|w_cand)  && !clear;
-    assign w_fire2 = (|w_cand2) && !clear;
-    assign w_ev_n  = clear ? 4'd0 : 4'($countones(w_cand));
+    assign w_fire1 = (|r_e_cand) && !clear;
+    assign w_fire2 = (|w_cand2)  && !clear;
+    assign w_ev_n  = clear ? 4'd0 : 4'($countones(r_e_cand));
     axis_entry_t w_e1, w_e2;
     assign w_e1 = cand_entry(w_i1);
     assign w_e2 = cand_entry(w_i2);
@@ -366,20 +402,22 @@ module axis_monitor_lite
     wire         w_take1   = w_fire1 && w_room1;
     wire         w_take2   = w_fire2 && w_room2;
     wire  [3:0]  w_lost    = w_ev_n - 4'(w_take1) - 4'(w_take2);
+    logic [3:0]  r_lost;                  // registered: the 16-bit add runs from a flop, a cycle later
     logic [15:0] r_dropped, r_errors;
-    wire         w_drop_rpt = (r_dropped != 16'd0) && !w_fire1 && w_q_empty && w_en_err && !clear;
+    wire         w_drop_rpt = (r_dropped != 16'd0) && (r_lost == 4'd0) && !w_fire1 && w_q_empty && w_en_err && !clear;
     wire  [1:0]  w_err_take = 2'(w_take1 && (w_e1.ptype == PktTypeError)) + 2'(w_take2 && (w_e2.ptype == PktTypeError));
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_dropped <= '0; r_errors <= '0;
+            r_lost <= '0; r_dropped <= '0; r_errors <= '0;
         end else if (clear) begin
-            r_dropped <= '0; r_errors <= '0;
+            r_lost <= '0; r_dropped <= '0; r_errors <= '0;
         end else begin
-            // saturating: once the top twelve bits are set, pin (w_lost is at most 11)
+            r_lost <= w_lost;
+            // saturating: once the top twelve bits are set, pin (r_lost is at most 11)
             if (w_drop_rpt)            r_dropped <= '0;
             else if (&r_dropped[15:4]) r_dropped <= 16'hFFFF;
-            else                       r_dropped <= r_dropped + 16'(w_lost);
+            else                       r_dropped <= r_dropped + 16'(r_lost);
             if ((w_err_take != 2'd0) && (r_errors < 16'hFFFE)) r_errors <= r_errors + 16'(w_err_take);
         end
     )
@@ -410,7 +448,7 @@ module axis_monitor_lite
                                                     w_entry_out.chan, UNIT_ID, AGENT_ID, w_entry_out.data);
     assign monbus_timestamp = i_mon_time;   // side-band time, sampled by the consumer at the handshake
 
-    assign busy          = r_in_pkt || r_valid_pend || monbus_valid;
+    assign busy          = r_in_pkt || r_valid_pend || (|r_e_cand) || (r_lost != 4'd0) || monbus_valid;
     assign in_packet     = r_in_pkt;
     assign packet_count  = r_pkt_count;
     assign error_count   = r_errors;

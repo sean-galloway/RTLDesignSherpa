@@ -357,74 +357,112 @@ module axis_monitor_lite (
 			first_idx = r;
 		end
 	endfunction
-	function automatic [8:0] sv2v_cast_9;
-		input reg [8:0] inp;
-		sv2v_cast_9 = inp;
-	endfunction
+	reg [10:0] r_e_cand;
+	reg [IW - 1:0] r_e_tid;
+	reg [IW - 1:0] r_e_prev_tid;
+	reg [DESTW - 1:0] r_e_tdest;
+	reg [DESTW - 1:0] r_e_prev_tdest;
+	reg [31:0] r_e_stall_cycles;
+	reg [31:0] r_e_beats_now;
+	reg [31:0] r_e_pkt_beats;
+	reg [31:0] r_e_pkt_count;
+	reg [15:0] r_e_stall_age;
+	reg [15:0] r_e_beat_age;
 	function automatic [15:0] sv2v_cast_16;
 		input reg [15:0] inp;
 		sv2v_cast_16 = inp;
+	endfunction
+	always @(posedge aclk or negedge aresetn)
+		if (!aresetn) begin
+			r_e_cand <= 1'sb0;
+			r_e_tid <= 1'sb0;
+			r_e_prev_tid <= 1'sb0;
+			r_e_tdest <= 1'sb0;
+			r_e_prev_tdest <= 1'sb0;
+			r_e_stall_cycles <= 1'sb0;
+			r_e_beats_now <= 1'sb0;
+			r_e_pkt_beats <= 1'sb0;
+			r_e_pkt_count <= 1'sb0;
+			r_e_stall_age <= 1'sb0;
+			r_e_beat_age <= 1'sb0;
+		end
+		else begin
+			r_e_cand <= (clear ? {11 {1'sb0}} : w_cand);
+			r_e_tid <= axis_tid;
+			r_e_tdest <= axis_tdest;
+			r_e_prev_tid <= r_pkt_tid;
+			r_e_prev_tdest <= r_pkt_tdest;
+			r_e_stall_cycles <= r_stall_cycles;
+			r_e_beats_now <= w_pkt_beats_now;
+			r_e_pkt_beats <= r_pkt_beats;
+			r_e_pkt_count <= r_pkt_count;
+			r_e_stall_age <= sv2v_cast_16(w_stall_age);
+			r_e_beat_age <= sv2v_cast_16(w_beat_age);
+		end
+	function automatic [8:0] sv2v_cast_9;
+		input reg [8:0] inp;
+		sv2v_cast_9 = inp;
 	endfunction
 	function automatic [84:0] cand_entry;
 		input reg [3:0] idx;
 		reg [84:0] e;
 		begin
-			e = {monitor_common_pkg_PktTypeError, 8'h00, sv2v_cast_9(axis_tid), 64'h0000000000000000};
+			e = {monitor_common_pkg_PktTypeError, 8'h00, sv2v_cast_9(r_e_tid), 64'h0000000000000000};
 			case (idx)
 				4'd10: begin
 					e[84-:4] = monitor_common_pkg_PktTypeError;
 					e[80-:8] = 8'h02;
-					e[63-:64] = {r_stall_cycles, r_pkt_count};
+					e[63-:64] = {r_e_stall_cycles, r_e_pkt_count};
 				end
 				4'd9: begin
 					e[84-:4] = monitor_common_pkg_PktTypeError;
 					e[80-:8] = 8'h05;
-					e[63-:64] = {w_pkt_beats_now, r_pkt_count};
+					e[63-:64] = {r_e_beats_now, r_e_pkt_count};
 				end
 				4'd8: begin
 					e[84-:4] = monitor_common_pkg_PktTypeTimeout;
 					e[80-:8] = 8'h00;
-					e[63-:64] = {r_stall_cycles, sv2v_cast_16(w_stall_age), cfg_timeout_cnt};
+					e[63-:64] = {r_e_stall_cycles, r_e_stall_age, cfg_timeout_cnt};
 				end
 				4'd7: begin
 					e[84-:4] = monitor_common_pkg_PktTypeTimeout;
 					e[80-:8] = 8'h02;
-					e[63-:64] = {r_pkt_beats, sv2v_cast_16(w_beat_age), cfg_timeout_cnt};
+					e[63-:64] = {r_e_pkt_beats, r_e_beat_age, cfg_timeout_cnt};
 				end
 				4'd6: begin
 					e[84-:4] = monitor_common_pkg_PktTypeCompletion;
 					e[80-:8] = 8'h00;
-					e[63-:64] = {sv2v_cast_16(axis_tid), sv2v_cast_16(axis_tdest), w_pkt_beats_now};
+					e[63-:64] = {sv2v_cast_16(r_e_tid), sv2v_cast_16(r_e_tdest), r_e_beats_now};
 				end
 				4'd5: begin
 					e[84-:4] = monitor_common_pkg_PktTypeCredit;
 					e[80-:8] = 8'h05;
-					e[63-:64] = {r_stall_cycles, cfg_stall_threshold};
+					e[63-:64] = {r_e_stall_cycles, cfg_stall_threshold};
 				end
 				4'd4: begin
 					e[84-:4] = monitor_common_pkg_PktTypeChannel;
 					e[80-:8] = 8'h05;
-					e[63-:64] = {sv2v_cast_16(r_pkt_tid), sv2v_cast_16(axis_tid), w_pkt_beats_now};
+					e[63-:64] = {sv2v_cast_16(r_e_prev_tid), sv2v_cast_16(r_e_tid), r_e_beats_now};
 				end
 				4'd3: begin
 					e[84-:4] = monitor_common_pkg_PktTypeChannel;
 					e[80-:8] = 8'h06;
-					e[63-:64] = {sv2v_cast_16(r_pkt_tdest), sv2v_cast_16(axis_tdest), w_pkt_beats_now};
+					e[63-:64] = {sv2v_cast_16(r_e_prev_tdest), sv2v_cast_16(r_e_tdest), r_e_beats_now};
 				end
 				4'd2: begin
 					e[84-:4] = monitor_common_pkg_PktTypeStream;
 					e[80-:8] = 8'h00;
-					e[63-:64] = {sv2v_cast_16(axis_tid), sv2v_cast_16(axis_tdest), r_pkt_count};
+					e[63-:64] = {sv2v_cast_16(r_e_tid), sv2v_cast_16(r_e_tdest), r_e_pkt_count};
 				end
 				4'd1: begin
 					e[84-:4] = monitor_common_pkg_PktTypeStream;
 					e[80-:8] = 8'h02;
-					e[63-:64] = {r_pkt_beats, r_pkt_count};
+					e[63-:64] = {r_e_pkt_beats, r_e_pkt_count};
 				end
 				default: begin
 					e[84-:4] = monitor_common_pkg_PktTypeStream;
 					e[80-:8] = 8'h03;
-					e[63-:64] = {r_pkt_beats, r_pkt_count};
+					e[63-:64] = {r_e_pkt_beats, r_e_pkt_count};
 				end
 			endcase
 			cand_entry = e;
@@ -436,12 +474,12 @@ module axis_monitor_lite (
 	wire w_fire1;
 	wire w_fire2;
 	wire [3:0] w_ev_n;
-	assign w_i1 = first_idx(w_cand);
-	assign w_cand2 = w_cand & ~(11'sd1 << w_i1);
+	assign w_i1 = first_idx(r_e_cand);
+	assign w_cand2 = r_e_cand & ~(11'sd1 << w_i1);
 	assign w_i2 = first_idx(w_cand2);
-	assign w_fire1 = |w_cand && !clear;
+	assign w_fire1 = |r_e_cand && !clear;
 	assign w_fire2 = |w_cand2 && !clear;
-	assign w_ev_n = (clear ? 4'd0 : 4'($countones(w_cand)));
+	assign w_ev_n = (clear ? 4'd0 : 4'($countones(r_e_cand)));
 	wire [84:0] w_e1;
 	wire [84:0] w_e2;
 	assign w_e1 = cand_entry(w_i1);
@@ -531,9 +569,10 @@ module axis_monitor_lite (
 		sv2v_cast_4 = inp;
 	endfunction
 	wire [3:0] w_lost = (w_ev_n - sv2v_cast_4(w_take1)) - sv2v_cast_4(w_take2);
+	reg [3:0] r_lost;
 	reg [15:0] r_dropped;
 	reg [15:0] r_errors;
-	wire w_drop_rpt = ((((r_dropped != 16'd0) && !w_fire1) && w_q_empty) && w_en_err) && !clear;
+	wire w_drop_rpt = (((((r_dropped != 16'd0) && (r_lost == 4'd0)) && !w_fire1) && w_q_empty) && w_en_err) && !clear;
 	function automatic [1:0] sv2v_cast_2;
 		input reg [1:0] inp;
 		sv2v_cast_2 = inp;
@@ -541,20 +580,23 @@ module axis_monitor_lite (
 	wire [1:0] w_err_take = sv2v_cast_2(w_take1 && (w_e1[84-:4] == monitor_common_pkg_PktTypeError)) + sv2v_cast_2(w_take2 && (w_e2[84-:4] == monitor_common_pkg_PktTypeError));
 	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
+			r_lost <= 1'sb0;
 			r_dropped <= 1'sb0;
 			r_errors <= 1'sb0;
 		end
 		else if (clear) begin
+			r_lost <= 1'sb0;
 			r_dropped <= 1'sb0;
 			r_errors <= 1'sb0;
 		end
 		else begin
+			r_lost <= w_lost;
 			if (w_drop_rpt)
 				r_dropped <= 1'sb0;
 			else if (&r_dropped[15:4])
 				r_dropped <= 16'hffff;
 			else
-				r_dropped <= r_dropped + sv2v_cast_16(w_lost);
+				r_dropped <= r_dropped + sv2v_cast_16(r_lost);
 			if ((w_err_take != 2'd0) && (r_errors < 16'hfffe))
 				r_errors <= r_errors + sv2v_cast_16(w_err_take);
 		end
@@ -602,7 +644,7 @@ module axis_monitor_lite (
 	endfunction
 	assign monbus_packet = monitor_common_pkg_create_monitor_packet(w_entry_out[84-:4], 4'h1, w_entry_out[80-:8], w_entry_out[72-:9], UNIT_ID, AGENT_ID, w_entry_out[63-:64]);
 	assign monbus_timestamp = i_mon_time;
-	assign busy = (r_in_pkt || r_valid_pend) || monbus_valid;
+	assign busy = (((r_in_pkt || r_valid_pend) || |r_e_cand) || (r_lost != 4'd0)) || monbus_valid;
 	assign in_packet = r_in_pkt;
 	assign packet_count = r_pkt_count;
 	assign error_count = r_errors;

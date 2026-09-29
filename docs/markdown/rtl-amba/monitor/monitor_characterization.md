@@ -98,8 +98,8 @@ monitor**. `_cg` adds the clock-gating controller.
 | `axil4_master_wr_mon` | 3,481 | 2,955 | 0 | +0.722 | +0.163 | 6 | 44 mW |
 | `axil4_master_wr_monlite` | 1,209 | 1,156 | 0 | +2.055 | +1.515 | 9 | 15 mW |
 | `axil5_master_rd_monlite` | 1,221 | 1,272 | 0 | +1.936 | +1.044 | 6 | 15 mW |
-| `axis4_master_monlite` | 1,506 | 736 | 0 | +0.832 | -0.112 | 17 | 23 mW |
-| `axis4_master_monlite_cg` | 1,493 | 750 | 0 | +0.406 | +0.166 | 17 | 21 mW |
+| `axis4_master_monlite` | 1,550 | 935 | 0 | +1.867 | +0.363 | 6 | 29 mW |
+| `axis4_master_monlite_cg` | 1,570 | 949 | 0 | +1.695 | +0.308 | 3 | 22 mW |
 | `monbus_arbiter` | 1,821 | 1,972 | 0 | +2.937 | +2.295 | 2 | 17 mW |
 | `monbus_axi4_axi4_group` | 1,967 | 1,386 | 0 | +1.366 | -1.728 | 13 | 35 mW |
 | `monbus_axil4_axil4_group` | 1,715 | 1,154 | 0 | +1.152 | -2.004 | 11 | 31 mW |
@@ -134,7 +134,8 @@ monitor**. `_cg` adds the clock-gating controller.
 | `axi4_master_rd_monlite` | 1,403 | 1,355 | 0 | +2.097 | +0.617 | 14 | 10 mW |
 | `axi4_master_rd_monlite_cg` | 1,421 | 1,369 | 0 | +1.095 | +0.341 | 13 | 15 mW |
 | `axil4_master_rd_monlite` | 1,144 | 1,156 | 0 | +1.478 | +0.393 | 11 | 9 mW |
-| `axis4_master_monlite` | 1,524 | 736 | 0 | -1.181 | -2.445 | 19 | 16 mW |
+| `axis4_master_monlite` | 1,550 | 935 | 0 | +1.646 | +0.599 | 6 | 20 mW |
+| `axis4_master_monlite_cg` | 1,571 | 949 | 0 | +1.652 | +0.303 | 6 | 15 mW |
 | `monbus_axil4_axil4_group` | 1,725 | 1,154 | 0 | +0.111 | -4.920 | 8 | 21 mW |
 | `wb4_monitor` | 622 | 909 | 0 | +0.045 | +0.045 | 16 | 18 mW |
 
@@ -185,7 +186,7 @@ measurement of savings. Measure clock gating on a board with real traffic
 or not at all.
 
 **Across protocols.** Per monitor, at defaults: AXI4/AXI5 lite about 1,100
-LUTs; AXI-Lite lite about 930 to 1,030; AXIS lite about 1,500 (it is the
+LUTs; AXI-Lite lite about 930 to 1,030; AXIS lite about 1,550 (it is the
 whole wrapper here, there is no plain `axis4_master` to subtract, and it
 carries a skid of 4); APB4/APB5 monitors 570 to 600; Wishbone 620. The APB
 and Wishbone monitors are older, table-based designs at 4 and 8 slots and
@@ -223,11 +224,12 @@ them only as a ratio between variants on the same part.
 
 ## Open findings from this sweep
 
-- `axis4_master_monlite` misses 10 ns on the Artix-7 register to register by
-  1.18 ns (16 to 19 levels into `r_dropped`): the AXIS lite still decides its
-  events and counts drops in one cycle, the shape the AXI lite left behind
-  in monitor-lite ISSUE-002. Filed as monitor-lite ISSUE-003. It meets on the
-  Kintex-7 at 6.667 ns.
+- `axis4_master_monlite` missed 10 ns on the Artix-7 register to register by
+  1.18 ns in the first sweep (16 to 19 levels into `r_dropped`): the AXIS lite
+  decided its events and counted drops in one cycle. Fixed the next day as
+  monitor-lite ISSUE-003 with an event stage; the tables above carry the
+  re-run: +1.65 ns on the Artix-7 and +1.87 ns on the Kintex-7 register to
+  register, 6 logic levels, for 44 LUTs and 199 flops more.
 - The full AXI4 monitors at 16 slots miss 6.667 ns on the Kintex-7 in the
   CAM; recorded above, no item filed: the lite is the recommended answer and
   the bridge's smaller preset meets.

@@ -135,6 +135,16 @@ periods. The tick is entry `cfg_freq_sel` of the `counter_freq_invariant`
 table; a wrapper that knows its clock sets `CFI_MIN_FREQ_MHZ = CFI_MAX_FREQ_MHZ
 = ACLK_MHZ` and entry 0 is then one microsecond of that clock.
 
+Events are decided in the cycle they happen and registered, with the values
+their payloads need, before the pick: the two picks, the payload muxes, the
+queue writes and the drop count all run from those flops a cycle later, so a
+packet leaves the block one cycle after its cause, plus queue occupancy.
+Until 2026-09-29 all of that happened in the deciding cycle, which chained
+the age and stall compares into the pick, the payload mux and the drop-count
+adder -- 16 to 19 logic levels, 10.4 ns on an Artix-7 -1 -- and the block
+missed 10 ns on that part (monitor-lite ISSUE-003). The AXI lite made the
+same split the day before.
+
 ### Drop and count
 
 Every candidate the pick cannot queue in a cycle -- the losers of the

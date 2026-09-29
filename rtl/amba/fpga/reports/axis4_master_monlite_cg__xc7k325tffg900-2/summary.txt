@@ -1,4 +1,4 @@
 bridge=axis4_master_monlite_cg part=xc7k325tffg900-2 clk_ns=6.667
-luts=1493 ffs=750 bram_tiles=0 dsps=0
-wns_ns=0.166 wns_reg2reg_ns=0.406 fmax_reg2reg_mhz=159.7 worst_logic_levels=17 unrouted_nets=0
-clocks=aclk io_delay_ns=2.0000999999999998 seconds=52
+luts=1570 ffs=949 bram_tiles=0 dsps=0
+wns_ns=0.308 wns_reg2reg_ns=1.695 fmax_reg2reg_mhz=201.1 worst_logic_levels=3 unrouted_nets=0
+clocks=aclk io_delay_ns=2.0000999999999998 seconds=96

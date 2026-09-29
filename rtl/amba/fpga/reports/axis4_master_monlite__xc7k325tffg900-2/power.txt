@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 --------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date             : Mon Sep 28 19:01:00 2026
+| Date             : Tue Sep 29 01:42:53 2026
 | Host             : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command          : report_power -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axis4_master_monlite__xc7k325tffg900-2/power.txt
 | Design           : axis4_master_monlite
@@ -30,10 +30,10 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 0.180        |
+| Total On-Chip Power (W)  | 0.186        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
-| Dynamic (W)              | 0.023        |
+| Dynamic (W)              | 0.029        |
 | Device Static (W)        | 0.156        |
 | Effective TJA (C/W)      | 1.8          |
 | Max Ambient (C)          | 84.7         |
@@ -52,15 +52,16 @@ Table of Contents
 +----------------+-----------+----------+-----------+-----------------+
 | On-Chip        | Power (W) | Used     | Available | Utilization (%) |
 +----------------+-----------+----------+-----------+-----------------+
-| Clocks         |     0.016 |        3 |       --- |             --- |
-| Slice Logic    |     0.004 |     2421 |       --- |             --- |
-|   LUT as Logic |     0.004 |     1506 |    203800 |            0.74 |
-|   Register     |    <0.001 |      736 |    407600 |            0.18 |
+| Clocks         |     0.024 |        3 |       --- |             --- |
+| Slice Logic    |     0.003 |     2707 |       --- |             --- |
+|   LUT as Logic |     0.003 |     1550 |    203800 |            0.76 |
+|   Register     |    <0.001 |      935 |    407600 |            0.23 |
 |   CARRY4       |    <0.001 |       52 |     50950 |            0.10 |
+|   F7/F8 Muxes  |    <0.001 |        2 |    203800 |           <0.01 |
 |   Others       |     0.000 |        7 |       --- |             --- |
-| Signals        |     0.003 |     1641 |       --- |             --- |
+| Signals        |     0.002 |     1869 |       --- |             --- |
 | Static Power   |     0.156 |          |           |                 |
-| Total          |     0.180 |          |           |                 |
+| Total          |     0.186 |          |           |                 |
 +----------------+-----------+----------+-----------+-----------------+
 
 
@@ -70,7 +71,7 @@ Table of Contents
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
 | Source    | Voltage (V) | Total (A) | Dynamic (A) | Static (A) | Powerup (A) | Budget (A)  | Margin (A) |
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
-| Vccint    |       1.000 |     0.092 |       0.023 |      0.068 |       NA    | Unspecified | NA         |
+| Vccint    |       1.000 |     0.098 |       0.029 |      0.068 |       NA    | Unspecified | NA         |
 | Vccaux    |       1.800 |     0.028 |       0.000 |      0.028 |       NA    | Unspecified | NA         |
 | Vcco33    |       3.300 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -140,8 +141,8 @@ Table of Contents
 +----------------------------------------+-----------+
 | Name                                   | Power (W) |
 +----------------------------------------+-----------+
-| axis4_master_monlite                   |     0.023 |
-|   gen_monitor_lite.u_axis_monitor_lite |     0.016 |
+| axis4_master_monlite                   |     0.029 |
+|   gen_monitor_lite.u_axis_monitor_lite |     0.022 |
 |   u_core                               |     0.007 |
 |     t_channel                          |     0.007 |
 +----------------------------------------+-----------+

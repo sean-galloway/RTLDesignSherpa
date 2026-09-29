@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Mon Sep 28 19:01:12 2026
+| Date         : Tue Sep 29 01:42:59 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command      : report_clock_interaction -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axis4_master_monlite_cg__xc7k325tffg900-2/clock_interaction.txt
 | Design       : axis4_master_monlite_cg
@@ -18,6 +18,6 @@ Clock Interaction Table
                             WNS                            TNS Failing  TNS Total    WNS Path         Clock-Pair           Inter-Clock  
 From Clock    To Clock      Clock Edges  WNS(ns)  TNS(ns)    Endpoints    Endpoints  Requirement(ns)  Classification       Constraints  
 ------------  ------------  -----------  -------  -------  -----------  -----------  ---------------  -------------------  -----------  
-aclk          aclk          rise - rise     0.17     0.00            0         1366             6.67  Clean                Timed        
+aclk          aclk          rise - rise     0.31     0.00            0         1565             6.67  Clean                Timed        
 
 
