@@ -126,6 +126,18 @@ async def cocotb_test_monbus_events(dut):
     assert result, "MonBus events test failed: no packet seen on the group's monitor bus"
 
 
+@cocotb.test(timeout_time=100, timeout_unit="ms")
+async def cocotb_test_compl_enable_gate(dut):
+    """SCHED_CONFIG.COMPL_EN gates the group's CORE Completion packets (rapids ISSUE-005)"""
+    tb = SchedulerGroupBeatsTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    result = await tb.test_compl_enable_gate(wait_cycles=50)
+    report_ok = tb.generate_test_report()
+    assert result, "COMPL_EN gate test failed: see the OFF/ON completion counts in the log"
+    assert report_ok, "COMPL_EN gate test: the report recorded errors"
+
+
 # ===========================================================================
 # PARAMETER GENERATION - AMBA PATTERN
 # ===========================================================================
@@ -222,6 +234,13 @@ def test_scheduler_group_beats_ctrl_read_gate(request, channel_id, addr_width, d
 def test_scheduler_group_beats_monbus_events(request, channel_id, addr_width, data_width, axi_id_width, timing_profile, test_level):
     """Pytest: Test monitor bus events"""
     _run_beats_scheduler_group_test(request, "cocotb_test_monbus_events",
+                                     channel_id, addr_width, data_width, axi_id_width, timing_profile, test_level=test_level)
+
+@pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_params)
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_group_beats_compl_enable_gate(request, channel_id, addr_width, data_width, axi_id_width, timing_profile, test_level):
+    """Pytest: SCHED_CONFIG.COMPL_EN gates the CORE Completion packets (rapids ISSUE-005)"""
+    _run_beats_scheduler_group_test(request, "cocotb_test_compl_enable_gate",
                                      channel_id, addr_width, data_width, axi_id_width, timing_profile, test_level=test_level)
 
 

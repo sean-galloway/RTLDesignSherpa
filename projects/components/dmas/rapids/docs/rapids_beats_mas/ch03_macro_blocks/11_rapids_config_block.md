@@ -52,6 +52,11 @@ Routes scheduler, channel, and descriptor-engine configuration to the core:
   (per-channel enable gated by the global master enable).
 - `cfg_sched_timeout_cycles = SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES` (32-bit).
 - `cfg_sched_timeout_limit  = SCHED_TIMEOUT_LIMIT.LIMIT` (8-bit, direct).
+- `cfg_sched_{timeout,err,compl,perf}_enable = SCHED_CONFIG.{TIMEOUT,ERR,COMPL,PERF}_EN`.
+  `COMPL_EN` is the one the scheduler group acts on for its monitor packets:
+  0 drops the scheduler's and descriptor engine's CORE Completion packets at
+  the group (emitters still acknowledged); `ERR_EN` and `PERF_EN` reach the
+  group but gate nothing today (errors always reported, perf not implemented).
 - `cfg_desceng_*` from `DESCENG_CONFIG` (enable / prefetch / FIFO threshold).
 - Descriptor address ranges (`cfg_desceng_addr{0,1}_{base,limit}`) are
   zero-extended from the 32-bit register fields to the 64-bit `ADDR_WIDTH`.

@@ -12,17 +12,18 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 5 | done (kept for history) |
+| [closed/](closed/) | 6 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-005** — scheduler and descriptor-engine completion packets ignore SCHED_CONFIG.COMPL_EN
 
 ## Closed
+
+- **ISSUE-005** — SCHED_CONFIG.COMPL_EN now gates the scheduler's and descriptor engine's CORE Completion packets at the group; OFF and ON states tested (closed 2026-09-29)
 
 - **ISSUE-006** — under memory latency the sink keeps only ~12 beats in flight per channel (closed 2026-09-28: the generator feeds one channel at a time; the window is one channel's AW_MAX_OUTSTANDING x burst)
 - **ISSUE-004** — one board config reports zero ingress starvation where every other reports ~200 (closed 2026-09-28: re-measured and ILA-traced, no anomaly)

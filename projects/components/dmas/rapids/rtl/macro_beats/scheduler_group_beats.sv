@@ -335,11 +335,11 @@ module scheduler_group_beats #(
     );
 
     // Single Scheduler Instance (Simplified for RAPIDS Beats Phase 1)
-    // NOTE: Scheduler module currently does NOT support runtime configuration for:
-    //       - cfg_sched_err_enable (always enabled)
-    //       - cfg_sched_compl_enable (always enabled)
+    // NOTE: runtime configuration reaching the scheduler and descriptor engine:
+    //       - cfg_sched_compl_enable gates the CORE Completion packets of BOTH
+    //         emitters, at this group's monbus inputs (rapids ISSUE-005, below)
+    //       - cfg_sched_err_enable (always enabled -- errors are never dropped)
     //       - cfg_sched_perf_enable (not implemented)
-    //       These config inputs are defined for future enhancement.
     //
     //       Timeout configuration now uses runtime inputs:
     //       - cfg_sched_timeout_cycles (replaces TIMEOUT_CYCLES parameter)
@@ -555,6 +555,31 @@ module scheduler_group_beats #(
     // ctrlrd_engine, ctrlwr_engine)
     //=========================================================================
 
+    //=========================================================================
+    // SCHED_CONFIG.COMPL_EN (rapids ISSUE-005)
+    //=========================================================================
+    // The scheduler and the descriptor engine emit their CORE Completion
+    // packets unconditionally; the register bit is honoured HERE, in front of
+    // the group arbiter. A dropped packet is still acknowledged to its emitter
+    // (ready forced high), so turning the class off never stalls either FSM.
+    // Only PktTypeCompletion is gated: errors keep flowing whatever the bit.
+    logic w_desceng_compl_pkt, w_sched_compl_pkt;
+    logic w_desceng_mon_pass,  w_sched_mon_pass;
+    logic w_desceng_mon_valid, w_sched_mon_valid;    // gated valids into the arbiter
+    logic w_desceng_mon_ready, w_sched_mon_ready;    // arbiter readies back
+
+    assign w_desceng_compl_pkt = (monitor_common_pkg::get_packet_type(desceng_mon_packet)
+                                  == monitor_common_pkg::PktTypeCompletion);
+    assign w_sched_compl_pkt   = (monitor_common_pkg::get_packet_type(sched_mon_packet)
+                                  == monitor_common_pkg::PktTypeCompletion);
+    assign w_desceng_mon_pass  = cfg_sched_compl_enable || !w_desceng_compl_pkt;
+    assign w_sched_mon_pass    = cfg_sched_compl_enable || !w_sched_compl_pkt;
+
+    assign w_desceng_mon_valid = desceng_mon_valid && w_desceng_mon_pass;
+    assign w_sched_mon_valid   = sched_mon_valid   && w_sched_mon_pass;
+    assign desceng_mon_ready   = w_desceng_mon_pass ? w_desceng_mon_ready : 1'b1;
+    assign sched_mon_ready     = w_sched_mon_pass   ? w_sched_mon_ready   : 1'b1;
+
     monbus_arbiter #(
         .CLIENTS                (4),
         .INPUT_SKID_ENABLE      (1),
@@ -569,8 +594,8 @@ module scheduler_group_beats #(
         // Each client carries packet + side-band timestamp atomically.
         // GEN_MON gates all four emitter valids to 0 -> the arbiter emits
         // valid=0 and synthesis prunes the upstream emitter register cones.
-        .monbus_valid_in        ('{desceng_mon_valid & GEN_MON, sched_mon_valid & GEN_MON, ctrlrd_mon_valid & GEN_MON, ctrlwr_mon_valid & GEN_MON}),
-        .monbus_ready_in        ('{desceng_mon_ready,     sched_mon_ready,     ctrlrd_mon_ready,     ctrlwr_mon_ready}),
+        .monbus_valid_in        ('{w_desceng_mon_valid & GEN_MON, w_sched_mon_valid & GEN_MON, ctrlrd_mon_valid & GEN_MON, ctrlwr_mon_valid & GEN_MON}),
+        .monbus_ready_in        ('{w_desceng_mon_ready,   w_sched_mon_ready,   ctrlrd_mon_ready,     ctrlwr_mon_ready}),
         .monbus_packet_in       ('{desceng_mon_packet,    sched_mon_packet,    ctrlrd_mon_packet,    ctrlwr_mon_packet}),
         .monbus_timestamp_in    ('{desceng_mon_timestamp, sched_mon_timestamp, ctrlrd_mon_timestamp, ctrlwr_mon_timestamp}),
         .monbus_valid           (mon_valid),
@@ -591,7 +616,7 @@ module scheduler_group_beats #(
     // Monitor bus connectivity
     property monitor_bus_connected;
         @(posedge clk) disable iff (!rst_n)
-        (desceng_mon_valid || sched_mon_valid) |-> ##[1:10] mon_valid;
+        (w_desceng_mon_valid || w_sched_mon_valid) |-> ##[1:10] mon_valid;
     endproperty
     assert property (monitor_bus_connected);
 

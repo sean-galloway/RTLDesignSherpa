@@ -366,7 +366,7 @@ regfile rapids_engine_regs {
         } ERR_EN = 1'b1;
 
         field {
-            desc = "Completion enable - enable completion reporting";
+            desc = "Completion enable. 1 = the scheduler and the descriptor engine report CORE Completion packets (descriptor loaded, descriptor/chain complete) on the monitor bus; 0 = those packets are dropped at the scheduler group, and the emitters are acknowledged so nothing stalls. Error packets are not gated by this bit (or by ERR_EN).";
             sw = rw;
             hw = r;
         } COMPL_EN = 1'b1;

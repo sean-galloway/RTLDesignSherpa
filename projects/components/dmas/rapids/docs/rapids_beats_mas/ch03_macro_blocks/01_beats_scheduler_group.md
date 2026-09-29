@@ -119,7 +119,7 @@ parameter int MON_UNIT_ID = 1;
 | `cfg_sched_timeout_limit` | input | 8 | Consecutive-timeout windows before fatal escalation (0 = never) |
 | `cfg_sched_timeout_enable` | input | 1 | Enable timeout detection |
 | `cfg_sched_err_enable` | input | 1 | Enable error reporting |
-| `cfg_sched_compl_enable` | input | 1 | Enable completion reporting |
+| `cfg_sched_compl_enable` | input | 1 | `SCHED_CONFIG.COMPL_EN`: 1 = the scheduler's and descriptor engine's CORE Completion packets reach the group's monitor bus; 0 = the group drops them at its arbiter inputs and acknowledges the emitters, so nothing stalls (rapids ISSUE-005). Errors are never gated. |
 | `cfg_sched_perf_enable` | input | 1 | Enable performance monitoring |
 | `cfg_desceng_prefetch` | input | 1 | Enable descriptor prefetch chaining |
 | `cfg_desceng_fifo_thresh` | input | 4 | Prefetch threshold (descriptors buffered ahead) |

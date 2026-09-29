@@ -714,6 +714,37 @@ class SchedulerGroupBeatsTB(TBBase):
             return False
         return True
 
+    async def test_compl_enable_gate(self, wait_cycles: int = 100) -> bool:
+        """SCHED_CONFIG.COMPL_EN (rapids ISSUE-005): with cfg_sched_compl_enable=0
+        a descriptor flow completes normally and NO Completion packet reaches the
+        group's monitor bus; with it back at 1 the same flow produces one. The
+        OFF half is the point -- before the fix the bit did nothing."""
+        self.log.info("=== COMPL_EN gate test ===")
+        results = {}
+        for enable in (0, 1):
+            self.dut.cfg_sched_compl_enable.value = enable
+            await self.wait_clocks(self.clk_name, 2)
+            n0 = len(getattr(self, 'mon_packets', []))
+            if not await self.test_basic_descriptor_flow(num_descriptors=1):
+                self.log.error(f"COMPL_EN={enable}: the descriptor flow itself failed "
+                               f"(a gated emitter must still be acknowledged)")
+                return False
+            await self.wait_clocks(self.clk_name, wait_cycles)
+            pkts = list(getattr(self, 'mon_packets', []))[n0:]
+            kinds = [p.get_packet_type_name() for p in pkts]
+            n_compl = kinds.count('PktTypeCompletion')
+            results[enable] = (len(pkts), n_compl)
+            self.log.info(f"COMPL_EN={enable}: {len(pkts)} packet(s) {sorted(set(kinds))}, "
+                          f"{n_compl} completion(s)")
+        ok = True
+        if results[0][1] != 0:
+            self.log.error(f"COMPL_EN=0 still passed {results[0][1]} Completion packet(s) to the monitor bus")
+            ok = False
+        if results[1][1] == 0:
+            self.log.error("COMPL_EN=1 produced no Completion packet (the ON state must still report)")
+            ok = False
+        return ok
+
     def generate_test_report(self) -> bool:
         """Generate comprehensive test report."""
         self.log.info("\n" + "=" * 60)

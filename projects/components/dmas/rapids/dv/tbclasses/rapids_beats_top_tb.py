@@ -999,6 +999,14 @@ class RapidsBeatsTopTB(TBBase):
         for half, reg in (('src', 'RDMON'), ('snk', 'WRMON')):
             await self.write_fields(half, f'{reg}_ENABLE', MON_EN=1, ERR_EN=1, COMPL_EN=1)
             await self.write_fields(half, f'{reg}_PKT_MASK', PKT_MASK=0)
+        # The top's monbus group configures its protocol-2 (CORE) slot from
+        # SRC.MON.WRMON_* -- the SRC half has no write-engine monitor, so those
+        # registers are the shared egress config for CORE packets (see the
+        # u_monbus_group instance in rapids_beats_top.sv). Clear that mask so the
+        # CORE checks below see what the group would pass, leaving
+        # SCHED_CONFIG.COMPL_EN as the only thing between the schedulers'
+        # completions and the capture.
+        await self.write_fields('src', 'WRMON_PKT_MASK', PKT_MASK=0)
         n0 = len(self.mon_w_beats)
 
         src_ch, snk_ch = 1, 2
@@ -1069,12 +1077,49 @@ class RapidsBeatsTopTB(TBBase):
             if any(t != ch for t in tids):
                 errors.append(f"{name} AXIS monitor: completion tids {tids}, expected all {ch}")
             self.log.info(f"  {name} agent 0x{agent:02X}: {len(mine)} records, {len(compl)} completion {cnts}")
-        stats = {'records': len(pkts), 'errors': errors}
+        # SCHED_CONFIG.COMPL_EN (rapids ISSUE-005). The init programmed both
+        # halves SCHED_EN=1, ERR_EN=1 (COMPL_EN=0), so the CORE Completion packets
+        # of the schedulers and descriptor engines must NOT be in this trace --
+        # before the fix they rode through every transfer. Then turn the bit on,
+        # move one more descriptor, and require that they come back.
+        def _core_compl(ws):
+            ws = ws[:len(ws) - len(ws) % 3]
+            return [r.packet for r in parse_stream(ws, stride_bytes=24, ts_mode=1)
+                    if r.packet.protocol == ProtocolType.PROTOCOL_CORE
+                    and r.packet.packet_type == PktType.PktTypeCompletion]
+        off = _core_compl(self.mon_w_beats[n0:])
+        if off:
+            errors.append(f"SCHED_CONFIG.COMPL_EN=0 but {len(off)} CORE Completion record(s) reached the "
+                          f"capture (agents {sorted({f'0x{p.agent_id:02X}' for p in off})})")
+        for half in ('src', 'snk'):
+            await self.write_fields(half, 'SCHED_CONFIG', SCHED_EN=1, ERR_EN=1, COMPL_EN=1)
+        n1 = len(self.mon_w_beats)
+        # A fresh channel: the source scoreboard accumulates per channel, so a
+        # second run on src_ch would read as over-delivery.
+        ok_on, st_on = await self.test_source_path(channel=src_ch + 2, beats=beats)
+        errors += list(st_on['errors'])
+        on = []
+        for _ in range(400):
+            await self.wait_clocks(self.clk_name, 50)
+            on = _core_compl(self.mon_w_beats[n1:])
+            if on:
+                break
+        if not on:
+            errors.append("SCHED_CONFIG.COMPL_EN=1 but no CORE Completion record reached the capture "
+                          "after a source transfer")
+        self.log.info(f"  CORE completions: {len(off)} with COMPL_EN=0, {len(on)} with COMPL_EN=1 "
+                      f"(agents {sorted({f'0x{p.agent_id:02X}' for p in on})})")
+        for half in ('src', 'snk'):
+            await self.write_fields(half, 'SCHED_CONFIG', SCHED_EN=1, ERR_EN=1)
+
+        stats = {'records': len(pkts), 'errors': errors,
+                 'core_compl_off': len(off), 'core_compl_on': len(on)}
         if errors:
             for e in errors:
                 self.log.error(f"  SCOREBOARD: {e}")
         else:
-            self.log.info("  SCOREBOARD: both AXIS monitor-lites reported through the group")
+            self.log.info("  SCOREBOARD: both AXIS monitor-lites reported through the group; "
+                          "CORE completions follow SCHED_CONFIG.COMPL_EN")
         return (len(errors) == 0), stats
 
     async def test_control_path(self, half='src', gate_ch=0,

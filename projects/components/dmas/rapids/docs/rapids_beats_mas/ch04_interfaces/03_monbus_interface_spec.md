@@ -178,6 +178,11 @@ across transfers.
 
 : Table 4.3.8: MonBus Source Assignment
 
+Scheduler and DescEngine COMPLETION packets are subject to the half's
+`SCHED_CONFIG.COMPL_EN` (reset 1): the scheduler group drops them ahead of its
+arbiter when the bit is clear and acknowledges the emitter, so the data path is
+unaffected. Their ERROR packets are always forwarded (rapids ISSUE-005).
+
 ### Aggregation Hierarchy
 
 ### Figure 4.3.3: MonBus Aggregation Tree

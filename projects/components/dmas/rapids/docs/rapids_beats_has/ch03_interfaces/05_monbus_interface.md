@@ -109,6 +109,12 @@ characterization harness's instruments until TASK-015 lands.
 
 : Scheduler Event Codes
 
+The scheduler's and the descriptor engine's COMPLETION packets are reported only
+while the half's `SCHED_CONFIG.COMPL_EN` is set (reset value 1). With the bit
+clear the scheduler group drops them before its monitor-bus arbiter and still
+acknowledges the emitters, so a channel runs identically either way; ERROR packets
+are reported regardless of `ERR_EN`.
+
 ### Descriptor Engine Events (Agent 0x10-0x17)
 
 | Event Code | Type | Description |

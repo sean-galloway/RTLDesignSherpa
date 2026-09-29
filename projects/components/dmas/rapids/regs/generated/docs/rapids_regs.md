@@ -881,7 +881,7 @@ Don't override. Generated from: $root
 
 #### COMPL_EN field
 
-<p>Completion enable - enable completion reporting</p>
+<p>Completion enable. 1 = the scheduler and the descriptor engine report CORE Completion packets (descriptor loaded, descriptor/chain complete) on the monitor bus; 0 = those packets are dropped at the scheduler group, and the emitters are acknowledged so nothing stalls. Error packets are not gated by this bit (or by ERR_EN).</p>
 
 #### PERF_EN field
 
@@ -3530,7 +3530,7 @@ that 16-bit per-channel bucket wrapped during the window.</p>
 
 #### COMPL_EN field
 
-<p>Completion enable - enable completion reporting</p>
+<p>Completion enable. 1 = the scheduler and the descriptor engine report CORE Completion packets (descriptor loaded, descriptor/chain complete) on the monitor bus; 0 = those packets are dropped at the scheduler group, and the emitters are acknowledged so nothing stalls. Error packets are not gated by this bit (or by ERR_EN).</p>
 
 #### PERF_EN field
 
