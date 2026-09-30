@@ -11,11 +11,6 @@ The memory controller under test — **pumice** — is separate IP
 it as a **black box** driven by the characterization harness; it does not
 document the controller's internals.
 
-> **Note:** the project's top-level `README.md` still carries an early
-> "skeleton — RTL not yet written" status line. That is stale: the harness,
-> host, sim, and both flows are built and running. Trust this guide and the
-> RTL/host sources over that status.
-
 ---
 
 ## References

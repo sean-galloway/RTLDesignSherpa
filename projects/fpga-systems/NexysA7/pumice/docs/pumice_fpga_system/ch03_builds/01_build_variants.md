@@ -52,13 +52,17 @@ worth a section, because each answers a different question.
 
 : Table 3.1: The five targets built from one harness source
 
-`ddr2-characterization/flows-ours-uart/` looks like a sixth and is not. It has
-zero tracked files -- only stray `__pycache__` directories -- and its sibling
-`ddr2-characterization/README.md` still opens with "Status: Skeleton --
-directories scaffolded, harness RTL not yet written". That statement is stale by
-the entire contents of `build-perf`, which has 114 tracked files and three
-bitstreams. Treat that README as a historical document and this book as the
-current one.
+`ddr2-characterization/flows-ours-uart/` is not a sixth target. It is the
+retired "ours over UART" flow: its RTL moved to `build-perf` and nothing in it
+is tracked.
+
+**Important:** "nothing tracked" does not mean "nothing there". It holds two
+bitstreams and 42 CSVs -- ILA captures and timing scans from the July 2026 board
+bring-up -- totalling 203 MB, and **41 of those CSVs exist nowhere else in the
+tree**. That is unbacked-up measurement data sitting in an untracked directory,
+which is a real risk and not a cleanup opportunity. Decide deliberately whether
+it is committed, archived or discarded; do not let a `clean-all` decide for
+you.
 
 ## What the ILA builds change, and what they do not
 

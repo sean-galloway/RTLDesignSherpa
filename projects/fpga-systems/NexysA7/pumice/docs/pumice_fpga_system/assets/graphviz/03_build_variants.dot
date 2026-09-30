@@ -25,7 +25,7 @@ digraph build_variants {
         sim [label="verilator + cocotb\na7ddrphy_stub.sv stands in for the PHY;\nverilator_xilinx_stubs supplies BUFG.\nDrives the SAME UART bytestream as the board,\nso a host program is validated before it\never reaches hardware", fillcolor="#fff4e0"];
     }
 
-    vestige [label="ddr2-characterization/flows-ours-uart/\nVESTIGIAL: 0 tracked files, only __pycache__.\nThe sibling README still says \"harness RTL not yet\nwritten\" -- stale by the whole of build-perf", shape=note, fillcolor="#ffe8e8"];
+    vestige [label="ddr2-characterization/flows-ours-uart/\nThe RETIRED \"ours over UART\" flow. No RTL and nothing\ntracked -- but NOT empty: 2 bitstreams and 42 CSVs of\nILA captures and timing scans from the July 2026 board\nbring-up, 203 MB, 41 of them existing nowhere else.\nUnbacked-up measurement data, not build detritus.", shape=note, fillcolor="#ffe8e8"];
 
     src -> b1; src -> b2; src -> b3;
     src -> lite [label="harness minus the DUT"];
