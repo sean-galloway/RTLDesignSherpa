@@ -19,4 +19,13 @@ FILELIST  := $(SELF_DIR)/rtl/filelists/rs_loop_top.f
 SIM_TESTS := $(SELF_DIR)/dv/tests
 SEQ_DIR   := $(SELF_DIR)/../bin
 
+# Keep the generated 1x3 fabric in lockstep with its .toml/.csv before any
+# synthesis, but CHECK by default rather than regenerate: a board build has to
+# be reproducible, and silently taking a new bridge mid-campaign changes the
+# design under the measurement. Take a new one deliberately:
+#   REGEN_BRIDGES=1 make bitstream
+REGEN_BRIDGES ?= 0
+BRIDGE_REGEN  := bash $(SELF_DIR)/../bin/regen_bridges.sh
+PREBUILD := $(BRIDGE_REGEN) $(if $(filter-out 0,$(REGEN_BRIDGES)),,--check)
+
 include $(RDS_ROOT)/make/fpga_flow.mk

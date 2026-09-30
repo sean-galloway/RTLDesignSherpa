@@ -79,14 +79,14 @@ module rs_loop_top
     // -------------------------------------------------------------------------
     logic w_busy, w_gen_done, w_chk_a_ok, w_chk_b_ok, w_cmp_err;
 
-    rs_loop_harness #(.AXIL_ADDR_WIDTH(12)) u_harness (
+    rs_loop_harness #(.AXIL_ADDR_WIDTH(32)) u_harness (
         .aclk(sys_clk), .aresetn(sys_rstn),
-        .s_axil_awaddr(axil_awaddr[11:0]), .s_axil_awprot(axil_awprot),
+        .s_axil_awaddr(axil_awaddr), .s_axil_awprot(axil_awprot),
         .s_axil_awvalid(axil_awvalid), .s_axil_awready(axil_awready),
         .s_axil_wdata(axil_wdata), .s_axil_wstrb(axil_wstrb),
         .s_axil_wvalid(axil_wvalid), .s_axil_wready(axil_wready),
         .s_axil_bresp(axil_bresp), .s_axil_bvalid(axil_bvalid), .s_axil_bready(axil_bready),
-        .s_axil_araddr(axil_araddr[11:0]), .s_axil_arprot(axil_arprot),
+        .s_axil_araddr(axil_araddr), .s_axil_arprot(axil_arprot),
         .s_axil_arvalid(axil_arvalid), .s_axil_arready(axil_arready),
         .s_axil_rdata(axil_rdata), .s_axil_rresp(axil_rresp),
         .s_axil_rvalid(axil_rvalid), .s_axil_rready(axil_rready),
@@ -110,8 +110,5 @@ module rs_loop_top
     assign LED[5] = axil_awvalid || axil_arvalid;   // UART RX activity
     assign LED[6] = axil_rvalid  || axil_bvalid;    // UART TX activity
     assign LED[7] = r_heartbeat[26];
-
-    logic unused_top;
-    assign unused_top = ^axil_awaddr[31:12] ^ ^axil_araddr[31:12];
 
 endmodule : rs_loop_top

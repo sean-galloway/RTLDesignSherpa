@@ -47,3 +47,21 @@ generated regmap fail to load with `int() argument must be ... not 'dict'`
 The same goes for any field named like the entry's own keys: `name`, `offset`,
 `address`, `size`, `sw`, `type`, `default`. Pick another name.
 
+## Trap: an RDL `singlepulse` is NOT one cycle through the APB shim
+
+`peakrdl_to_cmdrsp` HOLDS the register-block request until the block acks, on
+purpose: its header records that reducing it to a one-cycle strobe broke every
+read through the bridge (2026-08-17, reverted). So a `singlepulse` field
+written through `apb4_to_peakrdl` can be asserted for more than one cycle, and
+any consumer that wants exactly one cycle must take the RISING EDGE in the
+harness.
+
+What it cost (reed-solomon loop harness, 2026-09-30): CTRL.start arms the
+pattern generator and its checker from the same wire. Held two cycles, the
+generator left IDLE on the first and began advancing its LFSR while the
+checker reloaded its seed again on the second. In bypass mode, where the two
+sit on the same cycle, that desynchronised them and every beat mismatched. The
+codec paths hid it, because the decoder's latency means no beat reaches the
+checker until long after the pulse. A harness that only tests through its DUT
+will not see this; the bypass path is what exposed it.
+

@@ -9,9 +9,11 @@
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-# UART -> AXI4-Lite bridge and the AXI-Lite -> PeakRDL cpuif adapter
+# UART -> AXI4-Lite bridge, the generated 1x3 fabric, and the shared
+# APB -> PeakRDL cpuif shim the register block hangs off
 -f $CONVERTERS_ROOT/rtl/filelists/uart_axil_bridge.f
--f $CONVERTERS_ROOT/rtl/filelists/axil4_to_peakrdl.f
+-f $REPO_ROOT/projects/fpga-systems/NexysA7/reed-solomon/rtl/bridges/filelists/bridge_rs_loop_axil.f
+-f $CONVERTERS_ROOT/rtl/filelists/apb4_to_peakrdl.f
 
 # the codec under test, the injector, and the shared stream generator/checker
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_encoder_core.f

@@ -276,13 +276,18 @@ class RSDecoderTB(TBBase):
         for i, rx in enumerate(rxs):
             self.score_block(f"throughput block {i}", rx, out[i * kb:(i + 1) * kb])
         elapsed = cycles - (start or 0)
-        # latency to the first beat is receive (n/S) + solve (2t) + the whole
-        # correction walk (n/S, the block waits for its verdict), then n/S per block
-        bound = blocks * nb + 2 * nb + 2 * self.T + 16
+        # Latency to the first beat is receive (n/S) + solve (2t) + the whole
+        # correction walk (n/S, since the block waits for its verdict). Steady
+        # state is n/S + 1 cycles per block: the verdict stage is one entry
+        # deep, so the next block cannot load into the correct stage until the
+        # previous block's verdict has been written. That +1 is the price of
+        # ending the re-check's Horner chain at a flop (rs_decoder_core's C3),
+        # which is what closed timing at 100 MHz on the Artix-7.
+        bound = blocks * (nb + 1) + 2 * nb + 2 * self.T + 16
         self.checks += 1
         self.log.info(f"throughput: {blocks} blocks of {nb} beats in {elapsed} cycles from first accept "
                       f"(bound {bound}; steady state {(elapsed - 2 * nb - 2 * self.T) / blocks:.1f} "
-                      f"cycles/block vs n/S = {nb})")
+                      f"cycles/block vs n/S + 1 = {nb + 1})")
         if elapsed > bound:
             self.mismatches += 1
             self.log.error(f"throughput: {elapsed} cycles exceeds {bound}")

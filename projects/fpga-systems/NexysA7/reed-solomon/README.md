@@ -30,7 +30,10 @@ and against a reference that never saw the errors.
 ## The loop (build-loop)
 
 ```
-UART -> uart_axil_bridge -> axil4_to_peakrdl -> rs_loop_regs (PeakRDL, 32 CSRs)
+UART -> uart_axil_bridge -> bridge_rs_loop_axil (generated 1x3 fabric)
+                              |  rs_loop_apb  0x00000000  -> apb4_to_peakrdl -> rs_loop_regs
+                              |  rs_regs_apb  0x00010000  -> reserved (codec CSRs, PRD D9)
+                              |  obs_apb      0x00020000  -> reserved (interface observer)
                                                      |
   axis4_master_pattern_gen (32-bit, one packet per block, LFSR data + CRC-32)
         |                                    \
@@ -70,9 +73,11 @@ e = 0 .. 8 every block corrected with exactly e symbols and no mismatching
 beat on either decoder; e = 9 .. 18 every block flagged uncorrectable on both
 with mismatches seen; riBM and Euclid agreed on every beat and every verdict
 at every e, with random ready on the checkers too, and in burst and rate
-modes. Throughput 67.3 cycles per 63-beat block back to back (bypass: 59.0),
-121.9 under random ready. Timing met after place and route at 100 MHz,
-WNS +0.096 ns; 15963 LUTs, 5983 flops, 6 DSPs, no BRAM.
+modes. The fabric's reserved windows were probed on hardware: 0x0 reads the
+loop block's identifier, 0x10000 and 0x20000 read 0 and complete. Throughput
+69.3 cycles per 63-beat block back to back (bypass 59.0), 122.0 under random
+ready. Timing met after place and route at 100 MHz, WNS +0.157 ns; 18248
+LUTs, 8160 flops, 6 DSPs, no BRAM.
 
 **Why the generator was not given an error-injection mode.** An error in the
 generator's data is encoded faithfully and is invisible to the code. Errors
@@ -88,7 +93,7 @@ source env_python
 cd projects/fpga-systems/NexysA7/reed-solomon
 make lint                    # verilator + declaration order, whole harness
 make sim                     # the host programs over the REAL UART bridge in cocotb
-make bitstream               # Vivado (background it: see the handbook)
+make bitstream               # Vivado (background it); REGEN_BRIDGES=1 to take a new fabric
 make program                 # board registry picks the Nexys A7
 bin/run_smoke.py             # init, smoke (bypass, clean, e=t, e=t+1)
 bin/run_smoke.py --sequences init smoke sweep --blocks 64
@@ -103,6 +108,7 @@ build-loop/host/host_rs_loop.py sweep --blocks 64      # the same programs, as a
 | Path | What |
 |---|---|
 | `bin/` | `rs_env.py` (path anchor), `seq_init.py`, `seq_smoke.py`, `seq_sweep.py`, `run_smoke.py` |
+| `rtl/bridges/` | the generated 1x3 AXI-Lite fabric: `configs/bridge_rs_loop_axil.toml` + connectivity CSV, `generated/`, `filelists/`. Shared by this component's builds; `bin/regen_bridges.sh` regenerates, the build PREBUILD checks for drift |
 | `build-loop/rtl/` | `rs_loop_cfg_pkg.sv` (the one source of geometry), `rs_loop_regs.rdl`, `rs_loop_harness.sv`, `rs_loop_top.sv`, `generated/rs_loop_regs/` |
 | `build-loop/host/` | `rs_loop.py` (driver, by-name registers), `rs_loop_programs.py` (the programs sim and board both run), `host_rs_loop.py` (CLI) |
 | `build-loop/dv/` | `tb/rs_loop_uart_tb_top.sv`, `tests/test_rs_loop_uart.py`, `tbclasses/rs_loop_regs_regmap.py` (generated) |

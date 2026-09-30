@@ -33,7 +33,7 @@ Both cores consume one beat per cycle when not back-pressured. With
 | Core | Sustained | Gap | Notes |
 |---|---|---|---|
 | Encoder | ceil(k/S) beats in per ceil(k/S) + ceil(2t/S) cycles | ceil(2t/S) cycles per block while parity drains, unless the consumer buffers that many beats upstream | output rate is n/k times the input rate |
-| Decoder | one block per ceil(n/S) + 1 cycles | none once pipelined; the next block arrives during the previous block's Chien walk | output rate is k/n times the input rate |
+| Decoder | one block per ceil(n/S) + 1 cycles | the verdict stage is one entry deep, so a block's successor cannot enter the correct stage until its verdict is written; otherwise none, the next block arrives during the previous block's Chien walk | output rate is k/n times the input rate |
 
 : Table 5.1: Sustained throughput
 
@@ -41,12 +41,13 @@ Measured in simulation, back-to-back timing at both ends:
 
 | Profile | S | Encoder, cycles per block | Decoder, cycles per block (steady state) |
 |---|---|---|---|
-| RS(255,239) | 1 | 255 | 252 to 257 |
-| RS(255,239) | 4 | 64 | 64.5 |
-| RS(255,239) | 8 | 32 | 33 |
-| RS(204,188) | 8 | 26 | 27 |
-| RS(21,19) | 4 | 6 | 7.2 |
-| RS(15,11) | 3 | 6 | 7 to 8 |
+| RS(255,239) | 1 | 255 | 255.5 |
+| RS(255,239) | 4 | 64 | 67.5 |
+| RS(255,239) | 8 | 32 | 36 |
+| RS(204,188) | 8 | 26 | 30 |
+| RS(21,19) | 4 | 6 | 10.2 |
+| RS(15,11) | 3 | 6 | 9.2 |
+| RS(252,236) on the board | 4 | 63 | 69.3 |
 
 : Table 5.1a: Measured cycles per block
 

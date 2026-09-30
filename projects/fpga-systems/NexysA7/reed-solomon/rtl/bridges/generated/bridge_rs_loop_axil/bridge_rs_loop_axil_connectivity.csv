@@ -1,0 +1,2 @@
+master\slave,rs_loop_apb,rs_regs_apb,obs_apb
+host,1,1,1

@@ -199,3 +199,28 @@ cycles per 63-beat block (bypass 59.0; 121.9 under random ready). Post-route
 WNS +0.096 ns, 15963 LUTs / 5983 FF / 6 DSP / 0 BRAM. Caveat recorded: the
 shared checker's CRC is over the regenerated words, so `data_err` is the data
 evidence and `crc_ok` a delivery check.
+
+**2026-09-30 -- harness rebuilt onto the fabric (Sean's correction).** The first
+cut wired `uart_axil_bridge` straight into one flat register block and added a
+redundant `converters/rtl/axil4_to_peakrdl.sv`. The common pattern is a
+GENERATED 1xN bridge with every register space a slave window, and a PeakRDL
+block hanging off an APB window through the existing `apb4_to_peakrdl` shim
+(`ddr2_char_harness` / `char_engine_block`). Now: `rtl/bridges/` with
+`bridge_rs_loop_axil` (1x3: rs_loop_apb at 0, rs_regs_apb at 0x10000 reserved
+for D9's codec CSRs, obs_apb at 0x20000 reserved, both tied off),
+`bin/regen_bridges.sh`, PREBUILD drift check; my adapter deleted. The rework
+exposed a real bug: `peakrdl_to_cmdrsp` holds the write strobe until ack, so an
+RDL singlepulse is multi-cycle and the generator/checker arm desynchronised --
+visible ONLY in bypass, where they share a cycle. Fixed by edge-detecting
+start/clear/soft_reset; recorded in [[registers-by-name]]. Six UART sims green.
+Two more bugs the rework surfaced, both mine. (1) The board top truncated the
+host address to 12 bits, so the fabric's reserved windows were unreachable -- a
+read of 0x10000 returned the loop block's BUILD_ID. Found by probing the
+hardware; fixed by carrying the full 32 bits, and `cocotb_test_uart_windows`
+now checks all three windows and was mutation-checked by re-truncating.
+(2) The wider decode pushed the re-check chain over: post-route WNS -0.228 ns.
+The status write now happens one cycle later off `syndrome_unit.ow_all_zero`
+(registered) rather than `ow_all_zero_next`, which ends the Horner chain at a
+flop: WNS +0.157 ns, 0 failing endpoints, at the cost of one cycle per block
+(69.3 cycles per 63-beat block on the board, was 67.3). Component 65/130/195
+and harness 7/7 green; campaign ALL PASS; stable/ refreshed.

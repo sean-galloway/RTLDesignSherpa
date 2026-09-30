@@ -196,6 +196,17 @@ rtl_roots = []
 filelist_dirs = ["projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/bridges/filelists"]
 
 [[area]]
+name = "nexys_reed_solomon_bridges"
+kind = "board"
+generated = true
+regen = "projects/fpga-systems/NexysA7/reed-solomon/bin/regen_bridges.sh"
+# The 1x3 AXIL fabric the loop harness drives (host -> loop regs + two
+# reserved windows). Its own area, like the ddr2-char and stream bridges,
+# because the RTL is generated and the regen script is the authority.
+rtl_roots = []
+filelist_dirs = ["projects/fpga-systems/NexysA7/reed-solomon/rtl/bridges/filelists"]
+
+[[area]]
 name = "genesys2_stream_bridges"
 kind = "board"
 generated = true

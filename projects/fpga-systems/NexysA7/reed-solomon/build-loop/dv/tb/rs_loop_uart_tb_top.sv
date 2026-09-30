@@ -52,14 +52,14 @@ module rs_loop_uart_tb_top #(
         .m_axil_rdata(axil_rdata), .m_axil_rresp(axil_rresp),
         .m_axil_rvalid(axil_rvalid), .m_axil_rready(axil_rready));
 
-    rs_loop_harness #(.AXIL_ADDR_WIDTH(12)) u_harness (
+    rs_loop_harness #(.AXIL_ADDR_WIDTH(32)) u_harness (
         .aclk(aclk), .aresetn(aresetn),
-        .s_axil_awaddr(axil_awaddr[11:0]), .s_axil_awprot(axil_awprot),
+        .s_axil_awaddr(axil_awaddr), .s_axil_awprot(axil_awprot),
         .s_axil_awvalid(axil_awvalid), .s_axil_awready(axil_awready),
         .s_axil_wdata(axil_wdata), .s_axil_wstrb(axil_wstrb),
         .s_axil_wvalid(axil_wvalid), .s_axil_wready(axil_wready),
         .s_axil_bresp(axil_bresp), .s_axil_bvalid(axil_bvalid), .s_axil_bready(axil_bready),
-        .s_axil_araddr(axil_araddr[11:0]), .s_axil_arprot(axil_arprot),
+        .s_axil_araddr(axil_araddr), .s_axil_arprot(axil_arprot),
         .s_axil_arvalid(axil_arvalid), .s_axil_arready(axil_arready),
         .s_axil_rdata(axil_rdata), .s_axil_rresp(axil_rresp),
         .s_axil_rvalid(axil_rvalid), .s_axil_rready(axil_rready),

@@ -46,13 +46,28 @@
 //
 //   Geometry comes from rs_loop_cfg_pkg only.
 //
+//   Bus structure, the common harness pattern: the host's UART -> AXI4-Lite
+//   bridge drives a generated 1x3 fabric (bridge_rs_loop_axil), and every
+//   register space in the design is a slave window on it. Today only the
+//   loop's own block is populated, through the shared apb4_to_peakrdl shim;
+//   the other two windows are the codec's rs_regs (PRD D9's standalone tops)
+//   and an interface observer, tied off until they exist so a stray access
+//   cannot hang the host bus. Adding a block is a bridge regeneration, not a
+//   harness rewrite -- which is why the first cut of this file, with the UART
+//   bridge wired straight into one flat register block, was wrong.
+//
 //==============================================================================
 
 module rs_loop_harness
     import rs_loop_cfg_pkg::*;
     import rs_loop_regs_pkg::*;
 #(
-    parameter int AXIL_ADDR_WIDTH = 12
+    // 32, not 12: the fabric decodes the window bits (rs_regs at 0x10000,
+    // obs at 0x20000), so truncating the host address here makes those
+    // windows unreachable -- every access folds back into the low window.
+    // That is what the first cut of this rework did, and a board probe that
+    // read 0x10000 and got the loop block's BUILD_ID is what found it.
+    parameter int AXIL_ADDR_WIDTH = 32
 ) (
     input  logic                        aclk,
     input  logic                        aresetn,
@@ -93,28 +108,98 @@ module rs_loop_harness
     localparam int DW   = CFG_DATA_WIDTH;
     localparam int SC_W = $clog2(T + 1);
 
+    // Control signals decoded from the CSRs further down. Declared here
+    // because the fabric's unmapped-access clear is one of them, and a
+    // forward reference in a port map becomes an implicit 1-bit net.
+    logic        w_start, w_clear, w_soft_reset, w_bypass;
+    logic [15:0] w_blocks;
+
     // =========================================================================
-    // CSR block: AXI-Lite -> passthrough cpuif -> generated regblock
+    // Bus fabric: host AXI4-Lite -> generated 1x3 bridge -> APB slave windows
     // =========================================================================
+    logic        rs_loop_apb_PSEL, rs_loop_apb_PENABLE, rs_loop_apb_PWRITE;
+    logic        rs_loop_apb_PREADY, rs_loop_apb_PSLVERR;
+    logic [31:0] rs_loop_apb_PADDR, rs_loop_apb_PWDATA, rs_loop_apb_PRDATA;
+    logic [3:0]  rs_loop_apb_PSTRB;
+    logic [2:0]  rs_loop_apb_PPROT;
+
+    // Expansion windows: rs_regs (PRD D9's codec register block) at 0x10000
+    // and an interface observer at 0x20000. Tied off so a stray host access
+    // completes instead of hanging the bus.
+    logic        rs_regs_apb_PSEL, rs_regs_apb_PENABLE, rs_regs_apb_PWRITE;
+    logic [31:0] rs_regs_apb_PADDR, rs_regs_apb_PWDATA;
+    logic [3:0]  rs_regs_apb_PSTRB;
+    logic [2:0]  rs_regs_apb_PPROT;
+    logic        obs_apb_PSEL, obs_apb_PENABLE, obs_apb_PWRITE;
+    logic [31:0] obs_apb_PADDR, obs_apb_PWDATA;
+    logic [3:0]  obs_apb_PSTRB;
+    logic [2:0]  obs_apb_PPROT;
+
+    logic        w_unmapped_irq, w_unmapped_clear;
+    logic [31:0] w_unmapped_addr;
+    logic [31:0] w_unmapped_count;
+
+    bridge_rs_loop_axil u_bridge (
+        .aclk    (aclk),
+        .aresetn (aresetn),
+
+        .host_axi_awaddr  (s_axil_awaddr),      .host_axi_awprot  (s_axil_awprot),
+        .host_axi_awvalid (s_axil_awvalid),     .host_axi_awready (s_axil_awready),
+        .host_axi_wdata   (s_axil_wdata),       .host_axi_wstrb   (s_axil_wstrb),
+        .host_axi_wvalid  (s_axil_wvalid),      .host_axi_wready  (s_axil_wready),
+        .host_axi_bresp   (s_axil_bresp),       .host_axi_bvalid  (s_axil_bvalid),
+        .host_axi_bready  (s_axil_bready),
+        .host_axi_araddr  (s_axil_araddr),      .host_axi_arprot  (s_axil_arprot),
+        .host_axi_arvalid (s_axil_arvalid),     .host_axi_arready (s_axil_arready),
+        .host_axi_rdata   (s_axil_rdata),       .host_axi_rresp   (s_axil_rresp),
+        .host_axi_rvalid  (s_axil_rvalid),      .host_axi_rready  (s_axil_rready),
+
+        .rs_loop_apb_PSEL   (rs_loop_apb_PSEL),   .rs_loop_apb_PADDR  (rs_loop_apb_PADDR),
+        .rs_loop_apb_PENABLE(rs_loop_apb_PENABLE), .rs_loop_apb_PWRITE(rs_loop_apb_PWRITE),
+        .rs_loop_apb_PWDATA (rs_loop_apb_PWDATA), .rs_loop_apb_PSTRB (rs_loop_apb_PSTRB),
+        .rs_loop_apb_PPROT  (rs_loop_apb_PPROT),  .rs_loop_apb_PRDATA(rs_loop_apb_PRDATA),
+        .rs_loop_apb_PREADY (rs_loop_apb_PREADY), .rs_loop_apb_PSLVERR(rs_loop_apb_PSLVERR),
+
+        .rs_regs_apb_PSEL   (rs_regs_apb_PSEL),   .rs_regs_apb_PADDR  (rs_regs_apb_PADDR),
+        .rs_regs_apb_PENABLE(rs_regs_apb_PENABLE), .rs_regs_apb_PWRITE(rs_regs_apb_PWRITE),
+        .rs_regs_apb_PWDATA (rs_regs_apb_PWDATA), .rs_regs_apb_PSTRB (rs_regs_apb_PSTRB),
+        .rs_regs_apb_PPROT  (rs_regs_apb_PPROT),  .rs_regs_apb_PRDATA(32'h0),
+        .rs_regs_apb_PREADY (1'b1),               .rs_regs_apb_PSLVERR(1'b0),
+
+        .obs_apb_PSEL   (obs_apb_PSEL),   .obs_apb_PADDR  (obs_apb_PADDR),
+        .obs_apb_PENABLE(obs_apb_PENABLE), .obs_apb_PWRITE(obs_apb_PWRITE),
+        .obs_apb_PWDATA (obs_apb_PWDATA), .obs_apb_PSTRB (obs_apb_PSTRB),
+        .obs_apb_PPROT  (obs_apb_PPROT),  .obs_apb_PRDATA(32'h0),
+        .obs_apb_PREADY (1'b1),           .obs_apb_PSLVERR(1'b0),
+
+        .unmapped_irq   (w_unmapped_irq),
+        .unmapped_addr  (w_unmapped_addr),
+        .unmapped_count (w_unmapped_count),
+        .unmapped_clear (w_clear));
+
+    // -------------------------------------------------------------------------
+    // The loop's register block: APB window -> the shared apb4_to_peakrdl shim
+    // -> the generated regblock. Same route char_engine_block uses for
+    // chargen_regs; both clock inputs are aclk here (one clock in this design),
+    // so the shim's CDC is degenerate and costs only handshake latency.
+    // -------------------------------------------------------------------------
     logic        w_cpuif_req, w_cpuif_req_is_wr, w_cpuif_stall_wr, w_cpuif_stall_rd;
-    logic [AXIL_ADDR_WIDTH-1:0] w_cpuif_addr;
+    logic [11:0] w_cpuif_addr;
     logic [31:0] w_cpuif_wr_data, w_cpuif_wr_biten, w_cpuif_rd_data;
     logic        w_cpuif_rd_ack, w_cpuif_rd_err, w_cpuif_wr_ack, w_cpuif_wr_err;
 
     rs_loop_regs__in_t  hwif_in;
     rs_loop_regs__out_t hwif_out;
 
-    axil4_to_peakrdl #(.ADDR_WIDTH(AXIL_ADDR_WIDTH), .DATA_WIDTH(32)) u_axil2cpuif (
-        .aclk(aclk), .aresetn(aresetn),
-        .s_axil_awaddr(s_axil_awaddr), .s_axil_awprot(s_axil_awprot),
-        .s_axil_awvalid(s_axil_awvalid), .s_axil_awready(s_axil_awready),
-        .s_axil_wdata(s_axil_wdata), .s_axil_wstrb(s_axil_wstrb),
-        .s_axil_wvalid(s_axil_wvalid), .s_axil_wready(s_axil_wready),
-        .s_axil_bresp(s_axil_bresp), .s_axil_bvalid(s_axil_bvalid), .s_axil_bready(s_axil_bready),
-        .s_axil_araddr(s_axil_araddr), .s_axil_arprot(s_axil_arprot),
-        .s_axil_arvalid(s_axil_arvalid), .s_axil_arready(s_axil_arready),
-        .s_axil_rdata(s_axil_rdata), .s_axil_rresp(s_axil_rresp),
-        .s_axil_rvalid(s_axil_rvalid), .s_axil_rready(s_axil_rready),
+    apb4_to_peakrdl #(
+        .ADDR_WIDTH(12), .DATA_WIDTH(32), .USE_2_PHASE_CDC(1'b1)
+    ) u_apb2cpuif (
+        .aclk(aclk), .aresetn(aresetn), .pclk(aclk), .presetn(aresetn),
+        .s_apb_PSEL   (rs_loop_apb_PSEL),        .s_apb_PENABLE(rs_loop_apb_PENABLE),
+        .s_apb_PREADY (rs_loop_apb_PREADY),      .s_apb_PADDR  (rs_loop_apb_PADDR[11:0]),
+        .s_apb_PWRITE (rs_loop_apb_PWRITE),      .s_apb_PWDATA (rs_loop_apb_PWDATA),
+        .s_apb_PSTRB  (rs_loop_apb_PSTRB),       .s_apb_PPROT  (rs_loop_apb_PPROT),
+        .s_apb_PRDATA (rs_loop_apb_PRDATA),      .s_apb_PSLVERR(rs_loop_apb_PSLVERR),
         .cpuif_req(w_cpuif_req), .cpuif_req_is_wr(w_cpuif_req_is_wr), .cpuif_addr(w_cpuif_addr),
         .cpuif_wr_data(w_cpuif_wr_data), .cpuif_wr_biten(w_cpuif_wr_biten),
         .cpuif_req_stall_wr(w_cpuif_stall_wr), .cpuif_req_stall_rd(w_cpuif_stall_rd),
@@ -132,15 +217,35 @@ module rs_loop_harness
         .hwif_in(hwif_in), .hwif_out(hwif_out));
 
     // -------------------------------------------------------------------------
-    // Control decode
+    // Control decode (the signals are declared above the fabric)
     // -------------------------------------------------------------------------
-    logic        w_start, w_clear, w_soft_reset, w_bypass;
     logic        dp_rstn;            // datapath reset: board reset or CTRL.soft_reset
-    logic [15:0] w_blocks;
 
-    assign w_start      = hwif_out.CTRL.start.value;
-    assign w_clear      = hwif_out.CTRL.clear.value;
-    assign w_soft_reset = hwif_out.CTRL.soft_reset.value;
+    // The register write strobe reaching the regblock is HELD until the
+    // regblock acks -- peakrdl_to_cmdrsp does that deliberately, and its
+    // header records that reducing it to one cycle broke every read through
+    // the bridge. So an RDL `singlepulse` field can be asserted for more than
+    // one cycle, and every consumer here wants exactly one: the generator and
+    // checker are armed by the same strobe, and a two-cycle arm reloads the
+    // checker's LFSR seed a second time while the generator has already begun
+    // advancing. In bypass, where the two are on the same cycle, that
+    // desynchronised them and every beat mismatched. Take the rising edge.
+    logic r_start_d, r_clear_d, r_soft_reset_d;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_start_d      <= 1'b0;
+            r_clear_d      <= 1'b0;
+            r_soft_reset_d <= 1'b0;
+        end else begin
+            r_start_d      <= hwif_out.CTRL.start.value;
+            r_clear_d      <= hwif_out.CTRL.clear.value;
+            r_soft_reset_d <= hwif_out.CTRL.soft_reset.value;
+        end
+    )
+
+    assign w_start      = hwif_out.CTRL.start.value      && !r_start_d;
+    assign w_clear      = hwif_out.CTRL.clear.value      && !r_clear_d;
+    assign w_soft_reset = hwif_out.CTRL.soft_reset.value && !r_soft_reset_d;
     assign w_bypass     = hwif_out.CTRL.bypass.value;
     assign w_blocks     = hwif_out.GEN_BLOCKS.blocks.value;
 
@@ -463,6 +568,14 @@ module rs_loop_harness
     logic unused_h;
     assign unused_h = gen_busy ^ enc_frame_err ^ (^gen_beats_total) ^ (^gen_beats_ch[0])
                     ^ (^chk_beats_total[0]) ^ (^chk_beats_total[1]) ^ (^chk_beats_ch[0][0]) ^ (^chk_beats_ch[1][0])
-                    ^ cmp_wr_ready[0] ^ cmp_wr_ready[1] ^ (^w_cpuif_addr[AXIL_ADDR_WIDTH-1:7]);
+                    ^ cmp_wr_ready[0] ^ cmp_wr_ready[1] ^ (^w_cpuif_addr[11:7])
+                    // the unmapped-access telemetry and the tied-off windows'
+                    // request signals: available to the harness, unread today
+                    ^ w_unmapped_irq ^ (^w_unmapped_addr) ^ (^w_unmapped_count)
+                    ^ rs_regs_apb_PSEL ^ rs_regs_apb_PENABLE ^ rs_regs_apb_PWRITE
+                    ^ (^rs_regs_apb_PADDR) ^ (^rs_regs_apb_PWDATA) ^ (^rs_regs_apb_PSTRB)
+                    ^ (^rs_regs_apb_PPROT)
+                    ^ obs_apb_PSEL ^ obs_apb_PENABLE ^ obs_apb_PWRITE
+                    ^ (^obs_apb_PADDR) ^ (^obs_apb_PWDATA) ^ (^obs_apb_PSTRB) ^ (^obs_apb_PPROT);
 
 endmodule : rs_loop_harness

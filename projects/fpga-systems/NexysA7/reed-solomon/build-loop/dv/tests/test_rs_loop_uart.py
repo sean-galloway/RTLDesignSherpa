@@ -8,6 +8,7 @@ drives the identical ASCII W/R byte stream the host sends to the FPGA, through
 the UNMODIFIED programs in host/rs_loop_programs.py.
 
   uart_smoke     BUILD_ID + SCRATCH + PROFILE over the real bridge RTL
+  uart_windows   the fabric's three windows are reachable and isolated
   uart_bypass    generator -> checkers with the codec bypassed: CRCs match
   uart_clean     no errors: every block ok, CRCs match, riBM == Euclid
   uart_correct   e = t per block: every block corrected with t symbols
@@ -81,6 +82,33 @@ async def cocotb_test_uart_smoke(dut):
     assert tx.startswith((b"R ", b"W ")), f"unexpected first bytes: {tx[:8]!r}"
 
 
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_uart_windows(dut):
+    """The fabric's three windows are reachable and isolated.
+
+    A reserved window must read 0 (the harness ties its PRDATA low) and must
+    COMPLETE rather than hang. If the host address is truncated anywhere
+    between the UART bridge and the fabric, every window folds back into the
+    low one and these reads return the loop block's BUILD_ID instead -- which
+    is exactly what a board probe found after the fabric first went in.
+    """
+    drv, _ = await _bringup(dut)
+    reads = await cocotb.external(lambda: [
+        ("rs_loop_apb", 0x00000, drv.bridge.read(0x00000)),
+        ("rs_regs_apb (reserved)", 0x10000, drv.bridge.read(0x10000)),
+        ("obs_apb (reserved)", 0x20000, drv.bridge.read(0x20000)),
+        ("rs_loop_apb again", 0x00000, drv.bridge.read(0x00000)),
+    ])()
+    for name, addr, val in reads:
+        dut._log.info("window %-24s @0x%05X -> 0x%08X", name, addr, val)
+    assert reads[0][2] == rl.EXPECTED_BUILD_ID, f"loop window read 0x{reads[0][2]:08X}"
+    assert reads[1][2] == 0, (f"the reserved rs_regs window read 0x{reads[1][2]:08X}, not 0 -- "
+                              "the host address is being truncated before the fabric")
+    assert reads[2][2] == 0, (f"the reserved obs window read 0x{reads[2][2]:08X}, not 0 -- "
+                              "the host address is being truncated before the fabric")
+    assert reads[3][2] == rl.EXPECTED_BUILD_ID, "the loop window stopped responding after the others"
+
+
 @cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_uart_bypass(dut):
     drv, _ = await _bringup(dut)
@@ -151,6 +179,10 @@ def _run(testcase: str):
 
 def test_rs_loop_uart_smoke(request):
     _run("cocotb_test_uart_smoke")
+
+
+def test_rs_loop_uart_windows(request):
+    _run("cocotb_test_uart_windows")
 
 
 def test_rs_loop_uart_bypass(request):

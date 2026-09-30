@@ -43,7 +43,7 @@ All figures analytic at revision 0.1, one symbol per beat.
 | key equation | 2t (riBM) or <= 2t (Euclid) | skipped when the syndromes are all zero |
 | Chien + Forney + re-check walk | n | one position per cycle; the block is released only after its verdict |
 | drain | k | the data symbols leave while the next block is walked |
-| pipeline | about 7 | descriptor skids, solver handoff, the correct-stage register, output FIFO |
+| pipeline | about 8 | descriptor skids, solver handoff, the correct-stage register, the verdict stage, output FIFO |
 | first symbol in to first symbol out | about 2n + 2t + 6 | 532 for RS(255,239) |
 | **first symbol in to last symbol out** | **about 2n + 2t + k + 6** | 771 |
 
