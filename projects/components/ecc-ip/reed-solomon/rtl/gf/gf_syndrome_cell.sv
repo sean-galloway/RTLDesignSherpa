@@ -28,6 +28,10 @@
 //   of the previous one. After the n-th symbol ow_synd holds
 //   sum_j r_j * alpha^(ROOT_EXP * (n-1-j)), the syndrome at that root.
 //
+//   ow_next is the combinational next value, so a caller that sees the block's
+//   last symbol can take the finished syndrome in the same cycle instead of
+//   waiting a clock for the register.
+//
 //   One gf_mul_const (the root) and an m-bit register.
 //
 //------------------------------------------------------------------------------
@@ -51,7 +55,8 @@ module gf_syndrome_cell
     input  logic                    i_step,
     input  logic                    i_first,
     input  logic [SYMBOL_WIDTH-1:0] i_data,
-    output logic [SYMBOL_WIDTH-1:0] ow_synd
+    output logic [SYMBOL_WIDTH-1:0] ow_synd,
+    output logic [SYMBOL_WIDTH-1:0] ow_next    // the value ow_synd takes if i_step is high now
 );
 
     localparam int M    = SYMBOL_WIDTH;
@@ -59,6 +64,7 @@ module gf_syndrome_cell
 
     logic [M-1:0] r_s;
     logic [M-1:0] w_s_root;
+    logic [M-1:0] w_next;
 
     gf_mul_const #(
         .SYMBOL_WIDTH(M),
@@ -73,10 +79,12 @@ module gf_syndrome_cell
         if (`RST_ASSERTED(aresetn)) begin
             r_s <= '0;
         end else if (i_step) begin
-            r_s <= (i_first ? '0 : w_s_root) ^ i_data;
+            r_s <= w_next;
         end
     )
 
+    assign w_next  = (i_first ? '0 : w_s_root) ^ i_data;
     assign ow_synd = r_s;
+    assign ow_next = w_next;
 
 endmodule : gf_syndrome_cell

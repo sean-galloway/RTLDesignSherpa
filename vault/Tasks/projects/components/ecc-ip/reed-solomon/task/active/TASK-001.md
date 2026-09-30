@@ -136,3 +136,19 @@ lint-clean at five profiles, each with a direct-drive TB in
 `dv/tbclasses/rs_decoder_blocks_tb.py` scored bit-exact against the model
 (five configs each, incl. CCSDS 0x187 b = 112 and RS(15,11)). Next: `rs_decoder_core`
 (block FIFO, descriptor pipeline, corrector, re-check syndromes, status with out_last).
+
+**2026-09-30 -- `rs_decoder_core`.** Receive / solve / correct stages behind two
+descriptor skids; block FIFO and output FIFO on `gaxi_fifo_sync`; a second
+`syndrome_unit` re-checks the corrected stream; the output FIFO carries
+`{rx, correction, hit}` and a block is released only with its verdict, so an
+uncorrectable block leaves as received (the first cut applied corrections in the
+walk and emitted altered symbols on 2 of 20 checks -- fixed by moving the XOR to
+the output). Runaway blocks are force-ended at the FIFO depth with frame_err.
+`RSDecoderTB` through GAXI BFMs, scored against `rs_model.decode`: 0..t errors,
+t+1 and more (verdict must match the model), short/long/one-symbol framing,
+five timing profiles, throughput (measured 252-257 cycles per RS(255,239) block;
+15.5, 22.0, 201.5 on the other profiles). Area 45/90/135 cells green. Mutations
+caught: re-check inverted (12/20), correction suppressed at position 0 (3 of 4
+seeded cells). HAS chapters 3.2, 4.1, 5.2, 5.3, 6.4 and the catalog updated for
+release-on-verdict (first-symbol latency 2n + 2t, output FIFO 2k x (2m+2)).
+Still open on the decoder: S > 1, erasures (D5), the Euclid solver variant.

@@ -41,10 +41,11 @@ All figures analytic at revision 0.1, one symbol per beat.
 |---|---|---|
 | receive the block | n | syndromes complete with the last symbol |
 | key equation | 2t (riBM) or <= 2t (Euclid) | skipped when the syndromes are all zero |
-| Chien + Forney + corrector | n | one position per cycle; the buffer drains in step |
-| pipeline | about 6 | unpack, skid, solver handoff, Forney, corrector, pack |
-| **first symbol in to last symbol out** | **about 2n + 2t + 6** | 527 for RS(255,239) |
-| first symbol in to first symbol out | about n + 2t + 6 | 277 |
+| Chien + Forney + re-check walk | n | one position per cycle; the block is released only after its verdict |
+| drain | k | the data symbols leave while the next block is walked |
+| pipeline | about 6 | descriptor skids, solver handoff, output FIFO |
+| first symbol in to first symbol out | about 2n + 2t + 6 | 532 for RS(255,239) |
+| **first symbol in to last symbol out** | **about 2n + 2t + k + 6** | 771 |
 
 : Table 5.4: Decoder latency
 
@@ -54,6 +55,12 @@ shrink.
 
 ## Buffer sizing
 
-The block buffer must hold the current block while the next arrives during
-the Chien walk: depth = n + 2t + pipeline symbols, rounded up to a power of
-two -- 512 for the reference profile, 1024 for RS(544,514).
+The block FIFO must hold the current block while the next arrives during
+the Chien walk: depth = n + 2t + 8 symbols, rounded up to a power of two --
+512 for the reference profile, 1024 for RS(544,514). The output FIFO holds a
+block's data symbols while it waits for its verdict and the next block's
+while that one is walked: depth = 2k + 8 rounded up, at 2m + 2 bits per entry
+(received symbol, correction, hit, last) -- 512 x 18 for the reference profile.
+The release-on-verdict rule costs this second buffer and the extra n cycles
+of first-symbol latency; it is the price of never emitting an altered symbol
+on an uncorrectable block.

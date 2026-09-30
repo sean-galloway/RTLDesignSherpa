@@ -69,10 +69,10 @@ Both cores present the house valid/ready streaming contract
 | `out_data` | out | S x m | S corrected data symbols (parity is not emitted) |
 | `out_keep` | out | S | present-symbol mask |
 | `out_last` | out | 1 | this beat carries the k-th data symbol of the block |
-| `out_status_ok` | out | 1 | valid with `out_last`: the block had no errors |
-| `out_status_corrected` | out | log2(t)+1 | valid with `out_last`: symbols corrected (0 .. t) |
-| `out_status_uncorrectable` | out | 1 | valid with `out_last`: correction failed; the data are as received |
-| `out_status_frame_err` | out | 1 | valid with `out_last`: block length was not n |
+| `out_status_ok` | out | 1 | held for every beat of the block: it had no errors |
+| `out_status_corrected` | out | log2(t)+1 | held for every beat of the block: symbols corrected (0 .. t) |
+| `out_status_uncorrectable` | out | 1 | held for every beat of the block: correction failed; the data are exactly as received |
+| `out_status_frame_err` | out | 1 | held for every beat of the block: block length was not n; the block passes through uncorrected, its first length - 2t symbols as data |
 
 : Table 4.3: Decoder core ports
 
@@ -87,8 +87,10 @@ Both cores present the house valid/ready streaming contract
   previous one, up to the depth of its block buffer; `in_ready` falls only
   when the buffer is full, which under sustained back-pressure on `out_ready`
   it will be.
-- Status outputs are meaningful only on the beat where `out_last` is high
-  and hold their value until the next block's last beat.
+- Status outputs describe the block being emitted and are valid on every
+  beat of it, first to last; a consumer may sample them with `out_last` or
+  with the first beat. A block is not released until its verdict is final, so
+  an uncorrectable verdict is never preceded by altered symbols.
 - Reset clears block state and the syndrome and parity registers; the block
   buffer is not reset (its contents are indexed by pointers that are).
 

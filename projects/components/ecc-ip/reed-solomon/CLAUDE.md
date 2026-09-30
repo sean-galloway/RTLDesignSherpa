@@ -67,6 +67,19 @@ It is an endpoint codec, never a mid-stream insert (PRD 4a). Until a consumer na
   not zero -- that is what makes "never silently pass a failed block" true.
   `gf_alpha_pow` accepts negative exponents (the Chien/Forney load constants
   need them); SystemVerilog `%` keeps the sign, which is why it re-wraps.
+- Decoder core facts (2026-09-30): three stages (receive, solve, correct)
+  joined by `gaxi_skid_buffer` descriptor stages; the block FIFO and the
+  output FIFO are `gaxi_fifo_sync` in mux mode. The output FIFO stores
+  `{last, hit, correction, received}` and the block is released only when its
+  status entry exists -- corrections are applied AT THE OUTPUT and skipped
+  when the verdict is uncorrectable. Do not move the XOR back into the walk:
+  the re-check verdict is not known until the last position, and applying
+  corrections early is what emitted altered symbols on uncorrectable blocks
+  in the first cut. Status is valid on every beat of the block, not only
+  with `out_last`. A block reaching the FIFO depth without `in_last` is
+  force-ended with frame_err (anti-deadlock). Mutation checks that must keep
+  failing: invert the re-check term (12 mismatches in 20), suppress the
+  correction at position 0 (seed-dependent: try two seeds).
 - Filelists in `rtl/filelists/` and registered in `bin/filelists.toml` from
   the first module (`vault/handbook/design/filelists.md`).
 - DV: cocotb under `dv/tests/` with TB classes in `dv/tbclasses/` (Pattern B,

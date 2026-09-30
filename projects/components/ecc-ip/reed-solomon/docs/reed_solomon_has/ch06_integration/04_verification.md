@@ -38,7 +38,8 @@ verdict against the model's decode.
 | Axis | Values | Why |
 |---|---|---|
 | profile | each row of table 6.4 the build admits | field constants and shortening differ per profile |
-| errors per block | 0, 1, t-1, t, t+1, random | 0 exercises the bypass; t+1 must be flagged uncorrectable, never miscorrected |
+| errors per block | 0, 1, t-1, t, t+1, random | 0 exercises the bypass; t+1 and more must match the reference decoder's verdict -- uncorrectable, or the identical miscorrection where the code itself cannot tell -- and an uncorrectable block's data must be exactly as received |
+| reference model | `dv/tbclasses/rs_model.py` | the hardware algorithms in Python on reedsolo's field, validated against reedsolo's decoder; every decoder block is bit-exact against it |
 | erasures (if built) | 0 .. 2t, mixed with errors up to 2e + f = 2t | the erasure budget |
 | symbols per beat | 1, and the consumer's S | the S-fold datapaths |
 | solver | riBM and Euclid | identical roots and values on every corrected block |

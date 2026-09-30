@@ -42,7 +42,9 @@ measurements.
 
 | Item | Size | Formula |
 |---|---|---|
-| block buffer | 512 x 9 bits (one BRAM) | (n + 2t + pipe, rounded up) x (m + 1 erasure bit) |
+| block FIFO | 512 x 8 bits (one BRAM) | (n + 2t + 8, rounded up) x m (+1 erasure bit when built) |
+| output FIFO | 512 x 18 bits (one BRAM) | (2k + 8, rounded up) x (2m + 2): received symbol, correction, hit, last |
+| re-check syndromes | 2t cells | a second `syndrome_unit` over the corrected stream |
 | log / antilog tables (`gf_inv`) | 2 x 256 x 8 bits | 2 x 2^m x m; LUT ROM at m = 8, BRAM at m = 10 |
 | skid buffers | 2 (encoder), 3 (decoder), 2 deep | stage boundaries |
 

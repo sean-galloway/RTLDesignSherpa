@@ -52,7 +52,11 @@ module syndrome_unit
     input  logic                                  i_first,
     input  logic [SYMBOL_WIDTH-1:0]               i_data,
     output logic [2*T_SYMBOLS*SYMBOL_WIDTH-1:0]   ow_synd,
-    output logic                                  ow_all_zero
+    output logic                                  ow_all_zero,
+    // combinational: the values after this cycle's i_step, for a caller that
+    // wants the finished syndromes in the same cycle as the last symbol
+    output logic [2*T_SYMBOLS*SYMBOL_WIDTH-1:0]   ow_synd_next,
+    output logic                                  ow_all_zero_next
 );
 
     localparam int M  = SYMBOL_WIDTH;
@@ -74,10 +78,12 @@ module syndrome_unit
             .i_step (i_step),
             .i_first(i_first),
             .i_data (i_data),
-            .ow_synd(ow_synd[i*M +: M])
+            .ow_synd(ow_synd[i*M +: M]),
+            .ow_next(ow_synd_next[i*M +: M])
         );
     end
 
-    assign ow_all_zero = (ow_synd == '0);
+    assign ow_all_zero      = (ow_synd == '0);
+    assign ow_all_zero_next = (ow_synd_next == '0);
 
 endmodule : syndrome_unit

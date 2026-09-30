@@ -50,23 +50,35 @@ One beat in, one beat out, with a block of latency in between.
    clean: the solver is skipped and the buffer drains through the corrector
    unchanged, status = ok.
 3. Otherwise the key-equation solver runs 2t iterations. If the resulting
-   locator degree exceeds t (or the Chien search finds fewer roots than the
-   degree), the block is uncorrectable: it drains uncorrected with status =
-   uncorrectable, so the consumer sees the block and the verdict together.
+   locator degree exceeds t, or is zero, the block is already known to be
+   uncorrectable.
 4. Chien search steps through positions 0 .. n-1, one per cycle, while the
    buffer reads out the same positions. At each root, Forney supplies the
-   error value and the corrector applies it. `out_last` carries the status.
-5. The next block's symbols may be arriving during steps 3-4; the buffer is
-   sized for that overlap, so the decoder sustains one block per n cycles.
+   error value. Every corrected symbol, data and parity alike, is fed to a
+   second syndrome unit; the received data symbols and their corrections go
+   to the output FIFO as separate fields.
+5. On the last position the verdict is final: uncorrectable if the root count
+   differs from the degree, if a derivative was zero at a root, or if the
+   re-computed syndromes are not all zero. That last check is what catches the
+   blocks with more than t errors whose wrong locator still has the right
+   number of roots; the degree and root checks alone miscorrect some of them.
+6. The block is released only once its verdict exists. Corrections are
+   applied on the way out, and not at all when the block is uncorrectable, so
+   an uncorrectable block leaves exactly as it arrived. The status ports hold
+   the verdict for every beat of the block and `out_last` marks its k-th.
+7. The next block's symbols arrive during steps 3-6 and the one after that is
+   being solved while this one is walked; the buffers are sized for that
+   overlap, so the decoder sustains one block per n cycles.
 
 ### Figure 3.2: Decoder timeline, one symbol per cycle
 
 ![Decoder timeline](../assets/mermaid/rs_decoder_timeline.png)
 
-For the reference profile a block takes about 2n + 2t cycles from first
-symbol in to last symbol out (about 526 for RS(255,239)), and the next block
-overlaps the second half, so sustained throughput is one block every n
-cycles.
+For the reference profile the first data symbol of a block emerges about
+2n + 2t cycles after its first symbol arrived (the block is received, solved,
+and walked to its verdict before release), and the block then drains in k
+cycles while the next block is walked, so sustained throughput is one block
+every n cycles -- measured at 252 to 257 cycles per RS(255,239) block.
 
 ## Block boundaries
 
