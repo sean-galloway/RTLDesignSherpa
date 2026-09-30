@@ -224,3 +224,16 @@ The status write now happens one cycle later off `syndrome_unit.ow_all_zero`
 flop: WNS +0.157 ns, 0 failing endpoints, at the cost of one cycle per block
 (69.3 cycles per 63-beat block on the board, was 67.3). Component 65/130/195
 and harness 7/7 green; campaign ALL PASS; stable/ refreshed.
+
+**2026-09-30 -- the two standing requirements, now guarded (Sean).** (1) All
+board registers by name: already true of the driver, CLI and sequences via
+`UartRegisterMap` over the RDL-generated regmap; audited, no offsets in
+`host/` or `bin/`. The fabric-window test is the sole raw-address site (the
+reserved windows hold no registers) and now PARSES its bases from
+`bridge_rs_loop_axil.toml` instead of restating them. (2) All sequences run in
+the sim harness: this was MISSING -- the cosim ran the authored-once programs
+but never the `seq_*.py` files, exactly the drift [[uart-harness]] records.
+`cocotb_test_uart_sequences` now runs init -> smoke -> sweep through the same
+SequenceRunner with `board=None` and the cocotb UART injected, deviating only
+in `blocks`/`counts` for runtime; mutation-checked by breaking a sequence's
+expectation. Harness suite is 8 tests.

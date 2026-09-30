@@ -86,6 +86,31 @@ on the coded stream. Its exact-count mode places exactly e errors per block
 at uniformly random distinct positions (selection sampling), which is what
 makes the e = t and e = t + 1 expectations sharp.
 
+## The two properties this flow must keep
+
+**Every register is accessed by name.** The host driver, the CLI and all three
+sequences go through `UartRegisterMap` over `dv/tbclasses/rs_loop_regs_regmap.py`,
+which `make regmap` generates from `rtl/rs_loop_regs.rdl`. There is no offset
+anywhere in `host/` or `bin/`. The one place raw addresses appear is
+`cocotb_test_uart_windows`, which tests the fabric's address decode itself and
+therefore cannot use a register name: the reserved windows hold no registers.
+It parses the window bases out of `bridge_rs_loop_axil.toml` rather than
+restating them, so a moved window moves in one place.
+
+**Every sequence runs in the sim harness exactly as on the board.**
+`cocotb_test_uart_sequences` builds a `SequenceContext` with `board=None` and
+the cocotb UART as the transport, then runs `init -> smoke -> sweep` through
+the same `SequenceRunner` that `bin/run_smoke.py` drives on the board, with the
+same dependency resolution. The sequences are unmodified; the only deviations
+are `blocks` and the sweep's `counts`, both runtime parameters, because a
+32-bit UART transaction costs about 3000 sim cycles against a block's 63. The
+test is mutation-checked: breaking a sequence's expectation fails it.
+
+Without that second test a sequence-layer bug is invisible in simulation, which
+is the drift `vault/handbook/fpga/cmn-infra/uart-harness.md` records from
+another flow, where the cosim reimplemented the campaigns inline and the shared
+runner was never exercised.
+
 ## Running it
 
 ```bash
@@ -111,7 +136,7 @@ build-loop/host/host_rs_loop.py sweep --blocks 64      # the same programs, as a
 | `rtl/bridges/` | the generated 1x3 AXI-Lite fabric: `configs/bridge_rs_loop_axil.toml` + connectivity CSV, `generated/`, `filelists/`. Shared by this component's builds; `bin/regen_bridges.sh` regenerates, the build PREBUILD checks for drift |
 | `build-loop/rtl/` | `rs_loop_cfg_pkg.sv` (the one source of geometry), `rs_loop_regs.rdl`, `rs_loop_harness.sv`, `rs_loop_top.sv`, `generated/rs_loop_regs/` |
 | `build-loop/host/` | `rs_loop.py` (driver, by-name registers), `rs_loop_programs.py` (the programs sim and board both run), `host_rs_loop.py` (CLI) |
-| `build-loop/dv/` | `tb/rs_loop_uart_tb_top.sv`, `tests/test_rs_loop_uart.py`, `tbclasses/rs_loop_regs_regmap.py` (generated) |
+| `build-loop/dv/` | `tb/rs_loop_uart_tb_top.sv`, `tests/test_rs_loop_uart.py` (8 tests: smoke, windows, sequences, bypass, clean, e=t, e=t+1, throttled), `tbclasses/rs_loop_regs_regmap.py` (generated) |
 | `build-loop/fpga/` | `tcl/`, `constraints/rs_loop.xdc`, `bitstream/`, `reports/` |
 
 Handbook: `vault/handbook/fpga/cmn-infra/` (uart-harness, build-flows, sequences, one-source-config).

@@ -134,6 +134,14 @@ It is an endpoint codec, never a mid-stream insert (PRD 4a). Until a consumer na
   register block -- the first cut did, worked on the board, and left nowhere
   to put those. An RDL `singlepulse` through that shim is NOT one cycle
   (see [[registers-by-name]]); the harness edge-detects start/clear/soft_reset.
+  Two properties the flow must keep, each with its own test: every register is
+  reached BY NAME through the generated regmap (no offsets in `host/` or
+  `bin/`; the fabric-window test is the one exception and parses its bases
+  from the bridge toml), and every SEQUENCE runs in the cosim through the same
+  `SequenceRunner` the board uses (`cocotb_test_uart_sequences`, board=None,
+  cocotb UART injected, mutation-checked). A cosim that runs only the programs
+  leaves the sequence layer untested -- the failure the uart-harness note
+  records.
 - Filelists in `rtl/filelists/` and registered in `bin/filelists.toml` from
   the first module (`vault/handbook/design/filelists.md`).
 - DV: cocotb under `dv/tests/` with TB classes in `dv/tbclasses/` (Pattern B,

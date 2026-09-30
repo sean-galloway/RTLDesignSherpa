@@ -14,11 +14,14 @@ the UNMODIFIED programs in host/rs_loop_programs.py.
   uart_correct   e = t per block: every block corrected with t symbols
   uart_over_t    e = t + 1: every block uncorrectable, riBM == Euclid
   uart_throttle  e = t under random checker ready
+  uart_sequences the bin/seq_*.py sequences, unmodified, through the same
+                 SequenceRunner the board's run_smoke.py drives
 
 Blocks per run are few (2..4): a 32-bit UART transaction costs ~3000 sim
 cycles, a block only 63.
 """
 import os
+import pathlib
 import sys
 
 import cocotb
@@ -31,9 +34,12 @@ from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 _REPO = os.environ["REPO_ROOT"]
-_HOST = os.path.join(_REPO, "projects/fpga-systems/NexysA7/reed-solomon/build-loop/host")
+_AREA = os.path.join(_REPO, "projects/fpga-systems/NexysA7/reed-solomon")
+_HOST = os.path.join(_AREA, "build-loop/host")
+_SEQ = os.path.join(_AREA, "bin")
 _BRIDGE = os.path.join(_REPO, "projects/fpga-systems/bin")
-for _p in (_HOST, _BRIDGE):
+_BRIDGE_TOML = os.path.join(_AREA, "rtl/bridges/configs/bridge_rs_loop_axil.toml")
+for _p in (_HOST, _SEQ, _BRIDGE):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
@@ -45,6 +51,28 @@ import rs_loop_programs as progs                                    # noqa: E402
 
 CLKS_PER_BIT = 16
 T = 8   # the profile's t; the smoke test also reads it back from PROFILE
+
+
+def _fabric_windows():
+    """(name, base) per slave window, PARSED from the bridge config.
+
+    The window bases have one home -- bridge_rs_loop_axil.toml, which the
+    generator reads -- so a test that restated them would be a second owner
+    that drifts the day a window moves (handbook: one-source-config).
+    """
+    import re
+    text = pathlib.Path(_BRIDGE_TOML).read_text()
+    out, name = [], None
+    for line in text.splitlines():
+        line = line.split("#", 1)[0].strip()
+        m = re.match(r'name\s*=\s*"([^"]+)"', line)
+        if m:
+            name = m.group(1)
+        m = re.match(r'base_addr\s*=\s*"(0x[0-9A-Fa-f]+)"', line)
+        if m and name:
+            out.append((name, int(m.group(1), 16)))
+    assert len(out) >= 2, f"parsed {len(out)} windows from {_BRIDGE_TOML}"
+    return out
 
 
 async def _bringup(dut):
@@ -93,20 +121,19 @@ async def cocotb_test_uart_windows(dut):
     is exactly what a board probe found after the fabric first went in.
     """
     drv, _ = await _bringup(dut)
-    reads = await cocotb.external(lambda: [
-        ("rs_loop_apb", 0x00000, drv.bridge.read(0x00000)),
-        ("rs_regs_apb (reserved)", 0x10000, drv.bridge.read(0x10000)),
-        ("obs_apb (reserved)", 0x20000, drv.bridge.read(0x20000)),
-        ("rs_loop_apb again", 0x00000, drv.bridge.read(0x00000)),
-    ])()
+    windows = _fabric_windows()
+    # the loop window is read again at the end: it must still answer after the
+    # reserved ones have been poked
+    plan = windows + [windows[0]]
+    reads = await cocotb.external(lambda: [(n, a, drv.bridge.read(a)) for n, a in plan])()
     for name, addr, val in reads:
         dut._log.info("window %-24s @0x%05X -> 0x%08X", name, addr, val)
-    assert reads[0][2] == rl.EXPECTED_BUILD_ID, f"loop window read 0x{reads[0][2]:08X}"
-    assert reads[1][2] == 0, (f"the reserved rs_regs window read 0x{reads[1][2]:08X}, not 0 -- "
-                              "the host address is being truncated before the fabric")
-    assert reads[2][2] == 0, (f"the reserved obs window read 0x{reads[2][2]:08X}, not 0 -- "
-                              "the host address is being truncated before the fabric")
-    assert reads[3][2] == rl.EXPECTED_BUILD_ID, "the loop window stopped responding after the others"
+    assert reads[0][2] == rl.EXPECTED_BUILD_ID, (
+        f"the loop window ({reads[0][0]}) read 0x{reads[0][2]:08X}")
+    for name, addr, val in reads[1:-1]:
+        assert val == 0, (f"the reserved window {name} @0x{addr:05X} read 0x{val:08X}, not 0 -- "
+                          "the host address is being truncated before the fabric")
+    assert reads[-1][2] == rl.EXPECTED_BUILD_ID, "the loop window stopped answering after the others"
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
@@ -143,6 +170,43 @@ async def cocotb_test_uart_throttle(dut):
     r = await cocotb.external(lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=T, blocks=3,
                                                 throttle=True))()
     _report(dut, f"e={T} throttled", r)
+
+
+@cocotb.test(timeout_time=600, timeout_unit="ms")
+async def cocotb_test_uart_sequences(dut):
+    """Run the RS loop SEQUENCES -- unmodified -- against the sim.
+
+    The other tests prove the authored-once PROGRAMS are portable. This proves
+    the layer above them: the `seq_*.py` files that `bin/run_smoke.py` drives
+    on the board, executed here through the same SequenceRunner with the same
+    dependency resolution, `board=None`, and the cocotb UART as the transport.
+    No sequence knows the difference, which is the whole point -- without this
+    test a sequence-layer bug is invisible in sim, and the handbook records a
+    flow where exactly that happened (the cosim reimplemented the campaigns
+    inline and the shared runner was never exercised).
+
+    Blocks and the sweep's error counts are the only deviations, and they are
+    runtime: a 32-bit UART transaction costs ~3000 sim cycles against a
+    block's 63, so the board's 64 blocks per point would take hours. The
+    sequences, their order and their dependency checks are identical.
+    """
+    drv, _ = await _bringup(dut)
+
+    def prog():
+        from sequence import SequenceContext, SequenceRunner
+
+        ctx = SequenceContext(
+            bus=drv,
+            board=None,                  # sim: no board, same sequences
+            params={"blocks": 2, "counts": [0, T, T + 1]},
+            log=dut._log.info,
+        )
+        runner = SequenceRunner(ctx=ctx).discover(_SEQ)
+        return runner.run(["init", "smoke", "sweep"])
+
+    report = await cocotb.external(prog)()
+    dut._log.info("sequence run:\n%s", report.summary())
+    assert report.ok, f"the RS loop sequences failed in sim:\n{report.summary()}"
 
 
 # =============================================================================
@@ -183,6 +247,10 @@ def test_rs_loop_uart_smoke(request):
 
 def test_rs_loop_uart_windows(request):
     _run("cocotb_test_uart_windows")
+
+
+def test_rs_loop_uart_sequences(request):
+    _run("cocotb_test_uart_sequences")
 
 
 def test_rs_loop_uart_bypass(request):
