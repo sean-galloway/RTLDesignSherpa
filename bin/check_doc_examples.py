@@ -55,7 +55,29 @@ RE_TBL_ROW = re.compile(r'^\|\s*`?([A-Za-z_]\w*)`?\s*\|')
 RE_DECL = re.compile(r'^\*\*Module:\*\*(.*)$', re.M)
 
 
-def declared_sources(text, index):
+def nearest(index, alts, name, page):
+    """Path of `name`'s module, preferring the definition closest to `page`.
+
+    STREAM and RAPIDS both define scheduler, scheduler_group,
+    scheduler_group_array and axi_write_engine; the first one os.walk meets is
+    STREAM's, so a RAPIDS page was checked against STREAM's ports and four
+    correct tables were reported as fabricated. The definition sharing the
+    longest directory prefix with the page is the one it documents.
+    """
+    cands = alts.get(name) or [index[name]]
+    pd = os.path.dirname(page).split(os.sep)
+
+    def shared(c):
+        n = 0
+        for a, b in zip(pd, os.path.dirname(c).split(os.sep)):
+            if a != b:
+                break
+            n += 1
+        return n
+    return max(cands, key=shared)
+
+
+def declared_sources(text, index, alts, page):
     """-> (concatenated source, [module names]) for every module a page declares."""
     m = RE_DECL.search(text)
     if not m:
@@ -65,7 +87,7 @@ def declared_sources(text, index):
     if not names:
         return None, []
     src = ''.join(re.sub(r'//[^\n]*', '',
-                         open(index[n], errors='ignore').read()) for n in names)
+                         open(nearest(index, alts, n, page), errors='ignore').read()) for n in names)
     return src, names
 
 
@@ -137,11 +159,13 @@ def main() -> int:
     # are chaptered HAS/MAS books rather than per-module pages -- 109 of those
     # files carry SystemVerilog blocks and none was reachable before.
     index = {}
+    alts = {}
     for base in ('rtl', 'projects'):
         for d, _s, files in os.walk(base):
             for fn in files:
                 if fn.endswith('.sv'):
                     index.setdefault(fn[:-3], os.path.join(d, fn))
+                    alts.setdefault(fn[:-3], []).append(os.path.join(d, fn))
 
     # An instantiation starts either `mod #(` or `mod u_name (`. Matching
     # only the first form meant a parameterless instantiation was not seen
@@ -192,7 +216,7 @@ def main() -> int:
                     end = starts[k + 1][0] if k + 1 < len(starts) else len(blk)
                     seg = blk[pos:end]
                     src = re.sub(r'//[^\n]*', '',
-                                 open(index[mod], errors='ignore').read())
+                                 open(nearest(index, alts, mod, path), errors='ignore').read())
                     miss = [c for c in RE_CONN.findall(seg)
                             if not re.search(rf'\b{re.escape(c)}\b', src)]
                     if miss:
@@ -207,7 +231,7 @@ def main() -> int:
         if os.path.basename(path)[:-3] in index:
             continue                      # filename already attributes it
         text = open(path, errors='ignore').read()
-        dsrc, dnames = declared_sources(text, index)
+        dsrc, dnames = declared_sources(text, index, alts, path)
         if dsrc is None:
             continue
         rows = table_names(text)
