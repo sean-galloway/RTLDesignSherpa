@@ -96,7 +96,22 @@ module scoria_zq_ctrl
     `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
         if (`RST_ASSERTED(mc_rst_n)) begin
             r_state    <= ZQ_IDLE;
-            r_interval <= 32'd0;
+            // Seeded from the INPUT, not zero. ZQ_IDLE treats r_interval == 0
+            // as "fire now", so a zero reset makes the first interval
+            // zero-length and a calibration is issued immediately out of
+            // reset -- along with a spurious obs_overdue_o if demand is up.
+            //
+            // LATENT rather than live in the assembled design: ZQ_CFG.zq_enable
+            // resets to 0 and the scheduler additionally gates enable_i on
+            // init_done, so w_run is false out of reset and the !w_run branch
+            // below reloads from the input before anything can fire. But that
+            // makes this module's correctness depend on two other modules'
+            // reset values, which is the kind of coupling that breaks quietly
+            // when one of them changes. Found by test_scoria_zq_ctrl's
+            // overdue_needs_demand_and_expiry, which holds enable high through
+            // reset -- a configuration the CSRs cannot currently produce and
+            // a unit test can.
+            r_interval <= t_zqcs_interval_i;
             r_hold     <= 16'd0;
             r_total    <= 16'd0;
             r_overdue  <= 1'b0;
