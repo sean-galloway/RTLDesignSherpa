@@ -90,12 +90,33 @@ class DDR3CharDriver:
     BUILD_ID_MAGIC = 0x44445233
 
     def __init__(self, port: str = "/dev/ttyUSB0", baudrate: int = 115200,
-                 timeout: float = 1.0, bridge=None):
+                 timeout: float = 1.0, bridge=None,
+                 board: Optional[str] = "genesys2"):
+        #: Board lock, held only when this driver opened a real UART.
+        self._lock = None
         if bridge is None:
+            # HARDWARE path: take the shared board lock first. tooling TASK-022
+            # locked the MAKE targets, which leaves the hole that caused the
+            # 2026-09-30 near miss -- a host script invoked directly with
+            # --port takes no lock and is invisible to anyone else's check. The
+            # key is interoperable with board_lock.sh (tested both ways), so
+            # this and `make program` exclude each other rather than each
+            # believing it holds the board.
+            #
+            # Set board=None to opt out. There is one legitimate reason: a
+            # second read-only consumer on a board someone else legitimately
+            # holds. It is not for getting past a busy lock.
+            if board is not None:
+                from board_lock import BoardLock      # noqa: E402
+                self._lock = BoardLock(board)
+                self._lock.__enter__()
             sys.path.insert(0, os.path.join(_REPO, "projects/fpga-systems/bin"))
             from uart_axi_bridge import UARTAxiBridge   # noqa: E402
             bridge = UARTAxiBridge(port=port, baudrate=baudrate,
                                    timeout=timeout)
+        # SIM path: an injected bridge is a cocotb channel or a mock. There is
+        # no board, so taking a board lock would exclude a real board run for
+        # no reason.
         self.bridge = bridge
 
         # Shared blocks: same regmaps, same bases, same names as pumice.
@@ -329,6 +350,23 @@ class DDR3CharDriver:
             wr_done=wr_done, rd_done=rd_done,
             wr_errors=wr_err, rd_errors=rd_err,
         )
+
+    def close(self) -> None:
+        """Release the board lock, if this driver took one.
+
+        Not strictly required -- flock dies with the process -- but a long
+        Python session that finishes with a board and then keeps running would
+        otherwise hold it for no reason.
+        """
+        if self._lock is not None:
+            self._lock.__exit__(None, None, None)
+            self._lock = None
+
+    def __enter__(self) -> "DDR3CharDriver":
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self.close()
 
     def clear_stats(self) -> None:
         """Pulse CTRL.clear_stats -- zeros the debug_sram write pointer, the
