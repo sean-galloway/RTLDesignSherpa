@@ -169,6 +169,18 @@ filelist_dirs = [
     "projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/dv/filelists",
 ]
 
+[[area]]
+name = "scoria"
+kind = "component"
+# DDR3/LPDDR3 sibling of pumice. FUB layer only as of 2026-09-30: 20 inherited
+# modules ported from pumice, plus scoria_dfi_cmd_formatter with the DDR3
+# command encodings. macro/ and top/ land with the remaining modified FUBs
+# (dfi_signal_pack, init_sequencer, mode_register).
+rtl_roots = ["projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl"]
+filelist_dirs = [
+    "projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/filelists",
+]
+
 # ---------------------------------------------------------------------------
 # Board / characterization projects. These own little or no library RTL; they
 # assemble the areas above. Coverage is not enforced, but the no-hand-listing
