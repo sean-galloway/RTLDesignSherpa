@@ -31,7 +31,7 @@ DEVICE_MAP = {
     "chargen": os.path.join(FW, "chargen_regs_regmap.py"),
     "scoria":  SC,
 }
-SOURCES = ["ddr3_char.py", "scoria_device.py"]
+SOURCES = ["ddr3_char.py", "scoria_device.py", "scoria_char.py"]
 #: scoria_device.py's methods are all on the Scoria device itself (self.regs
 #: there IS the scoria regmap, via Device.__init__), so it is checked alone.
 SELF_IS = {"scoria_device.py": SC}
@@ -60,11 +60,21 @@ def check(path, resolve):
             continue
         # self.<attr>.read(...)  /  self.regs.write(...)
         owner = fn.value
-        if not (isinstance(owner, ast.Attribute)
+        attr = None
+        if (isinstance(owner, ast.Attribute)
                 and isinstance(owner.value, ast.Name)
                 and owner.value.id == "self"):
+            # self.<attr>.read(...)
+            attr = owner.attr
+        elif (isinstance(owner, ast.Attribute) and owner.attr == "regs"
+              and isinstance(owner.value, ast.Attribute)):
+            # <param>.scoria.regs.read(...) -- how scoria_char reaches the
+            # controller. The Device's own .regs IS that device's map, so the
+            # map is named by the MIDDLE attribute, not by "regs".
+            attr = owner.value.attr
+        if attr is None:
             continue
-        blk = resolve(owner.attr)
+        blk = resolve(attr)
         if blk is None:
             continue
         if not call.args or not isinstance(call.args[0], ast.Constant):
