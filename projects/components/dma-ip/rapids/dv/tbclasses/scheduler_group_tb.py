@@ -169,6 +169,9 @@ class SchedulerGroupTB(TBBase):
         self.dut.desc_r_last.value = 0
         self.dut.desc_r_id.value = 0
         self.dut.sched_wr_ready.value = 1
+        # byte-granular scheduler (TASK-019): packet-record consumers always ready here
+        self.dut.sched_rd_pkt_ready.value = 1
+        self.dut.sched_wr_pkt_ready.value = 1
         self.dut.sched_rd_done_strobe.value = 0
         self.dut.sched_rd_beats_done.value = 0
         self.dut.sched_wr_done_strobe.value = 0
@@ -249,6 +252,9 @@ class SchedulerGroupTB(TBBase):
 
         # Set default ready signals (scheduler-side consumers the TB models by level)
         self.dut.sched_wr_ready.value = 1
+        # byte-granular scheduler (TASK-019): packet-record consumers always ready here
+        self.dut.sched_rd_pkt_ready.value = 1
+        self.dut.sched_wr_pkt_ready.value = 1
         self.dut.mon_ready.value = 1
         if not getattr(self, '_mon_capture_started', False):
             self._mon_capture_started = True
@@ -458,7 +464,8 @@ class SchedulerGroupTB(TBBase):
 
             desc_data = (src_addr & ((1 << 64) - 1))
             desc_data |= ((dst_addr & ((1 << 64) - 1)) << 64)
-            desc_data |= ((length & ((1 << 32) - 1)) << 128)
+            # byte-granular scheduler (TASK-019): the field is BYTES; length is beats here
+            desc_data |= (((length * (self.TEST_DATA_WIDTH // 8)) & ((1 << 32) - 1)) << 128)
             desc_data |= ((next_ptr & ((1 << 32) - 1)) << 160)
             desc_data |= (valid << 192)
             desc_data |= (gen_irq << 193)
@@ -515,7 +522,10 @@ class SchedulerGroupTB(TBBase):
         opcode at [209:208] (0=DATA, 1=CTRL_READ, 2=CTRL_WRITE)."""
         d = (src & ((1 << 64) - 1))
         d |= ((dst & ((1 << 64) - 1)) << 64)
-        d |= ((length & 0xFFFFFFFF) << 128)
+        # byte-granular scheduler (TASK-019): DATA lengths are BYTES; `length` is
+        # a beat count on a 512-bit bus (this builder is static); control
+        # descriptors keep the field as given
+        d |= ((((length * 64) if opcode == 0 else length) & 0xFFFFFFFF) << 128)
         d |= ((next_ptr & 0xFFFFFFFF) << 160)
         d |= (valid << 192)
         d |= (gen_irq << 193)

@@ -204,7 +204,10 @@ class SchedulerGroupArrayTB(TBBase):
         self.dut.desc_axi_rid.value = 0
 
         # Per-channel scheduler write interface ready - packed array
-        self.dut.sched_wr_ready.value = (1 << self.NUM_CHANNELS) - 1  # All channels ready
+        self.dut.sched_wr_ready.value = (1 << self.NUM_CHANNELS) - 1
+        # byte-granular scheduler (TASK-019): packet-record consumers always ready here
+        self.dut.sched_rd_pkt_ready.value = (1 << self.NUM_CHANNELS) - 1
+        self.dut.sched_wr_pkt_ready.value = (1 << self.NUM_CHANNELS) - 1  # All channels ready
 
         # Per-channel completion strobes - packed arrays
         self.dut.sched_rd_done_strobe.value = 0
@@ -293,6 +296,9 @@ class SchedulerGroupArrayTB(TBBase):
 
         # sched_wr_ready is a packed array - set all channels ready
         self.dut.sched_wr_ready.value = (1 << self.NUM_CHANNELS) - 1
+        # byte-granular scheduler (TASK-019): packet-record consumers always ready here
+        self.dut.sched_rd_pkt_ready.value = (1 << self.NUM_CHANNELS) - 1
+        self.dut.sched_wr_pkt_ready.value = (1 << self.NUM_CHANNELS) - 1
         self.dut.mon_ready.value = 1
         # Capture MonBus packets in the background from here on: the aggregation
         # test used to poll only after the activity that produced them (rapids TASK-003).
@@ -585,7 +591,9 @@ class SchedulerGroupArrayTB(TBBase):
         """
         desc_data = (src_addr & ((1 << 64) - 1))
         desc_data |= ((dst_addr & ((1 << 64) - 1)) << 64)
-        desc_data |= ((length & ((1 << 32) - 1)) << 128)
+        # byte-granular scheduler (TASK-019): DATA lengths are BYTES (length here is beats)
+        nbytes = length * (self.DATA_WIDTH // 8) if opcode == 0 else length
+        desc_data |= ((nbytes & ((1 << 32) - 1)) << 128)
         desc_data |= ((next_ptr & ((1 << 32) - 1)) << 160)
         desc_data |= (valid << 192)
         desc_data |= (gen_irq << 193)
