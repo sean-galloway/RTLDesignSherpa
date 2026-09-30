@@ -123,3 +123,34 @@ The rules:
   diffing its bytes proves nothing about the ratchet. Read `.git/hooks/pre-commit`
   for the command it actually runs before theorising about why it disagrees with
   you. See [[filelists]].
+- **A pathspec derived from `--name-only` drops the deletion half of a rename.**
+  2026-09-30: 20 files were `git mv`d, then committed with
+  `git commit -- $(git diff --cached --name-only)`. Rename detection prints ONE
+  entry per rename -- the new name -- so the 20 deletions were never in the
+  pathspec, and `git commit -- <paths>` takes everything outside the pathspec
+  from HEAD. The tree that landed carried BOTH copies: two definitions of
+  `char_engine_block`, `harness_csr` and the rest. The worktree was right the
+  whole time, which is why every lint and gate in that commit passed -- they
+  ran against the worktree, not the tree being written. Use `--no-renames` when
+  deriving a pathspec from a staged set that contains moves.
+- **Simulating a clean checkout without a `.git` makes ignore-aware gates lie.**
+  2026-09-30: CI reported ONE broken filelist ref; reproducing with
+  `git archive HEAD | tar -x` reported THREE, so CI was judged incomplete. It
+  was not. `filelist_registry._git_ignored()` skips gitignored paths on purpose
+  ("Reporting them as broken would make the gate permanently red for a
+  condition no commit can fix"), and it implements that with `git check-ignore`
+  -- which fails for every path in a tree with no `.git`. Nothing counted as
+  ignored, so two legitimately-absent generated files surfaced as broken.
+  Use a real clone or worktree at that commit, never an archive extraction, for
+  anything whose answer depends on ignore rules.
+  The tell was there and worth memorising: the same run also failed
+  `nexys_ddr2_char`, an area the commit never touched. **Two areas failing
+  where one commit landed is almost always the method, not the tree.**
+- **`git show --stat` elides leading paths; it is not evidence about a path.**
+  2026-09-30: a peer read `.../rtl/verilator_xilinx_stubs.sv | 17 +++` from
+  `--stat`, filled the `...` in from what the rest of the commit was about, and
+  reported a file at a path that did not exist -- which cost the owner real
+  effort to disprove. `--stat` truncates to fit a column. Use `--name-only` or
+  `--name-status` for anything path-shaped; `--name-status` also distinguishes
+  M from A, which was the other half of that error (a modification read as an
+  addition).
