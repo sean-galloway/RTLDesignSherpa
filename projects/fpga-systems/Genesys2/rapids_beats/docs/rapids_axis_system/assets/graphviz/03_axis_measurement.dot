@@ -1,0 +1,36 @@
+// Where the stream measurements come from and which window each one uses.
+digraph axis_measurement {
+    graph [rankdir=LR, fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.6,
+           label="Measuring the streams: meters, windows, the AXIS observer", labelloc=t, labeljust=l];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    go [label="GO\narms both windows,\nstarts the generator,\nfires the kicks", fillcolor="#fff4e0"];
+    sin_w [label="sin window\nopens on the first offered beat,\ncloses after the target-th accepted beat", fillcolor="#e9f7e9"];
+    shared_w [label="shared window\nopen from GO, closes when\nwr_prod reaches the target", fillcolor="#e9f7e9"];
+    go -> sin_w; go -> shared_w;
+
+    subgraph cluster_links {
+        label="the four data links"; style="rounded"; color="#404040";
+        sin [label="s_axis (ingress)", fillcolor="#d5ecd5"];
+        wr [label="m_axi_wr W", fillcolor="#d5ecd5"];
+        rd [label="m_axi_rd R", fillcolor="#d5ecd5"];
+        sout [label="m_axis (egress)", fillcolor="#d5ecd5"];
+    }
+
+    m_sin [label="axis_bus_meter sin\nbuckets + bytes (tstrb) + packets (tlast)", fillcolor="#e9f7e9"];
+    m_wr [label="axi_bus_meter wr", fillcolor="#e9f7e9"];
+    m_rd [label="axi_bus_meter rd", fillcolor="#e9f7e9"];
+    m_sout [label="axis_bus_meter sout\nbuckets + bytes + packets", fillcolor="#e9f7e9"];
+
+    sin -> m_sin [style=dotted]; wr -> m_wr [style=dotted]; rd -> m_rd [style=dotted]; sout -> m_sout [style=dotted];
+    sin_w -> m_sin [label="clear / freeze", style=dashed];
+    shared_w -> m_wr [style=dashed]; shared_w -> m_rd [style=dashed]; shared_w -> m_sout [style=dashed];
+
+    obs [label="axis4_intf_observer  (USE_OBSERVERS=1)\nport 0 = s_axis (sin window), port 1 = m_axis (shared window)\nper-tid meters, OBS_STAT_SEL / OBS_STAT_DATA\nevent tap -> PROTOCOL_AXIS MonBus packets\n(dropped and counted, never stalling)\nown APB window; MON_CTRL gating as the AXI observers", fillcolor="#e9f7e9", style="rounded,filled,dashed"];
+    sin -> obs [style=dotted]; sout -> obs [style=dotted];
+    sin_w -> obs [style=dashed]; shared_w -> obs [style=dashed];
+
+    csr [label="harness CSR readback\nOBS_SIN_* / OBS_WR_* / OBS_RD_* / OBS_SOUT_*\n-> results JSON -> report columns\nAXIS-in | AXI4-wr | AXI4-rd | AXIS-out", fillcolor="#e8f1ff"];
+    m_sin -> csr; m_wr -> csr; m_rd -> csr; m_sout -> csr; obs -> csr [style=dashed, label="observer window"];
+}

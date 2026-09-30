@@ -35,6 +35,11 @@ rapids_beats/                    ← this directory (umbrella)
   exists (one RTL, several bitstreams), and the host flow; Graphviz diagrams
   under `docs/rapids_fpga_system/assets/graphviz/`. Built as
   `docs/RAPIDS_FPGA_System_v1.0.pdf` by `docs/generate_fpga_system_pdf.sh`.
+- [docs/rapids_axis_system/rapids_axis_system_index.md](docs/rapids_axis_system/rapids_axis_system_index.md)
+  — the AXIS4 side, which is what makes this build different from STREAM's:
+  the two stream ports, the generator and checker, the ingress window, the
+  AXIS meters and the AXIS observer. Built as `docs/RAPIDS_AXIS_System_v1.0.pdf`
+  by `docs/generate_axis_system_pdf.sh`.
 
 ## Findings report
 

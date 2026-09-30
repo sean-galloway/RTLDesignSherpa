@@ -1,0 +1,23 @@
+// The sink ingress: from an AXIS beat to a write burst, and the two windows that measure it.
+digraph sink_ingress {
+    graph [rankdir=LR, fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.55,
+           label="Sink ingress: an AXIS beat becomes a write burst", labelloc=t, labeljust=l];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    beat [label="s_axis beat\ntvalid, tid = channel, tstrb, tlast", fillcolor="#e8f1ff"];
+    ingress [label="snk_data_path_axis_beats (ingress)\ntready = fill_ready AND (pending allocation OR allocating now)\nallocate cfg_alloc_size beats (16) when a channel has none pending,\nthe remainder when less than a segment is free,\nthen settle three cycles (the space view lags)", fillcolor="#fff4e0"];
+    sram [label="snk_sram_controller (STREAM's sram_controller)\nper-channel FIFO, 128 beats (4 KB)\nalloc_ctrl: allocated minus drained\ndrain_ctrl: written minus reserved\nlatency bridge (up to 5 beats)", fillcolor="#f4f4f4"];
+    eng [label="axi_write_engine_beats\nhas_data: avail >= burst (clamped to the depth)\nAW -> drain reservation -> W from the bridge\nAW_MAX_OUTSTANDING 8 per channel", fillcolor="#f4f4f4"];
+    aw [label="m_axi_wr\nbursts of AXI_XFER_CONFIG.WR_XFER_BEATS + 1\n(default 8; 128 = one buffer)", fillcolor="#d5ecd5"];
+
+    beat -> ingress -> sram -> eng -> aw;
+
+    subgraph cluster_win {
+        label="What the meters count"; style="rounded"; color="#228B22";
+        wsin [label="AXIS-in window (sin)\narmed at GO, opens on the first tvalid,\ncloses after the target-th accepted beat:\ningress utilization, first beat to last", fillcolor="#e9f7e9"];
+        wwr [label="AXI4-wr window (wr, shared)\narmed at GO, closes when wr_prod reaches\nthe target: the datapath rate", fillcolor="#e9f7e9"];
+        stall [label="the fixed 82-cycle fill stall (4 KB build)\nthe first channel's 128 beats land before\nthe engine starts draining; once per run,\nbackpressure on sin, invisible to wr", fillcolor="#fff4e0"];
+    }
+    ingress -> wsin [style=dotted]; aw -> wwr [style=dotted]; sram -> stall [style=dashed];
+}
