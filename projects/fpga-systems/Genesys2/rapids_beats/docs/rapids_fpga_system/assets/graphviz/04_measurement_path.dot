@@ -1,0 +1,18 @@
+// From a host command to a number in the report: the measurement path.
+digraph measurement_path {
+    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.35,
+           label="rapids-beats: one measured cell, end to end", labelloc=t, labeljust=l];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    stage [label="1. stage over UART\nCHANNEL_RESET both halves\ndescriptors -> DESC-LOAD -> descriptor RAM\nGEN_SEED/NBEATS/CHMASK/MODE, RESP_DELAY,\nAXI_XFER_CONFIG (AxLEN, ALLOC/DRAIN sizes)\nOBS_TARGET = expected productive beats", fillcolor="#fff4e0"];
+    go [label="2. GO (one CSR write)\non-chip, within a few aclk cycles:\narm the meter window, start the generator,\nfire every staged kick", fillcolor="#fff4e0"];
+    run [label="3. the transfer\nSINK: gen -> s_axis -> SRAM -> m_axi_wr -> CRC\nSOURCE: m_axi_rd -> SRAM -> m_axis -> check\nthrough the RESP_DELAY latency model", fillcolor="#d5ecd5"];
+    freeze [label="4. deterministic close\nthe meters freeze the cycle after the\ncompletion interface reaches OBS_TARGET:\nthe window brackets exactly the transfer", fillcolor="#e9f7e9"];
+    read [label="5. read back\nWR/RD_BEATS_T, CRCs vs the golden model\n(rapids_char_golden.py), meter buckets,\nobserver histograms, BUILD geometry", fillcolor="#e9f7e9"];
+    json [label="6. results JSON\none row per config: pass/fail, util,\neff GB/s, buckets, xfer_axlen_effective,\nthe 'design' record", fillcolor="#e8f1ff"];
+    report [label="7. report\nreport_tables.py / report_figures.py\nreports/perf/README.md -> DOCX/PDF\n(generate_reports_pdf.sh --rev X --only perf)", fillcolor="#e8f1ff"];
+
+    stage -> go -> run -> freeze -> read -> json -> report;
+    read -> stage [label="next config (CHANNEL_RESET);\nreprogram between suites that must\nnot inherit history", style=dashed, constraint=false];
+}

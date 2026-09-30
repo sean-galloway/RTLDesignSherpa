@@ -1,0 +1,31 @@
+// One RTL, three builds: the parameters and why each exists.
+digraph build_variants {
+    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.5, ranksep=0.55,
+           label="One source tree, three bitstreams: the STREAM builds", labelloc=t, labeljust=l];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    src [label="COMMON RTL (one copy, component level)\nstream_genesys2_top.sv + stream_harness.sv + harness_csr.sv + axi_response_delay.sv\nthe generated bridges (regen_bridges.sh), one tcl set, one XDC, one instrumentation filelist\nstream_top_ch8 and its blocks (projects/components/dma-ip/stream); geometry defaults in stream_cfg_pkg",
+         fillcolor="#d5ecd5", penwidth=2];
+
+    knobs [shape=plaintext, label=<
+      <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+        <tr><td bgcolor="#e0e0e0"><b>build</b></td><td bgcolor="#e0e0e0"><b>USE_AXI_MONITORS</b></td><td bgcolor="#e0e0e0"><b>OBS_ENABLE_MON_TAPS</b></td><td bgcolor="#e0e0e0"><b>channels</b></td><td bgcolor="#e0e0e0"><b>measures</b></td></tr>
+        <tr><td>mon</td><td>1</td><td>0</td><td>8</td><td>the in-core monitors, compression, coverage</td></tr>
+        <tr><td>obs</td><td>0</td><td>1</td><td>4</td><td>the interface observers, from outside the DUT</td></tr>
+        <tr><td>perf</td><td>0</td><td>0</td><td>8</td><td>the datapath itself</td></tr>
+      </table>>];
+
+    mon  [label="build-mon\nin-core monitors ON, observer taps OFF, 8 ch\nsign-off 2026-09-09: 60 MHz, all cones + error flavour,\nWNS +1.513 ns, 139,293 LUTs (68%); stable/", fillcolor="#e9f7e9"];
+    obs  [label="build-obs\nmonitors OFF, observer taps ON, 4 ch\n(8 ch = 99.3% LUTs and the placer gives up;\nboth instruments together = 217,761 LUTs > 203,800)\narchive 2026-09-07: WNS +2.191 ns; stable-obs/", fillcolor="#e9f7e9"];
+    perf [label="build-perf\nno instrument at all: pure throughput, 8 ch\nthe bare meters are outside the monitor gate\nand keep counting (a regression proved it once)", fillcolor="#e9f7e9"];
+
+    src -> knobs [arrowhead=none];
+    knobs -> mon; knobs -> obs; knobs -> perf;
+
+    why [label="COMPLEMENTARY, not redundant:\nobs has no in-core monitor at all and mon has no taps,\nso a zero on the other side's probe is structural.\nGenerics, never edits to stream_cfg_pkg:\nthe package is every build's default.", fillcolor="#fff4e0"];
+    knobs -> why [style=dashed, arrowhead=none];
+
+    sim [label="make sim BUILD=<x>\nthe cosim runs the SAME host programs\nover the same UART bytestream against\nthe same generics: one program, two targets", fillcolor="#e8f1ff"];
+    src -> sim [style=dashed];
+}

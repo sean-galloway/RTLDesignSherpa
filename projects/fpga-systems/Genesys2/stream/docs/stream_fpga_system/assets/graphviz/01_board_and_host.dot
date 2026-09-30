@@ -1,0 +1,35 @@
+// The STREAM FPGA system: what is on the bench, what talks to what.
+digraph board_and_host {
+    graph [rankdir=LR, fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.6,
+           label="STREAM on the Genesys 2: the bench", labelloc=t, labeljust=l];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    subgraph cluster_host {
+        label="Host PC"; style="rounded"; color="#404040";
+        shared [label="component bin/ (shared by every build)\nstream_device.py, harness_kick.py, bus_meters.py,\ntally.py, dump_monbus.py, characterization.py,\nstream_monitors.py, stream_ext_suite.py, plot_*", fillcolor="#e8f1ff"];
+        perbuild [label="build-<x>/host/  (one layer per build)\nperf: host_characterize, host_bus_meters, host_rw_perf ...\nmon:  host_mon_compress, host_mon_coverage, host_mon_matrix ...\nobs:  host_obs_campaign, host_obs_matrix\nstream_env picks the layer for the build", fillcolor="#e8f1ff"];
+        vivado [label="Vivado\nmake bitstream BUILD=<x> | make program\nbitstream-ila, keep -> stable/", fillcolor="#e8f1ff"];
+        shared -> perbuild [dir=both, style=dashed];
+    }
+
+    subgraph cluster_usb {
+        label="Two USB chips on the board"; style="rounded"; color="#404040";
+        ft232r [label="FT232R\nUART 115200-8N1\n(its own /dev/ttyUSB*)", fillcolor="#fff4e0"];
+        ft2232 [label="FT2232\nJTAG (serial 200300B818A0)\nprogram / ILA", fillcolor="#fff4e0"];
+    }
+
+    subgraph cluster_fpga {
+        label="Genesys 2  --  Kintex-7 XC7K325T-2"; style="rounded"; color="#228B22";
+        clk [label="200 MHz LVDS sysclk\nIBUFDS + MMCM, VCO 1200 MHz\nharness clock = 1200 / CLKOUT0_DIVIDE\n12 -> 100 MHz, 15 -> 80, 20 -> 60", fillcolor="#e9f7e9"];
+        top [label="stream_genesys2_top\npins, reset sync, 8 user LEDs\n(status bank, PASS/FAIL byte)", fillcolor="#e9f7e9"];
+        harness [label="stream_harness\nUART->AXIL bridge, generated 1->N bridge,\nharness_csr, desc_ram, tallies, capture SRAM,\nDMA slaves, latency model, observers", fillcolor="#e9f7e9"];
+        dut [label="stream_top_ch8  (the DUT)\nscatter-gather DMA, 8 channels\n(4 on the observers build)", fillcolor="#d5ecd5", penwidth=2];
+        clk -> top; top -> harness; harness -> dut [dir=both];
+    }
+
+    perbuild -> ft232r [label="ASCII  W addr data / R addr", dir=both];
+    ft232r -> harness [label="UART", dir=both];
+    vivado -> ft2232 [label="USB"];
+    ft2232 -> top [label="JTAG: .bit, ILA"];
+}

@@ -28,6 +28,14 @@ rapids_beats/                    ← this directory (umbrella)
     └── Makefile   sim / synth / bitstream / program / smoke / suite / flow
 ```
 
+## The FPGA system book
+
+- [docs/rapids_fpga_system/rapids_fpga_system_index.md](docs/rapids_fpga_system/rapids_fpga_system_index.md)
+  — the bench, the harness block by block, the build variants and why each
+  exists (one RTL, several bitstreams), and the host flow; Graphviz diagrams
+  under `docs/rapids_fpga_system/assets/graphviz/`. Built as
+  `docs/RAPIDS_FPGA_System_v1.0.pdf` by `docs/generate_fpga_system_pdf.sh`.
+
 ## Findings report
 
 - [rapids_beats_findings.md](docs/rapids_beats_findings.md)

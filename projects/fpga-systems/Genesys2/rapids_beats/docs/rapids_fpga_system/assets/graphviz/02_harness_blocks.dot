@@ -1,0 +1,57 @@
+// rapids_char_harness: every block around the DUT and what it does for the measurement.
+digraph harness_blocks {
+    graph [rankdir=LR, fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.7,
+           label="rapids_char_harness: the blocks around the DUT", labelloc=t, labeljust=l];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    subgraph cluster_front {
+        label="Host front-end (inside the harness since 2026-09-23, so sim drives the board's own launch path)";
+        style="rounded"; color="#404040";
+        uart [label="uart_axil_bridge\n32-bit AXIL master", fillcolor="#fff4e0"];
+        decode [label="region decode  addr[19:16]\n0x0_0000 DUT-REG (APB window)\n0x1_0000 DESC-LOAD\n0x2_0000 HARNESS CSR\n(+ observer window on the observers build)", fillcolor="#fff4e0"];
+        apbm [label="apb4_master\ncmd/rsp -> DUT s_apb\nSRC @0x0000, SNK @0x1000", fillcolor="#fff4e0"];
+        csr [label="harness CSRs\nGEN_* CHK_* MEM_* MON_* OBS_*\nBUILD (geometry of this bitstream)\nSTATUS, CRCs, meter counts", fillcolor="#fff4e0"];
+        kick [label="kick sequencer\nstage-all-then-GO:\nGO arms the window, starts the\ngenerator, fires every kick on-chip", fillcolor="#fff4e0"];
+        uart -> decode; decode -> apbm; decode -> csr; csr -> kick;
+    }
+
+    subgraph cluster_stim {
+        label="Stimulus and checking (synthesizable, seeded)"; style="rounded"; color="#404040";
+        gen  [label="axis4_master_pattern_gen\nsink ingress: LFSR data, beats/ch,\nchannel mask, GEN_MODE interleave", fillcolor="#e8f1ff"];
+        chk  [label="axis4_slave_pattern_check\nsource egress: CRC per channel,\nchk_ready_en backpressure knob", fillcolor="#e8f1ff"];
+        rdgen [label="axi4_slave_rd_pattern_gen\nbacks m_axi_rd: LFSR read data", fillcolor="#e8f1ff"];
+        wrcrc [label="axi4_slave_wr_crc_check\nbacks m_axi_wr: CRC per channel", fillcolor="#e8f1ff"];
+        dly  [label="axi_response_delay x2\nRESP_DELAY on R and on B:\nthe memory-latency knob", fillcolor="#e8f1ff"];
+    }
+
+    subgraph cluster_mem {
+        label="Memories the DUT owns"; style="rounded"; color="#404040";
+        descram [label="descriptor RAM x2 (sdpram_slave_axi4_axi4)\nDUT reads port A over m_axi_desc;\nhost writes 256-bit descriptors via DESC-LOAD", fillcolor="#f4f4f4"];
+        ctrlram [label="control semaphore RAM x2\nctrlwr master writes, ctrlrd master reads\nthe same store: a doorbell is a gate read", fillcolor="#f4f4f4"];
+        monresp [label="always-accept AXIL responder\nm_axil_mon egress never stalls", fillcolor="#f4f4f4"];
+    }
+
+    dut [label="rapids_beats_top\nSOURCE: m_axi_rd -> SRAM -> m_axis\nSINK:   s_axis -> SRAM -> m_axi_wr", fillcolor="#d5ecd5", penwidth=2];
+
+    subgraph cluster_meas {
+        label="Measurement (always built) and the optional instruments"; style="rounded"; color="#228B22";
+        meters [label="bus meters (always on)\naxi_bus_meter rd, wr\naxis_bus_meter sin, sout\nper cycle: productive | backpressure |\nstarvation | idle, frozen at the target", fillcolor="#e9f7e9"];
+        obs [label="USE_OBSERVERS=1\naxi4_intf_master_observer\naxis4_intf_observer\npassive taps, own APB window,\nutilization + latency histograms", fillcolor="#e9f7e9", style="rounded,filled,dashed"];
+        mon [label="USE_AXI_MONITORS=1 + GEN_MON=1\nin-core monitors inside the DUT,\nMonBus egress to the AXIL responder", fillcolor="#e9f7e9", style="rounded,filled,dashed"];
+    }
+
+    apbm -> dut [label="s_apb"];
+    kick -> dut [label="kicks"];
+    kick -> gen [label="start"];
+    gen -> dut [label="s_axis"];
+    dut -> chk [label="m_axis"];
+    dut -> dly [label="m_axi_rd / m_axi_wr"];
+    dly -> rdgen; dly -> wrcrc;
+    dut -> descram [label="m_axi_desc x2"];
+    dut -> ctrlram [label="ctrl rd/wr"];
+    dut -> monresp [label="m_axil_mon"];
+    meters -> csr [label="counts"];
+    gen -> meters [style=dotted]; dut -> meters [style=dotted];
+    obs -> csr [style=dashed]; dut -> obs [style=dotted]; mon -> monresp [style=dashed];
+}

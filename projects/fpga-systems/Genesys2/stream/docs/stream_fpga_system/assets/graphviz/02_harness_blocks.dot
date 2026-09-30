@@ -1,0 +1,47 @@
+// stream_harness: every block around the DUT and what it does for the measurement.
+digraph harness_blocks {
+    graph [rankdir=LR, fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.7,
+           label="stream_harness: the blocks around the DUT", labelloc=t, labeljust=l];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    subgraph cluster_front {
+        label="Host front-end (inside the harness: the same path in cosim and on the board)";
+        style="rounded"; color="#404040";
+        uart [label="uart_axil_bridge\n32-bit AXIL master", fillcolor="#fff4e0"];
+        bridge [label="bridge_stream_mon_axil  (GENERATED, 1 -> N)\nAXIL/APB fan-out with a fixed address map:\nstream_apb 0x0, harness_csr 0x1_0000, desc_ram 0x2_0000,\nstream_err 0x3_0000, stream_tally 0x4_0000, slave_err 0x9_0000,\nslave_tally 0xC_0000, tally cfgs 0x10/0x14_0000,\nslvmon_apb 0x18_0000, obs_apb 0x19_0000, comp_sram 0x1A_0000", fillcolor="#fff4e0"];
+        csr [label="harness_csr  (map from regs/harness_csr.rdl)\nCTRL: start, clear_stats, freeze_trace,\nsoft_reset, cam_clear   STATUS, CRCs, counts", fillcolor="#fff4e0"];
+        uart -> bridge; bridge -> csr;
+    }
+
+    subgraph cluster_stim {
+        label="Stimulus, memory model, checking"; style="rounded"; color="#404040";
+        slaves [label="axi4_dma_slaves\nLFSR read source behind m_axi_rd,\nwrite sink with CRC behind m_axi_wr", fillcolor="#e8f1ff"];
+        dly [label="axi_response_delay x2\nprogrammable memory latency\non the read and write paths", fillcolor="#e8f1ff"];
+        descram [label="desc_ram (sdpram_slave_axi4_axi4)\n256-bit AXI4 straight to the DUT's\nm_axi_desc; host preloads 32 B/desc", fillcolor="#e8f1ff"];
+    }
+
+    dut [label="stream_top_ch8\nAPB config + kicks, 8 channels,\nm_axi_rd -> SRAM -> m_axi_wr,\nin-core monitors on MonBus (USE_AXI_MONITORS)", fillcolor="#d5ecd5", penwidth=2];
+
+    subgraph cluster_meas {
+        label="Measurement: three instruments, two of them build-selected"; style="rounded"; color="#228B22";
+        meters [label="bus meters (always on)\nper cycle: productive | backpressure |\nstarvation | idle; the perf numbers", fillcolor="#e9f7e9"];
+        tally [label="monbus_tally_axil x2: stream_tally, slave_tally\nconfig-defined dense tally (CAM, MON_N_PROFILE slots):\nevery legal {agent, protocol, type, event} counted", fillcolor="#e9f7e9"];
+        comp [label="comp_sram\nMonBus capture memory,\n(compressed on the mon build);\nhost downloads it", fillcolor="#e9f7e9"];
+        obs [label="OBS_ENABLE_MON_TAPS=1\naxi4_intf_master_observer + axi4_intf_slave_observer\npassive taps on the DUT's masters and the slaves,\ntheir own APB window; feed slave_tally", fillcolor="#e9f7e9", style="rounded,filled,dashed"];
+        mon [label="USE_AXI_MONITORS=1\nin-core rd/wr/desc monitors inside the DUT,\nMonBus -> stream_tally + comp_sram + stream_err", fillcolor="#e9f7e9", style="rounded,filled,dashed"];
+    }
+
+    leds [label="led_status_driver\nheartbeat, PASS/FAIL byte", fillcolor="#f4f4f4"];
+
+    bridge -> dut [label="stream_apb"];
+    csr -> dut [label="start / soft_reset / cam_clear"];
+    dut -> descram [label="m_axi_desc"];
+    dut -> dly [label="m_axi_rd / m_axi_wr"];
+    dly -> slaves;
+    dut -> mon [style=dotted]; mon -> tally [style=dashed]; mon -> comp [style=dashed];
+    dut -> obs [style=dotted]; slaves -> obs [style=dotted]; obs -> tally [style=dashed];
+    dut -> meters [style=dotted]; slaves -> meters [style=dotted];
+    meters -> csr [label="counts"]; tally -> bridge [label="readback"]; comp -> bridge [label="download"];
+    csr -> leds;
+}

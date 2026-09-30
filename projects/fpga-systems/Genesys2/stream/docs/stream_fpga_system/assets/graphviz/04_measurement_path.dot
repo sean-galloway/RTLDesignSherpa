@@ -1,0 +1,24 @@
+// From a host program to a result: the three measurement paths, one per build.
+digraph measurement_path {
+    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.4,
+           label="STREAM: what each build measures, end to end", labelloc=t, labeljust=l];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    stage [label="1. stage over UART (any build)\nsoft_reset, clear_stats, cam_clear\ndescriptors -> desc_ram (32 B each)\nSTREAM APB config: channels, XFER_BEATS, delays\nharness_csr: what to count, where to capture", fillcolor="#fff4e0"];
+    kick [label="2. kick\nharness_kick.py stages the channel kicks;\nCTRL.start opens the window", fillcolor="#fff4e0"];
+    run [label="3. the transfer\ndesc_ram -> DUT -> m_axi_rd (LFSR source) -> SRAM\n-> m_axi_wr (CRC sink), through the latency model", fillcolor="#d5ecd5"];
+
+    subgraph cluster_out {
+        label="4. what comes back, per build"; style="rounded"; color="#228B22";
+        perf [label="perf: bus meters + CRCs\nutilization per interface, bytes moved,\nhost_characterize -> CSV / JSON -> plots", fillcolor="#e9f7e9"];
+        mon  [label="mon: MonBus -> stream_tally + comp_sram\nevery legal packet identity counted per agent,\ncompressed capture downloaded and decoded\n(host_mon_coverage, host_mon_compress)", fillcolor="#e9f7e9"];
+        obs  [label="obs: observer taps -> slave_tally + histograms\nthe same identities seen from outside the DUT\n(host_obs_campaign, host_obs_matrix)", fillcolor="#e9f7e9"];
+    }
+
+    verdict [label="5. verdict\nCRC_WR_COMPUTED == CRC_WR_EXPECTED, any_error clear,\ntally coverage matrix complete, cosim reference agrees", fillcolor="#e8f1ff"];
+
+    stage -> kick -> run;
+    run -> perf; run -> mon; run -> obs;
+    perf -> verdict; mon -> verdict; obs -> verdict;
+}
