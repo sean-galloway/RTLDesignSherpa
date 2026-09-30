@@ -32,10 +32,52 @@ take two DIFFERENT locks and both proceed against one Genesys 2.
   serial-pinned tcl path is too.
 - `run-$(1)` (:268) and `run:` (:454) invoke `$(PYTHON) $(RUN_SCRIPT)` with no
   lock of any kind.
-- There is no `program` target in this file at all.
 - `FPGA_JTAG_SERIAL` appears twice, both times to TARGET hardware, never as a
-  lock key. Nothing in the file is keyed on a board.
-- **17 Makefiles inherit `fpga_flow.mk`** -- that is the blast radius of any fix.
+  lock key. Nothing in `fpga_flow.mk` is keyed on a board.
+
+## Correction (2026-09-30, from scoria): `program` lives elsewhere and is worse
+
+An earlier revision of this task said "there is no `program` target" -- true of
+`fpga_flow.mk`, and misleading. **It is in `make/fpga_board.mk`**, which
+`fpga_flow.mk` includes at :241. That is the target that flashed the Genesys 2
+during the near miss.
+
+    :58  program:   ## Flash BITSTREAM onto BOARD over JTAG (falls back to HOLD)
+                    $(PYTHON) $(FPGA_BOARD_CLI) --board $(BOARD) program ...
+
+**`grep -cE 'flock|LOCKED|\.lock|LOCK' make/fpga_board.mk` returns 0.** So
+`program` is not merely missing a board-keyed lock -- it is outside EVERY lock in
+the flow, the build-directory one included. Two hardware-touching paths, in two
+different files, neither guarded.
+
+**And the consumer set is wider than one file.** `fpga_board.mk` has THREE direct
+consumers that never include `fpga_flow.mk`, so they never see even the
+build-directory lock:
+
+    projects/fpga-systems/Genesys2/rapids/flows-rapids/Makefile          <-- the near miss
+    projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/Makefile
+    projects/asic-trials/timing_characterization/fpga/Makefile
+
+The rapids flow that was mid-characterization is one of them. **Acceptance
+criteria written against `fpga_flow.mk` alone would leave the path that caused the
+near miss untouched, and three board-touching areas outside the fix entirely.**
+
+Blast radius, measured: **16** Makefiles inherit `fpga_flow.mk` (an earlier count
+of 17 wrongly included `Genesys2/stream/stream.mk`, a fragment included BY a
+Makefile rather than a consumer), plus the 3 direct `fpga_board.mk` consumers
+above.
+
+## The file already argues this, one step short of the conclusion
+
+`fpga_board.mk` :52-54, immediately above `program:`:
+
+> It says WHICH file it is programming, every time. Silently programming a
+> different bitstream than the one you just built is a worse failure than
+> refusing: it is how a board result gets attributed to the wrong design.
+
+That is the same failure as concurrent reprogramming with a different cause, and
+the file stops right before extending it. Whoever takes this is not introducing a
+principle -- they are finishing one the tooling already makes.
 
 ## The near miss that surfaced it
 
@@ -62,17 +104,25 @@ numbers.
 
 ## Acceptance
 
-- The board-touching paths (`tcl-*`, `run`, `run-*`, and any future `program`)
-  take a lock keyed on the **board** -- the JTAG serial from the board registry,
-  or the tty -- not on the build directory.
+- **The lock belongs in `make/fpga_board.mk`, not `fpga_flow.mk`.** That is the
+  file every board-touching path reaches -- `program` is defined there, and three
+  areas include it directly without `fpga_flow.mk`. A lock added to
+  `fpga_flow.mk` would miss all of them.
+- The board-touching paths -- `program` (`fpga_board.mk:58`), plus `tcl-*`,
+  `run`, `run-*` in `fpga_flow.mk` -- take a lock keyed on the **board**: the
+  JTAG serial from the board registry, or the tty. Not on the build directory.
 - The build-directory lock STAYS for Vivado builds. It is right for its purpose
   and `build-mon` / `build-perf` concurrency is deliberate; this is an
   additional lock, not a replacement.
-- A harness reads the device ID back **from the device** at start and end and
-  records it beside the bitstream sha256, so a mid-run swap is detectable after
-  the fact rather than invisible. (rapids is adopting this for their final run
-  independently of the lock.)
-- All 17 inheriting Makefiles verified unbroken.
+- The device ID is read back **from the device** at start and end and recorded
+  beside the bitstream sha256, so a mid-run swap is detectable after the fact
+  rather than invisible. A sha256 of what you programmed cannot detect a third
+  party; a device ID read at both ends can. **Put it in `fpga_board.mk`'s
+  `program` path rather than per-harness**, so every consumer inherits it
+  (scoria's suggestion, and it is the right level). rapids is adopting the
+  readback for their final run independently of the lock.
+- All 16 `fpga_flow.mk` inheritors AND the 3 direct `fpga_board.mk` consumers
+  verified unbroken.
 
 ## Interim mitigation, in use now
 
