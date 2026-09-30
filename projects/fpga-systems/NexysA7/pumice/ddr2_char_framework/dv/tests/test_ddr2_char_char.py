@@ -50,8 +50,7 @@ from CocoTBFramework.components.shared.memory_model import MemoryModel
 _REPO = os.environ["REPO_ROOT"]
 _HOST = os.path.join(_REPO, "projects/fpga-systems/NexysA7/pumice/"
                             "build-perf/host")
-_TBC = os.path.join(_REPO, "projects/fpga-systems/NexysA7/pumice/"
-                           "ddr2_char_framework/dv/tbclasses")
+_TBC = os.path.join(_REPO, "projects/fpga-systems/rtl/mem_char_framework/dv/tbclasses")
 _BRIDGE = os.path.join(_REPO, "projects/components/utility-ip/converters/bin")
 for _p in (_HOST, _TBC, _BRIDGE):
     if _p not in sys.path:

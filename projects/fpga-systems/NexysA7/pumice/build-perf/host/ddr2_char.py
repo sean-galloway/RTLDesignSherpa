@@ -71,8 +71,7 @@ from pumice_device import Pumice  # noqa: E402  (controller as its own named dev
 
 # PeakRDL-generated regmap for this project's harness_csr (by-name access).
 HARNESS_REGMAP = os.path.join(
-    _REPO_ROOT, "projects/fpga-systems/NexysA7/pumice/"
-    "ddr2_char_framework/dv/tbclasses/harness_csr_regmap.py")
+    _REPO_ROOT, "projects/fpga-systems/rtl/mem_char_framework/dv/tbclasses/harness_csr_regmap.py")
 
 # PeakRDL-generated regmap for the pumice controller CSR (APB slave, base 0x0
 # in the bridge map). Used for by-name access to pumice's own runtime knobs
@@ -87,8 +86,7 @@ PUMICE_REGMAP = os.path.join(
 # as a single WR_*/RD_* window; that window configured ONE writer and ONE
 # reader and is retired.
 CHARGEN_REGMAP = os.path.join(
-    _REPO_ROOT, "projects/fpga-systems/NexysA7/pumice/"
-    "ddr2_char_framework/dv/tbclasses/chargen_regs_regmap.py")
+    _REPO_ROOT, "projects/fpga-systems/rtl/mem_char_framework/dv/tbclasses/chargen_regs_regmap.py")
 
 
 # =============================================================================

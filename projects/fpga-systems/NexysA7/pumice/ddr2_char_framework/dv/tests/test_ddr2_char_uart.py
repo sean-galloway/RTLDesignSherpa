@@ -43,8 +43,7 @@ from CocoTBFramework.components.shared.memory_model import MemoryModel
 _REPO = os.environ["REPO_ROOT"]
 _HOST = os.path.join(_REPO, "projects/fpga-systems/NexysA7/pumice/"
                             "build-perf/host")
-_TBC = os.path.join(_REPO, "projects/fpga-systems/NexysA7/pumice/"
-                           "ddr2_char_framework/dv/tbclasses")
+_TBC = os.path.join(_REPO, "projects/fpga-systems/rtl/mem_char_framework/dv/tbclasses")
 # The pumice sequence area. Its seq_*.py are what `make run` drives on silicon;
 # cocotb_test_uart_sequences below runs the SAME files against the sim.
 _SEQ = os.path.join(_REPO, "projects/fpga-systems/NexysA7/pumice/bin")

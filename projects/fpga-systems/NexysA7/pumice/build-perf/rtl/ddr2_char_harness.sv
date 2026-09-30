@@ -24,6 +24,7 @@
 
 module ddr2_char_harness
     import pumice_pkg::*;
+    import mem_char_pkg::*;   // mem_variant_e, from harness_csr
 #(
     // DV-only command-history scoreboards (off by default). CMD_HISTORY_EN arms
     // both the scheduler-side instance and the DFI-WIRE one; HIST_T_*_CORE are
@@ -458,7 +459,13 @@ module ddr2_char_harness
     logic [31:0]  w_obs_rd_hist_count, w_obs_rd_hist_total;
     logic [31:0]  w_obs_wr_hist_count, w_obs_wr_hist_total;
 
+    // harness_csr speaks the framework's generation-neutral mem_variant_e; the
+    // controller speaks pumice_pkg's memtype_e. Both are one bit with the same
+    // ordering (DDR variant = 0, LP variant = 1), and this cast is the single
+    // place the DDR2 generation is named -- see mem_char_pkg's header.
+    mem_variant_e w_mem_variant;
     memtype_e     w_memtype;
+    assign w_memtype = memtype_e'(w_mem_variant);
     logic [7:0]   w_t_phy_wrlat, w_t_rddata_en;
     logic         w_rd_in_order;
     logic [3:0]   w_cap_lookahead_max, w_cap_synth_mask;
@@ -559,7 +566,7 @@ module ddr2_char_harness
         .i_obs_wr_hist_total  (w_obs_wr_hist_total),
 
         // Controller runtime cfg outputs
-        .o_memtype           (w_memtype),
+        .o_mem_variant       (w_mem_variant),
         .o_t_phy_wrlat       (w_t_phy_wrlat),
         .o_t_rddata_en       (w_t_rddata_en),
         .o_rd_in_order       (w_rd_in_order),

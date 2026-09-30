@@ -35,7 +35,7 @@
 `include "reset_defs.svh"
 
 module char_engine_harness
-    import pumice_pkg::*;
+    import mem_char_pkg::*;
 #(
     // ---- Board / host ----
     parameter int FPGA_CLK_HZ        = 75_000_000,   // == litedram user_clk (sys_clk_freq)
@@ -412,7 +412,7 @@ module char_engine_harness
 
     // Controller runtime knobs. Programmed by the host exactly as on pumice,
     // read by nothing here: LiteDRAM's BIOS owns its own configuration.
-    memtype_e     w_memtype;
+    mem_variant_e w_mem_variant;   // programmed by the host, read by nothing here
     logic [7:0]   w_t_phy_wrlat, w_t_rddata_en;
     logic         w_rd_in_order;
     logic [3:0]   w_cap_lookahead_max, w_cap_synth_mask;
@@ -501,7 +501,7 @@ module char_engine_harness
         .i_obs_wr_hist_count  (w_obs_wr_hist_count),
         .i_obs_wr_hist_total  (w_obs_wr_hist_total),
 
-        .o_memtype           (w_memtype),
+        .o_mem_variant       (w_mem_variant),
         .o_t_phy_wrlat       (w_t_phy_wrlat),
         .o_t_rddata_en       (w_t_rddata_en),
         .o_rd_in_order       (w_rd_in_order),
@@ -911,7 +911,7 @@ module char_engine_harness
         w_unmapped_irq, w_unmapped_addr, w_unmapped_count,
         w_timer_expected_beats,
         w_rd_resp_delay_cyc, w_wr_resp_delay_cyc,
-        w_memtype, w_t_phy_wrlat, w_t_rddata_en, w_rd_in_order,
+        w_mem_variant, w_t_phy_wrlat, w_t_rddata_en, w_rd_in_order,
         w_cap_lookahead_max, w_cap_synth_mask, w_cmd_delay_sel, w_rddata_delay_sel,
         w_phy_csr_adr, w_phy_csr_we, w_phy_csr_dat_w,
         w_rd_dbg_valid, w_rd_dbg_actual, w_rd_dbg_expected,

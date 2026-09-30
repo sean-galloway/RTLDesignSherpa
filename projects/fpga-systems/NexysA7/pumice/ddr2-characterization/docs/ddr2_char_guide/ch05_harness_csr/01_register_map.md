@@ -23,9 +23,9 @@ which the by-name host regmap is generated. Registers are accessed by name via
 
 ```bash
 python3 bin/peakrdl_generate.py \
-  projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/harness_csr.rdl \
+  projects/fpga-systems/rtl/mem_char_framework/rtl/harness_csr.rdl \
   --regmap --docs-only --no-html --no-markdown \
-  --regmap-output projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/dv/tbclasses/harness_csr_regmap.py
+  --regmap-output projects/fpga-systems/rtl/mem_char_framework/dv/tbclasses/harness_csr_regmap.py
 ```
 
 A consistency test (`build-perf/host/test_harness_regmap_consistency.py`) asserts the

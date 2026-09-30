@@ -29,8 +29,8 @@ if not _REPO:
     pytest.skip("REPO_ROOT not set (source env_python)", allow_module_level=True)
 
 _CHAR = os.path.join(_REPO, "projects/fpga-systems/NexysA7/pumice")
-_SV = os.path.join(_CHAR, "ddr2_char_framework/rtl/harness_csr.sv")
-_REGMAP = os.path.join(_CHAR, "ddr2_char_framework/dv/tbclasses/harness_csr_regmap.py")
+_SV = os.path.join(_REPO, "projects/fpga-systems/rtl/mem_char_framework/rtl/harness_csr.sv")
+_REGMAP = os.path.join(_REPO, "projects/fpga-systems/rtl/mem_char_framework/dv/tbclasses/harness_csr_regmap.py")
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ddr2_char as dc  # noqa: E402

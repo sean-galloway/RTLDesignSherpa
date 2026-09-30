@@ -220,6 +220,19 @@ filelist_dirs = ["projects/fpga-systems/Genesys2/stream/rtl/filelists"]
 # also retires a known-bad entry rather than a working one. The DDR2 areas
 # (nexys_ddr2_char*) point at a DIFFERENT NexysA7 project and stay.
 
+# The memory-characterization framework, shared across boards. Promoted out of
+# NexysA7/pumice/ddr2_char_framework on 2026-09-30: the engine was already
+# advertised as DUT-agnostic but lived under one controller's board directory
+# and imported that controller's package, so a DDR3 harness could not use it and
+# the LiteDRAM yardstick build compiled the whole DDR2 controller it was meant
+# to be measured against. Both pumice (Nexys A7) and scoria (Genesys 2) pull
+# rtl/filelists/char_engine_block.f from here.
+[[area]]
+name = "mem_char_framework"
+kind = "board"
+rtl_roots = []
+filelist_dirs = ["projects/fpga-systems/rtl/mem_char_framework/rtl/filelists"]
+
 [[area]]
 name = "nexys_ddr2_char"
 kind = "board"
@@ -244,6 +257,18 @@ name = "genesys2_rapids_byte_char"
 kind = "board"
 rtl_roots = []
 filelist_dirs = ["projects/fpga-systems/Genesys2/rapids/flows-rapids/filelists"]
+
+[[area]]
+name = "nexys_reed_solomon_loop"
+kind = "board"
+# Reed-Solomon loop harness on the Nexys A7 (2026-09-30): generator ->
+# encoder -> injector -> riBM and Euclid decoders -> checkers, behind the UART
+# harness. The codec itself is the reed-solomon component area.
+rtl_roots = []
+filelist_dirs = [
+    "projects/fpga-systems/NexysA7/reed-solomon/build-loop/rtl/filelists",
+    "projects/fpga-systems/NexysA7/reed-solomon/build-loop/dv/filelists",
+]
 
 [[area]]
 name = "nexys_cdc_display"

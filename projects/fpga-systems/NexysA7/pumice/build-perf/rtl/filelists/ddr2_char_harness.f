@@ -31,8 +31,8 @@
 # Flat DFI -> per-phase adapter + a7ddrphy black-box stub. Vivado excludes
 # a7ddrphy_stub.sv and substitutes the LiteDRAM-generated a7ddrphy.v at
 # build time; the stub is here so verilator / cocotb can lint the top.
-$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/dfi_cmd_delay.sv
-$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/dfi_rddata_delay.sv
+$REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/dfi_cmd_delay.sv
+$REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/dfi_rddata_delay.sv
 $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/dfi_v21_flat_to_a7ddrphy.sv
 $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/a7ddrphy_stub.sv
 
@@ -40,8 +40,12 @@ $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/a7ddrphy
 # committed under ddr2_char_framework/rtl/ but not yet instantiated in
 # the harness — kept here so future response-delay wiring is a one-line
 # swap-in.
-$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/harness_csr.sv
-$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/led_status_driver.sv
+# The framework's OWN package. It must precede harness_csr, which takes
+# mem_variant_e from it. It used to take memtype_e from pumice_pkg -- see
+# mem_char_pkg.sv for why that was wrong in both directions.
+$REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/mem_char_pkg.sv
+$REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/harness_csr.sv
+$REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/led_status_driver.sv
 $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/seven_seg_4digit.sv
 
 # Flow-specific harness + FPGA pin-level top

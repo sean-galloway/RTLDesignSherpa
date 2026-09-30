@@ -17,11 +17,15 @@
 -f $REPO_ROOT/rtl/amba/filelists/sdpram_core.f
 -f $REPO_ROOT/rtl/amba/filelists/sdpram_slave_axil_axil.f
 -f $REPO_ROOT/rtl/common/filelists/hex_to_7seg.f
-$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/verilator_xilinx_stubs.sv
-$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/dfi_cmd_delay.sv
-$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/dfi_rddata_delay.sv
-$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/harness_csr.sv
-$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/led_status_driver.sv
+$REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/verilator_xilinx_stubs.sv
+$REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/dfi_cmd_delay.sv
+$REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/dfi_rddata_delay.sv
+# The framework's OWN package. It must precede harness_csr, which takes
+# mem_variant_e from it. It used to take memtype_e from pumice_pkg -- see
+# mem_char_pkg.sv for why that was wrong in both directions.
+$REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/mem_char_pkg.sv
+$REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/harness_csr.sv
+$REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/led_status_driver.sv
 $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/seven_seg_4digit.sv
 $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/build-perf/rtl/ddr2_char_harness.sv
 

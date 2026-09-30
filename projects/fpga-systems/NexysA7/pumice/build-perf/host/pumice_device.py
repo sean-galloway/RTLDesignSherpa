@@ -193,8 +193,7 @@ def _pumice_regmap() -> str:
 
 
 def _harness_regmap() -> str:
-    return os.path.join(_repo_root(), "projects/fpga-systems/NexysA7/pumice/"
-                        "ddr2_char_framework/dv/tbclasses/harness_csr_regmap.py")
+    return os.path.join(_repo_root(), "projects/fpga-systems/rtl/mem_char_framework/dv/tbclasses/harness_csr_regmap.py")
 
 
 class Pumice(Device):

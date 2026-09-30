@@ -39,7 +39,7 @@
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/apb4_to_peakrdl.f
 
 # The generator config block.
--f $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/filelists/chargen_regs.f
+-f $REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/filelists/chargen_regs.f
 
 # The generator unit: two write and two read generator blocks and the N:1 merge
 # that puts them on pumice's single s_axi port. Each generator spans
@@ -53,12 +53,12 @@
 # direction, on a harness whose measurement IS latency. The wr/rd TOMLs and
 # their generated output stay in the tree so both paths can still be built and
 # measured against each other; nothing in this build reads them.
-$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/char_gen_axi_mux.sv
-$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/char_gen_wr_order_q.sv
-$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/char_gen_unit.sv
+$REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/char_gen_axi_mux.sv
+$REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/char_gen_wr_order_q.sv
+$REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/char_gen_unit.sv
 
 # The macro itself
 # DUT-agnostic engine spine (generator unit + chargen_regs + perf).
 # Shared with the LiteDRAM comparison flow -- see char_engine_block.sv.
-$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/char_engine_block.sv
+$REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/char_engine_block.sv
 $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/ddr2_char_macro.sv

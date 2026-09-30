@@ -194,23 +194,23 @@ MANIFEST = [
     },
     {
         "name": "chargen_regs (ddr2 char)",
-        "rdl": "projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/chargen_regs.rdl",
-        "sources": ["projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/chargen_regs.rdl"],
+        "rdl": "projects/fpga-systems/rtl/mem_char_framework/rtl/chargen_regs.rdl",
+        "sources": ["projects/fpga-systems/rtl/mem_char_framework/rtl/chargen_regs.rdl"],
         "flags": ["--no-html"],
         "regmap_output": None,
         "compare": [
-            ("projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/generated/chargen_regs/rtl/chargen_regs.sv", "rtl/chargen_regs.sv"),
-            ("projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/generated/chargen_regs/rtl/chargen_regs_pkg.sv", "rtl/chargen_regs_pkg.sv"),
-            ("projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/generated/chargen_regs/docs/chargen_regs.md", "docs/chargen_regs.md"),
+            ("projects/fpga-systems/rtl/mem_char_framework/rtl/generated/chargen_regs/rtl/chargen_regs.sv", "rtl/chargen_regs.sv"),
+            ("projects/fpga-systems/rtl/mem_char_framework/rtl/generated/chargen_regs/rtl/chargen_regs_pkg.sv", "rtl/chargen_regs_pkg.sv"),
+            ("projects/fpga-systems/rtl/mem_char_framework/rtl/generated/chargen_regs/docs/chargen_regs.md", "docs/chargen_regs.md"),
         ],
     },
     {
         "name": "chargen_regs (DV-facing regmap copy)",
-        "rdl": "projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/chargen_regs.rdl",
-        "sources": ["projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/chargen_regs.rdl"],
+        "rdl": "projects/fpga-systems/rtl/mem_char_framework/rtl/chargen_regs.rdl",
+        "sources": ["projects/fpga-systems/rtl/mem_char_framework/rtl/chargen_regs.rdl"],
         "flags": ["--no-html"],
         "regmap_output": "chargen_regs_regmap.py",
-        "compare": [("projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/dv/tbclasses/chargen_regs_regmap.py", "chargen_regs_regmap.py")],
+        "compare": [("projects/fpga-systems/rtl/mem_char_framework/dv/tbclasses/chargen_regs_regmap.py", "chargen_regs_regmap.py")],
     },
     {
         # REGMAP ONLY. ddr2_char's rtl/harness_csr.sv is HAND-WRITTEN (no
@@ -219,11 +219,11 @@ MANIFEST = [
         # would declare hand-written RTL permanently stale and block every
         # commit -- the false-failure this gate must never cause.
         "name": "ddr2_char harness_csr (regmap only)",
-        "rdl": "projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/harness_csr.rdl",
-        "sources": ["projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/harness_csr.rdl"],
+        "rdl": "projects/fpga-systems/rtl/mem_char_framework/rtl/harness_csr.rdl",
+        "sources": ["projects/fpga-systems/rtl/mem_char_framework/rtl/harness_csr.rdl"],
         "flags": ["--no-html"],
         "regmap_output": "harness_csr_regmap.py",
-        "compare": [("projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/dv/tbclasses/harness_csr_regmap.py", "harness_csr_regmap.py")],
+        "compare": [("projects/fpga-systems/rtl/mem_char_framework/dv/tbclasses/harness_csr_regmap.py", "harness_csr_regmap.py")],
     },
     {
         # rapids has TWO RDLs describing DIFFERENT addrmaps: rapids_regs
