@@ -553,9 +553,10 @@ module scheduler #(
     assign w_wr_run_size = r_wr_per_beat ? 32'd1 : w_wr_inner_beats;
 
     logic [31:0] w_rd_run_init, w_wr_run_init;
-    // EXT descriptors count rows in beats, so the first byte cut requires
-    // beat-aligned addresses and beat-multiple lengths for TYPE=EXT; the
-    // ceil above is then exact.
+    // EXT descriptors count rows in beats. TYPE=EXT therefore requires
+    // beat-aligned addresses and beat-multiple lengths -- a permanent
+    // limitation (rapids TASK-019, 2026-09-30); linear descriptors have no
+    // alignment requirement. The ceil above is then exact.
     assign w_rd_run_init = !r_is_ext ? w_rd_beats_total
         : ((w_rd_run_size < w_rd_beats_total) ? w_rd_run_size : w_rd_beats_total);
     assign w_wr_run_init = !r_is_ext ? w_wr_beats_total

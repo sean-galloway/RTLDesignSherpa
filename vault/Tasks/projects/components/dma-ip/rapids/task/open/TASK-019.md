@@ -132,6 +132,8 @@ and from a 64-byte beat to `DATA_WIDTH/8`.
       Decided 2026-09-29.
 - [x] `DATA_WIDTH` = 256 for the first byte-granular build so every existing
       perf cell stays comparable. Decided 2026-09-29.
+- [x] TYPE=EXT (row/column striding) stays beat-aligned: aligned addresses,
+      beat-multiple lengths. Permanent, decided 2026-09-30.
 - [x] Where it lives: the un-suffixed `rtl/fub`, `rtl/macro`, `rtl/top`
       areas; the beats tree is kept, not converted (Sean, 2026-09-29).
 
@@ -148,7 +150,9 @@ shared) with these changes:
   `{bytes, offset}` per enabled direction (`sched_rd_pkt_*`, `sched_wr_pkt_*`)
   and waits there while the data path's record queue (depth 4 per channel)
   is full. EXT descriptors keep beat-granular rows: TYPE=EXT requires
-  beat-aligned addresses and beat-multiple lengths in this cut.
+  beat-aligned addresses and beat-multiple lengths. **Permanent** (Sean,
+  2026-09-30: "That is an acceptable permanent limitation"); linear
+  descriptors have no alignment requirement.
 - **Engines**: AWADDR/ARADDR are issued **beat-aligned** (the offset lives in
   the strobes), every burst is capped at the 4 KB boundary, and the write
   engine drives WSTRB from a new `axi_wr_sram_strb` input. AXI4 would also

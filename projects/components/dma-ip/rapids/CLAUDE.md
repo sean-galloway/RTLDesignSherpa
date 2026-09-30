@@ -50,6 +50,8 @@
 > Byte-specific contracts: the sink ingress holds `s_axis_tready` until the channel's
 > descriptor is fetched (issue the descriptor first, or stream concurrently); a `tlast` packet
 > whose byte count differs from the descriptor sets that channel's sticky `sched_wr_error`.
+> TYPE=EXT (row/column striding) descriptors stay beat-aligned by design: aligned addresses,
+> beat-multiple lengths. Linear descriptors may start at any byte on either side.
 
 **Complete Specification:**
 - `projects/components/dma-ip/rapids/docs/rapids_beats_has/` - Architecture spec (HAS); index: `rapids_beats_has_index.md`
