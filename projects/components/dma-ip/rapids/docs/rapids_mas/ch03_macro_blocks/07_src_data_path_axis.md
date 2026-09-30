@@ -83,6 +83,7 @@ A descriptor's source address may start in the middle of a beat. The scheduler s
 |--------|-----------|-------|-------------|
 | `cfg_axi_rd_xfer_beats` | input | 8 | Read burst size cap in beats, minus one. |
 | `cfg_drain_size` | input | 8 | Beats per drain reservation. 0 is treated as 1. |
+| `cfg_channel_reset` | input | NC | Per-channel reset, level or pulse. Clears the channel's queue, hold, egress counters, drain reservations and error flag. |
 
 : Table 3.7.2: Configuration
 
@@ -170,6 +171,28 @@ Offset 5, 60 bytes and a 256-bit beat give three memory beats. The first pop, M0
 
 ---
 
+## Channel Reset
+
+`cfg_channel_reset[ch]` is a register level, so a pulse and a held level must both work. As in the sink ingress the data path forms `w_rst[ch] = cfg_channel_reset[ch] | r_rst_d1[ch]`, a two-cycle stretch of a pulse. The read engine clears its error flag and settles the reads in flight (see [AXI Read Engine](../ch02_fub_blocks/03_axi_read_engine.md)); the data path clears everything that would otherwise let the old descriptor keep streaming:
+
+| State | Action on `w_rst[ch]` |
+|-------|-----------------------|
+| Packet record queue | Pointers cleared. A record arriving on the reset cycle is not pushed. |
+| Egress state | `r_eg_started`, `r_hold_valid`, `r_hold_data`, `r_eg_bytes_left` and `r_eg_mem_left` cleared. |
+| Drain reservation | Grants for the channel are masked. `r_drain_tminus1[ch]` is cleared. |
+| Reservation queue | Entries that belong to the channel are zeroed. An entry of size 0 loads the drain stage idle, so the drain stage skips it. A reservation being drained for the channel is dropped. |
+| Output register | A beat already in `r_out` completes, so `m_axis` stays stable. |
+
+: Table 3.7.6: Channel Reset Actions
+
+The channel's SRAM partition is cleared by `src_sram_controller`, which holds one single-channel `sram_controller` per channel with a registered per-channel reset `r_ch_rst_n[ch]`. The shared STREAM controller has no channel reset of its own and is not modified. Reads of the old descriptor that are already on the bus are discarded by the read engine, so no stale data reaches the cleared partition.
+
+**A packet cut by the reset is left unterminated.** If the reset lands after the first beat of a packet has gone out and before its `tlast` beat, the data path does not send a `tlast` and does not send a null terminator. The downstream receiver sees the packet stop. A packet that had not started, or whose `tlast` beat was already in `r_out` when the reset hit, is unaffected. A receiver that needs to resynchronize after a channel reset treats the reset as the end of the packet.
+
+Other channels are unaffected: every term above is indexed by channel, the drain and reservation stages skip only the channel in reset, and their beats keep flowing through the shared `m_axis`.
+
+---
+
 ## Differences from RAPIDS Beats
 
 | Item | RAPIDS Beats | RAPIDS |
@@ -180,9 +203,10 @@ Offset 5, 60 bytes and a 256-bit beat give three memory beats. The first pop, M0
 | Drain advance | stream handshakes | memory-beat pops |
 | Packet framing | one per drain block | one per descriptor |
 | Packet record queue | absent | four per channel |
+| Channel reset | not applicable | per-channel clear of every stage, cut packet left unterminated |
 | Reservation stage, allocation of drain | | Unchanged |
 
-: Table 3.7.6: Egress Delta
+: Table 3.7.7: Egress Delta
 
 The beats chapter is [Source Data Path with AXIS](../../rapids_beats_mas/ch03_macro_blocks/07_source_data_path_axis.md).
 

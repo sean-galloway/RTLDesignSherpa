@@ -161,6 +161,21 @@ async def cocotb_test_byte_packets(dut):
     assert result, f"Byte packets failed: {stats}"
 
 
+@cocotb.test(timeout_time=1000, timeout_unit="ms")
+async def cocotb_test_channel_reset(dut):
+    """rapids TASK-019: per-channel reset recovers a channel after a length
+    mismatch, a B error and an abandoned packet, without disturbing another."""
+    from projects.components.dma_ip.rapids.dv.tbclasses.snk_data_path_axis_test_tb import SnkDataPathAxisTestTB
+
+    tb = SnkDataPathAxisTestTB(dut, clk=dut.clk, rst_n=dut.rst_n)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+
+    result, stats = await tb.test_channel_reset()
+    tb.log.info(f"Channel reset: {stats}")
+    assert result, f"Channel reset failed: {stats}"
+
+
 @cocotb.test(timeout_time=500, timeout_unit="ms")
 async def cocotb_test_residue_full_burst(dut):
     """rapids BUG-009: a partial segment left by a short packet must not make a
@@ -279,6 +294,15 @@ def test_byte_packets(request, test_level):
     """Pytest: rapids TASK-019 -- byte-granular packets on the Genesys 2 shape,
     at every level."""
     _run_sink_axis_test(request, "cocotb_test_byte_packets",
+                        8, 64, 256, 8, 1024, 'default', test_level=test_level)
+
+
+@pytest.mark.macro
+@pytest.mark.sink_data_path_axis_test
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_channel_reset(request, test_level):
+    """Pytest: rapids TASK-019 -- per-channel reset on the Genesys 2 shape."""
+    _run_sink_axis_test(request, "cocotb_test_channel_reset",
                         8, 64, 256, 8, 1024, 'default', test_level=test_level)
 
 

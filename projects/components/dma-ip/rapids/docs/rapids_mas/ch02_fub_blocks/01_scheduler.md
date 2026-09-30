@@ -366,7 +366,7 @@ CTRL_READ and CTRL_WRITE do not use the data engines. `ctrlrd_valid` and `ctrlwr
 - `ctrlrd_error` while the descriptor is CTRL_READ
 - `ctrlwr_error` while the descriptor is CTRL_WRITE
 
-A hard error, or a timeout escalation, moves the FSM to CH_ERROR. The sink packet length check reports through `sched_wr_error` (see [Sink Data Path AXIS](../ch03_macro_blocks/04_snk_data_path_axis.md)), so a stream packet whose byte count differs from the descriptor length is a hard error for that channel. Sticky read and write flags and the descriptor error clear in CH_IDLE.
+A hard error, or a timeout escalation, moves the FSM to CH_ERROR. The sink packet length check reports through `sched_wr_error` (see [Sink Data Path AXIS](../ch03_macro_blocks/04_snk_data_path_axis.md)), so a stream packet whose byte count differs from the descriptor length is a hard error for that channel. Sticky read and write flags and the descriptor error clear in CH_IDLE and also on the registered channel reset, in every state. Clearing on the reset matters: the data engines and the data paths clear their own error levels on the same channel reset, so the scheduler no longer re-enters CH_ERROR from a stale level when it reaches CH_IDLE. A channel reset therefore recovers a data read or write response error and a sink packet length error, and the channel accepts a good descriptor afterwards. The reset also clears the descriptor-loaded flag, the remaining beat counts and the control issued flag, so nothing of the failed descriptor carries into the next one.
 
 ---
 

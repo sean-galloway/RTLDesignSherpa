@@ -86,6 +86,9 @@ module snk_data_path_axis #(
     //=========================================================================
     input  logic [7:0]                  cfg_axi_wr_xfer_beats,
     input  logic [7:0]                  cfg_alloc_size,   // Default allocation size per request
+    // Per-channel reset (level or pulse). Clears that channel's ingress state
+    // and its SRAM and write-engine state without touching other channels.
+    input  logic [NC-1:0]               cfg_channel_reset,
 
     //=========================================================================
     // AXI-Stream Slave Interface (Network Input)
@@ -180,6 +183,20 @@ module snk_data_path_axis #(
     logic [NC-1:0]               w_engine_wr_error;   // from the write engine (B responses)
 
     //=========================================================================
+    // Channel reset: held for the reset cycle and the one after it, so a packet
+    // record the scheduler emits while it is still leaving its own state is
+    // dropped too.
+    //=========================================================================
+    logic [NC-1:0] r_rst_d1;
+    logic [NC-1:0] w_rst;
+    logic [NC-1:0] r_discard;   // stream packet cut by a reset: accept and drop to tlast
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) r_rst_d1 <= '0;
+        else                      r_rst_d1 <= cfg_channel_reset;
+    )
+    assign w_rst = cfg_channel_reset | r_rst_d1;
+
+    //=========================================================================
     // Packet records: a small queue per channel of {offset, bytes}
     //=========================================================================
     localparam int PQ_DEPTH = 4;
@@ -197,7 +214,7 @@ module snk_data_path_axis #(
             w_pq_count[ch]   = r_pq_wp[ch] - r_pq_rp[ch];
             w_pq_empty[ch]   = (w_pq_count[ch] == '0);
             w_pq_full[ch]    = (w_pq_count[ch] == (PQ_PW+1)'(PQ_DEPTH));
-            w_pq_push[ch]    = sched_wr_pkt_valid[ch] && !w_pq_full[ch];
+            w_pq_push[ch]    = sched_wr_pkt_valid[ch] && !w_pq_full[ch] && !w_rst[ch];
             w_head_off[ch]   = r_pq_off[ch][r_pq_rp[ch][PQ_PW-1:0]];
             w_head_bytes[ch] = r_pq_bytes[ch][r_pq_rp[ch][PQ_PW-1:0]];
         end
@@ -228,7 +245,8 @@ module snk_data_path_axis #(
     logic [OFF_W-1:0]            w_in_off;
     logic [2*DW-1:0]             w_in_wide;        // [DW-1:0] this memory beat, [2DW-1:DW] the spill
     logic [2*SW-1:0]             w_in_wide_strb;
-    logic                        w_in_accept;
+    logic                        w_in_accept;      // a beat is placed into the shifter
+    logic                        w_in_drop;        // a beat of a reset-cut packet is discarded
     logic [7:0]                  w_in_bytes;       // bytes carried by this stream beat (popcount of tstrb)
     logic [31:0]                 w_rx_total;       // bytes of the packet including this beat
 
@@ -246,9 +264,14 @@ module snk_data_path_axis #(
     // A stream beat is taken when the output register can take a memory beat,
     // no spill is waiting to be flushed, and the channel's packet record is
     // known (the scheduler has started the descriptor).
+    // A channel in reset takes nothing. A packet that a reset cut mid-stream
+    // is drained: its remaining beats are accepted and dropped up to tlast.
     assign w_out_free    = !r_out_valid || w_out_take;
-    assign s_axis_tready = w_out_free && !r_flush_valid && !w_pq_empty[w_in_ch];
-    assign w_in_accept   = s_axis_tvalid && s_axis_tready;
+    assign s_axis_tready = !w_rst[w_in_ch] &&
+                           (r_discard[w_in_ch] ||
+                            (w_out_free && !r_flush_valid && !w_pq_empty[w_in_ch]));
+    assign w_in_accept   = s_axis_tvalid && s_axis_tready && !r_discard[w_in_ch];
+    assign w_in_drop     = s_axis_tvalid && s_axis_tready &&  r_discard[w_in_ch];
 
     // The packet completes on tlast with no spill, or on the flush beat.
     logic w_pkt_done_now;      // tlast beat, spill empty
@@ -278,6 +301,7 @@ module snk_data_path_axis #(
             r_out_id        <= '0;
             r_out_data      <= '0;
             r_out_strb      <= '0;
+            r_discard       <= '0;
         end else begin
             // packet record queues
             for (int ch = 0; ch < NC; ch++) begin
@@ -319,6 +343,24 @@ module snk_data_path_axis #(
                     end
                 end
             end
+            if (w_in_drop && s_axis_tlast) r_discard[w_in_ch] <= 1'b0;
+            // channel reset: last, so it wins over every update above
+            for (int ch = 0; ch < NC; ch++) begin
+                if (w_rst[ch]) begin
+                    if ((r_pkt_rx_bytes[ch] != '0) && !(r_flush_valid && (r_flush_ch == ch[CIW-1:0])))
+                        r_discard[ch] <= 1'b1;
+                    r_pq_wp[ch]        <= '0;
+                    r_pq_rp[ch]        <= '0;
+                    r_hold_data[ch]    <= '0;
+                    r_hold_strb[ch]    <= '0;
+                    r_pkt_rx_bytes[ch] <= '0;
+                    r_pkt_len_error[ch] <= 1'b0;
+                    if (r_out_id == ch[CIW-1:0])   r_out_valid   <= 1'b0;
+                    // a flush beat of this channel loaded this same cycle
+                    if (r_flush_valid && w_out_free && (r_flush_ch == ch[CIW-1:0])) r_out_valid <= 1'b0;
+                    if (r_flush_ch == ch[CIW-1:0]) r_flush_valid <= 1'b0;
+                end
+            end
         end
     )
 
@@ -358,9 +400,11 @@ module snk_data_path_axis #(
                     r_alloc_settle[ch] <= 2'd3;
                 else if (r_alloc_settle[ch] != 2'd0)
                     r_alloc_settle[ch] <= r_alloc_settle[ch] - 2'd1;
+                if (w_rst[ch]) r_alloc_settle[ch] <= 2'd0;
             end
         end
     )
+    wire w_out_rst = w_rst[r_out_id];   // the held beat belongs to a channel in reset
     wire w_channel_needs_alloc = (r_pending_alloc[r_out_id] == '0) &&
                                  (r_alloc_settle[r_out_id] == 2'd0);
     assign w_eff_alloc_size = (cfg_alloc_size == 8'd0) ? 8'd1 : cfg_alloc_size;
@@ -374,17 +418,17 @@ module snk_data_path_axis #(
     assign w_alloc_now = (w_space_now >= SCW'(w_eff_alloc_size)) ? w_eff_alloc_size : 8'(w_space_now);
     wire w_channel_has_space = (w_space_now != '0);
 
-    assign fill_alloc_req  = r_out_valid && w_channel_needs_alloc && w_channel_has_space;
+    assign fill_alloc_req  = r_out_valid && !w_out_rst && w_channel_needs_alloc && w_channel_has_space;
     assign fill_alloc_size = w_alloc_now;
     assign fill_alloc_id   = r_out_id;
 
     // Data valid when the channel holds an allocation or allocates this cycle
-    assign fill_valid = r_out_valid &&
+    assign fill_valid = r_out_valid && !w_out_rst &&
                         ((r_pending_alloc[r_out_id] > 0) ||
                          (w_channel_needs_alloc && w_channel_has_space));
     // The memory beat leaves the output register only when the fill interface
     // takes it (fill_ready), never on an allocation cycle with fill_ready low.
-    assign w_out_take = fill_ready &&
+    assign w_out_take = fill_ready && !w_out_rst &&
                         ((r_pending_alloc[r_out_id] > 0) || fill_alloc_req);
 
     `ALWAYS_FF_RST(clk, rst_n,
@@ -403,6 +447,7 @@ module snk_data_path_axis #(
                 end else if (fill_valid && fill_ready && (fill_id == ch[CIW-1:0])) begin
                     r_pending_alloc[ch] <= r_pending_alloc[ch] - 1'b1;
                 end
+                if (w_rst[ch]) r_pending_alloc[ch] <= '0;
             end
             // Statistics: stream beats and packets accepted
             if (s_axis_tvalid && s_axis_tready) begin
@@ -441,6 +486,7 @@ module snk_data_path_axis #(
 
         // Configuration
         .cfg_axi_wr_xfer_beats  (cfg_axi_wr_xfer_beats),
+        .cfg_channel_reset      (cfg_channel_reset),
 
         // Fill Allocation Interface
         .fill_alloc_req         (fill_alloc_req),

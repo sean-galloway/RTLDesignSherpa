@@ -36,9 +36,10 @@ Two facts shape the whole chapter:
 
 1. **A fatal error parks the channel.** The scheduler enters its error
    state and stays there. Only a channel reset or a global reset leaves it.
-2. **Some sticky flags outlive a channel reset.** The three data-path flags
-   listed under "Recovery" clear only on the hardware reset `aresetn`.
-   Software cannot recover from these by channel reset alone.
+2. **A channel reset recovers every class.** The scheduler, the descriptor
+   and control engines, both data engines and both data paths all take the
+   per-channel reset. No error class needs the hardware reset `aresetn`,
+   and resetting one channel does not disturb the others.
 
 ---
 
@@ -50,9 +51,9 @@ Two facts shape the whole chapter:
 | Descriptor address outside both configured ranges | Descriptor engine, before any fetch | Yes | Channel reset |
 | Descriptor address of zero or otherwise invalid over APB | Descriptor engine | Yes | Channel reset |
 | Descriptor fetch returns an AXI error (`RRESP` not OKAY) | Descriptor engine | Yes | Channel reset |
-| Data read returns an AXI error (`RRESP` not OKAY) | AXI read engine | Yes | `aresetn` |
-| Data write returns an AXI error (`BRESP` not OKAY) | AXI write engine | Yes | `aresetn` |
-| **Sink packet length mismatch** (new) | Sink ingress, at `tlast` | Yes | `aresetn` |
+| Data read returns an AXI error (`RRESP` not OKAY) | AXI read engine | Yes | Channel reset |
+| Data write returns an AXI error (`BRESP` not OKAY) | AXI write engine | Yes | Channel reset |
+| **Sink packet length mismatch** (new) | Sink ingress, at `tlast` | Yes | Channel reset |
 | Control read retry exhausted | Control read engine | Yes | Channel reset |
 | Control write returns an AXI error | Control write engine | Yes | Channel reset |
 | Write-progress timeout, first windows | Scheduler timeout counter | No | Any write progress |
@@ -61,8 +62,9 @@ Two facts shape the whole chapter:
 : Error Classes
 
 The first four rows and the control-engine rows behave exactly as in RAPIDS
-Beats. The data-path rows are the same conditions, with one difference in
-the last column that the "Recovery" section explains.
+Beats. The data-path rows are the same conditions. In RAPIDS the channel
+reset also clears them; the "Recovery" section lists what it does to work
+still in flight.
 
 ---
 
@@ -112,9 +114,11 @@ the packet it emits always has `length` bytes.
 
 ### How it Clears
 
-The per-channel bit is reset by `aresetn` and by nothing else. The sink
-ingress has no channel-reset input. See "Recovery" below for what this
-means for software.
+The per-channel bit is cleared by the channel reset (and therefore by
+the global reset, which asserts every channel's reset). It stays clear
+afterwards; the next packet is checked against its own record. See
+"Recovery" below for what the reset does to a packet that is part-way
+through the stream.
 
 ### Prevention
 
@@ -263,50 +267,62 @@ chapter.
 
 ### Channel Reset
 
-Writing the channel's bit in `CHANNEL_RESET.CH_RST` returns the scheduler
-to idle and clears the descriptor engine and the control engines. Software
-should:
+Writing the channel's bit in `CHANNEL_RESET.CH_RST` of the half that reported
+the error, `SNK` or `SRC` (or `GLOBAL_CTRL.GLOBAL_RST` for every channel of
+that half), returns the channel to idle. The reset reaches the
+scheduler, the descriptor and control engines, the AXI read and write
+engines, and the sink and source data paths. Every sticky error flag in
+that chain clears, including the data read and write response flags and
+the sink packet length flag. Software should:
 
 1. Set the channel's `CH_RST` bit for at least one clock, then clear it.
-2. Poll the `SCHED_ERR` bit and the `SCHED_IDLE` bit for the channel.
+   A single-cycle pulse and a held level both work. To reset both
+   directions of a channel, write both halves.
+2. Poll the `SCHED_ERR` bit and the `SCHED_IDLE` bit for the channel. The
+   error bit stays clear and the idle bit sets.
 3. Rebuild the descriptor chain from a known-good state. Bytes that the
    failed chain already wrote stay in memory.
 4. Start the channel again as in the initialization sequence.
 
-This recovers the descriptor errors, the control-engine errors and an
-escalated timeout.
+This recovers every error class in the "Error Classes" table. No
+hardware reset is needed, and the other channels keep running through it.
 
-### Errors That Survive Channel Reset
+### What the Reset Does to Work in Flight
 
-Three flags are sticky in the data path and clear only on `aresetn`:
+A channel reset can arrive with beats, bursts and packets still moving.
+The hardware settles them as follows, so the channel is clean when the
+reset releases.
 
-| Flag | Set by |
-|------|--------|
-| Read engine error, per channel | A data read response that is not OKAY |
-| Write engine error, per channel | A data write response that is not OKAY |
-| Packet length error, per channel | A mismatch at `tlast` on the sink stream |
+| Where | In-flight work | Effect |
+|-------|----------------|--------|
+| Sink stream, packet already started | Beats of the packet still to come | The ingress accepts and discards them up to and including `tlast`, so the tail of the old packet cannot be taken as the start of the next. The stream does not stall. |
+| Sink stream, no packet started | None | Nothing to discard. A beat for the channel is held off while the reset is asserted. |
+| Sink write path | An AXI write burst already open | The write engine finishes the burst with null beats (`WSTRB` = 0), so the AXI protocol stays legal and the null beats write nothing. A beat already presented on the write data channel when the reset hit is completed unchanged. No new burst opens for the channel until the open bursts and their responses have finished. Its `AWADDR` value is unchanged. |
+| Sink write path | Write responses still due | They are consumed and ignored. A `BRESP` error that arrives after the reset does not set the error flag. |
+| Source read path | Read bursts already issued | The read engine issues no further bursts, then drains and discards the returning read data until none is outstanding. A `RRESP` error in that data does not set the error flag. |
+| Source stream, packet in progress | Beats not yet sent | The egress stops. A beat already on `m_axis` completes. The remaining beats are not sent (see below). |
+| Other channels | Everything | Not affected. The data paths mask only the channel in reset. |
 
-: Data-Path Flags That Clear on aresetn Only
+: Channel Reset: Handling of In-Flight Work
 
-Neither data engine, and not the sink ingress, takes a channel-reset input. Each
-flag feeds the scheduler as a level. The scheduler's own sticky copy clears
-when the scheduler reaches idle, and the level sets it again on the next
-cycle. After a channel reset or a global reset the scheduler therefore
-returns to its error state as soon as reset is released, and
-`SCHED_ERR` reads set again.
+The sink ingress discards only the tail of a packet of which at least one
+beat had been accepted when the reset hit. The sender must still send that
+packet's `tlast`; the beat is taken and dropped, and the next beat for the
+channel is checked against the next packet record as usual. While the reset
+is asserted the channel's beats are held off (`s_axis_tready` low).
 
-Software that meets one of these three errors has two options:
+**The source stream is left unterminated.** If the reset lands between
+the first and last beat of a source packet, RAPIDS stops sending it and
+does not emit a `tlast` (and no null terminator). The receiver sees a
+partial packet. A receiver that must resynchronize after a channel reset
+should treat the reset as the end of the packet, or flush its own
+per-channel state when it resets the channel. A packet that had not
+started, or that had already sent its `tlast`, is unaffected.
 
-- Reset the whole block through the hardware reset that drives `aresetn`,
-  then reprogram it.
-- Treat the failing channel as lost until the next hardware reset, and
-  keep using the other channels. The error bits are per channel, so the
-  other channels keep running.
-
-This behavior is the current RTL. A change that routes the channel reset
-into the two engines and the sink ingress would let a channel reset clear
-them, and this chapter would then move the three rows into the previous
-section.
+**Head-of-line blocking is unchanged.** A sink beat for a channel with no
+packet record still stalls the shared `s_axis_tready`, as described under
+"Not Errors". A channel reset does not remove this. After the reset, post the
+next sink descriptor before the sender starts the next packet.
 
 ---
 
@@ -317,8 +333,8 @@ section.
 | Before the run | Program `SCHED_TIMEOUT_CYCLES` and `SCHED_TIMEOUT_LIMIT`. Post the sink descriptor before the first beat of its packet. |
 | During the run | Poll `SCHED_ERR` for the active channels, or watch MonBus for error packets. |
 | On an error | Note the channel and read the MonBus packet. Decide which class from the descriptor state and the stream. |
-| Recovery | Channel reset for descriptor, control and timeout errors. Hardware reset for a length mismatch or an AXI response error. |
-| After recovery | Re-post descriptors. Re-send the whole packet, not the tail. |
+| Recovery | Channel reset for every error class, including a length mismatch or an AXI response error. |
+| After recovery | Re-post descriptors. Re-send the whole packet, not the tail. A source receiver discards the partial packet of a reset channel. |
 
 : Software Checklist
 

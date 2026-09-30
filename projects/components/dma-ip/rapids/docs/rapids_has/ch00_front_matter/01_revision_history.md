@@ -25,6 +25,7 @@
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 0.2 | 2026-09-30 | RTL Design Sherpa | Channel reset recovers every error class; the aresetn-only caveats are removed from Error Handling |
 | 0.1 | 2026-09-30 | RTL Design Sherpa | Initial release: the byte-granular RAPIDS, split from the RAPIDS Beats HAS |
 
 : Document Revision History
@@ -32,6 +33,20 @@
 ---
 
 ## Change Summary
+
+### Version 0.2 (2026-09-30)
+
+**Channel reset closes the data-path error gap**
+
+- The per-channel reset now reaches the AXI read and write engines and both
+  byte data paths. The data read and write response errors and the sink packet
+  length error clear on a channel reset, and the channel takes a good
+  descriptor afterwards. Error Handling no longer tells software to use
+  `aresetn` for these.
+- Error Handling gains the list of what a channel reset does to work in
+  flight, including the sink tail discard and the unterminated source packet.
+- Head-of-line blocking on a shared sink stream is unchanged and stays
+  documented.
 
 ### Version 0.1 (2026-09-30)
 

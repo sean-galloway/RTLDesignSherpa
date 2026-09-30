@@ -80,6 +80,9 @@ module src_data_path_axis #(
     //=========================================================================
     input  logic [7:0]                  cfg_axi_rd_xfer_beats,
     input  logic [7:0]                  cfg_drain_size,   // Beats to drain per request
+    // Per-channel reset (level or pulse). Clears that channel's egress state
+    // and its SRAM and read-engine state without touching other channels.
+    input  logic [NC-1:0]               cfg_channel_reset,
 
     //=========================================================================
     // Scheduler Interface (Per-Channel Read Requests)
@@ -214,6 +217,19 @@ module src_data_path_axis #(
     logic                        w_d_load;          // drain stage takes the queue head
 
     //=========================================================================
+    // Channel reset: held for the reset cycle and the one after it, so a packet
+    // record the scheduler emits while it is still leaving its own state is
+    // dropped too.
+    //=========================================================================
+    logic [NC-1:0] r_rst_d1;
+    logic [NC-1:0] w_rst;
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) r_rst_d1 <= '0;
+        else                      r_rst_d1 <= cfg_channel_reset;
+    )
+    assign w_rst = cfg_channel_reset | r_rst_d1;
+
+    //=========================================================================
     // Packet records: a small queue per channel of {offset, bytes}
     //=========================================================================
     localparam int PQ_DEPTH = 4;
@@ -231,7 +247,7 @@ module src_data_path_axis #(
             w_pq_count[ch]   = r_pq_wp[ch] - r_pq_rp[ch];
             w_pq_empty[ch]   = (w_pq_count[ch] == '0);
             w_pq_full[ch]    = (w_pq_count[ch] == (PQ_PW+1)'(PQ_DEPTH));
-            w_pq_push[ch]    = sched_rd_pkt_valid[ch] && !w_pq_full[ch];
+            w_pq_push[ch]    = sched_rd_pkt_valid[ch] && !w_pq_full[ch] && !w_rst[ch];
             w_head_off[ch]   = r_pq_off[ch][r_pq_rp[ch][PQ_PW-1:0]];
             w_head_bytes[ch] = r_pq_bytes[ch][r_pq_rp[ch][PQ_PW-1:0]];
         end
@@ -283,7 +299,8 @@ module src_data_path_axis #(
 
     always_comb begin
         for (int ch = 0; ch < NC; ch++) begin
-            w_need_flush[ch] = r_eg_started[ch] && (r_eg_mem_left[ch] == 32'd0) && (r_eg_bytes_left[ch] != 32'd0);
+            w_need_flush[ch] = r_eg_started[ch] && (r_eg_mem_left[ch] == 32'd0) && (r_eg_bytes_left[ch] != 32'd0)
+                            && !w_rst[ch];
         end
         w_flush_any = 1'b0;
         w_flush_ch  = '0;
@@ -299,7 +316,7 @@ module src_data_path_axis #(
     // register is free, no flush is pending and the packet record is known.
     assign w_out_free = !r_out_valid || m_axis_tready;
     assign w_pop = r_d_active && drain_valid[w_c] && drain_valid_comb[w_c]
-                && w_out_free && !w_flush_any && !w_pq_empty[w_c];
+                && w_out_free && !w_flush_any && !w_pq_empty[w_c] && !w_rst[w_c];
     // offset 0: every pop is a stream beat. offset > 0: the first pop only
     // primes the hold, unless the packet fits in that one memory beat.
     assign w_emit_on_pop = (w_off == '0) || r_hold_valid[w_c] || (w_mem_left == 32'd1);
@@ -380,6 +397,19 @@ module src_data_path_axis #(
                     r_eg_mem_left[ch]   <= '0;
                 end
             end
+            // Channel reset: last, so it wins over every update above. A beat
+            // already in the output register still completes (AXIS stability).
+            for (int ch = 0; ch < NC; ch++) begin
+                if (w_rst[ch]) begin
+                    r_pq_wp[ch]         <= '0;
+                    r_pq_rp[ch]         <= '0;
+                    r_eg_started[ch]    <= 1'b0;
+                    r_hold_valid[ch]    <= 1'b0;
+                    r_hold_data[ch]     <= '0;
+                    r_eg_bytes_left[ch] <= '0;
+                    r_eg_mem_left[ch]   <= '0;
+                end
+            end
         end
     )
 
@@ -397,6 +427,9 @@ module src_data_path_axis #(
             r_drain_tminus1 <= '{default:'0};
         end else begin
             r_drain_tminus1 <= w_drain_t;
+            for (int ch = 0; ch < NC; ch++) begin
+                if (w_rst[ch]) r_drain_tminus1[ch] <= '0;
+            end
         end
     )
     always_comb begin
@@ -410,8 +443,9 @@ module src_data_path_axis #(
     always_comb begin
         for (int ch = 0; ch < NC; ch++) begin
             w_no_more_fill[ch] = (sched_rd_beats[ch] == 32'd0) && dbg_rd_all_complete[ch];
-            w_ch_grantable[ch] = (w_effective_avail[ch] >= SCW'(w_eff_drain_size))
-                              || ((w_effective_avail[ch] != '0) && w_no_more_fill[ch]);
+            w_ch_grantable[ch] = !w_rst[ch] &&
+                                 ((w_effective_avail[ch] >= SCW'(w_eff_drain_size))
+                                  || ((w_effective_avail[ch] != '0) && w_no_more_fill[ch]));
             w_grant_size[ch] = (w_effective_avail[ch] >= SCW'(w_eff_drain_size))
                               ? w_eff_drain_size : 8'(w_effective_avail[ch]);
             r_arb_request[ch] = w_ch_grantable[ch];
@@ -465,13 +499,13 @@ module src_data_path_axis #(
             r_d_active    <= 1'b0;
             r_d_remaining <= '0;
         end else begin
-            if (r_res_valid) begin
+            if (r_res_valid && !w_rst[r_res_ch]) begin
                 r_rq_ch[r_rq_wp[RQ_PW-1:0]]   <= r_res_ch;
                 r_rq_size[r_rq_wp[RQ_PW-1:0]] <= r_res_size;
                 r_rq_wp                       <= r_rq_wp + 1'b1;
             end
             if (w_d_load) begin
-                r_d_active    <= 1'b1;
+                r_d_active    <= (r_rq_size[r_rq_rp[RQ_PW-1:0]] != 8'd0);  // a killed entry loads idle
                 r_d_ch        <= r_rq_ch[r_rq_rp[RQ_PW-1:0]];
                 r_d_remaining <= r_rq_size[r_rq_rp[RQ_PW-1:0]];
                 r_rq_rp       <= r_rq_rp + 1'b1;
@@ -481,6 +515,20 @@ module src_data_path_axis #(
                     r_d_remaining <= '0;
                 end else begin
                     r_d_remaining <= r_d_remaining - 8'd1;
+                end
+            end
+            // Channel reset, last: void queued reservations of the channel and
+            // stop draining it. r_d_active gates the clear so a block of another
+            // channel loaded this cycle survives a stale r_d_ch.
+            for (int k = 0; k < RQ_DEPTH; k++) begin
+                if (w_rst[r_rq_ch[k]] &&
+                    !(r_res_valid && !w_rst[r_res_ch] && (k == int'(r_rq_wp[RQ_PW-1:0]))))
+                    r_rq_size[k] <= '0;
+            end
+            for (int ch = 0; ch < NC; ch++) begin
+                if (w_rst[ch] && r_d_active && (r_d_ch == ch[CIW-1:0])) begin
+                    r_d_active    <= 1'b0;
+                    r_d_remaining <= '0;
                 end
             end
         end
@@ -531,6 +579,7 @@ module src_data_path_axis #(
 
         // Configuration
         .cfg_axi_rd_xfer_beats  (cfg_axi_rd_xfer_beats),
+        .cfg_channel_reset      (cfg_channel_reset),
 
         // Scheduler Interface
         .sched_rd_valid         (sched_rd_valid),

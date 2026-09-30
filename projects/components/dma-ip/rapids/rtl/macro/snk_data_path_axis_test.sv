@@ -71,6 +71,7 @@ module snk_data_path_axis_test #(
     //=========================================================================
     input  logic [7:0]                  cfg_axi_wr_xfer_beats,
     input  logic [7:0]                  cfg_alloc_size,
+    input  logic [NC-1:0]               cfg_channel_reset,
 
     //=========================================================================
     // Descriptor Interfaces (8 channels) - Simple valid/ready/packet pattern
@@ -313,7 +314,7 @@ module snk_data_path_axis_test #(
 
                 // Configuration (channel always enabled for test)
                 .cfg_channel_enable     (1'b1),
-                .cfg_channel_reset      (1'b0),
+                .cfg_channel_reset      (cfg_channel_reset[i]),
                 .cfg_sched_timeout_cycles(32'd1000),
                 .cfg_sched_timeout_limit (8'd1),  // escalate after one window (legacy timeout->error)
                 .cfg_sched_timeout_enable(1'b1),
@@ -431,6 +432,7 @@ module snk_data_path_axis_test #(
         // Configuration
         .cfg_axi_wr_xfer_beats  (cfg_axi_wr_xfer_beats),
         .cfg_alloc_size         (cfg_alloc_size),
+        .cfg_channel_reset      (cfg_channel_reset),
 
         // AXIS Slave Interface
         .s_axis_tdata           (s_axis_tdata),

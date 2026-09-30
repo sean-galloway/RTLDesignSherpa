@@ -23,7 +23,7 @@
 
 # RAPIDS Architecture MAS
 
-**Version:** 0.1
+**Version:** 0.2
 **Date:** 2026-09-30
 **Purpose:** Module Architecture Specification for byte-granular RAPIDS, the product design that succeeds the RAPIDS Beats stepping stone
 

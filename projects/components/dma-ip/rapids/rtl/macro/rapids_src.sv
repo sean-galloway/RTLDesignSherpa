@@ -698,6 +698,7 @@ module rapids_src #(
         // Configuration
         .cfg_axi_rd_xfer_beats(cfg_axi_rd_xfer_beats),
         .cfg_drain_size     (cfg_drain_size),
+        .cfg_channel_reset  (cfg_channel_reset),
 
         // Scheduler Interface
         .sched_rd_valid     (sched_rd_valid),

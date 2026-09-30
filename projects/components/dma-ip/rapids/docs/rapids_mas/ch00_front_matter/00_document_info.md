@@ -31,6 +31,7 @@ This document describes RAPIDS, the byte-granular Rapid AXI Programmable In-band
 
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
+| 0.2 | 2026-09-30 | RTL Design Sherpa | Channel reset recovers every error class: `cfg_channel_reset` routed into the AXI read and write engines, both data paths and the SRAM wrappers; scheduler clears sticky flags on the reset. |
 | 0.1 | 2026-09-30 | RTL Design Sherpa | First byte-granular MAS. Rewrites the chapters that changed from RAPIDS Beats and links the rest. |
 
 : Table 0.1: Revision History
@@ -44,7 +45,7 @@ This document describes RAPIDS, the byte-granular Rapid AXI Programmable In-band
 | Source | Title | Version |
 |--------|-------|---------|
 | RTL Design Sherpa | RAPIDS Beats MAS (shared chapters) | 0.7 |
-| RTL Design Sherpa | RAPIDS HAS | 0.1 |
+| RTL Design Sherpa | RAPIDS HAS | 0.2 |
 | RTL Design Sherpa | RAPIDS Product Requirements Document | 1.0 |
 | ARM | AMBA AXI and ACE Protocol Specification | IHI0022H |
 | ARM | AMBA AXI-Stream Protocol Specification | IHI0051A |

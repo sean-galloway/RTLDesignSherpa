@@ -106,6 +106,7 @@ In RAPIDS every SRAM word carries the byte enables of its data. The fill interfa
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `cfg_axi_wr_xfer_beats` | input | 8 | Write burst size cap in beats, minus one. Renamed from `cfg_axi_wr_xfer`. |
+| `cfg_channel_reset` | input | NC | Per-channel reset, level or pulse. Forwarded to the write engine and the SRAM controller wrapper. |
 
 : Table 3.3.3: Configuration
 
@@ -141,6 +142,10 @@ The write master is `m_axi_aw*`, `m_axi_w*` and `m_axi_b*` with `IW`-bit IDs and
 5. The write engine drives `m_axi_wdata` and `m_axi_wstrb` from those two.
 
 The SRAM depth counts words, so capacity in beats is unchanged. Only the width grows, by one bit per data byte.
+
+### Channel Reset
+
+`cfg_channel_reset[ch]` reaches two blocks. The [AXI Write Engine](../ch02_fub_blocks/04_axi_write_engine.md) stops issuing for the channel, completes an open burst with null beats and clears its error flag. The SRAM controller wrapper (`snk_sram_controller`) holds one single-channel `sram_controller` per channel. Each instance's reset is a registered flop, `r_ch_rst_n[ch]`, which goes low one cycle after `cfg_channel_reset[ch]` rises, so the partition's pointers and counters return to empty. The shared STREAM `sram_controller` has no channel reset of its own and is not modified; giving each channel its own instance and reset is what makes the reset per channel. A reset of one channel leaves the instances of the other channels untouched.
 
 ---
 

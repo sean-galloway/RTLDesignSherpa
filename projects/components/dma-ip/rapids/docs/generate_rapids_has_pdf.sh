@@ -15,7 +15,7 @@ set -euo pipefail
 # ------------------------------------------------------------
 
 # Default values
-REV="0.1"
+REV="0.2"
 ASSETS="rapids_has/assets"
 HAS_INDEX="rapids_has/rapids_has_index.md"
 

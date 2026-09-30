@@ -62,6 +62,7 @@ module src_data_path #(
     // Configuration Interface
     //=========================================================================
     input  logic [7:0]                  cfg_axi_rd_xfer_beats,
+    input  logic [NC-1:0]               cfg_channel_reset,   // per-channel reset (level or pulse)
 
     //=========================================================================
     // Scheduler Interface (Per-Channel Read Requests)
@@ -162,6 +163,7 @@ module src_data_path #(
 
         // Configuration
         .cfg_axi_rd_xfer_beats (cfg_axi_rd_xfer_beats),
+        .cfg_channel_reset  (cfg_channel_reset),
 
         // Scheduler Interface
         .sched_rd_valid     (sched_rd_valid),
@@ -222,6 +224,7 @@ module src_data_path #(
     ) u_src_sram_controller (
         .clk                (clk),
         .rst_n              (rst_n),
+        .cfg_channel_reset  (cfg_channel_reset),
 
         // Fill Allocation Interface (from AXI Read Engine)
         .fill_alloc_req     (alloc_req),

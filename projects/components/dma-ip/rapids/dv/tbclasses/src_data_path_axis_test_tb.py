@@ -148,6 +148,7 @@ class SrcDataPathAxisTestTB(TBBase):
         # constraint -- see known_issues/resolved/drain_size_gt1_source_beat_drop.md.
         # Driven from TEST_DRAIN_SIZE so the sweep can exercise >1.
         self.dut.cfg_drain_size.value = self.DRAIN_SIZE
+        self.dut.cfg_channel_reset.value = 0
 
         # Reset sequence
         await self.assert_reset()
@@ -723,6 +724,139 @@ class SrcDataPathAxisTestTB(TBBase):
         for e in errors:
             self.log.error(f"  {e}")
         return (not errors), {'cases': len(cases), 'errors': errors}
+
+    # ------------------------------------------------------------------
+    # per-channel reset (rapids TASK-019)
+    # ------------------------------------------------------------------
+    async def _reset_channel(self, ch: int, cycles: int = 1):
+        """Drive the per-channel cfg_channel_reset (a register level in the
+        product: cycles=1 is a pulse, more is a held level)."""
+        self.dut.cfg_channel_reset.value = 1 << ch
+        await self.wait_clocks(self.clk_name, cycles)
+        self.dut.cfg_channel_reset.value = 0
+        await self.wait_clocks(self.clk_name, 4)
+
+    def _err_bit(self, ch: int) -> int:
+        return (int(self.dut.sched_error.value) >> ch) & 1
+
+    def _beats_of(self, ch: int, n_before: int):
+        return [q for q in self.received_packets[n_before:] if q['tid'] == ch]
+
+    async def _wait_beats(self, ch: int, n_before: int, count: int, cycles: int = 4000) -> bool:
+        for _ in range(cycles):
+            if len(self._beats_of(ch, n_before)) >= count:
+                return True
+            await self.wait_clocks(self.clk_name, 1)
+        return False
+
+    async def _check_egress(self, tag: str, ch: int, src: int, n: int, n_before: int):
+        """The packet of (src, n) must have come out on channel ch: exact
+        bytes packed from lane 0, full tstrb but on the last beat, tlast last."""
+        bpb = self.DATA_WIDTH // 8
+        exp_beats = -(-n // bpb)
+        want = self._memory_bytes(src, n)
+        await self._wait_beats(ch, n_before, exp_beats)
+        await self.wait_clocks(self.clk_name, 50)
+        got = self._beats_of(ch, n_before)
+        bad = []
+        if len(got) != exp_beats:
+            return [f"{tag}: {len(got)} beats, expected {exp_beats}"]
+        payload = bytearray()
+        for k, q in enumerate(got):
+            nb = bin(q['tstrb']).count('1')
+            if q['tstrb'] != (1 << nb) - 1 or (k < exp_beats - 1 and nb != bpb):
+                bad.append(f"{tag}: beat {k} tstrb 0x{q['tstrb']:X}")
+            if bool(q['tlast']) != (k == exp_beats - 1):
+                bad.append(f"{tag}: beat {k} tlast={q['tlast']}")
+            payload += q['tdata'].to_bytes(bpb, 'little')[:nb]
+        if bytes(payload) != want:
+            bad.append(f"{tag}: payload differs from memory")
+        return bad
+
+    async def test_channel_reset(self) -> Tuple[bool, Dict[str, Any]]:
+        """rapids TASK-019 channel reset on the source path. Channel A is broken
+        two ways -- an R-channel error and a transfer abandoned mid-flight --
+        and reset with cfg_channel_reset (pulse, then held level) while channel
+        B streams. After each reset A must be quiet (no more beats, error low
+        and staying low) and run a good descriptor to completion with correct
+        bytes, strobes and tlast, and B's packet must be complete and exact."""
+        bpb = self.DATA_WIDTH // 8
+        A, B = 1, self.NUM_CHANNELS - 1
+        base = lambda ch: self.BASE_ADDRESS + ch * self.CHANNEL_OFFSET
+        errors = []
+
+        def expect_clean(tag):
+            err = int(self.dut.sched_error.value)
+            if err:
+                errors.append(f"{tag}: sched_error=0x{err:X}")
+
+        async def quiet(tag, ch):
+            await self.wait_clocks(self.clk_name, 300)
+            seen = len(self.received_packets)
+            await self.wait_clocks(self.clk_name, 300)
+            if self._beats_of(ch, seen):
+                errors.append(f"{tag}: channel {ch} kept emitting beats after its reset")
+
+        # 1. R error on a window of A's source, then reset under B traffic
+        lo, hi = base(A) + 4 * bpb, base(A) + 10 * bpb
+        self.axi_read_slave['interface'].resp_override = lambda a: 2 if lo <= a < hi else None
+        src_a = base(A) + 4 * bpb + 3
+        await self.send_descriptor(A, src_a, 0, length_bytes=3 * bpb)
+        for _ in range(4000):
+            if self._err_bit(A):
+                break
+            await self.wait_clocks(self.clk_name, 1)
+        else:
+            errors.append("rresp: sched_error[A] never asserted")
+        if self._err_bit(B):
+            errors.append("rresp: error leaked to channel B")
+        src_b = base(B) + 5
+        n_b = 20 * bpb + 5
+        n_b_before = len(self.received_packets)
+        await self.send_descriptor(B, src_b, 0, length_bytes=n_b)
+        if not await self._wait_beats(B, n_b_before, 2):
+            errors.append("rresp: channel B never started")
+        await self._reset_channel(A, 1)
+        self.axi_read_slave['interface'].resp_override = None
+        for _ in range(60):
+            await self.wait_clocks(self.clk_name, 1)
+            if self._err_bit(A):
+                errors.append("rresp: sched_error[A] re-asserted after reset")
+                break
+        errors += await self._check_egress("B during A reset (rresp)", B, src_b, n_b, n_b_before)
+        await quiet("rresp", A)
+        src_a = base(A) + 7
+        n_a = 5 * bpb + 9
+        n_before = len(self.received_packets)
+        await self.send_descriptor(A, src_a, 0, length_bytes=n_a)
+        errors += await self._check_egress("A after rresp reset", A, src_a, n_a, n_before)
+        expect_clean("after rresp recovery")
+
+        # 2. abandoned in flight: 12 beats requested, reset (held) after the
+        # first one is out, while B streams a short packet
+        src_a = base(A) + 2 * bpb
+        n_before_a = len(self.received_packets)
+        await self.send_descriptor(A, src_a, 0, length_bytes=12 * bpb)
+        if not await self._wait_beats(A, n_before_a, 1):
+            errors.append("abort: channel A never started")
+        src_b = base(B) + 3 * bpb + 1
+        n_b = 2 * bpb + 5
+        n_b_before = len(self.received_packets)
+        await self.send_descriptor(B, src_b, 0, length_bytes=n_b)
+        await self._reset_channel(A, 4)
+        errors += await self._check_egress("B during A reset (abort)", B, src_b, n_b, n_b_before)
+        await quiet("abort", A)
+        expect_clean("after abort")
+        src_a = base(A) + 5
+        n_a = 2 * bpb + 11
+        n_before = len(self.received_packets)
+        await self.send_descriptor(A, src_a, 0, length_bytes=n_a)
+        errors += await self._check_egress("A after abort reset", A, src_a, n_a, n_before)
+        await self.wait_clocks(self.clk_name, 50)
+        expect_clean("final")
+        for e in errors:
+            self.log.error(f"  {e}")
+        return (not errors), {'errors': errors}
 
     async def test_end_to_end_flow(self, num_transfers: int = 8) -> Tuple[bool, Dict[str, Any]]:
         """Test end-to-end data flow"""

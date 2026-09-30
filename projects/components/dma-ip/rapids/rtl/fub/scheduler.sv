@@ -1022,7 +1022,10 @@ module scheduler #(
 
             // Error clearing: All sticky flags clear on transition to rapids_pkg::CH_IDLE
             // This prepares scheduler for next descriptor
-            if (r_current_state == rapids_pkg::CH_IDLE) begin
+            // A channel reset also clears them directly: the state register
+            // reaches CH_IDLE a cycle later, and a still-high engine error in
+            // between would otherwise re-latch and re-enter CH_ERROR.
+            if (r_channel_reset_active || (r_current_state == rapids_pkg::CH_IDLE)) begin
                 r_read_error_sticky <= 1'b0;
                 r_write_error_sticky <= 1'b0;
                 r_descriptor_error <= 1'b0;

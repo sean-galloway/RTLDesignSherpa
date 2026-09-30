@@ -90,6 +90,7 @@ module axi_read_engine #(
     // Configuration Interface
     //=========================================================================
     input  logic [7:0]                  cfg_axi_rd_xfer_beats,  // Transfer size in beats (applies to all channels)
+    input  logic [NC-1:0]               cfg_channel_reset,      // Per-channel reset: stop issuing, drain and discard in-flight reads
 
     //=========================================================================
     // Scheduler Interface (Per-Channel Read Requests)
@@ -265,6 +266,35 @@ module axi_read_engine #(
         end
     endgenerate
 
+    //=========================================================================
+    // Channel Reset: flush in-flight reads
+    //=========================================================================
+    // A reset channel cannot recall ARs already on the bus. r_rd_flush holds
+    // from the reset until every outstanding burst of the channel has
+    // returned its RLAST. While it is set the channel issues no new AR and
+    // its R beats are accepted and dropped rather than written to the SRAM,
+    // so a descriptor started after the reset never sees stale data.
+    logic [NC-1:0] r_rd_flush;
+    logic [NC-1:0] w_rd_outstanding;
+    logic          w_rd_discard;    // the R beat on the bus belongs to a channel being reset
+
+    always_comb begin
+        for (int i = 0; i < NC; i++) begin
+            w_rd_outstanding[i] = (PIPELINE == 0) ? r_outstanding_limit[i]
+                                                  : (r_outstanding_count[i] != '0);
+        end
+    end
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_rd_flush <= '0;
+        end else begin
+            r_rd_flush <= cfg_channel_reset | (r_rd_flush & w_rd_outstanding);
+        end
+    )
+
+    assign w_rd_discard = r_rd_flush[m_axi_rid[CW-1:0]] | cfg_channel_reset[m_axi_rid[CW-1:0]];
+
     // Completion signal: sticky - stays high until new transfer starts
     // This prevents false pulses when outstanding_count temporarily hits 0 between bursts
     logic [NC-1:0] r_all_complete;
@@ -369,6 +399,12 @@ module axi_read_engine #(
         end else begin
             r_alloc_tminus1 <= w_alloc_t;
             r_alloc_tminus2 <= r_alloc_tminus1;
+            for (int i = 0; i < NC; i++) begin
+                if (cfg_channel_reset[i]) begin
+                    r_alloc_tminus1[i] <= '0;
+                    r_alloc_tminus2[i] <= '0;
+                end
+            end
         end
     )
 
@@ -404,7 +440,8 @@ module axi_read_engine #(
             // 1. Scheduler is requesting (sched_rd_valid)
             // 2. Sufficient SRAM space available (w_space_ok)
             // 3. Below outstanding limit (w_below_outstanding_limit)
-            w_arb_request[i] = sched_rd_valid[i] && w_space_ok[i] && w_below_outstanding_limit[i];
+            w_arb_request[i] = sched_rd_valid[i] && w_space_ok[i] && w_below_outstanding_limit[i]
+                               && !cfg_channel_reset[i] && !r_rd_flush[i];
         end
     end
 
@@ -555,12 +592,13 @@ module axi_read_engine #(
     //=========================================================================
     // AXI R Channel → SRAM Controller
     //=========================================================================
-    // Direct passthrough (no buffering)
+    // Direct passthrough (no buffering), except that beats of a channel being
+    // reset are accepted and dropped (w_rd_discard).
 
-    assign axi_rd_sram_valid = m_axi_rvalid;
+    assign axi_rd_sram_valid = m_axi_rvalid && !w_rd_discard;
     assign axi_rd_sram_id = m_axi_rid;
     assign axi_rd_sram_data = m_axi_rdata;
-    assign m_axi_rready = axi_rd_sram_ready;
+    assign m_axi_rready = w_rd_discard ? 1'b1 : axi_rd_sram_ready;
 
     //=========================================================================
     // Completion Strobe Generation
@@ -589,6 +627,9 @@ module axi_read_engine #(
                 r_done_strobe[w_arb_grant_id] <= 1'b1;
                 r_beats_done[w_arb_grant_id] <= {24'd0, (w_transfer_size[w_arb_grant_id] + 8'd1)};  // Actual beats issued
             end
+            for (int i = 0; i < NC; i++) begin
+                if (cfg_channel_reset[i]) r_done_strobe[i] <= 1'b0;
+            end
         end
     )
 
@@ -608,7 +649,7 @@ module axi_read_engine #(
             r_rd_error <= '0;
         end else begin
             // Check for bad R response on each valid R beat
-            if (m_axi_rvalid && m_axi_rready && (m_axi_rresp != 2'b00)) begin
+            if (m_axi_rvalid && m_axi_rready && !w_rd_discard && (m_axi_rresp != 2'b00)) begin
                 // Extract channel ID from RID and set corresponding error flag
                 logic [CW-1:0] ch_id;
                 ch_id = m_axi_rid[CW-1:0];
@@ -616,8 +657,10 @@ module axi_read_engine #(
 
                 // Debug display for error detection
             end
-            // Note: Error flags are NOT auto-cleared - must be cleared by external logic
-            // Scheduler can clear on channel reset or descriptor completion
+            // The error flag clears only on the channel's reset (or aresetn)
+            for (int i = 0; i < NC; i++) begin
+                if (cfg_channel_reset[i]) r_rd_error[i] <= 1'b0;
+            end
         end
     )
 

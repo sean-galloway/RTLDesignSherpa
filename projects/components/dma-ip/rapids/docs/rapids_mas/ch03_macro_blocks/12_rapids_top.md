@@ -97,6 +97,8 @@ The monitor register windows sit at `+0x800` of each half's 4 KB space. With `US
 
 Clock and reset are `aclk` and `aresetn`. `cam_clear` synchronously clears the MonBus group transaction tables.
 
+Each half's configuration block drives its per-channel reset vector (`src_cfg_channel_reset`, `snk_cfg_channel_reset`) from `SRC`/`SNK.CHANNEL_RESET.CH_RST` and `GLOBAL_CTRL.GLOBAL_RST`. The top wires each vector to its half of the core (see [RAPIDS Core](09_rapids_core.md)), and it reaches every block that can hold a channel error: a channel reset recovers every error class, including the AXI response and sink packet length errors, and `aresetn` is needed only at power-up. The top has no port change.
+
 ---
 
 ## Differences from RAPIDS Beats

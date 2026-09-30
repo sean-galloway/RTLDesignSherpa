@@ -742,6 +742,7 @@ module rapids_snk #(
         // Configuration
         .cfg_axi_wr_xfer_beats(cfg_axi_wr_xfer_beats),
         .cfg_alloc_size     (cfg_alloc_size),
+        .cfg_channel_reset  (cfg_channel_reset),
 
         // AXIS Slave Interface (Network ingress; tid = channel id)
         .s_axis_tdata       (w_axis_in_tdata),

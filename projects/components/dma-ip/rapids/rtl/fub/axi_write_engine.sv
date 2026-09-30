@@ -77,6 +77,7 @@ module axi_write_engine #(
     // Configuration Interface
     //=========================================================================
     input  logic [7:0]                  cfg_axi_wr_xfer_beats,  // Transfer size in beats (applies to all channels)
+    input  logic [NC-1:0]               cfg_channel_reset,      // Per-channel reset: stop issuing, complete open bursts with null beats
 
     //=========================================================================
     // Scheduler Interface (Per-Channel Write Requests)
@@ -204,6 +205,13 @@ module axi_write_engine #(
     // Beats-written counter per channel (driven by always_ff after this block)
     logic [NC-1:0][31:0] r_beats_written;
 
+    // Channel-reset state: r_wr_flush holds from the reset until every burst
+    // of the channel that was already issued has been closed on the bus.
+    logic [NC-1:0]       r_wr_flush;
+    logic [NC-1:0]       w_wr_busy;
+    logic [NC-1:0]       w_kill;          // channel being reset or flushing
+    assign w_kill = cfg_channel_reset | r_wr_flush;
+
     // W-phase transaction FIFO (in-order with AW, single shared FIFO)
     typedef struct packed {
         logic [7:0]     beats;       // Number of beats for this W transaction
@@ -328,6 +336,31 @@ module axi_write_engine #(
     assign dbg_wr_all_complete = r_all_complete;
 
     //=========================================================================
+    // Channel Reset: flush bursts already on the bus
+    //=========================================================================
+    // Bursts whose AW has been issued cannot be recalled. Their W beats are
+    // completed as null beats (WSTRB = 0, no SRAM pop) so memory is not
+    // written, their B responses are consumed and ignored, and the channel
+    // issues no new AW until the last of them has closed. An AW still held
+    // in r_aw_valid must complete unchanged (AXI stability) and is counted
+    // as busy.
+    always_comb begin
+        for (int i = 0; i < NC; i++) begin
+            w_wr_busy[i] = ((PIPELINE == 0) ? r_outstanding_limit[i]
+                                            : (r_outstanding_count[i] != '0))
+                        || (r_aw_valid && (r_aw_channel_id == i[CIW-1:0]));
+        end
+    end
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_wr_flush <= '0;
+        end else begin
+            r_wr_flush <= cfg_channel_reset | (r_wr_flush & w_wr_busy);
+        end
+    )
+
+    //=========================================================================
     // Beats Written Tracking (for completion detection)
     //=========================================================================
     // Track how many beats have been written (B responses received)
@@ -341,7 +374,7 @@ module axi_write_engine #(
         end else begin
             for (int i = 0; i < NC; i++) begin
                 // Reset written counter when scheduler de-asserts valid (new descriptor or transfer complete)
-                if (!sched_wr_valid[i]) begin
+                if (!sched_wr_valid[i] || w_kill[i]) begin
                     r_beats_written[i] <= 32'h0;
                 // Increment when B response arrives for this channel (use actual transfer size from FIFO)
                 end else if (m_axi_bvalid && m_axi_bready && (m_axi_bid[CIW-1:0] == i[CIW-1:0])) begin
@@ -446,6 +479,9 @@ module axi_write_engine #(
             r_drain_tminus1 <= '{default:0};
         end else begin
             r_drain_tminus1 <= w_drain_t;
+            for (int i = 0; i < NC; i++) begin
+                if (cfg_channel_reset[i]) r_drain_tminus1[i] <= '0;
+            end
         end
     )
 
@@ -503,7 +539,7 @@ module axi_write_engine #(
             // 1. Scheduler is requesting (sched_wr_valid)
             // 2. Sufficient SRAM data available (w_data_ok) - accounting for bridge latency
             // 3. Outstanding count below limit (w_no_outstanding)
-            w_arb_request[i] = sched_wr_valid[i] && w_data_ok[i] && w_no_outstanding[i];
+            w_arb_request[i] = sched_wr_valid[i] && w_data_ok[i] && w_no_outstanding[i] && !w_kill[i];
         end
     end
 
@@ -662,7 +698,9 @@ module axi_write_engine #(
         w_drain_size = '{default:8'h0};
 
         // Generate drain request when AW handshakes
-        if (m_axi_awvalid && m_axi_awready) begin
+        // No reservation for a burst of a channel being reset: its SRAM is
+        // being reset and the burst goes out as null beats.
+        if (m_axi_awvalid && m_axi_awready && !w_kill[r_aw_channel_id]) begin
             w_drain_req[r_aw_channel_id] = 1'b1;
             w_drain_size[r_aw_channel_id] = m_axi_awlen + 8'd1;  // AXI len is 0-based
         end
@@ -693,7 +731,7 @@ module axi_write_engine #(
                 ch_id = m_axi_bid[CIW-1:0];
 
                 // Check if this B response corresponds to the last AW for this descriptor
-                if (b_phase_txn_fifo_dout[ch_id].last) begin
+                if (b_phase_txn_fifo_dout[ch_id].last && !w_kill[ch_id]) begin
                     r_sched_ready[ch_id] <= 1'b1;
                 end
             end
@@ -768,7 +806,10 @@ module axi_write_engine #(
     // beat, so WLAST never rides a valid beat, the AXI write txn never closes,
     // and the channel hangs. Gating on m_axi_wvalid pops exactly the beats we
     // actually transmit. (Found via per-channel timing-skew 'mixed' profile.)
-    assign axi_wr_sram_drain = m_axi_wvalid && m_axi_wready;
+    // A burst of a channel being reset is completed as null beats (below).
+    logic           w_w_abort;
+    assign w_w_abort = r_w_active && w_kill[r_w_channel_id];
+    assign axi_wr_sram_drain = m_axi_wvalid && m_axi_wready && !w_w_abort;
     assign axi_wr_sram_id = r_w_channel_id;
 
     // W channel outputs - use ID-based SRAM interface
@@ -784,11 +825,35 @@ module axi_write_engine #(
     // pulse with stale data then leaks onto the AXI bus -- exactly the
     // dma_2ch CRC-mismatch shape caught by sram_chan_tracker.
     // ANDing in the combinational valid filters that 1-cycle dry window.
-    assign m_axi_wvalid = r_w_active
-                       && axi_wr_sram_valid[r_w_channel_id]
-                       && axi_wr_sram_valid_comb[r_w_channel_id];
-    assign m_axi_wdata = axi_wr_sram_data;  // Muxed data from SRAM controller
-    assign m_axi_wstrb = axi_wr_sram_strb;  // byte enables travel with the data (TASK-019)
+    // Channel reset: a burst of a channel being reset is completed as null
+    // beats. A beat that was presented and not yet accepted is replayed from
+    // the captured copy (AXI stability, the SRAM no longer holds it); every
+    // later beat has WSTRB = 0 and takes nothing from the SRAM.
+    logic           r_w_pend;      // last cycle's W beat was valid and not accepted
+    logic [DW-1:0]  r_wp_data;
+    logic [(DW/8)-1:0] r_wp_strb;
+
+    assign m_axi_wvalid = w_w_abort ? 1'b1
+                       : (r_w_active
+                          && axi_wr_sram_valid[r_w_channel_id]
+                          && axi_wr_sram_valid_comb[r_w_channel_id]);
+    assign m_axi_wdata = w_w_abort ? r_wp_data : axi_wr_sram_data;  // Muxed data from SRAM controller
+    // byte enables travel with the data (TASK-019)
+    assign m_axi_wstrb = w_w_abort ? (r_w_pend ? r_wp_strb : '0) : axi_wr_sram_strb;
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_w_pend  <= 1'b0;
+            r_wp_data <= '0;
+            r_wp_strb <= '0;
+        end else begin
+            r_w_pend <= m_axi_wvalid && !m_axi_wready;
+            if (m_axi_wvalid && !m_axi_wready) begin
+                r_wp_data <= m_axi_wdata;
+                r_wp_strb <= m_axi_wstrb;
+            end
+        end
+    )
     assign m_axi_wlast = (r_w_beats_remaining == 8'd1);
     assign m_axi_wuser = UW'(r_w_channel_id);  // Channel ID for debug/tracking
 
@@ -936,9 +1001,12 @@ module axi_write_engine #(
 
             // Pulse when AW handshakes (transaction issued to AXI)
             // This tells scheduler that SRAM data is committed and it can proceed
-            if (m_axi_awvalid && m_axi_awready) begin
+            if (m_axi_awvalid && m_axi_awready && !w_kill[r_aw_channel_id]) begin
                 r_done_strobe[r_aw_channel_id] <= 1'b1;
                 r_beats_done[r_aw_channel_id] <= {24'd0, m_axi_awlen} + 32'd1;
+            end
+            for (int i = 0; i < NC; i++) begin
+                if (cfg_channel_reset[i]) r_done_strobe[i] <= 1'b0;
             end
         end
     )
@@ -962,7 +1030,7 @@ module axi_write_engine #(
             r_commit_strobe <= '{default:0};
 
             for (int i = 0; i < NC; i++) begin
-                if (m_axi_bvalid && m_axi_bready && (m_axi_bid[CIW-1:0] == i[CIW-1:0])) begin
+                if (m_axi_bvalid && m_axi_bready && (m_axi_bid[CIW-1:0] == i[CIW-1:0]) && !w_kill[i]) begin
                     r_commit_strobe[i] <= 1'b1;
                     r_commit_beats[i] <= {24'h0, b_phase_txn_fifo_dout[i].beats};
                 end
@@ -1015,16 +1083,17 @@ module axi_write_engine #(
             r_wr_error <= '0;
         end else begin
             // Check for bad B response on each valid B beat
-            if (m_axi_bvalid && m_axi_bready && (m_axi_bresp != 2'b00)) begin
+            if (m_axi_bvalid && m_axi_bready && (m_axi_bresp != 2'b00)
+                    && !w_kill[m_axi_bid[CIW-1:0]]) begin
                 // Extract channel ID from BID and set corresponding error flag
                 logic [CIW-1:0] ch_id;
                 ch_id = m_axi_bid[CIW-1:0];
                 r_wr_error[ch_id] <= 1'b1;
-
-                // Debug display for error detection
             end
-            // Note: Error flags are NOT auto-cleared - must be cleared by external logic
-            // Scheduler can clear on channel reset or descriptor completion
+            // The error flag clears only on the channel's reset (or aresetn)
+            for (int i = 0; i < NC; i++) begin
+                if (cfg_channel_reset[i]) r_wr_error[i] <= 1'b0;
+            end
         end
     )
 

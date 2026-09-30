@@ -106,6 +106,7 @@ The module also accepts the short aliases `NC`, `AW`, `DW`, `IW`, `SCW` and `CIW
 | `clk` | input | 1 | Clock. |
 | `rst_n` | input | 1 | Active-low reset. |
 | `cfg_axi_rd_xfer_beats` | input | 8 | Configured burst length (ARLEN value, 0 to 255). Clamped to `XFER_MAX`. |
+| `cfg_channel_reset` | input | NC | Per-channel reset, level or pulse. Stops the channel's ARs, drains and discards its in-flight R data, and clears its error flag. |
 
 : Table 2.3.3: Clock, Reset and Configuration
 
@@ -228,6 +229,17 @@ The engine pulses `sched_rd_done_strobe[ch]` once per AR handshake, with `sched_
 : Table 2.3.9: Error Handling
 
 The scheduler turns the sticky error into its ERROR state and a MonBus event. The engine does not abort the burst: the remaining R beats still pass through, so the interconnect is not left mid-burst.
+
+### Channel Reset
+
+`cfg_channel_reset[ch]` clears the sticky `sched_rd_error[ch]`, so a channel reset recovers a read error without `aresetn`. The reset also has to settle AR bursts that are already on the bus, because an AXI master cannot recall them:
+
+- A channel in reset, or flushing, issues no new AR and does not enter the allocation pipeline.
+- `r_rd_flush[ch]` is set by the reset and holds until the channel has no burst outstanding. While it holds, each R beat whose `RID` names the channel is accepted (`m_axi_rready` is forced high) and dropped: `axi_rd_sram_valid` stays low, so nothing reaches the SRAM, and its `RRESP` does not set the error flag.
+- The completion strobe and pending allocation of the channel are cleared, so the scheduler does not see a stale done pulse after the reset.
+- Other channels are not affected: every term is indexed by channel, and R beats of other channels pass as usual.
+
+The channel's SRAM partition is cleared by the SRAM controller wrapper (see [Sink Data Path](../ch03_macro_blocks/03_snk_data_path.md) and [Source Data Path AXIS](../ch03_macro_blocks/07_src_data_path_axis.md)). The discard is what guarantees that no beat of the reset channel reaches the partition after it has been cleared.
 
 ---
 

@@ -8,10 +8,12 @@
 // Purpose: SOURCE-side naming wrapper around STREAM's sram_controller
 //
 // Description:
-//   This module contains NO logic. It is a pure naming adapter that maps the
+//   A naming adapter that maps the
 //   RAPIDS source-path signal names (fill_*/drain_*) onto STREAM's
 //   sram_controller port names (axi_rd_*/axi_wr_*), which is the single
 //   canonical implementation of the per-channel SRAM for both areas.
+//   The one addition is the per-channel reset (cfg_channel_reset): one
+//   single-channel sram_controller per channel, reset individually.
 //
 //   Read STREAM's naming this way -- it is counterintuitive and has already
 //   caused one misunderstanding:
@@ -53,6 +55,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module src_sram_controller #(
     // Primary parameters
     parameter int NUM_CHANNELS = 8,
@@ -70,6 +74,7 @@ module src_sram_controller #(
 ) (
     input  logic                        clk,
     input  logic                        rst_n,
+    input  logic [NC-1:0]               cfg_channel_reset,  // per-channel reset (level or pulse)
 
     //=========================================================================
     // Fill Allocation Interface (AXI Read Engine -> SRAM)
@@ -118,41 +123,71 @@ module src_sram_controller #(
     end
 
     //=========================================================================
-    // STREAM sram_controller -- the canonical implementation.
-    // Names only; no logic is added on either side of this instance.
+    // One single-channel STREAM sram_controller per channel
     //=========================================================================
-    sram_controller #(
-        .NUM_CHANNELS       (NC),
-        .DATA_WIDTH         (DW),
-        .SRAM_DEPTH         (SD),
-        .SEG_COUNT_WIDTH    (SCW)
-    ) u_sram_controller (
-        .clk                        (clk),
-        .rst_n                      (rst_n),
+    // STREAM's sram_controller is the canonical implementation and has no
+    // channel reset, so a channel reset is a reset of that channel's own
+    // instance. This wrapper therefore does the ID decode and the read/data
+    // muxes that a multi-channel sram_controller would do internally.
+    // Each instance sees a registered derived reset: it asserts the cycle
+    // after cfg_channel_reset (which the ingress/egress logic and the engines
+    // mask for the reset cycle and the one after) and lasts a full clock even
+    // for a one-cycle pulse. The async reset empties the FIFO, the allocation
+    // counts and the registered space/valid views at once.
+    logic [NC-1:0] r_ch_rst_n;
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) r_ch_rst_n <= '0;
+        else                      r_ch_rst_n <= ~cfg_channel_reset;
+    )
 
-        // FILL: the AXI read engine writes INTO the SRAM
-        .axi_rd_alloc_req           (fill_alloc_req),
-        .axi_rd_alloc_size          (fill_alloc_size),
-        .axi_rd_alloc_id            (fill_alloc_id),
-        .axi_rd_alloc_space_free    (fill_space_free),
-        .axi_rd_sram_valid          (fill_valid),
-        .axi_rd_sram_ready          (fill_ready),
-        .axi_rd_sram_id             (fill_id),
-        .axi_rd_sram_data           (fill_data),
+    logic [NC-1:0]              w_fill_ready_ch;
+    logic [NC-1:0][DW-1:0]      w_drain_data_ch;
 
-        // DRAIN: the consumer reads OUT OF the SRAM
-        .axi_wr_drain_data_avail    (drain_data_avail),
-        .axi_wr_drain_req           (drain_req),
-        .axi_wr_drain_size          (drain_size),
-        .axi_wr_sram_valid          (drain_valid),
-        .axi_wr_sram_valid_comb     (drain_valid_comb),
-        .axi_wr_sram_drain          (drain_read),
-        .axi_wr_sram_id             (drain_id),
-        .axi_wr_sram_data           (drain_data),
+    always_comb begin
+        fill_ready = 1'b0;
+        drain_data = '0;
+        for (int i = 0; i < NC; i++) begin
+            if (fill_id  == CIW'(i)) fill_ready = w_fill_ready_ch[i];
+            if (drain_id == CIW'(i)) drain_data = w_drain_data_ch[i];
+        end
+    end
 
-        // Debug
-        .dbg_bridge_pending         (dbg_bridge_pending),
-        .dbg_bridge_out_valid       (dbg_bridge_out_valid)
-    );
+    generate
+        for (genvar i = 0; i < NC; i++) begin : gen_channel
+            sram_controller #(
+                .NUM_CHANNELS       (1),
+                .DATA_WIDTH         (DW),
+                .SRAM_DEPTH         (SD),
+                .SEG_COUNT_WIDTH    (SCW)
+            ) u_sram_controller (
+                .clk                        (clk),
+                .rst_n                      (r_ch_rst_n[i]),
+
+                // FILL: the AXI read engine writes INTO the SRAM
+                .axi_rd_alloc_req           (fill_alloc_req && (fill_alloc_id == CIW'(i))),
+                .axi_rd_alloc_size          (fill_alloc_size),
+                .axi_rd_alloc_id            (1'b0),
+                .axi_rd_alloc_space_free    (fill_space_free[i]),
+                .axi_rd_sram_valid          (fill_valid && (fill_id == CIW'(i))),
+                .axi_rd_sram_ready          (w_fill_ready_ch[i]),
+                .axi_rd_sram_id             (1'b0),
+                .axi_rd_sram_data           (fill_data),
+
+                // DRAIN: the consumer reads OUT OF the SRAM
+                .axi_wr_drain_data_avail    (drain_data_avail[i]),
+                .axi_wr_drain_req           (drain_req[i]),
+                .axi_wr_drain_size          (drain_size[i]),
+                .axi_wr_sram_valid          (drain_valid[i]),
+                .axi_wr_sram_valid_comb     (drain_valid_comb[i]),
+                .axi_wr_sram_drain          (drain_read && (drain_id == CIW'(i))),
+                .axi_wr_sram_id             (1'b0),
+                .axi_wr_sram_data           (w_drain_data_ch[i]),
+
+                // Debug
+                .dbg_bridge_pending         (dbg_bridge_pending[i]),
+                .dbg_bridge_out_valid       (dbg_bridge_out_valid[i])
+            );
+        end
+    endgenerate
 
 endmodule : src_sram_controller

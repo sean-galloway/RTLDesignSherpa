@@ -127,6 +127,19 @@ The core ports that carry the beat-count unit are renamed. Everything else keeps
 
 : Table 3.9.4: Core Parameters
 
+### Channel Reset Routing
+
+Each half has its own configuration block, and that block drives the half's per-channel reset from its `CHANNEL_RESET.CH_RST` field ORed with `GLOBAL_CTRL.GLOBAL_RST`. The core exposes it as `src_cfg_channel_reset` and `snk_cfg_channel_reset`, and each half forwards it twice: to its scheduler group array (scheduler, descriptor engine, control engines) and to its byte data path (`src_data_path_axis` or `snk_data_path_axis`, through which it reaches the AXI engine and the SRAM wrapper). A reset therefore reaches every block that holds a sticky flag or an in-flight beat of the channel, and a channel reset recovers every error class without `aresetn`. Table 3.9.5 lists the blocks reached.
+
+| Half | Blocks reached | Chapter |
+|------|----------------|---------|
+| `rapids_snk` | scheduler, `axi_write_engine`, `snk_sram_controller`, `snk_data_path_axis` | [Sink Data Path AXIS](04_snk_data_path_axis.md) |
+| `rapids_src` | scheduler, `axi_read_engine`, `src_sram_controller`, `src_data_path_axis` | [Source Data Path AXIS](07_src_data_path_axis.md) |
+
+: Table 3.9.5: Channel Reset Routing
+
+The two halves are independent: a reset of a sink channel does not touch the source channel with the same index, so software resets both directions of a channel by writing both halves' reset fields. A reset of one channel never disturbs another channel of the same half.
+
 ---
 
 ## Differences from RAPIDS Beats
@@ -138,7 +151,7 @@ The core ports that carry the beat-count unit are renamed. Everything else keeps
 | Data path instances | `*_axis_beats` | byte-granular `*_axis` |
 | Beat-unit port names | no suffix | `_beats` suffix, see Table 3.9.2 |
 
-: Table 3.9.5: Core Delta
+: Table 3.9.6: Core Delta
 
 The Beats chapters for the halves are folded into the core chapter there.
 

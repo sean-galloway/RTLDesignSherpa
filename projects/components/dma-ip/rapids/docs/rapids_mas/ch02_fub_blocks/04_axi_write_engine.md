@@ -108,6 +108,7 @@ The module also accepts the short aliases `NC`, `AW`, `DW`, `IW`, `UW`, `SCW` an
 | `clk` | input | 1 | Clock. |
 | `rst_n` | input | 1 | Active-low reset. |
 | `cfg_axi_wr_xfer_beats` | input | 8 | Configured burst length (AWLEN value, 0 to 255). Clamped to `XFER_MAX`. |
+| `cfg_channel_reset` | input | NC | Per-channel reset, level or pulse. Stops new bursts, completes open bursts with null beats, and clears the channel's error flag. |
 
 : Table 2.4.3: Clock, Reset and Configuration
 
@@ -236,6 +237,18 @@ With `PIPELINE = 1` a channel may issue further AWs before earlier B responses r
 : Table 2.4.9: Error Handling
 
 The sink data path ORs `sched_wr_error` with its own packet-length error before passing it to the scheduler.
+
+### Channel Reset
+
+`cfg_channel_reset[ch]` clears the sticky `sched_wr_error[ch]`, so a channel reset recovers a B-response error without `aresetn`. A burst whose AW has been accepted must still receive all of its W beats, so the engine settles in-flight work rather than dropping it:
+
+- `w_kill[ch]` is the reset level ORed with `r_wr_flush[ch]`. The flush bit is set by the reset and holds until the channel has no open burst and no B response due.
+- No new AW is arbitrated for a channel with `w_kill` set. `AWADDR` comes from `sched_wr_addr`, which the scheduler does not clear, so the value on the bus stays stable across the reset.
+- An open burst is completed with null W beats: `WSTRB` is zero, `WDATA` repeats the last captured value and the SRAM drain is not popped, so the null beats modify no byte at the destination. A beat that was presented on W and not accepted when the reset hit is the one exception: it is replayed unchanged, with its own strobes, from a captured copy, so the W channel does not change its payload while `WVALID` is high. At most one beat per reset is replayed this way.
+- B responses of a channel with `w_kill` set are consumed. The commit strobe, `sched_wr_ready`, the done strobe and the error flag are suppressed for them.
+- Other channels are not affected.
+
+The reset therefore leaves no partial state in the engine: the B-phase FIFO drains through the flush, and the channel restarts with clean counters when the scheduler next raises `sched_wr_valid`.
 
 ---
 

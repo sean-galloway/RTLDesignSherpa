@@ -138,6 +138,7 @@ class SnkDataPathAxisTestTB(TBBase):
         self.dut.cfg_axi_wr_xfer_beats.value = 8
         # Driven from TEST_ALLOC_SIZE so the 0 case (clamp guard) is reachable.
         self.dut.cfg_alloc_size.value = self.ALLOC_SIZE
+        self.dut.cfg_channel_reset.value = 0
         self.pending_alloc_samples = []
 
         # Reset sequence
@@ -569,6 +570,168 @@ class SnkDataPathAxisTestTB(TBBase):
         for e in errors:
             self.log.error(f"  {e}")
         return (not errors), {'cases': len(cases) + 1, 'errors': errors}
+
+    # ------------------------------------------------------------------
+    # per-channel reset (rapids TASK-019)
+    # ------------------------------------------------------------------
+    async def _reset_channel(self, ch: int, cycles: int = 1):
+        """Drive the per-channel cfg_channel_reset (a register level in the
+        product: cycles=1 is a pulse, more is a held level)."""
+        self.dut.cfg_channel_reset.value = 1 << ch
+        await self.wait_clocks(self.clk_name, cycles)
+        self.dut.cfg_channel_reset.value = 0
+        await self.wait_clocks(self.clk_name, 4)
+
+    def _err_bit(self, ch: int) -> int:
+        return (int(self.dut.sched_error.value) >> ch) & 1
+
+    async def _wait_err(self, ch: int, want: int, cycles: int = 4000) -> bool:
+        for _ in range(cycles):
+            if self._err_bit(ch) == want:
+                return True
+            await self.wait_clocks(self.clk_name, 1)
+        return False
+
+    async def _start_good_packet(self, ch: int, slot: int, off: int, n: int):
+        """Background-fill the bytes the packet will touch, send its descriptor
+        and start its stream. Returns what _check_good_packet needs."""
+        bpb = self.DATA_WIDTH // 8
+        bg = 0x5A
+        addr = self.BASE_ADDRESS + ch * self.CHANNEL_OFFSET + slot * 0x4000 + off
+        rel = addr - self.BASE_ADDRESS
+        lo = rel - rel % bpb
+        span = (off % bpb) + n
+        span = span + (-span % bpb)
+        self.memory_model.write(lo, bytearray([bg] * span))
+        payload = bytes(random.getrandbits(8) for _ in range(n))
+        words, strbs = self.pack_bytes(payload, bpb)
+        await self.send_descriptor(ch, addr, 0, length_bytes=n)
+        await self.send_axis_packet(ch, words, last=True, strbs=strbs)
+        return rel, payload, bg
+
+    async def _check_good_packet(self, what, rel: int, payload: bytes, bg: int) -> str:
+        bad = "nothing landed"
+        for _ in range(60):
+            await self.wait_clocks(self.clk_name, 50)
+            bad = self._compare_bytes(rel, payload, bg)
+            if not bad:
+                return ""
+        return f"{what}: {bad}"
+
+    async def _reset_under_traffic(self, ch: int, other: int, slot: int, cycles: int):
+        """Reset `ch` while a long packet of `other` is streaming in."""
+        bpb = self.DATA_WIDTH // 8
+        started = await self._start_good_packet(other, slot, 9, 15 * bpb + 13)
+        accepted = 0
+        for _ in range(4000):
+            await self.wait_clocks(self.clk_name, 1)
+            if int(self.dut.s_axis_tvalid.value) and int(self.dut.s_axis_tready.value):
+                accepted += 1
+                if accepted >= 3:
+                    break
+        await self._reset_channel(ch, cycles)
+        return started
+
+    async def test_channel_reset(self) -> Tuple[bool, Dict[str, Any]]:
+        """rapids TASK-019 channel reset on the sink path. Channel A is broken
+        three ways -- a tlast length mismatch, a B-channel error and a packet
+        abandoned mid-stream -- and reset with cfg_channel_reset (pulse and held
+        level) while channel B streams a long packet. After each reset A must be
+        clean (error low and staying low) and run a good descriptor to
+        completion with correct bytes and strobes, and B's bytes must be
+        untouched by A's resets."""
+        bpb = self.DATA_WIDTH // 8
+        bg = 0x5A
+        A, B = 1, self.NUM_CHANNELS - 1
+        errors = []
+
+        def expect_clean(tag):
+            err = int(self.dut.sched_error.value)
+            if err:
+                errors.append(f"{tag}: sched_error=0x{err:X}")
+
+        # 1. length mismatch: a 40-byte packet on a 39-byte descriptor
+        addr = self.BASE_ADDRESS + A * self.CHANNEL_OFFSET + 0x1000
+        words, strbs = self.pack_bytes(bytes(range(40)), bpb)
+        await self.send_descriptor(A, addr, 0, length_bytes=39)
+        await self.send_axis_packet(A, words, last=True, strbs=strbs)
+        if not await self._wait_err(A, 1):
+            errors.append("mismatch: sched_error[A] never asserted")
+        await self.wait_clocks(self.clk_name, 30)
+        if not self._err_bit(A):
+            errors.append("mismatch: error did not stay sticky")
+        if self._err_bit(B):
+            errors.append("mismatch: error leaked to channel B")
+        b_started = await self._reset_under_traffic(A, B, 6, cycles=1)
+        for k in range(60):
+            await self.wait_clocks(self.clk_name, 1)
+            if self._err_bit(A):
+                errors.append("mismatch: sched_error[A] re-asserted after reset")
+                break
+        msg = await self._check_good_packet("B during A reset (mismatch)", *b_started)
+        if msg:
+            errors.append(msg)
+        rel, payload, _ = await self._start_good_packet(A, 2, 13, 3 * bpb + 7)
+        msg = await self._check_good_packet("A after mismatch reset", rel, payload, bg)
+        if msg:
+            errors.append(msg)
+        await self.wait_clocks(self.clk_name, 50)
+        expect_clean("after mismatch recovery")
+
+        # 2. AXI write error: destination past the end of the memory model
+        addr = self.BASE_ADDRESS + 40 * self.CHANNEL_OFFSET
+        words, strbs = self.pack_bytes(bytes(range(2 * bpb)), bpb)
+        await self.send_descriptor(A, addr, 0, length_bytes=2 * bpb)
+        await self.send_axis_packet(A, words, last=True, strbs=strbs)
+        if not await self._wait_err(A, 1):
+            errors.append("bresp: sched_error[A] never asserted")
+        b_started = await self._reset_under_traffic(A, B, 7, cycles=3)
+        for k in range(60):
+            await self.wait_clocks(self.clk_name, 1)
+            if self._err_bit(A):
+                errors.append("bresp: sched_error[A] re-asserted after reset")
+                break
+        msg = await self._check_good_packet("B during A reset (bresp)", *b_started)
+        if msg:
+            errors.append(msg)
+        rel, payload, _ = await self._start_good_packet(A, 3, 29, 2 * bpb + 1)
+        msg = await self._check_good_packet("A after bresp reset", rel, payload, bg)
+        if msg:
+            errors.append(msg)
+        await self.wait_clocks(self.clk_name, 50)
+        expect_clean("after bresp recovery")
+
+        # 3. abandoned mid-packet: one beat of three goes in, the channel is
+        # reset (held), the rest of the stream is then thrown away by the
+        # ingress until its tlast. Nothing may land past the first beat.
+        slot = 4
+        addr = self.BASE_ADDRESS + A * self.CHANNEL_OFFSET + slot * 0x4000
+        rel = addr - self.BASE_ADDRESS
+        self.memory_model.write(rel, bytearray([bg] * (3 * bpb)))
+        words, strbs = self.pack_bytes(bytes([0xC3] * (3 * bpb)), bpb)
+        await self.send_descriptor(A, addr, 0, length_bytes=3 * bpb)
+        await self.send_axis_packet(A, words[:1], last=False, strbs=strbs[:1])
+        if not await self.wait_axis_sent():
+            errors.append("abort: first beat not accepted")
+        await self.wait_clocks(self.clk_name, 40)
+        await self._reset_channel(A, 4)
+        await self.send_axis_packet(A, words[1:], last=True, strbs=strbs[1:])
+        if not await self.wait_axis_sent():
+            errors.append("abort: stream tail was not thrown away (tready stuck)")
+        await self.wait_clocks(self.clk_name, 100)
+        got = bytes(self.memory_model.read(rel + bpb, 2 * bpb))
+        if got != bytes([bg] * (2 * bpb)):
+            errors.append("abort: bytes past the first beat were written after the reset")
+        expect_clean("after abort")
+        rel, payload, _ = await self._start_good_packet(A, 5, 3, 4 * bpb + 5)
+        msg = await self._check_good_packet("A after abort reset", rel, payload, bg)
+        if msg:
+            errors.append(msg)
+        await self.wait_clocks(self.clk_name, 50)
+        expect_clean("final")
+        for e in errors:
+            self.log.error(f"  {e}")
+        return (not errors), {'errors': errors}
 
     # =========================================================================
     # TEST METHODS

@@ -64,6 +64,7 @@ module snk_data_path #(
     // Configuration Interface
     //=========================================================================
     input  logic [7:0]                  cfg_axi_wr_xfer_beats,
+    input  logic [NC-1:0]               cfg_channel_reset,   // per-channel reset (level or pulse)
 
     //=========================================================================
     // Fill Allocation Interface (External -> SRAM Controller)
@@ -173,6 +174,7 @@ module snk_data_path #(
     ) u_snk_sram_controller (
         .clk                (clk),
         .rst_n              (rst_n),
+        .cfg_channel_reset  (cfg_channel_reset),
 
         // Fill Allocation Interface
         .fill_alloc_req     (fill_alloc_req),
@@ -224,6 +226,7 @@ module snk_data_path #(
 
         // Configuration
         .cfg_axi_wr_xfer_beats (cfg_axi_wr_xfer_beats),
+        .cfg_channel_reset  (cfg_channel_reset),
 
         // Scheduler Interface
         .sched_wr_valid     (sched_wr_valid),

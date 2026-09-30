@@ -225,6 +225,10 @@ What the byte harness adds, all additive on the shared blocks:
 | all six areas func, 2026-09-29 | fub 494/0, fub_beats 388/0, macro 457/1 (test_axi_write_operations, 512-bit slow_producer), macro_beats 430/0, top 28/0, top_beats 24/0 |
 | macro snk_data_path_axis_test func after the stimulus reorder (descriptor first) | 112/0 |
 | all six areas full, 2026-09-30 (after the venv restore) | fub 1521/0, fub_beats 1281/0, macro 813/0, macro_beats 771/0, top 42/0, top_beats 36/0 |
+| all six areas full, 2026-09-30, after the channel-reset close (byte tree only; beats tree untouched) | fub 1521/0, fub_beats 1281/0, macro 819/0 (6 new channel-reset cells), macro_beats 771/0, top 42/0, top_beats 36/0 |
+| channel reset: byte `test_channel_reset` on snk / src data path axis test, 8 ch, AW 64, DW 256, ID 8, SRAM 1024 | pass; mutation-checked (the tests fail with the reset removed) |
+| `bin/check_doc_examples.py` after the HAS / MAS 0.2 edits | 0 fabricated |
+| Genesys2/rapids harness sim after the channel-reset close (run from a scratch copy with HEAD versions of the perf agent's in-flight host/rtl files) | 10/10 (8 harness + 2 top_kick); one case (33 B at 31) aborted once in a full run on a cocotb_test StreamReader error and passed 5/5 when rerun alone |
 | Genesys2/rapids harness sim (`make sim`) | 8/0: sink, source, 1 B at 1, 77 B at 5, 33 B at 31, 203 B across 4 KB, kick_enable, empty_mask |
 | Genesys2/rapids_beats harness sim after the tie-off and path fix | 4/0 |
 | val/amba axis4_pattern_pair gate; amba lint; rapids lint | 3/0; 402/402; 86/86 |
@@ -245,6 +249,35 @@ cfg_drain_size 1, `test_beat_conservation`); a 6-bit byte counter made the
 512-bit build's tstrb mask a constant (Verilator UNSIGNED); the byte TB's
 `expected_seq` shadowed the base class's EXT helper; the packet-record
 pulse must be sampled mid-cycle by a TB that raises ready between edges.
+
+## Channel reset (2026-09-30, byte tree only)
+
+The per-channel `cfg_channel_reset` (SNK / SRC `CHANNEL_RESET.CH_RST` ORed
+with `GLOBAL_CTRL.GLOBAL_RST`, a register level, so pulse and level both
+work) used to reach only the scheduler; a length-mismatch, RRESP or BRESP
+sticky flag needed `aresetn`. It now reaches every byte data path that
+latches state, and a channel recovers without `aresetn`:
+
+- scheduler: re-enters CH_IDLE without re-erroring; sticky flags, loaded
+  descriptor, beats remaining and the control-issued flag clear in every state;
+- sink ingress: clears the record queue, hold, byte count, length error,
+  pending allocation and the output/flush beat; `s_axis_tready` low while in
+  reset; a cut packet's tail is accepted and dropped up to `tlast`
+  (`r_discard`). Head-of-line blocking on a shared stream stays, documented;
+- read engine: no new AR while in reset or flushing, outstanding R beats
+  accepted and dropped without setting RRESP;
+- write engine: no new AW; an open burst is finished with null W beats
+  (WSTRB 0); one presented-but-unaccepted beat is replayed; B responses
+  consumed with the error flag suppressed;
+- source egress: queue, hold, byte counters and reservation entries clear;
+  a beat already in the output register completes; a mid-packet reset leaves
+  the stream packet unterminated (documented);
+- the byte SRAM wrappers reset their per-channel instances; the shared
+  STREAM `sram_controller` and every `*_beats` file are unchanged.
+
+No RTL assertions; resets use the reset macros. One channel's reset leaves
+the other channels' traffic intact (tested). Books: HAS `04_error_handling`
+and the affected MAS chapters, both at 0.2.
 
 ## Constraint: rapids-beats never loses functionality
 
@@ -268,8 +301,8 @@ as long as it exists. Concretely:
 ## Done when
 
 - [x] the decisions above are recorded here, and the byte design has its
-      own books: `docs/rapids_has/` and `docs/rapids_mas/` (v0.1, PDFs
-      built 2026-09-30), linking every chapter it shares with RAPIDS Beats
+      own books: `docs/rapids_has/` and `docs/rapids_mas/` (v0.2, PDFs
+      rebuilt 2026-09-30 with the channel-reset chapters), linking every chapter it shares with RAPIDS Beats
 - [x] a one-byte AXIS beat lands as one strobed byte in memory, and a
       byte-length source descriptor produces a stream whose first and last
       beats carry the right `tstrb`, both on the board with the byte-wise

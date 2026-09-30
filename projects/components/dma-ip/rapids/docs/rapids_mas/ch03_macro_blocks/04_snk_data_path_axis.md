@@ -87,7 +87,7 @@ Parameters of [Sink Data Path](03_snk_data_path.md) apply unchanged. The additio
 
 : Table 3.4.2: AXI-Stream Slave
 
-`s_axis_tready` is high when the output register is free, no flush beat is pending and the addressed channel has a packet record queued. A channel's stream therefore stalls until its scheduler has fetched the descriptor. `s_axis_tready` is a single signal qualified by the TID of the beat on the bus, so a beat for a channel that has no record blocks the stream, and any channel's beats behind it, until that record arrives. Channels on one stream are not isolated from each other; a system that needs isolation gives each channel its own stream or guarantees the descriptor is queued before the packet is sent.
+`s_axis_tready` is high when the output register is free, no flush beat is pending and the addressed channel has a packet record queued. A channel's stream therefore stalls until its scheduler has fetched the descriptor. `s_axis_tready` is a single signal qualified by the TID of the beat on the bus, so a beat for a channel that has no record blocks the stream, and any channel's beats behind it, until that record arrives. Channels on one stream are not isolated from each other; a system that needs isolation gives each channel its own stream or guarantees the descriptor is queued before the packet is sent. `s_axis_tready` is also low for a beat whose TID names a channel in reset, and high without a record for a channel that is discarding the tail of a cut packet (see [Channel Reset](#channel-reset)).
 
 ### Scheduler Interface
 
@@ -99,10 +99,11 @@ The write request and completion ports are those of [Sink Data Path](03_snk_data
 | `sched_wr_pkt_ready` | output | NC | Record queue not full. |
 | `sched_wr_pkt_bytes` | input | NC x 32 | Packet length in bytes. |
 | `sched_wr_pkt_offset` | input | NC x OFF_W | Destination offset in the first memory beat. |
+| `cfg_channel_reset` | input | NC | Per-channel reset, level or pulse. Clears the channel's queue, hold, byte count and length error, and discards the tail of a cut packet. |
 
 : Table 3.4.3: Packet Record Ports
 
-`sched_wr_error` is the OR of the write engine's B-response error and the packet length error of the channel.
+`sched_wr_error` is the OR of the write engine's B-response error and the packet length error of the channel. Both clear on `cfg_channel_reset` (see [Channel Reset](#channel-reset)).
 
 ### Other Ports
 
@@ -133,7 +134,29 @@ On `tlast` the received-byte total is compared with the head record. If the wide
 
 ### Length Check
 
-`r_pkt_rx_bytes` counts the popcount of `tstrb` over the packet. At `tlast`, a total that differs from the record's byte count sets the channel's sticky error. Nothing is padded or dropped. The error is visible on `sched_wr_error` and the scheduler treats it as fatal.
+`r_pkt_rx_bytes` counts the popcount of `tstrb` over the packet. At `tlast`, a total that differs from the record's byte count sets the channel's sticky error. Nothing is padded or dropped. The error is visible on `sched_wr_error` and the scheduler treats it as fatal. It clears on `cfg_channel_reset`.
+
+### Channel Reset
+
+`cfg_channel_reset[ch]` is a register level in the system (`SNK.CHANNEL_RESET.CH_RST` ORed with `GLOBAL_CTRL.GLOBAL_RST`), so a pulse and a held level must both work. The ingress registers it once into `r_rst_d1` and uses `w_rst[ch] = cfg_channel_reset[ch] | r_rst_d1[ch]`, which stretches a one-cycle pulse to two cycles and lets every clear see the reset on a cycle where it is asserted. The stretch is what settles an output-register beat and an allocation that were launched on the cycle of the reset. The reset is written for one channel; every term is indexed by channel, so the other channels are not affected.
+
+| State | Action on `w_rst[ch]` |
+|-------|-----------------------|
+| Packet record queue | Write and read pointers cleared. A record arriving on the reset cycle is not pushed. |
+| Spill hold, `r_pkt_rx_bytes` | Cleared. |
+| `r_pkt_len_error` | Cleared. The channel's `sched_wr_error` contribution drops. |
+| `r_pending_alloc`, `r_alloc_settle` | Cleared, so no allocation request of the old packet is issued. |
+| Output register (`r_out_valid`), flush beat (`r_flush_valid`) | Dropped when the beat belongs to the channel, so no beat of the old packet enters the SRAM after the reset. |
+| `s_axis_tready` | Low for a beat whose TID names a channel in reset. |
+| `r_discard[ch]` | Set when a packet was part-way through the stream (received bytes non-zero and no flush of its own pending). |
+
+: Table 3.4.4: Channel Reset Actions
+
+With `r_discard[ch]` set the ingress accepts the channel's beats without a record and drops them: `s_axis_tready` does not wait for a packet record, and no state is updated. `r_discard[ch]` clears on the dropped beat that carries `tlast`. The next beat is then an ordinary first beat of a new packet. The sender is not asked to do anything special: it finishes the packet it was sending and the tail is discarded. A packet whose beats had all been accepted (the flush beat aside) is not discarded.
+
+Head-of-line blocking is unchanged. A beat for a channel with no record, and not discarding, still holds `s_axis_tready` low for every channel. After a reset the next packet for the channel waits for its descriptor as before.
+
+The channel's write engine and SRAM partition are cleared by the blocks that own them; see [AXI Write Engine](../ch02_fub_blocks/04_axi_write_engine.md) and [Sink Data Path](03_snk_data_path.md). All of them settle within a few cycles of the reset, and the scheduler's own reset returns it to CH_IDLE, so a channel reset recovers the channel without `aresetn`.
 
 ### Allocation
 
@@ -154,9 +177,10 @@ The output register holds one memory beat for the fill interface. Allocation fol
 | Byte enables into SRAM | none | `{strb, data}` word |
 | Packet record queue | absent | four per channel |
 | Stream gating | buffers before the descriptor | waits for the packet record |
-| Length mismatch | not checked | sticky channel error |
+| Length mismatch | not checked | sticky channel error, cleared by channel reset |
+| Channel reset | not applicable | per-channel clear, cut packet tail discarded |
 
-: Table 3.4.4: Ingress Delta
+: Table 3.4.5: Ingress Delta
 
 The beats chapter is [Sink Data Path with AXIS](../../rapids_beats_mas/ch03_macro_blocks/04_sink_data_path_axis.md).
 
