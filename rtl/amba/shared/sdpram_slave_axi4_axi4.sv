@@ -25,6 +25,16 @@ module sdpram_slave_axi4_axi4 #(
     parameter int    DATA_WIDTH   = 256,
     parameter int    USER_WIDTH   = 1,
     parameter int    MEM_DEPTH    = 2048,
+    // Forwarded to sdpram_core; see the long comment on its own USE_WSTRB.
+    // The default is 1'b1, which is what every existing instantiation of this
+    // wrapper already gets, so nothing changes for them. It is exposed
+    // because at 1'b1 the core's write block mixes a full-word clear and a
+    // byte-granular write on a muxed address, which Vivado cannot map to a
+    // BRAM write port -- it drops the whole array into distributed RAM. A
+    // consumer whose writer never asserts a partial strobe (a job engine that
+    // writes whole beats, say) wants 1'b0 and block RAM. The AXI-Lite sibling
+    // has always exposed this; the AXI4 one simply had not.
+    parameter bit    USE_WSTRB    = 1'b1,
     parameter int    SKID_DEPTH_AW = 2,
     parameter int    SKID_DEPTH_W  = 2,
     parameter int    SKID_DEPTH_B  = 2,
@@ -292,7 +302,8 @@ module sdpram_slave_axi4_axi4 #(
         .AXI_ID_WIDTH (AXI_ID_WIDTH),
         .ADDR_WIDTH   (ADDR_WIDTH),
         .DATA_WIDTH   (DATA_WIDTH),
-        .MEM_DEPTH    (MEM_DEPTH)
+        .MEM_DEPTH    (MEM_DEPTH),
+        .USE_WSTRB    (USE_WSTRB)
     ) u_core (
         .aclk    (aclk),
         .aresetn (aresetn),

@@ -66,11 +66,23 @@ This is the pure-AXI4 permutation of the family. When both the producer and cons
 | DATA_WIDTH | int | 256 | Data-bus / BRAM word width (bits) |
 | USER_WIDTH | int | 1 | AXI USER-signal width (carried by leaves, not preserved through BRAM) |
 | MEM_DEPTH | int | 2048 | BRAM depth in words |
+| `USE_WSTRB` | bit | `1'b1` | Honour WSTRB byte enables on writes. 0 = every write commits the full word. |
 | SKID_DEPTH_AW | int | 2 | Write-address skid depth |
 | SKID_DEPTH_W | int | 2 | Write-data skid depth |
 | SKID_DEPTH_B | int | 2 | Write-response skid depth |
 | SKID_DEPTH_AR | int | 2 | Read-address skid depth |
 | SKID_DEPTH_R | int | 4 | Read-data skid depth |
+
+> **`USE_WSTRB` decides whether this is block RAM or ~23k LUTs.** At the
+> default `1'b1` the core's write block holds a full-word clear at one address
+> and a byte-granular write at another inside the same `always_ff`, and that
+> mixed granularity on a muxed address does not map to a BRAM write port:
+> Vivado drops the entire array into distributed RAM. A 64 KB instance
+> measured 28,696 LUT-as-Memory with block RAM sitting at 2.6% used. Set
+> `USE_WSTRB = 0` when the writer never asserts a partial strobe -- a job
+> engine writing whole beats, for instance -- and both branches become
+> full-word writes that infer block RAM. The default stays `1'b1` so existing
+> instantiations are unaffected.
 
 ---
 
