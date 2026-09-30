@@ -40,19 +40,28 @@ rapids/
 
 ## Status
 
-Characterized on silicon 2026-09-30 (`reports/board/`): beat smoke PASS on
-both halves; byte campaign 7/7 PASS (1 B at offset 1, 2 B at 31, 32, 37,
-100 at 7, 96 at 17, 203 B across a 4 KB boundary), sink write-CRC and source
-egress-CRC each equal to the byte-wise golden. Build (`reports/build/`):
-WNS +0.258 ns at 100 MHz with observers, 89,746 LUTs, 68 BRAM tiles.
+Characterized on silicon 2026-09-30. Report v0.2 (`reports/perf/`, final):
 
-Byte characterization report v0.1 (`reports/perf/`, PRELIMINARY, standard
-profile, 105 points): 103 pass; sink 203 B at offset 1 fails the golden on
-both points it was run (sim repro pending). Large-transfer rates sit at the
-harness checker ceiling of 3200 / 9 = 355.6 MB/s (the byte-wise CRC checkers
-take 9 cycles per 32-byte beat), so the "beat-aligned utilization unchanged"
-check against RAPIDS Beats is not yet settled; it needs a build with the
-word-wide checkers. Final numbers are rerun after the channel-reset fix.
+- Standard bitstream (`BYTE_CRC=1`, sha256 `cfad34c3...`): 117/117 byte-wise
+  points pass, plus 4/4 directed sequences. Build: WNS +0.301 ns at 100 MHz,
+  92,874 LUTs, 68 BRAM tiles. The byte-wise CRC checkers take 9 cycles per
+  32-byte beat, so large-transfer rates sit at the harness ceiling of
+  3200 / 9 = 355.6 MB/s (11.1 % of the 3200 MB/s peak, 100 MHz x 32 B).
+- Measurement bitstream (`BYTE_CRC=0`, word-wide checkers, sha256
+  `48e1282c...`): 28/28 beat-aligned points pass and reach 3182 MB/s sink and
+  3199 MB/s source at 8 channels, 4096 beats (99.4 % and 100.0 % of peak).
+  Build: WNS +0.077 ns, 86,065 LUTs, 52 BRAM tiles. The word-wide checker
+  CRCs slice 0 of each beat only, so it is compared with the beats golden.
+- The beat-aligned utilization is NOT unchanged versus RAPIDS Beats: 73 of
+  112 cells differ by more than 0.5 pp. The deltas are fixed start-up cycle
+  terms (the sink waits for the channel's packet record; the rest is not yet
+  isolated), and the 4096-beat rows agree within 1.13 pp. Tracked as
+  rapids TASK-021.
+- AXI RRESP/BRESP error injection is not exercised on silicon (the harness
+  memory always answers OKAY): rapids TASK-020.
+
+The board keeps the standard byte-CRC bitstream; `flows-rapids/bitstream/` is
+a gitignored build area and may hold either build.
 
 ## Quick start
 

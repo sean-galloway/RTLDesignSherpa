@@ -52,6 +52,15 @@
 > whose byte count differs from the descriptor sets that channel's sticky `sched_wr_error`.
 > TYPE=EXT (row/column striding) descriptors stay beat-aligned by design: aligned addresses,
 > beat-multiple lengths. Linear descriptors may start at any byte on either side.
+>
+> Silicon (2026-09-30, `projects/fpga-systems/Genesys2/rapids/reports/perf/README.md` v0.2):
+> 117/117 byte-wise points on the standard bitstream; beat-aligned rows on the word-wide
+> checker bitstream reach 3182 MB/s sink and 3199 MB/s source of the 3200 MB/s peak. Traps:
+> the word-wide checker CRCs only slice 0 of each beat and ignores strobes (beats golden, not
+> byte-wise); the aligned utilization is NOT within 0.5 pp of RAPIDS Beats because of fixed
+> start-up terms from the packet-record gating (rapids TASK-021); head-of-line blocking on a
+> shared AXIS stream is documented, not fixed; RRESP/BRESP injection is unexercised (rapids
+> TASK-020).
 
 **Complete Specification:**
 - `projects/components/dma-ip/rapids/docs/rapids_beats_has/` - Architecture spec (HAS); index: `rapids_beats_has_index.md`

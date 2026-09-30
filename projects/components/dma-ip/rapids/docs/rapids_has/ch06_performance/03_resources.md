@@ -51,45 +51,60 @@ the reports.
 
 ## FPGA Resource Summary
 
-Source: `projects/fpga-systems/Genesys2/rapids/reports/build/utilization_impl.txt`.
+Source: `projects/fpga-systems/Genesys2/rapids/reports/perf/json/rapids_byte_build_bytecrc.json` and `rapids_byte_build_wordcrc.json`, extracted from the post-route reports by `reports/extract_build_metrics.py`.
 
-| Resource | Used | Available | Utilization |
-|----------|------|-----------|-------------|
-| Slice LUTs | 89,746 | 203,800 | 44.04 % |
-| LUT as logic | 78,224 | 203,800 | 38.38 % |
-| LUT as distributed RAM | 11,522 | 64,000 | 18.00 % |
-| Slice registers | 82,050 | 407,600 | 20.13 % |
-| F7 muxes | 5,070 | 101,900 | 4.98 % |
-| F8 muxes | 122 | 50,950 | 0.24 % |
-| Block RAM tiles | 68 | 445 | 15.28 % |
-| DSP | 0 | | 0 % |
+The harness has two checker builds. `BYTE_CRC=1` is the standard bitstream:
+the byte-wise CRC checkers take 9 cycles per 32-byte beat and verify every
+byte and strobe. `BYTE_CRC=0` is a measurement bitstream with word-wide
+checkers that take one beat per cycle, so the harness does not cap the
+measured rate.
+
+| Resource | Standard (BYTE_CRC=1) | Word-wide (BYTE_CRC=0) | Available |
+|----------|-----------------------|------------------------|-----------|
+| Slice LUTs | 92,874 (45.57 %) | 86,065 (42.23 %) | 203,800 |
+| LUT as logic | 81,352 | 75,695 | 203,800 |
+| LUT as distributed RAM | 11,522 | 10,370 | 64,000 |
+| Slice registers | 82,379 (20.21 %) | 79,527 (19.51 %) | 407,600 |
+| F7 muxes | 4,709 | 4,430 | 101,900 |
+| F8 muxes | 106 | 107 | 50,950 |
+| Block RAM tiles | 68 (15.28 %) | 52 (11.69 %) | 445 |
+| DSP | 0 | 0 | 0 |
 
 : Post-Route Utilization, 8 Channels, 256 Bits
 
-All 68 block RAM tiles are RAMB36E1. No RAMB18 is used, and no register is a
+All block RAM tiles are RAMB36E1. No RAMB18 is used, and no register is a
 latch. DSP use is zero because RAPIDS moves data and performs no
-multiply-accumulate.
+multiply-accumulate. The 16 tiles and about 6,800 LUTs that the word-wide
+build saves are the byte checkers' golden storage and CRC logic, which belong
+to the harness and not to RAPIDS.
 
 ## Timing
 
-Source: `projects/fpga-systems/Genesys2/rapids/reports/build/timing_summary.txt`.
+Source: the same two build JSONs.
 
-| Metric | Value |
-|--------|-------|
-| Worst negative slack, setup | +0.258 ns |
-| Total negative slack | 0.000 ns |
-| Worst hold slack | +0.054 ns |
-| Failing endpoints | 0 of 319,486 |
+| Metric | Standard (BYTE_CRC=1) | Word-wide (BYTE_CRC=0) |
+|--------|-----------------------|------------------------|
+| Worst negative slack, setup | +0.301 ns | +0.077 ns |
+| Total negative slack | 0.000 ns | 0.000 ns |
+| Worst hold slack | +0.023 ns | +0.013 ns |
+| Failing endpoints | 0 of 320,415 | 0 of 301,738 |
 
 : Timing at 100 MHz
 
-All user timing constraints are met. The slack is small and positive.
-Treat 100 MHz as the design point of this build and not as a margin.
+All user timing constraints are met in both builds. The slack is small and
+positive; treat 100 MHz as the design point and not as a margin.
 
 ## Board Result
 
-The byte campaign passes 7 of 7 on this bitstream, and the beat smoke
-passes on both halves. The campaign is listed in the throughput chapter.
+On the standard bitstream (sha256 `cfad34c3...`) the byte-wise campaign passes
+117 of 117 points and the directed sequences 4 of 4. On the word-wide
+bitstream (sha256 `48e1282c...`) the beat-aligned profile passes 28 of 28
+points and reaches 3182 MB/s on the sink and 3199 MB/s on the source at 8
+channels and 4096 beats, against a theoretical peak of 3200 MB/s (100 MHz x 32
+bytes). The word-wide checker CRCs only slice 0 of each beat and ignores
+strobes, so it is compared with the beats golden; byte-level integrity comes
+from the byte-wise campaign. Both runs are in the throughput chapter and the
+characterization report (`reports/perf/README.md`, v0.2).
 
 ## Comparison with the Beats Build
 
@@ -97,11 +112,11 @@ The RAPIDS Beats performance report lists the resources of its 256-bit build
 in its version 2.0 text. Both builds run 8 channels at 100 MHz on the same
 device with a buffer of 128 entries per channel.
 
-| Item | RAPIDS Beats, 256-bit, v2.0 | RAPIDS, byte-granular |
+| Item | RAPIDS Beats, 256-bit, v2.0 | RAPIDS, byte-granular (standard build) |
 |------|-----------------------------|-----------------------|
-| Slice LUTs | 75,679 | 89,746 |
+| Slice LUTs | 75,679 | 92,874 |
 | Block RAM tiles | 44 | 68 |
-| Worst negative slack | +0.608 ns | +0.258 ns |
+| Worst negative slack | +0.608 ns | +0.301 ns |
 
 : Beats and Byte-Granular Builds
 

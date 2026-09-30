@@ -284,6 +284,63 @@ def _cmp_block(doc, beats_json, label='Verdict'):
     return cells, tbl, verdict + "\n", status
 
 
+def _mechanism_note(doc, beats_json):
+    """Where the beat-aligned differences come from, computed from the two result sets."""
+    if not os.path.isfile(beats_json):
+        return ''
+    with open(beats_json) as fh:
+        ref = json.load(fh)
+    idx = {}
+    for c in ref['configs']:
+        if (c.get('descs') == 1 and c.get('xfer_beats') == 9 and not c.get('source_backpressure')
+                and c.get('resp_delay') == 0 and not c.get('gen_interleave')
+                and c.get('base_seed_label') == 'default'):
+            idx[(c['active_channels'], c['beats'])] = c
+    big = max(byte_perf.ALIGNED_BEATS)
+
+    def bk(c, d, k):
+        return (((c.get(d) or {}).get('perf') or {}).get('ifaces', {}).get(k) or {}).get('buckets') or {}
+
+    rows = []
+    for ch in byte_perf.CHANNELS:
+        pt = next((r for r in doc['points'] if r['id'] == f"beat_ch{ch}_b{big}"), None)
+        rc = idx.get((ch, big))
+        if not pt or not rc:
+            continue
+        g = lambda d, k: (pt.get(d) or {}).get('ifaces', {}).get(k) or {}
+        rows.append([ch, g('sink', 'sin').get('bp', TBD), bk(rc, 'sink', 'sin').get('bp', TBD),
+                     g('sink', 'wr').get('starv', TBD), bk(rc, 'sink', 'wr').get('starv', TBD),
+                     g('source', 'rd').get('starv', TBD), bk(rc, 'source', 'rd').get('starv', TBD)])
+    if not rows:
+        return ''
+    tbl = table(['Ch', 'Sink AXIS-in bp, byte', 'beats', 'Sink AXI4-wr starv, byte', 'beats',
+                 'Source AXI4-rd starv, byte', 'beats'], rows,
+                f"Cycle counts at {big} beats per channel (fixed start-up terms, not rates)")
+    return ("**Where the differences come from.** Every difference is a fixed number of cycles per run, "
+            "not a change of rate. The cycle counts below are the evidence; the same counts at 16 beats "
+            "per channel are identical to these, and only the 1-beat rows differ (the write side shows +3 "
+            "starvation cycles there, not +11).\n\n" + tbl +
+            "\n- **Sink AXIS-in.** The byte ingress accepts a channel's stream only once that channel has "
+            "a packet record, because the destination offset and the expected length come from the "
+            "descriptor (sink ingress chapter of the MAS). The stream is offered data, `tready` is low, "
+            "and the meter counts those cycles as backpressure. The count grows with the channel count "
+            "and does not depend on the beats per channel, which is what a serial descriptor fetch before "
+            "the first accept would give. RAPIDS Beats has no such term because it buffers the stream "
+            "before the descriptor arrives. The AXIS-in window opens at the first offered beat, so this "
+            "wait is inside it.\n"
+            "- **Sink AXI4-wr.** The write-side window opens at the first write, so the wait above is not "
+            "in it. The byte build adds a constant 11 starvation cycles at 16 beats and up (3 at 1 beat), "
+            "the same for every channel count. Its source has not been isolated.\n"
+            "- **Source.** One extra starvation cycle at start-up in every cell, on both `rd` and `sout`: "
+            "up to 1.7 percentage points at 1 to 64 beats, under 0.4 from 256 beats. Not isolated.\n"
+            "- **Amortisation.** Because each term is fixed, utilization converges on the RAPIDS Beats "
+            "value as the transfer grows: the 4096-beat rows are within 1.2 percentage points and the "
+            "8-channel row within 0.4. The 1-to-64-beat rows, where the fixed term is a large share of "
+            "the window, are the ones that move most.\n"
+            "- **Not explained.** With 1 beat per channel and 1, 2 or 4 channels the byte build shows no "
+            "sink AXIS-in backpressure, while the same channels at 16 beats and up do. Not isolated.\n")
+
+
 def sec_aligned(D, beats_json, F, AD=None):
     md = ["## 3. Beat-aligned rows against the RAPIDS Beats report\n"]
     md.append("These rows use the beat-scaled path (`pkt_bytes=None`, beats per channel) on the byte DUT, "
@@ -308,6 +365,7 @@ def sec_aligned(D, beats_json, F, AD=None):
         _, tbl, verdict, _st = _cmp_block(w, beats_json)
         md.append(tbl)
         md.append(verdict)
+        md.append(_mechanism_note(w, beats_json))
         fig_cells = byte_perf.compare_beats(w, beats_json) if os.path.isfile(beats_json) else []
         md.append("### 3.2 Byte-wise checker build (the standard bitstream)\n")
     cells, tbl, verdict, _st = _cmp_block(D.doc, beats_json, 'Result on this build' if AD is not None else 'Verdict')
@@ -579,8 +637,8 @@ def sec_provenance(D, results_path, beats_json):
     md.append("One command runs the campaign and regenerates this report:\n\n"
               "```bash\n"
               "cd projects/fpga-systems/Genesys2/rapids/flows-rapids\n"
-              "./byte_perf.sh --profile standard          # PRELIMINARY: writes *_prelim_*.json\n"
-              "./byte_perf.sh --profile full --final      # final numbers, after the channel-reset fix is on the board\n"
+              "./byte_perf.sh --profile full --final      # final numbers (standard byte-CRC bitstream)\n"
+              "./byte_perf.sh --profile standard          # quick run, writes *_prelim_*.json\n"
               "```\n")
     return '\n'.join(md)
 
@@ -597,7 +655,7 @@ def sec_defs(D):
     return '\n'.join(md)
 
 
-def sec_headline(D):
+def sec_headline(D, AD=None):
     md = ["## 1. Headline\n"]
     rows = []
     for d in ('sink', 'source'):
@@ -609,13 +667,22 @@ def sec_headline(D):
         rows.append([d.capitalize(), 'beat path, 4096 beats x 8 ch',
                      f(b and b.get('eff_axis'), '{:.3f}'), f(b and _mbs(b), '{:.0f}'),
                      f(b and _pct(b), '{:.1f}', 1, ' %')])
+        w = AD.side('beat_ch8_b4096', d) if AD is not None else None
+        if w is not None:
+            rows.append([d.capitalize(), 'beat path, 4096 beats x 8 ch, word-wide checker build',
+                         f(w.get('eff_axis'), '{:.3f}'), f(_mbs(w), '{:.0f}'), f(_pct(w), '{:.1f}', 1, ' %')])
     md.append(table(['Path', 'Point', 'Efficiency', 'MB/s measured', f'% of {D.peak:.0f} MB/s peak'], rows,
                     "Largest transfers at 8 channels"))
     cyc, cap = _ceiling(D)
-    md.append(f"These rates sit at the harness checker ceiling of {D.peak:.0f} / {cyc} = {cap:.1f} MB/s, "
+    md.append(f"The byte-wise rates sit at the harness checker ceiling of {D.peak:.0f} / {cyc} = {cap:.1f} MB/s, "
               f"not at the DUT's limit: the byte-wise CRC checkers take {cyc} cycles per {D.bpb}-byte beat "
               f"(section 3). Read every MB/s in this report against both the {D.peak:.0f} MB/s peak and "
               f"that ceiling. Efficiency (payload over beats x lanes) does not depend on the checker.\n")
+    if AD is not None:
+        md.append(f"The word-wide checker build (`BYTE_CRC=0`) takes one beat per cycle and is not checker-bound: "
+                  f"its rows show the DUT's own rate against the {D.peak:.0f} MB/s peak. Its data check covers "
+                  f"4 of the {D.bpb} bytes of each beat, so it is a rate measurement and the byte-wise build "
+                  f"is the integrity measurement.\n")
     return '\n'.join(md)
 
 
@@ -643,7 +710,7 @@ def build(results_path, beats_json, out_dir, rev, aligned_path=None, build_paths
                   "channel-reset fix. They validate the tooling and the report; the final numbers replace "
                   "them after the rebuild. Cells without a measurement are marked **TBD**.\n")
     md.append("---\n")
-    md.append(sec_headline(D))
+    md.append(sec_headline(D, AD))
     md.append(sec_defs(D))
     md.append(sec_aligned(D, beats_json, F, AD))
     md.append(sec_size(D, F))

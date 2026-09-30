@@ -24,12 +24,10 @@
 
 # RAPIDS Byte-Granular DMA: Byte Characterization Report
 
-**Version:** 0.1  
+**Version:** 0.2  
 **Date:** 2026-09-30  
 **Platform:** Genesys 2, 256-bit, 8 channels, 100 MHz  
-**Results:** `rapids_byte_perf_prelim_20260930.json`
-
-> **PRELIMINARY.** These numbers were measured on the bitstream that predates the channel-reset fix. They validate the tooling and the report; the final numbers replace them after the rebuild. Cells without a measurement are marked **TBD**.
+**Results:** `rapids_byte_perf_20260930_142731.json`
 
 ---
 
@@ -39,12 +37,16 @@
 |---|---:|---:|---:|---:|
 | Sink | byte path, 4096 B x 8 ch | 1.000 | 357 | 11.1 % |
 | Sink | beat path, 4096 beats x 8 ch | 1.000 | 356 | 11.1 % |
+| Sink | beat path, 4096 beats x 8 ch, word-wide checker build | 1.000 | 3182 | 99.4 % |
 | Source | byte path, 4096 B x 8 ch | 1.000 | 352 | 11.0 % |
 | Source | beat path, 4096 beats x 8 ch | 1.000 | 356 | 11.1 % |
+| Source | beat path, 4096 beats x 8 ch, word-wide checker build | 1.000 | 3199 | 100.0 % |
 
 : Largest transfers at 8 channels
 
-These rates sit at the harness checker ceiling of 3200 / 9 = 355.6 MB/s, not at the DUT's limit: the byte-wise CRC checkers take 9 cycles per 32-byte beat (section 3). Read every MB/s in this report against both the 3200 MB/s peak and that ceiling. Efficiency (payload over beats x lanes) does not depend on the checker.
+The byte-wise rates sit at the harness checker ceiling of 3200 / 9 = 355.6 MB/s, not at the DUT's limit: the byte-wise CRC checkers take 9 cycles per 32-byte beat (section 3). Read every MB/s in this report against both the 3200 MB/s peak and that ceiling. Efficiency (payload over beats x lanes) does not depend on the checker.
+
+The word-wide checker build (`BYTE_CRC=0`) takes one beat per cycle and is not checker-bound: its rows show the DUT's own rate against the 3200 MB/s peak. Its data check covers 4 of the 32 bytes of each beat, so it is a rate measurement and the byte-wise build is the integrity measurement.
 
 ## 2. Definitions
 
@@ -62,6 +64,64 @@ These rates sit at the harness checker ceiling of 3200 / 9 = 355.6 MB/s, not at 
 ## 3. Beat-aligned rows against the RAPIDS Beats report
 
 These rows use the beat-scaled path (`pkt_bytes=None`, beats per channel) on the byte DUT, which is how the RAPIDS Beats report measured its matrix: 9-beat bursts, response delay 0, backpressure off, default seed, bare bus meters. The metric is engaged utilization (`prod / (prod + bp + starv)`), the RAPIDS Beats headline metric. "Unchanged" is checked numerically: every cell is compared to the same cell of `genesys_dw256_obs_C.json` and must agree within 0.5 percentage points, the threshold the RAPIDS Beats report itself applies between builds.
+
+### 3.1 Word-wide checker build (the verdict)
+
+Measured on the `BYTE_CRC=0` bitstream (BUILD.WORD_CRC = 1, results file `rapids_byte_aligned_wordcrc_20260930.json`, bitstream sha256 `48e1282c46e707cd`). Its checkers take one beat per cycle like the RAPIDS Beats build. They CRC one 32-bit slice of each beat (slice 0, which holds the beat's LFSR word) and ignore the strobes, so the golden is the RAPIDS Beats golden and the data check covers 4 of the 32 bytes of each beat. That is enough for a utilization measurement of whole-beat rows; full-byte integrity is what the byte-wise build in 3.2 and the rest of this report check. The design under test is the same RTL.
+
+| Ch | Beats/ch | Sink AXIS-in % (byte / beats) | Sink AXI4-wr % | Source AXI4-rd % | Source AXIS-out % | Max abs delta (pp) |
+|---|---:|---:|---:|---:|---:|---:|
+| 1 | 1 | 50.0 / 50.0 | 10.0 / 14.3 | 6.2 / 6.7 | 6.2 / 6.7 | 4.29 |
+| 1 | 4 | 100.0 / 80.0 | 25.0 / 40.0 | 21.1 / 22.2 | 21.1 / 22.2 | 20.00 |
+| 1 | 16 | 25.0 / 94.1 | 48.5 / 72.7 | 51.6 / 53.3 | 51.6 / 53.3 | 69.12 |
+| 1 | 64 | 57.1 / 98.5 | 79.0 / 91.4 | 81.0 / 82.1 | 81.0 / 82.1 | 41.32 |
+| 1 | 256 | 84.2 / 99.6 | 93.8 / 97.7 | 94.5 / 94.8 | 94.5 / 94.8 | 15.40 |
+| 1 | 1024 | 95.5 / 99.9 | 98.4 / 99.4 | 98.6 / 98.7 | 98.6 / 98.7 | 4.38 |
+| 1 | 4096 | 98.8 / 100.0 | 99.6 / 99.9 | 99.6 / 99.7 | 99.6 / 99.7 | 1.13 |
+| 2 | 1 | 66.7 / 66.7 | 16.7 / 22.2 | 11.1 / 11.8 | 11.1 / 11.8 | 5.56 |
+| 2 | 4 | 10.5 / 88.9 | 40.0 / 57.1 | 34.8 / 36.4 | 34.8 / 36.4 | 78.36 |
+| 2 | 16 | 32.0 / 97.0 | 65.3 / 84.2 | 68.1 / 69.6 | 68.1 / 69.6 | 64.97 |
+| 2 | 64 | 65.3 / 99.2 | 88.3 / 95.5 | 89.5 / 90.1 | 89.5 / 90.1 | 33.92 |
+| 2 | 256 | 88.3 / 99.8 | 96.8 / 98.8 | 97.2 / 97.3 | 97.2 / 97.3 | 11.53 |
+| 2 | 1024 | 96.8 / 100.0 | 99.2 / 99.7 | 99.3 / 99.3 | 99.3 / 99.3 | 3.16 |
+| 2 | 4096 | 99.2 / 100.0 | 99.8 / 99.9 | 99.8 / 99.8 | 99.8 / 99.8 | 0.81 |
+| 4 | 1 | 100.0 / 80.0 | 25.0 / 30.8 | 18.2 / 19.0 | 18.2 / 19.0 | 20.00 |
+| 4 | 4 | 12.9 / 94.1 | 57.1 / 72.7 | 51.6 / 53.3 | 51.6 / 53.3 | 81.21 |
+| 4 | 16 | 37.2 / 98.5 | 79.0 / 91.4 | 81.0 / 82.1 | 81.0 / 82.1 | 61.25 |
+| 4 | 64 | 70.3 / 99.6 | 93.8 / 97.3 | 94.5 / 94.8 | 94.5 / 94.8 | 29.28 |
+| 4 | 256 | 90.5 / 99.7 | 98.4 / 99.4 | 98.6 / 98.7 | 98.6 / 98.7 | 9.25 |
+| 4 | 1024 | 97.4 / 99.9 | 99.6 / 99.9 | 99.6 / 99.7 | 99.6 / 99.7 | 2.50 |
+| 4 | 4096 | 99.3 / 100.0 | 99.9 / 100.0 | 99.9 / 99.9 | 99.9 / 99.9 | 0.64 |
+| 8 | 1 | 4.0 / 88.9 | 33.3 / 38.1 | 26.7 / 27.6 | 26.7 / 27.6 | 84.85 |
+| 8 | 4 | 14.5 / 97.0 | 72.7 / 84.2 | 68.1 / 69.6 | 68.1 / 69.6 | 82.42 |
+| 8 | 16 | 40.5 / 99.2 | 88.3 / 95.5 | 89.5 / 90.1 | 89.5 / 90.1 | 58.72 |
+| 8 | 64 | 73.1 / 99.8 | 96.8 / 98.5 | 97.2 / 97.3 | 97.2 / 97.3 | 26.66 |
+| 8 | 256 | 91.6 / 96.1 | 99.2 / 99.7 | 99.3 / 99.3 | 99.3 / 99.3 | 4.51 |
+| 8 | 1024 | 97.8 / 99.0 | 99.8 / 99.9 | 99.8 / 99.8 | 99.8 / 99.8 | 1.24 |
+| 8 | 4096 | 99.4 / 99.7 | 99.9 / 100.0 | 100.0 / 100.0 | 100.0 / 100.0 | 0.32 |
+
+: Engaged utilization, byte build / RAPIDS Beats reference, beat-aligned rows
+
+**Verdict: CHANGED.** 112 of 112 beat-aligned cells were compared; 73 differ by more than 0.5 pp; the largest difference is -84.85 pp (ch 8, 1 beats, sink sin). Cells over the threshold: ch1 b1 sink wr -4.29 pp; ch1 b4 sink sin +20.00 pp; ch1 b4 sink wr -15.00 pp; ch1 b4 source rd -1.17 pp; ch1 b4 source sout -1.17 pp; ch1 b16 sink sin -69.12 pp; ch1 b16 sink wr -24.24 pp; ch1 b16 source rd -1.72 pp; ch1 b16 source sout -1.72 pp; ch1 b64 sink sin -41.32 pp; ch1 b64 sink wr -12.42 pp; ch1 b64 source rd -1.04 pp; ....
+
+**Where the differences come from.** Every difference is a fixed number of cycles per run, not a change of rate. The cycle counts below are the evidence; the same counts at 16 beats per channel are identical to these, and only the 1-beat rows differ (the write side shows +3 starvation cycles there, not +11).
+
+| Ch | Sink AXIS-in bp, byte | beats | Sink AXI4-wr starv, byte | beats | Source AXI4-rd starv, byte | beats |
+|---|---:|---:|---:|---:|---:|---:|
+| 1 | 47 | 0 | 17 | 6 | 15 | 14 |
+| 2 | 67 | 0 | 17 | 6 | 15 | 14 |
+| 4 | 107 | 2 | 17 | 6 | 15 | 14 |
+| 8 | 187 | 82 | 17 | 6 | 15 | 14 |
+
+: Cycle counts at 4096 beats per channel (fixed start-up terms, not rates)
+
+- **Sink AXIS-in.** The byte ingress accepts a channel's stream only once that channel has a packet record, because the destination offset and the expected length come from the descriptor (sink ingress chapter of the MAS). The stream is offered data, `tready` is low, and the meter counts those cycles as backpressure. The count grows with the channel count and does not depend on the beats per channel, which is what a serial descriptor fetch before the first accept would give. RAPIDS Beats has no such term because it buffers the stream before the descriptor arrives. The AXIS-in window opens at the first offered beat, so this wait is inside it.
+- **Sink AXI4-wr.** The write-side window opens at the first write, so the wait above is not in it. The byte build adds a constant 11 starvation cycles at 16 beats and up (3 at 1 beat), the same for every channel count. Its source has not been isolated.
+- **Source.** One extra starvation cycle at start-up in every cell, on both `rd` and `sout`: up to 1.7 percentage points at 1 to 64 beats, under 0.4 from 256 beats. Not isolated.
+- **Amortisation.** Because each term is fixed, utilization converges on the RAPIDS Beats value as the transfer grows: the 4096-beat rows are within 1.2 percentage points and the 8-channel row within 0.4. The 1-to-64-beat rows, where the fixed term is a large share of the window, are the ones that move most.
+- **Not explained.** With 1 beat per channel and 1, 2 or 4 channels the byte build shows no sink AXIS-in backpressure, while the same channels at 16 beats and up do. Not isolated.
+
+### 3.2 Byte-wise checker build (the standard bitstream)
 
 | Ch | Beats/ch | Sink AXIS-in % (byte / beats) | Sink AXI4-wr % | Source AXI4-rd % | Source AXIS-out % | Max abs delta (pp) |
 |---|---:|---:|---:|---:|---:|---:|
@@ -96,9 +156,9 @@ These rows use the beat-scaled path (`pkt_bytes=None`, beats per channel) on the
 
 : Engaged utilization, byte build / RAPIDS Beats reference, beat-aligned rows
 
-**Verdict: CHANGED.** 112 of 112 beat-aligned cells were compared; 108 differ by more than 0.5 pp; the largest difference is -88.87 pp (ch 8, 4096 beats, sink wr). Cells over the threshold: ch1 b1 sink wr -4.29 pp; ch1 b4 sink sin +20.00 pp; ch1 b4 sink wr -15.00 pp; ch1 b4 source rd -12.92 pp; ch1 b4 source sout -12.70 pp; ch1 b16 sink sin -69.12 pp; ch1 b16 sink wr -59.17 pp; ch1 b16 source rd -42.74 pp; ch1 b16 source sout -42.67 pp; ch1 b64 sink sin -41.32 pp; ch1 b64 sink wr -79.79 pp; ch1 b64 source rd -61.34 pp; ....
+**Result on this build: CHANGED.** 112 of 112 beat-aligned cells were compared; 108 differ by more than 0.5 pp; the largest difference is -88.87 pp (ch 8, 4096 beats, sink wr). Cells over the threshold: ch1 b1 sink wr -4.29 pp; ch1 b4 sink sin +20.00 pp; ch1 b4 sink wr -15.00 pp; ch1 b4 source rd -12.92 pp; ch1 b4 source sout -12.70 pp; ch1 b16 sink sin -69.12 pp; ch1 b16 sink wr -59.17 pp; ch1 b16 source rd -42.74 pp; ch1 b16 source sout -42.67 pp; ch1 b64 sink sin -41.32 pp; ch1 b64 sink wr -79.79 pp; ch1 b64 source rd -61.34 pp; ....
 
-**What this comparison can and cannot show.** The byte build's on-chip checkers (`BYTE_CRC=1` on `axi4_slave_wr_crc_check` and `axis4_slave_pattern_check`) fold the strobed bytes of each beat into the CRC four bytes per cycle and hold ready low while they do, so a 32-byte beat occupies 9 cycles. That caps the harness at 3200 / 9 = 355.6 MB/s (11.1 % of the 3200 MB/s peak), which is where the large-transfer rows sit. The RAPIDS Beats reference used the word-wide checkers and is not checker-bound. The large differences above are therefore the checkers backpressuring the DUT, not evidence about the DUT's own throughput, and the "utilization unchanged" criterion cannot be settled on this build. It needs the beat-aligned rows measured with the word-wide checkers (`BYTE_CRC=0`) on a separate performance bitstream, which also has to keep the 1-beat and 4-beat rows comparable. Until then the beat-aligned rows are **not comparable** to the RAPIDS Beats report.
+**What the byte-checker rows can and cannot show.** The byte build's on-chip checkers (`BYTE_CRC=1` on `axi4_slave_wr_crc_check` and `axis4_slave_pattern_check`) fold the strobed bytes of each beat into the CRC four bytes per cycle and hold ready low while they do, so a 32-byte beat occupies 9 cycles. That caps the harness at 3200 / 9 = 355.6 MB/s (11.1 % of the 3200 MB/s peak), which is where the large-transfer rows sit. The RAPIDS Beats reference used the word-wide checkers and is not checker-bound. The differences in this table are therefore the checkers backpressuring the DUT, not evidence about the DUT's own throughput, and this table is **not comparable** to the RAPIDS Beats report. The "utilization unchanged" criterion is settled in section 3.1 on the word-wide checker build (`BYTE_CRC=0`, BUILD.WORD_CRC = 1), where every checker takes one beat per cycle as in the RAPIDS Beats build.
 
 ### Figure 3.1: Byte minus beats utilization, beat-aligned cells
 
@@ -265,7 +325,7 @@ A descriptor may start mid-beat. The offset moves payload into an extra memory b
 | 33 | 5 | 1 | 33 | 2 | 2 | 0.516 | 0.516 | 275.0 | 8.59 % | PASS |
 | 33 | 31 | 1 | 33 | 2 | 2 | 0.516 | 0.516 | 275.0 | 8.59 % | PASS |
 | 203 | 0 | 1 | 203 | 7 | 7 | 0.906 | 0.906 | 369.1 | 11.53 % | PASS |
-| 203 | 1 | 1 | 203 | 7 | 7 | 0.906 | 0.906 | **TBD** | **TBD** | FAIL |
+| 203 | 1 | 1 | 203 | 7 | 7 | 0.906 | 0.906 | 369.1 | 11.53 % | PASS |
 | 203 | 5 | 1 | 203 | 7 | 7 | 0.906 | 0.906 | 369.1 | 11.53 % | PASS |
 | 203 | 31 | 1 | 203 | 7 | 8 | 0.906 | 0.793 | 225.6 | 7.05 % | PASS |
 | 1024 | 0 | 1 | 1024 | 32 | 32 | 1.000 | 1.000 | 389.4 | 12.17 % | PASS |
@@ -281,7 +341,7 @@ A descriptor may start mid-beat. The offset moves payload into an extra memory b
 | 33 | 5 | 8 | 264 | 16 | 16 | 0.516 | 0.516 | 129.4 | 4.04 % | PASS |
 | 33 | 31 | 8 | 264 | 16 | 16 | 0.516 | 0.516 | 129.4 | 4.04 % | PASS |
 | 203 | 0 | 8 | 1624 | 56 | 56 | 0.906 | 0.906 | 367.4 | 11.48 % | PASS |
-| 203 | 1 | 8 | 1624 | 56 | 56 | 0.906 | 0.906 | **TBD** | **TBD** | FAIL |
+| 203 | 1 | 8 | 1624 | 56 | 56 | 0.906 | 0.906 | 367.4 | 11.48 % | PASS |
 | 203 | 5 | 8 | 1624 | 56 | 56 | 0.906 | 0.906 | 368.3 | 11.51 % | PASS |
 | 203 | 31 | 8 | 1624 | 56 | 64 | 0.906 | 0.793 | 249.8 | 7.81 % | PASS |
 | 1024 | 0 | 8 | 8192 | 256 | 256 | 1.000 | 1.000 | 359.5 | 11.23 % | PASS |
@@ -378,43 +438,69 @@ The source backpressure is paced by the host toggling the checker's ready over U
 
 ## 8. Failures, caveats and coverage
 
-| Point | Path | After earlier failure | Errors (first two) |
-|---|---|---|---|
-| offset_ch1_p203_o1_d1 | sink | - | ch0: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x850D0C5F golden=0x67E11839 |
-| offset_ch8_p203_o1_d1 | sink | offset_ch1_p203_o1_d1 | ch0: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0x850D0C5F golden=0x67E11839; ch1: SINK GOLDEN MISMATCH (DUT DATA BUG) wr=0xBD687A55 golden=0x5F846E33 |
+No measured point failed.
 
-: Failed points as recorded, never dropped
-
-A failure is recorded with its errors and is never retried away. Points after the first failure carry the id of that failure (`after_failure`): the sticky sink packet-length flag and the AXI response error flags clear only on `aresetn`, and `CHANNEL_RESET` does not reach them, so one failed point can poison the ones after it. A failure that is repeatable at its own coordinates, with no earlier failure in the file, is a genuine result.
-
-Coverage: 105 of 105 planned points of profile `standard` are in this file (103 passed, 2 failed).
+Coverage: 117 of 117 planned points of profile `standard` are in this file (117 passed, 0 failed).
 
 Standing limitations of the design, not of this measurement:
 
 - The sink `s_axis_tready` is one signal qualified by TID, so a beat for a channel whose packet record has not arrived blocks every channel behind it on the stream (head-of-line blocking, inherent and documented).
 - TYPE=EXT descriptors stay beat-aligned by design and are not part of the byte sweeps.
+- AXI error responses (RRESP and BRESP other than OKAY) are not exercised by the board campaign or by the directed sequences: the harness memory model always answers OKAY and has no fault-injection hook, and no RAPIDS test in the tree drives a non-OKAY response on the read or write master. The response-error flag path is therefore unproven on silicon and in simulation. Closing this needs an injection hook in the harness, which is not built.
 - Each interface has its own measurement window; the `sin` window runs from the first to the last stream beat (rapids ISSUE-001), so windows differ per interface and MB/s here uses the longer of the stream and memory windows.
 
-## 9. Provenance and reproduction
+## 9. Build and resources
+
+| Build | Slice LUTs | Slice regs | BRAM tiles | WNS setup | WHS hold | Failing endpoints | Bitstream sha256 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| bytecrc | 92,874 | 82,379 | 68 | +0.301 ns | +0.023 ns | 0 | `cfad34c3465f1110` |
+| wordcrc | 86,065 | 79,527 | 52 | +0.077 ns | +0.013 ns | 0 | `48e1282c46e707cd` |
+
+: Post-route resources and timing at 100 MHz, XC7K325T (203,800 LUTs, 445 BRAM tiles)
+
+Build configuration of each row:
+
+- **bytecrc**: BYTE_CRC=1 USE_OBSERVERS=1 OBS_ENABLE_MON_TAPS=0 (channel-reset + hold-junk fixes).
+- **wordcrc**: BYTE_CRC=0 USE_OBSERVERS=1 OBS_ENABLE_MON_TAPS=0. RTL commit `d1d20b046`.
+
+Every build closes timing at 100 MHz with no failing endpoint. The slack is small and positive; treat 100 MHz as the design point, not as margin. The resource figures come from the post-route utilization report; the word-wide checker build is a measurement bitstream and is not the standard one.
+
+## 10. Provenance and reproduction
 
 | Item | Value |
 |---|---|
-| Results file | `rapids_byte_perf_prelim_20260930.json` |
-| Timestamp | 2026-09-30T09:40:04 |
+| Results file | `rapids_byte_perf_20260930_142731.json` |
+| Timestamp | 2026-09-30T14:27:36 |
 | Profile | `standard` |
-| Status | PRELIMINARY |
-| Bitstream | `rapids_byte.bit` sha256 `2de9c03d369b6014` |
+| Status | final |
+| Bitstream | `rapids_byte.bit` sha256 `cfad34c3465f1110` |
 | Design | 256-bit, 8 channels, 4096 B SRAM per channel, 100 MHz, peak 3200 MB/s per direction |
 | Beats reference | `genesys_dw256_obs_C.json` |
 
 : Provenance
 
-No device readback is recorded in this results file: it was measured before the campaign began reading CSR_ID, BUILD and the configure-time sentinel at the start and end of each session. The bitstream identity above is the file hash the run was started from, not a readback, so a reprogram by another user during the run would not have been detected. The final run records the readback.
+| Session | Bitstream sha256 | CSR_ID | BUILD | Sentinel start | Sentinel end | Stable | Aborted |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 | `cfad34c3465f1110` | 0x52415042 | 0x0A070820 | 0x00000000 | 0x00000000 | yes | no |
+
+: Device readback per session
+
+The sentinel is the MON_LIMIT register written once at configure time. It resets on any FPGA reconfiguration, so a change between readbacks means the device was reprogrammed during the run. A point measured across such a change is dropped, not recorded. Device stable for the whole run: yes.
 
 One command runs the campaign and regenerates this report:
 
 ```bash
 cd projects/fpga-systems/Genesys2/rapids/flows-rapids
-./byte_perf.sh --profile standard          # PRELIMINARY: writes *_prelim_*.json
-./byte_perf.sh --profile full --final      # final numbers, after the channel-reset fix is on the board
+./byte_perf.sh --profile full --final      # final numbers (standard byte-CRC bitstream)
+./byte_perf.sh --profile standard          # quick run, writes *_prelim_*.json
 ```
+
+The word-wide aligned results are `rapids_byte_aligned_wordcrc_20260930.json`; its device readback follows.
+
+| Session | Bitstream sha256 | CSR_ID | BUILD | Sentinel start | Sentinel end | Stable | Aborted |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 | `48e1282c46e707cd` | 0x52415042 | 0x1A070820 | 0x00000000 | 0x00000000 | yes | no |
+
+: Device readback per session
+
+The sentinel is the MON_LIMIT register written once at configure time. It resets on any FPGA reconfiguration, so a change between readbacks means the device was reprogrammed during the run. A point measured across such a change is dropped, not recorded. Device stable for the whole run: yes.

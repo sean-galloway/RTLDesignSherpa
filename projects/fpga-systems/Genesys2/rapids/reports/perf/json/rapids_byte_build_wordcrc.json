@@ -1,0 +1,23 @@
+{
+  "tag": "wordcrc",
+  "config": "BYTE_CRC=0 USE_OBSERVERS=1 OBS_ENABLE_MON_TAPS=0",
+  "commit": "d1d20b046",
+  "bitstream": "rapids_byte_wordcrc.bit",
+  "bitstream_sha256": "48e1282c46e707cd5e0b82f7082c12948dcb16b3b212270533c34f41dd27ce63",
+  "util": {
+    "slice_luts": 86065,
+    "lut_logic": 75695,
+    "lut_dist_ram": 10370,
+    "slice_regs": 79527,
+    "bram_tiles": 52,
+    "dsp": 0
+  },
+  "timing": {
+    "wns_ns": 0.077,
+    "tns_ns": 0.0,
+    "tns_failing": 0,
+    "endpoints": 301738,
+    "whs_ns": 0.013,
+    "ths_failing": 0
+  }
+}

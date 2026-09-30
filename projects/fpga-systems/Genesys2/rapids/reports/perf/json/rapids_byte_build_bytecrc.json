@@ -1,0 +1,23 @@
+{
+  "tag": "bytecrc",
+  "config": "BYTE_CRC=1 USE_OBSERVERS=1 OBS_ENABLE_MON_TAPS=0 (channel-reset + hold-junk fixes)",
+  "commit": null,
+  "bitstream": "rapids_byte_bytecrc_cfad34.bit",
+  "bitstream_sha256": "cfad34c3465f111014f42afa0c6081c83759f358917a02067b1a4f6dc99b25f7",
+  "util": {
+    "slice_luts": 92874,
+    "lut_logic": 81352,
+    "lut_dist_ram": 11522,
+    "slice_regs": 82379,
+    "bram_tiles": 68,
+    "dsp": 0
+  },
+  "timing": {
+    "wns_ns": 0.301,
+    "tns_ns": 0.0,
+    "tns_failing": 0,
+    "endpoints": 320415,
+    "whs_ns": 0.023,
+    "ths_failing": 0
+  }
+}

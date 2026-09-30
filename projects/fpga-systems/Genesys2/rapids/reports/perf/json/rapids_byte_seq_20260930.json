@@ -1,0 +1,2298 @@
+{
+  "timestamp": "2026-09-30T14:50:18",
+  "design": {
+    "beat_bytes": 32,
+    "data_width": 256,
+    "channels": 8,
+    "sram_depth": 128,
+    "axi_monitors": false,
+    "observers": true,
+    "gen_mon": false,
+    "byte_dut": true,
+    "aclk_hz": 100000000,
+    "sram_bytes_per_channel": 4096,
+    "peak_bw_gb_s": 3.2
+  },
+  "total": 0,
+  "passed": 0,
+  "failed": 0,
+  "configs": [],
+  "board_lock": {
+    "path": "/tmp/rds-board-200300B818A0.lock",
+    "inherited": false
+  },
+  "jtag": {
+    "expected_serial": "200300B818A0",
+    "start": {
+      "targets": [
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/210292BFA3EEA",
+          "serial": "210292BFA3EEA"
+        },
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/200300B818A0B",
+          "serial": "200300B818A0B"
+        }
+      ],
+      "devices": [
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/210292BFA3EEA",
+          "device": "xc7a100t_0",
+          "part": "xc7a100t",
+          "idcode": "n/a"
+        },
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/200300B818A0B",
+          "device": "xc7k325t_0",
+          "part": "xc7k325t",
+          "idcode": "n/a"
+        }
+      ]
+    },
+    "end": {
+      "targets": [
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/210292BFA3EEA",
+          "serial": "210292BFA3EEA"
+        },
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/200300B818A0B",
+          "serial": "200300B818A0B"
+        }
+      ],
+      "devices": [
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/210292BFA3EEA",
+          "device": "xc7a100t_0",
+          "part": "xc7a100t",
+          "idcode": "n/a"
+        },
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/200300B818A0B",
+          "device": "xc7k325t_0",
+          "part": "xc7k325t",
+          "idcode": "n/a"
+        }
+      ]
+    },
+    "stable": true
+  },
+  "transport": "board-uart",
+  "config": {
+    "beat_bytes": 32,
+    "data_width": 256,
+    "channels": 8,
+    "sram_depth": 128,
+    "byte_dut": true,
+    "aclk_hz": 100000000,
+    "resp_delay_rd": 0,
+    "resp_delay_wr": 0,
+    "gen_interleave": true,
+    "src": {
+      "rd_burst_beats": 9,
+      "wr_burst_beats": 9,
+      "alloc_size": 16,
+      "drain_size": 1,
+      "sched_en": 1,
+      "err_en": 1,
+      "channel_enable": 255
+    },
+    "snk": {
+      "rd_burst_beats": 9,
+      "wr_burst_beats": 9,
+      "alloc_size": 16,
+      "drain_size": 1,
+      "sched_en": 1,
+      "err_en": 1,
+      "channel_enable": 255
+    }
+  },
+  "sequences": [
+    {
+      "name": "zero_length",
+      "level": "full",
+      "chunk": null,
+      "pass": true,
+      "checks": [
+        {
+          "name": "zero_alone_ch1/source: source completes",
+          "ok": true,
+          "chk_beats": 0,
+          "expected": 0
+        },
+        {
+          "name": "zero_alone_ch1/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "zero_alone_ch1/sink: sink completes",
+          "ok": true,
+          "wr_beats": 0,
+          "expected": 0
+        },
+        {
+          "name": "zero_alone_ch1/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "zero_alone_ch1: zero-only chain moved nothing",
+          "ok": true,
+          "wr": 0,
+          "chk": 0
+        },
+        {
+          "name": "zero_alone_ch2/source: source completes",
+          "ok": true,
+          "chk_beats": 0,
+          "expected": 0
+        },
+        {
+          "name": "zero_alone_ch2/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "zero_alone_ch2/sink: sink completes",
+          "ok": true,
+          "wr_beats": 0,
+          "expected": 0
+        },
+        {
+          "name": "zero_alone_ch2/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "zero_alone_ch2: zero-only chain moved nothing",
+          "ok": true,
+          "wr": 0,
+          "chk": 0
+        },
+        {
+          "name": "zero_first_ch1/source: source completes",
+          "ok": true,
+          "chk_beats": 2,
+          "expected": 2
+        },
+        {
+          "name": "zero_first_ch1/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "zero_first_ch1/source: ch0 golden (rd+egress, 2 stream beats)",
+          "ok": true,
+          "rd": 1891037250,
+          "rd_golden": 1891037250,
+          "chk": 1830584895,
+          "chk_golden": 1830584895
+        },
+        {
+          "name": "zero_first_ch1/sink: sink completes",
+          "ok": true,
+          "wr_beats": 2,
+          "expected": 2
+        },
+        {
+          "name": "zero_first_ch1/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "zero_first_ch1/sink: ch0 write golden (1 x 37 B)",
+          "ok": true,
+          "wr_crc": 1830584895,
+          "golden": 1830584895
+        },
+        {
+          "name": "zero_first_ch2/source: source completes",
+          "ok": true,
+          "chk_beats": 4,
+          "expected": 4
+        },
+        {
+          "name": "zero_first_ch2/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "zero_first_ch2/source: ch0 golden (rd+egress, 2 stream beats)",
+          "ok": true,
+          "rd": 1891037250,
+          "rd_golden": 1891037250,
+          "chk": 1830584895,
+          "chk_golden": 1830584895
+        },
+        {
+          "name": "zero_first_ch2/source: ch1 golden (rd+egress, 2 stream beats)",
+          "ok": true,
+          "rd": 1369732092,
+          "rd_golden": 1369732092,
+          "chk": 4102050217,
+          "chk_golden": 4102050217
+        },
+        {
+          "name": "zero_first_ch2/sink: sink completes",
+          "ok": true,
+          "wr_beats": 4,
+          "expected": 4
+        },
+        {
+          "name": "zero_first_ch2/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "zero_first_ch2/sink: ch0 write golden (1 x 37 B)",
+          "ok": true,
+          "wr_crc": 1830584895,
+          "golden": 1830584895
+        },
+        {
+          "name": "zero_first_ch2/sink: ch1 write golden (1 x 37 B)",
+          "ok": true,
+          "wr_crc": 4102050217,
+          "golden": 4102050217
+        },
+        {
+          "name": "zero_last_ch1/source: source completes",
+          "ok": true,
+          "chk_beats": 2,
+          "expected": 2
+        },
+        {
+          "name": "zero_last_ch1/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "zero_last_ch1/source: ch0 golden (rd+egress, 2 stream beats)",
+          "ok": true,
+          "rd": 1891037250,
+          "rd_golden": 1891037250,
+          "chk": 1830584895,
+          "chk_golden": 1830584895
+        },
+        {
+          "name": "zero_last_ch1/sink: sink completes",
+          "ok": true,
+          "wr_beats": 2,
+          "expected": 2
+        },
+        {
+          "name": "zero_last_ch1/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "zero_last_ch1/sink: ch0 write golden (1 x 37 B)",
+          "ok": true,
+          "wr_crc": 1830584895,
+          "golden": 1830584895
+        },
+        {
+          "name": "zero_last_ch2/source: source completes",
+          "ok": true,
+          "chk_beats": 4,
+          "expected": 4
+        },
+        {
+          "name": "zero_last_ch2/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "zero_last_ch2/source: ch0 golden (rd+egress, 2 stream beats)",
+          "ok": true,
+          "rd": 1891037250,
+          "rd_golden": 1891037250,
+          "chk": 1830584895,
+          "chk_golden": 1830584895
+        },
+        {
+          "name": "zero_last_ch2/source: ch1 golden (rd+egress, 2 stream beats)",
+          "ok": true,
+          "rd": 1369732092,
+          "rd_golden": 1369732092,
+          "chk": 4102050217,
+          "chk_golden": 4102050217
+        },
+        {
+          "name": "zero_last_ch2/sink: sink completes",
+          "ok": true,
+          "wr_beats": 4,
+          "expected": 4
+        },
+        {
+          "name": "zero_last_ch2/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "zero_last_ch2/sink: ch0 write golden (1 x 37 B)",
+          "ok": true,
+          "wr_crc": 1830584895,
+          "golden": 1830584895
+        },
+        {
+          "name": "zero_last_ch2/sink: ch1 write golden (1 x 37 B)",
+          "ok": true,
+          "wr_crc": 4102050217,
+          "golden": 4102050217
+        },
+        {
+          "name": "zero_between_ch1/source: source completes",
+          "ok": true,
+          "chk_beats": 4,
+          "expected": 4
+        },
+        {
+          "name": "zero_between_ch1/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "zero_between_ch1/source: ch0 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 3364178471,
+          "rd_golden": 3364178471,
+          "chk": 2784091853,
+          "chk_golden": 2784091853
+        },
+        {
+          "name": "zero_between_ch1/sink: sink completes",
+          "ok": true,
+          "wr_beats": 4,
+          "expected": 4
+        },
+        {
+          "name": "zero_between_ch1/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "zero_between_ch1/sink: ch0 write golden (2 x 37 B)",
+          "ok": true,
+          "wr_crc": 2784091853,
+          "golden": 2784091853
+        },
+        {
+          "name": "zero_between_ch2/source: source completes",
+          "ok": true,
+          "chk_beats": 8,
+          "expected": 8
+        },
+        {
+          "name": "zero_between_ch2/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "zero_between_ch2/source: ch0 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 3364178471,
+          "rd_golden": 3364178471,
+          "chk": 2784091853,
+          "chk_golden": 2784091853
+        },
+        {
+          "name": "zero_between_ch2/source: ch1 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 1663411064,
+          "rd_golden": 1663411064,
+          "chk": 1839950586,
+          "chk_golden": 1839950586
+        },
+        {
+          "name": "zero_between_ch2/sink: sink completes",
+          "ok": true,
+          "wr_beats": 8,
+          "expected": 8
+        },
+        {
+          "name": "zero_between_ch2/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "zero_between_ch2/sink: ch0 write golden (2 x 37 B)",
+          "ok": true,
+          "wr_crc": 2784091853,
+          "golden": 2784091853
+        },
+        {
+          "name": "zero_between_ch2/sink: ch1 write golden (2 x 37 B)",
+          "ok": true,
+          "wr_crc": 1839950586,
+          "golden": 1839950586
+        },
+        {
+          "name": "zero_two_zero_ch1/source: source completes",
+          "ok": true,
+          "chk_beats": 2,
+          "expected": 2
+        },
+        {
+          "name": "zero_two_zero_ch1/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "zero_two_zero_ch1/source: ch0 golden (rd+egress, 2 stream beats)",
+          "ok": true,
+          "rd": 1891037250,
+          "rd_golden": 1891037250,
+          "chk": 1830584895,
+          "chk_golden": 1830584895
+        },
+        {
+          "name": "zero_two_zero_ch1/sink: sink completes",
+          "ok": true,
+          "wr_beats": 2,
+          "expected": 2
+        },
+        {
+          "name": "zero_two_zero_ch1/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "zero_two_zero_ch1/sink: ch0 write golden (1 x 37 B)",
+          "ok": true,
+          "wr_crc": 1830584895,
+          "golden": 1830584895
+        },
+        {
+          "name": "zero_two_zero_ch2/source: source completes",
+          "ok": true,
+          "chk_beats": 4,
+          "expected": 4
+        },
+        {
+          "name": "zero_two_zero_ch2/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "zero_two_zero_ch2/source: ch0 golden (rd+egress, 2 stream beats)",
+          "ok": true,
+          "rd": 1891037250,
+          "rd_golden": 1891037250,
+          "chk": 1830584895,
+          "chk_golden": 1830584895
+        },
+        {
+          "name": "zero_two_zero_ch2/source: ch1 golden (rd+egress, 2 stream beats)",
+          "ok": true,
+          "rd": 1369732092,
+          "rd_golden": 1369732092,
+          "chk": 4102050217,
+          "chk_golden": 4102050217
+        },
+        {
+          "name": "zero_two_zero_ch2/sink: sink completes",
+          "ok": true,
+          "wr_beats": 4,
+          "expected": 4
+        },
+        {
+          "name": "zero_two_zero_ch2/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "zero_two_zero_ch2/sink: ch0 write golden (1 x 37 B)",
+          "ok": true,
+          "wr_crc": 1830584895,
+          "golden": 1830584895
+        },
+        {
+          "name": "zero_two_zero_ch2/sink: ch1 write golden (1 x 37 B)",
+          "ok": true,
+          "wr_crc": 4102050217,
+          "golden": 4102050217
+        }
+      ],
+      "config": {
+        "beat_bytes": 32,
+        "data_width": 256,
+        "channels": 8,
+        "sram_depth": 128,
+        "byte_dut": true,
+        "aclk_hz": 100000000,
+        "resp_delay_rd": 0,
+        "resp_delay_wr": 0,
+        "gen_interleave": false,
+        "src": {
+          "rd_burst_beats": 9,
+          "wr_burst_beats": 9,
+          "alloc_size": 16,
+          "drain_size": 1,
+          "sched_en": 1,
+          "err_en": 1,
+          "channel_enable": 255
+        },
+        "snk": {
+          "rd_burst_beats": 9,
+          "wr_burst_beats": 9,
+          "alloc_size": 16,
+          "drain_size": 1,
+          "sched_en": 1,
+          "err_en": 1,
+          "channel_enable": 255
+        }
+      },
+      "uart_ops": 1311
+    },
+    {
+      "name": "boundary_4k",
+      "level": "full",
+      "chunk": null,
+      "pass": true,
+      "checks": [
+        {
+          "name": "4k_end_exact_ch1/source: source completes",
+          "ok": true,
+          "chk_beats": 4,
+          "expected": 4
+        },
+        {
+          "name": "4k_end_exact_ch1/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_end_exact_ch1/source: ch0 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 3364178471,
+          "rd_golden": 3364178471,
+          "chk": 1204110699,
+          "chk_golden": 1204110699
+        },
+        {
+          "name": "4k_end_exact_ch1/sink: sink completes",
+          "ok": true,
+          "wr_beats": 4,
+          "expected": 4
+        },
+        {
+          "name": "4k_end_exact_ch1/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_end_exact_ch1/sink: ch0 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2590316488,
+          "golden": 2590316488
+        },
+        {
+          "name": "4k_end_exact_ch2/source: source completes",
+          "ok": true,
+          "chk_beats": 8,
+          "expected": 8
+        },
+        {
+          "name": "4k_end_exact_ch2/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_end_exact_ch2/source: ch0 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 3364178471,
+          "rd_golden": 3364178471,
+          "chk": 1204110699,
+          "chk_golden": 1204110699
+        },
+        {
+          "name": "4k_end_exact_ch2/source: ch1 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 1663411064,
+          "rd_golden": 1663411064,
+          "chk": 761347738,
+          "chk_golden": 761347738
+        },
+        {
+          "name": "4k_end_exact_ch2/sink: sink completes",
+          "ok": true,
+          "wr_beats": 8,
+          "expected": 8
+        },
+        {
+          "name": "4k_end_exact_ch2/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_end_exact_ch2/sink: ch0 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2590316488,
+          "golden": 2590316488
+        },
+        {
+          "name": "4k_end_exact_ch2/sink: ch1 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2855331797,
+          "golden": 2855331797
+        },
+        {
+          "name": "4k_straddle_1_ch1/source: source completes",
+          "ok": true,
+          "chk_beats": 4,
+          "expected": 4
+        },
+        {
+          "name": "4k_straddle_1_ch1/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_straddle_1_ch1/source: ch0 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 800357956,
+          "rd_golden": 800357956,
+          "chk": 3928474116,
+          "chk_golden": 3928474116
+        },
+        {
+          "name": "4k_straddle_1_ch1/sink: sink completes",
+          "ok": true,
+          "wr_beats": 5,
+          "expected": 5
+        },
+        {
+          "name": "4k_straddle_1_ch1/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_straddle_1_ch1/sink: ch0 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2590316488,
+          "golden": 2590316488
+        },
+        {
+          "name": "4k_straddle_1_ch2/source: source completes",
+          "ok": true,
+          "chk_beats": 8,
+          "expected": 8
+        },
+        {
+          "name": "4k_straddle_1_ch2/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_straddle_1_ch2/source: ch0 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 800357956,
+          "rd_golden": 800357956,
+          "chk": 3928474116,
+          "chk_golden": 3928474116
+        },
+        {
+          "name": "4k_straddle_1_ch2/source: ch1 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 3898432626,
+          "rd_golden": 3898432626,
+          "chk": 1267386766,
+          "chk_golden": 1267386766
+        },
+        {
+          "name": "4k_straddle_1_ch2/sink: sink completes",
+          "ok": true,
+          "wr_beats": 10,
+          "expected": 10
+        },
+        {
+          "name": "4k_straddle_1_ch2/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_straddle_1_ch2/sink: ch0 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2590316488,
+          "golden": 2590316488
+        },
+        {
+          "name": "4k_straddle_1_ch2/sink: ch1 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2855331797,
+          "golden": 2855331797
+        },
+        {
+          "name": "4k_straddle_33_ch1/source: source completes",
+          "ok": true,
+          "chk_beats": 4,
+          "expected": 4
+        },
+        {
+          "name": "4k_straddle_33_ch1/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_straddle_33_ch1/source: ch0 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 800357956,
+          "rd_golden": 800357956,
+          "chk": 3928474116,
+          "chk_golden": 3928474116
+        },
+        {
+          "name": "4k_straddle_33_ch1/sink: sink completes",
+          "ok": true,
+          "wr_beats": 5,
+          "expected": 5
+        },
+        {
+          "name": "4k_straddle_33_ch1/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_straddle_33_ch1/sink: ch0 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2590316488,
+          "golden": 2590316488
+        },
+        {
+          "name": "4k_straddle_33_ch2/source: source completes",
+          "ok": true,
+          "chk_beats": 8,
+          "expected": 8
+        },
+        {
+          "name": "4k_straddle_33_ch2/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_straddle_33_ch2/source: ch0 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 800357956,
+          "rd_golden": 800357956,
+          "chk": 3928474116,
+          "chk_golden": 3928474116
+        },
+        {
+          "name": "4k_straddle_33_ch2/source: ch1 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 3898432626,
+          "rd_golden": 3898432626,
+          "chk": 1267386766,
+          "chk_golden": 1267386766
+        },
+        {
+          "name": "4k_straddle_33_ch2/sink: sink completes",
+          "ok": true,
+          "wr_beats": 10,
+          "expected": 10
+        },
+        {
+          "name": "4k_straddle_33_ch2/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_straddle_33_ch2/sink: ch0 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2590316488,
+          "golden": 2590316488
+        },
+        {
+          "name": "4k_straddle_33_ch2/sink: ch1 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2855331797,
+          "golden": 2855331797
+        },
+        {
+          "name": "4k_straddle_31_ch1/source: source completes",
+          "ok": true,
+          "chk_beats": 4,
+          "expected": 4
+        },
+        {
+          "name": "4k_straddle_31_ch1/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_straddle_31_ch1/source: ch0 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 3364178471,
+          "rd_golden": 3364178471,
+          "chk": 1486989181,
+          "chk_golden": 1486989181
+        },
+        {
+          "name": "4k_straddle_31_ch1/sink: sink completes",
+          "ok": true,
+          "wr_beats": 4,
+          "expected": 4
+        },
+        {
+          "name": "4k_straddle_31_ch1/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_straddle_31_ch1/sink: ch0 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2590316488,
+          "golden": 2590316488
+        },
+        {
+          "name": "4k_straddle_31_ch2/source: source completes",
+          "ok": true,
+          "chk_beats": 8,
+          "expected": 8
+        },
+        {
+          "name": "4k_straddle_31_ch2/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_straddle_31_ch2/source: ch0 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 3364178471,
+          "rd_golden": 3364178471,
+          "chk": 1486989181,
+          "chk_golden": 1486989181
+        },
+        {
+          "name": "4k_straddle_31_ch2/source: ch1 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 1663411064,
+          "rd_golden": 1663411064,
+          "chk": 3042766443,
+          "chk_golden": 3042766443
+        },
+        {
+          "name": "4k_straddle_31_ch2/sink: sink completes",
+          "ok": true,
+          "wr_beats": 8,
+          "expected": 8
+        },
+        {
+          "name": "4k_straddle_31_ch2/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_straddle_31_ch2/sink: ch0 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2590316488,
+          "golden": 2590316488
+        },
+        {
+          "name": "4k_straddle_31_ch2/sink: ch1 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2855331797,
+          "golden": 2855331797
+        },
+        {
+          "name": "4k_straddle_bpb_ch1/source: source completes",
+          "ok": true,
+          "chk_beats": 4,
+          "expected": 4
+        },
+        {
+          "name": "4k_straddle_bpb_ch1/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_straddle_bpb_ch1/source: ch0 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 3364178471,
+          "rd_golden": 3364178471,
+          "chk": 2590316488,
+          "chk_golden": 2590316488
+        },
+        {
+          "name": "4k_straddle_bpb_ch1/sink: sink completes",
+          "ok": true,
+          "wr_beats": 4,
+          "expected": 4
+        },
+        {
+          "name": "4k_straddle_bpb_ch1/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_straddle_bpb_ch1/sink: ch0 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2590316488,
+          "golden": 2590316488
+        },
+        {
+          "name": "4k_straddle_bpb_ch2/source: source completes",
+          "ok": true,
+          "chk_beats": 8,
+          "expected": 8
+        },
+        {
+          "name": "4k_straddle_bpb_ch2/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_straddle_bpb_ch2/source: ch0 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 3364178471,
+          "rd_golden": 3364178471,
+          "chk": 2590316488,
+          "chk_golden": 2590316488
+        },
+        {
+          "name": "4k_straddle_bpb_ch2/source: ch1 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 1663411064,
+          "rd_golden": 1663411064,
+          "chk": 2855331797,
+          "chk_golden": 2855331797
+        },
+        {
+          "name": "4k_straddle_bpb_ch2/sink: sink completes",
+          "ok": true,
+          "wr_beats": 8,
+          "expected": 8
+        },
+        {
+          "name": "4k_straddle_bpb_ch2/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_straddle_bpb_ch2/sink: ch0 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2590316488,
+          "golden": 2590316488
+        },
+        {
+          "name": "4k_straddle_bpb_ch2/sink: ch1 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2855331797,
+          "golden": 2855331797
+        },
+        {
+          "name": "4k_straddle_64_ch1/source: source completes",
+          "ok": true,
+          "chk_beats": 4,
+          "expected": 4
+        },
+        {
+          "name": "4k_straddle_64_ch1/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_straddle_64_ch1/source: ch0 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 3364178471,
+          "rd_golden": 3364178471,
+          "chk": 2590316488,
+          "chk_golden": 2590316488
+        },
+        {
+          "name": "4k_straddle_64_ch1/sink: sink completes",
+          "ok": true,
+          "wr_beats": 4,
+          "expected": 4
+        },
+        {
+          "name": "4k_straddle_64_ch1/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_straddle_64_ch1/sink: ch0 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2590316488,
+          "golden": 2590316488
+        },
+        {
+          "name": "4k_straddle_64_ch2/source: source completes",
+          "ok": true,
+          "chk_beats": 8,
+          "expected": 8
+        },
+        {
+          "name": "4k_straddle_64_ch2/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_straddle_64_ch2/source: ch0 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 3364178471,
+          "rd_golden": 3364178471,
+          "chk": 2590316488,
+          "chk_golden": 2590316488
+        },
+        {
+          "name": "4k_straddle_64_ch2/source: ch1 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 1663411064,
+          "rd_golden": 1663411064,
+          "chk": 2855331797,
+          "chk_golden": 2855331797
+        },
+        {
+          "name": "4k_straddle_64_ch2/sink: sink completes",
+          "ok": true,
+          "wr_beats": 8,
+          "expected": 8
+        },
+        {
+          "name": "4k_straddle_64_ch2/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_straddle_64_ch2/sink: ch0 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2590316488,
+          "golden": 2590316488
+        },
+        {
+          "name": "4k_straddle_64_ch2/sink: ch1 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2855331797,
+          "golden": 2855331797
+        },
+        {
+          "name": "4k_max_payload_2k_ch1/source: source completes",
+          "ok": true,
+          "chk_beats": 128,
+          "expected": 128
+        },
+        {
+          "name": "4k_max_payload_2k_ch1/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_max_payload_2k_ch1/source: ch0 golden (rd+egress, 128 stream beats)",
+          "ok": true,
+          "rd": 2135217237,
+          "rd_golden": 2135217237,
+          "chk": 2315643842,
+          "chk_golden": 2315643842
+        },
+        {
+          "name": "4k_max_payload_2k_ch1/sink: sink completes",
+          "ok": true,
+          "wr_beats": 128,
+          "expected": 128
+        },
+        {
+          "name": "4k_max_payload_2k_ch1/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_max_payload_2k_ch1/sink: ch0 write golden (1 x 4096 B)",
+          "ok": true,
+          "wr_crc": 2315643842,
+          "golden": 2315643842
+        },
+        {
+          "name": "4k_max_payload_2k_ch2/source: source completes",
+          "ok": true,
+          "chk_beats": 256,
+          "expected": 256
+        },
+        {
+          "name": "4k_max_payload_2k_ch2/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_max_payload_2k_ch2/source: ch0 golden (rd+egress, 128 stream beats)",
+          "ok": true,
+          "rd": 2135217237,
+          "rd_golden": 2135217237,
+          "chk": 2315643842,
+          "chk_golden": 2315643842
+        },
+        {
+          "name": "4k_max_payload_2k_ch2/source: ch1 golden (rd+egress, 128 stream beats)",
+          "ok": true,
+          "rd": 3724653531,
+          "rd_golden": 3724653531,
+          "chk": 3005130551,
+          "chk_golden": 3005130551
+        },
+        {
+          "name": "4k_max_payload_2k_ch2/sink: sink completes",
+          "ok": true,
+          "wr_beats": 256,
+          "expected": 256
+        },
+        {
+          "name": "4k_max_payload_2k_ch2/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_max_payload_2k_ch2/sink: ch0 write golden (1 x 4096 B)",
+          "ok": true,
+          "wr_crc": 2315643842,
+          "golden": 2315643842
+        },
+        {
+          "name": "4k_max_payload_2k_ch2/sink: ch1 write golden (1 x 4096 B)",
+          "ok": true,
+          "wr_crc": 3005130551,
+          "golden": 3005130551
+        },
+        {
+          "name": "4k_chain_across_ch1/source: source completes",
+          "ok": true,
+          "chk_beats": 9,
+          "expected": 9
+        },
+        {
+          "name": "4k_chain_across_ch1/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_chain_across_ch1/source: ch0 golden (rd+egress, 9 stream beats)",
+          "ok": true,
+          "rd": 2883420042,
+          "rd_golden": 2883420042,
+          "chk": 3857921955,
+          "chk_golden": 3857921955
+        },
+        {
+          "name": "4k_chain_across_ch1/sink: sink completes",
+          "ok": true,
+          "wr_beats": 10,
+          "expected": 10
+        },
+        {
+          "name": "4k_chain_across_ch1/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_chain_across_ch1/sink: ch0 write golden (3 x 77 B)",
+          "ok": true,
+          "wr_crc": 2792415720,
+          "golden": 2792415720
+        },
+        {
+          "name": "4k_chain_across_ch2/source: source completes",
+          "ok": true,
+          "chk_beats": 18,
+          "expected": 18
+        },
+        {
+          "name": "4k_chain_across_ch2/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_chain_across_ch2/source: ch0 golden (rd+egress, 9 stream beats)",
+          "ok": true,
+          "rd": 2883420042,
+          "rd_golden": 2883420042,
+          "chk": 3857921955,
+          "chk_golden": 3857921955
+        },
+        {
+          "name": "4k_chain_across_ch2/source: ch1 golden (rd+egress, 9 stream beats)",
+          "ok": true,
+          "rd": 4289933706,
+          "rd_golden": 4289933706,
+          "chk": 566430724,
+          "chk_golden": 566430724
+        },
+        {
+          "name": "4k_chain_across_ch2/sink: sink completes",
+          "ok": true,
+          "wr_beats": 20,
+          "expected": 20
+        },
+        {
+          "name": "4k_chain_across_ch2/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_chain_across_ch2/sink: ch0 write golden (3 x 77 B)",
+          "ok": true,
+          "wr_crc": 2792415720,
+          "golden": 2792415720
+        },
+        {
+          "name": "4k_chain_across_ch2/sink: ch1 write golden (3 x 77 B)",
+          "ok": true,
+          "wr_crc": 1400899701,
+          "golden": 1400899701
+        },
+        {
+          "name": "4k_start_on_boundary_ch1/source: source completes",
+          "ok": true,
+          "chk_beats": 4,
+          "expected": 4
+        },
+        {
+          "name": "4k_start_on_boundary_ch1/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_start_on_boundary_ch1/source: ch0 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 3364178471,
+          "rd_golden": 3364178471,
+          "chk": 2590316488,
+          "chk_golden": 2590316488
+        },
+        {
+          "name": "4k_start_on_boundary_ch1/sink: sink completes",
+          "ok": true,
+          "wr_beats": 4,
+          "expected": 4
+        },
+        {
+          "name": "4k_start_on_boundary_ch1/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_start_on_boundary_ch1/sink: ch0 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2590316488,
+          "golden": 2590316488
+        },
+        {
+          "name": "4k_start_on_boundary_ch2/source: source completes",
+          "ok": true,
+          "chk_beats": 8,
+          "expected": 8
+        },
+        {
+          "name": "4k_start_on_boundary_ch2/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_start_on_boundary_ch2/source: ch0 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 3364178471,
+          "rd_golden": 3364178471,
+          "chk": 2590316488,
+          "chk_golden": 2590316488
+        },
+        {
+          "name": "4k_start_on_boundary_ch2/source: ch1 golden (rd+egress, 4 stream beats)",
+          "ok": true,
+          "rd": 1663411064,
+          "rd_golden": 1663411064,
+          "chk": 2855331797,
+          "chk_golden": 2855331797
+        },
+        {
+          "name": "4k_start_on_boundary_ch2/sink: sink completes",
+          "ok": true,
+          "wr_beats": 8,
+          "expected": 8
+        },
+        {
+          "name": "4k_start_on_boundary_ch2/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_start_on_boundary_ch2/sink: ch0 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2590316488,
+          "golden": 2590316488
+        },
+        {
+          "name": "4k_start_on_boundary_ch2/sink: ch1 write golden (1 x 100 B)",
+          "ok": true,
+          "wr_crc": 2855331797,
+          "golden": 2855331797
+        },
+        {
+          "name": "4k_end_then_start_ch1/source: source completes",
+          "ok": true,
+          "chk_beats": 8,
+          "expected": 8
+        },
+        {
+          "name": "4k_end_then_start_ch1/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_end_then_start_ch1/source: ch0 golden (rd+egress, 8 stream beats)",
+          "ok": true,
+          "rd": 2301913640,
+          "rd_golden": 2301913640,
+          "chk": 854952422,
+          "chk_golden": 854952422
+        },
+        {
+          "name": "4k_end_then_start_ch1/sink: sink completes",
+          "ok": true,
+          "wr_beats": 8,
+          "expected": 8
+        },
+        {
+          "name": "4k_end_then_start_ch1/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_end_then_start_ch1/sink: ch0 write golden (2 x 100 B)",
+          "ok": true,
+          "wr_crc": 1523831096,
+          "golden": 1523831096
+        },
+        {
+          "name": "4k_end_then_start_ch2/source: source completes",
+          "ok": true,
+          "chk_beats": 16,
+          "expected": 16
+        },
+        {
+          "name": "4k_end_then_start_ch2/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_end_then_start_ch2/source: ch0 golden (rd+egress, 8 stream beats)",
+          "ok": true,
+          "rd": 2301913640,
+          "rd_golden": 2301913640,
+          "chk": 854952422,
+          "chk_golden": 854952422
+        },
+        {
+          "name": "4k_end_then_start_ch2/source: ch1 golden (rd+egress, 8 stream beats)",
+          "ok": true,
+          "rd": 467132948,
+          "rd_golden": 467132948,
+          "chk": 632308566,
+          "chk_golden": 632308566
+        },
+        {
+          "name": "4k_end_then_start_ch2/sink: sink completes",
+          "ok": true,
+          "wr_beats": 16,
+          "expected": 16
+        },
+        {
+          "name": "4k_end_then_start_ch2/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_end_then_start_ch2/sink: ch0 write golden (2 x 100 B)",
+          "ok": true,
+          "wr_crc": 1523831096,
+          "golden": 1523831096
+        },
+        {
+          "name": "4k_end_then_start_ch2/sink: ch1 write golden (2 x 100 B)",
+          "ok": true,
+          "wr_crc": 2813260622,
+          "golden": 2813260622
+        },
+        {
+          "name": "4k_unaligned_a_ch1/source: source completes",
+          "ok": true,
+          "chk_beats": 7,
+          "expected": 7
+        },
+        {
+          "name": "4k_unaligned_a_ch1/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_unaligned_a_ch1/source: ch0 golden (rd+egress, 7 stream beats)",
+          "ok": true,
+          "rd": 745523547,
+          "rd_golden": 745523547,
+          "chk": 3637628298,
+          "chk_golden": 3637628298
+        },
+        {
+          "name": "4k_unaligned_a_ch1/sink: sink completes",
+          "ok": true,
+          "wr_beats": 7,
+          "expected": 7
+        },
+        {
+          "name": "4k_unaligned_a_ch1/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_unaligned_a_ch1/sink: ch0 write golden (1 x 203 B)",
+          "ok": true,
+          "wr_crc": 1742805049,
+          "golden": 1742805049
+        },
+        {
+          "name": "4k_unaligned_a_ch2/source: source completes",
+          "ok": true,
+          "chk_beats": 14,
+          "expected": 14
+        },
+        {
+          "name": "4k_unaligned_a_ch2/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_unaligned_a_ch2/source: ch0 golden (rd+egress, 7 stream beats)",
+          "ok": true,
+          "rd": 745523547,
+          "rd_golden": 745523547,
+          "chk": 3637628298,
+          "chk_golden": 3637628298
+        },
+        {
+          "name": "4k_unaligned_a_ch2/source: ch1 golden (rd+egress, 7 stream beats)",
+          "ok": true,
+          "rd": 1787578957,
+          "rd_golden": 1787578957,
+          "chk": 2130196282,
+          "chk_golden": 2130196282
+        },
+        {
+          "name": "4k_unaligned_a_ch2/sink: sink completes",
+          "ok": true,
+          "wr_beats": 14,
+          "expected": 14
+        },
+        {
+          "name": "4k_unaligned_a_ch2/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_unaligned_a_ch2/sink: ch0 write golden (1 x 203 B)",
+          "ok": true,
+          "wr_crc": 1742805049,
+          "golden": 1742805049
+        },
+        {
+          "name": "4k_unaligned_a_ch2/sink: ch1 write golden (1 x 203 B)",
+          "ok": true,
+          "wr_crc": 1602514483,
+          "golden": 1602514483
+        },
+        {
+          "name": "4k_unaligned_c_ch1/source: source completes",
+          "ok": true,
+          "chk_beats": 7,
+          "expected": 7
+        },
+        {
+          "name": "4k_unaligned_c_ch1/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_unaligned_c_ch1/source: ch0 golden (rd+egress, 7 stream beats)",
+          "ok": true,
+          "rd": 2301913640,
+          "rd_golden": 2301913640,
+          "chk": 59896532,
+          "chk_golden": 59896532
+        },
+        {
+          "name": "4k_unaligned_c_ch1/sink: sink completes",
+          "ok": true,
+          "wr_beats": 8,
+          "expected": 8
+        },
+        {
+          "name": "4k_unaligned_c_ch1/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_unaligned_c_ch1/sink: ch0 write golden (1 x 203 B)",
+          "ok": true,
+          "wr_crc": 1742805049,
+          "golden": 1742805049
+        },
+        {
+          "name": "4k_unaligned_c_ch2/source: source completes",
+          "ok": true,
+          "chk_beats": 14,
+          "expected": 14
+        },
+        {
+          "name": "4k_unaligned_c_ch2/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_unaligned_c_ch2/source: ch0 golden (rd+egress, 7 stream beats)",
+          "ok": true,
+          "rd": 2301913640,
+          "rd_golden": 2301913640,
+          "chk": 59896532,
+          "chk_golden": 59896532
+        },
+        {
+          "name": "4k_unaligned_c_ch2/source: ch1 golden (rd+egress, 7 stream beats)",
+          "ok": true,
+          "rd": 467132948,
+          "rd_golden": 467132948,
+          "chk": 2632278151,
+          "chk_golden": 2632278151
+        },
+        {
+          "name": "4k_unaligned_c_ch2/sink: sink completes",
+          "ok": true,
+          "wr_beats": 16,
+          "expected": 16
+        },
+        {
+          "name": "4k_unaligned_c_ch2/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_unaligned_c_ch2/sink: ch0 write golden (1 x 203 B)",
+          "ok": true,
+          "wr_crc": 1742805049,
+          "golden": 1742805049
+        },
+        {
+          "name": "4k_unaligned_c_ch2/sink: ch1 write golden (1 x 203 B)",
+          "ok": true,
+          "wr_crc": 1602514483,
+          "golden": 1602514483
+        },
+        {
+          "name": "4k_unaligned_ab_ch1/source: source completes",
+          "ok": true,
+          "chk_beats": 14,
+          "expected": 14
+        },
+        {
+          "name": "4k_unaligned_ab_ch1/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_unaligned_ab_ch1/source: ch0 golden (rd+egress, 14 stream beats)",
+          "ok": true,
+          "rd": 1810731248,
+          "rd_golden": 1810731248,
+          "chk": 3046547065,
+          "chk_golden": 3046547065
+        },
+        {
+          "name": "4k_unaligned_ab_ch1/sink: sink completes",
+          "ok": true,
+          "wr_beats": 14,
+          "expected": 14
+        },
+        {
+          "name": "4k_unaligned_ab_ch1/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_unaligned_ab_ch1/sink: ch0 write golden (2 x 203 B)",
+          "ok": true,
+          "wr_crc": 653357367,
+          "golden": 653357367
+        },
+        {
+          "name": "4k_unaligned_ab_ch2/source: source completes",
+          "ok": true,
+          "chk_beats": 28,
+          "expected": 28
+        },
+        {
+          "name": "4k_unaligned_ab_ch2/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_unaligned_ab_ch2/source: ch0 golden (rd+egress, 14 stream beats)",
+          "ok": true,
+          "rd": 1810731248,
+          "rd_golden": 1810731248,
+          "chk": 3046547065,
+          "chk_golden": 3046547065
+        },
+        {
+          "name": "4k_unaligned_ab_ch2/source: ch1 golden (rd+egress, 14 stream beats)",
+          "ok": true,
+          "rd": 36925642,
+          "rd_golden": 36925642,
+          "chk": 3603273296,
+          "chk_golden": 3603273296
+        },
+        {
+          "name": "4k_unaligned_ab_ch2/sink: sink completes",
+          "ok": true,
+          "wr_beats": 28,
+          "expected": 28
+        },
+        {
+          "name": "4k_unaligned_ab_ch2/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_unaligned_ab_ch2/sink: ch0 write golden (2 x 203 B)",
+          "ok": true,
+          "wr_crc": 653357367,
+          "golden": 653357367
+        },
+        {
+          "name": "4k_unaligned_ab_ch2/sink: ch1 write golden (2 x 203 B)",
+          "ok": true,
+          "wr_crc": 1357355602,
+          "golden": 1357355602
+        },
+        {
+          "name": "4k_unaligned_bc_ch1/source: source completes",
+          "ok": true,
+          "chk_beats": 14,
+          "expected": 14
+        },
+        {
+          "name": "4k_unaligned_bc_ch1/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_unaligned_bc_ch1/source: ch0 golden (rd+egress, 14 stream beats)",
+          "ok": true,
+          "rd": 2264797949,
+          "rd_golden": 2264797949,
+          "chk": 2890828690,
+          "chk_golden": 2890828690
+        },
+        {
+          "name": "4k_unaligned_bc_ch1/sink: sink completes",
+          "ok": true,
+          "wr_beats": 15,
+          "expected": 15
+        },
+        {
+          "name": "4k_unaligned_bc_ch1/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_unaligned_bc_ch1/sink: ch0 write golden (2 x 203 B)",
+          "ok": true,
+          "wr_crc": 653357367,
+          "golden": 653357367
+        },
+        {
+          "name": "4k_unaligned_bc_ch2/source: source completes",
+          "ok": true,
+          "chk_beats": 28,
+          "expected": 28
+        },
+        {
+          "name": "4k_unaligned_bc_ch2/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_unaligned_bc_ch2/source: ch0 golden (rd+egress, 14 stream beats)",
+          "ok": true,
+          "rd": 2264797949,
+          "rd_golden": 2264797949,
+          "chk": 2890828690,
+          "chk_golden": 2890828690
+        },
+        {
+          "name": "4k_unaligned_bc_ch2/source: ch1 golden (rd+egress, 14 stream beats)",
+          "ok": true,
+          "rd": 3800317589,
+          "rd_golden": 3800317589,
+          "chk": 1443675264,
+          "chk_golden": 1443675264
+        },
+        {
+          "name": "4k_unaligned_bc_ch2/sink: sink completes",
+          "ok": true,
+          "wr_beats": 30,
+          "expected": 30
+        },
+        {
+          "name": "4k_unaligned_bc_ch2/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_unaligned_bc_ch2/sink: ch0 write golden (2 x 203 B)",
+          "ok": true,
+          "wr_crc": 653357367,
+          "golden": 653357367
+        },
+        {
+          "name": "4k_unaligned_bc_ch2/sink: ch1 write golden (2 x 203 B)",
+          "ok": true,
+          "wr_crc": 1357355602,
+          "golden": 1357355602
+        },
+        {
+          "name": "4k_unaligned_chain_ch1/source: source completes",
+          "ok": true,
+          "chk_beats": 21,
+          "expected": 21
+        },
+        {
+          "name": "4k_unaligned_chain_ch1/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_unaligned_chain_ch1/source: ch0 golden (rd+egress, 21 stream beats)",
+          "ok": true,
+          "rd": 2520665222,
+          "rd_golden": 2520665222,
+          "chk": 4223530164,
+          "chk_golden": 4223530164
+        },
+        {
+          "name": "4k_unaligned_chain_ch1/sink: sink completes",
+          "ok": true,
+          "wr_beats": 22,
+          "expected": 22
+        },
+        {
+          "name": "4k_unaligned_chain_ch1/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_unaligned_chain_ch1/sink: ch0 write golden (3 x 203 B)",
+          "ok": true,
+          "wr_crc": 955404924,
+          "golden": 955404924
+        },
+        {
+          "name": "4k_unaligned_chain_ch2/source: source completes",
+          "ok": true,
+          "chk_beats": 42,
+          "expected": 42
+        },
+        {
+          "name": "4k_unaligned_chain_ch2/source: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "4k_unaligned_chain_ch2/source: ch0 golden (rd+egress, 21 stream beats)",
+          "ok": true,
+          "rd": 2520665222,
+          "rd_golden": 2520665222,
+          "chk": 4223530164,
+          "chk_golden": 4223530164
+        },
+        {
+          "name": "4k_unaligned_chain_ch2/source: ch1 golden (rd+egress, 21 stream beats)",
+          "ok": true,
+          "rd": 2501601934,
+          "rd_golden": 2501601934,
+          "chk": 1924436328,
+          "chk_golden": 1924436328
+        },
+        {
+          "name": "4k_unaligned_chain_ch2/sink: sink completes",
+          "ok": true,
+          "wr_beats": 44,
+          "expected": 44
+        },
+        {
+          "name": "4k_unaligned_chain_ch2/sink: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "4k_unaligned_chain_ch2/sink: ch0 write golden (3 x 203 B)",
+          "ok": true,
+          "wr_crc": 955404924,
+          "golden": 955404924
+        },
+        {
+          "name": "4k_unaligned_chain_ch2/sink: ch1 write golden (3 x 203 B)",
+          "ok": true,
+          "wr_crc": 3205131100,
+          "golden": 3205131100
+        }
+      ],
+      "config": {
+        "beat_bytes": 32,
+        "data_width": 256,
+        "channels": 8,
+        "sram_depth": 128,
+        "byte_dut": true,
+        "aclk_hz": 100000000,
+        "resp_delay_rd": 0,
+        "resp_delay_wr": 0,
+        "gen_interleave": false,
+        "src": {
+          "rd_burst_beats": 9,
+          "wr_burst_beats": 9,
+          "alloc_size": 16,
+          "drain_size": 1,
+          "sched_en": 1,
+          "err_en": 1,
+          "channel_enable": 255
+        },
+        "snk": {
+          "rd_burst_beats": 9,
+          "wr_burst_beats": 9,
+          "alloc_size": 16,
+          "drain_size": 1,
+          "sched_en": 1,
+          "err_en": 1,
+          "channel_enable": 255
+        }
+      },
+      "uart_ops": 3194
+    },
+    {
+      "name": "tlast_mismatch",
+      "level": "full",
+      "chunk": null,
+      "pass": true,
+      "checks": [
+        {
+          "name": "mismatch_desc_short: SNK_SCHERR flags ch0 only",
+          "ok": true,
+          "snk_scherr": 1
+        },
+        {
+          "name": "mismatch_desc_short: SCHED_ERROR flags ch0 only",
+          "ok": true,
+          "sched_err": 1
+        },
+        {
+          "name": "mismatch_desc_short: ch1 write golden (1 x 64 B)",
+          "ok": true,
+          "wr_crc": 1857590515,
+          "golden": 1857590515
+        },
+        {
+          "name": "mismatch_desc_short_il: SNK_SCHERR flags ch0 only",
+          "ok": true,
+          "snk_scherr": 1
+        },
+        {
+          "name": "mismatch_desc_short_il: SCHED_ERROR flags ch0 only",
+          "ok": true,
+          "sched_err": 1
+        },
+        {
+          "name": "mismatch_desc_short_il: ch1 write golden (1 x 64 B)",
+          "ok": true,
+          "wr_crc": 1857590515,
+          "golden": 1857590515
+        },
+        {
+          "name": "mismatch_desc_long: SNK_SCHERR flags ch0 only",
+          "ok": true,
+          "snk_scherr": 1
+        },
+        {
+          "name": "mismatch_desc_long: SCHED_ERROR flags ch0 only",
+          "ok": true,
+          "sched_err": 1
+        },
+        {
+          "name": "mismatch_desc_long: ch1 write golden (1 x 64 B)",
+          "ok": true,
+          "wr_crc": 1857590515,
+          "golden": 1857590515
+        },
+        {
+          "name": "mismatch_desc_long_il: SNK_SCHERR flags ch0 only",
+          "ok": true,
+          "snk_scherr": 1
+        },
+        {
+          "name": "mismatch_desc_long_il: SCHED_ERROR flags ch0 only",
+          "ok": true,
+          "sched_err": 1
+        },
+        {
+          "name": "mismatch_desc_long_il: ch1 write golden (1 x 64 B)",
+          "ok": true,
+          "wr_crc": 1857590515,
+          "golden": 1857590515
+        },
+        {
+          "name": "mismatch_desc_short_by_1: SNK_SCHERR flags ch0 only",
+          "ok": true,
+          "snk_scherr": 1
+        },
+        {
+          "name": "mismatch_desc_short_by_1: SCHED_ERROR flags ch0 only",
+          "ok": true,
+          "sched_err": 1
+        },
+        {
+          "name": "mismatch_desc_short_by_1: ch1 write golden (1 x 64 B)",
+          "ok": true,
+          "wr_crc": 1857590515,
+          "golden": 1857590515
+        },
+        {
+          "name": "mismatch_desc_short_by_1_il: SNK_SCHERR flags ch0 only",
+          "ok": true,
+          "snk_scherr": 1
+        },
+        {
+          "name": "mismatch_desc_short_by_1_il: SCHED_ERROR flags ch0 only",
+          "ok": true,
+          "sched_err": 1
+        },
+        {
+          "name": "mismatch_desc_short_by_1_il: ch1 write golden (1 x 64 B)",
+          "ok": true,
+          "wr_crc": 1857590515,
+          "golden": 1857590515
+        },
+        {
+          "name": "mismatch_desc_long_by_1: SNK_SCHERR flags ch0 only",
+          "ok": true,
+          "snk_scherr": 1
+        },
+        {
+          "name": "mismatch_desc_long_by_1: SCHED_ERROR flags ch0 only",
+          "ok": true,
+          "sched_err": 1
+        },
+        {
+          "name": "mismatch_desc_long_by_1: ch1 write golden (1 x 64 B)",
+          "ok": true,
+          "wr_crc": 1857590515,
+          "golden": 1857590515
+        },
+        {
+          "name": "mismatch_desc_long_by_1_il: SNK_SCHERR flags ch0 only",
+          "ok": true,
+          "snk_scherr": 1
+        },
+        {
+          "name": "mismatch_desc_long_by_1_il: SCHED_ERROR flags ch0 only",
+          "ok": true,
+          "sched_err": 1
+        },
+        {
+          "name": "mismatch_desc_long_by_1_il: ch1 write golden (1 x 64 B)",
+          "ok": true,
+          "wr_crc": 1857590515,
+          "golden": 1857590515
+        },
+        {
+          "name": "mismatch_desc_1_byte: SNK_SCHERR flags ch0 only",
+          "ok": true,
+          "snk_scherr": 1
+        },
+        {
+          "name": "mismatch_desc_1_byte: SCHED_ERROR flags ch0 only",
+          "ok": true,
+          "sched_err": 1
+        },
+        {
+          "name": "mismatch_desc_1_byte: ch1 write golden (1 x 64 B)",
+          "ok": true,
+          "wr_crc": 1857590515,
+          "golden": 1857590515
+        },
+        {
+          "name": "mismatch_desc_1_byte_il: SNK_SCHERR flags ch0 only",
+          "ok": true,
+          "snk_scherr": 1
+        },
+        {
+          "name": "mismatch_desc_1_byte_il: SCHED_ERROR flags ch0 only",
+          "ok": true,
+          "sched_err": 1
+        },
+        {
+          "name": "mismatch_desc_1_byte_il: ch1 write golden (1 x 64 B)",
+          "ok": true,
+          "wr_crc": 1857590515,
+          "golden": 1857590515
+        },
+        {
+          "name": "mismatch_desc_beat_short: SNK_SCHERR flags ch0 only",
+          "ok": true,
+          "snk_scherr": 1
+        },
+        {
+          "name": "mismatch_desc_beat_short: SCHED_ERROR flags ch0 only",
+          "ok": true,
+          "sched_err": 1
+        },
+        {
+          "name": "mismatch_desc_beat_short: ch1 write golden (1 x 64 B)",
+          "ok": true,
+          "wr_crc": 1857590515,
+          "golden": 1857590515
+        },
+        {
+          "name": "mismatch_desc_beat_short_il: SNK_SCHERR flags ch0 only",
+          "ok": true,
+          "snk_scherr": 1
+        },
+        {
+          "name": "mismatch_desc_beat_short_il: SCHED_ERROR flags ch0 only",
+          "ok": true,
+          "sched_err": 1
+        },
+        {
+          "name": "mismatch_desc_beat_short_il: ch1 write golden (1 x 64 B)",
+          "ok": true,
+          "wr_crc": 1857590515,
+          "golden": 1857590515
+        }
+      ],
+      "config": {
+        "beat_bytes": 32,
+        "data_width": 256,
+        "channels": 8,
+        "sram_depth": 128,
+        "byte_dut": true,
+        "aclk_hz": 100000000,
+        "resp_delay_rd": 0,
+        "resp_delay_wr": 0,
+        "gen_interleave": true,
+        "src": {
+          "rd_burst_beats": 9,
+          "wr_burst_beats": 9,
+          "alloc_size": 16,
+          "drain_size": 1,
+          "sched_en": 1,
+          "err_en": 1,
+          "channel_enable": 255
+        },
+        "snk": {
+          "rd_burst_beats": 9,
+          "wr_burst_beats": 9,
+          "alloc_size": 16,
+          "drain_size": 1,
+          "sched_en": 1,
+          "err_en": 1,
+          "channel_enable": 255
+        }
+      },
+      "uart_ops": 23189
+    },
+    {
+      "name": "recovery",
+      "level": "full",
+      "chunk": null,
+      "pass": true,
+      "checks": [
+        {
+          "name": "recovery0: error raised on ch0 only",
+          "ok": true,
+          "snk_scherr": 1,
+          "sched_err": 1
+        },
+        {
+          "name": "recovery0: ch1 during error: ch1 write golden (1 x 67 B)",
+          "ok": true,
+          "wr_crc": 4064181420,
+          "golden": 4064181420
+        },
+        {
+          "name": "recovery0: CHANNEL_RESET clears SNK_SCHERR",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "recovery0: CHANNEL_RESET clears SCHED_ERROR",
+          "ok": true,
+          "sched_err": 0
+        },
+        {
+          "name": "recovery0: ch0 idle after reset",
+          "ok": true
+        },
+        {
+          "name": "recovery0: good descriptors ch0+ch1: sink completes",
+          "ok": true,
+          "wr_beats": 6,
+          "expected": 6
+        },
+        {
+          "name": "recovery0: good descriptors ch0+ch1: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "recovery0: good descriptors ch0+ch1: ch0 write golden (1 x 67 B)",
+          "ok": true,
+          "wr_crc": 1518058518,
+          "golden": 1518058518
+        },
+        {
+          "name": "recovery0: good descriptors ch0+ch1: ch1 write golden (1 x 67 B)",
+          "ok": true,
+          "wr_crc": 4064181420,
+          "golden": 4064181420
+        },
+        {
+          "name": "recovery0: source untouched: source completes",
+          "ok": true,
+          "chk_beats": 6,
+          "expected": 6
+        },
+        {
+          "name": "recovery0: source untouched: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "recovery0: source untouched: ch0 golden (rd+egress, 3 stream beats)",
+          "ok": true,
+          "rd": 1299021891,
+          "rd_golden": 1299021891,
+          "chk": 1518058518,
+          "chk_golden": 1518058518
+        },
+        {
+          "name": "recovery0: source untouched: ch1 golden (rd+egress, 3 stream beats)",
+          "ok": true,
+          "rd": 301088046,
+          "rd_golden": 301088046,
+          "chk": 4064181420,
+          "chk_golden": 4064181420
+        },
+        {
+          "name": "recovery1: error raised on ch0 only",
+          "ok": true,
+          "snk_scherr": 1,
+          "sched_err": 1
+        },
+        {
+          "name": "recovery1: ch1 during error: ch1 write golden (1 x 67 B)",
+          "ok": true,
+          "wr_crc": 4064181420,
+          "golden": 4064181420
+        },
+        {
+          "name": "recovery1: CHANNEL_RESET clears SNK_SCHERR",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "recovery1: CHANNEL_RESET clears SCHED_ERROR",
+          "ok": true,
+          "sched_err": 0
+        },
+        {
+          "name": "recovery1: ch0 idle after reset",
+          "ok": true
+        },
+        {
+          "name": "recovery1: good descriptors ch0+ch1: sink completes",
+          "ok": true,
+          "wr_beats": 6,
+          "expected": 6
+        },
+        {
+          "name": "recovery1: good descriptors ch0+ch1: no SNK_SCHERR / sched_error",
+          "ok": true,
+          "snk_scherr": 0
+        },
+        {
+          "name": "recovery1: good descriptors ch0+ch1: ch0 write golden (1 x 67 B)",
+          "ok": true,
+          "wr_crc": 1518058518,
+          "golden": 1518058518
+        },
+        {
+          "name": "recovery1: good descriptors ch0+ch1: ch1 write golden (1 x 67 B)",
+          "ok": true,
+          "wr_crc": 4064181420,
+          "golden": 4064181420
+        },
+        {
+          "name": "recovery1: source untouched: source completes",
+          "ok": true,
+          "chk_beats": 6,
+          "expected": 6
+        },
+        {
+          "name": "recovery1: source untouched: no SRC_SCHERR / data_error",
+          "ok": true,
+          "src_scherr": 0
+        },
+        {
+          "name": "recovery1: source untouched: ch0 golden (rd+egress, 3 stream beats)",
+          "ok": true,
+          "rd": 1299021891,
+          "rd_golden": 1299021891,
+          "chk": 1518058518,
+          "chk_golden": 1518058518
+        },
+        {
+          "name": "recovery1: source untouched: ch1 golden (rd+egress, 3 stream beats)",
+          "ok": true,
+          "rd": 301088046,
+          "rd_golden": 301088046,
+          "chk": 4064181420,
+          "chk_golden": 4064181420
+        }
+      ],
+      "config": {
+        "beat_bytes": 32,
+        "data_width": 256,
+        "channels": 8,
+        "sram_depth": 128,
+        "byte_dut": true,
+        "aclk_hz": 100000000,
+        "resp_delay_rd": 0,
+        "resp_delay_wr": 0,
+        "gen_interleave": true,
+        "src": {
+          "rd_burst_beats": 9,
+          "wr_burst_beats": 9,
+          "alloc_size": 16,
+          "drain_size": 1,
+          "sched_en": 1,
+          "err_en": 1,
+          "channel_enable": 255
+        },
+        "snk": {
+          "rd_burst_beats": 9,
+          "wr_burst_beats": 9,
+          "alloc_size": 16,
+          "drain_size": 1,
+          "sched_en": 1,
+          "err_en": 1,
+          "channel_enable": 255
+        }
+      },
+      "uart_ops": 2226
+    }
+  ]
+}

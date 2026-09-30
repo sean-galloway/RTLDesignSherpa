@@ -307,5 +307,21 @@ as long as it exists. Concretely:
       byte-length source descriptor produces a stream whose first and last
       beats carry the right `tstrb`, both on the board with the byte-wise
       golden CRC (2026-09-30, `Genesys2/rapids/reports/board/`)
-- [ ] the perf report has a bytes-per-beat efficiency column and the
-      utilization cells of the beat-aligned rows are unchanged
+- [x] the perf report has a bytes-per-beat efficiency column
+      (`Genesys2/rapids/reports/perf/README.md`, v0.2, 2026-09-30: 117/117
+      byte-wise points on the standard bitstream plus 28/28 aligned points on
+      the word-wide checker bitstream, which reaches 3182 MB/s sink and
+      3199 MB/s source of the 3200 MB/s peak at 8 channels, 4096 beats)
+- [ ] the utilization cells of the beat-aligned rows are unchanged versus
+      RAPIDS Beats (0.5 pp). **NOT MET, measured 2026-09-30.** 73 of 112
+      aligned cells differ by more than 0.5 pp, worst -84.85 pp (short
+      transfers). The differences are fixed start-up cycle terms, not rate
+      changes: the 4096-beat rows are within 1.13 pp and the 8-channel
+      4096-beat row within 0.32 pp. Mechanisms: sink AXIS-in backpressure
+      of 27 + 20 x channels cycles, because the byte ingress gates the stream
+      on the channel's packet record where RAPIDS Beats buffers ahead of the
+      descriptor (intentional, see "Design as built"); sink AXI4 write
+      starvation +11 cycles (+3 at 1 beat) and source starvation +1 cycle,
+      causes not yet isolated. The box stays open until rapids TASK-021
+      decides: accept the start-up terms as by design and amend this
+      criterion, or add a fast path.
