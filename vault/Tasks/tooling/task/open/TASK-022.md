@@ -1,9 +1,61 @@
 # TASK-022: the FPGA flow lock is keyed on the build directory, so two areas can drive one board
 
 **Priority:** P1
-**Status:** open
+**Status:** open -- the LOCK landed 2026-09-30; the device-ID readback has not
 **Owner:** TBD
 **Filed:** 2026-09-30 (found by the scoria session; confirmed by rapids)
+
+## Landed 2026-09-30: the board-keyed lock
+
+`projects/fpga-systems/bin/board_lock.sh` -- a command PREFIX, deliberately the
+same shape as `VIVADO_LOCKED` so it composes inside the `define`/`eval` rules
+without quoting games. It resolves the board's JTAG serial from the registry
+(falling back to the `BOARD` name), takes `flock -n` on
+`$RDS_BOARD_LOCK_DIR/rds-board-<key>.lock` (default `/tmp`), and `exec`s the
+payload. fd 9 survives the exec and an flock lives on the open file description,
+so **the payload holds the board for its whole life** and the kernel releases it
+when the payload dies -- no stale lock, no PID file needing the liveness check
+that has failed this repo before.
+
+Wired into the five board-touching targets:
+
+| Target | File |
+| --- | --- |
+| `program` | `fpga_board.mk` |
+| `tcl-*` | `fpga_flow.mk:262` |
+| `run-*` | `fpga_flow.mk:269` |
+| `seq-*` | `fpga_flow.mk:282` |
+| `run` | `fpga_flow.mk:457` |
+
+`seq-*` was not in the original acceptance list and was found by grepping for
+every recipe that passes `--board`/`--baud`; it goes through the same runner.
+`seq-list` is deliberately NOT locked -- it only lists sequences, and locking it
+would block on a live run for nothing.
+
+Verified: all 13 board-path Makefiles parse; the prefix appears in the expanded
+recipe; with the lock held `make program` exits 98 with a hint naming the board
+and key, and succeeds once free. The end-to-end test used `VIVADO=/bin/true` so a
+wiring failure could not have reached hardware. board_lock.sh itself has 7
+standalone checks including the one that matters -- `fuser` showing the *payload*
+(not the script) holding the lock -- and non-zero payload exits passing through
+rather than being masked as success.
+
+### Still open
+
+- **The device-ID readback.** `fpga_board.py` has subcommands
+  `list / info / ports / serial / program` and **no way to read an ID back from
+  the device**, so this needs new CLI capability rather than a make change. It is
+  the complement to the lock, not a duplicate: a lock prevents collision, a
+  readback detects one that happened anyway. It belongs in `fpga_board.mk`'s
+  `program` path so all consumers inherit it rather than each harness
+  reimplementing it.
+- **`host-*` is deliberately NOT locked.** `host-$(1)` runs
+  `host_$(1).py $(ARGS)` with no `--board`/`--baud`, and those directories mix
+  real board programs with pure post-processing (`host_perf_json_to_csv.py`). The
+  makefile cannot tell them apart, and locking analysis scripts would block
+  legitimate concurrent work -- which teaches people to route around the lock.
+  Deciding this needs a per-program fact the flow does not have. Named here so it
+  is a known gap rather than an oversight.
 
 `make/fpga_flow.mk` serialises Vivado with a lock keyed on the **build
 directory**:

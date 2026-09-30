@@ -41,6 +41,34 @@ BOARD  ?= $(if $(FPGA_BOARD),$(FPGA_BOARD),nexys_a7_100t)
 VIVADO ?= vivado
 PYTHON ?= python3
 
+# ---- One user per BOARD, enforced ------------------------------------------
+# fpga_flow.mk's build lock is keyed on the BUILD DIRECTORY, which is right for
+# what it guards -- build-mon and build-perf own separate Vivado project trees
+# and must run concurrently. A physical board is not contended that way: it is
+# contended by its JTAG chain and its UART. So two areas take two DIFFERENT
+# build locks and both drive one board, and everything in this file had no lock
+# at all.
+#
+# 2026-09-30, five minutes apart: a scoria LiteDRAM board proof held
+# /dev/ttyUSB0 until 09:34:51 and a rapids 8-channel byte-perf run started on
+# the same Genesys 2 at 09:40:04.
+#
+# The failure that near miss would have produced is why this exists, and it is
+# the same one the comment above `program` already describes for the HOLD
+# fallback: a harness records the sha256 of the bitstream IT programmed, not what
+# is on the device, so a third party reprogramming mid-run leaves a results file
+# with no error, no timeout and no golden mismatch -- measuring someone else's
+# design. This lock finishes an argument this file already makes.
+#
+# A command PREFIX, deliberately the same shape as VIVADO_LOCKED, so it composes
+# inside the define/eval rules in fpga_flow.mk without quoting games. Keyed on
+# the JTAG serial (two boards can share one chain), falling back to the board
+# name. Details and the exec/fd-9 reasoning: board_lock.sh's header.
+#
+# Tracked as tooling TASK-022.
+BOARD_LOCK   ?= $(FPGA_BIN)/board_lock.sh
+BOARD_LOCKED  = $(BOARD_LOCK) --board $(BOARD) --
+
 .PHONY: program ports board-info boards
 
 # Bitstreams are never committed; the one or two worth keeping live in the HOLD
@@ -66,7 +94,7 @@ program:            ## Flash BITSTREAM onto BOARD over JTAG (falls back to HOLD)
 	    exit 1; \
 	fi
 	@bit=$$([ -f "$(BITSTREAM)" ] && echo "$(BITSTREAM)" || echo "$(_HOLD_BIT)"); \
-	 $(PYTHON) $(FPGA_BOARD_CLI) --board $(BOARD) program \
+	 $(BOARD_LOCKED) $(PYTHON) $(FPGA_BOARD_CLI) --board $(BOARD) program \
 	    --bitstream "$$bit" --vivado $(VIVADO)
 
 ports:              ## Which ttyUSB is this board on right now?

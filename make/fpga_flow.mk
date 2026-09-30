@@ -259,14 +259,14 @@ tcl-$(1):
 	@echo "[tcl] $(1).tcl"
 	cd $$(SELF_DIR) && \
 	    FPGA_JTAG_SERIAL="$$$$($$(PYTHON) $$(FPGA_BOARD_CLI) --board $$(BOARD) serial)" \
-	    $$(VIVADO_BATCH) -source $$(TCL_DIR)/$(1).tcl
+	    $$(BOARD_LOCKED) $$(VIVADO_BATCH) -source $$(TCL_DIR)/$(1).tcl
 endef
 $(foreach t,$(TCL_RUNNABLE),$(eval $(call _tcl_rule,$(t))))
 
 # Run any discovered run_*.py by name: `make run-smoke`.
 define _run_rule
 run-$(1):
-	$$(PYTHON) $$(SEQ_DIR)/run_$(1).py --board $$(BOARD) --baud $$(BAUD) \
+	$$(BOARD_LOCKED) $$(PYTHON) $$(SEQ_DIR)/run_$(1).py --board $$(BOARD) --baud $$(BAUD) \
 	    $$(if $$(SEQUENCES),--sequences $$(SEQUENCES),)
 endef
 $(foreach r,$(RUN_NAMES),$(eval $(call _run_rule,$(r))))
@@ -279,7 +279,7 @@ define _seq_rule
 seq-$(1):
 	@[ -n "$$(RUN_SCRIPT)" ] || \
 	    (echo "No run_*.py in SEQ_DIR=$$(SEQ_DIR) to run sequence '$(1)'" && false)
-	$$(PYTHON) $$(RUN_SCRIPT) --board $$(BOARD) --baud $$(BAUD) --sequences $(1)
+	$$(BOARD_LOCKED) $$(PYTHON) $$(RUN_SCRIPT) --board $$(BOARD) --baud $$(BAUD) --sequences $(1)
 endef
 $(foreach s,$(SEQ_NAMES),$(eval $(call _seq_rule,$(s))))
 
@@ -454,7 +454,7 @@ sim:                ## Run this build's harness sim (cocotb, no board)
 run:                ## Run sequences on the board (SEQUENCES="init write_read")
 	@[ -n "$(RUN_SCRIPT)" ] || \
 	    (echo "No run_*.py found in SEQ_DIR=$(SEQ_DIR)" && false)
-	$(PYTHON) $(RUN_SCRIPT) --board $(BOARD) --baud $(BAUD) \
+	$(BOARD_LOCKED) $(PYTHON) $(RUN_SCRIPT) --board $(BOARD) --baud $(BAUD) \
 	    $(if $(SEQUENCES),--sequences $(SEQUENCES),)
 
 seq-list:           ## List the sequences this area offers
