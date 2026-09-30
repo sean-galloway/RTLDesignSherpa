@@ -2,7 +2,7 @@
 
 # tooling — bugs
 
-**Next ID: BUG-014** — never recycle a number, even when its item closed.
+**Next ID: BUG-015** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 13 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
-  filters out the `PINMISSING` it exists to report; pumice lost 16 tests to it
+- **BUG-014** (P2) — `check_task_ids` globs the worktree, so as a pre-commit hook it validates a different tree than the one being committed; a `git mv` whose pathspec names only the new path commits an ID into two states at once and the hook prints PASS. Proven on `0804d45d3`: the checker FAILS against that committed tree.
 
 
 ## Closed
