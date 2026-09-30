@@ -1,6 +1,3 @@
-# Generated report outputs (regenerate with docs/generate_pdf.sh)
-docs/*.pdf
-docs/*.docx
 # Vivado / sim / host build artifacts
 flows-rapids-beats/build/
 flows-rapids-beats/bitstream/
