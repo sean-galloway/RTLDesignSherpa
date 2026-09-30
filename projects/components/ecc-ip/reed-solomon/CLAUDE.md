@@ -54,6 +54,19 @@ It is an endpoint codec, never a mid-stream insert (PRD 4a). Until a consumer na
   m <= 8 (a list above). A full-length profile cannot test a block longer
   than k (the model has no room), so only shortened profiles exercise the
   long-block framing error.
+- Decoder facts (2026-09-30): `dv/tbclasses/rs_model.py` is the bit-exact
+  reference for every decoder block (Horner syndromes, riBM, Chien, Forney)
+  on reedsolo's field arithmetic, and `python3 rs_model.py` re-proves it
+  against reedsolo's decoder on six profiles -- run that before trusting a
+  block test. Three facts it established: riBM's evaluator is the HIGH half
+  of S*Lambda, so Forney's exponent is 1 - b - 2t (not 1 - b); the riBM
+  array's top t cells are Lambda_{t+1..2t} and give the more-than-t-errors
+  check for free; and degree + root-count checks still miscorrect some
+  e > t blocks (seen on RS(15,11)), so the decoder core re-computes the
+  syndromes of the corrected stream and reports uncorrectable if they are
+  not zero -- that is what makes "never silently pass a failed block" true.
+  `gf_alpha_pow` accepts negative exponents (the Chien/Forney load constants
+  need them); SystemVerilog `%` keeps the sign, which is why it re-wraps.
 - Filelists in `rtl/filelists/` and registered in `bin/filelists.toml` from
   the first module (`vault/handbook/design/filelists.md`).
 - DV: cocotb under `dv/tests/` with TB classes in `dv/tbclasses/` (Pattern B,

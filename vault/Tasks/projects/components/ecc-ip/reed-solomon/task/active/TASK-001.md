@@ -123,3 +123,16 @@ exactly n cycles per n symbols under back-to-back timing. Area: 21/42/63 cells
 green at gate/func/full. Mutation check: building g(x) with one root too few
 gave 8 mismatches in 12 checks on RS(21,19). Next: the multi-symbol (S > 1)
 encoder datapath, or the decoder's syndrome unit.
+
+**2026-09-30 -- decoder sub-blocks.** `dv/tbclasses/rs_model.py`: the hardware
+algorithms in Python on reedsolo's field, validated 900/900 against reedsolo's
+decoder on six profiles (0..t+1 errors). It settled three things before RTL:
+riBM's evaluator is (S*Lambda)[2t:3t] so Forney uses X^(1-b-2t); the riBM array's
+top t cells are the degree check; and a post-correction syndrome re-check is
+needed to match reedsolo's detection (RS(15,11), 3 errors, degree-1 locator with
+one root, corrected word not a codeword). RTL: `gf_syndrome_cell` + `syndrome_unit`,
+`ribm_pe` + `key_equation_solver_ribm`, `chien_search`, `forney_evaluator`, all
+lint-clean at five profiles, each with a direct-drive TB in
+`dv/tbclasses/rs_decoder_blocks_tb.py` scored bit-exact against the model
+(five configs each, incl. CCSDS 0x187 b = 112 and RS(15,11)). Next: `rs_decoder_core`
+(block FIFO, descriptor pipeline, corrector, re-check syndromes, status with out_last).

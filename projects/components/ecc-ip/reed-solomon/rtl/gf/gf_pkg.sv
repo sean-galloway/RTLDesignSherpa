@@ -63,12 +63,13 @@ package gf_pkg;
         return p;
     endfunction
 
-    // alpha^k for any integer k >= 0 (k is reduced modulo 2^m - 1).
+    // alpha^k for any integer k, negative included (reduced modulo 2^m - 1;
+    // SystemVerilog's % keeps the sign of k, so the result is re-wrapped).
     function automatic gf_wide_t gf_alpha_pow(input int k, input int m, input int prim);
         gf_wide_t r;
         int       e;
         r = gf_wide_t'(1);
-        e = k % gf_order(m);
+        e = ((k % gf_order(m)) + gf_order(m)) % gf_order(m);
         for (int i = 0; i < e; i++) r = gf_mul_x(r, m, prim);
         return r;
     endfunction
