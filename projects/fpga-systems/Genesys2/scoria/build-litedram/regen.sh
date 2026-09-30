@@ -78,7 +78,10 @@ echo "[regen] copied VexRiscv.v from $VEX_DIR"
 # interface the lint gate checks cannot drift from the interface the core has.
 # Hand-maintaining 53 ports here would go stale the first time the config
 # changed, and silently: a stale stub still lints clean.
-BB="$HERE/rtl/litedram_genesys2_ddr3_bb.sv"
+# rtl/generated/, not rtl/ -- Rule #0.1: generated code always lives in a named
+# subdirectory, never at the top level beside hand-written RTL.
+mkdir -p "$HERE/rtl/generated"
+BB="$HERE/rtl/generated/litedram_genesys2_ddr3_bb.sv"
 python3 "$HERE/../bin/gen_core_blackbox.py" \
     "$OUT/gateware/litedram_genesys2_ddr3.v" \
     -m litedram_genesys2_ddr3 -o "$BB"
