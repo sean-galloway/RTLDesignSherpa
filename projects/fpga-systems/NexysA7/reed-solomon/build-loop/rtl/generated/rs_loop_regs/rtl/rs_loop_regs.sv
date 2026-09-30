@@ -7,7 +7,7 @@ module rs_loop_regs (
 
         input wire s_cpuif_req,
         input wire s_cpuif_req_is_wr,
-        input wire [6:0] s_cpuif_addr,
+        input wire [7:0] s_cpuif_addr,
         input wire [31:0] s_cpuif_wr_data,
         input wire [31:0] s_cpuif_wr_biten,
         output wire s_cpuif_req_stall_wr,
@@ -27,7 +27,7 @@ module rs_loop_regs (
     //--------------------------------------------------------------------------
     logic cpuif_req;
     logic cpuif_req_is_wr;
-    logic [6:0] cpuif_addr;
+    logic [7:0] cpuif_addr;
     logic [31:0] cpuif_wr_data;
     logic [31:0] cpuif_wr_biten;
     logic cpuif_req_stall_wr;
@@ -98,6 +98,7 @@ module rs_loop_regs (
         logic CMP_DATA_MISMATCH;
         logic CMP_STATUS_MISMATCH;
         logic CMP_BEATS;
+        logic GO;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_req;
@@ -106,38 +107,39 @@ module rs_loop_regs (
     logic [31:0] decoded_wr_biten;
 
     always_comb begin
-        decoded_reg_strb.BUILD_ID = cpuif_req_masked & (cpuif_addr == 7'h0);
-        decoded_reg_strb.SCRATCH = cpuif_req_masked & (cpuif_addr == 7'h4);
-        decoded_reg_strb.CTRL = cpuif_req_masked & (cpuif_addr == 7'h8);
-        decoded_reg_strb.GEN_BLOCKS = cpuif_req_masked & (cpuif_addr == 7'hc);
-        decoded_reg_strb.GEN_SEED = cpuif_req_masked & (cpuif_addr == 7'h10);
-        decoded_reg_strb.INJ_CFG = cpuif_req_masked & (cpuif_addr == 7'h14);
-        decoded_reg_strb.INJ_SEED = cpuif_req_masked & (cpuif_addr == 7'h18);
-        decoded_reg_strb.STATUS = cpuif_req_masked & (cpuif_addr == 7'h1c);
-        decoded_reg_strb.PROFILE = cpuif_req_masked & (cpuif_addr == 7'h20);
-        decoded_reg_strb.CRC_EXPECTED = cpuif_req_masked & (cpuif_addr == 7'h24);
-        decoded_reg_strb.CRC_A = cpuif_req_masked & (cpuif_addr == 7'h28);
-        decoded_reg_strb.CRC_B = cpuif_req_masked & (cpuif_addr == 7'h2c);
-        decoded_reg_strb.PKTS_A = cpuif_req_masked & (cpuif_addr == 7'h30);
-        decoded_reg_strb.PKTS_B = cpuif_req_masked & (cpuif_addr == 7'h34);
-        decoded_reg_strb.CYCLES = cpuif_req_masked & (cpuif_addr == 7'h38);
-        decoded_reg_strb.BLK_OK_A = cpuif_req_masked & (cpuif_addr == 7'h3c);
-        decoded_reg_strb.BLK_CORR_A = cpuif_req_masked & (cpuif_addr == 7'h40);
-        decoded_reg_strb.BLK_UNC_A = cpuif_req_masked & (cpuif_addr == 7'h44);
-        decoded_reg_strb.BLK_FRAME_A = cpuif_req_masked & (cpuif_addr == 7'h48);
-        decoded_reg_strb.SYM_CORR_A = cpuif_req_masked & (cpuif_addr == 7'h4c);
-        decoded_reg_strb.BLK_OK_B = cpuif_req_masked & (cpuif_addr == 7'h50);
-        decoded_reg_strb.BLK_CORR_B = cpuif_req_masked & (cpuif_addr == 7'h54);
-        decoded_reg_strb.BLK_UNC_B = cpuif_req_masked & (cpuif_addr == 7'h58);
-        decoded_reg_strb.BLK_FRAME_B = cpuif_req_masked & (cpuif_addr == 7'h5c);
-        decoded_reg_strb.SYM_CORR_B = cpuif_req_masked & (cpuif_addr == 7'h60);
-        decoded_reg_strb.INJ_SYMBOLS = cpuif_req_masked & (cpuif_addr == 7'h64);
-        decoded_reg_strb.INJ_BLOCKS = cpuif_req_masked & (cpuif_addr == 7'h68);
-        decoded_reg_strb.INJ_OVER_T = cpuif_req_masked & (cpuif_addr == 7'h6c);
-        decoded_reg_strb.INJ_LAST = cpuif_req_masked & (cpuif_addr == 7'h70);
-        decoded_reg_strb.CMP_DATA_MISMATCH = cpuif_req_masked & (cpuif_addr == 7'h74);
-        decoded_reg_strb.CMP_STATUS_MISMATCH = cpuif_req_masked & (cpuif_addr == 7'h78);
-        decoded_reg_strb.CMP_BEATS = cpuif_req_masked & (cpuif_addr == 7'h7c);
+        decoded_reg_strb.BUILD_ID = cpuif_req_masked & (cpuif_addr == 8'h0);
+        decoded_reg_strb.SCRATCH = cpuif_req_masked & (cpuif_addr == 8'h4);
+        decoded_reg_strb.CTRL = cpuif_req_masked & (cpuif_addr == 8'h8);
+        decoded_reg_strb.GEN_BLOCKS = cpuif_req_masked & (cpuif_addr == 8'hc);
+        decoded_reg_strb.GEN_SEED = cpuif_req_masked & (cpuif_addr == 8'h10);
+        decoded_reg_strb.INJ_CFG = cpuif_req_masked & (cpuif_addr == 8'h14);
+        decoded_reg_strb.INJ_SEED = cpuif_req_masked & (cpuif_addr == 8'h18);
+        decoded_reg_strb.STATUS = cpuif_req_masked & (cpuif_addr == 8'h1c);
+        decoded_reg_strb.PROFILE = cpuif_req_masked & (cpuif_addr == 8'h20);
+        decoded_reg_strb.CRC_EXPECTED = cpuif_req_masked & (cpuif_addr == 8'h24);
+        decoded_reg_strb.CRC_A = cpuif_req_masked & (cpuif_addr == 8'h28);
+        decoded_reg_strb.CRC_B = cpuif_req_masked & (cpuif_addr == 8'h2c);
+        decoded_reg_strb.PKTS_A = cpuif_req_masked & (cpuif_addr == 8'h30);
+        decoded_reg_strb.PKTS_B = cpuif_req_masked & (cpuif_addr == 8'h34);
+        decoded_reg_strb.CYCLES = cpuif_req_masked & (cpuif_addr == 8'h38);
+        decoded_reg_strb.BLK_OK_A = cpuif_req_masked & (cpuif_addr == 8'h3c);
+        decoded_reg_strb.BLK_CORR_A = cpuif_req_masked & (cpuif_addr == 8'h40);
+        decoded_reg_strb.BLK_UNC_A = cpuif_req_masked & (cpuif_addr == 8'h44);
+        decoded_reg_strb.BLK_FRAME_A = cpuif_req_masked & (cpuif_addr == 8'h48);
+        decoded_reg_strb.SYM_CORR_A = cpuif_req_masked & (cpuif_addr == 8'h4c);
+        decoded_reg_strb.BLK_OK_B = cpuif_req_masked & (cpuif_addr == 8'h50);
+        decoded_reg_strb.BLK_CORR_B = cpuif_req_masked & (cpuif_addr == 8'h54);
+        decoded_reg_strb.BLK_UNC_B = cpuif_req_masked & (cpuif_addr == 8'h58);
+        decoded_reg_strb.BLK_FRAME_B = cpuif_req_masked & (cpuif_addr == 8'h5c);
+        decoded_reg_strb.SYM_CORR_B = cpuif_req_masked & (cpuif_addr == 8'h60);
+        decoded_reg_strb.INJ_SYMBOLS = cpuif_req_masked & (cpuif_addr == 8'h64);
+        decoded_reg_strb.INJ_BLOCKS = cpuif_req_masked & (cpuif_addr == 8'h68);
+        decoded_reg_strb.INJ_OVER_T = cpuif_req_masked & (cpuif_addr == 8'h6c);
+        decoded_reg_strb.INJ_LAST = cpuif_req_masked & (cpuif_addr == 8'h70);
+        decoded_reg_strb.CMP_DATA_MISMATCH = cpuif_req_masked & (cpuif_addr == 8'h74);
+        decoded_reg_strb.CMP_STATUS_MISMATCH = cpuif_req_masked & (cpuif_addr == 8'h78);
+        decoded_reg_strb.CMP_BEATS = cpuif_req_masked & (cpuif_addr == 8'h7c);
+        decoded_reg_strb.GO = cpuif_req_masked & (cpuif_addr == 8'h80);
     end
 
     // Pass down signals to next stage
@@ -161,10 +163,6 @@ module rs_loop_regs (
                 logic next;
                 logic load_next;
             } soft_reset;
-            struct {
-                logic next;
-                logic load_next;
-            } start;
             struct {
                 logic next;
                 logic load_next;
@@ -218,6 +216,12 @@ module rs_loop_regs (
                 logic load_next;
             } value;
         } INJ_SEED;
+        struct {
+            struct {
+                logic next;
+                logic load_next;
+            } start;
+        } GO;
     } field_combo_t;
     field_combo_t field_combo;
 
@@ -231,9 +235,6 @@ module rs_loop_regs (
             struct {
                 logic value;
             } soft_reset;
-            struct {
-                logic value;
-            } start;
             struct {
                 logic value;
             } clear;
@@ -276,6 +277,11 @@ module rs_loop_regs (
                 logic [31:0] value;
             } value;
         } INJ_SEED;
+        struct {
+            struct {
+                logic value;
+            } start;
+        } GO;
     } field_storage_t;
     field_storage_t field_storage;
 
@@ -328,32 +334,6 @@ module rs_loop_regs (
         end
     end
     assign hwif_out.CTRL.soft_reset.value = field_storage.CTRL.soft_reset.value;
-    // Field: rs_loop_regs.CTRL.start
-    always_comb begin
-        automatic logic [0:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.CTRL.start.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.CTRL && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.CTRL.start.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
-            load_next_c = '1;
-        end else begin // singlepulse clears back to 0
-            next_c = '0;
-            load_next_c = '1;
-        end
-        field_combo.CTRL.start.next = next_c;
-        field_combo.CTRL.start.load_next = load_next_c;
-    end
-    always_ff @(posedge clk) begin
-        if(rst) begin
-            field_storage.CTRL.start.value <= 1'h0;
-        end else begin
-            if(field_combo.CTRL.start.load_next) begin
-                field_storage.CTRL.start.value <= field_combo.CTRL.start.next;
-            end
-        end
-    end
-    assign hwif_out.CTRL.start.value = field_storage.CTRL.start.value;
     // Field: rs_loop_regs.CTRL.clear
     always_comb begin
         automatic logic [0:0] next_c;
@@ -610,6 +590,32 @@ module rs_loop_regs (
         end
     end
     assign hwif_out.INJ_SEED.value.value = field_storage.INJ_SEED.value.value;
+    // Field: rs_loop_regs.GO.start
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GO.start.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GO && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.GO.start.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.GO.start.next = next_c;
+        field_combo.GO.start.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GO.start.value <= 1'h0;
+        end else begin
+            if(field_combo.GO.start.load_next) begin
+                field_storage.GO.start.value <= field_combo.GO.start.next;
+            end
+        end
+    end
+    assign hwif_out.GO.start.value = field_storage.GO.start.value;
 
     //--------------------------------------------------------------------------
     // Write response

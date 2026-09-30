@@ -25,13 +25,24 @@ addrmap rs_loop_regs {
 
     reg { desc = "Control";
         field { sw = w; hw = r; singlepulse; desc = "reset the datapath (not the CSRs)"; } soft_reset[0:0] = 0;
-        field { sw = w; hw = r; singlepulse; desc = "start a run of GEN_BLOCKS blocks"; }  start[1:1] = 0;
         field { sw = w; hw = r; singlepulse; desc = "clear the statistics";              }  clear[2:2] = 0;
         field { sw = rw; hw = r; desc = "1: generator straight to the checkers, codec bypassed"; } bypass[3:3] = 0;
         field { sw = rw; hw = r; desc = "1: random ready on checker A";  } throttle_a[4:4] = 0;
         field { sw = rw; hw = r; desc = "1: random ready on checker B";  } throttle_b[5:5] = 0;
         field { sw = rw; hw = r; desc = "1: reseed the injector on start"; } inj_seed_on_start[6:6] = 1;
     } CTRL @ 0x008;
+
+    // The KICK. Its own register, not a bit in CTRL, so starting a run is ONE
+    // write that cannot disturb a config field: the host programs every setup
+    // register first, then writes GO once and every consumer -- the pattern
+    // generator, both checkers' arm, the injector's reseed -- starts off the
+    // same cycle. Modelled on chargen_regs.GO in the ddr2-char framework,
+    // which launches any subset of its sixteen generators on one cycle. With
+    // a start bit inside CTRL the write is a read-modify-write of the config
+    // bits beside it, which is a hazard for no benefit.
+    reg { desc = "Kick: start a run of GEN_BLOCKS blocks. Program every config register first.";
+        field { sw = w; hw = r; singlepulse; desc = "start the generators"; } start[0:0] = 0;
+    } GO @ 0x080;
 
     reg { desc = "Blocks per run";
         field { sw = rw; hw = r; } blocks[15:0] = 8;

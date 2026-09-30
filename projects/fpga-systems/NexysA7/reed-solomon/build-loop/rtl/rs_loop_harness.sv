@@ -101,6 +101,14 @@ module rs_loop_harness
     output logic                        o_cmp_err
 );
 
+    // The fabric gives this block a 4 KB window; the regblock must fit inside
+    // it, and the harness must carry every bit the regblock decodes.
+    initial begin : csr_fit_check
+        if (RS_LOOP_REGS_MIN_ADDR_WIDTH > 12)
+            $error("rs_loop_harness: the register block needs %0d address bits, more than the 4 KB window",
+                   RS_LOOP_REGS_MIN_ADDR_WIDTH);
+    end
+
     localparam int M    = CFG_SYMBOL_WIDTH;
     localparam int T    = CFG_T_SYMBOLS;
     localparam int N    = CFG_N_SYMBOLS;
@@ -209,7 +217,11 @@ module rs_loop_harness
     rs_loop_regs u_regs (
         .clk(aclk), .rst(!aresetn),
         .s_cpuif_req(w_cpuif_req), .s_cpuif_req_is_wr(w_cpuif_req_is_wr),
-        .s_cpuif_addr(w_cpuif_addr[6:0]),
+        // Width from the GENERATED package, never a literal: the regblock says
+        // how many address bits it needs, so adding a register can never
+        // silently alias. A hardcoded [6:0] is what made GO at 0x080 fold onto
+        // BUILD_ID the moment the map grew past 0x7F, and nothing ran.
+        .s_cpuif_addr(w_cpuif_addr[RS_LOOP_REGS_MIN_ADDR_WIDTH-1:0]),
         .s_cpuif_wr_data(w_cpuif_wr_data), .s_cpuif_wr_biten(w_cpuif_wr_biten),
         .s_cpuif_req_stall_wr(w_cpuif_stall_wr), .s_cpuif_req_stall_rd(w_cpuif_stall_rd),
         .s_cpuif_rd_ack(w_cpuif_rd_ack), .s_cpuif_rd_err(w_cpuif_rd_err), .s_cpuif_rd_data(w_cpuif_rd_data),
@@ -237,13 +249,13 @@ module rs_loop_harness
             r_clear_d      <= 1'b0;
             r_soft_reset_d <= 1'b0;
         end else begin
-            r_start_d      <= hwif_out.CTRL.start.value;
+            r_start_d      <= hwif_out.GO.start.value;
             r_clear_d      <= hwif_out.CTRL.clear.value;
             r_soft_reset_d <= hwif_out.CTRL.soft_reset.value;
         end
     )
 
-    assign w_start      = hwif_out.CTRL.start.value      && !r_start_d;
+    assign w_start      = hwif_out.GO.start.value      && !r_start_d;
     assign w_clear      = hwif_out.CTRL.clear.value      && !r_clear_d;
     assign w_soft_reset = hwif_out.CTRL.soft_reset.value && !r_soft_reset_d;
     assign w_bypass     = hwif_out.CTRL.bypass.value;
@@ -568,7 +580,8 @@ module rs_loop_harness
     logic unused_h;
     assign unused_h = gen_busy ^ enc_frame_err ^ (^gen_beats_total) ^ (^gen_beats_ch[0])
                     ^ (^chk_beats_total[0]) ^ (^chk_beats_total[1]) ^ (^chk_beats_ch[0][0]) ^ (^chk_beats_ch[1][0])
-                    ^ cmp_wr_ready[0] ^ cmp_wr_ready[1] ^ (^w_cpuif_addr[11:7])
+                    ^ cmp_wr_ready[0] ^ cmp_wr_ready[1]
+                    ^ (^w_cpuif_addr[11:RS_LOOP_REGS_MIN_ADDR_WIDTH])
                     // the unmapped-access telemetry and the tied-off windows'
                     // request signals: available to the harness, unread today
                     ^ w_unmapped_irq ^ (^w_unmapped_addr) ^ (^w_unmapped_count)

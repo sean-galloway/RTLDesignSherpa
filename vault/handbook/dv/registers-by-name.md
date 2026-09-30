@@ -65,3 +65,20 @@ codec paths hid it, because the decoder's latency means no beat reaches the
 checker until long after the pulse. A harness that only tests through its DUT
 will not see this; the bypass path is what exposed it.
 
+## Trap: take the cpuif address width from the GENERATED package
+
+A harness that slices the register block's address with a literal
+(`.s_cpuif_addr(w_cpuif_addr[6:0])`) silently aliases the moment the map grows
+past that width. PeakRDL emits the answer -- `<TOP>_MIN_ADDR_WIDTH` in the
+generated `_pkg.sv` -- so wire that:
+
+    .s_cpuif_addr(w_cpuif_addr[RS_LOOP_REGS_MIN_ADDR_WIDTH-1:0]),
+
+What it cost (reed-solomon loop harness, 2026-09-30): adding a `GO` kick
+register at 0x080 took the map from 7 to 8 address bits. With `[6:0]` hardwired
+the write folded onto BUILD_ID, the kick never reached the generators, and
+every run reported zero blocks. It is the same failure as truncating the host
+address before the fabric, one level down, and it will recur every time a
+register map crosses a power of two. Pair it with an elaboration guard that
+the block still fits its fabric window.
+

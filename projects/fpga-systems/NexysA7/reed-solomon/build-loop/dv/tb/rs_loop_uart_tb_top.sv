@@ -17,7 +17,11 @@
 `timescale 1ns / 1ps
 
 module rs_loop_uart_tb_top #(
-    parameter int UART_CLKS_PER_BIT = 16
+    // 4, not the board's 868: no sim-harness test may exceed 100 ms of SIM
+    // time, and at board baud the UART is the bottleneck -- raise the baud,
+    // never shrink the campaign. The byte stream is what is under test and it
+    // is identical at any baud. Same rate the rapids harnesses use.
+    parameter int UART_CLKS_PER_BIT = 4
 ) (
     input  logic aclk,
     input  logic aresetn,

@@ -141,7 +141,12 @@ It is an endpoint codec, never a mid-stream insert (PRD 4a). Until a consumer na
   `SequenceRunner` the board uses (`cocotb_test_uart_sequences`, board=None,
   cocotb UART injected, mutation-checked). A cosim that runs only the programs
   leaves the sequence layer untested -- the failure the uart-harness note
-  records.
+  records. The sim transport runs at 4 clocks per bit so the real campaign
+  fits the 100 ms sim-time budget each test asserts -- raise the baud, never
+  shrink the campaign. The kick is its own `GO` register, and the harness
+  slices the cpuif address with `RS_LOOP_REGS_MIN_ADDR_WIDTH` from the
+  generated package, never a literal (a hardcoded [6:0] made GO at 0x080
+  alias onto BUILD_ID and nothing ran).
 - Filelists in `rtl/filelists/` and registered in `bin/filelists.toml` from
   the first module (`vault/handbook/design/filelists.md`).
 - DV: cocotb under `dv/tests/` with TB classes in `dv/tbclasses/` (Pattern B,

@@ -4,8 +4,8 @@
 package rs_loop_regs_pkg;
 
     localparam RS_LOOP_REGS_DATA_WIDTH = 32;
-    localparam RS_LOOP_REGS_MIN_ADDR_WIDTH = 7;
-    localparam RS_LOOP_REGS_SIZE = 'h80;
+    localparam RS_LOOP_REGS_MIN_ADDR_WIDTH = 8;
+    localparam RS_LOOP_REGS_SIZE = 'h84;
 
     typedef struct {
         logic [31:0] next;
@@ -313,10 +313,6 @@ package rs_loop_regs_pkg;
 
     typedef struct {
         logic value;
-    } rs_loop_regs__CTRL__start__out_t;
-
-    typedef struct {
-        logic value;
     } rs_loop_regs__CTRL__clear__out_t;
 
     typedef struct {
@@ -337,7 +333,6 @@ package rs_loop_regs_pkg;
 
     typedef struct {
         rs_loop_regs__CTRL__soft_reset__out_t soft_reset;
-        rs_loop_regs__CTRL__start__out_t start;
         rs_loop_regs__CTRL__clear__out_t clear;
         rs_loop_regs__CTRL__bypass__out_t bypass;
         rs_loop_regs__CTRL__throttle_a__out_t throttle_a;
@@ -388,11 +383,20 @@ package rs_loop_regs_pkg;
     } rs_loop_regs__INJ_SEED__out_t;
 
     typedef struct {
+        logic value;
+    } rs_loop_regs__GO__start__out_t;
+
+    typedef struct {
+        rs_loop_regs__GO__start__out_t start;
+    } rs_loop_regs__GO__out_t;
+
+    typedef struct {
         rs_loop_regs__SCRATCH__out_t SCRATCH;
         rs_loop_regs__CTRL__out_t CTRL;
         rs_loop_regs__GEN_BLOCKS__out_t GEN_BLOCKS;
         rs_loop_regs__GEN_SEED__out_t GEN_SEED;
         rs_loop_regs__INJ_CFG__out_t INJ_CFG;
         rs_loop_regs__INJ_SEED__out_t INJ_SEED;
+        rs_loop_regs__GO__out_t GO;
     } rs_loop_regs__out_t;
 endpackage

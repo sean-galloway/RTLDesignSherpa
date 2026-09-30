@@ -133,7 +133,10 @@ class RsLoopDriver:
                         throttle_b=int(throttle_b), inj_seed_on_start=1)
 
     def start(self) -> None:
-        self.regs.write("CTRL", rmw=True, start=1)
+        """The kick. One write, and no read-modify-write: configure() has
+        already programmed every setup register, and GO is its own register so
+        this cannot disturb one. Every consumer starts off the same cycle."""
+        self.regs.write("GO", start=1)
 
     def status(self) -> dict:
         w = self.regs.read("STATUS")

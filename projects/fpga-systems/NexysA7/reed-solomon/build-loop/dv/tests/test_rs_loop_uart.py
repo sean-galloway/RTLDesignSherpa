@@ -28,6 +28,7 @@ import cocotb
 import pytest
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, Timer
+from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
@@ -49,7 +50,25 @@ from uart_axi_bridge import UARTAxiBridge                           # noqa: E402
 import rs_loop as rl                                                # noqa: E402
 import rs_loop_programs as progs                                    # noqa: E402
 
-CLKS_PER_BIT = 16
+# Matches rs_loop_uart_tb_top's default. 4 clocks per bit is 25 Mbaud at the
+# 100 MHz sim clock, so the whole board campaign fits inside the 100 ms
+# sim-time budget and no test has to shrink its parameters.
+CLKS_PER_BIT = 4
+
+# No single sim-harness test may exceed this much SIM time. If a test does not
+# fit, the lever is the sim baud (CLKS_PER_BIT above), not the parameters and
+# not a longer wall: a UART-bound cosim that overruns its wall can leave its
+# assertions unexecuted, which reads as a pass. Checked, not assumed.
+SIM_TIME_BUDGET_MS = 100.0
+
+
+def _check_sim_budget(dut, label):
+    ms = get_sim_time("ns") / 1e6
+    dut._log.info("%s: %.2f ms of sim time (budget %.0f ms, %.0f%%)",
+                  label, ms, SIM_TIME_BUDGET_MS, 100.0 * ms / SIM_TIME_BUDGET_MS)
+    assert ms <= SIM_TIME_BUDGET_MS, (
+        f"{label} used {ms:.1f} ms of sim time, over the {SIM_TIME_BUDGET_MS:.0f} ms budget -- "
+        f"raise the sim baud (CLKS_PER_BIT is {CLKS_PER_BIT}), do not shrink the test")
 T = 8   # the profile's t; the smoke test also reads it back from PROFILE
 
 
@@ -88,6 +107,7 @@ async def _bringup(dut):
 
 
 def _report(dut, label, r):
+    _check_sim_budget(dut, label)
     bad = progs.verdict(r, T)
     dut._log.info("%s: %d blocks in %d cycles (%.1f/block); riBM ok/corr/unc=%d/%d/%d sym=%d crc_ok=%s; "
                   "Euclid ok/corr/unc=%d/%d/%d sym=%d crc_ok=%s; inj=%d; cmp data/status=%d/%d over %d beats",
@@ -185,10 +205,13 @@ async def cocotb_test_uart_sequences(dut):
     flow where exactly that happened (the cosim reimplemented the campaigns
     inline and the shared runner was never exercised).
 
-    Blocks and the sweep's error counts are the only deviations, and they are
-    runtime: a 32-bit UART transaction costs ~3000 sim cycles against a
-    block's 63, so the board's 64 blocks per point would take hours. The
-    sequences, their order and their dependency checks are identical.
+    There are NO deviations. The sequences run on their own defaults, which is
+    what `bin/run_smoke.py --sequences init smoke sweep` does on the board with
+    no flags: 16 blocks per point and the full e = 0 .. 2t+2 sweep. The earlier
+    version of this test passed blocks=2 and a three-point sweep because the
+    UART was the bottleneck at 16 clocks per bit -- the wrong lever. The sim
+    transport runs at 4 clocks per bit, which is what makes the real campaign
+    fit the 100 ms sim-time budget.
     """
     drv, _ = await _bringup(dut)
 
@@ -198,7 +221,7 @@ async def cocotb_test_uart_sequences(dut):
         ctx = SequenceContext(
             bus=drv,
             board=None,                  # sim: no board, same sequences
-            params={"blocks": 2, "counts": [0, T, T + 1]},
+            params={},                   # and the same defaults: no deviation
             log=dut._log.info,
         )
         runner = SequenceRunner(ctx=ctx).discover(_SEQ)
@@ -206,6 +229,7 @@ async def cocotb_test_uart_sequences(dut):
 
     report = await cocotb.external(prog)()
     dut._log.info("sequence run:\n%s", report.summary())
+    _check_sim_budget(dut, "sequences (init -> smoke -> sweep, board defaults)")
     assert report.ok, f"the RS loop sequences failed in sim:\n{report.summary()}"
 
 
