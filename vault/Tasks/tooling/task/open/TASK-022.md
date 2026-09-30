@@ -95,12 +95,49 @@ rather than being masked as success.
   - A lock that refuses its own holder gets "fixed" by someone deleting the lock,
     which is why this is the live item rather than a footnote.
 
-- **The readback exists for rapids only.** `board_guard.py` runs
-  `jtag_readback.tcl` through vivado and compares the target serial to the
-  registry at start and end. That is the right behaviour, but it lives in the
-  rapids flow -- `fpga_board.py` still has no readback subcommand, so the other
-  board consumers do not inherit it. Putting it in the `program` path remains
-  unbuilt.
+## Landed 2026-09-30: the identity readback, shared
+
+Promoted out of the rapids flow into the shared layer so all board consumers
+inherit it, which is where scoria argued it belonged.
+
+- `projects/fpga-systems/bin/jtag_readback.tcl` -- read-only chain listing. Output
+  format is deliberately **identical** to the rapids flow's own copy, so that copy
+  can be retired in favour of this one without touching its parser.
+- `board.py`: `parse_readback()` (pure), `Board.readback()`,
+  `Board.verify_identity()`, and `IdentityError`.
+- `fpga_board.py`: a `readback` subcommand (`--json` for harnesses to record the
+  chain beside the bitstream sha256, `--verify` to fail on the wrong board), and
+  `program` now verifies identity **by default** with `--no-verify-identity` to
+  opt out.
+
+**The refusal is asymmetric, on purpose.** A PROVEN wrong chain refuses; an
+inconclusive readback only warns. Refusing because we could not look would break
+every flow where `hw_server` is unreachable but programming works, and this lands
+on 13 board paths at once. A board with no registry serial is returned unjudged
+rather than passed -- claiming success there would be a checker that cannot fail.
+
+Mutation-tested four ways, all caught: never refusing, accepting a target with no
+device behind it, counting `JTAG_TARGET_ERROR` as a healthy target, and ignoring
+the `FPGA_JTAG_SERIAL` override.
+
+### Still open
+
+- **THE HARDWARE PATH IS UNEXERCISED.** 11 tests cover the parser and the
+  decision, both hardware-free by design (`verify_identity` takes an injected
+  `readback=`). `make program` was driven end to end only with `VIVADO=/bin/true`,
+  which exercises the inconclusive-warn path. Nobody has run a real readback,
+  because a rapids characterization held the board throughout -- and opening the
+  hardware manager to test this would have violated the very lock discipline it
+  accompanies. **First real `make program` on a free board is the remaining
+  verification**, and it is the one that could still surprise.
+- **`rapids/flows-rapids/host/jtag_readback.tcl` is now a duplicate** of the
+  shared copy. Retiring it in favour of `bin/jtag_readback.tcl` is a per-unit
+  follow-up for rapids, not a tooling change -- seven copies of
+  `program_fpga.tcl` is the mistake this tree already made once.
+- **`host-*` remains deliberately unlocked** -- `host-$(1)` passes arbitrary
+  `ARGS` with no `--board`, and those directories mix real board programs with
+  pure post-processing (`host_perf_json_to_csv.py`). The makefile cannot tell them
+  apart, and locking analysis scripts would teach people to route around the lock.
 - **The two lock implementations are now PINNED by a CI test.** Two
   implementations of one key with nothing asserting they agree is worse than no
   lock -- both sides acquire and each believes it owns the board, with no error

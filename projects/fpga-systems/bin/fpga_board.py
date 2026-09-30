@@ -35,11 +35,26 @@ def main(argv=None) -> int:
     sub.add_parser("ports", help="list this board's UART ports")
     sub.add_parser("serial", help="print this board's JTAG serial (for tcl)")
 
+    rb = sub.add_parser("readback",
+                        help="what the hw_server sees on the JTAG chain (read-only)")
+    rb.add_argument("--vivado", default=os.environ.get("VIVADO", "vivado"))
+    rb.add_argument("--json", action="store_true",
+                    help="emit the parsed chain as JSON (for harnesses to record)")
+    rb.add_argument("--verify", action="store_true",
+                    help="also fail if THIS board is not on the chain")
+
     prog = sub.add_parser("program", help="program this board over JTAG")
     prog.add_argument("--bitstream", required=True)
     prog.add_argument("--vivado", default=os.environ.get("VIVADO", "vivado"))
     prog.add_argument("--dry-run", action="store_true",
                       help="print the command and environment, run nothing")
+    # Verification is ON by default: programming whichever board answers first is
+    # how a result gets attributed to the wrong design, which is the argument the
+    # HOLD fallback comment in fpga_board.mk already makes. The opt-out exists
+    # because this lands on 13 board paths at once.
+    prog.add_argument("--no-verify-identity", dest="verify_identity",
+                      action="store_false", default=True,
+                      help="skip the pre-program JTAG identity check")
 
     args = ap.parse_args(argv)
 
@@ -72,10 +87,29 @@ def main(argv=None) -> int:
             print(f"  {p}")
         return 0
 
+    if args.cmd == "readback":
+        try:
+            chain = board.readback(vivado=args.vivado)
+            if args.verify:
+                board.verify_identity(vivado=args.vivado, readback=chain)
+        except RuntimeError as exc:          # IdentityError included
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 1
+        if args.json:
+            import json
+            print(json.dumps(chain, indent=2, sort_keys=True))
+        else:
+            for t in chain["targets"]:
+                print(f"target {t['serial']}  ({t['target']})")
+            for d in chain["devices"]:
+                print(f"  device {d['name']}  part {d['part']}  idcode {d['idcode']}")
+        return 0
+
     if args.cmd == "program":
         try:
             return board.program(args.bitstream, vivado=args.vivado,
-                                 dry_run=args.dry_run)
+                                 dry_run=args.dry_run,
+                                 verify_identity=args.verify_identity)
         except (FileNotFoundError, RuntimeError) as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
             return 1
