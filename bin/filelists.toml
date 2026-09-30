@@ -264,6 +264,7 @@ kind = "board"
 rtl_roots = []
 filelist_dirs = [
     "projects/fpga-systems/Genesys2/scoria/build-litedram/rtl/filelists",
+    "projects/fpga-systems/Genesys2/scoria/rtl/filelists",
 ]
 
 [[area]]
