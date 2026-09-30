@@ -62,10 +62,32 @@ The rapids flow that was mid-characterization is one of them. **Acceptance
 criteria written against `fpga_flow.mk` alone would leave the path that caused the
 near miss untouched, and three board-touching areas outside the fix entirely.**
 
-Blast radius, measured: **16** Makefiles inherit `fpga_flow.mk` (an earlier count
-of 17 wrongly included `Genesys2/stream/stream.mk`, a fragment included BY a
-Makefile rather than a consumer), plus the 3 direct `fpga_board.mk` consumers
-above.
+## Blast radius: 13 Makefiles. Re-derive it, do not inherit it
+
+This figure has been measured three times and been **wrong twice** -- 17 (mine)
+and 16 (scoria's), both of which counted MENTIONS rather than includes. It is
+exactly the kind of number that gets copied into a plan unchecked, so the
+commands are here:
+
+    # mentions -- NOT the answer (16); six are comments saying the per-build
+    # Makefile includes fpga_flow.mk, one of which was written the same morning
+    grep -rl 'fpga_flow\.mk' --include='Makefile' projects/ | wc -l
+
+    # actual includers
+    grep -rlE '^[[:space:]]*(-?include)[[:space:]].*fpga_flow\.mk'  --include='Makefile' projects/   # 10
+    grep -rlE '^[[:space:]]*(-?include)[[:space:]].*fpga_board\.mk' --include='Makefile' projects/   # 3
+
+| Set | Count |
+| --- | --- |
+| include `fpga_flow.mk` | 10 |
+| include `fpga_board.mk` directly | 3 |
+| overlap | **0** |
+| **distinct Makefiles on a board path** | **13** |
+
+`Genesys2/stream/stream.mk` is a fragment, not a consumer: its three includers
+(`build-mon`, `build-obs`, `build-perf`) are all already in the `fpga_flow.mk`
+set, so it adds a path and no consumer. Verified independently rather than taken
+from either previous count.
 
 ## The file already argues this, one step short of the conclusion
 
@@ -121,8 +143,9 @@ numbers.
   `program` path rather than per-harness**, so every consumer inherits it
   (scoria's suggestion, and it is the right level). rapids is adopting the
   readback for their final run independently of the lock.
-- All 16 `fpga_flow.mk` inheritors AND the 3 direct `fpga_board.mk` consumers
-  verified unbroken.
+- All **13** board-path Makefiles verified unbroken -- the 10 that include
+  `fpga_flow.mk` and the 3 that include `fpga_board.mk` directly. Re-derive that
+  set with the greps above rather than trusting the number.
 
 ## Interim mitigation, in use now
 
@@ -132,8 +155,8 @@ is holding it.
 
 ## Hazards
 
-- This changes shared flow tooling that 17 Makefiles inherit. Do it when no
-  characterization is live.
+- This changes shared flow tooling on the board path of 13 Makefiles. Do it when
+  no characterization is live.
 - On 2026-09-30 three sessions were live and **all three declined to take it**
   for that reason -- scoria (who found it, and was mid board-proof), rapids (who
   had a live 8-channel run on the board), and this session. That is the right
