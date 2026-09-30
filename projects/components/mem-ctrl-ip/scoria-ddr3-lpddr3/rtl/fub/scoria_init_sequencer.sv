@@ -212,6 +212,7 @@ module scoria_init_sequencer
 
     state_e             r_state;
     state_e             r_next;    // state to resume after S_WAIT
+    logic               r_rstn_released;  // DDR3 RESET# has been let go
     logic [15:0]        r_wait;    // countdown
     logic               w_is_ddr3;
     assign w_is_ddr3 = (memtype_i == MEMTYPE_DDR3);
@@ -232,14 +233,16 @@ module scoria_init_sequencer
     `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
         if (`RST_ASSERTED(mc_rst_n)) begin
             r_state <= S_RESET;
-            r_next  <= S_RESET;
+r_next  <= S_RESET;
+            r_rstn_released <= 1'b0;
             r_wait  <= 16'd0;
         end else if (w_restart_pulse) begin
             // Force re-init (CTRL.init_force_restart): replay the MRS chain with
             // the current CSR MR values. S_DFI_INIT re-checks dfi_init_complete
             // (held high post-PHY-init), then the JEDEC sequence re-runs.
             r_state <= S_RESET;
-            r_next  <= S_RESET;
+r_next  <= S_RESET;
+            r_rstn_released <= 1'b0;
             r_wait  <= 16'd0;
         end else begin
             unique case (r_state)
@@ -254,7 +257,14 @@ module scoria_init_sequencer
                 // it can be shortened in simulation -- 50,000 cycles at
                 // 100 MHz is real time nobody wants in a testbench).
                 S_D3_RSTN:  begin r_wait <= W_INIT; r_next <= S_D3_CKE;  r_state <= S_WAIT; end
-                S_D3_CKE:   begin r_wait <= W_XPR;  r_next <= S_D3_XPR;  r_state <= S_WAIT; end
+                S_D3_CKE:   begin
+                                // Reaching CKE is the release point: RESET#
+                                // high, then CKE low for the 500 us window,
+                                // then tXPR. Latched, so nothing downstream
+                                // can re-assert the pin.
+                                r_rstn_released <= 1'b1;
+                                r_wait <= W_XPR; r_next <= S_D3_XPR; r_state <= S_WAIT;
+                            end
                 S_D3_XPR:   begin r_wait <= W_MRD;  r_next <= S_D3_MR2;  r_state <= S_WAIT; end
                 // MR order is the spec's: MR2, MR3, MR1, MR0. Not sorted --
                 // MR1 carries DLL enable and MR0 carries DLL reset, so the
@@ -272,6 +282,21 @@ module scoria_init_sequencer
                                 r_state <= S_WAIT;
                             end
                 S_D3_LOCK:  r_state <= S_DONE;
+
+                // ---- LPDDR3: MRW(MR63) reset, ZQ init, then MR1/2/3 ----
+                // These arms were MISSING. The states existed and their
+                // command decode existed, but with no next-state arm they fell
+                // to `default: r_state <= S_RESET`, so LPDDR3 looped
+                // S_RESET -> S_DFI_INIT -> S_L_RESET -> S_RESET forever and
+                // init never completed. Dropped when this sequencer was ported
+                // from pumice, which has the equivalent LPDDR2 chain wired.
+                // Found by test_scoria_init_sequencer's lpddr3_path_differs.
+                S_L_RESET:  begin r_wait <= W_INIT; r_next <= S_L_ZQ;  r_state <= S_WAIT; end
+                S_L_ZQ:     begin r_wait <= W_DLL;  r_next <= S_L_MR1; r_state <= S_WAIT; end
+                S_L_MR1:    begin r_wait <= W_MRD;  r_next <= S_L_MR2; r_state <= S_WAIT; end
+                S_L_MR2:    begin r_wait <= W_MRD;  r_next <= S_L_MR3; r_state <= S_WAIT; end
+                S_L_MR3:    begin r_wait <= W_MRD;  r_next <= S_DONE;  r_state <= S_WAIT; end
+
                 S_WAIT:     if (r_wait == 16'd0) r_state <= r_next;
                             else                 r_wait  <= r_wait - 16'd1;
                 S_DONE:     r_state <= S_DONE;
@@ -292,11 +317,26 @@ module scoria_init_sequencer
         mr_seq_we_o      = 1'b0;
         mr_seq_index_o   = 5'd0;
         mr_seq_data_o    = 16'd0;
-        // RESET# is asserted (low) until the sequencer leaves S_D3_RSTN.
-        // LPDDR3 has no RESET# pin, so it is held high there.
-        dram_reset_n_o   = !(w_is_ddr3 && (r_state == S_RESET ||
-                                           r_state == S_DFI_INIT ||
-                                           r_state == S_D3_RSTN));
+        // RESET# is LATCHED released, not decoded from the state set. The
+        // original decoded it, and getting that right is harder than it looks:
+        //
+        //   every command state is occupied for exactly ONE cycle, then the FSM
+        //   parks in S_WAIT. So the low period the pin actually needs -- the
+        //   JESD79-3F 200 us power-up window, carried by W_INIT -- is spent in
+        //   S_WAIT, not in S_D3_RSTN. The first version listed S_RESET,
+        //   S_DFI_INIT and S_D3_RSTN and therefore drove RESET# low for a
+        //   single 10 ns cycle and released it for the whole window.
+        //
+        // Enumerating the S_WAITs instead does not fix it either: there are TWO
+        // on the way (r_next = S_D3_RSTN, then r_next = S_D3_CKE) and adding
+        // only the second leaves a high-low-high glitch on a device pin. That
+        // is not a hypothetical -- it is what the second attempt at this line
+        // did, and reset_n_pin caught it again.
+        //
+        // A latch says the intended thing once: asserted from reset until the
+        // sequence reaches CKE, then released and never re-asserted without a
+        // restart. LPDDR3 has no RESET# pin, so it reads high throughout.
+        dram_reset_n_o   = !w_is_ddr3 || r_rstn_released;
 
         unique case (r_state)
             // ---- DDR3: four MRS loads in the spec's order, then ZQCL ----
