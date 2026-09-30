@@ -194,10 +194,22 @@ The rules:
   The failure it would have produced is the bad kind: the peer's harness
   records the sha256 of the bitstream IT programmed, so a third party
   reprogramming mid-run yields a results file that looks valid and is measuring
-  someone else's design. Until `program`/`run` take a board-keyed lock, check
-  `fuser /dev/ttyUSB*` and `ps` for another area's host script BEFORE
-  programming a shared board -- `make ports` tells you the serial, not who is
-  using it.
+  someone else's design.
+  RESOLVED by tooling TASK-022: `program`, `run-*`, `seq-*`, `tcl-*` and `run`
+  take a board-keyed lock (board_lock.sh, keyed on the JTAG serial), and
+  BoardLock does the same from Python for runners invoked directly. That lock
+  is the only check worth relying on, because it keys on the BOARD rather than
+  on either of its interfaces.
+  The interim manual check first recorded here was HALF WRONG, and it is kept
+  as a warning about the shape: `fuser /dev/ttyUSB*` finds UART users and
+  cannot find JTAG users AT ALL. Measured -- the Genesys 2's JTAG serial
+  200300B818A0 has no tty node whatsoever; only its separate FT232R UART
+  (AU05X8RM) appears under /dev/ttyUSB*. So a `vivado -mode batch` driving the
+  board returns nothing from fuser, and the check would have missed the
+  PROGRAMMING half of the very near miss it was written for. A check that
+  covers one interface of a two-interface device reads as a clean bill of
+  health. A manual fallback needs `pgrep -af 'vivado|hw_server'` beside the
+  fuser, and even then it races.
 - **`git show --stat` elides leading paths; it is not evidence about a path.**
   2026-09-30: a peer read `.../rtl/verilator_xilinx_stubs.sv | 17 +++` from
   `--stat`, filled the `...` in from what the rest of the commit was about, and
