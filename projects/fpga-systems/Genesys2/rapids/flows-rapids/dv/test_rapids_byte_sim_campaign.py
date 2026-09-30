@@ -158,3 +158,35 @@ def test_rapids_byte_sim_campaign(request, test_level, case_id, argv):
                             'TEST_CAMPAIGN_RESULTS': results,
                             'TEST_RTL_STATE': json.dumps(_rtl_state())})
     assert os.path.isfile(results), f"{name}: the host program wrote no results JSON"
+
+
+ALIGNED_CHUNKS = int(os.environ.get('TEST_ALIGNED_CHUNKS', '3'))
+
+
+@pytest.mark.rapids_byte_harness
+@pytest.mark.parametrize('chunk', range(1, ALIGNED_CHUNKS + 1), ids=lambda k: f'{k}of{ALIGNED_CHUNKS}')
+def test_rapids_byte_sim_aligned_word_crc(request, monkeypatch, chunk):
+    """The beat-aligned performance profile on the word-wide-checker flavour of
+    the harness (BYTE_CRC=0, BUILD.WORD_CRC=1), the build the "utilization
+    unchanged" comparison is measured on. Same host program, same UART sim."""
+    from test_rapids_byte_harness import _run_harness
+    monkeypatch.setenv('TEST_BYTE_CRC', '0')
+    os.makedirs(LOG_DIR, exist_ok=True)
+    name = f'byte_sim_aligned_wordcrc_{chunk}of{ALIGNED_CHUNKS}'
+    results = os.path.join(LOG_DIR, f'{name}.json')
+    if os.path.exists(results):
+        os.remove(results)
+    argv = ['--byte-perf', '--profile', 'aligned', '--chunk', f'{chunk}/{ALIGNED_CHUNKS}']
+    _run_harness('cocotb_test_campaign', name, test_level='gate',
+                 build_name='test_rapids_byte_sim_campaign_wordcrc', compile_first=_compile_lock,
+                 module_name='test_rapids_byte_sim_campaign',
+                 extra_env={'TEST_CAMPAIGN_ARGV': ' '.join(shlex.quote(a) for a in
+                                                               ['--channels', str(BOARD_CHANNELS), *argv]),
+                            'TEST_POLL_MAX_READS': os.environ.get('TEST_POLL_MAX_READS', '4000'),
+                            'TEST_CAMPAIGN_RESULTS': results,
+                            'TEST_RTL_STATE': json.dumps(_rtl_state())})
+    assert os.path.isfile(results), f"{name}: the host program wrote no results JSON"
+    with open(results) as fh:
+        doc = json.load(fh)
+    assert doc['design']['word_crc'] is True, "the build did not report BUILD.WORD_CRC=1"
+    assert all(p['pass'] for p in doc['points']), [p['id'] for p in doc['points'] if not p['pass']]

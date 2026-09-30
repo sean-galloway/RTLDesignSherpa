@@ -49,7 +49,9 @@ module rapids_byte_genesys2_top #(
     parameter bit GEN_MON          = 1'b0,
     // Shared interface observers on the harness (rapids TASK-001), default OUT.
     parameter bit USE_OBSERVERS       = 1'b0,
-    parameter bit OBS_ENABLE_MON_TAPS = 1'b0
+    parameter bit OBS_ENABLE_MON_TAPS = 1'b0,
+    // 1: byte-wise checkers (every campaign); 0: word-wide, beat-aligned rows only
+    parameter bit BYTE_CRC            = 1'b1
 ) (
     input  logic        sysclk_p,      // 200 MHz LVDS (+)
     input  logic        sysclk_n,      // 200 MHz LVDS (-)
@@ -122,7 +124,8 @@ module rapids_byte_genesys2_top #(
         .USE_AXI_MONITORS (USE_AXI_MONITORS),
         .GEN_MON          (GEN_MON),
         .USE_OBSERVERS       (USE_OBSERVERS),
-        .OBS_ENABLE_MON_TAPS (OBS_ENABLE_MON_TAPS)
+        .OBS_ENABLE_MON_TAPS (OBS_ENABLE_MON_TAPS),
+        .BYTE_CRC            (BYTE_CRC)
     ) u_char_top (
         .CLK100MHZ    (clk100),
         .CPU_RESETN   (dut_resetn),

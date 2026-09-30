@@ -47,7 +47,7 @@ def _pt(group, ch, *, payload=None, beats=None, offset=0, descs=1,
 
 
 def build_points(profile: str):
-    """Ordered point list for a profile: quick | standard | full."""
+    """Ordered point list for a profile: quick | standard | full | aligned."""
     pts = []
     if profile == 'quick':
         for ch in (2,):
@@ -58,6 +58,8 @@ def build_points(profile: str):
         pts.append(_pt('bp', 2, payload=33, offset=0, bp=True, directions=('source',)))
         pts.append(_pt('interleave', 2, payload=33, offset=5, interleave=True, directions=('sink',)))
         return pts
+    if profile == 'aligned':
+        return [_pt('beat', ch, beats=b) for ch in BEAT_COMPARE_CHANNELS for b in ALIGNED_BEATS]
     offs = (0,) if profile == 'standard' else OFFSETS_ALL
     for ch in CHANNELS:
         for p in SIZES:

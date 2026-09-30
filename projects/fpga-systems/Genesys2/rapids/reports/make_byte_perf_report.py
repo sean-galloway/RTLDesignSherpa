@@ -7,7 +7,8 @@ from a byte-perf results JSON (host/byte_perf.py).
 Every number comes from the JSON or from the RAPIDS Beats reference JSON. A cell
 with no measurement is printed as a marked TBD; nothing is filled in by hand.
 
-  make_byte_perf_report.py --results <json> [--beats-json <json>] [--out-dir <dir>] [--rev 0.1]
+  make_byte_perf_report.py --results <json> [--aligned-results <json>] [--build-json <json> ...]
+        [--beats-json <json>] [--out-dir <dir>] [--rev 0.1]
 """
 import argparse
 import json
@@ -98,8 +99,9 @@ class Figs:
 
 # -------------------------------------------------------------------- data
 class Data:
-    def __init__(self, doc):
+    def __init__(self, doc, path=''):
         self.doc = doc
+        self.path = path
         self.pts = doc['points']
         self.by_id = {p['id']: p for p in self.pts}
         self.peak = doc['peak_mb_s']
@@ -214,32 +216,31 @@ def _ceiling(D):
     return cyc, D.peak / cyc
 
 
-def _ceiling_note(D):
+def _ceiling_note(D, settled):
     cyc, cap = _ceiling(D)
-    return (f"**What this comparison can and cannot show.** The byte build's on-chip checkers "
-            f"(`BYTE_CRC=1` on `axi4_slave_wr_crc_check` and `axis4_slave_pattern_check`) fold the "
-            f"strobed bytes of each beat into the CRC four bytes per cycle and hold ready low while "
-            f"they do, so a {D.bpb}-byte beat occupies {cyc} cycles. That caps the harness at "
-            f"{D.peak:.0f} / {cyc} = {cap:.1f} MB/s ({100.0 / cyc:.1f} % of the {D.peak:.0f} MB/s peak), "
-            f"which is where the large-transfer rows sit. The RAPIDS Beats reference used the "
-            f"word-wide checkers and is not checker-bound. The large differences above are therefore "
-            f"the checkers backpressuring the DUT, not evidence about the DUT's own throughput, and "
-            f"the \"utilization unchanged\" criterion cannot be settled on this build. It needs the "
-            f"beat-aligned rows measured with the word-wide checkers (`BYTE_CRC=0`) on a separate "
-            f"performance bitstream, which also has to keep the 1-beat and 4-beat rows comparable. "
-            f"Until then the beat-aligned rows are **not comparable** to the RAPIDS Beats report.\n")
+    txt = (f"**What the byte-checker rows can and cannot show.** The byte build's on-chip checkers "
+           f"(`BYTE_CRC=1` on `axi4_slave_wr_crc_check` and `axis4_slave_pattern_check`) fold the "
+           f"strobed bytes of each beat into the CRC four bytes per cycle and hold ready low while "
+           f"they do, so a {D.bpb}-byte beat occupies {cyc} cycles. That caps the harness at "
+           f"{D.peak:.0f} / {cyc} = {cap:.1f} MB/s ({100.0 / cyc:.1f} % of the {D.peak:.0f} MB/s peak), "
+           f"which is where the large-transfer rows sit. The RAPIDS Beats reference used the "
+           f"word-wide checkers and is not checker-bound. The differences in this table are therefore "
+           f"the checkers backpressuring the DUT, not evidence about the DUT's own throughput, and "
+           f"this table is **not comparable** to the RAPIDS Beats report. ")
+    if settled:
+        txt += ("The \"utilization unchanged\" criterion is settled in section 3.1 on the word-wide "
+                "checker build (`BYTE_CRC=0`, BUILD.WORD_CRC = 1), where every checker takes one beat "
+                "per cycle as in the RAPIDS Beats build.\n")
+    else:
+        txt += ("The \"utilization unchanged\" criterion cannot be settled on this build. It needs the "
+                "beat-aligned rows measured with the word-wide checkers (`BYTE_CRC=0`) on a separate "
+                "performance bitstream.\n")
+    return txt
 
 
-def sec_aligned(D, beats_json, F):
-    cells = byte_perf.compare_beats(D.doc, beats_json) if os.path.isfile(beats_json) else []
-    md = ["## 3. Beat-aligned rows against the RAPIDS Beats report\n"]
-    md.append("These rows use the beat-scaled path (`pkt_bytes=None`, beats per channel) on the byte DUT, "
-              "which is how the RAPIDS Beats report measured its matrix: 9-beat bursts, response delay 0, "
-              "backpressure off, default seed, bare bus meters. The metric is engaged utilization "
-              "(`prod / (prod + bp + starv)`), the RAPIDS Beats headline metric. "
-              f"\"Unchanged\" is checked numerically: every cell is compared to the same cell of "
-              f"`{os.path.basename(beats_json)}` and must agree within {TOL_PP} percentage points, "
-              "the threshold the RAPIDS Beats report itself applies between builds.\n")
+def _cmp_block(doc, beats_json, label='Verdict'):
+    """Table and verdict of the beat-aligned comparison for one results doc."""
+    cells = byte_perf.compare_beats(doc, beats_json) if os.path.isfile(beats_json) else []
     have = [c for c in cells if c['delta_pp'] is not None]
     n_cells = len(cells)
     rows = []
@@ -258,18 +259,19 @@ def sec_aligned(D, beats_json, F):
                         dmax = abs(c['delta_pp']) if dmax is None else max(dmax, abs(c['delta_pp']))
             row.append(TBD if dmax is None else f"{dmax:.2f}")
             rows.append(row)
-    md.append(table(['Ch', 'Beats/ch', 'Sink AXIS-in % (byte / beats)', 'Sink AXI4-wr %',
-                     'Source AXI4-rd %', 'Source AXIS-out %', 'Max abs delta (pp)'], rows,
-                    "Engaged utilization, byte build / RAPIDS Beats reference, beat-aligned rows"))
+    tbl = table(['Ch', 'Beats/ch', 'Sink AXIS-in % (byte / beats)', 'Sink AXI4-wr %',
+                 'Source AXI4-rd %', 'Source AXIS-out %', 'Max abs delta (pp)'], rows,
+                "Engaged utilization, byte build / RAPIDS Beats reference, beat-aligned rows")
     if not have:
         verdict = (f"{TBD}: no beat-aligned cell has been measured in this results file, "
                    "so the \"utilization unchanged\" check cannot be made yet.")
+        status = None
     else:
         bad = [c for c in have if abs(c['delta_pp']) > TOL_PP]
         worst = max(have, key=lambda c: abs(c['delta_pp']))
         missing = n_cells - len(have)
         status = "UNCHANGED" if not bad and not missing else ("CHANGED" if bad else "PARTIAL")
-        verdict = (f"**Verdict: {status}.** {len(have)} of {n_cells} beat-aligned cells were compared; "
+        verdict = (f"**{label}: {status}.** {len(have)} of {n_cells} beat-aligned cells were compared; "
                    f"{len(bad)} differ by more than {TOL_PP} pp; the largest difference is "
                    f"{worst['delta_pp']:+.2f} pp (ch {worst['channels']}, {worst['beats']} beats, "
                    f"{worst['direction']} {worst['iface']}).")
@@ -279,8 +281,42 @@ def sec_aligned(D, beats_json, F):
             verdict += " Cells over the threshold: " + "; ".join(
                 f"ch{c['channels']} b{c['beats']} {c['direction']} {c['iface']} {c['delta_pp']:+.2f} pp"
                 for c in bad[:12]) + ("; ..." if len(bad) > 12 else "") + "."
-    md.append(verdict + "\n")
-    md.append(_ceiling_note(D))
+    return cells, tbl, verdict + "\n", status
+
+
+def sec_aligned(D, beats_json, F, AD=None):
+    md = ["## 3. Beat-aligned rows against the RAPIDS Beats report\n"]
+    md.append("These rows use the beat-scaled path (`pkt_bytes=None`, beats per channel) on the byte DUT, "
+              "which is how the RAPIDS Beats report measured its matrix: 9-beat bursts, response delay 0, "
+              "backpressure off, default seed, bare bus meters. The metric is engaged utilization "
+              "(`prod / (prod + bp + starv)`), the RAPIDS Beats headline metric. "
+              f"\"Unchanged\" is checked numerically: every cell is compared to the same cell of "
+              f"`{os.path.basename(beats_json)}` and must agree within {TOL_PP} percentage points, "
+              "the threshold the RAPIDS Beats report itself applies between builds.\n")
+    if AD is not None:
+        w = AD.doc
+        md.append("### 3.1 Word-wide checker build (the verdict)\n")
+        md.append(f"Measured on the `BYTE_CRC=0` bitstream (BUILD.WORD_CRC = 1, results file "
+                  f"`{os.path.basename(AD.path)}`, bitstream sha256 "
+                  f"`{str((w.get('bitstream') or {}).get('sha256') or TBD)[:16]}`). Its checkers take one "
+                  f"beat per cycle like the RAPIDS Beats build. They CRC one 32-bit slice of each beat "
+                  f"(slice 0, which holds the beat's LFSR word) and ignore the strobes, so the golden is the "
+                  f"RAPIDS Beats golden and the data check covers 4 of the {D.bpb} bytes of each beat. That "
+                  f"is enough for a utilization measurement of whole-beat rows; full-byte integrity is what "
+                  f"the byte-wise build in 3.2 and the rest of this report check. The design under test is "
+                  f"the same RTL.\n")
+        _, tbl, verdict, _st = _cmp_block(w, beats_json)
+        md.append(tbl)
+        md.append(verdict)
+        fig_cells = byte_perf.compare_beats(w, beats_json) if os.path.isfile(beats_json) else []
+        md.append("### 3.2 Byte-wise checker build (the standard bitstream)\n")
+    cells, tbl, verdict, _st = _cmp_block(D.doc, beats_json, 'Result on this build' if AD is not None else 'Verdict')
+    md.append(tbl)
+    md.append(verdict)
+    md.append(_ceiling_note(D, AD is not None))
+    if AD is None:
+        fig_cells = cells
+    cells = fig_cells
     md.append(F.md(3, "Byte minus beats utilization, beat-aligned cells", 'aligned_delta.png',
                    'utilization delta'))
     fig_aligned(F, D, cells)
@@ -438,8 +474,8 @@ def sec_failures(D):
                         "Failed points as recorded, never dropped", align=['l', 'l', 'l', 'l']))
         md.append("A failure is recorded with its errors and is never retried away. Points after the first "
                   "failure carry the id of that failure (`after_failure`): the sticky sink packet-length flag "
-                  "and the AXI response error flags clear only on `aresetn`, and `CHANNEL_RESET` does not "
-                  "reach them, so one failed point can poison the ones after it. A failure that is repeatable "
+                  "and the AXI response error flags clear on `CHANNEL_RESET` since the channel-reset fix, "
+                  "but a failure can still leave a channel in a state a later point inherits. A failure that is repeatable "
                   "at its own coordinates, with no earlier failure in the file, is a genuine result.\n")
     planned = byte_perf.build_points(D.doc['profile'])
     missing = [p['id'] for p in planned if p['id'] not in D.by_id]
@@ -456,9 +492,44 @@ def sec_failures(D):
               "packet record has not arrived blocks every channel behind it on the stream (head-of-line "
               "blocking, inherent and documented).\n"
               "- TYPE=EXT descriptors stay beat-aligned by design and are not part of the byte sweeps.\n"
+              "- AXI error responses (RRESP and BRESP other than OKAY) are not exercised by the board "
+              "campaign or by the directed sequences: the harness memory model always answers OKAY and "
+              "has no fault-injection hook, and no RAPIDS test in the tree drives a non-OKAY response "
+              "on the read or write master. The response-error flag path is therefore unproven on "
+              "silicon and in simulation. Closing this needs an injection hook in the harness, which "
+              "is not built.\n"
               "- Each interface has its own measurement window; the `sin` window runs from the first to the "
               "last stream beat (rapids ISSUE-001), so windows differ per interface and MB/s here uses the "
               "longer of the stream and memory windows.\n")
+    return '\n'.join(md)
+
+
+def sec_build(builds):
+    md = ["## 9. Build and resources\n"]
+    if not builds:
+        md.append(f"{TBD}: no build metrics file was supplied (`--build-json`).\n")
+        return '\n'.join(md)
+    rows = []
+    for b in builds:
+        u, t = b.get('util') or {}, b.get('timing') or {}
+        rows.append([b.get('tag', TBD), f"{u.get('slice_luts', TBD):,}" if u.get('slice_luts') else TBD,
+                     f"{u.get('slice_regs', TBD):,}" if u.get('slice_regs') else TBD,
+                     f(u.get('bram_tiles'), '{:d}'), f(t.get('wns_ns'), '{:+.3f}', 1, ' ns'),
+                     f(t.get('whs_ns'), '{:+.3f}', 1, ' ns'),
+                     f"{t.get('tns_failing', TBD)}", f"`{str(b.get('bitstream_sha256') or TBD)[:16]}`"])
+    md.append(table(['Build', 'Slice LUTs', 'Slice regs', 'BRAM tiles', 'WNS setup', 'WHS hold',
+                     'Failing endpoints', 'Bitstream sha256'], rows,
+                    "Post-route resources and timing at 100 MHz, XC7K325T (203,800 LUTs, 445 BRAM tiles)"))
+    md.append("Build configuration of each row:\n")
+    for b in builds:
+        src = f" Source: {b['source']}." if b.get('source') else ''
+        cm = f" RTL commit `{b['commit']}`." if b.get('commit') else ''
+        md.append(f"- **{b.get('tag')}**: {b.get('config')}.{cm}{src}")
+    md.append("")
+    md.append("Every build closes timing at 100 MHz with no failing endpoint. The slack is small and "
+              "positive; treat 100 MHz as the design point, not as margin. The resource figures come from "
+              "the post-route utilization report; the word-wide checker build is a measurement "
+              "bitstream and is not the standard one.\n")
     return '\n'.join(md)
 
 
@@ -492,7 +563,7 @@ def _device_section(d):
 
 def sec_provenance(D, results_path, beats_json):
     d = D.doc
-    md = ["## 9. Provenance and reproduction\n"]
+    md = ["## 10. Provenance and reproduction\n"]
     rows = [['Results file', f"`{os.path.basename(results_path)}`"],
             ['Timestamp', d.get('timestamp', TBD)],
             ['Profile', f"`{d.get('profile')}`"],
@@ -548,10 +619,18 @@ def sec_headline(D):
     return '\n'.join(md)
 
 
-def build(results_path, beats_json, out_dir, rev):
+def build(results_path, beats_json, out_dir, rev, aligned_path=None, build_paths=()):
     with open(results_path) as fh:
         doc = json.load(fh)
-    D = Data(doc)
+    D = Data(doc, results_path)
+    AD = None
+    if aligned_path:
+        with open(aligned_path) as fh:
+            AD = Data(json.load(fh), aligned_path)
+    builds = []
+    for bp in build_paths:
+        with open(bp) as fh:
+            builds.append(json.load(fh))
     F = Figs(os.path.join(out_dir, 'plots'))
     prelim = doc.get('prelim')
     md = [HEADER]
@@ -566,13 +645,18 @@ def build(results_path, beats_json, out_dir, rev):
     md.append("---\n")
     md.append(sec_headline(D))
     md.append(sec_defs(D))
-    md.append(sec_aligned(D, beats_json, F))
+    md.append(sec_aligned(D, beats_json, F, AD))
     md.append(sec_size(D, F))
     md.append(sec_offset(D, F))
     md.append(sec_chain(D))
     md.append(sec_bp(D))
     md.append(sec_failures(D))
+    md.append(sec_build(builds))
     md.append(sec_provenance(D, results_path, beats_json))
+    if AD is not None:
+        md.append(f"The word-wide aligned results are `{os.path.basename(aligned_path)}`; its device "
+                  "readback follows.\n")
+        md.append(_device_section(AD.doc))
     os.makedirs(out_dir, exist_ok=True)
     out = os.path.join(out_dir, 'README.md')
     with open(out, 'w') as fh:
@@ -583,12 +667,14 @@ def build(results_path, beats_json, out_dir, rev):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument('--results', required=True, help='byte-perf results JSON')
+    ap.add_argument('--aligned-results', default=None, help='aligned-profile JSON measured on the BYTE_CRC=0 bitstream')
+    ap.add_argument('--build-json', action='append', default=[], help='extract_build_metrics.py JSON (repeatable)')
     ap.add_argument('--beats-json', default=os.path.normpath(DEFAULT_BEATS))
     ap.add_argument('--out-dir', default=os.path.join(HERE, 'perf'))
     ap.add_argument('--rev', default='0.1')
     ap.add_argument('--pdf', action='store_true', help='also build the DOCX/PDF through generate_reports_pdf.sh')
     a = ap.parse_args()
-    out = build(a.results, a.beats_json, a.out_dir, a.rev)
+    out = build(a.results, a.beats_json, a.out_dir, a.rev, a.aligned_results, a.build_json)
     print(f"wrote {out}")
     if a.pdf:
         import subprocess

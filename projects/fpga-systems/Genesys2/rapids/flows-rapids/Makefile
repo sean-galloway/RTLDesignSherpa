@@ -110,6 +110,10 @@ export GEN_MON          ?= 0
 #                      histograms count without them).
 export USE_OBSERVERS       ?= 0
 export OBS_ENABLE_MON_TAPS ?= 0
+# BYTE_CRC: 1 = byte-wise data checkers (default, every campaign); 0 = word-wide
+#           checkers, only to measure the beat-aligned rows without the 9-cycle
+#           per-beat checker ceiling (BUILD.WORD_CRC reports which is on the board).
+export BYTE_CRC ?= 1
 
 .PHONY: help sim verify-sim project synth bitstream program characterize \
         smoke suite flow utilization timing clean clean-all cleanall
@@ -133,6 +137,7 @@ help:
 	@echo "  DATA_WIDTH=$(DATA_WIDTH) SRAM_DEPTH=$(SRAM_DEPTH)   (256-bit datapath, 4 KB/channel; generics + verify-sim)"
 	@echo "  USE_AXI_MONITORS=$(USE_AXI_MONITORS) GEN_MON=$(GEN_MON)   (both 0: monitors compiled out)"
 	@echo "  USE_OBSERVERS=$(USE_OBSERVERS) OBS_ENABLE_MON_TAPS=$(OBS_ENABLE_MON_TAPS)   (both 0: observers compiled out)"
+	@echo "  BYTE_CRC=$(BYTE_CRC)   (1: byte-wise checkers; 0: word-wide, beat-aligned rows only)"
 
 # ---- Simulation -----------------------------------------------------------
 # The harness self-check IS the characterization, run in sim: a multi-channel

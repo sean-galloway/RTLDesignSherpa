@@ -72,7 +72,8 @@ CSR = [
                                   ('AXI_MONITORS', 24, 24, 'r'),
                                   ('OBSERVERS', 25, 25, 'r'),
                                   ('GEN_MON', 26, 26, 'r'),
-                                  ('BYTE_DUT', 27, 27, 'r')]),        # 1: byte-granular rapids_top (TASK-019)
+                                  ('BYTE_DUT', 27, 27, 'r'),         # 1: byte-granular rapids_top (TASK-019)
+                                  ('WORD_CRC', 28, 28, 'r')]),        # 1: word-wide checkers; 0 (every earlier build): byte-wise
     (0x010, 'GEN_CTRL',    'w',  [('GEN_START', 0, 0, 'w')]),         # cfg_gen_start pulse
     (0x014, 'GEN_SEED',    'rw', None),
     (0x018, 'GEN_NBEATS',  'rw', None),

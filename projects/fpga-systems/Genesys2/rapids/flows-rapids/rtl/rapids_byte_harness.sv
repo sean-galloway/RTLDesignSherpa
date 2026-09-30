@@ -86,6 +86,12 @@ module rapids_byte_harness #(
     // their meters and latency histograms count regardless.
     parameter bit USE_OBSERVERS       = 1'b0,
     parameter bit OBS_ENABLE_MON_TAPS = 1'b0,
+    // Checker flavour: 1 = byte-wise CRC over the strobed bytes (9 cycles per
+    // 32-byte beat, handles any strobe); 0 = word-wide CRC (one beat per cycle,
+    // full-strobe beats only). The default is the byte checkers every campaign
+    // uses; 0 exists to measure the DUT's beat-aligned rows without the
+    // checker ceiling and is reported in BUILD.WORD_CRC.
+    parameter bit BYTE_CRC = 1'b1,
     // ---- Host interface (relocated from rapids_byte_top) ----
     parameter int FPGA_CLK_HZ     = 100_000_000,
     parameter int UART_BAUD       = 115_200
@@ -625,8 +631,10 @@ module rapids_byte_harness #(
                     // What was built, so the host never assumes the beat size:
                     // [7:0] bytes per beat, [15:8] channels, [23:16] log2(SRAM_DEPTH),
                     // [24] USE_AXI_MONITORS, [25] USE_OBSERVERS, [26] GEN_MON,
-                    // [27] BYTE_DUT = 1: this is the byte-granular rapids_top harness (TASK-019).
-                    CSR_BUILD:       w_readmux = {4'b0, 1'b1, GEN_MON, USE_OBSERVERS,
+                    // [27] BYTE_DUT = 1: this is the byte-granular rapids_top harness (TASK-019),
+                    // [28] WORD_CRC = !BYTE_CRC: 1 when the checkers are the word-wide
+                    // flavour, so every bitstream built before this bit existed reads 0 = byte-wise.
+                    CSR_BUILD:       w_readmux = {3'b0, !BYTE_CRC, 1'b1, GEN_MON, USE_OBSERVERS,
                                                   (USE_AXI_MONITORS != 0),
                                                   8'($clog2(SRAM_DEPTH)),
                                                   8'(NUM_CHANNELS),
@@ -1516,7 +1524,7 @@ module rapids_byte_harness #(
     //=========================================================================
     axis4_slave_pattern_check #(
         .NUM_CHANNELS    (NUM_CHANNELS),
-        .BYTE_CRC        (1'b1),           // byte-wise CRC over the strobed bytes (TASK-019)
+        .BYTE_CRC        (BYTE_CRC),
         .AXIS_DATA_WIDTH (DATA_WIDTH),
         .AXIS_ID_WIDTH   (AXIS_ID_WIDTH),
         .AXIS_DEST_WIDTH (AXIS_DEST_WIDTH),
@@ -1639,7 +1647,7 @@ module rapids_byte_harness #(
 
     axi4_slave_wr_crc_check #(
         .NUM_CHANNELS   (NUM_CHANNELS),
-        .BYTE_CRC       (1'b1),            // byte-wise CRC over the strobed bytes (TASK-019)
+        .BYTE_CRC       (BYTE_CRC),
         .AXI_ID_WIDTH   (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH (ADDR_WIDTH),
         .AXI_DATA_WIDTH (DATA_WIDTH)

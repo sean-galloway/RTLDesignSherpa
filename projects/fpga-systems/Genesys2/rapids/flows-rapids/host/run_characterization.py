@@ -105,6 +105,7 @@ def read_build(io) -> dict:
         # byte-granular rapids_top with byte-wise checkers (TASK-019): lengths
         # in bytes, golden over bytes even for whole-beat runs
         'byte_dut': bool(io.csr_field("BUILD", "BYTE_DUT")),
+        'word_crc': bool(io.csr_field("BUILD", "WORD_CRC")),
         'aclk_hz': ACLK_HZ,
     }
     if d['beat_bytes'] == 0:
@@ -490,7 +491,13 @@ class RapidsByteCampaign:
 
         # 6. Golden-anchored scoreboard: wr_crc_value[ch] == golden(ch); the
         #    generator self-CRC is corroboration only (non-fatal on flake).
-        if byte_dut:
+        if byte_dut and self.design.get('word_crc'):
+            # word-wide checker (BYTE_CRC=0): one 32-bit slice per beat, which
+            # is the beat's replicated LFSR word; whole beats at offset 0 only
+            if pkt_bytes or offset:
+                raise RuntimeError("word-wide checker build measures whole-beat, offset-0 runs only")
+            wr_golden = lambda ch: golden_crc(ch, beats, base_seed)   # noqa: E731
+        elif byte_dut:
             # the byte-wise write checker CRCs every byte written, so the
             # golden is over bytes even for whole-beat packets
             nb = pkt_bytes if pkt_bytes else beats * bpb
@@ -601,7 +608,11 @@ class RapidsByteCampaign:
 
         # 6. Golden-anchored scoreboard: rd_crc AND chk_actual_crc == golden.
         #    Source seed is always the DEADBEEF default (see above).
-        if byte_dut:
+        if byte_dut and self.design.get('word_crc'):
+            if pkt_bytes or offset:
+                raise RuntimeError("word-wide checker build measures whole-beat, offset-0 runs only")
+            rd_golden = chk_golden = lambda ch: golden_crc(ch, mem_beats * descs, LFSR_SEED_DEFAULT)  # noqa: E731
+        elif byte_dut:
             # read side: the word CRC over the memory beats actually read;
             # egress: the byte-wise checker over the re-packed stream
             nb = pkt_bytes if pkt_bytes else beats * bpb
@@ -1177,8 +1188,9 @@ Examples:
                    help="byte-granular performance campaign (BYTE_DUT build): sweeps channels x payload "
                         "bytes x offset x direction, plus the beat-aligned comparison rows, and writes "
                         "bytes / beats / efficiency / MB/s per point (see byte_perf.py)")
-    p.add_argument('--profile', default='standard', choices=('quick', 'standard', 'full'),
-                   help='--byte-perf point set (default standard)')
+    p.add_argument('--profile', default='standard', choices=('quick', 'standard', 'full', 'aligned'),
+                   help="--byte-perf point set (default standard); 'aligned' is the beat-aligned "
+                        "rows only, the one set a word-wide-checker build (BUILD.WORD_CRC=1) can run")
     p.add_argument('--prelim', action='store_true',
                    help='--byte-perf: mark the results PRELIMINARY (adds _prelim to the default file name)')
     p.add_argument('--resume', action='store_true',
@@ -1283,6 +1295,10 @@ def _main_with_io(args, io, campaign_hook, transport) -> int:
           f"SRAM {d['sram_depth']} beats = {d['sram_bytes_per_channel'] // 1024} KB per channel, "
           f"axi_monitors={int(d['axi_monitors'])} observers={int(d['observers'])} "
           f"gen_mon={int(d['gen_mon'])}")
+    if d.get('word_crc') and not (args.byte_perf and args.profile == 'aligned'):
+        print("FAIL: this bitstream has the word-wide checkers (BUILD.WORD_CRC=1), which cannot "
+              "check a partial strobe; only --byte-perf --profile aligned may run on it")
+        return 2
     if d['channels'] != args.channels:
         print(f"FAIL: --channels {args.channels} but the bitstream was built with "
               f"{d['channels']} channels (BUILD register); pass --channels {d['channels']}")

@@ -187,6 +187,9 @@ def _run_harness(testcase, test_name, *, test_level='gate', extra_env=None,
         # board; TEST_USE_OBSERVERS=1 builds them so verify-sim covers that flavour.
         'USE_OBSERVERS': int(os.environ.get('TEST_USE_OBSERVERS', '0')),
         'OBS_ENABLE_MON_TAPS': int(os.environ.get('TEST_OBS_ENABLE_MON_TAPS', '0')),
+        # 1 = byte-wise checkers (every campaign); 0 = the word-wide flavour the
+        # aligned performance build uses (BUILD.WORD_CRC = 1).
+        'BYTE_CRC': int(os.environ.get('TEST_BYTE_CRC', '1')),
     }
 
     env = {
