@@ -1,0 +1,1852 @@
+<!---
+Markdown description for SystemRDL register map.
+
+Don't override. Generated from: $root
+-->
+
+## scoria_csr address map
+
+- Absolute Address: 0x0
+- Base Offset: 0x0
+- Size: 0xFF8
+
+<p>Configuration and observation registers for the DDR3/LPDDR3 controller</p>
+
+|Offset|       Identifier      |                  Name                  |
+|------|-----------------------|----------------------------------------|
+| 0x000|          CTRL         |            Control Register            |
+| 0x004|         STATUS        |             Status Register            |
+| 0x008|     STATUS_HISTORY    |             Status History             |
+| 0x010| TIMINGS_RC_RCD_RP_RAS |    Timings: tRC / tRCD / tRP / tRAS    |
+| 0x014|    TIMINGS_RFC_REFI   |          Timings: tRFC / tREFI         |
+| 0x018|TIMINGS_RRD_FAW_WTR_CCD|   Timings: tRRD / tFAW / tWTR / tCCD   |
+| 0x01C|   TIMINGS_CL_CWL_WR   |    Timings: CL / CWL / tWR / tRFCpb    |
+| 0x020|          MR0          |             Mode Register 0            |
+| 0x024|          MR1          |             Mode Register 1            |
+| 0x028|          MR2          |             Mode Register 2            |
+| 0x02C|          MR3          |             Mode Register 3            |
+| 0x030|  PASR_BANK_MASK_RANK0 |          PASR Bank Mask Rank 0         |
+| 0x034|  PASR_SEG_MASK_RANK0  |        PASR Segment Mask Rank 0        |
+| 0x038|   TEMP_DERATE_RANK0   |        Temperature Derate Rank 0       |
+| 0x040|      SCHED_TUNING     |            Scheduler Tuning            |
+| 0x048|     REFRESH_TUNING    |             Refresh Tuning             |
+| 0x04C|        ADDR_MAP       |               Address Map              |
+| 0x050|      INIT_TUNING      |               Init Tuning              |
+| 0x054|    TIMINGS_RTP_RTW    |          Timings: tRTP / tRTW          |
+| 0x058|      INIT_TIMING0     |      Init Timing 0: tINIT / tDLLK      |
+| 0x05C|      INIT_TIMING1     | Init Timing 1: tMRD / tRP / tRFC (init)|
+| 0x060|       DFI_PHASE       |       DFI Command Phase Placement      |
+| 0x064|       PHY_TIMING      |  PHY / DFI data timing + memory config |
+| 0x068|      SCHED_POLICY     |            Scheduler Policy            |
+| 0x06C|      SCHED_WR_WM      |       Scheduler Write Watermarks       |
+| 0x070|    PAGE_POLICY_CFG    |           Page Policy Config           |
+| 0x074|    PAGE_TIMEOUT_CFG   |           Page Timeout Config          |
+| 0x080|     OBS_ROW_HIT[0]    |      Per-Bank Row Hit Observation      |
+| 0x084|     OBS_ROW_HIT[1]    |      Per-Bank Row Hit Observation      |
+| 0x088|     OBS_ROW_HIT[2]    |      Per-Bank Row Hit Observation      |
+| 0x08C|     OBS_ROW_HIT[3]    |      Per-Bank Row Hit Observation      |
+| 0x090|     OBS_ROW_HIT[4]    |      Per-Bank Row Hit Observation      |
+| 0x094|     OBS_ROW_HIT[5]    |      Per-Bank Row Hit Observation      |
+| 0x098|     OBS_ROW_HIT[6]    |      Per-Bank Row Hit Observation      |
+| 0x09C|     OBS_ROW_HIT[7]    |      Per-Bank Row Hit Observation      |
+| 0x0C0|      INIT_TIMING2     |          Init Timings 2 (DDR3)         |
+| 0x0C4|         ZQ_CFG        |          ZQ Calibration Config         |
+| 0x0C8|      ZQ_INTERVAL      |         ZQ Calibration Interval        |
+| 0x0CC|       ZQ_STATUS       |          ZQ Calibration Status         |
+| 0x0D0|       WRLVL_CFG       |          Write Leveling Config         |
+| 0x0D4|     WRLVL_TIMING0     |        Write Leveling Timings 0        |
+| 0x0D8|     WRLVL_TIMING1     |        Write Leveling Timings 1        |
+| 0x0DC|     WRLVL_TIMING2     |        Write Leveling Timings 2        |
+| 0x0E0|     WRLVL_STATUS0     |          Write Leveling Status         |
+| 0x0E4|     WRLVL_STATUS1     |         Write Leveling Status 1        |
+| 0x140|        REF_CTRL       |          Refresh Mode Control          |
+| 0x144|     REF_TIMING_PB     |         Per-Bank Refresh Timing        |
+| 0x148|     PAGE_STATS_HIT    |Page Stats: Column Ops (misnamed 'Hits')|
+| 0x14C|    PAGE_STATS_MISS    |           Page Stats: Misses           |
+| 0x150|    PAGE_STATS_EMPTY   |           Page Stats: Empties          |
+| 0x154|    SCHED_STATS_ACT    |         Sched Stats: Activates         |
+| 0x158|    SCHED_STATS_PRE    |         Sched Stats: Precharges        |
+| 0x15C|     REF_STATS_REF     |        Refresh Stats: Refreshes        |
+| 0x160|        STALL_BP       |         Stall: DFI backpressure        |
+| 0x164|     STALL_REFRESH     |             Stall: refresh             |
+| 0x168|    STALL_TURNAROUND   |          Stall: bus turnaround         |
+| 0x16C|       STALL_TCCD      |          Stall: column spacing         |
+| 0x170|     STALL_ACTLIMIT    |       Stall: activate rate limit       |
+| 0x174|    STALL_BANKTIMER    |          Stall: per-bank timer         |
+| 0x178|      STALL_NOREQ      |         Stall: nothing pending         |
+| 0x17C|   REF_STATS_REF_BUSY  |  Refresh Stats: Refreshes with demand  |
+| 0xFF0|           ID          |                Module ID               |
+| 0xFF4|         BUILD         |               Build Hash               |
+
+### CTRL register
+
+- Absolute Address: 0x0
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Init / power / soft-reset request bits</p>
+
+|Bits|     Identifier     |Access|Reset|Name|
+|----|--------------------|------|-----|----|
+|  0 |     init_start     |  rw  | 0x0 |  — |
+|  1 | init_force_restart |  rw  | 0x0 |  — |
+| 3:2|      RSVD_3_2      |   r  | 0x0 |  — |
+|  4 |  pwr_req_low_power |  rw  | 0x0 |  — |
+|  5 |     pwr_req_dpd    |  rw  | 0x0 |  — |
+|  6 |   pwr_req_active   |  rw  | 0x0 |  — |
+|  7 |pwr_req_self_refresh|  rw  | 0x0 |  — |
+|30:8|      RSVD_30_8     |   r  | 0x0 |  — |
+| 31 |     soft_reset     |  rw  | 0x0 |  — |
+
+#### init_start field
+
+<p>Write 1 to start init</p>
+
+#### init_force_restart field
+
+<p>Write 1 to force re-init even mid-sequence</p>
+
+#### RSVD_3_2 field
+
+<p>Reserved</p>
+
+#### pwr_req_low_power field
+
+<p>Request power-down state</p>
+
+#### pwr_req_dpd field
+
+<p>Request DPD (LPDDR3 only)</p>
+
+#### pwr_req_active field
+
+<p>Request return to ACTIVE</p>
+
+#### pwr_req_self_refresh field
+
+<p>Request self-refresh</p>
+
+#### RSVD_30_8 field
+
+<p>Reserved</p>
+
+#### soft_reset field
+
+<p>Write 1 to assert internal soft reset (self-clearing)</p>
+
+### STATUS register
+
+- Absolute Address: 0x4
+- Base Offset: 0x4
+- Size: 0x4
+
+<p>Init / power / version status</p>
+
+| Bits|  Identifier |Access|Reset|Name|
+|-----|-------------|------|-----|----|
+|  0  |  init_done  |   r  |  —  |  — |
+|  1  |  init_error |   r  |  —  |  — |
+| 3:2 |   RSVD_3_2  |   r  | 0x0 |  — |
+| 7:4 | power_state |   r  |  —  |  — |
+|  8  | pasr_active |   r  |  —  |  — |
+| 15:9|  RSVD_15_9  |   r  | 0x0 |  — |
+|23:16|init_step_dbg|   r  |  —  |  — |
+|30:24|  RSVD_30_24 |   r  | 0x0 |  — |
+|  31 |version_match|   r  |  —  |  — |
+
+#### init_done field
+
+<p>Init complete</p>
+
+#### init_error field
+
+<p>Init error</p>
+
+#### RSVD_3_2 field
+
+<p>Reserved</p>
+
+#### power_state field
+
+<p>Current power-state FSM state (encoded)</p>
+
+#### pasr_active field
+
+<p>LPDDR3: PASR mask is non-zero</p>
+
+#### RSVD_15_9 field
+
+<p>Reserved</p>
+
+#### init_step_dbg field
+
+<p>Current init step number (for bring-up)</p>
+
+#### RSVD_30_24 field
+
+<p>Reserved</p>
+
+#### version_match field
+
+<p>Build matches expected version</p>
+
+### STATUS_HISTORY register
+
+- Absolute Address: 0x8
+- Base Offset: 0x8
+- Size: 0x4
+
+<p>Last 8 power-state transitions, 4 bits each. Most recent in [3:0].</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|  history |   r  |  —  |  — |
+
+#### history field
+
+<p>8 x 4-bit power-state history</p>
+
+### TIMINGS_RC_RCD_RP_RAS register
+
+- Absolute Address: 0x10
+- Base Offset: 0x10
+- Size: 0x4
+
+<p>Packed core per-bank JEDEC windows, in MC (controller) cycles.
+EVERY JEDEC timing field in this map is a count of cycles to
+BLOCK, so a window programmed to N is enforced as N+1 cycles of
+command spacing -- the counter is loaded with N on the event and
+the gate opens the cycle after it would reach zero. Measured and
+bounded tight in formal/scoria/{bank_timer,global_timers}
+(a_*_bound_n1). Program the JEDEC value from the part datasheet;
+do NOT subtract one to compensate, or the register stops reading
+as the part's timing. scoria TASK-034 tracks whether to recover
+that cycle -- it is a board measurement, because the empirical
+rtw_guard in the host's tRTW derivation was tuned with it
+present.</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 7:0 |    tRC   |  rw  | 0x3C|  — |
+| 15:8|   tRCD   |  rw  | 0xF |  — |
+|23:16|    tRP   |  rw  | 0xF |  — |
+|31:24|   tRAS   |  rw  | 0x28|  — |
+
+#### tRC field
+
+<p>tRC -- MC cycles to block; spacing enforced is N+1</p>
+
+#### tRCD field
+
+<p>tRCD -- MC cycles to block; spacing enforced is N+1</p>
+
+#### tRP field
+
+<p>tRP -- MC cycles to block; spacing enforced is N+1</p>
+
+#### tRAS field
+
+<p>tRAS -- MC cycles to block; spacing enforced is N+1</p>
+
+### TIMINGS_RFC_REFI register
+
+- Absolute Address: 0x14
+- Base Offset: 0x14
+- Size: 0x4
+
+<p>Refresh interval and recovery</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 15:0|   tRFC   |  rw  | 0x10|  — |
+|31:16|   tREFI  |  rw  |0x79E|  — |
+
+#### tRFC field
+
+<p>tRFC (or tRFCab)</p>
+
+#### tREFI field
+
+<p>tREFI</p>
+
+### TIMINGS_RRD_FAW_WTR_CCD register
+
+- Absolute Address: 0x18
+- Base Offset: 0x18
+- Size: 0x4
+
+<p>Inter-bank + bus turn-around</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 7:0 |   tRRD   |  rw  | 0x6 |  — |
+| 15:8|   tFAW   |  rw  | 0x23|  — |
+|23:16|   tWTR   |  rw  | 0x4 |  — |
+|31:24|   tCCD   |  rw  | 0x4 |  — |
+
+#### tRRD field
+
+<p>tRRD -- MC cycles to block; spacing enforced is N+1</p>
+
+#### tFAW field
+
+<p>tFAW -- MC cycles; at most 4 ACTs per rank in the window</p>
+
+#### tWTR field
+
+<p>tWTR -- MC cycles to block; spacing enforced is N+1</p>
+
+#### tCCD field
+
+<p>tCCD -- MC cycles to block; spacing enforced is N+1</p>
+
+### TIMINGS_CL_CWL_WR register
+
+- Absolute Address: 0x1C
+- Base Offset: 0x1C
+- Size: 0x4
+
+<p>CAS latencies + write recovery + LPDDR3 per-bank tRFC</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 7:0 |    CL    |  rw  | 0x6 |  — |
+| 15:8|    CWL   |  rw  | 0x4 |  — |
+|23:16|    tWR   |  rw  | 0xF |  — |
+|31:24|  tRFCpb  |  rw  | 0x46|  — |
+
+#### CL field
+
+<p>CAS latency</p>
+
+#### CWL field
+
+<p>CAS write latency</p>
+
+#### tWR field
+
+<p>Write recovery (tWR, from end of burst) -- MC cycles to block; spacing enforced is N+1</p>
+
+#### tRFCpb field
+
+<p>LPDDR3 per-bank tRFC</p>
+
+### MR0 register
+
+- Absolute Address: 0x20
+- Base Offset: 0x20
+- Size: 0x4
+
+<p>MR0 base value loaded during the init MRS chain (low 16 bits).
+Default 0x433 is DDR3 BL8/CL3/tWR3. The init FSM ORs in the DLL
+reset bit for the first MR0 load. Runtime-writable so software can
+retune the mode register AND sweep the value to defeat an
+arbitrary board A-lane mapping on MRS commands: write MRx.VAL then
+pulse CTRL.init_force_restart.</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 15:0|    VAL   |  rw  |0x433|  — |
+|31:16|   RSVD   |   r  | 0x0 |  — |
+
+#### VAL field
+
+<p>MR0 value, DDR3 BL8/CL3/tWR3 default</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### MR1 register
+
+- Absolute Address: 0x24
+- Base Offset: 0x24
+- Size: 0x4
+
+<p>MR1 value loaded during init (low 16 bits)</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 15:0|    VAL   |  rw  | 0x0 |  — |
+|31:16|   RSVD   |   r  | 0x0 |  — |
+
+#### VAL field
+
+<p>MR1 value</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### MR2 register
+
+- Absolute Address: 0x28
+- Base Offset: 0x28
+- Size: 0x4
+
+<p>MR2 value loaded during init (low 16 bits)</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 15:0|    VAL   |  rw  | 0x0 |  — |
+|31:16|   RSVD   |   r  | 0x0 |  — |
+
+#### VAL field
+
+<p>MR2 value</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### MR3 register
+
+- Absolute Address: 0x2C
+- Base Offset: 0x2C
+- Size: 0x4
+
+<p>MR3 value loaded during init (low 16 bits)</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 15:0|    VAL   |  rw  | 0x0 |  — |
+|31:16|   RSVD   |   r  | 0x0 |  — |
+
+#### VAL field
+
+<p>MR3 value</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### PASR_BANK_MASK_RANK0 register
+
+- Absolute Address: 0x30
+- Base Offset: 0x30
+- Size: 0x4
+
+<p>LPDDR3 PASR per-bank mask for rank 0 (MR16). Bit N=1 masks bank N.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|pasr_banks|  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### pasr_banks field
+
+<p>Bank mask</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### PASR_SEG_MASK_RANK0 register
+
+- Absolute Address: 0x34
+- Base Offset: 0x34
+- Size: 0x4
+
+<p>LPDDR3 PASR segment mask for rank 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0| pasr_segs|  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### pasr_segs field
+
+<p>Segment mask</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### TEMP_DERATE_RANK0 register
+
+- Absolute Address: 0x38
+- Base Offset: 0x38
+- Size: 0x4
+
+<p>LPDDR3 MR4 temperature class for rank 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 1:0|temp_class|   r  |  —  |  — |
+|31:2|   RSVD   |   r  | 0x0 |  — |
+
+#### temp_class field
+
+<p>00 = nominal, 01 = 2x refresh, 10 = 4x refresh</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### SCHED_TUNING register
+
+- Absolute Address: 0x40
+- Base Offset: 0x40
+- Size: 0x4
+
+<p>RETIRED 2026-09-09. lookahead_active / force_inorder / age_max_runtime / txn_queue_high_water / lookahead_max_obs belonged to the pre-rearchitecture scheduler; nothing has consumed them since the CAM+arbiter scheduler (pumice_mem_cmd_scheduler) landed, so a write here was a silent no-op. Scheduling is SCHED_POLICY (order_mode selects in_order / age_threshold; FR-FCFS is the default and reorders across the whole CAM, so there is no lookahead window to size). The address is kept so the map does not shift.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   RSVD   |   r  | 0x0 |  — |
+
+#### RSVD field
+
+<p>Reserved (retired scheduler knobs)</p>
+
+### REFRESH_TUNING register
+
+- Absolute Address: 0x48
+- Base Offset: 0x48
+- Size: 0x4
+
+<p>Page-policy override. The refresh fields that lived here (refpb_policy_or, refresh_defer_active, zqcs_freq_hz) were retired 2026-09-09: refresh mode and the JEDEC postpone/pull-in credits are REF_CTRL, and no ZQCS engine consumed the interval. The address is kept so the map does not shift.</p>
+
+| Bits|  Identifier  |Access|Reset|Name|
+|-----|--------------|------|-----|----|
+| 1:0 |   RSVD_1_0   |   r  | 0x0 |  — |
+| 3:2 |page_policy_or|  rw  | 0x0 |  — |
+| 15:4|   RSVD_15_4  |   r  | 0x0 |  — |
+|31:16|  RSVD_31_16  |   r  | 0x0 |  — |
+
+#### RSVD_1_0 field
+
+<p>Reserved (was refpb_policy_or; see REF_CTRL.mode)</p>
+
+#### page_policy_or field
+
+<p>00=build-time, 01=OPEN, 10=CLOSE, 11=reserved (was HYBRID; maps to build default)</p>
+
+#### RSVD_15_4 field
+
+<p>Reserved (was refresh_defer_active; see REF_CTRL.postpone_limit)</p>
+
+#### RSVD_31_16 field
+
+<p>Reserved (was zqcs_freq_hz; no ZQCS engine)</p>
+
+### ADDR_MAP register
+
+- Absolute Address: 0x4C
+- Base Offset: 0x4C
+- Size: 0x4
+
+<p>AXI-address -&gt; {rank,row,bank,col} mapping. bank_lsb is where the
+bank field sits in the (byte-offset-stripped) word address; the
+column fills below (col_lo) and above (col_hi) it, row/rank stack
+above. ROW_MAJOR / BANK_INTERLEAVE / XOR_HASH are just settings of
+this register (no separate scheme selector). See addr_mapper.sv.</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 4:0 | bank_lsb |  rw  | 0xA |  — |
+| 7:5 | RSVD_7_5 |   r  | 0x0 |  — |
+|  8  |  hash_en |  rw  | 0x0 |  — |
+| 15:9| RSVD_15_9|   r  | 0x0 |  — |
+|23:16| hash_seed|  rw  | 0x0 |  — |
+|31:24|RSVD_31_24|   r  | 0x0 |  — |
+
+#### bank_lsb field
+
+<p>Bank field LSB in the word address (=COL_WIDTH -&gt; ROW_MAJOR)</p>
+
+#### RSVD_7_5 field
+
+<p>Reserved</p>
+
+#### hash_en field
+
+<p>Enable bank XOR-hash: bank ^= fold(row) ^ hash_seed</p>
+
+#### RSVD_15_9 field
+
+<p>Reserved</p>
+
+#### hash_seed field
+
+<p>XOR-hash seed (bank ^= fold(row) ^ seed[BW-1:0])</p>
+
+#### RSVD_31_24 field
+
+<p>Reserved</p>
+
+### INIT_TUNING register
+
+- Absolute Address: 0x50
+- Base Offset: 0x50
+- Size: 0x4
+
+<p>ZQ retries + per-step init timeout</p>
+
+| Bits|   Identifier  |Access|Reset|Name|
+|-----|---------------|------|-----|----|
+| 3:0 |   zq_retries  |  rw  | 0x3 |  — |
+| 7:4 |    RSVD_7_4   |   r  | 0x0 |  — |
+| 15:8|init_timeout_ms|  rw  | 0xA |  — |
+|31:16|   RSVD_31_16  |   r  | 0x0 |  — |
+
+#### zq_retries field
+
+<p>ZQ retries (1..8)</p>
+
+#### RSVD_7_4 field
+
+<p>Reserved</p>
+
+#### init_timeout_ms field
+
+<p>Init timeout ms (1..255)</p>
+
+#### RSVD_31_16 field
+
+<p>Reserved</p>
+
+### TIMINGS_RTP_RTW register
+
+- Absolute Address: 0x54
+- Base Offset: 0x54
+- Size: 0x4
+
+<p>Read-to-precharge and read-to-write turn-around (JEDEC), in MC
+cycles. Previously tRTP was hardcoded (8'd4, 'not yet in CSR map')
+and tRTW was tied to tRTP; now both are independent configs.</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 7:0 |   tRTP   |  rw  | 0x4 |  — |
+| 15:8|   tRTW   |  rw  | 0x6 |  — |
+|31:16|   RSVD   |   r  | 0x0 |  — |
+
+#### tRTP field
+
+<p>Read to precharge (tRTP) -- MC cycles to block; spacing enforced is N+1</p>
+
+#### tRTW field
+
+<p>Read to write (tRTW) -- MC cycles to block; spacing enforced is N+1</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### INIT_TIMING0 register
+
+- Absolute Address: 0x58
+- Base Offset: 0x58
+- Size: 0x4
+
+<p>JEDEC init-sequence waits (MC cycles): CKE/tINIT settle and DLL
+lock. Previously hardcoded in init_sequencer.</p>
+
+| Bits| Identifier|Access|Reset|Name|
+|-----|-----------|------|-----|----|
+| 15:0|t_init_wait|  rw  |0x200|  — |
+|31:16| t_dll_wait|  rw  |0x100|  — |
+
+#### t_init_wait field
+
+<p>CKE/tINIT settle</p>
+
+#### t_dll_wait field
+
+<p>DLL lock (tDLLK)</p>
+
+### INIT_TIMING1 register
+
+- Absolute Address: 0x5C
+- Base Offset: 0x5C
+- Size: 0x4
+
+<p>JEDEC init-sequence waits (MC cycles): post-MRS (tMRD),
+post-precharge (tRP), post-refresh (tRFC). Previously hardcoded.</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 7:0 |t_mrd_wait|  rw  | 0x8 |  — |
+| 15:8| t_rp_wait|  rw  | 0x8 |  — |
+|23:16|t_rfc_wait|  rw  | 0x10|  — |
+|31:24|   RSVD   |   r  | 0x0 |  — |
+
+#### t_mrd_wait field
+
+<p>tMRD (post mode-reg)</p>
+
+#### t_rp_wait field
+
+<p>tRP (post precharge)</p>
+
+#### t_rfc_wait field
+
+<p>tRFC (post refresh)</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### DFI_PHASE register
+
+- Absolute Address: 0x60
+- Base Offset: 0x60
+- Size: 0x4
+
+<p>Which DFI sub-phase carries the READ vs WRITE command, to match
+the PHY's rdphase/wrphase contract. For the Nexys A7 a7ddrphy
+(DDR3/CL3/nphases=2) the on-silicon ILA showed the READ burst is
+delivered aligned to rdphase=1 (wrphase=0): issuing RD on phase 0
+misaligns the returned burst (1st DFI cycle good, tail corrupt).
+Defaults 0/0 preserve the legacy all-on-phase-0 behavior. Fields
+are sliced to clog2(DFI_RATE) bits downstream; upper bits ignored
+when DFI_RATE &lt; the field width.</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 2:0 | rd_phase |  rw  | 0x0 |  — |
+| 6:4 | wr_phase |  rw  | 0x0 |  — |
+| 8:7 |gear_ratio|  rw  | 0x2 |  — |
+| 12:9|    bl    |  rw  | 0x8 |  — |
+|31:13|   RSVD   |   r  | 0x0 |  — |
+
+#### rd_phase field
+
+<p>READ command DFI sub-phase</p>
+
+#### wr_phase field
+
+<p>WRITE command DFI sub-phase</p>
+
+#### gear_ratio field
+
+<p>gear_ratio = log2(active DFI_RATE)</p>
+
+#### bl field
+
+<p>JEDEC burst length (MR0 device beats): 4/8/16</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### PHY_TIMING register
+
+- Absolute Address: 0x64
+- Base Offset: 0x64
+- Size: 0x4
+
+<p>t_phy_wrlat: WRITE command -&gt; dfi_wrdata_en. t_rddata_en:
+RD command -&gt; dfi_rddata_en window.
+t_phy_wrlat resets to 1 because BOTH board host paths program 1,
+and the old reset of 0 agreed with neither (TASK-015 layer 0).
+t_rddata_en resets to 6 -- what <code>init</code> programs
+(pumice_master.SimpleTest: the ILA-validated tuple wrlat=1,
+rden=6, rddata_delay=7). pumice_char.ControllerConfig programs 1
+with rddata_delay=2 instead, a DIFFERENT valid point on the
+measured diagonal rddata_delay = t_rddata_en + 1 (the a7ddrphy
+data-vs-valid offset is a fixed 1 cycle). Two host paths
+programming two points is scoria ISSUE-015; the reset follows
+<code>init</code>, the bring-up authority. Do NOT pin a stale tuple here:
+overriding these to 0/6 on 2026-09-21 corrupted data on all four
+cells while still reporting healthy bandwidth.
+memtype: 0=DDR3, 1=LPDDR3. refresh_burst: 1..8 REFs drained per
+request. All hw-readable so they drive the controller core.</p>
+
+| Bits|  Identifier |Access|Reset|Name|
+|-----|-------------|------|-----|----|
+| 7:0 | t_phy_wrlat |  rw  | 0x1 |  — |
+| 15:8| t_rddata_en |  rw  | 0x6 |  — |
+|  16 |   memtype   |  rw  | 0x0 |  — |
+|19:17|    RSVD0    |   r  | 0x0 |  — |
+|23:20|refresh_burst|  rw  | 0x1 |  — |
+|31:24|    RSVD1    |   r  | 0x0 |  — |
+
+#### t_phy_wrlat field
+
+<p>t_phy_wrlat (WR cmd -&gt; wrdata_en)</p>
+
+#### t_rddata_en field
+
+<p>t_rddata_en (RD cmd -&gt; rddata_en)</p>
+
+#### memtype field
+
+<p>0=DDR3, 1=LPDDR3</p>
+
+#### RSVD0 field
+
+<p>Reserved</p>
+
+#### refresh_burst field
+
+<p>REFs drained per request (1..8)</p>
+
+#### RSVD1 field
+
+<p>Reserved</p>
+
+### SCHED_POLICY register
+
+- Absolute Address: 0x68
+- Base Offset: 0x68
+- Size: 0x4
+
+<p>Axis 1 (Rixner FR-FCFS variants). All fields 0 = build default.</p>
+
+| Bits| Identifier|Access|Reset|Name|
+|-----|-----------|------|-----|----|
+| 1:0 | order_mode|  rw  | 0x0 |  — |
+| 3:2 |  prio_sub |  rw  | 0x0 |  — |
+| 5:4 |  row_sel  |  rw  | 0x0 |  — |
+| 7:6 |  col_sel  |  rw  | 0x0 |  — |
+| 9:8 |access_pref|  rw  | 0x0 |  — |
+|  10 |  RSVD_10  |   r  | 0x0 |  — |
+|  11 |   qos_en  |  rw  | 0x0 |  — |
+|15:12| RSVD_15_12|   r  | 0x0 |  — |
+|23:16| age_thresh|  rw  | 0x0 |  — |
+|31:24| RSVD_31_24|   r  | 0x0 |  — |
+
+#### order_mode field
+
+<p>0=build default, 1=in_order, 2=fr_fcfs, 3=age_threshold</p>
+
+#### prio_sub field
+
+<p>Priority sub-policy: 0=default, 1=none, 2=load_over_store, 3=age_boost</p>
+
+#### row_sel field
+
+<p>Row-arbiter select: 0=default(oldest), 1=most_pending, 2=fewest_pending</p>
+
+#### col_sel field
+
+<p>Column-arbiter select: 0=default(oldest), 1=most_pending, 2=fewest_pending</p>
+
+#### access_pref field
+
+<p>Address-arbiter class preference: 0=default, 1=column_first, 2=row_first, 3=precharge_first</p>
+
+#### RSVD_10 field
+
+<p>Reserved (was auto_precharge_en, never consumed: auto-precharge is driven by PAGE_POLICY_CFG.policy_mode -- static_close and the modes 5..7 predictors)</p>
+
+#### qos_en field
+
+<p>1 = factor AxQOS into the pick (highest ready first, age tie-break)</p>
+
+#### RSVD_15_12 field
+
+<p>Reserved</p>
+
+#### age_thresh field
+
+<p>age_threshold mode: age (MC cycles/16) above which a reference is boosted</p>
+
+#### RSVD_31_24 field
+
+<p>Reserved</p>
+
+### SCHED_WR_WM register
+
+- Absolute Address: 0x6C
+- Base Offset: 0x6C
+- Size: 0x4
+
+<p>Write-batching drain hysteresis. 0/0 disables it; default
+2/1 = ON.</p>
+<p>Amortises tWTR/tRTW over a drain instead of paying it per
+direction switch. Worth +11.9%..+30.5% bus on the Nexys A7 at
+1+1 across gaps 4..15, and never below +0% -- at gap 0 and with
+2+2 generators there is no turnaround left to amortise, so it is
+a no-op there, not a cost.</p>
+<p>Shipped disabled until 2026-09-18 because it corrupted. Three
+defects, all fixed (TASK-007): tRFC compression from DFI-side
+pacing, tRTW classify-time staleness, and a one-cycle turnaround
+seam. Evidence for this default:</p>
+<pre><code>210 concurrent runs at open_page      0 failures
+4 x full 14-config matrix (1008 cells) 1 mismatched beat
+</code></pre>
+<p>That one beat was seen once and never reproduced in the 756
+cells after it; it is unattributed (BUG-001), NOT a known
+batching defect. 2/1 over 8/4 because it wins at gaps 12 and 15,
+ties at 4, and a shallower drain parks reads behind a shorter
+write run. Still a runtime CSR: this is only the reset value.</p>
+
+| Bits| Identifier |Access|Reset|Name|
+|-----|------------|------|-----|----|
+| 7:0 | wr_high_wm |  rw  | 0x2 |  — |
+| 15:8|  wr_low_wm |  rw  | 0x1 |  — |
+|23:16|wr_batch_max|  rw  | 0x10|  — |
+|31:24|    RSVD    |   r  | 0x0 |  — |
+
+#### wr_high_wm field
+
+<p>Start back-to-back write drain when the write buffer crosses this</p>
+
+#### wr_low_wm field
+
+<p>Stop the drain when occupancy falls to this</p>
+
+#### wr_batch_max field
+
+<p>Maximum consecutive write columns in one batch drain before
+the arbiter yields a slot to reads. 0 = unbounded (the
+pre-2026-09-23 behaviour, which STARVES reads under a
+continuous writer -- the drain latches at wr_high_wm and
+clears only at wr_low_wm, and a writer that refills as fast
+as it drains holds it high forever). tRTW amortises ACROSS
+the batch, so the benefit saturates: 20 cycles over 16
+writes is 1.25 cycles each, and going longer buys no
+further amortisation while costing read forward progress.</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### PAGE_POLICY_CFG register
+
+- Absolute Address: 0x70
+- Base Offset: 0x70
+- Size: 0x4
+
+<p>Axis 2 mode select + adapt_access counter shape. 0 = build default. Resets to 3 (fixed_open) -- see policy_mode.</p>
+
+| Bits| Identifier|Access|Reset|Name|
+|-----|-----------|------|-----|----|
+| 2:0 |policy_mode|  rw  | 0x3 |  — |
+|  3  |   RSVD_3  |   r  | 0x0 |  — |
+| 5:4 |  RSVD_5_4 |   r  | 0x0 |  — |
+| 9:6 |  RSVD_9_6 |   r  | 0x0 |  — |
+|13:10| RSVD_13_10|   r  | 0x0 |  — |
+|31:14|    RSVD   |   r  | 0x0 |  — |
+
+#### policy_mode field
+
+<p>0=build default, 1=static_open, 2=static_close, 3=fixed_open. 4/5 RETIRED 2026-09-27 (were adapt_time/adapt_access) and 6/7 RETIRED 2026-09-26 (were rbl_static/rbl_dyn) -- a write of 4..7 falls through to the build default. RESET IS 0. Mode 3 (fixed_open) is the RECOMMENDED default and is measured strictly dominant over open page on the board across every scenario -- +41.2% col_major_interleaved, +8.6..11.6% col_major, and EXACTLY flat on incremental/row_major, with no scenario regressing. The win is the background precharge gated on bank idle (timeout_pre_req_o), not a predictor. Mode 4 was measured to BE fixed_open(tr_min): moving only tr_min moved the result onto the matching fixed point every time, because its mistake counter is dominated by the held-too-long case so TR decayed to the floor and stayed. Mode 5 drove auto-precharge, which costs 4.9x the activations of a background precharge and double the read latency, and AP commits at the column op before it is known whether more same-row requests are coming -- it fights the FR-FCFS reordering that justifies this design. See TASK-013 and TASK-014.</p>
+
+#### RSVD_3 field
+
+<p>Reserved (was policy_scope, 0=per-bank / 1=global decision state). RETIRED 2026-09-27 with adapt_time: the mistake counter was a single GLOBAL register driving all eight per-bank TR registers from one decision, so per-bank scope could not diverge from global and the field selected between two identical behaviours.</p>
+
+#### RSVD_5_4 field
+
+<p>Reserved (was ctr_width; the adapt_access counter is the 2-bit saturating counter of the paper, not selectable)</p>
+
+#### RSVD_9_6 field
+
+<p>Reserved (was ctr_open_max, the adapt_access close threshold). RETIRED 2026-09-27 with mode 5.</p>
+
+#### RSVD_13_10 field
+
+<p>Reserved (was ctr_init, the adapt_access counter init). RETIRED 2026-09-27 with mode 5.</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### PAGE_TIMEOUT_CFG register
+
+- Absolute Address: 0x74
+- Base Offset: 0x74
+- Size: 0x4
+
+<p>fixed_open idle-timeout register (MC cycles). tr_init is the only live field; the adapt_time clamps and step retired 2026-09-27 with mode 4.</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 7:0 |  tr_init |  rw  | 0x2 |  — |
+| 15:8| RSVD_15_8|   r  | 0x0 |  — |
+|23:16|RSVD_23_16|   r  | 0x0 |  — |
+|31:24|RSVD_31_24|   r  | 0x0 |  — |
+
+#### tr_init field
+
+<p>TR init: idle MC cycles a row is held open before the background precharge fires. fixed_open (policy_mode=3) uses this alone. RESET IS 2, the measured optimum, changed from 0 on 2026-09-27 together with policy_mode. tr_init=0 DISABLES the timeout entirely (see f_tr/r_idle in pumice_page_policy.sv) -- it is not a build-default sentinel on this field, so a reset of 0 silently disabled mode 3 and is why these two resets must move together. MEASURED ON THE BOARD 2026-09-27 at 75 MHz BL4 x16 against a 600 MB/s peak, 24 cells over four scenario families, all integrity-clean: TR=1 and TR=2 identical, and TR=2 gives +9.1% col_major (195.2 -&gt; 212.9 MB/s) and +35.1% col_major_interleaved (262.1 -&gt; 354.1), exactly flat on incremental (561.1) and row_major (572.0), with no scenario regressing. The cliff is between 2 and 3 on col_major, which is why 2 and not 4. This change was made and REVERTED on 2026-09-26 because BUG-003 let a short timeout push a rejected pick to the DRAM; BUG-003 was fixed 2026-09-27 and the board run above is post-fix with mismatched=0 on every cell.</p>
+
+#### RSVD_15_8 field
+
+<p>Reserved (was tr_min, the adapt_time TR lower clamp). RETIRED 2026-09-27 with mode 4 -- fixed_open uses tr_init alone. Bit position held so tr_init does not move.</p>
+
+#### RSVD_23_16 field
+
+<p>Reserved (was tr_max, the adapt_time TR upper clamp). RETIRED 2026-09-27 with mode 4.</p>
+
+#### RSVD_31_24 field
+
+<p>Reserved (was tr_step, the adapt_time TR adjustment step). RETIRED 2026-09-27 with mode 4.</p>
+
+## OBS_ROW_HIT register file
+
+- Absolute Address: 0x80
+- Base Offset: 0x80
+- Size: 0x4
+- Array Dimensions: [8]
+- Array Stride: 0x4
+- Total Size: 0x20
+
+<p>Free-running row-hit count per bank: column ops issued to a bank
+whose row was ALREADY OPEN. Driven by pumice_page_policy from the
+issued command stream (scoria BUG-020 wired these; before that
+they, and every other OBS_* register, read zero forever).</p>
+<p>Read two and subtract for a window, as with PAGE_STATS_<em> and
+SCHED_STATS_</em>; they clear only on aresetn. This used to be
+<code>sw=rw, onread=rclr</code>, which could never have worked: the field is
+hw=w and driven every cycle, so the hardware rewrites the value
+the read cleared.</p>
+<p>These are the SOUND row-hit count. Do not re-derive hits as
+PAGE_STATS_HIT - SCHED_STATS_ACT: that goes negative under a
+background-close mode, because a row can be opened, hit by the
+timeout precharge before its column command issues, and reopened
+(scoria ISSUE-014).</p>
+
+|Offset|Identifier|Name|
+|------|----------|----|
+|  0x0 |  ROW_HIT |  — |
+
+### ROW_HIT register
+
+- Absolute Address: 0x80
+- Base Offset: 0x0
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Row-hit count</p>
+
+## OBS_ROW_HIT register file
+
+- Absolute Address: 0x84
+- Base Offset: 0x80
+- Size: 0x4
+- Array Dimensions: [8]
+- Array Stride: 0x4
+- Total Size: 0x20
+
+<p>Free-running row-hit count per bank: column ops issued to a bank
+whose row was ALREADY OPEN. Driven by pumice_page_policy from the
+issued command stream (scoria BUG-020 wired these; before that
+they, and every other OBS_* register, read zero forever).</p>
+<p>Read two and subtract for a window, as with PAGE_STATS_<em> and
+SCHED_STATS_</em>; they clear only on aresetn. This used to be
+<code>sw=rw, onread=rclr</code>, which could never have worked: the field is
+hw=w and driven every cycle, so the hardware rewrites the value
+the read cleared.</p>
+<p>These are the SOUND row-hit count. Do not re-derive hits as
+PAGE_STATS_HIT - SCHED_STATS_ACT: that goes negative under a
+background-close mode, because a row can be opened, hit by the
+timeout precharge before its column command issues, and reopened
+(scoria ISSUE-014).</p>
+
+|Offset|Identifier|Name|
+|------|----------|----|
+|  0x0 |  ROW_HIT |  — |
+
+### ROW_HIT register
+
+- Absolute Address: 0x84
+- Base Offset: 0x0
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Row-hit count</p>
+
+## OBS_ROW_HIT register file
+
+- Absolute Address: 0x88
+- Base Offset: 0x80
+- Size: 0x4
+- Array Dimensions: [8]
+- Array Stride: 0x4
+- Total Size: 0x20
+
+<p>Free-running row-hit count per bank: column ops issued to a bank
+whose row was ALREADY OPEN. Driven by pumice_page_policy from the
+issued command stream (scoria BUG-020 wired these; before that
+they, and every other OBS_* register, read zero forever).</p>
+<p>Read two and subtract for a window, as with PAGE_STATS_<em> and
+SCHED_STATS_</em>; they clear only on aresetn. This used to be
+<code>sw=rw, onread=rclr</code>, which could never have worked: the field is
+hw=w and driven every cycle, so the hardware rewrites the value
+the read cleared.</p>
+<p>These are the SOUND row-hit count. Do not re-derive hits as
+PAGE_STATS_HIT - SCHED_STATS_ACT: that goes negative under a
+background-close mode, because a row can be opened, hit by the
+timeout precharge before its column command issues, and reopened
+(scoria ISSUE-014).</p>
+
+|Offset|Identifier|Name|
+|------|----------|----|
+|  0x0 |  ROW_HIT |  — |
+
+### ROW_HIT register
+
+- Absolute Address: 0x88
+- Base Offset: 0x0
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Row-hit count</p>
+
+## OBS_ROW_HIT register file
+
+- Absolute Address: 0x8C
+- Base Offset: 0x80
+- Size: 0x4
+- Array Dimensions: [8]
+- Array Stride: 0x4
+- Total Size: 0x20
+
+<p>Free-running row-hit count per bank: column ops issued to a bank
+whose row was ALREADY OPEN. Driven by pumice_page_policy from the
+issued command stream (scoria BUG-020 wired these; before that
+they, and every other OBS_* register, read zero forever).</p>
+<p>Read two and subtract for a window, as with PAGE_STATS_<em> and
+SCHED_STATS_</em>; they clear only on aresetn. This used to be
+<code>sw=rw, onread=rclr</code>, which could never have worked: the field is
+hw=w and driven every cycle, so the hardware rewrites the value
+the read cleared.</p>
+<p>These are the SOUND row-hit count. Do not re-derive hits as
+PAGE_STATS_HIT - SCHED_STATS_ACT: that goes negative under a
+background-close mode, because a row can be opened, hit by the
+timeout precharge before its column command issues, and reopened
+(scoria ISSUE-014).</p>
+
+|Offset|Identifier|Name|
+|------|----------|----|
+|  0x0 |  ROW_HIT |  — |
+
+### ROW_HIT register
+
+- Absolute Address: 0x8C
+- Base Offset: 0x0
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Row-hit count</p>
+
+## OBS_ROW_HIT register file
+
+- Absolute Address: 0x90
+- Base Offset: 0x80
+- Size: 0x4
+- Array Dimensions: [8]
+- Array Stride: 0x4
+- Total Size: 0x20
+
+<p>Free-running row-hit count per bank: column ops issued to a bank
+whose row was ALREADY OPEN. Driven by pumice_page_policy from the
+issued command stream (scoria BUG-020 wired these; before that
+they, and every other OBS_* register, read zero forever).</p>
+<p>Read two and subtract for a window, as with PAGE_STATS_<em> and
+SCHED_STATS_</em>; they clear only on aresetn. This used to be
+<code>sw=rw, onread=rclr</code>, which could never have worked: the field is
+hw=w and driven every cycle, so the hardware rewrites the value
+the read cleared.</p>
+<p>These are the SOUND row-hit count. Do not re-derive hits as
+PAGE_STATS_HIT - SCHED_STATS_ACT: that goes negative under a
+background-close mode, because a row can be opened, hit by the
+timeout precharge before its column command issues, and reopened
+(scoria ISSUE-014).</p>
+
+|Offset|Identifier|Name|
+|------|----------|----|
+|  0x0 |  ROW_HIT |  — |
+
+### ROW_HIT register
+
+- Absolute Address: 0x90
+- Base Offset: 0x0
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Row-hit count</p>
+
+## OBS_ROW_HIT register file
+
+- Absolute Address: 0x94
+- Base Offset: 0x80
+- Size: 0x4
+- Array Dimensions: [8]
+- Array Stride: 0x4
+- Total Size: 0x20
+
+<p>Free-running row-hit count per bank: column ops issued to a bank
+whose row was ALREADY OPEN. Driven by pumice_page_policy from the
+issued command stream (scoria BUG-020 wired these; before that
+they, and every other OBS_* register, read zero forever).</p>
+<p>Read two and subtract for a window, as with PAGE_STATS_<em> and
+SCHED_STATS_</em>; they clear only on aresetn. This used to be
+<code>sw=rw, onread=rclr</code>, which could never have worked: the field is
+hw=w and driven every cycle, so the hardware rewrites the value
+the read cleared.</p>
+<p>These are the SOUND row-hit count. Do not re-derive hits as
+PAGE_STATS_HIT - SCHED_STATS_ACT: that goes negative under a
+background-close mode, because a row can be opened, hit by the
+timeout precharge before its column command issues, and reopened
+(scoria ISSUE-014).</p>
+
+|Offset|Identifier|Name|
+|------|----------|----|
+|  0x0 |  ROW_HIT |  — |
+
+### ROW_HIT register
+
+- Absolute Address: 0x94
+- Base Offset: 0x0
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Row-hit count</p>
+
+## OBS_ROW_HIT register file
+
+- Absolute Address: 0x98
+- Base Offset: 0x80
+- Size: 0x4
+- Array Dimensions: [8]
+- Array Stride: 0x4
+- Total Size: 0x20
+
+<p>Free-running row-hit count per bank: column ops issued to a bank
+whose row was ALREADY OPEN. Driven by pumice_page_policy from the
+issued command stream (scoria BUG-020 wired these; before that
+they, and every other OBS_* register, read zero forever).</p>
+<p>Read two and subtract for a window, as with PAGE_STATS_<em> and
+SCHED_STATS_</em>; they clear only on aresetn. This used to be
+<code>sw=rw, onread=rclr</code>, which could never have worked: the field is
+hw=w and driven every cycle, so the hardware rewrites the value
+the read cleared.</p>
+<p>These are the SOUND row-hit count. Do not re-derive hits as
+PAGE_STATS_HIT - SCHED_STATS_ACT: that goes negative under a
+background-close mode, because a row can be opened, hit by the
+timeout precharge before its column command issues, and reopened
+(scoria ISSUE-014).</p>
+
+|Offset|Identifier|Name|
+|------|----------|----|
+|  0x0 |  ROW_HIT |  — |
+
+### ROW_HIT register
+
+- Absolute Address: 0x98
+- Base Offset: 0x0
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Row-hit count</p>
+
+## OBS_ROW_HIT register file
+
+- Absolute Address: 0x9C
+- Base Offset: 0x80
+- Size: 0x4
+- Array Dimensions: [8]
+- Array Stride: 0x4
+- Total Size: 0x20
+
+<p>Free-running row-hit count per bank: column ops issued to a bank
+whose row was ALREADY OPEN. Driven by pumice_page_policy from the
+issued command stream (scoria BUG-020 wired these; before that
+they, and every other OBS_* register, read zero forever).</p>
+<p>Read two and subtract for a window, as with PAGE_STATS_<em> and
+SCHED_STATS_</em>; they clear only on aresetn. This used to be
+<code>sw=rw, onread=rclr</code>, which could never have worked: the field is
+hw=w and driven every cycle, so the hardware rewrites the value
+the read cleared.</p>
+<p>These are the SOUND row-hit count. Do not re-derive hits as
+PAGE_STATS_HIT - SCHED_STATS_ACT: that goes negative under a
+background-close mode, because a row can be opened, hit by the
+timeout precharge before its column command issues, and reopened
+(scoria ISSUE-014).</p>
+
+|Offset|Identifier|Name|
+|------|----------|----|
+|  0x0 |  ROW_HIT |  — |
+
+### ROW_HIT register
+
+- Absolute Address: 0x9C
+- Base Offset: 0x0
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Row-hit count</p>
+
+### INIT_TIMING2 register
+
+- Absolute Address: 0xC0
+- Base Offset: 0xC0
+- Size: 0x4
+
+<p>The two init waits DDR3 adds. Runtime, like every enforced timing.</p>
+
+| Bits|  Identifier |Access|Reset|Name|
+|-----|-------------|------|-----|----|
+| 15:0|  t_xpr_wait |  rw  | 0xA |  — |
+|31:16|t_zqinit_wait|  rw  |0x200|  — |
+
+#### t_xpr_wait field
+
+<p>tXPR = max(tXS, 5 tCK); init step 5</p>
+
+#### t_zqinit_wait field
+
+<p>tZQinit; waited with tDLLK, step 11</p>
+
+### ZQ_CFG register
+
+- Absolute Address: 0xC4
+- Base Offset: 0xC4
+- Size: 0x4
+
+<p>Periodic ZQCS. Maintenance traffic: requests the bus, never preempts.</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+|  0  | zq_enable|  rw  | 0x0 |  — |
+|31:16|  t_zqcs  |  rw  | 0x40|  — |
+
+#### zq_enable field
+
+<p>1 = issue periodic ZQCS</p>
+
+#### t_zqcs field
+
+<p>tZQCS, held after a grant</p>
+
+### ZQ_INTERVAL register
+
+- Absolute Address: 0xC8
+- Base Offset: 0xC8
+- Size: 0x4
+
+<p>MC cycles between calibrations. 32 bits because a ~128 ms interval at 100 MHz is ~12.8M cycles. 0 = disabled.</p>
+
+|Bits| Identifier|Access|Reset|Name|
+|----|-----------|------|-----|----|
+|31:0|zq_interval|  rw  | 0x0 |  — |
+
+#### zq_interval field
+
+<p>ZQCS interval</p>
+
+### ZQ_STATUS register
+
+- Absolute Address: 0xCC
+- Base Offset: 0xCC
+- Size: 0x4
+
+<p>Makes the interval confirmable from the host rather than assumed.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|15:0|zqcs_total|   r  | 0x0 |  — |
+| 16 |  zq_busy |   r  | 0x0 |  — |
+| 17 |zq_overdue|   r  | 0x0 |  — |
+
+#### zqcs_total field
+
+<p>calibrations issued since reset</p>
+
+#### zq_busy field
+
+<p>in the post-grant tZQCS window</p>
+
+#### zq_overdue field
+
+<p>interval expired, still no grant</p>
+
+### WRLVL_CFG register
+
+- Absolute Address: 0xD0
+- Base Offset: 0xD0
+- Size: 0x4
+
+<p>Enable-plus-strobe. The SEARCH runs in firmware (HAS D2); this is the interface.</p>
+
+|Bits| Identifier |Access|Reset|Name|
+|----|------------|------|-----|----|
+|  0 |wrlvl_strobe|  rw  | 0x0 |  — |
+| 7:4|wrlvl_cs_sel|  rw  | 0x0 |  — |
+
+#### wrlvl_strobe field
+
+<p>pulse: emit ONE DQS edge</p>
+
+#### wrlvl_cs_sel field
+
+<p>chip select under leveling</p>
+
+### WRLVL_TIMING0 register
+
+- Absolute Address: 0xD4
+- Base Offset: 0xD4
+- Size: 0x4
+
+<p>JESD79-3F minimums at the design point (CK 2.5 ns): tWLDQSEN 25 nCK, tWLMRD 40 nCK.</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 15:0| t_wldqsen|  rw  | 0x19|  — |
+|31:16|  t_wlmrd |  rw  | 0x28|  — |
+
+#### t_wldqsen field
+
+<p>tWLDQSEN, 25 nCK min</p>
+
+#### t_wlmrd field
+
+<p>tWLMRD, 40 nCK min</p>
+
+### WRLVL_TIMING1 register
+
+- Absolute Address: 0xD8
+- Base Offset: 0xD8
+- Size: 0x4
+
+<p>t_wlmrd_max is OURS: JESD79-3F declares tWLMRD's maximum controller-dependent, so it is a timeout here. 0 disables it.</p>
+
+| Bits| Identifier|Access| Reset|Name|
+|-----|-----------|------|------|----|
+| 15:0|t_wlmrd_max|  rw  |0x1000|  — |
+|31:16|   t_wlo   |  rw  |  0x8 |  — |
+
+#### t_wlmrd_max field
+
+<p>tWLMRD max -- our timeout</p>
+
+#### t_wlo field
+
+<p>tWLO, result-return delay</p>
+
+### WRLVL_TIMING2 register
+
+- Absolute Address: 0xDC
+- Base Offset: 0xDC
+- Size: 0x4
+
+<p>tWLOE is INERT: we sample the prime DQ bit only (HAS Q3). Present so a wider implementation needs no map change.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|15:0|  t_wloe  |  rw  | 0x2 |  — |
+
+#### t_wloe field
+
+<p>tWLOE (unused: prime bit only)</p>
+
+### WRLVL_STATUS0 register
+
+- Absolute Address: 0xE0
+- Base Offset: 0xE0
+- Size: 0x4
+
+<p>Four outcomes must be distinguishable: never attempted, converged, timed out, swept with no flip.</p>
+
+| Bits|  Identifier  |Access|Reset|Name|
+|-----|--------------|------|-----|----|
+| 15:0|wrlvl_attempts|   r  | 0x0 |  — |
+|31:16|  wrlvl_flips |   r  | 0x0 |  — |
+
+#### wrlvl_attempts field
+
+<p>strobes emitted</p>
+
+#### wrlvl_flips field
+
+<p>result transitions seen</p>
+
+### WRLVL_STATUS1 register
+
+- Absolute Address: 0xE4
+- Base Offset: 0xE4
+- Size: 0x4
+
+<p>Sampled result and the outcome bits.</p>
+
+|Bits|    Identifier    |Access|Reset|Name|
+|----|------------------|------|-----|----|
+|  0 |   wrlvl_result   |   r  | 0x0 |  — |
+|  1 |wrlvl_result_valid|   r  | 0x0 |  — |
+|  2 |   wrlvl_timeout  |   r  | 0x0 |  — |
+|  3 |  wrlvl_ever_done |   r  | 0x0 |  — |
+| 6:4|    wrlvl_state   |   r  | 0x0 |  — |
+|12:8|       mr_wr      |   r  | 0x0 |  — |
+| 16 |     wrlvl_en     |   r  | 0x0 |  — |
+
+#### wrlvl_result field
+
+<p>sampled prime DQ</p>
+
+#### wrlvl_result_valid field
+
+<p>result is valid</p>
+
+#### wrlvl_timeout field
+
+<p>tWLMRD max expired</p>
+
+#### wrlvl_ever_done field
+
+<p>a pass has completed</p>
+
+#### wrlvl_state field
+
+<p>interface state</p>
+
+#### mr_wr field
+
+<p>write recovery, MR0[11:9]</p>
+
+#### wrlvl_en field
+
+<p>MR1[7]: in leveling mode</p>
+
+### REF_CTRL register
+
+- Absolute Address: 0x140
+- Base Offset: 0x140
+- Size: 0x4
+
+<p>Axis 3 mode + JEDEC +-8 credit limits. tREFI/tRFCab live in TIMINGS_RFC_REFI (not duplicated).</p>
+
+| Bits|    Identifier   |Access|Reset|Name|
+|-----|-----------------|------|-----|----|
+| 1:0 |       mode      |  rw  | 0x0 |  — |
+| 3:2 |     RSVD_3_2    |   r  | 0x0 |  — |
+| 7:4 |  postpone_limit |  rw  | 0x0 |  — |
+| 11:8|   pullin_limit  |  rw  | 0x0 |  — |
+|  12 |perbank_supported|   r  |  —  |  — |
+|31:13|    RSVD_31_13   |   r  | 0x0 |  — |
+
+#### mode field
+
+<p>0=build default (REFab), 1=REFab, 2=REFpb round-robin (LPDDR3)</p>
+
+#### RSVD_3_2 field
+
+<p>Reserved</p>
+
+#### postpone_limit field
+
+<p>Max refreshes postponed under demand (0..8; 0 = strict)</p>
+
+#### pullin_limit field
+
+<p>Max refreshes pulled in on idle (0..8; 0 = strict)</p>
+
+#### perbank_supported field
+
+<p>Capability strap: 1 = the DRAM supports per-bank refresh</p>
+
+#### RSVD_31_13 field
+
+<p>Reserved</p>
+
+### REF_TIMING_PB register
+
+- Absolute Address: 0x144
+- Base Offset: 0x144
+- Size: 0x4
+
+<p>REFpb intervals (MC cycles). All-bank tREFI/tRFCab stay in TIMINGS_RFC_REFI.</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 15:0| trefi_pb |  rw  | 0x0 |  — |
+|23:16|  trfc_pb |  rw  | 0x0 |  — |
+|31:24|   RSVD   |   r  | 0x0 |  — |
+
+#### trefi_pb field
+
+<p>tREFIpb (~tREFI/8; 0 = derive from tREFI)</p>
+
+#### trfc_pb field
+
+<p>tRFCpb recovery</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### PAGE_STATS_HIT register
+
+- Absolute Address: 0x148
+- Base Offset: 0x148
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>EVERY column op issued (READ/WRITE, with or without AP). NOT a hit count despite the register name -- the RTL increments it on every column command. For ROW HITS read OBS_ROW_HIT[8] (0x080), which counts them directly. Do NOT derive hits as PAGE_STATS_HIT - SCHED_STATS_ACT, which this field used to recommend: it goes NEGATIVE under a background-close mode, because a row can be opened, hit by the timeout precharge before its column command issues, and reopened -- two activations, one column op (scoria ISSUE-014, measured 49 ACTs against 48 column ops). It is a lower bound on hits, not hits.</p>
+
+### PAGE_STATS_MISS register
+
+- Absolute Address: 0x14C
+- Base Offset: 0x14C
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Column ops that required PRE+ACT (conflict)</p>
+
+### PAGE_STATS_EMPTY register
+
+- Absolute Address: 0x150
+- Base Offset: 0x150
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Column ops that required ACT only (bank closed)</p>
+
+### SCHED_STATS_ACT register
+
+- Absolute Address: 0x154
+- Base Offset: 0x154
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>ACT commands issued</p>
+
+### SCHED_STATS_PRE register
+
+- Absolute Address: 0x158
+- Base Offset: 0x158
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>PRE + PREA commands issued</p>
+
+### REF_STATS_REF register
+
+- Absolute Address: 0x15C
+- Base Offset: 0x15C
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>REFab + REFpb commands issued. FREE-RUNNING: refresh is autonomous, so a host-bracketed delta counts the UART round trips too -- measured on the board, a 186us window carried a delta implying 479ms (2584x). Use REF_STATS_REF_BUSY to attribute refresh cost to a workload; this one is for absolute accounting.</p>
+
+### STALL_BP register
+
+- Absolute Address: 0x160
+- Base Offset: 0x160
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>A command was picked and the DFI would not take it</p>
+
+### STALL_REFRESH register
+
+- Absolute Address: 0x164
+- Base Offset: 0x164
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Refresh pending or draining owns the bus</p>
+
+### STALL_TURNAROUND register
+
+- Absolute Address: 0x168
+- Base Offset: 0x168
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>tWTR or tRTW blocked the opposite direction</p>
+
+### STALL_TCCD register
+
+- Absolute Address: 0x16C
+- Base Offset: 0x16C
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>tCCD blocked the next column op</p>
+
+### STALL_ACTLIMIT register
+
+- Absolute Address: 0x170
+- Base Offset: 0x170
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>tFAW or tRRD blocked an activate</p>
+
+### STALL_BANKTIMER register
+
+- Absolute Address: 0x174
+- Base Offset: 0x174
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>tRCD / tRP / tRAS on the target bank</p>
+
+### STALL_NOREQ register
+
+- Absolute Address: 0x178
+- Base Offset: 0x178
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Both CAMs empty -- requester-bound, not DRAM-bound</p>
+
+### REF_STATS_REF_BUSY register
+
+- Absolute Address: 0x17C
+- Base Offset: 0x17C
+- Size: 0x4
+
+<p>TASK-012. REFab/REFpb commands that issued while at least one CAM entry was schedulable -- i.e. refreshes that actually took a command slot from pending work. Contamination-free by construction: the CAMs are empty while the host is idle between reads, so host round-trip time is not counted. This is the number axis 3 wants -- a refresh during idle costs the workload nothing, one during traffic costs bandwidth.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>REF commands issued with work pending</p>
+
+### ID register
+
+- Absolute Address: 0xFF0
+- Base Offset: 0xFF0
+- Size: 0x4
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 7:0 |  version |   r  | 0x1 |  — |
+| 15:8|  memtype |   r  | 0x0 |  — |
+|23:16| n_phases |   r  | 0x2 |  — |
+|31:24| module_id|   r  | 0xD2|  — |
+
+#### version field
+
+<p>Build version</p>
+
+#### memtype field
+
+<p>0=DDR3, 1=LPDDR3</p>
+
+#### n_phases field
+
+<p>Gear ratio (1, 2, or 4)</p>
+
+#### module_id field
+
+<p>Fixed 0xD2</p>
+
+### BUILD register
+
+- Absolute Address: 0xFF4
+- Base Offset: 0xFF4
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  | 0x0 |  — |
+
+#### VAL field
+
+<p>Build hash word</p>
