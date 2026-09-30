@@ -1,11 +1,10 @@
 """
-rs_decoder_core test runner
+key_equation_solver_euclid test runner
 
-RS decoder core against RSModel (validated against reedsolo), through the GAXI
-master/slave BFMs on the in_/out_ valid/ready ports. Profiles: the reference
-RS(255,239), the shortened DVB RS(204,188), RS(21,19) with t = 1, and RS(15,11)
-over GF(2^4). Scenarios per cell: blocks (0..t errors), uncorrectable (t+1 and
-more), framing, backpressure, throughput.
+The Euclid solver against RSModel.euclid bit for bit -- Lambda (2t+1 coefficients),
+the evaluator, degree and degree-error flag -- on blocks with 1 .. t errors,
+t+1 and more (the degree check), and zero syndromes; o_done exactly 2t cycles
+after i_start (Euclid: data-dependent, at most 2t + 1).
 
 Author: RTL Design Sherpa
 Created: 2026-09-30
@@ -25,58 +24,52 @@ from TBClasses.shared.test_levels import level_env, reg_level_grid
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
-from projects.components.ecc_ip.reed_solomon.dv.tbclasses.rs_decoder_tb import RSDecoderTB
+from projects.components.ecc_ip.reed_solomon.dv.tbclasses.rs_decoder_blocks_tb import KESEuclidTB
 
-FILELIST = 'projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_decoder_core.f'
+FILELIST = 'projects/components/ecc-ip/reed-solomon/rtl/filelists/key_equation_solver_euclid.f'
 
-# (symbol_width, prim_poly, t, n, kes)
-PROFILES = [
-    (8, 0x11D, 8, 255, 'RIBM'),    # reference: full-length, t = 8
-    (8, 0x11D, 8, 204, 'RIBM'),    # DVB shortened
-    (8, 0x11D, 1, 21, 'RIBM'),     # RS(21,19): two parity symbols
-    (4, 0x13, 2, 15, 'RIBM'),      # small field, exhaustive-friendly
-    (8, 0x11D, 8, 255, 'EUCLID'),  # the same core with the Euclid solver (PRD D11)
-    (4, 0x13, 2, 15, 'EUCLID'),
+# (symbol_width, prim_poly, t, first_root, n) -- b and n only shape the test blocks
+CONFIGS = [
+    (8, 0x11D, 8, 0, 255),
+    (8, 0x11D, 1, 0, 21),
+    (8, 0x187, 16, 112, 255),
+    (4, 0x13, 2, 0, 15),
+    (10, 0x409, 15, 0, 544),
 ]
 
 
-@cocotb.test(timeout_time=20000, timeout_unit="ms")
-async def cocotb_test_rs_decoder_core(dut):
-    tb = RSDecoderTB(dut)
+@cocotb.test(timeout_time=4000, timeout_unit="ms")
+async def cocotb_test_key_equation_solver_euclid(dut):
+    tb = KESEuclidTB(dut)
     await tb.setup_clocks_and_reset()
-    ok = True
-    ok &= await tb.run_blocks()
-    ok &= await tb.run_uncorrectable()
-    ok &= await tb.run_framing()
-    ok &= await tb.run_backpressure()
-    ok &= await tb.run_throughput()
+    ok = await tb.run_blocks()
     report = tb.get_test_report()
     tb.log.info(f"Test report: {report}")
-    assert ok, f"rs_decoder_core: {report['mismatches']} mismatches in {report['checks']} checks"
+    assert ok, f"key_equation_solver_euclid: {report['mismatches']} mismatches in {report['checks']} checks"
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
-@pytest.mark.parametrize("symbol_width, prim_poly, t, n, kes", PROFILES)
-def test_rs_decoder_core(request, symbol_width, prim_poly, t, n, kes, test_level):
+@pytest.mark.parametrize("symbol_width, prim_poly, t, first_root, n", CONFIGS)
+def test_key_equation_solver_euclid(request, symbol_width, prim_poly, t, first_root, n, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_rs': 'projects/components/ecc-ip/reed-solomon/rtl',
     })
-    dut_name = "rs_decoder_core"
+    dut_name = "key_equation_solver_euclid"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=FILELIST)
 
     test_name_plus_params = (f"test_{dut_name}_m{TBBase.format_dec(symbol_width, 2)}"
-                             f"_n{TBBase.format_dec(n, 3)}_t{TBBase.format_dec(t, 2)}_{kes.lower()}_{test_level}")
+                             f"_t{TBBase.format_dec(t, 2)}_b{TBBase.format_dec(first_root, 3)}_{test_level}")
     os.makedirs(log_dir, exist_ok=True)   # clean-all removes logs/
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     rtl_parameters = {'SYMBOL_WIDTH': str(symbol_width), 'PRIM_POLY': str(prim_poly),
-                      'T_SYMBOLS': str(t), 'N_SYMBOLS': str(n), 'DATA_WIDTH': str(symbol_width),
-                      'KES_ALGO': f'"{kes}"'}   # a string parameter: quotes must reach the tool
-    extra_env = level_env(test_level, KES_ALGO=kes, DUT=dut_name, LOG_PATH=log_path,
-                          COCOTB_LOG_LEVEL='INFO')
+                      'T_SYMBOLS': str(t)}
+    # the TB reads FIRST_ROOT from the DUT; the solver has none, so pass it in the env
+    extra_env = level_env(test_level, N_SYMBOLS=n, FIRST_ROOT=first_root, DUT=dut_name,
+                          LOG_PATH=log_path, COCOTB_LOG_LEVEL='INFO')
 
     compile_args = ["--trace-fst", "--trace-structs", "--trace-depth", "99"] if enable_waves else []
     sim_args = ["--trace-fst", "--trace-structs"] if enable_waves else []
@@ -91,7 +84,7 @@ def test_rs_decoder_core(request, symbol_width, prim_poly, t, n, kes, test_level
             includes=includes,
             toplevel=dut_name,
             module=module,
-            testcase="cocotb_test_rs_decoder_core",
+            testcase="cocotb_test_key_equation_solver_euclid",
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,

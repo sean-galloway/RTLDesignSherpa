@@ -23,6 +23,7 @@ $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/gf/gf_syndrome_cell.sv
 $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/syndrome_unit.sv
 $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/gf/ribm_pe.sv
 $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/key_equation_solver_ribm.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/key_equation_solver_euclid.sv
 $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/chien_search.sv
 $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/forney_evaluator.sv
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f

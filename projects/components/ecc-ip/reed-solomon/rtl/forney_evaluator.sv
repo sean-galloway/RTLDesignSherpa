@@ -22,12 +22,14 @@
 // Module: forney_evaluator
 //==============================================================================
 // Description:
-//   Omega here is the riBM evaluator, the high half of S(x)Lambda(x), so the
-//   exponent is 1 - b - 2t (dv/tbclasses/rs_model.py proves the formula
-//   against reedsolo). The Chien search supplies X_j^-1 * Lambda'(X_j^-1) as
-//   its odd-index sum, which turns the formula into
+//   With the riBM solver Omega is the high half of S(x)Lambda(x), so the
+//   exponent is 1 - b - 2t; with the Euclid solver it is the textbook
+//   S*Lambda mod x^2t and the exponent is 1 - b (OMEGA_HIGH_HALF selects;
+//   dv/tbclasses/rs_model.py proves both against reedsolo). The Chien search
+//   supplies X_j^-1 * Lambda'(X_j^-1) as its odd-index sum, which turns the
+//   formula into
 //
-//     e_j = [ X_j^-(b+2t) * Omega(X_j^-1) ] / odd_sum
+//     e_j = [ X_j^-(b+off) * Omega(X_j^-1) ] / odd_sum,  off = 2t or 0
 //
 //   and the bracket is a Chien-style walk of its own: cell i holds
 //   Omega_i * X_j^-(i+b+2t), loaded at position 0 as
@@ -55,7 +57,10 @@ module forney_evaluator
     parameter int PRIM_POLY    = 'h11D,
     parameter int T_SYMBOLS    = 8,
     parameter int N_SYMBOLS    = (1 << SYMBOL_WIDTH) - 1,
-    parameter int FIRST_ROOT   = 0
+    parameter int FIRST_ROOT   = 0,
+    // 1: Omega is riBM's high half of S*Lambda (exponent offset b + 2t);
+    // 0: Omega is the textbook S*Lambda mod x^2t, as the Euclid solver gives (offset b)
+    parameter bit OMEGA_HIGH_HALF = 1'b1
 ) (
     input  logic                               aclk,
     input  logic                               aresetn,
@@ -70,7 +75,7 @@ module forney_evaluator
     localparam int M   = SYMBOL_WIDTH;
     localparam int T   = T_SYMBOLS;
     localparam int N   = N_SYMBOLS;
-    localparam int OFF = FIRST_ROOT + 2 * T;   // the exponent offset b + 2t
+    localparam int OFF = FIRST_ROOT + (OMEGA_HIGH_HALF ? 2 * T : 0);   // the exponent offset
 
     logic [M-1:0] r_w     [T];
     logic [M-1:0] w_w_init[T];

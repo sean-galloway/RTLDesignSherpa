@@ -152,3 +152,11 @@ caught: re-check inverted (12/20), correction suppressed at position 0 (3 of 4
 seeded cells). HAS chapters 3.2, 4.1, 5.2, 5.3, 6.4 and the catalog updated for
 release-on-verdict (first-symbol latency 2n + 2t, output FIFO 2k x (2m+2)).
 Still open on the decoder: S > 1, erasures (D5), the Euclid solver variant.
+
+**2026-09-30 -- Euclid solver (Sean: "work on 1/3").** `rs_model.py::euclid` in
+the RTL's register form (top-aligned R/Q, shifted lam~/mu~ of 2t+3 symbols,
+normalise / cross / swap), validated: identical decode to riBM on 900/900
+blocks; cycles t+1..2t. `rtl/key_equation_solver_euclid.sv` bit-exact (5 configs,
+56 checks each at gate); `forney_evaluator` gains `OMEGA_HIGH_HALF` (textbook
+Omega for Euclid); `rs_decoder_core` gains `KES_ALGO` and two Euclid cells in the
+decoder test decode identically (20/20 each). Item 1 (S > 1) next.

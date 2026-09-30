@@ -80,6 +80,16 @@ It is an endpoint codec, never a mid-stream insert (PRD 4a). Until a consumer na
   force-ended with frame_err (anti-deadlock). Mutation checks that must keep
   failing: invert the re-check term (12 mismatches in 20), suppress the
   correction at position 0 (seed-dependent: try two seeds).
+- Euclid solver facts (2026-09-30): `key_equation_solver_euclid` keeps R, Q,
+  lam~, mu~ TOP-ALIGNED and "multiply by x" moves coefficients UP one index
+  (the model's first cut shifted the wrong way and terminated in 9 cycles
+  on every block -- if Euclid ever "always finishes early", check the shift
+  direction first). Its Omega is the textbook one, so `forney_evaluator`
+  needs `OMEGA_HIGH_HALF = 0` with it; the core derives that from
+  `KES_ALGO`. The string parameter reaches Verilator as `-GKES_ALGO="EUCLID"`
+  (the runner passes `'"EUCLID"'` with the quotes) and the TB gets the same
+  choice through the `KES_ALGO` environment variable, because cocotb cannot
+  read a string parameter back from the DUT.
 - Filelists in `rtl/filelists/` and registered in `bin/filelists.toml` from
   the first module (`vault/handbook/design/filelists.md`).
 - DV: cocotb under `dv/tests/` with TB classes in `dv/tbclasses/` (Pattern B,

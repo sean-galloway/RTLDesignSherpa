@@ -325,3 +325,37 @@ class ForneyTB(_DecoderBlockTB):
                         {j: self.model.forney(lam, om, j) for j in pos}, exp)
             self._score(f"block {i} den_zero at roots", den_zero_at_root, 0)
         return self.mismatches == 0
+
+
+class KESEuclidTB(KESTB):
+    """key_equation_solver_euclid: same drive as KESTB, scored against
+    RSModel.euclid (bit-exact Lambda and textbook Omega); o_done within
+    2t + 1 cycles (data-dependent, plus the finishing check)."""
+
+    async def run_blocks(self):
+        n_blocks = self.BLOCKS[self.TEST_LEVEL]
+        for i in range(n_blocks):
+            errors = random.choice([1, 1, 2, self.T - 1, self.T, self.T, self.T + 1,
+                                    min(self.N, 2 * self.T + 3)])
+            errors = max(1, min(errors, self.N))
+            rx, _ = self.random_received(errors)
+            S = self.model.syndromes(rx)
+            res = await self.solve(S)
+            if res is None:
+                self.mismatches += 1
+                continue
+            cycles, lam, om, deg, deg_err, busy = res
+            exp_lam, exp_om, exp_cycles = self.model.euclid(S)
+            exp_deg = max(0, self.model.degree(exp_lam))
+            self._score(f"block {i} ({errors} errs) lambda", lam, exp_lam)
+            self._score(f"block {i} omega", om, exp_om)
+            self._score(f"block {i} deg", deg, exp_deg)
+            self._score(f"block {i} deg_err", deg_err, 1 if exp_deg > self.T else 0)
+            self._score(f"block {i} cycles to done", cycles, exp_cycles + 1)
+            self.checks += 1
+            if cycles > 2 * self.T + 1:
+                self.mismatches += 1
+                self.log.error(f"block {i}: {cycles} cycles exceeds 2t + 1")
+            self._score(f"block {i} busy cleared", busy, 0)
+        return self.mismatches == 0
+

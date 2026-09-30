@@ -63,6 +63,9 @@ class RSDecoderTB(TBBase):
         self.SC_W = int(dut.STATUS_CNT_WIDTH.value)
         self.Q = 1 << self.M
         self.model = RSModel(self.M, self.PRIM, self.T, self.N, self.B)
+        # the DUT's KES_ALGO is a string parameter cocotb cannot read back; the runner
+        # passes the same choice in the environment so the model uses the same solver
+        self.KES = os.environ.get('KES_ALGO', 'RIBM').lower()
         self.checks = 0
         self.mismatches = 0
         self._init_bfms()
@@ -152,7 +155,7 @@ class RSDecoderTB(TBBase):
         if len(rx) != self.N:
             n_data = len(rx) - 2 * self.T if len(rx) > 2 * self.T else len(rx)
             return rx[:n_data], dict(ok=0, corrected=0, uncorrectable=0, frame_err=1)
-        data, status, cnt = self.model.decode(rx)
+        data, status, cnt = self.model.decode(rx, kes=self.KES)
         return data, dict(ok=1 if status == 'ok' else 0,
                           corrected=cnt if status == 'corrected' else 0,
                           uncorrectable=1 if status == 'uncorrectable' else 0,

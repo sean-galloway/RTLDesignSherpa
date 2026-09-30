@@ -62,7 +62,8 @@
 //   A mis-framed block (length != n) is passed through uncorrected with
 //   frame_err: its first length - 2t symbols are emitted as data (all of them
 //   when length <= 2t). SYMBOLS_PER_BEAT must be 1 at this revision, as on
-//   the encoder.
+//   the encoder. KES_ALGO picks the solver; nothing else changes except the
+//   Forney block's evaluator-form constant, which follows it.
 //
 //------------------------------------------------------------------------------
 // Parameters:
@@ -85,6 +86,7 @@ module rs_decoder_core
     parameter int DATA_WIDTH       = SYMBOL_WIDTH,
     parameter int SKID_DEPTH       = 2,
     parameter int BLOCK_FIFO_DEPTH = 1 << $clog2(N_SYMBOLS + 2 * T_SYMBOLS + 8),
+    parameter string KES_ALGO      = "RIBM",   // "RIBM" or "EUCLID" (PRD D11)
     // derived, exposed for the consumer's convenience
     parameter int K_SYMBOLS        = N_SYMBOLS - 2 * T_SYMBOLS,
     parameter int SYMBOLS_PER_BEAT = DATA_WIDTH / SYMBOL_WIDTH,
@@ -146,6 +148,8 @@ module rs_decoder_core
             $error("rs_decoder_core: BLOCK_FIFO_DEPTH %0d must be a power of two above N", BFD);
         if (SKID_DEPTH < 2 || SKID_DEPTH > 8)
             $error("rs_decoder_core: SKID_DEPTH must be 2..8 (got %0d)", SKID_DEPTH);
+        if (KES_ALGO != "RIBM" && KES_ALGO != "EUCLID")
+            $error("rs_decoder_core: KES_ALGO must be \"RIBM\" or \"EUCLID\" (got %s)", KES_ALGO);
     end
 
     // =========================================================================
@@ -237,11 +241,21 @@ module rs_decoder_core
     logic [T*M-1:0]       w_kes_omega;
     logic [DEG_W-1:0]     w_kes_deg;
 
-    key_equation_solver_ribm #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T)) u_kes (
-        .aclk(aclk), .aresetn(aresetn),
-        .i_start(w_kes_start), .i_synd(w_b_synd),
-        .o_busy(w_kes_busy), .o_done(w_kes_done),
-        .o_lambda(w_kes_lambda), .o_omega(w_kes_omega), .o_deg(w_kes_deg), .o_deg_err(w_kes_deg_err));
+    localparam bit KES_EUCLID = (KES_ALGO == "EUCLID");
+
+    if (KES_EUCLID) begin : g_kes_euclid
+        key_equation_solver_euclid #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T)) u_kes (
+            .aclk(aclk), .aresetn(aresetn),
+            .i_start(w_kes_start), .i_synd(w_b_synd),
+            .o_busy(w_kes_busy), .o_done(w_kes_done),
+            .o_lambda(w_kes_lambda), .o_omega(w_kes_omega), .o_deg(w_kes_deg), .o_deg_err(w_kes_deg_err));
+    end else begin : g_kes_ribm
+        key_equation_solver_ribm #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T)) u_kes (
+            .aclk(aclk), .aresetn(aresetn),
+            .i_start(w_kes_start), .i_synd(w_b_synd),
+            .o_busy(w_kes_busy), .o_done(w_kes_done),
+            .o_lambda(w_kes_lambda), .o_omega(w_kes_omega), .o_deg(w_kes_deg), .o_deg_err(w_kes_deg_err));
+    end
 
     // B -> C descriptor: {len, frame_err, all_zero, correct, bad, deg, lambda[0..t], omega}
     localparam int DBC_W = CNT_W + 4 + DEG_W + (T + 1) * M + T * M;
@@ -348,7 +362,7 @@ module rs_decoder_core
         .o_root(w_chien_root), .o_odd_sum(w_chien_odd));
 
     forney_evaluator #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T), .N_SYMBOLS(N),
-                       .FIRST_ROOT(FIRST_ROOT)) u_forney (
+                       .FIRST_ROOT(FIRST_ROOT), .OMEGA_HIGH_HALF(!KES_EUCLID)) u_forney (
         .aclk(aclk), .aresetn(aresetn),
         .i_load(w_c_load), .i_omega(w_c_omega), .i_step(w_c_step),
         .i_odd_sum(w_chien_odd), .o_err_val(w_forney_val), .o_den_zero(w_forney_den_zero));
