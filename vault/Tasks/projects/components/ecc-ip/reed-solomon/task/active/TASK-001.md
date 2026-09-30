@@ -74,3 +74,6 @@ all instantiated components and counts; the sketch's FUB table now points at it.
 `KES_ALGO` (riBM default). Affected blocks only: `euclid_pe` (L1),
 `key_equation_solver_euclid` (L2), the decoder core's generate; catalog compares
 the two; References gain Shao 1985 and Baek-Sunwoo 2006.
+
+**2026-09-29 -- D7 (Sean):** BCH is out of this component; it will be its own
+`ecc-ip/bch/`. GF primitives stay general for reuse.

@@ -14,8 +14,9 @@ only what is particular to this directory.
 ## Decisions this area is waiting on (see PRD.md section 3)
 
 symbol width m; correctable symbols t; shortening; encoder-only vs full
-decoder; erasures; throughput (symbols per cycle); BCH in scope or not;
-the first consumer. DECIDED: the key-equation solver is `KES_ALGO`-selectable, riBM
+decoder; erasures; throughput (symbols per cycle); the first consumer.
+DECIDED: BCH is OUT -- its own component in `ecc-ip/bch/` (PRD D7, Sean
+2026-09-29); keep the GF primitives general so it can reuse them. DECIDED: the key-equation solver is `KES_ALGO`-selectable, riBM
 (default) or the modified Euclidean array (PRD D11, Sean 2026-09-29); only the
 PE and the solver block differ, verified against one golden model. DECIDED: `SYMBOL_WIDTH` is a
 top parameter, `DATA_WIDTH` must be a multiple of it, `SYMBOLS_PER_BEAT` is

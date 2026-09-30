@@ -32,10 +32,9 @@ candidates, not answers. It becomes v1.0 when a consumer fixes section 3.
 A parameterised Reed-Solomon encoder and decoder over GF(2^m) for use by a
 Sherpa consumer (storage, link, or memory ECC), verified against a software
 golden model, documented with a MAS, and characterised for FPGA cost the way
-the rest of the repo is. RS is chosen over the binary BCH special case
-because symbol-oriented correction is what burst-error channels and
-multi-bit memory failures want; whether BCH is also delivered from the same
-GF machinery is decision D7.
+the rest of the repo is. Symbol-oriented correction is what burst-error
+channels and multi-bit memory failures want. The binary BCH code is a
+separate `ecc-ip` component (D7); the two may share the GF(2^m) primitives.
 
 ## 2. Background (from `References/`)
 
@@ -58,7 +57,7 @@ with t and m; the standards below span the practical range.
 | D4 | Encoder only, or encoder + decoder | a transmit-only or RAID-write consumer needs only the LFSR | roughly 10x the area between them |
 | D5 | Erasure decoding | with (RAID, known-bad columns) or without (link codes) | modified syndromes / erasure locator, extra interface |
 | D6 | Throughput | 1 symbol/cycle (serial) up to n symbols/block in a few cycles (parallel Chien, unrolled BM). Per D1 the natural unit is `SYMBOLS_PER_BEAT = DATA_WIDTH / SYMBOL_WIDTH`: the codec consumes one beat per cycle and the syndrome / Chien cell counts scale by that factor. | the whole microarchitecture; decide from the consumer's clock and rate |
-| D7 | BCH | out (RS only), or in as the m-bit-symbol-with-binary-field special case sharing the GF layer | scope of the GF layer and the DV matrix |
+| D7 | BCH | **DECIDED 2026-09-29 (Sean): out. BCH is its own component in `ecc-ip/` (`ecc-ip/bch/`, not yet created).** This component is RS only. The GF(2^m) primitives (`gf_pkg` generator, `gf_mul`, `gf_mul_const`, `gf_inv`) are written so the BCH component can reuse them, but nothing BCH-specific (binary-field syndromes, the BCH key equation's evenness shortcut, bit-level correction) lives here. | GF layer stays general; DV matrix is RS only |
 | D8 | Generator polynomial / primitive element / first root | per standard: CCSDS uses a dual basis and `b = 112`, DVB uses `b = 0`, 802.3 its own | a fixed choice per profile, parameterised in the encoder taps and Forney |
 | D9 | Interface | **DECIDED 2026-09-29 (Sean): the deliverable is a core with plain valid/ready at both ends, so it drops into a compute engine or a memory controller as a block; AXIS and AXI4 are optional adapters around it.** The core ports are the house streaming contract ([[valid-ready-contracts]]): `in_valid / in_ready / in_data[SYMBOLS_PER_BEAT*m] / in_last` (+ `in_erase[SYMBOLS_PER_BEAT]` on the decoder when D5 says erasures) and `out_valid / out_ready / out_data / out_last` (+ `out_status` on the decoder: ok / corrected count / uncorrectable, valid with `out_last`). `INTAKE_IF` and `OUTLET_IF` then default to `"NONE"` (bare core) and may each be `"AXIS"` or `"AXI4"`, independently, so AXIS-in/AXI4-out (decode a link into memory), AXI4-in/AXIS-out (encode from memory onto a link), AXI4/AXI4 (memory-to-memory codec, a DMA with a transform) and AXIS/AXIS (inline) are the same core with different boundary adapters. The core is always a symbol stream with a block-end flag; AXIS boundaries are `axis4_slave` / `axis4_master` (TDATA = `SYMBOLS_PER_BEAT` symbols, TLAST = block end, TUSER = erasure flags in / status out); AXI4 boundaries are a read engine (job: source address + byte count, bursts up to `cfg_xfer_beats`) feeding the core and a write engine (destination address + count, block-aligned) draining it, built on the STREAM engines and the `axi4_master_{rd,wr}` wrappers, with jobs from the regblock (kick register) or a descriptor stream. Only the adapters selected are generated; the bare core is the primary test target and the adapters are tested as wrappers around an already-proven core. | the core is what a consumer instantiates; the adapters are for standalone use; the DV matrix is core first, then intake x outlet |
 | D10 | First consumer | none named yet. Candidates in-repo: none today. External: a NAND/DDR ECC layer, a serial link | picks D1-D9 |

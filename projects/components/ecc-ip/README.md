@@ -31,9 +31,10 @@ lanes mirror the path: `vault/Tasks/projects/components/ecc-ip/<ip>/`.
 
 | Directory | Code | Status |
 |---|---|---|
-| [`reed-solomon/`](reed-solomon/README.md) | RS(n, k) over GF(2^m); riBM key-equation solver decided, symbol width a parameter, scrambler behind `ENABLE_SCRAMBLER` | stood up 2026-09-29: references, draft PRD, architecture sketch; no RTL yet ([PRD](reed-solomon/PRD.md), [sketch](reed-solomon/docs/rs_architecture_sketch.md), [References](reed-solomon/References/README.md)) |
+| [`reed-solomon/`](reed-solomon/README.md) | RS(n, k) over GF(2^m): valid/ready core with optional AXIS/AXI4 adapters, riBM or Euclidean solver, symbol width a parameter, scrambler behind `ENABLE_SCRAMBLER` | stood up 2026-09-29: references, draft PRD, FUB catalog, architecture sketch; no RTL yet ([PRD](reed-solomon/PRD.md), [catalog](reed-solomon/docs/rs_fub_catalog.md), [References](reed-solomon/References/README.md)) |
+| `bch/` | binary BCH codes; shares the GF(2^m) primitives with reed-solomon | planned (Sean, 2026-09-29): its own component, not a mode of RS; directory created when work starts |
 
 What belongs here and what does not: block codecs with their own field
-arithmetic and decoder machinery (RS; BCH if PRD D7 brings it in; LDPC or polar
+arithmetic and decoder machinery (RS; BCH as its own component; LDPC or polar
 if a consumer ever asks). The Hamming SECDED primitives stay in
 `rtl/common/dataint_ecc_*` -- a single-file library primitive is not an IP.
