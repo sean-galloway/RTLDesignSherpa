@@ -58,5 +58,28 @@ green is concealing the defect rather than tolerating it;
 Prefer a framework monitor to a hand-rolled loop where one exists -- it already
 does this correctly ([[bfm-usage]]).
 
+## A held done flag makes the SECOND job's wait return instantly
+
+A `cfg_done` that stays asserted until the next `cfg_start` is the right
+hardware contract -- a host that polls late must still see it. It makes the
+obvious testbench wait wrong. Pulse start, then poll done, and on every
+iteration after the first the poll reads the PREVIOUS job's done and returns
+before the new job has begun.
+
+Wait for done to go LOW first, then wait for it to go high.
+
+*Case (2026-09-30, `rs_axi4_loop_tb`): a three-stage chain (seed, encode,
+decode, drain) where each stage waits on the one before. The first iteration
+passed and every later one failed. The tell was the SHAPE of the failure, not
+its presence: at `backtoback` all 354 beats were wrong, at `constrained` only
+40 of 354. Data that is wrong is wrong at every speed; data that is wrong in
+proportion to how fast you read it is a race. Here the drain was reading a
+memory the decode had barely started writing.*
+
+The same trap reads the other way round too: a done flag that is only a PULSE
+can be missed entirely between polls. Neither shape is safe to poll naively,
+which is the argument for a framework monitor over a hand-rolled loop
+([[bfm-usage]]).
+
 Related: [[measure-over-the-window]] (sample AT the edge, and window the
 metric), [[bfm-usage]], [[silent-fallbacks]].
