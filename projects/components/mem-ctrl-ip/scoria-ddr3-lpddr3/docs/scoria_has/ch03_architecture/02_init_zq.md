@@ -46,6 +46,18 @@ the order is not ours to choose:
 
 : Table 3.2: DDR3 initialization requirements, from JESD79-3F
 
+## What DDR3 does NOT need, and DDR2 did
+
+Found while implementing the sequencer, and worth stating because it makes the
+block smaller rather than larger: the DDR3 sequence has **no precharge-all, no
+double auto-refresh, no OCD default/exit pair, and no second MR0 load**.
+
+pumice's DDR2 sequencer has all four. The second MR0 load existed only to clear
+the DLL-reset bit; DDR3 does not need it because that bit is **self-clearing**
+(JESD79-3F 3.4.2.4). So scoria's init FSM drops seven states relative to
+pumice's and adds three (RESET# hold, the 500 us CKE wait, tXPR), for a net
+reduction.
+
 ## Three consequences for the sequencer
 
 **`RESET#` is a pin, not a command.** This is the structural change. pumice's

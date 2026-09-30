@@ -17,7 +17,7 @@ set -euo pipefail
 # ------------------------------------------------------------
 
 # Default values
-REV="0.6"
+REV="0.7"
 ASSETS="scoria_has/assets"
 HAS_INDEX="scoria_has/scoria_has_index.md"
 

@@ -26,7 +26,7 @@
 | Field | Value |
 |-------|-------|
 | Title | scoria DDR3/LPDDR3 Family Controller — Hardware Architecture Specification |
-| Version | 0.6 |
+| Version | 0.7 |
 | Date | 2026-09-29 |
 | Status | First edition, **pre-RTL**. Specifies the controller; does not describe an implementation |
 | Scope | Controller architecture to the DFI v3.1 boundary, for DDR3 and LPDDR3 |
@@ -71,6 +71,7 @@ it a scheduling problem and not only a sequencing one.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.7 | 2026-09-30 | Ch 3.2: DDR3's init sequence needs no precharge-all, no double refresh, no OCD pair and no second MR0 load (the DLL-reset bit is self-clearing) -- the FSM drops seven of pumice's states and adds three. Found while implementing. |
 | 0.6 | 2026-09-30 | Corrected during implementation: `dfi_signal_pack` is INHERITED, not MODIFIED -- it packs only signals DFI v3.1 leaves unchanged, and v3.1's new channels are driven at the layer above. Inherited FUBs 20 -> 21, modified 4 -> 3. |
 | 0.5 | 2026-09-30 | Target design point named (Sean: "assume k7ddrphy on genesys2 if it helps"): Genesys 2, K7DDRPHY, 2 x MT41J256M16 on a 32-bit bus, DDR3-800, 3200 MB/s theoretical peak. Fixes DFI_RATE=4, NUM_BANKS=8, row 15, col 10, DQ 32, and gives the DDR3-800 JEDEC timing set. |
 | 0.4 | 2026-09-30 | Q1 and Q4 answered rather than deferred: s7ddrphy is the PHY for every board here, it implements no DFI low-power interface, and it imposes no leveling timeout. `powerdown_ctrl` corrected to INHERITED in mechanism -- power-down is CKE and SRE/SRX, not the DFI low-power channel. No open questions remain. |
