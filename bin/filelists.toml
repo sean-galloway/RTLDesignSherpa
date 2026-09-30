@@ -244,6 +244,17 @@ filelist_dirs = [
     "projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/filelists",
 ]
 
+# scoria on the Genesys 2. Two builds by design -- scoria on real DDR3 and
+# LiteDRAM in its place -- so a bandwidth number has a yardstick taken on the
+# same board, same pins, same char engine.
+[[area]]
+name = "genesys2_scoria"
+kind = "board"
+rtl_roots = []
+filelist_dirs = [
+    "projects/fpga-systems/Genesys2/scoria/build-litedram/rtl/filelists",
+]
+
 [[area]]
 name = "genesys2_rapids_beats_char"
 kind = "board"

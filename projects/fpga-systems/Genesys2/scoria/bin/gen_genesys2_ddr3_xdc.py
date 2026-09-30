@@ -9,7 +9,7 @@ a board bring-up and looks like a PHY problem while you hunt it.
 Source of truth: litex_boards/platforms/digilent_genesys2.py, the same file
 LiteDRAM itself reads when it builds for this board. Point --platform at it.
 
-    ./gen_genesys2_ddr3_xdc.py --platform <path> -o <build>/constraints/ddr3_pins.xdc
+    ./gen_genesys2_ddr3_xdc.py --platform <path> -o <build>/fpga/constraints/ddr3_pins.xdc
 
 The pin NAMES emitted match the generated core's ports (ddram_a, ddram_dq, ...)
 so the same file constrains both builds: LiteDRAM's core and the scoria harness

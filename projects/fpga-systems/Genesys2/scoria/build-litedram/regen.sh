@@ -55,5 +55,34 @@ FLAGS=(--no-compile-gateware)   # Vivado runs from our own tcl, not litex's
 echo "[regen] $CFG -> $OUT  (bios=$WITH_BIOS)"
 "$GEN" "$CFG" --name litedram_genesys2_ddr3 --output-dir "$OUT" "${FLAGS[@]}"
 
+# The CPU's Verilog is NOT emitted by litedram_gen. LiteX copies it out of the
+# pythondata-cpu-vexriscv package during --compile-gateware, which we skip
+# (Vivado runs from our own tcl). So the generated core instantiates a module
+# `VexRiscv` whose source is nowhere in the output, and the failure surfaces
+# 90 seconds into synthesis as "module 'VexRiscv' not found" -- not at
+# generation time, where it belongs.
+#
+# Copy it in, to the same place LiteX would have put it, so the build filelist
+# names a path inside the build rather than a clone under /tmp.
+#
+# Every variant in that package declares `module VexRiscv`, so they are
+# interchangeable by name and picking the wrong one is a silent swap of CPU
+# implementation. The plain VexRiscv.v is what `"cpu": "vexriscv"` with no
+# variant means; if the config ever names a variant, this must follow it.
+VEX_DIR="$("$VENV/bin/python" -c 'import pythondata_cpu_vexriscv, os; print(os.path.join(os.path.dirname(pythondata_cpu_vexriscv.__file__), "verilog"))')"
+[ -f "$VEX_DIR/VexRiscv.v" ] || { echo "no VexRiscv.v under $VEX_DIR"; exit 1; }
+cp "$VEX_DIR/VexRiscv.v" "$OUT/gateware/VexRiscv.v"
+echo "[regen] copied VexRiscv.v from $VEX_DIR"
+
+# The Verilator blackbox stub is regenerated FROM the core, every time, so the
+# interface the lint gate checks cannot drift from the interface the core has.
+# Hand-maintaining 53 ports here would go stale the first time the config
+# changed, and silently: a stale stub still lints clean.
+BB="$HERE/rtl/litedram_genesys2_ddr3_bb.sv"
+python3 "$HERE/../bin/gen_core_blackbox.py" \
+    "$OUT/gateware/litedram_genesys2_ddr3.v" \
+    -m litedram_genesys2_ddr3 -o "$BB"
+
 echo "generated:"
 find "$OUT" -name '*.v' | xargs ls -l 2>/dev/null | awk '{print "   "$5"B  "$NF}'
+ls -l "$BB" | awk '{print "   "$5"B  "$NF}'
