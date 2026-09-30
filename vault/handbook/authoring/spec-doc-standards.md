@@ -58,6 +58,24 @@ binding for new chapters and for edits to existing ones.
 - This is why a very tall diagram appears small: it was scaled to fit
   the page height, not the width. If that makes it unreadable, the fix
   is to split the diagram, not to force a size.
+- **The same trap runs the other way, and Graphviz walks into it by
+  default.** A very WIDE figure is scaled to fit the page WIDTH, so its
+  height collapses: an 11:1 strip lands about half an inch tall and no
+  amount of zoom in the PDF viewer helps, because the pixels were thrown
+  away at fit time. `rankdir=LR` with two or three `subgraph cluster_*`
+  blocks reaches 5:1 or worse almost immediately -- the Nexys A7 system
+  books first rendered at 11:1 and 6.8:1.
+  **Aim for between about 0.7:1 and 2.5:1**, and check it rather than
+  assuming: `identify -format '%wx%h'` on the rendered PNG. Two fixes,
+  in order of preference:
+    1. `rankdir=TB` instead of `LR`. A left-to-right chain of five stages
+       is a strip; the same five stacked is page-shaped.
+    2. For clusters that dot still places side by side, add edges between
+       them with `style=invis` to force a vertical order. Invisible edges
+       change layout only, so the diagram's meaning is untouched.
+  Splitting is still right when the figure is genuinely two figures, but
+  a wide diagram is usually one figure laid out badly, and re-laying it
+  out costs a one-word change.
 
 ## Captions and lists
 
