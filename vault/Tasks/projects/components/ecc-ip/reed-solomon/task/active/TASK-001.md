@@ -66,3 +66,6 @@ with jobs from the regblock or a descriptor stream; sketch rows added.
 at both ends so it can be dropped into a compute engine or a memory controller;
 the AXIS/AXI4 boundaries are optional adapters (`INTAKE_IF`/`OUTLET_IF` default
 `NONE`). PRD 4a records that RS is an endpoint codec, not a mid-stream insert.
+
+**2026-09-29 -- `docs/rs_fub_catalog.md`** (Sean's ask): every FUB bottom-up with
+all instantiated components and counts; the sketch's FUB table now points at it.

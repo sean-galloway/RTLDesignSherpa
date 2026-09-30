@@ -83,31 +83,11 @@ flowchart LR
 
 ## FUBs
 
-Each is one module in `rtl/`, one TB class, one test file, one MAS chapter.
-`(new)` is RTL that does not exist anywhere in the repo yet.
-
-| FUB | What it does | Built from |
-|---|---|---|
-| `gf_pkg` + `gf_tables` (new) | The field: primitive polynomial, α, log/antilog tables and the generator-polynomial coefficients, all generated from parameters (PRD R3) so a profile change is a parameter change. | new; a Python generator (`galois`) emits the tables, checked into `rtl/generated/` per Rule 0.1 |
-| `gf_mul`, `gf_mul_const`, `gf_inv` (new) | GF(2^m) multiply (bit-parallel AND/XOR array plus modular reduction), constant multiply (reduces to an XOR net), inverse (table or Itoh-Tsujii). The three primitives everything else is made of. | new; the binary `math_multiplier_*` trees do not apply (no carries in GF(2^m)) |
-| `symbol_unpack` / `symbol_pack` | Slice a TDATA beat into `SYMBOLS_PER_BEAT = DATA_WIDTH / SYMBOL_WIDTH` symbols and back (PRD D1: the bus must be a multiple of m, checked at elaboration), and keep TLAST aligned. | `shifter_beat_pack` (common) for the pack side; a counter from `counter_bin` |
-| `line_randomizer` (generated only when `ENABLE_SCRAMBLER = 1`, PRD D12) | The standard's scrambler: a binary LFSR of fixed polynomial and seed (CCSDS x^17+x^14+1 seeded 11000111000111000 after the encoder, or the legacy 8-bit x^8+x^7+x^5+x^3+1 all-ones; DVB x^15+x^14+1 seeded 100101010000000 before it). Not part of the RS code; a parameter puts it in or leaves it out, and the OFF build is tested too. | `shifter_lfsr_galois` / `shifter_lfsr_fibonacci` (common) |
-| `gf_lfsr_encoder` (new) | Systematic encoder: a 2t-stage LFSR over GF(2^m) with the generator-polynomial taps; k data symbols shift in, 2t parity symbols shift out. | 2t × `gf_mul_const`, 2t symbol registers; house `ALWAYS_FF_RST` macros |
-| `parity_mux` | Passes the k data symbols through, then appends the 2t parity symbols; drives TLAST on the last parity symbol. | `counter_bin` (position), a 2:1 symbol mux |
-| `block_buffer` | Holds the received block while the decoder works out where the errors are; depth = n + decoder latency symbols. Read out in lock-step with `chien_search` so the corrector meets each symbol at its position. | `gaxi_fifo_sync` (DEPTH = 512 for n = 255 plus latency, DATA_WIDTH = m + erasure bit, `MEM_STYLE` BRAM) |
-| `syndrome_unit` (new) | 2t Horner evaluators, one per root α^(b+i): each is a register plus one `gf_mul_const` and an XOR, updated once per received symbol. Also the all-zero test that lets an error-free block bypass the solver. | 2t × `gf_mul_const` |
-| `erasure_locator` (optional, PRD D5) | Builds the erasure-locator polynomial from TUSER flags and the position counter; feeds the solver so erasures do not spend the t budget. | `counter_bin`, t × `gf_mul`; only if D5 says erasures |
-| `key_equation_solver` (new) | Reformulated inversionless Berlekamp-Massey (Sarwate-Shanbhag riBM): 2t iterations, each one systolic step over 3t + 1 cells, no GF inverse in the loop. Produces the error-locator Λ(x) and evaluator Ω(x); flags degree > t as uncorrectable. | 3t + 1 × `gf_mul` (25 for t = 8), one `counter_bin` for the iteration count |
-| `chien_search` (new) | Evaluates Λ(α^-i) for every position i, one position per cycle, t + 1 cells each stepping by a constant multiply; a zero result marks an error at that position. | t + 1 × `gf_mul_const`, `counter_bin` (position) |
-| `forney_evaluator` (new) | Error magnitude at each located position: Ω(X^-1) / Λ'(X^-1) times the first-root correction. Needs one GF inverse per error. | `gf_inv`, 2 × `gf_mul`, t × `gf_mul_const` for Ω |
-| `corrector` | XORs the Forney value into the symbol leaving `block_buffer` when Chien says the position is in error; counts corrections. | XOR + `counter_bin`; the FIFO read strobe is the position clock |
-| `status_counters` | Per-block: ok / corrected-n / uncorrectable; running totals; the uncorrectable flag also rides TUSER out (PRD R2). | `counter_bin` × 3, flags into the regblock's `hwif_in` |
-| `rs_regs` (generated) | Profile selection (when more than one is compiled in), enables, counters, interrupt on uncorrectable. | PeakRDL regblock via `bin/peakrdl_generate.py`; APB in through the converters' `apb4 → cpuif` path exactly as `stream_config_block` does |
-| `rs_encoder_core`, `rs_decoder_core` | **The deliverables** (PRD D9): plain valid/ready in and out, `SYMBOLS_PER_BEAT` symbols per beat, a last flag for block end, erasure bits in and block status out on the decoder. A consumer -- a memory controller's write/read path, a compute engine's result path, a link framer -- instantiates this and nothing else. | the FUBs above, `gaxi_skid_buffer` at stage boundaries |
-| `rs_encoder`, `rs_decoder` (standalone tops, optional) | The core with an adapter at each end when it is used on its own rather than inside a consumer: `INTAKE_IF` / `OUTLET_IF` each `NONE` (default, bare core), `AXIS` or `AXI4`, independently, so AXIS-in/AXI4-out and the other pairings are one core with different adapters generated. | AXIS end: `axis4_slave` in / `axis4_master` out (`SKID_DEPTH` 2-4; `_monlite` variants when observed). AXI4 end: the two engines below |
-| `rs_axi_read_engine` (generated when `INTAKE_IF = AXI4`) | Turns a job (source address, byte count) into AXI4 read bursts and presents the returned beats as the core's symbol stream, marking block end every n symbols; back-pressures on the core's ready. | STREAM's `axi_read_engine` shape (job valid/addr/beats in, done strobe out, `cfg_axi_rd_xfer_beats` burst cap) behind an `axi4_master_rd` timing wrapper; `gaxi_fifo_sync` as the landing buffer; `dma_address_gen` (misc) if strided / 2-D jobs are wanted |
-| `rs_axi_write_engine` (generated when `OUTLET_IF = AXI4`) | Drains the core's output stream into AXI4 write bursts at the job's destination address, one block per n (decoder: k) symbols, and reports bytes written and block status in the done strobe. | STREAM's `axi_write_engine` shape (job valid/ready/addr/beats/burst_len, done + commit strobes) behind `axi4_master_wr`; `gaxi_fifo_sync` for the drain |
-| `rs_job_ctrl` (AXI4 ends only) | Where jobs come from: the regblock (source / destination / count / kick, one job at a time) or a descriptor stream on a small AXIS port for chained jobs. Sequences read-engine and write-engine jobs so the write side knows each block's destination before its first symbol arrives. | `rs_regs` fields + `gaxi_skid_buffer` for the descriptor path; the STREAM `descriptor_engine` is the precedent if chaining grows |
+The block-by-block list -- every FUB, what it does, and ALL the components it
+instantiates with counts, ordered bottom-up from the leaves that instantiate
+nothing -- is [`rs_fub_catalog.md`](rs_fub_catalog.md). This page keeps the
+diagram, the reuse map and the sizing; the catalog is the single source for
+the hierarchy.
 
 ## Reuse map, by repo area
 
