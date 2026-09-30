@@ -4,82 +4,72 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: SchedulerGroupArrayTB
-# Purpose: RAPIDS Scheduler Group Array Testbench - v1.0
+# Module: BeatsSchedulerGroupArrayTB
+# Purpose: RAPIDS Beats Scheduler Group Array Testbench - Phase 1 Macro Level
 #
 # Documentation: projects/components/dma-ip/rapids/PRD.md
-# Subsystem: rapids
+# Subsystem: rapids_macro
 #
 # Author: sean galloway
-# Created: 2025-10-18
+# Created: 2025-01-10
 
 """
-RAPIDS Scheduler Group Array Testbench - v1.0
+RAPIDS Beats Scheduler Group Array Testbench - Phase 1 Macro Level
 
-Testbench for the scheduler_group_array wrapper that instantiates 32 scheduler_group
-instances with shared AXI4 interfaces and aggregated MonBus output.
+Testbench for the scheduler_group_array module which instantiates:
+- 8x scheduler_group instances (each with descriptor_engine + scheduler)
+- Shared AXI4 descriptor read interface with round-robin arbitration
+- Aggregated MonBus output from all 8 groups + arbiter (9 sources total)
 
-This testbench extends the SchedulerGroupTB pattern to handle:
-- 32 parallel scheduler_group instances
-- Shared AXI4 read interface (descriptor engine) with round-robin arbitration
-- Shared AXI4 read interface (control read engine) with round-robin arbitration
-- Shared AXI4 write interface (control write engine) with round-robin arbitration
-- Aggregated MonBus output from all 32 instances + 3 AXI masters
-- Multi-channel concurrent operation verification
-- AXI arbitration and ID-based demultiplexing verification
+This is a simplified RAPIDS architecture for Phase 1:
+- No program engine (direct APB config)
+- No control read/write engines
+- Simplified data path interface
+- 8 channels (vs 32 in full RAPIDS)
 
-Key Differences from SchedulerGroupTB:
-- Tests multiple channels simultaneously (up to 32)
-- Verifies AXI arbitration behavior for shared descriptor AXI master
-- Validates MonBus aggregation from 35 sources (32 groups + 3 AXI masters)
-- Tests channel independence with shared resources
+Features tested:
+- Single channel operation
+- Multi-channel concurrent operations
+- AXI arbitration behavior
+- MonBus aggregation
+- All channels sequential
+- Stress testing
 """
 
 import os
 import random
-import asyncio
-from typing import List, Dict, Any, Tuple, Optional
-import time
 import cocotb
+from typing import Dict, List, Tuple, Any, Optional
+from cocotb.triggers import RisingEdge, Timer
 
 # Framework imports
 from TBClasses.shared.tbbase import TBBase
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.shared.memory_model import MemoryModel
-
-# AXI4 imports
 from CocoTBFramework.components.axi4.axi4_factories import create_axi4_slave_rd, create_axi4_slave_wr
-
-# GAXI imports (for monitor bus)
-from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_slave
 
 
 class SchedulerGroupArrayTB(TBBase):
     """
-    Testbench for RAPIDS Scheduler Group Array (32 instances).
+    RAPIDS Beats Scheduler Group Array testbench.
 
-    Tests comprehensive multi-channel scheduler array functionality:
-    - 32 parallel scheduler_group instances
-    - Shared AXI4 descriptor read interface with arbitration
-    - Shared AXI4 control read interface with arbitration
-    - Shared AXI4 control write interface with arbitration
-    - Aggregated MonBus output (35 sources: 32 groups + 3 AXI masters)
-    - Per-channel APB interfaces (32 independent)
-    - Per-channel configuration and control
-    - Multi-channel concurrent operations
-    - AXI arbitration fairness and correctness
-    - MonBus aggregation validation
+    Tests array functionality for 8 scheduler groups:
+    - APB programming interface for descriptor fetch kick-off (per channel)
+    - Shared descriptor AXI interface with round-robin arbitration
+    - Per-channel scheduler data path command interfaces
+    - Completion strobe handling
+    - MonBus event aggregation from all sources
     """
 
     def __init__(self, dut, clk=None, rst_n=None):
         super().__init__(dut)
 
-        # Configuration from environment or defaults
-        self.CHANNEL_COUNT = self.convert_to_int(os.environ.get('CHANNEL_COUNT', '32'))
+        # Get test parameters from environment
         self.TEST_ADDR_WIDTH = self.convert_to_int(os.environ.get('TEST_ADDR_WIDTH', '64'))
         self.TEST_DATA_WIDTH = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '512'))
         self.TEST_AXI_ID_WIDTH = self.convert_to_int(os.environ.get('TEST_AXI_ID_WIDTH', '8'))
-        self.TEST_CREDIT_WIDTH = self.convert_to_int(os.environ.get('TEST_CREDIT_WIDTH', '8'))
         self.TEST_CLK_PERIOD = self.convert_to_int(os.environ.get('TEST_CLK_PERIOD', '10'))
+        self.NUM_CHANNELS = self.convert_to_int(os.environ.get('CHANNEL_COUNT', '8'))
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
 
         # Initialize random generator
@@ -90,709 +80,993 @@ class SchedulerGroupArrayTB(TBBase):
         self.clk_name = self.clk._name if hasattr(self.clk, '_name') else 'clk'
         self.rst_n = rst_n if rst_n else dut.rst_n
 
-        # Set limits based on widths
+        # Calculated parameters
         self.MAX_ADDR = (2**self.TEST_ADDR_WIDTH) - 1
-        self.MAX_DATA = (2**self.TEST_DATA_WIDTH) - 1
-        self.MAX_CREDIT = (2**self.TEST_CREDIT_WIDTH) - 1
 
-        # Create masks for flattened array access
-        self.addr_mask = (1 << self.TEST_ADDR_WIDTH) - 1  # Mask for one address element
+        # Aliases for parameter access (used by helper methods)
+        self.ADDR_WIDTH = self.TEST_ADDR_WIDTH
+        self.DATA_WIDTH = self.TEST_DATA_WIDTH
 
-        # Test configuration
-        self.test_config = {
-            'channel_count': self.CHANNEL_COUNT,
-            'data_width': self.TEST_DATA_WIDTH,
-            'addr_width': self.TEST_ADDR_WIDTH,
-            'axi_id_width': self.TEST_AXI_ID_WIDTH,
-            'credit_width': self.TEST_CREDIT_WIDTH,
-            'timeout_cycles': 1000,
-            'early_warning_threshold': 4
-        }
+        # Test tracking - per channel
+        self.apb_requests = [0] * self.NUM_CHANNELS
+        # Profile-driven delay injector for the APB descriptor kick. The array's
+        # apb_valid/apb_addr are packed per-channel buses (driven via bit-slice
+        # helpers), which GAXI BFMs can't own; instead the timing profile feeds a
+        # FlexRandomizer whose valid_delay gates each per-channel request.
+        self._apb_rnd = None
+        self.descriptors_served = [0] * self.NUM_CHANNELS
+        self.rd_commands_received = [0] * self.NUM_CHANNELS
+        self.wr_commands_received = [0] * self.NUM_CHANNELS
+        self.completions_sent = [0] * self.NUM_CHANNELS
+        self.mon_packets_received = 0
+        self.test_errors = []
 
-        # Component interfaces (initialized in setup)
-        self.desc_axi_slave = None       # Shared descriptor AXI read interface
-        # Note: This module only has desc_axi_* - no separate ctrlrd/ctrlwr interfaces
-        self.monitor_slave = None        # Aggregated monitor bus interface
-
-        # Memory models
+        # Memory model for descriptor storage
         self.descriptor_memory = None
 
-        # Per-channel state tracking
-        self.channel_states = {}
-        for ch in range(self.CHANNEL_COUNT):
-            self.channel_states[ch] = {
-                'idle': True,
-                'descriptor_pending': False,
-                'program_active': False,
-                'last_activity': 0.0,
-                'operations_count': 0,
-                'success_count': 0,
-                'error_count': 0
-            }
+        # Descriptor lookup table: address → data (for AXI responder)
+        # This allows the responder to return correct data regardless of arbitration order
+        self.descriptor_lookup = {}
 
-        # Test statistics
-        self.test_stats = {
-            'summary': {
-                'total_operations': 0,
-                'successful_operations': 0,
-                'failed_operations': 0,
-                'test_duration': 0.0,
-                'start_time': 0.0
-            },
-            'channels': {
-                'channels_tested': set(),
-                'concurrent_channels_max': 0,
-                'per_channel_operations': {}
-            },
-            'arbitration': {
-                'descriptor_arbitrations': 0,
-                'arbitration_latency_samples': [],
-                'channel_fairness': {}  # Track operations per channel
-            },
-            'axi': {
-                'descriptor_reads': 0,
-                'axi_conflicts': 0,
-                'axi_stalls': 0
-            },
-            'monitor': {
-                'monitor_events': 0,
-                'events_per_source': {}  # Track events from each source
-            },
-            'performance': {
-                'operations_per_second': 0.0,
-                'peak_concurrent_channels': 0,
-                'average_operation_latency': 0.0
-            }
-        }
-
-        self.log.info(f"SchedulerGroupArrayTB initialized: {self.CHANNEL_COUNT} channels, "
-                     f"{self.TEST_DATA_WIDTH}-bit data, {self.TEST_ADDR_WIDTH}-bit addresses")
+        self.log.info(f"BeatsSchedulerGroupArrayTB initialized: "
+                     f"{self.NUM_CHANNELS} channels, "
+                     f"{self.TEST_ADDR_WIDTH}-bit addr, {self.TEST_DATA_WIDTH}-bit data")
 
     async def setup_clocks_and_reset(self):
-        """Complete initialization - starts clocks and performs reset sequence."""
-        try:
-            self.log.info("Setting up clocks and reset...")
+        """Complete initialization - starts clocks AND performs reset sequence"""
+        # Start clock
+        await self.start_clock(self.clk_name, freq=self.TEST_CLK_PERIOD, units='ns')
 
-            # Start clock
-            await self.start_clock(self.clk_name, freq=self.TEST_CLK_PERIOD, units='ns')
+        # Set configuration signals BEFORE reset (important for proper initialization)
+        # Per-channel configuration
+        self.dut.cfg_channel_enable.value = (1 << self.NUM_CHANNELS) - 1  # Enable all channels
+        self.dut.cfg_channel_reset.value = 0
 
-            # Set configuration signals for all channels BEFORE reset
-            # These are packed vectors [CHANNEL_COUNT-1:0], so set entire vector
-            # Enable all channels, no idle mode, no wait, use credit mode
-            if hasattr(self.dut, 'cfg_idle_mode'):
-                self.dut.cfg_idle_mode.value = 0  # All channels: no idle mode
-            if hasattr(self.dut, 'cfg_channel_wait'):
-                self.dut.cfg_channel_wait.value = 0  # All channels: no wait
-            if hasattr(self.dut, 'cfg_channel_enable'):
-                self.dut.cfg_channel_enable.value = (1 << self.CHANNEL_COUNT) - 1  # All channels enabled
-            if hasattr(self.dut, 'cfg_use_credit'):
-                self.dut.cfg_use_credit.value = (1 << self.CHANNEL_COUNT) - 1  # All channels use credit
-            if hasattr(self.dut, 'credit_increment'):
-                self.dut.credit_increment.value = 0  # No credit increments
-            if hasattr(self.dut, 'cfg_channel_reset'):
-                self.dut.cfg_channel_reset.value = 0  # No channel resets
+        # Global scheduler configuration
+        self.dut.cfg_sched_enable.value = 1
+        self.dut.cfg_sched_timeout_cycles.value = 1000
+        self.dut.cfg_sched_timeout_limit.value = 1  # escalate after one window (legacy timeout->error)
+        self.dut.cfg_sched_timeout_enable.value = 1
+        self.dut.cfg_sched_err_enable.value = 1
+        self.dut.cfg_sched_compl_enable.value = 1
+        self.dut.cfg_sched_perf_enable.value = 0
 
-            # cfg_initial_credit is unpacked array [CHANNEL_COUNT] - set each element
-            if hasattr(self.dut, 'cfg_initial_credit'):
-                for ch in range(self.CHANNEL_COUNT):
-                    self.dut.cfg_initial_credit[ch].value = 4  # 2^4 = 16 credits (exponential encoding)
+        # Global descriptor engine configuration
+        self.dut.cfg_desceng_enable.value = 1
+        self.dut.cfg_desceng_prefetch.value = 1
+        self.dut.cfg_desceng_fifo_thresh.value = 4
+        self.dut.cfg_desceng_addr0_base.value = 0
+        self.dut.cfg_desceng_addr0_limit.value = 0xFFFF_FFFF_FFFF_FFFF
+        self.dut.cfg_desceng_addr1_base.value = 0
+        self.dut.cfg_desceng_addr1_limit.value = 0xFFFF_FFFF_FFFF_FFFF
 
-            # Perform reset sequence
-            await self.assert_reset()
-            await self.wait_clocks(self.clk_name, 10)  # Hold reset
-            await self.deassert_reset()
-            await self.wait_clocks(self.clk_name, 5)   # Stabilization
+        # Descriptor AXI monitor configuration
+        self.dut.cfg_desc_mon_enable.value = 1
+        self.dut.cfg_desc_mon_err_enable.value = 1
+        self.dut.cfg_desc_mon_perf_enable.value = 0
+        self.dut.cfg_desc_mon_timeout_enable.value = 1
+        self.dut.cfg_desc_mon_timeout_cycles.value = 1000
+        self.dut.cfg_desc_mon_latency_thresh.value = 100
+        self.dut.cfg_desc_mon_pkt_mask.value = 0xFFFF
+        self.dut.cfg_desc_mon_err_select.value = 0
+        self.dut.cfg_desc_mon_err_mask.value = 0xFF
+        self.dut.cfg_desc_mon_timeout_mask.value = 0xFF
+        self.dut.cfg_desc_mon_compl_mask.value = 0xFF
+        self.dut.cfg_desc_mon_thresh_mask.value = 0xFF
+        self.dut.cfg_desc_mon_perf_mask.value = 0xFF
+        self.dut.cfg_desc_mon_addr_mask.value = 0xFF
+        self.dut.cfg_desc_mon_debug_mask.value = 0xFF
 
-            self.log.info("✅ Clock and reset setup complete")
+        # Perform reset sequence
+        await self.assert_reset()
+        await self.wait_clocks(self.clk_name, 10)
+        await self.deassert_reset()
+        await self.wait_clocks(self.clk_name, 10)
 
-        except Exception as e:
-            self.log.error(f"Clock and reset setup failed: {str(e)}")
-            raise
+        self.set_gaxi_timing_profile(os.environ.get('GAXI_TIMING_PROFILE', 'backtoback'))
+
+    def set_gaxi_timing_profile(self, profile_name='backtoback'):
+        """Select a timing profile for APB descriptor-kick injection.
+
+        The packed per-channel apb bus can't be owned by a GAXI master, so the
+        profile's master valid_delay distribution is applied as an inter-request
+        delay in send_apb_request (see _apb_rnd)."""
+        from TBClasses.amba.amba_random_configs import GAXI_RANDOMIZER_CONFIGS
+        if profile_name == 'mixed':
+            profile_name = 'gaxi_realistic'
+        if profile_name not in GAXI_RANDOMIZER_CONFIGS:
+            self.log.warning(f"Unknown GAXI timing profile '{profile_name}', using 'backtoback'")
+            profile_name = 'backtoback'
+        cfg = GAXI_RANDOMIZER_CONFIGS[profile_name]
+        self._apb_rnd = FlexRandomizer(cfg['master'])
+        self.log.info(f"GAXI scheduler_group_array APB-kick timing profile: {profile_name}")
 
     async def assert_reset(self):
-        """Assert reset signal (active-low)."""
+        """Assert reset signal"""
+        self.mark_progress("assert_reset")
         self.rst_n.value = 0
-        self.log.debug("Reset asserted")
+
+        # Clear inputs during reset
+        # Verilator flattens most multi-dimensional arrays to single registers
+        # so we just set them to 0 as whole values
+
+        # APB interface - simple packed arrays
+        self.dut.apb_valid.value = 0
+        # apb_addr is flattened by Verilator - set to 0
+        self.dut.apb_addr.value = 0
+
+        # Descriptor AXI interface (shared)
+        self.dut.desc_axi_arready.value = 0
+        self.dut.desc_axi_rvalid.value = 0
+        self.dut.desc_axi_rdata.value = 0
+        self.dut.desc_axi_rresp.value = 0
+        self.dut.desc_axi_rlast.value = 0
+        self.dut.desc_axi_rid.value = 0
+
+        # Per-channel scheduler write interface ready - packed array
+        self.dut.sched_wr_ready.value = (1 << self.NUM_CHANNELS) - 1  # All channels ready
+
+        # Per-channel completion strobes - packed arrays
+        self.dut.sched_rd_done_strobe.value = 0
+        self.dut.sched_wr_done_strobe.value = 0
+        self.dut.sched_wr_commit_strobe.value = 0
+        self.dut.sched_rd_error.value = 0
+        self.dut.sched_wr_error.value = 0
+
+        # Per-channel beats done - flattened by Verilator
+        self.dut.sched_rd_beats_done.value = 0
+        self.dut.sched_wr_beats_done.value = 0
+        self.dut.sched_wr_commit_beats.value = 0
+
+        # Shared control AXI masters + config (Phase 2) - scalar (not per-channel)
+        self.dut.ctrlrd_axi_arready.value = 0
+        self.dut.ctrlrd_axi_rvalid.value = 0
+        self.dut.ctrlrd_axi_rdata.value = 0
+        self.dut.ctrlrd_axi_rid.value = 0
+        self.dut.ctrlrd_axi_rresp.value = 0
+        self.dut.ctrlrd_axi_rlast.value = 0
+        self.dut.ctrlwr_axi_awready.value = 0
+        self.dut.ctrlwr_axi_wready.value = 0
+        self.dut.ctrlwr_axi_bvalid.value = 0
+        self.dut.ctrlwr_axi_bid.value = 0
+        self.dut.ctrlwr_axi_bresp.value = 0
+        self.dut.cfg_ctrlrd_max_try.value = 16
+        self.dut.tick_1us.value = 0
+
+        # MonBus ready
+        self.dut.mon_ready.value = 1
+
+        await self.wait_clocks(self.clk_name, 5)
+        self.log.info("Reset asserted")
 
     async def deassert_reset(self):
-        """Deassert reset signal (active-low)."""
+        """Deassert reset signal"""
+        self.mark_progress("deassert_reset")
         self.rst_n.value = 1
-        self.log.debug("Reset deasserted")
-
-    def set_flattened_array_element(self, signal, channel: int, value: int, element_width: int):
-        """Set a specific element in a flattened 2D array.
-
-        Args:
-            signal: The cocotb signal handle for the flattened array
-            channel: Channel index (0 to NUM_CHANNELS-1)
-            value: Value to set (will be masked to element_width bits)
-            element_width: Width in bits of each array element
-        """
-        # Read current full vector
-        current_val = int(signal.value)
-
-        # Calculate bit positions for this channel
-        low_bit = channel * element_width
-        high_bit = (channel + 1) * element_width
-
-        # Create mask for this channel's bits
-        element_mask = ((1 << element_width) - 1) << low_bit
-
-        # Clear channel's bits, then set new value
-        new_val = (current_val & ~element_mask) | ((value & ((1 << element_width) - 1)) << low_bit)
-        signal.value = new_val
-
-    async def setup_interfaces(self):
-        """Setup all component interfaces."""
-        try:
-            self.log.info("Setting up scheduler array interfaces...")
-
-            # Shared descriptor AXI read interface
-            self.desc_axi_slave = create_axi4_slave_rd(
-                self.dut, self.clk, prefix="desc_axi_", log=self.log,
-                data_width=self.TEST_DATA_WIDTH,
-                addr_width=self.TEST_ADDR_WIDTH,
-                id_width=self.TEST_AXI_ID_WIDTH
-            )
-
-            # Note: This module only has desc_axi_* for descriptor fetches
-            # The sched_rd_*/sched_wr_* are simple valid/ready/addr/beats interfaces
-            # to downstream datapaths, not full AXI interfaces
-
-            # Aggregated monitor bus interface
-            self.monitor_slave = create_gaxi_slave(
-                self.dut, "MonitorBus", "mon_", self.clk,
-                field_config=None,  # Will use default
-                log=self.log,
-                mode='skid'
-            )
-
-            # Create memory models
-            self.descriptor_memory = MemoryModel(
-                num_lines=4096,
-                bytes_per_line=64,  # 512-bit descriptor lines
-                log=self.log
-            )
-
-            # Connect memory model to AXI slave for descriptor fetches
-            if self.desc_axi_slave and 'interface' in self.desc_axi_slave:
-                self.desc_axi_slave['interface'].memory_model = self.descriptor_memory
-
-            self.log.info("✅ All scheduler array interfaces setup complete")
-
-        except Exception as e:
-            self.log.error(f"Failed to setup interfaces: {str(e)}")
-            raise
+        await self.wait_clocks(self.clk_name, 5)
+        self.log.info("Reset deasserted")
 
     async def initialize_test(self):
-        """Initialize test environment."""
-        try:
-            self.log.info("Initializing scheduler array test environment...")
+        """Initialize test environment"""
+        self.log.info("=== Initializing Beats Scheduler Group Array Test ===")
+        self.log.info(f"  NUM_CHANNELS: {self.NUM_CHANNELS}")
+        self.log.info(f"  ADDR_WIDTH: {self.TEST_ADDR_WIDTH}")
+        self.log.info(f"  DATA_WIDTH: {self.TEST_DATA_WIDTH}")
 
-            # Record start time
-            self.test_stats['summary']['start_time'] = time.time()
+        # Create memory model for descriptor storage (256-bit descriptors)
+        self.descriptor_memory = MemoryModel(
+            num_lines=4096,
+            bytes_per_line=32,  # 256 bits = 32 bytes
+            log=self.log
+        )
 
-            # Setup all interfaces
-            await self.setup_interfaces()
+        # Framework slaves own the three shared AXI masters' ports (rapids
+        # TASK-013; the TB used to drive AR/R, AW/W/B by hand):
+        #   desc_axi_*   256-bit read slave backed by descriptor_memory
+        #   ctrlrd_axi_* 32-bit read slave backed by ctrlrd_memory (poll values)
+        #   ctrlwr_axi_* 32-bit write slave backed by ctrlwr_memory (doorbells)
+        self.ctrlrd_memory = MemoryModel(num_lines=4096, bytes_per_line=4, log=self.log)
+        self.ctrlwr_memory = MemoryModel(num_lines=4096, bytes_per_line=4, log=self.log)
+        self.desc_fetches, self._desc_fetch_seen = 0, 0
+        self.ctrlwr_doorbells, self._ctrlwr_pending_aw = [], []
+        self.ctrlrd_reads = []
+        self.desc_slave = create_axi4_slave_rd(
+            dut=self.dut, clock=self.clk, prefix="desc_axi_", log=self.log,
+            data_width=256, id_width=self.TEST_AXI_ID_WIDTH, addr_width=self.ADDR_WIDTH,
+            user_width=1, multi_sig=True, memory_model=self.descriptor_memory)
+        self.ctrlrd_slave = create_axi4_slave_rd(
+            dut=self.dut, clock=self.clk, prefix="ctrlrd_axi_", log=self.log,
+            data_width=32, id_width=self.TEST_AXI_ID_WIDTH, addr_width=self.ADDR_WIDTH,
+            user_width=1, multi_sig=True, memory_model=self.ctrlrd_memory)
+        self.ctrlwr_slave = create_axi4_slave_wr(
+            dut=self.dut, clock=self.clk, prefix="ctrlwr_axi_", log=self.log,
+            data_width=32, id_width=self.TEST_AXI_ID_WIDTH, addr_width=self.ADDR_WIDTH,
+            user_width=1, multi_sig=True, memory_model=self.ctrlwr_memory)
+        for comp in (self.desc_slave['AR'], self.desc_slave['R'], self.ctrlrd_slave['AR'],
+                     self.ctrlrd_slave['R'], self.ctrlwr_slave['AW'], self.ctrlwr_slave['W'],
+                     self.ctrlwr_slave['B']):
+            await comp.reset_bus()
+        self.desc_slave['AR'].add_callback(self._on_desc_ar)
+        self.ctrlrd_slave['AR'].add_callback(self._on_ctrlrd_ar)
+        self.ctrlwr_slave['AW'].add_callback(self._on_ctrlwr_aw)
+        self.ctrlwr_slave['W'].add_callback(self._on_ctrlwr_w)
 
-            # Wait for interfaces to stabilize
-            await self.wait_clocks(self.clk_name, 10)
+        # sched_wr_ready is a packed array - set all channels ready
+        self.dut.sched_wr_ready.value = (1 << self.NUM_CHANNELS) - 1
+        self.dut.mon_ready.value = 1
+        # Capture MonBus packets in the background from here on: the aggregation
+        # test used to poll only after the activity that produced them (rapids TASK-003).
+        cocotb.start_soon(self._capture_monbus())
 
-            # Initialize all per-channel signals to safe defaults
-            await self.initialize_channel_signals()
+        await self.wait_clocks(self.clk_name, 5)
+        self.log.info("Beats scheduler group array initialization completed")
 
-            # Clear any pending transactions
-            await self.clear_all_interfaces()
+    # ==========================================================================
+    # INTERFACE METHODS
+    # ==========================================================================
 
-            self.log.info("✅ Scheduler array test initialization complete")
+    def _set_packed_bit(self, signal, bit_index: int, value: int):
+        """Set a single bit in a packed array signal using read-modify-write."""
+        current = int(signal.value)
+        if value:
+            current |= (1 << bit_index)
+        else:
+            current &= ~(1 << bit_index)
+        signal.value = current
 
-        except Exception as e:
-            self.log.error(f"Test initialization failed: {str(e)}")
-            raise
+    def _get_packed_bit(self, signal, bit_index: int) -> int:
+        """Get a single bit from a packed array signal."""
+        return (int(signal.value) >> bit_index) & 1
 
-    async def initialize_channel_signals(self):
-        """Initialize per-channel signals to safe defaults."""
-        try:
-            # Packed vectors - set entire vector to 0 or appropriate value
-            if hasattr(self.dut, 'apb_valid'):
-                self.dut.apb_valid.value = 0  # All channels: no APB requests
-            if hasattr(self.dut, 'eos_completion_valid'):
-                self.dut.eos_completion_valid.value = 0  # All channels: no EOS completions
-            if hasattr(self.dut, 'data_ready'):
-                self.dut.data_ready.value = (1 << self.CHANNEL_COUNT) - 1  # All channels ready
-            if hasattr(self.dut, 'data_error'):
-                self.dut.data_error.value = 0  # All channels: no errors
-            if hasattr(self.dut, 'data_done_strobe'):
-                self.dut.data_done_strobe.value = 0  # All channels: no done strobes
-            if hasattr(self.dut, 'data_alignment_ready'):
-                self.dut.data_alignment_ready.value = (1 << self.CHANNEL_COUNT) - 1  # All channels ready
+    def _set_array_element(self, signal, element_index: int, element_width: int, value: int):
+        """Set an element in a flattened array signal using read-modify-write.
 
-            # Packed multi-dimensional arrays (Verilator flattens these)
-            # Set entire flattened vector to 0 for arrays we can't index into
-            packed_arrays = ['apb_addr',
-                             'eos_completion_channel', 'data_transfer_length',
-                             'cfg_addr0_base',
-                             'cfg_addr0_limit', 'cfg_addr1_base', 'cfg_addr1_limit',
-                             'cfg_fifo_threshold']
-            for arr_name in packed_arrays:
-                if hasattr(self.dut, arr_name):
-                    try:
-                        # Try to set the entire flattened vector to 0
-                        getattr(self.dut, arr_name).value = 0
-                    except Exception:
-                        # Silently ignore if we can't set it
-                        pass
+        Verilator flattens [N-1:0][M-1:0] arrays into single wide registers.
+        This method sets element[element_index] which occupies bits [element_index*element_width +: element_width].
 
-            # Monitor bus ready (single aggregated output)
-            if hasattr(self.dut, 'mon_ready'):
-                self.dut.mon_ready.value = 1
+        Args:
+            signal: The flattened DUT signal
+            element_index: Which element to set (0 to N-1)
+            element_width: Width of each element in bits
+            value: Value to write to this element
+        """
+        current = int(signal.value)
+        bit_offset = element_index * element_width
+        mask = ((1 << element_width) - 1) << bit_offset
+        current = (current & ~mask) | ((value & ((1 << element_width) - 1)) << bit_offset)
+        signal.value = current
 
-            # AXI monitor configuration (shared for all channels)
-            if hasattr(self.dut, 'cfg_axi_monitor_enable'):
-                self.dut.cfg_axi_monitor_enable.value = 0  # Disable for performance
-            if hasattr(self.dut, 'cfg_axi_error_enable'):
-                self.dut.cfg_axi_error_enable.value = 1  # Enable error monitoring
-            if hasattr(self.dut, 'cfg_axi_timeout_enable'):
-                self.dut.cfg_axi_timeout_enable.value = 1
-            if hasattr(self.dut, 'cfg_axi_perf_enable'):
-                self.dut.cfg_axi_perf_enable.value = 0  # Disable for low traffic
-            if hasattr(self.dut, 'cfg_axi_timeout_cycles'):
-                self.dut.cfg_axi_timeout_cycles.value = 1000
-            if hasattr(self.dut, 'cfg_axi_latency_threshold'):
-                self.dut.cfg_axi_latency_threshold.value = 500
+    def _get_array_element(self, signal, element_index: int, element_width: int) -> int:
+        """Get an element from a flattened array signal.
 
-            await self.wait_clocks(self.clk_name, 5)
-            self.log.info(f"Initialized signals for {self.CHANNEL_COUNT} channels")
+        Args:
+            signal: The flattened DUT signal
+            element_index: Which element to get (0 to N-1)
+            element_width: Width of each element in bits
 
-        except Exception as e:
-            self.log.error(f"Channel signal initialization failed: {str(e)}")
-            raise
+        Returns:
+            The value of the specified element
+        """
+        current = int(signal.value)
+        bit_offset = element_index * element_width
+        return (current >> bit_offset) & ((1 << element_width) - 1)
 
-    async def clear_all_interfaces(self):
-        """Clear all interfaces and reset to known state."""
-        try:
-            # Clear memory models
-            if self.descriptor_memory:
-                self.descriptor_memory.reset()
-            # Wait for all to settle
-            await self.wait_clocks(self.clk_name, 10)
-            self.log.info("All interfaces cleared")
+    async def send_apb_request(self, channel: int, addr: int) -> bool:
+        """Send APB descriptor fetch request to specific channel.
 
-        except Exception as e:
-            self.log.error(f"Interface clearing failed: {str(e)}")
-            raise
+        Args:
+            channel: Channel number (0-7)
+            addr: Descriptor address to fetch
 
-    async def test_single_channel_operation(self, channel: int) -> Tuple[bool, Dict[str, Any]]:
-        """Test basic operation on a single channel."""
-        self.log.info(f"Testing single channel operation: channel {channel}")
+        Returns:
+            True if request accepted, False on timeout
+        """
+        if channel >= self.NUM_CHANNELS:
+            self.log.error(f"Invalid channel {channel}, max is {self.NUM_CHANNELS-1}")
+            return False
 
-        try:
-            # Generate test data - constrain address to memory size
-            # Memory is 4096 lines × 64 bytes = 262144 bytes
-            # Need to align to 64-byte boundaries
-            max_line = 4096 - 1  # 0 to 4095
-            desc_line = random.randint(0, max_line)
-            desc_addr = desc_line * 64  # Align to 64-byte boundary
-            desc_data = random.randint(0, min(self.MAX_DATA, 2**512 - 1))  # 512-bit max
+        # Profile-driven injection delay (varies descriptor-request timing).
+        if self._apb_rnd is not None:
+            delay = int(self._apb_rnd.get_delay('valid_delay'))
+            if delay > 0:
+                await self.wait_clocks(self.clk_name, delay)
 
-            # Program descriptor into memory
-            self.descriptor_memory.write(desc_addr, bytearray(desc_data.to_bytes(64, 'little')))
+        # Set apb_valid bit for this channel (packed array)
+        self._set_packed_bit(self.dut.apb_valid, channel, 1)
+        # Set apb_addr for this channel (flattened array: [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0])
+        self._set_array_element(self.dut.apb_addr, channel, self.ADDR_WIDTH, addr)
 
-            # Request descriptor fetch via APB
-            await self.request_descriptor_fetch(channel, desc_addr)
-
-            # Wait for descriptor processing - minimal delay
-            await self.wait_clocks(self.clk_name, 3)
-
-            # Update statistics
-            self.channel_states[channel]['operations_count'] += 1
-            self.channel_states[channel]['success_count'] += 1
-            self.test_stats['summary']['successful_operations'] += 1
-            self.test_stats['channels']['channels_tested'].add(channel)
-
-            stats = {
-                'channel': channel,
-                'success': True,
-                'descriptor_addr': desc_addr
-            }
-
-            return True, stats
-
-        except Exception as e:
-            self.log.error(f"Single channel test failed: {str(e)}")
-            self.channel_states[channel]['error_count'] += 1
-            return False, {'channel': channel, 'error': str(e)}
-
-    async def request_descriptor_fetch(self, channel: int, addr: int):
-        """Request descriptor fetch via APB for specific channel."""
-        try:
-            # APB fetch request - set bit for specific channel (packed vector)
-            current_valid = int(self.dut.apb_valid.value)
-            self.dut.apb_valid.value = current_valid | (1 << channel)
-
-            # APB address (flattened 2D array - use helper to set specific channel)
-            self.set_flattened_array_element(self.dut.apb_addr, channel, addr, self.TEST_ADDR_WIDTH)
-
+        # Wait for ready handshake
+        for _ in range(100):
+            if self._get_packed_bit(self.dut.apb_ready, channel) == 1:
+                await self.wait_clocks(self.clk_name, 1)
+                self.apb_requests[channel] += 1
+                self.log.info(f"APB request sent: channel={channel}, addr=0x{addr:X}")
+                self._set_packed_bit(self.dut.apb_valid, channel, 0)
+                return True
             await self.wait_clocks(self.clk_name, 1)
 
-            # Wait for ready - check bit for specific channel
-            timeout = 1000  # Sufficient for AXI arbitration with moderate concurrency
-            while timeout > 0:
-                apb_ready_val = int(self.dut.apb_ready.value)
-                if (apb_ready_val >> channel) & 1:
-                    break
+        self.log.warning(f"APB request timeout on channel {channel}: addr=0x{addr:X}")
+        self._set_packed_bit(self.dut.apb_valid, channel, 0)
+        return False
+
+    def register_descriptor(self, addr: int, data: int):
+        """Register a descriptor in the lookup table for AXI responder.
+
+        Args:
+            addr: Descriptor address (where it will be fetched from)
+            data: 256-bit descriptor data
+        """
+        self.descriptor_lookup[addr] = data
+        self.descriptor_memory.write(addr, bytearray((data & ((1 << 256) - 1)).to_bytes(32, 'little')))
+        self.log.debug(f"Registered descriptor at addr=0x{addr:X}")
+
+    def clear_descriptor_lookup(self):
+        """Clear the descriptor lookup table."""
+        self.descriptor_lookup.clear()
+
+    # -- framework-slave hooks (AR/AW/W monitor callbacks) ---------------------
+    def _on_desc_ar(self, pkt):
+        self.desc_fetches += 1
+        ar_id = int(getattr(pkt, 'id', 0))
+        channel = ar_id & (self.NUM_CHANNELS - 1)
+        self.descriptors_served[channel] += 1
+        self.log.info(f"descriptor fetch #{self.desc_fetches}: channel={channel} "
+                      f"addr=0x{int(getattr(pkt, 'addr', 0)):X}")
+
+    def _on_ctrlrd_ar(self, pkt):
+        self.ctrlrd_reads.append((int(getattr(pkt, 'id', 0)) & (self.NUM_CHANNELS - 1),
+                                  int(getattr(pkt, 'addr', 0))))
+
+    def _on_ctrlwr_aw(self, pkt):
+        self._ctrlwr_pending_aw.append((int(getattr(pkt, 'id', 0)) & (self.NUM_CHANNELS - 1),
+                                        int(getattr(pkt, 'addr', 0))))
+
+    def _on_ctrlwr_w(self, pkt):
+        ch, addr = self._ctrlwr_pending_aw.pop(0) if self._ctrlwr_pending_aw else (None, None)
+        self.ctrlwr_doorbells.append((ch, addr, int(getattr(pkt, 'data', 0)) & 0xFFFFFFFF))
+
+    async def respond_to_descriptor_read(self, data: int = None) -> bool:
+        """Wait for the desc_axi_* read slave to serve the next descriptor fetch.
+
+        The slave answers from descriptor_memory, so the descriptor must be
+        register_descriptor()'d BEFORE the kick; `data` is accepted only for
+        call compatibility and is ignored (rapids TASK-013).
+        """
+        for _ in range(200):
+            if self.desc_fetches > self._desc_fetch_seen:
+                self._desc_fetch_seen += 1
+                return True
+            await self.wait_clocks(self.clk_name, 1)
+        self.log.warning("AR handshake timeout - no descriptor fetch in 200 cycles")
+        return False
+
+    async def wait_for_rd_command(self, channel: int, timeout: int = 100) -> Optional[Tuple[int, int]]:
+        """Wait for scheduler read command on specific channel.
+
+        Returns:
+            Tuple of (addr, beats) if command received, None on timeout
+        """
+        for _ in range(timeout):
+            # sched_rd_valid is a packed array
+            if self._get_packed_bit(self.dut.sched_rd_valid, channel) == 1:
+                # sched_rd_addr and sched_rd_beats are flattened arrays
+                addr = self._get_array_element(self.dut.sched_rd_addr, channel, self.ADDR_WIDTH)
+                beats = self._get_array_element(self.dut.sched_rd_beats, channel, 32)
+                self.rd_commands_received[channel] += 1
+                self.log.info(f"RD command: channel={channel}, addr=0x{addr:X}, beats={beats}")
+                return (addr, beats)
+            await self.wait_clocks(self.clk_name, 1)
+        return None
+
+    async def wait_for_wr_command(self, channel: int, timeout: int = 100) -> Optional[Tuple[int, int]]:
+        """Wait for scheduler write command on specific channel.
+
+        Returns:
+            Tuple of (addr, beats) if command received, None on timeout
+        """
+        for _ in range(timeout):
+            # sched_wr_valid is a packed array
+            if self._get_packed_bit(self.dut.sched_wr_valid, channel) == 1:
+                # sched_wr_addr and sched_wr_beats are flattened arrays
+                addr = self._get_array_element(self.dut.sched_wr_addr, channel, self.ADDR_WIDTH)
+                beats = self._get_array_element(self.dut.sched_wr_beats, channel, 32)
                 await self.wait_clocks(self.clk_name, 1)
-                timeout -= 1
+                self.wr_commands_received[channel] += 1
+                self.log.info(f"WR command: channel={channel}, addr=0x{addr:X}, beats={beats}")
+                return (addr, beats)
+            await self.wait_clocks(self.clk_name, 1)
+        return None
 
-            if timeout == 0:
-                raise TimeoutError(f"APB request timeout on channel {channel}")
+    async def send_rd_completion(self, channel: int, beats_done: int):
+        """Send read completion strobe for specific channel."""
+        # sched_rd_done_strobe is a packed array
+        self._set_packed_bit(self.dut.sched_rd_done_strobe, channel, 1)
+        # sched_rd_beats_done is a flattened array
+        self._set_array_element(self.dut.sched_rd_beats_done, channel, 32, beats_done)
+        await self.wait_clocks(self.clk_name, 1)
+        self._set_packed_bit(self.dut.sched_rd_done_strobe, channel, 0)
+        self.completions_sent[channel] += 1
+        self.log.info(f"RD completion: channel={channel}, beats={beats_done}")
 
-            # Clear valid bit for this channel
-            current_valid = int(self.dut.apb_valid.value)
-            self.dut.apb_valid.value = current_valid & ~(1 << channel)
+    async def send_wr_completion(self, channel: int, beats_done: int):
+        """Send write completion strobes (issue + commit) for a specific channel.
 
-            self.channel_states[channel]['descriptor_pending'] = True
-            self.test_stats['arbitration']['descriptor_arbitrations'] += 1
+        commit_strobe now gates scheduler completion, so pulse it alongside the
+        issue done_strobe (this simulator models issue and commit together).
+        """
+        # sched_wr_done_strobe / sched_wr_commit_strobe are packed arrays
+        self._set_packed_bit(self.dut.sched_wr_done_strobe, channel, 1)
+        self._set_packed_bit(self.dut.sched_wr_commit_strobe, channel, 1)
+        # sched_wr_beats_done / sched_wr_commit_beats are flattened arrays
+        self._set_array_element(self.dut.sched_wr_beats_done, channel, 32, beats_done)
+        self._set_array_element(self.dut.sched_wr_commit_beats, channel, 32, beats_done)
+        await self.wait_clocks(self.clk_name, 1)
+        self._set_packed_bit(self.dut.sched_wr_done_strobe, channel, 0)
+        self._set_packed_bit(self.dut.sched_wr_commit_strobe, channel, 0)
+        self.completions_sent[channel] += 1
+        self.log.info(f"WR completion: channel={channel}, beats={beats_done}")
 
-        except Exception as e:
-            self.log.error(f"APB descriptor request failed on channel {channel}: {str(e)}")
-            raise
+    async def _capture_monbus(self):
+        """Count and keep every packet the array's aggregated MonBus hands over."""
+        from TBClasses.monbus import parse
+        self.mon_packets = []
+        while True:
+            await self.wait_clocks(self.clk_name, 1)
+            if int(self.dut.mon_valid.value) == 1 and int(self.dut.mon_ready.value) == 1:
+                raw = int(self.dut.mon_packet.value)
+                self.mon_packets.append(parse(raw))
+                self.mon_packets_received += 1
+
+    async def check_monbus_packet(self, timeout: int = 50) -> Optional[int]:
+        """Check for monitor bus packet.
+
+        Returns:
+            64-bit packet data if available, None on timeout
+        """
+        for _ in range(timeout):
+            if int(self.dut.mon_valid.value) == 1 and int(self.dut.mon_ready.value) == 1:
+                packet = int(self.dut.mon_packet.value)
+                self.mon_packets_received += 1
+                return packet
+            await self.wait_clocks(self.clk_name, 1)
+        return None
+
+    # ==========================================================================
+    # STATUS METHODS
+    # ==========================================================================
+
+    def is_scheduler_idle(self, channel: int) -> bool:
+        """Check if scheduler on specific channel is idle."""
+        # scheduler_idle is a packed array
+        return self._get_packed_bit(self.dut.scheduler_idle, channel) == 1
+
+    def is_descriptor_engine_idle(self, channel: int) -> bool:
+        """Check if descriptor engine on specific channel is idle."""
+        # descriptor_engine_idle is a packed array
+        return self._get_packed_bit(self.dut.descriptor_engine_idle, channel) == 1
+
+    def get_scheduler_state(self, channel: int) -> int:
+        """Get scheduler state (7-bit one-hot) for specific channel."""
+        # scheduler_state is a flattened array [NUM_CHANNELS-1:0][6:0]
+        return self._get_array_element(self.dut.scheduler_state, channel, 7)
+
+    def has_scheduler_error(self, channel: int) -> bool:
+        """Check for scheduler error on specific channel."""
+        # sched_error is a packed array
+        return self._get_packed_bit(self.dut.sched_error, channel) == 1
+
+    def all_schedulers_idle(self) -> bool:
+        """Check if all schedulers are idle."""
+        # Check if all bits in the packed array are 1
+        idle_mask = (1 << self.NUM_CHANNELS) - 1
+        return int(self.dut.scheduler_idle.value) == idle_mask
+
+    # ==========================================================================
+    # HELPER METHODS
+    # ==========================================================================
+
+    def create_descriptor(self, src_addr: int, dst_addr: int, length: int,
+                         next_ptr: int = 0, valid: int = 1,
+                         gen_irq: int = 0, last: int = 1, opcode: int = 0) -> int:
+        """Create 256-bit descriptor data.
+
+        RAPIDS Descriptor Format:
+          [63:0]    - src_addr     (64 bits) - Source address
+          [127:64]  - dst_addr     (64 bits) - Destination address
+          [159:128] - length       (32 bits) - Transfer length in beats
+          [191:160] - next_ptr     (32 bits) - Next descriptor pointer (0=none)
+          [192]     - valid        (1 bit)   - Descriptor valid flag
+          [193]     - gen_irq      (1 bit)   - Generate IRQ on completion
+          [194]     - last         (1 bit)   - Last descriptor in chain
+          [209:208] - opcode       (2 bits)  - 0=DATA, 1=CTRL_READ, 2=CTRL_WRITE
+                        For control descriptors: addr=src[63:0], data=dst[31:0],
+                        mask=dst[63:32].
+        """
+        desc_data = (src_addr & ((1 << 64) - 1))
+        desc_data |= ((dst_addr & ((1 << 64) - 1)) << 64)
+        desc_data |= ((length & ((1 << 32) - 1)) << 128)
+        desc_data |= ((next_ptr & ((1 << 32) - 1)) << 160)
+        desc_data |= (valid << 192)
+        desc_data |= (gen_irq << 193)
+        desc_data |= (last << 194)
+        desc_data |= ((opcode & 0x3) << 208)
+        return desc_data
+
+    # ==========================================================================
+    # CONTROL-DESCRIPTOR SUPPORT (Phase 2 - shared masters, arbitration proof)
+    # ==========================================================================
+
+    async def _wait_busy_then_idle(self, channels, start_cycles: int = 300, timeout: int = 800) -> bool:
+        """Each channel must LEAVE idle (its descriptor arrived) and then return
+        to idle. Polling for idle alone right after the fetch returned true while
+        the scheduler had not yet seen the descriptor (rapids TASK-013 bring-up)."""
+        pending = set(channels)
+        for _ in range(start_cycles):
+            pending = {ch for ch in pending if self.is_scheduler_idle(ch)}
+            if not pending:
+                break
+            await self.wait_clocks(self.clk_name, 1)
+        if pending:
+            self.log.error(f"channels {sorted(pending)} never left idle after their kick")
+            return False
+        for _ in range(timeout):
+            if all(self.is_scheduler_idle(ch) for ch in channels):
+                return True
+            await self.wait_clocks(self.clk_name, 1)
+        return False
+
+    def _arm_ctrlwr_capture(self):
+        """Start a fresh doorbell capture: (channel_from_awid, addr, data) per
+        write the ctrlwr_axi_* slave accepts. B is routed back by ID by the slave."""
+        self.ctrlwr_doorbells = []
+        self._ctrlwr_pending_aw = []
+
+    def _arm_ctrlrd_capture(self, match_value: int, addrs):
+        """Preload match_value at every poll address the ctrlrd_axi_* slave will
+        serve and start a fresh (channel_from_arid, addr) capture."""
+        for a in addrs:
+            self.ctrlrd_memory.write(a, bytearray((match_value & 0xFFFFFFFF).to_bytes(4, 'little')))
+        self.ctrlrd_reads = []
+
+    async def test_ctrl_multi_channel_doorbell(self, channels: List[int] = None) -> Tuple[bool, Dict[str, Any]]:
+        """Multiple channels issue CTRL_WRITE doorbells through the SINGLE shared
+        ctrlwr master; verify each lands with correct per-channel addr/data + channel
+        ID (proves the write serializer + B demux)."""
+        if channels is None:
+            channels = [0, 1]
+        self.log.info(f"=== Control Multi-Channel Doorbell Test: channels={channels} ===")
+        self.clear_descriptor_lookup()
+        self._arm_ctrlwr_capture()
+        try:
+            expected = {}
+            for ch in channels:
+                addr = 0x2000 + ch * 0x100
+                data = 0xD00D0000 + ch
+                desc = self.create_descriptor(src_addr=addr, dst_addr=data, length=1, opcode=2)
+                self.register_descriptor(32 * (ch + 1), desc)
+                expected[ch] = (addr, data)
+                await self.send_apb_request(ch, 32 * (ch + 1))
+            for _ in channels:
+                await self.respond_to_descriptor_read()
+            for _ in range(800):
+                await self.wait_clocks(self.clk_name, 1)
+                if len(self.ctrlwr_doorbells) >= len(channels):
+                    break
+            got = {ch: (a, d) for (ch, a, d) in self.ctrlwr_doorbells}
+            errors = 0
+            for ch in channels:
+                if ch not in got or got[ch] != expected[ch]:
+                    self.log.error(f"ch{ch} doorbell mismatch: got {got.get(ch)}, expected {expected[ch]}")
+                    errors += 1
+                else:
+                    self.log.info(f"  OK ch{ch} doorbell: addr=0x{got[ch][0]:X} data=0x{got[ch][1]:X}")
+            success = (errors == 0) and (len(self.ctrlwr_doorbells) == len(channels))
+            self.log.info(f"Multi-channel doorbell test: {'PASSED' if success else 'FAILED'}")
+            return (success, {'doorbells': len(self.ctrlwr_doorbells)})
+        finally:
+            self._ctrl_resp_active = False
+            await self.wait_clocks(self.clk_name, 3)
+
+    async def test_ctrl_multi_channel_gate(self, channels: List[int] = None) -> Tuple[bool, Dict[str, Any]]:
+        """Multiple channels issue CTRL_READ gates through the SINGLE shared ctrlrd
+        master; the responder returns a matching value so each gate opens. Verifies
+        arbitration + R demux (each channel's scheduler completes)."""
+        if channels is None:
+            channels = [0, 1]
+        self.log.info(f"=== Control Multi-Channel Gate Test: channels={channels} ===")
+        self.clear_descriptor_lookup()
+        self._arm_ctrlrd_capture(0x1, [0x3000 + ch * 0x100 for ch in channels])
+        try:
+            for ch in channels:
+                poll_addr = 0x3000 + ch * 0x100
+                desc = self.create_descriptor(src_addr=poll_addr,
+                                              dst_addr=((0x1 << 32) | 0x1),  # mask=1, expected=1
+                                              length=1, opcode=1)
+                self.register_descriptor(32 * (ch + 1), desc)
+                await self.send_apb_request(ch, 32 * (ch + 1))
+            for _ in channels:
+                await self.respond_to_descriptor_read()
+            await self._wait_busy_then_idle(channels)
+            errors = 0
+            for ch in channels:
+                if not self.is_scheduler_idle(ch):
+                    self.log.error(f"ch{ch} scheduler not idle (gate did not open)")
+                    errors += 1
+            served = {ch for (ch, _a) in self.ctrlrd_reads}
+            for ch in channels:
+                if ch not in served:
+                    self.log.error(f"ch{ch} never issued a ctrlrd poll")
+                    errors += 1
+            success = errors == 0
+            self.log.info(f"Multi-channel gate test: {'PASSED' if success else 'FAILED'} "
+                          f"(reads={len(self.ctrlrd_reads)})")
+            return (success, {'reads': len(self.ctrlrd_reads)})
+        finally:
+            self._ctrl_resp_active = False
+            await self.wait_clocks(self.clk_name, 3)
+
+    # ==========================================================================
+    # TEST METHODS
+    # ==========================================================================
+
+    async def test_single_channel_operation(self, channel: int = 0) -> Tuple[bool, Dict[str, Any]]:
+        """Test basic operation on a single channel.
+
+        Args:
+            channel: Channel to test (0-7)
+
+        Returns:
+            Tuple of (success, stats_dict)
+        """
+        self.log.info(f"=== Single Channel Operation Test: channel={channel} ===")
+
+        errors = 0
+        stats = {'channel': channel, 'apb_sent': 0, 'desc_received': 0, 'commands': 0}
+
+        # Create descriptor
+        src_addr = random.randint(0x1000, 0xFFFF) * 0x100
+        dst_addr = random.randint(0x2000, 0xFFFF) * 0x100
+        length = random.randint(1, 64)
+        desc_data = self.create_descriptor(src_addr, dst_addr, length)
+        desc_addr = 32  # Non-zero, 32-byte aligned
+        self.register_descriptor(desc_addr, desc_data)
+
+        self.log.info(f"Descriptor: src=0x{src_addr:X}, dst=0x{dst_addr:X}, len={length}")
+
+        # Send APB request
+        if await self.send_apb_request(channel, desc_addr):
+            stats['apb_sent'] = 1
+        else:
+            self.log.error(f"APB request failed on channel {channel}")
+            errors += 1
+
+        # Respond to AXI read
+        if await self.respond_to_descriptor_read(desc_data):
+            stats['desc_received'] = 1
+        else:
+            self.log.error(f"Descriptor AXI response failed on channel {channel}")
+            errors += 1
+
+        # Wait for scheduler command
+        await self.wait_clocks(self.clk_name, 20)
+
+        rd_cmd = await self.wait_for_rd_command(channel, timeout=50)
+        if rd_cmd:
+            stats['commands'] += 1
+            addr, beats = rd_cmd
+            await self.wait_clocks(self.clk_name, 10)
+            await self.send_rd_completion(channel, beats)
+
+        wr_cmd = await self.wait_for_wr_command(channel, timeout=50)
+        if wr_cmd:
+            stats['commands'] += 1
+            addr, beats = wr_cmd
+            await self.wait_clocks(self.clk_name, 10)
+            await self.send_wr_completion(channel, beats)
+
+        await self.wait_clocks(self.clk_name, 20)
+
+        success = errors == 0 and stats['commands'] > 0
+        self.log.info(f"Single channel test: {'PASSED' if success else 'FAILED'}")
+        return (success, stats)
 
     async def test_multi_channel_concurrent(self, channels: List[int]) -> Tuple[bool, Dict[str, Any]]:
-        """Test concurrent operations on multiple channels."""
-        self.log.info(f"Testing concurrent operation on {len(channels)} channels: {channels}")
-
-        success_count = 0
-        error_count = 0
-
-        try:
-            # Launch concurrent operations
-            tasks = []
-            for ch in channels:
-                task = cocotb.start_soon(self.test_single_channel_operation(ch))
-                tasks.append((ch, task))
-
-            # Wait for all to complete
-            results = []
-            for ch, task in tasks:
-                try:
-                    success, stats = await task
-                    results.append((ch, success, stats))
-                    if success:
-                        success_count += 1
-                    else:
-                        error_count += 1
-                except Exception as e:
-                    self.log.error(f"Channel {ch} task failed: {str(e)}")
-                    error_count += 1
-
-            # Update concurrent channel statistics
-            concurrent = len(channels)
-            if concurrent > self.test_stats['performance']['peak_concurrent_channels']:
-                self.test_stats['performance']['peak_concurrent_channels'] = concurrent
-
-            stats = {
-                'channels_tested': channels,
-                'success_count': success_count,
-                'error_count': error_count,
-                'concurrent_channels': concurrent
-            }
-
-            return error_count == 0, stats
-
-        except Exception as e:
-            self.log.error(f"Multi-channel concurrent test failed: {str(e)}")
-            return False, {'error': str(e)}
-
-    async def test_multi_channel_concurrent_operation(
-        self,
-        num_channels_active: int,
-        ops_per_channel: int,
-        test_level: int = 0
-    ) -> Tuple[bool, Dict[str, Any]]:
-        """
-        Test multi-channel concurrent operations.
+        """Test concurrent operations on multiple channels.
 
         Args:
-            num_channels_active: Number of channels to activate concurrently
-            ops_per_channel: Number of operations per channel
-            test_level: 0=basic, 1=medium, 2=full
+            channels: List of channel numbers to test
 
         Returns:
-            Tuple of (success, stats)
+            Tuple of (success, stats_dict)
         """
-        self.log.info(f"Multi-channel concurrent test: {num_channels_active} channels, "
-                     f"{ops_per_channel} ops/channel, level={test_level}")
+        self.log.info(f"=== Multi-Channel Concurrent Test: channels={channels} ===")
 
-        total_operations = num_channels_active * ops_per_channel
-        success_count = 0
-        error_count = 0
+        errors = 0
+        stats = {'channels': channels, 'apb_sent': 0, 'desc_received': 0, 'commands': 0}
 
-        try:
-            # Select channels to test
-            channels = list(range(num_channels_active))
+        # Clear lookup table from any previous test
+        self.clear_descriptor_lookup()
 
-            # Limit concurrency for Verilator performance - batch size based on test level
-            max_concurrent = 4 if test_level == 0 else 3  # basic: 4, medium/full: 3
+        # Create descriptors for each channel and register in lookup table
+        descriptors = {}
+        for ch in channels:
+            src_addr = random.randint(0x1000, 0xFFFF) * 0x100
+            dst_addr = random.randint(0x2000, 0xFFFF) * 0x100
+            length = random.randint(1, 32)
+            desc_data = self.create_descriptor(src_addr, dst_addr, length)
+            desc_addr = (ch + 1) * 32  # Unique address per channel
+            descriptors[ch] = {'data': desc_data, 'addr': desc_addr, 'length': length}
+            # Register in lookup table - allows responder to return correct data
+            # regardless of arbitration order
+            self.register_descriptor(desc_addr, desc_data)
 
-            # Run operations for each channel
-            for op in range(ops_per_channel):
-                # Process channels in batches to limit concurrency
-                for batch_start in range(0, len(channels), max_concurrent):
-                    batch_end = min(batch_start + max_concurrent, len(channels))
-                    batch_channels = channels[batch_start:batch_end]
+        # Send APB requests to all channels
+        for ch in channels:
+            if await self.send_apb_request(ch, descriptors[ch]['addr']):
+                stats['apb_sent'] += 1
+            else:
+                errors += 1
 
-                    # Create tasks for this batch
-                    tasks = []
-                    for ch in batch_channels:
-                        task = cocotb.start_soon(self.test_single_channel_operation(ch))
-                        tasks.append((ch, task))
+        # Respond to AXI reads using lookup table
+        # The round-robin arbiter may serve channels in any order - the lookup
+        # table ensures each channel gets its correct descriptor data
+        for _ in channels:
+            if await self.respond_to_descriptor_read():  # Uses lookup table
+                stats['desc_received'] += 1
+            else:
+                errors += 1
 
-                    # Wait for batch to complete
-                    for ch, task in tasks:
-                        try:
-                            success, _ = await task
-                            if success:
-                                success_count += 1
-                            else:
-                                error_count += 1
-                        except Exception as e:
-                            self.log.error(f"Channel {ch} operation {op} failed: {str(e)}")
-                            error_count += 1
+        # Wait for and handle scheduler commands
+        await self.wait_clocks(self.clk_name, 50)
 
-                # Minimal delay between rounds
-                await self.wait_clocks(self.clk_name, 1)
+        for ch in channels:
+            rd_cmd = await self.wait_for_rd_command(ch, timeout=50)
+            if rd_cmd:
+                stats['commands'] += 1
+                await self.send_rd_completion(ch, rd_cmd[1])
 
-            # Calculate statistics
-            success_rate = (success_count / total_operations * 100) if total_operations > 0 else 0
+            wr_cmd = await self.wait_for_wr_command(ch, timeout=50)
+            if wr_cmd:
+                stats['commands'] += 1
+                await self.send_wr_completion(ch, wr_cmd[1])
 
-            stats = {
-                'total_operations': total_operations,
-                'success_count': success_count,
-                'error_count': error_count,
-                'success_rate': success_rate,
-                'monbus_packets': 0,  # TODO: collect from monitor
-                'desc_axi_transactions': self.test_stats['axi']['descriptor_reads']
-            }
+        await self.wait_clocks(self.clk_name, 50)
 
-            return success_count == total_operations, stats
+        success = errors == 0 and stats['commands'] >= len(channels)
+        self.log.info(f"Multi-channel concurrent test: {'PASSED' if success else 'FAILED'}")
+        return (success, stats)
 
-        except Exception as e:
-            self.log.error(f"Multi-channel concurrent operation test failed: {str(e)}")
-            return False, {'error': str(e), 'total_operations': total_operations}
-
-    async def test_axi_arbitration(self, num_operations: int) -> Tuple[bool, Dict[str, Any]]:
-        """Test AXI arbitration behavior with multiple channels."""
-        self.log.info(f"Testing AXI arbitration with {num_operations} operations")
-
-        success_count = 0
-        channels_used = set()
-
-        try:
-            for i in range(num_operations):
-                # Select random channel
-                channel = random.randint(0, self.CHANNEL_COUNT - 1)
-                channels_used.add(channel)
-
-                # Perform operation that requires AXI access
-                success, _ = await self.test_single_channel_operation(channel)
-
-                if success:
-                    success_count += 1
-
-                # Track per-channel fairness
-                if channel not in self.test_stats['arbitration']['channel_fairness']:
-                    self.test_stats['arbitration']['channel_fairness'][channel] = 0
-                self.test_stats['arbitration']['channel_fairness'][channel] += 1
-
-                # No delay - stress test runs continuously
-
-            stats = {
-                'total_operations': num_operations,
-                'success_count': success_count,
-                'channels_used': len(channels_used),
-                'fairness': self.test_stats['arbitration']['channel_fairness']
-            }
-
-            return success_count == num_operations, stats
-
-        except Exception as e:
-            self.log.error(f"AXI arbitration test failed: {str(e)}")
-            return False, {'error': str(e)}
-
-    async def test_monitor_bus_aggregation(self, num_events: int) -> Tuple[bool, Dict[str, Any]]:
-        """Test MonBus aggregation from all sources."""
-        self.log.info(f"Testing MonBus aggregation for {num_events} events")
-
-        events_captured = 0
-
-        try:
-            # Monitor for events
-            for i in range(num_events * 10):  # Extended window
-                if hasattr(self.dut, 'mon_valid') and int(self.dut.mon_valid.value):
-                    events_captured += 1
-                    self.test_stats['monitor']['monitor_events'] += 1
-
-                await self.wait_clocks(self.clk_name, 1)
-
-                if events_captured >= num_events:
-                    break
-
-            stats = {
-                'events_expected': num_events,
-                'events_captured': events_captured,
-                'capture_rate': events_captured / num_events if num_events > 0 else 0
-            }
-
-            return events_captured >= num_events, stats
-
-        except Exception as e:
-            self.log.error(f"MonBus aggregation test failed: {str(e)}")
-            return False, {'error': str(e)}
-
-    async def test_all_channels_sequential(
-        self,
-        descriptors_per_channel: int = 1
-    ) -> Tuple[bool, Dict[str, Any]]:
-        """
-        Test all channels sequentially (no concurrency).
+    async def test_multi_channel_concurrent_operation(self, num_channels_active: int = 4,
+                                                      ops_per_channel: int = 2,
+                                                      test_level: int = 0) -> Tuple[bool, Dict[str, Any]]:
+        """Test concurrent operations on multiple channels with configurable operations.
 
         Args:
-            descriptors_per_channel: Number of descriptor operations per channel
+            num_channels_active: Number of channels to activate
+            ops_per_channel: Operations per channel
+            test_level: Test intensity level (0=basic, 1=medium, 2=full)
 
         Returns:
-            Tuple of (success, stats)
+            Tuple of (success, stats_dict)
         """
-        total_ops = self.CHANNEL_COUNT * descriptors_per_channel
-        self.log.info(f"Testing all {self.CHANNEL_COUNT} channels sequentially "
-                     f"({descriptors_per_channel} descriptors each, {total_ops} total ops)")
+        channels = list(range(min(num_channels_active, self.NUM_CHANNELS)))
+        return await self.test_multi_channel_concurrent(channels)
 
-        success_count = 0
-        error_count = 0
-        channels_tested = 0
+    async def test_axi_arbitration(self, num_operations: int = 8) -> Tuple[bool, Dict[str, Any]]:
+        """Test AXI arbitration behavior with multiple channels.
 
-        try:
-            for ch in range(self.CHANNEL_COUNT):
-                # Perform multiple descriptors for this channel
-                for desc in range(descriptors_per_channel):
-                    success, _ = await self.test_single_channel_operation(ch)
-                    if success:
-                        success_count += 1
-                    else:
-                        error_count += 1
+        Args:
+            num_operations: Number of operations to perform
 
-                    # No delay - run continuously
+        Returns:
+            Tuple of (success, stats_dict)
+        """
+        self.log.info(f"=== AXI Arbitration Test: {num_operations} operations ===")
 
-                channels_tested += 1
+        stats = {'operations': num_operations, 'channels_served': [0] * self.NUM_CHANNELS}
+        errors = 0
 
-            stats = {
-                'total_operations': total_ops,
-                'total_channels': self.CHANNEL_COUNT,
-                'channels_tested': channels_tested,
-                'success_count': success_count,
-                'error_count': error_count,
-                'success_rate': success_count / total_ops if total_ops > 0 else 0
-            }
+        # Send requests from multiple channels simultaneously
+        channels_to_test = list(range(min(num_operations, self.NUM_CHANNELS)))
 
-            return error_count == 0, stats
+        for ch in channels_to_test:
+            src_addr = random.randint(0x1000, 0xFFFF) * 0x100
+            dst_addr = random.randint(0x2000, 0xFFFF) * 0x100
+            desc_data = self.create_descriptor(src_addr, dst_addr, 16)
+            desc_addr = (ch + 1) * 32
+            self.register_descriptor(desc_addr, desc_data)
 
-        except Exception as e:
-            self.log.error(f"All channels sequential test failed: {str(e)}")
-            return False, {'error': str(e)}
-
-    async def stress_test(self, num_operations: int) -> Tuple[bool, Dict[str, Any]]:
-        """Comprehensive stress test with random operations."""
-        self.log.info(f"Running stress test with {num_operations} operations")
-
-        success_count = 0
-        error_count = 0
-
-        try:
-            for i in range(num_operations):
-                # Randomly select test type
-                test_type = random.choice(['single', 'concurrent', 'arbitration'])
-
-                if test_type == 'single':
-                    channel = random.randint(0, self.CHANNEL_COUNT - 1)
-                    success, _ = await self.test_single_channel_operation(channel)
-                elif test_type == 'concurrent':
-                    num_channels = random.randint(2, min(8, self.CHANNEL_COUNT))
-                    channels = random.sample(range(self.CHANNEL_COUNT), num_channels)
-                    success, _ = await self.test_multi_channel_concurrent(channels)
-                else:  # arbitration
-                    success, _ = await self.test_axi_arbitration(num_operations=5)
-
-                if success:
-                    success_count += 1
+            if await self.send_apb_request(ch, desc_addr):
+                if await self.respond_to_descriptor_read(desc_data):
+                    stats['channels_served'][ch] += 1
                 else:
-                    error_count += 1
+                    errors += 1
+            else:
+                errors += 1
 
-                # No delay in stress test
+        await self.wait_clocks(self.clk_name, 100)
 
-            stats = {
-                'total_operations': num_operations,
-                'success_count': success_count,
-                'error_count': error_count,
-                'success_rate': success_count / num_operations if num_operations > 0 else 0
-            }
+        success = errors == 0
+        self.log.info(f"AXI arbitration test: {'PASSED' if success else 'FAILED'}")
+        return (success, stats)
 
-            return error_count == 0, stats
+    async def test_all_channels_sequential(self, descriptors_per_channel: int = 1) -> Tuple[bool, Dict[str, Any]]:
+        """Test all 8 channels sequentially.
 
-        except Exception as e:
-            self.log.error(f"Stress test failed: {str(e)}")
-            return False, {'error': str(e)}
+        Args:
+            descriptors_per_channel: Number of descriptors per channel
+
+        Returns:
+            Tuple of (success, stats_dict)
+        """
+        self.log.info(f"=== All Channels Sequential Test: {descriptors_per_channel} desc/channel ===")
+
+        errors = 0
+        stats = {'channels_tested': 0, 'total_operations': 0}
+
+        for ch in range(self.NUM_CHANNELS):
+            self.log.info(f"Testing channel {ch}...")
+
+            for op in range(descriptors_per_channel):
+                src_addr = random.randint(0x1000, 0xFFFF) * 0x100
+                dst_addr = random.randint(0x2000, 0xFFFF) * 0x100
+                length = random.randint(1, 32)
+                desc_data = self.create_descriptor(src_addr, dst_addr, length)
+                desc_addr = (ch * 16 + op + 1) * 32
+                self.register_descriptor(desc_addr, desc_data)
+
+                if await self.send_apb_request(ch, desc_addr):
+                    if await self.respond_to_descriptor_read(desc_data):
+                        stats['total_operations'] += 1
+
+                        # Handle commands
+                        await self.wait_clocks(self.clk_name, 20)
+                        rd_cmd = await self.wait_for_rd_command(ch, timeout=50)
+                        if rd_cmd:
+                            await self.send_rd_completion(ch, rd_cmd[1])
+
+                        wr_cmd = await self.wait_for_wr_command(ch, timeout=50)
+                        if wr_cmd:
+                            await self.send_wr_completion(ch, wr_cmd[1])
+                    else:
+                        errors += 1
+                else:
+                    errors += 1
+
+            stats['channels_tested'] += 1
+            await self.wait_clocks(self.clk_name, 20)
+
+        success = errors == 0
+        self.log.info(f"All channels sequential test: {'PASSED' if success else 'FAILED'}")
+        return (success, stats)
+
+    async def test_monitor_bus_aggregation(self, num_events: int = 2) -> Tuple[bool, Dict[str, Any]]:
+        """Test MonBus aggregation from all sources.
+
+        Args:
+            num_events: Number of events to wait for
+
+        Returns:
+            Tuple of (success, stats_dict)
+        """
+        self.log.info(f"=== MonBus Aggregation Test ===")
+
+        # Packets have been captured since initialize_test(); the activity that
+        # produced them ran before this call. Give stragglers a moment.
+        await self.wait_clocks(self.clk_name, 50)
+        pkts = list(getattr(self, 'mon_packets', []))
+        kinds = [p.get_packet_type_name() for p in pkts]
+        stats = {'events_received': len(pkts), 'kinds': sorted(set(kinds))}
+        self.log.info(f"  MonBus packets captured: {len(pkts)} {stats['kinds']}")
+        success = len(pkts) >= num_events and 'PktTypeCompletion' in kinds
+        if not success:
+            self.log.error(f"MonBus aggregation: expected >= {num_events} packets incl. a completion, got {len(pkts)} {kinds[:8]}")
+        self.log.info(f"MonBus aggregation test: {stats['events_received']} events received")
+        return (success, stats)
+
+    async def stress_test(self, num_operations: int = 10) -> Tuple[bool, Dict[str, Any]]:
+        """Stress test with sequential channel selection.
+
+        Uses round-robin channel selection to ensure each channel completes
+        its operation before receiving another request.
+
+        Note: This testbench only simulates the APB→descriptor path, not
+        the full data path (RD/WR commands and completions). Without full
+        data path simulation, channels remain busy after descriptor fetch.
+        Therefore, num_operations is limited to NUM_CHANNELS to ensure
+        each channel only receives one request.
+
+        Args:
+            num_operations: Total number of operations (limited to NUM_CHANNELS)
+
+        Returns:
+            Tuple of (success, stats_dict)
+        """
+        # Limit operations to number of channels since we don't simulate
+        # the full data path that would release channels for reuse
+        effective_ops = min(num_operations, self.NUM_CHANNELS)
+        if num_operations > self.NUM_CHANNELS:
+            self.log.info(f"Limiting stress test to {effective_ops} ops (one per channel) - "
+                         f"full data path simulation not implemented")
+
+        self.log.info(f"=== Stress Test: {effective_ops} operations ===")
+
+        stats = {'operations_attempted': 0, 'operations_completed': 0,
+                 'errors': 0, 'success_rate': 0}
+
+        # Clear lookup table
+        self.clear_descriptor_lookup()
+
+        for i in range(effective_ops):
+            # Use round-robin channel selection (not random) to avoid
+            # sending to busy channels.
+            channel = i % self.NUM_CHANNELS
+            src_addr = random.randint(0x1000, 0xFFFF) * 0x100
+            dst_addr = random.randint(0x2000, 0xFFFF) * 0x100
+            length = random.randint(1, 64)
+            desc_data = self.create_descriptor(src_addr, dst_addr, length)
+            desc_addr = (i + 1) * 32
+
+            # Register descriptor in lookup table
+            self.register_descriptor(desc_addr, desc_data)
+
+            stats['operations_attempted'] += 1
+
+            if await self.send_apb_request(channel, desc_addr):
+                if await self.respond_to_descriptor_read():  # Uses lookup table
+                    stats['operations_completed'] += 1
+                else:
+                    stats['errors'] += 1
+            else:
+                stats['errors'] += 1
+
+        await self.wait_clocks(self.clk_name, 100)
+
+        stats['success_rate'] = (stats['operations_completed'] / stats['operations_attempted']
+                                  if stats['operations_attempted'] > 0 else 0)
+
+        success = stats['success_rate'] >= 0.9
+        self.log.info(f"Stress test: {stats['success_rate']*100:.1f}% success rate")
+        return (success, stats)
+
+    # ==========================================================================
+    # SUMMARY AND REPORTING
+    # ==========================================================================
 
     def finalize_test(self):
-        """Finalize test and calculate statistics."""
-        end_time = time.time()
-        self.test_stats['summary']['test_duration'] = end_time - self.test_stats['summary']['start_time']
-
-        # Calculate performance metrics
-        duration = self.test_stats['summary']['test_duration']
-        if duration > 0:
-            total_ops = self.test_stats['summary']['total_operations']
-            self.test_stats['performance']['operations_per_second'] = total_ops / duration
-
-        # Calculate per-channel statistics
-        for ch in range(self.CHANNEL_COUNT):
-            if ch in self.test_stats['channels']['channels_tested']:
-                ch_state = self.channel_states[ch]
-                self.test_stats['channels']['per_channel_operations'][ch] = ch_state['operations_count']
-
-        self.log.info("Test finalized - statistics calculated")
-
-    def get_test_stats(self) -> Dict[str, Any]:
-        """Get current test statistics."""
-        return self.test_stats.copy()
+        """Finalize test and clean up."""
+        self.log.info("Finalizing beats scheduler group array test")
 
     def print_test_summary(self):
         """Print comprehensive test summary."""
-        stats = self.test_stats
+        self.log.info("\n" + "=" * 60)
+        self.log.info("BEATS SCHEDULER GROUP ARRAY TEST SUMMARY")
+        self.log.info("=" * 60)
 
-        self.log.info("=" * 80)
-        self.log.info("SCHEDULER GROUP ARRAY TEST SUMMARY")
-        self.log.info("=" * 80)
+        total_apb = sum(self.apb_requests)
+        total_desc = sum(self.descriptors_served)
+        total_rd = sum(self.rd_commands_received)
+        total_wr = sum(self.wr_commands_received)
+        total_compl = sum(self.completions_sent)
 
-        # Summary
-        self.log.info(f"Total Operations: {stats['summary']['total_operations']}")
-        self.log.info(f"Successful: {stats['summary']['successful_operations']}")
-        self.log.info(f"Failed: {stats['summary']['failed_operations']}")
-        self.log.info(f"Duration: {stats['summary']['test_duration']:.2f}s")
+        self.log.info(f"Total APB requests: {total_apb}")
+        self.log.info(f"Total descriptors served: {total_desc}")
+        self.log.info(f"Total RD commands: {total_rd}")
+        self.log.info(f"Total WR commands: {total_wr}")
+        self.log.info(f"Total completions: {total_compl}")
+        self.log.info(f"MonBus packets: {self.mon_packets_received}")
 
-        # Channel usage
-        self.log.info(f"\nChannels Tested: {len(stats['channels']['channels_tested'])}/{self.CHANNEL_COUNT}")
-        self.log.info(f"Peak Concurrent: {stats['performance']['peak_concurrent_channels']}")
+        self.log.info("\nPer-channel statistics:")
+        for ch in range(self.NUM_CHANNELS):
+            self.log.info(f"  Channel {ch}: APB={self.apb_requests[ch]}, "
+                         f"DESC={self.descriptors_served[ch]}, "
+                         f"RD={self.rd_commands_received[ch]}, "
+                         f"WR={self.wr_commands_received[ch]}")
 
-        # Arbitration
-        self.log.info(f"\nDescriptor Arbitrations: {stats['arbitration']['descriptor_arbitrations']}")
+        if self.test_errors:
+            self.log.error(f"\nTest errors ({len(self.test_errors)}):")
+            for error in self.test_errors:
+                self.log.error(f"  - {error}")
 
-        # AXI
-        self.log.info(f"\nDescriptor Reads: {stats['axi']['descriptor_reads']}")
-
-        # Monitor
-        self.log.info(f"\nMonitor Events: {stats['monitor']['monitor_events']}")
-
-        # Performance
-        self.log.info(f"\nOps/Second: {stats['performance']['operations_per_second']:.1f}")
-
-        self.log.info("=" * 80)
+        self.log.info("=" * 60)

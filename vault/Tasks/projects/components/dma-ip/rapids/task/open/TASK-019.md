@@ -132,6 +132,47 @@ and from a 64-byte beat to `DATA_WIDTH/8`.
 - [x] Where it lives: the un-suffixed `rtl/fub`, `rtl/macro`, `rtl/top`
       areas; the beats tree is kept, not converted (Sean, 2026-09-29).
 
+## Design as built (2026-09-29, first cut)
+
+The byte tree is a clone of the beats tree (module names without `_beats`,
+`rapids_beats_top` -> `rapids_top`; `rapids_config_block` and the regs stay
+shared) with these changes:
+
+- **Scheduler** (`rtl/fub/scheduler.sv`): `length` is bytes; a direction moves
+  `ceil((addr[OFF_W-1:0] + length) / BYTE_LANES)` beats (zero length moves
+  none); addresses advance aligned-down plus beats after the first burst; a
+  DATA descriptor leaving `CH_FETCH_DESC` pulses a **packet record**
+  `{bytes, offset}` per enabled direction (`sched_rd_pkt_*`, `sched_wr_pkt_*`)
+  and waits there while the data path's record queue (depth 4 per channel)
+  is full. EXT descriptors keep beat-granular rows: TYPE=EXT requires
+  beat-aligned addresses and beat-multiple lengths in this cut.
+- **Engines**: AWADDR/ARADDR are issued **beat-aligned** (the offset lives in
+  the strobes), every burst is capped at the 4 KB boundary, and the write
+  engine drives WSTRB from a new `axi_wr_sram_strb` input. AXI4 would also
+  allow an unaligned first address; aligned was chosen so every slave and
+  BFM sees the same thing and the strobes alone carry the byte truth.
+- **Sink ingress** (`snk_data_path_axis.sv`): a barrel shifter places packed
+  stream bytes at `offset + lane`, holds the spill for the next memory beat,
+  flushes it after `tlast`, and stores `{strb, data}` in the SRAM
+  (`DATA_WIDTH + DATA_WIDTH/8` wide). **Contract:** the ingress holds
+  `s_axis_tready` low until the channel's packet record exists, so software
+  issues the descriptor before or concurrently with the stream (the beats
+  design buffered data first; the beat-era tests were changed to send
+  descriptors first or stream in the background). A `tlast` packet whose
+  byte count differs from the record sets the channel's sticky
+  `sched_wr_error` bit.
+- **Source egress** (`src_data_path_axis.sv`): pops memory beats, drops the
+  offset bytes of the first, re-packs from lane 0, marks the last beat with a
+  contiguous `tstrb` and `tlast`. **Packets follow descriptors**, not drain
+  reservations (the beats design cut a descriptor into `cfg_drain_size`
+  packets); the AXIS monitor completion counts change accordingly.
+- **Tests** (`dv/tests/fub`, `macro`, `top`): the cloned beat-era suites run
+  unchanged with lengths scaled to bytes in the TB descriptor builders, plus
+  byte-specific cells: engine `strobes`/`unaligned`/`split4k`, scheduler
+  `byte_lengths`/`pkt_backpressure`/`zero_length`, macro `byte_packets` on
+  both halves (one byte, straddling beats, long unaligned, a 4 KB crossing,
+  the length-mismatch contract).
+
 ## Constraint: rapids-beats never loses functionality
 
 Sean, 2026-09-29: "Ensure rapids-beats never loses functionality." The

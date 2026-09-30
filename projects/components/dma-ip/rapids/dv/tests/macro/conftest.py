@@ -53,6 +53,12 @@ MARKERS = (
     'coverage: Tests that collect coverage data',
     'protocol_coverage: Tests that collect protocol coverage',
     'macro: Macro-level integration tests',
+    'scheduler_group: Scheduler-group tests',
+    'scheduler_group_array: Scheduler-group-array tests',
+    'src_sram_controller: Source SRAM-controller tests',
+    'snk_sram_controller: Sink SRAM-controller tests',
+    'source_data_path_axis_test: Source AXIS data-path tests',
+    'sink_data_path_axis_test: Sink AXIS data-path tests',
 )
 
 

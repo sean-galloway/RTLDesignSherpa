@@ -1,10 +1,10 @@
-"""RAPIDS FUB test configuration for pytest.
+"""RAPIDS Top test configuration for pytest.
 
 The coverage/log boilerplate (log dir, coverage dir creation, log-file config,
 marker registration, session-end coverage aggregation, scratch-dir ignore)
 lives in ``bin/cov_utils/conftest_base.py`` -- the SAME shared base the val
 areas, stream, bridge and converters use. This file declares only the
-RAPIDS-FUB-specific bits.
+RAPIDS-Top-specific bits.
 
 This replaced a hand-written conftest that re-implemented that boilerplate
 locally. fub_beats and macro_beats had each grown a ~175-line private
@@ -47,24 +47,14 @@ import pytest  # noqa: E402
 from cov_utils.conftest_base import configure, sessionfinish, ignore_collect  # noqa: E402
 from cov_utils.conftest_coverage import get_coverage_compile_args  # noqa: E402,F401 -- re-exported for test files
 
-AREA_NAME = 'RAPIDS FUB'
-LOG_BASENAME = 'pytest_rapids_fub.log'
+AREA_NAME = 'RAPIDS Top'
+LOG_BASENAME = 'pytest_rapids_top.log'
 MARKERS = (
     'coverage: Tests that collect coverage data',
     'protocol_coverage: Tests that collect protocol coverage',
-    'fub: FUB (Functional Unit Block) level tests',
-    'ctrlwr: Control write engine tests',
-    'ctrlrd: Control read engine tests',
-    'scheduler: Scheduler tests',
-    'descriptor_engine: Descriptor-engine tests',
-    'alloc_ctrl: Alloc-ctrl tests',
-    'drain_ctrl: Drain-ctrl tests',
-    'latency_bridge: Latency-bridge tests',
-    'integration: Integration tests',
-    'macro: Macro-level tests, applied by some fub tests',
-    'stress: Stress testing',
-    'regression: Regression test suite',
-    'error: Error injection tests',
+    'top: Top-level tests of the byte-granular RAPIDS (rapids TASK-019)',
+    'rapids_top: rapids_top tests',
+    'rapids_core: rapids_core tests',
 )
 
 
@@ -107,16 +97,6 @@ def coverage_config():
         RapidsCoverageConfig,
     )
     return RapidsCoverageConfig.from_environment()
-
-
-def pytest_collection_modifyitems(config, items):
-    """Tag every test in this area, plus the per-engine markers."""
-    for item in items:
-        item.add_marker(pytest.mark.fub)
-        if 'ctrlwr' in item.nodeid.lower():
-            item.add_marker(pytest.mark.ctrlwr)
-        if 'ctrlrd' in item.nodeid.lower():
-            item.add_marker(pytest.mark.ctrlrd)
 
 
 # The REG_LEVEL -> TEST_LEVEL stamp that used to live here is gone (tooling

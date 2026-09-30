@@ -39,3 +39,26 @@
 -f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/macro_beats/src_sram_controller_beats.f
 -f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/macro/monbus_axil_group.f
 -f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/top_beats/rapids_beats_top.f
+
+# ---- byte-granular RAPIDS (rapids TASK-019): the un-suffixed tree ----
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/fub/alloc_ctrl.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/fub/axi_read_engine.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/fub/axi_write_engine.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/fub/descriptor_engine.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/fub/drain_ctrl.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/fub/latency_bridge.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/fub/scheduler.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/macro/rapids_core.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/macro/rapids_snk.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/macro/rapids_src.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/macro/scheduler_group_array.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/macro/scheduler_group.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/macro/snk_data_path_axis.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/macro/snk_data_path_axis_test.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/macro/snk_data_path.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/macro/snk_sram_controller.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/macro/src_data_path_axis.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/macro/src_data_path_axis_test.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/macro/src_data_path.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/macro/src_sram_controller.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/top/rapids_top.f

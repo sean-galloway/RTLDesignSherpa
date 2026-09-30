@@ -4,94 +4,71 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: SchedulerGroupTB
-# Purpose: RAPIDS Scheduler Group Testbench - v1.1
+# Module: BeatsSchedulerGroupTB
+# Purpose: RAPIDS Beats Scheduler Group Testbench - Phase 1 Macro Level
 #
 # Documentation: projects/components/dma-ip/rapids/PRD.md
-# Subsystem: rapids
+# Subsystem: rapids_macro
 #
 # Author: sean galloway
-# Created: 2025-10-18
+# Created: 2025-01-10
 
 """
-RAPIDS Scheduler Group Testbench - v1.1
+RAPIDS Beats Scheduler Group Testbench - Phase 1 Macro Level
 
-Comprehensive scheduler wrapper testbench following the data path testbench methodology:
-- Enhanced descriptor engine interface testing
-- Program engine AXI write operations
-- Control read/write engine interfaces (ctrlrd/ctrlwr)
-- Data mover interface validation with stream control
-- EOS completion interface testing
-- Monitor bus validation
-- Credit management and scheduling validation
-- Channel isolation and multi-channel operations
+Testbench for the scheduler_group module which wraps:
+- Descriptor Engine (fetches descriptors via AXI, provides to scheduler)
+- Scheduler (processes descriptors, issues data path commands)
+- MonBus Arbiter (aggregates monitor packets from 2 sources)
 
-Features:
-- Fixed 32-channel configuration matching data path TB
-- Real Network, AXI4, and GAXI component integration
-- Support for ctrlrd (control read) and ctrlwr (control write) interfaces
-- Comprehensive test coverage with stress testing
-- Performance monitoring and resource validation
-- Stream boundary processing (EOS/EOL/EOD)
-- Error injection and handling
+This is a simplified RAPIDS architecture for Phase 1:
+- No program engine (direct APB config)
+- No control read/write engines
+- Simplified data path interface
+
+Features tested:
+- APB descriptor kick-off interface
+- Descriptor AXI read interface (256-bit descriptors)
+- Scheduler data path interfaces (rd/wr)
+- Completion strobe handling
+- Error propagation
+- MonBus aggregation
 """
 
 import os
 import random
-import asyncio
-from typing import List, Dict, Any, Tuple, Optional, Union
-import time
 import cocotb
-from cocotb.triggers import RisingEdge, ClockCycles
+from typing import Dict, List, Tuple, Any, Optional
+from cocotb.triggers import RisingEdge, Timer
 
 # Framework imports
 from TBClasses.shared.tbbase import TBBase
-from CocoTBFramework.components.shared.memory_model import MemoryModel
-from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
-
-# REAL Network imports
-from CocoTBFramework.components.network.network_factories import (
-    create_network_master, create_network_slave, send_packet_sequence, validate_network_packet
-)
-from CocoTBFramework.components.network.network_packet import MNOCPacket
-from CocoTBFramework.components.network.network_field_configs import MNOCFieldConfigHelper
-from CocoTBFramework.components.network.network_compliance_checker import MNOCComplianceChecker
-
-# REAL AXI4 imports
+from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master
 from CocoTBFramework.components.axi4.axi4_factories import create_axi4_slave_rd, create_axi4_slave_wr
-
-# REAL GAXI imports (for monitor bus)
-from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_slave
-from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
+from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.shared.memory_model import MemoryModel
 
 
 class SchedulerGroupTB(TBBase):
     """
-    Complete RAPIDS Scheduler Group testbench v1.1 for 32-channel validation.
+    RAPIDS Beats Scheduler Group testbench.
 
-    Tests comprehensive scheduler wrapper functionality:
-    - APB programming interface for descriptor fetch
-    - EOS completion interface from SRAM control
-    - Enhanced descriptor engine interface with stream control
-    - Program engine AXI write operations
-    - Control read engine interface (ctrlrd) for pre-descriptor operations
-    - Control write engine interface (ctrlwr) for post-descriptor operations
-    - Data mover interface with stream boundaries
-    - Monitor bus aggregation and validation
-    - Configuration and status interfaces
-    - Channel isolation and concurrent operations
-    - Error handling and timeout detection
+    Tests wrapper functionality for scheduler + descriptor_engine:
+    - APB programming interface for descriptor fetch kick-off
+    - Descriptor AXI interface (responder mode)
+    - Scheduler data path command interfaces
+    - Completion strobe handling
+    - MonBus event aggregation
     """
 
     def __init__(self, dut, clk=None, rst_n=None):
         super().__init__(dut)
 
-        # Fixed 32-channel configuration matching data path TB
-        self.TEST_CHANNELS = 32  # FIXED
+        # Get test parameters from environment
         self.TEST_ADDR_WIDTH = self.convert_to_int(os.environ.get('TEST_ADDR_WIDTH', '64'))
         self.TEST_DATA_WIDTH = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '512'))
         self.TEST_AXI_ID_WIDTH = self.convert_to_int(os.environ.get('TEST_AXI_ID_WIDTH', '8'))
-        self.TEST_CREDIT_WIDTH = self.convert_to_int(os.environ.get('TEST_CREDIT_WIDTH', '8'))
         self.TEST_CLK_PERIOD = self.convert_to_int(os.environ.get('TEST_CLK_PERIOD', '10'))
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
 
@@ -99,1028 +76,694 @@ class SchedulerGroupTB(TBBase):
         random.seed(self.SEED)
 
         # Setup clock and reset signals
-        self.clk = clk
-        self.clk_name = clk._name if clk else 'clk'
-        self.rst_n = rst_n
+        self.clk = clk if clk else dut.clk
+        self.clk_name = self.clk._name if hasattr(self.clk, '_name') else 'clk'
+        self.rst_n = rst_n if rst_n else dut.rst_n
 
-        # Set limits based on widths
+        # Calculated parameters
         self.MAX_ADDR = (2**self.TEST_ADDR_WIDTH) - 1
-        self.MAX_DATA = (2**self.TEST_DATA_WIDTH) - 1
-        self.MAX_CREDIT = (2**self.TEST_CREDIT_WIDTH) - 1
 
-        # Test configuration
-        self.test_config = {
-            'channels': self.TEST_CHANNELS,
-            'data_width': self.TEST_DATA_WIDTH,
-            'addr_width': self.TEST_ADDR_WIDTH,
-            'axi_id_width': self.TEST_AXI_ID_WIDTH,
-            'credit_width': self.TEST_CREDIT_WIDTH,
-            'timeout_cycles': 1000,
-            'early_warning_threshold': 4
-        }
+        # Test tracking
+        self.apb_requests = 0
+        # GAXI master for the APB descriptor-fetch kick (created end of setup)
+        self.apb4_master = None
+        self.descriptors_served = 0
+        self.rd_commands_received = 0
+        self.wr_commands_received = 0
+        self.completions_sent = 0
+        self.mon_packets_received = 0
+        self.test_errors = []
 
-        # Test statistics
-        self.test_stats = {
-            'summary': {
-                'total_operations': 0,
-                'successful_operations': 0,
-                'failed_operations': 0,
-                'test_duration': 0.0,
-                'start_time': 0.0
-            },
-            'channels': {
-                'total_channels_used': 0,
-                'channels_tested': set(),
-                'concurrent_channels': 0
-            },
-            'performance': {
-                'descriptors_processed': 0,
-                'axi_writes_completed': 0,
-                'eos_completions_handled': 0,
-                'monitor_events_generated': 0,
-                'peak_channels_active': 0,
-                'operations_per_second': 0.0
-            },
-            'errors': {
-                'timeout_errors': 0,
-                'descriptor_errors': 0,
-                'axi_errors': 0,
-                'monitor_errors': 0,
-                'configuration_errors': 0
-            }
-        }
-
-        # Component interfaces (initialized in setup)
-        self.desc_axi_slave = None       # Descriptor AXI interface
-        self.prog_axi_slave = None       # Program engine AXI interface
-        self.monitor_slave = None        # Monitor bus interface
-        self.eos_completion_master = None # EOS completion injection
-        self.data_mover_slave = None     # Data mover interface
-
-        # Memory models
+        # Memory model for descriptor storage
         self.descriptor_memory = None
-        self.program_memory = None
 
-        # Memory bounds (set during setup_interfaces)
-        self.descriptor_memory_size = 0
-        self.program_memory_size = 0
-
-        # Timing profiles
-        self.timing_profiles = {
-            'normal': {'wait_cycles': (1, 5), 'randomization': 0.3},
-            'fast': {'wait_cycles': (0, 2), 'randomization': 0.1},
-            'stress': {'wait_cycles': (0, 10), 'randomization': 0.5},
-            'timeout': {'wait_cycles': (100, 200), 'randomization': 0.8}
-        }
-        self.current_timing = 'normal'
-
-        # Channel state tracking
-        self.channel_states = {}
-        for ch in range(self.TEST_CHANNELS):
-            self.channel_states[ch] = {
-                'idle': True,
-                'descriptor_pending': False,
-                'program_active': False,
-                'data_transfer_active': False,
-                'eos_pending': False,
-                'credit_count': 0,
-                'last_activity': 0.0
-            }
-
-        self.log.info(f"SchedulerGroupTB initialized: {self.TEST_CHANNELS} channels, "
-                     f"{self.TEST_DATA_WIDTH}-bit data, {self.TEST_ADDR_WIDTH}-bit addresses")
+        self.log.info(f"BeatsSchedulerGroupTB initialized: "
+                     f"{self.TEST_ADDR_WIDTH}-bit addr, {self.TEST_DATA_WIDTH}-bit data")
 
     async def setup_clocks_and_reset(self):
-        """Complete initialization - starts clocks and performs reset sequence."""
-        try:
-            self.log.info("Setting up clocks and reset...")
+        """Complete initialization - starts clocks AND performs reset sequence"""
+        # Start clock
+        await self.start_clock(self.clk_name, freq=self.TEST_CLK_PERIOD, units='ns')
 
-            # Start clock
-            await self.start_clock(self.clk_name, freq=self.TEST_CLK_PERIOD, units='ns')
+        # Set configuration signals BEFORE reset (important for proper initialization)
+        self.dut.cfg_channel_enable.value = 1
+        self.dut.cfg_channel_reset.value = 0
+        self.dut.cfg_sched_timeout_cycles.value = 1000
+        self.dut.cfg_sched_timeout_limit.value = 1  # escalate after one window (legacy timeout->error)
+        self.dut.cfg_sched_timeout_enable.value = 1
+        self.dut.cfg_sched_err_enable.value = 1
+        self.dut.cfg_sched_compl_enable.value = 1
+        self.dut.cfg_sched_perf_enable.value = 0
 
-            # Set any config signals that must be valid BEFORE reset
-            # This is critical for credit counter exponential encoding initialization
-            self.dut.cfg_idle_mode.value = 0
-            self.dut.cfg_channel_wait.value = 0
-            self.dut.cfg_channel_enable.value = 1           # Enable channel
-            self.dut.cfg_use_credit.value = 1               # Enable credit mode
-            self.dut.cfg_initial_credit.value = 4           # 2^4 = 16 credits
-            self.dut.credit_increment.value = 0
-            self.dut.cfg_channel_reset.value = 0
+        self.dut.cfg_desceng_prefetch.value = 1
+        self.dut.cfg_desceng_fifo_thresh.value = 4
+        self.dut.cfg_desceng_addr0_base.value = 0
+        self.dut.cfg_desceng_addr0_limit.value = 0xFFFF_FFFF
+        self.dut.cfg_desceng_addr1_base.value = 0
+        self.dut.cfg_desceng_addr1_limit.value = 0xFFFF_FFFF
 
-            # Perform reset sequence
-            await self.assert_reset()
-            await self.wait_clocks(self.clk_name, 10)  # Hold reset for 10 cycles
-            await self.deassert_reset()
-            await self.wait_clocks(self.clk_name, 5)   # Stabilization time
+        # Perform reset sequence
+        await self.assert_reset()
+        await self.wait_clocks(self.clk_name, 10)
+        await self.deassert_reset()
+        await self.wait_clocks(self.clk_name, 10)
 
-            self.log.info("✅ Clock and reset setup complete")
+        # Create the GAXI master for the APB descriptor-fetch kick.
+        self._create_bfms()
 
-        except Exception as e:
-            self.log.error(f"Clock and reset setup failed: {str(e)}")
-            raise
+    def _create_bfms(self):
+        """Create the GAXI master for the APB kick (apb_valid/ready/addr)."""
+        addr_bits = len(self.dut.apb_addr)
+        fc = FieldConfig()
+        fc.add_field(FieldDefinition(name='addr', bits=addr_bits,
+                                     format='hex', description='descriptor address'))
+        self.apb4_master = create_gaxi_master(
+            dut=self.dut, title='sg_apb', prefix='apb', clock=self.clk,
+            field_config=fc, multi_sig=True, log=self.log)
+        self.set_gaxi_timing_profile(os.environ.get('GAXI_TIMING_PROFILE', 'backtoback'))
+
+    def set_gaxi_timing_profile(self, profile_name='backtoback'):
+        """Apply a GAXI timing profile to the APB-kick master's valid_delay."""
+        from TBClasses.amba.amba_random_configs import GAXI_RANDOMIZER_CONFIGS
+        if profile_name == 'mixed':
+            profile_name = 'gaxi_realistic'
+        if profile_name not in GAXI_RANDOMIZER_CONFIGS:
+            self.log.warning(f"Unknown GAXI timing profile '{profile_name}', using 'backtoback'")
+            profile_name = 'backtoback'
+        cfg = GAXI_RANDOMIZER_CONFIGS[profile_name]
+        self.apb4_master.randomizer = FlexRandomizer(cfg['master'])
+        self.log.info(f"GAXI scheduler_group APB-kick timing profile: {profile_name}")
 
     async def assert_reset(self):
-        """Assert reset signal (active-low)."""
+        """Assert reset signal"""
+        self.mark_progress("assert_reset")
         self.rst_n.value = 0
-        self.log.debug("Reset asserted")
+
+        # Clear inputs during reset
+        self.dut.apb_valid.value = 0
+        self.dut.apb_addr.value = 0
+        self.dut.desc_ar_ready.value = 0
+        self.dut.desc_r_valid.value = 0
+        self.dut.desc_r_data.value = 0
+        self.dut.desc_r_resp.value = 0
+        self.dut.desc_r_last.value = 0
+        self.dut.desc_r_id.value = 0
+        self.dut.sched_wr_ready.value = 1
+        self.dut.sched_rd_done_strobe.value = 0
+        self.dut.sched_rd_beats_done.value = 0
+        self.dut.sched_wr_done_strobe.value = 0
+        self.dut.sched_wr_beats_done.value = 0
+        self.dut.sched_wr_commit_strobe.value = 0
+        self.dut.sched_wr_commit_beats.value = 0
+        self.dut.sched_rd_error.value = 0
+        self.dut.sched_wr_error.value = 0
+        # Control engine AXI + config (Phase 2)
+        self.dut.ctrlrd_ar_ready.value = 0
+        self.dut.ctrlrd_r_valid.value = 0
+        self.dut.ctrlrd_r_data.value = 0
+        self.dut.ctrlrd_r_id.value = 0
+        self.dut.ctrlrd_r_resp.value = 0
+        self.dut.ctrlrd_r_last.value = 0
+        self.dut.ctrlwr_aw_ready.value = 0
+        self.dut.ctrlwr_w_ready.value = 0
+        self.dut.ctrlwr_b_valid.value = 0
+        self.dut.ctrlwr_b_id.value = 0
+        self.dut.ctrlwr_b_resp.value = 0
+        self.dut.cfg_ctrlrd_max_try.value = 16
+        self.dut.tick_1us.value = 0
+        self.dut.mon_ready.value = 1
+
+        await self.wait_clocks(self.clk_name, 5)
+        self.log.info("Reset asserted")
 
     async def deassert_reset(self):
-        """Deassert reset signal (active-low)."""
+        """Deassert reset signal"""
+        self.mark_progress("deassert_reset")
         self.rst_n.value = 1
-        self.log.debug("Reset deasserted")
-
-    async def setup_interfaces(self):
-        """Setup all component interfaces following data path TB pattern."""
-        try:
-            self.log.info("Setting up scheduler wrapper interfaces...")
-
-            # Create memory models FIRST (needed for AXI slave initialization)
-            desc_num_lines = 4096
-            desc_bytes_per_line = 64  # 512-bit descriptor lines
-            self.descriptor_memory = MemoryModel(
-                num_lines=desc_num_lines,
-                bytes_per_line=desc_bytes_per_line,
-                log=self.log
-            )
-            self.descriptor_memory_size = desc_num_lines * desc_bytes_per_line
-
-            prog_num_lines = 1024
-            prog_bytes_per_line = 4   # 32-bit program words
-            self.program_memory = MemoryModel(
-                num_lines=prog_num_lines,
-                bytes_per_line=prog_bytes_per_line,
-                log=self.log
-            )
-            self.program_memory_size = prog_num_lines * prog_bytes_per_line
-
-            # Descriptor engine AXI read interface (AXI4 Slave)
-            # Signals: desc_ar_*, desc_r_*
-            # SOLUTION: Use prefix="desc_" to match desc_ar_valid, desc_r_valid, etc.
-            # The AXI4 patterns will automatically add channel prefixes (ar_, r_)
-            self.desc_axi_slave = create_axi4_slave_rd(
-                dut=self.dut,
-                clock=self.clk,
-                prefix="desc_",  # Prefix for descriptor engine AXI signals
-                log=self.log,
-                data_width=self.TEST_DATA_WIDTH,
-                addr_width=self.TEST_ADDR_WIDTH,
-                id_width=self.TEST_AXI_ID_WIDTH,
-                multi_sig=True,  # Use multi_sig for field-level signals
-                memory_model=self.descriptor_memory
-            )
-
-            # Program engine AXI write interface (AXI4 Slave)
-            # Signals: prog_aw_*, prog_w_*, prog_b_*
-            # SOLUTION: Use prefix="prog_" to match prog_aw_valid, prog_w_valid, etc.
-            # The AXI4 patterns will automatically add channel prefixes (aw_, w_, b_)
-            self.prog_axi_slave = create_axi4_slave_wr(
-                dut=self.dut,
-                clock=self.clk,
-                prefix="prog_",  # Prefix for program engine AXI signals
-                log=self.log,
-                data_width=32,  # Program engine uses 32-bit writes
-                addr_width=self.TEST_ADDR_WIDTH,
-                id_width=self.TEST_AXI_ID_WIDTH,
-                multi_sig=True,  # Use multi_sig for field-level signals
-                memory_model=self.program_memory
-            )
-
-            # Monitor bus interface (GAXI Slave for monitor events)
-            self.monitor_slave = create_gaxi_slave(
-                self.dut, "MonitorBus", "mon_", self.clk,
-                field_config=None,  # Will use default
-                log=self.log,
-                mode='skid'
-            )
-
-            # NOTE: EOS completion and data mover interfaces are simple valid/ready + data
-            # No need for GAXI factories - drive signals directly in test methods
-            # eos_completion_valid, eos_completion_ready, eos_completion_channel
-            # data_valid, data_ready, data_*, etc.
-
-            self.log.info("✅ All scheduler wrapper interfaces setup complete")
-
-        except Exception as e:
-            self.log.error(f"Failed to setup interfaces: {str(e)}")
-            raise
+        await self.wait_clocks(self.clk_name, 5)
+        self.log.info("Reset deasserted")
 
     async def initialize_test(self):
-        """Initialize test environment following data path TB pattern."""
-        try:
-            self.log.info("Initializing scheduler wrapper test environment...")
-
-            # Record start time
-            self.test_stats['summary']['start_time'] = time.time()
-
-            # Setup all interfaces
-            await self.setup_interfaces()
-
-            # Wait for interfaces to stabilize
-            await self.wait_clocks(self.clk_name, 10)
-
-            # Initialize all configuration signals to safe defaults
-            await self.initialize_configuration()
-
-            # Clear any pending transactions
-            await self.clear_all_interfaces()
-
-            self.log.info("✅ Scheduler wrapper test initialization complete")
-
-        except Exception as e:
-            self.log.error(f"Test initialization failed: {str(e)}")
-            raise
-
-    async def initialize_configuration(self):
-        """Initialize configuration signals to safe defaults."""
-        try:
-            # APB interface defaults
-            self.dut.apb_valid.value = 0
-            self.dut.apb_addr.value = 0
-
-            # Configuration defaults
-            self.dut.cfg_idle_mode.value = 0
-            self.dut.cfg_channel_wait.value = 0
-            self.dut.cfg_channel_enable.value = 1  # Enable channel (1-bit signal)
-            self.dut.cfg_use_credit.value = 1
-            self.dut.cfg_initial_credit.value = 4
-            self.dut.credit_increment.value = 0
-            self.dut.cfg_channel_reset.value = 0
-
-            # EOS completion interface defaults
-            if hasattr(self.dut, 'eos_completion_valid'):
-                self.dut.eos_completion_valid.value = 0
-                self.dut.eos_completion_channel.value = 0
-
-            # Data mover interface ready signals
-            if hasattr(self.dut, 'data_ready'):
-                self.dut.data_ready.value = 1
-                self.dut.data_transfer_length.value = 0
-                self.dut.data_error.value = 0
-                self.dut.data_done_strobe.value = 0
-
-            # Control Read Engine Interface (ctrlrd) - defaults
-            if hasattr(self.dut, 'ctrlrd_ready'):
-                self.dut.ctrlrd_ready.value = 1
-                self.dut.ctrlrd_error.value = 0
-                self.dut.ctrlrd_result.value = 0
-
-            # Control Write Engine Interface (ctrlwr) - defaults
-            if hasattr(self.dut, 'ctrlwr_ready'):
-                self.dut.ctrlwr_ready.value = 1
-                self.dut.ctrlwr_error.value = 0
-
-            # Monitor bus ready
-            if hasattr(self.dut, 'mon_ready'):
-                self.dut.mon_ready.value = 1
-
-            await self.wait_clocks(self.clk_name, 5)
-            self.log.info("Configuration signals initialized (including ctrlrd/ctrlwr interfaces)")
-
-        except Exception as e:
-            self.log.error(f"Configuration initialization failed: {str(e)}")
-            raise
-
-    async def clear_all_interfaces(self):
-        """Clear all interfaces and reset to known state."""
-        try:
-            # Memory models don't need clearing - they persist test patterns
-            # which is intentional for descriptor and program data
-
-            # Wait for all to settle
-            await self.wait_clocks(self.clk_name, 10)
-            self.log.info("All interfaces cleared")
-
-        except Exception as e:
-            self.log.error(f"Interface clearing failed: {str(e)}")
-            raise
-
-    def set_timing_profile(self, profile_name: str):
-        """Set timing profile for test operations."""
-        if profile_name in self.timing_profiles:
-            self.current_timing = profile_name
-            self.log.info(f"Timing profile set to: {profile_name}")
-        else:
-            self.log.warning(f"Unknown timing profile: {profile_name}, using 'normal'")
-            self.current_timing = 'normal'
-
-    async def wait_random_cycles(self):
-        """Wait random cycles based on current timing profile."""
-        profile = self.timing_profiles[self.current_timing]
-        min_cycles, max_cycles = profile['wait_cycles']
-        cycles = random.randint(min_cycles, max_cycles)
-        await self.wait_clocks(self.clk_name, cycles)
-
-    async def test_basic_descriptor_processing(self, count: int = 64) -> Tuple[bool, Dict[str, Any]]:
-        """Test basic descriptor engine processing functionality."""
-        self.log.info(f"Testing basic descriptor processing ({count} descriptors)...")
-
-        success_count = 0
-        error_count = 0
-        channels_tested = set()
-
-        try:
-            for i in range(count):
-                # Select random channel
-                channel = random.randint(0, self.TEST_CHANNELS - 1)
-                channels_tested.add(channel)
-
-                # Generate descriptor data
-                # Address must fit within memory bounds (leave room for one descriptor line)
-                max_desc_addr = self.descriptor_memory_size - (self.TEST_DATA_WIDTH // 8)
-                desc_addr = random.randint(0, max_desc_addr)
-                desc_data = random.randint(0, self.MAX_DATA)
-
-                # Program descriptor into memory
-                bytes_per_line = self.TEST_DATA_WIDTH // 8  # 64 bytes for 512-bit data
-                data_bytes = bytearray(desc_data.to_bytes(bytes_per_line, 'little'))
-                self.descriptor_memory.write(desc_addr, data_bytes)
-
-                # Request descriptor fetch via APB
-                await self.request_descriptor_fetch(desc_addr, channel)
-
-                # Wait for descriptor to be processed
-                await self.wait_random_cycles()
-
-                # Verify descriptor processing
-                if await self.verify_descriptor_processed(channel, desc_data):
-                    success_count += 1
-                    self.channel_states[channel]['descriptor_pending'] = False
-                else:
-                    error_count += 1
-
-                await self.wait_random_cycles()
-
-        except Exception as e:
-            self.log.error(f"Descriptor processing test failed: {str(e)}")
-            error_count += 1
-
-        stats = {
-            'success_count': success_count,
-            'error_count': error_count,
-            'success_rate': success_count / count if count > 0 else 0,
-            'channels_tested': len(channels_tested)
-        }
-
-        self.test_stats['performance']['descriptors_processed'] += success_count
-        self.test_stats['summary']['total_operations'] += count
-        self.test_stats['summary']['successful_operations'] += success_count
-        self.test_stats['summary']['failed_operations'] += error_count
-
-        return error_count == 0, stats
-
-    async def request_descriptor_fetch(self, addr: int, channel: int):
-        """Request descriptor fetch via APB interface."""
-        try:
-            # APB fetch request
-            self.dut.apb_valid.value = 1
-            self.dut.apb_addr.value = addr
-
-            await RisingEdge(self.clk)
-
-            # Wait for ready
-            timeout = 100
-            while timeout > 0 and not self.dut.apb_ready.value:
-                await RisingEdge(self.clk)
-                timeout -= 1
-
-            if timeout == 0:
-                raise TimeoutError("APB request timeout")
-
-            self.dut.apb_valid.value = 0
-            self.channel_states[channel]['descriptor_pending'] = True
-
-        except Exception as e:
-            self.log.error(f"APB descriptor request failed: {str(e)}")
-            raise
-
-    async def verify_descriptor_processed(self, channel: int, expected_data: int) -> bool:
-        """Verify that descriptor was processed correctly by checking AXI read activity."""
-        try:
-            # Monitor the AXI read interface for activity
-            # The descriptor engine should generate AXI read requests
-            timeout = 100
-            axi_activity_detected = False
-
-            for _ in range(timeout):
-                await RisingEdge(self.clk)
-
-                # Check if AXI AR (address read) channel is active
-                if hasattr(self.dut, 'desc_ar_valid') and int(self.dut.desc_ar_valid.value) == 1:
-                    axi_activity_detected = True
-                    self.log.debug(f"AXI AR activity detected for descriptor on channel {channel}")
-                    break
-
-            # Also check the AXI slave's receive queue for read requests
-            if self.desc_axi_slave and hasattr(self.desc_axi_slave, 'ar_channel'):
-                ar_queue = self.desc_axi_slave.ar_channel._recvQ
-                if len(ar_queue) > 0:
-                    axi_activity_detected = True
-                    self.log.debug(f"AXI AR transaction in queue: {len(ar_queue)} transactions")
-
-            return axi_activity_detected
-
-        except Exception as e:
-            self.log.error(f"Error verifying descriptor processing: {str(e)}")
-            return False
-
-    async def test_program_engine_operations(self, count: int = 32) -> Tuple[bool, Dict[str, Any]]:
-        """Test program engine AXI write operations."""
-        self.log.info(f"Testing program engine operations ({count} writes)...")
-
-        success_count = 0
-        error_count = 0
-
-        try:
-            for i in range(count):
-                # Generate program operation
-                # Address must fit within memory bounds (leave room for one program word)
-                max_prog_addr = self.program_memory_size - 4
-                prog_addr = random.randint(0, max_prog_addr)
-                prog_data = random.randint(0, 0xFFFFFFFF)  # 32-bit data
-
-                # Trigger program operation
-                await self.trigger_program_operation(prog_addr, prog_data)
-
-                # Wait for AXI write completion
-                if await self.wait_for_axi_write_completion(self.prog_axi_slave):
-                    success_count += 1
-                else:
-                    error_count += 1
-
-                await self.wait_random_cycles()
-
-        except Exception as e:
-            self.log.error(f"Program engine test failed: {str(e)}")
-            error_count += 1
-
-        stats = {
-            'success_count': success_count,
-            'error_count': error_count,
-            'success_rate': success_count / count if count > 0 else 0
-        }
-
-        self.test_stats['performance']['axi_writes_completed'] += success_count
-
-        return error_count == 0, stats
-
-    async def trigger_program_operation(self, addr: int, data: int):
-        """Trigger program engine operation."""
-        # This would typically be triggered by descriptor processing
-        # For testing, we'll simulate the trigger
-        pass
-
-    async def wait_for_axi_write_completion(self, axi_slave) -> bool:
-        """Wait for AXI write operation to complete."""
-        # Monitor AXI interface for write completion
-        timeout = 100
-        while timeout > 0:
-            # Check for AXI write activity
-            await RisingEdge(self.clk)
-            timeout -= 1
-
-        return True  # Placeholder - would check actual AXI completion
-
-    async def test_eos_completion_interface(self, count: int = 16) -> Tuple[bool, Dict[str, Any]]:
-        """Test EOS completion interface from SRAM control."""
-        self.log.info(f"Testing EOS completion interface ({count} completions)...")
-
-        success_count = 0
-        error_count = 0
-
-        try:
-            for i in range(count):
-                channel = random.randint(0, self.TEST_CHANNELS - 1)
-
-                # Inject EOS completion
-                await self.inject_eos_completion(channel)
-
-                # Verify EOS handling
-                if await self.verify_eos_handling(channel):
-                    success_count += 1
-                else:
-                    error_count += 1
-
-                await self.wait_random_cycles()
-
-        except Exception as e:
-            self.log.error(f"EOS completion test failed: {str(e)}")
-            error_count += 1
-
-        stats = {
-            'success_count': success_count,
-            'error_count': error_count,
-            'success_rate': success_count / count if count > 0 else 0
-        }
-
-        self.test_stats['performance']['eos_completions_handled'] += success_count
-
-        return error_count == 0, stats
-
-    async def inject_eos_completion(self, channel: int):
-        """Inject EOS completion event for testing."""
-        try:
-            if hasattr(self.dut, 'eos_completion_valid'):
-                self.dut.eos_completion_valid.value = 1
-                self.dut.eos_completion_channel.value = channel
-
-                await RisingEdge(self.clk)
-
-                # Wait for ready
-                timeout = 50
-                while timeout > 0 and not self.dut.eos_completion_ready.value:
-                    await RisingEdge(self.clk)
-                    timeout -= 1
-
-                self.dut.eos_completion_valid.value = 0
-                self.channel_states[channel]['eos_pending'] = True
-
-        except Exception as e:
-            self.log.error(f"EOS completion injection failed: {str(e)}")
-            raise
-
-    async def verify_eos_handling(self, channel: int) -> bool:
-        """Verify EOS completion was handled correctly."""
-        # Check that EOS was processed and data_eos was generated
-        await self.wait_clocks(self.clk_name, 10)
-        self.channel_states[channel]['eos_pending'] = False
-        return True  # Placeholder - would check actual EOS handling
-
-    async def test_monitor_bus_operations(self, count: int = 32) -> Tuple[bool, Dict[str, Any]]:
-        """Test monitor bus aggregation and event generation."""
-        self.log.info(f"Testing monitor bus operations ({count} events)...")
-
-        success_count = 0
-        error_count = 0
-
-        try:
-            for i in range(count):
-                # Wait for monitor events
-                if await self.wait_for_monitor_event():
-                    success_count += 1
-                else:
-                    error_count += 1
-
-                await self.wait_random_cycles()
-
-        except Exception as e:
-            self.log.error(f"Monitor bus test failed: {str(e)}")
-            error_count += 1
-
-        stats = {
-            'success_count': success_count,
-            'error_count': error_count,
-            'success_rate': success_count / count if count > 0 else 0
-        }
-
-        self.test_stats['performance']['monitor_events_generated'] += success_count
-
-        return error_count == 0, stats
-
-    async def wait_for_monitor_event(self) -> bool:
-        """Wait for monitor bus event."""
-        timeout = 100
-        while timeout > 0:
-            if hasattr(self.dut, 'mon_valid') and self.dut.mon_valid.value:
+        """Initialize test environment"""
+        self.log.info("=== Initializing Beats Scheduler Group Test ===")
+        self.log.info(f"  ADDR_WIDTH: {self.TEST_ADDR_WIDTH}")
+        self.log.info(f"  DATA_WIDTH: {self.TEST_DATA_WIDTH}")
+
+        # Create memory model for descriptor storage (256-bit descriptors)
+        self.descriptor_memory = MemoryModel(
+            num_lines=4096,
+            bytes_per_line=32,  # 256 bits = 32 bytes
+            log=self.log
+        )
+
+        # Framework slaves own the three AXI ports the group masters (rapids
+        # TASK-013; the TB used to drive AR/R, AW/W/B by hand):
+        #   desc_*   256-bit read slave backed by descriptor_memory (register_descriptor)
+        #   ctrlrd_* 32-bit read slave backed by ctrlrd_memory (poll values)
+        #   ctrlwr_* 32-bit write slave backed by ctrlwr_memory (doorbells)
+        self.ctrlrd_memory = MemoryModel(num_lines=4096, bytes_per_line=4, log=self.log)
+        self.ctrlwr_memory = MemoryModel(num_lines=4096, bytes_per_line=4, log=self.log)
+        self.desc_fetches, self._desc_fetch_seen = 0, 0
+        self.ctrlrd_polls, self._ctrlrd_poll_seen = [], 0
+        self.ctrlwr_doorbells, self._ctrlwr_seen, self._ctrlwr_pending_aw = [], 0, []
+        self.desc_slave = create_axi4_slave_rd(
+            dut=self.dut, clock=self.clk, prefix="desc_", log=self.log,
+            data_width=256, id_width=self.TEST_AXI_ID_WIDTH, addr_width=self.TEST_ADDR_WIDTH,
+            user_width=1, multi_sig=True, memory_model=self.descriptor_memory)
+        self.ctrlrd_slave = create_axi4_slave_rd(
+            dut=self.dut, clock=self.clk, prefix="ctrlrd_", log=self.log,
+            data_width=32, id_width=self.TEST_AXI_ID_WIDTH, addr_width=self.TEST_ADDR_WIDTH,
+            user_width=1, multi_sig=True, memory_model=self.ctrlrd_memory)
+        self.ctrlwr_slave = create_axi4_slave_wr(
+            dut=self.dut, clock=self.clk, prefix="ctrlwr_", log=self.log,
+            data_width=32, id_width=self.TEST_AXI_ID_WIDTH, addr_width=self.TEST_ADDR_WIDTH,
+            user_width=1, multi_sig=True, memory_model=self.ctrlwr_memory)
+        for comp in (self.desc_slave['AR'], self.desc_slave['R'], self.ctrlrd_slave['AR'],
+                     self.ctrlrd_slave['R'], self.ctrlwr_slave['AW'], self.ctrlwr_slave['W'],
+                     self.ctrlwr_slave['B']):
+            await comp.reset_bus()
+        self.desc_slave['AR'].add_callback(self._on_desc_ar)
+        self.ctrlrd_slave['AR'].add_callback(self._on_ctrlrd_ar)
+        self.ctrlwr_slave['AW'].add_callback(self._on_ctrlwr_aw)
+        self.ctrlwr_slave['W'].add_callback(self._on_ctrlwr_w)
+
+        # Set default ready signals (scheduler-side consumers the TB models by level)
+        self.dut.sched_wr_ready.value = 1
+        self.dut.mon_ready.value = 1
+        if not getattr(self, '_mon_capture_started', False):
+            self._mon_capture_started = True
+            cocotb.start_soon(self._capture_monbus())
+
+        await self.wait_clocks(self.clk_name, 5)
+        self.log.info("Beats scheduler group initialization completed")
+
+    # ==========================================================================
+    # INTERFACE METHODS
+    # ==========================================================================
+
+    async def send_apb_request(self, addr: int) -> bool:
+        """Send APB descriptor fetch request.
+
+        Args:
+            addr: Descriptor address to fetch
+
+        Returns:
+            True if request accepted, False on timeout
+        """
+        # Drive the APB kick through the GAXI master; the pipeline performs the
+        # apb_valid/ready handshake honoring the active timing profile.
+        pkt = self.apb4_master.create_packet(addr=addr)
+        await self.apb4_master.send(pkt)
+
+        # send() queues; wait for the handshake to complete.
+        await self.wait_clocks(self.clk_name, 1)
+        for _ in range(100):
+            if not self.apb4_master.transfer_busy and len(self.apb4_master.transmit_queue) == 0:
+                self.apb_requests += 1
+                self.log.info(f"APB request sent: addr=0x{addr:X}")
                 return True
-            await RisingEdge(self.clk)
-            timeout -= 1
+            await self.wait_clocks(self.clk_name, 1)
+
+        self.log.warning(f"APB request timeout: addr=0x{addr:X}")
         return False
 
-    async def test_channel_isolation(self, count: int = 32) -> Tuple[bool, Dict[str, Any]]:
-        """Test channel isolation and independence."""
-        self.log.info(f"Testing channel isolation ({count} operations)...")
+    # -- framework-slave hooks (AR/AW/W monitor callbacks) ---------------------
+    def _on_desc_ar(self, pkt):
+        self.desc_fetches += 1
+        self.log.info(f"descriptor fetch #{self.desc_fetches}: addr=0x{int(getattr(pkt, 'addr', 0)):X}")
 
-        success_count = 0
-        error_count = 0
-        channels_tested = set()
+    def _on_ctrlrd_ar(self, pkt):
+        self.ctrlrd_polls.append(int(getattr(pkt, 'addr', 0)))
 
+    def _on_ctrlwr_aw(self, pkt):
+        self._ctrlwr_pending_aw.append(int(getattr(pkt, 'addr', 0)))
+
+    def _on_ctrlwr_w(self, pkt):
+        addr = self._ctrlwr_pending_aw.pop(0) if self._ctrlwr_pending_aw else None
+        self.ctrlwr_doorbells.append((addr, int(getattr(pkt, 'data', 0)) & 0xFFFFFFFF))
+
+    def register_descriptor(self, addr: int, data: int):
+        """Place a 256-bit descriptor in the memory the desc_* read slave serves.
+        Must precede the APB kick: the engine fetches within a few cycles."""
+        self.descriptor_memory.write(addr, bytearray((data & ((1 << 256) - 1)).to_bytes(32, 'little')))
+
+    async def wait_descriptor_fetch(self, timeout: int = 200) -> bool:
+        """Wait for the next descriptor AR the read slave serves (one per call)."""
+        for _ in range(timeout):
+            if self.desc_fetches > self._desc_fetch_seen:
+                self._desc_fetch_seen += 1
+                return True
+            await self.wait_clocks(self.clk_name, 1)
+        self.log.error(f"no descriptor fetch within {timeout} cycles")
+        return False
+
+    async def wait_for_rd_command(self, timeout: int = 100) -> Optional[Tuple[int, int]]:
+        """Wait for scheduler read command.
+
+        Returns:
+            Tuple of (addr, beats) if command received, None on timeout
+        """
+        for _ in range(timeout):
+            if int(self.dut.sched_rd_valid.value) == 1:
+                addr = int(self.dut.sched_rd_addr.value)
+                beats = int(self.dut.sched_rd_beats.value)
+                self.rd_commands_received += 1
+                self.log.info(f"RD command: addr=0x{addr:X}, beats={beats}")
+                return (addr, beats)
+            await self.wait_clocks(self.clk_name, 1)
+        return None
+
+    async def wait_for_wr_command(self, timeout: int = 100) -> Optional[Tuple[int, int]]:
+        """Wait for scheduler write command.
+
+        Returns:
+            Tuple of (addr, beats) if command received, None on timeout
+        """
+        for _ in range(timeout):
+            if int(self.dut.sched_wr_valid.value) == 1 and int(self.dut.sched_wr_ready.value) == 1:
+                addr = int(self.dut.sched_wr_addr.value)
+                beats = int(self.dut.sched_wr_beats.value)
+                await self.wait_clocks(self.clk_name, 1)
+                self.wr_commands_received += 1
+                self.log.info(f"WR command: addr=0x{addr:X}, beats={beats}")
+                return (addr, beats)
+            await self.wait_clocks(self.clk_name, 1)
+        return None
+
+    async def send_rd_completion(self, beats_done: int):
+        """Send read completion strobe."""
+        self.dut.sched_rd_done_strobe.value = 1
+        self.dut.sched_rd_beats_done.value = beats_done
+        await self.wait_clocks(self.clk_name, 1)
+        self.dut.sched_rd_done_strobe.value = 0
+        self.completions_sent += 1
+        self.log.info(f"RD completion: beats={beats_done}")
+
+    async def send_wr_completion(self, beats_done: int):
+        """Send write completion strobes (issue + commit).
+
+        commit_strobe now gates scheduler completion, so pulse it alongside the
+        issue done_strobe (this simulator models issue and commit together).
+        """
+        self.dut.sched_wr_done_strobe.value = 1
+        self.dut.sched_wr_beats_done.value = beats_done
+        self.dut.sched_wr_commit_strobe.value = 1
+        self.dut.sched_wr_commit_beats.value = beats_done
+        await self.wait_clocks(self.clk_name, 1)
+        self.dut.sched_wr_done_strobe.value = 0
+        self.dut.sched_wr_commit_strobe.value = 0
+        self.completions_sent += 1
+        self.log.info(f"WR completion: beats={beats_done}")
+
+    async def _capture_monbus(self):
+        """Count every packet on the group's monitor bus from initialisation on.
+        test_monbus_events used to poll only after the activity that produced
+        them and saw nothing (rapids TASK-003)."""
+        from TBClasses.monbus import parse
+        self.mon_packets = []
+        while True:
+            await self.wait_clocks(self.clk_name, 1)
+            if int(self.dut.mon_valid.value) == 1 and int(self.dut.mon_ready.value) == 1:
+                self.mon_packets.append(parse(int(self.dut.mon_packet.value)))
+                self.mon_packets_received += 1
+
+    async def check_monbus_packet(self, timeout: int = 50) -> Optional[int]:
+        """Check for monitor bus packet.
+
+        Returns:
+            64-bit packet data if available, None on timeout
+        """
+        for _ in range(timeout):
+            if int(self.dut.mon_valid.value) == 1 and int(self.dut.mon_ready.value) == 1:
+                packet = int(self.dut.mon_packet.value)
+                self.mon_packets_received += 1
+                return packet
+            await self.wait_clocks(self.clk_name, 1)
+        return None
+
+    # ==========================================================================
+    # STATUS METHODS
+    # ==========================================================================
+
+    def is_scheduler_idle(self) -> bool:
+        """Check if scheduler is idle."""
+        return int(self.dut.scheduler_idle.value) == 1
+
+    def is_descriptor_engine_idle(self) -> bool:
+        """Check if descriptor engine is idle."""
+        return int(self.dut.descriptor_engine_idle.value) == 1
+
+    def get_scheduler_state(self) -> int:
+        """Get scheduler state (7-bit one-hot)."""
+        return int(self.dut.scheduler_state.value)
+
+    def has_scheduler_error(self) -> bool:
+        """Check for scheduler error."""
+        return int(self.dut.sched_error.value) == 1
+
+    # ==========================================================================
+    # TEST METHODS
+    # ==========================================================================
+
+    async def test_basic_descriptor_flow(self, num_descriptors: int = 5) -> bool:
+        """Test basic descriptor fetch and processing flow.
+
+        Args:
+            num_descriptors: Number of descriptors to test
+
+        Returns:
+            True if test passed
+        """
+        self.log.info(f"=== Basic Descriptor Flow Test: {num_descriptors} descriptors ===")
+
+        errors = 0
+
+        for i in range(num_descriptors):
+            # Create descriptor data (256-bit)
+            # RAPIDS Descriptor Format (from scheduler.sv):
+            #   [63:0]    - src_addr     (64 bits) - Source address
+            #   [127:64]  - dst_addr     (64 bits) - Destination address
+            #   [159:128] - length       (32 bits) - Transfer length in beats
+            #   [191:160] - next_ptr     (32 bits) - Next descriptor pointer (0=none)
+            #   [192]     - valid        (1 bit)   - Descriptor valid flag
+            #   [193]     - gen_irq      (1 bit)   - Generate IRQ on completion
+            #   [194]     - last         (1 bit)   - Last descriptor in chain
+            src_addr = random.randint(0x1000, 0xFFFF) * 0x100
+            dst_addr = random.randint(0x2000, 0xFFFF) * 0x100
+            length = random.randint(1, 64)
+            next_ptr = 0  # No chaining for this test
+            valid = 1     # CRITICAL: Must be 1 for scheduler to accept!
+            gen_irq = 0   # No IRQ for this test
+            last = 1      # Last descriptor (no chaining)
+
+            desc_data = (src_addr & ((1 << 64) - 1))
+            desc_data |= ((dst_addr & ((1 << 64) - 1)) << 64)
+            desc_data |= ((length & ((1 << 32) - 1)) << 128)
+            desc_data |= ((next_ptr & ((1 << 32) - 1)) << 160)
+            desc_data |= (valid << 192)
+            desc_data |= (gen_irq << 193)
+            desc_data |= (last << 194)
+
+            # Start from non-zero address (0 is invalid for descriptor engine)
+            desc_addr = (i + 1) * 32  # 32-byte aligned, starting from 32
+
+            self.log.info(f"Descriptor {i+1}: src=0x{src_addr:X}, dst=0x{dst_addr:X}, len={length}")
+
+            # Descriptor in memory first, then the kick; the read slave serves it.
+            self.register_descriptor(desc_addr, desc_data)
+            if not await self.send_apb_request(desc_addr):
+                self.log.error(f"APB request failed for descriptor {i+1}")
+                errors += 1
+                continue
+            if not await self.wait_descriptor_fetch():
+                self.log.error(f"Descriptor {i+1} was never fetched")
+                errors += 1
+                continue
+
+            # Wait for scheduler command (could be rd or wr)
+            await self.wait_clocks(self.clk_name, 20)
+
+            # Check for read or write command
+            rd_cmd = await self.wait_for_rd_command(timeout=50)
+            if rd_cmd:
+                addr, beats = rd_cmd
+                # Complete the read
+                await self.wait_clocks(self.clk_name, 10)
+                await self.send_rd_completion(beats)
+
+            wr_cmd = await self.wait_for_wr_command(timeout=50)
+            if wr_cmd:
+                addr, beats = wr_cmd
+                # Complete the write
+                await self.wait_clocks(self.clk_name, 10)
+                await self.send_wr_completion(beats)
+
+            await self.wait_clocks(self.clk_name, 20)
+
+        self.log.info(f"Basic descriptor flow test: {num_descriptors - errors}/{num_descriptors} passed")
+        return errors == 0
+
+    # ==========================================================================
+    # CONTROL-DESCRIPTOR SUPPORT (Phase 2 producer/consumer)
+    # ==========================================================================
+
+    @staticmethod
+    def _build_descriptor(opcode=0, src=0, dst=0, length=1, valid=1, last=1,
+                          next_ptr=0, gen_irq=0):
+        """Build a 256-bit descriptor. For control descriptors the ctrl fields
+        overlay the data slots: addr = src[63:0]; data = dst[31:0]; mask = dst[63:32];
+        opcode at [209:208] (0=DATA, 1=CTRL_READ, 2=CTRL_WRITE)."""
+        d = (src & ((1 << 64) - 1))
+        d |= ((dst & ((1 << 64) - 1)) << 64)
+        d |= ((length & 0xFFFFFFFF) << 128)
+        d |= ((next_ptr & 0xFFFFFFFF) << 160)
+        d |= (valid << 192)
+        d |= (gen_irq << 193)
+        d |= (last << 194)
+        d |= ((opcode & 0x3) << 208)
+        return d
+
+    async def _wait_ctrlwr_doorbell(self, timeout: int = 300):
+        """Next doorbell (addr, data) the ctrlwr_* write slave accepted, or None."""
+        for _ in range(timeout):
+            if len(self.ctrlwr_doorbells) > self._ctrlwr_seen:
+                got = self.ctrlwr_doorbells[self._ctrlwr_seen]
+                self._ctrlwr_seen += 1
+                return got
+            await self.wait_clocks(self.clk_name, 1)
+        return None
+
+    async def _wait_ctrlrd_poll(self, timeout: int = 300):
+        """Address of the next poll the ctrlrd_* read slave served, or None.
+        The value returned to the engine is whatever ctrlrd_memory holds."""
+        for _ in range(timeout):
+            if len(self.ctrlrd_polls) > self._ctrlrd_poll_seen:
+                got = self.ctrlrd_polls[self._ctrlrd_poll_seen]
+                self._ctrlrd_poll_seen += 1
+                return got
+            await self.wait_clocks(self.clk_name, 1)
+        return None
+
+    def _set_poll_value(self, addr: int, value: int):
+        self.ctrlrd_memory.write(addr, bytearray((value & 0xFFFFFFFF).to_bytes(4, 'little')))
+
+    async def _tick_generator(self, period: int = 8):
+        """Free-running tick_1us pulse generator (models the periodic 1us tick that
+        paces ctrlrd retries). Runs until self._tick_active is cleared."""
+        while self._tick_active:
+            self.dut.tick_1us.value = 1
+            await self.wait_clocks(self.clk_name, 1)
+            self.dut.tick_1us.value = 0
+            await self.wait_clocks(self.clk_name, period)
+
+    async def test_ctrl_write_doorbell(self) -> bool:
+        """CTRL_WRITE descriptor routes through the scheduler to the real ctrlwr
+        engine, which posts a doorbell write; verify addr/data and completion."""
+        self.log.info("=== Control Write Doorbell Test ===")
+        door_addr = 0x2000
+        door_data = 0xABCD1234
+        desc = self._build_descriptor(opcode=2, src=door_addr, dst=door_data)
+
+        self.register_descriptor(64, desc)
+        if not await self.send_apb_request(64):
+            self.log.error("APB kick failed")
+            return False
+        if not await self.wait_descriptor_fetch():
+            self.log.error("descriptor was never fetched")
+            return False
+
+        captured = await self._wait_ctrlwr_doorbell()
+        if captured is None:
+            self.log.error("ctrlwr engine never issued a write (routing failed)")
+            return False
+        addr, data = captured
+        if addr != door_addr or data != door_data:
+            self.log.error(f"doorbell mismatch: got addr=0x{addr:X} data=0x{data:X}, "
+                           f"expected 0x{door_addr:X}/0x{door_data:X}")
+            return False
+        self.log.info(f"  OK Doorbell posted: addr=0x{addr:X} data=0x{data:X}")
+
+        for _ in range(200):
+            await self.wait_clocks(self.clk_name, 1)
+            if self.is_scheduler_idle():
+                self.log.info("PASS CTRL_WRITE doorbell test PASSED")
+                return True
+        self.log.error("scheduler did not return idle after ctrlwr")
+        return False
+
+    async def test_ctrl_read_gate(self) -> bool:
+        """CTRL_READ descriptor routes to the real ctrlrd engine, which polls until
+        (read & mask)==expected. Verify the gate holds off the chain (data engines
+        NOT driven) through a mismatch, then completes on a match."""
+        self.log.info("=== Control Read Gate Test ===")
+        self.dut.cfg_ctrlrd_max_try.value = 16
+        poll_addr = 0x3000
+        expected = 0x1
+        mask = 0x1
+        desc = self._build_descriptor(opcode=1, src=poll_addr, dst=((mask << 32) | expected))
+
+        self._set_poll_value(poll_addr, 0x0)     # first poll must NOT match
+        self.register_descriptor(96, desc)
+        if not await self.send_apb_request(96):
+            self.log.error("APB kick failed")
+            return False
+        if not await self.wait_descriptor_fetch():
+            self.log.error("descriptor was never fetched")
+            return False
+
+        # Free-running tick paces the engine's retries.
+        self._tick_active = True
+        tick_task = cocotb.start_soon(self._tick_generator())
         try:
-            # Test multiple channels simultaneously
-            for i in range(count):
-                ch1 = random.randint(0, self.TEST_CHANNELS - 1)
-                ch2 = random.randint(0, self.TEST_CHANNELS - 1)
-                while ch2 == ch1:
-                    ch2 = random.randint(0, self.TEST_CHANNELS - 1)
+            # First poll returns a NON-matching value -> engine must retry (gate held).
+            addr1 = await self._wait_ctrlrd_poll()
+            if addr1 != poll_addr:
+                self.log.error(f"ctrlrd poll addr mismatch: 0x{addr1} vs 0x{poll_addr:X}")
+                return False
+            # Gate must be holding: data engines must NOT be driven for a control descriptor.
+            if int(self.dut.sched_rd_valid.value) == 1 or int(self.dut.sched_wr_valid.value) == 1:
+                self.log.error("data engine driven during CTRL_READ gate (should be held off)")
+                return False
+            self.log.info("  OK Gate held after mismatch (data engines idle)")
 
-                channels_tested.update([ch1, ch2])
+            # Next retry poll returns a MATCHING value -> gate opens.
+            self._set_poll_value(poll_addr, 0x1)
+            addr2 = await self._wait_ctrlrd_poll()
+            if addr2 != poll_addr:
+                self.log.error(f"ctrlrd retry poll addr mismatch: 0x{addr2} vs 0x{poll_addr:X}")
+                return False
 
-                # Start operations on both channels
-                await self.start_channel_operation(ch1)
-                await self.start_channel_operation(ch2)
+            for _ in range(300):
+                await self.wait_clocks(self.clk_name, 1)
+                if self.is_scheduler_idle():
+                    self.log.info("PASS CTRL_READ gate test PASSED (opened on match)")
+                    return True
+            self.log.error("scheduler did not complete after ctrlrd match")
+            return False
+        finally:
+            self._tick_active = False
+            await self.wait_clocks(self.clk_name, 2)
 
-                # Verify independence
-                if await self.verify_channel_independence(ch1, ch2):
-                    success_count += 1
-                else:
-                    error_count += 1
+    async def test_idle_state(self) -> bool:
+        """Test that system starts in idle state."""
+        self.log.info("=== Idle State Test ===")
 
-                await self.wait_random_cycles()
+        # Check idle states
+        sched_idle = self.is_scheduler_idle()
+        desc_idle = self.is_descriptor_engine_idle()
 
-        except Exception as e:
-            self.log.error(f"Channel isolation test failed: {str(e)}")
-            error_count += 1
+        self.log.info(f"  Scheduler idle: {sched_idle}")
+        self.log.info(f"  Descriptor engine idle: {desc_idle}")
 
-        stats = {
-            'success_count': success_count,
-            'error_count': error_count,
-            'success_rate': success_count / count if count > 0 else 0,
-            'channels_tested': len(channels_tested)
-        }
+        if sched_idle and desc_idle:
+            self.log.info("Idle state test PASSED")
+            return True
+        else:
+            self.log.error("Idle state test FAILED")
+            return False
 
-        return error_count == 0, stats
+    async def test_config_interface(self) -> bool:
+        """Test configuration interface."""
+        self.log.info("=== Configuration Interface Test ===")
 
-    async def start_channel_operation(self, channel: int):
-        """Start operation on specific channel."""
-        self.channel_states[channel]['idle'] = False
-        # Would trigger channel-specific operations
-
-    async def verify_channel_independence(self, ch1: int, ch2: int) -> bool:
-        """Verify that channels operate independently."""
-        # Check that operations on ch1 don't affect ch2 and vice versa
+        # Test enable/disable
+        self.dut.cfg_channel_enable.value = 0
         await self.wait_clocks(self.clk_name, 5)
-        return True  # Placeholder - would check actual isolation
+        self.dut.cfg_channel_enable.value = 1
+        await self.wait_clocks(self.clk_name, 5)
 
-    async def stress_test(self, count: int = 100) -> Tuple[bool, Dict[str, Any]]:
-        """Comprehensive stress test with mixed operations."""
-        self.log.info(f"Running stress test ({count} mixed operations)...")
+        # Test timeout configuration
+        self.dut.cfg_sched_timeout_cycles.value = 500
+        await self.wait_clocks(self.clk_name, 2)
 
-        success_count = 0
-        error_count = 0
+        # Test descriptor engine configuration
+        self.dut.cfg_desceng_prefetch.value = 0
+        await self.wait_clocks(self.clk_name, 2)
+        self.dut.cfg_desceng_prefetch.value = 1
+        await self.wait_clocks(self.clk_name, 2)
 
-        try:
-            for i in range(count):
-                # Randomly select operation type
-                operation = random.choice([
-                    'descriptor_processing',
-                    'program_operation',
-                    'eos_completion',
-                    'monitor_event',
-                    'channel_operation'
-                ])
+        self.log.info("Configuration interface test PASSED")
+        return True
 
-                if operation == 'descriptor_processing':
-                    success, _ = await self.test_basic_descriptor_processing(count=1)
-                elif operation == 'program_operation':
-                    success, _ = await self.test_program_engine_operations(count=1)
-                elif operation == 'eos_completion':
-                    success, _ = await self.test_eos_completion_interface(count=1)
-                elif operation == 'monitor_event':
-                    success, _ = await self.test_monitor_bus_operations(count=1)
-                else:
-                    success, _ = await self.test_channel_isolation(count=1)
+    async def test_monbus_events(self, wait_cycles: int = 100) -> bool:
+        """Test monitor bus event generation.
 
-                if success:
-                    success_count += 1
-                else:
-                    error_count += 1
+        Args:
+            wait_cycles: Cycles to wait for events
 
-                await self.wait_random_cycles()
-
-        except Exception as e:
-            self.log.error(f"Stress test failed: {str(e)}")
-            error_count += 1
-
-        stats = {
-            'success_count': success_count,
-            'error_count': error_count,
-            'success_rate': success_count / count if count > 0 else 0
-        }
-
-        return error_count == 0, stats
-
-    def finalize_test(self):
-        """Finalize test and calculate statistics."""
-        end_time = time.time()
-        self.test_stats['summary']['test_duration'] = end_time - self.test_stats['summary']['start_time']
-
-        # Calculate performance metrics
-        duration = self.test_stats['summary']['test_duration']
-        if duration > 0:
-            total_ops = self.test_stats['summary']['total_operations']
-            self.test_stats['performance']['operations_per_second'] = total_ops / duration
-
-        # Update channel statistics
-        active_channels = sum(1 for ch_state in self.channel_states.values() if not ch_state['idle'])
-        self.test_stats['channels']['total_channels_used'] = len(self.test_stats['channels']['channels_tested'])
-        self.test_stats['performance']['peak_channels_active'] = max(
-            self.test_stats['performance']['peak_channels_active'],
-            active_channels
-        )
-
-    def get_test_stats(self) -> Dict[str, Any]:
-        """Get current test statistics."""
-        return self.test_stats.copy()
-
-    # =========================================================================
-    # ENHANCED TEST METHODS WITH REAL VERIFICATION
-    # =========================================================================
-
-    async def test_concurrent_multi_channel(self, channel_count: int = 8, ops_per_channel: int = 4) -> Tuple[bool, Dict[str, Any]]:
+        Returns:
+            True if events received
         """
-        Test concurrent operations across multiple channels.
+        self.log.info("=== MonBus Events Test ===")
 
-        Tests:
-        - True parallel channel operation
-        - Channel isolation under load
-        - Credit management per channel
-        - No cross-channel interference
-        """
-        self.log.info(f"Testing concurrent multi-channel operation ({channel_count} channels, {ops_per_channel} ops each)...")
+        initial_count = self.mon_packets_received
+        n0 = len(getattr(self, 'mon_packets', []))
+        # A bare APB kick never completes here (nothing answers the descriptor
+        # fetch), so no packet could ever appear; run one real descriptor through
+        # the group -- the flow helper models the AXI side -- and then look.
+        if not await self.test_basic_descriptor_flow(num_descriptors=1):
+            self.log.error("MonBus events: the descriptor flow itself failed")
+            return False
+        await self.wait_clocks(self.clk_name, wait_cycles)
+        pkts = list(getattr(self, 'mon_packets', []))[n0:]
+        kinds = [p.get_packet_type_name() for p in pkts]
+        events_received = len(pkts)
+        self.log.info(f"MonBus events received: {events_received} {sorted(set(kinds))}")
+        if events_received == 0 or 'PktTypeCompletion' not in kinds:
+            self.log.error(f"MonBus events: expected at least one completion after a descriptor fetch, saw {kinds}")
+            return False
+        return True
 
-        success_count = 0
-        error_count = 0
-        channels_used = set()
+    async def test_compl_enable_gate(self, wait_cycles: int = 100) -> bool:
+        """SCHED_CONFIG.COMPL_EN (rapids ISSUE-005): with cfg_sched_compl_enable=0
+        a descriptor flow completes normally and NO Completion packet reaches the
+        group's monitor bus; with it back at 1 the same flow produces one. The
+        OFF half is the point -- before the fix the bit did nothing."""
+        self.log.info("=== COMPL_EN gate test ===")
+        results = {}
+        for enable in (0, 1):
+            self.dut.cfg_sched_compl_enable.value = enable
+            await self.wait_clocks(self.clk_name, 2)
+            n0 = len(getattr(self, 'mon_packets', []))
+            if not await self.test_basic_descriptor_flow(num_descriptors=1):
+                self.log.error(f"COMPL_EN={enable}: the descriptor flow itself failed "
+                               f"(a gated emitter must still be acknowledged)")
+                return False
+            await self.wait_clocks(self.clk_name, wait_cycles)
+            pkts = list(getattr(self, 'mon_packets', []))[n0:]
+            kinds = [p.get_packet_type_name() for p in pkts]
+            n_compl = kinds.count('PktTypeCompletion')
+            results[enable] = (len(pkts), n_compl)
+            self.log.info(f"COMPL_EN={enable}: {len(pkts)} packet(s) {sorted(set(kinds))}, "
+                          f"{n_compl} completion(s)")
+        ok = True
+        if results[0][1] != 0:
+            self.log.error(f"COMPL_EN=0 still passed {results[0][1]} Completion packet(s) to the monitor bus")
+            ok = False
+        if results[1][1] == 0:
+            self.log.error("COMPL_EN=1 produced no Completion packet (the ON state must still report)")
+            ok = False
+        return ok
 
-        try:
-            # Select random channels for concurrent testing
-            test_channels = random.sample(range(self.TEST_CHANNELS), min(channel_count, self.TEST_CHANNELS))
-            channels_used.update(test_channels)
+    def generate_test_report(self) -> bool:
+        """Generate comprehensive test report."""
+        self.log.info("\n" + "=" * 60)
+        self.log.info("BEATS SCHEDULER GROUP TEST REPORT")
+        self.log.info("=" * 60)
+        self.log.info(f"APB requests: {self.apb_requests}")
+        self.log.info(f"Descriptors served: {self.descriptors_served}")
+        self.log.info(f"RD commands received: {self.rd_commands_received}")
+        self.log.info(f"WR commands received: {self.wr_commands_received}")
+        self.log.info(f"Completions sent: {self.completions_sent}")
+        self.log.info(f"MonBus packets received: {self.mon_packets_received}")
 
-            # Create concurrent tasks for each channel
-            async def channel_task(ch: int):
-                """Run operations on a single channel."""
-                ch_success = 0
-                ch_errors = 0
-
-                for op in range(ops_per_channel):
-                    # Generate descriptor data
-                    max_desc_addr = self.descriptor_memory_size - (self.TEST_DATA_WIDTH // 8)
-                    desc_addr = random.randint(0, max_desc_addr)
-                    desc_data = random.randint(0, self.MAX_DATA)
-
-                    # Program descriptor into memory
-                    bytes_per_line = self.TEST_DATA_WIDTH // 8
-                    data_bytes = bytearray(desc_data.to_bytes(bytes_per_line, 'little'))
-                    self.descriptor_memory.write(desc_addr, data_bytes)
-
-                    # Request descriptor fetch
-                    try:
-                        await self.request_descriptor_fetch(desc_addr, ch)
-
-                        # Brief wait for processing
-                        await self.wait_clocks(self.clk_name, random.randint(5, 15))
-
-                        ch_success += 1
-                    except Exception as e:
-                        self.log.debug(f"Channel {ch} operation {op+1} failed: {str(e)}")
-                        ch_errors += 1
-
-                return ch_success, ch_errors
-
-            # Launch all channel tasks concurrently
-            import asyncio
-            tasks = [asyncio.create_task(channel_task(ch)) for ch in test_channels]
-
-            # Wait for all to complete
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-
-            # Aggregate results
-            for result in results:
-                if isinstance(result, Exception):
-                    error_count += ops_per_channel
-                    self.log.error(f"Channel task failed: {str(result)}")
-                else:
-                    ch_success, ch_errors = result
-                    success_count += ch_success
-                    error_count += ch_errors
-
-        except Exception as e:
-            self.log.error(f"Concurrent multi-channel test failed: {str(e)}")
-            error_count += channel_count * ops_per_channel
-
-        total_ops = channel_count * ops_per_channel
-        stats = {
-            'success_count': success_count,
-            'error_count': error_count,
-            'success_rate': success_count / total_ops if total_ops > 0 else 0,
-            'channels_tested': len(channels_used),
-            'total_operations': total_ops
-        }
-
-        self.test_stats['channels']['channels_tested'].update(channels_used)
-        self.test_stats['performance']['peak_channels_active'] = max(
-            self.test_stats['performance']['peak_channels_active'],
-            len(channels_used)
-        )
-
-        return error_count == 0, stats
-
-    async def test_credit_exhaustion_recovery(self, initial_credits: int = 4) -> Tuple[bool, Dict[str, Any]]:
-        """
-        Test credit exhaustion and recovery.
-
-        Tests:
-        - Credit counter decrements on descriptor acceptance
-        - Blocking when credits exhausted
-        - Credit recovery via increment
-        - System continues after credit restoration
-        """
-        self.log.info(f"Testing credit exhaustion and recovery (initial credits: {initial_credits})...")
-
-        success_count = 0
-        error_count = 0
-
-        try:
-            # Configure low credits to force exhaustion
-            # cfg_initial_credit uses exponential encoding: value N → 2^N credits
-            cfg_value = max(0, min(initial_credits, 14))  # 0-14 valid range
-            expected_credits = 2 ** cfg_value
-
-            self.log.info(f"Configuring cfg_initial_credit={cfg_value} → {expected_credits} credits")
-
-            # Reset with new credit configuration
-            await self.assert_reset()
-            self.dut.cfg_use_credit.value = 1
-            self.dut.cfg_initial_credit.value = cfg_value
-            await self.wait_clocks(self.clk_name, 10)
-            await self.deassert_reset()
-            await self.wait_clocks(self.clk_name, 10)
-
-            # Phase 1: Exhaust credits by processing descriptors
-            self.log.info(f"Phase 1: Processing {expected_credits} descriptors to exhaust credits...")
-
-            for i in range(expected_credits):
-                max_desc_addr = self.descriptor_memory_size - (self.TEST_DATA_WIDTH // 8)
-                desc_addr = random.randint(0, max_desc_addr)
-                desc_data = random.randint(0, self.MAX_DATA)
-
-                bytes_per_line = self.TEST_DATA_WIDTH // 8
-                data_bytes = bytearray(desc_data.to_bytes(bytes_per_line, 'little'))
-                self.descriptor_memory.write(desc_addr, data_bytes)
-
-                try:
-                    await self.request_descriptor_fetch(desc_addr, 0)
-                    success_count += 1
-                    self.log.debug(f"Descriptor {i+1}/{expected_credits} accepted (credits remaining: {expected_credits - i - 1})")
-                except Exception as e:
-                    self.log.warning(f"Descriptor {i+1} failed: {str(e)}")
-                    error_count += 1
-
-                await self.wait_clocks(self.clk_name, 5)
-
-            # Phase 2: Verify blocking when credits exhausted
-            self.log.info("Phase 2: Verifying blocking with exhausted credits...")
-
-            # Try to process another descriptor - should block or fail
-            max_desc_addr = self.descriptor_memory_size - (self.TEST_DATA_WIDTH // 8)
-            desc_addr = random.randint(0, max_desc_addr)
-            desc_data = random.randint(0, self.MAX_DATA)
-
-            bytes_per_line = self.TEST_DATA_WIDTH // 8
-            data_bytes = bytearray(desc_data.to_bytes(bytes_per_line, 'little'))
-            self.descriptor_memory.write(desc_addr, data_bytes)
-
-            blocked = False
-            try:
-                # This should timeout or block
-                self.dut.apb_valid.value = 1
-                self.dut.apb_addr.value = desc_addr
-
-                await RisingEdge(self.clk)
-
-                # Wait for ready with short timeout
-                timeout = 20  # Short timeout to detect blocking
-                while timeout > 0 and not self.dut.apb_ready.value:
-                    await RisingEdge(self.clk)
-                    timeout -= 1
-
-                if timeout == 0:
-                    blocked = True
-                    self.log.info("✓ Correctly blocked when credits exhausted")
-                    success_count += 1
-                else:
-                    self.log.warning("✗ Did not block when credits exhausted (may indicate issue)")
-
-                self.dut.apb_valid.value = 0
-
-            except TimeoutError:
-                blocked = True
-                self.log.info("✓ Correctly blocked when credits exhausted (timeout)")
-                success_count += 1
-
-            # Phase 3: Recovery via credit increment
-            self.log.info("Phase 3: Testing credit recovery...")
-
-            # Increment credits
-            self.dut.credit_increment.value = 1
-            await RisingEdge(self.clk)
-            await RisingEdge(self.clk)
-            self.dut.credit_increment.value = 0
-            await self.wait_clocks(self.clk_name, 5)
-
-            # Now descriptor should be accepted
-            try:
-                await self.request_descriptor_fetch(desc_addr, 0)
-                self.log.info("✓ Descriptor accepted after credit increment")
-                success_count += 1
-            except Exception as e:
-                self.log.error(f"✗ Failed to accept descriptor after credit increment: {str(e)}")
-                error_count += 1
-
-        except Exception as e:
-            self.log.error(f"Credit exhaustion/recovery test failed: {str(e)}")
-            error_count += 1
-
-        stats = {
-            'success_count': success_count,
-            'error_count': error_count,
-            'success_rate': success_count / (success_count + error_count) if (success_count + error_count) > 0 else 0,
-            'expected_credits': expected_credits,
-            'blocked_correctly': blocked
-        }
-
-        return error_count == 0, stats
-
-    async def test_data_mover_with_stream_boundaries(self, count: int = 16) -> Tuple[bool, Dict[str, Any]]:
-        """
-        Test data mover interface with stream boundary handling.
-
-        Tests:
-        - Data valid/ready handshaking
-        - EOS (End of Stream) boundary detection
-        - EOL (End of Line) boundary detection
-        - EOD (End of Data) boundary detection
-        - Data transfer length tracking
-        """
-        self.log.info(f"Testing data mover with stream boundaries ({count} transfers)...")
-
-        success_count = 0
-        error_count = 0
-        eos_count = 0
-        eol_count = 0
-        eod_count = 0
-
-        try:
-            for i in range(count):
-                # Randomly select stream boundary type
-                boundary_type = random.choice(['none', 'eos', 'eol', 'eod'])
-                transfer_length = random.randint(1, 128)
-
-                self.log.debug(f"Transfer {i+1}/{count}: length={transfer_length}, boundary={boundary_type}")
-
-                # Drive data interface
-                if hasattr(self.dut, 'data_valid'):
-                    self.dut.data_valid.value = 1
-                    self.dut.data_transfer_length.value = transfer_length
-
-                    # Set boundary flags
-                    if hasattr(self.dut, 'data_eos'):
-                        self.dut.data_eos.value = 1 if boundary_type == 'eos' else 0
-                    if hasattr(self.dut, 'data_eol'):
-                        self.dut.data_eol.value = 1 if boundary_type == 'eol' else 0
-                    if hasattr(self.dut, 'data_eod'):
-                        self.dut.data_eod.value = 1 if boundary_type == 'eod' else 0
-
-                    await RisingEdge(self.clk)
-
-                    # Wait for ready
-                    timeout = 50
-                    while timeout > 0 and int(self.dut.data_ready.value) == 0:
-                        await RisingEdge(self.clk)
-                        timeout -= 1
-
-                    if timeout > 0:
-                        success_count += 1
-                        if boundary_type == 'eos':
-                            eos_count += 1
-                        elif boundary_type == 'eol':
-                            eol_count += 1
-                        elif boundary_type == 'eod':
-                            eod_count += 1
-                    else:
-                        error_count += 1
-                        self.log.warning(f"Data transfer {i+1} timeout")
-
-                    # Clear signals
-                    self.dut.data_valid.value = 0
-                    if hasattr(self.dut, 'data_eos'):
-                        self.dut.data_eos.value = 0
-                    if hasattr(self.dut, 'data_eol'):
-                        self.dut.data_eol.value = 0
-                    if hasattr(self.dut, 'data_eod'):
-                        self.dut.data_eod.value = 0
-
-                else:
-                    self.log.warning("Data mover interface not available in DUT")
-                    error_count += 1
-                    break
-
-                await self.wait_random_cycles()
-
-        except Exception as e:
-            self.log.error(f"Data mover test failed: {str(e)}")
-            error_count += 1
-
-        stats = {
-            'success_count': success_count,
-            'error_count': error_count,
-            'success_rate': success_count / count if count > 0 else 0,
-            'eos_count': eos_count,
-            'eol_count': eol_count,
-            'eod_count': eod_count
-        }
-
-        self.test_stats['performance']['descriptors_processed'] += success_count
-
-        return error_count == 0, stats
+        if self.test_errors:
+            self.log.error(f"Test errors ({len(self.test_errors)}):")
+            for error in self.test_errors:
+                self.log.error(f"  - {error}")
+            self.log.info("=" * 60)
+            return False
+        else:
+            self.log.info("ALL TESTS PASSED SUCCESSFULLY!")
+            self.log.info("=" * 60)
+            return True
