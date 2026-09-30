@@ -1,0 +1,34 @@
+// Same board as the pumice system, but note the asymmetry: only one of the two
+// builds needs the host at all.
+digraph board_and_host {
+    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.7,
+           label="The bench: the same Nexys A7, and a host that only ONE build needs", labelloc=t, labeljust=l];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    subgraph cluster_host {
+        label="Host -- required by build-demo, NOT by build-phase1"; style="rounded"; color="#404040";
+        hp [label="host_cdc_demo.py  (the CLI: watch-fail, sweep, press)\ncdc_demo.py       (CdcDemoDriver)", fillcolor="#fff4e0"];
+        sh [label="fpga-systems/bin/: uart_link, uart_axi_bridge, board\nthe SAME transport the pumice system uses", fillcolor="#fff4e0"];
+        hp -> sh;
+    }
+
+    usb [label="ONE USB connector: JTAG to program, UART to talk\n115200-8N1 on some /dev/ttyUSB*.\nThe driver resolves the port -- numbering drifts and a\nsecond board may share the chain", fillcolor="#ffe8e8"];
+
+    subgraph cluster_fpga {
+        label="Nexys A7-100T : Artix-7 XC7A100T-1CSG324C"; style="rounded"; color="#228B22";
+        d [label="build-demo (default)\ncdc_demo_top -> cdc_demo_harness\n4 counters, host-controlled clocks,\n5 selectable CDC modes", fillcolor="#e9f7e9", penwidth=2];
+        p [label="build-phase1\ncdc_counter_display_top\nONE file. One counter, buttons,\none 4-phase handshake. No harness,\nno UART, no host", fillcolor="#e8f1ff", penwidth=2];
+    }
+
+    io [label="Board I/O used by BOTH builds\n5 push buttons (BTNC + directions),\n8-digit 7-segment display, LEDs,\n100 MHz oscillator", fillcolor="#f0f0f0"];
+
+    sh  -> usb [label="USB"];
+    usb -> d   [label="UART: register reads and writes", style=bold];
+    usb -> d   [label=".bit over JTAG", style=dashed];
+    usb -> p   [label=".bit over JTAG only", style=dashed];
+    d -> io [dir=both]; p -> io [dir=both];
+
+    note [label="The asymmetry IS the lesson of Chapter 3:\nphase1 is a standalone demonstration you can\nwalk up to and press. build-demo is an\nINSTRUMENT, and an instrument needs a host.", shape=note, fillcolor="#f0f0f0"];
+    note -> p [style=dotted, arrowhead=none];
+}

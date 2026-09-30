@@ -1,0 +1,22 @@
+// How a host command becomes a number. The loop the whole apparatus exists for.
+digraph measurement_path {
+    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.75,
+           label="From host command to a row of the CSV", labelloc=t, labeljust=l];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    cfg  [label="1. Configure\npumice_char.Config.apply() writes EVERY CSR\nfor the point: JEDEC timings, page policy,\nbank span, burst length, address map.\nTRAP: it re-applies on EVERY point, so a CSR\nwritten by hand between points is silently\nclobbered", fillcolor="#fff4e0"];
+    train [label="2. Train the PHY (once per build)\nhost_bringup_75.py and the sweeps settle\nt_phy_wrlat, t_rddata_en, rddata_delay,\nbitslip and IDELAY tap; cached in level_cache.json", fillcolor="#fff4e0"];
+    run  [label="3. Run\nharness_csr CTRL.start releases the generators;\nthey issue until their txn budget is spent", fillcolor="#e9f7e9"];
+    meas [label="4. Measure IN HARDWARE\naxi_bus_meter counts productive / backpressure /\nstarvation / idle cycles; latency histograms bin\nresponse times; the read engine CRCs every beat", fillcolor="#e9f7e9"];
+    read [label="5. Read back\nhost reads the counters by NAME and derives\nMB/s, %-of-peak, cycles-per-beat", fillcolor="#fff4e0"];
+    csv  [label="6. Record\na CSV row + a findings page under char_results/.\nEvery bandwidth table carries the MEASURED MB/s\nAND the 600 MB/s theoretical peak", fillcolor="#e8f1ff", penwidth=2];
+
+    cfg -> train -> run -> meas -> read -> csv;
+
+    trap [label="Why % of peak is easy to get wrong:\nCharRecord.bytes_moved is PER PHASE (read side only).\nDividing it by the full 600 MB/s peak understates\nthe result by 2x -- a whole conclusion was retracted\nover this once", shape=note, fillcolor="#ffe8e8"];
+    trap -> csv [style=dotted, arrowhead=none];
+
+    integ [label="Integrity is not optional:\nthe CRC check is the reason a throughput number\nmeans anything. A detector that has never fired\nis not evidence -- this one was proved by\ndeliberately corrupting the analog eye", shape=note, fillcolor="#ffe8e8"];
+    integ -> meas [style=dotted, arrowhead=none];
+}

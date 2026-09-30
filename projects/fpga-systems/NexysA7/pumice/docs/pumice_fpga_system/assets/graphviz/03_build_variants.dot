@@ -1,0 +1,43 @@
+// One harness source, five things built from it. The point of the picture is
+// which box the HARNESS RTL sits in: it does not change per build.
+digraph build_variants {
+    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.6,
+           label="One harness source, five targets. The harness RTL is the constant.", labelloc=t, labeljust=l];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    src [label="ddr2_char_framework/rtl/  -- ONE HARNESS SOURCE\nchar_engine_block (chargen_regs + char_gen_unit + mux + perf),\nharness_csr, seven_seg_4digit, led_status_driver,\ndfi_cmd_delay, dfi_rddata_delay, dfi_v21_flat_to_a7ddrphy\nNo per-build copies. No #ifdef forks of the engine.", fillcolor="#e9f7e9", penwidth=2];
+
+    subgraph cluster_board {
+        label="build-perf/ -- the measurement build (114 tracked files)"; style="rounded"; color="#228B22";
+        b1 [label="ddr2_char.bit\nthe measurement bitstream.\nPUMICE_SYS_75 = 75 MHz, the design point", fillcolor="#e8f1ff"];
+        b2 [label="ddr2_char_ila.bit\n+ ILA on controller-side signals.\nSAME RTL -- the cores are added by tcl", fillcolor="#e8f1ff"];
+        b3 [label="ddr2_char_ila_phy.bit\n+ ILA marked on the SYNTHESIZED netlist for the\nPHY DQ tristate (a7ddrphy_dq_oe). Marked post-synth\nbecause a7ddrphy_generated.v must not be hand-edited", fillcolor="#e8f1ff"];
+    }
+
+    subgraph cluster_ab {
+        label="ddr2-characterization/flows-litedram-uart/ -- the A/B reference (16 files)"; style="rounded"; color="#404040";
+        lite [label="litedram_char.bit\nchar_engine_harness.sv = build-perf's harness MINUS pumice.\nLiteDRAM's DDR2 controller behind the same AXI port,\nits own PLL/PHY/init. Same UART bridge, same address\nbridge, same harness_csr, same char_engine_block,\nsame host program, same CSV --\nSO THE TWO NUMBERS ARE DIRECTLY COMPARABLE", fillcolor="#fff4e0", penwidth=2];
+    }
+
+    subgraph cluster_sim {
+        label="ddr2_char_framework/ -- the simulation twin (52 files, no bitstream)"; style="rounded"; color="#404040";
+        sim [label="verilator + cocotb\na7ddrphy_stub.sv stands in for the PHY;\nverilator_xilinx_stubs supplies BUFG.\nDrives the SAME UART bytestream as the board,\nso a host program is validated before it\never reaches hardware", fillcolor="#fff4e0"];
+    }
+
+    vestige [label="ddr2-characterization/flows-ours-uart/\nVESTIGIAL: 0 tracked files, only __pycache__.\nThe sibling README still says \"harness RTL not yet\nwritten\" -- stale by the whole of build-perf", shape=note, fillcolor="#ffe8e8"];
+
+    src -> b1; src -> b2; src -> b3;
+    src -> lite [label="harness minus the DUT"];
+    src -> sim  [label="PHY stub swapped in"];
+
+    // Invisible edges only, to stack the clusters top-to-bottom. Placed
+    // side by side, dot rendered this 6.8:1 -- a strip the page scaler
+    // squashes to an unreadable sliver.
+    b3 -> lite [style=invis];
+    lite -> sim [style=invis];
+
+    dutp [label="pumice_top_geared", shape=ellipse, fillcolor="#d5ecd5"];
+    dutl [label="LiteDRAM litedram_core.v\n(+ vendored VexRiscv.v)", shape=ellipse, fillcolor="#d5ecd5"];
+    dutp -> b1 [style=dashed, label="DUT"]; dutl -> lite [style=dashed, label="DUT"];
+}

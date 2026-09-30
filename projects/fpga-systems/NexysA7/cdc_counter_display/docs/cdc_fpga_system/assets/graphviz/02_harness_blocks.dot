@@ -1,0 +1,30 @@
+// cdc_demo_harness. Register names from build-demo/rtl/cdc_demo_csr.rdl,
+// modes from cdc_counter_domain.sv.
+digraph harness_blocks {
+    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.6,
+           label="cdc_demo_harness: four identical counter domains, five CDC modes each", labelloc=t, labeljust=l];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    uart [label="uart_axil_bridge\nUART bytes -> 32-bit AXIL master\n(the same component the pumice harness uses)", fillcolor="#fff4e0"];
+    csr  [label="cdc_demo_csr  (PeakRDL: cdc_demo_csr.rdl)\nBUILD_ID  = 0x43434331 (\"CDC1\")\nSTATUS    alive0..3, uart_rx, uart_tx, any_written, reset_ok\nCTRL      soft_reset, freeze, ignore_btn\nDISPLAY   sel[1:0] -- which counter drives the 7-seg\nSCRATCH   host link sanity\n+ FOUR identical per-counter blocks", fillcolor="#fff4e0", penwidth=2];
+
+    subgraph cluster_ctr {
+        label="cdc_counter_domain x4 -- each on its OWN clock"; style="rounded"; color="#228B22";
+        cfg [label="per-counter config\nCLK: clock_select[2:0] (0..3 = an MMCM output,\n     4 = the divided clock), div_pickoff[12:8]\nINIT, STEP, CFG_LOAD (pulse), HOST_PRESS (pulse)", fillcolor="#e9f7e9"];
+        ctr [label="the counter itself, in ctr_clk\nadvances by STEP per debounced press\nor per HOST_PRESS injection", fillcolor="#e9f7e9"];
+        modes [label="THE VALUE-OUT PATH: 5 selectable modes\n0 NO_CDC     raw flop per bit. No Gray, no ASYNC_REG.  <- BROKEN ON PURPOSE\n1 STRETCH    cdc_open_loop: hold data + valid long enough\n2 SYNC_FIFO  fifo_async, FIFO_DEPTH=16\n3 TWO_PHASE  cdc_2_phase_handshake, toggle (NRZ)\n4 FOUR_PHASE cdc_4_phase_handshake, classic return-to-zero\nmodes 3/4 snapshot every HANDSHAKE_INTERVAL=256 ctr_clk cycles", fillcolor="#e9f7e9", penwidth=2];
+        status [label="CDC'd status window\nVALUE       current counter value\nPRESS_COUNT debounced presses, GRAY-coded across", fillcolor="#e9f7e9"];
+        cfg -> ctr -> modes -> status;
+    }
+
+    clks [label="Clocking: MMCME2_BASE, VCO 800 MHz (100 x 8.0)\nCLKOUT0 /11  = 72.73 MHz   (idx 0, fastest)\nCLKOUT1 /29  = 27.59 MHz   (idx 1)\nCLKOUT2 /67  = 11.9 MHz    (idx 2)\nCLKOUT3 /128 =  6.25 MHz   (idx 3, slowest)\nidx 4 = clock_divider, DIV_PICKOFF 0..31\nPer counter a tree of 4 BUFGMUX_CTRL selects the source;\nswitching is GLITCHLESS by the BUFGMUX_CTRL guarantee,\nso the host can change a clock under a running counter", shape=note, fillcolor="#f0f0f0"];
+
+    disp [label="7-segment display + LEDs\nDISPLAY.sel picks whose VALUE is shown.\nThe display is the INSTRUMENT: garbage on\nthe digits is the experimental result", fillcolor="#f0f0f0", penwidth=2];
+
+    uart -> csr;
+    csr  -> cfg   [label="config writes"];
+    status -> csr [label="read back in sys_clk"];
+    clks -> ctr   [style=dotted, arrowhead=none, label="ctr_clk per counter"];
+    status -> disp;
+}

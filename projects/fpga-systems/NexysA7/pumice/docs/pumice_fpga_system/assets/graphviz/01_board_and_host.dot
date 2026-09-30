@@ -1,0 +1,37 @@
+// The bench. Deliberately does NOT name the USB bridge part: board_info.md
+// records only "Digilent USB-JTAG", so the checkable facts are the single
+// connector, the JTAG serial, and that ttyUSB numbering drifts.
+digraph board_and_host {
+    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.8,
+           label="The bench: host, one USB connector, the Artix-7 and the DDR2 part", labelloc=t, labeljust=l];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    subgraph cluster_host {
+        label="Host (Linux workstation)"; style="rounded"; color="#404040";
+        prog [label="pumice_char.py  (the measurement program)\nddr2_char.py    (the harness driver)\nhost_bringup_*.py (PHY training sweeps)", fillcolor="#fff4e0"];
+        dev  [label="pumice_device.py + pumice_master.py\nCSRs BY NAME through the generated regmap,\nnever by hardcoded offset", fillcolor="#fff4e0"];
+        link [label="fpga-systems/bin/ : uart_link.py,\nuart_axi_bridge.py, board.py, sequence.py\nONE transport shared by every board", fillcolor="#fff4e0"];
+        prog -> dev -> link;
+    }
+
+    usb [label="ONE USB connector carries both roles\nJTAG: program / ILA (serial 210292BFA3EE)\nUART: 115200-8N1 on /dev/ttyUSB*\nNumbering drifts and a second board may share\nthe chain, so the host resolves the port, not a constant.\nContrast the Genesys 2: TWO chips, FT2232 JTAG + FT232R UART", fillcolor="#ffe8e8", penwidth=2];
+
+    subgraph cluster_fpga {
+        label="Nexys A7-100T : Artix-7 XC7A100T-1CSG324C"; style="rounded"; color="#228B22";
+        top  [label="ddr2_char_top\npin-level top: clocks, reset, UART pins,\n7-seg, LEDs, DDR2 pads", fillcolor="#e9f7e9"];
+        harn [label="ddr2_char_harness\nthe flow harness (Figure 2.1)", fillcolor="#e9f7e9"];
+        phy  [label="a7ddrphy  (LiteDRAM-generated Verilog)\nDFI -> DDR2 pads, 1:2 serialization.\nVivado substitutes it for a7ddrphy_stub.sv\nat build time; never hand-edited", fillcolor="#e9f7e9"];
+        top -> harn -> phy;
+    }
+
+    dram [label="Micron MT47H64M16HR-25E\nDDR2, x16, single rank, 128 MiB (1 Gbit)\nRun at DDR2-300: CK 150 MHz, 300 MT/s\nBL4 x 16 bit -> 600 MB/s peak", fillcolor="#e8f1ff", penwidth=2];
+
+    clk [label="Clocking\n100 MHz board oscillator\n  -> sys 75 MHz  (PUMICE_SYS_75 = the design point)\n  -> 1:2 gear, CK 150 MHz, 300 MT/s\nPUMICE_SYS_75=0 builds 66.67 MHz instead,\nwhich create_project.tcl labels NOT the design point", shape=note, fillcolor="#f0f0f0"];
+
+    link -> usb [label="USB"];
+    usb  -> top [label="UART bytes", style=bold];
+    usb  -> top [label=".bit / ILA over JTAG", style=dashed];
+    phy  -> dram [label="CK/CKE/CS, A/BA,\nDQ[15:0], DQS, DM", style=bold];
+    clk  -> top [style=dotted, arrowhead=none];
+}

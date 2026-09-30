@@ -1,0 +1,52 @@
+// Every block around the DUT. Address map from build-perf/host/ADDRESS_MAP.md,
+// which mirrors bridge_ddr2_char_axil.toml and harness_csr.sv.
+digraph harness_blocks {
+    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.7,
+           label="ddr2_char_harness: the blocks around the DUT, and the address map", labelloc=t, labeljust=l];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    subgraph cluster_front {
+        label="Host front-end -- identical in cosim and on the board"; style="rounded"; color="#404040";
+        uart   [label="uart_axil_bridge\nUART bytes -> 32-bit AXIL master", fillcolor="#fff4e0"];
+        bridge [label="bridge_ddr2_char_axil  (GENERATED, 1 -> 4)\nddr2_apb     0x0000_0000  4 KB   APB\nharness_csr  0x0001_0000  4 KB   AXIL\ndebug_sram   0x0004_0000  256 KB AXIL 64b\ndfi_mon_ram  0x0008_0000  4 KB   AXIL", fillcolor="#fff4e0"];
+        csr    [label="harness_csr\nCTRL (start, clear_stats, soft_reset),\nSTATUS, timer, engine cfg, perf readback", fillcolor="#fff4e0"];
+        uart -> bridge -> csr;
+    }
+
+    subgraph cluster_spine {
+        label="char_engine_block -- the DUT-AGNOSTIC engine spine (shared with the LiteDRAM flow)";
+        style="rounded"; color="#228B22";
+        regs [label="chargen_regs (PeakRDL)\nper-generator address window, stride,\nburst length, bank span, txn budget", fillcolor="#e9f7e9"];
+        gen  [label="char_gen_unit\n2 write + 2 read generator blocks.\nEach spans NUM_BANKS/NUM_GEN banks, so\nBANK CONCURRENCY IS A PROPERTY OF THE STIMULUS,\nnot of the controller", fillcolor="#e9f7e9"];
+        mux  [label="char_gen_axi_mux (+ char_gen_wr_order_q)\nN:1 merge onto the DUT's single s_axi.\nReplaced two GENERATED 2x1 bridges: their\nadapters imposed a bridge_cam DEPTH(16)\noutstanding cap and 2 skid stages per\ndirection -- on a harness whose measurement\nIS latency", fillcolor="#e9f7e9"];
+        perf [label="axi_bus_meter + axi_perf_latency_hist\nper cycle: productive | backpressure |\nstarvation | idle, plus latency histograms", fillcolor="#e9f7e9"];
+        regs -> gen -> mux;
+    }
+
+    dut [label="pumice_top_geared  (THE DUT)\nAXI4 front-end -> scheduler -> DFI layer,\nPeakRDL CSR on APB, host<->core dwidth converters", fillcolor="#d5ecd5", penwidth=2];
+
+    subgraph cluster_dfi {
+        label="DFI v2.1 boundary -- the same boundary the DV BFM uses"; style="rounded"; color="#404040";
+        dly  [label="dfi_cmd_delay + dfi_rddata_delay\nprogrammable command and read-data\nalignment; how the board is trained", fillcolor="#e8f1ff"];
+        adap [label="dfi_v21_flat_to_a7ddrphy\nflat DFI -> per-phase PHY ports", fillcolor="#e8f1ff"];
+        phy  [label="a7ddrphy (board)  /  a7ddrphy_stub.sv (sim)\nVivado excludes the stub and substitutes\nthe LiteDRAM-generated PHY", fillcolor="#e8f1ff"];
+        dly -> adap -> phy;
+    }
+
+    subgraph cluster_obs {
+        label="Observability"; style="rounded"; color="#404040";
+        dsram [label="debug_sram (sdpram_slave_axil_axil)\nMonBus / DFI trace ring. NOTE: backing store\nshrunk to DEBUG_SRAM_WORDS=512 -- full size\nneeded ~44K LUTRAM cells vs 19K sites on the\n100T and blocked place_design. Window unchanged;\naccesses above 2 KB alias", fillcolor="#f0f0f0"];
+        dfimon [label="dfi_mon_ram\nsmall AXIL ring for DFI command observability", fillcolor="#f0f0f0"];
+        disp  [label="seven_seg_4digit + led_status_driver\nat-the-bench state without a host", fillcolor="#f0f0f0"];
+    }
+
+    bridge -> dut  [label="ddr2_apb (CSR)"];
+    csr    -> regs [label="engine cfg / start"];
+    mux    -> dut  [label="s_axi (AXI4)", style=bold];
+    perf   -> csr  [label="counters read back"];
+    mux    -> perf [label="tapped on the internal AXI wires", style=dotted];
+    dut    -> dly  [label="flat DFI", style=bold];
+    bridge -> dsram; bridge -> dfimon;
+    dut    -> dfimon [label="DFI cmd trace", style=dotted];
+}

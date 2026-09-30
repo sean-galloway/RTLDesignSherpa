@@ -1,0 +1,22 @@
+// The headline demo: make a correct design fail on demand, and see it.
+digraph measurement_path {
+    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.55,
+           label="watch-fail: breaking a CDC on purpose, and watching the display say so", labelloc=t, labeljust=l];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    s0 [label="0. Prove the link\nread BUILD_ID, expect 0x43434331 (\"CDC1\").\nA host that cannot read that is talking to\nsome other bitstream", fillcolor="#fff4e0"];
+    s1 [label="1. Leave three counters alone\nthey stay in a correct mode (3 or 4) and act as\nthe CONTROL GROUP for the rest of the experiment", fillcolor="#fff4e0"];
+    s2 [label="2. Break one counter\nset its value-out path to mode 0, NO_CDC:\na raw flop per bit, no Gray coding, no ASYNC_REG", fillcolor="#ffe8e8", penwidth=2];
+    s3 [label="3. Sweep its clock\nclock_select / div_pickoff walk that counter's\nclock from slow to fast while the others hold", fillcolor="#fff4e0"];
+    s4 [label="4. Watch the display\nDISPLAY.sel points the 7-seg at the broken counter.\nSlow: it looks fine. Fast: the digits show values the\ncounter never held -- multi-bit skew sampled mid-flight", fillcolor="#e9f7e9", penwidth=2];
+    s5 [label="5. Read the same value over UART\nVALUE is CDC'd into sys_clk; PRESS_COUNT crosses\nGRAY-coded. The press count stays trustworthy while\nthe raw value does not -- which is the whole point", fillcolor="#e9f7e9"];
+
+    s0 -> s1 -> s2 -> s3 -> s4 -> s5;
+
+    why [label="Why a slow sweep is not enough:\nmode 0 is a REAL design that mostly works. At low\nclock rates the raw flops usually settle and the value\nreads correctly, so a demo that never raises the clock\n'proves' the broken design is fine. The failure is\nprobabilistic, and the sweep is what makes it visible.", shape=note, fillcolor="#ffe8e8"];
+    why -> s3 [style=dotted, arrowhead=none];
+
+    ctl [label="Why four counters and not one:\nwith a control group on the same board, at the same\ntemperature, in the same bitstream, 'the display is\nflickering' cannot be blamed on the board.\nThree clean digits beside one broken one is the evidence.", shape=note, fillcolor="#f0f0f0"];
+    ctl -> s1 [style=dotted, arrowhead=none];
+}

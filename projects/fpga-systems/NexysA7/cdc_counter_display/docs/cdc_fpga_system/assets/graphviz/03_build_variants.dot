@@ -1,0 +1,36 @@
+// The contrast figure. Unlike the pumice system, here the harness RTL genuinely
+// IS different per build -- one build has no harness at all.
+digraph build_variants {
+    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.55,
+           label="Two builds, two different designs. Compare with the pumice system, where the harness is shared.", labelloc=t, labeljust=l];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    mk [label="cdc_counter_display/Makefile -- a DISPATCHER only\ntargets go to build-demo by default; BUILD=phase1 selects the other.\nAll flow logic lives in make/fpga_flow.mk; the build Makefiles are variables.", fillcolor="#fff4e0", penwidth=2];
+
+    subgraph cluster_p1 {
+        label="build-phase1 -- the teaching artifact"; style="rounded"; color="#404040";
+        p1top [label="cdc_counter_display_top.sv\nONE FILE. That is the whole build's RTL.", fillcolor="#e8f1ff", penwidth=2];
+        p1dep [label="closure: reset_defs, clock_divider, debounce,\nhex_to_7seg, sync_pulse, cdc_4_phase_handshake\nNo UART. No CSR. No Xilinx primitive stubs --\nthe top instantiates none.", fillcolor="#e8f1ff"];
+        p1use [label="Press BTNC -> counter +1 -> 7-seg updates.\nButton domain 10 Hz, display domain 1 kHz.\nStandalone: no host, nothing to drive.", fillcolor="#e8f1ff"];
+        p1top -> p1dep -> p1use;
+    }
+
+    subgraph cluster_demo {
+        label="build-demo -- the instrument (the default)"; style="rounded"; color="#228B22";
+        dtop [label="cdc_demo_top.sv + cdc_demo_harness.sv + cdc_counter_domain.sv\nTHREE files, and a generated CSR block", fillcolor="#e9f7e9", penwidth=2];
+        ddep [label="closure ADDS: uart_axil_bridge, bin2gray, gray2bin,\nglitch_free_n_dff_arn, counter_bin, counter_bingray,\nfifo_control, fifo_async, cdc_synchronizer, cdc_open_loop,\ncdc_2_phase_handshake, verilator_xilinx_stubs\n(IBUF/BUFG/BUFGMUX_CTRL/MMCME2_BASE)", fillcolor="#e9f7e9"];
+        duse [label="Four counters, four clocks, host-set divisors,\nfive selectable CDC modes per counter,\nand the watch-it-fail demo", fillcolor="#e9f7e9"];
+        dtop -> ddep -> duse;
+    }
+
+    shared [label="What the two builds actually SHARE\nonly: clock_divider, sync_pulse, cdc_4_phase_handshake,\nand rtl/amba/includes.\nThe overlap is three modules. These are two designs\nthat happen to live in one project directory.", shape=note, fillcolor="#ffe8e8", penwidth=2];
+
+    mk -> p1top [label="BUILD=phase1"];
+    mk -> dtop  [label="default"];
+    p1dep -> shared [style=invis];
+    shared -> ddep  [style=invis];
+
+    one [label="ONE compile closure per build, and it is the filelist.\n`make lint` flattens it, Vivado's create_project.tcl expands it\n(dropping the verilator-only stubs), and the dv/ equivalence sim\n-f includes it -- so lint, synthesis and simulation cannot\ncompile different designs.", shape=note, fillcolor="#f0f0f0"];
+    one -> mk [style=dotted, arrowhead=none];
+}
