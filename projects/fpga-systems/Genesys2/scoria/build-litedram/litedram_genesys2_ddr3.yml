@@ -1,0 +1,46 @@
+# LiteDRAM DDR3 core for the Genesys 2 -- the A/B YARDSTICK, and the board proof.
+#
+# Distinct from projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/bin/
+# litedram_ddr3_ref.yml, which is a READ-ONLY reference: that one targets
+# A7DDRPHY / MT41K128M16 for continuity with the DDR2 reference core, is never
+# synthesized, and says "no board is chosen for scoria". A board is chosen now,
+# so this config targets it.
+#
+# Every value below is what litex-boards' own digilent_genesys2 target declares,
+# not an assumption:
+#   litedram.modules.MT41J256M16, s7ddrphy.K7DDRPHY, nphases=4, sys_clk_freq=100e6
+# and the platform's ddram pin group carries 4 DM + 4 DQS pairs -> 32-bit DQ,
+# i.e. two x16 devices side by side. ba=3 -> 8 banks.
+#
+# This is scoria's design point, independently: 1:4 gearing means DFI_RATE=4,
+# which must equal the PHY's nphases or the DFI interface is silently misframed.
+{
+    "speedgrade":       -2,           # xc7k325tffg900-2
+    "cpu":              "vexriscv",
+    "memtype":          "DDR3",
+    "uart":             "rs232",
+
+    "cmd_latency":      0,
+    "sdram_module":     "MT41J256M16",
+    "sdram_module_nb":  4,            # 32-bit DQ -> 4 byte groups (2 x16 devices)
+    "sdram_rank_nb":    1,
+    "sdram_phy":        "K7DDRPHY",
+
+    "input_clk_freq":   200e6,        # Genesys 2 system clock is 200 MHz
+    # 100 MHz sys at 1:4 -> 400 MHz CK -> DDR3-800, the SLOWEST standard DDR3
+    # bin. Note this cannot be held equal to the DDR2 reference's 75 MHz /
+    # 1:2 -> 300 MT/s: 300 MT/s is not a legal DDR3 operating point at all, so
+    # any cross-generation timing comparison has to account for the difference
+    # rather than assume it away.
+    "sys_clk_freq":     100e6,
+    "iodelay_clk_freq": 200e6,
+
+    "cmd_buffer_depth": 16,
+
+    # One 64-bit AXI user port with id_width 8 -- the same shape the char engine
+    # presents to scoria, so the two sides of the A/B see an identical host
+    # interface and a bandwidth difference is the controller.
+    "user_ports": {
+        "axi_0": { "type": "axi", "data_width": 64, "id_width": 8 }
+    }
+}

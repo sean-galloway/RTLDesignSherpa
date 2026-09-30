@@ -1,0 +1,6 @@
+# The generated LiteDRAM core. Regenerate with ./regen.sh -- it is build output,
+# not source, and the .yml beside it is the thing under version control.
+gen/
+build/
+vivado*.jou
+vivado*.log
