@@ -39,6 +39,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
@@ -127,16 +128,19 @@ async def cocotb_test_source_selfcheck(dut):
 # PYTEST WRAPPER
 # ===========================================================================
 
-def _run_harness(testcase, test_name):
+def _run_harness(testcase, test_name, *, test_level='gate', extra_env=None,
+                 build_name=None, compile_first=None, module_name=None):
     """Compile rapids_byte_harness (via its filelist) and run one testcase.
+
+    build_name shares one sim_build between cases (a Verilator build is minutes);
+    compile_first is a context-manager factory that serialises that compile.
 
     13-bit APB (address bit[12] selects SRC/SNK), so both the RTL build
     (-G APB_ADDR_WIDTH=13) and the TB (TEST_APB_ADDR_WIDTH=13) are pinned to 13."""
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
 
-    module, repo_root_local, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_rapids_regmap': '../../../../components/rapids/rtl',
-    })
+    module, repo_root_local, tests_dir, log_dir, _ = get_paths({})
+    module = module_name or module
     dut_name = "rapids_byte_harness"
 
     verilog_sources, includes = get_sources_from_filelist(
@@ -151,7 +155,7 @@ def _run_harness(testcase, test_name):
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
     results_path = os.path.join(log_dir, f'results_{test_name}.xml')
-    sim_build = sim_build_path(tests_dir, test_name)
+    sim_build = sim_build_path(tests_dir, build_name or test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -185,7 +189,8 @@ def _run_harness(testcase, test_name):
         'OBS_ENABLE_MON_TAPS': int(os.environ.get('TEST_OBS_ENABLE_MON_TAPS', '0')),
     }
 
-    extra_env = {
+    env = {
+        **level_env(test_level),
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
@@ -202,6 +207,7 @@ def _run_harness(testcase, test_name):
         'TEST_APB_DATA_WIDTH': '32',
         'TEST_PKT_BYTES': os.environ.get('TEST_PKT_BYTES', '77'),
         'TEST_OFFSET': os.environ.get('TEST_OFFSET', '5'),
+        **(extra_env or {}),
     }
 
     compile_args = [
@@ -214,8 +220,7 @@ def _run_harness(testcase, test_name):
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name)
 
-    try:
-        run(
+    build_args = dict(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
             includes=includes,
@@ -226,12 +231,17 @@ def _run_harness(testcase, test_name):
             simulator='verilator',
             sim_build=sim_build,
             results_xml=results_path,
-            extra_env=extra_env,
+            extra_env=env,
             compile_args=compile_args,
             waves=enable_waves,
             keep_files=True,
             plus_args=['--trace'] if enable_waves else [],
         )
+    try:
+        if compile_first is not None:
+            with compile_first(sim_build):
+                run(compile_only=True, **build_args)
+        run(**build_args)
         print(f"Test completed! Logs: {log_path}")
     except Exception as e:
         print(f"Test failed: {e}\nLogs: {log_path}")

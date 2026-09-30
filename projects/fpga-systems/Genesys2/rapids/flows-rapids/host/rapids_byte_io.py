@@ -198,15 +198,18 @@ class RapidsByteIO:
         # Hand-rolled harness register maps (by-name access; see _harness_regmap).
         self._csr_map = _harness_regmap('rapids_harness_csr_regmap.py')
         self._desc_map = _harness_regmap('rapids_harness_desc_regmap.py')
+        self.uart_ops = 0   # AXIL transactions issued (cost accounting per point / sequence)
 
     # ---- Raw 32-bit AXIL primitives (delegated to the UART bridge) ----------
 
     def axil_write(self, addr: int, data: int) -> bool:
         """32-bit AXIL write. Returns True when the bridge acked with 'OK'."""
+        self.uart_ops += 1
         return bool(self.bridge.write(addr & 0xFFFF_FFFF, data & 0xFFFF_FFFF))
 
     def axil_read(self, addr: int) -> int:
         """32-bit AXIL read. Returns the data word (or None on parse error)."""
+        self.uart_ops += 1
         return self.bridge.read(addr & 0xFFFF_FFFF)
 
     # ---- Region helpers -----------------------------------------------------

@@ -104,9 +104,15 @@ def parse_args():
 def main() -> int:
     args = parse_args()
     from rapids_byte_io import autodetect_port
-    port = autodetect_port(args.baud, want=args.port)
-    with RapidsByteIO(port=port, baudrate=args.baud) as io:
-        dump(io, args.channels)
+    import board_guard
+    try:
+        with board_guard.HardwareRun(readback=False):
+            port = autodetect_port(args.baud, want=args.port)
+            with RapidsByteIO(port=port, baudrate=args.baud) as io:
+                dump(io, args.channels)
+    except board_guard.BoardBusy as exc:
+        print(f"FAIL: {exc}")
+        return board_guard.LOCK_BUSY_EXIT
     return 0
 
 

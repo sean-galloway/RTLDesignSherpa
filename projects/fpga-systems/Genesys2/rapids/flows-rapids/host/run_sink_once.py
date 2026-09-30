@@ -6,6 +6,13 @@ import sys, io as _io, contextlib
 sys.path.insert(0, 'projects/fpga-systems/Genesys2/rapids/flows-rapids/host')
 from rapids_byte_io import RapidsByteIO
 import run_characterization as rc
+import board_guard
+_hw = board_guard.HardwareRun(readback=False)
+try:
+    _hw.__enter__()
+except board_guard.BoardBusy as exc:
+    print(f"FAIL: {exc}")
+    sys.exit(board_guard.LOCK_BUSY_EXIT)
 port  = sys.argv[1] if len(sys.argv) > 1 else '/dev/ttyUSB1'
 beats = int(sys.argv[2]) if len(sys.argv) > 2 else 64
 with contextlib.redirect_stdout(_io.StringIO()):
@@ -26,3 +33,4 @@ for i in range(12):
 if not wedged:
     print(f"did NOT wedge in 12 runs at beats={beats}")
 io.close()
+_hw.__exit__(None, None, None)

@@ -38,7 +38,6 @@
 
 import os
 import sys
-import time
 
 import cocotb
 
@@ -61,31 +60,56 @@ from run_characterization import RapidsByteCampaign       # noqa: E402
 SIM_POLL_TIMEOUT_S = float(os.environ.get('TEST_POLL_TIMEOUT_S', '120'))
 
 
-def _sim_poll(predicate, timeout_s: float, period_s: float = 0.0) -> bool:
-    """Replacement for RapidsByteCampaign._poll under simulation.
+def sim_transport_hook(campaign) -> None:
+    """The only place sim differs from the board: how polls are paced.
 
-    The board version sleeps 20 ms between polls. On a cocotb worker thread a
-    bare sleep burns wall-clock and advances NO simulation time -- only the UART
-    read inside predicate() advances sim -- so the sleep is pure waste and would
-    make the sim take minutes to observe a transfer that completes in
-    microseconds of sim time. Dropping the period leaves the read itself as the
-    pacing mechanism.
-
-    The bound is a COUNT of predicate evaluations, not wall-clock: each
-    evaluation is one UART register read, i.e. a fixed amount of sim time, so
-    the budget means the same thing on an idle machine and on one running
-    three simulators (2026-09-30: a 33-byte case timed out at 120 s of
-    wall-clock under load and passed alone in 58 s). TEST_POLL_MAX_READS caps
-    it; the wall-clock timeout_s is kept only as a last-resort guard.
+    The board sleeps 20 ms between polls. On a cocotb worker thread a bare sleep
+    burns wall-clock and advances NO simulation time -- only the UART read inside
+    predicate() does -- so the sim drops the sleep and bounds the loop by a COUNT
+    of predicate evaluations (each is one UART register read, a fixed amount of
+    sim time), which means the same budget on an idle machine and on one running
+    three simulators (2026-09-30: a 33-byte case timed out at 120 s of wall-clock
+    under load and passed alone in 58 s). TEST_POLL_MAX_READS sets the count.
     """
-    max_reads = int(os.environ.get('TEST_POLL_MAX_READS', '4000'))
-    deadline = time.time() + max(timeout_s, 900.0)
-    for _ in range(max_reads):
-        if predicate():
-            return True
-        if time.time() > deadline:
-            break
-    return predicate()
+    campaign.poll_max_iters = int(os.environ.get('TEST_POLL_MAX_READS', '4000'))
+    campaign._sleep = lambda _period: None
+
+
+class AxiBurstMonitor:
+    """Sim-only 4 KB-boundary checker on the DUT's m_axi_rd / m_axi_wr address
+    channels (the harness has none). Counts every accepted AR/AW burst, the
+    ones that END exactly on a 4 KB boundary, and violations (a burst whose
+    beats cross one). A verdict of "zero violations" is only worth anything
+    with the burst counts beside it, so both go in the results JSON."""
+
+    SIGNALS = ('rd_araddr', 'rd_arlen', 'rd_arvalid', 'rd_arready',
+               'wr_awaddr', 'wr_awlen', 'wr_awvalid', 'wr_awready')
+
+    def __init__(self, dut, beat_bytes):
+        missing = [n for n in self.SIGNALS if not hasattr(dut, n)]
+        assert not missing, f"AXI monitor cannot see {missing}: a blind checker"
+        self.dut, self.bpb = dut, beat_bytes
+        self.stats = {'ar_bursts': 0, 'aw_bursts': 0, 'ends_on_4k': 0,
+                      'crosses_4k': 0, 'violations': []}
+
+    async def run(self):
+        from cocotb.triggers import RisingEdge
+        d = self.dut
+        while True:
+            await RisingEdge(d.aclk)
+            for kind, pre in (('ar', 'rd_ar'), ('aw', 'wr_aw')):
+                if int(getattr(d, pre + 'valid').value) and int(getattr(d, pre + 'ready').value):
+                    addr = int(getattr(d, pre + 'addr').value)
+                    n = int(getattr(d, pre + 'len').value) + 1
+                    first = (addr % 4096) // self.bpb * self.bpb
+                    end = first + n * self.bpb
+                    self.stats[f'{kind}_bursts'] += 1
+                    if end == 4096:
+                        self.stats['ends_on_4k'] += 1
+                    if end > 4096:
+                        self.stats['crosses_4k'] += 1
+                        self.stats['violations'].append(
+                            {'kind': kind, 'addr': addr, 'beats': n})
 
 
 class RapidsByteHarnessTB(TBBase):
@@ -117,7 +141,7 @@ class RapidsByteHarnessTB(TBBase):
     # MANDATORY THREE METHODS
     # =========================================================================
 
-    async def setup_clocks_and_reset(self):
+    async def setup_clocks_and_reset(self, configure: bool = True):
         self.h = UartSimHarness(self.dut, clk=self.clk_name,
                                 clk_period_ns=self.CLK_PERIOD,
                                 resetn='aresetn',
@@ -126,7 +150,7 @@ class RapidsByteHarnessTB(TBBase):
 
         self.io = RapidsByteIO(bridge=self.h.make_bridge())
         self.campaign = RapidsByteCampaign(self.io, self.NUM_CHANNELS)
-        self.campaign._poll = _sim_poll
+        sim_transport_hook(self.campaign)
 
         # Prove the link before trusting anything downstream. A wrong baud or a
         # dead UART otherwise shows up much later as "the DMA moved no beats",
@@ -138,7 +162,11 @@ class RapidsByteHarnessTB(TBBase):
             f"(CLKS_PER_BIT={self.CLKS_PER_BIT})")
         self.log.info(f"UART link OK: rapids_byte_harness ID = 0x{ident:08X}")
 
-        await cocotb.external(self.campaign.configure)()
+        # The board host's main() configures the DUT itself; a campaign run
+        # through it passes configure=False so the code under test is the only
+        # thing that touches the DUT after the link proof.
+        if configure:
+            await cocotb.external(self.campaign.configure)()
 
     async def assert_reset(self):
         self.rst_n.value = 0

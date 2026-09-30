@@ -86,6 +86,8 @@ BYTES_PER_BEAT = 64
 ACLK_HZ = 100_000_000
 PEAK_BW_PER_DIR = BYTES_PER_BEAT * ACLK_HZ
 DESIGN = {}   # what read_build() found; written into every results file
+IDENTITY = {}  # board lock + JTAG readback of a real-hardware run (board_guard); empty in sim
+WRITTEN = []   # every results file this run wrote, so the end readback can stamp them
 
 
 def read_build(io) -> dict:
@@ -145,6 +147,14 @@ class RapidsByteCampaign:
         self._src_off = self.src_regs.get_register_offset_map()
         self._snk_off = self.snk_regs.get_register_offset_map()
 
+        # Transport hooks. The board paces its polls in wall-clock seconds; the
+        # simulated UART advances sim time only through the reads themselves, so
+        # a sim run sets poll_max_iters (a COUNT of predicate evaluations, the
+        # same sim-time budget on an idle and on a loaded machine) and a no-op
+        # _sleep. Nothing else differs between the two transports.
+        self.poll_max_iters = None
+        self._sleep = time.sleep
+
     # ---- by-name register access (mirrors the cocotb TB) -------------------
 
     def reg_abs(self, half: str, reg_name: str) -> int:
@@ -163,6 +173,18 @@ class RapidsByteCampaign:
         if self.verbose:
             self.log.info(f"APB WRITE {half.upper()}.{reg_name} "
                           f"(0x{addr:04X}) = 0x{value:08X}")
+
+    def read_reg(self, half: str, reg_name: str) -> int:
+        return self.io.dut_reg_read(self.reg_abs(half, reg_name))
+
+    def read_field(self, half: str, reg_name: str, field: str) -> int:
+        regs = self.src_regs if half == 'src' else self.snk_regs
+        fld = regs.registers[reg_name].get(field)
+        if not isinstance(fld, dict) or 'offset' not in fld:
+            raise KeyError(f"unknown field {reg_name}.{field}")
+        off = fld['offset']
+        hi, lo = (int(x) for x in off.split(':')) if ':' in off else (int(off), int(off))
+        return (self.read_reg(half, reg_name) >> lo) & ((1 << (hi - lo + 1)) - 1)
 
     def write_fields(self, half: str, reg_name: str, **fields: int) -> None:
         """Program a DUT register by setting its FIELDS by name (composed at their
@@ -215,6 +237,29 @@ class RapidsByteCampaign:
     xfer_axlen_effective = 8   # ... as the engines run it (clamped to the SRAM depth, rapids BUG-009)
     resp_delay = 0   # RESP_DELAY: rd (R) and wr (B) hold, aclk cycles (STREAM knob 5)
     interleave = False   # GEN_MODE.INTERLEAVE: round-robin the active channels per beat
+
+    def config_dump(self) -> dict:
+        """The configuration the DUT and harness are ACTUALLY running, read back
+        from the hardware by name (not the host's cached intent): a passing sim
+        or board row states its geometry, burst lengths and memory-latency gaps."""
+        d = self.ensure_build()
+        out = {'beat_bytes': d['beat_bytes'], 'data_width': d['data_width'],
+               'channels': d['channels'], 'sram_depth': d['sram_depth'],
+               'byte_dut': d['byte_dut'], 'aclk_hz': d['aclk_hz'],
+               'resp_delay_rd': self.io.csr_field("RESP_DELAY", "RD_DELAY"),
+               'resp_delay_wr': self.io.csr_field("RESP_DELAY", "WR_DELAY"),
+               'gen_interleave': bool(self.io.csr_field("GEN_MODE", "INTERLEAVE"))}
+        for half in ('src', 'snk'):
+            out[half] = {
+                'rd_burst_beats': self.read_field(half, 'AXI_XFER_CONFIG', 'RD_XFER_BEATS') + 1,
+                'wr_burst_beats': self.read_field(half, 'AXI_XFER_CONFIG', 'WR_XFER_BEATS') + 1,
+                'alloc_size': self.read_field(half, 'AXI_XFER_CONFIG', 'ALLOC_SIZE'),
+                'drain_size': self.read_field(half, 'AXI_XFER_CONFIG', 'DRAIN_SIZE'),
+                'sched_en': self.read_field(half, 'SCHED_CONFIG', 'SCHED_EN'),
+                'err_en': self.read_field(half, 'SCHED_CONFIG', 'ERR_EN'),
+                'channel_enable': self.read_field(half, 'CHANNEL_ENABLE', 'CH_EN'),
+            }
+        return out
 
     def set_resp_delay(self, rd_cyc: int, wr_cyc: int = None) -> None:
         """Program the harness's axi_response_delay blocks BY NAME: rd_cyc on
@@ -345,12 +390,18 @@ class RapidsByteCampaign:
 
     # ---- polling -----------------------------------------------------------
 
+    def _expired(self, n: int, deadline: float) -> bool:
+        if self.poll_max_iters is not None:
+            return n >= self.poll_max_iters
+        return time.time() >= deadline
+
     def _poll(self, predicate, timeout_s: float, period_s: float = 0.02) -> bool:
-        deadline = time.time() + timeout_s
-        while time.time() < deadline:
+        deadline, n = time.time() + timeout_s, 0
+        while not self._expired(n, deadline):
             if predicate():
                 return True
-            time.sleep(period_s)
+            n += 1
+            self._sleep(period_s)
         return predicate()
 
     # ---- SINK self-check: AXIS gen -> sink -> m_axi_wr CRC -----------------
@@ -578,15 +629,16 @@ class RapidsByteCampaign:
         progress. ready_en is guaranteed left ASSERTED so the run can drain and
         the final scoreboard sees a completed transfer.
         """
-        deadline = time.time() + timeout_s
-        while time.time() < deadline:
+        deadline, n = time.time() + timeout_s, 0
+        while not self._expired(n, deadline):
             if predicate():
                 self.io.csr_write_reg("CHK_CTRL", CHK_START=0, CHK_READY_EN=1)  # leave ready asserted
                 return True
             # Stall pulse (ready low), then release (ready high). start stays 0.
             self.io.csr_write_reg("CHK_CTRL", CHK_START=0, CHK_READY_EN=0)
             self.io.csr_write_reg("CHK_CTRL", CHK_START=0, CHK_READY_EN=1)
-            time.sleep(period_s)
+            n += 1
+            self._sleep(period_s)
         self.io.csr_write_reg("CHK_CTRL", CHK_START=0, CHK_READY_EN=1)  # ensure ready before final check
         return predicate()
 
@@ -964,9 +1016,9 @@ def _print_suite_summary(rows) -> None:
     print("=" * 78)
 
 
-def _write_results(rows, path: str) -> None:
+def _write_results(rows, path: str, meta: dict = None) -> None:
     """Write the suite results as JSON under the given path."""
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     payload = {
         'timestamp': datetime.now().isoformat(timespec='seconds'),
         'design': dict(DESIGN),           # geometry read back from the bitstream
@@ -975,8 +1027,11 @@ def _write_results(rows, path: str) -> None:
         'failed': sum(1 for r in rows if not r['pass']),
         'configs': rows,
     }
+    payload.update(IDENTITY)
+    payload.update(meta or {})
     with open(path, 'w') as fh:
         json.dump(payload, fh, indent=2)
+    WRITTEN.append(path)
     print(f"Results written to {path}")
 
 
@@ -1029,6 +1084,13 @@ def _results_path(args, kind: str) -> str:
                       f"{_dt.now().strftime('%Y%m%d_%H%M%S')}.json"))
 
 
+def _parse_chunk(text: str):
+    k, n = (int(x) for x in text.split('/'))
+    if not 1 <= k <= n:
+        raise argparse.ArgumentTypeError(f"--chunk {text}: need 1 <= K <= N")
+    return (k, n)
+
+
 def _parse_int_list(text: str):
     return [int(x, 0) for x in text.split(',') if x.strip()]
 
@@ -1060,7 +1122,7 @@ _DEFAULT_ALT_SEED = 0xA5A5A5A5
 _RESULTS_DIR = os.path.join(_HOST_DIR, os.pardir, 'reports')
 
 
-def parse_args():
+def parse_args(argv=None):
     p = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -1125,6 +1187,14 @@ Examples:
                    help='--byte-perf: stop cleanly between points after this many minutes')
     p.add_argument('--bitstream', default=os.path.join(_HOST_DIR, os.pardir, 'bitstream', 'rapids_byte.bit'),
                    help='--byte-perf: bitstream file to fingerprint (sha256) into the results')
+    p.add_argument('--byte-seq', default=None, metavar='NAMES|all',
+                   help='directed byte sequences (comma list or "all"): zero_length, boundary_4k, '
+                        'tlast_mismatch, recovery. Golden-checked; records go in the results JSON')
+    p.add_argument('--seq-level', default='full', choices=['gate', 'func', 'full'],
+                   help='depth of the --byte-seq cases (gate: a few per sequence, full: all)')
+    p.add_argument('--chunk', type=_parse_chunk, default=None, metavar='K/N',
+                   help='--byte-perf: run only chunk K of N (1-based), a cost-balanced contiguous '
+                        'slice of the point list (keeps each sim chunk inside the 100 ms cap)')
     p.add_argument('--smoke', action='store_true',
                    help='fast confidence check: 2 channels x 4 beats, '
                         'sink + source, golden-validated; exits non-zero on fail')
@@ -1155,167 +1225,229 @@ Examples:
                         '(default: <flow>/reports/rapids_byte_suite_<ts>.json)')
 
     p.add_argument('-v', '--verbose', action='store_true')
-    return p.parse_args()
+    return p.parse_args(argv)
 
 
-def main() -> int:
-    args = parse_args()
+def _meta(campaign, transport: str) -> dict:
+    return {'transport': transport, 'config': campaign.config_dump()}
+
+
+def main(argv=None, io=None, campaign_hook=None, transport=None) -> int:
+    """Run the campaign CLI. The board path opens the UART itself; the sim
+    passes an already-connected `io` (the cocotb UART model) and a
+    `campaign_hook` that sets the sim poll budget. Everything after the
+    transport is the same code, so the board run is a transport swap."""
+    args = parse_args(argv)
     logging.basicConfig(
         level=logging.INFO if args.verbose else logging.WARNING,
         format='%(levelname)s %(name)s: %(message)s')
+    if io is not None:
+        if not args.results:
+            print("FAIL: an injected transport needs an explicit --results path "
+                  "(a sim run must never land in the measured reports/ tree)")
+            return 2
+        return _main_with_io(args, io, campaign_hook, transport or 'sim-uart')
 
     # Resolve the serial port. Default 'auto' probes every /dev/ttyUSB* for the
     # harness (CSR_ID round-trip) since the USB-UART re-enumerates.
-    port = rio.autodetect_port(args.baud, want=args.port)
+    # Real hardware only: the lock comes BEFORE the port scan (autodetect opens
+    # every /dev/ttyUSB* to probe it), and the JTAG identity brackets the run.
+    import board_guard
+    try:
+        with board_guard.HardwareRun() as hw:
+            IDENTITY.update(hw.identity)
+            port = rio.autodetect_port(args.baud, want=args.port)
+            with RapidsByteIO(port=port, baudrate=args.baud) as board_io:
+                rc = _main_with_io(args, board_io, campaign_hook, transport or 'board-uart')
+            return rc if hw.finish(WRITTEN) else board_guard.IDENTITY_EXIT
+    except board_guard.BoardBusy as exc:
+        print(f"FAIL: {exc}")
+        return board_guard.LOCK_BUSY_EXIT
+    except board_guard.IdentityError as exc:
+        print(f"FAIL: {exc}")
+        return board_guard.IDENTITY_EXIT
 
-    with RapidsByteIO(port=port, baudrate=args.baud) as io:
-        if not io.ping():
-            print(f"FAIL: rapids_byte_top did not respond with ID "
-                  f"0x{rio.CSR_ID_EXPECTED:08X} on {port}")
+
+def _main_with_io(args, io, campaign_hook, transport) -> int:
+    if not io.ping():
+        print(f"FAIL: rapids_byte_top did not respond with ID "
+              f"0x{rio.CSR_ID_EXPECTED:08X} ({transport})")
+        return 2
+    print(f"Link OK: rapids_byte_top ID = 0x{rio.CSR_ID_EXPECTED:08X} ({transport})")
+    campaign = RapidsByteCampaign(io, args.channels, verbose=args.verbose)
+    if campaign_hook is not None:
+        campaign_hook(campaign)
+    d = campaign.ensure_build()
+    print(f"Build: {d['data_width']}-bit datapath ({d['beat_bytes']} B/beat, "
+          f"{d['peak_bw_gb_s']:.2f} GB/s per direction), {d['channels']} channels, "
+          f"SRAM {d['sram_depth']} beats = {d['sram_bytes_per_channel'] // 1024} KB per channel, "
+          f"axi_monitors={int(d['axi_monitors'])} observers={int(d['observers'])} "
+          f"gen_mon={int(d['gen_mon'])}")
+    if d['channels'] != args.channels:
+        print(f"FAIL: --channels {args.channels} but the bitstream was built with "
+              f"{d['channels']} channels (BUILD register); pass --channels {d['channels']}")
+        return 2
+
+    campaign.configure()
+    campaign.set_interleave(bool(args.interleave))
+    if args.xfer_axlen is not None:
+        campaign.set_xfer_axlen(args.xfer_axlen)
+
+    # ---- BYTE PERF campaign ------------------------------------------
+    if args.byte_perf:
+        if not d.get('byte_dut'):
+            print("FAIL: --byte-perf needs the BYTE_DUT=1 bitstream (BUILD.BYTE_DUT is 0)")
             return 2
-        print(f"Link OK: rapids_byte_top ID = 0x{rio.CSR_ID_EXPECTED:08X}")
-        campaign = RapidsByteCampaign(io, args.channels, verbose=args.verbose)
-        d = campaign.ensure_build()
-        print(f"Build: {d['data_width']}-bit datapath ({d['beat_bytes']} B/beat, "
-              f"{d['peak_bw_gb_s']:.2f} GB/s per direction), {d['channels']} channels, "
-              f"SRAM {d['sram_depth']} beats = {d['sram_bytes_per_channel'] // 1024} KB per channel, "
-              f"axi_monitors={int(d['axi_monitors'])} observers={int(d['observers'])} "
-              f"gen_mon={int(d['gen_mon'])}")
-        if d['channels'] != args.channels:
-            print(f"FAIL: --channels {args.channels} but the bitstream was built with "
-                  f"{d['channels']} channels (BUILD register); pass --channels {d['channels']}")
+        import byte_perf
+        results = args.results or os.path.abspath(os.path.join(
+            _HOST_DIR, os.pardir, os.pardir, 'reports', 'perf', 'json',
+            f"rapids_byte_perf{'_prelim' if args.prelim else ''}_"
+            f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"))
+        pts = byte_perf.build_points(args.profile)
+        if args.chunk:
+            pts = byte_perf.chunk_points(pts, *args.chunk, bpb=d['beat_bytes'])
+        doc, ok = byte_perf.run_campaign(
+            campaign, args.profile, results, timeout_s=args.timeout,
+            prelim=args.prelim, resume=args.resume, max_minutes=args.max_minutes,
+            bitstream=(os.path.abspath(args.bitstream) if args.bitstream else None),
+            points=pts, transport=transport,
+            meta={'chunk': list(args.chunk) if args.chunk else None, **IDENTITY},
+            out=lambda m: print(m, flush=True))
+        print(f"Results written to {results}")
+        WRITTEN.append(results)
+        return 0 if ok else 1
+
+    # ---- directed sequences (zero-length, 4 KB, tlast mismatch, recovery) --
+    if args.byte_seq:
+        if not d.get('byte_dut'):
+            print("FAIL: --byte-seq needs the BYTE_DUT=1 bitstream (BUILD.BYTE_DUT is 0)")
             return 2
+        import byte_sequences
+        names = byte_sequences.resolve(args.byte_seq)
+        seqs = []
+        for nm in names:
+            rec = byte_sequences.run(campaign, nm, args.timeout, args.seq_level, args.chunk)
+            seqs.append(rec)
+            print(f"SEQUENCE {nm}: {'PASS' if rec['pass'] else 'FAIL'} "
+                  f"({sum(1 for c in rec['checks'] if c['ok'])}/{len(rec['checks'])} checks, "
+                  f"{rec['uart_ops']} UART ops)", flush=True)
+        ok = all(r['pass'] for r in seqs)
+        if args.results:
+            _write_results([], args.results, meta={
+                'transport': transport, 'config': campaign.config_dump(),
+                'sequences': seqs})
+        return 0 if ok else 1
 
-        campaign.configure()
-        campaign.set_interleave(bool(args.interleave))
-        if args.xfer_axlen is not None:
-            campaign.set_xfer_axlen(args.xfer_axlen)
-
-        # ---- BYTE PERF campaign ------------------------------------------
-        if args.byte_perf:
-            if not d.get('byte_dut'):
-                print("FAIL: --byte-perf needs the BYTE_DUT=1 bitstream (BUILD.BYTE_DUT is 0)")
-                return 2
-            import byte_perf
-            results = args.results or os.path.abspath(os.path.join(
-                _HOST_DIR, os.pardir, os.pardir, 'reports', 'perf', 'json',
-                f"rapids_byte_perf{'_prelim' if args.prelim else ''}_"
-                f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"))
-            doc, ok = byte_perf.run_campaign(
-                campaign, args.profile, results, timeout_s=args.timeout,
-                prelim=args.prelim, resume=args.resume, max_minutes=args.max_minutes,
-                bitstream=os.path.abspath(args.bitstream), out=lambda m: print(m, flush=True))
-            print(f"Results written to {results}")
-            return 0 if ok else 1
-
-        # ---- SMOKE mode --------------------------------------------------
-        if args.byte_smoke or args.bytes is not None:
-            if not d.get('byte_dut'):
-                print("FAIL: byte campaign needs the BYTE_DUT=1 bitstream (BUILD.BYTE_DUT is 0)")
-                return 2
-            bpb = d['beat_bytes']
-            n_active = min(2, args.channels)
-            active = list(range(n_active))
-            if args.byte_smoke:
-                cases = [(1, 1), (2, bpb - 1), (bpb, 0), (bpb + 5, 0), (100, 7 % bpb),
-                         (3 * bpb, 17 % bpb), (6 * bpb + 11, 0x1000 - 2 * bpb + 3)]
-            else:
-                cases = [(args.bytes, args.offset)]
-            rows, all_pass = [], True
-            print(f"\n=== BYTE campaign on rapids_top: {len(cases)} case(s), {n_active} channels ===")
-            for nbytes, off in cases:
-                sink = campaign.run_sink_selfcheck(active, 0, args.timeout, pkt_bytes=nbytes, offset=off)
-                source = campaign.run_source_selfcheck(active, 0, args.timeout, pkt_bytes=nbytes, offset=off)
-                ok = sink[0] and source[0]
-                all_pass = all_pass and ok
-                print(f"  bytes={nbytes} offset={off}: SINK {'PASS' if sink[0] else 'FAIL'}, "
-                      f"SOURCE {'PASS' if source[0] else 'FAIL'}")
-                row = _single_row(f"bytes{nbytes}_off{off}", active, -(-nbytes // bpb), False,
-                                  args.base_seed, sink, source, campaign=campaign)
-                row.update({'pkt_bytes': nbytes, 'offset': off})
-                rows.append(row)
-            print("=" * 60)
-            print(f"BYTE campaign: {'PASS' if all_pass else 'FAIL'} ({len(cases)} cases)")
-            _write_results(rows, _results_path(args, 'bytes'))
-            return 0 if all_pass else 1
-        if args.smoke:
-            n_active = min(2, args.channels)
-            active = list(range(n_active))
-            beats = 4
-            print(f"\n=== SMOKE: {n_active} channels x {beats} beats, "
-                  f"sink + source, golden-validated ===")
-            sink_ok, sink_d = campaign.run_sink_selfcheck(active, beats,
-                                                     args.timeout)
-            src_ok, src_d = campaign.run_source_selfcheck(active, beats,
-                                                      args.timeout)
-            all_pass = sink_ok and src_ok
-            print("=" * 60)
-            print(f"SMOKE: SINK {'PASS' if sink_ok else 'FAIL'}, "
-                  f"SOURCE {'PASS' if src_ok else 'FAIL'} -> "
-                  f"{'PASS' if all_pass else 'FAIL'}")
-            _write_results([_single_row(
-                f"smoke_ch{n_active}_b{beats}", active, beats, False,
-                args.base_seed, (sink_ok, sink_d), (src_ok, src_d), campaign=campaign)],
-                _results_path(args, 'smoke'))
-            return 0 if all_pass else 1
-
-        # ---- SUITE mode --------------------------------------------------
-        if args.suite:
-            channels_list = _parse_int_list(args.suite_channels)
-            beats_list = _parse_int_list(args.suite_beats)
-            bp_list = _parse_bp_list(args.suite_bp)
-            seeds_list = _parse_seed_list(args.suite_seeds)
-            descs_list = _parse_int_list(args.suite_descs)
-            xfer_list = _parse_int_list(args.suite_xfer)
-            delay_list = _parse_int_list(args.suite_delay)
-            total = (len(channels_list) * len(beats_list) * len(descs_list)
-                     * len(xfer_list) * len(delay_list) * len(bp_list) * len(seeds_list))
-            print(f"\n=== SUITE: {total} configs "
-                  f"(channels={channels_list} beats={beats_list} descs={descs_list} "
-                  f"xfer_axlen={xfer_list} delay={delay_list} bp={args.suite_bp} "
-                  f"seeds={args.suite_seeds}) ===")
-            rows = campaign.run_suite(channels_list, beats_list, bp_list,
-                                      seeds_list, args.timeout,
-                                      descs_list=descs_list, xfer_list=xfer_list,
-                                      delay_list=delay_list)
-            _print_suite_summary(rows)
-            results_path = args.results or os.path.abspath(os.path.join(
-                _RESULTS_DIR,
-                f"rapids_byte_suite_"
-                f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"))
-            _write_results(rows, results_path)
-            all_pass = all(r['pass'] for r in rows) if rows else False
-            return 0 if all_pass else 1
-
-        # ---- Default single run -----------------------------------------
-        n_active = min(args.active, args.channels)
-        active_channels = list(range(n_active))
-        all_pass = True
-        sink_res = source_res = None
-        if not args.source_only:
-            ok, sink_d = campaign.run_sink_selfcheck(active_channels, args.beats,
-                                                args.timeout,
-                                                base_seed=args.base_seed)
+    # ---- SMOKE mode --------------------------------------------------
+    if args.byte_smoke or args.bytes is not None:
+        if not d.get('byte_dut'):
+            print("FAIL: byte campaign needs the BYTE_DUT=1 bitstream (BUILD.BYTE_DUT is 0)")
+            return 2
+        bpb = d['beat_bytes']
+        n_active = min(2, args.channels)
+        active = list(range(n_active))
+        if args.byte_smoke:
+            cases = [(1, 1), (2, bpb - 1), (bpb, 0), (bpb + 5, 0), (100, 7 % bpb),
+                     (3 * bpb, 17 % bpb), (6 * bpb + 11, 4096 - 2 * bpb + 3)]
+        else:
+            cases = [(args.bytes, args.offset)]
+        rows, all_pass = [], True
+        print(f"\n=== BYTE campaign on rapids_top: {len(cases)} case(s), {n_active} channels ===")
+        for nbytes, off in cases:
+            sink = campaign.run_sink_selfcheck(active, 0, args.timeout, pkt_bytes=nbytes, offset=off)
+            source = campaign.run_source_selfcheck(active, 0, args.timeout, pkt_bytes=nbytes, offset=off)
+            ok = sink[0] and source[0]
             all_pass = all_pass and ok
-            sink_res = (ok, sink_d)
-        if not args.sink_only:
-            ok, src_d = campaign.run_source_selfcheck(active_channels, args.beats,
-                                                  args.timeout,
-                                                  backpressure=args.backpressure)
-            all_pass = all_pass and ok
-            source_res = (ok, src_d)
-
+            print(f"  bytes={nbytes} offset={off}: SINK {'PASS' if sink[0] else 'FAIL'}, "
+                  f"SOURCE {'PASS' if source[0] else 'FAIL'}")
+            row = _single_row(f"bytes{nbytes}_off{off}", active, -(-nbytes // bpb), False,
+                              args.base_seed, sink, source, campaign=campaign)
+            row.update({'pkt_bytes': nbytes, 'offset': off})
+            rows.append(row)
         print("=" * 60)
-        print(f"OVERALL: {'PASS' if all_pass else 'FAIL'}")
-        _write_results([_single_row(
-            f"run_ch{n_active}_b{args.beats}_"
-            f"bp{'on' if args.backpressure else 'off'}"
-            f"{'_il' if args.interleave else ''}",
-            active_channels, args.beats, bool(args.backpressure),
-            args.base_seed, sink_res, source_res,
-            interleave=campaign.interleave, campaign=campaign)],
-            _results_path(args, 'run'))
+        print(f"BYTE campaign: {'PASS' if all_pass else 'FAIL'} ({len(cases)} cases)")
+        _write_results(rows, _results_path(args, 'bytes'), meta=_meta(campaign, transport))
         return 0 if all_pass else 1
+    if args.smoke:
+        n_active = min(2, args.channels)
+        active = list(range(n_active))
+        beats = 4
+        print(f"\n=== SMOKE: {n_active} channels x {beats} beats, "
+              f"sink + source, golden-validated ===")
+        sink_ok, sink_d = campaign.run_sink_selfcheck(active, beats,
+                                                 args.timeout)
+        src_ok, src_d = campaign.run_source_selfcheck(active, beats,
+                                                  args.timeout)
+        all_pass = sink_ok and src_ok
+        print("=" * 60)
+        print(f"SMOKE: SINK {'PASS' if sink_ok else 'FAIL'}, "
+              f"SOURCE {'PASS' if src_ok else 'FAIL'} -> "
+              f"{'PASS' if all_pass else 'FAIL'}")
+        _write_results([_single_row(
+            f"smoke_ch{n_active}_b{beats}", active, beats, False,
+            args.base_seed, (sink_ok, sink_d), (src_ok, src_d), campaign=campaign)],
+            _results_path(args, 'smoke'), meta=_meta(campaign, transport))
+        return 0 if all_pass else 1
+
+    # ---- SUITE mode --------------------------------------------------
+    if args.suite:
+        channels_list = _parse_int_list(args.suite_channels)
+        beats_list = _parse_int_list(args.suite_beats)
+        bp_list = _parse_bp_list(args.suite_bp)
+        seeds_list = _parse_seed_list(args.suite_seeds)
+        descs_list = _parse_int_list(args.suite_descs)
+        xfer_list = _parse_int_list(args.suite_xfer)
+        delay_list = _parse_int_list(args.suite_delay)
+        total = (len(channels_list) * len(beats_list) * len(descs_list)
+                 * len(xfer_list) * len(delay_list) * len(bp_list) * len(seeds_list))
+        print(f"\n=== SUITE: {total} configs "
+              f"(channels={channels_list} beats={beats_list} descs={descs_list} "
+              f"xfer_axlen={xfer_list} delay={delay_list} bp={args.suite_bp} "
+              f"seeds={args.suite_seeds}) ===")
+        rows = campaign.run_suite(channels_list, beats_list, bp_list,
+                                  seeds_list, args.timeout,
+                                  descs_list=descs_list, xfer_list=xfer_list,
+                                  delay_list=delay_list)
+        _print_suite_summary(rows)
+        results_path = args.results or os.path.abspath(os.path.join(
+            _RESULTS_DIR,
+            f"rapids_byte_suite_"
+            f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"))
+        _write_results(rows, results_path, meta=_meta(campaign, transport))
+        all_pass = all(r['pass'] for r in rows) if rows else False
+        return 0 if all_pass else 1
+
+    # ---- Default single run -----------------------------------------
+    n_active = min(args.active, args.channels)
+    active_channels = list(range(n_active))
+    all_pass = True
+    sink_res = source_res = None
+    if not args.source_only:
+        ok, sink_d = campaign.run_sink_selfcheck(active_channels, args.beats,
+                                            args.timeout,
+                                            base_seed=args.base_seed)
+        all_pass = all_pass and ok
+        sink_res = (ok, sink_d)
+    if not args.sink_only:
+        ok, src_d = campaign.run_source_selfcheck(active_channels, args.beats,
+                                              args.timeout,
+                                              backpressure=args.backpressure)
+        all_pass = all_pass and ok
+        source_res = (ok, src_d)
+
+    print("=" * 60)
+    print(f"OVERALL: {'PASS' if all_pass else 'FAIL'}")
+    _write_results([_single_row(
+        f"run_ch{n_active}_b{args.beats}_"
+        f"bp{'on' if args.backpressure else 'off'}"
+        f"{'_il' if args.interleave else ''}",
+        active_channels, args.beats, bool(args.backpressure),
+        args.base_seed, sink_res, source_res,
+        interleave=campaign.interleave, campaign=campaign)],
+        _results_path(args, 'run'), meta=_meta(campaign, transport))
+    return 0 if all_pass else 1
+
+
 
 
 if __name__ == '__main__':

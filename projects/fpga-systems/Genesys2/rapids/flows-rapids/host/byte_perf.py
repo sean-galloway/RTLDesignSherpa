@@ -31,16 +31,19 @@ BEAT_COMPARE_CHANNELS = (1, 2, 4, 8)
 
 
 def _pt(group, ch, *, payload=None, beats=None, offset=0, descs=1,
-        bp=False, directions=('sink', 'source')):
+        bp=False, directions=('sink', 'source'), interleave=False):
     if payload is not None:
         pid = f"{group}_ch{ch}_p{payload}_o{offset}_d{descs}"
     else:
         pid = f"{group}_ch{ch}_b{beats}"
     if bp:
         pid += '_bp'
+    if interleave:
+        pid += '_il'
     return {'id': pid, 'group': group, 'channels': ch, 'payload': payload,
             'beats': beats, 'offset': offset, 'descs': descs,
-            'backpressure': bp, 'directions': list(directions)}
+            'backpressure': bp, 'interleave': interleave,
+            'directions': list(directions)}
 
 
 def build_points(profile: str):
@@ -53,6 +56,7 @@ def build_points(profile: str):
         for b in (4, 64):
             pts.append(_pt('beat', 2, beats=b))
         pts.append(_pt('bp', 2, payload=33, offset=0, bp=True, directions=('source',)))
+        pts.append(_pt('interleave', 2, payload=33, offset=5, interleave=True, directions=('sink',)))
         return pts
     offs = (0,) if profile == 'standard' else OFFSETS_ALL
     for ch in CHANNELS:
@@ -74,7 +78,36 @@ def build_points(profile: str):
             for o in (0, 5):
                 pts.append(_pt('bp', ch, payload=p, offset=o, bp=True,
                                directions=('source',)))
+    for ch in (2, 4, 8):
+        for p in (33, 1024):
+            for o in (0, 5):
+                pts.append(_pt('interleave', ch, payload=p, offset=o, interleave=True,
+                               directions=('sink',)))
     return pts
+
+
+def point_cost(pt, bpb=32):
+    """Estimated UART operations for one point -- the sim's cost unit, since a
+    UART op (about 9 us of sim time at 4 clocks/bit) dwarfs the transfer itself.
+    Calibrated against the per-row `uart_ops` a run records."""
+    ch, d = pt['channels'], pt['descs']
+    return sum(COST_FIXED + COST_PER_DESC * ch * d + COST_PER_CH * ch for _ in pt['directions'])
+
+
+COST_FIXED, COST_PER_DESC, COST_PER_CH = 140, 14, 12
+
+
+def chunk_points(pts, k, n, bpb=32):
+    """Chunk k of n (1-based): a contiguous, cost-balanced slice of `pts`."""
+    costs = [point_cost(p, bpb) for p in pts]
+    total, cuts, acc, nxt = sum(costs), [], 0, 1
+    for i, c in enumerate(costs):
+        acc += c
+        if nxt < n and acc >= total * nxt / n:
+            cuts.append(i + 1)
+            nxt += 1
+    bounds = [0] + cuts + [len(pts)]
+    return pts[bounds[k - 1]:bounds[k]]
 
 
 PROFILES = ('quick', 'standard', 'full')
@@ -160,7 +193,9 @@ def run_point(campaign, pt, timeout_s):
                               'offset', 'descs', 'backpressure')}
     row['bytes_per_beat'] = bpb
     row['xfer_beats'] = campaign.xfer_axlen + 1
-    t0 = time.time()
+    row['interleave'] = bool(pt.get('interleave'))
+    t0, ops0 = time.time(), campaign.io.uart_ops
+    campaign.set_interleave(row['interleave'])
     for direction in pt['directions']:
         try:
             if direction == 'sink':
@@ -174,6 +209,9 @@ def run_point(campaign, pt, timeout_s):
                               'errors': [f"exception: {exc}"], 'exception': True}
     row['pass'] = all(row[d]['pass'] for d in pt['directions'])
     row['seconds'] = round(time.time() - t0, 2)
+    row['uart_ops'] = campaign.io.uart_ops - ops0
+    row['est_ops'] = point_cost(pt, bpb)
+    campaign.set_interleave(False)
     return row
 
 
@@ -228,7 +266,7 @@ def _device_changed(start, now):
 
 def run_campaign(campaign, profile, results_path, *, timeout_s=30.0, prelim=False,
                  resume=False, max_minutes=None, bitstream=None, points=None,
-                 stop_after_dead=3, out=print):
+                 stop_after_dead=3, transport='board-uart', meta=None, out=print):
     """Run a profile, rewriting the results file after every point.
 
     Returns (doc, all_pass). `resume` skips point ids already in the file.
@@ -249,11 +287,14 @@ def run_campaign(campaign, profile, results_path, *, timeout_s=30.0, prelim=Fals
                'peak_mb_s': design['beat_bytes'] * design['aclk_hz'] / 1e6,
                'bitstream': {'path': os.path.basename(bitstream) if bitstream else None,
                              'sha256': file_sha256(bitstream)},
+               'transport': transport, 'config': campaign.config_dump(),
                'points': []}
+        doc.update(meta or {})
     done = {r['id'] for r in doc['points']}
     todo = [p for p in pts if p['id'] not in done]
     doc['planned'] = len(pts)
     doc['complete'] = False
+    doc['config_end'] = None
     doc.pop('aborted', None)
     first_fail = next((r['id'] for r in doc['points'] if not r['pass']), None)
     sess = {'bitstream_sha256': (doc.get('bitstream') or {}).get('sha256') if bitstream is None
@@ -320,6 +361,10 @@ def run_campaign(campaign, profile, results_path, *, timeout_s=30.0, prelim=Fals
     doc['complete'] = all(p['id'] in {r['id'] for r in doc['points']} for p in pts)
     doc['passed'] = sum(1 for r in doc['points'] if r['pass'])
     doc['failed'] = len(doc['points']) - doc['passed']
+    try:
+        doc['config_end'] = campaign.config_dump()
+    except Exception as exc:  # noqa: BLE001
+        doc['config_end'] = {'error': str(exc)}
     _write_atomic(results_path, doc)
     out(f"byte-perf: {doc['passed']} passed, {doc['failed']} failed, "
         f"{len(doc['points'])}/{len(pts)} points, complete={doc['complete']}")
