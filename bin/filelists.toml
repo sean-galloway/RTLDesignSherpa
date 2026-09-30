@@ -237,6 +237,14 @@ kind = "board"
 rtl_roots = []
 filelist_dirs = ["projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/filelists"]
 
+# Byte-granular RAPIDS (rapids_top, rapids TASK-019) on the same bench: its own
+# area beside rapids_beats so the beats flow keeps building unchanged.
+[[area]]
+name = "genesys2_rapids_byte_char"
+kind = "board"
+rtl_roots = []
+filelist_dirs = ["projects/fpga-systems/Genesys2/rapids/flows-rapids/filelists"]
+
 [[area]]
 name = "nexys_cdc_display"
 kind = "board"

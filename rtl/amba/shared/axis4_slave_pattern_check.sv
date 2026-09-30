@@ -66,6 +66,11 @@ module axis4_slave_pattern_check #(
     parameter int          CRC_REFOUT       = 1,
 
     parameter int          BEAT_COUNT_WIDTH = 32,
+    // BYTE_CRC=1 (byte-granular RAPIDS, rapids TASK-019): the per-channel CRC
+    // runs over the strobed bytes of every beat, four per cycle through
+    // cascade_sel, with tready held low while a beat is fed; the word compare
+    // is replaced by a tstrb-contiguity check. 0: the LFSR word CRC + compare.
+    parameter bit          BYTE_CRC         = 1'b0,
     // Derived
     parameter int          STRB_WIDTH       = AXIS_DATA_WIDTH / 8,
     parameter int          REP              = AXIS_DATA_WIDTH / LFSR_WIDTH,
@@ -110,15 +115,56 @@ module axis4_slave_pattern_check #(
     logic [31:0]                crc_out_per_ch       [NUM_CHANNELS];
     logic [AXIS_DATA_WIDTH-1:0] expected_data_per_ch [NUM_CHANNELS];
 
+    //==========================================================================
+    // Byte-granular CRC feed (BYTE_CRC)
+    //==========================================================================
+    // An accepted beat's strobed bytes (contiguous from lane 0) are captured
+    // and fed to the channel's CRC four bytes per cycle, so the CRC is over
+    // the byte stream exactly as the golden model computes it.
+    logic                        r_bc_busy;
+    logic [AXIS_DATA_WIDTH-1:0]  r_bc_data;
+    logic [7:0]                  r_bc_left;
+    logic [CIW-1:0]              r_bc_ch;
+    logic [7:0]                  w_strb_bytes;
+    logic                        w_strb_contig;
+    logic [7:0]                  w_bc_take;
+    logic [3:0]                  w_bc_sel;
+    always_comb begin
+        w_strb_bytes = '0;
+        for (int b = 0; b < STRB_WIDTH; b++) w_strb_bytes = w_strb_bytes + 8'(s_axis_tstrb[b]);
+    end
+    assign w_strb_contig = (s_axis_tstrb == ~({STRB_WIDTH{1'b1}} << w_strb_bytes));
+    assign w_bc_take = (r_bc_left > 8'd4) ? 8'd4 : r_bc_left;
+    assign w_bc_sel  = 4'(4'b0001 << (w_bc_take - 8'd1));
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_bc_busy <= 1'b0;
+            r_bc_data <= '0;
+            r_bc_left <= '0;
+            r_bc_ch   <= '0;
+        end else if (BYTE_CRC) begin
+            if (r_bc_busy) begin
+                r_bc_data <= r_bc_data >> 32;
+                r_bc_left <= r_bc_left - w_bc_take;
+                if (r_bc_left <= 8'd4) r_bc_busy <= 1'b0;
+            end else if (w_beat && (w_strb_bytes != 8'd0)) begin
+                r_bc_busy <= 1'b1;
+                r_bc_data <= s_axis_tdata;
+                r_bc_left <= w_strb_bytes;
+                r_bc_ch   <= w_ch;
+            end
+        end
+    )
     // Sink readiness driven by ready_en (tie high for a pure sink; deassert to
     // model backpressure). Drives the SAME handshake the upstream sees, so both
-    // sides advance in lockstep.
-    assign s_axis_tready = ready_en;
+    // sides advance in lockstep. BYTE_CRC holds ready while a beat is fed.
+    assign s_axis_tready = ready_en && !r_bc_busy;
 
     assign w_load = cfg_start;
     assign w_seed = (cfg_lfsr_seed == '0) ? LFSR_SEED[LFSR_WIDTH-1:0] : cfg_lfsr_seed;
     assign w_beat = s_axis_tvalid && s_axis_tready;
     assign w_ch   = (NUM_CHANNELS == 1) ? '0 : s_axis_tid[CIW-1:0];
+
 
     //==========================================================================
     // Per-channel LFSR pattern regenerators + CRC-32 calculators
@@ -166,9 +212,9 @@ module axis4_slave_pattern_check #(
                 .clk              (clk),
                 .rst_n            (rst_n),
                 .load_crc_start   (w_load),
-                .load_from_cascade(ch_beat),
-                .cascade_sel      (4'b1000),          // process all 4 bytes of 32-bit slice
-                .data             (lfsr_out_per_ch[gch]),
+                .load_from_cascade(BYTE_CRC ? (r_bc_busy && (r_bc_ch == gch[CIW-1:0])) : ch_beat),
+                .cascade_sel      (BYTE_CRC ? w_bc_sel : 4'b1000),   // word mode: all 4 bytes of the LFSR word
+                .data             (BYTE_CRC ? r_bc_data[31:0] : lfsr_out_per_ch[gch]),
                 .crc              (crc_out_per_ch[gch])
             );
 
@@ -206,7 +252,10 @@ module axis4_slave_pattern_check #(
     // expected data (current LFSR value, before it advances this same edge).
 
     logic w_data_mismatch;
-    assign w_data_mismatch = w_beat && (s_axis_tdata != expected_data_per_ch[w_ch]);
+    // BYTE_CRC: the CRC carries the data check; a beat whose tstrb is not
+    // contiguous from lane 0 is the error.
+    assign w_data_mismatch = w_beat && (BYTE_CRC ? !w_strb_contig
+                                                 : (s_axis_tdata != expected_data_per_ch[w_ch]));
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin

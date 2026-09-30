@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
-// Module: rapids_char_harness
-// Purpose: Synthesizable characterization harness that wraps the split
-//          rapids_beats_top DUT with on-chip pattern generators/checkers and
+// Module: rapids_byte_harness
+// Purpose (byte-granular RAPIDS, rapids TASK-019): Synthesizable characterization harness that wraps the split
+//          rapids_top DUT with on-chip pattern generators/checkers and
 //          memories, mirroring the STREAM characterization harness structure.
 //
 // Instantiates:
-//   - rapids_beats_top          (DUT: split SOURCE + SINK beats DMA)
+//   - rapids_top          (DUT: split SOURCE + SINK beats DMA)
 //   - axis4_master_pattern_gen  (drives DUT s_axis_* : sink-ingress stimulus)
 //   - axis4_slave_pattern_check (consumes DUT m_axis_*: source-egress check)
 //   - axi4_slave_rd_pattern_gen (backs DUT m_axi_rd_*  : 512b source data source)
@@ -42,7 +42,7 @@
 `define RC_DBG
 `endif
 
-module rapids_char_harness #(
+module rapids_byte_harness #(
     // ---- DUT geometry (NUM_CHANNELS / DATA_WIDTH overridable) ----
     parameter int NUM_CHANNELS    = 8,
     parameter int DATA_WIDTH      = 512,
@@ -72,7 +72,7 @@ module rapids_char_harness #(
     // override via the RAPIDS_ROW_COL env generic to measure the cost.
     parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,
     // In-core AXI/descriptor monitors + MonBus egress in the DUT, and the GEN_MON
-    // cone in rapids_beats_top. Default OFF: this characterization build meters
+    // cone in rapids_top. Default OFF: this characterization build meters
     // externally (axi_bus_meter) and is tuned to close 8-channel timing. Override
     // via the USE_AXI_MONITORS / GEN_MON env generics -- the same knob names
     // STREAM's builds export -- to measure what the monitors cost.
@@ -86,7 +86,7 @@ module rapids_char_harness #(
     // their meters and latency histograms count regardless.
     parameter bit USE_OBSERVERS       = 1'b0,
     parameter bit OBS_ENABLE_MON_TAPS = 1'b0,
-    // ---- Host interface (relocated from rapids_char_top) ----
+    // ---- Host interface (relocated from rapids_byte_top) ----
     parameter int FPGA_CLK_HZ     = 100_000_000,
     parameter int UART_BAUD       = 115_200
 ) (
@@ -182,6 +182,7 @@ module rapids_char_harness #(
     localparam logic [11:0] CSR_GEN_CHMASK  = 12'h020;
     localparam logic [11:0] CSR_GEN_TDEST   = 12'h024;
     localparam logic [11:0] CSR_GEN_MODE    = 12'h028;  // [0]=INTERLEAVE (round-robin channels per beat)
+    localparam logic [11:0] CSR_GEN_LASTB   = 12'h02C;  // [7:0] bytes strobed on each tlast beat (0 = all; TASK-019)
     localparam logic [11:0] CSR_CHK_CTRL    = 12'h030;
     localparam logic [11:0] CSR_CHK_SEED    = 12'h034;
     localparam logic [11:0] CSR_MEM_CTRL    = 12'h040;
@@ -204,7 +205,7 @@ module rapids_char_harness #(
     // The DUT's per-half KICK_ENABLE, inside the APB kick window -- NOT a
     // char_top CSR. The numeric clash with CSR_MEM_CTRL (12'h040) above is
     // coincidental: that one is a char_top CSR, this is an offset into the
-    // rapids_beats_top register map (SRC 0x0040 / SNK 0x1040).
+    // rapids_top register map (SRC 0x0040 / SNK 0x1040).
     localparam logic [11:0] DUT_KICK_ENABLE = 12'h040;
     localparam logic [11:0] CSR_GO          = 12'h078;  // [0]=GO (arm+gen+kick, 1-cyc)
     localparam logic [11:0] CSR_OBS_TARGET  = 12'h07C;  // freeze window at N productive beats
@@ -266,6 +267,7 @@ module rapids_char_harness #(
     logic [31:0]                r_cfg_gen_lfsr_seed;
     logic [31:0]                r_cfg_gen_num_beats;
     logic [31:0]                r_cfg_gen_beats_per_pkt;
+    logic [7:0]                 r_cfg_gen_last_bytes;
     logic [NUM_CHANNELS-1:0]    r_cfg_gen_channel_mask;
     logic [AXIS_DEST_WIDTH-1:0] r_cfg_gen_tdest;
     logic                       r_cfg_gen_interleave;  // rapids TASK-018: aggregate-window stimulus
@@ -500,6 +502,7 @@ module rapids_char_harness #(
             r_cfg_gen_lfsr_seed     <= '0;
             r_cfg_gen_num_beats     <= '0;
             r_cfg_gen_beats_per_pkt <= '0;
+            r_cfg_gen_last_bytes    <= '0;
             r_cfg_gen_channel_mask  <= '0;
             r_cfg_gen_tdest         <= '0;
             r_cfg_gen_interleave    <= 1'b0;
@@ -550,6 +553,7 @@ module rapids_char_harness #(
                     CSR_GEN_SEED:    r_cfg_gen_lfsr_seed     <= r_wdata;
                     CSR_GEN_NBEATS:  r_cfg_gen_num_beats     <= r_wdata;
                     CSR_GEN_BPP:     r_cfg_gen_beats_per_pkt <= r_wdata;
+                    CSR_GEN_LASTB:   r_cfg_gen_last_bytes    <= r_wdata[7:0];
                     CSR_GEN_CHMASK:  r_cfg_gen_channel_mask  <= r_wdata[NUM_CHANNELS-1:0];
                     CSR_GEN_TDEST:   r_cfg_gen_tdest         <= r_wdata[AXIS_DEST_WIDTH-1:0];
                     CSR_GEN_MODE:    r_cfg_gen_interleave    <= r_wdata[0];
@@ -617,11 +621,12 @@ module rapids_char_harness #(
         case (w_rregion)
             REGION_CSR: begin
                 case (w_roff)
-                    CSR_ID:          w_readmux = 32'h5241_5031;  // "RAP1"
+                    CSR_ID:          w_readmux = 32'h5241_5042;  // "RAPB"
                     // What was built, so the host never assumes the beat size:
                     // [7:0] bytes per beat, [15:8] channels, [23:16] log2(SRAM_DEPTH),
-                    // [24] USE_AXI_MONITORS, [25] USE_OBSERVERS, [26] GEN_MON.
-                    CSR_BUILD:       w_readmux = {5'b0, GEN_MON, USE_OBSERVERS,
+                    // [24] USE_AXI_MONITORS, [25] USE_OBSERVERS, [26] GEN_MON,
+                    // [27] BYTE_DUT = 1: this is the byte-granular rapids_top harness (TASK-019).
+                    CSR_BUILD:       w_readmux = {4'b0, 1'b1, GEN_MON, USE_OBSERVERS,
                                                   (USE_AXI_MONITORS != 0),
                                                   8'($clog2(SRAM_DEPTH)),
                                                   8'(NUM_CHANNELS),
@@ -631,6 +636,7 @@ module rapids_char_harness #(
                                         gen_done, gen_busy,
                                         snk_system_idle, src_system_idle, mon_irq};
                     CSR_GEN_MODE:    w_readmux = 32'(r_cfg_gen_interleave);
+                    CSR_GEN_LASTB:   w_readmux = 32'(r_cfg_gen_last_bytes);
                     CSR_GEN_BEATS_T: w_readmux = o_gen_beat_count_total;
                     CSR_CHK_BEATS_T: w_readmux = o_chk_beat_count_total;
                     CSR_PKT_CNT:     w_readmux = o_pkt_count;
@@ -813,7 +819,7 @@ module rapids_char_harness #(
                         r_kstate    <= KST_SCAN;
                     end
                 end
-                // Staging the address pair does NOT kick: rapids_beats_top
+                // Staging the address pair does NOT kick: rapids_top
                 // replaced write-to-kick with staged CHx_DESC_ADDR_{LOW,HIGH}
                 // plus a rising-edge-detected KICK_ENABLE. Without this write
                 // every channel stays parked -- no descriptor fetch is issued,
@@ -877,7 +883,7 @@ module rapids_char_harness #(
     assign desc_snk_wvalid  = w_sel_snk && r_dw_pending;
 
     // =========================================================================
-    // Former rapids_char_top -> u_harness port map, now internal. Only the
+    // Former rapids_byte_top -> u_harness port map, now internal. Only the
     // connections whose actual differed from the formal need an alias; every
     // .name(name) pass-through is already declared by the relocated host block.
     // =========================================================================
@@ -889,6 +895,7 @@ module rapids_char_harness #(
     logic [31:0] cfg_gen_lfsr_seed;
     logic [31:0] cfg_gen_num_beats;
     logic [31:0] cfg_gen_beats_per_pkt;
+    logic [7:0]  cfg_gen_last_bytes;
     logic [NUM_CHANNELS-1:0] cfg_gen_channel_mask;
     logic cfg_gen_interleave;
     logic [AXIS_DEST_WIDTH-1:0] cfg_gen_tdest;
@@ -927,6 +934,7 @@ module rapids_char_harness #(
     assign cfg_gen_lfsr_seed = r_cfg_gen_lfsr_seed;
     assign cfg_gen_num_beats = r_cfg_gen_num_beats;
     assign cfg_gen_beats_per_pkt = r_cfg_gen_beats_per_pkt;
+    assign cfg_gen_last_bytes    = r_cfg_gen_last_bytes;
     assign cfg_gen_channel_mask = r_cfg_gen_channel_mask;
     assign cfg_gen_tdest = r_cfg_gen_tdest;
     assign cfg_gen_interleave = r_cfg_gen_interleave;
@@ -1198,9 +1206,9 @@ module rapids_char_harness #(
     logic [1:0]                mon_bresp;
 
     //=========================================================================
-    // DUT: rapids_beats_top
+    // DUT: rapids_top
     //=========================================================================
-    rapids_beats_top #(
+    rapids_top #(
         .NUM_CHANNELS   (NUM_CHANNELS),
         .DATA_WIDTH     (DATA_WIDTH),
         .ADDR_WIDTH     (ADDR_WIDTH),
@@ -1219,7 +1227,7 @@ module rapids_char_harness #(
         // cost can be MEASURED rather than argued.
         .USE_AXI_MONITORS(USE_AXI_MONITORS),
         .GEN_MON         (GEN_MON),
-        // Extended addressing compiled OUT. rapids_beats_top defaults this to 1
+        // Extended addressing compiled OUT. rapids_top defaults this to 1
         // as of the default flip, but this char build is tuned down to close
         // 8-channel timing and meters externally; inheriting the new default
         // would silently add two stream_run_addr_gen instances per channel plus
@@ -1486,7 +1494,7 @@ module rapids_char_harness #(
         .cfg_beats_per_pkt    (cfg_gen_beats_per_pkt),
         .cfg_interleave       (cfg_gen_interleave),
         .cfg_tdest            (cfg_gen_tdest),
-        .cfg_last_bytes       (8'd0),              // beat-granular packets: every lane strobed
+        .cfg_last_bytes       (cfg_gen_last_bytes),
         .cfg_busy             (gen_busy),
         .cfg_done             (gen_done),
         .o_expected_crc       (o_gen_expected_crc),
@@ -1508,6 +1516,7 @@ module rapids_char_harness #(
     //=========================================================================
     axis4_slave_pattern_check #(
         .NUM_CHANNELS    (NUM_CHANNELS),
+        .BYTE_CRC        (1'b1),           // byte-wise CRC over the strobed bytes (TASK-019)
         .AXIS_DATA_WIDTH (DATA_WIDTH),
         .AXIS_ID_WIDTH   (AXIS_ID_WIDTH),
         .AXIS_DEST_WIDTH (AXIS_DEST_WIDTH),
@@ -1630,6 +1639,7 @@ module rapids_char_harness #(
 
     axi4_slave_wr_crc_check #(
         .NUM_CHANNELS   (NUM_CHANNELS),
+        .BYTE_CRC       (1'b1),            // byte-wise CRC over the strobed bytes (TASK-019)
         .AXI_ID_WIDTH   (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH (ADDR_WIDTH),
         .AXI_DATA_WIDTH (DATA_WIDTH)
@@ -2379,4 +2389,4 @@ module rapids_char_harness #(
     end
     endgenerate
 
-endmodule : rapids_char_harness
+endmodule : rapids_byte_harness

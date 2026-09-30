@@ -98,6 +98,10 @@ module axis4_master_pattern_gen #(
     input  logic [BEAT_COUNT_WIDTH-1:0]   cfg_beats_per_pkt,  // tlast cadence (0 => 1 pkt/channel)
     input  logic                          cfg_interleave,     // 1: round-robin active channels per beat
     input  logic [AXIS_DEST_WIDTH-1:0]    cfg_tdest,
+    // Byte-granular packets (rapids TASK-019): bytes strobed on every tlast
+    // beat, contiguous from lane 0. 0 (or >= STRB_WIDTH) keeps every lane,
+    // which is the beat-granular behaviour.
+    input  logic [7:0]                    cfg_last_bytes,
     output logic                          cfg_busy,
     output logic                          cfg_done,           // 1-cycle pulse at end of run
 
@@ -132,6 +136,7 @@ module axis4_master_pattern_gen #(
     logic [NUM_CHANNELS-1:0]     r_channel_mask;     // latched active-channel mask
     logic [BEAT_COUNT_WIDTH-1:0] r_num_beats;        // latched beats-per-channel
     logic [BEAT_COUNT_WIDTH-1:0] r_beats_per_pkt;    // latched tlast cadence
+    logic [7:0]                  r_last_bytes;       // latched tlast strobe count (0 = all)
     logic                        r_interleave;       // latched scheduling mode
 
     logic                        w_load;
@@ -279,7 +284,11 @@ module axis4_master_pattern_gen #(
 
     assign m_axis_tvalid = (r_state == RUN);
     assign m_axis_tdata  = {REP{w_active_lfsr}};
-    assign m_axis_tstrb  = {STRB_WIDTH{1'b1}};
+    // The tlast beat carries r_last_bytes valid bytes from lane 0 (TASK-019)
+    logic [STRB_WIDTH-1:0] w_last_strb;
+    assign w_last_strb   = ((r_last_bytes == 8'd0) || (r_last_bytes >= 8'(STRB_WIDTH)))
+                         ? {STRB_WIDTH{1'b1}} : ~({STRB_WIDTH{1'b1}} << r_last_bytes);
+    assign m_axis_tstrb  = w_pkt_last ? w_last_strb : {STRB_WIDTH{1'b1}};
     assign m_axis_tlast  = w_pkt_last;
     assign m_axis_tid    = AXIS_ID_WIDTH'(r_ch);
     assign m_axis_tdest  = cfg_tdest;
@@ -299,6 +308,7 @@ module axis4_master_pattern_gen #(
             r_channel_mask    <= '0;
             r_num_beats       <= '0;
             r_beats_per_pkt   <= '0;
+            r_last_bytes      <= '0;
             r_interleave      <= 1'b0;
             cfg_done          <= 1'b0;
         end else begin
@@ -309,6 +319,7 @@ module axis4_master_pattern_gen #(
                         r_channel_mask  <= w_eff_mask;
                         r_num_beats     <= cfg_num_beats;
                         r_beats_per_pkt <= cfg_beats_per_pkt;
+                        r_last_bytes    <= cfg_last_bytes;
                         r_interleave    <= cfg_interleave;
                         r_pkt_cnt       <= '0;
                         if ((cfg_num_beats == '0) || !w_first_found) begin

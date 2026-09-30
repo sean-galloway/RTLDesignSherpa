@@ -91,6 +91,7 @@ module tb_axis4_pattern_pair #(
         .cfg_beats_per_pkt   (cfg_beats_per_pkt),
         .cfg_interleave      (cfg_interleave),
         .cfg_tdest           (cfg_tdest),
+        .cfg_last_bytes      (8'd0),              // beat-granular packets
         .cfg_busy            (gen_busy),
         .cfg_done            (gen_done),
         .o_expected_crc      (gen_expected_crc),

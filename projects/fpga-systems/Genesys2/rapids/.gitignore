@@ -1,0 +1,12 @@
+# Vivado / sim / host build artifacts
+flows-rapids/build/
+flows-rapids/bitstream/
+flows-rapids/reports/
+flows-rapids/.Xil/
+flows-rapids/*.log
+flows-rapids/*.out
+flows-rapids/*.jou
+flows-rapids/dv/local_sim_build/
+flows-rapids/dv/logs/
+**/__pycache__/
+*.pyc

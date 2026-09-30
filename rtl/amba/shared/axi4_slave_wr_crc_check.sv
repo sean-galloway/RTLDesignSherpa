@@ -56,6 +56,11 @@ module axi4_slave_wr_crc_check #(
 
     // Which 32-bit slice to CRC from AXI_DATA_WIDTH
     parameter int CRC_SLICE_OFFSET = 0,
+    // BYTE_CRC=1 (byte-granular RAPIDS, rapids TASK-019): the per-channel CRC
+    // runs over the STROBED bytes of every W beat in lane order, four per
+    // cycle through cascade_sel, with wready held low while a beat is fed.
+    // 0: the CRC_SLICE_OFFSET 32-bit slice of every beat (STREAM's harness).
+    parameter bit BYTE_CRC = 1'b0,
 
     // Derived
     parameter int CIW = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1
@@ -186,6 +191,50 @@ module axi4_slave_wr_crc_check #(
     wire w_w_beat = fub_axi_wvalid && fub_axi_wready && r_wr_active;
 
     //==========================================================================
+    // Byte-granular CRC feed (BYTE_CRC)
+    //==========================================================================
+    // The strobed bytes of an accepted W beat are shifted down to lane 0 and
+    // fed to the burst's channel CRC four bytes per cycle (cascade_sel picks
+    // 1..4), so the CRC is over the bytes written, in address order.
+    logic                        r_bc_busy;
+    logic [AXI_DATA_WIDTH-1:0]   r_bc_data;
+    logic [7:0]                  r_bc_left;
+    logic [CIW-1:0]              r_bc_ch;
+    logic [7:0]                  w_strb_bytes;
+    logic [7:0]                  w_first_lane;
+    logic [7:0]                  w_bc_take;
+    logic [3:0]                  w_bc_sel;
+    always_comb begin
+        w_strb_bytes = '0;
+        w_first_lane = '0;
+        for (int b = AXI_DATA_WIDTH/8 - 1; b >= 0; b--) begin
+            w_strb_bytes = w_strb_bytes + 8'(fub_axi_wstrb[b]);
+            if (fub_axi_wstrb[b]) w_first_lane = 8'(b);
+        end
+    end
+    assign w_bc_take = (r_bc_left > 8'd4) ? 8'd4 : r_bc_left;
+    assign w_bc_sel  = 4'(4'b0001 << (w_bc_take - 8'd1));
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_bc_busy <= 1'b0;
+            r_bc_data <= '0;
+            r_bc_left <= '0;
+            r_bc_ch   <= '0;
+        end else if (BYTE_CRC) begin
+            if (r_bc_busy) begin
+                r_bc_data <= r_bc_data >> 32;
+                r_bc_left <= r_bc_left - w_bc_take;
+                if (r_bc_left <= 8'd4) r_bc_busy <= 1'b0;
+            end else if (w_w_beat && (w_strb_bytes != 8'd0)) begin
+                r_bc_busy <= 1'b1;
+                r_bc_data <= fub_axi_wdata >> (w_first_lane * 8);
+                r_bc_left <= w_strb_bytes;
+                r_bc_ch   <= w_active_ch;
+            end
+        end
+    )
+
+    //==========================================================================
     // Per-channel CRC-32 Calculators + beat counters
     //==========================================================================
 
@@ -214,9 +263,9 @@ module axi4_slave_wr_crc_check #(
                 .clk              (aclk),
                 .rst_n            (aresetn),
                 .load_crc_start   (crc_reset),
-                .load_from_cascade(ch_load_from_cascade),
-                .cascade_sel      (4'b1000),
-                .data             (data_slice),
+                .load_from_cascade(BYTE_CRC ? (r_bc_busy && (r_bc_ch == gch[CIW-1:0])) : ch_load_from_cascade),
+                .cascade_sel      (BYTE_CRC ? w_bc_sel : 4'b1000),
+                .data             (BYTE_CRC ? r_bc_data[31:0] : data_slice),
                 .crc              (crc_out_per_ch[gch])
             );
 
@@ -264,7 +313,7 @@ module axi4_slave_wr_crc_check #(
     wire w_wr_last_beat = r_wr_active && fub_axi_wvalid && fub_axi_wready &&
                           fub_axi_wlast;
     assign fub_axi_awready = !r_wr_active || w_wr_last_beat;
-    assign fub_axi_wready  = r_wr_active;
+    assign fub_axi_wready  = r_wr_active && !r_bc_busy;   // BYTE_CRC: hold W while a beat is fed
     assign fub_axi_bresp   = 2'b00;  // OKAY
 
     // B-response FIFO (inline, self-contained): push {user,id} of the completing

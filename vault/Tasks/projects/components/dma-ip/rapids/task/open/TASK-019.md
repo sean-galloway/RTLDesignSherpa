@@ -180,6 +180,37 @@ shared) with these changes:
   both halves (one byte, straddling beats, long unaligned, a 4 KB crossing,
   the length-mismatch contract).
 
+## Board harness: its own Genesys 2 area (2026-09-30)
+
+Sean: "In the genesys2 area create a rapids area separate from the
+rapids-beats area." `projects/fpga-systems/Genesys2/rapids/` is that area:
+`flows-rapids/` mirrors `flows-rapids-beats/` (same bench, UART host flow,
+golden-CRC method), renamed `rapids_byte_*`, harness ID `RAPB`, built around
+`rapids_top` only. The beats area is untouched except for one tie-off line
+(the shared AXIS generator gained a `cfg_last_bytes` input) and a stale
+observer-regmap path (`components/misc` -> `components/utility-ip/misc`)
+that had broken its host readout independently of this task.
+
+What the byte harness adds, all additive on the shared blocks:
+
+- `axis4_master_pattern_gen.cfg_last_bytes`: the tlast beat of every packet
+  carries that many strobed bytes (0 = all), so a packet of N bytes is
+  ceil(N / lanes) beats with a partial last beat. CSR `GEN_LASTB` (0x02C).
+- `axis4_slave_pattern_check` and `axi4_slave_wr_crc_check` parameter
+  `BYTE_CRC` (default 0 keeps STREAM's harness byte-identical): the
+  per-channel CRC runs over the strobed bytes in lane order, four bytes per
+  cycle through `dataint_crc`'s cascade_sel, holding ready while a beat is
+  fed. A one-byte transfer is checked as one byte. The word compare is
+  replaced by a tstrb-contiguity check.
+- Host: `BUILD.BYTE_DUT` (bit 27) tells the host which DUT it talks to; the
+  beat campaigns scale beats to bytes and score against byte-wise goldens;
+  `--byte-smoke` / `--bytes N --offset K` run byte campaigns on both halves.
+  `rapids_byte_golden.py` gains `golden_sink_bytes` (the packet stream) and
+  `golden_source_bytes` (memory beats re-packed from the offset).
+- Sim: `make sim` in the new area runs the beat campaigns on the byte DUT
+  plus four byte cases (1 B at 1, 77 B at 5, 33 B at 31, 203 B across a
+  4 KB boundary).
+
 ## Verification record
 
 | Run (from `make clean-all`) | Result |
