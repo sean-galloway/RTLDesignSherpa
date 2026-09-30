@@ -471,73 +471,70 @@ remains the written-up version of that era.
 
 ### Pattern 1: Basic RAPIDS Instantiation
 
+The byte-granular top (`rtl/top/rapids_top.sv`, rapids TASK-019). The
+beat-granular stepping stone `rapids_beats_top` has the same ports with the
+same names; only the descriptor's length unit differs (bytes here, beats
+there).
+
 ```systemverilog
 rapids_top #(
-    .AXI_ADDR_WIDTH(32),
-    .AXI_DATA_WIDTH(64),
-    .Network_DATA_WIDTH(64),
-    .SRAM_DEPTH(1024),
-    .MAX_DESCRIPTORS(16)
+    .NUM_CHANNELS       (8),
+    .DATA_WIDTH         (256),
+    .ADDR_WIDTH         (64),
+    .AXI_ID_WIDTH       (8),
+    .SRAM_DEPTH         (1024),
+    .USE_AXI_MONITORS   (1)
 ) u_rapids (
-    // Clock and Reset
     .aclk               (system_clk),
     .aresetn            (system_rst_n),
 
-    // AXIL4 Control Interface
-    .s_axil_awaddr      (ctrl_awaddr),
-    .s_axil_awvalid     (ctrl_awvalid),
-    .s_axil_awready     (ctrl_awready),
-    .s_axil_wdata       (ctrl_wdata),
-    .s_axil_wstrb       (ctrl_wstrb),
-    .s_axil_wvalid      (ctrl_wvalid),
-    .s_axil_wready      (ctrl_wready),
-    .s_axil_bresp       (ctrl_bresp),
-    .s_axil_bvalid      (ctrl_bvalid),
-    .s_axil_bready      (ctrl_bready),
-    .s_axil_araddr      (ctrl_araddr),
-    .s_axil_arvalid     (ctrl_arvalid),
-    .s_axil_arready     (ctrl_arready),
-    .s_axil_rdata       (ctrl_rdata),
-    .s_axil_rresp       (ctrl_rresp),
-    .s_axil_rvalid      (ctrl_rvalid),
-    .s_axil_rready      (ctrl_rready),
+    // APB4 configuration slave (SRC block at 0x0000, SNK block at 0x1000)
+    .s_apb_paddr        (cfg_paddr),
+    .s_apb_psel         (cfg_psel),
+    .s_apb_penable      (cfg_penable),
+    .s_apb_pwrite       (cfg_pwrite),
+    .s_apb_pwdata       (cfg_pwdata),
+    .s_apb_pstrb        (cfg_pstrb),
+    .s_apb_prdata       (cfg_prdata),
+    .s_apb_pready       (cfg_pready),
+    .s_apb_pslverr      (cfg_pslverr),
 
-    // AXI4 Memory Interface (Sink - Write)
-    .m_axi_sink_awaddr  (mem_sink_awaddr),
-    .m_axi_sink_awlen   (mem_sink_awlen),
-    .m_axi_sink_awsize  (mem_sink_awsize),
-    .m_axi_sink_awburst (mem_sink_awburst),
-    .m_axi_sink_awvalid (mem_sink_awvalid),
-    .m_axi_sink_awready (mem_sink_awready),
-    // ... additional AXI4 sink write channel signals
+    // AXI4 read master (source: memory -> m_axis)
+    .m_axi_rd_arvalid   (mem_arvalid),
+    .m_axi_rd_arready   (mem_arready),
+    .m_axi_rd_araddr    (mem_araddr),
+    .m_axi_rd_arlen     (mem_arlen),
+    .m_axi_rd_rdata     (mem_rdata),
+    .m_axi_rd_rvalid    (mem_rvalid),
+    .m_axi_rd_rready    (mem_rready),
+    // ... remaining m_axi_rd_* AR/R signals
 
-    // AXI4 Memory Interface (Source - Read)
-    .m_axi_source_araddr  (mem_source_araddr),
-    .m_axi_source_arlen   (mem_source_arlen),
-    .m_axi_source_arsize  (mem_source_arsize),
-    .m_axi_source_arburst (mem_source_arburst),
-    .m_axi_source_arvalid (mem_source_arvalid),
-    .m_axi_source_arready (mem_source_arready),
-    // ... additional AXI4 source read channel signals
+    // AXI4 write master (sink: s_axis -> memory), WSTRB carries the byte enables
+    .m_axi_wr_awvalid   (mem_awvalid),
+    .m_axi_wr_awready   (mem_awready),
+    .m_axi_wr_awaddr    (mem_awaddr),
+    .m_axi_wr_awlen     (mem_awlen),
+    .m_axi_wr_wdata     (mem_wdata),
+    .m_axi_wr_wstrb     (mem_wstrb),
+    .m_axi_wr_wvalid    (mem_wvalid),
+    .m_axi_wr_wready    (mem_wready),
+    // ... remaining m_axi_wr_* AW/W/B signals
 
-    // Network Network Interface (Sink - Receive)
-    .s_network_tdata       (net_rx_data),
-    .s_network_tvalid      (net_rx_valid),
-    .s_network_tready      (net_rx_ready),
-    .s_network_tlast       (net_rx_last),
-    // ... additional Network sink signals
-
-    // Network Network Interface (Source - Transmit)
-    .m_network_tdata       (net_tx_data),
-    .m_network_tvalid      (net_tx_valid),
-    .m_network_tready      (net_tx_ready),
-    .m_network_tlast       (net_tx_last),
-    // ... additional Network source signals
-
-    // MonBus Output
-    .monbus_pkt_valid   (rapids_mon_valid),
-    .monbus_pkt_ready   (rapids_mon_ready),
-    .monbus_pkt_data    (rapids_mon_data)
+    // AXI-Stream: ingress to the sink, egress from the source (tid = channel)
+    .s_axis_tdata       (net_in_tdata),
+    .s_axis_tstrb       (net_in_tstrb),
+    .s_axis_tlast       (net_in_tlast),
+    .s_axis_tid         (net_in_tid),
+    .s_axis_tvalid      (net_in_tvalid),
+    .s_axis_tready      (net_in_tready),
+    .m_axis_tdata       (net_out_tdata),
+    .m_axis_tstrb       (net_out_tstrb),
+    .m_axis_tlast       (net_out_tlast),
+    .m_axis_tid         (net_out_tid),
+    .m_axis_tvalid      (net_out_tvalid),
+    .m_axis_tready      (net_out_tready),
+    // ... tdest/tuser, the descriptor and control AXI masters, MonBus
+    .mon_irq            (dma_irq)
 );
 ```
 
