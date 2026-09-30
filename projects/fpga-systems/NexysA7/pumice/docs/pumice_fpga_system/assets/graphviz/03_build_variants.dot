@@ -25,7 +25,7 @@ digraph build_variants {
         sim [label="verilator + cocotb\na7ddrphy_stub.sv stands in for the PHY;\nverilator_xilinx_stubs supplies BUFG.\nDrives the SAME UART bytestream as the board,\nso a host program is validated before it\never reaches hardware", fillcolor="#fff4e0"];
     }
 
-    vestige [label="ddr2-characterization/flows-ours-uart/\nThe RETIRED \"ours over UART\" flow. No RTL and nothing\ntracked -- but NOT empty: 2 bitstreams and 42 CSVs of\nILA captures and timing scans from the July 2026 board\nbring-up, 203 MB, 41 of them existing nowhere else.\nUnbacked-up measurement data, not build detritus.", shape=note, fillcolor="#ffe8e8"];
+    vestige [label="ddr2-characterization/flows-ours-uart/   DELETED 2026-09-30\nThe retired \"ours over UART\" flow. Its RTL had already moved to\nbuild-perf/; what remained was 203 MB of build output plus 42 CSVs\nof ILA captures and timing scans from the July 2026 bring-up.\nThose captures did their job -- the three x16 bugs and the read-valid\nskew fix came out of them -- and were removed once spent (Sean).\nNamed here because references to the path outlive the directory.", shape=note, fillcolor="#f0f0f0"];
 
     src -> b1; src -> b2; src -> b3;
     src -> lite [label="harness minus the DUT"];

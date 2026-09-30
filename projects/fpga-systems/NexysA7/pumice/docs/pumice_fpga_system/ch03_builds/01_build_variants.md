@@ -52,17 +52,28 @@ worth a section, because each answers a different question.
 
 : Table 3.1: The five targets built from one harness source
 
-`ddr2-characterization/flows-ours-uart/` is not a sixth target. It is the
-retired "ours over UART" flow: its RTL moved to `build-perf` and nothing in it
-is tracked.
+`ddr2-characterization/flows-ours-uart/` was the retired "ours over UART"
+flow and is **deleted as of 2026-09-30**. It is described here because
+references to the path outlive the directory, and because what happened to it
+is a worked example of a real hazard.
 
-**Important:** "nothing tracked" does not mean "nothing there". It holds two
-bitstreams and 42 CSVs -- ILA captures and timing scans from the July 2026 board
-bring-up -- totalling 203 MB, and **41 of those CSVs exist nowhere else in the
-tree**. That is unbacked-up measurement data sitting in an untracked directory,
-which is a real risk and not a cleanup opportunity. Decide deliberately whether
-it is committed, archived or discarded; do not let a `clean-all` decide for
-you.
+Its RTL had already moved to `build-perf/`. What remained was 203 MB of build
+output, two bitstreams, and 42 CSVs of ILA captures and timing scans from the
+July 2026 bring-up -- **none of it tracked in git**, and 41 of those CSVs
+existing nowhere else in the tree.
+
+**Important, and the reason this paragraph is longer than the directory
+deserves:** an earlier edition of this book called that directory "vestigial:
+0 tracked files, only `__pycache__`". The tracked count was right and the rest
+was wrong -- it was written after listing two of its subdirectories and
+generalising from them. On that description the directory was very nearly
+deleted as build detritus, and what would have gone with it were the captures
+behind the three x16 bugs and the read-valid skew fix.
+
+The captures were removed deliberately once they had served their purpose,
+which is the right ending. The wrong ending was available and close.
+**"Nothing tracked" is not "nothing there", and a directory listing of two
+subdirectories is not an inventory.**
 
 ## What the ILA builds change, and what they do not
 
