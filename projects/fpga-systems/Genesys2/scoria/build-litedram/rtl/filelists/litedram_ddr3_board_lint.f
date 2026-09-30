@@ -7,7 +7,7 @@
 # interface checked here is the interface the core actually has. This catches a
 # mis-wired port; Vivado remains the authority on the core itself, and
 # litedram_ddr3_board.f is the list the BUILD uses.
-$REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/verilator_xilinx_stubs.sv
+-f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/verilator_xilinx_stubs.f
 # TRACKED, unlike the core it stands in for. gen/ is gitignored because the
 # core is 1.2 MB of regenerable output, but then lint would only run on the
 # machine that generated it -- so the stub is committed, which is the whole

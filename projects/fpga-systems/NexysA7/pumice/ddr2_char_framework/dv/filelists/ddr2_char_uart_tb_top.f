@@ -17,7 +17,7 @@
 -f $REPO_ROOT/rtl/amba/filelists/sdpram_core.f
 -f $REPO_ROOT/rtl/amba/filelists/sdpram_slave_axil_axil.f
 -f $REPO_ROOT/rtl/common/filelists/hex_to_7seg.f
-$REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/verilator_xilinx_stubs.sv
+-f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/verilator_xilinx_stubs.f
 $REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/dfi_cmd_delay.sv
 $REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/dfi_rddata_delay.sv
 # The framework's OWN package. It must precede harness_csr, which takes

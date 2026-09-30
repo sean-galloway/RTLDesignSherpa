@@ -4,7 +4,7 @@
 # It is Xilinx-primitive soup that only Vivado reads in full; the `lint` target
 # in the Makefile therefore elaborates this top with the Verilator stubs and
 # lets Vivado be the authority on the core itself.
-$REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/verilator_xilinx_stubs.sv
+-f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/verilator_xilinx_stubs.f
 # The CPU. litedram_gen does NOT emit this -- regen.sh copies it out of
 # pythondata-cpu-vexriscv, because LiteX only does so during the gateware
 # compile we skip. Without it synthesis dies 90 seconds in with
