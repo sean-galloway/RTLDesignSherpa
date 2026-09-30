@@ -45,6 +45,7 @@ MAS Components:
   - pic_8259    : Programmable Interrupt Controller 8259
   - pit_8254    : Programmable Interval Timer 8254
   - pm_acpi     : ACPI Power Management
+  - rlb_top     : Subsystem integration (crossbar, interrupt fabric, cascade)
   - rtc         : Real-Time Clock
   - smbus       : SMBus/I2C Controller
   - uart_16550  : 16550-Compatible UART
@@ -89,6 +90,7 @@ COMPONENTS=(
   "pic_8259:pic_8259_mas:pic_8259_mas_index.md:PIC_8259"
   "pit_8254:pit_8254_mas:pit_8254_mas_index.md:PIT_8254"
   "pm_acpi:pm_acpi_mas:pm_acpi_mas_index.md:PM_ACPI"
+  "rlb_top:rlb_top_mas:rlb_top_mas_index.md:RLB_TOP"
   "rtc:rtc_mas:rtc_mas_index.md:RTC"
   "smbus:smbus_mas:smbus_mas_index.md:SMBUS"
   "uart_16550:uart_16550_mas:uart_16550_mas_index.md:UART_16550"
