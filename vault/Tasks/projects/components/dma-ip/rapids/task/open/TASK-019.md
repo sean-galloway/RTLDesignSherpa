@@ -187,7 +187,15 @@ shared) with these changes:
 | byte macro gate: snk / src data path axis test | 56/0, 64/0 (incl. byte_packets) |
 | byte top gate: rapids_top / rapids_core | 12/0 (incl. source_bytes, sink_bytes), 2/0 |
 | all six areas gate, 2026-09-29 (commit 89526ac23 fixes the 10) | fub 71/0, fub_beats 46/0, macro 171/10 -> scheduler_group* 37/0 after, macro_beats 173/0, top 14/0, top_beats 12/0 |
-| all six areas func | running |
+| all six areas func, 2026-09-29 | fub 494/0, fub_beats 388/0, macro 457/1 (test_axi_write_operations, 512-bit slow_producer), macro_beats 430/0, top 28/0, top_beats 24/0 |
+| macro snk_data_path_axis_test func after the stimulus reorder (descriptor first) | 112/0 |
+
+The one func failure was stimulus order, not RTL: the beat-era sink tests
+queued a channel's next packet before that channel's descriptor could be
+issued (send_descriptor blocks until the scheduler is free), so the AXIS
+master's head beat waited on the byte contract past the BFM's 1000-cycle
+ready timeout and a dropped beat shifted the channel by one. The tests now
+send the descriptor first (handbook dv/blocking-send-deadlock).
 
 Bugs the tests caught on the way: the egress retired a packet's state in
 the same cycle its final pop re-armed it (source beat loss 27/84 at

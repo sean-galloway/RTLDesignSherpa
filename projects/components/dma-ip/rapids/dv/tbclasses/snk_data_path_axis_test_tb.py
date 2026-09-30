@@ -591,11 +591,10 @@ class SnkDataPathAxisTestTB(TBBase):
                 # the channel its beats first and require the transfer to finish
                 # (the old scenario sent bare descriptors and passed either way).
                 test_data = [random.getrandbits(self.DATA_WIDTH) for _ in range(beats)]
-                await self.send_axis_packet(channel, test_data, last=True)
-                await self.wait_clocks(self.clk_name, 10)
-
-                # Send descriptor
+                # Descriptor first (byte-granular contract), then the packet
                 await self.send_descriptor(channel, addr, beats)
+                await self.wait_clocks(self.clk_name, 10)
+                await self.send_axis_packet(channel, test_data, last=True)
 
                 # Wait for scheduler to process (poll up to 1000 cycles)
                 sched_idle = 0
@@ -679,9 +678,14 @@ class SnkDataPathAxisTestTB(TBBase):
     async def test_axis_reception(self, num_packets: int = 16) -> Tuple[bool, Dict[str, Any]]:
         """Test AXIS data reception
 
-        CRITICAL: Data flow is AXIS -> SRAM -> AXI Write
-        We must send AXIS data BEFORE the descriptor so there's data in SRAM
-        for the write engine to drain when the scheduler commands the write.
+        Data flow is AXIS -> SRAM -> AXI Write. Byte-granular RAPIDS (TASK-019):
+        the descriptor goes FIRST -- the ingress cannot place a packet's bytes
+        until the scheduler has fetched the descriptor that says where they
+        go, and send_descriptor() blocks until the channel's scheduler accepts
+        it. Queuing the data first left the AXIS master's head beat waiting on
+        a channel still busy with its previous transfer, past the BFM's
+        1000-cycle ready timeout, and the dropped beat shifted every later
+        beat of that channel by one (func, 512-bit, slow_producer).
         """
         self.log.info(f"Testing AXIS reception ({num_packets} packets)...")
 
@@ -706,12 +710,10 @@ class SnkDataPathAxisTestTB(TBBase):
                 addr = self.BASE_ADDRESS + channel * self.CHANNEL_OFFSET + i * 0x1000
 
                 # CRITICAL FIX: Send AXIS data FIRST!
-                # Data must be in SRAM before scheduler can command write engine
-                await self.send_axis_packet(channel, test_data, last=True)
-                await self.wait_clocks(self.clk_name, 10)
-
-                # NOW send descriptor to command scheduler to drain SRAM
+                # Descriptor first (byte-granular contract), then the packet
                 await self.send_descriptor(channel, addr, beats)
+                await self.wait_clocks(self.clk_name, 10)
+                await self.send_axis_packet(channel, test_data, last=True)
 
                 # Wait for processing
                 await self.wait_clocks(self.clk_name, 50)
@@ -783,9 +785,14 @@ class SnkDataPathAxisTestTB(TBBase):
     async def test_axi_write_operations(self, num_operations: int = 12) -> Tuple[bool, Dict[str, Any]]:
         """Test AXI write operations
 
-        CRITICAL: Data flow is AXIS -> SRAM -> AXI Write
-        We must send AXIS data BEFORE the descriptor so there's data in SRAM
-        for the write engine to drain when the scheduler commands the write.
+        Data flow is AXIS -> SRAM -> AXI Write. Byte-granular RAPIDS (TASK-019):
+        the descriptor goes FIRST -- the ingress cannot place a packet's bytes
+        until the scheduler has fetched the descriptor that says where they
+        go, and send_descriptor() blocks until the channel's scheduler accepts
+        it. Queuing the data first left the AXIS master's head beat waiting on
+        a channel still busy with its previous transfer, past the BFM's
+        1000-cycle ready timeout, and the dropped beat shifted every later
+        beat of that channel by one (func, 512-bit, slow_producer).
 
         TIMING FIX: The full data path (AXIS->SRAM->drain->AXI W->B response) takes
         1000+ clocks per operation. We separate stimulus from verification:
@@ -821,14 +828,10 @@ class SnkDataPathAxisTestTB(TBBase):
                     'test_data': test_data
                 })
 
-                # Send AXIS data FIRST (into SRAM buffer)
-                await self.send_axis_packet(channel, test_data, last=True)
-
-                # Small wait for AXIS data to buffer
-                await self.wait_clocks(self.clk_name, 10)
-
-                # Send descriptor (triggers scheduler to drain SRAM to AXI)
+                # Descriptor first (byte-granular contract), then the packet
                 await self.send_descriptor(channel, addr, beats)
+                await self.wait_clocks(self.clk_name, 10)
+                await self.send_axis_packet(channel, test_data, last=True)
 
                 # Small inter-operation delay
                 await self.wait_clocks(self.clk_name, 5)
@@ -896,9 +899,14 @@ class SnkDataPathAxisTestTB(TBBase):
     async def test_end_to_end_flow(self, num_transfers: int = 8) -> Tuple[bool, Dict[str, Any]]:
         """Test end-to-end data flow
 
-        CRITICAL: Data flow is AXIS -> SRAM -> AXI Write
-        We must send AXIS data BEFORE the descriptor so there's data in SRAM
-        for the write engine to drain when the scheduler commands the write.
+        Data flow is AXIS -> SRAM -> AXI Write. Byte-granular RAPIDS (TASK-019):
+        the descriptor goes FIRST -- the ingress cannot place a packet's bytes
+        until the scheduler has fetched the descriptor that says where they
+        go, and send_descriptor() blocks until the channel's scheduler accepts
+        it. Queuing the data first left the AXIS master's head beat waiting on
+        a channel still busy with its previous transfer, past the BFM's
+        1000-cycle ready timeout, and the dropped beat shifted every later
+        beat of that channel by one (func, 512-bit, slow_producer).
         """
         self.log.info(f"Testing end-to-end flow ({num_transfers} transfers)...")
 
@@ -913,12 +921,10 @@ class SnkDataPathAxisTestTB(TBBase):
                 test_data = [random.getrandbits(self.DATA_WIDTH) for _ in range(beats)]
 
                 # CRITICAL FIX: Send AXIS data FIRST!
-                # Data must be in SRAM before scheduler can command write engine
-                await self.send_axis_packet(channel, test_data, last=True)
-                await self.wait_clocks(self.clk_name, 20)
-
-                # NOW send descriptor - tells scheduler to drain SRAM to memory
+                # Descriptor first (byte-granular contract), then the packet
                 await self.send_descriptor(channel, addr, beats, eos=(i == num_transfers - 1))
+                await self.wait_clocks(self.clk_name, 20)
+                await self.send_axis_packet(channel, test_data, last=True)
 
                 # Wait for the write to LAND, rather than assuming a fixed
                 # delay. This used to wait exactly 150 clocks and read once,
@@ -992,9 +998,9 @@ class SnkDataPathAxisTestTB(TBBase):
         ch = 0
         addr = self.BASE_ADDRESS + ch * self.CHANNEL_OFFSET
         short = [random.getrandbits(self.DATA_WIDTH) for _ in range(4)]
-        await self.send_axis_packet(ch, short, last=True)
-        await self.wait_clocks(self.clk_name, 20)
         await self.send_descriptor(ch, addr, len(short))
+        await self.wait_clocks(self.clk_name, 20)
+        await self.send_axis_packet(ch, short, last=True)
         bad = await self._wait_memory(addr - self.BASE_ADDRESS, short, polls=20)
         if bad:
             return False, {'phase': 'short transfer', 'error': bad}
@@ -1025,9 +1031,14 @@ class SnkDataPathAxisTestTB(TBBase):
     async def stress_test(self, num_operations: int = 32) -> Tuple[bool, Dict[str, Any]]:
         """Stress test with high throughput
 
-        CRITICAL: Data flow is AXIS -> SRAM -> AXI Write
-        We must send AXIS data BEFORE the descriptor so there's data in SRAM
-        for the write engine to drain when the scheduler commands the write.
+        Data flow is AXIS -> SRAM -> AXI Write. Byte-granular RAPIDS (TASK-019):
+        the descriptor goes FIRST -- the ingress cannot place a packet's bytes
+        until the scheduler has fetched the descriptor that says where they
+        go, and send_descriptor() blocks until the channel's scheduler accepts
+        it. Queuing the data first left the AXIS master's head beat waiting on
+        a channel still busy with its previous transfer, past the BFM's
+        1000-cycle ready timeout, and the dropped beat shifted every later
+        beat of that channel by one (func, 512-bit, slow_producer).
         """
         self.log.info(f"Running stress test ({num_operations} operations)...")
 
@@ -1042,15 +1053,11 @@ class SnkDataPathAxisTestTB(TBBase):
                 test_data = [random.getrandbits(self.DATA_WIDTH) for _ in range(beats)]
 
                 # CRITICAL FIX: Send AXIS data FIRST!
-                # Data must be in SRAM before scheduler can command write engine
-                await self.send_axis_packet(channel, test_data, last=True)
-
-                # Random delay after data
+                # Descriptor first (byte-granular contract), then the packet
+                await self.send_descriptor(channel, addr, beats)
                 delay = random.randint(1, 10)
                 await self.wait_clocks(self.clk_name, delay)
-
-                # NOW send descriptor - tells scheduler to drain SRAM to memory
-                await self.send_descriptor(channel, addr, beats)
+                await self.send_axis_packet(channel, test_data, last=True)
 
                 # Short wait
                 await self.wait_clocks(self.clk_name, random.randint(10, 30))
