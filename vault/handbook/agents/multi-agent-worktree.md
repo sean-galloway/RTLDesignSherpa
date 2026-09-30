@@ -146,6 +146,23 @@ The rules:
   The tell was there and worth memorising: the same run also failed
   `nexys_ddr2_char`, an area the commit never touched. **Two areas failing
   where one commit landed is almost always the method, not the tree.**
+- **The Vivado build lock does NOT protect the BOARD.** `make/fpga_flow.mk`
+  locks per BUILD DIRECTORY -- deliberately, and correctly, so build-mon and
+  build-perf can run at once while two of the same target cannot. But a
+  physical board is contended by JTAG/UART SERIAL, not by build directory, so
+  two areas targeting one board take two different locks and both proceed.
+  `program` and `run` are unguarded.
+  Near miss, 2026-09-30: `Genesys2/scoria/build-litedram` programmed the
+  Genesys 2 and held /dev/ttyUSB0 until 09:34:51; `Genesys2/rapids/flows-rapids`
+  started an 8-channel byte-perf characterization on the SAME board at
+  09:40:04. Five minutes apart, by luck, not by design.
+  The failure it would have produced is the bad kind: the peer's harness
+  records the sha256 of the bitstream IT programmed, so a third party
+  reprogramming mid-run yields a results file that looks valid and is measuring
+  someone else's design. Until `program`/`run` take a board-keyed lock, check
+  `fuser /dev/ttyUSB*` and `ps` for another area's host script BEFORE
+  programming a shared board -- `make ports` tells you the serial, not who is
+  using it.
 - **`git show --stat` elides leading paths; it is not evidence about a path.**
   2026-09-30: a peer read `.../rtl/verilator_xilinx_stubs.sv | 17 +++` from
   `--stat`, filled the `...` in from what the rest of the commit was about, and
