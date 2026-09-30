@@ -45,6 +45,15 @@ It is an endpoint codec, never a mid-stream insert (PRD 4a). Until a consumer na
   golden model `reedsolo.gf_mult_noLUT(a, b, prim, 2**m)`, hex `PRIM_POLY`
   reaches the TB through the environment and is parsed with `int(x, 0)`
   (TBBase.convert_to_int is decimal-only).
+- Encoder facts (2026-09-30): `rs_encoder_core` elaborates only at
+  `SYMBOLS_PER_BEAT = 1` (an `$error` guard); the S > 1 datapath is the next
+  step on it. `gf_lfsr_encoder` drains parity by shifting with zero feedback,
+  so it is clear after 2t shifts and has no clear input -- do not add one. The
+  golden model is `reedsolo.rs_encode_msg(data, 2t, fcr=b)`; call
+  `reedsolo.init_tables(prim, 2, m)` first, and pass a `bytearray` only for
+  m <= 8 (a list above). A full-length profile cannot test a block longer
+  than k (the model has no room), so only shortened profiles exercise the
+  long-block framing error.
 - Filelists in `rtl/filelists/` and registered in `bin/filelists.toml` from
   the first module (`vault/handbook/design/filelists.md`).
 - DV: cocotb under `dv/tests/` with TB classes in `dv/tbclasses/` (Pattern B,

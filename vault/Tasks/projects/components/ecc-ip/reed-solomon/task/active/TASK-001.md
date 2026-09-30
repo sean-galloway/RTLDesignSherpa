@@ -104,3 +104,22 @@ now resolves hyphenated component dirs below the family level
 (`reed_solomon` -> `reed-solomon`), which pumice and the other hyphenated
 components could not do through the shim before. Reuse survey: no GF
 arithmetic existed anywhere in the tree.
+
+**2026-09-30 -- D2 and D3 decided (Sean: "All can be elaboration time"):**
+t and n are elaboration-time parameters `T_SYMBOLS` (default 8) and `N_SYMBOLS`
+(default 2^m - 1), k derived; no run-time programmability. This unblocks the
+encoder core and the decoder core; D5 (erasures) and D10 (consumer) stay open.
+
+**2026-09-30 -- encoder core.** `rtl/gf/gf_lfsr_encoder.sv` (Level 1: 2t
+`gf_mul_const` taps, g(x) built at elaboration from t and b, parity drained by
+zero-feedback shifts) and `rtl/rs_encoder_core.sv` (Level 3: valid/ready both
+ends, `last` boundary, `frame_err`, output `gaxi_skid_buffer`; S = 1 only, guarded).
+Lint clean at RS(255,239), RS(21,19), RS(15,11), RS(544,514). DV: `GFLFSRTB`
+drives the LFSR directly (5 configs incl. the CCSDS field 0x187 with b = 112);
+`RSEncoderTB` drives the core through GAXIMaster/GAXISlave on the `in_`/`out_`
+prefixes with reedsolo `rs_encode_msg` as golden -- blocks, five valid/ready
+profiles, short/long framing errors, and a throughput check that measures
+exactly n cycles per n symbols under back-to-back timing. Area: 21/42/63 cells
+green at gate/func/full. Mutation check: building g(x) with one root too few
+gave 8 mismatches in 12 checks on RS(21,19). Next: the multi-symbol (S > 1)
+encoder datapath, or the decoder's syndrome unit.

@@ -10,3 +10,10 @@
 $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/gf/gf_mul_const.sv
 $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/gf/gf_mul.sv
 $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/gf/gf_inv.sv
+
+# Level 1 and Level 3 (encoder side)
+-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
++incdir+$REPO_ROOT/rtl/amba/includes
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/gf/gf_lfsr_encoder.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/rs_encoder_core.sv

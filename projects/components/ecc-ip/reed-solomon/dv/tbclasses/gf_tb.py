@@ -17,7 +17,7 @@ Created: 2026-09-30
 import os
 import random
 
-from cocotb.triggers import Timer
+from cocotb.triggers import Timer, RisingEdge
 
 import reedsolo
 
@@ -118,6 +118,85 @@ class GFTB(TBBase):
                 self._score(f"zero({a:#x})", zero, 0)
                 # the inverse is right iff a * inv == 1 in the golden model
                 self._score(f"a*inv({a:#x})", self.gold_mul(a, inv), 1)
+        return self.mismatches == 0
+
+    def get_test_report(self):
+        return {'checks': self.checks, 'mismatches': self.mismatches}
+
+
+class GFLFSRTB(TBBase):
+    """gf_lfsr_encoder driven directly: step k symbols, shift out 2t parity,
+    compare with reedsolo's systematic encoder. The register must be zero after
+    the drain so the next block needs no clear."""
+
+    BLOCKS = {'gate': 8, 'func': 64, 'full': 512}
+
+    def __init__(self, dut, **kwargs):
+        super().__init__(dut)
+        self.clk = dut.aclk
+        self.clk_name = 'aclk'
+        self.rst_n = dut.aresetn
+        self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
+        if self.TEST_LEVEL not in self.BLOCKS:
+            self.TEST_LEVEL = 'gate'
+        random.seed(self.SEED)
+        self.M = int(dut.SYMBOL_WIDTH.value)
+        self.PRIM = int(dut.PRIM_POLY.value)
+        self.T = int(dut.T_SYMBOLS.value)
+        self.B = int(dut.FIRST_ROOT.value)
+        self.K = int(os.environ.get('K_SYMBOLS', str((1 << self.M) - 1 - 2 * self.T)))
+        self.Q = 1 << self.M
+        reedsolo.init_tables(prim=self.PRIM, generator=2, c_exp=self.M)
+        self.checks = 0
+        self.mismatches = 0
+
+    async def setup_clocks_and_reset(self, period_ns=10):
+        await self.start_clock(self.clk_name, freq=period_ns, units='ns')
+        self.dut.i_step.value = 0
+        self.dut.i_shift.value = 0
+        self.dut.i_data.value = 0
+        await self.assert_reset()
+        await self.wait_clocks(self.clk_name, 3)
+        await self.deassert_reset()
+        await self.wait_clocks(self.clk_name, 1)
+
+    async def assert_reset(self):
+        self.rst_n.value = 0
+
+    async def deassert_reset(self):
+        self.rst_n.value = 1
+
+    async def encode_block(self, data):
+        for sym in data:
+            self.dut.i_data.value = sym
+            self.dut.i_step.value = 1
+            await RisingEdge(self.clk)
+        self.dut.i_step.value = 0
+        parity = []
+        for _ in range(2 * self.T):
+            await Timer(1, units='ns')
+            parity.append(int(self.dut.ow_parity.value))
+            self.dut.i_shift.value = 1
+            await RisingEdge(self.clk)
+        self.dut.i_shift.value = 0
+        await Timer(1, units='ns')
+        return parity, int(self.dut.ow_parity.value)
+
+    async def run_blocks(self):
+        for i in range(self.BLOCKS[self.TEST_LEVEL]):
+            data = [random.randrange(self.Q) for _ in range(self.K)]
+            parity, after = await self.encode_block(data)
+            exp = list(reedsolo.rs_encode_msg(bytearray(data) if self.M <= 8 else data,
+                                              2 * self.T, fcr=self.B, generator=2))[self.K:]
+            self.checks += 2
+            if parity != exp:
+                self.mismatches += 1
+                if self.mismatches <= 10:
+                    self.log.error(f"block {i}: parity {parity} expected {exp}")
+            if after != 0:
+                self.mismatches += 1
+                self.log.error(f"block {i}: register not clear after drain (top = {after:#x})")
         return self.mismatches == 0
 
     def get_test_report(self):
