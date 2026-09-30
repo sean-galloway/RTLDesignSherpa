@@ -71,13 +71,62 @@ malformed, and two are deferred with a named condition.
 
 | # | Question | Resolution |
 |---|---|---|
-| Q1 | DFI low-power handshake ordering on exit | **DEFERRED** (Sean). Depends on PHY behaviour, which is downstream of the board decision. Condition to revisit: a PHY is chosen |
-| Q2 | May periodic `ZQCS` preempt queued demand traffic? | **ANSWERED: no. Request/grant, never preempt.** See below |
-| Q3 | Sample one prime DQ bit or several? | **ANSWERED: the prime bit only**, which makes `tWLOE` inert. See below |
-| Q4 | The value of `tWLMRD`'s controller-defined maximum | **DEFERRED.** Needs a PHY-informed number; same condition as Q1 |
-| Q5 | `REFpb` ordering: sequential or occupancy-aware? | **STRUCK — the question was malformed.** See Chapter 3.4 |
+| Q1 | DFI low-power handshake ordering on exit | **ANSWERED: the question does not arise on a Series-7 PHY.** See below |
+| Q2 | May periodic `ZQCS` preempt queued demand traffic? | **ANSWERED: no. Request/grant, sharing the maintenance sequencer** |
+| Q3 | Sample one prime DQ bit or several? | **ANSWERED: the prime bit only**, which makes `tWLOE` inert |
+| Q4 | The value of `tWLMRD`'s controller-defined maximum | **ANSWERED in kind: no PHY supplies one.** It is a policy value, not a measurement. See below |
+| Q5 | `REFpb` ordering: sequential or occupancy-aware? | **STRUCK — malformed.** The device owns the sequence (Ch 3.4) |
 
 : Table 6.1: Question resolutions
+
+### Q1 and Q4: I was wrong to call these PHY-blocked
+
+Both were deferred in v0.2 and v0.3 "pending a PHY choice". Examining the PHY
+shows that framing was wrong in both cases, and the correction matters because
+it unblocks the last two questions in this document.
+
+**The PHY choice is narrower than it looked.** LiteDRAM's Series-7 PHY is one
+module, `s7ddrphy`, whose `A7DDRPHY` and `K7DDRPHY` classes differ by target
+family, not by DFI behaviour, and it supports DDR2 and DDR3 with write leveling.
+For any Xilinx 7-series target -- which is every board this repository owns --
+the PHY is that module. There was no branch to wait on.
+
+**Q4: no PHY supplies a `tWLMRD` maximum, because none can.** `s7ddrphy`
+exposes exactly two leveling controls, `_wlevel_en` (a CSR storage field) and
+`_wlevel_strobe` (a CSR pulse), and contains **no timeout of any kind**.
+JESD79-3F declares the maximum controller-dependent and the PHY declines it too,
+so the value is a *policy* decision — how long to wait before declaring a
+leveling attempt failed — not a number to be measured off a PHY. scoria defines
+it, as this document already specified: a CSR timeout with its own status bit.
+Choosing the number is a one-line decision, not an experiment.
+
+**Q1: the question does not arise on this PHY.** `s7ddrphy` implements **no DFI
+low-power interface at all** — no `lp_req`, no `lp_ack`, nothing. Nor does
+LiteDRAM's generated DDR3 controller: a search of the generated core for
+`dfi_lp` returns zero hits, while `CKE` appears 92 times. Power-down on this
+PHY family is achieved by **DRAM command** — CKE plus `SRE`/`SRX` — and not
+through the DFI low-power channel.
+
+So there is no exit-ordering handshake to get wrong, because there is no
+counterparty to handshake with. The requirement changes accordingly:
+
+- `powerdown_ctrl` achieves precharge-power-down, active-power-down and
+  self-refresh through CKE and `SRE`/`SRX`, which is what pumice already does.
+- scoria still *exposes* `dfi_lp_ctrl_req` and `dfi_lp_data_req`, because DFI
+  v3.1 defines them and a future PHY may consume them. Their specified
+  behaviour when no acknowledgement ever arrives is to **time out and report**,
+  never to block power-down — an unacknowledged request must not be able to
+  wedge the controller.
+- The ordering question returns only with a PHY that implements the interface,
+  and at that point it is answerable by reading that PHY rather than by
+  speculation.
+
+**Note on the correction.** This is the second framing error in this document's
+short life: v0.1 asked Q5, which the DRAM standard had already settled, and
+v0.2/v0.3 deferred Q1 and Q4 to a decision that turned out not to exist. Both
+came from the same habit — treating something as an open choice without first
+checking whether the thing it depends on had already answered it. The cheap
+check is to read the artifact.
 
 ### Q2: ZQCS is a request, never a preemption
 
@@ -146,7 +195,7 @@ MODIFIED to INHERITED — see Chapter 3.4.
 
 Three things, in order:
 
-1. The two deferred questions (Q1, Q4) answered — both blocked on a PHY choice, which is downstream of the board decision.
+1. A value chosen for `tWLMRD`'s maximum (Q4 reduced this to a one-line policy decision) and, if a board is selected, its PHY's DFI low-power behaviour confirmed against Q1's assumption.
 2. The RTL written, and this document reconciled against it — with every
    INHERITED marking either confirmed or corrected. A marking that turns out to
    be wrong is a defect in this document, and the correction goes here rather

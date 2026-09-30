@@ -32,7 +32,7 @@ digraph scoria_blocks {
     }
     subgraph cluster_mod2 {
         label="MODIFIED (continued)"; style="rounded"; color="#B8860B";
-        pd   [label="powerdown_ctrl   MODIFIED\nSRE / SRX self-refresh, precharge- and\nactive-power-down; drives the SPLIT DFI\nlow-power requests (ctrl and data)", fillcolor="#fff4e0"];
+        pd   [label="powerdown_ctrl   INHERITED\nSRE / SRX self-refresh, precharge- and\nactive-power-down -- all via CKE and DRAM\ncommands. s7ddrphy implements NO DFI low-power\ninterface, so that channel is exposed but unused", fillcolor="#d5ecd5"];
         csr  [label="scoria_csr (PeakRDL)   MODIFIED\nadds tZQinit / tZQoper / tZQCS,\ntWLMRD / tWLDQSEN / tWLO / tWLOE,\nand the leveling telemetry", fillcolor="#fff4e0"];
     }
 

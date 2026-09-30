@@ -52,9 +52,11 @@ fixed form — see Chapter 2.2), `scoria_cmd_arbiter`, `scoria_page_policy`,
 `scoria_axi_burst_chopper`, `scoria_dfi_cdc`, `scoria_dfi_cmd_path`,
 `scoria_dfi_rd_aligner`, `scoria_dfi_wr_serializer`,
 `scoria_cmd_history_checker`, and **`refresh_ctrl`** -- which already carries the
-`REFpb` bank rotor for LPDDR2 and needs only a mode-select CSR for LPDDR3.
+`REFpb` bank rotor for LPDDR2 and needs only a mode-select CSR for LPDDR3, and
+**`powerdown_ctrl`** -- power-down is CKE plus `SRE`/`SRX` on this PHY family,
+so only the new command encodings change.
 
-That is 19 of the 24 FUBs carried over with no functional change. The command
+That is 20 of the 24 FUBs carried over with no functional change. The command
 history checker is worth naming explicitly: it is the verification-side block
 that independently re-derives JEDEC spacing from the issued command stream, and
 it must grow DDR3's parameters, but its mechanism is inherited.
@@ -65,7 +67,6 @@ it must grow DDR3's parameters, but its mechanism is inherited.
 |---|---|---|
 | `init_sequencer` | DDR3 adds a `RESET#` pin and a four-register MR set | Ch 3.2 |
 | `mode_register` | MR0-MR3 replaces MR0-MR2 plus EMRS3 | Ch 3.2 |
-| `powerdown_ctrl` | self-refresh entry/exit against the *split* DFI low-power requests | Ch 3.1 |
 | `dfi_cmd_formatter` | new command encodings: `ZQCL`, `ZQCS`, `PREA` | Ch 3.2 |
 | `dfi_signal_pack` | v3.1 signal set | Ch 4.1 |
 

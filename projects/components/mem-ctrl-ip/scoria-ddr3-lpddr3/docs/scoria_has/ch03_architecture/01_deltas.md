@@ -25,7 +25,7 @@
 
 ## The inheritance, stated once
 
-Nineteen of pumice's twenty-four FUBs carry over with no functional change, as
+Twenty of pumice's twenty-four FUBs carry over with no functional change, as
 do the top, core, AXI4 macro and the DFI datapath. Chapter 2.3 lists them. This
 chapter covers only what changes, and the list is short by design.
 
@@ -52,27 +52,34 @@ the description does not mention the flop. Copy the module.
 | `scoria_zq_ctrl` | **NEW** | periodic `ZQCS` is maintenance traffic | 3.2 |
 | `scoria_wrlvl_ifc` | **NEW** | DDR3 adds write leveling | 3.3 |
 | `refresh_ctrl` | INHERITED | pumice already implements `REFpb`; LPDDR3 uses the same device-fixed mechanism. Only a mode-select CSR is added | 3.4 |
-| `powerdown_ctrl` | MODIFIED | self-refresh against the split DFI low-power requests | below |
+| `powerdown_ctrl` | INHERITED | mechanism unchanged: CKE + `SRE`/`SRX`. The DFI low-power channel is unused on this PHY family | below |
 | `scoria_mem_cmd_scheduler` | MODIFIED | must admit ZQ demand alongside refresh | 3.2 |
 | `scoria_csr` | MODIFIED | new timing registers and leveling telemetry | Ch 5 |
 
 : Table 3.1: Every change, with its cause
 
-## Power-down: the one change small enough to cover here
+## Power-down: smaller than v0.1 thought
 
 DDR3 and LPDDR3 both offer precharge-power-down, active-power-down and
 self-refresh (`SRE` / `SRX`). pumice's `powerdown_ctrl` already implements
-idle-timer-driven entry and exit; what changes is the interface beneath it.
+idle-timer-driven entry and exit, and **that is the whole mechanism** on a
+Series-7 PHY target.
 
-DFI v2.1.1 had a single `dfi_lp_req`. DFI v3.1 **splits it** into
-`dfi_lp_ctrl_req` and `dfi_lp_data_req`, letting the controller request low-power
-state for the command path and the data path independently. `powerdown_ctrl`
-therefore drives two requests where it drove one, and the distinction is real:
-a controller can idle the data path while keeping the command path alive, which
-is what active-power-down wants.
+v0.1 through v0.3 of this document said the interesting change was that DFI
+v3.1 splits `dfi_lp_req` into `dfi_lp_ctrl_req` and `dfi_lp_data_req`, and left
+the exit-ordering as an open question. The split is real, but it is not
+load-bearing here: **`s7ddrphy` implements no DFI low-power interface at all**,
+and LiteDRAM's generated DDR3 controller does not drive one either — zero
+`dfi_lp` hits in the generated core against 92 references to `CKE`.
 
-**Note:** the reverse asymmetry — bringing one back up without the other — is
-where a naive implementation will deadlock. The requirement in this edition is
-that entry and exit are symmetric per path and that the CSR exposes which paths
-are currently down. The exact handshake ordering is an open question in
-Chapter 6, because it depends on PHY behaviour this specification cannot fix.
+Power-down on this PHY family is a **DRAM command** matter: CKE, plus `SRE` and
+`SRX` for self-refresh. `powerdown_ctrl` is therefore INHERITED in mechanism,
+and what it gains for DDR3 is the new self-refresh command encodings rather
+than a new interface.
+
+**Requirement for the DFI low-power ports.** scoria still exposes
+`dfi_lp_ctrl_req` and `dfi_lp_data_req`, because DFI v3.1 defines them and a
+future PHY may consume them. Their behaviour when no acknowledgement ever
+arrives is specified: **time out and report; never block power-down.** An
+unacknowledged request must not be able to wedge the controller — which is the
+real hazard, and a smaller one than the ordering puzzle v0.2 imagined.

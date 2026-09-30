@@ -88,6 +88,14 @@ From JESD79-3F:
 
 : Table 3.4: Write-leveling timing windows
 
+**What the PHY does during leveling, and what it does not.** `s7ddrphy`
+exposes exactly `_wlevel_en` and `_wlevel_strobe`, and while leveling is
+enabled it forces `rddata_valid` on every phase (so the DRAM's answer returns
+through the ordinary read path) and forces `dqs_oe` (so DQS is driven
+continuously rather than gated per burst). It contains **no timeout of any
+kind** — which is why the maximum below is scoria's to define and not a number
+to be read off a PHY.
+
 **Note on `tWLMRD`'s open maximum.** Because JESD79-3F leaves the maximum to the
 controller, scoria must *define* one rather than inherit it, and the definition
 belongs in the CSR: a host that waits forever for a result it will never get is

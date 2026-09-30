@@ -23,9 +23,9 @@
 
 # scoria DDR3/LPDDR3 Family Controller — Hardware Architecture Specification
 
-**Version:** 0.3
+**Version:** 0.4
 **Date:** 2026-09-29
-**Status:** v0.2, pre-RTL. Q1-Q5 resolved, deferred with conditions, or struck (Ch 6). This document SPECIFIES the controller; it
+**Status:** v0.4, pre-RTL. **No open questions remain** -- Q1-Q5 are answered or struck (Ch 6). This document SPECIFIES the controller; it
 does not describe an implementation, because there is none yet. Every block is
 marked **INHERITED**, **MODIFIED** or **NEW** against the pumice DDR2/LPDDR2
 controller, which is the architecture scoria is derived from.

@@ -26,7 +26,7 @@
 | Field | Value |
 |-------|-------|
 | Title | scoria DDR3/LPDDR3 Family Controller — Hardware Architecture Specification |
-| Version | 0.3 |
+| Version | 0.4 |
 | Date | 2026-09-29 |
 | Status | First edition, **pre-RTL**. Specifies the controller; does not describe an implementation |
 | Scope | Controller architecture to the DFI v3.1 boundary, for DDR3 and LPDDR3 |
@@ -71,6 +71,7 @@ it a scheduling problem and not only a sequencing one.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4 | 2026-09-30 | Q1 and Q4 answered rather than deferred: s7ddrphy is the PHY for every board here, it implements no DFI low-power interface, and it imposes no leveling timeout. `powerdown_ctrl` corrected to INHERITED in mechanism -- power-down is CKE and SRE/SRX, not the DFI low-power channel. No open questions remain. |
 | 0.3 | 2026-09-30 | Q2 and D2 re-answered from a generated DDR3 LiteDRAM core instead of by analogy (Sean: "you might need to generate a ddr3 version of litedram"). ZQCS confirmed as request/grant sharing the refresher FSM; write leveling confirmed as CSR-only with no state machine. |
 | 0.2 | 2026-09-29 | Q1-Q5 resolved or deferred with conditions. `refresh_ctrl` corrected from MODIFIED to INHERITED: pumice already implements `REFpb` and the device owns the sequence, so Q5 was malformed and is struck. |
 | 0.1 | 2026-09-29 | First edition. Written from the delta analysis, with decisions D1-D3 settled. No RTL exists; every block is specified, not described. |
