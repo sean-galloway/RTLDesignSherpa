@@ -1,0 +1,23 @@
+// The packet record: how a DATA descriptor's byte length and offset reach the
+// data paths, and why the sink ingress waits for it.
+digraph packet_record_flow {
+    graph [rankdir=LR, fontname="Helvetica", fontsize=11, nodesep=0.4, ranksep=0.6,
+           label="Packet records: scheduler -> data path, one per DATA descriptor and direction", labelloc=t, labeljust=l];
+    node  [shape=box, style="rounded,filled", fillcolor="#f4f4f4", fontname="Helvetica", fontsize=10];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    desc  [label="descriptor\nlength (BYTES), src_addr, dst_addr"];
+    sched [label="scheduler, CH_FETCH_DESC\noffset = addr[4:0]\nbeats = ceil((offset + length) / 32)\nwaits here while a record queue is full", fillcolor="#fff9c4"];
+    q_rd  [label="src_data_path_axis\nrecord queue (4 deep per channel)\n{bytes, src offset}", fillcolor="#e8f5e9"];
+    q_wr  [label="snk_data_path_axis\nrecord queue (4 deep per channel)\n{bytes, dst offset}", fillcolor="#e3f2fd"];
+    eng   [label="engines\nsched_rd_beats / sched_wr_beats\naligned AxADDR, 4 KB cap"];
+    egress[label="egress: drop the offset, re-pack,\ntstrb + tlast on the last beat", fillcolor="#e8f5e9"];
+    ingress[label="ingress: s_axis_tready stays low\nuntil the record exists; then place\nbytes at offset + lane, check the count", fillcolor="#e3f2fd"];
+
+    desc -> sched;
+    sched -> eng [label="beats"];
+    sched -> q_rd [label="sched_rd_pkt_valid\n(ready = !full)"];
+    sched -> q_wr [label="sched_wr_pkt_valid\n(ready = !full)"];
+    q_rd -> egress [label="pop on the packet's\nlast stream beat"];
+    q_wr -> ingress [label="pop on tlast\n(or the flush beat)"];
+}

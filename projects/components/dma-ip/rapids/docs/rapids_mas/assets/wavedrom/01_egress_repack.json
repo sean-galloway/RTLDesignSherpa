@@ -1,0 +1,24 @@
+{ "signal": [
+  { "name": "clk",             "wave": "p..........." },
+  {},
+  ["memory beats popped (src offset 5, 60 bytes: 3 memory beats)",
+    { "name": "drain_read (pop)", "wave": "0.10.10.10..", "node": "..a..b..c" },
+    { "name": "drain_data",      "wave": "x.3x.4x.5x..", "data": ["M0", "M1", "M2"] }
+  ],
+  {},
+  ["hold[ch]",
+    { "name": "hold_valid",      "wave": "0..1........" },
+    { "name": "hold_data",       "wave": "x..3..4..5..", "data": ["M0[31:5]", "M1[31:5]", "M2[31:5]"] }
+  ],
+  {},
+  ["m_axis (2 stream beats: 32 + 28 bytes)",
+    { "name": "m_axis_tvalid",   "wave": "0.....1..1.0", "node": "......d..e" },
+    { "name": "m_axis_tdata",    "wave": "x.....3..4.x", "data": ["M0[31:5]|M1[4:0]", "M1[31:5]|M2[4:0]"] },
+    { "name": "m_axis_tstrb",    "wave": "x.....3..4.x", "data": ["FFFFFFFF", "0FFFFFFF"] },
+    { "name": "m_axis_tlast",    "wave": "0........1.0" }
+  ]
+],
+  "edge": ["a~>d M0 only primes the hold", "b~>d first stream beat", "c~>e last beat: 28 bytes"],
+  "head": { "text": "Egress re-pack: the first pop primes, every later pop emits, the last beat is partial", "tick": 0 },
+  "config": { "hscale": 2 }
+}

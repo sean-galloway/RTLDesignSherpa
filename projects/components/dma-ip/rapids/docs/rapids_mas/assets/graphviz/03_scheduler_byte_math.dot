@@ -1,0 +1,20 @@
+// scheduler: what the byte fields become, per direction.
+digraph scheduler_byte_math {
+    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.4, ranksep=0.5,
+           label="scheduler: bytes in, beats out (per enabled direction)", labelloc=t, labeljust=l];
+    node  [shape=box, style="rounded,filled", fillcolor="#f4f4f4", fontname="Helvetica", fontsize=10];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    in    [label="descriptor\nlength (bytes), src_addr, dst_addr", fillcolor="#fff3e0"];
+    off   [label="offset = addr[OFF_W-1:0]\n(OFF_W = log2(BYTE_LANES), 5 for 256-bit)"];
+    beats [label="beats_total = length == 0 ? 0\n: (offset + length + BYTE_LANES - 1) >> OFF_W\n(33-bit intermediate)", fillcolor="#fff9c4"];
+    load  [label="CH_FETCH_DESC\nr_*_beats_remaining <= beats_total\naddr working registers <= byte addresses"];
+    gate  [label="w_pkt_ok: every enabled direction's\nrecord queue has room (or length == 0)\nelse stay in CH_FETCH_DESC", fillcolor="#ffebee"];
+    rec   [label="sched_*_pkt_valid pulse\n{length, offset}", fillcolor="#e3f2fd"];
+    xfer  [label="CH_XFER_DATA\nsched_*_beats = remaining (beats)\nsched_*_addr = working address (byte)"];
+    adv   [label="on done_strobe:\naddr <= (addr & ~(BYTE_LANES-1)) + beats_done * BYTE_LANES\nremaining -= beats_done"];
+    ext   [label="TYPE=EXT: rows counted in beats;\naddresses beat-aligned, lengths beat-multiples\n(permanent)", shape=note, fillcolor="#ffffff"];
+
+    in -> off -> beats -> load -> gate -> rec -> xfer -> adv -> xfer;
+    beats -> ext [style=dashed];
+}

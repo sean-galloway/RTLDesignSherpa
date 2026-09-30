@@ -74,7 +74,9 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 
 > **Status (2026-07-22):** The old `docs/rapids_spec/` tree was replaced by two beats spec trees.
 
-**Architecture Spec (HAS):** `docs/rapids_beats_has/`
+**Byte-granular RAPIDS books (the product design):** [HAS Index](docs/rapids_has/rapids_has_index.md), [MAS Index](docs/rapids_mas/rapids_mas_index.md). Chapters that are identical for both designs are linked from the Beats books below.
+
+**Architecture Spec (HAS), RAPIDS Beats:** `docs/rapids_beats_has/`
 
 - **[HAS Index](docs/rapids_beats_has/rapids_beats_has_index.md)** - Complete HAS structure
 - [Product Overview](docs/rapids_beats_has/ch01_overview/01_product_overview.md)

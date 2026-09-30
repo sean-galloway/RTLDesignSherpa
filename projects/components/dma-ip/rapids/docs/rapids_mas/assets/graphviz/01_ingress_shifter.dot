@@ -1,0 +1,27 @@
+// snk_data_path_axis: the ingress shifter datapath.
+digraph ingress_shifter {
+    graph [rankdir=LR, fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.6,
+           label="snk_data_path_axis ingress: packed stream beat -> beat-aligned memory beat with byte enables", labelloc=t, labeljust=l];
+    node  [shape=box, style="rounded,filled", fillcolor="#f4f4f4", fontname="Helvetica", fontsize=10];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    axis  [label="s_axis\ntdata, tstrb, tid, tlast", fillcolor="#fff3e0"];
+    head  [label="record queue head [tid]\noffset, bytes", fillcolor="#fff9c4"];
+    wide  [label="wide shift (2 x DW)\n{tdata << offset*8} | hold[tid]\n{tstrb << offset} | hold_strb[tid]"];
+    hold  [label="hold[tid], hold_strb[tid]\nthe spill: lanes 0..offset-1\nof the NEXT memory beat", fillcolor="#e3f2fd"];
+    outr  [label="output register\nid, data, strb"];
+    flush [label="flush\nafter tlast with a non-empty spill:\nthe spill becomes one more beat\n(tready low for that cycle)", fillcolor="#e3f2fd"];
+    count [label="packet byte count\n+= popcount(tstrb)\nat tlast: != record bytes\n-> sticky sched_wr_error", fillcolor="#ffebee"];
+    fill  [label="fill logic (as in beats)\nallocation, settle window,\nfill_valid / fill_ready", fillcolor="#f4f4f4"];
+    sram  [label="snk_sram_controller\nentry = {strb, data}\nDW + DW/8 wide"];
+
+    axis -> wide;
+    head -> wide [label="offset"];
+    hold -> wide;
+    wide -> outr [label="low DW bits\n(this memory beat)"];
+    wide -> hold [label="high DW bits\n(the spill)"];
+    hold -> flush -> outr;
+    axis -> count;
+    outr -> fill -> sram;
+    fill -> axis [label="s_axis_tready =\noutput free && !flush && record known", style=dashed];
+}

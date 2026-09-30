@@ -1,0 +1,20 @@
+{ "signal": [
+  { "name": "aclk",          "wave": "p........" },
+  {},
+  ["s_axis (sink ingress, 33-byte packet, 32-byte beats)",
+    { "name": "s_axis_tvalid", "wave": "0.1..0...", "node": "..a" },
+    { "name": "s_axis_tready", "wave": "0..1.0...", "node": "...b", "phase": 0 },
+    { "name": "s_axis_tdata",  "wave": "x.3.4.x..", "data": ["bytes 0..31", "byte 32"] },
+    { "name": "s_axis_tstrb",  "wave": "x.3.4.x..", "data": ["FFFFFFFF", "00000001"] },
+    { "name": "s_axis_tlast",  "wave": "0...10...", "node": "....c" },
+    { "name": "s_axis_tid",    "wave": "x.=...x..", "data": ["ch"] }
+  ],
+  {},
+  ["packet record",
+    { "name": "record present (ch)", "wave": "0..1......", "node": "...d" }
+  ]
+],
+  "edge": ["d~>b tready follows the record", "c~>c last beat: 1 strobed byte"],
+  "head": { "text": "Packed stream, partial last beat: tstrb is contiguous from lane 0", "tick": 0 },
+  "config": { "hscale": 2 }
+}

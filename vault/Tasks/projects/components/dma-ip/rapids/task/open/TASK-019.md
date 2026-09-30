@@ -267,8 +267,9 @@ as long as it exists. Concretely:
 
 ## Done when
 
-- [x] the decisions above are recorded here (HAS chapters for the byte
-      design still to write)
+- [x] the decisions above are recorded here, and the byte design has its
+      own books: `docs/rapids_has/` and `docs/rapids_mas/` (v0.1, PDFs
+      built 2026-09-30), linking every chapter it shares with RAPIDS Beats
 - [x] a one-byte AXIS beat lands as one strobed byte in memory, and a
       byte-length source descriptor produces a stream whose first and last
       beats carry the right `tstrb`, both on the board with the byte-wise

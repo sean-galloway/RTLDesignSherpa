@@ -1,0 +1,37 @@
+// Byte placement on the sink: a 33-byte packet at destination offset 31 on a
+// 32-byte bus. The stream arrives packed from lane 0 (two beats: 32 bytes and
+// 1 byte); memory receives two beats: lane 31 of the first (one strobed byte)
+// and all 32 lanes of the second. ceil((31 + 33) / 32) = 2 memory beats,
+// ceil(33 / 32) = 2 stream beats -- here equal, in general not.
+digraph byte_placement {
+    graph [rankdir=LR, fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.7,
+           label="Sink placement: 33 bytes to a destination at offset 31 (32-byte beats)", labelloc=t, labeljust=l];
+    node  [shape=plaintext, fontname="Helvetica", fontsize=10];
+
+    stream [label=<
+      <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+        <tr><td colspan="4" bgcolor="#e3f2fd"><b>s_axis stream beats (packed from lane 0)</b></td></tr>
+        <tr><td>beat</td><td>lanes 0..30</td><td>lane 31</td><td>tstrb / tlast</td></tr>
+        <tr><td>0</td><td bgcolor="#c8e6c9">bytes 0..30</td><td bgcolor="#c8e6c9">byte 31</td><td>0xFFFFFFFF / 0</td></tr>
+        <tr><td>1</td><td bgcolor="#ffffff">-</td><td bgcolor="#c8e6c9">byte 32 (lane 0)</td><td>0x00000001 / 1</td></tr>
+      </table>>];
+
+    shifter [label=<
+      <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+        <tr><td bgcolor="#fff9c4"><b>ingress shifter</b></td></tr>
+        <tr><td>memory lane = offset + stream lane</td></tr>
+        <tr><td>lanes past 31 spill into the next beat</td></tr>
+        <tr><td>tstrb shifts with the data</td></tr>
+        <tr><td>after tlast: a non-empty spill is flushed</td></tr>
+      </table>>];
+
+    memory [label=<
+      <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+        <tr><td colspan="4" bgcolor="#fff3e0"><b>m_axi_wr W beats (AWADDR beat-aligned)</b></td></tr>
+        <tr><td>beat</td><td>lanes 0..30</td><td>lane 31</td><td>WSTRB</td></tr>
+        <tr><td>0 (dst &amp; ~31)</td><td bgcolor="#eeeeee">not written</td><td bgcolor="#c8e6c9">byte 0</td><td>0x80000000</td></tr>
+        <tr><td>1 (+32)</td><td bgcolor="#c8e6c9">bytes 1..31</td><td bgcolor="#c8e6c9">byte 32</td><td>0xFFFFFFFF</td></tr>
+      </table>>];
+
+    stream -> shifter -> memory;
+}

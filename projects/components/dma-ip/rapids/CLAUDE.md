@@ -56,7 +56,8 @@
 **Complete Specification:**
 - `projects/components/dma-ip/rapids/docs/rapids_beats_has/` - Architecture spec (HAS); index: `rapids_beats_has_index.md`
 - `projects/components/dma-ip/rapids/docs/rapids_beats_mas/` - Micro-architecture spec (MAS); index: `rapids_beats_mas_index.md`
-- Built PDFs: `docs/RAPIDS_Beats_HAS_v0.9.pdf`, `docs/RAPIDS_Beats_MAS_v0.8.pdf`
+- `projects/components/dma-ip/rapids/docs/rapids_has/` and `rapids_mas/` - the byte-granular RAPIDS books (index: `rapids_has_index.md`, `rapids_mas_index.md`); chapters identical to Beats are linked from the `rapids_beats_*` books, not copied
+- Built PDFs: `docs/RAPIDS_HAS_v0.1.pdf`, `docs/RAPIDS_MAS_v0.1.pdf` (byte design); `docs/RAPIDS_Beats_HAS_v0.9.pdf`, `docs/RAPIDS_Beats_MAS_v0.8.pdf` (beats design)
 
 ---
 

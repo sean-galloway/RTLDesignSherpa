@@ -1,0 +1,27 @@
+// src_data_path_axis: the egress shifter datapath.
+digraph egress_shifter {
+    graph [rankdir=LR, fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.6,
+           label="src_data_path_axis egress: memory beats -> packed stream beats with a partial last beat", labelloc=t, labeljust=l];
+    node  [shape=box, style="rounded,filled", fillcolor="#f4f4f4", fontname="Helvetica", fontsize=10];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    drain [label="drain stage (as in beats)\nreservations of cfg_drain_size beats,\nr_d_ch, r_d_remaining\nadvances on POPS, not stream beats"];
+    sram  [label="src_sram_controller\ndrain_data (DW)", fillcolor="#fff3e0"];
+    head  [label="record queue head [r_d_ch]\noffset, bytes\nmem_beats = ceil((offset + bytes) / lanes)", fillcolor="#fff9c4"];
+    prime [label="first pop, offset != 0:\nhold = beat >> offset*8\n(no output unless the packet\nfits in this one beat)", fillcolor="#e8f5e9"];
+    form  [label="later pops:\nout = hold | (beat << (lanes - offset)*8)\nhold = beat >> offset*8", fillcolor="#e8f5e9"];
+    flush [label="flush: last memory beat popped,\nbytes_left != 0 -> out = hold\n(blocks pops for one cycle)", fillcolor="#e8f5e9"];
+    outr  [label="output register\ndata, tstrb = low min(bytes_left, lanes) lanes,\ntlast = bytes_left reaches 0, tid = channel"];
+    axis  [label="m_axis", fillcolor="#fff3e0"];
+    pop   [label="pop when: drain has a beat,\noutput free, no flush pending,\nrecord known", shape=note, fillcolor="#ffffff"];
+
+    sram -> drain -> prime;
+    drain -> form;
+    head -> prime; head -> form;
+    prime -> form [label="hold"];
+    form -> flush [label="hold"];
+    form -> outr; prime -> outr [label="single-beat packet"]; flush -> outr;
+    outr -> axis;
+    pop -> drain [style=dashed];
+    outr -> head [label="pop the record on the\npacket's last stream beat", style=dashed];
+}

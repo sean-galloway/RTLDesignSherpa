@@ -1,0 +1,50 @@
+// RAPIDS (byte-granular) top-level block diagram: rapids_top -> rapids_core ->
+// the source and sink halves. The byte machinery sits at the edges: the sink
+// ingress shifter and the source egress shifter; the SRAMs and engines carry
+// byte enables beside the data.
+digraph rapids_byte_block {
+    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.45,
+           label="rapids_top (byte-granular RAPIDS)", labelloc=t, labeljust=l];
+    node  [shape=box, style="rounded,filled", fillcolor="#f4f4f4", fontname="Helvetica", fontsize=10];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    apb   [label="s_apb (APB4)\nkick regs, config, MON regfile", fillcolor="#fff3e0"];
+    regs  [label="rapids_regs + rapids_config_block\n(shared with rapids_beats)"];
+
+    subgraph cluster_core {
+        label="rapids_core"; style="rounded"; color="#888888";
+
+        subgraph cluster_src {
+            label="rapids_src (memory -> AXIS)"; style="rounded"; color="#2e7d32";
+            sga_src [label="scheduler_group_array\n8 x (descriptor_engine + scheduler)\nlength in BYTES -> beats + packet record"];
+            rde     [label="axi_read_engine\nARADDR beat-aligned, 4 KB cap"];
+            ssram   [label="src_sram_controller\n(data only)"];
+            egress  [label="src_data_path_axis\nEGRESS SHIFTER: drop the offset,\nre-pack from lane 0, tstrb + tlast", fillcolor="#e8f5e9"];
+        }
+        subgraph cluster_snk {
+            label="rapids_snk (AXIS -> memory)"; style="rounded"; color="#1565c0";
+            sga_snk [label="scheduler_group_array\n8 x (descriptor_engine + scheduler)\nlength in BYTES -> beats + packet record"];
+            ingress [label="snk_data_path_axis\nINGRESS SHIFTER: place bytes at\noffset + lane, spill, flush after tlast", fillcolor="#e3f2fd"];
+            nsram   [label="snk_sram_controller\n{strb, data}: DW + DW/8 wide"];
+            wre     [label="axi_write_engine\nAWADDR beat-aligned, 4 KB cap,\nWSTRB from the buffer"];
+        }
+    }
+
+    mem_rd [label="m_axi_rd (AXI4 read)\nsystem memory", fillcolor="#fff3e0"];
+    mem_wr [label="m_axi_wr (AXI4 write)\nsystem memory", fillcolor="#fff3e0"];
+    net_in [label="s_axis (AXIS slave)\npacked bytes, partial last beat", fillcolor="#fff3e0"];
+    net_out[label="m_axis (AXIS master)\npacked bytes, partial last beat", fillcolor="#fff3e0"];
+
+    apb -> regs -> sga_src;
+    regs -> sga_snk;
+    sga_src -> rde [label="sched_rd_* (beats)"];
+    sga_src -> egress [label="sched_rd_pkt_*\n{bytes, offset}", style=dashed];
+    mem_rd -> rde [dir=both, label="AR / R"];
+    rde -> ssram -> egress -> net_out;
+
+    net_in -> ingress;
+    sga_snk -> ingress [label="sched_wr_pkt_*\n{bytes, offset}", style=dashed];
+    sga_snk -> wre [label="sched_wr_* (beats)"];
+    ingress -> nsram -> wre;
+    wre -> mem_wr [dir=both, label="AW / W (WSTRB) / B"];
+}
