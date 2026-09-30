@@ -7,6 +7,20 @@ single byte written on AXIS4."
 **Status:** OPEN 2026-09-29. This file is the investigation; the decisions
 listed at the end gate the design.
 
+**Intent (Sean, 2026-09-29):** "The intent was always for rapids to be byte
+access. The beats version was a stepping stone. This is why there are
+fub/macro-beats areas." So the byte version is not an edit of the beats
+tree. It is the product RAPIDS and it lands in the un-suffixed areas that
+were reserved for it: `rtl/fub/` (today only `ctrlrd_engine`,
+`ctrlwr_engine`, shared by both), `rtl/macro/` (today only
+`monbus_axil_group_2in`, shared), and a new `rtl/top/`, with `dv/tests/fub`,
+`dv/tests/macro`, `dv/tests/top` and un-suffixed TB classes beside them.
+`fub_beats/`, `macro_beats/`, `top_beats/` stay intact as the working
+reference and the characterized design (BUG-009 closure, perf report v2.2,
+the three FPGA books). Byte-version modules take the beats module's name
+without the `_beats` suffix, and BUG-009's lessons (AxLEN clamp, partial
+allocation, the settle window) carry over on day one.
+
 ## Where bytes stand today (beats RTL, 256-bit, Genesys 2)
 
 | Place | Today | Consequence |
@@ -114,6 +128,8 @@ and from a 64-byte beat to `DATA_WIDTH/8`.
 - [ ] SINK contract between `tlast` packets and descriptor byte length.
 - [ ] Keep `DATA_WIDTH` = 256 for the first byte-granular build (the 4 KB
       design point), so every existing perf cell remains comparable?
+- [x] Where it lives: the un-suffixed `rtl/fub`, `rtl/macro`, `rtl/top`
+      areas; the beats tree is kept, not converted (Sean, 2026-09-29).
 
 ## Done when
 
