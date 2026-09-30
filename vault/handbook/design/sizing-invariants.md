@@ -19,3 +19,20 @@ summary: Shared-resource capacity math lives in ONE place, never a comment.
 - Recovery must be designed, not hoped: any occupancy gate needs its reopen
   threshold STRICTLY past its fill point, or saturation parks exactly at
   the threshold and latches (the block_ready lesson).
+- **A ternary elaborates BOTH arms, so it cannot select between two widths.**
+  `x = COND ? narrow[S-1:0] : wide[S-1:0]` is range-checked on both sides even
+  when `COND` is a constant that makes one side dead, so the dead arm's
+  out-of-range select is a hard error. Use a generate `if`, where only the live
+  arm exists. *Case (2026-09-30): `rs_encoder` / `rs_decoder` map the core's
+  per-symbol keep onto `tstrb` at 8-bit symbols and onto `tuser` otherwise. The
+  mapping was written as a ternary; at the normal 8-bit configuration `tuser`
+  is 1 bit wide, and Verilator rejected `in_tuser[3:0]` even though that arm
+  can never be taken. A standalone lint of the module passed, because the
+  module's DEFAULT parameters give `DATA_WIDTH == SYMBOL_WIDTH`, so one symbol
+  per beat, so the select was `[0:0]` and in range. The error appeared only
+  when a test elaborated it at `DATA_WIDTH = 32`. The lesson is narrower than
+  "lint must elaborate": lint elaborates DEFAULTS, and a width-dependent
+  select that is only wrong at non-default parameters is invisible until
+  something instantiates the real configuration. Lint the module at the
+  parameter sets it will actually be used with.*
+
