@@ -49,18 +49,38 @@ rather than being masked as success.
   readback detects one that happened anyway. It belongs in `fpga_board.mk`'s
   `program` path so all consumers inherit it rather than each harness
   reimplementing it.
-- **A DIRECT script invocation bypasses the lock entirely.** The lock is on the
-  make targets. The near miss itself was
-  `run_characterization.py --byte-perf --port /dev/ttyUSB0` launched directly,
-  and a direct python call takes no lock and is invisible to anyone else's lock
-  check -- so it is unprotected in both directions. `make program` and friends
-  are now safe; a hand-driven script is not. Interim: wrap it --
-  `board_lock.sh --board genesys2 -- python3 .../run_characterization.py ...`
-  (the script execs the payload, so the lock holds for the run's whole life).
-  The durable fix is the runners taking the lock themselves rather than relying
-  on the caller, which is a change to the host/runner layer, not the makefiles.
-  **This is the largest remaining hole and it is the one the original incident
-  went through.**
+- **A DIRECT script invocation bypasses the make lock -- PARTLY CLOSED.** The
+  make lock guards `make program` and friends; a hand-launched runner takes no
+  lock and is invisible to anyone else's check. The near miss itself was
+  `run_characterization.py --byte-perf --port /dev/ttyUSB0`, launched that way.
+  - **Closed for scoria (69ed1be27).** `DDR3CharDriver` opens a UART in its
+    constructor, so it had the identical hole; it now takes the lock itself via
+    `Genesys2/scoria/host/board_lock.py`. Only the HARDWARE path locks -- an
+    injected bridge (cocotb channel or mock) holds nothing, because locking the
+    sim path would exclude real board runs for no reason and teach people to
+    route around the lock. Same reasoning as leaving `host-*` alone.
+  - **Still open for the rapids runners.** `run_characterization.py` and the
+    other `flows-rapids` host scripts do not take the lock. Interim: wrap the
+    call -- `board_lock.sh --board genesys2 -- python3 .../run_characterization.py ...`
+    (the script execs the payload, so the lock holds for the run's whole life).
+    The durable fix is each runner taking the lock, as scoria's driver now does.
+- **The two lock implementations are now PINNED by a CI test.** Two
+  implementations of one key with nothing asserting they agree is worse than no
+  lock -- both sides acquire and each believes it owns the board, with no error
+  on either. `projects/fpga-systems/bin/test_board_lock_interop.py` (11 tests,
+  in a directory CI already runs) asserts the derivations agree for five board
+  names, that the busy exit code is 98 on both sides, mutual exclusion in both
+  directions, release, and per-board independence.
+  - Mutation-tested for teeth, and two of three mutations initially passed:
+    changing the filename prefix was caught, but dropping `-` from the
+    sanitisation class was not (no case exercised a hyphen -- both real serials
+    are alphanumeric), and changing the lock-dir DEFAULT was not (every test sets
+    `RDS_BOARD_LOCK_DIR` explicitly so it never touches the real lock). Both
+    holes are closed; all three mutations now fail the suite.
+  - The suite never takes the real board lock -- it redirects
+    `RDS_BOARD_LOCK_DIR` at a `tmp_path`, and the default-directory test compares
+    derivations without acquiring. A test that could stall a live
+    characterization would be worse than the bug.
 - **`host-*` is deliberately NOT locked.** `host-$(1)` runs
   `host_$(1).py $(ARGS)` with no `--board`/`--baud`, and those directories mix
   real board programs with pure post-processing (`host_perf_json_to_csv.py`). The
