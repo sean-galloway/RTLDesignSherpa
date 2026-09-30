@@ -151,7 +151,23 @@ The rules:
   build-perf can run at once while two of the same target cannot. But a
   physical board is contended by JTAG/UART SERIAL, not by build directory, so
   two areas targeting one board take two different locks and both proceed.
-  `program` and `run` are unguarded.
+  It is worse than "program and run are unguarded", and the specifics matter
+  because the two hardware-touching paths sit in DIFFERENT files:
+  `program` lives in `make/fpga_board.mk` (included at fpga_flow.mk:241), and
+  that file contains no lock of any kind; and `tcl-$(1)` at fpga_flow.mk:262
+  -- the one rule written to pin FPGA_JTAG_SERIAL so "a tcl that touches
+  hardware can pin its target instead of taking whatever is first on the
+  chain" -- invokes `$(VIVADO_BATCH)`, not `$(VIVADO_LOCKED)`. So the two
+  rules that exist to touch specific hardware are the two outside the lock,
+  while VIVADO_LOCKED wraps only project/synth/build/ila (:418 :424 :432
+  :441). FPGA_JTAG_SERIAL is resolved for targeting and never used as a lock
+  key. 16 Makefiles inherit fpga_flow.mk -- that is the blast radius for
+  whoever takes the fix.
+  fpga_board.mk already argues the principle one level short of the
+  conclusion: "Silently programming a different bitstream than the one you
+  just built is a worse failure than refusing: it is how a board result gets
+  attributed to the wrong design." Concurrent access is the same failure with
+  a different cause, and the file stops before extending it there.
   Near miss, 2026-09-30: `Genesys2/scoria/build-litedram` programmed the
   Genesys 2 and held /dev/ttyUSB0 until 09:34:51; `Genesys2/rapids/flows-rapids`
   started an 8-channel byte-perf characterization on the SAME board at
