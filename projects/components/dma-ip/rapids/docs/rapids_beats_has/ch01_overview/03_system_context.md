@@ -105,7 +105,11 @@ RAPIDS uses standard AXI-Stream for network connectivity:
 
 **Protocol Notes:**
 
-- TKEEP/TSTRB supported for partial beat handling
+- Beat-granular: the beats design drives every byte valid (`m_axis_tstrb`
+  all ones) and does not use the ingress `s_axis_tstrb`; a transfer is a
+  whole number of beats. Partial beats (packed bytes, a contiguous `tstrb`
+  on the last beat) are the byte-granular RAPIDS in `rtl/top/rapids_top.sv`
+  (rapids TASK-019), which this document does not describe.
 - TID/TDEST may be used for channel routing (optional)
 - TUSER available for sideband information
 

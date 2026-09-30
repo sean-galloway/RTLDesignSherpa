@@ -50,7 +50,7 @@ Receives streaming network data and routes to per-channel SRAM buffers based on 
 | `s_axis_tvalid` | input | 1 | Data valid |
 | `s_axis_tready` | output | 1 | Ready to accept data |
 | `s_axis_tdata` | input | DATA_WIDTH | Data payload |
-| `s_axis_tkeep` | input | DATA_WIDTH/8 | Byte enables |
+| `s_axis_tstrb` | input | DATA_WIDTH/8 | Byte enables (not used by the beats design) |
 | `s_axis_tlast` | input | 1 | Last beat of packet |
 | `s_axis_tid` | input | TID_WIDTH | Stream ID (channel select) |
 | `s_axis_tdest` | input | TDEST_WIDTH | Destination routing |
@@ -77,16 +77,21 @@ TID is used for per-channel routing:
 
 : Table 4.2.2: TID Channel Mapping
 
-#### TKEEP (Byte Enables)
+#### TSTRB (Byte Enables)
 
-TKEEP indicates valid bytes within TDATA:
+The ports are `s_axis_tstrb` / `m_axis_tstrb` (there is no `tkeep`). In the
+beats design they are not load-bearing: the source drives all ones and the
+sink ignores the ingress strobes, so every beat carries DATA_WIDTH/8 valid
+bytes. The byte-granular RAPIDS (`rtl/top/rapids_top.sv`, rapids TASK-019)
+packs bytes from lane 0 and uses a contiguous `tstrb` on the last beat of a
+packet.
 
-| DATA_WIDTH | TKEEP Width | Usage |
-|------------|-------------|-------|
-| 512 bits | 64 bits | Per-byte valid |
-| 256 bits | 32 bits | Per-byte valid |
+| DATA_WIDTH | TSTRB Width | Beats design | Byte-granular RAPIDS |
+|------------|-------------|--------------|----------------------|
+| 512 bits | 64 bits | all ones | contiguous from lane 0, partial on the last beat |
+| 256 bits | 32 bits | all ones | contiguous from lane 0, partial on the last beat |
 
-: Table 4.2.3: TKEEP Configuration
+: Table 4.2.3: TSTRB Configuration
 
 #### TLAST (Packet Boundary)
 
@@ -128,7 +133,7 @@ Transmits streaming network data from per-channel SRAM buffers with TID indicati
 | `m_axis_tvalid` | output | 1 | Data valid |
 | `m_axis_tready` | input | 1 | Ready to accept data |
 | `m_axis_tdata` | output | DATA_WIDTH | Data payload |
-| `m_axis_tkeep` | output | DATA_WIDTH/8 | Byte enables |
+| `m_axis_tstrb` | output | DATA_WIDTH/8 | Byte enables (all ones in the beats design) |
 | `m_axis_tlast` | output | 1 | Last beat of packet |
 | `m_axis_tid` | output | TID_WIDTH | Stream ID (source channel) |
 | `m_axis_tdest` | output | TDEST_WIDTH | Destination routing |
@@ -171,7 +176,7 @@ The source interface respects network backpressure:
 | Standard | Proprietary | AXI-Stream |
 | Channel ID | fill_id / drain_id | TID |
 | Packet Boundary | fill_last / drain_last | TLAST |
-| Byte Enables | fill_strb / drain_strb | TKEEP |
+| Byte Enables | fill_strb / drain_strb | TSTRB |
 | Interoperability | RAPIDS only | Industry standard |
 
 : Table 4.2.5: Interface Comparison
