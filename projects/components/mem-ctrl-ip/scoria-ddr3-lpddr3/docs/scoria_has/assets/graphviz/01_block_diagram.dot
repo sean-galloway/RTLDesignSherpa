@@ -1,0 +1,66 @@
+// scoria top-level, every block marked against pumice.
+// Green = inherited unchanged. Amber = modified. Red = new.
+digraph scoria_blocks {
+    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.55,
+           label="scoria DDR3/LPDDR3: inherited (green), modified (amber), new (red)", labelloc=t, labeljust=l];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled"];
+    edge  [fontname="Helvetica", fontsize=9];
+
+    host [label="AXI4 host + APB CSR", shape=ellipse, fillcolor="#f4f4f4"];
+
+    subgraph cluster_fe {
+        label="Front end -- INHERITED in full"; style="rounded"; color="#228B22";
+        axi [label="scoria_axi4_ifc\n1:1 read and write intakes, write-data CAM,\nread-reorder CAM, in-order commit,\nFSM-free split / aggregate", fillcolor="#d5ecd5"];
+    }
+
+    subgraph cluster_sched {
+        label="Scheduler -- structure INHERITED, timing VALUES change"; style="rounded"; color="#228B22";
+        arb  [label="scoria_cmd_arbiter\nFR-FCFS, per-entry column mask", fillcolor="#d5ecd5"];
+        bt   [label="bank_timer x (rank,bank)\nopen-page bank timing", fillcolor="#d5ecd5"];
+        gt   [label="global_timers\ntFAW / tRRD / tWTR / tRTW / tCCD.\nRegistered status must sample NEXT state\n-- pumice ISSUE-018, inherit the FIX", fillcolor="#d5ecd5"];
+        arb -> bt; arb -> gt;
+    }
+
+    subgraph cluster_mod {
+        label="MODIFIED by DDR3 / LPDDR3"; style="rounded"; color="#B8860B";
+        init [label="init_sequencer   MODIFIED\ndrives RESET# (a PIN, not a command),\nprograms MR0..MR3 in JEDEC order,\nwaits tDLLK and tZQinit", fillcolor="#fff4e0"];
+        mr   [label="mode_register   MODIFIED\nMR0..MR3. DDR2 had MR0..MR2 + EMRS3,\nso this is a rewrite, not an edit", fillcolor="#fff4e0"];
+        ref  [label="refresh_ctrl   MODIFIED\nDDR3: all-bank REF, JEDEC +/-8 postpone\nLPDDR3: adds REFpb per-bank round-robin", fillcolor="#fff4e0"];
+        pd   [label="powerdown_ctrl   MODIFIED\nSRE / SRX self-refresh, precharge- and\nactive-power-down; drives the SPLIT DFI\nlow-power requests (ctrl and data)", fillcolor="#fff4e0"];
+        csr  [label="scoria_csr (PeakRDL)   MODIFIED\nadds tZQinit / tZQoper / tZQCS,\ntWLMRD / tWLDQSEN / tWLO / tWLOE,\nand the leveling telemetry", fillcolor="#fff4e0"];
+    }
+
+    subgraph cluster_new {
+        label="NEW in scoria"; style="rounded"; color="#B22222";
+        zq   [label="zq_ctrl   NEW\nperiodic ZQCS as MAINTENANCE traffic the\nscheduler must interleave, interval a runtime CSR.\nZQCL at init only", fillcolor="#ffe8e8"];
+        wl   [label="wrlvl_ifc   NEW -- INTERFACE ONLY\nDFI leveling request/ack + the MR1 write path\n+ tWL* windows + *_STATS telemetry.\nDeliberately contains NO tap-search loop:\nthe search runs in firmware (decision D2)", fillcolor="#ffe8e8"];
+    }
+
+    subgraph cluster_dfi {
+        label="DFI v3.1 layer -- datapath INHERITED, control surface MODIFIED"; style="rounded"; color="#B8860B";
+        dfi [label="scoria_dfi_layer\nINHERITED: one async-FIFO CDC, bubble-free,\nunit = a DFI word, DFI_RATE = 4 (_pN phases)\nMODIFIED: v3.1 per-CS leveling handshake,\nsplit low-power requests, dfi_init", fillcolor="#fff4e0"];
+    }
+
+    phy [label="PHY (out of scope -- DFI is the boundary)", shape=ellipse, fillcolor="#f4f4f4"];
+
+    host -> axi; axi -> arb;
+    arb -> init [style=dotted, label="init owns the bus first"];
+    init -> mr;
+    ref -> arb [label="refresh demand"];
+    zq  -> arb [label="ZQCS demand"];
+    pd  -> dfi [label="lp_ctrl_req / lp_data_req"];
+    wl  -> dfi [label="phylvl req/ack"];
+    csr -> arb [style=dotted, label="every enforced timing is a RUNTIME CSR"];
+    arb -> dfi; dfi -> phy;
+
+    // Layout only. Five modified blocks and two new ones placed side by side
+    // render 4.2:1, which the page scaler squashes to a sliver -- see
+    // vault/handbook/authoring/spec-doc-standards.md. Stack them instead.
+    init -> mr [style=invis]; mr -> ref [style=invis];
+    ref -> pd [style=invis]; pd -> csr [style=invis];
+    zq -> wl [style=invis];
+    bt -> gt [style=invis];
+
+    note [label="What is NOT here, on purpose: no PHY, no tap-search FSM,\nand none of DFI v3.1's DDR4/LPDDR4 surface\n(ACT_n, bank groups, chip ID, CA parity, DBI, CA training)", shape=note, fillcolor="#f0f0f0"];
+    note -> phy [style=invis];
+}

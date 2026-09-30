@@ -22,7 +22,7 @@
 
 # scoria DDR3/LPDDR3 — Design Requirements
 
-**Status:** delta analysis, pre-HAS. This document is the foundation the HAS is
+**Status:** delta analysis, pre-HAS. Decisions D1-D3 SETTLED 2026-09-29. This document is the foundation the HAS is
 written from, not the HAS itself. Every claim below is either cited to a spec
 clause or marked as an open decision.
 
@@ -221,11 +221,18 @@ with the interval as a runtime CSR, before any cleverness about when.
 
 ## 5. Open decisions, collected
 
-| ID | Decision | Recommendation |
-|---|---|---|
-| D1 | DFI v3.1 or stay on v2.1.1 | v3.1 — the leveling rework is what scoria needs, and DDR4 will want the per-CS scheme |
-| D2 | Write leveling: firmware-driven or hardware FSM | firmware-driven, matching the family's PHY boundary |
-| D3 | `scoria_pkg` or a shared family package | own package now; shared package when DDR4 starts |
+All three were settled as recommended (Sean, 2026-09-29: "D1-3 all look good").
+They are now binding on the HAS, not open questions.
 
-None of the three is blocking the HAS outline, but D2 changes a block diagram
-and D3 changes every file's imports, so both want settling before drafting.
+| ID | Decision | Settled as |
+|---|---|---|
+| D1 | DFI revision | **v3.1.** The leveling rework is the part scoria needs, and the per-CS scheme is what the later DDR4 controller will want; paying it once here beats paying it twice. The DDR4/LPDDR4 surface of v3.1 (§1.3) stays unimplemented. |
+| D2 | Write leveling ownership | **Firmware-driven.** The controller exposes the DFI leveling request/ack and the MR1 writes; the search algorithm runs off-chip. No hardware calibration FSM, matching pumice, whose board levels from firmware over a CSR passthrough. A `*_STATS` surface makes the search observable. |
+| D3 | Package | **Own `scoria_pkg` now**, a shared `mem_ctrl_pkg` when the DDR4 controller starts. Two members is not yet a family, and widening pumice's 1-bit `memtype_e` would change a measured, shipping CSR for a controller with no RTL. |
+
+**Consequence of D2 worth stating once:** because leveling is firmware-driven,
+the HAS specifies an *interface and a procedure*, not a state machine. What
+scoria owes the system is the DFI leveling handshake, the MR1 write path, the
+timing windows (`tWLMRD` through `tWLOE`) enforced as runtime CSRs, and enough
+telemetry to see the search converge. What it must not contain is a tap-search
+loop.
