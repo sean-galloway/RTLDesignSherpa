@@ -49,6 +49,18 @@ rather than being masked as success.
   readback detects one that happened anyway. It belongs in `fpga_board.mk`'s
   `program` path so all consumers inherit it rather than each harness
   reimplementing it.
+- **A DIRECT script invocation bypasses the lock entirely.** The lock is on the
+  make targets. The near miss itself was
+  `run_characterization.py --byte-perf --port /dev/ttyUSB0` launched directly,
+  and a direct python call takes no lock and is invisible to anyone else's lock
+  check -- so it is unprotected in both directions. `make program` and friends
+  are now safe; a hand-driven script is not. Interim: wrap it --
+  `board_lock.sh --board genesys2 -- python3 .../run_characterization.py ...`
+  (the script execs the payload, so the lock holds for the run's whole life).
+  The durable fix is the runners taking the lock themselves rather than relying
+  on the caller, which is a change to the host/runner layer, not the makefiles.
+  **This is the largest remaining hole and it is the one the original incident
+  went through.**
 - **`host-*` is deliberately NOT locked.** `host-$(1)` runs
   `host_$(1).py $(ARGS)` with no `--board`/`--baud`, and those directories mix
   real board programs with pure post-processing (`host_perf_json_to_csv.py`). The
