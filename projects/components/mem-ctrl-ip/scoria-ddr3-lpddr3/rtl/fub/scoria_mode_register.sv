@@ -171,8 +171,24 @@ module scoria_mode_register
 
     always_comb begin
         if (memtype_i == MEMTYPE_DDR3) begin
-            w_cl = (w_mr0[6:4] == 3'b000) ? 4'd5
-                 : (4'(w_mr0[6:4]) + 4'd4 + (w_mr0[2] ? 4'd8 : 4'd0));
+            // Purely arithmetic, NO special case for [6:4]==000. JESD79-3F
+            // Figure 9 (MR0): CL = {A6,A5,A4} + 4 with A2 as a +8 high bit,
+            // so 001/A2=0 is 5 through 111/A2=0 is 11, then 000/A2=1 is 12,
+            // 001/A2=1 is 13, 010/A2=1 is 14.
+            //
+            // This USED TO special-case [6:4]==000 to CL 5, which was wrong on
+            // two counts and cost CL 12 entirely: 000 with A2=0 is RESERVED in
+            // the table, not 5 (001 is 5), and 000 with A2=1 is 12 -- which the
+            // special case shadowed, so CL 12 was unreachable and decoded as 5.
+            // Found by test_scoria_mode_register's CL sweep once it was
+            // extended past 11; a 5..11 sweep cannot see it, because A2 is
+            // never driven below 12.
+            //
+            // A reserved encoding now yields 4, which is not a legal DDR3 CL.
+            // That is correct: the init sequencer programs MR0 before anything
+            // consumes cl_o, and inventing a plausible-looking 5 for a reserved
+            // code is worse than returning something obviously unusable.
+            w_cl = 4'(w_mr0[6:4]) + 4'd4 + (w_mr0[2] ? 4'd8 : 4'd0);
         end else begin
             w_cl = w_lp_rl;
         end
