@@ -53,12 +53,21 @@ def verdict(r: RunResult, t: int) -> List[str]:
     """What is wrong with a run, as a list of complaints (empty = clean).
 
     The expectations depend on the regime:
-      bypass, or count == 0          every block ok, both CRCs match
-      COUNT mode with 1 <= e <= t    every block corrected with e symbols, CRCs match
+      bypass, or count == 0          every block ok, no mismatching beat, CRCs match
+      COUNT mode with 1 <= e <= t    every block corrected with e symbols, no mismatching
+                                     beat, CRCs match
       COUNT mode with e > t          every block uncorrectable (the injector guarantees
-                                     exactly e errors); CRCs are expected NOT to match
+                                     exactly e errors) and the checker DID see mismatches
       any mode                       decoders A and B agree (comparator clean), both
                                      checkers received every block, no framing errors
+
+    What the two checker outputs mean. `data_err` is the beat-by-beat compare
+    of the received words against the regenerated pattern: that is the data
+    evidence. The shared checker's CRC-32 is computed over its REGENERATED
+    words (axis4_slave_pattern_check in word mode), so `crc_ok` proves only
+    that the checker consumed the same number of words as the generator
+    produced -- it is a delivery check, not a data check, and it stays true on
+    an uncorrectable block by design.
     """
     bad = []
     if r.timed_out:
@@ -92,6 +101,9 @@ def verdict(r: RunResult, t: int) -> List[str]:
             if d.blk_unc != r.blocks:
                 bad.append(f"{d.name}: e={e} > t gave uncorrectable={d.blk_unc}/{r.blocks} "
                            f"(corrected={d.blk_corr}, ok={d.blk_ok})")
+            if not d.data_err:
+                bad.append(f"{d.name}: e={e} > t yet the checker saw no mismatching beat -- "
+                           f"the errors did not reach it")
         # BURST / RATE: only the agreement and delivery checks above apply
     if exact and r.inj_symbols != e * r.blocks:
         bad.append(f"injector placed {r.inj_symbols} symbols, expected {e * r.blocks}")
@@ -122,6 +134,6 @@ def sweep(drv: RsLoopDriver, counts: Iterable[int], blocks: int = 16, t: int = 8
 def format_row(row: SweepRow) -> str:
     r = row.result
     return (f"e={row.count:>2}  cyc/blk={r.cycles_per_block:7.1f}  "
-            f"riBM ok/corr/unc={r.a.blk_ok}/{r.a.blk_corr}/{r.a.blk_unc} sym={r.a.sym_corr} crc={'ok' if r.a.crc_ok else 'x'}  "
-            f"Euclid ok/corr/unc={r.b.blk_ok}/{r.b.blk_corr}/{r.b.blk_unc} sym={r.b.sym_corr} crc={'ok' if r.b.crc_ok else 'x'}  "
+            f"riBM ok/corr/unc={r.a.blk_ok}/{r.a.blk_corr}/{r.a.blk_unc} sym={r.a.sym_corr} data={'x' if r.a.data_err else 'ok'}  "
+            f"Euclid ok/corr/unc={r.b.blk_ok}/{r.b.blk_corr}/{r.b.blk_unc} sym={r.b.sym_corr} data={'x' if r.b.data_err else 'ok'}  "
             f"A=B:{'yes' if not r.cmp_err else 'NO'}  {'PASS' if row.ok else 'FAIL ' + '; '.join(row.complaints)}")

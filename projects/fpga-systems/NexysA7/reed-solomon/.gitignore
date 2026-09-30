@@ -20,7 +20,6 @@ build-*/dv/tests/__pycache__/
 build-*/dv/tests/.pytest_cache/
 
 # PeakRDL default output dir (only dv/tbclasses/*_regmap.py is kept)
-build-*/rtl/generated/
 
 # Bitstreams never live in git
 *.bit

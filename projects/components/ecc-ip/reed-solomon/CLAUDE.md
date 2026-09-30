@@ -101,7 +101,12 @@ It is an endpoint codec, never a mid-stream insert (PRD 4a). Until a consumer na
   checker compares whole 32-bit words and would flag a partial beat's zero
   lane. Two decoders (riBM, Euclid) share one injected stream; each has its
   own pattern checker and a comparator requires them to agree. The injector
-  is `rtl/rs_error_injector.sv`, AFTER the encoder by necessity.
+  is `rtl/rs_error_injector.sv`, AFTER the encoder by necessity. The shared
+  `axis4_slave_pattern_check` in word mode computes its CRC over the
+  REGENERATED pattern, not the received words: `data_err` is the data
+  evidence, `crc_ok` only says the word count matched (it stays true on
+  uncorrectable blocks). Board result 2026-09-30: e = 0..8 corrected, 9..18
+  flagged, riBM == Euclid everywhere; 67.3 cycles per 63-beat block.
 - Vivado / board traps (2026-09-30): Vivado rejects a bit-select on a
   function call (`gf_alpha_pow(...)[M-1:0]`, Synth 8-12513) that Verilator
   accepts -- assign to a `gf_wide_t` temporary first; the temporaries carry a

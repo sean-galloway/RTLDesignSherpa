@@ -53,15 +53,26 @@ a partial beat. Geometry lives in `build-loop/rtl/rs_loop_cfg_pkg.sv` and
 nowhere else.
 
 **How the two solvers are validated.** The same corrupted blocks reach both
-decoders. Each decoder's output is checked against the generator's
-regenerated LFSR pattern and its running CRC-32, so a correction is judged by
-a reference that never saw the errors, not by the other decoder. The
-comparator then requires riBM and Euclid to agree beat for beat and on every
-block's verdict. Up to t errors per block both decoders must correct every
-block with exactly e symbols and both CRCs must match the generator's; above
-t both must flag every block uncorrectable (the CRCs then differ by design);
-at every e the comparator must be clean. `bin/seq_sweep.py` prints that table
-for e = 0 .. 2t + 2.
+decoders. Each decoder's output is compared beat by beat against the
+generator's regenerated LFSR pattern (the checker's `data_err`), so a
+correction is judged by a reference that never saw the errors, not by the
+other decoder. The comparator then requires riBM and Euclid to agree beat for
+beat and on every block's verdict. Up to t errors per block both decoders
+must correct every block with exactly e symbols and no beat may mismatch;
+above t both must flag every block uncorrectable and the checkers must have
+seen mismatches (the errors reached them); at every e the comparator must be
+clean. The checker's CRC-32 is over its regenerated words, so a CRC match is a
+delivery check (same number of words as generated), not a data check.
+`bin/seq_sweep.py` prints the table for e = 0 .. 2t + 2.
+
+**Board result (Nexys A7 210292BFA3EE, 2026-09-30, 64 blocks per point):**
+e = 0 .. 8 every block corrected with exactly e symbols and no mismatching
+beat on either decoder; e = 9 .. 18 every block flagged uncorrectable on both
+with mismatches seen; riBM and Euclid agreed on every beat and every verdict
+at every e, with random ready on the checkers too, and in burst and rate
+modes. Throughput 67.3 cycles per 63-beat block back to back (bypass: 59.0),
+121.9 under random ready. Timing met after place and route at 100 MHz,
+WNS +0.096 ns; 15963 LUTs, 5983 flops, 6 DSPs, no BRAM.
 
 **Why the generator was not given an error-injection mode.** An error in the
 generator's data is encoded faithfully and is invisible to the code. Errors

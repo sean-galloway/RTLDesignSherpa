@@ -191,3 +191,11 @@ unit; pipelining the injector (3 stages) gave -4.0 ns with the Chien -> Forney
 -> re-check -> status chain (24 levels) next; the decoder's correct stage is now
 split (C1 walk register, C2 emit). Regressions stayed green through both
 (component 65/130/195, harness 6/6).
+Board 2026-09-30 (Nexys A7, /dev/ttyUSB5): init/smoke/sweep ALL PASS -- e = 0..8
+every block corrected with exactly e symbols, no mismatching beat; e = 9..18
+every block uncorrectable on both decoders with mismatches seen; riBM == Euclid
+on every beat and verdict at every e, throttled, burst and rate modes too. 67.3
+cycles per 63-beat block (bypass 59.0; 121.9 under random ready). Post-route
+WNS +0.096 ns, 15963 LUTs / 5983 FF / 6 DSP / 0 BRAM. Caveat recorded: the
+shared checker's CRC is over the regenerated words, so `data_err` is the data
+evidence and `crc_ok` a delivery check.

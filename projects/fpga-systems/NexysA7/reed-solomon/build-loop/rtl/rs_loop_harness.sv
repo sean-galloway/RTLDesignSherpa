@@ -26,13 +26,16 @@
 //==============================================================================
 // Description:
 //   How the two solvers are validated on the board: the same corrupted blocks
-//   reach both decoders, each decoder's output is checked against the
-//   generator's regenerated pattern and CRC (so a decoder that corrects is
-//   proven against a reference that never saw the errors), and a comparator
-//   requires the two decoders to agree beat for beat and verdict for verdict.
-//   With more than t errors per block neither decoder can restore the data,
-//   so the checkers report a CRC mismatch there by design; the verdict tallies
-//   (uncorrectable) and the comparator are the evidence in that regime.
+//   reach both decoders, each decoder's output is compared beat by beat
+//   against the generator's regenerated pattern (the checker's data_err -- so
+//   a decoder that corrects is proven against a reference that never saw the
+//   errors), and a comparator requires the two decoders to agree beat for beat
+//   and verdict for verdict. With more than t errors per block neither decoder
+//   can restore the data, so the checkers report mismatching beats there by
+//   design; the verdict tallies and the comparator are the evidence in that
+//   regime. The checker's CRC is computed over its REGENERATED words, so a CRC
+//   match only shows the checker consumed as many words as the generator
+//   produced; crc_a_ok / crc_b_ok are delivery checks, not data checks.
 //
 //   The error injector sits AFTER the encoder. An error injected into the
 //   generator's data would be encoded faithfully and be invisible to the code,
