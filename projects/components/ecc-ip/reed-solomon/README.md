@@ -43,11 +43,12 @@ dropped).
 | [`PRD.md`](PRD.md) | requirements draft: the decisions that pick the code (m, t, shortening, encoder-only vs full decoder, throughput, BCH in or out) and the candidate profiles from the standards in `References/` |
 | [`References/`](References/README.md) | the papers and standards, with source and licence for each: the NASA tutorial, the CCSDS blue and green books, the BBC white paper, Plank's RAID tutorial and its correction; plus a cited list of the classic papers and the open-source implementations worth a reuse survey |
 | [`CLAUDE.md`](CLAUDE.md) | area facts for a session working here |
+| [`docs/reed_solomon_has/`](docs/reed_solomon_has/reed_solomon_has_index.md) | the Hardware Architecture Specification, v0.1 (draft): 23 chapters on use cases, context, block diagram, data flow, the two solvers, the valid/ready core ports, the AXIS and AXI4 adapters, registers, throughput/latency/resource estimates, parameters (open PRD items marked TBD), candidate profiles, verification and synthesis plan; built by `docs/generate_has_pdf.sh` into [`docs/Reed_Solomon_HAS_v0.1.pdf`](docs/Reed_Solomon_HAS_v0.1.pdf) |
 | [`docs/rs_fub_catalog.md`](docs/rs_fub_catalog.md) | every FUB bottom-up: Level 0 leaves that instantiate nothing, then each level listing ALL the blocks it instantiates with counts; bill of materials for the reference profile |
 | [`docs/rs_architecture_sketch.md`](docs/rs_architecture_sketch.md) | rough block diagram: the FUBs of the encoder and decoder in a line or two each, the repo blocks each is built from (and which are deliberately not used), and cell counts for the reference profile |
 
 RTL (`rtl/` + `rtl/filelists/`), DV (`dv/tbclasses/`, `dv/tests/`) and the
-MAS (`docs/`) are created when the PRD's decisions are made, not before --
+MAS (`docs/reed_solomon_mas/`) are created when the PRD's decisions are made, not before --
 placeholder collateral is the copy nobody finishes.
 
 ## Where to start

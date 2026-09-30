@@ -1,0 +1,17 @@
+flowchart LR
+    subgraph MC["Memory controller (endpoint)"]
+        direction LR
+        WQ["write path"] --> ENC["rs_encoder_core"] --> PHY1["DRAM / flash PHY"]
+        PHY1 --> DEC["rs_decoder_core"] --> RQ["read path"]
+    end
+    subgraph LINK["Serial link (endpoint pair)"]
+        direction LR
+        TXF["framer"] --> ENC2["rs_encoder_core"] --> SCR["scrambler<br/>(ENABLE_SCRAMBLER)"] --> TX["TX PHY"]
+        RX["RX PHY"] --> DSC["descrambler"] --> DEC2["rs_decoder_core"] --> RXF["deframer"]
+    end
+    subgraph SA["Standalone: memory-to-memory job (AXI4 / AXI4)"]
+        direction LR
+        RE["rs_axi_read_engine"] --> COR["rs_*_core"] --> WE["rs_axi_write_engine"]
+        JC["rs_job_ctrl<br/>regblock or descriptor stream"] --> RE
+        JC --> WE
+    end

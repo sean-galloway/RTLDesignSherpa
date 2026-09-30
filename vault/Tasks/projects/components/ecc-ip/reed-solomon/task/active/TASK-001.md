@@ -77,3 +77,13 @@ the two; References gain Shao 1985 and Baek-Sunwoo 2006.
 
 **2026-09-29 -- D7 (Sean):** BCH is out of this component; it will be its own
 `ecc-ip/bch/`. GF primitives stay general for reuse.
+
+**2026-09-29 -- HAS v0.1 (draft)** (Sean: "Are you ready for the HAS now?"):
+`docs/reed_solomon_has/` on the bridge HAS layout -- 23 chapters in ch00..ch06,
+three mermaid diagrams, styles YAML, `docs/generate_has_pdf.sh`; built to
+`docs/Reed_Solomon_HAS_v0.1.{pdf,docx}` (100 pages). Reference profile for every
+number is RS(255,239), t = 8, m = 8, one symbol per beat; open PRD items D2/D3/
+D5/D10 carried as TBD parameters (table 6.3). Two build lessons: the cloned
+script's `REPO_ROOT` needed one more `..` for the `ecc-ip/` depth, and the
+index's Related Modules links inlined PRD + catalog + References as chapters
+(150 pages) until they became plain paths.

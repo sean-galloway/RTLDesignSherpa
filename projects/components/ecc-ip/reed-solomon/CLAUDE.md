@@ -39,8 +39,13 @@ It is an endpoint codec, never a mid-stream insert (PRD 4a). Until a consumer na
   `cocotb_test_*` prefixes). Golden model: `reedsolo` (MIT) or `galois` (MIT)
   from PyPI, driven through the same encode/decode calls the RTL sees -- never
   a hand-rolled GF table in the test.
-- Docs: a MAS under `docs/reed_solomon_mas/` through the Sherpa doc pipeline
-  when there is a design to describe.
+- Docs: the HAS is `docs/reed_solomon_has/` (index + `ch00`..`ch06`, styles
+  YAML, mermaid sources under `assets/mermaid/`), built by
+  `docs/generate_has_pdf.sh` (flags as bridge's; `REPO_ROOT` is five levels
+  up because the component sits under `ecc-ip/`). Every Markdown link in the
+  index is inlined by the build, so companions are listed there as plain
+  paths. A MAS under `docs/reed_solomon_mas/` follows when there is a design
+  to describe.
 
 ## Reuse survey pointers
 

@@ -1,0 +1,12 @@
+gantt
+    title Decoder pipeline, one symbol per cycle (RS(255,239), t = 8)
+    dateFormat X
+    axisFormat %s
+    section Block i
+    receive n symbols, syndromes accumulate      :a1, 0, 255
+    key equation (2t iterations)                  :a2, 255, 271
+    Chien + Forney + corrector, buffer drains     :a3, 271, 526
+    section Block i+1
+    receive n symbols, syndromes accumulate      :b1, 255, 510
+    key equation                                  :b2, 510, 526
+    Chien + Forney + corrector                    :b3, 526, 781

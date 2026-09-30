@@ -1,0 +1,64 @@
+# Reed-Solomon Codec Hardware Architecture Specification Index
+
+## Overview
+
+**Version:** 0.1 (draft)
+**Date:** 2026-09-29
+**Purpose:** High-level hardware architecture specification for the Reed-Solomon codec component (`projects/components/ecc-ip/reed-solomon/`)
+
+---
+
+## Related Modules
+
+Listed as paths, not links: the document build inlines every Markdown link in
+this index, and these are companions, not chapters.
+
+- **PRD** - `projects/components/ecc-ip/reed-solomon/PRD.md` - product requirements: the decision table and candidate profiles
+- **FUB catalog** - `projects/components/ecc-ip/reed-solomon/docs/rs_fub_catalog.md` - every block bottom-up with what it instantiates
+- **References** - `projects/components/ecc-ip/reed-solomon/References/README.md` - standards and papers, with source and licence
+- **CLAUDE.md** - `projects/components/ecc-ip/reed-solomon/CLAUDE.md` - area facts for a session working here
+
+---
+
+## Navigation
+
+**Note:** Every chapter below is one source file; the document build assembles the spec from these links.
+
+### Front Matter
+- [Document Information](ch00_front_matter/00_document_info.md)
+
+### Chapter 1: Introduction
+- [Purpose and Scope](ch01_introduction/01_purpose.md)
+- [Document Conventions](ch01_introduction/02_conventions.md)
+- [Definitions and Acronyms](ch01_introduction/03_definitions.md)
+
+### Chapter 2: System Overview
+- [Use Cases](ch02_system_overview/01_use_cases.md)
+- [Key Features](ch02_system_overview/02_key_features.md)
+- [System Context](ch02_system_overview/03_system_context.md)
+
+### Chapter 3: Architecture
+- [Block Diagram](ch03_architecture/01_block_diagram.md)
+- [Data Flow](ch03_architecture/02_data_flow.md)
+- [Solver Options](ch03_architecture/03_solver_options.md)
+
+### Chapter 4: Interfaces
+- [Core Interface](ch04_interfaces/01_core_interface.md)
+- [AXI-Stream Adapter](ch04_interfaces/02_axis_adapter.md)
+- [AXI4 Job Adapter](ch04_interfaces/03_axi4_job_adapter.md)
+- [Register Block](ch04_interfaces/04_registers.md)
+- [Clock and Reset](ch04_interfaces/05_clock_reset.md)
+
+### Chapter 5: Performance
+- [Throughput](ch05_performance/01_throughput.md)
+- [Latency](ch05_performance/02_latency.md)
+- [Resources](ch05_performance/03_resources.md)
+
+### Chapter 6: Integration
+- [System Requirements](ch06_integration/01_system_requirements.md)
+- [Parameter Configuration](ch06_integration/02_parameters.md)
+- [Candidate Profiles](ch06_integration/03_profiles.md)
+- [Verification Strategy](ch06_integration/04_verification.md)
+- [Synthesis and Implementation](ch06_integration/05_synthesis.md)
+
+---

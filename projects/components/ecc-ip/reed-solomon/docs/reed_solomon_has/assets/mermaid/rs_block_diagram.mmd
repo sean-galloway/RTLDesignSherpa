@@ -1,0 +1,29 @@
+flowchart LR
+    subgraph CORE_E["rs_encoder_core (valid/ready in, valid/ready out)"]
+        direction LR
+        EU["symbol_unpack"] --> LF["gf_lfsr_encoder<br/>2t GF constant multipliers"]
+        EU --> PM["parity_mux<br/>pass k, append 2t"]
+        LF --> PM --> EP["symbol_pack"]
+    end
+    subgraph CORE_D["rs_decoder_core (valid/ready in, valid/ready out + status)"]
+        direction LR
+        DU["symbol_unpack"] --> BB["block_buffer<br/>n + latency symbols"]
+        DU --> SY["syndrome_unit<br/>2t cells"]
+        SY --> KE["key_equation_solver<br/>riBM (default) or Euclid"]
+        KE --> CH["chien_search<br/>t+1 cells"]
+        KE --> FO["forney_evaluator"]
+        CH --> FO --> CX["corrector"]
+        BB --> CX --> DP["symbol_pack"]
+        CX --> ST["status<br/>ok / corrected / uncorrectable"]
+    end
+    subgraph GF["gf_pkg: gf_mul, gf_mul_const, gf_inv, generated tables"]
+    end
+    subgraph ADP["optional adapters (INTAKE_IF / OUTLET_IF)"]
+        direction TB
+        AXS["AXIS: axis4_slave / axis4_master"]
+        AXI["AXI4: read engine / write engine + job control"]
+    end
+    LF -.- GF
+    SY -.- GF
+    KE -.- GF
+    FO -.- GF
