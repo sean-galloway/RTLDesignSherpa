@@ -2,7 +2,7 @@
 
 # tooling — tasks
 
-**Next ID: TASK-020** — never recycle a number, even when its item closed.
+**Next ID: TASK-022** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,13 +12,16 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 19 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **TASK-020** — pilot cocotb-test 0.3.0 (it removes the `cocotb.config` import that makes cocotb 2.x a landmine for every cocotb_test-based test in the tree), then decide whether cocotb 2.x is reachable at all
+- **TASK-021** — cocotb-framework's `__version__` is a hand-maintained literal that drifted from pyproject for six releases (published 0.6.7 self-reported 0.6.1); link them so a release cannot ship a mismatch
 
 
 
