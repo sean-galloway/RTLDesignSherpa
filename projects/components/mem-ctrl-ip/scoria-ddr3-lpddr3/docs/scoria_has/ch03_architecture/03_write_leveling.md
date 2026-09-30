@@ -51,6 +51,18 @@ calibration bug being a silicon respin instead of a script edit.
 system that needs autonomous leveling should add an external calibration engine
 driving this interface, not a search loop inside the controller.
 
+**Corroborated by LiteDRAM.** A DDR3 LiteDRAM core was generated to check this
+(`bin/litedram_ddr3_ref.yml`). Its write-leveling support is two CSR fields --
+`wlevel_en` to enter the mode and `wlevel_strobe` to emit a DQS pulse -- and
+**no state machine whatsoever**: a search for leveling FSM state in the
+generated core returns nothing. Software enables the mode, pulses the strobe,
+reads the result and walks the delay.
+
+An independent and widely-deployed controller reaching the same conclusion is
+worth more than the argument above on its own. It also tells us the *shape* of
+the interface that works in practice: enable plus strobe, rather than a
+higher-level "do a leveling pass" command.
+
 ## What the block owes the system
 
 | Responsibility | Detail |

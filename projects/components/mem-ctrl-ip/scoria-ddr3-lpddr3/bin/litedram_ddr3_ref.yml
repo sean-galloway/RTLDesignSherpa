@@ -1,0 +1,52 @@
+# LiteDRAM DDR3 core -- REFERENCE ONLY, for reading.
+#
+# Why this exists: scoria's HAS had questions no DDR2 artifact could answer.
+# The LiteDRAM core in the pumice flow
+# (projects/fpga-systems/NexysA7/pumice/ddr2-characterization/flows-litedram-uart/)
+# is a DDR2 configuration, and ZQ calibration, write leveling and MR3 are all
+# DDR3-and-later -- grepping it for ZQ returns nothing, which is an absence and
+# not an answer. A DDR3 core is a second independent implementation to compare
+# scoria's specification against.
+#
+# This is NOT a build target. No board is chosen for scoria (the board decision
+# is deferred), and nothing here is synthesized. The core is generated to be
+# READ.
+#
+# Deliberately mirrors litedram_hp.yml (the DDR2 config) everywhere it can, so
+# that a difference between the two generated cores is attributable to DDR3
+# rather than to the PHY, the port width, the buffer depth or the CPU:
+#   same PHY family (A7DDRPHY), same cpu, same cmd_buffer_depth,
+#   same single 64-bit AXI user port with id_width 8, same x16 module_nb.
+{
+    "speedgrade":       -1,
+    "cpu":              "vexriscv",
+    "memtype":          "DDR3",
+    "uart":             "rs232",
+
+    "cmd_latency":      0,
+    # MT41K128M16: DDR3 x16, the part litex-boards pairs with A7DDRPHY on
+    # Artix-7 targets. Chosen for PHY continuity with the DDR2 reference, not
+    # because scoria targets this device -- scoria has no target yet.
+    "sdram_module":     "MT41K128M16",
+    "sdram_module_nb":  2,            # x16 -> 2 byte groups
+    "sdram_rank_nb":    1,
+    "sdram_phy":        "A7DDRPHY",
+
+    "input_clk_freq":   100e6,
+    # 100 MHz sys at 1:4 -> 400 MHz CK -> DDR3-800.
+    #
+    # NOTE the difference from the DDR2 config, and it is forced: that one runs
+    # 75 MHz / 1:2 -> 300 MT/s to match pumice's measured design point. DDR3's
+    # SLOWEST standard bin is DDR3-800, so 300 MT/s is not a legal DDR3
+    # operating point at all. The frequency therefore cannot be held constant
+    # across the two references, and any timing comparison between them must
+    # account for that rather than assume it away.
+    "sys_clk_freq":     100e6,
+    "iodelay_clk_freq": 200e6,
+
+    "cmd_buffer_depth": 16,
+
+    "user_ports": {
+        "axi_0": { "type": "axi", "data_width": 64, "id_width": 8 }
+    }
+}

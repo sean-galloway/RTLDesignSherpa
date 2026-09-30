@@ -81,31 +81,41 @@ malformed, and two are deferred with a named condition.
 
 ### Q2: ZQCS is a request, never a preemption
 
-Sean asked for LiteDRAM to be examined before deferring. The examination is
-worth recording precisely, including what it could *not* show:
+**Answered from a DDR3 LiteDRAM core, generated for this purpose.** v0.2
+answered this by analogy, because the LiteDRAM core in the pumice flow is a
+DDR2 configuration and contains no ZQ logic at all. Sean's suggestion was to
+generate a DDR3 one; that core now exists and the analogy is no longer needed.
 
-- **LiteDRAM's generated core in this tree carries no ZQ logic at all.** It is
-  a DDR2 configuration and ZQ calibration is DDR3-and-later, so it offers no
-  direct evidence about ZQ scheduling. Saying so is the honest result; the
-  alternative would be to read intent into an absence.
-- **Its refresh handling is the analogous mechanism, and it is instructive.**
-  The core implements `refresh_req` / `refresh_gnt` — a request/grant handshake
-  to the scheduler — alongside a `RefreshTimer`, a `RefreshSequencer` and a
-  `RefreshPostponer`. Maintenance traffic *asks* and waits for a grant. It does
-  not seize the bus.
-- **pumice does the same thing**, and its refresh grant path is the block scoria
-  inherits.
+What the DDR3 core does (`bin/litedram_ddr3_ref.yml` regenerates it):
 
-Two independent controllers converging on request/grant for maintenance traffic
-is a strong enough signal to set the baseline: `scoria_zq_ctrl` raises a demand
-and waits. It does not preempt, and it does not have a priority override.
+- **ZQCS shares the refresher's FSM.** There is one `refresher` state machine,
+  and it starts the ZQCS executer from inside itself and waits for its done.
+  Maintenance is not a separate agent competing for the bus; it is one
+  sequencer issuing both kinds of maintenance command.
+- **It requests, and waits.** `refresh_req` to every bank machine is driven
+  from the maintenance command's valid. The bank machines must grant -- drain
+  and precharge -- before the command issues. Nothing is preempted.
+- **The executer is a timed sequence**, a trigger counter stepping to 19 and
+  then asserting done, with the periodic timer held off (`zqcs_timer_wait`)
+  until it completes. So `tZQCS` is enforced by holding the *next* interval,
+  not by blocking traffic.
 
-**Condition to revisit:** if characterization shows `ZQCS` being starved under
-sustained demand — the interval slipping materially past its CSR value — then
-placement becomes a real question, and it belongs to scoria TASK-001's
-scheduling-modes survey rather than to the baseline. The telemetry required in
-Chapter 3.2 (a count of calibrations issued) is what makes that measurable
-rather than suspected.
+That is three independent controllers agreeing -- LiteDRAM DDR2 refresh,
+LiteDRAM DDR3 ZQCS, and pumice refresh -- so the baseline is settled rather
+than merely plausible: `scoria_zq_ctrl` raises a demand and waits for a grant.
+
+**Design consequence worth taking from LiteDRAM:** it shares one sequencer
+between refresh and ZQ rather than giving ZQ its own. scoria's Chapter 2.3
+specifies `scoria_zq_ctrl` as a separate FUB, and that remains the plan --
+pumice's `refresh_ctrl` is already substantial and adding a second maintenance
+mode to it would couple two independently-verifiable things. But the *interface*
+both present to the scheduler should be identical, so that the arbiter sees one
+kind of maintenance demand with a source tag rather than two special cases.
+
+**Condition to revisit unchanged:** if characterization shows `ZQCS` starved
+under sustained demand -- the interval slipping materially past its CSR value --
+placement becomes TASK-001's scheduling question. The issued-calibration counter
+required in Chapter 3.2 is what makes that measurable rather than suspected.
 
 ### Q3: sample the prime DQ bit only
 

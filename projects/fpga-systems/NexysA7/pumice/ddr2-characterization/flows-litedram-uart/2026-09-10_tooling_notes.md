@@ -81,3 +81,37 @@ with a user port, not a SoC.
 against this board's pin-out, wrap it as `litedram_char_top` behind the same
 AXI the pumice harness drives, and reuse the existing generators, perf
 counters and host program unchanged. Tracked as pumice TASK-027 (was PUMICE-026).
+
+---
+
+## Recipe corrections (2026-09-30, from standing up a DDR3 reference core)
+
+The recipe above was re-derived once more, for
+`projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/bin/regen_litedram_ddr3_ref.sh`
+(a DDR3 core generated to be READ, as reference for the scoria HAS). Three
+things it did not say, each of which cost an attempt:
+
+* **The Python 3.10 pin is about PyPI, not about Python.** migen installed
+  **from git** infers `ClockDomain` names correctly on Python 3.12 --
+  verified directly: `ClockDomain().name == 'cd'`. Only PyPI migen 0.9.2 is
+  broken. A 3.12 venv with git installs is sufficient, and the
+  `litex-venv310` name is misleading about why it worked.
+
+* **`--no-compile-software` does NOT avoid the software dependencies.**
+  `litedram_gen` imports `pythondata-software-picolibc` *and*
+  `pythondata-software-compiler_rt` at module load regardless of the flag, and
+  dies on either being absent. Both must be installed (from git) even for a
+  generate-only run that builds no BIOS. The note above mentions picolibc as a
+  BIOS-build problem; it is actually an import-time problem.
+
+* **Run the generator from a directory that does NOT contain the clones.**
+  With the cwd inside the checkout tree, `import migen` / `import litex`
+  resolve to the clone ROOTS as namespace packages rather than to the
+  installed packages, and generation fails with
+  `NameError: name 'Signal' is not defined` from inside
+  `litex/gen/signal.py`. Nothing is wrong with the install, and the error
+  points nowhere near the cause. `regen_litedram_ddr3_ref.sh` cds to a scratch
+  directory for exactly this reason.
+
+Generation is reproducible modulo the timestamp: two runs of the same config
+differ in 12 lines, all of them the date header and build ids.
