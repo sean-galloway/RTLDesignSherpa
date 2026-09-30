@@ -50,6 +50,8 @@ python3 "${REPO_ROOT}/bin/md_to_docx.py" \
   --assets-dir "${ASSETS}" \
   --assets-dir "${ASSETS}/images" \
   --assets-dir "${ASSETS}/graphviz" \
+  --assets-dir "${ASSETS}/wavedrom" \
+  --low \
   --quiet
 
 echo "Done: ${OUTPUT_DOCX} ${OUTPUT_PDF}"

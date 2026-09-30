@@ -1,0 +1,12 @@
+{ "signal": [
+  { "name": "GO",              "wave": "010......|..." },
+  { "name": "s_axis_tvalid",   "wave": "0..1.....|10." },
+  { "name": "s_axis_tready",   "wave": "0..1.0.1.|1.." },
+  { "name": "shared window",   "wave": "01.......|..0", "node": ".a...........b" },
+  { "name": "sin window",      "wave": "0..1.....|.0.", "node": "...c.......d" },
+  {},
+  { "name": "wr_prod",         "wave": "=....=...|=.=", "data": ["0","...","target-1","target"] }
+],
+  "edge": [ "a~>b  arm at GO, close on wr_prod == target", "c~>d  first offered beat to last accepted beat" ],
+  "head": { "text": "Ingress window: shared (ISSUE-001) versus its own", "tick": 0 }
+}

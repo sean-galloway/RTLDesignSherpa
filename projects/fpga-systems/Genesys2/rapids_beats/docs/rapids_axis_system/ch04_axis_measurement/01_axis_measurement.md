@@ -73,22 +73,11 @@ counted rather than lost to a register delay; the close falls back to the
 shared window when no target is staged. The AXIS observer's port 0 uses the
 same window, so the bare meter and the observer agree to the beat.
 
-### Figure 4.2: The ingress window, before and after
+#### Waveform 4.1: The ingress window, before and after
 
-```wavedrom
-{ "signal": [
-  { "name": "GO",              "wave": "010......|..." },
-  { "name": "s_axis_tvalid",   "wave": "0..1.....|10." },
-  { "name": "s_axis_tready",   "wave": "0..1.0.1.|1.." },
-  { "name": "shared window",   "wave": "01.......|..0", "node": ".a...........b" },
-  { "name": "sin window",      "wave": "0..1.....|.0.", "node": "...c.......d" },
-  {},
-  { "name": "wr_prod",         "wave": "=....=...|=.=", "data": ["0","...","target-1","target"] }
-],
-  "edge": [ "a~>b  arm at GO, close on wr_prod == target", "c~>d  first offered beat to last accepted beat" ],
-  "head": { "text": "Ingress window: shared (ISSUE-001) versus its own", "tick": 0 }
-}
-```
+![Ingress window: shared versus its own](../assets/wavedrom/01_ingress_window.png)
+
+**Source:** [01_ingress_window.json](../assets/wavedrom/01_ingress_window.json)
 
 ## What the report reads from them
 
