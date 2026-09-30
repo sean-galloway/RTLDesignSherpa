@@ -168,9 +168,27 @@ module scoria_wrlvl_ifc
                         r_state    <= WL_WAIT_WLO;
                         r_cnt      <= t_wlo_i;
                         r_attempts <= r_attempts + 16'd1;
+                        // RESTART the inactivity window on every accepted
+                        // strobe. Without this, r_since_mrd measures total
+                        // elapsed time since ENTERING leveling, while the
+                        // timeout below is meant to mean "the host has stopped
+                        // driving" -- and those diverge the moment the first
+                        // strobe lands.
+                        //
+                        // The consequence was a spurious failure in the normal
+                        // case: a host sweeping delay taps, each costing tWLO
+                        // plus a UART round trip, blows through any sensible
+                        // t_wlmrd_max part-way through and gets WL_TIMEOUT with
+                        // obs_timeout set -- which reads as "leveling failed"
+                        // on a pass that was working. Caught by
+                        // test_scoria_wrlvl_ifc's sweep_does_not_spuriously_
+                        // timeout at strobe 8 of 8, attempts 7.
+                        r_since_mrd <= 16'd0;
                     end else if (w_max_armed && (r_since_mrd >= t_wlmrd_max_i)) begin
-                        // Armed and never strobed: the host has stopped
-                        // driving. Report it rather than waiting forever.
+                        // Armed and not strobed for t_wlmrd_max: the host has
+                        // stopped driving. Report it rather than waiting
+                        // forever. t_wlmrd_max is OURS -- JESD79-3F declares
+                        // tWLMRD's maximum controller-dependent.
                         r_state   <= WL_TIMEOUT;
                         r_timeout <= 1'b1;
                     end
