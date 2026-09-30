@@ -57,10 +57,10 @@ def _fmt(v):
 
 def dump(io: RapidsByteIO, num_channels: int) -> None:
     print("=" * 60)
-    # CSR_ID is the read alias of CTRL @ 0x000 -> read CTRL by name.
+    # CSR_ID is the read alias of the CTRL register -> read CTRL by name.
     dev_id = io.csr_read_reg("CTRL")
     ok = dev_id == rio.CSR_ID_EXPECTED
-    print(f"ID         : {_fmt(dev_id)}  ('RAP1' expected: "
+    print(f"ID         : {_fmt(dev_id)}  (CSR_ID expected: "
           f"{'OK' if ok else 'MISMATCH'})")
 
     status = io.read_status()

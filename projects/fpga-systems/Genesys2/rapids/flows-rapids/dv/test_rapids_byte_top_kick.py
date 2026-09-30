@@ -59,10 +59,26 @@ UART_BAUD = FPGA_CLK_HZ // CLKS_PER_BIT
 DESC_BASE = 0x3000_0000
 KICK_STRIDE = 0x1000
 
-APB_SRC_BASE = 0x0000
-APB_SNK_BASE = 0x1000
-# rapids_beats_top: staged CHx_DESC_ADDR_{LOW,HIGH} + rising-edge KICK_ENABLE.
-DUT_KICK_ENABLE = 0x040
+# Staged CHx_DESC_ADDR_{LOW,HIGH} + rising-edge KICK_ENABLE, resolved BY NAME
+# from the DUT regmap at the SNK half base (generated rtl/rapids_harness_map.py).
+def _dut_regs():
+    import contextlib
+    import io as _io
+    import logging
+    from TBClasses.apb.register_map import RegisterMap
+    import rapids_byte_io as rio
+    with contextlib.redirect_stdout(_io.StringIO()):
+        return RegisterMap(
+            os.path.join(get_repo_root(),
+                         'projects/components/dma-ip/rapids/rtl/rapids_regmap.py'),
+            apb_data_width=32, apb_addr_width=13,
+            start_address=rio.apb_half_base('snk'),
+            log=logging.getLogger('rapids_kick_test'))
+
+
+def _snk_addr(reg_name: str) -> int:
+    regs = _dut_regs()
+    return regs.start_address + regs.get_register_offset_map()[reg_name]
 
 
 def _apb_recorder(dut, sink):
@@ -130,13 +146,13 @@ async def cocotb_test_kick_enable_written(dut):
 
     # Every masked channel is staged, LOW then HIGH.
     for ch in (0, 2):
-        lo = APB_SNK_BASE + ch * 8
-        hi = lo + 4
+        lo = _snk_addr(f"CH{ch}_DESC_ADDR_LOW")
+        hi = _snk_addr(f"CH{ch}_DESC_ADDR_HIGH")
         assert any(a == lo for a, _ in writes), f"ch{ch} DESC_ADDR_LOW never staged"
         assert any(a == hi for a, _ in writes), f"ch{ch} DESC_ADDR_HIGH never staged"
 
     # THE regression guard: staging alone launches nothing.
-    kick_addr = APB_SNK_BASE + DUT_KICK_ENABLE
+    kick_addr = _snk_addr('KICK_ENABLE')
     kicks = [(a, d) for a, d in writes if a == kick_addr]
     assert kicks, (
         f"KICK_ENABLE (0x{kick_addr:03X}) was never written -- the sequencer "
@@ -161,7 +177,7 @@ async def cocotb_test_empty_mask_is_a_noop(dut):
     await cocotb.external(lambda: _stage_and_go(io, 1, 0))()
     await ClockCycles(dut.CLK100MHZ, 4000)
 
-    kick_addr = APB_SNK_BASE + DUT_KICK_ENABLE
+    kick_addr = _snk_addr('KICK_ENABLE')
     assert not [a for a, _ in writes if a == kick_addr], \
         "KICK_ENABLE pulsed with an empty mask; GO with mask=0 must be a no-op"
 

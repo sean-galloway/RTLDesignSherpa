@@ -13,10 +13,11 @@
 # UARTAxiBridge (projects/fpga-systems/bin/uart_axi_bridge.py) already
 # implements this exactly, so we do NOT re-implement byte framing here.
 #
-# Host word-address map (region = addr[19:16]), from rapids_byte_top.sv header:
-#   0x0_0000  DUT-REG   : AXIL -> apb4_master -> harness s_apb (addr[12:0]=APB byte)
-#   0x1_0000  DESC-LOAD : DESC_WORD[0..7] + DESC_ADDR + DESC_KICK + DESC_STATUS
-#   0x2_0000  HARNESS CSR: gen/chk/mem/mon control + status readback
+# Host address map: regions APB (DUT registers), DESC (descriptor load), CSR
+# (harness control/status) and OBS (observers). Region numbers and the SRC/SNK
+# and AXI/AXIS half bases come from the GENERATED rtl/rapids_harness_map.py,
+# which bin/gen_rapids_harness_regmap.py cross-checks against rapids_byte_harness.sv;
+# every register is addressed by name, never by a literal offset.
 #
 # Author: sean galloway
 # Created: 2026-07-04
@@ -47,31 +48,39 @@ except ImportError:  # pragma: no cover - only hit without REPO_ROOT / pyserial
 
 
 # ---------------------------------------------------------------------------
-# Region bases (region = host word-address bits [19:16]).
+# Region and half bases, BY NAME, from the generated map (see header).
 # ---------------------------------------------------------------------------
-REGION_APB = 0x0        # DUT-REG
-REGION_DESC = 0x1       # DESC-LOAD
-REGION_CSR = 0x2        # HARNESS CSR
-REGION_OBS = 0x3        # OBSERVERS (USE_OBSERVERS=1 builds only, rapids TASK-001)
-_REGION_SHIFT = 16
+def _load_harness_map():
+    import importlib.util
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        '..', 'rtl', 'rapids_harness_map.py')
+    spec = importlib.util.spec_from_file_location('rapids_harness_map', path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
-def region_base(region: int) -> int:
-    return region << _REGION_SHIFT
+_MAP = _load_harness_map()
 
 
-# ---------------------------------------------------------------------------
-# DUT-REG (region 0) sub-addresses: 13-bit APB byte address. The half is
-# selected by APB addr bit[12] (SRC half, SNK half), matching the two
-# RegisterMap start_addresses used by rapids_byte_harness_tb.py.
-# ---------------------------------------------------------------------------
-APB_SRC_BASE = 0x0000
-APB_SNK_BASE = 0x1000
+def region_base(region: str) -> int:
+    """Base address of a host region by name: 'APB', 'DESC', 'CSR' or 'OBS'."""
+    return _MAP.REGIONS[region] << _MAP.REGION_SHIFT
+
+
+def apb_half_base(half: str) -> int:
+    """Base of a DUT register half inside the APB region: 'src' or 'snk'."""
+    return _MAP.APB_HALVES[half] << _MAP.HALF_SHIFT
+
+
+def obs_half_base(which: str) -> int:
+    """Base of an observer inside the OBS region: 'axi' or 'axis'."""
+    return _MAP.OBS_HALVES[which] << _MAP.HALF_SHIFT
 
 
 # ---------------------------------------------------------------------------
 # DESC-LOAD (region 1) registers are accessed BY NAME via rapids_harness_desc_regmap
-# (DESC_WORD0-7, DESC_ADDR, DESC_KICK{HALF}, DESC_STATUS{OK}) -- see desc_write_reg /
+# (the DESC_* registers) -- see desc_write_reg /
 # desc_read_reg below. No offset constants: load_descriptor() uses the names.
 # ---------------------------------------------------------------------------
 
@@ -159,6 +168,13 @@ def _compose(regmap, name: str, **fields: int) -> int:
     return word & 0xFFFF_FFFF
 
 
+def field_value(regmap, name: str, field: str, word: int) -> int:
+    """Extract FIELD of register NAME from a raw register word, by the regmap's offsets."""
+    off = regmap.registers[name][field]['offset']
+    hi, lo = (int(x) for x in off.split(':')) if ':' in off else (int(off), int(off))
+    return (word >> lo) & ((1 << (hi - lo + 1)) - 1)
+
+
 class RapidsByteIO:
     """AXIL region-aware transport over the rapids_byte_top UART link."""
 
@@ -196,19 +212,19 @@ class RapidsByteIO:
     # ---- Region helpers -----------------------------------------------------
 
     def dut_reg_write(self, apb_byte_addr: int, data: int) -> bool:
-        return self.axil_write(region_base(REGION_APB) | apb_byte_addr, data)
+        return self.axil_write(region_base('APB') | apb_byte_addr, data)
 
     def dut_reg_read(self, apb_byte_addr: int) -> int:
-        return self.axil_read(region_base(REGION_APB) | apb_byte_addr)
+        return self.axil_read(region_base('APB') | apb_byte_addr)
 
     def desc_write(self, offset: int, data: int) -> bool:
-        return self.axil_write(region_base(REGION_DESC) | offset, data)
+        return self.axil_write(region_base('DESC') | offset, data)
 
     def desc_read(self, offset: int) -> int:
-        return self.axil_read(region_base(REGION_DESC) | offset)
+        return self.axil_read(region_base('DESC') | offset)
 
     def csr_write(self, offset: int, data: int) -> bool:
-        return self.axil_write(region_base(REGION_CSR) | offset, data)
+        return self.axil_write(region_base('CSR') | offset, data)
 
     def csr_read(self, offset: int, retries: int = 3) -> int:
         """Robust 32-bit CSR read.
@@ -219,7 +235,7 @@ class RapidsByteIO:
         the scoreboard (which would look like a false failure). The wire
         protocol is unchanged — this is a pure host-side retry.
         """
-        addr = region_base(REGION_CSR) | offset
+        addr = region_base('CSR') | offset
         result = None
         for attempt in range(max(1, retries)):
             try:
@@ -236,11 +252,11 @@ class RapidsByteIO:
 
     def csr_addr(self, name: str) -> int:
         """Absolute AXIL address of a harness CSR register, by name."""
-        return region_base(REGION_CSR) | int(self._csr_map.registers[name]['address'], 16)
+        return region_base('CSR') | int(self._csr_map.registers[name]['address'], 16)
 
     def desc_addr(self, name: str) -> int:
         """Absolute AXIL address of a DESC-LOAD register, by name."""
-        return region_base(REGION_DESC) | int(self._desc_map.registers[name]['address'], 16)
+        return region_base('DESC') | int(self._desc_map.registers[name]['address'], 16)
 
     def csr_write_reg(self, name: str, **fields: int) -> int:
         """Set CSR register FIELDS by name, then write. Returns the word written."""
@@ -254,10 +270,7 @@ class RapidsByteIO:
 
     def csr_field(self, name: str, field: str) -> int:
         """Read one field of a harness CSR register by name."""
-        val = self.csr_read_reg(name) or 0
-        off = self._csr_map.registers[name][field]['offset']
-        hi, lo = (int(x) for x in off.split(':')) if ':' in off else (int(off), int(off))
-        return (val >> lo) & ((1 << (hi - lo + 1)) - 1)
+        return field_value(self._csr_map, name, field, self.csr_read_reg(name) or 0)
 
     def desc_write_reg(self, name: str, value: int = None, **fields: int) -> int:
         """Write a DESC-LOAD register by name. `value` for a plain word (VALUE),
@@ -270,6 +283,13 @@ class RapidsByteIO:
 
     def desc_read_reg(self, name: str) -> int:
         return self.desc_read(int(self._desc_map.registers[name]['address'], 16))
+
+    def desc_field(self, name: str, field: str):
+        """Read one field of a DESC-LOAD register by name (None if the read failed)."""
+        val = self.desc_read_reg(name)
+        if val is None:
+            return None
+        return field_value(self._desc_map, name, field, val)
 
     # ---- Convenience: CSR pulses / selected-channel reads -------------------
 
@@ -342,14 +362,13 @@ class RapidsByteIO:
     #
     # USE_OBSERVERS=1 builds axi4_intf_master_observer (rd + wr data masters) and
     # axis4_intf_observer (sin = port 0, sout = port 1) on the harness, each with
-    # its own 4 KB obs_regs map: AXI @ 0x0000, AXIS @ 0x1000 (paddr[12]). The
+    # its own 4 KB obs_regs map (obs_half_base('axi') / ('axis'), paddr[12]). The
     # regmap is the SAME generated file the misc component TB and the stream host
     # read (projects/components/utility-ip/misc/rtl/regs/generated/obs_regs_top_regmap.py),
     # so an observer register move breaks here loudly rather than silently.
     # The observers meter the same window as the bare meters (obs_meter_clear /
     # obs_meter_freeze), so their buckets bracket exactly the same transfer.
 
-    OBS_BASES = {'axi': 0x0000, 'axis': 0x1000}
     # iface -> (which observer, tap index, IS_WRITE)
     OBS_IFACE = {'rd': ('axi', 0, 0), 'wr': ('axi', 0, 1),
                  'sin': ('axis', 0, 0), 'sout': ('axis', 1, 0)}
@@ -402,11 +421,11 @@ class RapidsByteIO:
 
     def obs_write(self, which: str, name: str, value: int = None, **fields: int) -> bool:
         word = self.obs_compose(name, **fields) if value is None else value
-        addr = region_base(REGION_OBS) | self.OBS_BASES[which] | self.obs_addr(name)
+        addr = region_base('OBS') | obs_half_base(which) | self.obs_addr(name)
         return self.axil_write(addr, word)
 
     def obs_read(self, which: str, name: str, retries: int = 3) -> int:
-        addr = region_base(REGION_OBS) | self.OBS_BASES[which] | self.obs_addr(name)
+        addr = region_base('OBS') | obs_half_base(which) | self.obs_addr(name)
         result = None
         for attempt in range(max(1, retries)):
             try:
@@ -517,14 +536,15 @@ class RapidsByteIO:
         """
         if len(desc_words) != 8:
             raise ValueError(f"expected 8 descriptor words, got {len(desc_words)}")
-        half_sel = 0 if half == 'src' else 1
+        if half not in ('src', 'snk'):
+            raise ValueError(f"half must be 'src' or 'snk', got {half!r}")
+        half_sel = int(half == 'snk')
 
         for i, word in enumerate(desc_words):
             self.desc_write_reg(f"DESC_WORD{i}", word)
         self.desc_write_reg("DESC_ADDR", ram_byte_addr & 0xFFFF_FFFF)
         self.desc_write_reg("DESC_KICK", HALF=half_sel)   # issues the AXI4 write
-        status = self.desc_read_reg("DESC_STATUS")
-        return status is not None and (status & 0x1) == 1
+        return self.desc_field("DESC_STATUS", "OK") == 1
 
     # ---- Cleanup ------------------------------------------------------------
 

@@ -8,7 +8,8 @@
 #          harness TB (dv/rapids_byte_harness_tb.py) verifies in sim:
 #            SINK  : o_gen_expected_crc[ch] == wr_crc_value[ch]
 #            SOURCE: rd_crc_value[ch]        == o_chk_actual_crc[ch], data_error==0
-#          Config is programmed BY NAME (RegisterMap, SRC @0x0000 / SNK @0x1000)
+#          Config is programmed BY NAME (RegisterMap, one map per half; the half
+#          bases come from the generated rtl/rapids_harness_map.py)
 #          through the DUT-REG region; descriptors load through the DESC-LOAD
 #          region; gen/chk/mem CSRs live in the HARNESS CSR region.
 #
@@ -113,9 +114,10 @@ def read_build(io) -> dict:
     DESIGN.clear(); DESIGN.update(d)
     return d
 
-# APB half bases (DUT-REG region) — match the RegisterMap start_addresses.
-APB_SRC_BASE = rio.APB_SRC_BASE
-APB_SNK_BASE = rio.APB_SNK_BASE
+# APB half bases (DUT-REG region), from the generated harness map -- the same
+# source the RTL localparams are checked against.
+APB_SRC_BASE = rio.apb_half_base('src')
+APB_SNK_BASE = rio.apb_half_base('snk')
 
 
 class RapidsByteCampaign:
@@ -132,7 +134,7 @@ class RapidsByteCampaign:
         # clock runs, so a CSR read here would hang the simulated UART.
         self.design = None
 
-        # Two by-name register maps: SRC half @ 0x0000, SNK half @ 0x1000.
+        # Two by-name register maps, one per half (bases from the generated map).
         from TBClasses.apb.register_map import RegisterMap
         self.src_regs = RegisterMap(RAPIDS_REGMAP_PATH, apb_data_width=32,
                                     apb_addr_width=13,
@@ -315,8 +317,8 @@ class RapidsByteCampaign:
         """Stage the on-chip kick sequencer (fired later by go()): which half,
         which channels, and the descriptor base/stride. Replaces the per-channel
         UART kick writes so the kicks land within a few aclk cycles of GO."""
-        cfg = (1 if half == 'snk' else 0) | ((1 << 1) if start_gen else 0)
-        self.io.csr_write_reg("KICK_CFG", HALF=cfg & 1, START_GEN_ON_GO=(cfg >> 1) & 1)
+        self.io.csr_write_reg("KICK_CFG", HALF=int(half == 'snk'),
+                              START_GEN_ON_GO=int(bool(start_gen)))
         self.io.csr_write_reg("KICK_MASK", VALUE=mask)
         self.io.csr_write_reg("KICK_BASE_LO", VALUE=DESC_BASE & 0xFFFF_FFFF)
         self.io.csr_write_reg("KICK_BASE_HI", VALUE=(DESC_BASE >> 32) & 0xFFFF_FFFF)
@@ -339,7 +341,7 @@ class RapidsByteCampaign:
         allch = (1 << self.num_channels) - 1
         for half in ('snk', 'src'):
             self.write_fields(half, 'CHANNEL_RESET', CH_RST=allch)
-            self.write_fields(half, 'CHANNEL_RESET', CH_RST=0x00)
+            self.write_fields(half, 'CHANNEL_RESET', CH_RST=0)
 
     # ---- polling -----------------------------------------------------------
 
