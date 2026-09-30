@@ -123,6 +123,7 @@ module scoria_csr (
         logic STALL_BANKTIMER;
         logic STALL_NOREQ;
         logic REF_STATS_REF_BUSY;
+        logic STALL_ZQ;
         logic ID;
         logic BUILD;
     } decoded_reg_strb_t;
@@ -190,6 +191,7 @@ module scoria_csr (
         decoded_reg_strb.STALL_BANKTIMER = cpuif_req_masked & (cpuif_addr == 12'h174);
         decoded_reg_strb.STALL_NOREQ = cpuif_req_masked & (cpuif_addr == 12'h178);
         decoded_reg_strb.REF_STATS_REF_BUSY = cpuif_req_masked & (cpuif_addr == 12'h17c);
+        decoded_reg_strb.STALL_ZQ = cpuif_req_masked & (cpuif_addr == 12'h180);
         decoded_reg_strb.ID = cpuif_req_masked & (cpuif_addr == 12'hff0);
         decoded_reg_strb.BUILD = cpuif_req_masked & (cpuif_addr == 12'hff4);
     end
@@ -2672,7 +2674,7 @@ module scoria_csr (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[64];
+    logic [31:0] readback_array[65];
     assign readback_array[0][0:0] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_start.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_force_restart.value : '0;
     assign readback_array[0][3:2] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
@@ -2838,11 +2840,12 @@ module scoria_csr (
     assign readback_array[59][31:0] = (decoded_reg_strb.STALL_BANKTIMER && !decoded_req_is_wr) ? hwif_in.STALL_BANKTIMER.VAL.next : '0;
     assign readback_array[60][31:0] = (decoded_reg_strb.STALL_NOREQ && !decoded_req_is_wr) ? hwif_in.STALL_NOREQ.VAL.next : '0;
     assign readback_array[61][31:0] = (decoded_reg_strb.REF_STATS_REF_BUSY && !decoded_req_is_wr) ? hwif_in.REF_STATS_REF_BUSY.VAL.next : '0;
-    assign readback_array[62][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
-    assign readback_array[62][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[62][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
-    assign readback_array[62][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
-    assign readback_array[63][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[62][31:0] = (decoded_reg_strb.STALL_ZQ && !decoded_req_is_wr) ? hwif_in.STALL_ZQ.VAL.next : '0;
+    assign readback_array[63][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
+    assign readback_array[63][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[63][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
+    assign readback_array[63][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
+    assign readback_array[64][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
 
     // Reduce the array
     always_comb begin
@@ -2850,7 +2853,7 @@ module scoria_csr (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<64; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<65; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

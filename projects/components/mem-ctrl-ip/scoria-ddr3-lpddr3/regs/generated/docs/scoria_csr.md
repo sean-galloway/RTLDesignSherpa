@@ -76,6 +76,7 @@ Don't override. Generated from: $root
 | 0x174|    STALL_BANKTIMER    |          Stall: per-bank timer         |
 | 0x178|      STALL_NOREQ      |         Stall: nothing pending         |
 | 0x17C|   REF_STATS_REF_BUSY  |  Refresh Stats: Refreshes with demand  |
+| 0x180|        STALL_ZQ       |          Stall: ZQ calibration         |
 | 0xFF0|           ID          |                Module ID               |
 | 0xFF4|         BUILD         |               Build Hash               |
 
@@ -1831,6 +1832,33 @@ appended register.</p>
 #### VAL field
 
 <p>REF commands issued with work pending</p>
+
+### STALL_ZQ register
+
+- Absolute Address: 0x180
+- Base Offset: 0x180
+- Size: 0x4
+
+<p>ZQCS owns the bus: either waiting for the banks to close ahead of
+a calibration, or inside the tZQCS window where JESD79-3F 3.10
+allows no command at all.</p>
+<p>It needs its own counter. Without it these cycles fall through
+the stall-reason chain into STALL_BANKTIMER, whose whole claim is
+that it names a per-bank tRCD/tRP/tRAS block -- and a
+misattributed bucket is worse than a missing one, because it
+reads as a real timing problem on a part that has none.</p>
+<p>At 0x180, not 0x17C beside its six siblings: 0x17C is
+REF_STATS_REF_BUSY. Appending past the group is the lesser
+evil against renumbering registers a host program already
+reads by offset.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>ZQCS wait or tZQCS window</p>
 
 ### ID register
 

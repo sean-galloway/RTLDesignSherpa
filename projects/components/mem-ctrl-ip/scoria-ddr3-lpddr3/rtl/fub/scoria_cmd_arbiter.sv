@@ -227,7 +227,8 @@ module scoria_cmd_arbiter
     output logic [31:0]               stall_tccd_o,      // column-to-column spacing
     output logic [31:0]               stall_actlimit_o,  // tFAW / tRRD
     output logic [31:0]               stall_banktimer_o, // tRCD / tRP / tRAS, per bank
-    output logic [31:0]               stall_noreq_o      // nothing pending: requester-bound
+    output logic [31:0]               stall_noreq_o,     // nothing pending: requester-bound
+    output logic [31:0]               stall_zq_o         // ZQCS wait or the tZQCS window
 );
 
     localparam int RK0 = 0;   // v1 single-rank pick
@@ -1275,11 +1276,17 @@ module scoria_cmd_arbiter
             stall_actlimit_o   <= 32'h0;
             stall_banktimer_o  <= 32'h0;
             stall_noreq_o      <= 32'h0;
+            stall_zq_o         <= 32'h0;
         end else if (w_stalled) begin
             if (w_out_reject)                       // picked, live bank timer said no
                 stall_banktimer_o  <= stall_banktimer_o + 32'h1;
             else if (r_pick_valid)                  // picked, DFI said no
                 stall_bp_o         <= stall_bp_o + 32'h1;
+            else if (w_zq_busy || zq_req_i)
+                // Ordered ahead of refresh to match the cone: inside tZQCS the
+                // refresh branch cannot run, so charging those cycles to
+                // refresh would name a blocker that was not blocking.
+                stall_zq_o         <= stall_zq_o + 32'h1;
             else if (refresh_req_i || refresh_drain_i)
                 stall_refresh_o    <= stall_refresh_o + 32'h1;
             else if (!w_any_pending)                // genuinely nothing to do

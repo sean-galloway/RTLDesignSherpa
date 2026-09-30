@@ -132,6 +132,7 @@ module scoria_top
     // live telemetry members are assigned below. always_comb so members can
     // be overridden without a second driver on the struct.
     logic [31:0] w_stall_bp, w_stall_refresh, w_stall_turnaround, w_stall_tccd, w_stall_actlimit, w_stall_banktimer, w_stall_noreq;
+    logic [31:0] w_stall_zq;
     logic [31:0] w_stat_page_hit, w_stat_page_miss, w_stat_page_empty;
     logic [31:0] w_stat_row_hit [NUM_BANKS];   // per-bank row hits (BUG-020)
     logic [31:0] w_stat_act, w_stat_pre, w_stat_ref;
@@ -166,6 +167,7 @@ module scoria_top
         hwif_in.STALL_ACTLIMIT.VAL.next = w_stall_actlimit;
         hwif_in.STALL_BANKTIMER.VAL.next = w_stall_banktimer;
         hwif_in.STALL_NOREQ.VAL.next = w_stall_noreq;
+        hwif_in.STALL_ZQ.VAL.next    = w_stall_zq;
         hwif_in.PAGE_STATS_HIT.VAL.next    = w_stat_page_hit;
         // Per-bank row hits. These were in the register map, in the MAS and
         // in the generated docs with NOTHING driving them -- scoria_top had
@@ -316,6 +318,7 @@ module scoria_top
         .stall_actlimit_o        (w_stall_actlimit),
         .stall_banktimer_o        (w_stall_banktimer),
         .stall_noreq_o        (w_stall_noreq),
+        .stall_zq_o           (w_stall_zq),
         .stat_page_hit_o    (w_stat_page_hit),
         .stat_row_hit_o     (w_stat_row_hit),
         .stat_page_miss_o   (w_stat_page_miss),

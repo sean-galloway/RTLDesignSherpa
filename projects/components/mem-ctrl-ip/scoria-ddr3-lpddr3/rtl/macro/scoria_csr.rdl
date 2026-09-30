@@ -943,6 +943,25 @@ addrmap scoria_csr {
     } STALL_NOREQ @ 0x178;
 
     reg {
+        name = "Stall: ZQ calibration";
+        desc = "ZQCS owns the bus: either waiting for the banks to close ahead of
+                a calibration, or inside the tZQCS window where JESD79-3F 3.10
+                allows no command at all.
+
+                It needs its own counter. Without it these cycles fall through
+                the stall-reason chain into STALL_BANKTIMER, whose whole claim is
+                that it names a per-bank tRCD/tRP/tRAS block -- and a
+                misattributed bucket is worse than a missing one, because it
+                reads as a real timing problem on a part that has none.
+
+                At 0x180, not 0x17C beside its six siblings: 0x17C is
+                REF_STATS_REF_BUSY. Appending past the group is the lesser
+                evil against renumbering registers a host program already
+                reads by offset.";
+        field { sw = r; hw = w; desc = "ZQCS wait or tZQCS window"; } VAL[31:0];
+    } STALL_ZQ @ 0x180;
+
+    reg {
         name = "Refresh Stats: Refreshes with demand";
         desc = "TASK-012. REFab/REFpb commands that issued while at least one CAM entry was schedulable -- i.e. refreshes that actually took a command slot from pending work. Contamination-free by construction: the CAMs are empty while the host is idle between reads, so host round-trip time is not counted. This is the number axis 3 wants -- a refresh during idle costs the workload nothing, one during traffic costs bandwidth.";
         field { sw = r; hw = w; desc = "REF commands issued with work pending"; } VAL[31:0];

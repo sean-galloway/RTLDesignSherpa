@@ -266,6 +266,14 @@ package scoria_csr_pkg;
     } scoria_csr__REF_STATS_REF_BUSY__in_t;
 
     typedef struct {
+        logic [31:0] next;
+    } scoria_csr__STALL_ZQ__VAL__in_t;
+
+    typedef struct {
+        scoria_csr__STALL_ZQ__VAL__in_t VAL;
+    } scoria_csr__STALL_ZQ__in_t;
+
+    typedef struct {
         scoria_csr__STATUS__in_t STATUS;
         scoria_csr__STATUS_HISTORY__in_t STATUS_HISTORY;
         scoria_csr__TEMP_DERATE_RANK0__in_t TEMP_DERATE_RANK0;
@@ -289,6 +297,7 @@ package scoria_csr_pkg;
         scoria_csr__STALL_BANKTIMER__in_t STALL_BANKTIMER;
         scoria_csr__STALL_NOREQ__in_t STALL_NOREQ;
         scoria_csr__REF_STATS_REF_BUSY__in_t REF_STATS_REF_BUSY;
+        scoria_csr__STALL_ZQ__in_t STALL_ZQ;
     } scoria_csr__in_t;
 
     typedef struct {

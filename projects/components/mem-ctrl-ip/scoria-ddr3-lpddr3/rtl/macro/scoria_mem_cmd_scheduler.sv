@@ -86,6 +86,7 @@ module scoria_mem_cmd_scheduler
     output logic [31:0]               stall_actlimit_o,
     output logic [31:0]               stall_banktimer_o,
     output logic [31:0]               stall_noreq_o,
+    output logic [31:0]               stall_zq_o,
     output logic [31:0]               stat_page_hit_o,
     output logic [31:0]               stat_row_hit_o [NUM_BANKS],  // per-bank row hits (BUG-020)
     output logic [31:0]               stat_page_miss_o,
@@ -663,7 +664,8 @@ module scoria_mem_cmd_scheduler
         .stall_tccd_o        (stall_tccd_o),
         .stall_actlimit_o        (stall_actlimit_o),
         .stall_banktimer_o        (stall_banktimer_o),
-        .stall_noreq_o        (stall_noreq_o)
+        .stall_noreq_o        (stall_noreq_o),
+        .stall_zq_o           (stall_zq_o)
     );
 
     // ======================================================================
