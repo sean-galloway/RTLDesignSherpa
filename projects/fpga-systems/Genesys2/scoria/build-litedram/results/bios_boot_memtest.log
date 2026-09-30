@@ -1,0 +1,223 @@
+LiteDRAM DDR3 board proof -- Digilent Genesys 2 (xc7k325tffg900-2)
+Captured 2026-09-30 from /dev/ttyUSB0 @115200 (FT232R, serial AU05X8RM).
+Bitstream: build-litedram, WNS +1.588 ns, all timing constraints met.
+Contains NO scoria RTL -- this establishes that the board, pins, K7DDRPHY and
+DRAM are sound, so a later scoria failure has a denominator.
+Regenerate: make -C build-litedram program, then reboot at the litex> prompt.
+================================================================================
+
+BIOS CRC passed (aade3824)
+
+
+ LiteX git sha1: 8c01073
+
+
+--================ SoC =================--
+
+CPU:		VexRiscv @ 100MHz
+
+BUS:		wishbone 32-bit data/32-bit addr
+
+CSR:		32-bit data big ordering
+
+ROM:		48.0KiB
+
+SRAM:		8.0KiB
+
+L2:		64B
+
+SDRAM:		1.0GiB 32-bit @ 800MT/s (CL-6 CWL-5)
+
+MAIN RAM:	16.0MiB
+
+
+--=========== Initialization ===========--
+
+Initializing SDRAM @0x40000000...
+
+Switching SDRAM to software control.
+
+Write leveling:
+
+  tCK equivalent taps: 32
+
+  Cmd/Clk scan (0-16)
+
+  |1111111000000001| best: 15
+
+  Setting Cmd/Clk delay to 15 taps.
+
+  Data scan:
+
+  m0: |111111111110000000000000| delay: 00
+
+  m1: |111111111111000000000000| delay: 00
+
+  m2: |111111111000000000000000| delay: 00
+
+  m3: |111111111000000000000000| delay: 00
+
+Write latency calibration:
+
+m0:6 m1:6 m2:6 m3:6 
+
+Write DQ-DQS training:
+
+m0: |111111111000000000000000000000000| delays: 03+-03
+
+m1: |111111111000000000000000000000000| delays: 03+-03
+
+m2: |111111110000000000000000000000000| delays: 03+-03
+
+m3: |111111110000000000000000000000000| delays: 03+-03
+
+Read leveling:
+
+  m0, b00: |00000000000000000000000000000000| delays: -
+
+  m0, b01: |10000000000000000000000000000000| delays: -
+
+  m0, b02: |00111111111111110000000000000000| delays: 08+-06
+
+  m0, b03: |00000000000000000001111111111110| delays: 24+-06
+
+  m0, b04: |00000000000000000000000000000000| delays: -
+
+  m0, b05: |00000000000000000000000000000000| delays: -
+
+  m0, b06: |00000000000000000000000000000000| delays: -
+
+  m0, b07: |00000000000000000000000000000000| delays: -
+
+  best: m0, b02 delays: 08+-06
+
+  m1, b00: |00000000000000000000000000000000| delays: -
+
+  m1, b01: |11000000000000000000000000000000| delays: 00+-00
+
+  m1, b02: |00011111111111111000000000000000| delays: 09+-06
+
+  m1, b03: |00000000000000000001111111111111| delays: 25+-06
+
+  m1, b04: |00000000000000000000000000000000| delays: -
+
+  m1, b05: |00000000000000000000000000000000| delays: -
+
+  m1, b06: |00000000000000000000000000000000| delays: -
+
+  m1, b07: |00000000000000000000000000000000| delays: -
+
+  best: m1, b02 delays: 09+-06
+
+  m2, b00: |00000000000000000000000000000000| delays: -
+
+  m2, b01: |11100000000000000000000000000000| delays: 01+-01
+
+  m2, b02: |00000111111111111100000000000000| delays: 11+-06
+
+  m2, b03: |00000000000000000000011111111111| delays: 25+-05
+
+  m2, b04: |00000000000000000000000000000000| delays: -
+
+  m2, b05: |00000000000000000000000000000000| delays: -
+
+  m2, b06: |00000000000000000000000000000000| delays: -
+
+  m2, b07: |00000000000000000000000000000000| delays: -
+
+  best: m2, b02 delays: 11+-06
+
+  m3, b00: |00000000000000000000000000000000| delays: -
+
+  m3, b01: |11110000000000000000000000000000| delays: 01+-01
+
+  m3, b02: |00000111111111111110000000000000| delays: 11+-06
+
+  m3, b03: |00000000000000000000011111111111| delays: 26+-05
+
+  m3, b04: |00000000000000000000000000000000| delays: -
+
+  m3, b05: |00000000000000000000000000000000| delays: -
+
+  m3, b06: |00000000000000000000000000000000| delays: -
+
+  m3, b07: |00000000000000000000000000000000| delays: -
+
+  best: m3, b02 delays: 11+-06
+
+Switching SDRAM to hardware control.
+
+Memtest at 0x40000000 (2.0MiB)...
+
+  Write: 0x40000000-0x40000000 0B   
+  Write: 0x40000000-0x40020000 128.0KiB   
+  Write: 0x40000000-0x40040000 256.0KiB   
+  Write: 0x40000000-0x40060000 384.0KiB   
+  Write: 0x40000000-0x40080000 512.0KiB   
+  Write: 0x40000000-0x400a0000 640.0KiB   
+  Write: 0x40000000-0x400c0000 768.0KiB   
+  Write: 0x40000000-0x400e0000 896.0KiB   
+  Write: 0x40000000-0x40100000 1.0MiB   
+  Write: 0x40000000-0x40120000 1.1MiB   
+  Write: 0x40000000-0x40140000 1.2MiB   
+  Write: 0x40000000-0x40160000 1.3MiB   
+  Write: 0x40000000-0x40180000 1.5MiB   
+  Write: 0x40000000-0x401a0000 1.6MiB   
+  Write: 0x40000000-0x401c0000 1.7MiB   
+  Write: 0x40000000-0x401e0000 1.8MiB   
+  Write: 0x40000000-0x40200000 2.0MiB   
+
+   Read: 0x40000000-0x40000000 0B   
+   Read: 0x40000000-0x40020000 128.0KiB   
+   Read: 0x40000000-0x40040000 256.0KiB   
+   Read: 0x40000000-0x40060000 384.0KiB   
+   Read: 0x40000000-0x40080000 512.0KiB   
+   Read: 0x40000000-0x400a0000 640.0KiB   
+   Read: 0x40000000-0x400c0000 768.0KiB   
+   Read: 0x40000000-0x400e0000 896.0KiB   
+   Read: 0x40000000-0x40100000 1.0MiB   
+   Read: 0x40000000-0x40120000 1.1MiB   
+   Read: 0x40000000-0x40140000 1.2MiB   
+   Read: 0x40000000-0x40160000 1.3MiB   
+   Read: 0x40000000-0x40180000 1.5MiB   
+   Read: 0x40000000-0x401a0000 1.6MiB   
+   Read: 0x40000000-0x401c0000 1.7MiB   
+   Read: 0x40000000-0x401e0000 1.8MiB   
+   Read: 0x40000000-0x40200000 2.0MiB   
+
+Memtest OK
+
+Memspeed at 0x40000000 (Sequential, 2.0MiB)...
+
+  Write speed: 61.5MiB/s
+
+   Read speed: 62.3MiB/s
+
+--================ Boot ================--
+
+Booting from serial...
+
+Press Q or ESC to abort boot completely.
+
+sL5DdSMmkekro
+Timeout
+
+No boot medium found
+
+
+--============== Console ===============--
+
+
+litex>  00020000
+
+Command not found
+
+litex> 
+Command not found
+
+litex> 0
+
+Command not found
+
+litex> 
+--- captured 5428 bytes in 30s ---
