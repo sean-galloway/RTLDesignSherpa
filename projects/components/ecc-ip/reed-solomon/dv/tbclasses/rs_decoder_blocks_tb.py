@@ -41,6 +41,7 @@ class _DecoderBlockTB(TBBase):
         self.B = int(dut.FIRST_ROOT.value) if hasattr(dut, 'FIRST_ROOT') \
             else int(os.environ.get('FIRST_ROOT', '0'))
         self.N = int(os.environ.get('N_SYMBOLS', str((1 << self.M) - 1)))
+        self.S = int(dut.SYMBOLS_PER_BEAT.value) if hasattr(dut, 'SYMBOLS_PER_BEAT') else 1
         self.Q = 1 << self.M
         self.model = RSModel(self.M, self.PRIM, self.T, self.N, self.B)
         self.checks = 0
@@ -68,6 +69,21 @@ class _DecoderBlockTB(TBBase):
             rx[p] ^= random.randrange(1, self.Q)
         return rx, pos
 
+    def beats_of(self, symbols):
+        """(packed, count) beats of S symbols, low lane first; the last may be partial."""
+        beats = []
+        for i in range(0, len(symbols), self.S):
+            chunk = symbols[i:i + self.S]
+            packed = 0
+            for u, sym in enumerate(chunk):
+                packed |= sym << (u * self.M)
+            beats.append((packed, len(chunk)))
+        return beats
+
+    def lanes_of(self, packed, count=None):
+        count = self.S if count is None else count
+        return [(packed >> (u * self.M)) & (self.Q - 1) for u in range(count)]
+
     def get_test_report(self):
         return {'checks': self.checks, 'mismatches': self.mismatches}
 
@@ -78,25 +94,37 @@ class SyndromeTB(_DecoderBlockTB):
         self.dut.i_step.value = 0
         self.dut.i_first.value = 0
         self.dut.i_data.value = 0
+        self.dut.i_count.value = 0
         await self.assert_reset()
         await self.wait_clocks(self.clk_name, 3)
         await self.deassert_reset()
         await self.wait_clocks(self.clk_name, 1)
 
     async def feed(self, rx, gaps=False):
-        for j, sym in enumerate(rx):
+        """Feed a block as beats of S symbols (partial last beat) with i_first
+        on the first; returns the registered syndromes and all-zero flag, and
+        checks the _next outputs on the last beat matched them."""
+        beats = self.beats_of(rx)
+        next_synd, next_zero = None, None
+        for j, (packed, count) in enumerate(beats):
             if gaps and random.random() < 0.3:
                 self.dut.i_step.value = 0
                 await RisingEdge(self.clk)
-            self.dut.i_data.value = sym
+            self.dut.i_data.value = packed
+            self.dut.i_count.value = count
             self.dut.i_first.value = 1 if j == 0 else 0
             self.dut.i_step.value = 1
+            if j == len(beats) - 1:
+                await Timer(1, units='ns')
+                next_synd = self.lanes_of(int(self.dut.ow_synd_next.value), 2 * self.T)
+                next_zero = int(self.dut.ow_all_zero_next.value)
             await RisingEdge(self.clk)
         self.dut.i_step.value = 0
         self.dut.i_first.value = 0
         await Timer(1, units='ns')
-        packed = int(self.dut.ow_synd.value)
-        synd = [(packed >> (i * self.M)) & (self.Q - 1) for i in range(2 * self.T)]
+        synd = self.lanes_of(int(self.dut.ow_synd.value), 2 * self.T)
+        self._score("next-value outputs on the last beat", (next_synd, next_zero),
+                    (synd, int(self.dut.ow_all_zero.value)))
         return synd, int(self.dut.ow_all_zero.value)
 
     async def run_blocks(self):
@@ -111,16 +139,17 @@ class SyndromeTB(_DecoderBlockTB):
         # back-to-back blocks with no idle cycle between: i_first alone must restart
         rx1, _ = self.random_received(1)
         rx2, _ = self.random_received(0)
-        for j, sym in enumerate(rx1 + rx2):
-            self.dut.i_data.value = sym
-            self.dut.i_first.value = 1 if j in (0, self.N) else 0
+        b1, b2 = self.beats_of(rx1), self.beats_of(rx2)
+        for j, (packed, count) in enumerate(b1 + b2):
+            self.dut.i_data.value = packed
+            self.dut.i_count.value = count
+            self.dut.i_first.value = 1 if j in (0, len(b1)) else 0
             self.dut.i_step.value = 1
-            await RisingEdge(self.clk)
-            if j == self.N - 1:
+            if j == len(b1) - 1:
                 await Timer(1, units='ns')
-                packed = int(self.dut.ow_synd.value)
-                got = [(packed >> (k * self.M)) & (self.Q - 1) for k in range(2 * self.T)]
+                got = self.lanes_of(int(self.dut.ow_synd_next.value), 2 * self.T)
                 self._score("back-to-back block 1", got, self.model.syndromes(rx1))
+            await RisingEdge(self.clk)
         self.dut.i_step.value = 0
         self.dut.i_first.value = 0
         await Timer(1, units='ns')
@@ -232,16 +261,23 @@ class ChienTB(_DecoderBlockTB):
         return acc
 
     async def walk(self, lam):
+        """Step through the block a beat at a time; lane u of a beat is
+        position j+u. Positions past n (in the last beat) are ignored."""
         self.dut.i_lambda.value = self._pack(lam)
         self.dut.i_load.value = 1
         await RisingEdge(self.clk)
         self.dut.i_load.value = 0
         roots, odd = [], []
-        for j in range(self.N):
+        for j in range(0, self.N, self.S):
             await Timer(1, units='ns')
-            if int(self.dut.o_root.value):
-                roots.append(j)
-            odd.append(int(self.dut.o_odd_sum.value))
+            root_lanes = int(self.dut.o_root.value)
+            odd_lanes = self.lanes_of(int(self.dut.o_odd_sum.value))
+            for u in range(self.S):
+                if j + u >= self.N:
+                    break
+                if root_lanes >> u & 1:
+                    roots.append(j + u)
+                odd.append(odd_lanes[u])
             self.dut.i_step.value = 1
             await RisingEdge(self.clk)
         self.dut.i_step.value = 0
@@ -310,12 +346,19 @@ class ForneyTB(_DecoderBlockTB):
             self.dut.i_load.value = 0
             got = {}
             den_zero_at_root = 0
-            for j in range(self.N):
-                self.dut.i_odd_sum.value = self.odd_sum(lam, j)
+            for j in range(0, self.N, self.S):
+                packed = 0
+                for u in range(self.S):
+                    if j + u < self.N:
+                        packed |= self.odd_sum(lam, j + u) << (u * self.M)
+                self.dut.i_odd_sum.value = packed
                 await Timer(1, units='ns')
-                if j in pos:
-                    got[j] = int(self.dut.o_err_val.value)
-                    den_zero_at_root += int(self.dut.o_den_zero.value)
+                lane_vals = self.lanes_of(int(self.dut.o_err_val.value))   # not `vals`: that is the injected list
+                dz = int(self.dut.o_den_zero.value)
+                for u in range(self.S):
+                    if j + u in pos:
+                        got[j + u] = lane_vals[u]
+                        den_zero_at_root += (dz >> u) & 1
                 self.dut.i_step.value = 1
                 await RisingEdge(self.clk)
             self.dut.i_step.value = 0

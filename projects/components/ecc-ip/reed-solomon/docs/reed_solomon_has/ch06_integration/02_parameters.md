@@ -56,7 +56,7 @@ this specification.
 | Parameter | Type | Range | Default | Meaning | PRD |
 |---|---|---|---|---|---|
 | `DATA_WIDTH` | int | multiple of `SYMBOL_WIDTH` | 8 | beat width; elaboration fails if not a multiple | D1 decided |
-| `SYMBOLS_PER_BEAT` | derived | | 1 | `DATA_WIDTH / SYMBOL_WIDTH`, the throughput factor | D6 |
+| `SYMBOLS_PER_BEAT` | derived | | 1 | `DATA_WIDTH / SYMBOL_WIDTH`, the throughput factor; tested at 1, 3, 4 and 8 | D6 decided |
 | `INTAKE_IF` | string | `"NONE"`, `"AXIS"`, `"AXI4"` | `"NONE"` | intake adapter (standalone tops) | D9 decided |
 | `OUTLET_IF` | string | `"NONE"`, `"AXIS"`, `"AXI4"` | `"NONE"` | outlet adapter | D9 decided |
 | `ENABLE_SCRAMBLER` | bit | | 0 | line scrambler stage | D12 decided |

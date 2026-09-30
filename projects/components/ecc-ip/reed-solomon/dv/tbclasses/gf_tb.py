@@ -153,9 +153,11 @@ class GFLFSRTB(TBBase):
 
     async def setup_clocks_and_reset(self, period_ns=10):
         await self.start_clock(self.clk_name, freq=period_ns, units='ns')
+        self.S = int(self.dut.SYMBOLS_PER_BEAT.value)
         self.dut.i_step.value = 0
         self.dut.i_shift.value = 0
         self.dut.i_data.value = 0
+        self.dut.i_count.value = 0
         await self.assert_reset()
         await self.wait_clocks(self.clk_name, 3)
         await self.deassert_reset()
@@ -168,20 +170,31 @@ class GFLFSRTB(TBBase):
         self.rst_n.value = 1
 
     async def encode_block(self, data):
-        for sym in data:
-            self.dut.i_data.value = sym
+        """Feed the data S symbols per step (a partial last beat), then shift
+        the parity out S per shift; returns the 2t parity symbols and the top
+        lane after the drain (must be 0)."""
+        S = self.S
+        for i in range(0, len(data), S):
+            chunk = data[i:i + S]
+            packed = 0
+            for u, sym in enumerate(chunk):
+                packed |= sym << (u * self.M)
+            self.dut.i_data.value = packed
+            self.dut.i_count.value = len(chunk)
             self.dut.i_step.value = 1
             await RisingEdge(self.clk)
         self.dut.i_step.value = 0
         parity = []
-        for _ in range(2 * self.T):
+        for _ in range((2 * self.T + S - 1) // S):
             await Timer(1, units='ns')
-            parity.append(int(self.dut.ow_parity.value))
+            lanes = int(self.dut.ow_parity.value)
+            for u in range(S):
+                parity.append((lanes >> (u * self.M)) & (self.Q - 1))
             self.dut.i_shift.value = 1
             await RisingEdge(self.clk)
         self.dut.i_shift.value = 0
         await Timer(1, units='ns')
-        return parity, int(self.dut.ow_parity.value)
+        return parity[:2 * self.T], int(self.dut.ow_parity.value) & (self.Q - 1)
 
     async def run_blocks(self):
         for i in range(self.BLOCKS[self.TEST_LEVEL]):

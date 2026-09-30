@@ -45,10 +45,15 @@ It is an endpoint codec, never a mid-stream insert (PRD 4a). Until a consumer na
   golden model `reedsolo.gf_mult_noLUT(a, b, prim, 2**m)`, hex `PRIM_POLY`
   reaches the TB through the environment and is parsed with `int(x, 0)`
   (TBBase.convert_to_int is decimal-only).
-- Encoder facts (2026-09-30): `rs_encoder_core` elaborates only at
-  `SYMBOLS_PER_BEAT = 1` (an `$error` guard); the S > 1 datapath is the next
-  step on it. `gf_lfsr_encoder` drains parity by shifting with zero feedback,
-  so it is clear after 2t shifts and has no clear input -- do not add one. The
+- Encoder facts (2026-09-30): `gf_lfsr_encoder` drains parity by shifting
+  S symbols with zero feedback, so it is clear after ceil(2t/S) shifts and
+  has no clear input -- do not add one. S > 1 (2026-09-30 later): every
+  S-fold block unrolls S single steps and muxes the state after the beat's
+  count; the constant multiplies are `gf_mul_fn(CONST, data)` -- constant
+  FIRST, so the shift-and-add folds to an XOR network (data first would
+  synthesise a data-dependent mux chain). `keep` is low-aligned; the
+  encoder output has partial beats at the end of the data AND the parity,
+  the decoder output only at the end (parity lanes dropped). The
   golden model is `reedsolo.rs_encode_msg(data, 2t, fcr=b)`; call
   `reedsolo.init_tables(prim, 2, m)` first, and pass a `bytearray` only for
   m <= 8 (a list above). A full-length profile cannot test a block longer

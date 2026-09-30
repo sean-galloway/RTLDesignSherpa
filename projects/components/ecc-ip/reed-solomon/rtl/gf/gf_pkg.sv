@@ -109,6 +109,17 @@ package gf_pkg;
         return 0;
     endfunction
 
+    // Beat helpers ------------------------------------------------------------------
+
+    // Number of symbols present in a keep mask (the cores require the mask to
+    // be low-aligned and contiguous: symbols 0 .. count-1 are the valid ones).
+    function automatic int gf_keep_count(input logic [63:0] keep, input int s);
+        int c;
+        c = 0;
+        for (int i = 0; i < s; i++) if (keep[i]) c++;
+        return c;
+    endfunction
+
     // Sanity ------------------------------------------------------------------------
 
     // True when prim is a degree-m polynomial with a nonzero constant term and

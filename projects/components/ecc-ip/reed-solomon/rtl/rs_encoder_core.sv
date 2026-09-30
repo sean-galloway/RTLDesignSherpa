@@ -36,11 +36,15 @@
 //   step, so the encoder takes one symbol per cycle when the consumer keeps
 //   up, and the 2t-cycle parity gap is the only stall it introduces (HAS 3.2).
 //
-//   SYMBOLS_PER_BEAT (DATA_WIDTH / SYMBOL_WIDTH) is derived and, at this
-//   revision, must be 1: the multi-symbol datapath (S-fold LFSR advance and
-//   keep-masked packing) is the next step on this core and is refused at
-//   elaboration until it lands. in_keep / out_keep exist so the port list does
-//   not change when it does.
+//   SYMBOLS_PER_BEAT = S (DATA_WIDTH / SYMBOL_WIDTH) symbols travel per beat,
+//   symbol 0 in the low lanes. in_keep says how many are present and must be
+//   low-aligned and contiguous; only a block's last beat may be partial. The
+//   LFSR advances by the beat's symbol count in one cycle. Data beats pass
+//   through with their keep; parity follows in ceil(2t/S) beats, the final one
+//   partial when S does not divide 2t. So a block's output may hold a partial
+//   beat at the end of the data and another at the end of the parity; a
+//   consumer that needs contiguous packing puts a beat packer at the outlet
+//   (the adapters' job, HAS 4.2 / 4.3). The parity gap is ceil(2t/S) cycles.
 //
 //------------------------------------------------------------------------------
 // Parameters:
@@ -77,9 +81,7 @@ module rs_encoder_core
     input  logic                        in_valid,
     output logic                        in_ready,
     input  logic [DATA_WIDTH-1:0]       in_data,
-    /* verilator lint_off UNUSEDSIGNAL */
-    input  logic [SYMBOLS_PER_BEAT-1:0] in_keep,   // meaningful once S > 1
-    /* verilator lint_on UNUSEDSIGNAL */
+    input  logic [SYMBOLS_PER_BEAT-1:0] in_keep,   // low-aligned; partial only on a block's last beat
     input  logic                        in_last,
 
     // coded symbols out
@@ -98,8 +100,12 @@ module rs_encoder_core
     localparam int N     = N_SYMBOLS;
     localparam int K     = K_SYMBOLS;
     localparam int S     = SYMBOLS_PER_BEAT;
-    localparam int CNT_W = $clog2(N + 1);
-    localparam int DRN_W = $clog2(T2 + 1);
+    localparam int CW    = $clog2(S + 1);          // symbols in a beat, 0 .. S
+    localparam int CNT_W = $clog2(N + S + 1);       // symbols accepted in the block
+    localparam int PB    = (T2 + S - 1) / S;        // parity beats
+    localparam int PREM  = T2 - (PB - 1) * S;       // symbols in the last parity beat
+    localparam int DRN_W = $clog2(PB + 1);
+    localparam int SK_W  = 1 + S + S * M;           // {last, keep, data}
 
     // -------------------------------------------------------------------------
     // Elaboration guards
@@ -108,8 +114,8 @@ module rs_encoder_core
         if (DATA_WIDTH % M != 0)
             $error("rs_encoder_core: DATA_WIDTH %0d is not a multiple of SYMBOL_WIDTH %0d",
                    DATA_WIDTH, M);
-        if (S != 1)
-            $error("rs_encoder_core: SYMBOLS_PER_BEAT %0d > 1 is not implemented yet", S);
+        if (S < 1)
+            $error("rs_encoder_core: SYMBOLS_PER_BEAT must be >= 1 (got %0d)", S);
         if (N > (1 << M) - 1)
             $error("rs_encoder_core: N_SYMBOLS %0d exceeds 2^%0d - 1", N, M);
         if (K < 1)
@@ -123,48 +129,61 @@ module rs_encoder_core
     // -------------------------------------------------------------------------
     logic             r_drain;        // 0: DATA phase, 1: parity DRAIN
     logic [CNT_W-1:0] r_count;        // data symbols accepted in this block
-    logic [DRN_W-1:0] r_drain_left;   // parity symbols still to emit
+    logic [DRN_W-1:0] r_drain_left;   // parity beats still to emit
 
     logic             w_skid_wr_valid;
     logic             w_skid_wr_ready;
-    logic [M:0]       w_skid_wr_data;  // {last, symbol}
-    logic [M:0]       w_skid_rd_data;
+    logic [SK_W-1:0]  w_skid_wr_data;
+    logic [SK_W-1:0]  w_skid_rd_data;
 
     logic             w_in_fire;
     logic             w_drain_fire;
-    logic [M-1:0]     w_parity;
+    logic [CW-1:0]    w_in_count;
+    logic [S*M-1:0]   w_parity;
+    logic [S-1:0]     w_par_keep;
+    logic [S*M-1:0]   w_par_data;
+    logic [CNT_W-1:0] w_count_next;
 
     assign in_ready     = !r_drain && w_skid_wr_ready;
     assign w_in_fire    = in_valid && in_ready;
     assign w_drain_fire = r_drain && w_skid_wr_ready;
+    assign w_in_count   = CW'(gf_keep_count(64'(in_keep), S));
+    assign w_count_next = r_count + CNT_W'(w_in_count);
 
     // -------------------------------------------------------------------------
     // LFSR
     // -------------------------------------------------------------------------
     gf_lfsr_encoder #(
-        .SYMBOL_WIDTH(M),
-        .PRIM_POLY   (PRIM_POLY),
-        .T_SYMBOLS   (T_SYMBOLS),
-        .FIRST_ROOT  (FIRST_ROOT)
+        .SYMBOL_WIDTH    (M),
+        .PRIM_POLY       (PRIM_POLY),
+        .T_SYMBOLS       (T_SYMBOLS),
+        .FIRST_ROOT      (FIRST_ROOT),
+        .SYMBOLS_PER_BEAT(S)
     ) u_lfsr (
         .aclk     (aclk),
         .aresetn  (aresetn),
         .i_step   (w_in_fire),
-        .i_data   (in_data[M-1:0]),
+        .i_data   (in_data),
+        .i_count  (w_in_count),
         .i_shift  (w_drain_fire),
         .ow_parity(w_parity)
     );
 
     // -------------------------------------------------------------------------
-    // Output select: data passes through, then parity with last on the final one
+    // Output select: data beats pass through, then parity with last on the
+    // final beat (partial when S does not divide 2t)
     // -------------------------------------------------------------------------
     always_comb begin
+        for (int u = 0; u < S; u++) begin
+            w_par_keep[u]       = (r_drain_left != DRN_W'(1)) || (u < PREM);
+            w_par_data[u*M +: M] = w_par_keep[u] ? w_parity[u*M +: M] : '0;
+        end
         if (r_drain) begin
             w_skid_wr_valid = 1'b1;
-            w_skid_wr_data  = {(r_drain_left == DRN_W'(1)), w_parity};
+            w_skid_wr_data  = {(r_drain_left == DRN_W'(1)), w_par_keep, w_par_data};
         end else begin
             w_skid_wr_valid = in_valid;
-            w_skid_wr_data  = {1'b0, in_data[M-1:0]};
+            w_skid_wr_data  = {1'b0, in_keep, in_data};
         end
     end
 
@@ -179,11 +198,13 @@ module rs_encoder_core
             if (w_in_fire) begin
                 if (in_last) begin
                     r_drain      <= 1'b1;
-                    r_drain_left <= DRN_W'(T2);
+                    r_drain_left <= DRN_W'(PB);
                     r_count      <= '0;
-                    frame_err    <= (r_count != CNT_W'(K - 1));
-                end else if (r_count != CNT_W'(N)) begin
-                    r_count <= r_count + CNT_W'(1);   // saturates: only the check needs it
+                    frame_err    <= (w_count_next != CNT_W'(K));
+                end else if (r_count < CNT_W'(N)) begin
+                    // a non-final beat must be full; a short one is a framing
+                    // error the count check will report at the block's end
+                    r_count <= w_count_next;
                 end
             end else if (w_drain_fire) begin
                 r_drain_left <= r_drain_left - DRN_W'(1);
@@ -197,7 +218,7 @@ module rs_encoder_core
     // -------------------------------------------------------------------------
     /* verilator lint_off PINCONNECTEMPTY */
     gaxi_skid_buffer #(
-        .DATA_WIDTH(M + 1),
+        .DATA_WIDTH(SK_W),
         .DEPTH     (SKID_DEPTH)
     ) u_out_skid (
         .axi_aclk   (aclk),
@@ -213,8 +234,6 @@ module rs_encoder_core
     );
     /* verilator lint_on PINCONNECTEMPTY */
 
-    assign out_data = w_skid_rd_data[M-1:0];
-    assign out_last = w_skid_rd_data[M];
-    assign out_keep = '1;
+    assign {out_last, out_keep, out_data} = w_skid_rd_data;
 
 endmodule : rs_encoder_core

@@ -32,12 +32,15 @@
 //     e_j = [ X_j^-(b+off) * Omega(X_j^-1) ] / odd_sum,  off = 2t or 0
 //
 //   and the bracket is a Chien-style walk of its own: cell i holds
-//   Omega_i * X_j^-(i+b+2t), loaded at position 0 as
-//   Omega_i * alpha^(-(i+b+2t)(n-1)) and stepped by alpha^(i+b+2t). The sum of
-//   the t cells is the numerator; one gf_inv and one gf_mul finish it.
+//   Omega_i * X_j^-(i+off) for the beat's first position j, loaded at
+//   position 0 as Omega_i * alpha^(-(i+off)(n-1)) and stepped by
+//   alpha^((i+off)S) per beat; lane u (position j+u) sums cell i times
+//   alpha^((i+off)u), a constant. One gf_inv and one gf_mul per lane finish
+//   it, so S lanes cost S inverses -- the price of a correction in every lane
+//   of a beat in the same cycle.
 //
-//   o_den_zero flags odd_sum == 0, which cannot happen at a genuine root and
-//   marks the block uncorrectable when it does.
+//   o_den_zero[u] flags odd_sum == 0 in that lane, which cannot happen at a
+//   genuine root and marks the block uncorrectable when it does.
 //
 //------------------------------------------------------------------------------
 // Parameters:
@@ -47,6 +50,7 @@
 //   T_SYMBOLS:    t; Omega_0 .. Omega_{t-1}. Default 8.
 //   N_SYMBOLS:    n. Default 2^m - 1.
 //   FIRST_ROOT:   b. Default 0.
+//   SYMBOLS_PER_BEAT: S lanes. Default 1.
 //
 //==============================================================================
 
@@ -60,21 +64,23 @@ module forney_evaluator
     parameter int FIRST_ROOT   = 0,
     // 1: Omega is riBM's high half of S*Lambda (exponent offset b + 2t);
     // 0: Omega is the textbook S*Lambda mod x^2t, as the Euclid solver gives (offset b)
-    parameter bit OMEGA_HIGH_HALF = 1'b1
+    parameter bit OMEGA_HIGH_HALF = 1'b1,
+    parameter int SYMBOLS_PER_BEAT = 1
 ) (
-    input  logic                               aclk,
-    input  logic                               aresetn,
-    input  logic                               i_load,
-    input  logic [T_SYMBOLS*SYMBOL_WIDTH-1:0]  i_omega,
-    input  logic                               i_step,
-    input  logic [SYMBOL_WIDTH-1:0]            i_odd_sum,
-    output logic [SYMBOL_WIDTH-1:0]            o_err_val,
-    output logic                               o_den_zero
+    input  logic                                     aclk,
+    input  logic                                     aresetn,
+    input  logic                                     i_load,
+    input  logic [T_SYMBOLS*SYMBOL_WIDTH-1:0]        i_omega,
+    input  logic                                     i_step,
+    input  logic [SYMBOLS_PER_BEAT*SYMBOL_WIDTH-1:0] i_odd_sum,
+    output logic [SYMBOLS_PER_BEAT*SYMBOL_WIDTH-1:0] o_err_val,
+    output logic [SYMBOLS_PER_BEAT-1:0]              o_den_zero
 );
 
     localparam int M   = SYMBOL_WIDTH;
     localparam int T   = T_SYMBOLS;
     localparam int N   = N_SYMBOLS;
+    localparam int S   = SYMBOLS_PER_BEAT;
     localparam int OFF = FIRST_ROOT + (OMEGA_HIGH_HALF ? 2 * T : 0);   // the exponent offset
 
     logic [M-1:0] r_w     [T];
@@ -89,7 +95,7 @@ module forney_evaluator
 
         gf_mul_const #(
             .SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY),
-            .CONST(int'(gf_alpha_pow(i + OFF, M, PRIM_POLY)))
+            .CONST(int'(gf_alpha_pow((i + OFF) * S, M, PRIM_POLY)))
         ) u_step (.i_a(r_w[i]), .ow_p(w_w_step[i]));
 
         `ALWAYS_FF_RST(aclk, aresetn,
@@ -103,18 +109,37 @@ module forney_evaluator
         )
     end
 
-    logic [M-1:0] w_num;
-    logic [M-1:0] w_den_inv;
+    // lane u: cell i contributes w_i * alpha^((i+off)u)
+    localparam int LANE_W = T * S;
+
+    function automatic logic [LANE_W*M-1:0] build_lane_consts();
+        logic [LANE_W*M-1:0] r;
+        for (int u = 0; u < S; u++)
+            for (int i = 0; i < T; i++)
+                r[(u*T+i)*M +: M] = gf_alpha_pow((i + OFF) * u, M, PRIM_POLY)[M-1:0];
+        return r;
+    endfunction
+
+    localparam logic [LANE_W*M-1:0] LANE_K = build_lane_consts();
+
+    logic [M-1:0] w_num     [S];
+    logic [M-1:0] w_den_inv [S];
 
     always_comb begin
-        w_num = '0;
-        for (int i = 0; i < T; i++) w_num = w_num ^ r_w[i];
+        for (int u = 0; u < S; u++) begin
+            w_num[u] = '0;
+            for (int i = 0; i < T; i++)
+                w_num[u] = w_num[u] ^ gf_mul_fn(gf_wide_t'(LANE_K[(u*T+i)*M +: M]),
+                                                gf_wide_t'(r_w[i]), M, PRIM_POLY)[M-1:0];
+        end
     end
 
-    gf_inv #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY)) u_inv (
-        .i_a(i_odd_sum), .ow_inv(w_den_inv), .ow_zero(o_den_zero));
+    for (genvar u = 0; u < S; u++) begin : g_lane
+        gf_inv #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY)) u_inv (
+            .i_a(i_odd_sum[u*M +: M]), .ow_inv(w_den_inv[u]), .ow_zero(o_den_zero[u]));
 
-    gf_mul #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY)) u_mul (
-        .i_a(w_num), .i_b(w_den_inv), .ow_p(o_err_val));
+        gf_mul #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY)) u_mul (
+            .i_a(w_num[u]), .i_b(w_den_inv[u]), .ow_p(o_err_val[u*M +: M]));
+    end
 
 endmodule : forney_evaluator

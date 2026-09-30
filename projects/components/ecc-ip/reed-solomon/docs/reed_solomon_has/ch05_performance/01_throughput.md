@@ -32,10 +32,23 @@ Both cores consume one beat per cycle when not back-pressured. With
 
 | Core | Sustained | Gap | Notes |
 |---|---|---|---|
-| Encoder | k symbols in per k + 2t cycles | 2t cycles per block while parity drains, unless the consumer buffers 2t symbols upstream | output rate is n/k times the input rate |
-| Decoder | one block per n cycles | none once pipelined; the next block arrives during the previous block's Chien walk | output rate is k/n times the input rate |
+| Encoder | ceil(k/S) beats in per ceil(k/S) + ceil(2t/S) cycles | ceil(2t/S) cycles per block while parity drains, unless the consumer buffers that many beats upstream | output rate is n/k times the input rate |
+| Decoder | one block per ceil(n/S) + 1 cycles | none once pipelined; the next block arrives during the previous block's Chien walk | output rate is k/n times the input rate |
 
-: Table 5.1: Sustained throughput, S = 1
+: Table 5.1: Sustained throughput
+
+Measured in simulation, back-to-back timing at both ends:
+
+| Profile | S | Encoder, cycles per block | Decoder, cycles per block (steady state) |
+|---|---|---|---|
+| RS(255,239) | 1 | 255 | 252 to 257 |
+| RS(255,239) | 4 | 64 | 64.5 |
+| RS(255,239) | 8 | 32 | 33 |
+| RS(204,188) | 8 | 26 | 27 |
+| RS(21,19) | 4 | 6 | 7.2 |
+| RS(15,11) | 3 | 6 | 7 to 8 |
+
+: Table 5.1a: Measured cycles per block
 
 For the reference profile at S = 1 and a 200 MHz clock: 1.6 Gbit/s coded on
 the wire, 1.5 Gbit/s of data. At S = 8 (a 64-bit bus, m = 8) the same clock
@@ -45,16 +58,17 @@ gives 12.8 Gbit/s coded, which is where the 802.3-class profiles live.
 
 | Block | Scaling | Reason |
 |---|---|---|
-| encoder LFSR | S symbols advance per cycle | the LFSR update is applied S times in one cycle (or unrolled) |
-| syndrome cells | S-fold Horner step | each cell absorbs S symbols per cycle |
-| Chien cells | S positions per cycle | replicated, or the step constant becomes alpha^(-S) with S evaluators |
-| Forney | up to S corrections per cycle in the worst case | S inverses, or a small queue and a one-per-cycle Forney with a stall on dense errors |
-| block buffer | width x S | depth unchanged in beats |
+| encoder LFSR | S symbols advance per cycle | S single steps unrolled; the taps are constant, so it is one XOR network |
+| syndrome cells | S-fold Horner step | S unrolled steps per cell, the state after the beat's count taken |
+| Chien cells | S positions per cycle | one register set per cell, S lane constants alpha^(iu), the step constant alpha^(iS) |
+| Forney | S corrections per cycle | S lane sums, S inverses and S multiplies |
+| block and output FIFOs | width x S | depth in beats |
 | key-equation solver | unchanged | it works on the 2t syndromes, not the stream |
 
 : Table 5.2: Scaling with symbols per beat
 
-The Forney row is the one to watch: with S > 1 a block with errors in
-adjacent positions may need more than one correction in a cycle. The cheap
-design stalls the drain for the extra cycles (rare, bounded by t per block);
-the expensive one replicates the inverse.
+The Forney row is the cost to watch: the cores as built take the S-inverse
+form, so a correction can land in every lane of a beat in the same cycle and
+the walk never stalls. The alternative -- one inverse and a stall of up to
+t cycles per block on dense errors -- is the trade to revisit if the
+characterisation shows the inverses dominating at large S.

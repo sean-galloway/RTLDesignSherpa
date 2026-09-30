@@ -22,19 +22,26 @@
 // Module: gf_lfsr_encoder
 //==============================================================================
 // Description:
-//   Polynomial division of the data block by g(x), one symbol per i_step:
+//   Polynomial division of the data block by g(x). One symbol step is
 //
 //     fb   = data ^ r[2t-1]
 //     r[j] = r[j-1] ^ fb * g[j]      (j = 1 .. 2t-1)
 //     r[0] = fb * g[0]
 //
+//   and an i_step applies it i_count times in one cycle (1 .. S symbols, the
+//   low lanes of i_data first): the S single steps are unrolled and the
+//   state after the i_count-th is taken, so a partial final beat costs nothing
+//   but a mux. The tap multiplies are constant, so the unrolled chain is one
+//   XOR network whatever S is.
+//
 //   where g(x) = prod_{i=0}^{2t-1} (x - alpha^(b+i)) is computed at elaboration
 //   from gf_pkg, so no coefficient is typed in and any (m, t, b) elaborates.
 //   After the k data symbols the register holds the 2t parity symbols with
-//   the highest-degree coefficient in r[2t-1]. i_shift then drains them: each
-//   shift moves r[j-1] into r[j] with zero feedback, so ow_parity presents the
-//   parity symbols in transmission order and the register is all-zero after
-//   2t shifts, ready for the next block with no separate clear.
+//   the highest-degree coefficient in r[2t-1]. i_shift then drains S symbols
+//   at a time: ow_parity lane u holds r[2t-1-u] (transmission order, lane 0
+//   first) and each shift moves the register up by S with zero feedback, so
+//   after ceil(2t/S) shifts it is all-zero, ready for the next block with no
+//   separate clear.
 //
 //   i_step and i_shift are mutually exclusive by construction in the core;
 //   if both are high, i_step wins.
@@ -46,14 +53,16 @@
 //   PRIM_POLY:    primitive polynomial. Default 0x11D.
 //   T_SYMBOLS:    t, correctable symbols; the LFSR has 2t stages. Default 8.
 //   FIRST_ROOT:   b, the exponent of the first root of g(x). Default 0.
+//   SYMBOLS_PER_BEAT: S, symbols per i_step / i_shift. Default 1.
 //
 //------------------------------------------------------------------------------
 // Ports:
 //------------------------------------------------------------------------------
-//   i_step:     shift one data symbol in (feedback enabled)
-//   i_data:     the data symbol
-//   i_shift:    shift one parity symbol out (feedback disabled)
-//   ow_parity:  r[2t-1], the next parity symbol in transmission order
+//   i_step:     take i_count data symbols from i_data (feedback enabled)
+//   i_data:     S symbols, symbol 0 in the low lane
+//   i_count:    how many of them are present, 1 .. S (low lanes)
+//   i_shift:    shift S parity symbols out (feedback disabled)
+//   ow_parity:  the next S parity symbols in transmission order, lane 0 first
 //
 //==============================================================================
 
@@ -63,18 +72,21 @@ module gf_lfsr_encoder
     parameter int SYMBOL_WIDTH = 8,
     parameter int PRIM_POLY    = 'h11D,
     parameter int T_SYMBOLS    = 8,
-    parameter int FIRST_ROOT   = 0
+    parameter int FIRST_ROOT   = 0,
+    parameter int SYMBOLS_PER_BEAT = 1
 ) (
-    input  logic                    aclk,
-    input  logic                    aresetn,
-    input  logic                    i_step,
-    input  logic [SYMBOL_WIDTH-1:0] i_data,
-    input  logic                    i_shift,
-    output logic [SYMBOL_WIDTH-1:0] ow_parity
+    input  logic                                     aclk,
+    input  logic                                     aresetn,
+    input  logic                                     i_step,
+    input  logic [SYMBOLS_PER_BEAT*SYMBOL_WIDTH-1:0] i_data,
+    input  logic [$clog2(SYMBOLS_PER_BEAT+1)-1:0]    i_count,
+    input  logic                                     i_shift,
+    output logic [SYMBOLS_PER_BEAT*SYMBOL_WIDTH-1:0] ow_parity
 );
 
     localparam int M  = SYMBOL_WIDTH;
     localparam int T2 = 2 * T_SYMBOLS;
+    localparam int S  = SYMBOLS_PER_BEAT;
 
     // -------------------------------------------------------------------------
     // Elaboration guards
@@ -88,6 +100,8 @@ module gf_lfsr_encoder
             $error("gf_lfsr_encoder: T_SYMBOLS %0d out of range for GF(2^%0d)", T_SYMBOLS, M);
         if (FIRST_ROOT < 0 || FIRST_ROOT > (1 << M) - 2)
             $error("gf_lfsr_encoder: FIRST_ROOT %0d out of range", FIRST_ROOT);
+        if (S < 1)
+            $error("gf_lfsr_encoder: SYMBOLS_PER_BEAT must be >= 1 (got %0d)", S);
     end
 
     // -------------------------------------------------------------------------
@@ -118,35 +132,49 @@ module gf_lfsr_encoder
     localparam logic [GEN_W-1:0] GEN = build_gen();
 
     // -------------------------------------------------------------------------
-    // Datapath
+    // Datapath. One symbol step as a function on the whole register (the tap
+    // multiplies are by constants, so gf_mul_fn with the constant as its first
+    // operand folds to an XOR network); S of them unrolled, the i_count-th
+    // state taken.
     // -------------------------------------------------------------------------
-    logic [M-1:0] r_reg [T2];
-    logic [M-1:0] w_fb;
-    logic [M-1:0] w_tap [T2];
+    typedef logic [M-1:0] state_t [T2];
 
-    assign w_fb      = i_data ^ r_reg[T2-1];
-    assign ow_parity = r_reg[T2-1];
+    function automatic state_t step_one(input state_t r, input logic [M-1:0] d);
+        state_t       n;
+        logic [M-1:0] fb;
+        fb   = d ^ r[T2-1];
+        n[0] = gf_mul_fn(gf_wide_t'(GEN[0 +: M]), gf_wide_t'(fb), M, PRIM_POLY)[M-1:0];
+        for (int j = 1; j < T2; j++)
+            n[j] = r[j-1] ^ gf_mul_fn(gf_wide_t'(GEN[j*M +: M]), gf_wide_t'(fb), M, PRIM_POLY)[M-1:0];
+        return n;
+    endfunction
 
-    for (genvar j = 0; j < T2; j++) begin : g_tap
-        gf_mul_const #(
-            .SYMBOL_WIDTH(M),
-            .PRIM_POLY   (PRIM_POLY),
-            .CONST       (int'(GEN[j*M +: M]))
-        ) u_tap (
-            .i_a (w_fb),
-            .ow_p(w_tap[j])
-        );
+    state_t r_reg;
+    state_t w_chain [S+1];   // w_chain[u] = state after u symbols
+    state_t w_next;
+
+    always_comb begin
+        w_chain[0] = r_reg;
+        for (int u = 0; u < S; u++)
+            w_chain[u+1] = step_one(w_chain[u], i_data[u*M +: M]);
+        w_next = w_chain[S];
+        for (int u = 1; u <= S; u++)
+            if (i_count == ($clog2(S+1))'(u)) w_next = w_chain[u];
+    end
+
+    // parity lanes: lane u is r[2t-1-u]; beyond the register (S > 2t) zero
+    always_comb begin
+        for (int u = 0; u < S; u++)
+            ow_parity[u*M +: M] = (u < T2) ? r_reg[T2-1-u] : '0;
     end
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             for (int j = 0; j < T2; j++) r_reg[j] <= '0;
         end else if (i_step) begin
-            r_reg[0] <= w_tap[0];
-            for (int j = 1; j < T2; j++) r_reg[j] <= r_reg[j-1] ^ w_tap[j];
+            r_reg <= w_next;
         end else if (i_shift) begin
-            r_reg[0] <= '0;
-            for (int j = 1; j < T2; j++) r_reg[j] <= r_reg[j-1];
+            for (int j = 0; j < T2; j++) r_reg[j] <= (j >= S) ? r_reg[j-S] : '0;
         end
     )
 

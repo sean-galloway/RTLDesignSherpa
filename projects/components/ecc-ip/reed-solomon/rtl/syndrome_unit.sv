@@ -22,8 +22,8 @@
 //==============================================================================
 // Description:
 //   2t gf_syndrome_cells in parallel, each on its own root alpha^(b+i). The
-//   caller steps them with every received symbol, marking the block's first
-//   symbol with i_first; after the last symbol ow_synd holds the 2t syndromes
+//   caller steps them with every received beat (i_count symbols of S, low
+//   lanes first), marking the block's first beat with i_first; after the last symbol ow_synd holds the 2t syndromes
 //   packed S_0 in the low m bits, and ow_all_zero says the block is a
 //   codeword (no correction needed). The caller latches both on its block
 //   boundary; the cells start over on the next block's first symbol.
@@ -35,6 +35,7 @@
 //   PRIM_POLY:    primitive polynomial. Default 0x11D.
 //   T_SYMBOLS:    t; 2t syndromes. Default 8.
 //   FIRST_ROOT:   b. Default 0.
+//   SYMBOLS_PER_BEAT: S. Default 1.
 //
 //==============================================================================
 
@@ -44,13 +45,15 @@ module syndrome_unit
     parameter int SYMBOL_WIDTH = 8,
     parameter int PRIM_POLY    = 'h11D,
     parameter int T_SYMBOLS    = 8,
-    parameter int FIRST_ROOT   = 0
+    parameter int FIRST_ROOT   = 0,
+    parameter int SYMBOLS_PER_BEAT = 1
 ) (
     input  logic                                  aclk,
     input  logic                                  aresetn,
     input  logic                                  i_step,
     input  logic                                  i_first,
-    input  logic [SYMBOL_WIDTH-1:0]               i_data,
+    input  logic [SYMBOLS_PER_BEAT*SYMBOL_WIDTH-1:0] i_data,
+    input  logic [$clog2(SYMBOLS_PER_BEAT+1)-1:0] i_count,
     output logic [2*T_SYMBOLS*SYMBOL_WIDTH-1:0]   ow_synd,
     output logic                                  ow_all_zero,
     // combinational: the values after this cycle's i_step, for a caller that
@@ -71,13 +74,15 @@ module syndrome_unit
         gf_syndrome_cell #(
             .SYMBOL_WIDTH(M),
             .PRIM_POLY   (PRIM_POLY),
-            .ROOT_EXP    (FIRST_ROOT + i)
+            .ROOT_EXP    (FIRST_ROOT + i),
+            .SYMBOLS_PER_BEAT(SYMBOLS_PER_BEAT)
         ) u_cell (
             .aclk   (aclk),
             .aresetn(aresetn),
             .i_step (i_step),
             .i_first(i_first),
             .i_data (i_data),
+            .i_count(i_count),
             .ow_synd(ow_synd[i*M +: M]),
             .ow_next(ow_synd_next[i*M +: M])
         );

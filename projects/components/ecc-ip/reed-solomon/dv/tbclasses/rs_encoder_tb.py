@@ -121,42 +121,77 @@ class RSEncoderTB(TBBase):
         return list(enc)
 
     # -- driving / collecting -------------------------------------------------
-    async def send_block(self, data):
-        """Queue one block; last on the final symbol. Does not wait for output."""
-        for i, sym in enumerate(data):
-            pkt = self.master.create_packet(data=sym, keep=(1 << self.S) - 1,
-                                            last=1 if i == len(data) - 1 else 0)
-            await self.master.send(pkt)
+    # -- beats ----------------------------------------------------------------------
+    def beats_of(self, symbols):
+        """Split a symbol list into (data, keep) beats of S, low lane first; only
+        the last beat may be partial (low-aligned keep)."""
+        beats = []
+        for i in range(0, len(symbols), self.S):
+            chunk = symbols[i:i + self.S]
+            data = 0
+            for u, sym in enumerate(chunk):
+                data |= sym << (u * self.M)
+            beats.append((data, (1 << len(chunk)) - 1))
+        return beats
+
+    def symbols_of(self, beats):
+        """(data, keep) beats back to symbols; a partial beat may appear anywhere
+        (the encoder's output has one at the end of the data and one at the
+        end of the parity)."""
+        out = []
+        for data, keep in beats:
+            for u in range(self.S):
+                if keep >> u & 1:
+                    out.append((data >> (u * self.M)) & (self.Q - 1))
+        return out
+
+    async def send_block(self, data, wait=True):
+        """Queue one block as beats; last on the final beat."""
+        beats = self.beats_of(data)
+        for i, (d, k) in enumerate(beats):
+            pkt = self.master.create_packet(data=d, keep=k, last=1 if i == len(beats) - 1 else 0)
+            if wait:
+                await self.master.send(pkt)
+            else:
+                await self.master._driver_send(pkt, sync=True)
+
+    def expected_beats(self, n_symbols_data):
+        """Beats the encoder emits for a block of that many data symbols."""
+        return (n_symbols_data + self.S - 1) // self.S + (2 * self.T + self.S - 1) // self.S
 
     async def collect(self, count, timeout_cycles):
+        """Wait for `count` output BEATS; return [(data, keep, last)]."""
         waited = 0
         while len(self.slave._recvQ) < count:
             await RisingEdge(self.clk)
             waited += 1
             if waited > timeout_cycles:
-                self.log.error(f"timeout: {len(self.slave._recvQ)} of {count} symbols after "
+                self.log.error(f"timeout: {len(self.slave._recvQ)} of {count} beats after "
                                f"{timeout_cycles} cycles")
                 self.mismatches += 1
                 break
         out = []
         while self.slave._recvQ:
             pkt = self.slave._recvQ.popleft()
-            out.append((int(pkt.data), int(pkt.last)))
+            out.append((int(pkt.data), int(pkt.keep), int(pkt.last)))
         return out
 
     def _score_block(self, label, data, out):
         exp = self.gold_encode(data)
-        n_out = len(exp)
         self.checks += 1
-        got = [d for d, _ in out]
-        lasts = [l for _, l in out]
-        ok = (got == exp) and lasts == [0] * (n_out - 1) + [1]
+        got = self.symbols_of([(d, k) for d, k, _ in out])
+        lasts = [l for _, _, l in out]
+        # keep masks must be low-aligned and full except at the two ends
+        keeps_ok = all(k == (1 << self.S) - 1 or i in (len(self.beats_of(data)) - 1, len(out) - 1)
+                       for i, (_, k, _) in enumerate(out))
+        ok = (got == exp) and lasts == [0] * (len(out) - 1) + [1] and keeps_ok
         if not ok:
             self.mismatches += 1
             if self.mismatches <= 10:
                 bad = next((i for i, (g, e) in enumerate(zip(got, exp)) if g != e), None)
-                self.log.error(f"{label}: len {len(got)} vs {n_out}; first data mismatch at "
-                               f"{bad}; lasts ok={lasts == [0] * (n_out - 1) + [1]}")
+                self.log.error(f"{label}: {len(got)} symbols in {len(out)} beats vs {len(exp)}; "
+                               f"first mismatch at {bad}; lasts ok={lasts == [0] * (len(out) - 1) + [1]}; "
+                               f"keeps ok={keeps_ok}")
                 self.log.error(f"  got parity {got[len(data):]}")
                 self.log.error(f"  exp parity {exp[len(data):]}")
         return ok
@@ -175,7 +210,7 @@ class RSEncoderTB(TBBase):
         blocks += [self._random_block() for _ in range(max(0, n_blocks - 2))]
         for i, data in enumerate(blocks):
             await self.send_block(data)
-            out = await self.collect(self.N, timeout_cycles=20 * self.N + 200)
+            out = await self.collect(self.expected_beats(self.K), timeout_cycles=20 * self.N + 200)
             self._score_block(f"block {i}", data, out)
         return self.mismatches == 0
 
@@ -184,7 +219,7 @@ class RSEncoderTB(TBBase):
             self.set_profile(profile)
             data = self._random_block()
             await self.send_block(data)
-            out = await self.collect(self.N, timeout_cycles=40 * self.N + 400)
+            out = await self.collect(self.expected_beats(self.K), timeout_cycles=40 * self.N + 400)
             self._score_block(f"profile {profile}", data, out)
         return self.mismatches == 0
 
@@ -194,7 +229,7 @@ class RSEncoderTB(TBBase):
         # short block: k-3 symbols (at least 1)
         short = self._random_block(max(1, self.K - 3))
         await self.send_block(short)
-        out = await self.collect(len(short) + 2 * self.T, timeout_cycles=20 * self.N + 200)
+        out = await self.collect(self.expected_beats(len(short)), timeout_cycles=20 * self.N + 200)
         self._score_block("short block", short, out)
         # long block: k+2 symbols, capped at what the golden model can encode
         # (a full-length profile has no room, so its "long" case is k and
@@ -202,7 +237,7 @@ class RSEncoderTB(TBBase):
         long_len = min(self.K + 2, self.Q - 1 - 2 * self.T)
         long = self._random_block(long_len)
         await self.send_block(long)
-        out = await self.collect(long_len + 2 * self.T, timeout_cycles=20 * self.N + 200)
+        out = await self.collect(self.expected_beats(long_len), timeout_cycles=20 * self.N + 200)
         self._score_block("long block", long, out)
         await self.wait_clocks(self.clk_name, 4)
         pulses = self.frame_err_count - before
@@ -215,7 +250,7 @@ class RSEncoderTB(TBBase):
         before = self.frame_err_count
         data = self._random_block()
         await self.send_block(data)
-        out = await self.collect(self.N, timeout_cycles=20 * self.N + 200)
+        out = await self.collect(self.expected_beats(self.K), timeout_cycles=20 * self.N + 200)
         self._score_block("block after framing errors", data, out)
         self.checks += 1
         if self.frame_err_count != before:
@@ -231,30 +266,28 @@ class RSEncoderTB(TBBase):
         data = self._random_block()
         start = None
         self.slave._recvQ.clear()
-        for i, sym in enumerate(data):
-            pkt = self.master.create_packet(data=sym, keep=(1 << self.S) - 1,
-                                            last=1 if i == len(data) - 1 else 0)
-            # queue without waiting for completion, so beats present back to back
-            await self.master._driver_send(pkt, sync=True)
+        await self.send_block(data, wait=False)   # queued, so beats present back to back
+        n_beats = self.expected_beats(self.K)
         cycles = 0
-        while len(self.slave._recvQ) < self.N:
+        while len(self.slave._recvQ) < n_beats:
             await RisingEdge(self.clk)
             cycles += 1
             if start is None and int(self.dut.in_valid.value) and int(self.dut.in_ready.value):
                 start = cycles
             if cycles > 20 * self.N + 200:
                 break
-        out = [(int(p.data), int(p.last)) for p in self.slave._recvQ]
+        out = [(int(p.data), int(p.keep), int(p.last)) for p in self.slave._recvQ]
         self.slave._recvQ.clear()
         self._score_block("throughput block", data, out)
         elapsed = cycles - (start or 0)
         margin = 8
+        bound = n_beats + margin
         self.checks += 1
-        self.log.info(f"throughput: {self.N} symbols in {elapsed} cycles from first accept "
-                      f"(bound n + {margin} = {self.N + margin})")
-        if elapsed > self.N + margin:
+        self.log.info(f"throughput: {self.N} symbols in {n_beats} beats in {elapsed} cycles from "
+                      f"first accept (bound beats + {margin} = {bound})")
+        if elapsed > bound:
             self.mismatches += 1
-            self.log.error(f"throughput: {elapsed} cycles exceeds {self.N + margin}")
+            self.log.error(f"throughput: {elapsed} cycles exceeds {bound}")
         return self.mismatches == 0
 
     def get_test_report(self):

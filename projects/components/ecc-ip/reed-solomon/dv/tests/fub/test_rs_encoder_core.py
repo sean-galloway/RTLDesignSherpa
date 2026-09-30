@@ -3,8 +3,9 @@ rs_encoder_core test runner
 
 Systematic RS encoder core against the reedsolo golden model, through the GAXI
 master/slave BFMs on the in_/out_ valid/ready ports. Profiles: the reference
-RS(255,239), the shortened DVB RS(204,188), RS(21,19) with t = 1, and RS(15,11)
-over GF(2^4). Scenarios per cell: blocks, backpressure, framing, throughput.
+RS(255,239) at 1, 4 and 8 symbols per beat, the shortened DVB RS(204,188) at 8,
+RS(21,19) at 4, and RS(15,11) over GF(2^4) at 3. Scenarios per cell: blocks,
+backpressure, framing, throughput.
 
 Author: RTL Design Sherpa
 Created: 2026-09-30
@@ -28,12 +29,14 @@ from projects.components.ecc_ip.reed_solomon.dv.tbclasses.rs_encoder_tb import R
 
 FILELIST = 'projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_encoder_core.f'
 
-# (symbol_width, prim_poly, t, n)
+# (symbol_width, prim_poly, t, n, symbols_per_beat)
 PROFILES = [
-    (8, 0x11D, 8, 255),   # reference: full-length, t = 8
-    (8, 0x11D, 8, 204),   # DVB shortened
-    (8, 0x11D, 1, 21),    # RS(21,19): two parity symbols
-    (4, 0x13, 2, 15),     # small field, exhaustive-friendly
+    (8, 0x11D, 8, 255, 1),   # reference: full-length, t = 8
+    (8, 0x11D, 8, 255, 4),   # k = 239 = 59 beats + 3, 2t = 16 = 4 beats
+    (8, 0x11D, 8, 255, 8),   # a 64-bit bus: k = 29 beats + 7
+    (8, 0x11D, 8, 204, 8),   # DVB shortened, k = 188 = 23 beats + 4
+    (8, 0x11D, 1, 21, 4),    # RS(21,19): 2t = 2 < S, one partial parity beat
+    (4, 0x13, 2, 15, 3),     # small field, odd S
 ]
 
 
@@ -52,8 +55,8 @@ async def cocotb_test_rs_encoder_core(dut):
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
-@pytest.mark.parametrize("symbol_width, prim_poly, t, n", PROFILES)
-def test_rs_encoder_core(request, symbol_width, prim_poly, t, n, test_level):
+@pytest.mark.parametrize("symbol_width, prim_poly, t, n, spb", PROFILES)
+def test_rs_encoder_core(request, symbol_width, prim_poly, t, n, spb, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_rs': 'projects/components/ecc-ip/reed-solomon/rtl',
@@ -62,14 +65,14 @@ def test_rs_encoder_core(request, symbol_width, prim_poly, t, n, test_level):
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=FILELIST)
 
     test_name_plus_params = (f"test_{dut_name}_m{TBBase.format_dec(symbol_width, 2)}"
-                             f"_n{TBBase.format_dec(n, 3)}_t{TBBase.format_dec(t, 2)}_{test_level}")
+                             f"_n{TBBase.format_dec(n, 3)}_t{TBBase.format_dec(t, 2)}_s{spb}_{test_level}")
     os.makedirs(log_dir, exist_ok=True)   # clean-all removes logs/
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     rtl_parameters = {'SYMBOL_WIDTH': str(symbol_width), 'PRIM_POLY': str(prim_poly),
-                      'T_SYMBOLS': str(t), 'N_SYMBOLS': str(n), 'DATA_WIDTH': str(symbol_width)}
+                      'T_SYMBOLS': str(t), 'N_SYMBOLS': str(n), 'DATA_WIDTH': str(symbol_width * spb)}
     extra_env = level_env(test_level, DUT=dut_name, LOG_PATH=log_path, COCOTB_LOG_LEVEL='INFO')
 
     compile_args = ["--trace-fst", "--trace-structs", "--trace-depth", "99"] if enable_waves else []

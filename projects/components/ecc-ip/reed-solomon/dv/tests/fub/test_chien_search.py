@@ -27,13 +27,14 @@ from projects.components.ecc_ip.reed_solomon.dv.tbclasses.rs_decoder_blocks_tb i
 
 FILELIST = 'projects/components/ecc-ip/reed-solomon/rtl/filelists/chien_search.f'
 
-# (symbol_width, prim_poly, t, first_root, n)
+# (symbol_width, prim_poly, t, first_root, n, symbols_per_beat)
 CONFIGS = [
-    (8, 0x11D, 8, 0, 255),
-    (8, 0x11D, 8, 0, 204),
-    (8, 0x11D, 1, 0, 21),
-    (8, 0x187, 16, 112, 255),
-    (4, 0x13, 2, 0, 15),
+    (8, 0x11D, 8, 0, 255, 1),
+    (8, 0x11D, 8, 0, 255, 4),    # 255 = 63 beats + 3
+    (8, 0x11D, 8, 0, 204, 8),    # 204 = 25 beats + 4
+    (8, 0x11D, 1, 0, 21, 4),
+    (8, 0x187, 16, 112, 255, 1),
+    (4, 0x13, 2, 0, 15, 3),      # odd S
 ]
 
 
@@ -48,8 +49,8 @@ async def cocotb_test_chien_search(dut):
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
-@pytest.mark.parametrize("symbol_width, prim_poly, t, first_root, n", CONFIGS)
-def test_chien_search(request, symbol_width, prim_poly, t, first_root, n, test_level):
+@pytest.mark.parametrize("symbol_width, prim_poly, t, first_root, n, spb", CONFIGS)
+def test_chien_search(request, symbol_width, prim_poly, t, first_root, n, spb, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_rs': 'projects/components/ecc-ip/reed-solomon/rtl',
@@ -59,14 +60,14 @@ def test_chien_search(request, symbol_width, prim_poly, t, first_root, n, test_l
 
     test_name_plus_params = (f"test_{dut_name}_m{TBBase.format_dec(symbol_width, 2)}"
                              f"_n{TBBase.format_dec(n, 3)}_t{TBBase.format_dec(t, 2)}"
-                             f"_b{TBBase.format_dec(first_root, 3)}_{test_level}")
+                             f"_b{TBBase.format_dec(first_root, 3)}_s{spb}_{test_level}")
     os.makedirs(log_dir, exist_ok=True)   # clean-all removes logs/
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     rtl_parameters = {'SYMBOL_WIDTH': str(symbol_width), 'PRIM_POLY': str(prim_poly),
-                      'T_SYMBOLS': str(t), 'N_SYMBOLS': str(n)}
+                      'T_SYMBOLS': str(t), 'N_SYMBOLS': str(n), 'SYMBOLS_PER_BEAT': str(spb)}
     extra_env = level_env(test_level, N_SYMBOLS=n, FIRST_ROOT=first_root, DUT=dut_name,
                           LOG_PATH=log_path, COCOTB_LOG_LEVEL='INFO')
 

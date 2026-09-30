@@ -59,11 +59,21 @@
 //   root-count checks pass it, the re-computed syndromes do not
 //   (dv/tbclasses/rs_model.py, RS(15,11), three errors).
 //
-//   A mis-framed block (length != n) is passed through uncorrected with
-//   frame_err: its first length - 2t symbols are emitted as data (all of them
-//   when length <= 2t). SYMBOLS_PER_BEAT must be 1 at this revision, as on
-//   the encoder. KES_ALGO picks the solver; nothing else changes except the
-//   Forney block's evaluator-form constant, which follows it.
+//   A mis-framed block (length != n, or a partial beat before the last) is
+//   passed through uncorrected with frame_err: its first length - 2t symbols
+//   are emitted as data (all of them when length <= 2t).
+//
+//   SYMBOLS_PER_BEAT = S symbols travel per beat, symbol 0 in the low lanes,
+//   in_keep low-aligned and partial only on a block's last beat. Every stage
+//   works a beat per cycle: the syndrome cells take S Horner steps, the Chien
+//   and Forney cells evaluate S positions (S inverses), the re-check takes S
+//   steps, and the output FIFO holds beats. The output beat holding the last
+//   data position also holds the first parity positions; its keep marks the
+//   data lanes only, so the emitted block is k symbols in ceil(k/S) beats with
+//   a partial final beat when S does not divide k.
+//
+//   KES_ALGO picks the solver; nothing else changes except the Forney block's
+//   evaluator-form constant, which follows it.
 //
 //------------------------------------------------------------------------------
 // Parameters:
@@ -85,7 +95,9 @@ module rs_decoder_core
     parameter int FIRST_ROOT       = 0,
     parameter int DATA_WIDTH       = SYMBOL_WIDTH,
     parameter int SKID_DEPTH       = 2,
-    parameter int BLOCK_FIFO_DEPTH = 1 << $clog2(N_SYMBOLS + 2 * T_SYMBOLS + 8),
+    // beats the block FIFO holds: a block plus the next one's arrival during the
+    // solve, rounded up to a power of two (HAS 5.2)
+    parameter int BLOCK_FIFO_DEPTH = 1 << $clog2((N_SYMBOLS + 2 * T_SYMBOLS) / (DATA_WIDTH / SYMBOL_WIDTH) + 8),
     parameter string KES_ALGO      = "RIBM",   // "RIBM" or "EUCLID" (PRD D11)
     // derived, exposed for the consumer's convenience
     parameter int K_SYMBOLS        = N_SYMBOLS - 2 * T_SYMBOLS,
@@ -99,9 +111,7 @@ module rs_decoder_core
     input  logic                        in_valid,
     output logic                        in_ready,
     input  logic [DATA_WIDTH-1:0]       in_data,
-    /* verilator lint_off UNUSEDSIGNAL */
-    input  logic [SYMBOLS_PER_BEAT-1:0] in_keep,   // meaningful once S > 1
-    /* verilator lint_on UNUSEDSIGNAL */
+    input  logic [SYMBOLS_PER_BEAT-1:0] in_keep,   // low-aligned; partial only on a block's last beat
     input  logic                        in_last,
 
     // corrected data symbols out
@@ -123,13 +133,14 @@ module rs_decoder_core
     localparam int T2    = 2 * T;
     localparam int N     = N_SYMBOLS;
     localparam int S     = SYMBOLS_PER_BEAT;
-    localparam int BFD   = BLOCK_FIFO_DEPTH;
-    localparam int CNT_W = $clog2(BFD + 1);          // block length counter
+    localparam int CW    = $clog2(S + 1);            // symbols in a beat, 0 .. S
+    localparam int BFD   = BLOCK_FIFO_DEPTH;          // beats
+    localparam int CNT_W = $clog2(BFD * S + 1);       // symbols in a block
+    localparam int BCW   = $clog2(BFD + 1);           // beats in a block
     localparam int DEG_W = $clog2(T2 + 1);
     localparam int SC_W  = STATUS_CNT_WIDTH;
-    // output FIFO: a whole block waits for its verdict while the next is
-    // being corrected, so two blocks of data symbols keep the walk unstalled
-    localparam int OFD   = 1 << $clog2(2 * K_SYMBOLS + 8);
+    localparam int KB    = (K_SYMBOLS + S - 1) / S;   // data beats per block
+    localparam int OFD   = 1 << $clog2(2 * KB + 8);   // output FIFO depth, beats
 
     // -------------------------------------------------------------------------
     // Elaboration guards
@@ -138,14 +149,14 @@ module rs_decoder_core
         if (DATA_WIDTH % M != 0)
             $error("rs_decoder_core: DATA_WIDTH %0d is not a multiple of SYMBOL_WIDTH %0d",
                    DATA_WIDTH, M);
-        if (S != 1)
-            $error("rs_decoder_core: SYMBOLS_PER_BEAT %0d > 1 is not implemented yet", S);
+        if (S < 1)
+            $error("rs_decoder_core: SYMBOLS_PER_BEAT must be >= 1 (got %0d)", S);
         if (N > (1 << M) - 1)
             $error("rs_decoder_core: N_SYMBOLS %0d exceeds 2^%0d - 1", N, M);
         if (K_SYMBOLS < 1)
             $error("rs_decoder_core: K = N - 2t = %0d; N_SYMBOLS must exceed 2*T_SYMBOLS", K_SYMBOLS);
-        if (BFD < N + 1 || (BFD & (BFD - 1)) != 0)
-            $error("rs_decoder_core: BLOCK_FIFO_DEPTH %0d must be a power of two above N", BFD);
+        if (BFD * S < N + 1 || (BFD & (BFD - 1)) != 0)
+            $error("rs_decoder_core: BLOCK_FIFO_DEPTH %0d beats must be a power of two holding more than N symbols", BFD);
         if (SKID_DEPTH < 2 || SKID_DEPTH > 8)
             $error("rs_decoder_core: SKID_DEPTH must be 2..8 (got %0d)", SKID_DEPTH);
         if (KES_ALGO != "RIBM" && KES_ALGO != "EUCLID")
@@ -157,11 +168,15 @@ module rs_decoder_core
     // =========================================================================
     logic             w_in_fire;
     logic             w_blk_wr_ready;
-    logic             r_first;             // next accepted symbol starts a block
+    logic             r_first;             // next accepted beat starts a block
     logic [CNT_W-1:0] r_rx_count;          // symbols accepted so far in this block
+    logic [BCW-1:0]   r_rx_beats;          // beats accepted so far in this block
+    logic             r_rx_partial;        // a non-final beat was partial
     logic             w_force_end;         // the FIFO would overflow: end the block here
     logic             w_block_end;
+    logic [CW-1:0]    w_in_count;
     logic [CNT_W-1:0] w_len;
+    logic             w_frame_err;
 
     logic [T2*M-1:0]  w_synd;
     logic [T2*M-1:0]  w_synd_next;
@@ -172,21 +187,25 @@ module rs_decoder_core
     logic             w_dab_wr_valid, w_dab_wr_ready, w_dab_rd_valid, w_dab_rd_ready;
     logic [DAB_W-1:0] w_dab_wr_data, w_dab_rd_data;
 
-    assign w_force_end = (r_rx_count == CNT_W'(BFD - 1));
+    assign w_in_count  = CW'(gf_keep_count(64'(in_keep), S));
+    assign w_force_end = (r_rx_beats == BCW'(BFD - 1));
     assign w_block_end = in_last || w_force_end;
-    assign w_len       = r_rx_count + CNT_W'(1);
+    assign w_len       = r_rx_count + CNT_W'(w_in_count);
+    assign w_frame_err = (w_len != CNT_W'(N)) || r_rx_partial || w_force_end;
     assign in_ready    = w_blk_wr_ready && w_dab_wr_ready;
     assign w_in_fire   = in_valid && in_ready;
 
     /* verilator lint_off PINCONNECTEMPTY */
     syndrome_unit #(
-        .SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T), .FIRST_ROOT(FIRST_ROOT)
+        .SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T), .FIRST_ROOT(FIRST_ROOT),
+        .SYMBOLS_PER_BEAT(S)
     ) u_synd (
         .aclk            (aclk),
         .aresetn         (aresetn),
         .i_step          (w_in_fire),
         .i_first         (r_first),
-        .i_data          (in_data[M-1:0]),
+        .i_data          (in_data),
+        .i_count         (w_in_count),
         .ow_synd         (w_synd),
         .ow_all_zero     (),
         .ow_synd_next    (w_synd_next),
@@ -195,15 +214,19 @@ module rs_decoder_core
     /* verilator lint_on PINCONNECTEMPTY */
 
     assign w_dab_wr_valid = w_in_fire && w_block_end;
-    assign w_dab_wr_data  = {w_len, (w_len != CNT_W'(N)), w_all_zero_next, w_synd_next};
+    assign w_dab_wr_data  = {w_len, w_frame_err, w_all_zero_next, w_synd_next};
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_first    <= 1'b1;
-            r_rx_count <= '0;
+            r_first      <= 1'b1;
+            r_rx_count   <= '0;
+            r_rx_beats   <= '0;
+            r_rx_partial <= 1'b0;
         end else if (w_in_fire) begin
-            r_first    <= w_block_end;
-            r_rx_count <= w_block_end ? '0 : r_rx_count + CNT_W'(1);
+            r_first      <= w_block_end;
+            r_rx_count   <= w_block_end ? '0 : w_len;
+            r_rx_beats   <= w_block_end ? '0 : r_rx_beats + BCW'(1);
+            r_rx_partial <= w_block_end ? 1'b0 : (r_rx_partial || (w_in_count != CW'(S)));
         end
     )
 
@@ -216,17 +239,22 @@ module rs_decoder_core
     /* verilator lint_on PINCONNECTEMPTY */
 
     // -------------------------------------------------------------------------
-    // Block FIFO: every received symbol, read back by stage C
+    // Block FIFO: every received beat {keep, data}, read back by stage C
     // -------------------------------------------------------------------------
-    logic         w_blk_rd_valid, w_blk_rd_ready;
-    logic [M-1:0] w_blk_rd_data;
+    localparam int BF_W = S + S * M;
+    logic            w_blk_rd_valid, w_blk_rd_ready;
+    logic [BF_W-1:0] w_blk_rd_data;
+    logic [S-1:0]    w_blk_rd_keep;
+    logic [S*M-1:0]  w_blk_rd_sym;
 
     /* verilator lint_off PINCONNECTEMPTY */
-    gaxi_fifo_sync #(.DATA_WIDTH(M), .DEPTH(BFD), .REGISTERED(0)) u_blk_fifo (
+    gaxi_fifo_sync #(.DATA_WIDTH(BF_W), .DEPTH(BFD), .REGISTERED(0)) u_blk_fifo (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
-        .wr_valid(w_in_fire), .wr_ready(w_blk_wr_ready), .wr_data(in_data[M-1:0]),
+        .wr_valid(w_in_fire), .wr_ready(w_blk_wr_ready), .wr_data({in_keep, in_data}),
         .rd_ready(w_blk_rd_ready), .count(), .rd_valid(w_blk_rd_valid), .rd_data(w_blk_rd_data));
     /* verilator lint_on PINCONNECTEMPTY */
+
+    assign {w_blk_rd_keep, w_blk_rd_sym} = w_blk_rd_data;
 
     // =========================================================================
     // Stage B: solve
@@ -271,7 +299,6 @@ module rs_decoder_core
     assign w_b_bypass  = w_b_all_zero || w_b_frame_err;
     assign w_b_bad     = w_kes_deg_err || (w_kes_deg == '0);
     assign w_kes_start = (r_b_state == B_IDLE) && w_dab_rd_valid && !w_b_bypass;
-    // a bypass descriptor goes straight through when C has room; a solved one after o_done
     assign w_dab_rd_ready = (r_b_state == B_IDLE) && (w_b_bypass ? w_dbc_wr_ready : 1'b1);
 
     always_comb begin
@@ -312,7 +339,7 @@ module rs_decoder_core
     /* verilator lint_on PINCONNECTEMPTY */
 
     // =========================================================================
-    // Stage C: correct and drain
+    // Stage C: correct and drain, a beat per cycle
     // =========================================================================
     logic [CNT_W-1:0]    w_c_len;
     logic                w_c_frame_err, w_c_all_zero, w_c_correct, w_c_bad;
@@ -324,28 +351,34 @@ module rs_decoder_core
 
     typedef enum logic [1:0] {C_IDLE, C_WALK} c_state_t;
     c_state_t         r_c_state;
-    logic [CNT_W-1:0] r_c_len;
-    logic [CNT_W-1:0] r_c_pos;             // position being processed, 0 .. len-1
+    logic [CNT_W-1:0] r_c_len;             // symbols in the block
+    logic [CNT_W-1:0] r_c_pos;             // first position of the beat being processed
     logic [CNT_W-1:0] r_c_data_len;        // positions emitted as data
     logic             r_c_frame_err, r_c_all_zero, r_c_correct, r_c_bad;
     logic [DEG_W-1:0] r_c_deg;
-    logic [SC_W:0]    r_c_roots;           // one wider than the count: saturates at t+1
+    logic [SC_W:0]    r_c_roots;           // one wider than the count: saturates
     logic             r_c_den_zero;
 
     logic             w_c_load;            // pop a descriptor and load the search
-    logic             w_c_step;            // process one position this cycle
-    logic             w_c_last_pos;
-    logic             w_c_is_data;
-    logic             w_chien_root;
-    logic [M-1:0]     w_chien_odd;
-    logic [M-1:0]     w_forney_val;
-    logic             w_forney_den_zero;
-    logic             w_c_hit;             // a correction is applied at this position
-    logic [M-1:0]     w_c_sym;             // the corrected symbol
+    logic             w_c_step;            // process one beat this cycle
+    logic             w_c_last_beat;
+    logic [CW-1:0]    w_c_count;           // symbols in this beat (from its keep)
+    logic [S-1:0]     w_c_valid;           // lane holds a symbol of the block
+    logic [S-1:0]     w_c_is_data;         // lane is a data position
+    logic             w_c_any_data;
+    logic             w_c_last_data_beat;
+    logic [S-1:0]     w_chien_root;
+    logic [S*M-1:0]   w_chien_odd;
+    logic [S*M-1:0]   w_forney_val;
+    logic [S-1:0]     w_forney_den_zero;
+    logic [S-1:0]     w_c_hit;             // a correction is applied in this lane
+    logic [S*M-1:0]   w_c_sym;             // the corrected beat
+    logic [CW-1:0]    w_c_hits;            // corrections in this beat
+    logic             w_c_den_zero_hit;
     logic             w_rechk_zero_next;
 
-    // output FIFO: {last_data, hit, correction, received symbol}
-    localparam int OF_W = 2 * M + 2;
+    // output FIFO: {last_data_beat, keep_data[S], hit[S], correction[S*M], received[S*M]}
+    localparam int OF_W = 1 + S + S + 2 * S * M;
     logic            w_of_wr_valid, w_of_wr_ready, w_of_rd_valid, w_of_rd_ready;
     logic [OF_W-1:0] w_of_wr_data, w_of_rd_data;
     // status FIFO: {frame_err, uncorrectable, ok, corrected}
@@ -356,41 +389,63 @@ module rs_decoder_core
     logic          w_uncorrectable_final;
     logic [SC_W:0] w_roots_final;
 
-    chien_search #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T), .N_SYMBOLS(N)) u_chien (
+    chien_search #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T), .N_SYMBOLS(N),
+                   .SYMBOLS_PER_BEAT(S)) u_chien (
         .aclk(aclk), .aresetn(aresetn),
         .i_load(w_c_load), .i_lambda(w_c_lambda), .i_step(w_c_step),
         .o_root(w_chien_root), .o_odd_sum(w_chien_odd));
 
     forney_evaluator #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T), .N_SYMBOLS(N),
-                       .FIRST_ROOT(FIRST_ROOT), .OMEGA_HIGH_HALF(!KES_EUCLID)) u_forney (
+                       .FIRST_ROOT(FIRST_ROOT), .OMEGA_HIGH_HALF(!KES_EUCLID),
+                       .SYMBOLS_PER_BEAT(S)) u_forney (
         .aclk(aclk), .aresetn(aresetn),
         .i_load(w_c_load), .i_omega(w_c_omega), .i_step(w_c_step),
         .i_odd_sum(w_chien_odd), .o_err_val(w_forney_val), .o_den_zero(w_forney_den_zero));
 
-    assign w_c_load     = (r_c_state == C_IDLE) && w_dbc_rd_valid;
+    assign w_c_load       = (r_c_state == C_IDLE) && w_dbc_rd_valid;
     assign w_dbc_rd_ready = w_c_load;
-    assign w_c_last_pos = (r_c_pos == r_c_len - CNT_W'(1));
-    assign w_c_is_data  = (r_c_pos < r_c_data_len);
-    assign w_c_hit      = r_c_correct && w_chien_root;
-    assign w_c_sym      = w_blk_rd_data ^ (w_c_hit ? w_forney_val : '0);
+    assign w_c_count      = CW'(gf_keep_count(64'(w_blk_rd_keep), S));
+    assign w_c_last_beat  = (r_c_pos + CNT_W'(w_c_count) >= r_c_len);
 
-    // step when the symbol is there, the output FIFO can take a data symbol,
-    // and (on the last position) the status FIFO can take the verdict
+    always_comb begin
+        w_c_any_data       = 1'b0;
+        w_c_last_data_beat = 1'b0;
+        w_c_hits           = '0;
+        w_c_den_zero_hit   = 1'b0;
+        for (int u = 0; u < S; u++) begin
+            w_c_valid[u]   = (CW'(u) < w_c_count);
+            w_c_is_data[u] = w_c_valid[u] && (r_c_pos + CNT_W'(u) < r_c_data_len);
+            w_c_hit[u]     = r_c_correct && w_c_valid[u] && w_chien_root[u];
+            w_c_sym[u*M +: M] = w_blk_rd_sym[u*M +: M] ^ (w_c_hit[u] ? w_forney_val[u*M +: M] : '0);
+            if (w_c_is_data[u]) w_c_any_data = 1'b1;
+            if (w_c_is_data[u] && (r_c_pos + CNT_W'(u) == r_c_data_len - CNT_W'(1)))
+                w_c_last_data_beat = 1'b1;
+            if (w_c_hit[u]) begin
+                w_c_hits = w_c_hits + CW'(1);
+                if (w_forney_den_zero[u]) w_c_den_zero_hit = 1'b1;
+            end
+        end
+    end
+
+    // step when the beat is there, the output FIFO can take it if it carries
+    // data, and (on the last beat) the status FIFO can take the verdict
     assign w_c_step = (r_c_state == C_WALK) && w_blk_rd_valid
-                      && (!w_c_is_data || w_of_wr_ready)
-                      && (!w_c_last_pos || w_st_wr_ready);
+                      && (!w_c_any_data || w_of_wr_ready)
+                      && (!w_c_last_beat || w_st_wr_ready);
     assign w_blk_rd_ready = w_c_step;
 
     // re-check: syndromes of the corrected stream, data and parity alike
     /* verilator lint_off PINCONNECTEMPTY */
     syndrome_unit #(
-        .SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T), .FIRST_ROOT(FIRST_ROOT)
+        .SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T), .FIRST_ROOT(FIRST_ROOT),
+        .SYMBOLS_PER_BEAT(S)
     ) u_rechk (
         .aclk            (aclk),
         .aresetn         (aresetn),
         .i_step          (w_c_step),
         .i_first         (r_c_pos == '0),
         .i_data          (w_c_sym),
+        .i_count         (w_c_count),
         .ow_synd         (),
         .ow_all_zero     (),
         .ow_synd_next    (),
@@ -398,17 +453,22 @@ module rs_decoder_core
     );
     /* verilator lint_on PINCONNECTEMPTY */
 
-    assign w_roots_final = r_c_roots + (w_c_hit ? (SC_W + 1)'(1) : '0);
+    // saturating root count: the field is one bit wider than the status count
+    always_comb begin
+        w_roots_final = r_c_roots + (SC_W + 1)'(w_c_hits);
+        if (w_roots_final < r_c_roots) w_roots_final = '1;
+    end
+
     assign w_uncorrectable_final =
         r_c_correct && (r_c_bad
                         || (w_roots_final != (SC_W + 1)'(r_c_deg))
-                        || r_c_den_zero || (w_c_hit && w_forney_den_zero)
+                        || r_c_den_zero || w_c_den_zero_hit
                         || !w_rechk_zero_next);
 
-    assign w_of_wr_valid = w_c_step && w_c_is_data;
-    assign w_of_wr_data  = {(r_c_pos == r_c_data_len - CNT_W'(1)), w_c_hit, w_forney_val, w_blk_rd_data};
+    assign w_of_wr_valid = w_c_step && w_c_any_data;
+    assign w_of_wr_data  = {w_c_last_data_beat, w_c_is_data, w_c_hit, w_forney_val, w_blk_rd_sym};
 
-    assign w_st_wr_valid = w_c_step && w_c_last_pos;
+    assign w_st_wr_valid = w_c_step && w_c_last_beat;
     assign w_st_wr_data  = {r_c_frame_err,
                             w_uncorrectable_final,
                             r_c_all_zero && !r_c_frame_err,
@@ -443,12 +503,10 @@ module rs_decoder_core
                     r_c_den_zero  <= 1'b0;
                 end
                 C_WALK: if (w_c_step) begin
-                    r_c_pos <= r_c_pos + CNT_W'(1);
-                    if (w_c_hit) begin
-                        if (r_c_roots != '1) r_c_roots <= r_c_roots + (SC_W + 1)'(1);
-                        if (w_forney_den_zero) r_c_den_zero <= 1'b1;
-                    end
-                    if (w_c_last_pos) r_c_state <= C_IDLE;
+                    r_c_pos      <= r_c_pos + CNT_W'(w_c_count);
+                    r_c_roots    <= w_roots_final;
+                    r_c_den_zero <= r_c_den_zero || w_c_den_zero_hit;
+                    if (w_c_last_beat) r_c_state <= C_IDLE;
                 end
                 default: r_c_state <= C_IDLE;
             endcase
@@ -472,17 +530,23 @@ module rs_decoder_core
     // Output: a block is released once its verdict exists; corrections are
     // applied here, and only when the block is not uncorrectable
     // =========================================================================
-    logic         w_out_fire;
-    logic         w_o_last, w_o_hit;
-    logic [M-1:0] w_o_corr, w_o_rx;
+    logic           w_out_fire;
+    logic           w_o_last;
+    logic [S-1:0]   w_o_keep, w_o_hit;
+    logic [S*M-1:0] w_o_corr, w_o_rx;
 
-    assign {w_o_last, w_o_hit, w_o_corr, w_o_rx} = w_of_rd_data;
+    assign {w_o_last, w_o_keep, w_o_hit, w_o_corr, w_o_rx} = w_of_rd_data;
     assign {out_status_frame_err, out_status_uncorrectable, out_status_ok, out_status_corrected}
         = w_st_rd_data;
 
+    always_comb begin
+        for (int u = 0; u < S; u++)
+            out_data[u*M +: M] = w_o_keep[u]
+                ? (w_o_rx[u*M +: M] ^ ((w_o_hit[u] && !out_status_uncorrectable) ? w_o_corr[u*M +: M] : '0))
+                : '0;
+    end
     assign out_last      = w_o_last;
-    assign out_data      = w_o_rx ^ ((w_o_hit && !out_status_uncorrectable) ? w_o_corr : '0);
-    assign out_keep      = '1;
+    assign out_keep      = w_o_keep;
     assign out_valid     = w_of_rd_valid && w_st_rd_valid;
     assign w_out_fire    = out_valid && out_ready;
     assign w_of_rd_ready = w_out_fire;

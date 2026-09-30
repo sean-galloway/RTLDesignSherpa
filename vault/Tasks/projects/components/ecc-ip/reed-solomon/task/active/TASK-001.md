@@ -160,3 +160,15 @@ blocks; cycles t+1..2t. `rtl/key_equation_solver_euclid.sv` bit-exact (5 configs
 56 checks each at gate); `forney_evaluator` gains `OMEGA_HIGH_HALF` (textbook
 Omega for Euclid); `rs_decoder_core` gains `KES_ALGO` and two Euclid cells in the
 decoder test decode identically (20/20 each). Item 1 (S > 1) next.
+
+**2026-09-30 -- S > 1 on both cores (Sean: "work on 1/3").** `gf_lfsr_encoder`,
+`gf_syndrome_cell`/`syndrome_unit`, `chien_search`, `forney_evaluator`,
+`rs_encoder_core`, `rs_decoder_core` all take `SYMBOLS_PER_BEAT`; S single steps
+unrolled with the state after the beat's count muxed; Chien/Forney evaluate S
+lanes from one register set (S inverses). keep is low-aligned, partial only on a
+block's last beat (a partial earlier beat is a framing error). Encoder output
+carries partial beats at the end of the data and of the parity; decoder output
+only at the end. Lint clean at S = 1, 2, 3, 4, 8. Gate cells green at S = 1/3/4/8
+on both cores and all sub-blocks; measured encoder 32 cycles per RS(255,239)
+block at S = 8, decoder 33. One TB bug on the way (a shadowed `vals` in ForneyTB).
+HAS 3.2, 4.1, 5.1 (with a measured table), 5.2, 6.2 and the catalog updated.

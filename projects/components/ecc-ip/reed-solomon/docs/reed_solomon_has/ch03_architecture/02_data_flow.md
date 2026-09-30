@@ -74,11 +74,12 @@ One beat in, one beat out, with a block of latency in between.
 
 ![Decoder timeline](../assets/mermaid/rs_decoder_timeline.png)
 
-For the reference profile the first data symbol of a block emerges about
-2n + 2t cycles after its first symbol arrived (the block is received, solved,
-and walked to its verdict before release), and the block then drains in k
+For the reference profile the first data beat of a block emerges about
+2n/S + 2t cycles after its first beat arrived (the block is received, solved,
+and walked to its verdict before release), and the block then drains in k/S
 cycles while the next block is walked, so sustained throughput is one block
-every n cycles -- measured at 252 to 257 cycles per RS(255,239) block.
+every n/S cycles -- measured at 252 to 257 cycles per RS(255,239) block at
+S = 1, 64.5 at S = 4 and 33 at S = 8 (n/S = 32).
 
 ## Block boundaries
 
@@ -92,9 +93,19 @@ only the shortened block.
 
 ## Multiple symbols per beat
 
-With `SYMBOLS_PER_BEAT = S > 1` the encoder LFSR advances S symbols per
-cycle and the syndrome and Chien cells are replicated or fed S-way (chapter
-5.1); the solver, which works on the 2t syndromes, is unaffected. Blocks are
-still delimited by `last`; a block whose length is not a multiple of S ends
-with a partial final beat, marked by a per-symbol keep mask in the data
-beat.
+With `SYMBOLS_PER_BEAT = S > 1` every stage works a beat per cycle: the
+encoder LFSR advances by the beat's symbol count (S single steps unrolled,
+the state after the count-th taken), the syndrome cells take S Horner
+steps, and the Chien and Forney cells evaluate S positions from one set of
+registers, each lane a constant multiply away from the beat's first
+position. The solver works on the 2t syndromes and is unaffected. Blocks
+are still delimited by `last`; `keep` is low-aligned and only a block's
+last beat may be partial.
+
+Where the partial beats fall differs between the cores. The encoder passes
+data beats through as received and appends the parity in ceil(2t/S) beats,
+so its output may carry a partial beat at the end of the data and another
+at the end of the parity; a consumer that needs contiguous packing puts a
+beat packer at the outlet, which is the adapters' job (chapter 4.2, 4.3).
+The decoder drops the parity lanes, so its output is k symbols in ceil(k/S)
+beats with only the final beat partial.

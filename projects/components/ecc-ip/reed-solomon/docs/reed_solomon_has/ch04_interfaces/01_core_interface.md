@@ -45,12 +45,12 @@ Both cores present the house valid/ready streaming contract
 | `in_valid` | in | 1 | a beat of data symbols is offered |
 | `in_ready` | out | 1 | the core takes it this cycle |
 | `in_data` | in | S x m | S data symbols, symbol 0 in the low bits |
-| `in_keep` | in | S | which symbols of the beat are present (all ones except possibly the final beat of a block) |
+| `in_keep` | in | S | which symbols of the beat are present: low-aligned, all ones except possibly the final beat of a block |
 | `in_last` | in | 1 | this beat carries the k-th data symbol of the block |
 | `out_valid` | out | 1 | a beat of coded symbols is offered |
 | `out_ready` | in | 1 | the consumer takes it |
-| `out_data` | out | S x m | S coded symbols: the data symbols first, then the 2t parity symbols |
-| `out_keep` | out | S | present-symbol mask of the beat |
+| `out_data` | out | S x m | S coded symbols: the data beats as received, then the 2t parity symbols in ceil(2t/S) beats |
+| `out_keep` | out | S | present-symbol mask of the beat: partial at the end of the data and at the end of the parity when S divides neither k nor 2t |
 | `out_last` | out | 1 | this beat carries the n-th coded symbol of the block |
 | `frame_err` | out | 1 | pulse: a block ended with other than k data symbols; it was still encoded as given |
 
@@ -66,8 +66,8 @@ Both cores present the house valid/ready streaming contract
 | `in_last` | in | 1 | this beat carries the n-th received symbol |
 | `in_erase` | in | S | (only with `ENABLE_ERASURES`) symbol is a known erasure |
 | `out_valid` / `out_ready` | out / in | 1 | as the encoder |
-| `out_data` | out | S x m | S corrected data symbols (parity is not emitted) |
-| `out_keep` | out | S | present-symbol mask |
+| `out_data` | out | S x m | S corrected data symbols; parity lanes are dropped, so the block is k symbols in ceil(k/S) beats |
+| `out_keep` | out | S | present-symbol mask, low-aligned, partial only on the block's final beat |
 | `out_last` | out | 1 | this beat carries the k-th data symbol of the block |
 | `out_status_ok` | out | 1 | held for every beat of the block: it had no errors |
 | `out_status_corrected` | out | log2(t)+1 | held for every beat of the block: symbols corrected (0 .. t) |
@@ -80,9 +80,11 @@ Both cores present the house valid/ready streaming contract
 
 - `in_last` is the block boundary. The core does not infer boundaries by
   counting; it checks the count against n (or k) and reports a mismatch.
-- The encoder holds `in_ready` low while it drains the 2t parity symbols of
-  the previous block (chapter 3.2); a consumer wanting no gap buffers 2t
-  symbols upstream.
+- The encoder holds `in_ready` low while it drains the parity of the
+  previous block, ceil(2t/S) cycles (chapter 3.2); a consumer wanting no gap
+  buffers that many beats upstream.
+- `keep` masks are low-aligned. A partial beat anywhere but a block's last
+  is a framing error on the decoder and a count mismatch on the encoder.
 - The decoder accepts the next block while it is still correcting the
   previous one, up to the depth of its block buffer; `in_ready` falls only
   when the buffer is full, which under sustained back-pressure on `out_ready`

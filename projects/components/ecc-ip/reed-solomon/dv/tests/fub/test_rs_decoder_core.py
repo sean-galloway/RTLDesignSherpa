@@ -29,14 +29,16 @@ from projects.components.ecc_ip.reed_solomon.dv.tbclasses.rs_decoder_tb import R
 
 FILELIST = 'projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_decoder_core.f'
 
-# (symbol_width, prim_poly, t, n, kes)
+# (symbol_width, prim_poly, t, n, kes, symbols_per_beat)
 PROFILES = [
-    (8, 0x11D, 8, 255, 'RIBM'),    # reference: full-length, t = 8
-    (8, 0x11D, 8, 204, 'RIBM'),    # DVB shortened
-    (8, 0x11D, 1, 21, 'RIBM'),     # RS(21,19): two parity symbols
-    (4, 0x13, 2, 15, 'RIBM'),      # small field, exhaustive-friendly
-    (8, 0x11D, 8, 255, 'EUCLID'),  # the same core with the Euclid solver (PRD D11)
-    (4, 0x13, 2, 15, 'EUCLID'),
+    (8, 0x11D, 8, 255, 'RIBM', 1),    # reference: full-length, t = 8
+    (8, 0x11D, 8, 255, 'RIBM', 4),    # 255 = 63 beats + 3; k = 239 = 59 beats + 3
+    (8, 0x11D, 8, 255, 'RIBM', 8),    # a 64-bit bus
+    (8, 0x11D, 8, 204, 'RIBM', 8),    # DVB shortened: 204 = 25 beats + 4
+    (8, 0x11D, 1, 21, 'RIBM', 4),     # RS(21,19): two parity symbols
+    (4, 0x13, 2, 15, 'RIBM', 3),      # small field, odd S
+    (8, 0x11D, 8, 255, 'EUCLID', 1),  # the same core with the Euclid solver (PRD D11)
+    (4, 0x13, 2, 15, 'EUCLID', 3),
 ]
 
 
@@ -56,8 +58,8 @@ async def cocotb_test_rs_decoder_core(dut):
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
-@pytest.mark.parametrize("symbol_width, prim_poly, t, n, kes", PROFILES)
-def test_rs_decoder_core(request, symbol_width, prim_poly, t, n, kes, test_level):
+@pytest.mark.parametrize("symbol_width, prim_poly, t, n, kes, spb", PROFILES)
+def test_rs_decoder_core(request, symbol_width, prim_poly, t, n, kes, spb, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_rs': 'projects/components/ecc-ip/reed-solomon/rtl',
@@ -66,14 +68,14 @@ def test_rs_decoder_core(request, symbol_width, prim_poly, t, n, kes, test_level
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=FILELIST)
 
     test_name_plus_params = (f"test_{dut_name}_m{TBBase.format_dec(symbol_width, 2)}"
-                             f"_n{TBBase.format_dec(n, 3)}_t{TBBase.format_dec(t, 2)}_{kes.lower()}_{test_level}")
+                             f"_n{TBBase.format_dec(n, 3)}_t{TBBase.format_dec(t, 2)}_{kes.lower()}_s{spb}_{test_level}")
     os.makedirs(log_dir, exist_ok=True)   # clean-all removes logs/
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     rtl_parameters = {'SYMBOL_WIDTH': str(symbol_width), 'PRIM_POLY': str(prim_poly),
-                      'T_SYMBOLS': str(t), 'N_SYMBOLS': str(n), 'DATA_WIDTH': str(symbol_width),
+                      'T_SYMBOLS': str(t), 'N_SYMBOLS': str(n), 'DATA_WIDTH': str(symbol_width * spb),
                       'KES_ALGO': f'"{kes}"'}   # a string parameter: quotes must reach the tool
     extra_env = level_env(test_level, KES_ALGO=kes, DUT=dut_name, LOG_PATH=log_path,
                           COCOTB_LOG_LEVEL='INFO')

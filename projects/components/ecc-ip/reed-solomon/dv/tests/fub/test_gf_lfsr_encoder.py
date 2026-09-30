@@ -26,13 +26,15 @@ from projects.components.ecc_ip.reed_solomon.dv.tbclasses.gf_tb import GFLFSRTB
 
 FILELIST = 'projects/components/ecc-ip/reed-solomon/rtl/filelists/gf_lfsr_encoder.f'
 
-# (symbol_width, prim_poly, t, first_root, k)
+# (symbol_width, prim_poly, t, first_root, k, symbols_per_beat)
 CONFIGS = [
-    (8, 0x11D, 8, 0, 239),
-    (8, 0x11D, 1, 0, 19),
-    (8, 0x187, 16, 112, 223),   # CCSDS field and first root (dual basis NOT applied here)
-    (4, 0x13, 2, 0, 11),
-    (10, 0x409, 15, 0, 514),
+    (8, 0x11D, 8, 0, 239, 1),
+    (8, 0x11D, 8, 0, 239, 4),    # 239 = 59 beats + 3: a partial last data beat
+    (8, 0x11D, 8, 0, 239, 8),
+    (8, 0x11D, 1, 0, 19, 4),     # 2t = 2 < S: one partial parity beat
+    (8, 0x187, 16, 112, 223, 1), # CCSDS field and first root (dual basis NOT applied here)
+    (4, 0x13, 2, 0, 11, 3),      # odd S
+    (10, 0x409, 15, 0, 514, 2),
 ]
 
 
@@ -47,8 +49,8 @@ async def cocotb_test_gf_lfsr_encoder(dut):
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
-@pytest.mark.parametrize("symbol_width, prim_poly, t, first_root, k", CONFIGS)
-def test_gf_lfsr_encoder(request, symbol_width, prim_poly, t, first_root, k, test_level):
+@pytest.mark.parametrize("symbol_width, prim_poly, t, first_root, k, spb", CONFIGS)
+def test_gf_lfsr_encoder(request, symbol_width, prim_poly, t, first_root, k, spb, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_gf': 'projects/components/ecc-ip/reed-solomon/rtl/gf',
@@ -57,14 +59,15 @@ def test_gf_lfsr_encoder(request, symbol_width, prim_poly, t, first_root, k, tes
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=FILELIST)
 
     test_name_plus_params = (f"test_{dut_name}_m{TBBase.format_dec(symbol_width, 2)}"
-                             f"_t{TBBase.format_dec(t, 2)}_b{TBBase.format_dec(first_root, 3)}_{test_level}")
+                             f"_t{TBBase.format_dec(t, 2)}_b{TBBase.format_dec(first_root, 3)}"
+                             f"_s{spb}_{test_level}")
     os.makedirs(log_dir, exist_ok=True)   # clean-all removes logs/
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     rtl_parameters = {'SYMBOL_WIDTH': str(symbol_width), 'PRIM_POLY': str(prim_poly),
-                      'T_SYMBOLS': str(t), 'FIRST_ROOT': str(first_root)}
+                      'T_SYMBOLS': str(t), 'FIRST_ROOT': str(first_root), 'SYMBOLS_PER_BEAT': str(spb)}
     extra_env = level_env(test_level, K_SYMBOLS=k, DUT=dut_name, LOG_PATH=log_path,
                           COCOTB_LOG_LEVEL='INFO')
 
