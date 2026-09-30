@@ -35,6 +35,7 @@ COMPONENTS = utility-ip/converters \
              fabric-gen-ip/bridge \
              mem-ctrl-ip/pumice-ddr2-lpddr2 \
              utility-ip/misc \
+             ecc-ip/reed-solomon \
              retro_legacy_blocks
 
 # Components that exist but don't yet expose run-all-* test targets (for reference):
@@ -113,6 +114,7 @@ help:
 	@echo "  make lint-converters      Lint Converters RTL"
 	@echo "  make lint-retro_legacy_blocks  Lint Retro Legacy Blocks RTL"
 	@echo "  make lint-misc                 Lint misc RTL"
+	@echo "  make lint-ecc-ip/reed-solomon  Lint Reed-Solomon RTL"
 	@echo "  make lint-mem-ctrl-ip/pumice-ddr2-lpddr2"
 	@echo "                                 Lint pumice RTL"
 	@echo ""

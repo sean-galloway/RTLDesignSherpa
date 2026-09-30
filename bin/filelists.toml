@@ -57,6 +57,15 @@ rtl_roots = ["rtl/amba"]
 filelist_dirs = ["rtl/amba/filelists"]
 
 [[area]]
+name = "reed-solomon"
+kind = "component"
+# ecc-ip family. Registered 2026-09-30 with its first RTL, the GF(2^m) layer
+# (gf_pkg, gf_mul_const, gf_mul, gf_inv), so --check has owned these modules
+# from the first commit rather than discovering them at an audit.
+rtl_roots = ["projects/components/ecc-ip/reed-solomon/rtl"]
+filelist_dirs = ["projects/components/ecc-ip/reed-solomon/rtl/filelists"]
+
+[[area]]
 name = "misc"
 kind = "component"
 # Small shared oddments (dma_address_gen, simple_rom, axi4_slave_rom). It had no

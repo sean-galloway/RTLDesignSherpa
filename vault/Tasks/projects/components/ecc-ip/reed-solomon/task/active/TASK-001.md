@@ -87,3 +87,20 @@ D5/D10 carried as TBD parameters (table 6.3). Two build lessons: the cloned
 script's `REPO_ROOT` needed one more `..` for the `ecc-ip/` depth, and the
 index's Related Modules links inlined PRD + catalog + References as chapters
 (150 pages) until they became plain paths.
+
+**2026-09-30 -- first RTL: the GF(2^m) layer** (Sean: "start working on the
+RTL"). `rtl/gf/gf_pkg.sv` (constant functions over m and PRIM_POLY, no
+generator), `gf_mul_const.sv` (constant-multiply matrix, XOR network),
+`gf_mul.sv` (Mastrovito: AND array + constant reduction), `gf_inv.sv` (log /
+antilog tables, m <= 12, `ow_zero`). Filelists per top + `reed_solomon_all.f`,
+area registered in `bin/filelists.toml`, `rtl/Makefile` on area.mk: Verilator
+and Verible clean at m = 4, 8, 10, 12 (16 for the multipliers). DV: `GFTB` in
+`dv/tbclasses/gf_tb.py` against `reedsolo` (pinned in requirements.txt), three
+Pattern B runners under `dv/tests/fub/`; 12/24/36 cells pass at gate/func/full,
+full is exhaustive at m = 4 and 8 (65536 pairs) and 65k random pairs at m = 10;
+the multiplier checker was mutation-checked (dropping one reduction term gave
+155 mismatches in 561). Tooling side effect: `projects/components/__init__.py`
+now resolves hyphenated component dirs below the family level
+(`reed_solomon` -> `reed-solomon`), which pumice and the other hyphenated
+components could not do through the shim before. Reuse survey: no GF
+arithmetic existed anywhere in the tree.

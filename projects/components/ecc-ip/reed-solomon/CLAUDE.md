@@ -33,6 +33,18 @@ It is an endpoint codec, never a mid-stream insert (PRD 4a). Until a consumer na
 - Interface: valid/ready streaming in the house style (`vault/handbook/design/valid-ready-contracts.md`),
   `aclk`/`aresetn` naming as in `rtl/amba`, reset through the `ALWAYS_FF_RST`
   macros with `RST_ASSERTED` (`vault/handbook/design/reset-and-clocking.md`).
+- GF layer facts (`rtl/gf/`, 2026-09-30): combinational, no clock or reset
+  port; data ports `i_*` / `ow_*` like `rtl/math`. `gf_pkg` is constant
+  functions with (m, prim) as arguments -- there is NO parameterised package
+  and NO generator; each module builds its own `localparam` tables. Verilator
+  trips its replication limit on a `'0` fill of a 2^m x m vector at m >= 10,
+  so `gf_inv` assigns every table entry instead of zero-filling. `$error`
+  elaboration guards (range, primitivity) fire only in simulation; lint does
+  not execute them. Lint: `make -C rtl lint-all`. Tests:
+  `cd dv/tests && make clean-all && make run-all-<gate|func|full>-parallel`;
+  golden model `reedsolo.gf_mult_noLUT(a, b, prim, 2**m)`, hex `PRIM_POLY`
+  reaches the TB through the environment and is parsed with `int(x, 0)`
+  (TBBase.convert_to_int is decimal-only).
 - Filelists in `rtl/filelists/` and registered in `bin/filelists.toml` from
   the first module (`vault/handbook/design/filelists.md`).
 - DV: cocotb under `dv/tests/` with TB classes in `dv/tbclasses/` (Pattern B,

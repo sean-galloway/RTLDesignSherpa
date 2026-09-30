@@ -31,6 +31,22 @@ _ALIASES = {
 }
 
 
+def _resolve(parts):
+    """Walk projects/components/<family>/... one segment at a time. A segment
+    is taken as written when it exists (a `.py` counts); otherwise its
+    hyphenated spelling is used, so `reed_solomon` finds `reed-solomon` and
+    `pumice_ddr2_lpddr2` finds `pumice-ddr2-lpddr2` without a table entry
+    per component. Only the family level is looked up by table."""
+    base = os.path.join(_HERE, _ALIASES[parts[0]])
+    for part in parts[1:]:
+        cand = os.path.join(base, part)
+        if os.path.exists(cand) or os.path.isfile(cand + ".py"):
+            base = cand
+        else:
+            base = os.path.join(base, part.replace("_", "-"))
+    return base
+
+
 class _AliasFinder(importlib.abc.MetaPathFinder):
     """Resolve projects.components.<alias>[.sub...] onto projects/components/<dir>."""
 
@@ -42,7 +58,7 @@ class _AliasFinder(importlib.abc.MetaPathFinder):
         parts = fullname[len(self.prefix):].split(".")
         if parts[0] not in _ALIASES:
             return None
-        location = os.path.join(_HERE, _ALIASES[parts[0]], *parts[1:])
+        location = _resolve(parts)
         if os.path.isdir(location):
             init = os.path.join(location, "__init__.py")
             if os.path.isfile(init):
