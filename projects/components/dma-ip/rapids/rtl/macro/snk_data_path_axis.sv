@@ -243,6 +243,7 @@ module snk_data_path_axis #(
     // The incoming beat, placed
     logic [CIW-1:0]              w_in_ch;
     logic [OFF_W-1:0]            w_in_off;
+    logic [DW-1:0]               w_in_data_m;      // tdata with non-strobed bytes zeroed
     logic [2*DW-1:0]             w_in_wide;        // [DW-1:0] this memory beat, [2DW-1:DW] the spill
     logic [2*SW-1:0]             w_in_wide_strb;
     logic                        w_in_accept;      // a beat is placed into the shifter
@@ -252,7 +253,14 @@ module snk_data_path_axis #(
 
     assign w_in_ch  = s_axis_tid[CIW-1:0];
     assign w_in_off = w_head_off[w_in_ch];
-    assign w_in_wide      = ({{DW{1'b0}}, s_axis_tdata} << (w_in_off * 8)) | {{DW{1'b0}}, r_hold_data[w_in_ch]};
+
+    // Non-strobed bytes of a partial last beat are stream junk; unmasked they would
+    // shift into the spill hold and be ORed into the channel's next packet.
+    always_comb begin
+        for (int b = 0; b < SW; b++)
+            w_in_data_m[b*8 +: 8] = s_axis_tstrb[b] ? s_axis_tdata[b*8 +: 8] : 8'h00;
+    end
+    assign w_in_wide      = ({{DW{1'b0}}, w_in_data_m} << (w_in_off * 8)) | {{DW{1'b0}}, r_hold_data[w_in_ch]};
     assign w_in_wide_strb = ({{SW{1'b0}}, s_axis_tstrb} << w_in_off)      | {{SW{1'b0}}, r_hold_strb[w_in_ch]};
 
     always_comb begin

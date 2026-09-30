@@ -34,26 +34,6 @@ IDLE_READS = 3                      # consecutive idle reads = settled
 CHAIN_STRIDE = 32                   # descriptor size in descriptor RAM
 
 
-# KNOWN RTL BUG (rapids TASK-019, snk_data_path_axis.sv): the ingress shifter
-# keeps the data bytes it shifts past a packet's last strobed byte in r_hold_data
-# (strobe 0) and ORs them into the NEXT packet of the same channel. It bites
-# when a descriptor at offset off > 0 has a partial last stream beat of `tail`
-# bytes with off + tail <= bpb (no spill, so no flush clears the hold) and the
-# next descriptor starts at a lower offset: the junk lands in strobed lanes.
-# Set RAPIDS_SNK_HOLD_JUNK_FIXED=1 once the RTL is fixed: the affected chains
-# then use the plain golden.
-SNK_HOLD_JUNK_FIXED = os.environ.get('RAPIDS_SNK_HOLD_JUNK_FIXED') == '1'
-
-
-def snk_hold_junk_hits(chain, pkt_bytes, bpb):
-    """True if a same-channel descriptor chain triggers the hold-junk bug."""
-    live = [ad % bpb for ln, ad in chain if ln]
-    tail = pkt_bytes % bpb
-    return bool(tail) and any(
-        live[i] > 0 and live[i] + tail <= bpb and live[i + 1] < live[i]
-        for i in range(len(live) - 1))
-
-
 def _rank(level):
     return LEVELS.index(level)
 
@@ -255,12 +235,6 @@ class Seq:
             self.io.select_channel(ch)
             crc = self.io.csr_read_reg("WR_CRC")
             gold = golden_sink_bytes(ch, pkt_bytes, pkts, self.bpb, LFSR_SEED_DEFAULT)
-            if not SNK_HOLD_JUNK_FIXED and snk_hold_junk_hits(specs[ch], pkt_bytes, self.bpb):
-                # the RTL must still corrupt this chain; if it matches the bug is fixed
-                self.check(f"{name}: ch{ch} KNOWN-BUG snk hold-junk corrupts the write CRC "
-                           f"({pkts} x {pkt_bytes} B)", crc != gold, wr_crc=crc, golden=gold,
-                           hint="matches golden: RTL fixed, set RAPIDS_SNK_HOLD_JUNK_FIXED=1")
-                continue
             self.check(f"{name}: ch{ch} write golden ({pkts} x {pkt_bytes} B)", crc == gold,
                        wr_crc=crc, golden=gold)
 

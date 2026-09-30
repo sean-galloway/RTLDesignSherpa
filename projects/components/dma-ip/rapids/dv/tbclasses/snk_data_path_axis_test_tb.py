@@ -571,6 +571,56 @@ class SnkDataPathAxisTestTB(TBBase):
             self.log.error(f"  {e}")
         return (not errors), {'cases': len(cases) + 1, 'errors': errors}
 
+    async def test_stale_hold_junk(self) -> Tuple[bool, Dict[str, Any]]:
+        """A partial last beat carries junk in its non-strobed lanes. The junk
+        must not reach the channel's next packet. Packet A sits at a non-zero
+        offset, ends in a partial beat and has no spill; packet B follows on
+        the same channel at a lower offset. Unmasked junk shifts into the
+        spill hold and is ORed into B's first memory beat."""
+        bpb = self.DATA_WIDTH // 8
+        bg = 0x5A
+        junk = 0xFF
+        cases = [  # (A offset, A bytes, B offset, B bytes)
+            (5, 20, 0, 40), (bpb - 1, 1, 0, bpb + 9), (13, 3, 2, 70 % (4 * bpb) + 1),
+        ]
+        errors = []
+        for i, (a_off, a_n, b_off, b_n) in enumerate(cases):
+            ch = i % self.NUM_CHANNELS
+            base = self.BASE_ADDRESS + ch * self.CHANNEL_OFFSET + i * 0x4000
+            stages = []
+            for tag, off, n, slot in (("A", a_off, a_n, 0), ("B", b_off, b_n, 0x2000)):
+                addr = base + slot + off
+                payload = bytes(random.randrange(0, 0xFF) for _ in range(n))
+                rel = addr - self.BASE_ADDRESS
+                lo = rel - rel % bpb
+                span = (off % bpb) + n
+                span = span + (-span % bpb)
+                self.memory_model.write(lo, bytearray([bg] * span))
+                words, strbs = self.pack_bytes(payload, bpb)
+                # junk in the lanes the strobe leaves out (only the last beat has any)
+                for k, st in enumerate(strbs):
+                    for lane in range(bpb):
+                        if not (st >> lane) & 1:
+                            words[k] |= junk << (8 * lane)
+                await self.send_descriptor(ch, addr, 0, length_bytes=n)
+                await self.send_axis_packet(ch, words, last=True, strbs=strbs)
+                bad = "nothing landed"
+                for _ in range(40):
+                    await self.wait_clocks(self.clk_name, 50)
+                    bad = self._compare_bytes(rel, payload, bg)
+                    if not bad:
+                        break
+                stages.append(f"{tag}:{'PASS' if not bad else 'FAIL'}")
+                if bad:
+                    errors.append(f"case {i} packet {tag} (off {off}, {n} B): {bad}")
+            err = int(self.dut.sched_error.value)
+            self.log.info(f"  case {i}: ch{ch} A(off {a_off}, {a_n} B) then B(off {b_off}, {b_n} B) -> {' '.join(stages)}")
+            if err:
+                errors.append(f"case {i}: sched_error=0x{err:X}")
+        for e in errors:
+            self.log.error(f"  {e}")
+        return (not errors), {'cases': len(cases), 'errors': errors}
+
     # ------------------------------------------------------------------
     # per-channel reset (rapids TASK-019)
     # ------------------------------------------------------------------

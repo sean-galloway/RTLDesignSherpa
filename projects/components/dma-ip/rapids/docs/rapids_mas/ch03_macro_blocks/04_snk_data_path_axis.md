@@ -121,10 +121,12 @@ Each channel has a four-entry queue of `{offset, bytes}`. A record is pushed on 
 
 For an accepted stream beat, with `off` the head record's offset:
 
-- The wide word is `(tdata << off*8) | hold_data`, of width `2*DW`.
+- The wide word is `(tdata_m << off*8) | hold_data`, of width `2*DW`, where `tdata_m` is `tdata` with every lane whose `tstrb` bit is clear forced to zero.
 - The wide strobe is `(tstrb << off) | hold_strb`, of width `2*SW`.
 - The low half goes to the output register as the memory beat and its enables.
 - The high half becomes the new hold for the channel.
+
+The strobe mask matters on a partial last beat: the non-strobed lanes carry whatever the sender left there, and unmasked they would shift into the spill hold. A packet that ends without a spill never flushes the hold, so that junk would be ORed into the first memory beat of the channel's next packet. Masking by `tstrb` keeps the hold to real payload bytes.
 
 The first memory beat has its low `off` strobe bits clear, so the bytes below the start address are not written.
 

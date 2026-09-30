@@ -40,7 +40,8 @@ known_issues/
     ├── sink_sram_control.md
     ├── char_harness_sink_selfcheck_no_beats.md
     ├── sink_data_path.md
-    └── snk_scheduler_write_commit_stall.md
+    ├── snk_scheduler_write_commit_stall.md
+    └── snk_hold_junk_next_packet.md
 ```
 
 > **Status (2026-09-14):** `resolved/` exists again. The 2026-07-22 note said it
@@ -58,7 +59,7 @@ known_issues/
 
 ## Current Status
 
-### Resolved Issues (6)
+### Resolved Issues (7)
 
 | File (`resolved/`) | What it was | Closed |
 |---|---|---|
@@ -68,6 +69,7 @@ known_issues/
 | `drain_size_gt1_source_beat_drop.md` | Source path dropped beats at DRAIN_SIZE > 1 | 2026-09-27 (`29c696c30`) |
 | `desc_arsize_exceeds_bus_width.md` | Descriptor engine issued ARSIZE wider than the bus | fixed in `e236d102e`, tracker moved 2026-09-27 |
 | `sink_sram_control.md` | Single-read limit of the old `sink_sram_control` unit | module deleted in `bdf4e0dff` (STREAM `sram_controller` now), tracker retired 2026-09-27 |
+| `snk_hold_junk_next_packet.md` | Byte sink ingress leaked stream junk of a partial last beat into the channel's next packet | 2026-09-30 |
 
 ### Active Issues (0)
 
