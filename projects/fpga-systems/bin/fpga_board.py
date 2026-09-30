@@ -55,6 +55,12 @@ def main(argv=None) -> int:
     prog.add_argument("--no-verify-identity", dest="verify_identity",
                       action="store_false", default=True,
                       help="skip the pre-program JTAG identity check")
+    # A warning on stdout is indistinguishable from a pass once it scrolls, and
+    # the failure this guards against is a results file that looks valid. Writing
+    # the verdict beside the bitstream sha256 is what makes `inconclusive`
+    # distinguishable from `verified` six weeks later.
+    prog.add_argument("--identity-json", default=None, metavar="PATH",
+                      help="write the identity verdict and bitstream sha256 here")
 
     args = ap.parse_args(argv)
 
@@ -109,7 +115,8 @@ def main(argv=None) -> int:
         try:
             return board.program(args.bitstream, vivado=args.vivado,
                                  dry_run=args.dry_run,
-                                 verify_identity=args.verify_identity)
+                                 verify_identity=args.verify_identity,
+                                 identity_json=args.identity_json)
         except (FileNotFoundError, RuntimeError) as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
             return 1

@@ -22,9 +22,12 @@ Subclass `Board` when a board needs different behaviour (see
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import shutil
 import subprocess
+import time
 from dataclasses import dataclass, field
 from typing import List, Optional, Sequence
 
@@ -214,7 +217,8 @@ class Board:
 
     def program(self, bitstream: str, vivado: str = "vivado",
                 dry_run: bool = False, check: bool = True,
-                verify_identity: bool = True) -> int:
+                verify_identity: bool = True,
+                identity_json: Optional[str] = None) -> int:
         """Program this board over JTAG with `bitstream`.
 
         Fails before launching Vivado if the bitstream is missing (a 30-second
@@ -243,17 +247,40 @@ class Board:
         # chain refuses, while an inconclusive readback only warns. Refusing
         # because we could not look would break every flow where hw_server is
         # unreachable but programming works, and this runs on 13 board paths.
+        #
+        # The verdict is taken as DATA rather than as an exception, so that
+        # `inconclusive` can be persisted as distinct from `verified`. A warning
+        # that only reaches stdout is indistinguishable from a pass once it
+        # scrolls, and a results file that looks valid is the failure this exists
+        # to prevent.
         if verify_identity:
-            try:
-                self.verify_identity(vivado)
-            except IdentityError as exc:
-                if "expected board" in str(exc):
-                    raise
-                print(f"[program] WARNING: identity unverified -- {exc}")
+            verdict = self.identity_verdict(vivado)
+            print(f"[program] identity: {verdict['status']}"
+                  + (f" -- {verdict['detail']}" if verdict["detail"] else ""))
+        else:
+            verdict = {"status": "skipped", "serial": self.jtag_serial,
+                       "detail": "identity check disabled by the caller",
+                       "chain": None}
+
+        # The record is written even when we refuse, and even when the check was
+        # skipped. The artifact states what a run can be trusted to claim, so a
+        # run that did not look has to say so IN the file -- a missing file is not
+        # a statement, it is an absence a harness silently tolerates. It carries
+        # `programmed` for the same reason: a sha256 beside a refusal would
+        # otherwise read as "this bitstream is on that board", which is the exact
+        # false claim the whole mechanism exists to prevent.
+        if verdict["status"] == "wrong":
+            if identity_json:
+                self._write_identity_record(identity_json, bitstream, verdict,
+                                            programmed=False)
+            raise IdentityError(verdict["detail"])
 
         print(f"[program] {self.SPEC.display_name} "
               f"(serial {self.jtag_serial or 'any'}) <- {bitstream}")
         proc = subprocess.run(cmd, env=env)
+        if identity_json:
+            self._write_identity_record(identity_json, bitstream, verdict,
+                                        programmed=proc.returncode == 0)
         if check and proc.returncode != 0:
             raise RuntimeError(f"programming failed (vivado exit {proc.returncode})")
         return proc.returncode
@@ -311,6 +338,89 @@ class Board:
                 "Refusing rather than programming whichever board is there -- "
                 "that is how a result gets attributed to the wrong design.")
         return rb
+
+    def identity_verdict(self, vivado: str = "vivado") -> dict:
+        """The identity check as DATA, never raising.
+
+        `verify_identity` refuses by raising, which is right for a caller that
+        wants to stop -- but a refusal is not the only outcome worth recording.
+        A warning printed to a terminal is indistinguishable from a pass once it
+        scrolls, and the failure this whole mechanism exists to prevent is a
+        results file that looks valid. So the verdict has to be persistable:
+
+            verified      this board is on the chain with a device behind it
+            wrong         the chain does not hold this board -- programming refused
+            inconclusive  the chain could not be read (no vivado, no hw_server)
+            unjudged      this board has no registry serial; nothing to check
+
+        `inconclusive` and `verified` MUST be distinguishable in an artifact. A
+        run that could not look otherwise records exactly what a run that looked
+        and approved records, and six weeks later nobody can tell which one they
+        are holding. (Raised by the scoria session, and it is the sharper half of
+        the asymmetry.)
+        """
+        serial = self.jtag_serial
+        try:
+            chain = self.readback(vivado)
+        except IdentityError as exc:
+            return {"status": "inconclusive", "serial": serial,
+                    "detail": str(exc), "chain": None}
+        except subprocess.TimeoutExpired:
+            # A wedged hw_server is the commonest way the readback fails to
+            # come back at all, and it is squarely an inconclusive result. If
+            # it escaped as an exception it would take `program` down with it,
+            # which is the refusal the asymmetry exists to avoid.
+            return {"status": "inconclusive", "serial": serial,
+                    "detail": f"JTAG readback timed out after {vivado} was started",
+                    "chain": None}
+        except OSError as exc:
+            return {"status": "inconclusive", "serial": serial,
+                    "detail": f"could not run the JTAG readback: {exc}",
+                    "chain": None}
+        if not serial:
+            return {"status": "unjudged", "serial": None,
+                    "detail": "board has no registry JTAG serial", "chain": chain}
+        try:
+            self.verify_identity(vivado, readback=chain)
+        except IdentityError as exc:
+            return {"status": "wrong", "serial": serial,
+                    "detail": str(exc), "chain": chain}
+        return {"status": "verified", "serial": serial, "detail": "", "chain": chain}
+
+    @staticmethod
+    def bitstream_sha256(path: str) -> str:
+        """sha256 of a bitstream, chunked -- these are megabytes."""
+        h = hashlib.sha256()
+        with open(path, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 20), b""):
+                h.update(chunk)
+        return h.hexdigest()
+
+    def _write_identity_record(self, path: str, bitstream: str,
+                               verdict: dict, programmed: bool) -> None:
+        """Persist what was programmed AND whether we could confirm the board.
+
+        The sha256 alone is what every harness already records, and it is exactly
+        the thing that cannot detect a third party: it describes the file we sent,
+        not the device that received it. Pairing it with the identity verdict is
+        what makes a stale or swapped board visible after the fact.
+
+        `programmed` is not decoration. This is written on the refusal path too,
+        where the sha256 describes a bitstream that never reached the device.
+        """
+        record = {
+            "when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            "board": self.SPEC.name,
+            "expected_serial": self.jtag_serial,
+            "bitstream": os.path.abspath(bitstream),
+            "bitstream_sha256": self.bitstream_sha256(bitstream),
+            "programmed": programmed,
+            "identity": verdict,
+        }
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+        with open(path, "w") as fh:
+            json.dump(record, fh, indent=2, sort_keys=True)
+        print(f"[program] identity record -> {path}")
 
     # ---- misc --------------------------------------------------------------
 

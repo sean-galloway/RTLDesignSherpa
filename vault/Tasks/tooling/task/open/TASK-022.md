@@ -1,7 +1,9 @@
 # TASK-022: the FPGA flow lock is keyed on the build directory, so two areas can drive one board
 
 **Priority:** P1
-**Status:** open -- the LOCK landed 2026-09-30; the device-ID readback has not
+**Status:** open -- the lock, the identity readback and the identity record all
+landed 2026-09-30. What is left is the HARDWARE path: no real readback has run
+against a board, because one was held throughout.
 **Owner:** TBD
 **Filed:** 2026-09-30 (found by the scoria session; confirmed by rapids)
 
@@ -119,6 +121,46 @@ rather than passed -- claiming success there would be a checker that cannot fail
 Mutation-tested four ways, all caught: never refusing, accepting a target with no
 device behind it, counting `JTAG_TARGET_ERROR` as a healthy target, and ignoring
 the `FPGA_JTAG_SERIAL` override.
+
+## Landed 2026-09-30: the verdict lands in the ARTIFACT, not only on stdout
+
+Raised by scoria, and it is the sharper half of the asymmetry: *a warning printed
+to a terminal is indistinguishable from a pass once it scrolls.* With the warn
+path as originally shipped, a run that could not look recorded exactly what a run
+that looked and approved recorded -- and six weeks later nobody can tell which one
+they are holding. The whole mechanism exists to prevent a results file that looks
+valid, so the verdict has to be persistable.
+
+- `Board.identity_verdict(vivado)` -- the identity check as DATA, never raising.
+  Four statuses, and they must stay distinguishable: `verified`, `wrong`,
+  `inconclusive` (the chain could not be read), `unjudged` (no registry serial).
+  `program` now takes the verdict rather than an exception, so `wrong` can be
+  written down *before* it refuses.
+- `Board.bitstream_sha256()` and `Board._write_identity_record()` --
+  `{when, board, expected_serial, bitstream, bitstream_sha256, programmed,
+  identity:{status, detail, chain}}`.
+- `fpga_board.py program --identity-json PATH`.
+
+Three details that are load-bearing rather than decorative:
+
+- **`programmed` is a field because the record is written on the refusal path
+  too.** There the sha256 describes a bitstream that never reached the device;
+  without the flag the file reads as "this bitstream is on that board", which is
+  the exact false claim the feature exists to prevent. It is also false on a
+  non-zero Vivado exit.
+- **A skipped check writes the file and says `skipped`.** `--no-verify-identity`
+  must not produce an artifact-shaped silence. A missing file is not a statement,
+  it is an absence a harness tolerates without noticing.
+- **A wedged `hw_server` is `inconclusive`, not an exception.** `readback` carries
+  a 240s timeout; if `TimeoutExpired` escaped it would take `program` down with
+  it, converting the deliberately warn-only path into the refusal the asymmetry
+  exists to avoid.
+
+14 more hardware-free tests (25 total in `test_board_identity.py`). Mutation-tested
+eight ways, all caught: `programmed` always true, the field dropped entirely, no
+record on the refusal path, `skipped` reported as `verified`, `inconclusive`
+reported as `verified`, the timeout handler removed, `unjudged` reported as
+`verified`, and a sha256 that ignores the file's bytes.
 
 ### Still open
 
