@@ -60,7 +60,7 @@ with t and m; the standards below span the practical range.
 | D6 | Throughput | 1 symbol/cycle (serial) up to n symbols/block in a few cycles (parallel Chien, unrolled BM). Per D1 the natural unit is `SYMBOLS_PER_BEAT = DATA_WIDTH / SYMBOL_WIDTH`: the codec consumes one beat per cycle and the syndrome / Chien cell counts scale by that factor. | the whole microarchitecture; decide from the consumer's clock and rate |
 | D7 | BCH | out (RS only), or in as the m-bit-symbol-with-binary-field special case sharing the GF layer | scope of the GF layer and the DV matrix |
 | D8 | Generator polynomial / primitive element / first root | per standard: CCSDS uses a dual basis and `b = 112`, DVB uses `b = 0`, 802.3 its own | a fixed choice per profile, parameterised in the encoder taps and Forney |
-| D9 | Interface | **DECIDED 2026-09-29 (Sean): selectable per end.** `INTAKE_IF` and `OUTLET_IF` are independent parameters, each `"AXIS"` or `"AXI4"`, so AXIS-in/AXI4-out (decode a link into memory), AXI4-in/AXIS-out (encode from memory onto a link), AXI4/AXI4 (memory-to-memory codec, a DMA with a transform) and AXIS/AXIS (inline) are the same core with different boundary adapters. The core is always a symbol stream with a block-end flag; AXIS boundaries are `axis4_slave` / `axis4_master` (TDATA = `SYMBOLS_PER_BEAT` symbols, TLAST = block end, TUSER = erasure flags in / status out); AXI4 boundaries are a read engine (job: source address + byte count, bursts up to `cfg_xfer_beats`) feeding the core and a write engine (destination address + count, block-aligned) draining it, built on the STREAM engines and the `axi4_master_{rd,wr}` wrappers, with jobs from the regblock (kick register) or a descriptor stream. Only the adapters selected are generated. | four boundary variants of two tops; the DV matrix gains an intake x outlet axis (AXIS/AXIS and AXI4/AXI4 first, the mixed pair by construction) |
+| D9 | Interface | **DECIDED 2026-09-29 (Sean): the deliverable is a core with plain valid/ready at both ends, so it drops into a compute engine or a memory controller as a block; AXIS and AXI4 are optional adapters around it.** The core ports are the house streaming contract ([[valid-ready-contracts]]): `in_valid / in_ready / in_data[SYMBOLS_PER_BEAT*m] / in_last` (+ `in_erase[SYMBOLS_PER_BEAT]` on the decoder when D5 says erasures) and `out_valid / out_ready / out_data / out_last` (+ `out_status` on the decoder: ok / corrected count / uncorrectable, valid with `out_last`). `INTAKE_IF` and `OUTLET_IF` then default to `"NONE"` (bare core) and may each be `"AXIS"` or `"AXI4"`, independently, so AXIS-in/AXI4-out (decode a link into memory), AXI4-in/AXIS-out (encode from memory onto a link), AXI4/AXI4 (memory-to-memory codec, a DMA with a transform) and AXIS/AXIS (inline) are the same core with different boundary adapters. The core is always a symbol stream with a block-end flag; AXIS boundaries are `axis4_slave` / `axis4_master` (TDATA = `SYMBOLS_PER_BEAT` symbols, TLAST = block end, TUSER = erasure flags in / status out); AXI4 boundaries are a read engine (job: source address + byte count, bursts up to `cfg_xfer_beats`) feeding the core and a write engine (destination address + count, block-aligned) draining it, built on the STREAM engines and the `axi4_master_{rd,wr}` wrappers, with jobs from the regblock (kick register) or a descriptor stream. Only the adapters selected are generated; the bare core is the primary test target and the adapters are tested as wrappers around an already-proven core. | the core is what a consumer instantiates; the adapters are for standalone use; the DV matrix is core first, then intake x outlet |
 | D10 | First consumer | none named yet. Candidates in-repo: none today. External: a NAND/DDR ECC layer, a serial link | picks D1-D9 |
 | D12 | Scrambler / randomizer | **DECIDED 2026-09-29 (Sean): a parameter, `ENABLE_SCRAMBLER` (0/1), on both tops.** When 1 the `line_randomizer` FUB is generated in the encoder's output path and the decoder's input path with the profile's polynomial, seed and placement (`SCRAMBLER_POLY`, `SCRAMBLER_SEED`, `SCRAMBLER_AFTER_ENCODER`); when 0 no LFSR logic exists and the ports are unchanged. Off is a tested configuration, not an assumption (a parameter's OFF state needs its own test). | one optional FUB per top; DV matrix gains the on/off axis |
 | D11 | Key-equation solver | **DECIDED 2026-09-29 (Sean): riBM** -- the reformulated inversionless Berlekamp-Massey of Sarwate and Shanbhag (References, classic paper 7). Euclidean (Sugiyama) rejected: it needs a GF inverse in the loop or a longer systolic array. | 3t + 1 GF multipliers, 2t iterations, no inverse until Forney |
@@ -73,6 +73,25 @@ with t and m; the standards below span the practical range.
 | DVB cable / terrestrial | RS(204,188), t = 8, shortened from RS(255,239) | GF(2^8), primitive poly x^8+x^4+x^3+x^2+1, b = 0 | ETSI EN 300 429 / EN 300 744 (links in References) | the MPEG-2 transport packet code; the most-implemented RS in open-source RTL |
 | Ethernet RS-FEC | RS(528,514) "KR4" and RS(544,514) "KP4", t = 7 / 15 | GF(2^10) | IEEE 802.3 Clause 91 / 108 (cited, not stored) | high-rate; drives the parallel-decoder branch of D6 |
 | RAID erasure | RS over GF(2^8) or GF(2^16), erasures only (D5), any n <= 2^m - 1 | Vandermonde or Cauchy generator | Plank 1997 + 2003 correction | encoder plus erasure-only decoder; no Chien search |
+
+## 4a. Where the block sits
+
+RS protects a block, not a wire: the encoder needs k symbols before it can
+emit parity and the decoder needs all n before it can correct one, so the
+code lives at an ENDPOINT -- where a block boundary already exists and the
+parity has somewhere to go. Every standard in `References/` places it there
+(CCSDS transmitter/receiver, DVB modulator/demodulator, 802.3 PCS, CD read
+channel, storage controller at write and read). It is not dropped into the
+middle of a fabric: the parity changes the byte count, block alignment must
+survive, and the correction belongs right after the channel that corrupts.
+
+That is why D9 makes the CORE the deliverable: with valid/ready at both ends
+it is a block inside the endpoint's own datapath -- a memory controller
+encodes on the write path and decodes on the read path, a compute engine
+wraps a result before it leaves, a link PHY encodes into its framer -- and
+the consumer's existing interfaces stay its own. The AXIS and AXI4 adapters
+exist for the standalone cases (a codec on a fabric port, a memory-to-memory
+job engine), not as the way in.
 
 ## 5. Requirements that hold for every profile
 

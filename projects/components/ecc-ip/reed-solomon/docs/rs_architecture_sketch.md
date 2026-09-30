@@ -103,7 +103,8 @@ Each is one module in `rtl/`, one TB class, one test file, one MAS chapter.
 | `corrector` | XORs the Forney value into the symbol leaving `block_buffer` when Chien says the position is in error; counts corrections. | XOR + `counter_bin`; the FIFO read strobe is the position clock |
 | `status_counters` | Per-block: ok / corrected-n / uncorrectable; running totals; the uncorrectable flag also rides TUSER out (PRD R2). | `counter_bin` × 3, flags into the regblock's `hwif_in` |
 | `rs_regs` (generated) | Profile selection (when more than one is compiled in), enables, counters, interrupt on uncorrectable. | PeakRDL regblock via `bin/peakrdl_generate.py`; APB in through the converters' `apb4 → cpuif` path exactly as `stream_config_block` does |
-| `rs_encoder`, `rs_decoder` tops | The two deliverables; each wraps its datapath in a selectable boundary at each end (PRD D9): `INTAKE_IF` and `OUTLET_IF` each `AXIS` or `AXI4`, independently, so AXIS-in/AXI4-out and the other three pairings are one core with different adapters generated. The core between the adapters is always the same symbol stream with a block-end flag. | AXIS end: `axis4_slave` in / `axis4_master` out (`SKID_DEPTH` 2-4; `_monlite` variants when observed). AXI4 end: the two engines below |
+| `rs_encoder_core`, `rs_decoder_core` | **The deliverables** (PRD D9): plain valid/ready in and out, `SYMBOLS_PER_BEAT` symbols per beat, a last flag for block end, erasure bits in and block status out on the decoder. A consumer -- a memory controller's write/read path, a compute engine's result path, a link framer -- instantiates this and nothing else. | the FUBs above, `gaxi_skid_buffer` at stage boundaries |
+| `rs_encoder`, `rs_decoder` (standalone tops, optional) | The core with an adapter at each end when it is used on its own rather than inside a consumer: `INTAKE_IF` / `OUTLET_IF` each `NONE` (default, bare core), `AXIS` or `AXI4`, independently, so AXIS-in/AXI4-out and the other pairings are one core with different adapters generated. | AXIS end: `axis4_slave` in / `axis4_master` out (`SKID_DEPTH` 2-4; `_monlite` variants when observed). AXI4 end: the two engines below |
 | `rs_axi_read_engine` (generated when `INTAKE_IF = AXI4`) | Turns a job (source address, byte count) into AXI4 read bursts and presents the returned beats as the core's symbol stream, marking block end every n symbols; back-pressures on the core's ready. | STREAM's `axi_read_engine` shape (job valid/addr/beats in, done strobe out, `cfg_axi_rd_xfer_beats` burst cap) behind an `axi4_master_rd` timing wrapper; `gaxi_fifo_sync` as the landing buffer; `dma_address_gen` (misc) if strided / 2-D jobs are wanted |
 | `rs_axi_write_engine` (generated when `OUTLET_IF = AXI4`) | Drains the core's output stream into AXI4 write bursts at the job's destination address, one block per n (decoder: k) symbols, and reports bytes written and block status in the done strobe. | STREAM's `axi_write_engine` shape (job valid/ready/addr/beats/burst_len, done + commit strobes) behind `axi4_master_wr`; `gaxi_fifo_sync` for the drain |
 | `rs_job_ctrl` (AXI4 ends only) | Where jobs come from: the regblock (source / destination / count / kick, one job at a time) or a descriptor stream on a small AXIS port for chained jobs. Sequences read-engine and write-engine jobs so the write side knows each block's destination before its first symbol arrives. | `rs_regs` fields + `gaxi_skid_buffer` for the descriptor path; the STREAM `descriptor_engine` is the precedent if chaining grows |
@@ -149,8 +150,10 @@ n = 544 so the buffer is 1024 deep, and D6 forces the parallel branch.
 ## What this sketch does not decide
 
 Everything in PRD section 3 except the solver and the boundary: **riBM is
-decided** (Sean, 2026-09-29; PRD D11), and **the interface at each end is
-selectable, AXIS or AXI4, independently** (PRD D9). Euclidean was the alternative most FPGA cores use and is
+decided** (Sean, 2026-09-29; PRD D11), and **the deliverable is the
+valid/ready core, with AXIS or AXI4 adapters selectable independently at each
+end for standalone use** (PRD D9). The block is an endpoint codec, not a
+mid-stream insert (PRD 4a). Euclidean was the alternative most FPGA cores use and is
 easier to read, but needs an inverse in the loop or a longer datapath. Still
 open: the throughput (serial here) and whether one build carries more than one
 profile. The MAS is where those

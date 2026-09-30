@@ -61,3 +61,8 @@ Sean); off is a tested build. ETSI direct-PDF links added to References.
 `OUTLET_IF` each AXIS or AXI4 (PRD D9, Sean). AXI4 ends are a read engine / write
 engine pair on STREAM's engine shape behind the `axi4_master_{rd,wr}` wrappers,
 with jobs from the regblock or a descriptor stream; sketch rows added.
+
+**2026-09-29 -- refinement of D9 (Sean):** the IP is a core with simple valid/ready
+at both ends so it can be dropped into a compute engine or a memory controller;
+the AXIS/AXI4 boundaries are optional adapters (`INTAKE_IF`/`OUTLET_IF` default
+`NONE`). PRD 4a records that RS is an endpoint codec, not a mid-stream insert.
