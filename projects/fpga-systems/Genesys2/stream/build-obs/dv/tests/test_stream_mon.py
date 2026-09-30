@@ -59,7 +59,7 @@ SLAVE_TALLY_CFG   = bridge_windows.base('slave_tally_cfg')
 BIN_COMPLETION0 = 0x0100              # {AXI, COMPLETION, evcode 0} -- a BIN, not a register
 
 # CAM programming registers, resolved from the block that generates the decode
-# (projects/components/utility-ip/misc/rtl/tally_regs.rdl). These were hardcoded localparams
+# (projects/components/utility-ip/misc/rdl/tally/tally_regs.rdl). These were hardcoded localparams
 # in the RTL and literals here; both sides now come from the one RDL.
 _TALLY_REGS = RegisterMap(
     os.path.join(os.environ['REPO_ROOT'],
