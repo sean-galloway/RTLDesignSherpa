@@ -131,7 +131,7 @@ class RapidsByteHarnessTB(TBBase):
         # Prove the link before trusting anything downstream. A wrong baud or a
         # dead UART otherwise shows up much later as "the DMA moved no beats",
         # which is a far more expensive thing to debug than a bad ID read.
-        ident = await cocotb.external(lambda: self.io.csr_read(0x000))()
+        ident = await cocotb.external(lambda: self.io.csr_read_reg("CTRL"))()
         assert ident == CSR_ID_EXPECTED, (
             f"harness CSR ID read 0x{ident if ident is not None else 0:08X}, "
             f"expected 0x{CSR_ID_EXPECTED:08X} -- UART link is not up "

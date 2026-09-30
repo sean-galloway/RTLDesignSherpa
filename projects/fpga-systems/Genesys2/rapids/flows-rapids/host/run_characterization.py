@@ -393,7 +393,7 @@ class RapidsByteCampaign:
         #    RAM (descs=1 is the single descriptor this always built).
         total_beats = beats * descs
         for ch in active_channels:
-            for daddr, desc in self._chain(DESC_BASE + ch * 0x1000,
+            for daddr, desc in self._chain(DESC_BASE + ch * KICK_STRIDE,
                                            DST_DATA_BASE + ch * CHANNEL_OFFSET,
                                            beats, descs, ch, is_src=False,
                                            pkt_bytes=pkt_bytes, offset=offset):
@@ -521,7 +521,7 @@ class RapidsByteCampaign:
         #    SRC RAM (descs=1 is the single descriptor this always built).
         total_beats = beats * descs
         for ch in active_channels:
-            for daddr, desc in self._chain(DESC_BASE + ch * 0x1000,
+            for daddr, desc in self._chain(DESC_BASE + ch * KICK_STRIDE,
                                            SRC_DATA_BASE + ch * CHANNEL_OFFSET,
                                            beats, descs, ch, is_src=True,
                                            pkt_bytes=pkt_bytes, offset=offset):
