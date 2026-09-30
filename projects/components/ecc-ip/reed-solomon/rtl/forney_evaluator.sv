@@ -114,9 +114,14 @@ module forney_evaluator
 
     function automatic logic [LANE_W*M-1:0] build_lane_consts();
         logic [LANE_W*M-1:0] r;
+        /* verilator lint_off UNUSEDSIGNAL */   // a gf_wide_t whose low M bits are the value
+        gf_wide_t            v;
+        /* verilator lint_on UNUSEDSIGNAL */
         for (int u = 0; u < S; u++)
-            for (int i = 0; i < T; i++)
-                r[(u*T+i)*M +: M] = gf_alpha_pow((i + OFF) * u, M, PRIM_POLY)[M-1:0];
+            for (int i = 0; i < T; i++) begin
+                v = gf_alpha_pow((i + OFF) * u, M, PRIM_POLY);
+                r[(u*T+i)*M +: M] = v[M-1:0];
+            end
         return r;
     endfunction
 
@@ -126,11 +131,15 @@ module forney_evaluator
     logic [M-1:0] w_den_inv [S];
 
     always_comb begin
+        /* verilator lint_off UNUSEDSIGNAL */   // a gf_wide_t whose low M bits are the value
+        gf_wide_t w;
+        /* verilator lint_on UNUSEDSIGNAL */
         for (int u = 0; u < S; u++) begin
             w_num[u] = '0;
-            for (int i = 0; i < T; i++)
-                w_num[u] = w_num[u] ^ gf_mul_fn(gf_wide_t'(LANE_K[(u*T+i)*M +: M]),
-                                                gf_wide_t'(r_w[i]), M, PRIM_POLY)[M-1:0];
+            for (int i = 0; i < T; i++) begin
+                w = gf_mul_fn(gf_wide_t'(LANE_K[(u*T+i)*M +: M]), gf_wide_t'(r_w[i]), M, PRIM_POLY);
+                w_num[u] = w_num[u] ^ w[M-1:0];
+            end
         end
     end
 

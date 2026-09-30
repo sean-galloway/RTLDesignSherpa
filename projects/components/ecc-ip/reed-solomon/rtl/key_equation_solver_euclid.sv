@@ -52,7 +52,10 @@
 //   Cost: 2(2t+1) + 2(2t+3) gf_mul (about 8t) plus the four register arrays;
 //   the critical path is a multiply, an XOR, and the degree compare that
 //   drives the swap -- longer than riBM's, which is why riBM is the default.
-//   Latency is data-dependent, t+1 .. 2t cycles plus one for the final check.
+//   Latency is data-dependent: t+1 .. 2t cycles plus one for the final check
+//   (measured over 3000 blocks per profile in rs_model.py; at t <= 2 a zero
+//   leading syndrome costs a normalise step and 2t+1 occurs). The safety stop
+//   is at 4t+8.
 //
 //------------------------------------------------------------------------------
 // Parameters:

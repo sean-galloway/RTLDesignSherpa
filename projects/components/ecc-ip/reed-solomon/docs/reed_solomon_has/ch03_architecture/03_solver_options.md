@@ -34,7 +34,7 @@ Forney takes the ratio of the two polynomials.
 | Algorithm | reformulated inversionless Berlekamp-Massey, Sarwate and Shanbhag 2001 | Sugiyama's Euclidean algorithm with cross-multiplication in place of division (Shao et al. 1985), every polynomial kept top-aligned so no shifter is needed |
 | Array | 3t + 1 processing elements, 2 registers each | four register arrays: R and Q of 2t + 1 symbols, the shifted locator pair of 2t + 3 |
 | GF multipliers | 2 per element: 6t + 2 (50 at t = 8) | 2 per coefficient of each pair: 8t + 8 (72 at t = 8) |
-| Iterations | exactly 2t | data-dependent, t + 1 .. 2t, plus one cycle for the finishing check |
+| Iterations | exactly 2t | data-dependent, t + 1 .. 2t (2t + 1 at t <= 2 when a leading syndrome is zero), plus one cycle for the finishing check |
 | Evaluator produced | the high half of S(x)Lambda(x); Forney uses X^(1 - b - 2t) | the textbook S(x)Lambda(x) mod x^2t; Forney uses X^(1 - b). The Forney block's `OMEGA_HIGH_HALF` constant follows `KES_ALGO`; nothing else in the decoder changes |
 | Critical path per iteration | one multiply and one XOR, no feedback across the array | cross-multiply feeding a degree comparison that drives the swap: longer |
 | Control | discrepancy select and gamma update | two nominal degree counters, the normalise / cross / swap rule |

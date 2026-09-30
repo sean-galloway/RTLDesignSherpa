@@ -37,3 +37,13 @@ FLOW loads it with `RegisterMap` and writes through the AXI-Lite master BFM
 block with no regmap is a block nobody can address by name, and a test that
 pokes valid/ready is a test that will be wrong about timing one day
 ([[bfm-usage]]).
+
+## Trap: a field named `count`
+
+`RegisterMap._initialize_state` treats a register entry with a `count` key as
+an ARRAY (`[default] * count`), so an RDL field named `count` makes the
+generated regmap fail to load with `int() argument must be ... not 'dict'`
+(reed-solomon loop harness, 2026-09-30: `INJ_CFG.count` became `errors`).
+The same goes for any field named like the entry's own keys: `name`, `offset`,
+`address`, `size`, `sw`, `type`, `default`. Pick another name.
+

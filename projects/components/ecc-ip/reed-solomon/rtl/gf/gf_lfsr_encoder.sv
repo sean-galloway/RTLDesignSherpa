@@ -142,10 +142,16 @@ module gf_lfsr_encoder
     function automatic state_t step_one(input state_t r, input logic [M-1:0] d);
         state_t       n;
         logic [M-1:0] fb;
+        /* verilator lint_off UNUSEDSIGNAL */   // a gf_wide_t whose low M bits are the value
+        gf_wide_t     w;
+        /* verilator lint_on UNUSEDSIGNAL */
         fb   = d ^ r[T2-1];
-        n[0] = gf_mul_fn(gf_wide_t'(GEN[0 +: M]), gf_wide_t'(fb), M, PRIM_POLY)[M-1:0];
-        for (int j = 1; j < T2; j++)
-            n[j] = r[j-1] ^ gf_mul_fn(gf_wide_t'(GEN[j*M +: M]), gf_wide_t'(fb), M, PRIM_POLY)[M-1:0];
+        w    = gf_mul_fn(gf_wide_t'(GEN[0 +: M]), gf_wide_t'(fb), M, PRIM_POLY);
+        n[0] = w[M-1:0];
+        for (int j = 1; j < T2; j++) begin
+            w    = gf_mul_fn(gf_wide_t'(GEN[j*M +: M]), gf_wide_t'(fb), M, PRIM_POLY);
+            n[j] = r[j-1] ^ w[M-1:0];
+        end
         return n;
     endfunction
 

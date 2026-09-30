@@ -89,6 +89,30 @@ def strip_subprogram_bodies(content: str) -> str:
     return '\n'.join(lines)
 
 
+def strip_struct_bodies(content: str) -> str:
+    """Blank out `struct { ... }` bodies (typedef or anonymous, packed or not,
+    nested), preserving line numbering.
+
+    A struct member is a TYPE definition, not a module-scope signal, yet its
+    declaration line matches the signal pattern. PeakRDL-regblock output has
+    `logic [31:0] next; } value;` in one typedef and `logic [31:0] value;` in a
+    later one, so `value` was registered as a signal declared at the later
+    line and the earlier `} value;` read as a use before declaration
+    (reed-solomon loop harness, 2026-09-30). Dropping the bodies keeps both
+    passes consistent, as strip_subprogram_bodies does for functions.
+    """
+    lines = content.split('\n')
+    depth = 0
+    for i, line in enumerate(lines):
+        starts = depth == 0 and re.search(r'\bstruct\b(?:\s+packed)?(?:\s+(?:signed|unsigned))?\s*\{', line)
+        if depth > 0 or starts:
+            depth += line.count('{') - line.count('}')
+            lines[i] = ''
+            if depth < 0:
+                depth = 0
+    return '\n'.join(lines)
+
+
 def get_module_boundaries(content: str) -> List[Tuple[int, int, str]]:
     """Find module/endmodule boundaries. Returns list of (start_line, end_line, module_name)."""
     modules = []
@@ -131,7 +155,7 @@ def parse_declarations(content: str, start_line: int = 1) -> Dict[str, SignalInf
     # function signature's port still registered as a package-scope signal
     # -- monitor_amba4_pkg's `event_code` struct field was reported as a
     # use-before-declaration of is_valid_event_for_packet_type's argument.)
-    content = strip_subprogram_bodies(content)
+    content = strip_struct_bodies(strip_subprogram_bodies(content))
     lines = content.split('\n')
 
     # Pattern for signal declarations
@@ -209,9 +233,10 @@ def parse_declarations(content: str, start_line: int = 1) -> Dict[str, SignalInf
 
 def find_signal_uses(content: str, signals: Dict[str, SignalInfo], start_line: int = 1) -> None:
     """Find first use of each signal and update SignalInfo."""
-    # Uses inside subprogram bodies are local scope - drop them, matching
-    # parse_declarations so the two passes agree.
-    content = strip_subprogram_bodies(content)
+    # Uses inside subprogram bodies are local scope, and struct bodies are
+    # type definitions - drop both, matching parse_declarations so the two
+    # passes agree.
+    content = strip_struct_bodies(strip_subprogram_bodies(content))
     lines = content.split('\n')
 
     # Build regex pattern for all signal names
@@ -239,8 +264,12 @@ def find_signal_uses(content: str, signals: Dict[str, SignalInfo], start_line: i
             continue
 
         # Strip port connection names: in `.port_name(signal)`, only `signal`
-        # is a local use; `port_name` is a child-module reference.
+        # is a local use; `port_name` is a child-module reference. Then strip
+        # struct member accesses: in `hwif_in.STATUS.busy.next` only `hwif_in`
+        # is a signal of this module (a module signal that happens to share a
+        # member's name was reported as used before its declaration).
         scan_line = re.sub(r'\.\s*(\w+)\s*\(', '.(', line)
+        scan_line = re.sub(r'\.\s*\w+', '.', scan_line)
 
         for name in names:
             if signals[name].first_use_line is not None:

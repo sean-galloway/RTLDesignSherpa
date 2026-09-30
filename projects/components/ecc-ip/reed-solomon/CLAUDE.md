@@ -95,6 +95,23 @@ It is an endpoint codec, never a mid-stream insert (PRD 4a). Until a consumer na
   (the runner passes `'"EUCLID"'` with the quotes) and the TB gets the same
   choice through the `KES_ALGO` environment variable, because cocotb cannot
   read a string parameter back from the DUT.
+- Board harness (2026-09-30): `projects/fpga-systems/NexysA7/reed-solomon/`
+  runs RS(252,236) at 4 symbols per beat -- the reference code shortened by
+  three so n and k are multiples of the beat, because the shared AXI-Stream
+  checker compares whole 32-bit words and would flag a partial beat's zero
+  lane. Two decoders (riBM, Euclid) share one injected stream; each has its
+  own pattern checker and a comparator requires them to agree. The injector
+  is `rtl/rs_error_injector.sv`, AFTER the encoder by necessity.
+- Vivado / board traps (2026-09-30): Vivado rejects a bit-select on a
+  function call (`gf_alpha_pow(...)[M-1:0]`, Synth 8-12513) that Verilator
+  accepts -- assign to a `gf_wide_t` temporary first; the temporaries carry a
+  `lint_off UNUSEDSIGNAL` for their high bits. A 2-D unpacked array at the
+  top level of a BFM-driven DUT (`logic w_cmp [S][S]`) breaks the cocotb
+  GAXI signal mapper (`GPI_ARRAY ... index -1`): pack it. At 100 MHz on
+  Artix-7 the combinational budget is about 8 logic levels plus routing:
+  the injector (41 levels) and the Chien -> Forney -> re-check -> status
+  chain (24 levels) each needed a pipeline register; a stage that feeds a
+  downstream block's combinational chain must end in a register.
 - Filelists in `rtl/filelists/` and registered in `bin/filelists.toml` from
   the first module (`vault/handbook/design/filelists.md`).
 - DV: cocotb under `dv/tests/` with TB classes in `dv/tbclasses/` (Pattern B,

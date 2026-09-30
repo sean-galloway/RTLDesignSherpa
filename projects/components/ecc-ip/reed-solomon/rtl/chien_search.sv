@@ -113,9 +113,14 @@ module chien_search
 
     function automatic logic [LANE_W*M-1:0] build_lane_consts();
         logic [LANE_W*M-1:0] r;
+        /* verilator lint_off UNUSEDSIGNAL */   // a gf_wide_t whose low M bits are the value
+        gf_wide_t            v;
+        /* verilator lint_on UNUSEDSIGNAL */
         for (int u = 0; u < S; u++)
-            for (int i = 0; i <= T; i++)
-                r[(u*(T+1)+i)*M +: M] = gf_alpha_pow(i * u, M, PRIM_POLY)[M-1:0];
+            for (int i = 0; i <= T; i++) begin
+                v = gf_alpha_pow(i * u, M, PRIM_POLY);
+                r[(u*(T+1)+i)*M +: M] = v[M-1:0];
+            end
         return r;
     endfunction
 
@@ -124,11 +129,15 @@ module chien_search
     always_comb begin
         for (int u = 0; u < S; u++) begin
             logic [M-1:0] sum, odd, term;
+        /* verilator lint_off UNUSEDSIGNAL */   // a gf_wide_t whose low M bits are the value
+            gf_wide_t     w;
+        /* verilator lint_on UNUSEDSIGNAL */
             sum = '0;
             odd = '0;
             for (int i = 0; i <= T; i++) begin
-                term = gf_mul_fn(gf_wide_t'(LANE_K[(u*(T+1)+i)*M +: M]), gf_wide_t'(r_c[i]),
-                                 M, PRIM_POLY)[M-1:0];
+                w    = gf_mul_fn(gf_wide_t'(LANE_K[(u*(T+1)+i)*M +: M]), gf_wide_t'(r_c[i]),
+                                 M, PRIM_POLY);
+                term = w[M-1:0];
                 sum = sum ^ term;
                 if (i % 2 == 1) odd = odd ^ term;
             end

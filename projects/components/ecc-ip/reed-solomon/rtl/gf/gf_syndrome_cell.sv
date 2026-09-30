@@ -74,10 +74,14 @@ module gf_syndrome_cell
     logic [M-1:0] w_next;
 
     always_comb begin
+        /* verilator lint_off UNUSEDSIGNAL */   // a gf_wide_t whose low M bits are the value
+        gf_wide_t w;
+        /* verilator lint_on UNUSEDSIGNAL */
         w_chain[0] = i_first ? '0 : r_s;
-        for (int u = 0; u < S; u++)
-            w_chain[u+1] = gf_mul_fn(gf_wide_t'(ROOT), gf_wide_t'(w_chain[u]), M, PRIM_POLY)[M-1:0]
-                           ^ i_data[u*M +: M];
+        for (int u = 0; u < S; u++) begin
+            w = gf_mul_fn(gf_wide_t'(ROOT), gf_wide_t'(w_chain[u]), M, PRIM_POLY);
+            w_chain[u+1] = w[M-1:0] ^ i_data[u*M +: M];
+        end
         w_next = w_chain[S];
         for (int u = 1; u <= S; u++)
             if (i_count == ($clog2(S+1))'(u)) w_next = w_chain[u];

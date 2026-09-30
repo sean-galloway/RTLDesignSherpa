@@ -28,3 +28,6 @@ $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/chien_search.sv
 $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/forney_evaluator.sv
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
 $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/rs_decoder_core.sv
+
+# Test stimulus
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/rs_error_injector.sv

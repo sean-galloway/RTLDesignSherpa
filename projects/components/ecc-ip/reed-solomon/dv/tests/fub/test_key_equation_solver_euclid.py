@@ -4,7 +4,7 @@ key_equation_solver_euclid test runner
 The Euclid solver against RSModel.euclid bit for bit -- Lambda (2t+1 coefficients),
 the evaluator, degree and degree-error flag -- on blocks with 1 .. t errors,
 t+1 and more (the degree check), and zero syndromes; o_done exactly 2t cycles
-after i_start (Euclid: data-dependent, at most 2t + 1).
+after i_start (Euclid: data-dependent, t+1 .. 2t iterations, 2t+1 at t <= 2, plus one).
 
 Author: RTL Design Sherpa
 Created: 2026-09-30

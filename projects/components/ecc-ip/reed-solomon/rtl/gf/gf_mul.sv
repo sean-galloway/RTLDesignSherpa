@@ -75,11 +75,18 @@ module gf_mul
     // -------------------------------------------------------------------------
     localparam int RED_W = M * (M - 1);
 
+    // (a function result is assigned to a variable before its bits are
+    // selected: Vivado rejects a select on a function call, Synth 8-12513)
     function automatic logic [RED_W-1:0] build_red();
         logic [RED_W-1:0] r;
+        /* verilator lint_off UNUSEDSIGNAL */   // a gf_wide_t whose low M bits are the value
+        gf_wide_t         v;
+        /* verilator lint_on UNUSEDSIGNAL */
         r = '0;
-        for (int k = M; k <= 2 * M - 2; k++)
-            r[(k-M)*M +: M] = gf_alpha_pow(k, M, PRIM_POLY)[M-1:0];
+        for (int k = M; k <= 2 * M - 2; k++) begin
+            v = gf_alpha_pow(k, M, PRIM_POLY);
+            r[(k-M)*M +: M] = v[M-1:0];
+        end
         return r;
     endfunction
 

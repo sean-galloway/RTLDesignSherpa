@@ -36,11 +36,14 @@
 //   B  solve     a clean or mis-framed block bypasses the solver; otherwise
 //                the riBM solver runs 2t cycles and {Lambda, Omega, degree}
 //                join the descriptor on the way to C.
-//   C  correct   loads Chien and Forney, then walks the block's positions one
-//                per cycle reading the FIFO: at a root the Forney value is
-//                XORed in, every corrected symbol (data and parity) is fed to a
-//                second syndrome unit, and the data symbols are pushed to the
-//                output FIFO. On the last position the verdict is final:
+//   C  correct   loads Chien and Forney, then walks the block's beats one per
+//                cycle reading the FIFO (C1: Chien lanes, Forney values, hit
+//                count) into a pipeline register; from that register (C2) every
+//                corrected symbol, data and parity, is fed to a second syndrome
+//                unit and the data beats are pushed to the output FIFO. The
+//                register exists because Chien registers -> lane sums -> gf_inv
+//                -> gf_mul -> re-check chain -> status was 24 logic levels on
+//                the Nexys A7 harness. On the last beat the verdict is final:
 //                  uncorrectable = deg > t | deg == 0 | roots != deg
 //                                | zero derivative at a root
 //                                | re-computed syndromes not all zero
@@ -360,7 +363,7 @@ module rs_decoder_core
     logic             r_c_den_zero;
 
     logic             w_c_load;            // pop a descriptor and load the search
-    logic             w_c_step;            // process one beat this cycle
+    logic             w_c_step;            // C1: walk one beat this cycle
     logic             w_c_last_beat;
     logic [CW-1:0]    w_c_count;           // symbols in this beat (from its keep)
     logic [S-1:0]     w_c_valid;           // lane holds a symbol of the block
@@ -372,7 +375,6 @@ module rs_decoder_core
     logic [S*M-1:0]   w_forney_val;
     logic [S-1:0]     w_forney_den_zero;
     logic [S-1:0]     w_c_hit;             // a correction is applied in this lane
-    logic [S*M-1:0]   w_c_sym;             // the corrected beat
     logic [CW-1:0]    w_c_hits;            // corrections in this beat
     logic             w_c_den_zero_hit;
     logic             w_rechk_zero_next;
@@ -389,6 +391,14 @@ module rs_decoder_core
     logic          w_uncorrectable_final;
     logic [SC_W:0] w_roots_final;
 
+    // C2: the walked beat, registered, from which the re-check, the output
+    // FIFO write and the verdict are driven
+    logic           r_c2_v, r_c2_any_data, r_c2_last_data, r_c2_last_beat, r_c2_first;
+    logic [CW-1:0]  r_c2_count;
+    logic [S-1:0]   r_c2_is_data, r_c2_hit;
+    logic [S*M-1:0] r_c2_corr, r_c2_rx, w_c2_sym;
+    logic           w_c2_can_go, w_c2_fire;
+
     chien_search #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T), .N_SYMBOLS(N),
                    .SYMBOLS_PER_BEAT(S)) u_chien (
         .aclk(aclk), .aresetn(aresetn),
@@ -402,7 +412,9 @@ module rs_decoder_core
         .i_load(w_c_load), .i_omega(w_c_omega), .i_step(w_c_step),
         .i_odd_sum(w_chien_odd), .o_err_val(w_forney_val), .o_den_zero(w_forney_den_zero));
 
-    assign w_c_load       = (r_c_state == C_IDLE) && w_dbc_rd_valid;
+    // a new block is loaded only once the previous one's last beat has left C2,
+    // because the verdict written there reads this block's descriptor flags
+    assign w_c_load       = (r_c_state == C_IDLE) && w_dbc_rd_valid && !r_c2_v;
     assign w_dbc_rd_ready = w_c_load;
     assign w_c_count      = CW'(gf_keep_count(64'(w_blk_rd_keep), S));
     assign w_c_last_beat  = (r_c_pos + CNT_W'(w_c_count) >= r_c_len);
@@ -416,7 +428,6 @@ module rs_decoder_core
             w_c_valid[u]   = (CW'(u) < w_c_count);
             w_c_is_data[u] = w_c_valid[u] && (r_c_pos + CNT_W'(u) < r_c_data_len);
             w_c_hit[u]     = r_c_correct && w_c_valid[u] && w_chien_root[u];
-            w_c_sym[u*M +: M] = w_blk_rd_sym[u*M +: M] ^ (w_c_hit[u] ? w_forney_val[u*M +: M] : '0);
             if (w_c_is_data[u]) w_c_any_data = 1'b1;
             if (w_c_is_data[u] && (r_c_pos + CNT_W'(u) == r_c_data_len - CNT_W'(1)))
                 w_c_last_data_beat = 1'b1;
@@ -427,12 +438,39 @@ module rs_decoder_core
         end
     end
 
-    // step when the beat is there, the output FIFO can take it if it carries
-    // data, and (on the last beat) the status FIFO can take the verdict
-    assign w_c_step = (r_c_state == C_WALK) && w_blk_rd_valid
-                      && (!w_c_any_data || w_of_wr_ready)
-                      && (!w_c_last_beat || w_st_wr_ready);
+    // C1 walks a beat when it is in the FIFO and C2 is free or moving on; C2
+    // moves when the output FIFO can take a data beat and, on the last beat,
+    // the status FIFO can take the verdict
+    assign w_c2_can_go = (!r_c2_any_data || w_of_wr_ready) && (!r_c2_last_beat || w_st_wr_ready);
+    assign w_c2_fire   = r_c2_v && w_c2_can_go;
+    assign w_c_step    = (r_c_state == C_WALK) && w_blk_rd_valid && (!r_c2_v || w_c2_fire);
     assign w_blk_rd_ready = w_c_step;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_c2_v <= 1'b0; r_c2_any_data <= 1'b0; r_c2_last_data <= 1'b0; r_c2_last_beat <= 1'b0;
+            r_c2_first <= 1'b0; r_c2_count <= '0; r_c2_is_data <= '0; r_c2_hit <= '0;
+            r_c2_corr <= '0; r_c2_rx <= '0;
+        end else if (w_c_step) begin
+            r_c2_v         <= 1'b1;
+            r_c2_any_data  <= w_c_any_data;
+            r_c2_last_data <= w_c_last_data_beat;
+            r_c2_last_beat <= w_c_last_beat;
+            r_c2_first     <= (r_c_pos == '0);
+            r_c2_count     <= w_c_count;
+            r_c2_is_data   <= w_c_is_data;
+            r_c2_hit       <= w_c_hit;
+            r_c2_corr      <= w_forney_val;
+            r_c2_rx        <= w_blk_rd_sym;
+        end else if (w_c2_fire) begin
+            r_c2_v <= 1'b0;
+        end
+    )
+
+    always_comb begin
+        for (int u = 0; u < S; u++)
+            w_c2_sym[u*M +: M] = r_c2_rx[u*M +: M] ^ (r_c2_hit[u] ? r_c2_corr[u*M +: M] : '0);
+    end
 
     // re-check: syndromes of the corrected stream, data and parity alike
     /* verilator lint_off PINCONNECTEMPTY */
@@ -442,10 +480,10 @@ module rs_decoder_core
     ) u_rechk (
         .aclk            (aclk),
         .aresetn         (aresetn),
-        .i_step          (w_c_step),
-        .i_first         (r_c_pos == '0),
-        .i_data          (w_c_sym),
-        .i_count         (w_c_count),
+        .i_step          (w_c2_fire),
+        .i_first         (r_c2_first),
+        .i_data          (w_c2_sym),
+        .i_count         (r_c2_count),
         .ow_synd         (),
         .ow_all_zero     (),
         .ow_synd_next    (),
@@ -459,20 +497,22 @@ module rs_decoder_core
         if (w_roots_final < r_c_roots) w_roots_final = '1;
     end
 
+    // by the time C2 holds the last beat, C1 has folded that beat's hits into
+    // r_c_roots and r_c_den_zero, so the verdict reads the registers directly
     assign w_uncorrectable_final =
         r_c_correct && (r_c_bad
-                        || (w_roots_final != (SC_W + 1)'(r_c_deg))
-                        || r_c_den_zero || w_c_den_zero_hit
+                        || (r_c_roots != (SC_W + 1)'(r_c_deg))
+                        || r_c_den_zero
                         || !w_rechk_zero_next);
 
-    assign w_of_wr_valid = w_c_step && w_c_any_data;
-    assign w_of_wr_data  = {w_c_last_data_beat, w_c_is_data, w_c_hit, w_forney_val, w_blk_rd_sym};
+    assign w_of_wr_valid = w_c2_fire && r_c2_any_data;
+    assign w_of_wr_data  = {r_c2_last_data, r_c2_is_data, r_c2_hit, r_c2_corr, r_c2_rx};
 
-    assign w_st_wr_valid = w_c_step && w_c_last_beat;
+    assign w_st_wr_valid = w_c2_fire && r_c2_last_beat;
     assign w_st_wr_data  = {r_c_frame_err,
                             w_uncorrectable_final,
                             r_c_all_zero && !r_c_frame_err,
-                            (r_c_correct && !w_uncorrectable_final) ? w_roots_final[SC_W-1:0] : SC_W'(0)};
+                            (r_c_correct && !w_uncorrectable_final) ? r_c_roots[SC_W-1:0] : SC_W'(0)};
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin

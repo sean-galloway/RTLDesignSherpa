@@ -1,0 +1,100 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 sean galloway
+//
+// Reed-Solomon loop harness CSR -- PeakRDL source. The regblock IS generated
+// from this file (passthrough cpuif behind axil4_to_peakrdl); regenerate with
+// `make regmap` in the area (never hand-edit rtl/generated/ or the regmap).
+//
+// One flat AXI4-Lite slave at base 0x0, 32-bit registers.
+
+addrmap rs_loop_regs {
+    name = "Reed-Solomon loop harness CSR";
+    desc = "Pattern generator -> RS encoder -> error injector -> two RS decoders (riBM, Euclid) -> pattern checkers";
+
+    default regwidth    = 32;
+    default accesswidth = 32;
+    default alignment   = 4;
+
+    reg { desc = "Bitstream identifier, ASCII RSLP";
+        field { sw = r; hw = w; } value[31:0] = 0x52534C50;
+    } BUILD_ID @ 0x000;
+
+    reg { desc = "Read-write scratch for link sanity";
+        field { sw = rw; hw = r; } value[31:0] = 0;
+    } SCRATCH @ 0x004;
+
+    reg { desc = "Control";
+        field { sw = w; hw = r; singlepulse; desc = "reset the datapath (not the CSRs)"; } soft_reset[0:0] = 0;
+        field { sw = w; hw = r; singlepulse; desc = "start a run of GEN_BLOCKS blocks"; }  start[1:1] = 0;
+        field { sw = w; hw = r; singlepulse; desc = "clear the statistics";              }  clear[2:2] = 0;
+        field { sw = rw; hw = r; desc = "1: generator straight to the checkers, codec bypassed"; } bypass[3:3] = 0;
+        field { sw = rw; hw = r; desc = "1: random ready on checker A";  } throttle_a[4:4] = 0;
+        field { sw = rw; hw = r; desc = "1: random ready on checker B";  } throttle_b[5:5] = 0;
+        field { sw = rw; hw = r; desc = "1: reseed the injector on start"; } inj_seed_on_start[6:6] = 1;
+    } CTRL @ 0x008;
+
+    reg { desc = "Blocks per run";
+        field { sw = rw; hw = r; } blocks[15:0] = 8;
+    } GEN_BLOCKS @ 0x00C;
+
+    reg { desc = "Pattern generator LFSR seed (0 = the block's default)";
+        field { sw = rw; hw = r; } value[31:0] = 0;
+    } GEN_SEED @ 0x010;
+
+    reg { desc = "Error injector configuration";
+        field { sw = rw; hw = r; desc = "0 none, 1 exact count per block, 2 burst, 3 rate"; } mode[1:0] = 0;
+        // not `count`: RegisterMap treats a register key named count as an array marker
+        field { sw = rw; hw = r; desc = "errors per block (modes 1, 2)"; } errors[15:8] = 0;
+        field { sw = rw; hw = r; desc = "symbol error probability / 65536 (mode 3)"; } rate[31:16] = 0;
+    } INJ_CFG @ 0x014;
+
+    reg { desc = "Error injector LFSR seed";
+        field { sw = rw; hw = r; } value[31:0] = 0x0000ACE1;
+    } INJ_SEED @ 0x018;
+
+    reg { desc = "Live status";
+        field { sw = r; hw = w; } busy[0:0] = 0;
+        field { sw = r; hw = w; } gen_done[1:1] = 0;
+        field { sw = r; hw = w; } chk_a_done[2:2] = 0;
+        field { sw = r; hw = w; } chk_b_done[3:3] = 0;
+        field { sw = r; hw = w; desc = "checker A saw a beat that did not match"; } data_err_a[4:4] = 0;
+        field { sw = r; hw = w; } data_err_b[5:5] = 0;
+        field { sw = r; hw = w; desc = "decoders A and B disagreed on a beat or a verdict"; } cmp_err[6:6] = 0;
+        field { sw = r; hw = w; desc = "checker A CRC equals the generator's"; } crc_a_ok[7:7] = 0;
+        field { sw = r; hw = w; } crc_b_ok[8:8] = 0;
+    } STATUS @ 0x01C;
+
+    reg { desc = "The code this bitstream carries";
+        field { sw = r; hw = w; } n[15:0] = 0;
+        field { sw = r; hw = w; } t[23:16] = 0;
+        field { sw = r; hw = w; } m[27:24] = 0;
+        field { sw = r; hw = w; } spb[31:28] = 0;
+    } PROFILE @ 0x020;
+
+    reg { desc = "Generator CRC-32 over the run";  field { sw = r; hw = w; } value[31:0] = 0; } CRC_EXPECTED @ 0x024;
+    reg { desc = "Checker A CRC-32 over the run";  field { sw = r; hw = w; } value[31:0] = 0; } CRC_A @ 0x028;
+    reg { desc = "Checker B CRC-32 over the run";  field { sw = r; hw = w; } value[31:0] = 0; } CRC_B @ 0x02C;
+    reg { desc = "Packets (blocks) checker A received"; field { sw = r; hw = w; } value[31:0] = 0; } PKTS_A @ 0x030;
+    reg { desc = "Packets (blocks) checker B received"; field { sw = r; hw = w; } value[31:0] = 0; } PKTS_B @ 0x034;
+    reg { desc = "Cycles from start until both checkers had every block"; field { sw = r; hw = w; } value[31:0] = 0; } CYCLES @ 0x038;
+
+    reg { desc = "Decoder A: blocks with no errors";           field { sw = r; hw = w; } value[31:0] = 0; } BLK_OK_A @ 0x03C;
+    reg { desc = "Decoder A: blocks corrected";                field { sw = r; hw = w; } value[31:0] = 0; } BLK_CORR_A @ 0x040;
+    reg { desc = "Decoder A: blocks uncorrectable";            field { sw = r; hw = w; } value[31:0] = 0; } BLK_UNC_A @ 0x044;
+    reg { desc = "Decoder A: blocks with a framing error";     field { sw = r; hw = w; } value[31:0] = 0; } BLK_FRAME_A @ 0x048;
+    reg { desc = "Decoder A: symbols corrected";               field { sw = r; hw = w; } value[31:0] = 0; } SYM_CORR_A @ 0x04C;
+    reg { desc = "Decoder B: blocks with no errors";           field { sw = r; hw = w; } value[31:0] = 0; } BLK_OK_B @ 0x050;
+    reg { desc = "Decoder B: blocks corrected";                field { sw = r; hw = w; } value[31:0] = 0; } BLK_CORR_B @ 0x054;
+    reg { desc = "Decoder B: blocks uncorrectable";            field { sw = r; hw = w; } value[31:0] = 0; } BLK_UNC_B @ 0x058;
+    reg { desc = "Decoder B: blocks with a framing error";     field { sw = r; hw = w; } value[31:0] = 0; } BLK_FRAME_B @ 0x05C;
+    reg { desc = "Decoder B: symbols corrected";               field { sw = r; hw = w; } value[31:0] = 0; } SYM_CORR_B @ 0x060;
+
+    reg { desc = "Injector: symbols corrupted";                field { sw = r; hw = w; } value[31:0] = 0; } INJ_SYMBOLS @ 0x064;
+    reg { desc = "Injector: blocks with at least one error";   field { sw = r; hw = w; } value[31:0] = 0; } INJ_BLOCKS @ 0x068;
+    reg { desc = "Injector: blocks with more than t errors";   field { sw = r; hw = w; } value[31:0] = 0; } INJ_OVER_T @ 0x06C;
+    reg { desc = "Injector: errors in the most recent block";  field { sw = r; hw = w; } value[7:0] = 0;  } INJ_LAST @ 0x070;
+
+    reg { desc = "A vs B: output beats that differed";         field { sw = r; hw = w; } value[31:0] = 0; } CMP_DATA_MISMATCH @ 0x074;
+    reg { desc = "A vs B: blocks whose verdicts differed";     field { sw = r; hw = w; } value[31:0] = 0; } CMP_STATUS_MISMATCH @ 0x078;
+    reg { desc = "A vs B: beats compared";                     field { sw = r; hw = w; } value[31:0] = 0; } CMP_BEATS @ 0x07C;
+};

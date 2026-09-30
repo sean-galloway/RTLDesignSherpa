@@ -15,6 +15,7 @@
 
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/apb4_to_axi4.f
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/apb4_to_peakrdl.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axil4_to_peakrdl.f
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/apb5_to_axi4.f
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/apb_cmdrsp_to_axi4.f
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_dwidth_converter_rd.f

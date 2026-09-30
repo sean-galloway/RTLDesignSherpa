@@ -172,3 +172,22 @@ only at the end. Lint clean at S = 1, 2, 3, 4, 8. Gate cells green at S = 1/3/4/
 on both cores and all sub-blocks; measured encoder 32 cycles per RS(255,239)
 block at S = 8, decoder 33. One TB bug on the way (a shadowed `vals` in ForneyTB).
 HAS 3.2, 4.1, 5.1 (with a measured table), 5.2, 6.2 and the catalog updated.
+
+**2026-09-30 -- Nexys A7 loop harness (Sean: "build this in the nexysa7 board").**
+`projects/fpga-systems/NexysA7/reed-solomon/build-loop`: axis4_master_pattern_gen
+-> rs_encoder_core RS(252,236) S=4 -> rs_error_injector -> rs_decoder_core x2
+(RIBM, EUCLID) -> axis4_slave_pattern_check x2 + comparator + tallies, PeakRDL
+CSRs (`rs_loop_regs.rdl`) behind the UART bridge via a new shared
+`converters/rtl/axil4_to_peakrdl.sv`. Host: by-name driver, programs shared by
+sim and board, sequences init/smoke/sweep, `run_smoke.py`. Six UART-equivalence
+cocotb tests pass (smoke, bypass, clean, e=t, e=t+1, throttled). Profile
+shortened to 252 because the shared checker compares whole 32-bit words. Two
+tooling fixes on the way: `check_sv_decl_order.py` no longer treats struct
+members as signals (PeakRDL output tripped it), and a RegisterMap trap -- an RDL
+field named `count` breaks the regmap loader -- is in the handbook.
+Synthesis on the A7 (100 MHz): first run WNS -16.2 ns, 41 logic levels from the
+injector's selection-sampling DSP chain straight into decoder A's syndrome
+unit; pipelining the injector (3 stages) gave -4.0 ns with the Chien -> Forney
+-> re-check -> status chain (24 levels) next; the decoder's correct stage is now
+split (C1 walk register, C2 emit). Regressions stayed green through both
+(component 65/130/195, harness 6/6).
