@@ -91,12 +91,22 @@ class AxiBurstMonitor:
         self.dut, self.bpb = dut, beat_bytes
         self.stats = {'ar_bursts': 0, 'aw_bursts': 0, 'ends_on_4k': 0,
                       'crosses_4k': 0, 'violations': []}
+        # first LOG_MAX address and write-beat records, for diagnosing a failing case
+        self.log_max = int(os.environ.get('TEST_AXI_LOG', '0'))
+        self.stats['aw_log'], self.stats['w_log'], self.stats['s_log'] = [], [], []
 
     async def run(self):
         from cocotb.triggers import RisingEdge
         d = self.dut
         while True:
             await RisingEdge(d.aclk)
+            if self.log_max and len(self.stats['w_log']) < self.log_max and \
+                    int(d.wr_wvalid.value) and int(d.wr_wready.value):
+                self.stats["w_log"].append([f"{int(d.wr_wstrb.value):x}", int(d.wr_wlast.value), f"{int(d.wr_wdata.value):064x}"])
+            if self.log_max and len(self.stats['s_log']) < self.log_max and \
+                    int(d.s_axis_tvalid.value) and int(d.s_axis_tready.value):
+                self.stats['s_log'].append([f"{int(d.s_axis_tstrb.value):x}", int(d.s_axis_tlast.value),
+                                            int(d.s_axis_tdest.value), f"{int(d.s_axis_tdata.value):064x}"])
             for kind, pre in (('ar', 'rd_ar'), ('aw', 'wr_aw')):
                 if int(getattr(d, pre + 'valid').value) and int(getattr(d, pre + 'ready').value):
                     addr = int(getattr(d, pre + 'addr').value)
@@ -104,6 +114,8 @@ class AxiBurstMonitor:
                     first = (addr % 4096) // self.bpb * self.bpb
                     end = first + n * self.bpb
                     self.stats[f'{kind}_bursts'] += 1
+                    if kind == 'aw' and len(self.stats['aw_log']) < self.log_max:
+                        self.stats['aw_log'].append([addr, n])
                     if end == 4096:
                         self.stats['ends_on_4k'] += 1
                     if end > 4096:
