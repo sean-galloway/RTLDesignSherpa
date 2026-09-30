@@ -9,6 +9,24 @@ denominator instead of being one unknown among four.
 
 **Memtest OK.** Board, pins, K7DDRPHY and DRAM are sound.
 
+Twice: the 2 MiB boot memtest, and a 16 MiB run covering the whole
+CPU-visible window.
+
+## What this does NOT cover, and it is most of the device
+
+`mem_list` reports `MAIN_RAM 0x40000000 0x40ffffff 0x1000000` -- **16 MiB**,
+while the banner reports a 1.0 GiB device. That gap is the standalone core's
+CPU window, not a defect: the remaining 1008 MiB is reachable only through the
+64-bit AXI user port, which this build deliberately ties idle. So
+
+  proven here     16 MiB, via the CPU over 32-bit Wishbone
+  NOT proven here the other 98.4% of the array
+
+A full-device test is `build-scoria`'s job, driving the AXI port through the
+shared `char_engine_block`. Do not read "Memtest OK" as "the DRAM is good"
+without that qualifier -- a single-rank fault outside the low 16 MiB would
+pass everything here.
+
 ## What the board reports about itself
 
 ```

@@ -221,3 +221,48 @@ Command not found
 
 litex> 
 --- captured 5428 bytes in 30s ---
+
+
+================================================================================
+WIDER MEMTEST -- the full CPU-visible window, not the boot default
+================================================================================
+The boot memtest covers 2 MiB. MAIN_RAM is 0x40000000-0x40ffffff = 16 MiB: the
+standalone core's CPU window, NOT the 1 GiB device. mem_list confirms it. The
+remaining 1008 MiB is reachable only through the 64-bit AXI user port, so a
+full-device test belongs to build-scoria and cannot be done from here.
+
+Per-step progress lines are stripped below; they were fragmented by UART
+overrun in the capture script's polling read ("rite:" for "Write:"), which is
+a reader artefact and not a DRAM symptom -- the verdict line is intact and the
+test compares every word it wrote.
+
+R 00020094
+Command not found
+litex> R 00020094
+Command not found
+litex> mem_test 0x40000000 0x1000000
+Memtest at 0x40000000 (16.0MiB)...
+  Wri: 0x40000000-0x403c0000 3.7MiB   
+  Wrte: 0x40000000-0x407a0000 7.6MiB   
+ 0x40000000-0x40280000 2.5MiB   
+0x40000000-0x40fc0000 15.7MiB   
+Memtest OK
+litex> R 00020094
+Command not found
+litex> R 00020094
+Command not found
+litex> R 00020094
+Command not found
+litex> R 00020094
+Command not found
+litex> R 00020094
+Command not found
+litex> R 00020094
+Command not found
+litex> R 00020094
+Command not found
+litex> R 00020094
+Command not found
+litex> R 00020094
+Command not found
+--- marker hit ---
