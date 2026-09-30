@@ -142,12 +142,12 @@ time on 2026-09-01: extending `obs_regs.rdl` left the orphan holding a regblock
 with none of the new registers, indistinguishable at a glance from the live one.
 REMOVED that day (95 files), along with an orphaned `rtl/regs/obs_regs_top.md`
 that no longer matched the generated docs. The single source is now
-`rtl/obs_regs.rdl` -> `rtl/regs/generated/` (RTL + docs + regmap), plus the
+`rdl/obs/obs_regs.rdl` -> `rtl/regs/generated/` (RTL + docs + regmap), plus the
 hand-maintained `rtl/regs/obs_regs.vlt` waiver the filelists name directly.
 Regenerate with an EXPLICIT `-o`, never the default:*
 
 ```
-python3 bin/peakrdl_generate.py projects/components/utility-ip/misc/rtl/obs_regs.rdl \
+python3 bin/peakrdl_generate.py projects/components/utility-ip/misc/rdl/obs/obs_regs.rdl \
     -o projects/components/utility-ip/misc/rtl/regs/generated --no-html
 ```
 

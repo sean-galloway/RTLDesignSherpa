@@ -155,7 +155,7 @@ violation no DMA in the tree can commit.
 
 ## Registers
 
-The map is `projects/components/utility-ip/misc/rtl/obs_regs.rdl`, shared with the AXI
+The map is `projects/components/utility-ip/misc/rdl/obs/obs_regs.rdl`, shared with the AXI
 observers and regenerated through `bin/peakrdl_generate.py`. What differs is
 meaning, not layout.
 

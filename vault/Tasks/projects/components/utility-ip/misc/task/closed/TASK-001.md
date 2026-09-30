@@ -4,7 +4,7 @@
 
 **Priority:** P3. Hygiene, but it is the kind that silently rots -- a stray
 source has no obvious home, so the next person adds theirs beside it.
-**Status:** open 2026-09-04. Raised by Sean: **all RDL must be in the `rdl`
+**Status:** CLOSED 2026-09-29 (done) Raised by Sean: **all RDL must be in the `rdl`
 directory.**
 
 **The violation, exactly.** `projects/components/utility-ip/misc/` already has an `rdl/`
@@ -53,3 +53,28 @@ stream two under `rtl/macro/`, pumice one under `rtl/macro/`. If the rule is
 repo-wide rather than misc-local, that is a much larger task and should be
 filed per area -- this block deliberately covers only misc, which is what was
 asked for.
+
+---
+
+## CLOSED 2026-09-29 -- per block, consistently
+
+| File | Now |
+|---|---|
+| `rtl/obs_regs.rdl` | `rdl/obs/obs_regs.rdl` |
+| `rtl/tally_regs.rdl` | `rdl/tally/tally_regs.rdl` |
+| `rdl/dma_address_gen.rdl` | `rdl/dma_address_gen/dma_address_gen.rdl` (the flat file moved too, so no half-applied state) |
+
+None of the three `include`s anything, so the moves are safe for PeakRDL.
+Path references followed: `bin/check_rdl_regen.py` (both gated entries and
+the ungated note), `env_python`'s comment, `misc/docs/axis4_intf_observer.md`,
+the in-source comments in `dma_address_gen.sv` and the RDL header, the
+Genesys2 stream `bin/tally.py` and `build-obs` test comments, the rapids char
+guide register map, STREAM's closed TASK-006, and the handbook's
+generated-rtl-discipline note. The generated regmaps say only "from:
+obs_regs.rdl" (a basename) and did not change. `rtl/regs/obs_regs.vlt` is a
+Verilator waiver, not RDL, and stays.
+
+Proof: `bin/check_rdl_regen.py` regenerates from the NEW paths and compares
+against the tracked artifacts -- PASS, so nothing drifted and the generator
+finds its sources. `git grep` for the old locations returns nothing outside
+this page.

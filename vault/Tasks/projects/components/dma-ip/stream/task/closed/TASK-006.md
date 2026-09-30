@@ -66,7 +66,7 @@ than against the manifest's own list. Three things the "1 block to 9" and
 **Every `.rdl` in the tree is now accounted for: 24 = 19 gated as entries + 3
 reached as `sources` includes + 2 documented exclusions**, the exclusions
 recorded in the manifest header so nobody re-derives them --
-`misc/rdl/dma_address_gen.rdl` (a register DEFINITION; the `.sv` is
+`misc/rdl/dma_address_gen/dma_address_gen.rdl` (a register DEFINITION; the `.sv` is
 hand-written and only mentions PeakRDL in a comment) and
 `bridge_pkg/peakrdl/bridge_cfg_proto.rdl` (a generator template, nothing
 committed). 26 entries, full gate 6.99s.

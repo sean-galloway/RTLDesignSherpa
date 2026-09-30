@@ -8,7 +8,7 @@ Dense bins read back on the count port at BIN_STRIDE (one 32-bit count per
 64-bit word); a packet whose tuple is in no entry lands in the UNEXPECTED bin,
 whose index equals the CAM depth.
 
-Offsets are resolved from tally_regs (projects/components/utility-ip/misc/rtl/tally_regs.rdl),
+Offsets are resolved from tally_regs (projects/components/utility-ip/misc/rdl/tally/tally_regs.rdl),
 the block that generates the decode -- they were literals in seven host
 programs and localparams in the RTL. The CAM depth is read from HARDWARE:
 build-obs ships a 32-entry CAM while every host constant said 64, so the

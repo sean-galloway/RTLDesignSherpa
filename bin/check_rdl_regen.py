@@ -58,7 +58,7 @@ PUMICE_SOURCES = [f"{PUMICE}/rtl/macro/pumice_csr.rdl"]
 
 # DELIBERATELY NOT GATED (checked 2026-09-24) -- these .rdl files exist but
 # produce NO tracked artifact, so there is nothing to compare against:
-#   misc/rdl/dma_address_gen.rdl      a register DEFINITION for descriptor
+#   misc/rdl/dma_address_gen/dma_address_gen.rdl      a register DEFINITION for descriptor
 #                                     fields. dma_address_gen.sv is
 #                                     hand-written; its only PeakRDL mention is
 #                                     a comment noting a regblock COULD drive
@@ -153,8 +153,8 @@ MANIFEST = [
     },
     {
         "name": "obs_regs (misc)",
-        "rdl": "projects/components/utility-ip/misc/rtl/obs_regs.rdl",
-        "sources": ["projects/components/utility-ip/misc/rtl/obs_regs.rdl"],
+        "rdl": "projects/components/utility-ip/misc/rdl/obs/obs_regs.rdl",
+        "sources": ["projects/components/utility-ip/misc/rdl/obs/obs_regs.rdl"],
         "flags": ["--no-html"],
         "regmap_output": None,
         "compare": [
@@ -168,8 +168,8 @@ MANIFEST = [
         # Shares a generated root with obs_regs; verified to emit a DISJOINT
         # file set, so the two entries cannot overwrite each other.
         "name": "tally_regs (misc)",
-        "rdl": "projects/components/utility-ip/misc/rtl/tally_regs.rdl",
-        "sources": ["projects/components/utility-ip/misc/rtl/tally_regs.rdl"],
+        "rdl": "projects/components/utility-ip/misc/rdl/tally/tally_regs.rdl",
+        "sources": ["projects/components/utility-ip/misc/rdl/tally/tally_regs.rdl"],
         "flags": ["--no-html"],
         "regmap_output": None,
         "compare": [

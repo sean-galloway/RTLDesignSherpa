@@ -11,7 +11,7 @@
 //
 // Documentation: projects/components/utility-ip/misc/README.md
 // Subsystem: misc
-// Registers: projects/components/utility-ip/misc/rdl/dma_address_gen.rdl
+// Registers: projects/components/utility-ip/misc/rdl/dma_address_gen/dma_address_gen.rdl
 //
 // Author: sean galloway
 // Created: 2025-04-08
@@ -216,7 +216,7 @@ module dma_address_gen #(
     // PeakRDL / SystemRDL (IEEE 1800.2-2017) Integration:
     //   These configuration ports map directly to descriptor register fields.
     //   A SystemRDL register block can drive them via peakrdl-regblock output.
-    //   See ../rdl/dma_address_gen.rdl for the register definition.
+    //   See ../rdl/dma_address_gen/dma_address_gen.rdl for the register definition.
     //   Generated register block goes in ../rtl/generated/.
     // =========================================================================
     input  logic [ADDR_WIDTH-1:0]       i_cfg_base_addr,      // Descriptor field: base address

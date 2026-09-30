@@ -5,8 +5,8 @@
 // Conforms to IEEE 1800.2-2017 (SystemRDL 2.0).
 //
 // Usage with PeakRDL:
-//   peakrdl regblock rdl/dma_address_gen.rdl -o rtl/generated/
-//   peakrdl html     rdl/dma_address_gen.rdl -o docs/dma_address_gen_regs/
+//   peakrdl regblock rdl/dma_address_gen/dma_address_gen.rdl -o rtl/generated/
+//   peakrdl html     rdl/dma_address_gen/dma_address_gen.rdl -o docs/dma_address_gen_regs/
 //
 // The generated register block provides an APB/AXI-Lite CSR interface.
 // Software writes descriptor fields, then the hw-readable outputs drive

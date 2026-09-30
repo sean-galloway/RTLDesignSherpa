@@ -98,7 +98,7 @@ fi
 # VCD/FST generation". That no longer reproduces, and the pin had started
 # costing more than it bought:
 #   - 5.020 cannot build the Genesys 2 stream harness at all once
-#     projects/components/utility-ip/misc/rtl/obs_regs.rdl grew. It emits invalid C++ for
+#     projects/components/utility-ip/misc/rdl/obs/obs_regs.rdl grew. It emits invalid C++ for
 #     the PeakRDL hwif struct port copy:
 #       error: cannot convert 'V..._in_t__struct__0' to 'CData'
 #     The same observers + the same regblock build fine STANDALONE on 5.020,
