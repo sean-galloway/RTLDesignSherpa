@@ -224,6 +224,13 @@ What the byte harness adds, all additive on the shared blocks:
 | all six areas gate, 2026-09-29 (commit 89526ac23 fixes the 10) | fub 71/0, fub_beats 46/0, macro 171/10 -> scheduler_group* 37/0 after, macro_beats 173/0, top 14/0, top_beats 12/0 |
 | all six areas func, 2026-09-29 | fub 494/0, fub_beats 388/0, macro 457/1 (test_axi_write_operations, 512-bit slow_producer), macro_beats 430/0, top 28/0, top_beats 24/0 |
 | macro snk_data_path_axis_test func after the stimulus reorder (descriptor first) | 112/0 |
+| all six areas full, 2026-09-30 (after the venv restore) | fub 1521/0, fub_beats 1281/0, macro 813/0, macro_beats 771/0, top 42/0, top_beats 36/0 |
+| Genesys2/rapids harness sim (`make sim`) | 8/0: sink, source, 1 B at 1, 77 B at 5, 33 B at 31, 203 B across 4 KB, kick_enable, empty_mask |
+| Genesys2/rapids_beats harness sim after the tie-off and path fix | 4/0 |
+| val/amba axis4_pattern_pair gate; amba lint; rapids lint | 3/0; 402/402; 86/86 |
+| Genesys 2 build, 8 ch, 256-bit, 4 KB/ch, observers on | WNS +0.258 ns, 89,746 LUTs (44%), 68 BRAM tiles (15%) |
+| Board, beat smoke on the byte DUT (2 ch x 4 beats) | SINK PASS, SOURCE PASS, golden-validated |
+| Board, `--byte-smoke` (2 ch): 1 B at 1, 2 B at 31, 32, 37, 100 at 7, 96 at 17, 203 B across 4 KB | 7/7 PASS, sink write-CRC and source egress-CRC each against the byte-wise golden |
 
 The one func failure was stimulus order, not RTL: the beat-era sink tests
 queued a channel's next packet before that channel's descriptor could be
@@ -260,10 +267,11 @@ as long as it exists. Concretely:
 
 ## Done when
 
-- [ ] the decisions above are recorded here and in the HAS
-- [ ] a one-byte AXIS beat lands as one strobed byte in memory, and a
+- [x] the decisions above are recorded here (HAS chapters for the byte
+      design still to write)
+- [x] a one-byte AXIS beat lands as one strobed byte in memory, and a
       byte-length source descriptor produces a stream whose first and last
       beats carry the right `tstrb`, both on the board with the byte-wise
-      golden CRC
+      golden CRC (2026-09-30, `Genesys2/rapids/reports/board/`)
 - [ ] the perf report has a bytes-per-beat efficiency column and the
       utilization cells of the beat-aligned rows are unchanged

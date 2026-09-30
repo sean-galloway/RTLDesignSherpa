@@ -37,6 +37,14 @@ rapids/
     └── Makefile     sim / synth / bitstream / program / smoke / suite
 ```
 
+## Status
+
+Characterized on silicon 2026-09-30 (`reports/board/`): beat smoke PASS on
+both halves; byte campaign 7/7 PASS (1 B at offset 1, 2 B at 31, 32, 37,
+100 at 7, 96 at 17, 203 B across a 4 KB boundary), sink write-CRC and source
+egress-CRC each equal to the byte-wise golden. Build (`reports/build/`):
+WNS +0.258 ns at 100 MHz with observers, 89,746 LUTs, 68 BRAM tiles.
+
 ## Quick start
 
 ```bash

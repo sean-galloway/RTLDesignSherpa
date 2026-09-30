@@ -661,10 +661,11 @@ class RapidsByteCampaign:
 
             results[ch] = ch_res
             if ch_ok:
+                # each authority against its own golden (the byte-granular
+                # DUT scores the read side over beats and the egress over bytes)
                 auth_str = " ".join(
-                    f"{n}=0x{(ch_res.get(n) or 0):08X}" for n, _, _, _ in authorities)
-                print(f"  ch{ch}: {label} PASS golden=0x{golden:08X} "
-                      f"[{auth_str}]")
+                    f"{n}=0x{(ch_res.get(n) or 0):08X}==golden" for n, _, _, _ in authorities)
+                print(f"  ch{ch}: {label} PASS [{auth_str}]")
             else:
                 print(f"  ch{ch}: {label} FAIL golden=0x{golden:08X}")
 

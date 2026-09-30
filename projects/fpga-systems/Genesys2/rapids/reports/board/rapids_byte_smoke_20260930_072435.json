@@ -1,0 +1,376 @@
+{
+  "timestamp": "2026-09-30T07:24:35",
+  "design": {
+    "beat_bytes": 32,
+    "data_width": 256,
+    "channels": 8,
+    "sram_depth": 128,
+    "axi_monitors": false,
+    "observers": true,
+    "gen_mon": false,
+    "byte_dut": true,
+    "aclk_hz": 100000000,
+    "sram_bytes_per_channel": 4096,
+    "peak_bw_gb_s": 3.2
+  },
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "configs": [
+    {
+      "name": "smoke_ch2_b4",
+      "active_channels": 2,
+      "channels": [
+        0,
+        1
+      ],
+      "beats": 4,
+      "descs": 1,
+      "total_beats": 4,
+      "xfer_axlen": 8,
+      "xfer_beats": 9,
+      "xfer_axlen_effective": 8,
+      "xfer_beats_effective": 9,
+      "resp_delay": 0,
+      "gen_interleave": false,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "perf_valid": {
+        "sink": true,
+        "source": true
+      },
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 8,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.10526315789473684,
+              "eff_bw_gb_s": 0.3368421052631579,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 8,
+                "bp": 67,
+                "starv": 1,
+                "idle": 0,
+                "engaged": 76,
+                "total": 76,
+                "util": 0.10526315789473684
+              },
+              "bytes": 256,
+              "packets": 2,
+              "byte_bw_gb_s": 0.3368421052631579
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.1951219512195122,
+              "eff_bw_gb_s": 0.624390243902439,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 8,
+                "bp": 22,
+                "starv": 11,
+                "idle": 1,
+                "engaged": 41,
+                "total": 42,
+                "util": 0.1951219512195122
+              }
+            }
+          },
+          "observers": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.10526315789473684,
+              "eff_bw_gb_s": 0.3368421052631579,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 8,
+                "bp": 67,
+                "starv": 1,
+                "idle": 0,
+                "engaged": 76,
+                "total": 76,
+                "util": 0.10526315789473684,
+                "bytes": 256,
+                "beats": 8,
+                "packets": 2,
+                "tap_dropped": 0,
+                "tap_packets": 2,
+                "ch_prod": [
+                  4,
+                  4,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              },
+              "byte_bw_gb_s": 0.3368421052631579,
+              "meter_prod_delta": 0
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.1951219512195122,
+              "eff_bw_gb_s": 0.624390243902439,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 8,
+                "bp": 22,
+                "starv": 11,
+                "idle": 1,
+                "engaged": 41,
+                "total": 42,
+                "util": 0.1951219512195122,
+                "bursts": 0,
+                "ch_prod": [
+                  4,
+                  4,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              },
+              "latency": {
+                "aw_b": {
+                  "bins": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "total": 0,
+                  "samples": 0,
+                  "mean_cyc": 0.0,
+                  "p50_cyc": 0,
+                  "p90_cyc": 0,
+                  "p99_cyc": 0
+                }
+              },
+              "meter_prod_delta": 0
+            }
+          },
+          "observer_sticky": {
+            "axi": 0,
+            "axis": 0
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0xC8854A27",
+            "golden_wr": "0x2B90F57C",
+            "wr": "0x2B90F57C",
+            "gen": "0xC8854A27"
+          },
+          "1": {
+            "golden": "0x6325A378",
+            "golden_wr": "0x6D573968",
+            "wr": "0x6D573968",
+            "gen": "0x6325A378"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 8,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.10126582278481013,
+              "eff_bw_gb_s": 0.3240506329113924,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 8,
+                "bp": 0,
+                "starv": 71,
+                "idle": 0,
+                "engaged": 79,
+                "total": 79,
+                "util": 0.10126582278481013
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.10256410256410256,
+              "eff_bw_gb_s": 0.3282051282051282,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 8,
+                "bp": 56,
+                "starv": 14,
+                "idle": 1,
+                "engaged": 78,
+                "total": 79,
+                "util": 0.10256410256410256
+              },
+              "bytes": 256,
+              "packets": 2,
+              "byte_bw_gb_s": 0.3240506329113924
+            }
+          },
+          "observers": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.10126582278481013,
+              "eff_bw_gb_s": 0.3240506329113924,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 8,
+                "bp": 0,
+                "starv": 71,
+                "idle": 0,
+                "engaged": 79,
+                "total": 79,
+                "util": 0.10126582278481013,
+                "bursts": 2,
+                "ch_prod": [
+                  4,
+                  4,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              },
+              "latency": {
+                "ar_first_r": {
+                  "bins": [
+                    0,
+                    0,
+                    2,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "total": 2,
+                  "samples": 2,
+                  "mean_cyc": 6.0,
+                  "p50_cyc": 4,
+                  "p90_cyc": 4,
+                  "p99_cyc": 4
+                },
+                "ar_rlast": {
+                  "bins": [
+                    0,
+                    0,
+                    0,
+                    2,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "total": 2,
+                  "samples": 2,
+                  "mean_cyc": 12.0,
+                  "p50_cyc": 8,
+                  "p90_cyc": 8,
+                  "p99_cyc": 8
+                }
+              },
+              "meter_prod_delta": 0
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.10256410256410256,
+              "eff_bw_gb_s": 0.3282051282051282,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 8,
+                "bp": 56,
+                "starv": 14,
+                "idle": 1,
+                "engaged": 78,
+                "total": 79,
+                "util": 0.10256410256410256,
+                "bytes": 256,
+                "beats": 8,
+                "packets": 2,
+                "tap_dropped": 0,
+                "tap_packets": 2,
+                "ch_prod": [
+                  4,
+                  4,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              },
+              "byte_bw_gb_s": 0.3240506329113924,
+              "meter_prod_delta": 0
+            }
+          },
+          "observer_sticky": {
+            "axi": 0,
+            "axis": 0
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0xC8854A27",
+            "golden_rd": "0xC8854A27",
+            "rd": "0xC8854A27",
+            "golden_chk": "0x2B90F57C",
+            "chk": "0x2B90F57C"
+          },
+          "1": {
+            "golden": "0x6325A378",
+            "golden_rd": "0x6325A378",
+            "rd": "0x6325A378",
+            "golden_chk": "0x6D573968",
+            "chk": "0x6D573968"
+          }
+        }
+      }
+    }
+  ]
+}
