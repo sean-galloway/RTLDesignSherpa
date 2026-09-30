@@ -162,6 +162,7 @@ class RapidsTopTB(TBBase):
 
         # source-egress capture (background monitor) + m_axil_mon sink control.
         self.captured_axis = {ch: [] for ch in range(self.NUM_CHANNELS)}
+        self.captured_axis_beats = {ch: [] for ch in range(self.NUM_CHANNELS)}   # (data, strb, last), TASK-019
         self._mon_active = False
         self.test_errors = []
 
@@ -655,6 +656,111 @@ class RapidsTopTB(TBBase):
         for i, val in enumerate(beats):
             self.rd_mem.write(off + i * bpl, bytearray(val.to_bytes(bpl, 'little')))
 
+    # ---- byte-granular helpers (rapids TASK-019) ----
+    def preload_source_bytes(self, src_addr, payload: bytes):
+        self.rd_mem.write(src_addr - self.SRC_BASE, bytearray(payload))
+
+    def read_sink_bytes(self, dst_addr, n) -> bytes:
+        return bytes(self.wr_mem.read(dst_addr - self.DST_BASE, n))
+
+    @staticmethod
+    def pack_bytes(payload: bytes, bpb: int):
+        """Packed stream beats for a byte payload: (data words, tstrb per beat)."""
+        words, strbs = [], []
+        for i in range(0, len(payload), bpb):
+            chunk = payload[i:i + bpb]
+            words.append(int.from_bytes(chunk.ljust(bpb, b'\0'), 'little'))
+            strbs.append((1 << len(chunk)) - 1)
+        return words, strbs
+
+    async def test_source_bytes(self, channel=0, offset=5, nbytes=77) -> Tuple[bool, Dict[str, Any]]:
+        """SOURCE, byte-granular: a descriptor of nbytes at a byte address must
+        leave as one packet of ceil(nbytes / bpb) beats, packed from lane 0,
+        contiguous tstrb and tlast on the last beat, payload == memory."""
+        bpb = self.STRB_WIDTH
+        self.log.info(f"=== SOURCE path (bytes): ch{channel}, offset {offset}, {nbytes} bytes ===")
+        desc_addr = self.DESC_BASE + channel * 0x1000
+        src_addr = self.SRC_BASE + channel * self.CHANNEL_OFFSET + offset
+        payload = bytes((0x40 + channel + i) & 0xFF for i in range(nbytes))
+        # background around the payload so a lane slip shows
+        self.preload_source_bytes(src_addr - offset, bytes([0xEE] * (offset + nbytes + bpb)))
+        self.preload_source_bytes(src_addr, payload)
+        desc = self.create_descriptor(src_addr, 0, 0, channel_id=channel, length_bytes=nbytes)
+        self.register_descriptor(self.desc_src_mem, desc_addr, desc)
+        self.captured_axis_beats[channel] = []
+        await self.kick_off_channel('src', channel, desc_addr)
+        errors = list(self.test_errors)
+        if not await self.wait_half_idle('src', timeout_cycles=20000):
+            errors.append('src half did not return to idle within 20000 cycles')
+        exp_beats = -(-nbytes // bpb)
+        for _ in range(4000):
+            await self.wait_clocks(self.clk_name, 1)
+            if len(self.captured_axis_beats[channel]) >= exp_beats:
+                break
+        await self.wait_clocks(self.clk_name, 200)
+        got = self.captured_axis_beats[channel]
+        if len(got) != exp_beats:
+            errors.append(f"source ch{channel}: {len(got)} beats captured, expected {exp_beats}")
+        else:
+            out = bytearray()
+            for k, (data, strb, last) in enumerate(got):
+                nb = bin(strb).count('1')
+                if strb != (1 << nb) - 1:
+                    errors.append(f"beat {k}: tstrb 0x{strb:X} not contiguous from lane 0")
+                if k < exp_beats - 1 and nb != bpb:
+                    errors.append(f"beat {k}: partial tstrb 0x{strb:X} before the last beat")
+                if bool(last) != (k == exp_beats - 1):
+                    errors.append(f"beat {k}: tlast={last}")
+                out += data.to_bytes(bpb, 'little')[:nb]
+            if bytes(out) != payload:
+                errors.append(f"payload differs: got {out.hex()[:64]}.. expected {payload.hex()[:64]}..")
+        se = self.read_sched_error('src')
+        if se not in (0, -1):
+            errors.append(f"src_sched_error=0x{se:X}")
+        for e in errors:
+            self.log.error(f"  SCOREBOARD: {e}")
+        if not errors:
+            self.log.info(f"  SCOREBOARD: source bytes verified ({nbytes} bytes in {exp_beats} beats)")
+        return (len(errors) == 0), {'errors': errors}
+
+    async def test_sink_bytes(self, channel=0, offset=9, nbytes=77) -> Tuple[bool, Dict[str, Any]]:
+        """SINK, byte-granular: a packed packet of nbytes to a byte address must
+        land exactly there; the neighbouring bytes of the touched beats keep
+        their background."""
+        bpb = self.STRB_WIDTH
+        self.log.info(f"=== SINK path (bytes): ch{channel}, offset {offset}, {nbytes} bytes ===")
+        desc_addr = self.DESC_BASE + channel * 0x1000
+        dst_addr = self.DST_BASE + channel * self.CHANNEL_OFFSET + offset
+        payload = bytes((0x80 + channel + i) & 0xFF for i in range(nbytes))
+        lo = dst_addr - dst_addr % bpb
+        hi = dst_addr + nbytes
+        hi = hi + (-hi % bpb)
+        bg = 0x5A
+        self.wr_mem.write(lo - self.DST_BASE, bytearray([bg] * (hi - lo)))
+        desc = self.create_descriptor(0, dst_addr, 0, channel_id=channel, length_bytes=nbytes)
+        self.register_descriptor(self.desc_snk_mem, desc_addr, desc)
+        words, strbs = self.pack_bytes(payload, bpb)
+        await self.send_axis_packet(channel, words, strbs=strbs)
+        await self.kick_off_channel('snk', channel, desc_addr)
+        errors = list(self.test_errors)
+        if not await self.wait_half_idle('snk', timeout_cycles=20000):
+            errors.append('snk half did not return to idle within 20000 cycles')
+        await self.wait_clocks(self.clk_name, 200)
+        got = self.read_sink_bytes(lo, hi - lo)
+        exp = bytearray([bg] * (hi - lo))
+        exp[dst_addr - lo:dst_addr - lo + nbytes] = payload
+        if got != bytes(exp):
+            first = next(i for i in range(len(exp)) if got[i] != exp[i])
+            errors.append(f"sink ch{channel}: byte 0x{lo + first:X} memory 0x{got[first]:02X} expected 0x{exp[first]:02X}")
+        se = self.read_sched_error('snk')
+        if se not in (0, -1):
+            errors.append(f"snk_sched_error=0x{se:X}")
+        for e in errors:
+            self.log.error(f"  SCOREBOARD: {e}")
+        if not errors:
+            self.log.info(f"  SCOREBOARD: sink bytes verified ({nbytes} bytes at offset {offset})")
+        return (len(errors) == 0), {'errors': errors}
+
     def read_sink(self, dst_addr, nbeats) -> List[int]:
         bpl = self.DATA_WIDTH // 8
         off = dst_addr - self.DST_BASE
@@ -710,6 +816,8 @@ class RapidsTopTB(TBBase):
         """AXIS slave callback: file each egress beat under its tid."""
         tid = int(pkt.fields.get('id', 0)) & (self.NUM_CHANNELS - 1)
         self.captured_axis.setdefault(tid, []).append(int(pkt.fields.get('data', 0)))
+        self.captured_axis_beats.setdefault(tid, []).append(
+            (int(pkt.fields.get('data', 0)), int(pkt.fields.get('strb', 0)), int(pkt.fields.get('last', 0))))
 
     async def initialize_test(self):
         self._mon_active = True

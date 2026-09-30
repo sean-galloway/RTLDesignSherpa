@@ -4,8 +4,11 @@
 product. Sean, 2026-09-29: "begin looking into the actual version of rapids
 where bytes are counted, BYTE ENABLES are used on AXI4 and there could be a
 single byte written on AXIS4."
-**Status:** OPEN 2026-09-29. This file is the investigation; the decisions
-listed at the end gate the design.
+**Status:** ACTIVE 2026-09-29. First cut committed (2bc82c2c3): the
+un-suffixed tree lints, and its fub, macro and top gate suites pass (see
+"Design as built" and "Verification record" below). Still open: the FPGA
+harness variant for the byte build, the HAS/MAS chapters, EXT descriptors
+with byte offsets, the full-level regressions.
 
 **Intent (Sean, 2026-09-29):** "The intent was always for rapids to be byte
 access. The beats version was a stepping stone. This is why there are

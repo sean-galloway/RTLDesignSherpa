@@ -305,11 +305,16 @@ class RapidsCoreTB(TBBase):
     # =========================================================================
 
     def create_descriptor(self, src_addr, dst_addr, length, gen_irq=False,
-                          last=True, channel_id=0) -> int:
+                          last=True, channel_id=0, length_bytes=None) -> int:
+        """Byte-granular RAPIDS (rapids TASK-019): the length field is in BYTES.
+        `length` is a beat count scaled by the beat size (the beat-era tests
+        read unchanged); `length_bytes` is an exact byte length."""
+        if length_bytes is None:
+            length_bytes = length * self.STRB_WIDTH
         desc = 0
         desc |= (src_addr & ((1 << 64) - 1))
         desc |= (dst_addr & ((1 << 64) - 1)) << 64
-        desc |= (length & 0xFFFFFFFF) << 128
+        desc |= (length_bytes & 0xFFFFFFFF) << 128
         desc |= (0 << 160)                        # next_descriptor_ptr
         desc |= (1 << 192)                        # valid
         desc |= ((1 if gen_irq else 0) << 193)
@@ -362,20 +367,40 @@ class RapidsCoreTB(TBBase):
             self.test_errors.append(f"apb_timeout_{half}_ch{channel}")
         return accepted
 
-    async def send_axis_packet(self, channel, beats: List[int]):
-        """Drive a sink-ingress packet on s_axis (tid=channel; tlast on final)."""
+    async def send_axis_packet(self, channel, beats: List[int], strbs: List[int] = None):
+        """Queue a sink-ingress packet on s_axis (tid=channel; tlast on final)
+        and return once it is in flight. The byte-granular ingress (TASK-019)
+        holds tready until the channel's descriptor has been fetched, so a
+        blocking send before the kick would deadlock; the beats are driven by
+        a background task (wait_axis_sent() waits for acceptance)."""
+        task = cocotb.start_soon(self._drive_axis_packet(channel, list(beats), strbs))
+        self._axis_tasks = getattr(self, '_axis_tasks', [])
+        self._axis_tasks.append(task)
+        await self.wait_clocks(self.clk_name, 1)
+        return task
+
+    async def _drive_axis_packet(self, channel, beats: List[int], strbs: List[int]):
         axis = self.axis_master['interface']
         n = len(beats)
         for i, val in enumerate(beats):
             pkt = axis.create_packet(
                 data=val,
-                strb=(1 << self.STRB_WIDTH) - 1,
+                strb=(strbs[i] if strbs else (1 << self.STRB_WIDTH) - 1),
                 id=channel,
                 dest=0,
                 user=0,
                 last=int(i == n - 1),
             )
             await axis.send(pkt)
+
+    async def wait_axis_sent(self, timeout_cycles: int = 20000) -> bool:
+        tasks = getattr(self, '_axis_tasks', [])
+        for _ in range(timeout_cycles):
+            if all(t.done() for t in tasks):
+                self._axis_tasks = []
+                return True
+            await self.wait_clocks(self.clk_name, 1)
+        return False
 
     def _on_axis_egress(self, pkt):
         """AXIS slave callback: file each egress beat under its tid."""
@@ -430,9 +455,10 @@ class RapidsCoreTB(TBBase):
     @staticmethod
     def drain_chunks(beats: int, drain: int) -> List[int]:
         """Beat counts of the AXIS packets a source descriptor of `beats` beats
-        leaves as, at drain size `drain` (the last one may be short)."""
-        drain = max(1, drain)
-        return [drain] * (beats // drain) + ([beats % drain] if beats % drain else [])
+        leaves as. Byte-granular RAPIDS (TASK-019) frames one packet per
+        descriptor; the drain size only paces the SRAM reservations (the beats
+        design cut the descriptor into drain-size packets)."""
+        return [beats]
 
     # =========================================================================
     # STATUS HELPERS

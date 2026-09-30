@@ -126,11 +126,16 @@ async def cocotb_test_ext_addressing(dut):
 
     await tb.kick_off_channel('src', channel, desc_addr)
 
+    # Busy-then-idle straight after the kick, BEFORE waiting for the capture:
+    # the beats-era test waited for the beats first, by which time the half
+    # was idle again, so wait_half_idle() reported "never left idle" on every
+    # run and the verdict was discarded (the same mis-order test_source_path
+    # fixed on 2026-09-27). Asserted here.
+    idle = await tb.wait_half_idle('src', timeout_cycles=20000)
     for _ in range(8000):
         await tb.wait_clocks(tb.clk_name, 1)
         if len(tb.captured_axis.get(channel, [])) >= beats:
             break
-    idle = await tb.wait_half_idle('src', timeout_cycles=20000)
     await tb.wait_clocks(tb.clk_name, 200)
 
     got = tb.captured_axis.get(channel, [])
@@ -186,6 +191,34 @@ async def cocotb_test_perf_ch_readout_wr(dut):
     ok, stats = await tb.test_perf_ch_readout_wr()
     tb.finalize_test()
     assert ok, f"write per-channel perf readout failed: {stats.get('errors')}"
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_source_bytes(dut):
+    """SOURCE datapath, byte-granular (rapids TASK-019): unaligned byte address,
+    odd byte length, one packet with a partial last beat."""
+    tb = RapidsTopTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    ok, stats = await tb.test_source_bytes(channel=1, offset=5, nbytes=77)
+    tb.finalize_test()
+    assert ok, f"source-path byte datapath failed: {stats.get('errors')}"
+    tb.assert_descriptors_fetched()
+    tb.log.info("rapids_top SOURCE bytes PASSED")
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_sink_bytes(dut):
+    """SINK datapath, byte-granular (rapids TASK-019): a packed packet with a
+    partial last beat to an unaligned byte address."""
+    tb = RapidsTopTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    ok, stats = await tb.test_sink_bytes(channel=2, offset=9, nbytes=77)
+    tb.finalize_test()
+    assert ok, f"sink-path byte datapath failed: {stats.get('errors')}"
+    tb.assert_descriptors_fetched()
+    tb.log.info("rapids_top SINK bytes PASSED")
 
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")
@@ -544,6 +577,22 @@ def _run_top(testcase, test_name, extra_params=None, test_level='gate'):
 def test_rapids_top_source(request, test_level):
     """SOURCE datapath: memory -> AXIS, config + kick over APB (by name)."""
     _run_top("cocotb_test_source_path", "test_rapids_top_source", test_level=test_level)
+
+
+@pytest.mark.top
+@pytest.mark.rapids_top
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_top_source_bytes(request, test_level):
+    """SOURCE datapath, byte-granular (rapids TASK-019)."""
+    _run_top("cocotb_test_source_bytes", "test_rapids_top_source_bytes", test_level=test_level)
+
+
+@pytest.mark.top
+@pytest.mark.rapids_top
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_top_sink_bytes(request, test_level):
+    """SINK datapath, byte-granular (rapids TASK-019)."""
+    _run_top("cocotb_test_sink_bytes", "test_rapids_top_sink_bytes", test_level=test_level)
 
 
 @pytest.mark.top
