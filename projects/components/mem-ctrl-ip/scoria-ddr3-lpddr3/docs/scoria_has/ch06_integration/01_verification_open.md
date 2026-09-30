@@ -26,7 +26,15 @@
 ## The target is the DFI boundary
 
 Verification is against the DV repository's DFI bus functional model, in cocotb.
-No board (Sean, 2026-09-29: sim now, board decision later).
+No board is required to verify scoria, and that has not changed.
+
+**A target board is now named, though** (Sean, 2026-09-30, Chapter 2.4): the
+Genesys 2 with `K7DDRPHY` and two MT41J256M16 devices at DDR3-800. That fixes
+the parameters the DUT is verified *with*, so the BFM should be configured to
+that geometry -- 8 banks, 32768 rows, 1024 columns, a 32-bit bus, four DFI
+phases -- rather than to an arbitrary one. Verifying at the geometry the design
+point uses is free, and verifying at a different one silently weakens every
+result.
 
 That boundary is chosen for the same reason pumice chose it: it is the one
 interface where the controller's obligations are fully specified by a standard,
@@ -195,7 +203,7 @@ MODIFIED to INHERITED — see Chapter 3.4.
 
 Three things, in order:
 
-1. A value chosen for `tWLMRD`'s maximum (Q4 reduced this to a one-line policy decision) and, if a board is selected, its PHY's DFI low-power behaviour confirmed against Q1's assumption.
+1. A value chosen for `tWLMRD`'s maximum -- Q4 reduced this to a one-line policy decision, and with CK at 2.5 ns on the named target a generous bound is easy to pick.
 2. The RTL written, and this document reconciled against it — with every
    INHERITED marking either confirmed or corrected. A marking that turns out to
    be wrong is a defect in this document, and the correction goes here rather

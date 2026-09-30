@@ -23,7 +23,7 @@
 
 # scoria DDR3/LPDDR3 Family Controller — Hardware Architecture Specification
 
-**Version:** 0.4
+**Version:** 0.5
 **Date:** 2026-09-29
 **Status:** v0.4, pre-RTL. **No open questions remain** -- Q1-Q5 are answered or struck (Ch 6). This document SPECIFIES the controller; it
 does not describe an implementation, because there is none yet. Every block is
@@ -50,6 +50,7 @@ this one.
 | DFI revision | v3.1; its DDR4/LPDDR4 surface stays unimplemented | Ch 4 |
 | Write leveling | firmware-driven; no hardware calibration FSM | Ch 3, Ch 6 |
 | Package | own `scoria_pkg`; shared family package when DDR4 starts | Ch 5 |
+| Target design point | Genesys 2, K7DDRPHY, 2 x MT41J256M16, DDR3-800, 3200 MB/s peak | Ch 2.4 |
 
 : Table 0.0: Settled decisions binding on this specification
 
@@ -74,6 +75,7 @@ this one.
 - [Scope and Goals](ch02_overview/01_scope.md)
 - [Block Diagram](ch02_overview/02_block_diagram.md)
 - [Module Hierarchy](ch02_overview/03_module_hierarchy.md)
+- [The Target Design Point](ch02_overview/04_design_point.md)
 
 ### Chapter 3: Architecture
 

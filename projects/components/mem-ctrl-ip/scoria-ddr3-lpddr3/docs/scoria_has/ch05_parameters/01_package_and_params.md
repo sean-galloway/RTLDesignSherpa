@@ -68,6 +68,12 @@ explain.
 ratio, CAM depths, bank and rank counts. The test is whether changing it changes
 the amount of hardware.
 
+**As of v0.5 these have values,** fixed by the target design point in
+Chapter 2.4: `DFI_RATE = 4` (the PHY's `nphases`), `NUM_BANKS = 8`, row width 15,
+column width 10, DQ width 32, `NUM_RANKS = 1`. The DDR3-800 JEDEC timing set for
+the part is tabulated there too, and those remain runtime CSRs initialized to
+those values.
+
 | Kind | Build-time or runtime | Examples |
 |---|---|---|
 | Bus and geometry | build | data width, address width, `NUM_BANKS`, `NUM_RANKS`, CAM depths |
