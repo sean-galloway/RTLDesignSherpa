@@ -4,7 +4,10 @@ Lock the architecture spec, so the PRD stub ("to be authored once HAS is
 locked") and the RTL both have a fixed target.
 
 **Priority:** P1 — this is the gating item for all scoria work.
-**Status:** open 2026-09-29 (Sean: "HAS first, then RTL")
+**Status:** ACTIVE. HAS v0.1 authored 2026-09-29 (`docs/scoria_has/`, 37 pages).
+D1-D3 settled and recorded. Remaining: the five open questions in HAS Chapter 6,
+and replacing the PRD stub, whose stated blocker (a locked HAS) is now partly gone
+-- v0.1 is implementable but not yet 1.0.
 **Depends on:** nothing. Supersedes nothing.
 
 ## Where it starts from
