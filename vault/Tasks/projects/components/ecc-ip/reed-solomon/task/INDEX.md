@@ -20,7 +20,7 @@ by construction rather than by discipline.
 
 ## Active
 
-- **TASK-001** — Stand up the Reed-Solomon component -- ACTIVE 2026-09-29: area created, References/ + draft PRD; RTL waits on the PRD decisions
+- **TASK-001** — Stand up the Reed-Solomon component -- ACTIVE 2026-09-29: area, References/, draft PRD (D1/D6/D7/D9/D11/D12 decided), FUB catalog, HAS v0.1 draft (d04ef971f); RTL waits on D2/D3/D5/D10
 
 ## Open
 
