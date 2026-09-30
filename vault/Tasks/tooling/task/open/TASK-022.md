@@ -59,11 +59,48 @@ rather than being masked as success.
     injected bridge (cocotb channel or mock) holds nothing, because locking the
     sim path would exclude real board runs for no reason and teach people to
     route around the lock. Same reasoning as leaving `host-*` alone.
-  - **Still open for the rapids runners.** `run_characterization.py` and the
-    other `flows-rapids` host scripts do not take the lock. Interim: wrap the
-    call -- `board_lock.sh --board genesys2 -- python3 .../run_characterization.py ...`
-    (the script execs the payload, so the lock holds for the run's whole life).
-    The durable fix is each runner taking the lock, as scoria's driver now does.
+  - **Closed for rapids too (e2e185eb7).** `board_guard.py` wraps the lock and
+    the identity readback, and is wired into `run_characterization.py`,
+    `run_sink_once.py` and `dump_status.py`. It imports scoria's `board_lock.py`
+    from its home rather than copying it, so there is still one key derivation
+    and one exit code. Only the real-serial-port path uses it; the UART sim
+    campaign injects its transport and never reaches it.
+  - So the direct-invocation hole is closed for both board areas. What remains is
+    below, and it is a defect in the lock itself rather than in its adoption.
+
+- **PROVEN DEFECT: taking the lock inside a runner launched under make
+  deadlocks against its own lock.** `board_lock.sh` execs the payload with fd 9
+  still holding the flock; the payload then opens the same file and takes a
+  SECOND flock on a different descriptor, which the kernel refuses. Demonstrated
+  directly:
+
+        board_lock.sh --board genesys2 -- python3 -c "with BoardLock('genesys2'): ..."
+        -> BoardBusy
+
+  - **rapids is protected, scoria is not.** rapids' `board_guard._inherited_fd()`
+    walks `/proc/self/fd` for a descriptor on the lock path and tries to re-lock
+    it -- which succeeds only if this process tree already owns the lock, so a
+    descriptor merely open on the file does not count. `board_lock.py` itself has
+    **no** inherited-fd handling, so `DDR3CharDriver` takes `BoardLock` in its
+    constructor and will fail with 98 against itself the moment it is launched
+    through a make target. It works today only because it is launched directly.
+  - **The fix belongs in `BoardLock.__enter__`**, not in each wrapper -- promote
+    rapids' detection into the shared module so every consumer inherits it. The
+    same argument that put the readback in the `program` path rather than
+    per-harness.
+  - **The interop test does not cover this**, which is why it passed while the
+    defect existed. A nested case (`board_lock.sh` wrapping a payload that takes
+    the Python lock) belongs in
+    `projects/fpga-systems/bin/test_board_lock_interop.py` alongside the fix.
+  - A lock that refuses its own holder gets "fixed" by someone deleting the lock,
+    which is why this is the live item rather than a footnote.
+
+- **The readback exists for rapids only.** `board_guard.py` runs
+  `jtag_readback.tcl` through vivado and compares the target serial to the
+  registry at start and end. That is the right behaviour, but it lives in the
+  rapids flow -- `fpga_board.py` still has no readback subcommand, so the other
+  board consumers do not inherit it. Putting it in the `program` path remains
+  unbuilt.
 - **The two lock implementations are now PINNED by a CI test.** Two
   implementations of one key with nothing asserting they agree is worse than no
   lock -- both sides acquire and each believes it owns the board, with no error
