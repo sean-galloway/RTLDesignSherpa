@@ -161,8 +161,27 @@ The rules:
   rules that exist to touch specific hardware are the two outside the lock,
   while VIVADO_LOCKED wraps only project/synth/build/ila (:418 :424 :432
   :441). FPGA_JTAG_SERIAL is resolved for targeting and never used as a lock
-  key. 16 Makefiles inherit fpga_flow.mk -- that is the blast radius for
-  whoever takes the fix.
+  key.
+  And for three areas "wrong granularity" understates it -- there is no lock
+  in the path at all. fpga_board.mk has THREE consumers that never include
+  fpga_flow.mk: Genesys2/rapids/flows-rapids (the near miss itself),
+  Genesys2/rapids_beats/flows-rapids-beats, and
+  asic-trials/timing_characterization/fpga. So the flow that was mid-
+  characterization was never partially protected; a lock added to
+  fpga_flow.mk would miss those three AND the program path, i.e. it would miss
+  the incident it was written for. The lock belongs in fpga_board.mk, the one
+  file every board-touching path reaches -- as does the device-ID readback
+  (a sha256 of what you programmed cannot detect a third party; a device ID
+  read at start and end can).
+  Consumer count, measured three times and wrong twice: 13 Makefiles, 10 via
+  fpga_flow.mk and 3 via fpga_board.mk only. Earlier answers of 17 and 16 were
+  MENTION counts -- `grep -l fpga_flow.mk` matches six area-dispatcher
+  Makefiles whose only reference is a COMMENT saying the per-build Makefile
+  includes it -- one of them written by the session that then quoted the
+  number -- and Genesys2/stream/stream.mk is a fragment included by three
+  Makefiles already counted, not a consumer. Grep for `include.*fpga_flow\.mk`,
+  not for the filename: a blast-radius figure is the one number a fix's
+  acceptance criteria will inherit unchecked.
   fpga_board.mk already argues the principle one level short of the
   conclusion: "Silently programming a different bitstream than the one you
   just built is a worse failure than refusing: it is how a board result gets
