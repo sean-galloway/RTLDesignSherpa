@@ -67,6 +67,25 @@ when `SIM` is unset. `env_python` sets `SIM=verilator`, so every in-tree path is
 unaffected -- but a bare invocation without `env_python` would now pick a
 different simulator rather than failing.
 
+## Blocked on a quiet tree (checked 2026-09-30)
+
+The remaining acceptance is a **broader** run than the pilot: `val/amba`, a
+`fabric-gen-ip/bridge` area and a `dma-ip` area, each baselined against 0.2.5 on
+the same seeds first. That is four heavy regressions, and it is not startable
+right now -- measured, not assumed:
+
+    python3 -m pytest test_rs_loop_uart.py -q                    (Reed-Solomon)
+    pytest dv/test_rapids_byte_sim_campaign.py -k aligned_word_crc  (rapids)
+
+Both are live on the shared venv. The isolated-venv trick that made the first
+pilot safe does not help here: an isolated venv keeps the *dependency* off the
+peers, but four parallel regressions still contend for the same cores, and one of
+those live suites is a UART loop where added load is not neutral.
+
+**Start this when the tree is idle**, verify with `pgrep -af "verilator|vivado|pytest"`
+before beginning, and announce it to both peers first -- the 2026-09-30 outage was
+caused by exactly an unannounced dependency change.
+
 ## Acceptance
 
 - 0.3.0 exercised against a representative set at a real level -- not just
@@ -96,4 +115,5 @@ different simulator rather than failing.
 - `requirements.txt` lines 6-10 (the pins that currently protect the tree)
 - RTLDesignSherpa-DV `2b20629` -- the `[sim]` extra requiring `cocotb-test>=0.3.0`
 - RTLDesignSherpa `8344e6852` -- `cocotb-framework` pin 0.6.5 -> 0.6.8
-- [[TASK-021]] -- the other loose end from the same release
+- [[TASK-021]] -- the other loose end from the same release; CLOSED 2026-09-30
+- [[TASK-023]] -- the `env_python` venv-selection trap, found while verifying TASK-021's guard; relevant here because it is another way a dependency verdict can be measured against the wrong tree
