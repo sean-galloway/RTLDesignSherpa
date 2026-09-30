@@ -39,6 +39,8 @@ the first table, top to bottom.
 9. S. B. Wicker and V. K. Bhargava (eds.), *Reed-Solomon Codes and Their Applications*, IEEE Press 1994. The applications survey (CD, deep space, storage).
 10. S. Lin and D. J. Costello, *Error Control Coding*, 2nd ed., Prentice Hall 2004, ch. 6-7; R. E. Blahut, *Algebraic Codes for Data Transmission*, Cambridge 2003; T. K. Moon, *Error Correction Coding*, Wiley 2005, ch. 5-6 (Moon includes GF arithmetic implementations). Textbook treatments.
 11. B. Sklar, "Reed-Solomon Codes", supplementary chapter to *Digital Communications*, Prentice Hall -- a widely mirrored tutorial PDF; find it by title.
+12. H. M. Shao, T. K. Truong, L. J. Deutsch, J. H. Yuen, I. S. Reed, "A VLSI Design of a Pipeline Reed-Solomon Decoder", *IEEE Trans. Computers* C-34(5), 393-403, 1985. The modified (inversionless, cross-multiplying) Euclidean array that hardware Euclid solvers descend from -- the `KES_ALGO = "EUCLID"` branch.
+13. J. H. Baek and M. H. Sunwoo, "New Degree Computationless Modified Euclid Algorithm and Architecture for Reed-Solomon Decoder", *IEEE Trans. VLSI Systems* 14(8), 915-920, 2006. Removes the degree counters from the Euclidean PE; the variant to reach for if the Euclid branch's control path limits clock.
 
 ## Open-access reading (arXiv; theory, not hardware -- for background only)
 

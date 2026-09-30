@@ -61,7 +61,8 @@ Decisions this catalog assumes (PRD section 3): riBM solver (D11),
 | Block | What it does | Instantiates |
 |---|---|---|
 | `gf_syndrome_cell` | One Horner evaluator: `S <= S * alpha^(b+i) + symbol` on every received symbol; after n symbols holds syndrome S_i. | `gf_mul_const` x1 (CONST = alpha^(b+i)) |
-| `ribm_pe` | One processing element of the reformulated inversionless Berlekamp-Massey systolic array: two registers, two GF multiplies (discrepancy x error-locator term, gamma x auxiliary term), a subtract (XOR) and the swap mux driven by the control flags. | `gf_mul` x2 |
+| `ribm_pe` | One processing element of the reformulated inversionless Berlekamp-Massey systolic array: two registers, two GF multiplies (discrepancy x error-locator term, gamma x auxiliary term), a subtract (XOR) and the swap mux driven by the control flags. Used when `KES_ALGO = "RIBM"`. | `gf_mul` x2 |
+| `euclid_pe` | One processing element of the modified (inversionless) Euclidean systolic array: holds one coefficient of the remainder pair (R, Q) and of the quotient-accumulator pair (L, U); each step cross-multiplies by the two leading coefficients (`a*R_i + b*Q_i`, same for L/U), shifts, and swaps the pair when the degree compare says so. Used when `KES_ALGO = "EUCLID"`. | `gf_mul` x4 (two per polynomial pair) |
 | `chien_cell` | One Chien register: `c_j <= c_j * alpha^(-j)` per position; the sum of all cells is Lambda(alpha^-i). | `gf_mul_const` x1 (CONST = alpha^(-j)) |
 | `gf_lfsr_encoder` | The systematic encoder: a 2t-stage LFSR over GF(2^m) with generator-polynomial taps. k data symbols shift through, then the register holds the 2t parity symbols. Cleared at block start, no seed. | `gf_mul_const` x2t = 16 (one per generator coefficient) |
 | `forney_evaluator` | Error magnitude at a located position: Omega(X^-1) / Lambda'(X^-1), times the first-root correction. Omega is evaluated by Horner (t cells), Lambda' comes from the odd Chien cells (shared, not duplicated), one inverse per error. | `gf_mul_const` x t = 8, `gf_mul` x2, `gf_inv` x1 |
@@ -82,7 +83,8 @@ Decisions this catalog assumes (PRD section 3): riBM solver (D11),
 | Block | What it does | Instantiates |
 |---|---|---|
 | `syndrome_unit` | All 2t syndromes at once, one cell per root, updated per received symbol; the all-zero test that lets an error-free block bypass the solver. | `gf_syndrome_cell` x2t = 16 |
-| `key_equation_solver` | The riBM array: 3t + 1 processing elements stepped 2t times under one control FSM (discrepancy select, gamma update, degree tracking). Produces Lambda(x) and Omega(x); flags degree > t as uncorrectable. | `ribm_pe` x(3t+1) = 25, `counter_bin` x1 (iteration) |
+| `key_equation_solver_ribm` | The riBM array (`KES_ALGO = "RIBM"`, the default -- PRD D11): 3t + 1 processing elements stepped 2t times under one control FSM (discrepancy select, gamma update, degree tracking). Produces Lambda(x) and Omega(x); flags degree > t as uncorrectable. | `ribm_pe` x(3t+1) = 25, `counter_bin` x1 (iteration) |
+| `key_equation_solver_euclid` | The modified Euclidean array (`KES_ALGO = "EUCLID"`): Sugiyama's algorithm in the inversionless, cross-multiplying form of Shao et al. Starts from R = x^2t, Q = S(x), runs 2t iterations of the systolic array, tracks the two degrees, stops when deg R < t. Produces the same Lambda(x) and Omega(x) as riBM up to a common nonzero scale factor (harmless: Forney takes their ratio and Chien finds roots); flags deg Lambda > t as uncorrectable. Same ports as the riBM solver, so the core swaps one for the other with a generate. | `euclid_pe` x2t = 16, `counter_bin` x3 (iteration, deg R, deg Q) |
 | `chien_search` | Evaluates Lambda at every position, one per cycle, and flags the roots; also exports the odd-cell sum (Lambda') for Forney. | `chien_cell` x(t+1) = 9, `counter_bin` x1 (position) |
 | `block_buffer` | Holds the received block while the syndromes, solver and Chien run; read in lock-step with `chien_search` so the corrector meets each symbol at its position. Depth = n + 2t + pipeline, rounded up (512 for n = 255). | `gaxi_fifo_sync` x1 (DATA_WIDTH = S x (m + 1 erasure bit)) |
 | `axis4_slave_monlite` / `axis4_master_monlite` (repo) | The AXIS wrappers with the lite monitor attached. | `axis4_slave` (or `_master`) x1, `axis_monitor_lite` x1 |
@@ -92,7 +94,7 @@ Decisions this catalog assumes (PRD section 3): riBM solver (D11),
 | Block | What it does | Instantiates |
 |---|---|---|
 | `rs_encoder_core` | k data symbols in, n symbols out, systematic. `in_valid/ready/data/last` -> `out_valid/ready/data/last`. Drops into a consumer's write or transmit path. | `symbol_unpack` x1, `gf_lfsr_encoder` x1, `parity_mux` x1, `symbol_pack` x1, `gaxi_skid_buffer` x2 (after unpack, before pack), `line_randomizer` x0/1 (D12) |
-| `rs_decoder_core` | n symbols in (erasure bits optional), k corrected symbols out with a per-block status valid on `last`. Drops into a consumer's read or receive path. | `symbol_unpack` x1, `block_buffer` x1, `syndrome_unit` x1, `erasure_locator` x0/1 (D5), `key_equation_solver` x1, `chien_search` x1, `forney_evaluator` x1, `corrector` x1, `rs_status_counters` x1, `symbol_pack` x1, `gaxi_skid_buffer` x3 (after unpack, solver-to-Chien handoff, before pack), `line_randomizer` x0/1 (D12) |
+| `rs_decoder_core` | n symbols in (erasure bits optional), k corrected symbols out with a per-block status valid on `last`. Drops into a consumer's read or receive path. `KES_ALGO` selects the solver; nothing else in the core changes between the two. | `symbol_unpack` x1, `block_buffer` x1, `syndrome_unit` x1, `erasure_locator` x0/1 (D5), `key_equation_solver_ribm` OR `key_equation_solver_euclid` x1 (generate on `KES_ALGO`), `chien_search` x1, `forney_evaluator` x1, `corrector` x1, `rs_status_counters` x1, `symbol_pack` x1, `gaxi_skid_buffer` x3 (after unpack, solver-to-Chien handoff, before pack), `line_randomizer` x0/1 (D12) |
 
 ## Level 4 -- optional standalone adapters and tops (PRD D9, `INTAKE_IF` / `OUTLET_IF` != NONE)
 
@@ -111,10 +113,10 @@ Decisions this catalog assumes (PRD section 3): riBM solver (D11),
 | Primitive | Encoder core | Decoder core | Formula |
 |---|---:|---:|---|
 | `gf_mul_const` | 16 | 33 | encoder 2t; decoder 2t (syndromes) + t+1 (Chien) + t (Forney) |
-| `gf_mul` | 0 | 52 | decoder 2(3t+1) (riBM) + 2 (Forney); + t with erasures |
+| `gf_mul` | 0 | 52 riBM / 66 Euclid | decoder 2(3t+1) riBM = 50, or 4(2t) Euclid = 64; + 2 (Forney); + t with erasures |
 | `gf_inv` | 0 | 1 | Forney |
-| symbol registers in GF datapaths | 16 | 16 + 2(3t+1) + 9 = 75 | encoder LFSR 2t; decoder syndromes 2t, riBM 2(3t+1), Chien t+1 |
-| `counter_bin` | 3 | 8 | encoder unpack, parity mux, pack; decoder unpack, solver, Chien, erasure (opt), corrector, status x3, pack (block_buffer adds 2 more inside its FIFO) |
+| symbol registers in GF datapaths | 16 | 75 riBM / 89 Euclid | encoder LFSR 2t; decoder syndromes 2t + Chien t+1 + solver: riBM 2(3t+1) = 50, Euclid 4(2t) = 64 |
+| `counter_bin` | 3 | 8 riBM / 10 Euclid | encoder unpack, parity mux, pack; decoder unpack, solver, Chien, erasure (opt), corrector, status x3, pack (block_buffer adds 2 more inside its FIFO) |
 | `gaxi_skid_buffer` | 2 | 3 | stage boundaries |
 | `gaxi_fifo_sync` | 0 | 1 (512 x 9) | block buffer |
 | `shifter_lfsr_galois` | 0/1 | 0/1 | `ENABLE_SCRAMBLER` |
@@ -130,6 +132,26 @@ the buffer drains through the corrector -- about 2n + 2t + pipeline, of which
 the second n overlaps the next block's arrival. Throughput is therefore one
 block per n cycles once pipelined, with the block buffer sized for that
 overlap.
+
+## The two solvers, side by side (`KES_ALGO`)
+
+Only three rows above differ between them: the Level 1 PE, the Level 2 solver
+and the decoder core's generate. Syndromes, Chien, Forney, the buffer and the
+corrector are identical and do not know which solver produced Lambda.
+
+| | riBM (default) | modified Euclidean |
+|---|---|---|
+| Array length | 3t + 1 PEs | 2t PEs |
+| GF multipliers | 2 per PE = 6t + 2 (50) | 4 per PE = 8t (64) |
+| Iterations | 2t | 2t (at most; can stop early when deg R < t) |
+| Critical path per step | one multiply + one XOR, no feedback across the array | cross-multiply + degree compare feeding the swap decision -- longer, and the reason riBM is the default |
+| Control | discrepancy select, gamma update | two degree counters and the swap rule (the degree-computationless variant of Baek and Sunwoo removes the counters at the cost of a wider PE) |
+| Output | Lambda, Omega | Lambda, Omega, scaled by a common factor |
+| Readability | dense; the reformulation is not obvious from the textbook BM | the textbook algorithm, recognisable step by step |
+
+Both are verified against the same golden model on the same blocks, and the
+equivalence check is direct: identical Chien root sets and identical Forney
+values for every corrected block.
 
 ## Where the reuse stops
 

@@ -15,8 +15,9 @@ only what is particular to this directory.
 
 symbol width m; correctable symbols t; shortening; encoder-only vs full
 decoder; erasures; throughput (symbols per cycle); BCH in scope or not;
-the first consumer. DECIDED: the key-equation solver is riBM (PRD D11,
-Sean 2026-09-29) -- do not reopen Euclidean. DECIDED: `SYMBOL_WIDTH` is a
+the first consumer. DECIDED: the key-equation solver is `KES_ALGO`-selectable, riBM
+(default) or the modified Euclidean array (PRD D11, Sean 2026-09-29); only the
+PE and the solver block differ, verified against one golden model. DECIDED: `SYMBOL_WIDTH` is a
 top parameter, `DATA_WIDTH` must be a multiple of it, `SYMBOLS_PER_BEAT` is
 derived (PRD D1, Sean 2026-09-29) -- never derive m from the bus width. DECIDED: the scrambler is behind
 `ENABLE_SCRAMBLER` (PRD D12, Sean 2026-09-29). DECIDED: the deliverable is

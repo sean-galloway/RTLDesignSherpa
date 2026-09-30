@@ -69,3 +69,8 @@ the AXIS/AXI4 boundaries are optional adapters (`INTAKE_IF`/`OUTLET_IF` default
 
 **2026-09-29 -- `docs/rs_fub_catalog.md`** (Sean's ask): every FUB bottom-up with
 all instantiated components and counts; the sketch's FUB table now points at it.
+
+**2026-09-29 -- D11 widened (Sean):** a Euclidean solver too, selectable by
+`KES_ALGO` (riBM default). Affected blocks only: `euclid_pe` (L1),
+`key_equation_solver_euclid` (L2), the decoder core's generate; catalog compares
+the two; References gain Shao 1985 and Baek-Sunwoo 2006.

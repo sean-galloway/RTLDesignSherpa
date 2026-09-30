@@ -47,7 +47,7 @@ flowchart LR
         DU --> BB["block_buffer<br/>gaxi_fifo_sync, n + latency deep"]
         DU --> SY["syndrome_unit<br/>2t gf_mac cells"]
         DU --> EL["erasure_locator<br/>(optional, D5)"]
-        SY --> KE["key_equation_solver<br/>riBM: 3t+1 gf_mul, 2t iterations"]
+        SY --> KE["key_equation_solver<br/>KES_ALGO = RIBM: 3t+1 PEs (default)<br/>KES_ALGO = EUCLID: 2t PEs, modified Euclidean"]
         EL --> KE
         KE --> CH["chien_search<br/>t+1 gf_mul_const cells, 1 root test / cycle"]
         KE --> FO["forney_evaluator<br/>gf_inv + gf_mul"]
@@ -130,7 +130,9 @@ n = 544 so the buffer is 1024 deep, and D6 forces the parallel branch.
 ## What this sketch does not decide
 
 Everything in PRD section 3 except the solver and the boundary: **riBM is
-decided** (Sean, 2026-09-29; PRD D11), and **the deliverable is the
+the default solver, with the modified Euclidean array selectable by
+`KES_ALGO`** (Sean, 2026-09-29; PRD D11; the two are compared in the FUB
+catalog), and **the deliverable is the
 valid/ready core, with AXIS or AXI4 adapters selectable independently at each
 end for standalone use** (PRD D9). The block is an endpoint codec, not a
 mid-stream insert (PRD 4a). Euclidean was the alternative most FPGA cores use and is
