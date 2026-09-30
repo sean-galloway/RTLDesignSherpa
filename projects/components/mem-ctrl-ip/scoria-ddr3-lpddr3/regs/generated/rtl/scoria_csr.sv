@@ -106,6 +106,7 @@ module scoria_csr (
         logic WRLVL_TIMING2;
         logic WRLVL_STATUS0;
         logic WRLVL_STATUS1;
+        logic ZQ_OBS_INTERVAL;
         logic REF_CTRL;
         logic REF_TIMING_PB;
         logic PAGE_STATS_HIT;
@@ -172,6 +173,7 @@ module scoria_csr (
         decoded_reg_strb.WRLVL_TIMING2 = cpuif_req_masked & (cpuif_addr == 12'hdc);
         decoded_reg_strb.WRLVL_STATUS0 = cpuif_req_masked & (cpuif_addr == 12'he0);
         decoded_reg_strb.WRLVL_STATUS1 = cpuif_req_masked & (cpuif_addr == 12'he4);
+        decoded_reg_strb.ZQ_OBS_INTERVAL = cpuif_req_masked & (cpuif_addr == 12'he8);
         decoded_reg_strb.REF_CTRL = cpuif_req_masked & (cpuif_addr == 12'h140);
         decoded_reg_strb.REF_TIMING_PB = cpuif_req_masked & (cpuif_addr == 12'h144);
         decoded_reg_strb.PAGE_STATS_HIT = cpuif_req_masked & (cpuif_addr == 12'h148);
@@ -2383,6 +2385,9 @@ module scoria_csr (
         if(decoded_reg_strb.WRLVL_CFG && decoded_req_is_wr) begin // SW write
             next_c = (field_storage.WRLVL_CFG.wrlvl_strobe.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
             load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
         end
         field_combo.WRLVL_CFG.wrlvl_strobe.next = next_c;
         field_combo.WRLVL_CFG.wrlvl_strobe.load_next = load_next_c;
@@ -2667,7 +2672,7 @@ module scoria_csr (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[63];
+    logic [31:0] readback_array[64];
     assign readback_array[0][0:0] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_start.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_force_restart.value : '0;
     assign readback_array[0][3:2] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
@@ -2788,8 +2793,7 @@ module scoria_csr (
     assign readback_array[38][16:16] = (decoded_reg_strb.ZQ_STATUS && !decoded_req_is_wr) ? hwif_in.ZQ_STATUS.zq_busy.next : '0;
     assign readback_array[38][17:17] = (decoded_reg_strb.ZQ_STATUS && !decoded_req_is_wr) ? hwif_in.ZQ_STATUS.zq_overdue.next : '0;
     assign readback_array[38][31:18] = '0;
-    assign readback_array[39][0:0] = (decoded_reg_strb.WRLVL_CFG && !decoded_req_is_wr) ? field_storage.WRLVL_CFG.wrlvl_strobe.value : '0;
-    assign readback_array[39][3:1] = '0;
+    assign readback_array[39][3:0] = '0;
     assign readback_array[39][7:4] = (decoded_reg_strb.WRLVL_CFG && !decoded_req_is_wr) ? field_storage.WRLVL_CFG.wrlvl_cs_sel.value : '0;
     assign readback_array[39][31:8] = '0;
     assign readback_array[40][15:0] = (decoded_reg_strb.WRLVL_TIMING0 && !decoded_req_is_wr) ? field_storage.WRLVL_TIMING0.t_wldqsen.value : '0;
@@ -2810,34 +2814,35 @@ module scoria_csr (
     assign readback_array[44][15:13] = '0;
     assign readback_array[44][16:16] = (decoded_reg_strb.WRLVL_STATUS1 && !decoded_req_is_wr) ? hwif_in.WRLVL_STATUS1.wrlvl_en.next : '0;
     assign readback_array[44][31:17] = '0;
-    assign readback_array[45][1:0] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.mode.value : '0;
-    assign readback_array[45][3:2] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
-    assign readback_array[45][7:4] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.postpone_limit.value : '0;
-    assign readback_array[45][11:8] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.pullin_limit.value : '0;
-    assign readback_array[45][12:12] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? hwif_in.REF_CTRL.perbank_supported.next : '0;
-    assign readback_array[45][31:13] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 19'h0 : '0;
-    assign readback_array[46][15:0] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? field_storage.REF_TIMING_PB.trefi_pb.value : '0;
-    assign readback_array[46][23:16] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? field_storage.REF_TIMING_PB.trfc_pb.value : '0;
-    assign readback_array[46][31:24] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[47][31:0] = (decoded_reg_strb.PAGE_STATS_HIT && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_HIT.VAL.next : '0;
-    assign readback_array[48][31:0] = (decoded_reg_strb.PAGE_STATS_MISS && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_MISS.VAL.next : '0;
-    assign readback_array[49][31:0] = (decoded_reg_strb.PAGE_STATS_EMPTY && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_EMPTY.VAL.next : '0;
-    assign readback_array[50][31:0] = (decoded_reg_strb.SCHED_STATS_ACT && !decoded_req_is_wr) ? hwif_in.SCHED_STATS_ACT.VAL.next : '0;
-    assign readback_array[51][31:0] = (decoded_reg_strb.SCHED_STATS_PRE && !decoded_req_is_wr) ? hwif_in.SCHED_STATS_PRE.VAL.next : '0;
-    assign readback_array[52][31:0] = (decoded_reg_strb.REF_STATS_REF && !decoded_req_is_wr) ? hwif_in.REF_STATS_REF.VAL.next : '0;
-    assign readback_array[53][31:0] = (decoded_reg_strb.STALL_BP && !decoded_req_is_wr) ? hwif_in.STALL_BP.VAL.next : '0;
-    assign readback_array[54][31:0] = (decoded_reg_strb.STALL_REFRESH && !decoded_req_is_wr) ? hwif_in.STALL_REFRESH.VAL.next : '0;
-    assign readback_array[55][31:0] = (decoded_reg_strb.STALL_TURNAROUND && !decoded_req_is_wr) ? hwif_in.STALL_TURNAROUND.VAL.next : '0;
-    assign readback_array[56][31:0] = (decoded_reg_strb.STALL_TCCD && !decoded_req_is_wr) ? hwif_in.STALL_TCCD.VAL.next : '0;
-    assign readback_array[57][31:0] = (decoded_reg_strb.STALL_ACTLIMIT && !decoded_req_is_wr) ? hwif_in.STALL_ACTLIMIT.VAL.next : '0;
-    assign readback_array[58][31:0] = (decoded_reg_strb.STALL_BANKTIMER && !decoded_req_is_wr) ? hwif_in.STALL_BANKTIMER.VAL.next : '0;
-    assign readback_array[59][31:0] = (decoded_reg_strb.STALL_NOREQ && !decoded_req_is_wr) ? hwif_in.STALL_NOREQ.VAL.next : '0;
-    assign readback_array[60][31:0] = (decoded_reg_strb.REF_STATS_REF_BUSY && !decoded_req_is_wr) ? hwif_in.REF_STATS_REF_BUSY.VAL.next : '0;
-    assign readback_array[61][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
-    assign readback_array[61][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[61][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
-    assign readback_array[61][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
-    assign readback_array[62][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[45][31:0] = (decoded_reg_strb.ZQ_OBS_INTERVAL && !decoded_req_is_wr) ? hwif_in.ZQ_OBS_INTERVAL.zq_interval_cnt.next : '0;
+    assign readback_array[46][1:0] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.mode.value : '0;
+    assign readback_array[46][3:2] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
+    assign readback_array[46][7:4] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.postpone_limit.value : '0;
+    assign readback_array[46][11:8] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.pullin_limit.value : '0;
+    assign readback_array[46][12:12] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? hwif_in.REF_CTRL.perbank_supported.next : '0;
+    assign readback_array[46][31:13] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 19'h0 : '0;
+    assign readback_array[47][15:0] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? field_storage.REF_TIMING_PB.trefi_pb.value : '0;
+    assign readback_array[47][23:16] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? field_storage.REF_TIMING_PB.trfc_pb.value : '0;
+    assign readback_array[47][31:24] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[48][31:0] = (decoded_reg_strb.PAGE_STATS_HIT && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_HIT.VAL.next : '0;
+    assign readback_array[49][31:0] = (decoded_reg_strb.PAGE_STATS_MISS && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_MISS.VAL.next : '0;
+    assign readback_array[50][31:0] = (decoded_reg_strb.PAGE_STATS_EMPTY && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_EMPTY.VAL.next : '0;
+    assign readback_array[51][31:0] = (decoded_reg_strb.SCHED_STATS_ACT && !decoded_req_is_wr) ? hwif_in.SCHED_STATS_ACT.VAL.next : '0;
+    assign readback_array[52][31:0] = (decoded_reg_strb.SCHED_STATS_PRE && !decoded_req_is_wr) ? hwif_in.SCHED_STATS_PRE.VAL.next : '0;
+    assign readback_array[53][31:0] = (decoded_reg_strb.REF_STATS_REF && !decoded_req_is_wr) ? hwif_in.REF_STATS_REF.VAL.next : '0;
+    assign readback_array[54][31:0] = (decoded_reg_strb.STALL_BP && !decoded_req_is_wr) ? hwif_in.STALL_BP.VAL.next : '0;
+    assign readback_array[55][31:0] = (decoded_reg_strb.STALL_REFRESH && !decoded_req_is_wr) ? hwif_in.STALL_REFRESH.VAL.next : '0;
+    assign readback_array[56][31:0] = (decoded_reg_strb.STALL_TURNAROUND && !decoded_req_is_wr) ? hwif_in.STALL_TURNAROUND.VAL.next : '0;
+    assign readback_array[57][31:0] = (decoded_reg_strb.STALL_TCCD && !decoded_req_is_wr) ? hwif_in.STALL_TCCD.VAL.next : '0;
+    assign readback_array[58][31:0] = (decoded_reg_strb.STALL_ACTLIMIT && !decoded_req_is_wr) ? hwif_in.STALL_ACTLIMIT.VAL.next : '0;
+    assign readback_array[59][31:0] = (decoded_reg_strb.STALL_BANKTIMER && !decoded_req_is_wr) ? hwif_in.STALL_BANKTIMER.VAL.next : '0;
+    assign readback_array[60][31:0] = (decoded_reg_strb.STALL_NOREQ && !decoded_req_is_wr) ? hwif_in.STALL_NOREQ.VAL.next : '0;
+    assign readback_array[61][31:0] = (decoded_reg_strb.REF_STATS_REF_BUSY && !decoded_req_is_wr) ? hwif_in.REF_STATS_REF_BUSY.VAL.next : '0;
+    assign readback_array[62][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
+    assign readback_array[62][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[62][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
+    assign readback_array[62][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
+    assign readback_array[63][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
 
     // Reduce the array
     always_comb begin
@@ -2845,7 +2850,7 @@ module scoria_csr (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<63; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<64; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

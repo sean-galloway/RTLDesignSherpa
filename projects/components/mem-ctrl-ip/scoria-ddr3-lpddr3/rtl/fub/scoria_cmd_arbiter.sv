@@ -134,6 +134,19 @@ module scoria_cmd_arbiter
     // recovery is enforced HERE (scoria_init_sequencer separately waits t_rfc_wait for
     // its own init refreshes); no evt reaches the bank timers for REF.
     input  logic [15:0]               t_rfc_i,
+
+    // ---- ZQ calibration (from scoria_zq_ctrl). DDR3 only ----
+    // Maintenance traffic with the same request/grant shape as refresh, and
+    // deliberately LOWER priority: tREFI is a hard JEDEC deadline, the ZQCS
+    // interval is a drift budget. The controller never preempts a refresh to
+    // calibrate. If the scheduler holds ZQ off indefinitely, scoria_zq_ctrl's
+    // obs_overdue_o is what says so -- the request does not withdraw itself.
+    input  logic                      zq_req_i,
+    output logic                      zq_grant_o,
+    // tZQCS in MC cycles, max(64 nCK, 80 ns) for MT41J256M16. Enforced HERE,
+    // not in scoria_zq_ctrl: JESD79-3F 3.10 forbids EVERY command during the
+    // window (a refresh included), and only the arbiter can block the pick.
+    input  logic [15:0]               t_zqcs_i,
     input  logic [7:0]                t_rfc_pb_i,       // REFpb recovery; 0 = t_rfc_i
 
     // ---- per-bank readiness (from scoria_bank_timers) ----
@@ -249,6 +262,8 @@ module scoria_cmd_arbiter
     logic [COL_WIDTH-1:0] r_col_out;
     logic                 r_ap_out;
     logic                 r_do_act, r_do_rd, r_do_wr, r_do_pre, r_grant;
+    logic                 r_zq_grant;   // ZQCS fired; separate from r_grant so a
+                                        // ZQ does not load the tRFC counter
     logic                 r_wr_commit, r_rd_issue;
     logic [PTRW-1:0]      r_commit_slot, r_issue_slot;
 
@@ -621,6 +636,15 @@ module scoria_cmd_arbiter
     logic [15:0] r_rfc_cnt;
     logic        w_rfc_busy;
     assign w_rfc_busy = (r_rfc_cnt != 16'd0);
+
+    // tZQCS block. Loaded when a ZQCS fires; while nonzero the DRAM is
+    // calibrating its output drivers and accepts NOTHING -- not a column, not
+    // an ACT, not a refresh. This is a stronger block than w_rfc_busy (which
+    // stops ACTs and further REFs but leaves column traffic to already-open
+    // rows alone), because tZQCS is a whole-device window, not a bank one.
+    logic [15:0] r_zqcs_cnt;
+    logic        w_zq_busy;
+    assign w_zq_busy = (r_zqcs_cnt != 16'd0);
 
     // ---- pipeline: register the bank-timer fan-in at the arbiter input ------
     // The worst w_sys_i path is scoria_bank_timer -> arbiter pick -> scoria_bank_timer (the
@@ -1362,6 +1386,21 @@ module scoria_cmd_arbiter
                         && (r_guard0 == '0) && (r_guard1 == '0)
                         && !w_rfc_busy && !r_grant;
 
+    // ZQCS safety. JESD79-3F 3.10: all banks idle and tRP met before ZQCL or
+    // ZQCS. That is the same precondition REFab has, so it reuses the same
+    // terms -- including the !r_zq_grant term, which exists for exactly the
+    // reason !r_grant does on w_ref_safe: zq_req_o stays asserted for one
+    // cycle past the grant (both it and obs_busy_o are Q of r_state, so the
+    // request has not yet seen the state move), and without this the branch
+    // would re-pick a SECOND ZQCS while the first sits in the output register
+    // -- r_zqcs_cnt loads a cycle too late to stop it. Also !w_zq_busy, so a
+    // ZQCS cannot land inside another one's window.
+    logic w_zq_safe;
+    assign w_zq_safe = !w_any_active && !w_inflight_preact
+                     && (r_guard0 == '0) && (r_guard1 == '0)
+                     && !w_rfc_busy && !w_zq_busy
+                     && !r_grant && !r_zq_grant;
+
     // ========================================================================
     // Priority pick (combinational). Produces the abstract command + the
     // side-effects (evt / commit / issue / grant), all gated on cmd accept.
@@ -1373,6 +1412,7 @@ module scoria_cmd_arbiter
     logic            w_ap_out;
     logic            w_valid;
     logic            w_do_act, w_do_rd, w_do_wr, w_do_pre, w_grant;
+    logic            w_zq_grant;
     logic            w_wr_commit, w_rd_issue;
     logic [PTRW-1:0] w_commit_slot, w_issue_slot;
 
@@ -1380,6 +1420,7 @@ module scoria_cmd_arbiter
         w_op = OP_NOP; w_bank = '0; w_row = '0; w_col = '0; w_ap_out = 1'b0;
         w_valid = 1'b0;
         w_do_act = 1'b0; w_do_rd = 1'b0; w_do_wr = 1'b0; w_do_pre = 1'b0; w_grant = 1'b0;
+        w_zq_grant = 1'b0;
         w_wr_commit = 1'b0; w_rd_issue = 1'b0; w_commit_slot = '0; w_issue_slot = '0;
 
         if (!init_done_i) begin
@@ -1388,13 +1429,21 @@ module scoria_cmd_arbiter
                 w_valid = 1'b1; w_op = init_cmd_op_i;
                 w_bank = init_cmd_bank_i; w_row = init_cmd_row_i;
             end
+        end else if (w_zq_busy) begin
+            // 2. tZQCS — the DRAM is calibrating and accepts NO command
+            // (JESD79-3F 3.10). Idle; do NOT fall through to refresh or to a
+            // column pick. A refresh that comes due inside the window is
+            // absorbed by scoria_refresh_ctrl's postpone credit: tZQCS is ~16
+            // MC cycles at 1:4 against a tREFI of ~1950, so the window costs
+            // at most one postponed refresh and never a missed one.
+            w_valid = 1'b0;
         end else if (refresh_req_i || refresh_drain_i) begin
-            // 2. REFRESH — precharge active banks first, then REF + grant.
+            // 3. REFRESH — precharge active banks first, then REF + grant.
             // The REF itself only fires under w_ref_safe (no possibly-open row,
             // tRFC met); until then this branch idles rather than fall through
             // to column/ACT picks (a fall-through would starve the refresh).
             if (refresh_kind_i) begin
-                // 2b. REFpb — close ONLY the device's rotor bank, then issue
+                // 3b. REFpb — close ONLY the device's rotor bank, then issue
                 // the per-bank refresh; every other bank keeps its row.
                 if (r_bank_row_active[RK0][refresh_bank_i]) begin
                     if (r_bank_pre_ready[RK0][refresh_bank_i]
@@ -1414,11 +1463,30 @@ module scoria_cmd_arbiter
             end else if (w_ref_safe) begin
                 w_valid = 1'b1; w_op = OP_REF; w_grant = 1'b1;
             end
+        end else if (zq_req_i) begin
+            // 4. ZQCS — periodic output-driver calibration. Precharge every
+            // open bank first (JESD79-3F 3.10 requires all banks idle), then
+            // issue. Same two-step shape as REFab and it reuses the same
+            // precharge picker; the ZQCS itself carries no bank or row, so
+            // A10 in scoria_dfi_cmd_formatter is what separates it from ZQCL.
+            //
+            // This branch sits BELOW refresh on purpose. It also idles rather
+            // than falling through while it waits for the banks to close --
+            // a fall-through would let column traffic reopen rows behind it
+            // and the calibration would never find an all-idle moment.
+            if (w_any_active) begin
+                if (w_rfsh_pre_found) begin
+                    w_valid = 1'b1; w_op = OP_PRE; w_bank = w_rfsh_pre_bank;
+                    w_do_pre = 1'b1;
+                end
+            end else if (w_zq_safe) begin
+                w_valid = 1'b1; w_op = OP_ZQCS; w_zq_grant = 1'b1;
+            end
         end else if (w_pick_class == CL_COL && rd_col_f && rd_issue_ready_i
                      && w_rd_turn_live
                      && !(w_col_wrf && wr_col_f && wr_commit_ready_i
                           && w_wr_turn_live)) begin
-            // 3a. READ row-hit (read-priority). The AP verdict is the one the
+            // 5a. READ row-hit (read-priority). The AP verdict is the one the
             // column mask saw at classify time (carried with the pick).
             // rd_issue_ready_i / wr_commit_ready_i are re-checked LIVE here:
             // the classify-time check is 3 pipeline cycles stale, and a column
@@ -1430,13 +1498,13 @@ module scoria_cmd_arbiter
             w_ap_out = rd_col_ap; w_do_rd = 1'b1; w_rd_issue = 1'b1; w_issue_slot = rd_col_s;
         end else if (w_pick_class == CL_COL && wr_col_f && wr_commit_ready_i
                      && w_wr_turn_live) begin
-            // 3b. WRITE row-hit (live commit-ready + live tRTW re-check, see 3a).
+            // 5b. WRITE row-hit (live commit-ready + live tRTW re-check, see 5a).
             w_bank = wr_col_bank; w_col = wr_col_col;
             w_valid = 1'b1; w_op = wr_col_ap ? OP_WRA : OP_WR;
             w_ap_out = wr_col_ap; w_do_wr = 1'b1; w_wr_commit = 1'b1; w_commit_slot = wr_col_s;
         end else if (w_pick_class == CL_ACT && rd_act_f && w_act_gate_live
                      && !(w_act_wrf && wr_act_f)) begin
-            // 4a. ACTIVATE the oldest pending READ's idle bank (bank-parallel).
+            // 6a. ACTIVATE the oldest pending READ's idle bank (bank-parallel).
             // w_act_gate_live (tRFC / tFAW / tRRD) is re-checked HERE as well as
             // at STAGE-1b: an ACT selected in the one cycle between a refresh's
             // tRFC expiring and the NEXT REF firing (pulled-in refreshes 10
@@ -1448,24 +1516,24 @@ module scoria_cmd_arbiter
             w_bank = rd_act_bank; w_row = rd_act_row;
             w_do_act = 1'b1;
         end else if (w_pick_class == CL_ACT && wr_act_f && w_act_gate_live) begin
-            // 4b. ACTIVATE the oldest pending WRITE's idle bank (live gate, see 4a).
+            // 6b. ACTIVATE the oldest pending WRITE's idle bank (live gate, see 6a).
             w_valid = 1'b1; w_op = OP_ACT;
             w_bank = wr_act_bank; w_row = wr_act_row;
             w_do_act = 1'b1;
         end else if (w_pick_class == CL_PRE && rd_pre_f
                      && !(w_pre_wrf && wr_pre_f)) begin
-            // 5a. PRECHARGE a bank open on the wrong row for a pending read.
+            // 7a. PRECHARGE a bank open on the wrong row for a pending read.
             w_valid = 1'b1; w_op = OP_PRE; w_bank = rd_pre_bank;
             w_do_pre = 1'b1;
         end else if (w_pick_class == CL_PRE && wr_pre_f) begin
-            // 5b. PRECHARGE a bank open on the wrong row for a pending write.
+            // 7b. PRECHARGE a bank open on the wrong row for a pending write.
             w_valid = 1'b1; w_op = OP_PRE; w_bank = wr_pre_bank;
             w_do_pre = 1'b1;
         end else if (timeout_pre_req_i
                      && r_bank_row_active[RK0][timeout_pre_bank_i]
                      && r_bank_pre_ready[RK0][timeout_pre_bank_i]
                      && !w_guarded[timeout_pre_bank_i]) begin
-            // 6. TIMEOUT PRECHARGE (fixed_open / adapt_time): close an
+            // 8. TIMEOUT PRECHARGE (fixed_open / adapt_time): close an
             // idle-expired open row. Strictly lowest priority — any demand
             // column/ACT/conflict-PRE and the whole refresh path outrank it —
             // and gated identically to the conflict-PRE path (registered
@@ -1491,6 +1559,7 @@ module scoria_cmd_arbiter
             r_pick_valid <= 1'b0;
             r_do_act <= 1'b0; r_do_rd <= 1'b0; r_do_wr <= 1'b0; r_do_pre <= 1'b0;
             r_grant  <= 1'b0; r_wr_commit <= 1'b0; r_rd_issue <= 1'b0;
+            r_zq_grant <= 1'b0;
         end else if (w_out_ready) begin
             r_pick_valid  <= w_valid;
             r_op          <= w_op;
@@ -1503,6 +1572,7 @@ module scoria_cmd_arbiter
             r_do_wr       <= w_do_wr;
             r_do_pre      <= w_do_pre;
             r_grant       <= w_grant;
+            r_zq_grant    <= w_zq_grant;
             r_wr_commit   <= w_wr_commit;
             r_commit_slot <= w_commit_slot;
             r_rd_issue    <= w_rd_issue;
@@ -1559,6 +1629,7 @@ module scoria_cmd_arbiter
     assign rd_issue_valid_o  = w_fire_out && r_rd_issue;
     assign rd_issue_slot_o   = r_issue_slot;
     assign refresh_grant_o   = w_fire_out && r_grant;
+    assign zq_grant_o        = w_fire_out && r_zq_grant;
 
     // ---- guard update: 2-cycle per-bank block after a FIRED ACT/PRE. The
     // in-flight ACT/PRE (w_inflight_preact, folded into w_guarded) protects the
@@ -1607,6 +1678,24 @@ module scoria_cmd_arbiter
                        ? {8'h0, t_rfc_pb_i} : t_rfc_i;
         end else if (w_rfc_busy) begin
             r_rfc_cnt <= r_rfc_cnt - 16'd1;
+        end
+    )
+
+    // ---- tZQCS block counter: load on a FIRED ZQCS, count down to 0 --------
+    // Keyed on r_zq_grant, not r_grant, so a refresh does not load it and a
+    // calibration does not load the tRFC counter. The two windows are
+    // independent and both are honoured, but by DIFFERENT mechanisms: w_zq_safe
+    // carries an explicit !w_rfc_busy term, while a refresh is kept out of the
+    // tZQCS window by the cone's priority-2 block, not by a term on w_ref_safe.
+    // Do not "tidy" that into a symmetric pair of terms -- w_ref_safe feeds the
+    // pick cone that once missed 75 MHz by 21 ps, and the block already holds.
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_zqcs_cnt <= '0;
+        end else if (w_fire_out && r_zq_grant) begin
+            r_zqcs_cnt <= t_zqcs_i;
+        end else if (w_zq_busy) begin
+            r_zqcs_cnt <= r_zqcs_cnt - 16'd1;
         end
     )
 

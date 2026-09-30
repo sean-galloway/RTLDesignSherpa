@@ -499,7 +499,12 @@ addrmap scoria_csr {
     reg {
         name = "Write Leveling Config";
         desc = "Enable-plus-strobe. The SEARCH runs in firmware (HAS D2); this is the interface.";
-        field { sw = rw; hw = r; desc = "pulse: emit ONE DQS edge";      } wrlvl_strobe[0:0] = 1'b0;
+        // singlepulse, not a plain rw level. scoria_wrlvl_ifc leaves WL_READY
+        // the cycle it sees strobe_i and returns there after tWLO, so a level
+        // left high would emit a strobe train instead of the ONE DQS edge the
+        // port contract promises -- and the host's delay sweep would be
+        // levelling against an edge it did not place.
+        field { sw = w; hw = r; singlepulse; desc = "pulse: emit ONE DQS edge"; } wrlvl_strobe[0:0] = 1'b0;
         field { sw = rw; hw = r; desc = "chip select under leveling";    } wrlvl_cs_sel[7:4] = 4'd0;
     } WRLVL_CFG @ 0x0D0;
 
@@ -541,6 +546,20 @@ addrmap scoria_csr {
         field { sw = r; hw = w; desc = "write recovery, MR0[11:9]";  } mr_wr[12:8]            = 5'd0;
         field { sw = r; hw = w; desc = "MR1[7]: in leveling mode";   } wrlvl_en[16:16]        = 1'b0;
     } WRLVL_STATUS1 @ 0x0E4;
+
+    reg {
+        name = "ZQ Calibration Interval Observation";
+        desc = "Live countdown to the next ZQCS, in MC cycles. Read twice and
+                subtract to confirm the interval is actually running -- without
+                it, zqcs_total advancing is the only evidence, and that says
+                nothing about a controller stuck at ZQ_REQ.
+
+                It sits at 0x0E8 rather than inside the ZQ block at 0x0C4-0x0CC
+                because the field is 32 bits and there is no room left there.
+                A hole in the middle of a contiguous block is worse than an
+                appended register.";
+        field { sw = r; hw = w; desc = "cycles to the next ZQCS"; } zq_interval_cnt[31:0] = 32'd0;
+    } ZQ_OBS_INTERVAL @ 0x0E8;
 
     //=========================================================================
     // Per-Bank Observation (0x080 – 0x09F) — NUM_BANKS=8, rank 0

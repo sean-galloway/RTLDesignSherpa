@@ -59,6 +59,7 @@ Don't override. Generated from: $root
 | 0x0DC|     WRLVL_TIMING2     |        Write Leveling Timings 2        |
 | 0x0E0|     WRLVL_STATUS0     |          Write Leveling Status         |
 | 0x0E4|     WRLVL_STATUS1     |         Write Leveling Status 1        |
+| 0x0E8|    ZQ_OBS_INTERVAL    |   ZQ Calibration Interval Observation  |
 | 0x140|        REF_CTRL       |          Refresh Mode Control          |
 | 0x144|     REF_TIMING_PB     |         Per-Bank Refresh Timing        |
 | 0x148|     PAGE_STATS_HIT    |Page Stats: Column Ops (misnamed 'Hits')|
@@ -1407,7 +1408,7 @@ timeout precharge before its column command issues, and reopened
 
 |Bits| Identifier |Access|Reset|Name|
 |----|------------|------|-----|----|
-|  0 |wrlvl_strobe|  rw  | 0x0 |  — |
+|  0 |wrlvl_strobe|   w  | 0x0 |  — |
 | 7:4|wrlvl_cs_sel|  rw  | 0x0 |  — |
 
 #### wrlvl_strobe field
@@ -1542,6 +1543,29 @@ timeout precharge before its column command issues, and reopened
 #### wrlvl_en field
 
 <p>MR1[7]: in leveling mode</p>
+
+### ZQ_OBS_INTERVAL register
+
+- Absolute Address: 0xE8
+- Base Offset: 0xE8
+- Size: 0x4
+
+<p>Live countdown to the next ZQCS, in MC cycles. Read twice and
+subtract to confirm the interval is actually running -- without
+it, zqcs_total advancing is the only evidence, and that says
+nothing about a controller stuck at ZQ_REQ.</p>
+<p>It sits at 0x0E8 rather than inside the ZQ block at 0x0C4-0x0CC
+because the field is 32 bits and there is no room left there.
+A hole in the middle of a contiguous block is worse than an
+appended register.</p>
+
+|Bits|   Identifier  |Access|Reset|Name|
+|----|---------------|------|-----|----|
+|31:0|zq_interval_cnt|   r  | 0x0 |  — |
+
+#### zq_interval_cnt field
+
+<p>cycles to the next ZQCS</p>
 
 ### REF_CTRL register
 

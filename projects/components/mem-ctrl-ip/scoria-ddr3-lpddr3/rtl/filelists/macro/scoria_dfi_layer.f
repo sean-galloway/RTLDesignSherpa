@@ -11,6 +11,8 @@ $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/includes/scori
 -f $REPO_ROOT/rtl/common/filelists/leading_one_trailing_one.f
 -f $REPO_ROOT/rtl/cdc/filelists/johnson2bin.f
 -f $REPO_ROOT/rtl/cdc/filelists/glitch_free_n_dff_arn.f
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_synchronizer.f
+-f $REPO_ROOT/rtl/cdc/filelists/sync_pulse.f
 -f $REPO_ROOT/rtl/common/filelists/fifo_control.f
 -f $REPO_ROOT/rtl/cdc/filelists/gaxi_fifo_async.f
 # DFI datapath fubs

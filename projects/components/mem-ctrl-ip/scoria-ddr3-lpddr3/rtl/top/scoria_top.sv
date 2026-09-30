@@ -20,6 +20,8 @@ module scoria_top
     parameter int AXI_ID_WIDTH   = 8,
     parameter int AXI_ADDR_WIDTH = 32,
     parameter int NUM_RANKS      = 1,
+    // One CS_n per rank; separate because DFI v3.1 levels per-CS.
+    parameter int NUM_CS         = NUM_RANKS,
     parameter int NUM_BANKS      = 8,
     parameter int ROW_WIDTH      = 14,
     parameter int COL_WIDTH      = 10,
@@ -109,7 +111,18 @@ module scoria_top
     input  logic [DFI_DATA_WIDTH-1:0]  dfi_rddata_i,
     input  logic [DFI_VALID_WIDTH-1:0] dfi_rddata_valid_i,
     output logic                       dfi_init_start_o,
-    input  logic                       dfi_init_complete_i
+    input  logic                       dfi_init_complete_i,
+
+    // ---- DFI v3.1 write-leveling handshake (per CS) ----
+    // New in v3.1: v2.1.1 carried a single-wire leveling request; v3.1 splits
+    // it into a per-CS request/ack pair. s7ddrphy does not implement any of
+    // this, so on the Genesys 2 build these pins go nowhere -- write leveling
+    // there is the PHY's own, and these exist for a PHY that exposes it.
+    output logic [NUM_CS-1:0]          dfi_phylvl_req_cs_n_o,
+    input  logic [NUM_CS-1:0]          dfi_phylvl_ack_cs_n_i,
+    output logic [NUM_CS-1:0]          dfi_phy_wrlvl_cs_n_o,
+    output logic                       dfi_wrlvl_strobe_o,
+    input  logic                       dfi_prime_dq_i      // dfi_clk domain
 );
 
     // ---- CSR register block (PeakRDL) ----
@@ -125,10 +138,27 @@ module scoria_top
     logic [31:0] w_stat_ref_busy;   // TASK-012: REFs with work pending
     logic [4:0]  w_mr_wr;      // MR0 WR field, decoded (DDR3)
     logic        w_wrlvl_en;   // MR1[7] write-leveling enable (DDR3)
+    logic        w_zq_busy, w_zq_overdue;
+    logic [15:0] w_zq_total;
+    logic [31:0] w_zq_interval_cnt;
+    logic        w_wl_result_valid, w_wl_result, w_wl_timeout, w_wl_ever_done;
+    logic [15:0] w_wl_attempts, w_wl_flips;
+    logic [2:0]  w_wl_state;
     always_comb begin
         hwif_in = '{default: '0};
         hwif_in.WRLVL_STATUS1.mr_wr.next     = w_mr_wr;
         hwif_in.WRLVL_STATUS1.wrlvl_en.next  = w_wrlvl_en;
+        hwif_in.ZQ_STATUS.zqcs_total.next         = w_zq_total;
+        hwif_in.ZQ_STATUS.zq_busy.next            = w_zq_busy;
+        hwif_in.ZQ_STATUS.zq_overdue.next         = w_zq_overdue;
+        hwif_in.ZQ_OBS_INTERVAL.zq_interval_cnt.next = w_zq_interval_cnt;
+        hwif_in.WRLVL_STATUS0.wrlvl_attempts.next = w_wl_attempts;
+        hwif_in.WRLVL_STATUS0.wrlvl_flips.next    = w_wl_flips;
+        hwif_in.WRLVL_STATUS1.wrlvl_result.next       = w_wl_result;
+        hwif_in.WRLVL_STATUS1.wrlvl_result_valid.next = w_wl_result_valid;
+        hwif_in.WRLVL_STATUS1.wrlvl_timeout.next      = w_wl_timeout;
+        hwif_in.WRLVL_STATUS1.wrlvl_ever_done.next    = w_wl_ever_done;
+        hwif_in.WRLVL_STATUS1.wrlvl_state.next        = w_wl_state;
         hwif_in.STALL_BP.VAL.next  = w_stall_bp;
         hwif_in.STALL_REFRESH.VAL.next = w_stall_refresh;
         hwif_in.STALL_TURNAROUND.VAL.next = w_stall_turnaround;
@@ -244,6 +274,7 @@ module scoria_top
         .AXI_ID_WIDTH     (IW),
         .AXI_ADDR_WIDTH   (AW),
         .NUM_RANKS        (NUM_RANKS),
+        .NUM_CS           (NUM_CS),
         .NUM_BANKS        (NUM_BANKS),
         .ROW_WIDTH        (ROW_WIDTH),
         .COL_WIDTH        (COL_WIDTH),
@@ -328,6 +359,35 @@ module scoria_top
         .dram_reset_n_o     (dram_reset_n_o),
         .mr_wr_o            (w_mr_wr),
         .wrlvl_en_o         (w_wrlvl_en),
+        // ZQ: config from the CSR, telemetry back into it.
+        .zq_enable_i        (hwif_out.ZQ_CFG.zq_enable.value),
+        .zq_interval_i      (hwif_out.ZQ_INTERVAL.zq_interval.value),
+        .t_zqcs_i           (hwif_out.ZQ_CFG.t_zqcs.value),
+        .zq_busy_o          (w_zq_busy),
+        .zq_total_o         (w_zq_total),
+        .zq_interval_cnt_o  (w_zq_interval_cnt),
+        .zq_overdue_o        (w_zq_overdue),
+        // Write leveling. wrlvl_strobe is a singlepulse field, so .value IS
+        // the one-cycle pulse -- no edge detect here.
+        .wrlvl_strobe_i     (hwif_out.WRLVL_CFG.wrlvl_strobe.value),
+        .wrlvl_cs_sel_i     (hwif_out.WRLVL_CFG.wrlvl_cs_sel.value),
+        .t_wldqsen_i        (hwif_out.WRLVL_TIMING0.t_wldqsen.value),
+        .t_wlmrd_i          (hwif_out.WRLVL_TIMING0.t_wlmrd.value),
+        .t_wlmrd_max_i      (hwif_out.WRLVL_TIMING1.t_wlmrd_max.value),
+        .t_wlo_i            (hwif_out.WRLVL_TIMING1.t_wlo.value),
+        .t_wloe_i           (hwif_out.WRLVL_TIMING2.t_wloe.value),
+        .dfi_phylvl_req_cs_n_o (dfi_phylvl_req_cs_n_o),
+        .dfi_phylvl_ack_cs_n_i (dfi_phylvl_ack_cs_n_i),
+        .dfi_phy_wrlvl_cs_n_o  (dfi_phy_wrlvl_cs_n_o),
+        .dfi_wrlvl_strobe_o    (dfi_wrlvl_strobe_o),
+        .dfi_prime_dq_i     (dfi_prime_dq_i),
+        .wrlvl_result_valid_o (w_wl_result_valid),
+        .wrlvl_result_o     (w_wl_result),
+        .wrlvl_attempts_o   (w_wl_attempts),
+        .wrlvl_flips_o      (w_wl_flips),
+        .wrlvl_timeout_o    (w_wl_timeout),
+        .wrlvl_ever_done_o  (w_wl_ever_done),
+        .wrlvl_state_o      (w_wl_state),
         .mr0_i              (hwif_out.MR0.VAL.value),
         .mr1_i              (hwif_out.MR1.VAL.value),
         .mr2_i              (hwif_out.MR2.VAL.value),

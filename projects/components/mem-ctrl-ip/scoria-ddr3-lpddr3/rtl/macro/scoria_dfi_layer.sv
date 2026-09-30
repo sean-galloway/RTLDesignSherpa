@@ -28,6 +28,7 @@ module scoria_dfi_layer
     import scoria_pkg::*;
 #(
     parameter int NUM_RANKS      = 1,
+    parameter int NUM_CS         = NUM_RANKS,
     parameter int NUM_BANKS      = 8,
     parameter int ROW_WIDTH      = 14,
     parameter int COL_WIDTH      = 10,
@@ -167,7 +168,31 @@ module scoria_dfi_layer
     input  logic [DFI_VALID_WIDTH-1:0] dfi_rddata_valid_i,
     // DFI init handshake (to/from PHY)
     output logic                       dfi_init_start_o,
-    input  logic                       dfi_init_complete_i
+    input  logic                       dfi_init_complete_i,
+
+    // ---- DDR3 write-leveling handshake (DFI v3.1, per CS) ----
+    // It crosses HERE, with the command path, because this module owns the one
+    // ctl_clk/dfi_clk boundary in the design. scoria_wrlvl_ifc runs on ctl_clk
+    // and the PHY samples these pins on dfi_clk; wiring them from the scheduler
+    // straight to the top's pin bus would have been an UNSYNCHRONIZED crossing,
+    // and no lint pass reports that -- it reports nothing at all.
+    //
+    // The two directions need different primitives. The request/mode/ack/result
+    // signals are slow levels, so a flop chain is enough. wl_strobe_i is a
+    // ONE-CYCLE pulse and a flop chain would either duplicate or swallow it
+    // depending on the clock ratio, so it goes through sync_pulse's toggle
+    // handshake instead.
+    input  logic [NUM_CS-1:0]          wl_req_cs_n_i,    // ctl_clk, level
+    input  logic [NUM_CS-1:0]          wl_wrlvl_cs_n_i,  // ctl_clk, level
+    input  logic                       wl_strobe_i,      // ctl_clk, 1-cycle pulse
+    output logic [NUM_CS-1:0]          wl_ack_cs_n_o,    // ctl_clk, level
+    output logic                       wl_prime_dq_o,    // ctl_clk, level
+
+    output logic [NUM_CS-1:0]          dfi_phylvl_req_cs_n_o,
+    input  logic [NUM_CS-1:0]          dfi_phylvl_ack_cs_n_i,
+    output logic [NUM_CS-1:0]          dfi_phy_wrlvl_cs_n_o,
+    output logic                       dfi_wrlvl_strobe_o,
+    input  logic                       dfi_prime_dq_i
 );
 
     // ---- CDC dfi-side nets ----
@@ -356,5 +381,71 @@ module scoria_dfi_layer
     );
 
     wire unused = &{1'b0, w_fire_rank, 1'b0};
+
+    // ========================================================================
+    // Write-leveling CDC
+    // ========================================================================
+    // Every level is synchronized in its ACTIVE-HIGH form and inverted at the
+    // far side. glitch_free_n_dff_arn (under cdc_synchronizer) resets its chain
+    // to zero, so feeding it an active-low _n signal directly would present
+    // "asserted" for the first few destination cycles out of reset -- a
+    // spurious leveling request into the PHY before the controller has asked
+    // for anything.
+    logic [NUM_CS-1:0] w_wl_req_h,   w_wl_req_h_sync;
+    logic [NUM_CS-1:0] w_wl_mode_h,  w_wl_mode_h_sync;
+    logic [NUM_CS-1:0] w_wl_ack_h,   w_wl_ack_h_sync;
+    logic              w_wl_dq_sync;
+
+    assign w_wl_req_h  = ~wl_req_cs_n_i;
+    assign w_wl_mode_h = ~wl_wrlvl_cs_n_i;
+    assign w_wl_ack_h  = ~dfi_phylvl_ack_cs_n_i;
+
+    // ctl_clk -> dfi_clk
+    cdc_synchronizer #(.WIDTH(NUM_CS), .FLOP_COUNT(3)) u_wl_req_sync (
+        .clk      (dfi_clk),
+        .rst_n    (dfi_rstn),
+        .async_in (w_wl_req_h),
+        .sync_out (w_wl_req_h_sync)
+    );
+    cdc_synchronizer #(.WIDTH(NUM_CS), .FLOP_COUNT(3)) u_wl_mode_sync (
+        .clk      (dfi_clk),
+        .rst_n    (dfi_rstn),
+        .async_in (w_wl_mode_h),
+        .sync_out (w_wl_mode_h_sync)
+    );
+    assign dfi_phylvl_req_cs_n_o = ~w_wl_req_h_sync;
+    assign dfi_phy_wrlvl_cs_n_o  = ~w_wl_mode_h_sync;
+
+    // dfi_clk -> ctl_clk. prime_dq is a data BIT, but it is a level that the
+    // PHY holds steady from tWLO until the next strobe, so a flop chain is the
+    // right primitive -- it is not a bus whose bits must agree on one cycle.
+    cdc_synchronizer #(.WIDTH(NUM_CS), .FLOP_COUNT(3)) u_wl_ack_sync (
+        .clk      (ctl_clk),
+        .rst_n    (ctl_rstn),
+        .async_in (w_wl_ack_h),
+        .sync_out (w_wl_ack_h_sync)
+    );
+    cdc_synchronizer #(.WIDTH(1), .FLOP_COUNT(3)) u_wl_dq_sync (
+        .clk      (ctl_clk),
+        .rst_n    (ctl_rstn),
+        .async_in (dfi_prime_dq_i),
+        .sync_out (w_wl_dq_sync)
+    );
+    assign wl_ack_cs_n_o = ~w_wl_ack_h_sync;
+    assign wl_prime_dq_o = w_wl_dq_sync;
+
+    // The strobe: ONE ctl_clk pulse in, ONE dfi_clk pulse out. sync_pulse
+    // crosses a toggle and edge-detects on the far side, which is what makes
+    // the count survive the ratio. scoria_wrlvl_ifc then waits tWLO before
+    // sampling, and tWLO is orders of magnitude longer than this crossing, so
+    // the synchronizer latency does not eat into the result window.
+    sync_pulse #(.SYNC_STAGES(3)) u_wl_strobe_sync (
+        .i_src_clk   (ctl_clk),
+        .i_src_rst_n (ctl_rstn),
+        .i_pulse     (wl_strobe_i),
+        .i_dst_clk   (dfi_clk),
+        .i_dst_rst_n (dfi_rstn),
+        .o_pulse     (dfi_wrlvl_strobe_o)
+    );
 
 endmodule : scoria_dfi_layer

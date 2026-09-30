@@ -138,6 +138,14 @@ package scoria_csr_pkg;
     } scoria_csr__WRLVL_STATUS1__in_t;
 
     typedef struct {
+        logic [31:0] next;
+    } scoria_csr__ZQ_OBS_INTERVAL__zq_interval_cnt__in_t;
+
+    typedef struct {
+        scoria_csr__ZQ_OBS_INTERVAL__zq_interval_cnt__in_t zq_interval_cnt;
+    } scoria_csr__ZQ_OBS_INTERVAL__in_t;
+
+    typedef struct {
         logic next;
     } scoria_csr__REF_CTRL__perbank_supported__in_t;
 
@@ -265,6 +273,7 @@ package scoria_csr_pkg;
         scoria_csr__ZQ_STATUS__in_t ZQ_STATUS;
         scoria_csr__WRLVL_STATUS0__in_t WRLVL_STATUS0;
         scoria_csr__WRLVL_STATUS1__in_t WRLVL_STATUS1;
+        scoria_csr__ZQ_OBS_INTERVAL__in_t ZQ_OBS_INTERVAL;
         scoria_csr__REF_CTRL__in_t REF_CTRL;
         scoria_csr__PAGE_STATS_HIT__in_t PAGE_STATS_HIT;
         scoria_csr__PAGE_STATS_MISS__in_t PAGE_STATS_MISS;

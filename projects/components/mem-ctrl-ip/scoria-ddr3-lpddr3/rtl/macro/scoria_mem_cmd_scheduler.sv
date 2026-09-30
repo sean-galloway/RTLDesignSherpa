@@ -51,6 +51,11 @@ module scoria_mem_cmd_scheduler
     parameter int CMD_DELAY      = 6,
     parameter int N_LU  = NUM_BANKS,
     parameter int RKW   = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
+    // Chip selects track ranks on this family: one CS_n per rank. Kept as its
+    // own parameter because the DFI v3.1 leveling handshake is per-CS, not
+    // per-rank, and the two need not stay equal on a future part.
+    parameter int NUM_CS = NUM_RANKS,
+    parameter int CSW   = (NUM_CS > 1) ? $clog2(NUM_CS) : 1,
     parameter int BKW   = $clog2(NUM_BANKS),
     parameter int PTRW  = $clog2(NUM_ENTRIES),
     parameter int IW    = AXI_ID_WIDTH
@@ -127,6 +132,39 @@ module scoria_mem_cmd_scheduler
     output logic                      dram_reset_n_o,   // RESET# -- a PIN
     output logic [4:0]                mr_wr_o,          // write recovery MR0[11:9]
     output logic                      wrlvl_en_o,       // MR1[7]
+
+    // ----- ZQ calibration (DDR3): scoria_zq_ctrl -----
+    input  logic                      zq_enable_i,      // ZQ_CFG.zq_enable
+    input  logic [31:0]               zq_interval_i,    // ZQ_INTERVAL; 0 = off
+    input  logic [15:0]               t_zqcs_i,         // ZQ_CFG.t_zqcs
+    output logic                      zq_busy_o,
+    output logic [15:0]               zq_total_o,
+    output logic [31:0]               zq_interval_cnt_o,
+    output logic                      zq_overdue_o,
+
+    // ----- write leveling (DDR3): scoria_wrlvl_ifc -----
+    // No search loop here: the controller emits one DQS edge per host strobe
+    // and reports the sampled prime DQ. The delay sweep is the host's, which
+    // is scoria design decision D2 -- see docs/design-requirements.md.
+    input  logic                      wrlvl_strobe_i,   // WRLVL_CFG.wrlvl_strobe
+    input  logic [3:0]                wrlvl_cs_sel_i,   // WRLVL_CFG.wrlvl_cs_sel
+    input  logic [15:0]               t_wldqsen_i,
+    input  logic [15:0]               t_wlmrd_i,
+    input  logic [15:0]               t_wlmrd_max_i,    // ours; 0 = no timeout
+    input  logic [15:0]               t_wlo_i,
+    input  logic [15:0]               t_wloe_i,
+    output logic [NUM_CS-1:0]         dfi_phylvl_req_cs_n_o,
+    input  logic [NUM_CS-1:0]         dfi_phylvl_ack_cs_n_i,
+    output logic [NUM_CS-1:0]         dfi_phy_wrlvl_cs_n_o,
+    output logic                      dfi_wrlvl_strobe_o,
+    input  logic                      wrlvl_prime_dq_i,
+    output logic                      wrlvl_result_valid_o,
+    output logic                      wrlvl_result_o,
+    output logic [15:0]               wrlvl_attempts_o,
+    output logic [15:0]               wrlvl_flips_o,
+    output logic                      wrlvl_timeout_o,
+    output logic                      wrlvl_ever_done_o,
+    output logic [2:0]                wrlvl_state_o,
     // DDR2 mode-register values (CSR-backed MR0..MR3.VAL) for the init MRS chain
     input  logic [15:0]               mr0_i,
     input  logic [15:0]               mr1_i,
@@ -330,6 +368,79 @@ module scoria_mem_cmd_scheduler
     );
 
     // ======================================================================
+    // scoria_zq_ctrl — periodic ZQCS. DDR3 only; parked on LPDDR3.
+    // ======================================================================
+    // Maintenance traffic on the same request/grant contract as refresh, and
+    // BELOW it in the arbiter's cone. Gated on init_done for the same reason
+    // refresh is: a ZQCS before the init ZQCL would be issued into a device
+    // that has not finished initialising.
+    //
+    // LPDDR3 has ZQ calibration too (JESD209-3C MRW-based ZQCal), but it is
+    // an MR write, not a bus command -- a different mechanism entirely, so
+    // this block is held off rather than pointed at it. Deliberately not
+    // implemented; the LPDDR3 path has no ZQ maintenance yet.
+    logic w_zq_req, w_zq_grant;
+    logic w_zq_run;
+    assign w_zq_run = zq_enable_i && init_done && (memtype_i == MEMTYPE_DDR3);
+
+    scoria_zq_ctrl u_zq (
+        .mc_clk             (aclk),
+        .mc_rst_n           (aresetn),
+        .enable_i           (w_zq_run),
+        .t_zqcs_interval_i  (zq_interval_i),
+        .t_zqcs_i           (t_zqcs_i),
+        .demand_i           (|rd_sch_valid_i || |wr_sch_valid_i),
+        .zq_req_o           (w_zq_req),
+        .zq_grant_i         (w_zq_grant),
+        .obs_busy_o         (zq_busy_o),
+        .obs_zqcs_total_o   (zq_total_o),
+        .obs_interval_cnt_o (zq_interval_cnt_o),
+        .obs_overdue_o      (zq_overdue_o)
+    );
+
+    // ======================================================================
+    // scoria_wrlvl_ifc — DDR3 write leveling, host-driven.
+    // ======================================================================
+    // It does NOT touch the command path: leveling rides the DFI v3.1 per-CS
+    // PHY handshake, so there is no arbiter interaction and nothing to
+    // priority-order. wrlvl_en_i comes from scoria_mode_register, which is the
+    // authority -- JESD79-3F puts the mode in MR1[7], so the DRAM is in
+    // leveling mode exactly when that bit is set and the interface must agree
+    // with the register rather than keep its own copy.
+    //
+    // cs_sel is CSW bits wide (1 when NUM_CS=1) but the CSR field is 4, so it
+    // is truncated here. scoria_wrlvl_ifc range-guards the index internally as
+    // well: at NUM_CS=1 an unguarded cs_sel_i would index a 1-bit vector with
+    // a value that can be 1 and return X.
+    scoria_wrlvl_ifc #(
+        .NUM_CS (NUM_CS),
+        .CSW    (CSW)
+    ) u_wrlvl (
+        .mc_clk                (aclk),
+        .mc_rst_n              (aresetn),
+        .wrlvl_en_i            (wrlvl_en_o),
+        .strobe_i              (wrlvl_strobe_i),
+        .cs_sel_i              (CSW'(wrlvl_cs_sel_i)),
+        .t_wldqsen_i           (t_wldqsen_i),
+        .t_wlmrd_i             (t_wlmrd_i),
+        .t_wlmrd_max_i         (t_wlmrd_max_i),
+        .t_wlo_i               (t_wlo_i),
+        .t_wloe_i              (t_wloe_i),
+        .dfi_phylvl_req_cs_n_o (dfi_phylvl_req_cs_n_o),
+        .dfi_phylvl_ack_cs_n_i (dfi_phylvl_ack_cs_n_i),
+        .dfi_phy_wrlvl_cs_n_o  (dfi_phy_wrlvl_cs_n_o),
+        .dfi_wrlvl_strobe_o    (dfi_wrlvl_strobe_o),
+        .prime_dq_i            (wrlvl_prime_dq_i),
+        .result_valid_o        (wrlvl_result_valid_o),
+        .result_o              (wrlvl_result_o),
+        .obs_attempts_o        (wrlvl_attempts_o),
+        .obs_flips_o           (wrlvl_flips_o),
+        .obs_timeout_o         (wrlvl_timeout_o),
+        .obs_ever_done_o       (wrlvl_ever_done_o),
+        .obs_state_o           (wrlvl_state_o)
+    );
+
+    // ======================================================================
     // scoria_bank_timers — per-bank safe timers (open-page).
     // ======================================================================
     // BANK_LA = the pick pipeline's select-to-fire depth: the advisory image
@@ -482,6 +593,9 @@ module scoria_mem_cmd_scheduler
         .refresh_bank_i     (w_refresh_bank),
         .t_rfc_i            (t_rfc_i),
         .t_rfc_pb_i         (ref_trfc_pb_i),
+        .zq_req_i           (w_zq_req),
+        .zq_grant_o         (w_zq_grant),
+        .t_zqcs_i           (t_zqcs_i),
         .bank_act_ready_i   (w_bank_act_ready),
         .bank_rdwr_ready_i  (w_bank_rdwr_ready),
         .bank_pre_ready_i   (w_bank_pre_ready),

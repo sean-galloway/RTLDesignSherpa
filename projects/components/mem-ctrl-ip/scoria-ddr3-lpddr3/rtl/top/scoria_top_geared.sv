@@ -75,6 +75,7 @@ module scoria_top_geared
     parameter int AXI_ID_WIDTH    = 8,
     parameter int AXI_ADDR_WIDTH  = 32,
     parameter int NUM_RANKS       = 1,
+    parameter int NUM_CS          = NUM_RANKS,
     parameter int NUM_BANKS       = 8,
     parameter int ROW_WIDTH       = 14,
     parameter int COL_WIDTH       = 10,
@@ -164,7 +165,14 @@ module scoria_top_geared
 
     // ---- DDR3 RESET_n pad (not a DFI signal: the DFI spec has no reset
     // pin, so it leaves the controller directly and the PHY passes it on) ----
-    output logic                       dram_reset_n_o
+    output logic                       dram_reset_n_o,
+
+    // ---- DFI v3.1 write-leveling handshake, straight through ----
+    output logic [NUM_CS-1:0]          dfi_phylvl_req_cs_n_o,
+    input  logic [NUM_CS-1:0]          dfi_phylvl_ack_cs_n_i,
+    output logic [NUM_CS-1:0]          dfi_phy_wrlvl_cs_n_o,
+    output logic                       dfi_wrlvl_strobe_o,
+    input  logic                       dfi_prime_dq_i      // dfi_clk domain
 );
 
     // ===================================================================
@@ -353,6 +361,7 @@ module scoria_top_geared
         .AXI_ID_WIDTH     (IW),
         .AXI_ADDR_WIDTH   (AW),
         .NUM_RANKS        (NUM_RANKS),
+        .NUM_CS           (NUM_CS),
         .NUM_BANKS        (NUM_BANKS),
         .ROW_WIDTH        (ROW_WIDTH),
         .COL_WIDTH        (COL_WIDTH),
@@ -383,6 +392,11 @@ module scoria_top_geared
         .s_cpuif_wr_err      (s_cpuif_wr_err),
         .init_done_o         (init_done_o),
         .dram_reset_n_o      (dram_reset_n_o),
+        .dfi_phylvl_req_cs_n_o (dfi_phylvl_req_cs_n_o),
+        .dfi_phylvl_ack_cs_n_i (dfi_phylvl_ack_cs_n_i),
+        .dfi_phy_wrlvl_cs_n_o  (dfi_phy_wrlvl_cs_n_o),
+        .dfi_wrlvl_strobe_o    (dfi_wrlvl_strobe_o),
+        .dfi_prime_dq_i        (dfi_prime_dq_i),
         // AXI (DW) from the converter/direct path
         .s_axi_awid    (c_awid),
         .s_axi_awaddr  (c_awaddr),

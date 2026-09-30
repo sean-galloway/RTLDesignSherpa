@@ -31,6 +31,9 @@ module scoria_core
     parameter int AXI_ID_WIDTH   = 8,
     parameter int AXI_ADDR_WIDTH = 32,
     parameter int NUM_RANKS      = 1,
+    // One CS_n per rank. Its own parameter because the DFI v3.1 leveling
+    // handshake is per-CS rather than per-rank; see scoria_mem_cmd_scheduler.
+    parameter int NUM_CS         = NUM_RANKS,
     parameter int NUM_BANKS      = 8,
     parameter int ROW_WIDTH      = 14,
     parameter int COL_WIDTH      = 10,
@@ -175,6 +178,39 @@ module scoria_core
     output logic                       dram_reset_n_o,   // RESET# -- a device PIN
     output logic [4:0]                 mr_wr_o,          // write recovery MR0[11:9]
     output logic                       wrlvl_en_o,       // MR1[7]
+
+    // ----- ZQ calibration (DDR3) -----
+    input  logic                       zq_enable_i,
+    input  logic [31:0]                zq_interval_i,
+    input  logic [15:0]                t_zqcs_i,
+    output logic                       zq_busy_o,
+    output logic [15:0]                zq_total_o,
+    output logic [31:0]                zq_interval_cnt_o,
+    output logic                       zq_overdue_o,
+
+    // ----- write leveling (DDR3). The DFI v3.1 leveling handshake is per-CS
+    //       and leaves the controller unaltered -- it does not go through
+    //       scoria_dfi_layer, because there is no gearing to do on it: the
+    //       request/ack pair is a slow control handshake, not phase data. -----
+    input  logic                       wrlvl_strobe_i,
+    input  logic [3:0]                 wrlvl_cs_sel_i,
+    input  logic [15:0]                t_wldqsen_i,
+    input  logic [15:0]                t_wlmrd_i,
+    input  logic [15:0]                t_wlmrd_max_i,
+    input  logic [15:0]                t_wlo_i,
+    input  logic [15:0]                t_wloe_i,
+    output logic [NUM_CS-1:0]          dfi_phylvl_req_cs_n_o,
+    input  logic [NUM_CS-1:0]          dfi_phylvl_ack_cs_n_i,
+    output logic [NUM_CS-1:0]          dfi_phy_wrlvl_cs_n_o,
+    output logic                       dfi_wrlvl_strobe_o,
+    input  logic                       dfi_prime_dq_i,     // dfi_clk domain
+    output logic                       wrlvl_result_valid_o,
+    output logic                       wrlvl_result_o,
+    output logic [15:0]                wrlvl_attempts_o,
+    output logic [15:0]                wrlvl_flips_o,
+    output logic                       wrlvl_timeout_o,
+    output logic                       wrlvl_ever_done_o,
+    output logic [2:0]                 wrlvl_state_o,
     input  logic [15:0]                mr0_i, mr1_i, mr2_i, mr3_i,  // CSR MR0..MR3.VAL
     input  logic                       init_restart_i,              // CTRL.init_force_restart
     input  logic [PHW-1:0]             rd_phase_i, wr_phase_i,
@@ -318,6 +354,9 @@ module scoria_core
 
     // ---- init handshake scheduler <-> DFI (ctl side) ----
     logic                      w_init_start, w_init_complete;
+    // write-leveling handshake, ctl_clk side (crosses inside scoria_dfi_layer)
+    logic [NUM_CS-1:0]         w_wl_req_cs_n, w_wl_ack_cs_n, w_wl_mode_cs_n;
+    logic                      w_wl_strobe, w_wl_prime_dq;
 
     // ======================================================================
     // Layer 1: AXI interface + CAMs
@@ -436,6 +475,7 @@ module scoria_core
     // ======================================================================
     scoria_mem_cmd_scheduler #(
         .NUM_RANKS     (NUM_RANKS),
+        .NUM_CS        (NUM_CS),
         .NUM_BANKS     (NUM_BANKS),
         .ROW_WIDTH     (ROW_WIDTH),
         .COL_WIDTH     (COL_WIDTH),
@@ -496,6 +536,35 @@ module scoria_core
         .dram_reset_n_o     (dram_reset_n_o),
         .mr_wr_o            (mr_wr_o),
         .wrlvl_en_o         (wrlvl_en_o),
+        .zq_enable_i        (zq_enable_i),
+        .zq_interval_i      (zq_interval_i),
+        .t_zqcs_i           (t_zqcs_i),
+        .zq_busy_o          (zq_busy_o),
+        .zq_total_o         (zq_total_o),
+        .zq_interval_cnt_o  (zq_interval_cnt_o),
+        .zq_overdue_o       (zq_overdue_o),
+        .wrlvl_strobe_i     (wrlvl_strobe_i),
+        .wrlvl_cs_sel_i     (wrlvl_cs_sel_i),
+        .t_wldqsen_i        (t_wldqsen_i),
+        .t_wlmrd_i          (t_wlmrd_i),
+        .t_wlmrd_max_i      (t_wlmrd_max_i),
+        .t_wlo_i            (t_wlo_i),
+        .t_wloe_i           (t_wloe_i),
+        // ctl_clk side of the leveling handshake. It goes to scoria_dfi_layer,
+        // NOT to the pins: the PHY samples on dfi_clk and the DFI layer owns
+        // the one crossing in this design.
+        .dfi_phylvl_req_cs_n_o (w_wl_req_cs_n),
+        .dfi_phylvl_ack_cs_n_i (w_wl_ack_cs_n),
+        .dfi_phy_wrlvl_cs_n_o  (w_wl_mode_cs_n),
+        .dfi_wrlvl_strobe_o    (w_wl_strobe),
+        .wrlvl_prime_dq_i      (w_wl_prime_dq),
+        .wrlvl_result_valid_o (wrlvl_result_valid_o),
+        .wrlvl_result_o     (wrlvl_result_o),
+        .wrlvl_attempts_o   (wrlvl_attempts_o),
+        .wrlvl_flips_o      (wrlvl_flips_o),
+        .wrlvl_timeout_o    (wrlvl_timeout_o),
+        .wrlvl_ever_done_o  (wrlvl_ever_done_o),
+        .wrlvl_state_o      (wrlvl_state_o),
         .mr0_i              (mr0_i),
         .mr1_i              (mr1_i),
         .mr2_i              (mr2_i),
@@ -557,6 +626,7 @@ module scoria_core
     // ======================================================================
     scoria_dfi_layer #(
         .NUM_RANKS       (NUM_RANKS),
+        .NUM_CS          (NUM_CS),
         .NUM_BANKS       (NUM_BANKS),
         .ROW_WIDTH       (ROW_WIDTH),
         .COL_WIDTH       (COL_WIDTH),
@@ -621,7 +691,18 @@ module scoria_core
         .dfi_rddata_i       (dfi_rddata_i),
         .dfi_rddata_valid_i (dfi_rddata_valid_i),
         .dfi_init_start_o   (dfi_init_start_o),
-        .dfi_init_complete_i(dfi_init_complete_i)
+        .dfi_init_complete_i(dfi_init_complete_i),
+        // write leveling: ctl_clk side from the scheduler, dfi_clk side to the pins
+        .wl_req_cs_n_i      (w_wl_req_cs_n),
+        .wl_wrlvl_cs_n_i    (w_wl_mode_cs_n),
+        .wl_strobe_i        (w_wl_strobe),
+        .wl_ack_cs_n_o      (w_wl_ack_cs_n),
+        .wl_prime_dq_o      (w_wl_prime_dq),
+        .dfi_phylvl_req_cs_n_o (dfi_phylvl_req_cs_n_o),
+        .dfi_phylvl_ack_cs_n_i (dfi_phylvl_ack_cs_n_i),
+        .dfi_phy_wrlvl_cs_n_o  (dfi_phy_wrlvl_cs_n_o),
+        .dfi_wrlvl_strobe_o    (dfi_wrlvl_strobe_o),
+        .dfi_prime_dq_i        (dfi_prime_dq_i)
     );
 
 endmodule : scoria_core
