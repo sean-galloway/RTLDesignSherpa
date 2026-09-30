@@ -25,7 +25,13 @@ digraph scoria_blocks {
         label="MODIFIED by DDR3 / LPDDR3"; style="rounded"; color="#B8860B";
         init [label="init_sequencer   MODIFIED\ndrives RESET# (a PIN, not a command),\nprograms MR0..MR3 in JEDEC order,\nwaits tDLLK and tZQinit", fillcolor="#fff4e0"];
         mr   [label="mode_register   MODIFIED\nMR0..MR3. DDR2 had MR0..MR2 + EMRS3,\nso this is a rewrite, not an edit", fillcolor="#fff4e0"];
-        ref  [label="refresh_ctrl   MODIFIED\nDDR3: all-bank REF, JEDEC +/-8 postpone\nLPDDR3: adds REFpb per-bank round-robin", fillcolor="#fff4e0"];
+    }
+    subgraph cluster_ref {
+        label="Refresh -- INHERITED"; style="rounded"; color="#228B22";
+        ref  [label="refresh_ctrl   INHERITED\npumice ALREADY has the REFpb bank rotor.\nThe device owns the sequence (fixed sequential,\nno bank address in the command) -- the rotor only\nmirrors its counter. LPDDR3 adds a mode-select CSR", fillcolor="#d5ecd5"];
+    }
+    subgraph cluster_mod2 {
+        label="MODIFIED (continued)"; style="rounded"; color="#B8860B";
         pd   [label="powerdown_ctrl   MODIFIED\nSRE / SRX self-refresh, precharge- and\nactive-power-down; drives the SPLIT DFI\nlow-power requests (ctrl and data)", fillcolor="#fff4e0"];
         csr  [label="scoria_csr (PeakRDL)   MODIFIED\nadds tZQinit / tZQoper / tZQCS,\ntWLMRD / tWLDQSEN / tWLO / tWLOE,\nand the leveling telemetry", fillcolor="#fff4e0"];
     }
@@ -56,8 +62,9 @@ digraph scoria_blocks {
     // Layout only. Five modified blocks and two new ones placed side by side
     // render 4.2:1, which the page scaler squashes to a sliver -- see
     // vault/handbook/authoring/spec-doc-standards.md. Stack them instead.
-    init -> mr [style=invis]; mr -> ref [style=invis];
-    ref -> pd [style=invis]; pd -> csr [style=invis];
+    init -> mr [style=invis]; mr -> ref [style=invis]; ref -> pd [style=invis];
+    pd -> csr [style=invis];
+    csr -> zq [style=invis];
     zq -> wl [style=invis];
     bt -> gt [style=invis];
 

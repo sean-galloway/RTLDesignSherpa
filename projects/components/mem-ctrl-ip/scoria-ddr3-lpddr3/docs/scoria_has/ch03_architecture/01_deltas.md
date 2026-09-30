@@ -25,7 +25,7 @@
 
 ## The inheritance, stated once
 
-Eighteen of pumice's twenty-four FUBs carry over with no functional change, as
+Nineteen of pumice's twenty-four FUBs carry over with no functional change, as
 do the top, core, AXI4 macro and the DFI datapath. Chapter 2.3 lists them. This
 chapter covers only what changes, and the list is short by design.
 
@@ -51,7 +51,7 @@ the description does not mention the flop. Copy the module.
 | `dfi_cmd_formatter` | MODIFIED | new encodings: `ZQCL`, `ZQCS`, `PREA` | 3.2 |
 | `scoria_zq_ctrl` | **NEW** | periodic `ZQCS` is maintenance traffic | 3.2 |
 | `scoria_wrlvl_ifc` | **NEW** | DDR3 adds write leveling | 3.3 |
-| `refresh_ctrl` | MODIFIED | LPDDR3 `REFpb` per-bank alongside DDR3 all-bank | 3.4 |
+| `refresh_ctrl` | INHERITED | pumice already implements `REFpb`; LPDDR3 uses the same device-fixed mechanism. Only a mode-select CSR is added | 3.4 |
 | `powerdown_ctrl` | MODIFIED | self-refresh against the split DFI low-power requests | below |
 | `scoria_mem_cmd_scheduler` | MODIFIED | must admit ZQ demand alongside refresh | 3.2 |
 | `scoria_csr` | MODIFIED | new timing registers and leveling telemetry | Ch 5 |

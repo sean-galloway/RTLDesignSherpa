@@ -26,7 +26,7 @@
 | Field | Value |
 |-------|-------|
 | Title | scoria DDR3/LPDDR3 Family Controller — Hardware Architecture Specification |
-| Version | 0.1 |
+| Version | 0.2 |
 | Date | 2026-09-29 |
 | Status | First edition, **pre-RTL**. Specifies the controller; does not describe an implementation |
 | Scope | Controller architecture to the DFI v3.1 boundary, for DDR3 and LPDDR3 |
@@ -71,6 +71,7 @@ it a scheduling problem and not only a sequencing one.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2 | 2026-09-29 | Q1-Q5 resolved or deferred with conditions. `refresh_ctrl` corrected from MODIFIED to INHERITED: pumice already implements `REFpb` and the device owns the sequence, so Q5 was malformed and is struck. |
 | 0.1 | 2026-09-29 | First edition. Written from the delta analysis, with decisions D1-D3 settled. No RTL exists; every block is specified, not described. |
 
 : Table 0.3: Revision history
