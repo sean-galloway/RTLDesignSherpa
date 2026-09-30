@@ -110,7 +110,7 @@ title_page:
   logo_width: 2.5
   company: "RTL Design Sherpa"
   title: "DDR3 / LPDDR3 Family Controller"
-  subtitle: "Hardware Architecture Specification 0.5"
+  subtitle: "Hardware Architecture Specification 0.6"
   date: "June 13, 2026"
   company_color: primary
   title_color: secondary

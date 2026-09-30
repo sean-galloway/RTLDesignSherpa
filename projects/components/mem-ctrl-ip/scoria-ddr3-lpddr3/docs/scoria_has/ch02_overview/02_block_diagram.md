@@ -55,10 +55,9 @@ was to compute one next-state function and feed both the counter and its status
 flop from it. scoria inherits the fixed form. A fresh implementation of the same
 block from the same description would reintroduce the bug.
 
-**The amber blocks are the four FUBs the standards change:** the init sequencer,
-the mode-register block, and the two DFI output stages (`dfi_cmd_formatter` for
-the new command encodings, `dfi_signal_pack` for the v3.1 signal set) — plus
-the CSR block, which grows to hold the new timings.
+**The amber blocks are the three FUBs the standards change:** the init
+sequencer, the mode-register block, and `dfi_cmd_formatter` for the new
+command encodings — plus the CSR block, which grows to hold the new timings.
 
 **Note:** refresh and power-down are green, and both were amber in earlier
 editions of this book. Refresh because pumice already implements `REFpb` and the
@@ -66,6 +65,9 @@ device owns the sequence (Chapter 3.4); power-down because it works through CKE
 and `SRE`/`SRX`, and the DFI low-power channel that v0.2 built a requirement
 around is not implemented by this PHY family at all (Chapter 3.1). Both
 corrections came from reading an artifact instead of reasoning about one.
+
+`dfi_signal_pack` went the same way during implementation: marked MODIFIED for
+the "v3.1 signal set", it turned out to pack only signals v3.1 leaves alone.
 
 **The red blocks are the two new ones**, and both are deliberately small: a ZQ
 controller that issues periodic `ZQCS` as maintenance traffic, and a
