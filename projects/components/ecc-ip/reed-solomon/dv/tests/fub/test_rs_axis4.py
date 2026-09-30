@@ -1,5 +1,5 @@
 """
-rs_encoder / rs_decoder test runner (the AXI4-Stream integration tops)
+rs_encoder_axis4 / rs_decoder_axis4 test runner
 
 The cores are verified through their bare valid/ready ports elsewhere. These
 cells cover what the wrappers add: the tstrb-to-symbol-keep mapping, tlast
@@ -48,7 +48,7 @@ async def cocotb_test_rs_encoder_axis(dut):
     ok &= await tb.run_backpressure()
     report = tb.get_test_report()
     tb.log.info(f"Test report: {report}")
-    assert ok, f"rs_encoder: {report['mismatches']} mismatches in {report['checks']} checks"
+    assert ok, f"rs_encoder_axis4: {report['mismatches']} mismatches in {report['checks']} checks"
 
 
 @cocotb.test(timeout_time=2000, timeout_unit="ms")
@@ -59,7 +59,7 @@ async def cocotb_test_rs_decoder_axis(dut):
     ok &= await tb.run_backpressure()
     report = tb.get_test_report()
     tb.log.info(f"Test report: {report}")
-    assert ok, f"rs_decoder: {report['mismatches']} mismatches in {report['checks']} checks"
+    assert ok, f"rs_decoder_axis4: {report['mismatches']} mismatches in {report['checks']} checks"
 
 
 def _run(dut_name, role, testcase, symbol_width, prim_poly, t, n, spb, test_level):
@@ -108,13 +108,13 @@ def _run(dut_name, role, testcase, symbol_width, prim_poly, t, n, spb, test_leve
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
 @pytest.mark.parametrize("symbol_width, prim_poly, t, n, spb", PROFILES)
-def test_rs_encoder(request, symbol_width, prim_poly, t, n, spb, test_level):
-    _run("rs_encoder", "encoder", "cocotb_test_rs_encoder_axis",
+def test_rs_encoder_axis4(request, symbol_width, prim_poly, t, n, spb, test_level):
+    _run("rs_encoder_axis4", "encoder", "cocotb_test_rs_encoder_axis",
          symbol_width, prim_poly, t, n, spb, test_level)
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
 @pytest.mark.parametrize("symbol_width, prim_poly, t, n, spb", PROFILES)
-def test_rs_decoder(request, symbol_width, prim_poly, t, n, spb, test_level):
-    _run("rs_decoder", "decoder", "cocotb_test_rs_decoder_axis",
+def test_rs_decoder_axis4(request, symbol_width, prim_poly, t, n, spb, test_level):
+    _run("rs_decoder_axis4", "decoder", "cocotb_test_rs_decoder_axis",
          symbol_width, prim_poly, t, n, spb, test_level)

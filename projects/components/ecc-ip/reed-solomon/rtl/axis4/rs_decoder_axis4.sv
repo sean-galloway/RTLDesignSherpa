@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
-// Module: rs_decoder
+// Module: rs_decoder_axis4
 // Description: Reed-Solomon decoder with AXI4-Stream interfaces.
 //
 //   The component's integration top (PRD D9), the counterpart to `rs_encoder`.
@@ -39,7 +39,7 @@
 //   - out_status_* are valid with the block's LAST output beat, which is the
 //     core's contract (release-on-verdict: nothing leaves until the
 //     post-correction syndrome re-check has passed judgement).
-module rs_decoder #(
+module rs_decoder_axis4 #(
     parameter int SYMBOL_WIDTH     = 8,
     parameter int PRIM_POLY        = 'h11D,
     parameter int T_SYMBOLS        = 8,
@@ -49,12 +49,6 @@ module rs_decoder #(
     parameter int SKID_DEPTH       = 2,
     parameter int BLOCK_FIFO_DEPTH = 1 << $clog2((N_SYMBOLS + 2 * T_SYMBOLS) / (DATA_WIDTH / SYMBOL_WIDTH) + 8),
     parameter string KES_ALGO      = "RIBM",
-    // PRD D9 names these on the tops so a consumer selects its boundaries
-    // rather than picking a module. Only "AXIS" is built today; "AXI4" needs
-    // the read/write job engines, which do not exist yet, and "NONE" is just
-    // the bare core -- instantiate rs_decoder_core directly for that.
-    parameter string INTAKE_IF     = "AXIS",
-    parameter string OUTLET_IF     = "AXIS",
     parameter int AXIS_ID_WIDTH    = 0,
     parameter int AXIS_DEST_WIDTH  = 0,
     parameter int AXIS_USER_WIDTH  = 0,
@@ -103,17 +97,12 @@ module rs_decoder #(
 
     localparam bit KEEP_ON_USER = (SYMBOL_WIDTH != 8);
 
-    if (INTAKE_IF != "AXIS")
-        $fatal(1, "rs_decoder: INTAKE_IF=%s is not built; only \"AXIS\" exists today (AXI4 needs the job engines, NONE is rs_decoder_core)", INTAKE_IF);
-    if (OUTLET_IF != "AXIS")
-        $fatal(1, "rs_decoder: OUTLET_IF=%s is not built; only \"AXIS\" exists today (AXI4 needs the job engines, NONE is rs_decoder_core)", OUTLET_IF);
-
     if (DATA_WIDTH % SYMBOL_WIDTH != 0)
-        $fatal(1, "rs_decoder: DATA_WIDTH %0d is not a whole number of %0d-bit symbols",
+        $fatal(1, "rs_decoder_axis4: DATA_WIDTH %0d is not a whole number of %0d-bit symbols",
                DATA_WIDTH, SYMBOL_WIDTH);
     if (KEEP_ON_USER && AXIS_USER_WIDTH < S)
         // SV has no adjacent string-literal concatenation; keep it one literal
-        $fatal(1, "rs_decoder: SYMBOL_WIDTH %0d != 8 so keep rides tuser, needing AXIS_USER_WIDTH >= SYMBOLS_PER_BEAT (%0d), got %0d",
+        $fatal(1, "rs_decoder_axis4: SYMBOL_WIDTH %0d != 8 so keep rides tuser, needing AXIS_USER_WIDTH >= SYMBOLS_PER_BEAT (%0d), got %0d",
                SYMBOL_WIDTH, S, AXIS_USER_WIDTH);
 
     // -------------------------------------------------------------------------

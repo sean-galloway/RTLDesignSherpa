@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
-// Module: rs_encoder
+// Module: rs_encoder_axis4
 // Description: Reed-Solomon systematic encoder with AXI4-Stream interfaces.
 //
 //   This is the component's integration top (PRD D9). `rs_encoder_core` speaks
@@ -38,7 +38,7 @@
 //   - tid and tdest are forwarded from the beat that ENTERS the encoder to the
 //     beats that leave it, held for the whole codeword. Parity beats carry the
 //     same id and dest as the block's data beats.
-module rs_encoder #(
+module rs_encoder_axis4 #(
     parameter int SYMBOL_WIDTH     = 8,
     parameter int PRIM_POLY        = 'h11D,
     parameter int T_SYMBOLS        = 8,
@@ -46,12 +46,6 @@ module rs_encoder #(
     parameter int FIRST_ROOT       = 0,
     parameter int DATA_WIDTH       = SYMBOL_WIDTH,
     parameter int SKID_DEPTH       = 2,
-    // PRD D9 names these on the tops so a consumer selects its boundaries
-    // rather than picking a module. Only "AXIS" is built today; "AXI4" needs
-    // the read/write job engines, which do not exist yet, and "NONE" is just
-    // the bare core -- instantiate rs_encoder_core directly for that.
-    parameter string INTAKE_IF     = "AXIS",
-    parameter string OUTLET_IF     = "AXIS",
     parameter int AXIS_ID_WIDTH    = 0,
     parameter int AXIS_DEST_WIDTH  = 0,
     parameter int AXIS_USER_WIDTH  = 0,
@@ -101,17 +95,12 @@ module rs_encoder #(
     // Anywhere else they are not, and guessing would corrupt partial beats.
     localparam bit KEEP_ON_USER = (SYMBOL_WIDTH != 8);
 
-    if (INTAKE_IF != "AXIS")
-        $fatal(1, "rs_encoder: INTAKE_IF=%s is not built; only \"AXIS\" exists today (AXI4 needs the job engines, NONE is rs_encoder_core)", INTAKE_IF);
-    if (OUTLET_IF != "AXIS")
-        $fatal(1, "rs_encoder: OUTLET_IF=%s is not built; only \"AXIS\" exists today (AXI4 needs the job engines, NONE is rs_encoder_core)", OUTLET_IF);
-
     if (DATA_WIDTH % SYMBOL_WIDTH != 0)
-        $fatal(1, "rs_encoder: DATA_WIDTH %0d is not a whole number of %0d-bit symbols",
+        $fatal(1, "rs_encoder_axis4: DATA_WIDTH %0d is not a whole number of %0d-bit symbols",
                DATA_WIDTH, SYMBOL_WIDTH);
     if (KEEP_ON_USER && AXIS_USER_WIDTH < S)
         // SV has no adjacent string-literal concatenation; keep it one literal
-        $fatal(1, "rs_encoder: SYMBOL_WIDTH %0d != 8 so keep rides tuser, needing AXIS_USER_WIDTH >= SYMBOLS_PER_BEAT (%0d), got %0d",
+        $fatal(1, "rs_encoder_axis4: SYMBOL_WIDTH %0d != 8 so keep rides tuser, needing AXIS_USER_WIDTH >= SYMBOLS_PER_BEAT (%0d), got %0d",
                SYMBOL_WIDTH, S, AXIS_USER_WIDTH);
 
     // -------------------------------------------------------------------------
