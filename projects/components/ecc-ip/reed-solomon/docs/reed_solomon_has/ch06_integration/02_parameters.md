@@ -32,8 +32,8 @@ reference profile uses.
 | Parameter | Type | Range | Default | Meaning | PRD |
 |---|---|---|---|---|---|
 | `SYMBOL_WIDTH` | int | 3..16 | 8 | m; the field is GF(2^m) | D1 decided |
-| `T_SYMBOLS` | int | 1..(2^m-1)/2 | 8 **TBD** | correctable symbols per block; 2t parity | D2 |
-| `N_SYMBOLS` | int | 2t+1 .. 2^m-1 | 255 **TBD** | block length; < 2^m-1 is a shortened code | D3 |
+| `T_SYMBOLS` | int | 1..(2^m-1)/2 | 8 | correctable symbols per block; 2t parity | D2 decided |
+| `N_SYMBOLS` | int | 2t+1 .. 2^m-1 | 2^m - 1 | block length; < 2^m-1 is a shortened code | D3 decided |
 | `PRIM_POLY` | int | irreducible of degree m | 0x11D | primitive polynomial; selects the field representation | D8 per profile |
 | `FIRST_ROOT` | int | 0 .. 2^m-2 | 0 **TBD** | b, first root of g(x); DVB 0, CCSDS 112 | D8 |
 | `DUAL_BASIS` | bit | | 0 | CCSDS dual-basis symbol representation at the boundaries | D8 |
@@ -42,7 +42,14 @@ reference profile uses.
 
 : Table 6.1: Code parameters
 
-Derived: `K_SYMBOLS = N_SYMBOLS - 2*T_SYMBOLS`.
+Derived: `K_SYMBOLS = N_SYMBOLS - 2*T_SYMBOLS`; elaboration fails if it is below 1.
+
+Every code parameter is fixed at elaboration (Sean, 2026-09-30). There is no
+run-time t or n: the arrays are generate loops sized by t, the generator
+polynomial is computed by `gf_pkg` when the design elaborates, and a block
+format change is a rebuild. A consumer that must mix formats in one instance
+would need a `T_MAX` sizing parameter and a `cfg_t` register, which is not in
+this specification.
 
 ## Interface
 
@@ -63,8 +70,6 @@ Adapter-specific parameters are in tables 4.5 and 4.7.
 
 | Decision | What fixes it | Effect if left at the default |
 |---|---|---|
-| D2 t | the consumer's error model or the standard | RS(255,239)-class: 8 symbol errors per 255 |
-| D3 shortening | the consumer's block size | full-length blocks |
 | D4 encoder-only | a transmit-only or RAID-write consumer | both cores are built; a consumer instantiates what it needs |
 | D5 erasures | storage / RAID consumer says yes | no erasure port, smaller decoder |
 | D8 conventions | the standard | b = 0, no dual basis |
