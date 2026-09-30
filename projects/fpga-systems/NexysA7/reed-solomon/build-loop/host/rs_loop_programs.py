@@ -102,12 +102,14 @@ def verdict(r: RunResult, t: int) -> List[str]:
     bad = []
     if r.timed_out:
         bad.append("run did not finish")
-    for d in (r.a, r.b):
+    for d in r.present:
         if d.pkts != r.blocks:
             bad.append(f"{d.name}: {d.pkts} of {r.blocks} blocks reached its checker")
         if d.blk_frame:
             bad.append(f"{d.name}: {d.blk_frame} framing errors")
-    if r.cmp_misaligned:
+    if not r.compare:
+        pass                     # single-decoder build: nothing to compare
+    elif r.cmp_misaligned:
         # the counts below would be noise: a dropped beat misaligns the streams
         bad.append("the comparator overflowed -- its mismatch counts are meaningless, "
                    "a beat was dropped and the two streams are misaligned")
@@ -115,13 +117,13 @@ def verdict(r: RunResult, t: int) -> List[str]:
         bad.append(f"riBM vs Euclid: {r.cmp_data_mismatch} beat and "
                    f"{r.cmp_status_mismatch} verdict mismatches")
     if r.bypass:
-        for d in (r.a, r.b):
+        for d in r.present:
             if d.data_err or not d.crc_ok:
                 bad.append(f"{d.name} checker: data_err={d.data_err} crc_ok={d.crc_ok} in bypass")
         return bad
     exact = r.mode == RsLoopDriver.INJ_COUNT
     e = r.count if exact else None
-    for d in (r.a, r.b):
+    for d in r.present:
         if e == 0 or r.mode == RsLoopDriver.INJ_NONE:
             if d.blk_ok != r.blocks or d.data_err or not d.crc_ok:
                 bad.append(f"{d.name}: clean run gave ok={d.blk_ok}/{r.blocks} "

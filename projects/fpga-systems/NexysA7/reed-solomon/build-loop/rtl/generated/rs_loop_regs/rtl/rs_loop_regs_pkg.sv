@@ -5,7 +5,7 @@ package rs_loop_regs_pkg;
 
     localparam RS_LOOP_REGS_DATA_WIDTH = 32;
     localparam RS_LOOP_REGS_MIN_ADDR_WIDTH = 8;
-    localparam RS_LOOP_REGS_SIZE = 'h84;
+    localparam RS_LOOP_REGS_SIZE = 'h88;
 
     typedef struct {
         logic [31:0] next;
@@ -276,6 +276,29 @@ package rs_loop_regs_pkg;
     } rs_loop_regs__CMP_BEATS__in_t;
 
     typedef struct {
+        logic [2:0] next;
+    } rs_loop_regs__TOPOLOGY__decoders__in_t;
+
+    typedef struct {
+        logic next;
+    } rs_loop_regs__TOPOLOGY__kes_a__in_t;
+
+    typedef struct {
+        logic next;
+    } rs_loop_regs__TOPOLOGY__kes_b__in_t;
+
+    typedef struct {
+        logic next;
+    } rs_loop_regs__TOPOLOGY__compare__in_t;
+
+    typedef struct {
+        rs_loop_regs__TOPOLOGY__decoders__in_t decoders;
+        rs_loop_regs__TOPOLOGY__kes_a__in_t kes_a;
+        rs_loop_regs__TOPOLOGY__kes_b__in_t kes_b;
+        rs_loop_regs__TOPOLOGY__compare__in_t compare;
+    } rs_loop_regs__TOPOLOGY__in_t;
+
+    typedef struct {
         rs_loop_regs__BUILD_ID__in_t BUILD_ID;
         rs_loop_regs__STATUS__in_t STATUS;
         rs_loop_regs__PROFILE__in_t PROFILE;
@@ -302,6 +325,7 @@ package rs_loop_regs_pkg;
         rs_loop_regs__CMP_DATA_MISMATCH__in_t CMP_DATA_MISMATCH;
         rs_loop_regs__CMP_STATUS_MISMATCH__in_t CMP_STATUS_MISMATCH;
         rs_loop_regs__CMP_BEATS__in_t CMP_BEATS;
+        rs_loop_regs__TOPOLOGY__in_t TOPOLOGY;
     } rs_loop_regs__in_t;
 
     typedef struct {

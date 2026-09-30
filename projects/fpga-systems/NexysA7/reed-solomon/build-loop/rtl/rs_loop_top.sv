@@ -20,7 +20,17 @@
 
 module rs_loop_top
     import rs_loop_cfg_pkg::*;
-(
+#(
+    // Which decoders this bitstream carries. Defaults are the board-proven
+    // pair with the comparator between them; a build overrides them with
+    // Vivado -generic to get a cheaper single-decoder image -- the Euclid
+    // decoder alone is 7,163 LUTs of a 63,400-LUT part, so dropping it is
+    // what buys room for a different fabric boundary in the same device.
+    // The host does not need to be told which it got: it reads TOPOLOGY.
+    parameter string KES_ALGO_A     = CFG_KES_A,
+    parameter string KES_ALGO_B     = CFG_KES_B,
+    parameter bit    ENABLE_COMPARE = 1'b1
+) (
     input  logic        CLK100MHZ,
     input  logic        CPU_RESETN,     // active-low
     input  logic        UART_TXD_IN,    // FTDI -> FPGA
@@ -79,7 +89,11 @@ module rs_loop_top
     // -------------------------------------------------------------------------
     logic w_busy, w_gen_done, w_chk_a_ok, w_chk_b_ok, w_cmp_err;
 
-    rs_loop_harness #(.AXIL_ADDR_WIDTH(32)) u_harness (
+    rs_loop_harness #(
+        .AXIL_ADDR_WIDTH(32),
+        .KES_ALGO_A(KES_ALGO_A), .KES_ALGO_B(KES_ALGO_B),
+        .ENABLE_COMPARE(ENABLE_COMPARE)
+    ) u_harness (
         .aclk(sys_clk), .aresetn(sys_rstn),
         .s_axil_awaddr(axil_awaddr), .s_axil_awprot(axil_awprot),
         .s_axil_awvalid(axil_awvalid), .s_axil_awready(axil_awready),

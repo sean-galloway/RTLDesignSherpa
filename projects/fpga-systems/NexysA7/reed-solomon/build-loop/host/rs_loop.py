@@ -79,8 +79,20 @@ class RunResult:
     cmp_beats: int
     cmp_err: bool
     cmp_misaligned: bool
+    decoders: int = 2
+    compare: bool = True
     timed_out: bool = False
     notes: list = field(default_factory=list)
+
+    @property
+    def present(self):
+        """Only the decoders this bitstream actually built.
+
+        A single-decoder build ties checker B off, so its counters read zero.
+        Scoring them anyway reports every run as a failure -- which is exactly
+        what happened the first time the ENABLE_COMPARE = 0 build was run.
+        """
+        return (self.a,) if self.decoders < 2 else (self.a, self.b)
 
     @property
     def cycles_per_block(self) -> float:
@@ -98,6 +110,7 @@ class RsLoopDriver:
             bridge = UARTAxiBridge(port=port, baudrate=baudrate, timeout=timeout)
         self.bridge = bridge
         self.regs = UartRegisterMap(bridge, start_address=HARNESS_BASE, regmap_file=REGMAP)
+        self._topo = None        # TOPOLOGY is static per bitstream; read once
 
     # -- identity -----------------------------------------------------------
     def build_id(self) -> int:
@@ -163,14 +176,40 @@ class RsLoopDriver:
             sym_corr=r(f"SYM_CORR_{suffix}"), pkts=r(f"PKTS_{suffix}"), crc=r(f"CRC_{suffix}"),
             crc_ok=st[f"crc_{suffix.lower()}_ok"], data_err=st[f"data_err_{suffix.lower()}"])
 
+    def topology(self) -> dict:
+        """What the bitstream built, read from TOPOLOGY rather than assumed.
+
+        Static for a given bitstream, so it is read once and cached. The host
+        has to discover this: the same harness RTL builds one decoder or two,
+        with either solver in either slot, and a host that hardcoded "riBM and
+        Euclid" would mislabel every result on a single-decoder build and
+        score a tied-off checker as a failure.
+        """
+        if self._topo is None:
+            # the register map reads whole REGISTERS; fields come out by
+            # position, the same way status() unpacks STATUS
+            w = self.regs.read("TOPOLOGY")
+            self._topo = {
+                "decoders": (w & 0x7) or 1,
+                "kes_a":    bool(w >> 4 & 1),
+                "kes_b":    bool(w >> 5 & 1),
+                "compare":  bool(w >> 8 & 1),
+                "name_a":   "Euclid" if (w >> 4 & 1) else "riBM",
+                "name_b":   "Euclid" if (w >> 5 & 1) else "riBM",
+            }
+        return self._topo
+
     def collect(self, blocks: int, mode: int, count: int, rate: int, bypass: bool,
                 timed_out: bool = False) -> RunResult:
         st = self.status()
         r = self.regs.read
+        topo = self.topology()
         return RunResult(
             blocks=blocks, mode=mode, count=count, rate=rate, bypass=bypass,
             cycles=r("CYCLES"), crc_expected=r("CRC_EXPECTED"),
-            a=self._decoder("riBM", "A", st), b=self._decoder("Euclid", "B", st),
+            decoders=topo["decoders"], compare=topo["compare"],
+            a=self._decoder(topo["name_a"], "A", st),
+            b=self._decoder(topo["name_b"], "B", st),
             inj_symbols=r("INJ_SYMBOLS"), inj_blocks=r("INJ_BLOCKS"), inj_over_t=r("INJ_OVER_T"),
             cmp_data_mismatch=r("CMP_DATA_MISMATCH"), cmp_status_mismatch=r("CMP_STATUS_MISMATCH"),
             cmp_beats=r("CMP_BEATS"), cmp_err=st["cmp_err"],

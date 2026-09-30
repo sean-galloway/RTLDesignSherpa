@@ -44,6 +44,13 @@ addrmap rs_loop_regs {
         field { sw = w; hw = r; singlepulse; desc = "start the generators"; } start[0:0] = 0;
     } GO @ 0x080;
 
+    reg { desc = "What this bitstream actually BUILT. The host reads this rather than assuming two decoders: a single-decoder build ties checker B off, and a host that scored the B-side counters anyway would report every run as a failure.";
+        field { sw = r; hw = w; desc = "decoders present, 1 or 2"; } decoders[2:0] = 0;
+        field { sw = r; hw = w; desc = "decoder A solver: 0 = riBM, 1 = Euclid"; } kes_a[4:4] = 0;
+        field { sw = r; hw = w; desc = "decoder B solver: 0 = riBM, 1 = Euclid; meaningless when decoders == 1"; } kes_b[5:5] = 0;
+        field { sw = r; hw = w; desc = "the A-vs-B comparator is built"; } compare[8:8] = 0;
+    } TOPOLOGY @ 0x084;
+
     reg { desc = "Blocks per run";
         field { sw = rw; hw = r; } blocks[15:0] = 8;
     } GEN_BLOCKS @ 0x00C;

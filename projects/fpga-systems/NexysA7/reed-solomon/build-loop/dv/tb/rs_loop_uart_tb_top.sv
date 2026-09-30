@@ -21,7 +21,15 @@ module rs_loop_uart_tb_top #(
     // time, and at board baud the UART is the bottleneck -- raise the baud,
     // never shrink the campaign. The byte stream is what is under test and it
     // is identical at any baud. Same rate the rapids harnesses use.
-    parameter int UART_CLKS_PER_BIT = 4
+    parameter int UART_CLKS_PER_BIT = 4,
+
+    // Forwarded to the harness so a test can exercise the single-decoder
+    // configuration. The default matches the board build; a parameter's OFF
+    // state needs its own test, and without these it would only ever be
+    // elaborated by a lint pass.
+    parameter string KES_ALGO_A      = rs_loop_cfg_pkg::CFG_KES_A,
+    parameter string KES_ALGO_B      = rs_loop_cfg_pkg::CFG_KES_B,
+    parameter bit    ENABLE_COMPARE  = 1'b1
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -56,7 +64,11 @@ module rs_loop_uart_tb_top #(
         .m_axil_rdata(axil_rdata), .m_axil_rresp(axil_rresp),
         .m_axil_rvalid(axil_rvalid), .m_axil_rready(axil_rready));
 
-    rs_loop_harness #(.AXIL_ADDR_WIDTH(32)) u_harness (
+    rs_loop_harness #(
+        .AXIL_ADDR_WIDTH(32),
+        .KES_ALGO_A(KES_ALGO_A), .KES_ALGO_B(KES_ALGO_B),
+        .ENABLE_COMPARE(ENABLE_COMPARE)
+    ) u_harness (
         .aclk(aclk), .aresetn(aresetn),
         .s_axil_awaddr(axil_awaddr), .s_axil_awprot(axil_awprot),
         .s_axil_awvalid(axil_awvalid), .s_axil_awready(axil_awready),

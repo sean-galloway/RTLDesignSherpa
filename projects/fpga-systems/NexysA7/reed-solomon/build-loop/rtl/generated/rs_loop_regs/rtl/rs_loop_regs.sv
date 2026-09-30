@@ -99,6 +99,7 @@ module rs_loop_regs (
         logic CMP_STATUS_MISMATCH;
         logic CMP_BEATS;
         logic GO;
+        logic TOPOLOGY;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_req;
@@ -140,6 +141,7 @@ module rs_loop_regs (
         decoded_reg_strb.CMP_STATUS_MISMATCH = cpuif_req_masked & (cpuif_addr == 8'h78);
         decoded_reg_strb.CMP_BEATS = cpuif_req_masked & (cpuif_addr == 8'h7c);
         decoded_reg_strb.GO = cpuif_req_masked & (cpuif_addr == 8'h80);
+        decoded_reg_strb.TOPOLOGY = cpuif_req_masked & (cpuif_addr == 8'h84);
     end
 
     // Pass down signals to next stage
@@ -633,7 +635,7 @@ module rs_loop_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[32];
+    logic [31:0] readback_array[33];
     assign readback_array[0][31:0] = (decoded_reg_strb.BUILD_ID && !decoded_req_is_wr) ? hwif_in.BUILD_ID.value.next : '0;
     assign readback_array[1][31:0] = (decoded_reg_strb.SCRATCH && !decoded_req_is_wr) ? field_storage.SCRATCH.value.value : '0;
     assign readback_array[2][2:0] = '0;
@@ -689,6 +691,13 @@ module rs_loop_regs (
     assign readback_array[29][31:0] = (decoded_reg_strb.CMP_DATA_MISMATCH && !decoded_req_is_wr) ? hwif_in.CMP_DATA_MISMATCH.value.next : '0;
     assign readback_array[30][31:0] = (decoded_reg_strb.CMP_STATUS_MISMATCH && !decoded_req_is_wr) ? hwif_in.CMP_STATUS_MISMATCH.value.next : '0;
     assign readback_array[31][31:0] = (decoded_reg_strb.CMP_BEATS && !decoded_req_is_wr) ? hwif_in.CMP_BEATS.value.next : '0;
+    assign readback_array[32][2:0] = (decoded_reg_strb.TOPOLOGY && !decoded_req_is_wr) ? hwif_in.TOPOLOGY.decoders.next : '0;
+    assign readback_array[32][3:3] = '0;
+    assign readback_array[32][4:4] = (decoded_reg_strb.TOPOLOGY && !decoded_req_is_wr) ? hwif_in.TOPOLOGY.kes_a.next : '0;
+    assign readback_array[32][5:5] = (decoded_reg_strb.TOPOLOGY && !decoded_req_is_wr) ? hwif_in.TOPOLOGY.kes_b.next : '0;
+    assign readback_array[32][7:6] = '0;
+    assign readback_array[32][8:8] = (decoded_reg_strb.TOPOLOGY && !decoded_req_is_wr) ? hwif_in.TOPOLOGY.compare.next : '0;
+    assign readback_array[32][31:9] = '0;
 
     // Reduce the array
     always_comb begin
@@ -696,7 +705,7 @@ module rs_loop_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<32; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<33; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

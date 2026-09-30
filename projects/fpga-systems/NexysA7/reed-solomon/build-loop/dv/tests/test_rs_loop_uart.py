@@ -19,6 +19,10 @@ the UNMODIFIED programs in host/rs_loop_programs.py.
                  caught a missing comparator backpressure term: with both
                  sides throttled equally the comparator FIFOs stayed in
                  lockstep and the bug was invisible in every other test.
+  uart_single    the ENABLE_COMPARE = 0 build: one Euclid decoder, no
+                 comparator. Proves the run still finishes with checker B
+                 tied off, and that the comparator reports inactive rather
+                 than falsely clean.
   uart_sequences the bin/seq_*.py sequences, unmodified, through the same
                  SequenceRunner the board's run_smoke.py drives
   uart_random    the random campaign, on ITS OWN board defaults: 64 runs, each
@@ -290,22 +294,56 @@ async def cocotb_test_uart_random(dut):
     assert report.ok, f"the random campaign failed in sim:\n{report.summary()}"
 
 
+@cocotb.test(timeout_time=200, timeout_unit="ms")
+async def cocotb_test_uart_single(dut):
+    """The ENABLE_COMPARE = 0 build: ONE decoder, no comparator.
+
+    A parameter's off state needs its own test, or the only thing that ever
+    elaborates it is a lint pass. Two things have to hold here that the
+    two-decoder build cannot check:
+
+      - the run still FINISHES. chk_b_done is a packet compare in the default
+        build, and with checker B tied off it would sit at zero forever and
+        hold w_all_done low. It reads a constant 1 when there is no B.
+      - the comparator reports INACTIVE, not clean. Zero mismatches over zero
+        beats must not be mistaken for agreement, so CMP_BEATS is required to
+        be 0 rather than merely non-contradictory.
+
+    The decoder built here is Euclid, which is the one the default build puts
+    in the B slot -- so this cell is also the only place Euclid is exercised
+    as the primary decoder with its own checker and CRC.
+    """
+    drv, _ = await _bringup(dut)
+    r = await cocotb.external(lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=T, blocks=4))()
+    assert not r.timed_out, "the single-decoder run never finished"
+    assert r.a.blk_corr == r.blocks, (
+        f"single decoder: corrected {r.a.blk_corr}/{r.blocks}")
+    assert r.a.sym_corr == T * r.blocks, (
+        f"single decoder: {r.a.sym_corr} symbols corrected, want {T * r.blocks}")
+    assert not r.a.data_err and r.a.crc_ok, (
+        f"single decoder: data_err={r.a.data_err} crc_ok={r.a.crc_ok}")
+    assert r.cmp_beats == 0 and not r.cmp_err and not r.cmp_misaligned, (
+        f"comparator should be INACTIVE with one decoder, got beats={r.cmp_beats} "
+        f"err={r.cmp_err} misaligned={r.cmp_misaligned}")
+    _report(dut, f"single Euclid decoder, e={T}", r)
+
+
 # =============================================================================
 # pytest wrappers
 # =============================================================================
-def _run(testcase: str):
+def _run(testcase: str, parameters=None, suffix=""):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "rs_loop_uart_tb_top"
     filelist_path = "projects/fpga-systems/NexysA7/reed-solomon/build-loop/dv/filelists/rs_loop_uart_tb_top.f"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=filelist_path)
-    sim_build = sim_build_path(tests_dir, testcase)
+    sim_build = sim_build_path(tests_dir, testcase + suffix)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     extra_env = {
         "DUT": dut_name,
         "REPO_ROOT": repo_root,
         "COCOTB_LOG_LEVEL": "INFO",
-        "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{testcase}.xml"),
+        "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{testcase}{suffix}.xml"),
     }
     compile_args = [
         "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
@@ -317,6 +355,7 @@ def _run(testcase: str):
         verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module="test_rs_loop_uart",
         testcase=testcase,
+        parameters=parameters or {},
         sim_build=sim_build, simulator="verilator",
         extra_env=extra_env, compile_args=compile_args,
         keep_files=True, timescale="1ns/1ps")
@@ -360,3 +399,10 @@ def test_rs_loop_uart_skew(request):
 
 def test_rs_loop_uart_random(request):
     _run("cocotb_test_uart_random")
+
+
+def test_rs_loop_uart_single(request):
+    """ENABLE_COMPARE=0 with Euclid as the only decoder."""
+    _run("cocotb_test_uart_single",
+         parameters={"ENABLE_COMPARE": "0", "KES_ALGO_A": '"EUCLID"'},
+         suffix="_ec0")

@@ -67,7 +67,25 @@ module rs_loop_harness
     // windows unreachable -- every access folds back into the low window.
     // That is what the first cut of this rework did, and a board probe that
     // read 0x10000 and got the loop block's BUILD_ID is what found it.
-    parameter int AXIL_ADDR_WIDTH = 32
+    parameter int AXIL_ADDR_WIDTH = 32,
+
+    // Which solver each decoder is built with, and whether the second one
+    // exists at all. The default is the board-proven pair: riBM against
+    // Euclid with the beat-for-beat comparator between them, which is what a
+    // million blocks were validated on.
+    //
+    // ENABLE_COMPARE = 0 builds ONE decoder and no comparator. That is the
+    // configuration to use when the point of the build is something other
+    // than solver equivalence -- a different fabric boundary, say -- because
+    // the Euclid decoder alone is 7,163 LUTs of a 63,400-LUT part and the
+    // solver question has already been answered. Correctness does not depend
+    // on the comparator: the pattern checker compares received words against
+    // the regenerated pattern, which is a direct check against known-good
+    // data. Two solvers agreeing is the weaker claim of the two -- both can
+    // agree on a wrong answer, which is exactly what a miscorrected block is.
+    parameter string KES_ALGO_A   = CFG_KES_A,
+    parameter string KES_ALGO_B   = CFG_KES_B,
+    parameter bit    ENABLE_COMPARE = 1'b1
 ) (
     input  logic                        aclk,
     input  logic                        aresetn,
@@ -342,7 +360,13 @@ module rs_loop_harness
         .o_inj_symbols(inj_symbols), .o_inj_blocks(inj_blocks), .o_inj_over_t(inj_over_t),
         .o_last_block_errors(inj_last));
 
-    // broadcast to the two decoders: a beat moves when both can take it
+    // How many decoders exist. The arrays below stay 2 wide whatever ND is,
+    // and the unbuilt half is tied off explicitly further down: sizing them
+    // [ND] instead would make every `[1]` reference an out-of-range select at
+    // elaboration, including the ones in dead ternary arms.
+    localparam int ND = ENABLE_COMPARE ? 2 : 1;
+
+    // broadcast to the decoders: with two, a beat moves when both can take it
     logic          dec_in_ready [2];
     logic          dec_out_valid [2], dec_out_ready [2], dec_out_last [2];
     logic [DW-1:0] dec_out_data [2];
@@ -352,19 +376,44 @@ module rs_loop_harness
 
     assign inj_out_ready = dec_in_ready[0] && dec_in_ready[1];
 
-    for (genvar d = 0; d < 2; d++) begin : g_dec
+    // With two decoders each one's valid is gated on the OTHER's ready, so a
+    // beat lands on both in the same cycle. With one there is nobody to wait
+    // for, and gating valid on its own ready would be a protocol violation.
+    logic dec_in_valid [2];
+    for (genvar d = 0; d < ND; d++) begin : g_dec_in
+        if (ND == 2) assign dec_in_valid[d] = inj_out_valid && dec_in_ready[1-d];
+        else         assign dec_in_valid[d] = inj_out_valid;
+    end
+
+    for (genvar d = 0; d < ND; d++) begin : g_dec
         rs_decoder_core #(
             .SYMBOL_WIDTH(M), .PRIM_POLY(CFG_PRIM_POLY), .T_SYMBOLS(T), .N_SYMBOLS(N),
             .FIRST_ROOT(CFG_FIRST_ROOT), .DATA_WIDTH(DW),
-            .KES_ALGO((d == 0) ? CFG_KES_A : CFG_KES_B)
+            .KES_ALGO((d == 0) ? KES_ALGO_A : KES_ALGO_B)
         ) u_dec (
             .aclk(aclk), .aresetn(dp_rstn),
-            .in_valid(inj_out_valid && dec_in_ready[1-d]), .in_ready(dec_in_ready[d]),
+            .in_valid(dec_in_valid[d]), .in_ready(dec_in_ready[d]),
             .in_data(inj_out_data), .in_keep(inj_out_keep), .in_last(inj_out_last),
             .out_valid(dec_out_valid[d]), .out_ready(dec_out_ready[d]), .out_data(dec_out_data[d]),
             .out_keep(dec_out_keep[d]), .out_last(dec_out_last[d]),
             .out_status_ok(dec_ok[d]), .out_status_corrected(dec_corr[d]),
             .out_status_uncorrectable(dec_unc[d]), .out_status_frame_err(dec_frame[d]));
+    end
+
+    // The unbuilt half. dec_in_ready[1] reads 1 so inj_out_ready above is
+    // just decoder A's ready; everything else reads 0 so decoder B's tallies
+    // and CSRs stay at zero and synthesis folds them away.
+    if (ND < 2) begin : g_dec_b_tieoff
+        assign dec_in_ready[1]  = 1'b1;
+        assign dec_in_valid[1]  = 1'b0;
+        assign dec_out_valid[1] = 1'b0;
+        assign dec_out_data[1]  = '0;
+        assign dec_out_keep[1]  = '0;
+        assign dec_out_last[1]  = 1'b0;
+        assign dec_ok[1]        = 1'b0;
+        assign dec_corr[1]      = '0;
+        assign dec_unc[1]       = 1'b0;
+        assign dec_frame[1]     = 1'b0;
     end
 
     // =========================================================================
@@ -390,6 +439,21 @@ module rs_loop_harness
     /* verilator lint_on PINCONNECTEMPTY */
     assign chk_ready_en[0] = !hwif_out.CTRL.throttle_a.value || w_thr_lfsr[0];
     assign chk_ready_en[1] = !hwif_out.CTRL.throttle_b.value || w_thr_lfsr[7];
+    // unbuilt checker B: ready reads 1 so gen_tready in bypass is checker A's
+    // alone, and its outputs read 0 so the B-side CSRs stay at zero
+    if (ND < 2) begin : g_chk_b_tieoff
+        assign chk_tvalid[1]      = 1'b0;
+        assign chk_tdata[1]       = '0;
+        assign chk_tstrb[1]       = '0;
+        assign chk_tlast[1]       = 1'b0;
+        assign chk_tready[1]      = 1'b1;
+        assign chk_crc[1]         = '0;
+        assign chk_crc_valid[1]   = '0;
+        assign chk_data_err[1]    = 1'b0;
+        assign chk_pkts[1]        = '0;
+        assign chk_beats_ch[1]    = '0;
+        assign chk_beats_total[1] = '0;
+    end
 
     // declared here because the drain logic below consumes cmp_wr_ready
     localparam int CMP_W = 1 + S + DW + 3 + SC_W;
@@ -401,9 +465,11 @@ module rs_loop_harness
 
 
     always_comb begin
-        for (int d = 0; d < 2; d++) begin
+        for (int d = 0; d < ND; d++) begin
             if (w_bypass) begin
-                chk_tvalid[d] = gen_tvalid && chk_tready[1-d];
+                // in bypass both checkers watch the generator, so with two
+                // of them each waits on the other exactly as the decoders do
+                chk_tvalid[d] = (ND == 2) ? (gen_tvalid && chk_tready[1-d]) : gen_tvalid;
                 chk_tdata[d]  = gen_tdata;
                 chk_tstrb[d]  = gen_tstrb;
                 chk_tlast[d]  = gen_tlast;
@@ -433,10 +499,10 @@ module rs_loop_harness
             // a comparator: the two must stay in step.
             dec_out_ready[d] = !w_bypass && chk_tready[d] && cmp_wr_ready[d];
         end
-        gen_tready = w_bypass ? (chk_tready[0] && chk_tready[1]) : enc_in_ready;
+        gen_tready = w_bypass ? (chk_tready[0] && chk_tready[ND-1]) : enc_in_ready;
     end
 
-    for (genvar d = 0; d < 2; d++) begin : g_chk
+    for (genvar d = 0; d < ND; d++) begin : g_chk
         axis4_slave_pattern_check #(
             .NUM_CHANNELS(1), .AXIS_DATA_WIDTH(DW), .AXIS_ID_WIDTH(1), .AXIS_DEST_WIDTH(1), .AXIS_USER_WIDTH(1)
         ) u_chk (
@@ -483,6 +549,7 @@ module rs_loop_harness
     // =========================================================================
     // Comparator: the two decoders must agree beat for beat and on the verdict
     // =========================================================================
+    if (ENABLE_COMPARE) begin : g_compare
     for (genvar d = 0; d < 2; d++) begin : g_cmp_fifo
         /* verilator lint_off PINCONNECTEMPTY */
         gaxi_fifo_sync #(.DATA_WIDTH(CMP_W), .DEPTH(64), .REGISTERED(0)) u_fifo (
@@ -515,6 +582,23 @@ module rs_loop_harness
         end
     )
 
+    end else begin : g_no_compare
+        // One decoder: nothing to compare against. cmp_wr_ready reads 1 so it
+        // drops out of the drain condition, and every count reads 0 so the
+        // host sees an inactive comparator rather than a silent zero verdict.
+        assign cmp_wr_ready[0] = 1'b1;
+        assign cmp_wr_ready[1] = 1'b1;
+        assign cmp_rd_valid[0] = 1'b0;
+        assign cmp_rd_valid[1] = 1'b0;
+        assign cmp_rd_data[0]  = '0;
+        assign cmp_rd_data[1]  = '0;
+        assign w_cmp_pop       = 1'b0;
+        assign r_cmp_data_mm   = '0;
+        assign r_cmp_status_mm = '0;
+        assign r_cmp_beats     = '0;
+        assign r_cmp_err       = 1'b0;
+    end
+
     // =========================================================================
     // Run timer and done flags
     // =========================================================================
@@ -523,7 +607,10 @@ module rs_loop_harness
     logic        w_chk_a_done, w_chk_b_done, w_all_done;
 
     assign w_chk_a_done = (chk_pkts[0] == 32'(w_blocks));
-    assign w_chk_b_done = (chk_pkts[1] == 32'(w_blocks));
+    // With no decoder B there is nothing to wait for. Leaving this as the
+    // packet compare would hold w_all_done low forever, because chk_pkts[1]
+    // is tied to 0 and w_blocks is not -- the run would never finish.
+    assign w_chk_b_done = (ND == 2) ? (chk_pkts[1] == 32'(w_blocks)) : 1'b1;
     assign w_all_done   = r_gen_done && w_chk_a_done && w_chk_b_done;
 
     // Misalignment guard. Both checkers done means every beat has been
@@ -586,6 +673,10 @@ module rs_loop_harness
         hwif_in.PROFILE.t.next           = 8'(T);
         hwif_in.PROFILE.m.next           = 4'(M);
         hwif_in.PROFILE.spb.next         = 4'(S);
+        hwif_in.TOPOLOGY.decoders.next   = 3'(ND);
+        hwif_in.TOPOLOGY.kes_a.next      = (KES_ALGO_A == "EUCLID");
+        hwif_in.TOPOLOGY.kes_b.next      = (ND == 2) && (KES_ALGO_B == "EUCLID");
+        hwif_in.TOPOLOGY.compare.next    = ENABLE_COMPARE;
         hwif_in.CRC_EXPECTED.value.next  = gen_crc[0];
         hwif_in.CRC_A.value.next         = chk_crc[0][0];
         hwif_in.CRC_B.value.next         = chk_crc[1][0];

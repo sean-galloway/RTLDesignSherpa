@@ -4,7 +4,9 @@
 
 BUILD_ID must be RSLP, SCRATCH must round-trip, and the PROFILE register tells
 the later sequences what code the board carries (t drives the expectations).
-Touches registers only through ctx.bus (an RsLoopDriver).
+TOPOLOGY tells them what the bitstream BUILT -- one decoder or two, and which
+solver is in each slot -- so nothing downstream has to be told which image is
+loaded. Touches registers only through ctx.bus (an RsLoopDriver).
 """
 from __future__ import annotations
 
@@ -25,4 +27,11 @@ class Init(Sequence):
             raise RuntimeError(f"SCRATCH round-trip failed: {r.scratch}")
         p = r.profile
         ctx.say(f"[init] RS({p['n']},{p['n'] - 2 * p['t']}) t={p['t']} m={p['m']} {p['spb']} symbols/beat")
+        topo = ctx.bus.topology()
+        if topo["decoders"] == 2:
+            ctx.say(f"[init] 2 decoders: A={topo['name_a']} B={topo['name_b']}, "
+                    f"comparator {'on' if topo['compare'] else 'OFF'}")
+        else:
+            ctx.say(f"[init] 1 decoder: {topo['name_a']}; no comparator, so the "
+                    f"B-side counters and CMP_* read 0 by design")
         return r
