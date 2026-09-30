@@ -13,7 +13,7 @@
 //          settings of bank_lsb, so there is NO scheme mux:
 //
 //            bank_lsb == COL_WIDTH        -> bank above whole column = ROW_MAJOR
-//            bank_lsb == log2(cols/burst) -> minimal col_lo          = BANK_INTERLEAVE
+//            bank_lsb == log2(burst)      -> minimal col_lo          = BANK_INTERLEAVE
 //            in between                   -> partial interleave
 //
 //          An optional bank XOR-hash (hash_en_i) folds row bits + a seed into
@@ -24,9 +24,20 @@
 //            col = { col_hi, col_lo }.  row LSB is always CW+BW.
 //
 //          Combinational, single stage. Software keeps
-//          log2(cols/burst) <= bank_lsb <= COL_WIDTH so a DRAM burst's column
-//          walk stays inside one bank; the RTL clamps to [0, COL_WIDTH] to keep
-//          the field slices legal.
+//          log2(burst) <= bank_lsb <= COL_WIDTH so a DRAM burst's column walk
+//          stays inside one bank; the RTL clamps to [0, COL_WIDTH] to keep the
+//          field slices legal. `burst` is the burst's length in the mapper's
+//          own column units, which is what ADDR_MAP's description calls
+//          log2(BL/DFI_RATE).
+//
+//          These two lines used to read `log2(cols/burst)`, inherited from
+//          pumice, which is the same expression inverted: for a 1024-column
+//          page and an 8-word burst it says 7, leaving 128 columns below the
+//          bank and interleaving every 512 bytes rather than every burst. The
+//          bound that keeps a burst inside one bank is log2(burst) = 3 --
+//          `cols` does not appear in it. Measured in
+//          dv/tests/fub/test_scoria_addr_mapper.py::bank_interleave_spreads,
+//          where bank_lsb=7 puts all of the first eight bursts on bank 0.
 //
 // Documentation: rtl/macro/scoria_csr.rdl (ADDR_MAP register)
 
