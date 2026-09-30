@@ -85,6 +85,31 @@ async def cocotb_test_byte_selfcheck(dut):
     tb.log.info(f"rapids_byte_harness BYTE self-check PASSED ({nbytes} B at offset {offset})")
 
 
+@cocotb.test(timeout_time=400, timeout_unit="ms")
+async def cocotb_test_byte_perf(dut):
+    """Byte-perf campaign point runner (byte_perf.py) end to end over the sim
+    UART: one byte-path point and one beat-aligned point, both directions.
+    Asserts the derived report fields: bytes moved, beats moved, efficiency
+    = payload / (beats x lanes), and that the bus-meter counts match."""
+    import byte_perf
+    tb = RapidsByteHarnessTB(dut)
+    await tb.setup_clocks_and_reset()
+    bpb = tb.campaign.ensure_build()['beat_bytes']
+    pts = [byte_perf._pt('size', 1, payload=77, offset=5),
+           byte_perf._pt('beat', 1, beats=4)]
+    for pt in pts:
+        row = await cocotb.external(lambda pt=pt: byte_perf.run_point(tb.campaign, pt, 60.0))()
+        assert row['pass'], f"{pt['id']}: {row}"
+        for d in ('sink', 'source'):
+            r = row[d]
+            assert r['counts_match'], f"{pt['id']} {d}: meter counts differ from expected"
+            exp_payload = pt['payload'] if pt['payload'] is not None else pt['beats'] * bpb
+            assert r['bytes'] == exp_payload * pt['channels'] * pt['descs'], f"{pt['id']} {d}: bytes {r['bytes']}"
+            assert r['eff_axis'] == pytest.approx(
+                r['bytes'] / (r['axis_beats'] * bpb)), f"{pt['id']} {d}: eff"
+    tb.log.info("rapids_byte_harness BYTE-PERF point runner PASSED")
+
+
 @cocotb.test(timeout_time=120, timeout_unit="ms")
 async def cocotb_test_source_selfcheck(dut):
     """Multi-channel SOURCE self-check: m_axi_rd -> source -> m_axis per-channel CRC."""
@@ -222,7 +247,7 @@ def test_rapids_byte_harness_sink(request):
 
 
 @pytest.mark.rapids_byte_harness
-@pytest.mark.parametrize("pkt_bytes, offset", [(1, 1), (77, 5), (33, 31), (6 * 32 + 11, 0x1000 - 2 * 32 + 3)])
+@pytest.mark.parametrize("pkt_bytes, offset", [(1, 1), (77, 5), (33, 31), (6 * 32 + 11, 0x1000 - 2 * 32 + 3), (203, 1)])
 def test_rapids_byte_harness_bytes(request, pkt_bytes, offset):
     """Byte-granular RAPIDS on the harness (rapids TASK-019): sink and source
     with byte lengths and offsets, byte-wise goldens."""
@@ -237,6 +262,12 @@ def test_rapids_byte_harness_bytes(request, pkt_bytes, offset):
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
+
+
+@pytest.mark.rapids_byte_harness
+def test_rapids_byte_harness_perf(request):
+    """byte_perf.run_point over the sim UART: derived bytes/beats/efficiency."""
+    _run_harness("cocotb_test_byte_perf", "test_rapids_byte_harness_perf")
 
 
 @pytest.mark.rapids_byte_harness

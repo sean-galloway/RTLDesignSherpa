@@ -1109,6 +1109,20 @@ Examples:
     p.add_argument('--byte-smoke', action='store_true',
                    help="byte-granular confidence sweep on the BYTE_DUT build: one byte, "
                         "straddling beats, long unaligned, a 4 KB crossing; sink + source")
+    p.add_argument('--byte-perf', action='store_true',
+                   help="byte-granular performance campaign (BYTE_DUT build): sweeps channels x payload "
+                        "bytes x offset x direction, plus the beat-aligned comparison rows, and writes "
+                        "bytes / beats / efficiency / MB/s per point (see byte_perf.py)")
+    p.add_argument('--profile', default='standard', choices=('quick', 'standard', 'full'),
+                   help='--byte-perf point set (default standard)')
+    p.add_argument('--prelim', action='store_true',
+                   help='--byte-perf: mark the results PRELIMINARY (adds _prelim to the default file name)')
+    p.add_argument('--resume', action='store_true',
+                   help='--byte-perf: continue the --results file, skipping point ids already in it')
+    p.add_argument('--max-minutes', type=float, default=None,
+                   help='--byte-perf: stop cleanly between points after this many minutes')
+    p.add_argument('--bitstream', default=os.path.join(_HOST_DIR, os.pardir, 'bitstream', 'rapids_byte.bit'),
+                   help='--byte-perf: bitstream file to fingerprint (sha256) into the results')
     p.add_argument('--smoke', action='store_true',
                    help='fast confidence check: 2 channels x 4 beats, '
                         'sink + source, golden-validated; exits non-zero on fail')
@@ -1174,6 +1188,23 @@ def main() -> int:
         campaign.set_interleave(bool(args.interleave))
         if args.xfer_axlen is not None:
             campaign.set_xfer_axlen(args.xfer_axlen)
+
+        # ---- BYTE PERF campaign ------------------------------------------
+        if args.byte_perf:
+            if not d.get('byte_dut'):
+                print("FAIL: --byte-perf needs the BYTE_DUT=1 bitstream (BUILD.BYTE_DUT is 0)")
+                return 2
+            import byte_perf
+            results = args.results or os.path.abspath(os.path.join(
+                _HOST_DIR, os.pardir, os.pardir, 'reports', 'perf', 'json',
+                f"rapids_byte_perf{'_prelim' if args.prelim else ''}_"
+                f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"))
+            doc, ok = byte_perf.run_campaign(
+                campaign, args.profile, results, timeout_s=args.timeout,
+                prelim=args.prelim, resume=args.resume, max_minutes=args.max_minutes,
+                bitstream=os.path.abspath(args.bitstream), out=lambda m: print(m, flush=True))
+            print(f"Results written to {results}")
+            return 0 if ok else 1
 
         # ---- SMOKE mode --------------------------------------------------
         if args.byte_smoke or args.bytes is not None:

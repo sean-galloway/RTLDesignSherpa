@@ -28,11 +28,12 @@ What is different from rapids_beats:
 rapids/
 ├── README.md
 ├── docs/            (book and reports to come)
-├── reports/
+├── reports/         make_byte_perf_report.py, generate_reports_pdf.sh, perf/ (byte characterization report)
 └── flows-rapids/    the build + host flow (mirror of flows-rapids-beats)
     ├── rtl/         rapids_byte_harness.sv, rapids_byte_top.sv, rapids_byte_genesys2_top.sv
     ├── filelists/   constraints/  tcl/  bin/
-    ├── host/        run_characterization.py, rapids_byte_io.py, rapids_byte_golden.py, ...
+    ├── host/        run_characterization.py, byte_perf.py, rapids_byte_io.py, rapids_byte_golden.py, ...
+    ├── byte_perf.sh the one-command characterization: preflight, run, regenerate the report
     ├── dv/          cocotb harness self-check (sink, source, byte cases)
     └── Makefile     sim / synth / bitstream / program / smoke / suite
 ```
@@ -45,6 +46,14 @@ both halves; byte campaign 7/7 PASS (1 B at offset 1, 2 B at 31, 32, 37,
 egress-CRC each equal to the byte-wise golden. Build (`reports/build/`):
 WNS +0.258 ns at 100 MHz with observers, 89,746 LUTs, 68 BRAM tiles.
 
+Byte characterization report v0.1 (`reports/perf/`, PRELIMINARY, standard
+profile, 105 points): 103 pass; sink 203 B at offset 1 fails the golden on
+both points it was run (sim repro pending). Large-transfer rates sit at the
+harness checker ceiling of 3200 / 9 = 355.6 MB/s (the byte-wise CRC checkers
+take 9 cycles per 32-byte beat), so the "beat-aligned utilization unchanged"
+check against RAPIDS Beats is not yet settled; it needs a build with the
+word-wide checkers. Final numbers are rerun after the channel-reset fix.
+
 ## Quick start
 
 ```bash
@@ -54,4 +63,10 @@ make sim                      # harness self-check: beat campaigns + byte cases
 make bitstream                # Genesys 2, 8 channels, 256-bit, 4 KB per channel
 make program
 python3 host/run_characterization.py --channels 8 --byte-smoke
+
+# one command: writes the results JSON and regenerates the report.
+# Checks for other users of the board/UART, and records CSR_ID/BUILD/sentinel at
+# the start and end of each run (a mid-run reprogram aborts instead of recording).
+./byte_perf.sh --profile standard           # PRELIMINARY (*_prelim_*.json)
+./byte_perf.sh --profile full --final       # final numbers
 ```
