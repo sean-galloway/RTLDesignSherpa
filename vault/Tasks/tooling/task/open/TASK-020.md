@@ -41,6 +41,32 @@ Never tested. cocotb 2.x is a major release whose removals are not limited to
 (`cocotb>=1.9.0`) precisely because nobody has established the answer. If this
 turns out non-trivial, file it separately rather than growing this task.
 
+## Pilot evidence so far (2026-09-30)
+
+Piloted in an **isolated** venv -- `pip install -r requirements.txt` then
+`pip install --no-deps cocotb-test==0.3.0`, so every other pin is byte-identical
+to the tree's and only cocotb-test moves. The shared venv was deliberately not
+touched: a characterization and two other suites were live.
+
+| Check | Result |
+| --- | --- |
+| `import cocotb_test.simulator` on cocotb 1.9.2 | OK -- this is what fails on 0.2.5 + cocotb 2.x |
+| compat shim present | `cocotb_2x_or_newer`, `cocotb_config`, `parse_version` |
+| `run()` signature vs 0.2.5 | **identical** -- `(simulator=None, **kwargs)` on both |
+| A/B, rlb_top gate, same seed, fresh sim_build each side | baseline 0.2.5 **2 passed / cocotb 1/1**; pilot 0.3.0 **2 passed / cocotb 1/1** |
+
+A false alarm worth recording, because it nearly became a finding: an API check
+reported 13 `run()` parameters "missing" in 0.3.0. They are missing in **0.2.5
+too** -- `run` has always been `(simulator=None, **kwargs)`, so the check would
+have failed the working version. Running the control is what settled it. Any
+future API comparison here must be run against 0.2.5 as well, or it means
+nothing.
+
+One behavioural difference that does NOT bite us: 0.3.0 falls back to `icarus`
+when `SIM` is unset. `env_python` sets `SIM=verilator`, so every in-tree path is
+unaffected -- but a bare invocation without `env_python` would now pick a
+different simulator rather than failing.
+
 ## Acceptance
 
 - 0.3.0 exercised against a representative set at a real level -- not just

@@ -311,6 +311,16 @@ Before programming a shared board, `fuser /dev/ttyUSB*` plus a `ps` for another
 area's host script. `make ports` gives you the serial but says nothing about who
 is holding it.
 
+**CORRECTION (2026-09-30): `fuser /dev/ttyUSB*` only covers HALF the board.** It
+finds UART users. It does **not** find JTAG users -- observed directly: a peer's
+`vivado -mode batch` was driving the board while `fuser /dev/ttyUSB*` returned
+nothing, because the JTAG interface is not a ttyUSB device. This check was
+circulated to both board areas as the interim mitigation and it is weaker than it
+was presented as: it would not have caught the Vivado half of the original near
+miss at all. Use the lock, which is keyed on the board rather than on one of its
+two interfaces; if a manual check is still wanted, add
+`pgrep -af 'vivado|hw_server'` beside the fuser.
+
 ## Hazards
 
 - This changes shared flow tooling on the board path of 13 Makefiles. Do it when
