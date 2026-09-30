@@ -73,6 +73,7 @@ addrmap rs_loop_regs {
         field { sw = r; hw = w; desc = "decoders A and B disagreed on a beat or a verdict"; } cmp_err[6:6] = 0;
         field { sw = r; hw = w; desc = "checker A CRC equals the generator's"; } crc_a_ok[7:7] = 0;
         field { sw = r; hw = w; } crc_b_ok[8:8] = 0;
+        field { sw = r; hw = w; desc = "sticky: the two decoder streams did not run out together, so a beat is missing on one side. If this is set the beat and verdict mismatch counts are MEANINGLESS -- the streams are out of step, not disagreeing."; } cmp_misaligned[9:9] = 0;
     } STATUS @ 0x01C;
 
     reg { desc = "The code this bitstream carries";

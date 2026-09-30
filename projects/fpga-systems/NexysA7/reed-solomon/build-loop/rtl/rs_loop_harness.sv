@@ -391,6 +391,15 @@ module rs_loop_harness
     assign chk_ready_en[0] = !hwif_out.CTRL.throttle_a.value || w_thr_lfsr[0];
     assign chk_ready_en[1] = !hwif_out.CTRL.throttle_b.value || w_thr_lfsr[7];
 
+    // declared here because the drain logic below consumes cmp_wr_ready
+    localparam int CMP_W = 1 + S + DW + 3 + SC_W;
+    logic             cmp_wr_ready [2], cmp_rd_valid [2];
+    logic [CMP_W-1:0] cmp_rd_data [2];
+    logic             w_cmp_pop;
+    logic [31:0]      r_cmp_data_mm, r_cmp_status_mm, r_cmp_beats;
+    logic             r_cmp_err;
+
+
     always_comb begin
         for (int d = 0; d < 2; d++) begin
             if (w_bypass) begin
@@ -399,12 +408,30 @@ module rs_loop_harness
                 chk_tstrb[d]  = gen_tstrb;
                 chk_tlast[d]  = gen_tlast;
             end else begin
-                chk_tvalid[d] = dec_out_valid[d];
+                // cmp_wr_ready gates the VALID too, not just the decoder's
+                // ready. The checker completes its own handshake on
+                // chk_tvalid && chk_tready; if the comparator held the
+                // decoder back while the checker was ready, the checker
+                // consumed a beat the decoder never retired and then saw the
+                // very same beat again. That duplicated beats on whichever
+                // side the comparator stalled -- 6 packets counted for 4
+                // blocks, with a data error and a bad CRC on a stream the
+                // comparator simultaneously reported as beat-perfect.
+                chk_tvalid[d] = dec_out_valid[d] && cmp_wr_ready[d];
                 chk_tdata[d]  = dec_out_data[d];
                 chk_tstrb[d]  = dec_out_keep[d];
                 chk_tlast[d]  = dec_out_last[d];
             end
-            dec_out_ready[d] = !w_bypass && chk_tready[d];
+            // The comparator's ready is part of the drain condition. Without
+            // it a full comparator FIFO silently DROPS a beat, after which the
+            // comparator pairs beat N of one decoder with beat N+k of the
+            // other and almost every beat "mismatches". That is what 30 of 64
+            // random runs reported once the two checkers' throttles were drawn
+            // independently -- with both throttled the same the FIFOs stayed
+            // in lockstep and the bug was invisible. A slow checker on one
+            // side now stalls both decoders, which is the right semantics for
+            // a comparator: the two must stay in step.
+            dec_out_ready[d] = !w_bypass && chk_tready[d] && cmp_wr_ready[d];
         end
         gen_tready = w_bypass ? (chk_tready[0] && chk_tready[1]) : enc_in_ready;
     end
@@ -456,13 +483,6 @@ module rs_loop_harness
     // =========================================================================
     // Comparator: the two decoders must agree beat for beat and on the verdict
     // =========================================================================
-    localparam int CMP_W = 1 + S + DW + 3 + SC_W;
-    logic             cmp_wr_ready [2], cmp_rd_valid [2];
-    logic [CMP_W-1:0] cmp_rd_data [2];
-    logic             w_cmp_pop;
-    logic [31:0]      r_cmp_data_mm, r_cmp_status_mm, r_cmp_beats;
-    logic             r_cmp_err;
-
     for (genvar d = 0; d < 2; d++) begin : g_cmp_fifo
         /* verilator lint_off PINCONNECTEMPTY */
         gaxi_fifo_sync #(.DATA_WIDTH(CMP_W), .DEPTH(64), .REGISTERED(0)) u_fifo (
@@ -506,6 +526,20 @@ module rs_loop_harness
     assign w_chk_b_done = (chk_pkts[1] == 32'(w_blocks));
     assign w_all_done   = r_gen_done && w_chk_a_done && w_chk_b_done;
 
+    // Misalignment guard. Both checkers done means every beat has been
+    // delivered, and w_cmp_pop retires the two FIFOs in pairs, so a beat left
+    // on exactly ONE side proves the decoders did not produce the same number
+    // of beats -- or that one was dropped. Either way the mismatch counts
+    // below describe two streams that are out of step, and the host must not
+    // read them as a riBM-vs-Euclid disagreement. This is the check that was
+    // missing when 30 of 64 random runs reported ~690 of 700 beats differing.
+    logic r_cmp_misaligned;
+    `ALWAYS_FF_RST(aclk, dp_rstn,
+        if (`RST_ASSERTED(dp_rstn)) r_cmp_misaligned <= 1'b0;
+        else if (w_clear)           r_cmp_misaligned <= 1'b0;
+        else if (w_all_done && (cmp_rd_valid[0] ^ cmp_rd_valid[1])) r_cmp_misaligned <= 1'b1;
+    )
+
     `ALWAYS_FF_RST(aclk, dp_rstn,
         if (`RST_ASSERTED(dp_rstn)) begin
             r_busy <= 1'b0; r_gen_done <= 1'b0; r_cycles <= '0;
@@ -547,6 +581,7 @@ module rs_loop_harness
         hwif_in.STATUS.cmp_err.next      = r_cmp_err;
         hwif_in.STATUS.crc_a_ok.next     = w_crc_a_ok;
         hwif_in.STATUS.crc_b_ok.next     = w_crc_b_ok;
+        hwif_in.STATUS.cmp_misaligned.next = r_cmp_misaligned;
         hwif_in.PROFILE.n.next           = 16'(N);
         hwif_in.PROFILE.t.next           = 8'(T);
         hwif_in.PROFILE.m.next           = 4'(M);
@@ -580,7 +615,6 @@ module rs_loop_harness
     logic unused_h;
     assign unused_h = gen_busy ^ enc_frame_err ^ (^gen_beats_total) ^ (^gen_beats_ch[0])
                     ^ (^chk_beats_total[0]) ^ (^chk_beats_total[1]) ^ (^chk_beats_ch[0][0]) ^ (^chk_beats_ch[1][0])
-                    ^ cmp_wr_ready[0] ^ cmp_wr_ready[1]
                     ^ (^w_cpuif_addr[11:RS_LOOP_REGS_MIN_ADDR_WIDTH])
                     // the unmapped-access telemetry and the tied-off windows'
                     // request signals: available to the harness, unread today

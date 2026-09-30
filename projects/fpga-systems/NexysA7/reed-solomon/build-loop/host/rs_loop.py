@@ -78,6 +78,7 @@ class RunResult:
     cmp_status_mismatch: int
     cmp_beats: int
     cmp_err: bool
+    cmp_misaligned: bool
     timed_out: bool = False
     notes: list = field(default_factory=list)
 
@@ -141,7 +142,7 @@ class RsLoopDriver:
     def status(self) -> dict:
         w = self.regs.read("STATUS")
         names = ["busy", "gen_done", "chk_a_done", "chk_b_done", "data_err_a", "data_err_b",
-                 "cmp_err", "crc_a_ok", "crc_b_ok"]
+                 "cmp_err", "crc_a_ok", "crc_b_ok", "cmp_misaligned"]
         return {n: bool(w >> i & 1) for i, n in enumerate(names)}
 
     def wait_done(self, timeout_s: float = 10.0, poll_s: float = 0.0) -> bool:
@@ -172,7 +173,8 @@ class RsLoopDriver:
             a=self._decoder("riBM", "A", st), b=self._decoder("Euclid", "B", st),
             inj_symbols=r("INJ_SYMBOLS"), inj_blocks=r("INJ_BLOCKS"), inj_over_t=r("INJ_OVER_T"),
             cmp_data_mismatch=r("CMP_DATA_MISMATCH"), cmp_status_mismatch=r("CMP_STATUS_MISMATCH"),
-            cmp_beats=r("CMP_BEATS"), cmp_err=st["cmp_err"], timed_out=timed_out)
+            cmp_beats=r("CMP_BEATS"), cmp_err=st["cmp_err"],
+            cmp_misaligned=st["cmp_misaligned"], timed_out=timed_out)
 
     def run(self, mode: int = 0, count: int = 0, rate: int = 0, blocks: int = 8,
             gen_seed: int = 0, inj_seed: Optional[int] = None, bypass: bool = False,

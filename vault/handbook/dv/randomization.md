@@ -101,6 +101,26 @@ cannot tell whether `MINIMAL_DELAY` means `backtoback` or something subtly
 different that happens to pass today. Name a profile from `DEFAULT_PROFILES`;
 if a shape genuinely is missing, add it there rather than locally.
 
+## Randomizing two consumers TOGETHER hides every divergence bug
+
+When a design has two parallel consumers that are supposed to stay in step,
+driving both from one timing profile is not a randomized test of that
+property -- it is a test of the case where they never diverge. Give each its
+own draw.
+
+*Case (2026-09-30): the RS loop harness compares a riBM decoder against a
+Euclid decoder, and its host program exposed a single `throttle` that set both
+checkers' ready profiles at once. Every test passed, including a dedicated
+backpressure test, because equal throttles kept the two comparator FIFOs at
+equal occupancy. Splitting it into `throttle_a` / `throttle_b` and drawing them
+independently failed 30 of 64 runs on the first attempt, on two separate real
+bugs -- a missing FIFO backpressure term and a duplicated beat. The lever that
+mattered was not "more randomness" but "randomize the two things that are
+supposed to track each other, separately."*
+
+The general shape: for any invariant of the form "A and B agree", the stimulus
+must be able to push A and B out of phase. Symmetric stimulus cannot.
+
 This is one of three orthogonal axes - see [[rds-dv-axes]].
 
 Related: [[bfm-usage]], [[seeds-and-determinism]] (a rerun that changes seeds is

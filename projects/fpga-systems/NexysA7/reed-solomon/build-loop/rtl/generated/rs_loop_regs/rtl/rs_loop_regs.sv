@@ -659,7 +659,8 @@ module rs_loop_regs (
     assign readback_array[7][6:6] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.cmp_err.next : '0;
     assign readback_array[7][7:7] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.crc_a_ok.next : '0;
     assign readback_array[7][8:8] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.crc_b_ok.next : '0;
-    assign readback_array[7][31:9] = '0;
+    assign readback_array[7][9:9] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.cmp_misaligned.next : '0;
+    assign readback_array[7][31:10] = '0;
     assign readback_array[8][15:0] = (decoded_reg_strb.PROFILE && !decoded_req_is_wr) ? hwif_in.PROFILE.n.next : '0;
     assign readback_array[8][23:16] = (decoded_reg_strb.PROFILE && !decoded_req_is_wr) ? hwif_in.PROFILE.t.next : '0;
     assign readback_array[8][27:24] = (decoded_reg_strb.PROFILE && !decoded_req_is_wr) ? hwif_in.PROFILE.m.next : '0;

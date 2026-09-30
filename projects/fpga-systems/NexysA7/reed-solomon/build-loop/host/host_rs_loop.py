@@ -11,6 +11,9 @@ Subcommands:
   bypass     generator -> checkers with the codec bypassed
   run        one run: --mode none|count|burst|rate --count E --rate R --blocks N [--throttle]
   sweep      COUNT mode over --counts (default 0..2t+2): one line per error count
+  random     --runs N runs, each with a fresh data seed, error seed, mode and count
+  soak       --target blocks (default 1,000,000) of random patterns, in runs of
+             --blocks each so any failure replays as one short run
 """
 import argparse
 import sys
@@ -56,7 +59,7 @@ def cmd_bypass(args, drv):
 
 def cmd_run(args, drv):
     r = progs.run(drv, MODES[args.mode], count=args.count, rate=args.rate, blocks=args.blocks,
-                  throttle=args.throttle)
+                  throttle=args.throttle, gen_seed=args.gen_seed, inj_seed=args.inj_seed)
     return _print_run(r, drv.profile()["t"])
 
 
@@ -67,6 +70,41 @@ def cmd_sweep(args, drv):
     for row in rows:
         print("  " + progs.format_row(row))
     return 0 if all(r.ok for r in rows) else 1
+
+
+def cmd_random(args, drv):
+    """The random campaign, driven through the same sequence the board runs."""
+    from pathlib import Path as _P
+    _bin = str(_P(__file__).resolve().parents[2] / "bin")
+    if _bin not in sys.path:
+        sys.path.insert(0, _bin)      # rs_env lives in the area's bin/, alongside the sequences
+    import rs_env  # noqa: F401  (path setup for `sequence`)
+    from sequence import SequenceContext, SequenceRunner
+    ctx = SequenceContext(bus=drv, board=None,
+                          params={"runs": args.runs, "blocks": args.blocks, "seed": args.seed},
+                          log=print)
+    runner = SequenceRunner(ctx=ctx).discover(_bin)
+    report = runner.run(["init", "random"])
+    print(report.summary())
+    return 0 if report.ok else 1
+
+
+def cmd_soak(args, drv):
+    """A million blocks of random patterns, through the same sequence layer."""
+    from pathlib import Path as _P
+    _bin = str(_P(__file__).resolve().parents[2] / "bin")
+    if _bin not in sys.path:
+        sys.path.insert(0, _bin)      # rs_env lives in the area's bin/, alongside the sequences
+    import rs_env  # noqa: F401  (path setup for `sequence`)
+    from sequence import SequenceContext, SequenceRunner
+    ctx = SequenceContext(bus=drv, board=None,
+                          params={"target": args.target, "blocks": args.blocks,
+                                  "seed": args.seed, "progress": args.progress},
+                          log=print)
+    runner = SequenceRunner(ctx=ctx).discover(_bin)
+    report = runner.run(["init", "soak"])
+    print(report.summary())
+    return 0 if report.ok else 1
 
 
 def main(argv=None):
@@ -83,17 +121,30 @@ def main(argv=None):
     p.add_argument("--rate", type=int, default=0)
     p.add_argument("--blocks", type=int, default=16)
     p.add_argument("--throttle", action="store_true")
+    # a failing random-campaign run is replayed by passing its two seeds back
+    p.add_argument("--gen-seed", type=lambda s: int(s, 0), default=0)
+    p.add_argument("--inj-seed", type=lambda s: int(s, 0), default=None)
     p = sub.add_parser("sweep")
     p.add_argument("--counts", default=None, help="comma list; default 0..2t+2")
     p.add_argument("--blocks", type=int, default=16)
     p.add_argument("--throttle", action="store_true")
+    p = sub.add_parser("random")
+    p.add_argument("--runs", type=int, default=64)
+    p.add_argument("--blocks", type=int, default=4)
+    p.add_argument("--seed", type=int, default=1, help="host RNG seed; the campaign is reproducible")
+    p = sub.add_parser("soak")
+    p.add_argument("--target", type=int, default=1_000_000, help="total blocks to push")
+    p.add_argument("--blocks", type=int, default=4096, help="blocks per run (per seed pair)")
+    p.add_argument("--seed", type=int, default=1, help="host RNG seed; the soak is reproducible")
+    p.add_argument("--progress", type=int, default=16, help="report every N runs")
     args = ap.parse_args(argv)
 
     board = get_board(args.board)
     port = args.port if args.port != "auto" else board.find_uart_port()
     drv = rl.RsLoopDriver(port=port, baudrate=args.baud)
     print(f"== {args.cmd} on {board.SPEC.display_name} @ {port} ==")
-    return {"smoke": cmd_smoke, "bypass": cmd_bypass, "run": cmd_run, "sweep": cmd_sweep}[args.cmd](args, drv)
+    return {"smoke": cmd_smoke, "bypass": cmd_bypass, "run": cmd_run, "sweep": cmd_sweep,
+            "random": cmd_random, "soak": cmd_soak}[args.cmd](args, drv)
 
 
 if __name__ == "__main__":

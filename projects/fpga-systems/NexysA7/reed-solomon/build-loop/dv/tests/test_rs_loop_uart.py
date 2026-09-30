@@ -14,8 +14,19 @@ the UNMODIFIED programs in host/rs_loop_programs.py.
   uart_correct   e = t per block: every block corrected with t symbols
   uart_over_t    e = t + 1: every block uncorrectable, riBM == Euclid
   uart_throttle  e = t under random checker ready
+  uart_skew      e = t with ONLY checker A throttled, so the two decoder
+                 outputs drain at different rates. This is the case that
+                 caught a missing comparator backpressure term: with both
+                 sides throttled equally the comparator FIFOs stayed in
+                 lockstep and the bug was invisible in every other test.
   uart_sequences the bin/seq_*.py sequences, unmodified, through the same
                  SequenceRunner the board's run_smoke.py drives
+  uart_random    the random campaign, on ITS OWN board defaults: 64 runs, each
+                 a fresh data seed, error seed, injection mode, error count and
+                 per-checker throttle. This is the test that has teeth -- every
+                 other test here pins one pattern, and two harness bugs
+                 (dropped and duplicated beats under a skewed drain) survived
+                 the entire bring-up because of it.
 
 Blocks per run are few (2..4): a 32-bit UART transaction costs ~3000 sim
 cycles, a block only 63.
@@ -192,6 +203,24 @@ async def cocotb_test_uart_throttle(dut):
     _report(dut, f"e={T} throttled", r)
 
 
+@cocotb.test(timeout_time=200, timeout_unit="ms")
+async def cocotb_test_uart_skew(dut):
+    """Asymmetric drain: only checker A is throttled.
+
+    The two decoders then produce at the same rate but are consumed at
+    different rates. If the comparator's FIFO write is not part of the
+    decoder's drain condition, the faster side overruns its 64-deep FIFO,
+    beats are dropped, and the comparator starts pairing beat N of one
+    decoder with beat N+k of the other -- reporting almost every beat as a
+    riBM-vs-Euclid mismatch when the two agree completely.
+    """
+    drv, _ = await _bringup(dut)
+    r = await cocotb.external(lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=T, blocks=4,
+                                                throttle_a=True, throttle_b=False))()
+    assert not r.cmp_misaligned, "comparator streams misaligned: a beat was dropped"
+    _report(dut, f"e={T} skewed drain", r)
+
+
 @cocotb.test(timeout_time=600, timeout_unit="ms")
 async def cocotb_test_uart_sequences(dut):
     """Run the RS loop SEQUENCES -- unmodified -- against the sim.
@@ -231,6 +260,34 @@ async def cocotb_test_uart_sequences(dut):
     dut._log.info("sequence run:\n%s", report.summary())
     _check_sim_budget(dut, "sequences (init -> smoke -> sweep, board defaults)")
     assert report.ok, f"the RS loop sequences failed in sim:\n{report.summary()}"
+
+
+@cocotb.test(timeout_time=900, timeout_unit="ms")
+async def cocotb_test_uart_random(dut):
+    """The random campaign, unmodified, on its own defaults.
+
+    64 runs x 4 blocks, each with a fresh data seed, error seed, mode, error
+    count and independently drawn per-checker throttles. No deviation: these
+    are the same defaults `host_rs_loop.py random` uses on the board.
+
+    The campaign is the reason the other tests are not enough. Each of them
+    fixes GEN_SEED and INJ_SEED, so they exercise one data pattern with the
+    error in one place, many times over. Randomizing the two throttles
+    independently is what broke the comparator open.
+    """
+    drv, _ = await _bringup(dut)
+
+    def prog():
+        from sequence import SequenceContext, SequenceRunner
+
+        ctx = SequenceContext(bus=drv, board=None, params={}, log=dut._log.info)
+        runner = SequenceRunner(ctx=ctx).discover(_SEQ)
+        return runner.run(["init", "random"])
+
+    report = await cocotb.external(prog)()
+    dut._log.info("random campaign:\n%s", report.summary())
+    _check_sim_budget(dut, "random campaign (64 runs, board defaults)")
+    assert report.ok, f"the random campaign failed in sim:\n{report.summary()}"
 
 
 # =============================================================================
@@ -295,3 +352,11 @@ def test_rs_loop_uart_over_t(request):
 
 def test_rs_loop_uart_throttle(request):
     _run("cocotb_test_uart_throttle")
+
+
+def test_rs_loop_uart_skew(request):
+    _run("cocotb_test_uart_skew")
+
+
+def test_rs_loop_uart_random(request):
+    _run("cocotb_test_uart_random")

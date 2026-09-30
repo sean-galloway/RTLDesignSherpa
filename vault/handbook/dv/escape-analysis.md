@@ -177,5 +177,34 @@ defects, not doc drift:
 Tracked as docs-review TASK-015 (was DOCREV-001). Triage doc-fix vs RTL-fix per finding - the headline
 lies in both directions.
 
+## An "almost always" checker rule fails at scale, and the fix is a RATE
+
+A pass criterion that is true for every block of every short run can still be
+wrong, and the way it announces that is by failing once a campaign gets long
+enough. When it does, the question is not "which side is broken" but "what does
+the reference model do on the same stimulus".
+
+*Case (2026-09-30, Reed-Solomon loop): the checker demanded that every block
+carrying more than t symbol errors come back flagged uncorrectable. It held
+through the entire bring-up and through a 64-run random campaign, then failed 5
+runs of a 199-run soak -- always as exactly one block in 4096. Beyond the
+correction limit a received word can land within distance t of a DIFFERENT
+valid codeword, and a bounded-distance decoder then corrects it to the wrong
+message and reports success. No post-correction check can catch it: the
+re-computed syndromes really are zero, because the result really is a codeword.
+The reference model in Python accepts about 1 block in 20,000 on the same
+profile, and the hardware measured 1 in 45,739 across a million blocks. Two
+independent hardware solvers agreeing on the wrong answer was the signature --
+a solver bug would not reproduce in the model.*
+
+Two things to take from it. First, when a rule fails rarely, MEASURE the model
+on the same stimulus before touching the design; the model is the arbiter, and
+"both implementations agree" is much stronger evidence than either alone.
+Second, replace the absolute rule with a bounded rate plus the invariants that
+really are absolute -- here: every block accounted for, the two solvers always
+agreeing, and a ceiling on the accepted-in-error fraction set far enough above
+the measured rate that sampling noise cannot trip it, but low enough that a
+decoder which starts accepting what it should flag does.
+
 Related: [[kimi-review-rounds]], [[randomization]], [[running-regressions]],
-[[coverage]].
+[[coverage]], [[measure-over-the-window]].

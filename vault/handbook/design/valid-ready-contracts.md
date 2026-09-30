@@ -118,4 +118,33 @@ summary: Stability rules; observers gate commands only, never responses.
   `OUTSTANDING` defaults to 1 and serialises; the opposite direction
   (`axil4_to_wb4_core`) gets the same ordering free, because merging INTO an
   in-order protocol is the easy way round.*
+- **Gate a producer's READY on an extra condition and you must gate the VALID
+  every consumer sees, too.** A handshake completes where `valid && ready`
+  meet, and each consumer evaluates that for itself. If a tap is added that
+  holds the producer back -- a comparator FIFO, an observer, a second
+  consumer -- while the original consumer still sees `valid` high and drives
+  its own `ready`, that consumer completes a transfer the producer never
+  retired. The producer then re-presents the same beat and the consumer takes
+  it AGAIN. *Case (2026-09-30, `rs_loop_harness`): a comparator was added to
+  check two RS decoders against each other, its FIFO write ready folded into
+  `dec_out_ready` but not into `chk_tvalid`. Beats duplicated on whichever
+  side the comparator stalled: the checker counted 6 packets for 4 blocks with
+  a data error and a bad CRC, while the comparator simultaneously reported the
+  very same stream as beat-perfect -- because the comparator saw the retired
+  beats and the checker saw the duplicated ones. The two symptoms disagreeing
+  is the tell.*
+- **A monitoring tap that cannot back-pressure will drop, and dropping makes
+  its own verdict a lie.** The first version of that comparator wrote its two
+  FIFOs with `wr_valid = valid && ready` and discarded `wr_ready` into an
+  unused-signal sweep. With both consumers drained at the same rate the two
+  FIFOs stayed in lockstep and it worked for the whole bring-up; the moment
+  the two drain rates were randomized INDEPENDENTLY, one FIFO overflowed,
+  beats were dropped, and the comparator began pairing beat N of one stream
+  with beat N+k of the other -- reporting ~690 of 700 beats as mismatching
+  between two decoders that agreed completely. Either honour the ready, or
+  carry a sticky flag that invalidates the verdict; silently discarding
+  `wr_ready` in an `unused` XOR is how the hole gets made. Prefer both: the
+  flag is what stops a future regression being read as a data bug.
+
+Related: [[streaming-no-fsm]], [[no-assertions-in-rtl]], [[randomization]].
 

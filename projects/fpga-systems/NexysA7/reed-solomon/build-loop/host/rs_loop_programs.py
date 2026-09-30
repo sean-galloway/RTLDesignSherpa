@@ -44,9 +44,20 @@ def bypass(drv: RsLoopDriver, blocks: int = 8, gen_seed: int = 0) -> RunResult:
 
 
 def run(drv: RsLoopDriver, mode: int, count: int = 0, rate: int = 0, blocks: int = 8,
-        gen_seed: int = 0, inj_seed=None, throttle: bool = False, timeout_s: float = 10.0) -> RunResult:
+        gen_seed: int = 0, inj_seed=None, throttle: bool = False,
+        throttle_a=None, throttle_b=None, timeout_s: float = 10.0) -> RunResult:
+    """One run. `throttle` throttles BOTH checkers; throttle_a/throttle_b override
+    one side each.
+
+    The asymmetric case is the interesting one and it is why they are separate.
+    Throttling both together keeps the two comparator FIFOs draining in
+    lockstep, which masked a missing backpressure term for the whole bring-up:
+    every test here passed while a skewed drain dropped beats on the board.
+    """
     return drv.run(mode=mode, count=count, rate=rate, blocks=blocks, gen_seed=gen_seed,
-                   inj_seed=inj_seed, throttle_a=throttle, throttle_b=throttle, timeout_s=timeout_s)
+                   inj_seed=inj_seed, timeout_s=timeout_s,
+                   throttle_a=throttle if throttle_a is None else throttle_a,
+                   throttle_b=throttle if throttle_b is None else throttle_b)
 
 
 def verdict(r: RunResult, t: int) -> List[str]:
@@ -56,8 +67,11 @@ def verdict(r: RunResult, t: int) -> List[str]:
       bypass, or count == 0          every block ok, no mismatching beat, CRCs match
       COUNT mode with 1 <= e <= t    every block corrected with e symbols, no mismatching
                                      beat, CRCs match
-      COUNT mode with e > t          every block uncorrectable (the injector guarantees
-                                     exactly e errors) and the checker DID see mismatches
+      COUNT mode with e > t          almost every block uncorrectable, and the checker
+                                     DID see mismatches. NOT every block: see below.
+      any regime                     an accepted block beyond the threshold is REPORTED,
+                                     never itself a failure; bounding its rate needs far
+                                     more blocks than one run has, so the soak does it
       any mode                       decoders A and B agree (comparator clean), both
                                      checkers received every block, no framing errors
 
@@ -68,6 +82,22 @@ def verdict(r: RunResult, t: int) -> List[str]:
     that the checker consumed the same number of words as the generator
     produced -- it is a delivery check, not a data check, and it stays true on
     an uncorrectable block by design.
+
+    Why e > t does NOT mean every block is flagged uncorrectable. Beyond the
+    threshold the received word can land within distance t of a DIFFERENT valid
+    codeword, and a bounded-distance decoder then corrects it -- to the wrong
+    message, reporting success. That is a property of the code, not a defect,
+    and no post-correction check can catch it: the re-computed syndromes really
+    are zero, because the result really is a codeword.
+
+    This rule used to demand uncorrectable on every block. It held for the
+    whole bring-up and then failed 5 runs of a 199-run soak, every time as
+    exactly one block in 4096. The reference model does the same thing at the
+    same rate: on RS(252,236) with e = 9 it accepts about 1 block in 20,000 and
+    decodes it to the wrong message. Both hardware solvers agreeing on the
+    wrong answer is the signature -- a solver bug would not reproduce in
+    Python. So the accepted blocks are counted and the two solvers are still
+    required to agree, while bounding the RATE is left to the soak.
     """
     bad = []
     if r.timed_out:
@@ -77,7 +107,11 @@ def verdict(r: RunResult, t: int) -> List[str]:
             bad.append(f"{d.name}: {d.pkts} of {r.blocks} blocks reached its checker")
         if d.blk_frame:
             bad.append(f"{d.name}: {d.blk_frame} framing errors")
-    if r.cmp_err or r.cmp_data_mismatch or r.cmp_status_mismatch:
+    if r.cmp_misaligned:
+        # the counts below would be noise: a dropped beat misaligns the streams
+        bad.append("the comparator overflowed -- its mismatch counts are meaningless, "
+                   "a beat was dropped and the two streams are misaligned")
+    elif r.cmp_err or r.cmp_data_mismatch or r.cmp_status_mismatch:
         bad.append(f"riBM vs Euclid: {r.cmp_data_mismatch} beat and "
                    f"{r.cmp_status_mismatch} verdict mismatches")
     if r.bypass:
@@ -98,9 +132,19 @@ def verdict(r: RunResult, t: int) -> List[str]:
                            f"symbols={d.sym_corr} (want {e * r.blocks}) data_err={d.data_err} "
                            f"crc_ok={d.crc_ok}")
         elif exact and e > t:
-            if d.blk_unc != r.blocks:
-                bad.append(f"{d.name}: e={e} > t gave uncorrectable={d.blk_unc}/{r.blocks} "
-                           f"(corrected={d.blk_corr}, ok={d.blk_ok})")
+            # Every block must be ACCOUNTED FOR, and the accepted ones are
+            # miscorrections (see the docstring). A real defect shows up as a
+            # block that is neither flagged nor accepted, or as the two solvers
+            # disagreeing -- not as the occasional accepted block.
+            if d.blk_unc + d.blk_corr + d.blk_ok != r.blocks:
+                bad.append(f"{d.name}: e={e} > t left blocks unaccounted for: "
+                           f"unc={d.blk_unc} + corr={d.blk_corr} + ok={d.blk_ok} "
+                           f"!= {r.blocks}")
+            # A clean verdict is only reachable once the error pattern can BE a
+            # codeword, which takes weight >= d = 2t + 1.
+            if d.blk_ok and e < 2 * t + 1:
+                bad.append(f"{d.name}: e={e} > t gave {d.blk_ok} CLEAN block(s); an error "
+                           f"pattern cannot be a codeword below weight {2 * t + 1}")
             if not d.data_err:
                 bad.append(f"{d.name}: e={e} > t yet the checker saw no mismatching beat -- "
                            f"the errors did not reach it")
