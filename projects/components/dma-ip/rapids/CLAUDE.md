@@ -40,11 +40,21 @@
 > engines in `rtl/fub/`). The old `rapids_fub/`/`rapids_macro/` modules (scheduler.sv,
 > program_engine.sv, network_slave.sv, ...) and the old `docs/rapids_spec/` tree are gone.
 > Sections below that describe the pre-beats design are marked accordingly.
+>
+> **Status (2026-09-29, rapids TASK-019):** RAPIDS is byte-granular. The product tree is the
+> un-suffixed `rtl/fub/`, `rtl/macro/`, `rtl/top/rapids_top.sv` (descriptor length in BYTES,
+> byte addresses, WSTRB/TSTRB carry partial beats, one AXIS packet per descriptor), tested in
+> `dv/tests/fub`, `macro`, `top`. The `*_beats` tree is the beat-granular stepping stone: it
+> stays runnable and green (the characterized Genesys 2 design) and is not maintained forward.
+> The two trees share `rapids_config_block`, the regs, `rapids_pkg` and the control engines.
+> Byte-specific contracts: the sink ingress holds `s_axis_tready` until the channel's
+> descriptor is fetched (issue the descriptor first, or stream concurrently); a `tlast` packet
+> whose byte count differs from the descriptor sets that channel's sticky `sched_wr_error`.
 
 **Complete Specification:**
 - `projects/components/dma-ip/rapids/docs/rapids_beats_has/` - Architecture spec (HAS); index: `rapids_beats_has_index.md`
 - `projects/components/dma-ip/rapids/docs/rapids_beats_mas/` - Micro-architecture spec (MAS); index: `rapids_beats_mas_index.md`
-- Built PDFs: `docs/RAPIDS_Beats_HAS_v0.8.pdf`, `docs/RAPIDS_Beats_MAS_v0.7.pdf`
+- Built PDFs: `docs/RAPIDS_Beats_HAS_v0.9.pdf`, `docs/RAPIDS_Beats_MAS_v0.8.pdf`
 
 ---
 

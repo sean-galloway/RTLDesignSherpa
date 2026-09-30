@@ -44,6 +44,12 @@ The Rapid AXI Programmable In-band Descriptor System (RAPIDS) is a custom hardwa
 > (network interfaces are now AXIS; control is APB). Sections describing the pre-beats
 > design are kept as history and marked where practical.
 
+> **Status (2026-09-29, rapids TASK-019):** RAPIDS is byte-granular. The product RTL is the
+> un-suffixed tree `rtl/fub/`, `rtl/macro/`, `rtl/top/rapids_top.sv`: descriptor length in
+> BYTES, byte-granular addresses, WSTRB/TSTRB carry partial beats, one AXIS packet per
+> descriptor. The `*_beats` tree is the beat-granular stepping stone, kept runnable and
+> green as the characterized Genesys 2 design. Tests: `dv/tests/fub`, `macro`, `top`.
+
 ### 1.1 Quick Stats
 
 - **Modules:** ~20 SystemVerilog files (beats architecture)

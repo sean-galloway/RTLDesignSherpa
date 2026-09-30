@@ -176,6 +176,26 @@ shared) with these changes:
   both halves (one byte, straddling beats, long unaligned, a 4 KB crossing,
   the length-mismatch contract).
 
+## Verification record
+
+| Run (from `make clean-all`) | Result |
+|---|---|
+| clone before any byte edit, gate: fub / macro / top | 64/0, 179/0, 12/0 (equal to the beats areas) |
+| lint, both trees | 86/86 modules |
+| byte engines gate: axi_write_engine, axi_read_engine | 7/0, 7/0 (incl. strobes, split4k / unaligned, split4k) |
+| byte scheduler gate (`scheduler*`) | 17/0 (incl. byte_lengths, pkt_backpressure, zero_length) |
+| byte macro gate: snk / src data path axis test | 56/0, 64/0 (incl. byte_packets) |
+| byte top gate: rapids_top / rapids_core | 12/0 (incl. source_bytes, sink_bytes), 2/0 |
+| all six areas gate, 2026-09-29 (commit 89526ac23 fixes the 10) | fub 71/0, fub_beats 46/0, macro 171/10 -> scheduler_group* 37/0 after, macro_beats 173/0, top 14/0, top_beats 12/0 |
+| all six areas func | running |
+
+Bugs the tests caught on the way: the egress retired a packet's state in
+the same cycle its final pop re-armed it (source beat loss 27/84 at
+cfg_drain_size 1, `test_beat_conservation`); a 6-bit byte counter made the
+512-bit build's tstrb mask a constant (Verilator UNSIGNED); the byte TB's
+`expected_seq` shadowed the base class's EXT helper; the packet-record
+pulse must be sampled mid-cycle by a TB that raises ready between edges.
+
 ## Constraint: rapids-beats never loses functionality
 
 Sean, 2026-09-29: "Ensure rapids-beats never loses functionality." The

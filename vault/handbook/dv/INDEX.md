@@ -17,6 +17,9 @@ summary: Verification practice - frameworks, determinism, coverage, formal.
   cumulative metric scores whatever ran before it
 - [[async-output-capture]] - run a monitor coroutine while you drive; polling
   between stimulus steps found 5 of 12 descriptors and looked like an RTL bug
+- [[blocking-send-deadlock]] - master.send() returns on acceptance; a DUT that
+  waits for a later stimulus (descriptor, kick) deadlocks "send data, then
+  command" -- drive the data from a bounded background task
 - [[registers-by-name]] - PeakRDL regmaps; offsets are forbidden
 - [[seeds-and-determinism]] - random seed per run, recorded and overridable;
   there is no such thing as a failing seed
