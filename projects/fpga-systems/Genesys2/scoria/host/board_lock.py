@@ -79,8 +79,54 @@ class BoardLock:
         self.required = required
         self.path = lock_path(board)
         self._fd: Optional[int] = None
+        #: Set when the lock was already held by an ancestor (board_lock.sh).
+        #: Never closed here -- see _inherited_fd.
+        self._inherited: Optional[int] = None
+
+    def _inherited_fd(self) -> Optional[int]:
+        """An fd this process tree ALREADY holds the lock on, or None.
+
+        board_lock.sh execs its payload with fd 9 still holding the flock, so a
+        runner launched through `make run-*` inherits that descriptor. Opening
+        the same file and taking a SECOND flock on a NEW descriptor is refused
+        by the kernel -- the runner deadlocks against the make-level lock it is
+        running under. Proven: nested under board_lock.sh this class raised
+        BoardBusy; standalone it acquires.
+
+        The test is not "is a descriptor open on this path" -- that is true for
+        any unrelated reader. It is "can I re-lock it", which succeeds only if
+        this process tree already owns the lock. flock on an fd we already hold
+        is a no-op that reports success, and on one we do not it fails with
+        EWOULDBLOCK.
+
+        Detection shape adopted from rapids' board_guard.py, which hit this
+        first; it belongs HERE so every consumer inherits it rather than each
+        runner remembering to wrap.
+        """
+        fd_dir = "/proc/self/fd"
+        try:
+            names = os.listdir(fd_dir)
+        except OSError:
+            return None                      # not Linux / no procfs
+        for name in names:
+            try:
+                if os.readlink(os.path.join(fd_dir, name)) != self.path:
+                    continue
+                fd = int(name)
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return fd
+            except (OSError, ValueError):
+                continue
+        return None
 
     def __enter__(self) -> "BoardLock":
+        inherited = self._inherited_fd()
+        if inherited is not None:
+            # Already held by this process tree -- typically board_lock.sh
+            # above us. Adopt it WITHOUT closing: the outer holder owns that
+            # descriptor and closing it would drop the lock for the whole tree.
+            self._inherited = inherited
+            return self
         self._fd = os.open(self.path, os.O_WRONLY | os.O_CREAT, 0o666)
         try:
             fcntl.flock(self._fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -107,6 +153,10 @@ class BoardLock:
         return self
 
     def __exit__(self, *exc) -> None:
+        if self._inherited is not None:
+            # Adopted, not ours: leave the ancestor's descriptor alone.
+            self._inherited = None
+            return
         if self._fd is not None:
             # flock releases on close; be explicit so the window is not
             # "whenever the GC gets there".
@@ -118,4 +168,11 @@ class BoardLock:
 
     @property
     def held(self) -> bool:
-        return self._fd is not None
+        """True if the board is ours to drive -- whether we took the lock or
+        inherited it from an ancestor."""
+        return self._fd is not None or self._inherited is not None
+
+    @property
+    def adopted(self) -> bool:
+        """True when the lock came from an ancestor rather than being taken."""
+        return self._inherited is not None

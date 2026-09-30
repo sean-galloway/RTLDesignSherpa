@@ -245,3 +245,83 @@ def test_different_boards_do_not_block_each_other(tmp_path):
     finally:
         holder.kill()
         holder.wait()
+
+# ---------------------------------------------------------------------------
+# Nested acquisition: a runner launched THROUGH the shell lock
+# ---------------------------------------------------------------------------
+def test_nested_python_under_shell_lock_does_not_deadlock(tmp_path):
+    """A runner under `make run-*` must not be refused by its OWN holder.
+
+    board_lock.sh execs its payload with fd 9 still holding the flock, so a
+    Python runner it launches inherits that descriptor. Opening the same file
+    and taking a SECOND flock on a NEW descriptor is refused by the kernel, so
+    the runner deadlocked against the make-level lock it was running under --
+    exit 98 against itself.
+
+    This case did not exist when the interop test was first written, which is
+    why the suite passed while the defect shipped. A lock that refuses its own
+    holder gets "fixed" by someone deleting the lock.
+    """
+    lock_dir = tmp_path / "nested"
+    lock_dir.mkdir()
+    inner = tmp_path / "inner.py"
+    inner.write_text(
+        "import sys\n"
+        f"sys.path.insert(0, {str(PY_LOCK.parent)!r})\n"
+        "from board_lock import BoardLock, BoardBusy\n"
+        "try:\n"
+        "    with BoardLock('genesys2') as bl:\n"
+        "        print('ADOPTED' if bl.adopted else 'TOOK_OWN')\n"
+        "except BoardBusy:\n"
+        "    print('DEADLOCK')\n"
+    )
+    env = {**os.environ, "RDS_BOARD_LOCK_DIR": str(lock_dir)}
+    r = subprocess.run(
+        [str(SHELL_LOCK), "--board", "genesys2", "--",
+         sys.executable, str(inner)],
+        env=env, capture_output=True, text=True, timeout=120,
+    )
+    out = r.stdout.strip().splitlines()
+    assert "DEADLOCK" not in out, (
+        "the Python lock was refused by the shell lock it was running under. "
+        "BoardLock must adopt an inherited descriptor -- see _inherited_fd."
+    )
+    assert "ADOPTED" in out, (
+        f"expected the nested lock to ADOPT the ancestor's descriptor, got "
+        f"{out!r}. TOOK_OWN would mean it opened a second lock, which is the "
+        f"bug in a different disguise."
+    )
+
+
+def test_adopted_lock_does_not_release_the_ancestors(tmp_path):
+    """Exiting an adopted scope must NOT drop the lock for the whole tree.
+
+    The inherited descriptor belongs to the ancestor. Closing it -- the obvious
+    thing for a context manager to do -- would release the board while the
+    outer holder still believes it owns it, which is worse than the deadlock it
+    replaced: silent instead of loud.
+    """
+    lock_dir = tmp_path / "adopt"
+    lock_dir.mkdir()
+    inner = tmp_path / "inner2.py"
+    inner.write_text(
+        "import sys, subprocess\n"
+        f"sys.path.insert(0, {str(PY_LOCK.parent)!r})\n"
+        "from board_lock import BoardLock\n"
+        "with BoardLock('genesys2') as bl:\n"
+        "    pass\n"
+        f"rc = subprocess.run([{str(SHELL_LOCK)!r}, '--board', 'genesys2',\n"
+        "                     '--', 'true'], capture_output=True).returncode\n"
+        "print(f'OUTSIDER_RC={rc}')\n"
+    )
+    env = {**os.environ, "RDS_BOARD_LOCK_DIR": str(lock_dir)}
+    r = subprocess.run(
+        [str(SHELL_LOCK), "--board", "genesys2", "--",
+         sys.executable, str(inner)],
+        env=env, capture_output=True, text=True, timeout=120,
+    )
+    assert "OUTSIDER_RC=98" in r.stdout, (
+        f"after an adopted scope exited, an outsider acquired the board. The "
+        f"ancestor's lock was dropped. stdout={r.stdout!r}"
+    )
+
