@@ -119,17 +119,37 @@ and from a 64-byte beat to `DATA_WIDTH/8`.
 
 ## Decisions needed before RTL
 
-- [ ] Packed egress (byte shifter) or address-positioned lanes with sparse
-      `tstrb`? The shifter costs logic on both halves; sparse lanes cost the
-      consumer.
-- [ ] Descriptor length unit: bytes in the existing 32-bit field (4 GB max),
-      or bytes plus a byte-offset field so addresses may stay aligned in the
-      descriptor?
-- [ ] SINK contract between `tlast` packets and descriptor byte length.
-- [ ] Keep `DATA_WIDTH` = 256 for the first byte-granular build (the 4 KB
-      design point), so every existing perf cell remains comparable?
+- [x] Packed egress: the stream carries bytes from lane 0, a byte shifter
+      on both halves (source egress, sink ingress). Decided 2026-09-29.
+- [x] Descriptor `length` in bytes in the existing 32-bit field; `src_addr`
+      and `dst_addr` byte-granular, no separate offset field. Decided
+      2026-09-29.
+- [x] SINK contract, first cut: a `tlast` packet equals the descriptor byte
+      length; a mismatch raises an error event and is never silently padded.
+      Decided 2026-09-29.
+- [x] `DATA_WIDTH` = 256 for the first byte-granular build so every existing
+      perf cell stays comparable. Decided 2026-09-29.
 - [x] Where it lives: the un-suffixed `rtl/fub`, `rtl/macro`, `rtl/top`
       areas; the beats tree is kept, not converted (Sean, 2026-09-29).
+
+## Constraint: rapids-beats never loses functionality
+
+Sean, 2026-09-29: "Ensure rapids-beats never loses functionality." The
+beats tree is the characterized design and stays runnable and green for
+as long as it exists. Concretely:
+
+- no file under `fub_beats/`, `macro_beats/`, `top_beats/`, `dv/tests/*_beats`
+  or `dv/tbclasses/*_beats_tb.py` changes for this task;
+- files both trees share (`rtl/includes/rapids_pkg.sv`, `rtl/fub/ctrl*_engine.sv`,
+  `rtl/macro/monbus_axil_group_2in.sv`, the `rtl/amba` blocks, the harness
+  generators and checkers) change only additively: new types, parameters
+  with defaults that reproduce today's behaviour, new ports only behind such
+  a default;
+- every commit that touches a shared file re-runs the beats gate suite from
+  `make clean-all`, and the func suite before the task closes, with the
+  counts recorded here (baseline 2026-09-29: gate 255/0, func 938/0);
+- the Genesys 2 `rapids_beats` harness keeps building from the beats
+  filelists unchanged; the byte design gets its own harness variant.
 
 ## Done when
 
