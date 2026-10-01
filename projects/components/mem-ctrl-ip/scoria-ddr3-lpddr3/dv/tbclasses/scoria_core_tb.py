@@ -89,6 +89,7 @@ class ScoriaCoreTB:
     def __init__(self, dut, *, config=None, row_width: int = 15,
                  col_width: int = 10, num_banks: int = 8, num_ranks: int = 1,
                  axi_id_width: int = 8, axi_addr_width: int = 32,
+                 dram_beat_width: int = 64, dram_device_width: int = 32,
                  cl: int = 6, cwl: int = 5):
         self.dut = dut
         self.log = logging.getLogger("scoria_core_tb")
@@ -103,12 +104,26 @@ class ScoriaCoreTB:
         self.axi_addr_width = axi_addr_width
         self.cl, self.cwl = cl, cwl
 
+        # BEAT and DEVICE are different widths, and conflating them is how a
+        # suite validates a configuration the PHY cannot drive.
+        #
+        #   DEVICE word = the DQ bus              (32 b on this board: 2 x16)
+        #   BEAT        = one DFI PHASE's data    (64 b: DDR3 moves TWO
+        #                 transfers per CK, so a phase carries 2 device words)
+        #
+        # Measured, not assumed: the Genesys 2 LiteDRAM core that passes memtest
+        # on this board reports SDRAM_PHY_DATABITS 32 and
+        # SDRAM_PHY_DFI_DATABITS 64, and LiteDRAM's s7ddrphy sets
+        # `dfi_databits = 2*databits` and packs transfer n into phases[n//2].
+        #
         # The host AXI width IS the DFI word: scoria_core derives
-        # DW = DFI_DATA_WIDTH = DRAM_BEAT_WIDTH * DFI_RATE.
-        self.dram_beat_bytes = 32 // 8
-        self.dram_device_bytes = self.dram_beat_bytes
+        # DW = DFI_DATA_WIDTH = DRAM_BEAT_WIDTH * DFI_RATE, so 64 x 4 = 256.
+        self.dram_beat_width = dram_beat_width
+        self.dram_device_width = dram_device_width
+        self.dram_beat_bytes = dram_beat_width // 8
+        self.dram_device_bytes = dram_device_width // 8
         self.dfi_rate = self.meta['dfi_rate']
-        self.axi_data_width = 32 * self.dfi_rate
+        self.axi_data_width = dram_beat_width * self.dfi_rate
         self.bytes_per_beat = self.axi_data_width // 8
         self.dram_bl = self.meta['dram_bl']
 
@@ -176,11 +191,12 @@ class ScoriaCoreTB:
         self.dfi_slave = DFISlavePHY(
             self.dut, self.dut.dfi_clk,
             base=self.dfi_base, memory=self.memory,
-            # One DFI PHASE's data slice is one DRAM beat. The BFM defaults
-            # this to the memory line, which is the DEVICE word -- equal here
-            # (beat == device == 32 bits) but passed explicitly so a
-            # narrower-device build cannot silently frame the bus at the wrong
-            # granularity.
+            # One DFI PHASE's data slice. The BFM defaults this to the memory
+            # line, which is the DEVICE word -- and on this board the two
+            # DIFFER (beat 64, device 32), so passing it is what keeps the bus
+            # framed at the right granularity. This is the line that was
+            # correct in intent and wrong in value until 2026-10-01, when beat
+            # and device were still wired equal at 32.
             dfi_phase_bytes=self.dram_beat_bytes,
             log=self.log)
         if not strict_violations:

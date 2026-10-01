@@ -45,11 +45,29 @@ from tbclasses.scoria_core_tb import ScoriaCoreTB  # noqa: E402
 from tbclasses.scoria_dram_configs import dram_config  # noqa: E402
 
 ROW_WIDTH, COL_WIDTH, NUM_BANKS = 15, 10, 8
-DRAM_BEAT_WIDTH, DFI_RATE, DRAM_BL = 32, 4, 8
+# DRAM_BEAT_WIDTH is the DFI data width PER PHASE, and for a DDR3 PHY that is
+# TWICE the DQ width -- two transfers per CK. Measured from the Genesys 2
+# LiteDRAM core that passes memtest on this board:
+#
+#     SDRAM_PHY_DATABITS      32     the DQ bus
+#     SDRAM_PHY_DFI_DATABITS  64     DFI data per phase
+#
+# and from LiteDRAM's own s7ddrphy, which sets `dfi_databits = 2*databits` and
+# packs transfer n into `phases[n//2]` half `n%2`.
+#
+# So 64 is the BOARD configuration and 32 is not drivable by this PHY. 32 is
+# kept reachable because it is a legal shape for a 16-bit device at 1:4 and it
+# is what every suite ran before 2026-10-01 -- but the default is the board.
+DRAM_BEAT_WIDTH = int(os.environ.get("SCORIA_DRAM_BEAT_WIDTH", "64"))
+# The DQ bus. Independent of the beat: DDR3 puts two device words in one
+# DFI phase, so beat == 2 x device on this board.
+DRAM_DEVICE_WIDTH = int(os.environ.get("SCORIA_DRAM_DEVICE_WIDTH", "32"))
+DFI_RATE, DRAM_BL = 4, 8
 _SPACING, _PROG, _META = dram_config()
 
-# One AXI beat is the DFI word: 32-bit beat x 4 phases = 128 bits = 16 bytes.
-BEAT_BYTES = (DRAM_BEAT_WIDTH * DFI_RATE) // 8
+# One AXI beat is the DFI word: per-phase beat x DFI_RATE phases.
+# Board config: 64 x 4 = 256 bits = 32 bytes.
+BEAT_BYTES = (DRAM_BEAT_WIDTH * DFI_RATE) // 8   # the AXI word = the DFI word
 
 
 def _pattern(seed, nbytes=BEAT_BYTES):
@@ -62,7 +80,9 @@ def _pattern(seed, nbytes=BEAT_BYTES):
 async def cocotb_test_scoria_core(dut):
     tt = os.environ.get("TEST_TYPE", "init_then_write_read_roundtrip")
     tb = ScoriaCoreTB(dut, row_width=ROW_WIDTH, col_width=COL_WIDTH,
-                      num_banks=NUM_BANKS)
+                      num_banks=NUM_BANKS,
+                      dram_beat_width=DRAM_BEAT_WIDTH,
+                      dram_device_width=DRAM_DEVICE_WIDTH)
     await tb.start()
     fails = []
 
@@ -186,6 +206,7 @@ def test_scoria_core(request, test_type):
         parameters={"ROW_WIDTH": str(ROW_WIDTH), "COL_WIDTH": str(COL_WIDTH),
                     "NUM_BANKS": str(NUM_BANKS),
                     "DRAM_BEAT_WIDTH": str(DRAM_BEAT_WIDTH),
+                    "DRAM_DEVICE_WIDTH": str(DRAM_DEVICE_WIDTH),
                     "DFI_RATE": str(DFI_RATE), "DRAM_BL": str(DRAM_BL)},
         extra_env={"DUT": dut_name, "TEST_TYPE": test_type,
                    "TEST_LEVEL": _TEST_LEVEL, "COCOTB_LOG_LEVEL": "INFO",
