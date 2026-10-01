@@ -14,6 +14,41 @@ Rules - each guards against a proof that PASSES while checking nothing:
   Verify the flat .v contains your asserts (grep count).
 - Properties live IN the RTL under `ifdef FORMAL - full internal
   visibility, and every proof including the module checks them.
+  **TRUE ONLY FOR IMMEDIATE ASSERTIONS. A CONCURRENT `assert property` IN RTL
+  IS NEVER COMPILED BY THIS FLOW** -- measured 2026-10-01, repo-wide:
+
+  | form | files | reaches the flat? |
+  | --- | --- | --- |
+  | immediate `assert(...)` | 17 | YES -- 6 in axi4_slave_wr_mon_cg, 12 in wb4_master_cg |
+  | concurrent `assert property` | 27 | **NO -- 103 assertions, zero ever compiled** |
+
+  No file uses both. The only `*_flat.v` in the repo that has ever contained
+  `assert property` was one generated while establishing this, and it does not
+  parse. Neither sv2v setting helps, which is why this is not a flag anyone
+  forgot:
+
+  - **WITH `--exclude=Assert`**: sv2v passes the SVA through verbatim and yosys
+    rejects it -- `syntax error, unexpected '@'` at the first one. Adding `-sv`
+    to `read_verilog` does not help; `disable iff` and `|->` are beyond the
+    frontend.
+  - **WITHOUT it**: sv2v deletes them silently, 4 assertions to 0. That is the
+    trap the bullet above this one describes.
+
+  So 103 properties are maintained text that has never run. rapids carries 64 of
+  them across both its trees, including in `ctrlrd_engine`, which HAS a passing
+  proof -- its 8 assertions are not in it, because its Makefile passes no
+  `--define=FORMAL` and its flat contains zero. Some have been maintained through
+  RTL changes (the rapids AXI engines' comments track an 8-channel timing
+  pipeline) without once being executed.
+
+  **Write concurrent properties in the `formal_<block>.sv` harness, not the
+  RTL.** That is also what Sean's standing decision requires (2026-09-03, "I
+  don't like rtl assertions they break some tools") -- and the measurement says
+  the two agree: in this tree RTL assertions do not break tools, because nothing
+  compiles them. The cost is paid in maintenance with no coverage returned.
+  The harness route's limitation is real and is the thing to design around: it
+  sees PORTS only, so an internal invariant needs the signal exposed or the
+  property restated at the boundary.
 - MUTATION-CHECK every property: break the RTL -> prove FAIL; restore ->
   prove PASS. A property that never failed has never been tested. (The old
   block_ready property restated the assign - tautological - and the wedge
