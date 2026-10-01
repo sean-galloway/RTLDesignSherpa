@@ -165,6 +165,40 @@ fixture change with catching a regression that its own cache had manufactured.
 reverting after any experiment: `git diff` reporting clean says the SOURCE is
 restored, not that the next run will execute it.
 
+### The two stale-artifact failures point in OPPOSITE directions
+
+Which artifact is stale decides which way the lie runs, and the two are not
+equally dangerous.
+
+| Stale artifact | Mutation appears to | Reads as | Sends you to |
+| --- | --- | --- | --- |
+| Python bytecode (`__pycache__`) | **fail** | the check has teeth | trust a guard you have not tested |
+| Sim build (`sim_build/`, `local_sim_build/`) | **pass** | the check is vacuous | rewrite a test that was fine |
+
+The bytecode case manufactures a catch; the sim-build case manufactures a hole.
+The second is the safer failure -- it costs an afternoon rather than shipping a
+false assurance -- but both are avoidable by the same purge.
+
+### Content-match the failure to the mutation
+
+The strongest tell, and it works in both directions where a pass/fail check
+cannot: **read WHICH assertion fired and confirm the text corresponds to the
+mutation you planted.** Two sessions arrived at this independently on the same
+day (rapids and reed-solomon, 2026-10-01).
+
+- A real detection names the thing you broke. Forcing `w_drop_rpt` to 0 produced
+  "monitor reported 0 dropped event(s)" -- a string that exists only in the
+  post-fix testbench, so no cache could have produced it.
+- A mutation that fires a DIFFERENT assertion proves something ran, not that the
+  check under test has teeth. One mutation broke data so comprehensively (44 of
+  47 checks) that the data scoreboard fired and the timing assertion being
+  validated was never reached; another was absorbed by a downstream skid buffer,
+  so the DUT did not change at the point being measured. Both "failed". Neither
+  was evidence.
+
+So a mutation is only evidence when it perturbs the thing you are validating,
+and nothing upstream of it, and the failure text says so.
+
 ## The aggregator's area list is a claim, not a measurement
 
 `bin/aggregate_test_results.py` runs what `test_environments.toml` names in

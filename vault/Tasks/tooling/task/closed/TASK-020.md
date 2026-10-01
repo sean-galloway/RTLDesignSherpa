@@ -1,7 +1,7 @@
 # TASK-020: pilot cocotb-test 0.3.0, then decide whether cocotb 2.x is reachable
 
 **Priority:** P2
-**Status:** open
+**Status:** CLOSED 2026-10-01 -- 1000/1000 identical across three areas; requirements.txt bumped. Question 2 answered and filed as [[TASK-025]].
 **Owner:** TBD
 **Filed:** 2026-09-30 (from the cocotb 2.x outage the same day)
 
@@ -117,3 +117,70 @@ caused by exactly an unannounced dependency change.
 - RTLDesignSherpa `8344e6852` -- `cocotb-framework` pin 0.6.5 -> 0.6.8
 - [[TASK-021]] -- the other loose end from the same release; CLOSED 2026-09-30
 - [[TASK-023]] -- the `env_python` venv-selection trap, found while verifying TASK-021's guard; relevant here because it is another way a dependency verdict can be measured against the wrong tree
+
+## Closed 2026-10-01
+
+### Question 1: does 0.3.0 run this tree's suites unchanged? YES
+
+Isolated venv built from `requirements.txt`, then **only** `cocotb-test` moved
+(`pip install --no-deps cocotb-test==0.3.0`), so every other pin is
+byte-identical between the two columns. Same seed both sides
+(`RDS_SEED_BASE=20261001`). Pass counts, not `rc=0` -- and the exit code captured
+directly from `make`, never through a pipe.
+
+| Area | 0.2.5 | 0.3.0 |
+| --- | --- | --- |
+| `val/amba` | **839 passed**, 417 s | **839 passed**, 437 s |
+| `fabric-gen-ip/bridge` | **146 passed**, 350 s | **146 passed**, 292 s |
+| `dma-ip/stream` | **15 passed**, 376 s | **15 passed**, 366 s |
+| **Total** | **1000 passed**, rc=0 | **1000 passed**, rc=0 |
+
+Runtime differences are noise and point both ways (amba 5% slower, bridge 17%
+faster), which is what a dependency with no behavioural change looks like.
+
+`requirements.txt` bumped 0.2.5 -> 0.3.0. The shared venv was synced at the same
+time, with `--no-deps` so nothing else moved, while the tree was quiet; `pip
+check` clean afterwards.
+
+**A trap I walked into while verifying that sync**, and it is the one this
+repository's own handbook warns about: the confirming sim reported `2 passed in
+0.71s`. The same test takes ~19 s from clean. It had not rebuilt. After
+`make clean-all` it ran 18.74 s and passed properly. A fast green is fiction; I
+had documented that hours earlier and still nearly accepted it.
+
+### Question 2: is cocotb 2.x reachable? NOT YET, and now we know exactly why
+
+Filed as [[TASK-025]] rather than grown here, as this task's own instructions
+said. Measured, not predicted, in the same isolated venv:
+
+- **cocotb 2.1.0 + cocotb-test 0.3.0 + cocotb-bus 0.2.1** -> collection dies.
+  `cocotb_bus/drivers/__init__.py:13` does `from cocotb.decorators import
+  coroutine`, and 2.x removed `cocotb.decorators`. **The blocker is cocotb-bus,
+  not our framework** -- a distinction nobody had established.
+- **cocotb-bus 0.3.0 fixes that import entirely.** The chain through
+  `CocoTBFramework.components.gaxi.gaxi_master` then imports clean under 2.x.
+- With that in place the suite RUNS: **40 passed / 15 failed** on `dma-ip/stream`,
+  rather than failing to collect.
+
+The remaining failures are one dominant cause: **`AttributeError: 'Logic' object
+has no attribute 'integer'`** (1896 occurrences). cocotb 2.x returns a
+`Logic`/`LogicArray` from `handle.value`, and `.value.integer` is gone. Plus two
+deprecations that are warnings today: `units=` -> `unit=` (1884) and
+`handle.set(Immediate(...))` (1152).
+
+Sized: 60 `.value.integer` sites across 8 CocoTBFramework files, 43 `units=`
+sites, and 18 more `.value.integer` in this repo's own TB code across 7 files.
+
+**One finding that bites a change I made myself:** RTLDesignSherpa-DV's
+`pyproject.toml:50` caps `cocotb-bus>=0.2.1,<0.3` -- which I added on 2026-09-30.
+That cap now forbids the exact version that unblocks cocotb 2.x. It was right for
+its stated reason at the time and it is on the critical path for TASK-025; see
+there.
+
+## Acceptance, against the criteria above
+
+- [x] Exercised at a real level on `val/amba`, a bridge area and a dma-ip area
+- [x] Baselined on the same seeds against 0.2.5 first
+- [x] Measured pass counts reported, exit code captured directly
+- [x] `requirements.txt` bumped in a commit carrying the evidence
+- [x] Question 2 answered and filed separately as [[TASK-025]]
