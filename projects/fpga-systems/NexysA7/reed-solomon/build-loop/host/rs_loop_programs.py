@@ -202,7 +202,7 @@ def bandwidth(r) -> str:
                       block. 100% is the target here.
     """
     if not r.obs:
-        return "no meters in this bitstream"
+        return "no meter data: either not read (meters=False) or not in this bitstream"
     lines = []
     for key, label in (("in", "msg in "), ("out", "msg out"),
                        ("cw_out", "cw  out"), ("cw_in", "cw  in ")):

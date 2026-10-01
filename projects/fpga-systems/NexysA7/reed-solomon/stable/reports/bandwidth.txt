@@ -1,4 +1,4 @@
-=== axis_ribm at 2026-10-01T08:08:01-07:00
+=== axis_ribm at 2026-10-01T12:29:32-07:00
   [random] 64 runs x 4 blocks on RS(252,236): 31 exact-count, 12 burst, 21 rate; blocks 24 clean / 125 corrected / 107 uncorrectable; 0 failing run(s)
   [run] 2 sequence(s), 52.36s total: ALL PASS
   2 sequence(s), 52.36s total: ALL PASS
@@ -17,7 +17,7 @@
     cw  out    12096 beats /    12096 cyc = 100.0%    63.00 cyc/block (ideal 63)
     cw  in     12096 beats /    12096 cyc = 100.0%    63.00 cyc/block (ideal 63)
 
-=== axis_euclid at 2026-10-01T08:09:16-07:00
+=== axis_euclid at 2026-10-01T12:30:41-07:00
   [random] 64 runs x 4 blocks on RS(252,236): 31 exact-count, 12 burst, 21 rate; blocks 24 clean / 125 corrected / 107 uncorrectable; 0 failing run(s)
   [run] 2 sequence(s), 52.36s total: ALL PASS
   2 sequence(s), 52.36s total: ALL PASS
@@ -36,7 +36,7 @@
     cw  out    12096 beats /    12096 cyc = 100.0%    63.00 cyc/block (ideal 63)
     cw  in     12096 beats /    12096 cyc = 100.0%    63.00 cyc/block (ideal 63)
 
-=== axi4_ribm at 2026-10-01T08:10:25-07:00
+=== axi4_ribm at 2026-10-01T12:31:49-07:00
   [random] 64 runs x 4 blocks on RS(252,236): 31 exact-count, 12 burst, 21 rate; blocks 24 clean / 125 corrected / 107 uncorrectable; 0 failing run(s)
   [run] 2 sequence(s), 52.36s total: ALL PASS
   2 sequence(s), 52.36s total: ALL PASS
@@ -55,7 +55,7 @@
     cw  out     3024 beats /     3118 cyc =  97.0%    64.96 cyc/block (ideal 63)
     cw  in      3024 beats /     3069 cyc =  98.5%    63.94 cyc/block (ideal 63)
 
-=== axi4_euclid at 2026-10-01T08:11:34-07:00
+=== axi4_euclid at 2026-10-01T12:32:56-07:00
   [random] 64 runs x 4 blocks on RS(252,236): 31 exact-count, 12 burst, 21 rate; blocks 24 clean / 125 corrected / 107 uncorrectable; 0 failing run(s)
   [run] 2 sequence(s), 52.36s total: ALL PASS
   2 sequence(s), 52.36s total: ALL PASS
@@ -74,4 +74,4 @@
     cw  out     3024 beats /     3118 cyc =  97.0%    64.96 cyc/block (ideal 63)
     cw  in      3024 beats /     3069 cyc =  98.5%    63.94 cyc/block (ideal 63)
 
-=== done at 2026-10-01T08:12:42-07:00
+=== done at 2026-10-01T12:34:04-07:00

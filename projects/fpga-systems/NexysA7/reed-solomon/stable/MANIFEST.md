@@ -213,10 +213,23 @@ coverage the other passes already provide, which is why it went first.
   64 block RAM tiles of 135, which would bring a million blocks to roughly half
   an hour. Not done, because it invalidates the bitstream above.
 
-- **Revalidated on the pipelined RTL (2026-10-01, axis_ribm):** init passes,
-  and the random campaign is 64 of 64 runs x 4 blocks with **0 failing runs**
-  -- 24 clean / 125 corrected / 107 uncorrectable. The soak figures above
-  predate the pipelining change and have not been re-run at a million blocks.
+- **Revalidated end to end on the final RTL (2026-10-01, axis_ribm).** The
+  random campaign is 64 of 64 runs x 4 blocks with 0 failing runs, and the
+  **soak was re-run at a million blocks: 1,003,520 in 137 s (7,315 blk/s), 0
+  failing runs** -- 102,542 clean / 760,540 corrected / 140,438 uncorrectable,
+  3,242,499 symbols corrected. Beyond the correction limit, 2 of 77,824 blocks
+  were accepted and silently mis-decoded (1 in 38,912) against the model's
+  ~1 in 20,000. Every one of those figures matches the pre-pipelining soak
+  digit for digit, which is the point: the decoder got faster and its verdicts
+  did not move. The beats-compared figure is 0 because this image carries one
+  solver and no comparator, by construction.
+
+  The soak rate is HOST-BOUND, not datapath-bound, and it is a useful canary.
+  It first came back at 5,020 blk/s -- a 31% drop -- because `collect()` read
+  the four bandwidth windows on every run, sixteen register reads over a
+  115200-baud UART that a soak never looks at. `run(meters=False)` restored it
+  to exactly 7,315. If this number moves again, suspect the host's per-run
+  register traffic before suspecting the hardware.
 
 - **Caveat (both flavours):** the shared checker's CRC is over its regenerated
   words, so `crc_ok` is a delivery check; `data_err` is the data evidence.

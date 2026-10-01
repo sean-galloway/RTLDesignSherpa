@@ -240,7 +240,15 @@ class RsLoopDriver:
         return out
 
     def collect(self, blocks: int, mode: int, count: int, rate: int, bypass: bool,
-                timed_out: bool = False) -> RunResult:
+                timed_out: bool = False, meters: bool = True) -> RunResult:
+        """Read one run's result back.
+
+        meters=False skips the four bandwidth windows, which is SIXTEEN
+        register reads over a 115200-baud UART. That is free to ignore on a
+        correctness run and it is not free on a soak: reading them on every run
+        cost the million-block soak 31% of its rate (7,315 -> 5,020 blk/s) when
+        the codeword seams took the count from eight reads to sixteen.
+        """
         st = self.status()
         r = self.regs.read
         topo = self.topology()
@@ -255,11 +263,11 @@ class RsLoopDriver:
             inj_symbols=r("INJ_SYMBOLS"), inj_blocks=r("INJ_BLOCKS"), inj_over_t=r("INJ_OVER_T"),
             cmp_data_mismatch=r("CMP_DATA_MISMATCH"), cmp_status_mismatch=r("CMP_STATUS_MISMATCH"),
             cmp_beats=r("CMP_BEATS"), cmp_err=st["cmp_err"],
-            obs=self._meters(),
+            obs=self._meters() if meters else {},
             cmp_misaligned=st["cmp_misaligned"], timed_out=timed_out)
 
     def run(self, mode: int = 0, count: int = 0, rate: int = 0, blocks: int = 8,
-            gen_seed: int = 0, inj_seed: Optional[int] = None, bypass: bool = False,
+            gen_seed: int = 0, inj_seed: Optional[int] = None, bypass: bool = False, meters: bool = True,
             throttle_a: bool = False, throttle_b: bool = False, timeout_s: float = 10.0) -> RunResult:
         """One run: reset the datapath, clear the stats, configure, start, wait, collect."""
         self.soft_reset()
@@ -267,4 +275,5 @@ class RsLoopDriver:
         self.configure(mode, count, rate, blocks, gen_seed, inj_seed, bypass, throttle_a, throttle_b)
         self.start()
         done = self.wait_done(timeout_s)
-        return self.collect(blocks, mode, count, rate, bypass, timed_out=not done)
+        return self.collect(blocks, mode, count, rate, bypass, timed_out=not done,
+                            meters=meters)

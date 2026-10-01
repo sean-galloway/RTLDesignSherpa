@@ -110,7 +110,10 @@ class Soak(Sequence):
 
             # a long run needs a longer patience than the 10 s default: the
             # block count, not the UART, sets the floor here
-            r = drv.run(mode=mode, count=count, rate=rate, blocks=blocks,
+            # meters=False: the four bandwidth windows are 16 register reads
+            # over the UART and the soak does not look at them. Reading them
+            # here cost 31% of the soak rate (7,315 -> 5,020 blk/s).
+            r = drv.run(mode=mode, count=count, rate=rate, blocks=blocks, meters=False,
                         gen_seed=gen_seed, inj_seed=inj_seed,
                         throttle_a=bool(rnd.getrandbits(1)),
                         throttle_b=bool(rnd.getrandbits(1)),
