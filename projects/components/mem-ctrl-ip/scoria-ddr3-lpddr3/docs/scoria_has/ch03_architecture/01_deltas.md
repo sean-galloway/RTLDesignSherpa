@@ -78,6 +78,27 @@ Power-down on this PHY family is a **DRAM command** matter: CKE, plus `SRE` and
 and what it gains for DDR3 is the new self-refresh command encodings rather
 than a new interface.
 
+**Status, 2026-09-30: not in the design, by decision (Sean).** The module is
+INHERITED as a FILE; nothing instantiates it, and `scoria_top` has no CKE port
+at all -- so the feature is absent rather than unconnected, and the DRAM simply
+never leaves normal operation. That matches the reference: LiteDRAM's generated
+DDR3 core for this board has **no power-down or self-refresh engine of any
+kind**. Its only `power_down` references are the MMCM's `PWRDWN` pin, and the
+92 `CKE` references resolve to a CSR bit --
+`main_litedramcore_sdram_cke = main_litedramcore_sdram_storage[1]`, fanned
+identically to all four phases -- i.e. software raises CKE during init and it
+stays raised. There is no `SRE`/`SRX` issue path.
+
+So scoria holding CKE high for ever is parity with the controller that passes
+memtest on this hardware, not a shortfall against it. The same applies to
+`dfi_signal_pack`, also INHERITED-as-a-file and also uninstantiated: every DFI
+bus here is phase-multiplied by construction (`DFI_ADDR_BUS_W = ROW_WIDTH *
+DFI_RATE`, and so on) and LiteDRAM's `dfi_p0..p3_*` are per-phase for the same
+reason, so there is no packing step for either design to perform.
+
+Revisit this only if a power-managed target appears. See
+scoria-ddr3-lpddr3 TASK-003.
+
 **Requirement for the DFI low-power ports.** scoria still exposes
 `dfi_lp_ctrl_req` and `dfi_lp_data_req`, because DFI v3.1 defines them and a
 future PHY may consume them. Their behaviour when no acknowledgement ever
