@@ -106,6 +106,27 @@ So any loop that edits RTL and re-runs pytest -- mutation testing above all, sin
 its whole method is edit-then-measure -- needs an explicit build-directory delete
 per iteration, not a clean-all at the start and not a `touch`.
 
+**A second instance, with a different signature (reed-solomon, 2026-09-30).**
+The edit was PYTHON only -- a testbench fix, no RTL touched, so no recompile
+was even due -- and the run still came back "6 passed in 8.47s" where the same
+six cells take 122s from clean. Deleting the build directory and re-running
+gave the honest 122s and the same verdict. Two things to take from it: the
+trap is not confined to RTL edits, and **duration is the only reliable tell**.
+A result whose wall clock is an order of magnitude short of the known-clean
+time has not run, whatever it says.
+
+**Mutation testing is self-protecting in one direction, which is worth knowing
+before you panic about past results.** A stale build means the mutation was
+never compiled, so the test behaves as if unmutated and PASSES -- and a
+mutation check reads a pass as "this assertion has no teeth". The failure mode
+is therefore a false NEGATIVE: it makes you distrust an assertion that is
+actually sound. A mutation that DOES fail the test proves the mutated RTL was
+compiled, so every positive detection is trustworthy without re-running. The
+reed-solomon session re-verified its most consequential check both ways with
+explicit build deletes -- unmutated 20.6s pass, mutated 19.6s fail, both real
+durations -- and the conclusion held. What you cannot trust on a possibly-stale
+build is a mutation that came back CAUGHT-BY-NOTHING.
+
 **The tell is the same one as everywhere else in this note: duration.** A full
 case set that takes 70s from clean came back in 0.4s. Before believing any
 mutation verdict, check that the run was long enough to have compiled anything.
