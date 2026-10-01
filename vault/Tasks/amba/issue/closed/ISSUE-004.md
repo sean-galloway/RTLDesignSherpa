@@ -1,7 +1,7 @@
 # ISSUE-004: sdpram_core serialises bursts, so a master's MAX_OUTSTANDING buys nothing
 
 **Priority:** P2
-**Status:** open
+**Status:** closed
 **Owner:** TBD
 
 `rtl/amba/shared/sdpram_core.sv` accepts exactly ONE burst at a time on each
@@ -57,7 +57,45 @@ Every consumer of `sdpram_slave_axi4_axi4` pays it:
 RS only noticed because its meters were gated to a single stage, which is what
 made a per-burst cost separable from everything else in the run.
 
-## What is NOT yet decided
+## RESOLVED 2026-10-01: no-action on the behaviour, fix on the contract
+
+**Not a bug.** Overlapping bursts were never this core's contract. The header
+documents burst TYPES (INCR/FIXED/WRAP, up to AXI4's 256 beats) and says
+nothing about burst CONCURRENCY, and the architecture is explicitly "the
+burst-aware write/read trackers" -- one tracker per direction, not a queue.
+Serialising consecutive bursts is what a single tracker does.
+
+**Not worth a task either.** sdpram_core is a test memory behind four
+harnesses and two component TB tops. Adding a second tracker slot or an AW/AR
+queue is a real change to shared RTL that every one of those depends on, and
+the payoff is a few percent in fixtures that can get the same back for free by
+lengthening their bursts -- which is exactly what RS did (16 -> 64 beats took
+its two channels from 88.9%/94.1% to 97.0%/98.5%, leaving a 3% residual).
+Spending that risk on a test memory is the wrong trade.
+
+**What WAS a real defect is that nothing said so.** A master author sizing an
+engine against this slave had no way to know outstanding capacity is inert,
+and would reasonably read the resulting throughput as a fault in their own
+master -- which is what happened here, at the cost of a full measurement pass.
+Fixed: sdpram_core.sv now carries a "Burst concurrency" section giving the
+three handshake conditions, the per-burst cost with measured numbers, the fact
+that a master's outstanding count cannot exceed 1 against it, and a pointer to
+this issue for the reasoning. sdpram_slave_axi4_axi4.sv points at that
+section. Both edits are comment-only.
+
+## Carried forward: the outstanding path is UNEXERCISED
+
+One consequence is a coverage gap rather than a throughput one, and it does
+not close with this issue. Because fub_awready requires !r_b_pending, B N is
+consumed before AW N+1 is accepted, so a master's AWs-minus-Bs counter
+provably only ever holds 0 or 1 here. rs_axi4_write_engine is built with
+MAX_OUTSTANDING = 4 and its `r_outstanding < MAX_OUTSTANDING` gate can never
+be the thing that stops it against this slave. The engines are RIGHT to carry
+that depth -- they will meet pipelined slaves in a real system -- but no
+harness in this repo exercises it, so that path is untested logic in shipped
+IP. Filed separately as amba ISSUE-005.
+
+## Original framing, kept for the record
 
 Whether this is a defect or a deliberate simplicity. `sdpram_core` is a test
 memory, and one-burst-at-a-time is a reasonable thing for a test memory to be;

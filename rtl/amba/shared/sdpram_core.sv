@@ -38,6 +38,34 @@
 //     BRAM glue advances linearly; an assertion in the AXI4 wrappers
 //     flags WRAP at the sim boundary until it's been exercised.
 //
+// Burst concurrency: ONE AT A TIME, AND A MASTER'S OUTSTANDING IS INERT.
+//   There is a single tracker per direction, so consecutive bursts do not
+//   overlap and a fixed dead-cycle cost falls at every burst boundary:
+//
+//     fub_awready = !r_wr_active && !r_b_pending   // next AW waits for B
+//     fub_wready  =  r_wr_active                   // W only while active
+//     fub_arready = !r_rd_active                   // next AR waits for RLAST
+//
+//   Consequences a master author needs, because none of them are obvious:
+//
+//   - A master's MAX_OUTSTANDING (or equivalent) buys NOTHING here. Since the
+//     next AW is refused until the previous B has been consumed, an
+//     AWs-minus-Bs counter can only ever hold 0 or 1 against this slave. Size
+//     the engine for the real system it will meet; just do not expect this
+//     memory to exercise that depth, and do not read the resulting throughput
+//     as a defect in the master.
+//   - The cost is PER BURST, not per beat or per block, so it amortises with
+//     burst length and is worst for a master issuing many short bursts.
+//     Measured on an Artix-7 harness at 32-bit beats: ~2.0 cycles per write
+//     burst (the master backpressured) and ~1.6 per read burst (the master
+//     starved). Over a 63-beat payload that is ~12% at a 16-beat burst and
+//     ~3% at 64.
+//   - If you need overlapping bursts -- to stress a master's outstanding path,
+//     or because short bursts are the traffic under test -- this core needs a
+//     second tracker slot or an AW/AR queue. That is deliberate unbuilt work,
+//     not an oversight: see amba ISSUE-004, closed no-action, for the
+//     measurement and the reasoning.
+//
 // Architecture:
 //
 //   fub_aw/w/b ──→ [ write tracker + axi_gen_addr ] ──→ BRAM port A

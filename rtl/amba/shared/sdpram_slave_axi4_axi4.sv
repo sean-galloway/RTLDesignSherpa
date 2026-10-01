@@ -17,6 +17,12 @@
 // Subsystem: amba
 // Author: sean galloway
 
+// Burst concurrency: sdpram_core serialises bursts -- one in flight per
+//          direction -- so a master's MAX_OUTSTANDING is inert against this
+//          slave and a fixed cost lands at each burst boundary (~2 cycles
+//          write, ~1.6 read, measured). It amortises with burst length. See
+//          sdpram_core.sv's "Burst concurrency" section and amba ISSUE-004.
+//
 `timescale 1ns / 1ps
 
 module sdpram_slave_axi4_axi4 #(
