@@ -2,7 +2,7 @@
 
 # scoria-ddr3-lpddr3 — tasks
 
-**Next ID: TASK-004** — never recycle a number, even when its item closed.
+**Next ID: TASK-005** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -25,6 +25,9 @@ by construction rather than by discipline.
 - **TASK-003** — decide the fate of `scoria_powerdown_ctrl` and
   `scoria_dfi_signal_pack`: complete modules that nothing instantiates, so the
   tree implies power-down support the controller does not have.
+
+- **TASK-004** — plumb `RD_EN_CYC` or delete it: the read-enable window width is
+  never set, so a narrow-device build would sample DQ for half of every read.
 
 - **TASK-002** (ACTIVE) — author the scoria HAS. v0.1 is written; the PRD stub says it
   is waiting on a locked HAS. Starts from `docs/design-requirements.md`, the delta

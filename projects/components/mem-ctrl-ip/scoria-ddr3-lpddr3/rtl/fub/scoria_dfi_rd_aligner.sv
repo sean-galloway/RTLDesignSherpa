@@ -25,6 +25,24 @@
 //            BL_WORDS = DFI words captured + pushed per read.
 //          These are equal only when the scoria DRAM beat == the device word.
 //
+//          CONSTRAINT: EN_CYC >= BL_WORDS. The enable-window credit below
+//          mints one credit per ENABLE cycle and spends one per captured word,
+//          so EN_CYC cycles can admit at most EN_CYC words -- a build with
+//          EN_CYC < BL_WORDS drops the surplus words silently, and because
+//          this is a stream aligner one dropped word shifts every later beat.
+//          Measured, not inferred: EN_CYC=1 with BL_WORDS=2 captures one word
+//          of two (dv/tests/fub/test_scoria_dfi_rd_aligner.py ::
+//          en_cyc_below_bl_words_is_unsupported, the gate that keeps a future
+//          narrow build from finding this on a board).
+//
+//          Nothing in the tree sets EN_CYC today: scoria_dfi_layer's RD_EN_CYC
+//          exists for exactly the narrow-device case and defaults to BL_WORDS
+//          at every instantiation, while scoria_top computes the true
+//          occupancy ceil(DRAM_BL/DFI_RATE) and keeps it local to its tRTW
+//          floor. The two agree for the Genesys 2 point (BL8 over a 1:4 gear,
+//          both 2) and would not for a device word narrower than the DRAM
+//          beat. See scoria-ddr3-lpddr3 TASK-004.
+//
 // Documentation: docs/uarch/PUMICE_DFI_LAYER_UARCH.md
 `timescale 1ns / 1ps
 
