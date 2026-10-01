@@ -253,6 +253,54 @@ class RSDecoderTB(TBBase):
                 await self.run_one(f"profile {profile} ({e} errors)", self.make_received(e))
         return self.mismatches == 0
 
+    async def run_no_dead_cycles(self):
+        """The per-block cost must be n/S beats and nothing more.
+
+        Measured as a SLOPE: run B blocks, then 2B, and difference them. That
+        cancels every fixed cost -- receive latency, the solve, the correction
+        walk, the verdict cycle -- so what is left is purely the per-block
+        increment. No latency model to be wrong about, which is what made the
+        old upper-bound check unable to see the stall it was written around.
+
+        A codeword is n/S beats, so n/S cycles per block IS the bus. Anything
+        above it is a dead cycle at the block boundary, and dead cycles are
+        the failure -- latency is not.
+        """
+        self.set_profile('backtoback')
+        nb = self.n_beats(self.N)
+        kb = self.n_beats(self.K)
+        took = {}
+        for blocks in (4, 8):
+            self.slave._recvQ.clear()
+            rxs = [self.make_received(self.T) for _ in range(blocks)]
+            for rx in rxs:
+                await self.send_block(rx, wait=False)
+            cycles, start = 0, None
+            while len(self.slave._recvQ) < blocks * kb:
+                await RisingEdge(self.clk)
+                cycles += 1
+                if start is None and int(self.dut.in_valid.value) and int(self.dut.in_ready.value):
+                    start = cycles
+                if cycles > 40 * self.N * blocks + 400:
+                    break
+            out = await self.collect(blocks * kb, timeout_cycles=10)
+            for i, rx in enumerate(rxs):
+                self.score_block(f"slope {blocks} blk {i}", rx, out[i * kb:(i + 1) * kb])
+            took[blocks] = cycles - (start or 0)
+
+        slope = (took[8] - took[4]) / 4.0
+        dead = slope - nb
+        self.checks += 1
+        self.log.info(f"no-dead-cycles: {took[4]} cycles for 4 blocks, {took[8]} for 8 "
+                      f"-> slope {slope:.2f} cycles/block vs n/S = {nb} "
+                      f"({dead:+.2f} dead per block)")
+        if dead > 0.25:
+            self.mismatches += 1
+            self.log.error(f"{dead:.2f} DEAD cycles per block: the slope is {slope:.2f} "
+                           f"against a codeword of {nb} beats. Latency is free; a gap at "
+                           f"the block boundary is not.")
+        return self.mismatches == 0
+
     async def run_throughput(self):
         """Blocks back to back with no delays anywhere: total time for B blocks
         must be within B*n + latency, where latency is n + 2t + margin."""
@@ -276,13 +324,11 @@ class RSDecoderTB(TBBase):
         for i, rx in enumerate(rxs):
             self.score_block(f"throughput block {i}", rx, out[i * kb:(i + 1) * kb])
         elapsed = cycles - (start or 0)
-        # Latency to the first beat is receive (n/S) + solve (2t) + the whole
-        # correction walk (n/S, since the block waits for its verdict). Steady
-        # state is n/S + 1 cycles per block: the verdict stage is one entry
-        # deep, so the next block cannot load into the correct stage until the
-        # previous block's verdict has been written. That +1 is the price of
-        # ending the re-check's Horner chain at a flop (rs_decoder_core's C3),
-        # which is what closed timing at 100 MHz on the Artix-7.
+        # An UPPER bound with a per-block allowance of n/S + 1 and a 16-cycle
+        # margin. It cannot catch dead cycles coming back, because it was
+        # written to permit the one the design used to have -- so
+        # run_no_dead_cycles below measures the SLOPE instead, which needs no
+        # latency estimate at all. This bound stays as a coarse smoke check.
         bound = blocks * (nb + 1) + 2 * nb + 2 * self.T + 16
         self.checks += 1
         self.log.info(f"throughput: {blocks} blocks of {nb} beats in {elapsed} cycles from first accept "

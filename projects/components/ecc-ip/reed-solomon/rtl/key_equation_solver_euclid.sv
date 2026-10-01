@@ -118,6 +118,9 @@ module key_equation_solver_euclid
     logic         w_cross;
     logic         w_swap;
 
+    logic signed [DG_W-1:0] w_deg_r_nxt, w_deg_q_nxt;
+    logic                   w_finished_nxt;
+
     logic [M-1:0] w_rn [T2+1];   // Q[2t]*R ^ R[2t]*Q, before the shift
     logic [M-1:0] w_ln [LW];     // Q[2t]*lam~ ^ R[2t]*mu~
 
@@ -128,6 +131,33 @@ module key_equation_solver_euclid
     assign w_norm_q   = !w_finished && (w_a != '0) && (w_b == '0);
     assign w_cross    = !w_finished && (w_a != '0) && (w_b != '0);
     assign w_swap     = (r_deg_r < r_deg_q);
+
+    // The degrees this iteration is about to write. w_finished reads the
+    // degrees ALREADY written, so acting on it alone spends a whole cycle
+    // merely noticing the solve is over -- on a short codeword that single
+    // cycle is the difference between line rate and a gap at every block
+    // boundary. Sampling the NEXT degrees lets the last update and o_done
+    // land on the same edge; the outputs are combinational off r_l/r_r/
+    // r_deg_r, so they are valid in the cycle o_done is visible either way.
+    always_comb begin
+        w_deg_r_nxt = r_deg_r;
+        w_deg_q_nxt = r_deg_q;
+        if (w_norm_r) begin
+            w_deg_r_nxt = r_deg_r - DG_W'(1);
+        end else if (w_norm_q) begin
+            w_deg_q_nxt = r_deg_q - DG_W'(1);
+        end else if (w_cross) begin
+            if (w_swap) begin
+                w_deg_q_nxt = r_deg_r;
+                w_deg_r_nxt = r_deg_q - DG_W'(1);
+            end else begin
+                w_deg_r_nxt = r_deg_r - DG_W'(1);
+            end
+        end
+    end
+
+    assign w_finished_nxt = (w_deg_r_nxt < DG_W'(T)) || (w_deg_q_nxt < 0)
+                            || ((r_cycles + CYC_W'(1)) == '1);
 
     for (genvar i = 0; i <= T2; i++) begin : g_r
         logic [M-1:0] w_br, w_aq;
@@ -197,6 +227,13 @@ module key_equation_solver_euclid
                     end else begin
                         r_deg_r <= r_deg_r - DG_W'(1);
                     end
+                end
+                // Retire on the SAME edge as the final update. This is a later
+                // non-blocking write to r_busy/o_done than the chain above, so
+                // it wins while every array update still lands.
+                if (!w_finished && w_finished_nxt) begin
+                    r_busy <= 1'b0;
+                    o_done <= 1'b1;
                 end
             end
         end

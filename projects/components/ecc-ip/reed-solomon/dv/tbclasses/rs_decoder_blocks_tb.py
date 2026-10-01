@@ -373,7 +373,13 @@ class ForneyTB(_DecoderBlockTB):
 class KESEuclidTB(KESTB):
     """key_equation_solver_euclid: same drive as KESTB, scored against
     RSModel.euclid (bit-exact Lambda and textbook Omega); o_done within
-    2t + 1 cycles (data-dependent, plus the finishing check)."""
+    2t + 1 cycles (data-dependent).
+
+    The solver retires on the SAME edge as its final update, so o_done lands
+    exactly RSModel.euclid's iteration count after i_start -- there is no
+    separate cycle spent noticing the solve is over. It used to cost one, and
+    on a short codeword that cycle was a dead cycle at every block boundary
+    (see vault/handbook/design/block-boundary-dead-cycles.md)."""
 
     async def run_blocks(self):
         n_blocks = self.BLOCKS[self.TEST_LEVEL]
@@ -394,14 +400,14 @@ class KESEuclidTB(KESTB):
             self._score(f"block {i} omega", om, exp_om)
             self._score(f"block {i} deg", deg, exp_deg)
             self._score(f"block {i} deg_err", deg_err, 1 if exp_deg > self.T else 0)
-            self._score(f"block {i} cycles to done", cycles, exp_cycles + 1)
+            self._score(f"block {i} cycles to done", cycles, exp_cycles)
             # measured on the model over 3000 blocks per profile: at most 2t
             # iterations for t >= 8, 2t + 1 at t <= 2 when a leading syndrome is
-            # zero (a normalise step); plus one cycle for the finishing check
+            # zero (a normalise step). The iteration count IS the latency now.
             self.checks += 1
-            if cycles > 2 * self.T + 2:
+            if cycles > 2 * self.T + 1:
                 self.mismatches += 1
-                self.log.error(f"block {i}: {cycles} cycles exceeds 2t + 2")
+                self.log.error(f"block {i}: {cycles} cycles exceeds 2t + 1")
             self._score(f"block {i} busy cleared", busy, 0)
         return self.mismatches == 0
 

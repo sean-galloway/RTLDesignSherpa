@@ -12,6 +12,7 @@ summary: RTL rules with the failures that taught them.
 - [[observers-do-not-drive]] - a parallel snoop must not gate the bus it taps
   (in-path `*_mon` wrappers own ready by design; the rule is not about them)
 - [[streaming-no-fsm]] - the pipeline pattern for datapaths
+- [[block-boundary-dead-cycles]] - a framed datapath is pipelined only at `beats`/block; measure the SLOPE over two block counts, then account every excess cycle to a named mechanism (RS decoder, 2026-09-30)
 - [[sram-and-memories]] - no-reset SRAMs, ram_style, array syntax
 - [[sizing-invariants]] - shared-resource math; one source of truth
 - [[priority-logic-depth]] - serialized scans vs parallel selects

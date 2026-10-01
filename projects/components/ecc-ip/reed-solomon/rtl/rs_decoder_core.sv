@@ -305,14 +305,27 @@ module rs_decoder_core
     logic [CNT_W-1:0] r_b_len;
     logic             w_b_bypass;
     logic             w_b_bad;             // solver says more than t errors, or nothing located
+    logic             w_b_done_push;       // solved descriptor leaves on this edge
 
     assign w_b_bypass  = w_b_all_zero || w_b_frame_err;
     assign w_b_bad     = w_kes_deg_err || (w_kes_deg == '0);
-    assign w_kes_start = (r_b_state == B_IDLE) && w_dab_rd_valid && !w_b_bypass;
-    assign w_dab_rd_ready = (r_b_state == B_IDLE) && (w_b_bypass ? w_dbc_wr_ready : 1'b1);
+
+    // The solve stage costs the solver's own iterations and nothing else. The
+    // descriptor leaves on the SAME edge the solver reports done (B_PUSH is
+    // kept only for the backpressured case), and the next block starts on that
+    // same edge -- so a block occupies this stage for iterations+1 cycles
+    // rather than iterations+3. Both are safe because every field written here
+    // is combinational off the solver's pre-edge registers, which the skid
+    // buffer samples on the same edge the solver reloads.
+    // Only ONE descriptor can be written per cycle, so a done-push edge cannot
+    // also admit a bypass block -- that one waits for B_IDLE.
+    assign w_b_done_push  = (r_b_state == B_SOLVE) && w_kes_done && w_dbc_wr_ready;
+    assign w_dab_rd_ready = (r_b_state == B_IDLE) ? (w_b_bypass ? w_dbc_wr_ready : 1'b1)
+                                                 : (w_b_done_push && !w_b_bypass);
+    assign w_kes_start    = w_dab_rd_valid && w_dab_rd_ready && !w_b_bypass;
 
     always_comb begin
-        if (r_b_state == B_PUSH) begin
+        if ((r_b_state == B_PUSH) || ((r_b_state == B_SOLVE) && w_kes_done)) begin
             w_dbc_wr_valid = 1'b1;
             w_dbc_wr_data  = {r_b_len, 1'b0, 1'b0, 1'b1, w_b_bad, w_kes_deg,
                               w_kes_lambda[(T+1)*M-1:0], w_kes_omega};
@@ -333,7 +346,16 @@ module rs_decoder_core
                     r_b_state <= B_SOLVE;
                     r_b_len   <= w_b_len;
                 end
-                B_SOLVE: if (w_kes_done) r_b_state <= B_PUSH;
+                B_SOLVE: if (w_kes_done) begin
+                    if (!w_dbc_wr_ready) begin
+                        r_b_state <= B_PUSH;      // descriptor backpressured
+                    end else if (w_kes_start) begin
+                        r_b_state <= B_SOLVE;     // next block starts on this edge
+                        r_b_len   <= w_b_len;
+                    end else begin
+                        r_b_state <= B_IDLE;
+                    end
+                end
                 B_PUSH:  if (w_dbc_wr_ready) r_b_state <= B_IDLE;
                 default: r_b_state <= B_IDLE;
             endcase
@@ -370,6 +392,7 @@ module rs_decoder_core
     logic             r_c_den_zero;
 
     logic             w_c_load;            // pop a descriptor and load the search
+    logic             w_c_walk_done;       // last beat of the current block steps now
     logic             w_c_step;            // C1: walk one beat this cycle
     logic             w_c_last_beat;
     logic [CW-1:0]    w_c_count;           // symbols in this beat (from its keep)
@@ -398,6 +421,34 @@ module rs_decoder_core
     logic          w_uncorrectable_final;
     logic [SC_W:0] w_roots_final;
 
+    // C3's SNAPSHOT of the per-block state.
+    //
+    // The verdict is computed a cycle after a block's last beat leaves C2, so
+    // it can read u_rechk's REGISTERED all-zero output. That cycle is
+    // deliberate and is what keeps the S-fold Horner chain off the status
+    // path. What it must NOT do is stall the next block: the verdict used to
+    // read the live r_c_* flags, so a new block could not be loaded until the
+    // verdict had been written, and that serialised every block boundary --
+    // measured on the board as 69.1 cycles per block against a 63-beat
+    // codeword, six dead cycles per block.
+    //
+    // Snapshotting the flags as the last beat LEAVES frees the live registers
+    // immediately. u_rechk needs no snapshot: it resets on each block's first
+    // beat, so its registered output still holds this block's result during
+    // the verdict cycle even when the next block's first beat is already
+    // firing -- the update lands a cycle later.
+    // The verdict rides its own two-deep pipeline, one stage per datapath
+    // stage: r_sv_* is captured on the C1->C2 edge of the last beat, r_sv2_*
+    // on the C2->status edge. Two stages are what let a new block load while
+    // the previous one's verdict is still in flight -- a single snapshot
+    // reading the live r_c_* flags would be overwritten by the next load.
+    logic             r_sv_frame_err, r_sv_all_zero, r_sv_correct, r_sv_bad, r_sv_den_zero;
+    logic [DEG_W-1:0] r_sv_deg;
+    logic [SC_W:0]    r_sv_roots;
+    logic             r_sv2_frame_err, r_sv2_all_zero, r_sv2_correct, r_sv2_bad, r_sv2_den_zero;
+    logic [DEG_W-1:0] r_sv2_deg;
+    logic [SC_W:0]    r_sv2_roots;
+
     // C3: the verdict stage. One entry, loaded the cycle after a block's last
     // beat leaves C2, so it can read u_rechk's registered all-zero output.
     logic            r_st_v;
@@ -425,11 +476,21 @@ module rs_decoder_core
         .i_load(w_c_load), .i_omega(w_c_omega), .i_step(w_c_step),
         .i_odd_sum(w_chien_odd), .o_err_val(w_forney_val), .o_den_zero(w_forney_den_zero));
 
-    // a new block is loaded only once the previous one's last beat has left C2
-    // AND its verdict has been written, because both read this block's
-    // descriptor flags and its root count
-    assign w_c_load       = (r_c_state == C_IDLE) && w_dbc_rd_valid && !r_c2_v
-                            && !r_c2_last_fired && !r_st_v;
+    // A block loads with NO dead cycle between blocks. Two ways in:
+    //   - from C_IDLE, when C2 is free or is being vacated this cycle;
+    //   - straight off the previous block's LAST STEP edge (w_c_walk_done),
+    //     which is what removes the load cycle from the block boundary.
+    // The concurrent load is safe because chien_search and forney_evaluator
+    // both give i_load priority over i_step: the final beat's root and error
+    // value are combinational off the pre-load cells and are captured into C2
+    // on that same edge, while the cells reinitialise for the next block.
+    // r_c_* is likewise handed to the next block on that edge, which is why
+    // the verdict snapshots on the same edge (r_sv_*) instead of reading the
+    // live flags a cycle later.
+    assign w_c_walk_done  = (r_c_state == C_WALK) && w_c_step && w_c_last_beat;
+    assign w_c_load       = w_dbc_rd_valid
+                            && ((r_c_state == C_IDLE) ? (!r_c2_v || w_c2_fire)
+                                                      : w_c_walk_done);
     assign w_dbc_rd_ready = w_c_load;
     assign w_c_count      = CW'(gf_keep_count(64'(w_blk_rd_keep), S));
     assign w_c_last_beat  = (r_c_pos + CNT_W'(w_c_count) >= r_c_len);
@@ -513,13 +574,14 @@ module rs_decoder_core
         if (w_roots_final < r_c_roots) w_roots_final = '1;
     end
 
-    // C1 folded every beat's hits into r_c_roots and r_c_den_zero, and
-    // w_rechk_zero is the re-check's registered verdict on the whole block, so
-    // one cycle after the last beat this is a short expression off flops.
+    // Every term here is a flop, and all of them describe the SAME block:
+    // r_sv2_* is the verdict pipeline's second stage and w_rechk_zero is the
+    // re-check's registered verdict, both landing the cycle after the last
+    // beat leaves C2. The live r_c_* flags are long gone to the next block.
     assign w_uncorrectable_final =
-        r_c_correct && (r_c_bad
-                        || (r_c_roots != (SC_W + 1)'(r_c_deg))
-                        || r_c_den_zero
+        r_sv2_correct && (r_sv2_bad
+                        || (r_sv2_roots != (SC_W + 1)'(r_sv2_deg))
+                        || r_sv2_den_zero
                         || !w_rechk_zero);
 
     assign w_of_wr_valid = w_c2_fire && r_c2_any_data;
@@ -530,14 +592,42 @@ module rs_decoder_core
             r_c2_last_fired <= 1'b0;
             r_st_v          <= 1'b0;
             r_st_data       <= '0;
+            r_sv_frame_err  <= 1'b0; r_sv_all_zero <= 1'b0; r_sv_correct <= 1'b0;
+            r_sv_bad        <= 1'b0; r_sv_den_zero <= 1'b0;
+            r_sv_deg        <= '0;   r_sv_roots    <= '0;
+            r_sv2_frame_err <= 1'b0; r_sv2_all_zero <= 1'b0; r_sv2_correct <= 1'b0;
+            r_sv2_bad       <= 1'b0; r_sv2_den_zero <= 1'b0;
+            r_sv2_deg       <= '0;   r_sv2_roots    <= '0;
         end else begin
             r_c2_last_fired <= w_c2_fire && r_c2_last_beat;
+            // stage 1: the last beat steps C1->C2. r_c_* still belongs to
+            // this block on this edge; roots and den_zero come from the final
+            // combinational totals, which include this very beat's hits.
+            if (w_c_step && w_c_last_beat) begin
+                r_sv_frame_err <= r_c_frame_err;
+                r_sv_all_zero  <= r_c_all_zero;
+                r_sv_correct   <= r_c_correct;
+                r_sv_bad       <= r_c_bad;
+                r_sv_den_zero  <= r_c_den_zero || w_c_den_zero_hit;
+                r_sv_deg       <= r_c_deg;
+                r_sv_roots     <= w_roots_final;
+            end
+            // stage 2: the last beat leaves C2, landing beside w_rechk_zero
+            if (w_c2_fire && r_c2_last_beat) begin
+                r_sv2_frame_err <= r_sv_frame_err;
+                r_sv2_all_zero  <= r_sv_all_zero;
+                r_sv2_correct   <= r_sv_correct;
+                r_sv2_bad       <= r_sv_bad;
+                r_sv2_den_zero  <= r_sv_den_zero;
+                r_sv2_deg       <= r_sv_deg;
+                r_sv2_roots     <= r_sv_roots;
+            end
             if (r_c2_last_fired) begin
                 r_st_v    <= 1'b1;
-                r_st_data <= {r_c_frame_err,
+                r_st_data <= {r_sv2_frame_err,
                               w_uncorrectable_final,
-                              r_c_all_zero && !r_c_frame_err,
-                              (r_c_correct && !w_uncorrectable_final) ? r_c_roots[SC_W-1:0] : SC_W'(0)};
+                              r_sv2_all_zero && !r_sv2_frame_err,
+                              (r_sv2_correct && !w_uncorrectable_final) ? r_sv2_roots[SC_W-1:0] : SC_W'(0)};
             end else if (w_st_wr_ready) begin
                 r_st_v <= 1'b0;
             end
@@ -576,10 +666,25 @@ module rs_decoder_core
                     r_c_den_zero  <= 1'b0;
                 end
                 C_WALK: if (w_c_step) begin
-                    r_c_pos      <= r_c_pos + CNT_W'(w_c_count);
-                    r_c_roots    <= w_roots_final;
-                    r_c_den_zero <= r_c_den_zero || w_c_den_zero_hit;
-                    if (w_c_last_beat) r_c_state <= C_IDLE;
+                    if (!w_c_last_beat) begin
+                        r_c_pos      <= r_c_pos + CNT_W'(w_c_count);
+                        r_c_roots    <= w_roots_final;
+                        r_c_den_zero <= r_c_den_zero || w_c_den_zero_hit;
+                    end else if (w_c_load) begin
+                        // next block rides straight in behind this last beat
+                        r_c_len       <= w_c_len;
+                        r_c_pos       <= '0;
+                        r_c_data_len  <= (w_c_len > CNT_W'(T2)) ? w_c_len - CNT_W'(T2) : w_c_len;
+                        r_c_frame_err <= w_c_frame_err;
+                        r_c_all_zero  <= w_c_all_zero;
+                        r_c_correct   <= w_c_correct;
+                        r_c_bad       <= w_c_bad;
+                        r_c_deg       <= w_c_deg;
+                        r_c_roots     <= '0;
+                        r_c_den_zero  <= 1'b0;
+                    end else begin
+                        r_c_state <= C_IDLE;
+                    end
                 end
                 default: r_c_state <= C_IDLE;
             endcase
