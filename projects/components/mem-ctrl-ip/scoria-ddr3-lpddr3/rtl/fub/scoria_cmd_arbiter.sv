@@ -351,13 +351,35 @@ module scoria_cmd_arbiter
     // makes below -- every CAM commit/issue is qualified by w_fire_out, so an
     // unfired entry stays schedulable and is simply re-picked -- and the
     // windows are countdowns, so a persistently closed gate cannot livelock.
+    // tZQCS block. Loaded when a ZQCS fires; while nonzero the DRAM is
+    // calibrating its output drivers and accepts NOTHING -- not a column, not
+    // an ACT, not a refresh. This is a stronger block than w_rfc_busy (which
+    // stops ACTs and further REFs but leaves column traffic to already-open
+    // rows alone), because tZQCS is a whole-device window, not a bank one.
+    logic [15:0] r_zqcs_cnt;
+    logic        w_zq_busy;
+    assign w_zq_busy = (r_zqcs_cnt != 16'd0);
+
     logic w_out_safe, w_out_reject;
     always_comb begin
         w_out_safe = 1'b1;
+        // !w_zq_busy on every demand class: BUG-002. The tZQCS window is
+        // checked in the pick cone (priority 2 below), but the window counter
+        // loads on the ACCEPTED FIRE, so during the ZQCS's own fire cycle
+        // w_zq_busy is still 0 and the cone picks freely. That pick lands in
+        // the output register and fires one cycle later, INSIDE the window --
+        // and JESD79-3F 3.10 forbids every command while the device
+        // calibrates. Same shape as BUG-001 directly above: a device-global
+        // window checked a stage early, with the fire gate not re-validating
+        // it. Rejecting here is the proven path -- w_out_reject returns the
+        // slot to the CAM, which is what the tFAW/tRRD terms rely on.
         if      (r_do_act)            w_out_safe = bank_act_ready_i [RK0][r_bank]
-                                                && tfaw_ok_i[RK0] && trrd_ok_i[RK0];
-        else if (r_do_rd || r_do_wr)  w_out_safe = bank_rdwr_ready_i[RK0][r_bank];
-        else if (r_do_pre)            w_out_safe = bank_pre_ready_i [RK0][r_bank];
+                                                && tfaw_ok_i[RK0] && trrd_ok_i[RK0]
+                                                && !w_zq_busy;
+        else if (r_do_rd || r_do_wr)  w_out_safe = bank_rdwr_ready_i[RK0][r_bank]
+                                                && !w_zq_busy;
+        else if (r_do_pre)            w_out_safe = bank_pre_ready_i [RK0][r_bank]
+                                                && !w_zq_busy;
     end
     assign w_out_reject = r_pick_valid && !w_out_safe;
     assign w_out_ready  = !r_pick_valid || cmd_ready_i || w_out_reject;
@@ -665,14 +687,7 @@ module scoria_cmd_arbiter
     logic        w_rfc_busy;
     assign w_rfc_busy = (r_rfc_cnt != 16'd0);
 
-    // tZQCS block. Loaded when a ZQCS fires; while nonzero the DRAM is
-    // calibrating its output drivers and accepts NOTHING -- not a column, not
-    // an ACT, not a refresh. This is a stronger block than w_rfc_busy (which
-    // stops ACTs and further REFs but leaves column traffic to already-open
-    // rows alone), because tZQCS is a whole-device window, not a bank one.
-    logic [15:0] r_zqcs_cnt;
-    logic        w_zq_busy;
-    assign w_zq_busy = (r_zqcs_cnt != 16'd0);
+    // (tZQCS block declared above w_out_safe, which needs it -- BUG-002.)
 
     // ---- pipeline: register the bank-timer fan-in at the arbiter input ------
     // The worst w_sys_i path is scoria_bank_timer -> arbiter pick -> scoria_bank_timer (the
@@ -1410,7 +1425,7 @@ module scoria_cmd_arbiter
     // model's refpb_with_open_row + the zero-data reads that follow).
     assign w_ref_safe = !w_any_active && !w_inflight_preact
                       && (r_guard0 == '0) && (r_guard1 == '0)
-                      && !w_rfc_busy && !r_grant;
+                      && !w_rfc_busy && !r_grant && !r_zq_grant;
 
     // REFpb safety: only the ROTOR bank must be closed (that is the whole
     // point of per-bank refresh — the other banks keep serving row hits).

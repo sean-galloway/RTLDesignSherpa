@@ -1,0 +1,32 @@
+[tasks]
+prove
+nofix
+cover
+
+[options]
+# Four ACTs at tRRD>=2 spans >=8 cycles and the fifth must clear tFAW (up to
+# 18), so the interesting trace is ~30 cycles. The arbiter has a 3-4 stage pick
+# pipeline, so this is the expensive proof in the area.
+prove: mode bmc
+prove: depth 30
+nofix: mode bmc
+nofix: depth 30
+cover: mode cover
+cover: depth 30
+
+[engines]
+# bitwuzla, not z3: on this shape z3 does not finish (formal/handbook note
+# formal_solver_choice -- 14s vs never).
+prove: smtbmc bitwuzla
+nofix: smtbmc bitwuzla
+cover: smtbmc bitwuzla
+
+[script]
+read_verilog -formal arb_flat.v
+read -formal -sv formal_scoria_cmd_arbiter.sv
+nofix: chparam -set BUG001 0 formal_scoria_cmd_arbiter
+prep -top formal_scoria_cmd_arbiter
+
+[files]
+formal_scoria_cmd_arbiter.sv
+arb_flat.v

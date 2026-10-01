@@ -160,6 +160,94 @@ async def cocotb_test_scoria_cmd_arbiter(dut):
             "the arbiter never resumed after tZQCS -- the window counter does "
             "not drain and the controller is wedged")
 
+    elif tt == "demand_queued_before_zq_stays_out_of_the_window":
+        # The SHADOW CYCLE that zq_window_blocks_all_commands cannot see.
+        #
+        # That case presents its demand one step AFTER the grant, by which time
+        # the window counter has loaded and the pick cone's priority-2 block
+        # catches everything. But the counter loads on the ACCEPTED FIRE, so
+        # during the ZQCS's own fire cycle w_zq_busy is still 0 -- and the
+        # arbiter picks that cycle too. A command already waiting when the
+        # ZQCS goes is therefore picked in the shadow and fires one cycle
+        # later, inside the window, because the final gate (w_out_safe) carries
+        # no tZQCS term.
+        #
+        # This is not a contrived order. The arbiter precharges every bank to
+        # issue a ZQCS, so traffic is NORMALLY queued behind one, and zq_req
+        # outranks demand -- so "pending read, all banks idle, zq_req high" is
+        # what the real controller looks like every time it calibrates.
+        # Found by formal (formal/scoria/cmd_arbiter, a_zqcs_quiet), which also
+        # covers c_act_in_zqcs and c_col_in_zqcs.
+        tb.all_banks_ready(True)
+        # Queue the demand FIRST, on a closed bank so it needs an ACT, and
+        # leave every bank idle so the ZQCS's own precondition holds.
+        tb.set_entries('rd', {0: (4, 0x10, 8, 10)})
+        dut.zq_req_i.value = 1
+        await tb.settle(2)
+        j = await wait_for(tb, lambda: tb.strobes()['zq_grant'] == 1)
+        chk(j is not None, f"no ZQCS fired with all banks idle and a queued "
+                           f"read (saw {tb.op_name()})")
+        # NO step() here -- stepping is what hides the bug. Sample from the
+        # cycle after the grant, which is the first cycle of the window.
+        seen = []
+        for _ in range(T_ZQCS):
+            await tb.step()
+            if tb.picked()['valid']:
+                seen.append((OP_NAMES.get(tb.picked()['op'], '?'),
+                             tb.strobes()['zq_grant']))
+        issued = [op for op, zq in seen if not zq]
+        chk(issued == [],
+            f"commands issued inside the tZQCS window: {issued}. JESD79-3F "
+            f"3.10 forbids EVERY command while the device calibrates. The "
+            f"command was picked in the ZQCS's own fire cycle, when the window "
+            f"counter had not loaded yet, and w_out_safe does not re-validate "
+            f"tZQCS at the fire -- the same shape as scoria BUG-001, where the "
+            f"rank-global tRRD/tFAW windows were checked two stages early.")
+
+    elif tt == "probe_zq_shadow_alignment":
+        # Formal says a command CAN fire inside the tZQCS window (see
+        # formal/scoria/cmd_arbiter, assertion a_zqcs_quiet, covers
+        # c_act_in_zqcs / c_col_in_zqcs). The pick pipeline is 3-4 stages, so
+        # reproducing it in simulation needs the demand to be in flight at the
+        # moment the ZQCS fires -- one arbitrary alignment misses it. This
+        # sweeps the offset at which the demand entry appears, relative to the
+        # cycle zq_req is raised, and reports which offsets land a command in
+        # the window. A probe, not a gate: it prints and does not fail.
+        hits = []
+        for off in range(10):
+            await tb.assert_reset(); await tb.step(); await tb.deassert_reset()
+            await tb.settle(2)
+            tb.all_banks_ready(True)
+            dut.zq_req_i.value = 1
+            await tb.settle(2)
+            placed = False
+            seen = []
+            for c in range(T_ZQCS + 12):
+                if c == off:
+                    tb.set_entries('rd', {0: (4, 0x10, 8, 10)}); placed = True
+                await tb.step()
+                zq = tb.strobes()['zq_grant']
+                if zq:
+                    win = T_ZQCS
+                    for _ in range(win):
+                        await tb.step()
+                        if tb.picked()['valid'] and not tb.strobes()['zq_grant']:
+                            seen.append(OP_NAMES.get(tb.picked()['op'], '?'))
+                    break
+            if seen:
+                hits.append((off, seen))
+            tb.set_entries('rd', {})
+            dut.zq_req_i.value = 0
+        tb.log.info(f"tZQCS shadow sweep: {len(hits)} of 10 offsets landed a "
+                    f"command inside the window")
+        for off, seen in hits:
+            tb.log.info(f"  demand at offset {off}: {seen}")
+        if not hits:
+            tb.log.info("  no offset reproduced it in simulation; the formal "
+                        "counterexample stands as the evidence, which is also "
+                        "how pumice BUG-021 (same mechanism, same block) could "
+                        "only ever be shown")
+
     elif tt == "refresh_outranks_zq":
         # Priority cone: 1 init, 2 the tZQCS window, 3 refresh, 4 ZQCS. A
         # refresh deferred behind a calibration is a data-retention risk; a
@@ -411,7 +499,9 @@ _FUNC = _GATE + ["init_passthrough", "refresh_outranks_zq",
                  "stall_zq_counts_the_wait", "zq_grant_pulses_once",
                  "act_waits_for_the_act_limit",
                  "grants_wait_for_the_accepted_fire",
-                 "cmd_backpressure_holds_the_pick"]
+                 "cmd_backpressure_holds_the_pick",
+                 "demand_queued_before_zq_stays_out_of_the_window",
+                 "probe_zq_shadow_alignment"]
 _TEST_LEVEL = (os.environ.get("REG_LEVEL") or os.environ.get("TEST_LEVEL")
                or "FUNC").upper()
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FUNC}.get(_TEST_LEVEL, _FUNC)

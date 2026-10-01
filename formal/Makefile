@@ -53,7 +53,7 @@ check-tools:
 # 2026-09-11: `make formal` ran neither, so ninety task directories had no
 # entry point and nobody noticed twelve flat files drifting from their RTL.
 .PHONY: formal
-formal: formal-rtl formal-converters formal-stream formal-rapids formal-rlb formal-pumice formal-apbx-xbar formal-bridge
+formal: formal-rtl formal-converters formal-stream formal-rapids formal-rlb formal-pumice formal-scoria formal-apbx-xbar formal-bridge
 
 # Everything whose RTL lives in repo-root rtl/.
 .PHONY: formal-rtl
@@ -95,6 +95,13 @@ formal-rapids:
 .PHONY: formal-pumice
 formal-pumice:
 	$(MAKE) -C pumice all
+
+# scoria DDR3/LPDDR3 memory controller. Added 2026-10-01. Like pumice, every
+# scoria proof flattens with sv2v first, so this MUST go through
+# formal/scoria/Makefile rather than invoking sby directly.
+.PHONY: formal-scoria
+formal-scoria:
+	$(MAKE) -C scoria all
 
 # Retro legacy blocks. Added 2026-09-14 for RLB-010; the comment above about
 # formal-amba and formal-converters going missing from the `formal:` list is
