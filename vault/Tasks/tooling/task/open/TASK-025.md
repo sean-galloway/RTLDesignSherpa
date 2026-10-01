@@ -1,7 +1,7 @@
 # TASK-025: cocotb 2.x needs cocotb-bus 0.3.0 and a `.value.integer` sweep -- the blocker is measured, not guessed
 
 **Priority:** P3
-**Status:** open -- steps 1-3 DONE 2026-10-01 (cap lifted, both repos swept, units positional). Step 4 blocked by a newly-found layer, sized below.
+**Status:** open -- steps 1-3 DONE and RELEASED as cocotb-framework 0.6.9. Step 4 shows cocotb 2.x is reachable for ONE suite, not broadly: three further layers measured below.
 **Owner:** TBD
 **Filed:** 2026-10-01 (question 2 of [[TASK-020]], split out as that task instructed)
 
@@ -200,3 +200,74 @@ or `*`.
 - The 10 arithmetic sites above.
 - Then re-run [[TASK-020]]'s matrix under cocotb 2.x.
 - `cocotb-coverage` 2.0 remains untested and capped.
+
+## Released 2026-10-01: cocotb-framework 0.6.9
+
+Steps 1-3 shipped. RDS-DV issue **#83** records the four incompatibilities with
+their measurements; the release went out through the repo's `publish.yml` on a
+green CI, and the published artifact was verified rather than the repo:
+
+- `pip metadata` and `__version__` both read **0.6.9** from a throwaway install,
+  which is [[TASK-021]]'s single-source mechanism working end to end.
+- The published source carries the fixes; `cocotb-bus>=0.2.1` uncapped,
+  `cocotb-coverage<2` still capped.
+- `requirements.txt` here bumped 0.6.8 -> 0.6.9 and the shared venv synced.
+
+**Verifying the artifact rather than the repo immediately paid.** A grep of
+site-packages for cocotb-API `units=` returned **8** after I had confirmed zero in
+the source: all 8 were `.md` files, because the sweep only touched `*.py`, and
+two of them ship INSIDE the package -- so they went out in 0.6.9 teaching the
+idiom the release existed to remove. Fixed for the next release (50 examples
+across 17 files). "Clean" had been measured over a narrower file set than the one
+shipped.
+
+## Step 4: cocotb 2.x is reachable for ONE suite, not broadly
+
+| Suite under cocotb 2.1.0 | Result | vs its 1.9.2 baseline |
+| --- | --- | --- |
+| `dma-ip/stream` | **15 passed, rc=0** | identical (15) |
+| `val/amba` | **600 passed / 239 failed**, rc=2 | 839 |
+
+So the stream result does NOT generalise, and reporting "cocotb 2.x works" off
+that one suite would have been exactly the scope error [[TASK-020]] already
+corrected once.
+
+### Three further layers, from the val/amba failures
+
+| Error | Count | Meaning |
+| --- | --- | --- |
+| `This object cannot be cast to bool or used in conditionals` | **932** | `if sig.value:` -- 2.x refuses the implicit bool |
+| `'LogicObject' object has no attribute 'name'` | 28 | handle attribute is `._name` in 2.x |
+| `contains no child object named cmd_valid / cmd_id` | 8 | handle lookup differs; needs its own look |
+
+**The bool layer is the big one: 89 sites in this repo, 6 in RTLDesignSherpa-DV**
+(before triage). Measured with `bin/find_bool_value.py`, added alongside
+`bin/find_value_arith.py` for the same reason -- the pattern spans statements and
+a grep cannot see it.
+
+The fix shape is an explicit comparison: `if sig.value:` becomes
+`if int(sig.value):` or `if sig.value == 1:`, which also reads better.
+
+## What is left
+
+1. The **bool-cast layer** (89 + 6 sites) -- the largest remaining.
+2. `.name` -> `._name` on handles (28 occurrences, site count not yet taken).
+3. The `contains no child object` cases, which are not obviously mechanical.
+4. Then re-measure the [[TASK-020]] matrix.
+5. `cocotb-coverage` 2.0 still untested and capped.
+
+## Two tools, and why they exist
+
+`bin/find_value_arith.py` and `bin/find_bool_value.py` are AST passes, not greps,
+because every regex tried on these patterns was wrong:
+
+- Three regexes missed the **split form** (`v = sig.value` then `v >> n`), one
+  reporting 0 hits in a file whose own traceback named line 1564.
+- The raw AST hit count **over-reports**: `.value` is also an Enum member and a
+  dataclass field. 10 hits, 3 false, 7 real -- so both tools print the source
+  line and say so in their docstrings.
+- Sizing from the **error count** over-reports badly too: 464 runtime errors came
+  from 7 sites firing inside loops, a 46x overstatement.
+
+Neither a grep, nor an AST hit count, nor an error count is the measurement on
+its own.
