@@ -227,10 +227,14 @@ shipped.
 | --- | --- | --- |
 | `dma-ip/stream` | **15 passed, rc=0** | identical (15) |
 | `val/amba` | **600 passed / 239 failed**, rc=2 | 839 |
+| `fabric-gen-ip/bridge` | **52 passed / 94 failed**, rc=2 | 146 |
 
-So the stream result does NOT generalise, and reporting "cocotb 2.x works" off
-that one suite would have been exactly the scope error [[TASK-020]] already
-corrected once.
+So the stream result does NOT generalise -- it is one suite of three, and the
+only clean one. Reporting "cocotb 2.x works" off it would have been exactly the
+scope error [[TASK-020]] already had to correct once.
+
+Each suite fails in a DIFFERENT dominant way, which is why one green suite says
+so little: stream is clean, val/amba is bool casts, bridge is task cancellation.
 
 ### Three further layers, from the val/amba failures
 
@@ -248,13 +252,45 @@ a grep cannot see it.
 The fix shape is an explicit comparison: `if sig.value:` becomes
 `if int(sig.value):` or `if sig.value == 1:`, which also reads better.
 
+### A fourth layer, from bridge -- and its source is NOT yet pinned
+
+    1232 x RuntimeError: Task was cancelled, but exited normally.
+           Did you forget to re-raise the CancelledError?
+
+They arrive in an `ExceptionGroup` at test teardown: cocotb 2.x cancels
+background tasks by throwing `CancelledError` into them, and a coroutine that
+catches it and returns normally now raises.
+
+**This one is unresolved, not merely unstarted.** The ExceptionGroup carries no
+file or line, so the usual traceback route gives nothing. An AST scan for async
+functions whose broad `except` does not re-raise found only **2 candidates in the
+framework and 9 here** -- far too few to produce 1232 occurrences, so either the
+swallowing is somewhere that scan does not model (`cocotb_bus`'s own
+driver/monitor base classes are the obvious suspects, since every BFM inherits
+them) or the mechanism is not a plain `except` at all.
+
+Note `CancelledError` derives from `BaseException`, so `except Exception` does
+NOT catch it -- which is why the scan looked only for bare/`BaseException`/
+explicit handlers, and may be looking for the wrong thing entirely.
+
+**Do not start here by sweeping `except` clauses.** Find one failing test, get a
+real traceback out of it, and name the site before changing anything.
+
 ## What is left
 
-1. The **bool-cast layer** (89 + 6 sites) -- the largest remaining.
-2. `.name` -> `._name` on handles (28 occurrences, site count not yet taken).
-3. The `contains no child object` cases, which are not obviously mechanical.
-4. Then re-measure the [[TASK-020]] matrix.
-5. `cocotb-coverage` 2.0 still untested and capped.
+1. **Pin the cancellation source** (bridge, 1232 occurrences). Blocked on getting
+   a real traceback, not on effort. Start here: it is the only layer whose cause
+   is unknown, and the others are mechanical once it is.
+2. The **bool-cast layer** (89 + 6 sites) -- the largest mechanical one.
+3. `.name` -> `._name` on handles (28 occurrences; site count not yet taken).
+4. The `contains no child object` cases, which are not obviously mechanical.
+5. Then re-measure the [[TASK-020]] matrix.
+6. `cocotb-coverage` 2.0 still untested and capped.
+
+**Scale check before anyone plans this:** four layers surfaced only after the one
+above them was fixed, and each was invisible until then. Assume there are more.
+The honest statement today is that cocotb 2.x is reachable for one suite of
+three, and that is not the same as being close.
 
 ## Two tools, and why they exist
 
