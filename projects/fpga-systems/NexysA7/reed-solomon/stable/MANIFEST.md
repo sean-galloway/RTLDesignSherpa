@@ -89,49 +89,56 @@ in `reports/bandwidth.txt`. Every image passed its random campaign (64 runs,
 AXI4 16 -> 64 (its per-kick cap is CFG_AXI4_MAX_BLOCKS = 4096/63 = 65 and the
 harness refuses a larger run rather than clamping it).
 
-| image | cyc/block | codeword util | message util |
-|---|---|---|---|
-| axis_ribm | 63.00 | **100.0%** | 93.7% |
-| axis_euclid | 63.00 | **100.0%** | 93.7% |
-| axi4_ribm | 337.75 | 18.7% | 17.5% |
-| axi4_euclid | 337.75 | 18.7% | 17.5% |
+| image | end-to-end cyc/block | codeword out | codeword in | message |
+|---|---|---|---|---|
+| axis_ribm | 63.00 | **100.0%** | **100.0%** | 93.7% |
+| axis_euclid | 63.00 | **100.0%** | **100.0%** | 93.7% |
+| axi4_ribm | 337.75 | 88.9% | 94.1% | 17.5% |
+| axi4_euclid | 337.75 | 88.9% | 94.1% | 17.5% |
 
 **The solver is throughput-neutral.** riBM and Euclid are identical to the
 cycle in both datapaths -- 16,264 cycles for 256 AXIS blocks either way. The
 key-equation stage costs iterations+1 and Euclid's extra iteration is still far
 inside the 63-beat budget, so the choice is an area and timing decision only
-(13,429 vs 11,128 LUTs on AXIS). The host reads the solver name from TOPOLOGY,
+(13,418 vs 11,130 LUTs on AXIS). The host reads the solver name from TOPOLOGY,
 so the pair being identical is not a stale bitstream.
 
-**AXI4's 18.7% is the FIXTURE, and the codeword taps do not isolate the codec
-there.** Expected otherwise, measured otherwise: the AXI4 pipeline runs five
-SEQUENTIAL passes over memory -- seed, encode, inject, decode, drain -- and the
-meters span the whole run, so the encoder's W channel reads 17,251 cycles of
-starvation out of 21,784 simply because four of the five passes are not it.
-The arithmetic:
+### The codeword meters are gated to the stage that owns them
+
+On AXIS the codec runs for the whole run and both windows are just `busy`. On
+AXI4 the five stages are SEQUENTIAL, so a whole-run window reports the pass
+structure rather than the codec: before gating, the encoder's W channel logged
+17,251 starved cycles of 21,784 and read 18.7%, purely because four fifths of
+the run was not the encode pass. `obs_enc_active` / `obs_dec_active` now gate
+each meter to its own stage.
+
+With that, the AXI4 codec's own cost is visible and it is NOT the fixture:
+
+| seam | cyc/block | vs 63-beat ideal | bursts/block | per burst |
+|---|---|---|---|---|
+| codeword out (encode pass) | 70.88 | +7.88 | 4 | ~2.0 cycles |
+| codeword in (decode pass) | 66.94 | +3.94 | 4 | ~1.0 cycle |
+
+`CFG_AXI4_BURST_LEN` is 16, so a 63-beat codeword is 4 bursts, and the
+overhead divides evenly by the burst count in both directions -- it is
+AW/AR-per-burst cost, not anything per block. One burst per codeword would
+cut it to roughly +2 and +1.
+
+### Where the AXI4 end-to-end number comes from
 
 | | cyc/block |
 |---|---|
 | measured | 337.75 |
 | five-pass floor (5 x 63) | 315.00 |
-| per pass | 67.55 -> 93.3% of the 63-beat ideal |
-| overhead above the floor | 22.75 (4.55 per pass) |
+| overhead above the floor | 22.75 |
+| ... of which the two codec passes | 11.82 |
+| ... of which seed / inject / drain | 10.93 |
 
-So each pass individually runs at 93% of line rate and the serialisation is
-the whole story: AXI4 is 5.36x the AXIS cycle count, and four of its five
-passes are scaffolding the codec never touches. Nothing here says the AXI4
-codec is slow.
-
-Two separate follow-ups, and they are not the same work:
-
-- **Measurement.** Gate the codeword meters' `i_freeze` on `axi4_stage` so the
-  window covers only the encode pass for `cw_out` and the decode pass for
-  `cw_in`. That would report the codec's own rate inside AXI4 -- expected near
-  93%, with the remaining 7% being AXI4 job and burst-boundary overhead, which
-  is a real codec-side cost worth seeing rather than hiding behind the fixture.
-- **Design.** Seed, inject and drain exist to stage and check memory, not to
-  encode or decode. Collapsing them is what raises the end-to-end number, and
-  it is a fixture redesign rather than a codec change.
+So 315 of the 337.75 is pure serialisation: AXI4 is 5.36x the AXIS cycle count
+because it runs five sequential passes over memory and the codec participates
+in two. Seed, inject and drain stage and check memory; they do not encode or
+decode. Collapsing them is what moves the end-to-end number, and that is a
+fixture redesign rather than a codec change.
 
 ## Build notes
 

@@ -357,6 +357,13 @@ module rs_loop_harness
     // stall -- so 100% utilisation is only a meaningful target here.
     logic          cw_out_valid, cw_out_ready;   // codeword leaving the encoder
     logic          cw_in_valid,  cw_in_ready;    // codeword entering the decoder
+    // The window each codeword meter measures over. On the stream path the
+    // codec runs for the whole run, so it is simply busy. On the AXI4 path the
+    // five stages are SEQUENTIAL and the codec owns two of them, so a
+    // whole-run window reports the pass structure instead of the codec: the
+    // encoder's W channel logged 17,251 starved cycles of 21,784 purely
+    // because four fifths of the run was not the encode pass.
+    logic          cw_out_window, cw_in_window;
     logic [DW-1:0] enc_out_data;
     logic [S-1:0]  enc_out_keep;
 
@@ -398,6 +405,7 @@ module rs_loop_harness
     // DRAIN, so the sideband would be stale by then. The CSR block selects
     // between these and the tally registers.
     logic        w_pipe_busy, w_pipe_done, w_pipe_resp_err;
+    logic        w_enc_active, w_dec_active;   // AXI4 only: which stage is running
     logic [31:0] w_pipe_ok, w_pipe_corr, w_pipe_unc, w_pipe_frame, w_pipe_sym;
     logic [4:0]  w_pipe_stage;
 
@@ -457,11 +465,17 @@ module rs_loop_harness
     end
 
     // Codeword seams for the bandwidth meters: n beats per block at both, so
-    // these are the taps that can legitimately read 100%.
-    assign cw_out_valid = enc_out_valid;
-    assign cw_out_ready = enc_out_ready;
-    assign cw_in_valid  = dec_in_valid[0];
-    assign cw_in_ready  = dec_in_ready[0];
+    // these are the taps that can legitimately read 100%. One pass, so the
+    // window is the whole run.
+    assign cw_out_valid  = enc_out_valid;
+    assign cw_out_ready  = enc_out_ready;
+    assign cw_in_valid   = dec_in_valid[0];
+    assign cw_in_ready   = dec_in_ready[0];
+    // No stages on this path -- the codec runs for the whole run -- so both
+    // stage-active terms are constant 1 and the shared window expression
+    // below reduces to r_busy.
+    assign w_enc_active  = 1'b1;
+    assign w_dec_active  = 1'b1;
 
     for (genvar d = 0; d < ND; d++) begin : g_dec
         // the component's AXIS top, as above
@@ -542,6 +556,7 @@ module rs_loop_harness
         .in_data(gen_tdata), .in_last(gen_tlast),
         .obs_cw_out_valid(cw_out_valid), .obs_cw_out_ready(cw_out_ready),
         .obs_cw_in_valid(cw_in_valid),   .obs_cw_in_ready(cw_in_ready),
+        .obs_enc_active(w_enc_active),   .obs_dec_active(w_dec_active),
         .out_valid(dec_out_valid[0]), .out_ready(dec_out_ready[0]),
         .out_data(dec_out_data[0]), .out_keep(dec_out_keep[0]),
         .out_last(dec_out_last[0]),
@@ -858,6 +873,16 @@ module rs_loop_harness
     // codeword seams, where n beats per block over n cycles per block is
     // 100%, and that is the figure to hold to 100%.
     // =========================================================================
+    // Each codeword meter measures only the stage that owns its seam. On AXI4
+    // the encoder's W channel belongs to the encode pass and the decoder's R
+    // channel to the decode pass; across the other three stages the channel is
+    // idle BY DESIGN, and counting those cycles reports the fixture's pass
+    // structure rather than what the codec sustains -- 17,251 starved cycles
+    // of 21,784, measured, before this gating. On AXIS both terms are 1 and
+    // this is just r_busy.
+    assign cw_out_window = r_busy && w_enc_active;
+    assign cw_in_window  = r_busy && w_dec_active;
+
     logic [31:0] w_obs_prod [4], w_obs_bp [4], w_obs_starv [4], w_obs_idle [4];
 
     /* verilator lint_off PINCONNECTEMPTY */
@@ -887,7 +912,7 @@ module rs_loop_harness
     // from the encoder's W channel and the decoder's R channel.
     axi_bus_meter #(.NUM_CHANNELS(1)) u_obs_cw_out (
         .aclk(aclk), .aresetn(dp_rstn),
-        .i_clear(w_clear), .i_freeze(!r_busy),
+        .i_clear(w_clear), .i_freeze(!cw_out_window),
         .i_valid(cw_out_valid), .i_ready(cw_out_ready),
         .i_channel_id('0), .i_channel_valid(1'b0),
         .o_agg_productive(w_obs_prod[2]), .o_agg_backpressure(w_obs_bp[2]),
@@ -897,7 +922,7 @@ module rs_loop_harness
 
     axi_bus_meter #(.NUM_CHANNELS(1)) u_obs_cw_in (
         .aclk(aclk), .aresetn(dp_rstn),
-        .i_clear(w_clear), .i_freeze(!r_busy),
+        .i_clear(w_clear), .i_freeze(!cw_in_window),
         .i_valid(cw_in_valid), .i_ready(cw_in_ready),
         .i_channel_id('0), .i_channel_valid(1'b0),
         .o_agg_productive(w_obs_prod[3]), .o_agg_backpressure(w_obs_bp[3]),

@@ -98,6 +98,12 @@ module rs_axi4_pipeline #(
     output logic                        obs_cw_out_ready,
     output logic                        obs_cw_in_valid,
     output logic                        obs_cw_in_ready,
+    // When the codec's own stage is running. The five stages are SEQUENTIAL,
+    // so a meter spanning the whole run sees the codec's channel idle through
+    // four fifths of it and reports the pass structure rather than the codec.
+    // These gate the measurement window down to the stage that owns each seam.
+    output logic                        obs_enc_active,
+    output logic                        obs_dec_active,
 
     output logic                        resp_err,       // any stage, sticky
     output logic                        enc_frame_err,
@@ -335,6 +341,26 @@ module rs_axi4_pipeline #(
     )
     assign done       = drain_done;
     assign stage_done = {drain_done, dec_done, inj_done, enc_done, seed_done};
+
+    // Stage-active windows for the bandwidth meters: high from a stage's start
+    // to its own done. `start` clears them because every done is still high
+    // from the previous run at that point, and a stage's start must win over
+    // its stale done in the same cycle -- the engine clears cfg_done on
+    // cfg_start, so the done being read here is last run's until it does.
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            obs_enc_active <= 1'b0;
+            obs_dec_active <= 1'b0;
+        end else if (start) begin
+            obs_enc_active <= 1'b0;
+            obs_dec_active <= 1'b0;
+        end else begin
+            if      (enc_start) obs_enc_active <= 1'b1;
+            else if (enc_done)  obs_enc_active <= 1'b0;
+            if      (dec_start) obs_dec_active <= 1'b1;
+            else if (dec_done)  obs_dec_active <= 1'b0;
+        end
+    )
 
     // =========================================================================
     // 1. seed: the generator's message stream into M1

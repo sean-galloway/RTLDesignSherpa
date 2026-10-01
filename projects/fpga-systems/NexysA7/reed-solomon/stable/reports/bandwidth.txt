@@ -1,4 +1,4 @@
-=== axis_ribm at 2026-10-01T05:46:12-07:00
+=== axis_ribm at 2026-10-01T06:20:07-07:00
   [random] 64 runs x 4 blocks on RS(252,236): 31 exact-count, 12 burst, 21 rate; blocks 24 clean / 125 corrected / 107 uncorrectable; 0 failing run(s)
   [run] 2 sequence(s), 52.36s total: ALL PASS
   2 sequence(s), 52.36s total: ALL PASS
@@ -17,7 +17,7 @@
     cw  out    12096 beats /    12096 cyc = 100.0%    63.00 cyc/block (ideal 63)
     cw  in     12096 beats /    12096 cyc = 100.0%    63.00 cyc/block (ideal 63)
 
-=== axis_euclid at 2026-10-01T05:47:20-07:00
+=== axis_euclid at 2026-10-01T06:21:15-07:00
   [random] 64 runs x 4 blocks on RS(252,236): 31 exact-count, 12 burst, 21 rate; blocks 24 clean / 125 corrected / 107 uncorrectable; 0 failing run(s)
   [run] 2 sequence(s), 52.36s total: ALL PASS
   2 sequence(s), 52.36s total: ALL PASS
@@ -36,7 +36,7 @@
     cw  out    12096 beats /    12096 cyc = 100.0%    63.00 cyc/block (ideal 63)
     cw  in     12096 beats /    12096 cyc = 100.0%    63.00 cyc/block (ideal 63)
 
-=== axi4_ribm at 2026-10-01T05:48:28-07:00
+=== axi4_ribm at 2026-10-01T06:22:23-07:00
   [random] 64 runs x 4 blocks on RS(252,236): 31 exact-count, 12 burst, 21 rate; blocks 24 clean / 125 corrected / 107 uncorrectable; 0 failing run(s)
   [run] 2 sequence(s), 52.36s total: ALL PASS
   2 sequence(s), 52.36s total: ALL PASS
@@ -45,17 +45,17 @@
     64 blocks, e=0: 21784 cycles (340.4/block)
     msg in      3776 beats /    21784 cyc =  17.3%  (bp 471, starv 0, idle 17537)
     msg out     3776 beats /    21784 cyc =  17.3%  (bp 0, starv 18008, idle 0)
-    cw  out     4032 beats /    21784 cyc =  18.5%  (bp 501, starv 17251, idle 0)
-    cw  in      4032 beats /    21784 cyc =  18.5%  (bp 0, starv 17752, idle 0)
+    cw  out     4032 beats /     4544 cyc =  88.7%  (bp 501, starv 11, idle 0)
+    cw  in      4032 beats /     4426 cyc =  91.1%  (bp 0, starv 394, idle 0)
     out/in message beats = 1.000
     16 blocks: 5572 cycles (348.2/block)
     slope over 16 -> 64 blocks (fill cancelled; codeword 63 beats, message 59)
     msg in      2832 beats /    16212 cyc =  17.5%   337.75 cyc/block (ideal 59)
     msg out     2832 beats /    16212 cyc =  17.5%   337.75 cyc/block (ideal 59)
-    cw  out     3024 beats /    16212 cyc =  18.7%   337.75 cyc/block (ideal 63)
-    cw  in      3024 beats /    16212 cyc =  18.7%   337.75 cyc/block (ideal 63)
+    cw  out     3024 beats /     3402 cyc =  88.9%    70.88 cyc/block (ideal 63)
+    cw  in      3024 beats /     3213 cyc =  94.1%    66.94 cyc/block (ideal 63)
 
-=== axi4_euclid at 2026-10-01T05:49:36-07:00
+=== axi4_euclid at 2026-10-01T06:23:31-07:00
   [random] 64 runs x 4 blocks on RS(252,236): 31 exact-count, 12 burst, 21 rate; blocks 24 clean / 125 corrected / 107 uncorrectable; 0 failing run(s)
   [run] 2 sequence(s), 52.36s total: ALL PASS
   2 sequence(s), 52.36s total: ALL PASS
@@ -64,14 +64,14 @@
     64 blocks, e=0: 21784 cycles (340.4/block)
     msg in      3776 beats /    21784 cyc =  17.3%  (bp 471, starv 0, idle 17537)
     msg out     3776 beats /    21784 cyc =  17.3%  (bp 0, starv 18008, idle 0)
-    cw  out     4032 beats /    21784 cyc =  18.5%  (bp 501, starv 17251, idle 0)
-    cw  in      4032 beats /    21784 cyc =  18.5%  (bp 0, starv 17752, idle 0)
+    cw  out     4032 beats /     4544 cyc =  88.7%  (bp 501, starv 11, idle 0)
+    cw  in      4032 beats /     4426 cyc =  91.1%  (bp 0, starv 394, idle 0)
     out/in message beats = 1.000
     16 blocks: 5572 cycles (348.2/block)
     slope over 16 -> 64 blocks (fill cancelled; codeword 63 beats, message 59)
     msg in      2832 beats /    16212 cyc =  17.5%   337.75 cyc/block (ideal 59)
     msg out     2832 beats /    16212 cyc =  17.5%   337.75 cyc/block (ideal 59)
-    cw  out     3024 beats /    16212 cyc =  18.7%   337.75 cyc/block (ideal 63)
-    cw  in      3024 beats /    16212 cyc =  18.7%   337.75 cyc/block (ideal 63)
+    cw  out     3024 beats /     3402 cyc =  88.9%    70.88 cyc/block (ideal 63)
+    cw  in      3024 beats /     3213 cyc =  94.1%    66.94 cyc/block (ideal 63)
 
-=== done at 2026-10-01T05:50:44-07:00
+=== done at 2026-10-01T06:24:39-07:00
