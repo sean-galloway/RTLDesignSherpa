@@ -828,9 +828,13 @@ module rs_loop_harness
     // idle cycles and dilute every utilisation figure -- which is the trap the
     // block's own header warns about.
     //
-    // On the stream path the two should differ by exactly n/k, since the
-    // encoder emits a codeword for every k symbols it takes. So the pair is a
-    // cheap self-check as well as a measurement.
+    // Both meters sit on MESSAGE beats -- k per block going in, k per block
+    // coming out -- so out/in beats is 1.000 and anything else means beats
+    // were lost or duplicated. The n/k expansion happens INSIDE, between the
+    // encoder and the decoder, and neither end sees it. (An earlier comment
+    // here predicted n/k; the first measurement returned 1.000 and the comment
+    // was what was wrong. The ratio is still a useful check, just of
+    // conservation rather than of expansion.)
     // =========================================================================
     logic [31:0] w_obs_prod [2], w_obs_bp [2], w_obs_starv [2], w_obs_idle [2];
 

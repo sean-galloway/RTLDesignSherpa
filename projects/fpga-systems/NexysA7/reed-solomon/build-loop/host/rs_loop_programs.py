@@ -180,9 +180,10 @@ def verdict(r: RunResult, t: int) -> List[str]:
 def bandwidth(r) -> str:
     """One line of bandwidth, from the meters rather than inferred from cycles.
 
-    On the stream path the two ends should differ by n/k, because the encoder
-    emits a codeword for every k symbols it takes -- so the ratio is a cheap
-    check that the meters are measuring what their names claim.
+    Both ends carry MESSAGE beats -- k per block in, k per block out -- so
+    out/in is 1.000 and anything else means beats were lost or duplicated. The
+    n/k codeword expansion happens between the encoder and the decoder, inside
+    the measured span, so neither meter sees it.
     """
     if not r.obs:
         return "no meters in this bitstream"

@@ -12,6 +12,8 @@ Subcommands:
   run        one run: --mode none|count|burst|rate --count E --rate R --blocks N [--throttle]
   sweep      COUNT mode over --counts (default 0..2t+2): one line per error count
   random     --runs N runs, each with a fresh data seed, error seed, mode and count
+  bw         one run, reported as input/output bandwidth from the hardware
+             meters (productive/backpressure/starvation/idle per end)
   soak       --target blocks (default 1,000,000) of random patterns, in runs of
              --blocks each so any failure replays as one short run
 """
@@ -89,6 +91,35 @@ def cmd_random(args, drv):
     return 0 if report.ok else 1
 
 
+def cmd_bw(args, drv):
+    """One measured run, reported as bandwidth from the hardware meters.
+
+    The numbers come from the two axi_bus_meter instances, not from dividing a
+    block count by CYCLES: the meters bucket every cycle of each end's
+    valid/ready handshake and freeze when the run does, so utilisation is
+    productive/window with no host polling folded in.
+    """
+    topo = drv.topology()
+    print(f"  datapath {topo['iface']}, decoder {topo['name_a']}, "
+          f"{topo['decoders']} decoder(s)")
+    if args.bypass:
+        # generator straight to the checkers, codec out of the loop. This is
+        # the 100% reference: whatever it falls short of 1 beat/cycle is the
+        # harness, and everything beyond that in a codec run is the codec.
+        r = drv.run(mode=rl.RsLoopDriver.INJ_NONE, blocks=args.blocks, bypass=True)
+    else:
+        r = progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=args.count,
+                      blocks=args.blocks, throttle=args.throttle)
+    bad = progs.verdict(r, args.t)
+    print(f"  {r.blocks} blocks, e={args.count}: {r.cycles} cycles "
+          f"({r.cycles_per_block:.1f}/block)")
+    print(f"  {progs.bandwidth(r)}")
+    if bad:
+        print("  COMPLAINTS: " + "; ".join(bad))
+        return 1
+    return 0
+
+
 def cmd_soak(args, drv):
     """A million blocks of random patterns, through the same sequence layer."""
     from pathlib import Path as _P
@@ -132,6 +163,13 @@ def main(argv=None):
     p.add_argument("--runs", type=int, default=64)
     p.add_argument("--blocks", type=int, default=4)
     p.add_argument("--seed", type=int, default=1, help="host RNG seed; the campaign is reproducible")
+    p = sub.add_parser("bw", help="one run, reported as bandwidth from the meters")
+    p.add_argument("--blocks", type=int, default=64)
+    p.add_argument("--count", type=int, default=0, help="errors per block")
+    p.add_argument("--t", type=int, default=8, help="the profile's t, for the verdict")
+    p.add_argument("--throttle", action="store_true", help="random checker ready")
+    p.add_argument("--bypass", action="store_true",
+                   help="codec out of the loop: the 100%% bandwidth reference")
     p = sub.add_parser("soak")
     p.add_argument("--target", type=int, default=1_000_000, help="total blocks to push")
     p.add_argument("--blocks", type=int, default=4096, help="blocks per run (per seed pair)")
@@ -144,7 +182,8 @@ def main(argv=None):
     drv = rl.RsLoopDriver(port=port, baudrate=args.baud)
     print(f"== {args.cmd} on {board.SPEC.display_name} @ {port} ==")
     return {"smoke": cmd_smoke, "bypass": cmd_bypass, "run": cmd_run, "sweep": cmd_sweep,
-            "random": cmd_random, "soak": cmd_soak}[args.cmd](args, drv)
+            "random": cmd_random, "soak": cmd_soak,
+            "bw": cmd_bw}[args.cmd](args, drv)
 
 
 if __name__ == "__main__":
