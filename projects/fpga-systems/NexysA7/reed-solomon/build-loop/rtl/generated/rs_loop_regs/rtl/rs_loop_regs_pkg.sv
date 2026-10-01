@@ -5,7 +5,7 @@ package rs_loop_regs_pkg;
 
     localparam RS_LOOP_REGS_DATA_WIDTH = 32;
     localparam RS_LOOP_REGS_MIN_ADDR_WIDTH = 8;
-    localparam RS_LOOP_REGS_SIZE = 'hb0;
+    localparam RS_LOOP_REGS_SIZE = 'hd0;
 
     typedef struct {
         logic [31:0] next;
@@ -383,6 +383,70 @@ package rs_loop_regs_pkg;
     } rs_loop_regs__OBS_OUT_IDLE__in_t;
 
     typedef struct {
+        logic [31:0] next;
+    } rs_loop_regs__OBS_CW_OUT_PRODUCTIVE__value__in_t;
+
+    typedef struct {
+        rs_loop_regs__OBS_CW_OUT_PRODUCTIVE__value__in_t value;
+    } rs_loop_regs__OBS_CW_OUT_PRODUCTIVE__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } rs_loop_regs__OBS_CW_OUT_BACKPRESSURE__value__in_t;
+
+    typedef struct {
+        rs_loop_regs__OBS_CW_OUT_BACKPRESSURE__value__in_t value;
+    } rs_loop_regs__OBS_CW_OUT_BACKPRESSURE__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } rs_loop_regs__OBS_CW_OUT_STARVATION__value__in_t;
+
+    typedef struct {
+        rs_loop_regs__OBS_CW_OUT_STARVATION__value__in_t value;
+    } rs_loop_regs__OBS_CW_OUT_STARVATION__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } rs_loop_regs__OBS_CW_OUT_IDLE__value__in_t;
+
+    typedef struct {
+        rs_loop_regs__OBS_CW_OUT_IDLE__value__in_t value;
+    } rs_loop_regs__OBS_CW_OUT_IDLE__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } rs_loop_regs__OBS_CW_IN_PRODUCTIVE__value__in_t;
+
+    typedef struct {
+        rs_loop_regs__OBS_CW_IN_PRODUCTIVE__value__in_t value;
+    } rs_loop_regs__OBS_CW_IN_PRODUCTIVE__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } rs_loop_regs__OBS_CW_IN_BACKPRESSURE__value__in_t;
+
+    typedef struct {
+        rs_loop_regs__OBS_CW_IN_BACKPRESSURE__value__in_t value;
+    } rs_loop_regs__OBS_CW_IN_BACKPRESSURE__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } rs_loop_regs__OBS_CW_IN_STARVATION__value__in_t;
+
+    typedef struct {
+        rs_loop_regs__OBS_CW_IN_STARVATION__value__in_t value;
+    } rs_loop_regs__OBS_CW_IN_STARVATION__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } rs_loop_regs__OBS_CW_IN_IDLE__value__in_t;
+
+    typedef struct {
+        rs_loop_regs__OBS_CW_IN_IDLE__value__in_t value;
+    } rs_loop_regs__OBS_CW_IN_IDLE__in_t;
+
+    typedef struct {
         rs_loop_regs__BUILD_ID__in_t BUILD_ID;
         rs_loop_regs__STATUS__in_t STATUS;
         rs_loop_regs__PROFILE__in_t PROFILE;
@@ -418,6 +482,14 @@ package rs_loop_regs_pkg;
         rs_loop_regs__OBS_OUT_BACKPRESSURE__in_t OBS_OUT_BACKPRESSURE;
         rs_loop_regs__OBS_OUT_STARVATION__in_t OBS_OUT_STARVATION;
         rs_loop_regs__OBS_OUT_IDLE__in_t OBS_OUT_IDLE;
+        rs_loop_regs__OBS_CW_OUT_PRODUCTIVE__in_t OBS_CW_OUT_PRODUCTIVE;
+        rs_loop_regs__OBS_CW_OUT_BACKPRESSURE__in_t OBS_CW_OUT_BACKPRESSURE;
+        rs_loop_regs__OBS_CW_OUT_STARVATION__in_t OBS_CW_OUT_STARVATION;
+        rs_loop_regs__OBS_CW_OUT_IDLE__in_t OBS_CW_OUT_IDLE;
+        rs_loop_regs__OBS_CW_IN_PRODUCTIVE__in_t OBS_CW_IN_PRODUCTIVE;
+        rs_loop_regs__OBS_CW_IN_BACKPRESSURE__in_t OBS_CW_IN_BACKPRESSURE;
+        rs_loop_regs__OBS_CW_IN_STARVATION__in_t OBS_CW_IN_STARVATION;
+        rs_loop_regs__OBS_CW_IN_IDLE__in_t OBS_CW_IN_IDLE;
     } rs_loop_regs__in_t;
 
     typedef struct {

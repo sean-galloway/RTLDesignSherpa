@@ -351,6 +351,12 @@ module rs_loop_harness
     // Encoder -> injector -> two decoders
     // =========================================================================
     logic          enc_in_valid, enc_in_ready, enc_out_valid, enc_out_ready, enc_out_last, enc_frame_err;
+    // The codec's CODEWORD seams, whichever datapath is built: n beats per
+    // block, against the k per block the message-side seams carry. The
+    // message side is inherently k/n of this -- that is the code rate, not a
+    // stall -- so 100% utilisation is only a meaningful target here.
+    logic          cw_out_valid, cw_out_ready;   // codeword leaving the encoder
+    logic          cw_in_valid,  cw_in_ready;    // codeword entering the decoder
     logic [DW-1:0] enc_out_data;
     logic [S-1:0]  enc_out_keep;
 
@@ -450,6 +456,13 @@ module rs_loop_harness
         else         assign dec_in_valid[d] = inj_out_valid;
     end
 
+    // Codeword seams for the bandwidth meters: n beats per block at both, so
+    // these are the taps that can legitimately read 100%.
+    assign cw_out_valid = enc_out_valid;
+    assign cw_out_ready = enc_out_ready;
+    assign cw_in_valid  = dec_in_valid[0];
+    assign cw_in_ready  = dec_in_ready[0];
+
     for (genvar d = 0; d < ND; d++) begin : g_dec
         // the component's AXIS top, as above
         /* verilator lint_off PINCONNECTEMPTY */
@@ -527,6 +540,8 @@ module rs_loop_harness
         .busy(w_pipe_busy), .done(w_pipe_done),
         .in_valid(enc_in_valid), .in_ready(enc_in_ready),
         .in_data(gen_tdata), .in_last(gen_tlast),
+        .obs_cw_out_valid(cw_out_valid), .obs_cw_out_ready(cw_out_ready),
+        .obs_cw_in_valid(cw_in_valid),   .obs_cw_in_ready(cw_in_ready),
         .out_valid(dec_out_valid[0]), .out_ready(dec_out_ready[0]),
         .out_data(dec_out_data[0]), .out_keep(dec_out_keep[0]),
         .out_last(dec_out_last[0]),
@@ -828,15 +843,22 @@ module rs_loop_harness
     // idle cycles and dilute every utilisation figure -- which is the trap the
     // block's own header warns about.
     //
-    // Both meters sit on MESSAGE beats -- k per block going in, k per block
-    // coming out -- so out/in beats is 1.000 and anything else means beats
-    // were lost or duplicated. The n/k expansion happens INSIDE, between the
-    // encoder and the decoder, and neither end sees it. (An earlier comment
+    // OBS_IN and OBS_OUT sit on MESSAGE beats -- k per block going in, k per
+    // block coming out -- so out/in beats is 1.000 and anything else means
+    // beats were lost or duplicated. The n/k expansion happens INSIDE, between
+    // the encoder and the decoder, and neither end sees it. (An earlier comment
     // here predicted n/k; the first measurement returned 1.000 and the comment
     // was what was wrong. The ratio is still a useful check, just of
     // conservation rather than of expansion.)
+    //
+    // THAT IS ALSO WHY A MESSAGE-SIDE UTILISATION CANNOT REACH 100%. Those
+    // taps count k beats per block while the cycles are set by the codeword's
+    // n, so their ceiling is k/n -- 93.7% at RS(252,236) -- and the shortfall
+    // is the parity, not a stall. OBS_CW_OUT and OBS_CW_IN below sit on the
+    // codeword seams, where n beats per block over n cycles per block is
+    // 100%, and that is the figure to hold to 100%.
     // =========================================================================
-    logic [31:0] w_obs_prod [2], w_obs_bp [2], w_obs_starv [2], w_obs_idle [2];
+    logic [31:0] w_obs_prod [4], w_obs_bp [4], w_obs_starv [4], w_obs_idle [4];
 
     /* verilator lint_off PINCONNECTEMPTY */
     axi_bus_meter #(.NUM_CHANNELS(1)) u_obs_in (
@@ -856,6 +878,30 @@ module rs_loop_harness
         .i_channel_id('0), .i_channel_valid(1'b0),
         .o_agg_productive(w_obs_prod[1]), .o_agg_backpressure(w_obs_bp[1]),
         .o_agg_starvation(w_obs_starv[1]), .o_agg_idle(w_obs_idle[1]),
+        .o_ch_productive(), .o_ch_backpressure(), .o_ch_starvation(),
+        .o_ch_idle(), .o_ch_overflow());
+
+    // The codeword seams. These are the ones that can read 100%: n beats per
+    // block over n cycles per block. Both flavours provide them -- the AXIS
+    // path from the encoder's output and the decoder's input, the AXI4 path
+    // from the encoder's W channel and the decoder's R channel.
+    axi_bus_meter #(.NUM_CHANNELS(1)) u_obs_cw_out (
+        .aclk(aclk), .aresetn(dp_rstn),
+        .i_clear(w_clear), .i_freeze(!r_busy),
+        .i_valid(cw_out_valid), .i_ready(cw_out_ready),
+        .i_channel_id('0), .i_channel_valid(1'b0),
+        .o_agg_productive(w_obs_prod[2]), .o_agg_backpressure(w_obs_bp[2]),
+        .o_agg_starvation(w_obs_starv[2]), .o_agg_idle(w_obs_idle[2]),
+        .o_ch_productive(), .o_ch_backpressure(), .o_ch_starvation(),
+        .o_ch_idle(), .o_ch_overflow());
+
+    axi_bus_meter #(.NUM_CHANNELS(1)) u_obs_cw_in (
+        .aclk(aclk), .aresetn(dp_rstn),
+        .i_clear(w_clear), .i_freeze(!r_busy),
+        .i_valid(cw_in_valid), .i_ready(cw_in_ready),
+        .i_channel_id('0), .i_channel_valid(1'b0),
+        .o_agg_productive(w_obs_prod[3]), .o_agg_backpressure(w_obs_bp[3]),
+        .o_agg_starvation(w_obs_starv[3]), .o_agg_idle(w_obs_idle[3]),
         .o_ch_productive(), .o_ch_backpressure(), .o_ch_starvation(),
         .o_ch_idle(), .o_ch_overflow());
     /* verilator lint_on PINCONNECTEMPTY */
@@ -919,6 +965,14 @@ module rs_loop_harness
         hwif_in.OBS_OUT_BACKPRESSURE.value.next = w_obs_bp[1];
         hwif_in.OBS_OUT_STARVATION.value.next   = w_obs_starv[1];
         hwif_in.OBS_OUT_IDLE.value.next         = w_obs_idle[1];
+        hwif_in.OBS_CW_OUT_PRODUCTIVE.value.next   = w_obs_prod[2];
+        hwif_in.OBS_CW_OUT_BACKPRESSURE.value.next = w_obs_bp[2];
+        hwif_in.OBS_CW_OUT_STARVATION.value.next   = w_obs_starv[2];
+        hwif_in.OBS_CW_OUT_IDLE.value.next         = w_obs_idle[2];
+        hwif_in.OBS_CW_IN_PRODUCTIVE.value.next    = w_obs_prod[3];
+        hwif_in.OBS_CW_IN_BACKPRESSURE.value.next  = w_obs_bp[3];
+        hwif_in.OBS_CW_IN_STARVATION.value.next    = w_obs_starv[3];
+        hwif_in.OBS_CW_IN_IDLE.value.next          = w_obs_idle[3];
     end
 
     // unused outputs of the shared blocks

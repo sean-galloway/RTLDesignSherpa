@@ -88,6 +88,17 @@ module rs_axi4_pipeline #(
     input  logic                        inj_clear,
 
     // -- status ------------------------------------------------------------
+    // Codeword-side observation taps, for the bandwidth meters in the parent.
+    // The codec's wide side in this flavour IS an AXI channel: the encoder
+    // writes codewords out on its W channel and the decoder reads them back in
+    // on its R channel. n beats per block at both, against the k per block the
+    // message-side taps see -- which is the whole reason a message-side
+    // utilisation figure cannot reach 100%.
+    output logic                        obs_cw_out_valid,
+    output logic                        obs_cw_out_ready,
+    output logic                        obs_cw_in_valid,
+    output logic                        obs_cw_in_ready,
+
     output logic                        resp_err,       // any stage, sticky
     output logic                        enc_frame_err,
     output logic [31:0]                 blk_ok,
@@ -352,6 +363,11 @@ module rs_axi4_pipeline #(
     // =========================================================================
     // 2. encode: M1 -> M2
     // =========================================================================
+    assign obs_cw_out_valid = m2_wvalid;
+    assign obs_cw_out_ready = m2_wready;
+    assign obs_cw_in_valid  = m3_rvalid;
+    assign obs_cw_in_ready  = m3_rready;
+
     logic enc_err;
     rs_encoder_axi4 #(
         .SYMBOL_WIDTH(SYMBOL_WIDTH), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T_SYMBOLS),

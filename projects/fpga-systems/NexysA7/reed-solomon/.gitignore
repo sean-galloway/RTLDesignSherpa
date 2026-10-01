@@ -19,7 +19,14 @@ build-*/dv/tests/logs/
 build-*/dv/tests/__pycache__/
 build-*/dv/tests/.pytest_cache/
 
-# PeakRDL default output dir (only dv/tbclasses/*_regmap.py is kept)
+# PeakRDL byproducts. The rule here used to be stated in this comment with no
+# pattern under it, so regenerating dropped an untracked SECOND regmap beside
+# the RTL -- the orphan-copy drift CLAUDE.md warns about. ONE regmap is kept,
+# dv/tbclasses/rs_loop_regs_regmap.py, because that is the path the host and
+# the cocotb harness both read. The regblock RTL stays tracked.
+build-*/rtl/generated/*/docs/
+build-*/rtl/generated/*/headers/
+build-*/rtl/generated/*/*_regmap.py
 
 # Bitstreams never live in git
 *.bit

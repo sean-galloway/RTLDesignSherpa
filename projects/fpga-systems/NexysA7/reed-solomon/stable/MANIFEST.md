@@ -17,33 +17,54 @@ very handshake the meters measure. All four close with ZERO failing endpoints.
 
 | | axis_ribm | axis_euclid | axi4_ribm | axi4_euclid |
 |---|---|---|---|---|
-| Routed WNS | +0.011 ns | +0.090 ns | +0.198 ns | +0.272 ns |
+| Routed WNS | +0.251 ns | +0.064 ns | +0.322 ns | +0.301 ns |
 | Failing endpoints | 0 | 0 | 0 | 0 |
-| Slice LUTs | 10,713 | 13,066 | 12,522 | 14,681 |
+| Slice LUTs | 11,128 | 13,429 | 12,991 | 15,137 |
 | Block RAM tiles | 0 | 0 | 16 | 16 |
-| Critical path in | error injector | Euclid degree reg | AXI4 R channel | Euclid degree reg |
+
+All four carry FOUR bandwidth meters (the two codeword-seam ones added +415
+LUTs on axis_ribm). The earlier round's axis_ribm read +0.011 ns with the
+error injector as its critical path; the same RTL plus two meters now reads
++0.251 ns, which settles that as placement variance rather than a real path.
 
 Per-image reports and bitstreams are in `reports/<image>/`, with
 `reports/matrix_summary.txt` carrying the table above.
 
-**axis_ribm's +0.011 ns is thin, and it is NOT the codec.** Its critical path
-is the error injector's DSP48E1 into a 7-deep CARRY4 chain -- test fixture,
-not Reed-Solomon. The decoder and solver appear twice in the whole timing
-summary and in none of the top paths. The other three images all IMPROVED over
-the previous round (+0.085 -> +0.090, +0.155 -> +0.198, +0.234 -> +0.272) on
-the same RTL change, which is the evidence that the change is timing-neutral:
-a new critical path would have hit all four, in the decoder.
-
 ## Measured throughput (axis_ribm, RS(252,236) S=4)
 
-The profile is 59 message beats and 4 parity beats per block -- the encoder
-starts parity on a FRESH beat -- so a codeword is 63 beats and 63 cycles/block
-is line rate.
+59 message beats and 4 parity beats per block -- the encoder starts parity on
+a FRESH beat -- so a codeword is 63 beats and 63 cycles/block is line rate.
 
-**The board runs at exactly line rate: ZERO dead cycles per block.** Measured
-at four block counts, the total is a straight line with a constant intercept:
+**The codeword seams run at 100.0%.** Measured as a slope over 64 -> 256
+blocks, which cancels the pipeline fill:
 
-| blocks | cycles | cycles - 63*blocks | single-point cycles/block |
+| seam | beats / cycles | utilisation | cyc/block | ideal |
+|---|---|---|---|---|
+| codeword out of encoder | 12,096 / 12,096 | **100.0%** | 63.00 | 63 |
+| codeword into decoder | 12,096 / 12,096 | **100.0%** | 63.00 | 63 |
+| message in | 11,328 / 12,096 | 93.7% | 63.00 | 59 |
+| message out | 11,328 / 12,096 | 93.7% | 63.00 | 59 |
+
+Zero backpressure and zero starvation on both codeword seams in the
+differenced window: not one dead cycle. `host_rs_loop.py bw --blocks 256
+--slope` reproduces it.
+
+**The message side's 93.7% is the CODE RATE, not a stall.** k/n = 236/252 =
+93.651%, and the measurement is 11328/12096 = 93.651%. It agrees to the digit
+because the message side carries k beats per block while the cycles are set by
+the codeword's n. There is nothing to recover there: the shortfall IS the
+parity. If RS sits in a memory path, host-side bandwidth is k/n of the
+media-side bandwidth, and that is the cost of the ECC rather than a limit the
+implementation imposes.
+
+This is why the codeword meters were added. The message-side taps were the
+only ones present before, so the best reading the harness could produce was
+93.7%, which looks like a 6% shortfall and is not one.
+
+**Read a SLOPE, never a total divided by a block count.** Single-run totals
+on this same hardware:
+
+| blocks | cycles | cycles - 63*blocks | total/blocks |
 |---|---|---|---|
 | 16 | 1,144 | 136 | 71.5 |
 | 32 | 2,152 | 136 | 67.2 |
@@ -51,32 +72,14 @@ at four block counts, the total is a straight line with a constant intercept:
 | 128 | 8,200 | 136 | 64.1 |
 | 256 | 16,264 | 136 | 63.5 |
 
-Every adjacent pair gives a slope of **63.00 cycles/block**, and the whole
-excess is one fixed 136-cycle pipeline fill and drain. The meters say the same
-thing independently: STARVATION -- actual dead time -- is a constant 140
-cycles at 64, 128 and 256 blocks, while BACKPRESSURE scales at 3.98/block.
-That backpressure is the n/k expansion doing its job, holding the message side
-off while the codeword side runs full: 59 productive + 3.98 held off = 63.
-
-**DIVIDE THE TOTAL BY THE BLOCK COUNT AND YOU GET A NUMBER THAT IS NOT A
-RATE.** The "single-point cycles/block" column above is `63 + 136/blocks`; it
-reads 71.5 at 16 blocks and 63.5 at 256 for the SAME hardware behaving
-identically. An earlier revision of this file reported the 64-block value,
-65.1, as "2.1 dead cycles per block" and went looking for them in the
-encoder, the beat packer and the injector. There were none to find: the
-fixtures were never at fault, which the stream project hitting line rate on
-the same shared generator, checker and meter should have said immediately.
-Take a slope over two block counts. See
-vault/handbook/design/block-boundary-dead-cycles.md, which says exactly this
-and was written before the mistake was made.
-
-**The utilisation PERCENTAGE still cannot reach 100% at these tap points, and
-that part is real.** Both meters sit on MESSAGE beats (59 per block) while the
-cycles are set by CODEWORD beats (63), so the arithmetic ceiling is
-59/63 = 93.7%. Measured: 90.6% at 64 blocks, 92.1% at 128, 92.9% at 256 --
-converging on the ceiling exactly as a fixed fill amortises away. To get a
-figure that can legitimately read 100%, the taps have to move to the codeword
-side (encoder output and decoder input).
+Every adjacent pair gives 63.00 cycles/block; the excess is one fixed
+136-cycle fill, and the codeword meters report exactly that as 136 cycles of
+starvation in an absolute window. An earlier revision of this file read the
+64-block value, 65.1, as "2.1 dead cycles per block" and went looking for them
+in the encoder, beat packer and injector. There were none: the shared
+generator, checker and bus meter were never at fault, which the stream project
+saturating those same blocks should have said immediately. See
+vault/handbook/design/block-boundary-dead-cycles.md.
 
 ## Build notes
 

@@ -212,16 +212,22 @@ class RsLoopDriver:
         return self._topo
 
     def _meters(self) -> dict:
-        """The two bandwidth meters, as buckets AND as a utilisation.
+        """The four bandwidth meters, as buckets AND as a utilisation.
 
         Every cycle of a valid/ready channel lands in exactly one bucket, so
         the four sum to the measured window and productive/window is the
         utilisation outright -- no separate cycle count needed, and no risk of
         dividing by a window that includes the host's own polling, because the
         hardware freezes the meters when the run ends.
+
+        TWO SEAMS, TWO DENOMINATORS. `in`/`out` sit on MESSAGE beats, k per
+        block, while the cycles are set by the codeword's n -- so their
+        ceiling is k/n and the shortfall is the parity, not a stall. `cw_out`
+        and `cw_in` sit on the codeword seams, n beats per block over n cycles
+        per block, and 100% is the right target for those.
         """
         out = {}
-        for end in ("IN", "OUT"):
+        for end in ("IN", "OUT", "CW_OUT", "CW_IN"):
             b = {k.lower(): self.regs.read(f"OBS_{end}_{k}")
                  for k in ("PRODUCTIVE", "BACKPRESSURE", "STARVATION", "IDLE")}
             window = sum(b.values())

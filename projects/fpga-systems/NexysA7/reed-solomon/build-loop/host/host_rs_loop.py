@@ -113,7 +113,30 @@ def cmd_bw(args, drv):
     bad = progs.verdict(r, args.t)
     print(f"  {r.blocks} blocks, e={args.count}: {r.cycles} cycles "
           f"({r.cycles_per_block:.1f}/block)")
-    print(f"  {progs.bandwidth(r)}")
+    print(progs.bandwidth(r))
+
+    if args.slope:
+        # A second, shorter run. Differencing the two cancels the pipeline
+        # fill, which is a FIXED cost present in both windows -- the same
+        # reason the sim tests score a slope over two block counts instead of
+        # timing one. Without this, every finite run reads below the true
+        # utilisation by fill/window, and a total divided by a block count is
+        # not a rate at all.
+        small_blocks = args.small or max(4, args.blocks // 4)
+        if args.bypass:
+            r2 = drv.run(mode=rl.RsLoopDriver.INJ_NONE, blocks=small_blocks, bypass=True)
+        else:
+            r2 = progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=args.count,
+                           blocks=small_blocks, throttle=args.throttle)
+        # straight off PROFILE, so the ideal describes the bitstream actually
+        # on the board rather than a default that can silently disagree
+        prof = drv.profile()
+        n = args.n or prof["n"]
+        k = args.k or (prof["n"] - 2 * prof["t"])
+        s = prof["spb"]
+        print(f"  {r2.blocks} blocks: {r2.cycles} cycles "
+              f"({r2.cycles_per_block:.1f}/block)")
+        print(progs.bandwidth_slope(r2, r, n, k, s))
     if bad:
         print("  COMPLAINTS: " + "; ".join(bad))
         return 1
@@ -170,6 +193,13 @@ def main(argv=None):
     p.add_argument("--throttle", action="store_true", help="random checker ready")
     p.add_argument("--bypass", action="store_true",
                    help="codec out of the loop: the 100%% bandwidth reference")
+    p.add_argument("--slope", action="store_true",
+                   help="two runs, differenced, so the pipeline fill cancels -- "
+                        "the only form that can read 100%%")
+    p.add_argument("--small", type=int, default=0,
+                   help="the second block count for --slope (default blocks/4)")
+    p.add_argument("--n", type=int, default=0, help="n, for the ideal (default from PROFILE)")
+    p.add_argument("--k", type=int, default=0, help="k, for the ideal (default from PROFILE)")
     p = sub.add_parser("soak")
     p.add_argument("--target", type=int, default=1_000_000, help="total blocks to push")
     p.add_argument("--blocks", type=int, default=4096, help="blocks per run (per seed pair)")

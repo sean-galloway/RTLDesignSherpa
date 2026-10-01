@@ -57,6 +57,19 @@ addrmap rs_loop_regs {
     reg { desc = "Codec OUTPUT end: cycles valid was held off by ready";       field { sw = r; hw = w; } value[31:0] = 0; } OBS_OUT_BACKPRESSURE @ 0x0A4;
     reg { desc = "Codec OUTPUT end: cycles ready waited with no valid";        field { sw = r; hw = w; } value[31:0] = 0; } OBS_OUT_STARVATION @ 0x0A8;
     reg { desc = "Codec OUTPUT end: cycles neither side was asserting";        field { sw = r; hw = w; } value[31:0] = 0; } OBS_OUT_IDLE @ 0x0AC;
+    // CODEWORD-side meters. OBS_IN/OBS_OUT above sit on MESSAGE beats, k per
+    // block, while the cycles are set by the codeword's n -- so their ceiling
+    // is k/n (93.7% at RS(252,236)) and the shortfall is the parity, not a
+    // stall. These two sit on the codeword seams, n beats per block over n
+    // cycles per block, which is where 100% is the right target.
+    reg { desc = "Codeword OUT of encoder: cycles that delivered a beat";      field { sw = r; hw = w; } value[31:0] = 0; } OBS_CW_OUT_PRODUCTIVE @ 0x0B0;
+    reg { desc = "Codeword OUT of encoder: cycles valid was held off";         field { sw = r; hw = w; } value[31:0] = 0; } OBS_CW_OUT_BACKPRESSURE @ 0x0B4;
+    reg { desc = "Codeword OUT of encoder: cycles ready waited with no valid"; field { sw = r; hw = w; } value[31:0] = 0; } OBS_CW_OUT_STARVATION @ 0x0B8;
+    reg { desc = "Codeword OUT of encoder: cycles neither side asserting";     field { sw = r; hw = w; } value[31:0] = 0; } OBS_CW_OUT_IDLE @ 0x0BC;
+    reg { desc = "Codeword INTO decoder: cycles that delivered a beat";        field { sw = r; hw = w; } value[31:0] = 0; } OBS_CW_IN_PRODUCTIVE @ 0x0C0;
+    reg { desc = "Codeword INTO decoder: cycles valid was held off";           field { sw = r; hw = w; } value[31:0] = 0; } OBS_CW_IN_BACKPRESSURE @ 0x0C4;
+    reg { desc = "Codeword INTO decoder: cycles ready waited with no valid";   field { sw = r; hw = w; } value[31:0] = 0; } OBS_CW_IN_STARVATION @ 0x0C8;
+    reg { desc = "Codeword INTO decoder: cycles neither side asserting";       field { sw = r; hw = w; } value[31:0] = 0; } OBS_CW_IN_IDLE @ 0x0CC;
 
     reg { desc = "What this bitstream actually BUILT. The host reads this rather than assuming two decoders: a single-decoder build ties checker B off, and a host that scored the B-side counters anyway would report every run as a failure.";
         field { sw = r; hw = w; desc = "decoders present, 1 or 2"; } decoders[2:0] = 0;

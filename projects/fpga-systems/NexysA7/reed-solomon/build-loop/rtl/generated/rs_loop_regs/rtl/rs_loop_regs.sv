@@ -108,6 +108,14 @@ module rs_loop_regs (
         logic OBS_OUT_BACKPRESSURE;
         logic OBS_OUT_STARVATION;
         logic OBS_OUT_IDLE;
+        logic OBS_CW_OUT_PRODUCTIVE;
+        logic OBS_CW_OUT_BACKPRESSURE;
+        logic OBS_CW_OUT_STARVATION;
+        logic OBS_CW_OUT_IDLE;
+        logic OBS_CW_IN_PRODUCTIVE;
+        logic OBS_CW_IN_BACKPRESSURE;
+        logic OBS_CW_IN_STARVATION;
+        logic OBS_CW_IN_IDLE;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_req;
@@ -158,6 +166,14 @@ module rs_loop_regs (
         decoded_reg_strb.OBS_OUT_BACKPRESSURE = cpuif_req_masked & (cpuif_addr == 8'ha4);
         decoded_reg_strb.OBS_OUT_STARVATION = cpuif_req_masked & (cpuif_addr == 8'ha8);
         decoded_reg_strb.OBS_OUT_IDLE = cpuif_req_masked & (cpuif_addr == 8'hac);
+        decoded_reg_strb.OBS_CW_OUT_PRODUCTIVE = cpuif_req_masked & (cpuif_addr == 8'hb0);
+        decoded_reg_strb.OBS_CW_OUT_BACKPRESSURE = cpuif_req_masked & (cpuif_addr == 8'hb4);
+        decoded_reg_strb.OBS_CW_OUT_STARVATION = cpuif_req_masked & (cpuif_addr == 8'hb8);
+        decoded_reg_strb.OBS_CW_OUT_IDLE = cpuif_req_masked & (cpuif_addr == 8'hbc);
+        decoded_reg_strb.OBS_CW_IN_PRODUCTIVE = cpuif_req_masked & (cpuif_addr == 8'hc0);
+        decoded_reg_strb.OBS_CW_IN_BACKPRESSURE = cpuif_req_masked & (cpuif_addr == 8'hc4);
+        decoded_reg_strb.OBS_CW_IN_STARVATION = cpuif_req_masked & (cpuif_addr == 8'hc8);
+        decoded_reg_strb.OBS_CW_IN_IDLE = cpuif_req_masked & (cpuif_addr == 8'hcc);
     end
 
     // Pass down signals to next stage
@@ -651,7 +667,7 @@ module rs_loop_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[41];
+    logic [31:0] readback_array[49];
     assign readback_array[0][31:0] = (decoded_reg_strb.BUILD_ID && !decoded_req_is_wr) ? hwif_in.BUILD_ID.value.next : '0;
     assign readback_array[1][31:0] = (decoded_reg_strb.SCRATCH && !decoded_req_is_wr) ? field_storage.SCRATCH.value.value : '0;
     assign readback_array[2][2:0] = '0;
@@ -727,6 +743,14 @@ module rs_loop_regs (
     assign readback_array[38][31:0] = (decoded_reg_strb.OBS_OUT_BACKPRESSURE && !decoded_req_is_wr) ? hwif_in.OBS_OUT_BACKPRESSURE.value.next : '0;
     assign readback_array[39][31:0] = (decoded_reg_strb.OBS_OUT_STARVATION && !decoded_req_is_wr) ? hwif_in.OBS_OUT_STARVATION.value.next : '0;
     assign readback_array[40][31:0] = (decoded_reg_strb.OBS_OUT_IDLE && !decoded_req_is_wr) ? hwif_in.OBS_OUT_IDLE.value.next : '0;
+    assign readback_array[41][31:0] = (decoded_reg_strb.OBS_CW_OUT_PRODUCTIVE && !decoded_req_is_wr) ? hwif_in.OBS_CW_OUT_PRODUCTIVE.value.next : '0;
+    assign readback_array[42][31:0] = (decoded_reg_strb.OBS_CW_OUT_BACKPRESSURE && !decoded_req_is_wr) ? hwif_in.OBS_CW_OUT_BACKPRESSURE.value.next : '0;
+    assign readback_array[43][31:0] = (decoded_reg_strb.OBS_CW_OUT_STARVATION && !decoded_req_is_wr) ? hwif_in.OBS_CW_OUT_STARVATION.value.next : '0;
+    assign readback_array[44][31:0] = (decoded_reg_strb.OBS_CW_OUT_IDLE && !decoded_req_is_wr) ? hwif_in.OBS_CW_OUT_IDLE.value.next : '0;
+    assign readback_array[45][31:0] = (decoded_reg_strb.OBS_CW_IN_PRODUCTIVE && !decoded_req_is_wr) ? hwif_in.OBS_CW_IN_PRODUCTIVE.value.next : '0;
+    assign readback_array[46][31:0] = (decoded_reg_strb.OBS_CW_IN_BACKPRESSURE && !decoded_req_is_wr) ? hwif_in.OBS_CW_IN_BACKPRESSURE.value.next : '0;
+    assign readback_array[47][31:0] = (decoded_reg_strb.OBS_CW_IN_STARVATION && !decoded_req_is_wr) ? hwif_in.OBS_CW_IN_STARVATION.value.next : '0;
+    assign readback_array[48][31:0] = (decoded_reg_strb.OBS_CW_IN_IDLE && !decoded_req_is_wr) ? hwif_in.OBS_CW_IN_IDLE.value.next : '0;
 
     // Reduce the array
     always_comb begin
@@ -734,7 +758,7 @@ module rs_loop_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<41; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<49; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

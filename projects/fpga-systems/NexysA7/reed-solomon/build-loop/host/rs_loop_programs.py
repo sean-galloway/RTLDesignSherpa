@@ -178,22 +178,65 @@ def verdict(r: RunResult, t: int) -> List[str]:
 
 
 def bandwidth(r) -> str:
-    """One line of bandwidth, from the meters rather than inferred from cycles.
+    """Bandwidth from the meters rather than inferred from a cycle count.
 
-    Both ends carry MESSAGE beats -- k per block in, k per block out -- so
-    out/in is 1.000 and anything else means beats were lost or duplicated. The
-    n/k codeword expansion happens between the encoder and the decoder, inside
-    the measured span, so neither meter sees it.
+    FOUR seams, and the two pairs have DIFFERENT ceilings:
+
+      in / out        MESSAGE beats, k per block, against cycles set by the
+                      codeword's n. Ceiling is k/n -- 93.7% at RS(252,236) --
+                      and the shortfall is the parity, not a stall. out/in is
+                      1.000 or beats were lost or duplicated.
+      cw_out / cw_in  the CODEWORD seams, n beats per block over n cycles per
+                      block. 100% is the target here.
     """
     if not r.obs:
         return "no meters in this bitstream"
-    i, o = r.obs["in"], r.obs["out"]
-    ratio = (o["productive"] / i["productive"]) if i["productive"] else 0.0
-    return (f"in {i['productive']} beats / {i['window']} cyc = {i['utilisation']:.1%} "
-            f"(bp {i['backpressure']}, starv {i['starvation']}); "
-            f"out {o['productive']} / {o['window']} = {o['utilisation']:.1%} "
-            f"(bp {o['backpressure']}, starv {o['starvation']}); "
-            f"out/in beats = {ratio:.3f}")
+    lines = []
+    for key, label in (("in", "msg in "), ("out", "msg out"),
+                       ("cw_out", "cw  out"), ("cw_in", "cw  in ")):
+        b = r.obs.get(key)
+        if not b:
+            continue
+        lines.append(f"  {label} {b['productive']:>8} beats / {b['window']:>8} cyc "
+                     f"= {b['utilisation']:6.1%}  (bp {b['backpressure']}, "
+                     f"starv {b['starvation']}, idle {b['idle']})")
+    i, o = r.obs.get("in"), r.obs.get("out")
+    if i and o and i["productive"]:
+        lines.append(f"  out/in message beats = {o['productive'] / i['productive']:.3f}")
+    return "\n".join(lines)
+
+
+def bandwidth_slope(small, large, n: int, k: int, s: int) -> str:
+    """Utilisation with the pipeline fill removed, from TWO runs.
+
+    A single run's productive/window is `(rate*B) / (rate*B + fill)`, which
+    creeps toward the true utilisation as B grows and is BELOW it at every
+    finite B. Differencing two block counts cancels the fill exactly -- the
+    same reason the sim tests score a slope instead of a time -- so this is
+    the figure that can actually read 100%.
+
+    A single number divided by a block count is not a rate: on this design the
+    same hardware read 71.5 cycles/block at 16 blocks and 63.5 at 256.
+    """
+    cw_beats = -(-n // s)
+    msg_beats = -(-k // s)
+    db = large.blocks - small.blocks
+    if db <= 0:
+        return "bandwidth_slope needs two different block counts"
+    out = [f"  slope over {small.blocks} -> {large.blocks} blocks "
+           f"(fill cancelled; codeword {cw_beats} beats, message {msg_beats})"]
+    for key, label, ideal in (("in", "msg in ", msg_beats), ("out", "msg out", msg_beats),
+                              ("cw_out", "cw  out", cw_beats), ("cw_in", "cw  in ", cw_beats)):
+        a, b = small.obs.get(key), large.obs.get(key)
+        if not a or not b:
+            continue
+        d_prod = b["productive"] - a["productive"]
+        d_win = b["window"] - a["window"]
+        util = (d_prod / d_win) if d_win else 0.0
+        per_blk = d_win / db
+        out.append(f"  {label} {d_prod:>8} beats / {d_win:>8} cyc = {util:6.1%}"
+                   f"   {per_blk:6.2f} cyc/block (ideal {ideal})")
+    return "\n".join(out)
 
 
 @dataclass
