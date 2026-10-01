@@ -28,18 +28,37 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from board import Board, BoardSpec, IdentityError, parse_readback  # noqa: E402
 
+# The REGISTRY serials -- what boards/*.py holds and what callers pass in.
 GENESYS2_SERIAL = "200300B818A0"
 NEXYS_SERIAL = "210292BFA3EE"
+
+# What the JTAG CHAIN actually reports, which is NOT the same string: an FT2232
+# exposes one EEPROM serial across its interfaces and the hw_server appends the
+# interface letter. Captured from real hardware on 2026-10-01 (tooling
+# TASK-022's first live readback), not invented:
+#
+#   target 210292BFA3EEA  (localhost:3121/xilinx_tcf/Digilent/210292BFA3EEA)
+#   target 200300B818A0B  (localhost:3121/xilinx_tcf/Digilent/200300B818A0B)
+#     device xc7a100t_0  part xc7a100t  idcode n/a
+#     device xc7k325t_0  part xc7k325t  idcode n/a
+#
+# THIS FIXTURE USED TO CARRY THE BARE REGISTRY SERIALS, a full part string
+# (xc7k325tffg900-2) and a hex idcode -- a chain real hardware cannot produce.
+# Every assertion below therefore held against a fiction, and the prefix
+# tolerance that production depends on was exercised by nothing. Found by the
+# rapids session reading this file against the live output above.
+GENESYS2_CHAIN_SERIAL = GENESYS2_SERIAL + "B"
+NEXYS_CHAIN_SERIAL = NEXYS_SERIAL + "A"
 
 # Both boards really do sit on one JTAG chain in this lab, which is why the
 # serial and not the board name is what distinguishes them.
 CHAIN = f"""
-****** Vivado v2024.1 (64-bit)
-  **** SW Build 5076996 on Wed May 22 18:36:09 MDT 2024
-JTAG_TARGET localhost:3121/xilinx_tcf/Digilent/{GENESYS2_SERIAL}
-JTAG_DEVICE localhost:3121/xilinx_tcf/Digilent/{GENESYS2_SERIAL} xc7k325t_0 xc7k325tffg900-2 0x13631093
-JTAG_TARGET localhost:3121/xilinx_tcf/Digilent/{NEXYS_SERIAL}
-JTAG_DEVICE localhost:3121/xilinx_tcf/Digilent/{NEXYS_SERIAL} xc7a100t_0 xc7a100tcsg324-1 0x13631093
+****** Vivado v2025.1 (64-bit)
+  **** SW Build 6140274 on Thu May 22 00:12:29 MDT 2025
+JTAG_TARGET localhost:3121/xilinx_tcf/Digilent/{NEXYS_CHAIN_SERIAL}
+JTAG_DEVICE localhost:3121/xilinx_tcf/Digilent/{NEXYS_CHAIN_SERIAL} xc7a100t_0 xc7a100t n/a
+JTAG_TARGET localhost:3121/xilinx_tcf/Digilent/{GENESYS2_CHAIN_SERIAL}
+JTAG_DEVICE localhost:3121/xilinx_tcf/Digilent/{GENESYS2_CHAIN_SERIAL} xc7k325t_0 xc7k325t n/a
 INFO: [Common 17-206] Exiting Vivado
 """
 
@@ -52,10 +71,27 @@ def _board(serial):
 
 def test_parses_targets_and_devices():
     rb = parse_readback(CHAIN)
-    assert [t["serial"] for t in rb["targets"]] == [GENESYS2_SERIAL, NEXYS_SERIAL]
+    assert [t["serial"] for t in rb["targets"]] == [NEXYS_CHAIN_SERIAL,
+                                                    GENESYS2_CHAIN_SERIAL]
     assert len(rb["devices"]) == 2
-    assert rb["devices"][0]["part"] == "xc7k325tffg900-2"
-    assert rb["devices"][0]["idcode"] == "0x13631093"
+    assert rb["devices"][0]["part"] == "xc7a100t"
+    assert rb["devices"][0]["idcode"] == "n/a"
+
+
+def test_chain_serial_is_the_registry_serial_plus_an_interface_letter():
+    """The relationship production depends on, stated once and explicitly.
+
+    Every identity comparison in board.py works because the registry serial is a
+    PREFIX of the chain serial, never because they are equal. An exact-match
+    implementation would find nothing on real hardware and report it as "board
+    not attached" -- the board sitting plugged in on the desk.
+    """
+    rb = parse_readback(CHAIN)
+    chain = [t["serial"] for t in rb["targets"]]
+    assert GENESYS2_SERIAL not in chain, "the bare registry serial is NOT on the chain"
+    assert NEXYS_SERIAL not in chain
+    assert any(s.startswith(GENESYS2_SERIAL) for s in chain)
+    assert any(s.startswith(NEXYS_SERIAL) for s in chain)
 
 
 def test_ignores_vivado_banner_and_blank_lines():

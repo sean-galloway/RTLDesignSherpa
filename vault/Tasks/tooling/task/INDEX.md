@@ -12,16 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 22 | done (kept for history) |
+| [closed/](closed/) | 23 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **TASK-020** — pilot cocotb-test 0.3.0 (it removes the `cocotb.config` import that makes cocotb 2.x a landmine for every cocotb_test-based test in the tree), then decide whether cocotb 2.x is reachable at all
-- **TASK-022** (P1) — the FPGA flow lock is keyed on the build directory, so two areas can drive one board; a harness records the sha256 it programmed rather than what is on the device, so a mid-run reprogram publishes someone else's measurements with no error at all
 
 
 
@@ -30,6 +29,7 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-022** (P1) — the FPGA flow lock was keyed on the build directory, and nothing detected a collision that happened anyway -- CLOSED 2026-10-01: board-keyed lock, shared identity readback, and the verdict persisted beside the bitstream sha256; hardware path verified on the Genesys 2 (readback 5.8s, real program 16.5s, wrong-board refusal rc=1, sha256 matches). The live output exposed that the test fixture was a chain real hardware cannot produce: 0 of 25 tests caught an exact-match regression, 7 of 26 do now
 - **TASK-024** — fpga-systems was the only major area with no book -- CLOSED 2026-09-30: 19 chapters in 6 chapters + 5 mermaid diagrams, FPGA_SYSTEMS_MAS_v1.0.pdf (48 pages); the filed premise of "three competing conventions" was WRONG and is corrected in the task -- there is one convention, documented in flow-layout.md AND make/fpga_flow.mk, whose prefixes are load-bearing because make and SequenceRunner.discover glob them; `flows-*` is the pre-migration layout
 - **TASK-023** — `env_python` resolved its own root from where the CALLER stood, so it could silently activate another repo's venv -- CLOSED 2026-09-30: REPO_ROOT from BASH_SOURCE, worktrees share the main checkout's venv via --git-common-dir, a missing venv fails with rc=1; 5-case matrix measured before/after under `env -i`, plus a real 20.43s sim
 - **TASK-021** — cocotb-framework's `__version__` drifted from pyproject for six releases (published 0.6.7 self-reported 0.6.1) -- CLOSED 2026-09-30: setuptools dynamic version in RDS-DV `4713ef8` makes the module literal the single source; 5-test guard + a `unit-tests` CI job; verified live (1509 passed, ZERO skips) and mutation-tested 4 ways

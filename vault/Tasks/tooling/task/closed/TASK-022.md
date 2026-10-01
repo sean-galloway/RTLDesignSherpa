@@ -1,9 +1,9 @@
 # TASK-022: the FPGA flow lock is keyed on the build directory, so two areas can drive one board
 
 **Priority:** P1
-**Status:** open -- the lock, the identity readback and the identity record all
-landed 2026-09-30. What is left is the HARDWARE path: no real readback has run
-against a board, because one was held throughout.
+**Status:** CLOSED 2026-10-01 -- the hardware path is verified on real silicon:
+readback, verified, wrong-board refusal, and a real programming run with an
+identity record.
 **Owner:** TBD
 **Filed:** 2026-09-30 (found by the scoria session; confirmed by rapids)
 
@@ -382,3 +382,80 @@ two interfaces; if a manual check is still wanted, add
 - `vault/handbook/agents/multi-agent-worktree.md` (1db6a139b) -- scoria's
   write-up of the mechanism
 - [[TASK-020]], [[TASK-021]] -- the other open tooling items
+
+## Closed 2026-10-01: the hardware path, exercised at last
+
+The outstanding item in every previous section of this file was that **no part of
+this had ever touched a board.** It has now. Genesys 2, with rapids' explicit
+agreement (Reed-Solomon was mid-campaign on the A7 and asked me to stay off it).
+
+### What was run, and what it proved
+
+| Check | Result |
+| --- | --- |
+| `jtag_readback.tcl` on real hardware | Both boards listed in **5.8 s** |
+| `readback --verify`, correct board | rc=0 |
+| `identity_verdict()`, both boards | `verified` for each |
+| **Wrong board** (`FPGA_JTAG_SERIAL=DEADBEEF1234`) | status `wrong`, CLI **rc=1** |
+| **Real `program` run** | 16.5 s, `End of startup status: HIGH`, `Program complete.` |
+| `--identity-json` record | Written, `programmed: true`, `status: verified` |
+| Recorded sha256 vs `sha256sum` | **Identical** (`1cb02287...31f3e4`) |
+
+The refusal mattering most is the fourth row: a guard that has only ever been
+seen to pass is half-tested, so the wrong-board path was driven against the live
+chain rather than only against a fixture.
+
+### The finding: the serials on the wire are NOT the registry serials
+
+Real hardware reports an interface letter the registry values do not carry:
+
+    target 210292BFA3EEA   (registry: 210292BFA3EE)
+    target 200300B818A0B   (registry: 200300B818A0)
+
+Matching is prefix-tolerant in both directions, so production resolves correctly
+-- and `program_fpga.tcl:53` already documented it. Independently corroborated
+twice the same morning: by the reed-solomon session, whose own A7 programming run
+resolved `210292BFA3EE` against `210292BFA3EEA`, and by the rapids session, who
+traced their flow's `board_guard.py:88` substring test.
+
+**Where it bit was this task's own test file**, found by the rapids session
+reading `test_board_identity.py` against the live output. The `CHAIN` fixture was
+built from the bare registry serials, a full part string (`xc7k325tffg900-2`) and
+a hex idcode -- **a chain real hardware cannot produce**. Hardware emits the
+suffixed serial, the bare die (`xc7k325t`) and `n/a`. So every assertion held
+against a fiction, and the prefix tolerance production depends on was exercised
+by nothing.
+
+Fixed: the fixture is now the captured live output, with
+`GENESYS2_CHAIN_SERIAL`/`NEXYS_CHAIN_SERIAL` stated separately from the registry
+values, plus a test naming the relationship outright
+(`test_chain_serial_is_the_registry_serial_plus_an_interface_letter`). 26 tests.
+
+**Measured, because "the fixture is better now" is a claim, not evidence.**
+Mutating `verify_identity` from substring to exact equality -- precisely the
+regression production fears:
+
+| Fixture | Tests catching the exact-equality regression |
+| --- | --- |
+| Original (bare serials) | **0 of 25** |
+| Live-hardware fixture | **7 of 26** |
+
+### A measurement trap that nearly produced a false finding
+
+The first run of that mutation reported 7 failures *after the file was restored*,
+with `git diff` clean. The suite was reading pytest's assertion-rewritten
+bytecode (`__pycache__/board.cpython-312-pytest-9.1.1.pyc`); `in` and `==` are
+the same byte count, so a size-based cache check sees nothing, and these are
+sub-second tests so there is no duration tell either. It credited the fixture
+change with catching a regression its own cache had manufactured. Recorded in
+`vault/handbook/dv/running-regressions.md`: a mutation loop must purge
+`__pycache__` and `.pytest_cache` every iteration, not once at the start.
+
+### Remaining, and deliberately not mine
+
+- **`rapids/flows-rapids/host/jtag_readback.tcl` is still a duplicate.** The
+  rapids session has offered to retire it in favour of the shared copy and
+  confirmed theirs is a strict behavioural subset, 14 lines shorter and doing no
+  matching at all. That is a per-unit change in their area; left to them.
+- **`host-*` remains deliberately unlocked**, for the reasons in the section
+  above.

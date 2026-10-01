@@ -138,6 +138,33 @@ did** -- cheap, and the only gap in the argument above.
 case set that takes 70s from clean came back in 0.4s. Before believing any
 mutation verdict, check that the run was long enough to have compiled anything.
 
+### Restoring the source is not enough: purge the caches too
+
+A third instance, and the one with no build step at all (RLB-cleanup,
+2026-10-01). Mutating `board.py` from `serial in t["serial"]` to
+`serial == t["serial"]`, running pytest, then restoring the file with `cp` left
+the suite **still reporting the mutated result**. `git diff` was clean and the
+restored source was correct on disk; the run was reading
+`__pycache__/board.cpython-312-pytest-9.1.1.pyc`, pytest's assertion-rewritten
+bytecode.
+
+Two things make this one nastier than a stale sim build:
+
+- **The mutation was the same byte count.** `in` and `==` are both two
+  characters, so any cache validation that leans on source size sees no change.
+- **There is no duration tell.** These are sub-second unit tests either way, so
+  the heuristic that catches the cocotb cases above is useless here.
+
+It was caught only because the restored run disagreed with a run of the same
+code minutes earlier, and the contradiction was chased instead of explained
+away. The false reading was in the *flattering* direction too -- it credited a
+fixture change with catching a regression that its own cache had manufactured.
+
+**So a mutation loop restores the source AND removes `__pycache__` and
+`.pytest_cache` on every iteration**, not once at the start. The same applies to
+reverting after any experiment: `git diff` reporting clean says the SOURCE is
+restored, not that the next run will execute it.
+
 ## The aggregator's area list is a claim, not a measurement
 
 `bin/aggregate_test_results.py` runs what `test_environments.toml` names in
