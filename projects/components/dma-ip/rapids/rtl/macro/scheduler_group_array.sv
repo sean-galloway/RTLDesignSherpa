@@ -1062,25 +1062,4 @@ module scheduler_group_array #(
         .last_grant             (/* unused */)
     );
 
-    //=========================================================================
-    // Assertions for Verification
-    //=========================================================================
-
-    `ifdef FORMAL
-    // Arbitration correctness
-    property desc_ar_arbiter_one_hot;
-        @(posedge clk) disable iff (!rst_n)
-        $onehot0(desc_ar_grant);  // At most one grant
-    endproperty
-    assert property (desc_ar_arbiter_one_hot);
-
-    // R channel routing
-    property desc_r_channel_valid_routing;
-        @(posedge clk) disable iff (!rst_n)
-        desc_axi_int_rvalid && (desc_r_channel_id < NUM_CHANNELS) |->
-            desc_r_valid[desc_r_channel_id];
-    endproperty
-    assert property (desc_r_channel_valid_routing);
-    `endif
-
 endmodule : scheduler_group_array

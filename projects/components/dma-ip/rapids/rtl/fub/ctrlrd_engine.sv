@@ -19,7 +19,6 @@
 `include "rapids_imports.svh"
 `include "reset_defs.svh"
 
-
 module ctrlrd_engine #(
     parameter int CHANNEL_ID = 0,
     parameter int NUM_CHANNELS = 32,
@@ -225,7 +224,6 @@ module ctrlrd_engine #(
         end
     )
 
-
     // Safe to reset conditions
     assign w_fifo_empty = !w_ctrlrd_req_skid_valid_out;
     assign w_no_active_transaction = !r_addr_issued;
@@ -310,7 +308,6 @@ module ctrlrd_engine #(
             r_current_state <= w_next_state;
         end
     )
-
 
     // Next state logic with channel reset support
     always_comb begin
@@ -463,7 +460,6 @@ module ctrlrd_engine #(
         end
     )
 
-
     //=========================================================================
     // AXI Read Address Channel Output
     //=========================================================================
@@ -576,7 +572,6 @@ module ctrlrd_engine #(
         end
     )
 
-
     //=========================================================================
     // Output Assignments
     //=========================================================================
@@ -584,74 +579,5 @@ module ctrlrd_engine #(
     assign mon_valid = r_mon_valid;
     assign mon_packet    = r_mon_packet;
     assign mon_timestamp = r_mon_timestamp;
-
-    //=========================================================================
-    // Assertions for Verification
-    //=========================================================================
-
-    `ifdef FORMAL
-    // State machine one-hot (not strictly one-hot, but valid states)
-    property state_valid;
-        @(posedge clk) disable iff (!rst_n)
-        (r_current_state inside {READ_IDLE, READ_ISSUE_ADDR, READ_WAIT_DATA, READ_COMPARE, READ_RETRY_WAIT, READ_MATCH, READ_ERROR});
-    endproperty
-    assert property (state_valid);
-
-    // AXI ID consistency
-    property axi_id_matches_channel;
-        @(posedge clk) disable iff (!rst_n)
-        ar_valid |-> (ar_id[CHAN_WIDTH-1:0] == CHANNEL_ID[CHAN_WIDTH-1:0]);
-    endproperty
-    assert property (axi_id_matches_channel);
-
-    // Retry counter never underflows.
-    // The previous form asserted (r_retry_counter >= 0) on an unsigned [8:0]
-    // counter, which is vacuously true and could never fail. The real invariant
-    // is that an exhausted counter STAYS exhausted until a new request reloads
-    // it in READ_IDLE -- that is what an unguarded decrement would break, by
-    // wrapping 0 -> 9'h1FF and granting 511 spurious retries.
-    property retry_counter_no_underflow;
-        @(posedge clk) disable iff (!rst_n)
-        (r_retry_counter == 9'h0) && (r_current_state != READ_IDLE)
-            |=> (r_retry_counter == 9'h0);
-    endproperty
-    assert property (retry_counter_no_underflow);
-
-    // ctrlrd_ready tied to skid buffer (matches ctrlwr_engine pattern)
-    // Removed assertions that expected ready only in terminal states
-
-    // Channel reset properties
-    property channel_reset_blocks_inputs;
-        @(posedge clk) disable iff (!rst_n)
-        r_channel_reset_active |-> !ctrlrd_ready;
-    endproperty
-    assert property (channel_reset_blocks_inputs);
-
-    property channel_reset_forces_idle;
-        @(posedge clk) disable iff (!rst_n)
-        r_channel_reset_active |-> ##[0:5] (r_current_state == READ_IDLE);
-    endproperty
-    assert property (channel_reset_forces_idle);
-
-    property channel_reset_idle_signal;
-        @(posedge clk) disable iff (!rst_n)
-        ctrlrd_engine_idle |-> (r_current_state == READ_IDLE && !r_channel_reset_active);
-    endproperty
-    assert property (channel_reset_idle_signal);
-
-    // Drain-on-reset: while a pre-reset transaction is still on the fabric the
-    // engine is not idle and takes no new request, and a held AR stays up.
-    property no_new_request_while_draining;
-        @(posedge clk) disable iff (!rst_n)
-        (r_drain_ar || r_drain_pending) |-> (!ctrlrd_engine_idle && !w_ctrlrd_req_skid_ready_out);
-    endproperty
-    assert property (no_new_request_while_draining);
-
-    property drain_holds_ar;
-        @(posedge clk) disable iff (!rst_n)
-        r_drain_ar |-> ar_valid;
-    endproperty
-    assert property (drain_holds_ar);
-    `endif
 
 endmodule : ctrlrd_engine

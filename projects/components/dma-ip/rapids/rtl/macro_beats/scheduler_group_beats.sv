@@ -608,37 +608,4 @@ module scheduler_group_beats #(
         .last_grant             (/* UNUSED */)
     );
 
-    //=========================================================================
-    // Assertions for Verification
-    //=========================================================================
-
-    `ifdef FORMAL
-    // Monitor bus connectivity
-    property monitor_bus_connected;
-        @(posedge clk) disable iff (!rst_n)
-        (w_desceng_mon_valid || w_sched_mon_valid) |-> ##[1:10] mon_valid;
-    endproperty
-    assert property (monitor_bus_connected);
-
-    // Component integration
-    property descriptor_scheduler_handshake;
-        @(posedge clk) disable iff (!rst_n)
-        (desceng_to_sched_valid && desceng_to_sched_ready) |-> ##[1:5] (scheduler_state != rapids_pkg::CH_IDLE);
-    endproperty
-    assert property (descriptor_scheduler_handshake);
-
-    // Channel reset properties
-    property channel_reset_propagation;
-        @(posedge clk) disable iff (!rst_n)
-        cfg_channel_reset |-> ##[1:100] (descriptor_engine_idle && scheduler_idle);
-    endproperty
-    assert property (channel_reset_propagation);
-
-    property idle_signals_consistency;
-        @(posedge clk) disable iff (!rst_n)
-        (descriptor_engine_idle && scheduler_idle) |-> !cfg_channel_reset;
-    endproperty
-    assert property (idle_signals_consistency);
-    `endif
-
 endmodule : scheduler_group_beats

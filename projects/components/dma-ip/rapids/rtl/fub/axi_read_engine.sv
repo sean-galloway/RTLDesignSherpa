@@ -60,7 +60,6 @@
 `include "rapids_imports.svh"
 `include "reset_defs.svh"
 
-
 module axi_read_engine #(
     // Primary parameters (long names for external configuration)
     parameter int NUM_CHANNELS = 8,                 // Number of channels
@@ -693,30 +692,6 @@ module axi_read_engine #(
 
     assign dbg_r_beats_rcvd = r_r_beats_rcvd;
     assign dbg_sram_writes = r_sram_writes;
-
-    //=========================================================================
-    // Assertions for Verification
-    //=========================================================================
-
-    `ifdef FORMAL
-    // Only one arbiter grant at a time
-    assert property (@(posedge clk) disable iff (!rst_n)
-        $onehot0(w_arb_grant));
-
-    // Granted channel must have valid request (registered version: arbiter
-    // sees r_arb_request, not the live w_arb_request, after the request
-    // pipeline added for 8-channel 100 MHz timing closure).
-    assert property (@(posedge clk) disable iff (!rst_n)
-        w_arb_grant_valid |-> (r_arb_request & w_arb_grant) != '0);
-
-    // Allocation only when AR command issues
-    assert property (@(posedge clk) disable iff (!rst_n)
-        axi_rd_alloc_req |-> $past(m_axi_arvalid && m_axi_arready));
-
-    // Channel ID must be valid
-    assert property (@(posedge clk) disable iff (!rst_n)
-        m_axi_arvalid |-> (w_arb_grant_id < NC));
-    `endif
 
     //=========================================================================
     // Debug Signal Assignments

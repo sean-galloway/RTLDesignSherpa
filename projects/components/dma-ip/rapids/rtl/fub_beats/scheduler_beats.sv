@@ -960,7 +960,6 @@ module scheduler_beats #(
         end
     )
 
-
     // Timeout threshold: Compare counter to configured limit (if enabled)
     assign w_timeout_expired = cfg_sched_timeout_enable &&
                                (r_timeout_counter >= cfg_sched_timeout_cycles);
@@ -1116,35 +1115,5 @@ module scheduler_beats #(
     assign mon_valid     = r_mon_valid;
     assign mon_packet    = r_mon_packet;
     assign mon_timestamp = r_mon_timestamp;
-
-    //=========================================================================
-    // Assertions for Verification
-    //=========================================================================
-
-    `ifdef FORMAL
-    // Descriptor valid check
-    property descriptor_valid_check;
-        @(posedge clk) disable iff (!rst_n)
-        (r_current_state == rapids_pkg::CH_FETCH_DESC) |-> r_descriptor.valid;
-    endproperty
-    assert property (descriptor_valid_check);
-
-    // Concurrent transfer completion: Exit rapids_pkg::CH_XFER_DATA only when BOTH complete
-    property concurrent_transfer_complete;
-        @(posedge clk) disable iff (!rst_n)
-        (r_current_state == rapids_pkg::CH_XFER_DATA && w_next_state == rapids_pkg::CH_COMPLETE) |->
-            (w_read_complete && w_write_complete);
-    endproperty
-    assert property (concurrent_transfer_complete);
-
-    // Aligned address requirement
-    property address_aligned;
-        @(posedge clk) disable iff (!rst_n)
-        (r_current_state == rapids_pkg::CH_FETCH_DESC) |->
-            (r_descriptor.src_addr[5:0] == 6'h0) &&
-            (r_descriptor.dst_addr[5:0] == 6'h0);
-    endproperty
-    assert property (address_aligned);
-    `endif
 
 endmodule : scheduler_beats

@@ -477,6 +477,53 @@ no monbus-buffer readout -- `MON_BASE`/`MON_LIMIT` are configured and never read
 back -- so the packet half of the error contract needs a readout that does not
 exist yet. rapids TASK-020 keeps that box open.
 
+## 8.2 Build variants measured against each other (2026-10-01)
+
+One harness RTL; a variant is generic overrides, built by the named targets
+`make bitstream-{std,perf,mon,obs,ila}`. Every number below is parsed from that
+build's own post-route reports by `reports/extract_build_metrics.py` -- none is
+typed in -- and every variant was then programmed and run on the board.
+
+| Variant | LUT | vs std | BRAM | WNS ns | WHS ns | Failing eps | sha256 |
+|---|---:|---:|---:|---:|---:|---:|---|
+| std (`BYTE_CRC=1`) | 78,426 | -- | 68 | 0.401 | 0.045 | 0 | `754c3c2dcdb7` |
+| perf (`BYTE_CRC=0`) | 71,643 | -6,783 | 52 | 0.426 | 0.037 | 0 | `1f268d98969d` |
+| mon (`USE_AXI_MONITORS=1 GEN_MON=1`) | 84,190 | **+5,764** | 68 | 0.768 | 0.026 | 0 | `0678e8d52a88` |
+| obs (`USE_OBSERVERS=1` + taps) | 100,396 | **+21,970** | 68 | 0.215 | 0.031 | 0 | `4ff79d23b873` |
+
+All four close timing with zero failing endpoints out of ~264 k.
+
+What the comparison is for -- the cost of instrumentation, which was previously
+unmeasured on the byte design:
+
+- **The interface observers are expensive**: +21,970 LUTs, +28 % over std, and
+  they more than halve the timing margin (0.401 -> 0.215 ns). That is the one
+  variant where the margin is thin enough to matter on a tighter part.
+- **The in-core monitors are cheaper than the observers by 4x** (+5,764 LUTs)
+  and the build closed BETTER than std (0.768 ns). Place-and-route variation is
+  part of that, so read it as "no margin cost", not as an improvement.
+- **The word-wide perf build is the cheapest in both LUTs and BRAM** (52 vs 68
+  tiles): the byte-wise CRC machinery is what costs the BRAM, which is the
+  resource price of measuring integrity rather than rate.
+
+Board results, same bitstreams:
+
+| Variant | Runs |
+|---|---|
+| std / mon / obs | byte smoke PASS, `axi_resp_error` **18/18**, byte-perf quick 7/7 |
+| perf | aligned profile **28/28**, 3182 MB/s sink / 3199 MB/s source |
+
+The perf row reproduces section 1's headline figures with a clean identity
+record on both ends of the run. An earlier attempt produced the same numbers but
+false-failed its END identity check -- the Genesys 2 chain transiently lists the
+board with no device behind it -- which marked good results "not from one board";
+`board_guard` now re-reads the chain once before failing, and a test covers both
+that recovery and that a genuinely absent board still fails.
+
+`perf` deliberately runs only the aligned profile: the host refuses byte-wise
+checks on a word-wide build ("cannot check a partial strobe"), which is correct
+and is why the integrity and rate measurements need two bitstreams.
+
 ## 9. Build and resources
 
 | Build | Slice LUTs | Slice regs | BRAM tiles | WNS setup | WHS hold | Failing endpoints | Bitstream sha256 |

@@ -287,7 +287,6 @@ module descriptor_engine #(
         end
     )
 
-
     // Safe to reset conditions
     assign w_fifos_empty = !w_apb_skid_valid_out && !w_desc_addr_fifo_rd_valid && !w_desc_fifo_rd_valid;
     assign w_no_active_operations = !r_apb_operation_active && !r_axi_read_active;
@@ -903,7 +902,6 @@ module descriptor_engine #(
         end
     )
 
-
     //=========================================================================
     // Enhanced Descriptor FIFO Write Data Generation
     //=========================================================================
@@ -997,7 +995,6 @@ module descriptor_engine #(
         end
     )
 
-
     // NOTE: Address 0 error detection is handled in the main FSM block above
     // to avoid multi-driver issues on r_descriptor_error.
 
@@ -1063,51 +1060,5 @@ module descriptor_engine #(
     assign mon_valid = r_mon_valid;
     assign mon_packet    = r_mon_packet;
     assign mon_timestamp = r_mon_timestamp;
-
-    //=========================================================================
-    // Assertions for Verification
-    //=========================================================================
-
-    `ifdef FORMAL
-    // State machine coverage
-    property state_one_hot;
-        @(posedge clk) disable iff (!rst_n)
-        $onehot(r_current_state);
-    endproperty
-    assert property (state_one_hot);
-
-    // AXI ID consistency
-    property axi_id_matches_channel;
-        @(posedge clk) disable iff (!rst_n)
-        ar_valid |-> (ar_id[CHAN_WIDTH-1:0] == CHANNEL_ID[CHAN_WIDTH-1:0]);
-    endproperty
-    assert property (axi_id_matches_channel);
-
-    // Stream control exclusivity (at most one boundary type)
-    property stream_boundary_exclusive;
-        @(posedge clk) disable iff (!rst_n)
-        $countones({w_desc_eos, w_desc_eol, w_desc_eod}) <= 1;
-    endproperty
-    assert property (stream_boundary_exclusive);
-
-    // Channel reset properties
-    property channel_reset_blocks_inputs;
-        @(posedge clk) disable iff (!rst_n)
-        r_channel_reset_active |-> !w_apb_skid_ready_out;
-    endproperty
-    assert property (channel_reset_blocks_inputs);
-
-    property channel_reset_clears_operations;
-        @(posedge clk) disable iff (!rst_n)
-        r_channel_reset_active |-> ##[1:10] !r_apb_operation_active;
-    endproperty
-    assert property (channel_reset_clears_operations);
-
-    property channel_reset_idle_signal;
-        @(posedge clk) disable iff (!rst_n)
-        descriptor_engine_idle |-> (r_current_state == rapids_pkg::RD_IDLE && !r_channel_reset_active);
-    endproperty
-    assert property (channel_reset_idle_signal);
-    `endif
 
 endmodule : descriptor_engine

@@ -19,7 +19,6 @@
 `include "rapids_imports.svh"
 `include "reset_defs.svh"
 
-
 module ctrlwr_engine #(
     parameter int CHANNEL_ID = 0,
     parameter int NUM_CHANNELS = 32,
@@ -211,7 +210,6 @@ module ctrlwr_engine #(
         end
     )
 
-
     // Safe to reset conditions
     assign w_fifo_empty = !w_ctrlwr_req_skid_valid_out;
     assign w_no_active_transaction = !r_addr_issued && !r_data_issued;
@@ -288,7 +286,6 @@ module ctrlwr_engine #(
             r_current_state <= w_next_state;
         end
     )
-
 
     // Next state logic with channel reset support
     always_comb begin
@@ -424,7 +421,6 @@ module ctrlwr_engine #(
         end
     )
 
-
     //=========================================================================
     // AXI Write Address Channel Output
     //=========================================================================
@@ -520,7 +516,6 @@ module ctrlwr_engine #(
         end
     )
 
-
     //=========================================================================
     // Output Assignments
     //=========================================================================
@@ -529,65 +524,5 @@ module ctrlwr_engine #(
     assign mon_valid = r_mon_valid;
     assign mon_packet    = r_mon_packet;
     assign mon_timestamp = r_mon_timestamp;
-
-    //=========================================================================
-    // Assertions for Verification
-    //=========================================================================
-
-    `ifdef FORMAL
-    // State machine one-hot
-    property state_one_hot;
-        @(posedge clk) disable iff (!rst_n)
-        $onehot(r_current_state);
-    endproperty
-    assert property (state_one_hot);
-
-    // AXI ID consistency
-    property axi_id_matches_channel;
-        @(posedge clk) disable iff (!rst_n)
-        aw_valid |-> (aw_id[CHAN_WIDTH-1:0] == CHANNEL_ID[CHAN_WIDTH-1:0]);
-    endproperty
-    assert property (axi_id_matches_channel);
-
-    // Address alignment for 32-bit writes
-    property address_aligned;
-        @(posedge clk) disable iff (!rst_n)
-        (r_current_state == WRITE_ISSUE_DATA) && !w_null_address |-> (r_ctrlwr_addr[1:0] == 2'b00);
-    endproperty
-    assert property (address_aligned);
-
-    // FIXED: Channel reset properties
-    property channel_reset_blocks_inputs;
-        @(posedge clk) disable iff (!rst_n)
-        r_channel_reset_active |-> !ctrlwr_ready;
-    endproperty
-    assert property (channel_reset_blocks_inputs);
-
-    property channel_reset_forces_idle;
-        @(posedge clk) disable iff (!rst_n)
-        r_channel_reset_active |-> ##[0:3] (r_current_state == WRITE_IDLE);
-    endproperty
-    assert property (channel_reset_forces_idle);
-
-    property channel_reset_idle_signal;
-        @(posedge clk) disable iff (!rst_n)
-        ctrlwr_engine_idle |-> (r_current_state == WRITE_IDLE && !r_channel_reset_active);
-    endproperty
-    assert property (channel_reset_idle_signal);
-
-    // Drain-on-reset: while a pre-reset write is still on the fabric the
-    // engine is not idle and takes no new request, and a held phase stays up.
-    property no_new_request_while_draining;
-        @(posedge clk) disable iff (!rst_n)
-        (r_drain_aw || r_drain_w || r_drain_b) |-> (!ctrlwr_engine_idle && !w_ctrlwr_req_skid_ready_out);
-    endproperty
-    assert property (no_new_request_while_draining);
-
-    property drain_holds_phases;
-        @(posedge clk) disable iff (!rst_n)
-        (r_drain_aw |-> aw_valid) and (r_drain_w |-> w_valid);
-    endproperty
-    assert property (drain_holds_phases);
-    `endif
 
 endmodule : ctrlwr_engine

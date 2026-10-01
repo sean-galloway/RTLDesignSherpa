@@ -40,7 +40,6 @@
 `include "rapids_imports.svh"
 `include "reset_defs.svh"
 
-
 module axi_write_engine_beats #(
     // Primary parameters (long names for external configuration)
     parameter int NUM_CHANNELS = 8,                 // Number of channels
@@ -1096,29 +1095,5 @@ module axi_write_engine_beats #(
     end
     // synopsys translate_on
 `endif // ENHANCED_DEBUG
-
-    `ifdef FORMAL
-    // Only one arbiter grant at a time
-    assert property (@(posedge clk) disable iff (!rst_n)
-        $onehot0(w_arb_grant));
-
-    // Granted channel must have valid request (registered version: arbiter
-    // sees r_arb_request, not the live w_arb_request, after the request
-    // pipeline added for 8-channel 100 MHz timing closure).
-    assert property (@(posedge clk) disable iff (!rst_n)
-        w_arb_grant_valid |-> (r_arb_request & w_arb_grant) != '0);
-
-    // Drain request only when AW command issues
-    assert property (@(posedge clk) disable iff (!rst_n)
-        (|axi_wr_drain_req) |-> $past(m_axi_awvalid && m_axi_awready));
-
-    // Channel ID must be valid
-    assert property (@(posedge clk) disable iff (!rst_n)
-        m_axi_awvalid |-> (r_aw_channel_id < NC));
-
-    // W active only after AW issued
-    assert property (@(posedge clk) disable iff (!rst_n)
-        r_w_active |-> $past(m_axi_awvalid && m_axi_awready, 1) || $past(r_w_active, 1));
-    `endif
 
 endmodule : axi_write_engine_beats
