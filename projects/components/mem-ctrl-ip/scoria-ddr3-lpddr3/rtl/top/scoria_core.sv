@@ -92,6 +92,25 @@ module scoria_core
     // tile the DFI cycle: N_SUBCMD*BL_PUMICE == DFI_RATE in the sub-word regime.
     parameter int SUB_PHASE_STRIDE = (N_SUBCMD > 1) ? (DFI_RATE / N_SUBCMD) : 1,
 
+    // Read-enable window width in DFI cycles = TRUE DQ occupancy, which is
+    // ceil(DRAM_BL / DFI_RATE) -- DRAM_BL counts DEVICE beats and the devices
+    // sit in PARALLEL, so a narrower device does not shorten the burst in
+    // time, it only narrows each beat. scoria TASK-004.
+    //
+    // This is NOT BURST_WORDS. BURST_WORDS counts DRAM_BEAT_WIDTH-wide beats
+    // (BL_PUMICE/DFI_RATE), so it HALVES when a narrow device sits behind a
+    // wider beat -- and the DFI layer's RD_EN_CYC defaulted to it, which told
+    // the PHY to sample DQ for one DFI cycle of a two-cycle burst and lost the
+    // second half of every read. The two agree only when
+    // DRAM_BEAT_WIDTH == DRAM_DEVICE_WIDTH, which is the Genesys 2 point and
+    // is why nothing was wrong on the board.
+    //
+    // Deliberately the SAME expression as scoria_top's RD_EN_CYC_TOP, which
+    // floors tRTW on it. If these two ever disagree the controller programs a
+    // tRTW floor for a read window it is not actually opening; they are both
+    // derived from DRAM_BL and DFI_RATE so they cannot.
+    parameter int RD_EN_CYC_CORE = (DRAM_BL + DFI_RATE - 1) / DFI_RATE,
+
     // internal data unit = DFI word
     parameter int DFI_DATA_WIDTH = DRAM_BEAT_WIDTH * DFI_RATE,
     parameter int DW  = DFI_DATA_WIDTH,      // host AXI data width == DFI word
@@ -640,6 +659,9 @@ module scoria_core
         .SUB_PHASE_STRIDE(SUB_PHASE_STRIDE),
         .SUBW_MAX        (SUBW_MAX),
         .BURST_WORDS     (BURST_WORDS),
+        // TASK-004: set EXPLICITLY. The layer's default was BL_WORDS, and a
+        // parameter nobody sets is how that went unnoticed.
+        .RD_EN_CYC       (RD_EN_CYC_CORE),
         // The read return has NO backpressure at the PHY (rddata_valid cannot
         // stall), so the aligner's tracking and the return CDC FIFO must cover
         // every read the ring can hold in flight: RD_RET_DEPTH reads x

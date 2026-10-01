@@ -1,0 +1,40 @@
+[tasks]
+prove
+data
+cover
+
+[options]
+# bitwuzla, not z3. The design carries a real BRAM array (DEPTH*BEATS words) and
+# a gaxi FIFO; z3 was taking ten minutes per step past step 17, while bitwuzla
+# closes the whole run in seconds. Same theory, vastly better array handling.
+#
+# DEPTH=4 with 2-beat bursts: filling the ring, reordering the issue, returning
+# and draining all four takes ~20 cycles.
+prove: mode bmc
+prove: depth 28
+data:  mode bmc
+data:  depth 18
+cover: mode cover
+cover: depth 24
+
+[engines]
+prove: smtbmc bitwuzla
+data:  smtbmc bitwuzla
+cover: smtbmc bitwuzla
+
+[script]
+read_verilog -formal ring_flat.v
+read -formal -sv formal_scoria_rd_return_ring.sv
+prove: prep -top formal_scoria_rd_return_ring
+# cover builds WITH F_DATA, deliberately. Built without it, `w_check` is tied
+# low by the g_nodata arm and c_data_checked reports unreachable -- which is
+# what happened the first time this ran. A cover task that cannot reach its own
+# cover point is the vacuity check failing on itself.
+data:  chparam -set F_DATA 1 formal_scoria_rd_return_ring
+cover: chparam -set F_DATA 1 formal_scoria_rd_return_ring
+data:  prep -top formal_scoria_rd_return_ring
+cover: prep -top formal_scoria_rd_return_ring
+
+[files]
+formal_scoria_rd_return_ring.sv
+ring_flat.v

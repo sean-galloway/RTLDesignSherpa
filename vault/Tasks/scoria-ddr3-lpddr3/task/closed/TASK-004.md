@@ -10,8 +10,29 @@ for the tRTW floor.
 **Priority:** P2 — the two values AGREE for the Genesys 2 design point, so
 nothing is wrong on the board today. They diverge exactly when the knob was
 added for: a device word narrower than the DRAM beat.
-**Status:** OPEN. Found 2026-09-30 writing the `scoria_dfi_rd_aligner` unit
-test, which needed the two parameters separated to drive the aligner.
+**Status:** CLOSED 2026-10-01. PLUMBED, not deleted. `scoria_core` now passes
+`RD_EN_CYC_CORE = ceil(DRAM_BL / DFI_RATE)` explicitly to the DFI layer -- the
+same expression `scoria_top` uses for its tRTW floor, so the two cannot
+disagree. Found 2026-09-30 writing the `scoria_dfi_rd_aligner` unit test, which
+needed the two parameters separated to drive the aligner.
+
+The fix went in `scoria_core` rather than threading a parameter down from
+`scoria_top`, because the core already has `DRAM_BL` and `DFI_RATE` and the bug
+WAS a parameter nobody set -- adding another top-level one to be forgotten
+would repeat it. The layer keeps the `BL_WORDS` default only so a bare
+instantiation elaborates, and its comment now says the default is wrong for any
+narrow build.
+
+No behaviour change at the shipping point: both expressions give 2 for BL8 over
+a 1:4 gear, which is why the board was never affected. Suite and lint green
+after.
+
+NOT TESTED in the narrow configuration, and this is the honest limit: no narrow
+build exists to run. What IS gated is the property the fix relies on -- that
+the aligner honours EN_CYC independently of BL_WORDS -- by
+`test_scoria_dfi_rd_aligner.py`, which already runs EN_CYC=4 against
+BL_WORDS=2, plus `en_cyc_below_bl_words_is_unsupported` for the other
+direction.
 
 ## The divergence
 

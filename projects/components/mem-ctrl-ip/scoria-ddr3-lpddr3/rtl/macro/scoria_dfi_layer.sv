@@ -96,8 +96,14 @@ module scoria_dfi_layer
     // CAM depth so op_ready never deasserts in steady state; the valid/ready
     // handshake to command issue is the just-in-case backpressure.
     parameter int RD_MAX_OUTSTANDING = 16,
-    // rddata_en window width (DQ-bus occupancy of one read). Defaults to
-    // BL_WORDS (legacy); set separately when the DRAM beat != device word.
+    // rddata_en window width = DQ-bus occupancy of one read, in DFI cycles.
+    //
+    // scoria_core SETS THIS EXPLICITLY (RD_EN_CYC_CORE = ceil(DRAM_BL /
+    // DFI_RATE), the true occupancy). The BL_WORDS default is kept only so a
+    // bare instantiation of this layer elaborates; it is WRONG whenever
+    // DRAM_BEAT_WIDTH > DRAM_DEVICE_WIDTH, because BL_WORDS counts beats of
+    // the wider DRAM beat and halves. Do not rely on the default -- that is
+    // what TASK-004 was.
     parameter int RD_EN_CYC = BL_WORDS,
     // FIFO payloads
     parameter int CMD_DW = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1,

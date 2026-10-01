@@ -1,0 +1,24 @@
+[tasks]
+prove
+cover
+
+[options]
+# 2 slots x 2 beats: fill, land, commit and drain takes ~14 cycles. 26 leaves
+# room to fill both slots and drain one while the other is still resident.
+prove: mode bmc
+prove: depth 26
+cover: mode cover
+cover: depth 26
+
+[engines]
+prove: smtbmc bitwuzla
+cover: smtbmc bitwuzla
+
+[script]
+read_verilog -formal wr_flat.v
+read -formal -sv formal_scoria_wr_data_cam.sv
+prep -top formal_scoria_wr_data_cam
+
+[files]
+formal_scoria_wr_data_cam.sv
+wr_flat.v

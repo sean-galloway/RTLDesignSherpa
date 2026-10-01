@@ -35,13 +35,19 @@
 //          en_cyc_below_bl_words_is_unsupported, the gate that keeps a future
 //          narrow build from finding this on a board).
 //
-//          Nothing in the tree sets EN_CYC today: scoria_dfi_layer's RD_EN_CYC
-//          exists for exactly the narrow-device case and defaults to BL_WORDS
-//          at every instantiation, while scoria_top computes the true
-//          occupancy ceil(DRAM_BL/DFI_RATE) and keeps it local to its tRTW
-//          floor. The two agree for the Genesys 2 point (BL8 over a 1:4 gear,
-//          both 2) and would not for a device word narrower than the DRAM
-//          beat. See scoria-ddr3-lpddr3 TASK-004.
+//          EN_CYC IS SET EXPLICITLY, as of TASK-004 (closed 2026-10-01).
+//          scoria_core passes RD_EN_CYC_CORE = ceil(DRAM_BL / DFI_RATE) -- the
+//          TRUE DQ occupancy, because DRAM_BL counts DEVICE beats and the
+//          devices sit in PARALLEL, so a narrower device narrows each beat
+//          without shortening the burst in time.
+//
+//          It is NOT BL_WORDS, which was the old default. BL_WORDS counts
+//          DRAM_BEAT_WIDTH-wide beats, so it HALVES when a narrow device sits
+//          behind a wider beat -- which would have told the PHY to sample DQ
+//          for one DFI cycle of a two-cycle burst and lost the second half of
+//          every read. The two agree only when DRAM_BEAT_WIDTH ==
+//          DRAM_DEVICE_WIDTH, which is the Genesys 2 point, and is why a board
+//          that works proved nothing about this.
 //
 // Documentation: docs/uarch/PUMICE_DFI_LAYER_UARCH.md
 `timescale 1ns / 1ps

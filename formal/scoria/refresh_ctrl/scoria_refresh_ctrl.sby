@@ -1,0 +1,25 @@
+[tasks]
+prove
+cover
+
+[options]
+# tREFI is 2..3 cycles here, so a backlog of 7 (what a_headroom needs) takes
+# ~21 cycles to build with no grants; 34 leaves room to reach saturation and to
+# wrap the 8-entry bank rotor.
+prove: mode bmc
+prove: depth 34
+cover: mode cover
+cover: depth 34
+
+[engines]
+prove: smtbmc bitwuzla
+cover: smtbmc bitwuzla
+
+[script]
+read_verilog -formal refresh_ctrl_flat.v
+read -formal -sv formal_scoria_refresh_ctrl.sv
+prep -top formal_scoria_refresh_ctrl
+
+[files]
+formal_scoria_refresh_ctrl.sv
+refresh_ctrl_flat.v

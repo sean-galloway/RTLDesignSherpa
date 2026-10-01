@@ -1,0 +1,24 @@
+[tasks]
+prove
+cover
+
+[options]
+# The DUT is combinational and holds no state, so one evaluation is the whole
+# question. Depth 2 only because the properties are written on a clock edge.
+prove: mode bmc
+prove: depth 2
+cover: mode cover
+cover: depth 2
+
+[engines]
+prove: smtbmc bitwuzla
+cover: smtbmc bitwuzla
+
+[script]
+read_verilog -formal addr_mapper_flat.v
+read -formal -sv formal_scoria_addr_mapper.sv
+prep -top formal_scoria_addr_mapper
+
+[files]
+formal_scoria_addr_mapper.sv
+addr_mapper_flat.v
