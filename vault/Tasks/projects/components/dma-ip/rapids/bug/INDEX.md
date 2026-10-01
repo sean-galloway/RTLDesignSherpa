@@ -12,17 +12,23 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 11 | done (kept for history) |
-| [dropped/](dropped/) | 0 | ended without completing |
+| [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-013** — no data-path AXI monitor, so an injected response error emits NO monbus packet (measured: 6 words captured, 0 error-class, only AXIS channel events); WRMON/RDMON read back their own writes while driving nothing (filed 2026-10-01)
-
 - **BUG-011** — two rapids formal proofs (`axi_read_engine_beats`, `axi_write_engine_beats`) check pre-BUG-009 RTL: their sv2v flat snapshots were never regenerated; found by regenerate-and-diff (filed 2026-10-01)
+
+## Dropped
+
+- **BUG-013** — WITHDRAWN AS WRONG the day it was filed. Claimed no data-path AXI
+  monitor and that WRMON/RDMON configure nothing; both false. The monlites cover
+  the data paths in BOTH trees and WRMON/RDMON configure them
+  (`rapids_top.sv:1738` / `:1578`). Three greps that matched text rather than code
+  produced it. See the file for the correction.
 
 ## Closed
 

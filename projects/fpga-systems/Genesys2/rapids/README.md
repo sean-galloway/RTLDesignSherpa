@@ -61,7 +61,8 @@ Characterized on silicon 2026-09-30. Report v0.2 (`reports/perf/`, final):
 - AXI RRESP/BRESP error injection is not exercised on silicon (the harness
   memory always answers OKAY): rapids TASK-020.
 
-The board keeps the standard byte-CRC bitstream; `flows-rapids/bitstream/` is
+The board keeps the standard byte-CRC bitstream (`754c3c2d...`, restored and
+re-verified 2026-10-01 after the variant sweep); `flows-rapids/bitstream/` is
 a gitignored build area and may hold either build.
 
 ## Quick start

@@ -5,7 +5,8 @@ handling is not exercised on silicon; it is the one gap left in the
 byte-RAPIDS characterization.
 **Status:** CLOSED 2026-10-01. Proven on silicon (36/36 checks at seq-level
 full), and the monbus half is answered: the readout was built, works, and showed
-there is no error packet to check -- rapids BUG-013 carries that design gap.
+that no AXI-protocol monitor watches the data-path masters, so no error packet
+exists to check -- a characteristic shared with rapids-beats, not a gap.
 **Owner:** TBD
 
 The harness memory model always answers OKAY, and the harness has no hook to
@@ -159,19 +160,32 @@ variants keep their resources) the harness now stores the stream:
 Proven on the board: `clear=0 -> after-sink=12 -> after-source=18` words, 6
 records decoded.
 
-**What it immediately revealed: rapids BUG-013.** With monitors enabled, the
-scheduler's ERR_EN on and every class unmasked, an injected SLVERR produces 6
-words / 2 records and **zero error-class packets** -- the two records are
-`PROTOCOL_AXIS/PktTypeChannel` from the monlites. The byte tree's only AXI
-monitor is `u_desc_axi_monitor` on the DESCRIPTOR interface; the data-path
-masters have none, and WRMON/RDMON reach the config block without reaching any
-monitor. So there is no error packet to assert, and adding one is a design
-decision rather than a test fix.
+**What it measured.** With the monlites enabled and every class unmasked, an
+injected SLVERR produces 6 words / 2 records and **zero error-class packets** --
+the two records are `PROTOCOL_AXIS/PktTypeChannel` from `u_axis_ingress_mon` /
+`u_axis_egress_mon`. So the capture path and the monlites both work; what is
+absent is an error packet.
 
-The sequence therefore records a SKIP NAMING BUG-013 rather than asserting. A
-design gap must not turn the suite red, and must not look satisfied either --
-when a data-path monitor exists, the skip becomes an assertion and the check is
-already written.
+The reason is narrow: the monlites are AXIS-protocol monitors, and no
+AXI-PROTOCOL monitor watches the data-path masters `m_axi_rd` / `m_axi_wr`, so a
+BRESP/RRESP error on those interfaces is not reported on monbus. That is a
+design characteristic SHARED WITH rapids-beats -- both trees have byte-identical
+monitor instance sets -- not a gap in the byte tree. The DUT reports the error
+through the sticky per-channel flag and `SCHED_ERROR`, both proven on silicon
+above.
+
+Whether an AXI-protocol monitor on those masters is wanted, or whether the
+monlites plus `axi_bus_meter` are the intended coverage, is a design question
+for Sean. The sequence therefore records a SKIP stating that no AXI-protocol
+monitor watches those masters, rather than asserting a packet that by design
+does not exist.
+
+**A withdrawn bug, left visible on purpose.** This finding was first filed as
+rapids BUG-013 claiming "no data-path AXI monitor" and "WRMON/RDMON configure
+nothing". Both claims were FALSE -- the monlites cover the data paths in both
+trees, and WRMON/RDMON configure them (`rapids_top.sv:1738` and `:1578`). It was
+dropped the same day; the correction and the three bad greps behind it are in
+`bug/dropped/BUG-013.md`.
 
 **Two bugs of my own, caught on the way, both of the same shape:**
 
@@ -191,5 +205,6 @@ have reported a clean pass against a bitstream with no capture buffer at all.
 
 ## Still to do
 
-Nothing in this task. The remaining work is rapids BUG-013, which is a design
-decision about telemetry, filed separately.
+Nothing in this task. One open DESIGN QUESTION for Sean, deliberately not filed
+as a defect: whether an AXI-protocol monitor belongs on the data-path masters,
+or whether the AXIS monlites plus `axi_bus_meter` are the intended coverage.

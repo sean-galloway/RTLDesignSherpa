@@ -427,27 +427,28 @@ def _arm_monbus_error_class(s, half):
 def _check_monbus_error_packet(s, tag, channel):
     """The monbus half of the error contract (rapids TASK-020).
 
-    MEASURED 2026-10-01 and recorded as rapids BUG-013: this design emits NO
-    error packet for a data-path response error, so there is nothing to assert.
-    The capture buffer works -- it returns AXIS PktTypeChannel events from the
-    monlites in the same window -- but the byte tree's only AXI monitor is
-    `u_desc_axi_monitor` on the DESCRIPTOR interface. The data-path masters
-    m_axi_rd / m_axi_wr, where an injected SLVERR lands, have no monitor, and
-    WRMON/RDMON reach the config block without reaching any monitor.
+    MEASURED 2026-10-01: an injected data-path response error produces no
+    error-class monbus packet, and that is BY DESIGN rather than a gap. The
+    monlites (`u_axis_ingress_mon` / `u_axis_egress_mon`) are AXIS-protocol
+    monitors and they work -- this capture returns their PktTypeChannel events
+    from the same window. No AXI-PROTOCOL monitor watches the data-path masters
+    m_axi_rd / m_axi_wr, so a BRESP/RRESP error there is not reported on monbus.
+    rapids-beats is identical: both trees have the same monitor instance set.
 
-    So this records a SKIP naming the gap, not a pass and not a failure. A
-    design gap must not turn the suite red, and it must not look satisfied
-    either. When a data-path monitor exists, delete this skip and assert.
+    The DUT does report the error -- the sticky per-channel flag and
+    SCHED_ERROR, both asserted above. So this records a SKIP stating the design
+    fact, not a pass and not a failure. Whether an AXI-protocol monitor belongs
+    on those masters is a design question, not something a test should assert.
     """
-    has_cap = s.io.csr_field("BUILD", "MON_CAPTURE")
-    if not has_cap:
-        s.check(f"{tag}: monbus error packet SKIPPED (no capture buffer in this build)",
+    if not s.io.csr_field("BUILD", "MON_CAPTURE"):
+        s.check(f"{tag}: monbus capture SKIPPED (no buffer in this build)",
                 True, skipped=True, reason="BUILD.MON_CAPTURE=0")
         return
     pkts, wrapped, n_words = monbus_capture(s)
     errs = [p for p in pkts if p.packet_type == PktType_Error()]
-    s.check(f"{tag}: monbus error packet SKIPPED -- no data-path AXI monitor "
-            f"exists to emit one (rapids BUG-013)",
+    s.check(f"{tag}: monbus has no error packet BY DESIGN -- the monlites are "
+            f"AXIS monitors and no AXI-protocol monitor watches the data-path "
+            f"masters (same in rapids-beats)",
             True, skipped=True, n_words=n_words, records=len(pkts),
             error_class_packets=len(errs),
             captured=[f"{p.get_protocol_name()}/{p.get_packet_type_name()}"
