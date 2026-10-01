@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/rapids — bugs
 
-**Next ID: BUG-010** — never recycle a number, even when its item closed.
+**Next ID: BUG-013** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,17 +12,20 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 9 | done (kept for history) |
+| [closed/](closed/) | 10 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-
+- **BUG-011** — two rapids formal proofs (`axi_read_engine_beats`, `axi_write_engine_beats`) check pre-BUG-009 RTL: their sv2v flat snapshots were never regenerated; found by regenerate-and-diff (filed 2026-10-01)
+- **BUG-012** — those same two proofs ASSUME the BUG-009 region away (`cfg_axi_*_xfer_beats <= 15`, "for tractability"), so they pass identically on the buggy and the fixed flat: vacuous for the defect they most need to cover (filed 2026-10-01)
 
 ## Closed
+
+- **BUG-010** — top_beats axis_mon counted only completions, so a monitor's REPORTED dropped event (AXIS_ERR_EVENT_DROPPED) read as a lost packet; shared accounting helper, all three rapids TBs fixed, mutation-proved against a silent loss (closed 2026-10-01)
 
 - **BUG-009** — a 256-beat burst (AxLEN 255) wrapped its size to 0 and poisoned the channel's SRAM bookkeeping; underneath it, whole-segment-only ingress allocation and a stale-view allocation race made a full-depth burst unsatisfiable -- CLOSED 2026-09-29 (three ILA-traced mechanisms, three ingress/engine fixes, board history replays clean on build 3)
 - **BUG-001** — the board kick sequencer never writes KICK_ENABLE, and no sim can catch it

@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/rapids — tasks
 
-**Next ID: TASK-022** — never recycle a number, even when its item closed.
+**Next ID: TASK-023** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -14,19 +14,20 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 19 | done (kept for history) |
+| [closed/](closed/) | 20 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-019** — the byte-granular RAPIDS: lengths in bytes, AXI4 byte enables, partial AXIS beats (P1, filed 2026-09-29)
-- **TASK-020** — AXI response-error injection in the byte-RAPIDS Genesys 2 harness (P2, filed 2026-09-30)
+- **TASK-020** — AXI response-error injection in the byte-RAPIDS Genesys 2 harness (P2, filed 2026-09-30; ACTIVE 2026-09-30, injection mechanism built and unit-proven)
+- **TASK-022** — the byte-granular RAPIDS has no formal proofs of its own; 9 of 11 proof dirs are `*_beats` (P2, filed 2026-10-01, scope not yet agreed)
 
 ## Active
 
 ## Closed
 
+- **TASK-019** — the byte-granular RAPIDS: bytes, WSTRB/TSTRB partial beats, its own Genesys 2 harness and books, board-characterized (closed 2026-09-30; sign-off fub 1521/0, fub_beats 1281/0, macro 822/0, macro_beats 771/0, top 42/0, top_beats 36/0)
 - **TASK-021** — beat-aligned utilization delta versus RAPIDS Beats: start-up terms isolated in sim and accepted as by design (closed 2026-09-30)
 - **TASK-001** — adopt the shared instrumentation pair (axi4_intf_master_observer + axis4_intf_observer); measured through them 2026-09-27
 - **TASK-002** — RAPIDS-beats has NO contracts workbook at all

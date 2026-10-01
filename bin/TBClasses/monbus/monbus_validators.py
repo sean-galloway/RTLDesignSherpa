@@ -304,6 +304,51 @@ def validate_core_protocol_packet(packet: MonbusPacket) -> List[str]:
 # PACKET MATCHER FUNCTIONS - UPDATED
 # =============================================================================
 
+def axis_completion_accounting(records) -> Tuple[list, int]:
+    """Split one agent's AXIS monbus records into the completions that ARRIVED
+    and the number of events the monitor REPORTED dropping.
+
+    A monitor-lite that cannot push an event through monbus backpressure drops
+    it and says so, emitting an AXIS Error packet with event code
+    AXIS_ERR_EVENT_DROPPED whose event_data carries the count. A checker that
+    counts only completion packets therefore reads a correctly-reported drop as
+    a lost packet -- a real failure and a reported one look identical (rapids
+    BUG-010, found on SEED=49998 where 32 packets produced 31 completions plus
+    one "dropped 1" report).
+
+    Returns (completions, dropped_event_count). Duck-typed: anything exposing
+    .protocol / .packet_type / .event_code / .event_data works, so both the
+    parse_stream packets and MonbusPacket are fine.
+    """
+    compl = [p for p in records
+             if p.protocol == ProtocolType.PROTOCOL_AXIS
+             and p.packet_type == PktType.PktTypeCompletion]
+    dropped = sum(p.event_data & 0xFFFF_FFFF for p in records
+                  if p.protocol == ProtocolType.PROTOCOL_AXIS
+                  and p.packet_type == PktType.PktTypeError
+                  and p.event_code == AXISErrorCode.AXIS_ERR_EVENT_DROPPED)
+    return compl, dropped
+
+
+def axis_completions_consistent(arrived: list, want: list, dropped: int) -> bool:
+    """True when the completion beat counts that arrived are consistent with
+    `want` once `dropped` reported losses are accounted for.
+
+    Exact equality when nothing was dropped. Otherwise every arrived count must
+    still be one `want` expected (as a multiset, so a wrong beat count is still
+    caught) AND the arithmetic must close: arrived + dropped == expected. A
+    GENUINE loss -- a shortfall with no drop report -- still fails, because
+    then `dropped` is 0 and the counts simply differ.
+    """
+    from collections import Counter
+    arrived_c, want_c = Counter(arrived), Counter(want)
+    if not dropped:
+        return arrived_c == want_c
+    if len(arrived) + dropped != len(want):
+        return False
+    return all(want_c[k] >= n for k, n in arrived_c.items())
+
+
 def create_packet_matcher(protocol: Union[ProtocolType, int] = None,
                         packet_type: Union[PktType, int] = None,
                         event_code: Union[IntEnum, int] = None,

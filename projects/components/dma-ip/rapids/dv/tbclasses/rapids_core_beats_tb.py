@@ -48,8 +48,9 @@ import cocotb
 from cocotb.triggers import RisingEdge
 
 from TBClasses.shared.tbbase import TBBase
-from TBClasses.monbus import parse
-from TBClasses.monbus.monbus_types import ProtocolType, PktType
+from TBClasses.monbus import (parse, axis_completion_accounting,
+                              axis_completions_consistent)
+from TBClasses.monbus.monbus_types import ProtocolType, PktType, AXISErrorCode
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.axi4.axi4_factories import (
     create_axi4_slave_rd, create_axi4_slave_wr)
@@ -409,15 +410,21 @@ class RapidsCoreBeatsTB(TBBase):
         descriptor into drain-size packets (m_axis_tlast per drain burst).
         Errors come back as strings so the caller's scoreboard owns the verdict."""
         mine = [p for p in getattr(self, 'mon_packets', []) if p.agent_id == agent_id]
-        seen = [p for p in mine if p.protocol == ProtocolType.PROTOCOL_AXIS
-                and p.packet_type == PktType.PktTypeCompletion]
-        other = [p for p in mine if p not in seen]
+        # A monitor-lite REPORTS events it loses to monbus backpressure
+        # (AXIS_ERR_EVENT_DROPPED, count in event_data); counting only
+        # completions turned that honest report into a phantom lost packet,
+        # and listed it as an "unexpected packet" besides -- rapids BUG-010.
+        seen, dropped = axis_completion_accounting(mine)
+        drops = [p for p in mine if p.packet_type == PktType.PktTypeError
+                 and p.event_code == AXISErrorCode.AXIS_ERR_EVENT_DROPPED]
+        other = [p for p in mine if p not in seen and p not in drops]
         errs = []
         tids = [(p.event_data >> 48) & 0xFFFF for p in seen]
         cnts = sorted(p.event_data & 0xFFFF_FFFF for p in seen)
-        if cnts != sorted(expect_beats):
+        if not axis_completions_consistent(cnts, sorted(expect_beats), dropped):
             errs.append(f"{name} AXIS monitor (agent 0x{agent_id:02X}): completion beat counts "
-                        f"{cnts}, expected {sorted(expect_beats)}")
+                        f"{cnts}, expected {sorted(expect_beats)} "
+                        f"(monitor reported {dropped} dropped event(s))")
         if any(t != channel for t in tids):
             errs.append(f"{name} AXIS monitor: completion tids {tids}, expected all {channel}")
         if other:

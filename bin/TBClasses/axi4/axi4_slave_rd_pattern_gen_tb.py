@@ -117,6 +117,14 @@ class SlaveRdPatternGenTB(TBBase):
     def _drive_idle(self) -> None:
         self.dut.aresetn.value = 0
         self.dut.crc_lfsr_reset.value = 0
+        # Error-injection config (rapids TASK-020). Present on every build;
+        # inert unless the instance was elaborated with ERR_INJECT=1.
+        if hasattr(self.dut, "cfg_err_enable"):
+            self.dut.cfg_err_enable.value = 0
+            self.dut.cfg_err_channel.value = 0
+            self.dut.cfg_err_skip.value = 0
+            self.dut.cfg_err_resp.value = 0
+            self.dut.cfg_err_oneshot.value = 0
 
     # ---- LFSR reset ----
 
@@ -141,6 +149,32 @@ class SlaveRdPatternGenTB(TBBase):
         for _ in range(cycles):
             await RisingEdge(self.dut.aclk)
         await Timer(_NBA_SETTLE_PS, units="ps")
+
+    # ---- error-response injection (rapids TASK-020) ----
+
+    async def arm_error_injection(self, channel: int = 0, skip: int = 0,
+                                  resp: int = 2, oneshot: bool = True) -> None:
+        """Arm RRESP injection: let `skip` bursts on `channel` answer OKAY,
+        then answer every beat of the next accepted burst with `resp`
+        (2=SLVERR, 3=DECERR). Requires an ERR_INJECT=1 instance."""
+        self.dut.cfg_err_channel.value = channel
+        self.dut.cfg_err_skip.value = skip
+        self.dut.cfg_err_resp.value = resp
+        self.dut.cfg_err_oneshot.value = 1 if oneshot else 0
+        self.dut.cfg_err_enable.value = 1
+        await RisingEdge(self.dut.aclk)
+        await Timer(_NBA_SETTLE_PS, units="ps")
+
+    async def disarm_error_injection(self) -> None:
+        """Drop the arm. Clears the burst counter, so re-arming restarts
+        the skip count from zero."""
+        self.dut.cfg_err_enable.value = 0
+        await RisingEdge(self.dut.aclk)
+        await Timer(_NBA_SETTLE_PS, units="ps")
+
+    def err_injected(self) -> int:
+        """Sticky: an error response has been issued since crc_lfsr_reset."""
+        return int(self.dut.err_injected.value)
 
     # ---- stimulus ----
 

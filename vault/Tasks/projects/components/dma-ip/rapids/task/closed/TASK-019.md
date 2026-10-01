@@ -4,11 +4,19 @@
 product. Sean, 2026-09-29: "begin looking into the actual version of rapids
 where bytes are counted, BYTE ENABLES are used on AXI4 and there could be a
 single byte written on AXIS4."
-**Status:** ACTIVE 2026-09-29. First cut committed (2bc82c2c3): the
-un-suffixed tree lints, and its fub, macro and top gate suites pass (see
-"Design as built" and "Verification record" below). Still open: the FPGA
-harness variant for the byte build, the HAS/MAS chapters, EXT descriptors
-with byte offsets, the full-level regressions.
+**Status:** CLOSED 2026-10-01. Every box below is ticked and the four items
+this header listed as open are all resolved:
+
+| Was "still open" | Where it ended |
+|---|---|
+| the FPGA harness variant for the byte build | `projects/fpga-systems/Genesys2/rapids/` exists and its harness sim passes; board-characterized on two bitstreams (perf report v0.2) |
+| the HAS/MAS chapters | `docs/rapids_has/` + `docs/rapids_mas/` at v0.2, PDFs and DOCX rebuilt |
+| EXT descriptors with byte offsets | NOT done and never will be: TYPE=EXT stays beat-aligned, a permanent limitation Sean accepted 2026-09-30 (509a1828a) |
+| the full-level regressions | re-run from `clean-all` after the last RTL commit; `top`/`top_beats` re-run again on 2026-10-01 behind the rapids BUG-010 fix. Counts in the Verification record |
+
+The header had gone stale: it was written at the first cut and never updated as
+those four landed, so the task read as half-finished while its own Done-when
+list was fully ticked.
 
 **Intent (Sean, 2026-09-29):** "The intent was always for rapids to be byte
 access. The beats version was a stepping stone. This is why there are
@@ -235,6 +243,7 @@ What the byte harness adds, all additive on the shared blocks:
 | Genesys 2 build, 8 ch, 256-bit, 4 KB/ch, observers on | WNS +0.258 ns, 89,746 LUTs (44%), 68 BRAM tiles (15%) |
 | Board, beat smoke on the byte DUT (2 ch x 4 beats) | SINK PASS, SOURCE PASS, golden-validated |
 | Board, `--byte-smoke` (2 ch): 1 B at 1, 2 B at 31, 32, 37, 100 at 7, 96 at 17, 203 B across 4 KB | 7/7 PASS, sink write-CRC and source egress-CRC each against the byte-wise golden |
+| **Close-out sign-off, all six areas full from `clean-all`, 2026-09-30/10-01** | **fub 1521/0, fub_beats 1281/0, macro 822/0, macro_beats 771/0, top 42/0, top_beats 36/0** (top / top_beats re-run after the rapids BUG-010 test fix) |
 
 The one func failure was stimulus order, not RTL: the beat-era sink tests
 queued a channel's next packet before that channel's descriptor could be
@@ -325,3 +334,22 @@ as long as it exists. Concretely:
       backpressure of 27 + 20 x channels cycles is the same record gating
       (a 4-deep skid absorbs the first beats at 1, 2 and 4 channels, 1 beat).
       Nothing can happen before the descriptor is loaded, so this is by design.
+
+## Why the full suites were re-run before closing
+
+The full-level counts recorded above under "after the channel-reset close"
+predated `d5dfcf596` (the sink-ingress `tstrb` masking fix), which changed
+`snk_data_path_axis.sv` and added three `test_stale_hold_junk` cells. Closing
+on the older counts would have signed off RTL that no run had covered. The
+re-run came back `macro` 822 against the earlier 819 -- exactly those three
+new cells. It also came back with `top_beats` RED, which the stale counts had
+hidden: rapids BUG-010, a checker that counted only AXIS completion packets and
+so read a monitor's correctly-REPORTED dropped event as a lost packet
+(deterministic on SEED=49998). A test defect in the beats tree -- not byte work
+and not a DUT data loss -- but this task's own constraint is that RAPIDS Beats
+stays green, so it was fixed and proved (mutation: hide the drop report and the
+check fails again) before this close. `top` and `top_beats` were then re-run
+from `clean-all` at full: 42/0 and 36/0.
+
+The lesson is the one the re-run existed to catch, one level up: a recorded
+count is evidence only for the tree it was measured on.

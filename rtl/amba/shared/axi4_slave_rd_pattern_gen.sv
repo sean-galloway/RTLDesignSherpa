@@ -73,7 +73,15 @@ module axi4_slave_rd_pattern_gen #(
 
     // Derived parameters
     parameter int REPLICATION_FACTOR = (AXI_DATA_WIDTH + 31) / 32,
-    parameter int CIW = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1
+    parameter int CIW = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1,
+
+    // ERR_INJECT=1 (rapids TASK-020) builds the R-response error injector:
+    // every beat of a chosen burst on a chosen channel answers cfg_err_resp
+    // instead of OKAY, so a DUT's read-error path can be reached from a
+    // harness. 0 (default) elaborates none of it and holds RRESP at OKAY --
+    // identical to the pre-TASK-020 block, which is what STREAM's and the
+    // RAPIDS-beats harnesses keep using.
+    parameter bit ERR_INJECT = 1'b0
 ) (
     // Global Clock and Reset
     input  logic                        aclk,
@@ -113,6 +121,15 @@ module axi4_slave_rd_pattern_gen #(
     output logic [AXI_USER_WIDTH-1:0]   s_axi_ruser,
     output logic                        s_axi_rvalid,
     input  logic                        s_axi_rready,
+
+    // Error-response injection config (rapids TASK-020).
+    // Inert unless ERR_INJECT=1; tie off at 0 otherwise.
+    input  logic                        cfg_err_enable,
+    input  logic [CIW-1:0]              cfg_err_channel,
+    input  logic [15:0]                 cfg_err_skip,
+    input  logic [1:0]                  cfg_err_resp,
+    input  logic                        cfg_err_oneshot,
+    output logic                        err_injected,
 
     // Status Output
     output logic                        busy
@@ -320,7 +337,68 @@ module axi4_slave_rd_pattern_gen #(
     // R channel outputs
     assign fub_axi_rid   = r_rd_id;
     assign fub_axi_rdata = pattern_data;
-    assign fub_axi_rresp = 2'b00;  // OKAY
+
+    //==========================================================================
+    // R-response error injection (rapids TASK-020)
+    //==========================================================================
+    // Counts ACCEPTED ARs on cfg_err_channel while armed; the burst whose
+    // index equals cfg_err_skip answers cfg_err_resp on every one of its
+    // beats. The decision is latched at AR acceptance, so it follows that
+    // burst even though arready accepts the next AR on the last R beat.
+    // One-shot disarms afterwards, so a sequence can prove recovery.
+    generate
+        if (ERR_INJECT) begin : gen_err_inject
+            logic [15:0] r_err_count;
+            logic        r_err_done;
+            logic [1:0]  r_rd_resp;
+
+            wire w_ar_accept = fub_axi_arvalid && fub_axi_arready;
+            wire [CIW-1:0] w_ar_ch = (NUM_CHANNELS == 1) ? '0
+                                                         : fub_axi_arid[CIW-1:0];
+            wire w_err_arm_ch = (NUM_CHANNELS == 1) ? 1'b1
+                                                    : (w_ar_ch == cfg_err_channel);
+            wire w_err_hit    = cfg_err_enable && !r_err_done && w_err_arm_ch &&
+                                (r_err_count == cfg_err_skip);
+
+            assign fub_axi_rresp = r_rd_resp;
+
+            `ALWAYS_FF_RST(aclk, aresetn,
+                if (`RST_ASSERTED(aresetn)) begin
+                    r_err_count  <= '0;
+                    r_err_done   <= 1'b0;
+                    r_rd_resp    <= 2'b00;
+                    err_injected <= 1'b0;
+                end else begin
+                    if (crc_lfsr_reset || !cfg_err_enable) begin
+                        r_err_count <= '0;
+                        r_err_done  <= 1'b0;
+                    end else if (w_ar_accept && w_err_arm_ch) begin
+                        if (w_err_hit) begin
+                            if (cfg_err_oneshot) r_err_done  <= 1'b1;
+                            else                 r_err_count <= '0;
+                        end else begin
+                            r_err_count <= r_err_count + 16'd1;
+                        end
+                    end
+
+                    // The accepted burst carries its own response for all
+                    // of its beats; it reverts on the next acceptance.
+                    if (w_ar_accept) begin
+                        r_rd_resp <= w_err_hit ? cfg_err_resp : 2'b00;
+                    end
+
+                    if (crc_lfsr_reset) begin
+                        err_injected <= 1'b0;
+                    end else if (w_ar_accept && w_err_hit) begin
+                        err_injected <= 1'b1;
+                    end
+                end
+            )
+        end else begin : gen_no_err_inject
+            assign fub_axi_rresp = 2'b00;  // OKAY
+            assign err_injected  = 1'b0;
+        end
+    endgenerate
     assign fub_axi_ruser = r_rd_user;
     assign fub_axi_rlast = (r_rd_state == RD_BURST) && (r_rd_beats_remaining == 8'd0);
     assign fub_axi_rvalid = (r_rd_state == RD_BURST);

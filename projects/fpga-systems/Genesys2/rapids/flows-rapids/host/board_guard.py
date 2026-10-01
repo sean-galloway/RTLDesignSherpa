@@ -28,13 +28,19 @@ import fcntl
 import json
 import os
 import subprocess
+import time
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _GENESYS2 = os.path.normpath(os.path.join(_HERE, os.pardir, os.pardir, os.pardir))
 _SCORIA_HOST = os.path.join(_GENESYS2, 'scoria', 'host')
 _FPGA_BIN = os.path.normpath(os.path.join(_GENESYS2, os.pardir, 'bin'))
-TCL = os.path.join(_HERE, 'jtag_readback.tcl')
+# The SHARED readback script (projects/fpga-systems/bin). This flow used to
+# carry its own copy, which predated the shared one; the two Tcl bodies were
+# byte-identical, so the copy was retired rather than kept in sync by hand.
+# Handed over by the RLB-cleanup session on 2026-10-01 as a rapids follow-up
+# to tooling TASK-022.
+TCL = os.path.join(_FPGA_BIN, 'jtag_readback.tcl')
 BOARD = 'genesys2'
 
 if _SCORIA_HOST not in sys.path:
@@ -92,6 +98,34 @@ def check_expected(rb: dict, serial: str) -> None:
                             f"(targets: {[t['serial'] for t in rb['targets']]})")
 
 
+def read_and_check(read_fn, serial: str, attempts: int = 2) -> dict:
+    """Readback + identity check, re-reading once before giving up.
+
+    The Genesys 2 chain transiently lists the board TWICE and neither entry is
+    usable: a bare `...A0` target whose open fails, and the real `...A0B` then
+    reporting "Target is already opened" as a knock-on of that failed open --
+    with no hw_server or cs_server process in existence. A re-read seconds
+    later lists only `...A0B` with its device. Observed 2026-10-01; it false-
+    failed a 28/28 perf campaign at the END check, which marks good results as
+    "not from one board".
+
+    This RE-READS the chain; it does not skip the check. A board that genuinely
+    is not there still fails, because every attempt has to pass the same
+    check_expected. Without it a long campaign is randomly unusable.
+    """
+    last = None
+    for i in range(attempts):
+        rb = read_fn()
+        try:
+            check_expected(rb, serial)
+            return rb
+        except IdentityError as exc:
+            last = exc
+            if i + 1 < attempts:
+                time.sleep(3)
+    raise last
+
+
 def _inherited_fd(path: str):
     """A descriptor on the lock file that really HOLDS the lock: make's exec'd
     payload has one. Re-locking it succeeds only if this process tree owns the
@@ -127,8 +161,7 @@ class HardwareRun:
         self.identity['board_lock'] = {'path': path, 'inherited': inherited}
         if self.readback:
             self._serial = expected_serial(self.board)
-            start = self._read()
-            check_expected(start, self._serial)
+            start = read_and_check(self._read, self._serial)
             self.identity['jtag'] = {'expected_serial': self._serial, 'start': start}
         return self
 
@@ -142,8 +175,7 @@ class HardwareRun:
         if not self.readback:
             return True
         try:
-            end = self._read()
-            check_expected(end, self._serial)
+            end = read_and_check(self._read, self._serial)
             stable = end == self.identity['jtag']['start']
             why = '' if stable else 'JTAG readback at end differs from the start'
         except IdentityError as exc:

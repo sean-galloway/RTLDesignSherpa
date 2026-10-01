@@ -28,6 +28,11 @@
 # ---- Layout ---------------------------------------------------------------
 # REPO_ROOT must be set in the environment (source env_python). Hard-fail so
 # the failure mode is obvious rather than a mysterious wrong-path build.
+# env_python is bash (it uses ${VAR/x/y}); /bin/sh is dash on some hosts,
+# where every recipe sourcing it died with "Bad substitution" -- so the sim
+# gate could not run at all. Pin the recipe shell.
+SHELL := /bin/bash
+
 ifndef REPO_ROOT
 $(error REPO_ROOT is not set. Source the repo's env file (env_python) or export REPO_ROOT manually before running make.)
 endif

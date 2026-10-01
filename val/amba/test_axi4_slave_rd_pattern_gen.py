@@ -42,9 +42,12 @@ from TBClasses.axi4.axi4_slave_rd_pattern_gen_tb import SlaveRdPatternGenTB
 # ---------------------------------------------------------------------------
 
 _DEPTH = {
-    "gate": {"seq_n": 4,  "burst": 4,  "crc_len": 4,  "ch0a": 2, "ch1": 2, "ch0b": 2},
-    "func": {"seq_n": 8,  "burst": 8,  "crc_len": 16, "ch0a": 4, "ch1": 3, "ch0b": 4},
-    "full": {"seq_n": 16, "burst": 32, "crc_len": 64, "ch0a": 8, "ch1": 6, "ch0b": 8},
+    "gate": {"seq_n": 4,  "burst": 4,  "crc_len": 4,  "ch0a": 2, "ch1": 2, "ch0b": 2,
+             "err_skip": 1, "err_len": 2},
+    "func": {"seq_n": 8,  "burst": 8,  "crc_len": 16, "ch0a": 4, "ch1": 3, "ch0b": 4,
+             "err_skip": 2, "err_len": 4},
+    "full": {"seq_n": 16, "burst": 32, "crc_len": 64, "ch0a": 8, "ch1": 6, "ch0b": 8,
+             "err_skip": 3, "err_len": 8},
 }
 
 
@@ -65,6 +68,7 @@ async def cocotb_test_axi4_slave_rd_pattern_gen(dut):
         "multi_beat_burst": _multi_beat_burst,
         "crc_telemetry": _crc_telemetry,
         "two_channel_interleave": _two_channel_interleave,
+        "rresp_error_injection": _rresp_error_injection,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -170,8 +174,59 @@ async def _two_channel_interleave(tb: SlaveRdPatternGenTB, depth: dict):
 # REG_LEVEL grid -- selects (test_type, test_level) combinations.
 # ---------------------------------------------------------------------------
 
+async def _rresp_error_injection(tb: SlaveRdPatternGenTB, depth: dict):
+    """RRESP injection (rapids TASK-020). The harness read slave always
+    answered OKAY, so no RAPIDS test could reach a DUT's read-error path.
+    With ERR_INJECT=1 the slave lets `skip` bursts answer OKAY, answers
+    every beat of the next accepted burst with SLVERR, and -- one-shot --
+    goes back to OKAY.
+
+    The framework's read_transaction raises on a non-OKAY beat, so the
+    error shows up here as a RuntimeError naming SLVERR. The errored
+    burst's beats are still produced and counted: the response channel
+    says "rejected", not "never happened".
+
+    Mutation-check anchor: hold fub_axi_rresp at 2'b00 and only the
+    SLVERR expectation fails.
+    """
+    skip = depth["err_skip"]
+    n = depth["err_len"]
+
+    await tb.arm_error_injection(channel=0, skip=skip, resp=2, oneshot=True)
+
+    for i in range(skip):
+        data = await tb.read_burst(addr=0x2000 + i * 0x100, burst_len=n, axi_id=0)
+        assert len(data) == n, f"burst {i} short: {data}"
+
+    raised = None
+    try:
+        await tb.read_burst(addr=0x3000, burst_len=n, axi_id=0)
+    except RuntimeError as exc:
+        raised = str(exc)
+    assert raised is not None, "chosen burst must raise on SLVERR"
+    assert "SLVERR" in raised, f"wrong error: {raised}"
+
+    # The recovery read uses a DIFFERENT AXI ID on purpose. read_transaction
+    # raises as soon as it pops an errored beat, which leaves that burst's
+    # REMAINING beats sitting in the framework's per-ID response queue; a
+    # follow-up read on the same ID pops those stale errored beats and raises
+    # again, which looks exactly like "the injector never disarmed". With
+    # NUM_CHANNELS=1 every ID maps to channel 0, so this still measures
+    # recovery on the same channel.
+    data = await tb.read_burst(addr=0x3100, burst_len=n, axi_id=1)
+    assert len(data) == n, f"one-shot should have disarmed: {data}"
+
+    await tb.settle()
+    assert tb.err_injected() == 1, "err_injected must latch after an injection"
+    want_beats = n * (skip + 2)
+    assert tb.beat_count(0) == want_beats, (
+        f"every burst's beats are produced, errored one included: "
+        f"got {tb.beat_count(0)} want {want_beats}")
+
+
 _CORE_TYPES = ["smoke", "multi_beat_burst", "crc_telemetry"]
-_FUNC_TYPES = _CORE_TYPES + ["sequential", "two_channel_interleave"]
+_FUNC_TYPES = _CORE_TYPES + ["sequential", "two_channel_interleave",
+                             "rresp_error_injection"]
 _ALL_TYPES = _FUNC_TYPES
 
 _REG_LEVEL = os.environ.get("REG_LEVEL", "FUNC").upper()
@@ -184,6 +239,9 @@ else:  # FUNC (default)
     _COMBOS = [(t, "func") for t in _FUNC_TYPES]
 
 _NUM_CHANNELS_FOR = {"two_channel_interleave": 2}
+# ERR_INJECT defaults to 0 (STREAM and the beats harness keep today's block);
+# only the injection scenario elaborates it on.
+_ERR_INJECT_FOR = {"rresp_error_injection": 1}
 
 
 @pytest.mark.parametrize("test_type, test_level", _COMBOS)
@@ -201,6 +259,7 @@ def test_axi4_slave_rd_pattern_gen(request, test_type, test_level):
     os.makedirs(log_dir, exist_ok=True)
 
     num_channels = _NUM_CHANNELS_FOR.get(test_type, 1)
+    err_inject = _ERR_INJECT_FOR.get(test_type, 0)
 
     extra_env = {
         "DUT": dut_name,
@@ -220,6 +279,7 @@ def test_axi4_slave_rd_pattern_gen(request, test_type, test_level):
         "AXI_ADDR_WIDTH": "32",
         "AXI_USER_WIDTH": "1",
         "NUM_CHANNELS": str(num_channels),
+        "ERR_INJECT": str(err_inject),
     }
 
     enable_waves = bool(int(os.environ.get("WAVES", "0")))

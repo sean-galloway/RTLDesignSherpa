@@ -28,6 +28,11 @@
 # ---- Layout ---------------------------------------------------------------
 # REPO_ROOT must be set in the environment (source env_python). Hard-fail so
 # the failure mode is obvious rather than a mysterious wrong-path build.
+# env_python is bash (it uses ${VAR/x/y}); /bin/sh is dash on some hosts,
+# where every recipe sourcing it died with "Bad substitution" -- so the sim
+# gate could not run at all. Pin the recipe shell.
+SHELL := /bin/bash
+
 ifndef REPO_ROOT
 $(error REPO_ROOT is not set. Source the repo's env file (env_python) or export REPO_ROOT manually before running make.)
 endif
@@ -160,6 +165,54 @@ verify-sim:
 	      || (echo "[verify-sim] FAILED — refusing to start synth/bitstream" && exit 1); \
 	fi
 
+# ---- Named build variants --------------------------------------------------
+# One harness RTL; a variant is a set of GENERIC OVERRIDES, never a second
+# source tree. Each target builds, stashes the bitstream under its own name,
+# and parses the post-route reports into reports/build/metrics_<tag>.json
+# (nothing typed in). Previously the variants existed only as env vars you had
+# to remember, which is why the beats area has four .bit files and no record of
+# which knobs produced them.
+#
+#   std   BYTE_CRC=1                      byte-wise checkers; the integrity build
+#   perf  BYTE_CRC=0                      word-wide checkers; the RATE build, no
+#                                         9-cycle-per-beat checker ceiling
+#   mon   USE_AXI_MONITORS=1 GEN_MON=1    in-core monitors + MonBus egress
+#   obs   USE_OBSERVERS=1 + mon taps      shared interface observers
+#   ila                                   debug build via tcl/build_ila.tcl
+.PHONY: bitstream-std bitstream-perf bitstream-mon bitstream-obs bitstream-ila \
+        variant-metrics
+
+define _stash_variant
+	@mkdir -p $(CHAR_ROOT)/reports/build
+	cp $(SELF_DIR)/bitstream/rapids_byte.bit $(SELF_DIR)/bitstream/rapids_byte_$(1).bit
+	cd $(REPO_ROOT) && . ./env_python && \
+	    python3 $(CHAR_ROOT)/reports/extract_build_metrics.py \
+	        --reports-dir $(SELF_DIR)/reports \
+	        --bitstream $(SELF_DIR)/bitstream/rapids_byte_$(1).bit \
+	        --tag $(1) --config "$(2)" \
+	        --commit $$(git -C $(REPO_ROOT) rev-parse --short HEAD) \
+	        --out $(CHAR_ROOT)/reports/build/metrics_$(1).json
+endef
+
+bitstream-std:
+	$(MAKE) bitstream BYTE_CRC=1 USE_AXI_MONITORS=0 GEN_MON=0 USE_OBSERVERS=0
+	$(call _stash_variant,std,BYTE_CRC=1 USE_AXI_MONITORS=0 GEN_MON=0 USE_OBSERVERS=0)
+
+bitstream-perf:
+	$(MAKE) bitstream BYTE_CRC=0 USE_AXI_MONITORS=0 GEN_MON=0 USE_OBSERVERS=0
+	$(call _stash_variant,perf,BYTE_CRC=0 USE_AXI_MONITORS=0 GEN_MON=0 USE_OBSERVERS=0)
+
+bitstream-mon:
+	$(MAKE) bitstream BYTE_CRC=1 USE_AXI_MONITORS=1 GEN_MON=1 USE_OBSERVERS=0
+	$(call _stash_variant,mon,BYTE_CRC=1 USE_AXI_MONITORS=1 GEN_MON=1 USE_OBSERVERS=0)
+
+bitstream-obs:
+	$(MAKE) bitstream BYTE_CRC=1 USE_AXI_MONITORS=0 GEN_MON=0 USE_OBSERVERS=1 OBS_ENABLE_MON_TAPS=1
+	$(call _stash_variant,obs,BYTE_CRC=1 USE_OBSERVERS=1 OBS_ENABLE_MON_TAPS=1)
+
+bitstream-ila: verify-sim
+	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL)/build_ila.tcl
+
 # ---- Project creation ------------------------------------------------------
 project:
 	@echo "[create_project] REPO_ROOT=$(REPO_ROOT) NUM_CHANNELS=$(CHANNELS)"
@@ -185,7 +238,11 @@ bitstream: verify-sim
 # in Aug 2026) and picked the FIRST matching hw_target -- which on a two-channel
 # FT2232 is the one with no scan chain, reported as 'board missing'.
 # Handbook: vault/handbook/fpga/cmn-infra/boards.md
-FLOW ?= rapids-beats
+# FLOW names THIS flow to the shared board layer; it keys the per-board
+# bitstream hold record ($(RDS_HOLD_DIR)/$(BOARD)/$(FLOW)/...). It said
+# rapids-beats -- a copy-paste from the area this one was cloned from -- so
+# every byte-RAPIDS board record was filed under the beats flow's name.
+FLOW ?= rapids
 include $(REPO_ROOT)/make/fpga_board.mk
 
 # ---- UART characterization -------------------------------------------------

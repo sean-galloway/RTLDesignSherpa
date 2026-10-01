@@ -176,3 +176,38 @@ def test_readback_through_a_vivado_stand_in(tmp_path):
     empty.chmod(empty.stat().st_mode | stat.S_IEXEC)
     with pytest.raises(board_guard.IdentityError):
         board_guard.jtag_readback(vivado=str(empty))
+
+
+def test_identity_check_rereads_once_on_the_enumeration_race(monkeypatch):
+    """The Genesys 2 chain transiently lists the board with no device behind it
+    (a bare `...A0` target whose failed open makes the real `...A0B` report
+    "already opened"). read_and_check must RE-READ and accept the clean second
+    reading -- otherwise a good campaign is marked "not from one board".
+    Observed 2026-10-01 against a 28/28 perf run."""
+    monkeypatch.setattr(board_guard.time, 'sleep', lambda _s: None)
+    calls = {'n': 0}
+
+    def flaky():
+        calls['n'] += 1
+        if calls['n'] == 1:
+            return {'targets': [{'target': 'T/SER1', 'serial': 'SER1'}], 'devices': []}
+        return _rb('SER1')
+
+    rb = board_guard.read_and_check(flaky, 'SER1')
+    assert calls['n'] == 2, "must re-read exactly once, not accept the bad reading"
+    assert rb['devices'], "must return the reading that actually had a device"
+
+
+def test_identity_check_still_fails_when_the_board_is_really_absent(monkeypatch):
+    """The re-read must not become a way to pass without the board: every
+    attempt faces the same check, so a persistently absent board still fails."""
+    monkeypatch.setattr(board_guard.time, 'sleep', lambda _s: None)
+    calls = {'n': 0}
+
+    def never():
+        calls['n'] += 1
+        return _rb('OTHER')
+
+    with pytest.raises(board_guard.IdentityError):
+        board_guard.read_and_check(never, 'SER1')
+    assert calls['n'] == 2, "should have tried twice before giving up"

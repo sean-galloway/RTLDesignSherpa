@@ -1573,6 +1573,18 @@ module rapids_char_harness #(
         .s_axi_ruser   (),
         .s_axi_rvalid  (s_rd_rvalid),
         .s_axi_rready  (s_rd_rready),
+        // Error-response injection (rapids TASK-020) is tied off: this is the
+        // beat-granular characterization harness and it keeps answering OKAY.
+        // ERR_INJECT stays at its 0 default, so none of that logic exists in
+        // this build -- the constraint is that RAPIDS Beats never loses (or
+        // gains) behaviour from byte-RAPIDS work.
+        .cfg_err_enable  (1'b0),
+        .cfg_err_channel ('0),
+        .cfg_err_skip    ('0),
+        .cfg_err_resp    (2'b00),
+        .cfg_err_oneshot (1'b0),
+        .err_injected    (),
+
         .busy          (rd_mem_busy)
     );
 
@@ -1668,6 +1680,18 @@ module rapids_char_harness #(
         .s_axi_buser   (),
         .s_axi_bvalid  (s_wr_bvalid),
         .s_axi_bready  (s_wr_bready),
+        // Error-response injection (rapids TASK-020) is tied off: this is the
+        // beat-granular characterization harness and it keeps answering OKAY.
+        // ERR_INJECT stays at its 0 default, so none of that logic exists in
+        // this build -- the constraint is that RAPIDS Beats never loses (or
+        // gains) behaviour from byte-RAPIDS work.
+        .cfg_err_enable  (1'b0),
+        .cfg_err_channel ('0),
+        .cfg_err_skip    ('0),
+        .cfg_err_resp    (2'b00),
+        .cfg_err_oneshot (1'b0),
+        .err_injected    (),
+
         .busy          (wr_mem_busy)
     );
 

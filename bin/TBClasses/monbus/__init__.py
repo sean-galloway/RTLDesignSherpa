@@ -61,6 +61,10 @@ from .monbus_types import (
     # Debug helpers
     debug_packet_bits, format_packet_fields,
 )
+from .monbus_validators import (
+    # Completion accounting that honours a monitor's own dropped-event reports
+    axis_completion_accounting, axis_completions_consistent,
+)
 
 from dataclasses import dataclass
 from typing import Optional
@@ -264,4 +268,6 @@ __all__ = [
     "is_valid_event_code", "validate_monitor_packet",
     # Debug helpers
     "debug_packet_bits", "format_packet_fields",
+    # Completion accounting (rapids BUG-010)
+    "axis_completion_accounting", "axis_completions_consistent",
 ]

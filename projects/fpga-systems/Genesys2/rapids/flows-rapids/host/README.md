@@ -44,11 +44,21 @@ through the regmaps below.
 |--------|--------------|----------|
 | DUT-REG (`APB`) | `projects/components/dma-ip/rapids/rtl/rapids_regmap.py`, one `RegisterMap` per half (`src` / `snk`) | AXIL -> `apb4_master` -> the DUT's APB: config, idle/error/reset registers, and the per-half kick windows. |
 | DESC-LOAD (`DESC`) | `rtl/rapids_harness_desc_regmap.py` | `DESC_WORD*`, `DESC_ADDR`, `DESC_KICK`, `DESC_STATUS`: a write to `DESC_KICK` issues one AXI4 write into the descriptor RAM. |
-| HARNESS CSR (`CSR`) | `rtl/rapids_harness_csr_regmap.py` | gen / chk / mem / mon control, KICK_* sequencer, `RESP_DELAY`, `BUILD`, `STATUS`, counters, per-channel CRC arrays (indexed by `CH_SEL`). `CTRL` reads back the ID. |
+| HARNESS CSR (`CSR`) | `rtl/rapids_harness_csr_regmap.py` | gen / chk / mem / mon control, KICK_* sequencer, `RESP_DELAY`, `ERR_INJ` / `ERR_STAT`, `BUILD`, `STATUS`, counters, per-channel CRC arrays (indexed by `CH_SEL`). `CTRL` reads back the ID. |
 | OBSERVERS (`OBS`) | `projects/components/utility-ip/misc/rtl/regs/generated/obs_regs_top_regmap.py` | the interface observers (`USE_OBSERVERS=1` builds only). |
 
 `RESP_DELAY` programs the memory-latency model on the R and B channels;
 `run_characterization.py --suite-delay` sweeps it.
+
+`ERR_INJ` makes the synthetic slaves answer an AXI error instead of OKAY, so
+the DUT's RRESP and BRESP paths can be exercised (rapids TASK-020). Arm
+`WR_EN` for the sink's B channel or `RD_EN` for the source's R channel, pick
+`RESP` (2 = SLVERR, 3 = DECERR), the channel in `CH`, and how many bursts
+answer OKAY first in `SKIP`; `ONESHOT` disarms after that one burst so the
+next one proves recovery. `ERR_STAT` (`WR_HIT` / `RD_HIT`) reports -- from the
+slave itself, not from the DUT -- that the error really was issued. The
+directed sequence is `--byte-seq axi_resp_error`. Only this harness has it:
+the slaves take `ERR_INJECT=0` everywhere else and keep answering OKAY.
 
 ## Usage
 

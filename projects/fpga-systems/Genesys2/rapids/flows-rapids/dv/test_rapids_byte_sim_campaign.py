@@ -39,7 +39,8 @@ from rapids_byte_harness_tb import (AxiBurstMonitor, RapidsByteHarnessTB,  # noq
                                     sim_transport_hook)
 
 LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
-SEQS = ('zero_length', 'boundary_4k', 'tlast_mismatch', 'recovery')
+SEQS = ('zero_length', 'boundary_4k', 'tlast_mismatch', 'recovery',
+        'axi_resp_error')
 
 # chunk counts keep each sim run under the 100 ms cap (calibrated in uart_ops;
 # see the estimate each perf row records). (profile, chunks) per level.

@@ -879,6 +879,14 @@ module axi_write_engine_beats (
 	localparam signed [31:0] BYTES_PER_BEAT = DW / 8;
 	localparam signed [31:0] AXSIZE = $clog2(BYTES_PER_BEAT);
 	localparam signed [31:0] MOW = $clog2(AW_MAX_OUTSTANDING + 1);
+	localparam signed [31:0] SD_BEATS = 1 << (SCW - 1);
+	localparam signed [31:0] XFER_MAX = (SD_BEATS < 256 ? SD_BEATS - 1 : 254);
+	wire [7:0] w_xfer_cfg;
+	function automatic signed [7:0] sv2v_cast_8_signed;
+		input reg signed [7:0] inp;
+		sv2v_cast_8_signed = inp;
+	endfunction
+	assign w_xfer_cfg = (cfg_axi_wr_xfer_beats > sv2v_cast_8_signed(XFER_MAX) ? sv2v_cast_8_signed(XFER_MAX) : cfg_axi_wr_xfer_beats);
 	reg [7:0] r_aw_len;
 	reg [CIW - 1:0] r_aw_channel_id;
 	reg r_aw_valid;
@@ -1044,9 +1052,9 @@ module axi_write_engine_beats (
 			for (i = 0; i < NC; i = i + 1)
 				begin
 					if (sched_wr_valid[i]) begin
-						w_transfer_size[i * 8+:8] = sv2v_cast_8((sched_wr_beats[i * 32+:32] <= (sv2v_cast_32(cfg_axi_wr_xfer_beats) + 32'd1) ? sched_wr_beats[i * 32+:32] - 32'd1 : sv2v_cast_32(cfg_axi_wr_xfer_beats)));
+						w_transfer_size[i * 8+:8] = sv2v_cast_8((sched_wr_beats[i * 32+:32] <= (sv2v_cast_32(w_xfer_cfg) + 32'd1) ? sched_wr_beats[i * 32+:32] - 32'd1 : sv2v_cast_32(w_xfer_cfg)));
 						w_has_data[i] = sv2v_cast_14961(w_effective_avail[i * SCW+:SCW]) >= sv2v_cast_14961(w_transfer_size[i * 8+:8] + 8'd1);
-						w_final_burst[i] = ((sched_wr_beats[i * 32+:32] > 0) && (sched_wr_beats[i * 32+:32] <= (sv2v_cast_32(cfg_axi_wr_xfer_beats) + 32'd1))) && (sv2v_cast_14961(w_effective_avail[i * SCW+:SCW]) >= sv2v_cast_14961(sched_wr_beats[i * 32+:32]));
+						w_final_burst[i] = ((sched_wr_beats[i * 32+:32] > 0) && (sched_wr_beats[i * 32+:32] <= (sv2v_cast_32(w_xfer_cfg) + 32'd1))) && (sv2v_cast_14961(w_effective_avail[i * SCW+:SCW]) >= sv2v_cast_14961(sched_wr_beats[i * 32+:32]));
 						w_data_ok[i] = w_has_data[i] || w_final_burst[i];
 					end
 					else begin

@@ -108,6 +108,16 @@ CSR = [
     (0x0C0, 'OBS_CTRL',    'w',  [('ARM', 0, 0, 'w')]),               # bus-meter re-arm pulse
     (0x0C4, 'RESP_DELAY',  'rw', [('RD_DELAY', 15, 0, 'rw'),           # R-channel hold, cycles
                                   ('WR_DELAY', 31, 16, 'rw')]),         # B-channel hold, cycles
+    # AXI response-error injection (rapids TASK-020). Mirrors CSR_ERR_INJ in
+    # rapids_byte_harness.sv; both synthetic slaves are ERR_INJECT=1 there.
+    (0x0C8, 'ERR_INJ',     'rw', [('WR_EN', 0, 0, 'rw'),                # arm B injector
+                                  ('RD_EN', 1, 1, 'rw'),                # arm R injector
+                                  ('RESP', 3, 2, 'rw'),                 # 2=SLVERR 3=DECERR
+                                  ('CH', 7, 4, 'rw'),                   # channel to hit
+                                  ('ONESHOT', 8, 8, 'rw'),              # one burst, then disarm
+                                  ('SKIP', 31, 16, 'rw')]),             # OKAY bursts first
+    (0x0CC, 'ERR_STAT',    'r',  [('WR_HIT', 0, 0, 'r'),                # sticky: B error issued
+                                  ('RD_HIT', 1, 1, 'r')]),              # sticky: R error issued
     # ---- readable status ----  (CSR_ID aliases 0x000 on the read path)
     (0x080, 'STATUS',      'r',  [('MON_IRQ', 0, 0, 'r'), ('SRC_IDLE', 1, 1, 'r'),
                                   ('SNK_IDLE', 2, 2, 'r'), ('GEN_BUSY', 3, 3, 'r'),

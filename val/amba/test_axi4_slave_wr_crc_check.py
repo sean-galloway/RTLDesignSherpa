@@ -40,9 +40,12 @@ from TBClasses.axi4.axi4_slave_wr_crc_check_tb import SlaveWrCrcCheckTB
 
 
 _DEPTH = {
-    "gate": {"burst": 4,  "corrupt_n": 4,  "b_bursts": 3, "b_len": 2, "ch0": 2, "ch1": 2},
-    "func": {"burst": 16, "corrupt_n": 8,  "b_bursts": 5, "b_len": 3, "ch0": 4, "ch1": 3},
-    "full": {"burst": 64, "corrupt_n": 16, "b_bursts": 8, "b_len": 4, "ch0": 8, "ch1": 6},
+    "gate": {"burst": 4,  "corrupt_n": 4,  "b_bursts": 3, "b_len": 2, "ch0": 2, "ch1": 2,
+             "err_skip": 1, "err_len": 2},
+    "func": {"burst": 16, "corrupt_n": 8,  "b_bursts": 5, "b_len": 3, "ch0": 4, "ch1": 3,
+             "err_skip": 2, "err_len": 4},
+    "full": {"burst": 64, "corrupt_n": 16, "b_bursts": 8, "b_len": 4, "ch0": 8, "ch1": 6,
+             "err_skip": 3, "err_len": 8},
 }
 
 
@@ -63,6 +66,7 @@ async def cocotb_test_axi4_slave_wr_crc_check(dut):
         "corrupted_beat": _corrupted_beat,
         "b_fifo_gapless_multi_id": _b_fifo_gapless_multi_id,
         "multi_channel_independent": _multi_channel_independent,
+        "bresp_error_injection": _bresp_error_injection,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -189,12 +193,53 @@ async def _multi_channel_independent(tb: SlaveWrCrcCheckTB, depth: dict):
     assert tb.crc_value(1) == tb.expected_crc32_over_words(words1)
 
 
+async def _bresp_error_injection(tb: SlaveWrCrcCheckTB, depth: dict):
+    """BRESP injection (rapids TASK-020). The harness memory model always
+    answered OKAY, so no RAPIDS test could reach a DUT's B-error path. With
+    ERR_INJECT=1 the slave lets `skip` bursts answer OKAY, answers the next
+    one with SLVERR, and -- one-shot -- goes back to OKAY.
+
+    The errored burst's beats are still accumulated: an error response is a
+    statement about the response channel, not about what the slave received.
+    That is what lets a DUT-side test tell "the write was rejected" from
+    "the write never arrived".
+
+    Mutation-check anchor: hold fub_axi_bresp at 2'b00 and the SLVERR
+    assertion fails while every OKAY assertion still passes."""
+    skip = depth["err_skip"]
+    n = depth["err_len"]
+    words = tb.channel_words(n, channel=0)
+
+    await tb.arm_error_injection(channel=0, skip=skip, resp=2, oneshot=True)
+
+    for i in range(skip):
+        r = await tb.write_burst(addr=0x6000 + 0x100 * i, words=words, axi_id=0)
+        assert r["response"] == 0, f"burst {i} before the chosen one: {r}"
+        assert r["success"], r
+
+    r = await tb.write_burst(addr=0x7000, words=words, axi_id=0)
+    assert r["response"] == 2, f"chosen burst must answer SLVERR(2): {r}"
+    assert not r["success"], f"SLVERR must not report success: {r}"
+
+    r = await tb.write_burst(addr=0x7100, words=words, axi_id=0)
+    assert r["response"] == 0, f"one-shot should have disarmed: {r}"
+    assert r["success"], r
+
+    await tb.settle()
+    assert tb.err_injected() == 1, "err_injected must latch after an injection"
+    want_beats = n * (skip + 2)
+    assert tb.beat_count(0) == want_beats, (
+        f"every burst's beats accumulate, errored one included: "
+        f"got {tb.beat_count(0)} want {want_beats}")
+
+
 # ---------------------------------------------------------------------------
 # REG_LEVEL grid
 # ---------------------------------------------------------------------------
 
 _CORE_TYPES = ["smoke", "multi_beat_burst", "corrupted_beat"]
-_FUNC_TYPES = _CORE_TYPES + ["b_fifo_gapless_multi_id", "multi_channel_independent"]
+_FUNC_TYPES = _CORE_TYPES + ["b_fifo_gapless_multi_id", "multi_channel_independent",
+                             "bresp_error_injection"]
 _ALL_TYPES = _FUNC_TYPES
 
 _REG_LEVEL = os.environ.get("REG_LEVEL", "FUNC").upper()
@@ -207,6 +252,9 @@ else:  # FUNC (default)
     _COMBOS = [(t, "func") for t in _FUNC_TYPES]
 
 _NUM_CHANNELS_FOR = {"multi_channel_independent": 2}
+# ERR_INJECT defaults to 0 (STREAM and the beats harness keep today's block
+# byte for byte); only the injection scenario elaborates it on.
+_ERR_INJECT_FOR = {"bresp_error_injection": 1}
 
 
 @pytest.mark.parametrize("test_type, test_level", _COMBOS)
@@ -224,6 +272,7 @@ def test_axi4_slave_wr_crc_check(request, test_type, test_level):
     os.makedirs(log_dir, exist_ok=True)
 
     num_channels = _NUM_CHANNELS_FOR.get(test_type, 1)
+    err_inject = _ERR_INJECT_FOR.get(test_type, 0)
 
     extra_env = {
         "DUT": dut_name,
@@ -243,6 +292,7 @@ def test_axi4_slave_wr_crc_check(request, test_type, test_level):
         "AXI_ADDR_WIDTH": "32",
         "AXI_USER_WIDTH": "1",
         "NUM_CHANNELS": str(num_channels),
+        "ERR_INJECT": str(err_inject),
     }
 
     enable_waves = bool(int(os.environ.get("WAVES", "0")))

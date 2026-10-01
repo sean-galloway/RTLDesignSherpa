@@ -220,6 +220,19 @@ module rapids_byte_harness #(
     // axi_response_delay blocks on the rd R channel [15:0] and the wr B
     // channel [31:16], in aclk cycles. 0 = one register stage (bypass).
     localparam logic [11:0] CSR_RESP_DELAY  = 12'h0C4;
+    // AXI response-error injection (rapids TASK-020). The harness memory
+    // always answered OKAY, so the DUT's RRESP/BRESP error paths could not be
+    // reached from a sequence or from the board. The two synthetic slaves are
+    // built with ERR_INJECT=1 in THIS harness only; the beats harness keeps
+    // the 0 default.
+    //   [0] WR_EN   arm the sink-side B injector
+    //   [1] RD_EN   arm the source-side R injector
+    //   [3:2] RESP  2 = SLVERR, 3 = DECERR
+    //   [7:4] CH    channel to hit
+    //   [8] ONESHOT 1 = one burst then disarm (prove recovery)
+    //   [31:16] SKIP bursts to let answer OKAY first
+    localparam logic [11:0] CSR_ERR_INJ    = 12'h0C8;
+    localparam logic [11:0] CSR_ERR_STAT   = 12'h0CC;  // [0] WR_HIT, [1] RD_HIT
 
     localparam logic [11:0] CSR_ID          = 12'h000;
     localparam logic [11:0] CSR_BUILD       = 12'h004;  // geometry of THIS bitstream (read-only)
@@ -269,6 +282,10 @@ module rapids_byte_harness #(
     // =========================================================================
     logic                       r_cam_clear;          // 1-cycle pulse
     logic [31:0]                r_resp_delay;         // {wr_delay[15:0], rd_delay[15:0]}
+    logic [31:0]                r_err_inj;            // CSR_ERR_INJ, see its localparam
+    logic                       wr_err_injected;      // sticky, from the write slave
+    logic                       rd_err_injected;      // sticky, from the read slave
+    localparam int CIW_SLV = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1;
     logic                       r_cfg_gen_start;       // 1-cycle pulse (single run per arm)
     logic [31:0]                r_cfg_gen_lfsr_seed;
     logic [31:0]                r_cfg_gen_num_beats;
@@ -533,6 +550,7 @@ module rapids_byte_harness #(
             r_go                    <= 1'b0;
             r_obs_target            <= '0;
             r_resp_delay            <= '0;
+            r_err_inj               <= '0;
         end else begin
             // Pulses default low; re-asserted for one cycle on a matching write.
             // The gen/chk START bits are ALSO 1-cycle pulses (not held levels):
@@ -555,6 +573,7 @@ module rapids_byte_harness #(
                     CSR_CTRL:        r_cam_clear             <= r_wdata[0];
                     CSR_OBS_CTRL:    r_obs_arm               <= r_wdata[0];
                     CSR_RESP_DELAY:  r_resp_delay            <= r_wdata;
+                    CSR_ERR_INJ:     r_err_inj               <= r_wdata;
                     CSR_GEN_CTRL:    r_cfg_gen_start         <= r_wdata[0];
                     CSR_GEN_SEED:    r_cfg_gen_lfsr_seed     <= r_wdata;
                     CSR_GEN_NBEATS:  r_cfg_gen_num_beats     <= r_wdata;
@@ -665,6 +684,9 @@ module rapids_byte_harness #(
                     CSR_OBS_RD_STRV: w_readmux = obs_rd_starv;
                     CSR_OBS_RD_IDLE: w_readmux = obs_rd_idle;
                     CSR_RESP_DELAY:  w_readmux = r_resp_delay;
+                    CSR_ERR_INJ:     w_readmux = r_err_inj;
+                    CSR_ERR_STAT:    w_readmux = {30'b0, rd_err_injected,
+                                                  wr_err_injected};
                     CSR_OBS_WR_PROD: w_readmux = obs_wr_prod;
                     CSR_OBS_WR_BP:   w_readmux = obs_wr_bp;
                     CSR_OBS_WR_STRV: w_readmux = obs_wr_starv;
@@ -1558,7 +1580,8 @@ module rapids_byte_harness #(
         .NUM_CHANNELS   (NUM_CHANNELS),
         .AXI_ID_WIDTH   (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH (ADDR_WIDTH),
-        .AXI_DATA_WIDTH (DATA_WIDTH)
+        .AXI_DATA_WIDTH (DATA_WIDTH),
+        .ERR_INJECT     (1'b1)          // rapids TASK-020
     ) u_rd_mem (
         .aclk   (aclk),
         .aresetn(aresetn),
@@ -1590,6 +1613,14 @@ module rapids_byte_harness #(
         .s_axi_ruser   (),
         .s_axi_rvalid  (s_rd_rvalid),
         .s_axi_rready  (s_rd_rready),
+        // Error-response injection (rapids TASK-020), CSR_ERR_INJ.
+        .cfg_err_enable  (r_err_inj[1]),              // RD_EN
+        .cfg_err_channel (r_err_inj[4 +: CIW_SLV]),
+        .cfg_err_skip    (r_err_inj[31:16]),
+        .cfg_err_resp    (r_err_inj[3:2]),
+        .cfg_err_oneshot (r_err_inj[8]),
+        .err_injected    (rd_err_injected),
+
         .busy          (rd_mem_busy)
     );
 
@@ -1650,7 +1681,8 @@ module rapids_byte_harness #(
         .BYTE_CRC       (BYTE_CRC),
         .AXI_ID_WIDTH   (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH (ADDR_WIDTH),
-        .AXI_DATA_WIDTH (DATA_WIDTH)
+        .AXI_DATA_WIDTH (DATA_WIDTH),
+        .ERR_INJECT     (1'b1)          // rapids TASK-020
     ) u_wr_mem (
         .aclk   (aclk),
         .aresetn(aresetn),
@@ -1686,6 +1718,14 @@ module rapids_byte_harness #(
         .s_axi_buser   (),
         .s_axi_bvalid  (s_wr_bvalid),
         .s_axi_bready  (s_wr_bready),
+        // Error-response injection (rapids TASK-020), CSR_ERR_INJ.
+        .cfg_err_enable  (r_err_inj[0]),              // WR_EN
+        .cfg_err_channel (r_err_inj[4 +: CIW_SLV]),
+        .cfg_err_skip    (r_err_inj[31:16]),
+        .cfg_err_resp    (r_err_inj[3:2]),
+        .cfg_err_oneshot (r_err_inj[8]),
+        .err_injected    (wr_err_injected),
+
         .busy          (wr_mem_busy)
     );
 

@@ -446,8 +446,36 @@ Standing limitations of the design, not of this measurement:
 
 - The sink `s_axis_tready` is one signal qualified by TID, so a beat for a channel whose packet record has not arrived blocks every channel behind it on the stream (head-of-line blocking, inherent and documented).
 - TYPE=EXT descriptors stay beat-aligned by design and are not part of the byte sweeps.
-- AXI error responses (RRESP and BRESP other than OKAY) are not exercised by the board campaign or by the directed sequences: the harness memory model always answers OKAY and has no fault-injection hook, and no RAPIDS test in the tree drives a non-OKAY response on the read or write master. The response-error flag path is therefore unproven on silicon and in simulation. Closing this needs an injection hook in the harness, which is not built.
+- AXI error responses are now exercised and the paths are proven on silicon (rapids TASK-020, 2026-10-01); this entry previously recorded them as unproven and the hook as unbuilt. See section 8.1.
 - Each interface has its own measurement window; the `sin` window runs from the first to the last stream beat (rapids ISSUE-001), so windows differ per interface and MB/s here uses the longer of the stream and memory windows.
+
+## 8.1 AXI response-error injection (rapids TASK-020)
+
+The two synthetic AXI slaves are built `ERR_INJECT=1` in this harness, so a chosen
+burst on a chosen channel answers SLVERR instead of OKAY. `ERR_INJ` (0x0C8) arms it
+-- WR_EN for the sink's B channel, RD_EN for the source's R channel, with RESP, CH,
+SKIP and ONESHOT -- and `ERR_STAT` (0x0CC) reports from the SLAVE that the error was
+really issued, so a passing status check cannot be the DUT agreeing with itself.
+`ERR_INJECT=0` everywhere else keeps every other consumer answering OKAY as before.
+
+| Run | Result |
+|---|---|
+| Board, `--byte-seq axi_resp_error --seq-level full`, 8 channels | **36/36 checks PASS**, 7,969 UART ops |
+| UART sim, same sequence at gate | 18/18 checks PASS |
+| Bitstream | sha256 `754c3c2d...`, WNS **+0.401 ns** at 100 MHz, 78,426 LUTs (38.5 %), 68 BRAM tiles |
+
+Checked per half, per round, with a second channel running alongside throughout:
+the slave issued the error (`ERR_STAT`); the sticky per-channel flag raised on the
+TARGETED channel only (`SNK_SCHERR` / `SRC_SCHERR` and `SCHED_ERROR`);
+`CHANNEL_RESET` cleared it; and both channels were golden against the byte-wise
+CRC afterwards. So the DUT's sticky `r_wr_error` (BRESP) and `r_rd_error` (RRESP)
+paths, and recovery through channel reset, are measured on hardware rather than
+inferred from unit simulation.
+
+NOT covered, and deliberately not claimed: the monbus error PACKET. The host has
+no monbus-buffer readout -- `MON_BASE`/`MON_LIMIT` are configured and never read
+back -- so the packet half of the error contract needs a readout that does not
+exist yet. rapids TASK-020 keeps that box open.
 
 ## 9. Build and resources
 

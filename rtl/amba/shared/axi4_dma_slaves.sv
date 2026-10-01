@@ -201,6 +201,14 @@ module axi4_dma_slaves #(
         .s_axi_rvalid   (s_axi_rvalid),
         .s_axi_rready   (s_axi_rready),
 
+        // Error injection (rapids TASK-020) tied off, same as the write side.
+        .cfg_err_enable  (1'b0),
+        .cfg_err_channel ('0),
+        .cfg_err_skip    ('0),
+        .cfg_err_resp    (2'b00),
+        .cfg_err_oneshot (1'b0),
+        .err_injected    (),           // unused: ERR_INJECT=0 holds it at 0
+
         .busy           (busy_rd)
     );
 
@@ -259,6 +267,18 @@ module axi4_dma_slaves #(
         .s_axi_buser    (s_axi_buser),
         .s_axi_bvalid   (s_axi_bvalid),
         .s_axi_bready   (s_axi_bready),
+
+        // Error injection (rapids TASK-020) is tied off here: this wrapper
+        // keeps answering OKAY, exactly as before. The byte-RAPIDS harness
+        // that needs injection instantiates the leaf slaves directly, so
+        // nothing is gained by threading the config through here -- promote
+        // these to wrapper ports when a consumer of THIS block wants them.
+        .cfg_err_enable  (1'b0),
+        .cfg_err_channel ('0),
+        .cfg_err_skip    ('0),
+        .cfg_err_resp    (2'b00),
+        .cfg_err_oneshot (1'b0),
+        .err_injected    (),           // unused: ERR_INJECT=0 holds it at 0
 
         .busy           (busy_wr)
     );

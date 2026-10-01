@@ -369,8 +369,78 @@ def seq_recovery(s):
         s.run_source_case(f"{t}: source untouched", {0: [(P, 0)], 1: [(P, 0)]})
 
 
+def _resp_error_half(s, half, en_field, hit_field, scherr_reg, rnd):
+    """One half's injected-response case: arm, run, check the sticky error on
+    the targeted channel only, then clear it with CHANNEL_RESET and prove the
+    channel still works. ch1 runs alongside ch0 so "targeted channel ONLY" is
+    a measurement, not an assumption."""
+    bpb = s.bpb
+    P = 2 * bpb
+    t = f"resp_err_{half}{rnd}"
+    specs = {0: [(P, 0)], 1: [(P, 0)]}
+
+    # Arm: the first burst on channel 0 answers SLVERR, then the slave disarms.
+    s.io.csr_write_reg("ERR_INJ", **{en_field: 1, 'RESP': 2, 'CH': 0,
+                                     'ONESHOT': 1, 'SKIP': 0})
+    if half == 'snk':
+        s.launch_sink(specs, P, 1, interleave=True)
+    else:
+        s.launch_source(specs)
+    s.wait_counter("PKT_CNT", 1)
+    s.settle(half, 2)      # ch1 must finish; ch0 may stay busy on the error
+
+    hit = s.io.csr_field("ERR_STAT", hit_field)
+    s.check(f"{t}: the slave issued the error response", hit == 1, err_stat_hit=hit)
+
+    scherr = s.io.csr_read_reg(scherr_reg)
+    s.check(f"{t}: {scherr_reg} flags ch0 only", scherr == 1, scherr=scherr)
+    s.check(f"{t}: SCHED_ERROR flags ch0 only", s.sched_err(half) == 1,
+            sched_err=s.sched_err(half))
+
+    # Disarm before recovery, or the retry would be hit too.
+    s.io.csr_write_reg("ERR_INJ", **{en_field: 0, 'RESP': 0, 'CH': 0,
+                                     'ONESHOT': 0, 'SKIP': 0})
+    s.reset_channel(half, 0)
+    s.check(f"{t}: CHANNEL_RESET clears {scherr_reg}",
+            s.io.csr_read_reg(scherr_reg) == 0, scherr=s.io.csr_read_reg(scherr_reg))
+    s.check(f"{t}: CHANNEL_RESET clears SCHED_ERROR", s.sched_err(half) == 0,
+            sched_err=s.sched_err(half))
+
+    if half == 'snk':
+        s.run_sink_case(f"{t}: golden after recovery", specs, P, interleave=True)
+    else:
+        s.run_source_case(f"{t}: golden after recovery", specs)
+
+
+def seq_axi_resp_error(s):
+    """rapids TASK-020. The harness memory answered OKAY unconditionally, so
+    the DUT's BRESP (sink) and RRESP (source) error paths had no stimulus
+    anywhere -- not on the board and not in sim. CSR_ERR_INJ arms the
+    synthetic slaves to answer SLVERR on one chosen burst.
+
+    Checked per half: the slave really issued the error (ERR_STAT, measured at
+    the slave, so a passing status check cannot be the DUT agreeing with
+    itself), the DUT's sticky per-channel error flag raises on the targeted
+    channel ONLY while another channel runs alongside, CHANNEL_RESET clears
+    it, and the channel is golden afterwards.
+
+    NOT checked here: the monbus error packet. The host has no monbus-buffer
+    readout at all (MON_BASE/MON_LIMIT are configured and never read back), so
+    that is its own piece of work rather than something to fake from a status
+    bit -- rapids TASK-020 keeps that box open.
+    """
+    n_rounds = 2 if s.at_least('func') else 1
+    for rnd in range(n_rounds):
+        for half, en, hit, reg in (('snk', 'WR_EN', 'WR_HIT', 'SNK_SCHERR'),
+                                   ('src', 'RD_EN', 'RD_HIT', 'SRC_SCHERR')):
+            if not s.mine():
+                continue
+            _resp_error_half(s, half, en, hit, reg, rnd)
+
+
 SEQUENCES = {'zero_length': seq_zero_length, 'boundary_4k': seq_boundary_4k,
-             'tlast_mismatch': seq_tlast_mismatch, 'recovery': seq_recovery}
+             'tlast_mismatch': seq_tlast_mismatch, 'recovery': seq_recovery,
+             'axi_resp_error': seq_axi_resp_error}
 
 
 def resolve(names):

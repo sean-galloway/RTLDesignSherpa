@@ -68,7 +68,8 @@ from CocoTBFramework.components.axi4.axi4_factories import (
     create_axi4_slave_rd, create_axi4_slave_wr)
 from CocoTBFramework.components.axis4.axis_factories import create_axis_master, create_axis_slave
 from CocoTBFramework.components.axil4.axil4_factories import create_axil4_slave_wr
-from TBClasses.monbus import parse_stream
+from TBClasses.monbus import (parse_stream, axis_completion_accounting,
+                              axis_completions_consistent)
 from TBClasses.monbus.monbus_types import ProtocolType, PktType
 
 repo_root = get_repo_root()
@@ -1067,16 +1068,22 @@ class RapidsBeatsTopTB(TBBase):
         }
         for agent, (ch, name, want) in expect.items():
             mine = [p for p in pkts if p.agent_id == agent]
-            compl = [p for p in mine if p.protocol == ProtocolType.PROTOCOL_AXIS
-                     and p.packet_type == PktType.PktTypeCompletion]
+            # A monitor-lite that loses an event to monbus backpressure REPORTS
+            # the loss (AXIS_ERR_EVENT_DROPPED, count in event_data). Counting
+            # only completion records made that honest report indistinguishable
+            # from a genuinely lost packet -- rapids BUG-010, deterministic on
+            # SEED=49998 where 32 packets gave 31 completions + "dropped 1".
+            compl, dropped = axis_completion_accounting(mine)
             tids = [(p.event_data >> 48) & 0xFFFF for p in compl]
             cnts = sorted(p.event_data & 0xFFFF_FFFF for p in compl)
-            if cnts != sorted(want):
+            if not axis_completions_consistent(cnts, sorted(want), dropped):
                 errors.append(f"{name} AXIS monitor (agent 0x{agent:02X}): completion beat counts "
-                              f"{cnts}, expected {sorted(want)} (records for it: {len(mine)})")
+                              f"{cnts}, expected {sorted(want)} (records for it: {len(mine)}, "
+                              f"monitor reported {dropped} dropped event(s))")
             if any(t != ch for t in tids):
                 errors.append(f"{name} AXIS monitor: completion tids {tids}, expected all {ch}")
-            self.log.info(f"  {name} agent 0x{agent:02X}: {len(mine)} records, {len(compl)} completion {cnts}")
+            self.log.info(f"  {name} agent 0x{agent:02X}: {len(mine)} records, {len(compl)} completion {cnts}"
+                          + (f", {dropped} event(s) dropped and reported" if dropped else ""))
         # SCHED_CONFIG.COMPL_EN (rapids ISSUE-005). The init programmed both
         # halves SCHED_EN=1, ERR_EN=1 (COMPL_EN=0), so the CORE Completion packets
         # of the schedulers and descriptor engines must NOT be in this trace --

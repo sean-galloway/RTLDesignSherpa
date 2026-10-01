@@ -126,6 +126,14 @@ class SlaveWrCrcCheckTB(TBBase):
     def _drive_idle(self) -> None:
         self.dut.aresetn.value = 0
         self.dut.crc_reset.value = 0
+        # Error-injection config (rapids TASK-020). Present on every build;
+        # inert unless the instance was elaborated with ERR_INJECT=1.
+        if hasattr(self.dut, "cfg_err_enable"):
+            self.dut.cfg_err_enable.value = 0
+            self.dut.cfg_err_channel.value = 0
+            self.dut.cfg_err_skip.value = 0
+            self.dut.cfg_err_resp.value = 0
+            self.dut.cfg_err_oneshot.value = 0
 
     async def reset_crc(self) -> None:
         """Pulse crc_reset for one cycle -- clears every channel's CRC
@@ -144,6 +152,34 @@ class SlaveWrCrcCheckTB(TBBase):
         for _ in range(cycles):
             await RisingEdge(self.dut.aclk)
         await Timer(_NBA_SETTLE_PS, units="ps")
+
+    # ---- error-response injection (rapids TASK-020) ----
+
+    async def arm_error_injection(self, channel: int = 0, skip: int = 0,
+                                  resp: int = 2, oneshot: bool = True) -> None:
+        """Arm BRESP injection: let `skip` bursts on `channel` answer OKAY,
+        then answer the next completing burst with `resp` (2=SLVERR,
+        3=DECERR). Requires an ERR_INJECT=1 instance -- on an ERR_INJECT=0
+        build the ports exist but the logic is not elaborated and BRESP
+        stays OKAY, which is the whole point of the default."""
+        self.dut.cfg_err_channel.value = channel
+        self.dut.cfg_err_skip.value = skip
+        self.dut.cfg_err_resp.value = resp
+        self.dut.cfg_err_oneshot.value = 1 if oneshot else 0
+        self.dut.cfg_err_enable.value = 1
+        await RisingEdge(self.dut.aclk)
+        await Timer(_NBA_SETTLE_PS, units="ps")
+
+    async def disarm_error_injection(self) -> None:
+        """Drop the arm. Clears the burst counter, so re-arming restarts
+        the skip count from zero."""
+        self.dut.cfg_err_enable.value = 0
+        await RisingEdge(self.dut.aclk)
+        await Timer(_NBA_SETTLE_PS, units="ps")
+
+    def err_injected(self) -> int:
+        """Sticky: an error response has been issued since crc_reset."""
+        return int(self.dut.err_injected.value)
 
     # ---- B-channel timing ----
 

@@ -62,6 +62,14 @@ module axi4_slave_wr_crc_check #(
     // 0: the CRC_SLICE_OFFSET 32-bit slice of every beat (STREAM's harness).
     parameter bit BYTE_CRC = 1'b0,
 
+    // ERR_INJECT=1 (rapids TASK-020) builds the B-response error injector:
+    // a chosen burst on a chosen channel answers cfg_err_resp instead of
+    // OKAY, so a DUT's write-error path can be reached from a harness.
+    // 0 (default) elaborates none of it and holds BRESP at OKAY -- the block
+    // is then identical to its pre-TASK-020 behaviour, which is what
+    // STREAM's and the RAPIDS-beats harnesses keep using.
+    parameter bit ERR_INJECT = 1'b0,
+
     // Derived
     parameter int CIW = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1
 ) (
@@ -109,6 +117,15 @@ module axi4_slave_wr_crc_check #(
     output logic [AXI_USER_WIDTH-1:0]   s_axi_buser,
     output logic                        s_axi_bvalid,
     input  logic                        s_axi_bready,
+
+    // Error-response injection config (rapids TASK-020).
+    // Inert unless ERR_INJECT=1; tie off at 0 otherwise.
+    input  logic                        cfg_err_enable,
+    input  logic [CIW-1:0]              cfg_err_channel,
+    input  logic [15:0]                 cfg_err_skip,
+    input  logic [1:0]                  cfg_err_resp,
+    input  logic                        cfg_err_oneshot,
+    output logic                        err_injected,
 
     // Status Output
     output logic                        busy
@@ -314,7 +331,8 @@ module axi4_slave_wr_crc_check #(
                           fub_axi_wlast;
     assign fub_axi_awready = !r_wr_active || w_wr_last_beat;
     assign fub_axi_wready  = r_wr_active && !r_bc_busy;   // BYTE_CRC: hold W while a beat is fed
-    assign fub_axi_bresp   = 2'b00;  // OKAY
+    // fub_axi_bresp is driven by the error injector below (OKAY when
+    // ERR_INJECT=0, which is every build but the byte-RAPIDS harness).
 
     // B-response FIFO (inline, self-contained): push {user,id} of the completing
     // burst on every WLAST, pop on the B handshake. Holds multiple outstanding B's
@@ -333,6 +351,67 @@ module axi4_slave_wr_crc_check #(
     wire   w_bfifo_rd_valid  = (r_bfifo_count != '0);      // not empty
     wire   w_bfifo_pop       = w_bfifo_rd_valid && fub_axi_bready;
     wire [BFIFO_W-1:0] w_bfifo_din = {r_wr_user, r_wr_id};
+
+    //==========================================================================
+    // B-response error injection (rapids TASK-020)
+    //==========================================================================
+    // Counts completing bursts on cfg_err_channel while armed; the burst whose
+    // index equals cfg_err_skip answers cfg_err_resp. One-shot disarms after
+    // it, so a sequence can prove recovery on the next burst. The resp travels
+    // WITH its burst through the B FIFO rather than being muxed onto whatever
+    // B happens to be presented -- with several bursts outstanding those are
+    // different things, and only the former is addressable from a test.
+    generate
+        if (ERR_INJECT) begin : gen_err_inject
+            logic [15:0] r_err_count;
+            logic        r_err_done;
+            logic [1:0]  r_bfifo_resp [BFIFO_DEPTH];
+
+            wire w_err_arm_ch = (NUM_CHANNELS == 1) ? 1'b1
+                                                    : (w_active_ch == cfg_err_channel);
+            wire w_err_hit    = cfg_err_enable && !r_err_done && w_err_arm_ch &&
+                                (r_err_count == cfg_err_skip);
+
+            assign fub_axi_bresp = r_bfifo_resp[r_bfifo_rptr];
+
+            `ALWAYS_FF_RST(aclk, aresetn,
+                if (`RST_ASSERTED(aresetn)) begin
+                    r_err_count  <= '0;
+                    r_err_done   <= 1'b0;
+                    err_injected <= 1'b0;
+                    for (int i = 0; i < BFIFO_DEPTH; i++) begin
+                        r_bfifo_resp[i] <= 2'b00;
+                    end
+                end else begin
+                    if (crc_reset || !cfg_err_enable) begin
+                        r_err_count <= '0;
+                        r_err_done  <= 1'b0;
+                    end else if (w_wr_last_beat && w_err_arm_ch) begin
+                        if (w_err_hit) begin
+                            if (cfg_err_oneshot) r_err_done  <= 1'b1;
+                            else                 r_err_count <= '0;
+                        end else begin
+                            r_err_count <= r_err_count + 16'd1;
+                        end
+                    end
+
+                    if (crc_reset) begin
+                        err_injected <= 1'b0;
+                    end else if (w_wr_last_beat && w_err_hit) begin
+                        err_injected <= 1'b1;
+                    end
+
+                    // Every completing burst pushes its own response code.
+                    if (w_bfifo_din_valid) begin
+                        r_bfifo_resp[r_bfifo_wptr] <= w_err_hit ? cfg_err_resp : 2'b00;
+                    end
+                end
+            )
+        end else begin : gen_no_err_inject
+            assign fub_axi_bresp = 2'b00;  // OKAY
+            assign err_injected  = 1'b0;
+        end
+    endgenerate
 
     assign fub_axi_bvalid = w_bfifo_rd_valid;
     assign {fub_axi_buser, fub_axi_bid} = r_bfifo_mem[r_bfifo_rptr];
