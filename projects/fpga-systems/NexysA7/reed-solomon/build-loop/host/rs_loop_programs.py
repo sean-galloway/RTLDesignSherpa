@@ -118,14 +118,18 @@ def verdict(r: RunResult, t: int) -> List[str]:
         if r.axi4_overflow:
             bad.append("AXI4 run refused: GEN_BLOCKS exceeds what the memories hold, "
                        "so the regions would wrap. Run fewer blocks per kick.")
-        elif r.axi4_stage != 0x1F:
-            # Five sequential jobs, each done held until the next kick, so a
-            # complete run reads 0x1F. Naming the stage that stopped beats the
-            # timeout that would otherwise be the only symptom.
-            stages = ["seed", "encode", "inject", "decode", "drain"]
-            missing = [n for i, n in enumerate(stages) if not (r.axi4_stage >> i) & 1]
+        elif (r.axi4_stage & AXI4_STAGE_MASK) != AXI4_STAGE_MASK:
+            # FOUR sequential jobs now, each done held until the next kick, so
+            # a complete run reads 0x1B: bit 2 was the inject stage and the
+            # injector moved onto the decoder's read channel, so it has no
+            # stage of its own and that bit reads 0 by design. Naming the stage
+            # that stopped beats the timeout that would otherwise be the only
+            # symptom.
+            stages = {0: "seed", 1: "encode", 3: "decode", 4: "drain"}
+            missing = [n for i, n in stages.items() if not (r.axi4_stage >> i) & 1]
             bad.append(f"AXI4 chain stopped: stage(s) {', '.join(missing)} never "
-                       f"completed (STATUS.axi4_stage = 0x{r.axi4_stage:02X})")
+                       f"completed (STATUS.axi4_stage = 0x{r.axi4_stage:02X}, "
+                       f"expected 0x{AXI4_STAGE_MASK:02X})")
         if r.axi4_resp_err:
             bad.append("AXI4 chain saw a non-OKAY response on some stage")
     if not r.compare:
@@ -175,6 +179,14 @@ def verdict(r: RunResult, t: int) -> List[str]:
     if exact and r.inj_symbols != e * r.blocks:
         bad.append(f"injector placed {r.inj_symbols} symbols, expected {e * r.blocks}")
     return bad
+
+
+# Stage-done bits that a complete AXI4 run must show. Bit 2 (inject) is
+# deliberately absent: the injector sits on the decoder's READ CHANNEL rather
+# than owning a read/corrupt/write pass of its own, which is what took the
+# chain from five sequential jobs to four. The field stays five bits wide so
+# the register map did not have to move.
+AXI4_STAGE_MASK = 0x1B
 
 
 def bandwidth(r) -> str:

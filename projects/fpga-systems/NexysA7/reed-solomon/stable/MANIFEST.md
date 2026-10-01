@@ -17,10 +17,10 @@ very handshake the meters measure. All four close with ZERO failing endpoints.
 
 | | axis_ribm | axis_euclid | axi4_ribm | axi4_euclid |
 |---|---|---|---|---|
-| Routed WNS | +0.251 ns | +0.064 ns | +0.322 ns | +0.301 ns |
+| Routed WNS | +0.192 ns | +0.097 ns | +0.392 ns | +0.152 ns |
 | Failing endpoints | 0 | 0 | 0 | 0 |
-| Slice LUTs | 11,128 | 13,429 | 12,991 | 15,137 |
-| Block RAM tiles | 0 | 0 | 16 | 16 |
+| Slice LUTs | 11,130 | 13,418 | 12,486 | 14,654 |
+| Block RAM tiles | 0 | 0 | 12 | 12 |
 
 All four carry FOUR bandwidth meters (the two codeword-seam ones added +415
 LUTs on axis_ribm). The earlier round's axis_ribm read +0.011 ns with the
@@ -93,8 +93,8 @@ harness refuses a larger run rather than clamping it).
 |---|---|---|---|---|
 | axis_ribm | 63.00 | **100.0%** | **100.0%** | 93.7% |
 | axis_euclid | 63.00 | **100.0%** | **100.0%** | 93.7% |
-| axi4_ribm | 314.60 | 97.0% | 98.5% | 18.8% |
-| axi4_euclid | 314.60 | 97.0% | 98.5% | 18.8% |
+| axi4_ribm | 249.65 | 97.0% | 98.5% | 23.6% |
+| axi4_euclid | 249.65 | 97.0% | 98.5% | 23.6% |
 
 **The solver is throughput-neutral.** riBM and Euclid are identical to the
 cycle in both datapaths -- 16,264 cycles for 256 AXIS blocks either way. The
@@ -138,17 +138,41 @@ eventually straddle it.
 
 | | cyc/block |
 |---|---|
-| measured | **314.60** |
-| five-pass floor (5 x 63) | 315.00 |
-| overhead above the floor | ~0 |
+| five-pass, burst 16 (original) | 337.75 |
+| five-pass, burst 64 | 314.60 |
+| **four-pass, burst 64 (now)** | **249.65** |
+| four-pass floor (4 x 63) | 252.00 |
 
-The fixture is now AT its five-pass floor, so serialisation is the entire
-remaining cost: AXI4 is 4.99x the AXIS cycle count purely because it runs five
-sequential passes over memory and the codec participates in two. Seed, inject
-and drain stage and check memory; they do not encode or decode. Collapsing
-them is the only thing left that moves the end-to-end number, and it is a
-fixture redesign rather than a codec change -- three passes would put the
-floor at 189 cyc/block and two at 126.
+**The inject pass is gone.** The injector moved onto the DECODER'S READ
+CHANNEL: the decoder reads M2 and what comes back has been corrupted in
+flight, so there is no read/corrupt/write hop through a third memory any more.
+That removed one sequential pass (-64.95 cyc/block, almost exactly the 63-beat
+codeword) and a whole memory (16 -> 12 block RAMs, and 504 LUTs on riBM), and
+cost the codec seams nothing -- they read 97.0% and 98.5% either way.
+
+It is also closer to the original intent than the memory hop was. The thing
+doing the corrupting is the CHANNEL, not either codec; a separate hop honoured
+that only because a job engine cannot corrupt inline, and sitting in the R
+channel says it directly while staying outside both codecs.
+
+What it needs to be correct: rs_error_injector is a three-stage elastic
+pipeline, strictly one beat in to one beat out and in order, so the R
+channel's sideband -- rlast, rid, rresp -- rides a FIFO pushed on the input
+handshake and popped on the output one. The alignment holds for exactly that
+reason and would not survive a block that dropped or duplicated a beat. And
+in_last must be the CODEWORD boundary, not rlast: a 64-beat burst and a
+63-beat codeword do not coincide, so a beat counter generates it.
+
+STATUS.axi4_stage bit 2 now reads 0 permanently -- there is no inject stage --
+so a complete chain is 0x1B, not 0x1F. The field kept its five-bit width so
+the register map did not move; the host's expectation moved instead.
+
+Remaining: the four-pass floor is 252 against a measured 249.65, so
+serialisation is still essentially the whole gap. Seed and drain stage and
+check memory. Dropping drain -- the checker observing the decoder's write
+channel -- would reach about 189, but nothing else reads M4, so that one
+trades UNIQUE coverage. The inject pass did not: its engines duplicated
+coverage the other passes already provide, which is why it went first.
 
 ## Build notes
 

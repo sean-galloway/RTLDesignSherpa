@@ -10,12 +10,12 @@
 //   encoder into injector into decoder into checker. The AXI4 flavour cannot
 //   be, because rs_encoder_axi4 and rs_decoder_axi4 are JOB engines -- each
 //   reads a region, transforms it, and writes another region. So the chain is
-//   five sequential jobs over four memories:
+//   four sequential jobs over three memories:
 //
 //     generator -> [seed write]  -> M1
 //     M1        -> [ENCODER]     -> M2      codewords
-//     M2        -> [read, INJECT, write] -> M3   corrupted codewords
-//     M3        -> [DECODER]     -> M4      recovered messages
+//     M2        -> [DECODER]     -> M4      recovered messages
+//                   ^-- INJECT sits on the decoder's R channel
 //     M4        -> [drain read]  -> checker
 //
 //   Every memory has exactly ONE writer on its write channels and ONE reader
@@ -24,12 +24,15 @@
 //   sharing two. They are block RAM (USE_WSTRB = 0, every writer here writes
 //   whole words), and the part has 135 tiles with none otherwise used.
 //
-//   Why the injector needs its own read/transform/write hop rather than
-//   sitting inside the chain: the codeword only exists in memory between the
-//   two codecs, and corrupting it means reading it out, flipping symbols, and
-//   writing it back. Putting the injector inside either codec top would make
-//   the corruption part of the codec, which is exactly backwards -- the
-//   channel corrupts data, not the encoder.
+//   Where the injector goes: the codeword only exists in memory between the
+//   two codecs, and the thing doing the corrupting is the CHANNEL, not either
+//   codec -- so it must not sit inside a codec top. It used to get its own
+//   read/corrupt/write hop through a third memory, which honoured that but
+//   cost a whole sequential pass (63 cycles a block of a then-315-cycle
+//   five-pass floor) and 4 block RAMs. It now sits on the decoder's READ
+//   channel, which is more literally "in the channel" and costs no pass at
+//   all: the decoder reads M2 and what comes back has been corrupted in
+//   flight. See the stage 3 comment for the sideband alignment this needs.
 //
 //   Stage sequencing is a done-to-start chain, not a state machine: each
 //   stage starts on the RISING EDGE of the previous stage's done. The rising
@@ -217,51 +220,6 @@ module rs_axi4_pipeline #(
     /* verilator lint_on PINCONNECTEMPTY */
 
 
-    // ---- memory 3: corrupted codewords: the inject hop writes, the decoder reads
-    logic [IDW-1:0]          m3_awid, m3_bid, m3_arid, m3_rid;
-    logic [AW-1:0]           m3_awaddr, m3_araddr;
-    logic [7:0]              m3_awlen, m3_arlen;
-    logic [2:0]              m3_awsize, m3_awprot, m3_arsize, m3_arprot;
-    logic [1:0]              m3_awburst, m3_bresp, m3_arburst, m3_rresp;
-    logic                    m3_awlock, m3_arlock;
-    logic [3:0]              m3_awcache, m3_awqos, m3_awregion;
-    logic [3:0]              m3_arcache, m3_arqos, m3_arregion;
-    logic [0:0]              m3_awuser, m3_wuser, m3_buser, m3_aruser, m3_ruser;
-    logic                    m3_awvalid, m3_awready, m3_wvalid, m3_wready;
-    logic                    m3_wlast, m3_bvalid, m3_bready;
-    logic                    m3_arvalid, m3_arready, m3_rvalid, m3_rready, m3_rlast;
-    logic [DW-1:0]           m3_wdata, m3_rdata;
-    logic [DW/8-1:0]         m3_wstrb;
-
-    /* verilator lint_off PINCONNECTEMPTY */
-    sdpram_slave_axi4_axi4 #(
-        .AXI_ID_WIDTH(IDW), .ADDR_WIDTH(AW), .DATA_WIDTH(DW),
-        .USER_WIDTH(1), .MEM_DEPTH(MEM_DEPTH), .USE_WSTRB(1'b0)
-    ) u_mem3 (
-        .aclk(aclk), .aresetn(aresetn),
-        .s_axi_awid(m3_awid), .s_axi_awaddr(m3_awaddr), .s_axi_awlen(m3_awlen),
-        .s_axi_awsize(m3_awsize), .s_axi_awburst(m3_awburst), .s_axi_awlock(m3_awlock),
-        .s_axi_awcache(m3_awcache), .s_axi_awprot(m3_awprot), .s_axi_awqos(m3_awqos),
-        .s_axi_awregion(m3_awregion), .s_axi_awuser(m3_awuser),
-        .s_axi_awvalid(m3_awvalid), .s_axi_awready(m3_awready),
-        .s_axi_wdata(m3_wdata), .s_axi_wstrb(m3_wstrb), .s_axi_wlast(m3_wlast),
-        .s_axi_wuser(m3_wuser), .s_axi_wvalid(m3_wvalid), .s_axi_wready(m3_wready),
-        .s_axi_bid(m3_bid), .s_axi_bresp(m3_bresp), .s_axi_buser(m3_buser),
-        .s_axi_bvalid(m3_bvalid), .s_axi_bready(m3_bready),
-        .s_axi_arid(m3_arid), .s_axi_araddr(m3_araddr), .s_axi_arlen(m3_arlen),
-        .s_axi_arsize(m3_arsize), .s_axi_arburst(m3_arburst), .s_axi_arlock(m3_arlock),
-        .s_axi_arcache(m3_arcache), .s_axi_arprot(m3_arprot), .s_axi_arqos(m3_arqos),
-        .s_axi_arregion(m3_arregion), .s_axi_aruser(m3_aruser),
-        .s_axi_arvalid(m3_arvalid), .s_axi_arready(m3_arready),
-        .s_axi_rid(m3_rid), .s_axi_rdata(m3_rdata), .s_axi_rresp(m3_rresp),
-        .s_axi_rlast(m3_rlast), .s_axi_ruser(m3_ruser),
-        .s_axi_rvalid(m3_rvalid), .s_axi_rready(m3_rready),
-        .i_cfg_start_clear(1'b0), .o_cfg_done_clear(),
-        .o_dbg_vr(), .o_dbg_fub_vr(), .o_dbg_bram_wr(), .o_dbg_bram_rd(),
-        .o_dbg_busy_wr(), .o_dbg_busy_rd());
-    /* verilator lint_on PINCONNECTEMPTY */
-
-
     // ---- memory 4: recovered messages: the decoder writes, the drain reads
     logic [IDW-1:0]          m4_awid, m4_bid, m4_arid, m4_rid;
     logic [AW-1:0]           m4_awaddr, m4_araddr;
@@ -310,28 +268,29 @@ module rs_axi4_pipeline #(
     // =========================================================================
     // stage starts: each on the RISING edge of the previous stage's done
     // =========================================================================
-    logic seed_done, enc_done, inj_done, dec_done, drain_done;
-    logic r_seed_d, r_enc_d, r_inj_d, r_dec_d;
-    logic enc_start, inj_start, dec_start, drain_start;
+    logic seed_done, enc_done, dec_done, drain_done;
+    logic r_seed_d, r_enc_d, r_dec_d;
+    logic dec_start, enc_start, drain_start;
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_seed_d <= 1'b0; r_enc_d <= 1'b0; r_inj_d <= 1'b0; r_dec_d <= 1'b0;
+            r_seed_d <= 1'b0; r_enc_d <= 1'b0; r_dec_d <= 1'b0;
         end else if (start) begin
             // every stage's done is still high from the LAST run at this
             // point; arming the edge detectors low would fire all four
             // immediately, so they are armed HIGH and the real 0->1 that
             // follows each stage's own cfg_start is what gets seen
-            r_seed_d <= 1'b1; r_enc_d <= 1'b1; r_inj_d <= 1'b1; r_dec_d <= 1'b1;
+            r_seed_d <= 1'b1; r_enc_d <= 1'b1; r_dec_d <= 1'b1;
         end else begin
             r_seed_d <= seed_done; r_enc_d <= enc_done;
-            r_inj_d  <= inj_done;  r_dec_d <= dec_done;
+            r_dec_d  <= dec_done;
         end
     )
 
     assign enc_start   = seed_done  && !r_seed_d;
-    assign inj_start   = enc_done   && !r_enc_d;
-    assign dec_start   = inj_done   && !r_inj_d;
+    // decode follows ENCODE directly: the injector moved onto the decoder's
+    // read channel, so there is no inject stage left to wait for
+    assign dec_start   = enc_done   && !r_enc_d;
     assign drain_start = dec_done   && !r_dec_d;
 
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -340,7 +299,10 @@ module rs_axi4_pipeline #(
         else if (drain_done && busy)     busy <= 1'b0;
     )
     assign done       = drain_done;
-    assign stage_done = {drain_done, dec_done, inj_done, enc_done, seed_done};
+    // bit 2 was the inject stage and is now always 0: the injector sits on the
+    // decoder's read channel and has no stage of its own. The field stays five
+    // bits wide so the register map and the host do not move.
+    assign stage_done = {drain_done, dec_done, 1'b0, enc_done, seed_done};
 
     // Stage-active windows for the bandwidth meters: high from a stage's start
     // to its own done. `start` clears them because every done is still high
@@ -389,10 +351,9 @@ module rs_axi4_pipeline #(
     // =========================================================================
     // 2. encode: M1 -> M2
     // =========================================================================
+    // codeword OUT of the encoder: its AXI write channel into M2
     assign obs_cw_out_valid = m2_wvalid;
     assign obs_cw_out_ready = m2_wready;
-    assign obs_cw_in_valid  = m3_rvalid;
-    assign obs_cw_in_ready  = m3_rready;
 
     logic enc_err;
     rs_encoder_axi4 #(
@@ -424,77 +385,99 @@ module rs_axi4_pipeline #(
         .m_axi_bvalid(m2_bvalid), .m_axi_bready(m2_bready));
 
     // =========================================================================
-    // 3. inject: M2 -> corrupt -> M3
+    // 3. inject: on the DECODER'S READ CHANNEL, not its own memory hop
+    //
+    // The codeword only exists in memory between the two codecs, and the thing
+    // doing the corrupting is the CHANNEL. A separate read/corrupt/write hop
+    // through a third memory said that too, but it cost a whole sequential
+    // pass -- 63 cycles a block of the 315-cycle five-pass floor -- and a
+    // memory. Sitting on the decoder's R channel says the same thing more
+    // directly: the decoder reads M2, and what comes back has been corrupted
+    // in flight. The injector is still outside both codecs.
+    //
+    // rs_error_injector is a three-stage elastic pipeline, strictly one beat
+    // in to one beat out and in order, so the R channel's SIDEBAND -- rlast,
+    // rid, rresp -- rides a FIFO pushed on the input handshake and popped on
+    // the output one. That stays aligned for exactly the reason the injector
+    // is 1:1; it would not survive a block that dropped or duplicated a beat.
+    //
+    // in_last must be the BLOCK boundary, not rlast: with a 64-beat burst and
+    // a 63-beat codeword they do not coincide, and the injector needs the
+    // codeword boundary to place a block's errors. Hence the beat counter.
     // =========================================================================
-    logic                  ird_valid, ird_ready, ird_last, ird_done, ird_err;
-    logic [DW-1:0]         ird_data;
-    logic                  iwr_valid, iwr_ready, iwr_last, iwr_err;
-    logic [DW-1:0]         iwr_data;
-    logic [S-1:0]          iwr_keep;
+    logic          w_inj_in_fire, w_inj_out_fire;
+    logic          w_inj_out_valid, w_inj_out_ready, w_inj_out_last;
+    logic [DW-1:0] w_inj_out_data;
+    logic [S-1:0]  w_inj_out_keep;
+    logic          w_inj_in_ready;
 
-    rs_axi4_read_engine #(
-        .ADDR_WIDTH(AW), .DATA_WIDTH(DW), .ID_WIDTH(IDW),
-        .MAX_OUTSTANDING(MAX_OUTSTANDING), .USER_WIDTH(1)
-    ) u_inj_rd (
-        .aclk(aclk), .aresetn(aresetn),
-        .cfg_start(inj_start), .cfg_src_addr('0),
-        .cfg_beats(32'(cfg_blocks) * 32'(CW_BEATS)),
-        .cfg_burst_len(cfg_burst_len), .cfg_beats_per_block(16'(CW_BEATS)),
-        .cfg_axi_id(IDW'(3)), .cfg_axi_size(3'(SIZE_B)),
-        .cfg_done(ird_done), .resp_err(ird_err),
-        .out_valid(ird_valid), .out_ready(ird_ready), .out_data(ird_data),
-        .out_last(ird_last),
-        .m_axi_arid(m2_arid), .m_axi_araddr(m2_araddr), .m_axi_arlen(m2_arlen),
-        .m_axi_arsize(m2_arsize), .m_axi_arburst(m2_arburst), .m_axi_arlock(m2_arlock),
-        .m_axi_arcache(m2_arcache), .m_axi_arprot(m2_arprot), .m_axi_arqos(m2_arqos),
-        .m_axi_arregion(m2_arregion), .m_axi_aruser(m2_aruser),
-        .m_axi_arvalid(m2_arvalid), .m_axi_arready(m2_arready),
-        .m_axi_rid(m2_rid), .m_axi_rdata(m2_rdata), .m_axi_rresp(m2_rresp),
-        .m_axi_rlast(m2_rlast), .m_axi_ruser(m2_ruser),
-        .m_axi_rvalid(m2_rvalid), .m_axi_rready(m2_rready));
-
-    // The codeword in memory is packed, so every beat is full except a block's
-    // last, which carries N % S symbols when that is not zero.
+    // beat counter -> codeword boundary for the injector
     localparam int N_TAIL = N_SYMBOLS % S;
-    logic [S-1:0] w_ird_keep;
-    assign w_ird_keep = (ird_last && (N_TAIL != 0)) ? S'((1 << N_TAIL) - 1) : {S{1'b1}};
+    logic [15:0] r_inj_beat;
+    logic        w_inj_blk_last;
+    assign w_inj_blk_last = (r_inj_beat == 16'(CW_BEATS - 1));
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn))   r_inj_beat <= '0;
+        else if (dec_start)           r_inj_beat <= '0;
+        else if (w_inj_in_fire)       r_inj_beat <= w_inj_blk_last ? 16'd0
+                                                                  : r_inj_beat + 16'd1;
+    )
+
+    logic [S-1:0] w_inj_in_keep;
+    assign w_inj_in_keep = (w_inj_blk_last && (N_TAIL != 0))
+                         ? S'((1 << N_TAIL) - 1) : {S{1'b1}};
+
+    // sideband: {rlast, rid, rresp}, aligned to the data by the handshakes
+    localparam int SB_W = 1 + IDW + 2;
+    logic            w_sb_wr_ready, w_sb_rd_valid;
+    logic [SB_W-1:0] w_sb_rd_data;
+    logic            w_dec_rlast;
+    logic [IDW-1:0]  w_dec_rid;
+    logic [1:0]      w_dec_rresp;
+
+    /* verilator lint_off PINCONNECTEMPTY */
+    gaxi_fifo_sync #(.DATA_WIDTH(SB_W), .DEPTH(8), .REGISTERED(0)) u_inj_sb (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(w_inj_in_fire), .wr_ready(w_sb_wr_ready),
+        .wr_data({m2_rlast, m2_rid, m2_rresp}),
+        .rd_ready(w_inj_out_fire), .count(),
+        .rd_valid(w_sb_rd_valid), .rd_data(w_sb_rd_data));
+    /* verilator lint_on PINCONNECTEMPTY */
+
+    assign {w_dec_rlast, w_dec_rid, w_dec_rresp} = w_sb_rd_data;
+
+    // The FIFO can hold 8 and the injector at most 3 in flight, so it cannot
+    // fill -- but gate BOTH sides on it rather than only the ready, because a
+    // gated ready with an ungated valid is how a consumer double-consumes.
+    assign m2_rready     = w_inj_in_ready && w_sb_wr_ready;
+    assign w_inj_in_fire = m2_rvalid && m2_rready;
 
     rs_error_injector #(
         .SYMBOL_WIDTH(SYMBOL_WIDTH), .T_SYMBOLS(T_SYMBOLS), .N_SYMBOLS(N_SYMBOLS),
         .SYMBOLS_PER_BEAT(S)
     ) u_inj (
         .aclk(aclk), .aresetn(aresetn),
-        .in_valid(ird_valid), .in_ready(ird_ready), .in_data(ird_data),
-        .in_keep(w_ird_keep), .in_last(ird_last),
-        .out_valid(iwr_valid), .out_ready(iwr_ready), .out_data(iwr_data),
-        .out_keep(iwr_keep), .out_last(iwr_last),
+        .in_valid(m2_rvalid && w_sb_wr_ready), .in_ready(w_inj_in_ready),
+        .in_data(m2_rdata), .in_keep(w_inj_in_keep), .in_last(w_inj_blk_last),
+        .out_valid(w_inj_out_valid), .out_ready(w_inj_out_ready),
+        .out_data(w_inj_out_data), .out_keep(w_inj_out_keep),
+        .out_last(w_inj_out_last),
         .cfg_mode(inj_mode), .cfg_count(inj_count), .cfg_rate(inj_rate),
         .cfg_seed(inj_seed), .cfg_seed_load(inj_seed_load), .cfg_clear(inj_clear),
         .o_inj_symbols(inj_symbols), .o_inj_blocks(inj_blocks),
         .o_inj_over_t(inj_over_t), .o_last_block_errors(inj_last));
 
-    rs_axi4_write_engine #(
-        .ADDR_WIDTH(AW), .DATA_WIDTH(DW), .ID_WIDTH(IDW),
-        .MAX_OUTSTANDING(MAX_OUTSTANDING), .USER_WIDTH(1)
-    ) u_inj_wr (
-        .aclk(aclk), .aresetn(aresetn),
-        .cfg_start(inj_start), .cfg_dst_addr('0),
-        .cfg_beats(32'(cfg_blocks) * 32'(CW_BEATS)),
-        .cfg_burst_len(cfg_burst_len), .cfg_axi_id(IDW'(4)), .cfg_axi_size(3'(SIZE_B)),
-        .cfg_done(inj_done), .resp_err(iwr_err),
-        .in_valid(iwr_valid), .in_ready(iwr_ready), .in_data(iwr_data), .in_last(iwr_last),
-        .m_axi_awid(m3_awid), .m_axi_awaddr(m3_awaddr), .m_axi_awlen(m3_awlen),
-        .m_axi_awsize(m3_awsize), .m_axi_awburst(m3_awburst), .m_axi_awlock(m3_awlock),
-        .m_axi_awcache(m3_awcache), .m_axi_awprot(m3_awprot), .m_axi_awqos(m3_awqos),
-        .m_axi_awregion(m3_awregion), .m_axi_awuser(m3_awuser),
-        .m_axi_awvalid(m3_awvalid), .m_axi_awready(m3_awready),
-        .m_axi_wdata(m3_wdata), .m_axi_wstrb(m3_wstrb), .m_axi_wlast(m3_wlast),
-        .m_axi_wuser(m3_wuser), .m_axi_wvalid(m3_wvalid), .m_axi_wready(m3_wready),
-        .m_axi_bid(m3_bid), .m_axi_bresp(m3_bresp), .m_axi_buser(m3_buser),
-        .m_axi_bvalid(m3_bvalid), .m_axi_bready(m3_bready));
+    assign w_inj_out_fire = w_inj_out_valid && w_inj_out_ready;
+
+    // codeword INTO the decoder: the injector's output IS the decoder's read
+    // data now, so this is still the codeword seam -- corrupted, which is what
+    // the decoder actually consumes.
+    assign obs_cw_in_valid  = w_inj_out_valid;
+    assign obs_cw_in_ready  = w_inj_out_ready;
 
     // =========================================================================
-    // 4. decode: M3 -> M4
+
+    // 4. decode: M2 (corrupted in flight) -> M4
     // =========================================================================
     logic dec_err;
     rs_decoder_axi4 #(
@@ -512,14 +495,16 @@ module rs_axi4_pipeline #(
         .stat_blocks_ok(blk_ok), .stat_blocks_corrected(blk_corr),
         .stat_blocks_uncorrectable(blk_unc), .stat_blocks_frame_err(blk_frame),
         .stat_symbols_corrected(sym_corr),
-        .m_axi_arid(m3_arid), .m_axi_araddr(m3_araddr), .m_axi_arlen(m3_arlen),
-        .m_axi_arsize(m3_arsize), .m_axi_arburst(m3_arburst), .m_axi_arlock(m3_arlock),
-        .m_axi_arcache(m3_arcache), .m_axi_arprot(m3_arprot), .m_axi_arqos(m3_arqos),
-        .m_axi_arregion(m3_arregion), .m_axi_aruser(m3_aruser),
-        .m_axi_arvalid(m3_arvalid), .m_axi_arready(m3_arready),
-        .m_axi_rid(m3_rid), .m_axi_rdata(m3_rdata), .m_axi_rresp(m3_rresp),
-        .m_axi_rlast(m3_rlast), .m_axi_ruser(m3_ruser),
-        .m_axi_rvalid(m3_rvalid), .m_axi_rready(m3_rready),
+        // AR straight to M2; R back through the injector, with rlast/rid/rresp
+        // from the sideband FIFO that tracks it beat for beat
+        .m_axi_arid(m2_arid), .m_axi_araddr(m2_araddr), .m_axi_arlen(m2_arlen),
+        .m_axi_arsize(m2_arsize), .m_axi_arburst(m2_arburst), .m_axi_arlock(m2_arlock),
+        .m_axi_arcache(m2_arcache), .m_axi_arprot(m2_arprot), .m_axi_arqos(m2_arqos),
+        .m_axi_arregion(m2_arregion), .m_axi_aruser(m2_aruser),
+        .m_axi_arvalid(m2_arvalid), .m_axi_arready(m2_arready),
+        .m_axi_rid(w_dec_rid), .m_axi_rdata(w_inj_out_data), .m_axi_rresp(w_dec_rresp),
+        .m_axi_rlast(w_dec_rlast), .m_axi_ruser(m2_ruser),
+        .m_axi_rvalid(w_inj_out_valid), .m_axi_rready(w_inj_out_ready),
         .m_axi_awid(m4_awid), .m_axi_awaddr(m4_awaddr), .m_axi_awlen(m4_awlen),
         .m_axi_awsize(m4_awsize), .m_axi_awburst(m4_awburst), .m_axi_awlock(m4_awlock),
         .m_axi_awcache(m4_awcache), .m_axi_awprot(m4_awprot), .m_axi_awqos(m4_awqos),
@@ -559,6 +544,6 @@ module rs_axi4_pipeline #(
     localparam int K_TAIL = K_SYMBOLS % S;
     assign out_keep = (out_last && (K_TAIL != 0)) ? S'((1 << K_TAIL) - 1) : {S{1'b1}};
 
-    assign resp_err = seed_err || enc_err || ird_err || iwr_err || dec_err || drain_err;
+    assign resp_err = seed_err || enc_err || dec_err || drain_err;
 
 endmodule

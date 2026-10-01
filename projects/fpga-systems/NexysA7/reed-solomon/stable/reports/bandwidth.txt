@@ -1,4 +1,4 @@
-=== axis_ribm at 2026-10-01T06:49:35-07:00
+=== axis_ribm at 2026-10-01T08:08:01-07:00
   [random] 64 runs x 4 blocks on RS(252,236): 31 exact-count, 12 burst, 21 rate; blocks 24 clean / 125 corrected / 107 uncorrectable; 0 failing run(s)
   [run] 2 sequence(s), 52.36s total: ALL PASS
   2 sequence(s), 52.36s total: ALL PASS
@@ -17,7 +17,7 @@
     cw  out    12096 beats /    12096 cyc = 100.0%    63.00 cyc/block (ideal 63)
     cw  in     12096 beats /    12096 cyc = 100.0%    63.00 cyc/block (ideal 63)
 
-=== axis_euclid at 2026-10-01T06:50:42-07:00
+=== axis_euclid at 2026-10-01T08:09:16-07:00
   [random] 64 runs x 4 blocks on RS(252,236): 31 exact-count, 12 burst, 21 rate; blocks 24 clean / 125 corrected / 107 uncorrectable; 0 failing run(s)
   [run] 2 sequence(s), 52.36s total: ALL PASS
   2 sequence(s), 52.36s total: ALL PASS
@@ -36,42 +36,42 @@
     cw  out    12096 beats /    12096 cyc = 100.0%    63.00 cyc/block (ideal 63)
     cw  in     12096 beats /    12096 cyc = 100.0%    63.00 cyc/block (ideal 63)
 
-=== axi4_ribm at 2026-10-01T06:51:50-07:00
+=== axi4_ribm at 2026-10-01T08:10:25-07:00
   [random] 64 runs x 4 blocks on RS(252,236): 31 exact-count, 12 burst, 21 rate; blocks 24 clean / 125 corrected / 107 uncorrectable; 0 failing run(s)
   [run] 2 sequence(s), 52.36s total: ALL PASS
   2 sequence(s), 52.36s total: ALL PASS
   == bw on Nexys A7-100T @ /dev/ttyUSB5 ==
     datapath AXI4, decoder riBM, 1 decoder(s)
-    64 blocks, e=0: 20301 cycles (317.2/block)
-    msg in      3776 beats /    20301 cyc =  18.6%  (bp 117, starv 0, idle 16408)
-    msg out     3776 beats /    20301 cyc =  18.6%  (bp 0, starv 16525, idle 0)
+    64 blocks, e=0: 16136 cycles (252.1/block)
+    msg in      3776 beats /    16136 cyc =  23.4%  (bp 117, starv 0, idle 12243)
+    msg out     3776 beats /    16136 cyc =  23.4%  (bp 0, starv 12360, idle 0)
     cw  out     4032 beats /     4166 cyc =  96.8%  (bp 124, starv 10, idle 0)
-    cw  in      4032 beats /     4230 cyc =  95.3%  (bp 0, starv 198, idle 0)
+    cw  in      4032 beats /     4233 cyc =  95.3%  (bp 0, starv 201, idle 0)
     out/in message beats = 1.000
-    16 blocks: 5200 cycles (325.0/block)
+    16 blocks: 4153 cycles (259.6/block)
     slope over 16 -> 64 blocks (fill cancelled; codeword 63 beats, message 59)
-    msg in      2832 beats /    15101 cyc =  18.8%   314.60 cyc/block (ideal 59)
-    msg out     2832 beats /    15101 cyc =  18.8%   314.60 cyc/block (ideal 59)
+    msg in      2832 beats /    11983 cyc =  23.6%   249.65 cyc/block (ideal 59)
+    msg out     2832 beats /    11983 cyc =  23.6%   249.65 cyc/block (ideal 59)
     cw  out     3024 beats /     3118 cyc =  97.0%    64.96 cyc/block (ideal 63)
     cw  in      3024 beats /     3069 cyc =  98.5%    63.94 cyc/block (ideal 63)
 
-=== axi4_euclid at 2026-10-01T06:52:58-07:00
+=== axi4_euclid at 2026-10-01T08:11:34-07:00
   [random] 64 runs x 4 blocks on RS(252,236): 31 exact-count, 12 burst, 21 rate; blocks 24 clean / 125 corrected / 107 uncorrectable; 0 failing run(s)
   [run] 2 sequence(s), 52.36s total: ALL PASS
   2 sequence(s), 52.36s total: ALL PASS
   == bw on Nexys A7-100T @ /dev/ttyUSB5 ==
     datapath AXI4, decoder Euclid, 1 decoder(s)
-    64 blocks, e=0: 20301 cycles (317.2/block)
-    msg in      3776 beats /    20301 cyc =  18.6%  (bp 117, starv 0, idle 16408)
-    msg out     3776 beats /    20301 cyc =  18.6%  (bp 0, starv 16525, idle 0)
+    64 blocks, e=0: 16136 cycles (252.1/block)
+    msg in      3776 beats /    16136 cyc =  23.4%  (bp 117, starv 0, idle 12243)
+    msg out     3776 beats /    16136 cyc =  23.4%  (bp 0, starv 12360, idle 0)
     cw  out     4032 beats /     4166 cyc =  96.8%  (bp 124, starv 10, idle 0)
-    cw  in      4032 beats /     4230 cyc =  95.3%  (bp 0, starv 198, idle 0)
+    cw  in      4032 beats /     4233 cyc =  95.3%  (bp 0, starv 201, idle 0)
     out/in message beats = 1.000
-    16 blocks: 5200 cycles (325.0/block)
+    16 blocks: 4153 cycles (259.6/block)
     slope over 16 -> 64 blocks (fill cancelled; codeword 63 beats, message 59)
-    msg in      2832 beats /    15101 cyc =  18.8%   314.60 cyc/block (ideal 59)
-    msg out     2832 beats /    15101 cyc =  18.8%   314.60 cyc/block (ideal 59)
+    msg in      2832 beats /    11983 cyc =  23.6%   249.65 cyc/block (ideal 59)
+    msg out     2832 beats /    11983 cyc =  23.6%   249.65 cyc/block (ideal 59)
     cw  out     3024 beats /     3118 cyc =  97.0%    64.96 cyc/block (ideal 63)
     cw  in      3024 beats /     3069 cyc =  98.5%    63.94 cyc/block (ideal 63)
 
-=== done at 2026-10-01T06:54:06-07:00
+=== done at 2026-10-01T08:12:42-07:00

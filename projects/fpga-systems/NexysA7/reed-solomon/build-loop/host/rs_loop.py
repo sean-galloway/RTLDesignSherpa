@@ -163,8 +163,11 @@ class RsLoopDriver:
                  "cmp_err", "crc_a_ok", "crc_b_ok", "cmp_misaligned", "axi4_resp_err"]
         out = {n: bool(w >> i & 1) for i, n in enumerate(names)}
         # the AXI4 stage dones are a 5-bit field, not a flag: bit 0 is the
-        # seed write, then encode, inject, decode, drain. 0x1F means the whole
-        # chain ran. Held from one kick to the next, like every other done here.
+        # seed write, then encode, (inject), decode, drain. Bit 2 is always 0 --
+        # the injector moved onto the decoder's read channel and has no stage
+        # of its own -- so a complete chain reads 0x1B, not 0x1F. The field
+        # kept its width so the register map did not move. Held from one kick
+        # to the next, like every other done here.
         out["axi4_stage"] = (w >> 11) & 0x1F
         out["axi4_overflow"] = bool(w >> 16 & 1)
         return out
