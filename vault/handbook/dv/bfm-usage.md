@@ -54,6 +54,32 @@ Traps (each cost real debug time):
 - TB classes live in the PROJECT area (projects/**/dv/tbclasses), never in
   the shared framework.
 
+## `MemoryModel` addresses BYTES; `bytes_per_line` is a dump convenience (2026-10-01)
+
+`MemoryModel.read(address, length)` / `.write(address, data, strobe)` take a
+**byte address** -- they slice `self.mem[address:address+length]` directly. The
+`bytes_per_line` constructor argument shapes the dump and the access maps; it is
+NOT an index unit, and nothing converts for you.
+
+So a test that thinks in device words (a DRAM column, a cache line) must scale
+to bytes itself. If the DUT's own model writes through a translation -- on the
+DFI slave, `DFISlavePHY._byte_addr(flat) = flat * device_bytes` over
+`AddressMapping.tuple_to_flat(rank, bank, row, col)` -- then a test that peeks
+the backing store has to use **that same translation**, not a formula of its
+own. Ask the framework for the address; do not re-derive it.
+
+*Case: scoria's first top-tier test divided the AXI byte address by the device
+size and handed the result to `read()` as if it were a line index. The tell was
+specific and worth recognising: a 16-byte read of a just-written beat came back
+as four overlapping copies of the data, each shifted ONE byte --
+`4aebe859 ebe859c9 e859c9b3 59c9b3dd` against a written
+`4aebe859 c9b3dd38 3e29e986 1868ab75`. That is a stride-1 walk over 4-byte
+reads, i.e. an index being used as an address. Round-trip cases passed
+throughout, because a write and a read through the same wrong scale cancel --
+only the case that checked an ABSOLUTE address saw it, which is the reason that
+case exists. The framework's own `_byte_addr` carries a comment making the same
+point about the same mistake.*
+
 ## Out of range means one thing (2026-09-09)
 
 Every memory-backed slave BFM -- AXI4, AXI5, AXIL4, AXIL5 `Slave{Read,Write}`,
