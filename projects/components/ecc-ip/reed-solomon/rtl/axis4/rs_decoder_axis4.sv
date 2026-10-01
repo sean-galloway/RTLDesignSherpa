@@ -36,9 +36,13 @@
 //   - The decoder emits k beats per n-beat block: parity is consumed, not
 //     forwarded. tid and tdest are captured from the block's first accepted
 //     beat and held across the beats it produces.
-//   - out_status_* are valid with the block's LAST output beat, which is the
-//     core's contract (release-on-verdict: nothing leaves until the
-//     post-correction syndrome re-check has passed judgement).
+//   - out_status_* are valid with THIS module's m_axis_tlast, not the core's
+//     internal one. They are re-registered on the core's last beat and held,
+//     because the outlet skid delays the data past the point where the core's
+//     status is still valid. Without that, a consumer sampling at m_axis_tlast
+//     -- the only block boundary it can see -- reads a stale verdict, and the
+//     symptom is quiet: a CLEAN run reports every block corrected with zero
+//     symbols corrected, with perfect data and a matching CRC.
 module rs_decoder_axis4 #(
     parameter int SYMBOL_WIDTH     = 8,
     parameter int PRIM_POLY        = 'h11D,
@@ -85,7 +89,7 @@ module rs_decoder_axis4 #(
     output logic                        m_axis_tvalid,
     input  logic                        m_axis_tready,
 
-    // per-block verdict, valid with the block's last output beat
+    // per-block verdict, valid with m_axis_tlast (see the header note)
     output logic                        out_status_ok,
     output logic [STATUS_CNT_WIDTH-1:0] out_status_corrected,
     output logic                        out_status_uncorrectable,
@@ -140,6 +144,8 @@ module rs_decoder_axis4 #(
     logic [DATA_WIDTH-1:0] core_data;
     logic [S-1:0]          core_keep;
     logic                  core_last, core_valid, core_ready;
+    logic                  w_core_ok, w_core_unc, w_core_frame;
+    logic [STATUS_CNT_WIDTH-1:0] w_core_corr;
 
     // A ternary will not do here: both arms ELABORATE, so in_tuser[S-1:0]
     // is range-checked even when KEEP_ON_USER is constant 0 -- and tuser is
@@ -162,9 +168,36 @@ module rs_decoder_axis4 #(
         .in_keep(w_in_keep), .in_last(in_tlast),
         .out_valid(core_valid), .out_ready(core_ready), .out_data(core_data),
         .out_keep(core_keep), .out_last(core_last),
-        .out_status_ok(out_status_ok), .out_status_corrected(out_status_corrected),
-        .out_status_uncorrectable(out_status_uncorrectable),
-        .out_status_frame_err(out_status_frame_err));
+        .out_status_ok(w_core_ok), .out_status_corrected(w_core_corr),
+        .out_status_uncorrectable(w_core_unc),
+        .out_status_frame_err(w_core_frame));
+
+    // Realign the verdict to THIS module's tlast.
+    //
+    // The core presents its status with ITS last output beat. The outlet skid
+    // then delays the data, so by the time m_axis_tlast handshakes the core has
+    // moved on. One register is enough: a block's beats leave the core together
+    // (release-on-verdict), the skid holds at most SKID_DEPTH of them, and the
+    // next verdict is a whole codeword away -- so the held value is still the
+    // right one when this block's tlast finally fires.
+    logic                        r_ok, r_unc, r_frame;
+    logic [STATUS_CNT_WIDTH-1:0] r_corr;
+
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_ok <= 1'b0; r_unc <= 1'b0; r_frame <= 1'b0; r_corr <= '0;
+        end else if (core_valid && core_ready && core_last) begin
+            r_ok    <= w_core_ok;
+            r_unc   <= w_core_unc;
+            r_frame <= w_core_frame;
+            r_corr  <= w_core_corr;
+        end
+    end
+
+    assign out_status_ok            = r_ok;
+    assign out_status_corrected     = r_corr;
+    assign out_status_uncorrectable = r_unc;
+    assign out_status_frame_err     = r_frame;
 
     // -------------------------------------------------------------------------
     // id / dest passthrough: captured on the block's first accepted beat and

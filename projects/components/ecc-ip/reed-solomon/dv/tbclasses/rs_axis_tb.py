@@ -137,6 +137,22 @@ class RSAxisTB(TBBase):
                 data=word, strb=strb, last=int(last), id=tid, dest=tdest, user=0)
             await self.master.send(pkt)
 
+    def _status_at_last(self):
+        """The verdict as a consumer sees it: sampled at m_axis_tlast.
+
+        The core presents its status with ITS last beat, which the outlet skid
+        then delays, so a wrapper that forwards the core's status raw hands a
+        STALE verdict to anyone sampling at m_axis_tlast -- the only block
+        boundary a consumer can see. That is exactly what shipped to a
+        bitstream: a clean run reported every block corrected with zero symbols
+        corrected, perfect data, matching CRC. This TB had no status check at
+        all, which is why it passed.
+        """
+        return (int(self.dut.out_status_ok.value),
+                int(self.dut.out_status_corrected.value),
+                int(self.dut.out_status_uncorrectable.value),
+                int(self.dut.out_status_frame_err.value))
+
     async def _collect(self, want_beats, timeout_cycles):
         """Drain want_beats beats, returning (data, strb, last, tid, tdest) tuples."""
         got = []
@@ -218,6 +234,7 @@ class RSAxisTB(TBBase):
             if self.role == 'encoder':
                 await self._send(msg, tid, tdest)
                 want = cw
+                e = 0
             else:
                 rx = list(cw)
                 e = rnd.randint(0, self.t)
@@ -228,7 +245,32 @@ class RSAxisTB(TBBase):
             got = await self._collect((len(want) + self.s - 1) // self.s,
                                       timeout_cycles=40 * self.n + 4000)
             self._score(f"{profile} block {b}", got, want, tid, tdest)
+            if self.role == 'decoder':
+                self._score_verdict(f"{profile} block {b}", e)
         return self.mismatches == 0
+
+    def _score_verdict(self, label, e):
+        """The verdict must describe THIS block, read at its last beat.
+
+        e errors were injected and e <= t, so the only correct answers are
+        "ok with 0 corrected" when e is 0 and "corrected with exactly e"
+        otherwise. A stale verdict shows up as corrected-with-zero on a clean
+        block, which is the shape the wrapper bug produced.
+        """
+        self.checks += 1
+        ok, corr, unc, frame = self._status_at_last()
+        if frame or unc:
+            self._fail(f"{label}: verdict says frame={frame} unc={unc} for e={e} <= t")
+            return
+        if e == 0:
+            if not ok or corr != 0:
+                self._fail(f"{label}: e=0 should read ok=1 corrected=0, got ok={ok} "
+                           f"corrected={corr} -- a corrected-with-zero verdict on a "
+                           f"clean block is a STALE status, not a decode failure")
+        else:
+            if ok or corr != e:
+                self._fail(f"{label}: e={e} should read ok=0 corrected={e}, got ok={ok} "
+                           f"corrected={corr}")
 
     async def run_backpressure(self):
         """The same blocks under randomized valid/ready on both sides.

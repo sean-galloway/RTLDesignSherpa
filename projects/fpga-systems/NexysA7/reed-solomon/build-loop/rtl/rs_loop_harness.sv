@@ -396,16 +396,26 @@ module rs_loop_harness
     // shared, so a run reports itself identically whichever middle is built.
     if (IFACE == "AXIS") begin : g_axis_path
 
-    rs_encoder_core #(
+    // The component's AXIS top, not the bare core: that is the deliverable a
+    // consumer instantiates, so it is what the board should prove. At this
+    // profile k fills its beats, so no beat packer is generated inside and the
+    // datapath is the core plus two skid buffers. tid/tdest/tuser are unused
+    // here, so their widths are 0 and the wrapper's 1-bit minimum applies.
+    /* verilator lint_off PINCONNECTEMPTY */
+    rs_encoder_axis4 #(
         .SYMBOL_WIDTH(M), .PRIM_POLY(CFG_PRIM_POLY), .T_SYMBOLS(T), .N_SYMBOLS(N),
-        .FIRST_ROOT(CFG_FIRST_ROOT), .DATA_WIDTH(DW)
+        .FIRST_ROOT(CFG_FIRST_ROOT), .DATA_WIDTH(DW),
+        .AXIS_ID_WIDTH(0), .AXIS_DEST_WIDTH(0), .AXIS_USER_WIDTH(0)
     ) u_enc (
         .aclk(aclk), .aresetn(dp_rstn),
-        .in_valid(enc_in_valid), .in_ready(enc_in_ready), .in_data(gen_tdata),
-        .in_keep(gen_tstrb), .in_last(gen_tlast),
-        .out_valid(enc_out_valid), .out_ready(enc_out_ready), .out_data(enc_out_data),
-        .out_keep(enc_out_keep), .out_last(enc_out_last),
+        .s_axis_tdata(gen_tdata), .s_axis_tstrb(gen_tstrb), .s_axis_tlast(gen_tlast),
+        .s_axis_tid('0), .s_axis_tdest('0), .s_axis_tuser('0),
+        .s_axis_tvalid(enc_in_valid), .s_axis_tready(enc_in_ready),
+        .m_axis_tdata(enc_out_data), .m_axis_tstrb(enc_out_keep),
+        .m_axis_tlast(enc_out_last), .m_axis_tid(), .m_axis_tdest(), .m_axis_tuser(),
+        .m_axis_tvalid(enc_out_valid), .m_axis_tready(enc_out_ready),
         .frame_err(enc_frame_err));
+    /* verilator lint_on PINCONNECTEMPTY */
 
     rs_error_injector #(
         .SYMBOL_WIDTH(M), .T_SYMBOLS(T), .N_SYMBOLS(N), .SYMBOLS_PER_BEAT(S)
@@ -437,18 +447,26 @@ module rs_loop_harness
     end
 
     for (genvar d = 0; d < ND; d++) begin : g_dec
-        rs_decoder_core #(
+        // the component's AXIS top, as above
+        /* verilator lint_off PINCONNECTEMPTY */
+        rs_decoder_axis4 #(
             .SYMBOL_WIDTH(M), .PRIM_POLY(CFG_PRIM_POLY), .T_SYMBOLS(T), .N_SYMBOLS(N),
             .FIRST_ROOT(CFG_FIRST_ROOT), .DATA_WIDTH(DW),
-            .KES_ALGO((d == 0) ? KES_ALGO_A : KES_ALGO_B)
+            .KES_ALGO((d == 0) ? KES_ALGO_A : KES_ALGO_B),
+            .AXIS_ID_WIDTH(0), .AXIS_DEST_WIDTH(0), .AXIS_USER_WIDTH(0)
         ) u_dec (
             .aclk(aclk), .aresetn(dp_rstn),
-            .in_valid(dec_in_valid[d]), .in_ready(dec_in_ready[d]),
-            .in_data(inj_out_data), .in_keep(inj_out_keep), .in_last(inj_out_last),
-            .out_valid(dec_out_valid[d]), .out_ready(dec_out_ready[d]), .out_data(dec_out_data[d]),
-            .out_keep(dec_out_keep[d]), .out_last(dec_out_last[d]),
+            .s_axis_tdata(inj_out_data), .s_axis_tstrb(inj_out_keep),
+            .s_axis_tlast(inj_out_last),
+            .s_axis_tid('0), .s_axis_tdest('0), .s_axis_tuser('0),
+            .s_axis_tvalid(dec_in_valid[d]), .s_axis_tready(dec_in_ready[d]),
+            .m_axis_tdata(dec_out_data[d]), .m_axis_tstrb(dec_out_keep[d]),
+            .m_axis_tlast(dec_out_last[d]),
+            .m_axis_tid(), .m_axis_tdest(), .m_axis_tuser(),
+            .m_axis_tvalid(dec_out_valid[d]), .m_axis_tready(dec_out_ready[d]),
             .out_status_ok(dec_ok[d]), .out_status_corrected(dec_corr[d]),
             .out_status_uncorrectable(dec_unc[d]), .out_status_frame_err(dec_frame[d]));
+        /* verilator lint_on PINCONNECTEMPTY */
     end
 
     // The unbuilt half. dec_in_ready[1] reads 1 so inj_out_ready above is

@@ -127,6 +127,40 @@ update_compile_order -fileset sources_1
 # while Vivado synthesizes something else cannot catch a
 # configuration-specific fault, and this flow has shipped one before.
 # -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Implementation effort.
+#
+# RS_IMPL_STRATEGY names a Vivado run strategy for impl_1; unset means the
+# project default. This exists because the stream flavour is ROUTE-bound at the
+# margin, not logic-bound: its critical path is the Euclid solver's degree
+# register into the descriptor broadcast, 10 logic levels, and at the default
+# strategy 78% of its 10.26 ns was routing. Adding the AXIS wrappers' six skid
+# buffers grew the design by 495 LUTs and that congestion alone took it from
+# +0.269 ns to -0.303 ns with 2 failing endpoints -- the path did not get
+# logically longer, it got routed worse.
+# -----------------------------------------------------------------------------
+# RS_IMPL_EFFORT=explore raises every implementation step's directive and turns
+# on post-route physical optimisation. The STEP DIRECTIVES are set explicitly
+# rather than by naming a strategy: `set_property strategy
+# Performance_ExplorePostRoutePhysOpt` was accepted WITHOUT ERROR and silently
+# did not stick -- the project still recorded "Vivado Implementation Defaults"
+# and the result was bit-identical to the default run, which is how the no-op
+# was caught. Directives are verifiable in the .xpr.
+if {[info exists ::env(RS_IMPL_EFFORT)] && $::env(RS_IMPL_EFFORT) eq "explore"} {
+    set r [get_runs impl_1]
+    set_property STEPS.OPT_DESIGN.ARGS.DIRECTIVE                 Explore $r
+    set_property STEPS.PLACE_DESIGN.ARGS.DIRECTIVE               Explore $r
+    set_property STEPS.PHYS_OPT_DESIGN.IS_ENABLED                true    $r
+    set_property STEPS.PHYS_OPT_DESIGN.ARGS.DIRECTIVE            Explore $r
+    set_property STEPS.ROUTE_DESIGN.ARGS.DIRECTIVE               Explore $r
+    set_property STEPS.POST_ROUTE_PHYS_OPT_DESIGN.IS_ENABLED     true    $r
+    set_property STEPS.POST_ROUTE_PHYS_OPT_DESIGN.ARGS.DIRECTIVE Explore $r
+    puts "IMPL EFFORT:  explore (opt/place/phys_opt/route Explore, post-route phys_opt on)"
+    puts "IMPL CHECK:   place=[get_property STEPS.PLACE_DESIGN.ARGS.DIRECTIVE $r] route=[get_property STEPS.ROUTE_DESIGN.ARGS.DIRECTIVE $r] post_route_po=[get_property STEPS.POST_ROUTE_PHYS_OPT_DESIGN.IS_ENABLED $r]"
+} else {
+    puts "IMPL EFFORT:  project default"
+}
+
 set rs_generics {}
 if {[info exists ::env(RS_IFACE)]} {
     lappend rs_generics "IFACE=\"$::env(RS_IFACE)\""
