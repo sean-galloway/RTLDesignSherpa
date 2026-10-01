@@ -93,8 +93,8 @@ harness refuses a larger run rather than clamping it).
 |---|---|---|---|---|
 | axis_ribm | 63.00 | **100.0%** | **100.0%** | 93.7% |
 | axis_euclid | 63.00 | **100.0%** | **100.0%** | 93.7% |
-| axi4_ribm | 337.75 | 88.9% | 94.1% | 17.5% |
-| axi4_euclid | 337.75 | 88.9% | 94.1% | 17.5% |
+| axi4_ribm | 314.60 | 97.0% | 98.5% | 18.8% |
+| axi4_euclid | 314.60 | 97.0% | 98.5% | 18.8% |
 
 **The solver is throughput-neutral.** riBM and Euclid are identical to the
 cycle in both datapaths -- 16,264 cycles for 256 AXIS blocks either way. The
@@ -114,31 +114,41 @@ each meter to its own stage.
 
 With that, the AXI4 codec's own cost is visible and it is NOT the fixture:
 
-| seam | cyc/block | vs 63-beat ideal | bursts/block | per burst |
-|---|---|---|---|---|
-| codeword out (encode pass) | 70.88 | +7.88 | 4 | ~2.0 cycles |
-| codeword in (decode pass) | 66.94 | +3.94 | 4 | ~1.0 cycle |
+| seam | at burst 16 | at burst 64 | bucket that moved |
+|---|---|---|---|
+| codeword out (encode pass) | 70.88 (+7.88) | **64.96 (+1.96)** | backpressure 501 -> 124 |
+| codeword in (decode pass) | 66.94 (+3.94) | **63.94 (+0.94)** | starvation 394 -> 198 |
 
-`CFG_AXI4_BURST_LEN` is 16, so a 63-beat codeword is 4 bursts, and the
-overhead divides evenly by the burst count in both directions -- it is
-AW/AR-per-burst cost, not anything per block. One burst per codeword would
-cut it to roughly +2 and +1.
+**The cost was the MEMORY SLAVE, not the engines.** With the window gated, the
+encoder's W channel showed 501 cycles of BACKPRESSURE against 11 of
+starvation -- it was producing fine and the slave was refusing -- and the
+decoder's R channel showed 394 of starvation against zero backpressure, the
+slave failing to deliver. Both divided evenly by the burst count (~2.0 and
+~1.6 cycles per burst), so it is burst-start cost in the slave.
+
+`CFG_AXI4_BURST_LEN` went 16 -> 64, quartering the burst count, which is the
+fixture-side mitigation; the slave's per-burst gap itself is shared AMBA RTL
+and was left alone. 64 beats is 256 bytes and MUST be a power of two: the
+engines issue bursts back to back from the job base, so each is aligned to its
+own size, and a size dividing 4096 cannot cross AXI4's 4 KB boundary. One
+burst per codeword is NOT available -- 63 beats is 252 bytes, which would
+eventually straddle it.
 
 ### Where the AXI4 end-to-end number comes from
 
 | | cyc/block |
 |---|---|
-| measured | 337.75 |
+| measured | **314.60** |
 | five-pass floor (5 x 63) | 315.00 |
-| overhead above the floor | 22.75 |
-| ... of which the two codec passes | 11.82 |
-| ... of which seed / inject / drain | 10.93 |
+| overhead above the floor | ~0 |
 
-So 315 of the 337.75 is pure serialisation: AXI4 is 5.36x the AXIS cycle count
-because it runs five sequential passes over memory and the codec participates
-in two. Seed, inject and drain stage and check memory; they do not encode or
-decode. Collapsing them is what moves the end-to-end number, and that is a
-fixture redesign rather than a codec change.
+The fixture is now AT its five-pass floor, so serialisation is the entire
+remaining cost: AXI4 is 4.99x the AXIS cycle count purely because it runs five
+sequential passes over memory and the codec participates in two. Seed, inject
+and drain stage and check memory; they do not encode or decode. Collapsing
+them is the only thing left that moves the end-to-end number, and it is a
+fixture redesign rather than a codec change -- three passes would put the
+floor at 189 cyc/block and two at 126.
 
 ## Build notes
 

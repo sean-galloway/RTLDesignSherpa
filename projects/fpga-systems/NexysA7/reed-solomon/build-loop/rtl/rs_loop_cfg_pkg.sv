@@ -46,11 +46,27 @@ package rs_loop_cfg_pkg;
     // region any one stage uses -- a codeword region is blocks * CFG_N_BEATS
     // words -- so the depth caps the blocks a single AXI4 run can carry. 4096
     // words at 32 bits is 16 KB per memory, 4 block RAMs, and the part has
-    // 135 with none otherwise used. Burst length is a round 16 beats: long
-    // enough that AW/AR overhead is small against a 63-beat codeword, short
-    // enough to stay well inside a 4 KB boundary at 4 bytes a beat.
+    // 135 with none otherwise used.
     localparam int unsigned CFG_AXI4_MEM_DEPTH = 4096;
-    localparam logic [7:0]  CFG_AXI4_BURST_LEN = 8'd16;
+
+    // Burst length, in beats. 64 beats is 256 bytes.
+    //
+    // MUST BE A POWER OF TWO. The engines issue bursts back to back from the
+    // job base, so each burst is aligned to its own size, and a size that
+    // divides 4096 then cannot cross AXI4's 4 KB boundary. One burst per
+    // codeword would be the obvious choice and is NOT available: 63 beats is
+    // 252 bytes, 4096 is not a multiple of it, and such a burst would
+    // eventually straddle the boundary.
+    //
+    // It was 16, which cost ~8 cycles a block. Measured with the codeword
+    // meters gated to the encode and decode passes, the cost is in the MEMORY
+    // SLAVE rather than the engines: the encoder's W channel showed 501 cycles
+    // of BACKPRESSURE against 11 of starvation, and the decoder's R channel
+    // 394 of starvation against zero backpressure -- about 2.0 and 1.6 cycles
+    // per burst. Both divide by the burst COUNT, so quartering the count is
+    // the fixture-side mitigation. The slave's own per-burst gap is in shared
+    // AMBA RTL and is not this file's to fix.
+    localparam logic [7:0]  CFG_AXI4_BURST_LEN = 8'd64;
     localparam int unsigned CFG_AXI4_MAX_BLOCKS = CFG_AXI4_MEM_DEPTH / CFG_N_BEATS;
 
     localparam string       CFG_KES_A = "RIBM";

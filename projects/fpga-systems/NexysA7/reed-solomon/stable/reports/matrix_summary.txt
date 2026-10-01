@@ -1,5 +1,5 @@
 image                 WNS endpoints       LUTs     BRAM status
 axis_ribm           0.192        0      11130        0 rc=0
 axis_euclid         0.097        0      13418        0 rc=0
-axi4_ribm           0.647        0      12991       16 rc=0
-axi4_euclid         0.172        0      15138       16 rc=0
+axi4_ribm           0.517        0      12990       16 rc=0
+axi4_euclid         0.065        0      15131       16 rc=0
