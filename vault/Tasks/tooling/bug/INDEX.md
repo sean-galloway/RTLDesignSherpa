@@ -12,19 +12,19 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 13 | done (kept for history) |
+| [closed/](closed/) | 14 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-014** (P2) — `check_task_ids` globs the worktree, so as a pre-commit hook it validates a different tree than the one being committed; a `git mv` whose pathspec names only the new path commits an ID into two states at once and the hook prints PASS. Proven on `0804d45d3`: the checker FAILS against that committed tree.
 
 
 ## Closed
 
+- **BUG-014** — `check_task_ids` globbed the worktree, so as a pre-commit hook it validated a different tree than the one it approved -- CLOSED 2026-09-30: `tracker_tree()` materialises the index being committed; `--tasks-root` added; 6 new teeth tests (11 total), 2 end-to-end reproducers that failed before the fix, mutation-tested 3 ways
 - **BUG-013** — `check_port_consumers.py` cannot see unpacked-array ports, so it -- CLOSED 2026-09-29: regex takes unpacked dims; unexplained-pin guard reports shapes the parser misses; end-to-end test in bin/tests
 - **BUG-004** — conftests stamp TEST_LEVEL, killing per-cell depth -- CLOSED 2026-09-27: mechanism + checker done, 7 of 8 areas converted; pumice's conversion is pumice BUG-019
 - **BUG-005** — concurrent deletion of local_sim_build -- CLOSED 2026-09-27: marker-aware cleaner on every clean target on main; the ddr2_char Makefile is pumice TASK-031

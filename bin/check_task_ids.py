@@ -45,11 +45,16 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import atexit
 import collections
+import os
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
+from typing import Optional
 
 # Separator after the ID may be an em/en dash, a hyphen, or a COLON. The
 # colon form was missing, and because a heading that does not match is
@@ -107,6 +112,83 @@ TERMINAL_PAGES = {"closed.md": ("closed", "complete", "done", "resolved", "fixed
 def repo_root() -> pathlib.Path:
     out = subprocess.check_output(["git", "rev-parse", "--show-toplevel"])
     return pathlib.Path(out.decode().strip())
+
+
+# The tracker root actually being checked. Normally the worktree's
+# vault/Tasks; in hook context a materialised copy of the index being committed
+# (see tracker_tree). Area labels are relative to THIS, not to the worktree, or
+# they silently degrade to a bare lane name -- and 18 directories are called
+# `task`, so "task: DUPLICATE ID TASK-001" names nothing.
+TASKS_ROOT: Optional[pathlib.Path] = None
+
+
+def tracker_tree(override: Optional[str] = None) -> tuple[pathlib.Path, Optional[str]]:
+    """-> (vault/Tasks to check, tempdir to clean up or None).
+
+    `override` (--tasks-root) points the checker at any tracker tree, which is
+    how you ask "what did I actually COMMIT?" -- materialise a commit and check
+    that, rather than the worktree you happen to be sitting on:
+
+        git worktree add --detach /tmp/wt <sha>
+        python3 bin/check_task_ids.py --tasks-root /tmp/wt/vault/Tasks
+
+    That is the procedure that caught BUG-014, and it was a hand-rolled
+    incantation until this flag existed.
+
+    **A gate must validate the tree it approves.** `git commit -- <paths>` builds
+    a temporary index of HEAD plus only the listed paths, and `GIT_INDEX_FILE`
+    names it. Those paths' content comes from the worktree, but everything else
+    comes from HEAD -- so the worktree and the commit can disagree, and globbing
+    directories checks the wrong one.
+
+    How that bites, measured rather than imagined (tooling BUG-014): move an item
+    with `git mv` and name only the NEW path in the pathspec. The staged deletion
+    is outside the pathspec, so the commit takes the addition and leaves it
+    behind; the item is committed into two states at once. On disk the old copy
+    is already gone, so a directory glob sees a consistent lane and prints PASS.
+    Done for real in `0804d45d3`, which put TASK-021 in both open/ and closed/
+    with a count table claiming 3 against 4. Run against that committed tree the
+    checker FAILS with both issues -- it has teeth, it was pointed at the wrong
+    tree.
+
+    State IS the directory in this convention, so there is no field to reconcile
+    against: a half-committed move produces an item that is genuinely open and
+    closed at once.
+
+    Materialising the subtree, rather than threading an index reader through
+    every glob and read, is deliberate. There are four glob sites and three read
+    sites; a reader missed at any one of them reintroduces exactly this bug in a
+    form nobody would look for again. This way the existing logic is unchanged
+    and cannot disagree with itself. (Same reasoning as tooling TASK-017, which
+    fixed this for filelist_registry.)
+
+    Outside a hook, the worktree is the right answer -- for an interactive run
+    and for CI's clean checkout alike.
+    """
+    if override:
+        p = pathlib.Path(override).resolve()
+        if not p.is_dir():
+            sys.exit(f"--tasks-root {override!r} is not a directory")
+        return p, None
+    root = repo_root()
+    if not os.environ.get("GIT_INDEX_FILE"):
+        return root / "vault" / "Tasks", None
+
+    tmp = tempfile.mkdtemp(prefix="check_task_ids-")
+    ls = subprocess.run(["git", "ls-files", "-z", "--", "vault/Tasks"],
+                        cwd=root, capture_output=True)
+    if ls.returncode == 0 and ls.stdout:
+        subprocess.run(["git", "checkout-index", "-z", "--stdin",
+                        f"--prefix={tmp}/"],
+                       cwd=root, input=ls.stdout, capture_output=True)
+    cand = pathlib.Path(tmp) / "vault" / "Tasks"
+    if not cand.is_dir():
+        # The index holds no tracker files at all. Fall back rather than report
+        # 0 areas: a checker that silently covers nothing is the failure mode
+        # this file warns about at the top.
+        shutil.rmtree(tmp, ignore_errors=True)
+        return root / "vault" / "Tasks", None
+    return cand, tmp
 
 
 STATES = ("open", "active", "closed", "deferred", "dropped")
@@ -251,8 +333,9 @@ def area_label(area: pathlib.Path) -> str:
     grandfathered historical collisions are not silently un-grandfathered.
     """
     try:
-        return str(area.relative_to(repo_root() / "vault" / "Tasks"))
-    except ValueError:
+        return str(area.relative_to(TASKS_ROOT if TASKS_ROOT is not None
+                                    else repo_root() / "vault" / "Tasks"))
+    except (ValueError, TypeError):
         return area.name
 
 
@@ -361,9 +444,20 @@ def main() -> int:
     ap.add_argument("--area")
     ap.add_argument("--next", metavar="AREA",
                     help="print the next free ID for AREA and exit")
+    ap.add_argument("--tasks-root", metavar="DIR", default=None,
+                    help="check this vault/Tasks tree instead of the worktree's "
+                         "(e.g. a detached worktree at some commit, to ask what "
+                         "that commit actually contains)")
     args = ap.parse_args()
 
-    tasks = repo_root() / "vault" / "Tasks"
+    global TASKS_ROOT
+    tasks, tmpdir = tracker_tree(args.tasks_root)
+    TASKS_ROOT = tasks
+    if tmpdir:
+        # atexit rather than try/finally: main() has several early returns
+        # (--next, --area with no match, the error paths) and a leak on any one
+        # of them would litter /tmp on every commit.
+        atexit.register(shutil.rmtree, tmpdir, ignore_errors=True)
     # An AREA is any directory holding task pages, at ANY depth -- not just the
     # top level. `vault/Tasks/projects/components/**` nests two and three deep,
     # and a top-level-only scan silently skipped six areas: it reported "13
