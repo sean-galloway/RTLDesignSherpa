@@ -307,6 +307,15 @@ module scoria_rd_cmd_cam #(
     )
 
 `ifndef SYNTHESIS
+    // AN INPUT CONTRACT, not a property of this block: it constrains whoever
+    // ISSUES, not the CAM. Its canonical statement is the assumption in
+    // formal/scoria/rd_cmd_cam/formal_scoria_rd_cmd_cam.sv --
+    //     assume (!issue_valid_i || sch_valid_o[issue_slot_i]);
+    // -- so the proof takes it as given and cannot replace this check. See
+    // scoria TASK-007 for why it is still here: this block has no dedicated DV
+    // suite, so removing it would leave the contract checked nowhere in
+    // simulation. Guarded from synthesis, so the no-assertions-in-RTL rule's
+    // actual harm does not apply.
     always @(posedge aclk)
         if (aresetn) begin
             assert (!(w_issue_fire && !r_valid[issue_slot_i]))

@@ -15,38 +15,86 @@ not**:
 they never reach synthesis. The cost is that the rule is not actually true of
 this area, and a rule with exceptions nobody has written down is the one the
 next session breaks.
-**Status:** OPEN. Found 2026-10-01 while opening `formal/scoria` -- which is
-also what makes it actionable, because three of the four now have a proof to
-move to.
+**Status:** OPEN, BLOCKED ON A DECISION (see the two options below). Found
+2026-10-01 while opening `formal/scoria`. The first version of this task
+proposed deleting three of the four as already-proved; that was wrong and is
+corrected below -- they are input contracts, the proofs ASSUME them, and
+deleting them reduces checking.
 
-## Three of the four are already proved externally
+## CORRECTION: they are INPUT CONTRACTS, and the first version of this task
+## had the mapping wrong
 
-Inherited from pumice, and `formal/scoria` now holds the same obligations as
-real properties over a free environment, which is strictly stronger than an
-assertion that only fires on stimulus a test happened to generate:
+The first version of this file claimed three of the four were "already proved
+externally" and tabled them against `a_no_fabrication`, `a_no_free_empty`,
+`a_ticket_integrity` and `a_ins_ready_is_free`. **That mapping is wrong.**
+Checked against the wrappers:
 
-| inline assertion | now proved by |
-|---|---|
-| `scoria_rd_return_ring`: `!(dfi_ret_valid_i && !w_iq_rd_valid)` | `a_no_fabrication` |
-| `scoria_rd_return_ring`: `!(issue_valid_i && w_empty)` | `a_no_free_empty`, `a_ready_is_notfull` |
-| `scoria_rd_cmd_cam`: `!(w_issue_fire && !r_valid[issue_slot_i])` | `a_ticket_integrity`, `a_ins_ready_is_free` |
+| inline assertion | the property I claimed | what that property actually says |
+|---|---|---|
+| `rd_cmd_cam`: `!(w_issue_fire && !r_valid[issue_slot_i])` | `a_ins_ready_is_free` | about INSERT readiness, not issue |
+| `rd_return_ring`: `!(dfi_ret_valid_i && !w_iq_rd_valid)` | `a_no_fabrication` | drained bursts <= RETURNED bursts, a different quantity |
+| `rd_return_ring`: `!(issue_valid_i && w_empty)` | `a_no_free_empty` | FREE on empty, not ISSUE on empty |
 
-All three proofs are mutation-verified against scoria's own RTL (a planted
-defect makes each FAIL), so moving the obligation out of the RTL loses nothing.
+Worse for the original plan: the obligations appear in the proofs as
+**`assume`**, not `assert`. `formal_scoria_rd_cmd_cam.sv:154` is literally
+`assume (!issue_valid_i || sch_valid_o[issue_slot_i])`, and the rd_return_ring
+wrapper states the reason in its header:
 
-## The fourth has no replacement yet
+> THE RTL's OWN TWO ASSERTIONS ARE ENVIRONMENT CONTRACTS, NOT DUT CHECKS.
+> Both constrain the block's INPUTS. They were never testing this module; they
+> were testing whoever drives it. They appear below as `assume`, which is what
+> they always were.
 
-`scoria_dfi_rd_aligner`: `!(rd_valid_o && !rd_ready_i)` -- the read-return
-stream has no backpressure, so a valid with ready low means a dropped word.
-There is no `formal/scoria/dfi_rd_aligner` block. Either write one (the
-aligner is small, and its credit/window logic already produced one escape in
-the mutation runs that needed a masking gate removed to see) or keep this one
-assertion and record it as the single documented exception.
+That analysis is correct, and it settles what these four things are: they are
+**checks on the block's inputs**, i.e. on whoever drives it, not properties of
+the block. A proof cannot "replace" them -- it takes them as given.
+
+## Which means deleting them REDUCES checking
+
+`scoria_rd_cmd_cam`, `scoria_rd_return_ring`, `scoria_wr_data_cam` and
+`scoria_dfi_cdc` have **no dedicated DV suites** -- they are covered by
+`test_scoria_pumice_logic_parity.py` (logic identical to pumice, which has its
+own tests) plus the new proofs. So if these assertions come out of the RTL, the
+input contract is checked:
+
+- in formal, only as an `assume` (taken as true, not verified)
+- in scoria's own simulation, nowhere directly -- only indirectly, by the macro
+  and top tiers corrupting data if a driver broke the contract
+
+Deleting them is therefore not a neutral tidy-up. That is a real reduction, and
+it is why this task should NOT be actioned as first written.
+
+## The decision is the owner's, and it is one of two
+
+**(a) Keep them, recorded as a stated exception.** The harm the standing rule
+names -- "they break some tools" -- is already mitigated: all four sit inside
+`ifndef SYNTHESIS`, so no synthesis or lint flow sees them. The exception class
+would be "input-contract checks, guarded from synthesis, whose canonical
+statement is the corresponding `assume` in formal/". Cheapest, loses nothing.
+
+**(b) Move the check to the driver.** The contract belongs to whoever issues,
+so the honest home is a DV scoreboard on the composition (the macro tier drives
+the real scheduler into the real CAMs) or a dedicated unit suite for each of
+the four blocks. More work, and it puts the check where the rule wants it.
+
+Not taken unilaterally because (a) amends a standing repo rule, which is
+Sean's call, and (b) is a decision about where scoria's DV effort goes next.
+
+What HAS been done meanwhile: each of the four sites now carries a comment
+saying it is an input contract rather than a DUT property, and naming the
+formal `assume` that states it canonically -- so the next reader does not
+re-derive this analysis.
 
 ## Done when
 
-The three replaced assertions are deleted, and the fourth is either proved in a
-new `formal/scoria/dfi_rd_aligner` block or recorded as a stated exception in
-the RTL header AND in the handbook note that carries the rule
-(`vault/handbook/design/no-assertions-in-rtl.md`), so the next sweep does not
-re-open it.
+Sean picks (a) or (b) above. If (a): the exception class goes in
+`vault/handbook/design/no-assertions-in-rtl.md` so the next sweep does not
+re-open it, and this closes. If (b): the four checks move to DV and the RTL
+blocks lose them.
+
+The `scoria_dfi_rd_aligner` assertion (`!(rd_valid_o && !rd_ready_i)`) is the
+one genuine DUT property of the four -- the read-return stream has no
+backpressure, so a valid with ready low is a DROPPED WORD, which is about the
+aligner and not its driver. It has no proof: there is no
+`formal/scoria/dfi_rd_aligner` block. Writing one is worthwhile independent of
+this decision.

@@ -270,6 +270,11 @@ module scoria_dfi_rd_aligner #(
 
     always @(posedge dfi_clk)
         if (dfi_rstn) begin
+            // THE ONE GENUINE DUT PROPERTY among scoria's four inline
+            // assertions (scoria TASK-007): the read-return stream has no
+            // backpressure, so a valid with ready low is a DROPPED WORD, and
+            // that is about this block rather than its driver. There is no
+            // formal/scoria/dfi_rd_aligner block to move it to yet.
             assert (!(rd_valid_o && !rd_ready_i))
               else $error("RD_ALIGNER @%0t: read beat LOST (return FIFO full; rcnt=%0d outst=%0d) -- return-path sizing contract broken",
                           $time, r_rcnt, r_outstanding);

@@ -267,6 +267,14 @@ module scoria_rd_return_ring #(
     // the DFI that the ring never saw issued -- a lost ticket, and every later
     // read would fill the wrong slot. Also: a ticket must never be issued for
     // a slot that is not allocated.
+    //
+    // BOTH ARE INPUT CONTRACTS, not properties of this block -- they constrain
+    // whoever drives it. formal/scoria/rd_return_ring states them canonically
+    // as assumptions (`assume (!issue_valid_i || (occ_o != 0))` and the
+    // dfi_ret pair), so the proof takes them as given and cannot replace these
+    // checks. Kept because this block has no dedicated DV suite; see scoria
+    // TASK-007, which is open on whether the check moves to the driver's TB
+    // instead. Guarded from synthesis.
     always @(posedge aclk)
         if (aresetn) begin
             assert (!(dfi_ret_valid_i && !w_iq_rd_valid))
