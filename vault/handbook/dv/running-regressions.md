@@ -127,6 +127,13 @@ explicit build deletes -- unmutated 20.6s pass, mutated 19.6s fail, both real
 durations -- and the conclusion held. What you cannot trust on a possibly-stale
 build is a mutation that came back CAUGHT-BY-NOTHING.
 
+One qualification on "every positive detection is trustworthy": it holds when
+the mutation and the assertion are the only moving parts. A mutation that fails
+for a DIFFERENT reason than the one planted proves something was loaded, not
+that your assertion is the thing with teeth. The tell is a failure message
+naming an unrelated check, so **read which assertion fired, not just that one
+did** -- cheap, and the only gap in the argument above.
+
 **The tell is the same one as everywhere else in this note: duration.** A full
 case set that takes 70s from clean came back in 0.4s. Before believing any
 mutation verdict, check that the run was long enough to have compiled anything.
