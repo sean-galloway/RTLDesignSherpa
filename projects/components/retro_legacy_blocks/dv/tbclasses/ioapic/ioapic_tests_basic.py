@@ -327,7 +327,7 @@ class IOAPICBasicTests:
             # Check that interrupt is NOT delivered
             if self.tb.dut.irq_out_valid.value == 1:
                 # Check if this is actually for IRQ3 or a stale interrupt from another IRQ
-                vector = self.tb.dut.irq_out_vector.value.integer
+                vector = int(self.tb.dut.irq_out_vector.value)
                 if vector == test_vector:
                     self.log.error("Interrupt delivered for masked IRQ3")
                     return False

@@ -295,7 +295,7 @@ class RLBTopTB(TBBase):
             await RisingEdge(self.dut.pclk)
             if (self.dut.s_apb_PSEL.value and self.dut.s_apb_PENABLE.value
                     and self.dut.s_apb_PREADY.value):
-                read_data = self.dut.s_apb_PRDATA.value.integer
+                read_data = int(self.dut.s_apb_PRDATA.value)
                 done = True
                 break
         if not done:

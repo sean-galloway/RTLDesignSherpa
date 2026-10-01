@@ -519,7 +519,7 @@ class IOAPICMediumTests:
                 return False
 
             if self.tb.dut.irq_out_valid.value == 1:
-                vec_now = self.tb.dut.irq_out_vector.value.integer
+                vec_now = int(self.tb.dut.irq_out_vector.value)
                 if vec_now == vec_a:
                     self.log.error(f"IRQ A(6) redelivered after EOI despite input being deasserted")
                     return False

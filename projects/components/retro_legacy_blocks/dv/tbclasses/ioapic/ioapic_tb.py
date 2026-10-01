@@ -372,7 +372,7 @@ class IOAPICTB(TBBase):
             if (self.dut.s_apb_PSEL.value and
                 self.dut.s_apb_PENABLE.value and
                 self.dut.s_apb_PREADY.value):
-                read_data = self.dut.s_apb_PRDATA.value.integer
+                read_data = int(self.dut.s_apb_PRDATA.value)
                 break
             timeout += 1
 
@@ -509,7 +509,7 @@ class IOAPICTB(TBBase):
         if not 0 <= irq_num < self.num_irqs:
             raise ValueError(f"IRQ must be 0-{self.num_irqs-1}")
 
-        current = self.dut.irq_in.value.integer
+        current = int(self.dut.irq_in.value)
         new_value = current | (1 << irq_num)
         self.dut.irq_in.value = new_value
 
@@ -525,7 +525,7 @@ class IOAPICTB(TBBase):
         if not 0 <= irq_num < self.num_irqs:
             raise ValueError(f"IRQ must be 0-{self.num_irqs-1}")
 
-        current = self.dut.irq_in.value.integer
+        current = int(self.dut.irq_in.value)
         new_value = current & ~(1 << irq_num)
         self.dut.irq_in.value = new_value
 
@@ -582,8 +582,8 @@ class IOAPICTB(TBBase):
             if self.dut.irq_out_valid.value == 1:
                 self.log.info("Interrupt delivery asserted (irq_out_valid=1)")
                 # Capture interrupt info BEFORE acknowledging
-                self._last_int_vector = self.dut.irq_out_vector.value.integer
-                self._last_int_dest = self.dut.irq_out_dest.value.integer
+                self._last_int_vector = int(self.dut.irq_out_vector.value)
+                self._last_int_dest = int(self.dut.irq_out_dest.value)
                 # The mode says how the receiver must read the destination;
                 # capture it with the rest of the payload, before the ack
                 # returns the interface to its idle (all-zero) state.
@@ -633,9 +633,9 @@ class IOAPICTB(TBBase):
             return 1, vector, dest
 
         # Otherwise read current signal values
-        valid = self.dut.irq_out_valid.value.integer
-        vector = self.dut.irq_out_vector.value.integer
-        dest = self.dut.irq_out_dest.value.integer
+        valid = int(self.dut.irq_out_valid.value)
+        vector = int(self.dut.irq_out_vector.value)
+        dest = int(self.dut.irq_out_dest.value)
 
         return valid, vector, dest
 
@@ -668,7 +668,7 @@ class IOAPICTB(TBBase):
 
             if self.dut.irq_out_valid.value == 1:
                 # Capture vector for EOI
-                vector = self.dut.irq_out_vector.value.integer
+                vector = int(self.dut.irq_out_vector.value)
                 # Acknowledge the interrupt
                 self.dut.irq_out_ready.value = 1
                 await self.wait_clocks('pclk', 1)
@@ -741,7 +741,7 @@ class IOAPICTB(TBBase):
         for _ in range(window_cycles):
             await RisingEdge(self.dut.pclk)
             if self.dut.irq_out_valid.value == 1 and self.dut.irq_out_ready.value == 1:
-                vec = self.dut.irq_out_vector.value.integer
+                vec = int(self.dut.irq_out_vector.value)
                 if vector_filter is None or vec == vector_filter:
                     handshakes.append(vec)
         return handshakes

@@ -191,7 +191,7 @@ class FifoAsyncWaveDromTB(FifoBufferTB):
         empty = getattr(self.dut, 'rd_empty', None)
         for _ in range(timeout_cycles):
             await self.wait_clocks(self.rd_clk_name, 1)
-            if empty is not None and empty.value.is_resolvable and empty.value.integer == 1:
+            if empty is not None and empty.value.is_resolvable and int(empty.value) == 1:
                 return True
         self.log.error("drain did not complete within timeout")
         return False

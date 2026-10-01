@@ -292,7 +292,7 @@ class PIC8259TB(TBBase):
             if (self.dut.s_apb_PSEL.value and
                 self.dut.s_apb_PENABLE.value and
                 self.dut.s_apb_PREADY.value):
-                read_data = self.dut.s_apb_PRDATA.value.integer
+                read_data = int(self.dut.s_apb_PRDATA.value)
                 break
             timeout += 1
 
@@ -390,7 +390,7 @@ class PIC8259TB(TBBase):
         if not 0 <= irq_num < self.num_irqs:
             raise ValueError(f"IRQ must be 0-{self.num_irqs-1}")
 
-        current = self.dut.irq_in.value.integer
+        current = int(self.dut.irq_in.value)
         new_value = current | (1 << irq_num)
         self.dut.irq_in.value = new_value
         await self.wait_clocks('pclk', 1)  # Wait for signal to propagate
@@ -407,7 +407,7 @@ class PIC8259TB(TBBase):
         if not 0 <= irq_num < self.num_irqs:
             raise ValueError(f"IRQ must be 0-{self.num_irqs-1}")
 
-        current = self.dut.irq_in.value.integer
+        current = int(self.dut.irq_in.value)
         new_value = current & ~(1 << irq_num)
         self.dut.irq_in.value = new_value
         await self.wait_clocks('pclk', 1)  # Wait for signal to propagate

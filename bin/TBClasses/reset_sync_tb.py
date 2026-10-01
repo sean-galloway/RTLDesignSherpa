@@ -202,7 +202,7 @@ class ResetSyncTB(TBBase):
             await Timer(1, units='ns')  # Allow combinational output to settle
             if i < self.N - 1:
                 # Should still be recovering
-                current_val = self.dut.sync_rst_n.value.integer
+                current_val = int(self.dut.sync_rst_n.value)
                 self.log.info(f"  Glitch recovery cycle {i}: sync_rst_n={current_val}")
 
         # After N clocks, should be back to 1
