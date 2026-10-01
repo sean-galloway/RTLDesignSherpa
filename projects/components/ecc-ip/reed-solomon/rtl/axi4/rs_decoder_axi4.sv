@@ -24,14 +24,11 @@
 //   MAX_OUTSTANDING  requests in flight per direction
 //
 // Notes:
-//   - A codeword occupies K_BEATS + P_BEATS beats. The guard below restricts
-//     this to profiles where k fills a whole number of beats, and there that
-//     equals ceil(N/S): the encoder emits no mid-codeword partial beat, and
-//     the only partial that can arise is the parity tail, which is the
-//     codeword's LAST beat. That matters because rs_decoder_core accepts a
-//     partial beat only there. This module reconstructs that keep from the
-//     beat index, since the read engine deals in beats and knows nothing
-//     about symbols.
+//   - A codeword is read as ceil(N/S) PACKED beats with any partial one last,
+//     which is what rs_encoder_axi4 writes (it generates rs_beat_packer in its
+//     output path when the core's own layout would put a partial beat
+//     mid-codeword). This module reconstructs that keep from the beat index,
+//     since the read engine deals in beats and knows nothing about symbols.
 //   - The output is k symbols per block and the write side writes whole beats;
 //     a partial final beat's unused lanes carry whatever the core emitted.
 //   - out_status_* are valid with the block's last output beat, which is the
@@ -130,36 +127,18 @@ module rs_decoder_axi4 #(
 );
 
     localparam int S        = SYMBOLS_PER_BEAT;
-    localparam int K_BEATS  = (K_SYMBOLS      + S - 1) / S;
-    localparam int P_BEATS  = (2 * T_SYMBOLS  + S - 1) / S;
-    localparam int CW_BEATS = K_BEATS + P_BEATS;
-    localparam int P_TAIL   = (2 * T_SYMBOLS) % S;
+    localparam int K_BEATS  = (K_SYMBOLS + S - 1) / S;
+    // The codeword in memory is PACKED by rs_encoder_axi4: ceil(N/S) beats
+    // with any partial one last. That is this core's in_keep contract, so the
+    // tail is N % S and it lands on the block's final beat.
+    localparam int CW_BEATS = (N_SYMBOLS + S - 1) / S;
+    localparam int N_TAIL   = N_SYMBOLS % S;
     localparam int SIZE_B   = $clog2(DATA_WIDTH / 8);
     localparam int IBW      = (CW_BEATS > 1) ? $clog2(CW_BEATS) : 1;
 
     if (DATA_WIDTH % SYMBOL_WIDTH != 0)
         $fatal(1, "rs_decoder_axi4: DATA_WIDTH %0d is not a whole number of %0d-bit symbols",
                DATA_WIDTH, SYMBOL_WIDTH);
-
-    // The chain is only valid when k fills a whole number of beats.
-    //
-    // rs_encoder_core emits its data phase then starts parity on a FRESH beat,
-    // so when K % S != 0 its data phase ends on a partial beat that is NOT the
-    // codeword's last. rs_decoder_core's contract is the opposite: in_keep may
-    // be partial ONLY on a block's last beat, and it flags a mis-framed block
-    // otherwise. So an encoder output cannot be fed to a decoder at those
-    // profiles without a repacker between them, which does not exist yet.
-    //
-    // With K % S == 0 there is no mid-stream partial, the codeword occupies
-    // exactly ceil(N/S) beats, and any partial beat is the parity tail -- which
-    // IS the last beat, so the decoder accepts it. Measured: RS(252,236),
-    // RS(204,188) and RS(30,24) chain; RS(255,239) and RS(15,9) do not.
-    //
-    // This is an elaboration error rather than a silent mis-frame because the
-    // failure is a framing error on every block, and a reader would look at
-    // the decoder before the interface.
-    if (K_SYMBOLS % S != 0)
-        $fatal(1, "rs_decoder_axi4: K_SYMBOLS %0d is not a whole number of %0d-symbol beats. rs_encoder_core would emit a partial beat mid-codeword and rs_decoder_core rejects one; chaining them needs a beat packer, which is not built. Pick a profile whose K_SYMBOLS divides evenly by SYMBOLS_PER_BEAT.", K_SYMBOLS, S);
 
 
     // =========================================================================
@@ -201,8 +180,8 @@ module rs_decoder_axi4 #(
     // is the parity tail -- and that IS the last beat.
     always_comb begin
         w_in_keep = {S{1'b1}};
-        if ((P_TAIL != 0) && (r_ibeat == IBW'(CW_BEATS - 1)))
-            w_in_keep = S'((1 << P_TAIL) - 1);
+        if ((N_TAIL != 0) && (r_ibeat == IBW'(CW_BEATS - 1)))
+            w_in_keep = S'((1 << N_TAIL) - 1);
     end
 
     always_ff @(posedge aclk or negedge aresetn) begin

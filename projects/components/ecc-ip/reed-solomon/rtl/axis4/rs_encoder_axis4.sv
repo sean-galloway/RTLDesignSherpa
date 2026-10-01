@@ -95,6 +95,15 @@ module rs_encoder_axis4 #(
     // Anywhere else they are not, and guessing would corrupt partial beats.
     localparam bit KEEP_ON_USER = (SYMBOL_WIDTH != 8);
 
+    // rs_encoder_core finishes its data phase and starts parity on a FRESH
+    // beat, so at K % S != 0 its output carries a partial beat MID-codeword.
+    // That is poor AXI-Stream citizenship -- a partial TSTRB is expected on
+    // TLAST and almost nowhere else, and an rs_decoder_core downstream flags
+    // it as a mis-framed block outright (PRD D9b). rs_beat_packer closes it
+    // up so a codeword leaves as ceil(N/S) beats with any partial one last.
+    // At K % S == 0 there is nothing to pack and it is not built.
+    localparam bit NEED_PACK = (K_SYMBOLS % S != 0);
+
     if (DATA_WIDTH % SYMBOL_WIDTH != 0)
         $fatal(1, "rs_encoder_axis4: DATA_WIDTH %0d is not a whole number of %0d-bit symbols",
                DATA_WIDTH, SYMBOL_WIDTH);
@@ -162,6 +171,30 @@ module rs_encoder_axis4 #(
         .frame_err(frame_err));
 
     // -------------------------------------------------------------------------
+    // repack, when the core's layout would put a partial beat mid-codeword
+    // -------------------------------------------------------------------------
+    logic [DATA_WIDTH-1:0] pk_data;
+    logic [S-1:0]          pk_keep;
+    logic                  pk_last, pk_valid, pk_ready;
+
+    if (NEED_PACK) begin : g_pack
+        rs_beat_packer #(
+            .SYMBOL_WIDTH(SYMBOL_WIDTH), .SYMBOLS_PER_BEAT(S)
+        ) u_pack (
+            .aclk(aclk), .aresetn(aresetn),
+            .in_valid(core_valid), .in_ready(core_ready), .in_data(core_data),
+            .in_keep(core_keep), .in_last(core_last),
+            .out_valid(pk_valid), .out_ready(pk_ready), .out_data(pk_data),
+            .out_keep(pk_keep), .out_last(pk_last));
+    end else begin : g_no_pack
+        assign pk_valid   = core_valid;
+        assign core_ready = pk_ready;
+        assign pk_data    = core_data;
+        assign pk_keep    = core_keep;
+        assign pk_last    = core_last;
+    end
+
+    // -------------------------------------------------------------------------
     // id / dest passthrough
     //
     // A codeword leaves as more beats than it entered as, so the id and dest
@@ -179,7 +212,7 @@ module rs_encoder_axis4 #(
             if (in_tvalid && in_tready && !r_have) begin
                 r_tid <= in_tid; r_tdest <= in_tdest; r_have <= 1'b1;
             end
-            if (core_valid && core_ready && core_last) r_have <= 1'b0;
+            if (pk_valid && pk_ready && pk_last) r_have <= 1'b0;
         end
     end
 
@@ -194,13 +227,13 @@ module rs_encoder_axis4 #(
         always_comb begin
             w_out_tstrb = {SW{1'b1}};
             w_out_tuser = '0;
-            w_out_tuser[S-1:0] = core_keep;
+            w_out_tuser[S-1:0] = pk_keep;
         end
     end else begin : g_keep_out_strb
         always_comb begin
             w_out_tuser = '0;
             w_out_tstrb = {SW{1'b1}};
-            w_out_tstrb[S-1:0] = core_keep;
+            w_out_tstrb[S-1:0] = pk_keep;
         end
     end
 
@@ -211,10 +244,10 @@ module rs_encoder_axis4 #(
         .AXIS_USER_WIDTH(AXIS_USER_WIDTH)
     ) u_out (
         .aclk(aclk), .aresetn(aresetn),
-        .fub_axis_tdata(core_data), .fub_axis_tstrb(w_out_tstrb),
-        .fub_axis_tlast(core_last), .fub_axis_tid(r_tid),
+        .fub_axis_tdata(pk_data), .fub_axis_tstrb(w_out_tstrb),
+        .fub_axis_tlast(pk_last), .fub_axis_tid(r_tid),
         .fub_axis_tdest(r_tdest), .fub_axis_tuser(w_out_tuser),
-        .fub_axis_tvalid(core_valid), .fub_axis_tready(core_ready),
+        .fub_axis_tvalid(pk_valid), .fub_axis_tready(pk_ready),
         .m_axis_tdata(m_axis_tdata), .m_axis_tstrb(m_axis_tstrb),
         .m_axis_tlast(m_axis_tlast), .m_axis_tid(m_axis_tid),
         .m_axis_tdest(m_axis_tdest), .m_axis_tuser(m_axis_tuser),

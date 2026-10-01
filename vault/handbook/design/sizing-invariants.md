@@ -35,4 +35,19 @@ summary: Shared-resource capacity math lives in ONE place, never a comment.
   select that is only wrong at non-default parameters is invisible until
   something instantiates the real configuration. Lint the module at the
   parameter sets it will actually be used with.*
+- **A shift amount built from a product of narrow operands TRUNCATES, and the
+  symptom points away from the shift.** `acc >> (count * HW'(WIDTH))` evaluates
+  the product in HW bits, because a shift amount is self-determined. Four
+  symbols times eight bits is 32, which in a 4-bit HW is 0 -- so the shift
+  silently becomes a no-op. Multiply by the plain `int` localparam, or compute
+  the bit count into an explicitly wide signal.
+  *Case (2026-09-30): `rs_beat_packer`, which accumulates symbols and emits
+  full beats. With the shift stuck at zero the accumulator never drained and
+  each accepted beat was OR-ed on top of the one still in the low lanes. What
+  made it slow to find is that every CONTROL output stayed correct -- the beat
+  count, the keep pattern, and `out_last` placement are all computed from the
+  symbol count, which was fine -- so the beat-count and contract assertions
+  passed and only the data was wrong, from the second beat onward. A failure
+  where the flags agree and the payload does not is worth suspecting a width
+  before suspecting the algorithm.*
 

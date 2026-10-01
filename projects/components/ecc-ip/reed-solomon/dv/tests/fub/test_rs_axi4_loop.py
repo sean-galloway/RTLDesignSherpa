@@ -5,27 +5,29 @@ The fixture (dv/tb/rs_axi4_loop_tb_top.sv) wires messages -> M1 -> encode ->
 M2 -> decode -> M3 -> messages through three real sdpram memories, each with
 one writer on its write channels and one reader on its read channels.
 
-Every profile here has k filling a whole number of beats, which the tops
-enforce at elaboration. That is not a convenience: rs_encoder_core starts
-parity on a FRESH beat, so at K % S != 0 its data phase ends on a partial beat
-mid-codeword, and rs_decoder_core accepts a partial beat only on a block's
-LAST one -- it flags every block as mis-framed instead. Chaining those
-profiles needs a repacker that does not exist. This test is what found that;
-the encoder and decoder had never been chained before, because the standalone
-decoder test fed it a contiguously packed codeword built in Python.
+This test is what found PRD D9b. rs_encoder_core starts parity on a FRESH
+beat, so at K % S != 0 its data phase ends on a partial beat MID-codeword, and
+rs_decoder_core accepts a partial beat only on a block's LAST one -- it flags
+every block mis-framed instead. The two had never been chained before, because
+the standalone decoder test feeds it a codeword packed contiguously in Python.
+rs_encoder_axi4 now generates rs_beat_packer in its output path when the core's
+layout needs it, so a codeword reaches memory as ceil(N/S) packed beats and
+every profile below chains.
 
 Profiles are chosen for what they break:
 
-  RS(252,236) S=4    the Nexys A7 loop's code. No partial beat anywhere, so it
-                     is the case that would pass even if the keep logic were
-                     hardwired to all ones -- included as the control.
-  RS(30,24) t=3 S=4  2t = 6 over 4 symbols per beat, so the PARITY tail is
-                     partial and it lands on the codeword's last beat. This is
-                     the profile that actually exercises the keep
-                     reconstruction, and the only one where getting it wrong
-                     shows up.
-  RS(204,188) S=4    DVB shortened, with Euclid rather than riBM, so the
-                     solver is not held constant across the matrix.
+  RS(252,236) S=4    the Nexys A7 loop's code. Nothing partial anywhere and no
+                     packer built, so it is the transparency control.
+  RS(255,239) S=4    k = 239 = 59 beats + 3. The packer IS built here, and
+                     without it the decoder framed every block wrong.
+  RS(15,9) t=3 S=4   BOTH phases end mid-beat: the core emits 5 beats and the
+                     packer turns them into 4. A packer that only re-aligned
+                     without re-counting would be caught here.
+  RS(30,24) t=3 S=4  k fills its beats but 2t does not, so the partial is the
+                     parity tail and it already lands last. No packer, but the
+                     decoder's keep reconstruction is exercised.
+  RS(204,188) S=4    DVB shortened, with Euclid, so the solver is not held
+                     constant across the matrix.
 
 Author: RTL Design Sherpa
 Created: 2026-09-30
@@ -51,8 +53,10 @@ FILELIST = 'projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_axi4_loop_t
 
 # (symbol_width, prim_poly, t, n, symbols_per_beat, kes)
 PROFILES = [
-    (8, 0x11D, 8, 252, 4, "RIBM"),     # board code; no partial beat at all
-    (8, 0x11D, 3, 30,  4, "EUCLID"),   # partial PARITY tail on the last beat
+    (8, 0x11D, 8, 252, 4, "RIBM"),     # no partial beat at all; no packer
+    (8, 0x11D, 8, 255, 4, "RIBM"),     # k ends mid-beat; the packer is built
+    (8, 0x11D, 3, 15,  4, "EUCLID"),   # both phases mid-beat: 5 beats -> 4
+    (8, 0x11D, 3, 30,  4, "EUCLID"),   # parity tail, already last; no packer
     (8, 0x11D, 8, 204, 4, "EUCLID"),   # DVB shortened, the other solver
 ]
 

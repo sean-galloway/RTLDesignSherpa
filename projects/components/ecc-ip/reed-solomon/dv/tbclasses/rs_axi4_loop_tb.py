@@ -58,8 +58,9 @@ class RSAxi4LoopTB(TBBase):
         self.s = self.dw // self.m
         self.k = self.n - 2 * self.t
         self.k_beats = -(-self.k // self.s)
-        self.p_beats = -(-(2 * self.t) // self.s)
-        self.cw_beats = self.k_beats + self.p_beats
+        self.k_tail = self.k % self.s            # 0 = the message fills its beats
+        # a codeword is written PACKED: ceil(N/S) beats, any partial one last
+        self.cw_beats = -(-self.n // self.s)
         self.checks = 0
         self.mismatches = 0
         self._init_bfms()
@@ -145,9 +146,23 @@ class RSAxi4LoopTB(TBBase):
         # back carrying the previous burst length's word.
         self.slave._recvQ.clear()
         rnd = random.Random(0xC0DE + blocks * 977 + burst_len)
-        mask = (1 << self.dw) - 1
         msg_beats = blocks * self.k_beats
-        words = [rnd.randrange(1 << self.dw) & mask for _ in range(msg_beats)]
+        smask = (1 << self.m) - 1
+
+        # Build the message as SYMBOLS, then pack into beats. When k does not
+        # fill its final beat the pad lanes are seeded as zero, but they are
+        # never compared: the decoder writes whole beats and whatever its core
+        # drove in the unused lanes lands in memory, so only the k meaningful
+        # symbols per block can be checked.
+        msgs = [[rnd.randrange(1 << self.m) for _ in range(self.k)] for _ in range(blocks)]
+        words = []
+        for syms in msgs:
+            for i in range(0, self.k_beats * self.s, self.s):
+                chunk = syms[i:i + self.s]
+                w = 0
+                for j, sym in enumerate(chunk):
+                    w |= (sym & smask) << (j * self.m)
+                words.append(w)
         label = f"blocks={blocks} len={burst_len} {profile}"
         budget = 400 * blocks * self.cw_beats + 20000
 
@@ -160,6 +175,8 @@ class RSAxi4LoopTB(TBBase):
         for i, w in enumerate(words):
             await self.master.send(self.master.create_packet(
                 data=w, last=int((i + 1) % self.k_beats == 0)))
+        # (the seed engine ignores last; the block boundary that matters is the
+        #  encoder's, which its read engine derives from cfg_beats_per_block)
         if not await self._await_done(self.dut.seed_done, f"{label} seed", budget):
             return
 
@@ -195,7 +212,7 @@ class RSAxi4LoopTB(TBBase):
         got, waited = [], 0
         while len(got) < msg_beats and waited < budget:
             if self.slave._recvQ:
-                got.append(int(self.slave._recvQ.popleft().data) & mask)
+                got.append(int(self.slave._recvQ.popleft().data))
             else:
                 await RisingEdge(self.dut.aclk)
                 waited += 1
@@ -204,24 +221,37 @@ class RSAxi4LoopTB(TBBase):
         if len(got) != msg_beats:
             self._fail(f"{label}: drained {len(got)} of {msg_beats} beats")
             return
-        if got != words:
-            diffs = [i for i, (a, b) in enumerate(zip(got, words)) if a != b]
-            first = diffs[0]
-            # Is it a SHIFT rather than corruption? A whole-block or whole-beat
-            # offset says the addressing or the beat accounting slipped; a
-            # scattered difference says the data itself is wrong.
+        # Unpack the drained beats back into the k meaningful symbols per block.
+        # The pad lanes of a partial final beat are deliberately not compared.
+        got_msgs = []
+        for b in range(blocks):
+            syms = []
+            for i in range(self.k_beats):
+                w = got[b * self.k_beats + i]
+                take = self.s if (i < self.k_beats - 1 or self.k_tail == 0) else self.k_tail
+                for j in range(take):
+                    syms.append((w >> (j * self.m)) & smask)
+            got_msgs.append(syms)
+
+        if got_msgs != msgs:
+            bad = [b for b in range(blocks) if got_msgs[b] != msgs[b]]
+            b = bad[0]
+            diffs = [i for i, (a, c) in enumerate(zip(got_msgs[b], msgs[b])) if a != c]
+            # A whole-symbol SHIFT says the beat accounting or addressing
+            # slipped; a scattered difference says the data itself is wrong.
             shift = None
-            for off in range(1, min(len(words), self.cw_beats * 2 + 4)):
-                if got[off:] == words[:len(got) - off]:
+            g, w = got_msgs[b], msgs[b]
+            for off in range(1, min(len(w), 2 * self.s + 4)):
+                if g[off:] == w[:len(g) - off]:
                     shift = off; break
-                if words[off:] == got[:len(words) - off]:
+                if w[off:] == g[:len(w) - off]:
                     shift = -off; break
             self._fail(
-                f"{label}: {len(diffs)} of {len(words)} beats differ, first at {first} "
-                f"(got 0x{got[first]:08X}, sent 0x{words[first]:08X}); "
-                + (f"the stream is SHIFTED by {shift} beats "
-                   f"({shift / self.k_beats:.2f} blocks)" if shift is not None
-                   else "no whole-beat shift explains it, so the data itself is wrong"))
+                f"{label}: {len(bad)} of {blocks} blocks differ; block {b} has "
+                f"{len(diffs)} of {self.k} symbols wrong, first at {diffs[0]} "
+                f"(got 0x{g[diffs[0]]:02X}, sent 0x{w[diffs[0]]:02X}); "
+                + (f"the symbols are SHIFTED by {shift}" if shift is not None
+                   else "no shift explains it, so the data itself is wrong"))
 
     async def run_bursts(self):
         for ln in self.LENS[self.level]:
@@ -238,4 +268,5 @@ class RSAxi4LoopTB(TBBase):
     def get_test_report(self):
         return {'checks': self.checks, 'mismatches': self.mismatches,
                 'profile': f"RS({self.n},{self.k}) m={self.m} t={self.t} S={self.s}",
-                'beats': f"K_BEATS={self.k_beats} P_BEATS={self.p_beats} CW={self.cw_beats}"}
+                'beats': f"K_BEATS={self.k_beats} (tail {self.k_tail}) "
+                         f"CW={self.cw_beats} packed"}

@@ -25,11 +25,12 @@
 //   MAX_OUTSTANDING  requests in flight per direction
 //
 // Notes:
-//   - A codeword occupies K_BEATS + P_BEATS beats, NOT ceil(N/S). The core
-//     does not pack parity onto a partial final data beat: it finishes the
-//     data phase and starts parity on a fresh beat. Those differ whenever k
-//     and 2t BOTH end mid-beat -- 124 profiles in a small sweep of m and S --
-//     and using ceil(N/S) there would truncate every codeword.
+//   - A codeword is written PACKED: exactly ceil(N/S) beats with any partial
+//     one last, which is rs_decoder_core's in_keep contract. The core itself
+//     does not produce that -- it starts parity on a fresh beat, so at
+//     K % S != 0 its output carries a partial beat mid-codeword that a decoder
+//     flags as mis-framed. rs_beat_packer is generated in the output path to
+//     close that up, and is omitted when there is nothing to pack.
 //   - in_keep is generated here, because the read engine deals in beats and
 //     knows nothing about symbols. Full on every beat except a block's last,
 //     which carries K_TAIL symbols when k does not fill its final beat.
@@ -119,35 +120,24 @@ module rs_encoder_axi4 #(
 );
 
     localparam int S        = SYMBOLS_PER_BEAT;
-    localparam int K_BEATS  = (K_SYMBOLS      + S - 1) / S;
-    localparam int P_BEATS  = (2 * T_SYMBOLS  + S - 1) / S;
-    localparam int CW_BEATS = K_BEATS + P_BEATS;      // beats a codeword occupies
+    localparam int K_BEATS  = (K_SYMBOLS + S - 1) / S;
     localparam int K_TAIL   = K_SYMBOLS % S;          // 0 = the last data beat is full
     localparam int SIZE_B   = $clog2(DATA_WIDTH / 8); // AXI axsize
+
+    // A codeword leaves this module PACKED: exactly ceil(N/S) beats, with any
+    // partial one last. That is rs_decoder_core's in_keep contract.
+    localparam int CW_BEATS = (N_SYMBOLS + S - 1) / S;
+
+    // The core emits its data phase then starts parity on a FRESH beat, so at
+    // K % S != 0 its output carries a partial beat MID-codeword, which a
+    // decoder rejects. rs_beat_packer closes that up. At K % S == 0 there is
+    // nothing to pack -- the core's own layout is already ceil(N/S) beats with
+    // any partial last -- so the packer is not built and costs nothing.
+    localparam bit NEED_PACK = (K_SYMBOLS % S != 0);
 
     if (DATA_WIDTH % SYMBOL_WIDTH != 0)
         $fatal(1, "rs_encoder_axi4: DATA_WIDTH %0d is not a whole number of %0d-bit symbols",
                DATA_WIDTH, SYMBOL_WIDTH);
-
-    // The chain is only valid when k fills a whole number of beats.
-    //
-    // rs_encoder_core emits its data phase then starts parity on a FRESH beat,
-    // so when K % S != 0 its data phase ends on a partial beat that is NOT the
-    // codeword's last. rs_decoder_core's contract is the opposite: in_keep may
-    // be partial ONLY on a block's last beat, and it flags a mis-framed block
-    // otherwise. So an encoder output cannot be fed to a decoder at those
-    // profiles without a repacker between them, which does not exist yet.
-    //
-    // With K % S == 0 there is no mid-stream partial, the codeword occupies
-    // exactly ceil(N/S) beats, and any partial beat is the parity tail -- which
-    // IS the last beat, so the decoder accepts it. Measured: RS(252,236),
-    // RS(204,188) and RS(30,24) chain; RS(255,239) and RS(15,9) do not.
-    //
-    // This is an elaboration error rather than a silent mis-frame because the
-    // failure is a framing error on every block, and a reader would look at
-    // the decoder before the interface.
-    if (K_SYMBOLS % S != 0)
-        $fatal(1, "rs_encoder_axi4: K_SYMBOLS %0d is not a whole number of %0d-symbol beats. rs_encoder_core would emit a partial beat mid-codeword and rs_decoder_core rejects one; chaining them needs a beat packer, which is not built. Pick a profile whose K_SYMBOLS divides evenly by SYMBOLS_PER_BEAT.", K_SYMBOLS, S);
 
 
     // =========================================================================
@@ -201,6 +191,30 @@ module rs_encoder_axi4 #(
         .frame_err(w_frame_err));
 
     // =========================================================================
+    // repack, when the core's layout is not already decoder-legal
+    // =========================================================================
+    logic                  pk_valid, pk_ready, pk_last;
+    logic [DATA_WIDTH-1:0] pk_data;
+    logic [S-1:0]          pk_keep;
+
+    if (NEED_PACK) begin : g_pack
+        rs_beat_packer #(
+            .SYMBOL_WIDTH(SYMBOL_WIDTH), .SYMBOLS_PER_BEAT(S)
+        ) u_pack (
+            .aclk(aclk), .aresetn(aresetn),
+            .in_valid(enc_valid), .in_ready(enc_ready), .in_data(enc_data),
+            .in_keep(enc_keep), .in_last(enc_last),
+            .out_valid(pk_valid), .out_ready(pk_ready), .out_data(pk_data),
+            .out_keep(pk_keep), .out_last(pk_last));
+    end else begin : g_no_pack
+        assign pk_valid  = enc_valid;
+        assign enc_ready = pk_ready;
+        assign pk_data   = enc_data;
+        assign pk_keep   = enc_keep;
+        assign pk_last   = enc_last;
+    end
+
+    // =========================================================================
     // destination: a codeword per block
     // =========================================================================
     logic wr_done, wr_err;
@@ -215,7 +229,7 @@ module rs_encoder_axi4 #(
         .cfg_burst_len(cfg_burst_len), .cfg_axi_id(cfg_axi_id),
         .cfg_axi_size(3'(SIZE_B)),
         .cfg_done(wr_done), .resp_err(wr_err),
-        .in_valid(enc_valid), .in_ready(enc_ready), .in_data(enc_data), .in_last(enc_last),
+        .in_valid(pk_valid), .in_ready(pk_ready), .in_data(pk_data), .in_last(pk_last),
         .m_axi_awid(m_axi_awid), .m_axi_awaddr(m_axi_awaddr), .m_axi_awlen(m_axi_awlen),
         .m_axi_awsize(m_axi_awsize), .m_axi_awburst(m_axi_awburst),
         .m_axi_awlock(m_axi_awlock), .m_axi_awcache(m_axi_awcache),
@@ -241,8 +255,8 @@ module rs_encoder_axi4 #(
         else if (w_frame_err)    frame_err <= 1'b1;
     end
 
-    // the core reports keep on its output; the write side writes whole beats
+    // the packed stream reports keep; the write side writes whole beats
     logic unused_e;
-    assign unused_e = ^enc_keep;
+    assign unused_e = ^pk_keep;
 
 endmodule
