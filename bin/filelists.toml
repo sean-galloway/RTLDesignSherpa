@@ -179,6 +179,10 @@ kind = "component"
 rtl_roots = ["projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl"]
 filelist_dirs = [
     "projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/filelists",
+    # The DV wrappers' lists, same as pumice registers its own. Unregistered,
+    # a broken `-f` in a tb filelist is found by the test that fails to
+    # compile rather than by the registry.
+    "projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/dv/filelists",
 ]
 
 # ---------------------------------------------------------------------------
