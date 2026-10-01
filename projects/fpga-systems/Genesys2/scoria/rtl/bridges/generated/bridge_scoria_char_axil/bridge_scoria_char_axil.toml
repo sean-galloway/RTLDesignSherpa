@@ -1,0 +1,120 @@
+#==============================================================================
+# bridge_scoria_char_axil.toml
+#==============================================================================
+# 1-master x 3-slave AXI4-Lite/APB config bridge for the scoria DDR3
+# characterization harness on the Genesys 2. The DDR3 sibling of
+# bridge_ddr2_char_axil, and deliberately SMALLER.
+#
+# The single master is the host's UART -> AXIL bridge. The three slaves are
+# exactly the windows host/scoria_device.py and host/ddr3_char.py already
+# address, at the bases they already use -- so the host code written on
+# 2026-09-30 needs no change:
+#
+#   scoria_apb    0x00000000  4 KB  APB   scoria controller CSR (mode regs,
+#                                          init sequence, ZQ, write leveling,
+#                                          perf counters) inside the char macro
+#   harness_csr   0x00010000  4 KB  AXIL  harness ctrl + timer + DFI delay
+#                                          knobs + engine cfg + perf readback
+#   chargen_apb   0x000A0000  4 KB  APB   traffic-generator config, the shared
+#                                          chargen_regs block
+#
+# WHAT IS OMITTED, AND WHY THE HOLES ARE DELIBERATE. pumice's bridge carries
+# three more slaves -- debug_sram (0x00040000, 256 KB), dfi_mon_ram
+# (0x00080000, 4 KB) and obs_apb (0x00090000, 4 KB, an expansion slot). None of
+# them is referenced by scoria's host, and every one costs area and a bridge
+# adapter on a design that does not yet have a bitstream. They are left OUT but
+# their windows are left EMPTY: the three slaves above sit at pumice's
+# addresses, so adding any of the others later is a new slave entry at its
+# pumice base and nothing above it moves. Picking fresh addresses now would
+# have made that a host change too.
+#
+# A stray host access to an unmapped window is the hazard that replaces them.
+# pumice's obs_apb comment records the shape of it -- "UNTIL THEN THE HARNESS
+# MUST TIE IT OFF (PREADY=1, PRDATA=0, PSLVERR=0) or a stray access to 0x90000
+# hangs the host bus". Here the unmapped windows are not slaves at all, so the
+# BRIDGE's own decode must answer them rather than a tie-off in the harness;
+# that is the generator's default error response, and the harness does not get
+# to forget it.
+#
+# THE SAME RULE AS pumice: generator AXI goes STRAIGHT to the controller. Only
+# the APB/AXIL config ports come through this bridge. A bridge is the right
+# tool for an address decode across unrelated slaves; it is the wrong tool for
+# N identical masters merging onto one slave, where it becomes a measuring
+# instrument that caps what it measures (pumice's generated adapters gated the
+# address channel on a bridge_cam with DEPTH(16), so no engine could exceed 16
+# outstanding whatever it was programmed for).
+#
+# Generated output lands in rtl/bridges/generated/bridge_scoria_char_axil/.
+#==============================================================================
+
+[bridge]
+name = "bridge_scoria_char_axil"
+description = "1x3 AXIL config bridge for the scoria DDR3 char harness (controller APB + harness_csr + chargen APB)"
+# Only the "no" variant for bring-up, as pumice did. The mon variant is a
+# follow-up if the DFI observability path needs per-adapter monitors.
+variants = ["no"]
+mon_preset = "all"
+
+[bridge.clock]
+name = "aclk"
+# The board's controller clock. 80 MHz, not 100: scoria_top misses 100 MHz by
+# 1.26 ns even at high implementation effort (scoria BUG-003), and 80 MHz keeps
+# DDR3 in spec -- 4 phases x 80 MHz = 320 MHz CK, tCK 3.125 ns, inside the
+# tCK(AVG) max of 3.3 ns. 75 MHz would be 3.333 ns and out of spec.
+frequency_mhz = 80
+
+# ---- Master ----------------------------------------------------------------
+[[bridge.masters]]
+name        = "host"
+# `host_axi_` matches the wiring convention the harness uses:
+# `.host_axi_<sig>(...)`.
+prefix      = "host_axi_"
+protocol    = "axil"
+channels    = "rw"
+# AXI4-Lite has no transaction IDs and the generator's validator enforces 0.
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+
+# ---- Slaves ----------------------------------------------------------------
+[[bridge.slaves]]
+name        = "scoria_apb"
+# The APB slave on the scoria controller, behind the char macro's
+# apb4_to_peakrdl shim. The generated adapter converts AXIL 32b to APB 32b.
+prefix      = "scoria_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0       # APB has no IDs; the validator forces this to 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00000000"
+addr_range  = "0x00001000"     # 4 KB
+
+[[bridge.slaves]]
+name        = "harness_csr"
+prefix      = "harness_csr_axi_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 8
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00010000"
+# The decode window is page-granular, so a full 4 KB even though the block
+# uses far less.
+addr_range  = "0x00001000"     # 4 KB
+
+[[bridge.slaves]]
+name        = "chargen_apb"
+# The shared generated chargen_regs block behind an apb4_to_peakrdl shim.
+prefix      = "chargen_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0       # APB has no IDs; the validator forces this to 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x000A0000"
+addr_range  = "0x00001000"     # 4 KB

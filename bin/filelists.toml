@@ -269,6 +269,10 @@ rtl_roots = []
 filelist_dirs = [
     "projects/fpga-systems/Genesys2/scoria/build-litedram/rtl/filelists",
     "projects/fpga-systems/Genesys2/scoria/rtl/filelists",
+    # The generated config bridge's list. Registered for the reason the
+    # registry exists: a broken `-f` in a generated filelist is otherwise
+    # found by the Vivado run that fails to elaborate, 90 seconds in.
+    "projects/fpga-systems/Genesys2/scoria/rtl/bridges/filelists",
 ]
 
 [[area]]
