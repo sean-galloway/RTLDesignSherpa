@@ -2,7 +2,7 @@
 
 # scoria-ddr3-lpddr3 — tasks
 
-**Next ID: TASK-005** — never recycle a number, even when its item closed.
+**Next ID: TASK-006** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -28,6 +28,10 @@ by construction rather than by discipline.
 
 - **TASK-004** — plumb `RD_EN_CYC` or delete it: the read-enable window width is
   never set, so a narrow-device build would sample DQ for half of every read.
+
+- **TASK-005** — scoria claims DFI v3.1 but does not present `dfi_reset_n`,
+  `dfi_wrdata_cs_n` or `dfi_rddata_cs_n` under those names; the first is a
+  rename, the other two are a real multi-rank gap.
 
 - **TASK-002** (ACTIVE) — author the scoria HAS. v0.1 is written; the PRD stub says it
   is waiting on a locked HAS. Starts from `docs/design-requirements.md`, the delta
