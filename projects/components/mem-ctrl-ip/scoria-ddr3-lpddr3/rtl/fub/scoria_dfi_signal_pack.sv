@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2026 sean galloway
 //
+// RETAINED DORMANT -- nothing in the tree instantiates this, deliberately.
+// Decided 2026-09-30 (scoria TASK-003): scoria's per-phase DFI buses are
+// already packed by construction (the `x DFI_RATE` widths), so this stage
+// buys nothing on the DDR3 design point, and LiteDRAM's working Genesys 2
+// core has no equivalent block. Kept rather than deleted because it owns
+// `dfi_dram_clk_disable` and the reset-safe output window, which an LPDDR3
+// build needs alongside scoria_powerdown_ctrl.
+//
 // Module: dfi_signal_pack
 // Purpose: Final pipeline-register stage on the DFI v3.1 bus. Owns
 //          `dfi_dram_clk_disable` and drives reset-safe values onto

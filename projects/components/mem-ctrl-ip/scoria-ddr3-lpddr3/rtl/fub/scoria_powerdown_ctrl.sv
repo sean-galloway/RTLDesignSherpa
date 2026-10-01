@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2026 sean galloway
 //
+// RETAINED DORMANT -- nothing in the tree instantiates this, deliberately.
+// Decided 2026-09-30 (scoria TASK-003) on parity with the reference design
+// that passes memtest on this board: LiteDRAM's generated DDR3 core for the
+// Genesys 2 has no power-down or self-refresh engine and no DFI low-power
+// channel either, so scoria holding CKE high for ever is parity, not a
+// shortfall. The parity argument is DDR3-ONLY -- an LPDDR3 part idles in
+// self-refresh, so this module is expected to be wired when that board
+// arrives. Kept rather than deleted for exactly that reason.
+//
 // Module: scoria_powerdown_ctrl
 // Purpose: Idle-detect → low-power state. Two flavors:
 //

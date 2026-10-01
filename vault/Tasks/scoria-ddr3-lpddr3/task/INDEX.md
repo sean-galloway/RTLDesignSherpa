@@ -12,19 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 4 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **TASK-001** — advanced scheduling / refresh modes survey.
-
-- **TASK-003** — decide the fate of `scoria_powerdown_ctrl` and
-  `scoria_dfi_signal_pack`: complete modules that nothing instantiates, so the
-  tree implies power-down support the controller does not have.
 
 - **TASK-004** — plumb `RD_EN_CYC` or delete it: the read-enable window width is
   never set, so a narrow-device build would sample DQ for half of every read.
@@ -37,3 +33,9 @@ by construction rather than by discipline.
   is waiting on a locked HAS. Starts from `docs/design-requirements.md`, the delta
   analysis against JESD79-3F / JESD209-3C / DFI v3.1, and closes when the three open
   decisions in it (DFI revision, write-leveling ownership, package split) are settled
+
+## Closed
+
+- **TASK-003** — the two uninstantiated FUBs stay dormant, on measured parity
+  with LiteDRAM's working Genesys 2 core; each header now says so and why, and
+  that the parity argument is DDR3-only.
