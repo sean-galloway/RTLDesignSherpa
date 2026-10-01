@@ -321,6 +321,52 @@ async def cocotb_test_scoria_dfi_rd_aligner(dut):
             f"after stray valids a real read captured "
             f"{len(captured(trace))} words, expected {bl}")
 
+    elif tt == "stray_valid_after_a_read_is_dropped":
+        # Written because a MUTATION escaped: dropping the `r_outstanding != 0`
+        # term from rd_valid_o passed all fifteen cases. The reason is that the
+        # stray-valid case above cannot tell the two gates apart -- with
+        # nothing outstanding and no enable ever fired, the CREDIT is zero too,
+        # so the beat is refused by the wrong gate and the case still passes.
+        #
+        # Isolating the outstanding gate needs credit BANKED with no read in
+        # flight, and that only happens when EN_CYC > BL_WORDS: the window
+        # mints EN_CYC credits and the burst spends BL_WORDS, so the surplus
+        # survives the read. That is also exactly the narrow-device regime
+        # TASK-004 is about, so the case earns its build twice over.
+        chk(en_cyc > bl,
+            f"case needs EN_CYC > BL_WORDS to bank surplus credit, built with "
+            f"{en_cyc} and {bl}")
+        # The PHY offers exactly BL_WORDS words, not one per enable cycle: at
+        # EN_CYC > BL_WORDS a device drives its burst and stops, and the
+        # surplus enable cycles mint the credit this case needs. Driving one
+        # word per enable cycle instead makes the priming read itself
+        # over-capture under the mutation, so the case fails on its own setup
+        # and the isolating check below never runs -- a detection for the wrong
+        # reason, which proves the gate was loaded, not that this assertion has
+        # teeth.
+        await tb.setup()
+        trace = await tb.run_cycles(rdlat + en_cyc + 8, admits=(2,),
+                                    phy='bl_words')
+        got = captured(trace)
+        chk(len(got) == bl,
+            f"{len(got)} words captured for the priming read, expected {bl}")
+        chk(got and got[-1][1] == 1,
+            "the priming read never closed, so nothing is banked and the "
+            "stray beats below prove nothing")
+        # The read has retired; credit is left over. A beat now is noise, and
+        # only the outstanding gate can refuse it.
+        d = dut
+        for i in range(6):
+            d.dfi_rddata_valid_i.value = (1 << DFI_RATE) - 1
+            d.dfi_rddata_i.value = 0xBAD0 + i
+            await Timer(1, 'ns')
+            chk(int(d.rd_valid_o.value) == 0,
+                f"rd_valid high for stray beat {i} with no read outstanding "
+                f"but credit still banked -- that word enters the stream and "
+                f"is returned to whichever request drains next")
+            await tb.tick()
+        d.dfi_rddata_valid_i.value = 0
+
     elif tt == "two_reads_frame_independently":
         # Back-to-back reads: the word stream must split BL_WORDS / BL_WORDS
         # with rd_last on each boundary. This is where an off-by-one credit
@@ -385,6 +431,7 @@ _FUNC = _GATE + [
     ("preamble_valid_is_rejected", 2, 2, 4),
     ("preamble_valid_is_rejected", 4, 4, 6),
     ("stray_valid_without_a_read_is_dropped", 2, 2, 4),
+    ("stray_valid_after_a_read_is_dropped", 2, 4, 4),
     ("two_reads_frame_independently", 2, 2, 4),
     ("random_soak", 2, 2, 4),
     ("random_soak", 4, 4, 6),
