@@ -8,7 +8,9 @@ session reads the file list and assumes the function is present.
 **Priority:** P3 — downgraded. The FEATURE question is settled (below), so
 what remains is only whether two uninstantiated files are deleted or left
 dormant.
-**Status:** OPEN, but the decision that was blocking it is MADE.
+**Status:** CLOSED 2026-10-01. Took the second ending offered below: a
+note in each header saying the module is retained dormant and why, including
+that the parity argument is DDR3-only. Lint PASS after the edit.
 
 **DECIDED 2026-09-30 (Sean): they stay unconnected.** The test applied was
 parity with the reference design that passes memtest on this board, and
