@@ -109,6 +109,16 @@ module formal_scoria_dfi_cdc #(
     initial assume (!rstn);
     always @(posedge clk) if (f_past_valid >= 2) assume (rstn);
 
+    // The PHY honours valid/ready on the staged-burst port: it does not pop an
+    // empty FIFO. This is the VALID/READY CONTRACT, not a claim about another
+    // block -- a consumer that pops without valid is broken by definition, and
+    // nothing in this design does it (scoria_dfi_cmd_path drives the pop from
+    // the valid). Without it `pwr_staged_pop_i` is free and any accounting
+    // property fails on the ENVIRONMENT underflowing rather than on the DUT,
+    // which is why a_no_extra_staged below was left out on pumice.
+    always @(posedge clk) if (rstn)
+        assume (!(pwr_staged_pop_i && !pwr_staged_valid_o));
+
     wire w_wd = wd_valid_i && wd_ready_o;
 
     // =====================================================================
@@ -118,7 +128,13 @@ module formal_scoria_dfi_cdc #(
     // Staged-burst tokens seen at the PHY PORT, which needs no internal access.
     reg [9:0] f_last_beats, f_staged;
     always @(posedge clk) begin
-        if (!rstn || f_past_valid <= 2) begin f_last_beats <= 0; f_staged <= 0; end
+        // Counting starts when the DUT leaves reset, NOT at f_past_valid > 2.
+        // Holding these at zero for two extra cycles while the DUT is already
+        // running means a burst completed in that gap is never counted, and
+        // its token -- popped later, inside the window -- then looks
+        // fabricated. That was a_no_extra_staged's first counterexample, and
+        // it was this counter, not the CDC.
+        if (!rstn) begin f_last_beats <= 0; f_staged <= 0; end
         else begin
             if (w_wd && wd_last_i) f_last_beats <= f_last_beats + 1'b1;
             if (pwr_staged_valid_o && pwr_staged_pop_i) f_staged <= f_staged + 1'b1;
@@ -147,14 +163,23 @@ module formal_scoria_dfi_cdc #(
         //   a_token_iff_last:  assert ((w_wtok_push && w_wtok_ready)
         //                              == (w_wd && wd_last_i));
 
-        // NOT ASSERTED either: "the PHY never pops more staged bursts than the
-        // controller completed". `pwr_staged_pop_i` is a free input here, so a
-        // violation is the ENVIRONMENT popping an empty FIFO, not the DUT
-        // mis-staging. Making it meaningful needs the PHY-side contract stated
-        // as an assumption, which is a statement about scoria_dfi_cmd_path
-        // rather than about this block.
+        // ASSERTED as of 2026-10-01 (scoria TASK-006). "The PHY never pops
+        // more staged bursts than the controller completed" -- i.e. the CDC
+        // does not FABRICATE a burst token across the clock boundary, which is
+        // the property a CDC proof exists to give.
         //
-        //   a_no_extra_staged: assert (f_staged <= f_last_beats);
+        // pumice left this out because `pwr_staged_pop_i` is a free input, so
+        // a counterexample was the ENVIRONMENT popping an empty FIFO rather
+        // than the DUT mis-staging. That reasoning was right, and the fix is
+        // not to weaken the property: it is to state the one thing the PHY
+        // side actually guarantees -- that it honours valid/ready -- as an
+        // assumption. That is a protocol contract, not a claim about
+        // scoria_dfi_cmd_path's internals. See the assume above.
+        //
+        // `<=` and not `==` deliberately: the FIFO has latency, so staged
+        // lags completed. The direction that matters is that it can never run
+        // AHEAD.
+        a_no_extra_staged: assert (f_staged <= f_last_beats);
     end
 
     // =====================================================================
