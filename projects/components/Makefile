@@ -34,13 +34,19 @@ COMPONENTS = utility-ip/converters \
              fabric-gen-ip/apbx-xbar \
              fabric-gen-ip/bridge \
              mem-ctrl-ip/pumice-ddr2-lpddr2 \
+             mem-ctrl-ip/scoria-ddr3-lpddr3 \
              utility-ip/misc \
              ecc-ip/reed-solomon \
              retro_legacy_blocks
 
 # Components that exist but don't yet expose run-all-* test targets (for reference):
 # - noc-ip/delta, compute-eng-ip/hive       - no dv/tests Makefile (retired 2026-09-27)
-# - mem-ctrl-ip/scoria-ddr3-lpddr3, andesite-ddr4-lpddr4 - tests/ dir but no test Makefile
+# - mem-ctrl-ip/andesite-ddr4-lpddr4        - tests/ dir but no test Makefile
+#
+# scoria joined the list on 2026-09-30, when its dv/tests grew the same
+# four-line-area + dispatcher pair pumice uses. Until then its 18 FUB suites
+# could only be run as a raw pytest, so they were in no regression and nothing
+# cleaned their sim_build directories.
 
 # ------------------------------------------------------------------------------
 # Whole-repo "did anything break" sweep (run-all-<level>-fast)
