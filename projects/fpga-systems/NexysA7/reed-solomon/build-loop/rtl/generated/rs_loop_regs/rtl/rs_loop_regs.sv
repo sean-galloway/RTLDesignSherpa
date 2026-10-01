@@ -662,7 +662,10 @@ module rs_loop_regs (
     assign readback_array[7][7:7] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.crc_a_ok.next : '0;
     assign readback_array[7][8:8] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.crc_b_ok.next : '0;
     assign readback_array[7][9:9] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.cmp_misaligned.next : '0;
-    assign readback_array[7][31:10] = '0;
+    assign readback_array[7][10:10] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.axi4_resp_err.next : '0;
+    assign readback_array[7][15:11] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.axi4_stage.next : '0;
+    assign readback_array[7][16:16] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.axi4_overflow.next : '0;
+    assign readback_array[7][31:17] = '0;
     assign readback_array[8][15:0] = (decoded_reg_strb.PROFILE && !decoded_req_is_wr) ? hwif_in.PROFILE.n.next : '0;
     assign readback_array[8][23:16] = (decoded_reg_strb.PROFILE && !decoded_req_is_wr) ? hwif_in.PROFILE.t.next : '0;
     assign readback_array[8][27:24] = (decoded_reg_strb.PROFILE && !decoded_req_is_wr) ? hwif_in.PROFILE.m.next : '0;
@@ -697,7 +700,9 @@ module rs_loop_regs (
     assign readback_array[32][5:5] = (decoded_reg_strb.TOPOLOGY && !decoded_req_is_wr) ? hwif_in.TOPOLOGY.kes_b.next : '0;
     assign readback_array[32][7:6] = '0;
     assign readback_array[32][8:8] = (decoded_reg_strb.TOPOLOGY && !decoded_req_is_wr) ? hwif_in.TOPOLOGY.compare.next : '0;
-    assign readback_array[32][31:9] = '0;
+    assign readback_array[32][11:9] = '0;
+    assign readback_array[32][12:12] = (decoded_reg_strb.TOPOLOGY && !decoded_req_is_wr) ? hwif_in.TOPOLOGY.iface.next : '0;
+    assign readback_array[32][31:13] = '0;
 
     // Reduce the array
     always_comb begin

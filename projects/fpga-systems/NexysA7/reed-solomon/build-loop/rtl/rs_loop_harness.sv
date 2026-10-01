@@ -83,6 +83,13 @@ module rs_loop_harness
     // the regenerated pattern, which is a direct check against known-good
     // data. Two solvers agreeing is the weaker claim of the two -- both can
     // agree on a wrong answer, which is exactly what a miscorrected block is.
+    // Which datapath is built. "AXIS" is the stream pipe the board was
+    // validated on: generator, encoder, injector, decoder, checker, all
+    // flowing. "AXI4" swaps the middle for rs_axi4_pipeline, where the codecs
+    // are JOB engines over four memories and the stages run in sequence. The
+    // generator and the checkers are the same blocks either way, so the CSRs,
+    // the CRC comparison and the data_err evidence are unchanged.
+    parameter string IFACE        = "AXIS",
     parameter string KES_ALGO_A   = CFG_KES_A,
     parameter string KES_ALGO_B   = CFG_KES_B,
     parameter bit    ENABLE_COMPARE = 1'b1
@@ -273,11 +280,28 @@ module rs_loop_harness
         end
     )
 
-    assign w_start      = hwif_out.GO.start.value      && !r_start_d;
     assign w_clear      = hwif_out.CTRL.clear.value      && !r_clear_d;
     assign w_soft_reset = hwif_out.CTRL.soft_reset.value && !r_soft_reset_d;
     assign w_bypass     = hwif_out.CTRL.bypass.value;
     assign w_blocks     = hwif_out.GEN_BLOCKS.blocks.value;
+
+    // A single AXI4 run cannot exceed what one memory holds: each region is
+    // blocks * CFG_N_BEATS words and every memory is CFG_AXI4_MEM_DEPTH deep.
+    // Past that a write engine wraps inside its memory and the decode reads
+    // the wrong words -- a silently wrong answer, which is the one outcome
+    // worth spending a register to prevent. The run is REFUSED, not clamped:
+    // clamping would answer a question the host did not ask.
+    logic w_axi4_overflow, w_start_req;
+    assign w_axi4_overflow = (IFACE != "AXIS")
+                          && (32'(w_blocks) > 32'(CFG_AXI4_MAX_BLOCKS));
+
+    // The refusal gates the KICK, not just the pipeline. If the generator
+    // started while the pipeline did not, it would stall on a seed engine
+    // that never ran and the harness would sit busy until the host's own
+    // timeout -- turning a clean refusal into a hang, and in the sim harness
+    // burning the run's whole sim-time budget on a polling loop.
+    assign w_start_req  = hwif_out.GO.start.value && !r_start_d;
+    assign w_start      = w_start_req && !w_axi4_overflow;
 
     // registered so the pulse becomes a clean one-cycle reset of the datapath
     logic r_dp_rst_pulse;
@@ -329,6 +353,49 @@ module rs_loop_harness
     // the generator's tstrb is a byte mask; at m = 8 it is the symbol keep
     assign enc_in_valid = gen_tvalid && !w_bypass;
 
+    // The AXI4 path has one decoder. Building two would mean two more
+    // memories and a second four-stage chain to compare beat for beat, and
+    // the solver question it would answer is the one a million blocks on the
+    // stream path already answered. This is a guard rather than a silent
+    // override because a build asking for both has misunderstood which
+    // question each flavour is for.
+    if ((IFACE != "AXIS") && ENABLE_COMPARE)
+        $fatal(1, "rs_loop_harness: IFACE=%s with ENABLE_COMPARE=1 is not built; the AXI4 datapath carries one decoder. Set ENABLE_COMPARE=0.", IFACE);
+    if ((IFACE != "AXIS") && (IFACE != "AXI4"))
+        $fatal(1, "rs_loop_harness: IFACE=%s is not a datapath; expected \"AXIS\" or \"AXI4\".", IFACE);
+
+    localparam int ND = ENABLE_COMPARE ? 2 : 1;
+
+    // The datapath nodes BOTH flavours expose. They live above the split
+    // because the checkers, the tallies, the comparator and the CSRs below
+    // read them, and only the middle that drives them differs.
+    logic          inj_out_valid, inj_out_ready, inj_out_last;
+    logic [DW-1:0] inj_out_data;
+    logic [S-1:0]  inj_out_keep;
+    logic [31:0]   inj_symbols, inj_blocks, inj_over_t;
+    logic [7:0]    inj_last;
+
+    logic            dec_in_ready [2], dec_in_valid [2];
+    logic            dec_out_valid [2], dec_out_ready [2], dec_out_last [2];
+    logic [DW-1:0]   dec_out_data [2];
+    logic [S-1:0]    dec_out_keep [2];
+    logic            dec_ok [2], dec_unc [2], dec_frame [2];
+    logic [SC_W-1:0] dec_corr [2];
+
+    // The AXI4 pipeline's own verdict totals. They cannot come through the
+    // per-block tally below: the decoder reaches its verdict during the
+    // DECODE stage while the beats the tally watches arrive later, during the
+    // DRAIN, so the sideband would be stale by then. The CSR block selects
+    // between these and the tally registers.
+    logic        w_pipe_busy, w_pipe_done, w_pipe_resp_err;
+    logic [31:0] w_pipe_ok, w_pipe_corr, w_pipe_unc, w_pipe_frame, w_pipe_sym;
+    logic [4:0]  w_pipe_stage;
+
+    // Where the two datapaths diverge. Everything above -- bridge, registers,
+    // generator -- and everything below -- checkers, tallies, CRC, CSRs -- is
+    // shared, so a run reports itself identically whichever middle is built.
+    if (IFACE == "AXIS") begin : g_axis_path
+
     rs_encoder_core #(
         .SYMBOL_WIDTH(M), .PRIM_POLY(CFG_PRIM_POLY), .T_SYMBOLS(T), .N_SYMBOLS(N),
         .FIRST_ROOT(CFG_FIRST_ROOT), .DATA_WIDTH(DW)
@@ -339,12 +406,6 @@ module rs_loop_harness
         .out_valid(enc_out_valid), .out_ready(enc_out_ready), .out_data(enc_out_data),
         .out_keep(enc_out_keep), .out_last(enc_out_last),
         .frame_err(enc_frame_err));
-
-    logic          inj_out_valid, inj_out_ready, inj_out_last;
-    logic [DW-1:0] inj_out_data;
-    logic [S-1:0]  inj_out_keep;
-    logic [31:0]   inj_symbols, inj_blocks, inj_over_t;
-    logic [7:0]    inj_last;
 
     rs_error_injector #(
         .SYMBOL_WIDTH(M), .T_SYMBOLS(T), .N_SYMBOLS(N), .SYMBOLS_PER_BEAT(S)
@@ -364,22 +425,12 @@ module rs_loop_harness
     // and the unbuilt half is tied off explicitly further down: sizing them
     // [ND] instead would make every `[1]` reference an out-of-range select at
     // elaboration, including the ones in dead ternary arms.
-    localparam int ND = ENABLE_COMPARE ? 2 : 1;
-
-    // broadcast to the decoders: with two, a beat moves when both can take it
-    logic          dec_in_ready [2];
-    logic          dec_out_valid [2], dec_out_ready [2], dec_out_last [2];
-    logic [DW-1:0] dec_out_data [2];
-    logic [S-1:0]  dec_out_keep [2];
-    logic          dec_ok [2], dec_unc [2], dec_frame [2];
-    logic [SC_W-1:0] dec_corr [2];
 
     assign inj_out_ready = dec_in_ready[0] && dec_in_ready[1];
 
     // With two decoders each one's valid is gated on the OTHER's ready, so a
     // beat lands on both in the same cycle. With one there is nobody to wait
     // for, and gating valid on its own ready would be a protocol violation.
-    logic dec_in_valid [2];
     for (genvar d = 0; d < ND; d++) begin : g_dec_in
         if (ND == 2) assign dec_in_valid[d] = inj_out_valid && dec_in_ready[1-d];
         else         assign dec_in_valid[d] = inj_out_valid;
@@ -403,6 +454,17 @@ module rs_loop_harness
     // The unbuilt half. dec_in_ready[1] reads 1 so inj_out_ready above is
     // just decoder A's ready; everything else reads 0 so decoder B's tallies
     // and CSRs stay at zero and synthesis folds them away.
+    // no AXI4 pipeline in this flavour
+    assign w_pipe_busy     = 1'b0;
+    assign w_pipe_done     = 1'b0;
+    assign w_pipe_resp_err = 1'b0;
+    assign w_pipe_ok       = '0;
+    assign w_pipe_corr     = '0;
+    assign w_pipe_unc      = '0;
+    assign w_pipe_frame    = '0;
+    assign w_pipe_sym      = '0;
+    assign w_pipe_stage    = '0;
+
     if (ND < 2) begin : g_dec_b_tieoff
         assign dec_in_ready[1]  = 1'b1;
         assign dec_in_valid[1]  = 1'b0;
@@ -414,6 +476,79 @@ module rs_loop_harness
         assign dec_corr[1]      = '0;
         assign dec_unc[1]       = 1'b0;
         assign dec_frame[1]     = 1'b0;
+    end
+
+    end else begin : g_axi4_path
+
+    // =========================================================================
+    // The AXI4 datapath: the same generator in, the same checker out, and a
+    // memory-to-memory job chain in between.
+    //
+    // dec_out_*[0] is driven from the pipeline's DRAIN stage, so the checker,
+    // the CRC comparison and the data_err evidence below are reached by the
+    // same wires the stream path uses. What cannot come through g_tally is the
+    // per-block verdict: the decoder reaches its verdict during the DECODE
+    // stage, while these beats arrive later during the DRAIN, so the sideband
+    // would be stale by the time the tally saw it. The pipeline accumulates
+    // its own totals instead and the CSR block selects between the two
+    // sources.
+    // =========================================================================
+    rs_axi4_pipeline #(
+        .SYMBOL_WIDTH(M), .PRIM_POLY(CFG_PRIM_POLY), .T_SYMBOLS(T), .N_SYMBOLS(N),
+        .FIRST_ROOT(CFG_FIRST_ROOT), .DATA_WIDTH(DW), .ADDR_WIDTH(32),
+        .ID_WIDTH(4), .MEM_DEPTH(CFG_AXI4_MEM_DEPTH),
+        .MAX_OUTSTANDING(4), .KES_ALGO(KES_ALGO_A)
+    ) u_pipe (
+        .aclk(aclk), .aresetn(dp_rstn),
+        .start(w_start), .cfg_blocks(16'(w_blocks)),
+        .cfg_burst_len(CFG_AXI4_BURST_LEN),
+        .busy(w_pipe_busy), .done(w_pipe_done),
+        .in_valid(enc_in_valid), .in_ready(enc_in_ready),
+        .in_data(gen_tdata), .in_last(gen_tlast),
+        .out_valid(dec_out_valid[0]), .out_ready(dec_out_ready[0]),
+        .out_data(dec_out_data[0]), .out_keep(dec_out_keep[0]),
+        .out_last(dec_out_last[0]),
+        .inj_mode(hwif_out.INJ_CFG.mode.value),
+        .inj_count(hwif_out.INJ_CFG.errors.value),
+        .inj_rate(hwif_out.INJ_CFG.rate.value),
+        .inj_seed(hwif_out.INJ_SEED.value.value),
+        .inj_seed_load(w_start && hwif_out.CTRL.inj_seed_on_start.value),
+        .inj_clear(w_clear),
+        .resp_err(w_pipe_resp_err), .enc_frame_err(enc_frame_err),
+        .blk_ok(w_pipe_ok), .blk_corr(w_pipe_corr), .blk_unc(w_pipe_unc),
+        .blk_frame(w_pipe_frame), .sym_corr(w_pipe_sym),
+        .inj_symbols(inj_symbols), .inj_blocks(inj_blocks),
+        .inj_over_t(inj_over_t), .inj_last(inj_last),
+        .stage_done(w_pipe_stage));
+
+    // the stream path's internal nodes have no counterpart here
+    assign enc_out_valid = 1'b0;
+    assign enc_out_ready = 1'b1;
+    assign enc_out_data  = '0;
+    assign enc_out_keep  = '0;
+    assign enc_out_last  = 1'b0;
+    assign inj_out_valid = 1'b0;
+    assign inj_out_ready = 1'b1;
+    assign inj_out_data  = '0;
+    assign inj_out_keep  = '0;
+    assign inj_out_last  = 1'b0;
+    assign dec_in_ready[0]  = 1'b1;
+    assign dec_in_ready[1]  = 1'b1;
+    assign dec_in_valid[0]  = 1'b0;
+    assign dec_in_valid[1]  = 1'b0;
+    assign dec_ok[0]        = 1'b0;
+    assign dec_corr[0]      = '0;
+    assign dec_unc[0]       = 1'b0;
+    assign dec_frame[0]     = 1'b0;
+    assign dec_out_valid[1] = 1'b0;
+    assign dec_out_data[1]  = '0;
+    assign dec_out_keep[1]  = '0;
+    assign dec_out_last[1]  = 1'b0;
+    assign dec_ok[1]        = 1'b0;
+    assign dec_corr[1]      = '0;
+    assign dec_unc[1]       = 1'b0;
+    assign dec_frame[1]     = 1'b0;
+
     end
 
     // =========================================================================
@@ -611,6 +746,11 @@ module rs_loop_harness
     // packet compare would hold w_all_done low forever, because chk_pkts[1]
     // is tied to 0 and w_blocks is not -- the run would never finish.
     assign w_chk_b_done = (ND == 2) ? (chk_pkts[1] == 32'(w_blocks)) : 1'b1;
+    // In the AXI4 flavour the generator finishes early -- it only feeds the
+    // seed stage -- so the run is over when the CHECKER has every block,
+    // which is after the drain. That is the same condition as the stream
+    // flavour, so nothing special is needed here; w_pipe_busy is reported to
+    // the host as stage visibility rather than used as the done term.
     assign w_all_done   = r_gen_done && w_chk_a_done && w_chk_b_done;
 
     // Misalignment guard. Both checkers done means every beat has been
@@ -669,6 +809,9 @@ module rs_loop_harness
         hwif_in.STATUS.crc_a_ok.next     = w_crc_a_ok;
         hwif_in.STATUS.crc_b_ok.next     = w_crc_b_ok;
         hwif_in.STATUS.cmp_misaligned.next = r_cmp_misaligned;
+        hwif_in.STATUS.axi4_resp_err.next  = w_pipe_resp_err;
+        hwif_in.STATUS.axi4_overflow.next  = w_axi4_overflow;
+        hwif_in.STATUS.axi4_stage.next     = w_pipe_stage;
         hwif_in.PROFILE.n.next           = 16'(N);
         hwif_in.PROFILE.t.next           = 8'(T);
         hwif_in.PROFILE.m.next           = 4'(M);
@@ -677,17 +820,18 @@ module rs_loop_harness
         hwif_in.TOPOLOGY.kes_a.next      = (KES_ALGO_A == "EUCLID");
         hwif_in.TOPOLOGY.kes_b.next      = (ND == 2) && (KES_ALGO_B == "EUCLID");
         hwif_in.TOPOLOGY.compare.next    = ENABLE_COMPARE;
+        hwif_in.TOPOLOGY.iface.next      = (IFACE != "AXIS");
         hwif_in.CRC_EXPECTED.value.next  = gen_crc[0];
         hwif_in.CRC_A.value.next         = chk_crc[0][0];
         hwif_in.CRC_B.value.next         = chk_crc[1][0];
         hwif_in.PKTS_A.value.next        = chk_pkts[0];
         hwif_in.PKTS_B.value.next        = chk_pkts[1];
         hwif_in.CYCLES.value.next        = r_cycles;
-        hwif_in.BLK_OK_A.value.next      = r_blk_ok[0];
-        hwif_in.BLK_CORR_A.value.next    = r_blk_corr[0];
-        hwif_in.BLK_UNC_A.value.next     = r_blk_unc[0];
-        hwif_in.BLK_FRAME_A.value.next   = r_blk_frame[0];
-        hwif_in.SYM_CORR_A.value.next    = r_sym_corr[0];
+        hwif_in.BLK_OK_A.value.next      = (IFACE == "AXIS") ? r_blk_ok[0] : w_pipe_ok;
+        hwif_in.BLK_CORR_A.value.next    = (IFACE == "AXIS") ? r_blk_corr[0] : w_pipe_corr;
+        hwif_in.BLK_UNC_A.value.next     = (IFACE == "AXIS") ? r_blk_unc[0] : w_pipe_unc;
+        hwif_in.BLK_FRAME_A.value.next   = (IFACE == "AXIS") ? r_blk_frame[0] : w_pipe_frame;
+        hwif_in.SYM_CORR_A.value.next    = (IFACE == "AXIS") ? r_sym_corr[0] : w_pipe_sym;
         hwif_in.BLK_OK_B.value.next      = r_blk_ok[1];
         hwif_in.BLK_CORR_B.value.next    = r_blk_corr[1];
         hwif_in.BLK_UNC_B.value.next     = r_blk_unc[1];
@@ -704,7 +848,7 @@ module rs_loop_harness
 
     // unused outputs of the shared blocks
     logic unused_h;
-    assign unused_h = gen_busy ^ enc_frame_err ^ (^gen_beats_total) ^ (^gen_beats_ch[0])
+    assign unused_h = gen_busy ^ enc_frame_err ^ w_pipe_busy ^ w_pipe_done ^ (^gen_beats_total) ^ (^gen_beats_ch[0])
                     ^ (^chk_beats_total[0]) ^ (^chk_beats_total[1]) ^ (^chk_beats_ch[0][0]) ^ (^chk_beats_ch[1][0])
                     ^ (^w_cpuif_addr[11:RS_LOOP_REGS_MIN_ADDR_WIDTH])
                     // the unmapped-access telemetry and the tied-off windows'

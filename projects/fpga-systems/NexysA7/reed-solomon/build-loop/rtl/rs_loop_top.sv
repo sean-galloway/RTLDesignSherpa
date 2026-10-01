@@ -27,6 +27,11 @@ module rs_loop_top
     // decoder alone is 7,163 LUTs of a 63,400-LUT part, so dropping it is
     // what buys room for a different fabric boundary in the same device.
     // The host does not need to be told which it got: it reads TOPOLOGY.
+    // Which datapath this bitstream carries. "AXIS" is the stream pipe the
+    // board was validated on; "AXI4" builds the memory-to-memory job chain
+    // instead. A build selects it with Vivado -generic, and the host does not
+    // need to be told -- it reads TOPOLOGY.
+    parameter string IFACE          = "AXIS",
     parameter string KES_ALGO_A     = CFG_KES_A,
     parameter string KES_ALGO_B     = CFG_KES_B,
     parameter bit    ENABLE_COMPARE = 1'b1
@@ -90,7 +95,7 @@ module rs_loop_top
     logic w_busy, w_gen_done, w_chk_a_ok, w_chk_b_ok, w_cmp_err;
 
     rs_loop_harness #(
-        .AXIL_ADDR_WIDTH(32),
+        .AXIL_ADDR_WIDTH(32), .IFACE(IFACE),
         .KES_ALGO_A(KES_ALGO_A), .KES_ALGO_B(KES_ALGO_B),
         .ENABLE_COMPARE(ENABLE_COMPARE)
     ) u_harness (

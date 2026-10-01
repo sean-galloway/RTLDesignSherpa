@@ -49,6 +49,7 @@ addrmap rs_loop_regs {
         field { sw = r; hw = w; desc = "decoder A solver: 0 = riBM, 1 = Euclid"; } kes_a[4:4] = 0;
         field { sw = r; hw = w; desc = "decoder B solver: 0 = riBM, 1 = Euclid; meaningless when decoders == 1"; } kes_b[5:5] = 0;
         field { sw = r; hw = w; desc = "the A-vs-B comparator is built"; } compare[8:8] = 0;
+        field { sw = r; hw = w; desc = "datapath: 0 = AXIS stream pipe, 1 = AXI4 memory-to-memory job chain"; } iface[12:12] = 0;
     } TOPOLOGY @ 0x084;
 
     reg { desc = "Blocks per run";
@@ -80,6 +81,9 @@ addrmap rs_loop_regs {
         field { sw = r; hw = w; desc = "decoders A and B disagreed on a beat or a verdict"; } cmp_err[6:6] = 0;
         field { sw = r; hw = w; desc = "checker A CRC equals the generator's"; } crc_a_ok[7:7] = 0;
         field { sw = r; hw = w; } crc_b_ok[8:8] = 0;
+        field { sw = r; hw = w; desc = "AXI4 datapath: a non-OKAY response on any stage, sticky"; } axi4_resp_err[10:10] = 0;
+        field { sw = r; hw = w; desc = "AXI4 datapath stage dones, bit 0 = seed, then encode, inject, decode, drain. Each is held from one run until the next kick, so a value of 0x1F means the whole chain completed."; } axi4_stage[15:11] = 0;
+        field { sw = r; hw = w; desc = "AXI4 datapath: GEN_BLOCKS exceeds what the four memories hold, so the run would wrap and silently decode the wrong words. The run is refused rather than attempted."; } axi4_overflow[16:16] = 0;
         field { sw = r; hw = w; desc = "sticky: the two decoder streams did not run out together, so a beat is missing on one side. If this is set the beat and verdict mismatch counts are MEANINGLESS -- the streams are out of step, not disagreeing."; } cmp_misaligned[9:9] = 0;
     } STATUS @ 0x01C;
 

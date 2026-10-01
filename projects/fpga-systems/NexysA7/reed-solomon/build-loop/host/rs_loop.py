@@ -79,6 +79,10 @@ class RunResult:
     cmp_beats: int
     cmp_err: bool
     cmp_misaligned: bool
+    iface: str = "AXIS"
+    axi4_stage: int = 0
+    axi4_resp_err: bool = False
+    axi4_overflow: bool = False
     decoders: int = 2
     compare: bool = True
     timed_out: bool = False
@@ -155,8 +159,14 @@ class RsLoopDriver:
     def status(self) -> dict:
         w = self.regs.read("STATUS")
         names = ["busy", "gen_done", "chk_a_done", "chk_b_done", "data_err_a", "data_err_b",
-                 "cmp_err", "crc_a_ok", "crc_b_ok", "cmp_misaligned"]
-        return {n: bool(w >> i & 1) for i, n in enumerate(names)}
+                 "cmp_err", "crc_a_ok", "crc_b_ok", "cmp_misaligned", "axi4_resp_err"]
+        out = {n: bool(w >> i & 1) for i, n in enumerate(names)}
+        # the AXI4 stage dones are a 5-bit field, not a flag: bit 0 is the
+        # seed write, then encode, inject, decode, drain. 0x1F means the whole
+        # chain ran. Held from one kick to the next, like every other done here.
+        out["axi4_stage"] = (w >> 11) & 0x1F
+        out["axi4_overflow"] = bool(w >> 16 & 1)
+        return out
 
     def wait_done(self, timeout_s: float = 10.0, poll_s: float = 0.0) -> bool:
         deadline = time.monotonic() + timeout_s
@@ -194,6 +204,7 @@ class RsLoopDriver:
                 "kes_a":    bool(w >> 4 & 1),
                 "kes_b":    bool(w >> 5 & 1),
                 "compare":  bool(w >> 8 & 1),
+                "iface":    "AXI4" if (w >> 12 & 1) else "AXIS",
                 "name_a":   "Euclid" if (w >> 4 & 1) else "riBM",
                 "name_b":   "Euclid" if (w >> 5 & 1) else "riBM",
             }
@@ -207,7 +218,9 @@ class RsLoopDriver:
         return RunResult(
             blocks=blocks, mode=mode, count=count, rate=rate, bypass=bypass,
             cycles=r("CYCLES"), crc_expected=r("CRC_EXPECTED"),
-            decoders=topo["decoders"], compare=topo["compare"],
+            decoders=topo["decoders"], compare=topo["compare"], iface=topo["iface"],
+            axi4_stage=st["axi4_stage"], axi4_resp_err=st["axi4_resp_err"],
+            axi4_overflow=st["axi4_overflow"],
             a=self._decoder(topo["name_a"], "A", st),
             b=self._decoder(topo["name_b"], "B", st),
             inj_symbols=r("INJ_SYMBOLS"), inj_blocks=r("INJ_BLOCKS"), inj_over_t=r("INJ_OVER_T"),

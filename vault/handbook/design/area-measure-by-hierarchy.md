@@ -81,3 +81,33 @@ the consumers say whether it can go. Both features came back as options
 (`N_ADDR_RANGES`, default 0) or as a single compare on a value the lite already
 had (the latency subtract), so the area case survived -- but a day of
 regressions would have been saved by the grep.
+
+## A second case, and the one-line version of the rule
+
+*Reed-Solomon AXI4 job engines, 2026-09-30.* The first synthesis of the AXI4
+datapath came back at **-51.840 ns worst slack with 128 failing endpoints** on
+a 10 ns clock. Nothing about the RTL suggested where: the design is codecs,
+memories and a few counters, and the codecs had closed at +0.269 ns in the
+other flavour of the same harness.
+
+The worst-path report named it in one line: destination
+`u_enc/u_wr/r_bursts_left_reg[29]`, **111 logic levels of which 105 were
+CARRY4**, 61.7 ns of data path. That is a 32-bit combinational DIVIDER, and it
+was there because the write engine precomputed its burst count as
+`ceil(beats / burst_len)` when a job started.
+
+There was nothing to divide for. A write job is done when every address has
+been issued and every one has been answered, which is two counters the module
+already had. Removing the divide took slack to **+0.878 ns with 0 failing
+endpoints** and also returned 1,150 LUTs.
+
+So, the compressed rule, which is the same one this note opens with:
+
+- **A `/` or `%` by a non-constant is a divider.** It is free in a
+  `localparam` (elaboration-time) and enormous in an `assign`. The giveaway in
+  a report is a carry chain far longer than the datapath's width.
+- **Read the destination register's name before theorising.** It took one line
+  of the timing report to go from "the AXI4 path fails timing" to the exact
+  expression, in a design where the plausible suspects (the Euclid solver, the
+  memories, the four-deep engine chain) were all innocent.
+

@@ -56,6 +56,18 @@ package rs_loop_regs_pkg;
     } rs_loop_regs__STATUS__cmp_misaligned__in_t;
 
     typedef struct {
+        logic next;
+    } rs_loop_regs__STATUS__axi4_resp_err__in_t;
+
+    typedef struct {
+        logic [4:0] next;
+    } rs_loop_regs__STATUS__axi4_stage__in_t;
+
+    typedef struct {
+        logic next;
+    } rs_loop_regs__STATUS__axi4_overflow__in_t;
+
+    typedef struct {
         rs_loop_regs__STATUS__busy__in_t busy;
         rs_loop_regs__STATUS__gen_done__in_t gen_done;
         rs_loop_regs__STATUS__chk_a_done__in_t chk_a_done;
@@ -66,6 +78,9 @@ package rs_loop_regs_pkg;
         rs_loop_regs__STATUS__crc_a_ok__in_t crc_a_ok;
         rs_loop_regs__STATUS__crc_b_ok__in_t crc_b_ok;
         rs_loop_regs__STATUS__cmp_misaligned__in_t cmp_misaligned;
+        rs_loop_regs__STATUS__axi4_resp_err__in_t axi4_resp_err;
+        rs_loop_regs__STATUS__axi4_stage__in_t axi4_stage;
+        rs_loop_regs__STATUS__axi4_overflow__in_t axi4_overflow;
     } rs_loop_regs__STATUS__in_t;
 
     typedef struct {
@@ -292,10 +307,15 @@ package rs_loop_regs_pkg;
     } rs_loop_regs__TOPOLOGY__compare__in_t;
 
     typedef struct {
+        logic next;
+    } rs_loop_regs__TOPOLOGY__iface__in_t;
+
+    typedef struct {
         rs_loop_regs__TOPOLOGY__decoders__in_t decoders;
         rs_loop_regs__TOPOLOGY__kes_a__in_t kes_a;
         rs_loop_regs__TOPOLOGY__kes_b__in_t kes_b;
         rs_loop_regs__TOPOLOGY__compare__in_t compare;
+        rs_loop_regs__TOPOLOGY__iface__in_t iface;
     } rs_loop_regs__TOPOLOGY__in_t;
 
     typedef struct {

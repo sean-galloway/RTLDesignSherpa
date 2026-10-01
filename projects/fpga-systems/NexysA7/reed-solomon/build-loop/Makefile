@@ -29,3 +29,13 @@ BRIDGE_REGEN  := bash $(SELF_DIR)/../bin/regen_bridges.sh
 PREBUILD := $(BRIDGE_REGEN) $(if $(filter-out 0,$(REGEN_BRIDGES)),,--check)
 
 include $(RDS_ROOT)/make/fpga_flow.mk
+
+# AFTER the include, because fpga_flow.mk assigns LINT_GENERICS with `=` and
+# would otherwise discard these. Same env vars fpga/tcl/create_project.tcl
+# turns into Vivado generics -- keep the two lists in step, because a gate
+# that checks a different configuration than the one being built cannot catch
+# a configuration-specific fault.
+LINT_GENERICS += \
+    $(if $(RS_IFACE),-GIFACE=\"$(RS_IFACE)\") \
+    $(if $(RS_ENABLE_COMPARE),-GENABLE_COMPARE=$(RS_ENABLE_COMPARE)) \
+    $(if $(RS_KES_ALGO_A),-GKES_ALGO_A=\"$(RS_KES_ALGO_A)\")

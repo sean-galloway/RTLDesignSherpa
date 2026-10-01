@@ -115,6 +115,35 @@ if {[llength $defines] > 0} {
 set_property top rs_loop_top $src_fs
 update_compile_order -fileset sources_1
 
+# -----------------------------------------------------------------------------
+# Generics: build a flavour other than the RTL defaults.
+#
+#   RS_IFACE          "AXIS" (default) or "AXI4" -- which datapath
+#   RS_ENABLE_COMPARE 1 (default) or 0 -- build decoder B and the comparator
+#   RS_KES_ALGO_A     "RIBM" (default) or "EUCLID" -- decoder A's solver
+#
+# `make lint` is given the SAME values through LINT_GENERICS in the build's
+# Makefile. That is deliberate: a lint that runs against the RTL defaults
+# while Vivado synthesizes something else cannot catch a
+# configuration-specific fault, and this flow has shipped one before.
+# -----------------------------------------------------------------------------
+set rs_generics {}
+if {[info exists ::env(RS_IFACE)]} {
+    lappend rs_generics "IFACE=\"$::env(RS_IFACE)\""
+}
+if {[info exists ::env(RS_ENABLE_COMPARE)]} {
+    lappend rs_generics "ENABLE_COMPARE=$::env(RS_ENABLE_COMPARE)"
+}
+if {[info exists ::env(RS_KES_ALGO_A)]} {
+    lappend rs_generics "KES_ALGO_A=\"$::env(RS_KES_ALGO_A)\""
+}
+if {[llength $rs_generics] > 0} {
+    set_property generic $rs_generics $src_fs
+    puts "GENERICS:     $rs_generics"
+} else {
+    puts "GENERICS:     none (RTL defaults: IFACE=AXIS, riBM vs Euclid with the comparator)"
+}
+
 # ----------------------------------------------------------------------------
 # Constraints
 # ----------------------------------------------------------------------------

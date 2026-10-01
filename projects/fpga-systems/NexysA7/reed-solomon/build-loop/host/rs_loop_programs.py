@@ -107,6 +107,23 @@ def verdict(r: RunResult, t: int) -> List[str]:
             bad.append(f"{d.name}: {d.pkts} of {r.blocks} blocks reached its checker")
         if d.blk_frame:
             bad.append(f"{d.name}: {d.blk_frame} framing errors")
+    if r.iface == "AXI4":
+        # Refusal first, and INSTEAD of the stage check: a refused run leaves
+        # every stage at zero, so reporting both would lead with the symptom
+        # and bury the cause.
+        if r.axi4_overflow:
+            bad.append("AXI4 run refused: GEN_BLOCKS exceeds what the memories hold, "
+                       "so the regions would wrap. Run fewer blocks per kick.")
+        elif r.axi4_stage != 0x1F:
+            # Five sequential jobs, each done held until the next kick, so a
+            # complete run reads 0x1F. Naming the stage that stopped beats the
+            # timeout that would otherwise be the only symptom.
+            stages = ["seed", "encode", "inject", "decode", "drain"]
+            missing = [n for i, n in enumerate(stages) if not (r.axi4_stage >> i) & 1]
+            bad.append(f"AXI4 chain stopped: stage(s) {', '.join(missing)} never "
+                       f"completed (STATUS.axi4_stage = 0x{r.axi4_stage:02X})")
+        if r.axi4_resp_err:
+            bad.append("AXI4 chain saw a non-OKAY response on some stage")
     if not r.compare:
         pass                     # single-decoder build: nothing to compare
     elif r.cmp_misaligned:

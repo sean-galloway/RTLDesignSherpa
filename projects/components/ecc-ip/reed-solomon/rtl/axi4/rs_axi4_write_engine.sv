@@ -181,8 +181,7 @@ module rs_axi4_write_engine #(
     // =========================================================================
     // B side and completion
     // =========================================================================
-    logic [31:0] r_bursts_left;   // bursts still to be acknowledged
-    logic        w_b_fire;
+    logic w_b_fire;
 
     assign m_axi_bready = 1'b1;   // nothing here can stall a response
     assign w_b_fire     = m_axi_bvalid && m_axi_bready;
@@ -199,23 +198,34 @@ module rs_axi4_write_engine #(
         end
     end
 
-    // how many bursts the job takes: ceil(beats / len), computed once at start
-    logic [31:0] w_total_bursts;
-    logic [8:0]  w_len_eff;
-    assign w_len_eff      = (cfg_burst_len == 8'd0) ? 9'd1 : {1'b0, cfg_burst_len};
-    assign w_total_bursts = (cfg_beats + 32'(w_len_eff) - 32'd1) / 32'(w_len_eff);
+    // Completion WITHOUT counting bursts.
+    //
+    // The obvious form -- precompute ceil(beats / burst_len) at cfg_start and
+    // count B responses down -- costs a 32-bit combinational DIVIDER on the
+    // path from the block-count register to this counter's load. Measured on
+    // the Nexys A7 at 100 MHz that was 105 CARRY4 cells plus a DSP, 61.7 ns of
+    // data path, and a worst slack of -51.8 ns with 128 failing endpoints. It
+    // was the whole timing failure of the AXI4 flavour's first synthesis.
+    //
+    // There is nothing to divide for. The job is finished when every AW has
+    // been issued (r_aw_left is zero) and every one has been answered
+    // (r_outstanding is zero). r_active distinguishes "finished" from "not
+    // started", since both leave those two counters at zero.
+    logic r_active;
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
-            r_bursts_left <= '0; cfg_done <= 1'b0; resp_err <= 1'b0;
+            r_active <= 1'b0; cfg_done <= 1'b0; resp_err <= 1'b0;
         end else if (cfg_start) begin
-            r_bursts_left <= w_total_bursts;
-            cfg_done      <= (cfg_beats == '0);   // an empty job is already done
-            resp_err      <= 1'b0;
-        end else if (w_b_fire) begin
-            if (m_axi_bresp != 2'b00) resp_err <= 1'b1;
-            r_bursts_left <= r_bursts_left - 32'd1;
-            if (r_bursts_left == 32'd1) cfg_done <= 1'b1;
+            r_active <= (cfg_beats != '0);
+            cfg_done <= (cfg_beats == '0);        // an empty job is already done
+            resp_err <= 1'b0;
+        end else begin
+            if (w_b_fire && (m_axi_bresp != 2'b00)) resp_err <= 1'b1;
+            if (r_active && (r_aw_left == '0) && (r_outstanding == '0)) begin
+                r_active <= 1'b0;
+                cfg_done <= 1'b1;
+            end
         end
     end
 

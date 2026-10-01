@@ -19,6 +19,10 @@ the UNMODIFIED programs in host/rs_loop_programs.py.
                  caught a missing comparator backpressure term: with both
                  sides throttled equally the comparator FIFOs stayed in
                  lockstep and the bug was invisible in every other test.
+  uart_axi4      the IFACE = "AXI4" build: the codecs become job engines over
+                 four memories and the stages run in sequence, with the SAME
+                 generator in and checker out. Clean, correctable and
+                 beyond-threshold runs, plus the chain's own stage dones.
   uart_single    the ENABLE_COMPARE = 0 build: one Euclid decoder, no
                  comparator. Proves the run still finishes with checker B
                  tied off, and that the comparator reports inactive rather
@@ -328,6 +332,53 @@ async def cocotb_test_uart_single(dut):
     _report(dut, f"single Euclid decoder, e={T}", r)
 
 
+@cocotb.test(timeout_time=400, timeout_unit="ms")
+async def cocotb_test_uart_axi4(dut):
+    """The AXI4 datapath: a memory-to-memory job chain in place of the stream.
+
+    The generator and the checker are the same blocks, so this reaches the
+    verdict through the same CSRs and the same data_err evidence. What is new
+    is that the middle is five sequential jobs over four memories rather than
+    one flowing pipe, and the chain has to actually run to completion -- which
+    the host checks through STATUS.axi4_stage rather than inferring from a
+    timeout.
+
+    Three regimes, the same three the stream path is held to: no errors means
+    every block clean, e = t means every block corrected with exactly t
+    symbols, and e > t means the errors reached the checker. The host reads
+    TOPOLOGY to learn it is talking to an AXI4 build, so the programs and the
+    verdict are unmodified.
+    """
+    drv, _ = await _bringup(dut)
+    topo = await cocotb.external(drv.topology)()
+    assert topo["iface"] == "AXI4", f"expected an AXI4 build, TOPOLOGY says {topo['iface']}"
+    assert topo["decoders"] == 1, f"the AXI4 chain carries one decoder, got {topo['decoders']}"
+
+    for label, mode, count in (("clean", rl.RsLoopDriver.INJ_COUNT, 0),
+                               (f"e={T}", rl.RsLoopDriver.INJ_COUNT, T),
+                               (f"e={T + 1}", rl.RsLoopDriver.INJ_COUNT, T + 1)):
+        r = await cocotb.external(lambda m=mode, c=count: progs.run(drv, m, count=c, blocks=3))()
+        assert r.axi4_stage == 0x1F, (
+            f"AXI4 {label}: chain stopped at stage 0x{r.axi4_stage:02X}, wanted 0x1F")
+        assert not r.axi4_overflow, f"AXI4 {label}: run refused as oversized"
+        _report(dut, f"AXI4 {label}", r)
+
+    # The memories cap how many blocks one kick can carry, and past that the
+    # regions would wrap and the decode would read the wrong words. That is a
+    # silently wrong answer, so the harness refuses the run instead. A guard
+    # whose refusing path is never exercised is a guard nobody has tested.
+    over = rl.RsLoopDriver.INJ_COUNT
+    r = await cocotb.external(lambda: progs.run(drv, over, count=0, blocks=4096))()
+    assert r.axi4_overflow, (
+        "an oversized AXI4 run should set STATUS.axi4_overflow and never kick")
+    assert r.axi4_stage == 0x00, (
+        f"a refused run must not start any stage, got 0x{r.axi4_stage:02X}")
+    bad = progs.verdict(r, T)
+    assert any("refused" in b for b in bad), (
+        f"the verdict should name the refusal; it said {bad}")
+    dut._log.info("AXI4 oversized run correctly refused: stage=0x%02X", r.axi4_stage)
+
+
 # =============================================================================
 # pytest wrappers
 # =============================================================================
@@ -406,3 +457,10 @@ def test_rs_loop_uart_single(request):
     _run("cocotb_test_uart_single",
          parameters={"ENABLE_COMPARE": "0", "KES_ALGO_A": '"EUCLID"'},
          suffix="_ec0")
+
+
+def test_rs_loop_uart_axi4(request):
+    """IFACE=AXI4: the memory-to-memory job chain, one decoder."""
+    _run("cocotb_test_uart_axi4",
+         parameters={"IFACE": '"AXI4"', "ENABLE_COMPARE": "0"},
+         suffix="_axi4")

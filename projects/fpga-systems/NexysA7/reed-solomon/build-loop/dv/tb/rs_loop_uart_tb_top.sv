@@ -27,6 +27,7 @@ module rs_loop_uart_tb_top #(
     // configuration. The default matches the board build; a parameter's OFF
     // state needs its own test, and without these it would only ever be
     // elaborated by a lint pass.
+    parameter string IFACE           = "AXIS",
     parameter string KES_ALGO_A      = rs_loop_cfg_pkg::CFG_KES_A,
     parameter string KES_ALGO_B      = rs_loop_cfg_pkg::CFG_KES_B,
     parameter bit    ENABLE_COMPARE  = 1'b1
@@ -65,7 +66,7 @@ module rs_loop_uart_tb_top #(
         .m_axil_rvalid(axil_rvalid), .m_axil_rready(axil_rready));
 
     rs_loop_harness #(
-        .AXIL_ADDR_WIDTH(32),
+        .AXIL_ADDR_WIDTH(32), .IFACE(IFACE),
         .KES_ALGO_A(KES_ALGO_A), .KES_ALGO_B(KES_ALGO_B),
         .ENABLE_COMPARE(ENABLE_COMPARE)
     ) u_harness (

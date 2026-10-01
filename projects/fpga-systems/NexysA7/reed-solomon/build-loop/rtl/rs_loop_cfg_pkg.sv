@@ -42,6 +42,17 @@ package rs_loop_cfg_pkg;
     localparam logic [31:0] CFG_BUILD_ID   = 32'h5253_4C50;   // "RSLP"
 
     // the two decoders under test
+    // AXI4 datapath geometry. Each of the four memories holds the largest
+    // region any one stage uses -- a codeword region is blocks * CFG_N_BEATS
+    // words -- so the depth caps the blocks a single AXI4 run can carry. 4096
+    // words at 32 bits is 16 KB per memory, 4 block RAMs, and the part has
+    // 135 with none otherwise used. Burst length is a round 16 beats: long
+    // enough that AW/AR overhead is small against a 63-beat codeword, short
+    // enough to stay well inside a 4 KB boundary at 4 bytes a beat.
+    localparam int unsigned CFG_AXI4_MEM_DEPTH = 4096;
+    localparam logic [7:0]  CFG_AXI4_BURST_LEN = 8'd16;
+    localparam int unsigned CFG_AXI4_MAX_BLOCKS = CFG_AXI4_MEM_DEPTH / CFG_N_BEATS;
+
     localparam string       CFG_KES_A = "RIBM";
     localparam string       CFG_KES_B = "EUCLID";
 
