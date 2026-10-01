@@ -2,7 +2,7 @@
 
 # amba — issues
 
-**Next ID: ISSUE-004** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-005** — never recycle a number, even when its item closed.
 
 An observed problem that is not yet a diagnosed defect or a decided piece of work: an anomaly, a risk, an open question. It RESOLVES INTO a bug, a task, or a recorded no-action.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,6 +20,14 @@ by construction rather than by discipline.
 
 ## Open
 
+- **ISSUE-004** — `sdpram_core` serialises bursts: `awready` waits on
+  `!r_wr_active && !r_b_pending` and `arready` on `!r_rd_active`, so one burst
+  is in flight at a time and a master's `MAX_OUTSTANDING > 1` is inert. Measured
+  ~2.0 cycles per write burst (backpressure) and ~1.6 per read burst
+  (starvation) on the RS loop harness; affects every consumer of
+  `sdpram_slave_axi4_axi4`, including the stream, rapids and rapids_beats
+  harnesses. Not yet decided whether it is a defect or deliberate for a test
+  memory.
 
 ## Closed
 
