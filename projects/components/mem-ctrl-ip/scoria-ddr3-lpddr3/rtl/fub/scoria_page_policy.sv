@@ -161,11 +161,14 @@ module scoria_page_policy
 
 
     // ---- issued-stream decodes ---------------------------------------------
-    logic w_is_col, w_is_act, w_is_pre, w_is_ref;
-    assign w_is_col = cmd_valid_i && is_column_op(cmd_op_i);
-    assign w_is_act = cmd_valid_i && (cmd_op_i == OP_ACT);
-    assign w_is_pre = cmd_valid_i && ((cmd_op_i == OP_PRE) || (cmd_op_i == OP_PREA));
-    assign w_is_ref = cmd_valid_i && is_refresh_op(cmd_op_i);
+    logic w_is_col, w_is_act, w_is_pre, w_is_pre1, w_is_ref;
+    assign w_is_col  = cmd_valid_i && is_column_op(cmd_op_i);
+    assign w_is_act  = cmd_valid_i && (cmd_op_i == OP_ACT);
+    assign w_is_pre  = cmd_valid_i && ((cmd_op_i == OP_PRE) || (cmd_op_i == OP_PREA));
+    // SINGLE-bank precharge only. PREA is the refresh drain's all-bank close
+    // and its bank field carries nothing -- see the conflict-mark note below.
+    assign w_is_pre1 = cmd_valid_i && (cmd_op_i == OP_PRE);
+    assign w_is_ref  = cmd_valid_i && is_refresh_op(cmd_op_i);
 
     // ---- per-bank idle timers (fixed_open / adapt_time) --------------------
     // A bank's timer arms while its row is open and RELOADS on any command to
@@ -243,6 +246,15 @@ module scoria_page_policy
     // to a marked bank is a MISS, to an unmarked bank an EMPTY. Timeout and
     // refresh closes deliberately do NOT mark: the reopen cost after them is
     // the page-empty class.
+    //
+    // Only a SINGLE-bank PRE may mark. The mark used to be driven by w_is_pre,
+    // which includes PREA -- the refresh drain's all-bank close, whose bank
+    // field is not an address. That made one arbitrary bank's reopen a
+    // conflict miss after every drain: measured 1 miss + 7 empties for eight
+    // reopens after one PREA, where the class of all eight is page_empty. The
+    // count was small but the attribution was wrong, and it was wrong in the
+    // direction that makes an open-page policy look worse than it is.
+    // (dv/tests/fub/test_scoria_page_policy.py::prea_marks_one_bank_only)
     logic [NUM_BANKS-1:0] r_conflict_mark;
     // An activation issued for bank b that has not yet seen its column op.
     logic [NUM_BANKS-1:0] r_act_pending;
@@ -260,7 +272,7 @@ module scoria_page_policy
             r_act_pending     <= '0;
             for (int b = 0; b < NUM_BANKS; b++) stat_row_hit_o[b] <= 32'h0;
         end else begin
-            if (w_is_pre && !w_pre_was_timeout)
+            if (w_is_pre1 && !w_pre_was_timeout)
                 r_conflict_mark[cmd_bank_i] <= 1'b1;
 
             if (w_is_col) stat_page_hit_o <= stat_page_hit_o + 32'h1;
