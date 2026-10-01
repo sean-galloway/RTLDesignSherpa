@@ -2,7 +2,7 @@
 
 # tooling — tasks
 
-**Next ID: TASK-024** — never recycle a number, even when its item closed.
+**Next ID: TASK-025** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 20 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -24,6 +24,9 @@ by construction rather than by discipline.
 - **TASK-023** (P2) — `env_python` resolves its own root with `git rev-parse --show-toplevel`, so sourcing it from another repo's tree silently activates THAT tree's venv; from the RDS-DV tree it imports a stale 0.6.7 snapshot that self-reports 0.6.1, which is the mechanism behind a real misdiagnosis of 9 test failures
 - **TASK-022** (P1) — the FPGA flow lock is keyed on the build directory, so two areas can drive one board; a harness records the sha256 it programmed rather than what is on the device, so a mid-run reprogram publishes someone else's measurements with no error at all
 
+
+
+- **TASK-024** (P2) — `projects/fpga-systems/` is the only major area with no book, and it is the layer every board flow imports; document the UART flow end to end plus the host/seq naming conventions, including the THREE coexisting directory layouts nothing currently chooses between
 
 
 ## Active
