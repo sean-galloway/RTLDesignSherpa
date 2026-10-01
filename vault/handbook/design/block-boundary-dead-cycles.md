@@ -23,6 +23,45 @@ A single-run test cannot separate "the block took 70 cycles because the pipe is
 The first is free and the second is a throughput bug, and only the slope tells
 them apart. Latency is free; a gap at the block boundary is not.
 
+## The author of this note then divided a total by a block count
+
+Worth recording because the rule above was already written down when it
+happened. The RS decoder was slope-tested in sim to zero dead cycles on every
+profile. The BOARD measurement was then taken as a single 64-block run, 4168
+cycles, reported as `4168 / 64 = 65.1 cycles/block` and therefore "2.1 dead
+cycles per block" -- and a hunt began for them in the encoder, the beat packer
+and the error injector.
+
+Measured properly, at four block counts:
+
+| blocks | cycles | cycles - 63*blocks |
+|---|---|---|
+| 16 | 1,144 | 136 |
+| 32 | 2,152 | 136 |
+| 64 | 4,168 | 136 |
+| 128 | 8,200 | 136 |
+
+Slope 63.00 everywhere, which is the codeword, with one fixed 136-cycle fill.
+Zero dead cycles. The phantom 2.1 was 136/64. The same single-point method
+would have reported 71.5 at 16 blocks and 63.5 at 256 for identical hardware.
+
+Two tells were available before any of that, and both were ignored:
+
+- **A "rate" that moves with the run length is not a rate.** 71.5, 67.2,
+  65.1, 64.1 across block counts is the signature of `slope + intercept/N`.
+  One extra data point distinguishes a per-block gap from a fixed cost, and it
+  costs one more run.
+- **Someone else's working system is evidence.** The owner's objection was
+  that another project saturates the SAME shared generator, checker and bus
+  meter. A conclusion that requires widely-used shared fixtures to be broken
+  needs far better support than elimination, and "I ruled out everything else"
+  is not a measurement of the thing you landed on.
+
+Per-cycle bucket counters settle it directly where they exist: the meter's
+STARVATION count was a constant 140 at 64, 128 and 256 blocks while
+BACKPRESSURE scaled linearly. A constant is a fill; only the term that scales
+with the block count is a per-block gap.
+
 ## Account for the slope, do not just threshold it
 
 On the Reed-Solomon decoder (2026-09-30) the slope was above line rate on 8 of

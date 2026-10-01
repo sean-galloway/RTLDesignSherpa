@@ -40,26 +40,43 @@ The profile is 59 message beats and 4 parity beats per block -- the encoder
 starts parity on a FRESH beat -- so a codeword is 63 beats and 63 cycles/block
 is line rate.
 
-| | cycles/block | dead vs 63 |
-|---|---|---|
-| bypass (fixture floor) | 59.0 | n/a -- no codec in the path |
-| codec, before the pipelining fix | 69.1 | 6.1 |
-| codec, now | **65.1** | **2.1** |
+**The board runs at exactly line rate: ZERO dead cycles per block.** Measured
+at four block counts, the total is a straight line with a constant intercept:
 
-The decoder core itself is at ZERO dead cycles, proven in sim across all 8
-profiles (slope test, `run_no_dead_cycles`). The 2.1 cycles/block that remain
-are therefore OUTSIDE the core -- encoder, beat packer, injector, or the AXIS
-wrapper handshakes -- and that is where the next pass goes.
+| blocks | cycles | cycles - 63*blocks | single-point cycles/block |
+|---|---|---|---|
+| 16 | 1,144 | 136 | 71.5 |
+| 32 | 2,152 | 136 | 67.2 |
+| 64 | 4,168 | 136 | 65.1 |
+| 128 | 8,200 | 136 | 64.1 |
+| 256 | 16,264 | 136 | 63.5 |
 
-**The utilisation figure cannot read 100% at these tap points, and that is a
-measurement bug, not a design one.** Both meters sit on MESSAGE beats (59 per
-block) while the codec's internal rate is set by CODEWORD beats (63), so the
-arithmetic ceiling is 59/63 = 93.7%. Measured is 90.6%, up from 85.4%. The
-input meter's 3.9 cycles/block of backpressure is the n/k expansion itself --
-the message side MUST be held off ~4 beats per block while the codeword side
-runs full -- and is correct, not a stall. To get a figure that can legitimately
-reach 100%, the taps have to move to the codeword side (encoder output and
-decoder input); until then read the cycles/block column, not the percentage.
+Every adjacent pair gives a slope of **63.00 cycles/block**, and the whole
+excess is one fixed 136-cycle pipeline fill and drain. The meters say the same
+thing independently: STARVATION -- actual dead time -- is a constant 140
+cycles at 64, 128 and 256 blocks, while BACKPRESSURE scales at 3.98/block.
+That backpressure is the n/k expansion doing its job, holding the message side
+off while the codeword side runs full: 59 productive + 3.98 held off = 63.
+
+**DIVIDE THE TOTAL BY THE BLOCK COUNT AND YOU GET A NUMBER THAT IS NOT A
+RATE.** The "single-point cycles/block" column above is `63 + 136/blocks`; it
+reads 71.5 at 16 blocks and 63.5 at 256 for the SAME hardware behaving
+identically. An earlier revision of this file reported the 64-block value,
+65.1, as "2.1 dead cycles per block" and went looking for them in the
+encoder, the beat packer and the injector. There were none to find: the
+fixtures were never at fault, which the stream project hitting line rate on
+the same shared generator, checker and meter should have said immediately.
+Take a slope over two block counts. See
+vault/handbook/design/block-boundary-dead-cycles.md, which says exactly this
+and was written before the mistake was made.
+
+**The utilisation PERCENTAGE still cannot reach 100% at these tap points, and
+that part is real.** Both meters sit on MESSAGE beats (59 per block) while the
+cycles are set by CODEWORD beats (63), so the arithmetic ceiling is
+59/63 = 93.7%. Measured: 90.6% at 64 blocks, 92.1% at 128, 92.9% at 256 --
+converging on the ceiling exactly as a fixed fill amortises away. To get a
+figure that can legitimately read 100%, the taps have to move to the codeword
+side (encoder output and decoder input).
 
 ## Build notes
 
