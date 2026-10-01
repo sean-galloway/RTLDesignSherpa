@@ -1,17 +1,26 @@
-"""
-DDR2/LPDDR2 fub-level test conftest.
+"""scoria (DDR3/LPDDR3) fub-level test conftest.
 
-Wires up the import paths so test modules can:
-  * `from TBClasses.shared.utilities import get_paths` — needs $REPO_ROOT/bin
-    on sys.path (TBClasses is vendored under bin/ in the main repo, and
-    under tests/sim/ in the DV repo)
-  * `from tbclasses.pumice_rd_cmd_cam_tb import PumiceRdCmdCamTB` — needs the
-    component dv/ directory on sys.path
+Wires the import paths so a test module can reach both halves of the DV
+framework:
+
+  * `from TBClasses.shared.utilities import get_paths` -- needs $REPO_ROOT/bin
+    on sys.path (TBClasses lives under bin/ in the main repo and under
+    tests/sim/ in the DV repo);
+  * `from tbclasses.scoria_cmd_arbiter_tb import ScoriaCmdArbiterTB` -- needs
+    this component's dv/ directory on sys.path.
+
+Mirrors pumice's, deliberately: the two areas' tests are read side by side and
+a second shape to learn is a cost with no benefit.
+
+`pytest_ignore_collect` keeps collection out of logs/ and local_sim_build/.
+Nothing there is a test today, but those trees fill with generated files and a
+collection error in one of them aborts the whole directory -- which reads as
+"the suite is broken" rather than "pytest wandered into a build tree".
 """
 
 import os
-import sys
 import subprocess
+import sys
 
 
 def _ensure_path(p):
@@ -22,11 +31,11 @@ def _ensure_path(p):
 
 
 def pytest_configure(config):
-    # Component dv/ → makes `tbclasses.*` importable
+    # Component dv/ -> makes `tbclasses.*` importable
     dv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
     _ensure_path(dv_path)
 
-    # Repo bin/ → makes `TBClasses.*` importable (vendored snapshot)
+    # Repo bin/ -> makes `TBClasses.*` importable
     try:
         repo_root = subprocess.check_output(
             ['git', 'rev-parse', '--show-toplevel'],
@@ -43,22 +52,3 @@ def pytest_configure(config):
 def pytest_ignore_collect(collection_path, config):
     path_str = str(collection_path)
     return 'logs' in path_str or 'local_sim_build' in path_str
-
-# ----------------------------------------------------------------------
-# NO REG_LEVEL -> TEST_LEVEL STAMP HERE. DELIBERATELY.
-# ----------------------------------------------------------------------
-# There used to be one, and while no wrapper exported a level it was the only
-# thing mapping `make run-all-full-parallel` onto a depth: without it the grids
-# fell back to FUNC and a FULL run quietly ran the FUNC matrix (measured on
-# fub: 91 tests -> 79) while still reporting "passed".
-#
-# The trap is what it does once wrappers DO pass a level. cocotb_test's set_env
-# applies extra_env first and then copies every os.environ entry over it, so a
-# process-level TEST_LEVEL beats whatever a wrapper exported -- tooling BUG-004 (was TOOL-016), see
-# TBClasses.shared.test_levels.
-#
-# So this area now reads REG_LEVEL in each wrapper (the grids and the Group C
-# depth tables) and exports TEST_LEVEL per cell. Removing this stamp without that
-# wrapper change would have dropped the area to the FUNC default, which is why
-# a comment stands here rather than a blank space. The tests that never read the
-# level at all -- the directed single-scenario ones -- are unaffected either way.
