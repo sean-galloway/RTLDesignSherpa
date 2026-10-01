@@ -300,10 +300,19 @@ module scoria_char_macro
     input  logic                       dfi_init_complete_i,
 
     // ---- DDR3 additions the DDR2 macro has no equivalent for ----
-    // RESET_n is a real DRAM pin: the DFI spec carries no reset signal, so it
-    // leaves the controller directly. LiteDRAM brings ddram_reset_n out the
-    // same way, which is independent corroboration rather than a convention.
-    output logic                       dram_reset_n_o,
+    // RESET_n is a real DRAM pin AND a DFI signal -- this comment used to say
+    // "the DFI spec carries no reset signal", which is wrong. Measured against
+    // the DV framework's signal catalog: `reset_n` is min_version 2.1, gated on
+    // MEMORY TYPE (ddr3, ddr4, ddr5, lpddr4, lpddr5) rather than on version,
+    // and renamed dfi_reset in v6.0. DFI has carried it for DDR3 since 2.1.
+    // scoria presents it as dfi_reset_n_o as of scoria TASK-005. LiteDRAM
+    // bringing ddram_reset_n out to a pin is about the BOARD, not about
+    // whether DFI defines the signal.
+    output logic                       dfi_reset_n_o,
+    // v3.1-only per-data-phase chip selects (min 3.1, max 3.1). Constant at one
+    // rank; forwarded so the board top sees the controller's full DFI set.
+    output logic [DFI_CS_BUS_W-1:0]    dfi_wrdata_cs_n_o,
+    output logic [DFI_CS_BUS_W-1:0]    dfi_rddata_cs_n_o,
     // DFI v3.1 per-CS write-leveling handshake. v2.1.1 had a single-wire
     // leveling request; v3.1 splits it per chip select. s7ddrphy implements
     // NONE of this, so on the board these go nowhere -- they are exercised in
@@ -635,12 +644,14 @@ module scoria_char_macro
         .dfi_wrdata_en_o       (dfi_wrdata_en_o),
         .dfi_wrdata_mask_o     (dfi_wrdata_mask_o),
         .dfi_rddata_en_o       (dfi_rddata_en_o),
+        .dfi_wrdata_cs_n_o     (dfi_wrdata_cs_n_o),
+        .dfi_rddata_cs_n_o     (dfi_rddata_cs_n_o),
         .dfi_rddata_i          (dfi_rddata_i),
         .dfi_rddata_valid_i    (dfi_rddata_valid_i),
         .dfi_init_start_o      (dfi_init_start_o),
         .dfi_init_complete_i   (dfi_init_complete_i),
         // DDR3: the RESET_n pad and the v3.1 leveling handshake
-        .dram_reset_n_o         (dram_reset_n_o),
+        .dfi_reset_n_o          (dfi_reset_n_o),
         .dfi_phylvl_req_cs_n_o  (dfi_phylvl_req_cs_n_o),
         .dfi_phylvl_ack_cs_n_i  (dfi_phylvl_ack_cs_n_i),
         .dfi_phy_wrlvl_cs_n_o   (dfi_phy_wrlvl_cs_n_o),

@@ -158,6 +158,8 @@ module scoria_top_geared
     output logic [DFI_EN_WIDTH-1:0]    dfi_wrdata_en_o,
     output logic [DFI_STRB_WIDTH-1:0]  dfi_wrdata_mask_o,
     output logic [DFI_EN_WIDTH-1:0]    dfi_rddata_en_o,
+    output logic [DFI_CS_BUS_W-1:0]    dfi_wrdata_cs_n_o,
+    output logic [DFI_CS_BUS_W-1:0]    dfi_rddata_cs_n_o,
     input  logic [DFI_DATA_WIDTH-1:0]  dfi_rddata_i,
     input  logic [DFI_VALID_WIDTH-1:0] dfi_rddata_valid_i,
     output logic                       dfi_init_start_o,
@@ -165,7 +167,7 @@ module scoria_top_geared
 
     // ---- DDR3 RESET_n pad (not a DFI signal: the DFI spec has no reset
     // pin, so it leaves the controller directly and the PHY passes it on) ----
-    output logic                       dram_reset_n_o,
+    output logic                       dfi_reset_n_o,
 
     // ---- DFI v3.1 write-leveling handshake, straight through ----
     output logic [NUM_CS-1:0]          dfi_phylvl_req_cs_n_o,
@@ -391,7 +393,7 @@ module scoria_top_geared
         .s_cpuif_wr_ack      (s_cpuif_wr_ack),
         .s_cpuif_wr_err      (s_cpuif_wr_err),
         .init_done_o         (init_done_o),
-        .dram_reset_n_o      (dram_reset_n_o),
+        .dfi_reset_n_o       (dfi_reset_n_o),
         .dfi_phylvl_req_cs_n_o (dfi_phylvl_req_cs_n_o),
         .dfi_phylvl_ack_cs_n_i (dfi_phylvl_ack_cs_n_i),
         .dfi_phy_wrlvl_cs_n_o  (dfi_phy_wrlvl_cs_n_o),
@@ -454,6 +456,8 @@ module scoria_top_geared
         .dfi_wrdata_en_o    (dfi_wrdata_en_o),
         .dfi_wrdata_mask_o  (dfi_wrdata_mask_o),
         .dfi_rddata_en_o    (dfi_rddata_en_o),
+        .dfi_wrdata_cs_n_o  (dfi_wrdata_cs_n_o),
+        .dfi_rddata_cs_n_o  (dfi_rddata_cs_n_o),
         .dfi_rddata_i       (dfi_rddata_i),
         .dfi_rddata_valid_i (dfi_rddata_valid_i),
         .dfi_init_start_o   (dfi_init_start_o),

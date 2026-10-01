@@ -102,12 +102,24 @@ module scoria_top
     output logic [DFI_BANK_BUS_W-1:0]  dfi_bank_o,
     output logic [DFI_CTRL_BUS_W-1:0]  dfi_cas_n_o, dfi_ras_n_o, dfi_we_n_o,
     output logic [DFI_CS_BUS_W-1:0]    dfi_cs_n_o, dfi_odt_o,
-    // DDR3: RESET# is a device pin, so it leaves the controller top.
-    output logic                       dram_reset_n_o,
+    // DDR3 RESET#. It IS a device pin, and DFI has carried it on the command
+    // interface since v2.1 for DDR3 (gated on memory type, not version), so
+    // the DFI name is the right one at this boundary. See scoria_core.sv.
+    output logic                       dfi_reset_n_o,
     output logic [DFI_DATA_WIDTH-1:0]  dfi_wrdata_o,
     output logic [DFI_EN_WIDTH-1:0]    dfi_wrdata_en_o,
     output logic [DFI_STRB_WIDTH-1:0]  dfi_wrdata_mask_o,
     output logic [DFI_EN_WIDTH-1:0]    dfi_rddata_en_o,
+    // ----- DFI v3.1 per-data-phase chip selects (scoria TASK-005) ----------
+    // v3.1-ONLY (min 3.1, max 3.1 -- renamed dfi_wrdata_cs / dfi_rddata_cs in
+    // v4.0), so a v3.1 claim obliges scoria to present them. Two roles: which
+    // rank owns the DQ bus during the DATA window, and the CS-under-training
+    // indicator during write leveling / read training. Both are degenerate at
+    // one rank, where CS0 is the only answer -- so constant here, and driven
+    // by the controller rather than tied off by the integrator. See the fuller
+    // note at the same ports in scoria_core.sv.
+    output logic [DFI_CS_BUS_W-1:0]    dfi_wrdata_cs_n_o,
+    output logic [DFI_CS_BUS_W-1:0]    dfi_rddata_cs_n_o,
     input  logic [DFI_DATA_WIDTH-1:0]  dfi_rddata_i,
     input  logic [DFI_VALID_WIDTH-1:0] dfi_rddata_valid_i,
     output logic                       dfi_init_start_o,
@@ -359,7 +371,7 @@ module scoria_top
         .t_rfc_wait_i       (hwif_out.INIT_TIMING1.t_rfc_wait.value),
         .t_xpr_wait_i       (hwif_out.INIT_TIMING2.t_xpr_wait.value),
         .t_zqinit_wait_i    (hwif_out.INIT_TIMING2.t_zqinit_wait.value),
-        .dram_reset_n_o     (dram_reset_n_o),
+        .dfi_reset_n_o     (dfi_reset_n_o),
         .mr_wr_o            (w_mr_wr),
         .wrlvl_en_o         (w_wrlvl_en),
         // ZQ: config from the CSR, telemetry back into it.
@@ -461,6 +473,8 @@ module scoria_top
         .dfi_wrdata_en_o    (dfi_wrdata_en_o),
         .dfi_wrdata_mask_o  (dfi_wrdata_mask_o),
         .dfi_rddata_en_o    (dfi_rddata_en_o),
+        .dfi_wrdata_cs_n_o (dfi_wrdata_cs_n_o),
+        .dfi_rddata_cs_n_o (dfi_rddata_cs_n_o),
         .dfi_rddata_i       (dfi_rddata_i),
         .dfi_rddata_valid_i (dfi_rddata_valid_i),
         .dfi_init_start_o   (dfi_init_start_o),

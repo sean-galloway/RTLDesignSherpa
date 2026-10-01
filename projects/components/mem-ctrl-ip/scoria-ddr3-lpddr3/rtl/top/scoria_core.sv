@@ -195,7 +195,16 @@ module scoria_core
     // DDR3 additions
     input  logic [15:0]                t_xpr_wait_i,     // tXPR, init step 5
     input  logic [15:0]                t_zqinit_wait_i,  // tZQinit, init step 11
-    output logic                       dram_reset_n_o,   // RESET# -- a device PIN
+    // DDR3 RESET#, carried on the DFI COMMAND interface. Named for the
+    // interface it LEAVES this module on, not for the device pin it ends at --
+    // a PHY integrator wiring to DFI looks for dfi_reset_n.
+    //
+    // DFI has defined this since v2.1, gated on MEMORY TYPE not version: it
+    // exists for DDR3 and was extended to DDR4/LPDDR4 at v4.0 and DDR5/LPDDR5
+    // at v5.x (and renamed dfi_reset in v6.0). So this is not a v3.1 addition
+    // -- scoria simply never presented the DFI name. Renamed from
+    // dram_reset_n_o 2026-10-01, scoria TASK-005.
+    output logic                       dfi_reset_n_o,
     output logic [4:0]                 mr_wr_o,          // write recovery MR0[11:9]
     output logic                       wrlvl_en_o,       // MR1[7]
 
@@ -288,6 +297,26 @@ module scoria_core
     output logic [DFI_EN_WIDTH-1:0]    dfi_wrdata_en_o,
     output logic [DFI_STRB_WIDTH-1:0]  dfi_wrdata_mask_o,
     output logic [DFI_EN_WIDTH-1:0]    dfi_rddata_en_o,
+    // ----- DFI v3.1 per-data-phase chip selects (scoria TASK-005) ----------
+    // These exist at EXACTLY v3.1 (min 3.1, max 3.1 -- renamed dfi_wrdata_cs /
+    // dfi_rddata_cs in v4.0), so unlike dfi_reset_n above they really are a
+    // v3.1-only pair, which is why a v3.1 claim obliges scoria to present them.
+    //
+    // TWO ROLES, and only the first is satisfied by a constant:
+    //   1. which rank owns the DQ bus during the DATA window -- the command
+    //      phases carry dfi_cs_n, the data phases carry these. scoria has ONE
+    //      rank, so 0 (rank 0 selected) is the only legal value.
+    //   2. the CS-UNDER-TRAINING indicator during write leveling / read
+    //      training. scoria HAS a write-leveling interface
+    //      (scoria_wrlvl_ifc, dfi_phy_wrlvl_cs_n_o), so this role is live --
+    //      it is just degenerate at one rank, where the CS under training is
+    //      always CS0. A multi-rank scoria must drive these from the granted
+    //      command's rank AND from the rank being levelled.
+    //
+    // Driven by the controller rather than tied off by the integrator, because
+    // presenting them is the controller's side of the contract.
+    output logic [DFI_CS_BUS_W-1:0]    dfi_wrdata_cs_n_o,
+    output logic [DFI_CS_BUS_W-1:0]    dfi_rddata_cs_n_o,
     input  logic [DFI_DATA_WIDTH-1:0]  dfi_rddata_i,
     input  logic [DFI_VALID_WIDTH-1:0] dfi_rddata_valid_i,
     output logic                       dfi_init_start_o,
@@ -554,7 +583,10 @@ module scoria_core
         .t_rfc_wait_i       (t_rfc_wait_i),
         .t_xpr_wait_i       (t_xpr_wait_i),
         .t_zqinit_wait_i    (t_zqinit_wait_i),
-        .dram_reset_n_o     (dram_reset_n_o),
+        // The scheduler/init_sequencer call it dram_reset_n_o -- correct for
+        // them, where it is device sequencing. It becomes a DFI signal at
+        // THIS module's boundary, which is where the name changes.
+        .dram_reset_n_o     (dfi_reset_n_o),
         .mr_wr_o            (mr_wr_o),
         .wrlvl_en_o         (wrlvl_en_o),
         .zq_enable_i        (zq_enable_i),
@@ -645,6 +677,14 @@ module scoria_core
     // ======================================================================
     // Layer 3: DFI layer (single CDC + datapath)
     // ======================================================================
+    // DFI v3.1 data-phase chip selects. One rank, so rank 0 is the only legal
+    // selection and these are constant -- driven by the controller rather than
+    // tied off by the integrator, because presenting them is the controller's
+    // side of the v3.1 contract (scoria TASK-005). Multi-rank must drive these
+    // from the granted command's rank, in step with dfi_cs_n.
+    assign dfi_wrdata_cs_n_o = '0;
+    assign dfi_rddata_cs_n_o = '0;
+
     scoria_dfi_layer #(
         .NUM_RANKS       (NUM_RANKS),
         .NUM_CS          (NUM_CS),

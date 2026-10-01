@@ -204,7 +204,6 @@ logic [31:0] stall_bp_o;
     logic [31:0] stat_pre_o;
     logic [31:0] stat_ref_o;
     logic [31:0] stat_ref_busy_o;
-    logic dram_reset_n_o;
     logic [4:0] mr_wr_o;
     logic wrlvl_en_o;
     logic zq_busy_o;
@@ -261,26 +260,17 @@ logic [31:0] stall_bp_o;
     logic                       phy_dfi_training_active, phy_dfi_training_phase;
     logic [DFI_CS_BUS_W-1:0]    phy_dfi_cke, phy_dfi_dram_clk_disable;
 
-    // ---- DFI v3.1 signals scoria does not present under their DFI names ---
-    // The BFM checks the required set for the declared version/memory type and
-    // names what is absent, which surfaced three:
-    //
-    // dfi_reset_n      scoria HAS this -- it just calls it dram_reset_n_o and
-    //                  documents it as "a device PIN". DFI v3.1 carries DRAM
-    //                  RESET# as part of the control interface, so for a v3.1
-    //                  claim the DFI name is the right one and this is an
-    //                  alias rather than a tie-off.
-    // dfi_wrdata_cs_n  per-data-phase chip select, new in v3.1. scoria does
-    // dfi_rddata_cs_n  not drive either: it qualifies commands with
-    //                  dfi_cs_n and has one rank. Tied to 0 = rank 0
-    //                  selected, which is correct for NUM_RANKS=1 and would
-    //                  have to be driven for real multi-rank.
+    // ---- DFI v3.1 control/data signals, now DRIVEN BY THE DUT ------------
+    // The BFM checks the required signal set for the declared version and
+    // memory type, and named three that scoria did not present under their DFI
+    // names. This wrapper used to alias dfi_reset_n from dram_reset_n_o and tie
+    // the two data-phase selects itself. scoria TASK-005 fixed that in the RTL:
+    // dram_reset_n_o is dfi_reset_n_o now (named for the interface it leaves
+    // the controller on) and the controller drives dfi_wrdata_cs_n /
+    // dfi_rddata_cs_n, constant for NUM_RANKS=1 but driven on its own side of
+    // the contract. So these are plain DUT outputs -- nothing synthesised here.
     logic                       phy_dfi_reset_n;
     logic [DFI_CS_BUS_W-1:0]    phy_dfi_wrdata_cs_n, phy_dfi_rddata_cs_n;
-
-    assign phy_dfi_reset_n      = dram_reset_n_o;
-    assign phy_dfi_wrdata_cs_n  = '0;
-    assign phy_dfi_rddata_cs_n  = '0;
 
     assign phy_dfi_error            = 1'b0;
     assign phy_dfi_error_info       = 1'b0;
@@ -329,6 +319,9 @@ logic [31:0] stall_bp_o;
         .dfi_wrdata_en_o     (phy_dfi_wrdata_en),
         .dfi_wrdata_mask_o   (phy_dfi_wrdata_mask),
         .dfi_rddata_en_o     (phy_dfi_rddata_en),
+        .dfi_reset_n_o       (phy_dfi_reset_n),
+        .dfi_wrdata_cs_n_o   (phy_dfi_wrdata_cs_n),
+        .dfi_rddata_cs_n_o   (phy_dfi_rddata_cs_n),
         .dfi_rddata_i        (phy_dfi_rddata),
         .dfi_rddata_valid_i  (phy_dfi_rddata_valid),
         .dfi_init_start_o    (phy_dfi_init_start),
