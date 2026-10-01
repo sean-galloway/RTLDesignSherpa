@@ -1,7 +1,7 @@
 # TASK-025: cocotb 2.x needs cocotb-bus 0.3.0 and a `.value.integer` sweep -- the blocker is measured, not guessed
 
 **Priority:** P3
-**Status:** open
+**Status:** open -- steps 1-3 DONE 2026-10-01 (cap lifted, both repos swept, units positional). Step 4 blocked by a newly-found layer, sized below.
 **Owner:** TBD
 **Filed:** 2026-10-01 (question 2 of [[TASK-020]], split out as that task instructed)
 
@@ -94,3 +94,109 @@ reason and not a defensive one.
 - [[TASK-021]] -- the DV version drift, same release
 - RTLDesignSherpa-DV `pyproject.toml:46-50` -- the cap and its stated reason
 - `CocoTBFramework/components/gaxi/gaxi_slave.py:393` -- a representative site
+
+## Progress 2026-10-01: steps 1-3 done, and step 3 was wrong as written
+
+### Step 1: the cocotb-bus cap -- LIFTED, and its stated reason was wrong
+
+The cap read `cocotb-bus>=0.2.1,<0.3` because the 0.2.x `_add_signal`
+case-sensitivity asymmetry was "load-bearing in apb_components". **Wrong word.**
+The framework does not DEPEND on the asymmetry, it WORKS AROUND it:
+`APBSignalMixin._match_optional_case` exists because 0.2.x gates optional signals
+on a case-SENSITIVE `hasattr`, so a lowercase-port DUT silently loses
+PSTRB/PPROT/PSLVERR -- writes carry zero byte strobes and the register reads back
+its reset value with no error. **0.3.0 fixes that upstream**, making the
+workaround redundant rather than broken.
+
+A cap written to protect a workaround outlived the bug it compensated for, and
+would have blocked the fix.
+
+Measured on the APB suite the cap protected, cocotb 1.9.2 both sides:
+
+| cocotb-bus | Result |
+| --- | --- |
+| 0.2.1 | **45 passed** |
+| 0.3.0 | **45 passed** |
+
+Lifted in RTLDesignSherpa-DV `57e3e8d`. `cocotb-coverage` stays capped at `<2`.
+
+One control run failed once with `SystemExit: Process make terminated with
+error 2` -- a BUILD failure, not an assertion, at +26% wall clock while three
+suites ran concurrently; the same configuration passed 45/45 alone. Recorded
+rather than dismissed, and being the control it is not evidence about 0.3.0.
+
+### Step 2: the `.value.integer` sweep -- DONE in BOTH repos
+
+| Repo | Sites | Commit |
+| --- | --- | --- |
+| RTLDesignSherpa-DV | 71 (60 adjacent + 9 split, + 2 binstr) | `daa87b1` |
+| RTLDesignSherpa | 18 | `89e8220c3` |
+
+`int()` is correct on every type cocotb returns here and was verified equal to
+`.integer` on 1.9.2 **before** the change. `.is_resolvable` needed no change --
+it exists on both 2.x types, so its 54 uses stand.
+
+Baselined, because an "obviously equivalent" substitution still needs it: RLB at
+gate from `clean-all`, same seed -- **27 passed before, 27 passed after**.
+
+Four unit-test doubles had to gain `__int__`/`__str__` (67 tests failed until
+they did). They modelled `.integer` only, a type cocotb 2.x does not have.
+
+### Step 3: `units=` -> `unit=` would BREAK PRODUCTION. Do not do it.
+
+This task said to rename and keep it working on both versions. **There is no such
+rename.** Measured across both:
+
+| Form | cocotb 1.9.2 | cocotb 2.1.0 |
+| --- | --- | --- |
+| `Timer(200, 'ps')` positional | clean | **clean** |
+| `units='ps'` | clean | DeprecationWarning |
+| `unit='ps'` | **TypeError** | clean |
+
+`unit=` does not exist in 1.9.2. Positional is the only form clean on both, and
+that is what landed (`5a9c39c`, 34 sites across `Timer`/`Clock`/`get_sim_time`).
+`TBBase.start_clock(units=...)` is OUR method and keeps its keyword.
+
+## Step 4 is blocked by a layer this work revealed
+
+Re-running the matrix under cocotb 2.x now fails differently, which is progress
+through the layers rather than a regression:
+
+| | errors |
+| --- | --- |
+| Before the sweep | **1896** x `AttributeError: 'Logic' object has no attribute 'integer'` |
+| After the sweep | **0** of those; **464** x `TypeError: unsupported operand type(s) for >>: 'LogicArray' and 'int'` |
+
+cocotb 1.x `BinaryValue` supports `>>`, `&` and friends; 2.x `LogicArray` does
+not. The pattern is a local assigned from `.value` and then used arithmetically:
+
+    current_apb_addr = self.dut.apb_addr.value
+    ... (current_apb_addr >> (i * self.addr_width)) & mask
+
+**True size: 10 sites** -- 8 in this repo, 2 in RTLDesignSherpa-DV. The 464 is a
+few sites firing inside loops; do not size this from the error count.
+
+The fix shape is `int(...)` at the ASSIGNMENT, so the arithmetic operates on an
+int: `current_apb_addr = int(self.dut.apb_addr.value)`.
+
+| File | Lines |
+| --- | --- |
+| `stream/dv/tbclasses/stream_core_tb.py` | 1564, 1566, 1586 |
+| `stream/dv/tests/macro/test_datapath_rd_test.py` | 679, 748, 790 |
+| `retro_legacy_blocks/dv/tbclasses/pit_8254/pit_tb.py` | 514 |
+| `bin/TBClasses/monbus/monbus_types.py` | 83 |
+| RDS-DV `components/dfi/ca_map.py` | 178 |
+| RDS-DV `components/dfi/dfi_monitor.py` | 182 |
+
+**Use an AST pass, not a grep.** Three separate regexes missed the split form
+today -- including one that reported `0` sites in a file whose traceback named
+line 1564. The assignment and the use are different statements, so no regex over
+a line sees both. The finder used is in the session log; it tracks names bound
+from `<x>.value` and flags their later use under `>>`, `<<`, `&`, `|`, `+`, `-`
+or `*`.
+
+## Still open
+
+- The 10 arithmetic sites above.
+- Then re-run [[TASK-020]]'s matrix under cocotb 2.x.
+- `cocotb-coverage` 2.0 remains untested and capped.
