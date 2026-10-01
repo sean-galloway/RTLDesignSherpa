@@ -53,6 +53,11 @@
 //       one with a correct wrap. The rotor mirrors the DEVICE'S internal
 //       counter; the RTL comment notes that desynchronising it makes the
 //       controller "precharge the WRONG bank ahead of each device refresh".
+//     * THE ROTOR ADVANCES ON EVERY ACCEPTED REFpb, AND ONLY THEN. Added
+//       2026-10-01 for HAS verification item 4, because "advances by at most
+//       one" is satisfied by a rotor that holds for ever -- refreshing one
+//       bank and letting the rest age out. With the backlog properties above,
+//       this gives every bank a refresh within NUM_BANKS grants.
 //     * refresh_kind_o tracks refpb_mode_i exactly one cycle later (all outputs
 //       are strict-flopped)
 //
@@ -146,13 +151,41 @@ module formal_scoria_refresh_ctrl #(
 
     reg [3:0]      f_pend_d, f_pull_d, f_drain_d;
     reg [BA_W-1:0] f_rotor_d;
-    reg            f_mode_d;
+    reg            f_mode_d, f_gpb_d1, f_gpb_d2;
+    reg [15:0]     f_grants_d;
     always @(posedge mc_clk) begin
         f_pend_d  <= pending_refreshes_o;
         f_pull_d  <= obs_pullin_credit_o;
         f_drain_d <= obs_drain_remaining_o;
         f_rotor_d <= obs_bank_rotor_o;
         f_mode_d  <= refpb_mode_i;
+        f_grants_d <= obs_grants_total_o;
+        f_gpb_d1   <= grant_was_pb_i;
+        f_gpb_d2   <= f_gpb_d1;
+    end
+
+    // The rotor's advance condition, expressed from PORTS only.
+    //
+    // The RTL advances r_bank_rotor on (w_grant_accept || w_grant_early) &&
+    // grant_was_pb_i -- both internal. obs_grants_total_o increments on
+    // exactly that same grant term, and is flopped in the SAME block as
+    // obs_bank_rotor_o, so the two observable signals move together and a
+    // change in the grant total is a sound stand-in for the internal term.
+    //
+    // The delay matters and cost one wrong version of this property: a grant
+    // at cycle T updates r_bank_rotor and r_grants_total at T+1, and the obs
+    // flops publish both at T+2. So the qualifier to pair with an observed
+    // grant-total change is grant_was_pb_i from TWO cycles back, not one.
+    wire f_grants_up = (obs_grants_total_o != f_grants_d);
+    wire f_refpb_grant = f_grants_up && f_gpb_d2;
+
+    // Which banks the rotor has stood on. A rotor that never advances visits
+    // one bank for ever, and every bank it skips ages out -- so the retention
+    // argument needs the VISIT set, not just the step size.
+    reg [NUM_BANKS-1:0] f_visited;
+    always @(posedge mc_clk) begin
+        if (!mc_rst_n) f_visited <= '0;
+        else           f_visited[obs_bank_rotor_o] <= 1'b1;
     end
     wire f_run = mc_rst_n && (f_past_valid > 3);
 
@@ -230,6 +263,30 @@ module formal_scoria_refresh_ctrl #(
                            || ((f_rotor_d == BA_W'(NUM_BANKS-1))
                                && (obs_bank_rotor_o == BA_W'(0))));
 
+        // THE RETENTION PROPERTY, and a_rotor_step above does NOT imply it.
+        // "steps by at most one" is satisfied by a rotor that HOLDS FOR EVER
+        // -- which refreshes one bank and lets the other seven age out. That
+        // is a data-retention failure that looks like corrupt memory hours
+        // later in a different test, which is this block's whole reason for
+        // existing. HAS verification item 4.
+        //
+        // Stated as two safety properties rather than a liveness one, so BMC
+        // can settle it: the rotor MUST advance on an accepted REFpb, and MUST
+        // NOT advance otherwise. Together with the already-proved backlog
+        // properties (a backlog past the clamp always raises the request),
+        // every bank is therefore visited within NUM_BANKS grants.
+        if (f_refpb_grant)
+            a_rotor_advances_on_refpb: assert (
+                   (obs_bank_rotor_o == f_rotor_d + BA_W'(1))
+                || ((f_rotor_d == BA_W'(NUM_BANKS-1))
+                    && (obs_bank_rotor_o == BA_W'(0))));
+
+        // The mirror must not drift on its own: an advance with no REFpb means
+        // the controller now precharges a different bank than the device is
+        // about to refresh, which is the desync the RTL comment warns about.
+        if (!f_refpb_grant)
+            a_rotor_holds_without_refpb: assert (obs_bank_rotor_o == f_rotor_d);
+
         // Every output is strict-flopped, so the kind reported is last cycle's
         // mode. A scheduler that saw the new mode a cycle early would format
         // the command one way and count the rotor the other.
@@ -246,6 +303,9 @@ module formal_scoria_refresh_ctrl #(
         c_saturated:      cover (pending_refreshes_o == MAX_PENDING[3:0]);
         c_pullin_banked:  cover (obs_pullin_credit_o >= 4'd2);
         c_drain_active:   cover (refresh_drain_active_o);
+        // A retention proof is worthless if the rotor never moves in the
+        // trace: this is the cover that says the property above was exercised.
+        c_all_banks_visited: cover (f_visited == {NUM_BANKS{1'b1}});
         c_rotor_wrapped:  cover (f_rotor_d == BA_W'(NUM_BANKS-1)
                               && obs_bank_rotor_o == BA_W'(0));
     end
