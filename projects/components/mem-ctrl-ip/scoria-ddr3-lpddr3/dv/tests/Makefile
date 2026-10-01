@@ -40,7 +40,13 @@ export REPO_ROOT ?= $(RDS_ROOT)
 
 # scoria test areas, in run order. Unit suites first, so a composition failure
 # is read against a known-good FUB tier rather than alongside it.
-AREAS ?= fub macro top
+#
+# `top/` exists with its Makefile and conftest ready but is NOT in this list:
+# pytest exits 5 ("no tests ran") on an empty area and make turns that into a
+# failure, so including it made the whole sweep red for a structural reason.
+# A regression that is red for a reason nobody acts on is a regression people
+# learn to ignore. It joins the list with its first test.
+AREAS ?= fub macro
 
 GREEN  := \033[0;32m
 RED    := \033[0;31m

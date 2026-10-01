@@ -325,10 +325,37 @@ module scoria_cmd_arbiter
     // is a re-evaluated decision, not a stream, and an empty mask is a bubble.
     //
     // Refresh and init commands carry no bank and are never gated here.
+    // AN ACT IS ALSO RE-CHECKED AGAINST THE RANK-GLOBAL WINDOWS (BUG-001).
+    // bank_act_ready_i is PER-BANK, and tRRD/tFAW constrain ACTs to DIFFERENT
+    // banks, so no per-bank term can see them. They were checked only at the
+    // STAGE-1b pre-pick (w_act_gate_live), two registers ahead of this one --
+    // and the mask comment below still explains why that was thought to be
+    // enough. It was not: an ACT already in the pick pipeline when the window
+    // closed fired anyway.
+    //
+    // MEASURED, not theorised. The first composed scheduler test
+    // (dv/tests/macro/test_scoria_mem_cmd_scheduler.py) died on 3 of 3 seeds
+    // in ~30 s with the bound history checker reporting "GLOBAL tRRD violation
+    // -- ACT only 1 cyc after another ACT (need 2)", and the testbench's
+    // arbiter-side audit put the tight pair at the ARBITER's own output with
+    // unsafe_pushes=0 -- i.e. this gate approved it. Same mechanism as
+    // pumice BUG-021 / ISSUE-019, which could only ever show it in formal:
+    // "Not observed in sim (171 tests, tightest real spacing 10 cycles against
+    // tRRD 2)". scoria reaches it because its design point puts tRRD spacing at
+    // 2, the tightest nonzero window.
+    //
+    // Cheap in the cone that matters: tfaw_ok_i and trrd_ok_i are PORTS fed by
+    // scoria_global_timers' strict-flop outputs, so they are stable early and
+    // this adds one 2-input AND to a path that already indexes a bank vector.
+    // Dropping the ACT is lossless by the same argument the block already
+    // makes below -- every CAM commit/issue is qualified by w_fire_out, so an
+    // unfired entry stays schedulable and is simply re-picked -- and the
+    // windows are countdowns, so a persistently closed gate cannot livelock.
     logic w_out_safe, w_out_reject;
     always_comb begin
         w_out_safe = 1'b1;
-        if      (r_do_act)            w_out_safe = bank_act_ready_i [RK0][r_bank];
+        if      (r_do_act)            w_out_safe = bank_act_ready_i [RK0][r_bank]
+                                                && tfaw_ok_i[RK0] && trrd_ok_i[RK0];
         else if (r_do_rd || r_do_wr)  w_out_safe = bank_rdwr_ready_i[RK0][r_bank];
         else if (r_do_pre)            w_out_safe = bank_pre_ready_i [RK0][r_bank];
     end
@@ -731,14 +758,17 @@ module scoria_cmd_arbiter
                               && !w_rd_turn_block && !w_ap_col_guard[rb]
                               && !w_pre_col_guard[rb] && !w_preact_bank_guard[rb];
                 // tFAW/tRRD are deliberately NOT gated here -- see the WRITE
-                // twin below for the reasoning. They are re-checked later, at
-                // the STAGE-1b pre-pick (w_act_gate_live). NOT at the fire
-                // stage: this comment used to say "at the fire stage ... which
-                // is authoritative", and w_act_gate_live is used exactly once,
-                // in the always_comb producing w_sel_*_act_f -- two registers
-                // ahead of the output. w_out_safe re-validates an ACT against
-                // bank_act_ready_i only, which is PER-BANK, and tFAW/tRRD are
-                // rank-global. See pumice ISSUE-019.
+                // twin below for the reasoning. They are re-checked at the
+                // STAGE-1b pre-pick (w_act_gate_live) AND, since BUG-001, at
+                // the fire stage in w_out_safe. The pre-pick alone was not
+                // enough: it sits two registers ahead of the output, so an ACT
+                // already in the pipeline when the rank-global window closed
+                // fired anyway -- reproduced in simulation, 3/3 seeds. The
+                // history of this comment is worth keeping: it once claimed
+                // the check happened "at the fire stage ... which is
+                // authoritative", was corrected to say it did not, and is now
+                // true again because the gate was added. See pumice
+                // ISSUE-019 / BUG-021.
                 rd_act_m[e] = !r_bank_row_active[RK0][rb] && !w_guarded[rb]
                               && r_bank_act_ready[RK0][rb] && w_act_classify_gate
                               && !w_rfc_busy;

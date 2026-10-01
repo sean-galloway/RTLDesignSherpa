@@ -31,3 +31,7 @@ bin/check_task_ids.py, which rejected a table that counted it.
   violating tRRD, and its own final safety gate approves them. Reproduced in
   SIMULATION on 3/3 seeds in ~30 s, measured at the arbiter's own output.
   Same mechanism as pumice BUG-021, which records "not observed in sim".
+  **FIXED functionally** the same day (rank-global windows added to
+  `w_out_safe`'s ACT arm; checker clean 3/3, arbiter-side tight pairs gone).
+  Held open for one gate only: no scoria FPGA build exists to time the change
+  on, so the timing claim cannot be made yet.
