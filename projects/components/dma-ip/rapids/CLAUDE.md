@@ -58,7 +58,7 @@
 > checker bitstream reach 3182 MB/s sink and 3199 MB/s source of the 3200 MB/s peak. Traps:
 > the word-wide checker CRCs only slice 0 of each beat and ignores strobes (beats golden, not
 > byte-wise); the aligned utilization is NOT within 0.5 pp of RAPIDS Beats because of fixed
-> start-up terms from the packet-record gating (rapids TASK-021); head-of-line blocking on a
+> start-up terms from the packet-record gating, accepted as by design (rapids TASK-021); head-of-line blocking on a
 > shared AXIS stream is documented, not fixed; RRESP/BRESP injection is unexercised (rapids
 > TASK-020).
 

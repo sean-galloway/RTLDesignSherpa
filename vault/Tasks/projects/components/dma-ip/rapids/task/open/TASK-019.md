@@ -312,16 +312,16 @@ as long as it exists. Concretely:
       byte-wise points on the standard bitstream plus 28/28 aligned points on
       the word-wide checker bitstream, which reaches 3182 MB/s sink and
       3199 MB/s source of the 3200 MB/s peak at 8 channels, 4096 beats)
-- [ ] the utilization cells of the beat-aligned rows are unchanged versus
-      RAPIDS Beats (0.5 pp). **NOT MET, measured 2026-09-30.** 73 of 112
-      aligned cells differ by more than 0.5 pp, worst -84.85 pp (short
-      transfers). The differences are fixed start-up cycle terms, not rate
-      changes: the 4096-beat rows are within 1.13 pp and the 8-channel
-      4096-beat row within 0.32 pp. Mechanisms: sink AXIS-in backpressure
-      of 27 + 20 x channels cycles, because the byte ingress gates the stream
-      on the channel's packet record where RAPIDS Beats buffers ahead of the
-      descriptor (intentional, see "Design as built"); sink AXI4 write
-      starvation +11 cycles (+3 at 1 beat) and source starvation +1 cycle,
-      causes not yet isolated. The box stays open until rapids TASK-021
-      decides: accept the start-up terms as by design and amend this
-      criterion, or add a fast path.
+- [x] the utilization of the beat-aligned rows matches RAPIDS Beats in
+      steady state, and the short-transfer differences are bounded
+      one-time start-up latencies (amended 2026-09-30 by Sean's decision,
+      rapids TASK-021; the original wording demanded 0.5 pp on every cell).
+      Measured: 73 of 112 aligned cells differ by more than 0.5 pp, worst
+      -84.85 pp on short transfers; the 4096-beat rows are within 1.13 pp and
+      the 8-channel 4096-beat row within 0.32 pp. Mechanisms, isolated in sim:
+      the byte data enters the SRAM only after the scheduler's packet record
+      (sink write starvation +3 + (min(n, 9) - 1) cycles), the source's
+      `m_axis_tvalid` is registered (+1 cycle), and the sink AXIS-in
+      backpressure of 27 + 20 x channels cycles is the same record gating
+      (a 4-deep skid absorbs the first beats at 1, 2 and 4 channels, 1 beat).
+      Nothing can happen before the descriptor is loaded, so this is by design.

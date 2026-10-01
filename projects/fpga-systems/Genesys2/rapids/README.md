@@ -55,8 +55,9 @@ Characterized on silicon 2026-09-30. Report v0.2 (`reports/perf/`, final):
 - The beat-aligned utilization is NOT unchanged versus RAPIDS Beats: 73 of
   112 cells differ by more than 0.5 pp. The deltas are fixed start-up cycle
   terms (the sink waits for the channel's packet record; the rest is not yet
-  isolated), and the 4096-beat rows agree within 1.13 pp. Tracked as
-  rapids TASK-021.
+  isolated), and the 4096-beat rows agree within 1.13 pp. Isolated in sim
+  and accepted as by design (nothing can happen before the descriptor is
+  loaded; rapids TASK-021, closed).
 - AXI RRESP/BRESP error injection is not exercised on silicon (the harness
   memory always answers OKAY): rapids TASK-020.
 

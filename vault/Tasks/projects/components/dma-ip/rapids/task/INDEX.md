@@ -12,22 +12,22 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 18 | done (kept for history) |
+| [closed/](closed/) | 19 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-019** — the byte-granular RAPIDS: lengths in bytes, AXI4 byte enables, partial AXIS beats (P1, filed 2026-09-29; efficiency column done, aligned-utilization box open)
+- **TASK-019** — the byte-granular RAPIDS: lengths in bytes, AXI4 byte enables, partial AXIS beats (P1, filed 2026-09-29)
 - **TASK-020** — AXI response-error injection in the byte-RAPIDS Genesys 2 harness (P2, filed 2026-09-30)
-- **TASK-021** — decide and close the beat-aligned utilization delta versus RAPIDS Beats (P1, filed 2026-09-30)
 
 ## Active
 
 ## Closed
 
+- **TASK-021** — beat-aligned utilization delta versus RAPIDS Beats: start-up terms isolated in sim and accepted as by design (closed 2026-09-30)
 - **TASK-001** — adopt the shared instrumentation pair (axi4_intf_master_observer + axis4_intf_observer); measured through them 2026-09-27
 - **TASK-002** — RAPIDS-beats has NO contracts workbook at all
 - **TASK-004** — Register-map hygiene enforced in RAPIDS DV
