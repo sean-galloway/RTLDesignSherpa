@@ -401,9 +401,28 @@ addrmap scoria_csr {
         // Bank LSB = # of low column bits kept BELOW the bank field. A DRAM burst
         // lives in those low bits, so it stays within one bank.
         //   = COL_WIDTH          -> bank above whole column  = ROW_MAJOR
-        //   = log2(BL/DFI_RATE)  -> minimal col_lo           = max BANK_INTERLEAVE
+        //   = log2(DRAM_BL)      -> minimal col_lo           = max BANK_INTERLEAVE
         //   in between           -> partial interleave (burst locality preserved)
-        // Constraint: log2(BL/DFI_RATE) <= bank_lsb <= COL_WIDTH (RTL clamps).
+        // Constraint: log2(DRAM_BL) <= bank_lsb <= COL_WIDTH (RTL clamps).
+        //
+        // DRAM_BL, not DRAM_BL/DFI_RATE, and the difference is unsafe rather
+        // than cosmetic. This block indexes DEVICE WORDS -- BYTE_OFFSET_WIDTH
+        // is log2(device bytes) -- and scoria_core derives SUB_COL_STRIDE =
+        // DRAM_BL in exactly those units, calling it "one JEDEC burst". So a
+        // burst spans DRAM_BL columns here and the bank field has to sit above
+        // all of them. The old text said log2(BL/DFI_RATE), which is
+        // log2(DFI_RATE) bits too permissive: at the Genesys 2 point (BL8 over
+        // a 1:4 gear) it reads 1, and at bank_lsb=1 an 8-word burst spans
+        // banks 0-3, so a single DRAM burst would be split across four banks.
+        // Nothing has ever programmed it -- every build ships bank_lsb=10
+        // (= COL_WIDTH, ROW_MAJOR) -- so this is a trap for the first person to
+        // enable interleaving, not a live defect.
+        //
+        // MEASURED, not derived:
+        // dv/tests/fub/test_scoria_addr_mapper.py::minimum_bank_lsb_is_measured
+        // finds the smallest bank_lsb that keeps an aligned burst in one bank
+        // and reports 2 / 3 / 4 for bursts of 4 / 8 / 16 words. Filed against
+        // pumice, whose copy of this text has the same error: pumice BUG-022.
         field {
             sw = rw; hw = r;
             desc = "Bank field LSB in the word address (=COL_WIDTH -> ROW_MAJOR)";

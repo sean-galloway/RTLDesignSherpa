@@ -24,20 +24,32 @@
 //            col = { col_hi, col_lo }.  row LSB is always CW+BW.
 //
 //          Combinational, single stage. Software keeps
-//          log2(burst) <= bank_lsb <= COL_WIDTH so a DRAM burst's column walk
+//          log2(DRAM_BL) <= bank_lsb <= COL_WIDTH so a DRAM burst's column walk
 //          stays inside one bank; the RTL clamps to [0, COL_WIDTH] to keep the
-//          field slices legal. `burst` is the burst's length in the mapper's
-//          own column units, which is what ADDR_MAP's description calls
-//          log2(BL/DFI_RATE).
+//          field slices legal. DRAM_BL is the right quantity because this block
+//          indexes DEVICE WORDS (BYTE_OFFSET_WIDTH = log2(device bytes)) and
+//          scoria_core derives SUB_COL_STRIDE = DRAM_BL in those same units,
+//          calling it "one JEDEC burst" -- so a burst spans DRAM_BL columns here.
 //
-//          These two lines used to read `log2(cols/burst)`, inherited from
-//          pumice, which is the same expression inverted: for a 1024-column
-//          page and an 8-word burst it says 7, leaving 128 columns below the
-//          bank and interleaving every 512 bytes rather than every burst. The
-//          bound that keeps a burst inside one bank is log2(burst) = 3 --
-//          `cols` does not appear in it. Measured in
-//          dv/tests/fub/test_scoria_addr_mapper.py::bank_interleave_spreads,
-//          where bank_lsb=7 puts all of the first eight bursts on bank 0.
+//          MEASURED, not derived:
+//          dv/tests/fub/test_scoria_addr_mapper.py::minimum_bank_lsb_is_measured
+//          reports the smallest bank_lsb that keeps an aligned burst inside one
+//          bank as 2 / 3 / 4 for bursts of 4 / 8 / 16 words -- i.e. log2(burst).
+//
+//          TWO wrong versions of this bound have been written down, in
+//          opposite directions, and both are now corrected:
+//            * these lines read `log2(cols/burst)`, inherited from pumice: for
+//              a 1024-column page and an 8-word burst that is 7, which leaves
+//              128 columns below the bank and interleaves every 512 bytes
+//              rather than every burst. Too RESTRICTIVE -- wasteful, not
+//              unsafe. (bank_interleave_spreads puts all of the first eight
+//              bursts on bank 0 at that setting.)
+//            * ADDR_MAP's own comment in scoria_csr.rdl read
+//              `log2(BL/DFI_RATE)`, which at the Genesys 2 point is 1 instead
+//              of 3. Too PERMISSIVE, and that direction is unsafe: at
+//              bank_lsb=1 an 8-word burst spans banks 0-3. An earlier revision
+//              of this header credited that formula as correct; it was not.
+//              pumice BUG-022 tracks the same text there.
 //
 // Documentation: rtl/macro/scoria_csr.rdl (ADDR_MAP register)
 

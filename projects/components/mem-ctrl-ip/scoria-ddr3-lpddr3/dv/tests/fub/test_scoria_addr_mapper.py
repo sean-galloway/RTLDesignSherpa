@@ -203,11 +203,14 @@ async def cocotb_test_scoria_addr_mapper(dut):
         # entire purpose of the setting: a linear stream hits every bank
         # instead of serialising on one.
         burst = 8                       # device words per DRAM burst
-        # The RDL has the rule right: minimal col_lo == the burst's OWN column
-        # bits, i.e. bank_lsb = log2(burst). The module header says
-        # `log2(cols/burst)`, which for a 1024-column page and an 8-word burst
-        # is 7 -- that leaves 128 columns below the bank and interleaves at 512
-        # bytes, not per burst. Doc bug, not RTL: the knob does what it says.
+        # Minimal col_lo == the burst's OWN column bits, i.e.
+        # bank_lsb = log2(burst), measured in minimum_bank_lsb_is_measured.
+        # BOTH written-down versions of that bound were wrong, in opposite
+        # directions, and both are corrected now: the module header said
+        # `log2(cols/burst)` (7 here -- too restrictive, interleaves every 512
+        # bytes instead of every burst) and the RDL said `log2(BL/DFI_RATE)`
+        # (1 here -- too permissive, and at that setting an 8-word burst spans
+        # four banks). Doc bugs, not RTL: the knob does what it says.
         blsb = 3                        # log2(burst)
         await tb.cfg(bank_lsb=blsb)
         banks = []
@@ -219,7 +222,7 @@ async def cocotb_test_scoria_addr_mapper(dut):
             f"interleaving map must spread a linear stream over all 8, or the "
             f"setting buys nothing over row-major")
         # And a burst never straddles banks -- the software constraint
-        # log2(cols/burst) <= bank_lsb exists to guarantee exactly this.
+        # log2(DRAM_BL) <= bank_lsb exists to guarantee exactly this.
         for k in (0, 3, 6):
             base = k * burst * WORD_BYTES
             bset = set()
@@ -229,6 +232,45 @@ async def cocotb_test_scoria_addr_mapper(dut):
             chk(len(bset) == 1,
                 f"burst at 0x{base:08X} spans banks {sorted(bset)} -- a DRAM "
                 f"burst walks columns inside ONE bank")
+
+    elif tt == "minimum_bank_lsb_is_measured":
+        # MEASURE the software constraint instead of restating it. The bound
+        # that keeps a DRAM burst inside one bank is a property of the geometry,
+        # and both scoria_csr.rdl and the module header state it as a FORMULA --
+        # so the formula is what gets checked here, by finding the smallest
+        # bank_lsb at which an aligned burst does not straddle banks.
+        #
+        # One JEDEC burst is DRAM_BL columns at this mapper's granularity: the
+        # mapper indexes device words (BYTE_OFFSET_WIDTH = log2(device bytes))
+        # and scoria_core derives SUB_COL_STRIDE = DRAM_BL in exactly those
+        # units. So the minimum should be log2(DRAM_BL) -- NOT
+        # log2(DRAM_BL/DFI_RATE), which is log2(DFI_RATE) bits too permissive
+        # and is what both comments say.
+        for burst in (4, 8, 16):
+            smallest = None
+            for blsb in range(0, CW + 1):
+                await tb.cfg(bank_lsb=blsb)
+                ok = True
+                for base_i in (0, 1, 7, 64):
+                    base = base_i * burst * WORD_BYTES
+                    banks = set()
+                    for i in range(burst):
+                        _, b, _, _ = await tb.decode(base + i * WORD_BYTES)
+                        banks.add(b)
+                    if len(banks) != 1:
+                        ok = False
+                        break
+                if ok:
+                    smallest = blsb
+                    break
+            want = burst.bit_length() - 1          # log2(burst)
+            tb.log.info(f"burst={burst} words: smallest bank_lsb keeping it in "
+                        f"one bank = {smallest} (log2(burst) = {want})")
+            chk(smallest == want,
+                f"burst={burst}: measured minimum bank_lsb {smallest}, "
+                f"geometry says log2(burst)={want}. If this is now lower, a "
+                f"burst spans banks at the stated minimum and the constraint "
+                f"in scoria_csr.rdl is unsafe to follow.")
 
     elif tt == "clamp_above_col_width":
         # Software is constrained to bank_lsb <= COL_WIDTH; the RTL clamps so a
@@ -358,7 +400,7 @@ async def cocotb_test_scoria_addr_mapper(dut):
 
 
 _GATE = ["genesys2_vectors", "byte_offset_is_ignored", "injective_across_bank_lsb"]
-_FUNC = _GATE + ["row_major_page_walk", "row_major_matches_geometry",
+_FUNC = _GATE + ["minimum_bank_lsb_is_measured", "row_major_page_walk", "row_major_matches_geometry",
                  "bank_interleave_spreads", "clamp_above_col_width",
                  "hash_off_is_the_raw_field",
                  "hash_on_is_active_and_injective",

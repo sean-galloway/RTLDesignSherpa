@@ -2,7 +2,7 @@
 
 # pumice — bugs
 
-**Next ID: BUG-022** — never recycle a number, even when its item closed.
+**Next ID: BUG-023** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,13 +12,20 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 19 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **BUG-022** — `ADDR_MAP.bank_lsb`'s stated constraint is `log2(BL/DFI_RATE)`
+  where the correct bound is `log2(DRAM_BL)`, so the documented minimum splits a
+  DRAM burst across banks. RDL comments only; the generated registers are
+  correct. Nothing programs it (every build ships ROW_MAJOR), so it is a trap
+  for the first interleaving user rather than a live defect. Measured in
+  scoria's `test_scoria_addr_mapper.py::minimum_bank_lsb_is_measured`.
 
 - **BUG-021** — the arbiter issues two ACTs to different banks one cycle apart,
   violating tRRD, because `w_act_gate_live` checks the rank-global windows at the
