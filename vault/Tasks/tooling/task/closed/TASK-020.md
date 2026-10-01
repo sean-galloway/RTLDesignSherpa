@@ -138,6 +138,36 @@ directly from `make`, never through a pipe.
 Runtime differences are noise and point both ways (amba 5% slower, bridge 17%
 faster), which is what a dependency with no behavioural change looks like.
 
+### Scope: what this did NOT cover
+
+**"1000 passed" is three areas of twenty, not the tree.** The number is true and
+the coverage it implies is not -- the same failure mode as a green test over an
+impossible fixture, and worth stating explicitly because a later reader will meet
+the total before the method. Raised by the rapids session.
+
+Runnable suites in the tree: **20**. Exercised here: **3** (`val/amba`,
+`fabric-gen-ip/bridge`, `dma-ip/stream`). Not exercised:
+
+    val/cdc, val/common, val/math,
+    dma-ip/rapids, ecc-ip/reed-solomon, fabric-gen-ip/apbx-xbar,
+    mem-ctrl-ip/pumice-ddr2-lpddr2, mem-ctrl-ip/scoria-ddr3-lpddr3,
+    retro_legacy_blocks, utility-ip/converters, utility-ip/misc,
+    asic-trials/timing_characterization,
+    fpga-systems/Genesys2/stream/{build-mon,build-obs,build-perf,rtl/bridges},
+    fpga-systems/NexysA7/pumice/ddr2_char_framework
+
+The three were chosen as this task's acceptance named them, and they span the
+three distinct test structures in the tree (a `val/` Pattern A area, a bridge
+area, a dma-ip area). That is a reasoned sample, not a census.
+
+Independently covered afterwards: the **rapids** session ran its six areas at
+gate under 0.3.0 from `clean-all` to confirm nothing moved, having first checked
+that all of its own TASK-019 evidence (finishing 00:06 to 04:48) predated the
+05:22 dist-info stamp and so was not straddled by the change.
+
+**For the next dependency bump: name the areas the matrix did not cover.** A
+total without a denominator reads as whole-tree coverage.
+
 `requirements.txt` bumped 0.2.5 -> 0.3.0. The shared venv was synced at the same
 time, with `--no-deps` so nothing else moved, while the tree was quiet; `pip
 check` clean afterwards.
