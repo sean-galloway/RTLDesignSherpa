@@ -38,9 +38,9 @@ SHELL := /bin/bash
 RDS_ROOT ?= $(shell git rev-parse --show-toplevel)
 export REPO_ROOT ?= $(RDS_ROOT)
 
-# scoria test areas, in run order. macro/ and top/ join this list when they
-# exist; narrow with: make run-all-gate AREAS=fub
-AREAS ?= fub
+# scoria test areas, in run order. Unit suites first, so a composition failure
+# is read against a known-good FUB tier rather than alongside it.
+AREAS ?= fub macro top
 
 GREEN  := \033[0;32m
 RED    := \033[0;31m

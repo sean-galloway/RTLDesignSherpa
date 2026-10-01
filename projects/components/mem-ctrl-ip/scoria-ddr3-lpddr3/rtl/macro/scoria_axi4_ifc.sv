@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: scoria_axi4_ifc
-// Purpose: The pumice AXI4 host interface. Bolts the common AXI burst
+// Purpose: The scoria AXI4 host interface. Bolts the common AXI burst
 //          splitters onto the front of the dumb wr/rd intakes, and holds the
 //          wr-data CAM (write buffer + snarf source) and rd-cmd CAM (read
 //          reorder buffer). Presents the host AXI4 face and exposes the
@@ -17,7 +17,12 @@
 //   external: scheduler lookup/oldest/commit(issue) ports on both CAMs,
 //             wr commit-data out (to wr_beat_sequencer), rd DFI-return in.
 //
-// Documentation: docs/uarch/PUMICE_AXI4_IFC_UARCH.md
+// Documentation: this block is still pumice's logic unchanged (see
+//                dv/tests/fub/test_scoria_pumice_logic_parity.py), so its
+//                microarchitecture note is pumice's:
+//                projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/docs/uarch/PUMICE_AXI4_IFC_UARCH.md
+//                scoria has no docs/uarch of its own; the path this line
+//                used to give was relative and resolved to nothing here.
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
@@ -43,7 +48,7 @@ module scoria_axi4_ifc #(
     // BURST_WORDS -- NOT the JEDEC burst length, despite having been called
     // AXI_BEATS_PER_BURST here and documented as "DRAM beats" downstream. Same identifier,
     // three different quantities across the design (JEDEC device beats in
-    // scoria_core, pumice beats in scoria_dfi_layer, AXI beats here), which
+    // scoria_core, DRAM beats in scoria_dfi_layer, AXI beats here), which
     // is how a ragged-burst check got derived against the wrong units.
     parameter int AXI_BEATS_PER_BURST = 4,
     parameter int NUM_ENTRIES     = 8,

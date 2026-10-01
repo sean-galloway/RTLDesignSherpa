@@ -3,7 +3,7 @@
 
 """Parity gate: the scoria FUBs that are still pumice's logic, unchanged.
 
-Seven of scoria's FUBs were ported from pumice and, measured, differ from the
+Seven of scoria's FUBs and one macro block were ported from pumice and, measured, differ from the
 original ONLY in comments and in the names of the modules they instantiate.
 Their logic is byte-identical to code that pumice's suite exercises on every
 regression.
@@ -41,31 +41,39 @@ from TBClasses.shared.utilities import get_repo_root
 # sits six directories below `projects/`, not below the root) and the failure
 # read as "every ported module is missing".
 _REPO = Path(get_repo_root())
-_SC = _REPO / "projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/fub"
-_PU = _REPO / "projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub"
+_SC = _REPO / "projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl"
+_PU = _REPO / "projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl"
 
 # scoria file  ->  pumice file. The pumice tree names some of these with the
 # `pumice_` prefix and some without, which is why this is a table and not a
 # format string.
 PORTED = {
-    "scoria_rd_cmd_cam.sv":     "pumice_rd_cmd_cam.sv",
-    "scoria_wr_data_cam.sv":    "pumice_wr_data_cam.sv",
-    "scoria_rd_intake.sv":      "pumice_rd_intake.sv",
-    "scoria_wr_intake.sv":      "pumice_wr_intake.sv",
-    "scoria_rd_return_ring.sv": "pumice_rd_return_ring.sv",
-    "scoria_dfi_cdc.sv":        "pumice_dfi_cdc.sv",
-    "scoria_bank_timers.sv":    "pumice_bank_timers.sv",
+    "fub/scoria_rd_cmd_cam.sv":     "fub/pumice_rd_cmd_cam.sv",
+    "fub/scoria_wr_data_cam.sv":    "fub/pumice_wr_data_cam.sv",
+    "fub/scoria_rd_intake.sv":      "fub/pumice_rd_intake.sv",
+    "fub/scoria_wr_intake.sv":      "fub/pumice_wr_intake.sv",
+    "fub/scoria_rd_return_ring.sv": "fub/pumice_rd_return_ring.sv",
+    "fub/scoria_dfi_cdc.sv":        "fub/pumice_dfi_cdc.sv",
+    "fub/scoria_bank_timers.sv":    "fub/pumice_bank_timers.sv",
+    # MACRO tier. Measured 2026-10-01 while standing up the macro/top test
+    # areas: of the six macro/top modules this is the only one still pumice's
+    # logic. dfi_layer (+91 lines), mem_cmd_scheduler (+133), scoria_core
+    # (+94), scoria_top (+74) and top_geared (+19) all carry DDR3 work --
+    # write leveling, ZQ, mode-register writes, RESET# -- and need their own
+    # tests, which is what the macro/ and top/ areas are for.
+    "macro/scoria_axi4_ifc.sv":     "macro/pumice_axi4_ifc.sv",
 }
 
 # Where each one's coverage actually lives, for the failure message.
 PUMICE_TEST = {
-    "scoria_rd_cmd_cam.sv":     "test_pumice_rd_cmd_cam.py",
-    "scoria_wr_data_cam.sv":    "test_pumice_wr_data_cam.py",
-    "scoria_rd_intake.sv":      "test_pumice_rd_intake.py",
-    "scoria_wr_intake.sv":      "test_pumice_wr_intake.py",
-    "scoria_rd_return_ring.sv": "test_pumice_rd_return_ring.py",
-    "scoria_dfi_cdc.sv":        "test_pumice_dfi_cdc.py",
-    "scoria_bank_timers.sv":    "test_pumice_bank_timers.py",
+    "fub/scoria_rd_cmd_cam.sv":     "test_pumice_rd_cmd_cam.py",
+    "fub/scoria_wr_data_cam.sv":    "test_pumice_wr_data_cam.py",
+    "fub/scoria_rd_intake.sv":      "test_pumice_rd_intake.py",
+    "fub/scoria_wr_intake.sv":      "test_pumice_wr_intake.py",
+    "fub/scoria_rd_return_ring.sv": "test_pumice_rd_return_ring.py",
+    "fub/scoria_dfi_cdc.sv":        "test_pumice_dfi_cdc.py",
+    "fub/scoria_bank_timers.sv":    "test_pumice_bank_timers.py",
+    "macro/scoria_axi4_ifc.sv":     "test_pumice_axi4_ifc.py",
 }
 
 # Canonicalisation: STRIP the family prefix from both sides rather than
@@ -145,7 +153,7 @@ def test_ported_table_covers_no_scoria_specific_module():
     """
     tests = Path(__file__).parent
     clash = [f for f in PORTED
-             if (tests / f"test_{f.replace('.sv', '.py')}").is_file()]
+             if (tests / f"test_{Path(f).name.replace('.sv', '.py')}").is_file()]
     assert clash == [], (
         f"{clash} have their own scoria unit tests AND a parity row. Pick one: "
         f"if the module has diverged, drop the row; if it has not, the unit "
