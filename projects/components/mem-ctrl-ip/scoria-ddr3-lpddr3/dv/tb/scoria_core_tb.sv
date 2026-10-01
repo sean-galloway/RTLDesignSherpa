@@ -261,6 +261,27 @@ logic [31:0] stall_bp_o;
     logic                       phy_dfi_training_active, phy_dfi_training_phase;
     logic [DFI_CS_BUS_W-1:0]    phy_dfi_cke, phy_dfi_dram_clk_disable;
 
+    // ---- DFI v3.1 signals scoria does not present under their DFI names ---
+    // The BFM checks the required set for the declared version/memory type and
+    // names what is absent, which surfaced three:
+    //
+    // dfi_reset_n      scoria HAS this -- it just calls it dram_reset_n_o and
+    //                  documents it as "a device PIN". DFI v3.1 carries DRAM
+    //                  RESET# as part of the control interface, so for a v3.1
+    //                  claim the DFI name is the right one and this is an
+    //                  alias rather than a tie-off.
+    // dfi_wrdata_cs_n  per-data-phase chip select, new in v3.1. scoria does
+    // dfi_rddata_cs_n  not drive either: it qualifies commands with
+    //                  dfi_cs_n and has one rank. Tied to 0 = rank 0
+    //                  selected, which is correct for NUM_RANKS=1 and would
+    //                  have to be driven for real multi-rank.
+    logic                       phy_dfi_reset_n;
+    logic [DFI_CS_BUS_W-1:0]    phy_dfi_wrdata_cs_n, phy_dfi_rddata_cs_n;
+
+    assign phy_dfi_reset_n      = dram_reset_n_o;
+    assign phy_dfi_wrdata_cs_n  = '0;
+    assign phy_dfi_rddata_cs_n  = '0;
+
     assign phy_dfi_error            = 1'b0;
     assign phy_dfi_error_info       = 1'b0;
     assign phy_dfi_crc_alert        = 1'b0;
