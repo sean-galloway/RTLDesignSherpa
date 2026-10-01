@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/rapids — bugs
 
-**Next ID: BUG-013** — never recycle a number, even when its item closed.
+**Next ID: BUG-014** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,16 +14,19 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 10 | done (kept for history) |
+| [closed/](closed/) | 11 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
+- **BUG-013** — no data-path AXI monitor, so an injected response error emits NO monbus packet (measured: 6 words captured, 0 error-class, only AXIS channel events); WRMON/RDMON read back their own writes while driving nothing (filed 2026-10-01)
+
 - **BUG-011** — two rapids formal proofs (`axi_read_engine_beats`, `axi_write_engine_beats`) check pre-BUG-009 RTL: their sv2v flat snapshots were never regenerated; found by regenerate-and-diff (filed 2026-10-01)
-- **BUG-012** — those same two proofs ASSUME the BUG-009 region away (`cfg_axi_*_xfer_beats <= 15`, "for tractability"), so they pass identically on the buggy and the fixed flat: vacuous for the defect they most need to cover (filed 2026-10-01)
 
 ## Closed
+
+- **BUG-012** — the two engine proofs assumed the BUG-009 region away: `SCW=5` makes `XFER_MAX` exactly 15 and the assume capped the config AT 15, so the clamp could never engage and both flats proved identically. Assume widened, zero-beat input contract stated, `ap_*_len_within_alloc` added; now PASSES on the fixed RTL and FAILS on the pre-fix flat (closed 2026-10-01)
 
 - **BUG-010** — top_beats axis_mon counted only completions, so a monitor's REPORTED dropped event (AXIS_ERR_EVENT_DROPPED) read as a lost packet; shared accounting helper, all three rapids TBs fixed, mutation-proved against a silent loss (closed 2026-10-01)
 

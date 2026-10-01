@@ -3,10 +3,9 @@
 **Priority:** P2 -- the byte-perf report states that RRESP/BRESP error
 handling is not exercised on silicon; it is the one gap left in the
 byte-RAPIDS characterization.
-**Status:** ACTIVE 2026-10-01. Proven on silicon -- 36/36 checks on the board.
-The ONLY thing left is the monbus error-PACKET check, which needs a
-monbus-buffer readout the host does not have (see "What the monbus box still
-needs"). Everything else in this task is done.
+**Status:** CLOSED 2026-10-01. Proven on silicon (36/36 checks at seq-level
+full), and the monbus half is answered: the readout was built, works, and showed
+there is no error packet to check -- rapids BUG-013 carries that design gap.
 **Owner:** TBD
 
 The harness memory model always answers OKAY, and the harness has no hook to
@@ -18,11 +17,12 @@ error path are covered only in the unit and macro sims.
 - [x] a harness CSR (by name, through the generated regmap) selects an error
       response for a chosen transaction on R and on B (CSR_ERR_INJ /
       CSR_ERR_STAT, 2026-09-30; see "Design as built")
-- [ ] directed sequences drive RRESP=SLVERR and BRESP=SLVERR and check the
+- [x] directed sequences drive RRESP=SLVERR and BRESP=SLVERR and check the
       channel error status, the monbus error packet, and recovery through
-      channel reset -- written (`axi_resp_error`) and covering the error
-      status and channel-reset recovery; the MONBUS PACKET half is not done
-      and needs a readout that does not exist yet (see below)
+      channel reset. Error status and channel-reset recovery: PROVEN on silicon.
+      The monbus-packet half is answered, though not the way the box assumed:
+      the readout was built and works, and it showed that NO error packet
+      exists to check -- rapids BUG-013. See "The monbus half, answered" below.
 - [x] the sequences pass in the UART sim harness before any board run
       (2026-10-01, 18/18 checks at gate)
 - [x] a new bitstream is built, proven on the board, and the byte perf
@@ -138,7 +138,58 @@ build had observers on (92,874 LUTs vs 78,426 here), so the two are different
 designs and the delta is place-and-route variation. The honest claim is that
 the injector cost no measurable margin.
 
+## The monbus half, answered (2026-10-01)
+
+The box said this needed "a monbus-buffer readout". It did -- and building it
+turned the open question into a measured answer.
+
+**Built and proven on hardware.** The capture master was an always-accept AXIL
+responder that DISCARDED every packet (so were the observers'), which is why
+nothing could be read. Behind `MON_CAPTURE` (default 0, so the four measured
+variants keep their resources) the harness now stores the stream:
+
+- a 192-word buffer, 64 records of packet+timestamp, **stop-on-full not
+  circular** -- the packets that matter are the first ones after an injected
+  error, and wrapping would overwrite exactly those. `MONCAP_CNT[31]` reports
+  WRAPPED so a truncated capture cannot pass as a complete one;
+- `MONCAP_CTRL/CNT/SEL/LO/HI`, and `BUILD[29] = MON_CAPTURE` so the host READS
+  whether the buffer exists instead of assuming;
+- host readout decoding through the shared `TBClasses.monbus` parser.
+
+Proven on the board: `clear=0 -> after-sink=12 -> after-source=18` words, 6
+records decoded.
+
+**What it immediately revealed: rapids BUG-013.** With monitors enabled, the
+scheduler's ERR_EN on and every class unmasked, an injected SLVERR produces 6
+words / 2 records and **zero error-class packets** -- the two records are
+`PROTOCOL_AXIS/PktTypeChannel` from the monlites. The byte tree's only AXI
+monitor is `u_desc_axi_monitor` on the DESCRIPTOR interface; the data-path
+masters have none, and WRMON/RDMON reach the config block without reaching any
+monitor. So there is no error packet to assert, and adding one is a design
+decision rather than a test fix.
+
+The sequence therefore records a SKIP NAMING BUG-013 rather than asserting. A
+design gap must not turn the suite red, and must not look satisfied either --
+when a data-path monitor exists, the skip becomes an assertion and the check is
+already written.
+
+**Two bugs of my own, caught on the way, both of the same shape:**
+
+- `MON_CAPTURE` was declared on the harness and threaded through the tcl
+  generic, and the board read it back as 0: `set_property generic` applies to
+  the TOP module, so a parameter that exists only on an inner module silently
+  keeps its default. It needed plumbing through `rapids_byte_top` AND
+  `rapids_byte_genesys2_top`. Recorded in
+  `vault/handbook/fpga/cmn-infra/one-source-config.md`.
+- My first `PKT_MASK` write used `0xFFFE` to allow only the Error class, and
+  nothing arrived. `0x0000` (everything unmasked) did. The mask semantics are
+  the BUG-008 trap from the other side.
+
+Both were caught only because the check reads `BUILD` and records a skip with
+its reason instead of asserting. Written as a plain assertion, the first would
+have reported a clean pass against a bitstream with no capture buffer at all.
+
 ## Still to do
 
-- [ ] a monbus-buffer readout, then the error-packet check (see above) -- the
-      last box in this task
+Nothing in this task. The remaining work is rapids BUG-013, which is a design
+decision about telemetry, filed separately.

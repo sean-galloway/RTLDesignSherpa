@@ -155,9 +155,30 @@ module formal_axi_write_engine_beats (
     always @(posedge clk)
         if (f_past_valid >= 2) assume (rst_n);
 
-    // Constrain cfg_axi_wr_xfer_beats to valid range
+    // cfg_axi_wr_xfer_beats: 1..255, the full register range.
+    //
+    // It used to be capped at 15 "for tractability", and that made this proof
+    // VACUOUS for rapids BUG-009 (see rapids BUG-012). SD_BEATS here is
+    // 1 << (SCW-1) = 16, so the engine's clamp XFER_MAX is exactly 15 -- the
+    // old bound sat precisely ON the clamp boundary, so the clamp could never
+    // engage and the clamped and unclamped engines were the SAME DESIGN under
+    // this harness. Both flats proved identically, which is how a 256-beat
+    // burst wrapping its size to 0 survived a passing proof.
     always @(posedge clk)
-        if (rst_n) assume (cfg_axi_wr_xfer_beats >= 1 && cfg_axi_wr_xfer_beats <= 15);
+        if (rst_n) assume (cfg_axi_wr_xfer_beats >= 1);
+
+    // INPUT CONTRACT: the scheduler never presents a run of ZERO beats. Without
+    // this, formal picks sched_wr_valid=1 with sched_wr_beats=0, the engine's
+    // size computation underflows (0 - 1 wrapped through an 8-bit cast = 255)
+    // and it issues a 256-beat burst out of nothing. That is a harness hole
+    // rather than a design fault -- the real scheduler asserts valid only with
+    // beats >= 1 -- but it has to be STATED, because it is the same arithmetic
+    // rapids BUG-009 broke from the other end.
+    always @(posedge clk)
+        if (rst_n)
+            for (int c = 0; c < NC; c++)
+                if (sched_wr_valid[c])
+                    assume (sched_wr_beats[c*32 +: 32] >= 32'd1);
 
     // =========================================================================
     // AXI AW channel properties
@@ -245,5 +266,21 @@ module formal_axi_write_engine_beats (
         if (rst_n)
             cp_drain_req_ch0: cover (axi_wr_drain_req[0]);
     end
+
+
+    //=========================================================================
+    // rapids BUG-012: the burst the engine issues must never exceed the SRAM
+    // space it allocates per segment (SD_BEATS = 1 << (SCW-1) = 16 here).
+    //
+    // This is the invariant rapids BUG-009 broke: with cfg_axi_wr_xfer_beats at
+    // 255 the unclamped engine computed cfg+1 = 256, wrapped it through an
+    // 8-bit cast, and issued a burst far larger than the 16 beats it had room
+    // for. The fix clamps through XFER_MAX; this property is what makes the
+    // proof able to SEE that, and it fails against the pre-fix flat.
+    //=========================================================================
+    localparam int SD_BEATS = 1 << (SCW - 1);
+    always @(posedge clk)
+        if (rst_n && m_axi_awvalid)
+            ap_aw_len_within_alloc: assert (9'(m_axi_awlen) + 9'd1 <= 9'(SD_BEATS));
 
 endmodule

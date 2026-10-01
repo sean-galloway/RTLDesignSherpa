@@ -74,3 +74,29 @@ month of "sim passes, board fails" comparisons were not comparisons at all.
 
 Transport has the identical failure one layer up: see [[uart-harness]].
 Layer map: [[host-stack]].
+
+## A generic only reaches the module Vivado calls the top
+
+Measured 2026-10-01, byte-RAPIDS Genesys 2. A new harness knob (`MON_CAPTURE`,
+the monbus capture buffer) was added as a parameter on `rapids_byte_harness`
+and threaded through `create_project.tcl`'s `set_property generic`. The build
+log printed `MON_CAPTURE: 1`. The board read it back as **0**.
+
+`set_property generic` applies to the TOP module. A parameter that exists only
+on an inner module is never reached, so it silently keeps its default. The
+other knobs in the same build worked because they ARE declared on the board top
+and passed down -- and the same bitstream read back `axi_monitors=1 gen_mon=1`
+correctly, which is what made the single wrong field so hard to see.
+
+So a new build knob is **three** edits, not two: the harness parameter, the
+pass-through on every top that instantiates it (here `rapids_byte_top` AND
+`rapids_byte_genesys2_top`), and the tcl generic. Miss the middle one and you
+get a clean build of a design without the feature.
+
+**How it was caught, which is the transferable part.** The host check read the
+feature's presence out of the `BUILD` register and recorded a SKIP WITH ITS
+REASON when absent, rather than asserting and passing. Written as a plain
+assertion it would have reported a clean pass against a bitstream that had no
+capture buffer at all. Any build knob worth a generic is worth a `BUILD` bit,
+and any check that depends on one should read that bit rather than assume it --
+[[feedback_config_register_not_default]].

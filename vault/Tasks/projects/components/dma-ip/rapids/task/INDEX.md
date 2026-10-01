@@ -12,20 +12,21 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 20 | done (kept for history) |
+| [closed/](closed/) | 21 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-020** — AXI response-error injection in the byte-RAPIDS Genesys 2 harness (P2, filed 2026-09-30; ACTIVE 2026-09-30, injection mechanism built and unit-proven)
 - **TASK-022** — the byte-granular RAPIDS has no formal proofs of its own; 9 of 11 proof dirs are `*_beats` (P2, filed 2026-10-01, scope not yet agreed)
 
 ## Active
 
 ## Closed
+
+- **TASK-020** — AXI response-error injection: harness CSR + injector on both shared slaves, proven on silicon 36/36 at full; the monbus half built a capture buffer that works and showed there is no error packet to check (rapids BUG-013) (closed 2026-10-01)
 
 - **TASK-019** — the byte-granular RAPIDS: bytes, WSTRB/TSTRB partial beats, its own Genesys 2 harness and books, board-characterized (closed 2026-09-30; sign-off fub 1521/0, fub_beats 1281/0, macro 822/0, macro_beats 771/0, top 42/0, top_beats 36/0)
 - **TASK-021** — beat-aligned utilization delta versus RAPIDS Beats: start-up terms isolated in sim and accepted as by design (closed 2026-09-30)

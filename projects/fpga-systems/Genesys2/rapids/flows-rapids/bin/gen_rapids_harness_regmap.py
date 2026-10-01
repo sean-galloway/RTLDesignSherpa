@@ -73,7 +73,8 @@ CSR = [
                                   ('OBSERVERS', 25, 25, 'r'),
                                   ('GEN_MON', 26, 26, 'r'),
                                   ('BYTE_DUT', 27, 27, 'r'),         # 1: byte-granular rapids_top (TASK-019)
-                                  ('WORD_CRC', 28, 28, 'r')]),        # 1: word-wide checkers; 0 (every earlier build): byte-wise
+                                  ('WORD_CRC', 28, 28, 'r'),         # 1: word-wide checkers; 0 (every earlier build): byte-wise
+                                  ('MON_CAPTURE', 29, 29, 'r')]),    # 1: the monbus capture buffer is built (rapids TASK-020)
     (0x010, 'GEN_CTRL',    'w',  [('GEN_START', 0, 0, 'w')]),         # cfg_gen_start pulse
     (0x014, 'GEN_SEED',    'rw', None),
     (0x018, 'GEN_NBEATS',  'rw', None),
@@ -118,6 +119,15 @@ CSR = [
                                   ('SKIP', 31, 16, 'rw')]),             # OKAY bursts first
     (0x0CC, 'ERR_STAT',    'r',  [('WR_HIT', 0, 0, 'r'),                # sticky: B error issued
                                   ('RD_HIT', 1, 1, 'r')]),              # sticky: R error issued
+    # MonBus capture readback (rapids TASK-020, MON_CAPTURE=1 builds). Without
+    # the buffer the capture master's writes are discarded, which is why the
+    # monbus error-packet check had nothing to read.
+    (0x0D0, 'MONCAP_CTRL', 'w',  [('CLEAR', 0, 0, 'w')]),               # 1-cycle pulse
+    (0x0D4, 'MONCAP_CNT',  'r',  [('WORDS', 30, 0, 'r'),                # 64-bit words captured
+                                  ('WRAPPED', 31, 31, 'r')]),           # window filled, capture stopped
+    (0x0D8, 'MONCAP_SEL',  'rw', [('INDEX', 31, 0, 'rw')]),             # word index to read
+    (0x0DC, 'MONCAP_LO',   'r',  None),                                  # selected word [31:0]
+    (0x0E0, 'MONCAP_HI',   'r',  None),                                  # selected word [63:32]
     # ---- readable status ----  (CSR_ID aliases 0x000 on the read path)
     (0x080, 'STATUS',      'r',  [('MON_IRQ', 0, 0, 'r'), ('SRC_IDLE', 1, 1, 'r'),
                                   ('SNK_IDLE', 2, 2, 'r'), ('GEN_BUSY', 3, 3, 'r'),

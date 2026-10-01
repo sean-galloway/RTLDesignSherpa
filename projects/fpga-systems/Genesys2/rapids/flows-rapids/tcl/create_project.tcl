@@ -108,6 +108,10 @@ if {[info exists ::env(OBS_ENABLE_MON_TAPS)]} { set obs_enable_mon_taps $::env(O
 # checkers, used only to measure the beat-aligned rows without the checker ceiling.
 set byte_crc 1
 if {[info exists ::env(BYTE_CRC)]} { set byte_crc $::env(BYTE_CRC) }
+# MON_CAPTURE: 1 = store the monbus stream so the host can read packets back
+# (rapids TASK-020). 0 = the capture master's writes are accepted and discarded.
+set mon_capture 0
+if {[info exists ::env(MON_CAPTURE)]} { set mon_capture $::env(MON_CAPTURE) }
 
 puts "========================================================================"
 puts "RTL Design Sherpa — RAPIDS byte-granular characterization ($board_label)"
@@ -121,6 +125,7 @@ puts "GEN_MON:           $gen_mon"
 puts "USE_OBSERVERS:     $use_observers"
 puts "OBS_ENABLE_MON_TAPS: $obs_enable_mon_taps"
 puts "BYTE_CRC:          $byte_crc"
+puts "MON_CAPTURE:       $mon_capture"
 puts "NUM_CHANNELS:      $num_channels"
 puts "DATA_WIDTH:        $data_width"
 puts "SRAM_DEPTH:        $sram_depth"
@@ -194,7 +199,7 @@ puts "Setting top module: $top_name"
 set_property top $top_name $src_fs
 
 # Narrow the board geometry + memory sizing via top-level generics (see header).
-set_property generic "NUM_CHANNELS=$num_channels DATA_WIDTH=$data_width SRAM_DEPTH=$sram_depth DESC_RAM_ENTRIES=$desc_ram_entries USE_ROW_COL_MAJOR_ADDRESSING=$row_col USE_AXI_MONITORS=$use_axi_monitors GEN_MON=$gen_mon USE_OBSERVERS=$use_observers OBS_ENABLE_MON_TAPS=$obs_enable_mon_taps BYTE_CRC=$byte_crc" $src_fs
+set_property generic "NUM_CHANNELS=$num_channels DATA_WIDTH=$data_width SRAM_DEPTH=$sram_depth DESC_RAM_ENTRIES=$desc_ram_entries USE_ROW_COL_MAJOR_ADDRESSING=$row_col USE_AXI_MONITORS=$use_axi_monitors GEN_MON=$gen_mon USE_OBSERVERS=$use_observers OBS_ENABLE_MON_TAPS=$obs_enable_mon_taps BYTE_CRC=$byte_crc MON_CAPTURE=$mon_capture" $src_fs
 
 update_compile_order -fileset sources_1
 

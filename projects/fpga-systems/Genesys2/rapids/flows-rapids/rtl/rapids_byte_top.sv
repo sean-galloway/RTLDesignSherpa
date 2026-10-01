@@ -148,6 +148,8 @@ module rapids_byte_top #(
     parameter bit USE_OBSERVERS       = 1'b0,
     parameter bit OBS_ENABLE_MON_TAPS = 1'b0,
     parameter bit BYTE_CRC            = 1'b1,
+    // Plumbed from the top on purpose: see the note in the Genesys 2 wrapper.
+    parameter bit MON_CAPTURE          = 1'b0,
     // Descriptor RAM depth per half. Shrunk from the harness default (2048)
     // to fit the 100T BRAM budget; bump for deeper descriptor chains.
     parameter int SRAM_DEPTH    = 256,   // sink/source data-buffer depth (board-fit; sim default is deeper)
@@ -216,6 +218,7 @@ module rapids_byte_top #(
         .DESC_RAM_ENTRIES (DESC_RAM_ENTRIES),
         .DESC_DATA_WIDTH  (DESC_DATA_WIDTH),
         .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
+        .MON_CAPTURE      (MON_CAPTURE),
         .USE_AXI_MONITORS (USE_AXI_MONITORS),
         .GEN_MON          (GEN_MON),
         .USE_OBSERVERS       (USE_OBSERVERS),

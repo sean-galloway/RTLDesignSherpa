@@ -51,7 +51,11 @@ module rapids_byte_genesys2_top #(
     parameter bit USE_OBSERVERS       = 1'b0,
     parameter bit OBS_ENABLE_MON_TAPS = 1'b0,
     // 1: byte-wise checkers (every campaign); 0: word-wide, beat-aligned rows only
-    parameter bit BYTE_CRC            = 1'b1
+    parameter bit BYTE_CRC            = 1'b1,
+    // MON_CAPTURE must be plumbed through the TOP: Vivado's set_property
+    // generic applies to the top module, so a parameter that exists only on
+    // the harness is never reached and silently keeps its default.
+    parameter bit MON_CAPTURE          = 1'b0
 ) (
     input  logic        sysclk_p,      // 200 MHz LVDS (+)
     input  logic        sysclk_n,      // 200 MHz LVDS (-)
@@ -121,6 +125,7 @@ module rapids_byte_genesys2_top #(
         .APB_ADDR_WIDTH   (APB_ADDR_WIDTH),
         .APB_DATA_WIDTH   (APB_DATA_WIDTH),
         .USE_ROW_COL_MAJOR_ADDRESSING(USE_ROW_COL_MAJOR_ADDRESSING),
+        .MON_CAPTURE      (MON_CAPTURE),
         .USE_AXI_MONITORS (USE_AXI_MONITORS),
         .GEN_MON          (GEN_MON),
         .USE_OBSERVERS       (USE_OBSERVERS),

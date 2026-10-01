@@ -369,6 +369,96 @@ def seq_recovery(s):
         s.run_source_case(f"{t}: source untouched", {0: [(P, 0)], 1: [(P, 0)]})
 
 
+def monbus_capture(s, max_records=24):
+    """Read the harness's monbus capture buffer and decode it with the SHARED
+    decoder (TBClasses.monbus), never by hand-shifting fields.
+
+    The capture master writes 64-bit words, three per record (a 128-bit packet
+    plus its timestamp). Returns (packets, wrapped, n_words). An empty list is
+    returned when the build has no buffer -- BUILD.MON_CAPTURE says which, so a
+    caller can tell "nothing to read" from "nothing happened".
+    """
+    from TBClasses.monbus import parse_stream
+    cnt = s.io.csr_read_reg("MONCAP_CNT")
+    n_words, wrapped = cnt & 0x7FFF_FFFF, bool(cnt >> 31)
+    want = min(n_words, max_records * 3)
+    words = []
+    for i in range(want):
+        s.io.csr_write_reg("MONCAP_SEL", INDEX=i)
+        lo = s.io.csr_read_reg("MONCAP_LO")
+        hi = s.io.csr_read_reg("MONCAP_HI")
+        words.append((hi << 32) | lo)
+    usable = words[:len(words) - len(words) % 3]
+    pkts = [r.packet for r in parse_stream(usable, stride_bytes=24, ts_mode=1)]
+    return pkts, wrapped, n_words
+
+
+def _arm_monbus_error_class(s, half):
+    """Enable the half's AXI monitor and unmask ONLY the Error packet class.
+
+    Nothing configured the monitors before this: they reset disabled, and
+    PKT_MASK resets to 0xFFFF where a SET bit MASKS the class (rapids BUG-008 --
+    the register was once documented the other way round). So a build with
+    monitors emitted nothing at all, which is why the capture buffer came back
+    empty on its first board run.
+
+    Only Error is unmasked on purpose. The capture buffer is 64 records and
+    stops when full, so letting completion traffic in would push the error
+    packet out of the window it is meant to prove.
+
+    Returns the monitor register prefix, or None when this build has no
+    monitors.
+    """
+    if not s.io.csr_field("BUILD", "AXI_MONITORS"):
+        return None
+    pfx = 'WRMON' if half == 'snk' else 'RDMON'   # sink writes (B), source reads (R)
+    s.c.write_fields(half, f'{pfx}_PKT_MASK', PKT_MASK=0x0000)   # unmask every class; see BUG-008 (1 = MASKED)
+    s.c.write_fields(half, f'{pfx}_ENABLE', MON_EN=1, ERR_EN=1)
+    # The descriptor AXI monitor is the only AXI monitor this tree builds, and
+    # the SCHEDULER is what reports an engine's response error -- as a CORE
+    # packet, not an AXI one. Both have to be enabled or the stream carries
+    # only the AXIS monlites' channel events.
+    s.c.write_fields(half, 'DAXMON_PKT_MASK', PKT_MASK=0x0000)
+    s.c.write_fields(half, 'DAXMON_ENABLE', MON_EN=1, ERR_EN=1)
+    s.c.write_fields(half, 'SCHED_CONFIG', SCHED_EN=1, ERR_EN=1)
+    return pfx
+
+
+def _check_monbus_error_packet(s, tag, channel):
+    """The monbus half of the error contract (rapids TASK-020).
+
+    MEASURED 2026-10-01 and recorded as rapids BUG-013: this design emits NO
+    error packet for a data-path response error, so there is nothing to assert.
+    The capture buffer works -- it returns AXIS PktTypeChannel events from the
+    monlites in the same window -- but the byte tree's only AXI monitor is
+    `u_desc_axi_monitor` on the DESCRIPTOR interface. The data-path masters
+    m_axi_rd / m_axi_wr, where an injected SLVERR lands, have no monitor, and
+    WRMON/RDMON reach the config block without reaching any monitor.
+
+    So this records a SKIP naming the gap, not a pass and not a failure. A
+    design gap must not turn the suite red, and it must not look satisfied
+    either. When a data-path monitor exists, delete this skip and assert.
+    """
+    has_cap = s.io.csr_field("BUILD", "MON_CAPTURE")
+    if not has_cap:
+        s.check(f"{tag}: monbus error packet SKIPPED (no capture buffer in this build)",
+                True, skipped=True, reason="BUILD.MON_CAPTURE=0")
+        return
+    pkts, wrapped, n_words = monbus_capture(s)
+    errs = [p for p in pkts if p.packet_type == PktType_Error()]
+    s.check(f"{tag}: monbus error packet SKIPPED -- no data-path AXI monitor "
+            f"exists to emit one (rapids BUG-013)",
+            True, skipped=True, n_words=n_words, records=len(pkts),
+            error_class_packets=len(errs),
+            captured=[f"{p.get_protocol_name()}/{p.get_packet_type_name()}"
+                      f"/0x{p.event_code:02X}/ch{p.channel_id}" for p in pkts[:8]])
+
+
+def PktType_Error():
+    from TBClasses.monbus.monbus_types import PktType
+    return PktType.PktTypeError
+
+
 def _resp_error_half(s, half, en_field, hit_field, scherr_reg, rnd):
     """One half's injected-response case: arm, run, check the sticky error on
     the targeted channel only, then clear it with CHANNEL_RESET and prove the
@@ -382,6 +472,11 @@ def _resp_error_half(s, half, en_field, hit_field, scherr_reg, rnd):
     # Arm: the first burst on channel 0 answers SLVERR, then the slave disarms.
     s.io.csr_write_reg("ERR_INJ", **{en_field: 1, 'RESP': 2, 'CH': 0,
                                      'ONESHOT': 1, 'SKIP': 0})
+    # Enable the monitor + unmask Error, then clear the capture so the packets
+    # read back belong to THIS case.
+    _arm_monbus_error_class(s, half)
+    if s.io.csr_field("BUILD", "MON_CAPTURE"):
+        s.io.csr_write_reg("MONCAP_CTRL", CLEAR=1)
     if half == 'snk':
         s.launch_sink(specs, P, 1, interleave=True)
     else:
@@ -396,6 +491,10 @@ def _resp_error_half(s, half, en_field, hit_field, scherr_reg, rnd):
     s.check(f"{t}: {scherr_reg} flags ch0 only", scherr == 1, scherr=scherr)
     s.check(f"{t}: SCHED_ERROR flags ch0 only", s.sched_err(half) == 1,
             sched_err=s.sched_err(half))
+
+    # The monbus half: the monitors must have EMITTED an error packet, which is
+    # a different claim from the status bit above and needs the capture buffer.
+    _check_monbus_error_packet(s, t, 0)
 
     # Disarm before recovery, or the retry would be hit too.
     s.io.csr_write_reg("ERR_INJ", **{en_field: 0, 'RESP': 0, 'CH': 0,

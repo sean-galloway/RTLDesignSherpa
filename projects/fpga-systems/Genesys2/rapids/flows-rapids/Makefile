@@ -119,6 +119,11 @@ export OBS_ENABLE_MON_TAPS ?= 0
 #           checkers, only to measure the beat-aligned rows without the 9-cycle
 #           per-beat checker ceiling (BUILD.WORD_CRC reports which is on the board).
 export BYTE_CRC ?= 1
+# MON_CAPTURE: store the monbus stream in a 192-word buffer the host can read
+# back and decode (rapids TASK-020). Default OFF so every bitstream built before
+# it keeps its resources; the `mon` variant turns it on, since that is the build
+# whose monitors actually emit packets.
+export MON_CAPTURE ?= 0
 
 .PHONY: help sim verify-sim project synth bitstream program characterize \
         smoke suite flow utilization timing clean clean-all cleanall
@@ -203,8 +208,8 @@ bitstream-perf:
 	$(call _stash_variant,perf,BYTE_CRC=0 USE_AXI_MONITORS=0 GEN_MON=0 USE_OBSERVERS=0)
 
 bitstream-mon:
-	$(MAKE) bitstream BYTE_CRC=1 USE_AXI_MONITORS=1 GEN_MON=1 USE_OBSERVERS=0
-	$(call _stash_variant,mon,BYTE_CRC=1 USE_AXI_MONITORS=1 GEN_MON=1 USE_OBSERVERS=0)
+	$(MAKE) bitstream BYTE_CRC=1 USE_AXI_MONITORS=1 GEN_MON=1 USE_OBSERVERS=0 MON_CAPTURE=1
+	$(call _stash_variant,mon,BYTE_CRC=1 USE_AXI_MONITORS=1 GEN_MON=1 USE_OBSERVERS=0 MON_CAPTURE=1)
 
 bitstream-obs:
 	$(MAKE) bitstream BYTE_CRC=1 USE_AXI_MONITORS=0 GEN_MON=0 USE_OBSERVERS=1 OBS_ENABLE_MON_TAPS=1

@@ -92,6 +92,14 @@ module rapids_byte_harness #(
     // uses; 0 exists to measure the DUT's beat-aligned rows without the
     // checker ceiling and is reported in BUILD.WORD_CRC.
     parameter bit BYTE_CRC = 1'b1,
+
+    // MON_CAPTURE=1 (rapids TASK-020) stores the monbus stream the capture
+    // master emits, so the host can read packets back and DECODE them. Without
+    // it the capture master's AXIL writes are accepted and DISCARDED -- which is
+    // why the monbus error-packet half of TASK-020 was unreachable from the
+    // board: there was nothing to read. 0 keeps every earlier bitstream's
+    // resources unchanged, so it is set only on the builds that have monitors.
+    parameter bit MON_CAPTURE = 1'b0,
     // ---- Host interface (relocated from rapids_byte_top) ----
     parameter int FPGA_CLK_HZ     = 100_000_000,
     parameter int UART_BAUD       = 115_200
@@ -233,6 +241,15 @@ module rapids_byte_harness #(
     //   [31:16] SKIP bursts to let answer OKAY first
     localparam logic [11:0] CSR_ERR_INJ    = 12'h0C8;
     localparam logic [11:0] CSR_ERR_STAT   = 12'h0CC;  // [0] WR_HIT, [1] RD_HIT
+    // MonBus capture readback (rapids TASK-020, MON_CAPTURE=1 builds).
+    // The capture master writes 64-bit W beats, three per record (a 128-bit
+    // packet plus its timestamp), so the host reads WORDS and reassembles --
+    // the same shape TBClasses.monbus parse_stream() already decodes.
+    localparam logic [11:0] CSR_MONCAP_CTRL = 12'h0D0;  // [0] CLEAR (1-cyc pulse)
+    localparam logic [11:0] CSR_MONCAP_CNT  = 12'h0D4;  // words captured; [31] WRAPPED
+    localparam logic [11:0] CSR_MONCAP_SEL  = 12'h0D8;  // word index to read
+    localparam logic [11:0] CSR_MONCAP_LO   = 12'h0DC;  // selected word [31:0]
+    localparam logic [11:0] CSR_MONCAP_HI   = 12'h0E0;  // selected word [63:32]
 
     localparam logic [11:0] CSR_ID          = 12'h000;
     localparam logic [11:0] CSR_BUILD       = 12'h004;  // geometry of THIS bitstream (read-only)
@@ -283,6 +300,11 @@ module rapids_byte_harness #(
     logic                       r_cam_clear;          // 1-cycle pulse
     logic [31:0]                r_resp_delay;         // {wr_delay[15:0], rd_delay[15:0]}
     logic [31:0]                r_err_inj;            // CSR_ERR_INJ, see its localparam
+    logic                       r_moncap_clear;
+    logic [31:0]                r_moncap_sel;
+    logic [31:0]                w_moncap_cnt;
+    logic [63:0]                w_moncap_word;
+    localparam int MONCAP_WORDS = 192;                  // 64 records of 3 words
     logic                       wr_err_injected;      // sticky, from the write slave
     logic                       rd_err_injected;      // sticky, from the read slave
     localparam int CIW_SLV = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1;
@@ -551,6 +573,7 @@ module rapids_byte_harness #(
             r_obs_target            <= '0;
             r_resp_delay            <= '0;
             r_err_inj               <= '0;
+            r_moncap_sel            <= '0;
         end else begin
             // Pulses default low; re-asserted for one cycle on a matching write.
             // The gen/chk START bits are ALSO 1-cycle pulses (not held levels):
@@ -566,6 +589,7 @@ module rapids_byte_harness #(
             r_cfg_gen_start     <= 1'b0;
             r_chk_cfg_start     <= 1'b0;
             r_obs_arm           <= 1'b0;
+            r_moncap_clear      <= 1'b0;
             r_go                <= 1'b0;
 
             if (w_csr_we) begin
@@ -574,6 +598,8 @@ module rapids_byte_harness #(
                     CSR_OBS_CTRL:    r_obs_arm               <= r_wdata[0];
                     CSR_RESP_DELAY:  r_resp_delay            <= r_wdata;
                     CSR_ERR_INJ:     r_err_inj               <= r_wdata;
+                    CSR_MONCAP_CTRL: r_moncap_clear          <= r_wdata[0];
+                    CSR_MONCAP_SEL:  r_moncap_sel            <= r_wdata;
                     CSR_GEN_CTRL:    r_cfg_gen_start         <= r_wdata[0];
                     CSR_GEN_SEED:    r_cfg_gen_lfsr_seed     <= r_wdata;
                     CSR_GEN_NBEATS:  r_cfg_gen_num_beats     <= r_wdata;
@@ -651,9 +677,11 @@ module rapids_byte_harness #(
                     // [7:0] bytes per beat, [15:8] channels, [23:16] log2(SRAM_DEPTH),
                     // [24] USE_AXI_MONITORS, [25] USE_OBSERVERS, [26] GEN_MON,
                     // [27] BYTE_DUT = 1: this is the byte-granular rapids_top harness (TASK-019),
+                    // [29] MON_CAPTURE: 1 when the monbus capture buffer is built, so
+                    //      the host knows whether packets can be read back at all.
                     // [28] WORD_CRC = !BYTE_CRC: 1 when the checkers are the word-wide
                     // flavour, so every bitstream built before this bit existed reads 0 = byte-wise.
-                    CSR_BUILD:       w_readmux = {3'b0, !BYTE_CRC, 1'b1, GEN_MON, USE_OBSERVERS,
+                    CSR_BUILD:       w_readmux = {2'b0, MON_CAPTURE, !BYTE_CRC, 1'b1, GEN_MON, USE_OBSERVERS,
                                                   (USE_AXI_MONITORS != 0),
                                                   8'($clog2(SRAM_DEPTH)),
                                                   8'(NUM_CHANNELS),
@@ -687,6 +715,10 @@ module rapids_byte_harness #(
                     CSR_ERR_INJ:     w_readmux = r_err_inj;
                     CSR_ERR_STAT:    w_readmux = {30'b0, rd_err_injected,
                                                   wr_err_injected};
+                    CSR_MONCAP_CNT:  w_readmux = w_moncap_cnt;
+                    CSR_MONCAP_SEL:  w_readmux = r_moncap_sel;
+                    CSR_MONCAP_LO:   w_readmux = w_moncap_word[31:0];
+                    CSR_MONCAP_HI:   w_readmux = w_moncap_word[63:32];
                     CSR_OBS_WR_PROD: w_readmux = obs_wr_prod;
                     CSR_OBS_WR_BP:   w_readmux = obs_wr_bp;
                     CSR_OBS_WR_STRV: w_readmux = obs_wr_starv;
@@ -2029,6 +2061,50 @@ module rapids_byte_harness #(
             if (mon_b_beat)                 r_mon_b_cnt  <= r_mon_b_cnt  + 16'd1;
         end
     )
+
+    //=========================================================================
+    // MonBus capture buffer (rapids TASK-020, MON_CAPTURE=1)
+    //
+    // Stores the W beats the capture master writes so the host can read the
+    // monbus stream back and decode it. Stop-on-full rather than circular: the
+    // interesting packets are the FIRST ones after an injected error, and a
+    // wrapping buffer would overwrite them with later traffic. WRAPPED in
+    // CSR_MONCAP_CNT[31] says the window filled, so a host cannot mistake a
+    // truncated capture for a complete one.
+    //=========================================================================
+    generate
+    if (MON_CAPTURE) begin : gen_moncap
+        localparam int MCW = $clog2(MONCAP_WORDS);
+        logic [63:0]    r_mc_mem [MONCAP_WORDS];
+        logic [MCW:0]   r_mc_wp;
+        logic           r_mc_full;
+        wire            w_mc_push = mon_wvalid && mon_wready && !r_mc_full;
+
+        always_ff @(posedge aclk) begin
+            if (w_mc_push) r_mc_mem[r_mc_wp[MCW-1:0]] <= mon_wdata;
+        end
+
+        `ALWAYS_FF_RST(aclk, aresetn,
+            if (`RST_ASSERTED(aresetn)) begin
+                r_mc_wp   <= '0;
+                r_mc_full <= 1'b0;
+            end else if (r_moncap_clear) begin
+                r_mc_wp   <= '0;
+                r_mc_full <= 1'b0;
+            end else if (w_mc_push) begin
+                r_mc_wp <= r_mc_wp + 1'b1;
+                if (r_mc_wp == (MCW+1)'(MONCAP_WORDS - 1)) r_mc_full <= 1'b1;
+            end
+        )
+
+        assign w_moncap_cnt  = {r_mc_full, 31'(r_mc_wp)};
+        assign w_moncap_word = (r_moncap_sel < 32'(MONCAP_WORDS))
+                               ? r_mc_mem[r_moncap_sel[MCW-1:0]] : 64'h0;
+    end else begin : gen_no_moncap
+        assign w_moncap_cnt  = 32'h0;   // 0 words, never wrapped: no buffer built
+        assign w_moncap_word = 64'h0;
+    end
+    endgenerate
 
     //=========================================================================
     // Datapath bus meters (per-interface utilization + AXIS throughput)
