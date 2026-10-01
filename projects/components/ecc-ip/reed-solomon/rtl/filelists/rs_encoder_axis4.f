@@ -6,6 +6,7 @@
 # stream interface includes THIS list; one that wants the bare handshake
 # includes rs_encoder_core.f instead.
 
+-f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_pkg.f
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_encoder_core.f
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_beat_packer.f
 -f $REPO_ROOT/rtl/amba/filelists/axis4_slave.f

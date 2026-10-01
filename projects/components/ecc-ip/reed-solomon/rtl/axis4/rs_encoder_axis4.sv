@@ -38,7 +38,9 @@
 //   - tid and tdest are forwarded from the beat that ENTERS the encoder to the
 //     beats that leave it, held for the whole codeword. Parity beats carry the
 //     same id and dest as the block's data beats.
-module rs_encoder_axis4 #(
+module rs_encoder_axis4
+    import rs_pkg::*;
+#(
     parameter int SYMBOL_WIDTH     = 8,
     parameter int PRIM_POLY        = 'h11D,
     parameter int T_SYMBOLS        = 8,
@@ -102,7 +104,7 @@ module rs_encoder_axis4 #(
     // it as a mis-framed block outright (PRD D9b). rs_beat_packer closes it
     // up so a codeword leaves as ceil(N/S) beats with any partial one last.
     // At K % S == 0 there is nothing to pack and it is not built.
-    localparam bit NEED_PACK = (K_SYMBOLS % S != 0);
+    localparam bit NEED_PACK = rs_need_pack(K_SYMBOLS, S);
 
     if (DATA_WIDTH % SYMBOL_WIDTH != 0)
         $fatal(1, "rs_encoder_axis4: DATA_WIDTH %0d is not a whole number of %0d-bit symbols",

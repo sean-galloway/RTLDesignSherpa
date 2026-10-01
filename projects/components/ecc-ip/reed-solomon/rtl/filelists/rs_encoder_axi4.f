@@ -6,6 +6,7 @@
 # stream instead includes rs_encoder_axis4.f; one that wants the bare handshake
 # includes rs_encoder_core.f.
 
+-f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_pkg.f
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_encoder_core.f
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_axi4_engines.f
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_beat_packer.f

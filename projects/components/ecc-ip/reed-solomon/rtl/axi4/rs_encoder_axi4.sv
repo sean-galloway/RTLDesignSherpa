@@ -41,7 +41,9 @@
 //   - cfg_done is the WRITE engine's done ANDed with the read's: the job is
 //     finished when the codewords have been acknowledged by the destination,
 //     not when the last source beat was fetched.
-module rs_encoder_axi4 #(
+module rs_encoder_axi4
+    import rs_pkg::*;
+#(
     parameter int SYMBOL_WIDTH     = 8,
     parameter int PRIM_POLY        = 'h11D,
     parameter int T_SYMBOLS        = 8,
@@ -133,7 +135,7 @@ module rs_encoder_axi4 #(
     // decoder rejects. rs_beat_packer closes that up. At K % S == 0 there is
     // nothing to pack -- the core's own layout is already ceil(N/S) beats with
     // any partial last -- so the packer is not built and costs nothing.
-    localparam bit NEED_PACK = (K_SYMBOLS % S != 0);
+    localparam bit NEED_PACK = rs_need_pack(K_SYMBOLS, S);
 
     if (DATA_WIDTH % SYMBOL_WIDTH != 0)
         $fatal(1, "rs_encoder_axi4: DATA_WIDTH %0d is not a whole number of %0d-bit symbols",
