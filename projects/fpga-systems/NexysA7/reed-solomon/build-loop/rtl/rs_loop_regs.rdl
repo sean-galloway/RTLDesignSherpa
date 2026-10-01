@@ -109,7 +109,7 @@ addrmap rs_loop_regs {
         field { sw = r; hw = w; desc = "checker A CRC equals the generator's"; } crc_a_ok[7:7] = 0;
         field { sw = r; hw = w; } crc_b_ok[8:8] = 0;
         field { sw = r; hw = w; desc = "AXI4 datapath: a non-OKAY response on any stage, sticky"; } axi4_resp_err[10:10] = 0;
-        field { sw = r; hw = w; desc = "AXI4 datapath stage dones, bit 0 = seed, then encode, inject, decode, drain. Each is held from one run until the next kick, so a value of 0x1F means the whole chain completed."; } axi4_stage[15:11] = 0;
+        field { sw = r; hw = w; desc = "AXI4 datapath stage dones, bit 0 = seed, then encode, (inject), decode, drain. Bit 2 is always 0: the injector sits on the decoder read channel and has no stage of its own, so a complete chain reads 0x1B, not 0x1F. The field keeps five bits so the map did not move. Each bit is held from one run until the next kick."; } axi4_stage[15:11] = 0;
         field { sw = r; hw = w; desc = "AXI4 datapath: GEN_BLOCKS exceeds what the four memories hold, so the run would wrap and silently decode the wrong words. The run is refused rather than attempted."; } axi4_overflow[16:16] = 0;
         field { sw = r; hw = w; desc = "sticky: the two decoder streams did not run out together, so a beat is missing on one side. If this is set the beat and verdict mismatch counts are MEANINGLESS -- the streams are out of step, not disagreeing."; } cmp_misaligned[9:9] = 0;
     } STATUS @ 0x01C;

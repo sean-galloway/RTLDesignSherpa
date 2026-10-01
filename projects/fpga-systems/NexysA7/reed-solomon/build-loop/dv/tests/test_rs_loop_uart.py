@@ -358,8 +358,13 @@ async def cocotb_test_uart_axi4(dut):
                                (f"e={T}", rl.RsLoopDriver.INJ_COUNT, T),
                                (f"e={T + 1}", rl.RsLoopDriver.INJ_COUNT, T + 1)):
         r = await cocotb.external(lambda m=mode, c=count: progs.run(drv, m, count=c, blocks=3))()
-        assert r.axi4_stage == 0x1F, (
-            f"AXI4 {label}: chain stopped at stage 0x{r.axi4_stage:02X}, wanted 0x1F")
+        # progs.AXI4_STAGE_MASK, not a literal: the chain lost its inject stage
+        # when the injector moved onto the decoder's read channel, and a second
+        # copy of the expected value is how that change got caught here by a
+        # 42-minute cosim instead of by the host check it already fixed.
+        assert (r.axi4_stage & progs.AXI4_STAGE_MASK) == progs.AXI4_STAGE_MASK, (
+            f"AXI4 {label}: chain stopped at stage 0x{r.axi4_stage:02X}, "
+            f"wanted 0x{progs.AXI4_STAGE_MASK:02X}")
         assert not r.axi4_overflow, f"AXI4 {label}: run refused as oversized"
         _report(dut, f"AXI4 {label}", r)
 
