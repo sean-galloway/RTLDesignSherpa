@@ -160,10 +160,42 @@ The three were chosen as this task's acceptance named them, and they span the
 three distinct test structures in the tree (a `val/` Pattern A area, a bridge
 area, a dma-ip area). That is a reasoned sample, not a census.
 
-Independently covered afterwards: the **rapids** session ran its six areas at
-gate under 0.3.0 from `clean-all` to confirm nothing moved, having first checked
-that all of its own TASK-019 evidence (finishing 00:06 to 04:48) predated the
-05:22 dist-info stamp and so was not straddled by the change.
+Independently covered afterwards, and the result is in: the **rapids** session ran
+its six areas at gate under 0.3.0 from `clean-all` -- **500 passed, 0 failed**.
+
+| Area | Result | Time |
+| --- | --- | --- |
+| `fub` | 71 passed | 27 s |
+| `fub_beats` | 46 passed | 17 s |
+| `macro` | 184 passed | 2m39 |
+| `macro_beats` | 173 passed | 2m27 |
+| `top` | 14 passed | 5m10 |
+| `top_beats` | 12 passed | 4m46 |
+
+Cross-checked against the gate counts rapids TASK-019 recorded on 2026-09-29 --
+verified here against that file's Verification record, which reads
+`fub 71/0, fub_beats 46/0, macro 171/10 -> ... after, macro_beats 173/0,
+top 14/0, top_beats 12/0`. Five of six are identical. Only `macro` moved,
+171 -> 184, explained by cells added since that record (the three
+`test_stale_hold_junk` cells from the tstrb-masking fix, plus the byte
+channel-reset cells) rather than by this bump.
+
+**That takes coverage to 4 of 20 areas**, and adds the one structural gap the
+other three left: rapids exercises the Pattern B `projects/components` layout
+that `val/amba` does not.
+
+They also checked that their own TASK-019 evidence was not straddled by the
+change -- runs finishing 00:06 through 04:48 against the 05:22 dist-info stamp --
+before trusting counts recorded under 0.2.5. **That check is the one this task
+should have specified and did not**: a sign-off resting on recorded pass counts is
+exactly the artifact a silent toolchain move invalidates, and nothing in the
+counts themselves would ever show it. For the next bump, compare evidence
+timestamps against the dist-info stamp, not just announce the change.
+
+Deliberately NOT re-recorded in the rapids tracker, which is right: those
+full-level counts stand on their own dates under 0.2.5, and this gate run is a
+separate dated observation about the toolchain. Conflating the two is how a count
+ends up attached to the wrong tree.
 
 **For the next dependency bump: name the areas the matrix did not cover.** A
 total without a denominator reads as whole-tree coverage.
