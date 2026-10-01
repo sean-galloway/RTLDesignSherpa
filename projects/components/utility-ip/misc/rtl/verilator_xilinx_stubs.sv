@@ -114,4 +114,23 @@ module MMCME2_BASE #(
     assign LOCKED   = ~RST;
 endmodule : MMCME2_BASE
 
+// ---------------------------------------------------------------------------
+// IDELAYCTRL -- calibrates the IDELAYE2/ODELAYE2 primitives in a 7-series
+// IOB. Added 2026-10-01 for the scoria DDR3 board top, whose K7DDRPHY carries
+// 33 IDELAYE2 and 67 ODELAYE2 and no IDELAYCTRL of its own (LiteX instantiates
+// it at the SoC level).
+//
+// RDY is tied to ~RST and NOT modelled as a delay. On hardware RDY asserts
+// some time after RST releases, and a reset released before it is the classic
+// uncalibrated-delay failure -- every tap means nothing and the first read
+// window is garbage. A stub that asserts RDY instantly cannot show that, which
+// is one more reason this file must never reach a synthesis filelist.
+module IDELAYCTRL (
+    input  wire REFCLK,
+    input  wire RST,
+    output wire RDY
+);
+    assign RDY = ~RST;
+endmodule : IDELAYCTRL
+
 `endif

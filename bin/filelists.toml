@@ -273,6 +273,10 @@ filelist_dirs = [
     # registry exists: a broken `-f` in a generated filelist is otherwise
     # found by the Vivado run that fails to elaborate, 90 seconds in.
     "projects/fpga-systems/Genesys2/scoria/rtl/bridges/filelists",
+    # The scoria board build, the A-side of the A/B. Two lists: the synthesis
+    # closure and a lint variant that swaps the generated PHY for a blackbox
+    # stub and adds the Xilinx primitive stubs.
+    "projects/fpga-systems/Genesys2/scoria/build-scoria/rtl/filelists",
 ]
 
 [[area]]

@@ -65,8 +65,18 @@ module scoria_char_harness
     parameter int AXI_ID_WIDTH   = 8,
     parameter int CLK_HZ         = 80_000_000,
     // ---- tuning ranges ---------------------------------------------------
-    parameter int CMD_MAX_DELAY  = 15,
-    parameter int RDDATA_MAX_DELAY = 15,
+    // 8, matching pumice, and NOT 15 -- for a reason worth recording.
+    // dfi_cmd_delay clamps sel_i to MAX_DELAY so an out-of-range CSR cannot
+    // index past its register file, and SEL_W is $clog2(MAX_DELAY+1). At
+    // MAX_DELAY=15 that is 4 bits, every value a 4-bit sel_i can hold is in
+    // range, and the clamp becomes a comparison that can never fire, which
+    // lint flags CMPCONST -- and this flow treats warnings as fatal. The
+    // right long-term fix is in the shared block (guard the clamp with a
+    // generate so it only exists when it can act); 8 is the value pumice
+    // already runs, so both boards sweep the same range and a tuple found on
+    // one means the same thing on the other.
+    parameter int CMD_MAX_DELAY  = 8,
+    parameter int RDDATA_MAX_DELAY = 8,
     // ---- derived DFI bus widths -- do not override -----------------------
     parameter int DFI_DATA_WIDTH = DRAM_BEAT_WIDTH * DFI_RATE,
     parameter int DFI_STRB_WIDTH = DFI_DATA_WIDTH / 8,

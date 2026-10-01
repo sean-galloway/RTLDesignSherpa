@@ -1,0 +1,7 @@
+# The generated K7DDRPHY and its blackbox stub. Regenerate with `make phy` --
+# they are build output, not source. The thing under version control is
+# bin/gen_k7ddrphy.py, which produces them from LiteDRAM.
+rtl/generated/
+build/
+vivado*.jou
+vivado*.log
