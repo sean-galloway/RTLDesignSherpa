@@ -85,6 +85,31 @@ This is the [[silent-fallbacks]] pattern applied to your own tooling: the
 step that was supposed to protect the result is itself capable of failing
 quietly.
 
+### Editing the RTL does not guarantee a rebuild, and the fiction points BOTH ways
+
+`cocotb_test` decides whether to recompile by **content-hashing**, not by
+timestamp. So re-running a test after editing the RTL can skip the compile and
+measure the PREVIOUSLY built design. A `touch` does not help; only deleting the
+build directory does.
+
+This is worse than an ordinary stale-build false green, because the stale result
+is not reliably optimistic -- it is just *wrong in whichever direction the old
+binary happened to be*. The scoria session hit it mutation-testing FUBs
+(2026-09-30): three mutations read as "caught by the targeted case, **missed** by
+the random soak", which is a precise, plausible, actionable finding about soak
+coverage. It was fiction. With `rm -rf fub/local_sim_build/test_<name>_*` before
+each run, the soak caught all three. A plain false green at least fails in one
+known direction; this invents a coverage gap that does not exist and sends you to
+fix it.
+
+So any loop that edits RTL and re-runs pytest -- mutation testing above all, since
+its whole method is edit-then-measure -- needs an explicit build-directory delete
+per iteration, not a clean-all at the start and not a `touch`.
+
+**The tell is the same one as everywhere else in this note: duration.** A full
+case set that takes 70s from clean came back in 0.4s. Before believing any
+mutation verdict, check that the run was long enough to have compiled anything.
+
 ## The aggregator's area list is a claim, not a measurement
 
 `bin/aggregate_test_results.py` runs what `test_environments.toml` names in

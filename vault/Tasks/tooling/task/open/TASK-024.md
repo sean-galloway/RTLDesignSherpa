@@ -73,25 +73,61 @@ a program and belongs in `host/`. Their proposal is then
 `bin/seq_*.py` + `host/host_*.py`, and **retire `flows-<name>/host/run_*.py` as a
 third spelling of the second thing**.
 
-### Measured against the tree, because a rule that does not fit the files is not a rule
+### Measured against the tree: the rule has NO exceptions
 
-The test holds perfectly in one direction: **all 15 `seq_*.py` contain zero
-`ArgumentParser`**, and 28 of 32 `host_*.py` parse `argv`. So the sequence side is
-already clean and the rule largely describes reality rather than redesigning it.
+The test holds in one direction outright: **all 15 `seq_*.py` contain zero
+`ArgumentParser`**.
 
-**Six files would be reclassified** -- these are what the naming chapter actually
-has to rule on, not the easy majority:
+I first reported **six** files as exceptions, on the proxy "does it parse `argv`".
+**That proxy was wrong and it manufactured all six.** The Reed-Solomon session
+measured each one; none is a sequence, and none has the sequence SHAPE either --
+`def run(self, ctx)` and `ctx.bus` both appear **zero** times in all six
+(confirmed independently here). They are two legitimate categories:
 
-    Genesys2/rapids/flows-rapids/host/run_sink_once.py
-    Genesys2/rapids_beats/flows-rapids-beats/host/run_sink_once.py
-    Genesys2/stream/build-mon/host/host_mon_compress.py
-    Genesys2/stream/build-perf/host/host_bus_meters.py
-    Genesys2/stream/build-perf/host/host_desc_perf.py
-    Genesys2/stream/build-perf/host/host_rw_perf.py
+- **Four thin CLI shims** (21-33 lines): `host_mon_compress`, `host_bus_meters`,
+  `host_desc_perf`, `host_rw_perf`. Each bootstraps `sys.path` then does
+  `from <name> import main; sys.exit(main())`, and the `ArgumentParser` lives in
+  the same-named library in the area's `bin/` -- `bin/bus_meters.py`,
+  `bin/mon_compress.py`, `bin/desc_perf.py`, `bin/rw_perf.py`, exactly one each
+  (verified). The proxy looked in the shim instead of the library the shim calls.
+  Correctly filed programs.
+- **Two hardware debug scripts**: both `run_sink_once.py` (rapids and
+  rapids_beats -- **not** Reed-Solomon's; that area has nothing in this list).
+  They read `sys.argv[1]`/`[2]` positionally with a `/dev/ttyUSB1` default,
+  construct a real serial `RapidsByteIO`, take a hardware lock through
+  `board_guard.HardwareRun`, loop hunting an intermittent scheduler wedge, and
+  deliberately leave the board frozen for an ILA snapshot. They cannot run under
+  a cocotb channel, and `argv` has nothing to do with why.
 
-None parses `argv`, so the test calls them sequences while they live in `host/`.
-Either they are sequences misfiled, or the test needs a second clause. Decide this
-explicitly; do not let the chapter state a rule that six existing files break.
+**Do not add a second clause to the rule; replace the proxy.** The proposed
+mechanical check is **"does the file construct its own transport?"** -- grep for
+`UARTAxiBridge`, a `port=` argument, `find_port`, or a `/dev/tty` literal. A
+sequence RECEIVES `ctx.bus` and never constructs one, which is exactly the
+property that decides whether it runs unchanged in sim. Argparse presence is
+downstream of that and, as the four shims show, easy to delegate out of view.
+
+### The convention is already written down -- quote it
+
+`host_bus_meters.py:14` states it, and it predates the proposal above:
+
+> The implementation is `bin/bus_meters.py`, at COMPONENT level because it is a
+> LIBRARY as well as a program -- host_ext_char and the cosim tests import its
+> readers. **Entry points are `host_*` and live in a build; anything imported by
+> more than one of them lives in bin/.** This file is the CLI half of that split.
+
+The chapter should quote that line rather than paraphrase it.
+
+**And note what it does NOT say.** The rule is about the `host_*` PREFIX, not the
+directory. `build-loop/host/` holds `host_rs_loop.py` (the entry point, with the
+`ArgumentParser`) plus `rs_loop.py` and `rs_loop_programs.py` -- neither parses
+`argv`, both are correctly libraries sitting beside the entry point that uses them
+(verified). A rule phrased "files in `host/` parse argv" wrongly flags those two;
+"files named `host_*` are entry points" does not. Same distinction that makes
+stream's `bin/` libraries legitimate.
+
+A third category to NAME rather than relocate: hardware debug scripts. A script
+whose purpose is to freeze real silicon for a logic analyser is honest about what
+it is, and moving it buys nothing.
 
 ### Three things to put in the chapters, from the same session
 
