@@ -96,8 +96,31 @@ bus here is phase-multiplied by construction (`DFI_ADDR_BUS_W = ROW_WIDTH *
 DFI_RATE`, and so on) and LiteDRAM's `dfi_p0..p3_*` are per-phase for the same
 reason, so there is no packing step for either design to perform.
 
-Revisit this only if a power-managed target appears. See
-scoria-ddr3-lpddr3 TASK-003.
+**That justification is DDR3-scoped, and does not transfer to LPDDR3.** The
+argument above is parity with a DDR3 reference; LiteDRAM's DDR3 core says
+nothing about what an LPDDR3 part needs. LPDDR exists FOR power: self-refresh
+is a mobile part's normal idle state rather than an exotic mode, and LPDDR3
+adds **Deep Power Down**, which DDR3 does not have -- `scoria_pkg` already
+marks `OP_DPDE` "LPDDR3 only". DPD requires stopping the DRAM clock, which is
+`dfi_dram_clk_disable_o`, and that signal is `dfi_signal_pack`'s one function
+NOT covered by the phase-multiplied buses. `powerdown_ctrl`'s own v3 TODO names
+the dependency: DPD entry "needs `dfi_dram_clk_disable_o` cooperation from
+scoria_dfi_signal_pack". So for LPDDR3 the two are a PAIR, and both are
+load-bearing.
+
+What stands in the way is four gaps, not one wire:
+
+| Level | State today |
+|---|---|
+| `powerdown_ctrl` / `dfi_signal_pack` | not instantiated |
+| `scoria_top` / `scoria_dfi_layer` | no `dfi_cke` or `dfi_dram_clk_disable` port at all |
+| `scoria_dfi_cmd_formatter` | `OP_SREFE` / `OP_SREFX` / `OP_DPDE` fall to the `default:` arm and are driven as NOP |
+| `scoria_cmd_arbiter` | never picks any of those three ops |
+
+So the decision stands for the DDR3 target and must be re-made on LPDDR3's own
+terms the moment an LPDDR3 device is in scope. It also tips the housekeeping
+question: these two files are the starting point for that work, so keeping them
+dormant is worth more than deleting them. See scoria-ddr3-lpddr3 TASK-003.
 
 **Requirement for the DFI low-power ports.** scoria still exposes
 `dfi_lp_ctrl_req` and `dfi_lp_data_req`, because DFI v3.1 defines them and a

@@ -23,8 +23,35 @@ LiteDRAM's generated DDR3 core for the Genesys 2 has neither capability:
 | phase-packing block | none needed; `dfi_p0..p3_*` are per-phase by construction, as scoria's `× DFI_RATE` buses are |
 
 So scoria holding CKE high for ever, and having no CKE port, is PARITY with the
-controller that works on this hardware -- not a shortfall. Revisit only if a
-power-managed target appears.
+controller that works on this hardware -- not a shortfall.
+
+**The parity argument is DDR3-ONLY. For LPDDR3 both modules are needed.** A
+DDR3 reference says nothing about an LPDDR3 part's power behaviour, and LPDDR
+exists for power: self-refresh is a mobile part's normal idle state, and LPDDR3
+adds Deep Power Down, which DDR3 lacks -- `scoria_pkg` marks `OP_DPDE` "LPDDR3
+only". DPD needs the DRAM clock stopped, i.e. `dfi_dram_clk_disable_o`, and
+that is the one `dfi_signal_pack` output NOT already covered by the
+phase-multiplied buses (the other eleven are driven directly by cmd_path /
+wr_serializer / rd_aligner; `dfi_cke_o` and `dfi_dram_clk_disable_o` are the
+two with no port anywhere). `powerdown_ctrl`'s v3 TODO names the same pairing.
+
+**Keep them dormant rather than delete them**, on that basis: they are the
+starting point for LPDDR3 power management. Deleting costs more than the
+footnote they carry.
+
+Wiring them later is FOUR changes, not one:
+
+| Level | State today |
+|---|---|
+| the two modules | not instantiated |
+| `scoria_top` / `scoria_dfi_layer` | no `dfi_cke` or `dfi_dram_clk_disable` port |
+| `scoria_dfi_cmd_formatter` | `OP_SREFE`/`OP_SREFX`/`OP_DPDE` hit `default:` and go out as NOP |
+| `scoria_cmd_arbiter` | never picks those three ops |
+
+Nothing scoria can RUN today needs any of it: no board in the repo carries an
+LPDDR3 device, so LPDDR3 mode is unexercisable on hardware. Re-make this
+decision when an LPDDR3 target is in scope -- do not read the DDR3 parity
+finding as settling it.
 
 **Found while sweeping every FUB for a unit test:** the two with no
 instantiation are also the two with no test, and a test for a module no build
@@ -52,14 +79,10 @@ and `scoria_dfi_rd_aligner`, and does the phase/CKE/ODT work inline -- which is
 
 ## What is left to choose
 
-Only housekeeping, and the two options are close in value:
-
-- **Leave both dormant.** Zero risk, and `powerdown_ctrl` is a working starting
-  point if a power-managed target ever appears. Cost: both stay in the lint
-  closure (deliberately -- a module outside it is one nothing checks) and the
-  next reader has to re-learn that they are not in the design.
-- **Delete both.** Recoverable from git. Removes the "26 FUBs, 24 in the
-  design" footnote permanently.
+Housekeeping only, and the LPDDR3 finding above settles it: **leave both
+dormant** and put a one-line note in each header saying so, so the next sweep
+does not re-open this. Deleting them would discard the starting point for
+LPDDR3 power management to save a footnote.
 
 If `powerdown_ctrl` is ever wired, its header names two asymmetries to resolve
 first: a grant arriving in the same cycle as new activity is dropped while the
