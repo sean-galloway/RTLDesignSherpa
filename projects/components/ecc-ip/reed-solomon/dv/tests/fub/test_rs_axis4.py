@@ -46,6 +46,7 @@ async def cocotb_test_rs_encoder_axis(dut):
     await tb.setup_clocks_and_reset()
     ok = await tb.run_stream()
     ok &= await tb.run_backpressure()
+    ok &= await tb.run_no_dead_cycles()
     report = tb.get_test_report()
     tb.log.info(f"Test report: {report}")
     assert ok, f"rs_encoder_axis4: {report['mismatches']} mismatches in {report['checks']} checks"
@@ -57,6 +58,7 @@ async def cocotb_test_rs_decoder_axis(dut):
     await tb.setup_clocks_and_reset()
     ok = await tb.run_stream()
     ok &= await tb.run_backpressure()
+    ok &= await tb.run_no_dead_cycles()
     report = tb.get_test_report()
     tb.log.info(f"Test report: {report}")
     assert ok, f"rs_decoder_axis4: {report['mismatches']} mismatches in {report['checks']} checks"

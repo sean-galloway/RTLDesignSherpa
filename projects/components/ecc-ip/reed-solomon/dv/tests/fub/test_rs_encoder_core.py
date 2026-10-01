@@ -49,6 +49,7 @@ async def cocotb_test_rs_encoder_core(dut):
     ok &= await tb.run_backpressure()
     ok &= await tb.run_framing()
     ok &= await tb.run_throughput()
+    ok &= await tb.run_no_dead_cycles()
     report = tb.get_test_report()
     tb.log.info(f"Test report: {report}")
     assert ok, f"rs_encoder_core: {report['mismatches']} mismatches in {report['checks']} checks"

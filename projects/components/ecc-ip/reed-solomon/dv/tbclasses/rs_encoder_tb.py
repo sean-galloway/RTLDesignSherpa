@@ -290,6 +290,55 @@ class RSEncoderTB(TBBase):
             self.log.error(f"throughput: {elapsed} cycles exceeds {bound}")
         return self.mismatches == 0
 
+    async def run_no_dead_cycles(self):
+        """The per-block cost must be the codeword's beats and nothing more.
+
+        run_throughput above bounds ONE block's absolute time with a margin,
+        which cannot see a per-block gap: a fixed margin absorbs it, and the
+        latency it is really measuring is free anyway. This measures the SLOPE
+        over 4 then 8 blocks, so every fixed cost -- the first handshake, the
+        skid fill, the parity flush -- cancels, and what is left is purely the
+        per-block increment. That is the number the bus sees.
+
+        A codeword is K_BEATS + P_BEATS, because the encoder starts parity on
+        a FRESH beat; so expected_beats() cycles per block IS line rate, and
+        anything above it is a dead cycle at the block boundary.
+        """
+        self.set_profile('backtoback')
+        nb = self.expected_beats(self.K)
+        took = {}
+        for blocks in (4, 8):
+            self.slave._recvQ.clear()
+            datas = [self._random_block() for _ in range(blocks)]
+            for d in datas:
+                await self.send_block(d, wait=False)
+            cycles, start = 0, None
+            while len(self.slave._recvQ) < blocks * nb:
+                await RisingEdge(self.clk)
+                cycles += 1
+                if start is None and int(self.dut.in_valid.value) and int(self.dut.in_ready.value):
+                    start = cycles
+                if cycles > 40 * self.N * blocks + 400:
+                    break
+            out = [(int(p.data), int(p.keep), int(p.last)) for p in self.slave._recvQ]
+            self.slave._recvQ.clear()
+            for i, d in enumerate(datas):
+                self._score_block(f"slope {blocks} blk {i}", d, out[i * nb:(i + 1) * nb])
+            took[blocks] = cycles - (start or 0)
+
+        slope = (took[8] - took[4]) / 4.0
+        dead = slope - nb
+        self.checks += 1
+        self.log.info(f"no-dead-cycles: {took[4]} cycles for 4 blocks, {took[8]} for 8 "
+                      f"-> slope {slope:.2f} cycles/block vs codeword {nb} beats "
+                      f"({dead:+.2f} dead per block)")
+        if dead > 0.25:
+            self.mismatches += 1
+            self.log.error(f"{dead:.2f} DEAD cycles per block: the slope is {slope:.2f} "
+                           f"against a codeword of {nb} beats. Latency is free; a gap at "
+                           f"the block boundary is not.")
+        return self.mismatches == 0
+
     def get_test_report(self):
         return {'checks': self.checks, 'mismatches': self.mismatches,
                 'frame_err_pulses': self.frame_err_count}

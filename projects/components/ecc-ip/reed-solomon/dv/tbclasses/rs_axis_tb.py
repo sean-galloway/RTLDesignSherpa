@@ -129,13 +129,24 @@ class RSAxisTB(TBBase):
         return syms
 
     # -- stimulus ------------------------------------------------------------
-    async def _send(self, symbols, tid, tdest):
+    async def _send(self, symbols, tid, tdest, wait=True):
+        """Drive one block's beats.
+
+        wait=True awaits each packet's COMPLETION, which leaves a gap between
+        beats -- fine for per-block checks, useless for measuring throughput,
+        because what you then measure is the BFM's send rate and not the DUT's.
+        wait=False queues into the driver instead, which is what keeps tvalid
+        asserted back to back.
+        """
         for word, strb, last in self.beats_of(symbols):
             # the packet's fields are data/strb/last/id/dest/user -- the AXIS
             # field config drops the 't' prefix the SIGNALS carry
             pkt = self.master.create_packet(
                 data=word, strb=strb, last=int(last), id=tid, dest=tdest, user=0)
-            await self.master.send(pkt)
+            if wait:
+                await self.master.send(pkt)
+            else:
+                await self.master._driver_send(pkt, sync=True)
 
     def _status_at_last(self):
         """The verdict as a consumer sees it: sampled at m_axis_tlast.
@@ -271,6 +282,65 @@ class RSAxisTB(TBBase):
             if ok or corr != e:
                 self._fail(f"{label}: e={e} should read ok=0 corrected={e}, got ok={ok} "
                            f"corrected={corr}")
+
+    async def run_no_dead_cycles(self):
+        """The per-block cost through the WRAPPER must be the codeword's beats.
+
+        run_stream checks one block at a time and never looks at the cost of
+        the boundary between two, so wrapper overhead that only shows up
+        back-to-back is invisible to it. This measures the SLOPE over 4 then 8
+        blocks, which cancels the skid fill, the solve and the drain -- all
+        latency, all free -- and leaves the per-block increment.
+
+        The codeword is ceil(n/S) beats and it is the wide side of both roles,
+        so that count IS line rate however the message side is shaped.
+        """
+        self.set_profile('backtoback')
+        rnd = random.Random(0x51095)
+        cw_beats = (self.n + self.s - 1) // self.s
+        out_syms = self.n if self.role == 'encoder' else self.k
+        out_beats = (out_syms + self.s - 1) // self.s
+        took = {}
+        for blocks in (4, 8):
+            self._rx.clear()
+            msgs = [[rnd.randrange(1 << self.m) for _ in range(self.k)]
+                    for _ in range(blocks)]
+
+            async def drive(msgs=msgs):
+                for msg in msgs:
+                    payload = msg if self.role == 'encoder' else self.gold_encode(msg)
+                    await self._send(payload, 0, 0, wait=False)
+
+            cocotb.start_soon(drive())
+            cycles, start = 0, None
+            while len(self._rx) < blocks * out_beats:
+                await RisingEdge(self.dut.aclk)
+                cycles += 1
+                if start is None and int(self.dut.s_axis_tvalid.value) \
+                        and int(self.dut.s_axis_tready.value):
+                    start = cycles
+                if cycles > 40 * self.n * blocks + 4000:
+                    break
+            got = await self._collect(blocks * out_beats, timeout_cycles=200)
+            for i, msg in enumerate(msgs):
+                want = self.gold_encode(msg) if self.role == 'encoder' else msg
+                self._score(f"slope {blocks} blk {i}",
+                            got[i * out_beats:(i + 1) * out_beats], want, 0, 0)
+            took[blocks] = cycles - (start or 0)
+
+        slope = (took[8] - took[4]) / 4.0
+        dead = slope - cw_beats
+        self.checks += 1
+        self.log.info(f"no-dead-cycles ({self.role}): {took[4]} cycles for 4 blocks, "
+                      f"{took[8]} for 8 -> slope {slope:.2f} cycles/block vs codeword "
+                      f"{cw_beats} beats ({dead:+.2f} dead per block)")
+        if dead > 0.25:
+            self.mismatches += 1
+            self.log.error(f"{dead:.2f} DEAD cycles per block through the {self.role} "
+                           f"wrapper: slope {slope:.2f} against a codeword of "
+                           f"{cw_beats} beats. Latency is free; a gap at the block "
+                           f"boundary is not.")
+        return self.mismatches == 0
 
     async def run_backpressure(self):
         """The same blocks under randomized valid/ready on both sides.

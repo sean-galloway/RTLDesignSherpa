@@ -64,6 +64,13 @@ module rs_beat_packer #(
     logic [ACC*M-1:0] r_acc;
     logic [HW-1:0]    r_held;
     logic             r_flush;                     // in_last seen, tail pending
+    // While flushing, how many of the held symbols belong to the block being
+    // closed out. The accumulator is a symbol FIFO -- oldest in the low lanes
+    // -- so the next block's head can sit ABOVE the tail without mixing with
+    // it, and this count is all that is needed to keep the beat boundary.
+    // Without it the flush has to refuse input for the two cycles the tail
+    // takes, which is a dead cycle at every block boundary.
+    logic [HW-1:0]    r_cur;
 
     // -- how many symbols this input beat carries --------------------------
     logic [HW-1:0] w_cnt;
@@ -72,38 +79,56 @@ module rs_beat_packer #(
         for (int j = 0; j < S; j++) if (in_keep[j]) w_cnt = w_cnt + HW'(1);
     end
 
+    logic             w_in_fire, w_out_fire;
+    logic [HW-1:0]    w_avail;        // symbols eligible to leave this cycle
+    logic [HW-1:0]    w_shift;        // symbols leaving
+    logic [HW-1:0]    w_base;         // where an accepted beat appends
+    logic [DATA_WIDTH-1:0] w_masked;
+
     // -- handshakes --------------------------------------------------------
-    // Accept while at most S are held: cnt <= S, so 2S is always enough.
+    // Accept while this beat FITS after whatever leaves this cycle. The old
+    // condition was `r_held <= S`, which is conservative and costs a beat
+    // every other cycle once a partial beat has left r_held at a non-multiple
+    // of S: at S = 4 the count oscillates 3 -> 7 -> 3, and at 7 the input is
+    // refused even though the emit in the same cycle makes room for it. The
+    // encoder's parity beats all arrive in that state, so RS(255,239) at 4
+    // symbols/beat lost 4 cycles per block to it, plus one to the flush.
+    //
+    // Room must be measured AFTER this cycle's emit (w_base, not r_held),
+    // which is what lets one beat in and one beat out in the same cycle. That
+    // makes in_ready depend on out_ready; it is a ready-to-ready path, not a
+    // valid/ready loop -- out_valid is a function of the registers only.
+    //
     // Hold off during a flush so the tail of one block cannot be mixed with
     // the head of the next.
-    assign in_ready  = (r_held <= HW'(S)) && !r_flush;
-    assign out_valid = (r_held >= HW'(S)) || (r_flush && (r_held != '0));
+    // A beat carrying in_last is refused while a flush is still pending, so
+    // only one block can ever be closing at a time. That costs a cycle only
+    // for a block short enough to arrive inside the flush, which no profile
+    // here produces.
+    assign in_ready  = (w_cnt <= (HW'(ACC) - w_base)) && !(r_flush && in_last);
+    assign w_avail   = r_flush ? r_cur : r_held;
+    assign out_valid = (w_avail >= HW'(S)) || (r_flush && (w_avail != '0));
 
     // A full beat unless this is the block's tail. out_last rides the final
     // emit: with the flush pending and no more than S held, this is it.
     logic w_full_beat;
-    assign w_full_beat = (r_held >= HW'(S));
-    assign out_last    = r_flush && (r_held <= HW'(S));
+    assign w_full_beat = (w_avail >= HW'(S));
+    assign out_last    = r_flush && (w_avail <= HW'(S)) && (w_avail != '0);
     assign out_data    = r_acc[0 +: DATA_WIDTH];
 
     always_comb begin
         out_keep = {S{1'b1}};
         if (!w_full_beat)
-            for (int j = 0; j < S; j++) out_keep[j] = (HW'(j) < r_held);
+            for (int j = 0; j < S; j++) out_keep[j] = (HW'(j) < w_avail);
     end
 
     // -- the accumulator ---------------------------------------------------
-    logic             w_in_fire, w_out_fire;
-    logic [HW-1:0]    w_shift;        // symbols leaving
-    logic [HW-1:0]    w_base;         // where an accepted beat appends
-    logic [DATA_WIDTH-1:0] w_masked;
-
     assign w_in_fire  = in_valid  && in_ready;
     assign w_out_fire = out_valid && out_ready;
 
     always_comb begin
         w_shift = '0;
-        if (w_out_fire) w_shift = w_full_beat ? HW'(S) : r_held;
+        if (w_out_fire) w_shift = w_full_beat ? HW'(S) : w_avail;
         w_base = r_held - w_shift;
         // only the kept lanes carry meaning; zero the rest so the append is
         // a clean OR rather than depending on what the producer left behind
@@ -140,12 +165,22 @@ module rs_beat_packer #(
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
-            r_acc <= '0; r_held <= '0; r_flush <= 1'b0;
+            r_acc <= '0; r_held <= '0; r_flush <= 1'b0; r_cur <= '0;
         end else begin
             r_acc  <= w_next_acc;
             r_held <= w_base + (w_in_fire ? w_cnt : HW'(0));
-            if (w_in_fire && in_last)        r_flush <= 1'b1;
-            else if (w_out_fire && out_last) r_flush <= 1'b0;
+            if (w_in_fire && in_last) begin
+                // this beat completes the block: everything held after this
+                // cycle's emit belongs to it, and nothing newer can arrive
+                // until the flush clears
+                r_flush <= 1'b1;
+                r_cur   <= w_base + w_cnt;
+            end else if (w_out_fire && out_last) begin
+                r_flush <= 1'b0;
+                r_cur   <= '0;
+            end else if (r_flush) begin
+                r_cur   <= r_cur - w_shift;
+            end
         end
     end
 
