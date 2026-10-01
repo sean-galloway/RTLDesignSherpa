@@ -12,16 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 4 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 20 | done (kept for history) |
+| [closed/](closed/) | 21 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **TASK-020** — pilot cocotb-test 0.3.0 (it removes the `cocotb.config` import that makes cocotb 2.x a landmine for every cocotb_test-based test in the tree), then decide whether cocotb 2.x is reachable at all
-- **TASK-023** (P2) — `env_python` resolves its own root with `git rev-parse --show-toplevel`, so sourcing it from another repo's tree silently activates THAT tree's venv; from the RDS-DV tree it imports a stale 0.6.7 snapshot that self-reports 0.6.1, which is the mechanism behind a real misdiagnosis of 9 test failures
 - **TASK-022** (P1) — the FPGA flow lock is keyed on the build directory, so two areas can drive one board; a harness records the sha256 it programmed rather than what is on the device, so a mid-run reprogram publishes someone else's measurements with no error at all
 
 
@@ -34,6 +33,7 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-023** — `env_python` resolved its own root from where the CALLER stood, so it could silently activate another repo's venv -- CLOSED 2026-09-30: REPO_ROOT from BASH_SOURCE, worktrees share the main checkout's venv via --git-common-dir, a missing venv fails with rc=1; 5-case matrix measured before/after under `env -i`, plus a real 20.43s sim
 - **TASK-021** — cocotb-framework's `__version__` drifted from pyproject for six releases (published 0.6.7 self-reported 0.6.1) -- CLOSED 2026-09-30: setuptools dynamic version in RDS-DV `4713ef8` makes the module literal the single source; 5-test guard + a `unit-tests` CI job; verified live (1509 passed, ZERO skips) and mutation-tested 4 ways
 - **TASK-019** — filelist_utils.tcl exists as eight copies and seven do not treat // as a comment -- CLOSED 2026-09-29: one make/tcl/filelist_utils.tcl sourced by all 8 flows + the Quartus sweep; 7 copies deleted; Tcl/Python agreement test
 - **TASK-018** — `formal/Makefile`'s `formal:` list reaches every area except `apbx_xbar` (5 proofs) and `bridge` (1), so 6 proofs never run unattended; the same file's comments warn about exactly this omission twice already. -- CLOSED 2026-09-29: formal-apbx-xbar + formal-bridge in the formal: list; area Makefiles discover <dir>/<dir>.sby; 7/7 tasks PASS=14

@@ -3,8 +3,27 @@
 
 # Ensure this is sourced: `source env_python` (don't just run it)
 
-# Set the root of the git repo as REPO_ROOT (dynamically from git)
-export REPO_ROOT=$(git rev-parse --show-toplevel)
+# REPO_ROOT comes from where THIS FILE LIVES, not from where you are standing.
+#
+# It used to be `git rev-parse --show-toplevel`, i.e. the root of whatever repo
+# the shell happened to be in. A script that locates itself by asking where the
+# caller stands finds the wrong thing the moment you stand somewhere else, and
+# there was no check that the answer was this repo at all. Two measured failures
+# (tooling TASK-023):
+#
+#   - Sourced from the RTLDesignSherpa-DV tree, REPO_ROOT became the DV root and
+#     the venv activated was DV's -- holding a stale 0.6.7 snapshot that
+#     self-reports __version__ 0.6.1. Nothing errored. Every *_ROOT below also
+#     pointed into the wrong tree. This is the mechanism behind a real
+#     misdiagnosis of 9 test failures as a code defect.
+#   - Sourced from a directory that is not a git repo at all (/tmp), git failed,
+#     REPO_ROOT was set to the EMPTY STRING, and every path below resolved from
+#     `/`. The venv activate silently failed and the shell ran on system python.
+#
+# BASH_SOURCE[0] is this file, because this file is sourced. That is the only
+# answer that does not depend on the caller.
+_rtlds_self="${BASH_SOURCE[0]:-$0}"
+export REPO_ROOT="$(cd "$(dirname "$_rtlds_self")" && pwd)"
 
 export APB_XBAR_ROOT=$REPO_ROOT/projects/components/fabric-gen-ip/apbx-xbar
 export BCH_ROOT=$REPO_ROOT/projects/components/bch
@@ -30,8 +49,38 @@ export STREAM_CHAR_FRAMEWORK_ROOT=$REPO_ROOT/projects/fpga-systems/Genesys2/stre
 export DDR2_CHAR_FRAMEWORK_ROOT=$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework
 export TIMING_CHAR_ROOT=$REPO_ROOT/projects/asic-trials/timing_characterization
 
-# Activate venv (use absolute path from REPO_ROOT)
-source $REPO_ROOT/venv/bin/activate
+# Activate the venv, and FAIL if there isn't one.
+#
+# WORKTREE POLICY: a worktree shares the main checkout's venv. A worktree is the
+# same codebase at a different commit, and this venv is ~1GB of tools -- one per
+# worktree is not a tradeoff anyone would choose. The main checkout is found from
+# `--git-common-dir`, which is the one git query that asks about THIS repo rather
+# than about the caller. Two worktrees existed when this was written and neither
+# had a venv, so before this they both silently ran on system python.
+_rtlds_venv="$REPO_ROOT"
+if [ ! -f "$REPO_ROOT/venv/bin/activate" ]; then
+    _rtlds_common="$(cd "$REPO_ROOT" 2>/dev/null && cd "$(git rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null && pwd)"
+    if [ -n "$_rtlds_common" ] && [ -f "$(dirname "$_rtlds_common")/venv/bin/activate" ]; then
+        _rtlds_venv="$(dirname "$_rtlds_common")"
+        echo "[env_python] worktree: sharing the main checkout's venv ($_rtlds_venv/venv)"
+    fi
+fi
+if [ -f "$_rtlds_venv/venv/bin/activate" ]; then
+    source "$_rtlds_venv/venv/bin/activate"
+else
+    # Loudly, and non-zero. Continuing here is what handed sessions a working
+    # system python with none of the tooling in it -- a shell that looks fine
+    # and fails later, somewhere unrelated.
+    echo "[env_python] ERROR: no venv found for $REPO_ROOT" >&2
+    echo "[env_python]   expected $REPO_ROOT/venv/bin/activate" >&2
+    echo "[env_python]   create it with: python3 -m venv venv && source venv/bin/activate" >&2
+    echo "[env_python]                   pip install -r requirements.txt" >&2
+    unset _rtlds_self _rtlds_common
+    return 1 2>/dev/null || exit 1
+fi
+# Exported because it is NOT always $REPO_ROOT/venv (see the worktree policy).
+export RTLDS_VENV_ROOT="$_rtlds_venv"
+unset _rtlds_self _rtlds_common _rtlds_venv
 
 # Add Verible binaries to PATH
 export PATH="$PATH:/home/seang/github/verible-v0.0-3999-g93adb37c/bin/"
@@ -43,7 +92,7 @@ export VERIBLE_WAIVER_FILES="$REPO_ROOT/tools/lint/verible_style_waivers.txt"
 export PATH="$REPO_ROOT/bin:$PATH"
 export PATH="$REPO_ROOT/bin/vcd2wavedrom2:$PATH"
 export PATH="$REPO_ROOT/bin/rtl_generators/axi:$PATH"
-export PATH="$REPO_ROOT/venv/bin/yowasp-yosys:$PATH"  # optional: should this be in $REPO_ROOT/bin?
+export PATH="$RTLDS_VENV_ROOT/venv/bin/yowasp-yosys:$PATH"  # optional: should this be in $REPO_ROOT/bin?
 
 # Add Python modules to PYTHONPATH
 export PYTHONPATH="$REPO_ROOT:$PYTHONPATH"

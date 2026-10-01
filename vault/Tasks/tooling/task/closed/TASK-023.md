@@ -1,7 +1,7 @@
 # TASK-023: env_python picks the venv from where you STAND, not from where it LIVES, so it can silently activate another repo's
 
 **Priority:** P2
-**Status:** open
+**Status:** CLOSED 2026-09-30 -- REPO_ROOT comes from BASH_SOURCE; worktrees share the main venv; a missing venv now fails loudly
 **Owner:** TBD
 **Filed:** 2026-09-30 (found while mutation-testing the TASK-021 version guard)
 
@@ -111,3 +111,66 @@ editing infrastructure every peer sources.
   that repo's own script safe
 - [[TASK-021]] -- the version drift that made the stale snapshot detectable, and
   whose mutation test surfaced this
+
+## Closed 2026-09-30
+
+Three changes in `env_python`, all of them in the two places the task named.
+
+**1. `REPO_ROOT` from `BASH_SOURCE[0]`, not from git.** The file is sourced, so
+`BASH_SOURCE[0]` is the file -- the only answer that does not depend on the
+caller. `git rev-parse --show-toplevel` is gone from the resolution entirely.
+
+**2. Worktree policy, decided and encoded.** A worktree **shares the main
+checkout's venv**, found via `git rev-parse --git-common-dir` -- the one git query
+that asks about this repo rather than about the caller. Rationale, in the file: a
+worktree is the same codebase at a different commit, and the venv is ~1GB of
+tools; one per worktree is not a tradeoff anyone would pick. It announces itself
+rather than being silent.
+
+**3. A missing venv is an error, not a shrug.** It prints what it expected and how
+to create it, then `return 1 2>/dev/null || exit 1` so it works sourced or run.
+This is the behaviour change, and it is safe: Makefiles only MENTION `env_python`
+in comments and `$(error)` when `REPO_ROOT` is unset -- **nothing sources it inside
+a recipe**, so a nonzero return cannot break a build. Checked before changing it.
+
+`RTLDS_VENV_ROOT` is exported because the venv is no longer always
+`$REPO_ROOT/venv`, and the `yowasp-yosys` PATH entry (which hardcoded
+`$REPO_ROOT/venv`) now reads it.
+
+### Measured, before and after, each in `env -i` so nothing is inherited
+
+| cwd + script | before | after |
+| --- | --- | --- |
+| main repo | correct | correct |
+| main subdir | correct | correct |
+| **the RDS-DV tree** | REPO_ROOT=DV root, **DV's venv** (stale 0.6.7 / reports 0.6.1) | REPO_ROOT=main, main's venv |
+| **a worktree** | activate fails, continues, **system python** | REPO_ROOT=worktree, main's venv, announced |
+| **a non-git dir (/tmp)** | **REPO_ROOT empty**, paths resolve from `/`, system python | REPO_ROOT=main, main's venv |
+| no venv anywhere | silent, rc=0, system python | 4-line error, **rc=1** |
+
+A measurement trap worth recording, because it produced a confident wrong result
+twice. The first "before" reading said the worktree case already used the main
+venv -- it does not. Two separate contaminations: this session's own shell has the
+venv active, so an inherited `PATH` answered `which python3`; and piping the
+source through `tail` runs it in a subshell, so the exports never reach the
+checking shell and `REPO_ROOT` read as empty regardless. Use `env -i` and do not
+pipe the `source`.
+
+The third false reading: testing the worktree case against the EXISTING worktree
+measured the OLD `env_python`, because a worktree is checked out at its own commit
+(`5eb25f79c`) and does not see uncommitted edits to the main tree. `grep -c
+BASH_SOURCE` on it returned 0. A throwaway `git worktree add --detach ... HEAD`
+with the new file copied in is what actually tested it. Peer worktrees were not
+written to.
+
+### Verification
+
+- 5-case matrix above, plus the error path and variable hygiene (no `_rtlds_*`
+  leaks into the caller's shell).
+- End to end, not just resolution: `source env_python` then a real
+  verilator/cocotb run -- `val/common/test_counter_bin.py` **2 passed in 20.43s**.
+  The duration is the point; a sub-second pass would have meant a stale build and
+  proved nothing about the environment.
+- 43 python tests across `test_uart_link.py` and the tracker teeth tests.
+- `SIM=verilator`, `which verilator` -> the oss-cad-suite build, `REPO_ROOT`
+  correct.
