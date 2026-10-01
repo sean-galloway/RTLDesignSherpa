@@ -667,12 +667,12 @@ async def run_per_channel_sequential_test(tb, xfer_beats, num_channels, sram_dep
         # Check data_available signal
         try:
             data_available_signal = getattr(tb.dut, 'axi_wr_drain_data_avail')
-            data_available = data_available_signal.value
+            data_available = int(data_available_signal.value)
 
             # Extract this channel's data_available (variable width packed array)
             if num_channels > 1:
                 # Multi-channel: packed array [NC-1:0][COUNT_WIDTH-1:0]
-                count_width = data_available_signal.value.n_bits // num_channels
+                count_width = len(data_available_signal.value) // num_channels
                 # Extract bits for this channel
                 ch_start_bit = channel_id * count_width
                 ch_end_bit = (channel_id + 1) * count_width - 1
@@ -740,10 +740,10 @@ async def run_per_channel_sequential_test(tb, xfer_beats, num_channels, sram_dep
         # Step 5: Verify channel is completely drained
         try:
             data_available_signal = getattr(tb.dut, 'axi_wr_drain_data_avail')
-            data_available = data_available_signal.value
+            data_available = int(data_available_signal.value)
 
             if num_channels > 1:
-                count_width = data_available_signal.value.n_bits // num_channels
+                count_width = len(data_available_signal.value) // num_channels
                 ch_start_bit = channel_id * count_width
                 ch_data_avail_bits = (data_available >> ch_start_bit) & ((1 << count_width) - 1)
                 ch_data_avail = int(ch_data_avail_bits)
@@ -785,7 +785,7 @@ async def run_per_channel_sequential_test(tb, xfer_beats, num_channels, sram_dep
                 await tb.wait_clocks('clk', 10)
 
                 # Check again
-                data_available = data_available_signal.value
+                data_available = int(data_available_signal.value)
                 if num_channels > 1:
                     ch_data_avail_bits = (data_available >> ch_start_bit) & ((1 << count_width) - 1)
                     ch_data_avail = int(ch_data_avail_bits)

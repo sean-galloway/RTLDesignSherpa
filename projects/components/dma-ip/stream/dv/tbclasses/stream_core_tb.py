@@ -1557,8 +1557,8 @@ class StreamCoreTB(TBBase):
 
             # Set channel's address and assert valid
             # Note: apb_addr, apb_valid, apb_ready are vectored per-channel
-            current_apb_addr = self.dut.apb_addr.value
-            current_apb_valid = self.dut.apb_valid.value
+            current_apb_addr = int(self.dut.apb_addr.value)
+            current_apb_valid = int(self.dut.apb_valid.value)
 
             # Create mutable copy
             apb_addr_list = [int((current_apb_addr >> (i * self.addr_width)) & ((1 << self.addr_width) - 1))
@@ -1582,7 +1582,7 @@ class StreamCoreTB(TBBase):
             for _ in range(100):  # Timeout after 100 cycles
                 await RisingEdge(self.clk)
                 await ReadOnly()
-                apb_ready = self.dut.apb_ready.value
+                apb_ready = int(self.dut.apb_ready.value)
                 if (apb_ready >> channel) & 1:
                     break
 

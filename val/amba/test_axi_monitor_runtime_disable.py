@@ -94,7 +94,7 @@ async def phase_runtime_disabled_compl(tb) -> list:
     tb.log.info("PHASE A: cfg_compl_enable=0 steady state, drive > MAX transactions")
 
     depth = len(tb.read_table())
-    id_mask = (1 << int(tb.dut.cmd_id.value.n_bits)) - 1
+    id_mask = (1 << len(tb.dut.cmd_id.value)) - 1
 
     tb.clear_packets()
     tb.dut.cfg_compl_enable.value = 0     # runtime disable, logic compiled in
@@ -151,7 +151,7 @@ async def phase_backpressure_toggle(tb) -> list:
     tb.log.info("PHASE B: FIFO-backpressure then runtime disable (toggle leak path)")
 
     depth = len(tb.read_table())
-    id_mask = (1 << int(tb.dut.cmd_id.value.n_bits)) - 1
+    id_mask = (1 << len(tb.dut.cmd_id.value)) - 1
 
     tb.clear_packets()
     tb.dut.cfg_compl_enable.value = 1

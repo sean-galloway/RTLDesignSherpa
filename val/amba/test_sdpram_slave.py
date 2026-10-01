@@ -82,7 +82,7 @@ async def _axi_write_burst(dut, addr, beats, size_log2, burst_type, awid=0,
     2=WRAP. Returns BRESP.
     """
     n = len(beats)
-    full_strb = (1 << (int(dut.s_axi_wdata.value.n_bits) // 8)) - 1
+    full_strb = (1 << (len(dut.s_axi_wdata.value) // 8)) - 1
     if strb is None:
         strb = full_strb
 

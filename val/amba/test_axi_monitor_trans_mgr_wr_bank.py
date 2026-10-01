@@ -167,7 +167,7 @@ class AxiMonitorTransMgrWrBankTB(TBBase):
 
         await RisingEdge(self.dut.aclk)
 
-        rtl_width = self.dut.w_trans_table[0].value.n_bits
+        rtl_width = len(self.dut.w_trans_table[0].value)
         assert rtl_width == TRANS_WIDTH, (
             f"bus_transaction_t is {rtl_width} bits but this test decodes "
             f"{TRANS_WIDTH}. Update TRANS_FIELDS in "

@@ -247,7 +247,7 @@ class AxiMonitorTransMgrTB(TBBase):
         """Fail loudly if bus_transaction_t no longer matches TRANS_FIELDS."""
         if self.is_lite:
             return
-        rtl_width = self.dut.w_trans_table[0].value.n_bits
+        rtl_width = len(self.dut.w_trans_table[0].value)
         assert rtl_width == TRANS_WIDTH, (
             f"bus_transaction_t is {rtl_width} bits but this test decodes "
             f"{TRANS_WIDTH}. Update TRANS_FIELDS in {__file__} to match "
@@ -704,7 +704,7 @@ async def phase_saturation_recovers(tb) -> list:
 
     tb.clear_packets()
     depth = len(tb.read_table())
-    id_mask = (1 << int(tb.dut.cmd_id.value.n_bits)) - 1
+    id_mask = (1 << len(tb.dut.cmd_id.value)) - 1
     tb.log.info(f"table depth = {depth}, id_mask = 0x{id_mask:X}")
 
     # Emulate the wrapper's gating exactly:  cmd_ready = core_ready & block_ready.

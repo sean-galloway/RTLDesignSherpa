@@ -1,7 +1,18 @@
 """Find locals assigned from `<x>.value` that are later used in arithmetic.
 
-Regex cannot see this: the assignment and the use are different statements, and
-three separate greps missed it today. An AST pass tracks the binding instead.
+cocotb 1.x returns a `BinaryValue`, which supports `>>`, `&`, `+` and friends.
+cocotb 2.x returns a `LogicArray`, which does NOT -- so this pattern raises
+`TypeError: unsupported operand type(s) for >>` under 2.x. The fix is `int()` at
+the ASSIGNMENT, so the arithmetic runs on an int.
+
+Regex cannot see this: the assignment and the use are different statements, so no
+line-oriented pattern sees both. Three separate greps missed it (2026-10-01),
+including one that reported 0 hits in a file whose own traceback named line 1564.
+
+TRIAGE THE RESULTS -- this over-reports. `.value` is also an Enum member's value
+and a dataclass field, and nothing static distinguishes those from a cocotb
+handle. Of 10 hits found on first use, 3 were Enum/dataclass and only 7 were real
+signal reads. The source line is printed so that triage takes a second.
 """
 import ast, sys, pathlib
 
@@ -31,6 +42,10 @@ for root in sys.argv[1:]:
         v=V(); v.visit(tree)
         if v.hits:
             seen=sorted(set(v.hits))
-            print(f"  {f}: {len(seen)}  lines {[l for l,_ in seen][:6]}")
+            lines = f.read_text().splitlines()
+            print(f"  {f}: {len(seen)}")
+            for ln, nm in seen:
+                src = lines[ln - 1].strip() if 0 < ln <= len(lines) else ""
+                print(f"      {ln:>5}  {src[:92]}")
             total+=len(seen)
 print("TOTAL", total)

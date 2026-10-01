@@ -221,7 +221,7 @@ class AXI4SlaveWrCrcCheckTB(TBBase):
         )
         await self.reset_crc()
         dut = self.dut
-        full_strb = (1 << (int(dut.s_axi_wdata.value.n_bits) // 8)) - 1
+        full_strb = (1 << (len(dut.s_axi_wdata.value) // 8)) - 1
         wready_dips = 0
 
         for b in range(num_bursts):

@@ -510,7 +510,7 @@ class PITTB(TBBase):
 
         while True:
             # Check OUT signal
-            out_signals = self.dut.timer_irq.value
+            out_signals = int(self.dut.timer_irq.value)
             if (out_signals >> counter_id) & 0x1:
                 return True
 
