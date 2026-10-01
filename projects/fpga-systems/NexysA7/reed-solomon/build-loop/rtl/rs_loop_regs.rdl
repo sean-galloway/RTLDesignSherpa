@@ -44,6 +44,20 @@ addrmap rs_loop_regs {
         field { sw = w; hw = r; singlepulse; desc = "start the generators"; } start[0:0] = 0;
     } GO @ 0x080;
 
+    // ---- bandwidth meters, one pair on the codec's two ends -------------
+    // Every cycle of a valid/ready channel falls in exactly one bucket, so
+    // productive + backpressure + starvation + idle == the measured window and
+    // productive/window IS the utilisation. The window is frozen when the run
+    // ends, so host polling afterwards cannot dilute it.
+    reg { desc = "Codec INPUT end: cycles that delivered a beat";              field { sw = r; hw = w; } value[31:0] = 0; } OBS_IN_PRODUCTIVE @ 0x090;
+    reg { desc = "Codec INPUT end: cycles valid was held off by ready";        field { sw = r; hw = w; } value[31:0] = 0; } OBS_IN_BACKPRESSURE @ 0x094;
+    reg { desc = "Codec INPUT end: cycles ready waited with no valid";         field { sw = r; hw = w; } value[31:0] = 0; } OBS_IN_STARVATION @ 0x098;
+    reg { desc = "Codec INPUT end: cycles neither side was asserting";         field { sw = r; hw = w; } value[31:0] = 0; } OBS_IN_IDLE @ 0x09C;
+    reg { desc = "Codec OUTPUT end: cycles that delivered a beat";             field { sw = r; hw = w; } value[31:0] = 0; } OBS_OUT_PRODUCTIVE @ 0x0A0;
+    reg { desc = "Codec OUTPUT end: cycles valid was held off by ready";       field { sw = r; hw = w; } value[31:0] = 0; } OBS_OUT_BACKPRESSURE @ 0x0A4;
+    reg { desc = "Codec OUTPUT end: cycles ready waited with no valid";        field { sw = r; hw = w; } value[31:0] = 0; } OBS_OUT_STARVATION @ 0x0A8;
+    reg { desc = "Codec OUTPUT end: cycles neither side was asserting";        field { sw = r; hw = w; } value[31:0] = 0; } OBS_OUT_IDLE @ 0x0AC;
+
     reg { desc = "What this bitstream actually BUILT. The host reads this rather than assuming two decoders: a single-decoder build ties checker B off, and a host that scored the B-side counters anyway would report every run as a failure.";
         field { sw = r; hw = w; desc = "decoders present, 1 or 2"; } decoders[2:0] = 0;
         field { sw = r; hw = w; desc = "decoder A solver: 0 = riBM, 1 = Euclid"; } kes_a[4:4] = 0;

@@ -34,7 +34,10 @@ module rs_loop_top
     parameter string IFACE          = "AXIS",
     parameter string KES_ALGO_A     = CFG_KES_A,
     parameter string KES_ALGO_B     = CFG_KES_B,
-    parameter bit    ENABLE_COMPARE = 1'b1
+    // OFF: a bitstream carries one solver, never both. See the long note on
+    // rs_loop_harness's own ENABLE_COMPARE -- the comparator belongs in
+    // simulation. The board matrix is solver x datapath = four bitstreams.
+    parameter bit    ENABLE_COMPARE = 1'b0
 ) (
     input  logic        CLK100MHZ,
     input  logic        CPU_RESETN,     // active-low

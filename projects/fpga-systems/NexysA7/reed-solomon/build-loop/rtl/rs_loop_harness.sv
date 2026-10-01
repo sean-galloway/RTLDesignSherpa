@@ -69,20 +69,24 @@ module rs_loop_harness
     // read 0x10000 and got the loop block's BUILD_ID is what found it.
     parameter int AXIL_ADDR_WIDTH = 32,
 
-    // Which solver each decoder is built with, and whether the second one
-    // exists at all. The default is the board-proven pair: riBM against
-    // Euclid with the beat-for-beat comparator between them, which is what a
-    // million blocks were validated on.
+    // ONE SOLVER PER BITSTREAM (Sean, 2026-09-30). A board build carries
+    // riBM OR Euclid, never both, and KES_ALGO_A says which. So the board
+    // matrix is solver x datapath = four bitstreams, each with one encoder and
+    // one decoder.
     //
-    // ENABLE_COMPARE = 0 builds ONE decoder and no comparator. That is the
-    // configuration to use when the point of the build is something other
-    // than solver equivalence -- a different fabric boundary, say -- because
-    // the Euclid decoder alone is 7,163 LUTs of a 63,400-LUT part and the
-    // solver question has already been answered. Correctness does not depend
-    // on the comparator: the pattern checker compares received words against
-    // the regenerated pattern, which is a direct check against known-good
-    // data. Two solvers agreeing is the weaker claim of the two -- both can
-    // agree on a wrong answer, which is exactly what a miscorrected block is.
+    // ENABLE_COMPARE therefore defaults OFF. Turning it on builds a SECOND
+    // decoder and the beat-for-beat comparator between the solvers, which
+    // belongs in SIMULATION -- area is free there, riBM-against-Euclid
+    // agreement is how solver equivalence gets checked, and it is what caught
+    // two real harness bugs (dropped and duplicated beats under a skewed
+    // drain). It is worth keeping; it is not worth a bitstream.
+    //
+    // Correctness on the board does not depend on it. The pattern checker
+    // compares received words against the regenerated pattern, which is a
+    // direct check against known-good data. Two solvers agreeing is the
+    // weaker claim of the two, since both can agree on a wrong answer -- which
+    // is exactly what a miscorrected block is.
+    //
     // Which datapath is built. "AXIS" is the stream pipe the board was
     // validated on: generator, encoder, injector, decoder, checker, all
     // flowing. "AXI4" swaps the middle for rs_axi4_pipeline, where the codecs
@@ -92,7 +96,7 @@ module rs_loop_harness
     parameter string IFACE        = "AXIS",
     parameter string KES_ALGO_A   = CFG_KES_A,
     parameter string KES_ALGO_B   = CFG_KES_B,
-    parameter bit    ENABLE_COMPARE = 1'b1
+    parameter bit    ENABLE_COMPARE = 1'b0
 ) (
     input  logic                        aclk,
     input  logic                        aresetn,
@@ -812,6 +816,47 @@ module rs_loop_harness
     assign o_cmp_err  = r_cmp_err;
 
     // =========================================================================
+    // Bandwidth meters on the codec's two ends
+    //
+    // The SAME two seams in both flavours -- the generator's handshake into the
+    // codec, and the codec's handshake into the checker -- so the stream and
+    // AXI4 builds produce directly comparable numbers. That is the point: the
+    // question these answer is what each fabric boundary sustains end to end.
+    //
+    // i_freeze is !busy, so the window opens on the kick and closes the moment
+    // the run finishes. Without it the host's own polling would be counted as
+    // idle cycles and dilute every utilisation figure -- which is the trap the
+    // block's own header warns about.
+    //
+    // On the stream path the two should differ by exactly n/k, since the
+    // encoder emits a codeword for every k symbols it takes. So the pair is a
+    // cheap self-check as well as a measurement.
+    // =========================================================================
+    logic [31:0] w_obs_prod [2], w_obs_bp [2], w_obs_starv [2], w_obs_idle [2];
+
+    /* verilator lint_off PINCONNECTEMPTY */
+    axi_bus_meter #(.NUM_CHANNELS(1)) u_obs_in (
+        .aclk(aclk), .aresetn(dp_rstn),
+        .i_clear(w_clear), .i_freeze(!r_busy),
+        .i_valid(enc_in_valid), .i_ready(enc_in_ready),
+        .i_channel_id('0), .i_channel_valid(1'b0),
+        .o_agg_productive(w_obs_prod[0]), .o_agg_backpressure(w_obs_bp[0]),
+        .o_agg_starvation(w_obs_starv[0]), .o_agg_idle(w_obs_idle[0]),
+        .o_ch_productive(), .o_ch_backpressure(), .o_ch_starvation(),
+        .o_ch_idle(), .o_ch_overflow());
+
+    axi_bus_meter #(.NUM_CHANNELS(1)) u_obs_out (
+        .aclk(aclk), .aresetn(dp_rstn),
+        .i_clear(w_clear), .i_freeze(!r_busy),
+        .i_valid(dec_out_valid[0]), .i_ready(dec_out_ready[0]),
+        .i_channel_id('0), .i_channel_valid(1'b0),
+        .o_agg_productive(w_obs_prod[1]), .o_agg_backpressure(w_obs_bp[1]),
+        .o_agg_starvation(w_obs_starv[1]), .o_agg_idle(w_obs_idle[1]),
+        .o_ch_productive(), .o_ch_backpressure(), .o_ch_starvation(),
+        .o_ch_idle(), .o_ch_overflow());
+    /* verilator lint_on PINCONNECTEMPTY */
+
+    // =========================================================================
     // Status back to the CSRs
     // =========================================================================
     always_comb begin
@@ -862,6 +907,14 @@ module rs_loop_harness
         hwif_in.CMP_DATA_MISMATCH.value.next   = r_cmp_data_mm;
         hwif_in.CMP_STATUS_MISMATCH.value.next = r_cmp_status_mm;
         hwif_in.CMP_BEATS.value.next     = r_cmp_beats;
+        hwif_in.OBS_IN_PRODUCTIVE.value.next    = w_obs_prod[0];
+        hwif_in.OBS_IN_BACKPRESSURE.value.next  = w_obs_bp[0];
+        hwif_in.OBS_IN_STARVATION.value.next    = w_obs_starv[0];
+        hwif_in.OBS_IN_IDLE.value.next          = w_obs_idle[0];
+        hwif_in.OBS_OUT_PRODUCTIVE.value.next   = w_obs_prod[1];
+        hwif_in.OBS_OUT_BACKPRESSURE.value.next = w_obs_bp[1];
+        hwif_in.OBS_OUT_STARVATION.value.next   = w_obs_starv[1];
+        hwif_in.OBS_OUT_IDLE.value.next         = w_obs_idle[1];
     end
 
     // unused outputs of the shared blocks

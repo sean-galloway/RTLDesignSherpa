@@ -35,5 +35,7 @@ $REPO_ROOT/projects/fpga-systems/NexysA7/reed-solomon/build-loop/rtl/generated/r
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_decoder_axis4.f
 -f $REPO_ROOT/projects/fpga-systems/NexysA7/reed-solomon/build-loop/rtl/filelists/rs_axi4_pipeline.f
 
+-f $REPO_ROOT/rtl/amba/filelists/axi_bus_meter.f
+
 $REPO_ROOT/projects/fpga-systems/NexysA7/reed-solomon/build-loop/rtl/rs_loop_harness.sv
 $REPO_ROOT/projects/fpga-systems/NexysA7/reed-solomon/build-loop/rtl/rs_loop_top.sv

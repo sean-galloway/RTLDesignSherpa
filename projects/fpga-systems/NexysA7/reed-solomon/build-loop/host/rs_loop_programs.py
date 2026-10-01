@@ -177,6 +177,24 @@ def verdict(r: RunResult, t: int) -> List[str]:
     return bad
 
 
+def bandwidth(r) -> str:
+    """One line of bandwidth, from the meters rather than inferred from cycles.
+
+    On the stream path the two ends should differ by n/k, because the encoder
+    emits a codeword for every k symbols it takes -- so the ratio is a cheap
+    check that the meters are measuring what their names claim.
+    """
+    if not r.obs:
+        return "no meters in this bitstream"
+    i, o = r.obs["in"], r.obs["out"]
+    ratio = (o["productive"] / i["productive"]) if i["productive"] else 0.0
+    return (f"in {i['productive']} beats / {i['window']} cyc = {i['utilisation']:.1%} "
+            f"(bp {i['backpressure']}, starv {i['starvation']}); "
+            f"out {o['productive']} / {o['window']} = {o['utilisation']:.1%} "
+            f"(bp {o['backpressure']}, starv {o['starvation']}); "
+            f"out/in beats = {ratio:.3f}")
+
+
 @dataclass
 class SweepRow:
     count: int

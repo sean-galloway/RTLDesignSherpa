@@ -79,6 +79,7 @@ class RunResult:
     cmp_beats: int
     cmp_err: bool
     cmp_misaligned: bool
+    obs: dict = field(default_factory=dict)
     iface: str = "AXIS"
     axi4_stage: int = 0
     axi4_resp_err: bool = False
@@ -210,6 +211,25 @@ class RsLoopDriver:
             }
         return self._topo
 
+    def _meters(self) -> dict:
+        """The two bandwidth meters, as buckets AND as a utilisation.
+
+        Every cycle of a valid/ready channel lands in exactly one bucket, so
+        the four sum to the measured window and productive/window is the
+        utilisation outright -- no separate cycle count needed, and no risk of
+        dividing by a window that includes the host's own polling, because the
+        hardware freezes the meters when the run ends.
+        """
+        out = {}
+        for end in ("IN", "OUT"):
+            b = {k.lower(): self.regs.read(f"OBS_{end}_{k}")
+                 for k in ("PRODUCTIVE", "BACKPRESSURE", "STARVATION", "IDLE")}
+            window = sum(b.values())
+            b["window"] = window
+            b["utilisation"] = (b["productive"] / window) if window else 0.0
+            out[end.lower()] = b
+        return out
+
     def collect(self, blocks: int, mode: int, count: int, rate: int, bypass: bool,
                 timed_out: bool = False) -> RunResult:
         st = self.status()
@@ -226,6 +246,7 @@ class RsLoopDriver:
             inj_symbols=r("INJ_SYMBOLS"), inj_blocks=r("INJ_BLOCKS"), inj_over_t=r("INJ_OVER_T"),
             cmp_data_mismatch=r("CMP_DATA_MISMATCH"), cmp_status_mismatch=r("CMP_STATUS_MISMATCH"),
             cmp_beats=r("CMP_BEATS"), cmp_err=st["cmp_err"],
+            obs=self._meters(),
             cmp_misaligned=st["cmp_misaligned"], timed_out=timed_out)
 
     def run(self, mode: int = 0, count: int = 0, rate: int = 0, blocks: int = 8,

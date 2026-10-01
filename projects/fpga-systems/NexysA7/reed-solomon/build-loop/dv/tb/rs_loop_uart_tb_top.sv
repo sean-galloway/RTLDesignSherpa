@@ -30,6 +30,10 @@ module rs_loop_uart_tb_top #(
     parameter string IFACE           = "AXIS",
     parameter string KES_ALGO_A      = rs_loop_cfg_pkg::CFG_KES_A,
     parameter string KES_ALGO_B      = rs_loop_cfg_pkg::CFG_KES_B,
+    // ON here, OFF in the harness: the comparator belongs in SIMULATION, where
+    // area is free, and never in a bitstream (one solver per build). The sim
+    // suite therefore exercises both the two-decoder comparator path and, in
+    // its own cell, the single-decoder path a board build uses.
     parameter bit    ENABLE_COMPARE  = 1'b1
 ) (
     input  logic aclk,

@@ -100,6 +100,14 @@ module rs_loop_regs (
         logic CMP_BEATS;
         logic GO;
         logic TOPOLOGY;
+        logic OBS_IN_PRODUCTIVE;
+        logic OBS_IN_BACKPRESSURE;
+        logic OBS_IN_STARVATION;
+        logic OBS_IN_IDLE;
+        logic OBS_OUT_PRODUCTIVE;
+        logic OBS_OUT_BACKPRESSURE;
+        logic OBS_OUT_STARVATION;
+        logic OBS_OUT_IDLE;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_req;
@@ -142,6 +150,14 @@ module rs_loop_regs (
         decoded_reg_strb.CMP_BEATS = cpuif_req_masked & (cpuif_addr == 8'h7c);
         decoded_reg_strb.GO = cpuif_req_masked & (cpuif_addr == 8'h80);
         decoded_reg_strb.TOPOLOGY = cpuif_req_masked & (cpuif_addr == 8'h84);
+        decoded_reg_strb.OBS_IN_PRODUCTIVE = cpuif_req_masked & (cpuif_addr == 8'h90);
+        decoded_reg_strb.OBS_IN_BACKPRESSURE = cpuif_req_masked & (cpuif_addr == 8'h94);
+        decoded_reg_strb.OBS_IN_STARVATION = cpuif_req_masked & (cpuif_addr == 8'h98);
+        decoded_reg_strb.OBS_IN_IDLE = cpuif_req_masked & (cpuif_addr == 8'h9c);
+        decoded_reg_strb.OBS_OUT_PRODUCTIVE = cpuif_req_masked & (cpuif_addr == 8'ha0);
+        decoded_reg_strb.OBS_OUT_BACKPRESSURE = cpuif_req_masked & (cpuif_addr == 8'ha4);
+        decoded_reg_strb.OBS_OUT_STARVATION = cpuif_req_masked & (cpuif_addr == 8'ha8);
+        decoded_reg_strb.OBS_OUT_IDLE = cpuif_req_masked & (cpuif_addr == 8'hac);
     end
 
     // Pass down signals to next stage
@@ -635,7 +651,7 @@ module rs_loop_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[33];
+    logic [31:0] readback_array[41];
     assign readback_array[0][31:0] = (decoded_reg_strb.BUILD_ID && !decoded_req_is_wr) ? hwif_in.BUILD_ID.value.next : '0;
     assign readback_array[1][31:0] = (decoded_reg_strb.SCRATCH && !decoded_req_is_wr) ? field_storage.SCRATCH.value.value : '0;
     assign readback_array[2][2:0] = '0;
@@ -703,6 +719,14 @@ module rs_loop_regs (
     assign readback_array[32][11:9] = '0;
     assign readback_array[32][12:12] = (decoded_reg_strb.TOPOLOGY && !decoded_req_is_wr) ? hwif_in.TOPOLOGY.iface.next : '0;
     assign readback_array[32][31:13] = '0;
+    assign readback_array[33][31:0] = (decoded_reg_strb.OBS_IN_PRODUCTIVE && !decoded_req_is_wr) ? hwif_in.OBS_IN_PRODUCTIVE.value.next : '0;
+    assign readback_array[34][31:0] = (decoded_reg_strb.OBS_IN_BACKPRESSURE && !decoded_req_is_wr) ? hwif_in.OBS_IN_BACKPRESSURE.value.next : '0;
+    assign readback_array[35][31:0] = (decoded_reg_strb.OBS_IN_STARVATION && !decoded_req_is_wr) ? hwif_in.OBS_IN_STARVATION.value.next : '0;
+    assign readback_array[36][31:0] = (decoded_reg_strb.OBS_IN_IDLE && !decoded_req_is_wr) ? hwif_in.OBS_IN_IDLE.value.next : '0;
+    assign readback_array[37][31:0] = (decoded_reg_strb.OBS_OUT_PRODUCTIVE && !decoded_req_is_wr) ? hwif_in.OBS_OUT_PRODUCTIVE.value.next : '0;
+    assign readback_array[38][31:0] = (decoded_reg_strb.OBS_OUT_BACKPRESSURE && !decoded_req_is_wr) ? hwif_in.OBS_OUT_BACKPRESSURE.value.next : '0;
+    assign readback_array[39][31:0] = (decoded_reg_strb.OBS_OUT_STARVATION && !decoded_req_is_wr) ? hwif_in.OBS_OUT_STARVATION.value.next : '0;
+    assign readback_array[40][31:0] = (decoded_reg_strb.OBS_OUT_IDLE && !decoded_req_is_wr) ? hwif_in.OBS_OUT_IDLE.value.next : '0;
 
     // Reduce the array
     always_comb begin
@@ -710,7 +734,7 @@ module rs_loop_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<33; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<41; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 
