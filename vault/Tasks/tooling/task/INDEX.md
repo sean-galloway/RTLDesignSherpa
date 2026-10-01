@@ -12,9 +12,9 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 21 | done (kept for history) |
+| [closed/](closed/) | 22 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -25,14 +25,12 @@ by construction rather than by discipline.
 
 
 
-- **TASK-024** (P2) — `projects/fpga-systems/` is the only major area with no book, and it is the layer every board flow imports; document the UART flow end to end plus the host/seq naming conventions, including the THREE coexisting directory layouts nothing currently chooses between
-
-
 ## Active
 
 
 ## Closed
 
+- **TASK-024** — fpga-systems was the only major area with no book -- CLOSED 2026-09-30: 19 chapters in 6 chapters + 5 mermaid diagrams, FPGA_SYSTEMS_MAS_v1.0.pdf (48 pages); the filed premise of "three competing conventions" was WRONG and is corrected in the task -- there is one convention, documented in flow-layout.md AND make/fpga_flow.mk, whose prefixes are load-bearing because make and SequenceRunner.discover glob them; `flows-*` is the pre-migration layout
 - **TASK-023** — `env_python` resolved its own root from where the CALLER stood, so it could silently activate another repo's venv -- CLOSED 2026-09-30: REPO_ROOT from BASH_SOURCE, worktrees share the main checkout's venv via --git-common-dir, a missing venv fails with rc=1; 5-case matrix measured before/after under `env -i`, plus a real 20.43s sim
 - **TASK-021** — cocotb-framework's `__version__` drifted from pyproject for six releases (published 0.6.7 self-reported 0.6.1) -- CLOSED 2026-09-30: setuptools dynamic version in RDS-DV `4713ef8` makes the module literal the single source; 5-test guard + a `unit-tests` CI job; verified live (1509 passed, ZERO skips) and mutation-tested 4 ways
 - **TASK-019** — filelist_utils.tcl exists as eight copies and seven do not treat // as a comment -- CLOSED 2026-09-29: one make/tcl/filelist_utils.tcl sourced by all 8 flows + the Quartus sweep; 7 copies deleted; Tcl/Python agreement test

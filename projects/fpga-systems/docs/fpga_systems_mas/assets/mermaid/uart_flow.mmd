@@ -1,0 +1,24 @@
+sequenceDiagram
+    autonumber
+    participant H as host_*.py
+    participant B as Board (registry)
+    participant L as uart_link
+    participant X as UARTAxiBridge
+    participant F as FPGA
+
+    H->>B: get_board("nexys_a7_100t")
+    H->>B: find_uart_port(probe=...)
+    B->>L: list_uart_ports()
+    L-->>B: every /dev/ttyUSB* + USB serial
+    Note over B: keep only ports whose USB serial<br/>matches this board (prefix-tolerant)
+    loop each remaining candidate
+        B->>L: UartLink(port, baud)
+        L->>X: open_bridge(channel=link)
+        X->>F: "R 00010000\n"
+        F-->>X: "0x44445232\n"
+        X-->>B: probe True / False
+    end
+    B-->>H: the one port that answered
+    H->>X: bridge.write(addr, data)
+    X->>F: "W 0001000C DEADBEEF\n"
+    F-->>X: "OK\n"

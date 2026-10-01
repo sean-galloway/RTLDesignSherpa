@@ -1,7 +1,7 @@
 # TASK-024: fpga-systems has no specification -- document the UART flow and the host/seq naming conventions as a chapter book with a PDF
 
 **Priority:** P2
-**Status:** open
+**Status:** CLOSED 2026-09-30 -- the book is written and the PDF builds (48 pages, 5 diagrams)
 **Owner:** TBD
 **Filed:** 2026-09-30 (Sean's request)
 
@@ -195,3 +195,103 @@ A chapter book following the house pattern, and the PDF:
 - `vault/handbook/fpga/uart-harness.md`, `vault/handbook/fpga/boards.md`
 - [[TASK-022]] -- the lock, identity readback and identity record, which the
   board chapter has to cover
+
+## Closed 2026-09-30
+
+`projects/fpga-systems/docs/fpga_systems_mas/` -- 19 chapter pages across six
+chapters, an index, a styles file, five mermaid diagrams with their sources, and
+`generate_mas_pdf.sh`. Output: `FPGA_SYSTEMS_MAS_v1.0.pdf`, 48 pages.
+
+| Chapter | Subject |
+| --- | --- |
+| 1 | Overview, layering, acronyms, references |
+| 2 | The UART flow: discovery, probes, link and bridge, wire protocol, sim equivalence |
+| 3 | Sequences: model, context, runner, writing one |
+| 4 | Boards: registry, programming, locking and identity |
+| 5 | Conventions: why the prefixes are load-bearing, path anchoring |
+| 6 | Standing up a flow |
+
+Diagrams are `.mmd` sources rendered to PNG by a Makefile in
+`assets/mermaid/`, following the house pattern: layering, the UART flow as a
+sequence diagram, the resolve-then-run flow, the program path with the lock and
+the identity verdict, and the file layout.
+
+## CORRECTION: the premise of this task was wrong
+
+**This task was filed claiming three coexisting conventions that "nothing
+currently says which to use". That is false, and the error was mine both times.**
+
+There is **one** convention, and it is documented in two places that agree:
+
+- `vault/handbook/fpga/cmn-infra/flow-layout.md` -- the skeleton and the
+  filename table, with the rationale.
+- `make/fpga_flow.mk:160-162` -- the same table, as the comment above the globs
+  that implement it.
+
+And the prefixes are not stylistic. They are **load-bearing**, because two
+mechanisms discover files by globbing them:
+
+    RUN_SCRIPTS   := $(sort $(wildcard $(SEQ_DIR)/run_*.py))
+    SEQ_SCRIPTS   := $(sort $(wildcard $(SEQ_DIR)/seq_*.py))
+    HOST_PROGRAMS := $(sort $(wildcard $(HOST_DIR)/host_*.py))
+
+    def discover(self, path, pattern: str = "seq_*.py")
+
+A misnamed file is not untidy, it is **invisible** -- never registered, never a
+make target.
+
+**The `flows-*/` "third convention" is the pre-migration layout.**
+`flow-migration.md` names it explicitly as the thing being migrated away from.
+Measured: nine build directories use `build-<name>/`; the two that do not are
+`Genesys2/rapids/flows-rapids/` and `Genesys2/rapids_beats/flows-rapids-beats/`,
+and **neither includes `make/fpga_flow.mk` at all**, so none of the discovery
+above applies to them. Their `run_*.py` sitting in `host/` is a consequence of
+predating the shared flow, not a second opinion about where runners go.
+
+So the naming chapter is deliberately **thin**: it states that `[[flow-layout]]`
+is the authority, records only what binds the conventions to this layer (the
+globs), and reports the migration status as measured. Writing it as the task
+originally scoped it would have produced a second copy of a handbook note --
+which CLAUDE.md forbids, and for the reason on display here: the copy nobody
+edits is the one the next session reads, and in this case the next session was
+me, twice.
+
+The earlier correction in this file -- six files wrongly reported as exceptions,
+from an argparse proxy -- was the same error one level down. The Reed-Solomon
+session measured those six and none was a sequence.
+
+## What the book deliberately does not contain
+
+- **Register maps.** Addressed by name through a generated map; a table here
+  would be a second source nothing keeps in step.
+- **Method.** Links to `vault/handbook/fpga/cmn-infra/` rather than restating:
+  `uart-harness`, `boards`, `host-stack`, `sequences`, `flow-layout`,
+  `flow-migration`, `area-structure`.
+- **Per-area flows and the FPGA-side RTL.**
+
+## Verification
+
+- `generate_mas_pdf.sh` builds clean, rc=0. 48 pages, 6 embedded images (5
+  diagrams + logo), **List of Figures populated with 5 entries**.
+- The generator **fails by name** when a referenced diagram PNG is missing, which
+  is the one build failure that is otherwise silent: a missing image drops out of
+  the PDF without an error.
+- `check_broken_links --ratchet`: PASS with the book TRACKED -- 2099 `.md` and
+  6792 links, up from 2078 and 6768, with zero broken in the book. Staged first
+  on purpose: the checker enumerates tracked files, so running it against an
+  untracked book is a vacuous pass, which is exactly how 11 broken links shipped
+  in a book earlier this session.
+- Zero emojis (they break the LaTeX path).
+- Every repo path cited in the book verified to exist; every `[[wikilink]]`
+  resolved to a real handbook note. Two paths were wrong on the first pass --
+  `vault/handbook/fpga/uart-harness.md` instead of `.../fpga/cmn-infra/...` --
+  taken from a skill signpost rather than checked.
+- `check_doc_examples`, `check_test_dut_family`, `filelist_registry --check` and
+  `--audit`, `check_task_ids`: all pass.
+
+## Follow-up worth considering, not filed
+
+The two `flows-*` flows are a tracked migration backlog rather than a naming
+question, so they belong to rapids, not to tooling. The book names them as the
+measured exception; migrating them is `[[flow-migration]]`'s procedure and the
+rapids area's call.

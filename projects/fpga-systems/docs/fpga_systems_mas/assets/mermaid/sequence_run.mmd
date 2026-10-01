@@ -1,0 +1,23 @@
+graph TB
+    START["runner.run(['init','smoke'])"] --> RES["resolve(order)"]
+    RES --> K1{"every name<br/>registered?"}
+    K1 -- no --> E1["SequenceError<br/>unknown sequence"]
+    K1 -- yes --> K2{"every 'requires'<br/>scheduled EARLIER?"}
+    K2 -- no --> E2["SequenceError<br/>requirement not scheduled"]
+    K2 -- yes --> PLAN["plan fixed<br/>NO traffic has happened yet"]
+    PLAN --> STEP["for each sequence:<br/>setup, run(ctx), teardown"]
+    STEP --> ST{"returned False<br/>or raised?"}
+    ST -- no --> SAVE["ctx.results[name] = value"]
+    SAVE --> MORE{"more steps?"}
+    MORE -- yes --> STEP
+    MORE -- no --> OK["RunReport: ALL PASS"]
+    ST -- yes --> SF{"stop_on_fail?"}
+    SF -- "yes (default)" --> STOP["stop -- later steps would<br/>measure a board that never came up"]
+    SF -- no --> MORE
+
+    classDef err fill:#f8e8e8,stroke:#a04040,stroke-width:2px
+    classDef good fill:#e8f4e8,stroke:#228B22,stroke-width:2px
+    classDef gate fill:#fff8e0,stroke:#808000
+    class E1,E2,STOP err
+    class OK,PLAN good
+    class K1,K2,ST,SF,MORE gate

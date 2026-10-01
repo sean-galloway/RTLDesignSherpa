@@ -1,0 +1,41 @@
+graph TB
+    subgraph entry["Entry point"]
+        HOST["host_*.py / run_*.py<br/>argv, port choice, printing"]
+    end
+    subgraph area["Area layer"]
+        ENV["bin/&lt;area&gt;_env.py<br/>marker-anchored sys.path"]
+        SEQ["bin/seq_*.py<br/>named, ordered, dependency-checked"]
+        DRV["drivers, programs, verdicts"]
+    end
+    subgraph shared["Shared layer"]
+        RUN["sequence.py"]
+        BRG["uart_axi_bridge.py"]
+        LNK["uart_link.py"]
+        BRD["board.py + boards/"]
+        LOCK["board_lock.sh"]
+    end
+    subgraph silicon["Silicon"]
+        TTY["/dev/ttyUSB*"]
+        FPGA["FPGA bridge RTL<br/>to AXI4-Lite"]
+    end
+    COSIM["cocotb byte channel<br/>same bytes, no board"]
+
+    HOST --> ENV
+    HOST --> SEQ
+    HOST --> BRD
+    SEQ --> RUN
+    SEQ --> DRV
+    DRV --> BRG
+    BRG --> LNK
+    BRD --> LNK
+    BRD --> LOCK
+    LNK --> TTY
+    TTY --> FPGA
+    BRG -.injected.-> COSIM
+
+    classDef sh fill:#e8f4e8,stroke:#228B22,stroke-width:2px
+    classDef ar fill:#eef2f8,stroke:#404040,stroke-width:2px
+    classDef si fill:#f8f0e8,stroke:#808080
+    class RUN,BRG,LNK,BRD,LOCK sh
+    class SEQ,DRV,ENV ar
+    class TTY,FPGA,COSIM si

@@ -1,0 +1,35 @@
+graph LR
+    subgraph unit["Area"]
+        subgraph ubin["bin/"]
+            U2["&lt;area&gt;_env.py"]
+            U1["seq_*.py<br/>SEQUENCES"]
+            U3["drivers, programs,<br/>verdict libraries"]
+        end
+        subgraph ubuild["build-&lt;variant&gt;/host/"]
+            U4["host_*.py<br/>ENTRY POINTS"]
+            U5["build-local libraries<br/>no host_ prefix"]
+        end
+    end
+    subgraph shared["fpga-systems/bin/"]
+        S1["uart_link.py"]
+        S2["uart_axi_bridge.py"]
+        S3["sequence.py"]
+        S4["board.py, boards/"]
+        S5["board_lock.sh"]
+        S6["program_fpga.tcl<br/>jtag_readback.tcl"]
+    end
+
+    U4 --> U1
+    U4 --> U5
+    U1 --> U3
+    U2 --> S1
+    U1 --> S3
+    U3 --> S2
+    U4 --> S4
+
+    classDef sh fill:#e8f4e8,stroke:#228B22,stroke-width:2px
+    classDef sq fill:#eef2f8,stroke:#404040,stroke-width:2px
+    classDef ep fill:#fdf0d5,stroke:#8a6d00,stroke-width:2px
+    class S1,S2,S3,S4,S5,S6 sh
+    class U1,U2,U3,U5 sq
+    class U4 ep

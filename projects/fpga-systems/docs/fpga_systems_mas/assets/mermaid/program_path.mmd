@@ -1,0 +1,22 @@
+graph TB
+    CALL["make program<br/>or fpga_board.py program"] --> LOCK{"board_lock.sh<br/>flock on<br/>rds-board-&lt;jtag serial&gt;.lock"}
+    LOCK -- held --> BUSY["exit 98<br/>another flow owns this board"]
+    LOCK -- acquired --> BIT{"bitstream<br/>exists?"}
+    BIT -- no --> FNF["FileNotFoundError<br/>before Vivado starts"]
+    BIT -- yes --> VIV{"vivado<br/>on PATH?"}
+    VIV -- no --> NOV["FileNotFoundError"]
+    VIV -- yes --> ID["identity_verdict()<br/>jtag_readback.tcl"]
+    ID --> V{"verdict"}
+    V -- verified --> PROG["program_fpga.tcl<br/>pinned to this JTAG serial"]
+    V -- "inconclusive<br/>(no hw_server)" --> WARN["warn and continue"]
+    WARN --> PROG
+    V -- unjudged --> PROG
+    V -- wrong --> REF["IdentityError -- REFUSE<br/>record programmed=false"]
+    PROG --> REC["--identity-json:<br/>verdict + bitstream sha256<br/>+ programmed true/false"]
+
+    classDef err fill:#f8e8e8,stroke:#a04040,stroke-width:2px
+    classDef good fill:#e8f4e8,stroke:#228B22,stroke-width:2px
+    classDef warn fill:#fff8e0,stroke:#808000
+    class BUSY,FNF,NOV,REF err
+    class PROG,REC good
+    class WARN warn
