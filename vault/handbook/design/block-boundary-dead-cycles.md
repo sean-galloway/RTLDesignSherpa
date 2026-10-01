@@ -33,6 +33,12 @@ On the Reed-Solomon decoder (2026-09-30) the slope was above line rate on 8 of
 | load cycle at the boundary | `beats + 1` | always |
 | non-pipelined solver stage | `iterations + 3` | `iterations + 3 > beats + 1` |
 
+The same sweep outward then found two more in the repacking stage feeding the
+codec -- a conservative accept condition that refused a beat the same cycle's
+emit had made room for, and a flush that held off input while draining a tail.
+Both were invisible until the stages around them reached line rate: a gap only
+shows once it is the slowest thing in the pipe.
+
 `slope = max(beats + 1, solver_occupancy)` matched all 8 measured profiles
 exactly, with zero misses. That model is what made the work tractable: the
 residue on the SHORTEST codeword was 3 cycles and on the longest 1, and without
@@ -67,6 +73,33 @@ be one number everywhere.
    last cycle is the registered `done` itself; see [[registered-status-outputs]]
    for retiring on the final update instead of a cycle later, which is what
    closed the final profile here.
+
+## Prove the measurement saturates before you believe the number
+
+The first slope reading off the RS AXIS wrappers was +128 dead cycles against
+a 64-beat codeword. The board, running those same wrappers, was at 65.1
+cycles/block -- so the measurement was wrong by a factor of three and the
+hardware said so. The cause was the testbench: the send helper awaited each
+packet's COMPLETION, so `tvalid` dropped between beats and what was being
+measured was the BFM's send rate, not the DUT's throughput.
+
+A throughput number is only about the DUT if the stimulus can saturate it.
+Before trusting one:
+
+- Drive through the queueing path (`_driver_send(pkt, sync=True)`), not the
+  blocking one (`await master.send(pkt)`), and use the `backtoback` profile.
+- Sanity-check the magnitude against anything independent -- a board
+  measurement, a sibling block, the same test on a DUT you believe. A slope of
+  3x the codeword is not a subtle defect, it is a broken meter.
+- Prefer a test that DISCRIMINATES: the same slope test over the encoder and
+  decoder wrappers returned +5.00 and +0.00 on the same profile, which is
+  strong evidence it is reading the DUT. A number that comes out the same
+  everywhere, or absurd everywhere, is reading the fixture.
+
+The blocking semantic behind this is the same one in
+[[blocking-send-deadlock]] -- `send()` returns when the DUT takes the beat, so
+a loop of awaited sends is a loop of gaps. Picking the right window to measure
+over is [[measure-over-the-window]].
 
 ## Where the floor actually is
 
