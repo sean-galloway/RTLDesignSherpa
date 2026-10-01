@@ -107,7 +107,11 @@ def verdict(r: RunResult, t: int) -> List[str]:
             bad.append(f"{d.name}: {d.pkts} of {r.blocks} blocks reached its checker")
         if d.blk_frame:
             bad.append(f"{d.name}: {d.blk_frame} framing errors")
-    if r.iface == "AXI4":
+    # NOT in bypass: bypass deliberately routes the generator straight at the
+    # checkers and skips the codec chain, so every AXI4 stage correctly stays
+    # at zero. Demanding a completed chain there reports the harness working
+    # as designed as a failure, which is what it did on the board.
+    if r.iface == "AXI4" and not r.bypass:
         # Refusal first, and INSTEAD of the stage check: a refused run leaves
         # every stage at zero, so reporting both would lead with the symptom
         # and bury the cause.
