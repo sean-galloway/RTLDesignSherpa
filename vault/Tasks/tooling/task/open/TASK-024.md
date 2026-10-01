@@ -49,6 +49,71 @@ an accident is exactly what is undocumented.
 only describes `seq_*.py` would be describing the tidiest third of the tree.
 State the rule, say which layout new work uses, and record why the others exist.
 
+## A proposed rule, from the Reed-Solomon session (2026-09-30)
+
+Offered with their own caveat that they are arguing for the layout they wrote, so
+it is recorded as a proposal rather than a decision. It is the sharpest framing
+available and the doc should start here.
+
+**The split is not between three layouts but between two KINDS of thing**, which
+is why three layouts grew:
+
+- **A sequence** is a reusable, declaratively-ordered unit with dependencies.
+  `bin/seq_*.py` earns its own file because the runner discovers it, resolves
+  `requires`, and runs it **identically on the board and in the sim harness** --
+  Reed-Solomon's sim tests run the same `seq_init`/`seq_smoke`/`seq_sweep`/
+  `seq_random` files the board runs, with `board=None` and no parameter
+  deviations, so a sequence-layer bug cannot hide in simulation.
+- **A host program** is a CLI entry point: argument parsing, port discovery,
+  printing. It should be thin -- construct a context and call the runner.
+
+**The discriminating test:** can the file run unchanged against a cocotb UART
+channel? If yes it is a sequence and belongs in `bin/`. If it parses `argv` it is
+a program and belongs in `host/`. Their proposal is then
+`bin/seq_*.py` + `host/host_*.py`, and **retire `flows-<name>/host/run_*.py` as a
+third spelling of the second thing**.
+
+### Measured against the tree, because a rule that does not fit the files is not a rule
+
+The test holds perfectly in one direction: **all 15 `seq_*.py` contain zero
+`ArgumentParser`**, and 28 of 32 `host_*.py` parse `argv`. So the sequence side is
+already clean and the rule largely describes reality rather than redesigning it.
+
+**Six files would be reclassified** -- these are what the naming chapter actually
+has to rule on, not the easy majority:
+
+    Genesys2/rapids/flows-rapids/host/run_sink_once.py
+    Genesys2/rapids_beats/flows-rapids-beats/host/run_sink_once.py
+    Genesys2/stream/build-mon/host/host_mon_compress.py
+    Genesys2/stream/build-perf/host/host_bus_meters.py
+    Genesys2/stream/build-perf/host/host_desc_perf.py
+    Genesys2/stream/build-perf/host/host_rw_perf.py
+
+None parses `argv`, so the test calls them sequences while they live in `host/`.
+Either they are sequences misfiled, or the test needs a second clause. Decide this
+explicitly; do not let the chapter state a rule that six existing files break.
+
+### Three things to put in the chapters, from the same session
+
+1. **The `sys.path` trap, with the skeleton.** `rs_env.py` lives in the area's
+   `bin/` **alongside** the sequences (confirmed:
+   `projects/fpga-systems/NexysA7/reed-solomon/bin/rs_env.py`), so a host program
+   under `build-*/host/` must put that directory on `sys.path` before importing
+   `sequence`. They hit that exact `ImportError` running a board campaign for the
+   first time. If the chapter shows the host-program skeleton, show the path
+   setup -- it saves the next person the same trip.
+2. **The 100 ms sim cap, and which lever to pull.** No sim-harness test may exceed
+   100 ms of sim time, and when UART is the bottleneck the lever is **raising the
+   sim baud, never shrinking the campaign**: 4 clocks per bit in sim against 868
+   on the board, with the byte stream under test identical. (Consistent with the
+   handbook; the UART chapter is where a reader will look for it.)
+3. **Read the build's topology from a register, never assume it.** A
+   single-decoder build failed every run because the host was faithfully scoring a
+   checker that was tied off; a `TOPOLOGY` register fixed it. Belongs in the UART
+   flow chapter as a rule about what the host may assume.
+
+They offered to review a draft and are explicitly not taking the task.
+
 ## Scope
 
 A chapter book following the house pattern, and the PDF:
