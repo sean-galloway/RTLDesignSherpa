@@ -134,5 +134,69 @@ def describe(point=None):
     return "\n".join(out)
 
 
+# ---------------------------------------------------------------------------
+# The same table, expressed for the DV framework's DFI slave model.
+# ---------------------------------------------------------------------------
+# `JedecTimings` counts in DRAM CLOCK cycles (tCK), a third unit alongside the
+# ns and MC-cycle views above -- so this hands the framework NANOSECONDS and
+# lets it do the conversion, rather than adding a conversion of mine for the
+# same numbers.
+#
+# The framework vendors ddr3-1333/1600/1866 but NOT ddr3-800, and its loader
+# says why: profiles are vendored "only where a public JEDEC speed bin fixes
+# the numbers", otherwise build them with timings_from_params(). So that is
+# what this does, from the HAS design point.
+
+
+def jedec_ns(point=None, *, cl=6, cwl=5):
+    """kwargs for `timings_from_params()`: the HAS ns table, in NANOSECONDS.
+
+    Passing nanoseconds rather than a cycle count I computed myself is
+    deliberate. The framework requires an explicit unit suffix on every value
+    (`_ns` or `_ck`, and it raises listing the offenders if you leave it off),
+    and it applies "exactly the same conversion the CSV loader does". So the
+    ns -> CK step happens once, in the framework, from the datasheet figure --
+    there is no second conversion of mine to disagree with it.
+
+    That leaves exactly one table (`['ns']` above) with two consumers:
+
+        the CONTROLLER's CSRs       <- prog[]    (MC cycles, spacing - 1)
+        the DFI SLAVE's JEDEC model <- jedec_ns() (ns, converted by the
+                                                   framework to CK cycles)
+
+    If those ever came from different tables the slave would police a part the
+    controller was not programmed for, and the disagreement would read as an
+    RTL bug.
+
+    CL and CWL default to the DDR3-800 bin: CL 6, and CWL 5 for a 400 MHz
+    clock per JESD79-3F's CWL table. They are arguments rather than constants
+    because MR0/MR2 are runtime values -- a test that programs a different CL
+    must pass the same number here, or the slave models a different part.
+    """
+    _, _, meta = dram_config(point)
+    n = meta['ns']
+    return dict(
+        tCK_ns=meta['ck_ns'],
+        tRCD_ns=n['tRCD'],
+        tRP_ns=n['tRP'],
+        tRAS_min_ns=n['tRAS'],
+        tRC_ns=n['tRC'],
+        tWR_ns=n['tWR'],
+        tWTR_ns=n['tWTR'],
+        tRTP_ns=n['tRTP'],
+        tRRD_ns=n['tRRD'],
+        tFAW_ns=n['tFAW'],
+        tREFI_ns=meta['tREFI_ns'],
+        tRFC_ns=n['tRFC'],
+        CL=cl,
+        CWL=cwl,
+        BL=meta['dram_bl'],
+    )
+
+
 if __name__ == "__main__":
     print(describe())
+    print()
+    print("DFI-slave view (ns in, the framework converts to CK):")
+    for k, v in jedec_ns().items():
+        print(f"  {k:14s} {v}")
