@@ -602,15 +602,18 @@ async def cocotb_test_uart_bw_slope(dut):
 async def cocotb_test_uart_axi4_bw_slope(dut):
     """The AXI4 board run, block counts and all (16 -> 64, the per-kick cap).
 
-    The AXIS codeword seams read 100.0% at slope and AXI4 reads ~97% -- NOT a
-    fill artifact (the slope cancels fill) and not the codec: it is the
-    sdpram slave's documented per-burst boundary cost (~2 cycles write, ~1.6
-    read; sdpram_core serialises bursts), paid once per 64-beat burst and
-    surviving the difference because the burst count scales with the block
-    count. The sim runs the same slave RTL in the same configuration, so the
-    windows must land on the board's own figures (stable/reports/
-    bandwidth.txt, 2026-10-01, axi4_ribm): cw_out 3118 cycles, cw_in 3069,
-    message 11983 over the 48-block difference.
+    After the sdpram_core burst-queue fix (2026-10-02, amba ISSUE-004 fixed
+    after all) the AXI4 codeword seams read 100.0% at slope -- exactly like
+    AXIS. The ~97%/98.5% this test used to assert (cw_out 3118, cw_in 3069,
+    2026-10-01 board figures) was the old slave's per-burst boundary cost,
+    paid once per 64-beat burst and surviving the slope difference because
+    the burst count scales with the block count. With the boundary free, the
+    codeword window IS the line rate: 48 blocks x 63 beats = 3024 cycles for
+    both seams. The message channel stays codec-throughput-bound (2832 beats
+    in 11712 cycles, 24.2%) -- the decoder's own pace, not the memory's; it
+    was 11983 before the fix. Board re-measurement against the rebuilt images
+    is pending; until then bandwidth.txt's 2026-10-01 figures describe the
+    OLD slave and this test's numbers are the sim's.
     """
     drv, _ = await _bringup(dut)
     topo = await cocotb.external(drv.topology)()
@@ -625,16 +628,21 @@ async def cocotb_test_uart_axi4_bw_slope(dut):
                   progs.bandwidth_slope(small, large, n, k, s))
     cw_beats = -(-n // s)
     msg_beats = -(-k // s)
-    for key, beats, win in (("cw_out", 48 * cw_beats, 3118),
-                            ("cw_in", 48 * cw_beats, 3069),
-                            ("in", 48 * msg_beats, 11983),
-                            ("out", 48 * msg_beats, 11983)):
+    for key, beats, win in (("cw_out", 48 * cw_beats, 3024),
+                            ("cw_in", 48 * cw_beats, 3024),
+                            ("in", 48 * msg_beats, 11712),
+                            ("out", 48 * msg_beats, 11712)):
         d_prod, d_win, util, per_blk = _slope_stats(small, large, key)
         assert d_prod == beats, f"{key}: {d_prod} beats, want {beats}"
         assert d_win == win, (
-            f"{key}: window {d_win} cycles, the board read {win} -- "
+            f"{key}: window {d_win} cycles, expected {win} -- "
             "sim and board diverge on the same RTL")
-        assert d_prod < d_win, f"{key}: read {util:.1%} -- the slave boundary cost vanished?"
+        if key.startswith("cw"):
+            assert d_prod == d_win, (
+                f"{key}: read {util:.1%} -- the codeword seam must be at "
+                "line rate now that the slave boundary is free")
+        else:
+            assert d_prod < d_win, f"{key}: read {util:.1%} -- the message channel is codec-bound"
     _check_sim_budget(dut, "AXI4 slope")
 
 
