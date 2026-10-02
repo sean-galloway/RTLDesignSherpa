@@ -23,6 +23,13 @@ the UNMODIFIED programs in host/rs_loop_programs.py.
                  four memories and the stages run in sequence, with the SAME
                  generator in and checker out. Clean, correctable and
                  beyond-threshold runs, plus the chain's own stage dones.
+  uart_observers the axis4 interface observer on the four AXIS seams: caps,
+                 exact beat/byte/packet counts, cleared per run, and agreement
+                 with the old in-regblock meters on the shared seam
+  uart_axi4_observers
+                 the IFACE = "AXI4" build's master observer on the codec's own
+                 ports: exact R/W beat counts per port, and the latency
+                 histogram's bins summing to the transaction total
   uart_single    the ENABLE_COMPARE = 0 build: one Euclid decoder, no
                  comparator. Proves the run still finishes with checker B
                  tied off, and that the comparator reports inactive rather
@@ -384,6 +391,150 @@ async def cocotb_test_uart_axi4(dut):
     dut._log.info("AXI4 oversized run correctly refused: stage=0x%02X", r.axi4_stage)
 
 
+@cocotb.test(timeout_time=400, timeout_unit="ms")
+async def cocotb_test_uart_observers(dut):
+    """The interface observer on the four AXIS seams, read by name over the
+    fabric's obs window.
+
+    Four things have to hold before a board BW curve can trust this readout:
+
+      - the window ANSWERS and says what it built: bus meter, no mon taps,
+        four ports (OBS_CAPS*, not an assumption). The rs_regs window on this
+        AXIS build is the stub and must report zero ports.
+      - the counts are EXACT. A clean 3-block run moves 3*ceil(k/S) message
+        beats and 3*ceil(n/S) codeword beats, and a meter's productive bucket
+        is precisely its beat count -- no approximation, no sampling.
+      - the meters CLEAR with the run: a second identical run reads the same
+        numbers, not double. The first cut left i_meter_clear/i_meter_freeze
+        dangling, which is exactly the failure this catches -- free-running
+        counters accumulate across runs and every curve is garbage.
+      - the OLD in-regblock meters and the observer agree on the seam they
+        share, so the new readout is not a second opinion.
+    """
+    drv, _ = await _bringup(dut)
+    prof = await cocotb.external(drv.profile)()
+    s = prof["spb"]
+    k_beats = -(-(prof["n"] - 2 * prof["t"]) // s)
+    cw_beats = -(-prof["n"] // s)
+    blocks = 3
+
+    caps = await cocotb.external(drv.observer_caps)()
+    dut._log.info("observer caps: %s", caps)
+    assert caps["axis"]["bus_meter"] and not caps["axis"]["mon_taps"], caps["axis"]
+    assert caps["axis"]["rd_ports"] == 4, caps["axis"]
+    assert caps["axi4"]["rd_ports"] == 0, (
+        f"the AXI4 window on an AXIS build should be the stub, got {caps['axi4']}")
+
+    r = await cocotb.external(
+        lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=0, blocks=blocks,
+                          iface_obs=True))()
+    _report(dut, "observers: clean", r)
+    obs = r.iface_obs["axis"]
+    want = {"msg_in": blocks * k_beats, "cw_out": blocks * cw_beats,
+            "cw_in": blocks * cw_beats, "msg_out": blocks * k_beats}
+    for seam, beats in want.items():
+        d = obs[seam]
+        dut._log.info("  %-7s %d beats, %d packets, %d bytes, util %.1f%% "
+                      "(bp %d, starv %d, idle %d)",
+                      seam, d["beats"], d["packets"], d["bytes"],
+                      100.0 * d["utilisation"], d["backpressure"],
+                      d["starvation"], d["idle"])
+        assert d["beats"] == beats, f"{seam}: {d['beats']} beats, want {beats}"
+        assert d["productive"] == beats, (
+            f"{seam}: productive {d['productive']} != beats {d['beats']}")
+        assert d["packets"] == blocks, f"{seam}: {d['packets']} packets, want {blocks}"
+        assert d["bytes"] == beats * s, (
+            f"{seam}: {d['bytes']} bytes, want {beats * s} -- a partial beat showed up "
+            "at a profile that has none")
+        assert d["window"] > 0, f"{seam}: empty bucket window"
+    # the shared seam: old meter and new observer count the same beats
+    assert r.obs["cw_out"]["productive"] == obs["cw_out"]["productive"], (
+        f"old meter {r.obs['cw_out']['productive']} != observer "
+        f"{obs['cw_out']['productive']} on the codeword-out seam")
+
+    # clear-with-the-run: an identical second run reads the same, not double
+    obs2 = (await cocotb.external(
+        lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=0, blocks=blocks,
+                          iface_obs=True))()).iface_obs["axis"]
+    for seam in want:
+        assert obs2[seam]["beats"] == want[seam], (
+            f"{seam}: second run read {obs2[seam]['beats']} beats -- the meters are "
+            "accumulating across runs (i_meter_clear is not clearing)")
+    _check_sim_budget(dut, "observers")
+
+
+@cocotb.test(timeout_time=400, timeout_unit="ms")
+async def cocotb_test_uart_axi4_observers(dut):
+    """The AXI4 flavour's master observer on the codec's own four ports.
+
+    RD meters snoop the R handshake and WR meters the W handshake, so the
+    productive bucket IS the beat count: enc_rd and dec_wr move the messages
+    (3*ceil(k/S)), dec_rd and enc_wr the codewords (3*ceil(n/S)). The latency
+    histogram must account for every transaction it timed: the bin counts sum
+    to HIST_TOTAL. And the AXIS observer -- always built, seams tied off on
+    this flavour -- must read all zeros rather than hang or count noise.
+    """
+    drv, _ = await _bringup(dut)
+    topo = await cocotb.external(drv.topology)()
+    assert topo["iface"] == "AXI4", f"expected an AXI4 build, TOPOLOGY says {topo['iface']}"
+    prof = await cocotb.external(drv.profile)()
+    s = prof["spb"]
+    k_beats = -(-(prof["n"] - 2 * prof["t"]) // s)
+    cw_beats = -(-prof["n"] // s)
+    blocks = 3
+
+    caps = await cocotb.external(drv.observer_caps)()
+    dut._log.info("observer caps: %s", caps)
+    assert caps["axi4"]["bus_meter"] and not caps["axi4"]["mon_taps"], caps["axi4"]
+    assert (caps["axi4"]["rd_ports"], caps["axi4"]["wr_ports"]) == (2, 2), caps["axi4"]
+
+    r = await cocotb.external(
+        lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=0, blocks=blocks,
+                          iface_obs=True))()
+    _report(dut, "AXI4 observers: clean", r)
+    obs = r.iface_obs["axi4"]
+    want = {"enc_rd": blocks * k_beats, "dec_rd": blocks * cw_beats,
+            "enc_wr": blocks * cw_beats, "dec_wr": blocks * k_beats}
+    for port, beats in want.items():
+        d = obs[port]
+        dut._log.info("  %-7s productive %d (bp %d, starv %d, idle %d), %d timed xacts",
+                      port, d["productive"], d["backpressure"], d["starvation"],
+                      d["idle"], d["hist_total"])
+        assert d["productive"] == beats, (
+            f"{port}: productive {d['productive']}, want {beats}")
+        assert d["hist_total"] > 0, f"{port}: no transactions timed"
+
+    # the histogram is exact accounting: bins sum to the transaction total
+    hist = await cocotb.external(lambda: drv.axi4_observer(hist=True))()
+    for hm, label in ((0, "AR->first-R"), (1, "AR->RLAST")):
+        total = hist["enc_rd"]["hist_total"]
+        binned = sum(hist["enc_rd"]["hist"][hm])
+        dut._log.info("  enc_rd %s: bins sum %d over %d timed", label, binned, total)
+        assert binned == total, (
+            f"enc_rd {label}: bins sum {binned} != hist_total {total}")
+
+    # The AXIS observer is built on this flavour too, and its OUTER seams are
+    # live: the generator still streams in (port 0) and the pipeline's drain
+    # still streams out (port 3), while the codec seams (ports 1, 2) are tied.
+    # That is a cross-check, not dead hardware: the two observers watched the
+    # same messages, so their counts must agree.
+    axis = await cocotb.external(drv.axis_observer)()
+    for seam, d in axis.items():
+        dut._log.info("  axis %-7s %d beats on this flavour", seam, d["beats"])
+    assert axis["msg_in"]["beats"] == blocks * k_beats, axis["msg_in"]
+    assert axis["msg_out"]["beats"] == blocks * k_beats, axis["msg_out"]
+    assert axis["msg_in"]["beats"] == obs["enc_rd"]["productive"], (
+        f"axis msg_in {axis['msg_in']['beats']} != axi4 enc_rd "
+        f"{obs['enc_rd']['productive']} -- the two observers disagree on the same stream")
+    assert axis["msg_out"]["beats"] == obs["dec_wr"]["productive"], (
+        f"axis msg_out {axis['msg_out']['beats']} != axi4 dec_wr "
+        f"{obs['dec_wr']['productive']} -- the two observers disagree on the same stream")
+    assert axis["cw_out"]["beats"] == 0 and axis["cw_in"]["beats"] == 0, (
+        "the codec seams should be tied in the AXI4 flavour, got "
+        f"cw_out={axis['cw_out']['beats']} cw_in={axis['cw_in']['beats']}")
+    _check_sim_budget(dut, "AXI4 observers")
+
+
 # =============================================================================
 # pytest wrappers
 # =============================================================================
@@ -469,3 +620,15 @@ def test_rs_loop_uart_axi4(request):
     _run("cocotb_test_uart_axi4",
          parameters={"IFACE": '"AXI4"', "ENABLE_COMPARE": "0"},
          suffix="_axi4")
+
+
+def test_rs_loop_uart_observers(request):
+    """The axis4 interface observer: exact counts, cleared per run."""
+    _run("cocotb_test_uart_observers")
+
+
+def test_rs_loop_uart_axi4_observers(request):
+    """IFACE=AXI4: the master observer's buckets and latency histogram."""
+    _run("cocotb_test_uart_axi4_observers",
+         parameters={"IFACE": '"AXI4"', "ENABLE_COMPARE": "0"},
+         suffix="_axi4obs")

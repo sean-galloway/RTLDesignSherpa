@@ -45,7 +45,8 @@ def bypass(drv: RsLoopDriver, blocks: int = 8, gen_seed: int = 0) -> RunResult:
 
 def run(drv: RsLoopDriver, mode: int, count: int = 0, rate: int = 0, blocks: int = 8,
         gen_seed: int = 0, inj_seed=None, throttle: bool = False,
-        throttle_a=None, throttle_b=None, timeout_s: float = 10.0) -> RunResult:
+        throttle_a=None, throttle_b=None, timeout_s: float = 10.0,
+        iface_obs: bool = False) -> RunResult:
     """One run. `throttle` throttles BOTH checkers; throttle_a/throttle_b override
     one side each.
 
@@ -53,9 +54,13 @@ def run(drv: RsLoopDriver, mode: int, count: int = 0, rate: int = 0, blocks: int
     Throttling both together keeps the two comparator FIFOs draining in
     lockstep, which masked a missing backpressure term for the whole bring-up:
     every test here passed while a skewed drain dropped beats on the board.
+
+    iface_obs=True also reads the interface observer's stats into
+    RunResult.iface_obs (the axis4 or axi4 observer, per the bitstream's
+    datapath) -- a characterization knob, ~56 extra UART round-trips.
     """
     return drv.run(mode=mode, count=count, rate=rate, blocks=blocks, gen_seed=gen_seed,
-                   inj_seed=inj_seed, timeout_s=timeout_s,
+                   inj_seed=inj_seed, timeout_s=timeout_s, iface_obs=iface_obs,
                    throttle_a=throttle if throttle_a is None else throttle_a,
                    throttle_b=throttle if throttle_b is None else throttle_b)
 
