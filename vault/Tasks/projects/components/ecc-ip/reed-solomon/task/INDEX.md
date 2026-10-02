@@ -12,17 +12,17 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [open/](open/) | 0 | accepted, not started |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Active
 
-## Open
+- **TASK-002** — Erasure decoding (PRD D5): erasure locator interface, Forney erasure path in `rs_model.py` then RTL, both solvers, DV matrix, injector erasure mode on the harness. Implementation shape pinned 2026-10-02 (Sean): elaboration-time `ERASURE_SUPPORT` param, default 0, off state bit-identical with its own OFF test. ACTIVE 2026-10-02.
 
-- **TASK-002** — Erasure decoding (PRD D5): erasure locator interface, Forney erasure path in `rs_model.py` then RTL, both solvers, DV matrix, injector erasure mode on the harness. Filed 2026-10-02 at the close of TASK-001.
+## Open
 
 ## Closed
 

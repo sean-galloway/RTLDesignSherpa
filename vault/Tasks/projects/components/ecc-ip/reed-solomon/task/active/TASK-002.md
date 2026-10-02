@@ -1,7 +1,7 @@
 # TASK-002: Erasure decoding (PRD D5)
 
 **Priority:** P3
-**Status:** open 2026-10-02
+**Status:** active 2026-10-02 -- implementation started (model-first)
 **Owner:** TBD
 
 Filed at the close of reed-solomon TASK-001. PRD D5 is the last undecided
@@ -11,6 +11,27 @@ symbols are erased. The consumers that want it are RAID-style (known-bad
 columns) and -- per Sean's D10 direction (2026-10-02) -- the future memory
 controller project, where a failing device or rank is exactly a known-bad
 column.
+
+## Implementation shape (Sean, 2026-10-02)
+
+**Elaboration-time parameter `ERASURE_SUPPORT`, default 0**, same style as
+`KES_ALGO` and `SYMBOLS_PER_BEAT` and the same philosophy as D2 (t is
+elaboration-time; no runtime CSR, no mode bit).
+
+- `ERASURE_SUPPORT=0`: no erasure-flag sideband on the intake, no Gamma(x)
+  build, no KES-seed mux, no Forney extension -- generate blocks elaborate
+  all of it away. The off state must be BIT-IDENTICAL to the pre-erasure
+  decoder, proven by netlist diff or formal equivalence, not assumed.
+- `ERASURE_SUPPORT=1`: S erasure flags ride with each beat at
+  `SYMBOLS_PER_BEAT = S`; the erasure locator builds incrementally as
+  flagged beats arrive; the selected solver's state is seeded with Gamma;
+  Forney evaluates at erasure positions too. The wrappers only expose the
+  sideband when the parameter is on, so a RAID/MC integration opts in and
+  every other consumer's interface is unchanged.
+- DV: the OFF state gets its OWN test (drive erasure stimulus at
+  `ERASURE_SUPPORT=0`, prove errors-only behaviour is untouched), and the
+  matrix gains an `ERASURE_SUPPORT` axis rather than flipping existing
+  cells.
 
 ## Scope
 
