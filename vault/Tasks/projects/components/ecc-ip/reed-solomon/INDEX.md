@@ -1,6 +1,6 @@
 # reed-solomon — task rollup
 
-**Next ID: RS-002** — never recycle a number, even when its task closed.
+**Next ID: TASK-004** — never recycle a number, even when its task closed.
 
 ## Lanes
 
@@ -11,7 +11,7 @@ Pick the lane before filing:
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 0 | 1 | 0 | 0 | 0 |
+| [task/](task/INDEX.md) | 1 | 0 | 1 | 0 | 1 |
 | [bug/](bug/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
 
@@ -26,9 +26,10 @@ counts above now match the directories.
 
 ## Open shortlist
 
-- **TASK-001** (ACTIVE) — stand up the Reed-Solomon component. Largely done and
-  worth a status decision: the codec, both solvers, the AXIS and AXI4 wrappers,
-  the DV area and the Nexys A7 loop harness all exist and pass. What the item
-  still names and does not have is a PRD-level scope decision (BCH in or out)
-  and a real consumer. Close it and file what remains, or keep it open as the
-  umbrella -- an owner's call, not a mechanical one.
+- **TASK-002** (open) — erasure decoding (PRD D5): the errors-plus-erasures
+  path, model-first, both solvers, DV matrix, injector erasure mode.
+- **TASK-003** (deferred) — first consumer selection (PRD D10), pending a
+  memory controller project consumer (Sean's direction, 2026-10-02).
+- **TASK-001** (CLOSED 2026-10-02) — the stand-up umbrella: codec, both
+  solvers, wrappers, DV area, HAS and the board harness all exist and pass.
+  Closed with D4 decided (both shapes viable) and the two successors above.

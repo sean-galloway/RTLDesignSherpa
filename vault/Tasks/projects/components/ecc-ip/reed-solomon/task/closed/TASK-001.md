@@ -1,7 +1,7 @@
 # TASK-001: Stand up the Reed-Solomon component
 
 > Migrated 2026-09-27 from `vault/Tasks/projects/components/ecc-ip/reed-solomon/open.md` as **RS-001** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
-**Status:** ACTIVE 2026-09-29 (was open 2026-08-09) (created when COMMON-009 was dropped — Sean's
+**Status:** CLOSED 2026-10-02 (was ACTIVE 2026-09-29, open 2026-08-09) (created when COMMON-009 was dropped — Sean's
 call: R/S is component work, not rtl/common library work)
 **Priority:** P3 — waits on a real consumer (NAND flash, comms, storage)
 
@@ -237,3 +237,19 @@ but never the `seq_*.py` files, exactly the drift [[uart-harness]] records.
 SequenceRunner with `board=None` and the cocotb UART injected, deviating only
 in `blocks`/`counts` for runtime; mutation-checked by breaking a sequence's
 expectation. Harness suite is 8 tests.
+
+**2026-10-02 -- CLOSED (Sean).** The stand-up is finished: the GF(2^m) layer,
+both cores (S = 1..8), both solvers (riBM == Euclid on every beat, board-proven
+at e = 0..18), the AXIS and AXI4 wrappers, the 195-cell component DV area, the
+HAS, and the Nexys A7 loop harness all exist and pass; four board images
+(AXIS/AXI4 x RIBM/EUCLID) measured with interface observers, and the sim
+harness reproduces the board's bandwidth slopes to the cycle (sim == board).
+Closed as the umbrella it had become. What it still named goes out as
+successors: D4 is DECIDED in the PRD (encoder-only and encoder+decoder both
+viable, Sean); erasure decoding (D5) is reed-solomon TASK-002 (open); the
+first consumer (D10) is reed-solomon TASK-003 (deferred -- Sean: consumers
+are expected from a future memory controller project). The harness perf
+residual (four-pass floor 252 vs measured 249.65 cyc/block; the drain pass
+trades UNIQUE coverage) stays documented in
+`projects/fpga-systems/NexysA7/reed-solomon/stable/MANIFEST.md` -- a coverage
+trade, not component work.

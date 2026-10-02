@@ -2,7 +2,7 @@
 
 # projects/components/ecc-ip/reed-solomon — tasks
 
-**Next ID: TASK-002** — never recycle a number, even when its item closed.
+**Next ID: TASK-004** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,15 +12,22 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [open/](open/) | 1 | accepted, not started |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
-| [deferred/](deferred/) | 0 | parked pending a named condition |
+| [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Active
 
-- **TASK-001** — Stand up the Reed-Solomon component -- ACTIVE 2026-09-29: area, References/, draft PRD (D1/D6/D7/D9/D11/D12 decided), FUB catalog, HAS v0.1 draft (d04ef971f); RTL waits on D2/D3/D5/D10
-
 ## Open
 
+- **TASK-002** — Erasure decoding (PRD D5): erasure locator interface, Forney erasure path in `rs_model.py` then RTL, both solvers, DV matrix, injector erasure mode on the harness. Filed 2026-10-02 at the close of TASK-001.
+
+## Closed
+
+- **TASK-001** — Stand up the Reed-Solomon component -- CLOSED 2026-10-02: codec, both solvers, AXIS + AXI4 wrappers, 195-cell DV area, HAS, and the four-image Nexys A7 loop harness all exist and board-pass; sim harness reproduces the board's bandwidth slopes to the cycle. Successors: TASK-002 (erasures), TASK-003 (first consumer).
+
+## Deferred
+
+- **TASK-003** — First consumer selection (PRD D10) -- DEFERRED 2026-10-02, pending a memory controller project consumer (Sean: consumers are expected from a future memory controller project). Wakes to pin the profile, D8 conventions, the TASK-002 pull-in, and PRD v1.0.
