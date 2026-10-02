@@ -24,7 +24,7 @@
 
 # RAPIDS Byte-Granular DMA: Byte Characterization Report
 
-**Version:** 0.3  
+**Version:** 0.10  
 **Date:** 2026-10-02  
 **Platform:** Genesys 2, 256-bit, 8 channels, 100 MHz  
 **Results:** `rapids_byte_perf_20260930_142731.json`
@@ -67,7 +67,7 @@ These rows use the beat-scaled path (`pkt_bytes=None`, beats per channel) on the
 
 ### 3.1 Word-wide checker build (the verdict)
 
-Measured on the `BYTE_CRC=0` bitstream (BUILD.WORD_CRC = 1, results file `rapids_byte_perf_prelim_20261002_032941.json`, bitstream sha256 `fdab4c4df63c02f7`). Its checkers take one beat per cycle like the RAPIDS Beats build. They CRC one 32-bit slice of each beat (slice 0, which holds the beat's LFSR word) and ignore the strobes, so the golden is the RAPIDS Beats golden and the data check covers 4 of the 32 bytes of each beat. That is enough for a utilization measurement of whole-beat rows; full-byte integrity is what the byte-wise build in 3.2 and the rest of this report check. The design under test is the same RTL.
+Measured on the `BYTE_CRC=0` bitstream (BUILD.WORD_CRC = 1, results file `rapids_byte_perf_20261002_032941.json`, bitstream sha256 `fdab4c4df63c02f7`). Its checkers take one beat per cycle like the RAPIDS Beats build. They CRC one 32-bit slice of each beat (slice 0, which holds the beat's LFSR word) and ignore the strobes, so the golden is the RAPIDS Beats golden and the data check covers 4 of the 32 bytes of each beat. That is enough for a utilization measurement of whole-beat rows; full-byte integrity is what the byte-wise build in 3.2 and the rest of this report check. The design under test is the same RTL.
 
 Each meter window opens on its own interface's first handshake (rd, wr, sout), and the sink-ingress window opens on the first ACCEPTED beat; cycles where the stream is offered before that accept are counted by `OBS_SIN_LAUNCH` (CSR 0x158) and are reported with the mechanism table below. The v0.2 report's rows were measured with every window on the shared `obs_dut_busy` open, which charged the descriptor-fetch wait to starvation on the memory-side interfaces; those start-up readings are harness artifacts and were corrected by the window change, not by a DUT change.
 
@@ -574,7 +574,7 @@ cd projects/fpga-systems/Genesys2/rapids/flows-rapids
 ./byte_perf.sh --profile standard          # quick run, writes *_prelim_*.json
 ```
 
-The word-wide aligned results are `rapids_byte_perf_prelim_20261002_032941.json`; its device readback follows.
+The word-wide aligned results are `rapids_byte_perf_20261002_032941.json`; its device readback follows.
 
 | Session | Bitstream sha256 | CSR_ID | BUILD | Sentinel start | Sentinel end | Stable | Aborted |
 |---|---:|---:|---:|---:|---:|---:|---:|
