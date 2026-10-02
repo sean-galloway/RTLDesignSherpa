@@ -30,6 +30,14 @@ the UNMODIFIED programs in host/rs_loop_programs.py.
                  the IFACE = "AXI4" build's master observer on the codec's own
                  ports: exact R/W beat counts per port, and the latency
                  histogram's bins summing to the transaction total
+  uart_bw_slope  the board's `bw --slope` on a single-solver AXIS build at
+                 16 -> 64 blocks: the codeword seams at exactly 100% -- the
+                 control for the AXI4 figure
+  uart_axi4_bw_slope
+                 the AXI4 board run's slope, block counts and all: the
+                 codeword seams must land on the board's own windows (97%,
+                 not 100% -- the sdpram slave's documented per-burst boundary
+                 cost, in the same RTL the board runs)
   uart_single    the ENABLE_COMPARE = 0 build: one Euclid decoder, no
                  comparator. Proves the run still finishes with checker B
                  tied off, and that the comparator reports inactive rather
@@ -551,6 +559,85 @@ async def cocotb_test_uart_axi4_observers(dut):
     _check_sim_budget(dut, "AXI4 observers")
 
 
+def _slope_stats(small, large, key):
+    """Differenced meter counts for one seam: beats, window, utilisation,
+    cycles per block. The difference cancels the pipeline fill exactly."""
+    a, b = small.obs[key], large.obs[key]
+    d_prod = b["productive"] - a["productive"]
+    d_win = b["window"] - a["window"]
+    d_blocks = large.blocks - small.blocks
+    return d_prod, d_win, d_prod / d_win, d_win / d_blocks
+
+
+@cocotb.test(timeout_time=200, timeout_unit="ms")
+async def cocotb_test_uart_bw_slope(dut):
+    """The board's `bw --slope` on the single-solver AXIS image, smaller counts.
+
+    Board axis_ribm reads both codeword seams at 100.0% as a slope over
+    64 -> 256 blocks. The sim uses 16 -> 64: the fill is one fixed term, so
+    any two block counts cancel it, and a block's cost here is the register
+    traffic, not its 63 beats. ENABLE_COMPARE=0 matches the board images
+    one-for-one (one riBM decoder, no comparator -- the comparator changes
+    the very handshake the meters measure).
+    """
+    drv, _ = await _bringup(dut)
+    prof = await cocotb.external(drv.profile)()
+    n, k, s = prof["n"], prof["n"] - 2 * prof["t"], prof["spb"]
+    small = await cocotb.external(
+        lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=0, blocks=16))()
+    large = await cocotb.external(
+        lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=0, blocks=64))()
+    dut._log.info("AXIS slope 16 -> 64 blocks:\n" +
+                  progs.bandwidth_slope(small, large, n, k, s))
+    cw_beats = -(-n // s)
+    for key in ("cw_out", "cw_in"):
+        d_prod, d_win, util, per_blk = _slope_stats(small, large, key)
+        assert d_prod == d_win == 48 * cw_beats, (
+            f"{key}: {d_prod} beats in {d_win} cycles over 48 blocks -- "
+            f"line rate is {48 * cw_beats} of each")
+    _check_sim_budget(dut, "AXIS slope")
+
+
+@cocotb.test(timeout_time=200, timeout_unit="ms")
+async def cocotb_test_uart_axi4_bw_slope(dut):
+    """The AXI4 board run, block counts and all (16 -> 64, the per-kick cap).
+
+    The AXIS codeword seams read 100.0% at slope and AXI4 reads ~97% -- NOT a
+    fill artifact (the slope cancels fill) and not the codec: it is the
+    sdpram slave's documented per-burst boundary cost (~2 cycles write, ~1.6
+    read; sdpram_core serialises bursts), paid once per 64-beat burst and
+    surviving the difference because the burst count scales with the block
+    count. The sim runs the same slave RTL in the same configuration, so the
+    windows must land on the board's own figures (stable/reports/
+    bandwidth.txt, 2026-10-01, axi4_ribm): cw_out 3118 cycles, cw_in 3069,
+    message 11983 over the 48-block difference.
+    """
+    drv, _ = await _bringup(dut)
+    topo = await cocotb.external(drv.topology)()
+    assert topo["iface"] == "AXI4", f"expected an AXI4 build, TOPOLOGY says {topo['iface']}"
+    prof = await cocotb.external(drv.profile)()
+    n, k, s = prof["n"], prof["n"] - 2 * prof["t"], prof["spb"]
+    small = await cocotb.external(
+        lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=0, blocks=16))()
+    large = await cocotb.external(
+        lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=0, blocks=64))()
+    dut._log.info("AXI4 slope 16 -> 64 blocks:\n" +
+                  progs.bandwidth_slope(small, large, n, k, s))
+    cw_beats = -(-n // s)
+    msg_beats = -(-k // s)
+    for key, beats, win in (("cw_out", 48 * cw_beats, 3118),
+                            ("cw_in", 48 * cw_beats, 3069),
+                            ("in", 48 * msg_beats, 11983),
+                            ("out", 48 * msg_beats, 11983)):
+        d_prod, d_win, util, per_blk = _slope_stats(small, large, key)
+        assert d_prod == beats, f"{key}: {d_prod} beats, want {beats}"
+        assert d_win == win, (
+            f"{key}: window {d_win} cycles, the board read {win} -- "
+            "sim and board diverge on the same RTL")
+        assert d_prod < d_win, f"{key}: read {util:.1%} -- the slave boundary cost vanished?"
+    _check_sim_budget(dut, "AXI4 slope")
+
+
 # =============================================================================
 # pytest wrappers
 # =============================================================================
@@ -648,3 +735,17 @@ def test_rs_loop_uart_axi4_observers(request):
     _run("cocotb_test_uart_axi4_observers",
          parameters={"IFACE": '"AXI4"', "ENABLE_COMPARE": "0"},
          suffix="_axi4obs")
+
+
+def test_rs_loop_uart_bw_slope(request):
+    """The board's bw --slope on a single-solver AXIS build: 100% cw seams."""
+    _run("cocotb_test_uart_bw_slope",
+         parameters={"ENABLE_COMPARE": "0"},
+         suffix="_slope")
+
+
+def test_rs_loop_uart_axi4_bw_slope(request):
+    """The AXI4 board run's slope: the slave's per-burst cost, sim == board."""
+    _run("cocotb_test_uart_axi4_bw_slope",
+         parameters={"IFACE": '"AXI4"', "ENABLE_COMPARE": "0"},
+         suffix="_axi4slope")
