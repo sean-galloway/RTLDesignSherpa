@@ -10,17 +10,19 @@ of the build-* dirs, outside the blast radius of `make clean-all`.
 
 ## Current contents
 
-**FOUR images now, from one harness RTL** -- datapath x solver, built by
-`bin/build_image_matrix.sh` on 2026-10-01 (second round: with the interface
-observers). One solver per bitstream, never
+**FOUR images now, from one harness RTL** -- datapath x solver. The AXIS pair
+was built by `bin/build_image_matrix.sh` on 2026-10-01 (second round: with the
+interface observers); the AXI4 pair was rebuilt 2026-10-02 with the sdpram_core
+burst-queue fix (amba 71d48b6f7 -- the burst boundary is free, see "The cost
+was the MEMORY SLAVE" below). One solver per bitstream, never
 both: two solvers double the key-equation area and the comparator changes the
 very handshake the meters measure. All four close with ZERO failing endpoints.
 
 | | axis_ribm | axis_euclid | axi4_ribm | axi4_euclid |
 |---|---|---|---|---|
-| Routed WNS | +0.462 ns | +0.249 ns | +0.210 ns | +0.146 ns |
+| Routed WNS | +0.462 ns | +0.249 ns | +0.203 ns | +0.261 ns |
 | Failing endpoints | 0 | 0 | 0 | 0 |
-| Slice LUTs | 15,787 | 17,973 | 23,736 | 25,888 |
+| Slice LUTs | 15,787 | 17,973 | 24,203 | 26,358 |
 | Block RAM tiles | 0 | 0 | 12 | 12 |
 
 All four carry the four bandwidth meters AND two interface observers on the
@@ -87,20 +89,22 @@ generator, checker and bus meter were never at fault, which the stream project
 saturating those same blocks should have said immediately. See
 vault/handbook/design/block-boundary-dead-cycles.md.
 
-## Bandwidth, all four images (2026-10-01)
+## Bandwidth, all four images (AXI4 pair re-measured 2026-10-02)
 
 Programmed and measured in turn by `bin/measure_image_matrix.sh`; raw output
 in `reports/bandwidth.txt`. Every image passed its random campaign (64 runs,
 0 failures) before its bandwidth was taken. Slopes: AXIS 64 -> 256 blocks,
 AXI4 16 -> 64 (its per-kick cap is CFG_AXI4_MAX_BLOCKS = 4096/63 = 65 and the
-harness refuses a larger run rather than clamping it).
+harness refuses a larger run rather than clamping it). The AXIS pair
+re-measured 2026-10-02 digit-identical to 2026-10-01; the AXI4 pair below is
+the FIXED slave, on images rebuilt with amba 71d48b6f7.
 
 | image | end-to-end cyc/block | codeword out | codeword in | message |
 |---|---|---|---|---|
 | axis_ribm | 63.00 | **100.0%** | **100.0%** | 93.7% |
 | axis_euclid | 63.00 | **100.0%** | **100.0%** | 93.7% |
-| axi4_ribm | 249.65 | 97.0% | 98.5% | 23.6% |
-| axi4_euclid | 249.65 | 97.0% | 98.5% | 23.6% |
+| axi4_ribm | 244.00 | **100.0%** | **100.0%** | 24.2% |
+| axi4_euclid | 244.00 | **100.0%** | **100.0%** | 24.2% |
 
 **The solver is throughput-neutral.** riBM and Euclid are identical to the
 cycle in both datapaths -- 16,264 cycles for 256 AXIS blocks either way. The
@@ -118,23 +122,35 @@ structure rather than the codec: before gating, the encoder's W channel logged
 the run was not the encode pass. `obs_enc_active` / `obs_dec_active` now gate
 each meter to its own stage.
 
-With that, the AXI4 codec's own cost is visible and it is NOT the fixture:
+With that, the AXI4 codec's own cost is visible and it is NOT the fixture.
+After the slave fix (below), the codec seams read at LINE RATE on the board,
+slope over 16 -> 64 blocks, both solvers identical:
 
-| seam | at burst 16 | at burst 64 | bucket that moved |
+| seam | cycles in window | beats | utilisation |
 |---|---|---|---|
-| codeword out (encode pass) | 70.88 (+7.88) | **64.96 (+1.96)** | backpressure 501 -> 124 |
-| codeword in (decode pass) | 66.94 (+3.94) | **63.94 (+0.94)** | starvation 394 -> 198 |
+| codeword out (encode pass) | 3,024 | 3,024 | **100.0%** |
+| codeword in (decode pass) | 3,024 | 3,024 | **100.0%** |
 
-**The cost was the MEMORY SLAVE, not the engines.** With the window gated, the
-encoder's W channel showed 501 cycles of BACKPRESSURE against 11 of
-starvation -- it was producing fine and the slave was refusing -- and the
-decoder's R channel showed 394 of starvation against zero backpressure, the
-slave failing to deliver. Both divided evenly by the burst count (~2.0 and
-~1.6 cycles per burst), so it is burst-start cost in the slave.
+**The cost WAS the MEMORY SLAVE, not the engines -- and it is FIXED.** Before
+the fix, with the window gated, the encoder's W channel showed 501 cycles of
+BACKPRESSURE against 11 of starvation -- it was producing fine and the slave
+was refusing -- and the decoder's R channel showed 394 of starvation against
+zero backpressure, the slave failing to deliver. Both divided evenly by the
+burst count (~2.0 and ~1.6 cycles per burst), so it was burst-start cost in
+the slave: sdpram_core serialised bursts, refusing the next command until the
+active burst's response had fully retired (amba ISSUE-004, originally closed
+no-action with that behaviour documented as the contract).
 
-`CFG_AXI4_BURST_LEN` went 16 -> 64, quartering the burst count, which is the
-fixture-side mitigation; the slave's per-burst gap itself is shared AMBA RTL
-and was left alone. 64 beats is 256 bytes and MUST be a power of two: the
+Sean overruled that close on 2026-10-02: the documented behaviour was the bug.
+sdpram_core now queues burst commands two deep per direction and reloads its
+tracker the cycle the active burst completes, so a burst boundary is FREE
+(amba 71d48b6f7; ISSUE-004 amended to fixed). The seams above are the board
+reading after the fix; the pre-fix board reading was 97.0% out / 98.5% in.
+
+`CFG_AXI4_BURST_LEN` went 16 -> 64 before the fix, quartering the burst count,
+which was the fixture-side mitigation while the slave was left alone. The
+config stays: fewer bursts is fewer command round trips regardless. 64 beats
+is 256 bytes and MUST be a power of two: the
 engines issue bursts back to back from the job base, so each is aligned to its
 own size, and a size dividing 4096 cannot cross AXI4's 4 KB boundary. One
 burst per codeword is NOT available -- 63 beats is 252 bytes, which would
@@ -146,7 +162,8 @@ eventually straddle it.
 |---|---|
 | five-pass, burst 16 (original) | 337.75 |
 | five-pass, burst 64 | 314.60 |
-| **four-pass, burst 64 (now)** | **249.65** |
+| four-pass, burst 64 (pre-fix slave) | 249.65 |
+| **four-pass, burst 64, fixed slave (now)** | **244.00** |
 | four-pass floor (4 x 63) | 252.00 |
 
 **The inject pass is gone.** The injector moved onto the DECODER'S READ
@@ -154,7 +171,8 @@ CHANNEL: the decoder reads M2 and what comes back has been corrupted in
 flight, so there is no read/corrupt/write hop through a third memory any more.
 That removed one sequential pass (-64.95 cyc/block, almost exactly the 63-beat
 codeword) and a whole memory (16 -> 12 block RAMs, and 504 LUTs on riBM), and
-cost the codec seams nothing -- they read 97.0% and 98.5% either way.
+cost the codec seams nothing -- they read 97.0% and 98.5% either way at the
+time, and 100.0% both ways on the fixed slave now.
 
 It is also closer to the original intent than the memory hop was. The thing
 doing the corrupting is the CHANNEL, not either codec; a separate hop honoured
@@ -173,9 +191,11 @@ STATUS.axi4_stage bit 2 now reads 0 permanently -- there is no inject stage --
 so a complete chain is 0x1B, not 0x1F. The field kept its five-bit width so
 the register map did not move; the host's expectation moved instead.
 
-Remaining: the four-pass floor is 252 against a measured 249.65, so
-serialisation is still essentially the whole gap. Seed and drain stage and
-check memory. Dropping drain -- the checker observing the decoder's write
+Remaining: the naive four-pass floor is 4 x 63 = 252 against a measured
+244.00, so the passes already overlap by 8 cyc/block -- the burst boundary
+itself is free since the slave fix, and what separates the measurement from
+the naive floor is pipeline overlap between stages that the serial-pass model
+does not credit. Dropping drain -- the checker observing the decoder's write
 channel -- would reach about 189, but nothing else reads M4, so that one
 trades UNIQUE coverage. The inject pass did not: its engines duplicated
 coverage the other passes already provide, which is why it went first.
@@ -232,7 +252,9 @@ WANT column so a dropped or duplicated beat flags itself.
   corrected). Clean runs read 16/16 ok, e = t reads 16 corrected, e = t+1 reads
   16 uncorrectable. The comparator is absent by construction, so the beats-
   compared figure is 0 and the B-side counters read 0 by design -- the host
-  learns that from TOPOLOGY rather than being told.
+  learns that from TOPOLOGY rather than being told. The soak figures predate
+  the sdpram slave fix; the 2026-10-02 rebuilt images (both solvers) re-passed
+  the random campaign 64 of 64 before their bandwidth was taken.
 
 - **Why the AXI4 soak is 100k and not a million.** Throughput is 114 blk/s
   against the stream path's 7,315, because the AXI4 datapath is five

@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 ----------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Thu Oct  1 20:09:28 2026
+| Date         : Fri Oct  2 08:43:33 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command      : report_drc -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/NexysA7/reed-solomon/build-loop/fpga/reports/drc.txt
 | Design       : rs_loop_top
@@ -24,14 +24,14 @@ Table of Contents
       Design limits: <entire design considered>
            Ruledeck: default
              Max checks: <unlimited>
-             Checks found: 58
+             Checks found: 57
 +-----------+----------+-----------------------------------------------------+--------+
 | Rule      | Severity | Description                                         | Checks |
 +-----------+----------+-----------------------------------------------------+--------+
 | CFGBVS-1  | Warning  | Missing CFGBVS and CONFIG_VOLTAGE Design Properties | 1      |
 | CHECK-3   | Warning  | Report rule limit reached                           | 1      |
 | DPIP-1    | Warning  | Input pipelining                                    | 16     |
-| DPOP-1    | Warning  | PREG Output pipelining                              | 8      |
+| DPOP-1    | Warning  | PREG Output pipelining                              | 7      |
 | DPOP-2    | Warning  | MREG Output pipelining                              | 12     |
 | REQP-1839 | Warning  | RAMB36 async control check                          | 20     |
 +-----------+----------+-----------------------------------------------------+--------+
@@ -167,11 +167,6 @@ DSP u_harness/g_axi4_path.u_pipe/u_enc/cfg_beats0__0 output u_harness/g_axi4_pat
 Related violations: <none>
 
 DPOP-1#7 Warning
-PREG Output pipelining  
-DSP u_harness/g_axi4_path.u_pipe/u_inj/r_b_bstart0 output u_harness/g_axi4_path.u_pipe/u_inj/r_b_bstart0/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
-Related violations: <none>
-
-DPOP-1#8 Warning
 PREG Output pipelining  
 DSP u_harness/w_num_beats output u_harness/w_num_beats/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
 Related violations: <none>
