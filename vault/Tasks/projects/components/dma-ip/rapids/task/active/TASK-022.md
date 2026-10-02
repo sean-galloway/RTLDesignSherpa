@@ -3,7 +3,7 @@
 **Priority:** P2 -- the product tree is unproven while the stepping stone is
 proven. Not urgent (the byte tree is board-characterized and its suites are
 green), but it is the largest coverage gap the rapids TASK-019 closure exposed.
-**Status:** open, filed 2026-10-01. SCOPE NOT YET AGREED -- see "Decide first".
+**Status:** ACTIVE 2026-10-02. Scope DECIDED 2026-10-02 -- see "Decide first".
 **Owner:** TBD
 
 ## The gap
@@ -63,13 +63,21 @@ has no beats equivalent, and it is exactly the kind of logic formal is good at:
 
 ## Decide first
 
-- [ ] scope: port the nine beats proofs to their byte equivalents, or write a
-      smaller set aimed only at the byte-specific logic above? The second is
-      cheaper and probably catches more, since the ported properties would
-      mostly re-prove logic the beats proofs already cover.
-- [ ] does the beats formal suite stay once the byte proofs exist? That is the
-      same question as how long the beats tree itself stays, and the answer
-      should be the same for both.
+- [x] scope: DECIDED 2026-10-02 (Sean) -- the smaller set aimed at the
+      byte-specific logic above, not a port of the nine. The arithmetic in
+      the census settles it: porting cannot reach half the gap, and the
+      twelve have nothing to port from.
+- [ ] does the beats formal suite stay once the byte proofs exist? DEFERRED
+      2026-10-02 -- decide when the byte proofs exist; the answer should
+      match how long the beats tree itself stays.
+- [x] proof mechanism: DECIDED 2026-10-02 (Sean) -- PORT-LEVEL HARNESS ONLY.
+      No new in-RTL properties of any kind; internal invariants are restated
+      at module boundaries or the signal is exposed. This matches the only
+      mechanism that has ever worked in this tree (see the finding below).
+- [x] the 64 existing in-RTL concurrent assertions: DECIDED 2026-10-02 (Sean)
+      -- DELETE all 64 (32 per tree, 14 files). Dead text whose maintenance
+      cost was already paid (the arbiter-request comment); nothing compiles
+      them and nothing may start to.
 
 ## Notes
 

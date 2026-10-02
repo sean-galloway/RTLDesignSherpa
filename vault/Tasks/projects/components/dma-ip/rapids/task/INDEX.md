@@ -12,17 +12,18 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [open/](open/) | 0 | accepted, not started |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 21 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-022** — the byte-granular RAPIDS has no formal proofs of its own; 9 of 11 proof dirs are `*_beats` (P2, filed 2026-10-01, scope not yet agreed)
 
 ## Active
+
+- **TASK-022** — the byte-granular RAPIDS has no formal proofs of its own (P2, filed 2026-10-01; scope DECIDED 2026-10-02: byte-specific set, port-level harnesses only, the 64 never-compiled in-RTL SVA blocks are deleted as part of the work)
 
 ## Closed
 
