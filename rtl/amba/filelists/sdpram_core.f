@@ -9,4 +9,6 @@
 
 -f $REPO_ROOT/rtl/amba/filelists/axi_gen_addr.f
 
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
+
 $REPO_ROOT/rtl/amba/shared/sdpram_core.sv

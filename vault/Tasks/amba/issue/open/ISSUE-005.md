@@ -4,6 +4,17 @@
 **Status:** open
 **Owner:** TBD
 
+> **UPDATE 2026-10-02:** the premise below is partially gone. ISSUE-004 was
+> fixed after all (Sean's call): sdpram_core now queues two commands per
+> direction and accepts AW n+1 while burst n is in flight, so a master's
+> AWs-minus-Bs counter CAN exceed 1 against this slave -- up to
+> BURST_Q_DEPTH + 1 = 3. Phase 4c of val/amba/test_sdpram_slave.py streams
+> four bursts with commands offered ahead and passes. What is still true:
+> `rs_axi4_write_engine` is built with MAX_OUTSTANDING = 4, deeper than the
+> slave's 3, and no harness drives B-lagging-behind-AW pressure hard enough
+> to prove the engine's gate at its full depth. The BFM option below remains
+> the way to close that residual.
+
 Every AXI4 master in this repo that carries outstanding-transaction depth is
 verified against `sdpram_slave_axi4_axi4`, and that slave serialises bursts
 (amba ISSUE-004, closed no-action). So the depth is never reached and the

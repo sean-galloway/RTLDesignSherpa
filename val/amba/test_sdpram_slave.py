@@ -384,6 +384,180 @@ async def cocotb_test_sdpram_slave(dut):
         )
 
     # ------------------------------------------------------------------
+    # Phase 4c — burst pipelining: ZERO dead cycles at burst boundaries.
+    #
+    # Streams PIPE_BURSTS back-to-back INCR bursts on each channel with
+    # the command for burst n+1 offered while burst n is in flight
+    # (AW/AR driver coroutines), wvalid / rready held continuously, and
+    # B consumed immediately (bready tied high). Asserts from the beat
+    # handshake timestamps that every burst boundary is EXACTLY one
+    # clock: burst n+1's first beat lands the cycle after burst n's
+    # last. (The one stall this phase deliberately does not count is the
+    # stream-start pipeline fill: the wrapper's registered leaf takes
+    # two W beats into its skid while AW1 is still propagating to the
+    # core, so a master streaming W from cycle 0 sees a single stall
+    # inside the first burst window. That is pipeline latency, not a
+    # boundary cost, and every board measurement includes it.)
+    #
+    # The contract after the sdpram_core burst-queue fix (2026-10-02,
+    # Sean: the serialised-burst behaviour documented against amba
+    # ISSUE-004 IS a bug): a burst boundary costs NOTHING. The old
+    # single-tracker core fails this phase with >= 2 dead cycles per
+    # write boundary and >= 1 per read boundary. AXI4-only.
+    # ------------------------------------------------------------------
+    if wr_proto == "AXI4" and rd_proto == "AXI4":
+        log.info("Phase 4c: burst_pipelining")
+
+        PIPE_BURSTS = 4
+        PIPE_BEATS = 8
+        total = PIPE_BURSTS * PIPE_BEATS
+        full_strb = (1 << (dw // 8)) - 1
+        pipe_data = [(0xB000000000000000 | i) & mask for i in range(total)]
+        pipe_addrs = [((b * PIPE_BEATS) * word_bytes) % (depth * word_bytes)
+                      for b in range(PIPE_BURSTS)]
+
+        async def _drive_cmds(dut, is_write, addrs):
+            for a in addrs:
+                if is_write:
+                    dut.s_axi_awaddr.value  = a
+                    dut.s_axi_awlen.value   = PIPE_BEATS - 1
+                    dut.s_axi_awsize.value  = size_log2
+                    dut.s_axi_awburst.value = 1
+                    dut.s_axi_awvalid.value = 1
+                else:
+                    dut.s_axi_araddr.value  = a
+                    dut.s_axi_arlen.value   = PIPE_BEATS - 1
+                    dut.s_axi_arsize.value  = size_log2
+                    dut.s_axi_arburst.value = 1
+                    dut.s_axi_arvalid.value = 1
+                vld = dut.s_axi_awvalid if is_write else dut.s_axi_arvalid
+                rdy = dut.s_axi_awready if is_write else dut.s_axi_arready
+                while True:
+                    await ReadOnly()
+                    if int(vld.value) and int(rdy.value):
+                        await RisingEdge(dut.aclk)
+                        vld.value = 0
+                        break
+                    await RisingEdge(dut.aclk)
+
+        async def _count_bs(dut, result):
+            while True:
+                await ReadOnly()
+                if int(dut.s_axi_bvalid.value) and int(dut.s_axi_bready.value):
+                    result[0] += 1
+                await RisingEdge(dut.aclk)
+
+        # ----- write side -----
+        b_count = [0]
+        aw_task = cocotb.start_soon(_drive_cmds(dut, True, pipe_addrs))
+        b_task = cocotb.start_soon(_count_bs(dut, b_count))
+        dut.s_axi_bready.value = 1
+
+        # The contract under test is the BURST BOUNDARY: burst n+1's first
+        # beat must land the cycle after burst n's last. The one dead cycle
+        # this phase does NOT count is the stream-start pipeline fill: the
+        # wrapper's registered leaf accepts two W beats into its skid while
+        # AW1 is still propagating to the core, so a master streaming W from
+        # cycle 0 sees a single stall cycle inside the first burst window
+        # (present in the old core too, and in every board measurement).
+        # Bubbles are therefore counted from beat PIPE_BEATS onward, and the
+        # boundary gaps are checked exactly from the handshake timestamps.
+        w_bubbles = 0
+        w_hs_times = []
+        for i in range(total):
+            dut.s_axi_wdata.value  = pipe_data[i]
+            dut.s_axi_wstrb.value  = full_strb
+            dut.s_axi_wlast.value  = 1 if (i % PIPE_BEATS) == PIPE_BEATS - 1 else 0
+            dut.s_axi_wvalid.value = 1
+            while True:
+                await ReadOnly()
+                wr = int(dut.s_axi_wready.value)
+                if len(w_hs_times) >= PIPE_BEATS and not wr:
+                    w_bubbles += 1
+                if int(dut.s_axi_wvalid.value) and wr:
+                    w_hs_times.append(cocotb.utils.get_sim_time('ns'))
+                    await RisingEdge(dut.aclk)
+                    break
+                await RisingEdge(dut.aclk)
+        dut.s_axi_wvalid.value = 0
+        dut.s_axi_wlast.value  = 0
+
+        await aw_task
+        while b_count[0] < PIPE_BURSTS:
+            await RisingEdge(dut.aclk)
+        b_task.kill()
+        dut.s_axi_bready.value = 0
+
+        assert len(w_hs_times) == total
+        clk_ns = w_hs_times[1] - w_hs_times[0]
+        for k in range(1, PIPE_BURSTS):
+            gap = w_hs_times[k * PIPE_BEATS] - w_hs_times[k * PIPE_BEATS - 1]
+            assert gap == clk_ns, (
+                f"burst boundary {k - 1}->{k} cost "
+                f"{gap / clk_ns - 1:.0f} dead cycles -- the burst boundary "
+                "must be free (sdpram_core burst-queue fix)"
+            )
+        assert w_bubbles == 0, (
+            f"write channel saw {w_bubbles} dead cycles after stream start "
+            f"across {PIPE_BURSTS - 1} burst boundaries -- the burst "
+            "boundary must be free (sdpram_core burst-queue fix)"
+        )
+        log.info(
+            f"  OK: {total} write beats in {total} cycles across "
+            f"{PIPE_BURSTS} bursts, zero dead cycles, {b_count[0]} B responses"
+        )
+
+        # ----- read side -----
+        ar_task = cocotb.start_soon(_drive_cmds(dut, False, pipe_addrs))
+        dut.s_axi_rready.value = 1
+
+        r_bubbles = 0
+        r_started = False
+        r_seen = 0
+        r_last_count = 0
+        r_mismatch = 0
+        r_hs_times = []
+        while r_seen < total:
+            await ReadOnly()
+            rv = int(dut.s_axi_rvalid.value)
+            if r_started and not rv:
+                r_bubbles += 1
+            if rv:
+                r_started = True
+                if int(dut.s_axi_rdata.value) != pipe_data[r_seen]:
+                    r_mismatch += 1
+                if int(dut.s_axi_rlast.value):
+                    r_last_count += 1
+                r_hs_times.append(cocotb.utils.get_sim_time('ns'))
+                r_seen += 1
+            await RisingEdge(dut.aclk)
+        dut.s_axi_rready.value = 0
+        await ar_task
+
+        assert r_bubbles == 0, (
+            f"read channel saw {r_bubbles} dead cycles across "
+            f"{PIPE_BURSTS - 1} burst boundaries -- the burst boundary "
+            "must be free (sdpram_core burst-queue fix)"
+        )
+        for k in range(1, PIPE_BURSTS):
+            gap = r_hs_times[k * PIPE_BEATS] - r_hs_times[k * PIPE_BEATS - 1]
+            assert gap == clk_ns, (
+                f"read burst boundary {k - 1}->{k} cost "
+                f"{gap / clk_ns - 1:.0f} dead cycles -- the burst boundary "
+                "must be free (sdpram_core burst-queue fix)"
+            )
+        assert r_last_count == PIPE_BURSTS, (
+            f"rlast count {r_last_count} != {PIPE_BURSTS}"
+        )
+        assert r_mismatch == 0, (
+            f"{r_mismatch} pipelined read beats mismatched the written pattern"
+        )
+        log.info(
+            f"  OK: {total} read beats in {total} cycles across "
+            f"{PIPE_BURSTS} bursts, zero dead cycles, data exact"
+        )
+
+    # ------------------------------------------------------------------
     # Phase 5 — random single-beat fill, then read back
     # ------------------------------------------------------------------
     log.info("Phase 5: random_fill_check")

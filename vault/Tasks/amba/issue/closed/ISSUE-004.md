@@ -1,8 +1,23 @@
 # ISSUE-004: sdpram_core serialises bursts, so a master's MAX_OUTSTANDING buys nothing
 
 **Priority:** P2
-**Status:** closed
+**Status:** closed -- FIXED after all, 2026-10-02
 **Owner:** TBD
+
+> **AMENDMENT 2026-10-02 (Sean overruled the no-action close below):**
+> "There was no bug; this is in fact a bug. The documented behavior is
+> horrible." The serialisation this issue documented as the contract WAS the
+> defect. sdpram_core now carries a two-deep command queue per direction
+> (BURST_Q_DEPTH) plus a B-response queue; the tracker reloads from the queue
+> head the cycle the active burst completes, and a burst boundary costs ZERO
+> dead cycles -- proven by the new Phase 4c (burst_pipelining) in
+> val/amba/test_sdpram_slave.py, which asserts every boundary is exactly one
+> clock from the beat handshake timestamps. The old core failed it with ~2.3
+> dead cycles per write boundary. The one stall that remains is stream-start
+> pipeline fill in the wrapper's registered skid leaf (one cycle, inside the
+> first burst window), not a boundary cost. This also exercises the
+> outstanding path whose coverage gap was carried forward into ISSUE-005.
+> The "RESOLVED no-action" text below is kept for the record; it is wrong.
 
 `rtl/amba/shared/sdpram_core.sv` accepts exactly ONE burst at a time on each
 direction, so there is a fixed dead-cycle cost at every burst boundary that no

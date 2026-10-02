@@ -17,11 +17,15 @@
 // Subsystem: amba
 // Author: sean galloway
 
-// Burst concurrency: sdpram_core serialises bursts -- one in flight per
-//          direction -- so a master's MAX_OUTSTANDING is inert against this
-//          slave and a fixed cost lands at each burst boundary (~2 cycles
-//          write, ~1.6 read, measured). It amortises with burst length. See
-//          sdpram_core.sv's "Burst concurrency" section and amba ISSUE-004.
+// Burst concurrency: sdpram_core queues burst commands two deep per
+//          direction and reloads its tracker the cycle the active burst
+//          completes, so a burst boundary is FREE -- burst n+1's first
+//          beat lands the cycle after burst n's last. The one stall a
+//          master can still see is the stream-start fill: this wrapper's
+//          registered skid leaf takes up to two W beats while the first
+//          AW is still propagating to the core. See sdpram_core.sv's
+//          "Burst concurrency" section and amba ISSUE-004 (fixed
+//          2026-10-02 after Sean overruled its no-action close).
 //
 `timescale 1ns / 1ps
 

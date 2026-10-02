@@ -4,10 +4,11 @@
 // Module: sdpram_core
 // Purpose: Protocol-agnostic Simple Dual-Port BRAM backend. Owns the
 //          BRAM array, the burst-aware write/read trackers (with
-//          axi_gen_addr), and the bulk-clear FSM. Exposes a single
-//          FUB-shaped slave interface so the protocol-specific
-//          wrappers (axi4 / axil on either side) drop straight on top
-//          without string-switch generate plumbing.
+//          axi_gen_addr), the per-direction burst command queues, and
+//          the bulk-clear FSM. Exposes a single FUB-shaped slave
+//          interface so the protocol-specific wrappers (axi4 / axil on
+//          either side) drop straight on top without string-switch
+//          generate plumbing.
 //
 // Role in the file family:
 //          This is the shared compute kernel. It speaks one wire
@@ -38,41 +39,49 @@
 //     BRAM glue advances linearly; an assertion in the AXI4 wrappers
 //     flags WRAP at the sim boundary until it's been exercised.
 //
-// Burst concurrency: ONE AT A TIME, AND A MASTER'S OUTSTANDING IS INERT.
-//   There is a single tracker per direction, so consecutive bursts do not
-//   overlap and a fixed dead-cycle cost falls at every burst boundary:
+// Burst concurrency: TWO DEEP PER DIRECTION, AND THE BOUNDARY IS FREE.
+//   Each direction has a small command queue (BURST_Q_DEPTH, default 2)
+//   in front of its tracker. The tracker reloads from the queue the same
+//   cycle the active burst completes, so the first beat of burst n+1
+//   lands the cycle after the last beat of burst n:
 //
-//     fub_awready = !r_wr_active && !r_b_pending   // next AW waits for B
-//     fub_wready  =  r_wr_active                   // W only while active
-//     fub_arready = !r_rd_active                   // next AR waits for RLAST
+//     fub_awready = AW queue not full (direct-load when idle AND empty)
+//     fub_wready  = r_wr_active (the LAST beat also needs a free B slot)
+//     fub_arready = AR queue not full (direct-load when idle AND empty)
 //
-//   Consequences a master author needs, because none of them are obvious:
+//   Consequences a master author needs:
 //
-//   - A master's MAX_OUTSTANDING (or equivalent) buys NOTHING here. Since the
-//     next AW is refused until the previous B has been consumed, an
-//     AWs-minus-Bs counter can only ever hold 0 or 1 against this slave. Size
-//     the engine for the real system it will meet; just do not expect this
-//     memory to exercise that depth, and do not read the resulting throughput
-//     as a defect in the master.
-//   - The cost is PER BURST, not per beat or per block, so it amortises with
-//     burst length and is worst for a master issuing many short bursts.
-//     Measured on an Artix-7 harness at 32-bit beats: ~2.0 cycles per write
-//     burst (the master backpressured) and ~1.6 per read burst (the master
-//     starved). Over a 63-beat payload that is ~12% at a 16-beat burst and
-//     ~3% at 64.
-//   - If you need overlapping bursts -- to stress a master's outstanding path,
-//     or because short bursts are the traffic under test -- this core needs a
-//     second tracker slot or an AW/AR queue. That is deliberate unbuilt work,
-//     not an oversight: see amba ISSUE-004, closed no-action, for the
-//     measurement and the reasoning.
+//   - A master's outstanding capacity up to BURST_Q_DEPTH + 1 per
+//     direction is genuinely exercised against this slave. Deeper buys
+//     nothing: the BRAM ports are the one-beat-per-cycle limit either
+//     way, and the queue's only job is hiding the boundary.
+//   - B and R return in command order per direction -- a legal subset
+//     of AXI4's per-ID ordering (no completion interleaving across IDs).
+//   - The B response has its own queue (same depth), so a master that
+//     defers bready does not stall the W channel -- except exactly on a
+//     burst's last beat with the B queue full, where wready holds off
+//     until a response drains. That is resource backpressure, not a
+//     protocol wait: B drains the moment bready rises.
+//   - History: this core used to serialise bursts (one tracker per
+//     direction, no queue), charging ~2.0 cycles per write burst and
+//     ~1.6 per read burst at every boundary -- measured on the Nexys A7
+//     RS loop harness 2026-10-01 and recorded in amba ISSUE-004, closed
+//     no-action on the argument that the behaviour was the contract.
+//     Sean overruled 2026-10-02: the serialisation WAS the bug. This
+//     queue is the fix. The RS AXI4 harness's 97.0% / 98.5% codec seams
+//     were this cost, not the codec's.
 //
 // Architecture:
 //
-//   fub_aw/w/b ──→ [ write tracker + axi_gen_addr ] ──→ BRAM port A
-//   fub_ar/r   ←── [ read tracker  + axi_gen_addr ] ←── BRAM port B
+//   fub_aw ──→ [ AW queue ] ──→ [ write tracker + axi_gen_addr ] ──→ BRAM port A
+//   fub_w  ────────────────────── (gated by tracker + B-queue space)
+//   fub_b  ←── [ B queue ] ←──── (burst completions, in order)
+//   fub_ar ──→ [ AR queue ] ──→ [ read tracker  + axi_gen_addr ] ←── BRAM port B
+//   fub_r  ←── [ inflight reg ] ← (1-cycle BRAM read latency)
 //
 //   Clear FSM owns BRAM port A while w_clearing is asserted (held off
-//   until both sides report idle so no glitch on fub_*_ready).
+//   until both trackers, all three queues and the inflight register are
+//   empty so no glitch on fub_*_ready).
 
 `timescale 1ns / 1ps
 
@@ -93,7 +102,12 @@ module sdpram_core #(
     //     64 KB instance cost ~23k LUTs that way (LUT-as-Memory 5,400 ->
     //     28,696, Block RAM idle at 2.6%). With USE_WSTRB=0 both branches are
     //     full-word writes and it infers block RAM.
-    parameter bit    USE_WSTRB    = 1'b1
+    parameter bit    USE_WSTRB    = 1'b1,
+    // Depth of the per-direction burst command queues (and the B response
+    // queue). 2 is the smallest value that makes a burst boundary free:
+    // one burst active, one waiting. Deeper adds outstanding coverage at
+    // a few LUTs an entry; it cannot add throughput (see the header).
+    parameter int    BURST_Q_DEPTH = 2
 ) (
     input  logic                        aclk,
     input  logic                        aresetn,
@@ -163,15 +177,19 @@ module sdpram_core #(
     localparam int ADDR_LSB = $clog2(STRB_W);
     localparam int MEM_AW   = $clog2(MEM_DEPTH);
     localparam int WORD_AW  = ADDR_WIDTH - ADDR_LSB;
+    localparam int CMD_W    = AXI_ID_WIDTH + ADDR_WIDTH + 8 + 3 + 2;
+    localparam int B_W      = AXI_ID_WIDTH + 2;
 
     // ---------------------------------------------------------------
-    // Forward-declare burst-tracker flags so the clear FSM can gate
-    // i_cfg_start_clear on "both sides idle".
+    // Forward-declare tracker and queue flags so the clear FSM can
+    // gate i_cfg_start_clear on "everything idle".
     // ---------------------------------------------------------------
     logic r_wr_active;
-    logic r_b_pending;
     logic r_rd_active;
     logic r_inflight;
+    logic awq_rd_valid;
+    logic bq_rd_valid;
+    logic arq_rd_valid;
 
     // ---------------------------------------------------------------
     // Clear FSM -- owns BRAM port A while w_clearing is asserted.
@@ -191,8 +209,10 @@ module sdpram_core #(
         end else begin
             unique case (r_clr_state)
                 CLR_IDLE: begin
-                    if (i_cfg_start_clear && !r_wr_active && !r_b_pending
-                                          && !r_rd_active && !r_inflight) begin
+                    if (i_cfg_start_clear && !r_wr_active && !awq_rd_valid
+                                          && !bq_rd_valid
+                                          && !r_rd_active && !arq_rd_valid
+                                          && !r_inflight) begin
                         r_clr_state  <= CLR_BUSY;
                         r_clear_addr <= '0;
                         r_done_clear <= 1'b0;
@@ -213,7 +233,13 @@ module sdpram_core #(
     assign o_cfg_done_clear = r_done_clear;
 
     // ---------------------------------------------------------------
-    // Write path -- burst-aware tracker.
+    // Write path -- AW command queue + burst tracker + B queue.
+    //
+    // wr_reload fires the cycle the active burst completes (or while
+    // the tracker sits idle with a queued command), so the tracker
+    // never drops between bursts. The direct path (aw_direct) keeps
+    // from-idle first-beat latency at the old single-tracker value
+    // instead of paying a queue hop on every lonely burst.
     // ---------------------------------------------------------------
     logic [AXI_ID_WIDTH-1:0]    r_wr_id;
     logic [ADDR_WIDTH-1:0]      r_wr_addr;
@@ -225,8 +251,10 @@ module sdpram_core #(
     logic [2:0]                 r_wr_size;
     logic [1:0]                 r_wr_burst;
 
-    logic [AXI_ID_WIDTH-1:0]    r_b_id;
-    logic [1:0]                 r_b_resp;
+    logic                       awq_wr_ready;
+    logic [CMD_W-1:0]           awq_rd_data;
+    logic                       bq_wr_ready;
+    logic [B_W-1:0]             bq_rd_data;
 
     wire [MEM_AW-1:0]  write_bram_addr     = r_wr_addr[ADDR_LSB +: MEM_AW];
     wire               write_addr_in_range = 1'b1;
@@ -234,16 +262,79 @@ module sdpram_core #(
     wire [WORD_AW-1:0] fub_aw_word_addr    = r_wr_addr[ADDR_LSB +: WORD_AW];
     /* verilator lint_on UNUSED */
 
-    wire aw_accept   = fub_awvalid && fub_awready;
-    wire w_accept    = fub_wvalid  && fub_wready;
-    wire w_last_beat = w_accept && (r_wr_beats_left == 8'd0);
-    wire write_fire  = w_accept && !w_clearing;
+    wire aw_direct = !r_wr_active && !awq_rd_valid;
+    wire aw_accept = fub_awvalid && fub_awready;
+    wire awq_push  = aw_accept && !aw_direct;
+    wire awq_pop;
 
-    assign fub_awready = !r_wr_active && !r_b_pending && !w_clearing;
-    assign fub_wready  =  r_wr_active && !w_clearing;
-    assign fub_bvalid  =  r_b_pending;
-    assign fub_bresp   =  r_b_resp;
-    assign fub_bid     =  r_b_id;
+    wire w_accept       = fub_wvalid && fub_wready;
+    wire w_last_pending = (r_wr_beats_left == 8'd0);
+    wire w_last_beat    = w_accept && w_last_pending;
+    wire write_fire     = w_accept && !w_clearing;
+
+    wire wr_reload  = (!r_wr_active || w_last_beat) && awq_rd_valid;
+    assign awq_pop = wr_reload;
+
+    wire wr_load    = wr_reload || (aw_accept && aw_direct);
+
+    // Load source: the queue head when reloading, the AW pins on a
+    // direct from-idle accept (mutually exclusive by construction).
+    wire [AXI_ID_WIDTH-1:0] q_awid;
+    wire [ADDR_WIDTH-1:0]   q_awaddr;
+    wire [7:0]              q_awlen;
+    wire [2:0]              q_awsize;
+    wire [1:0]              q_awburst;
+    assign {q_awid, q_awaddr, q_awlen, q_awsize, q_awburst} = awq_rd_data;
+
+    wire [AXI_ID_WIDTH-1:0] ld_awid    = wr_reload ? q_awid    : fub_awid;
+    wire [ADDR_WIDTH-1:0]   ld_awaddr  = wr_reload ? q_awaddr  : fub_awaddr;
+    wire [7:0]              ld_awlen   = wr_reload ? q_awlen   : fub_awlen;
+    wire [2:0]              ld_awsize  = wr_reload ? q_awsize  : fub_awsize;
+    wire [1:0]              ld_awburst = wr_reload ? q_awburst : fub_awburst;
+
+    assign fub_awready = (awq_wr_ready || aw_direct) && !w_clearing;
+    assign fub_wready  = r_wr_active && !w_clearing
+                         && !(w_last_pending && !bq_wr_ready);
+
+    /* verilator lint_off PINCONNECTEMPTY */
+    gaxi_fifo_sync #(
+        .REGISTERED (0),
+        .DATA_WIDTH (CMD_W),
+        .DEPTH      (BURST_Q_DEPTH)
+    ) u_awq (
+        .axi_aclk    (aclk),
+        .axi_aresetn (aresetn),
+        .wr_valid    (awq_push),
+        .wr_ready    (awq_wr_ready),
+        .wr_data     ({fub_awid, fub_awaddr, fub_awlen, fub_awsize, fub_awburst}),
+        .rd_ready    (awq_pop),
+        .count       (),
+        .rd_valid    (awq_rd_valid),
+        .rd_data     (awq_rd_data)
+    );
+
+    // B queue: one entry per completed burst, in completion (= command)
+    // order. w_last_beat can only fire when bq has space (the wready
+    // gate), so the push below never overflows.
+    gaxi_fifo_sync #(
+        .REGISTERED (0),
+        .DATA_WIDTH (B_W),
+        .DEPTH      (BURST_Q_DEPTH)
+    ) u_bq (
+        .axi_aclk    (aclk),
+        .axi_aresetn (aresetn),
+        .wr_valid    (w_last_beat),
+        .wr_ready    (bq_wr_ready),
+        .wr_data     ({r_wr_id, (write_addr_in_range ? 2'b00 : 2'b10)}),
+        .rd_ready    (fub_bready),
+        .count       (),
+        .rd_valid    (bq_rd_valid),
+        .rd_data     (bq_rd_data)
+    );
+    /* verilator lint_on PINCONNECTEMPTY */
+
+    assign fub_bvalid = bq_rd_valid;
+    assign {fub_bid, fub_bresp} = bq_rd_data;
 
     logic [ADDR_WIDTH-1:0] w_wr_next_addr;
     axi_gen_addr #(
@@ -269,39 +360,28 @@ module sdpram_core #(
             r_wr_len        <= 8'd0;
             r_wr_size       <= 3'd0;
             r_wr_burst      <= 2'b01;
-            r_b_pending     <= 1'b0;
-            r_b_id          <= '0;
-            r_b_resp        <= 2'b00;
         end else begin
-            if (r_b_pending && fub_bready) begin
-                r_b_pending <= 1'b0;
+            if (w_accept && !w_last_beat) begin
+                r_wr_addr       <= w_wr_next_addr;
+                r_wr_beats_left <= r_wr_beats_left - 8'd1;
             end
-            if (aw_accept) begin
+            if (wr_load) begin
                 r_wr_active     <= 1'b1;
-                r_wr_id         <= fub_awid;
-                r_wr_addr       <= fub_awaddr;
-                r_wr_beats_left <= fub_awlen;
-                r_wr_len        <= fub_awlen;
-                r_wr_size       <= fub_awsize;
-                r_wr_burst      <= fub_awburst;
-            end
-            if (w_accept) begin
-                r_wr_addr <= w_wr_next_addr;
-                if (r_wr_beats_left != 8'd0) begin
-                    r_wr_beats_left <= r_wr_beats_left - 8'd1;
-                end
-                if (w_last_beat) begin
-                    r_wr_active <= 1'b0;
-                    r_b_pending <= 1'b1;
-                    r_b_id      <= r_wr_id;
-                    r_b_resp    <= write_addr_in_range ? 2'b00 : 2'b10;
-                end
+                r_wr_id         <= ld_awid;
+                r_wr_addr       <= ld_awaddr;
+                r_wr_beats_left <= ld_awlen;
+                r_wr_len        <= ld_awlen;
+                r_wr_size       <= ld_awsize;
+                r_wr_burst      <= ld_awburst;
+            end else if (w_last_beat) begin
+                r_wr_active <= 1'b0;
             end
         end
     )
 
     // ---------------------------------------------------------------
-    // Read path -- burst-aware tracker.
+    // Read path -- AR command queue + burst tracker (same reload and
+    // direct-load shape as the write side).
     // ---------------------------------------------------------------
     /* verilator lint_off UNUSED */
     wire [WORD_AW-1:0] fub_ar_word_addr = fub_araddr[ADDR_LSB +: WORD_AW];
@@ -314,16 +394,56 @@ module sdpram_core #(
     logic [2:0]                 r_rd_size;
     logic [1:0]                 r_rd_burst;
 
+    logic                       arq_wr_ready;
+    logic [CMD_W-1:0]           arq_rd_data;
+
     logic [AXI_ID_WIDTH-1:0]    r_inflight_rid;
     logic [1:0]                 r_inflight_rresp;
     logic                       r_inflight_rlast;
 
-    wire ar_accept     = fub_arvalid && fub_arready;
-    wire read_issue    = r_rd_active && !w_clearing && (!r_inflight || fub_rready);
-    wire is_last       = (r_rd_beats_left == 8'd0);
+    wire ar_direct  = !r_rd_active && !arq_rd_valid;
+    wire ar_accept  = fub_arvalid && fub_arready;
+    wire arq_push   = ar_accept && !ar_direct;
+    wire read_issue = r_rd_active && !w_clearing && (!r_inflight || fub_rready);
+    wire is_last    = (r_rd_beats_left == 8'd0);
     wire read_in_range = 1'b1;
 
-    assign fub_arready = !r_rd_active && !w_clearing;
+    wire rd_reload  = (!r_rd_active || (read_issue && is_last)) && arq_rd_valid;
+    wire arq_pop    = rd_reload;
+    wire rd_load    = rd_reload || (ar_accept && ar_direct);
+
+    wire [AXI_ID_WIDTH-1:0] q_arid;
+    wire [ADDR_WIDTH-1:0]   q_araddr;
+    wire [7:0]              q_arlen;
+    wire [2:0]              q_arsize;
+    wire [1:0]              q_arburst;
+    assign {q_arid, q_araddr, q_arlen, q_arsize, q_arburst} = arq_rd_data;
+
+    wire [AXI_ID_WIDTH-1:0] ld_arid    = rd_reload ? q_arid    : fub_arid;
+    wire [ADDR_WIDTH-1:0]   ld_araddr  = rd_reload ? q_araddr  : fub_araddr;
+    wire [7:0]              ld_arlen   = rd_reload ? q_arlen   : fub_arlen;
+    wire [2:0]              ld_arsize  = rd_reload ? q_arsize  : fub_arsize;
+    wire [1:0]              ld_arburst = rd_reload ? q_arburst : fub_arburst;
+
+    assign fub_arready = (arq_wr_ready || ar_direct) && !w_clearing;
+
+    /* verilator lint_off PINCONNECTEMPTY */
+    gaxi_fifo_sync #(
+        .REGISTERED (0),
+        .DATA_WIDTH (CMD_W),
+        .DEPTH      (BURST_Q_DEPTH)
+    ) u_arq (
+        .axi_aclk    (aclk),
+        .axi_aresetn (aresetn),
+        .wr_valid    (arq_push),
+        .wr_ready    (arq_wr_ready),
+        .wr_data     ({fub_arid, fub_araddr, fub_arlen, fub_arsize, fub_arburst}),
+        .rd_ready    (arq_pop),
+        .count       (),
+        .rd_valid    (arq_rd_valid),
+        .rd_data     (arq_rd_data)
+    );
+    /* verilator lint_on PINCONNECTEMPTY */
 
     logic [ADDR_WIDTH-1:0] w_rd_next_addr;
     axi_gen_addr #(
@@ -350,23 +470,20 @@ module sdpram_core #(
             r_rd_size       <= 3'd0;
             r_rd_burst      <= 2'b01;
         end else begin
-            if (ar_accept) begin
-                r_rd_active     <= 1'b1;
-                r_rd_id         <= fub_arid;
-                r_rd_addr       <= fub_araddr;
-                r_rd_beats_left <= fub_arlen;
-                r_rd_len        <= fub_arlen;
-                r_rd_size       <= fub_arsize;
-                r_rd_burst      <= fub_arburst;
+            if (read_issue && !is_last) begin
+                r_rd_addr       <= w_rd_next_addr;
+                r_rd_beats_left <= r_rd_beats_left - 8'd1;
             end
-            if (read_issue) begin
-                r_rd_addr <= w_rd_next_addr;
-                if (r_rd_beats_left != 8'd0) begin
-                    r_rd_beats_left <= r_rd_beats_left - 8'd1;
-                end
-                if (is_last) begin
-                    r_rd_active <= 1'b0;
-                end
+            if (rd_load) begin
+                r_rd_active     <= 1'b1;
+                r_rd_id         <= ld_arid;
+                r_rd_addr       <= ld_araddr;
+                r_rd_beats_left <= ld_arlen;
+                r_rd_len        <= ld_arlen;
+                r_rd_size       <= ld_arsize;
+                r_rd_burst      <= ld_arburst;
+            end else if (read_issue && is_last) begin
+                r_rd_active <= 1'b0;
             end
         end
     )

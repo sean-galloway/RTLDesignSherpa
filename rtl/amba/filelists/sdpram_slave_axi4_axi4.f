@@ -18,5 +18,7 @@ $REPO_ROOT/rtl/amba/axi4/axi4_slave_rd.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_slave_wr.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv
 $REPO_ROOT/rtl/amba/shared/axi_gen_addr.sv
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
+
 $REPO_ROOT/rtl/amba/shared/sdpram_core.sv
 $REPO_ROOT/rtl/amba/shared/sdpram_slave_axi4_axi4.sv
