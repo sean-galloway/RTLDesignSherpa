@@ -14,6 +14,8 @@ Subcommands:
   random     --runs N runs, each with a fresh data seed, error seed, mode and count
   bw         one run, reported as input/output bandwidth from the hardware
              meters (productive/backpressure/starvation/idle per end)
+  obs        one run, reported from the INTERFACE observer on the datapath's
+             own seams (exact beats/bytes/packets per port, ideal column)
   soak       --target blocks (default 1,000,000) of random patterns, in runs of
              --blocks each so any failure replays as one short run
 """
@@ -143,6 +145,26 @@ def cmd_bw(args, drv):
     return 0
 
 
+def cmd_obs(args, drv):
+    """One measured run, reported from the interface observer on the datapath's
+    own seams -- the characterization readout proven in the uart_observers /
+    uart_axi4_observers cosim tests, now reachable from the board CLI.
+    """
+    caps = drv.observer_caps()
+    prof = drv.profile()
+    r = progs.iface_observers(drv, blocks=args.blocks, count=args.count)
+    bad = progs.verdict(r, prof["t"])
+    print(f"  {r.blocks} blocks, e={args.count}: {r.cycles} cycles "
+          f"({r.cycles_per_block:.1f}/block)")
+    print(progs.format_iface_obs(r, prof, caps))
+    if args.hist and drv.topology()["iface"] == "AXI4":
+        print(progs.format_axi4_hist(drv.axi4_observer(hist=True)))
+    if bad:
+        print("  COMPLAINTS: " + "; ".join(bad))
+        return 1
+    return 0
+
+
 def cmd_soak(args, drv):
     """A million blocks of random patterns, through the same sequence layer."""
     from pathlib import Path as _P
@@ -200,6 +222,12 @@ def main(argv=None):
                    help="the second block count for --slope (default blocks/4)")
     p.add_argument("--n", type=int, default=0, help="n, for the ideal (default from PROFILE)")
     p.add_argument("--k", type=int, default=0, help="k, for the ideal (default from PROFILE)")
+    p = sub.add_parser("obs", help="one run, reported from the interface observer")
+    p.add_argument("--blocks", type=int, default=16)
+    p.add_argument("--count", type=int, default=0, help="errors per block")
+    p.add_argument("--hist", action="store_true",
+                   help="AXI4 only: also dump the latency histograms "
+                        "(96 extra SELECT+DATA round-trips)")
     p = sub.add_parser("soak")
     p.add_argument("--target", type=int, default=1_000_000, help="total blocks to push")
     p.add_argument("--blocks", type=int, default=4096, help="blocks per run (per seed pair)")
@@ -213,7 +241,7 @@ def main(argv=None):
     print(f"== {args.cmd} on {board.SPEC.display_name} @ {port} ==")
     return {"smoke": cmd_smoke, "bypass": cmd_bypass, "run": cmd_run, "sweep": cmd_sweep,
             "random": cmd_random, "soak": cmd_soak,
-            "bw": cmd_bw}[args.cmd](args, drv)
+            "bw": cmd_bw, "obs": cmd_obs}[args.cmd](args, drv)
 
 
 if __name__ == "__main__":

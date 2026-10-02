@@ -194,6 +194,89 @@ def verdict(r: RunResult, t: int) -> List[str]:
 AXI4_STAGE_MASK = 0x1B
 
 
+def iface_observers(drv: RsLoopDriver, blocks: int = 8, count: int = 0) -> RunResult:
+    """One clean run with the interface observer read out (RunResult.iface_obs).
+
+    Kept as a program so the board CLI and the sim ask for the same thing the
+    same way; the readout itself is ~56 SELECT+DATA round-trips, so it stays
+    out of the default run path.
+    """
+    return run(drv, RsLoopDriver.INJ_COUNT, count=count, blocks=blocks, iface_obs=True)
+
+
+def format_iface_obs(r: RunResult, profile: dict, caps: dict) -> str:
+    """The interface observer's windows, per port, with the exact beat counts
+    the run SHOULD have produced as an ideal column.
+
+    The expectations are arithmetic, not fitted: a clean run of B blocks moves
+    B*ceil(k/S) message beats and B*ceil(n/S) codeword beats, and on this
+    harness a meter's productive bucket IS its beat count (the cosim
+    uart_observers / uart_axi4_observers tests assert equality, not
+    approximation). A port that disagrees with its ideal column is a dropped
+    or duplicated beat, wherever it sits in the chain.
+    """
+    if not r.iface_obs:
+        return "no interface observer data: run with iface_obs=True"
+    s = profile["spb"]
+    k_beats = -(-(profile["n"] - 2 * profile["t"]) // s)
+    cw_beats = -(-profile["n"] // s)
+    lines = []
+    for name, c in caps.items():
+        stub = c["rd_ports"] == 0 and c["wr_ports"] == 0
+        lines.append(f"  caps {name}: rd={c['rd_ports']} wr={c['wr_ports']} "
+                     f"ch={c['channels']} bus_meter={int(c['bus_meter'])}"
+                     + ("  (stub -- not this bitstream's datapath)" if stub else ""))
+    if "axis" in r.iface_obs:
+        obs = r.iface_obs["axis"]
+        for port, beats_per_block in (("msg_in", k_beats), ("cw_out", cw_beats),
+                                      ("cw_in", cw_beats), ("msg_out", k_beats)):
+            d = obs.get(port)
+            if not d:
+                continue
+            want = r.blocks * beats_per_block
+            flag = "" if d["beats"] == want else f"  WANT {want}"
+            lines.append(f"  {port:>7} {d['beats']:>8} beats / {d['window']:>8} cyc "
+                         f"= {d['utilisation']:6.1%}  pkts {d['packets']:>5} "
+                         f"bytes {d['bytes']:>8}  (bp {d['backpressure']}, "
+                         f"starv {d['starvation']}, idle {d['idle']}){flag}")
+    if "axi4" in r.iface_obs:
+        obs = r.iface_obs["axi4"]
+        for port, beats_per_block in (("enc_rd", k_beats), ("dec_rd", cw_beats),
+                                      ("enc_wr", cw_beats), ("dec_wr", k_beats)):
+            d = obs.get(port)
+            if not d:
+                continue
+            want = r.blocks * beats_per_block
+            flag = "" if d["productive"] == want else f"  WANT {want}"
+            lines.append(f"  {port:>7} {d['productive']:>8} beats / {d['window']:>8} cyc "
+                         f"= {d['utilisation']:6.1%}  timed {d['hist_total']:>5}  "
+                         f"(bp {d['backpressure']}, starv {d['starvation']}, "
+                         f"idle {d['idle']}){flag}")
+    return "\n".join(lines)
+
+
+def format_axi4_hist(hist: dict) -> str:
+    """The AXI4 observer's log2 latency histograms; bin b = [2^b, 2^(b+1)) cycles.
+
+    Exact accounting: each port's bins sum to its timed-transaction total,
+    which the cosim test asserts -- a histogram that does not sum is dropping
+    or double-counting completions.
+    """
+    lines = []
+    for port, d in hist.items():
+        # read ports time AR->first-R (0) and AR->RLAST (1); write ports time
+        # only AW->B (0) -- see RsLoopDriver.axi4_observer
+        is_write = 1 not in (d.get("hist") or {})
+        for hm, bins in (d.get("hist") or {}).items():
+            label = "AW->B" if is_write else ("AR->first-R", "AR->RLAST")[hm]
+            total = d["hist_total"]
+            binned = sum(bins)
+            flag = "" if binned == total else f"  SUM {binned} != TOTAL {total}"
+            nonzero = " ".join(f"{b}:{c}" for b, c in enumerate(bins) if c)
+            lines.append(f"  {port:>7} {label:<11} [{nonzero}]{flag}")
+    return "\n".join(lines)
+
+
 def bandwidth(r) -> str:
     """Bandwidth from the meters rather than inferred from a cycle count.
 
