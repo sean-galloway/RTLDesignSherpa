@@ -1,4 +1,4 @@
-=== axis_ribm at 2026-10-01T12:29:32-07:00
+=== axis_ribm at 2026-10-01T20:16:47-07:00
   [random] 64 runs x 4 blocks on RS(252,236): 31 exact-count, 12 burst, 21 rate; blocks 24 clean / 125 corrected / 107 uncorrectable; 0 failing run(s)
   [run] 2 sequence(s), 52.36s total: ALL PASS
   2 sequence(s), 52.36s total: ALL PASS
@@ -17,10 +17,10 @@
     cw  out    12096 beats /    12096 cyc = 100.0%    63.00 cyc/block (ideal 63)
     cw  in     12096 beats /    12096 cyc = 100.0%    63.00 cyc/block (ideal 63)
 
-=== axis_euclid at 2026-10-01T12:30:41-07:00
+=== axis_euclid at 2026-10-01T20:17:55-07:00
   [random] 64 runs x 4 blocks on RS(252,236): 31 exact-count, 12 burst, 21 rate; blocks 24 clean / 125 corrected / 107 uncorrectable; 0 failing run(s)
-  [run] 2 sequence(s), 52.36s total: ALL PASS
-  2 sequence(s), 52.36s total: ALL PASS
+  [run] 2 sequence(s), 52.35s total: ALL PASS
+  2 sequence(s), 52.35s total: ALL PASS
   == bw on Nexys A7-100T @ /dev/ttyUSB5 ==
     datapath AXIS, decoder Euclid, 1 decoder(s)
     256 blocks, e=0: 16264 cycles (63.5/block)
@@ -36,10 +36,10 @@
     cw  out    12096 beats /    12096 cyc = 100.0%    63.00 cyc/block (ideal 63)
     cw  in     12096 beats /    12096 cyc = 100.0%    63.00 cyc/block (ideal 63)
 
-=== axi4_ribm at 2026-10-01T12:31:49-07:00
+=== axi4_ribm at 2026-10-01T20:19:03-07:00
   [random] 64 runs x 4 blocks on RS(252,236): 31 exact-count, 12 burst, 21 rate; blocks 24 clean / 125 corrected / 107 uncorrectable; 0 failing run(s)
-  [run] 2 sequence(s), 52.36s total: ALL PASS
-  2 sequence(s), 52.36s total: ALL PASS
+  [run] 2 sequence(s), 52.35s total: ALL PASS
+  2 sequence(s), 52.35s total: ALL PASS
   == bw on Nexys A7-100T @ /dev/ttyUSB5 ==
     datapath AXI4, decoder riBM, 1 decoder(s)
     64 blocks, e=0: 16136 cycles (252.1/block)
@@ -55,7 +55,7 @@
     cw  out     3024 beats /     3118 cyc =  97.0%    64.96 cyc/block (ideal 63)
     cw  in      3024 beats /     3069 cyc =  98.5%    63.94 cyc/block (ideal 63)
 
-=== axi4_euclid at 2026-10-01T12:32:56-07:00
+=== axi4_euclid at 2026-10-01T20:20:10-07:00
   [random] 64 runs x 4 blocks on RS(252,236): 31 exact-count, 12 burst, 21 rate; blocks 24 clean / 125 corrected / 107 uncorrectable; 0 failing run(s)
   [run] 2 sequence(s), 52.36s total: ALL PASS
   2 sequence(s), 52.36s total: ALL PASS
@@ -74,4 +74,4 @@
     cw  out     3024 beats /     3118 cyc =  97.0%    64.96 cyc/block (ideal 63)
     cw  in      3024 beats /     3069 cyc =  98.5%    63.94 cyc/block (ideal 63)
 
-=== done at 2026-10-01T12:34:04-07:00
+=== done at 2026-10-01T20:21:18-07:00

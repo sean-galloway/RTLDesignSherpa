@@ -32,8 +32,11 @@ and against a reference that never saw the errors.
 ```
 UART -> uart_axil_bridge -> bridge_rs_loop_axil (generated 1x3 fabric)
                               |  rs_loop_apb  0x00000000  -> apb4_to_peakrdl -> rs_loop_regs
-                              |  rs_regs_apb  0x00010000  -> reserved (codec CSRs, PRD D9)
-                              |  obs_apb      0x00020000  -> reserved (interface observer)
+                              |  rs_regs_apb  0x00010000  -> axi4_intf_master_observer
+                              |                            (AXI4 flavours; read-0 stub on AXIS.
+                              |                             codec CSRs remain reserved, PRD D9)
+                              |  obs_apb      0x00020000  -> axis4_intf_observer on the
+                              |                            four AXIS seams (every image)
                                                      |
   axis4_master_pattern_gen (32-bit, one packet per block, LFSR data + CRC-32)
         |                                    \
@@ -73,8 +76,14 @@ e = 0 .. 8 every block corrected with exactly e symbols and no mismatching
 beat on either decoder; e = 9 .. 18 every block flagged uncorrectable on both
 with mismatches seen; riBM and Euclid agreed on every beat and every verdict
 at every e, with random ready on the checkers too, and in burst and rate
-modes. The fabric's reserved windows were probed on hardware: 0x0 reads the
-loop block's identifier, 0x10000 and 0x20000 read 0 and complete. Throughput
+modes. The fabric's windows were probed on hardware: 0x0 reads the
+loop block's identifier, and both expansion windows answer with their
+interface observer -- OBS_CAPS at 0x20000 reports the four AXIS seams on every
+image, at 0x10000 the codec's four AXI4 master ports on the AXI4 flavours and
+a read-0 stub on AXIS. `host_rs_loop.py obs` reads them on the board: the
+per-port beat counts are the exact run arithmetic (B blocks x 59 message / 63
+codeword beats), they stay exact at e = t, and the AXI4 latency histograms
+sum to their timed-transaction totals (`--hist`). Throughput
 69.3 cycles per 63-beat block back to back (bypass 59.0), 122.0 under random
 ready. Timing met after place and route at 100 MHz, WNS +0.157 ns; 18248
 LUTs, 8160 flops, 6 DSPs, no BRAM.

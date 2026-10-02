@@ -11,21 +11,27 @@ of the build-* dirs, outside the blast radius of `make clean-all`.
 ## Current contents
 
 **FOUR images now, from one harness RTL** -- datapath x solver, built by
-`bin/build_image_matrix.sh` on 2026-10-01. One solver per bitstream, never
+`bin/build_image_matrix.sh` on 2026-10-01 (second round: with the interface
+observers). One solver per bitstream, never
 both: two solvers double the key-equation area and the comparator changes the
 very handshake the meters measure. All four close with ZERO failing endpoints.
 
 | | axis_ribm | axis_euclid | axi4_ribm | axi4_euclid |
 |---|---|---|---|---|
-| Routed WNS | +0.192 ns | +0.097 ns | +0.392 ns | +0.152 ns |
+| Routed WNS | +0.462 ns | +0.249 ns | +0.210 ns | +0.146 ns |
 | Failing endpoints | 0 | 0 | 0 | 0 |
-| Slice LUTs | 11,130 | 13,418 | 12,486 | 14,654 |
+| Slice LUTs | 15,787 | 17,973 | 23,736 | 25,888 |
 | Block RAM tiles | 0 | 0 | 12 | 12 |
 
-All four carry FOUR bandwidth meters (the two codeword-seam ones added +415
-LUTs on axis_ribm). The earlier round's axis_ribm read +0.011 ns with the
-error injector as its critical path; the same RTL plus two meters now reads
-+0.251 ns, which settles that as placement variance rather than a real path.
+All four carry the four bandwidth meters AND two interface observers on the
+fabric's expansion windows: an `axis4_intf_observer` on the four AXIS seams
+(0x20000, live on every image) and an `axi4_intf_master_observer` on the
+codec's own ports (0x10000, live on the AXI4 flavours, a read-0 stub on AXIS).
+The observers cost +4.6k LUTs on the AXIS images and +11.2k on AXI4 (the
+master observer's per-port latency histograms are the difference) against the
+first round's 11,130 / 13,418 / 12,486 / 14,654 -- and moved the measured
+datapath not at all: every bandwidth figure below re-measured digit-identical
+with the observers in the images.
 
 Per-image reports and bitstreams are in `reports/<image>/`, with
 `reports/matrix_summary.txt` carrying the table above.
@@ -100,7 +106,7 @@ harness refuses a larger run rather than clamping it).
 cycle in both datapaths -- 16,264 cycles for 256 AXIS blocks either way. The
 key-equation stage costs iterations+1 and Euclid's extra iteration is still far
 inside the 63-beat budget, so the choice is an area and timing decision only
-(13,418 vs 11,130 LUTs on AXIS). The host reads the solver name from TOPOLOGY,
+(17,973 vs 15,787 LUTs on AXIS). The host reads the solver name from TOPOLOGY,
 so the pair being identical is not a stale bitstream.
 
 ### The codeword meters are gated to the stage that owns them
@@ -173,6 +179,30 @@ check memory. Dropping drain -- the checker observing the decoder's write
 channel -- would reach about 189, but nothing else reads M4, so that one
 trades UNIQUE coverage. The inject pass did not: its engines duplicated
 coverage the other passes already provide, which is why it went first.
+
+## Interface observers (board-proven 2026-10-01, second-round images)
+
+The fabric's two expansion windows are no longer reserved: each answers with
+an `obs_regs` interface observer, read by NAME through the same regmap on both
+(`host_rs_loop.py obs`; `--hist` adds the AXI4 latency histograms).
+
+- **0x20000, `axis4_intf_observer`** -- the four AXIS seams in codeword order
+  (msg_in, cw_out, cw_in, msg_out): per-port cycle buckets plus exact
+  bytes/beats/packets. Live on every image; on AXI4 flavours the two codec
+  seams are tied and the outer two stay live as a cross-check.
+- **0x10000, `axi4_intf_master_observer`** -- the codec's four AXI4 master
+  ports (enc_rd, dec_rd, enc_wr, dec_wr): cycle buckets, timed-transaction
+  totals and log2 latency histograms (AR->first-R, AR->RLAST, AW->B). AXI4
+  flavours only; a read-0 stub on AXIS, which OBS_CAPS reports as rd_ports=0
+  rather than the host assuming.
+
+Board-proven on both flavours: the per-port beat counts are the exact run
+arithmetic (B blocks x 59 message / 63 codeword beats; 16-block AXIS and AXI4
+runs read 944/1008 on the nose, 64-block 3776/4032), they stay exact at
+e = t = 8, the meters clear with each run, and every histogram's bins sum to
+its timed-transaction total. The same expectations are asserted in cosim by
+`uart_observers` / `uart_axi4_observers`; the CLI prints the arithmetic as a
+WANT column so a dropped or duplicated beat flags itself.
 
 ## Build notes
 
