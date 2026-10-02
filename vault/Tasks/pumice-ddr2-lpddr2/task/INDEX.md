@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-038** — never recycle a number, even when its item closed.
+**Next ID: TASK-039** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -12,13 +12,18 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 30 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
+
+- **TASK-038** — rebuild the ddr2-char harness images (build-perf and the
+  LiteDRAM A/B) with the fixed sdpram slave (amba 71d48b6f7, burst boundary
+  now free) and repin every board-measured figure taken with the pre-fix
+  slave; the LiteDRAM A/B moves on BOTH sides, so it is re-run, not edited
 
 - **TASK-035** — finish pumice's formal coverage. 5 of 27 blocks proven (11/11
   sby tasks); closes when TIER 1 is done — `pumice_cmd_arbiter` (which settles

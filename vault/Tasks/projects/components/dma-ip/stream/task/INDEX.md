@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/stream — tasks
 
-**Next ID: TASK-016** — never recycle a number, even when its item closed.
+**Next ID: TASK-017** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 14 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,10 @@ by construction rather than by discipline.
 
 ## Open
 
-
+- **TASK-016** — rebuild all three Genesys2 stream harness builds
+  (build-perf, build-obs, build-mon) with the fixed sdpram slave (amba
+  71d48b6f7, burst boundary now free) and repin every board-measured figure
+  taken with the pre-fix slave
 
 ## Active
 

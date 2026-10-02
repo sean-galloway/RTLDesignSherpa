@@ -26,7 +26,7 @@ filing; IDs are per-lane sequences.
 
 | Lane | For | open | active | closed | dropped |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | 2 | 0 | 22 | 4 |
+| [task/](task/INDEX.md) | planned work we decided to do | 3 | 0 | 22 | 4 |
 | [bug/](bug/INDEX.md) | a defect with a reproduction | 1 | 0 | 17 | 1 |
 | [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 1 | 0 | 15 | 3 |
 

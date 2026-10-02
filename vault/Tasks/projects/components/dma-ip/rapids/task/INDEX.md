@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/rapids — tasks
 
-**Next ID: TASK-023** — never recycle a number, even when its item closed.
+**Next ID: TASK-024** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 21 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,6 +20,11 @@ by construction rather than by discipline.
 
 ## Open
 
+- **TASK-023** — rebuild both Genesys2 rapids harness images (rapids byte
+  harness, rapids_beats char harness) with the fixed sdpram slave (amba
+  71d48b6f7, burst boundary now free) and repin every board-measured figure
+  taken with the pre-fix slave; the 2026-10-02 prelim perf JSONs are pre-fix
+  baselines
 
 ## Active
 
