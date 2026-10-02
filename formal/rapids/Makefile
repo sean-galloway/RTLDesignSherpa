@@ -16,18 +16,11 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-MODULES := \
-	alloc_ctrl_beats \
-	axi_read_engine_beats \
-	axi_write_engine_beats \
-	ctrlrd_engine \
-	ctrlwr_engine \
-	descriptor_engine_beats \
-	drain_ctrl_beats \
-	latency_bridge_beats \
-	scheduler_beats \
-	snk_sram_controller_beats \
-	src_sram_controller_beats \
+# <dir>/<dir>.sby only: sby writes a config.sby into every work directory it
+# creates, so a bare */*.sby would pick up any stray top-level run.
+# (Discovery per tooling TASK-018 convention, same one-liner as
+# formal/apbx_xbar and formal/bridge -- a hand-edited list goes stale.)
+MODULES := $(sort $(foreach d,$(patsubst %/,%,$(dir $(wildcard */*.sby))),$(if $(wildcard $d/$d.sby),$d)))
 
 .PHONY: help all prove-all cover-all clean \
 	$(addprefix prove-,$(MODULES)) $(addprefix cover-,$(MODULES))
