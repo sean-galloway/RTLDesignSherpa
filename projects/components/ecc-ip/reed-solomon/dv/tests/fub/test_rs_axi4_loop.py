@@ -67,6 +67,7 @@ async def cocotb_test_rs_axi4_loop(dut):
     await tb.setup_clocks_and_reset()
     ok = await tb.run_bursts()
     ok &= await tb.run_backpressure()
+    ok &= await tb.run_valid_hold(burst_lens=(16, 64))
     report = tb.get_test_report()
     tb.log.info(f"Test report: {report}")
     assert ok, (f"rs_axi4 loop: {report['mismatches']} mismatches in "

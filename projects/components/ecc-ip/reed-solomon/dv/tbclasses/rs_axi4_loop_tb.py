@@ -265,6 +265,167 @@ class RSAxi4LoopTB(TBBase):
             await self.run_loop(self.BLOCKS[self.level], 16, profile=profile)
         return self.mismatches == 0
 
+    async def _watch_valid_hold(self, name, vsig, rsig, want_beats):
+        """Count cycles where VALID is low after the first handshake.
+
+        The requirement is about the RS block's OUTPUT valid, so this watches
+        only valid and treats the consumer's ready as irrelevant: a cycle with
+        valid high and ready low is the SLAVE refusing, not the codec
+        faltering, and it is not counted. A cycle with valid LOW between the
+        first handshake and the last beat is the codec faltering, and it is.
+        Nothing before the first handshake counts -- command issue and the
+        first read's latency are explicitly out of scope.
+
+        Results go into self._vh rather than being returned: the caller KILLS
+        this task rather than awaiting it. Awaiting a watcher here ended the
+        simulation after one burst length, so a two-length sweep silently ran
+        only the first -- which is the shape of a test that reports a pass it
+        never measured.
+        """
+        st = {"beats": 0, "drops": 0, "events": 0, "where": []}
+        self._vh[name] = st
+        armed = False
+        was_low = False
+        while st["beats"] < want_beats:
+            await RisingEdge(self.dut.aclk)
+            v = int(vsig.value)
+            r = int(rsig.value)
+            if v and r:
+                st["beats"] += 1
+                armed = True
+                was_low = False
+            elif armed and st["beats"] < want_beats and not v:
+                st["drops"] += 1
+                if not was_low:
+                    st["events"] += 1
+                    st["where"].append(st["beats"])
+                was_low = True
+
+    async def run_valid_hold(self, blocks=8, burst_lens=(16, 64)):
+        """Once the first data beat handshakes, RS's output valid must not drop.
+
+        Measured on the two seams RS actually DRIVES -- the encoder's write
+        channel into M2 and the decoder's write channel into M3. The decoder's
+        READ channel is deliberately absent: its valid belongs to the memory,
+        so it cannot answer a question about the codec's output.
+
+        BURST LENGTH IS PART OF THE REQUIREMENT, not an incidental knob. For
+        the encoder's output to be gapless it must read k beats inside the n
+        cycles its own gapless output takes, i.e. k/n beats per cycle. The
+        slave delivers burst_len/(burst_len + ~2) -- a DEFICIT at a 16-beat
+        burst and a surplus at 64 -- and no buffer depth fixes a rate deficit.
+        So the check demands zero drops only where the rate allows it, and
+        reports the deficit as a deficit otherwise.
+
+        PRODUCTION RATE IS THE OTHER HARD LIMIT. The core emits
+        ceil(k/S) + ceil(2t/S) beats per block (parity starts on a fresh
+        beat), which the packer compresses into ceil(n/S). When the core's
+        count is LARGER -- RS(15,9) at S=4 emits 5 beats into 4 output slots
+        -- the codec produces symbols slower than a beat per cycle and
+        (core - cw) idle cycles per block are structural: no buffer depth,
+        burst length or packing can prevent them, only a block-overlapping
+        core could. Those holes are budgeted, not failed, and the fall-through
+        merge in rs_beat_packer places them at block boundaries. When the
+        counts are equal (RS(255,239): 64 into 64) the budget is zero and the
+        output must be gapless end to end.
+        """
+        ok = True
+        for bl in burst_lens:
+            ok &= await self._valid_hold_one(blocks, bl)
+        return ok
+
+    async def _valid_hold_one(self, blocks, burst_len):
+        self.checks += 1
+        self._vh = {}
+        tasks = [
+            cocotb.start_soon(self._watch_valid_hold(
+                "encoder W", self.dut.m2_wvalid, self.dut.m2_wready,
+                blocks * self.cw_beats)),
+            cocotb.start_soon(self._watch_valid_hold(
+                "decoder W", self.dut.m3_wvalid, self.dut.m3_wready,
+                blocks * self.k_beats)),
+        ]
+        # run_loop is VOID -- it records into self.mismatches and returns None,
+        # which is the house pattern here (see run_bursts). Taking its return
+        # value made `ok &= await ...` a TypeError that killed the sweep after
+        # the first burst length, so the second one silently never ran.
+        before = self.mismatches
+        await self.run_loop(blocks, burst_len, profile='backtoback')
+        loop_ok = (self.mismatches == before)
+        for t in tasks:
+            t.kill()
+
+        # what the read side can actually deliver, against what a gapless
+        # output needs. ~2 cycles of slave gap per burst, measured.
+        supply  = burst_len / float(burst_len + 2)
+        demand  = self.k_beats / float(self.cw_beats)
+        surplus = supply >= demand
+
+        # the production limit: the core's unpacked beat count per block
+        # against the packed output slots. Where the core's is larger, that
+        # many idle cycles per block cannot be prevented by anything short of
+        # a block-overlapping core, so they are the encoder's drop budget.
+        p_beats = -(-(2 * self.t) // self.s)
+        core_beats = self.k_beats + p_beats
+        enc_budget = blocks * max(0, core_beats - self.cw_beats)
+
+        bad = False
+        for name, per_blk in (("encoder W", self.cw_beats), ("decoder W", self.k_beats)):
+            st = self._vh.get(name)
+            if st is None:
+                continue
+            at_blk = sum(1 for w in st["where"] if w % per_blk == 0)
+            inside = st["events"] - at_blk
+            self.log.info(
+                f"valid-hold len={burst_len} {name}: {st['beats']} beats, VALID low "
+                f"{st['drops']} cycles in {st['events']} drop(s) -- {at_blk} at block "
+                f"boundaries, {inside} INSIDE a block; starts at {st['where'][:12]} "
+                f"(block = {per_blk} beats, supply {supply:.3f} vs demand {demand:.3f})")
+
+            # A drop INSIDE a block is a fault ONLY where the read side can
+            # actually keep up. Under a rate deficit the codec genuinely has no
+            # beat to present, and no buffer depth invents one -- failing that
+            # would be blaming the codec for the burst length.
+            if inside and surplus:
+                bad = True
+                self.mismatches += 1
+                self.log.error(
+                    f"valid-hold len={burst_len} {name}: VALID dropped INSIDE a block "
+                    f"({inside} time(s)) with read supply {supply:.3f} >= demand "
+                    f"{demand:.3f}. Once data starts, the codec's output valid must "
+                    f"stay up; the consumer's ready is its own business.")
+
+            # At a block boundary the encoder may drop only where the core's
+            # own production rate forces it: core_beats per block into
+            # cw_beats output slots budgets max(0, core - cw) holes per block,
+            # and any more than that is a buffering fault the rate does not
+            # excuse. The decoder emits k beats per n consumed, so its output
+            # duty cannot exceed k/n however much it buffers -- boundary drops
+            # there are arithmetic, and are reported, not failed.
+            if name == "encoder W" and at_blk > enc_budget and surplus:
+                bad = True
+                self.mismatches += 1
+                self.log.error(
+                    f"valid-hold len={burst_len} encoder W: VALID dropped at "
+                    f"{at_blk} block boundary/ies, over the structural budget of "
+                    f"{enc_budget} ({core_beats} core beats into {self.cw_beats} "
+                    f"output slots per block), with read supply {supply:.3f} >= "
+                    f"demand {demand:.3f}. The rate allows a gapless output here.")
+            if name == "encoder W" and at_blk and enc_budget:
+                self.log.info(
+                    f"valid-hold len={burst_len} encoder W: {at_blk} boundary "
+                    f"drop(s) within the structural budget of {enc_budget} -- the "
+                    f"core emits {core_beats} beats per block into {self.cw_beats} "
+                    f"output slots, so {core_beats - self.cw_beats} idle cycle(s) "
+                    f"per block cannot be prevented by buffering or burst length.")
+            if st["drops"] and not surplus:
+                self.log.info(
+                    f"valid-hold len={burst_len} {name}: {st['drops']} drop cycles "
+                    f"are a READ-RATE deficit, not a buffering fault -- supply "
+                    f"{supply:.3f} < demand {demand:.3f} at this burst length. No "
+                    f"buffer depth fixes a rate deficit; lengthen the burst.")
+        return loop_ok and not bad
+
     def get_test_report(self):
         return {'checks': self.checks, 'mismatches': self.mismatches,
                 'profile': f"RS({self.n},{self.k}) m={self.m} t={self.t} S={self.s}",
