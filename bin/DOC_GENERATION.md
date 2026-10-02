@@ -74,7 +74,16 @@ the body). The index therefore defines the document structure:
 ```
 
 Chapter files start with a top-level `#` heading; sections use `##`, `###`.
-`--pagebreak` starts each concatenated chapter on a new page.
+
+Every `h1` opens a new page **by default** -- opt out by setting
+`page_break_before: false` on `h1` in the styles YAML. Deeper levels are
+opt-in: `page_break_before: true` on `h2`, `h3`, ... (most books set `h2`).
+The DOCX post-processor inserts a real `<w:br w:type="page"/>` run before each
+such heading, which is the only form that survives the LibreOffice TOC
+round-trip to the PDF. `--pagebreak` inserts `::: {.pagebreak}` divs between
+concatenated files, but pandoc's DOCX writer renders an empty div as nothing
+and this pipeline has no Lua filter for it, so on its own it breaks **no**
+pages -- the heading logic is what does the work.
 
 ---
 
@@ -267,7 +276,8 @@ Anchor on `generate_<doc>_pdf.sh` + `regenerate_all_*.sh`, not those.
 One YAML carries the whole brand. **Keep the non-title blocks identical across
 docs** so the series reads as one; only `title_page` varies per doc. Blocks:
 `company`, `colors` (primary `#228B22` green / secondary `#404040`),
-`fonts`, `headings` (per-level size/color/spacing), `body`, `tables`, `captions`,
+`fonts`, `headings` (per-level size/color/spacing, and `page_break_before`
+-- see "The build input" above), `body`, `tables`, `captions`,
 `header_footer` (footer tokens `{title} {version} {confidential} {page}`),
 `margins`, `lists` (`lot/lof/low` booleans), and `title_page`
 (`logo`, `title`, `subtitle`, `date`, colors/sizes).

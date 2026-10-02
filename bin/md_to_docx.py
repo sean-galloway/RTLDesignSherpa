@@ -496,27 +496,34 @@ def concat_markdown(files: list[pathlib.Path], pagebreak: bool,
 # ---- Wavedrom handling ----
 
 def pagebreak_levels_from_style(style_path) -> set:
-    """Heading levels whose style asks for a fresh page.
+    """Heading levels that open a fresh page.
+
+    h1 breaks by default; a styles YAML opts out with
+    `page_break_before: false` on h1, and opts a deeper level in with
+    `page_break_before: true`.
 
     Read at markdown-merge time so the break can be injected as a
     `::: {.pagebreak}` div. Doing it later, as a paragraph property on
     the DOCX, does not stick -- LibreOffice's TOC update round-trips
     the file and drops it.
     """
-    if not style_path:
-        return set()
-    try:
-        import yaml
-        with open(style_path, encoding="utf-8") as fh:
-            cfg = yaml.safe_load(fh) or {}
-    except Exception:
-        return set()
+    cfg = {}
+    if style_path:
+        try:
+            import yaml
+            with open(style_path, encoding="utf-8") as fh:
+                cfg = yaml.safe_load(fh) or {}
+        except Exception:
+            cfg = {}
+    headings = cfg.get('headings') or {}
     levels = set()
-    for key, h_cfg in (cfg.get('headings') or {}).items():
-        if isinstance(h_cfg, dict) and h_cfg.get('page_break_before'):
-            m = re.fullmatch(r'h([1-6])', str(key).strip().lower())
-            if m:
-                levels.add(int(m.group(1)))
+    for n in range(1, 7):
+        h_cfg = headings.get(f'h{n}')
+        if isinstance(h_cfg, dict):
+            if h_cfg.get('page_break_before', n == 1):
+                levels.add(n)
+        elif n == 1:
+            levels.add(n)
     return levels
 
 
@@ -1512,8 +1519,8 @@ def apply_docx_style(docx_path: pathlib.Path, style_config_path: pathlib.Path, q
 
         if level > 0:
             h_key = f'h{level}'
-            if h_key in headings:
-                h_cfg = headings[h_key]
+            h_cfg = headings.get(h_key) or {}
+            if h_cfg:
                 # Apply font styling to runs
                 for run in para.runs:
                     if 'font_size' in h_cfg:
@@ -1532,17 +1539,6 @@ def apply_docx_style(docx_path: pathlib.Path, style_config_path: pathlib.Path, q
                     pf.space_before = Pt(h_cfg['space_before'])
                 if 'space_after' in h_cfg:
                     pf.space_after = Pt(h_cfg['space_after'])
-                # Section headings that must open a fresh page (e.g.
-                # "2.4 Arbitration") -- set page_break_before: true on
-                # the heading level in the styles YAML.
-                if h_cfg.get('page_break_before'):
-                    wants_break = para_idx not in keep_with_parent
-                    # Keep the property for Word's benefit, but the
-                    # explicit run is what actually survives to the PDF
-                    # (see force_page_break).
-                    pf.page_break_before = wants_break
-                    if wants_break and not already_page_broken(doc, para_idx):
-                        force_page_break(para)
 
                 # Background shading
                 if 'background' in h_cfg:
@@ -1553,6 +1549,21 @@ def apply_docx_style(docx_path: pathlib.Path, style_config_path: pathlib.Path, q
                 if 'underline_color' in h_cfg:
                     ul_color = resolve_color(h_cfg['underline_color'], colors)
                     add_bottom_border(para, ul_color)
+
+            # Section headings that open a fresh page. h1 breaks by
+            # default -- set page_break_before: false on h1 in the
+            # styles YAML to keep it flowing; deeper levels break
+            # only with page_break_before: true. Outside the styling
+            # block above so an h1 with no styles-YAML entry still
+            # breaks.
+            if h_cfg.get('page_break_before', level == 1):
+                wants_break = para_idx not in keep_with_parent
+                # Keep the property for Word's benefit, but the
+                # explicit run is what actually survives to the PDF
+                # (see force_page_break).
+                para.paragraph_format.page_break_before = wants_break
+                if wants_break and not already_page_broken(doc, para_idx):
+                    force_page_break(para)
 
         elif para.style and para.style.name in ['Normal', 'Body Text', 'First Paragraph']:
             for run in para.runs:
