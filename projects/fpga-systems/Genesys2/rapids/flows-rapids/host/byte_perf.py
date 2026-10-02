@@ -154,6 +154,7 @@ def derive(ok, detail, pt, direction, bpb, aclk_hz):
         'ifaces': {axis_key: axis, mem_key: mem},
         'axis_key': axis_key, 'mem_key': mem_key,
         'bytes': nbytes, 'packets': axis_rec.get('packets'),
+        'launch': axis_rec.get('launch'),
         'axis_beats': axis['prod'] if axis else None,
         'mem_beats': mem['prod'] if mem else None,
         'peak_mb_s': peak,

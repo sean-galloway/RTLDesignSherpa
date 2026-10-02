@@ -352,14 +352,20 @@ class RapidsByteIO:
     def read_axis_extras(self, direction: str) -> dict:
         """Read an AXIS interface's native throughput counters (axis_bus_meter):
         exact bytes (64-bit, from tstrb) and packets (from tlast). direction is
-        'sin' (sink ingress) or 'sout' (source egress)."""
+        'sin' (sink ingress) or 'sout' (source egress). 'sin' also carries
+        'launch': the offered-but-not-accepted cycles before the first accept
+        (OBS_SIN_LAUNCH) -- the packet-record wait the ingress window excludes
+        on purpose, reported separately because it IS producer-visible latency."""
         if direction not in ('sin', 'sout'):
             raise ValueError(f"AXIS extras only for 'sin'/'sout', got {direction!r}")
         d = direction.upper()
         lo = self.csr_read_reg(f"OBS_{d}_BYTES_LO") or 0
         hi = self.csr_read_reg(f"OBS_{d}_BYTES_HI") or 0
         pkts = self.csr_read_reg(f"OBS_{d}_PKTS") or 0
-        return {'bytes': (hi << 32) | lo, 'packets': pkts}
+        out = {'bytes': (hi << 32) | lo, 'packets': pkts}
+        if direction == 'sin':
+            out['launch'] = self.csr_read_reg("OBS_SIN_LAUNCH") or 0
+        return out
 
     # ---- Interface observers (region 3), BY NAME through obs_regs_top_regmap --
     #

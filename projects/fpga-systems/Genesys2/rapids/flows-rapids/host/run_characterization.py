@@ -774,7 +774,10 @@ class RapidsByteCampaign:
                     rec['packets'] = ex['packets']
                     rec['byte_bw_gb_s'] = bw / 1e9
                     print(f"    {disp} axis: {ex['bytes']} B, {ex['packets']} pkts, "
-                          f"{bw/1e9:.2f} GB/s (byte-derived)")
+                          f"{bw/1e9:.2f} GB/s (byte-derived)"
+                          + (f", launch={ex['launch']} cyc" if 'launch' in ex else ""))
+                    if 'launch' in ex:
+                        rec['launch'] = ex['launch']
                 except Exception as exc:  # noqa: BLE001
                     self.log.warning(f"  {label}: {key} axis extras read failed: {exc}")
             perf['ifaces'][key] = rec

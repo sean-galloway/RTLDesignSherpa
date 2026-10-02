@@ -250,6 +250,10 @@ module rapids_byte_harness #(
     localparam logic [11:0] CSR_MONCAP_SEL  = 12'h0D8;  // word index to read
     localparam logic [11:0] CSR_MONCAP_LO   = 12'h0DC;  // selected word [31:0]
     localparam logic [11:0] CSR_MONCAP_HI   = 12'h0E0;  // selected word [63:32]
+    // Sink-ingress launch wait: cycles offered-but-not-accepted before the
+    // first accept (the packet-record wait). Excluded from the ingress
+    // window on purpose; reported here instead.
+    localparam logic [11:0] CSR_OBS_SIN_LAUNCH = 12'h158;
 
     localparam logic [11:0] CSR_ID          = 12'h000;
     localparam logic [11:0] CSR_BUILD       = 12'h004;  // geometry of THIS bitstream (read-only)
@@ -384,6 +388,10 @@ module rapids_byte_harness #(
     // AXIS-native throughput counters (axis_bus_meter): exact bytes + packets.
     logic [63:0]                obs_sin_bytes, obs_sout_bytes;
     logic [31:0]                obs_sin_packets, obs_sout_packets;
+    // Pre-transfer launch wait: cycles the generator offered a beat and the DUT
+    // was not ready, BEFORE the first accept. Reported on its own so the
+    // information the window no longer swallows is still available.
+    logic [31:0]                r_sin_launch;
     `RC_DBG logic                       r_obs_arm;   // 1-cycle bus-meter re-arm pulse
     `RC_DBG logic                       src_system_idle, snk_system_idle;
     logic [NUM_CHANNELS-1:0]    src_sched_error, snk_sched_error;
@@ -719,6 +727,7 @@ module rapids_byte_harness #(
                     CSR_MONCAP_SEL:  w_readmux = r_moncap_sel;
                     CSR_MONCAP_LO:   w_readmux = w_moncap_word[31:0];
                     CSR_MONCAP_HI:   w_readmux = w_moncap_word[63:32];
+                    CSR_OBS_SIN_LAUNCH: w_readmux = r_sin_launch;
                     CSR_OBS_WR_PROD: w_readmux = obs_wr_prod;
                     CSR_OBS_WR_BP:   w_readmux = obs_wr_bp;
                     CSR_OBS_WR_STRV: w_readmux = obs_wr_starv;
@@ -2159,6 +2168,37 @@ module rapids_byte_harness #(
     assign obs_meter_clear  = obs_arm || (obs_dut_busy && !obs_win_active && !obs_started);
     assign obs_meter_freeze = ~obs_win_active;
 
+    // ---- Per-interface window open (2026-10-01) -----------------------------
+    // Each interface's window opens on ITS OWN first handshake, not when the DUT
+    // goes busy. `obs_dut_busy` is ~system_idle, which deasserts at the
+    // DESCRIPTOR FETCH -- before anything transfers on rd, wr or m_axis. So the
+    // pre-first-transfer wait sat inside the window and was charged to
+    // STARVATION, making utilisation report launch latency on short transfers.
+    // Board-confirmed (2026-10-01, sha 18c8a738, 28/28 aligned points): with the
+    // per-interface opens, wr starvation fell from 9-17 cycles to 1-8, rd from
+    // 15-22 to 8-15 and sout from 15-22 to 1-8 (the residual scales with
+    // channel count; it was size-independent before).
+    wire w_rd_hs   = rd_rvalid     && rd_rready;
+    wire w_wr_hs   = wr_wvalid     && wr_wready;
+    wire w_sout_hs = m_axis_tvalid && m_axis_tready;
+    `RC_DBG logic obs_rd_if_started, obs_wr_if_started, obs_sout_if_started;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn) || obs_arm) begin
+            obs_rd_if_started   <= 1'b0;
+            obs_wr_if_started   <= 1'b0;
+            obs_sout_if_started <= 1'b0;
+        end else begin
+            if (w_rd_hs)   obs_rd_if_started   <= 1'b1;
+            if (w_wr_hs)   obs_wr_if_started   <= 1'b1;
+            if (w_sout_hs) obs_sout_if_started <= 1'b1;
+        end
+    )
+    // The live handshake term keeps the OPENING beat inside the window (the
+    // latch only sets at the next edge), exactly as obs_sin_open_now does.
+    wire obs_rd_freeze   = ~(obs_win_active && (obs_rd_if_started   || w_rd_hs));
+    wire obs_wr_freeze   = ~(obs_win_active && (obs_wr_if_started   || w_wr_hs));
+    wire obs_sout_freeze = ~(obs_win_active && (obs_sout_if_started || w_sout_hs));
+
     // ---- Sink-ingress window (TASK-082) -------------------------------------
     // The shared window above opens on obs_dut_busy (~snk_system_idle), which
     // CANNOT assert until the DUT has already accepted traffic. So every ingress
@@ -2193,7 +2233,25 @@ module rapids_byte_harness #(
     // wr_prod >= obs_target, so any trailing bp is bounded by the transfer.
     `RC_DBG logic obs_sin_armed, obs_sin_win_active;
     `RC_DBG logic obs_sin_open_now;
-    assign obs_sin_open_now = obs_sin_armed && s_axis_tvalid;
+    // OPENS ON THE FIRST ACCEPTED BEAT, not the first offered one (Sean,
+    // 2026-10-01: "The measuring only starts on the first transfer").
+    //
+    // The hypothesis behind the move was that the byte ingress holds tready
+    // low until the channel's packet record exists, so opening on tvalid put
+    // a one-time launch wait of 27 + 20 x channels cycles in the backpressure
+    // bucket (at 8 ch x 1 beat, 187 cycles against 8 productive: utilisation
+    // read 4.0 %). The BOARD SAYS OTHERWISE (2026-10-01, sha 18c8a738, 28/28
+    // aligned points): OBS_SIN_LAUNCH reads 0 everywhere and the 27 + 20 x ch
+    // backpressure is unchanged -- the ingress accepts the first offered beat
+    // immediately, and the packet-record wait lands MID-WINDOW, per channel,
+    // after that channel's earlier traffic. The wait was never pre-accept, so
+    // no open-point move can re-bucket it; it stays in backpressure, as rapids
+    // TASK-021 already decided ("accept the start-up terms as by design").
+    //
+    // The first-accept open is kept anyway: utilization is first-transfer to
+    // last by definition, and the launch counter below now PROVES the
+    // pre-accept wait is empty rather than assuming it.
+    assign obs_sin_open_now = obs_sin_armed && s_axis_tvalid && s_axis_tready;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             obs_sin_armed      <= 1'b0;
@@ -2216,6 +2274,16 @@ module rapids_byte_harness #(
         end
     )
     `RC_DBG logic obs_sin_clear, obs_sin_freeze;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_sin_launch <= '0;
+        end else if (obs_arm) begin
+            r_sin_launch <= '0;
+        end else if (obs_sin_armed && s_axis_tvalid && !s_axis_tready) begin
+            r_sin_launch <= r_sin_launch + 32'd1;
+        end
+    )
+
     assign obs_sin_clear  = obs_arm;
     // Unfrozen from the very cycle the first beat is offered (combinational
     // open), so that beat's handshake is counted, not lost to a register delay.
@@ -2225,14 +2293,14 @@ module rapids_byte_harness #(
     logic [15:0] rd_ch_p[1], rd_ch_b[1], rd_ch_s[1], rd_ch_i[1]; logic [3:0] rd_ch_o;
     logic [15:0] wr_ch_p[1], wr_ch_b[1], wr_ch_s[1], wr_ch_i[1]; logic [3:0] wr_ch_o;
     axi_bus_meter #(.NUM_CHANNELS(1)) u_meter_rd (
-        .aclk(aclk), .aresetn(aresetn), .i_clear(obs_meter_clear), .i_freeze(obs_meter_freeze),
+        .aclk(aclk), .aresetn(aresetn), .i_clear(obs_meter_clear), .i_freeze(obs_rd_freeze),
         .i_valid(rd_rvalid), .i_ready(rd_rready), .i_channel_id(1'b0), .i_channel_valid(rd_rvalid),
         .o_agg_productive(obs_rd_prod), .o_agg_backpressure(obs_rd_bp),
         .o_agg_starvation(obs_rd_starv), .o_agg_idle(obs_rd_idle),
         .o_ch_productive(rd_ch_p), .o_ch_backpressure(rd_ch_b),
         .o_ch_starvation(rd_ch_s), .o_ch_idle(rd_ch_i), .o_ch_overflow(rd_ch_o));
     axi_bus_meter #(.NUM_CHANNELS(1)) u_meter_wr (
-        .aclk(aclk), .aresetn(aresetn), .i_clear(obs_meter_clear), .i_freeze(obs_meter_freeze),
+        .aclk(aclk), .aresetn(aresetn), .i_clear(obs_meter_clear), .i_freeze(obs_wr_freeze),
         .i_valid(wr_wvalid), .i_ready(wr_wready), .i_channel_id(1'b0), .i_channel_valid(wr_wvalid),
         .o_agg_productive(obs_wr_prod), .o_agg_backpressure(obs_wr_bp),
         .o_agg_starvation(obs_wr_starv), .o_agg_idle(obs_wr_idle),
@@ -2253,7 +2321,7 @@ module rapids_byte_harness #(
         .o_ch_productive(sin_ch_p), .o_ch_backpressure(sin_ch_b),
         .o_ch_starvation(sin_ch_s), .o_ch_idle(sin_ch_i), .o_ch_overflow(sin_ch_o));
     axis_bus_meter #(.DATA_WIDTH(DATA_WIDTH), .NUM_CHANNELS(1)) u_meter_sout (
-        .aclk(aclk), .aresetn(aresetn), .i_clear(obs_meter_clear), .i_freeze(obs_meter_freeze),
+        .aclk(aclk), .aresetn(aresetn), .i_clear(obs_meter_clear), .i_freeze(obs_sout_freeze),
         .i_tvalid(m_axis_tvalid), .i_tready(m_axis_tready), .i_tlast(m_axis_tlast),
         .i_tstrb(m_axis_tstrb), .i_tid(1'b0),
         .o_agg_productive(obs_sout_prod), .o_agg_backpressure(obs_sout_bp),

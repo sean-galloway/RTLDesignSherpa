@@ -173,6 +173,12 @@ CSR = [
     (0x14C, 'OBS_SOUT_BYTES_LO','r', None),
     (0x150, 'OBS_SOUT_BYTES_HI','r', None),
     (0x154, 'OBS_SOUT_PKTS',    'r', None),
+    # Sink-ingress launch wait: offered-but-not-accepted cycles before the first
+    # accept. Excluded from the ingress window on purpose -- the window opens on
+    # the first ACCEPTED beat. (Board, 2026-10-01: reads 0 on all 28 aligned
+    # points -- the ingress accepts the first offered beat immediately, so the
+    # 27 + 20 x ch packet-record wait is mid-window per channel, not here.)
+    (0x158, 'OBS_SIN_LAUNCH',   'r', None),
 ]
 
 _HDR = '''# SPDX-License-Identifier: MIT
