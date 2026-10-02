@@ -158,18 +158,26 @@ async def cocotb_test_uart_smoke(dut):
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_uart_windows(dut):
-    """The fabric's three windows are reachable and isolated.
+    """The fabric's three windows are reachable, isolated, and answer as built.
 
-    A reserved window must read 0 (the harness ties its PRDATA low) and must
-    COMPLETE rather than hang. If the host address is truncated anywhere
-    between the UART bridge and the fabric, every window folds back into the
-    low one and these reads return the loop block's BUILD_ID instead -- which
-    is exactly what a board probe found after the fabric first went in.
+    Every window must COMPLETE rather than hang, and none may fold back into
+    another. If the host address is truncated anywhere between the UART
+    bridge and the fabric, every window folds back into the low one and these
+    reads return the loop block's BUILD_ID instead -- which is exactly what a
+    board probe found after the fabric first went in.
+
+    What a window answers WITH moved on 2026-10-01: the two expansion windows
+    now carry obs_regs interface observers. The base read alone cannot tell a
+    live observer from a stub -- offset 0 is AXI_PKT_MASK, which defaults to 0
+    either way -- so the caps read carries the verdict. On this AXIS build the
+    obs window's axis4 observer is live (bus_meter, 4 ports) and the rs_regs
+    window is the read-0 stub, which is ALSO the cross-window isolation check:
+    the two expansion windows folding together would make their caps agree.
     """
     drv, _ = await _bringup(dut)
     windows = _fabric_windows()
     # the loop window is read again at the end: it must still answer after the
-    # reserved ones have been poked
+    # others have been poked
     plan = windows + [windows[0]]
     reads = await cocotb.external(lambda: [(n, a, drv.bridge.read(a)) for n, a in plan])()
     for name, addr, val in reads:
@@ -177,9 +185,17 @@ async def cocotb_test_uart_windows(dut):
     assert reads[0][2] == rl.EXPECTED_BUILD_ID, (
         f"the loop window ({reads[0][0]}) read 0x{reads[0][2]:08X}")
     for name, addr, val in reads[1:-1]:
-        assert val == 0, (f"the reserved window {name} @0x{addr:05X} read 0x{val:08X}, not 0 -- "
-                          "the host address is being truncated before the fabric")
+        assert val != rl.EXPECTED_BUILD_ID, (
+            f"window {name} @0x{addr:05X} read back BUILD_ID -- "
+            "the host address is being truncated before the fabric")
     assert reads[-1][2] == rl.EXPECTED_BUILD_ID, "the loop window stopped answering after the others"
+
+    caps = await cocotb.external(drv.observer_caps)()
+    dut._log.info("observer caps: %s", caps)
+    assert caps["axis"]["bus_meter"] and caps["axis"]["rd_ports"] == 4, (
+        f"the obs window should carry the live axis4 observer, got {caps['axis']}")
+    assert caps["axi4"]["rd_ports"] == 0 and caps["axi4"]["caps0"] == 0, (
+        f"the rs_regs window should be the read-0 stub on an AXIS build, got {caps['axi4']}")
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
