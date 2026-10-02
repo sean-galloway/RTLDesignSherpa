@@ -24,8 +24,8 @@
 
 # RAPIDS Byte-Granular DMA: Byte Characterization Report
 
-**Version:** 0.2  
-**Date:** 2026-09-30  
+**Version:** 0.3  
+**Date:** 2026-10-02  
 **Platform:** Genesys 2, 256-bit, 8 channels, 100 MHz  
 **Results:** `rapids_byte_perf_20260930_142731.json`
 
@@ -67,59 +67,61 @@ These rows use the beat-scaled path (`pkt_bytes=None`, beats per channel) on the
 
 ### 3.1 Word-wide checker build (the verdict)
 
-Measured on the `BYTE_CRC=0` bitstream (BUILD.WORD_CRC = 1, results file `rapids_byte_aligned_wordcrc_20260930.json`, bitstream sha256 `48e1282c46e707cd`). Its checkers take one beat per cycle like the RAPIDS Beats build. They CRC one 32-bit slice of each beat (slice 0, which holds the beat's LFSR word) and ignore the strobes, so the golden is the RAPIDS Beats golden and the data check covers 4 of the 32 bytes of each beat. That is enough for a utilization measurement of whole-beat rows; full-byte integrity is what the byte-wise build in 3.2 and the rest of this report check. The design under test is the same RTL.
+Measured on the `BYTE_CRC=0` bitstream (BUILD.WORD_CRC = 1, results file `rapids_byte_perf_prelim_20261002_032941.json`, bitstream sha256 `fdab4c4df63c02f7`). Its checkers take one beat per cycle like the RAPIDS Beats build. They CRC one 32-bit slice of each beat (slice 0, which holds the beat's LFSR word) and ignore the strobes, so the golden is the RAPIDS Beats golden and the data check covers 4 of the 32 bytes of each beat. That is enough for a utilization measurement of whole-beat rows; full-byte integrity is what the byte-wise build in 3.2 and the rest of this report check. The design under test is the same RTL.
+
+Each meter window opens on its own interface's first handshake (rd, wr, sout), and the sink-ingress window opens on the first ACCEPTED beat; cycles where the stream is offered before that accept are counted by `OBS_SIN_LAUNCH` (CSR 0x158) and are reported with the mechanism table below. The v0.2 report's rows were measured with every window on the shared `obs_dut_busy` open, which charged the descriptor-fetch wait to starvation on the memory-side interfaces; those start-up readings are harness artifacts and were corrected by the window change, not by a DUT change.
 
 | Ch | Beats/ch | Sink AXIS-in % (byte / beats) | Sink AXI4-wr % | Source AXI4-rd % | Source AXIS-out % | Max abs delta (pp) |
 |---|---:|---:|---:|---:|---:|---:|
-| 1 | 1 | 50.0 / 50.0 | 10.0 / 14.3 | 6.2 / 6.7 | 6.2 / 6.7 | 4.29 |
-| 1 | 4 | 100.0 / 80.0 | 25.0 / 40.0 | 21.1 / 22.2 | 21.1 / 22.2 | 20.00 |
-| 1 | 16 | 25.0 / 94.1 | 48.5 / 72.7 | 51.6 / 53.3 | 51.6 / 53.3 | 69.12 |
-| 1 | 64 | 57.1 / 98.5 | 79.0 / 91.4 | 81.0 / 82.1 | 81.0 / 82.1 | 41.32 |
-| 1 | 256 | 84.2 / 99.6 | 93.8 / 97.7 | 94.5 / 94.8 | 94.5 / 94.8 | 15.40 |
-| 1 | 1024 | 95.5 / 99.9 | 98.4 / 99.4 | 98.6 / 98.7 | 98.6 / 98.7 | 4.38 |
-| 1 | 4096 | 98.8 / 100.0 | 99.6 / 99.9 | 99.6 / 99.7 | 99.6 / 99.7 | 1.13 |
-| 2 | 1 | 66.7 / 66.7 | 16.7 / 22.2 | 11.1 / 11.8 | 11.1 / 11.8 | 5.56 |
-| 2 | 4 | 10.5 / 88.9 | 40.0 / 57.1 | 34.8 / 36.4 | 34.8 / 36.4 | 78.36 |
-| 2 | 16 | 32.0 / 97.0 | 65.3 / 84.2 | 68.1 / 69.6 | 68.1 / 69.6 | 64.97 |
-| 2 | 64 | 65.3 / 99.2 | 88.3 / 95.5 | 89.5 / 90.1 | 89.5 / 90.1 | 33.92 |
-| 2 | 256 | 88.3 / 99.8 | 96.8 / 98.8 | 97.2 / 97.3 | 97.2 / 97.3 | 11.53 |
-| 2 | 1024 | 96.8 / 100.0 | 99.2 / 99.7 | 99.3 / 99.3 | 99.3 / 99.3 | 3.16 |
-| 2 | 4096 | 99.2 / 100.0 | 99.8 / 99.9 | 99.8 / 99.8 | 99.8 / 99.8 | 0.81 |
-| 4 | 1 | 100.0 / 80.0 | 25.0 / 30.8 | 18.2 / 19.0 | 18.2 / 19.0 | 20.00 |
-| 4 | 4 | 12.9 / 94.1 | 57.1 / 72.7 | 51.6 / 53.3 | 51.6 / 53.3 | 81.21 |
-| 4 | 16 | 37.2 / 98.5 | 79.0 / 91.4 | 81.0 / 82.1 | 81.0 / 82.1 | 61.25 |
-| 4 | 64 | 70.3 / 99.6 | 93.8 / 97.3 | 94.5 / 94.8 | 94.5 / 94.8 | 29.28 |
-| 4 | 256 | 90.5 / 99.7 | 98.4 / 99.4 | 98.6 / 98.7 | 98.6 / 98.7 | 9.25 |
-| 4 | 1024 | 97.4 / 99.9 | 99.6 / 99.9 | 99.6 / 99.7 | 99.6 / 99.7 | 2.50 |
-| 4 | 4096 | 99.3 / 100.0 | 99.9 / 100.0 | 99.9 / 99.9 | 99.9 / 99.9 | 0.64 |
-| 8 | 1 | 4.0 / 88.9 | 33.3 / 38.1 | 26.7 / 27.6 | 26.7 / 27.6 | 84.85 |
-| 8 | 4 | 14.5 / 97.0 | 72.7 / 84.2 | 68.1 / 69.6 | 68.1 / 69.6 | 82.42 |
-| 8 | 16 | 40.5 / 99.2 | 88.3 / 95.5 | 89.5 / 90.1 | 89.5 / 90.1 | 58.72 |
-| 8 | 64 | 73.1 / 99.8 | 96.8 / 98.5 | 97.2 / 97.3 | 97.2 / 97.3 | 26.66 |
-| 8 | 256 | 91.6 / 96.1 | 99.2 / 99.7 | 99.3 / 99.3 | 99.3 / 99.3 | 4.51 |
-| 8 | 1024 | 97.8 / 99.0 | 99.8 / 99.9 | 99.8 / 99.8 | 99.8 / 99.8 | 1.24 |
-| 8 | 4096 | 99.4 / 99.7 | 99.9 / 100.0 | 100.0 / 100.0 | 100.0 / 100.0 | 0.32 |
+| 1 | 1 | 50.0 / 50.0 | 50.0 / 14.3 | 11.1 / 6.7 | 50.0 / 6.7 | 43.33 |
+| 1 | 4 | 100.0 / 80.0 | 80.0 / 40.0 | 33.3 / 22.2 | 80.0 / 22.2 | 57.78 |
+| 1 | 16 | 25.0 / 94.1 | 94.1 / 72.7 | 66.7 / 53.3 | 94.1 / 53.3 | 69.12 |
+| 1 | 64 | 57.1 / 98.5 | 98.5 / 91.4 | 88.9 / 82.1 | 98.5 / 82.1 | 41.32 |
+| 1 | 256 | 84.2 / 99.6 | 99.6 / 97.7 | 97.0 / 94.8 | 99.6 / 94.8 | 15.40 |
+| 1 | 1024 | 95.5 / 99.9 | 99.9 / 99.4 | 99.2 / 98.7 | 99.9 / 98.7 | 4.38 |
+| 1 | 4096 | 98.8 / 100.0 | 100.0 / 99.9 | 99.8 / 99.7 | 100.0 / 99.7 | 1.13 |
+| 2 | 1 | 66.7 / 66.7 | 50.0 / 22.2 | 18.2 / 11.8 | 50.0 / 11.8 | 38.24 |
+| 2 | 4 | 10.5 / 88.9 | 88.9 / 57.1 | 50.0 / 36.4 | 88.9 / 36.4 | 78.36 |
+| 2 | 16 | 32.0 / 97.0 | 97.0 / 84.2 | 80.0 / 69.6 | 97.0 / 69.6 | 64.97 |
+| 2 | 64 | 65.3 / 99.2 | 99.2 / 95.5 | 94.1 / 90.1 | 99.2 / 90.1 | 33.92 |
+| 2 | 256 | 88.3 / 99.8 | 99.8 / 98.8 | 98.5 / 97.3 | 99.8 / 97.3 | 11.53 |
+| 2 | 1024 | 96.8 / 100.0 | 100.0 / 99.7 | 99.6 / 99.3 | 100.0 / 99.3 | 3.16 |
+| 2 | 4096 | 99.2 / 100.0 | 100.0 / 99.9 | 99.9 / 99.8 | 100.0 / 99.8 | 0.81 |
+| 4 | 1 | 100.0 / 80.0 | 50.0 / 30.8 | 26.7 / 19.0 | 50.0 / 19.0 | 30.95 |
+| 4 | 4 | 12.9 / 94.1 | 94.1 / 72.7 | 66.7 / 53.3 | 94.1 / 53.3 | 81.21 |
+| 4 | 16 | 37.2 / 98.5 | 98.5 / 91.4 | 88.9 / 82.1 | 98.5 / 82.1 | 61.25 |
+| 4 | 64 | 70.3 / 99.6 | 99.6 / 97.3 | 97.0 / 94.8 | 99.6 / 94.8 | 29.28 |
+| 4 | 256 | 90.5 / 99.7 | 99.9 / 99.4 | 99.2 / 98.7 | 99.9 / 98.7 | 9.25 |
+| 4 | 1024 | 97.4 / 99.9 | 100.0 / 99.9 | 99.8 / 99.7 | 100.0 / 99.7 | 2.50 |
+| 4 | 4096 | 99.3 / 100.0 | 100.0 / 100.0 | 100.0 / 99.9 | 100.0 / 99.9 | 0.64 |
+| 8 | 1 | 4.0 / 88.9 | 50.0 / 38.1 | 34.8 / 27.6 | 50.0 / 27.6 | 84.85 |
+| 8 | 4 | 14.5 / 97.0 | 97.0 / 84.2 | 80.0 / 69.6 | 97.0 / 69.6 | 82.42 |
+| 8 | 16 | 40.5 / 99.2 | 99.2 / 95.5 | 94.1 / 90.1 | 99.2 / 90.1 | 58.72 |
+| 8 | 64 | 73.1 / 99.8 | 99.8 / 98.5 | 98.5 / 97.3 | 99.8 / 97.3 | 26.66 |
+| 8 | 256 | 91.6 / 96.1 | 100.0 / 99.7 | 99.6 / 99.3 | 100.0 / 99.3 | 4.51 |
+| 8 | 1024 | 97.8 / 99.0 | 100.0 / 99.9 | 99.9 / 99.8 | 100.0 / 99.8 | 1.24 |
+| 8 | 4096 | 99.4 / 99.7 | 100.0 / 100.0 | 100.0 / 100.0 | 100.0 / 100.0 | 0.32 |
 
 : Engaged utilization, byte build / RAPIDS Beats reference, beat-aligned rows
 
-**Verdict: CHANGED.** 112 of 112 beat-aligned cells were compared; 73 differ by more than 0.5 pp; the largest difference is -84.85 pp (ch 8, 1 beats, sink sin). Cells over the threshold: ch1 b1 sink wr -4.29 pp; ch1 b4 sink sin +20.00 pp; ch1 b4 sink wr -15.00 pp; ch1 b4 source rd -1.17 pp; ch1 b4 source sout -1.17 pp; ch1 b16 sink sin -69.12 pp; ch1 b16 sink wr -24.24 pp; ch1 b16 source rd -1.72 pp; ch1 b16 source sout -1.72 pp; ch1 b64 sink sin -41.32 pp; ch1 b64 sink wr -12.42 pp; ch1 b64 source rd -1.04 pp; ....
+**Verdict: CHANGED.** 112 of 112 beat-aligned cells were compared; 85 differ by more than 0.5 pp; the largest difference is -84.85 pp (ch 8, 1 beats, sink sin). Cells over the threshold: ch1 b1 sink wr +35.71 pp; ch1 b1 source rd +4.44 pp; ch1 b1 source sout +43.33 pp; ch1 b4 sink sin +20.00 pp; ch1 b4 sink wr +40.00 pp; ch1 b4 source rd +11.11 pp; ch1 b4 source sout +57.78 pp; ch1 b16 sink sin -69.12 pp; ch1 b16 sink wr +21.39 pp; ch1 b16 source rd +13.33 pp; ch1 b16 source sout +40.78 pp; ch1 b64 sink sin -41.32 pp; ....
 
-**Where the differences come from.** Every difference is a fixed number of cycles per run, not a change of rate. The cycle counts below are the evidence; the same counts at 16 beats per channel are identical to these, and only the 1-beat rows differ (the write side shows +3 starvation cycles there, not +11).
+**Where the differences come from.** Every difference is a fixed number of cycles per run, not a change of rate. The cycle counts below are the evidence; the same counts at 16 beats per channel are identical to these. Only the 1-beat rows differ: the write and source starvation there equals the channel count (channel count + 7 on the read side), a per-channel start-up term that later beats overlap, and the sink backpressure is 0 at 1 to 4 channels.
 
 | Ch | Sink AXIS-in bp, byte | beats | Sink AXI4-wr starv, byte | beats | Source AXI4-rd starv, byte | beats |
 |---|---:|---:|---:|---:|---:|---:|
-| 1 | 47 | 0 | 17 | 6 | 15 | 14 |
-| 2 | 67 | 0 | 17 | 6 | 15 | 14 |
-| 4 | 107 | 2 | 17 | 6 | 15 | 14 |
-| 8 | 187 | 82 | 17 | 6 | 15 | 14 |
+| 1 | 47 | 0 | 1 | 6 | 8 | 14 |
+| 2 | 67 | 0 | 1 | 6 | 8 | 14 |
+| 4 | 107 | 2 | 1 | 6 | 8 | 14 |
+| 8 | 187 | 82 | 1 | 6 | 8 | 14 |
 
 : Cycle counts at 4096 beats per channel (fixed start-up terms, not rates)
 
-- **Sink AXIS-in.** The byte ingress accepts a channel's stream only once that channel has a packet record, because the destination offset and the expected length come from the descriptor (sink ingress chapter of the MAS). The stream is offered data, `tready` is low, and the meter counts those cycles as backpressure. The count grows with the channel count and does not depend on the beats per channel, which is what a serial descriptor fetch before the first accept would give. RAPIDS Beats has no such term because it buffers the stream before the descriptor arrives. The AXIS-in window opens at the first offered beat, so this wait is inside it.
-- **Sink AXI4-wr.** The write-side window opens at the first write, so the wait above is not in it. The byte build adds a constant 11 starvation cycles at 16 beats and up (3 at 1 beat), the same for every channel count. Its source has not been isolated.
-- **Source.** One extra starvation cycle at start-up in every cell, on both `rd` and `sout`: up to 1.7 percentage points at 1 to 64 beats, under 0.4 from 256 beats. Not isolated.
-- **Amortisation.** Because each term is fixed, utilization converges on the RAPIDS Beats value as the transfer grows: the 4096-beat rows are within 1.2 percentage points and the 8-channel row within 0.4. The 1-to-64-beat rows, where the fixed term is a large share of the window, are the ones that move most.
-- **Not explained.** With 1 beat per channel and 1, 2 or 4 channels the byte build shows no sink AXIS-in backpressure, while the same channels at 16 beats and up do. Not isolated.
+- **Sink AXIS-in.** The byte ingress accepts a channel's stream only once that channel has a packet record, because the destination offset and the expected length come from the descriptor (sink ingress chapter of the MAS). While one channel occupies the stream the others are offered data with `tready` low, and the meter counts those cycles as backpressure: exactly 27 + 20 x channels, the per-channel packet-record wait of rapids TASK-021, independent of the beats per channel. RAPIDS Beats has no such term because it buffers the stream before the descriptor arrives. The `sin` window opens at the first ACCEPTED beat. The wait this window choice could hide is measured and empty: `OBS_SIN_LAUNCH` (CSR 0x158) counts cycles where the stream is offered before the first accept, and it read 0 on all 28 points of this run (and on all 28 rows of the word-wide sim campaign), so opening at the first offered beat and at the first accepted beat are the same measurement on this DUT.
+- **Sink AXI4-wr.** The write window opens at the first write handshake, so the wait above is not in it. Start-up starvation is 1 cycle at 16 beats and up, the same for every channel count (at 1 beat it is the channel count). Under the previous shared window the same cells read 9 to 17 cycles: the descriptor-fetch wait was being charged to write starvation, and the per-interface windows removed that, not the DUT.
+- **Source.** The read and stream-out windows open on their own first handshakes: 8 starvation cycles on `rd` and 1 on `sout` at 16 beats and up, every channel count (channel count + 7 and channel count at 1 beat). These cells read 15 to 22 cycles under the shared window, for the same reason as the write side. The remaining small POSITIVE deltas against the beats reference at short transfers are the same class of fixed start-up term on the beats harness's side of the comparison.
+- **Amortisation.** Because each term is fixed, the byte and beats readings converge as the transfer grows: at 4096 beats per channel every cell is within 1.13 percentage points, and the 8-channel row within 0.32. The 1-to-64-beat rows, where a fixed term is a large share of the window, are the ones that move most.
+- **Not explained.** With 1 beat per channel and 1, 2 or 4 channels the byte build shows no sink AXIS-in backpressure, while the same channels at 16 beats and up do, and the 8-channel 1-beat row reads 190 cycles against the 187 of the formula. Not isolated.
 
 ### 3.2 Byte-wise checker build (the standard bitstream)
 
@@ -447,7 +449,7 @@ Standing limitations of the design, not of this measurement:
 - The sink `s_axis_tready` is one signal qualified by TID, so a beat for a channel whose packet record has not arrived blocks every channel behind it on the stream (head-of-line blocking, inherent and documented).
 - TYPE=EXT descriptors stay beat-aligned by design and are not part of the byte sweeps.
 - AXI error responses are now exercised and the paths are proven on silicon (rapids TASK-020, 2026-10-01); this entry previously recorded them as unproven and the hook as unbuilt. See section 8.1.
-- Each interface has its own measurement window; the `sin` window runs from the first to the last stream beat (rapids ISSUE-001), so windows differ per interface and MB/s here uses the longer of the stream and memory windows.
+- Each interface has its own measurement window, opened on that interface's first handshake; the `sin` window opens on the first ACCEPTED stream beat, and cycles where the stream is offered before that accept are counted by `OBS_SIN_LAUNCH` (section 3.1). MB/s here uses the longer of the stream and memory windows.
 
 ## 8.1 AXI response-error injection (rapids TASK-020)
 
@@ -530,6 +532,7 @@ and is why the integrity and rate measurements need two bitstreams.
 |---|---:|---:|---:|---:|---:|---:|---:|
 | bytecrc | 92,874 | 82,379 | 68 | +0.301 ns | +0.023 ns | 0 | `cfad34c3465f1110` |
 | wordcrc | 86,065 | 79,527 | 52 | +0.077 ns | +0.013 ns | 0 | `48e1282c46e707cd` |
+| perf | 71,651 | 54,643 | 52 | +0.431 ns | +0.049 ns | 0 | `fdab4c4df63c02f7` |
 
 : Post-route resources and timing at 100 MHz, XC7K325T (203,800 LUTs, 445 BRAM tiles)
 
@@ -537,6 +540,7 @@ Build configuration of each row:
 
 - **bytecrc**: BYTE_CRC=1 USE_OBSERVERS=1 OBS_ENABLE_MON_TAPS=0 (channel-reset + hold-junk fixes).
 - **wordcrc**: BYTE_CRC=0 USE_OBSERVERS=1 OBS_ENABLE_MON_TAPS=0. RTL commit `d1d20b046`.
+- **perf**: BYTE_CRC=0 USE_AXI_MONITORS=0 GEN_MON=0 USE_OBSERVERS=0. RTL commit `8ae53d3ae`.
 
 Every build closes timing at 100 MHz with no failing endpoint. The slack is small and positive; treat 100 MHz as the design point, not as margin. The resource figures come from the post-route utilization report; the word-wide checker build is a measurement bitstream and is not the standard one.
 
@@ -570,11 +574,11 @@ cd projects/fpga-systems/Genesys2/rapids/flows-rapids
 ./byte_perf.sh --profile standard          # quick run, writes *_prelim_*.json
 ```
 
-The word-wide aligned results are `rapids_byte_aligned_wordcrc_20260930.json`; its device readback follows.
+The word-wide aligned results are `rapids_byte_perf_prelim_20261002_032941.json`; its device readback follows.
 
 | Session | Bitstream sha256 | CSR_ID | BUILD | Sentinel start | Sentinel end | Stable | Aborted |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| 1 | `48e1282c46e707cd` | 0x52415042 | 0x1A070820 | 0x00000000 | 0x00000000 | yes | no |
+| 1 | `fdab4c4df63c02f7` | 0x52415042 | 0x18070820 | 0x00000000 | 0x00000000 | yes | no |
 
 : Device readback per session
 

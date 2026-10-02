@@ -311,34 +311,65 @@ def _mechanism_note(doc, beats_json):
         rows.append([ch, g('sink', 'sin').get('bp', TBD), bk(rc, 'sink', 'sin').get('bp', TBD),
                      g('sink', 'wr').get('starv', TBD), bk(rc, 'sink', 'wr').get('starv', TBD),
                      g('source', 'rd').get('starv', TBD), bk(rc, 'source', 'rd').get('starv', TBD)])
+    launch = [(pt.get('sink') or {}).get('launch') for pt in doc['points']
+              if (pt.get('sink') or {}).get('launch') is not None]
     if not rows:
         return ''
     tbl = table(['Ch', 'Sink AXIS-in bp, byte', 'beats', 'Sink AXI4-wr starv, byte', 'beats',
                  'Source AXI4-rd starv, byte', 'beats'], rows,
                 f"Cycle counts at {big} beats per channel (fixed start-up terms, not rates)")
+    if launch and all(v == 0 for v in launch):
+        launch_txt = (f"The wait this window choice could hide is measured and empty: `OBS_SIN_LAUNCH` "
+                      f"(CSR 0x158) counts cycles where the stream is offered before the first accept, "
+                      f"and it read 0 on all {len(launch)} points of this run (and on all 28 rows of the "
+                      f"word-wide sim campaign), so opening at the first offered beat and at the first "
+                      f"accepted beat are the same measurement on this DUT.")
+    elif launch:
+        launch_txt = (f"`OBS_SIN_LAUNCH` (CSR 0x158) counts cycles where the stream is offered before "
+                      f"the first accept; readings this run: {sorted(set(launch))}.")
+    else:
+        launch_txt = ''
+    # amortisation: how the deltas shrink as the transfer grows, from this comparison
+    cells = [c for c in byte_perf.compare_beats(doc, beats_json) if c['delta_pp'] is not None]
+    big_cells = [c for c in cells if c['beats'] == big]
+    amort = ''
+    if big_cells:
+        worst_big = max(abs(c['delta_pp']) for c in big_cells)
+        ch8 = [abs(c['delta_pp']) for c in big_cells if c['channels'] == max(byte_perf.CHANNELS)]
+        amort = (f"- **Amortisation.** Because each term is fixed, the byte and beats readings converge "
+                 f"as the transfer grows: at {big} beats per channel every cell is within "
+                 f"{worst_big:.2f} percentage points, and the {max(byte_perf.CHANNELS)}-channel row "
+                 f"within {max(ch8):.2f}. The 1-to-64-beat rows, where a fixed term is a large share "
+                 f"of the window, are the ones that move most.\n")
     return ("**Where the differences come from.** Every difference is a fixed number of cycles per run, "
             "not a change of rate. The cycle counts below are the evidence; the same counts at 16 beats "
-            "per channel are identical to these, and only the 1-beat rows differ (the write side shows +3 "
-            "starvation cycles there, not +11).\n\n" + tbl +
+            "per channel are identical to these. Only the 1-beat rows differ: the write and source "
+            "starvation there equals the channel count (channel count + 7 on the read side), a "
+            "per-channel start-up term that later beats overlap, and the sink backpressure is 0 at "
+            "1 to 4 channels.\n\n" + tbl +
             "\n- **Sink AXIS-in.** The byte ingress accepts a channel's stream only once that channel has "
             "a packet record, because the destination offset and the expected length come from the "
-            "descriptor (sink ingress chapter of the MAS). The stream is offered data, `tready` is low, "
-            "and the meter counts those cycles as backpressure. The count grows with the channel count "
-            "and does not depend on the beats per channel, which is what a serial descriptor fetch before "
-            "the first accept would give. RAPIDS Beats has no such term because it buffers the stream "
-            "before the descriptor arrives. The AXIS-in window opens at the first offered beat, so this "
-            "wait is inside it.\n"
-            "- **Sink AXI4-wr.** The write-side window opens at the first write, so the wait above is not "
-            "in it. The byte build adds a constant 11 starvation cycles at 16 beats and up (3 at 1 beat), "
-            "the same for every channel count. Its source has not been isolated.\n"
-            "- **Source.** One extra starvation cycle at start-up in every cell, on both `rd` and `sout`: "
-            "up to 1.7 percentage points at 1 to 64 beats, under 0.4 from 256 beats. Not isolated.\n"
-            "- **Amortisation.** Because each term is fixed, utilization converges on the RAPIDS Beats "
-            "value as the transfer grows: the 4096-beat rows are within 1.2 percentage points and the "
-            "8-channel row within 0.4. The 1-to-64-beat rows, where the fixed term is a large share of "
-            "the window, are the ones that move most.\n"
+            "descriptor (sink ingress chapter of the MAS). While one channel occupies the stream the "
+            "others are offered data with `tready` low, and the meter counts those cycles as "
+            "backpressure: exactly 27 + 20 x channels, the per-channel packet-record wait of rapids "
+            "TASK-021, independent of the beats per channel. RAPIDS Beats has no such term because it "
+            "buffers the stream before the descriptor arrives. The `sin` window opens at the first "
+            "ACCEPTED beat. " + launch_txt + "\n"
+            "- **Sink AXI4-wr.** The write window opens at the first write handshake, so the wait above "
+            "is not in it. Start-up starvation is 1 cycle at 16 beats and up, the same for every "
+            "channel count (at 1 beat it is the channel count). Under the previous shared window the "
+            "same cells read 9 to 17 cycles: the descriptor-fetch wait was being charged to write "
+            "starvation, and the per-interface windows removed that, not the DUT.\n"
+            "- **Source.** The read and stream-out windows open on their own first handshakes: 8 "
+            "starvation cycles on `rd` and 1 on `sout` at 16 beats and up, every channel count "
+            "(channel count + 7 and channel count at 1 beat). These cells read 15 to 22 cycles under "
+            "the shared window, for the same reason as the write side. The remaining small POSITIVE "
+            "deltas against the beats reference at short transfers are the same class of fixed "
+            "start-up term on the beats harness's side of the comparison.\n"
+            + amort +
             "- **Not explained.** With 1 beat per channel and 1, 2 or 4 channels the byte build shows no "
-            "sink AXIS-in backpressure, while the same channels at 16 beats and up do. Not isolated.\n")
+            "sink AXIS-in backpressure, while the same channels at 16 beats and up do, and the "
+            "8-channel 1-beat row reads 190 cycles against the 187 of the formula. Not isolated.\n")
 
 
 def sec_aligned(D, beats_json, F, AD=None):
@@ -362,6 +393,13 @@ def sec_aligned(D, beats_json, F, AD=None):
                   f"is enough for a utilization measurement of whole-beat rows; full-byte integrity is what "
                   f"the byte-wise build in 3.2 and the rest of this report check. The design under test is "
                   f"the same RTL.\n")
+        md.append("Each meter window opens on its own interface's first handshake (rd, wr, sout), and "
+                  "the sink-ingress window opens on the first ACCEPTED beat; cycles where the stream is "
+                  "offered before that accept are counted by `OBS_SIN_LAUNCH` (CSR 0x158) and are "
+                  "reported with the mechanism table below. The v0.2 report's rows were measured with "
+                  "every window on the shared `obs_dut_busy` open, which charged the descriptor-fetch "
+                  "wait to starvation on the memory-side interfaces; those start-up readings are "
+                  "harness artifacts and were corrected by the window change, not by a DUT change.\n")
         _, tbl, verdict, _st = _cmp_block(w, beats_json)
         md.append(tbl)
         md.append(verdict)
@@ -550,16 +588,99 @@ def sec_failures(D):
               "packet record has not arrived blocks every channel behind it on the stream (head-of-line "
               "blocking, inherent and documented).\n"
               "- TYPE=EXT descriptors stay beat-aligned by design and are not part of the byte sweeps.\n"
-              "- AXI error responses (RRESP and BRESP other than OKAY) are not exercised by the board "
-              "campaign or by the directed sequences: the harness memory model always answers OKAY and "
-              "has no fault-injection hook, and no RAPIDS test in the tree drives a non-OKAY response "
-              "on the read or write master. The response-error flag path is therefore unproven on "
-              "silicon and in simulation. Closing this needs an injection hook in the harness, which "
-              "is not built.\n"
-              "- Each interface has its own measurement window; the `sin` window runs from the first to the "
-              "last stream beat (rapids ISSUE-001), so windows differ per interface and MB/s here uses the "
-              "longer of the stream and memory windows.\n")
+              "- AXI error responses are now exercised and the paths are proven on silicon "
+              "(rapids TASK-020, 2026-10-01); this entry previously recorded them as unproven "
+              "and the hook as unbuilt. See section 8.1.\n"
+              "- Each interface has its own measurement window, opened on that interface's first "
+              "handshake; the `sin` window opens on the first ACCEPTED stream beat, and cycles "
+              "where the stream is offered before that accept are counted by `OBS_SIN_LAUNCH` "
+              "(section 3.1). MB/s here uses the longer of the stream and memory windows.\n")
     return '\n'.join(md)
+
+
+def sec_err_inject():
+    """8.1: the ERR_INJECT directed sequence, proven on the board 2026-10-01 (rapids TASK-020).
+    A one-off campaign result, not derived from the results JSON."""
+    return """## 8.1 AXI response-error injection (rapids TASK-020)
+
+The two synthetic AXI slaves are built `ERR_INJECT=1` in this harness, so a chosen
+burst on a chosen channel answers SLVERR instead of OKAY. `ERR_INJ` (0x0C8) arms it
+-- WR_EN for the sink's B channel, RD_EN for the source's R channel, with RESP, CH,
+SKIP and ONESHOT -- and `ERR_STAT` (0x0CC) reports from the SLAVE that the error was
+really issued, so a passing status check cannot be the DUT agreeing with itself.
+`ERR_INJECT=0` everywhere else keeps every other consumer answering OKAY as before.
+
+| Run | Result |
+|---|---|
+| Board, `--byte-seq axi_resp_error --seq-level full`, 8 channels | **36/36 checks PASS**, 7,969 UART ops |
+| UART sim, same sequence at gate | 18/18 checks PASS |
+| Bitstream | sha256 `754c3c2d...`, WNS **+0.401 ns** at 100 MHz, 78,426 LUTs (38.5 %), 68 BRAM tiles |
+
+Checked per half, per round, with a second channel running alongside throughout:
+the slave issued the error (`ERR_STAT`); the sticky per-channel flag raised on the
+TARGETED channel only (`SNK_SCHERR` / `SRC_SCHERR` and `SCHED_ERROR`);
+`CHANNEL_RESET` cleared it; and both channels were golden against the byte-wise
+CRC afterwards. So the DUT's sticky `r_wr_error` (BRESP) and `r_rd_error` (RRESP)
+paths, and recovery through channel reset, are measured on hardware rather than
+inferred from unit simulation.
+
+NOT covered, and deliberately not claimed: the monbus error PACKET. The host has
+no monbus-buffer readout -- `MON_BASE`/`MON_LIMIT` are configured and never read
+back -- so the packet half of the error contract needs a readout that does not
+exist yet. rapids TASK-020 keeps that box open.
+"""
+
+
+def sec_variants():
+    """8.2: the four build variants measured against each other 2026-10-01.
+    Numbers were parsed by reports/extract_build_metrics.py at that pass."""
+    return """## 8.2 Build variants measured against each other (2026-10-01)
+
+One harness RTL; a variant is generic overrides, built by the named targets
+`make bitstream-{std,perf,mon,obs,ila}`. Every number below is parsed from that
+build's own post-route reports by `reports/extract_build_metrics.py` -- none is
+typed in -- and every variant was then programmed and run on the board.
+
+| Variant | LUT | vs std | BRAM | WNS ns | WHS ns | Failing eps | sha256 |
+|---|---:|---:|---:|---:|---:|---:|---|
+| std (`BYTE_CRC=1`) | 78,426 | -- | 68 | 0.401 | 0.045 | 0 | `754c3c2dcdb7` |
+| perf (`BYTE_CRC=0`) | 71,643 | -6,783 | 52 | 0.426 | 0.037 | 0 | `1f268d98969d` |
+| mon (`USE_AXI_MONITORS=1 GEN_MON=1`) | 84,190 | **+5,764** | 68 | 0.768 | 0.026 | 0 | `0678e8d52a88` |
+| obs (`USE_OBSERVERS=1` + taps) | 100,396 | **+21,970** | 68 | 0.215 | 0.031 | 0 | `4ff79d23b873` |
+
+All four close timing with zero failing endpoints out of ~264 k.
+
+What the comparison is for -- the cost of instrumentation, which was previously
+unmeasured on the byte design:
+
+- **The interface observers are expensive**: +21,970 LUTs, +28 % over std, and
+  they more than halve the timing margin (0.401 -> 0.215 ns). That is the one
+  variant where the margin is thin enough to matter on a tighter part.
+- **The in-core monitors are cheaper than the observers by 4x** (+5,764 LUTs)
+  and the build closed BETTER than std (0.768 ns). Place-and-route variation is
+  part of that, so read it as "no margin cost", not as an improvement.
+- **The word-wide perf build is the cheapest in both LUTs and BRAM** (52 vs 68
+  tiles): the byte-wise CRC machinery is what costs the BRAM, which is the
+  resource price of measuring integrity rather than rate.
+
+Board results, same bitstreams:
+
+| Variant | Runs |
+|---|---|
+| std / mon / obs | byte smoke PASS, `axi_resp_error` **18/18**, byte-perf quick 7/7 |
+| perf | aligned profile **28/28**, 3182 MB/s sink / 3199 MB/s source |
+
+The perf row reproduces section 1's headline figures with a clean identity
+record on both ends of the run. An earlier attempt produced the same numbers but
+false-failed its END identity check -- the Genesys 2 chain transiently lists the
+board with no device behind it -- which marked good results "not from one board";
+`board_guard` now re-reads the chain once before failing, and a test covers both
+that recovery and that a genuinely absent board still fails.
+
+`perf` deliberately runs only the aligned profile: the host refuses byte-wise
+checks on a word-wide build ("cannot check a partial strobe"), which is correct
+and is why the integrity and rate measurements need two bitstreams.
+"""
 
 
 def sec_build(builds):
@@ -718,6 +839,8 @@ def build(results_path, beats_json, out_dir, rev, aligned_path=None, build_paths
     md.append(sec_chain(D))
     md.append(sec_bp(D))
     md.append(sec_failures(D))
+    md.append(sec_err_inject())
+    md.append(sec_variants())
     md.append(sec_build(builds))
     md.append(sec_provenance(D, results_path, beats_json))
     if AD is not None:
