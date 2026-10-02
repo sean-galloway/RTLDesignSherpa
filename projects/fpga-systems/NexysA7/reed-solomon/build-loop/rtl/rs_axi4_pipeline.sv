@@ -105,6 +105,18 @@ module rs_axi4_pipeline #(
     // so a meter spanning the whole run sees the codec's channel idle through
     // four fifths of it and reports the pass structure rather than the codec.
     // These gate the measurement window down to the stage that owns each seam.
+    // Observer configuration APB, from the parent's rs_regs_apb window.
+    input  logic                        obs_meter_clear,
+    input  logic                        obs_apb_psel,
+    input  logic                        obs_apb_penable,
+    output logic                        obs_apb_pready,
+    input  logic [11:0]                 obs_apb_paddr,
+    input  logic                        obs_apb_pwrite,
+    input  logic [31:0]                 obs_apb_pwdata,
+    input  logic [3:0]                  obs_apb_pstrb,
+    output logic [31:0]                 obs_apb_prdata,
+    output logic                        obs_apb_pslverr,
+
     output logic                        obs_enc_active,
     output logic                        obs_dec_active,
 
@@ -543,6 +555,128 @@ module rs_axi4_pipeline #(
     // the recovered message is packed too: full beats except a block's last
     localparam int K_TAIL = K_SYMBOLS % S;
     assign out_keep = (out_last && (K_TAIL != 0)) ? S'((1 << K_TAIL) - 1) : {S{1'b1}};
+
+
+    // =========================================================================
+    // Interface observer on the codec's own AXI4 master ports
+    //
+    // Instantiated HERE, not in the parent: the taps are 46 ports across five
+    // channels, and plumbing those up would be eighty-odd wires where the APB
+    // slave is ten. The parent gives it the bridge's rs_regs_apb window.
+    //
+    // Four ports, the codec's own traffic and nothing else:
+    //   RD 0  the encoder reading messages from M1
+    //   RD 1  the decoder reading codewords -- taken AFTER the injector, which
+    //         is what the decoder actually consumes, not the raw memory
+    //   WR 0  the encoder writing codewords to M2
+    //   WR 1  the decoder writing recovered messages to M4
+    //
+    // ENABLE_MON_TAPS = 0: meters and latency histograms, no monbus, no CAM,
+    // no egress master. stream's harness records what the alternative costs --
+    // its taps' CAM backpressured the DMA at 16 outstanding and the perf build
+    // was measuring a throttled DMA and calling it the DMA's performance.
+    //
+    // WR_CH_FROM_AWID = 1 so no obs_wr_active_ch_* sideband is needed: the
+    // write engines issue AW ahead of W, which is the case that tracker wants.
+    // =========================================================================
+    /* verilator lint_off PINCONNECTEMPTY */
+    axi4_intf_master_observer #(
+        .NUM_RD_PORTS      (2),
+        .NUM_WR_PORTS      (2),
+        .ADDR_WIDTH        (AW),
+        .DATA_WIDTH        (DW),
+        .AXI_ID_WIDTH      (IDW),
+        .AXI_USER_WIDTH    (1),
+        .APB_ADDR_WIDTH    (12),
+        .ENABLE_BUS_METER  (1'b1),
+        .ENABLE_LATENCY_HIST(1'b1),
+        .ENABLE_MON_TAPS   (1'b0),
+        .WR_CH_FROM_AWID   (1'b1),
+        .NUM_CHANNELS      (1)
+    ) u_obs_axi4 (
+        .aclk(aclk), .aresetn(aresetn),
+        .s_apb_psel   (obs_apb_psel),
+        .s_apb_penable(obs_apb_penable),
+        .s_apb_pready (obs_apb_pready),
+        .s_apb_paddr  (obs_apb_paddr),
+        .s_apb_pwrite (obs_apb_pwrite),
+        .s_apb_pwdata (obs_apb_pwdata),
+        .s_apb_pstrb  (obs_apb_pstrb),
+        .s_apb_prdata (obs_apb_prdata),
+        .s_apb_pslverr(obs_apb_pslverr),
+        .obs_rd_arid({m2_arid, m1_arid}),
+        .obs_rd_araddr({m2_araddr, m1_araddr}),
+        .obs_rd_arlen({m2_arlen, m1_arlen}),
+        .obs_rd_arsize({m2_arsize, m1_arsize}),
+        .obs_rd_arburst({m2_arburst, m1_arburst}),
+        .obs_rd_arlock({m2_arlock, m1_arlock}),
+        .obs_rd_arcache({m2_arcache, m1_arcache}),
+        .obs_rd_arprot({m2_arprot, m1_arprot}),
+        .obs_rd_arqos({m2_arqos, m1_arqos}),
+        .obs_rd_arregion({m2_arregion, m1_arregion}),
+        .obs_rd_aruser({m2_aruser, m1_aruser}),
+        .obs_rd_arvalid({m2_arvalid, m1_arvalid}),
+        .obs_rd_arready({m2_arready, m1_arready}),
+        .obs_rd_rid({w_dec_rid, m1_rid}),
+        .obs_rd_rdata({w_inj_out_data, m1_rdata}),
+        .obs_rd_rresp({w_dec_rresp, m1_rresp}),
+        .obs_rd_rlast({w_dec_rlast, m1_rlast}),
+        .obs_rd_ruser({m2_ruser, m1_ruser}),
+        .obs_rd_rvalid({w_inj_out_valid, m1_rvalid}),
+        .obs_rd_rready({w_inj_out_ready, m1_rready}),
+        .obs_wr_awid({m4_awid, m2_awid}),
+        .obs_wr_awaddr({m4_awaddr, m2_awaddr}),
+        .obs_wr_awlen({m4_awlen, m2_awlen}),
+        .obs_wr_awsize({m4_awsize, m2_awsize}),
+        .obs_wr_awburst({m4_awburst, m2_awburst}),
+        .obs_wr_awlock({m4_awlock, m2_awlock}),
+        .obs_wr_awcache({m4_awcache, m2_awcache}),
+        .obs_wr_awprot({m4_awprot, m2_awprot}),
+        .obs_wr_awqos({m4_awqos, m2_awqos}),
+        .obs_wr_awregion({m4_awregion, m2_awregion}),
+        .obs_wr_awuser({m4_awuser, m2_awuser}),
+        .obs_wr_awvalid({m4_awvalid, m2_awvalid}),
+        .obs_wr_awready({m4_awready, m2_awready}),
+        .obs_wr_wdata({m4_wdata, m2_wdata}),
+        .obs_wr_wstrb({m4_wstrb, m2_wstrb}),
+        .obs_wr_wlast({m4_wlast, m2_wlast}),
+        .obs_wr_wuser({m4_wuser, m2_wuser}),
+        .obs_wr_wvalid({m4_wvalid, m2_wvalid}),
+        .obs_wr_wready({m4_wready, m2_wready}),
+        .obs_wr_bid({m4_bid, m2_bid}),
+        .obs_wr_bresp({m4_bresp, m2_bresp}),
+        .obs_wr_buser({m4_buser, m2_buser}),
+        .obs_wr_bvalid({m4_bvalid, m2_bvalid}),
+        .obs_wr_bready({m4_bready, m2_bready}),
+        .obs_wr_active_ch_id('{default: '0}),
+        .obs_wr_active_ch_valid('{default: '0}),
+        // per-channel rid attribution is unused at NUM_CHANNELS = 1: the
+        // aggregate buckets are the only ones read, and an empty map reads as
+        // "no per-channel match", which is correct
+        .cfg_rd_rid_per_channel('{default: '{default: '0}}),
+        .cfg_rd_rid_per_channel_valid('{default: '{default: '0}}),
+        // meters measure the run, not the host's polling around it
+        .i_meter_clear (obs_meter_clear),
+        .i_meter_freeze(!busy),
+        // taps are off, so the CAM, the err-FIFO drain, both egress masters
+        // and the interrupt are all inert: inputs tied, outputs left open.
+        .cam_clear(1'b0),
+        .s_axil_arvalid(1'b0), .s_axil_araddr('0), .s_axil_arprot('0),
+        .s_axil_rready(1'b0),
+        .s_axil_arready(), .s_axil_rvalid(), .s_axil_rdata(), .s_axil_rresp(),
+        .m_axi_awready(1'b0), .m_axi_wready(1'b0),
+        .m_axi_bid('0), .m_axi_bresp('0), .m_axi_buser('0), .m_axi_bvalid(1'b0),
+        .m_axi_awid(), .m_axi_awaddr(), .m_axi_awlen(), .m_axi_awsize(),
+        .m_axi_awburst(), .m_axi_awlock(), .m_axi_awcache(), .m_axi_awprot(),
+        .m_axi_awqos(), .m_axi_awregion(), .m_axi_awuser(), .m_axi_awvalid(),
+        .m_axi_wdata(), .m_axi_wstrb(), .m_axi_wlast(), .m_axi_wuser(),
+        .m_axi_wvalid(), .m_axi_bready(),
+        .m_axil_awready(1'b0), .m_axil_wready(1'b0),
+        .m_axil_bvalid(1'b0), .m_axil_bresp('0),
+        .m_axil_awvalid(), .m_axil_awaddr(), .m_axil_awprot(),
+        .m_axil_wvalid(), .m_axil_wdata(), .m_axil_wstrb(), .m_axil_bready(),
+        .irq_out());
+    /* verilator lint_on PINCONNECTEMPTY */
 
     assign resp_err = seed_err || enc_err || dec_err || drain_err;
 

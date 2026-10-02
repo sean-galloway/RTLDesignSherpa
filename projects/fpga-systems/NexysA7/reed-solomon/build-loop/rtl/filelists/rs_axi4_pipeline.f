@@ -10,4 +10,8 @@
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_error_injector.f
 -f $REPO_ROOT/rtl/amba/filelists/sdpram_slave_axi4_axi4.f
 
+# The AXI4 interface observer that fills the bridge's rs_regs_apb window:
+# per-port cycle buckets, exact beats, and latency histograms on the
+# codec's own master channels.
+-f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/axi4_intf_master_observer.f
 $REPO_ROOT/projects/fpga-systems/NexysA7/reed-solomon/build-loop/rtl/rs_axi4_pipeline.sv

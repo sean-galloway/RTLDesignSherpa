@@ -36,6 +36,10 @@ $REPO_ROOT/projects/fpga-systems/NexysA7/reed-solomon/build-loop/rtl/generated/r
 -f $REPO_ROOT/projects/fpga-systems/NexysA7/reed-solomon/build-loop/rtl/filelists/rs_axi4_pipeline.f
 
 -f $REPO_ROOT/rtl/amba/filelists/axi_bus_meter.f
+# The interface observer that fills the bridge's obs_apb expansion window:
+# per-port cycle buckets and exact beats/bytes/packets through its own
+# obs_regs block, which is the measurement of record for this harness.
+-f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/axis4_intf_observer.f
 
 $REPO_ROOT/projects/fpga-systems/NexysA7/reed-solomon/build-loop/rtl/rs_loop_harness.sv
 $REPO_ROOT/projects/fpga-systems/NexysA7/reed-solomon/build-loop/rtl/rs_loop_top.sv

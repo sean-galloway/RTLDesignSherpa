@@ -168,6 +168,12 @@ module rs_loop_harness
     logic [3:0]  rs_regs_apb_PSTRB;
     logic [2:0]  rs_regs_apb_PPROT;
     logic        obs_apb_PSEL, obs_apb_PENABLE, obs_apb_PWRITE;
+    logic [31:0] w_obs_prdata;
+    logic        w_obs_pready, w_obs_pslverr;
+    // the AXI4 observer answers the rs_regs_apb window (0x00010000); in the
+    // AXIS flavour the pipeline is not built, so it is stubbed there instead
+    logic [31:0] w_obs4_prdata;
+    logic        w_obs4_pready, w_obs4_pslverr;
     logic [31:0] obs_apb_PADDR, obs_apb_PWDATA;
     logic [3:0]  obs_apb_PSTRB;
     logic [2:0]  obs_apb_PPROT;
@@ -200,14 +206,15 @@ module rs_loop_harness
         .rs_regs_apb_PSEL   (rs_regs_apb_PSEL),   .rs_regs_apb_PADDR  (rs_regs_apb_PADDR),
         .rs_regs_apb_PENABLE(rs_regs_apb_PENABLE), .rs_regs_apb_PWRITE(rs_regs_apb_PWRITE),
         .rs_regs_apb_PWDATA (rs_regs_apb_PWDATA), .rs_regs_apb_PSTRB (rs_regs_apb_PSTRB),
-        .rs_regs_apb_PPROT  (rs_regs_apb_PPROT),  .rs_regs_apb_PRDATA(32'h0),
-        .rs_regs_apb_PREADY (1'b1),               .rs_regs_apb_PSLVERR(1'b0),
+        .rs_regs_apb_PPROT  (rs_regs_apb_PPROT),
+        .rs_regs_apb_PRDATA (w_obs4_prdata),
+        .rs_regs_apb_PREADY (w_obs4_pready),      .rs_regs_apb_PSLVERR(w_obs4_pslverr),
 
         .obs_apb_PSEL   (obs_apb_PSEL),   .obs_apb_PADDR  (obs_apb_PADDR),
         .obs_apb_PENABLE(obs_apb_PENABLE), .obs_apb_PWRITE(obs_apb_PWRITE),
         .obs_apb_PWDATA (obs_apb_PWDATA), .obs_apb_PSTRB (obs_apb_PSTRB),
-        .obs_apb_PPROT  (obs_apb_PPROT),  .obs_apb_PRDATA(32'h0),
-        .obs_apb_PREADY (1'b1),           .obs_apb_PSLVERR(1'b0),
+        .obs_apb_PPROT  (obs_apb_PPROT),  .obs_apb_PRDATA(w_obs_prdata),
+        .obs_apb_PREADY (w_obs_pready),   .obs_apb_PSLVERR(w_obs_pslverr),
 
         .unmapped_irq   (w_unmapped_irq),
         .unmapped_addr  (w_unmapped_addr),
@@ -476,6 +483,12 @@ module rs_loop_harness
     // below reduces to r_busy.
     assign w_enc_active  = 1'b1;
     assign w_dec_active  = 1'b1;
+    // No AXI4 pipeline on this path, so nothing answers rs_regs_apb. Stub it
+    // rather than leave it dangling: a window that never asserts PREADY hangs
+    // the host, which is a worse failure than an empty measurement.
+    assign w_obs4_prdata  = 32'h0;
+    assign w_obs4_pready  = 1'b1;
+    assign w_obs4_pslverr = 1'b0;
 
     for (genvar d = 0; d < ND; d++) begin : g_dec
         // the component's AXIS top, as above
@@ -557,6 +570,12 @@ module rs_loop_harness
         .obs_cw_out_valid(cw_out_valid), .obs_cw_out_ready(cw_out_ready),
         .obs_cw_in_valid(cw_in_valid),   .obs_cw_in_ready(cw_in_ready),
         .obs_enc_active(w_enc_active),   .obs_dec_active(w_dec_active),
+        .obs_meter_clear(w_clear),
+        .obs_apb_psel(rs_regs_apb_PSEL),       .obs_apb_penable(rs_regs_apb_PENABLE),
+        .obs_apb_pready(w_obs4_pready),        .obs_apb_paddr(rs_regs_apb_PADDR[11:0]),
+        .obs_apb_pwrite(rs_regs_apb_PWRITE),   .obs_apb_pwdata(rs_regs_apb_PWDATA),
+        .obs_apb_pstrb(rs_regs_apb_PSTRB),     .obs_apb_prdata(w_obs4_prdata),
+        .obs_apb_pslverr(w_obs4_pslverr),
         .out_valid(dec_out_valid[0]), .out_ready(dec_out_ready[0]),
         .out_data(dec_out_data[0]), .out_keep(dec_out_keep[0]),
         .out_last(dec_out_last[0]),
@@ -932,6 +951,131 @@ module rs_loop_harness
     /* verilator lint_on PINCONNECTEMPTY */
 
     // =========================================================================
+    // Interface observer on the four AXIS seams
+    //
+    // The bridge has carried a 4 KB APB expansion window at 0x00020000 for
+    // this since it was generated, and it was wired to PRDATA=0 / PREADY=1
+    // with the request side thrown into the unused sink. This is what the slot
+    // is for.
+    //
+    // ENABLE_MON_TAPS = 0, ENABLE_BUS_METER = 1: the meters, not the monbus.
+    // That needs no egress master, no CAM and no FIFOs, and it cannot throttle
+    // what it measures -- the lesson stream's harness records at its own
+    // observer, where the taps' CAM backpressured the DMA at 16 outstanding
+    // and the perf build was measuring a throttled DMA and calling it the
+    // DMA's performance. An instrument must not be the bottleneck. Every
+    // obs_axis_* pin is an INPUT besides, so this block watches the wire and
+    // never drives it (vault/handbook/design/observers-do-not-drive.md).
+    //
+    // Unconditional, not inside the AXIS generate: in the AXI4 flavour these
+    // seam wires are tied off, so the meters simply read zero and the APB
+    // still answers. A window that stops responding in one configuration is a
+    // host hang, not a missing measurement.
+    //
+    // Port order is the codeword's journey, so a reader can see the n/k
+    // expansion in the beat counts: message in, codeword out of the encoder,
+    // codeword into the decoder, message out.
+    // =========================================================================
+    localparam int OBS_PORTS = 4;
+
+    logic [OBS_PORTS-1:0][DW-1:0] w_obs_tdata;
+    logic [OBS_PORTS-1:0][DW/8-1:0] w_obs_tstrb;
+    logic [OBS_PORTS-1:0]         w_obs_tlast, w_obs_tvalid, w_obs_tready;
+
+    // S == DW/8 at m = 8, so the codec's per-SYMBOL keep IS the byte strobe.
+    // The check is here rather than in a comment because a profile with
+    // m != 8 would silently mis-map the lanes.
+    initial begin : obs_strb_check
+        if (S != DW / 8)
+            $error("rs_loop_harness: observer tstrb assumes S == DW/8 (S=%0d DW=%0d)",
+                   S, DW);
+    end
+
+    always_comb begin
+        w_obs_tdata  = '0;  w_obs_tstrb = '0;
+        w_obs_tlast  = '0;  w_obs_tvalid = '0;  w_obs_tready = '0;
+
+        // 0: message in -- the generator into the encoder
+        w_obs_tdata[0]  = gen_tdata;      w_obs_tstrb[0]  = {(DW/8){1'b1}};
+        w_obs_tlast[0]  = gen_tlast;
+        w_obs_tvalid[0] = enc_in_valid;   w_obs_tready[0] = enc_in_ready;
+
+        // 1: codeword out of the encoder
+        w_obs_tdata[1]  = enc_out_data;   w_obs_tstrb[1]  = enc_out_keep;
+        w_obs_tlast[1]  = enc_out_last;
+        w_obs_tvalid[1] = enc_out_valid;  w_obs_tready[1] = enc_out_ready;
+
+        // 2: codeword into the decoder, after the injector
+        w_obs_tdata[2]  = inj_out_data;   w_obs_tstrb[2]  = inj_out_keep;
+        w_obs_tlast[2]  = inj_out_last;
+        w_obs_tvalid[2] = dec_in_valid[0]; w_obs_tready[2] = dec_in_ready[0];
+
+        // 3: message out of the decoder
+        w_obs_tdata[3]  = dec_out_data[0]; w_obs_tstrb[3] = dec_out_keep[0];
+        w_obs_tlast[3]  = dec_out_last[0];
+        w_obs_tvalid[3] = dec_out_valid[0]; w_obs_tready[3] = dec_out_ready[0];
+    end
+
+    // Taps off means the CAM, the err-FIFO drain, both egress masters and the
+    // interrupt are all inert: inputs tied, outputs left open, exactly as the
+    // pipeline's u_obs_axi4 does. Left DANGLING the cosim's Verilator build
+    // fails on 47 PINMISSING warnings -- which is how it came to light that
+    // this instance had never been elaborated by the sim.
+    /* verilator lint_off PINCONNECTEMPTY */
+    axis4_intf_observer #(
+        .NUM_PORTS        (OBS_PORTS),
+        .DATA_WIDTH       (DW),
+        .AXIS_ID_WIDTH    (1),
+        .AXIS_DEST_WIDTH  (1),
+        .AXIS_USER_WIDTH  (1),
+        .APB_ADDR_WIDTH   (12),        // the window is 4 KB
+        .ENABLE_BUS_METER (1'b1),
+        .ENABLE_MON_TAPS  (1'b0)
+    ) u_obs (
+        .aclk(aclk), .aresetn(dp_rstn),
+        .s_apb_psel   (obs_apb_PSEL),
+        .s_apb_penable(obs_apb_PENABLE),
+        .s_apb_pready (w_obs_pready),
+        .s_apb_paddr  (obs_apb_PADDR[11:0]),
+        .s_apb_pwrite (obs_apb_PWRITE),
+        .s_apb_pwdata (obs_apb_PWDATA),
+        .s_apb_pstrb  (obs_apb_PSTRB),
+        .s_apb_prdata (w_obs_prdata),
+        .s_apb_pslverr(w_obs_pslverr),
+        .obs_axis_tdata (w_obs_tdata),
+        .obs_axis_tstrb (w_obs_tstrb),
+        .obs_axis_tlast (w_obs_tlast),
+        .obs_axis_tid   ('0),
+        .obs_axis_tdest ('0),
+        .obs_axis_tuser ('0),
+        .obs_axis_tvalid(w_obs_tvalid),
+        .obs_axis_tready(w_obs_tready),
+        // Measure the run, not the host's polling around it -- the same
+        // contract the AXI4 observer in the pipeline gets (clear on the host's
+        // clear pulse, frozen outside r_busy). Left dangling these meters
+        // free-run: every idle second between runs lands in the buckets and
+        // the counters accumulate across runs until they wrap.
+        .i_meter_clear ({OBS_PORTS{w_clear}}),
+        .i_meter_freeze({OBS_PORTS{~r_busy}}),
+        .cam_clear(1'b0),
+        .s_axil_arvalid(1'b0), .s_axil_araddr('0), .s_axil_arprot('0),
+        .s_axil_rready(1'b0),
+        .s_axil_arready(), .s_axil_rvalid(), .s_axil_rdata(), .s_axil_rresp(),
+        .m_axi_awready(1'b0), .m_axi_wready(1'b0),
+        .m_axi_bid('0), .m_axi_bresp('0), .m_axi_buser('0), .m_axi_bvalid(1'b0),
+        .m_axi_awid(), .m_axi_awaddr(), .m_axi_awlen(), .m_axi_awsize(),
+        .m_axi_awburst(), .m_axi_awlock(), .m_axi_awcache(), .m_axi_awprot(),
+        .m_axi_awqos(), .m_axi_awregion(), .m_axi_awuser(), .m_axi_awvalid(),
+        .m_axi_wdata(), .m_axi_wstrb(), .m_axi_wlast(), .m_axi_wuser(),
+        .m_axi_wvalid(), .m_axi_bready(),
+        .m_axil_awready(1'b0), .m_axil_wready(1'b0),
+        .m_axil_bvalid(1'b0), .m_axil_bresp('0),
+        .m_axil_awvalid(), .m_axil_awaddr(), .m_axil_awprot(),
+        .m_axil_wvalid(), .m_axil_wdata(), .m_axil_wstrb(), .m_axil_bready(),
+        .irq_out());
+    /* verilator lint_on PINCONNECTEMPTY */
+
+    // =========================================================================
     // Status back to the CSRs
     // =========================================================================
     always_comb begin
@@ -1011,7 +1155,6 @@ module rs_loop_harness
                     ^ rs_regs_apb_PSEL ^ rs_regs_apb_PENABLE ^ rs_regs_apb_PWRITE
                     ^ (^rs_regs_apb_PADDR) ^ (^rs_regs_apb_PWDATA) ^ (^rs_regs_apb_PSTRB)
                     ^ (^rs_regs_apb_PPROT)
-                    ^ obs_apb_PSEL ^ obs_apb_PENABLE ^ obs_apb_PWRITE
-                    ^ (^obs_apb_PADDR) ^ (^obs_apb_PWDATA) ^ (^obs_apb_PSTRB) ^ (^obs_apb_PPROT);
+                    ^ (^obs_apb_PPROT);   // obs_apb's other pins go to the observer now
 
 endmodule : rs_loop_harness
