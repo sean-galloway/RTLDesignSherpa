@@ -12,15 +12,14 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 11 | done (kept for history) |
+| [closed/](closed/) | 12 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-011** — two rapids formal proofs (`axi_read_engine_beats`, `axi_write_engine_beats`) check pre-BUG-009 RTL: their sv2v flat snapshots were never regenerated; found by regenerate-and-diff (filed 2026-10-01)
 
 ## Dropped
 
@@ -32,6 +31,7 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **BUG-011** — two rapids formal proofs checked pre-BUG-009 RTL on stale sv2v flats; flats regenerated 2026-10-01, both proofs re-run PASS, the vacuity that let them pass filed as BUG-012. Self-detection fanned out to tooling TASK-026 (closed 2026-10-02)
 - **BUG-012** — the two engine proofs assumed the BUG-009 region away: `SCW=5` makes `XFER_MAX` exactly 15 and the assume capped the config AT 15, so the clamp could never engage and both flats proved identically. Assume widened, zero-beat input contract stated, `ap_*_len_within_alloc` added; now PASSES on the fixed RTL and FAILS on the pre-fix flat (closed 2026-10-01)
 
 - **BUG-010** — top_beats axis_mon counted only completions, so a monitor's REPORTED dropped event (AXIS_ERR_EVENT_DROPPED) read as a lost packet; shared accounting helper, all three rapids TBs fixed, mutation-proved against a silent loss (closed 2026-10-01)

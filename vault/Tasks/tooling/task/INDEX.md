@@ -2,7 +2,7 @@
 
 # tooling — tasks
 
-**Next ID: TASK-026** — never recycle a number, even when its item closed.
+**Next ID: TASK-027** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,13 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 24 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **TASK-026** (P2) -- formal stale-flat self-detection: a regenerate-and-diff mode beside `bin/formal_status.py --inventory`; fanned out of rapids BUG-011, which two stale beats flats passed green against pre-BUG-009 RTL
 
 - **TASK-025** (P3) — cocotb 2.x is reachable but not yet: the import blocker is cocotb-bus 0.2.1 (fixed by 0.3.0, which our own DV cap forbids), and the remaining work is a 78-site `.value.integer` sweep across both repos
 
