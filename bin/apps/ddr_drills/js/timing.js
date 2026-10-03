@@ -298,35 +298,9 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
   }
 
   function buildReference() {
-    var chapters = [];
-    var byChapter = {};
-    st.pack.timingParams.forEach(function (p) {
-      if (!byChapter[p.chapter]) {
-        byChapter[p.chapter] = [];
-        chapters.push(p.chapter);
-      }
-      byChapter[p.chapter].push(p);
-    });
-    chapters.forEach(function (ch) {
-      st.refEl.appendChild(el('h3', 'timing-ref-chapter', ch));
-      var table = el('table', 'timing-ref-table');
-      var head = el('tr', 'timing-ref-head');
-      ['Symbol', 'Definition', 'Applies between'].forEach(function (h) {
-        head.appendChild(el('th', null, h));
-      });
-      table.appendChild(head);
-      byChapter[ch].forEach(function (p) {
-        var row = el('tr');
-        row.appendChild(el('td', 'timing-ref-symbol', p.symbol));
-        row.appendChild(el('td', null, p.definition));
-        row.appendChild(el('td', 'timing-ref-applies', p.appliesTo.map(
-          function (r) {
-            return r.from + ' -> ' + r.to + ' (' + r.scope + ')';
-          }).join('; ')));
-        table.appendChild(row);
-      });
-      st.refEl.appendChild(table);
-    });
+    // Shared renderer lives in reference.js (loaded after this file; this
+    // runs at mount time, after every script has loaded).
+    DDRD.buildTimingReference(st.refEl, st.pack);
   }
 
   function mount(elRoot, pack) {

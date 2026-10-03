@@ -318,6 +318,73 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
         source: 'JESD270-4A sec 10, Table 108' }
     ],
 
+    commandDocs: [
+      { cmd: 'ACT', name: 'Activate',
+        description: 'Opens row R in bank B (SID + BA select the bank ' +
+                     'inside the pseudo channel). Travels on the R[9:0] ' +
+                     'row bus over 1.5 cycles - all row timings reference ' +
+                     'the second rising edge. Spacing: tRCDRD/tRCDWR to ' +
+                     'the first column command, tRRDL/tRRDS to the next ' +
+                     'ACT, tFAW across any four, tRC same bank.' },
+      { cmd: 'RD', name: 'Read (BL8 fixed)',
+        description: 'Bursts 8 words (4 CK of DQ) from the open row on ' +
+                     'the C[7:0] column bus; C3 = 0. Same-direction ' +
+                     'spacing tCCDL/tCCDS (tCCDR across SIDs), tRTW to a ' +
+                     'write, tWTRL/tWTRS from a write.' },
+      { cmd: 'RDA', name: 'Read with Auto-Precharge',
+        description: 'RD with C3 = 1: the bank precharges itself at ' +
+                     'RTP + nCK(MR5) past the burst, once tRAS is met. ' +
+                     'The nCK twin must be programmed >= RU(tRTP/tCK).' },
+      { cmd: 'WR', name: 'Write (BL8 fixed)',
+        description: 'Bursts 8 words into the open row; first data ' +
+                     'arrives WL nCK after the command on the column bus, ' +
+                     'C3 = 0. On-die ECC is computed and stored with the ' +
+                     'data word.' },
+      { cmd: 'WRA', name: 'Write with Auto-Precharge',
+        description: 'WR with C3 = 1: the bank precharges itself at ' +
+                     'WL + 2 + WR(nCK from MR3) past the command. ' +
+                     'Re-activation then waits tRP and tRC.' },
+      { cmd: 'PRE', name: 'Precharge Per-Bank / All-Bank',
+        description: 'PREpb closes the open row of one bank (SID + BA on ' +
+                     'the row bus); PREab closes every bank at once. ' +
+                     'Half-cycle command; consecutive PREs pack at ' +
+                     'tPPD = 2 nCK. Bank ready again after tRP.' },
+      { cmd: 'MRS', name: 'Mode Register Set',
+        description: 'Column-bus command writing one of the mode ' +
+                     'registers (register picked by address bits). All ' +
+                     'banks idle; spacing tWRMRS/tRDMRS to column ' +
+                     'commands and tMOD/tMRD around it. Carries RL, WL, ' +
+                     'the nCK twins, DBI/ECC and RFM options.' },
+      { cmd: 'REFab', name: 'All-Bank Refresh',
+        description: 'One all-bank refresh step; every bank precharged ' +
+                     'first, die busy tRFCab. Average rate tREFI (3.9 us ' +
+                     'max, shortened past temperature trip points); up ' +
+                     'to 8 may be postponed.' },
+      { cmd: 'REFpb', name: 'Per-Bank Refresh',
+        description: 'Refreshes one bank (SID + BA) for tRFCpb while the ' +
+                     'others stay schedulable. Counts against tFAW like ' +
+                     'an ACT; tRREFD spaces REFpb to a different bank. ' +
+                     'Every bank of an SID must be covered before any ' +
+                     'repeat.' },
+      { cmd: 'RFM/DRFM', name: 'Refresh Management',
+        description: 'Extra refreshes the controller owes when a per-' +
+                     'bank rolling activate count (RAA) hits RAAIMT: ' +
+                     'RFMab all banks, RFMpb one bank. DRFM aims the ' +
+                     'refresh at the row captured by a flagged ACT. ' +
+                     'Mandatory on parts reporting RFM = 1.' },
+      { cmd: 'RNOP/CNOP', name: 'Row/Column No-Operation',
+        description: 'Filler on the two independent command buses - ' +
+                     'RNOP parks the row bus, CNOP parks the column ' +
+                     'bus, so one bus can idle while the other works ' +
+                     '(e.g. ACT on R with NOP on C the same cycle).' },
+      { cmd: 'PDE/SRE', name: 'Power-Down / Self-Refresh Entry',
+        description: 'Row-bus commands: PDE parks the channel ' +
+                     'precharged, SRE (with the self-refresh abort / ' +
+                     'temperature options) has the die refresh itself ' +
+                     'with CK stopped. Exit waits tXP / tXS (+DLL ' +
+                     'relock before reads).' }
+    ],
+
     scenarioTweaks: {
       excludeGenerators: [],
       extraTags: ['sid', 'cross_group'],

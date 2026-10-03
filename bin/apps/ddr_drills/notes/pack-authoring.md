@@ -1,6 +1,6 @@
 # Authoring a Content Pack
 
-How to add a memory technology to ddr_drills. Mechanics (the 5-step
+How to add a memory technology to ddr_drills. Mechanics (the 6-step
 checklist) are in `../README.md`; this file is the CONTENT contract -
 what makes a pack correct, complete and consistent with the others.
 
@@ -16,8 +16,9 @@ with:
 | `jedec` | `{doc, note}` - spec number + one-line character | footer citation |
 | `topology` | `{hasBankGroups, groups, banksPerGroup, banks, rows, cols, sids}` | engine, scenarios, matcher |
 | `commands` | `['ACT','PRE','RD','WR','RDA','WRA']` | validation |
-| `timingParams` | `[{symbol, name, definition, chapter, appliesTo}]` | timing drill |
+| `timingParams` | `[{symbol, name, definition, chapter, appliesTo}]` | timing drill, timing reference tab |
 | `questionBank` | `[{q, answers, chapter, hard, explanation, source}]` | quiz |
+| `commandDocs` | `[{cmd, name, description}]` | commands reference tab |
 | `scenarioTweaks` | `{excludeGenerators, extraTags, defaultPolicy, turnaround:{wtr,rtw}}` | scenario drill, engine labels |
 
 `DDRD.validatePack` enforces the shape at load time; `test/test_packs.js`
@@ -68,8 +69,23 @@ enforces the content floors (see below) in CI.
   in `notes/timing-tables.md` - that worksheet is the cross-check against
   the spec, per pack.
 
-## questionBank authoring
+## commandDocs authoring
 
+The Commands reference tab renders one row per entry, in pack order.
+
+- Every engine command (`ACT`, `PRE`, `RD`, `WR`, `RDA`, `WRA`) must
+  have its OWN entry with that exact token in `cmd` - `test_packs.js`
+  checks all six. Combined tokens (`'MRS/EMRS'`, `'SRE/SRX'`) are for the
+  non-engine extras only.
+- Engine commands first, in `commands` order, then the tech's extras
+  (refresh variants, mode-register access, power states, NOP/DES).
+  10-13 entries per pack is the current norm.
+- `name` is the expansion ("Read with Auto-Precharge"); `description` is
+  1-3 sentences: what the command does, the flag/encoding that selects
+  the variant (A10, CA0(f), C3, AB), and the timing parameters that gate
+  it. Same paraphrase-only rule as questions.
+
+## questionBank authoring
 - Floors enforced by `test_packs.js`: >= 8 questions, >= 3 distinct
   chapters, >= 2 answers each, >= 10 timingParams overall. Aim for 12-15
   questions spanning organization / init / commands / timing / datapath /

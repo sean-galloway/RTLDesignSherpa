@@ -448,6 +448,8 @@ main {
 }
 .timing-ref-symbol { font-family: var(--mono); font-weight: 700; white-space: nowrap; }
 .timing-ref-applies { font-family: var(--mono); font-size: 0.8rem; color: var(--ink-dim); }
+.ref-intro { color: var(--ink-dim); font-size: 0.9rem; margin: 0.2rem 0 0.8rem; }
+.cmd-ref-name { white-space: nowrap; font-weight: 600; }
 .timing-sequence {
   font-family: var(--mono);
   font-size: 0.92rem;

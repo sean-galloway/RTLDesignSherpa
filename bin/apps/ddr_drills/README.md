@@ -49,6 +49,8 @@ js/engine.js      open-page / close-page / FR-FCFS schedulers
 js/mutate.js      7 mutators + fallbacks -> exactly 3 wrong answers
 js/scenarios.js   19 parameterized scenario generators + build API
 js/timing.js      timing-drill matcher (pure) + mode 2 UI
+js/reference.js   chapter-grouping helper (pure) + shared timing-table
+                  renderer + Timing Reference and Commands tab UIs
 js/quiz.js        mode 1 UI (knowledge quiz)
 js/scenariodrill.js  mode 3 UI (bank-state drill)
 js/sandbox.js     mode 4 UI (live scheduling sandbox)
@@ -73,7 +75,7 @@ push that touches this directory and, when green, deploys this directory
 to GitHub Pages (artifact upload, no gh-pages branch). One-time manual
 step: repo Settings -> Pages -> Source = "GitHub Actions".
 
-## How a pack registers (5 steps)
+## How a pack registers (6 steps)
 
 Three packs ship today (`packs/hbm4.js`, `packs/ddr2.js`,
 `packs/lpddr2.js`); the content contract for writing a new one is
@@ -90,7 +92,10 @@ Three packs ship today (`packs/hbm4.js`, `packs/ddr2.js`,
    UI's job. Every question needs at least 2 answers and an explanation.
 4. Add `timingParams` entries `{symbol, name, definition, chapter,
    appliesTo}` with at least one `appliesTo` rule per parameter.
-5. Add a `<script src="packs/<tech>.js">` tag in `index.html` AFTER
+5. Add `commandDocs` entries `{cmd, name, description}` - one per engine
+   command (exact tokens `ACT`/`PRE`/`RD`/`WR`/`RDA`/`WRA`) plus the
+   technology's extras.
+6. Add a `<script src="packs/<tech>.js">` tag in `index.html` AFTER
    `js/scenarios.js`, and a matching `require()` in `test/run_tests.js`.
 
 Everything is ASCII. `registerPack` throws on schema violations or a

@@ -19,7 +19,8 @@ var JS_ORDER = [
   'engine.js',
   'mutate.js',
   'scenarios.js',
-  'timing.js'
+  'timing.js',
+  'reference.js'
 ];
 
 var TEST_ORDER = [

@@ -280,6 +280,75 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
         source: 'JESD209-2F sec 5.12.1' }
     ],
 
+    commandDocs: [
+      { cmd: 'ACT', name: 'Activate',
+        description: 'Opens row R in bank B - on LPDDR2 the ROW address ' +
+                     'comes out here, two edges of the 10-bit CA bus at ' +
+                     'once. Spacing: tRCD to the first column command, ' +
+                     'tRRD to the next ACT, tFAW across any four, tRC same ' +
+                     'bank.' },
+      { cmd: 'RD', name: 'Read',
+        description: 'Bursts BL words from the open row; the COLUMN ' +
+                     'address goes out with this command (C1-C10), and CA0 ' +
+                     'on the falling edge is the auto-precharge flag. Data ' +
+                     'returns RL clocks later with an uncalibrated ' +
+                     'tDQSCK wander.' },
+      { cmd: 'WR', name: 'Write',
+        description: 'Bursts BL words into the open row; column address ' +
+                     'and AP flag same as RD. First data lands WL clocks ' +
+                     'after the command; DQS is differential and ' +
+                     'unidirectional here.' },
+      { cmd: 'RDA', name: 'Read with Auto-Precharge',
+        description: 'RD with CA0(f) = 1: the bank precharges itself once ' +
+                     'tRAS and tRTP are met. Re-activation waits tRP past ' +
+                     'the internal precharge and tRC from the old ACT.' },
+      { cmd: 'WRA', name: 'Write with Auto-Precharge',
+        description: 'WR with CA0(f) = 1: the bank precharges itself ' +
+                     'after write recovery (WL + BL/2 + tWR past the ' +
+                     'command). Re-activation waits tRP and tRC.' },
+      { cmd: 'PRE', name: 'Precharge',
+        description: 'Closes an open row. One flag chooses the target: ' +
+                     'AB = 0 precharges the one bank on BA0-BA2 (tRPpb), ' +
+                     'AB = 1 precharges all banks (tRPab, longer). Starts ' +
+                     'tRAS after the ACT that opened the row.' },
+      { cmd: 'BST', name: 'Burst Terminate',
+        description: 'Stops a read or write burst in flight; the burst ' +
+                     'ends a fixed latency after BST (RL for reads, WL for ' +
+                     'writes). Only legal burst lengths survive - the ' +
+                     'device truncates on the internal boundary.' },
+      { cmd: 'MRW', name: 'Mode Register Write',
+        description: 'Writes any of the 64 mode registers: MR selects the ' +
+                     'register, OP carries the value. All banks idle; tMRW ' +
+                     'spacing to the next command. Carries BL, RL/WL, ' +
+                     'refresh and PASR options.' },
+      { cmd: 'MRR', name: 'Mode Register Read',
+        description: 'Reads a mode register back onto DQ0-DQ7 after RL ' +
+                     'clocks - how the host learns device id, revision and ' +
+                     'status (e.g. refresh-needed flags). Like a 1-word ' +
+                     'read that needs no open row.' },
+      { cmd: 'REFab', name: 'Refresh All Banks',
+        description: 'One all-bank refresh step; all banks idle first, ' +
+                     'device busy for tRFCab. Average rate tREFI, up to 8 ' +
+                     'postponable. Resynchronizes the per-bank refresh ' +
+                     'counter the controller must shadow.' },
+      { cmd: 'REFpb', name: 'Refresh Per Bank',
+        description: 'Refreshes ONE bank (BA0-BA2) for tRFCpb, so the ' +
+                     'other seven stay schedulable - the LPDDR2 latency ' +
+                     'hiding trick. Banks are refreshed round-robin by an ' +
+                     'internal counter that resets at reset, SRX and ' +
+                     'every REFab.' },
+      { cmd: 'SRE/DPD', name: 'Self-Refresh / Deep Power-Down',
+        description: 'Entered from the same encoding when CKE falls with ' +
+                     'all banks idle: MR0 OP picks self-refresh (device ' +
+                     'refreshes itself, tCKESR min) or DPD (no refresh - ' +
+                     'data is lost). Exit: tXSR to commands, longer to ' +
+                     'reads.' },
+      { cmd: 'NOP/DES', name: 'No Operation / Deselect',
+        description: 'Filler cycles keeping the CA bus valid while timing ' +
+                     'windows drain - one command occupies one clock on ' +
+                     'LPDDR2 (two edges), so NOPs are cheap.' }
+    ],
+
     scenarioTweaks: {
       excludeGenerators: [],
       extraTags: [],

@@ -284,6 +284,64 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
         source: 'JESD79-2F sec 3.10' }
     ],
 
+    commandDocs: [
+      { cmd: 'ACT', name: 'Bank Activate',
+        description: 'Opens row R in bank B (the row is copied into the ' +
+                     'bank\'s sense amps). Required before any RD/WR to ' +
+                     'that bank. Spacing: tRCD to the first column command, ' +
+                     'tRRD to the next ACT, tFAW across any four.' },
+      { cmd: 'RD', name: 'Read',
+        description: 'Bursts BL words from the open row starting at the ' +
+                     'given column; data appears RL = AL + CL clocks after ' +
+                     'the command. A10 = 0 (no auto-precharge).' },
+      { cmd: 'RDA', name: 'Read with Auto-Precharge',
+        description: 'RD with A10 = 1: the bank precharges itself once ' +
+                     'tRAS and tRTP are met. Re-activation waits tRP past ' +
+                     'the internal precharge, and tRC from the old ACT.' },
+      { cmd: 'WR', name: 'Write',
+        description: 'Bursts BL words into the open row; first data is ' +
+                     'strobed in WL = RL - 1 clocks after the command, ' +
+                     'DQS aligned to CK (tDQSS). A10 = 0.' },
+      { cmd: 'WRA', name: 'Write with Auto-Precharge',
+        description: 'WR with A10 = 1: the bank precharges itself after ' +
+                     'write recovery. Next ACT waits tDAL = WR + tRP ' +
+                     '(and tRC).' },
+      { cmd: 'PRE', name: 'Precharge (one bank)',
+        description: 'Closes the open row of the bank selected by BA, ' +
+                     'restoring data to the array. The bank is ready for ' +
+                     'a new ACT after tRP.' },
+      { cmd: 'PREA', name: 'Precharge All',
+        description: 'PRE with A10 = 1: closes every bank. On 8-bank ' +
+                     'parts the all-bank variant costs one extra clock: ' +
+                     'tRPall = tRP + 1 tCK.' },
+      { cmd: 'REF', name: 'Refresh',
+        description: 'One internal all-bank refresh step (address counter ' +
+                     'is internal). All banks must be precharged first; ' +
+                     'the device is busy for tRFC. Average rate tREFI; up ' +
+                     'to 8 may be postponed (9 x tREFI worst gap).' },
+      { cmd: 'MRS/EMRS', name: 'Mode Register Set',
+        description: 'Writes MR, EMR1, EMR2 or EMR3, selected by the ' +
+                     'bank address (BA=00/01/10/11). All banks idle, tMRD ' +
+                     'between writes. Carries CL, AL, BL, WR, ODT and the ' +
+                     'refresh options.' },
+      { cmd: 'SRE/SRX', name: 'Self-Refresh Enter/Exit',
+        description: 'Entry: REF encoding with CKE falling, all banks ' +
+                     'idle, ODT off - the DRAM refreshes itself with the ' +
+                     'clock stopped. Exit: tXSNR = tRFC + 10 ns to a ' +
+                     'non-read command, tXSRD = 200 clocks to a read ' +
+                     '(DLL re-lock).' },
+      { cmd: 'PDE/PDX', name: 'Power-Down Enter/Exit',
+        description: 'CKE low parks the device in precharge or active ' +
+                     'power-down. Active PD has fast (tXARD, DLL on) and ' +
+                     'slow (tXARDS, DLL off) exit modes, chosen by MR A12. ' +
+                     'No refresh happens inside; stay bounded by tREFI ' +
+                     'rules.' },
+      { cmd: 'NOP/DES', name: 'No Operation / Deselect',
+        description: 'Filler cycles that keep the bus valid while timing ' +
+                     'windows drain. Required through mode-register and ' +
+                     'self-refresh exit windows.' }
+    ],
+
     scenarioTweaks: {
       excludeGenerators: [],
       extraTags: [],

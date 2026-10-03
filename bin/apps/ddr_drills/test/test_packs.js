@@ -82,6 +82,38 @@ var SUITES = (typeof window !== 'undefined' ? window : globalThis).DDRD_TEST_SUI
           });
         });
 
+        // Command reference: one doc entry per engine command, each with
+        // a name and a real description (the Commands tab renders these).
+        T.ok(Array.isArray(pack.commandDocs) && pack.commandDocs.length >= 6,
+             tag + 'commandDocs has >= 6 entries (' +
+             (pack.commandDocs ? pack.commandDocs.length : 0) + ')');
+        var documented = {};
+        (pack.commandDocs || []).forEach(function (c, i) {
+          var ct = tag + 'commandDocs[' + i + ']: ';
+          T.ok(typeof c.cmd === 'string' && c.cmd.length > 0,
+               ct + 'has a command token');
+          T.ok(typeof c.name === 'string' && c.name.length > 0,
+               ct + 'has a name');
+          T.ok(typeof c.description === 'string' && c.description.length > 20,
+               ct + 'has a real description');
+          documented[c.cmd] = true;
+        });
+        engineCmds.forEach(function (c) {
+          T.ok(!!documented[c],
+               tag + 'commandDocs documents engine command ' + c);
+        });
+
+        // The shared reference renderer's grouping must be lossless:
+        // flattening groupParamsByChapter returns every symbol in pack
+        // order (both the timing tab and the drill panel depend on it).
+        var grouped = DDRD.groupParamsByChapter(pack.timingParams);
+        var flat = [];
+        grouped.forEach(function (g) {
+          g.params.forEach(function (p) { flat.push(p.symbol); });
+        });
+        T.deepEq(flat, pack.timingParams.map(function (p) { return p.symbol; }),
+                 tag + 'groupParamsByChapter is lossless and order-keeping');
+
         // Turnaround coverage: every pack must be able to label both
         // direction changes for the engine's annotation labels.
         var t = (pack.scenarioTweaks && pack.scenarioTweaks.turnaround) || {};

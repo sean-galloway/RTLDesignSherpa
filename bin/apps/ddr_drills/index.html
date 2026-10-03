@@ -30,6 +30,10 @@
     Bank-State Drill</button>
   <button type="button" class="mode-tab" data-mode="sandbox" disabled>
     Sandbox</button>
+  <button type="button" class="mode-tab" data-mode="timingref" disabled>
+    Timing Reference</button>
+  <button type="button" class="mode-tab" data-mode="commands" disabled>
+    Commands</button>
 </nav>
 
 <main>
@@ -44,7 +48,15 @@
     <!-- scenariodrill.js (later commit) -->
   </section>
   <section id="mode-sandbox" class="mode-container" aria-label="Sandbox">
-    <!-- sandbox.js (later commit) -->
+    <!-- sandbox.js -->
+  </section>
+  <section id="mode-timingref" class="mode-container"
+           aria-label="Timing reference">
+    <!-- reference.js -->
+  </section>
+  <section id="mode-commands" class="mode-container"
+           aria-label="Command reference">
+    <!-- reference.js -->
   </section>
 </main>
 
@@ -70,9 +82,12 @@
 <script src="packs/hbm4.js"></script>
 <script src="packs/ddr2.js"></script>
 <script src="packs/lpddr2.js"></script>
-<!-- UI modes, then the shell. app.js boots on DOMContentLoaded. -->
+<!-- UI modes, then the shell. app.js boots on DOMContentLoaded.
+     reference.js loads after timing.js: timing.js's mid-question panel
+     calls its shared DDRD.buildTimingReference at mount time. -->
 <script src="js/quiz.js"></script>
 <script src="js/timing.js"></script>
+<script src="js/reference.js"></script>
 <script src="js/scenariodrill.js"></script>
 <script src="js/sandbox.js"></script>
 <script src="js/app.js"></script>

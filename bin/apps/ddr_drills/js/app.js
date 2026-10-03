@@ -7,7 +7,8 @@
   var DDRD = window.DDRD;
   if (!DDRD) { return; }
 
-  var MODE_IDS = ['quiz', 'timing', 'scenario', 'sandbox'];
+  var MODE_IDS = ['quiz', 'timing', 'scenario', 'sandbox', 'timingref',
+                  'commands'];
   var current = { mode: null, packId: null, mounted: null };
 
   function packs() { return DDRD.listPacks(); }
