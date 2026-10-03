@@ -137,3 +137,53 @@ def test_unhandled_recipe_reported(tmp_path):
     assert "UNHANDLED" in r.stdout
     assert not (repo / "formal" / "demo" / "block1" / "side_effect.txt").exists(), \
         "the in-tree side effect ran -- the tree was not protected"
+
+
+def _git(repo: Path, *args: str):
+    return subprocess.run(["git", "-C", str(repo), *args],
+                          capture_output=True, text=True, check=True)
+
+
+def _git_repo(tmp_path, drift: bool) -> Path:
+    repo = make_flat_repo(tmp_path, SIMPLE_RECIPE, drift=drift)
+    _git(repo, "init", "-q")
+    _git(repo, "add", "-A")
+    _git(repo, "-c", "user.email=t@example.com", "-c", "user.name=t",
+         "commit", "-qm", "init")
+    return repo
+
+
+def _run_staged(repo: Path) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, "bin/formal_status.py", "--check-flats", "--staged",
+         "--areas", "demo"],
+        cwd=repo, env=_env_with_sv2v(),
+        capture_output=True, text=True)
+
+
+def _drift_source(repo: Path):
+    """Widen the port after the flat was committed: planted staleness."""
+    dut = repo / "formal" / "demo" / "block1" / "dut.sv"
+    dut.write_text(dut.read_text().replace("[7:0]", "[15:0]"))
+
+
+def test_staged_mode_catches_drifted_source(tmp_path):
+    """The pre-commit shape: source staged, flat untouched -> still caught."""
+    repo = _git_repo(tmp_path, drift=False)
+    _drift_source(repo)
+    _git(repo, "add", "formal/demo/block1/dut.sv")
+    r = _run_staged(repo)
+    assert r.returncode == 1, \
+        f"expected exit 1, got {r.returncode}: {r.stdout}{r.stderr}"
+    assert "STALE" in r.stdout
+    assert "demo/block1" in r.stdout
+
+
+def test_staged_mode_skips_untouched_proofs(tmp_path):
+    """Drift on disk but nothing staged -> nothing checked."""
+    repo = _git_repo(tmp_path, drift=False)
+    _drift_source(repo)
+    r = _run_staged(repo)
+    assert r.returncode == 0, \
+        f"expected exit 0, got {r.returncode}: {r.stdout}{r.stderr}"
+    assert "checked=0" in r.stdout

@@ -30,6 +30,23 @@ PY=$(command -v python3.12 || command -v python3.11 || command -v python3)
 STAGED=$(git diff --cached --name-only --diff-filter=ACM)
 fail=0
 
+# --- a committed formal flat must match its sources ---------------------------
+# A *_flat.v is a committed sv2v snapshot; a source change with no re-flatten
+# leaves the proof checking the old design, silently and green (rapids BUG-011
+# found two that way; the 2026-09 audit found 36 of 48). Scoped to staged
+# formal/ files so the common case costs nothing; regenerate with the proof's
+# own `make <block>_flat.v`.
+if echo "$STAGED" | grep -q '^formal/'; then
+    echo "[pre-commit] Checking committed formal flats against their sources..."
+    if ! "$PY" "$REPO_ROOT/bin/formal_status.py" --check-flats --staged; then
+        echo "" >&2
+        echo "[pre-commit] BLOCKED: a committed *_flat.v no longer matches its sources." >&2
+        echo "  Regenerate with the proof's own Makefile (make -C formal/<area>/<block> <block>_flat.v)," >&2
+        echo "  or add a check-flat target if its recipe cannot be replayed safely." >&2
+        fail=1
+    fi
+fi
+
 # --- task-tracker integrity (vault/Tasks/) ------------------------------------
 # Duplicate IDs make every [[LINK]] ambiguous. COMMON-021 (and, until they
 # were renumbered to 019/020 on 2026-09-06, PUMICE-010/-011) each ended up
