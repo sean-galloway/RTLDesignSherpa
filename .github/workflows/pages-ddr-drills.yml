@@ -43,6 +43,9 @@ jobs:
       - name: fifo_depth model, validation and golden-case suites
         run: node bin/apps/fifo_depth/test/run_tests.js
 
+      - name: launcher site-integrity suite
+        run: node bin/apps/launcher/test/run_tests.js
+
   deploy:
     needs: test
     runs-on: ubuntu-latest
