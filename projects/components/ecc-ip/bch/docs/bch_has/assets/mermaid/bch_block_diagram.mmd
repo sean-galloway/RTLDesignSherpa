@@ -1,0 +1,27 @@
+flowchart LR
+    subgraph CORE_E["bch_encoder_core (valid/ready in, valid/ready out)"]
+        direction LR
+        EU["bit_unpack / serialiser<br/>BITS_PER_BEAT -> 1"] --> LF["gf_lfsr_encoder<br/>2t GF constant multipliers"]
+        EU --> PM["parity_mux<br/>pass k, append n-k"]
+        LF --> PM --> EP["bit_pack / reassembler"]
+    end
+    subgraph CORE_D["bch_decoder_core (valid/ready in, valid/ready out + status)"]
+        direction LR
+        DU["bit_unpack / serialiser"] --> BB["block_buffer<br/>n + latency bits"]
+        DU --> SY["syndrome_unit<br/>t odd syndromes S_1..S_2t-1"]
+        SY --> KE["key_equation_solver<br/>BM / Euclid / small-t"]
+        KE --> CH["chien_search<br/>n bit positions"]
+        CH --> CX["corrector<br/>direct bit flip"]
+        BB --> CX --> DP["bit_pack / reassembler"]
+        CX --> ST["status<br/>ok / corrected / uncorrectable"]
+    end
+    subgraph GF["gf_pkg: gf_mul, gf_mul_const, gf_inv, generated tables<br/>(imported from reed-solomon rtl/gf)"]
+    end
+    subgraph ADP["optional adapters (INTAKE_IF / OUTLET_IF)"]
+        direction TB
+        AXS["AXIS: axis4_slave / axis4_master"]
+        AXI["AXI4: read engine / write engine + job control"]
+    end
+    LF -.- GF
+    SY -.- GF
+    KE -.- GF

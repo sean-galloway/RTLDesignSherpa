@@ -1,0 +1,17 @@
+flowchart LR
+    subgraph MC["Memory controller (endpoint)"]
+        direction LR
+        WQ["write path"] --> ENC["bch_encoder_core"] --> PHY1["DRAM / flash PHY"]
+        PHY1 --> DEC["bch_decoder_core"] --> RQ["read path"]
+    end
+    subgraph LINK["CCSDS telecommand link (endpoint pair)"]
+        direction LR
+        TXF["CLTU framer"] --> ENC2["bch_encoder_core"] --> TX["TX PHY"]
+        RX["RX PHY"] --> DEC2["bch_decoder_core"] --> RXF["CLTU deframer"]
+    end
+    subgraph SA["Standalone: memory-to-memory job (AXI4 / AXI4)"]
+        direction LR
+        RE["bch_axi_read_engine"] --> COR["bch_*_core"] --> WE["bch_axi_write_engine"]
+        JC["bch_job_ctrl<br/>regblock or descriptor stream"] --> RE
+        JC --> WE
+    end
