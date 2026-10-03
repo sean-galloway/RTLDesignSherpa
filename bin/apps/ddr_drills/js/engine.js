@@ -94,12 +94,16 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
   //   3. zero page misses (no bank open on the wrong row)
   // and at least one ACT is needed (with zero ACTs the two-phase output is
   // textually identical to the sequential one, so the sequential path runs).
+  // opts.pipelining === false forces the sequential path (the sandbox
+  // exposes this as the "ACT pipelining" option box).
   // Phase 1 = all needed ACTs in request order; phase 2 = all column
   // commands in request order.
   function schedule_open_page(reqs, bankState, topo, opts) {
     var state = DDRD.clone_bank_state(bankState);
     var labels = turnaround_labels(opts);
     var em = make_emitter(labels);
+
+    var pipeliningAllowed = !opts || opts.pipelining !== false;
 
     var sameOp = true;
     var seenBanks = {};
@@ -123,8 +127,8 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
       }
     }
 
-    var pipelined = reqs.length >= 2 && sameOp && distinctBanks &&
-                    zeroMisses && actsNeeded >= 1;
+    var pipelined = pipeliningAllowed && reqs.length >= 2 && sameOp &&
+                    distinctBanks && zeroMisses && actsNeeded >= 1;
 
     if (pipelined) {
       // Phase 1: every needed ACT, in request order.

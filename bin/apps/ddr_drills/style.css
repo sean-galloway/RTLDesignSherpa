@@ -588,3 +588,85 @@ main {
   cursor: pointer;
 }
 .scen-empty { color: var(--ink-dim); }
+
+/* -- sandbox (js/sandbox.js) ---------------------------------------------- */
+.sand-subhead { font-weight: 700; margin: 0.9rem 0 0.35rem; }
+.sand-banks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.4rem;
+}
+.sand-bankcell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+}
+.sand-bankname { color: var(--ink-dim); }
+.sand-banksel, .sand-sel {
+  font-family: var(--mono);
+  font-size: 0.88rem;
+  padding: 0.25rem 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--panel);
+}
+.sand-reqlist { margin-bottom: 0.5rem; }
+.sand-reqrow {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  padding: 0.12rem 0;
+}
+.sand-reqrm {
+  font-size: 0.78rem;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--panel);
+  cursor: pointer;
+}
+.sand-reqrm:hover { border-color: var(--bad); color: var(--bad); }
+.sand-builder {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+.sand-add, .sand-clear {
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.sand-add { background: var(--accent); color: #fff; }
+.sand-clear { background: var(--panel); color: var(--accent); }
+.sand-options {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.92rem;
+}
+.sand-policy { white-space: nowrap; }
+.sand-output {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  padding: 0.6rem 0.9rem;
+}
+.sand-sched { font-family: var(--mono); font-size: 0.86rem; }
+.sand-cmd { padding: 0.1rem 0; white-space: pre-wrap; }
+.sand-ann { color: var(--ink-dim); font-style: italic; }
+.sand-reason { color: var(--ink-dim); font-size: 0.78rem; }
+.sand-reorder {
+  font-family: var(--mono);
+  font-size: 0.84rem;
+  color: var(--ink-dim);
+  margin: 0 0 0.5rem;
+}
+.sand-endstate { color: var(--ink-dim); font-size: 0.85rem; margin: 0.5rem 0 0; }
+.sand-hint { color: var(--ink-dim); margin: 0.2rem 0; }

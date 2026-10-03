@@ -112,6 +112,17 @@ var SUITES = (typeof window !== 'undefined' ? window : globalThis).DDRD_TEST_SUI
           openAt(topo, 0, 1), topo, null);
         t.eq(fmt(one.cmds), 'ACT B1 R1\nRD B0 C0\nRD B1 C1',
              label + ': single needed ACT hoists above the hit');
+
+        // opts.pipelining === false forces the sequential path even when
+        // every precondition holds (the sandbox option box).
+        var noPipe = DDRD.schedule_open_page(
+          [req('RD', 0, 1, 1), req('RD', 2, 3, 2), req('RD', 5, 0, 3)],
+          DDRD.make_bank_state(topo), topo, { pipelining: false });
+        t.eq(fmt(noPipe.cmds),
+             'ACT B0 R1\nRD B0 C1\nACT B2 R3\nRD B2 C2\nACT B5 R0\nRD B5 C3',
+             label + ': pipelining:false interleaves ACTs with columns');
+        t.ok(noPipe.reasons[1].indexOf('pipelined') === -1,
+             label + ': pipelining:false reasons never claim pipelining');
       });
 
       // -- pipelining preconditions, each individually falsified ----------
