@@ -207,10 +207,11 @@ module formal_scoria_refresh_ctrl #(
     wire f_run = mc_rst_n && (f_past_valid > 3);
 
     // Mode A/B support: mirror the internal state that is not exported as an
-    // observable port. The wrapper's flops run on the same clock and use the
-    // same inputs, so they track the DUT internals cycle-for-cycle. A one-cycle
-    // delayed copy is kept for each so it lines up with the strict-flopped obs_*
-    // outputs (which publish the internal value from the cycle BEFORE the edge).
+    // observable port. f_idle_cnt and f_demand_streak track the DUT's r_idle_cnt
+    // and r_demand_streak cycle-for-cycle (same reset/clear and saturation
+    // behaviour). The remaining flops are one-cycle delayed copies of observable
+    // or control signals, aligned with the strict-flopped obs_* outputs (which
+    // publish the internal value from the cycle BEFORE the edge).
     reg [7:0]  f_idle_cnt;
     reg [7:0]  f_idle_cnt_d;
     reg [6:0]  f_demand_streak;
@@ -225,7 +226,8 @@ module formal_scoria_refresh_ctrl #(
             f_demand_streak  <= '0;
         end else begin
             if (demand_i) f_idle_cnt <= '0;
-            else if (f_idle_cnt < 8'd16) f_idle_cnt <= f_idle_cnt + 1'b1;
+            else if (f_idle_cnt < (elastic_en_i ? pullin_idle_streak_i : 8'd16))
+                f_idle_cnt <= f_idle_cnt + 8'd1;
 
             if (!demand_i) f_demand_streak <= '0;
             else if (f_demand_streak != 7'd127) f_demand_streak <= f_demand_streak + 1'b1;
@@ -353,7 +355,7 @@ module formal_scoria_refresh_ctrl #(
     end
 
     // =====================================================================
-    // FAMILY 4 -- MODE CONTRACTS. Elastic/TCR behaviour with modes enabled.
+    // FAMILY 4 -- MODE CONTRACTS. Elastic/TCR behavior with modes enabled.
     // =====================================================================
     always @(posedge mc_clk) if (f_run) begin
         // When elastic refresh is disabled the logic reduces bit-for-bit to v3.
@@ -398,7 +400,7 @@ module formal_scoria_refresh_ctrl #(
                                 && (pending_refreshes_o <= f_post_eff)
                                 && !f_idle_baseline);
         // ...and exited when the backlog finally crosses the effective limit.
-        c_postpone_exited:  cover (elastic_en_i
+        c_postpone_exited:  cover (elastic_en_i && demand_i && !f_idle_baseline
                                 && (pending_refreshes_o > f_post_eff)
                                 && (f_demand_streak_d >= postpone_demand_streak_i));
     end
