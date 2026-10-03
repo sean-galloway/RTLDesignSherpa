@@ -1,0 +1,39 @@
+flowchart TB
+    subgraph IN["Intake"]
+        in_valid["in_valid"]
+        in_data["in_data[BITS_PER_BEAT-1:0]"]
+        in_last["in_last"]
+    end
+
+    subgraph DEC["bch_decoder_core"]
+        buf["block_buffer"]
+        synd["bch_syndrome_unit"]
+        kes["bch_key_equation_solver"]
+        chien["bch_chien_search"]
+        corr["corrector\nout_data = buf_data ^ flip_en"]
+        fsm["stage FSM\nIDLE / SYND / SOLVE / CHIEN / RELEASE"]
+    end
+
+    subgraph OUT["Outlet"]
+        out_valid["out_valid"]
+        out_data["out_data[BITS_PER_BEAT-1:0]"]
+        out_status["out_status_*"]
+    end
+
+    in_valid --> buf
+    in_data --> buf
+    in_last --> buf
+    in_data --> synd
+    in_last --> synd
+    buf --> corr
+    synd --> kes
+    kes --> chien
+    chien --> corr
+    chien --> fsm
+    fsm --> buf
+    fsm --> synd
+    fsm --> kes
+    fsm --> chien
+    corr --> out_valid
+    corr --> out_data
+    fsm --> out_status

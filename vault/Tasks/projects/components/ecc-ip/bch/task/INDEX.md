@@ -2,7 +2,7 @@
 
 # projects/components/ecc-ip/bch — tasks
 
-**Next ID: TASK-003** — never recycle a number, even when its item closed.
+**Next ID: TASK-004** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -29,6 +29,11 @@ by construction rather than by discipline.
 - **TASK-002** — Author the BCH HAS v0.1: the `docs/bch_has/` architecture
   specification mirrors the reed-solomon HAS; closes when the v0.1 PDF builds
   and every open item is tied to a PRD decision ID.
+- **TASK-003** — Author the BCH MAS v0.1 and signal-contract kmaps: the
+  `docs/bch_mas/` micro-architecture specification plus
+  `gen_bch_signal_contracts_kmaps.py` and `bch_signal_contracts.xlsx`; closes
+  when every block is documented to signal level with FSM policy per block and
+  the kmap contracts are re-pointed at RTL lines after the first RTL lands.
 
 ## Closed
 

@@ -1,0 +1,32 @@
+flowchart TB
+    subgraph IN["Intake"]
+        in_valid["in_valid"]
+        in_lambda["in_lambda[(T_BITS+1)*m-1:0]"]
+        in_degree["in_lambda_degree"]
+    end
+
+    subgraph CHIEN["bch_chien_search"]
+        cells["N_BITS parallel Horner cells\nLambda(alpha^-i)"]
+        root["w_root[i] = (value == 0)"]
+        count["r_root_count"]
+        corr["w_flip_en[i] = w_root && w_correctable && !passthrough"]
+        deg["w_correctable = (count == degree) && (degree <= T_BITS)"]
+    end
+
+    subgraph OUT["Outlet"]
+        out_valid["out_valid"]
+        out_flip["out_flip_en[BITS_PER_BEAT-1:0]"]
+        out_correctable["out_correctable"]
+    end
+
+    in_valid --> cells
+    in_lambda --> cells
+    in_degree --> deg
+    cells --> root
+    root --> count
+    root --> corr
+    count --> deg
+    deg --> corr
+    corr --> out_flip
+    deg --> out_correctable
+    cells --> out_valid

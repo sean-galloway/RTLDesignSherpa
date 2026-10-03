@@ -1,0 +1,29 @@
+flowchart TB
+    subgraph IN["Intake"]
+        in_valid["in_valid"]
+        in_data["in_data[BITS_PER_BEAT-1:0]"]
+        in_last["in_last"]
+    end
+
+    subgraph SYN["bch_syndrome_unit"]
+        keep["in_keep mask"]
+        lanes["t parallel GF MAC lanes\nS_j <- S_j * alpha^j + r_i"]
+        done["w_syndrome_done"]
+        zero["w_no_error"]
+    end
+
+    subgraph OUT["Outlet"]
+        out_valid["out_valid"]
+        out_syndromes["out_syndromes[T_BITS*m-1:0]"]
+        out_no_error["out_no_error"]
+    end
+
+    in_valid --> keep
+    in_data --> keep
+    in_last --> done
+    keep --> lanes
+    lanes --> done
+    lanes --> zero
+    done --> out_valid
+    lanes --> out_syndromes
+    zero --> out_no_error
