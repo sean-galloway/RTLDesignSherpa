@@ -49,6 +49,7 @@
 </main>
 
 <footer class="app-footer">
+  <p id="pack-citation"></p>
   <p>Vanilla HTML/CSS/JS, zero build, zero network. Works from file://.
      Run the engine tests with
      <code>node bin/apps/ddr_drills/test/run_tests.js</code>.</p>
@@ -67,6 +68,9 @@
 <!-- Packs: self-register onto DDRD. Keep in sync with PACK_ORDER in
      test/run_tests.js. -->
 <script src="packs/hbm4.js"></script>
+<!-- UI modes, then the shell. app.js boots on DOMContentLoaded. -->
+<script src="js/quiz.js"></script>
+<script src="js/app.js"></script>
 
 </body>
 </html>

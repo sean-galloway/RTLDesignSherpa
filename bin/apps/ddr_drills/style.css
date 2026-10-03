@@ -343,3 +343,63 @@ main {
     padding: 1.5rem;
   }
 }
+
+/* --- quiz mode ------------------------------------------------------------ */
+.quiz-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+.quiz-filter-label { font-weight: 600; }
+.quiz-filter { white-space: nowrap; cursor: pointer; }
+.quiz-filter-hard { margin-left: auto; }
+.quiz-score { font-weight: 600; }
+.quiz-qhead { margin-bottom: 0.25rem; }
+.quiz-chapter-tag {
+  display: inline-block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 0.05rem 0.4rem;
+}
+.quiz-question { font-size: 1.1rem; font-weight: 600; margin: 0.5rem 0 1rem; }
+.quiz-answers { display: flex; flex-direction: column; gap: 0.5rem; }
+.quiz-answer {
+  text-align: left;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+.quiz-answer:hover:not(:disabled) { border-color: var(--accent); }
+.quiz-answer:disabled { cursor: default; opacity: 0.85; }
+.quiz-answer.correct { border-color: var(--good); background: var(--good-soft); }
+.quiz-answer.wrong { border-color: var(--bad); background: var(--bad-soft); }
+.quiz-feedback { margin-top: 1rem; }
+.quiz-verdict { font-weight: 700; margin: 0 0 0.4rem; }
+.quiz-verdict.good { color: var(--good); }
+.quiz-verdict.bad { color: var(--bad); }
+.quiz-explanation { margin: 0 0 0.4rem; line-height: 1.45; }
+.quiz-source { color: var(--ink-dim); font-size: 0.85rem; margin: 0 0 0.8rem; }
+.quiz-next {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+.quiz-empty { color: var(--ink-dim); }
