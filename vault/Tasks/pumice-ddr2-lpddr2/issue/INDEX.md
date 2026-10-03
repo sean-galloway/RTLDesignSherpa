@@ -2,7 +2,7 @@
 
 # pumice — issues
 
-**Next ID: ISSUE-020** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-021** — never recycle a number, even when its item closed.
 
 An anomaly, risk, or open question not yet diagnosed. It RESOLVES INTO a bug, a task, or a recorded no-action.
 
@@ -12,13 +12,21 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 16 | done (kept for history) |
 | [dropped/](dropped/) | 3 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **ISSUE-020** — the paging perf assertions (sweep exact-100% claim at
+  default geometry, pref_row_first floor, ISSUE-002 floors at board
+  geometry) are calibrated against pre-compliant tFAW/tRRD window
+  behavior; pumice's gate fails on them in combinations. Re-pin the
+  baselines (Sean's call, ISSUE-002 process) or fund a skid/bypass so
+  fire-stage holds stop head-of-line blocking. Surfaced while closing
+  BUG-021; all numbers measured there.
 
 
 

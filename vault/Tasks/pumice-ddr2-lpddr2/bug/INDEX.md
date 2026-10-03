@@ -12,9 +12,9 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 19 | done (kept for history) |
+| [closed/](closed/) | 20 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -27,15 +27,14 @@ exactly one state by construction rather than by discipline.
   for the first interleaving user rather than a live defect. Measured in
   scoria's `test_scoria_addr_mapper.py::minimum_bank_lsb_is_measured`.
 
-- **BUG-021** — the arbiter issues two ACTs to different banks one cycle apart,
-  violating tRRD, because `w_act_gate_live` checks the rank-global windows at the
-  STAGE-1b pre-pick while `w_out_safe` re-validates only the per-bank gate.
-  Proved by composing the arbiter with the real `global_timers`; survives the
-  CAM age-order invariant proved in rd_cmd_cam. Reproduce with
-  `make -C formal/pumice/cmd_arbiter issue019`. Not observed in sim (ISSUE-019:
-  171 tests, tightest real spacing 10 cycles against tRRD 2)
-
 ## Closed
+
+- **BUG-021** — the arbiter issued two ACTs to different banks one cycle
+  apart, violating tRRD (proved against the real global_timers) — FIXED
+  2026-10-03: `w_out_safe` re-checks the rank-global windows at the fire,
+  hold-not-drop; formal armed in the default suite and mutation-checked.
+  Perf-assertion consequence (the exact-100% claim and the pref_row_first
+  floor encode pre-compliant window behavior) is tracked in ISSUE-020.
 
 - **BUG-019** — DV wrappers had no depth axis; one profile now drives gate/func/full
   and the regression goes 376 -> 580 passed

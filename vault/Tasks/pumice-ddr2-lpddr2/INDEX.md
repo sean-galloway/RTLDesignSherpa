@@ -26,9 +26,9 @@ filing; IDs are per-lane sequences.
 
 | Lane | For | open | active | closed | dropped |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | 3 | 0 | 22 | 4 |
-| [bug/](bug/INDEX.md) | a defect with a reproduction | 1 | 0 | 17 | 1 |
-| [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 1 | 0 | 15 | 3 |
+| [task/](task/INDEX.md) | planned work we decided to do | 3 | 0 | 30 | 4 |
+| [bug/](bug/INDEX.md) | a defect with a reproduction | 1 | 0 | 20 | 1 |
+| [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 1 | 0 | 16 | 3 |
 
 Counts INCLUDE each lane's `NNN-000` template, which lives in `open/` -- that is
 the repo-wide convention, and reading it the other way is how three of this
@@ -36,22 +36,26 @@ area's counts went wrong on 2026-09-27.
 
 ## What is actually open
 
-**Nothing in task or bug** -- both lanes hold only their `NNN-000` template.
-TASK-015 (test the DUT across configurations) closed on 2026-09-28 with all four
-layers delivered; this section described it as still having layers 0 and 2b
-outstanding, which its own link to `task/closed/` already contradicted.
+**Bug lane: BUG-022** — the `ADDR_MAP.bank_lsb` documented lower bound is
+too permissive by log2(DFI_RATE); an RDL-comment/header trap for the
+first bank-interleaving user, not live misbehavior (every build ships
+ROW_MAJOR).
 
-**Nothing in issue either.** ISSUE-018 -- `global_timers` publishing every
-readiness output one cycle stale, so obeying the published flags alone violated
-tCCD and tRTW -- was fixed and closed the same day it was filed: the block now
-derives its next state once and feeds both the counter flops and the readiness
-flops from it. `formal/pumice/global_timers` assumes only what the outputs
-publish and every JEDEC window holds; the board gates are green and the 75 MHz
-WNS went from +0.029 to +0.031.
+**Task lane: TASK-035, TASK-037, TASK-038.** TASK-035 finishes tier-1
+formal coverage (5 of 27 blocks; wr_data_cam counterexample + dfi_cdc
+name resolution remain). TASK-037 reconciles 16 stale dv/testplans (29
+broken refs) plus a parser check. TASK-038 rebuilds the ddr2-char
+harness images with the fixed sdpram slave and repins pumice board perf
+— board-gated, batch with stream TASK-016.
 
-The correctness backlog is EMPTY: BUG-001, BUG-002 and BUG-003 are all closed,
-and BUG-003 -- an arbiter pick that its own final safety gate had rejected being
-pushed to the DRAM anyway -- was fixed 2026-09-27.
+**Issue lane: ISSUE-020** — the paging perf assertions are calibrated
+against pre-compliant tFAW/tRRD window behavior and the gate fails on
+them in combinations; re-pin (Sean's call) or fund a skid/bypass.
+Surfaced closing BUG-021 2026-10-03.
+
+The correctness backlog is otherwise EMPTY: BUG-021 (proved tRRD
+violation) was fixed 2026-10-03 — fire-stage window enforcement,
+formally armed and mutation-checked.
 
 TASK-033 (the v2/v3 deferrals) is in `task/deferred/`, parked pending the
 DDR3/LPDDR3 project rather than dropped.
