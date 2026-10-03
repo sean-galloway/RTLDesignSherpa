@@ -12,19 +12,13 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 31 | done (kept for history) |
+| [closed/](closed/) | 32 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
-
-- **TASK-039** — author testplans for the post-rearchitecture FUBs
-  (`pumice_cmd_arbiter`, `pumice_bank_timers`, the rd/wr intakes, the DFI
-  stack, ...) — they have tests but no testplans; the coverage gap TASK-037's
-  reconcile deliberately left. Refs are gate-checked by
-  `bin/filelist_registry.py --check`
 
 - **TASK-038** — rebuild the ddr2-char harness images (build-perf and the
   LiteDRAM A/B) with the fixed sdpram slave (amba 71d48b6f7, burst boundary
@@ -45,6 +39,14 @@ exactly one state by construction rather than by discipline.
   depend on scoria and is a test, not a feature
 
 ## Closed
+
+- **TASK-039** — CLOSED 2026-10-03: the 13 post-rearchitecture testplans
+  authored (63 scenarios: cmd_arbiter, bank_timers, rd/wr intakes,
+  wr_data_cam, rd_return_ring, wr_splitter, axi4_ifc, the DFI stack) +
+  SCHED-24 sched_matrix scenario; README inventory 11 -> 24 plans,
+  rollup 100 -> 164 scenarios, no-plan rationale for the exceptions.
+  Also fixed scheduler_testplan's stale test_file path (fub -> macro;
+  ratchet baseline re-lowered 43 -> 42) and its four phantom parameters
 
 - **TASK-037** — CLOSED 2026-10-03: the 16 stale `dv/testplans/` reconciled
   with the modules that exist — 3 renamed in place (scheduler ->

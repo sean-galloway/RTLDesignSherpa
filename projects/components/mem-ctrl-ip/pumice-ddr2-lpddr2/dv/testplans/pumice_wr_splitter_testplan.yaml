@@ -1,0 +1,59 @@
+module: pumice_wr_splitter
+rtl_file: projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_wr_splitter.sv
+test_file: projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/dv/tests/fub/test_pumice_wr_splitter.py
+
+parameters:
+- name: AXI_ID_WIDTH
+  default: 8
+- name: AXI_ADDR_WIDTH
+  default: 32
+- name: AXI_DATA_WIDTH
+  default: 64
+- name: AXI_USER_WIDTH
+  default: 1
+- name: AXI_BEATS_PER_BURST
+  default: 1
+
+coverage_points: []
+
+functional_scenarios:
+- id: WSPL-01
+  name: Single burst passthrough
+  description: "AxLEN equals BL-1: one sub-command, no agg, one WLAST"
+  test_function: test_pumice_wr_splitter (single)
+  priority: high
+  status: verified
+- id: WSPL-02
+  name: Integer split
+  description: "AxLEN equals 2*BL-1: two full sub-commands, reframed WLASTs"
+  test_function: test_pumice_wr_splitter (split)
+  priority: high
+  status: verified
+- id: WSPL-03
+  name: Ragged tail padded
+  description: "Ragged host burst padded to full DRAM burst, zero-strobe filler"
+  test_function: test_pumice_wr_splitter (ragged)
+  priority: high
+  status: verified
+- id: WSPL-04
+  name: Single beat padded
+  description: "AxLEN=0 padded to full DRAM burst with masked filler beats"
+  test_function: test_pumice_wr_splitter (single_beat)
+  priority: high
+  status: verified
+
+implied_coverage:
+  total_scenarios: 4
+  scenario_tracked: 4
+  implied_covered: 4
+  implied_percentage: 100.0
+
+notes: |
+  Write-side burst splitter. Chops the host AW into DFI-burst-sized
+  sub-commands (u_aw_chop instantiates pumice_axi_burst_chopper) and
+  re-frames WLAST off the W stream so every sub-command sees exactly one
+  WLAST at the DRAM-burst boundary; short/ragged host bursts are padded
+  with zero-strobe filler beats. WLAST is regenerated from a W-stream
+  counter, not the AW side — that was the key bug fix. The RTL default
+  AXI_BEATS_PER_BURST is 1; the test hard-codes 4. Bursts count is
+  TEST_LEVEL-scaled (wr_splitter_bursts).

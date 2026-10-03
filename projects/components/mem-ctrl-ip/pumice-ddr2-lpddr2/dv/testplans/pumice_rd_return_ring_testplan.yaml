@@ -1,0 +1,61 @@
+module: pumice_rd_return_ring
+rtl_file: projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_rd_return_ring.sv
+test_file: projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/dv/tests/fub/test_pumice_rd_return_ring.py
+
+parameters:
+- name: DEPTH
+  default: 32
+- name: AXI_DATA_WIDTH
+  default: 64
+- name: AXI_BEATS_PER_BURST
+  default: 4
+
+coverage_points: []
+
+functional_scenarios:
+- id: RRR-01
+  name: Reorder
+  description: "Out-of-order issue/return; drain preserves AR order and resp"
+  test_function: test_pumice_rd_return_ring (reorder)
+  priority: high
+  status: verified
+- id: RRR-02
+  name: Younger holds for older
+  description: "Younger ready slot waits until older slot returns"
+  test_function: test_pumice_rd_return_ring (hold_younger)
+  priority: high
+  status: verified
+- id: RRR-03
+  name: Partial head
+  description: "Head slot with only BL-1 beats does not drain early"
+  test_function: test_pumice_rd_return_ring (partial_head)
+  priority: high
+  status: verified
+- id: RRR-04
+  name: Full and free
+  description: "Full ring blocks alloc; freeing head reopens allocation"
+  test_function: test_pumice_rd_return_ring (full_free)
+  priority: high
+  status: verified
+- id: RRR-05
+  name: Wrap with backpressure
+  description: "Wrapped ring with random issue and drain backpressure stays ordered"
+  test_function: test_pumice_rd_return_ring (wrap_backpressure)
+  priority: medium
+  status: verified
+
+implied_coverage:
+  total_scenarios: 5
+  scenario_tracked: 5
+  implied_covered: 5
+  implied_percentage: 100.0
+
+notes: |
+  AR-order read-return ring. Allocates a ticket per admitted read, moves it
+  to an issue-order FIFO when the column issues, stores DFI return beats in
+  the ticket's slot, and drains from the head in AR order once the head
+  slot is complete. The pytest wrapper sweeps (DEPTH, AXI_BEATS_PER_BURST)
+  configs d8_b4 / d8_b1 / d32_b4; d8_b1 skips the partial-head block at
+  runtime because BL==1. The BRAM has a 1-cycle read-latency contract
+  enforced by the prefetch skid. Wrap repetition is TEST_LEVEL-scaled
+  (rd_return_ring_wrap_mult).

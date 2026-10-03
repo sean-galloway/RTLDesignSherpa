@@ -1,0 +1,44 @@
+module: pumice_dfi_wr_serializer
+rtl_file: projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_wr_serializer.sv
+test_file: projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/dv/tests/fub/test_pumice_dfi_wr_serializer.py
+
+parameters:
+- name: DFI_DATA_WIDTH
+  default: 128
+- name: DFI_RATE
+  default: 2
+- name: DFI_STRB_WIDTH
+  default: 16
+- name: WRLAT_W
+  default: 8
+
+coverage_points: []
+
+functional_scenarios:
+- id: DFIWS-01
+  name: Smoke
+  description: "Bubble-free write burst with t_phy_wrlat sweep"
+  test_function: test_pumice_dfi_wr_serializer (smoke)
+  priority: high
+  status: verified
+- id: DFIWS-02
+  name: tCCD pacing
+  description: "Single-word writes keep tCCD spacing at non-zero wrlat"
+  test_function: test_pumice_dfi_wr_serializer (tccd_paced)
+  priority: high
+  status: verified
+
+implied_coverage:
+  total_scenarios: 2
+  scenario_tracked: 2
+  implied_covered: 2
+  implied_percentage: 100.0
+
+notes: |
+  DFI write-data drive on dfi_clk. On a WR command (wr_fire) it waits
+  t_phy_wrlat cycles, then streams one DFI-word per cycle from the
+  write-data FIFO onto dfi_wrdata / dfi_wrdata_en / dfi_wrdata_mask until
+  the burst's last word — zero bubbles between words. Mask is ~strb
+  (full-write strobe => mask=0). The smoke sweeps t_phy_wrlat in
+  {0,1,3,5}; the tCCD case runs x16 BL4 single-word bursts at WRLAT=3,
+  TCCD=2 so the wrdata_en windows must keep the tCCD=2 cadence.

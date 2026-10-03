@@ -7,7 +7,6 @@
   "projects/components/fabric-gen-ip/bridge/dv/testplans/bridge_1x4_testplan.yaml: test_file projects/components/fabric-gen-ip/bridge/dv/tests/test_bridge_1x4_{rd,wr}.py",
   "projects/components/fabric-gen-ip/bridge/dv/testplans/bridge_1x5_testplan.yaml: rtl_file projects/components/fabric-gen-ip/bridge/rtl/generated/bridge_1x5_{rd,wr}/bridge_1x5_{rd,wr}.sv",
   "projects/components/fabric-gen-ip/bridge/dv/testplans/bridge_1x5_testplan.yaml: test_file projects/components/fabric-gen-ip/bridge/dv/tests/test_bridge_1x5_{rd,wr}.py",
-  "projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/dv/testplans/scheduler_testplan.yaml: test_file projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/dv/tests/fub/test_pumice_mem_cmd_scheduler.py",
   "val/amba/testplans/axis5_master_testplan.yaml: rtl_file rtl/amba/axis/axis5_master.sv",
   "val/amba/testplans/axis5_slave_testplan.yaml: rtl_file rtl/amba/axis/axis5_slave.sv",
   "val/common/testplans/arbiter_round_robin_pwm_testplan.yaml: rtl_file rtl/common/arbiter_round_robin_pwm.sv",
