@@ -10,6 +10,7 @@
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/key_equation_solver_euclid.f
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/chien_search.f
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/forney_evaluator.f
+-f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_erasure_unit.f
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
 

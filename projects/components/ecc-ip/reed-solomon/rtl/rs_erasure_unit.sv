@@ -204,12 +204,29 @@ module rs_erasure_unit
         end
     )
 
-    // pack: {over, f, xfile[2t] ... xfile[0]} with entry 0 in the low bits
+    // pack: {over, f, xfile[2t] ... xfile[0]} with entry 0 in the low bits.
+    // The core's descriptor pack samples o_ab on the block-end EDGE, before
+    // that edge's own flags have landed in the registers -- the same reason
+    // the syndrome path ships w_synd_next. o_ab is therefore the NEXT-value
+    // record: this beat's flagged lanes merged over the register file. When
+    // no beat is firing w_m is all zero and this reduces to the registers.
     logic [(T2+1)*M-1:0] w_xfile_packed;
+    logic [(T2+1)*M-1:0] w_xfile_next;
+    logic [DEG_W-1:0]    w_f_sat;
+    logic                w_over_next;
     for (genvar e = 0; e <= T2; e++) begin : g_pack
         assign w_xfile_packed[e*M +: M] = r_xfile[e];
     end
-    assign o_ab = {r_over, r_f, w_xfile_packed};
+    always_comb begin
+        w_xfile_next = w_xfile_packed;
+        for (int e = 0; e <= T2; e++)
+            for (int u = 0; u < S; u++)
+                if (w_m[u] && (EW'(e) == EW'(w_f_base) + EW'(w_rank[u])))
+                    w_xfile_next[e*M +: M] = w_x_lane[u];
+    end
+    assign w_f_sat     = (w_f_next > EW'(T2 + 1)) ? DEG_W'(T2 + 1) : w_f_next[DEG_W-1:0];
+    assign w_over_next = (i_rx_first ? 1'b0 : r_over) || (w_f_next > EW'(T2));
+    assign o_ab = {w_over_next, w_f_sat, w_xfile_next};
 
     // =========================================================================
     // B: transform, solve window, combine
@@ -222,6 +239,25 @@ module rs_erasure_unit
         assign w_xfile[e] = i_ab[e*M +: M];
     end
 
+    // The core pops the descriptor on the SAME edge i_trans_start fires
+    // (every other field it needs is consumed that cycle or sampled into
+    // its own registers), so i_ab is not guaranteed to hold through TRANS:
+    // the record is latched here at the start edge and everything after it
+    // reads the latch. o_f_over stays combinational -- the core uses it
+    // only in BE_IDLE, while the descriptor is still at the read port.
+    logic [DEG_W-1:0]      r_fb;
+    logic [M-1:0]          r_xfile_b [T2+1];
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_fb <= '0;
+            for (int e = 0; e <= T2; e++) r_xfile_b[e] <= '0;
+        end else if (i_trans_start) begin
+            r_fb <= w_f;
+            for (int e = 0; e <= T2; e++) r_xfile_b[e] <= w_xfile[e];
+        end
+    )
+
     logic [M-1:0] r_gam [T2+1];        // Gamma(x), combined per TRANS cycle
     logic [M-1:0] r_gs  [T2];          // Gamma*S mod x^2t after TRANS
     logic [DEG_W-1:0] r_tc;            // TRANS cycle index
@@ -232,7 +268,7 @@ module rs_erasure_unit
     logic [M-1:0]     w_gs_nxt [T2];   // this cycle's combine result
     logic             w_t_nonzero;     // any high (x^f * T) cell nonzero, post-combine
 
-    assign w_x = w_xfile[r_tc];
+    assign w_x = r_xfile_b[r_tc];
 
     for (genvar j = 0; j < T2; j++) begin : g_gs
         if (j == 0) begin : g_j0
@@ -248,7 +284,7 @@ module rs_erasure_unit
     always_comb begin
         w_t_nonzero = 1'b0;
         for (int j = 0; j < T2; j++)
-            if ((DEG_W'(j) >= w_f) && (w_gs_nxt[j] != '0)) w_t_nonzero = 1'b1;
+            if ((DEG_W'(j) >= r_fb) && (w_gs_nxt[j] != '0)) w_t_nonzero = 1'b1;
     end
 
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -277,7 +313,7 @@ module rs_erasure_unit
                     p = M'(gf_mul_fn(gf_wide_t'(w_x), gf_wide_t'(r_gam[i-1]), M, PRIM_POLY));
                     r_gam[i] <= r_gam[i] ^ p;
                 end
-                if (r_tc == w_f - DEG_W'(1)) begin
+                if (r_tc == r_fb - DEG_W'(1)) begin
                     r_tr_run     <= 1'b0;
                     o_trans_done <= 1'b1;
                     r_t_zero     <= !w_t_nonzero;
@@ -293,7 +329,7 @@ module rs_erasure_unit
     // -------------------------------------------------------------------------
     if (KES_ALGO == "EUCLID") begin : g_window_euclid
         for (genvar i = 0; i < T2; i++) begin : g_w
-            assign o_kes_synd[i*M +: M] = (DEG_W'(i) >= w_f) ? r_gs[i] : '0;
+            assign o_kes_synd[i*M +: M] = (DEG_W'(i) >= r_fb) ? r_gs[i] : '0;
         end
     end else begin : g_window_ribm
         // T = GS >> f as a crossbar: cell i takes r_gs[j] when j == i + f,
@@ -302,7 +338,7 @@ module rs_erasure_unit
             always_comb begin
                 o_kes_synd[i*M +: M] = '0;
                 for (int j = 0; j < T2; j++)
-                    if (EW'(j) == EW'(i) + EW'(w_f)) o_kes_synd[i*M +: M] = r_gs[j];
+                    if (EW'(j) == EW'(i) + EW'(r_fb)) o_kes_synd[i*M +: M] = r_gs[j];
             end
         end
     end
@@ -361,11 +397,11 @@ module rs_erasure_unit
     // -------------------------------------------------------------------------
     logic [DEG_W:0] w_deg_sum;
 
-    assign w_deg_sum = {1'b0, i_deg_e} + {1'b0, w_f};
-    assign o_deg_c   = r_t_zero ? {1'b0, w_f}
+    assign w_deg_sum = {1'b0, i_deg_e} + {1'b0, r_fb};
+    assign o_deg_c   = r_t_zero ? {1'b0, r_fb}
                                 : ((w_deg_sum > (DEG_W + 1)'(T2 + 1)) ? (DEG_W + 1)'(T2 + 1) : w_deg_sum);
-    assign o_f       = w_f;
-    assign o_f_over  = w_f_over;
+    assign o_f       = r_fb;
+    assign o_f_over  = w_f_over;   // combinational: the core reads it only pre-pop (BE_IDLE)
     assign o_t_zero  = r_t_zero;
 
     for (genvar i = 0; i <= T2; i++) begin : g_ol

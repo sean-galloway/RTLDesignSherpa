@@ -61,6 +61,10 @@ class RSDecoderTB(TBBase):
         self.K = self.N - 2 * self.T
         self.S = int(dut.SYMBOLS_PER_BEAT.value)
         self.SC_W = int(dut.STATUS_CNT_WIDTH.value)
+        # ERASURE_SUPPORT is a bit parameter, readable: the erasure scenarios
+        # score against the model's erasure path when it is on, and against
+        # the errors-only path (the dedicated off-state test) when it is not.
+        self.ERASURE = bool(int(dut.ERASURE_SUPPORT.value))
         self.Q = 1 << self.M
         self.model = RSModel(self.M, self.PRIM, self.T, self.N, self.B)
         # the DUT's KES_ALGO is a string parameter cocotb cannot read back; the runner
@@ -77,6 +81,8 @@ class RSDecoderTB(TBBase):
         fc_in.add_field(FieldDefinition(name='data', bits=self.M * self.S, default=0))
         fc_in.add_field(FieldDefinition(name='keep', bits=self.S, default=(1 << self.S) - 1))
         fc_in.add_field(FieldDefinition(name='last', bits=1, default=0))
+        # dead when ERASURE_SUPPORT = 0; driven in both states (that is the test)
+        fc_in.add_field(FieldDefinition(name='erasure', bits=self.S, default=0))
         self.master = GAXIMaster(dut=self.dut, title="RS_IN", prefix="in_", clock=self.clk,
                                  field_config=fc_in, pkt_prefix="", multi_sig=True, log=self.log)
         fc_out = FieldConfig()
@@ -109,36 +115,51 @@ class RSDecoderTB(TBBase):
         self.rst_n.value = 1
 
     # -- stimulus --------------------------------------------------------------
-    def make_received(self, errors, length=None):
-        """Codeword of the profile with `errors` symbol errors; `length` other
-        than n builds a mis-framed block (a truncated or padded codeword)."""
+    def make_received(self, errors, length=None, erasures=0, corrupt_erasures=True):
+        """(symbols, flags): a codeword of the profile with `errors` symbol
+        errors and `erasures` flagged positions, flags[p] = 1 at each. A
+        flagged position is UNTRUSTED -- corrupted by default, left clean on
+        request (a conservative flag is legal). `length` other than n builds a
+        mis-framed block (a truncated or padded codeword)."""
         data = [random.randrange(self.Q) for _ in range(self.K)]
         rx = self.model.encode(data)
-        for p in random.sample(range(self.N), errors):
+        flags = [0] * self.N
+        pos = random.sample(range(self.N), errors + erasures)
+        for p in pos[:errors]:
             rx[p] ^= random.randrange(1, self.Q)
+        for p in pos[errors:]:
+            flags[p] = 1
+            if corrupt_erasures:
+                rx[p] ^= random.randrange(1, self.Q)
         if length is not None and length != self.N:
             rx = rx[:length] if length < self.N else rx + [random.randrange(self.Q)
                                                            for _ in range(length - self.N)]
-        return rx
+            flags = flags[:length] if length < self.N else flags + [0] * (length - self.N)
+        return rx, flags
 
-    def beats_of(self, symbols):
-        """(data, keep) beats of S, low lane first; only the last may be partial."""
+    def beats_of(self, symbols, flags=None):
+        """(data, keep, erasure) beats of S, low lane first; only the last may
+        be partial."""
         beats = []
         for i in range(0, len(symbols), self.S):
             chunk = symbols[i:i + self.S]
             data = 0
+            erase = 0
             for u, sym in enumerate(chunk):
                 data |= sym << (u * self.M)
-            beats.append((data, (1 << len(chunk)) - 1))
+                if flags and flags[i + u]:
+                    erase |= 1 << u
+            beats.append((data, (1 << len(chunk)) - 1, erase))
         return beats
 
     def n_beats(self, n_symbols):
         return (n_symbols + self.S - 1) // self.S
 
-    async def send_block(self, rx, wait=True):
-        beats = self.beats_of(rx)
-        for i, (d, k) in enumerate(beats):
-            pkt = self.master.create_packet(data=d, keep=k, last=1 if i == len(beats) - 1 else 0)
+    async def send_block(self, rx, flags=None, wait=True):
+        beats = self.beats_of(rx, flags)
+        for i, (d, k, er) in enumerate(beats):
+            pkt = self.master.create_packet(data=d, keep=k, erasure=er,
+                                            last=1 if i == len(beats) - 1 else 0)
             if wait:
                 await self.master.send(pkt)
             else:
@@ -173,19 +194,23 @@ class RSDecoderTB(TBBase):
         return syms
 
     # -- scoring ---------------------------------------------------------------
-    def expected(self, rx):
-        """(data symbols, status dict) the core must produce for this block."""
+    def expected(self, rx, flags=None):
+        """(data symbols, status dict) the core must produce for this block.
+        The flags reach the model only on an ERASURE_SUPPORT build; in the off
+        state the same flagged block must decode ERRORS-ONLY, and that
+        comparison is the parameter's dedicated off-state test."""
         if len(rx) != self.N:
             n_data = len(rx) - 2 * self.T if len(rx) > 2 * self.T else len(rx)
             return rx[:n_data], dict(ok=0, corrected=0, uncorrectable=0, frame_err=1)
-        data, status, cnt = self.model.decode(rx, kes=self.KES)
+        er = [i for i, f in enumerate(flags) if f] if (flags and self.ERASURE) else None
+        data, status, cnt = self.model.decode(rx, kes=self.KES, erasures=er)
         return data, dict(ok=1 if status == 'ok' else 0,
                           corrected=cnt if status == 'corrected' else 0,
                           uncorrectable=1 if status == 'uncorrectable' else 0,
                           frame_err=0)
 
-    def score_block(self, label, rx, out):
-        exp_data, exp_status = self.expected(rx)
+    def score_block(self, label, rx, out, flags=None):
+        exp_data, exp_status = self.expected(rx, flags)
         self.checks += 1
         got_data = self.symbols_of(out)
         lasts = [o['last'] for o in out]
@@ -210,11 +235,11 @@ class RSDecoderTB(TBBase):
             self.mismatches += 1
         return ok
 
-    async def run_one(self, label, rx):
-        await self.send_block(rx)
-        exp_data, _ = self.expected(rx)
+    async def run_one(self, label, rx, flags=None):
+        await self.send_block(rx, flags)
+        exp_data, _ = self.expected(rx, flags)
         out = await self.collect(self.n_beats(len(exp_data)), timeout_cycles=40 * self.N + 400)
-        return self.score_block(label, rx, out)
+        return self.score_block(label, rx, out, flags)
 
     # -- scenarios ------------------------------------------------------------
     async def run_blocks(self):
@@ -222,7 +247,7 @@ class RSDecoderTB(TBBase):
         n = self.BLOCKS[self.TEST_LEVEL]
         mix = [0, 1, self.T] + [random.randint(0, self.T) for _ in range(max(0, n - 3))]
         for i, e in enumerate(mix):
-            await self.run_one(f"block {i} ({e} errors)", self.make_received(e))
+            await self.run_one(f"block {i} ({e} errors)", *self.make_received(e))
         return self.mismatches == 0
 
     async def run_uncorrectable(self):
@@ -231,26 +256,50 @@ class RSDecoderTB(TBBase):
         for i in range(n):
             e = random.choice([self.T + 1, self.T + 1, self.T + 2, min(self.N, 2 * self.T + 3)])
             e = min(e, self.N)
-            await self.run_one(f"uncorrectable {i} ({e} errors)", self.make_received(e))
+            await self.run_one(f"uncorrectable {i} ({e} errors)", *self.make_received(e))
         return self.mismatches == 0
 
     async def run_framing(self):
         self.set_profile('constrained')
-        short = self.make_received(0, length=max(1, self.N - 3))
-        await self.run_one("short block", short)
+        await self.run_one("short block", *self.make_received(0, length=max(1, self.N - 3)))
         if self.N < self.Q - 1:
-            long = self.make_received(0, length=self.N + 2)
-            await self.run_one("long block", long)
-        tiny = self.make_received(0, length=1)
-        await self.run_one("one-symbol block", tiny)
-        await self.run_one("clean block after framing", self.make_received(1))
+            await self.run_one("long block", *self.make_received(0, length=self.N + 2))
+        await self.run_one("one-symbol block", *self.make_received(0, length=1))
+        await self.run_one("clean block after framing", *self.make_received(1))
         return self.mismatches == 0
 
     async def run_backpressure(self):
         for profile in self.PROFILES[self.TEST_LEVEL]:
             self.set_profile(profile)
             for e in (0, self.T, self.T + 1):
-                await self.run_one(f"profile {profile} ({e} errors)", self.make_received(e))
+                await self.run_one(f"profile {profile} ({e} errors)", *self.make_received(e))
+        return self.mismatches == 0
+
+    # -- erasure scenarios (TASK-002) ------------------------------------------
+    def erasure_cells(self):
+        """(errors, erasures, corrupt) cells at and past the 2e + f = 2t bound:
+        f-only decodes (including the t_zero path and flags on clean symbols),
+        the boundary itself, the first past-bound mixes, and f = 2t+1 (f_over,
+        uncorrectable by inspection)."""
+        t2 = 2 * self.T
+        cells = [(0, 1, True), (0, self.T, True), (0, t2, True),
+                 (0, min(self.T, 2), False)]
+        step = max(1, (self.T + 1) // 3)
+        cells += [(e, t2 - 2 * e, True) for e in range(0, self.T + 1, step)]
+        past = [(1, t2, True), (2, t2 - 2, True), (0, t2 + 1, True)]
+        cells += past[:1] if self.TEST_LEVEL == 'gate' else past
+        return [(e, f, c) for e, f, c in cells if f <= t2 + 1 and e + f <= self.N]
+
+    async def run_erasures(self):
+        """TASK-002: the erasure path. On an ERASURE_SUPPORT build the flagged
+        positions decode by the model's erasure method (scored in expected());
+        OFF the build the very same stimulus must decode ERRORS-ONLY -- the
+        flags are dead -- which is the parameter's dedicated off-state test."""
+        self.set_profile('constrained')
+        self.log.info(f"run_erasures: {'ERASURE_SUPPORT on' if self.ERASURE else 'OFF-STATE: flags must be dead'}")
+        for i, (e, f, corrupt) in enumerate(self.erasure_cells()):
+            await self.run_one(f"erasure {i} ({e} errors, {f} flags, corrupt={corrupt})",
+                               *self.make_received(e, erasures=f, corrupt_erasures=corrupt))
         return self.mismatches == 0
 
     async def run_no_dead_cycles(self):
@@ -265,16 +314,25 @@ class RSDecoderTB(TBBase):
         A codeword is n/S beats, so n/S cycles per block IS the bus. Anything
         above it is a dead cycle at the block boundary, and dead cycles are
         the failure -- latency is not.
+
+        TASK-002: the ERASURE build's stage B runs TRANS + solve + COMB
+        serially (the validated algorithm shape), occupying f + 2t + deg_e +
+        5 cycles per block; when that exceeds the codeword's beats the intake
+        is solve-stage-bound, not bus-bound, and the codeword rate is not
+        achievable. These blocks drive t errors with no flags (deg_e = t,
+        f = 0), so the erasure rate is max(n/S, 3t + 5) -- exact on every
+        matrix profile. The errors-only build keeps the strict n/S contract.
         """
         self.set_profile('backtoback')
         nb = self.n_beats(self.N)
         kb = self.n_beats(self.K)
+        rate = max(nb, 3 * self.T + 5) if self.ERASURE else nb
         took = {}
         for blocks in (4, 8):
             self.slave._recvQ.clear()
             rxs = [self.make_received(self.T) for _ in range(blocks)]
-            for rx in rxs:
-                await self.send_block(rx, wait=False)
+            for rx, fl in rxs:
+                await self.send_block(rx, fl, wait=False)
             cycles, start = 0, None
             while len(self.slave._recvQ) < blocks * kb:
                 await RisingEdge(self.clk)
@@ -284,20 +342,20 @@ class RSDecoderTB(TBBase):
                 if cycles > 40 * self.N * blocks + 400:
                     break
             out = await self.collect(blocks * kb, timeout_cycles=10)
-            for i, rx in enumerate(rxs):
-                self.score_block(f"slope {blocks} blk {i}", rx, out[i * kb:(i + 1) * kb])
+            for i, (rx, fl) in enumerate(rxs):
+                self.score_block(f"slope {blocks} blk {i}", rx, out[i * kb:(i + 1) * kb], fl)
             took[blocks] = cycles - (start or 0)
 
         slope = (took[8] - took[4]) / 4.0
-        dead = slope - nb
+        dead = slope - rate
         self.checks += 1
         self.log.info(f"no-dead-cycles: {took[4]} cycles for 4 blocks, {took[8]} for 8 "
-                      f"-> slope {slope:.2f} cycles/block vs n/S = {nb} "
+                      f"-> slope {slope:.2f} cycles/block vs rate {rate} "
                       f"({dead:+.2f} dead per block)")
         if dead > 0.25:
             self.mismatches += 1
             self.log.error(f"{dead:.2f} DEAD cycles per block: the slope is {slope:.2f} "
-                           f"against a codeword of {nb} beats. Latency is free; a gap at "
+                           f"against a per-block rate of {rate}. Latency is free; a gap at "
                            f"the block boundary is not.")
         return self.mismatches == 0
 
@@ -307,8 +365,8 @@ class RSDecoderTB(TBBase):
         self.set_profile('backtoback')
         blocks = 4
         rxs = [self.make_received(self.T) for _ in range(blocks)]
-        for rx in rxs:
-            await self.send_block(rx, wait=False)
+        for rx, fl in rxs:
+            await self.send_block(rx, fl, wait=False)
         cycles = 0
         start = None
         kb = self.n_beats(self.K)
@@ -321,19 +379,22 @@ class RSDecoderTB(TBBase):
             if cycles > 40 * self.N * blocks + 400:
                 break
         out = await self.collect(blocks * kb, timeout_cycles=10)
-        for i, rx in enumerate(rxs):
-            self.score_block(f"throughput block {i}", rx, out[i * kb:(i + 1) * kb])
+        for i, (rx, fl) in enumerate(rxs):
+            self.score_block(f"throughput block {i}", rx, out[i * kb:(i + 1) * kb], fl)
         elapsed = cycles - (start or 0)
-        # An UPPER bound with a per-block allowance of n/S + 1 and a 16-cycle
-        # margin. It cannot catch dead cycles coming back, because it was
-        # written to permit the one the design used to have -- so
+        # An UPPER bound with a per-block allowance of the rate + 1 and a
+        # 16-cycle margin. It cannot catch dead cycles coming back, because
+        # it was written to permit the one the design used to have -- so
         # run_no_dead_cycles below measures the SLOPE instead, which needs no
         # latency estimate at all. This bound stays as a coarse smoke check.
-        bound = blocks * (nb + 1) + 2 * nb + 2 * self.T + 16
+        # TASK-002: the erasure build's per-block rate is max(n/S, 3t + 5)
+        # (stage B is solve-stage-bound below that; see run_no_dead_cycles).
+        per_block = max(nb + 1, 3 * self.T + 6) if self.ERASURE else nb + 1
+        bound = blocks * per_block + 2 * nb + 2 * self.T + 16
         self.checks += 1
         self.log.info(f"throughput: {blocks} blocks of {nb} beats in {elapsed} cycles from first accept "
                       f"(bound {bound}; steady state {(elapsed - 2 * nb - 2 * self.T) / blocks:.1f} "
-                      f"cycles/block vs n/S + 1 = {nb + 1})")
+                      f"cycles/block vs rate + 1 = {per_block})")
         if elapsed > bound:
             self.mismatches += 1
             self.log.error(f"throughput: {elapsed} cycles exceeds {bound}")

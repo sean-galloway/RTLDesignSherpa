@@ -85,6 +85,18 @@
 //   KES_ALGO picks the solver; nothing else changes except the Forney block's
 //   evaluator-form constant, which follows it.
 //
+//   ERASURE_SUPPORT (PRD D5, TASK-002): per-lane erasure flags on the intake,
+//   the erasure unit between the syndrome unit and the solver, and the walk
+//   on the combined locator/evaluator (degree up to 2t). The off state is the
+//   errors-only core bit for bit. The on state changes the per-block RATE:
+//   stage B runs TRANS (f cycles) + solve (2t) + COMB (deg_e + 1) serially,
+//   occupying f + 2t + deg_e + 5 cycles per block, so the codeword rate of
+//   n/S beats per block holds only when n/S >= that occupancy; below it the
+//   intake is solve-stage-bound, not bus-bound (measured exact on every
+//   matrix profile; dv/tbclasses/rs_decoder_tb.py encodes the rate). The
+//   named consumers (RAID stripes, an MC's known-bad column) run n = 255-
+//   class blocks, where stage B never binds.
+//
 //------------------------------------------------------------------------------
 // Parameters:
 //------------------------------------------------------------------------------
@@ -486,7 +498,10 @@ module rs_decoder_core
         logic             w_b_bad_final;
 
         assign w_budget      = DEG_W'((T2 - int'(w_er_f)) >> 1);
-        assign w_b_bad       = w_er_f_over || w_kes_deg_err || (w_kes_deg > w_budget)
+        // No f_over term: an f_over block exits in BE_IDLE and never solves,
+        // and the descriptor's record is dead once popped, so the term could
+        // only misfire on the NEXT block's record at this block's push.
+        assign w_b_bad       = w_kes_deg_err || (w_kes_deg > w_budget)
                                || ((w_kes_deg == '0) && (w_er_f == '0));
         assign w_b_bad_final = w_er_t_zero ? 1'b0 : w_b_bad;
 

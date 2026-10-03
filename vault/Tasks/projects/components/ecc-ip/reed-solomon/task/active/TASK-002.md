@@ -122,11 +122,54 @@ elaborates with zero diagnostics for BOTH solvers; the off state passes
 the gate 82/82 unchanged. The on state is functionally UNPROVEN until the
 DV cells land -- that is the next phase, not an assumption to bake in.
 
-Still to do: DV cells (ERASURE_SUPPORT matrix axis, the dedicated
-OFF-state test, boundary cells 2e+f = 2t and the first failing case past
-it, mutation checks on the Gamma build, erasure-unit model-matched
-cells), then the harness injector erasure mode + docs (HAS, FUB catalog),
-then the wrapper sideband.
+## DV phase complete (2026-10-02)
+
+- `test_rs_decoder_core` gains an `ERASURE_SUPPORT` axis: every profile runs
+  at 0 and 1. The off state runs the identical erasure stimulus as the
+  dedicated flags-are-dead test (the axis IS the off-state test), and keeps
+  the strict bit-identical perf contract; the on state uses the erasure
+  rate below.
+- `rs_erasure_unit` gets a standalone TB (`rs_erasure_unit_tb` +
+  `test_rs_erasure_unit`, 12 cells over gate/func, both solvers, S > 1,
+  GF(2^4)): the TB plays the core, loops the packed record back, and checks
+  every output against `rs_model`'s erasure intermediates -- the record
+  (f, f_over, flags forced into the LAST beat to lock the next-value pack),
+  t_zero, the solver windows, and the COMB outputs over a model-solver
+  Lambda_e.
+- THE bug the cells found: the core pops the A->B descriptor on the SAME
+  edge `i_trans_start` fires, and the skid buffer's rd_data does not hold
+  after the pop -- so through all of TRANS the unit read f = 0 and an
+  all-zero X file, built Gamma = 1 / GS = S, and decoded errors-only.
+  e + f <= t cells pass IDENTICALLY errors-only (same data, same count),
+  so the erasure path had never actually worked; the passing cells passed
+  around it. Fixed by latching the record at the start edge (r_fb /
+  r_xfile_b); every B-side consumer reads the latch. Root-caused with a
+  dynamic probe of the unit outputs against model intermediates after the
+  static reads all came back clean.
+- Second bug, same family: the record pack sampled the pre-edge registers
+  on the block-end edge, dropping the LAST beat's flags. o_ab is now the
+  next-value record (this beat's lanes merged over the file), the same
+  reason the syndrome path ships w_synd_next.
+- Third: `w_b_bad` dropped the `w_er_f_over` term -- unreachable (an f_over
+  block exits in BE_IDLE) and able to misfire post-pop on the NEXT block's
+  record.
+- Rate contract (measured, codified in the TB perf checks and the core
+  module header): the erasure stage B runs TRANS (f) + solve (2t) + COMB
+  (deg_e + 1) serially, occupying f + 2t + deg_e + 5 cycles per block, so
+  the on-state per-block rate is `max(n/S, 3t + 5)` -- below n/S the intake
+  is solve-stage-bound, not bus-bound. The formula matched the measured
+  slopes EXACTLY on all four matrix profiles; the named consumers
+  (RAID stripes, an MC's known-bad column) run n = 255-class blocks where
+  stage B never binds.
+
+Verified: gate 94/94 and func 188/188, both after `make clean-all`
+(90 core-area cells at gate plus the 4 new unit profiles; the 4 pre-fix
+failures were the small-profile throughput cells the rate contract now
+encodes).
+
+Still to do: the harness injector erasure mode + docs (HAS chapters, FUB
+catalog), then the wrapper sideband exposure (axis4/axi4 `ERASURE_SUPPORT`
+param + `in_erasure`).
 
 ## Notes
 
