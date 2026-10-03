@@ -33,6 +33,35 @@ elaboration-time; no runtime CSR, no mode bit).
   matrix gains an `ERASURE_SUPPORT` axis rather than flipping existing
   cells.
 
+## As-validated solver integration (2026-10-02, model proven)
+
+The "seeded with Gamma" guess above did NOT survive contact with the fixed
+2t-cycle arrays. What validated 100% against reedsolo (six profiles, both
+solvers, plus an exhaustive (f, e) boundary sweep) is a front transform +
+control change + post-multiply:
+
+- `erasure_locator`: Gamma(x) = prod_j (1 - X_j * x), X_j = alpha^(n-1-j)
+  (roots at X_j^-1, Chien's convention). Hardware: one parallel-combine
+  cycle per flagged beat.
+- Forney syndromes: T = Gamma*S mod x^2t with the LOW f coefficients
+  dropped (they are the evaluator tail; consuming them as discrepancies is
+  the unsound step, and reedsolo skips exactly the same coefficients).
+- riBM: runs the fixed 2t cycles on T zero-padded, with updates KILLED
+  (d0 forced 0) for cycles >= 2t-f. Zero-padding without the kill is
+  unsound -- the pad is consumed with nonzero discrepancies once the
+  locator develops (measured: spurious degrees).
+- Euclid: takes the zeroed-LOW window (x^f * T, sound there because it
+  consumes the polynomial whole, unlike a forward-iterating BM) and raises
+  its stop threshold to t + ceil(f/2); f = 0 reduces to errors-only.
+- Degree check against the SHRUNK budget: deg(Lambda_e) <= (2t-f)/2.
+  Without it a beyond-bound block (2e + f > 2t) walks degree, root-count
+  AND re-check onto a WRONG valid codeword (measured at e=1, f=15).
+- Post-multiply: combined locator Gamma * Lambda_e goes to Chien; Forney
+  uses the combined evaluator Gamma*Lambda_e*S mod x^2t with exponent 1-b.
+- Beyond the bound, reedsolo itself miscorrects (77 wrong / 0 right / 172
+  raises in one corpus), so the model is deliberately the stricter decoder
+  there: uncorrectable, both solvers agreeing.
+
 ## Scope
 
 - **Interface:** an erasure locator alongside the codeword -- a per-symbol
