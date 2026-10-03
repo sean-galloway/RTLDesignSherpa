@@ -49,13 +49,23 @@
 //   decoder core sets it from KES_ALGO. dv/tbclasses/rs_model.py::euclid is
 //   the bit-exact reference; it and the riBM solver decode identically.
 //
+//   ERASURE_SUPPORT (TASK-002): the erasure unit then feeds the zeroed-LOW
+//   window x^f * T (sound here because Euclid consumes the polynomial whole,
+//   unlike a forward-iterating BM -- the model proved the same window unsound
+//   for riBM), i_erasure_count carries f, and the stop threshold rises from
+//   t to t + ceil(f/2): the run has to dig f/2 further to separate the error
+//   locator from the erasure content. f = 0 is exactly errors-only. The
+//   all-zero window (erasures alone explain the syndromes) never reaches the
+//   solver -- Euclid does not terminate on it; the core bypasses with
+//   Lambda_e = 1.
+//
 //   Cost: 2(2t+1) + 2(2t+3) gf_mul (about 8t) plus the four register arrays;
 //   the critical path is a multiply, an XOR, and the degree compare that
 //   drives the swap -- longer than riBM's, which is why riBM is the default.
 //   Latency is data-dependent: t+1 .. 2t cycles plus one for the final check
 //   (measured over 3000 blocks per profile in rs_model.py; at t <= 2 a zero
 //   leading syndrome costs a normalise step and 2t+1 occurs). The safety stop
-//   is at 4t+8.
+//   is at 4t+8, which also covers the raised erasure threshold.
 //
 //------------------------------------------------------------------------------
 // Parameters:
@@ -63,6 +73,8 @@
 //   SYMBOL_WIDTH: m. Default 8.
 //   PRIM_POLY:    primitive polynomial. Default 0x11D.
 //   T_SYMBOLS:    t. Default 8.
+//   ERASURE_SUPPORT: take i_erasure_count and raise the stop threshold.
+//                Default 0 (errors-only, erasure logic generated away).
 //
 //==============================================================================
 
@@ -71,12 +83,14 @@ module key_equation_solver_euclid
 #(
     parameter int SYMBOL_WIDTH = 8,
     parameter int PRIM_POLY    = 'h11D,
-    parameter int T_SYMBOLS    = 8
+    parameter int T_SYMBOLS    = 8,
+    parameter bit ERASURE_SUPPORT = 0
 ) (
     input  logic                                     aclk,
     input  logic                                     aresetn,
     input  logic                                     i_start,
     input  logic [2*T_SYMBOLS*SYMBOL_WIDTH-1:0]      i_synd,
+    input  logic [$clog2(2*T_SYMBOLS+1)-1:0]         i_erasure_count,
     output logic                                     o_busy,
     output logic                                     o_done,
     output logic [(2*T_SYMBOLS+1)*SYMBOL_WIDTH-1:0]  o_lambda,
@@ -118,6 +132,18 @@ module key_equation_solver_euclid
     logic         w_cross;
     logic         w_swap;
 
+    // Stop threshold: degR < t errors-only, degR < t + ceil(f/2) with
+    // erasures. With ERASURE_SUPPORT = 0 the count is unread and w_stop is
+    // the constant t.
+    logic signed [DG_W-1:0] w_stop;
+    if (ERASURE_SUPPORT) begin : g_stop
+        assign w_stop = DG_W'(T) + DG_W'({1'b0, i_erasure_count} + 1) / 2;
+    end else begin : g_no_stop
+        assign w_stop = DG_W'(T);
+        logic unused_erasure_count;
+        assign unused_erasure_count = ^i_erasure_count;
+    end
+
     logic signed [DG_W-1:0] w_deg_r_nxt, w_deg_q_nxt;
     logic                   w_finished_nxt;
 
@@ -126,7 +152,7 @@ module key_equation_solver_euclid
 
     assign w_a        = r_r[T2];
     assign w_b        = r_q[T2];
-    assign w_finished = (r_deg_r < DG_W'(T)) || (r_deg_q < 0) || (r_cycles == '1);
+    assign w_finished = (r_deg_r < w_stop) || (r_deg_q < 0) || (r_cycles == '1);
     assign w_norm_r   = !w_finished && (w_a == '0);
     assign w_norm_q   = !w_finished && (w_a != '0) && (w_b == '0);
     assign w_cross    = !w_finished && (w_a != '0) && (w_b != '0);
@@ -156,7 +182,7 @@ module key_equation_solver_euclid
         end
     end
 
-    assign w_finished_nxt = (w_deg_r_nxt < DG_W'(T)) || (w_deg_q_nxt < 0)
+    assign w_finished_nxt = (w_deg_r_nxt < w_stop) || (w_deg_q_nxt < 0)
                             || ((r_cycles + CYC_W'(1)) == '1);
 
     for (genvar i = 0; i <= T2; i++) begin : g_r
@@ -269,7 +295,7 @@ module key_equation_solver_euclid
                 if (DG_W'(i) == DG_W'(j) + w_sh) c = r_r[i];
             o_omega[j*M +: M] = c;
         end
-        if (r_deg_r < 0 || r_deg_r >= DG_W'(T)) o_deg_err = 1'b1;
+        if (r_deg_r < 0 || r_deg_r >= w_stop) o_deg_err = 1'b1;
     end
 
 endmodule : key_equation_solver_euclid

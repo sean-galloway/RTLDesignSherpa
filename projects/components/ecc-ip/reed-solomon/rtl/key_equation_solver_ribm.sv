@@ -45,6 +45,15 @@
 //   evaluator block accounts for it (X^(1 - b - 2t) instead of X^(1 - b)).
 //   dv/tbclasses/rs_model.py is the bit-exact reference for all of this.
 //
+//   ERASURE_SUPPORT (TASK-002): the input is then the drop-f Forney syndrome
+//   list T (2t - f real values, zero-padded) and i_erasure_count carries f.
+//   The padding would be consumed with nonzero discrepancies once the
+//   locator develops (proven unsound in the model), so the update is KILLED
+//   -- delta forced to zero -- for the last f of the fixed 2t cycles. The
+//   array still shifts every cycle, the readout cells are unchanged, and
+//   the result is textbook BM on T. With ERASURE_SUPPORT = 0 the kill
+//   constant-folds away and the array is exactly the errors-only one.
+//
 //   Cost: 2(3t+1) gf_mul plus 2(3t+1) m-bit registers; the critical path is
 //   one multiply and one XOR and does not grow with t.
 //
@@ -54,6 +63,8 @@
 //   SYMBOL_WIDTH: m. Default 8.
 //   PRIM_POLY:    primitive polynomial. Default 0x11D.
 //   T_SYMBOLS:    t. Default 8.
+//   ERASURE_SUPPORT: take i_erasure_count and kill the last f updates.
+//                Default 0 (errors-only, erasure logic generated away).
 //
 //==============================================================================
 
@@ -62,12 +73,14 @@ module key_equation_solver_ribm
 #(
     parameter int SYMBOL_WIDTH = 8,
     parameter int PRIM_POLY    = 'h11D,
-    parameter int T_SYMBOLS    = 8
+    parameter int T_SYMBOLS    = 8,
+    parameter bit ERASURE_SUPPORT = 0
 ) (
     input  logic                                     aclk,
     input  logic                                     aresetn,
     input  logic                                     i_start,
     input  logic [2*T_SYMBOLS*SYMBOL_WIDTH-1:0]      i_synd,
+    input  logic [$clog2(2*T_SYMBOLS+1)-1:0]         i_erasure_count,
     output logic                                     o_busy,
     output logic                                     o_done,
     output logic [(2*T_SYMBOLS+1)*SYMBOL_WIDTH-1:0]  o_lambda,
@@ -104,7 +117,19 @@ module key_equation_solver_ribm
     logic [M-1:0] w_th  [NPE];
     logic [M-1:0] w_init[NPE];
 
-    assign w_delta   = w_d[0];
+    // Erasure kill: once r_iter reaches 2t - f the remaining cycles only
+    // shift; the update is suppressed by forcing delta to zero. f = 0 (and
+    // the whole ERASURE_SUPPORT = 0 build) never kills.
+    logic w_kill;
+    if (ERASURE_SUPPORT) begin : g_kill
+        assign w_kill = r_busy && (r_iter >= (IT_W'(T2) - i_erasure_count));
+    end else begin : g_no_kill
+        assign w_kill = 1'b0;
+        logic unused_erasure_count;
+        assign unused_erasure_count = ^i_erasure_count;
+    end
+
+    assign w_delta   = w_kill ? '0 : w_d[0];
     assign w_step    = r_busy;
     assign w_swap    = (w_delta != '0) && (r_k >= 0);
     assign w_d[NPE]  = '0;

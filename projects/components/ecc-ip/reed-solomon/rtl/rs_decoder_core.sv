@@ -285,12 +285,14 @@ module rs_decoder_core
         key_equation_solver_euclid #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T)) u_kes (
             .aclk(aclk), .aresetn(aresetn),
             .i_start(w_kes_start), .i_synd(w_b_synd),
+            .i_erasure_count('0),   // TASK-002: driven by the erasure unit when it lands
             .o_busy(w_kes_busy), .o_done(w_kes_done),
             .o_lambda(w_kes_lambda), .o_omega(w_kes_omega), .o_deg(w_kes_deg), .o_deg_err(w_kes_deg_err));
     end else begin : g_kes_ribm
         key_equation_solver_ribm #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T)) u_kes (
             .aclk(aclk), .aresetn(aresetn),
             .i_start(w_kes_start), .i_synd(w_b_synd),
+            .i_erasure_count('0),   // TASK-002: driven by the erasure unit when it lands
             .o_busy(w_kes_busy), .o_done(w_kes_done),
             .o_lambda(w_kes_lambda), .o_omega(w_kes_omega), .o_deg(w_kes_deg), .o_deg_err(w_kes_deg_err));
     end
