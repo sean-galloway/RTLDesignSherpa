@@ -161,10 +161,9 @@ map finalized from the RDL — TASK-008), formal debt (TASK-006), and the
 standing no-assertions-in-RTL decision for four input-contract checks
 (TASK-007).
 
-**Later:** LPDDR3 bring-up (the second memtype; makes the dormant
-power-down FUBs load-bearing), the advanced scheduling/refresh-modes survey
-(TASK-001, P3), and multi-rank (the v3.1 data-phase chip selects stop being
-constants).
+**Later:** bounded tranche (elastic refresh / TCR / ZQ placement) landed behind
+CSRs; survey and deferred conditions in `design-requirements.md` §6; deferred
+tranche filed as TASK-009.
 
 ## 9. Success Criteria
 

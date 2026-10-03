@@ -236,3 +236,109 @@ scoria owes the system is the DFI leveling handshake, the MR1 write path, the
 timing windows (`tWLMRD` through `tWLOE`) enforced as runtime CSRs, and enough
 telemetry to see the search converge. What it must not contain is a tap-search
 loop.
+
+---
+
+## 6. Advanced modes — selectable scheduling / refresh (characterization)
+
+The mechanisms below extend the baseline so that **one bitstream characterizes every
+policy by flipping a CSR** (the "config not param" rule inherited from pumice). Each
+mode is added **serially in pre-silicon** (faithful DRAM-model red test → RTL → green)
+behind its own enable, and each carries read-only telemetry so the host can sweep it
+and compare against the static baseline in-system.
+
+**Reset = baseline, bit-identical.** Every new field resets to today's behavior.
+There is no deliberate exception for scoria: the pumice `PAGE_POLICY_CFG.policy_mode`
+exception (reset to `fixed_open`) is recorded in the parent document and does not
+extend here.
+
+**Commodity-legal vs model-only.** TASK-001 seeds nine candidates. Three are
+implemented as bounded, commodity-legal modes below; one is already inherited;
+one is model-only by family split; four are deferred as research candidates or
+excluded by decision.
+
+| Candidate | Disposition |
+|---|---|
+| LPDDR3 per-bank refresh carry-forward (`REFpb` rotor) | **Already inherited** from pumice (HAS Ch 3.4); commodity-legal |
+| Demand-aware elastic refresh | **Mode A** — implemented behind CSR |
+| Temperature-compensated refresh (TCR) | **Mode B** — implemented behind CSR |
+| ZQCS placement policy | **Mode C** — implemented behind CSR |
+| SALP (subarray-level parallelism) | **Model-only** — belongs to andesite (DDR4/LPDDR4) |
+| RAIDR (retention-aware refresh) | **Deferred / research** — unblock condition named below |
+| ChargeCache | **Deferred / research** — unblock condition named below |
+| PARA / Rowhammer targeted refresh | **Deferred / research** — unblock condition named below |
+| Self-refresh / power-down scheduling | **Excluded by decision** — unblock condition named below |
+
+### Mode-select CSRs (the characterization surface)
+
+The planned register edits (Task 2) place these fields in logically-owning registers
+where reserved space allows; offsets may be reorganized because the access contract
+is name-based through the generated regmap, not offset-based.
+
+- **`REF_CTRL @ 0x140`** — existing `mode[1:0]`, `postpone_limit[7:4]`,
+  `pullin_limit[11:8]`, `perbank_supported[12]`; adds `elastic_en[13]`,
+  `tcr_en[14]`, `trefi_derate[16:15]` (0=1x, 1=2x, 2=4x, 3 clamps),
+  `pullin_idle_streak[24:17]` (reset 16),
+  `postpone_demand_streak[31:25]` (reset 1).
+- **`ZQ_CFG @ 0x0C4`** — existing `zq_enable[0]`, `t_zqcs[31:16]`; adds
+  `placement[2:1]` (reset 0 = request-on-expiry baseline, 1 = defer-under-demand),
+  `overdue_max[15:3]` (MC cycles, 0 = uncapped).
+- **`REF_STATS_POSTPONE @ 0x184`** / **`REF_STATS_PULLIN @ 0x188`** — new telemetry
+  for the elastic-refresh sweep.
+
+### Mode A — demand-aware elastic refresh
+
+`REF_CTRL.elastic_en` (reset 0 = today). The existing JEDEC ±8 postpone/pull-in
+credits in `scoria_refresh_ctrl` (`REF_CTRL.postpone_limit`, `pullin_limit`) are
+the hard ceiling; Mode A adds a demand-aware layer on top of those credits without
+changing the credit arithmetic.
+
+- **Pull-in** fires only after demand has been idle for `pullin_idle_streak` MC
+  cycles. This generalizes the inherited 16-cycle sustained-idle confirmation
+  (pumice `refresh_ctrl` v3) into a sweepable CSR.
+- **Postpone** engages only under a sustained demand streak ≥
+  `postpone_demand_streak`.
+
+Telemetry: `REF_STATS_POSTPONE` / `REF_STATS_PULLIN` expose a postpone/pull-in
+histogram bin pair so the sweep is measurable in-system.
+
+### Mode B — temperature-compensated refresh (TCR)
+
+`REF_CTRL.tcr_en` (reset off) + `trefi_derate[16:15]` (reset 0 = 1x). Firmware
+writes the derate class (1x / 2x / 4x, per JESD79-3F §7.3.3 refresh-rate cases);
+`refresh_ctrl` scales the tREFI tick accordingly. `TEMP_DERATE_RANK0` keeps its
+LPDDR3-MR4 hardware-written path untouched for the future LPDDR3 build; the DDR3
+path is the new software-written select.
+
+The retention formal property is **re-derived with the derate factor in the
+interval arithmetic** — the same rule as `REFpb`: a changed interval changes the
+proof, and the proof is never carried forward green.
+
+### Mode C — ZQCS placement policy
+
+`ZQ_CFG.placement[2:1]` (reset 0 = today's request-on-expiry) +
+`ZQ_CFG.overdue_max`. Policy 1 is *defer-under-demand*: hold the `ZQCS` request
+while demand is sustained, up to `overdue_max` MC cycles; the existing
+`zq_overdue` and issued counters make starvation measurable — exactly the HAS Ch 6
+Q2 revisit condition's instrument. Policy 2 is reserved. The Q2 answer stands in
+all policies: request/grant, never preempt.
+
+### Deferred candidates, with named unblock conditions
+
+| Candidate | Class | Unblock condition |
+|---|---|---|
+| RAIDR (retention-aware refresh) | research | a retention-profiling path exists (board or model) to feed per-row/bin data; Bloom-filter bin hardware is its own design |
+| ChargeCache | research | BUG-003 timing headroom — it makes the arbiter cone hotter, the opposite of what the 100 MHz closure needs now |
+| PARA / Rowhammer targeted refresh | research | after a bitstream exists, with a Rowhammer test methodology; adjacency tracking is its own design |
+| SALP | model-only | belongs to andesite (DDR4/LPDDR4) per the task's own split |
+| Self-refresh / power-down scheduling | excluded by decision | reverses the recorded 2026-09-30 HAS decision (dormant `powerdown_ctrl`/`dfi_signal_pack`); re-opened only by the owner |
+
+### Serial pre-silicon implementation order
+
+Foundation first (CSR surface + faithful DRAM-model hooks), then one mode at a
+time, each with its own red→green model test and OFF-by-default:
+1. `REF_CTRL`/`ZQ_CFG` mode fields + `REF_STATS_POSTPONE`/`REF_STATS_PULLIN`
+   telemetry (no behavior change; defaults bit-identical).
+2. Mode A: elastic pull-in/postpone thresholds.
+3. Mode B: TCR derate select.
+4. Mode C: ZQCS defer-under-demand placement.

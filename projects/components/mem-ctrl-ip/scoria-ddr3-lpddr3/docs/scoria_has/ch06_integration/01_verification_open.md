@@ -86,6 +86,9 @@ The four verification items named above remain the coverage plan for the
 DDR3-specific behaviour; this edition does not claim they are all complete.
 What separates this edition from a 1.0 is stated below and filed as a task.
 
+2026-10-03, TASK-001's bounded tranche exists behind CSRs; per-mode design in
+`design-requirements.md` §6; block-by-block confirmation is TASK-008's pass.
+
 ## Question resolutions (v0.2)
 
 Five questions were listed in v0.1. Two are answered, one is struck as
