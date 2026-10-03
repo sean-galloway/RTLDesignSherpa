@@ -236,6 +236,10 @@ module rs_loop_regs (
                 logic load_next;
             } mode;
             struct {
+                logic next;
+                logic load_next;
+            } mark;
+            struct {
                 logic [7:0] next;
                 logic load_next;
             } errors;
@@ -299,6 +303,9 @@ module rs_loop_regs (
             struct {
                 logic [1:0] value;
             } mode;
+            struct {
+                logic value;
+            } mark;
             struct {
                 logic [7:0] value;
             } errors;
@@ -555,6 +562,29 @@ module rs_loop_regs (
         end
     end
     assign hwif_out.INJ_CFG.mode.value = field_storage.INJ_CFG.mode.value;
+    // Field: rs_loop_regs.INJ_CFG.mark
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.INJ_CFG.mark.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.INJ_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.INJ_CFG.mark.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+            load_next_c = '1;
+        end
+        field_combo.INJ_CFG.mark.next = next_c;
+        field_combo.INJ_CFG.mark.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.INJ_CFG.mark.value <= 1'h0;
+        end else begin
+            if(field_combo.INJ_CFG.mark.load_next) begin
+                field_storage.INJ_CFG.mark.value <= field_combo.INJ_CFG.mark.next;
+            end
+        end
+    end
+    assign hwif_out.INJ_CFG.mark.value = field_storage.INJ_CFG.mark.value;
     // Field: rs_loop_regs.INJ_CFG.errors
     always_comb begin
         automatic logic [7:0] next_c;
@@ -680,7 +710,8 @@ module rs_loop_regs (
     assign readback_array[3][31:16] = '0;
     assign readback_array[4][31:0] = (decoded_reg_strb.GEN_SEED && !decoded_req_is_wr) ? field_storage.GEN_SEED.value.value : '0;
     assign readback_array[5][1:0] = (decoded_reg_strb.INJ_CFG && !decoded_req_is_wr) ? field_storage.INJ_CFG.mode.value : '0;
-    assign readback_array[5][7:2] = '0;
+    assign readback_array[5][2:2] = (decoded_reg_strb.INJ_CFG && !decoded_req_is_wr) ? field_storage.INJ_CFG.mark.value : '0;
+    assign readback_array[5][7:3] = '0;
     assign readback_array[5][15:8] = (decoded_reg_strb.INJ_CFG && !decoded_req_is_wr) ? field_storage.INJ_CFG.errors.value : '0;
     assign readback_array[5][31:16] = (decoded_reg_strb.INJ_CFG && !decoded_req_is_wr) ? field_storage.INJ_CFG.rate.value : '0;
     assign readback_array[6][31:0] = (decoded_reg_strb.INJ_SEED && !decoded_req_is_wr) ? field_storage.INJ_SEED.value.value : '0;
@@ -734,7 +765,8 @@ module rs_loop_regs (
     assign readback_array[32][8:8] = (decoded_reg_strb.TOPOLOGY && !decoded_req_is_wr) ? hwif_in.TOPOLOGY.compare.next : '0;
     assign readback_array[32][11:9] = '0;
     assign readback_array[32][12:12] = (decoded_reg_strb.TOPOLOGY && !decoded_req_is_wr) ? hwif_in.TOPOLOGY.iface.next : '0;
-    assign readback_array[32][31:13] = '0;
+    assign readback_array[32][13:13] = (decoded_reg_strb.TOPOLOGY && !decoded_req_is_wr) ? hwif_in.TOPOLOGY.erasure.next : '0;
+    assign readback_array[32][31:14] = '0;
     assign readback_array[33][31:0] = (decoded_reg_strb.OBS_IN_PRODUCTIVE && !decoded_req_is_wr) ? hwif_in.OBS_IN_PRODUCTIVE.value.next : '0;
     assign readback_array[34][31:0] = (decoded_reg_strb.OBS_IN_BACKPRESSURE && !decoded_req_is_wr) ? hwif_in.OBS_IN_BACKPRESSURE.value.next : '0;
     assign readback_array[35][31:0] = (decoded_reg_strb.OBS_IN_STARVATION && !decoded_req_is_wr) ? hwif_in.OBS_IN_STARVATION.value.next : '0;

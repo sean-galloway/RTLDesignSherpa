@@ -63,6 +63,14 @@
 //   decoder must flag), and the count injected into the most recent block.
 //   cfg_clear zeroes them; cfg_seed_load reseeds the lane generators.
 //
+//   Erasure marking (TASK-002): with cfg_mark_erasure set, out_erasure carries
+//   the beat's hit mask -- lane u flagged exactly where a symbol was
+//   corrupted. Wired to a decoder's in_erasure sideband it turns any
+//   placement mode into an erasure run: the positions the decoder is TOLD
+//   about are precisely the ones that were hit, which is the information a
+//   RAID stripe map or an MC's known-bad column has. With the bit clear
+//   out_erasure is all zero and the block is the pre-erasure injector.
+//
 //------------------------------------------------------------------------------
 // Parameters:
 //------------------------------------------------------------------------------
@@ -91,6 +99,8 @@ module rs_error_injector #(
     output logic [DATA_WIDTH-1:0]       out_data,
     output logic [SYMBOLS_PER_BEAT-1:0] out_keep,
     output logic                        out_last,
+    // the beat's hit mask when cfg_mark_erasure is set, else all zero
+    output logic [SYMBOLS_PER_BEAT-1:0] out_erasure,
 
     input  logic [1:0]                  cfg_mode,
     input  logic [7:0]                  cfg_count,
@@ -98,6 +108,7 @@ module rs_error_injector #(
     input  logic [31:0]                 cfg_seed,
     input  logic                        cfg_seed_load,
     input  logic                        cfg_clear,
+    input  logic                        cfg_mark_erasure,
 
     output logic [31:0]                 o_inj_symbols,
     output logic [31:0]                 o_inj_blocks,
@@ -119,11 +130,13 @@ module rs_error_injector #(
     logic [1:0]  r_mode;
     logic [7:0]  r_count;
     logic [15:0] r_rate;
+    logic        r_mark_erasure;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_mode <= '0; r_count <= '0; r_rate <= '0;
+            r_mode <= '0; r_count <= '0; r_rate <= '0; r_mark_erasure <= 1'b0;
         end else begin
             r_mode <= cfg_mode; r_count <= cfg_count; r_rate <= cfg_rate;
+            r_mark_erasure <= cfg_mark_erasure;
         end
     )
 
@@ -329,6 +342,7 @@ module rs_error_injector #(
     logic [DATA_WIDTH-1:0] r_c_data;
     logic [S-1:0]          r_c_keep;
     logic                  r_c_last;
+    logic [S-1:0]          r_c_erasure;
     logic                  r_s_v, r_s_last;
     logic [7:0]            r_s_hits;
     logic [7:0]            w_blk_total;
@@ -337,6 +351,7 @@ module rs_error_injector #(
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_c_v <= 1'b0; r_c_data <= '0; r_c_keep <= '0; r_c_last <= 1'b0;
+            r_c_erasure <= '0;
             r_s_v <= 1'b0; r_s_last <= 1'b0; r_s_hits <= '0;
             r_e_left            <= '0;
             r_blk_errors        <= '0;
@@ -352,6 +367,7 @@ module rs_error_injector #(
                 r_c_data <= r_b_data ^ w_mask;
                 r_c_keep <= r_b_keep;
                 r_c_last <= r_b_last;
+                r_c_erasure <= r_mark_erasure ? w_hit : '0;
                 if (r_b_first) r_burst_start <= r_b_bstart;
                 r_e_left <= w_e_after;
             end else if (out_valid && out_ready) begin
@@ -381,9 +397,10 @@ module rs_error_injector #(
         end
     )
 
-    assign out_valid = r_c_v;
-    assign out_data  = r_c_data;
-    assign out_keep  = r_c_keep;
-    assign out_last  = r_c_last;
+    assign out_valid   = r_c_v;
+    assign out_data    = r_c_data;
+    assign out_keep    = r_c_keep;
+    assign out_last    = r_c_last;
+    assign out_erasure = r_c_erasure;
 
 endmodule : rs_error_injector

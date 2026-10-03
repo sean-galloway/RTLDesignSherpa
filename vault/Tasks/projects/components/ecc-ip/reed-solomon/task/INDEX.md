@@ -13,20 +13,19 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 1 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Active
-
-- **TASK-002** — Erasure decoding (PRD D5): erasure locator interface, Forney erasure path in `rs_model.py` then RTL, both solvers, DV matrix, injector erasure mode on the harness. Implementation shape pinned 2026-10-02 (Sean): elaboration-time `ERASURE_SUPPORT` param, default 0, off state bit-identical with its own OFF test. ACTIVE 2026-10-02.
 
 ## Open
 
 ## Closed
 
 - **TASK-001** — Stand up the Reed-Solomon component -- CLOSED 2026-10-02: codec, both solvers, AXIS + AXI4 wrappers, 195-cell DV area, HAS, and the four-image Nexys A7 loop harness all exist and board-pass; sim harness reproduces the board's bandwidth slopes to the cycle. Successors: TASK-002 (erasures), TASK-003 (first consumer).
+- **TASK-002** — Erasure decoding (PRD D5) -- CLOSED 2026-10-03: elaboration-time `ERASURE_SUPPORT` (default 0, off state bit-identical with its own OFF test), erasure locator + Forney erasure path proven model-first against reedsolo, both solvers, per-beat sideband on the AXIS wrapper and job-level `cfg_erasure` on the AXI4 wrapper, injector `INJ_CFG.mark` mode on the harness, full DV matrix. Surfaced and fixed amba BUG-038 (axis4 tuser mis-slice) and the harness SC_W truncation. Consumer pull-in rides with TASK-003.
 
 ## Deferred
 

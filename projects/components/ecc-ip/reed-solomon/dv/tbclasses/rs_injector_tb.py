@@ -12,13 +12,20 @@ symbol streams is scored against the configured mode:
 
 and the statistics outputs must agree with what was observed.
 
+Erasure marking (TASK-002): a monitor samples out_erasure on every output
+handshake. With cfg_mark_erasure set the flags must be exactly the lanes that
+differ; with it clear they must be all zero even when symbols were hit -- the
+clear state is checked on every unmarked run, which is most of them.
+
 Author: RTL Design Sherpa
 Created: 2026-09-30
 """
 
 import os
 import random
+from collections import deque
 
+import cocotb
 from cocotb.triggers import RisingEdge
 
 from TBClasses.shared.tbbase import TBBase
@@ -49,6 +56,7 @@ class RSInjectorTB(TBBase):
         self.Q = 1 << self.M
         self.checks = 0
         self.mismatches = 0
+        self._flags = deque()      # out_erasure, one word per output beat
         self._init_bfms()
 
     def _init_bfms(self):
@@ -73,10 +81,19 @@ class RSInjectorTB(TBBase):
         d.cfg_seed.value = 0xACE1
         d.cfg_seed_load.value = 0
         d.cfg_clear.value = 0
+        d.cfg_mark_erasure.value = 0
         await self.assert_reset()
         await self.wait_clocks(self.clk_name, 5)
         await self.deassert_reset()
         await self.wait_clocks(self.clk_name, 2)
+        cocotb.start_soon(self._flag_mon())
+
+    async def _flag_mon(self):
+        """Collect out_erasure on every output handshake, in beat order."""
+        while True:
+            await RisingEdge(self.clk)
+            if int(self.dut.out_valid.value) and int(self.dut.out_ready.value):
+                self._flags.append(int(self.dut.out_erasure.value))
 
     async def assert_reset(self):
         self.rst_n.value = 0
@@ -91,12 +108,13 @@ class RSInjectorTB(TBBase):
             if self.mismatches <= 10:
                 self.log.error(f"{what}: got {got} expected {exp}")
 
-    async def configure(self, mode, count=0, rate=0, seed=0xACE1):
+    async def configure(self, mode, count=0, rate=0, seed=0xACE1, mark=0):
         d = self.dut
         d.cfg_mode.value = mode
         d.cfg_count.value = count
         d.cfg_rate.value = rate
         d.cfg_seed.value = seed
+        d.cfg_mark_erasure.value = mark
         d.cfg_seed_load.value = 1
         d.cfg_clear.value = 1
         await RisingEdge(self.clk)
@@ -140,8 +158,9 @@ class RSInjectorTB(TBBase):
         return dict(symbols=int(d.o_inj_symbols.value), blocks=int(d.o_inj_blocks.value),
                     over_t=int(d.o_inj_over_t.value), last=int(d.o_last_block_errors.value))
 
-    async def run_mode(self, mode, count=0, rate=0):
-        await self.configure(mode, count, rate, seed=random.randrange(1, 1 << 32))
+    async def run_mode(self, mode, count=0, rate=0, mark=0):
+        await self.configure(mode, count, rate, seed=random.randrange(1, 1 << 32), mark=mark)
+        self._flags.clear()
         n_blocks = self.BLOCKS[self.TEST_LEVEL]
         if mode == self.RATE:
             # a statistical check needs a sample: at least 2000 symbols
@@ -157,6 +176,23 @@ class RSInjectorTB(TBBase):
             if len(out) != self.N:
                 continue
             diff = [j for j in range(self.N) if out[j] != symbols[j]]
+            # the erasure flags for this block's beats: with mark set, exactly
+            # the differing lanes; with it clear, all zero. The flag monitor
+            # samples the same edge the slave's queue fills on, and this
+            # coroutine can wake first, so wait for the words to arrive.
+            n_beats = -(-self.N // self.S)
+            for _ in range(100):
+                if len(self._flags) >= n_beats:
+                    break
+                await RisingEdge(self.clk)
+            want_flags = [0] * n_beats
+            if mark:
+                for j in diff:
+                    want_flags[j // self.S] |= 1 << (j % self.S)
+            got_flags = [self._flags.popleft() if self._flags else None
+                         for _ in range(n_beats)]
+            self._score(f"mode {mode} mark={mark} block {b} erasure flags",
+                        got_flags, want_flags)
             e = len(diff)
             total += e
             blocks_hit += 1 if e else 0
@@ -201,6 +237,10 @@ class RSInjectorTB(TBBase):
             ok &= await self.run_mode(self.COUNT, count=e)
         ok &= await self.run_mode(self.BURST, count=self.T)
         ok &= await self.run_mode(self.RATE, rate=int(0.10 * 65536))
+        # erasure marking: the flags track the hit mask, in both placement
+        # styles (every unmarked run above checks the clear state stays zero)
+        ok &= await self.run_mode(self.COUNT, count=self.T, mark=1)
+        ok &= await self.run_mode(self.BURST, count=self.T, mark=1)
         return ok
 
     def get_test_report(self):

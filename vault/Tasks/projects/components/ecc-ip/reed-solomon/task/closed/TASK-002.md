@@ -1,7 +1,9 @@
 # TASK-002: Erasure decoding (PRD D5)
 
 **Priority:** P3
-**Status:** active 2026-10-02 -- implementation started (model-first)
+**Status:** CLOSED 2026-10-03 -- all six phases landed: model, both solvers,
+erasure unit, core plumbing, DV cells, wrapper sideband, harness injector
+erasure mode, docs. Off state bit-identical and gate-identical throughout.
 **Owner:** TBD
 
 Filed at the close of reed-solomon TASK-001. PRD D5 is the last undecided
@@ -215,8 +217,44 @@ Verified: `make -C rtl lint-all` clean; one axis4 e1 gate cell
 (RS(255,239), 27 checks / 0) and one axi4-loop e1 gate cell (RS(15,9)
 EUCLID, 8 checks / 0) green before the regression.
 
-Still to do: the harness injector erasure mode (rewire the
-`.in_erasure('0)` tie-off) + docs (HAS chapters, FUB catalog).
+## Harness injector erasure mode (2026-10-02)
+
+The injector's `INJ_CFG.mark` bit makes its hit mask ride the decoders'
+`in_erasure` sideband, so the decoder is TOLD which symbols it corrupted;
+`TOPOLOGY.erasure` reports the build to the host, and `bin/seq_erasure.py`
+(skipped, not failed, on an off build) runs f = t, 2t, 2t+1 marked: the
+correction bound doubles, and f = 2t+1 is refused by inspection with no
+miscorrection case. The erasure cosim (`test_rs_loop_uart_erasure`) runs
+the same SequenceRunner the board uses.
+
+Two bugs fell out of the bisection (injector seam probe -> model on the
+captured stream -> core replay PASS -> wrapper replay REPRODUCE -> skid
+unpack), both fixed the same day:
+
+1. **amba BUG-038 (shared RTL):** `axis4_slave`/`axis4_master` unpacked the
+   skid packet as if the zero-width tid/tdest guard bits were the LSBs;
+   they sit between tlast and tuser, so any UW>0 instance with ID or DEST
+   zero got tuser shifted right (the harness's intake, UW=5 ID=DEST=0 --
+   the first-ever such instance -- saw every flag field as `drove >> 2`,
+   60/504 beats, data clean). Both modules now unpack per-field in the
+   axis5 style. Every pre-existing instance runs UW=0 or the full config,
+   and the val/amba `(0,0,1)` sweep cell never drives tuser, so nothing
+   else could see it. DV gap closed: `test_rs_axis4` hardcoded
+   `idw, destw = 4, 2`; the grid now sweeps `ID_DESTS = [(4, 2), (0, 0)]`.
+2. **Harness SC_W:** `rs_loop_harness` kept `SC_W = $clog2(T+1)` = 4 bits
+   against the decoders' ERASURE-widened 5-bit count, so f = 2t = 16 read
+   as 0 -- every block "corrected with 0 symbols", data and CRC perfect
+   (the wrapper header documents exactly this symptom; the harness just
+   was not updated with the wrappers). SC_W now follows ERASURE_SUPPORT.
+
+Verified: wrapper replay of the failing stream 504/504 beats clean, all 8
+blocks corrected-8 (was 7 unc + 1 miscorrect); erasure cosim f=8/16 PASS,
+f=17 refused PASS, riBM == Euclid throughout; reed-solomon gate 102/102 and
+func green; val/amba gate 839 passed; full harness cosim suite
+(`test_rs_loop_uart.py`, clean builds) 17/17 passed in 71m40s. Docs (HAS
+ch04 both adapters, FUB catalog) updated in the same pass.
+
+CLOSED 2026-10-03.
 
 ## Notes
 

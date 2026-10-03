@@ -77,6 +77,7 @@ addrmap rs_loop_regs {
         field { sw = r; hw = w; desc = "decoder B solver: 0 = riBM, 1 = Euclid; meaningless when decoders == 1"; } kes_b[5:5] = 0;
         field { sw = r; hw = w; desc = "the A-vs-B comparator is built"; } compare[8:8] = 0;
         field { sw = r; hw = w; desc = "datapath: 0 = AXIS stream pipe, 1 = AXI4 memory-to-memory job chain"; } iface[12:12] = 0;
+        field { sw = r; hw = w; desc = "the decoders' erasure path is built (TASK-002); INJ_CFG.mark is meaningless when this reads 0"; } erasure[13:13] = 0;
     } TOPOLOGY @ 0x084;
 
     reg { desc = "Blocks per run";
@@ -89,6 +90,7 @@ addrmap rs_loop_regs {
 
     reg { desc = "Error injector configuration";
         field { sw = rw; hw = r; desc = "0 none, 1 exact count per block, 2 burst, 3 rate"; } mode[1:0] = 0;
+        field { sw = rw; hw = r; desc = "erasure marking: the injector's out_erasure carries the hit mask, so the decoders are TOLD which symbols were corrupted (TASK-002)"; } mark[2:2] = 0;
         // not `count`: RegisterMap treats a register key named count as an array marker
         field { sw = rw; hw = r; desc = "errors per block (modes 1, 2)"; } errors[15:8] = 0;
         field { sw = rw; hw = r; desc = "symbol error probability / 65536 (mode 3)"; } rate[31:16] = 0;

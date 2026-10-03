@@ -96,7 +96,11 @@ module rs_loop_harness
     parameter string IFACE        = "AXIS",
     parameter string KES_ALGO_A   = CFG_KES_A,
     parameter string KES_ALGO_B   = CFG_KES_B,
-    parameter bit    ENABLE_COMPARE = 1'b0
+    parameter bit    ENABLE_COMPARE = 1'b0,
+    // TASK-002: build the decoders' erasure path. The injector's mark CSR bit
+    // keeps every non-erasure run errors-only (in_erasure = 0), so existing
+    // programs see no change.
+    parameter bit    ERASURE_SUPPORT = 1'b1
 ) (
     input  logic                        aclk,
     input  logic                        aresetn,
@@ -143,7 +147,11 @@ module rs_loop_harness
     localparam int N    = CFG_N_SYMBOLS;
     localparam int S    = CFG_SPB;
     localparam int DW   = CFG_DATA_WIDTH;
-    localparam int SC_W = $clog2(T + 1);
+    // SC_W must match the decoders' STATUS_CNT_WIDTH: with erasure support
+    // the per-block corrected count reaches 2t, one bit wider than the
+    // errors-only t. A 4-bit dec_corr truncated f=16 to 0 (every block
+    // "corrected with 0 symbols", data perfect) until 2026-10-02.
+    localparam int SC_W = ERASURE_SUPPORT ? $clog2(2 * T + 1) : $clog2(T + 1);
 
     // Control signals decoded from the CSRs further down. Declared here
     // because the fabric's unmapped-access clear is one of them, and a
@@ -396,6 +404,7 @@ module rs_loop_harness
     logic          inj_out_valid, inj_out_ready, inj_out_last;
     logic [DW-1:0] inj_out_data;
     logic [S-1:0]  inj_out_keep;
+    logic [S-1:0]  inj_out_erasure;
     logic [31:0]   inj_symbols, inj_blocks, inj_over_t;
     logic [7:0]    inj_last;
 
@@ -450,9 +459,11 @@ module rs_loop_harness
         .in_keep(enc_out_keep), .in_last(enc_out_last),
         .out_valid(inj_out_valid), .out_ready(inj_out_ready), .out_data(inj_out_data),
         .out_keep(inj_out_keep), .out_last(inj_out_last),
+        .out_erasure(inj_out_erasure),
         .cfg_mode(hwif_out.INJ_CFG.mode.value), .cfg_count(hwif_out.INJ_CFG.errors.value),
         .cfg_rate(hwif_out.INJ_CFG.rate.value), .cfg_seed(hwif_out.INJ_SEED.value.value),
         .cfg_seed_load(w_start && hwif_out.CTRL.inj_seed_on_start.value), .cfg_clear(w_clear),
+        .cfg_mark_erasure(hwif_out.INJ_CFG.mark.value),
         .o_inj_symbols(inj_symbols), .o_inj_blocks(inj_blocks), .o_inj_over_t(inj_over_t),
         .o_last_block_errors(inj_last));
 
@@ -497,6 +508,7 @@ module rs_loop_harness
             .SYMBOL_WIDTH(M), .PRIM_POLY(CFG_PRIM_POLY), .T_SYMBOLS(T), .N_SYMBOLS(N),
             .FIRST_ROOT(CFG_FIRST_ROOT), .DATA_WIDTH(DW),
             .KES_ALGO((d == 0) ? KES_ALGO_A : KES_ALGO_B),
+            .ERASURE_SUPPORT(ERASURE_SUPPORT),
             .AXIS_ID_WIDTH(0), .AXIS_DEST_WIDTH(0), .AXIS_USER_WIDTH(0)
         ) u_dec (
             .aclk(aclk), .aresetn(dp_rstn),
@@ -504,8 +516,8 @@ module rs_loop_harness
             .s_axis_tlast(inj_out_last),
             .s_axis_tid('0), .s_axis_tdest('0), .s_axis_tuser('0),
             .s_axis_tvalid(dec_in_valid[d]), .s_axis_tready(dec_in_ready[d]),
-            // TASK-002: tied off until the injector's erasure mode drives it
-            .in_erasure('0),
+            // the injector's hit mask; all zero unless INJ_CFG.mark is set
+            .in_erasure(inj_out_erasure),
             .m_axis_tdata(dec_out_data[d]), .m_axis_tstrb(dec_out_keep[d]),
             .m_axis_tlast(dec_out_last[d]),
             .m_axis_tid(), .m_axis_tdest(), .m_axis_tuser(),
@@ -1105,6 +1117,7 @@ module rs_loop_harness
         hwif_in.TOPOLOGY.kes_b.next      = (ND == 2) && (KES_ALGO_B == "EUCLID");
         hwif_in.TOPOLOGY.compare.next    = ENABLE_COMPARE;
         hwif_in.TOPOLOGY.iface.next      = (IFACE != "AXIS");
+        hwif_in.TOPOLOGY.erasure.next    = ERASURE_SUPPORT;
         hwif_in.CRC_EXPECTED.value.next  = gen_crc[0];
         hwif_in.CRC_A.value.next         = chk_crc[0][0];
         hwif_in.CRC_B.value.next         = chk_crc[1][0];

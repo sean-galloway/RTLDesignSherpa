@@ -301,6 +301,33 @@ async def cocotb_test_uart_sequences(dut):
     assert report.ok, f"the RS loop sequences failed in sim:\n{report.summary()}"
 
 
+@cocotb.test(timeout_time=600, timeout_unit="ms")
+async def cocotb_test_uart_erasure(dut):
+    """The erasure SEQUENCE, unmodified, against the sim (TASK-002).
+
+    INJ_CFG.mark turns the injector's hit mask into the decoders' in_erasure
+    sideband: f = t and f = 2t must correct every block with exactly f
+    symbols, and f = 2t+1 must be refused by inspection on EVERY block --
+    the one place the deterministic refusal can be asserted, because an
+    erasure run has no miscorrection case. Same SequenceRunner, same
+    programs, same verdict the board uses; `bin/run_smoke.py --sequences
+    init erasure` runs exactly this on the hardware.
+    """
+    drv, _ = await _bringup(dut)
+
+    def prog():
+        from sequence import SequenceContext, SequenceRunner
+
+        ctx = SequenceContext(bus=drv, board=None, params={}, log=dut._log.info)
+        runner = SequenceRunner(ctx=ctx).discover(_SEQ)
+        return runner.run(["init", "erasure"])
+
+    report = await cocotb.external(prog)()
+    dut._log.info("erasure run:\n%s", report.summary())
+    _check_sim_budget(dut, "erasure (init -> erasure, board defaults)")
+    assert report.ok, f"the erasure sequence failed in sim:\n{report.summary()}"
+
+
 @cocotb.test(timeout_time=900, timeout_unit="ms")
 async def cocotb_test_uart_random(dut):
     """The random campaign, unmodified, on its own defaults.
@@ -717,6 +744,11 @@ def test_rs_loop_uart_skew(request):
 
 def test_rs_loop_uart_random(request):
     _run("cocotb_test_uart_random")
+
+
+def test_rs_loop_uart_erasure(request):
+    """Marked runs through the erasure sequence: f = t, 2t correct; 2t+1 refused."""
+    _run("cocotb_test_uart_erasure")
 
 
 def test_rs_loop_uart_single(request):

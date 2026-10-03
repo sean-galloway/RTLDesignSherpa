@@ -44,7 +44,7 @@ def bypass(drv: RsLoopDriver, blocks: int = 8, gen_seed: int = 0) -> RunResult:
 
 
 def run(drv: RsLoopDriver, mode: int, count: int = 0, rate: int = 0, blocks: int = 8,
-        gen_seed: int = 0, inj_seed=None, throttle: bool = False,
+        gen_seed: int = 0, inj_seed=None, throttle: bool = False, mark: bool = False,
         throttle_a=None, throttle_b=None, timeout_s: float = 10.0,
         iface_obs: bool = False) -> RunResult:
     """One run. `throttle` throttles BOTH checkers; throttle_a/throttle_b override
@@ -55,12 +55,17 @@ def run(drv: RsLoopDriver, mode: int, count: int = 0, rate: int = 0, blocks: int
     lockstep, which masked a missing backpressure term for the whole bring-up:
     every test here passed while a skewed drain dropped beats on the board.
 
+    mark=True turns the run into an ERASURE run: the injector's hit mask rides
+    the decoders' in_erasure sideband, so the decoder is told exactly which
+    symbols were corrupted and the correction bound doubles to 2t. Meaningless
+    on a bitstream whose TOPOLOGY.erasure reads 0 -- verdict() reports that.
+
     iface_obs=True also reads the interface observer's stats into
     RunResult.iface_obs (the axis4 or axi4 observer, per the bitstream's
     datapath) -- a characterization knob, ~56 extra UART round-trips.
     """
     return drv.run(mode=mode, count=count, rate=rate, blocks=blocks, gen_seed=gen_seed,
-                   inj_seed=inj_seed, timeout_s=timeout_s, iface_obs=iface_obs,
+                   inj_seed=inj_seed, timeout_s=timeout_s, iface_obs=iface_obs, mark=mark,
                    throttle_a=throttle if throttle_a is None else throttle_a,
                    throttle_b=throttle if throttle_b is None else throttle_b)
 
@@ -74,7 +79,15 @@ def verdict(r: RunResult, t: int) -> List[str]:
                                      beat, CRCs match
       COUNT mode with e > t          almost every block uncorrectable, and the checker
                                      DID see mismatches. NOT every block: see below.
-      any regime                     an accepted block beyond the threshold is REPORTED,
+      a MARKED run (erasures)        the decoder is told the hit positions, so the
+                                     bound doubles: f <= 2t corrects, EVERY block,
+                                     and f > 2t is refused by inspection -- every
+                                     block uncorrectable, deterministically. The
+                                     miscorrection caveat below does not apply:
+                                     the accepted-beyond-threshold case needs the
+                                     decoder to FIND the errors, and erasures are
+                                     given, not found.
+      any unmarked regime            an accepted block beyond the threshold is REPORTED,
                                      never itself a failure; bounding its rate needs far
                                      more blocks than one run has, so the soak does it
       any mode                       decoders A and B agree (comparator clean), both
@@ -153,11 +166,31 @@ def verdict(r: RunResult, t: int) -> List[str]:
         return bad
     exact = r.mode == RsLoopDriver.INJ_COUNT
     e = r.count if exact else None
+    if r.mark and not r.erasure:
+        bad.append("INJ_CFG.mark was set but TOPOLOGY.erasure reads 0 -- this "
+                   "bitstream has no erasure path and the flags went nowhere")
     for d in r.present:
         if e == 0 or r.mode == RsLoopDriver.INJ_NONE:
             if d.blk_ok != r.blocks or d.data_err or not d.crc_ok:
                 bad.append(f"{d.name}: clean run gave ok={d.blk_ok}/{r.blocks} "
                            f"data_err={d.data_err} crc_ok={d.crc_ok}")
+        elif exact and r.mark and e <= 2 * t:
+            # a pure-erasure block corrects whenever f <= 2t; the hits are the
+            # flags, so sym_corr counts exactly the injected symbols
+            if d.blk_corr != r.blocks or d.sym_corr != e * r.blocks or d.data_err or not d.crc_ok:
+                bad.append(f"{d.name}: f={e} erasures gave corrected={d.blk_corr}/{r.blocks} "
+                           f"symbols={d.sym_corr} (want {e * r.blocks}) data_err={d.data_err} "
+                           f"crc_ok={d.crc_ok}")
+        elif exact and r.mark:
+            # f > 2t is refused by inspection: EVERY block uncorrectable, none
+            # corrected, none clean -- there is no miscorrection case, because
+            # the decoder never has to find the errors
+            if d.blk_unc != r.blocks or d.blk_corr or d.blk_ok:
+                bad.append(f"{d.name}: f={e} > 2t erasures gave unc={d.blk_unc}/{r.blocks} "
+                           f"corr={d.blk_corr} ok={d.blk_ok} (want unc={r.blocks}, rest 0)")
+            if not d.data_err:
+                bad.append(f"{d.name}: f={e} > 2t erasures yet the checker saw no "
+                           f"mismatching beat -- the corrupted symbols did not reach it")
         elif exact and e <= t:
             if d.blk_corr != r.blocks or d.sym_corr != e * r.blocks or d.data_err or not d.crc_ok:
                 bad.append(f"{d.name}: e={e} gave corrected={d.blk_corr}/{r.blocks} "

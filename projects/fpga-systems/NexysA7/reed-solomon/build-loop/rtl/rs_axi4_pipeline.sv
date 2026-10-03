@@ -476,6 +476,10 @@ module rs_axi4_pipeline #(
         .out_last(w_inj_out_last),
         .cfg_mode(inj_mode), .cfg_count(inj_count), .cfg_rate(inj_rate),
         .cfg_seed(inj_seed), .cfg_seed_load(inj_seed_load), .cfg_clear(inj_clear),
+        // TASK-002: erasure marking stays OFF in this flavour -- the AXI4
+        // decoder's cfg_erasure is a job-level bitmap, identical for every
+        // block of a job, and the injector's placement varies per block.
+        .cfg_mark_erasure(1'b0), .out_erasure(),
         .o_inj_symbols(inj_symbols), .o_inj_blocks(inj_blocks),
         .o_inj_over_t(inj_over_t), .o_last_block_errors(inj_last));
 

@@ -34,7 +34,7 @@ mapped onto the AXI-Stream signals as follows.
 | `TDATA[DATA_WIDTH-1:0]` | `data` | S symbols per beat |
 | `TKEEP[S*m/8-1:0]` | `keep` | byte keep; symbols are whole bytes when m = 8, else `TKEEP` is per symbol byte-group and `TSTRB` is not used |
 | `TLAST` | `last` | the block boundary |
-| `TUSER` (intake, decoder) | `in_erase[S-1:0]` | erasure flags, only with `ENABLE_ERASURES`; otherwise unused |
+| `TUSER` (intake, decoder) | `in_erasure[S-1:0]` | erasure flags, one per symbol lane, only when `ERASURE_SUPPORT = 1`; otherwise the consumer's `TUSER` passes through the intake unused |
 | `TUSER` (outlet, decoder) | status | `{frame_err, uncorrectable, corrected[..], ok}`, valid with `TLAST` |
 | `TID`, `TDEST` | -- | passed through unchanged from intake to outlet when both ends are AXIS; tied off otherwise |
 
@@ -57,3 +57,22 @@ requires, and the rate change is visible as more beats out than in on the
 encoder (or fewer on the decoder). A stream that arrives without TLAST at
 block boundaries cannot be decoded and is reported as a framing error on
 every block.
+
+## Erasure sideband (decoder intake, `ERASURE_SUPPORT = 1`)
+
+The decoder wrapper takes a per-beat `in_erasure[S-1:0]` port, one flag per
+symbol lane, valid with the beat. The flags are spliced ABOVE the consumer's
+`TUSER` through the intake skid -- the skid is built with
+`AXIS_USER_WIDTH = AXIS_USER_WIDTH + S` (a zero consumer width still costs
+one guard bit) and the core-facing side slices the top S bits back off -- so
+the flags stay beat-aligned with their data under any backpressure, which a
+sideband registered outside the skid cannot guarantee. With
+`ERASURE_SUPPORT = 0` the port does not exist and the intake is the
+pre-erasure wrapper, bit for bit.
+
+One integration rule this forces: the flags ride `TUSER` through the skid,
+so any configuration that zeroes `AXIS_ID_WIDTH` or `AXIS_DEST_WIDTH` must
+run the fixed `axis4_slave` (per-field tuser unpack; amba BUG-038, the
+8-branch concatenation shifted tuser right whenever a zero-width guard bit
+preceded it). The DV grid sweeps `(ID, DEST) in {(4, 2), (0, 0)}` for both
+wrappers.

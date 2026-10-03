@@ -63,8 +63,26 @@ def cmd_bypass(args, drv):
 
 def cmd_run(args, drv):
     r = progs.run(drv, MODES[args.mode], count=args.count, rate=args.rate, blocks=args.blocks,
-                  throttle=args.throttle, gen_seed=args.gen_seed, inj_seed=args.inj_seed)
+                  throttle=args.throttle, gen_seed=args.gen_seed, inj_seed=args.inj_seed,
+                  mark=args.mark)
     return _print_run(r, drv.profile()["t"])
+
+
+def cmd_erasure(args, drv):
+    """The erasure sequence on the board: f = t, 2t correct; f = 2t+1 refused."""
+    from pathlib import Path as _P
+    _bin = str(_P(__file__).resolve().parents[2] / "bin")
+    if _bin not in sys.path:
+        sys.path.insert(0, _bin)      # rs_env lives in the area's bin/, alongside the sequences
+    import rs_env  # noqa: F401  (path setup for `sequence`)
+    from sequence import SequenceContext, SequenceRunner
+    ctx = SequenceContext(bus=drv, board=None,
+                          params={"blocks": args.blocks},
+                          log=print)
+    runner = SequenceRunner(ctx=ctx).discover(_bin)
+    report = runner.run(["init", "erasure"])
+    print(report.summary())
+    return 0 if report.ok else 1
 
 
 def cmd_sweep(args, drv):
@@ -200,6 +218,11 @@ def main(argv=None):
     # a failing random-campaign run is replayed by passing its two seeds back
     p.add_argument("--gen-seed", type=lambda s: int(s, 0), default=0)
     p.add_argument("--inj-seed", type=lambda s: int(s, 0), default=None)
+    p.add_argument("--mark", action="store_true",
+                   help="erasure run: the injector's hit mask rides in_erasure, "
+                        "so the bound doubles to 2t (needs TOPOLOGY.erasure = 1)")
+    p = sub.add_parser("erasure", help="marked runs at f = t, 2t, 2t+1, through the sequence")
+    p.add_argument("--blocks", type=int, default=8)
     p = sub.add_parser("sweep")
     p.add_argument("--counts", default=None, help="comma list; default 0..2t+2")
     p.add_argument("--blocks", type=int, default=16)
@@ -240,7 +263,7 @@ def main(argv=None):
     drv = rl.RsLoopDriver(port=port, baudrate=args.baud)
     print(f"== {args.cmd} on {board.SPEC.display_name} @ {port} ==")
     return {"smoke": cmd_smoke, "bypass": cmd_bypass, "run": cmd_run, "sweep": cmd_sweep,
-            "random": cmd_random, "soak": cmd_soak,
+            "random": cmd_random, "soak": cmd_soak, "erasure": cmd_erasure,
             "bw": cmd_bw, "obs": cmd_obs}[args.cmd](args, drv)
 
 

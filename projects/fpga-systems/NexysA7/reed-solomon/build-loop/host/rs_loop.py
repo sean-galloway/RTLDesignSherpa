@@ -97,6 +97,8 @@ class RunResult:
     axi4_overflow: bool = False
     decoders: int = 2
     compare: bool = True
+    erasure: bool = False
+    mark: bool = False
     timed_out: bool = False
     notes: list = field(default_factory=list)
 
@@ -155,10 +157,15 @@ class RsLoopDriver:
 
     def configure(self, mode: int, count: int = 0, rate: int = 0, blocks: int = 8,
                   gen_seed: int = 0, inj_seed: Optional[int] = None,
-                  bypass: bool = False, throttle_a: bool = False, throttle_b: bool = False) -> None:
+                  bypass: bool = False, throttle_a: bool = False, throttle_b: bool = False,
+                  mark: bool = False) -> None:
         self.regs.write("GEN_BLOCKS", blocks=blocks & 0xFFFF)
         self.regs.write_word("GEN_SEED", gen_seed & 0xFFFFFFFF)
-        self.regs.write("INJ_CFG", mode=mode & 3, errors=count & 0xFF, rate=rate & 0xFFFF)
+        # mark: the injector's out_erasure carries the hit mask, so the
+        # decoders are TOLD which symbols were hit -- an erasure run. Meaningless
+        # on a bitstream whose TOPOLOGY.erasure reads 0.
+        self.regs.write("INJ_CFG", mode=mode & 3, mark=int(mark),
+                        errors=count & 0xFF, rate=rate & 0xFFFF)
         if inj_seed is not None:
             self.regs.write_word("INJ_SEED", inj_seed & 0xFFFFFFFF)
         self.regs.write("CTRL", rmw=True, bypass=int(bypass), throttle_a=int(throttle_a),
@@ -222,6 +229,7 @@ class RsLoopDriver:
                 "kes_b":    bool(w >> 5 & 1),
                 "compare":  bool(w >> 8 & 1),
                 "iface":    "AXI4" if (w >> 12 & 1) else "AXIS",
+                "erasure":  bool(w >> 13 & 1),
                 "name_a":   "Euclid" if (w >> 4 & 1) else "riBM",
                 "name_b":   "Euclid" if (w >> 5 & 1) else "riBM",
             }
@@ -345,7 +353,7 @@ class RsLoopDriver:
 
     def collect(self, blocks: int, mode: int, count: int, rate: int, bypass: bool,
                 timed_out: bool = False, meters: bool = True,
-                iface_obs: bool = False) -> RunResult:
+                iface_obs: bool = False, mark: bool = False) -> RunResult:
         """Read one run's result back.
 
         meters=False skips the four bandwidth windows, which is SIXTEEN
@@ -367,26 +375,28 @@ class RsLoopDriver:
             blocks=blocks, mode=mode, count=count, rate=rate, bypass=bypass,
             cycles=r("CYCLES"), crc_expected=r("CRC_EXPECTED"),
             decoders=topo["decoders"], compare=topo["compare"], iface=topo["iface"],
+            erasure=topo["erasure"],
             axi4_stage=st["axi4_stage"], axi4_resp_err=st["axi4_resp_err"],
             axi4_overflow=st["axi4_overflow"],
             a=self._decoder(topo["name_a"], "A", st),
             b=self._decoder(topo["name_b"], "B", st),
             inj_symbols=r("INJ_SYMBOLS"), inj_blocks=r("INJ_BLOCKS"), inj_over_t=r("INJ_OVER_T"),
             cmp_data_mismatch=r("CMP_DATA_MISMATCH"), cmp_status_mismatch=r("CMP_STATUS_MISMATCH"),
-            cmp_beats=r("CMP_BEATS"), cmp_err=st["cmp_err"],
+            cmp_beats=r("CMP_BEATS"), cmp_err=st["cmp_err"], mark=mark,
             obs=self._meters() if meters else {},
             iface_obs=self.iface_observer() if iface_obs else {},
             cmp_misaligned=st["cmp_misaligned"], timed_out=timed_out)
 
     def run(self, mode: int = 0, count: int = 0, rate: int = 0, blocks: int = 8,
             gen_seed: int = 0, inj_seed: Optional[int] = None, bypass: bool = False, meters: bool = True,
-            iface_obs: bool = False,
+            iface_obs: bool = False, mark: bool = False,
             throttle_a: bool = False, throttle_b: bool = False, timeout_s: float = 10.0) -> RunResult:
         """One run: reset the datapath, clear the stats, configure, start, wait, collect."""
         self.soft_reset()
         self.clear()
-        self.configure(mode, count, rate, blocks, gen_seed, inj_seed, bypass, throttle_a, throttle_b)
+        self.configure(mode, count, rate, blocks, gen_seed, inj_seed, bypass, throttle_a,
+                       throttle_b, mark=mark)
         self.start()
         done = self.wait_done(timeout_s)
         return self.collect(blocks, mode, count, rate, bypass, timed_out=not done,
-                            meters=meters, iface_obs=iface_obs)
+                            meters=meters, iface_obs=iface_obs, mark=mark)

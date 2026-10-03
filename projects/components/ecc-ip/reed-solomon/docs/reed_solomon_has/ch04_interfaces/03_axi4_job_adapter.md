@@ -43,8 +43,14 @@ port carrying the same fields for chained jobs.
 | `dst_addr` | `AXI_ADDR_WIDTH` | write engine start address (outlet = AXI4) |
 | `byte_count` | 32 | bytes to read; must be a whole number of blocks |
 | `kick` / `done` | 1 / 1 | start; completion pulse with the job's status summary |
+| `cfg_erasure` | `N_SYMBOLS` | decoder only, `ERASURE_SUPPORT = 1`: job-level erasure bitmap, sampled at `cfg_start` and sliced per beat by the same beat index that builds `keep` -- the shape an MC known-bad column has (a fixed position set, identical in every block of the job) |
 
 : Table 4.6: Job fields
+
+The AXI-Stream adapter's erasure sideband is per-beat because a mid-stream
+producer knows symbol positions only as the beat passes; the job adapter's is
+per-job because a memory controller learns a bad column once and applies it
+to everything it fetches. Both land on the core's same `in_erasure` port.
 
 ## AXI4 master ports
 

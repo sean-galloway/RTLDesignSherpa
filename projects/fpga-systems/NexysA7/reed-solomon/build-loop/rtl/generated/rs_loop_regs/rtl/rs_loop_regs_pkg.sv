@@ -311,11 +311,16 @@ package rs_loop_regs_pkg;
     } rs_loop_regs__TOPOLOGY__iface__in_t;
 
     typedef struct {
+        logic next;
+    } rs_loop_regs__TOPOLOGY__erasure__in_t;
+
+    typedef struct {
         rs_loop_regs__TOPOLOGY__decoders__in_t decoders;
         rs_loop_regs__TOPOLOGY__kes_a__in_t kes_a;
         rs_loop_regs__TOPOLOGY__kes_b__in_t kes_b;
         rs_loop_regs__TOPOLOGY__compare__in_t compare;
         rs_loop_regs__TOPOLOGY__iface__in_t iface;
+        rs_loop_regs__TOPOLOGY__erasure__in_t erasure;
     } rs_loop_regs__TOPOLOGY__in_t;
 
     typedef struct {
@@ -554,6 +559,10 @@ package rs_loop_regs_pkg;
     } rs_loop_regs__INJ_CFG__mode__out_t;
 
     typedef struct {
+        logic value;
+    } rs_loop_regs__INJ_CFG__mark__out_t;
+
+    typedef struct {
         logic [7:0] value;
     } rs_loop_regs__INJ_CFG__errors__out_t;
 
@@ -563,6 +572,7 @@ package rs_loop_regs_pkg;
 
     typedef struct {
         rs_loop_regs__INJ_CFG__mode__out_t mode;
+        rs_loop_regs__INJ_CFG__mark__out_t mark;
         rs_loop_regs__INJ_CFG__errors__out_t errors;
         rs_loop_regs__INJ_CFG__rate__out_t rate;
     } rs_loop_regs__INJ_CFG__out_t;

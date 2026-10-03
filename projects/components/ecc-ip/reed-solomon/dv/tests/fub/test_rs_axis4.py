@@ -39,6 +39,12 @@ PROFILES = [
     (8, 0x11D, 2, 32, 4),    # short codeword, k = 28 = 7 beats
 ]
 
+# (idw, destw) sideband configs. (0, 0) is the build-loop harness's config and
+# the first-ever zero-ID/DEST instance of the axis4 endpoints: the intake
+# skid's unpack ate tuser bits there (era flags arrived >>2, 2026-10-02), a
+# bug the (4, 2)-only grid could never see.
+ID_DESTS = [(4, 2), (0, 0)]
+
 
 @cocotb.test(timeout_time=2000, timeout_unit="ms")
 async def cocotb_test_rs_encoder_axis(dut):
@@ -66,7 +72,7 @@ async def cocotb_test_rs_decoder_axis(dut):
 
 
 def _run(dut_name, role, testcase, symbol_width, prim_poly, t, n, spb, test_level,
-         erasure=None):
+         erasure=None, id_dest=(4, 2)):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root, tests_dir, log_dir, _ = get_paths({
         'rtl_rs': 'projects/components/ecc-ip/reed-solomon/rtl',
@@ -74,9 +80,10 @@ def _run(dut_name, role, testcase, symbol_width, prim_poly, t, n, spb, test_leve
     filelist = f'projects/components/ecc-ip/reed-solomon/rtl/filelists/{dut_name}.f'
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root,
                                                           filelist_path=filelist)
-    idw, destw = 4, 2
+    idw, destw = id_dest
     name = (f"test_{dut_name}_m{TBBase.format_dec(symbol_width, 2)}"
             f"_n{TBBase.format_dec(n, 3)}_t{TBBase.format_dec(t, 2)}_s{spb}"
+            f"_id{idw}d{destw}"
             f"{'_e' + str(erasure) if erasure is not None else ''}_{test_level}")
     os.makedirs(log_dir, exist_ok=True)   # clean-all removes logs/
     log_path = os.path.join(log_dir, f'{name}.log')
@@ -115,15 +122,17 @@ def _run(dut_name, role, testcase, symbol_width, prim_poly, t, n, spb, test_leve
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
+@pytest.mark.parametrize("id_dest", ID_DESTS)
 @pytest.mark.parametrize("symbol_width, prim_poly, t, n, spb", PROFILES)
-def test_rs_encoder_axis4(request, symbol_width, prim_poly, t, n, spb, test_level):
+def test_rs_encoder_axis4(request, symbol_width, prim_poly, t, n, spb, id_dest, test_level):
     _run("rs_encoder_axis4", "encoder", "cocotb_test_rs_encoder_axis",
-         symbol_width, prim_poly, t, n, spb, test_level)
+         symbol_width, prim_poly, t, n, spb, test_level, id_dest=id_dest)
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
 @pytest.mark.parametrize("erasure", [0, 1])   # TASK-002: an axis, not flipped cells
+@pytest.mark.parametrize("id_dest", ID_DESTS)
 @pytest.mark.parametrize("symbol_width, prim_poly, t, n, spb", PROFILES)
-def test_rs_decoder_axis4(request, symbol_width, prim_poly, t, n, spb, erasure, test_level):
+def test_rs_decoder_axis4(request, symbol_width, prim_poly, t, n, spb, erasure, id_dest, test_level):
     _run("rs_decoder_axis4", "decoder", "cocotb_test_rs_decoder_axis",
-         symbol_width, prim_poly, t, n, spb, test_level, erasure=erasure)
+         symbol_width, prim_poly, t, n, spb, test_level, erasure=erasure, id_dest=id_dest)
