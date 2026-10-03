@@ -23,9 +23,9 @@
 
 # scoria DDR3/LPDDR3 Family Controller — Hardware Architecture Specification
 
-**Version:** 0.8
+**Version:** 0.9
 **Date:** 2026-10-03
-**Status:** v0.8, reconciliation edition. **No open questions remain** -- Q1-Q5 are answered or struck (Ch 6). The RTL now exists and is verified (221 tests, 9 formal blocks, measured 2026-10-01), and this edition reconciles the specification with what implementation and the first board work have settled. Every block is
+**Status:** v0.9, advanced-modes edition. **No open questions remain** -- Q1-Q5 are answered or struck (Ch 6). The RTL exists and is verified (221 tests, 9 formal blocks, measured 2026-10-01; TASK-001's modes then added 211 FUB + 21 macro + 4 top tests with the refresh proofs re-run, per its close), and v0.8 reconciled the specification with what implementation and the first board work had settled. v0.9 specifies TASK-001's bounded advanced modes — elastic refresh and TCR (Ch 3.4), ZQCS placement (Ch 3.2) — from the landed RTL. Every block is
 marked **INHERITED**, **MODIFIED** or **NEW** against the pumice DDR2/LPDDR2
 controller, which is the architecture scoria is derived from.
 
@@ -40,7 +40,8 @@ this one.
 > built and measured, (b) cited to a JEDEC or DFI clause, or (c) explicitly
 > marked as an open question in Chapter 6 — and none remain as of this
 > edition. Where the implementation subsequently corrected the specification
-> (v0.6, v0.7, and this v0.8 reconciliation), the correction is recorded in
+> (v0.6, v0.7, the v0.8 reconciliation, and v0.9's advanced-modes sync), the
+> correction is recorded in
 > the revision history rather than dropped silently. Nothing else is asserted.
 
 ---

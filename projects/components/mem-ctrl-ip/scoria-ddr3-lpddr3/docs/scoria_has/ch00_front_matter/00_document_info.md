@@ -26,9 +26,9 @@
 | Field | Value |
 |-------|-------|
 | Title | scoria DDR3/LPDDR3 Family Controller — Hardware Architecture Specification |
-| Version | 0.8 |
+| Version | 0.9 |
 | Date | 2026-10-03 |
-| Status | Reconciliation edition. Specifies the controller; the RTL exists, and v0.8 reconciles the two — revision history below |
+| Status | Advanced-modes edition. v0.8 reconciled this book with the landed RTL; v0.9 specifies TASK-001's bounded advanced modes (elastic refresh, TCR, ZQCS placement) in Ch 3.2/3.4 per that RTL — revision history below |
 | Scope | Controller architecture to the DFI v3.1 boundary, for DDR3 and LPDDR3 |
 | Not in scope | The PHY; board bring-up; the DDR4/LPDDR4 features DFI v3.1 also carries |
 
@@ -71,6 +71,7 @@ it a scheduling problem and not only a sequencing one.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.9 | 2026-10-03 | TASK-001's bounded advanced-modes tranche specified from the landed RTL: Mode A (demand-aware elastic refresh) and Mode B (TCR) in Ch 3.4, Mode C (ZQCS placement policy) in Ch 3.2, with the mode-select CSRs and `REF_STATS` telemetry in Ch 5. `refresh_ctrl` marking INHERITED → MODIFIED; the Ch 2 block diagram (figure re-rendered), module hierarchy, and Ch 3.1 deltas table updated to match (inherited FUB count 21 → 20). The refresh/ZQ portion of the TASK-008 reconciliation is thereby done; the remainder — the other inherited blocks, `tWLMRD`'s policy value, and whole-map CSR finalization — stays open in Ch 6. |
 | 0.8 | 2026-10-03 | Reconciled with the landed RTL and the first board work: verification status brought current (221 tests, 9 formal blocks, top tier AXI-in/DFI-out); `dfi_reset_n` recorded as presented under its DFI name and the two v3.1-only data-phase chip selects recorded as driven, constant `'0` at `NUM_RANKS=1` (scoria TASK-005); the board build flow and the BUG-003 100 MHz out-of-context timing result recorded. What remains for a 1.0 is restated in Chapter 6 and filed as a task. |
 | 0.7 | 2026-09-30 | Ch 3.2: DDR3's init sequence needs no precharge-all, no double refresh, no OCD pair and no second MR0 load (the DLL-reset bit is self-clearing) -- the FSM drops seven of pumice's states and adds three. Found while implementing. |
 | 0.6 | 2026-09-30 | Corrected during implementation: `dfi_signal_pack` is INHERITED, not MODIFIED -- it packs only signals DFI v3.1 leaves unchanged, and v3.1's new channels are driven at the layer above. Inherited FUBs 20 -> 21, modified 4 -> 3. |

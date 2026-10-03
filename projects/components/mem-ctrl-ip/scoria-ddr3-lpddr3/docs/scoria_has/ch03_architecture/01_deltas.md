@@ -25,9 +25,12 @@
 
 ## The inheritance, stated once
 
-Twenty-one of pumice's twenty-four FUBs carry over with no functional change, as
-do the top, core, AXI4 macro and the DFI datapath. Chapter 2.3 lists them. This
-chapter covers only what changes, and the list is short by design.
+Twenty of pumice's twenty-four FUBs carry over with no functional change, as
+do the top, core, AXI4 macro and the DFI datapath. Chapter 2.3 lists them; the
+count was twenty-one through v0.8, and v0.9 moves `refresh_ctrl` to MODIFIED —
+the `REFpb` inheritance stands, but TASK-001's Modes A/B are a real change to
+the block, specified in Ch 3.4. This chapter covers only what changes, and the
+list is short by design.
 
 **The inheritance is an argument, not a convenience.** Those blocks have been
 through board bring-up, a read-path rebuild that took reads from 291.7 to
@@ -49,13 +52,13 @@ the description does not mention the flop. Copy the module.
 | `init_sequencer` | MODIFIED | `RESET#` is a pin; MR order is MR2-MR3-MR1-MR0; ZQCL closes init | 3.2 |
 | `mode_register` | MODIFIED | MR0-MR3 replaces MR0-MR2 plus EMRS3 | 3.2 |
 | `dfi_cmd_formatter` | MODIFIED | new encodings: `ZQCL`, `ZQCS`, `PREA` | 3.2 |
-| `scoria_zq_ctrl` | **NEW** | periodic `ZQCS` is maintenance traffic | 3.2 |
+| `scoria_zq_ctrl` | **NEW** | periodic `ZQCS` is maintenance traffic; carries the CSR-selectable placement policy (TASK-001 Mode C) | 3.2 |
 | `scoria_wrlvl_ifc` | **NEW** | DDR3 adds write leveling | 3.3 |
-| `refresh_ctrl` | INHERITED | pumice already implements `REFpb`; LPDDR3 uses the same device-fixed mechanism. Only a mode-select CSR is added | 3.4 |
+| `refresh_ctrl` | MODIFIED (v0.9) | the `REFpb` mechanism is inherited unchanged, but TASK-001 Modes A/B add elastic pull-in/postpone streaks and the TCR tREFI derate behind CSRs; JEDEC ±8 ceiling untouched | 3.4 |
 | `powerdown_ctrl` | INHERITED | mechanism unchanged: CKE + `SRE`/`SRX`. The DFI low-power channel is unused on this PHY family | below |
 | `dfi_signal_pack` | INHERITED | every signal it packs is identical in v2.1.1 and v3.1 for DDR3; v3.1's new channels are driven at the layer above | Ch 4.1 |
 | `scoria_mem_cmd_scheduler` | MODIFIED | must admit ZQ demand alongside refresh | 3.2 |
-| `scoria_csr` | MODIFIED | new timing registers and leveling telemetry | Ch 5 |
+| `scoria_csr` | MODIFIED | new timing registers and leveling telemetry; TASK-001 mode-select fields and `REF_STATS` telemetry | Ch 5 |
 
 : Table 3.1: Every change, with its cause
 

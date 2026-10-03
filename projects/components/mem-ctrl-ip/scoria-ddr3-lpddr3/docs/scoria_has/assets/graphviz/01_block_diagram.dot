@@ -27,18 +27,18 @@ digraph scoria_blocks {
         mr   [label="mode_register   MODIFIED\nMR0..MR3. DDR2 had MR0..MR2 + EMRS3,\nso this is a rewrite, not an edit", fillcolor="#fff4e0"];
     }
     subgraph cluster_ref {
-        label="Refresh -- INHERITED"; style="rounded"; color="#228B22";
-        ref  [label="refresh_ctrl   INHERITED\npumice ALREADY has the REFpb bank rotor.\nThe device owns the sequence (fixed sequential,\nno bank address in the command) -- the rotor only\nmirrors its counter. LPDDR3 adds a mode-select CSR", fillcolor="#d5ecd5"];
+        label="Refresh -- MODIFIED (v0.9)"; style="rounded"; color="#B8860B";
+        ref  [label="refresh_ctrl   MODIFIED (v0.9)\nthe REFpb rotor and JEDEC +-8 credits are\ninherited (pumice; the device owns the sequence).\nTASK-001 Modes A/B add elastic refresh and\nthe TCR tREFI derate behind CSRs", fillcolor="#fff4e0"];
     }
     subgraph cluster_mod2 {
         label="MODIFIED (continued)"; style="rounded"; color="#B8860B";
         pd   [label="powerdown_ctrl   INHERITED\nSRE / SRX self-refresh, precharge- and\nactive-power-down -- all via CKE and DRAM\ncommands. s7ddrphy implements NO DFI low-power\ninterface, so that channel is exposed but unused", fillcolor="#d5ecd5"];
-        csr  [label="scoria_csr (PeakRDL)   MODIFIED\nadds tZQinit / tZQoper / tZQCS,\ntWLMRD / tWLDQSEN / tWLO / tWLOE,\nand the leveling telemetry", fillcolor="#fff4e0"];
+        csr  [label="scoria_csr (PeakRDL)   MODIFIED\nadds tZQinit / tZQoper / tZQCS,\ntWLMRD / tWLDQSEN / tWLO / tWLOE,\nleveling telemetry, and the TASK-001\nmode-select fields + REF_STATS", fillcolor="#fff4e0"];
     }
 
     subgraph cluster_new {
         label="NEW in scoria"; style="rounded"; color="#B22222";
-        zq   [label="zq_ctrl   NEW\nperiodic ZQCS as MAINTENANCE traffic the\nscheduler must interleave, interval a runtime CSR.\nZQCL at init only", fillcolor="#ffe8e8"];
+        zq   [label="zq_ctrl   NEW\nperiodic ZQCS as MAINTENANCE traffic the\nscheduler must interleave, interval a runtime CSR,\nplacement policy (TASK-001 Mode C).\nZQCL at init only", fillcolor="#ffe8e8"];
         wl   [label="wrlvl_ifc   NEW -- INTERFACE ONLY\nDFI leveling request/ack + the MR1 write path\n+ tWL* windows + *_STATS telemetry.\nDeliberately contains NO tap-search loop:\nthe search runs in firmware (decision D2)", fillcolor="#ffe8e8"];
     }
 

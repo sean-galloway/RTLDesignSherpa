@@ -86,8 +86,14 @@ The four verification items named above remain the coverage plan for the
 DDR3-specific behaviour; this edition does not claim they are all complete.
 What separates this edition from a 1.0 is stated below and filed as a task.
 
-2026-10-03, TASK-001's bounded tranche exists behind CSRs; per-mode design in
-`design-requirements.md` §6; block-by-block confirmation is TASK-008's pass.
+2026-10-03 (v0.9): TASK-001's bounded tranche exists behind CSRs and is now
+specified in this book — Modes A/B (elastic refresh, TCR) in Chapter 3.4, Mode
+C (ZQCS placement) in Chapter 3.2 — per the landed RTL, with per-mode design
+detail in `design-requirements.md` §6. Evidence (scoria TASK-001 close): 211
+FUB + 21 macro + 4 top tests, Verilator and Verible lint green, and the
+refresh retention/accounting properties re-proved with the modes present in
+`formal/scoria/refresh_ctrl`. Block-by-block confirmation of the remaining
+INHERITED blocks is still TASK-008's pass.
 
 ## Question resolutions (v0.2)
 
@@ -224,13 +230,15 @@ Three things, in order:
 2. This document reconciled against the RTL block by block — every
    INHERITED marking either confirmed or corrected. v0.8 reconciled what
    implementation and the first board work had settled (revision history,
-   Ch 0); the block-by-block confirmation pass remains. A marking that turns
-   out to be wrong is a defect in this document, and the correction goes here
-   rather than being dropped silently.
+   Ch 0); v0.9 completed the pass for the two blocks TASK-001 had just
+   changed (refresh in Ch 3.4, ZQ in Ch 3.2); the block-by-block
+   confirmation of the remaining inherited blocks is still to do. A marking
+   that turns out to be wrong is a defect in this document, and the
+   correction goes here rather than being dropped silently.
 3. The exact CSR map, which comes from the RDL and cannot honestly precede it.
    The RDL now exists (`rtl/macro/scoria_csr.rdl`, with generated
    documentation and Python regmap); finalizing the map against it is part of
    the same pass.
 
-Until then this is a 0.8: a specification that matches what has been built and
+Until then this is a 0.9: a specification that matches what has been built and
 verified, and explicit about what remains unconfirmed.

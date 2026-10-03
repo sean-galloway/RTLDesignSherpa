@@ -82,7 +82,7 @@ those values.
 | Memtype | build | `MEMTYPE_DDR3` / `MEMTYPE_LPDDR3` |
 | JEDEC timings | **runtime** | every command-spacing and recovery parameter |
 | New DDR3 timings | **runtime** | `tZQinit`, `tZQoper`, `tZQCS`, `tWLMRD`, `tWLDQSEN`, `tWLO`, `tWLOE` |
-| Policy selects | **runtime** | page policy, refresh mode (all-bank vs `REFpb`), ZQCS interval |
+| Policy selects | **runtime** | page policy, refresh mode (all-bank vs `REFpb`), ZQCS interval, and the TASK-001 mode selects — elastic refresh, TCR derate, ZQCS placement — with their thresholds (idle/demand streaks, `overdue_max`) |
 
 : Table 5.1: Build-time versus runtime
 
@@ -102,6 +102,7 @@ content is specified:
 | ZQ | `tZQinit`, `tZQoper`, `tZQCS`, the ZQCS interval, and a count of calibrations issued |
 | Write leveling | `tWLMRD` (with its controller-defined maximum as a timeout), `tWLDQSEN`, `tWLO`, `tWLOE`, per-CS result, and the `*_STATS` telemetry of Chapter 3.3 |
 | Refresh mode | all-bank versus `REFpb` select, for LPDDR3 |
+| Advanced modes (TASK-001) | the elastic-refresh and TCR fields in `REF_CTRL`, placement/`overdue_max` in `ZQ_CFG`, and the `REF_STATS_POSTPONE` / `REF_STATS_PULLIN` telemetry — all specified in Chapters 3.2 and 3.4 |
 
 : Table 5.2: New CSR groups
 

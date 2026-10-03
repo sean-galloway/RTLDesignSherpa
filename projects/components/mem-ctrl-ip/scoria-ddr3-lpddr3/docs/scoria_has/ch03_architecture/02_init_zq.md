@@ -100,14 +100,27 @@ shape as refresh, and refresh has its own controller for the same reason.
 - raises a demand to the scheduler rather than seizing the bus;
 - enforces `tZQCS` before releasing the bus back;
 - reports a count of issued calibrations, so the interval can be confirmed from
-  the host rather than assumed.
+  the host rather than assumed;
+- carries a CSR-selectable **placement policy** (`ZQ_CFG.placement`,
+  TASK-001 Mode C, specified below).
 
 **The scheduler change is one input, not a rework.** `scoria_mem_cmd_scheduler`
 already arbitrates refresh demand against demand traffic; ZQ adds a second
 maintenance source with the same shape.
 
-**Note:** whether ZQCS should ever *preempt* queued demand traffic, or only fill
-gaps, is deliberately not fixed in this edition. The baseline requirement is that
-periodic ZQCS is issued at all, with the interval observable and settable.
-Cleverness about placement is a characterization question, and scoria TASK-001
-already owns the survey of scheduling modes.
+**Placement policy (v0.9, TASK-001 Mode C).** Whether ZQCS should *preempt*
+queued demand traffic, or only fill gaps, is no longer an open question — it
+is a CSR-selectable policy, reset to the baseline. `ZQ_CFG.placement`
+selects: 0 = request on interval expiry (the baseline above); 1 =
+defer-under-demand — at expiry, if the scheduler reports sustained demand,
+the request is held rather than raised, up to `ZQ_CFG.overdue_max` MC cycles
+(0 = uncapped), after which the request fires regardless. Policy value 2 is
+reserved. Two things hold in every policy: the module still **requests and
+waits — it never preempts** (the Ch 6 Q2 answer stands), and `tZQCS` is still
+enforced by holding off the next interval rather than blocking traffic. The
+starvation revisit condition named in Ch 6 Q2 — the interval slipping
+materially past its CSR value under sustained demand — is now measurable
+with the instruments this block already carries (`obs_overdue`,
+`obs_zqcs_total`) plus the `overdue_max` cap itself, which turns runaway
+deferral from a suspected hang into a bounded, observable policy choice.
+Per-mode design detail is in `design-requirements.md` §6.

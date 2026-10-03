@@ -51,13 +51,14 @@ fixed form — see Chapter 2.2), `scoria_cmd_arbiter`, `scoria_page_policy`,
 `scoria_wr_intake`, `scoria_wr_splitter`, `scoria_rd_return_ring`,
 `scoria_axi_burst_chopper`, `scoria_dfi_cdc`, `scoria_dfi_cmd_path`,
 `scoria_dfi_rd_aligner`, `scoria_dfi_wr_serializer`,
-`scoria_cmd_history_checker`, and **`refresh_ctrl`** -- which already carries the
-`REFpb` bank rotor for LPDDR2 and needs only a mode-select CSR for LPDDR3, and
-**`powerdown_ctrl`** -- power-down is CKE plus `SRE`/`SRX` on this PHY family,
-so only the new command encodings change, and **`dfi_signal_pack`** -- a pure
-registered pipeline stage whose packed signals v3.1 does not touch.
+`scoria_cmd_history_checker`, and **`powerdown_ctrl`** -- power-down is CKE
+plus `SRE`/`SRX` on this PHY family, so only the new command encodings
+change, and **`dfi_signal_pack`** -- a pure registered pipeline stage whose
+packed signals v3.1 does not touch.
 
-That is 21 of the 24 FUBs carried over with no functional change. The command
+That is 20 of the 24 FUBs carried over with no functional change; the count
+was 21 through v0.8, and `refresh_ctrl` is the one that moved — into the
+modified table below, for TASK-001's Modes A/B (Ch 3.4). The command
 history checker is worth naming explicitly: it is the verification-side block
 that independently re-derives JEDEC spacing from the issued command stream, and
 it must grow DDR3's parameters, but its mechanism is inherited.
@@ -69,6 +70,7 @@ it must grow DDR3's parameters, but its mechanism is inherited.
 | `init_sequencer` | DDR3 adds a `RESET#` pin and a four-register MR set | Ch 3.2 |
 | `mode_register` | MR0-MR3 replaces MR0-MR2 plus EMRS3 | Ch 3.2 |
 | `dfi_cmd_formatter` | new command encodings: `ZQCL`, `ZQCS`, `PREA` | Ch 3.2 |
+| `refresh_ctrl` | TASK-001 Modes A/B — elastic pull-in/postpone streaks and the TCR tREFI derate behind CSRs. The `REFpb` rotor and the JEDEC ±8 credit accumulator are inherited unchanged | Ch 3.4 |
 
 : Table 2.2: Modified FUBs
 
@@ -76,7 +78,7 @@ it must grow DDR3's parameters, but its mechanism is inherited.
 
 | Module | Purpose |
 |---|---|
-| `scoria_zq_ctrl` | issues `ZQCS` periodically as maintenance traffic; interval a runtime CSR. `ZQCL` is init-only and belongs to the init sequencer |
+| `scoria_zq_ctrl` | issues `ZQCS` periodically as maintenance traffic; interval a runtime CSR; CSR-selectable placement policy (TASK-001 Mode C). `ZQCL` is init-only and belongs to the init sequencer |
 | `scoria_wrlvl_ifc` | the write-leveling interface: DFI leveling handshake, MR1 write path, `tWL*` window enforcement, `*_STATS` telemetry. **No search loop** |
 
 : Table 2.3: New FUBs

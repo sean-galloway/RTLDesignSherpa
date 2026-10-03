@@ -58,13 +58,19 @@ block from the same description would reintroduce the bug.
 **The amber blocks are the three FUBs the standards change:** the init
 sequencer, the mode-register block, and `dfi_cmd_formatter` for the new
 command encodings — plus the CSR block, which grows to hold the new timings.
+v0.9 adds a fourth FUB to the amber set: `refresh_ctrl`, for TASK-001's
+Modes A/B (Chapter 3.4) — a CSR-selected scheduling-policy layer, not a
+mechanism change.
 
-**Note:** refresh and power-down are green, and both were amber in earlier
-editions of this book. Refresh because pumice already implements `REFpb` and the
-device owns the sequence (Chapter 3.4); power-down because it works through CKE
-and `SRE`/`SRX`, and the DFI low-power channel that v0.2 built a requirement
-around is not implemented by this PHY family at all (Chapter 3.1). Both
-corrections came from reading an artifact instead of reasoning about one.
+**Note:** power-down is green, and was amber in earlier editions of this book:
+it works through CKE and `SRE`/`SRX`, and the DFI low-power channel that v0.2
+built a requirement around is not implemented by this PHY family at all
+(Chapter 3.1). Refresh was corrected to green the same way — pumice already
+implements `REFpb` and the device owns the sequence (Chapter 3.4) — and v0.9
+turns it amber again, for a different reason: TASK-001's Modes A/B add a
+CSR-selected scheduling-policy layer (elastic refresh, TCR) on top of the
+inherited mechanism. Both corrections came from reading an artifact instead of
+reasoning about one.
 
 `dfi_signal_pack` went the same way during implementation: marked MODIFIED for
 the "v3.1 signal set", it turned out to pack only signals v3.1 leaves alone.
