@@ -271,15 +271,14 @@ async def cocotb_test_scoria_mem_cmd_scheduler(dut):
                     f"{len(tb.ops_of(OP_REF))} REFs")
 
     elif tt == "elastic_refresh_in_traffic":
-        # Mode A: demand-aware elastic refresh. With a non-zero postpone limit
-        # and a sustained-demand threshold of 16, refresh must not be requested
-        # during the initial sporadic-demand window.
+        # Mode A: demand-aware elastic refresh. The threshold is 16 consecutive
+        # demand cycles; before that the FUB keeps strict tREFI timing. Use a
+        # tREFI shorter than 16 so a tick lands inside the initial window, then
+        # verify the request is only deferred once demand has been sustained for
+        # 16 cycles.
         chk(await tb.complete_init(), "init never completed")
-        before = len(tb.cmds)
-        # Long enough tREFI that the first expiry lands after the 16-cycle
-        # demand-streak threshold, so the brief's "only after 16 cycles" is
-        # observable.
-        dut.t_refi_i.value = 20
+        before_cycle = tb.cmds[-1]['cycle'] if tb.cmds else 0
+        dut.t_refi_i.value = 12
         dut.refi_reload_i.value = 1
         await RisingEdge(dut.aclk)
         dut.refi_reload_i.value = 0
@@ -290,27 +289,31 @@ async def cocotb_test_scoria_mem_cmd_scheduler(dut):
         # when one side commits/issues and the CAM model clears it for a cycle.
         tb.rd_entry = dict(slot=0, bank=1, row=0x100, col=0)
         tb.wr_entry = dict(slot=1, bank=2, row=0x101, col=0)
+        demand_cycles = 0
         for _ in range(16):
             await RisingEdge(dut.aclk)
+            if int(dut.u_refresh.demand_i.value):
+                demand_cycles += 1
             if tb.rd_entry is None:
                 tb.rd_entry = dict(slot=0, bank=1, row=0x100, col=0)
             if tb.wr_entry is None:
                 tb.wr_entry = dict(slot=1, bank=2, row=0x101, col=0)
-        early_refs = [r for r in tb.ops_of(OP_REF) if r['cycle'] > before]
+        early_refs = [r for r in tb.ops_of(OP_REF)
+                      if before_cycle < r['cycle'] <= before_cycle + 16]
         chk(not early_refs,
             f"REF issued during the first 16 demand cycles (sporadic window): "
             f"{' '.join(f'{r['name']}@{r['cycle']}' for r in early_refs)}")
-        # Now allow the sustained-demand postpone path to build backlog and fire.
+        # Continue sustained demand; the postponed request must only appear
+        # after the cumulative demand streak has reached 16 cycles.
         req_seen = False
-        demand_cycles = 16
         for _ in range(400):
             await RisingEdge(dut.aclk)
+            if int(dut.u_refresh.demand_i.value):
+                demand_cycles += 1
             if tb.rd_entry is None:
                 tb.rd_entry = dict(slot=0, bank=1, row=0x100, col=0)
             if tb.wr_entry is None:
                 tb.wr_entry = dict(slot=1, bank=2, row=0x101, col=0)
-            if int(dut.u_refresh.demand_i.value):
-                demand_cycles += 1
             if int(dut.u_refresh.refresh_req_o.value):
                 req_seen = True
                 break
@@ -354,6 +357,7 @@ async def cocotb_test_scoria_mem_cmd_scheduler(dut):
         # ZQCS must defer while traffic persists, then fire once CAMs drain.
         chk(await tb.complete_init(), "init never completed")
         before = len(tb.cmds)
+        before_cycle = tb.cmds[-1]['cycle'] if tb.cmds else 0
         dut.zq_enable_i.value = 1
         dut.zq_interval_i.value = 20
         dut.zq_placement_i.value = 1
@@ -362,27 +366,43 @@ async def cocotb_test_scoria_mem_cmd_scheduler(dut):
         # issues/commits and the CAM model clears it for a cycle.
         tb.rd_entry = dict(slot=0, bank=3, row=0x300, col=0)
         tb.wr_entry = dict(slot=1, bank=4, row=0x301, col=0)
+        zq_req_seen = False
         for _ in range(100):
             await RisingEdge(dut.aclk)
+            if int(dut.u_zq.zq_req_o.value):
+                zq_req_seen = True
+                break
             if tb.rd_entry is None:
                 tb.rd_entry = dict(slot=0, bank=3, row=0x300, col=0)
             if tb.wr_entry is None:
                 tb.wr_entry = dict(slot=1, bank=4, row=0x301, col=0)
-        early_zq = [z for z in tb.ops_of(OP_ZQCS) if z['cycle'] > before]
+        chk(not zq_req_seen,
+            "ZQ request asserted during the first 100 cycles of continuous "
+            "demand with placement=1, overdue_max=0 -- deferral is not wired")
+        early_zq = [z for z in tb.ops_of(OP_ZQCS)
+                    if before_cycle < z['cycle'] <= before_cycle + 100]
         chk(not early_zq,
             f"ZQCS issued within first 100 cycles despite continuous demand: "
             f"{' '.join(f'{z['name']}@{z['cycle']}' for z in early_zq)}")
-        # Drain CAMs: stop issuing and let the arbiter go idle.
+        # Drain CAMs: stop issuing and let the arbiter go idle. The interval
+        # already expired during the demand window, so ZQCS should arrive within
+        # the bank-idle/precharge grant margin once demand drops.
         tb.rd_entry = None
         tb.wr_entry = None
-        drain_delay = None
-        zq = await tb.wait_for_ops(OP_ZQCS, since=before, limit=120)
-        chk(zq, "no ZQCS within 120 cycles after draining CAMs")
+        post_drain = 0
+        zq = None
+        for _ in range(80):
+            await RisingEdge(dut.aclk)
+            post_drain += 1
+            hits = [c for c in list(tb.cmds)[before:] if c['op'] == OP_ZQCS]
+            if hits:
+                zq = hits
+                break
+        chk(zq, "no ZQCS within 80 cycles after draining CAMs")
         if zq:
-            drain_delay = zq[0]['cycle'] - before
-            chk(drain_delay <= 200,
-                f"ZQCS after drain appeared at cycle {drain_delay}, "
-                f"expected <= ~200 (demand window + interval + bank-idle margin)")
+            chk(post_drain <= 60,
+                f"ZQCS after drain appeared {post_drain} cycles after traffic "
+                f"stopped, expected <= 60 (bank-idle/precharge margin = 60)")
         # Rerun with overdue_max=8: the request must cap deferral under load.
         # Let the interval reload naturally after the first ZQCS, then restart
         # traffic and verify the ZQ request asserts within the overdue window.
@@ -395,13 +415,13 @@ async def cocotb_test_scoria_mem_cmd_scheduler(dut):
         req_seen2 = False
         for cyc2 in range(120):
             await RisingEdge(dut.aclk)
+            if int(dut.u_zq.zq_req_o.value):
+                req_seen2 = True
+                break
             if tb.rd_entry is None:
                 tb.rd_entry = dict(slot=0, bank=3, row=0x300, col=0)
             if tb.wr_entry is None:
                 tb.wr_entry = dict(slot=1, bank=4, row=0x301, col=0)
-            if int(dut.u_zq.zq_req_o.value):
-                req_seen2 = True
-                break
         chk(req_seen2,
             "ZQ request never asserted with overdue_max=8 despite demand")
         chk(cyc2 <= 100,
