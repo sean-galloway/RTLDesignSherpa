@@ -34,6 +34,7 @@ import random
 import cocotb
 import pytest
 from cocotb.triggers import RisingEdge
+from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
@@ -47,7 +48,8 @@ class RefTB(TBBase):
     async def setup(self, *, refi=40, trefi_pb=0, burst=1, refpb=0,
                     enable=1, postpone=0, pullin=0, demand=0,
                     elastic_en=0, pullin_idle_streak=16,
-                    postpone_demand_streak=16):
+                    postpone_demand_streak=16,
+                    tcr_en=0, trefi_derate=0):
         await self.start_clock('mc_clk', 10, 'ns')
         d = self.dut
         d.t_refi_i.value = refi
@@ -62,6 +64,8 @@ class RefTB(TBBase):
         d.elastic_en_i.value = elastic_en
         d.pullin_idle_streak_i.value = pullin_idle_streak
         d.postpone_demand_streak_i.value = postpone_demand_streak
+        d.tcr_en_i.value = tcr_en
+        d.trefi_derate_i.value = trefi_derate
         d.refresh_grant_i.value = 0
         d.grant_was_pb_i.value = 0
         await self.assert_reset()
@@ -129,6 +133,34 @@ class RefTB(TBBase):
         # counters are pre-grant.
         for _ in range(settle):
             await RisingEdge(self.dut.mc_clk)
+
+    async def run_and_capture(self, *, refi=40, cycles=200, **setup_kwargs):
+        """Run `cycles` loop iterations, grant every request, and return the
+        request assertion times (ns, relative to the first request) and the
+        obs_refi_cnt_o reload values.
+
+        Two runs with the same effective interval produce bit-identical
+        relative request sequences and `reloads`, which is how the TCR
+        disabled and illegal-clamp cases are checked.
+        """
+        await self.setup(refi=refi, **setup_kwargs)
+        d = self.dut
+        req_ns = []
+        reloads = []
+        prev_refi = int(d.obs_refi_cnt_o.value)
+        for _ in range(cycles):
+            await RisingEdge(d.mc_clk)
+            cur_refi = int(d.obs_refi_cnt_o.value)
+            if cur_refi > prev_refi:
+                reloads.append(cur_refi)
+            prev_refi = cur_refi
+            if int(d.refresh_req_o.value):
+                req_ns.append(get_sim_time('ns'))
+                await self.grant()
+        if req_ns:
+            t0 = req_ns[0]
+            req_ns = [t - t0 for t in req_ns]
+        return req_ns, reloads
 
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")
@@ -374,6 +406,82 @@ async def cocotb_test_scoria_refresh_ctrl(dut):
             f"reload values differ with elastic disabled: "
             f"baseline {baseline_reload} vs disabled {disabled_reload}")
 
+    elif tt == "tcr_derate_intervals":
+        # Mode B: tREFI derate scales the reload interval 1x/2x/4x.
+        base_refi = 40
+        expected = {0: base_refi, 1: base_refi // 2, 2: base_refi // 4}
+        for derate, exp_interval in expected.items():
+            req_ns, reloads = await tb.run_and_capture(
+                refi=base_refi, tcr_en=1, trefi_derate=derate, cycles=300)
+            for rv in reloads:
+                chk(abs(rv - exp_interval) <= 1,
+                    f"derate={derate}: reload {rv} != expected {exp_interval} "
+                    f"±1")
+            for i in range(1, len(req_ns)):
+                spacing = (req_ns[i] - req_ns[i - 1]) // 10
+                chk(abs(spacing - exp_interval) <= 1,
+                    f"derate={derate}: request spacing {spacing} != expected "
+                    f"{exp_interval} ±1")
+
+    elif tt == "tcr_derate_illegal_clamps":
+        # Mode B: trefi_derate=3 must clamp to the legal 2x/4x ceiling (=2).
+        base_refi = 40
+        req2, reloads2 = await tb.run_and_capture(
+            refi=base_refi, tcr_en=1, trefi_derate=2, cycles=300)
+        req3, reloads3 = await tb.run_and_capture(
+            refi=base_refi, tcr_en=1, trefi_derate=3, cycles=300)
+        chk(req2 == req3,
+            f"derate=2/3 request cycles differ: {req2} vs {req3}")
+        chk(reloads2 == reloads3,
+            f"derate=2/3 reload sequences differ: {reloads2} vs {reloads3}")
+
+    elif tt == "tcr_derate_small_interval_bounded":
+        # Mode B: a very short derated interval must still obey the JEDEC
+        # pending ceiling and drain cleanly.
+        await tb.setup(refi=8, tcr_en=1, trefi_derate=2)
+        max_pending = 0
+        for _ in range(100):
+            await RisingEdge(dut.mc_clk)
+            p = int(dut.pending_refreshes_o.value)
+            if p > max_pending:
+                max_pending = p
+            chk(p <= 8,
+                f"pending {p} exceeds JEDEC 8-postponed ceiling")
+        chk(max_pending > 0, "pending never grew")
+        # Drain with one-cycle grants spaced one cycle apart so we outrun the
+        # 2-cycle reload interval; using tb.grant()'s settle window would let
+        # expiries arrive faster than grants and the drain would stall.
+        drained = False
+        grants = 0
+        for _ in range(50):
+            if int(dut.pending_refreshes_o.value) == 0:
+                drained = True
+                break
+            if int(dut.refresh_req_o.value):
+                dut.grant_was_pb_i.value = 0
+                dut.refresh_grant_i.value = 1
+                await RisingEdge(dut.mc_clk)
+                dut.refresh_grant_i.value = 0
+                grants += 1
+            await RisingEdge(dut.mc_clk)
+        chk(drained,
+            f"pending did not drain; stuck at "
+            f"{int(dut.pending_refreshes_o.value)}")
+        chk(grants >= max_pending,
+            f"only {grants} grants to drain max pending {max_pending}")
+
+    elif tt == "tcr_disabled_bitidentical":
+        # Mode B disabled: the derate input is ignored and timing matches the
+        # smoke case exactly.
+        req0, reloads0 = await tb.run_and_capture(
+            refi=30, tcr_en=0, trefi_derate=0, cycles=250)
+        reqx, reloadsx = await tb.run_and_capture(
+            refi=30, tcr_en=0, trefi_derate=2, cycles=250)
+        chk(req0 == reqx,
+            f"request cycles differ with TCR disabled: {req0} vs {reqx}")
+        chk(reloads0 == reloadsx,
+            f"reload values differ with TCR disabled: {reloads0} vs {reloadsx}")
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {tt}")
 
@@ -389,7 +497,11 @@ _FUNC = _GATE + ["refpb_rotor_advances_only_on_pb_grant",
                  "pending_accumulates_and_drains", "random_soak",
                  "elastic_pullin_idle_streak",
                  "elastic_postpone_sustained_demand",
-                 "elastic_disabled_ignores_thresholds"]
+                 "elastic_disabled_ignores_thresholds",
+                 "tcr_derate_intervals",
+                 "tcr_derate_illegal_clamps",
+                 "tcr_derate_small_interval_bounded",
+                 "tcr_disabled_bitidentical"]
 _TEST_LEVEL = (os.environ.get("REG_LEVEL") or os.environ.get("TEST_LEVEL")
                or "FUNC").upper()
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FUNC}.get(_TEST_LEVEL, _FUNC)

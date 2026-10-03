@@ -355,6 +355,9 @@ module scoria_mem_cmd_scheduler
         .elastic_en_i            (1'b0),
         .pullin_idle_streak_i    (8'd16),
         .postpone_demand_streak_i(7'd16),
+        // Mode B inputs are tied off here; CSR wiring is Task 6.
+        .tcr_en_i                (1'b0),
+        .trefi_derate_i          (2'd0),
         .refresh_req_o   (refresh_req),
         .refresh_grant_i (refresh_grant),
         // refresh_grant fires at the arbiter's FIFO-PUSH, so the granted op is

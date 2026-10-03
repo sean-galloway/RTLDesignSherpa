@@ -46,6 +46,13 @@
 //   demand streak >= postpone_demand_streak_i. When elastic_en_i is low the
 //   logic reduces bit-for-bit to v3 (16-cycle idle confirmation, demand-driven
 //   postpone threshold). JEDEC +-8 remains the hard credit ceiling.
+//
+// v5 (TASK-001 Mode B): temperature-compensated refresh (TCR).
+//   tcr_en_i enables tREFI derate; trefi_derate_i selects 1x (0), 2x (1) or
+//   4x (2).  The value 3 is clamped to 2.  Derate is applied to the reload
+//   value only -- a mid-interval CSR change takes effect on the next reload,
+//   the running counter is not rescaled.  When tcr_en_i is low the shift is 0
+//   and the logic is bit-identical to v4.
 
 `timescale 1ns / 1ps
 
@@ -84,6 +91,10 @@ module scoria_refresh_ctrl
     input  logic        elastic_en_i,              // 0 = v3 behaviour
     input  logic [7:0]  pullin_idle_streak_i,      // idle cycles before pull-in
     input  logic [6:0]  postpone_demand_streak_i,  // demand cycles before postpone
+
+    // Mode B: temperature-compensated refresh (tREFI derate)
+    input  logic        tcr_en_i,                  // 0 = 1x interval (today)
+    input  logic [1:0]  trefi_derate_i,            // 0=1x, 1=2x, 2=4x; 3 clamps to 2
 
     output logic        refresh_req_o,
     input  logic        refresh_grant_i,
@@ -129,11 +140,21 @@ module scoria_refresh_ctrl
 
     // Effective interval: REFpb refreshes one bank at a time, so it ticks at
     // tREFIpb (~tREFI/8 per JESD209-2; REF_TIMING_PB.trefi_pb overrides,
-    // 0 = derive).
+    // 0 = derive).  Mode B then derates the reload value 1x/2x/4x.
     logic [15:0] w_refi_eff;
     assign w_refi_eff = !refpb_mode_i        ? t_refi_i
                       : (trefi_pb_i != 16'd0) ? trefi_pb_i
                                               : (t_refi_i >> 3);
+
+    // Mode B: temperature-compensated refresh shift.  Disabled => shift 0
+    // (bit-identical to v4); illegal value 3 clamps to 2.  Applied only to
+    // the reload value -- the running counter is not rescaled mid-interval.
+    logic [1:0]  w_derate_shift;
+    logic [15:0] w_refi_eff_derated;
+    assign w_derate_shift = (!tcr_en_i) ? 2'd0
+                          : (trefi_derate_i > 2'd2) ? 2'd2
+                                                    : trefi_derate_i;
+    assign w_refi_eff_derated = w_refi_eff >> w_derate_shift;
 
     // Credit limits, clamped: postpone <= 7 so the pending accumulator
     // (saturating at 8) can always exceed it and FORCE the refresh; pull-in
@@ -208,9 +229,9 @@ module scoria_refresh_ctrl
         end else begin
             // tREFI countdown — only ticks when enabled (init done).
             if (!enable_i || refi_reload_i) begin
-                r_refi_cnt <= w_refi_eff;
+                r_refi_cnt <= w_refi_eff_derated;
             end else if (w_refi_expired) begin
-                r_refi_cnt <= w_refi_eff;
+                r_refi_cnt <= w_refi_eff_derated;
             end else begin
                 r_refi_cnt <= r_refi_cnt - 16'd1;
             end
