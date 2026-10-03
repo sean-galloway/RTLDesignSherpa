@@ -280,9 +280,9 @@ vivado*
 # PeakRDL html collateral
 # ---------------------------------------------------------------------------
 *.html
-# bin/apps/ddr_drills is a hand-written static web app: its .html IS the
+# bin/apps/* are hand-written static web apps: their .html IS the
 # product, not generated PeakRDL collateral.
-!bin/apps/ddr_drills/*.html
+!bin/apps/*/*.html
 
 # ---------------------------------------------------------------------------
 # Per-flow Vivado / FPGA build artifacts

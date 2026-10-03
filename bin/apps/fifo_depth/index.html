@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FIFO Depth Calculator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <a class="all-apps" href="/">All apps</a>
+  <h1>FIFO Depth Calculator</h1>
+  <p class="tagline">Worst-case async FIFO sizing &mdash; a faithful port of
+  fifo_depth_calculator_v2.xlsx</p>
+</header>
+
+<main>
+
+<section class="panel" id="inputs">
+  <h2>Input Parameters</h2>
+  <div class="field-grid">
+    <div class="field">
+      <label for="in-fA">Write Frequency, fA (MHz)</label>
+      <input id="in-fA" type="text" value="80">
+      <span class="err" id="err-fA"></span>
+    </div>
+    <div class="field">
+      <label for="in-fB">Read Frequency, fB (MHz)</label>
+      <input id="in-fB" type="text" value="50">
+      <span class="err" id="err-fB"></span>
+    </div>
+    <div class="field">
+      <label for="in-burst">Burst Length (# items)</label>
+      <input id="in-burst" type="text" value="120">
+      <span class="err" id="err-burst"></span>
+    </div>
+    <div class="field">
+      <label for="in-widle">Write Idle Cycles (per write)</label>
+      <input id="in-widle" type="text" value="0">
+      <span class="err" id="err-widle"></span>
+    </div>
+    <div class="field">
+      <label for="in-ridle">Read Idle Cycles (per read)</label>
+      <input id="in-ridle" type="text" value="0">
+      <span class="err" id="err-ridle"></span>
+    </div>
+    <div class="field">
+      <label for="in-nsync">Synchronizer Stages (N_FLOP_CROSS)</label>
+      <input id="in-nsync" type="text" value="2">
+      <span class="err" id="err-nsync"></span>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Results</h2>
+  <div id="banner" class="banner hidden"></div>
+  <table id="chain" class="results"></table>
+  <p id="verdict" class="verdict"></p>
+  <table id="depths" class="results"></table>
+</section>
+
+<section class="panel">
+  <h2>Notes</h2>
+  <div id="notes" class="notes">
+    <ul>
+      <li>Items read during the write burst uses floor, the conservative
+      direction: fewer reads counted means a larger depth.</li>
+      <li>Sync margin: the full flag lags real fill by N_FLOP_CROSS write
+      clocks. This sheet uses a 1x margin (some sources use 2x).</li>
+      <li>Encoding is chosen by the USE_JOHNSON parameter on both
+      <code>fifo_async</code> (rtl/common) and <code>gaxi_fifo_async</code>
+      (rtl/amba/gaxi):
+      USE_JOHNSON=0 (default) uses Gray pointers and DEPTH must be a power
+      of 2; USE_JOHNSON=1 uses Johnson pointers and DEPTH must be even. An
+      illegal combination fails at elaboration, not silently.</li>
+      <li>Idle cycles: N idle cycles means each transfer takes (1+N)
+      clocks. 100% duty = 0 idle, 50% duty = 1 idle, 25% duty = 3 idle.</li>
+      <li>Steady state: if the average write rate exceeds the average read
+      rate, no depth is enough &mdash; back-pressure is required.</li>
+      <li>First-word latency: the sheet assumes the reader starts in the
+      same cycle as the first write. Add 1 if the FIFO starts empty and
+      reads must wait for the first item to land.</li>
+      <li>Clock drift is deliberately not modeled: real crystal tolerance
+      is ppm-level. To size a worst case, enter the worst-case numbers
+      directly (fastest fA, slowest fB).</li>
+    </ul>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Example Cases</h2>
+  <p class="hint">Click a row to load its inputs.</p>
+  <div id="examples"></div>
+</section>
+
+<footer class="app-footer">
+  <p>Ported from docs/fifo_depth_calculator_v2.xlsx. Personal engineering
+  notes; no warranty.</p>
+</footer>
+
+</main>
+
+<script src="js/model.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
