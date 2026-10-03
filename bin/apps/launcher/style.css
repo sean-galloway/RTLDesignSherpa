@@ -1,0 +1,101 @@
+/* style.css -- root app launcher. Mobile-first, single file, no
+   frameworks. Conventions ported from the ddr_drills app. */
+
+:root {
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --ink: #1b2230;
+  --ink-dim: #5a6474;
+  --accent: #1f5fa8;
+  --accent-soft: #e3ecf7;
+  --border: #d4d9e0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               Helvetica, Arial, sans-serif;
+  line-height: 1.45;
+}
+
+.app-header {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 1rem 0.75rem;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.tagline {
+  margin: 0.25rem 0 0.75rem;
+  color: var(--ink-dim);
+  font-size: 0.9rem;
+}
+
+main {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 0.75rem;
+}
+
+#tiles {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.tile {
+  display: block;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.tile:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.tile-name {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--accent);
+  margin-bottom: 0.25rem;
+}
+
+.tile-blurb {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--ink-dim);
+}
+
+.app-footer {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 0.5rem 0.75rem 1.5rem;
+  color: var(--ink-dim);
+  font-size: 0.8rem;
+}
+
+@media (min-width: 40rem) {
+  #tiles {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .app-header h1 {
+    font-size: 1.6rem;
+  }
+}

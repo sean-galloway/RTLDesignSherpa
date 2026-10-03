@@ -51,6 +51,17 @@ code {
   font-size: 1.4rem;
 }
 
+.all-apps {
+  float: right;
+  font-size: 0.85rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.all-apps:hover {
+  text-decoration: underline;
+}
+
 .tagline {
   margin: 0.25rem 0 0.75rem;
   color: var(--ink-dim);
