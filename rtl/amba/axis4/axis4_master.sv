@@ -92,43 +92,33 @@ module axis4_master
         /* verilator lint_on PINCONNECTEMPTY */
     );
 
-    // Unpack T signals from SKID buffer with conditional assignments
-    // Handle all combinations of zero-width signals
+    // Unpack T signals field-by-field, in the axis5 style. The packed layout
+    // is identical in every config (zero-width guards keep tid/tdest/tuser
+    // one bit each when their width param is 0): tdata at the top, then
+    // tstrb, tlast, tid, tdest, tuser at the LSBs. Per-field slices are
+    // required -- the old 8-branch concatenation sliced as if the ID/DEST
+    // guard bits were the LSBs, so with UW>0 and ID or DEST zero it ate the
+    // low bits of tuser (mirror of the axis4_slave bug found 2026-10-02).
+    assign m_axis_tdata = int_t_pkt[TSize-1 -: DW];
+    assign m_axis_tstrb = int_t_pkt[TSize-DW-1 -: SW];
+    assign m_axis_tlast = int_t_pkt[TSize-DW-SW-1];
+
     generate
-        if (IW > 0 && DESTW > 0 && UW > 0) begin : g_full_signals
-            assign {m_axis_tdata, m_axis_tstrb, m_axis_tlast,
-                    m_axis_tid, m_axis_tdest, m_axis_tuser} = int_t_pkt;
-        end else if (IW > 0 && DESTW > 0 && UW == 0) begin : g_no_user
-            assign {m_axis_tdata, m_axis_tstrb, m_axis_tlast,
-                    m_axis_tid, m_axis_tdest} = int_t_pkt[TSize-1:1];
-            assign m_axis_tuser = '0;
-        end else if (IW > 0 && DESTW == 0 && UW > 0) begin : g_no_dest
-            assign {m_axis_tdata, m_axis_tstrb, m_axis_tlast,
-                    m_axis_tid, m_axis_tuser} = int_t_pkt[TSize-1:1];
-            assign m_axis_tdest = '0;
-        end else if (IW == 0 && DESTW > 0 && UW > 0) begin : g_no_id
-            assign {m_axis_tdata, m_axis_tstrb, m_axis_tlast,
-                    m_axis_tdest, m_axis_tuser} = int_t_pkt[TSize-1:1];
+        if (IW > 0) begin : g_unpack_tid
+            assign m_axis_tid = int_t_pkt[TSize-DW-SW-2 -: IW_WIDTH];
+        end else begin : g_no_tid
             assign m_axis_tid = '0;
-        end else if (IW > 0 && DESTW == 0 && UW == 0) begin : g_no_dest_no_user
-            assign {m_axis_tdata, m_axis_tstrb, m_axis_tlast,
-                    m_axis_tid} = int_t_pkt[TSize-1:2];
+        end
+
+        if (DESTW > 0) begin : g_unpack_tdest
+            assign m_axis_tdest = int_t_pkt[TSize-DW-SW-2-IW_WIDTH -: DESTW_WIDTH];
+        end else begin : g_no_tdest
             assign m_axis_tdest = '0;
-            assign m_axis_tuser = '0;
-        end else if (IW == 0 && DESTW > 0 && UW == 0) begin : g_no_id_no_user
-            assign {m_axis_tdata, m_axis_tstrb, m_axis_tlast,
-                    m_axis_tdest} = int_t_pkt[TSize-1:2];
-            assign m_axis_tid = '0;
-            assign m_axis_tuser = '0;
-        end else if (IW == 0 && DESTW == 0 && UW > 0) begin : g_no_id_no_dest
-            assign {m_axis_tdata, m_axis_tstrb, m_axis_tlast,
-                    m_axis_tuser} = int_t_pkt[TSize-1:2];
-            assign m_axis_tid = '0;
-            assign m_axis_tdest = '0;
-        end else begin : g_no_id_no_dest_no_user
-            assign {m_axis_tdata, m_axis_tstrb, m_axis_tlast} = int_t_pkt[TSize-1:3];
-            assign m_axis_tid = '0;
-            assign m_axis_tdest = '0;
+        end
+
+        if (UW > 0) begin : g_unpack_tuser
+            assign m_axis_tuser = int_t_pkt[TSize-DW-SW-2-IW_WIDTH-DESTW_WIDTH -: UW_WIDTH];
+        end else begin : g_no_tuser
             assign m_axis_tuser = '0;
         end
     endgenerate

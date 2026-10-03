@@ -92,43 +92,34 @@ module axis4_slave
         /* verilator lint_on PINCONNECTEMPTY */
     );
 
-    // Unpack T signals from SKID buffer with conditional assignments
-    // Handle all combinations of zero-width signals
+    // Unpack T signals field-by-field, in the axis5 style. The packed layout
+    // is identical in every config (zero-width guards keep tid/tdest/tuser
+    // one bit each when their width param is 0): tdata at the top, then
+    // tstrb, tlast, tid, tdest, tuser at the LSBs. Per-field slices are
+    // required -- the old 8-branch concatenation sliced as if the ID/DEST
+    // guard bits were the LSBs, so with UW>0 and ID or DEST zero it ate the
+    // low bits of tuser (found 2026-10-02: RS erasure sideband, UW=5,
+    // ID=DEST=0, flags arrived as flags>>2).
+    assign fub_axis_tdata = int_t_pkt[TSize-1 -: DW];
+    assign fub_axis_tstrb = int_t_pkt[TSize-DW-1 -: SW];
+    assign fub_axis_tlast = int_t_pkt[TSize-DW-SW-1];
+
     generate
-        if (IW > 0 && DESTW > 0 && UW > 0) begin : g_full_signals
-            assign {fub_axis_tdata, fub_axis_tstrb, fub_axis_tlast,
-                    fub_axis_tid, fub_axis_tdest, fub_axis_tuser} = int_t_pkt;
-        end else if (IW > 0 && DESTW > 0 && UW == 0) begin : g_no_user
-            assign {fub_axis_tdata, fub_axis_tstrb, fub_axis_tlast,
-                    fub_axis_tid, fub_axis_tdest} = int_t_pkt[TSize-1:1];
-            assign fub_axis_tuser = '0;
-        end else if (IW > 0 && DESTW == 0 && UW > 0) begin : g_no_dest
-            assign {fub_axis_tdata, fub_axis_tstrb, fub_axis_tlast,
-                    fub_axis_tid, fub_axis_tuser} = int_t_pkt[TSize-1:1];
-            assign fub_axis_tdest = '0;
-        end else if (IW == 0 && DESTW > 0 && UW > 0) begin : g_no_id
-            assign {fub_axis_tdata, fub_axis_tstrb, fub_axis_tlast,
-                    fub_axis_tdest, fub_axis_tuser} = int_t_pkt[TSize-1:1];
+        if (IW > 0) begin : g_unpack_tid
+            assign fub_axis_tid = int_t_pkt[TSize-DW-SW-2 -: IW_WIDTH];
+        end else begin : g_no_tid
             assign fub_axis_tid = '0;
-        end else if (IW > 0 && DESTW == 0 && UW == 0) begin : g_no_dest_no_user
-            assign {fub_axis_tdata, fub_axis_tstrb, fub_axis_tlast,
-                    fub_axis_tid} = int_t_pkt[TSize-1:2];
+        end
+
+        if (DESTW > 0) begin : g_unpack_tdest
+            assign fub_axis_tdest = int_t_pkt[TSize-DW-SW-2-IW_WIDTH -: DESTW_WIDTH];
+        end else begin : g_no_tdest
             assign fub_axis_tdest = '0;
-            assign fub_axis_tuser = '0;
-        end else if (IW == 0 && DESTW > 0 && UW == 0) begin : g_no_id_no_user
-            assign {fub_axis_tdata, fub_axis_tstrb, fub_axis_tlast,
-                    fub_axis_tdest} = int_t_pkt[TSize-1:2];
-            assign fub_axis_tid = '0;
-            assign fub_axis_tuser = '0;
-        end else if (IW == 0 && DESTW == 0 && UW > 0) begin : g_no_id_no_dest
-            assign {fub_axis_tdata, fub_axis_tstrb, fub_axis_tlast,
-                    fub_axis_tuser} = int_t_pkt[TSize-1:2];
-            assign fub_axis_tid = '0;
-            assign fub_axis_tdest = '0;
-        end else begin : g_no_id_no_dest_no_user
-            assign {fub_axis_tdata, fub_axis_tstrb, fub_axis_tlast} = int_t_pkt[TSize-1:3];
-            assign fub_axis_tid = '0;
-            assign fub_axis_tdest = '0;
+        end
+
+        if (UW > 0) begin : g_unpack_tuser
+            assign fub_axis_tuser = int_t_pkt[TSize-DW-SW-2-IW_WIDTH-DESTW_WIDTH -: UW_WIDTH];
+        end else begin : g_no_tuser
             assign fub_axis_tuser = '0;
         end
     endgenerate

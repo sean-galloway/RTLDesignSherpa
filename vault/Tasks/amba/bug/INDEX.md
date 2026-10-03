@@ -2,7 +2,7 @@
 
 # amba — bugs
 
-**Next ID: BUG-038** — never recycle a number, even when its item closed.
+**Next ID: BUG-039** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 37 | done (kept for history) |
+| [closed/](closed/) | 38 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -23,6 +23,7 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **BUG-038** — axis4_slave/master tuser unpack ate low bits with ID or DEST zero-width (UW>0); found via reed-solomon TASK-002 erasure sideband — CLOSED 2026-10-02: per-field slices (axis5 style) in both modules
 - **BUG-036** — SOFT_RESET does not fully reset the monitor subsystem -- CLOSED 2026-09-28: not reset state; the in-core group filtered every packet with DAXMON's registers (stream BUG-017, fixed)
 - **BUG-037** — ID filter loses an owned write's completion at some seeds -- CLOSED 2026-09-28: root cause was W-before-AW beats dropped by the write monitor (not the filter); trans_mgr now queues early bursts for the next AW
 - **BUG-035** — monitor TIMEOUT packets saturate at ~table depth per reset -- CLOSED 2026-09-28: cosim fix 2026-09-15, board confirmed by Sean
