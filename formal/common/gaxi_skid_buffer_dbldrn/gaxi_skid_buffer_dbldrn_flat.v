@@ -31,7 +31,7 @@ module gaxi_skid_buffer_dbldrn (
 	output wire [DW - 1:0] rd_data2;
 	generate
 		if ((DEPTH < 2) || (DEPTH > 8)) begin : gen_depth_guard
-			initial $display("Error [elaboration] /tmp/claude-1000/defork_gaxi_skid_buffer_dbldrn/gaxi_skid_buffer_dbldrn.sv:54:13 - gaxi_skid_buffer_dbldrn.gen_depth_guard\n msg: ", "gaxi_skid_buffer_dbldrn: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
+			initial $display("Error [elaboration] /tmp/formal_gaxi_skid_buffer_dbldrn/gaxi_skid_buffer_dbldrn.sv:54:13 - gaxi_skid_buffer_dbldrn.gen_depth_guard\n msg: ", "gaxi_skid_buffer_dbldrn: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
 		end
 	endgenerate
 	reg [BW - 1:0] r_data;
@@ -94,5 +94,5 @@ module gaxi_skid_buffer_dbldrn (
 	assign count = r_data_count;
 	always @(posedge axi_aclk)
 		if (((axi_aresetn && rd_ready) && rd_ready2) && (r_data_count < 2))
-			$display("Error [%0t] /tmp/claude-1000/defork_gaxi_skid_buffer_dbldrn/gaxi_skid_buffer_dbldrn.sv:146:13 - gaxi_skid_buffer_dbldrn.<unnamed_block>.<unnamed_block>\n msg: ", $time, "ERROR: rd_ready2 asserted when rd_count < 2 (rd_count=%0d)", r_data_count);
+			$display("Error [%0t] /tmp/formal_gaxi_skid_buffer_dbldrn/gaxi_skid_buffer_dbldrn.sv:146:13 - gaxi_skid_buffer_dbldrn.<unnamed_block>.<unnamed_block>\n msg: ", $time, "ERROR: rd_ready2 asserted when rd_count < 2 (rd_count=%0d)", r_data_count);
 endmodule

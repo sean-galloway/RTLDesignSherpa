@@ -31,7 +31,7 @@ module counter_bin (
 		else
 			counter_bin_next = counter_bin_curr;
 	end
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			counter_bin_curr <= 'b0;
 		else
@@ -54,7 +54,7 @@ module fifo_control (
 	rd_almost_empty
 );
 	parameter signed [31:0] ADDR_WIDTH = 3;
-	parameter signed [31:0] DEPTH = 16;
+	parameter signed [31:0] DEPTH = 8;
 	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
 	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
 	parameter signed [31:0] REGISTERED = 0;
@@ -108,7 +108,7 @@ module fifo_control (
 	generate
 		if (REGISTERED == 1) begin : gen_flop_mode
 			reg [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
-			always @(posedge rd_clk)
+			always @(posedge rd_clk or negedge rd_rst_n)
 				if (!rd_rst_n)
 					r_rdom_wr_ptr_bin_delayed <= 1'sb0;
 				else
@@ -150,7 +150,6 @@ module gaxi_fifo_sync (
 	rd_valid,
 	rd_data
 );
-	reg _sv2v_0;
 	parameter signed [31:0] MEM_STYLE = 32'sd0;
 	parameter signed [31:0] REGISTERED = 0;
 	parameter signed [31:0] DATA_WIDTH = 4;
@@ -179,7 +178,6 @@ module gaxi_fifo_sync (
 	wire r_wr_almost_full;
 	wire r_rd_empty;
 	wire r_rd_almost_empty;
-	reg [DW - 1:0] w_rd_data;
 	wire w_write;
 	wire w_read;
 	assign w_write = wr_valid && wr_ready;
@@ -236,18 +234,16 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
-				always @(posedge axi_aclk)
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
-						w_rd_data <= 1'sb0;
+						r_rd_data <= 1'sb0;
 					else
-						w_rd_data <= mem[r_rd_addr];
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
 			end
 			else begin : g_mux
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					w_rd_data = mem[r_rd_addr];
-				end
+				assign rd_data = mem[r_rd_addr];
 			end
 		end
 		else if (MEM_STYLE == 32'sd2) begin : gen_bram
@@ -255,11 +251,13 @@ module gaxi_fifo_sync (
 			always @(posedge axi_aclk)
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
-			always @(posedge axi_aclk)
+			reg [DATA_WIDTH - 1:0] r_rd_data;
+			always @(posedge axi_aclk or negedge axi_aresetn)
 				if (!axi_aresetn)
-					w_rd_data <= 1'sb0;
+					r_rd_data <= 1'sb0;
 				else
-					w_rd_data <= mem[r_rd_addr];
+					r_rd_data <= mem[r_rd_addr];
+			assign rd_data = r_rd_data;
 		end
 		else begin : gen_auto
 			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
@@ -267,29 +265,25 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
-				always @(posedge axi_aclk)
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
-						w_rd_data <= 1'sb0;
+						r_rd_data <= 1'sb0;
 					else
-						w_rd_data <= mem[r_rd_addr];
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
 			end
 			else begin : g_mux
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					w_rd_data = mem[r_rd_addr];
-				end
+				assign rd_data = mem[r_rd_addr];
 			end
 		end
 	endgenerate
-	assign rd_data = w_rd_data;
 	always @(posedge axi_aclk) begin
 		if (w_write && r_wr_full)
 			;
 		if (w_read && r_rd_empty)
 			;
 	end
-	initial _sv2v_0 = 0;
 endmodule
 module axi_gen_addr (
 	curr_addr,
@@ -506,6 +500,7 @@ module axi4_to_apb4_convert (
 	wire [DW - 1:0] w_data_read;
 	reg w_pslverr;
 	reg r_pslverr;
+	reg r_beat_pslverr;
 	wire [1:0] w_resp_rd;
 	wire [1:0] w_resp_wr;
 	wire r_side_operation;
@@ -558,7 +553,7 @@ module axi4_to_apb4_convert (
 	assign r_side_in_data = (r_apb_state == 3'b010 ? r_side_in_data_rd : r_side_in_data_wr);
 	assign {r_side_operation, r_side_id, r_side_last, r_side_user} = r_side_out_data;
 	assign w_data_read = (axi2abpratio == 1 ? {{DW - APBDW {1'b0}}, r_apb_rsp_pkt_prdata} : w_axi_data_shift);
-	assign w_resp_rd = (w_pslverr ? 2'b10 : 2'b00);
+	assign w_resp_rd = (w_pslverr | r_beat_pslverr ? 2'b10 : 2'b00);
 	assign w_resp_wr = (w_pslverr | r_pslverr ? 2'b10 : 2'b00);
 	assign r_s_axi_r_pkt = {r_side_id, w_data_read, w_resp_rd, r_side_last, r_side_user};
 	assign r_s_axi_b_pkt = {r_side_id, w_resp_wr, r_side_user};
@@ -588,7 +583,7 @@ module axi4_to_apb4_convert (
 		input reg [APBAW - 1:0] inp;
 		sv2v_cast_A2C65 = inp;
 	endfunction
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			r_apb_state <= 3'b001;
 			r_apb_last_state <= 3'b001;
@@ -608,11 +603,13 @@ module axi4_to_apb4_convert (
 			r_axi_rsp_data_pointer <= w_axi_rsp_data_pointer;
 			if (r_rsp_state == 2'b01) begin
 				r_pslverr <= 1'b0;
+				r_beat_pslverr <= 1'b0;
 				r_axi_rsp_data_pointer <= 'b0;
 			end
 			else
 				r_pslverr <= r_pslverr | w_pslverr;
 			if (((r_rsp_state == 2'b10) && r_rsp_valid) && w_rsp_ready) begin
+				r_beat_pslverr <= (r_axi_rsp_data_pointer == {PTR_WIDTH {1'sb0}} ? w_pslverr : r_beat_pslverr | w_pslverr);
 				if (axi2abpratio == 1)
 					r_axi_data_shift <= {{DW - APBDW {1'b0}}, r_apb_rsp_pkt_prdata};
 				else begin
@@ -663,7 +660,7 @@ module axi4_to_apb4_convert (
 		w_side_in_valid = 1'b0;
 		w_apb_cmd_pkt_pwrite = 1'b0;
 		w_apb_cmd_pkt_pwdata = (axi2abpratio == 1 ? r_s_axi_wdata[APBDW - 1:0] : r_s_axi_wdata[r_axi_wr_data_pointer * APBDW+:APBDW]);
-		w_apb_cmd_pkt_pstrb = (w_apb_cmd_pkt_pwrite == 1'b0 ? {APBSW {1'b1}} : (axi2abpratio == 1 ? r_s_axi_wstrb[APBSW - 1:0] : r_s_axi_wstrb[r_axi_wr_data_pointer * APBSW+:APBSW]));
+		w_apb_cmd_pkt_pstrb = (r_apb_state != 3'b100 ? {APBSW {1'b0}} : (axi2abpratio == 1 ? r_s_axi_wstrb[APBSW - 1:0] : r_s_axi_wstrb[r_axi_wr_data_pointer * APBSW+:APBSW]));
 		w_apb_cmd_pkt_pprot = (r_apb_state == 3'b010 ? r_s_axi_arprot : r_s_axi_awprot);
 		w_apb_cmd_pkt_paddr = r_apb_paddr & ~w_alignment_mask;
 		w_apb_cmd_pkt_first = 1'b0;
@@ -727,8 +724,6 @@ module axi4_to_apb4_convert (
 					w_cmd_valid = 'b1;
 					w_next_addr = w_next_addr_gen;
 					w_side_in_valid = 1'b1;
-					if (r_apb_last_state == 3'b001)
-						w_apb_cmd_pkt_first = 1'b1;
 					if ((r_axi_rd_data_pointer == 0) && (r_burst_count == r_s_axi_arlen))
 						w_apb_cmd_pkt_first = 1'b1;
 					if (r_axi_rd_data_pointer == sv2v_cast_62A53_signed(axi2abpratio - 1)) begin
@@ -750,8 +745,6 @@ module axi4_to_apb4_convert (
 					w_cmd_valid = 'b1;
 					w_next_addr = w_next_addr_gen;
 					w_side_in_valid = 1'b1;
-					if (r_apb_last_state == 3'b001)
-						w_apb_cmd_pkt_first = 1'b1;
 					if ((r_axi_wr_data_pointer == 0) && (r_burst_count == r_s_axi_awlen))
 						w_apb_cmd_pkt_first = 1'b1;
 					if (r_axi_wr_data_pointer == sv2v_cast_62A53_signed(axi2abpratio - 1)) begin

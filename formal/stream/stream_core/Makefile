@@ -24,10 +24,19 @@
 # cannot size its $time argument (AST_AUTOWIRE). Strip it for FORMAL ONLY --
 # simulation reads the original source and still gets the prints.
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+# Exported: the recipe below expands $REPO_ROOT in the SHELL (the filelist's
+# +incdir+$REPO_ROOT/... is left for the environment by --resolve-env), so it
+# must reach the recipe's shell even when env_python was not sourced -- CI
+# and check-flat run bare.
+export REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
 PYTHON    ?= python3
 TMPDIR    := .sv2v_prep
+
+# The filelist resolves $STREAM_ROOT via the environment (see env_python);
+# define it here so this Makefile stands alone -- CI and check-flat do not
+# source env_python. Same default the fpga-systems stream Makefiles export.
+export STREAM_ROOT ?= $(REPO_ROOT)/projects/components/dma-ip/stream
 
 FILELIST  := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/filelists/macro/stream_core.f
 FLATTEN   := $(PYTHON) $(REPO_ROOT)/bin/flatten_filelist.py
@@ -55,6 +64,38 @@ $(AWE_PREP): $(AWE_SRC) | $(TMPDIR)
 # the -f indirection without expanding it at parse time, which would run the
 # resolver on every invocation); `make clean` or touching $(FILELIST) forces it.
 stream_core_flat.v: $(FILELIST) $(AWE_PREP)
+	$(FLATTEN) $(FILELIST) --absolute-paths --resolve-env -o $(TMPDIR)/stream_core.flat.f
+	$(SV2V) \
+	  $$(grep '^+incdir+' $(TMPDIR)/stream_core.flat.f | sed 's/^+incdir+/-I/') \
+	  $$(grep -E '\.sv$$' $(TMPDIR)/stream_core.flat.f \
+	     | sed 's|^$(AWE_SRC)$$|$(AWE_PREP)|') \
+	  > $@
+
+# Show the resolved source list (debugging aid: what the closure actually is).
+srcs: | $(TMPDIR)
+	$(FLATTEN) $(FILELIST) --absolute-paths --resolve-env
+
+clean:
+	rm -rf *_flat.v *_prove *_cover $(TMPDIR)
+
+# tooling TASK-026: regenerate-and-diff self-detection for the committed flat.
+# House pattern from formal/common/counter_freq_invariant; consumed by
+# bin/formal_status.py --check-flats (mechanism a) and the pre-commit gate.
+# Comparison squeezes whitespace, matching the token normalization the
+# checker uses (committed flats may be post-formatter).
+.PHONY: check-flat .check_flat_tmp
+check-flat: .check_flat_tmp
+	@if [ "$$(tr -s '[:space:]' ' ' < .check_flat_tmp)" = "$$(tr -s '[:space:]' ' ' < stream_core_flat.v)" ]; then \
+		rm -f .check_flat_tmp; \
+		echo "flat file is current"; \
+	else \
+		rm -f .check_flat_tmp; \
+		echo "STALE: stream_core_flat.v does not match the RTL."; \
+		echo "Regenerate with: make stream_core_flat.v"; \
+		exit 1; \
+	fi
+
+.check_flat_tmp: $(FILELIST) $(AWE_PREP)
 	$(FLATTEN) $(FILELIST) --absolute-paths --resolve-env -o $(TMPDIR)/stream_core.flat.f
 	$(SV2V) \
 	  $$(grep '^+incdir+' $(TMPDIR)/stream_core.flat.f | sed 's/^+incdir+/-I/') \

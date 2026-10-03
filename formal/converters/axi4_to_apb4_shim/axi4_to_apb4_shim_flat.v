@@ -31,7 +31,7 @@ module counter_bin (
 		else
 			counter_bin_next = counter_bin_curr;
 	end
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			counter_bin_curr <= 'b0;
 		else
@@ -54,7 +54,7 @@ module fifo_control (
 	rd_almost_empty
 );
 	parameter signed [31:0] ADDR_WIDTH = 3;
-	parameter signed [31:0] DEPTH = 16;
+	parameter signed [31:0] DEPTH = 8;
 	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
 	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
 	parameter signed [31:0] REGISTERED = 0;
@@ -108,7 +108,7 @@ module fifo_control (
 	generate
 		if (REGISTERED == 1) begin : gen_flop_mode
 			reg [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
-			always @(posedge rd_clk)
+			always @(posedge rd_clk or negedge rd_rst_n)
 				if (!rd_rst_n)
 					r_rdom_wr_ptr_bin_delayed <= 1'sb0;
 				else
@@ -150,7 +150,6 @@ module gaxi_fifo_sync (
 	rd_valid,
 	rd_data
 );
-	reg _sv2v_0;
 	parameter signed [31:0] MEM_STYLE = 32'sd0;
 	parameter signed [31:0] REGISTERED = 0;
 	parameter signed [31:0] DATA_WIDTH = 4;
@@ -179,7 +178,6 @@ module gaxi_fifo_sync (
 	wire r_wr_almost_full;
 	wire r_rd_empty;
 	wire r_rd_almost_empty;
-	reg [DW - 1:0] w_rd_data;
 	wire w_write;
 	wire w_read;
 	assign w_write = wr_valid && wr_ready;
@@ -236,18 +234,16 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
-				always @(posedge axi_aclk)
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
-						w_rd_data <= 1'sb0;
+						r_rd_data <= 1'sb0;
 					else
-						w_rd_data <= mem[r_rd_addr];
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
 			end
 			else begin : g_mux
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					w_rd_data = mem[r_rd_addr];
-				end
+				assign rd_data = mem[r_rd_addr];
 			end
 		end
 		else if (MEM_STYLE == 32'sd2) begin : gen_bram
@@ -255,11 +251,13 @@ module gaxi_fifo_sync (
 			always @(posedge axi_aclk)
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
-			always @(posedge axi_aclk)
+			reg [DATA_WIDTH - 1:0] r_rd_data;
+			always @(posedge axi_aclk or negedge axi_aresetn)
 				if (!axi_aresetn)
-					w_rd_data <= 1'sb0;
+					r_rd_data <= 1'sb0;
 				else
-					w_rd_data <= mem[r_rd_addr];
+					r_rd_data <= mem[r_rd_addr];
+			assign rd_data = r_rd_data;
 		end
 		else begin : gen_auto
 			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
@@ -267,29 +265,25 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
-				always @(posedge axi_aclk)
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
-						w_rd_data <= 1'sb0;
+						r_rd_data <= 1'sb0;
 					else
-						w_rd_data <= mem[r_rd_addr];
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
 			end
 			else begin : g_mux
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					w_rd_data = mem[r_rd_addr];
-				end
+				assign rd_data = mem[r_rd_addr];
 			end
 		end
 	endgenerate
-	assign rd_data = w_rd_data;
 	always @(posedge axi_aclk) begin
 		if (w_write && r_wr_full)
 			;
 		if (w_read && r_rd_empty)
 			;
 	end
-	initial _sv2v_0 = 0;
 endmodule
 module gaxi_skid_buffer (
 	axi_aclk,
@@ -306,8 +300,6 @@ module gaxi_skid_buffer (
 	parameter signed [31:0] DATA_WIDTH = 32;
 	parameter signed [31:0] DEPTH = 2;
 	parameter signed [31:0] DW = DATA_WIDTH;
-	parameter signed [31:0] BUF_WIDTH = DATA_WIDTH * DEPTH;
-	parameter signed [31:0] BW = BUF_WIDTH;
 	input wire axi_aclk;
 	input wire axi_aresetn;
 	input wire wr_valid;
@@ -318,41 +310,63 @@ module gaxi_skid_buffer (
 	input wire rd_ready;
 	output wire [3:0] rd_count;
 	output wire [DW - 1:0] rd_data;
-	reg [BW - 1:0] r_data;
+	reg [DW - 1:0] r_data [0:DEPTH - 1];
 	reg [3:0] r_data_count;
 	wire w_wr_xfer;
 	wire w_rd_xfer;
-	wire [DW - 1:0] zeros;
-	assign zeros = 'b0;
 	assign w_wr_xfer = wr_valid & wr_ready;
 	assign w_rd_xfer = rd_valid & rd_ready;
+	generate
+		if ((DEPTH < 2) || (DEPTH > 8)) begin : gen_depth_guard
+			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:101:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
+		end
+	endgenerate
+	genvar _gv_gi_1;
+	generate
+		for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
+			localparam gi = _gv_gi_1;
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn)
+					r_data[gi] <= 1'sb0;
+				else
+					(* full_case, parallel_case *)
+					case ({w_wr_xfer, w_rd_xfer})
+						2'b10:
+							if (r_data_count == gi[3:0])
+								r_data[gi] <= wr_data;
+						2'b01:
+							if (gi < (DEPTH - 1))
+								r_data[gi] <= r_data[gi + 1];
+							else
+								r_data[gi] <= 1'sb0;
+						2'b11:
+							if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
+								r_data[gi] <= wr_data;
+							else if (gi < (DEPTH - 1))
+								r_data[gi] <= r_data[gi + 1];
+							else
+								r_data[gi] <= 1'sb0;
+						default:
+							;
+					endcase
+		end
+	endgenerate
+	always @(posedge axi_aclk or negedge axi_aresetn)
+		if (!axi_aresetn)
+			r_data_count <= 1'sb0;
+		else
+			(* full_case, parallel_case *)
+			case ({w_wr_xfer, w_rd_xfer})
+				2'b10: r_data_count <= r_data_count + 4'd1;
+				2'b01: r_data_count <= r_data_count - 4'd1;
+				default:
+					;
+			endcase
 	function automatic [31:0] sv2v_cast_32;
 		input reg [31:0] inp;
 		sv2v_cast_32 = inp;
 	endfunction
-	always @(posedge axi_aclk)
-		if (!axi_aresetn) begin
-			r_data <= 'b0;
-			r_data_count <= 'b0;
-		end
-		else
-			case ({w_wr_xfer, w_rd_xfer})
-				2'b10: begin
-					r_data[DW * r_data_count+:DW] <= wr_data;
-					r_data_count <= r_data_count + 1;
-				end
-				2'b01: begin
-					r_data <= {zeros, r_data[BUF_WIDTH - 1:DW]};
-					r_data_count <= r_data_count - 1;
-				end
-				2'b11: begin
-					r_data <= {zeros, r_data[BUF_WIDTH - 1:DW]};
-					r_data[DW * (sv2v_cast_32(r_data_count) - 1)+:DW] <= wr_data;
-				end
-				default:
-					;
-			endcase
-	always @(posedge axi_aclk)
+	always @(posedge axi_aclk or negedge axi_aresetn)
 		if (!axi_aresetn) begin
 			wr_ready <= 1'b0;
 			rd_valid <= 1'b0;
@@ -361,7 +375,7 @@ module gaxi_skid_buffer (
 			wr_ready <= ((sv2v_cast_32(r_data_count) <= (DEPTH - 2)) || ((sv2v_cast_32(r_data_count) == (DEPTH - 1)) && (~w_wr_xfer || w_rd_xfer))) || ((sv2v_cast_32(r_data_count) == DEPTH) && w_rd_xfer);
 			rd_valid <= ((r_data_count >= 2) || ((r_data_count == 4'b0001) && (~w_rd_xfer || w_wr_xfer))) || ((r_data_count == 4'b0000) && w_wr_xfer);
 		end
-	assign rd_data = r_data[DW - 1:0];
+	assign rd_data = r_data[0];
 	assign rd_count = r_data_count;
 	assign count = r_data_count;
 endmodule
@@ -460,12 +474,171 @@ module axi_gen_addr (
 	assign next_addr_align = next_addr & ~w_alignment_mask;
 	initial _sv2v_0 = 0;
 endmodule
-module cdc_handshake (
+module cdc_2_phase_handshake (
 	clk_src,
 	rst_src_n,
 	src_valid,
 	src_ready,
 	src_data,
+	src_timeout,
+	clk_dst,
+	rst_dst_n,
+	dst_valid,
+	dst_ready,
+	dst_data
+);
+	reg _sv2v_0;
+	parameter signed [31:0] DATA_WIDTH = 8;
+	parameter signed [31:0] SYNC_STAGES = 3;
+	parameter signed [31:0] TIMEOUT_CYCLES = 0;
+	input wire clk_src;
+	input wire rst_src_n;
+	input wire src_valid;
+	output reg src_ready;
+	input wire [DATA_WIDTH - 1:0] src_data;
+	output reg src_timeout;
+	input wire clk_dst;
+	input wire rst_dst_n;
+	output reg dst_valid;
+	input wire dst_ready;
+	output wire [DATA_WIDTH - 1:0] dst_data;
+	reg r_req_tog;
+	reg r_ack_tog;
+	reg [DATA_WIDTH - 1:0] r_src_data_hold;
+	(* ASYNC_REG = "TRUE" *) reg [DATA_WIDTH - 1:0] r_dst_data;
+	(* ASYNC_REG = "TRUE" *) reg [SYNC_STAGES - 1:0] r_req_sync;
+	(* ASYNC_REG = "TRUE" *) reg [SYNC_STAGES - 1:0] r_ack_sync;
+	reg r_req_sync_d;
+	reg r_ack_sync_d;
+	wire w_req_sync;
+	wire w_ack_sync;
+	wire w_req_event;
+	wire w_ack_event;
+	reg r_src_state;
+	reg r_dst_state;
+	localparam signed [31:0] TIMEOUT_CW = (TIMEOUT_CYCLES > 1 ? $clog2(TIMEOUT_CYCLES + 1) : 1);
+	reg [TIMEOUT_CW - 1:0] r_timeout_cnt;
+	always @(posedge clk_src or negedge rst_src_n)
+		if (!rst_src_n) begin
+			r_ack_sync <= 1'sb0;
+			r_ack_sync_d <= 1'b0;
+		end
+		else begin
+			r_ack_sync <= {r_ack_sync[SYNC_STAGES - 2:0], r_ack_tog};
+			r_ack_sync_d <= r_ack_sync[SYNC_STAGES - 1];
+		end
+	assign w_ack_sync = r_ack_sync[SYNC_STAGES - 1];
+	assign w_ack_event = w_ack_sync ^ r_ack_sync_d;
+	always @(posedge clk_src or negedge rst_src_n)
+		if (!rst_src_n) begin
+			r_src_state <= 1'd0;
+			r_req_tog <= 1'b0;
+			src_ready <= 1'b0;
+			r_src_data_hold <= 1'sb0;
+		end
+		else
+			(* full_case, parallel_case *)
+			case (r_src_state)
+				1'd0: begin
+					src_ready <= 1'b1;
+					if (src_valid) begin
+						r_src_data_hold <= src_data;
+						r_req_tog <= ~r_req_tog;
+						src_ready <= 1'b0;
+						r_src_state <= 1'd1;
+					end
+				end
+				1'd1: begin
+					src_ready <= 1'b0;
+					if (w_ack_event) begin
+						src_ready <= 1'b1;
+						r_src_state <= 1'd0;
+					end
+				end
+				default: begin
+					r_src_state <= 1'd0;
+					src_ready <= 1'b1;
+				end
+			endcase
+	generate
+		if (TIMEOUT_CYCLES > 0) begin : g_timeout
+			always @(posedge clk_src or negedge rst_src_n)
+				if (!rst_src_n) begin
+					r_timeout_cnt <= 1'sb0;
+					src_timeout <= 1'b0;
+				end
+				else if (r_src_state == 1'd0) begin
+					r_timeout_cnt <= 1'sb0;
+					src_timeout <= 1'b0;
+				end
+				else if (r_timeout_cnt == TIMEOUT_CYCLES[TIMEOUT_CW - 1:0])
+					src_timeout <= 1'b1;
+				else
+					r_timeout_cnt <= r_timeout_cnt + 1'b1;
+		end
+		else begin : g_no_timeout
+			wire [1:1] sv2v_tmp_D5E08;
+			assign sv2v_tmp_D5E08 = 1'b0;
+			always @(*) src_timeout = sv2v_tmp_D5E08;
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				r_timeout_cnt = 1'sb0;
+			end
+		end
+	endgenerate
+	always @(posedge clk_dst or negedge rst_dst_n)
+		if (!rst_dst_n) begin
+			r_req_sync <= 1'sb0;
+			r_req_sync_d <= 1'b0;
+		end
+		else begin
+			r_req_sync <= {r_req_sync[SYNC_STAGES - 2:0], r_req_tog};
+			r_req_sync_d <= r_req_sync[SYNC_STAGES - 1];
+		end
+	assign w_req_sync = r_req_sync[SYNC_STAGES - 1];
+	assign w_req_event = w_req_sync ^ r_req_sync_d;
+	always @(posedge clk_dst or negedge rst_dst_n)
+		if (!rst_dst_n) begin
+			r_dst_state <= 1'd0;
+			r_ack_tog <= 1'b0;
+			dst_valid <= 1'b0;
+			r_dst_data <= 1'sb0;
+		end
+		else
+			(* full_case, parallel_case *)
+			case (r_dst_state)
+				1'd0:
+					if (w_req_event) begin
+						r_dst_data <= r_src_data_hold;
+						dst_valid <= 1'b1;
+						r_dst_state <= 1'd1;
+					end
+					else
+						dst_valid <= 1'b0;
+				1'd1: begin
+					dst_valid <= 1'b1;
+					if (dst_ready) begin
+						r_ack_tog <= ~r_ack_tog;
+						dst_valid <= 1'b0;
+						r_dst_state <= 1'd0;
+					end
+				end
+				default: begin
+					r_dst_state <= 1'd0;
+					dst_valid <= 1'b0;
+				end
+			endcase
+	assign dst_data = r_dst_data;
+	initial _sv2v_0 = 0;
+endmodule
+module cdc_4_phase_handshake (
+	clk_src,
+	rst_src_n,
+	src_valid,
+	src_ready,
+	src_data,
+	src_timeout,
 	clk_dst,
 	rst_dst_n,
 	dst_valid,
@@ -473,11 +646,14 @@ module cdc_handshake (
 	dst_data
 );
 	parameter signed [31:0] DATA_WIDTH = 8;
+	parameter signed [31:0] SYNC_STAGES = 3;
+	parameter signed [31:0] TIMEOUT_CYCLES = 0;
 	input wire clk_src;
 	input wire rst_src_n;
 	input wire src_valid;
 	output reg src_ready;
 	input wire [DATA_WIDTH - 1:0] src_data;
+	output reg src_timeout;
 	input wire clk_dst;
 	input wire rst_dst_n;
 	output reg dst_valid;
@@ -485,34 +661,36 @@ module cdc_handshake (
 	output wire [DATA_WIDTH - 1:0] dst_data;
 	reg r_req_src;
 	reg r_ack_dst;
-	reg [DATA_WIDTH - 1:0] r_async_data;
-	reg [DATA_WIDTH - 1:0] r_dst_data;
-	reg [2:0] r_req_sync;
-	reg [2:0] r_ack_sync;
+	reg [DATA_WIDTH - 1:0] r_src_data_hold;
+	(* ASYNC_REG = "TRUE" *) reg [DATA_WIDTH - 1:0] r_dst_data;
+	(* ASYNC_REG = "TRUE" *) reg [SYNC_STAGES - 1:0] r_req_sync;
+	(* ASYNC_REG = "TRUE" *) reg [SYNC_STAGES - 1:0] r_ack_sync;
 	wire w_req_sync;
 	wire w_ack_sync;
 	reg [1:0] r_src_state;
 	reg [1:0] r_dst_state;
-	always @(posedge clk_src)
+	localparam signed [31:0] TIMEOUT_CW = (TIMEOUT_CYCLES > 1 ? $clog2(TIMEOUT_CYCLES + 1) : 1);
+	always @(posedge clk_src or negedge rst_src_n)
 		if (!rst_src_n)
-			r_ack_sync <= 3'b000;
+			r_ack_sync <= 1'sb0;
 		else
-			r_ack_sync <= {r_ack_sync[1:0], r_ack_dst};
-	assign w_ack_sync = r_ack_sync[2];
-	always @(posedge clk_src)
+			r_ack_sync <= {r_ack_sync[SYNC_STAGES - 2:0], r_ack_dst};
+	assign w_ack_sync = r_ack_sync[SYNC_STAGES - 1];
+	always @(posedge clk_src or negedge rst_src_n)
 		if (!rst_src_n) begin
 			r_src_state <= 2'd0;
 			r_req_src <= 1'b0;
 			src_ready <= 1'b0;
-			r_async_data <= {DATA_WIDTH {1'b0}};
+			r_src_data_hold <= 1'sb0;
 		end
 		else
+			(* full_case, parallel_case *)
 			case (r_src_state)
 				2'd0: begin
 					src_ready <= 1'b1;
 					r_req_src <= 1'b0;
 					if (src_valid) begin
-						r_async_data <= src_data;
+						r_src_data_hold <= src_data;
 						r_req_src <= 1'b1;
 						src_ready <= 1'b0;
 						r_src_state <= 2'd1;
@@ -524,10 +702,6 @@ module cdc_handshake (
 						r_req_src <= 1'b0;
 						r_src_state <= 2'd2;
 					end
-					else begin
-						r_req_src <= 1'b1;
-						r_src_state <= 2'd1;
-					end
 				end
 				2'd2: begin
 					src_ready <= 1'b0;
@@ -536,8 +710,6 @@ module cdc_handshake (
 						src_ready <= 1'b1;
 						r_src_state <= 2'd0;
 					end
-					else
-						r_src_state <= 2'd2;
 				end
 				default: begin
 					r_src_state <= 2'd0;
@@ -545,25 +717,49 @@ module cdc_handshake (
 					r_req_src <= 1'b0;
 				end
 			endcase
-	always @(posedge clk_dst)
+	generate
+		if (TIMEOUT_CYCLES > 0) begin : g_timeout
+			reg [TIMEOUT_CW - 1:0] r_timeout_cnt;
+			always @(posedge clk_src or negedge rst_src_n)
+				if (!rst_src_n) begin
+					r_timeout_cnt <= 1'sb0;
+					src_timeout <= 1'b0;
+				end
+				else if (r_src_state == 2'd0) begin
+					r_timeout_cnt <= 1'sb0;
+					src_timeout <= 1'b0;
+				end
+				else if (r_timeout_cnt == TIMEOUT_CYCLES[TIMEOUT_CW - 1:0])
+					src_timeout <= 1'b1;
+				else
+					r_timeout_cnt <= r_timeout_cnt + 1'b1;
+		end
+		else begin : g_no_timeout
+			wire [1:1] sv2v_tmp_D5E08;
+			assign sv2v_tmp_D5E08 = 1'b0;
+			always @(*) src_timeout = sv2v_tmp_D5E08;
+		end
+	endgenerate
+	always @(posedge clk_dst or negedge rst_dst_n)
 		if (!rst_dst_n)
-			r_req_sync <= 3'b000;
+			r_req_sync <= 1'sb0;
 		else
-			r_req_sync <= {r_req_sync[1:0], r_req_src};
-	assign w_req_sync = r_req_sync[2];
-	always @(posedge clk_dst)
+			r_req_sync <= {r_req_sync[SYNC_STAGES - 2:0], r_req_src};
+	assign w_req_sync = r_req_sync[SYNC_STAGES - 1];
+	always @(posedge clk_dst or negedge rst_dst_n)
 		if (!rst_dst_n) begin
 			r_dst_state <= 2'd0;
 			r_ack_dst <= 1'b0;
 			dst_valid <= 1'b0;
-			r_dst_data <= {DATA_WIDTH {1'b0}};
+			r_dst_data <= 1'sb0;
 		end
 		else
+			(* full_case, parallel_case *)
 			case (r_dst_state)
 				2'd0: begin
 					r_ack_dst <= 1'b0;
 					if (w_req_sync) begin
-						r_dst_data <= r_async_data;
+						r_dst_data <= r_src_data_hold;
 						dst_valid <= 1'b1;
 						r_dst_state <= 2'd1;
 					end
@@ -588,8 +784,6 @@ module cdc_handshake (
 						r_ack_dst <= 1'b0;
 						r_dst_state <= 2'd0;
 					end
-					else
-						r_ack_dst <= 1'b1;
 				end
 				default: begin
 					r_dst_state <= 2'd0;
@@ -689,6 +883,7 @@ module apb4_master (
 	);
 	reg w_rsp_valid;
 	wire r_rsp_ready;
+	wire [3:0] w_rsp_count;
 	wire [RPW - 1:0] r_rsp_data_in;
 	assign r_rsp_data_in = {m_apb_PSLVERR, m_apb_PRDATA};
 	gaxi_skid_buffer #(
@@ -700,7 +895,7 @@ module apb4_master (
 		.wr_valid(w_rsp_valid),
 		.wr_ready(r_rsp_ready),
 		.wr_data(r_rsp_data_in),
-		.count(),
+		.count(w_rsp_count),
 		.rd_valid(rsp_valid),
 		.rd_ready(rsp_ready),
 		.rd_data({rsp_pslverr, rsp_prdata}),
@@ -708,11 +903,15 @@ module apb4_master (
 	);
 	reg [2:0] r_apb_state;
 	reg [2:0] w_apb_next_state;
-	always @(posedge pclk)
+	always @(posedge pclk or negedge presetn)
 		if (!presetn)
 			r_apb_state <= 3'b001;
 		else
 			r_apb_state <= w_apb_next_state;
+	function automatic [31:0] sv2v_cast_32;
+		input reg [31:0] inp;
+		sv2v_cast_32 = inp;
+	endfunction
 	always @(*) begin
 		if (_sv2v_0)
 			;
@@ -728,10 +927,8 @@ module apb4_master (
 		w_rsp_valid = 1'b0;
 		casez (r_apb_state)
 			3'b001:
-				if (r_cmd_valid) begin
-					m_apb_PSEL = 1'b1;
+				if (r_cmd_valid && r_rsp_ready)
 					w_apb_next_state = 3'b010;
-				end
 			3'b010: begin
 				m_apb_PSEL = 1'b1;
 				w_apb_next_state = 3'b100;
@@ -740,16 +937,12 @@ module apb4_master (
 				m_apb_PSEL = 1'b1;
 				m_apb_PENABLE = 1'b1;
 				if (m_apb_PREADY) begin
-					if (r_rsp_ready) begin
-						w_rsp_valid = 1'b1;
-						w_cmd_ready = 1'b1;
-						if (w_cmd_count > 1)
-							w_apb_next_state = 3'b010;
-						else
-							w_apb_next_state = 3'b001;
-					end
+					w_rsp_valid = 1'b1;
+					w_cmd_ready = 1'b1;
+					if ((w_cmd_count > 1) && (sv2v_cast_32(w_rsp_count) <= (RSP_DEPTH - 2)))
+						w_apb_next_state = 3'b010;
 					else
-						w_apb_next_state = 3'b100;
+						w_apb_next_state = 3'b001;
 				end
 			end
 			default: w_apb_next_state = 3'b001;
@@ -817,7 +1010,32 @@ module apb4_master_stub (
 	assign {cmd_last, cmd_first, cmd_pwrite, cmd_pprot, cmd_pstrb, cmd_paddr, cmd_pwdata} = cmd_data;
 	wire [DW - 1:0] rsp_prdata;
 	wire rsp_pslverr;
-	assign rsp_data = {cmd_last, cmd_first, rsp_pslverr, rsp_prdata};
+	wire [1:0] fl_in_data;
+	wire [1:0] fl_out_data;
+	wire fl_in_ready;
+	wire fl_out_valid;
+	wire out_cmd_last;
+	wire out_cmd_first;
+	assign fl_in_data = {cmd_last, cmd_first};
+	assign {out_cmd_last, out_cmd_first} = fl_out_data;
+	gaxi_fifo_sync #(
+		.DATA_WIDTH(2),
+		.DEPTH((CMD_DEPTH + RSP_DEPTH) + 2)
+	) u_first_last_fifo(
+		.axi_aclk(pclk),
+		.axi_aresetn(presetn),
+		.wr_valid(cmd_valid && cmd_ready),
+		.wr_ready(fl_in_ready),
+		.wr_data(fl_in_data),
+		.rd_valid(fl_out_valid),
+		.rd_ready(rsp_valid && rsp_ready),
+		.rd_data(fl_out_data),
+		.count()
+	);
+	always @(posedge pclk)
+		if ((presetn && (cmd_valid && cmd_ready)) && !fl_in_ready)
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/amba/apb4/apb4_master_stub.sv:142:13 - apb4_master_stub.<unnamed_block>.<unnamed_block>\n msg: ", $time, "apb4_master_stub: first/last side FIFO overflow -- framing record dropped");
+	assign rsp_data = {out_cmd_last, out_cmd_first, rsp_pslverr, rsp_prdata};
 	apb4_master #(
 		.ADDR_WIDTH(ADDR_WIDTH),
 		.DATA_WIDTH(DATA_WIDTH),
@@ -1445,6 +1663,7 @@ module axi4_to_apb4_convert (
 	wire [DW - 1:0] w_data_read;
 	reg w_pslverr;
 	reg r_pslverr;
+	reg r_beat_pslverr;
 	wire [1:0] w_resp_rd;
 	wire [1:0] w_resp_wr;
 	wire r_side_operation;
@@ -1497,7 +1716,7 @@ module axi4_to_apb4_convert (
 	assign r_side_in_data = (r_apb_state == 3'b010 ? r_side_in_data_rd : r_side_in_data_wr);
 	assign {r_side_operation, r_side_id, r_side_last, r_side_user} = r_side_out_data;
 	assign w_data_read = (axi2abpratio == 1 ? {{DW - APBDW {1'b0}}, r_apb_rsp_pkt_prdata} : w_axi_data_shift);
-	assign w_resp_rd = (w_pslverr ? 2'b10 : 2'b00);
+	assign w_resp_rd = (w_pslverr | r_beat_pslverr ? 2'b10 : 2'b00);
 	assign w_resp_wr = (w_pslverr | r_pslverr ? 2'b10 : 2'b00);
 	assign r_s_axi_r_pkt = {r_side_id, w_data_read, w_resp_rd, r_side_last, r_side_user};
 	assign r_s_axi_b_pkt = {r_side_id, w_resp_wr, r_side_user};
@@ -1527,7 +1746,7 @@ module axi4_to_apb4_convert (
 		input reg [APBAW - 1:0] inp;
 		sv2v_cast_A2C65 = inp;
 	endfunction
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			r_apb_state <= 3'b001;
 			r_apb_last_state <= 3'b001;
@@ -1547,11 +1766,13 @@ module axi4_to_apb4_convert (
 			r_axi_rsp_data_pointer <= w_axi_rsp_data_pointer;
 			if (r_rsp_state == 2'b01) begin
 				r_pslverr <= 1'b0;
+				r_beat_pslverr <= 1'b0;
 				r_axi_rsp_data_pointer <= 'b0;
 			end
 			else
 				r_pslverr <= r_pslverr | w_pslverr;
 			if (((r_rsp_state == 2'b10) && r_rsp_valid) && w_rsp_ready) begin
+				r_beat_pslverr <= (r_axi_rsp_data_pointer == {PTR_WIDTH {1'sb0}} ? w_pslverr : r_beat_pslverr | w_pslverr);
 				if (axi2abpratio == 1)
 					r_axi_data_shift <= {{DW - APBDW {1'b0}}, r_apb_rsp_pkt_prdata};
 				else begin
@@ -1602,7 +1823,7 @@ module axi4_to_apb4_convert (
 		w_side_in_valid = 1'b0;
 		w_apb_cmd_pkt_pwrite = 1'b0;
 		w_apb_cmd_pkt_pwdata = (axi2abpratio == 1 ? r_s_axi_wdata[APBDW - 1:0] : r_s_axi_wdata[r_axi_wr_data_pointer * APBDW+:APBDW]);
-		w_apb_cmd_pkt_pstrb = (w_apb_cmd_pkt_pwrite == 1'b0 ? {APBSW {1'b1}} : (axi2abpratio == 1 ? r_s_axi_wstrb[APBSW - 1:0] : r_s_axi_wstrb[r_axi_wr_data_pointer * APBSW+:APBSW]));
+		w_apb_cmd_pkt_pstrb = (r_apb_state != 3'b100 ? {APBSW {1'b0}} : (axi2abpratio == 1 ? r_s_axi_wstrb[APBSW - 1:0] : r_s_axi_wstrb[r_axi_wr_data_pointer * APBSW+:APBSW]));
 		w_apb_cmd_pkt_pprot = (r_apb_state == 3'b010 ? r_s_axi_arprot : r_s_axi_awprot);
 		w_apb_cmd_pkt_paddr = r_apb_paddr & ~w_alignment_mask;
 		w_apb_cmd_pkt_first = 1'b0;
@@ -1666,8 +1887,6 @@ module axi4_to_apb4_convert (
 					w_cmd_valid = 'b1;
 					w_next_addr = w_next_addr_gen;
 					w_side_in_valid = 1'b1;
-					if (r_apb_last_state == 3'b001)
-						w_apb_cmd_pkt_first = 1'b1;
 					if ((r_axi_rd_data_pointer == 0) && (r_burst_count == r_s_axi_arlen))
 						w_apb_cmd_pkt_first = 1'b1;
 					if (r_axi_rd_data_pointer == sv2v_cast_62A53_signed(axi2abpratio - 1)) begin
@@ -1689,8 +1908,6 @@ module axi4_to_apb4_convert (
 					w_cmd_valid = 'b1;
 					w_next_addr = w_next_addr_gen;
 					w_side_in_valid = 1'b1;
-					if (r_apb_last_state == 3'b001)
-						w_apb_cmd_pkt_first = 1'b1;
 					if ((r_axi_wr_data_pointer == 0) && (r_burst_count == r_s_axi_awlen))
 						w_apb_cmd_pkt_first = 1'b1;
 					if (r_axi_wr_data_pointer == sv2v_cast_62A53_signed(axi2abpratio - 1)) begin
@@ -1797,6 +2014,7 @@ module axi4_to_apb4_shim (
 	parameter signed [31:0] SIDE_DEPTH = 4;
 	parameter signed [31:0] APB_CMD_DEPTH = 4;
 	parameter signed [31:0] APB_RSP_DEPTH = 4;
+	parameter signed [31:0] USE_JOHNSON = 0;
 	parameter signed [31:0] AXI_ID_WIDTH = 8;
 	parameter signed [31:0] AXI_ADDR_WIDTH = 32;
 	parameter signed [31:0] AXI_DATA_WIDTH = 32;
@@ -1805,6 +2023,7 @@ module axi4_to_apb4_shim (
 	parameter signed [31:0] APB_DATA_WIDTH = 32;
 	parameter signed [31:0] AXI_WSTRB_WIDTH = AXI_DATA_WIDTH / 8;
 	parameter signed [31:0] APB_WSTRB_WIDTH = APB_DATA_WIDTH / 8;
+	parameter [0:0] USE_2_PHASE_CDC = 1'b1;
 	parameter signed [31:0] AW = AXI_ADDR_WIDTH;
 	parameter signed [31:0] DW = AXI_DATA_WIDTH;
 	parameter signed [31:0] IW = AXI_ID_WIDTH;
@@ -1821,7 +2040,6 @@ module axi4_to_apb4_shim (
 	parameter signed [31:0] RSize = ((IW + DW) + 3) + UW;
 	parameter signed [31:0] APBCmdWidth = ((APBAW + APBDW) + APBSW) + 6;
 	parameter signed [31:0] APBRspWidth = APBDW + 3;
-	parameter signed [31:0] SideSize = ((1 + IW) + 3) + UW;
 	input wire aclk;
 	input wire aresetn;
 	input wire pclk;
@@ -2021,29 +2239,41 @@ module axi4_to_apb4_shim (
 		.w_rsp_ready(w_rsp_ready),
 		.r_rsp_data(r_rsp_data)
 	);
-	cdc_handshake #(.DATA_WIDTH(APBCmdWidth)) u_cmd_cdc_handshake(
-		.clk_src(aclk),
-		.rst_src_n(aresetn),
-		.src_valid(w_cmd_valid),
-		.src_ready(r_cmd_ready),
-		.src_data(r_cmd_data),
-		.clk_dst(pclk),
-		.rst_dst_n(presetn),
-		.dst_valid(w_cmd_valid_apb),
-		.dst_ready(r_cmd_ready_apb),
-		.dst_data(r_cmd_data_apb)
+	localparam signed [31:0] CDC_CMD_DEPTH = (APB_CMD_DEPTH < 4 ? 4 : APB_CMD_DEPTH);
+	localparam signed [31:0] CDC_RSP_DEPTH = (APB_RSP_DEPTH < 4 ? 4 : APB_RSP_DEPTH);
+	gaxi_fifo_async #(
+		.DATA_WIDTH(APBCmdWidth),
+		.DEPTH(CDC_CMD_DEPTH),
+		.USE_JOHNSON(USE_JOHNSON),
+		.N_FLOP_CROSS(2)
+	) u_cmd_cdc_fifo(
+		.axi_wr_aclk(aclk),
+		.axi_wr_aresetn(aresetn),
+		.axi_rd_aclk(pclk),
+		.axi_rd_aresetn(presetn),
+		.wr_valid(w_cmd_valid),
+		.wr_ready(r_cmd_ready),
+		.wr_data(r_cmd_data),
+		.rd_ready(r_cmd_ready_apb),
+		.rd_valid(w_cmd_valid_apb),
+		.rd_data(r_cmd_data_apb)
 	);
-	cdc_handshake #(.DATA_WIDTH(APBRspWidth)) u_rsp_cdc_handshake(
-		.clk_src(pclk),
-		.rst_src_n(presetn),
-		.src_valid(r_rsp_valid_apb),
-		.src_ready(w_rsp_ready_apb),
-		.src_data(r_rsp_data_apb),
-		.clk_dst(aclk),
-		.rst_dst_n(aresetn),
-		.dst_valid(r_rsp_valid),
-		.dst_ready(w_rsp_ready),
-		.dst_data(r_rsp_data)
+	gaxi_fifo_async #(
+		.DATA_WIDTH(APBRspWidth),
+		.DEPTH(CDC_RSP_DEPTH),
+		.USE_JOHNSON(USE_JOHNSON),
+		.N_FLOP_CROSS(2)
+	) u_rsp_cdc_fifo(
+		.axi_wr_aclk(pclk),
+		.axi_wr_aresetn(presetn),
+		.axi_rd_aclk(aclk),
+		.axi_rd_aresetn(aresetn),
+		.wr_valid(r_rsp_valid_apb),
+		.wr_ready(w_rsp_ready_apb),
+		.wr_data(r_rsp_data_apb),
+		.rd_ready(w_rsp_ready),
+		.rd_valid(r_rsp_valid),
+		.rd_data(r_rsp_data)
 	);
 	apb4_master_stub #(
 		.CMD_DEPTH(APB_CMD_DEPTH),

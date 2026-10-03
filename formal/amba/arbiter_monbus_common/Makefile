@@ -54,3 +54,33 @@ arbiter_monbus_common_flat.v: $(DUT) $(PKGS) $(DEPS)
 
 clean:
 	rm -rf arbiter_monbus_common_flat.v arbiter_monbus_common_prove arbiter_monbus_common_cover
+
+# tooling TASK-026: regenerate-and-diff self-detection for the committed flat.
+# House pattern from formal/common/counter_freq_invariant; consumed by
+# bin/formal_status.py --check-flats (mechanism a) and the pre-commit gate.
+# Comparison squeezes whitespace, matching the token normalization the
+# checker uses (committed flats may be post-formatter).
+.PHONY: check-flat .check_flat_tmp
+check-flat: .check_flat_tmp
+	@if [ "$$(tr -s '[:space:]' ' ' < .check_flat_tmp)" = "$$(tr -s '[:space:]' ' ' < arbiter_monbus_common_flat.v)" ]; then \
+		rm -f .check_flat_tmp; \
+		echo "flat file is current"; \
+	else \
+		rm -f .check_flat_tmp; \
+		echo "STALE: arbiter_monbus_common_flat.v does not match the RTL."; \
+		echo "Regenerate with: make arbiter_monbus_common_flat.v"; \
+		exit 1; \
+	fi
+
+.check_flat_tmp: $(DUT) $(PKGS) $(DEPS)
+	@mkdir -p $(TMPDIR)
+	@for f in $(DEPS) $(DUT); do \
+	    sed -e 's/import monitor_pkg::\*;//g' -e 's/monitor_pkg:://g' $$f \
+	        > $(TMPDIR)/$$(basename $$f); \
+	done
+	$(SV2V) --define=FORMAL $(INC) $(PKGS) \
+	    $(addprefix $(TMPDIR)/,$(notdir $(DEPS) $(DUT))) > $@
+	@rm -rf $(TMPDIR)
+
+clean:
+	rm -rf $@ arbiter_monbus_common_prove arbiter_monbus_common_cover

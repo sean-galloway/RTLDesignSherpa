@@ -6,6 +6,7 @@ module axi_data_upsize (
 	narrow_data,
 	narrow_sideband,
 	narrow_last,
+	start_lane,
 	wide_valid,
 	wide_ready,
 	wide_data,
@@ -28,6 +29,7 @@ module axi_data_upsize (
 	input wire [NARROW_WIDTH - 1:0] narrow_data;
 	input wire [NARROW_SB_PORT_WIDTH - 1:0] narrow_sideband;
 	input wire narrow_last;
+	input wire [PTR_WIDTH - 1:0] start_lane;
 	output wire wide_valid;
 	input wire wide_ready;
 	output wire [WIDE_WIDTH - 1:0] wide_data;
@@ -35,40 +37,53 @@ module axi_data_upsize (
 	output wire wide_last;
 	initial begin
 		if (WIDE_WIDTH <= NARROW_WIDTH)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:78:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be > NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:87:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be > NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
 		if ((WIDE_WIDTH % NARROW_WIDTH) != 0)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:80:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be integer multiple of NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:89:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be integer multiple of NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
 		if (WIDTH_RATIO < 2)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:82:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:91:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
 	end
 	reg [WIDE_WIDTH - 1:0] r_data_accumulator;
 	reg [WIDE_SB_PORT_WIDTH - 1:0] r_sideband_accumulator;
 	reg [PTR_WIDTH - 1:0] r_beat_ptr;
 	reg r_wide_valid;
 	reg r_last_buffered;
+	reg r_burst_fresh;
+	wire [PTR_WIDTH - 1:0] w_lane;
+	assign w_lane = (r_beat_ptr == {PTR_WIDTH {1'sb0}} ? (r_burst_fresh ? start_lane : {PTR_WIDTH {1'sb0}}) : r_beat_ptr);
+	wire narrow_completes_group;
 	function automatic signed [PTR_WIDTH - 1:0] sv2v_cast_62A53_signed;
 		input reg signed [PTR_WIDTH - 1:0] inp;
 		sv2v_cast_62A53_signed = inp;
 	endfunction
-	always @(posedge aclk)
+	assign narrow_completes_group = (narrow_valid && narrow_ready) && ((w_lane == sv2v_cast_62A53_signed(WIDTH_RATIO - 1)) || narrow_last);
+	wire wide_accept;
+	assign wide_accept = r_wide_valid && wide_ready;
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			r_data_accumulator <= 1'sb0;
 			r_beat_ptr <= 1'sb0;
 			r_wide_valid <= 1'b0;
 			r_last_buffered <= 1'b0;
+			r_burst_fresh <= 1'b1;
 		end
 		else begin
 			if (narrow_valid && narrow_ready) begin
-				r_data_accumulator[r_beat_ptr * NARROW_WIDTH+:NARROW_WIDTH] <= narrow_data;
-				if ((r_beat_ptr == sv2v_cast_62A53_signed(WIDTH_RATIO - 1)) || narrow_last) begin
-					r_wide_valid <= 1'b1;
-					r_beat_ptr <= 1'sb0;
-					r_last_buffered <= narrow_last;
-				end
+				if (r_beat_ptr == {PTR_WIDTH {1'sb0}})
+					r_data_accumulator <= {{WIDE_WIDTH - NARROW_WIDTH {1'b0}}, narrow_data} << (w_lane * NARROW_WIDTH);
 				else
-					r_beat_ptr <= r_beat_ptr + 1'b1;
+					r_data_accumulator[w_lane * NARROW_WIDTH+:NARROW_WIDTH] <= narrow_data;
+				if (narrow_completes_group)
+					r_beat_ptr <= 1'sb0;
+				else
+					r_beat_ptr <= w_lane + 1'b1;
+				r_burst_fresh <= narrow_last;
 			end
-			if (r_wide_valid && wide_ready) begin
+			if (narrow_completes_group) begin
+				r_wide_valid <= 1'b1;
+				r_last_buffered <= narrow_last;
+			end
+			else if (wide_accept) begin
 				r_wide_valid <= 1'b0;
 				r_last_buffered <= 1'b0;
 			end
@@ -86,16 +101,20 @@ module axi_data_upsize (
 					else if (narrow_valid && narrow_ready) begin
 						if (r_beat_ptr == {PTR_WIDTH {1'sb0}})
 							r_sideband_accumulator <= sv2v_cast_5BF29(narrow_sideband);
-						else
-							r_sideband_accumulator <= r_sideband_accumulator | sv2v_cast_5BF29(narrow_sideband);
+						else if (sv2v_cast_5BF29(narrow_sideband) > r_sideband_accumulator)
+							r_sideband_accumulator <= sv2v_cast_5BF29(narrow_sideband);
 					end
 			end
 			else begin : gen_concat_mode
 				always @(posedge aclk or negedge aresetn)
 					if (!aresetn)
 						r_sideband_accumulator <= 1'sb0;
-					else if (narrow_valid && narrow_ready)
-						r_sideband_accumulator[r_beat_ptr * NARROW_SB_WIDTH+:NARROW_SB_WIDTH] <= narrow_sideband[NARROW_SB_WIDTH - 1:0];
+					else if (narrow_valid && narrow_ready) begin
+						if (r_beat_ptr == {PTR_WIDTH {1'sb0}})
+							r_sideband_accumulator <= {{WIDE_SB_PORT_WIDTH - NARROW_SB_WIDTH {1'b0}}, narrow_sideband[NARROW_SB_WIDTH - 1:0]} << (w_lane * NARROW_SB_WIDTH);
+						else
+							r_sideband_accumulator[w_lane * NARROW_SB_WIDTH+:NARROW_SB_WIDTH] <= narrow_sideband[NARROW_SB_WIDTH - 1:0];
+					end
 			end
 		end
 	endgenerate

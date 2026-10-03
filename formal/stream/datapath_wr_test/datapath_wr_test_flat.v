@@ -1102,8 +1102,10 @@ module sram_controller_unit (
 		.rd_empty(),
 		.rd_almost_empty()
 	);
+	wire [ADDR_WIDTH + 1:0] w_drain_data_available_acct;
+	assign drain_data_available = w_drain_data_available_acct[ADDR_WIDTH:0];
 	stream_drain_ctrl #(
-		.DEPTH(SD),
+		.DEPTH(2 * SD),
 		.REGISTERED(1)
 	) u_drain_ctrl(
 		.axi_aclk(clk),
@@ -1113,7 +1115,7 @@ module sram_controller_unit (
 		.rd_valid(axi_wr_drain_req),
 		.rd_size(axi_wr_drain_size),
 		.rd_ready(),
-		.data_available(drain_data_available),
+		.data_available(w_drain_data_available_acct),
 		.wr_full(),
 		.wr_almost_full(),
 		.rd_empty(),
@@ -2232,7 +2234,7 @@ module axi_write_engine (
 	parameter signed [31:0] ID_WIDTH = 8;
 	parameter signed [31:0] USER_WIDTH = 8;
 	parameter signed [31:0] SEG_COUNT_WIDTH = 8;
-	parameter signed [31:0] PIPELINE = 0;
+	parameter signed [31:0] PIPELINE = 1;
 	parameter signed [31:0] AW_MAX_OUTSTANDING = 8;
 	parameter signed [31:0] W_PHASE_FIFO_DEPTH = 64;
 	parameter signed [31:0] B_PHASE_FIFO_DEPTH = 16;
@@ -2289,6 +2291,14 @@ module axi_write_engine (
 	localparam signed [31:0] BYTES_PER_BEAT = DW / 8;
 	localparam signed [31:0] AXSIZE = $clog2(BYTES_PER_BEAT);
 	localparam signed [31:0] MOW = $clog2(AW_MAX_OUTSTANDING + 1);
+	localparam signed [31:0] SD_BEATS = 1 << (SCW - 1);
+	localparam signed [31:0] XFER_MAX = (SD_BEATS < 256 ? SD_BEATS - 1 : 254);
+	wire [7:0] w_xfer_cfg;
+	function automatic signed [7:0] sv2v_cast_8_signed;
+		input reg signed [7:0] inp;
+		sv2v_cast_8_signed = inp;
+	endfunction
+	assign w_xfer_cfg = (cfg_axi_wr_xfer_beats > sv2v_cast_8_signed(XFER_MAX) ? sv2v_cast_8_signed(XFER_MAX) : cfg_axi_wr_xfer_beats);
 	reg [7:0] r_aw_len;
 	reg [CIW - 1:0] r_aw_channel_id;
 	reg r_aw_valid;
@@ -2454,9 +2464,9 @@ module axi_write_engine (
 			for (i = 0; i < NC; i = i + 1)
 				begin
 					if (sched_wr_valid[i]) begin
-						w_transfer_size[i * 8+:8] = sv2v_cast_8((sched_wr_beats[i * 32+:32] <= (sv2v_cast_32(cfg_axi_wr_xfer_beats) + 32'd1) ? sched_wr_beats[i * 32+:32] - 32'd1 : sv2v_cast_32(cfg_axi_wr_xfer_beats)));
+						w_transfer_size[i * 8+:8] = sv2v_cast_8((sched_wr_beats[i * 32+:32] <= (sv2v_cast_32(w_xfer_cfg) + 32'd1) ? sched_wr_beats[i * 32+:32] - 32'd1 : sv2v_cast_32(w_xfer_cfg)));
 						w_has_data[i] = sv2v_cast_14961(w_effective_avail[i * SCW+:SCW]) >= sv2v_cast_14961(w_transfer_size[i * 8+:8] + 8'd1);
-						w_final_burst[i] = ((sched_wr_beats[i * 32+:32] > 0) && (sched_wr_beats[i * 32+:32] <= (sv2v_cast_32(cfg_axi_wr_xfer_beats) + 32'd1))) && (sv2v_cast_14961(w_effective_avail[i * SCW+:SCW]) >= sv2v_cast_14961(sched_wr_beats[i * 32+:32]));
+						w_final_burst[i] = ((sched_wr_beats[i * 32+:32] > 0) && (sched_wr_beats[i * 32+:32] <= (sv2v_cast_32(w_xfer_cfg) + 32'd1))) && (sv2v_cast_14961(w_effective_avail[i * SCW+:SCW]) >= sv2v_cast_14961(sched_wr_beats[i * 32+:32]));
 						w_data_ok[i] = w_has_data[i] || w_final_burst[i];
 					end
 					else begin
@@ -2511,7 +2521,7 @@ module axi_write_engine (
 		end
 	endgenerate
 	wire [NC - 1:0] w_stale_grant;
-	assign w_stale_grant = w_arb_grant & ~sched_wr_valid;
+	assign w_stale_grant = w_arb_grant & ~w_arb_request;
 	assign w_arb_grant_ack = (w_arb_grant & {NC {m_axi_awvalid && m_axi_awready}}) | w_stale_grant;
 	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
@@ -2520,7 +2530,7 @@ module axi_write_engine (
 			r_aw_channel_id <= 1'sb0;
 		end
 		else begin
-			if ((w_arb_grant_valid && !r_aw_valid) && sched_wr_valid[w_arb_grant_id]) begin
+			if ((w_arb_grant_valid && !r_aw_valid) && w_arb_request[w_arb_grant_id]) begin
 				r_aw_valid <= 1'b1;
 				r_aw_channel_id <= w_arb_grant_id;
 				r_aw_len <= w_transfer_size[w_arb_grant_id * 8+:8];
@@ -2821,7 +2831,7 @@ module datapath_wr_test (
 	parameter signed [31:0] DATA_WIDTH = 512;
 	parameter signed [31:0] ID_WIDTH = 8;
 	parameter signed [31:0] SRAM_DEPTH = 4096;
-	parameter signed [31:0] PIPELINE = 0;
+	parameter signed [31:0] PIPELINE = 1;
 	parameter signed [31:0] AW_MAX_OUTSTANDING = 8;
 	parameter signed [31:0] NC = NUM_CHANNELS;
 	parameter signed [31:0] AW = ADDR_WIDTH;

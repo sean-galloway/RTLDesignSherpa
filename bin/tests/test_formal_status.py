@@ -187,3 +187,30 @@ def test_staged_mode_skips_untouched_proofs(tmp_path):
     assert r.returncode == 0, \
         f"expected exit 0, got {r.returncode}: {r.stdout}{r.stderr}"
     assert "checked=0" in r.stdout
+
+
+def test_gitignored_flat_area_is_skipped(tmp_path):
+    """An area that gitignores *_flat.v (the formal/pumice pattern) skips
+    cleanly instead of failing -- there is no committed flat to go stale."""
+    repo = tmp_path / "scratch"
+    proof = repo / "formal" / "demo" / "block1"
+    proof.mkdir(parents=True)
+    (repo / "bin").mkdir()
+    shutil.copy(STATUS, repo / "bin" / "formal_status.py")
+    (proof / "Makefile").write_text(
+        "SV2V ?= sv2v\n"
+        "block1_flat.v: dut.sv\n"
+        "\t$(SV2V) dut.sv > $@\n")
+    (proof / "block1.sby").write_text("[options]\nmode bmc\n")
+    (proof / "dut.sv").write_text(
+        "module dut(input  logic [7:0] d, output logic [7:0] q);\n"
+        "  assign q = d;\nendmodule\n")
+    (proof / ".gitignore").write_text("*_flat.v\n")
+    _git(repo, "init", "-q")
+    r = subprocess.run(
+        [sys.executable, "bin/formal_status.py", "--check-flats", "--areas", "demo"],
+        cwd=repo, env=_env_with_sv2v(),
+        capture_output=True, text=True)
+    assert r.returncode == 0, \
+        f"expected exit 0, got {r.returncode}: {r.stdout}{r.stderr}"
+    assert "skipped=1" in r.stdout

@@ -74,7 +74,7 @@ module peakrdl_to_cmdrsp (
 			strb_to_biten = biten;
 		end
 	endfunction
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn)
 			cmd_state <= 2'b00;
 		else
@@ -105,7 +105,7 @@ module peakrdl_to_cmdrsp (
 		endcase
 	end
 	assign cmd_ready = cmd_state == 2'b00;
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			r_cmd_pwrite <= 1'sb0;
 			r_cmd_paddr <= 1'sb0;
@@ -123,7 +123,7 @@ module peakrdl_to_cmdrsp (
 	assign regblk_addr = (cmd_state == 2'b00 ? cmd_paddr : r_cmd_paddr);
 	assign regblk_wr_data = (cmd_state == 2'b00 ? cmd_pwdata : r_cmd_pwdata);
 	assign regblk_wr_biten = (cmd_state == 2'b00 ? strb_to_biten(cmd_pstrb) : r_cmd_wr_biten);
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn)
 			rsp_state <= 1'b0;
 		else
@@ -142,7 +142,7 @@ module peakrdl_to_cmdrsp (
 			default: rsp_state_next = 1'b0;
 		endcase
 	end
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			r_rsp_prdata <= 1'sb0;
 			r_rsp_pslverr <= 1'sb0;

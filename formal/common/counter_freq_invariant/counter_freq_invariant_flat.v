@@ -18,7 +18,7 @@ module counter_load_clear (
 	output reg [$clog2(MAX) - 1:0] count;
 	output wire done;
 	reg [$clog2(MAX) - 1:0] r_match_val;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			count <= 'b0;
 			r_match_val <= 'b0;
@@ -144,7 +144,7 @@ module counter_freq_invariant (
 	assign w_division_factor = w_div_table[freq_sel];
 	reg [SEL_WIDTH - 1:0] r_prev_freq_sel;
 	reg r_clear_pulse;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_prev_freq_sel <= 1'sb0;
 			r_clear_pulse <= 1'b1;
@@ -164,7 +164,7 @@ module counter_freq_invariant (
 		.done(w_prescaler_done),
 		.count()
 	);
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			o_counter <= 1'sb0;
 			tick <= 1'b0;

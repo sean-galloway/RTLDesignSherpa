@@ -187,12 +187,39 @@ def _first_diff(a: list[str], b: list[str]) -> str:
     return f"length differs ({len(a)} vs {len(b)} tokens)"
 
 
+def find_flat(d: pathlib.Path, name: str) -> pathlib.Path | None:
+    """The proof's committed flat: convention name, else a sole *_flat.v."""
+    flat = d / f"{name}_flat.v"
+    if flat.exists():
+        return flat
+    flats = sorted(p for p in d.glob("*_flat.v") if p.is_file())
+    return flats[0] if len(flats) == 1 else None
+
+
+def _gitignored(path: pathlib.Path) -> bool:
+    """True if git ignores this path (an area that deliberately does not
+    commit flats -- formal/pumice/.gitignore documents the pattern)."""
+    try:
+        rel = path.resolve().relative_to(ROOT.resolve())
+    except ValueError:
+        return False
+    r = subprocess.run(["git", "check-ignore", "-q", rel.as_posix()],
+                       cwd=str(ROOT), capture_output=True)
+    return r.returncode == 0
+
+
 def check_flat(entry, env) -> tuple[str, str]:
     """One flatten-flow proof: (CURRENT|STALE|UNHANDLED|ERROR, detail)."""
     d: pathlib.Path = entry["dir"]
-    flat = d / f"{entry['name']}_flat.v"
-    if not flat.exists():
-        return "UNHANDLED", "no committed <name>_flat.v"
+    flat = find_flat(d, entry["name"])
+    if flat is None:
+        n = len(list(d.glob("*_flat.v")))
+        if n == 0 and _gitignored(d / f"{entry['name']}_flat.v"):
+            return ("SKIPPED",
+                    "this area gitignores *_flat.v -- flats are built, not "
+                    "committed (formal/pumice pattern); nothing to go stale")
+        return "UNHANDLED", ("no committed *_flat.v" if n == 0
+                             else "multiple committed *_flat.v; ambiguous")
 
     # (a) house check-flat target
     probe = subprocess.run(["make", "-C", str(d), "-n", "check-flat"],
@@ -250,7 +277,10 @@ def _staged_paths() -> set[str]:
 def _recipe_source_tokens(entry, env) -> set[str]:
     """Repo-relative source paths the flatten recipe references (for --staged)."""
     d: pathlib.Path = entry["dir"]
-    lines = _recipe_lines(d, d / f"{entry['name']}_flat.v", env) or []
+    flat = find_flat(d, entry["name"])
+    if flat is None:
+        return set()
+    lines = _recipe_lines(d, flat, env) or []
     out = set()
     for tok in " ".join(lines).split():
         tok = tok.strip(";|")
@@ -268,7 +298,16 @@ def _recipe_source_tokens(entry, env) -> set[str]:
 
 def check_flats(entries, args) -> int:
     """The --check-flats mode. Returns the exit status."""
-    flatten = [e for e in entries if e["flow"] == "flatten"]
+    flatten = []
+    for e in entries:
+        if e["flow"] != "flatten":
+            continue
+        # Some task Makefiles are pure sby drivers despite existing -- see
+        # formal/converters/uart_rx ("No sv2v needed"). Only a Makefile that
+        # names a *_flat.v actually flattens; the rest are not this mode's.
+        if "_flat.v" not in (e["dir"] / "Makefile").read_text(errors="replace"):
+            continue
+        flatten.append(e)
     env = dict(os.environ)
     sv2v = find_sv2v()
     if sv2v:
@@ -296,10 +335,14 @@ def check_flats(entries, args) -> int:
 
     tally = {}
     for r in rows:
+        if r["status"] == "SKIPPED":
+            continue
         tally[r["status"]] = tally.get(r["status"], 0) + 1
         if r["status"] != "CURRENT":
             print(f"  {r['status']:10s} {r['area']}/{r['name']}: {r['detail']}")
-    print("  ".join([f"checked={len(rows)}"] +
+    n_skip = sum(1 for r in rows if r["status"] == "SKIPPED")
+    print("  ".join([f"checked={len(rows) - n_skip}"] +
+                    ([f"skipped={n_skip}"] if n_skip else []) +
                     [f"{k}={v}" for k, v in sorted(tally.items())]))
     if any(r["status"] == "CURRENT" for r in rows):
         names = ", ".join(f"{r['area']}/{r['name']}" for r in rows
@@ -308,7 +351,8 @@ def check_flats(entries, args) -> int:
               f"{names[:400]}{' ...' if len(names) > 400 else ''}")
     if args.json:
         pathlib.Path(args.json).write_text(json.dumps(rows, indent=1))
-    return 1 if any(r["status"] != "CURRENT" for r in rows) else 0
+    return 1 if any(r["status"] in ("STALE", "UNHANDLED", "ERROR")
+                    for r in rows) else 0
 
 
 def main():

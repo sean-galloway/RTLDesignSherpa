@@ -60,3 +60,38 @@ arbiter_rr_pwm_monbus_flat.v: $(DUT) $(PKGS) $(DEPS)
 
 clean:
 	rm -rf arbiter_rr_pwm_monbus_flat.v arbiter_rr_pwm_monbus_prove arbiter_rr_pwm_monbus_cover
+
+# tooling TASK-026: regenerate-and-diff self-detection for the committed flat.
+# House pattern from formal/common/counter_freq_invariant; consumed by
+# bin/formal_status.py --check-flats (mechanism a) and the pre-commit gate.
+# Comparison squeezes whitespace, matching the token normalization the
+# checker uses (committed flats may be post-formatter).
+.PHONY: check-flat .check_flat_tmp
+check-flat: .check_flat_tmp
+	@if [ "$$(tr -s '[:space:]' ' ' < .check_flat_tmp)" = "$$(tr -s '[:space:]' ' ' < arbiter_rr_pwm_monbus_flat.v)" ]; then \
+		rm -f .check_flat_tmp; \
+		echo "flat file is current"; \
+	else \
+		rm -f .check_flat_tmp; \
+		echo "STALE: arbiter_rr_pwm_monbus_flat.v does not match the RTL."; \
+		echo "Regenerate with: make arbiter_rr_pwm_monbus_flat.v"; \
+		exit 1; \
+	fi
+
+.check_flat_tmp: $(DUT) $(PKGS) $(DEPS)
+	@mkdir -p /tmp/formal_arbiter_rr_pwm_monbus
+	@for f in $(DEPS) $(DUT); do \
+	    sed -e 's/import monitor_pkg::\*;//g' -e 's/monitor_pkg:://g' $$f \
+	        > /tmp/formal_arbiter_rr_pwm_monbus/$$(basename $$f); \
+	done
+	# NO --exclude=Assert here: these modules carry no `ifdef FORMAL
+	# properties, only ELABORATION asserts (CLIENTS > 0 and friends), and
+	# excluding the conversion leaves `assert (...) else begin ... end`
+	# in the output, which yosys cannot parse. Letting sv2v convert them
+	# drops exactly the checks that do not belong in a proof anyway.
+	$(SV2V) --define=FORMAL $(INC) $(PKGS) \
+	    $(addprefix /tmp/formal_arbiter_rr_pwm_monbus/,$(notdir $(DEPS) $(DUT))) > $@
+	@rm -rf /tmp/formal_arbiter_rr_pwm_monbus
+
+clean:
+	rm -rf $@ arbiter_rr_pwm_monbus_prove arbiter_rr_pwm_monbus_cover

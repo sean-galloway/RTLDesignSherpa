@@ -12,9 +12,9 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 24 | done (kept for history) |
+| [closed/](closed/) | 25 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -26,8 +26,6 @@ by construction rather than by discipline.
   (`filelist_registry.py --testplans --update-testplan-baseline`). The gate
   added by TASK-037 makes any NEW broken ref fail pre-commit/CI
 
-- **TASK-026** (P2) -- formal stale-flat self-detection: a regenerate-and-diff mode beside `bin/formal_status.py --inventory`; fanned out of rapids BUG-011, which two stale beats flats passed green against pre-BUG-009 RTL
-
 - **TASK-025** (P3) — cocotb 2.x is reachable but not yet: the import blocker is cocotb-bus 0.2.1 (fixed by 0.3.0, which our own DV cap forbids), and the remaining work is a 78-site `.value.integer` sweep across both repos
 
 
@@ -37,6 +35,15 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-026** — formal stale-flat self-detection, fanned out of rapids
+  BUG-011 -- CLOSED 2026-10-03: `bin/formal_status.py --check-flats`
+  re-flattens via each proof's own recipe (or its house check-flat target)
+  and diffs whitespace-normalized, never writing the tree; pre-commit
+  `--staged` gate plus a repo-wide CI job (sv2v pinned v0.0.13) and a
+  planted-staleness pytest. Repo-wide run: 139/139 CURRENT; 12 stale flats
+  regenerated; 68 Makefiles gained check-flat; two Makefiles repaired
+  (axi4_to_apb4_shim's cdc paths, stream_core's env exports); pumice-style
+  gitignored areas skip by design.
 - **TASK-020** — pilot cocotb-test 0.3.0, then decide whether cocotb 2.x is reachable -- CLOSED 2026-10-01: 1000/1000 identical across val/amba, bridge and stream on the same seed with only cocotb-test moved; requirements.txt bumped 0.2.5 -> 0.3.0 and the shared venv synced. Question 2 answered with measurements and filed as TASK-025
 - **TASK-022** (P1) — the FPGA flow lock was keyed on the build directory, and nothing detected a collision that happened anyway -- CLOSED 2026-10-01: board-keyed lock, shared identity readback, and the verdict persisted beside the bitstream sha256; hardware path verified on the Genesys 2 (readback 5.8s, real program 16.5s, wrong-board refusal rc=1, sha256 matches). The live output exposed that the test fixture was a chain real hardware cannot produce: 0 of 25 tests caught an exact-match regression, 7 of 26 do now
 - **TASK-024** — fpga-systems was the only major area with no book -- CLOSED 2026-09-30: 19 chapters in 6 chapters + 5 mermaid diagrams, FPGA_SYSTEMS_MAS_v1.0.pdf (48 pages); the filed premise of "three competing conventions" was WRONG and is corrected in the task -- there is one convention, documented in flow-layout.md AND make/fpga_flow.mk, whose prefixes are load-bearing because make and SequenceRunner.discover glob them; `flows-*` is the pre-migration layout

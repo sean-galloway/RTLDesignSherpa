@@ -56,6 +56,6 @@ module gaxi_regslice (
 	always @(posedge axi_aclk)
 		if (axi_aresetn) begin
 			if (count > 4'd1)
-				$display("Error [%0t] /tmp/claude-1000/defork_gaxi_regslice/gaxi_regslice.sv:112:13 - gaxi_regslice.<unnamed_block>.<unnamed_block>\n msg: ", $time, "[%m] count > 1 (=%0d) @ %0t", count, $time);
+				$display("Error [%0t] /tmp/formal_gaxi_regslice/gaxi_regslice.sv:112:13 - gaxi_regslice.<unnamed_block>.<unnamed_block>\n msg: ", $time, "[%m] count > 1 (=%0d) @ %0t", count, $time);
 		end
 endmodule

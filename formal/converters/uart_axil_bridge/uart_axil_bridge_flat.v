@@ -38,7 +38,7 @@ module gaxi_skid_buffer (
 	generate
 		for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
 			localparam gi = _gv_gi_1;
-			always @(posedge axi_aclk)
+			always @(posedge axi_aclk or negedge axi_aresetn)
 				if (!axi_aresetn)
 					r_data[gi] <= 1'sb0;
 				else
@@ -64,7 +64,7 @@ module gaxi_skid_buffer (
 					endcase
 		end
 	endgenerate
-	always @(posedge axi_aclk)
+	always @(posedge axi_aclk or negedge axi_aresetn)
 		if (!axi_aresetn)
 			r_data_count <= 1'sb0;
 		else
@@ -79,7 +79,7 @@ module gaxi_skid_buffer (
 		input reg [31:0] inp;
 		sv2v_cast_32 = inp;
 	endfunction
-	always @(posedge axi_aclk)
+	always @(posedge axi_aclk or negedge axi_aresetn)
 		if (!axi_aresetn) begin
 			wr_ready <= 1'b0;
 			rd_valid <= 1'b0;
@@ -340,7 +340,7 @@ module uart_rx (
 	reg r_rx_valid_reg;
 	reg r_rx_sync1;
 	reg r_rx_sync2;
-	always @(posedge i_clk)
+	always @(posedge i_clk or negedge i_rst_n)
 		if (!i_rst_n) begin
 			r_rx_sync1 <= 1'b1;
 			r_rx_sync2 <= 1'b1;
@@ -349,7 +349,7 @@ module uart_rx (
 			r_rx_sync1 <= i_rx;
 			r_rx_sync2 <= r_rx_sync1;
 		end
-	always @(posedge i_clk)
+	always @(posedge i_clk or negedge i_rst_n)
 		if (!i_rst_n) begin
 			r_state <= 3'd0;
 			r_clk_count <= 1'sb0;
@@ -447,7 +447,7 @@ module uart_tx (
 	reg [7:0] r_tx_data_reg;
 	reg [7:0] w_tx_data_next;
 	reg r_tx_reg;
-	always @(posedge i_clk)
+	always @(posedge i_clk or negedge i_rst_n)
 		if (!i_rst_n) begin
 			r_state <= 3'd0;
 			r_clk_count <= 1'sb0;
@@ -675,7 +675,7 @@ module uart_axil_bridge (
 		input reg signed [RESPONSE_INDEX_WIDTH - 1:0] inp;
 		sv2v_cast_1E9FA_signed = inp;
 	endfunction
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			r_cmd_state <= 4'd0;
 			r_cmd_type <= 1'sb0;

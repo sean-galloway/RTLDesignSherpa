@@ -3565,11 +3565,12 @@ module axi_monitor_lite (
 	wire w_dbeats_zero = w_beats_zero[w_dslot];
 	wire w_data_err = (((data_hs && w_dhit) && IS_READ) && data_resp[1]) && !r_err[w_dslot];
 	wire w_data_orph = (data_hs && !w_dhit) && IS_READ;
-	wire w_last_early = ((data_hs && w_dhit) && data_last) && !w_dbeats_zero;
+	wire w_same_w = ((((cmd_hs && w_have_free) && data_hs) && !w_dhit) && !IS_READ) && !r_early_any;
+	wire w_last_early = data_hs && (((w_dhit && data_last) && !w_dbeats_zero) || ((w_same_w && data_last) && (cmd_len != 8'd0)));
 	wire w_last_late = ((data_hs && w_dhit) && !data_last) && w_dbeats_zero;
 	wire w_data_done = (data_hs && w_dhit) && data_last;
-	wire w_early_w = (data_hs && !w_dhit) && !IS_READ;
-	wire w_early_ovf = w_early_w && r_early_last;
+	wire w_early_w = ((data_hs && !w_dhit) && !IS_READ) && !w_same_w;
+	wire w_early_ovf = (w_early_w && r_early_last) && !(cmd_hs && w_have_free);
 	wire w_resp_err = ((resp_hs && w_bhit) && resp_code[1]) && !r_err[w_bslot];
 	wire w_resp_orph = resp_hs && !w_bhit;
 	wire w_resp_done = resp_hs && w_bhit;
@@ -3578,7 +3579,6 @@ module axi_monitor_lite (
 	wire [SW - 1:0] w_compl_slot = (IS_READ ? w_dslot : w_bslot);
 	wire w_compl_clean = (w_compl && !r_err[w_compl_slot]) && !(IS_READ ? data_resp[1] || w_last_early : resp_code[1]);
 	wire [TS_WIDTH - 1:0] w_latency = r_now - r_ts0[w_compl_slot * TS_WIDTH+:TS_WIDTH];
-	wire w_lat_evt = (w_compl_clean && cfg_threshold_enable) && ({{32 - TS_WIDTH {1'b0}}, w_latency} > cfg_latency_threshold);
 	wire w_free_has_next = r_has_next[w_compl_slot];
 	wire [SW - 1:0] w_free_next = r_next[w_compl_slot * SW+:SW];
 	reg [SW - 1:0] r_scan;
@@ -3613,8 +3613,8 @@ module axi_monitor_lite (
 	wire w_over_thresh = (sv2v_cast_16(w_occupancy) >= cfg_active_trans_threshold) && (cfg_active_trans_threshold != 16'd0);
 	wire w_thresh_evt = (cfg_threshold_enable && w_over_thresh) && !r_over_thresh;
 	wire w_alloc = cmd_hs && w_have_free;
-	wire [7:0] w_alloc_beats = (!IS_READ && r_early_any ? (cmd_len - r_early_beats) + 8'd1 : cmd_len);
-	wire w_alloc_done = (!IS_READ && r_early_any) && r_early_last;
+	wire [7:0] w_alloc_beats = (!IS_READ && r_early_any ? cmd_len - r_early_beats : (w_same_w && (cmd_len != 8'd0) ? cmd_len - 8'd1 : cmd_len));
+	wire w_alloc_done = ((!IS_READ && r_early_any) && r_early_last) || (w_same_w && data_last);
 	wire w_dprogress = data_hs && w_dhit;
 	reg [N - 1:0] w_same_tail;
 	always @(*) begin
@@ -3679,7 +3679,7 @@ module axi_monitor_lite (
 				r_addr[w_free_idx * AW+:AW] <= cmd_addr;
 				r_beats[w_free_idx * 8+:8] <= w_alloc_beats;
 				r_phase[w_free_idx] <= w_alloc_done;
-				r_err[w_free_idx] <= 1'b0;
+				r_err[w_free_idx] <= w_same_w && w_last_early;
 				r_tmo[w_free_idx] <= 1'b0;
 				r_ts0[w_free_idx * TS_WIDTH+:TS_WIDTH] <= r_now;
 				r_us0[w_free_idx * AGE_WIDTH+:AGE_WIDTH] <= r_us;
@@ -3718,9 +3718,8 @@ module axi_monitor_lite (
 			end
 			if (w_early_w && !w_early_ovf) begin
 				r_early_any <= 1'b1;
-				r_early_beats <= r_early_beats + 8'd1;
-				if (data_last)
-					r_early_last <= 1'b1;
+				r_early_beats <= (w_alloc ? 8'd0 : r_early_beats) + 8'd1;
+				r_early_last <= data_last || (r_early_last && !w_alloc);
 			end
 			if (resp_hs && w_bhit)
 				r_valid[w_bslot] <= 1'b0;
@@ -3761,9 +3760,18 @@ module axi_monitor_lite (
 	reg r_e_compl;
 	reg r_e_thresh;
 	reg r_lat_pend;
-	reg [SW - 1:0] r_lat_slot;
+	reg [IW - 1:0] r_lat_id;
+	reg [AW - 1:0] r_lat_addr;
 	reg [15:0] r_lat_latency;
 	wire w_lat_take;
+	wire w_lat_hit;
+	reg r_tmo_pend;
+	reg [7:0] r_tmo_code;
+	reg [IW - 1:0] r_tmo_id;
+	reg [AW - 1:0] r_tmo_addr;
+	wire w_tmo_held_take;
+	wire w_tmo_saved;
+	wire w_tmo_save_scan;
 	reg r_e_scan_phase;
 	reg r_e_data_decerr;
 	reg r_e_resp_decerr;
@@ -3791,8 +3799,13 @@ module axi_monitor_lite (
 			r_e_compl <= 1'b0;
 			r_e_thresh <= 1'b0;
 			r_lat_pend <= 1'b0;
-			r_lat_slot <= 1'sb0;
+			r_lat_id <= 1'sb0;
+			r_lat_addr <= 1'sb0;
 			r_lat_latency <= 1'sb0;
+			r_tmo_pend <= 1'b0;
+			r_tmo_code <= 1'sb0;
+			r_tmo_id <= 1'sb0;
+			r_tmo_addr <= 1'sb0;
 			r_e_scan_phase <= 1'b0;
 			r_e_data_decerr <= 1'b0;
 			r_e_resp_decerr <= 1'b0;
@@ -3821,17 +3834,35 @@ module axi_monitor_lite (
 			r_e_thresh <= w_thresh_evt && !clear;
 			if (clear)
 				r_lat_pend <= 1'b0;
-			else if (w_lat_evt && (!r_lat_pend || w_lat_take)) begin
+			else if (w_lat_hit && (!r_lat_pend || w_lat_take)) begin
 				r_lat_pend <= 1'b1;
-				r_lat_slot <= w_compl_slot;
-				r_lat_latency <= sv2v_cast_16(w_latency);
+				r_lat_id <= r_id[r_e_cslot * IW+:IW];
+				r_lat_addr <= r_addr[r_e_cslot * AW+:AW];
+				r_lat_latency <= r_e_latency;
 			end
 			else if (w_lat_take)
 				r_lat_pend <= 1'b0;
+			if (clear)
+				r_tmo_pend <= 1'b0;
+			else if (w_tmo_saved) begin
+				r_tmo_pend <= 1'b1;
+				if (w_tmo_save_scan) begin
+					r_tmo_code <= (r_e_scan_phase ? 8'h02 : 8'h01);
+					r_tmo_id <= r_id[r_e_tslot * IW+:IW];
+					r_tmo_addr <= r_addr[r_e_tslot * AW+:AW];
+				end
+				else begin
+					r_tmo_code <= 8'h00;
+					r_tmo_id <= r_e_cmd_id;
+					r_tmo_addr <= r_e_cmd_addr;
+				end
+			end
+			else if (w_tmo_held_take)
+				r_tmo_pend <= 1'b0;
 			r_e_scan_phase <= r_phase[r_scan];
 			r_e_data_decerr <= data_resp[0];
 			r_e_resp_decerr <= resp_code[0];
-			r_e_dslot <= w_dslot;
+			r_e_dslot <= (w_dhit ? w_dslot : w_free_idx);
 			r_e_bslot <= w_bslot;
 			r_e_tslot <= r_scan;
 			r_e_cslot <= w_compl_slot;
@@ -3842,6 +3873,7 @@ module axi_monitor_lite (
 			r_e_latency <= sv2v_cast_16(w_latency);
 			r_e_occupancy <= w_occupancy;
 		end
+	assign w_lat_hit = (r_e_compl && cfg_threshold_enable) && ({{16 {1'b0}}, r_e_latency} > cfg_latency_threshold);
 	function automatic type_allowed;
 		input reg [3:0] t;
 		type_allowed = !cfg_axi_pkt_mask[t];
@@ -3919,8 +3951,9 @@ module axi_monitor_lite (
 		if (!w_err_en)
 			w_err_fired = 1'sb0;
 	end
-	wire w_tmo_v = (r_e_scan_hit || r_e_cmd_tmo) && w_tmo_en;
-	wire [7:0] w_tmo_code = (r_e_scan_hit ? (r_e_scan_phase ? 8'h02 : 8'h01) : 8'h00);
+	wire w_tmo_fresh = (r_e_scan_hit || r_e_cmd_tmo) && w_tmo_en;
+	wire w_tmo_v = w_tmo_fresh || (r_tmo_pend && w_tmo_en);
+	wire [7:0] w_tmo_code = (r_tmo_pend ? r_tmo_code : (r_e_scan_hit ? (r_e_scan_phase ? 8'h02 : 8'h01) : 8'h00));
 	function automatic [1:0] sv2v_cast_2;
 		input reg [1:0] inp;
 		sv2v_cast_2 = inp;
@@ -3964,10 +3997,16 @@ module axi_monitor_lite (
 			w_evt_v = 1'b1;
 			w_evt_type = monitor_common_pkg_PktTypeTimeout;
 			w_evt_code = w_tmo_code;
-			w_evt_from_slot = r_e_scan_hit;
-			w_evt_slot = r_e_tslot;
-			w_evt_id_alt = r_e_cmd_id;
-			w_evt_addr_alt = r_e_cmd_addr;
+			if (r_tmo_pend) begin
+				w_evt_id_alt = r_tmo_id;
+				w_evt_addr_alt = r_tmo_addr;
+			end
+			else begin
+				w_evt_from_slot = r_e_scan_hit;
+				w_evt_slot = r_e_tslot;
+				w_evt_id_alt = r_e_cmd_id;
+				w_evt_addr_alt = r_e_cmd_addr;
+			end
 		end
 		else if (w_cmp_v) begin
 			w_evt_v = 1'b1;
@@ -3986,8 +4025,8 @@ module axi_monitor_lite (
 			end
 			else begin
 				w_evt_code = 8'h01;
-				w_evt_from_slot = 1'b1;
-				w_evt_slot = r_lat_slot;
+				w_evt_id_alt = r_lat_id;
+				w_evt_addr_alt = r_lat_addr;
 				w_evt_hi = r_lat_latency;
 			end
 		end
@@ -3998,8 +4037,15 @@ module axi_monitor_lite (
 	wire [3:0] w_offered = ((w_err_fired + sv2v_cast_4(w_tmo_fired)) + sv2v_cast_4(w_cmp_v)) + sv2v_cast_4(w_thr_fired);
 	wire w_take = w_evt_v && w_wr_ready;
 	assign w_lat_take = ((((w_take && w_thr_v) && !w_err_v) && !w_tmo_v) && !w_cmp_v) && !r_e_thresh;
-	wire w_lat_lost = ((w_lat_evt && cfg_threshold_enable) && r_lat_pend) && !w_lat_take;
-	wire [3:0] w_lost = (w_offered - sv2v_cast_4(w_take)) + sv2v_cast_4(w_lat_lost);
+	wire w_tmo_take = (w_take && w_tmo_v) && !w_err_v;
+	assign w_tmo_held_take = w_tmo_take && r_tmo_pend;
+	wire w_tmo_fresh_taken = w_tmo_take && !r_tmo_pend;
+	wire [1:0] w_tmo_left = w_tmo_fired - sv2v_cast_2(w_tmo_fresh_taken);
+	assign w_tmo_saved = (w_tmo_left != 2'd0) && (!r_tmo_pend || w_tmo_held_take);
+	assign w_tmo_save_scan = r_e_scan_hit && !(w_tmo_fresh_taken && r_e_scan_hit);
+	wire w_take_fresh = (w_take && !w_lat_take) && !w_tmo_held_take;
+	wire w_lat_lost = (w_lat_hit && r_lat_pend) && !w_lat_take;
+	wire [3:0] w_lost = ((w_offered - sv2v_cast_4(w_take_fresh)) - sv2v_cast_4(w_tmo_saved)) + sv2v_cast_4(w_lat_lost);
 	reg [15:0] r_dropped;
 	reg [15:0] r_refused;
 	reg [15:0] r_completed;
@@ -4157,7 +4203,7 @@ module axi_monitor_lite (
 		sv2v_cast_8 = inp;
 	endfunction
 	assign active_count = sv2v_cast_8(w_occupancy);
-	assign busy = (|r_valid || monbus_valid) || w_addr_valid;
+	assign busy = (((|r_valid || monbus_valid) || w_addr_valid) || r_lat_pend) || r_tmo_pend;
 	assign perf_completed_count = r_completed;
 	assign perf_error_count = r_errors;
 	assign dropped_count = r_dropped;
