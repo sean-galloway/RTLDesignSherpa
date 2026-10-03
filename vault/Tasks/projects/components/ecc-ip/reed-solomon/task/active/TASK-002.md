@@ -89,6 +89,45 @@ control change + post-multiply:
 Encoder changes (none needed -- erasures are a decode-side property), and any
 run-time reconfiguration of t (still elaboration-time per D2).
 
+## RTL phase complete (2026-10-02)
+
+Model (fe5241a6a) -> solvers (623206957) -> erasure unit (ae8df6e0b) ->
+core plumbing (f3265108e). What landed:
+
+- `rs_erasure_unit` (new): A-side records flagged X values into a 2t+1-entry
+  file in arrival order (f saturates at 2t+1 with f_over); the packed record
+  rides the A->B descriptor's low bits. B-side runs TRANS (f cycles, Gamma
+  and GS = Gamma*S mod x^2t combined one gf_mul deep), the solver window
+  (riBM: T = GS >> f as a crossbar; Euclid: zeroed-low window), and COMB
+  (Horner over Lambda_e: Lambda_c = Gamma*Lambda_e, Omega_c = Lambda_e*GS
+  mod x^2t). t_zero bypass: erasures alone explain the syndromes, so the
+  solver is skipped and the registers already hold the answers.
+- Both solvers take `ERASURE_SUPPORT` + `i_erasure_count`: riBM kills
+  updates for cycles >= 2t-f, Euclid raises the stop threshold to
+  t + ceil(f/2). Off state generates the logic away.
+- `rs_decoder_core` stage B splits into two generate branches: the
+  errors-only FSM verbatim (off state bit-identical), and a five-state
+  TRANS -> SOLVE -> COMB FSM with the f_over uncorrectable-by-inspection
+  exit, the t_zero bypass, and the (2t-f)/2 budget check in the bad
+  verdict. The erasure stage pays one bubble per block boundary (TRANS
+  must run before the next solve). Chien/Forney run at T_SYMBOLS = 2t on
+  the combined polynomials, OMEGA_HIGH_HALF = 0 (the combined evaluator is
+  the textbook form either way). Chien and Forney themselves needed NO
+  changes -- fully generic in T_SYMBOLS.
+- Wrappers (axis4, axi4) tie `in_erasure` off for now; the sideband is
+  exposed when the DV phase adds the axis.
+
+Verified: `make -C rtl lint-all` clean (19 tops); ERASURE_SUPPORT=1
+elaborates with zero diagnostics for BOTH solvers; the off state passes
+the gate 82/82 unchanged. The on state is functionally UNPROVEN until the
+DV cells land -- that is the next phase, not an assumption to bake in.
+
+Still to do: DV cells (ERASURE_SUPPORT matrix axis, the dedicated
+OFF-state test, boundary cells 2e+f = 2t and the first failing case past
+it, mutation checks on the Gamma build, erasure-unit model-matched
+cells), then the harness injector erasure mode + docs (HAS, FUB catalog),
+then the wrapper sideband.
+
 ## Notes
 
 Every existing block was built errors-only; the model-first order (Python,
