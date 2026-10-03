@@ -142,7 +142,7 @@ DFI words), while `pumice_dfi_layer` receives the full `.BL(BL)` (DRAM beats).
 
 The CSR block is clocked on `aclk` with `.rst(~aresetn)` (PeakRDL uses an
 active-high reset; the top inverts `aresetn`). See
-[`rtl/macro/pumice_csr.rdl`](../../rtl/macro/pumice_csr.rdl) for the full field
+[`rtl/macro/pumice_csr.rdl`](../../../rtl/macro/pumice_csr.rdl) for the full field
 list.
 
 ## What the top does not do

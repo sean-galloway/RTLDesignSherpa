@@ -48,7 +48,7 @@ head-address decode of each intake (`pumice_wr_intake`, `pumice_rd_intake`), so
 the CAMs store the decoded tuple rather than the raw AXI address.
 
 The mapper is driven entirely from the `ADDR_MAP` CSR register (see
-[`rtl/macro/pumice_csr.rdl`](../../rtl/macro/pumice_csr.rdl)) via three runtime
+[`rtl/macro/pumice_csr.rdl`](../../../rtl/macro/pumice_csr.rdl)) via three runtime
 inputs; there are no per-scheme build parameters.
 
 ## Parameters
