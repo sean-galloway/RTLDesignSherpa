@@ -205,6 +205,9 @@ module rs_decoder_axi4 #(
         .aclk(aclk), .aresetn(aresetn),
         .in_valid(rd_valid), .in_ready(rd_ready), .in_data(rd_data),
         .in_keep(w_in_keep), .in_last(rd_last),
+        // TASK-002: no erasure sideband on this wrapper yet; the core's
+        // ERASURE_SUPPORT stays 0 here, so the flags are dead anyway
+        .in_erasure({S{1'b0}}),
         .out_valid(dec_valid), .out_ready(dec_ready), .out_data(dec_data),
         .out_keep(dec_keep), .out_last(dec_last),
         .out_status_ok(out_status_ok), .out_status_corrected(out_status_corrected),

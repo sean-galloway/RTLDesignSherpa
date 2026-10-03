@@ -109,10 +109,17 @@ module rs_decoder_core
     // solve, rounded up to a power of two (HAS 5.2)
     parameter int BLOCK_FIFO_DEPTH = 1 << $clog2((N_SYMBOLS + 2 * T_SYMBOLS) / (DATA_WIDTH / SYMBOL_WIDTH) + 8),
     parameter string KES_ALGO      = "RIBM",   // "RIBM" or "EUCLID" (PRD D11)
+    // PRD D5 / TASK-002: per-lane erasure flags on the intake and the Forney
+    // erasure decode. 0: none of it elaborates -- the core is the errors-only
+    // one bit for bit. 1: in_erasure is live, the erasure unit drives the
+    // solver window, and the walk runs on the combined locator/evaluator.
+    parameter bit  ERASURE_SUPPORT = 0,
     // derived, exposed for the consumer's convenience
     parameter int K_SYMBOLS        = N_SYMBOLS - 2 * T_SYMBOLS,
     parameter int SYMBOLS_PER_BEAT = DATA_WIDTH / SYMBOL_WIDTH,
-    parameter int STATUS_CNT_WIDTH = $clog2(T_SYMBOLS + 1)
+    // erasures make the corrected count reach 2t, so the status count widens
+    parameter int STATUS_CNT_WIDTH = ERASURE_SUPPORT ? $clog2(2 * T_SYMBOLS + 1)
+                                                     : $clog2(T_SYMBOLS + 1)
 ) (
     input  logic                        aclk,
     input  logic                        aresetn,
@@ -123,6 +130,8 @@ module rs_decoder_core
     input  logic [DATA_WIDTH-1:0]       in_data,
     input  logic [SYMBOLS_PER_BEAT-1:0] in_keep,   // low-aligned; partial only on a block's last beat
     input  logic                        in_last,
+    // per-lane erasure flags, valid with the beat; dead unless ERASURE_SUPPORT
+    input  logic [SYMBOLS_PER_BEAT-1:0] in_erasure,
 
     // corrected data symbols out
     output logic                        out_valid,
@@ -149,6 +158,13 @@ module rs_decoder_core
     localparam int BCW   = $clog2(BFD + 1);           // beats in a block
     localparam int DEG_W = $clog2(T2 + 1);
     localparam int SC_W  = STATUS_CNT_WIDTH;
+    // Walk widths. With erasures the locator handed to Chien is the COMBINED
+    // Gamma*Lambda_e (degree up to 2t) and the evaluator the combined one
+    // (2t coefficients); the off state keeps the errors-only sizes exactly.
+    localparam int LAM_N  = ERASURE_SUPPORT ? T2 + 1 : T + 1;
+    localparam int OM_N   = ERASURE_SUPPORT ? T2 : T;
+    localparam int DEGC_W = ERASURE_SUPPORT ? DEG_W + 1 : DEG_W;
+    localparam int ERAB_W = 1 + DEG_W + (T2 + 1) * M;   // rs_erasure_unit's A -> B record
     localparam int KB    = (K_SYMBOLS + S - 1) / S;   // data beats per block
     localparam int OFD   = 1 << $clog2(2 * KB + 8);   // output FIFO depth, beats
 
@@ -192,8 +208,8 @@ module rs_decoder_core
     logic [T2*M-1:0]  w_synd_next;
     logic             w_all_zero_next;
 
-    // A -> B descriptor: {len, frame_err, all_zero, synd}
-    localparam int DAB_W = CNT_W + 2 + T2 * M;
+    // A -> B descriptor: {len, frame_err, all_zero, synd [, erasure record]}
+    localparam int DAB_W = CNT_W + 2 + T2 * M + (ERASURE_SUPPORT ? ERAB_W : 0);
     logic             w_dab_wr_valid, w_dab_wr_ready, w_dab_rd_valid, w_dab_rd_ready;
     logic [DAB_W-1:0] w_dab_wr_data, w_dab_rd_data;
 
@@ -223,8 +239,29 @@ module rs_decoder_core
     );
     /* verilator lint_on PINCONNECTEMPTY */
 
+    // The erasure unit spans stages A and B: its record half rides this
+    // descriptor, its solve half drives the solver window and the walk
+    // polynomials. Everything it touches is generated away when
+    // ERASURE_SUPPORT = 0. The declarations live here because the descriptor
+    // pack below is their first consumer; the INSTANTIATION is at stage B,
+    // where the signals it connects (w_b_synd, w_kes_lambda, w_kes_deg)
+    // have been declared.
+    logic [ERAB_W-1:0]     w_er_ab;
+    logic [ERAB_W-1:0]     w_er_ab_b;
+    logic [T2*M-1:0]       w_er_kes_synd;
+    logic [DEG_W-1:0]      w_er_f;
+    logic                  w_er_f_over, w_er_t_zero;
+    logic [(T2+1)*M-1:0]   w_er_lambda_c;
+    logic [T2*M-1:0]       w_er_omega_c;
+    logic [DEG_W:0]        w_er_deg_c;
+    logic                  w_trans_start, w_trans_done, w_comb_start, w_comb_done;
+
     assign w_dab_wr_valid = w_in_fire && w_block_end;
-    assign w_dab_wr_data  = {w_len, w_frame_err, w_all_zero_next, w_synd_next};
+    if (ERASURE_SUPPORT) begin : g_dab_pack
+        assign w_dab_wr_data = {w_len, w_frame_err, w_all_zero_next, w_synd_next, w_er_ab};
+    end else begin : g_dab_pack_off
+        assign w_dab_wr_data = {w_len, w_frame_err, w_all_zero_next, w_synd_next};
+    end
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
@@ -272,7 +309,11 @@ module rs_decoder_core
     logic [CNT_W-1:0] w_b_len;
     logic             w_b_frame_err, w_b_all_zero;
     logic [T2*M-1:0]  w_b_synd;
-    assign {w_b_len, w_b_frame_err, w_b_all_zero, w_b_synd} = w_dab_rd_data;
+    assign {w_b_len, w_b_frame_err, w_b_all_zero, w_b_synd} = w_dab_rd_data[DAB_W-1 -: CNT_W + 2 + T2 * M];
+
+    if (ERASURE_SUPPORT) begin : g_dab_unpack
+        assign w_er_ab_b = w_dab_rd_data[ERAB_W-1:0];
+    end
 
     logic                 w_kes_start, w_kes_busy, w_kes_done, w_kes_deg_err;
     logic [(T2+1)*M-1:0]  w_kes_lambda;
@@ -281,88 +322,233 @@ module rs_decoder_core
 
     localparam bit KES_EUCLID = (KES_ALGO == "EUCLID");
 
+    // the solver's syndrome input: the erasure unit's window when enabled
+    logic [T2*M-1:0] w_kes_synd;
+    assign w_kes_synd = ERASURE_SUPPORT ? w_er_kes_synd : w_b_synd;
+
     if (KES_EUCLID) begin : g_kes_euclid
-        key_equation_solver_euclid #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T)) u_kes (
+        key_equation_solver_euclid #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T),
+                                     .ERASURE_SUPPORT(ERASURE_SUPPORT)) u_kes (
             .aclk(aclk), .aresetn(aresetn),
-            .i_start(w_kes_start), .i_synd(w_b_synd),
-            .i_erasure_count('0),   // TASK-002: driven by the erasure unit when it lands
+            .i_start(w_kes_start), .i_synd(w_kes_synd),
+            .i_erasure_count(w_er_f),
             .o_busy(w_kes_busy), .o_done(w_kes_done),
             .o_lambda(w_kes_lambda), .o_omega(w_kes_omega), .o_deg(w_kes_deg), .o_deg_err(w_kes_deg_err));
     end else begin : g_kes_ribm
-        key_equation_solver_ribm #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T)) u_kes (
+        key_equation_solver_ribm #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T),
+                                   .ERASURE_SUPPORT(ERASURE_SUPPORT)) u_kes (
             .aclk(aclk), .aresetn(aresetn),
-            .i_start(w_kes_start), .i_synd(w_b_synd),
-            .i_erasure_count('0),   // TASK-002: driven by the erasure unit when it lands
+            .i_start(w_kes_start), .i_synd(w_kes_synd),
+            .i_erasure_count(w_er_f),
             .o_busy(w_kes_busy), .o_done(w_kes_done),
             .o_lambda(w_kes_lambda), .o_omega(w_kes_omega), .o_deg(w_kes_deg), .o_deg_err(w_kes_deg_err));
     end
 
-    // B -> C descriptor: {len, frame_err, all_zero, correct, bad, deg, lambda[0..t], omega}
-    localparam int DBC_W = CNT_W + 4 + DEG_W + (T + 1) * M + T * M;
+    // The erasure unit itself. Instantiated here -- after the solver and the
+    // descriptor unpack it connects to -- while its declarations are at stage
+    // A with the descriptor pack.
+    if (ERASURE_SUPPORT) begin : g_erasure
+        rs_erasure_unit #(
+            .SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T), .N_SYMBOLS(N),
+            .SYMBOLS_PER_BEAT(S), .KES_ALGO(KES_ALGO)
+        ) u_erasure (
+            .aclk         (aclk),
+            .aresetn      (aresetn),
+            .i_rx_fire    (w_in_fire),
+            .i_rx_first   (r_first),
+            .i_rx_count   (w_in_count),
+            .i_rx_erasure (in_erasure),
+            .o_ab         (w_er_ab),
+            .i_ab         (w_er_ab_b),
+            .i_synd       (w_b_synd),
+            .i_trans_start(w_trans_start),
+            .o_trans_done (w_trans_done),
+            .i_comb_start (w_comb_start),
+            .o_comb_done  (w_comb_done),
+            .i_lambda_e   (w_kes_lambda),
+            .i_deg_e      (w_kes_deg),
+            .o_kes_synd   (w_er_kes_synd),
+            .o_f          (w_er_f),
+            .o_f_over     (w_er_f_over),
+            .o_t_zero     (w_er_t_zero),
+            .o_lambda_c   (w_er_lambda_c),
+            .o_omega_c    (w_er_omega_c),
+            .o_deg_c      (w_er_deg_c));
+    end else begin : g_no_erasure
+        logic unused_erasure;
+        assign unused_erasure = (^in_erasure) ^ w_trans_done ^ w_comb_done
+                              ^ (^w_er_kes_synd) ^ w_er_f_over ^ w_er_t_zero
+                              ^ (^w_er_f) ^ (^w_er_lambda_c) ^ (^w_er_omega_c) ^ (^w_er_deg_c)
+                              ^ (^w_er_ab) ^ (^w_er_ab_b);
+        assign w_er_ab       = '0;
+        assign w_er_ab_b     = '0;
+        assign w_er_kes_synd = '0;
+        assign w_er_f        = '0;
+        assign w_er_f_over   = 1'b0;
+        assign w_er_t_zero   = 1'b0;
+        assign w_er_lambda_c = '0;
+        assign w_er_omega_c  = '0;
+        assign w_er_deg_c    = '0;
+        assign w_trans_start = 1'b0;
+        assign w_trans_done  = 1'b0;
+        assign w_comb_start  = 1'b0;
+        assign w_comb_done   = 1'b0;
+    end
+
+    // B -> C descriptor: {len, frame_err, all_zero, correct, bad, deg, lambda, omega}
+    // Erasure build: the COMBINED locator/evaluator (degree up to 2t, 2t
+    // evaluator coefficients) and the combined degree; the off state keeps the
+    // errors-only sizes exactly.
+    localparam int DBC_W = CNT_W + 4 + DEGC_W + LAM_N * M + OM_N * M;
     logic             w_dbc_wr_valid, w_dbc_wr_ready, w_dbc_rd_valid, w_dbc_rd_ready;
     logic [DBC_W-1:0] w_dbc_wr_data, w_dbc_rd_data;
 
-    typedef enum logic [1:0] {B_IDLE, B_SOLVE, B_PUSH} b_state_t;
-    b_state_t         r_b_state;
-    logic [CNT_W-1:0] r_b_len;
     logic             w_b_bypass;
-    logic             w_b_bad;             // solver says more than t errors, or nothing located
-    logic             w_b_done_push;       // solved descriptor leaves on this edge
+    logic             w_b_bad;             // the block cannot be corrected
 
     assign w_b_bypass  = w_b_all_zero || w_b_frame_err;
-    assign w_b_bad     = w_kes_deg_err || (w_kes_deg == '0);
 
-    // The solve stage costs the solver's own iterations and nothing else. The
-    // descriptor leaves on the SAME edge the solver reports done (B_PUSH is
-    // kept only for the backpressured case), and the next block starts on that
-    // same edge -- so a block occupies this stage for iterations+1 cycles
-    // rather than iterations+3. Both are safe because every field written here
-    // is combinational off the solver's pre-edge registers, which the skid
-    // buffer samples on the same edge the solver reloads.
-    // Only ONE descriptor can be written per cycle, so a done-push edge cannot
-    // also admit a bypass block -- that one waits for B_IDLE.
-    assign w_b_done_push  = (r_b_state == B_SOLVE) && w_kes_done && w_dbc_wr_ready;
-    assign w_dab_rd_ready = (r_b_state == B_IDLE) ? (w_b_bypass ? w_dbc_wr_ready : 1'b1)
-                                                 : (w_b_done_push && !w_b_bypass);
-    assign w_kes_start    = w_dab_rd_valid && w_dab_rd_ready && !w_b_bypass;
+    if (!ERASURE_SUPPORT) begin : g_b_err
+        // ---------------------------------------------------------------------
+        // Errors-only solve (BIT-IDENTICAL to the pre-erasure core)
+        // ---------------------------------------------------------------------
+        typedef enum logic [1:0] {B_IDLE, B_SOLVE, B_PUSH} b_state_t;
+        b_state_t         r_b_state;
+        logic [CNT_W-1:0] r_b_len;
+        logic             w_b_done_push;       // solved descriptor leaves on this edge
 
-    always_comb begin
-        if ((r_b_state == B_PUSH) || ((r_b_state == B_SOLVE) && w_kes_done)) begin
-            w_dbc_wr_valid = 1'b1;
-            w_dbc_wr_data  = {r_b_len, 1'b0, 1'b0, 1'b1, w_b_bad, w_kes_deg,
-                              w_kes_lambda[(T+1)*M-1:0], w_kes_omega};
-        end else begin
-            w_dbc_wr_valid = (r_b_state == B_IDLE) && w_dab_rd_valid && w_b_bypass;
-            w_dbc_wr_data  = {w_b_len, w_b_frame_err, w_b_all_zero, 1'b0, 1'b0, DEG_W'(0),
-                              {((T + 1) * M){1'b0}}, {(T * M){1'b0}}};
+        assign w_b_bad     = w_kes_deg_err || (w_kes_deg == '0);
+
+        // The solve stage costs the solver's own iterations and nothing else. The
+        // descriptor leaves on the SAME edge the solver reports done (B_PUSH is
+        // kept only for the backpressured case), and the next block starts on that
+        // same edge -- so a block occupies this stage for iterations+1 cycles
+        // rather than iterations+3. Both are safe because every field written here
+        // is combinational off the solver's pre-edge registers, which the skid
+        // buffer samples on the same edge the solver reloads.
+        // Only ONE descriptor can be written per cycle, so a done-push edge cannot
+        // also admit a bypass block -- that one waits for B_IDLE.
+        assign w_b_done_push  = (r_b_state == B_SOLVE) && w_kes_done && w_dbc_wr_ready;
+        assign w_dab_rd_ready = (r_b_state == B_IDLE) ? (w_b_bypass ? w_dbc_wr_ready : 1'b1)
+                                                     : (w_b_done_push && !w_b_bypass);
+        assign w_kes_start    = w_dab_rd_valid && w_dab_rd_ready && !w_b_bypass;
+
+        always_comb begin
+            if ((r_b_state == B_PUSH) || ((r_b_state == B_SOLVE) && w_kes_done)) begin
+                w_dbc_wr_valid = 1'b1;
+                w_dbc_wr_data  = {r_b_len, 1'b0, 1'b0, 1'b1, w_b_bad, w_kes_deg,
+                                  w_kes_lambda[(T+1)*M-1:0], w_kes_omega};
+            end else begin
+                w_dbc_wr_valid = (r_b_state == B_IDLE) && w_dab_rd_valid && w_b_bypass;
+                w_dbc_wr_data  = {w_b_len, w_b_frame_err, w_b_all_zero, 1'b0, 1'b0, DEG_W'(0),
+                                  {((T + 1) * M){1'b0}}, {(T * M){1'b0}}};
+            end
         end
-    end
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_b_state <= B_IDLE;
-            r_b_len   <= '0;
-        end else begin
-            case (r_b_state)
-                B_IDLE: if (w_kes_start) begin
-                    r_b_state <= B_SOLVE;
-                    r_b_len   <= w_b_len;
-                end
-                B_SOLVE: if (w_kes_done) begin
-                    if (!w_dbc_wr_ready) begin
-                        r_b_state <= B_PUSH;      // descriptor backpressured
-                    end else if (w_kes_start) begin
-                        r_b_state <= B_SOLVE;     // next block starts on this edge
+        `ALWAYS_FF_RST(aclk, aresetn,
+            if (`RST_ASSERTED(aresetn)) begin
+                r_b_state <= B_IDLE;
+                r_b_len   <= '0;
+            end else begin
+                case (r_b_state)
+                    B_IDLE: if (w_kes_start) begin
+                        r_b_state <= B_SOLVE;
                         r_b_len   <= w_b_len;
-                    end else begin
-                        r_b_state <= B_IDLE;
                     end
-                end
-                B_PUSH:  if (w_dbc_wr_ready) r_b_state <= B_IDLE;
-                default: r_b_state <= B_IDLE;
-            endcase
+                    B_SOLVE: if (w_kes_done) begin
+                        if (!w_dbc_wr_ready) begin
+                            r_b_state <= B_PUSH;      // descriptor backpressured
+                        end else if (w_kes_start) begin
+                            r_b_state <= B_SOLVE;     // next block starts on this edge
+                            r_b_len   <= w_b_len;
+                        end else begin
+                            r_b_state <= B_IDLE;
+                        end
+                    end
+                    B_PUSH:  if (w_dbc_wr_ready) r_b_state <= B_IDLE;
+                    default: r_b_state <= B_IDLE;
+                endcase
+            end
+        )
+    end else begin : g_b_erasure
+        // ---------------------------------------------------------------------
+        // Erasure solve: TRANS (f cycles) -> SOLVE -> COMB (deg_e+1 cycles),
+        // with two early exits -- f_over never solves, and t_zero skips SOLVE
+        // and COMB (the unit's registers already hold Gamma and GS). Unlike
+        // the errors-only stage, a done edge cannot also start the next block:
+        // the unit must run TRANS before the solver can start, so the next
+        // block pops the cycle after the push -- one bubble per block boundary.
+        // ---------------------------------------------------------------------
+        typedef enum logic [2:0] {BE_IDLE, BE_TRANS, BE_SOLVE, BE_COMB, BE_PUSH} be_state_t;
+        be_state_t        r_b_state;
+        logic [CNT_W-1:0] r_b_len;
+        logic [DEG_W-1:0] w_budget;          // errors the remaining 2t - f syndromes can prove
+        logic             w_b_bad_final;
+
+        assign w_budget      = DEG_W'((T2 - int'(w_er_f)) >> 1);
+        assign w_b_bad       = w_er_f_over || w_kes_deg_err || (w_kes_deg > w_budget)
+                               || ((w_kes_deg == '0) && (w_er_f == '0));
+        assign w_b_bad_final = w_er_t_zero ? 1'b0 : w_b_bad;
+
+        assign w_dab_rd_ready = (r_b_state == BE_IDLE)
+                                && ((w_b_bypass || w_er_f_over) ? w_dbc_wr_ready : 1'b1);
+        assign w_trans_start  = w_dab_rd_valid && w_dab_rd_ready && !w_b_bypass && !w_er_f_over;
+        assign w_kes_start    = (r_b_state == BE_TRANS) && w_trans_done && !w_er_t_zero;
+        assign w_comb_start   = (r_b_state == BE_SOLVE) && w_kes_done;
+
+        always_comb begin
+            if ((r_b_state == BE_PUSH)
+                || ((r_b_state == BE_COMB) && w_comb_done)
+                || ((r_b_state == BE_TRANS) && w_trans_done && w_er_t_zero)) begin
+                // solved block -- on t_zero the unit's outputs already hold
+                // Gamma and GS, and the bypass verdict is clean
+                w_dbc_wr_valid = 1'b1;
+                w_dbc_wr_data  = {r_b_len, 1'b0, 1'b0, 1'b1, w_b_bad_final, w_er_deg_c,
+                                  w_er_lambda_c, w_er_omega_c};
+            end else if ((r_b_state == BE_IDLE) && w_dab_rd_valid && w_b_bypass) begin
+                w_dbc_wr_valid = 1'b1;
+                w_dbc_wr_data  = {w_b_len, w_b_frame_err, w_b_all_zero, 1'b0, 1'b0,
+                                  DEGC_W'(0), {(LAM_N * M){1'b0}}, {(OM_N * M){1'b0}}};
+            end else if ((r_b_state == BE_IDLE) && w_dab_rd_valid && w_er_f_over) begin
+                // more than 2t erasures: uncorrectable by inspection
+                w_dbc_wr_valid = 1'b1;
+                w_dbc_wr_data  = {w_b_len, 1'b0, 1'b0, 1'b1, 1'b1,
+                                  DEGC_W'(0), {(LAM_N * M){1'b0}}, {(OM_N * M){1'b0}}};
+            end else begin
+                w_dbc_wr_valid = 1'b0;
+                w_dbc_wr_data  = '0;
+            end
         end
-    )
+
+        `ALWAYS_FF_RST(aclk, aresetn,
+            if (`RST_ASSERTED(aresetn)) begin
+                r_b_state <= BE_IDLE;
+                r_b_len   <= '0;
+            end else begin
+                case (r_b_state)
+                    BE_IDLE: if (w_trans_start) begin
+                        r_b_state <= BE_TRANS;
+                        r_b_len   <= w_b_len;
+                    end
+                    BE_TRANS: if (w_trans_done) begin
+                        if (w_er_t_zero) begin
+                            r_b_state <= w_dbc_wr_ready ? BE_IDLE : BE_PUSH;
+                        end else begin
+                            r_b_state <= BE_SOLVE;    // kes_start fires on this edge
+                        end
+                    end
+                    BE_SOLVE: if (w_kes_done) begin
+                        r_b_state <= BE_COMB;         // comb_start fires on this edge
+                    end
+                    BE_COMB: if (w_comb_done) begin
+                        r_b_state <= w_dbc_wr_ready ? BE_IDLE : BE_PUSH;
+                    end
+                    BE_PUSH: if (w_dbc_wr_ready) r_b_state <= BE_IDLE;
+                    default: r_b_state <= BE_IDLE;
+                endcase
+            end
+        )
+    end
 
     /* verilator lint_off PINCONNECTEMPTY */
     gaxi_skid_buffer #(.DATA_WIDTH(DBC_W), .DEPTH(2)) u_desc_bc (
@@ -377,9 +563,9 @@ module rs_decoder_core
     // =========================================================================
     logic [CNT_W-1:0]    w_c_len;
     logic                w_c_frame_err, w_c_all_zero, w_c_correct, w_c_bad;
-    logic [DEG_W-1:0]    w_c_deg;
-    logic [(T+1)*M-1:0]  w_c_lambda;
-    logic [T*M-1:0]      w_c_omega;
+    logic [DEGC_W-1:0]   w_c_deg;
+    logic [LAM_N*M-1:0]  w_c_lambda;
+    logic [OM_N*M-1:0]   w_c_omega;
     assign {w_c_len, w_c_frame_err, w_c_all_zero, w_c_correct, w_c_bad, w_c_deg, w_c_lambda, w_c_omega}
         = w_dbc_rd_data;
 
@@ -389,7 +575,7 @@ module rs_decoder_core
     logic [CNT_W-1:0] r_c_pos;             // first position of the beat being processed
     logic [CNT_W-1:0] r_c_data_len;        // positions emitted as data
     logic             r_c_frame_err, r_c_all_zero, r_c_correct, r_c_bad;
-    logic [DEG_W-1:0] r_c_deg;
+    logic [DEGC_W-1:0] r_c_deg;
     logic [SC_W:0]    r_c_roots;           // one wider than the count: saturates
     logic             r_c_den_zero;
 
@@ -445,10 +631,10 @@ module rs_decoder_core
     // the previous one's verdict is still in flight -- a single snapshot
     // reading the live r_c_* flags would be overwritten by the next load.
     logic             r_sv_frame_err, r_sv_all_zero, r_sv_correct, r_sv_bad, r_sv_den_zero;
-    logic [DEG_W-1:0] r_sv_deg;
+    logic [DEGC_W-1:0] r_sv_deg;
     logic [SC_W:0]    r_sv_roots;
     logic             r_sv2_frame_err, r_sv2_all_zero, r_sv2_correct, r_sv2_bad, r_sv2_den_zero;
-    logic [DEG_W-1:0] r_sv2_deg;
+    logic [DEGC_W-1:0] r_sv2_deg;
     logic [SC_W:0]    r_sv2_roots;
 
     // C3: the verdict stage. One entry, loaded the cycle after a block's last
@@ -465,14 +651,20 @@ module rs_decoder_core
     logic [S*M-1:0] r_c2_corr, r_c2_rx, w_c2_sym;
     logic           w_c2_can_go, w_c2_fire;
 
-    chien_search #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T), .N_SYMBOLS(N),
+    // With erasures the walk runs on the COMBINED polynomials: a locator of
+    // degree up to 2t (T_SYMBOLS = 2t) and the combined evaluator, which is
+    // the textbook S*Lambda form either way (OMEGA_HIGH_HALF = 0).
+    chien_search #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY),
+                   .T_SYMBOLS(ERASURE_SUPPORT ? T2 : T), .N_SYMBOLS(N),
                    .SYMBOLS_PER_BEAT(S)) u_chien (
         .aclk(aclk), .aresetn(aresetn),
         .i_load(w_c_load), .i_lambda(w_c_lambda), .i_step(w_c_step),
         .o_root(w_chien_root), .o_odd_sum(w_chien_odd));
 
-    forney_evaluator #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T), .N_SYMBOLS(N),
-                       .FIRST_ROOT(FIRST_ROOT), .OMEGA_HIGH_HALF(!KES_EUCLID),
+    forney_evaluator #(.SYMBOL_WIDTH(M), .PRIM_POLY(PRIM_POLY),
+                       .T_SYMBOLS(ERASURE_SUPPORT ? T2 : T), .N_SYMBOLS(N),
+                       .FIRST_ROOT(FIRST_ROOT),
+                       .OMEGA_HIGH_HALF(ERASURE_SUPPORT ? 1'b0 : !KES_EUCLID),
                        .SYMBOLS_PER_BEAT(S)) u_forney (
         .aclk(aclk), .aresetn(aresetn),
         .i_load(w_c_load), .i_omega(w_c_omega), .i_step(w_c_step),
@@ -734,7 +926,14 @@ module rs_decoder_core
 
     // Unused here: the stage-A syndrome register (its _next form is consumed),
     // the solver's busy flag, and Lambda_{t+1..2t} (folded into o_deg_err).
-    logic unused_a;
-    assign unused_a = ^w_synd ^ w_kes_busy ^ (^w_kes_lambda[(T2+1)*M-1:(T+1)*M]);
+    if (!ERASURE_SUPPORT) begin : g_sink_err
+        logic unused_a;
+        assign unused_a = ^w_synd ^ w_kes_busy ^ (^w_kes_lambda[(T2+1)*M-1:(T+1)*M]);
+    end else begin : g_sink_erasure
+        // ... and the solver's own Omega: the erasure unit combines it with GS
+        logic unused_a;
+        assign unused_a = ^w_synd ^ w_kes_busy ^ (^w_kes_lambda[(T2+1)*M-1:(T+1)*M])
+                        ^ (^w_kes_omega);
+    end
 
 endmodule : rs_decoder_core
