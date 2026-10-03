@@ -400,6 +400,9 @@ module scoria_mem_cmd_scheduler
         .t_zqcs_interval_i  (zq_interval_i),
         .t_zqcs_i           (t_zqcs_i),
         .demand_i           (|rd_sch_valid_i || |wr_sch_valid_i),
+        // Mode C inputs are tied off here; CSR wiring is Task 6.
+        .placement_i        (2'd0),
+        .overdue_max_i      (13'd0),
         .zq_req_o           (w_zq_req),
         .zq_grant_i         (w_zq_grant),
         .obs_busy_o         (zq_busy_o),

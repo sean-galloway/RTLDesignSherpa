@@ -31,6 +31,13 @@
 //          reload simply starts later. LiteDRAM does the same thing with its
 //          zqcs_timer_wait.
 //
+// v2 (TASK-001 Mode C): ZQCS placement policy.
+//   placement_i[1:0]: 0 = request on expiry (bit-identical to v1), 1 = defer
+//   under sustained demand, 2 reserved.  overdue_max_i[12:0] caps the deferral
+//   (0 = no cap).  When placement_i == 1 and demand_i is high at interval
+//   expiry the FSM enters ZQ_DEFER; it exits to ZQ_REQ when demand drops,
+//   placement is changed back to 0, or the overdue limit is reached.
+//
 // Documentation:
 //   projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/docs/scoria_has/
 //
@@ -56,6 +63,10 @@ module scoria_zq_ctrl
     input  logic [15:0] t_zqcs_i,           // tZQCS, max(64 nCK, 80 ns) for
                                             // MT41J256M16; held after a grant
 
+    // Mode C: ZQCS placement policy
+    input  logic [1:0]  placement_i,        // 0 = request on expiry (v1)
+    input  logic [12:0] overdue_max_i,      // max deferral cycles (0 = none)
+
     // ----- arbiter interface: identical in shape to refresh_ctrl's -----
     input  logic        demand_i,           // scheduler has read/write work
     output logic        zq_req_o,
@@ -74,9 +85,10 @@ module scoria_zq_ctrl
     // State
     //=========================================================================
     typedef enum logic [1:0] {
-        ZQ_IDLE = 2'd0,   // counting down to the next calibration
-        ZQ_REQ  = 2'd1,   // asking the arbiter, waiting for a grant
-        ZQ_HOLD = 2'd2    // granted; holding tZQCS before reloading
+        ZQ_IDLE  = 2'd0,   // counting down to the next calibration
+        ZQ_REQ   = 2'd1,   // asking the arbiter, waiting for a grant
+        ZQ_HOLD  = 2'd2,   // granted; holding tZQCS before reloading
+        ZQ_DEFER = 2'd3    // Mode C: interval expired, demand high, deferring
     } zq_state_e;
 
     zq_state_e   r_state;
@@ -84,6 +96,7 @@ module scoria_zq_ctrl
     logic [15:0] r_hold;
     logic [15:0] r_total;
     logic        r_overdue;
+    logic [12:0] r_defer_cnt;   // Mode C: cycles spent in ZQ_DEFER
 
     // An interval of 0 would otherwise reload to 0 and request every cycle.
     // Treat it as "disabled" rather than "as fast as possible".
@@ -111,21 +124,30 @@ module scoria_zq_ctrl
             // overdue_needs_demand_and_expiry, which holds enable high through
             // reset -- a configuration the CSRs cannot currently produce and
             // a unit test can.
-            r_interval <= t_zqcs_interval_i;
-            r_hold     <= 16'd0;
-            r_total    <= 16'd0;
-            r_overdue  <= 1'b0;
+            r_interval   <= t_zqcs_interval_i;
+            r_hold       <= 16'd0;
+            r_total      <= 16'd0;
+            r_overdue    <= 1'b0;
+            r_defer_cnt  <= 13'd0;
         end else if (!w_run) begin
             // Disabled: park, and reload so enabling does not fire instantly.
-            r_state    <= ZQ_IDLE;
-            r_interval <= t_zqcs_interval_i;
-            r_overdue  <= 1'b0;
+            r_state     <= ZQ_IDLE;
+            r_interval  <= t_zqcs_interval_i;
+            r_overdue   <= 1'b0;
+            r_defer_cnt <= 13'd0;
         end else begin
             unique case (r_state)
                 ZQ_IDLE: begin
                     if (r_interval == 32'd0) begin
-                        r_state   <= ZQ_REQ;
-                        r_overdue <= 1'b0;
+                        // Mode C: defer under demand when placement == 1.
+                        if (placement_i == 2'd1 && demand_i) begin
+                            r_state     <= ZQ_DEFER;
+                            r_defer_cnt <= 13'd0;
+                            r_overdue   <= 1'b0;
+                        end else begin
+                            r_state   <= ZQ_REQ;
+                            r_overdue <= 1'b0;
+                        end
                     end else begin
                         r_interval <= r_interval - 32'd1;
                     end
@@ -154,6 +176,23 @@ module scoria_zq_ctrl
                     end else begin
                         r_hold <= r_hold - 16'd1;
                     end
+                end
+
+                ZQ_DEFER: begin
+                    // Hold the request under demand.  Exit on loss of demand,
+                    // policy change, or overdue limit.  obs_overdue_o is raised
+                    // while we are intentionally deferred (starvation telemetry).
+                    if (placement_i != 2'd1 || !demand_i) begin
+                        r_state     <= ZQ_REQ;
+                        r_defer_cnt <= 13'd0;
+                    end else if (overdue_max_i != 13'd0 &&
+                                 r_defer_cnt >= overdue_max_i) begin
+                        r_state     <= ZQ_REQ;
+                        r_defer_cnt <= 13'd0;
+                    end else begin
+                        r_defer_cnt <= r_defer_cnt + 13'd1;
+                    end
+                    r_overdue <= 1'b1;
                 end
 
                 default: r_state <= ZQ_IDLE;

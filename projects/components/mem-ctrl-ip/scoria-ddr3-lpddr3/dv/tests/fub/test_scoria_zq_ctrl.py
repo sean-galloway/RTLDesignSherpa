@@ -30,7 +30,7 @@ import random
 
 import cocotb
 import pytest
-from cocotb.triggers import RisingEdge
+from cocotb.triggers import FallingEdge, RisingEdge
 from cocotb_test.simulator import run
 
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
@@ -39,12 +39,15 @@ from TBClasses.shared.utilities import get_paths, sim_build_path
 
 
 class ZqTB(TBBase):
-    async def setup(self, *, enable=1, interval=64, t_zqcs=8, demand=0):
+    async def setup(self, *, enable=1, interval=64, t_zqcs=8, demand=0,
+                    placement=0, overdue_max=0):
         await self.start_clock('mc_clk', 10, 'ns')
         self.dut.enable_i.value = enable
         self.dut.t_zqcs_interval_i.value = interval
         self.dut.t_zqcs_i.value = t_zqcs
         self.dut.demand_i.value = demand
+        self.dut.placement_i.value = placement
+        self.dut.overdue_max_i.value = overdue_max
         self.dut.zq_grant_i.value = 0
         await self.assert_reset()
         await self.wait_clocks('mc_clk', 5)
@@ -81,6 +84,24 @@ class ZqTB(TBBase):
         self.dut.zq_grant_i.value = 1
         await RisingEdge(self.dut.mc_clk)
         self.dut.zq_grant_i.value = 0
+
+    async def run_capture(self, *, interval=32, cycles=200, **setup_kwargs):
+        """Run `cycles` loop iterations, grant every request, and return the
+        loop-cycle numbers at which zq_req_o rose and the total-issued trace.
+
+        Each call resets the DUT, so cycle numbers are relative to that reset
+        and two bit-identical configurations produce identical traces.
+        """
+        await self.setup(interval=interval, **setup_kwargs)
+        req_cycles = []
+        totals = []
+        for c in range(cycles):
+            await RisingEdge(self.dut.mc_clk)
+            totals.append(self.obs()['total'])
+            if int(self.dut.zq_req_o.value):
+                req_cycles.append(c)
+                await self.grant()
+        return req_cycles, totals
 
 
 @cocotb.test(timeout_time=20, timeout_unit="ms")
@@ -196,6 +217,125 @@ async def cocotb_test_scoria_zq_ctrl(dut):
             o = tb.obs()
             chk(not (o['busy'] and o['req']),
                 "busy and req asserted together -- a request inside tZQCS")
+
+    elif tt == "placement_defers_under_demand":
+        # Mode C: with placement=1 and no overdue limit, the request is held
+        # while demand stays high.
+        await tb.setup(interval=64, t_zqcs=8, demand=0, placement=1,
+                       overdue_max=0)
+        while tb.obs()['cnt'] > 2:
+            await RisingEdge(dut.mc_clk)
+        dut.demand_i.value = 1
+        while tb.obs()['cnt'] != 0:
+            await RisingEdge(dut.mc_clk)
+        # Drop demand one cycle before the end of the defer window so the
+        # input is stable when the FSM samples it.
+        defer_cycles = 0
+        demand_dropped = False
+        for _ in range(50):
+            await RisingEdge(dut.mc_clk)
+            if (not demand_dropped) and (defer_cycles >= 40):
+                dut.demand_i.value = 0
+                demand_dropped = True
+            if int(dut.zq_req_o.value):
+                break
+            defer_cycles += 1
+        chk(defer_cycles >= 40,
+            f"request deferred only {defer_cycles} cycles, expected >= 40")
+        chk(int(dut.zq_req_o.value),
+            "request did not fire after demand dropped")
+
+    elif tt == "placement_overdue_max_forces_request":
+        # Mode C: overdue_max caps the deferral even if demand persists.
+        await tb.setup(interval=64, t_zqcs=8, demand=0, placement=1,
+                       overdue_max=10)
+        while tb.obs()['cnt'] > 2:
+            await RisingEdge(dut.mc_clk)
+        dut.demand_i.value = 1
+        while tb.obs()['cnt'] != 0:
+            await RisingEdge(dut.mc_clk)
+        delay = None
+        for i in range(20):
+            await RisingEdge(dut.mc_clk)
+            if int(dut.zq_req_o.value):
+                delay = i
+                break
+        chk(delay is not None,
+            "request never fired despite overdue_max")
+        chk(9 <= delay <= 11,
+            f"request fired after {delay} cycles, expected 10 ±1")
+        t0 = tb.obs()['total']
+        await tb.grant()
+        await tb.wait_clocks('mc_clk', 3)
+        chk(tb.obs()['total'] == t0 + 1,
+            f"total {tb.obs()['total']} != {t0 + 1} after grant")
+
+    elif tt == "placement_flicker_demand":
+        # Mode C: brief demand flickers must not let the request fire before
+        # the interval expires, and the request must fire once traffic stops.
+        await tb.setup(interval=32, t_zqcs=8, demand=0, placement=1,
+                       overdue_max=0)
+        while tb.obs()['cnt'] > 4:
+            await RisingEdge(dut.mc_clk)
+        early_fire = False
+        for cycle in range(40):
+            if tb.obs()['cnt'] != 0 and int(dut.zq_req_o.value):
+                early_fire = True
+            dut.demand_i.value = 1 if (cycle % 3) == 0 else 0
+            await RisingEdge(dut.mc_clk)
+        chk(not early_fire, "request fired before the interval expired")
+        dut.demand_i.value = 0
+        saw_req = False
+        for _ in range(5):
+            await RisingEdge(dut.mc_clk)
+            if int(dut.zq_req_o.value):
+                saw_req = True
+                break
+        chk(saw_req, "request did not fire after flicker stopped")
+        t0 = tb.obs()['total']
+        await tb.grant()
+        await tb.wait_clocks('mc_clk', 3)
+        chk(tb.obs()['total'] == t0 + 1,
+            f"total {tb.obs()['total']} != {t0 + 1} after grant")
+
+    elif tt == "placement_switch_mid_defer":
+        # Mode C: writing placement=0 while deferred must release the request
+        # immediately, without consuming a second interval.
+        await tb.setup(interval=64, t_zqcs=8, demand=0, placement=1,
+                       overdue_max=0)
+        while tb.obs()['cnt'] > 2:
+            await RisingEdge(dut.mc_clk)
+        dut.demand_i.value = 1
+        while tb.obs()['cnt'] != 0:
+            await RisingEdge(dut.mc_clk)
+        await RisingEdge(dut.mc_clk)          # one cycle in ZQ_DEFER
+        await FallingEdge(dut.mc_clk)         # safe write point
+        dut.placement_i.value = 0
+        saw_req = False
+        for _ in range(4):
+            await RisingEdge(dut.mc_clk)
+            if int(dut.zq_req_o.value):
+                saw_req = True
+                break
+        chk(saw_req, "request did not fire after placement=0")
+        t0 = tb.obs()['total']
+        await tb.grant()
+        await tb.wait_clocks('mc_clk', 3)
+        chk(tb.obs()['total'] == t0 + 1,
+            f"total {tb.obs()['total']} != {t0 + 1} after grant")
+
+    elif tt == "placement_zero_bitidentical":
+        # Mode C disabled: the overdue_max input is ignored and timing matches
+        # the baseline smoke trace.
+        req0, totals0 = await tb.run_capture(interval=32, placement=0,
+                                             overdue_max=0)
+        reqx, totalsx = await tb.run_capture(interval=32, placement=0,
+                                             overdue_max=100)
+        chk(req0 == reqx,
+            f"request cycles differ with placement=0: {req0} vs {reqx}")
+        chk(totals0 == totalsx,
+            f"total trace differs with placement=0: {totals0} vs {totalsx}")
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {tt}")
 
@@ -206,7 +346,12 @@ async def cocotb_test_scoria_zq_ctrl(dut):
 _GATE = ["smoke", "interval_zero_disabled", "enable_low_disabled"]
 _FUNC = _GATE + ["request_does_not_withdraw_under_demand",
                  "overdue_needs_demand_and_expiry", "hold_then_reload",
-                 "repeats", "disable_midflight", "random_soak"]
+                 "repeats", "disable_midflight", "random_soak",
+                 "placement_defers_under_demand",
+                 "placement_overdue_max_forces_request",
+                 "placement_flicker_demand",
+                 "placement_switch_mid_defer",
+                 "placement_zero_bitidentical"]
 _FULL = _FUNC
 _TEST_LEVEL = (os.environ.get("REG_LEVEL") or os.environ.get("TEST_LEVEL")
                or "FUNC").upper()
