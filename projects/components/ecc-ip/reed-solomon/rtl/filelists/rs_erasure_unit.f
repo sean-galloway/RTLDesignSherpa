@@ -11,4 +11,4 @@
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/gf_mul_const.f
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/gf_mul.f
 
-$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/rs_erasure_unit.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/fub/rs_erasure_unit.sv

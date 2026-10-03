@@ -9,4 +9,4 @@
 
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/gf_mul.f
 
-$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/gf/ribm_pe.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/fub/gf/ribm_pe.sv

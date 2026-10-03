@@ -14,4 +14,4 @@
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
 
-$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/rs_decoder_core.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/macro/rs_decoder_core.sv

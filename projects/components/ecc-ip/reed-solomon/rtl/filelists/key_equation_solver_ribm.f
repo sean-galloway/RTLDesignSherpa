@@ -5,4 +5,4 @@
 
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/ribm_pe.f
 
-$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/key_equation_solver_ribm.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/fub/key_equation_solver_ribm.sv

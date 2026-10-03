@@ -13,7 +13,7 @@ is `git mv`, so an item is in exactly one state by construction.
 
 | Lane | For | Next ID |
 |---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | `TASK-009` |
+| [task/](task/INDEX.md) | planned work we decided to do | `TASK-010` |
 | [bug/](bug/INDEX.md) | a defect with a reproduction | `BUG-004` |
 
 The `bug/` lane was created 2026-10-01, when the first COMPOSED test found the

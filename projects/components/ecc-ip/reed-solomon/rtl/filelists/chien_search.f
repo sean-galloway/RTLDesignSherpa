@@ -8,4 +8,4 @@
 
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/gf_mul_const.f
 
-$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/chien_search.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/fub/chien_search.sv

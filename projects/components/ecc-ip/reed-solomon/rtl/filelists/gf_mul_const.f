@@ -5,4 +5,4 @@
 
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/gf_pkg.f
 
-$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/gf/gf_mul_const.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/fub/gf/gf_mul_const.sv

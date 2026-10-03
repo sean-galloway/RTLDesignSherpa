@@ -9,4 +9,4 @@
 
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/gf_mul.f
 
-$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/key_equation_solver_euclid.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/fub/key_equation_solver_euclid.sv

@@ -5,4 +5,4 @@
 
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/gf_syndrome_cell.f
 
-$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/syndrome_unit.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/fub/syndrome_unit.sv

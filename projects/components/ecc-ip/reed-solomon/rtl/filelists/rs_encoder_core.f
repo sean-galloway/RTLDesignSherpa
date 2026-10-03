@@ -7,4 +7,4 @@
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/gf_lfsr_encoder.f
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f
 
-$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/rs_encoder_core.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/macro/rs_encoder_core.sv

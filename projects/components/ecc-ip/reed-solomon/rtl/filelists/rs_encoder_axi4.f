@@ -11,4 +11,4 @@
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_axi4_engines.f
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_beat_packer.f
 
-$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/axi4/rs_encoder_axi4.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/top/rs_encoder_axi4.sv

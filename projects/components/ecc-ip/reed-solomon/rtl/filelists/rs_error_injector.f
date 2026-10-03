@@ -7,4 +7,4 @@
 -f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/rs_error_injector.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/fub/rs_error_injector.sv

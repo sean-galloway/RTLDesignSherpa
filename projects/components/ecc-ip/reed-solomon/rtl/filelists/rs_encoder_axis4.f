@@ -12,4 +12,4 @@
 -f $REPO_ROOT/rtl/amba/filelists/axis4_slave.f
 -f $REPO_ROOT/rtl/amba/filelists/axis4_master.f
 
-$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/axis4/rs_encoder_axis4.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/top/rs_encoder_axis4.sv

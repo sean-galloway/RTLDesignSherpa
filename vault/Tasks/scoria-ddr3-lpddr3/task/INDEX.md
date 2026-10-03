@@ -2,7 +2,7 @@
 
 # scoria-ddr3-lpddr3 — tasks
 
-**Next ID: TASK-009** — never recycle a number, even when its item closed.
+**Next ID: TASK-010** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,15 +12,13 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 4 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 4 | done (kept for history) |
+| [closed/](closed/) | 5 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
-| [deferred/](deferred/) | 0 | parked pending a named condition |
+| [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
-
-- **TASK-001** — advanced scheduling / refresh modes survey.
 
 - **TASK-006** — two formal/scoria proofs are weak and the 9-block tally hides
   it: dfi_cdc has 2 live assertions of 7 and wr_data_cam's data-integrity
@@ -39,6 +37,11 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-001** — advanced scheduling / refresh modes survey and bounded tranche
+  landed (Modes A-C: elastic refresh, TCR, ZQCS placement); remaining seeds
+  (RAIDR, ChargeCache, PARA, SALP, power-down) deferred to TASK-009 with spec
+  §6 unblock conditions.
+
 - **TASK-005** — the three DFI v3.1 surface names presented (`dfi_reset_n`
   rename + the two data-phase selects driven); HAS text landed in v0.8 Ch 4.1.
   Multi-rank drive-from-granted-rank requirement stated for a future build.
@@ -54,3 +57,9 @@ by construction rather than by discipline.
 - **TASK-003** — the two uninstantiated FUBs stay dormant, on measured parity
   with LiteDRAM's working Genesys 2 core; each header now says so and why, and
   that the parity argument is DDR3-only.
+
+## Deferred
+
+- **TASK-009** — deferred advanced modes (RAIDR, ChargeCache, PARA, SALP,
+  power-down scheduling), each parked behind the unblock condition recorded in
+  `docs/superpowers/specs/2026-10-03-scoria-advanced-modes-design.md` §6.

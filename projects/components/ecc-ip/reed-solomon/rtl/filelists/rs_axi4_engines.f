@@ -9,5 +9,5 @@
 # directly, and a top that wants registered channels adds axi4_master_rd /
 # axi4_master_wr around them. That is why this list pulls in no amba filelist.
 
-$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/axi4/rs_axi4_read_engine.sv
-$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/axi4/rs_axi4_write_engine.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/top/rs_axi4_read_engine.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/top/rs_axi4_write_engine.sv

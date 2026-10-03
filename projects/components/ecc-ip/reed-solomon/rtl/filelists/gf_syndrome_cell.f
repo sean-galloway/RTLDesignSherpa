@@ -9,4 +9,4 @@
 
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/gf_mul_const.f
 
-$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/gf/gf_syndrome_cell.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/fub/gf/gf_syndrome_cell.sv

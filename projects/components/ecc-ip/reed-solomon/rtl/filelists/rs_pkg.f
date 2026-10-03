@@ -4,4 +4,4 @@
 # Codeword BEAT-LAYOUT rules, as opposed to gf_pkg's field arithmetic. The
 # encoder wrappers import it for rs_need_pack; nothing else is needed here.
 
-$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/rs_pkg.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/fub/rs_pkg.sv

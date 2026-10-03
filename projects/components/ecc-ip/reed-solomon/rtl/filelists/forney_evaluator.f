@@ -11,4 +11,4 @@
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/gf_mul.f
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/gf_inv.f
 
-$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/forney_evaluator.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/fub/forney_evaluator.sv

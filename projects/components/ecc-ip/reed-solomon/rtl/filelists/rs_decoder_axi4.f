@@ -9,4 +9,4 @@
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_decoder_core.f
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_axi4_engines.f
 
-$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/axi4/rs_decoder_axi4.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/top/rs_decoder_axi4.sv

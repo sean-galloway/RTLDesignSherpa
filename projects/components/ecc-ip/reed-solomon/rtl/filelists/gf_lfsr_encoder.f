@@ -9,4 +9,4 @@
 
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/gf_mul_const.f
 
-$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/gf/gf_lfsr_encoder.sv
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/fub/gf/gf_lfsr_encoder.sv

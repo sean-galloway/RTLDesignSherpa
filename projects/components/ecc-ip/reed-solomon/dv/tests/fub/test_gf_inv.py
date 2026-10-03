@@ -51,7 +51,7 @@ async def cocotb_test_gf_inv(dut):
 def test_gf_inv(request, symbol_width, prim_poly, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_gf': 'projects/components/ecc-ip/reed-solomon/rtl/gf',
+        'rtl_gf': 'projects/components/ecc-ip/reed-solomon/rtl/fub/gf',
     })
     dut_name = "gf_inv"
     verilog_sources, includes = get_sources_from_filelist(
