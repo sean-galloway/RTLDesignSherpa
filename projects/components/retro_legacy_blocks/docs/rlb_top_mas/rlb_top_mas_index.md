@@ -86,8 +86,8 @@ surprised somebody:
 **Location:** `ch03_interfaces/`
 
 - [01_top_level.md](ch03_interfaces/01_top_level.md) - Parameters, full port list, address decode contract
-- 02_apb_interface_spec.md - APB4 protocol specification at this boundary *(planned, not yet written)*
-- 03_interrupt_interfaces.md - Per-block interrupt pin reference *(planned, not yet written)*
+- [02_apb_interface_spec.md](ch03_interfaces/02_apb_interface_spec.md) - APB4 protocol specification at this boundary
+- [03_interrupt_interfaces.md](ch03_interfaces/03_interrupt_interfaces.md) - Per-block interrupt pin reference
 
 ### Chapter 4: Programming Model
 **Location:** `ch04_programming/`
