@@ -45,7 +45,9 @@ NUM_BANKS = 8
 
 class RefTB(TBBase):
     async def setup(self, *, refi=40, trefi_pb=0, burst=1, refpb=0,
-                    enable=1, postpone=0, pullin=0, demand=0):
+                    enable=1, postpone=0, pullin=0, demand=0,
+                    elastic_en=0, pullin_idle_streak=16,
+                    postpone_demand_streak=16):
         await self.start_clock('mc_clk', 10, 'ns')
         d = self.dut
         d.t_refi_i.value = refi
@@ -57,6 +59,9 @@ class RefTB(TBBase):
         d.postpone_limit_i.value = postpone
         d.pullin_limit_i.value = pullin
         d.demand_i.value = demand
+        d.elastic_en_i.value = elastic_en
+        d.pullin_idle_streak_i.value = pullin_idle_streak
+        d.postpone_demand_streak_i.value = postpone_demand_streak
         d.refresh_grant_i.value = 0
         d.grant_was_pb_i.value = 0
         await self.assert_reset()
@@ -84,6 +89,8 @@ class RefTB(TBBase):
             'drain':   int(d.refresh_drain_active_o.value),
             'grants':  int(d.obs_grants_total_o.value),
             'credit':  int(d.obs_pullin_credit_o.value),
+            'postpone_events': int(d.obs_postpone_events_o.value),
+            'pullin_events':   int(d.obs_pullin_events_o.value),
         }
 
     async def wait_req(self, limit=2000):
@@ -260,6 +267,103 @@ async def cocotb_test_scoria_refresh_ctrl(dut):
                 f"rotor {o['rotor']} out of range under soak")
             chk(o['pending'] <= 8,
                 f"pending {o['pending']} exceeds the JEDEC ceiling under soak")
+
+    elif tt == "elastic_pullin_idle_streak":
+        # Mode A: pull-in is allowed only after pullin_idle_streak idle cycles.
+        await tb.setup(refi=12, pullin=4, elastic_en=1,
+                       pullin_idle_streak=8, demand=1)
+        # Clear the first backlog so we start the idle window with pending == 0.
+        chk(await tb.wait_req(400) is not None, "no initial refresh request")
+        await tb.grant()
+        # refi=12 leaves r_refi_cnt == 8 after grant()'s settle window, so the
+        # next expiry lands at the 8-cycle idle confirmation and produces a
+        # pending-based request rather than a pull-in.
+        dut.demand_i.value = 0
+        # No request for the first 7 idle cycles (no expiry, no pull-in path).
+        for i in range(7):
+            await RisingEdge(dut.mc_clk)
+            chk(not int(dut.refresh_req_o.value),
+                f"request fired at idle cycle {i + 1} (< 8)")
+        # 8th idle cycle: tREFI expires, request fires from pending, not pull-in.
+        await RisingEdge(dut.mc_clk)
+        chk(int(dut.refresh_req_o.value),
+            "request did not fire at 8th idle cycle")
+        chk(int(dut.pending_refreshes_o.value) > 0,
+            "request fired but pending is 0 (would be a pull-in grant)")
+
+    elif tt == "elastic_postpone_sustained_demand":
+        # Mode A: sporadic demand uses strict timing; sustained demand postpones.
+        await tb.setup(refi=16, postpone=3, elastic_en=1,
+                       postpone_demand_streak=16, demand=1)
+        # Phase 1: sporadic demand (4 on / 4 off). Demand streak resets every
+        # off period, so requests fire on every tREFI tick and pending stays 0/1.
+        grants_before = int(dut.obs_grants_total_o.value)
+        max_pending_sporadic = 0
+        for cycle in range(128):
+            dut.demand_i.value = 1 if (cycle % 8) < 4 else 0
+            await RisingEdge(dut.mc_clk)
+            p = int(dut.pending_refreshes_o.value)
+            if p > max_pending_sporadic:
+                max_pending_sporadic = p
+            if int(dut.refresh_req_o.value):
+                await tb.grant()
+        chk(max_pending_sporadic <= 1,
+            f"sporadic demand pending peaked at {max_pending_sporadic}, "
+            f"expected <= 1")
+        chk(int(dut.obs_grants_total_o.value) > grants_before,
+            "no grants observed during sporadic demand phase")
+
+        # Phase 2: sustained demand. Do not grant until the postpone branch
+        # forces the backlog to exceed the effective postpone limit.
+        dut.demand_i.value = 1
+        max_pending_sustained = 0
+        saw_request = False
+        for _ in range(600):
+            await RisingEdge(dut.mc_clk)
+            p = int(dut.pending_refreshes_o.value)
+            if p > max_pending_sustained:
+                max_pending_sustained = p
+            if int(dut.refresh_req_o.value):
+                saw_request = True
+                if max_pending_sustained >= 4:
+                    break
+        chk(max_pending_sustained >= 4,
+            f"sustained demand pending only reached {max_pending_sustained}, "
+            f"expected >= postpone_limit + 1 = 4")
+        chk(saw_request, "request never fired during sustained demand")
+
+    elif tt == "elastic_disabled_ignores_thresholds":
+        # Mode A disabled: extreme thresholds must not change the smoke timing.
+        async def run_baseline_like(elastic_en, pullin_idle_streak,
+                                    postpone_demand_streak):
+            await tb.setup(refi=30, elastic_en=elastic_en,
+                           pullin_idle_streak=pullin_idle_streak,
+                           postpone_demand_streak=postpone_demand_streak)
+            req_cycles = []
+            reloads = []
+            prev_refi = int(dut.obs_refi_cnt_o.value)
+            for c in range(200):
+                await RisingEdge(dut.mc_clk)
+                cur_refi = int(dut.obs_refi_cnt_o.value)
+                if cur_refi > prev_refi:
+                    reloads.append(cur_refi)
+                prev_refi = cur_refi
+                if int(dut.refresh_req_o.value):
+                    req_cycles.append(c)
+                    await tb.grant()
+                    prev_refi = int(dut.obs_refi_cnt_o.value)
+            return req_cycles, reloads
+
+        baseline_req, baseline_reload = await run_baseline_like(0, 16, 16)
+        disabled_req, disabled_reload = await run_baseline_like(
+            0, 200, 100)
+        chk(baseline_req == disabled_req,
+            f"request cycles differ with elastic disabled: "
+            f"baseline {baseline_req} vs disabled {disabled_req}")
+        chk(baseline_reload == disabled_reload,
+            f"reload values differ with elastic disabled: "
+            f"baseline {baseline_reload} vs disabled {disabled_reload}")
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {tt}")
 
@@ -272,7 +376,10 @@ _FUNC = _GATE + ["refpb_rotor_advances_only_on_pb_grant",
                  "refpb_rotor_wraps_at_num_banks",
                  "refpb_rotor_holds_across_mode_change",
                  "postpone_withholds_under_demand",
-                 "pending_accumulates_and_drains", "random_soak"]
+                 "pending_accumulates_and_drains", "random_soak",
+                 "elastic_pullin_idle_streak",
+                 "elastic_postpone_sustained_demand",
+                 "elastic_disabled_ignores_thresholds"]
 _TEST_LEVEL = (os.environ.get("REG_LEVEL") or os.environ.get("TEST_LEVEL")
                or "FUNC").upper()
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FUNC}.get(_TEST_LEVEL, _FUNC)

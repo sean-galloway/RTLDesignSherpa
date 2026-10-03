@@ -39,6 +39,13 @@
 //     demand burst that follows sees a refresh-free window. 0 = never.
 //   * demand_i: scheduler-level "any read/write waiting" — the postpone
 //     gate and the pull-in idle detector both key off it.
+//
+// v4 (TASK-001 Mode A): demand-aware elastic refresh.
+//   Behaviour contract: pull-in fires only after demand has been idle >=
+//   pullin_idle_streak_i MC cycles; postpone engages only under a sustained
+//   demand streak >= postpone_demand_streak_i. When elastic_en_i is low the
+//   logic reduces bit-for-bit to v3 (16-cycle idle confirmation, demand-driven
+//   postpone threshold). JEDEC +-8 remains the hard credit ceiling.
 
 `timescale 1ns / 1ps
 
@@ -73,6 +80,11 @@ module scoria_refresh_ctrl
     input  logic [3:0]  pullin_limit_i,   // run ahead on idle, max 8
     input  logic        demand_i,         // scheduler has read/write work
 
+    // Mode A: demand-aware elastic refresh
+    input  logic        elastic_en_i,              // 0 = v3 behaviour
+    input  logic [7:0]  pullin_idle_streak_i,      // idle cycles before pull-in
+    input  logic [6:0]  postpone_demand_streak_i,  // demand cycles before postpone
+
     output logic        refresh_req_o,
     input  logic        refresh_grant_i,
     // 1 = the granted command on the wire THIS cycle is OP_REFPB. The rotor
@@ -94,7 +106,9 @@ module scoria_refresh_ctrl
     output logic [3:0]  obs_drain_remaining_o,
     output logic [BA_W-1:0] obs_bank_rotor_o,
     output logic [15:0] obs_grants_total_o,
-    output logic [3:0]  obs_pullin_credit_o
+    output logic [3:0]  obs_pullin_credit_o,
+    output logic [15:0] obs_postpone_events_o,
+    output logic [15:0] obs_pullin_events_o
 );
 
     //=========================================================================
@@ -103,6 +117,9 @@ module scoria_refresh_ctrl
     //=========================================================================
     logic [15:0] r_refi_cnt;
     logic [3:0]  r_pending;
+    logic [6:0]  r_demand_streak;    // Mode A: consecutive cycles of demand_i
+    logic [15:0] r_postpone_events;  // Mode A: telemetry histogram bin
+    logic [15:0] r_pullin_events;    // Mode A: telemetry histogram bin
 
     // JEDEC max postponed refreshes = 8.
     localparam logic [3:0] MAX_PENDING = 4'd8;
@@ -161,9 +178,12 @@ module scoria_refresh_ctrl
 
     `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
         if (`RST_ASSERTED(mc_rst_n)) begin
-            r_refi_cnt <= 16'd0;
-            r_pending  <= 4'd0;
-            r_pullin   <= 4'd0;
+            r_refi_cnt       <= 16'd0;
+            r_pending        <= 4'd0;
+            r_pullin         <= 4'd0;
+            r_demand_streak  <= 7'd0;
+            r_postpone_events <= 16'd0;
+            r_pullin_events   <= 16'd0;
         end else begin
             // tREFI countdown — only ticks when enabled (init done).
             if (!enable_i || refi_reload_i) begin
@@ -174,6 +194,14 @@ module scoria_refresh_ctrl
                 r_refi_cnt <= r_refi_cnt - 16'd1;
             end
 
+            // Mode A: sustained-demand streak. Reset on any idle cycle; saturate
+            // at 127 so the comparison stays stable against the 7-bit CSR.
+            if (!demand_i) begin
+                r_demand_streak <= 7'd0;
+            end else if (r_demand_streak != 7'd127) begin
+                r_demand_streak <= r_demand_streak + 7'd1;
+            end
+
             // Pending backlog + pull-in credit, one next-state evaluation:
             // - a tREFI tick consumes a banked credit if one exists, else
             //   adds a pending refresh (saturate at 8 = retention hazard);
@@ -181,9 +209,14 @@ module scoria_refresh_ctrl
             begin
                 automatic logic [3:0] pend_n = r_pending;
                 automatic logic [3:0] pull_n = r_pullin;
+                automatic logic       pend_tick = 1'b0;
                 if (enable_i && w_refi_expired) begin
-                    if (pull_n > 4'd0)            pull_n = pull_n - 4'd1;
-                    else if (pend_n < MAX_PENDING) pend_n = pend_n + 4'd1;
+                    if (pull_n > 4'd0) begin
+                        pull_n = pull_n - 4'd1;
+                    end else if (pend_n < MAX_PENDING) begin
+                        pend_n = pend_n + 4'd1;
+                        pend_tick = 1'b1;
+                    end
                     // else: saturate (data retention violation looming)
                 end
                 if (refresh_grant_i) begin
@@ -192,6 +225,22 @@ module scoria_refresh_ctrl
                 end
                 r_pending <= pend_n;
                 r_pullin  <= pull_n;
+
+                // Mode A telemetry: count refreshes withheld by the sustained-
+                // demand postpone branch. A tick that adds pending while we are
+                // not idle, the demand streak has crossed the threshold, and the
+                // new backlog still does not exceed the effective postpone limit
+                // is being actively postponed.
+                if (pend_tick && elastic_en_i && !w_idle
+                    && (r_demand_streak >= postpone_demand_streak_i)
+                    && (pend_n <= w_post_eff)) begin
+                    r_postpone_events <= r_postpone_events + 16'd1;
+                end
+
+                // Mode A telemetry: count pull-in grants.
+                if (w_grant_early) begin
+                    r_pullin_events <= r_pullin_events + 16'd1;
+                end
             end
         end
     end)
@@ -262,11 +311,11 @@ module scoria_refresh_ctrl
     // Idle confirmation: demand_i is CAM occupancy and blinks off for a few
     // cycles between bursts; treating those micro-gaps as idle would release
     // postponed refreshes (and trigger pull-ins) mid-stream. Only a sustained
-    // gap counts as idle.
-    localparam logic [4:0] IDLE_CONFIRM = 5'd16;
-    logic [4:0] r_idle_cnt;
+    // gap counts as idle. Mode A makes the threshold sweepable; disabled, it
+    // falls back to the inherited 16-cycle confirmation.
+    logic [7:0] r_idle_cnt;
     logic w_idle;
-    assign w_idle = (r_idle_cnt >= IDLE_CONFIRM);
+    assign w_idle = (r_idle_cnt >= (elastic_en_i ? pullin_idle_streak_i : 8'd16));
 
     `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
         if (`RST_ASSERTED(mc_rst_n)) begin
@@ -281,11 +330,16 @@ module scoria_refresh_ctrl
     // Request: while demand persists the backlog must EXCEED the postpone
     // limit (0 = strict = request the moment anything is pending); once idle
     // is confirmed any backlog requests immediately, and with pull-in credit
-    // available the request runs AHEAD of the backlog entirely.
+    // available the request runs AHEAD of the backlog entirely. Mode A adds
+    // a demand-streak gate: sporadic demand keeps strict behaviour; sustained
+    // demand engages the postpone limit. When elastic_en_i is low the equation
+    // reduces bit-for-bit to v3.
     logic w_req;
     assign w_req = enable_i
-                 && (w_idle ? (r_pending > 4'd0) || (r_pullin < w_pull_eff)
-                            : (r_pending > w_post_eff));
+                 && (w_idle ? ((r_pending > 4'd0) || (r_pullin < w_pull_eff))
+                            : (elastic_en_i && (r_demand_streak < postpone_demand_streak_i)
+                                 ? (r_pending > 4'd0)          // sporadic demand: strict
+                                 : (r_pending > w_post_eff)));  // sustained demand: postpone
 
     // Strict-flop outputs.
     `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
@@ -300,6 +354,8 @@ module scoria_refresh_ctrl
             obs_bank_rotor_o        <= '0;
             obs_grants_total_o      <= 16'd0;
             obs_pullin_credit_o     <= 4'd0;
+            obs_postpone_events_o   <= 16'd0;
+            obs_pullin_events_o     <= 16'd0;
         end else begin
             refresh_req_o           <= w_req;
             pending_refreshes_o     <= r_pending;
@@ -311,6 +367,8 @@ module scoria_refresh_ctrl
             obs_bank_rotor_o        <= r_bank_rotor;
             obs_grants_total_o      <= r_grants_total;
             obs_pullin_credit_o     <= r_pullin;
+            obs_postpone_events_o   <= r_postpone_events;
+            obs_pullin_events_o     <= r_pullin_events;
         end
     end)
 
