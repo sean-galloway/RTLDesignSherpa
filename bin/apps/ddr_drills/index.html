@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DDR Drills</title>
+<title>DDR and HBM Drills</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <header class="app-header">
-  <h1>DDR Drills</h1>
+  <h1>DDR and HBM Drills</h1>
   <p class="tagline">Memory-controller training: quizzes, timing parameters,
      bank-state scheduling, and a live sandbox.</p>
   <div class="pack-bar">
@@ -88,6 +88,8 @@
 <script src="packs/lpddr4.js"></script>
 <script src="packs/ddr5.js"></script>
 <script src="packs/lpddr5.js"></script>
+<script src="packs/hbm2.js"></script>
+<script src="packs/hbm3.js"></script>
 <!-- UI modes, then the shell. app.js boots on DOMContentLoaded.
      reference.js loads after timing.js: timing.js's mid-question panel
      calls its shared DDRD.buildTimingReference at mount time. -->

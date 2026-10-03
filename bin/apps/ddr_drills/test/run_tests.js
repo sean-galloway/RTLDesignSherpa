@@ -42,7 +42,9 @@ var PACK_ORDER = [
   'ddr4.js',
   'lpddr4.js',
   'ddr5.js',
-  'lpddr5.js'
+  'lpddr5.js',
+  'hbm2.js',
+  'hbm3.js'
 ];
 
 var root = path.join(__dirname, '..');
