@@ -93,6 +93,40 @@ jobs:
       - name: A .rdl edit has not left its generated artifacts stale
         run: python3 bin/check_rdl_regen.py
 
+  # tooling TASK-026. A committed *_flat.v is a snapshot: a source change with
+  # no re-flatten leaves the proof checking the old design, silently and green
+  # (rapids BUG-011 shipped that way twice; the 2026-09 audit found 36 of 48
+  # flats stale repo-wide). The pre-commit gate only sees what one commit
+  # touches, so this job runs the repo-wide sweep on every push. Fails on any
+  # STALE or UNHANDLED proof; the report is uploaded either way.
+  flat-staleness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Pinned to the version the dev machine flattens with (/mnt/data/tools,
+      # v0.0.13) so CI cannot disagree with local regeneration.
+      - name: Install sv2v v0.0.13
+        run: |
+          curl -sSL -o /tmp/sv2v.zip \
+            https://github.com/zachjs/sv2v/releases/download/v0.0.13/sv2v-Linux.zip
+          unzip -o /tmp/sv2v.zip -d /tmp/sv2v
+          chmod +x /tmp/sv2v/sv2v
+          echo /tmp/sv2v >> "$GITHUB_PATH"
+
+      - name: Every committed formal flat matches its sources
+        run: python3 bin/formal_status.py --check-flats --json flat_report.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flat-report
+          path: flat_report.json
+
   # Separate job so the filelist job above stays pip-free and fast. These tests
   # cover the logic whose failure is SILENT on hardware -- a wrong port or a
   # skipped init reads as a timing bug, not a lookup bug. Three of them were red
@@ -139,3 +173,17 @@ jobs:
       # that needs verilator, which this job does not install.
       - name: Task-tracker checker has teeth (fails on each planted defect)
         run: python3 -m pytest bin/tests/test_check_task_ids.py -q
+
+      # tooling TASK-026 criterion 3: the flat gate above must FAIL on a
+      # planted-stale flat, not merely run. Same pinned sv2v as the
+      # flat-staleness job; the tests build their own scratch proof repo.
+      - name: Install sv2v v0.0.13
+        run: |
+          curl -sSL -o /tmp/sv2v.zip \
+            https://github.com/zachjs/sv2v/releases/download/v0.0.13/sv2v-Linux.zip
+          unzip -o /tmp/sv2v.zip -d /tmp/sv2v
+          chmod +x /tmp/sv2v/sv2v
+          echo /tmp/sv2v >> "$GITHUB_PATH"
+
+      - name: Flat staleness checker has teeth (planted drift, current flat, side-effect recipe)
+        run: python3 -m pytest bin/tests/test_formal_status.py -q
