@@ -33,10 +33,10 @@ rename of a signal that is already there and already correct, and the two
 per-data-phase selects are new in v3.1 for selecting a rank on the DATA phases;
 with `NUM_RANKS=1` the only legal value is rank 0, which is what a PHY sees
 whether scoria drives it or not.
-**Status:** RTL DONE 2026-10-01; OPEN only on the HAS text, which is deferred
-to the HAS/MAS regeneration pass. Found the same day standing up
-`dv/tests/top/test_scoria_core.py`, where the BFM refused to bind until all
-three were presented.
+**Status:** CLOSED 2026-10-03. RTL done 2026-10-01; the HAS text landed in
+v0.8 (Ch 4.1) in the same pass that replaced the PRD stub. Found the same
+day standing up `dv/tests/top/test_scoria_core.py`, where the BFM refused
+to bind until all three were presented.
 
 What changed in the RTL:
 
@@ -97,10 +97,11 @@ means the top-tier suite is not exercising those three as scoria signals.
 
 - [x] the ports are added/renamed and driven from the DUT
 - [x] the alias and tie-offs come out of `dv/tb/scoria_core_tb.sv`
-- [ ] **the HAS is updated to match.** Deferred to the HAS/MAS regeneration
-      pass. It must say `dfi_reset_n` rather than describing a `dram_reset_n`
-      device pin, list the two data-phase selects as present-but-constant, and
-      state that multi-rank requires driving them from the granted rank.
+- [x] **the HAS is updated to match.** Done in HAS v0.8 (2026-10-03),
+      Chapter 4.1: `dfi_reset_n` presented under its DFI name, the two
+      data-phase selects listed as driven and constant `'0` at
+      `NUM_RANKS = 1`, and the multi-rank requirement stated (drive them
+      from the granted command's rank, in step with `dfi_cs_n`).
 
 Multi-rank is a precondition for the second half: see also the rank handling in
 `scoria_cmd_arbiter` (RK0 is hardcoded in the readiness terms).

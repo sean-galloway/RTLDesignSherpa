@@ -4,10 +4,13 @@ Lock the architecture spec, so the PRD stub ("to be authored once HAS is
 locked") and the RTL both have a fixed target.
 
 **Priority:** P1 — this is the gating item for all scoria work.
-**Status:** ACTIVE. HAS v0.1 authored 2026-09-29 (`docs/scoria_has/`, 37 pages).
-D1-D3 settled and recorded. Remaining: the five open questions in HAS Chapter 6,
-and replacing the PRD stub, whose stated blocker (a locked HAS) is now partly gone
--- v0.1 is implementable but not yet 1.0.
+**Status:** CLOSED 2026-10-03. HAS v0.8 authored (`docs/scoria_has/`, published
+as `DDR3_LPDDR3_HAS_v0.8.pdf`) with D1-D3 settled and Q1-Q5 resolved — no open
+questions remain — and reconciled against the landed RTL (221 tests, 9 formal
+blocks) and the first board work. The PRD stub is replaced by PRD v1.0, its
+stated blocker gone. The remaining road from v0.8 to a 1.0 HAS — `tWLMRD`'s
+maximum policy value, block-by-block marking confirmation against the RTL, and
+CSR-map finalization from the RDL — is filed as TASK-008.
 **Depends on:** nothing. Supersedes nothing.
 
 ## Where it starts from
