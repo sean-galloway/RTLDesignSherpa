@@ -298,9 +298,10 @@ non-atomic, while a partial write on a running counter is wrong.
 
 ### Reprogramming a running comparator requires disabling the timer
 
-To change a comparator without a spurious or a missed interrupt, clear
-`TIMER_CONFIG.TIMER_ENABLE` (or `HPET_CONFIG[0]`) first, write both halves,
-then re-enable. The real HPET has the same requirement.
+To change a comparator without a spurious or a missed interrupt, mask
+`TIMER_CONFIG.timer_int_enable` (or halt the main counter,
+`HPET_CONFIG[0] = 0`) first, write both halves, then re-enable. The real
+HPET has the same requirement.
 
 The comparator is written as two 32-bit halves, so between the two writes it
 holds the torn value `{old HI, new LO}` - a value software never programmed.
@@ -384,8 +385,8 @@ at 0 - no fire and no further advance - until one of four things happens:
 - **E3** software writes a counter half **that the compare width reads** - a
   counter write re-bases the epoch, so afterwards the ordinary
   `counter >= comparator` rule applies immediately;
-- **E4** `TIMER_SIZE` changes, because the carry was taken at a width that no
-  longer applies.
+- **E4** `TIMER_CONFIG.timer_32mode` changes, because the carry was taken at a
+  width that no longer applies.
 
 E2 and E3 are evaluated at the compare width, like every other term in the
 core. In **64-bit** mode either half of the comparator, or either half of the
@@ -406,21 +407,24 @@ arithmetic behaving as 64-bit register arithmetic does, not a defect; without
 the hold bit the wrapped comparator would sit BELOW the counter and re-fire
 every single cycle.
 
-### Changing TIMER_SIZE requires a stopped timer and a comparator rewrite
+### Changing `TIMER_CONFIG.timer_32mode` requires a halted counter and a
+### comparator rewrite
 
-Change `TIMER_CONFIG.TIMER_SIZE` only while that timer is stopped
-(`TIMER_ENABLE = 0`), and **rewrite the comparator afterwards** - which also
-rewrites the period, since they share the register.
+Change `TIMER_CONFIG.timer_32mode` only while the main counter is halted
+(`HPET_CONFIG[0] = 0`), and **rewrite the comparator afterwards** - which also
+rewrites the period, since they share the register. This is the field's own
+contract in the RDL, not a convention.
 
-E4 clears a stale epoch hold when `TIMER_SIZE` changes, but clearing the hold
+E4 clears a stale epoch hold when `timer_32mode` changes, but clearing the hold
 is all it can do: the old width's lattice is not the new width's, and the core
-has no way to translate a target from one to the other. Switching **0 -> 1** on
-a live timer exposes `comparator[63:32]` and `period[63:32]` - bits the 32-bit
-comparison never read and never maintained - to a comparison that now does read
-them, so the comparator can land up to 2^32 counts behind the counter and catch
-up for ~2^32 cycles (about 43 seconds at 100 MHz) before it fires again.
-Switching **1 -> 0** truncates the target to its low half, which usually turns
-a future comparator into an already-due one.
+has no way to translate a target from one to the other. Switching
+**`timer_32mode` 1 -> 0** (32-bit to 64-bit) on a live timer exposes
+`comparator[63:32]` and `period[63:32]` - bits the 32-bit comparison never read
+and never maintained - to a comparison that now does read them, so the
+comparator can land up to 2^32 counts behind the counter and catch up for
+~2^32 cycles (about 43 seconds at 100 MHz) before it fires again. Switching
+**`timer_32mode` 0 -> 1** (64-bit to 32-bit) truncates the target to its low
+half, which usually turns a future comparator into an already-due one.
 
 ## Usage Examples
 
