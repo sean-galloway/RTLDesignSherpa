@@ -1,0 +1,41 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph SRC["Block interrupt sources"]
+        PIT0["pit_timer_irq[0]<br/>8254 ch0"]
+        HLI0["hpet_legacy_irq0<br/>(legacy mode)"]
+        HLI8["hpet_legacy_irq8<br/>(legacy mode)"]
+        UARTI["uart_irq"]
+        RTCA["rtc_alarm_irq /<br/>rtc_second_irq"]
+        PMI["pm_interrupt"]
+        SMBI["smb_interrupt"]
+        GPIOI["gpio_irq"]
+    end
+
+    FAB["w_fabric_irq[15:0]<br/>always_comb, no state"]
+
+    PIT0 -->|"IRQ0 (conv)"| FAB
+    HLI0 -->|"IRQ0 (conv)"| FAB
+    UARTI -->|"IRQ4 (conv)"| FAB
+    RTCA -->|"IRQ8 (conv)"| FAB
+    PMI -->|"IRQ9 (conv)"| FAB
+    SMBI -->|"IRQ10 (choice)"| FAB
+    GPIOI -->|"IRQ11 (choice)"| FAB
+    HLI8 -->|"IRQ8 (conv)"| FAB
+
+    NOTE["IRQ2 never driven:<br/>cascade input"]
+    NOTE -.-> FAB
+
+    MPIC["Master 8259<br/>IR0-IR7"]
+    SPIC["Slave 8259<br/>IRQ8-15"]
+    IOA["IOAPIC<br/>pins 0-23 (24-31 = board)"]
+
+    FAB -->|"low half; IR2 masked then<br/>forced from slave INT"| MPIC
+    FAB -->|"high half, inline OR<br/>into slave irq_in"| SPIC
+    FAB -->|"zero-extended"| IOA
+
+    SPIC -->|"w_spic_int -> IR2"| MPIC
+    MPIC -->|"w_pic_cas_ack"| SPIC
+    SPIC -->|"w_spic_vector"| MPIC
+
+    AGG(["rlb_irq_out<br/>pure OR aggregate"])
+    SRC -.->|"all block IRQs + pic_int_out"| AGG

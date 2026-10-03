@@ -1,0 +1,24 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    MAST["External APB Master<br/>(full system address)"]
+    XBAR["u_apbx_xbar<br/>apbx_xbar_1to10 — generated<br/>1 master, 10 slaves, 4KB windows"]
+
+    MAST -->|"s_apb_*"| XBAR
+
+    XBAR -->|"s0 · 0x0000"| HPET["u_hpet<br/>HPET"]
+    XBAR -->|"s1 · 0x1000"| MPIC["u_pic<br/>8259 Master"]
+    XBAR -->|"s2 · 0x2000"| PIT["u_pit<br/>8254 PIT"]
+    XBAR -->|"s3 · 0x3000"| RTC["u_rtc<br/>RTC"]
+    XBAR -->|"s4 · 0x4000"| SMB["u_smbus<br/>SMBus"]
+    XBAR -->|"s5 · 0x5000"| PM["u_pm_acpi<br/>PM/ACPI"]
+    XBAR -->|"s6 · 0x6000"| IOA["u_ioapic<br/>IOAPIC"]
+    XBAR -->|"s7 · 0x7000"| GPIOb["u_gpio<br/>GPIO"]
+    XBAR -->|"s8 · 0x8000"| UART["u_uart<br/>UART 16550"]
+    XBAR -->|"s9 · 0x9000"| SPIC["u_pic_slave<br/>8259 Slave"]
+
+    MPIC <-->|"cascade: w_spic_int / w_pic_cas_ack / w_spic_vector"| SPIC
+
+    FAB["Interrupt fabric (w_fabric_irq) — see Interrupt Fabric figure"]
+    FAB -.-> MPIC
+    FAB -.-> SPIC
+    FAB -.-> IOA

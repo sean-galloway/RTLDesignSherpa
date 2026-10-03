@@ -41,6 +41,8 @@ rlb_top
 └── u_ioapic_boot_intx  ioapic_boot_intx    no window; combinational companion
 ```
 
+![RLB Top Integration Hierarchy](../assets/mermaid/rlb_integration_hierarchy.png)
+
 Everything else in the module is wiring and two pieces of combinational logic:
 the interrupt fabric and the cascade cross-connect.
 

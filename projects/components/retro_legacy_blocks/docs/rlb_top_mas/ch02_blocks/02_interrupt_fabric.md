@@ -37,6 +37,8 @@ so that standard driver software and either interrupt controller see a
 recognisable PC/AT wiring, without the board having to wire ten interrupt
 pins back in.
 
+![RLB Top Interrupt Fabric](../assets/mermaid/rlb_interrupt_fabric.png)
+
 ## The Routing Table
 
 Six blocks source interrupts into the fabric. The six driven lines:
