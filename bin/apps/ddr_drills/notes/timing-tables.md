@@ -192,3 +192,82 @@ Notes:
   drill engine never emits, so they render in the reference panel only.
 - Latency context (not engine params): RL/WL programmed in MR2; tDQSCK is an
   analog window (2.5-5.5 ns, 5.62 ns derated) that may span multiple clocks.
+
+## DDR4 (packs/ddr4.js, JESD79-4D)
+
+Topology: 2 BG x 4 banks (drill model). Real: x4/x8 = 4 BG x 4 banks (16 banks);
+x16 = 2 BG x 4 banks (8 banks). 8n prefetch, BL8/BC4, SSTL_12 at 1.2 V, VPP 2.5 V.
+
+| Symbol | Scope pattern | Value basis | Reference |
+| --- | --- | --- | --- |
+| tRCD | ACT -> RD/WR/RDA/WRA same_bank | nCK per speed bin (10-24) | sec 4.19, Table 154 |
+| tRP | PRE -> ACT same_bank | bin-matched to tRCD | sec 4.22, Table 154 |
+| tRAS | ACT -> PRE same_bank | 28-52 nCK; max 9 x tREFI | sec 4.22 |
+| tRC | ACT -> ACT same_bank | = tRAS + tRP | sec 4.22 |
+| tRRDS | ACT -> ACT diff_group | 4 nCK | sec 4.22 |
+| tRRDL | ACT -> ACT same_group | 5-11 nCK by org/speed | sec 4.22 |
+| tFAW | ACT -> ACT any (rolling window of 4) | 16-48 nCK by speed | sec 4.22 |
+| tRTP | RD/RDA -> PRE same_bank | max(4 nCK, 7.5 ns) | sec 4.23 |
+| tWR | WR/WRA -> PRE same_bank | 15 ns; nWR in MR0 | sec 4.23 |
+| tCCDS | col -> col diff_group | 4 nCK | sec 4.24 |
+| tCCDL | col -> col same_group / same_bank | 5-8 nCK (MR0 A[12:10]) | sec 4.24 |
+| tRTW | RD -> WR any (book symbol) | RL - WL + BL/2 + 1 + RU(tWPRE) | sec 4.25 |
+| tWTRS | WR -> RD diff_group | max(2 nCK, 2.5 ns); speed-dependent | sec 4.25 |
+| tWTRL | WR -> RD same_group / same_bank | max(4 nCK, 7.5 ns); 6-12 nCK | sec 4.25 |
+| tMRD | MRS -> MRS (panel only) | 8 nCK | sec 3.4.1 |
+| tMOD | MRS -> * (panel only) | max(24 nCK, 15 ns) | sec 3.4.1 |
+| tDLLK | MRS -> RD/RDA (panel only) | 597/768/1024 nCK by speed (MR6) | sec 3.4.1, 4.17 |
+| tREFI1 | REF -> REF (panel only) | 7.8 us; /2 above 85 C; FGR 2x/4x use /2 /4 | sec 4.9 |
+| tRFC1 | REF -> * (panel only) | 160/260/350/450 ns by density (2/4/8/16 Gb) | sec 4.9 |
+| tCKE | SRX -> * (panel only; CKE pulse width) | max(3 nCK, 5 ns) | sec 4.17 |
+| tXP | SRX -> * (panel only) | max(4 nCK, 6 ns) | sec 4.17 |
+| tXS | SRX -> ACT/PRE/MRS/REF (panel only) | tRFC1(min) + 10 ns; DLL cmds add tDLLK | sec 4.17 |
+
+Notes:
+- tCCD_L covers same_bank too (same bank is same group); the pack lists both
+  scopes explicitly rather than relying on matcher subsumption.
+- tWTRS/tWTRL are speed-dependent; the seductive "2 clocks everywhere" distractor
+  is wrong.
+- tRTW is the cross-book symbol; JESD79-4D gives the relation unnamed.
+- FGR modes (MR3 A[8:6]) use matching tREFI1/2/4 and tRFC1/2/4 pairs.
+
+## LPDDR4 (packs/lpddr4.js, JESD209-4E)
+
+Topology: flat 8 banks, sids: 0 (drill model). Real: dual-channel die, each
+channel 8 banks, 16n prefetch, BL16 primary, no DLL, no bank groups.
+
+| Symbol | Scope pattern | Value basis | Reference |
+| --- | --- | --- | --- |
+| tRCD | ACT -> RD/WR/RDA/WRA same_bank | max(18 ns, 4 nCK) x16 | Table 88 |
+| tRPpb | PRE -> ACT same_bank | max(18 ns, 4 nCK) x16 | Table 88 |
+| tRPab | PREA -> ACT (panel only) | max(21 ns, 4 nCK) x16 | Table 88 |
+| tRAS | ACT -> PRE same_bank | min max(42 ns, 3 nCK); max min(9 x RR x tREFI, 70.2 us) | Table 88 |
+| tRC | ACT -> ACT same_bank | = tRAS + tRPpb (or + tRPab after PREA) | Table 88 |
+| tRRD | ACT -> ACT diff_bank | max(10 ns, 4 nCK); 7.5 ns at 4267 Mb/s | Table 88 |
+| tFAW | ACT -> ACT any (rolling window of 4) | 40 ns (30 ns at 4267 Mb/s) | Table 88 |
+| tRTP | RD/RDA -> PRE same_bank | max(7.5 ns, 8 nCK); BL/2 + max(8, RU(tRTP/tCK)) - 8 | sec 4.18 |
+| tWR | WR/WRA -> PRE same_bank | max(18 ns, 6 nCK) x16; max(20 ns, 6 nCK) x8 | Table 88 |
+| tPPD | PRE -> PRE any | 4 nCK | sec 4.18 |
+| tCCD | RD->RD / WR->WR any (same direction only) | 8 tCK (BL16), 16 tCK (BL32) | sec 4.10 |
+| tWTR | WR -> RD any | max(10 ns, 8 nCK) x16; max(12 ns, 8 nCK) x8 | sec 4.12 |
+| tRTW | RD -> WR any (spec-named) | RL + RU(tDQSCKmax/tCK) + BL/2 - WL + tWPRE + RU(tRPST) | sec 4.35 |
+| tMRW | MRW -> MRW (panel only) | max(10 ns, 10 tCK) | sec 4.23 |
+| tMRR | MRR -> MRR (panel only) | 8 tCK | sec 4.23 |
+| tMRD | MRW -> * (panel only) | max(14 ns, 10 tCK) | sec 4.23 |
+| tREFI | REF -> REF (panel only) | 3.904 us (8192 REFab / 32 ms) | sec 4.19 |
+| tREFW | REF -> REF (panel only) | 32 ms at 1x rate | sec 4.19 |
+| tRFCab | REF -> * (panel only) | 130/180/280/380 ns by density | sec 4.19 |
+| tRFCpb | REFpb -> ACT/REFpb same_bank (panel only) | 60/90/140/190 ns by density | sec 4.19 |
+| tXSR | SRX -> * (panel only) | max(tRFCab + 7.5 ns, 2 nCK) | sec 4.20 |
+| tXP | SRX -> * (panel only) | max(7.5 ns, 5 nCK) | sec 4.21 |
+
+Notes:
+- tCCD is same-direction only in the pack, matching the book's gap sheet;
+  direction changes are governed by tRTW/tWTR, which dominate tCCD there.
+- tRTW is the first spec-named read-to-write parameter in the series; the no-DLL
+  tDQSCK term is the LPDDR4 signature.
+- tRPab uses from 'PREA', tRFCpb uses from 'REFpb', and the init/refresh
+  panel-only params use from 'MRW' / 'MRR' / 'SRX': all are commands the drill
+  engine never emits, so they render in the reference panel only.
+- Latency context (not engine params): RL/WL programmed in MR2; tDQSCK window is
+  1.5-3.5 ns and may span multiple clocks.
