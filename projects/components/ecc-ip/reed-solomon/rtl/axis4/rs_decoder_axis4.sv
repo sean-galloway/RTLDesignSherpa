@@ -27,6 +27,7 @@
 //   SKID_DEPTH        depth of the two AXIS skid buffers, 2..8
 //   BLOCK_FIFO_DEPTH  received-block buffer, in beats
 //   KES_ALGO          "RIBM" or "EUCLID" -- which key-equation solver is built
+//   ERASURE_SUPPORT   (PRD D5, TASK-002) build the erasure path; default 0
 //   AXIS_*_WIDTH      tid / tdest / tuser widths, forwarded beat for beat
 //
 // Notes:
@@ -43,6 +44,12 @@
 //     -- the only block boundary it can see -- reads a stale verdict, and the
 //     symptom is quiet: a CLEAN run reports every block corrected with zero
 //     symbols corrected, with perfect data and a matching CRC.
+//   - ERASURE_SUPPORT=1 exposes in_erasure: one flag per symbol lane, valid
+//     with each s_axis beat, sourced by the integration (a RAID stripe map,
+//     an MC's known-bad column). The flags ride through the intake skid ABOVE
+//     the consumer's tuser, the same trick keep uses at m != 8, so they stay
+//     aligned with their beat under backpressure. At 0 the port is dead and
+//     the build is the pre-erasure wrapper.
 module rs_decoder_axis4 #(
     parameter int SYMBOL_WIDTH     = 8,
     parameter int PRIM_POLY        = 'h11D,
@@ -53,13 +60,16 @@ module rs_decoder_axis4 #(
     parameter int SKID_DEPTH       = 2,
     parameter int BLOCK_FIFO_DEPTH = 1 << $clog2((N_SYMBOLS + 2 * T_SYMBOLS) / (DATA_WIDTH / SYMBOL_WIDTH) + 8),
     parameter string KES_ALGO      = "RIBM",
+    parameter bit  ERASURE_SUPPORT = 0,
     parameter int AXIS_ID_WIDTH    = 0,
     parameter int AXIS_DEST_WIDTH  = 0,
     parameter int AXIS_USER_WIDTH  = 0,
     // derived, exposed for the consumer's convenience
     parameter int K_SYMBOLS        = N_SYMBOLS - 2 * T_SYMBOLS,
     parameter int SYMBOLS_PER_BEAT = DATA_WIDTH / SYMBOL_WIDTH,
-    parameter int STATUS_CNT_WIDTH = $clog2(T_SYMBOLS + 1),
+    // erasures make the corrected count reach 2t, so the status count widens
+    parameter int STATUS_CNT_WIDTH = ERASURE_SUPPORT ? $clog2(2 * T_SYMBOLS + 1)
+                                                     : $clog2(T_SYMBOLS + 1),
     // zero-width AXIS sidebands still need a 1-bit wire; these are in the
     // parameter list rather than the body because the PORTS below use them
     parameter int IW               = (AXIS_ID_WIDTH   > 0) ? AXIS_ID_WIDTH   : 1,
@@ -78,6 +88,10 @@ module rs_decoder_axis4 #(
     input  logic [UW-1:0]               s_axis_tuser,
     input  logic                        s_axis_tvalid,
     output logic                        s_axis_tready,
+
+    // per-lane erasure flags, valid with each s_axis beat; dead unless
+    // ERASURE_SUPPORT (see the header note)
+    input  logic [SYMBOLS_PER_BEAT-1:0] in_erasure,
 
     // corrected message symbols out: k beats per block
     output logic [DATA_WIDTH-1:0]       m_axis_tdata,
@@ -98,6 +112,8 @@ module rs_decoder_axis4 #(
 
     localparam int S  = SYMBOLS_PER_BEAT;
     localparam int SW = DATA_WIDTH / 8;
+    // skid user width: the erasure flags ride above the consumer's tuser
+    localparam int EUW = ERASURE_SUPPORT ? UW + S : UW;
 
     localparam bit KEEP_ON_USER = (SYMBOL_WIDTH != 8);
 
@@ -117,18 +133,34 @@ module rs_decoder_axis4 #(
     logic                  in_tlast, in_tvalid, in_tready;
     logic [IW-1:0]         in_tid;
     logic [DESTW-1:0]      in_tdest;
-    logic [UW-1:0]         in_tuser;
+    logic [EUW-1:0]        in_tuser;
+    logic [EUW-1:0]        w_skid_user;
+    logic [S-1:0]          w_in_erasure;
+
+    // The flags must survive the skid with their beat, so they travel as the
+    // skid's TOP user bits; the consumer's own tuser keeps the low bits (and
+    // keep still reads [S-1:0] below it, unchanged). The off state wires
+    // s_axis_tuser straight through -- the pre-erasure wrapper bit for bit.
+    if (ERASURE_SUPPORT) begin : g_erasure_in
+        assign w_skid_user  = {in_erasure, s_axis_tuser};
+        assign w_in_erasure = in_tuser[EUW-1 -: S];
+    end else begin : g_no_erasure
+        assign w_skid_user  = s_axis_tuser;
+        assign w_in_erasure = {S{1'b0}};
+        logic unused_er;
+        assign unused_er = ^in_erasure;
+    end
 
     /* verilator lint_off PINCONNECTEMPTY */
     axis4_slave #(
         .SKID_DEPTH(SKID_DEPTH), .AXIS_DATA_WIDTH(DATA_WIDTH),
         .AXIS_ID_WIDTH(AXIS_ID_WIDTH), .AXIS_DEST_WIDTH(AXIS_DEST_WIDTH),
-        .AXIS_USER_WIDTH(AXIS_USER_WIDTH)
+        .AXIS_USER_WIDTH(ERASURE_SUPPORT ? EUW : AXIS_USER_WIDTH)
     ) u_in (
         .aclk(aclk), .aresetn(aresetn),
         .s_axis_tdata(s_axis_tdata), .s_axis_tstrb(s_axis_tstrb),
         .s_axis_tlast(s_axis_tlast), .s_axis_tid(s_axis_tid),
-        .s_axis_tdest(s_axis_tdest), .s_axis_tuser(s_axis_tuser),
+        .s_axis_tdest(s_axis_tdest), .s_axis_tuser(w_skid_user),
         .s_axis_tvalid(s_axis_tvalid), .s_axis_tready(s_axis_tready),
         .fub_axis_tdata(in_tdata), .fub_axis_tstrb(in_tstrb),
         .fub_axis_tlast(in_tlast), .fub_axis_tid(in_tid),
@@ -161,14 +193,12 @@ module rs_decoder_axis4 #(
         .SYMBOL_WIDTH(SYMBOL_WIDTH), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T_SYMBOLS),
         .N_SYMBOLS(N_SYMBOLS), .FIRST_ROOT(FIRST_ROOT), .DATA_WIDTH(DATA_WIDTH),
         .SKID_DEPTH(SKID_DEPTH), .BLOCK_FIFO_DEPTH(BLOCK_FIFO_DEPTH),
-        .KES_ALGO(KES_ALGO)
+        .KES_ALGO(KES_ALGO), .ERASURE_SUPPORT(ERASURE_SUPPORT)
     ) u_core (
         .aclk(aclk), .aresetn(aresetn),
         .in_valid(in_tvalid), .in_ready(in_tready), .in_data(in_tdata),
         .in_keep(w_in_keep), .in_last(in_tlast),
-        // TASK-002: no erasure sideband on this wrapper yet; the core's
-        // ERASURE_SUPPORT stays 0 here, so the flags are dead anyway
-        .in_erasure({S{1'b0}}),
+        .in_erasure(w_in_erasure),
         .out_valid(core_valid), .out_ready(core_ready), .out_data(core_data),
         .out_keep(core_keep), .out_last(core_last),
         .out_status_ok(w_core_ok), .out_status_corrected(w_core_corr),

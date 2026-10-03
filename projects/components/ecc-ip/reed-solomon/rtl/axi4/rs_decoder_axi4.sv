@@ -34,6 +34,13 @@
 //   - out_status_* are valid with the block's last output beat, which is the
 //     core's release-on-verdict contract: nothing leaves until the
 //     post-correction syndrome re-check has passed judgement.
+//   - ERASURE_SUPPORT=1 (PRD D5, TASK-002) exposes cfg_erasure: a job-level
+//     bitmap, bit j marking symbol j of EVERY codeword as erased
+//     (transmission order, 0 = the first symbol read). That is the shape the
+//     named consumer has -- a RAID stripe map or an MC's known-bad column is
+//     a fixed set of positions for the whole job -- so it is sampled at
+//     cfg_start alongside the other job config, not read per block. At 0 the
+//     port is dead and the build is the pre-erasure wrapper.
 module rs_decoder_axi4 #(
     parameter int SYMBOL_WIDTH     = 8,
     parameter int PRIM_POLY        = 'h11D,
@@ -46,10 +53,13 @@ module rs_decoder_axi4 #(
     parameter int MAX_OUTSTANDING  = 4,
     parameter int USER_WIDTH       = 1,
     parameter string KES_ALGO      = "RIBM",
+    parameter bit  ERASURE_SUPPORT = 0,
     // derived, exposed for the consumer's convenience
     parameter int K_SYMBOLS        = N_SYMBOLS - 2 * T_SYMBOLS,
     parameter int SYMBOLS_PER_BEAT = DATA_WIDTH / SYMBOL_WIDTH,
-    parameter int STATUS_CNT_WIDTH = $clog2(T_SYMBOLS + 1)
+    // erasures make the corrected count reach 2t, so the status count widens
+    parameter int STATUS_CNT_WIDTH = ERASURE_SUPPORT ? $clog2(2 * T_SYMBOLS + 1)
+                                                     : $clog2(T_SYMBOLS + 1)
 ) (
     input  logic                    aclk,
     input  logic                    aresetn,
@@ -61,6 +71,9 @@ module rs_decoder_axi4 #(
     input  logic [15:0]             cfg_blocks,
     input  logic [7:0]              cfg_burst_len,
     input  logic [ID_WIDTH-1:0]     cfg_axi_id,
+    // job-level erasure bitmap (bit j = symbol j of every codeword);
+    // dead unless ERASURE_SUPPORT (see the header note)
+    input  logic [N_SYMBOLS-1:0]    cfg_erasure,
     output logic                    cfg_done,
     output logic                    resp_err,           // sticky, either direction
 
@@ -196,18 +209,38 @@ module rs_decoder_axi4 #(
     logic                  dec_valid, dec_ready, dec_last;
     logic [DATA_WIDTH-1:0] dec_data;
     logic [S-1:0]          dec_keep;
+    logic [S-1:0]          w_in_erasure;
+
+    // The erasure bitmap is job config: sampled at cfg_start like the
+    // addresses, then sliced per beat by the same beat index that builds
+    // keep. Lanes past N_SYMBOLS (a partial last beat's unused ones) read 0.
+    if (ERASURE_SUPPORT) begin : g_erasure
+        logic [N_SYMBOLS-1:0] r_er_map;
+
+        always_ff @(posedge aclk or negedge aresetn) begin
+            if (!aresetn)        r_er_map <= '0;
+            else if (cfg_start)  r_er_map <= cfg_erasure;
+        end
+
+        for (genvar u = 0; u < S; u++) begin : g_er_lane
+            assign w_in_erasure[u] =
+                ((r_ibeat * S + u) < N_SYMBOLS) ? r_er_map[r_ibeat * S + u] : 1'b0;
+        end
+    end else begin : g_no_erasure
+        assign w_in_erasure = {S{1'b0}};
+        logic unused_er;
+        assign unused_er = ^cfg_erasure;
+    end
 
     rs_decoder_core #(
         .SYMBOL_WIDTH(SYMBOL_WIDTH), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T_SYMBOLS),
         .N_SYMBOLS(N_SYMBOLS), .FIRST_ROOT(FIRST_ROOT), .DATA_WIDTH(DATA_WIDTH),
-        .KES_ALGO(KES_ALGO)
+        .KES_ALGO(KES_ALGO), .ERASURE_SUPPORT(ERASURE_SUPPORT)
     ) u_core (
         .aclk(aclk), .aresetn(aresetn),
         .in_valid(rd_valid), .in_ready(rd_ready), .in_data(rd_data),
         .in_keep(w_in_keep), .in_last(rd_last),
-        // TASK-002: no erasure sideband on this wrapper yet; the core's
-        // ERASURE_SUPPORT stays 0 here, so the flags are dead anyway
-        .in_erasure({S{1'b0}}),
+        .in_erasure(w_in_erasure),
         .out_valid(dec_valid), .out_ready(dec_ready), .out_data(dec_data),
         .out_keep(dec_keep), .out_last(dec_last),
         .out_status_ok(out_status_ok), .out_status_corrected(out_status_corrected),

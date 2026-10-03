@@ -504,6 +504,8 @@ module rs_loop_harness
             .s_axis_tlast(inj_out_last),
             .s_axis_tid('0), .s_axis_tdest('0), .s_axis_tuser('0),
             .s_axis_tvalid(dec_in_valid[d]), .s_axis_tready(dec_in_ready[d]),
+            // TASK-002: tied off until the injector's erasure mode drives it
+            .in_erasure('0),
             .m_axis_tdata(dec_out_data[d]), .m_axis_tstrb(dec_out_keep[d]),
             .m_axis_tlast(dec_out_last[d]),
             .m_axis_tid(), .m_axis_tdest(), .m_axis_tuser(),

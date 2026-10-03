@@ -167,9 +167,56 @@ Verified: gate 94/94 and func 188/188, both after `make clean-all`
 failures were the small-profile throughput cells the rate contract now
 encodes).
 
-Still to do: the harness injector erasure mode + docs (HAS chapters, FUB
-catalog), then the wrapper sideband exposure (axis4/axi4 `ERASURE_SUPPORT`
-param + `in_erasure`).
+## Wrapper sideband phase (2026-10-02)
+
+The `ERASURE_SUPPORT` param and the erasure sideband are now exposed on both
+codec tops; the off state builds the pre-erasure wrapper.
+
+- `rs_decoder_axis4`: per-beat `in_erasure[S-1:0]` sideband, spliced ABOVE
+  the consumer's tuser through the intake skid (`EUW = UW + S` when on) so
+  the flags stay beat-aligned under backpressure -- a downstream consumer
+  cannot see the skid's internals, so the flags ride the same register the
+  data does. At 0 the generate branch wires `s_axis_tuser` straight through.
+- `rs_decoder_axi4`: job-level `cfg_erasure[N-1:0]` bitmap, sampled at
+  cfg_start into `r_er_map` and sliced per beat by the same beat index that
+  builds `keep`. That is the shape the named consumer has: an MC known-bad
+  column is a fixed position set for the whole job, identical in every
+  block.
+- Bug found by inspection before DV fired it: both wrappers hardcoded
+  `STATUS_CNT_WIDTH = clog2(T+1)` while the core widens to `clog2(2T+1)`
+  under ERASURE_SUPPORT (a corrected count reaches 2t). Both now take the
+  same conditional.
+- Consumers tied off explicitly until the injector's erasure mode exists:
+  `rs_axi4_pipeline` (`.cfg_erasure('0)`) and `rs_loop_harness`
+  (`.in_erasure('0)`). The axi4 loop DV toplevel forwards both the param
+  and the port.
+- DV: both wrappers run the SAME 7 erasure cells on BOTH axes, gate 3 /
+  func 5 / full 7, chosen so the axes disagree (mostly between the
+  errors-only bound e+f <= t and the erasure bound 2e+f <= 2t). axis4
+  drives the per-beat flags from a coroutine that stays aligned under
+  backpressure; axi4-loop corrupts M2 through the sdpram backdoor
+  (`u_mem2.u_core.r_mem`) between encode and decode, one re-encode per cell
+  restoring the clean codewords, and checks both the counters and the
+  drained data (uncorrectable blocks pass received symbols through).
+  `test_rs_axis4` and `test_rs_axi4_loop` each gained the erasure axis
+  (`_e{0,1}` in the cell name), doubling both matrices.
+- The axis4 on-state rate check uses the erasure contract
+  `max(cw_beats, 3t+5)`; the off state keeps the strict pre-erasure one.
+- TB bug the e0 axis caught: the M2 backdoor poked one symbol at a time,
+  read-modify-write -- and the read-back does not see the previous line's
+  deposit, so on any word two corrupted symbols share, every poke but the
+  last was lost. The e1 axis hid it (a clean symbol at a flagged position
+  still decodes, and the corrected count tallies the position); the
+  errors-only e0 axis showed it as a corrected count one short per block
+  and a clean symbol in the drained data. The poke now aggregates all
+  deltas into ONE read + ONE write per word.
+
+Verified: `make -C rtl lint-all` clean; one axis4 e1 gate cell
+(RS(255,239), 27 checks / 0) and one axi4-loop e1 gate cell (RS(15,9)
+EUCLID, 8 checks / 0) green before the regression.
+
+Still to do: the harness injector erasure mode (rewire the
+`.in_erasure('0)` tie-off) + docs (HAS chapters, FUB catalog).
 
 ## Notes
 

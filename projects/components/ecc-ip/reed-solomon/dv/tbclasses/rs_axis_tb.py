@@ -59,6 +59,8 @@ class RSAxisTB(TBBase):
         self.idw = self.convert_to_int(os.environ.get('AXIS_ID_WIDTH', 4))
         self.destw = self.convert_to_int(os.environ.get('AXIS_DEST_WIDTH', 2))
         self.level = os.environ.get('TEST_LEVEL', 'gate').lower()
+        # TASK-002: the decoder's erasure sideband; 0 = the port is dead
+        self.erasure = self.convert_to_int(os.environ.get('ERASURE_SUPPORT', '0'))
 
         self.s = self.dw // self.m            # symbols per beat
         self.k = self.n - 2 * self.t
@@ -91,6 +93,8 @@ class RSAxisTB(TBBase):
     # -- the three mandatory methods -----------------------------------------
     async def setup_clocks_and_reset(self, period_ns=10):
         await self.start_clock('aclk', period_ns, 'ns')
+        if self.role == 'decoder':
+            self.dut.in_erasure.value = 0
         await self.assert_reset()
         await self.wait_clocks('aclk', 10)
         await self.deassert_reset()
@@ -329,17 +333,101 @@ class RSAxisTB(TBBase):
             took[blocks] = cycles - (start or 0)
 
         slope = (took[8] - took[4]) / 4.0
-        dead = slope - cw_beats
+        # TASK-002: the erasure build's stage B runs TRANS + solve + COMB
+        # serially (f + 2t + deg_e + 5 cycles per block), so its per-block
+        # rate is max(codeword beats, 3t + 5) -- solve-stage-bound below
+        # that, exactly as the core test encodes.
+        rate = max(cw_beats, 3 * self.t + 5) if (self.role == 'decoder'
+                                                 and self.erasure) else cw_beats
+        dead = slope - rate
         self.checks += 1
         self.log.info(f"no-dead-cycles ({self.role}): {took[4]} cycles for 4 blocks, "
-                      f"{took[8]} for 8 -> slope {slope:.2f} cycles/block vs codeword "
-                      f"{cw_beats} beats ({dead:+.2f} dead per block)")
+                      f"{took[8]} for 8 -> slope {slope:.2f} cycles/block vs rate "
+                      f"{rate} ({dead:+.2f} dead per block)")
         if dead > 0.25:
             self.mismatches += 1
             self.log.error(f"{dead:.2f} DEAD cycles per block through the {self.role} "
-                           f"wrapper: slope {slope:.2f} against a codeword of "
-                           f"{cw_beats} beats. Latency is free; a gap at the block "
+                           f"wrapper: slope {slope:.2f} against a per-block rate of "
+                           f"{rate}. Latency is free; a gap at the block "
                            f"boundary is not.")
+        return self.mismatches == 0
+
+    # -- erasure sideband (TASK-002) -------------------------------------------
+    async def _flag_driver(self, flag_words):
+        """Hold each beat's flag word on in_erasure until the beat handshakes.
+
+        in_erasure is a plain sideband, not a BFM field, so the TB aligns it
+        itself: one word per beat, advanced only on an accepted beat, exactly
+        the contract an integration (RAID stripe map, MC column) must meet.
+        The wait=True send pattern guarantees an idle gap between beats, so a
+        word never changes under a stalled tvalid.
+        """
+        # let any tail of the previous block clear the pins first
+        while int(self.dut.s_axis_tvalid.value):
+            await RisingEdge(self.dut.aclk)
+        for w in flag_words:
+            self.dut.in_erasure.value = w
+            while True:
+                await RisingEdge(self.dut.aclk)
+                if int(self.dut.s_axis_tvalid.value) and int(self.dut.s_axis_tready.value):
+                    break
+        self.dut.in_erasure.value = 0
+
+    async def run_erasures(self):
+        """The wrapper's erasure sideband, run on BOTH axes of ERASURE_SUPPORT.
+
+        On, a 2e + f <= 2t block decodes and the verdict counts e + f. Off,
+        the port is dead and the same stimulus is a plain (e+f)-error block
+        -- so the cells sit mostly BETWEEN the two bounds (t < e+f, 2e+f <=
+        2t), where the axes must give different verdicts. A cell that reads
+        the same either way would prove nothing about the port.
+        """
+        if self.role != 'decoder':
+            return True
+        self.set_profile('backtoback')
+        rnd = random.Random(0xE4A51E)
+        t, t2 = self.t, 2 * self.t
+        cells = [("f=1 pure", 0, 1),
+                 ("f=t pure", 0, t),
+                 ("f=2t pure", 0, t2),
+                 ("boundary 1e+2t-2", 1, t2 - 2),
+                 ("mixed t/2e+t", max(1, t // 2), t2 - 2 * max(1, t // 2)),
+                 ("t-1e+2", max(1, t - 1), 2),
+                 ("past bound 1e+2t", 1, t2)]
+        n_cells = {'gate': 3, 'func': 5, 'full': 7}[self.level]
+        for label, e, f in cells[:n_cells]:
+            msg = [rnd.randrange(1 << self.m) for _ in range(self.k)]
+            rx = list(self.gold_encode(msg))
+            pos = rnd.sample(range(self.n), e + f)
+            err_pos, era_pos = pos[:e], pos[e:]
+            for p in err_pos + era_pos:
+                rx[p] ^= rnd.randrange(1, 1 << self.m)
+            # per-beat flag words: lane u of beat i flags symbol i*S+u
+            flag_words = []
+            for i in range(0, self.n, self.s):
+                w = 0
+                for u in range(self.s):
+                    if i + u in era_pos:
+                        w |= 1 << u
+                flag_words.append(w)
+            drv = cocotb.start_soon(self._flag_driver(flag_words))
+            await self._send(rx, 0, 0)
+            await drv
+            tot = e + f
+            good = (2 * e + f <= t2) if self.erasure else (tot <= t)
+            want = msg if good else rx[:self.k]
+            got = await self._collect((len(want) + self.s - 1) // self.s,
+                                      timeout_cycles=40 * self.n + 4000)
+            self._score(f"erasure {label}", got, want, 0, 0)
+            self.checks += 1
+            ok_v, corr, unc, frame = self._status_at_last()
+            if good:
+                if ok_v or corr != tot or unc or frame:
+                    self._fail(f"erasure {label}: expected corrected={tot}, got "
+                               f"ok={ok_v} corr={corr} unc={unc} frame={frame}")
+            elif not unc or frame:
+                self._fail(f"erasure {label}: expected uncorrectable, got "
+                           f"ok={ok_v} corr={corr} unc={unc} frame={frame}")
         return self.mismatches == 0
 
     async def run_backpressure(self):

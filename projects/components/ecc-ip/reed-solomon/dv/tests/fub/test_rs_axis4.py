@@ -58,13 +58,15 @@ async def cocotb_test_rs_decoder_axis(dut):
     await tb.setup_clocks_and_reset()
     ok = await tb.run_stream()
     ok &= await tb.run_backpressure()
+    ok &= await tb.run_erasures()
     ok &= await tb.run_no_dead_cycles()
     report = tb.get_test_report()
     tb.log.info(f"Test report: {report}")
     assert ok, f"rs_decoder_axis4: {report['mismatches']} mismatches in {report['checks']} checks"
 
 
-def _run(dut_name, role, testcase, symbol_width, prim_poly, t, n, spb, test_level):
+def _run(dut_name, role, testcase, symbol_width, prim_poly, t, n, spb, test_level,
+         erasure=None):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root, tests_dir, log_dir, _ = get_paths({
         'rtl_rs': 'projects/components/ecc-ip/reed-solomon/rtl',
@@ -74,7 +76,8 @@ def _run(dut_name, role, testcase, symbol_width, prim_poly, t, n, spb, test_leve
                                                           filelist_path=filelist)
     idw, destw = 4, 2
     name = (f"test_{dut_name}_m{TBBase.format_dec(symbol_width, 2)}"
-            f"_n{TBBase.format_dec(n, 3)}_t{TBBase.format_dec(t, 2)}_s{spb}_{test_level}")
+            f"_n{TBBase.format_dec(n, 3)}_t{TBBase.format_dec(t, 2)}_s{spb}"
+            f"{'_e' + str(erasure) if erasure is not None else ''}_{test_level}")
     os.makedirs(log_dir, exist_ok=True)   # clean-all removes logs/
     log_path = os.path.join(log_dir, f'{name}.log')
     sim_build = sim_build_path(tests_dir, name)
@@ -84,12 +87,15 @@ def _run(dut_name, role, testcase, symbol_width, prim_poly, t, n, spb, test_leve
                       'DATA_WIDTH': str(symbol_width * spb),
                       'AXIS_ID_WIDTH': str(idw), 'AXIS_DEST_WIDTH': str(destw),
                       'AXIS_USER_WIDTH': '1'}
+    if erasure is not None:
+        rtl_parameters['ERASURE_SUPPORT'] = str(erasure)
     extra_env = level_env(test_level, DUT=dut_name, LOG_PATH=log_path,
                           COCOTB_LOG_LEVEL='INFO', RS_AXIS_ROLE=role,
                           SYMBOL_WIDTH=str(symbol_width), PRIM_POLY=hex(prim_poly),
                           T_SYMBOLS=str(t), N_SYMBOLS=str(n),
                           DATA_WIDTH=str(symbol_width * spb),
-                          AXIS_ID_WIDTH=str(idw), AXIS_DEST_WIDTH=str(destw))
+                          AXIS_ID_WIDTH=str(idw), AXIS_DEST_WIDTH=str(destw),
+                          ERASURE_SUPPORT=str(erasure or 0))
 
     compile_args = ["--trace-fst", "--trace-structs", "--trace-depth", "99"] if enable_waves else []
     sim_args = ["--trace-fst", "--trace-structs"] if enable_waves else []
@@ -116,7 +122,8 @@ def test_rs_encoder_axis4(request, symbol_width, prim_poly, t, n, spb, test_leve
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
+@pytest.mark.parametrize("erasure", [0, 1])   # TASK-002: an axis, not flipped cells
 @pytest.mark.parametrize("symbol_width, prim_poly, t, n, spb", PROFILES)
-def test_rs_decoder_axis4(request, symbol_width, prim_poly, t, n, spb, test_level):
+def test_rs_decoder_axis4(request, symbol_width, prim_poly, t, n, spb, erasure, test_level):
     _run("rs_decoder_axis4", "decoder", "cocotb_test_rs_decoder_axis",
-         symbol_width, prim_poly, t, n, spb, test_level)
+         symbol_width, prim_poly, t, n, spb, test_level, erasure=erasure)

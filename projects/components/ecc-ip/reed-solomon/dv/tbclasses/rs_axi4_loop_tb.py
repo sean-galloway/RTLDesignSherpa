@@ -31,6 +31,8 @@ import random
 import cocotb
 from cocotb.triggers import RisingEdge
 
+import reedsolo
+
 from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
 from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
@@ -53,7 +55,10 @@ class RSAxi4LoopTB(TBBase):
         self.t = self.convert_to_int(os.environ.get('T_SYMBOLS', 8))
         self.n = self.convert_to_int(os.environ.get('N_SYMBOLS', 252))
         self.dw = self.convert_to_int(os.environ.get('DATA_WIDTH', 32))
+        self.prim = int(os.environ.get('PRIM_POLY', '0x11D'), 0)
         self.level = os.environ.get('TEST_LEVEL', 'gate').lower()
+        # TASK-002: the decoder's job-level erasure bitmap; 0 = the port is dead
+        self.erasure = self.convert_to_int(os.environ.get('ERASURE_SUPPORT', '0'))
 
         self.s = self.dw // self.m
         self.k = self.n - 2 * self.t
@@ -63,6 +68,7 @@ class RSAxi4LoopTB(TBBase):
         self.cw_beats = -(-self.n // self.s)
         self.checks = 0
         self.mismatches = 0
+        reedsolo.init_tables(prim=self.prim, generator=2, c_exp=self.m)
         self._init_bfms()
 
     def _init_bfms(self):
@@ -82,6 +88,7 @@ class RSAxi4LoopTB(TBBase):
         await self.start_clock('aclk', period_ns, 'ns')
         for sig in ('seed_start', 'enc_start', 'dec_start', 'drain_start'):
             getattr(self.dut, sig).value = 0
+        self.dut.cfg_erasure.value = 0
         self.dut.seed_beats.value = 0
         self.dut.drain_beats.value = 0
         self.dut.drain_per_block.value = 1
@@ -263,6 +270,166 @@ class RSAxi4LoopTB(TBBase):
             if profile == 'backtoback':
                 continue
             await self.run_loop(self.BLOCKS[self.level], 16, profile=profile)
+        return self.mismatches == 0
+
+    # -- erasure sideband (TASK-002) -------------------------------------------
+    def _poke_m2(self, block, pos_delta):
+        """Corrupt symbols of one codeword in M2 through the sdpram backdoor.
+        The codewords are PACKED (ceil(N/S) beats a block), so symbol pos of
+        block b is lane pos%S of word b*cw_beats + pos//S.
+
+        The deltas are aggregated into ONE read + ONE write per word: a
+        read-modify-write per symbol loses every poke but the last on any
+        word two symbols share, because the read-back does not see the
+        deposit the previous line scheduled. On the e1 axis a lost poke hid
+        behind the erasure flags (a clean symbol at a flagged position still
+        decodes, and the count tallies the position); on the errors-only e0
+        axis it showed up as a corrected count one short and a clean symbol
+        in the drained data.
+        """
+        smask = (1 << self.m) - 1
+        word_mask = {}
+        for pos, delta in pos_delta.items():
+            word = block * self.cw_beats + pos // self.s
+            lane = pos % self.s
+            word_mask[word] = word_mask.get(word, 0) ^ ((delta & smask) << (lane * self.m))
+        mem = self.dut.u_mem2.u_core.r_mem
+        for word, mask in word_mask.items():
+            mem[word].value = int(mem[word].value) ^ mask
+
+    async def run_erasures(self):
+        """The decoder's job-level erasure bitmap, run on BOTH axes.
+
+        The flagged positions are the SAME in every block -- the bitmap is a
+        known-bad column, not a per-block choice. On (ERASURE_SUPPORT=1) a
+        2e + f <= 2t job decodes and the counters tally e + f corrections a
+        block. Off, the port is dead and the same corruptions are plain
+        errors, so the cells sit mostly BETWEEN the two bounds, where the
+        axes must give different verdicts. M2 is corrupted through the sdpram
+        backdoor between the encode and decode jobs; the encoder re-runs per
+        cell, which restores the clean codewords.
+        """
+        self.set_profile('backtoback')
+        rnd = random.Random(0xB17A9)
+        t, t2 = self.t, 2 * self.t
+        cells = [("f=1 pure", 0, 1),
+                 ("f=t pure", 0, t),
+                 ("f=2t pure", 0, t2),
+                 ("boundary 1e+2t-2", 1, t2 - 2),
+                 ("mixed t/2e+t", max(1, t // 2), t2 - 2 * max(1, t // 2)),
+                 ("t-1e+2", max(1, t - 1), 2),
+                 ("past bound 1e+2t", 1, t2)]
+        n_cells = {'gate': 3, 'func': 5, 'full': 7}[self.level]
+        blocks = 2
+        msg_beats = blocks * self.k_beats
+        smask = (1 << self.m) - 1
+        budget = 400 * blocks * self.cw_beats + 20000
+
+        msgs = [[rnd.randrange(1 << self.m) for _ in range(self.k)] for _ in range(blocks)]
+        codewords = [list(reedsolo.rs_encode_msg(bytearray(m), 2 * t, fcr=0))
+                     for m in msgs]
+        words = []
+        for syms in msgs:
+            for i in range(0, self.k_beats * self.s, self.s):
+                chunk = syms[i:i + self.s]
+                w = 0
+                for j, sym in enumerate(chunk):
+                    w |= (sym & smask) << (j * self.m)
+                words.append(w)
+
+        # seed M1 once; every cell re-encodes from it
+        self.slave._recvQ.clear()
+        self.dut.blocks.value = blocks
+        self.dut.burst_len.value = 16
+        self.dut.seed_beats.value = msg_beats
+        await self._pulse(self.dut.seed_start)
+        for i, w in enumerate(words):
+            await self.master.send(self.master.create_packet(
+                data=w, last=int((i + 1) % self.k_beats == 0)))
+        if not await self._await_done(self.dut.seed_done, "erasure seed", budget):
+            return self.mismatches == 0
+
+        for label, e, f in cells[:n_cells]:
+            self.checks += 1
+            cl = f"erasure {label}"
+            await self._pulse(self.dut.enc_start)
+            if not await self._await_done(self.dut.enc_done, f"{cl} encode", budget):
+                continue
+            era_pos = sorted(rnd.sample(range(self.n), f))
+            err_pos = sorted(rnd.sample([p for p in range(self.n) if p not in era_pos], e))
+            deltas = {}
+            for b in range(blocks):
+                for p in era_pos + err_pos:
+                    deltas[(b, p)] = rnd.randrange(1, 1 << self.m)
+                self._poke_m2(b, {p: deltas[(b, p)] for p in era_pos + err_pos})
+            bitmap = 0
+            for p in era_pos:
+                bitmap |= 1 << p
+            self.dut.cfg_erasure.value = bitmap
+            await self._pulse(self.dut.dec_start)
+            self.dut.cfg_erasure.value = 0
+            if not await self._await_done(self.dut.dec_done, f"{cl} decode", budget):
+                continue
+
+            tot = e + f
+            good = (2 * e + f <= t2) if self.erasure else (tot <= t)
+            ok = int(self.dut.dec_blocks_ok.value)
+            corr = int(self.dut.dec_blocks_corrected.value)
+            unc = int(self.dut.dec_blocks_uncorrectable.value)
+            fr = int(self.dut.dec_blocks_frame_err.value)
+            sym = int(self.dut.dec_symbols_corrected.value)
+            if good:
+                if (ok, corr, unc, fr, sym) != (0, blocks, 0, 0, blocks * tot):
+                    self._fail(f"{cl}: stats ok/corr/unc/frame/sym = "
+                               f"{ok}/{corr}/{unc}/{fr}/{sym}, expected "
+                               f"0/{blocks}/0/0/{blocks * tot}")
+            elif (ok, corr, unc, fr) != (0, 0, blocks, 0):
+                self._fail(f"{cl}: stats ok/corr/unc/frame = "
+                           f"{ok}/{corr}/{unc}/{fr}, expected 0/0/{blocks}/0")
+
+            # drain M3; the uncorrectable blocks pass their received symbols
+            self.dut.drain_beats.value = msg_beats
+            self.dut.drain_per_block.value = self.k_beats
+            await self._pulse(self.dut.drain_start)
+            got, waited = [], 0
+            while len(got) < msg_beats and waited < budget:
+                if self.slave._recvQ:
+                    got.append(int(self.slave._recvQ.popleft().data))
+                else:
+                    await RisingEdge(self.dut.aclk)
+                    waited += 1
+            if not await self._await_done(self.dut.drain_done, f"{cl} drain", 8000):
+                continue
+            if len(got) != msg_beats:
+                self._fail(f"{cl}: drained {len(got)} of {msg_beats} beats")
+                continue
+            got_msgs = []
+            for b in range(blocks):
+                syms = []
+                for i in range(self.k_beats):
+                    w = got[b * self.k_beats + i]
+                    take = self.s if (i < self.k_beats - 1 or self.k_tail == 0) else self.k_tail
+                    for j in range(take):
+                        syms.append((w >> (j * self.m)) & smask)
+                got_msgs.append(syms)
+            want_msgs = []
+            for b in range(blocks):
+                if good:
+                    want_msgs.append(msgs[b])
+                else:
+                    rx = list(codewords[b])
+                    for p in era_pos + err_pos:
+                        rx[p] ^= deltas[(b, p)]
+                    want_msgs.append(rx[:self.k])
+            if got_msgs != want_msgs:
+                bad = [b for b in range(blocks) if got_msgs[b] != want_msgs[b]]
+                b = bad[0]
+                diffs = [i for i, (a, c) in enumerate(zip(got_msgs[b], want_msgs[b]))
+                         if a != c]
+                self._fail(f"{cl}: {len(bad)} of {blocks} blocks differ; block {b} "
+                           f"first wrong at symbol {diffs[0]} "
+                           f"(got 0x{got_msgs[b][diffs[0]]:02X}, "
+                           f"want 0x{want_msgs[b][diffs[0]]:02X})")
         return self.mismatches == 0
 
     async def _watch_valid_hold(self, name, vsig, rsig, want_beats):

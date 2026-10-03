@@ -501,6 +501,8 @@ module rs_axi4_pipeline #(
         .aclk(aclk), .aresetn(aresetn),
         .cfg_start(dec_start), .cfg_src_addr('0), .cfg_dst_addr('0),
         .cfg_blocks(cfg_blocks), .cfg_burst_len(cfg_burst_len), .cfg_axi_id(IDW'(5)),
+        // TASK-002: no erasure source on this pipeline; the port is dead
+        .cfg_erasure('0),
         .cfg_done(dec_done), .resp_err(dec_err),
         .out_status_ok(), .out_status_corrected(), .out_status_uncorrectable(),
         .out_status_frame_err(),

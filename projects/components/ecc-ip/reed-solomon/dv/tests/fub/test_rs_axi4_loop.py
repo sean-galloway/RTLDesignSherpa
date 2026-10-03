@@ -67,6 +67,7 @@ async def cocotb_test_rs_axi4_loop(dut):
     await tb.setup_clocks_and_reset()
     ok = await tb.run_bursts()
     ok &= await tb.run_backpressure()
+    ok &= await tb.run_erasures()
     ok &= await tb.run_valid_hold(burst_lens=(16, 64))
     report = tb.get_test_report()
     tb.log.info(f"Test report: {report}")
@@ -75,8 +76,10 @@ async def cocotb_test_rs_axi4_loop(dut):
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
+@pytest.mark.parametrize("erasure", [0, 1])   # TASK-002: an axis, not flipped cells
 @pytest.mark.parametrize("symbol_width, prim_poly, t, n, spb, kes", PROFILES)
-def test_rs_axi4_loop(request, symbol_width, prim_poly, t, n, spb, kes, test_level):
+def test_rs_axi4_loop(request, symbol_width, prim_poly, t, n, spb, kes, erasure,
+                      test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root, tests_dir, log_dir, _ = get_paths({
         'rtl_rs': 'projects/components/ecc-ip/reed-solomon/rtl',
@@ -86,7 +89,7 @@ def test_rs_axi4_loop(request, symbol_width, prim_poly, t, n, spb, kes, test_lev
                                                           filelist_path=FILELIST)
     name = (f"test_rs_axi4_loop_m{TBBase.format_dec(symbol_width, 2)}"
             f"_n{TBBase.format_dec(n, 3)}_t{TBBase.format_dec(t, 2)}_s{spb}"
-            f"_{kes.lower()}_{test_level}")
+            f"_{kes.lower()}_e{erasure}_{test_level}")
     os.makedirs(log_dir, exist_ok=True)   # clean-all removes logs/
     log_path = os.path.join(log_dir, f'{name}.log')
     sim_build = sim_build_path(tests_dir, name)
@@ -95,11 +98,14 @@ def test_rs_axi4_loop(request, symbol_width, prim_poly, t, n, spb, kes, test_lev
                       'T_SYMBOLS': str(t), 'N_SYMBOLS': str(n),
                       'DATA_WIDTH': str(symbol_width * spb),
                       'ADDR_WIDTH': '32', 'ID_WIDTH': '4', 'MEM_DEPTH': '2048',
-                      'MAX_OUTSTANDING': '4', 'KES_ALGO': f'"{kes}"'}
+                      'MAX_OUTSTANDING': '4', 'KES_ALGO': f'"{kes}"',
+                      'ERASURE_SUPPORT': str(erasure)}
     extra_env = level_env(test_level, DUT=dut_name, LOG_PATH=log_path,
                           COCOTB_LOG_LEVEL='INFO',
-                          SYMBOL_WIDTH=str(symbol_width), T_SYMBOLS=str(t),
-                          N_SYMBOLS=str(n), DATA_WIDTH=str(symbol_width * spb))
+                          SYMBOL_WIDTH=str(symbol_width), PRIM_POLY=hex(prim_poly),
+                          T_SYMBOLS=str(t), N_SYMBOLS=str(n),
+                          DATA_WIDTH=str(symbol_width * spb),
+                          ERASURE_SUPPORT=str(erasure))
 
     compile_args = ["--trace-fst", "--trace-structs", "--trace-depth", "99"] if enable_waves else []
     sim_args = ["--trace-fst", "--trace-structs"] if enable_waves else []

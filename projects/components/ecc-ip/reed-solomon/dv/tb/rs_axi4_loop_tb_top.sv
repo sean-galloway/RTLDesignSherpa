@@ -33,7 +33,8 @@ module rs_axi4_loop_tb_top #(
     parameter int ID_WIDTH        = 4,
     parameter int MEM_DEPTH       = 2048,
     parameter int MAX_OUTSTANDING = 4,
-    parameter string KES_ALGO     = "RIBM"
+    parameter string KES_ALGO     = "RIBM",
+    parameter bit  ERASURE_SUPPORT = 0
 ) (
     input  logic                    aclk,
     input  logic                    aresetn,
@@ -57,6 +58,9 @@ module rs_axi4_loop_tb_top #(
 
     // -- decode job: M2 -> M3 ----------------------------------------------
     input  logic                    dec_start,
+    // job-level erasure bitmap for the decoder (bit j = symbol j of every
+    // codeword); dead unless ERASURE_SUPPORT
+    input  logic [N_SYMBOLS-1:0]    cfg_erasure,
     output logic                    dec_done,
     output logic                    dec_resp_err,
     output logic [31:0]             dec_blocks_ok,
@@ -267,11 +271,13 @@ module rs_axi4_loop_tb_top #(
         .SYMBOL_WIDTH(SYMBOL_WIDTH), .PRIM_POLY(PRIM_POLY), .T_SYMBOLS(T_SYMBOLS),
         .N_SYMBOLS(N_SYMBOLS), .FIRST_ROOT(FIRST_ROOT), .DATA_WIDTH(DATA_WIDTH),
         .ADDR_WIDTH(ADDR_WIDTH), .ID_WIDTH(ID_WIDTH),
-        .MAX_OUTSTANDING(MAX_OUTSTANDING), .USER_WIDTH(1), .KES_ALGO(KES_ALGO)
+        .MAX_OUTSTANDING(MAX_OUTSTANDING), .USER_WIDTH(1), .KES_ALGO(KES_ALGO),
+        .ERASURE_SUPPORT(ERASURE_SUPPORT)
     ) u_dec (
         .aclk(aclk), .aresetn(aresetn),
         .cfg_start(dec_start), .cfg_src_addr('0), .cfg_dst_addr('0),
         .cfg_blocks(blocks), .cfg_burst_len(burst_len), .cfg_axi_id(ID_WIDTH'(3)),
+        .cfg_erasure(cfg_erasure),
         .cfg_done(dec_done), .resp_err(dec_resp_err),
         .out_status_ok(), .out_status_corrected(), .out_status_uncorrectable(),
         .out_status_frame_err(),
