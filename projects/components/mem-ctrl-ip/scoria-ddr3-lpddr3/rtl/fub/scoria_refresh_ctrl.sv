@@ -250,16 +250,19 @@ module scoria_refresh_ctrl
                 // Mode A telemetry: count refreshes withheld by the sustained-
                 // demand postpone branch. A tick that adds pending while we are
                 // not idle, the demand streak has crossed the threshold, and the
-                // new backlog still does not exceed the effective postpone limit
-                // is being actively postponed.
+                // pre-tick backlog still does not exceed the effective postpone
+                // limit is being actively postponed.  The pre-tick comparison
+                // captures the final threshold-crossing expiry (the tick that
+                // pushes pending from the limit to limit+1).
                 if (pend_tick && elastic_en_i && !w_idle
                     && (r_demand_streak >= postpone_demand_streak_i)
-                    && (pend_n <= w_post_eff)) begin
+                    && (r_pending <= w_post_eff)
+                    && (r_postpone_events != 16'hFFFF)) begin
                     r_postpone_events <= r_postpone_events + 16'd1;
                 end
 
-                // Mode A telemetry: count pull-in grants.
-                if (w_grant_early) begin
+                // Mode A telemetry: count pull-in grants (saturate, do not wrap).
+                if (w_grant_early && (r_pullin_events != 16'hFFFF)) begin
                     r_pullin_events <= r_pullin_events + 16'd1;
                 end
             end

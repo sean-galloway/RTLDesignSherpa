@@ -269,8 +269,10 @@ async def cocotb_test_scoria_refresh_ctrl(dut):
                 f"pending {o['pending']} exceeds the JEDEC ceiling under soak")
 
     elif tt == "elastic_pullin_idle_streak":
-        # Mode A: pull-in is allowed only after pullin_idle_streak idle cycles.
-        await tb.setup(refi=12, pullin=4, elastic_en=1,
+        # Mode A: after pullin_idle_streak idle cycles a pending-based request
+        # fires.  Use pullin=0 so the only path that can raise the 8th-cycle
+        # request is the pending backlog, not a pull-in grant.
+        await tb.setup(refi=12, pullin=0, elastic_en=1,
                        pullin_idle_streak=8, demand=1)
         # Clear the first backlog so we start the idle window with pending == 0.
         chk(await tb.wait_req(400) is not None, "no initial refresh request")
@@ -290,6 +292,8 @@ async def cocotb_test_scoria_refresh_ctrl(dut):
             "request did not fire at 8th idle cycle")
         chk(int(dut.pending_refreshes_o.value) > 0,
             "request fired but pending is 0 (would be a pull-in grant)")
+        chk(tb.obs()['pullin_events'] == 0,
+            f"pull-in events {tb.obs()['pullin_events']} != 0 with pullin=0")
 
     elif tt == "elastic_postpone_sustained_demand":
         # Mode A: sporadic demand uses strict timing; sustained demand postpones.
@@ -331,6 +335,12 @@ async def cocotb_test_scoria_refresh_ctrl(dut):
             f"sustained demand pending only reached {max_pending_sustained}, "
             f"expected >= postpone_limit + 1 = 4")
         chk(saw_request, "request never fired during sustained demand")
+        # Each withheld tREFI expiry while pending stayed at or below the
+        # postpone limit counts as one event.  With postpone=3 the backlog
+        # climbs 1 -> 2 -> 3 before the threshold-crossing tick forces the
+        # request, so exactly three postpone events are expected.
+        chk(tb.obs()['postpone_events'] == 3,
+            f"postpone events {tb.obs()['postpone_events']} != 3")
 
     elif tt == "elastic_disabled_ignores_thresholds":
         # Mode A disabled: extreme thresholds must not change the smoke timing.
