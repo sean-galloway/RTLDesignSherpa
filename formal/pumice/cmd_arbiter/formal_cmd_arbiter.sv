@@ -50,11 +50,13 @@ module formal_cmd_arbiter #(
     parameter int RKW  = 1,
     parameter int BKW  = 2,
     parameter int PTRW = 1,
-    // ISSUE019=1 arms the tRRD/tFAW spacing assertions. They FAIL -- that is
-    // the reproduction for pumice BUG-021 -- so they are off by default and
-    // live in their own sby task, to keep `make -C formal formal-pumice` a
-    // signal about regressions rather than a permanent red on a known,
-    // triaged defect. `make issue019` runs them.
+    // ISSUE019 arms the tRRD/tFAW spacing assertions -- the ones that caught
+    // pumice BUG-021 (a second ACT firing one cycle after the first while
+    // trrd_ok_i was already 0). They FAILED until the fire stage re-checked
+    // the rank-global windows (w_out_safe); the .sby now sets ISSUE019=1 for
+    // every task, so any regression re-opens the bug on prove/cover/issue019
+    // alike. Kept as a parameter only so the pre-fix RTL can still be run
+    // bare (chparam -set ISSUE019 0) for a mutation-style check.
     parameter int ISSUE019 = 0
 ) (
     input logic aclk,

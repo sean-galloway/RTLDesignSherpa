@@ -22,7 +22,11 @@ cover: smtbmc bitwuzla
 [script]
 read_verilog -formal arb_flat.v
 read -formal -sv formal_cmd_arbiter.sv
-issue019: chparam -set ISSUE019 1 formal_cmd_arbiter
+# ISSUE019 arms the tRRD/tFAW spacing assertions. They were the held-red
+# reproduction for pumice BUG-021; the fire-stage gap is fixed (w_out_safe
+# re-checks the rank-global windows live), so the assertions are armed for
+# EVERY task now -- a regression re-opens BUG-021 on any of them.
+chparam -set ISSUE019 1 formal_cmd_arbiter
 prep -top formal_cmd_arbiter
 
 [files]

@@ -299,25 +299,48 @@ module pumice_cmd_arbiter
     // bank readiness, and may not fire until that says safe. Real timing is
     // enforced HERE; everything upstream is advisory.
     //
-    // A rejected pick is DROPPED, never held. Holding it would freeze
-    // w_out_ready and head-of-line block the whole pipeline behind a command
-    // waiting on one bank -- measured as a REGRESSION (close-page 30.77% ->
-    // 28.57%) when a stalled column occupied the slot and blocked the ACT it
-    // was waiting for. Dropping is lossless: every CAM commit/issue is
-    // qualified by w_fire_out (wr_commit_valid_o / rd_issue_valid_o below), so
-    // an unfired entry stays schedulable and is simply re-picked. The pre-pick
-    // is a re-evaluated decision, not a stream, and an empty mask is a bubble.
+    // A pick this stage rejects is usually DROPPED, never held: dropping is
+    // lossless (every CAM commit/issue is qualified by w_fire_out below, so an
+    // unfired entry stays schedulable and is simply re-picked), while holding
+    // freezes w_out_ready and head-of-line blocks the whole pipeline behind one
+    // command -- measured as a REGRESSION (close-page 30.77% -> 28.57%) when a
+    // stalled column occupied the slot and blocked the ACT it was waiting for.
+    // The ONE exception is the rank-global ACT gate (w_out_hold below): while
+    // tFAW/tRRD are shut no ACT can fire ANYWHERE, the wait is bounded by the
+    // window itself (the global_timers counters free-run toward reopening it),
+    // and dropping instead costs a full 3-4 cycle re-pick that arrives at the
+    // same closing window again -- measured on the BUG-021 A/B at board
+    // geometry (perf_paging_sweep static_close, ISSUE-002 floor = 26.95%):
+    // 30.77% accepted calibration -> 21.12% at HEAD pre-fix (already below the
+    // floor: the ISSUE-018 global_timers rework's deferred bandwidth cost) ->
+    // 18.57% with the gate DROPping -> 30.14% with the gate HOLDing, back at
+    // the accepted calibration.
     //
     // Refresh and init commands carry no bank and are never gated here.
-    logic w_out_safe, w_out_reject;
+    logic w_out_safe, w_out_reject, w_out_hold;
     always_comb begin
         w_out_safe = 1'b1;
-        if      (r_do_act)            w_out_safe = bank_act_ready_i [RK0][r_bank];
+        // tFAW/tRRD are RANK-GLOBAL, so an ACT re-validates them HERE, at the
+        // fire, not only at the STAGE-1b pre-pick two registers up (pumice
+        // BUG-021: the pre-pick re-check let a second ACT fire one cycle after
+        // the first while trrd_ok_i was already 0). The global_timers ok
+        // outputs are strict flops of the counters, so this adds no comb loop.
+        if      (r_do_act)            w_out_safe = bank_act_ready_i [RK0][r_bank]
+                                                  && tfaw_ok_i[RK0] && trrd_ok_i[RK0];
         else if (r_do_rd || r_do_wr)  w_out_safe = bank_rdwr_ready_i[RK0][r_bank];
         else if (r_do_pre)            w_out_safe = bank_pre_ready_i [RK0][r_bank];
     end
-    assign w_out_reject = r_pick_valid && !w_out_safe;
-    assign w_out_ready  = !r_pick_valid || cmd_ready_i || w_out_reject;
+    // HOLD (never drop) an ACT whose only obstacle is the rank-global windows:
+    // per-bank it is ready, so nothing about its bank changed; only the shared
+    // window did. w_out_ready stays low and the registered pick fires the cycle
+    // the window reopens, instead of re-traversing the 3-4 stage pipeline and
+    // racing the same window again. Counters only reload on an ACT fire and
+    // nothing else can fire past this register, so the hold is bounded by the
+    // window length -- no deadlock.
+    assign w_out_hold   = r_pick_valid && r_do_act && bank_act_ready_i[RK0][r_bank]
+                          && !(tfaw_ok_i[RK0] && trrd_ok_i[RK0]);
+    assign w_out_reject = r_pick_valid && !w_out_safe && !w_out_hold;
+    assign w_out_ready  = !r_pick_valid || (cmd_ready_i && !w_out_hold) || w_out_reject;
     assign w_fire_out   = r_pick_valid && cmd_ready_i && w_out_safe;
 
     // Pre-pick forward-guard, the twin of w_inflight_col/w_inflight_preact
@@ -706,14 +729,12 @@ module pumice_cmd_arbiter
                               && !w_rd_turn_block && !w_ap_col_guard[rb]
                               && !w_pre_col_guard[rb] && !w_preact_bank_guard[rb];
                 // tFAW/tRRD are deliberately NOT gated here -- see the WRITE
-                // twin below for the reasoning. They are re-checked later, at
-                // the STAGE-1b pre-pick (w_act_gate_live). NOT at the fire
-                // stage: this comment used to say "at the fire stage ... which
-                // is authoritative", and w_act_gate_live is used exactly once,
-                // in the always_comb producing w_sel_*_act_f -- two registers
-                // ahead of the output. w_out_safe re-validates an ACT against
-                // bank_act_ready_i only, which is PER-BANK, and tFAW/tRRD are
-                // rank-global. See pumice ISSUE-019.
+                // twin below for the reasoning. They are re-checked live at the
+                // STAGE-1b pre-pick (w_act_gate_live) and AGAIN at the fire
+                // stage: w_out_safe re-validates an ACT against
+                // bank_act_ready_i AND the rank-global tfaw_ok_i / trrd_ok_i
+                // (pumice BUG-021 -- the pre-pick check alone sat two registers
+                // ahead of the fire and let a second ACT slip inside tRRD).
                 rd_act_m[e] = !r_bank_row_active[RK0][rb] && !w_guarded[rb]
                               && r_bank_act_ready[RK0][rb] && w_act_classify_gate
                               && !w_rfc_busy;
@@ -740,13 +761,10 @@ module pumice_cmd_arbiter
                 // flow costs nothing: the classes are separate pipeline
                 // registers picked by priority at the output, so an ACT waiting
                 // on tRRD does not block a column, and w_act_gate_live re-checks
-                // both at the STAGE-1b pre-pick. That re-check is LATER than the
-                // classify mask, which is what this reasoning needs -- but it is
-                // NOT the fire stage, as this comment used to claim. Two
-                // registers still separate it from the command leaving, and
-                // nothing at the output re-checks these two rank-global windows
-                // (w_out_safe covers the per-bank gate only). pumice ISSUE-019
-                // records the gap and how to settle whether it is reachable.
+                // both at the STAGE-1b pre-pick and at the fire stage
+                // (w_out_safe re-checks the rank-global windows live, pumice
+                // BUG-021). That re-check chain is LATER than the classify
+                // mask, which is what this reasoning needs.
                 wr_act_m[e] = !r_bank_row_active[RK0][wb] && !w_guarded[wb]
                               && r_bank_act_ready[RK0][wb] && w_act_classify_gate
                               && !w_rfc_busy;
@@ -1254,6 +1272,8 @@ module pumice_cmd_arbiter
         end else if (w_stalled) begin
             if (w_out_reject)                       // picked, live bank timer said no
                 stall_banktimer_o  <= stall_banktimer_o + 32'h1;
+            else if (w_out_hold)                    // picked, rank-global tFAW/tRRD window
+                stall_actlimit_o   <= stall_actlimit_o + 32'h1;
             else if (r_pick_valid)                  // picked, DFI said no
                 stall_bp_o         <= stall_bp_o + 32'h1;
             else if (refresh_req_i || refresh_drain_i)

@@ -13,8 +13,12 @@ PKGS := $(PUMICE)/rtl/includes/pumice_pkg.sv
 DUT  := $(PUMICE)/rtl/fub/global_timers.sv $(PUMICE)/rtl/fub/pumice_cmd_arbiter.sv
 
 .PHONY: prove issue019 cover all clean
-# `all` deliberately excludes issue019: those assertions FAIL by design -- they
-# are the reproduction for pumice BUG-021, not a regression signal.
+# `issue019` was the held-red reproduction for pumice BUG-021 (the tRRD/tFAW
+# fire-stage gap). The gap is fixed -- w_out_safe re-checks the rank-global
+# windows live at the fire -- and the .sby now arms the ISSUE019 assertions for
+# every task, so `prove` (and the formal/pumice area dispatch) guards the fix
+# directly. `make issue019` stays as a named entry point to the same armed
+# task.
 all: prove cover
 prove: arb_flat.v
 	sby -f cmd_arbiter.sby prove
