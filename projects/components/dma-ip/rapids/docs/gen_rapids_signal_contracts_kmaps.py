@@ -69,19 +69,19 @@ KI_SSC = ("projects/components/dma-ip/rapids/known_issues/active/"
 # Verified against the RTL before the workbook is written.
 # ---------------------------------------------------------------------------
 CITES = [
-    (SRC_AXIS, 216, "w_ch_grantable[ch] = (w_effective_avail[ch] >= SCW'(cfg_drain_size))"),
-    (SRC_AXIS, 292, "drain_req[r_arb_grant_id] = 1'b1;"),
-    (SRC_AXIS, 293, "drain_size[r_arb_grant_id] = r_drain_remaining;"),
-    (SRC_AXIS, 299, "assign drain_read = w_beat_accepted;"),
-    (SRC_AXIS, 329, "assign m_axis_tvalid = r_arb_active"),
+    (SRC_AXIS, 247, "w_ch_grantable[ch] = (w_effective_avail[ch] >= SCW'(w_eff_drain_size))"),
+    (SRC_AXIS, 299, "drain_req[r_res_ch]  = 1'b1;"),
+    (SRC_AXIS, 300, "drain_size[r_res_ch] = r_res_size;"),
+    (SRC_AXIS, 346, "assign drain_read = w_beat_accepted;"),
+    (SRC_AXIS, 362, "assign m_axis_tvalid = r_d_active"),
 
     (STR_UNIT, 141, ".rd_valid           (axi_wr_sram_valid && axi_wr_sram_ready),"),
-    (STR_UNIT, 189, ".rd_valid           (axi_wr_drain_req),"),
-    (STR_UNIT, 190, ".rd_size            (axi_wr_drain_size),"),
-    (STR_UNIT, 191, ".rd_ready           ()"),
-    (STR_UNIT, 194, ".data_available     (drain_data_available),"),
-    (STR_UNIT, 307, "assign axi_wr_drain_data_avail = drain_data_available;"),
-    (STR_UNIT, 307, "assign axi_wr_drain_data_avail = drain_data_available;"),
+    (STR_UNIT, 207, ".rd_valid           (axi_wr_drain_req),"),
+    (STR_UNIT, 208, ".rd_size            (axi_wr_drain_size),"),
+    (STR_UNIT, 209, ".rd_ready           ()"),
+    (STR_UNIT, 212, ".data_available     (w_drain_data_available_acct),"),
+    (STR_UNIT, 325, "assign axi_wr_drain_data_avail = drain_data_available;"),
+    (STR_UNIT, 325, "assign axi_wr_drain_data_avail = drain_data_available;"),
 
     (DRAIN_B, 78, "assign w_read  = rd_valid && rd_ready;"),
     (DRAIN_B, 101, "if (w_read && !r_rd_empty) begin"),
@@ -93,41 +93,41 @@ CITES = [
 
     (LBRIDGE, 185, "assign occupancy = skid_count;"),
 
-    (STR_UNIT, 282, "Total data available = drain controller occupancy, and NOTHING else."),
-    (STR_UNIT, 284, "Do NOT add bridge_occupancy here."),
-    (STR_UNIT, 290, "Adding bridge_occupancy counted it a second time."),
-    (STR_UNIT, 292, "The over-count was 0..SKID_DEPTH (4) beats"),
-    (STR_UNIT, 307, "assign axi_wr_drain_data_avail = drain_data_available;"),
-    (STR_WENG, 387, "w_effective_avail"),
+    (STR_UNIT, 300, "Total data available = drain controller occupancy, and NOTHING else."),
+    (STR_UNIT, 302, "Do NOT add bridge_occupancy here."),
+    (STR_UNIT, 308, "Adding bridge_occupancy counted it a second time."),
+    (STR_UNIT, 310, "The over-count was 0..SKID_DEPTH (4) beats"),
+    (STR_UNIT, 325, "assign axi_wr_drain_data_avail = drain_data_available;"),
+    (STR_WENG, 401, "w_effective_avail"),
 
     # --- item 5: sink AXIS ingress admission ---------------------------
-    (SNK_AXIS, 188, "wire w_channel_needs_alloc = (r_pending_alloc[axis_channel_id] == '0);"),
-    (SNK_AXIS, 189, "wire w_channel_has_space = (fill_space_free[axis_channel_id] >= cfg_alloc_size);"),
-    (SNK_AXIS, 192, "assign fill_alloc_req = s_axis_tvalid && w_channel_needs_alloc && w_channel_has_space;"),
-    (SNK_AXIS, 200, "assign fill_valid = s_axis_tvalid &&"),
-    (SNK_AXIS, 201, "((r_pending_alloc[axis_channel_id] > 0) ||"),
-    (SNK_AXIS, 202, "(w_channel_needs_alloc && w_channel_has_space));"),
-    (SNK_AXIS, 207, "assign s_axis_tready = (fill_ready && (r_pending_alloc[axis_channel_id] > 0)) ||"),
-    (SNK_AXIS, 208, "(fill_alloc_req);"),
-    (SNK_AXIS, 222, "if (fill_alloc_req && (fill_alloc_id == ch[CIW-1:0])) begin"),
-    (SNK_AXIS, 225, "r_pending_alloc[ch] <= r_pending_alloc[ch] + fill_alloc_size - 1'b1;"),
-    (SNK_AXIS, 228, "r_pending_alloc[ch] <= r_pending_alloc[ch] + fill_alloc_size;"),
-    (SNK_AXIS, 232, "r_pending_alloc[ch] <= r_pending_alloc[ch] - 1'b1;"),
-    (SNK_AXIS, 237, "if (s_axis_tvalid && s_axis_tready) begin"),
+    (SNK_AXIS, 236, "wire w_channel_needs_alloc = (r_pending_alloc[axis_channel_id] == '0)"),
+    (SNK_AXIS, 256, "wire w_channel_has_space = (w_space_now != '0);"),
+    (SNK_AXIS, 259, "assign fill_alloc_req = s_axis_tvalid && w_channel_needs_alloc && w_channel_has_space;"),
+    (SNK_AXIS, 267, "assign fill_valid = s_axis_tvalid &&"),
+    (SNK_AXIS, 268, "((r_pending_alloc[axis_channel_id] > 0) ||"),
+    (SNK_AXIS, 269, "(w_channel_needs_alloc && w_channel_has_space));"),
+    (SNK_AXIS, 280, "assign s_axis_tready = fill_ready &&"),
+    (SNK_AXIS, 281, "|| fill_alloc_req);"),
+    (SNK_AXIS, 295, "if (fill_alloc_req && (fill_alloc_id == ch[CIW-1:0])) begin"),
+    (SNK_AXIS, 298, "r_pending_alloc[ch] <= r_pending_alloc[ch] + fill_alloc_size - 1'b1;"),
+    (SNK_AXIS, 301, "r_pending_alloc[ch] <= r_pending_alloc[ch] + fill_alloc_size;"),
+    (SNK_AXIS, 305, "r_pending_alloc[ch] <= r_pending_alloc[ch] - 1'b1;"),
+    (SNK_AXIS, 310, "if (s_axis_tvalid && s_axis_tready) begin"),
 
     (STR_UNIT, 134, ".wr_valid           (axi_rd_alloc_req),"),
     (STR_UNIT, 136, ".wr_ready           ()"),
-    (STR_UNIT, 184, ".wr_valid           (axi_rd_sram_valid && axi_rd_sram_ready),"),
-    (STR_UNIT, 225, ".wr_valid       (axi_rd_sram_valid),"),
-    (STR_UNIT, 226, ".wr_ready       (axi_rd_sram_ready),"),
-    (STR_UNIT, 314, "axi_rd_alloc_space_free <= alloc_space_free;"),
+    (STR_UNIT, 202, ".wr_valid           (axi_rd_sram_valid && axi_rd_sram_ready),"),
+    (STR_UNIT, 243, ".wr_valid       (axi_rd_sram_valid),"),
+    (STR_UNIT, 244, ".wr_ready       (axi_rd_sram_ready),"),
+    (STR_UNIT, 332, "axi_rd_alloc_space_free <= alloc_space_free;"),
 
     (ALLOC_B, 76, "assign w_write = wr_valid && wr_ready;"),
     (ALLOC_B, 86, "if (w_write && !r_wr_full) begin"),
     (ALLOC_B, 137, "assign wr_ready = !r_wr_full;"),
     (ALLOC_B, 141, "assign space_free = (AW+1)'(D) - w_count;"),
 
-    (STR_RENG, 580, "axi_rd_alloc_req |-> $past(m_axi_arvalid && m_axi_arready));"),
+    (STR_RENG, 656, "axi_rd_alloc_req |-> $past(m_axi_arvalid && m_axi_arready));"),
 
     # --- item 4: scheduler issue/commit gating + timeout escalation -----
     (SCHED_B, 418, "if (w_exec_complete) begin"),
@@ -144,13 +144,13 @@ CITES = [
     (SCHED_B, 920, "if (sched_wr_done_strobe || sched_wr_commit_strobe) begin"),
     (SCHED_B, 932, "if (r_channel_reset_active || (r_current_state == rapids_pkg::CH_IDLE)) begin"),
     (SCHED_B, 936, "end else if (w_timeout_expired && !(&r_timeout_strikes)) begin"),
-    (SCHED_B, 965, "assign w_timeout_expired = cfg_sched_timeout_enable &&"),
-    (SCHED_B, 966, "(r_timeout_counter >= cfg_sched_timeout_cycles);"),
-    (SCHED_B, 970, "assign w_timeout_escalate = (cfg_sched_timeout_limit != 8'd0) &&"),
-    (SCHED_B, 971, "(r_timeout_strikes >= cfg_sched_timeout_limit);"),
-    (SCHED_B, 978, "assign w_hard_error = descriptor_error || sched_rd_error || sched_wr_error ||"),
-    (SCHED_B, 1105, "assign scheduler_idle = (r_current_state == rapids_pkg::CH_IDLE) && !r_channel_reset_active;"),
-    (SCHED_B, 1136, "(w_read_complete && w_write_complete);"),
+    (SCHED_B, 964, "assign w_timeout_expired = cfg_sched_timeout_enable &&"),
+    (SCHED_B, 965, "(r_timeout_counter >= cfg_sched_timeout_cycles);"),
+    (SCHED_B, 969, "assign w_timeout_escalate = (cfg_sched_timeout_limit != 8'd0) &&"),
+    (SCHED_B, 970, "(r_timeout_strikes >= cfg_sched_timeout_limit);"),
+    (SCHED_B, 977, "assign w_hard_error = descriptor_error || sched_rd_error || sched_wr_error ||"),
+    (SCHED_B, 1104, "assign scheduler_idle = (r_current_state == rapids_pkg::CH_IDLE) && !r_channel_reset_active;"),
+    (SCHED_B, 776, "w_read_complete && w_write_complete;"),
 
     (STR_SCHED, 525, "end else if (w_transfer_complete && !r_rd_ahead) begin"),
     (STR_SCHED, 542, "end else if (w_write_complete) begin"),
@@ -159,20 +159,20 @@ CITES = [
     (STR_SCHED, 1376, "(w_read_complete && w_write_issued);"),
 
     # --- items 1-2: sink error reporting + drain port --------------------
-    (WR_ENG_B, 144, "sched_wr_error"),
-    (WR_ENG_B, 951, "m_axi_bresp != 2'b00"),
-    (WR_ENG_B, 955, "r_wr_error[ch_id] <= 1'b1;"),
-    (WR_ENG_B, 964, "assign sched_wr_error = r_wr_error;"),
+    (WR_ENG_B, 143, "sched_wr_error"),
+    (WR_ENG_B, 998, "m_axi_bresp != 2'b00"),
+    (WR_ENG_B, 1002, "r_wr_error[ch_id] <= 1'b1;"),
+    (WR_ENG_B, 1011, "assign sched_wr_error = r_wr_error;"),
 
-    (SNK_MACRO, 344, "scheduler_group_array_beats #("),
-    (SNK_MACRO, 513, ".sched_rd_error         ('0),"),
-    (SNK_MACRO, 514, ".sched_wr_error         (sched_wr_error),"),
-    (SNK_MACRO, 596, "snk_data_path_axis_beats #("),
-    (SNK_MACRO, 640, ".sched_wr_error     (sched_wr_error),"),
+    (SNK_MACRO, 371, "scheduler_group_array_beats #("),
+    (SNK_MACRO, 540, ".sched_rd_error         ('0),"),
+    (SNK_MACRO, 541, ".sched_wr_error         (sched_wr_error),"),
+    (SNK_MACRO, 709, "snk_data_path_axis_beats #("),
+    (SNK_MACRO, 753, ".sched_wr_error     (sched_wr_error),"),
     (SNK_DP, 275, ".sched_wr_error     (sched_wr_error),"),
 
-    (SRC_MACRO, 491, ".sched_rd_error         (sched_rd_error),"),
-    (SRC_MACRO, 492, ".sched_wr_error         ('0),"),
+    (SRC_MACRO, 518, ".sched_rd_error         (sched_rd_error),"),
+    (SRC_MACRO, 519, ".sched_wr_error         ('0),"),
 
     (SG_ARR, 540, ".sched_rd_error         (sched_rd_error[ch]),"),
     (SG_ARR, 541, ".sched_wr_error         (sched_wr_error[ch]),"),
@@ -181,15 +181,15 @@ CITES = [
     (SG, 289, ".descriptor_error       (desceng_to_sched_error),"),
     (SG, 411, ".sched_wr_error         (sched_wr_error),"),
     (SG, 419, ".ctrlrd_error           (sched_ctrlrd_error),"),
-    (CTRLRD, 437, "assign ctrlrd_error = r_ctrlrd_error;"),
+    (CTRLRD, 486, "assign ctrlrd_error = r_ctrlrd_error;"),
 
     (SCHED_B, 162, "sched_rd_error"),
     (SCHED_B, 163, "sched_wr_error"),
     (SCHED_B, 943, "if (sched_rd_error) r_read_error_sticky <= 1'b1;"),
     (SCHED_B, 944, "if (sched_wr_error) r_write_error_sticky <= 1'b1;"),
-    (SCHED_B, 979, "r_read_error_sticky || r_write_error_sticky ||"),
-    (SCHED_B, 980, "(w_is_ctrlrd && ctrlrd_error) || (w_is_ctrlwr && ctrlwr_error);"),
-    (SCHED_B, 1084, "r_write_error_sticky, r_read_error_sticky"),
+    (SCHED_B, 978, "r_read_error_sticky || r_write_error_sticky ||"),
+    (SCHED_B, 979, "(w_is_ctrlrd && ctrlrd_error) || (w_is_ctrlwr && ctrlwr_error);"),
+    (SCHED_B, 1083, "r_write_error_sticky, r_read_error_sticky"),
 
     (STR_MACRO, 149, "axi_wr_sram_drain_decoded = '0;"),
     (STR_MACRO, 151, "if (axi_wr_sram_drain && axi_wr_sram_id < NC) begin"),
@@ -198,7 +198,7 @@ CITES = [
 
     (STR_CORE, 669, "sched_wr_error;"),
     (STR_CORE, 1047, ".sched_wr_error"),
-    (STR_CORE, 2130, "obs_flags[11]"),
+    (STR_CORE, 1983, "obs_flags[11]"),
 ]
 
 
@@ -481,7 +481,7 @@ def build_src_drain_kmaps(wb):
           f"({STR_UNIT}:282-301)",
           "no"],
          ["caller-side correction",
-          f"w_effective_avail = avail - in-flight drains ({STR_WENG}:387)",
+          f"w_effective_avail = avail - in-flight drains ({STR_WENG}:401)",
           "none -- the raw view is compared directly to cfg_drain_size"],
          ["drain controller itself",
           "identical module, identical over-drain $error",
@@ -534,7 +534,7 @@ def build_snk_ingress_contract(wb):
          "and acceptance is not observable in this module.",
          f"{SNK_AXIS}:219-229. STREAM has no equivalent counter at all "
          "(zero occurrences in stream/rtl); it registers its alloc request "
-         f"and proves the contract instead -- {STR_RENG}:580, inside an "
+         f"and proves the contract instead -- {STR_RENG}:656, inside an "
          "`ifdef FORMAL` block."),
 
         ("Sink ingress / accounting", "fill_space_free[ch]", "SCW", "in",
@@ -703,14 +703,14 @@ def build_snk_ingress_kmaps(wb):
 
     km.table(
         "STREAM vs RAPIDS: how each qualifies an allocation",
-        f"{STR_RENG}:580",
+        f"{STR_RENG}:656",
         ["Concern", "STREAM", "RAPIDS-beats sink"],
         [["local reservation counter",
           "none (zero r_pending_alloc in stream/rtl)",
           f"r_pending_alloc, credited on request ({SNK_AXIS}:225)"],
          ["allocation tied to an accepted handshake",
           f"yes, and PROVEN: alloc_req |-> $past(arvalid && arready) "
-          f"({STR_RENG}:580, inside `ifdef FORMAL`)",
+          f"({STR_RENG}:656, inside `ifdef FORMAL`)",
           "no property, and the allocator's wr_ready is discarded"],
          ["ingress ready includes the store-enable",
           "n/a -- stream's fill side is an AXI read engine, not an AXIS port",

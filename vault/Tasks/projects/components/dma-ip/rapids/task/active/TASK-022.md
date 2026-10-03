@@ -78,6 +78,29 @@ has no beats equivalent, and it is exactly the kind of logic formal is good at:
       -- DELETE all 64 (32 per tree, 14 files). Dead text whose maintenance
       cost was already paid (the arbiter-request comment); nothing compiles
       them and nothing may start to.
+      **DONE 2026-10-01, commit bf5db01b7** (Workstream A). Census correction
+      recorded there: the split was 40 byte-tree / 24 beats-tree, not 32/32
+      (fub_beats has no ctrlrd/ctrlwr). Zero `ifdef FORMAL` blocks and zero
+      real `assert property` remain in the RAPIDS trees; STREAM's own
+      `axi_read_engine.sv:643-661` block is outside the 64 and survives.
+      Residue closed 2026-10-02: the doc generator's citation gate was broken
+      by the deletion's line drift (23 tuples + prose refs); renumbered
+      mechanically, `gen_rapids_signal_contracts_kmaps.py` exits 0 again.
+
+## Done when
+
+- `formal/rapids/snk_data_path_axis/` proves the byte sink macro (shifter +
+  packet-record queue + fill allocator + write engine closure) at port level:
+  byte fidelity, record/ready contract, AW/W legality, per-channel reset.
+- `formal/rapids/src_data_path_axis/` proves the mirror on the source side.
+- If the macro dirs blow the measured budget (Sean's call at the DIR-1
+  checkpoint): `formal/rapids/axi_write_engine/` at fub level instead.
+- Mutation check per property; each `ap_*` present in the emitted smt2;
+  `make -C formal/rapids prove-all` and `cover-all` green; flats regenerated
+  from current RTL and git-diff clean.
+- Adjacent gap, OUT OF SCOPE here: `axi_read_engine` AR-side legality
+  (4 KB split etc.) has no byte-tree proof; file separately if wanted.
+- Beats-suite retirement stays DEFERRED (see "Decide first").
 
 ## Notes
 
