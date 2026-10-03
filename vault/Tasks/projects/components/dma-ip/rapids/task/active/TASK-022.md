@@ -104,7 +104,7 @@ has no beats equivalent, and it is exactly the kind of logic formal is good at:
 
 ## Notes
 
-- DIR 1 status 2026-10-02 — **DONE, committed same day**: harness + flat +
+- DIR 1 status 2026-10-02 — **DONE, committed 2026-10-03**: harness + flat +
   Makefile + .sby; 16 `ap_*` + 12 `cp_*`. **Prove depth 15 PASS in 1:04:09**
   (bitwuzla, single core; step 13 ~24 min, step 14 ~40 min of it). Cover
   depth 40 re-run same day: 12/12 `cp_*` reached, deepest witness step 14.
