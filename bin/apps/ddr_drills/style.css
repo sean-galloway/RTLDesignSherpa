@@ -508,3 +508,83 @@ main {
   color: #fff;
   cursor: pointer;
 }
+
+/* -- scenario drill (js/scenariodrill.js) --------------------------------- */
+.scen-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.8rem;
+}
+.scen-filter-label { font-weight: 700; }
+.scen-filter { font-size: 0.95rem; }
+.scen-score { margin-left: auto; font-weight: 700; }
+.scen-tag {
+  font-size: 0.85rem;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.6rem;
+}
+.scen-subhead { font-weight: 700; margin: 0.8rem 0 0.35rem; }
+.scen-banks { display: flex; flex-wrap: wrap; gap: 0.35rem 0.6rem; }
+.scen-bank {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--panel);
+}
+.scen-bank-open { border-color: var(--accent); background: var(--accent-soft); }
+.scen-reqs { font-family: var(--mono); font-size: 0.92rem; }
+.scen-req { padding: 0.1rem 0; }
+.scen-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.7rem;
+  margin-top: 0.8rem;
+}
+.scen-option {
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  cursor: pointer;
+  padding: 0.5rem 0.7rem;
+}
+.scen-option:hover:not(:disabled) { border-color: var(--accent); }
+.scen-option:disabled { cursor: default; opacity: 0.85; }
+.scen-option.correct { border-color: var(--good); background: var(--good-soft); }
+.scen-option.wrong { border-color: var(--bad); background: var(--bad-soft); }
+.scen-sched { font-family: var(--mono); font-size: 0.84rem; }
+.scen-cmd { padding: 0.08rem 0; white-space: pre-wrap; }
+.scen-ann { color: var(--ink-dim); font-style: italic; }
+.scen-reason { color: var(--ink-dim); font-size: 0.78rem; }
+.scen-verdict { font-weight: 700; margin: 0.9rem 0 0.4rem; }
+.scen-verdict.good { color: var(--good); }
+.scen-verdict.bad { color: var(--bad); }
+.scen-explanation { margin: 0 0 0.4rem; line-height: 1.45; }
+.scen-reorder {
+  font-family: var(--mono);
+  font-size: 0.84rem;
+  color: var(--ink-dim);
+  margin: 0 0 0.4rem;
+}
+.scen-why {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  padding: 0.5rem 0.7rem;
+}
+.scen-next {
+  margin-top: 0.7rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+.scen-empty { color: var(--ink-dim); }
