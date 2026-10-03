@@ -11,7 +11,7 @@ Pick the lane before filing:
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 1 | 0 | 1 | 0 | 1 |
+| [task/](task/INDEX.md) | 0 | 0 | 2 | 0 | 1 |
 | [bug/](bug/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
 
@@ -26,10 +26,17 @@ counts above now match the directories.
 
 ## Open shortlist
 
-- **TASK-002** (open) — erasure decoding (PRD D5): the errors-plus-erasures
-  path, model-first, both solvers, DV matrix, injector erasure mode.
+Nothing open right now — the component is at a clean stopping point.
+
 - **TASK-003** (deferred) — first consumer selection (PRD D10), pending a
   memory controller project consumer (Sean's direction, 2026-10-02).
+
+Closed history:
+
 - **TASK-001** (CLOSED 2026-10-02) — the stand-up umbrella: codec, both
   solvers, wrappers, DV area, HAS and the board harness all exist and pass.
   Closed with D4 decided (both shapes viable) and the two successors above.
+- **TASK-002** (CLOSED 2026-10-03) — erasure decoding (PRD D5): the
+  errors-plus-erasures path, model-first, both solvers, DV matrix, injector
+  erasure mode. Closed with all six phases landed: gate 102/102 and the
+  harness cosim 17/17 green at close.
