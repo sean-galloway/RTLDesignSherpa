@@ -151,3 +151,44 @@ Notes:
   WL = AL + CWL (MR2 CWL). DDR3 changed WL from RL-1 to an independently
   programmed CWL.
 - PREA uses the same tRP as PRE in DDR3 (no extra clock as in DDR2).
+
+## LPDDR3 (packs/lpddr3.js, JESD209-3C)
+
+Topology: flat 8 banks, sids: 0 (drill model). Real: x16/x32 organizations,
+densities 1 Gb-32 Gb, no bank groups, no DLL.
+Scopes used: same_bank / diff_bank / any.
+
+| Symbol | Scope pattern | Value basis | Reference |
+| --- | --- | --- | --- |
+| tRCD | ACT -> RD/WR/RDA/WRA same_bank | 15/18/24 ns, min 3 tCK | Table 64 |
+| tRAS | ACT -> PRE same_bank | min max(42 ns, 3 tCK); max min(70.2 us, 9 x RM x tREFI) | Table 64 |
+| tRPpb | PRE -> ACT same_bank | 15/18/24 ns, min 3 tCK | Table 64 |
+| tRPpab | PREA -> ACT (panel only) | 18/21/27 ns, min 3 tCK | Table 64 |
+| tRC | ACT -> ACT same_bank | = tRAS + tRPpb (or + tRPpab after PREA) | Table 64 |
+| tRRD | ACT -> ACT diff_bank | 10 ns, min 2 tCK; REFpb counts for tFAW | Table 64 |
+| tFAW | ACT -> ACT any (rolling window of 4) | 50 ns, min 8 tCK | Table 64 |
+| tRTP | RD/RDA -> PRE same_bank | 7.5 ns, min 4 tCK; BL/2 + max(4, RU(tRTP/tCK)) - 4 | sec 4.7 |
+| tWR | WR/WRA -> PRE same_bank | 15 ns, min 4 tCK; MR1 nWR field | Table 64 |
+| tCCD | RD->RD / WR->WR any (same direction only) | 4 tCK = BL/2 | sec 4.5 |
+| tRTW | RD -> WR any (book symbol) | RL + RU(tDQSCKmax/tCK) + BL/2 + 1 - WL | sec 4.5 (unnamed) |
+| tWTR | WR -> RD any | 7.5 ns, min 4 tCK; WL + 1 + BL/2 + RU(tWTR/tCK) | sec 4.5 |
+| tMRW | MRW -> MRW (panel only) | 10 tCK | sec 4.10 |
+| tMRR | MRR -> MRR (panel only) | 4 tCK | sec 4.10 |
+| tMRD | MRW -> * (panel only) | max(14 ns, 10 nCK) | sec 4.10 |
+| tREFI | REF -> REF (panel only; reference avg) | 7.8 us at <=85 C | sec 4.8 |
+| tRFCab | REF -> REF/ACT (panel only) | 130 ns (1-4 Gb), 210 ns (6-8 Gb) | sec 4.8 |
+| tRFCpb | REFpb -> ACT/REFpb same_bank (panel only) | 60 ns (1-4 Gb), 90 ns (6-8 Gb) | sec 4.8 |
+| tXSR | SRX -> * (panel only) | max(tRFCab + 10 ns, 2 nCK) | sec 4.13 |
+| tXP | SRX -> * (panel only) | max(7.5 ns, 3 nCK) | sec 4.14 |
+| tCKE | SRX -> * (panel only; CKE pulse width) | max(7.5 ns, 3 nCK) | sec 4.14 |
+
+Notes:
+- tCCD is same-direction only in the pack, matching the book's gap sheet;
+  direction changes are governed by tRTW/tWTR, which dominate tCCD there.
+- tRTW is the cross-book symbol; JESD209-3C gives the read-to-write relation
+  unnamed. The tDQSCK term is the LPDDR3 signature because there is no DLL.
+- tRPpab uses from 'PREA', tRFCpb uses from 'REFpb', and the init/refresh
+  panel-only params use from 'MRW' / 'MRR' / 'SRX': all are commands the
+  drill engine never emits, so they render in the reference panel only.
+- Latency context (not engine params): RL/WL programmed in MR2; tDQSCK is an
+  analog window (2.5-5.5 ns, 5.62 ns derated) that may span multiple clocks.
