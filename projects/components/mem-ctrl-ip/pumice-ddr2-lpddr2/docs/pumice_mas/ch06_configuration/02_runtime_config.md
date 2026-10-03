@@ -74,7 +74,7 @@ csr_write(ADDR_MAP, BANK_LSB(log2_cols_per_burst));
 csr_write(ADDR_MAP, BANK_LSB(COL_WIDTH) | HASH_EN | HASH_SEED(seed));
 ```
 
-RTL clamps `bank_lsb` to `[0, COL_WIDTH]`; keep `log2(BL/DFI_RATE) <= bank_lsb <= COL_WIDTH` so a DRAM burst stays inside one bank (see §4.4 and `rtl/fub/addr_mapper.sv`). Change address mapping only before init or with the datapath idle.
+RTL clamps `bank_lsb` to `[0, COL_WIDTH]`; keep `log2(DRAM_BL) <= bank_lsb <= COL_WIDTH` so a DRAM burst stays inside one bank (see §4.4 and `rtl/fub/addr_mapper.sv`). `DRAM_BL`, not `BL/DFI_RATE`: the mapper indexes device words, so a burst spans `DRAM_BL` columns here (pumice BUG-022, measured in `dv/tests/fub/test_addr_mapper.py::minimum_bank_lsb_is_measured`). Change address mapping only before init or with the datapath idle.
 
 ## Characterization Sweep Order
 

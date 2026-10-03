@@ -12,9 +12,9 @@
 //          (their positions are INVARIANT). The classic "schemes" are just
 //          settings of bank_lsb, so there is NO scheme mux:
 //
-//            bank_lsb == COL_WIDTH        -> bank above whole column = ROW_MAJOR
-//            bank_lsb == log2(cols/burst) -> minimal col_lo          = BANK_INTERLEAVE
-//            in between                   -> partial interleave
+//            bank_lsb == COL_WIDTH   -> bank above whole column = ROW_MAJOR
+//            bank_lsb == log2(DRAM_BL) -> minimal col_lo        = BANK_INTERLEAVE
+//            in between              -> partial interleave
 //
 //          An optional bank XOR-hash (hash_en_i) folds row bits + a seed into
 //          the bank index to defeat power-of-two-stride hot-banking (= XOR_HASH).
@@ -24,9 +24,32 @@
 //            col = { col_hi, col_lo }.  row LSB is always CW+BW.
 //
 //          Combinational, single stage. Software keeps
-//          log2(cols/burst) <= bank_lsb <= COL_WIDTH so a DRAM burst's column
+//          log2(DRAM_BL) <= bank_lsb <= COL_WIDTH so a DRAM burst's column
 //          walk stays inside one bank; the RTL clamps to [0, COL_WIDTH] to keep
-//          the field slices legal.
+//          the field slices legal. DRAM_BL is the right quantity because this
+//          block indexes DEVICE WORDS (BYTE_OFFSET_WIDTH = log2(device bytes))
+//          and pumice_core derives SUB_COL_STRIDE = DRAM_BL in those same
+//          units, calling it "one JEDEC burst" -- so a burst spans DRAM_BL
+//          columns here.
+//
+//          MEASURED, not derived:
+//          dv/tests/fub/test_addr_mapper.py::minimum_bank_lsb_is_measured
+//          reports the smallest bank_lsb that keeps an aligned burst inside
+//          one bank as 2 / 3 / 4 for bursts of 4 / 8 / 16 words -- i.e.
+//          log2(burst). pumice BUG-022.
+//
+//          TWO wrong versions of this bound were written down, in opposite
+//          directions, and both are now corrected:
+//            * these lines read `log2(cols/burst)`: for a 1024-column page
+//              and an 8-word burst that is 7, which leaves 128 columns below
+//              the bank and interleaves every 512 bytes rather than every
+//              burst. Too RESTRICTIVE -- wasteful, not unsafe.
+//            * ADDR_MAP's own comment in pumice_csr.rdl read
+//              `log2(BL/DFI_RATE)`, which at the shipping point is 1 instead
+//              of 2. Too PERMISSIVE, and that direction is unsafe: at
+//              bank_lsb=1 a 4-word burst spans banks 0,0,1,1. scoria's
+//              inherited copy carried both errors and was corrected first;
+//              this header follows (pumice BUG-022).
 //
 // Documentation: rtl/macro/pumice_csr.rdl (ADDR_MAP register)
 

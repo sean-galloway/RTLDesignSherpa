@@ -27,7 +27,7 @@ filing; IDs are per-lane sequences.
 | Lane | For | open | active | closed | dropped |
 |---|---|---|---|---|---|
 | [task/](task/INDEX.md) | planned work we decided to do | 3 | 0 | 30 | 4 |
-| [bug/](bug/INDEX.md) | a defect with a reproduction | 1 | 0 | 20 | 1 |
+| [bug/](bug/INDEX.md) | a defect with a reproduction | 0 | 0 | 21 | 1 |
 | [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 1 | 0 | 16 | 3 |
 
 Counts INCLUDE each lane's `NNN-000` template, which lives in `open/` -- that is
@@ -36,10 +36,10 @@ area's counts went wrong on 2026-09-27.
 
 ## What is actually open
 
-**Bug lane: BUG-022** — the `ADDR_MAP.bank_lsb` documented lower bound is
-too permissive by log2(DFI_RATE); an RDL-comment/header trap for the
-first bank-interleaving user, not live misbehavior (every build ships
-ROW_MAJOR).
+**Bug lane: empty.** BUG-022 (the `ADDR_MAP.bank_lsb` documented bound)
+was fixed 2026-10-03 alongside BUG-021; every written copy of the wrong
+bound is corrected and the right one is guarded by
+`test_addr_mapper.py::minimum_bank_lsb_is_measured`.
 
 **Task lane: TASK-035, TASK-037, TASK-038.** TASK-035 finishes tier-1
 formal coverage (5 of 27 blocks; wr_data_cam counterexample + dfi_cdc
@@ -53,9 +53,9 @@ against pre-compliant tFAW/tRRD window behavior and the gate fails on
 them in combinations; re-pin (Sean's call) or fund a skid/bypass.
 Surfaced closing BUG-021 2026-10-03.
 
-The correctness backlog is otherwise EMPTY: BUG-021 (proved tRRD
-violation) was fixed 2026-10-03 — fire-stage window enforcement,
-formally armed and mutation-checked.
+The correctness backlog is EMPTY: BUG-021 (proved tRRD violation,
+fire-stage window enforcement) and BUG-022 (the bank_lsb documented
+bound) were both fixed 2026-10-03.
 
 TASK-033 (the v2/v3 deferrals) is in `task/deferred/`, parked pending the
 DDR3/LPDDR3 project rather than dropped.

@@ -117,14 +117,18 @@ col    = col_lo | (col_hi << bank_lsb)
 | Legacy scheme          | Equivalent setting                                             |
 |------------------------|----------------------------------------------------------------|
 | ROW_MAJOR              | `bank_lsb == COL_WIDTH` — bank sits **above** the whole column |
-| max BANK_INTERLEAVE    | `bank_lsb == log2(cols/burst)` — minimal `col_lo`, so a burst's column walk stays inside one bank while consecutive lines round-robin banks |
+| max BANK_INTERLEAVE    | `bank_lsb == log2(DRAM_BL)` — minimal `col_lo`, so a burst's column walk stays inside one bank while consecutive lines round-robin banks |
 | partial interleave     | any `bank_lsb` in between                                      |
 | XOR_HASH               | `hash_en == 1`, folded on top of **any** placement above       |
 
 The default `ADDR_MAP.bank_lsb = 0x0A = COL_WIDTH` is therefore ROW_MAJOR.
-Software is expected to keep `log2(cols/burst) <= bank_lsb <= COL_WIDTH` so a
+Software is expected to keep `log2(DRAM_BL) <= bank_lsb <= COL_WIDTH` so a
 DRAM burst's column walk never crosses a bank boundary; the RTL clamp enforces
-the upper edge.
+the upper edge. (`DRAM_BL`, not `BL/DFI_RATE` — the mapper indexes device
+words, so a burst spans `DRAM_BL` columns here. Both older formulas were
+wrong, in opposite directions; measured in
+`dv/tests/fub/test_addr_mapper.py::minimum_bank_lsb_is_measured`. pumice
+BUG-022.)
 
 ## Bank XOR-hash
 

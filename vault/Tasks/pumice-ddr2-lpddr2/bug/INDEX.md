@@ -12,22 +12,23 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 20 | done (kept for history) |
+| [closed/](closed/) | 21 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-022** — `ADDR_MAP.bank_lsb`'s stated constraint is `log2(BL/DFI_RATE)`
-  where the correct bound is `log2(DRAM_BL)`, so the documented minimum splits a
-  DRAM burst across banks. RDL comments only; the generated registers are
-  correct. Nothing programs it (every build ships ROW_MAJOR), so it is a trap
-  for the first interleaving user rather than a live defect. Measured in
-  scoria's `test_scoria_addr_mapper.py::minimum_bank_lsb_is_measured`.
-
 ## Closed
+
+- **BUG-022** — the `ADDR_MAP.bank_lsb` documented lower bound was
+  `log2(BL/DFI_RATE)` where the correct bound is `log2(DRAM_BL)`, a trap
+  for the first bank-interleaving user — FIXED 2026-10-03: every written
+  copy corrected (RDL with derivation, module header, TB docstring, MAS +
+  HAS books), and scoria's measuring test ported as
+  `test_addr_mapper.py::minimum_bank_lsb_is_measured` so the formula is
+  guarded where it is cited.
 
 - **BUG-021** — the arbiter issued two ACTs to different banks one cycle
   apart, violating tRRD (proved against the real global_timers) — FIXED

@@ -44,6 +44,7 @@ async def cocotb_test_addr_mapper(dut):
         "xor_hash":         _xor_hash,
         "bank_lsb_sweep":   _bank_lsb_sweep,
         "random_soak":      _random_soak,
+        "minimum_bank_lsb_is_measured": _minimum_bank_lsb_is_measured,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -135,12 +136,53 @@ async def _random_soak(tb: AddrMapperTB):
         _assert_match(got, exp, tag=f"soak(blsb={blsb},he={he})", addr=addr)
 
 
+async def _minimum_bank_lsb_is_measured(tb: AddrMapperTB):
+    """MEASURE the software constraint instead of restating it (pumice
+    BUG-022). The bound that keeps a DRAM burst inside one bank is a
+    property of the geometry, and both pumice_csr.rdl and the module
+    header state it as a FORMULA -- so the formula is what gets checked
+    here, by finding the smallest bank_lsb at which an aligned burst
+    does not straddle banks.
+
+    One JEDEC burst is DRAM_BL columns at this mapper's granularity: the
+    mapper indexes device words (BYTE_OFFSET_WIDTH = log2(device bytes))
+    and pumice_core derives SUB_COL_STRIDE = DRAM_BL in exactly those
+    units. So the minimum should be log2(DRAM_BL) -- NOT
+    log2(DRAM_BL/DFI_RATE) (too permissive by log2(DFI_RATE), the unsafe
+    direction) and NOT log2(cols/burst) (too restrictive). Both wrong
+    versions were written down; both are corrected where this test is
+    cited from.
+    """
+    word = 1 << tb.BYTE_OFFSET_WIDTH
+    for burst in (4, 8, 16):
+        smallest = None
+        for blsb in range(0, tb.COL_WIDTH + 1):
+            ok = True
+            for base_i in (0, 1, 7, 64):
+                base = base_i * burst * word
+                banks = set()
+                for i in range(burst):
+                    got = await tb.decode_rtl(base + i * word, blsb)
+                    banks.add(got.bank)
+                if len(banks) != 1:
+                    ok = False
+                    break
+            if ok:
+                smallest = blsb
+                break
+        want = burst.bit_length() - 1          # log2(burst)
+        assert smallest == want, (
+            f"measured minimum bank_lsb for a {burst}-word burst is "
+            f"{smallest}, expected log2(burst)={want} -- the software "
+            f"constraint the RDL and the module header state (BUG-022)")
+
+
 # ---------------------------------------------------------------------------
 # Pytest matrix
 # ---------------------------------------------------------------------------
 
 _ALL_TYPES = ["row_major", "bank_interleave", "xor_hash",
-              "bank_lsb_sweep", "random_soak"]
+              "bank_lsb_sweep", "random_soak", "minimum_bank_lsb_is_measured"]
 _GATE = [(t,) for t in ["row_major", "bank_interleave", "xor_hash"]]
 _FUNC = [(t,) for t in _ALL_TYPES]
 _FULL = _FUNC

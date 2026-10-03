@@ -190,10 +190,11 @@ driven by a single knob rather than a scheme selector — see §5.4 and §3.1, a
 | 23:16 | `hash_seed`  | 0     | XOR-hash seed (`seed[BW-1:0]`).                                                    |
 
 The register reset value is `0x0000000A` (`bank_lsb = 10`, hash off). Setting
-`bank_lsb = COL_WIDTH` gives ROW_MAJOR; `bank_lsb = log2(cols/burst)` gives
+`bank_lsb = COL_WIDTH` gives ROW_MAJOR; `bank_lsb = log2(DRAM_BL)` gives
 maximum bank interleave with burst locality preserved; `hash_en` folds an
 XOR-hash on top of any placement (the old XOR_HASH scheme). There is no separate
-scheme-selector field.
+scheme-selector field. (`DRAM_BL`, not `cols/burst` — the mapper indexes device
+words; pumice BUG-022.)
 
 ### `INIT_TUNING` (0x050, R/W)
 

@@ -98,7 +98,7 @@ Address mapping is the canonical case. `addr_mapper.sv` decodes a flat AXI addre
 ```
 Runtime CSR:   ADDR_MAP.bank_lsb [4:0]   (reset = 0x0A = COL_WIDTH = ROW_MAJOR)
                = COL_WIDTH               -> bank above whole column = ROW_MAJOR
-               = log2(BL/DFI_RATE)       -> minimal col_lo          = BANK_INTERLEAVE
+               = log2(DRAM_BL)           -> minimal col_lo          = BANK_INTERLEAVE
                in between                -> partial interleave
 
 Runtime CSR:   ADDR_MAP.hash_en [8], ADDR_MAP.hash_seed [23:16]

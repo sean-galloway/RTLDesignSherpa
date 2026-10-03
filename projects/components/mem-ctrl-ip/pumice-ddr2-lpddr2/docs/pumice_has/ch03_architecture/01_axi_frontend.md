@@ -108,10 +108,10 @@ The former named schemes are just settings of the one knob:
 | Effect              | Setting                                    | Notes                                              |
 |---------------------|--------------------------------------------|----------------------------------------------------|
 | `ROW_MAJOR`         | `bank_lsb == COL_WIDTH`                     | Bank above the whole column; default (`0x0A`)      |
-| max `BANK_INTERLEAVE` | `bank_lsb == log2(cols/burst)`            | Minimal `col_lo` keeps a DRAM burst inside one bank |
+| max `BANK_INTERLEAVE` | `bank_lsb == log2(DRAM_BL)`              | Minimal `col_lo` keeps a DRAM burst inside one bank |
 | partial interleave  | any value in between                       | Column splits around the bank                       |
 
-Software keeps `log2(cols/burst) <= bank_lsb <= COL_WIDTH` so a DRAM burst's column walk stays inside one bank.
+Software keeps `log2(DRAM_BL) <= bank_lsb <= COL_WIDTH` so a DRAM burst's column walk stays inside one bank. (`DRAM_BL`, not `cols/burst` and not `BL/DFI_RATE` — the mapper indexes device words, so a burst spans `DRAM_BL` columns here; measured in `dv/tests/fub/test_addr_mapper.py::minimum_bank_lsb_is_measured`. pumice BUG-022.)
 
 ### Optional Bank XOR-Hash
 

@@ -19,9 +19,9 @@ Layout (word address, low -> high):
   col = { col_hi, col_lo }; row LSB is invariant = CW+BW.
 
 The classic schemes are just settings of bank_lsb:
-  bank_lsb == COL_WIDTH        -> ROW_MAJOR
-  bank_lsb == log2(cols/burst) -> BANK_INTERLEAVE (max)
-  hash_en                      -> XOR_HASH (folded on top of any placement)
+  bank_lsb == COL_WIDTH      -> ROW_MAJOR
+  bank_lsb == log2(DRAM_BL)  -> BANK_INTERLEAVE (max)
+  hash_en                    -> XOR_HASH (folded on top of any placement)
 """
 
 from __future__ import annotations
