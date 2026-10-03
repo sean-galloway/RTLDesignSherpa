@@ -1,0 +1,58 @@
+name: ddr_drills pages
+
+# Test-then-deploy for the ddr_drills static training app
+# (bin/apps/ddr_drills). The node suite IS the shipped bytes (the runner
+# require()s the same js/*.js files the browser loads), so a green test job
+# means the deploy cannot publish a broken engine or a malformed pack.
+#
+# ONE-TIME MANUAL STEP: repo Settings -> Pages -> Source = "GitHub Actions".
+# Until that is flipped the deploy job fails (the test job still gates every
+# push). No gh-pages branch is used; the artifact is uploaded directly.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'bin/apps/ddr_drills/**'
+      - '.github/workflows/pages-ddr-drills.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node 20 for deterministic Math/DOM-free behavior; the suite itself
+      # is zero-dependency, so this job stays fast.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Engine, scenario, timing and pack suites
+        run: node bin/apps/ddr_drills/test/run_tests.js
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: bin/apps/ddr_drills
+      - id: deployment
+        uses: actions/deploy-pages@v4

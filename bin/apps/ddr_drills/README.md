@@ -40,6 +40,7 @@ wrong-answer mutation flows through a seeded mulberry32 RNG
 
 ```
 index.html        app shell; loads js files in dependency order
+selftest.html     in-browser test runner (same suites as the node harness)
 style.css         all styling
 js/registry.js    DDRD namespace, pack registry, pack schema validation
 js/rng.js         mulberry32 seeded PRNG + helpers
@@ -47,15 +48,36 @@ js/model.js       Req/Cmd factories, bank state, canonical text formats
 js/engine.js      open-page / close-page / FR-FCFS schedulers
 js/mutate.js      7 mutators + fallbacks -> exactly 3 wrong answers
 js/scenarios.js   19 parameterized scenario generators + build API
-packs/            one content pack per technology (empty for now)
+js/timing.js      timing-drill matcher (pure) + mode 2 UI
+js/quiz.js        mode 1 UI (knowledge quiz)
+js/scenariodrill.js  mode 3 UI (bank-state drill)
+js/sandbox.js     mode 4 UI (live scheduling sandbox)
+js/app.js         shell: hash router, pack picker, tab switching
+packs/            one content pack per technology (hbm4, ddr2, lpddr2)
 test/             zero-dependency node harness and suites
-notes/            design.md decision record
+notes/            design.md decision record, pack-authoring.md content
+                  contract, timing-tables.md per-pack spec cross-check
 ```
+
+## Self-test in a browser
+
+Open `selftest.html`. It loads the same shipped js files and the same
+suite files as the node harness and runs them with a DOM-writing
+assertion kit - a green PASS banner means the engine works in that
+browser (useful on a phone, where there is no node).
+
+## Deployment
+
+`.github/workflows/pages-ddr-drills.yml` runs the node suite on every
+push that touches this directory and, when green, deploys this directory
+to GitHub Pages (artifact upload, no gh-pages branch). One-time manual
+step: repo Settings -> Pages -> Source = "GitHub Actions".
 
 ## How a pack registers (5 steps)
 
-Pack files land in `packs/` in later commits; the registry contract is
-already enforced by `DDRD.validatePack` in `js/registry.js`.
+Three packs ship today (`packs/hbm4.js`, `packs/ddr2.js`,
+`packs/lpddr2.js`); the content contract for writing a new one is
+`notes/pack-authoring.md`. Mechanics:
 
 1. Create `packs/<tech>.js` as an IIFE that ends in
    `DDRD.registerPack({...})`.

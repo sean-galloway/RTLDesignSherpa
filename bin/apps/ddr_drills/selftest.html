@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DDR Drills Self-Test</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 1.5rem; }
+  #banner { font-size: 1.4rem; font-weight: 700; padding: 0.6rem 1rem;
+            border-radius: 6px; margin-bottom: 1rem; }
+  #banner.pass { background: #d9f0e0; color: #1e7a3c; }
+  #banner.fail { background: #f5dcdc; color: #b02a2a; }
+  #out { font-family: ui-monospace, monospace; font-size: 0.8rem;
+         white-space: pre-wrap; }
+  #out .bad { color: #b02a2a; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div id="banner">running...</div>
+<pre id="out"></pre>
+
+<!-- Same load order as index.html and JS_ORDER/PACK_ORDER in
+     test/run_tests.js. -->
+<script src="js/registry.js"></script>
+<script src="js/rng.js"></script>
+<script src="js/model.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/mutate.js"></script>
+<script src="js/scenarios.js"></script>
+<script src="js/timing.js"></script>
+<script src="packs/hbm4.js"></script>
+<script src="packs/ddr2.js"></script>
+<script src="packs/lpddr2.js"></script>
+
+<!-- Suite files register onto window.DDRD_TEST_SUITES. -->
+<script src="test/test_engine.js"></script>
+<script src="test/test_mutate.js"></script>
+<script src="test/test_scenarios.js"></script>
+<script src="test/test_packs.js"></script>
+<script src="test/test_timing.js"></script>
+
+<script>
+// Browser port of the node runner's assertion kit: same suite contract,
+// output into #out instead of stdout.
+(function () {
+  'use strict';
+  var out = document.getElementById('out');
+  var banner = document.getElementById('banner');
+
+  function line(text, cls) {
+    var span = document.createElement('span');
+    if (cls) { span.className = cls; }
+    span.textContent = text + '\n';
+    out.appendChild(span);
+  }
+
+  function deepEq(a, b) {
+    if (a === b) { return true; }
+    if (Array.isArray(a) && Array.isArray(b)) {
+      if (a.length !== b.length) { return false; }
+      for (var i = 0; i < a.length; i++) {
+        if (!deepEq(a[i], b[i])) { return false; }
+      }
+      return true;
+    }
+    if (a && b && typeof a === 'object' && typeof b === 'object') {
+      var ka = Object.keys(a);
+      var kb = Object.keys(b);
+      if (ka.length !== kb.length) { return false; }
+      for (var j = 0; j < ka.length; j++) {
+        if (!deepEq(a[ka[j]], b[ka[j]])) { return false; }
+      }
+      return true;
+    }
+    return false;
+  }
+
+  function makeT(state) {
+    return {
+      ok: function (cond, msg) {
+        state.total++;
+        if (cond) {
+          state.passed++;
+        } else {
+          state.failed++;
+          line('not ok ' + state.total + ' - ' + msg, 'bad');
+        }
+      },
+      eq: function (actual, expected, msg) {
+        if (actual !== expected) {
+          msg += ' (expected: ' + JSON.stringify(expected) +
+                 ', got: ' + JSON.stringify(actual) + ')';
+        }
+        this.ok(actual === expected, msg);
+      },
+      deepEq: function (actual, expected, msg) {
+        if (!deepEq(actual, expected)) {
+          msg += ' (expected: ' + JSON.stringify(expected) +
+                 ', got: ' + JSON.stringify(actual) + ')';
+        }
+        this.ok(deepEq(actual, expected), msg);
+      },
+      throws: function (fn, msg) {
+        var threw = false;
+        try { fn(); } catch (e) { threw = true; }
+        this.ok(threw, msg);
+      }
+    };
+  }
+
+  var suites = window.DDRD_TEST_SUITES || [];
+  var grand = { total: 0, passed: 0, failed: 0 };
+
+  suites.forEach(function (suite) {
+    line('# suite: ' + suite.name);
+    var state = { total: grand.total, passed: 0, failed: 0 };
+    try {
+      suite.run(makeT(state));
+    } catch (e) {
+      state.total++;
+      state.failed++;
+      line('not ok ' + state.total + ' - suite threw: ' +
+           (e && e.stack ? e.stack.split('\n')[0] : e), 'bad');
+    }
+    grand.total = state.total;
+    grand.passed += state.passed;
+    grand.failed += state.failed;
+  });
+
+  var summary = suites.length + ' suites, ' + grand.total + ' assertions, ' +
+                grand.passed + ' passed, ' + grand.failed + ' failed';
+  line('# ' + summary, grand.failed > 0 ? 'bad' : null);
+  banner.textContent = (grand.failed === 0 ? 'PASS - ' : 'FAIL - ') + summary;
+  banner.className = grand.failed === 0 ? 'pass' : 'fail';
+})();
+</script>
+
+</body>
+</html>
