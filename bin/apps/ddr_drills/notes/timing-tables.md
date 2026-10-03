@@ -271,3 +271,101 @@ Notes:
   engine never emits, so they render in the reference panel only.
 - Latency context (not engine params): RL/WL programmed in MR2; tDQSCK window is
   1.5-3.5 ns and may span multiple clocks.
+
+
+## DDR5 (packs/ddr5.js, JESD79-5B)
+
+Topology: 4 BG x 2 banks (drill model). Real: x16 = 4 BG x 4 banks per
+32-bit sub-channel (16 banks); x4/x8 = 8 BG x 4 banks per sub-channel
+(32 banks). Two independent 32-bit sub-channels per DIMM. 16n prefetch,
+BL16 default with BC8 OTF; BL32 optional on x4 only. 1.1 V VDD/VDDQ,
+1.8 V VPP. No CKE; power-down is command-based (PDE/PDX).
+
+| Symbol | Scope pattern | Value basis | Reference |
+| --- | --- | --- | --- |
+| tRCD | ACT -> RD/WR/RDA/WRA same_bank | 15 ns (24 nCK) @ 3200AN | Table 318 |
+| tRP | PRE -> ACT same_bank | 15 ns (24 nCK) @ 3200AN | Table 318 |
+| tRAS | ACT -> PRE same_bank | 32 ns (52 nCK) @ 3200AN | Table 273 |
+| tRC | ACT -> ACT same_bank | = tRAS + tRP (47 ns, 76 nCK) | Table 273 |
+| tRRDS | ACT -> ACT diff_group | 8 nCK | Table 318 |
+| tRRDL | ACT -> ACT same_group | max(8 nCK, 5 ns) | Table 318 |
+| tFAW | ACT -> ACT any (rolling window of 4) | max(32 nCK, 20 ns) 1K page | Table 318 |
+| tRTP | RD/RDA -> PRE same_bank | max(12 nCK, 7.5 ns) | Table 318 |
+| tWR | WR/WRA -> PRE same_bank | 30 ns (48 nCK) @ 3200AN | Table 318 |
+| tPPD | PRE -> PRE any | 2 nCK | Table 318 |
+| tCCDS | col -> col diff_group | 8 nCK | Table 318 |
+| tCCDL | col -> col same_group / same_bank | max(8 nCK, 5 ns) | Table 318 |
+| tCCD_L_WR | WR -> WR same_bank (RMW) | max(32 nCK, 20 ns) | Table 318 |
+| tCCD_L_WR2 | WR -> WR same_group (no RMW) | max(16 nCK, 10 ns) | Table 318 |
+| tRTW | RD -> WR any (book symbol) | CL - CWL + RBL/2 + 2nCK - Read DQS offset + (tRPST - 0.5nCK) + tWPRE | sec 4.8, Table 318 |
+| tWTRS | WR -> RD diff_group | CWL + WBL/2 + max(4 nCK, 2.5 ns); 34 nCK drill | Table 318 |
+| tWTRL | WR -> RD same_group / same_bank | CWL + WBL/2 + max(16 nCK, 10 ns); 46 nCK drill | Table 318 |
+| tCCD_WTRA | WR -> RD same_bank (with auto-precharge) | CWL + WBL/2 + tWR - tRTP | Table 318 |
+| tMRW | MRW -> MRW (panel only) | max(5 ns, 8 nCK) | Table 20 |
+| tMRD | MRW -> * (panel only) | max(14 ns, 16 nCK) | Table 20 |
+| tDLLK | MRW -> RD/RDA (panel only) | 1024 nCK @ DDR5-3200 | Table 29 |
+| tREFI1 | REF -> REF (panel only) | 3.9 us; /2 above 85 C; FGR 2x uses tREFI2 = tREFI1/2 | Table 72, sec 4.13.4 |
+| tRFC1 | REF -> * (panel only) | 195/295/410 ns by density (8/16/24-32 Gb) | Table 73 |
+| tRFC2 | REF -> * (panel only) | 130/160/220 ns by density | Table 73 |
+| tRFCsb | REF -> * (panel only) | 115/130/190 ns by density | Table 73 |
+| tXS | SRX -> ACT/PRE/MRW/MRR/REF (panel only) | tRFC1(min); DLL commands add tDLLK | sec 4.15 |
+| tXP | SRX -> * (panel only) | max(7.5 ns, 8 nCK) | sec 4.15 |
+
+Notes:
+- tCCDL covers same_bank too (same bank is same group); the pack lists both
+  scopes explicitly rather than relying on matcher subsumption.
+- tCCD_L_WR (same-bank RMW) and tCCD_L_WR2 (same-group no-RMW) are kept
+  distinct by scope so the drill does not match both on one gap.
+- tRTW is the cross-book symbol; JESD79-5B names the rule tCCD_L_RTW /
+  tCCD_S_RTW, not bare tRTW.
+- DDR5 has no CKE and no tMOD; power-down entry/exit are PDE/PDX commands.
+- ZQ calibration is issued through MPC (ZQCal Start / ZQCal Latch) with
+  tZQCAL = 1 us minimum.
+
+## LPDDR5 (packs/lpddr5.js, JESD209-5C)
+
+Topology: flat 8 banks, sids: 0 (drill model). Real: dual-channel die;
+bank organization selectable via MR3 OP[4:3] as BG (4 groups x 4 banks),
+8B (flat 8 banks), or 16B (flat 16 banks); x16 and x8 byte-mode widths;
+forwarded WCK clocking at 2:1 or 4:1 (MR18 OP[7]). The drill model uses
+8-bank mode, CKR 4:1, CK = 400 MHz, BL32 only.
+
+| Symbol | Scope pattern | Value basis | Reference |
+| --- | --- | --- | --- |
+| tRCD | ACT -> RD/WR/RDA/WRA same_bank | max(18 ns, 2 nCK) x16 | Table 381/383 |
+| tRPpb | PRE -> ACT same_bank | max(18 ns, 2 nCK) x16 | Table 381/383 |
+| tRPab | PREA -> ACT any (panel only) | max(21 ns, 2 nCK) x16 | Table 381/383 |
+| tRAS | ACT -> PRE same_bank | max(42 ns, 3 nCK); max 9 x RR x tREFI | Table 381/383 |
+| tRC | ACT -> ACT same_bank | = tRAS + tRPpb (or + tRPab after PREA) | Table 381/383 |
+| tRRD | ACT -> ACT diff_bank | max(10 ns, 2 nCK) 8B; max(5 ns, 2 nCK) BG/16B | Table 381/383 |
+| tFAW | ACT -> ACT any (rolling window of 4) | 40 ns 8B; 20 ns BG/16B | Table 381/383 |
+| tWR | WR/WRA -> PRE same_bank | max(34 ns, 3 nCK) x16 WLEC off | Table 381/383 |
+| tRBTP | RD/RDA -> PRE same_bank | programmed nRBTP; 2 nCK for drill RL code | Table 227 |
+| tPPD | PRE -> PRE any | 2 nCK | Table 381/383 |
+| tCCD | RD->RD / WR->WR any (same direction) | 4 nCK for BL32 at CKR 4:1 | Table 339, sec 7.4.3 |
+| tWTR | WR -> RD any | max(12 ns, 4 nCK) x16 8B/16B; BG uses tWTR_S/tWTR_L | Table 381/383, sec 7.4.7.4 |
+| tRTW | RD -> WR any (spec-named) | RL + BL/n + RU(tWCK2DQO(MAX)/tCK) - WL (simple case) | sec 8.2.1, Table 349 |
+| tMRW | MRW -> MRW any (panel only) | max(10 ns, 5 nCK) | Table 252 |
+| tMRR | MRR -> MRR any (panel only) | 4 nCK at CKR 4:1; 8 nCK at CKR 2:1 | Table 252 |
+| tMRD | MRW -> * any (panel only) | max(14 ns, 5 nCK) | Table 252 |
+| tREFI | REF -> REF any (panel only) | 3.906 us (8192 REFab / 32 ms) | Table 241 |
+| tREFW | REF -> REF any (panel only) | 32 ms at 1x rate | Table 241 |
+| tRFCab | REF -> * any (panel only) | 180 ns for 4 Gb (72 nCK at 400 MHz) | Table 241 |
+| tRFCpb | REFpb -> ACT/REFpb same_bank (panel only) | 90 ns for 4 Gb (36 nCK at 400 MHz) | Table 241 |
+| tXSR | SRX -> * any (panel only) | tRFCab + max(7.5 ns, 2 nCK) | Table 242 |
+| tXP | SRX -> * any (panel only) | max(7 ns, 3 nCK) | Table 245 |
+
+Notes:
+- tCCD covers same-direction column commands only; direction changes are governed
+  by tRTW and tWTR, which dominate there.
+- tRTW is the second spec-named read-to-write parameter in the series (after
+  LPDDR4); the WCK2DQO term is the LPDDR5 signature because data is forwarded
+  on WCK rather than sampled from CK.
+- tRPab uses from 'PREA', tRFCpb uses from 'REFpb', and the init/refresh/low-power
+  panel-only params use from 'MRW' / 'MRR' / 'SRX': all are commands the drill
+  engine never emits, so they render in the reference panel only.
+- BG mode replaces the single tWTR with tWTR_S (different bank group) and
+  tWTR_L (same bank group); the drill model is flat 8-bank so only tWTR is
+  encoded.
+- Latency context (not engine params): RL from MR2 OP[3:0] Table 227; WL from
+  MR1 OP[7:4] Table 229; Set A/B selected by MR3 OP[5].
