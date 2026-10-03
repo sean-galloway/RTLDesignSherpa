@@ -77,6 +77,8 @@ Don't override. Generated from: $root
 | 0x178|      STALL_NOREQ      |         Stall: nothing pending         |
 | 0x17C|   REF_STATS_REF_BUSY  |  Refresh Stats: Refreshes with demand  |
 | 0x180|        STALL_ZQ       |          Stall: ZQ calibration         |
+| 0x184|   REF_STATS_POSTPONE  |     Refresh Stats: Postpone Events     |
+| 0x188|    REF_STATS_PULLIN   |      Refresh Stats: Pull-In Events     |
 | 0xFF0|           ID          |                Module ID               |
 | 0xFF4|         BUILD         |               Build Hash               |
 
@@ -1342,16 +1344,26 @@ timeout precharge before its column command issues, and reopened
 - Base Offset: 0xC4
 - Size: 0x4
 
-<p>Periodic ZQCS. Maintenance traffic: requests the bus, never preempts.</p>
+<p>Periodic ZQCS. Maintenance traffic: requests the bus, never preempts. TASK-001 Mode C fills the previously-unused [15:1] hole with placement policy + deferral cap.</p>
 
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-|  0  | zq_enable|  rw  | 0x0 |  — |
-|31:16|  t_zqcs  |  rw  | 0x40|  — |
+| Bits| Identifier|Access|Reset|Name|
+|-----|-----------|------|-----|----|
+|  0  | zq_enable |  rw  | 0x0 |  — |
+| 2:1 | placement |  rw  | 0x0 |  — |
+| 15:3|overdue_max|  rw  | 0x0 |  — |
+|31:16|   t_zqcs  |  rw  | 0x40|  — |
 
 #### zq_enable field
 
 <p>1 = issue periodic ZQCS</p>
+
+#### placement field
+
+<p>0 = request on expiry (baseline); 1 = defer under demand</p>
+
+#### overdue_max field
+
+<p>deferral cap in MC cycles; 0 = uncapped</p>
 
 #### t_zqcs field
 
@@ -1574,16 +1586,20 @@ appended register.</p>
 - Base Offset: 0x140
 - Size: 0x4
 
-<p>Axis 3 mode + JEDEC +-8 credit limits. tREFI/tRFCab live in TIMINGS_RFC_REFI (not duplicated).</p>
+<p>Axis 3 mode + JEDEC +-8 credit limits. tREFI/tRFCab live in TIMINGS_RFC_REFI (not duplicated). Reorganized 2026-10-03 (TASK-001): bits [31:13] now carry the elastic/TCR/pull-in/postpone mode selects; encodings with value 0 keep the pre-TASK-001 behaviour.</p>
 
-| Bits|    Identifier   |Access|Reset|Name|
-|-----|-----------------|------|-----|----|
-| 1:0 |       mode      |  rw  | 0x0 |  — |
-| 3:2 |     RSVD_3_2    |   r  | 0x0 |  — |
-| 7:4 |  postpone_limit |  rw  | 0x0 |  — |
-| 11:8|   pullin_limit  |  rw  | 0x0 |  — |
-|  12 |perbank_supported|   r  |  —  |  — |
-|31:13|    RSVD_31_13   |   r  | 0x0 |  — |
+| Bits|      Identifier      |Access|Reset|Name|
+|-----|----------------------|------|-----|----|
+| 1:0 |         mode         |  rw  | 0x0 |  — |
+| 3:2 |       RSVD_3_2       |   r  | 0x0 |  — |
+| 7:4 |    postpone_limit    |  rw  | 0x0 |  — |
+| 11:8|     pullin_limit     |  rw  | 0x0 |  — |
+|  12 |   perbank_supported  |   r  |  —  |  — |
+|  13 |      elastic_en      |  rw  | 0x0 |  — |
+|  14 |        tcr_en        |  rw  | 0x0 |  — |
+|16:15|     trefi_derate     |  rw  | 0x0 |  — |
+|24:17|  pullin_idle_streak  |  rw  | 0x10|  — |
+|31:25|postpone_demand_streak|  rw  | 0x1 |  — |
 
 #### mode field
 
@@ -1605,9 +1621,25 @@ appended register.</p>
 
 <p>Capability strap: 1 = the DRAM supports per-bank refresh</p>
 
-#### RSVD_31_13 field
+#### elastic_en field
 
-<p>Reserved</p>
+<p>1 = demand-aware elastic refresh (TASK-001 A)</p>
+
+#### tcr_en field
+
+<p>1 = temperature-compensated refresh (TASK-001 B)</p>
+
+#### trefi_derate field
+
+<p>refresh-rate derate: 0=1x, 1=2x, 2=4x (3 clamps to 4x)</p>
+
+#### pullin_idle_streak field
+
+<p>idle streak (MC cycles) before pull-in; reset 16 = baseline</p>
+
+#### postpone_demand_streak field
+
+<p>demand streak before postpone engages; reset 1 = baseline</p>
 
 ### REF_TIMING_PB register
 
@@ -1859,6 +1891,38 @@ reads by offset.</p>
 #### VAL field
 
 <p>ZQCS wait or tZQCS window</p>
+
+### REF_STATS_POSTPONE register
+
+- Absolute Address: 0x184
+- Base Offset: 0x184
+- Size: 0x4
+
+<p>TASK-001 Mode A telemetry. Counts tREFI-expiry events where a refresh request was withheld solely because the sustained-demand postpone branch (postpone_demand_streak) was active.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>refi-expiry events withheld by sustained-demand postpone</p>
+
+### REF_STATS_PULLIN register
+
+- Absolute Address: 0x188
+- Base Offset: 0x188
+- Size: 0x4
+
+<p>TASK-001 Mode A telemetry. Counts early refresh grants taken under pull-in credit after demand had been idle for at least pullin_idle_streak MC cycles.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>early grants taken under pull-in credit</p>
 
 ### ID register
 

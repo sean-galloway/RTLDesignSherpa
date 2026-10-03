@@ -496,9 +496,11 @@ addrmap scoria_csr {
 
     reg {
         name = "ZQ Calibration Config";
-        desc = "Periodic ZQCS. Maintenance traffic: requests the bus, never preempts.";
-        field { sw = rw; hw = r; desc = "1 = issue periodic ZQCS";            } zq_enable[0:0]  = 1'b0;
-        field { sw = rw; hw = r; desc = "tZQCS, held after a grant";          } t_zqcs[31:16]   = 16'd64;
+        desc = "Periodic ZQCS. Maintenance traffic: requests the bus, never preempts. TASK-001 Mode C fills the previously-unused [15:1] hole with placement policy + deferral cap.";
+        field { sw = rw; hw = r; desc = "1 = issue periodic ZQCS";                                              } zq_enable[0:0]    = 1'b0;
+        field { sw = rw; hw = r; desc = "0 = request on expiry (baseline); 1 = defer under demand";            } placement[2:1]    = 2'h0;
+        field { sw = rw; hw = r; desc = "deferral cap in MC cycles; 0 = uncapped";                              } overdue_max[15:3] = 13'd0;
+        field { sw = rw; hw = r; desc = "tZQCS, held after a grant";                                            } t_zqcs[31:16]     = 16'd64;
     } ZQ_CFG @ 0x0C4;
 
     reg {
@@ -818,7 +820,7 @@ addrmap scoria_csr {
 
     reg {
         name = "Refresh Mode Control";
-        desc = "Axis 3 mode + JEDEC +-8 credit limits. tREFI/tRFCab live in TIMINGS_RFC_REFI (not duplicated).";
+        desc = "Axis 3 mode + JEDEC +-8 credit limits. tREFI/tRFCab live in TIMINGS_RFC_REFI (not duplicated). Reorganized 2026-10-03 (TASK-001): bits [31:13] now carry the elastic/TCR/pull-in/postpone mode selects; encodings with value 0 keep the pre-TASK-001 behaviour.";
 
         field {
             sw = rw; hw = r;
@@ -842,7 +844,11 @@ addrmap scoria_csr {
             desc = "Capability strap: 1 = the DRAM supports per-bank refresh";
         } perbank_supported[12:12];
 
-        field { sw = r; hw = na; desc = "Reserved"; } RSVD_31_13[31:13] = 19'h0;
+        field { sw = rw; hw = r; desc = "1 = demand-aware elastic refresh (TASK-001 A)"; } elastic_en[13:13] = 1'b0;
+        field { sw = rw; hw = r; desc = "1 = temperature-compensated refresh (TASK-001 B)"; } tcr_en[14:14] = 1'b0;
+        field { sw = rw; hw = r; desc = "refresh-rate derate: 0=1x, 1=2x, 2=4x (3 clamps to 4x)"; } trefi_derate[16:15] = 2'h0;
+        field { sw = rw; hw = r; desc = "idle streak (MC cycles) before pull-in; reset 16 = baseline"; } pullin_idle_streak[24:17] = 8'd16;
+        field { sw = rw; hw = r; desc = "demand streak before postpone engages; reset 1 = baseline"; } postpone_demand_streak[31:25] = 7'd1;
 
     } REF_CTRL @ 0x140;
 
@@ -985,6 +991,18 @@ addrmap scoria_csr {
         desc = "TASK-012. REFab/REFpb commands that issued while at least one CAM entry was schedulable -- i.e. refreshes that actually took a command slot from pending work. Contamination-free by construction: the CAMs are empty while the host is idle between reads, so host round-trip time is not counted. This is the number axis 3 wants -- a refresh during idle costs the workload nothing, one during traffic costs bandwidth.";
         field { sw = r; hw = w; desc = "REF commands issued with work pending"; } VAL[31:0];
     } REF_STATS_REF_BUSY @ 0x17C;
+
+    reg {
+        name = "Refresh Stats: Postpone Events";
+        desc = "TASK-001 Mode A telemetry. Counts tREFI-expiry events where a refresh request was withheld solely because the sustained-demand postpone branch (postpone_demand_streak) was active.";
+        field { sw = r; hw = w; desc = "refi-expiry events withheld by sustained-demand postpone"; } VAL[31:0];
+    } REF_STATS_POSTPONE @ 0x184;
+
+    reg {
+        name = "Refresh Stats: Pull-In Events";
+        desc = "TASK-001 Mode A telemetry. Counts early refresh grants taken under pull-in credit after demand had been idle for at least pullin_idle_streak MC cycles.";
+        field { sw = r; hw = w; desc = "early grants taken under pull-in credit"; } VAL[31:0];
+    } REF_STATS_PULLIN @ 0x188;
 
     //=========================================================================
     // Module Identification (0xFF0 – 0xFFC)

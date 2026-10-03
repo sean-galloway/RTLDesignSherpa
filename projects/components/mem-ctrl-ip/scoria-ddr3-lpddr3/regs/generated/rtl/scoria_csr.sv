@@ -124,6 +124,8 @@ module scoria_csr (
         logic STALL_NOREQ;
         logic REF_STATS_REF_BUSY;
         logic STALL_ZQ;
+        logic REF_STATS_POSTPONE;
+        logic REF_STATS_PULLIN;
         logic ID;
         logic BUILD;
     } decoded_reg_strb_t;
@@ -192,6 +194,8 @@ module scoria_csr (
         decoded_reg_strb.STALL_NOREQ = cpuif_req_masked & (cpuif_addr == 12'h178);
         decoded_reg_strb.REF_STATS_REF_BUSY = cpuif_req_masked & (cpuif_addr == 12'h17c);
         decoded_reg_strb.STALL_ZQ = cpuif_req_masked & (cpuif_addr == 12'h180);
+        decoded_reg_strb.REF_STATS_POSTPONE = cpuif_req_masked & (cpuif_addr == 12'h184);
+        decoded_reg_strb.REF_STATS_PULLIN = cpuif_req_masked & (cpuif_addr == 12'h188);
         decoded_reg_strb.ID = cpuif_req_masked & (cpuif_addr == 12'hff0);
         decoded_reg_strb.BUILD = cpuif_req_masked & (cpuif_addr == 12'hff4);
     end
@@ -508,6 +512,14 @@ module scoria_csr (
                 logic load_next;
             } zq_enable;
             struct {
+                logic [1:0] next;
+                logic load_next;
+            } placement;
+            struct {
+                logic [12:0] next;
+                logic load_next;
+            } overdue_max;
+            struct {
                 logic [15:0] next;
                 logic load_next;
             } t_zqcs;
@@ -567,6 +579,26 @@ module scoria_csr (
                 logic [3:0] next;
                 logic load_next;
             } pullin_limit;
+            struct {
+                logic next;
+                logic load_next;
+            } elastic_en;
+            struct {
+                logic next;
+                logic load_next;
+            } tcr_en;
+            struct {
+                logic [1:0] next;
+                logic load_next;
+            } trefi_derate;
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } pullin_idle_streak;
+            struct {
+                logic [6:0] next;
+                logic load_next;
+            } postpone_demand_streak;
         } REF_CTRL;
         struct {
             struct {
@@ -821,6 +853,12 @@ module scoria_csr (
                 logic value;
             } zq_enable;
             struct {
+                logic [1:0] value;
+            } placement;
+            struct {
+                logic [12:0] value;
+            } overdue_max;
+            struct {
                 logic [15:0] value;
             } t_zqcs;
         } ZQ_CFG;
@@ -868,6 +906,21 @@ module scoria_csr (
             struct {
                 logic [3:0] value;
             } pullin_limit;
+            struct {
+                logic value;
+            } elastic_en;
+            struct {
+                logic value;
+            } tcr_en;
+            struct {
+                logic [1:0] value;
+            } trefi_derate;
+            struct {
+                logic [7:0] value;
+            } pullin_idle_streak;
+            struct {
+                logic [6:0] value;
+            } postpone_demand_streak;
         } REF_CTRL;
         struct {
             struct {
@@ -2332,6 +2385,52 @@ module scoria_csr (
         end
     end
     assign hwif_out.ZQ_CFG.zq_enable.value = field_storage.ZQ_CFG.zq_enable.value;
+    // Field: scoria_csr.ZQ_CFG.placement
+    always_comb begin
+        automatic logic [1:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.ZQ_CFG.placement.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.ZQ_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.ZQ_CFG.placement.value & ~decoded_wr_biten[2:1]) | (decoded_wr_data[2:1] & decoded_wr_biten[2:1]);
+            load_next_c = '1;
+        end
+        field_combo.ZQ_CFG.placement.next = next_c;
+        field_combo.ZQ_CFG.placement.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.ZQ_CFG.placement.value <= 2'h0;
+        end else begin
+            if(field_combo.ZQ_CFG.placement.load_next) begin
+                field_storage.ZQ_CFG.placement.value <= field_combo.ZQ_CFG.placement.next;
+            end
+        end
+    end
+    assign hwif_out.ZQ_CFG.placement.value = field_storage.ZQ_CFG.placement.value;
+    // Field: scoria_csr.ZQ_CFG.overdue_max
+    always_comb begin
+        automatic logic [12:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.ZQ_CFG.overdue_max.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.ZQ_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.ZQ_CFG.overdue_max.value & ~decoded_wr_biten[15:3]) | (decoded_wr_data[15:3] & decoded_wr_biten[15:3]);
+            load_next_c = '1;
+        end
+        field_combo.ZQ_CFG.overdue_max.next = next_c;
+        field_combo.ZQ_CFG.overdue_max.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.ZQ_CFG.overdue_max.value <= 13'h0;
+        end else begin
+            if(field_combo.ZQ_CFG.overdue_max.load_next) begin
+                field_storage.ZQ_CFG.overdue_max.value <= field_combo.ZQ_CFG.overdue_max.next;
+            end
+        end
+    end
+    assign hwif_out.ZQ_CFG.overdue_max.value = field_storage.ZQ_CFG.overdue_max.value;
     // Field: scoria_csr.ZQ_CFG.t_zqcs
     always_comb begin
         automatic logic [15:0] next_c;
@@ -2611,6 +2710,121 @@ module scoria_csr (
         end
     end
     assign hwif_out.REF_CTRL.pullin_limit.value = field_storage.REF_CTRL.pullin_limit.value;
+    // Field: scoria_csr.REF_CTRL.elastic_en
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.REF_CTRL.elastic_en.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.REF_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.REF_CTRL.elastic_en.value & ~decoded_wr_biten[13:13]) | (decoded_wr_data[13:13] & decoded_wr_biten[13:13]);
+            load_next_c = '1;
+        end
+        field_combo.REF_CTRL.elastic_en.next = next_c;
+        field_combo.REF_CTRL.elastic_en.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.REF_CTRL.elastic_en.value <= 1'h0;
+        end else begin
+            if(field_combo.REF_CTRL.elastic_en.load_next) begin
+                field_storage.REF_CTRL.elastic_en.value <= field_combo.REF_CTRL.elastic_en.next;
+            end
+        end
+    end
+    assign hwif_out.REF_CTRL.elastic_en.value = field_storage.REF_CTRL.elastic_en.value;
+    // Field: scoria_csr.REF_CTRL.tcr_en
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.REF_CTRL.tcr_en.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.REF_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.REF_CTRL.tcr_en.value & ~decoded_wr_biten[14:14]) | (decoded_wr_data[14:14] & decoded_wr_biten[14:14]);
+            load_next_c = '1;
+        end
+        field_combo.REF_CTRL.tcr_en.next = next_c;
+        field_combo.REF_CTRL.tcr_en.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.REF_CTRL.tcr_en.value <= 1'h0;
+        end else begin
+            if(field_combo.REF_CTRL.tcr_en.load_next) begin
+                field_storage.REF_CTRL.tcr_en.value <= field_combo.REF_CTRL.tcr_en.next;
+            end
+        end
+    end
+    assign hwif_out.REF_CTRL.tcr_en.value = field_storage.REF_CTRL.tcr_en.value;
+    // Field: scoria_csr.REF_CTRL.trefi_derate
+    always_comb begin
+        automatic logic [1:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.REF_CTRL.trefi_derate.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.REF_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.REF_CTRL.trefi_derate.value & ~decoded_wr_biten[16:15]) | (decoded_wr_data[16:15] & decoded_wr_biten[16:15]);
+            load_next_c = '1;
+        end
+        field_combo.REF_CTRL.trefi_derate.next = next_c;
+        field_combo.REF_CTRL.trefi_derate.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.REF_CTRL.trefi_derate.value <= 2'h0;
+        end else begin
+            if(field_combo.REF_CTRL.trefi_derate.load_next) begin
+                field_storage.REF_CTRL.trefi_derate.value <= field_combo.REF_CTRL.trefi_derate.next;
+            end
+        end
+    end
+    assign hwif_out.REF_CTRL.trefi_derate.value = field_storage.REF_CTRL.trefi_derate.value;
+    // Field: scoria_csr.REF_CTRL.pullin_idle_streak
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.REF_CTRL.pullin_idle_streak.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.REF_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.REF_CTRL.pullin_idle_streak.value & ~decoded_wr_biten[24:17]) | (decoded_wr_data[24:17] & decoded_wr_biten[24:17]);
+            load_next_c = '1;
+        end
+        field_combo.REF_CTRL.pullin_idle_streak.next = next_c;
+        field_combo.REF_CTRL.pullin_idle_streak.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.REF_CTRL.pullin_idle_streak.value <= 8'h10;
+        end else begin
+            if(field_combo.REF_CTRL.pullin_idle_streak.load_next) begin
+                field_storage.REF_CTRL.pullin_idle_streak.value <= field_combo.REF_CTRL.pullin_idle_streak.next;
+            end
+        end
+    end
+    assign hwif_out.REF_CTRL.pullin_idle_streak.value = field_storage.REF_CTRL.pullin_idle_streak.value;
+    // Field: scoria_csr.REF_CTRL.postpone_demand_streak
+    always_comb begin
+        automatic logic [6:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.REF_CTRL.postpone_demand_streak.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.REF_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.REF_CTRL.postpone_demand_streak.value & ~decoded_wr_biten[31:25]) | (decoded_wr_data[31:25] & decoded_wr_biten[31:25]);
+            load_next_c = '1;
+        end
+        field_combo.REF_CTRL.postpone_demand_streak.next = next_c;
+        field_combo.REF_CTRL.postpone_demand_streak.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.REF_CTRL.postpone_demand_streak.value <= 7'h1;
+        end else begin
+            if(field_combo.REF_CTRL.postpone_demand_streak.load_next) begin
+                field_storage.REF_CTRL.postpone_demand_streak.value <= field_combo.REF_CTRL.postpone_demand_streak.next;
+            end
+        end
+    end
+    assign hwif_out.REF_CTRL.postpone_demand_streak.value = field_storage.REF_CTRL.postpone_demand_streak.value;
     // Field: scoria_csr.REF_TIMING_PB.trefi_pb
     always_comb begin
         automatic logic [15:0] next_c;
@@ -2674,7 +2888,7 @@ module scoria_csr (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[65];
+    logic [31:0] readback_array[67];
     assign readback_array[0][0:0] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_start.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_force_restart.value : '0;
     assign readback_array[0][3:2] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
@@ -2788,7 +3002,8 @@ module scoria_csr (
     assign readback_array[35][15:0] = (decoded_reg_strb.INIT_TIMING2 && !decoded_req_is_wr) ? field_storage.INIT_TIMING2.t_xpr_wait.value : '0;
     assign readback_array[35][31:16] = (decoded_reg_strb.INIT_TIMING2 && !decoded_req_is_wr) ? field_storage.INIT_TIMING2.t_zqinit_wait.value : '0;
     assign readback_array[36][0:0] = (decoded_reg_strb.ZQ_CFG && !decoded_req_is_wr) ? field_storage.ZQ_CFG.zq_enable.value : '0;
-    assign readback_array[36][15:1] = '0;
+    assign readback_array[36][2:1] = (decoded_reg_strb.ZQ_CFG && !decoded_req_is_wr) ? field_storage.ZQ_CFG.placement.value : '0;
+    assign readback_array[36][15:3] = (decoded_reg_strb.ZQ_CFG && !decoded_req_is_wr) ? field_storage.ZQ_CFG.overdue_max.value : '0;
     assign readback_array[36][31:16] = (decoded_reg_strb.ZQ_CFG && !decoded_req_is_wr) ? field_storage.ZQ_CFG.t_zqcs.value : '0;
     assign readback_array[37][31:0] = (decoded_reg_strb.ZQ_INTERVAL && !decoded_req_is_wr) ? field_storage.ZQ_INTERVAL.zq_interval.value : '0;
     assign readback_array[38][15:0] = (decoded_reg_strb.ZQ_STATUS && !decoded_req_is_wr) ? hwif_in.ZQ_STATUS.zqcs_total.next : '0;
@@ -2822,7 +3037,11 @@ module scoria_csr (
     assign readback_array[46][7:4] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.postpone_limit.value : '0;
     assign readback_array[46][11:8] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.pullin_limit.value : '0;
     assign readback_array[46][12:12] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? hwif_in.REF_CTRL.perbank_supported.next : '0;
-    assign readback_array[46][31:13] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 19'h0 : '0;
+    assign readback_array[46][13:13] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.elastic_en.value : '0;
+    assign readback_array[46][14:14] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.tcr_en.value : '0;
+    assign readback_array[46][16:15] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.trefi_derate.value : '0;
+    assign readback_array[46][24:17] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.pullin_idle_streak.value : '0;
+    assign readback_array[46][31:25] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.postpone_demand_streak.value : '0;
     assign readback_array[47][15:0] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? field_storage.REF_TIMING_PB.trefi_pb.value : '0;
     assign readback_array[47][23:16] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? field_storage.REF_TIMING_PB.trfc_pb.value : '0;
     assign readback_array[47][31:24] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? 8'h0 : '0;
@@ -2841,11 +3060,13 @@ module scoria_csr (
     assign readback_array[60][31:0] = (decoded_reg_strb.STALL_NOREQ && !decoded_req_is_wr) ? hwif_in.STALL_NOREQ.VAL.next : '0;
     assign readback_array[61][31:0] = (decoded_reg_strb.REF_STATS_REF_BUSY && !decoded_req_is_wr) ? hwif_in.REF_STATS_REF_BUSY.VAL.next : '0;
     assign readback_array[62][31:0] = (decoded_reg_strb.STALL_ZQ && !decoded_req_is_wr) ? hwif_in.STALL_ZQ.VAL.next : '0;
-    assign readback_array[63][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
-    assign readback_array[63][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[63][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
-    assign readback_array[63][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
-    assign readback_array[64][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[63][31:0] = (decoded_reg_strb.REF_STATS_POSTPONE && !decoded_req_is_wr) ? hwif_in.REF_STATS_POSTPONE.VAL.next : '0;
+    assign readback_array[64][31:0] = (decoded_reg_strb.REF_STATS_PULLIN && !decoded_req_is_wr) ? hwif_in.REF_STATS_PULLIN.VAL.next : '0;
+    assign readback_array[65][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
+    assign readback_array[65][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[65][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
+    assign readback_array[65][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
+    assign readback_array[66][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
 
     // Reduce the array
     always_comb begin
@@ -2853,7 +3074,7 @@ module scoria_csr (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<65; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<67; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

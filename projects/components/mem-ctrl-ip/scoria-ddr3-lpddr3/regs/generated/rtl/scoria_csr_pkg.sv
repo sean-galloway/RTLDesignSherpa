@@ -274,6 +274,22 @@ package scoria_csr_pkg;
     } scoria_csr__STALL_ZQ__in_t;
 
     typedef struct {
+        logic [31:0] next;
+    } scoria_csr__REF_STATS_POSTPONE__VAL__in_t;
+
+    typedef struct {
+        scoria_csr__REF_STATS_POSTPONE__VAL__in_t VAL;
+    } scoria_csr__REF_STATS_POSTPONE__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } scoria_csr__REF_STATS_PULLIN__VAL__in_t;
+
+    typedef struct {
+        scoria_csr__REF_STATS_PULLIN__VAL__in_t VAL;
+    } scoria_csr__REF_STATS_PULLIN__in_t;
+
+    typedef struct {
         scoria_csr__STATUS__in_t STATUS;
         scoria_csr__STATUS_HISTORY__in_t STATUS_HISTORY;
         scoria_csr__TEMP_DERATE_RANK0__in_t TEMP_DERATE_RANK0;
@@ -298,6 +314,8 @@ package scoria_csr_pkg;
         scoria_csr__STALL_NOREQ__in_t STALL_NOREQ;
         scoria_csr__REF_STATS_REF_BUSY__in_t REF_STATS_REF_BUSY;
         scoria_csr__STALL_ZQ__in_t STALL_ZQ;
+        scoria_csr__REF_STATS_POSTPONE__in_t REF_STATS_POSTPONE;
+        scoria_csr__REF_STATS_PULLIN__in_t REF_STATS_PULLIN;
     } scoria_csr__in_t;
 
     typedef struct {
@@ -690,11 +708,21 @@ package scoria_csr_pkg;
     } scoria_csr__ZQ_CFG__zq_enable__out_t;
 
     typedef struct {
+        logic [1:0] value;
+    } scoria_csr__ZQ_CFG__placement__out_t;
+
+    typedef struct {
+        logic [12:0] value;
+    } scoria_csr__ZQ_CFG__overdue_max__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } scoria_csr__ZQ_CFG__t_zqcs__out_t;
 
     typedef struct {
         scoria_csr__ZQ_CFG__zq_enable__out_t zq_enable;
+        scoria_csr__ZQ_CFG__placement__out_t placement;
+        scoria_csr__ZQ_CFG__overdue_max__out_t overdue_max;
         scoria_csr__ZQ_CFG__t_zqcs__out_t t_zqcs;
     } scoria_csr__ZQ_CFG__out_t;
 
@@ -766,9 +794,34 @@ package scoria_csr_pkg;
     } scoria_csr__REF_CTRL__pullin_limit__out_t;
 
     typedef struct {
+        logic value;
+    } scoria_csr__REF_CTRL__elastic_en__out_t;
+
+    typedef struct {
+        logic value;
+    } scoria_csr__REF_CTRL__tcr_en__out_t;
+
+    typedef struct {
+        logic [1:0] value;
+    } scoria_csr__REF_CTRL__trefi_derate__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } scoria_csr__REF_CTRL__pullin_idle_streak__out_t;
+
+    typedef struct {
+        logic [6:0] value;
+    } scoria_csr__REF_CTRL__postpone_demand_streak__out_t;
+
+    typedef struct {
         scoria_csr__REF_CTRL__mode__out_t mode;
         scoria_csr__REF_CTRL__postpone_limit__out_t postpone_limit;
         scoria_csr__REF_CTRL__pullin_limit__out_t pullin_limit;
+        scoria_csr__REF_CTRL__elastic_en__out_t elastic_en;
+        scoria_csr__REF_CTRL__tcr_en__out_t tcr_en;
+        scoria_csr__REF_CTRL__trefi_derate__out_t trefi_derate;
+        scoria_csr__REF_CTRL__pullin_idle_streak__out_t pullin_idle_streak;
+        scoria_csr__REF_CTRL__postpone_demand_streak__out_t postpone_demand_streak;
     } scoria_csr__REF_CTRL__out_t;
 
     typedef struct {
