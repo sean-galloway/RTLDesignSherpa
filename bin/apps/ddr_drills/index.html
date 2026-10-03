@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DDR Drills</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <h1>DDR Drills</h1>
+  <p class="tagline">Memory-controller training: quizzes, timing parameters,
+     bank-state scheduling, and a live sandbox.</p>
+  <div class="pack-bar">
+    <label for="pack-picker">Technology pack</label>
+    <select id="pack-picker" aria-label="Technology pack">
+      <!-- Pack files (packs/*.js) register onto DDRD; a later commit wires
+           this picker to DDRD.listPacks(). -->
+    </select>
+  </div>
+</header>
+
+<nav class="mode-tabs" aria-label="Drill modes">
+  <button type="button" class="mode-tab" data-mode="quiz" disabled>
+    Knowledge Quiz</button>
+  <button type="button" class="mode-tab" data-mode="timing" disabled>
+    Timing Drill</button>
+  <button type="button" class="mode-tab" data-mode="scenario" disabled>
+    Bank-State Drill</button>
+  <button type="button" class="mode-tab" data-mode="sandbox" disabled>
+    Sandbox</button>
+</nav>
+
+<main>
+  <section id="mode-quiz" class="mode-container" aria-label="Knowledge quiz">
+    <!-- quiz.js (later commit) -->
+  </section>
+  <section id="mode-timing" class="mode-container" aria-label="Timing drill">
+    <!-- timing.js (later commit) -->
+  </section>
+  <section id="mode-scenario" class="mode-container"
+           aria-label="Bank-state drill">
+    <!-- scenariodrill.js (later commit) -->
+  </section>
+  <section id="mode-sandbox" class="mode-container" aria-label="Sandbox">
+    <!-- sandbox.js (later commit) -->
+  </section>
+</main>
+
+<footer class="app-footer">
+  <p>Vanilla HTML/CSS/JS, zero build, zero network. Works from file://.
+     Run the engine tests with
+     <code>node bin/apps/ddr_drills/test/run_tests.js</code>.</p>
+</footer>
+
+<!-- Dependency order: registry -> rng -> model -> engine -> mutate ->
+     scenarios. Pack files (later commits) load after scenarios.js and call
+     DDRD.registerPack(). This order MUST match JS_ORDER in
+     test/run_tests.js. -->
+<script src="js/registry.js"></script>
+<script src="js/rng.js"></script>
+<script src="js/model.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/mutate.js"></script>
+<script src="js/scenarios.js"></script>
+
+</body>
+</html>

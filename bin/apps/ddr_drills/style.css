@@ -1,0 +1,345 @@
+/* style.css -- DDR Drills. Mobile-first, single file, no frameworks. */
+
+:root {
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --ink: #1b2230;
+  --ink-dim: #5a6474;
+  --accent: #1f5fa8;
+  --accent-soft: #e3ecf7;
+  --good: #1e7a3c;
+  --good-soft: #e2f3e7;
+  --bad: #b02a2a;
+  --bad-soft: #f9e4e4;
+  --note: #8a6d1d;
+  --note-soft: #f7efda;
+  --border: #d4d9e0;
+  --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               Helvetica, Arial, sans-serif;
+  line-height: 1.45;
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.92em;
+  background: var(--accent-soft);
+  padding: 0 0.25em;
+  border-radius: 3px;
+}
+
+/* -- header ---------------------------------------------------------------- */
+
+.app-header {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 1rem 0.75rem;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.tagline {
+  margin: 0.25rem 0 0.75rem;
+  color: var(--ink-dim);
+  font-size: 0.9rem;
+}
+
+.pack-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pack-bar label {
+  font-size: 0.85rem;
+  color: var(--ink-dim);
+}
+
+.pack-bar select {
+  font-size: 0.95rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  min-width: 12rem;
+}
+
+/* -- mode tabs -------------------------------------------------------------- */
+
+.mode-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem 0;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.mode-tab {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: var(--bg);
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.mode-tab:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.mode-tab.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* -- mode containers --------------------------------------------------------- */
+
+main {
+  padding: 1rem;
+  max-width: 60rem;
+  margin: 0 auto;
+}
+
+.mode-container {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+  min-height: 12rem;
+  margin-bottom: 1rem;
+}
+
+.mode-container[hidden] {
+  display: none;
+}
+
+/* -- topology grids (bank-state display) ------------------------------------- */
+
+.topo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr));
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+
+.topo-group-label {
+  grid-column: 1 / -1;
+  font-size: 0.8rem;
+  color: var(--ink-dim);
+  margin-top: 0.25rem;
+}
+
+.bank-cell {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.3rem 0.4rem;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  text-align: center;
+  background: var(--bg);
+}
+
+.bank-cell.open {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.bank-cell .bank-name {
+  font-weight: 600;
+}
+
+.bank-cell .bank-row {
+  color: var(--ink-dim);
+}
+
+/* -- request list ------------------------------------------------------------ */
+
+.req-list {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0;
+}
+
+.req-list li {
+  padding: 0.25rem 0.5rem;
+  border-left: 3px solid var(--border);
+  margin-bottom: 0.2rem;
+  background: var(--bg);
+}
+
+.req-list li.rd {
+  border-left-color: var(--accent);
+}
+
+.req-list li.wr {
+  border-left-color: var(--note);
+}
+
+/* -- schedule tables ---------------------------------------------------------- */
+
+.schedule {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5rem 0;
+}
+
+.schedule td {
+  padding: 0.25rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.schedule td.cmd {
+  white-space: pre;
+  font-weight: 600;
+}
+
+.schedule td.reason {
+  color: var(--ink-dim);
+  font-family: inherit;
+}
+
+.schedule tr.annotation td {
+  background: var(--note-soft);
+  color: var(--note);
+  font-weight: 400;
+}
+
+.schedule tr.cmd-act td.cmd {
+  color: var(--accent);
+}
+
+.schedule tr.cmd-pre td.cmd {
+  color: var(--bad);
+}
+
+/* -- option cards (drill answers) ---------------------------------------------- */
+
+.option-card {
+  display: block;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+  background: var(--panel);
+}
+
+.option-card:hover {
+  border-color: var(--accent);
+}
+
+.option-card.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.option-card.correct {
+  border-color: var(--good);
+  background: var(--good-soft);
+}
+
+.option-card.incorrect {
+  border-color: var(--bad);
+  background: var(--bad-soft);
+}
+
+.option-card pre {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+/* -- explanation / feedback panels ---------------------------------------------- */
+
+.explanation {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 0.6rem 0.8rem;
+  border-radius: 0 4px 4px 0;
+  margin: 0.75rem 0;
+  font-size: 0.9rem;
+}
+
+.feedback-good {
+  color: var(--good);
+  font-weight: 600;
+}
+
+.feedback-bad {
+  color: var(--bad);
+  font-weight: 600;
+}
+
+/* -- buttons --------------------------------------------------------------------- */
+
+.btn {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.btn.secondary {
+  background: var(--panel);
+  color: var(--accent);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* -- footer ------------------------------------------------------------------------ */
+
+.app-footer {
+  padding: 1rem;
+  color: var(--ink-dim);
+  font-size: 0.8rem;
+  border-top: 1px solid var(--border);
+}
+
+/* -- wider screens ------------------------------------------------------------------- */
+
+@media (min-width: 48rem) {
+  .app-header h1 {
+    font-size: 1.7rem;
+  }
+
+  main {
+    padding: 1.5rem;
+  }
+
+  .mode-container {
+    padding: 1.5rem;
+  }
+}
