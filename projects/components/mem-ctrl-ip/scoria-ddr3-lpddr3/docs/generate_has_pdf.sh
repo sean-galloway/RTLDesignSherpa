@@ -2,22 +2,22 @@
 set -euo pipefail
 
 # ------------------------------------------------------------
-# DDR2/LPDDR2 Family Controller HAS PDF Generator
+# DDR3/LPDDR3 Family Controller HAS PDF Generator
 # ------------------------------------------------------------
 # Usage:
 #   ./generate_has_pdf.sh [--rev <version>] [--help]
 #
 # Example:
-#   ./generate_has_pdf.sh --rev 0.1
+#   ./generate_has_pdf.sh --rev 0.8
 #
-# This script builds the DDR2/LPDDR2 Family Controller HAS document
+# This script builds the DDR3/LPDDR3 Family Controller HAS document
 # (DOCX and PDF) from Markdown sources using md_to_docx.py.
 # Modeled directly on RTLDesignSherpa/projects/components/dma-ip/stream/docs/
 # generate_has_pdf.sh.
 # ------------------------------------------------------------
 
 # Default values
-REV="0.7"
+REV="0.8"
 ASSETS="scoria_has/assets"
 HAS_INDEX="scoria_has/scoria_has_index.md"
 
@@ -89,7 +89,7 @@ Example:
   $0 --rev 0.2
 
 Description:
-  This script generates a DOCX and PDF version of the DDR2/LPDDR2
+  This script generates a DOCX and PDF version of the DDR3/LPDDR3
   Family Controller HAS by invoking the md_to_docx.py converter.
   It stitches together the Markdown chapters, applies page breaks,
   and includes assets for images and diagrams.
@@ -133,7 +133,7 @@ OUTPUT_PDF="${OUTPUT_BASENAME}.pdf"
 # Run converter
 # ------------------------------------------------------------
 echo "------------------------------------------------------------"
-echo " Generating DDR2/LPDDR2 Family Controller HAS"
+echo " Generating DDR3/LPDDR3 Family Controller HAS"
 echo "------------------------------------------------------------"
 echo "  Version:     ${REV}"
 echo "  Input:       ${HAS_INDEX}"

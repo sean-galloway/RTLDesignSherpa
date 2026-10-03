@@ -27,8 +27,9 @@
 
 scoria is a unified, parameterized memory controller for DDR3 SDRAM and LPDDR3
 SDRAM, presenting an AXI4 slave to the host and a DFI v3.1 master to the PHY.
-It is the third member of a family: pumice covers DDR2/LPDDR2 and is built,
-measured and running on hardware; a DDR4/LPDDR4 controller is planned.
+It is the second member of a family: pumice covers DDR2/LPDDR2 and is built,
+measured and running on hardware; a DDR4/LPDDR4 controller is planned as the
+third.
 
 This document specifies scoria's architecture. It was written to be *locked*
 before RTL began, so that the implementation had a fixed target; the RTL now
