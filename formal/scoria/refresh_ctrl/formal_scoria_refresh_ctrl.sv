@@ -94,6 +94,15 @@ module formal_scoria_refresh_ctrl #(
     (* anyconst *) reg [3:0]  postpone_limit_i;
     (* anyconst *) reg [3:0]  pullin_limit_i;
 
+    // Mode A: demand-aware elastic refresh
+    (* anyconst *) reg        elastic_en_i;
+    (* anyconst *) reg [7:0]  pullin_idle_streak_i;
+    (* anyconst *) reg [6:0]  postpone_demand_streak_i;
+
+    // Mode B: temperature-compensated refresh (tREFI derate)
+    (* anyconst *) reg        tcr_en_i;
+    (* anyconst *) reg [1:0]  trefi_derate_i;
+
     always @(*) begin
         assume (t_refi_i   >= 2 && t_refi_i   <= 3);
         // >= 2 so REFpb's derived interval cannot collapse to zero and tick
@@ -121,6 +130,7 @@ module formal_scoria_refresh_ctrl #(
     wire [3:0]  pending_refreshes_o;
     wire [BA_W-1:0] refresh_bank_o, obs_bank_rotor_o;
     wire [15:0] obs_refi_cnt_o, obs_grants_total_o;
+    wire [15:0] obs_postpone_events_o, obs_pullin_events_o;
     wire [3:0]  obs_drain_remaining_o, obs_pullin_credit_o;
 
     scoria_refresh_ctrl #(.NUM_BANKS(NUM_BANKS)) dut (
@@ -130,6 +140,11 @@ module formal_scoria_refresh_ctrl #(
         .enable_i(enable_i), .refi_reload_i(refi_reload_i),
         .postpone_limit_i(postpone_limit_i), .pullin_limit_i(pullin_limit_i),
         .demand_i(demand_i),
+        .elastic_en_i(elastic_en_i),
+        .pullin_idle_streak_i(pullin_idle_streak_i),
+        .postpone_demand_streak_i(postpone_demand_streak_i),
+        .tcr_en_i(tcr_en_i),
+        .trefi_derate_i(trefi_derate_i),
         .refresh_req_o(refresh_req_o), .refresh_grant_i(refresh_grant_i),
         .grant_was_pb_i(grant_was_pb_i),
         .pending_refreshes_o(pending_refreshes_o),
@@ -139,7 +154,9 @@ module formal_scoria_refresh_ctrl #(
         .obs_drain_remaining_o(obs_drain_remaining_o),
         .obs_bank_rotor_o(obs_bank_rotor_o),
         .obs_grants_total_o(obs_grants_total_o),
-        .obs_pullin_credit_o(obs_pullin_credit_o)
+        .obs_pullin_credit_o(obs_pullin_credit_o),
+        .obs_postpone_events_o(obs_postpone_events_o),
+        .obs_pullin_events_o(obs_pullin_events_o)
     );
 
     // ---- formal infrastructure ---------------------------------------------
@@ -188,6 +205,48 @@ module formal_scoria_refresh_ctrl #(
         else           f_visited[obs_bank_rotor_o] <= 1'b1;
     end
     wire f_run = mc_rst_n && (f_past_valid > 3);
+
+    // Mode A/B support: mirror the internal state that is not exported as an
+    // observable port. The wrapper's flops run on the same clock and use the
+    // same inputs, so they track the DUT internals cycle-for-cycle. A one-cycle
+    // delayed copy is kept for each so it lines up with the strict-flopped obs_*
+    // outputs (which publish the internal value from the cycle BEFORE the edge).
+    reg [7:0]  f_idle_cnt;
+    reg [7:0]  f_idle_cnt_d;
+    reg [6:0]  f_demand_streak;
+    reg [6:0]  f_demand_streak_d;
+    reg [15:0] f_obs_refi_cnt_d;
+    reg        f_refresh_grant_d;
+    reg        f_grant_early_d;
+
+    always @(posedge mc_clk) begin
+        if (!mc_rst_n) begin
+            f_idle_cnt       <= '0;
+            f_demand_streak  <= '0;
+        end else begin
+            if (demand_i) f_idle_cnt <= '0;
+            else if (f_idle_cnt < 8'd16) f_idle_cnt <= f_idle_cnt + 1'b1;
+
+            if (!demand_i) f_demand_streak <= '0;
+            else if (f_demand_streak != 7'd127) f_demand_streak <= f_demand_streak + 1'b1;
+        end
+        f_idle_cnt_d      <= f_idle_cnt;
+        f_demand_streak_d <= f_demand_streak;
+        f_obs_refi_cnt_d  <= obs_refi_cnt_o;
+        f_refresh_grant_d <= refresh_grant_i;
+        f_grant_early_d   <= f_refresh_grant_d && (pending_refreshes_o == 4'd0) && (obs_pullin_credit_o < 4'd8);
+    end
+
+    wire       f_idle_baseline = (f_idle_cnt_d >= 8'd16);
+    wire [3:0] f_post_eff      = (postpone_limit_i > POSTPONE_MAX[3:0]) ? POSTPONE_MAX[3:0] : postpone_limit_i;
+    wire [3:0] f_pull_eff      = (pullin_limit_i > 4'd8) ? 4'd8 : pullin_limit_i;
+    wire [15:0] f_refi_eff     = !refpb_mode_i ? t_refi_i
+                                : (trefi_pb_i != 16'd0) ? trefi_pb_i
+                                : (t_refi_i >> 3);
+    wire       f_baseline_req  = enable_i && (
+                                     f_idle_baseline
+                                        ? ((pending_refreshes_o > 4'd0) || (obs_pullin_credit_o < f_pull_eff))
+                                        : (pending_refreshes_o > f_post_eff));
 
     // =====================================================================
     // FAMILY 1 -- RETENTION. The reason the block exists.
@@ -294,6 +353,28 @@ module formal_scoria_refresh_ctrl #(
     end
 
     // =====================================================================
+    // FAMILY 4 -- MODE CONTRACTS. Elastic/TCR behaviour with modes enabled.
+    // =====================================================================
+    always @(posedge mc_clk) if (f_run) begin
+        // When elastic refresh is disabled the logic reduces bit-for-bit to v3.
+        a_defaults_baseline: assert (
+            elastic_en_i || (refresh_req_o == f_baseline_req)
+        );
+
+        // Existing ceilings hold with the new CSR inputs free.
+        a_pending_ceiling_with_modes: assert (pending_refreshes_o <= MAX_PENDING);
+        a_pullin_ceiling_with_modes:  assert (obs_pullin_credit_o <= 4'd8);
+
+        // After each tREFI reload the derated interval is bounded as specified.
+        if (f_obs_refi_cnt_d == 16'd0)
+            a_derate_bound: assert (
+                !tcr_en_i || (
+                    obs_refi_cnt_o <= (f_refi_eff >> ((trefi_derate_i > 2'd2) ? 2'd2 : trefi_derate_i))
+                )
+            );
+    end
+
+    // =====================================================================
     // COVER
     // =====================================================================
     always @(posedge mc_clk) if (mc_rst_n) begin
@@ -308,6 +389,18 @@ module formal_scoria_refresh_ctrl #(
         c_all_banks_visited: cover (f_visited == {NUM_BANKS{1'b1}});
         c_rotor_wrapped:  cover (f_rotor_d == BA_W'(NUM_BANKS-1)
                               && obs_bank_rotor_o == BA_W'(0));
+        // Mode A: pull-in fires exactly at the configured streak boundary.
+        c_pullin_at_streak: cover (elastic_en_i && f_grant_early_d
+                                && (f_idle_cnt_d == pullin_idle_streak_i));
+        // Mode A: the postpone branch is entered under sustained demand...
+        c_postpone_entered: cover (elastic_en_i && demand_i
+                                && (f_demand_streak_d >= postpone_demand_streak_i)
+                                && (pending_refreshes_o <= f_post_eff)
+                                && !f_idle_baseline);
+        // ...and exited when the backlog finally crosses the effective limit.
+        c_postpone_exited:  cover (elastic_en_i
+                                && (pending_refreshes_o > f_post_eff)
+                                && (f_demand_streak_d >= postpone_demand_streak_i));
     end
 
 endmodule
