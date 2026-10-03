@@ -131,7 +131,7 @@ Master only, in single mode. This is enough to get `INT` asserting.
 #define PIC_ICW3   0x00C
 #define PIC_ICW4   0x010
 #define PIC_OCW1   0x014
-#define PIC_STATUS 0x018
+#define PIC_STATUS 0x028
 
 int pic_init_single(uint8_t vector_base)   /* vector_base e.g. 0x20 */
 {
@@ -206,7 +206,7 @@ then the value to `IOWIN`.
 
 ```c
 #define IOAPIC_IOREGSEL  0x000
-#define IOAPIC_IOWIN     0x010
+#define IOAPIC_IOWIN     0x004
 #define IOAPIC_BOOTINTX  /* see ioapic_mas ch05 for the offset */
 
 static void ioapic_write(unsigned selector, uint32_t value)
