@@ -64,7 +64,7 @@ D11 / implementation detail, not part of the locator search.
 
 ## The GF layer
 
-The GF layer is imported from `projects/components/ecc-ip/reed-solomon/rtl/gf/`.
+The GF layer is imported from `projects/components/ecc-ip/reed-solomon/rtl/fub/gf/`.
 `gf_pkg` holds the field: the primitive polynomial, the generator
 coefficients and the log/antilog tables, all generated from the profile
 parameters. Three primitives are built on it: `gf_mul_const` (a constant

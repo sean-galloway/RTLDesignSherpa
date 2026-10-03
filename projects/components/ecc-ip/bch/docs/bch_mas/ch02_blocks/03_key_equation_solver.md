@@ -23,10 +23,13 @@
 # Key Equation Solver (`bch_key_equation_solver`)
 
 **Module:** `bch_key_equation_solver.sv`
-**Location:** `rtl/`
+**Location:** `rtl/fub/`
 **Category:** datapath + conditional control FSM
 **Parent:** `bch_decoder_core`
-**Status:** target — no RTL exists; algorithm choice is PRD D11
+**Status:** landed — `rtl/fub/bch_key_equation_solver.sv` implements "RIBM"
+(the documented default when no consumer names a small-t profile);
+`KES_ALGO` values other than "RIBM" raise an elaboration error rather
+than silently falling back. PRD D11 stays open for EUCLID / SMALL_T.
 
 ---
 
@@ -61,7 +64,8 @@ identical in every build.
 | `out_valid` | out | 1 | `Lambda(x)` coefficients are valid |
 | `out_ready` | in | 1 | downstream accepts `Lambda` |
 | `out_lambda` | out | `(T_BITS + 1) * m` | locator coefficients `Lambda_0 .. Lambda_T_BITS` |
-| `out_lambda_degree` | out | `$clog2(T_BITS + 1)` | actual degree of `Lambda` |
+| `out_lambda_degree` | out | `$clog2(T_BITS + 1)` | actual degree of `Lambda` (clamped to `T_BITS` when `out_more_than_t`) |
+| `out_more_than_t` | out | 1 | any `Lambda_i` above index `T_BITS` is nonzero — more than t errors; the decoder core folds it into the R2 verdict |
 
 : Table 2.6: Key-equation solver ports
 

@@ -39,7 +39,7 @@ from the reed-solomon component per PRD D7 and are not re-documented here.
 
 The GF layer is imported, not duplicated:
 
-| Primitive | Source in `projects/components/ecc-ip/reed-solomon/rtl/gf/` | Used by |
+| Primitive | Source in `projects/components/ecc-ip/reed-solomon/rtl/fub/gf/` | Used by |
 |---|---|---|
 | `gf_pkg` | `gf_pkg.sv` | all blocks (tables, constants, generator polynomial) |
 | `gf_mul` | `gf_mul.sv` | syndrome unit, key-equation solver, Chien search |

@@ -23,10 +23,20 @@
 # Decoder Core Integration (`bch_decoder_core`)
 
 **Module:** `bch_decoder_core.sv`
-**Location:** `rtl/`
+**Location:** `rtl/macro/`
 **Category:** integration block + one minimal control FSM
 **Parent:** `bch_top` / standalone decoder wrapper
-**Status:** target — no RTL exists; conditional on PRD D4/D6/D11
+**Status:** landed — `rtl/macro/bch_decoder_core.sv`. The sequencer has a
+sixth state RECHECK (IDLE/SYND/SOLVE/CHIEN/RECHECK/RELEASE): the verdict is
+computed only after the optional re-check syndrome unit finishes, because
+the re-check result is not known until the corrected stream's last beat.
+Corrections are applied at the output read, not during the Chien walk
+(release-on-verdict, mirroring `rs_decoder_core`), so the MAS timing note
+"first corrected beat leaves as soon as the Chien walk starts" is
+corrected: the corrected image is computed during the walk but released
+only after the verdict. Single outstanding block; pipelining is PRD D6
+open work. Known limitation: a block longer than N_BITS deadlocks the
+input (named in the RTL header).
 
 ---
 
@@ -65,7 +75,6 @@ stages is genuine control, not per-beat datapath.
 | `in_data` | in | `BITS_PER_BEAT` | received bits |
 | `in_keep` | in | `BITS_PER_BEAT` | present-bit mask |
 | `in_last` | in | 1 | this beat carries the `N_BITS`-th received bit |
-| `in_erase` | in | `BITS_PER_BEAT` | (only with `ENABLE_ERASURES`) known-bad bits |
 | `out_valid` / `out_ready` | out / in | 1 | valid/ready for corrected data |
 | `out_data` | out | `BITS_PER_BEAT` | corrected data bits; parity lanes dropped |
 | `out_keep` | out | `BITS_PER_BEAT` | present-bit mask |

@@ -23,10 +23,10 @@
 # Encoder Core (`bch_encoder_core`)
 
 **Module:** `bch_encoder_core.sv`
-**Location:** `rtl/`
+**Location:** `rtl/macro/`
 **Category:** streaming datapath
 **Parent:** `bch_top` / standalone encoder wrapper
-**Status:** target — no RTL exists
+**Status:** landed — `rtl/macro/bch_encoder_core.sv`, gate DV green on the three standing profiles
 
 ---
 
@@ -91,7 +91,7 @@ enter the LFSR.
 ### GF(2^m) LFSR parity generator
 
 The parity generator is imported from the reed-solomon component per PRD D7:
-`gf_lfsr_encoder` in `projects/components/ecc-ip/reed-solomon/rtl/gf/gf_lfsr_encoder.sv`.
+`gf_lfsr_encoder` in `projects/components/ecc-ip/reed-solomon/rtl/fub/gf/gf_lfsr_encoder.sv`.
 It is a `2 * T_BITS`-stage shift register over GF(2^m) with constant
 multipliers on the taps derived from `g(x)`. The encoder clears at block
 start, consumes the `K_BITS` data bits serially, and then holds the parity

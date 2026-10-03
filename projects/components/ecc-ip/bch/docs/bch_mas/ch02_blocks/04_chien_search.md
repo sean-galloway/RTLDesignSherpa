@@ -23,10 +23,14 @@
 # Chien Search (`bch_chien_search`)
 
 **Module:** `bch_chien_search.sv`
-**Location:** `rtl/`
+**Location:** `rtl/fub/`
 **Category:** streaming datapath
 **Parent:** `bch_decoder_core`
-**Status:** target — no RTL exists
+**Status:** landed — `rtl/fub/bch_chien_search.sv`. The flip-enable
+qualification below is resolved: `out_flip_en` carries the raw root
+flags per beat; the `w_correctable && !w_release_passthrough`
+qualification is a decoder-core output function (release-on-verdict),
+applied where the verdict is final, not in this walk.
 
 ---
 
@@ -96,16 +100,13 @@ w_root[i] = (w_lambda_at_pos[i] == 0)
 
 ### Direct bit-flip accumulation
 
-The correction qualifier for position `i` is:
-
-```
-w_flip_en[i] = w_root[i] && w_correctable && !w_release_passthrough
-```
-
-`w_correctable` comes from the decoder core and is true when the root count
-matches the locator degree and the degree does not exceed `T_BITS`.
-`w_release_passthrough` is true for uncorrectable blocks, which pass through
-unchanged (R2). There is no error-value computation; every root means flip.
+At this fub level `out_flip_en[i]` is the raw root flag for position `i`
+(gated only by position validity in the final partial beat). The
+qualifier `w_root[i] && w_correctable && !w_release_passthrough` lives in
+`bch_decoder_core`, which owns `w_correctable` (root count matches locator
+degree, degree within `T_BITS`) and `w_release_passthrough` (uncorrectable
+and frame-err blocks pass through unchanged, R2). There is no error-value
+computation anywhere; every root means flip.
 
 ### Uncorrectability check
 

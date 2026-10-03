@@ -66,6 +66,16 @@ rtl_roots = ["projects/components/ecc-ip/reed-solomon/rtl"]
 filelist_dirs = ["projects/components/ecc-ip/reed-solomon/rtl/filelists"]
 
 [[area]]
+name = "bch"
+kind = "component"
+# ecc-ip family. Registered 2026-10-03 with its first RTL (bch_pkg,
+# bch_syndrome_unit, bch_encoder_core), the same from-the-first-module
+# posture reed-solomon had: the GF(2^m) primitives are IMPORTED from the
+# reed-solomon area (RS PRD D7), so this area owns only bch_* modules.
+rtl_roots = ["projects/components/ecc-ip/bch/rtl"]
+filelist_dirs = ["projects/components/ecc-ip/bch/rtl/filelists"]
+
+[[area]]
 name = "misc"
 kind = "component"
 # Small shared oddments (dma_address_gen, simple_rom, axi4_slave_rom). It had no

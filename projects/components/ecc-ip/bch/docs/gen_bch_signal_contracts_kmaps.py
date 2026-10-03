@@ -55,11 +55,11 @@ CITES = [
     (SYN, 121, "w_syndrome_done = (r_bit_count == N_BITS - 1) && in_valid && in_ready"),
 
     # Chien / decoder qualifiers
-    (CHN, 102, "w_flip_en[i] = w_root[i] && w_correctable && !w_release_passthrough"),
-    (CHN, 115, "w_correctable = (r_root_count == r_lambda_degree) && (r_lambda_degree <= T_BITS)"),
-    (DEC, 91, "w_release_passthrough = w_uncorrectable || w_frame_err"),
-    (DEC, 126, "w_uncorrectable = !w_correctable || (w_recheck_enabled && !w_recheck_zero)"),
-    (DEC, 127, "w_correctable = (r_root_count == r_lambda_degree) && (r_lambda_degree <= T_BITS)"),
+    (CHN, 105, "w_root[i] && w_correctable && !w_release_passthrough"),
+    (CHN, 116, "w_correctable = (r_root_count == r_lambda_degree) && (r_lambda_degree <= T_BITS)"),
+    (DEC, 100, "w_release_passthrough = w_uncorrectable || w_frame_err"),
+    (DEC, 135, "w_uncorrectable = !w_correctable || (w_recheck_enabled && !w_recheck_zero)"),
+    (DEC, 136, "w_correctable = (r_root_count == r_lambda_degree) && (r_lambda_degree <= T_BITS)"),
 
     # signal contract page posture
     (SIG, 32, "All core logic uses **synchronous active-low reset**"),
@@ -283,11 +283,11 @@ def build_posture_sheet(wb):
     km.table(
         "Citation migration plan", "MAS pages -> RTL files",
         ["MAS page", "current citation target", "future RTL target"],
-        [("Encoder core", ENC, "rtl/bch_encoder_core.sv"),
-         ("Syndrome unit", SYN, "rtl/bch_syndrome_unit.sv"),
-         ("Chien search", CHN, "rtl/bch_chien_search.sv"),
-         ("Decoder core", DEC, "rtl/bch_decoder_core.sv"),
-         ("Core signals", SIG, "rtl/bch_encoder_core.sv / rtl/bch_decoder_core.sv")],
+        [("Encoder core", ENC, "rtl/macro/bch_encoder_core.sv"),
+         ("Syndrome unit", SYN, "rtl/fub/bch_syndrome_unit.sv"),
+         ("Chien search", CHN, "rtl/fub/bch_chien_search.sv"),
+         ("Decoder core", DEC, "rtl/macro/bch_decoder_core.sv"),
+         ("Core signals", SIG, "rtl/macro/bch_encoder_core.sv / rtl/macro/bch_decoder_core.sv")],
         note="All verdicts render NOT CHECKED until the RTL citations land.")
 
 

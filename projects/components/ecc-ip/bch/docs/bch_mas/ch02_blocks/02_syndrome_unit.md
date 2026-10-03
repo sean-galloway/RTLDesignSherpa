@@ -23,10 +23,10 @@
 # Syndrome Unit (`bch_syndrome_unit`)
 
 **Module:** `bch_syndrome_unit.sv`
-**Location:** `rtl/`
+**Location:** `rtl/fub/`
 **Category:** streaming datapath
 **Parent:** `bch_decoder_core`
-**Status:** target — no RTL exists
+**Status:** landed — `rtl/fub/bch_syndrome_unit.sv`, gate DV green on the three standing profiles
 
 ---
 
@@ -89,7 +89,7 @@ S_j <- S_j * alpha^j + r_i
 ```
 
 The multiplier by the constant `alpha^j` is a `gf_mul_const` instance (imported
-from `projects/components/ecc-ip/reed-solomon/rtl/gf/gf_mul_const.sv`). No
+from `projects/components/ecc-ip/reed-solomon/rtl/fub/gf/gf_mul_const.sv`). No
 per-position power table is stored; the constant `alpha^j` is wired once per
 lane.
 
