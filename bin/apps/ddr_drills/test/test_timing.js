@@ -161,6 +161,21 @@ var SUITES = (typeof window !== 'undefined' ? window : globalThis).DDRD_TEST_SUI
       T.eq(q1.genId, q2.genId, 'deterministic: same seed, same generator');
       T.deepEq(q1.answer, q2.answer,
                'deterministic: same seed, same answer');
+
+      // The question builder works against EVERY registered pack (flat
+      // topologies included - fewer generators, fewer scopes, same
+      // contract).
+      DDRD.listPacks().forEach(function (p) {
+        for (var s = 1; s <= 10; s++) {
+          var qp = DDRD.buildTimingQuestion(p, DDRD.mulberry32(s * 7));
+          T.ok(qp.answer.length > 0,
+               'pack ' + p.id + ' seed ' + s + ': answer non-empty');
+          T.deepEq(DDRD.matchParams(p, p.topology, qp.window[qp.gapAfter],
+                                    qp.window[qp.gapAfter + 1]),
+                   qp.answer,
+                   'pack ' + p.id + ' seed ' + s + ': answer matches gap');
+        }
+      });
     }
   });
 })();

@@ -52,6 +52,66 @@ Notes:
 - PRE on a falling edge adds 0.5 tCK to internal WR/RTP accounting
   (Table 108 note 32) - below drill-model resolution, not encoded.
 
-## DDR2 (pending - plan commit 10)
+## DDR2 (packs/ddr2.js, JESD79-2F)
 
-## LPDDR2 (pending - plan commit 10)
+Topology: flat 8 banks, sids: 0 (drill model). Real: 4 banks (512 Mb and
+below) / 8 banks (1 Gb+), 1-2 KB pages, x4/x8/x16, NO bank groups.
+Scopes used: same_bank / diff_bank / any.
+
+| Symbol | Scope pattern | Value basis | Reference |
+| --- | --- | --- | --- |
+| tRCD | ACT -> RD/WR same_bank | 10-15 ns by bin | sec 3.5, Tables 41-43 |
+| tRAS | ACT -> PRE same_bank | 45 ns min, 70 us max | sec 3.5 |
+| tRP | PRE -> ACT same_bank | bin-matched to tRCD | sec 3.5 |
+| tRC | ACT -> ACT same_bank | = tRAS + tRP (55-60 ns @800) | sec 3.5 |
+| tRRD | ACT -> ACT diff_bank | 7.5 ns (1KB) / 10 ns (2KB page) | sec 3.7 |
+| tFAW | ACT -> ACT any (rolling window of 4) | 35-50 ns by page/speed | sec 3.7 |
+| tRTP | RD/RDA -> PRE same_bank | 7.5 ns; cmd form AL+BL/2+max(RU(tRTP),2)-2 | sec 3.8 |
+| tWR | WR/WRA -> PRE same_bank | 15 ns; MR programs WR=RU(tWR/tCK) | sec 3.8 |
+| tDAL | WRA -> ACT same_bank | = WR + tRP clocks; also >= tRC | sec 3.8 |
+| tCCD | RD->RD / WR->WR any (same direction only) | 2 clocks = BL/2 at BL4 | sec 3.6.1 |
+| tRTW | RD -> WR any (book symbol) | BL/2 + 2 clocks (4@BL4, 6@BL8) | sec 3.6.3 (unnamed) |
+| tWTR | WR -> RD any | 7.5 ns (10 ns @400); CL-1+BL/2+RU(tWTR) | sec 3.6.2 |
+| tREFI | REF -> REF (panel only) | 7.8 us (3.9 us 85-95 C); 8 postponable | sec 3.9 |
+| tRFC | REF -> REF/ACT (panel only) | 75-327.5 ns by density | Table 40 |
+| tXSRD | SRX -> RD (panel only) | 200 clocks (DLL relock) | sec 3.10 |
+
+Notes:
+- tCCD is same-direction only in the pack, matching the book's gap sheet;
+  direction changes are governed by tRTW/tWTR, which dominate tCCD there.
+- Latency context (not engine params): RL = AL + CL, WL = RL - 1; AL from
+  EMR1 A5-A3 (posted CAS), CL 2-6 from MR.
+
+## LPDDR2 (packs/lpddr2.js, JESD209-2F)
+
+Topology: flat 8 banks, sids: 0 (drill model). Real: 4 banks (512 Mb and
+below) / 8 banks (1 Gb+ S4), x8/x16/x32, no DLL, no ODT, no bank groups.
+Scopes used: same_bank / diff_bank / any.
+
+| Symbol | Scope pattern | Value basis | Reference |
+| --- | --- | --- | --- |
+| tRCD | ACT -> RD/WR same_bank | 15/18/24 ns, min 3 tCK | Table 103 |
+| tRAS | ACT -> PRE same_bank | 42 ns, min 3 tCK; max 70 us | Table 103 |
+| tRPpb | PRE -> ACT same_bank | 15/18/24 ns, min 3 tCK | Table 103 |
+| tRPab | PREA -> ACT (panel only) | = tRPpb on 4-bank; longer on 8-bank | Table 103 |
+| tRC | ACT -> ACT same_bank | = tRAS + tRPpb | Table 103 |
+| tRRD | ACT -> ACT diff_bank | 10 ns, min 2 tCK; REFpb counts for tFAW | Table 103 |
+| tFAW | ACT -> ACT any (8-bank only) | 50 ns, min 8 tCK | Table 103 |
+| tRTP | RD/RDA -> PRE same_bank | 7.5 ns, min 2 tCK; count from BL/2-2 (S4) | sec 5.9 |
+| tWR | WR/WRA -> PRE same_bank | 15 ns, min 3 tCK; MR1 nWR field | Table 103 |
+| tCCD | RD->RD / WR->WR any (same direction only) | S4: 2 tCK; S2: 1 tCK | sec 5.6 |
+| tWTR | WR -> RD any | 7.5/10 ns, min 2 tCK; WL+1+BL/2+RU(tWTR/tCK) | sec 5.9.1 |
+| tRTW | RD -> WR any (book symbol) | RL+RU(tDQSCKmax/tCK)+BL/2+1-WL | sec 5.9.2 (unnamed) |
+| tREFI | REF -> REF (panel only; reference avg) | 15.6/7.8/3.9 us by density | sec 5.10 |
+| tRFCab | REF -> REF/ACT (panel only) | 90/130/210 ns by density | Table 101 |
+| tRFCpb | REF -> ACT same_bank (panel only) | 60 ns (<=4 Gb); 8 REFpb = 1 REFab | Table 102 |
+
+Notes:
+- Panel-only convention extension: tRPab uses from 'PREA' (all-bank
+  precharge), a command the engine never emits - same trick as the REF
+  rules, keeping it visible in the reference panel without ever matching.
+- The real refresh contract is R refreshes per rolling tREFW (32 ms);
+  tREFI is a reference average only. Burst/pause patterns are legal.
+- Latency context (not engine params): RL/WL from MR2 by speed grade
+  (8/4 at 1066 down to 3/1 at 466-); tDQSCK is analog (no DLL) and may
+  span multiple clocks.

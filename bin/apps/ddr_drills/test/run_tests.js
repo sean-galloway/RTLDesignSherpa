@@ -33,7 +33,9 @@ var TEST_ORDER = [
 // Content packs load after the js/ core, mirroring the <script> order in
 // index.html. They self-register onto DDRD; test_packs.js validates them.
 var PACK_ORDER = [
-  'hbm4.js'
+  'hbm4.js',
+  'ddr2.js',
+  'lpddr2.js'
 ];
 
 var root = path.join(__dirname, '..');
