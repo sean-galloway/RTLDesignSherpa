@@ -2,7 +2,7 @@
 
 # projects/components/ecc-ip/reed-solomon — tasks
 
-**Next ID: TASK-004** — never recycle a number, even when its item closed.
+**Next ID: TASK-005** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -21,6 +21,12 @@ by construction rather than by discipline.
 ## Active
 
 ## Open
+
+- **TASK-004** — Author the RS math chapter for novices: from zero (what a
+  field is, why GF(2^m), polynomial arithmetic mod p(x)) to the full decoder
+  chain, with hand-checkable GF(2^4) worked numbers; novice voice, every
+  symbol defined before use; BCH's matching chapter links here for the
+  shared foundation.
 
 ## Closed
 

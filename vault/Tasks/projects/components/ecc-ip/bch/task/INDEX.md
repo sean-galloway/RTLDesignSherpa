@@ -2,7 +2,7 @@
 
 # projects/components/ecc-ip/bch — tasks
 
-**Next ID: TASK-004** — never recycle a number, even when its item closed.
+**Next ID: TASK-005** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -34,6 +34,11 @@ by construction rather than by discipline.
   `gen_bch_signal_contracts_kmaps.py` and `bch_signal_contracts.xlsx`; closes
   when every block is documented to signal level with FSM policy per block and
   the kmap contracts are re-pointed at RTL lines after the first RTL lands.
+- **TASK-004** — Author the BCH math chapter for novices: from zero to the
+  decoder math, hand-checkable GF(2^4) numbers, BCH-specific depth (minimal
+  polynomials, the evenness shortcut, no Forney stage); the shared
+  finite-field foundation is written once under reed-solomon TASK-004 and
+  linked.
 
 ## Closed
 

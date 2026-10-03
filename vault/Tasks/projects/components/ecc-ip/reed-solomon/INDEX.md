@@ -1,6 +1,6 @@
 # reed-solomon — task rollup
 
-**Next ID: TASK-004** — never recycle a number, even when its task closed.
+**Next ID: TASK-005** — never recycle a number, even when its task closed.
 
 ## Lanes
 
@@ -11,7 +11,7 @@ Pick the lane before filing:
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 0 | 0 | 2 | 0 | 1 |
+| [task/](task/INDEX.md) | 1 | 0 | 2 | 0 | 1 |
 | [bug/](bug/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
 
@@ -26,7 +26,9 @@ counts above now match the directories.
 
 ## Open shortlist
 
-Nothing open right now — the component is at a clean stopping point.
+- **TASK-004** (open) — the novice math chapter: zero-to-decoder-math with
+  hand-checkable worked numbers; the BCH math chapter links here for the
+  shared finite-field foundation.
 
 - **TASK-003** (deferred) — first consumer selection (PRD D10), pending a
   memory controller project consumer (Sean's direction, 2026-10-02).
