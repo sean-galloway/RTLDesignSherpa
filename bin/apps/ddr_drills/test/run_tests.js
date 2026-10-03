@@ -18,14 +18,16 @@ var JS_ORDER = [
   'model.js',
   'engine.js',
   'mutate.js',
-  'scenarios.js'
+  'scenarios.js',
+  'timing.js'
 ];
 
 var TEST_ORDER = [
   'test_engine.js',
   'test_mutate.js',
   'test_scenarios.js',
-  'test_packs.js'
+  'test_packs.js',
+  'test_timing.js'
 ];
 
 // Content packs load after the js/ core, mirroring the <script> order in
