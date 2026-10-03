@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/stream — bugs
 
-**Next ID: BUG-019** — never recycle a number, even when its item closed.
+**Next ID: BUG-020** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,13 +12,18 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 18 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **BUG-019** — the obs/mon host campaigns still arm and report the perf/
+  debug cones the 2026-09-27 lite-taps rework retired (caps0 bit4/bit5 read 0),
+  so obs live-traffic tallies land ~89% in UNEXPECTED and mon_coverage sees
+  4/8 tuples; re-baseline the campaigns against OBS_CAPS0
 
 
 ## Closed

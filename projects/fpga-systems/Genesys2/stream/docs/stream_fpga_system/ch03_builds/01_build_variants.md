@@ -82,9 +82,9 @@ once.
 
 | Build | Sign-off | Clock | Result |
 |-------|----------|------:|--------|
-| `mon` | 2026-09-09, `stable/MANIFEST.md` | 60 MHz | all cones plus the error flavour, compression built, 8 channels, `MON_N_PROFILE=32`: WNS +1.513 ns, 139,293 LUTs (68.35%), 0 failed nets; 512 packets in 516 slots on the board, 66.4% smaller than the raw encoding, CRC match, cosim reference within 4 points |
-| `obs` | 2026-09-07, `stable-obs/MANIFEST.md` | as built | 4 channels, 32-entry tally CAM, WNS +2.191 ns, archived the day a `make clean-all` destroyed the previous obs bitstream and it turned out obs had been synthesizing at 100.01 percent of the LUTs and placing by luck |
-| `perf` | current reports on disk | as built | 68,139 LUTs (33.4%), 24 BRAM tiles in `build-perf/fpga/reports`; the sweeps behind `reports/perf` and `reports/ext_addressing` |
+| `mon` | 2026-09-09, `stable/MANIFEST.md` | 60 MHz | all cones plus the error flavour, compression built, 8 channels, `MON_N_PROFILE=32`: WNS +1.513 ns, 139,293 LUTs (68.35%), 0 failed nets; 512 packets in 516 slots on the board, 66.4% smaller than the raw encoding, CRC match, cosim reference within 4 points (2026-10-03 re-measurement: 66.0% / 1.02 slots/packet, within data-dependent noise; bit sha256 `aceec688043ad630879779ddae211814fcc4dc457365d7c06ec95b8a4f348e6b`, WNS +1.914 ns, 86,865 LUTs) |
+| `obs` | 2026-09-07, `stable-obs/MANIFEST.md` | as built | 4 channels, 32-entry tally CAM, WNS +2.191 ns, archived the day a `make clean-all` destroyed the previous obs bitstream and it turned out obs had been synthesizing at 100.01 percent of the LUTs and placing by luck (2026-10-03 re-measurement: `build-obs/results/obs_board_2026-10-03.txt`, bit sha256 `60696ace63fed2c77ad4d3f1f511d06dd85801c9b5a9dac1d4078454192bfa5f`, WNS +3.925 ns, 73,809 LUTs; the observer instrument changed 2026-09-27, commit 78cddb5e2 — lite taps, no perf/debug cone, caps0 bit4/bit5 read 0) |
+| `perf` | current reports on disk | as built | 68,139 LUTs (33.4%), 24 BRAM tiles in `build-perf/fpga/reports`; the sweeps behind `reports/perf` and `reports/ext_addressing` (2026-10-03 re-measurement: `build-perf/results/perf_sweep_2026-10-03.{csv,json}`, bit sha256 `d26f9b7b3ac534a1507ab5a519e728d541b1045cf67000329fbedf77e3b9512c`, WNS +1.175 ns, 64,305 LUTs) |
 
 : Table 3.2: Sign-off builds
 

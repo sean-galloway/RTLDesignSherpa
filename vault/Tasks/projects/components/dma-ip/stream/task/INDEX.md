@@ -12,24 +12,24 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 14 | done (kept for history) |
+| [closed/](closed/) | 15 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
-
-- **TASK-016** — rebuild all three Genesys2 stream harness builds
-  (build-perf, build-obs, build-mon) with the fixed sdpram slave (amba
-  71d48b6f7, burst boundary now free) and repin every board-measured figure
-  taken with the pre-fix slave
 
 ## Active
 
 
 ## Closed
 
+- **TASK-016** — CLOSED 2026-10-03: all three Genesys2 stream builds rebuilt on
+  the fixed sdpram (71d48b6f7), timing-closed, board-verified; perf 40/40
+  cycle-identical to the pre-fix sweep (0 measured datapath change — the tax
+  amortizes at 1MB/desc); mon/obs tallies re-baselined against the lite-taps
+  instrument; every pinned board figure carries a post-fix number or dated note
 - **TASK-015** — regs/README.md: the stream_regs example names five ports the generated block does not have -- CLOSED 2026-09-29: regs/README.md rewritten as a link page; the stale sketch is gone
 - **TASK-012** — all 38 signal-contract maps armed: 32 IDENTICAL, 3 DIFFERS justified, 0 NOT CHECKED; four rotted maps rewritten to the current RTL (closed 2026-09-28)
 - **TASK-013** — placement pass: 2 pages re-homed, 7 stale/generated pages deleted, coverage tool output ignored (closed 2026-09-28)

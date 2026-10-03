@@ -8,7 +8,7 @@ USB-UART link, across four axes:
 
 | Axis | Report | Headline |
 |------|--------|----------|
-| Performance / utilization | `reports/perf/` | 100% datapath utilization across the 40-config matrix (~1525 MB/s, 128-bit datapath) |
+| Performance / utilization | `reports/perf/` | 100% datapath utilization across the 40-config matrix (~1525 MB/s, 128-bit datapath; 2026-10-03 post-fix re-measurement: 40/40 cycle-identical) |
 | MonBus trace compression | `reports/compression/` | 63.0% (64-bit codec), 75.7% (half-beat 32-bit) reduction |
 | Area | `reports/area/` | bare DMA OOC vs an open-source iDMA comparison |
 | Extended addressing | `reports/ext_addressing/` | row/row ≈ 1.5 GB/s vs col/col ≈ 0.26–0.32 GB/s |

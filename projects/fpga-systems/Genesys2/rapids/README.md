@@ -40,30 +40,34 @@ rapids/
 
 ## Status
 
-Characterized on silicon 2026-09-30. Report v0.2 (`reports/perf/`, final):
+Characterized on silicon 2026-10-03 post-fix (commit 71d48b6f7). Report v0.11
+(`reports/perf/`, final):
 
-- Standard bitstream (`BYTE_CRC=1`, sha256 `cfad34c3...`): 117/117 byte-wise
-  points pass, plus 4/4 directed sequences. Build: WNS +0.301 ns at 100 MHz,
-  92,874 LUTs, 68 BRAM tiles. The byte-wise CRC checkers take 9 cycles per
-  32-byte beat, so large-transfer rates sit at the harness ceiling of
-  3200 / 9 = 355.6 MB/s (11.1 % of the 3200 MB/s peak, 100 MHz x 32 B).
+- Standard bitstream (`BYTE_CRC=1`, sha256
+  `c6985f762eee1e6b0379b672b8e0fcfc90b9f951a592820d864a0b66b28d0f99`):
+  117/117 byte-wise points pass, plus 4/4 directed sequences. Results:
+  `reports/perf/rapids_byte_perf_20261003_122406.json`. Build: WNS +0.726 ns at
+  100 MHz, 79,129 LUTs, 68 BRAM tiles. The byte-wise CRC checkers take 9 cycles
+  per 32-byte beat, so large-transfer rates sit at the harness ceiling of
+  3200 / 9 = 355.6 MB/s (11.1 % of the 3200 MB/s peak).
 - Measurement bitstream (`BYTE_CRC=0`, word-wide checkers, sha256
-  `48e1282c...`): 28/28 beat-aligned points pass and reach 3182 MB/s sink and
-  3199 MB/s source at 8 channels, 4096 beats (99.4 % and 100.0 % of peak).
-  Build: WNS +0.077 ns, 86,065 LUTs, 52 BRAM tiles. The word-wide checker
-  CRCs slice 0 of each beat only, so it is compared with the beats golden.
-- The beat-aligned utilization is NOT unchanged versus RAPIDS Beats: 73 of
-  112 cells differ by more than 0.5 pp. The deltas are fixed start-up cycle
-  terms (the sink waits for the channel's packet record; the rest is not yet
-  isolated), and the 4096-beat rows agree within 1.13 pp. Isolated in sim
-  and accepted as by design (nothing can happen before the descriptor is
-  loaded; rapids TASK-021, closed).
-- AXI RRESP/BRESP error injection is not exercised on silicon (the harness
-  memory always answers OKAY): rapids TASK-020.
+  `053fc2c192b869c83e27a133128570a7f7045c7eef708ddf5110f26d1215b735`):
+  28/28 beat-aligned points pass and reach 3182 MB/s sink and 3199 MB/s source
+  at 8 channels, 4096 beats (99.4 % and 100.0 % of peak). Results:
+  `reports/perf/rapids_byte_perf_20261003_121944.json`. Build: WNS +0.258 ns,
+  72,314 LUTs, 52 BRAM tiles. The word-wide checker CRCs slice 0 of each beat
+  only, so it is compared with the beats golden.
+- Small transfers improved dramatically versus the 2026-09-30 pre-fix JSONs,
+  with zero regressions anywhere: 1-beat sink up to +400 %, 4-beat sink up to
+  +220 %, 16-beat +15 %, 64-beat +4.7 %, fading to +0.08 % at 4096 beats.
+  The 4096-beat headline is unchanged.
+- AXI RRESP/BRESP error injection is exercised on silicon (rapids TASK-020,
+  2026-10-01): 36/36 checks PASS on the standard byte-CRC build.
 
-The board keeps the standard byte-CRC bitstream (`754c3c2d...`, restored and
-re-verified 2026-10-01 after the variant sweep); `flows-rapids/bitstream/` is
-a gitignored build area and may hold either build.
+The board keeps the standard byte-CRC bitstream
+(`c6985f762eee1e6b0379b672b8e0fcfc90b9f951a592820d864a0b66b28d0f99`,
+re-verified 2026-10-03); `flows-rapids/bitstream/` is a gitignored build area
+and may hold either build.
 
 ## Quick start
 

@@ -56,11 +56,11 @@ rapids_beats/                    ← this directory (umbrella)
 source env_python                 # sets REPO_ROOT / SIM=verilator
 cd projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats
 
-make sim          # cocotb harness self-check (sink + source, golden CRC)
-make bitstream    # synth + impl + bitstream (NexysA7, timing-closed @ 100 MHz)
-make program      # flash the board (JTAG)
-make smoke        # fast golden-validated confidence check over UART
-make suite        # full sweep: channels × beats × backpressure × seed (JSON report)
+make sim                   # cocotb harness self-check (sink + source, golden CRC)
+make bitstream BOARD=genesys2  # synth + impl + bitstream (Genesys 2, timing-closed @ 100 MHz)
+make program BOARD=genesys2    # flash the board (JTAG)
+make smoke                 # fast golden-validated confidence check over UART
+make suite BOARD=genesys2      # full sweep: channels × beats × backpressure × seed (JSON report)
 ```
 
 `CHANNELS` is kept in lockstep between the bitstream build generic and the host
@@ -70,10 +70,22 @@ pattern generators + CRC checkers; both paths are validated against
 
 ## Status
 
-Characterized on silicon: `make smoke` PASS (both paths), `make suite` 48/48 PASS
-(channels {1,2,4} × beats {1,4,8,16} × backpressure {off,on} × seed {2}), both
-data paths CRC-verified against the golden. Timing closed at 100 MHz
-(WNS +0.007 ns, 0 failing endpoints; `NUM_CHANNELS=4`, `SRAM_DEPTH=256` board-fit).
+Characterized on silicon 2026-10-03 post-fix (commit 71d48b6f7):
+
+- `make smoke` PASS (both paths).
+- Default suite re-run 2026-10-03 post-fix: 48/48 PASS
+  (`reports/rapids_char_suite_2026-10-03.json`), channels {1,2,4} × beats
+  {1,4,8,16} × backpressure {off,on} × seed {2}, both data paths CRC-verified
+  against the golden.
+- Bare k325t image: sha256 `168acd76ee2fd61305a2c426f2b504f30243af0619bc9cd13b1ab107f8b23d10`,
+  WNS +0.343 ns, 62,109 LUTs.
+- Observers image: sha256 `d22db961...`, WNS +0.471 ns, preserved as
+  `flows-rapids-beats/bitstream/rapids_char_obs_20261003.bit` (the tree's
+  `rapids_char.bit` is the bare image). Observer campaigns:
+  139 configs across 7 runs, all PASS (see `reports/perf/README.md` for the
+  2026-10-03 JSONs).
+- 3.2 GB/s peak (32 B × 100 MHz) is unchanged at the saturated points on the
+  2026-10-03 re-measurement.
 
 ## Related
 

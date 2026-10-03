@@ -63,7 +63,7 @@ one that cares about the clock, and it is small enough to run faster.
 
 | Resource | XC7K325T-2 | The builds |
 |----------|-----------:|------------|
-| Slice LUTs | 203,800 | mon sign-off 139,293 (68%); the two instruments together would need 217,761, which is why they are never built together |
+| Slice LUTs | 203,800 | mon sign-off 139,293 (68%); the two instruments together would need 217,761, which is why they are never built together (2026-10-03 re-measurement: 86,865 LUTs / 42.6%, WNS +1.914 ns; RTL has moved since the original sign-off) |
 | Block RAM tiles | 445 | 20 to 24 on the current reports |
 | User LEDs | 8 | status bank; PASS and FAIL are one-byte patterns |
 | Reset | red CPU reset button, active low | synchronized in the top |

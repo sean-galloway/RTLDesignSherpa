@@ -12,19 +12,13 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 21 | done (kept for history) |
+| [closed/](closed/) | 22 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
-
-- **TASK-023** — rebuild both Genesys2 rapids harness images (rapids byte
-  harness, rapids_beats char harness) with the fixed sdpram slave (amba
-  71d48b6f7, burst boundary now free) and repin every board-measured figure
-  taken with the pre-fix slave; the 2026-10-02 prelim perf JSONs are pre-fix
-  baselines
 
 ## Active
 
@@ -32,6 +26,11 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-023** — CLOSED 2026-10-03: both Genesys2 rapids harnesses rebuilt on
+  the fixed sdpram (71d48b6f7), timing-closed, board-verified; byte std 117/117
+  + aligned 28/28, beats suite 48/48 + 7 observer campaigns (139 configs) all
+  pass; small-transfer bandwidth up to +400% (1-beat sink) with zero
+  regressions, saturated headline points unchanged; docs repinned
 - **TASK-020** — AXI response-error injection: harness CSR + injector on both shared slaves, proven on silicon 36/36 at full; the monbus half built a capture buffer that works and showed there is no error packet to check (rapids BUG-013) (closed 2026-10-01)
 
 - **TASK-019** — the byte-granular RAPIDS: bytes, WSTRB/TSTRB partial beats, its own Genesys 2 harness and books, board-characterized (closed 2026-09-30; sign-off fub 1521/0, fub_beats 1281/0, macro 822/0, macro_beats 771/0, top 42/0, top_beats 36/0)

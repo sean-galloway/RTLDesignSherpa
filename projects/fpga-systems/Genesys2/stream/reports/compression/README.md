@@ -59,6 +59,9 @@ Half-beat packing turns the 63.0 % codec into **75.7 %** on this trace — a
 **12.7-percentage-point** gain, **260 fewer beats** drained over UART for
 identical monitor coverage.
 
+*(2026-10-03: live on-board confirmation re-measured on the fresh mon build
+reads **66.0 %** reduction, 1.02 slots/packet, PASS.)*
+
 Why 75.7 % and not the 83.3 % ceiling: `h = 0.944` caps half-beat at
 `0.944 × 0.833 = 78.6 %`, and of the 644 hits, 123 fit only a full 64-bit
 beat (event_data or Δts too wide for a 23-bit half-payload), plus lone-half

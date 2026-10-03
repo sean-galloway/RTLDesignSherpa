@@ -35,6 +35,13 @@ net-bytes-moved ceiling **763 MB/s** (the DMA reads *and* writes each byte).
 > (`mb_moved / FPGA-timer-time`) is on-chip and wall-clock-independent; the host
 > `throughput_MBps` is UART-dominated and shown for transparency only.
 
+*(2026-10-03: post-fix re-measurement on Genesys2 board 200300B818A0: 40/40 configs
+PASS and are cycle-identical to the 2026-09-09 pre-fix sweep (0 cycles delta,
+throughput identical to 4 decimals, ~1525.9 MB/s). The sdpram burst boundary tax
+is invisible at 1 MB/descriptor, so the datapath remains bubble-free. Artifacts:
+`build-perf/results/perf_sweep_2026-10-03.{csv,json}` and
+`build-perf/results/bus_meters_2026-10-03.txt`.)*
+
 ---
 
 ## Characterization knobs

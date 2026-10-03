@@ -161,6 +161,8 @@ network bus, in both directions, simultaneously.
 
 : Headline — 8-channel line-rate at 128 KB/channel (Genesys 2, 256-bit build)
 
+*(2026-10-03: full_matrix re-measured post-fix (`genesys_dw256_full_matrix_20261003.json`); 48/48 PASS, saturated 3.19/3.20 GB/s points unchanged.)*
+
 `prod = 32768 = 8 channels × 4096 beats` on every interface: every expected beat
 is accounted for. The non-productive residue is one-time: a handful of fill
 cycles on the three DMA-side interfaces (the single AXIS-in starvation cycle is
@@ -231,9 +233,12 @@ vanishing fraction of a large one.
 
 : Table — engaged utilization (%) and effective bandwidth (GB/s) vs transfer size (8 ch, 256-bit build)
 
+*(2026-10-03: full_matrix re-measured post-fix: 48/48 PASS (`genesys_dw256_full_matrix_20261003.json`); 3/48 points moved >0.1 %, max +0.57 % at ch8 b256 sink, zero regressions.)*
+
 Every utilization cell is the 512-bit build's to the decimal (compare the v1.5
 table: the engine's cycle behaviour is per beat, so halving the beat halves the
-bytes and nothing else). By 2 KB/channel every DMA-side interface is above
+bytes and nothing else; the 512-bit v1.x figures are pre-fix and were not
+re-run 2026-10-03). By 2 KB/channel every DMA-side interface is above
 97 %, and by 32 KB the whole engine is within 0.2 % of line rate. The three
 DMA-side curves are the same monotonic amortization of a single fixed
 per-transfer startup cost (descriptor dispatch + `AR→first-R` / SRAM fill);
@@ -268,6 +273,8 @@ per-channel penalty as the engine scales out.
 | 8 | 100.0 % | 100.0 % |
 
 : Table — utilization vs channel count (128 KB/ch; identical to the 512-bit build)
+
+*(2026-10-03: full_matrix re-measured post-fix: 48/48 PASS (`genesys_dw256_full_matrix_20261003.json`); 3/48 points moved >0.1 %, max +0.57 % at ch8 b256 sink, zero regressions.)*
 
 ---
 
@@ -399,6 +406,8 @@ byte-derived cross-check gives 3.19 and 3.20 GB/s. Channel scaling is flat:
 
 : Table 7.1 -- observer engaged utilization vs active channels (phase D, 256-bit build)
 
+*(2026-10-03: obs_C re-measured post-fix (`genesys_dw256_obs_C_20261003.json`); 139 configs total across the observer campaigns, all PASS, saturated 3.19/3.20 GB/s points unchanged.)*
+
 ![observer utilization vs channel count](plots/dw256_obs_channel_scaling.png)
 
 : Figure 7.1 -- observer utilization vs channel count at 128 KB/channel.
@@ -416,6 +425,8 @@ byte-derived cross-check gives 3.19 and 3.20 GB/s. Channel scaling is flat:
 | 4096 | 99.7 % | 100.0 % | 100.0 % | 100.0 % | 3.20 | 3.20 | 3648 | 24 | 24 |
 
 : Table 7.2 -- size sweep at 8 channels (256-bit build); latencies are observer-histogram means in aclk cycles
+
+*(2026-10-03: obs_C re-measured post-fix (`genesys_dw256_obs_C_20261003.json`); b1 source +26.1 % (ch8), +10.5 % (ch4); saturated 3.19/3.20 GB/s points unchanged, zero regressions.)*
 
 The three DMA-side interfaces are above 90 % from 16 beats (512 B) per channel
 and within 0.3 % of line rate from 1024, cell for cell as at 512 bits. The
@@ -453,6 +464,8 @@ fixed response plus a 9-beat burst.
 
 : Table 7.3 -- AXI4-wr (sink) / AXIS-out (source) utilization over the descriptor x channel matrix (256-bit build; every cell equals the 512-bit build's)
 
+*(2026-10-03: obs_A re-measured post-fix (`genesys_dw256_obs_A_20261003.json`); descriptor-chain matrix +0.15 % vs pre-fix, zero regressions.)*
+
 Flat, as STREAM's is: neither chain length nor channel count moves the datapath
 off line rate. The one visible structure is the sink write side settling 1.4 %
 below the source as chains lengthen -- the per-descriptor dispatch on the write
@@ -480,10 +493,13 @@ channels x 1024 beats:
 
 : Table 7.4 -- burst-length sweep (256-bit build); latencies in aclk cycles
 
+*(2026-10-03: obs_B re-measured post-fix (`genesys_dw256_obs_B_20261003.json`); all points PASS, zero regressions.)*
+
 The knee is at **4 beats**: below it the SINK path falls (36 % at single-beat
-bursts, 71 % at 2; 39 / 77 at 512 bits, where the 16 KB buffer let the ingress
-run a little further ahead) while the SOURCE path holds 99.8 % at every burst
-length. AXIS-in's flat 99.0 % is the 82-cycle buffer-fill stall of section 3
+bursts, 71 % at 2; 39 / 77 at 512 bits *(pre-fix (not re-run 2026-10-03))*,
+where the 16 KB buffer let the ingress run a little further ahead) while the
+SOURCE path holds 99.8 % at every burst length. AXIS-in's flat 99.0 % is the
+82-cycle buffer-fill stall of section 3
 over a 1024-beat run.
 PIPELINE = 1 moved the sink's short-burst numbers up from the 23 % / 42 % of
 v1.2 (up to eight AWs in flight per channel instead of one), but at one beat
@@ -520,6 +536,8 @@ many beats the DUT keeps in flight), at 8 channels x 1024 beats:
 
 : Table 7.5 -- latency sweep, sequential channel schedule (v2.0, 256-bit build, PIPELINE = 1, `HIST_MAX_OUTSTANDING = 32`, no sample loss on any row); the latency columns are log2-histogram means, so they sit on bin midpoints
 
+*(2026-10-03: obs_E re-measured post-fix (`genesys_dw256_obs_E_20261003.json`); +0.65 % at resp-delay 96, zero regressions.)*
+
 The same sweep with the interleaved schedule (v1.5):
 
 | delay (cyc) | AXIS-in | AXI4-wr | AXI4-rd | AXIS-out | rd GB/s | wr GB/s | AR->first R | AR->RLAST | AW->B |
@@ -538,6 +556,8 @@ The same sweep with the interleaved schedule (v1.5):
 | 512 | 100.0 % | 99.9 % | 93.7 % | 93.6 % | 3.00 | 3.20 | 768 | 768 | 768 |
 
 : Table 7.5b -- latency sweep, interleaved channel schedule (v2.0, same bitstream, PIPELINE = 1, `HIST_MAX_OUTSTANDING = 32`, no sample loss on any row; 12/12 CRC-verified). The source columns are the same run and match Table 7.5, as they must: the schedule only changes the sink's stimulus. With every channel holding data the sink ingress reads 100.0 % here: the 82-cycle fill stall of the sequential schedule is one channel filling alone.
+
+*(2026-10-03: obs_E_interleave re-measured post-fix (`genesys_dw256_obs_E_interleave_20261003.json`); all points PASS, zero regressions.)*
 
 Little's law makes the knee readable directly: sustained beats/cycle x latency =
 beats in flight. With PIPELINE = 1 the SOURCE read path no longer knees inside
@@ -603,6 +623,8 @@ build, 1024 beats per channel, 8-beat bursts:
 
 : Table 7.5c -- fine-step latency sweep, 4 KB (128-beat) vs 16 KB (512-beat) buffers, 256-bit build, sequential schedule (`genesys_dw256_fine_{4kb,16kb}_{8ch,1ch}.json`, 64/64 CRC-verified)
 
+*(pre-fix (not re-run 2026-10-03): the fine_4kb/fine_16kb sweeps were not re-measured in the 2026-10-03 campaign.)*
+
 Three readings. At **one channel the two buffers coincide to the decimal** on
 both paths: there is no next channel to run ahead into, so the window is the
 outstanding cap (eight 8-beat AWs, eight 9-beat ARs) and the knee sits between
@@ -611,8 +633,9 @@ the buffer**: the 16 KB build holds 95.9 % at 64 cycles and 85.9 % at 128
 where the 4 KB build reads 90.0 % and 55.2 %, because the deeper buffer lets
 the generator arm the next channels while the current one drains -- more AWs
 in flight, from more channels. In beats, at 128 cycles: 128-beat buffers
-55.2 %, 256-beat (the v1.5 512-bit build) 63.7 %, 512-beat 85.9 %. The **read
-side is identical on both buffers at 8 channels** (every channel's reads run
+55.2 %, 256-beat (the v1.5 512-bit build *(pre-fix (not re-run 2026-10-03))*) 63.7 %,
+512-beat 85.9 %. The **read side is identical on both buffers at 8 channels**
+(every channel's reads run
 ahead by their own eight ARs regardless of buffer, and 72 beats per channel is
 under either depth), which is the same statement as 7.7: the buffer bounds
 reads only once outstanding x burst exceeds it. And the 8-cycle steps show the
@@ -672,6 +695,8 @@ meters, AXI4-wr / AXI4-rd engaged utilization. Two builds, same RTL:
 | 256 (v2.1: wedge) | wedge / 99.8 | wedge / 94.0 | wedge / 88.6 | ran as 128: 89.9 / 90.1 | 89.9 / 31.6 | 89.9 / 19.4 |
 
 : Table 7.7 -- one channel, AXI4-wr / AXI4-rd utilization (%) vs burst length and injected latency, on both design points (`genesys_one_channel_xfer_latency.json`, `genesys_dw256_one_channel_xfer_latency.json`)
+
+*(2026-10-03: one_channel_xfer_latency re-measured post-fix (`genesys_dw256_one_channel_xfer_latency_20261003.json`); 256-bit columns are from the re-measurement, 512-bit columns are pre-fix and were not re-run 2026-10-03.)*
 
 Three things fall out. First, the **write side needs no rebuild**: its window is
 outstanding x burst because the sink frees SRAM on the W handshake, not on B, so

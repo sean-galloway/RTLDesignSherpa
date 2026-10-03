@@ -1,0 +1,25 @@
+# Genesys 2 STREAM perf build -- bus meters 2026-10-03 (post-fix)
+make: Entering directory '/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/stream/build-perf'
+python3 /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/stream/build-perf/host/host_bus_meters.py --port /dev/ttyUSB0 --channels 8
+Connected to /dev/ttyUSB0 at 115200 baud
+UART connection closed
+=== R-bus monitor (external DMA observer) ===
+  Aggregate over 0 cycles (~0.0 us at 100 MHz):
+    productive              0  (  n/a)
+    backpressure            0  (  n/a)
+    starvation              0  (  n/a)
+    idle                    0  (  n/a)
+    datapath_util    0.0%  (productive / total cycles in window)
+  Per-channel breakdown:
+    ch  prod   bp    starv idle  overflow
+
+=== W-bus monitor (external DMA observer) ===
+  Aggregate over 0 cycles (~0.0 us at 100 MHz):
+    productive              0  (  n/a)
+    backpressure            0  (  n/a)
+    starvation              0  (  n/a)
+    idle                    0  (  n/a)
+    datapath_util    0.0%  (productive / total cycles in window)
+  Per-channel breakdown:
+    ch  prod   bp    starv idle  overflow
+make: Leaving directory '/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/stream/build-perf'
