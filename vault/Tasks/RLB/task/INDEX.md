@@ -12,9 +12,9 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 19 | done (kept for history) |
+| [closed/](closed/) | 20 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -22,9 +22,14 @@ by construction rather than by discipline.
 
 
 
-- **TASK-020** — the rlb_top MAS exists as the tenth book: the ten-window map, the interrupt fabric with convention-versus-choice stated, the cascade, and a programming model transcribed from the TB helpers. Still open: the chapters the index lists as planned, real generated diagrams instead of tables, a bring-up driven from the book rather than the testbench, and hpet's README prose still naming retired field names.
-
 ## Closed
+
+- **TASK-020** — the rlb_top MAS as the tenth complete book: the six planned
+  chapters written, the programming model executed from the book alone
+  (which found and fixed two wrong register offsets IN the book), hierarchy
+  and interrupt-fabric diagrams rendered, and hpet's README prose restored
+  to current RDL field names. Residual: board execution awaits a future FPGA
+  system target. Closed 2026-10-03.
 
 - **TASK-001** — MAS/RTL quality review (9 blocks) via Kimi
 - **TASK-002** — Fix wrong-map MAS register documentation (5 blocks)

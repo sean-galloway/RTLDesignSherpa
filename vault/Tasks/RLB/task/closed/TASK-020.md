@@ -1,6 +1,32 @@
 # TASK-020: the rlb_top MAS has the integration story; the remaining chapters and an executed programming model are still open
 
-**Status:** OPEN 2026-09-30  **Priority:** P2
+**Status:** closed 2026-10-03 — all four open items resolved.
+
+**Resolution (2026-10-03):**
+
+1. All six planned chapters written: ch02 01-03 (crossbar, interrupt fabric,
+   cascade), ch03 02-03 (APB4 protocol at the boundary, per-block interrupt
+   pin reference), ch04 03 (ACPI sleep/wake sequencing).
+2. The programming model was executed as firmware-shaped host programs
+   (`dv/host/rlb_bringup_programs.py`, board-portable) driven by
+   `dv/tests/test_rlb_top_bringup.py` — bring-up runs from the book alone,
+   never calling the DV helpers it was transcribed from. Executing it found
+   TWO defects in the book itself: `IOWIN` was written 0x010 (actual 0x004
+   per ioapic_mas ch05; write completes PSLVERR) and `PIC_STATUS` was written
+   0x018 (actual 0x028 per the pic_8259 RDL; 0x018 is OCW2, so the
+   init-complete check never passes). Both fixed in the book.
+3. Diagrams: `assets/mermaid/rlb_integration_hierarchy` and
+   `rlb_interrupt_fabric`, rendered to png through the standard mmdc
+   Makefile route and embedded in ch01 architecture and ch02 fabric.
+4. hpet README prose now uses `TIMER_CONFIG.timer_32mode` /
+   `TIMER_CONFIG.timer_int_enable` per the RDL (direction labels re-expressed
+   in the new field's polarity).
+
+**Residual:** board execution of the bring-up program awaits a future FPGA
+system target that instantiates rlb_top — none exists today (no rlb
+reference under projects/fpga-systems). The program's bus boundary
+(`write32`/`read32`) is shaped for a UARTAxiBridge port exactly so that
+follow-up is a binding, not a rewrite.
 
 ## Why this exists
 
