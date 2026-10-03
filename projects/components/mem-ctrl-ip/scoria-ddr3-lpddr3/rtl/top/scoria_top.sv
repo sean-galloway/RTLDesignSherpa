@@ -157,6 +157,7 @@ module scoria_top
     logic        w_wl_result_valid, w_wl_result, w_wl_timeout, w_wl_ever_done;
     logic [15:0] w_wl_attempts, w_wl_flips;
     logic [2:0]  w_wl_state;
+    logic [15:0] w_ref_postpone_events, w_ref_pullin_events;
     always_comb begin
         hwif_in = '{default: '0};
         hwif_in.WRLVL_STATUS1.mr_wr.next     = w_mr_wr;
@@ -197,6 +198,9 @@ module scoria_top
         hwif_in.SCHED_STATS_PRE.VAL.next   = w_stat_pre;
         hwif_in.REF_STATS_REF.VAL.next     = w_stat_ref;
         hwif_in.REF_STATS_REF_BUSY.VAL.next = w_stat_ref_busy;
+        // Mode A telemetry: postponed / pulled-in refresh events.
+        hwif_in.REF_STATS_POSTPONE.VAL.next = 32'(w_ref_postpone_events);
+        hwif_in.REF_STATS_PULLIN.VAL.next   = 32'(w_ref_pullin_events);
         // Init status. STATUS.init_done is the ONLY way software can tell
         // that bring-up finished -- and it was never driven, so it read 0
         // forever while the sequencer sat in S_DONE with init_done_o = 1.
@@ -382,6 +386,16 @@ module scoria_top
         .zq_total_o         (w_zq_total),
         .zq_interval_cnt_o  (w_zq_interval_cnt),
         .zq_overdue_o        (w_zq_overdue),
+        // Mode A/B/C CSR fields (TASK-001)
+        .ref_elastic_en_i            (hwif_out.REF_CTRL.elastic_en.value),
+        .ref_pullin_idle_streak_i    (hwif_out.REF_CTRL.pullin_idle_streak.value),
+        .ref_postpone_demand_streak_i(hwif_out.REF_CTRL.postpone_demand_streak.value),
+        .ref_tcr_en_i                (hwif_out.REF_CTRL.tcr_en.value),
+        .ref_trefi_derate_i          (hwif_out.REF_CTRL.trefi_derate.value),
+        .zq_placement_i              (hwif_out.ZQ_CFG.placement.value),
+        .zq_overdue_max_i            (hwif_out.ZQ_CFG.overdue_max.value),
+        .obs_ref_postpone_events_o   (w_ref_postpone_events),
+        .obs_ref_pullin_events_o     (w_ref_pullin_events),
         // Write leveling. wrlvl_strobe is a singlepulse field, so .value IS
         // the one-cycle pulse -- no edge detect here.
         .wrlvl_strobe_i     (hwif_out.WRLVL_CFG.wrlvl_strobe.value),

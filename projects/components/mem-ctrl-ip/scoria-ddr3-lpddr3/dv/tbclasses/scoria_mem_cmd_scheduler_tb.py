@@ -141,6 +141,14 @@ class ScoriaMemCmdSchedulerTB(TBBase):
         d.ref_mode_i.value = 0           # REFab
         d.ref_trefi_pb_i.value = p['tREFI']
         d.ref_trfc_pb_i.value = p['tRFC']
+        # ---- Mode A/B/C CSR fields (TASK-001): baseline defaults -----------
+        d.ref_elastic_en_i.value = 0
+        d.ref_pullin_idle_streak_i.value = 16
+        d.ref_postpone_demand_streak_i.value = 1
+        d.ref_tcr_en_i.value = 0
+        d.ref_trefi_derate_i.value = 0
+        d.zq_placement_i.value = 0
+        d.zq_overdue_max_i.value = 0
         # ---- scheduler policy knobs: build defaults ------------------------
         d.sched_order_mode_i.value = 0   # FR-FCFS
         d.sched_row_sel_i.value = 0

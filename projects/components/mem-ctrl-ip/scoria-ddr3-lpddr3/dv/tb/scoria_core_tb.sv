@@ -121,6 +121,13 @@ module scoria_core_tb
     input logic zq_enable_i,
     input logic [31:0] zq_interval_i,
     input logic [15:0] t_zqcs_i,
+    input logic ref_elastic_en_i,
+    input logic [7:0] ref_pullin_idle_streak_i,
+    input logic [6:0] ref_postpone_demand_streak_i,
+    input logic ref_tcr_en_i,
+    input logic [1:0] ref_trefi_derate_i,
+    input logic [1:0] zq_placement_i,
+    input logic [12:0] zq_overdue_max_i,
     input logic wrlvl_strobe_i,
     input logic [3:0] wrlvl_cs_sel_i,
     input logic [15:0] t_wldqsen_i,
@@ -210,6 +217,8 @@ logic [31:0] stall_bp_o;
     logic [15:0] zq_total_o;
     logic [31:0] zq_interval_cnt_o;
     logic zq_overdue_o;
+    logic [15:0] obs_ref_postpone_events_o;
+    logic [15:0] obs_ref_pullin_events_o;
     logic [NUM_CS-1:0] dfi_phylvl_req_cs_n_o;
     logic [NUM_CS-1:0] dfi_phy_wrlvl_cs_n_o;
     logic dfi_wrlvl_strobe_o;

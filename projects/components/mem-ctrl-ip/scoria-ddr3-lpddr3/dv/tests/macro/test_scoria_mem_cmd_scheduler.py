@@ -269,6 +269,147 @@ async def cocotb_test_scoria_mem_cmd_scheduler(dut):
         tb.log.info(f"audited {len(new)} commands, {len(cols)} columns, "
                     f"{len(tb.ops_of(OP_ACT))} ACTs, "
                     f"{len(tb.ops_of(OP_REF))} REFs")
+
+    elif tt == "elastic_refresh_in_traffic":
+        # Mode A: demand-aware elastic refresh. With a non-zero postpone limit
+        # and a sustained-demand threshold of 16, refresh must not be requested
+        # during the initial sporadic-demand window.
+        chk(await tb.complete_init(), "init never completed")
+        before = len(tb.cmds)
+        # Long enough tREFI that the first expiry lands after the 16-cycle
+        # demand-streak threshold, so the brief's "only after 16 cycles" is
+        # observable.
+        dut.t_refi_i.value = 20
+        dut.refi_reload_i.value = 1
+        await RisingEdge(dut.aclk)
+        dut.refi_reload_i.value = 0
+        dut.ref_elastic_en_i.value = 1
+        dut.ref_postpone_i.value = 7
+        dut.ref_postpone_demand_streak_i.value = 16
+        # Keep both read and write entries alive so demand_i stays high even
+        # when one side commits/issues and the CAM model clears it for a cycle.
+        tb.rd_entry = dict(slot=0, bank=1, row=0x100, col=0)
+        tb.wr_entry = dict(slot=1, bank=2, row=0x101, col=0)
+        for _ in range(16):
+            await RisingEdge(dut.aclk)
+            if tb.rd_entry is None:
+                tb.rd_entry = dict(slot=0, bank=1, row=0x100, col=0)
+            if tb.wr_entry is None:
+                tb.wr_entry = dict(slot=1, bank=2, row=0x101, col=0)
+        early_refs = [r for r in tb.ops_of(OP_REF) if r['cycle'] > before]
+        chk(not early_refs,
+            f"REF issued during the first 16 demand cycles (sporadic window): "
+            f"{' '.join(f'{r['name']}@{r['cycle']}' for r in early_refs)}")
+        # Now allow the sustained-demand postpone path to build backlog and fire.
+        req_seen = False
+        demand_cycles = 16
+        for _ in range(400):
+            await RisingEdge(dut.aclk)
+            if tb.rd_entry is None:
+                tb.rd_entry = dict(slot=0, bank=1, row=0x100, col=0)
+            if tb.wr_entry is None:
+                tb.wr_entry = dict(slot=1, bank=2, row=0x101, col=0)
+            if int(dut.u_refresh.demand_i.value):
+                demand_cycles += 1
+            if int(dut.u_refresh.refresh_req_o.value):
+                req_seen = True
+                break
+        chk(req_seen, "refresh request never appeared under elastic traffic")
+        chk(demand_cycles >= 16,
+            f"refresh request appeared after only {demand_cycles} demand cycles, "
+            f"expected >= 16 (sustained-demand threshold)")
+
+    elif tt == "tcr_doubles_rate":
+        # Mode B: temperature-compensated refresh. Derate=1 halves tREFI, so
+        # the REF count in a fixed window must be at least 1.8x derate=0.
+        chk(await tb.complete_init(), "init never completed")
+
+        async def count_refs(derate):
+            before = len(tb.ops_of(OP_REF))
+            dut.ref_tcr_en_i.value = 1
+            dut.ref_trefi_derate_i.value = derate
+            dut.t_refi_i.value = 40
+            dut.refi_reload_i.value = 1
+            await RisingEdge(dut.aclk)
+            dut.refi_reload_i.value = 0
+            # Light traffic to keep demand present but not block REFs.
+            for c in range(2000):
+                await RisingEdge(dut.aclk)
+                if tb.rd_entry is None and (c % 8) == 0:
+                    tb.rd_entry = dict(slot=0, bank=2, row=0x200, col=0)
+            return len(tb.ops_of(OP_REF)) - before
+
+        refs_0 = await count_refs(0)
+        # Disable TCR and let the counter settle before the second run.
+        dut.ref_tcr_en_i.value = 0
+        dut.ref_trefi_derate_i.value = 0
+        await tb.drain(40)
+        refs_1 = await count_refs(1)
+        chk(refs_1 * 10 >= refs_0 * 18,
+            f"TCR derate=1 produced {refs_1} REFs vs {refs_0} for derate=0, "
+            f"expected >= 1.8x")
+
+    elif tt == "zqcs_defer_under_demand":
+        # Mode C: ZQCS placement policy. With placement=1 and overdue_max=0,
+        # ZQCS must defer while traffic persists, then fire once CAMs drain.
+        chk(await tb.complete_init(), "init never completed")
+        before = len(tb.cmds)
+        dut.zq_enable_i.value = 1
+        dut.zq_interval_i.value = 20
+        dut.zq_placement_i.value = 1
+        dut.zq_overdue_max_i.value = 0
+        # Use both read and write entries so demand_i never drops when one side
+        # issues/commits and the CAM model clears it for a cycle.
+        tb.rd_entry = dict(slot=0, bank=3, row=0x300, col=0)
+        tb.wr_entry = dict(slot=1, bank=4, row=0x301, col=0)
+        for _ in range(100):
+            await RisingEdge(dut.aclk)
+            if tb.rd_entry is None:
+                tb.rd_entry = dict(slot=0, bank=3, row=0x300, col=0)
+            if tb.wr_entry is None:
+                tb.wr_entry = dict(slot=1, bank=4, row=0x301, col=0)
+        early_zq = [z for z in tb.ops_of(OP_ZQCS) if z['cycle'] > before]
+        chk(not early_zq,
+            f"ZQCS issued within first 100 cycles despite continuous demand: "
+            f"{' '.join(f'{z['name']}@{z['cycle']}' for z in early_zq)}")
+        # Drain CAMs: stop issuing and let the arbiter go idle.
+        tb.rd_entry = None
+        tb.wr_entry = None
+        drain_delay = None
+        zq = await tb.wait_for_ops(OP_ZQCS, since=before, limit=120)
+        chk(zq, "no ZQCS within 120 cycles after draining CAMs")
+        if zq:
+            drain_delay = zq[0]['cycle'] - before
+            chk(drain_delay <= 200,
+                f"ZQCS after drain appeared at cycle {drain_delay}, "
+                f"expected <= ~200 (demand window + interval + bank-idle margin)")
+        # Rerun with overdue_max=8: the request must cap deferral under load.
+        # Let the interval reload naturally after the first ZQCS, then restart
+        # traffic and verify the ZQ request asserts within the overdue window.
+        before2 = len(tb.cmds)
+        dut.zq_overdue_max_i.value = 8
+        tb.rd_entry = dict(slot=0, bank=3, row=0x300, col=0)
+        tb.wr_entry = dict(slot=1, bank=4, row=0x301, col=0)
+        # Wait for the ZQ request to assert (this is the composed Mode C path;
+        # the actual ZQCS grant still needs an idle bank window).
+        req_seen2 = False
+        for cyc2 in range(120):
+            await RisingEdge(dut.aclk)
+            if tb.rd_entry is None:
+                tb.rd_entry = dict(slot=0, bank=3, row=0x300, col=0)
+            if tb.wr_entry is None:
+                tb.wr_entry = dict(slot=1, bank=4, row=0x301, col=0)
+            if int(dut.u_zq.zq_req_o.value):
+                req_seen2 = True
+                break
+        chk(req_seen2,
+            "ZQ request never asserted with overdue_max=8 despite demand")
+        chk(cyc2 <= 100,
+            f"ZQ request with overdue_max=8 asserted at cycle {cyc2}, "
+            f"expected <= ~100 (interval + overdue cap + margin)")
+        # The actual ZQCS may wait for an idle bank, but it must arrive.
+        zq2 = await tb.wait_for_ops(OP_ZQCS, since=before2, limit=200)
+        chk(zq2, "no ZQCS within 200 cycles with overdue_max=8 despite demand")
     else:
         raise ValueError(f"Unknown TEST_TYPE: {tt}")
 
@@ -287,7 +428,10 @@ async def cocotb_test_scoria_mem_cmd_scheduler(dut):
 _GATE = ["init_sequence_in_jedec_order", "act_then_read_with_real_timers"]
 _FUNC = _GATE + ["probe_act_spacing", "refresh_closes_banks_then_refreshes",
                  "zqcs_maintenance_in_traffic",
-                 "mixed_traffic_audited_by_the_checker"]
+                 "mixed_traffic_audited_by_the_checker",
+                 "elastic_refresh_in_traffic",
+                 "tcr_doubles_rate",
+                 "zqcs_defer_under_demand"]
 _TEST_LEVEL = (os.environ.get("REG_LEVEL") or os.environ.get("TEST_LEVEL")
                or "FUNC").upper()
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FUNC}.get(_TEST_LEVEL, _FUNC)

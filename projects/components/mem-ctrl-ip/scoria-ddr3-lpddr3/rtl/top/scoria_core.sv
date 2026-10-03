@@ -217,6 +217,17 @@ module scoria_core
     output logic [31:0]                zq_interval_cnt_o,
     output logic                       zq_overdue_o,
 
+    // ----- Mode A/B/C CSR fields (TASK-001) ----
+    input  logic                       ref_elastic_en_i,
+    input  logic [7:0]                 ref_pullin_idle_streak_i,
+    input  logic [6:0]                 ref_postpone_demand_streak_i,
+    input  logic                       ref_tcr_en_i,
+    input  logic [1:0]                 ref_trefi_derate_i,
+    input  logic [1:0]                 zq_placement_i,
+    input  logic [12:0]                zq_overdue_max_i,
+    output logic [15:0]                obs_ref_postpone_events_o,
+    output logic [15:0]                obs_ref_pullin_events_o,
+
     // ----- write leveling (DDR3). The DFI v3.1 leveling handshake is per-CS
     //       and leaves the controller unaltered -- it does not go through
     //       scoria_dfi_layer, because there is no gearing to do on it: the
@@ -596,6 +607,16 @@ module scoria_core
         .zq_total_o         (zq_total_o),
         .zq_interval_cnt_o  (zq_interval_cnt_o),
         .zq_overdue_o       (zq_overdue_o),
+        // Mode A/B/C CSR fields (TASK-001)
+        .ref_elastic_en_i            (ref_elastic_en_i),
+        .ref_pullin_idle_streak_i    (ref_pullin_idle_streak_i),
+        .ref_postpone_demand_streak_i(ref_postpone_demand_streak_i),
+        .ref_tcr_en_i                (ref_tcr_en_i),
+        .ref_trefi_derate_i          (ref_trefi_derate_i),
+        .zq_placement_i              (zq_placement_i),
+        .zq_overdue_max_i            (zq_overdue_max_i),
+        .obs_ref_postpone_events_o   (obs_ref_postpone_events_o),
+        .obs_ref_pullin_events_o     (obs_ref_pullin_events_o),
         .wrlvl_strobe_i     (wrlvl_strobe_i),
         .wrlvl_cs_sel_i     (wrlvl_cs_sel_i),
         .t_wldqsen_i        (t_wldqsen_i),

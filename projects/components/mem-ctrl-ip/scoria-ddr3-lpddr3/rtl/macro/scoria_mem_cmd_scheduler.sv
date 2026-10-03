@@ -143,6 +143,17 @@ module scoria_mem_cmd_scheduler
     output logic [31:0]               zq_interval_cnt_o,
     output logic                      zq_overdue_o,
 
+    // ----- Mode A/B/C CSR fields (TASK-001) ----
+    input  logic                      ref_elastic_en_i,            // REF_CTRL.elastic_en
+    input  logic [7:0]                ref_pullin_idle_streak_i,    // REF_CTRL.pullin_idle_streak
+    input  logic [6:0]                ref_postpone_demand_streak_i,// REF_CTRL.postpone_demand_streak
+    input  logic                      ref_tcr_en_i,                // REF_CTRL.tcr_en
+    input  logic [1:0]                ref_trefi_derate_i,          // REF_CTRL.trefi_derate
+    input  logic [1:0]                zq_placement_i,              // ZQ_CFG.placement
+    input  logic [12:0]               zq_overdue_max_i,            // ZQ_CFG.overdue_max
+    output logic [15:0]               obs_ref_postpone_events_o,   // REF_STATS_POSTPONE
+    output logic [15:0]               obs_ref_pullin_events_o,     // REF_STATS_PULLIN
+
     // ----- write leveling (DDR3): scoria_wrlvl_ifc -----
     // No search loop here: the controller emits one DQS edge per host strobe
     // and reports the sampled prime DQ. The delay sweep is the host's, which
@@ -351,13 +362,12 @@ module scoria_mem_cmd_scheduler
         .postpone_limit_i(ref_postpone_i),
         .pullin_limit_i  (ref_pullin_i),
         .demand_i        (|rd_sch_valid_i || |wr_sch_valid_i),
-        // Mode A inputs are tied off here; CSR wiring is Task 6.
-        .elastic_en_i            (1'b0),
-        .pullin_idle_streak_i    (8'd16),
-        .postpone_demand_streak_i(7'd16),
-        // Mode B inputs are tied off here; CSR wiring is Task 6.
-        .tcr_en_i                (1'b0),
-        .trefi_derate_i          (2'd0),
+        // Mode A/B/C CSR fields (TASK-001)
+        .elastic_en_i            (ref_elastic_en_i),
+        .pullin_idle_streak_i    (ref_pullin_idle_streak_i),
+        .postpone_demand_streak_i(ref_postpone_demand_streak_i),
+        .tcr_en_i                (ref_tcr_en_i),
+        .trefi_derate_i          (ref_trefi_derate_i),
         .refresh_req_o   (refresh_req),
         .refresh_grant_i (refresh_grant),
         // refresh_grant fires at the arbiter's FIFO-PUSH, so the granted op is
@@ -373,8 +383,8 @@ module scoria_mem_cmd_scheduler
         .obs_bank_rotor_o      (),
         .obs_grants_total_o    (),
         .obs_pullin_credit_o   (),
-        .obs_postpone_events_o (),
-        .obs_pullin_events_o   ()
+        .obs_postpone_events_o (obs_ref_postpone_events_o),
+        .obs_pullin_events_o   (obs_ref_pullin_events_o)
     );
 
     // ======================================================================
@@ -400,9 +410,9 @@ module scoria_mem_cmd_scheduler
         .t_zqcs_interval_i  (zq_interval_i),
         .t_zqcs_i           (t_zqcs_i),
         .demand_i           (|rd_sch_valid_i || |wr_sch_valid_i),
-        // Mode C inputs are tied off here; CSR wiring is Task 6.
-        .placement_i        (2'd0),
-        .overdue_max_i      (13'd0),
+        // Mode C CSR fields (TASK-001)
+        .placement_i        (zq_placement_i),
+        .overdue_max_i      (zq_overdue_max_i),
         .zq_req_o           (w_zq_req),
         .zq_grant_i         (w_zq_grant),
         .obs_busy_o         (zq_busy_o),
