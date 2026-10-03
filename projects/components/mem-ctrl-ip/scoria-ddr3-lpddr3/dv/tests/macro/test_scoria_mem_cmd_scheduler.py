@@ -273,9 +273,10 @@ async def cocotb_test_scoria_mem_cmd_scheduler(dut):
     elif tt == "elastic_refresh_in_traffic":
         # Mode A: demand-aware elastic refresh. The threshold is 16 consecutive
         # demand cycles; before that the FUB keeps strict tREFI timing. Use a
-        # tREFI shorter than 16 so a tick lands inside the initial window, then
-        # verify the request is only deferred once demand has been sustained for
-        # 16 cycles.
+        # tREFI shorter than 16 so a tick lands inside the initial window. The
+        # request must assert during that sporadic window (strict timing), and
+        # the actual REF command must wait until demand has been sustained for
+        # 16 cycles. A mis-wired streak=1 would defer the request instead.
         chk(await tb.complete_init(), "init never completed")
         before_cycle = tb.cmds[-1]['cycle'] if tb.cmds else 0
         dut.t_refi_i.value = 12
@@ -290,10 +291,13 @@ async def cocotb_test_scoria_mem_cmd_scheduler(dut):
         tb.rd_entry = dict(slot=0, bank=1, row=0x100, col=0)
         tb.wr_entry = dict(slot=1, bank=2, row=0x101, col=0)
         demand_cycles = 0
-        for _ in range(16):
+        first_req_cycle = None
+        for cyc in range(16):
             await RisingEdge(dut.aclk)
             if int(dut.u_refresh.demand_i.value):
                 demand_cycles += 1
+            if first_req_cycle is None and int(dut.u_refresh.refresh_req_o.value):
+                first_req_cycle = cyc + 1
             if tb.rd_entry is None:
                 tb.rd_entry = dict(slot=0, bank=1, row=0x100, col=0)
             if tb.wr_entry is None:
@@ -303,7 +307,16 @@ async def cocotb_test_scoria_mem_cmd_scheduler(dut):
         chk(not early_refs,
             f"REF issued during the first 16 demand cycles (sporadic window): "
             f"{' '.join(f'{r['name']}@{r['cycle']}' for r in early_refs)}")
-        # Continue sustained demand; the postponed request must only appear
+        # The first tREFI tick lands around cycle 12; strict/sporadic mode must
+        # assert the request inside the 16-cycle window. Mis-wired streak=1
+        # defers the request until the backlog exceeds the postpone limit.
+        chk(first_req_cycle is not None,
+            "refresh request never asserted during the 16-cycle sporadic window "
+            "-- ref_postpone_demand_streak_i may be mis-wired to 1")
+        chk(first_req_cycle <= 18,
+            f"refresh request first asserted at cycle {first_req_cycle} of the "
+            f"sporadic window, expected <= 18 (tREFI tick + pipeline margin)")
+        # Continue sustained demand; the postponed REF command must only appear
         # after the cumulative demand streak has reached 16 cycles.
         req_seen = False
         for _ in range(400):
