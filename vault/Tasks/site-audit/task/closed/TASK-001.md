@@ -1,7 +1,7 @@
 # TASK-001: Site-wide audit: RTL correct, docs match, docs humanized, verification covers it
 
 > Migrated 2026-09-27 from `vault/Tasks/site-audit/open.md` as **AUDIT-001** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
-**Status:** open 2026-07-28 — scope clarifying as it goes; expect a split into per-part children
+**Status:** closed 2026-10-03 — user confirmed complete (worked July→late September)
 **Priority:** P1
 **Owner:** Sean / TBD
 
