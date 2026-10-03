@@ -1,19 +1,20 @@
-name: ddr_drills pages
+name: apps pages
 
-# Test-then-deploy for the ddr_drills static training app
-# (bin/apps/ddr_drills). The node suite IS the shipped bytes (the runner
-# require()s the same js/*.js files the browser loads), so a green test job
-# means the deploy cannot publish a broken engine or a malformed pack.
+# Test-then-deploy for the RTLDesignSherpa static app site. Stages a site
+# directory: the root launcher (bin/apps/launcher) at /, ddr_drills at
+# /ddr_drills/, fifo_depth at /fifo/. Both apps' node suites gate the
+# deploy: the suites require() the same js bytes the browsers load, so a
+# green test job means the deploy cannot publish a broken engine, a
+# malformed pack, or a wrong FIFO formula.
 #
-# ONE-TIME MANUAL STEP: repo Settings -> Pages -> Source = "GitHub Actions".
-# Until that is flipped the deploy job fails (the test job still gates every
-# push). No gh-pages branch is used; the artifact is uploaded directly.
+# ONE-TIME MANUAL STEP (done): repo Settings -> Pages -> Source = "GitHub
+# Actions". No gh-pages branch is used; the artifact is uploaded directly.
 
 on:
   push:
     branches: [main]
     paths:
-      - 'bin/apps/ddr_drills/**'
+      - 'bin/apps/**'
       - '.github/workflows/pages-ddr-drills.yml'
   workflow_dispatch:
 
@@ -30,14 +31,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Node 20 for deterministic Math/DOM-free behavior; the suite itself
-      # is zero-dependency, so this job stays fast.
+      # Node 20 for deterministic Math/DOM-free behavior; the suites are
+      # zero-dependency, so this job stays fast.
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Engine, scenario, timing and pack suites
+      - name: ddr_drills engine, scenario, timing and pack suites
         run: node bin/apps/ddr_drills/test/run_tests.js
+
+      - name: fifo_depth model, validation and golden-case suites
+        run: node bin/apps/fifo_depth/test/run_tests.js
 
   deploy:
     needs: test
@@ -51,8 +55,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+
+      - name: Stage site directory
+        run: |
+          mkdir -p _site
+          cp -r bin/apps/launcher/* _site/
+          mkdir -p _site/ddr_drills _site/fifo
+          cp -r bin/apps/ddr_drills/* _site/ddr_drills/
+          cp -r bin/apps/fifo_depth/* _site/fifo/
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: bin/apps/ddr_drills
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
+
