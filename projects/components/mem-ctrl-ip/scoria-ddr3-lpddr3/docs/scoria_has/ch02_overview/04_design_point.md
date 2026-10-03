@@ -118,6 +118,9 @@ implementation* rather than open questions:
 - **`tWLMRD`'s maximum**, which is scoria's to define as a timeout (Chapter 6).
   With CK at 2.5 ns a generous bound is easy to pick; the requirement is that it
   exists and reports distinctly, not that it be tight.
-- **Whether a bitstream is ever built for this target.** The design point is
-  useful for fixing parameters whether or not it is, and verification does not
-  depend on it.
+- **A bitstream, and timing closure at 100 MHz.** The board build flow now
+  exists — board top, harness, passing lint — but no bitstream has been built,
+  and the first out-of-context synthesis (2026-10-01, scoria BUG-003) measured
+  the design point missing 100 MHz by ~2 ns. Floorplanning the arbiter with its
+  CAMs is the indicated first move. The result belongs to the bug, not this
+  chapter; the design point itself is unchanged.

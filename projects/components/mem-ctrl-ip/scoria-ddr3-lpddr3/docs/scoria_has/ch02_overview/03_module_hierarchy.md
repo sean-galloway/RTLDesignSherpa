@@ -86,7 +86,9 @@ it must grow DDR3's parameters, but its mechanism is inherited.
 Per decision D3, scoria gets its own `scoria_pkg` with a one-bit memtype enum
 covering `{DDR3, LPDDR3}`. It does not extend `pumice_pkg`, whose `memtype_e` is
 one bit wide and already spent on `{DDR2, LPDDR2}` — widening it would change a
-CSR in a design that is measured and shipping, for a controller with no RTL.
+CSR in a design that is measured and shipping, for a controller whose RTL did
+not exist yet. The trade was wrong in that direction then, and scoria having
+RTL now does not make it right: widening a shipping CSR costs the same today.
 
 When the DDR4/LPDDR4 controller begins, a shared `mem_ctrl_pkg` with a two-bit
 memtype becomes worth the migration, and both existing controllers move to it

@@ -23,10 +23,9 @@
 
 # scoria DDR3/LPDDR3 Family Controller — Hardware Architecture Specification
 
-**Version:** 0.7
-**Date:** 2026-09-29
-**Status:** v0.4, pre-RTL. **No open questions remain** -- Q1-Q5 are answered or struck (Ch 6). This document SPECIFIES the controller; it
-does not describe an implementation, because there is none yet. Every block is
+**Version:** 0.8
+**Date:** 2026-10-03
+**Status:** v0.8, reconciliation edition. **No open questions remain** -- Q1-Q5 are answered or struck (Ch 6). The RTL now exists and is verified (221 tests, 9 formal blocks, measured 2026-10-01), and this edition reconciles the specification with what implementation and the first board work have settled. Every block is
 marked **INHERITED**, **MODIFIED** or **NEW** against the pumice DDR2/LPDDR2
 controller, which is the architecture scoria is derived from.
 
@@ -39,7 +38,10 @@ this one.
 > way a description cannot: it can specify something unbuildable. Every claim
 > here is therefore either (a) inherited from pumice, where it is already
 > built and measured, (b) cited to a JEDEC or DFI clause, or (c) explicitly
-> marked as an open question in Chapter 6. Nothing else is asserted.
+> marked as an open question in Chapter 6 — and none remain as of this
+> edition. Where the implementation subsequently corrected the specification
+> (v0.6, v0.7, and this v0.8 reconciliation), the correction is recorded in
+> the revision history rather than dropped silently. Nothing else is asserted.
 
 ---
 

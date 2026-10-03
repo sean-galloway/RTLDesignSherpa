@@ -37,8 +37,9 @@ typedef enum logic {
 It does **not** extend `pumice_pkg`. That package's `memtype_e` is one bit wide
 and already spent on `{DDR2, LPDDR2}`; adding two more members means widening the
 field, which reaches pumice's RTL and its CSR — a measured, shipping design —
-for the benefit of a controller with no RTL. The trade is wrong in that
-direction.
+for the benefit of a controller whose RTL did not exist yet. The trade was wrong
+in that direction then, and scoria having RTL now does not make it right:
+widening a shipping CSR costs the same today.
 
 **When this changes.** At the start of the DDR4/LPDDR4 controller, a shared
 `mem_ctrl_pkg` with a two-bit memtype becomes worth the migration, and both

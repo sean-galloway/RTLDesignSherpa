@@ -26,9 +26,9 @@
 | Field | Value |
 |-------|-------|
 | Title | scoria DDR3/LPDDR3 Family Controller — Hardware Architecture Specification |
-| Version | 0.7 |
-| Date | 2026-09-29 |
-| Status | First edition, **pre-RTL**. Specifies the controller; does not describe an implementation |
+| Version | 0.8 |
+| Date | 2026-10-03 |
+| Status | Reconciliation edition. Specifies the controller; the RTL exists, and v0.8 reconciles the two — revision history below |
 | Scope | Controller architecture to the DFI v3.1 boundary, for DDR3 and LPDDR3 |
 | Not in scope | The PHY; board bring-up; the DDR4/LPDDR4 features DFI v3.1 also carries |
 
@@ -71,6 +71,7 @@ it a scheduling problem and not only a sequencing one.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.8 | 2026-10-03 | Reconciled with the landed RTL and the first board work: verification status brought current (221 tests, 9 formal blocks, top tier AXI-in/DFI-out); `dfi_reset_n` recorded as presented under its DFI name and the two v3.1-only data-phase chip selects recorded as driven, constant `'0` at `NUM_RANKS=1` (scoria TASK-005); the board build flow and the BUG-003 100 MHz out-of-context timing result recorded. What remains for a 1.0 is restated in Chapter 6 and filed as a task. |
 | 0.7 | 2026-09-30 | Ch 3.2: DDR3's init sequence needs no precharge-all, no double refresh, no OCD pair and no second MR0 load (the DLL-reset bit is self-clearing) -- the FSM drops seven of pumice's states and adds three. Found while implementing. |
 | 0.6 | 2026-09-30 | Corrected during implementation: `dfi_signal_pack` is INHERITED, not MODIFIED -- it packs only signals DFI v3.1 leaves unchanged, and v3.1's new channels are driven at the layer above. Inherited FUBs 20 -> 21, modified 4 -> 3. |
 | 0.5 | 2026-09-30 | Target design point named (Sean: "assume k7ddrphy on genesys2 if it helps"): Genesys 2, K7DDRPHY, 2 x MT41J256M16 on a 32-bit bus, DDR3-800, 3200 MB/s theoretical peak. Fixes DFI_RATE=4, NUM_BANKS=8, row 15, col 10, DQ 32, and gives the DDR3-800 JEDEC timing set. |
@@ -88,11 +89,14 @@ controller, with one figure in which every block is colour-marked against
 pumice — read that figure and you know the size of this project. Chapter 3 is
 the only chapter with substantial new engineering: the four blocks DDR3 and
 LPDDR3 actually change. Chapter 4 is the DFI v3.1 boundary and what moved from
-v2.1.1. Chapter 5 is the package and parameters. Chapter 6 is how it will be
-verified, and the questions this edition cannot answer.
+v2.1.1. Chapter 5 is the package and parameters. Chapter 6 is how it is
+verified, and what separates this edition from a 1.0.
 
-**A caution particular to a pre-RTL specification.** A document written after
-the fact can be incomplete; one written before can be *unbuildable*. Where this
-edition states a structure, it is inherited from a controller that is built and
-measured. Where it states a timing, it is cited. Where neither is true, it says
-so in Chapter 6 rather than guessing.
+**A caution this document outgrew.** v0.1 was written before the RTL, and a
+specification written first can be *unbuildable* — that was the risk it
+carried. The RTL now exists, and this edition has been reconciled against it;
+where implementation corrected the specification, the correction is in the
+revision history above. What remains for a 1.0 is named in Chapter 6 and filed
+as a task. The evidentiary rule is unchanged: where this edition states a
+structure, it is inherited from a controller that is built and measured, or
+built here and verified; where it states a timing, it is cited.

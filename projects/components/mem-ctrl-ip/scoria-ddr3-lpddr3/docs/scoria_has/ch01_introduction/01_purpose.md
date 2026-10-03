@@ -30,9 +30,10 @@ SDRAM, presenting an AXI4 slave to the host and a DFI v3.1 master to the PHY.
 It is the third member of a family: pumice covers DDR2/LPDDR2 and is built,
 measured and running on hardware; a DDR4/LPDDR4 controller is planned.
 
-This document specifies scoria's architecture. Its purpose is to be *locked*
-before RTL begins, so that the implementation has a fixed target and the PRD —
-which explicitly waits on a locked HAS — can be written.
+This document specifies scoria's architecture. It was written to be *locked*
+before RTL began, so that the implementation had a fixed target; the RTL now
+exists, and each edition since has reconciled the two. The PRD — which
+explicitly waited on a locked HAS — is authored against this document.
 
 ## Why a delta specification
 
@@ -77,4 +78,8 @@ Bus Inversion, and CA training. They are named here so their absence is a
 decision on the record rather than an oversight.
 
 **Board bring-up.** Verification is against a DFI bus functional model in
-simulation. The board target is deliberately deferred.
+simulation, and that remains the verification boundary. The board target is
+no longer deferred — Genesys 2, K7DDRPHY, 2 x MT41J256M16 (Chapter 2.4) — a
+board build flow exists, and the first out-of-context synthesis has been run
+(scoria BUG-003, the 100 MHz timing miss, recorded in Chapter 6). Bring-up
+itself remains outside this document's scope.

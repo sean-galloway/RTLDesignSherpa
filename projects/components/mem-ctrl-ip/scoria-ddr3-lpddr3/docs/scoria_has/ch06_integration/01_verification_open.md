@@ -72,6 +72,20 @@ formal area early, and the `cmd_history_checker` — which independently re-deri
 JEDEC spacing from the issued command stream — should grow DDR3's parameters
 before the RTL is trusted.
 
+## Status, 2026-10-03
+
+The controller this chapter describes now exists. Measured 2026-10-01 (scoria
+BUG-003, which quotes the full regression as evidence): **221 tests passing, 9
+formal blocks**, and the top tier runs AXI in and DFI out with data through the
+whole datapath. The init sequencer, ZQ controller and write-leveling interface
+of Chapter 3 are implemented and covered; the two dormant inherited FUBs
+(`powerdown_ctrl`, `dfi_signal_pack`) are retained uninstantiated on the
+recorded DDR3 parity argument (scoria TASK-003).
+
+The four verification items named above remain the coverage plan for the
+DDR3-specific behaviour; this edition does not claim they are all complete.
+What separates this edition from a 1.0 is stated below and filed as a task.
+
 ## Question resolutions (v0.2)
 
 Five questions were listed in v0.1. Two are answered, one is struck as
@@ -204,11 +218,16 @@ MODIFIED to INHERITED — see Chapter 3.4.
 Three things, in order:
 
 1. A value chosen for `tWLMRD`'s maximum -- Q4 reduced this to a one-line policy decision, and with CK at 2.5 ns on the named target a generous bound is easy to pick.
-2. The RTL written, and this document reconciled against it — with every
-   INHERITED marking either confirmed or corrected. A marking that turns out to
-   be wrong is a defect in this document, and the correction goes here rather
-   than being dropped silently.
+2. This document reconciled against the RTL block by block — every
+   INHERITED marking either confirmed or corrected. v0.8 reconciled what
+   implementation and the first board work had settled (revision history,
+   Ch 0); the block-by-block confirmation pass remains. A marking that turns
+   out to be wrong is a defect in this document, and the correction goes here
+   rather than being dropped silently.
 3. The exact CSR map, which comes from the RDL and cannot honestly precede it.
+   The RDL now exists (`rtl/macro/scoria_csr.rdl`, with generated
+   documentation and Python regmap); finalizing the map against it is part of
+   the same pass.
 
-Until then this is a 0.1: a specification good enough to implement against, and
-explicit about where it is not yet a description of anything.
+Until then this is a 0.8: a specification that matches what has been built and
+verified, and explicit about what remains unconfirmed.
