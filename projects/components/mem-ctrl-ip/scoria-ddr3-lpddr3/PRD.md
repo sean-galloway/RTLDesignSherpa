@@ -163,7 +163,9 @@ standing no-assertions-in-RTL decision for four input-contract checks
 
 **Later:** bounded tranche (elastic refresh / TCR / ZQ placement) landed behind
 CSRs; survey and deferred conditions in `design-requirements.md` §6; deferred
-tranche filed as TASK-009.
+tranche filed as TASK-009; LPDDR3 bring-up (the second memtype; makes the dormant
+power-down FUBs load-bearing); and multi-rank (the v3.1 data-phase chip selects
+stop being constants).
 
 ## 9. Success Criteria
 

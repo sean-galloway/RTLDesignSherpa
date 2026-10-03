@@ -209,7 +209,7 @@ module formal_scoria_refresh_ctrl #(
     // Mode A/B support: mirror the internal state that is not exported as an
     // observable port. f_idle_cnt and f_demand_streak track the DUT's r_idle_cnt
     // and r_demand_streak cycle-for-cycle (same reset/clear and saturation
-    // behaviour). The remaining flops are one-cycle delayed copies of observable
+    // behavior). The remaining flops are one-cycle delayed copies of observable
     // or control signals, aligned with the strict-flopped obs_* outputs (which
     // publish the internal value from the cycle BEFORE the edge).
     reg [7:0]  f_idle_cnt;
