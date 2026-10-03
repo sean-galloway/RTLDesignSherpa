@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/rapids — bugs
 
-**Next ID: BUG-014** — never recycle a number, even when its item closed.
+**Next ID: BUG-015** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,9 +14,12 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 12 | done (kept for history) |
+| [closed/](closed/) | 13 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
+
+## Active
+
 
 ## Open
 
@@ -31,6 +34,12 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **BUG-014** — snk_data_path_axis channel-reset block clobbers a HEALTHY channel's
+  same-cycle out-reg load / flush registration via stale `r_out_id`/`r_flush_ch`
+  compares (silent data loss + PQ wedge). Found by the TASK-022 macro formal
+  harness at BMC step 4; fix guarded both clears against a same-cycle load for
+  another channel; the revert mutation re-caught at step 4; 822/822 byte-tree
+  dv regression (closed 2026-10-02)
 - **BUG-011** — two rapids formal proofs checked pre-BUG-009 RTL on stale sv2v flats; flats regenerated 2026-10-01, both proofs re-run PASS, the vacuity that let them pass filed as BUG-012. Self-detection fanned out to tooling TASK-026 (closed 2026-10-02)
 - **BUG-012** — the two engine proofs assumed the BUG-009 region away: `SCW=5` makes `XFER_MAX` exactly 15 and the assume capped the config AT 15, so the clamp could never engage and both flats proved identically. Assume widened, zero-beat input contract stated, `ap_*_len_within_alloc` added; now PASSES on the fixed RTL and FAILS on the pre-fix flat (closed 2026-10-01)
 

@@ -287,6 +287,18 @@ module snk_data_path_axis #(
     assign w_pkt_done_now   = w_in_accept && s_axis_tlast && (w_in_wide_strb[2*SW-1:SW] == '0);
     assign w_pkt_done_flush = r_flush_valid && w_out_free;
 
+    // The out-reg load landing this cycle (flush drain or accepted beat) and
+    // the channel it belongs to. The per-channel reset block below runs last
+    // and must not kill a load that belongs to a channel NOT in reset
+    // (rapids BUG-014: the stale r_out_id/r_flush_ch compares used to clobber
+    // a healthy channel's just-loaded beat and flush registration).
+    logic                        w_load_any;
+    logic [CIW-1:0]              w_load_id;
+    logic                        w_flush_set;
+    assign w_load_any  = w_pkt_done_flush || w_in_accept;
+    assign w_load_id   = w_pkt_done_flush ? r_flush_ch : w_in_ch;
+    assign w_flush_set = w_in_accept && s_axis_tlast && (w_in_wide_strb[2*SW-1:SW] != '0);
+
     always_comb begin
         w_pq_pop = '0;
         if (w_pkt_done_now)   w_pq_pop[w_in_ch]    = 1'b1;
@@ -363,10 +375,13 @@ module snk_data_path_axis #(
                     r_hold_strb[ch]    <= '0;
                     r_pkt_rx_bytes[ch] <= '0;
                     r_pkt_len_error[ch] <= 1'b0;
-                    if (r_out_id == ch[CIW-1:0])   r_out_valid   <= 1'b0;
-                    // a flush beat of this channel loaded this same cycle
-                    if (r_flush_valid && w_out_free && (r_flush_ch == ch[CIW-1:0])) r_out_valid <= 1'b0;
-                    if (r_flush_ch == ch[CIW-1:0]) r_flush_valid <= 1'b0;
+                    // Drop this channel's held beat -- unless a load for a
+                    // healthy channel lands this same edge (BUG-014).
+                    if ((r_out_id == ch[CIW-1:0]) &&
+                        !(w_load_any && (w_load_id != ch[CIW-1:0])))
+                        r_out_valid <= 1'b0;
+                    if ((r_flush_ch == ch[CIW-1:0]) && !w_flush_set)
+                        r_flush_valid <= 1'b0;
                 end
             end
         end
