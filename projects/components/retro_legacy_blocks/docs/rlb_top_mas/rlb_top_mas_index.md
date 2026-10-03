@@ -60,10 +60,9 @@ surprised somebody:
   `pic_irq_in` and `ioapic_irq_in` remain inputs, so a board keeps its external
   interrupt path.
 
-> Status (2026-09-30): Chapter 1, the Chapter 2 overview, the Chapter 3
-> top-level interface, both Chapter 4 sections and the Chapter 5 window map exist
-> in this tree. Sections listed without links below are planned and not yet
-> written.
+> Status (2026-10-03): all chapters listed below exist in this tree. The
+> Chapter 2 block pages, the Chapter 3 APB4 and interrupt-pin pages, and the
+> Chapter 4 power-management page were added on 2026-10-03 (RLB TASK-020).
 
 ### Chapter 1: Overview
 **Location:** `ch01_overview/`
@@ -94,7 +93,7 @@ surprised somebody:
 
 - [01_initialization.md](ch04_programming/01_initialization.md) - Subsystem bring-up order, 8259 single and cascade configuration, IOAPIC redirection entries
 - [02_use_cases.md](ch04_programming/02_use_cases.md) - Routing an interrupt end to end, legacy replacement, boot-interrupt rerouting
-- 03_power_management.md - ACPI sleep and wake sequencing across blocks *(planned, not yet written)*
+- [03_power_management.md](ch04_programming/03_power_management.md) - ACPI sleep and wake sequencing across blocks
 
 ### Chapter 5: Registers
 **Location:** `ch05_registers/`
