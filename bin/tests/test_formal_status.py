@@ -1,0 +1,139 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: test_formal_status
+# Purpose: Teeth for `bin/formal_status.py --check-flats` (tooling TASK-026) --
+#          a planted-staleness mutation test proving the mode catches a
+#          committed sv2v flat that has drifted from its sources.
+#
+# Created: 2026-10-03
+
+"""Planted-staleness tests for formal flat self-detection.
+
+House rule (TASK-026 "Done when"): a mutation test proves the mode fails when
+a flat is behind its source. The fixture builds a scratch repo holding one
+flatten-flow proof (``formal/demo/block1``) with a real committed sv2v flat,
+then lets a test drift the source without regenerating -- the exact failure
+the mode exists to catch.
+
+The script under test is COPIED into the scratch repo, not imported: ROOT is
+derived from the script's own location, and ``--areas demo`` must resolve
+against the scratch tree, not this repository.
+"""
+
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[2]
+STATUS = ROOT / "bin" / "formal_status.py"
+
+# sv2v is not on PATH everywhere; /mnt/data/tools is where this machine keeps
+# v0.0.13. The mode's own discovery has the same fallback, so tests use it too.
+SV2V_DIR = "/mnt/data/tools"
+
+
+def _env_with_sv2v() -> dict:
+    env = dict(os.environ)
+    env["PATH"] = SV2V_DIR + os.pathsep + env.get("PATH", "")
+    return env
+
+
+def make_flat_repo(tmp_path: Path, recipe_body: str,
+                   drift: bool = False) -> Path:
+    """A scratch repo with one flatten-flow proof and a committed flat.
+
+    ``recipe_body`` replaces the flat rule's recipe lines so the UNHANDLED
+    case can plant an in-tree side effect. ``drift`` mutates the source after
+    the flat is generated, planting staleness without touching the flat.
+    """
+    repo = tmp_path / "scratch"
+    proof = repo / "formal" / "demo" / "block1"
+    proof.mkdir(parents=True)
+    (repo / "bin").mkdir()
+
+    shutil.copy(STATUS, repo / "bin" / "formal_status.py")
+
+    (proof / "dut.sv").write_text(
+        "module dut(input  logic        clk,\n"
+        "           input  logic [7:0] d,\n"
+        "           output logic [7:0] q);\n"
+        "  assign q = d;\n"
+        "endmodule\n")
+    (proof / "block1.sby").write_text(
+        "[options]\nmode bmc\n[script]\n"
+        "read_verilog -formal block1_flat.v\n")
+    (proof / "Makefile").write_text(
+        "SV2V ?= sv2v\n"
+        "block1_flat.v: dut.sv\n"
+        + recipe_body)
+
+    # Generate the committed flat with the proof's own Makefile, exactly as
+    # a developer would. The recipe may side-effect in-tree (the UNHANDLED
+    # case plants one); that artifact belongs to the GENERATION, not to the
+    # check under test, so remove it and let the assertion below prove the
+    # checker never re-creates it.
+    subprocess.run(["make", "block1_flat.v"], cwd=proof, check=True,
+                   env=_env_with_sv2v(),
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    (proof / "side_effect.txt").unlink(missing_ok=True)
+
+    if drift:
+        (proof / "dut.sv").write_text(
+            "module dut(input  logic         clk,\n"
+            "           input  logic [15:0] d,\n"
+            "           output logic [15:0] q);\n"
+            "  assign q = d;\n"
+            "endmodule\n")
+
+    return repo
+
+
+def run_check(repo: Path) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, "bin/formal_status.py", "--check-flats", "--areas", "demo"],
+        cwd=repo, env=_env_with_sv2v(),
+        capture_output=True, text=True)
+
+
+SIMPLE_RECIPE = "\t$(SV2V) dut.sv > $@\n"
+
+UNHANDLED_RECIPE = (
+    "\t$(SV2V) dut.sv > $@\n"
+    "\ttouch side_effect.txt\n")
+
+
+def test_stale_flat_fails(tmp_path):
+    """A source mutated after the flat was committed reports STALE."""
+    repo = make_flat_repo(tmp_path, SIMPLE_RECIPE, drift=True)
+    r = run_check(repo)
+    assert r.returncode == 1, \
+        f"expected exit 1, got {r.returncode}: {r.stdout}{r.stderr}"
+    assert "STALE" in r.stdout
+    assert "demo/block1" in r.stdout
+
+
+def test_current_flat_passes(tmp_path):
+    """A flat regenerated from the same source reports CURRENT, exit 0."""
+    repo = make_flat_repo(tmp_path, SIMPLE_RECIPE)
+    r = run_check(repo)
+    assert r.returncode == 0, \
+        f"expected exit 0, got {r.returncode}: {r.stdout}{r.stderr}"
+    assert "CURRENT" in r.stdout
+
+
+def test_unhandled_recipe_reported(tmp_path):
+    """A recipe that writes in-tree is UNHANDLED and never executes."""
+    repo = make_flat_repo(tmp_path, UNHANDLED_RECIPE)
+    r = run_check(repo)
+    assert r.returncode == 1
+    assert "UNHANDLED" in r.stdout
+    assert not (repo / "formal" / "demo" / "block1" / "side_effect.txt").exists(), \
+        "the in-tree side effect ran -- the tree was not protected"
