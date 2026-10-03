@@ -104,6 +104,39 @@ has no beats equivalent, and it is exactly the kind of logic formal is good at:
 
 ## Notes
 
+- DIR 1 status 2026-10-02 — **DONE, committed same day**: harness + flat +
+  Makefile + .sby; 16 `ap_*` + 12 `cp_*`. **Prove depth 15 PASS in 1:04:09**
+  (bitwuzla, single core; step 13 ~24 min, step 14 ~40 min of it). Cover
+  depth 40 re-run same day: 12/12 `cp_*` reached, deepest witness step 14.
+  smt2 re-grep on the final run: 16/16 `ap_*` present (see the grep trap at
+  the end of this note). Earlier that day: **Prove
+  depth 14 PASS in 26 min** (bitwuzla, single core). Cover depth 40 PASS in
+  27 s; deepest witness step 14 (cp_kill_inflight). sby depth semantics,
+  measured this session: `depth N` checks steps 0..N-1 (the depth-14 log's
+  last "Checking assertions" is step 13), so a CEX at step 14 is exactly one
+  past a depth-14 bound. With the full shadow state the per-step cost
+  explodes past step 12 (~16 min at step 14, ~27 at 13 on a loaded box;
+  depth 16 > 2 h), and the probe's "depth 50 in 38 s" figure did not survive
+  the shadow packet queue + per-beat expectation FIFO. Three CEX loops were
+  real harness bugs, not DUT bugs: PQ slot recycling (pop frees slots
+  before W drains), lazy-pop push indexing, and the fill-vs-drain ordering
+  insight -- the DUT forms a memory beat at EVERY accept (mid-packet
+  included), so expectations are captured per beat at FILL time. smt2 grep:
+  all 16 `ap_*` present, none dropped. Mutation battery (7 breaks): 6
+  CAUGHT in-budget -- tstrb-shift (ap_wstrb_eq_shadow@11), hold-load-zero
+  (ap_byte_equality@13), tready-no-record (ap_tready_needs_record@2),
+  4k-cap (ap_aw_4k@10), wlast-early (ap_wlast_count@11), BUG-014-revert
+  (ap_tready_needs_record@4); the 7th, dropping the hold-OR, was NOT caught
+  at depth 14 -- **RESOLVED: rerun at depth 17 CAUGHT ap_byte_equality at
+  step 14**, one step past the old bound, i.e. a depth artifact, not a
+  property hole (that mutation corrupts only INTERMEDIATE beats of 3+-beat
+  packets; first beats are unshifted and spill flush beats take r_hold_data
+  directly). Prove depth therefore re-pinned 14 -> 15 so the deepest witness
+  and every observed CEX are in-budget -- and the depth-15 re-prove then
+  PASSED, so the pin is verified, not assumed.
+- smt2 grep trap, measured 2026-10-02: `grep -o 'ap_[a-z0-9_]*' design_smt2.smt2`
+  returns a 17th name, `ap_beats` -- that is the DUT's `w_cap_beats` wire
+  (axi_write_engine), not a property. The property count is 16.
 - Flat-file discipline applies from day one: a committed sv2v snapshot that is
   not regenerated leaves a proof green against RTL that no longer exists. That
   has already happened in this area -- rapids BUG-011.
