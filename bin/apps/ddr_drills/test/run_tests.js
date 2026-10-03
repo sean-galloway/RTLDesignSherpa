@@ -24,13 +24,24 @@ var JS_ORDER = [
 var TEST_ORDER = [
   'test_engine.js',
   'test_mutate.js',
-  'test_scenarios.js'
+  'test_scenarios.js',
+  'test_packs.js'
+];
+
+// Content packs load after the js/ core, mirroring the <script> order in
+// index.html. They self-register onto DDRD; test_packs.js validates them.
+var PACK_ORDER = [
+  'hbm4.js'
 ];
 
 var root = path.join(__dirname, '..');
 
 JS_ORDER.forEach(function (f) {
   require(path.join(root, 'js', f));
+});
+
+PACK_ORDER.forEach(function (f) {
+  require(path.join(root, 'packs', f));
 });
 
 globalThis.DDRD_TEST_SUITES = globalThis.DDRD_TEST_SUITES || [];
