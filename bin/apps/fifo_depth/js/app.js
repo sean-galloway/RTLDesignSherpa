@@ -37,6 +37,15 @@ var FD = (typeof window !== 'undefined' ? window : globalThis).FD ||
     return x.toFixed(digits === undefined ? 1 : digits);
   }
 
+  // HTML-escape text destined for markup (attribute values, innerHTML).
+  function esc(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   function row(label, value, cls) {
     return '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + label +
            '</td><td class="num">' + value + '</td></tr>';
@@ -90,7 +99,7 @@ var FD = (typeof window !== 'undefined' ? window : globalThis).FD ||
       '<th>Case</th><th>fA</th><th>fB</th><th>Burst</th><th>W_Idle</th>' +
       '<th>R_Idle</th><th>N_Sync</th></tr></thead><tbody>';
     FD.EXAMPLES.forEach(function (ex, i) {
-      html += '<tr data-i="' + i + '" title="' + ex.note.replace(/"/g, '&quot;') + '">' +
+      html += '<tr data-i="' + i + '" title="' + esc(ex.note) + '">' +
         '<td>' + ex.case + '</td><td>' + ex.fA + '</td><td>' + ex.fB + '</td>' +
         '<td>' + ex.burst + '</td><td>' + ex.wIdle + '</td><td>' + ex.rIdle +
         '</td><td>' + ex.nSync + '</td></tr>';
@@ -116,6 +125,10 @@ var FD = (typeof window !== 'undefined' ? window : globalThis).FD ||
     renderErrors(v.errors);
     if (!v.ok) {
       el('banner').className = 'banner hidden';
+      el('banner').innerHTML = '';
+      el('chain').innerHTML = '';
+      el('verdict').innerHTML = '';
+      el('depths').innerHTML = '';
       return;
     }
     render(FD.compute({
@@ -127,7 +140,8 @@ var FD = (typeof window !== 'undefined' ? window : globalThis).FD ||
   FD.app = {
     update: update,
     renderExamples: renderExamples,
-    setParams: setParams
+    setParams: setParams,
+    esc: esc
   };
 })(FD);
 

@@ -91,6 +91,44 @@ test('validation flags each bad field and accepts numeric strings', function () 
   eq(v2.ok, true, 'numeric strings ok');
 });
 
+// --- app-level behaviors (minimal DOM stub; no browser needed) --------------
+function makeDomStub(values) {
+  var els = {};
+  ['fA', 'fB', 'burst', 'widle', 'ridle', 'nsync'].forEach(function (id) {
+    els['in-' + id] = { value: values[id] };
+    els['err-' + id] = { textContent: '' };
+  });
+  ['chain', 'verdict', 'depths', 'banner', 'examples'].forEach(function (id) {
+    els[id] = { innerHTML: '', textContent: '', className: '' };
+  });
+  globalThis.document = {
+    getElementById: function (id) { return els[id]; },
+    addEventListener: function () {}
+  };
+  return els;
+}
+
+test('invalid input clears results and keeps field errors', function () {
+  var els = makeDomStub({ fA: '80', fB: '50', burst: '120', widle: '0', ridle: '0', nsync: '2' });
+  require(path.join(__dirname, '..', 'js', 'app.js'));
+  FD.app.update();
+  if (els.chain.innerHTML === '') {
+    throw new Error('premise: valid input should render results');
+  }
+  els['in-fA'].value = 'abc';
+  FD.app.update();
+  eq(els['err-fA'].textContent, 'must be > 0', 'fA error shown');
+  eq(els.chain.innerHTML, '', 'chain cleared');
+  eq(els.verdict.innerHTML, '', 'verdict cleared');
+  eq(els.depths.innerHTML, '', 'depths cleared');
+  eq(els.banner.className, 'banner hidden', 'banner hidden');
+});
+
+test('example-note escaping covers & < > and quotes', function () {
+  require(path.join(__dirname, '..', 'js', 'app.js'));
+  eq(FD.app.esc('fA < fB & "q"'), 'fA &lt; fB &amp; &quot;q&quot;', 'esc helper');
+});
+
 // --- runner ----------------------------------------------------------------
 tests.forEach(function (t) {
   n += 1;
