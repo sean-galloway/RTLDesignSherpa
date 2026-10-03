@@ -97,8 +97,8 @@ in the HAS; the summary:
   `REFpb` bank rotor), power-down, and the DFI datapath CDC.
 - **Modified:** the init sequencer (DDR3 `RESET#`, MR0-MR3, JEDEC order),
   the mode-register block, the DFI command formatter (`ZQCL`, `ZQCS`,
-  `PREA`), the command scheduler (admits ZQ maintenance demand), and the
-  CSR block.
+  `PREA`), the DFI layer (the v3.1 control surface), the command scheduler
+  (admits ZQ maintenance demand), and the CSR block.
 - **New:** `scoria_zq_ctrl` (periodic `ZQCS` as request/grant maintenance
   traffic) and `scoria_wrlvl_ifc` (the write-leveling interface — handshake,
   timing windows and telemetry, **no search loop**; the search is firmware,
