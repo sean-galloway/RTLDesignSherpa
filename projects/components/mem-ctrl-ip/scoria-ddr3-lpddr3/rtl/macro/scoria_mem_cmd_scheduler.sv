@@ -351,6 +351,10 @@ module scoria_mem_cmd_scheduler
         .postpone_limit_i(ref_postpone_i),
         .pullin_limit_i  (ref_pullin_i),
         .demand_i        (|rd_sch_valid_i || |wr_sch_valid_i),
+        // Mode A inputs are tied off here; CSR wiring is Task 6.
+        .elastic_en_i            (1'b0),
+        .pullin_idle_streak_i    (8'd16),
+        .postpone_demand_streak_i(7'd16),
         .refresh_req_o   (refresh_req),
         .refresh_grant_i (refresh_grant),
         // refresh_grant fires at the arbiter's FIFO-PUSH, so the granted op is
@@ -365,7 +369,9 @@ module scoria_mem_cmd_scheduler
         .obs_drain_remaining_o (),
         .obs_bank_rotor_o      (),
         .obs_grants_total_o    (),
-        .obs_pullin_credit_o   ()
+        .obs_pullin_credit_o   (),
+        .obs_postpone_events_o (),
+        .obs_pullin_events_o   ()
     );
 
     // ======================================================================

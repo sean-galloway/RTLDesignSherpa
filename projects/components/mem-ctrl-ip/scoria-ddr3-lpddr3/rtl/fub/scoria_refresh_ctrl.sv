@@ -176,6 +176,27 @@ module scoria_refresh_ctrl
     assign w_grant_early  = refresh_grant_i && (r_pending == 4'd0)
                           && (r_pullin < 4'd8);
 
+    //=========================================================================
+    // Idle confirmation: demand_i is CAM occupancy and blinks off for a few
+    // cycles between bursts; treating those micro-gaps as idle would release
+    // postponed refreshes (and trigger pull-ins) mid-stream. Only a sustained
+    // gap counts as idle. Mode A makes the threshold sweepable; disabled, it
+    // falls back to the inherited 16-cycle confirmation.
+    //=========================================================================
+    logic [7:0] r_idle_cnt;
+    logic       w_idle;
+    assign w_idle = (r_idle_cnt >= (elastic_en_i ? pullin_idle_streak_i : 8'd16));
+
+    `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
+        if (`RST_ASSERTED(mc_rst_n)) begin
+            r_idle_cnt <= '0;
+        end else if (demand_i) begin
+            r_idle_cnt <= '0;
+        end else if (!w_idle) begin
+            r_idle_cnt <= r_idle_cnt + 1'b1;
+        end
+    end)
+
     `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
         if (`RST_ASSERTED(mc_rst_n)) begin
             r_refi_cnt       <= 16'd0;
@@ -305,25 +326,6 @@ module scoria_refresh_ctrl
                     r_bank_rotor <= r_bank_rotor + BA_W'(1);
                 end
             end
-        end
-    end)
-
-    // Idle confirmation: demand_i is CAM occupancy and blinks off for a few
-    // cycles between bursts; treating those micro-gaps as idle would release
-    // postponed refreshes (and trigger pull-ins) mid-stream. Only a sustained
-    // gap counts as idle. Mode A makes the threshold sweepable; disabled, it
-    // falls back to the inherited 16-cycle confirmation.
-    logic [7:0] r_idle_cnt;
-    logic w_idle;
-    assign w_idle = (r_idle_cnt >= (elastic_en_i ? pullin_idle_streak_i : 8'd16));
-
-    `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
-        if (`RST_ASSERTED(mc_rst_n)) begin
-            r_idle_cnt <= '0;
-        end else if (demand_i) begin
-            r_idle_cnt <= '0;
-        end else if (!w_idle) begin
-            r_idle_cnt <= r_idle_cnt + 1'b1;
         end
     end)
 
