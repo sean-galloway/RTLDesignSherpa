@@ -1,5 +1,7 @@
 # TASK-037: reconcile the stale dv/testplans with the modules that exist
 
+**Status:** closed 2026-10-03 (FIXED — see the CLOSED section below)
+
 Reconcile the 16 stale testplans in `dv/testplans/` with the modules that
 actually exist, or delete them.
 
@@ -49,3 +51,35 @@ parses is a document that cannot be wrong.
 
 The `mem-ctrl-ip` rename itself, which is done. This item is only the
 module-name staleness that rename uncovered.
+
+## CLOSED 2026-10-03
+
+**Reconciled 25 -> 12 testplans.** Three renamed in place (module,
+`rtl_file`, `test_file`, and the in-body `test_function:` strings where
+they named the old test): `scheduler` -> `pumice_mem_cmd_scheduler`,
+`rd_cmd_cam` -> `pumice_rd_cmd_cam`, and `page_predictor` ->
+`pumice_page_policy` — the task's own mapping called page_predictor
+dissolved, but `test_page_predictor.py` targets `pumice_page_policy.sv`
+(renamed, not dissolved), so it updates rather than deletes. Thirteen
+deleted as dissolved-or-split without a 1:1 counterpart: `axi_intake`
+(split into `pumice_rd_intake` + `pumice_wr_intake`), `wr_cmd_cam`,
+`xbank_timers`, `wr2rd_forward`, `wr_beat_sequencer`, `rd_cl_aligner`,
+`axi_id_side_table`, and the six macro wrappers. Every surviving ref
+resolves; README inventory/rollup rewritten to the same truth (100
+scenarios, 96 verified-class, 4 debug_only).
+
+**The parser check now exists** — the actual point of the task:
+`bin/filelist_registry.py --check` walks every `*_testplan.yaml`
+repo-wide (pumice, stream, rapids, converters, bridge, apbx-xbar,
+retro_legacy_blocks, val/) and fails on any `rtl_file`/`test_file` that
+does not resolve, wired into the same pre-commit + CI gate as the
+filelist checks. Ratcheted against `bin/testplan_refs_baseline.json` so
+the 43 pre-existing broken refs OUTSIDE pumice (val/common 32,
+fabric-gen-ip 9, val/amba 2 — surfaced by the first run) fail nobody
+while any NEW broken ref fails the gate. Mutation-verified: a planted
+rename is reported as REGRESSED with the exact pair named.
+
+**Filed in the same pass:** pumice TASK-039 (the post-rearchitecture FUBs
+have tests but no testplans — the coverage gap this reconcile exposed,
+deliberately not authored here) and tooling TASK-027 (fix + lower the
+43-ref repo-wide baseline).

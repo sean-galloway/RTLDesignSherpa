@@ -26,7 +26,7 @@ filing; IDs are per-lane sequences.
 
 | Lane | For | open | active | closed | dropped |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | 3 | 0 | 30 | 4 |
+| [task/](task/INDEX.md) | planned work we decided to do | 3 | 0 | 31 | 4 |
 | [bug/](bug/INDEX.md) | a defect with a reproduction | 0 | 0 | 21 | 1 |
 | [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 1 | 0 | 16 | 3 |
 
@@ -41,12 +41,13 @@ was fixed 2026-10-03 alongside BUG-021; every written copy of the wrong
 bound is corrected and the right one is guarded by
 `test_addr_mapper.py::minimum_bank_lsb_is_measured`.
 
-**Task lane: TASK-035, TASK-037, TASK-038.** TASK-035 finishes tier-1
+**Task lane: TASK-035, TASK-038, TASK-039.** TASK-035 finishes tier-1
 formal coverage (5 of 27 blocks; wr_data_cam counterexample + dfi_cdc
-name resolution remain). TASK-037 reconciles 16 stale dv/testplans (29
-broken refs) plus a parser check. TASK-038 rebuilds the ddr2-char
-harness images with the fixed sdpram slave and repins pumice board perf
-— board-gated, batch with stream TASK-016.
+name resolution remain). TASK-038 rebuilds the ddr2-char harness images
+with the fixed sdpram slave and repins pumice board perf — board-gated,
+batch with stream TASK-016. TASK-039 (filed closing TASK-037) authors
+testplans for the post-rearchitecture FUBs — they have tests but no
+plans; refs are gate-checked.
 
 **Issue lane: ISSUE-020** — the paging perf assertions are calibrated
 against pre-compliant tFAW/tRRD window behavior and the gate fails on

@@ -1,5 +1,5 @@
-module: page_predictor
-rtl_file: projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/page_predictor.sv
+module: pumice_page_policy
+rtl_file: projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_page_policy.sv
 test_file: projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/dv/tests/fub/test_page_predictor.py
 
 parameters:

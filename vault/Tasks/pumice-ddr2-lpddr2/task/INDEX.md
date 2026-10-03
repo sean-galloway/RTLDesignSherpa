@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-039** — never recycle a number, even when its item closed.
+**Next ID: TASK-040** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -14,11 +14,17 @@ exactly one state by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 30 | done (kept for history) |
+| [closed/](closed/) | 31 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
+
+- **TASK-039** — author testplans for the post-rearchitecture FUBs
+  (`pumice_cmd_arbiter`, `pumice_bank_timers`, the rd/wr intakes, the DFI
+  stack, ...) — they have tests but no testplans; the coverage gap TASK-037's
+  reconcile deliberately left. Refs are gate-checked by
+  `bin/filelist_registry.py --check`
 
 - **TASK-038** — rebuild the ddr2-char harness images (build-perf and the
   LiteDRAM A/B) with the fixed sdpram slave (amba 71d48b6f7, burst boundary
@@ -31,13 +37,6 @@ exactly one state by construction rather than by discipline.
   not when all 27 are. Per-block done criteria and the traps already paid for
   are in the item
 
-- **TASK-037** — reconcile the 16 stale testplans in `dv/testplans/` with the
-  modules that actually exist, or delete them. 29 of 50 `rtl_file`/`test_file`
-  refs name pre-rearchitecture blocks (`axi_intake.sv`, `wr_cmd_cam.sv`,
-  `xbank_timers.sv`). All 50 were broken before the `mem-ctrl-ip` rename
-  normalized the directory part, which is what exposed these as a separate
-  problem; no gate parses these files, which is why they rotted
-
 ## Deferred
 
 - **TASK-033** — the v2/v3 power and mode-register deferrals (6 RTL TODO markers).
@@ -46,6 +45,16 @@ exactly one state by construction rather than by discipline.
   depend on scoria and is a test, not a feature
 
 ## Closed
+
+- **TASK-037** — CLOSED 2026-10-03: the 16 stale `dv/testplans/` reconciled
+  with the modules that exist — 3 renamed in place (scheduler ->
+  pumice_mem_cmd_scheduler, rd_cmd_cam -> pumice_rd_cmd_cam, page_predictor ->
+  pumice_page_policy), 13 deleted as dissolved (axi_intake split, wr_cmd_cam,
+  xbank_timers, the six macro wrappers, ...), 25 -> 12 plans, README rewritten
+  to the same truth. The parser check the task was really about now exists:
+  `filelist_registry.py --check` gates every `*_testplan.yaml` ref repo-wide,
+  ratcheted (43 pre-existing refs outside pumice are tooling TASK-027). Filed
+  pumice TASK-039 for the coverage gap the reconcile exposed
 
 - **TASK-036** — CLOSED: both questions answered. At the PHY layer the FPGA's DQ
   drive never coincides with a read window at tRTW=3 and stays **28 cycles

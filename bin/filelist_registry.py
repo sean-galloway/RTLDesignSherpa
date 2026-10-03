@@ -51,8 +51,14 @@ except ModuleNotFoundError:  # Python < 3.11
 REPO_ROOT = Path(__file__).resolve().parent.parent
 REGISTRY = REPO_ROOT / "bin" / "filelists.toml"
 BASELINE = REPO_ROOT / "bin" / "blindspots_baseline.json"
+TESTPLAN_BASELINE = REPO_ROOT / "bin" / "testplan_refs_baseline.json"
 
 MODULE_RE = re.compile(r"^\s*module\s+([A-Za-z_]\w*)", re.M)
+
+# A testplan's top-level rtl_file:/test_file: refs. The schema is flat and
+# these keys sit at column 0, so a line regex is enough -- no yaml
+# dependency for a gate that must run anywhere the filelists gate runs.
+TESTPLAN_REF_RE = re.compile(r"^(rtl_file|test_file):\s*(\S*)\s*$", re.M)
 
 # A $VAR / ${VAR} that survived expansion. FRAMEWORK_ROOT and STREAM_CHAR_ROOT
 # are exported by the per-flow Makefiles rather than by filelist_utils, and
@@ -434,7 +440,8 @@ def _exempt_ratchet(seen: dict) -> int:
     return 1
 
 
-def cmd_check(reg: dict, update_exempt_baseline: bool = False) -> int:
+def cmd_check(reg: dict, update_exempt_baseline: bool = False,
+              update_testplan_baseline: bool = False) -> int:
     exempt = reg.get("exempt", {})
     exempt_seen: dict[str, int] = {}
     failures = 0
@@ -515,6 +522,13 @@ def cmd_check(reg: dict, update_exempt_baseline: bool = False) -> int:
             print(f"         uncovered module: {m}  -> add a .f under {dests[0]}")
         for p in dict.fromkeys(problems):
             print(f"         {p}")
+
+    # Testplan refs are not .f filelists -- they ride this gate because the
+    # failure class is identical (a rename rots references nothing parses)
+    # and so is the remedy (resolve them for broken refs). Ratcheted: the
+    # pre-existing repo-wide debt fails nobody while a NEW broken ref does.
+    if _testplan_ratchet(testplan_broken_refs(), update_testplan_baseline):
+        failures += 1
 
     print()
     if update_exempt_baseline:
@@ -1073,6 +1087,82 @@ def cmd_resolve(path: str) -> int:
     return 1 if problems else 0
 
 
+def testplan_broken_refs() -> list[str]:
+    """Every *_testplan.yaml rtl_file/test_file must resolve to a real file.
+
+    Testplans name the RTL module and the cocotb test that exercises it,
+    but nothing in any gate parsed them, so a rearchitecture that renames
+    or dissolves a module rotted every reference invisibly: pumice
+    TASK-037 found 29 of 50 refs broken at HEAD, some three module-names
+    out of date, and the README right beside them cataloguing the same
+    stale names as current. A testplan nobody parses is a document that
+    cannot be wrong. Walk is repo-wide (pumice, stream, rapids,
+    converters, bridge, apbx-xbar, retro_legacy_blocks, val/ ship the same
+    convention). A $VAR reference is flow-scoped, not broken -- the same
+    rule the .f resolution uses.
+    """
+    problems = []
+    for plan in sorted(REPO_ROOT.rglob("*_testplan.yaml")):
+        if ".git" in plan.parts:
+            continue
+        rel_plan = rel(plan)
+        try:
+            text = plan.read_text()
+        except OSError as e:
+            problems.append(f"{rel_plan}: unreadable ({e})")
+            continue
+        for m in TESTPLAN_REF_RE.finditer(text):
+            key, ref = m.group(1), m.group(2)
+            if not ref:
+                problems.append(f"{rel_plan}: {key} is empty")
+                continue
+            if UNRESOLVED_VAR.search(ref):
+                continue            # flow-scoped: resolvable only under make
+            if not (REPO_ROOT / ref).is_file():
+                problems.append(f"{rel_plan}: {key} {ref}")
+    return problems
+
+
+def _testplan_ratchet(problems: list[str], update_baseline: bool) -> int:
+    """Ratchet over the broken-ref set: a NEW broken pair fails; a fixed
+    one drops off (lower the baseline). Same discipline as --blindspots:
+    gating on zero with real outstanding debt just teaches --no-verify."""
+    if update_baseline:
+        TESTPLAN_BASELINE.write_text(
+            json.dumps(sorted(problems), indent=2) + "\n")
+        print(f"[testplans] baseline written: {len(problems)} known broken "
+              f"ref(s) -> {rel(TESTPLAN_BASELINE)}")
+        return 0
+    base_text = _config_text(TESTPLAN_BASELINE)
+    if base_text is None:
+        print(f"[testplans] no baseline at {rel(TESTPLAN_BASELINE)}; write one "
+              f"with --testplans --update-baseline")
+        return 1
+    base = set(json.loads(base_text))
+    now = set(problems)
+    new = sorted(now - base)
+    fixed = sorted(base - now)
+    if fixed:
+        print(f"[testplans] IMPROVED since the baseline "
+              f"({len(fixed)} ref(s) now resolve):")
+        for f_ in fixed:
+            print(f"         {f_}")
+        print(f"         lower it: python3 {rel(Path(__file__))} "
+              f"--testplans --update-baseline")
+    if new:
+        print(f"[testplans] REGRESSED -- {len(new)} NEW broken ref(s):")
+        for n_ in new:
+            print(f"         {n_}")
+        return 1
+    print(f"[testplans] PASS (ratchet): {len(now)} known broken ref(s) "
+          f"outstanding, no new ones")
+    return 0
+
+
+def cmd_testplans(update_baseline: bool) -> int:
+    return _testplan_ratchet(testplan_broken_refs(), update_baseline)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -1093,10 +1183,17 @@ def main() -> int:
     g.add_argument("--placement", action="store_true",
                    help="verify every tracked .f sits in a filelists/ dir "
                         "(ratcheted against bin/filelist_placement_baseline.json)")
+    g.add_argument("--testplans", action="store_true",
+                   help="verify every *_testplan.yaml rtl_file/test_file resolves "
+                        "(ratcheted against bin/testplan_refs_baseline.json)")
     ap.add_argument("--ratchet", action="store_true",
                     help="with --blindspots: fail only if a class GREW vs the baseline")
     ap.add_argument("--update-baseline", action="store_true",
                     help="with --blindspots: rewrite the baseline from the current counts")
+    ap.add_argument("--update-testplan-baseline", action="store_true",
+                    dest="update_testplan_baseline",
+                    help="with --testplans or --check: rewrite "
+                         "bin/testplan_refs_baseline.json from the current broken refs")
     ap.add_argument("--update-placement-baseline", action="store_true",
                     dest="update_placement_baseline",
                     help="with --placement: rewrite bin/filelist_placement_baseline.json "
@@ -1114,7 +1211,8 @@ def main() -> int:
     if args.list:
         return cmd_list(reg)
     if args.check:
-        return cmd_check(reg, args.update_exempt_baseline)
+        return cmd_check(reg, args.update_exempt_baseline,
+                         args.update_testplan_baseline)
     if args.audit:
         return cmd_audit(reg)
     if args.unrolled:
@@ -1125,6 +1223,8 @@ def main() -> int:
         return cmd_dupes(reg)
     if args.placement:
         return cmd_placement(reg, args.update_placement_baseline)
+    if args.testplans:
+        return cmd_testplans(args.update_testplan_baseline)
     if args.find:
         return cmd_find(reg, args.find)
     return 0

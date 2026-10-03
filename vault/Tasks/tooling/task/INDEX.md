@@ -2,7 +2,7 @@
 
 # tooling — tasks
 
-**Next ID: TASK-027** — never recycle a number, even when its item closed.
+**Next ID: TASK-028** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,13 +12,19 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 24 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **TASK-027** (P3) — 43 broken testplan refs outside pumice (val/common 32,
+  fabric-gen-ip 9, val/amba 2): fix per area with pumice TASK-037's
+  update-or-delete judgment, then lower the ratcheted baseline
+  (`filelist_registry.py --testplans --update-testplan-baseline`). The gate
+  added by TASK-037 makes any NEW broken ref fail pre-commit/CI
 
 - **TASK-026** (P2) -- formal stale-flat self-detection: a regenerate-and-diff mode beside `bin/formal_status.py --inventory`; fanned out of rapids BUG-011, which two stale beats flats passed green against pre-BUG-009 RTL
 
