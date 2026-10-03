@@ -115,3 +115,39 @@ Notes:
 - Latency context (not engine params): RL/WL from MR2 by speed grade
   (8/4 at 1066 down to 3/1 at 466-); tDQSCK is analog (no DLL) and may
   span multiple clocks.
+
+## DDR3 (packs/ddr3.js, JESD79-3F)
+
+Topology: flat 8 banks, sids: 0 (drill model). Real: 512 Mb-8 Gb, all
+with 8 banks (BA0-BA2), 1-2 KB pages, x4/x8/x16, NO bank groups.
+Scopes used: same_bank / diff_bank / any.
+
+| Symbol | Scope pattern | Value basis | Reference |
+| --- | --- | --- | --- |
+| tRCD | ACT -> RD/WR/RDA/WRA same_bank | 10-15 ns by bin | sec 4.11, Tables 62-67 |
+| tRAS | ACT -> PRE same_bank | 36-37.5 ns min; max 9 x tREFI | sec 4.11 |
+| tRP | PRE -> ACT same_bank | bin-matched to tRCD | sec 4.11, Tables 62-67 |
+| tRC | ACT -> ACT same_bank | = tRAS + tRP (46.5-52.5 ns by bin) | sec 4.11 |
+| tRRD | ACT -> ACT diff_bank | max(4 nCK, 6-10 ns by speed); 1KB/2KB page variants | sec 4.12 |
+| tFAW | ACT -> ACT any (rolling window of 4) | 25-50 ns by speed/page | sec 4.12 |
+| tRTP | RD/RDA -> PRE same_bank | max(4 nCK, 7.5 ns); cmd form AL + BL/2 + RU(tRTP) | sec 4.13 |
+| tWR | WR/WRA -> PRE same_bank | 15 ns; MR0 WR codes 5-16 | sec 4.13 |
+| tDAL | WRA -> ACT same_bank | = WL + BL/2 + WR + tRP clocks; also >= tRC | sec 4.13 |
+| tCCD | RD->RD / WR->WR any (same direction only) | 4 nCK = BL/2 at BL8 | sec 4.13 |
+| tRTW | RD -> WR any (book symbol) | RL + tCCD + 2 - WL at BL8 (spec gives relation unnamed) | sec 4.14 |
+| tWTR | WR -> RD any | max(4 nCK, 7.5 ns); cmd form WL + BL/2 + RU(tWTR) | sec 4.14 |
+| tMRD | MRS -> MRS (panel only) | 4 nCK | sec 3.4 |
+| tMOD | MRS -> * (panel only) | max(12 nCK, 15 ns) | sec 3.4 |
+| tDLLK | MRS -> RD/RDA (panel only) | 512 nCK after DLL reset | sec 3.4.1, 4.13 |
+| tREFI | REF -> REF (panel only) | 7.8 us (3.9 us 85-95 C); 8 postponable / 8 pulled-in | sec 4.15 |
+| tRFC | REF -> REF/ACT (panel only) | 90/110/160/260/350 ns by density | sec 4.15, Table 68 |
+| tXS | SRX -> ACT/PRE/MRS/REF (panel only) | max(5 nCK, tRFC + 10 ns); DLL commands add tDLLK | sec 4.16 |
+| tXP | SRX -> * (panel only) | max(3 nCK, 6-7.5 ns by speed) | sec 4.17 |
+
+Notes:
+- tCCD is same-direction only in the pack, matching the book's gap sheet;
+  direction changes are governed by tRTW/tWTR, which dominate tCCD there.
+- Latency context (not engine params): RL = AL + CL (MR0 CL, MR1 AL);
+  WL = AL + CWL (MR2 CWL). DDR3 changed WL from RL-1 to an independently
+  programmed CWL.
+- PREA uses the same tRP as PRE in DDR3 (no extra clock as in DDR2).

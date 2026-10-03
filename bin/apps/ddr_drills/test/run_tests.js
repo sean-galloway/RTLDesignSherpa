@@ -36,7 +36,8 @@ var TEST_ORDER = [
 var PACK_ORDER = [
   'hbm4.js',
   'ddr2.js',
-  'lpddr2.js'
+  'lpddr2.js',
+  'ddr3.js'
 ];
 
 var root = path.join(__dirname, '..');
