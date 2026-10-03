@@ -78,9 +78,9 @@ surprised somebody:
 **Location:** `ch02_blocks/`
 
 - [00_overview.md](ch02_blocks/00_overview.md) - The twelve instances and what each contributes
-- 01_apbx_xbar.md - The generated 1-to-10 crossbar in detail *(planned, not yet written)*
-- 02_interrupt_fabric.md - The fabric as its own block *(planned, not yet written)*
-- 03_cascade.md - The 8259 cascade cross-connect in detail *(planned, not yet written)*
+- [01_apbx_xbar.md](ch02_blocks/01_apbx_xbar.md) - The generated 1-to-10 crossbar in detail
+- [02_interrupt_fabric.md](ch02_blocks/02_interrupt_fabric.md) - The fabric as its own block
+- [03_cascade.md](ch02_blocks/03_cascade.md) - The 8259 cascade cross-connect in detail
 
 ### Chapter 3: Interfaces
 **Location:** `ch03_interfaces/`
