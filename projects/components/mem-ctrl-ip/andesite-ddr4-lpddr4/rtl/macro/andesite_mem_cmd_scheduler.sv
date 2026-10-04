@@ -157,6 +157,9 @@ module andesite_mem_cmd_scheduler
     input  logic [1:0]                ref_trefi_derate_i,          // REF_CTRL.trefi_derate
     input  logic [1:0]                zq_placement_i,              // ZQ_CFG.placement
     input  logic [12:0]               zq_overdue_max_i,            // ZQ_CFG.overdue_max
+    // ANDESITE MPC DELTA (T5): LPDDR4 calibration CSRs for andesite_zq_ctrl
+    input  logic [15:0]               t_zq_i,                      // tZQ latency (LPDDR4)
+    input  logic [5:0]                zq_mpc_opcode_i,             // MPC opcode image; encodings TBC
     output logic [15:0]               obs_ref_postpone_events_o,   // REF_STATS_POSTPONE
     output logic [15:0]               obs_ref_pullin_events_o,     // REF_STATS_PULLIN
 
@@ -282,7 +285,9 @@ module andesite_mem_cmd_scheduler
     ) u_init (
         .mc_clk             (aclk),
         .mc_rst_n           (aresetn),
-        .memtype_i          (memtype_i),
+        // ANDESITE DELTA (partial, T9 owns the full rewiring): the P1
+        // sequencer takes the memtype as its CSR image, not a runtime port.
+        .csr_memtype        (memtype_i),
         .t_init_wait_i      (t_init_wait_i),
         .t_dll_wait_i       (t_dll_wait_i),
         .t_mrd_wait_i       (t_mrd_wait_i),
@@ -415,7 +420,11 @@ module andesite_mem_cmd_scheduler
     // implemented; the LPDDR3 path has no ZQ maintenance yet.
     logic w_zq_req, w_zq_grant;
     logic w_zq_run;
-    assign w_zq_run = zq_enable_i && init_done && (memtype_i == MEMTYPE_DDR3);
+    // ANDESITE DELTA: scoria gated ZQ on MEMTYPE_DDR3 (its only exercised
+    // family); andesite exercises DDR4 and LPDDR4, both of which carry ZQ
+    // calibration (DDR4 ZQCS/ZQCL, LPDDR4 MPC).
+    assign w_zq_run = zq_enable_i && init_done
+                    && ((memtype_i == MEMTYPE_DDR4) || (memtype_i == MEMTYPE_LPDDR4));
 
     andesite_zq_ctrl u_zq (
         .mc_clk             (aclk),
@@ -429,6 +438,12 @@ module andesite_mem_cmd_scheduler
         .overdue_max_i      (zq_overdue_max_i),
         .zq_req_o           (w_zq_req),
         .zq_grant_i         (w_zq_grant),
+        // ANDESITE MPC DELTA: LPDDR4 calibration path (T5)
+        .memtype_i          (memtype_i),
+        .t_zq_i             (t_zq_i),
+        .mpc_opcode_i       (zq_mpc_opcode_i),
+        .mpc_issuing_o      (),
+        .mpc_op_o           (),
         .obs_busy_o         (zq_busy_o),
         .obs_zqcs_total_o   (zq_total_o),
         .obs_interval_cnt_o (zq_interval_cnt_o),

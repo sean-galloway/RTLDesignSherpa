@@ -22,11 +22,11 @@
 
 # ZQ Calibration Controller (`andesite_zq_ctrl`)
 
-**Module:** `andesite_zq_ctrl.sv` (+ `zq_ctrl_mpc_lpddr4.sv` — lands with the MPC delta)
+**Module:** `andesite_zq_ctrl.sv` + `andesite_zq_mpc_lpddr4.sv` (both landed)
 **Location:** `rtl/fub/`
 **Category:** maintenance / calibration
 **Parent:** `andesite_core`
-**Status:** DDR4 core carried from scoria and landed; the LPDDR4 MPC submodule is specified below and lands with the ZQ task; ports table reconciled to the landed port list
+**Status:** DDR4 core carried from scoria and landed; the LPDDR4 MPC submodule is landed per the FSM below; ports tables reconciled to the landed port lists
 
 ---
 
@@ -53,23 +53,31 @@ The DDR4 side is INHERITED. The LPDDR4 side is NEW. Both share one maintenance r
 | `mc_clk` | in | 1 | controller clock |
 | `mc_rst_n` | in | 1 | active-low reset |
 | `enable_i` | in | 1 | calibration engine enable (ZQ_CFG.zq_enable) |
-| `t_zqcs_interval_i` | in | 32 | calibration interval, runtime CSR; 0 = off |
-| `t_zqcs_i` | in | 16 | `tZQCS` recovery, runtime CSR |
-| `placement_i` | in | 2 | placement policy select (Mode C) |
-| `overdue_max_i` | in | 13 | defer-under-demand threshold |
+| `memtype_i` | in | 3 | `memtype_e`: selects the calibration path — `MEMTYPE_LPDDR4` hands expiries to the MPC submodule; anything else runs the inherited DDR4 core |
+| `t_zqcs_interval_i` | in | 32 | calibration interval, runtime CSR; 0 = off (shared by both paths) |
+| `t_zqcs_i` | in | 16 | `tZQCS` recovery, runtime CSR (DDR4 path) |
+| `placement_i` | in | 2 | placement policy select (Mode C, DDR4 path) |
+| `overdue_max_i` | in | 13 | defer-under-demand threshold (DDR4 path) |
 | `demand_i` | in | 1 | demand indication from the scheduler side |
-| `zq_req_o` | out | 1 | request to the scheduler; held until `zq_grant_i` — request-and-wait, never preempt |
+| `zq_req_o` | out | 1 | request to the scheduler; held until `zq_grant_i` — request-and-wait, never preempt (muxed between the core and the submodule) |
 | `zq_grant_i` | in | 1 | scheduler grant |
-| `obs_busy_o` | out | 1 | a calibration is in flight |
-| `obs_zqcs_total_o` | out | 16 | issued-calibration counter |
-| `obs_interval_cnt_o` | out | 32 | interval countdown observability |
-| `obs_overdue_o` | out | 1 | overdue flag (placement policy) |
+| `obs_busy_o` | out | 1 | a calibration is in flight (post-grant window, either path) |
+| `obs_zqcs_total_o` | out | 16 | issued-calibration counter (shared: counts either path's completion) |
+| `obs_interval_cnt_o` | out | 32 | interval countdown observability (shared by both paths) |
+| `obs_overdue_o` | out | 1 | overdue flag (DDR4 placement-policy telemetry; the LPDDR4 path does not defer, so it stays low there) |
 
 The carried DDR4 core exposes no DDR4-only ports beyond this set: `ZQCS` is its only calibration flavour, and the init-time long calibration is sequenced by the scheduler macro's `t_zqinit_wait_i` window, not by this block. The original spec sketch's `init_zqcl_req`/`init_zqcl_done` handshake and the unified `maint_req`/`maint_tag` channel are not how the carried RTL works — the core requests calibration on `zq_req_o` and waits on `zq_grant_i`.
 
-### LPDDR4-only ports (land with the MPC submodule)
+### LPDDR4-only ports (the landed MPC submodule)
 
-No MPC ports exist yet. The submodule lands with the ZQ task per the FSM below; its ports (`mpc_zq_start`, `mpc_zq_latch`, `mpc_op`, `mpc_done` in the original sketch) will be reconciled to its landed list when it does, exactly as this table was.
+The submodule is `andesite_zq_mpc_lpddr4` (its own FUB file); `zq_ctrl` instantiates it and memtype-muxes the scheduler pair and the busy observable — a combinational passthrough of the two registered sources, so each path keeps single-register latency.
+
+| Signal | Direction | Width | Description |
+|---|---|---|---|
+| `t_zq_i` | in | 16 | `tZQ` calibration latency, runtime CSR (JESD209-4 speed-bin derived); waited out in `MPC_WAIT` |
+| `mpc_opcode_i` | in | 6 | MPC opcode **image** from the CSR. The encodings are TBC(JESD209-4): the submodule drives the image and never decodes it — no MPC opcode encodings are invented anywhere in andesite |
+| `mpc_issuing_o` | out | 1 | high in `MPC_ISSUE`; the formatter samples the image with the grant cycle |
+| `mpc_op_o` | out | 6 | the opcode image presented while issuing (follows `mpc_opcode_i` combinationally) |
 
 : Table 2.7.2: ZQ controller ports
 
@@ -99,7 +107,7 @@ MPC_IDLE
     -> MPC_IDLE
 ```
 
-`tZQ` here is the LPDDR4 ZQ calibration latency, a runtime CSR loaded from JESD209-4 at CSR-derivation time. The submodule will share the core's `obs_zqcs_total_o`/`obs_overdue_o` telemetry so one counter set serves both memtypes.
+`tZQ` here is the LPDDR4 ZQ calibration latency, the `t_zq_i` runtime CSR loaded from JESD209-4 at CSR-derivation time. The submodule rides the core's shared interval counter and telemetry: `obs_zqcs_total_o` counts either path's completion, `obs_interval_cnt_o` is the live countdown, and `MPC_DONE` is what reloads the shared interval.
 
 The MPC submodule depends on the LPDDR4 CA path in `dfi_cmd_formatter` (Ch 2.1). It does not build its own CA encoder; it drives the MPC opcode and lets the formatter place it on the 6-bit CA bus.
 
