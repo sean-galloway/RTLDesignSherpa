@@ -1,6 +1,7 @@
-# TASK-004: the single-port observer's monbus arbiter padding wastes every other grant, and the egress err FIFO back-pressures the taps in bursts
+# TASK-005: the single-port observer's monbus arbiter padding wastes every other grant, and the egress err FIFO back-pressures the taps in bursts
 
-**Status:** open 2026-10-04
+**Status:** open 2026-10-04. (Filed as TASK-004 in commit c35c8304b's message,
+renumbered the same day -- TASK-004 already existed closed in this lane.)
 **Priority:** P3
 **Filed from:** utility-ip/misc TASK-003 (observer adopted axis_monitor_lite).
 

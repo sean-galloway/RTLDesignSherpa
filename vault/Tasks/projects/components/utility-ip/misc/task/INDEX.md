@@ -20,7 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
-- **TASK-004** — single-port observers pad monbus_arbiter to 2 clients; the
+- **TASK-005** — single-port observers pad monbus_arbiter to 2 clients; the
   idle padding client wastes every other grant (measured monbus_ready 1/1
   toggle), and burst back-pressure from the 64-record egress err FIFO then
   drops tap events at the core's default OUT_DEPTH 4/8 (killed Channel on
