@@ -190,49 +190,6 @@ module formal_axi4_dwidth_converter_rd (
     end
 
     // =========================================================================
-    // Shadow model: track R beat count per burst
-    // =========================================================================
-    reg [7:0] f_ar_len = 0;
-    reg [7:0] f_r_beat_count = 0;
-    reg       f_burst_active = 0;
-
-    always @(posedge aclk) begin
-        if (!aresetn) begin
-            f_ar_len <= 0;
-            f_r_beat_count <= 0;
-            f_burst_active <= 0;
-        end else begin
-            if (s_axi_arvalid && s_axi_arready_o) begin
-                f_ar_len <= s_axi_arlen;
-                f_r_beat_count <= 0;
-                f_burst_active <= 1;
-            end
-            if (s_axi_rvalid_o && s_axi_rready) begin
-                f_r_beat_count <= f_r_beat_count + 1;
-                if (s_axi_rlast_o)
-                    f_burst_active <= 0;
-            end
-        end
-    end
-
-    // =========================================================================
-    // Input protocol constraint: master R valid requires a prior master AR
-    // handshake. The converter is not a responder; it cannot produce R data
-    // before an AR is issued to the downstream slave.
-    // =========================================================================
-    reg f_any_master_ar_seen = 0;
-    always @(posedge aclk) begin
-        if (!aresetn)
-            f_any_master_ar_seen <= 0;
-        else if (m_axi_arvalid_o && m_axi_arready)
-            f_any_master_ar_seen <= 1;
-    end
-
-    always @(*) begin
-        assume (!m_axi_rvalid || f_any_master_ar_seen);
-    end
-
-    // =========================================================================
     // P1: Reset -- slave R valid deasserted after reset
     // =========================================================================
     always @(posedge aclk) begin

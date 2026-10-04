@@ -82,6 +82,10 @@ class AXI4DWidthConverterWriteTB(TBBase):
 
         # BUG-008 TDD: out-of-order B response test for the downsize split fold
         self.ooo_b_test = os.environ.get('DWIDTH_WR_OOO_B_TEST', '0') == '1'
+        # BUG-008 follow-up: B-CAM occupancy flood (slow B return vs many
+        # outstanding bursts) -- the final-AW CAM-slot gate must prevent
+        # push drops.
+        self.b_cam_flood_test = os.environ.get('DWIDTH_WR_B_CAM_FLOOD_TEST', '0') == '1'
 
         # Calculate derived parameters
         self.WIDTH_RATIO = max(self.S_AXI_DATA_WIDTH, self.M_AXI_DATA_WIDTH) // \
@@ -185,12 +189,14 @@ class AXI4DWidthConverterWriteTB(TBBase):
                 'addr_width': self.AXI_ADDR_WIDTH,
                 'super_debug': True  # Enable super_debug to validate signal connections
             }
-            if self.ooo_b_test:
+            if self.ooo_b_test or self.b_cam_flood_test:
                 # BUG-008 TDD: drive B responses manually so we can force the
                 # cross-ID out-of-order arrival that the BFM's built-in OOO
                 # scheduler cannot guarantee while W data streams in-order.
+                # The flood test reuses the same manual-B drive to hold Bs
+                # back and stress B-CAM occupancy.
                 slave_kwargs['response_delay'] = 1000000
-                self.log.info("BUG-008 OOO-B test: master-side slave BFM response disabled; B driven manually")
+                self.log.info("BUG-008 test: master-side slave BFM response disabled; B driven manually")
 
             self.master_write_slave = create_axi4_slave_wr(**slave_kwargs)
 
@@ -198,7 +204,7 @@ class AXI4DWidthConverterWriteTB(TBBase):
             # (AXI4SlaveWrite callbacks consume the _recvQ, so we need to capture first)
             self.master_write_slave['AW'].add_callback(self._capture_aw_callback)
             self.master_write_slave['W'].add_callback(self._capture_w_callback)
-            if self.ooo_b_test:
+            if self.ooo_b_test or self.b_cam_flood_test:
                 self.master_write_slave['W'].add_callback(self._capture_wlast_callback)
                 self.slave_write_master['B'].add_callback(self._capture_b_callback)
 
@@ -1201,3 +1207,80 @@ class AXI4DWidthConverterWriteTB(TBBase):
         else:
             self.log.error("OOO-B split-fold test FAILED")
         return ok
+
+    async def run_b_cam_flood_test(self):
+        """BUG-008 follow-up: the per-burst B CAM must not overflow under a
+        write flood with slow B return.
+
+        More single-beat (unsplit) slave bursts than the CAM has entries are
+        issued while downstream B responses are held off.  A burst's CAM entry
+        lives from its final (only) master AW until its B returns, so the CAM
+        -- which drains on B -- is the occupancy limiter, not the W-framing
+        split queue, which drains as soon as a burst's W data is framed.  The
+        final master AW must therefore stall until a CAM slot frees; without
+        that gate the push is dropped, that burst's B responses match no CAM
+        entry, and the slave never gets its B (hang).
+
+        Drives one manual B per captured master AW, oldest first, so each B
+        frees a slot and unblocks a stalled AW; asserts every slave burst
+        gets exactly one B.
+        """
+        if not self.DOWNSIZE:
+            self.log.info("B-CAM flood test: only relevant in DOWNSIZE mode (no split in upsize)")
+            return True
+
+        self.log.info("=== BUG-008 B-CAM flood test ===")
+
+        n_bursts = 20  # > B_CAM_DEPTH (16)
+        base_addr = 0x1000
+
+        self.captured_aw_packets.clear()
+        self.captured_w_packets.clear()
+        self.captured_b_events.clear()
+
+        tasks = []
+        for i in range(n_bursts):
+            data = self.generate_traceable_data(i % 4, 1)
+            tasks.append(cocotb.start_soon(
+                self.write_transaction(base_addr + i * 0x100, data, awid=i % 4)))
+
+        # Phase 1: hold ALL Bs back so the AWs race ahead of the responses.
+        # On the ungated RTL the CAM overflows here (its push is dropped); on
+        # the gated RTL the final AWs stall waiting for a free slot.
+        await self.wait_clocks(self.aclk_name, 200)
+
+        # Phase 2: drive Bs until every one of the 20 slave bursts has its
+        # master B.  Each B frees a slot, unblocking a stalled final AW on
+        # the gated RTL.
+        b_ch = self.master_write_slave['B']
+        sent = 0
+        timeout = self.TIMEOUT_CYCLES * 20
+        waited = 0
+        while sent < n_bursts and waited < timeout:
+            if len(self.captured_aw_packets) > sent:
+                aw = self.captured_aw_packets[sent]
+                await b_ch.send(b_ch.create_packet(id=int(getattr(aw, 'id', 0)), resp=0))
+                sent += 1
+            await self.wait_clocks(self.aclk_name, 4)
+            waited += 4
+
+        if sent < n_bursts:
+            self.log.error(f"B-CAM flood: only {sent}/{n_bursts} master Bs sent after "
+                           f"{waited} cycles (AWs captured={len(self.captured_aw_packets)})")
+            self.errors += 1
+            return False
+
+        # All Bs are sent; give the slave-side B responses time to propagate.
+        waited = 0
+        while len(self.captured_b_events) < n_bursts and waited < timeout:
+            await self.wait_clocks(self.aclk_name, 4)
+            waited += 4
+
+        if len(self.captured_b_events) != n_bursts:
+            self.log.error(f"B-CAM flood: expected {n_bursts} s_axi B responses, "
+                           f"got {len(self.captured_b_events)}")
+            self.errors += 1
+            return False
+
+        self.log.info(f"B-CAM flood: all {n_bursts} bursts returned exactly one B each")
+        return True

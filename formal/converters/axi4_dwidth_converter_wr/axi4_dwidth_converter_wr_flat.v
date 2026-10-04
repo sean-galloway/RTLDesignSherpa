@@ -112,7 +112,6 @@ module axi_data_upsize (
 	parameter signed [31:0] NARROW_SB_WIDTH = 0;
 	parameter signed [31:0] WIDE_SB_WIDTH = 0;
 	parameter signed [31:0] SB_OR_MODE = 0;
-	parameter signed [31:0] SB_BROADCAST_WIDTH = 0;
 	localparam signed [31:0] WIDTH_RATIO = WIDE_WIDTH / NARROW_WIDTH;
 	localparam signed [31:0] PTR_WIDTH = $clog2(WIDTH_RATIO);
 	localparam signed [31:0] NARROW_SB_PORT_WIDTH = (NARROW_SB_WIDTH > 0 ? NARROW_SB_WIDTH : 1);
@@ -132,15 +131,11 @@ module axi_data_upsize (
 	output wire wide_last;
 	initial begin
 		if (WIDE_WIDTH <= NARROW_WIDTH)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:94:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be > NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:87:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be > NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
 		if ((WIDE_WIDTH % NARROW_WIDTH) != 0)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:96:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be integer multiple of NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:89:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be integer multiple of NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
 		if (WIDTH_RATIO < 2)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:98:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
-		if (SB_BROADCAST_WIDTH > NARROW_SB_WIDTH)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:100:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "SB_BROADCAST_WIDTH (%0d) must be <= NARROW_SB_WIDTH (%0d)", SB_BROADCAST_WIDTH, NARROW_SB_WIDTH);
-		if ((SB_OR_MODE != 0) && (WIDE_SB_WIDTH != NARROW_SB_WIDTH))
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:103:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "SB_OR_MODE fold requires WIDE_SB_WIDTH == NARROW_SB_WIDTH");
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:91:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
 	end
 	reg [WIDE_WIDTH - 1:0] r_data_accumulator;
 	reg [WIDE_SB_PORT_WIDTH - 1:0] r_sideband_accumulator;
@@ -194,24 +189,15 @@ module axi_data_upsize (
 	generate
 		if (NARROW_SB_WIDTH > 0) begin : gen_sideband_accumulation
 			if (SB_OR_MODE != 0) begin : gen_or_mode
-				if (SB_BROADCAST_WIDTH >= NARROW_SB_WIDTH) begin : gen_or_broadcast_all
-					always @(posedge aclk or negedge aresetn)
-						if (!aresetn)
-							r_sideband_accumulator <= 1'sb0;
-						else if ((narrow_valid && narrow_ready) && (r_beat_ptr == {PTR_WIDTH {1'sb0}}))
+				always @(posedge aclk or negedge aresetn)
+					if (!aresetn)
+						r_sideband_accumulator <= 1'sb0;
+					else if (narrow_valid && narrow_ready) begin
+						if (r_beat_ptr == {PTR_WIDTH {1'sb0}})
 							r_sideband_accumulator <= sv2v_cast_5BF29(narrow_sideband);
-				end
-				else begin : gen_or_fold_high
-					always @(posedge aclk or negedge aresetn)
-						if (!aresetn)
-							r_sideband_accumulator <= 1'sb0;
-						else if (narrow_valid && narrow_ready) begin
-							if (r_beat_ptr == {PTR_WIDTH {1'sb0}})
-								r_sideband_accumulator <= sv2v_cast_5BF29(narrow_sideband);
-							else if (narrow_sideband[NARROW_SB_WIDTH - 1:SB_BROADCAST_WIDTH] > r_sideband_accumulator[NARROW_SB_WIDTH - 1:SB_BROADCAST_WIDTH])
-								r_sideband_accumulator[NARROW_SB_WIDTH - 1:SB_BROADCAST_WIDTH] <= narrow_sideband[NARROW_SB_WIDTH - 1:SB_BROADCAST_WIDTH];
-						end
-				end
+						else if (sv2v_cast_5BF29(narrow_sideband) > r_sideband_accumulator)
+							r_sideband_accumulator <= sv2v_cast_5BF29(narrow_sideband);
+					end
 			end
 			else begin : gen_concat_mode
 				always @(posedge aclk or negedge aresetn)
@@ -559,6 +545,7 @@ module axi4_dwidth_converter_wr (
 	wire int_b_valid;
 	wire w_aw_issue;
 	wire w_this_last;
+	wire w_b_cam_slot_free;
 	localparam signed [31:0] SPLITQ_DEPTH = 16;
 	wire split_w_avail;
 	wire [8:0] split_w_beats;
@@ -727,7 +714,7 @@ module axi4_dwidth_converter_wr (
 			assign m_axi_awqos = int_awqos;
 			assign m_axi_awregion = int_awregion;
 			assign m_axi_awuser = int_awuser;
-			assign m_axi_awvalid = r_split_active && !w_splitq_full;
+			assign m_axi_awvalid = (r_split_active && !w_splitq_full) && (!w_this_last || w_b_cam_slot_free);
 			assign int_aw_ready = w_aw_issue && w_this_last;
 		end
 		else begin : gen_aw_upsize
@@ -893,6 +880,7 @@ module axi4_dwidth_converter_wr (
 						end
 				end
 			end
+			assign w_b_cam_slot_free = w_b_cam_free_found;
 			reg [3:0] w_b_cam_idx;
 			reg w_b_cam_match;
 			reg [B_CAM_AW:0] w_b_cam_best_age;
@@ -970,6 +958,7 @@ module axi4_dwidth_converter_wr (
 				end
 		end
 		else begin : gen_b_pass
+			assign w_b_cam_slot_free = 1'b1;
 			assign int_bid = m_axi_bid;
 			assign int_bresp = m_axi_bresp;
 			assign int_buser = m_axi_buser;

@@ -271,9 +271,9 @@ inert.
 axi_data_dnsize #(
     .WIDE_WIDTH      (M_AXI_DATA_WIDTH),
     .NARROW_WIDTH    (S_AXI_DATA_WIDTH),
-    .WIDE_SB_WIDTH   (R_SB_WIDTH), // {RRESP, RUSER, RID}
-    .NARROW_SB_WIDTH (R_SB_WIDTH),
-    .SB_BROADCAST    (1),          // Broadcast RRESP, carry RID/RUSER
+    .WIDE_SB_WIDTH   (2),          // RRESP
+    .NARROW_SB_WIDTH (2),
+    .SB_BROADCAST    (1),          // Broadcast RRESP
     .TRACK_BURSTS    (1),
     .BURST_LEN_WIDTH (8)
 ) u_r_dnsize (
@@ -290,12 +290,12 @@ axi_data_dnsize #(
     .wide_valid      (m_axi_rvalid),
     .wide_ready      (m_axi_rready),
     .wide_data       (m_axi_rdata),
-    .wide_sideband   (m_axi_r_sideband),
+    .wide_sideband   (m_axi_rresp),
     .wide_last       (m_axi_rlast),
     .narrow_valid    (int_r_valid),
     .narrow_ready    (int_r_ready),
     .narrow_data     (int_rdata),
-    .narrow_sideband (int_r_sideband),
+    .narrow_sideband (int_rresp),
     .narrow_last     (int_rlast)
 );
 ```
@@ -316,30 +316,56 @@ converter: in UPSIZE mode the slave side is already narrow, so the
 ARLEN pushed into the FIFO is already in narrow-beat units —
 `blen_mem[...] <= int_arlen;` stores it unchanged.)
 
-## 2.6.8 RID/RUSER Handling
+## 2.6.8 RID Handling
 
-### ID/User Carry Through the Data Path
+### ID Passthrough
 
-RID and RUSER are not latched globally. They are packed into the R sideband
-and carried through the data-width primitive alongside RRESP:
+RID is sampled from the master side and HELD:
 
 ```systemverilog
-localparam int R_SB_WIDTH = AXI_ID_WIDTH + AXI_USER_WIDTH + 2;
-assign m_axi_r_sideband = {m_axi_rresp, m_axi_ruser, m_axi_rid};
-assign {int_rresp, int_ruser, int_rid} = int_r_sideband;
+// from the RTL: latch rid/ruser on every master R handshake; AXI4
+// keeps RID constant across a transaction's beats, so "most recent
+// rid" is correct for whatever aggregated beat is being emitted
+`ALWAYS_FF_RST(aclk, aresetn,
+    ... else if (m_axi_rvalid && m_axi_rready) begin
+        r_rid_held   <= m_axi_rid;
+        r_ruser_held <= m_axi_ruser;
+    end
+)
+assign int_rid = r_rid_held;
 ```
 
-- DOWNSIZE path (`axi_data_upsize`): the sideband is `{RRESP, RUSER, RID}`.
-  `SB_BROADCAST_WIDTH` tells the upsizer to hold the low bits (RUSER+RID)
-  from the first narrow beat while still folding the high bits (RRESP) by
-  severity across the group.
-- UPSIZE path (`axi_data_dnsize`): the sideband passes through with
-  `SB_BROADCAST=1`, so RRESP is broadcast to every narrow beat while RID and
-  RUSER travel with their originating beat.
+### Ordering Constraint (read side; write side fixed by BUG-008)
 
-This ensures each slave R beat reports its own originating RID/RUSER even when
-master R responses from different IDs overtake each other through the converter
-(fixed 2026-10-04, projects/components/utility-ip/converters BUG-008).
+**Write side: no constraint beyond AXI4 itself.** Since 2026-10-04 the B fold
+is a per-burst CAM keyed by AWID (see `05_dwidth_converter_wr.md`): any
+cross-ID B completion order is exact (fixed as projects/components/utility-ip/converters BUG-008).
+
+**Read side contract: each master R burst must return burst-atomic per ID.**
+`axi4_dwidth_converter_rd` does not carry RID through its data path; it holds
+the most recent master R beat's `{RID, RUSER}` in `r_rid_held`/`r_ruser_held`.
+That register is EXACT whenever each master R burst returns with all its beats
+contiguous (AXI4's per-ID ordering guarantees the rest): the held value at any
+group-complete or skid-buffer capture is that burst's own ID, and the data
+primitives back-pressure the master R stream while a converted beat is
+stalled, so a later burst's beats cannot slip in mid-group. Whole R bursts
+completing out of order ACROSS IDs is safe under this contract (verified by
+analysis and by a directed DV attempt, 2026-10-04 — see BUG-008's closed file
+for why the attempted "fix" was reverted as vacuous).
+
+**What is NOT supported:** a master-side slave that interleaves R beats at
+BEAT level across ARIDs. The burst-length queue would count ID1's beats
+against ID0's head, `s_axi_rlast` would fire at the wrong boundary, one
+aggregated wide beat could mix two transactions, and `s_axi_rid` would report
+the most recent beat's ID. Nothing in the RTL enforces or detects this; a
+breach corrupts data silently. Tracked as projects/components/utility-ip/converters BUG-009.
+
+Satisfying "one outstanding transaction per ID" is **not** sufficient for the
+beat-interleave case — two IDs with one transaction each meet that and still
+break. Safe configurations today: a slave that returns R burst-atomic per ID
+(every in-repo integration: pumice's return ring is AR-ordered, bridge slave
+adapters are burst-atomic, APB/AXI-Lite are in-order across IDs), or a single
+ID outstanding at a time.
 
 ## 2.6.9 Resource Utilization
 

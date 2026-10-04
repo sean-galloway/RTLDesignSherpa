@@ -365,6 +365,12 @@ one slave B response. This is now done with a per-burst CAM keyed by AWID:
 - Same-ID bursts complete in issue order because they share one age-ordered
   chain per ID. Cross-ID bursts can complete in any order because each ID is
   matched independently.
+- The CAM drains on B return while the split queue drains on W framing, so
+  split-queue space does not bound CAM occupancy: a burst's FINAL master AW
+  is gated on a free CAM slot (`w_b_cam_slot_free`). Without the gate a flood
+  of unsplit bursts with slow B return overflows the CAM, drops the push, and
+  that burst's slave B never arrives (regression:
+  `test_axi4_dwidth_converter_wr_b_cam_flood`).
 
 UPSIZE mode passes B responses through unchanged; AXI4 already guarantees
 same-ID ordering on the master side and the converter does not reorder across

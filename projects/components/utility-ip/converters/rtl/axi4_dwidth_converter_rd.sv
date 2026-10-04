@@ -12,8 +12,7 @@
 //   axi_data_upsize / axi_data_dnsize primitives in this same
 //   directory (each with its own pytest suite). This wrapper still
 //   owns: AR/R skid buffers, the AR arlen/arsize rewrite, and the
-//   rid/ruser sideband packed through the primitives so each beat
-//   carries its own originating ID (BUG-008).
+//   rid/ruser carry that the primitives don't handle.
 //
 //   For write conversion, use axi4_dwidth_converter_wr.sv.
 //
@@ -56,8 +55,7 @@ module axi4_dwidth_converter_rd #(
 
     // Skid buffer packed widths
     localparam int AR_WIDTH = AXI_ID_WIDTH + AXI_ADDR_WIDTH + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + AXI_USER_WIDTH,
-    localparam int R_WIDTH  = S_AXI_DATA_WIDTH + 2 + AXI_USER_WIDTH + 1 + AXI_ID_WIDTH,
-    localparam int R_SB_WIDTH = AXI_ID_WIDTH + AXI_USER_WIDTH + 2
+    localparam int R_WIDTH  = S_AXI_DATA_WIDTH + 2 + AXI_USER_WIDTH + 1 + AXI_ID_WIDTH
 ) (
     // Clock and Reset
     input  logic                        aclk,
@@ -165,13 +163,6 @@ module axi4_dwidth_converter_rd #(
     logic [S_AXI_DATA_WIDTH-1:0] int_rdata;
     logic [1:0]                  int_rresp;
     logic                        int_rlast;
-    logic [AXI_USER_WIDTH-1:0]   int_ruser;
-
-    // Packed R sideband through the data-width primitives.  Low bits carry
-    // RID+RUSER (broadcast/held per beat); high bits carry RRESP (folded
-    // by severity in downsize mode).
-    logic [R_SB_WIDTH-1:0]       m_axi_r_sideband;
-    logic [R_SB_WIDTH-1:0]       int_r_sideband;
 
     // Downsize AR-split queue (driven in gen_ar_downsize, consumed by the
     // R path; tied off for upsize). One flag per issued master burst:
@@ -180,6 +171,7 @@ module axi4_dwidth_converter_rd #(
     // describes the master burst currently returning data.
     logic       arsplit_final;   // head: current master burst is the last
     logic       arsplit_pop;     // R side: master burst completed
+    logic [AXI_USER_WIDTH-1:0]   int_ruser;
 
     // Burst-length FIFO handshake (used only in the wide->narrow R data path,
     // i.e. UPSIZE mode). Frames each outstanding read burst's original narrow
@@ -236,12 +228,6 @@ module axi4_dwidth_converter_rd #(
         .count      (),
         .rd_count   ()
     );
-
-    // Pack/unpack R sideband through the data-width primitives.  RRESP
-    // sits in the high bits so axi_data_upsize can fold it while holding
-    // RID+RUSER in the low bits.
-    assign m_axi_r_sideband = {m_axi_rresp, m_axi_ruser, m_axi_rid};
-    assign {int_rresp, int_ruser, int_rid} = int_r_sideband;
 
     // Pack R channel for skid buffer input
     assign int_r_data = {int_rid, int_rdata, int_rresp, int_rlast, int_ruser};
@@ -412,29 +398,57 @@ module axi4_dwidth_converter_rd #(
     endgenerate
 
     //==========================================================================
+    // R Channel ID / USER Carry
+    //
+    //   The validated axi_data_{upsize,dnsize} primitives handle the data
+    //   payload, RRESP sideband, and LAST signalling. They do NOT carry
+    //   AXI4 transaction id (rid) or the optional ruser sideband, so we
+    //   register them on every master-side R handshake and present the
+    //   latest captured value on the slave-side R output.
+    //
+    //   This works because AXI4 holds rid constant for every beat of a
+    //   single transaction, so "most recent rid" is the correct rid for
+    //   whatever aggregated/split slave beat is currently being emitted.
+    //==========================================================================
+
+    logic [AXI_ID_WIDTH-1:0]   r_rid_held;
+    logic [AXI_USER_WIDTH-1:0] r_ruser_held;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_rid_held   <= '0;
+            r_ruser_held <= '0;
+        end else if (m_axi_rvalid && m_axi_rready) begin
+            r_rid_held   <= m_axi_rid;
+            r_ruser_held <= m_axi_ruser;
+        end
+    )
+
+    assign int_rid   = r_rid_held;
+    assign int_ruser = r_ruser_held;
+
+    //==========================================================================
     // R Channel Data Conversion (delegates to validated primitives)
     //==========================================================================
 
     generate
         if (DOWNSIZE) begin : gen_r_downsize
             // Slave wide, master narrow. R direction: master → slave, so
-            // narrow → wide. Use axi_data_upsize.  The sideband carries
-            // {RRESP, RUSER, RID}; RRESP is folded by severity while
-            // RID+RUSER are held from the first narrow beat of the group.
+            // narrow → wide. Use axi_data_upsize. RRESP errors must
+            // propagate across all sub-beats: SB_OR_MODE=1.
             axi_data_upsize #(
-                .NARROW_WIDTH       (M_AXI_DATA_WIDTH),
-                .WIDE_WIDTH         (S_AXI_DATA_WIDTH),
-                .NARROW_SB_WIDTH    (R_SB_WIDTH),
-                .WIDE_SB_WIDTH      (R_SB_WIDTH),
-                .SB_OR_MODE         (1),
-                .SB_BROADCAST_WIDTH (AXI_ID_WIDTH + AXI_USER_WIDTH)
+                .NARROW_WIDTH    (M_AXI_DATA_WIDTH),
+                .WIDE_WIDTH      (S_AXI_DATA_WIDTH),
+                .NARROW_SB_WIDTH (2),
+                .WIDE_SB_WIDTH   (2),
+                .SB_OR_MODE      (1)
             ) u_r_upsize (
                 .aclk            (aclk),
                 .aresetn         (aresetn),
                 .narrow_valid    (m_axi_rvalid),
                 .narrow_ready    (m_axi_rready),
                 .narrow_data     (m_axi_rdata),
-                .narrow_sideband (m_axi_r_sideband),
+                .narrow_sideband (m_axi_rresp),
                 // A split slave burst returns as several master bursts,
                 // each with its own RLAST -- but the slave must see ONE.
                 // Only the final master burst's RLAST reaches the upsize;
@@ -446,7 +460,7 @@ module axi4_dwidth_converter_rd #(
                 .wide_valid      (int_r_valid),
                 .wide_ready      (int_r_ready),
                 .wide_data       (int_rdata),
-                .wide_sideband   (int_r_sideband),
+                .wide_sideband   (int_rresp),
                 .wide_last       (int_rlast)
             );
 
@@ -519,8 +533,8 @@ module axi4_dwidth_converter_rd #(
             axi_data_dnsize #(
                 .WIDE_WIDTH       (M_AXI_DATA_WIDTH),
                 .NARROW_WIDTH     (S_AXI_DATA_WIDTH),
-                .WIDE_SB_WIDTH    (R_SB_WIDTH),
-                .NARROW_SB_WIDTH  (R_SB_WIDTH),
+                .WIDE_SB_WIDTH    (2),
+                .NARROW_SB_WIDTH  (2),
                 .SB_BROADCAST     (1),
                 .TRACK_BURSTS     (1),
                 .BURST_LEN_WIDTH  (8)
@@ -533,12 +547,12 @@ module axi4_dwidth_converter_rd #(
                 .wide_valid      (m_axi_rvalid),
                 .wide_ready      (m_axi_rready),
                 .wide_data       (m_axi_rdata),
-                .wide_sideband   (m_axi_r_sideband),
+                .wide_sideband   (m_axi_rresp),
                 .wide_last       (m_axi_rlast),
                 .narrow_valid    (int_r_valid),
                 .narrow_ready    (int_r_ready),
                 .narrow_data     (int_rdata),
-                .narrow_sideband (int_r_sideband),
+                .narrow_sideband (int_rresp),
                 .narrow_last     (int_rlast)
             );
         end

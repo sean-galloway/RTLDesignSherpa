@@ -193,6 +193,13 @@ module axi4_dwidth_converter_wr #(
     // by gen_b_fold for the per-burst B CAM).
     logic       w_aw_issue;
     logic       w_this_last;
+    // A free B-CAM slot exists (driven in gen_b_fold, consumed in
+    // gen_aw_downsize): a slave burst's FINAL master AW must not issue
+    // unless the CAM can take its entry, or the push would be dropped and
+    // that burst's B responses would match nothing (BUG-008 follow-up:
+    // the CAM drains on B return while the split queue drains on W
+    // framing, so split-queue space alone does not bound CAM occupancy).
+    logic       w_b_cam_slot_free;
 
     // Burst-split queue / B CAM depth.  Shared across generate blocks so
     // both the W framing queue and the per-burst B CAM are the same size.
@@ -402,7 +409,10 @@ module axi4_dwidth_converter_wr #(
             assign m_axi_awqos    = int_awqos;
             assign m_axi_awregion = int_awregion;
             assign m_axi_awuser   = int_awuser;
-            assign m_axi_awvalid  = r_split_active && !w_splitq_full;
+            // The final master AW of a slave burst also pushes the B CAM,
+            // so it must wait for a free CAM slot; mid-split AWs need none.
+            assign m_axi_awvalid  = r_split_active && !w_splitq_full &&
+                                    (!w_this_last || w_b_cam_slot_free);
             // the slave's AW is consumed only when its FINAL master
             // burst is issued
             assign int_aw_ready   = w_aw_issue && w_this_last;
@@ -692,6 +702,7 @@ module axi4_dwidth_converter_wr #(
                     end
                 end
             end
+            assign w_b_cam_slot_free = w_b_cam_free_found;
 
             // Find the oldest outstanding burst matching the current B ID.
             logic [B_CAM_AW-1:0] w_b_cam_idx;
@@ -779,9 +790,8 @@ module axi4_dwidth_converter_wr #(
             )
 
 `ifdef SIMULATION
-            // The CAM should never overflow because the AW splitter cannot
-            // issue more slave bursts than the split queue has entries, and
-            // the CAM is the same depth.
+            // Defense in depth: gen_aw_downsize already gates a burst's final
+            // master AW on w_b_cam_slot_free, so this should be unreachable.
             always_ff @(posedge aclk) begin
                 if (aresetn && w_aw_issue && w_this_last && !w_b_cam_free_found)
                     $error("axi4_dwidth_converter_wr: B CAM overflow");
@@ -789,6 +799,9 @@ module axi4_dwidth_converter_wr #(
 `endif
 
         end else begin : gen_b_pass
+            // Upsize: every master burst maps 1:1 to a slave burst, so no
+            // CAM exists and AW issue is never CAM-gated.
+            assign w_b_cam_slot_free = 1'b1;
             assign int_bid      = m_axi_bid;
             assign int_bresp    = m_axi_bresp;
             assign int_buser    = m_axi_buser;
