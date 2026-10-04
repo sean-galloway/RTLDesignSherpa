@@ -145,9 +145,19 @@ traffic onto a shared **MonBus** — a typed 128-bit event packet plus 64-bit
 timestamp — carrying error, completion, timeout, threshold, and performance
 events to logging, scoreboards, and real-time performance counters.
 
+The full `_mon` wrappers are heavyweight: perf windows, debug cone,
+address-range checkers, ID/address filters, and per-event masks — and they
+can gate the port when their tracking tables fill. Where that cost does not
+fit, the `_monlite` siblings ship the same core, the same taps, and the
+same 128-bit MonBus packets (same UNIT/AGENT ids — the arbiter, groups, and
+host tooling cannot tell them apart) at roughly a fifth of the monitor
+gates, with the filters trimmed and a drop-and-count policy that never
+stalls the port.
+
 | Building block | Where |
 |---|---|
 | Monitor cores, reporters, addr-check CAMs, MonBus arbiters | [`rtl/amba/monitor/`](rtl/amba/monitor/) |
+| Lite-monitor wrappers (`*_monlite`, `*_monlite_cg`) — ~1/5 the monitor gates, same MonBus packets, never stall | [`rtl/amba/axi4/`](rtl/amba/axi4/) · [`rtl/amba/axil4/`](rtl/amba/axil4/) · [`rtl/amba/axis4/`](rtl/amba/axis4/) ([wrapper doc](docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md)) |
 | Interface observers (master/slave), MonBus capture groups (AXIL/AXI4), shared observation utilities | [`rtl/amba/shared/`](rtl/amba/shared/) |
 | Tally / CAM agents (`monbus_tally_axil`, `axi4_intf_*_observer`) | [`projects/components/utility-ip/misc/`](projects/components/utility-ip/misc/) |
 
