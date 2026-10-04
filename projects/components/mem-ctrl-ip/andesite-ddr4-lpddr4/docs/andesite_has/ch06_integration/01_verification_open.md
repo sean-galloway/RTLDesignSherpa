@@ -32,18 +32,46 @@ rule, not a weakening: with no board even conceivable, nothing can be left
 for bring-up to find.
 
 **The in-house BFM is DFI 4.0-partial, not absent.** The DV repository's
-CocoTBFramework DFI component exists and already carries a CA-parity
-behavior; what it lacks is the LPDDR4 6-bit CA encoding (its `lpddr_ca.py`
-covers LPDDR2/3). Acquisition is therefore not the problem — gap analysis
+CocoTBFramework DFI component exists at
+`/mnt/data/github/RTLDesignSherpa-DV/src/CocoTBFramework/components/dfi/`
+and already carries a CA-parity behavior, the v4.0 behavior class
+(`behaviors/v4_0.py`), and a complete v4.0 signal catalog
+(`dfi_signal_catalog.py`). What it lacks for the andesite design point is
+enumerated below. Acquisition is therefore not the problem — gap analysis
 and extension are, and that is andesite TASK-005 (amended 2026-10-04, when
 the DFI v4.0 spec PDF also surfaced in the operator's research storage at
-`/mnt/data/github/dfi-specs/`). Until TASK-005 closes, every DFI 4.0 clause
-citation in this book and the MAS carries `§TBC(TASK-005)`. The BFM is
+`/mnt/data/github/dfi-specs/`). The DFI 4.0 clause citations in this book
+and the MAS were confirmed or corrected on 2026-10-04; any remaining
+`§TBC(TASK-005)` marks a claim the study could not confirm. The BFM is
 configured to the design-point geometry of Chapter 2.4 — the bank-group
 geometry on the DDR4 side, eight ungrouped banks per channel on the LPDDR4
 side, x8 / x16 widths, four DFI phases — because verifying at the geometry
 the design point uses is free, and verifying at a different one silently
 weakens every result.
+
+**BFM gap list vs HAS Table 4.1 / andesite design point.** Gaps are against
+the files read for this study: `behaviors/base.py`, `v3_1.py`, `v4_0.py`,
+`v5_2.py`, `v6_0.py`, `registry.py`; `ca_map.py`, `ca_transport.py`,
+`ddr5_ca_map.py`, `dfi_signal_types.py`; `jedec/README.md` and the CSV
+list in `jedec/`.
+
+| # | Gap | Evidence | Impact on first andesite sims |
+|---|---|---|---|
+| G1 | **LPDDR4 6-bit CA command map.** No `lpddr4_ca_map.py` exists; `ca_map.py` ships only HBM4 and DDR5 maps. The `lpddr_ca.py` encoder is LPDDR2-only, not LPDDR2/3 as the task amendment assumed. | `ca_map.py` contains `HBM4_ROW_CA_MAP` and `HBM4_COL_CA_MAP`; `lpddr_ca.py` docstring and body encode only JESD209-2F Table 60 (LPDDR2). No `lpddr3_ca.py` or `lpddr4_ca_map.py` present. | Blocks item 6 (LPDDR4 CA bus checker) until added. The kmap-generated tables in `docs/kmaps/generated/` are the source of truth for the encoder. |
+| G2 | **Design-point JEDEC timing CSVs missing.** The andesite design point is DDR4-1600 / LPDDR4-1600. Vendored CSVs exist for `ddr4-2400.csv`, `ddr4-2666.csv`, `ddr4-3200.csv`, but no `ddr4-1600.csv`; no LPDDR4 CSV of any speed exists. | `jedec/` file listing; README §"Devices with no vendored profile". | The DRAM-state timing checker cannot run at the design point without new CSVs or a `timings_from_params` call. |
+| G3 | **Gear-down mode behavior.** `dfi_geardown_en` is in the signal catalog, but `DFIv4_0Behavior` has no method to sample or validate the geardown entry/exit handshake. | `dfi_signal_catalog.py` lists `geardown_en`; `behaviors/v4_0.py` has no geardown method. | Item 2 (gear-down mode switch) can be signal-level checked, but protocol-aware BFM validation of entry/exit is missing. |
+| G4 | **LPDDR4 CA VREF training specifics.** `DFIv4_0Behavior.training_step()` detects CA training via `calvl_en`/`calvl_req` inherited from v3.1, but does not model `dfi_calvl_data`/`done`/`result`/`strobe` or the VREF-sweep sequence. | `behaviors/v4_0.py` training_step; `dfi_signal_catalog.py` lists the LPDDR4 VREF signals. | CA/WDQ training (item 7) can be handshake-checked, but VREF-sweep BFM feedback is not available. |
+| G5 | **Per-slice read leveling.** `DFIv4_0Behavior` reports `slice_idx=0` for all training events; v4.0 makes `rdlvl_req`/`en` per-slice. | `behaviors/base.py` and `v4_0.py` return `TrainingEvent(slice_idx=0)`. | Item 7 training protocol checks are not slice-aware. |
+
+**Integration note.** The BFM path is
+`/mnt/data/github/RTLDesignSherpa-DV/src/CocoTBFramework/components/dfi/`.
+Version files read: `behaviors/base.py` (v2.1 baseline), `behaviors/v3_1.py`,
+`behaviors/v4_0.py`, `behaviors/v5_2.py`, `behaviors/v6_0.py`, and
+`behaviors/registry.py`. The andesite BFM instance should select
+`DFIVersion.V4_0` via `behavior_for(V4_0)`. The signal catalog already
+validates the HAS Table 4.1 / MAS Table 3.1 signal names once the `_cs_n`
+→ `_cs` v4.0 renames are applied; the gaps above are behavioral / encoding
+extensions, not missing DFI 4.0 signals.
 
 The boundary is chosen for the reason pumice chose it: it is the one
 interface where the controller's obligations are fully specified by a
@@ -71,9 +99,9 @@ Named now, because "new coverage" that isn't enumerated doesn't happen:
    gotten wrong (pumice's EMRS3-first sequence, benign but wrong).
 2. **Gear-down as a mode switch.** Entry programmed, bus rate switched on
    both sides of the DFI boundary, and full-rate init still proven with
-   gear-down disabled. The handshake's clause citations are §TBC(TASK-005)
-   until the spec is on disk; the *behaviour* is verifiable the moment the
-   BFM exists.
+   gear-down disabled. The handshake is §3.13 Geardown Mode / §4.18 Use of
+   the Geardown Mode; the *behaviour* is verifiable the moment the BFM
+   supports it (see G3 above).
 3. **CA parity and `alert_n` as a protocol.** The counting machinery
    exercised, an injected parity fault raising `alert_n`, and the error
    surfacing through `dfi_error` — including the firmware-assist split if Q4
@@ -124,7 +152,7 @@ evidence, cited chapter by chapter where it transfers.
 | Q3 | Gear-down coverage scope in the first sims | Decided when the BFM's capabilities are known (TASK-005 close); full-rate-only is an acceptable first pass if the switch is protocol-checked |
 | Q4 | CA parity: hardware counter vs firmware assist | A scope decision at MAS/RTL time; either way the protocol check of item 3 above must pass, and the split is recorded in the MAS |
 | Q5 | LPDDR4 DVFS/DSM, and the dormant pair's waking | A low-power consumer and a target that can measure power; wakes `powerdown_ctrl`/`dfi_signal_pack` per Ch 3.1 |
-| Q6 | DFI 4.0 clause confirmation and BFM provenance | **andesite TASK-005's close condition**: the spec is acquired, every `§TBC(TASK-005)` suffix in this book and the MAS is confirmed or corrected, and a BFM is selected with an integration note here |
+| Q6 | DFI 4.0 clause confirmation and BFM provenance | **Closed on 2026-10-04.** The spec is acquired, every `§TBC(TASK-005)` suffix in this book and the MAS is confirmed or corrected, and the in-house BFM integration note and gap list are above. G1-G5 remain as extension work, not blockers to clause confirmation. |
 
 : Table 6.1: The open questions, each with the condition that answers it
 
@@ -142,9 +170,9 @@ later:
 2. **The exact CSR map, from the RDL.** The map cannot honestly precede the
    RDL; Chapter 5's groups become offsets when `andesite_csr.rdl` lands.
 3. **andesite TASK-005 closed.** The DFI 4.0 clauses confirmed and the BFM
-   selected — at which point every `§TBC(TASK-005)` suffix in this book is
-   either a citation or a correction, and the verification strategy above
-   has a counterparty.
+   selected — every `§TBC(TASK-005)` suffix in this book is either a
+   citation or a correction, and the verification strategy above has a
+   counterparty with the gap list in the BFM paragraph.
 
 Until then this is a 0.1: a specification that knows what it doesn't know,
 and says so on the record.

@@ -44,7 +44,7 @@
 | family docs | `../../../../docs/` | shared-core design and doctrine — owned by no single controller (see Table 0.1 note) |
 | JESD79-4 | outside the repo, cold storage | DDR4 device standard |
 | JESD209-4 | outside the repo, cold storage | LPDDR4 device standard |
-| DFI v4.0 | operator research storage `/mnt/data/github/dfi-specs/` (on disk 2026-10-04); study is andesite TASK-005 | the PHY boundary; clause citations carry `§TBC(TASK-005)` until the study confirms them |
+| DFI v4.0 | operator research storage `/mnt/data/github/dfi-specs/` (on disk 2026-10-04); study completed 2026-10-04 as andesite TASK-005 | the PHY boundary; clause citations are real DFI 4.0 section numbers; remaining `§TBC(TASK-005)` suffixes mark unconfirmed claims |
 
 : Table 0.2: Related documents
 
@@ -66,9 +66,9 @@ it a scheduling problem and not only a sequencing one.
 
 **DFI 4.0 §TBC(TASK-005)**
 Read "clause to be confirmed by andesite TASK-005 (DFI 4.0 spec acquisition
-and BFM study)". The suffix marks a claim whose substance is asserted but
-whose clause number cannot be verified in-house because the specification is
-not on disk.
+and BFM study)". The specification is now on disk and the study ran on
+2026-10-04; remaining suffixes mark claims whose clause numbers could not be
+confirmed, not claims whose substance is unverified.
 
 ## Revision History
 
@@ -90,8 +90,11 @@ what separates this edition from a 1.0.
 
 **The caution this document carries by construction.** v0.1 is written before
 the RTL, and a specification written first can be *unbuildable* — that is the
-risk it carries. The evidentiary rule is the mitigation, and it is stricter
-than scoria's in one place: no DFI 4.0 spec exists on disk, so DFI 4.0 clause
-numbers are `§TBC(TASK-005)` throughout rather than cited. Where
-implementation later corrects the specification, the correction belongs in
-this revision history, not dropped silently.
+risk it carries. The evidentiary rule is the mitigation. The DFI 4.0
+specification is now on disk and was studied on 2026-10-04 as andesite
+TASK-005; DFI 4.0 clause numbers in this edition are real citations, and the
+study corrections for v3.1 → v4.0 chip-select renames, the missing
+`dfi_wrdata_dbi` pin, and the `dfi_init`/`dfi_ca_capture` mismatches are
+recorded in HAS ch04 and MAS ch03. Where implementation later corrects the
+specification, the correction belongs in this revision history, not dropped
+silently.

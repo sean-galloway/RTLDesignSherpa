@@ -45,10 +45,14 @@ across the family without opening three books.
 - scoria's ch04 is the 3.1 reference, including the v2.1.1 delta it inherited:
   `scoria-ddr3-lpddr3/docs/scoria_has/ch04_interfaces/01_dfi_v31.md`.
 - andesite's ch04 (`andesite-ddr4-lpddr4/docs/andesite_has/ch04_interfaces/`)
-  owns the 4.0 boundary; its clause citations carry `§TBC(TASK-005)` until
-  the study confirms them. The DFI v4.0 spec PDF is on disk in the
-  operator's research storage (`/mnt/data/github/dfi-specs/`, cited
-  2026-10-04); the study and the in-house BFM's 4.0 gap analysis are
+  owns the 4.0 boundary; the DFI 4.0 spec PDF is on disk in the operator's
+  research storage (`/mnt/data/github/dfi-specs/`, cited 2026-10-04) and
+  the study ran on 2026-10-04 as andesite TASK-005. Clause citations in
+  the HAS ch04, MAS ch03, and HAS ch06 are now real DFI 4.0 section
+  numbers; study corrections for the v3.1 → v4.0 chip-select rename, the
+  missing `dfi_wrdata_dbi` pin, and the `dfi_init`/`dfi_ca_capture`
+  mismatches are recorded in those files. The in-house BFM gap list and
+  integration note are in HAS ch06; the task record is
   `vault/Tasks/andesite-ddr4-lpddr4/task/open/TASK-005.md`.
 - andesite's foundation document, `scoria-ddr3-lpddr3/docs/design-requirements.md`,
   is where the boundary was argued against the actual revisions.
