@@ -117,4 +117,29 @@ package andesite_pkg;
         return (op == OP_ZQCS) || (op == OP_ZQCL);
     endfunction
 
+    //=========================================================================
+    // Bank State (carried from scoria_pkg -- the per-(rank,bank) bank machine
+    // states the carried timers/CAMs/scheduler publish and consume)
+    //=========================================================================
+
+    typedef enum logic [2:0] {
+        BANK_IDLE        = 3'h0,
+        BANK_ACTIVATING  = 3'h1,
+        BANK_ACTIVE      = 3'h2,
+        BANK_RD_BUSY     = 3'h3,
+        BANK_WR_BUSY     = 3'h4,
+        BANK_PRECHARGING = 3'h5,
+        BANK_REFRESHING  = 3'h6
+    } bank_state_e;
+
+    //=========================================================================
+    // Page Policy (carried from scoria_pkg)
+    //=========================================================================
+
+    typedef enum logic [1:0] {
+        PAGE_POLICY_OPEN  = 2'h0,
+        PAGE_POLICY_CLOSE = 2'h1,
+        PAGE_POLICY_RSVD  = 2'h3
+    } page_policy_e;
+
 endpackage : andesite_pkg
