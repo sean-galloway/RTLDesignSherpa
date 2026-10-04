@@ -141,10 +141,12 @@ point, timings runtime CSRs, the build-time vs runtime table.
 **Ch6 integration** — verification strategy: sim-only, DFI 4.0 BFM (acquisition and
 study = named task); the open-questions table (write CRC, gear-down coverage scope,
 CA-parity scope, LPDDR4 DVFS/DSM, BFM provenance); what would make the HAS a 1.0;
-vault filing: **andesite TASK-001 (HAS + family docs seed), TASK-002 (MAS),
-TASK-003 (kmaps), TASK-004 (DFI 4.0 BFM study)** under
-`vault/Tasks/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/task/`
-(the bch lane's path shape), with INDEX updates per the tasks convention.
+vault filing: **andesite TASK-002 (HAS + family docs seed), TASK-003 (MAS),
+TASK-004 (kmaps), TASK-005 (DFI 4.0 BFM study)** under
+`vault/Tasks/andesite-ddr4-lpddr4/task/` (the area scaffolded 2026-09-28;
+TASK-001 was already taken by the advanced-modes survey, so IDs shift by one —
+recorded in the SDD ledger ruling of 2026-10-04), with INDEX updates per the
+tasks convention.
 
 ## 6. MAS plan
 

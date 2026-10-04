@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - **Docs only.** No file under any `rtl/`, `dv/`, or `formal/` tree is created or modified. scoria and pumice trees are read-only sources; their books are cited, never edited.
-- **Evidentiary rule** (carried from scoria's HAS): every claim is (a) inherited from a named source, (b) cited to a JEDEC/DFI clause, or (c) recorded as an open question. No DFI 4.0 spec exists on disk: any DFI 4.0 claim whose clause number cannot be verified in-house is suffixed `§TBC(TASK-004)` — a grep gate enforces the suffix exists wherever `DFI 4.0` appears in ch04.
+- **Evidentiary rule** (carried from scoria's HAS): every claim is (a) inherited from a named source, (b) cited to a JEDEC/DFI clause, or (c) recorded as an open question. No DFI 4.0 spec exists on disk: any DFI 4.0 claim whose clause number cannot be verified in-house is suffixed `§TBC(TASK-005)` — a grep gate enforces the suffix exists wherever `DFI 4.0` appears in ch04.
 - **Exact geometry, verbatim:** DDR4-1600 x8, **4 bank groups × 4 banks = 16 banks**, MT40A1G8-class; LPDDR4-1600 x16, **8 banks per channel**, no bank groups; timings are runtime CSRs. These strings must match across ch02 and ch05 (grep gate).
 - **Markings are relative to scoria** and must be identical everywhere a block appears (ch02 tables, ch03 narrative, block diagram): INHERITED / MODIFIED / NEW only.
 - **No offsets in books:** registers are name-based (offsets live in the future RDL/generated docs), per house rule.
@@ -25,7 +25,7 @@
 ## Review Focus
 
 1. **Marking drift between the three surfaces** — a block marked MODIFIED in ch02's table but described as inherited in ch03's prose, or colored wrong in the diagram. → Task 7's consistency grep pins every block name + marking pair across all three.
-2. **Unverifiable DFI 4.0 citations** — with no 4.0 spec on disk, invented clause numbers would read as evidence. → Task 5's grep gate requires `§TBC(TASK-004)` on every DFI 4.0 mention in ch04; Task 4's gate does the same for ch04-adjacent mentions.
+2. **Unverifiable DFI 4.0 citations** — with no 4.0 spec on disk, invented clause numbers would read as evidence. → Task 5's grep gate requires `§TBC(TASK-005)` on every DFI 4.0 mention in ch04; Task 4's gate does the same for ch04-adjacent mentions.
 3. **Silent DDR4-only content** — LPDDR4 deltas must exist wherever DDR4 behavior is architecture-binding (command path, init, refresh, training, datapath). → Task 4 step greps each ch03 file for its LPDDR4 paragraph.
 4. **Geometry numbers drifting between chapters** (4×4=16 vs 8-bank stated differently in ch02 vs ch05). → Task 6 greps the exact strings.
 5. **Kmap workbook drift** — hand-edited xlsx or stale markdown renderings. → Task 11/12 rerun the generator and require byte-identical/regenerated outputs + the citation gate (`verify_citations`) green.
@@ -34,12 +34,19 @@
 
 ### Task 1: Vault lane + family docs seed
 
+> **Amended 2026-10-04 (executing):** the vault area already exists —
+> `vault/Tasks/andesite-ddr4-lpddr4/`, top level, scaffolded 2026-09-28 — and
+> TASK-001 is taken (the advanced-modes survey, 2026-09-29). Per the SDD
+> ledger ruling, the four docs tasks file as TASK-002..005, the DFI-4.0
+> citation suffix is `§TBC(TASK-005)`, and Tasks 7/10/12 close
+> TASK-002/003/004 respectively. Do not create a second lane under
+> `projects/components/mem-ctrl-ip/`.
+
 **Files:**
-- Create: `vault/Tasks/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/task/{open,active,closed,dropped,deferred}/.gitkeep`
-- Create: `vault/Tasks/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/task/open/TASK-000.md` (template, mirrors bch's TASK-000)
-- Create: `vault/Tasks/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/task/open/TASK-001.md` (HAS + family docs seed), `TASK-002.md` (MAS), `TASK-003.md` (kmaps), `TASK-004.md` (DFI 4.0 BFM study)
-- Create: `vault/Tasks/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/task/INDEX.md` (mirrors `vault/Tasks/projects/components/ecc-ip/bch/task/INDEX.md` shape; Next ID TASK-005)
-- Create: `vault/Tasks/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/INDEX.md` (area rollup; Next ID TASK-005; cites the spec)
+- Verify existing (do not recreate): `vault/Tasks/andesite-ddr4-lpddr4/task/{open,active,closed,dropped,deferred}/.gitkeep` and `task/open/TASK-000.md` (scaffolded 2026-09-28)
+- Create: `vault/Tasks/andesite-ddr4-lpddr4/task/open/TASK-002.md` (HAS + family docs seed), `TASK-003.md` (MAS), `TASK-004.md` (kmaps), `TASK-005.md` (DFI 4.0 BFM study)
+- Modify: `vault/Tasks/andesite-ddr4-lpddr4/task/INDEX.md` (Next ID TASK-006; open count 5; list TASK-001..005)
+- Modify: `vault/Tasks/andesite-ddr4-lpddr4/INDEX.md` (area rollup; Next ID TASK-006; open shortlist)
 - Create: `projects/components/mem-ctrl-ip/docs/INDEX.md`
 - Create: `projects/components/mem-ctrl-ip/docs/01_mem_ctrl_pkg.md`
 - Create: `projects/components/mem-ctrl-ip/docs/02_family_doctrine.md`
@@ -48,19 +55,19 @@
 - Modify: `projects/components/mem-ctrl-ip/README.md` (add a `docs/` pointer line)
 
 **Interfaces:**
-- Produces: task IDs `andesite TASK-001..004` cited in commit messages and later book ch06; family doc paths `mem-ctrl-ip/docs/01..04` cited by HAS ch1/ch4/ch5 (Tasks 2-6); the INDEX ownership rule quoted by later tasks.
+- Produces: task IDs `andesite TASK-002..005` cited in commit messages and later book ch06; family doc paths `mem-ctrl-ip/docs/01..04` cited by HAS ch1/ch4/ch5 (Tasks 2-6); the INDEX ownership rule quoted by later tasks.
 
-- [ ] **Step 1: Mirror the bch vault lane.** Copy the lane shape from `vault/Tasks/projects/components/ecc-ip/bch/` (lanes, state dirs, INDEX.md wording, TASK-000 template). Write the four open tasks with one-paragraph scopes taken verbatim from the spec §5 Ch6 filing; TASK-004 notes the DFI 4.0 spec is not on disk.
+- [ ] **Step 1: File into the existing vault lane.** The lane shape on disk stands (state dirs, TASK-000 template); keep the local INDEX wording consistent with the bch lane where it drifts. Write the four open tasks with one-paragraph scopes taken verbatim from the spec §5 Ch6 filing; TASK-005 notes the DFI 4.0 spec is not on disk.
 
-- [ ] **Step 2: Write the family docs seed.** `01_mem_ctrl_pkg.md`: two-bit memtype enum `{DDR2,DDR3,DDR4,LPDDR2,LPDDR3,LPDDR4}` (values assigned), shared timing-struct inventory (named, not fielded), the scoria/pumice migration plan with conditions, recorded deferral to andesite RTL bring-up. `02_family_doctrine.md`: config-not-param; maintenance request/grant never-preempt; AXI4 host-side shape; marking semantics; the evidentiary rule. `INDEX.md`: the ownership rule (family docs own what no single controller owns). 03/04: purpose paragraph + pointers only (v0.1 stubs, marked as such).
+- [ ] **Step 2: Write the family docs seed.** `01_mem_ctrl_pkg.md`: the family memtype design — pumice's one-bit enum (`pumice_pkg.sv:26-28`), scoria's recorded two-bit intent (`scoria_pkg.sv:13-18`), and the resolution: six members need three bits, so the family enum is one LP axis bit plus a two-bit generation field, values assigned; shared timing-struct inventory (named, not fielded); the scoria/pumice migration plan with conditions; recorded deferral to andesite RTL bring-up. `02_family_doctrine.md`: config-not-param; maintenance request/grant never-preempt; AXI4 host-side shape; marking semantics; the evidentiary rule. `INDEX.md`: the ownership rule (family docs own what no single controller owns). 03/04: purpose paragraph + pointers only (v0.1 stubs, marked as such).
 
-- [ ] **Step 3: Verify.** Run: `python3 bin/check_task_ids.py` → PASS; `grep -c "Next ID: TASK-005" vault/Tasks/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/INDEX.md vault/Tasks/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/task/INDEX.md` → 2 matches.
+- [ ] **Step 3: Verify.** Run: `python3 bin/check_task_ids.py` → PASS; `grep -c "Next ID: TASK-006" vault/Tasks/andesite-ddr4-lpddr4/INDEX.md vault/Tasks/andesite-ddr4-lpddr4/task/INDEX.md` → 2 matches.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add vault/Tasks/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4 projects/components/mem-ctrl-ip/docs projects/components/mem-ctrl-ip/README.md
-git commit -m "docs(tasks): file andesite TASK-001..004; docs(mem-ctrl-ip): family docs seed (mem_ctrl_pkg design, doctrine, INDEX)"
+git add vault/Tasks/andesite-ddr4-lpddr4 projects/components/mem-ctrl-ip/docs projects/components/mem-ctrl-ip/README.md
+git commit -m "docs(tasks): file andesite TASK-002..005; docs(mem-ctrl-ip): family docs seed (mem_ctrl_pkg design, doctrine, INDEX)"
 ```
 
 ### Task 2: HAS skeleton + ch00 + ch01
@@ -77,11 +84,11 @@ git commit -m "docs(tasks): file andesite TASK-001..004; docs(mem-ctrl-ip): fami
 
 - [ ] **Step 1: Write the index + styles.** Index mirrors `scoria_has_index.md` shape (title, version/date/status block, "Read this first" blockquote, provenance section); status says v0.1 written from the delta analysis before RTL exists, per the spec.
 
-- [ ] **Step 2: Write ch00.** Document info table (Title/Version 0.1/Date/Status/Scope/Not-in-scope: "The PHY; board bring-up; the DDR5 features DFI 4.x also carries"), related-documents table (spec, scoria HAS, family docs 01-04, JESD79-4, JESD209-4, DFI 4.0 marked §TBC(TASK-004)), terminology, revision history with the single 0.1 row.
+- [ ] **Step 2: Write ch00.** Document info table (Title/Version 0.1/Date/Status/Scope/Not-in-scope: "The PHY; board bring-up; the DDR5 features DFI 4.x also carries"), related-documents table (spec, scoria HAS, family docs 01-04, JESD79-4, JESD209-4, DFI 4.0 marked §TBC(TASK-005)), terminology, revision history with the single 0.1 row.
 
 - [ ] **Step 3: Write ch01.** `01_purpose`: the inheritance sentence (scoria is the reuse pool; markings relative to scoria) + success criteria from spec §1. `02_conventions`: marking semantics; the family-docs pointer; the evidentiary rule; "config not param". `03_definitions`: bank group, tCCD_L/tCCD_S, tRRD_L/S, FGR, gear-down, CA parity, DBI, MPC, REFpb-vs-controller-directed refresh.
 
-- [ ] **Step 4: Verify + commit.** `grep -c "§TBC(TASK-004)" ch00_front_matter/00_document_info.md` ≥ 1; pre-commit hooks via commit:
+- [ ] **Step 4: Verify + commit.** `grep -c "§TBC(TASK-005)" ch00_front_matter/00_document_info.md` ≥ 1; pre-commit hooks via commit:
 
 ```bash
 git add projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/andesite_has
@@ -129,7 +136,7 @@ git commit -m "docs(andesite): HAS ch02 -- scope, design point, module hierarchy
 
 - [ ] **Step 2: Write the five area chapters.** `02_init_zq.md`: reset procedure, MR0–MR6 order, gear-down entry, parity enable; ZQ carried from scoria (zq_ctrl INHERITED for DDR4; LPDDR4 MPC path NEW). `03_training.md`: inherited write leveling; NEW read leveling (MPR-based); LPDDR4 CA/WDQ training; search-in-firmware per D2 precedent. `04_refresh.md`: FGR 1x/2x/4x via MR3; LPDDR4 controller-directed per-bank refresh; the inherited elastic/TCR/placement modes cited as the policy base (scoria TASK-001). `05_odt.md`: dynamic ODT, RTT_NOM/WR/PARK, ODT latencies; NEW `odt_ctrl`; scoria's static-ODT insufficiency stated. `06_lpdrr4_deltas.md`: no bank groups (8 banks/channel), 2-channel x16, MPC command bus, DSM power states deferred with named condition.
 
-- [ ] **Step 3: Verify (Review Focus 2 + 3).** `grep -L "LPDDR4" ch03_architecture/*.md` → must list only `01_deltas.md` (every area chapter names its LPDDR4 delta; 01 carries the pointer table). `grep -c "§TBC(TASK-004)" ch03_architecture/*.md` summed ≥ 1 if any DFI 4.0 claim appears, else 0 (record the result in the commit message).
+- [ ] **Step 3: Verify (Review Focus 2 + 3).** `grep -L "LPDDR4" ch03_architecture/*.md` → must list only `01_deltas.md` (every area chapter names its LPDDR4 delta; 01 carries the pointer table). `grep -c "§TBC(TASK-005)" ch03_architecture/*.md` summed ≥ 1 if any DFI 4.0 claim appears, else 0 (record the result in the commit message).
 
 - [ ] **Step 4: Commit**
 
@@ -147,11 +154,11 @@ git commit -m "docs(andesite): HAS ch03 -- DDR4/LPDDR4 architecture deltas vs sc
 - Consumes: scoria's `ch04_interfaces/01_dfi_v31.md` (what transfers); family doc `03_dfi_boundary_lineage.md` (Task 1); spec §5 ch4.
 - Produces: the DFI 4.0 signal inventory (dfi_act_n, alert_n path, gear-down handshake, parity, dfi_dbi_*) the MAS ch03 (Task 10) pins at pin level.
 
-- [ ] **Step 1: Write `01_dfi_v40.md`.** The 3.1→4.0 delta table (signal/behavior added, what scoria drove at 3.1, what andesite drives at 4.0, frequency ratios); what transfers unchanged (phasemultiplied buses, cdc shape). Citation discipline: named signals are public and stated plainly; clause numbers are `§TBC(TASK-004)` everywhere.
+- [ ] **Step 1: Write `01_dfi_v40.md`.** The 3.1→4.0 delta table (signal/behavior added, what scoria drove at 3.1, what andesite drives at 4.0, frequency ratios); what transfers unchanged (phasemultiplied buses, cdc shape). Citation discipline: named signals are public and stated plainly; clause numbers are `§TBC(TASK-005)` everywhere.
 
 - [ ] **Step 2: Write `02_axi4_apb.md`.** Host side unchanged in shape from scoria (AXI4 + APB slave + PeakRDL name-based regmap rule); offsets-not-in-books rule restated; the regmap generation rule carried (house peakrdl wrapper when the RDL lands).
 
-- [ ] **Step 3: Verify (Review Focus 2 gate).** `grep -n "DFI 4.0" .../01_dfi_v40.md | grep -v "§TBC(TASK-004)" | grep -v "^.*:.*|.*§TBC"` → empty (every DFI 4.0 mention carries the suffix or lives in a table cell that includes it); `grep -c "dfi_act_n" .../01_dfi_v40.md` ≥ 2.
+- [ ] **Step 3: Verify (Review Focus 2 gate).** `grep -n "DFI 4.0" .../01_dfi_v40.md | grep -v "§TBC(TASK-005)" | grep -v "^.*:.*|.*§TBC"` → empty (every DFI 4.0 mention carries the suffix or lives in a table cell that includes it); `grep -c "dfi_act_n" .../01_dfi_v40.md` ≥ 2.
 
 - [ ] **Step 4: Commit**
 
@@ -189,9 +196,9 @@ git commit -m "docs(andesite): HAS ch05 -- parameters, andesite_pkg content, mem
 
 **Interfaces:**
 - Consumes: all HAS chapters (assembly + consistency gate); the vault lane (Task 1).
-- Produces: the reviewed HAS v0.1 the MAS (Tasks 8-10) cites; the open-questions list feeding TASK-004 and the MAS.
+- Produces: the reviewed HAS v0.1 the MAS (Tasks 8-10) cites; the open-questions list feeding TASK-005 and the MAS.
 
-- [ ] **Step 1: Write ch06.** Verification strategy: sim-only against a DFI 4.0 BFM; the BFM acquisition/study task = andesite TASK-004 (no BFM exists in-house); inherited-bring-tests argument from scoria/pumice cited. Open-questions table: write CRC, gear-down coverage scope, CA-parity scope, LPDDR4 DVFS/DSM, BFM provenance, DFI 4.0 clause confirmation — each with a named condition. "What would make this a 1.0" (block-by-block confirmation against RTL when it exists; CSR map from RDL — same posture as scoria).
+- [ ] **Step 1: Write ch06.** Verification strategy: sim-only against a DFI 4.0 BFM; the BFM acquisition/study task = andesite TASK-005 (no BFM exists in-house); inherited-bring-tests argument from scoria/pumice cited. Open-questions table: write CRC, gear-down coverage scope, CA-parity scope, LPDDR4 DVFS/DSM, BFM provenance, DFI 4.0 clause confirmation — each with a named condition. "What would make this a 1.0" (block-by-block confirmation against RTL when it exists; CSR map from RDL — same posture as scoria).
 
 - [ ] **Step 2: Consistency gate (Review Focus 1).** Extract every `module-name MARKING` pair from `ch02_overview/03_module_hierarchy.md` and `ch03_architecture/01_deltas.md`; `comm -3` of the two sorted lists must be empty. `grep -o "fillcolor=\"#[0-9a-f]*\"" assets/graphviz/01_block_diagram.dot | sort | uniq -c` sanity vs the color legend (green/amber/red all present). Fix any drift found — the gate is the point, not a formality.
 
@@ -202,7 +209,7 @@ git add projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/andesite_has v
 git commit -m "docs(andesite): HAS ch06 + assembly -- verification strategy, open questions, v0.1 book complete"
 ```
 
-- [ ] **Step 4: OWNER REVIEW.** Present the book (index + ch02/ch03 highlights) to the owner; incorporate corrections; close `andesite TASK-001` (`git mv` to closed/, INDEX counts, per the tasks convention) in a follow-up commit `docs(tasks): close andesite TASK-001 (HAS v0.1)`. Do not start Task 8 until approved.
+- [ ] **Step 4: OWNER REVIEW.** Present the book (index + ch02/ch03 highlights) to the owner; incorporate corrections; close `andesite TASK-002` (`git mv` to closed/, INDEX counts, per the tasks convention) in a follow-up commit `docs(tasks): close andesite TASK-002 (HAS v0.1)`. Do not start Task 8 until approved.
 
 ### Task 8: MAS skeleton + ch01 overview
 
@@ -257,13 +264,13 @@ git commit -m "docs(andesite): MAS ch02 -- changed/new block microarchitecture"
 - Consumes: MAS ch02 (signals named there are the contract rows); HAS ch04 (boundary).
 - Produces: the contract rows + citation anchors (file:line) the kmap generator cites.
 
-- [ ] **Step 1: ch03.** DFI 4.0 pin-level table (name, direction, clock, reset value, source block) — every signal HAS ch04 names appears here; `§TBC(TASK-004)` discipline identical.
+- [ ] **Step 1: ch03.** DFI 4.0 pin-level table (name, direction, clock, reset value, source block) — every signal HAS ch04 names appears here; `§TBC(TASK-005)` discipline identical.
 
 - [ ] **Step 2: ch04.** Core signal contracts in bch ch04 style (valid/ready shape, reset, ordering) for the changed/new blocks; each contract row cites its defining MAS ch02 file (anchor the kmap generator will verify).
 
 - [ ] **Step 3: Assemble + gates.** Index complete; marking-consistency grep from Task 7 re-run against `ch01_overview/02_what_changes_vs_scoria.md`; `check_task_ids.py` PASS; commit `docs(andesite): MAS ch03/ch04 + assembly -- DFI 4.0 pins, contracts, v0.1 book complete`.
 
-- [ ] **Step 4: OWNER REVIEW** (as Task 7 Step 4); close `andesite TASK-002` on approval. Do not start Task 11 until approved.
+- [ ] **Step 4: OWNER REVIEW** (as Task 7 Step 4); close `andesite TASK-003` on approval. Do not start Task 11 until approved.
 
 ### Task 11: Kmap generator + DDR4 command table (pipeline proof)
 
@@ -305,7 +312,7 @@ git commit -m "docs(andesite): kmap generator + DDR4 command truth table (citati
 
 - [ ] **Step 3: Integrate.** MAS ch04 and HAS ch03 cite the generated tables (one line each, citing `generated/NN_*.md`); README documents rerun. Gates: `check_task_ids.py`; hooks; commit `docs(andesite): kmaps complete -- LPDDR4 CA, decode maps, MR0-6, ODT, FGR; cited from MAS/HAS`.
 
-- [ ] **Step 4: OWNER REVIEW** (whole tranche walkthrough); close `andesite TASK-003` on approval; final commit `docs(tasks): close andesite TASK-003 (kmaps) -- docs tranche complete`.
+- [ ] **Step 4: OWNER REVIEW** (whole tranche walkthrough); close `andesite TASK-004` on approval; final commit `docs(tasks): close andesite TASK-004 (kmaps) -- docs tranche complete`.
 
 ---
 
