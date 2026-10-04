@@ -87,14 +87,12 @@ lineage, the JEDEC generation deltas.
 
 ### Chapter 3: Architecture
 
-(lands with Task 4)
-
-- `ch03_architecture/01_deltas.md` — What Is Inherited, and the Ten Areas That Change
-- `ch03_architecture/02_init_zq.md` — Init and ZQ: RESET#, MR0-MR6, Gear-Down
-- `ch03_architecture/03_training.md` — Training: Write Leveling Inherited, Read Leveling New
-- `ch03_architecture/04_refresh.md` — Refresh: FGR and Controller-Directed Per-Bank
-- `ch03_architecture/05_odt.md` — ODT: Dynamic, with a New odt_ctrl
-- `ch03_architecture/06_lpddr4_deltas.md` — The LPDDR4 Deltas, Chapter by Chapter
+- [What Is Inherited, and the Ten Areas That Change](ch03_architecture/01_deltas.md)
+- [Init and ZQ: RESET#, MR0-MR6, Gear-Down](ch03_architecture/02_init_zq.md)
+- [Training: Write Leveling Inherited, Read Leveling New](ch03_architecture/03_training.md)
+- [Refresh: FGR and Controller-Directed Per-Bank](ch03_architecture/04_refresh.md)
+- [ODT: Dynamic, with a New odt_ctrl](ch03_architecture/05_odt.md)
+- [The LPDDR4 Deltas, Chapter by Chapter](ch03_architecture/06_lpddr4_deltas.md)
 
 ### Chapter 4: Interfaces
 
