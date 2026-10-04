@@ -23,11 +23,13 @@
 
 # amber — Product Requirements (DRAFT)
 
-**Version:** 0.1 (draft, 2026-10-04)
-**Status:** scaffold only — this page records the questions and the
+**Version:** 0.2 (draft, 2026-10-04)
+**Status:** decisions pending — this page records the questions and the
 candidates, not answers. A decision becomes DECIDED when it records a name
 and a date, the way the reed-solomon PRD does it. Until then every row below
 is OPEN.
+v0.2: D8 decided — `*_monlite` observation wrappers (never `_mon` on the
+measured paths).
 
 ## 1. Purpose
 
@@ -71,7 +73,7 @@ from `rtl/amba/`.
 | D5 | Write policy | OPEN: write-back + write-allocate (the research default — MESI's M state earns its keep) vs write-through + no-allocate (simpler, slower); dirty-eviction handling under it | M-state logic, memory traffic, formal targets |
 | D6 | MESI variant | OPEN: plain MESI vs MOESI/MEOSI ownership (O state cuts dirty transfers between caches); default lean MESI, upgrade path noted | state machine count, snoop response matrix |
 | D7 | Replacement policy | OPEN: true LRU vs tree-PLRU vs FIFO vs random, pluggable per elaboration parameter; must be the same policy set the [cache simulator](../../../../bin/apps/cache_sim/) models so sim-vs-RTL cross-check is exact | policy engine, cross-check fidelity |
-| D8 | Observation | OPEN (direction: yes): MonBus taps for hits, misses (class split if the model supplies it), snoops, evictions, state transitions; `_mon` heavyweight vs `_monlite` wrappers per cost | perf counters, board capture, DV scoreboards |
+| D8 | Observation | **DECIDED 2026-10-04 (Sean): `*_monlite` wrappers, not the heavyweight `_mon`.** MonBus taps for hits, misses (class split if the model supplies it), snoops, evictions, and state transitions, observed through the `axi4_monlite` / `axil4_monlite` family — same 128-bit MonBus packets, UNIT/AGENT ids, and host tooling as `_mon`, ~1/5 the monitor gates, and a drop-and-count policy that never stalls the port. Rationale for a research cache: the observer must not perturb what it measures — a `_mon` wrapper that gates the port when its tracking tables fill would corrupt the very miss-latency numbers amber and jet exist to produce. The events D8 lists are emitted as MonBus packets and tallied by the standard agents (`monbus_tally_axil`); heavyweight `_mon` stays available as a DV cross-check, never on the measured paths. | perf counters, board capture, DV scoreboards |
 | D9 | Verification strategy | OPEN (direction: Pattern-B cocotb gate/func/full + SymbiYosys proofs of no-stale-served and protocol liveness + trace replay against the cache_sim golden model with matching policy) | DV structure, formal areas, CI time |
 | D10 | First consumer | OPEN: standalone TB masters vs a pair of amber caches snooping each other (the coherence research rig) vs attachment to STREAM as a cached DMA path | integration scope, what "done" means |
 | D11 | Data/tag arrays | OPEN (direction: shared primitives): `sdpram_core`-based tag/data stores + house FIFOs for pending/fill queues; FPGA attributes per [`../../../../GLOBAL_REQUIREMENTS.md`](../../../../GLOBAL_REQUIREMENTS.md) | area/timing headroom, the no-bespoke-SRAM rule |
