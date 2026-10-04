@@ -78,8 +78,8 @@ module andesite_mode_register #(
     localparam int MR3_MPR_PAGE_LSB       = 1;
     localparam int LPDDR4_ODT_IMG         = 11;   // LPDDR4 MR index carrying DQ-ODT
 
-    logic [DATA_WIDTH-1:0] r_ddr4_img    [0:RANKS-1][0:DDR4_MR_COUNT-1];
-    logic [DATA_WIDTH-1:0] r_lpddr4_img  [0:RANKS-1][0:LPDDR4_MR_COUNT-1];
+    logic [DATA_WIDTH-1:0] r_ddr4_img    [RANKS][DDR4_MR_COUNT];
+    logic [DATA_WIDTH-1:0] r_lpddr4_img  [RANKS][LPDDR4_MR_COUNT];
 
     logic [DATA_WIDTH-1:0] w_mr3;
     logic [DATA_WIDTH-1:0] w_mr1;
