@@ -134,9 +134,9 @@ if (typeof document !== 'undefined') {
     var IDS = ['depth', 'fwr', 'frd', 'nsync', 'bubble'];
     IDS.forEach(function (id) {
       document.getElementById('in-' + id)
-        .addEventListener('input', FF.app.update);
+        .addEventListener('input', FIFOFLAGS.app.update);
     });
-    FF.app.renderExamples();
-    FF.app.update();
+    FIFOFLAGS.app.renderExamples();
+    FIFOFLAGS.app.update();
   });
 }

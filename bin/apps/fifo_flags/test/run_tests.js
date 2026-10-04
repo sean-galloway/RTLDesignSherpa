@@ -134,6 +134,61 @@ test('example-note escaping covers & < > and quotes', function () {
   eq(FF.app.esc('fWr < fRd & "q"'), 'fWr &lt; fRd &amp; &quot;q&quot;', 'esc helper');
 });
 
+// --- boot smoke test (minimal DOM stub) --------------------------------------
+// Guards the class of bug that shipped broken on 2026-10-04: the
+// DOMContentLoaded boot referenced the IIFE-local alias FF from outside the
+// IIFE (ReferenceError in the browser) while every node test stayed green,
+// because nothing exercised the boot path.
+test('app boot: DOMContentLoaded handler runs and renders golden case 1', function () {
+  var els = {};
+  function mk(id, value) {
+    els[id] = {
+      value: value, textContent: '', innerHTML: '', className: '',
+      addEventListener: function () {},
+      querySelectorAll: function () { return []; }
+    };
+  }
+  mk('in-depth', '32');
+  mk('in-fwr', '100');
+  mk('in-frd', '100');
+  mk('in-nsync', '2');
+  mk('in-bubble', '10');
+  ['depth', 'fwr', 'frd', 'nsync', 'bubble'].forEach(function (id) {
+    mk('err-' + id);
+  });
+  mk('flags'); mk('verdict'); mk('banner');
+  mk('examples');
+  var domReady = null;
+  globalThis.document = {
+    getElementById: function (id) {
+      if (!els[id]) { throw new Error('getElementById for unknown id ' + id); }
+      return els[id];
+    },
+    addEventListener: function (ev, fn) {
+      if (ev === 'DOMContentLoaded') { domReady = fn; }
+    }
+  };
+  try {
+    // Earlier tests in this file already required app.js with no document
+    // defined (boot block skipped, module cached) — re-require fresh.
+    delete require.cache[
+      require.resolve(path.join(__dirname, '..', 'js', 'app.js'))
+    ];
+    require(path.join(__dirname, '..', 'js', 'app.js'));
+    if (!domReady) { throw new Error('boot never registered DOMContentLoaded'); }
+    domReady();
+    // Golden case 1 (see model tests): depth 32, 100/100 MHz, N=2, 10%
+    // bubble -> AF threshold 26, AE threshold 6.
+    if (els['flags'].innerHTML.indexOf('26') === -1 ||
+        els['flags'].innerHTML.indexOf('6') === -1) {
+      throw new Error('flags table missing golden 26/6 thresholds: ' +
+                      els['flags'].innerHTML);
+    }
+  } finally {
+    delete globalThis.document;
+  }
+});
+
 // --- runner ----------------------------------------------------------------
 tests.forEach(function (t) {
   n += 1;

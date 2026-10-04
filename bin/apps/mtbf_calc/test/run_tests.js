@@ -194,6 +194,66 @@ test('invalid input clears results and keeps field errors', function () {
   eq(els['main-result'].innerHTML, '', 'main result cleared');
 });
 
+// --- boot smoke test (minimal DOM stub) --------------------------------------
+// Guards the class of bug that shipped broken on 2026-10-04: the
+// DOMContentLoaded boot threw in the browser (renderErrors touched a null
+// err-preset span) while every node test stayed green, because nothing
+// exercised the boot path.
+test('app boot: DOMContentLoaded handler runs and renders results', function () {
+  var els = {};
+  function mk(id, value) {
+    els[id] = {
+      value: value, textContent: '', innerHTML: '', className: '',
+      addEventListener: function () {},
+      querySelectorAll: function () { return []; }
+    };
+  }
+  var D = MTBF.DEFAULTS;
+  mk('in-preset', D.preset);
+  mk('in-c1', String(D.c1));
+  mk('in-c2', String(D.c2));
+  mk('in-fdata', String(D.fData));
+  mk('in-fclk', String(D.fClk));
+  mk('in-tco', String(D.tCO));
+  mk('in-tsu', String(D.tSU));
+  mk('in-t0', String(D.t0));
+  mk('in-n', String(D.n));
+  mk('in-mission', String(D.missionYears));
+  ['c1', 'c2', 'fdata', 'fclk', 'tco', 'tsu', 't0', 'n', 'mission']
+    .forEach(function (id) { mk('err-' + id); });
+  mk('main-result'); mk('mtbf-table'); mk('verdict'); mk('banner');
+  mk('btn-1ghz');
+  var domReady = null;
+  globalThis.document = {
+    getElementById: function (id) {
+      // Browser-faithful: unknown ids return null (the app guards the
+      // preset field, which has no error span).
+      return els[id] || null;
+    },
+    addEventListener: function (ev, fn) {
+      if (ev === 'DOMContentLoaded') { domReady = fn; }
+    }
+  };
+  try {
+    // Earlier tests in this file already required app.js with no document
+    // defined (boot block skipped, module cached) — re-require fresh.
+    delete require.cache[
+      require.resolve(path.join(__dirname, '..', 'js', 'app.js'))
+    ];
+    require(path.join(__dirname, '..', 'js', 'app.js'));
+    if (!domReady) { throw new Error('boot never registered DOMContentLoaded'); }
+    domReady();
+    if (els['main-result'].innerHTML.indexOf('MTBF') === -1) {
+      throw new Error('main-result not rendered after boot');
+    }
+    if (els['mtbf-table'].innerHTML.indexOf('<tr') === -1) {
+      throw new Error('N-table not rendered after boot');
+    }
+  } finally {
+    delete globalThis.document;
+  }
+});
+
 // --- runner ----------------------------------------------------------------
 tests.forEach(function (t) {
   n += 1;

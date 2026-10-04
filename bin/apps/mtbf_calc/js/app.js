@@ -69,8 +69,11 @@ var MTBF = (typeof window !== 'undefined' ? window : globalThis).MTBF ||
 
   function renderErrors(errors) {
     IDS.forEach(function (id) {
-      var key = MODEL_KEYS[id];
-      el('err-' + id).textContent = errors[key] || '';
+      var span = el('err-' + id);
+      // The preset <select> has no error span; only fields that can fail
+      // carry one.
+      if (!span) { return; }
+      span.textContent = errors[MODEL_KEYS[id]] || '';
     });
   }
 
