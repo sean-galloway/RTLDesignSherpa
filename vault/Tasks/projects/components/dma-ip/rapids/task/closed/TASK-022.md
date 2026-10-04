@@ -3,7 +3,9 @@
 **Priority:** P2 -- the product tree is unproven while the stepping stone is
 proven. Not urgent (the byte tree is board-characterized and its suites are
 green), but it is the largest coverage gap the rapids TASK-019 closure exposed.
-**Status:** ACTIVE 2026-10-02. Scope DECIDED 2026-10-02 -- see "Decide first".
+**Status:** CLOSED 2026-10-04. Both macro dirs prove green (snk depth 15,
+src depth 16), mutation batteries done, suite-wide prove/cover re-run green
+2026-10-04. Scope DECIDED 2026-10-02 -- see "Decide first".
 **Owner:** TBD
 
 ## The gap
@@ -89,15 +91,21 @@ has no beats equivalent, and it is exactly the kind of logic formal is good at:
 
 ## Done when
 
-- `formal/rapids/snk_data_path_axis/` proves the byte sink macro (shifter +
+- [x] `formal/rapids/snk_data_path_axis/` proves the byte sink macro (shifter +
   packet-record queue + fill allocator + write engine closure) at port level:
   byte fidelity, record/ready contract, AW/W legality, per-channel reset.
-- `formal/rapids/src_data_path_axis/` proves the mirror on the source side.
-- If the macro dirs blow the measured budget (Sean's call at the DIR-1
+  DONE 2026-10-03 (commit 958687317, depth 15).
+- [x] `formal/rapids/src_data_path_axis/` proves the mirror on the source side.
+  DONE 2026-10-04 (commit f26b893f5, depth 16).
+- [x] If the macro dirs blow the measured budget (Sean's call at the DIR-1
   checkpoint): `formal/rapids/axi_write_engine/` at fub level instead.
-- Mutation check per property; each `ap_*` present in the emitted smt2;
+  NOT NEEDED -- both macro dirs held the budget.
+- [x] Mutation check per property; each `ap_*` present in the emitted smt2;
   `make -C formal/rapids prove-all` and `cover-all` green; flats regenerated
-  from current RTL and git-diff clean.
+  from current RTL and git-diff clean. DONE 2026-10-04: snk 16/16 + src 21/21
+  `ap_*` in the emitted smt2; all 13 flats CURRENT; 13/13 covers and 13/13
+  proves green (src_data_path_axis via its committed depth-16 run, the other
+  12 re-run live this day).
 - Adjacent gap, OUT OF SCOPE here: `axi_read_engine` AR-side legality
   (4 KB split etc.) has no byte-tree proof; file separately if wanted.
 - Beats-suite retirement stays DEFERRED (see "Decide first").

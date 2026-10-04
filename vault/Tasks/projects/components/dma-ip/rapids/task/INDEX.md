@@ -13,8 +13,8 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 22 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 23 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -22,10 +22,12 @@ by construction rather than by discipline.
 
 ## Active
 
-- **TASK-022** — the byte-granular RAPIDS has no formal proofs of its own (P2, filed 2026-10-01; scope DECIDED 2026-10-02: byte-specific set, port-level harnesses only, the 64 never-compiled in-RTL SVA blocks are deleted as part of the work)
-
 ## Closed
 
+- **TASK-022** — CLOSED 2026-10-04: both byte macro port-level proofs done
+  (snk depth 15, src depth 16), mutation batteries all-caught in-budget;
+  suite-wide prove/cover re-run green, 13/13 flats CURRENT; the 64
+  never-compiled in-RTL SVA blocks deleted (bf5db01b7)
 - **TASK-023** — CLOSED 2026-10-03: both Genesys2 rapids harnesses rebuilt on
   the fixed sdpram (71d48b6f7), timing-closed, board-verified; byte std 117/117
   + aligned 28/28, beats suite 48/48 + 7 observer campaigns (139 configs) all
