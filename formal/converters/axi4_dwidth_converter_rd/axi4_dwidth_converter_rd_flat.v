@@ -771,15 +771,15 @@ module axi4_dwidth_converter_rd (
 	wire w_pop;
 	wire [RASM_PTRW - 1:0] w_old_free_head;
 	wire [RASM_PTRW - 1:0] w_old_free_next;
-	assign w_alloc_ptr = rasm_free_head;
+	reg [AXI_ID_WIDTH - 1:0] w_sched_pick;
+	reg w_sched_found;
 	wire [RASM_PTRW - 1:0] w_feed_ptr;
+	assign w_alloc_ptr = rasm_free_head;
 	assign w_feed_next = rasm_pool_next[w_feed_ptr];
 	assign w_push = m_axi_rvalid && m_axi_rready;
 	assign w_pop = rasm_feed_active && prim_rready;
 	assign w_old_free_head = rasm_free_head;
 	assign w_old_free_next = rasm_pool_next[rasm_free_head];
-	reg w_sched_found;
-	reg [AXI_ID_WIDTH - 1:0] w_sched_pick;
 	function automatic signed [((RASM_PTRW + 0) >= 0 ? RASM_PTRW + 1 : 1 - (RASM_PTRW + 0)) - 1:0] sv2v_cast_8AF0B_signed;
 		input reg signed [((RASM_PTRW + 0) >= 0 ? RASM_PTRW + 1 : 1 - (RASM_PTRW + 0)) - 1:0] inp;
 		sv2v_cast_8AF0B_signed = inp;
