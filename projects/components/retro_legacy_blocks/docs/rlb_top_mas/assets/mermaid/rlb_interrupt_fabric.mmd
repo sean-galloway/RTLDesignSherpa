@@ -27,7 +27,7 @@ flowchart TB
 
     MPIC["Master 8259<br/>IR0-IR7"]
     SPIC["Slave 8259<br/>IRQ8-15"]
-    IOA["IOAPIC<br/>pins 0-23 (24-31 = board)"]
+    IOA["IOAPIC<br/>pins 0-23 (16-23 = board-sourced)"]
 
     FAB -->|"low half; IR2 masked then<br/>forced from slave INT"| MPIC
     FAB -->|"high half, inline OR<br/>into slave irq_in"| SPIC

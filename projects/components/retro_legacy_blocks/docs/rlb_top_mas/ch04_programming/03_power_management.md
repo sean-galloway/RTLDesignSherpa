@@ -162,10 +162,10 @@ sleep through such an event checks the status registers after entry.
 convention — and therefore reaches the slave 8259 (IR1) and IOAPIC pin 9
 like any other routed source (see
 [Interrupt Pin Reference](../ch03_interfaces/03_interrupt_interfaces.md)).
-The SCI handler is just a legacy interrupt handler: program the
-controllers during
-[initialization](01_initialization.md) step 4 to deliver IRQ9, and the
-PM block needs no special routing. GPE events additionally depend on
+The SCI handler is just a legacy interrupt handler: program the controllers
+during [initialization](01_initialization.md) — step 3 for the 8259s, step 4
+for the IOAPIC — to deliver IRQ9, and the PM block needs no special routing.
+GPE events additionally depend on
 `ACPI_INT_ENABLE.gpe_int_enable` and the GPE per-source enables before
 they contribute to the pin.
 

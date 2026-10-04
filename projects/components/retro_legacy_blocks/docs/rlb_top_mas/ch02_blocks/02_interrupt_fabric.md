@@ -41,7 +41,8 @@ pins back in.
 
 ## The Routing Table
 
-Six blocks source interrupts into the fabric. The six driven lines:
+Seven block-level sources drive the fabric's six lines — PIT channel 0 and
+HPET's legacy pair both land on IRQ0. The six driven lines:
 
 | Line | Driver(s) | Origin |
 | --- | --- | --- |

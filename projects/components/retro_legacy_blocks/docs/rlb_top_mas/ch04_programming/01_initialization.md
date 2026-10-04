@@ -34,6 +34,15 @@ belongs to that block's specification.
 The sequences below are the ones the integration test suite executes, which is
 why they are known to work rather than merely plausible.
 
+There is also an executable transcription of this chapter:
+`dv/host/rlb_bringup_programs.py` runs steps 1-4 against any
+`write32`/`read32` bus (a board port binds the same program to a UART
+bridge), and `dv/tests/test_rlb_top_bringup.py` proves the book sufficient
+by driving bring-up through that program alone — it never calls the DV
+helpers this chapter was transcribed from. Edit this chapter, then run that
+test: it caught two wrong register offsets in this chapter's first edition
+(`IOWIN`, `PIC_STATUS`), which is exactly the drift it exists to catch.
+
 ## Address Helper
 
 Every register access in this chapter goes through a window. One helper keeps the

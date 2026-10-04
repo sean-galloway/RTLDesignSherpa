@@ -160,6 +160,10 @@ make clean-all && make run-rlb_top-full
 7. Each of those blocks reaches its IOAPIC pin and is delivered
 8. The boot-interrupt reroute path reaches the 8259
 9. Coincident asserts at two, three and four sources, spanning both PICs
+10. The book alone can bring the subsystem up: `dv/host/rlb_bringup_programs.py`
+    driven by [Chapter 4.1](ch04_programming/01_initialization.md), proven by
+    `dv/tests/test_rlb_top_bringup.py` — which never calls the DV helpers the
+    chapter was transcribed from
 
 ### Deliberate scope boundaries
 
