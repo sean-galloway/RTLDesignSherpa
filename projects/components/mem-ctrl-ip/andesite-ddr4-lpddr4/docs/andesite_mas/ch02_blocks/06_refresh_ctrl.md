@@ -23,10 +23,10 @@
 # Refresh Controller (`andesite_refresh_ctrl`)
 
 **Module:** `andesite_refresh_ctrl.sv`
-**Location:** `rtl/refresh/`
+**Location:** `rtl/fub/`
 **Category:** maintenance / refresh
 **Parent:** `andesite_core`
-**Status:** specified — no RTL exists (HAS v0.1 posture)
+**Status:** carried from scoria and landed (FGR delta per the fence below lands with the DDR4 refresh task); ports table reconciled to the landed port list
 
 ---
 
@@ -40,9 +40,9 @@ The block is MODIFIED, not rewritten. Every inherited property transfers with th
 
 | Parameter | Type | Range | Default | Meaning |
 |---|---|---|---|---|
-| `NUM_BANKS` | int | 8..16 | 16 for DDR4, 8 for LPDDR4 | banks per rank |
-| `FGR_SUPPORTED` | bit | 0,1 | 1 | when 1, the FGR factor CSR is active |
-| `REFPB_SUPPORTED` | bit | 0,1 | 1 for LPDDR4, 0 for DDR4 | enables per-bank refresh path |
+| `NUM_BANKS` | int | 8..16 | 8 | banks per rank |
+| `BA_W` | int | — | `$clog2(NUM_BANKS)` | bank-address width (drives `refresh_bank_o`) |
+| — | — | — | — | (no further parameters; the FGR factor and per-density tRFC CSRs land with the DDR4 FGR delta, no new parameters) |
 
 : Table 2.6.1: Refresh controller parameters
 
@@ -50,29 +50,29 @@ The block is MODIFIED, not rewritten. Every inherited property transfers with th
 
 | Signal | Direction | Width | Description |
 |---|---|---|---|
-| `clk` | in | 1 | controller clock |
-| `reset_n` | in | 1 | active-low reset |
-| `trefi_csr` | in | timing width | `tREFI`, runtime CSR |
-| `tfgr_1x_csr` | in | timing width | `tRFC` for 1x refresh, runtime CSR |
-| `tfgr_2x_csr` | in | timing width | `tRFC` for 2x refresh, runtime CSR |
-| `tfgr_4x_csr` | in | timing width | `tRFC` for 4x refresh, runtime CSR |
-| `fgr_factor_csr` | in | 2 | `1x`, `2x`, or `4x` FGR select from MR3 image |
-| `perbank_policy_csr` | in | 2 | LPDDR4 per-bank policy; reset to round-robin |
-| `maint_req` | out | 1 | request to scheduler |
-| `maint_grant` | in | 1 | scheduler grant |
-| `maint_tag` | out | `MAINT_TAG_WIDTH` | `MAINT_REF` |
-| `refresh_bank` | out | bank width | bank address for LPDDR4 per-bank refresh |
-| `refresh_all` | out | 1 | high for DDR4 all-bank `REF` |
-| `bank_busy_in` | in | `NUM_BANKS` | bank timer busy mask |
-| `csr_mode_a_en` | in | 1 | elastic refresh enable |
-| `csr_pullin_idle_streak` | in | 5..8 | Mode A pull-in idle confirmation |
-| `csr_postpone_demand_streak` | in | 5..8 | Mode A postpone demand streak |
-| `csr_tcr_en` | in | 1 | temperature-compensated refresh enable |
-| `csr_trefi_derate` | in | 2 | Mode B derate factor |
-| `ref_stats_postpone` | out | 32 | postpone event count |
-| `ref_stats_pullin` | out | 32 | pull-in event count |
-| `ref_stats_fgr_factor` | out | 2 | current FGR factor |
-| `ref_stats_perbank_bank` | out | bank width | last per-bank refresh target |
+| `mc_clk` | in | 1 | controller clock |
+| `mc_rst_n` | in | 1 | active-low reset |
+| `enable_i` | in | 1 | refresh engine enable |
+| `t_refi_i` | in | 16 | `tREFI` reload value, runtime CSR; the FGR delta divides it by the factor (below) |
+| `refi_reload_i` | in | 1 | reload the countdown immediately (DV/bring-up pulse; tie 0 in production) |
+| `trefi_pb_i` | in | 16 | per-bank `tREFI` for the LPDDR4 REFpb path |
+| `refresh_burst_i` | in | 4 | refreshes owed per request cycle (the JEDEC burst) |
+| `refpb_mode_i` | in | 1 | 0 = all-bank `REF`, 1 = controller-directed per-bank refresh |
+| `demand_i` | in | 1 | demand indication from the scheduler side |
+| `elastic_en_i` | in | 1 | Mode A elastic refresh enable |
+| `pullin_idle_streak_i` | in | 8 | Mode A pull-in idle confirmation streak |
+| `postpone_demand_streak_i` | in | 7 | Mode A postpone demand streak |
+| `tcr_en_i` | in | 1 | Mode B temperature-compensated refresh enable |
+| `trefi_derate_i` | in | 2 | Mode B derate select; reload-only, as inherited |
+| `postpone_limit_i` | in | 4 | credit-window postpone bound (JEDEC +8); `pullin_limit_i` is the pull-in bound |
+| `refresh_req_o` | out | 1 | request to the scheduler; held until `refresh_grant_i` — request-and-wait, never preempt |
+| `refresh_grant_i` | in | 1 | scheduler grant |
+| `grant_was_pb_i` | in | 1 | the granted command was per-bank |
+| `refresh_drain_active_o` | out | 1 | drains in-flight commands before the refresh issues |
+| `refresh_kind_o` | out | 1 | 0 = all-bank, 1 = per-bank |
+| `refresh_bank_o` | out | `BA_W` | per-bank refresh target (the rotor output) |
+| `pending_refreshes_o` | out | 4 | credit-window occupancy (postpones owed) |
+| `obs_refi_cnt_o` | out | 16 | interval-countdown observability; `obs_drain_remaining_o`, `obs_bank_rotor_o`, `obs_grants_total_o`, `obs_pullin_credit_o`, `obs_postpone_events_o`, `obs_pullin_events_o` complete the telemetry set |
 
 : Table 2.6.2: Refresh controller ports
 
@@ -112,7 +112,7 @@ LPDDR4 changes who names the bank. For LPDDR2/3, `REFpb` carried no bank address
 
 This edition implements a round-robin default. The policy layer that scoria's TASK-001 built — CSR-select, reset-off, telemetry-instrumented — is exactly where occupancy-aware schemes from andesite TASK-001's DARP survey would hang. Round-robin is the commodity choice; advanced schemes are left as future policy hooks.
 
-The scheduling policy hook is a small module that picks the next bank. It receives the bank busy mask and the current per-bank pointer, and produces `refresh_bank`. Round-robin advances the pointer to the next non-busy bank. Future policies can replace this module without touching the refresh engine.
+The scheduling policy hook picks the next bank. On the carried block the hook is internal: a round-robin rotor advances the per-bank pointer and drives `refresh_bank_o` (observable on `obs_bank_rotor_o`), with no bank-busy input — the busy-masked, occupancy-aware variants are the future policy this page leaves hooked, not a port the inherited engine has. Future policies can replace the hook without touching the refresh engine.
 
 ## FSM policy
 

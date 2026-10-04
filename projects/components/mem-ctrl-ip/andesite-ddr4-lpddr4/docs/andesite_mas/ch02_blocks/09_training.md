@@ -22,11 +22,11 @@
 
 # Training Interfaces (`andesite_wrlvl_ifc`, `andesite_rdlvl_ifc`, `andesite_ca_train_ifc`)
 
-**Module:** `andesite_wrlvl_ifc` (MODIFIED), `andesite_rdlvl_ifc` (NEW), `andesite_ca_train_ifc` (NEW)
-**Location:** `projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/`
+**Module:** `andesite_wrlvl_ifc` (MODIFIED, carried and landed), `andesite_rdlvl_ifc` (NEW — lands with the training task), `andesite_ca_train_ifc` (NEW — lands with the training task)
+**Location:** `projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/fub/`
 **Category:** training control / PHY handshake
 **Parent:** `andesite_top` / DFI boundary
-**Status:** specified — no RTL exists (HAS v0.1 posture)
+**Status:** `wrlvl_ifc` carried from scoria and landed; the tables below name its landed port list. `rdlvl_ifc`/`ca_train_ifc` are specified on this page and land with the training task.
 
 ## Purpose
 
@@ -54,17 +54,12 @@ discipline, the same telemetry framing, and the same no-search rule.
 
 | Parameter | Type | Range | Default | Meaning | PRD |
 |---|---|---|---|---|---|
-| `NUM_CHIP_SEL` | int | 1..8 | TBD | number of independent chip selects (ranks or channels) | B1 |
-| `WRLVL_WINDOW_CSR` | CSR | speed-bin | TBD | `tWLMRD`, `tWLDQSEN`, `tWLO`, `tWLOE` windows | B2 |
-| `RDLVL_MPR_WINDOW_CSR` | CSR | speed-bin | TBD | MPR readout and pre/post-pattern intervals | B3 |
-| `CA_TRAIN_WINDOW_CSR` | CSR | JESD209-4 | TBD | CA training and WDQ calibration intervals | B4 |
-| `TRAIN_TIMEOUT_CSR` | CSR | controller-defined | TBD | per-interface timeout, distinct status bit | B5 |
+| `NUM_CS` | int | 1..8 | 1 | number of independent chip selects (ranks or channels) | B1 |
+| `CSW` | int | — | `$clog2(NUM_CS)` (min 1) | chip-select index width (`cs_sel_i`) | B1 |
 
 : Table 2.9.1: Training-interface parameters
 
-The JEDEC timing values behind these CSRs are runtime CSRs, initialised from
-the JESD79-4 or JESD209-4 speed bin at CSR-derivation time (HAS Ch 5; numeric
-constants are HAS open question Q1).
+The JEDEC timing windows arrive as runtime-CSR ports on the landed `wrlvl_ifc` — `t_wldqsen_i`, `t_wlmrd_i`, `t_wlo_i`, `t_wloe_i` (write leveling, B2) — initialised from the JESD79-4 or JESD209-4 speed bin at CSR-derivation time (HAS Ch 5; numeric constants are HAS open question Q1). The per-interface timeout is `t_wlmrd_max_i` (B5). The rdlvl/CA-training windows (B3, B4) land with those interfaces.
 
 ## Interface
 
@@ -72,14 +67,12 @@ constants are HAS open question Q1).
 
 | Signal | Direction | Width | Description |
 |---|---|---|---|
-| `dfi_phylvl_req_cs_n` | in | `NUM_CHIP_SEL` | PHY requests training per chip select, DFI v4.0 `§TBC(TASK-005)` |
-| `dfi_phylvl_ack_cs_n` | out | `NUM_CHIP_SEL` | controller acknowledges training request, DFI v4.0 `§TBC(TASK-005)` |
-| `dfi_phy_wrlvl_cs_n` | out | `NUM_CHIP_SEL` | write-leveling chip-select, DFI v4.0 `§TBC(TASK-005)` |
-| `dfi_phy_rdlvl_cs_n` | out | `NUM_CHIP_SEL` | read-leveling chip-select, DFI v4.0 `§TBC(TASK-005)` |
-| `dfi_phy_calvl_cs_n` | out | `NUM_CHIP_SEL` | CA-training chip-select, DFI v4.0 `§TBC(TASK-005)` |
-| `dfi_lvl_pattern` | out | pattern width | training pattern driven during handshake, DFI v4.0 `§TBC(TASK-005)` |
-| `dfi_lvl_periodic` | out | 1 | periodic leveling enable, DFI v4.0 `§TBC(TASK-005)` |
-| `dfi_ca_capture` | in | capture width | CA training sample from PHY, DFI v4.0 `§TBC(TASK-005)` |
+| `dfi_phylvl_req_cs_n_o` | out | `NUM_CS` | controller requests per-CS write leveling (DFI leveling handshake, active-low per CS) |
+| `dfi_phylvl_ack_cs_n_i` | in | `NUM_CS` | PHY acknowledges the training request per CS |
+| `dfi_phy_wrlvl_cs_n_o` | out | `NUM_CS` | write-leveling chip-select to the PHY |
+| `dfi_wrlvl_strobe_o` | out | 1 | DQS strobe the PHY forwards for the prime-DQ sample |
+
+The read-leveling and CA-training DFI signals (`dfi_phy_rdlvl_cs_n`, `dfi_phy_calvl_cs_n`, the pattern/periodic outputs, `dfi_ca_capture`) land with `rdlvl_ifc` and `ca_train_ifc`; the four rows above are the landed `wrlvl_ifc` set. The controller initiates the handshake — the host owns the delay sweep (design decision D2), so there is no PHY-driven request pin on this interface.
 
 : Table 2.9.2: DFI 4.0 training signals
 
@@ -87,22 +80,24 @@ constants are HAS open question Q1).
 
 | Signal | Direction | Width | Description |
 |---|---|---|---|
-| `wrlvl_enable` | in | 1 | start write leveling |
-| `rdlvl_enable` | in | 1 | start read leveling |
-| `ca_train_enable` | in | 1 | start CA/WDQ training |
-| `wrlvl_window` | in | CSR width | `tWLMRD`, `tWLDQSEN`, `tWLO`, `tWLOE` values |
-| `rdlvl_window` | in | CSR width | MPR interval values |
-| `ca_train_window` | in | CSR width | CA/WDQ interval values |
-| `timeout_csr` | in | CSR width | per-interface timeout limit |
-| `wrlvl_status` | out | 2-bit | write-leveling telemetry state |
-| `rdlvl_status` | out | 2-bit | read-leveling telemetry state |
-| `ca_train_status` | out | 2-bit | CA-training telemetry state |
-| `wrlvl_result` | out | per-CS | captured prime-DQ value per chip select |
-| `rdlvl_result` | out | per-CS | captured MPR pattern per chip select |
-| `ca_train_result` | out | per-channel | captured CA/DQ observation |
-| `attempt_count` | out | per-interface | how many times this interface was enabled |
-| `result_count` | out | per-interface | how many captures completed |
-| `timeout_count` | out | per-interface | how many times the timeout CSR expired |
+| `wrlvl_en_i` | in | 1 | enter write-leveling mode (the MR1[7] path) |
+| `strobe_i` | in | 1 | host strobe — one DQS edge per pulse; the host owns the delay sweep |
+| `cs_sel_i` | in | `CSW` | chip select under training |
+| `t_wldqsen_i` | in | 16 | `tWLDQSEN` window |
+| `t_wlmrd_i` | in | 16 | `tWLMRD` window |
+| `t_wlmrd_max_i` | in | 16 | `tWLMRD` timeout (0 = no timeout — the distinct timeout status) |
+| `t_wlo_i` | in | 16 | `tWLO` window |
+| `t_wloe_i` | in | 16 | `tWLOE` window |
+| `prime_dq_i` | in | 1 | sampled prime DQ returned by the PHY |
+| `result_valid_o` | out | 1 | a sample completed |
+| `result_o` | out | 1 | captured prime-DQ value |
+| `obs_attempts_o` | out | 16 | enable/strobe count — how many times the interface ran |
+| `obs_flips_o` | out | 16 | result-bit transitions observed across the sweep |
+| `obs_timeout_o` | out | 1 | `t_wlmrd_max_i` expired (distinct status) |
+| `obs_ever_done_o` | out | 1 | converged at least once |
+| `obs_state_o` | out | 3 | FSM-state observability |
+
+The `rdlvl_*` and `ca_train_*` host/CSR rows in the original sketch land with `rdlvl_ifc` and `ca_train_ifc`; the telemetry discipline they follow is exactly the landed `wrlvl_*` shape above.
 
 : Table 2.9.3: Host/CSR training interface
 

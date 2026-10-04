@@ -65,12 +65,6 @@
 | `hash_en_i` | in | 1 | bank XOR-hash enable (carried from pumice) |
 | `hash_seed_i` | in | 8 | hash seed |
 
-`memtype_i` is deliberately absent: the decode is geometry-parameterized,
-not memtype-branched (the LPDDR4 degeneration is bg_o tied to zero by the
-consumer, per the note below the table). The `ADDR_MAP`-style field
-boundary is the `bank_lsb_i` knob, runtime-set, exactly as scoria's mapper.
-The `bg_o` delta is the andesite change; every other port is scoria's. |
-
 : Table 2.10: Address mapper ports
 
 ## Microarchitecture internals
@@ -91,6 +85,12 @@ geometry; hash-en/hash-seed carried from pumice if enabled.
 ```
 
 : Figure 2.2: Address decode structure (citation anchor)
+
+`memtype_i` is deliberately absent: the decode is geometry-parameterized,
+not memtype-branched (the LPDDR4 degeneration is bg_o tied to zero by the
+consumer, per the note below the table). The `ADDR_MAP`-style field
+boundary is the `bank_lsb_i` knob, runtime-set, exactly as scoria's mapper.
+The `bg_o` delta is the andesite change; every other port is scoria's.
 
 ### Scheduler-visible outputs
 

@@ -23,10 +23,10 @@
 # Scheduler and Command Arbiter (`andesite_mem_cmd_scheduler` + `andesite_cmd_arbiter`)
 
 **Module:** `andesite_mem_cmd_scheduler.sv`, `andesite_cmd_arbiter.sv`
-**Location:** `rtl/scheduler/`
+**Location:** `rtl/macro/` (scheduler), `rtl/fub/` (arbiter)
 **Category:** scheduling / arbitration
 **Parent:** `andesite_core`
-**Status:** specified — no RTL exists (HAS v0.1 posture)
+**Status:** carried from scoria and landed — arbiter carries the L/S delta; the tables below name the landed port lists
 
 ---
 
@@ -40,14 +40,15 @@ The scheduler never invents a new arbitration philosophy. It takes scoria's mech
 
 | Parameter | Type | Range | Default | Meaning |
 |---|---|---|---|---|
-| `NUM_BANK_GROUPS` | int | 1..4 | 4 for DDR4, 1 for LPDDR4 | bank-group count; `1` means ungrouped |
-| `NUM_BANKS` | int | 8..16 | 16 for DDR4, 8 for LPDDR4 | total banks per rank |
-| `CAM_DEPTH` | int | 8..32 | inherited | read and write command CAM depth |
-| `MAINT_TAG_WIDTH` | int | 2..4 | 3 | distinguishes refresh, ZQ, ODT turnaround sources |
+| `NUM_RANKS` | int | 1+ | 1 | ranks per channel |
+| `NUM_BANKS` | int | 8..16 | 8 | banks per rank |
+| `NUM_BG` | int | 1..4 | 4 | bank groups; `1` is the LPDDR4 degeneration (the L/S delta parameter) |
+| `NUM_ENTRIES` | int | 8..32 | 8 | read and write CAM depth |
+| `AGE_WIDTH` | int | — | 16 | age-counter width |
 
 : Table 2.5.1: Scheduler parameters
 
-`NUM_BANK_GROUPS = 1` is how LPDDR4 degenerates gracefully. There is no `if (memtype == LPDDR4)` branch in the issue check; the group index is constant and the L/S counters collapse by construction.
+`NUM_BG = 1` is how LPDDR4 degenerates gracefully. There is no `if (memtype == LPDDR4)` branch in the issue check; the group index is constant and the L/S counters collapse by construction.
 
 ## Interface
 
@@ -55,38 +56,45 @@ The scheduler never invents a new arbitration philosophy. It takes scoria's mech
 
 | Signal | Direction | Width | Description |
 |---|---|---|---|
-| `clk` | in | 1 | controller clock |
-| `reset_n` | in | 1 | active-low reset |
-| `init_done` | in | 1 | scheduler admits no host commands until high |
-| `rd_cam_valid` | in | 1 | read command ready in the read CAM |
-| `wr_cam_valid` | in | 1 | write command ready in the write CAM |
-| `rd_cam_entry` | in | CAM entry | read candidate: bank, row, column, age |
-| `wr_cam_entry` | in | CAM entry | write candidate: bank, row, column, age |
-| `grant_to_rd` | out | 1 | read command wins this cycle |
-| `grant_to_wr` | out | 1 | write command wins this cycle |
-| `granted_entry` | out | CAM entry | the command being issued |
+| `aclk` | in | 1 | controller clock |
+| `aresetn` | in | 1 | active-low reset |
+| `init_done_i` | in | 1 | scheduler admits no host commands until high |
+| `rd_sch_valid_i` | in | `NUM_ENTRIES` | read CAM per-entry valid (the CAMs live in the intake/AXI interface) |
+| `wr_sch_valid_i` | in | `NUM_ENTRIES` | write CAM per-entry valid |
+| `rd_sch_bank_i` | in | `NUM_ENTRIES*BKW` | read candidate bank per entry; `rd_sch_row_i`/`rd_sch_col_i` carry the rest of the payload |
+| `wr_sch_bank_i` | in | `NUM_ENTRIES*BKW` | write candidate bank per entry; `wr_sch_row_i`/`wr_sch_col_i` alongside |
+| `rd_sch_older_i` | in | `NUM_ENTRIES^2` | read CAM age-order matrix; the write side is `wr_sch_older_i` |
+| `rd_issue_valid_o` | out | 1 | read command wins this cycle; `rd_issue_slot_o` names the winning entry |
+| `wr_commit_valid_o` | out | 1 | write command wins this cycle; `wr_commit_slot_o` names the winning entry |
+| `cmd_valid_o` | out | 1 | issued command strobe toward the formatter path; `cmd_op_o`, `cmd_rank_o`, `cmd_bank_o`, `cmd_row_o`, `cmd_col_o`, `cmd_ap_o` carry it, `cmd_ready_i` back-pressures |
 
 ### Bank-group timing ports
 
 | Signal | Direction | Width | Description |
 |---|---|---|---|
-| `tccd_l_csr` | in | timing width | `tCCD_L`, runtime CSR |
-| `tccd_s_csr` | in | timing width | `tCCD_S`, runtime CSR |
-| `trrd_l_csr` | in | timing width | `tRRD_L`, runtime CSR |
-| `trrd_s_csr` | in | timing width | `tRRD_S`, runtime CSR |
-| `last_cmd_group` | in/out | group width | bank group of the last-issued command |
-| `outstanding_group_mask` | in/out | group count | groups with outstanding same-group spacing |
+| `tccd_ok_i` | in | 1 | `tCCD` base spacing ok (cross-group; the LPDDR4 degenerate check) |
+| `tccd_l_ok_i` | in | 1 | `tCCD_L` same-group spacing ok — the andesite L/S delta input |
+| `trrd_ok_i` | in | 1 | `tRRD_S`-class ACT-to-ACT ok, per rank |
+| `trrd_l_ok_i` | in | 1 | `tRRD_L` same-group ACT-to-ACT ok — L/S delta input |
+| `tfaw_ok_i` | in | 1 | `tFAW` four-activate window ok, per rank |
+| `twtr_ok_i` | in | 1 | write-to-read turnaround ok; `trtw_ok_i` is the read-to-write partner |
+| `bank_act_ready_i` | in | `NUM_RANKS x NUM_BANKS` | per-bank timer readiness (activate); `bank_rdwr_ready_i`, `bank_pre_ready_i` and the `_la_i` lookahead variants ride alongside |
+
+The L/S counters live in the global timers; the arbiter consumes the ok flags. The bank group of the last-issued command is tracked inside the arbiter (`r_last_col_bg`, `r_last_act_bg`), not on a port — there is no `last_cmd_group` signal.
 
 ### Maintenance request/grant ports
 
 | Signal | Direction | Width | Description |
 |---|---|---|---|
-| `maint_req` | in | 1 | any maintenance source wants the bus |
-| `maint_tag` | in | `MAINT_TAG_WIDTH` | source tag: refresh, ZQ, ODT turnaround |
-| `maint_grant` | out | 1 | bus granted to maintenance this cycle |
-| `refresh_req` | in | 1 | from `refresh_ctrl` |
-| `zq_req` | in | 1 | from `zq_ctrl` (DDR4 ZQCS/ZQCL or LPDDR4 MPC) |
-| `odt_turn_req` | in | 1 | from `odt_ctrl` for RTT transitions |
+| `refresh_req_i` | in | 1 | refresh wants the bus (from `refresh_ctrl`) |
+| `refresh_grant_o` | out | 1 | bus granted to refresh |
+| `refresh_drain_i` | in | 1 | refresh drain in progress; CAMs hold |
+| `refresh_kind_i` | in | 1 | 0 = all-bank `REF`, 1 = per-bank (LPDDR4) |
+| `refresh_bank_i` | in | `BKW` | per-bank target mirror (the rotor) |
+| `zq_req_i` | in | 1 | ZQ calibration wants the bus (from `zq_ctrl`) |
+| `zq_grant_o` | out | 1 | bus granted to ZQ |
+
+The carried RTL keeps scoria's two request/grant pairs — one for refresh, one for ZQ — rather than one unified `maint_req`/`maint_tag` channel; the unified tagged channel stays the conceptual model, and the formatter-facing tag is derived downstream. The ODT turnaround request lands with `odt_ctrl` (Ch 2.8). The rule is inherited from scoria: request and wait, never preempt.
 
 : Table 2.5.2: Scheduler interface
 
@@ -106,7 +114,7 @@ issue_ok(cmd) = bank_timers.ok(cmd)
 - Same group: `tCCD_L` and `tRRD_L` apply.
 - Different group: `tCCD_S` and `tRRD_S` apply.
 
-The check also compares the candidate against outstanding same-group spacing tracked by `outstanding_group_mask`, because a burst of commands to one group can leave a trail of long-spacing obligations.
+The check also covers the outstanding same-group spacing obligations a burst of commands to one group leaves behind; the last-issued group registers (`r_last_col_bg`, `r_last_act_bg`) and the L/S ok flags carry that state into the admission check.
 
 ### Global timers
 
@@ -123,15 +131,15 @@ These join the inherited `tCCD`, `tRAS`, `tRC`, `tRP`, `tRCD`, `tWTR`, `tRTW`, `
 
 ### Maintenance request/grant semantics
 
-All maintenance traffic arrives as one `maint_req` with a `maint_tag`. The scheduler does not special-case refresh, ZQ, or ODT turnarounds; it sees one maintenance kind and a tag that the downstream formatter uses to pick the correct command encoding.
+The carried RTL keeps scoria's channel shape: two request/grant pairs into the arbiter, one for refresh (`refresh_req_i`/`refresh_grant_o`) and one for ZQ (`zq_req_i`/`zq_grant_o`). The original spec sketch on this page was one unified `maint_req` with a `maint_tag` source identifier; the carry ruled that the inherited pairs are the truth this tier, and the tag survives only as the conceptual model the formatter-side maintenance encoding derives from.
 
-| Source | Tag value | Action when granted |
+| Source | Arbiter channel | Action when granted |
 |---|---|---|
-| `refresh_ctrl` | `MAINT_REF` | issue `REF` or LPDDR4 per-bank refresh |
-| `zq_ctrl` | `MAINT_ZQ` | issue `ZQCS`, `ZQCL`, or LPDDR4 MPC ZQ calibration |
-| `odt_ctrl` | `MAINT_ODT` | issue the ODT turnaround command or NOP-with-ODT |
+| `refresh_ctrl` | `refresh_req_i`/`refresh_grant_o` | issue `REF` or LPDDR4 per-bank refresh |
+| `zq_ctrl` | `zq_req_i`/`zq_grant_o` | issue `ZQCS`, `ZQCL`, or LPDDR4 MPC ZQ calibration |
+| `odt_ctrl` | lands with Ch 2.8 | issue the ODT turnaround command or NOP-with-ODT |
 
-The rule is inherited from scoria: request and wait, never preempt. A maintenance source raises `req` and holds it until `grant` arrives. It cannot yank the bus away from an in-flight host command.
+The rule is inherited from scoria: request and wait, never preempt. A maintenance source raises its `req` and holds it until `grant` arrives. It cannot yank the bus away from an in-flight host command.
 
 ### LPDDR4 degeneration
 
@@ -151,7 +159,7 @@ One grant per cycle, as inherited. The new counters add combinational delay to t
 
 1. Read CAM and write CAM produce candidates.
 2. Bank timers check per-bank readiness.
-3. Global timers check L/S spacing against `last_cmd_group` and `outstanding_group_mask`.
+3. Global timers check L/S spacing; the last-issued group registers select the long or short window.
 4. FR-FCFS priority selects the winner.
 5. Grant is registered and the command is issued.
 
@@ -159,7 +167,7 @@ The counter values are runtime CSRs, initialised from the JESD79-4/JESD209-4 spe
 
 ## Notes
 
-- **Why the tag, not special-case ports:** scoria's ZQ design ended up with one maintenance request port and a source identifier. Refresh and ODT turnarounds join the same shape. The scheduler doesn't need to know what kind of maintenance it is granting; it only needs to know that maintenance beats host traffic and that only one source wins per cycle.
+- **Why pairs, not a unified tagged channel:** the carried RTL is scoria's two request/grant pairs, kept byte-behavioral. The scheduler doesn't need to know what kind of maintenance it is granting; it only needs to know that maintenance beats host traffic and that only one source wins per cycle. A unified `maint_req`/`maint_tag` channel stays on the books as the conceptual model, not the landed interface.
 - **L/S vs the old `tCCD`:** The inherited `tCCD` is kept as a fallback for modes where bank-group information is not available, but the primary check is the L/S pair. DV must prove that `tCCD_L` and `tCCD_S` subsume the old `tCCD` correctly for DDR4 and collapse to it for LPDDR4.
 - **Maintenance starvation:** Because maintenance never preempts, a pathological stream of host commands could delay refresh or ZQ. The refresh controller's credit window and the ZQ controller's overdue counter handle this at the source; the scheduler's only obligation is fair arbitration once the request is raised.
 
