@@ -3,7 +3,8 @@
 > Spec: `docs/superpowers/specs/2026-10-03-andesite-bootstrap-design.md`
 
 **Priority:** P2
-**Status:** open 2026-10-04
+**Status:** closed 2026-10-04 — the HAS v0.1 is complete and owner-reviewed
+(book assembly at 8160747d); the family docs seed landed in the same tranche
 **Owner:** TBD
 
 Write the andesite Hardware Architecture Specification v0.1

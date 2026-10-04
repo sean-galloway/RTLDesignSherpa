@@ -12,18 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 5 | accepted, not started |
+| [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **TASK-001** — advanced scheduling / refresh modes survey.
-- **TASK-002** — author the andesite HAS v0.1 and the family docs seed
-  (`mem-ctrl-ip/docs/`); closes when the HAS is owner-reviewed complete at
-  v0.1 and the seed is committed.
 - **TASK-003** — author the andesite MAS v0.1 (changed/new blocks in depth;
   inherited blocks referenced to scoria's books); closes when owner-reviewed
   complete.
@@ -33,3 +30,9 @@ by construction rather than by discipline.
 - **TASK-005** — DFI 4.0 spec acquisition + BFM study; the spec is not on
   disk, so every DFI 4.0 claim in the books carries `§TBC(TASK-005)` until
   this confirms clause numbers and a BFM exists.
+
+## Closed
+
+- **TASK-002** — author the andesite HAS v0.1 and the family docs seed:
+  closed 2026-10-04; the `andesite_has/` book is complete at v0.1 and
+  owner-reviewed, and the `mem-ctrl-ip/docs/` family seed is committed.
