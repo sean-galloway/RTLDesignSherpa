@@ -115,8 +115,11 @@ jobs:
           curl -sSL -o /tmp/sv2v.zip \
             https://github.com/zachjs/sv2v/releases/download/v0.0.13/sv2v-Linux.zip
           unzip -o /tmp/sv2v.zip -d /tmp/sv2v
-          chmod +x /tmp/sv2v/sv2v
-          echo /tmp/sv2v >> "$GITHUB_PATH"
+          # The upstream zip nests the binary under sv2v-Linux/ (layout
+          # changed 2026-10-04); locate it wherever the zip puts it.
+          SV2V_DIR="$(dirname "$(find /tmp/sv2v -type f -name sv2v | head -n1)")"
+          chmod +x "$SV2V_DIR/sv2v"
+          echo "$SV2V_DIR" >> "$GITHUB_PATH"
 
       - name: Every committed formal flat matches its sources
         run: python3 bin/formal_status.py --check-flats --json flat_report.json
@@ -182,8 +185,11 @@ jobs:
           curl -sSL -o /tmp/sv2v.zip \
             https://github.com/zachjs/sv2v/releases/download/v0.0.13/sv2v-Linux.zip
           unzip -o /tmp/sv2v.zip -d /tmp/sv2v
-          chmod +x /tmp/sv2v/sv2v
-          echo /tmp/sv2v >> "$GITHUB_PATH"
+          # The upstream zip nests the binary under sv2v-Linux/ (layout
+          # changed 2026-10-04); locate it wherever the zip puts it.
+          SV2V_DIR="$(dirname "$(find /tmp/sv2v -type f -name sv2v | head -n1)")"
+          chmod +x "$SV2V_DIR/sv2v"
+          echo "$SV2V_DIR" >> "$GITHUB_PATH"
 
       - name: Flat staleness checker has teeth (planted drift, current flat, side-effect recipe)
         run: python3 -m pytest bin/tests/test_formal_status.py -q
