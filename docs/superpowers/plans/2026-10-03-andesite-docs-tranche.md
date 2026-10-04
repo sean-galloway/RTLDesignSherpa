@@ -17,7 +17,7 @@
 - **Exact geometry, verbatim:** DDR4-1600 x8, **4 bank groups × 4 banks = 16 banks**, MT40A1G8-class; LPDDR4-1600 x16, **8 banks per channel**, no bank groups; timings are runtime CSRs. These strings must match across ch02 and ch05 (grep gate).
 - **Markings are relative to scoria** and must be identical everywhere a block appears (ch02 tables, ch03 narrative, block diagram): INHERITED / MODIFIED / NEW only.
 - **No offsets in books:** registers are name-based (offsets live in the future RDL/generated docs), per house rule.
-- **House style:** every `.md` carries the documentation header block; each book has an index + styles yaml; diagrams are generated from `.dot` via `regenerate_all_graphviz.sh` (never hand-edit a PNG); the kmap xlsx is generated only by `gen_andesite_kmaps.py` (never hand-edit the workbook).
+- **House style:** every `.md` carries the documentation header block; each book has an index + styles yaml; diagrams are **Mermaid** (inline fences / `assets/mermaid/*.mmd` mirroring bch, rendered to PNG by the doc pipeline) per `vault/handbook/authoring/spec-doc-standards.md` — never ASCII art, never Graphviz; the kmap xlsx is generated only by `gen_andesite_kmaps.py` (never hand-edit the workbook).
 - **Gates before every commit:** `python3 bin/check_task_ids.py` PASS; pre-commit hooks PASS (markdown links, emoji, doc-instantiation). Vault INDEX updates land in the same commit as the task files they touch.
 - **Book boundaries are review gates:** Tasks 7, 10, 12 end a book with an owner-review step; do not start the next book until the owner approves.
 - One commit per task, message prefix `docs(andesite):` / `docs(mem-ctrl-ip):` / `docs(tasks):`.
@@ -92,7 +92,7 @@ git commit -m "docs(andesite): HAS v0.1 skeleton -- index, styles, ch00 front ma
 
 **Files:**
 - Create: `.../andesite_has/ch02_overview/{01_scope,02_block_diagram,03_module_hierarchy,04_design_point}.md`
-- Create: `.../andesite_has/assets/graphviz/01_block_diagram.dot` and `01_block_diagram.png` (generated)
+- Create: `.../andesite_has/assets/mermaid/01_block_diagram.mmd` (source; PNG renders from the fence via the doc pipeline)
 
 **Interfaces:**
 - Consumes: spec §5 ch2 (scope, design point) and §5 ch3 table (the ten delta areas — the marking list's source of truth).
@@ -102,7 +102,7 @@ git commit -m "docs(andesite): HAS v0.1 skeleton -- index, styles, ch00 front ma
 
 - [ ] **Step 2: Write `01_scope.md` + `04_design_point.md`.** Scope: DDR4-led, LPDDR4 per-chapter deltas, sim-only (7-series targets carry no DDR4; no board named). Design point: the exact geometry strings from Global Constraints; DFI 4.0 BFM boundary; timings runtime CSRs; the "one bitstream characterizes" doctrine cited to family docs 02.
 
-- [ ] **Step 3: Write the block diagram.** `01_block_diagram.dot` modeled directly on scoria's dot (same clusters/colors: green INHERITED, amber MODIFIED, red NEW): copy scoria's topology, recolor/mark the MODIFIED set (addr_mapper, cmd_formatter, init_sequencer, mode_register, refresh_ctrl, scheduler/arbiter, global_timers, dfi datapath blocks, csr) and add red nodes for NEW (`odt_ctrl`, training blocks, parity/alert handling, LPDDR4 command path). Run `bash assets/graphviz/regenerate_all_graphviz.sh`; Read the PNG back to confirm colors/labels render.
+- [ ] **Step 3: Write the block diagram.** Mermaid source `assets/mermaid/01_block_diagram.mmd` (mirroring bch's assets/mermaid pattern) included as a ```` ```mermaid ```` fence in `02_block_diagram.md`, modeled on scoria's block-diagram topology: green = INHERITED, amber = MODIFIED, red = NEW via mermaid `classDef`; the MODIFIED set (addr_mapper, cmd_formatter, init_sequencer, mode_register, refresh_ctrl, scheduler/arbiter, global_timers, dfi datapath blocks, csr) and NEW nodes (`odt_ctrl`, training blocks, parity/alert handling, LPDDR4 command path) per Task 3 Step 1's table. Per spec-doc-standards: split the figure rather than lay it out wide. Render check: build or pipeline render if available; otherwise the fence is the source of truth and the render happens at build time.
 
 - [ ] **Step 4: Verify + commit.** `grep -c "MODIFIED" ch02_overview/03_module_hierarchy.md` ≥ 8; `grep -c "4 bank groups" ch02_overview/04_design_point.md` = 1; commit:
 
@@ -195,7 +195,7 @@ git commit -m "docs(andesite): HAS ch05 -- parameters, andesite_pkg content, mem
 
 - [ ] **Step 2: Consistency gate (Review Focus 1).** Extract every `module-name MARKING` pair from `ch02_overview/03_module_hierarchy.md` and `ch03_architecture/01_deltas.md`; `comm -3` of the two sorted lists must be empty. `grep -o "fillcolor=\"#[0-9a-f]*\"" assets/graphviz/01_block_diagram.dot | sort | uniq -c` sanity vs the color legend (green/amber/red all present). Fix any drift found — the gate is the point, not a formality.
 
-- [ ] **Step 3: Assemble + gates.** Index status updated; `python3 bin/check_task_ids.py` PASS; regenerate graphviz (byte-stable); commit:
+- [ ] **Step 3: Assemble + gates.** Index status updated; `python3 bin/check_task_ids.py` PASS; mermaid figure source valid (fence-only is acceptable — the pipeline renders at build time); commit:
 
 ```bash
 git add projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/andesite_has vault/Tasks/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4

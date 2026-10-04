@@ -74,7 +74,7 @@ projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/
 │   ├── ch04_interfaces/{01_dfi_v40,02_axi4_apb}.md
 │   ├── ch05_parameters/01_package_and_params.md   # references mem-ctrl-ip/docs/01_mem_ctrl_pkg.md
 │   ├── ch06_integration/01_verification_open.md
-│   ├── assets/graphviz/01_block_diagram.{dot,png} # color-marked vs scoria
+│   ├── assets/mermaid/01_block_diagram.mmd  # color-marked vs scoria; fence renders to PNG (spec-doc-standards)
 │   └── andesite_has_index.md
 ├── andesite_mas/                    # mirrors bch_mas chapter shape
 │   ├── ch00_front_matter/ ch01_overview/
@@ -176,9 +176,10 @@ contract workbook plus markdown renderings cited from MAS ch04 and HAS ch03.
    scoria v0.1), ch5 referencing the family doc → owner review → commit.
 3. **MAS** → owner review → commit.
 4. **Kmaps** (generator + generated artifacts) → owner review → commit.
-5. Each book: documentation header, index, graphviz assets per house style; vault
-   INDEX/ID updates land with the book that triggers them; `bin/check_task_ids.py`
-   green before every commit.
+5. Each book: documentation header, index, mermaid diagram assets per
+   `vault/handbook/authoring/spec-doc-standards.md` (no graphviz, no ASCII art);
+   vault INDEX/ID updates land with the book that triggers them;
+   `bin/check_task_ids.py` green before every commit.
 6. Handoff: superpowers:writing-plans produces the RTL-bootstrap implementation
    plan from this spec.
 
