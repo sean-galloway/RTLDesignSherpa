@@ -1,0 +1,255 @@
+/* style.css -- FIFO Flags Calculator. Mobile-first, single file, no
+   frameworks. Conventions ported from fifo_depth. */
+
+:root {
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --ink: #1b2230;
+  --ink-dim: #5a6474;
+  --accent: #1f5fa8;
+  --accent-soft: #e3ecf7;
+  --good: #1e7a3c;
+  --good-soft: #e2f3e7;
+  --bad: #b02a2a;
+  --bad-soft: #f9e4e4;
+  --note: #8a6d1d;
+  --note-soft: #f7efda;
+  --border: #d4d9e0;
+  --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               Helvetica, Arial, sans-serif;
+  line-height: 1.45;
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.92em;
+  background: var(--accent-soft);
+  padding: 0 0.25em;
+  border-radius: 3px;
+}
+
+/* -- header ---------------------------------------------------------------- */
+
+.app-header {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 1rem 0.75rem;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.tagline {
+  margin: 0.25rem 0 0.75rem;
+  color: var(--ink-dim);
+  font-size: 0.9rem;
+}
+
+.all-apps {
+  float: right;
+  font-size: 0.85rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.all-apps:hover {
+  text-decoration: underline;
+}
+
+/* -- layout ---------------------------------------------------------------- */
+
+main {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 0.75rem;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin: 0.75rem 0;
+}
+
+.panel h2 {
+  margin: 0.25rem 0 0.75rem;
+  font-size: 1.05rem;
+  color: var(--accent);
+}
+
+/* -- inputs ---------------------------------------------------------------- */
+
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.6rem;
+}
+
+.field label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--ink-dim);
+  margin-bottom: 0.15rem;
+}
+
+.field input {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  font-size: 1rem;
+  font-family: var(--mono);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.field input:focus {
+  outline: 2px solid var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.err {
+  display: block;
+  min-height: 1em;
+  font-size: 0.8rem;
+  color: var(--bad);
+}
+
+/* -- results --------------------------------------------------------------- */
+
+.banner {
+  background: var(--bad-soft);
+  color: var(--bad);
+  border: 1px solid var(--bad);
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+}
+
+.banner.good {
+  background: var(--good-soft);
+  color: var(--good);
+  border-color: var(--good);
+}
+
+.hidden {
+  display: none;
+}
+
+table.results {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5rem 0;
+  font-size: 0.95rem;
+}
+
+table.results th,
+table.results td {
+  text-align: left;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+table.results td.num {
+  text-align: right;
+  font-family: var(--mono);
+}
+
+table.results tr.total td {
+  font-weight: bold;
+  border-top: 2px solid var(--ink);
+  border-bottom: none;
+}
+
+.verdict {
+  font-size: 0.95rem;
+}
+
+.verdict .yes {
+  color: var(--good);
+  font-weight: bold;
+}
+
+.verdict .no {
+  color: var(--bad);
+  font-weight: bold;
+}
+
+/* -- notes and examples ----------------------------------------------------- */
+
+.notes ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.9rem;
+  color: var(--ink-dim);
+}
+
+.notes li {
+  margin-bottom: 0.4rem;
+}
+
+.hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--ink-dim);
+}
+
+#examples table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+#examples th,
+#examples td {
+  text-align: left;
+  padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+}
+
+#examples td.note {
+  font-family: inherit;
+}
+
+#examples tbody tr:hover {
+  background: var(--accent-soft);
+  cursor: pointer;
+}
+
+/* -- footer ----------------------------------------------------------------- */
+
+.app-footer {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 0.5rem 0.75rem 1.5rem;
+  color: var(--ink-dim);
+  font-size: 0.8rem;
+}
+
+/* -- wider screens ----------------------------------------------------------- */
+
+@media (min-width: 40rem) {
+  .field-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .app-header h1 {
+    font-size: 1.6rem;
+  }
+}

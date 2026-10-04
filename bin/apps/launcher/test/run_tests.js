@@ -22,7 +22,9 @@ var failed = 0;
 
 function test(name, fn) { tests.push({ name: name, fn: fn }); }
 
-var APP_INDEXES = ['ddr_drills', 'fifo_depth', 'launcher'].map(function (d) {
+var APP_INDEXES = ['ddr_drills', 'fifo_depth', 'launcher', 'mtbf_calc',
+                   'fifo_flags', 'slack_explorer', 'qformat_explorer',
+                   'cdc_drill', 'crc_calc', 'cache_sim'].map(function (d) {
   return path.join(appsRoot, d, 'index.html');
 });
 
@@ -40,7 +42,17 @@ test('no absolute root URLs in app html', function () {
 test('launcher tiles point at existing app directories', function () {
   // The workflow stages repo dirs under these names (its cp lines); the
   // tile hrefs must match that staging map and the target must exist.
-  var STAGED = { 'ddr_drills/': 'ddr_drills', 'fifo/': 'fifo_depth' };
+  var STAGED = {
+    'ddr_drills/': 'ddr_drills',
+    'fifo/': 'fifo_depth',
+    'mtbf_calc/': 'mtbf_calc',
+    'fifo_flags/': 'fifo_flags',
+    'slack_explorer/': 'slack_explorer',
+    'qformat_explorer/': 'qformat_explorer',
+    'cdc_drill/': 'cdc_drill',
+    'crc_calc/': 'crc_calc',
+    'cache_sim/': 'cache_sim'
+  };
   var apps = require(path.join(root, 'js', 'apps.js'));
   apps.forEach(function (a) {
     var repoDir = STAGED[a.href];

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Q-Format Explorer</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <a class="all-apps" href="../">All apps</a>
+  <h1>Q-Format Explorer</h1>
+  <p class="tagline">Fixed-point bit patterns, quantization error, and
+  overflow behavior for signed Qm.n numbers.</p>
+</header>
+
+<main>
+
+<section class="panel" id="config">
+  <h2>Q-Format Configuration</h2>
+  <div class="field-grid">
+    <div class="field">
+      <label for="in-preset">Preset</label>
+      <select id="in-preset">
+        <option value="custom">Custom</option>
+        <option value="1,6" selected>Q1.6 / 8-bit</option>
+        <option value="7,8">Q7.8 / 16-bit</option>
+        <option value="15,16">Q15.16 / 32-bit</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="in-m">Integer bits (m)</label>
+      <input id="in-m" type="text" value="1">
+      <span class="err" id="err-m"></span>
+    </div>
+    <div class="field">
+      <label for="in-n">Fractional bits (n)</label>
+      <input id="in-n" type="text" value="6">
+      <span class="err" id="err-n"></span>
+    </div>
+    <div class="field">
+      <label for="in-mode">Overflow mode</label>
+      <select id="in-mode">
+        <option value="wrap" selected>Wrap (two's complement)</option>
+        <option value="saturate">Saturate</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="in-signed">Sign mode</label>
+      <select id="in-signed">
+        <option value="signed" selected>Signed</option>
+        <option value="unsigned">Unsigned</option>
+      </select>
+    </div>
+  </div>
+  <p class="range" id="out-range"></p>
+</section>
+
+<section class="panel" id="converter">
+  <h2>Bit Pattern &harr; Real Value</h2>
+  <div class="field-grid">
+    <div class="field">
+      <label for="in-real">Real value</label>
+      <input id="in-real" type="text" value="0.5">
+    </div>
+    <div class="field">
+      <label for="in-bits">Bit pattern (unsigned hex)</label>
+      <input id="in-bits" type="text" value="0x40">
+    </div>
+  </div>
+  <p class="hint">Click any bit below to toggle it.</p>
+  <div class="binary" id="out-binary"></div>
+  <div class="labels" id="out-labels"></div>
+  <table class="results">
+    <tr><td>Represented value</td><td class="num" id="out-represented"></td></tr>
+    <tr><td>Quantization error |real - represented|</td><td class="num" id="out-error"></td></tr>
+    <tr><td>Max representable error (step/2)</td><td class="num" id="out-max-error"></td></tr>
+    <tr><td>Step size (2^-n)</td><td class="num" id="out-step"></td></tr>
+  </table>
+</section>
+
+<section class="panel" id="arithmetic">
+  <h2>Arithmetic: Exact vs Quantized</h2>
+  <div class="field-grid">
+    <div class="field">
+      <label for="in-a">Operand A</label>
+      <input id="in-a" type="text" value="1.5">
+    </div>
+    <div class="field">
+      <label for="in-b">Operand B</label>
+      <input id="in-b" type="text" value="2.0">
+    </div>
+    <div class="field">
+      <label for="in-op">Operation</label>
+      <select id="in-op">
+        <option value="add" selected>Add</option>
+        <option value="mul">Multiply</option>
+      </select>
+    </div>
+  </div>
+  <p class="growth" id="out-arith-rule"></p>
+  <table class="results">
+    <tr><th></th><th>Numeric value</th><th>Q-format encoding</th></tr>
+    <tr>
+      <td>Operand A</td>
+      <td class="num" id="out-a-value"></td>
+      <td class="num mono" id="out-a-bits"></td>
+    </tr>
+    <tr>
+      <td>Operand B</td>
+      <td class="num" id="out-b-value"></td>
+      <td class="num mono" id="out-b-bits"></td>
+    </tr>
+    <tr>
+      <td>Exact real result</td>
+      <td class="num" id="out-exact"></td>
+      <td class="num">-</td>
+    </tr>
+    <tr>
+      <td>Quantized operand result</td>
+      <td class="num" id="out-quantized"></td>
+      <td class="num">-</td>
+    </tr>
+    <tr class="total">
+      <td>Double-quantized result</td>
+      <td class="num" id="out-result-value"></td>
+      <td class="num mono" id="out-result-bits"></td>
+    </tr>
+  </table>
+</section>
+
+<section class="panel" id="ramp">
+  <h2>Overflow Ramp</h2>
+  <div class="field">
+    <label for="in-ramp">Input a value above max or below min</label>
+    <input id="in-ramp" type="text" value="200">
+  </div>
+  <div class="ramp-grid">
+    <div class="ramp-card">
+      <h3>Wrap</h3>
+      <p class="mono" id="out-wrap-binary"></p>
+      <p>Value: <span class="num" id="out-wrap-value"></span></p>
+    </div>
+    <div class="ramp-card">
+      <h3>Saturate</h3>
+      <p class="mono" id="out-sat-binary"></p>
+      <p>Value: <span class="num" id="out-sat-value"></span></p>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Notes</h2>
+  <div class="notes">
+    <ul>
+      <li>Signed Qm.n means 1 sign bit + <code>m</code> integer bits +
+      <code>n</code> fractional bits, for a total width of
+      <code>m + n + 1</code> bits. Unsigned Qm.n means <code>m</code> integer
+      bits + <code>n</code> fractional bits, for a total width of
+      <code>m + n</code> bits.</li>
+      <li>Round-to-nearest is used when encoding a real value. Values exactly
+      halfway round away from zero (JavaScript <code>Math.round</code>).</li>
+      <li>Signed wrap mode performs true two's-complement wraparound:
+      overflowed values modulo 2^(m+n+1). Unsigned wrap mode wraps modulo
+      2^(m+n).</li>
+      <li>Multiply growth: <code>Qm.n * Qm.n -&gt; Q(2m).(2n)</code>, then the
+      result is rescaled back to the original Qm.n format.</li>
+      <li>Hardware reality is the "double-quantized" row: operands are first
+      quantized to the fixed grid, the operation runs, and the final result is
+      quantized again.</li>
+      <li>Click any bit in the rendered bit pattern to toggle it; the real
+      value and hex field update immediately.</li>
+    </ul>
+  </div>
+</section>
+
+<footer class="app-footer">
+  <p>Personal engineering notes; no warranty.</p>
+</footer>
+
+</main>
+
+<script src="js/model.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

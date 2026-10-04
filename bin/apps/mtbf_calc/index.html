@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Metastability MTBF Calculator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <a class="all-apps" href="../">All apps</a>
+  <h1>Metastability MTBF Calculator</h1>
+  <p class="tagline">Why two synchronizer flops is not always enough
+  &mdash; a classic synchronizer teaching tool</p>
+</header>
+
+<main>
+
+<section class="panel" id="inputs">
+  <h2>Input Parameters</h2>
+
+  <div class="preset-bar">
+    <label for="in-preset">Technology preset</label>
+    <select id="in-preset">
+      <option value="180 nm (illustrative)">180 nm (illustrative)</option>
+      <option value="28 nm (illustrative)" selected>28 nm (illustrative)</option>
+      <option value="7 nm (illustrative)">7 nm (illustrative)</option>
+    </select>
+  </div>
+
+  <div class="field-grid">
+    <div class="field">
+      <label for="in-c1">C1 (s)</label>
+      <input id="in-c1" type="text" value="1e-11">
+      <span class="err" id="err-c1"></span>
+    </div>
+    <div class="field">
+      <label for="in-c2">C2 (s<sup>-1</sup>)</label>
+      <input id="in-c2" type="text" value="1.75e10">
+      <span class="err" id="err-c2"></span>
+    </div>
+    <div class="field">
+      <label for="in-fdata">Async data transition rate, f_data (Hz)</label>
+      <input id="in-fdata" type="text" value="1e6">
+      <span class="err" id="err-fdata"></span>
+    </div>
+    <div class="field">
+      <label for="in-fclk">Receiver clock, f_clk (Hz)</label>
+      <input id="in-fclk" type="text" value="1e9">
+      <span class="err" id="err-fclk"></span>
+    </div>
+    <div class="field">
+      <label for="in-tco">Clock-to-output, t_CO (s)</label>
+      <input id="in-tco" type="text" value="50e-12">
+      <span class="err" id="err-tco"></span>
+    </div>
+    <div class="field">
+      <label for="in-tsu">Setup time, t_SU (s)</label>
+      <input id="in-tsu" type="text" value="50e-12">
+      <span class="err" id="err-tsu"></span>
+    </div>
+    <div class="field">
+      <label for="in-t0">Input aperture / t0 (s)</label>
+      <input id="in-t0" type="text" value="10e-12">
+      <span class="err" id="err-t0"></span>
+    </div>
+    <div class="field">
+      <label for="in-n">Synchronizer stages, N (1..4)</label>
+      <input id="in-n" type="text" value="2">
+      <span class="err" id="err-n"></span>
+    </div>
+    <div class="field full-width">
+      <label for="in-mission">Mission time (years)</label>
+      <input id="in-mission" type="text" value="1">
+      <span class="err" id="err-mission"></span>
+    </div>
+  </div>
+</section>
+
+<section class="panel actions">
+  <h2>Quick Loads</h2>
+  <button id="btn-1ghz" type="button">1 GHz headline lesson</button>
+  <p class="hint">Loads f_clk = 1 GHz, 28 nm preset, N = 2, 1-year mission.</p>
+</section>
+
+<section class="panel">
+  <h2>Result</h2>
+  <div id="banner" class="banner hidden"></div>
+  <table id="main-result" class="results"></table>
+  <p id="verdict" class="verdict"></p>
+</section>
+
+<section class="panel">
+  <h2>MTBF vs Number of Stages</h2>
+  <table id="mtbf-table" class="results"></table>
+</section>
+
+<section class="panel">
+  <h2>Notes</h2>
+  <div class="notes">
+    <ul>
+      <li>Formula: MTBF = exp(C2 * tMET_total) / (C1 * f_clk * f_data).
+      C1 in seconds, C2 in s<sup>-1</sup>, all times in seconds.</li>
+      <li>Resolution budget: tMET_total = t0 + (N - 1) * r, where
+      r = (1 / f_clk) - tCO - tSU.  Each added flop buys roughly one
+      extra clock period of metastability resolution time.</li>
+      <li>Convention follows Clifford E. Cummings' SNUG synchronizer
+      papers; this app is a teaching aid, not a foundry sign-off model.</li>
+      <li>Technology presets are illustrative literature ballparks.  Real
+      C1/C2 vary widely with process, voltage, temperature, and flop
+      design.</li>
+      <li>The "flipping point" is the stage count where MTBF crosses the
+      mission time.  At 1 GHz with the 28 nm preset, N = 2 fails a
+      one-year mission but N = 3 passes it.</li>
+    </ul>
+  </div>
+</section>
+
+<footer class="app-footer">
+  <p>Personal engineering notes; no warranty.  Verify any design with
+  vendor data and/or spice characterization.</p>
+</footer>
+
+</main>
+
+<script src="js/model.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

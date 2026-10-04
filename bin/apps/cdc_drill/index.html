@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDC Drill</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <a class="all-apps" href="../">All apps</a>
+  <h1>CDC Drill</h1>
+  <p class="tagline">Clock-domain crossing drills: spot the violation, pick
+  the synchronizer.</p>
+</header>
+
+<main>
+
+<section class="panel controls">
+  <div class="control-row mode-row">
+    <span class="label">Mode:</span>
+    <label><input type="radio" name="mode" value="both" checked> Both</label>
+    <label><input type="radio" name="mode" value="spot"> Spot the
+    violation</label>
+    <label><input type="radio" name="mode" value="picker"> Pick the
+    synchronizer</label>
+  </div>
+  <div class="control-row tier-row">
+    <span class="label">Tiers:</span>
+    <label><input type="checkbox" id="tier-basic" checked> Basic</label>
+    <label><input type="checkbox" id="tier-medium" checked> Medium</label>
+    <label><input type="checkbox" id="tier-full" checked> Full</label>
+  </div>
+  <div class="control-row seed-row">
+    <span class="label">Seed:</span>
+    <input type="text" id="seed-input" value="" placeholder="random">
+    <button type="button" id="new-session">New session</button>
+  </div>
+  <div class="score-row" id="score">Score: 0 / 0</div>
+</section>
+
+<section class="panel" id="drill">
+  <div id="question"></div>
+  <div id="options"></div>
+  <div id="feedback"></div>
+</section>
+
+</main>
+
+<footer class="app-footer">
+  <p>Personal engineering notes; no warranty.</p>
+</footer>
+
+<script src="js/rng.js"></script>
+<script src="js/content.js"></script>
+<script src="js/model.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

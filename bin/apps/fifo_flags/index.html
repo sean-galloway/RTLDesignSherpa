@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FIFO Flags Calculator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <a class="all-apps" href="../">All apps</a>
+  <h1>FIFO Flags Calculator</h1>
+  <p class="tagline">Async FIFO almost-full / almost-empty threshold generator</p>
+</header>
+
+<main>
+
+<section class="panel" id="inputs">
+  <h2>Input Parameters</h2>
+  <div class="field-grid">
+    <div class="field">
+      <label for="in-depth">FIFO Depth (items)</label>
+      <input id="in-depth" type="text" value="32">
+      <span class="err" id="err-depth"></span>
+    </div>
+    <div class="field">
+      <label for="in-fwr">Write Clock (MHz)</label>
+      <input id="in-fwr" type="text" value="100">
+      <span class="err" id="err-fwr"></span>
+    </div>
+    <div class="field">
+      <label for="in-frd">Read Clock (MHz)</label>
+      <input id="in-frd" type="text" value="100">
+      <span class="err" id="err-frd"></span>
+    </div>
+    <div class="field">
+      <label for="in-nsync">Synchronizer Stages (N)</label>
+      <input id="in-nsync" type="text" value="2">
+      <span class="err" id="err-nsync"></span>
+    </div>
+    <div class="field">
+      <label for="in-bubble">Bubble Tolerance (% of depth)</label>
+      <input id="in-bubble" type="text" value="10">
+      <span class="err" id="err-bubble"></span>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Results</h2>
+  <div id="banner" class="banner hidden"></div>
+  <table id="flags" class="results"></table>
+  <p id="verdict" class="verdict"></p>
+</section>
+
+<section class="panel">
+  <h2>Notes</h2>
+  <div id="notes" class="notes">
+    <ul>
+      <li>Margin convention: the almost-full side reserves
+      <code>ceil(f_wr / f_rd) * (N + 1)</code> items; the almost-empty side
+      reserves <code>ceil(f_rd / f_wr) * (N + 1)</code> items. These are
+      worst-case integer bounds for N-stage pointer synchronizer uncertainty.</li>
+      <li>Bubble tolerance is taken from each end of the FIFO. A 10% bubble on
+      a depth-32 FIFO removes 3 slots from the top and 3 from the bottom.</li>
+      <li>PASS requires AF_threshold &gt; AE_threshold. If the depth is too
+      small for the chosen margins and bubble, the design must use a larger
+      FIFO, fewer synchronizer stages, or a smaller bubble.</li>
+      <li>Pointer encoding split: power-of-2 depths use Gray pointers
+      (USE_JOHNSON=0); even non-power-of-2 depths use Johnson pointers
+      (USE_JOHNSON=1). Illegal combinations fail at elaboration.</li>
+      <li>Clock drift is not modeled: enter worst-case numbers directly
+      (fastest writer, slowest reader for AF; slowest writer, fastest reader
+      for AE).</li>
+    </ul>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Example Cases</h2>
+  <p class="hint">Click a row to load its inputs.</p>
+  <div id="examples"></div>
+</section>
+
+<footer class="app-footer">
+  <p>Companion to the FIFO Depth Calculator. Personal engineering notes; no
+  warranty.</p>
+</footer>
+
+</main>
+
+<script src="js/model.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

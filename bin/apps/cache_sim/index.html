@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cache Associativity Simulator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <a class="all-apps" href="../">All apps</a>
+  <h1>Cache Associativity Simulator</h1>
+  <p class="tagline">Trace-driven set/way/policy exploration for word-addressed caches</p>
+</header>
+
+<main>
+
+<section class="panel" id="config">
+  <h2>Cache Configuration</h2>
+  <div class="field-grid">
+    <div class="field">
+      <label for="in-sets">Sets: <span class="val" id="val-sets">4</span> (1 = fully associative)</label>
+      <input id="in-sets" type="range" min="0" max="6" value="2" step="1">
+      <span class="err" id="err-sets"></span>
+    </div>
+    <div class="field">
+      <label for="in-ways">Ways: <span class="val" id="val-ways">1</span></label>
+      <input id="in-ways" type="range" min="1" max="8" value="1" step="1">
+      <span class="err" id="err-ways"></span>
+    </div>
+    <div class="field">
+      <label for="in-block">Block size: <span class="val" id="val-block">1</span> word(s)</label>
+      <input id="in-block" type="range" min="0" max="4" value="0" step="1">
+      <span class="err" id="err-block"></span>
+    </div>
+    <div class="field">
+      <label for="in-policy">Replacement policy</label>
+      <select id="in-policy">
+        <option value="LRU" selected>LRU</option>
+        <option value="FIFO">FIFO</option>
+        <option value="RANDOM">RANDOM</option>
+      </select>
+      <span class="err" id="err-policy"></span>
+    </div>
+    <div class="field">
+      <label for="in-seed">Random seed (for RANDOM policy and random generator)</label>
+      <input id="in-seed" type="text" value="1">
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="trace">
+  <h2>Address Trace</h2>
+  <p class="hint">One 32-bit word address per line (hex or decimal).</p>
+  <textarea id="in-trace" placeholder="0x10\n0x20\n0x30"></textarea>
+  <span class="err" id="err-trace"></span>
+
+  <div class="gen-grid">
+    <div class="gen">
+      <label for="gen-seq-len">Sequential length</label>
+      <input id="gen-seq-len" type="text" value="16">
+      <label for="gen-seq-start">Start</label>
+      <input id="gen-seq-start" type="text" value="0">
+      <button id="btn-seq">Generate</button>
+    </div>
+    <div class="gen">
+      <label for="gen-str-len">Strided length</label>
+      <input id="gen-str-len" type="text" value="16">
+      <label for="gen-str-start">Start</label>
+      <input id="gen-str-start" type="text" value="0">
+      <label for="gen-str-stride">Stride</label>
+      <input id="gen-str-stride" type="text" value="4">
+      <button id="btn-str">Generate</button>
+    </div>
+    <div class="gen">
+      <label for="gen-rand-len">Random length</label>
+      <input id="gen-rand-len" type="text" value="32">
+      <label for="gen-rand-max">Max address</label>
+      <input id="gen-rand-max" type="text" value="64">
+      <button id="btn-rand">Generate</button>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="results">
+  <h2>Results</h2>
+  <div id="banner" class="banner hidden"></div>
+  <div class="big-number">
+    <span id="hit-rate">-</span><span class="pct">%</span>
+    <div class="label">hit rate</div>
+  </div>
+  <table id="totals" class="results"></table>
+
+  <h3>Per-access log</h3>
+  <div class="table-wrap">
+    <table id="access-log" class="results"></table>
+  </div>
+
+  <h3>Per-set occupancy</h3>
+  <div class="table-wrap">
+    <table id="occupancy" class="results"></table>
+  </div>
+</section>
+
+<section class="panel" id="guided">
+  <h2>Guided Example: Direct-Mapped vs 2-Way</h2>
+  <p class="hint">Load a cyclic trace that thrashes when direct-mapped but fits in a 2-way cache.</p>
+  <button id="btn-example">Load example &amp; compare</button>
+  <div id="comparison"></div>
+</section>
+
+<section class="panel" id="notes">
+  <h2>Notes</h2>
+  <div class="notes">
+    <ul>
+      <li>Word-addressed cache: each address is a 32-bit word address.</li>
+      <li>Address split: block offset = log<sub>2</sub>(block size) low bits;
+        set index = next log<sub>2</sub>(sets) bits; tag = the remainder.</li>
+      <li>Miss classes:
+        <strong>compulsory</strong> = first touch of a block;
+        <strong>capacity</strong> = would miss even in a fully-associative cache of the same total size;
+        <strong>conflict</strong> = caused by set contention.</li>
+      <li>The shadow fully-associative cache uses the same replacement policy and,
+        for RANDOM, the same seed on an independent RNG stream.</li>
+    </ul>
+  </div>
+</section>
+
+<footer class="app-footer">
+  <p>Personal engineering notes; no warranty. Open as <code>file://</code> or serve statically.</p>
+</footer>
+
+</main>
+
+<script src="js/model.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

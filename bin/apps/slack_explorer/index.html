@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slack Explorer</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <a class="all-apps" href="../">All apps</a>
+  <h1>Slack Explorer</h1>
+  <p class="tagline">Setup/hold slack and pipelining tradeoffs</p>
+</header>
+
+<main>
+
+<section class="panel" id="inputs">
+  <h2>Input Parameters</h2>
+  <div class="field-grid">
+    <div class="field">
+      <label for="in-T">Clock Period T (ns)</label>
+      <input id="in-T-range" class="slider" type="range" min="1" max="20" step="0.1" value="10">
+      <input id="in-T" type="number" min="0.1" step="0.1" value="10">
+      <span class="err" id="err-T"></span>
+    </div>
+    <div class="field">
+      <label for="in-tCO">Clock-to-Q tCO (ns)</label>
+      <input id="in-tCO-range" class="slider" type="range" min="0" max="5" step="0.1" value="1">
+      <input id="in-tCO" type="number" min="0" step="0.1" value="1">
+      <span class="err" id="err-tCO"></span>
+    </div>
+    <div class="field">
+      <label for="in-tLOGIC">Combinational Logic Delay tLOGIC (ns)</label>
+      <input id="in-tLOGIC-range" class="slider" type="range" min="0" max="15" step="0.1" value="5">
+      <input id="in-tLOGIC" type="number" min="0" step="0.1" value="5">
+      <span class="err" id="err-tLOGIC"></span>
+    </div>
+    <div class="field">
+      <label for="in-tROUTE">Route / Insertion Delay tROUTE (ns)</label>
+      <input id="in-tROUTE-range" class="slider" type="range" min="0" max="5" step="0.1" value="1">
+      <input id="in-tROUTE" type="number" min="0" step="0.1" value="1">
+           <span class="err" id="err-tROUTE"></span>
+    </div>
+    <div class="field">
+      <label for="in-skew">Clock Skew (ns, signed)</label>
+      <input id="in-skew-range" class="slider" type="range" min="-5" max="5" step="0.1" value="0">
+      <input id="in-skew" type="number" step="0.1" value="0">
+      <span class="err" id="err-skew"></span>
+    </div>
+    <div class="field">
+      <label for="in-tSU">Setup Time tSU (ns)</label>
+      <input id="in-tSU-range" class="slider" type="range" min="0" max="5" step="0.1" value="1">
+      <input id="in-tSU" type="number" min="0" step="0.1" value="1">
+      <span class="err" id="err-tSU"></span>
+    </div>
+    <div class="field">
+      <label for="in-tHD">Hold Time tHD (ns)</label>
+      <input id="in-tHD-range" class="slider" type="range" min="0" max="5" step="0.1" value="0.5">
+      <input id="in-tHD" type="number" min="0" step="0.1" value="0.5">
+      <span class="err" id="err-tHD"></span>
+    </div>
+    <div class="field">
+      <label for="in-K">Pipeline Stages K</label>
+      <input id="in-K-range" class="slider" type="range" min="1" max="4" step="1" value="1">
+      <input id="in-K" type="number" min="1" max="4" step="1" value="1">
+      <span class="err" id="err-K"></span>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Setup / Hold Slack</h2>
+  <div id="slack-banner" class="banner hidden"></div>
+  <table id="slack-results" class="results"></table>
+  <p id="slack-hint" class="verdict"></p>
+</section>
+
+<section class="panel">
+  <h2>Pipelining Tradeoff</h2>
+  <p id="pipeline-takeaway" class="takeaway"></p>
+  <table id="pipeline-table" class="results"></table>
+</section>
+
+<section class="panel">
+  <h2>Notes</h2>
+  <div class="notes">
+    <ul>
+      <li>Skew is signed: positive means launch edge is later than capture
+      edge (steals setup margin, helps hold). Negative means launch is earlier
+      (helps setup, hurts hold).</li>
+      <li>Setup slack = T - tCO - tLOGIC - tROUTE + skew - tSU.</li>
+      <li>Hold slack = tCO + tLOGIC + tROUTE - skew - tHD.</li>
+      <li>Hold violations are fixed by adding delay, not removing it. Adding a
+      buffer or constraining a minimum delay increases the path so it remains
+      stable through the capture window.</li>
+      <li>The pipeline panel assumes ideal balanced stages and ignores skew.
+      Per-stage logic = (tLOGIC + tROUTE) / K, so min period = tCO +
+      per-stage logic + tSU.</li>
+      <li>Throughput rises with K, but latency also rises. There is a floor
+      from tCO + tSU even with infinite pipelining.</li>
+    </ul>
+  </div>
+</section>
+
+<footer class="app-footer">
+  <p>Personal engineering notes; no warranty.</p>
+</footer>
+
+</main>
+
+<script src="js/model.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

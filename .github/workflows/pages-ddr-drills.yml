@@ -1,11 +1,11 @@
 name: apps pages
 
 # Test-then-deploy for the RTLDesignSherpa static app site. Stages a site
-# directory: the root launcher (bin/apps/launcher) at /, ddr_drills at
-# /ddr_drills/, fifo_depth at /fifo/. Both apps' node suites gate the
-# deploy: the suites require() the same js bytes the browsers load, so a
-# green test job means the deploy cannot publish a broken engine, a
-# malformed pack, or a wrong FIFO formula.
+# directory: the root launcher (bin/apps/launcher) at /, and each app at its
+# tile href (ddr_drills at /ddr_drills/, fifo_depth at /fifo/, the seven
+# RTL-drills apps at /<dir>/). Every app's node suite gates the deploy: the
+# suites require() the same js bytes the browsers load, so a green test job
+# means the deploy cannot publish broken math or a malformed pack.
 #
 # ONE-TIME MANUAL STEP (done): repo Settings -> Pages -> Source = "GitHub
 # Actions". No gh-pages branch is used; the artifact is uploaded directly.
@@ -46,6 +46,27 @@ jobs:
       - name: launcher site-integrity suite
         run: node bin/apps/launcher/test/run_tests.js
 
+      - name: mtbf_calc suite
+        run: node bin/apps/mtbf_calc/test/run_tests.js
+
+      - name: fifo_flags suite
+        run: node bin/apps/fifo_flags/test/run_tests.js
+
+      - name: slack_explorer suite
+        run: node bin/apps/slack_explorer/test/run_tests.js
+
+      - name: qformat_explorer suite
+        run: node bin/apps/qformat_explorer/test/run_tests.js
+
+      - name: cdc_drill suite
+        run: node bin/apps/cdc_drill/test/run_tests.js
+
+      - name: crc_calc suite
+        run: node bin/apps/crc_calc/test/run_tests.js
+
+      - name: cache_sim suite
+        run: node bin/apps/cache_sim/test/run_tests.js
+
   deploy:
     needs: test
     runs-on: ubuntu-latest
@@ -63,9 +84,18 @@ jobs:
         run: |
           mkdir -p _site
           cp -r bin/apps/launcher/* _site/
-          mkdir -p _site/ddr_drills _site/fifo
+          mkdir -p _site/ddr_drills _site/fifo _site/mtbf_calc \
+                   _site/fifo_flags _site/slack_explorer _site/qformat_explorer \
+                   _site/cdc_drill _site/crc_calc _site/cache_sim
           cp -r bin/apps/ddr_drills/* _site/ddr_drills/
           cp -r bin/apps/fifo_depth/* _site/fifo/
+          cp -r bin/apps/mtbf_calc/* _site/mtbf_calc/
+          cp -r bin/apps/fifo_flags/* _site/fifo_flags/
+          cp -r bin/apps/slack_explorer/* _site/slack_explorer/
+          cp -r bin/apps/qformat_explorer/* _site/qformat_explorer/
+          cp -r bin/apps/cdc_drill/* _site/cdc_drill/
+          cp -r bin/apps/crc_calc/* _site/crc_calc/
+          cp -r bin/apps/cache_sim/* _site/cache_sim/
 
       - uses: actions/upload-pages-artifact@v3
         with:

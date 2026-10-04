@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRC Calculator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <a class="all-apps" href="../">All apps</a>
+  <h1>CRC Calculator</h1>
+  <p class="tagline">Pick a polynomial, watch the shift register, compare
+  CRC-8/16/32 conventions.</p>
+</header>
+
+<main>
+
+<section class="panel" id="inputs">
+  <h2>Input</h2>
+  <div class="field-grid">
+    <div class="field field-wide">
+      <label for="in-preset">Preset</label>
+      <select id="in-preset">
+        <option value="CRC-8">CRC-8</option>
+        <option value="CRC-16/CCITT-FALSE">CRC-16/CCITT-FALSE</option>
+        <option value="CRC-16/ARC">CRC-16/ARC</option>
+        <option value="CRC-32">CRC-32</option>
+        <option value="Custom">Custom</option>
+      </select>
+    </div>
+    <div class="field field-wide">
+      <label>Message format</label>
+      <div class="radio-row">
+        <label><input type="radio" name="in-format" id="in-ascii" value="ascii" checked> ASCII text</label>
+        <label><input type="radio" name="in-format" id="in-hex" value="hex"> Hex bytes</label>
+      </div>
+    </div>
+    <div class="field field-wide">
+      <label for="in-message">Message</label>
+      <input id="in-message" type="text" value="123456789" spellcheck="false">
+      <span class="hint" id="hint-format">Plain ASCII text (each byte = one character).</span>
+      <span class="err" id="err-message"></span>
+    </div>
+    <div class="field">
+      <label for="in-poly">CRC_POLY</label>
+      <input id="in-poly" type="text" value="0x07" spellcheck="false">
+    </div>
+    <div class="field">
+      <label for="in-init">CRC_INIT</label>
+      <input id="in-init" type="text" value="0x00" spellcheck="false">
+    </div>
+    <div class="field">
+      <label for="in-xorout">CRC_XOROUT</label>
+      <input id="in-xorout" type="text" value="0x00" spellcheck="false">
+    </div>
+    <div class="field">
+      <label for="in-width">Width</label>
+      <select id="in-width">
+        <option value="8">8</option>
+        <option value="16">16</option>
+        <option value="32">32</option>
+      </select>
+    </div>
+    <div class="field check-row">
+      <label><input id="in-refin" type="checkbox"> CRC_REFIN (reflect input bytes)</label>
+      <label><input id="in-refout" type="checkbox"> CRC_REFOUT (reflect final register)</label>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Result</h2>
+  <div class="big-result">
+    <div class="result-block">
+      <span class="result-label">Checksum</span>
+      <span class="result-value" id="out-result">-</span>
+    </div>
+    <div class="result-block result-other">
+      <span class="result-label">With REFIN/REFOUT swapped</span>
+      <span class="result-value" id="out-other">-</span>
+    </div>
+  </div>
+  <div class="param-summary" id="param-summary"></div>
+</section>
+
+<section class="panel">
+  <h2>Shift Register View</h2>
+  <p class="hint">XOR-tap mask (nominal polynomial): <span id="tap-mask" class="mono">-</span>;
+  LSB-first effective taps: <span id="tap-mask-lsb" class="mono">-</span></p>
+  <div id="shift-table"></div>
+</section>
+
+<section class="panel">
+  <h2>Teaching Notes</h2>
+  <div class="notes">
+    <p><strong>Hardware serial CRC vs software table CRC.</strong>
+    A hardware serial CRC engine usually shifts in one bit per clock,
+    LSB-first when REFIN=1. A software table-driven CRC usually works
+    MSB-first. Both can produce the <em>same</em> final checksum for the
+    same standard, but the internal register values look different along
+    the way: the LSB-first path uses the bit-reversed polynomial as its
+    effective tap mask and sees each byte reflected.</p>
+
+    <p><strong>Why the same polynomial can look different.</strong>
+    The polynomial in the parameter list is the non-reflected form
+    (e.g. 0x04C11DB7 for CRC-32). When REFIN=1 the engine effectively
+    uses 0xEDB88320, the bit-reversed polynomial. The two conventions
+    meet at the end because REFOUT=1 mirrors the input reflection back
+    out. Pick the convention your protocol specifies and keep all five
+    parameters together.</p>
+
+    <p><strong>Common agreement bugs.</strong></p>
+    <ul>
+      <li>Forgetting CRC_XOROUT: many standards use 0x00, but CRC-32
+      inverts the output with 0xFFFFFFFF.</li>
+      <li>Wrong CRC_INIT: CRC-16/CCITT-FALSE starts at 0xFFFF; ARC
+      starts at 0x0000.</li>
+      <li>Byte order: the CRC is computed over the raw byte order on the
+      wire, not the host endianness.</li>
+      <li>Reflected polynomial: use the standard non-reflected form for
+      CRC_POLY; REFIN/REFOUT handle the reflection.</li>
+    </ul>
+
+    <p><strong>RTL mapping.</strong>
+    This app uses the same five parameters as
+    <code>rtl/common/dataint_crc.sv</code>: CRC_POLY maps to POLY,
+    CRC_INIT to POLY_INIT, CRC_XOROUT to XOROUT, CRC_REFIN to REFIN, and
+    CRC_REFOUT to REFOUT.</p>
+  </div>
+</section>
+
+<footer class="app-footer">
+  <p>Personal engineering notes; no warranty. Check values verified against
+  the standard &quot;123456789&quot; test string.</p>
+</footer>
+
+</main>
+
+<script src="js/model.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
