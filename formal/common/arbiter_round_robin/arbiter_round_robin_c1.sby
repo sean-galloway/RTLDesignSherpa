@@ -1,0 +1,24 @@
+# CLIENTS=1 proof of the gen_single_client degenerate branch (TASK-005).
+# Separate file: this sby version has no per-task script sections.
+[tasks]
+prove
+
+[options]
+prove: mode bmc
+prove: depth 10
+
+[engines]
+prove: smtbmc z3
+
+[script]
+read -formal -sv -Iincludes arbiter_priority_encoder.sv
+read -formal -sv -Iincludes arbiter_round_robin.sv
+read -formal -sv formal_arbiter_rr.sv
+chparam -set CLIENTS 1 formal_arbiter_rr
+prep -top formal_arbiter_rr
+
+[files]
+arbiter_round_robin.sv ../../../rtl/common/arbiter_round_robin.sv
+arbiter_priority_encoder.sv ../../../rtl/common/arbiter_priority_encoder.sv
+formal_arbiter_rr.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

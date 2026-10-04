@@ -6,7 +6,7 @@
 
 module formal_arbiter_rr #(
     parameter int CLIENTS = 4,
-    parameter int N = $clog2(CLIENTS)
+    parameter int N = (CLIENTS > 1) ? $clog2(CLIENTS) : 1
 ) (
     input  logic                clk,
     input  logic                rst_n,
@@ -57,10 +57,20 @@ module formal_arbiter_rr #(
             ap_onehot: assert (!grant_valid || $onehot(grant));
     end
 
-    // Grant only to requesting agents
-    always @(posedge clk) begin
-        if (f_past_valid > 0 && rst_n && $past(rst_n))
-            ap_subset: assert (!grant_valid || ((grant & $past(request)) == grant));
+    // Grant only to requesting agents. The multi-client DUT registers its
+    // grant, so the request is checked one cycle back; the CLIENTS==1 branch
+    // (gen_single_client) is combinational, so its request is checked in the
+    // same cycle.
+    if (CLIENTS == 1) begin : gen_subset_c1
+        always @(posedge clk) begin
+            if (rst_n)
+                ap_subset: assert (!grant_valid || ((grant & request) == grant));
+        end
+    end else begin : gen_subset_multi
+        always @(posedge clk) begin
+            if (f_past_valid > 0 && rst_n && $past(rst_n))
+                ap_subset: assert (!grant_valid || ((grant & $past(request)) == grant));
+        end
     end
 
     // No grant bits when not valid
@@ -87,11 +97,19 @@ module formal_arbiter_rr #(
             ap_last_grant: assert (last_grant == $past(grant));
     end
 
-    // After reset, outputs are zero
+    // After reset, outputs are zero. The grant/valid checks assume a
+    // registered grant (the multi-client path); the CLIENTS==1 branch is
+    // combinational, so its "reset" property is ap_subset+ap_onehot -- a
+    // grant is high only while its request is, reset or not. last_grant is
+    // registered in BOTH branches, so that check stays universal.
     always @(posedge clk) begin
-        if (f_past_valid > 0 && $past(!rst_n)) begin
+        if (CLIENTS > 1 && f_past_valid > 0 && $past(!rst_n)) begin
             ap_reset_grant: assert (grant == '0);
             ap_reset_valid: assert (!grant_valid);
+        end
+    end
+    always @(posedge clk) begin
+        if (f_past_valid > 0 && $past(!rst_n)) begin
             ap_reset_last:  assert (last_grant == '0);
         end
     end

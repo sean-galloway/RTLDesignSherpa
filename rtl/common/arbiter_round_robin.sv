@@ -268,9 +268,13 @@
 //------------------------------------------------------------------------------
 // Version History:
 //------------------------------------------------------------------------------
-//   2026-10-04: N width guarded so CLIENTS=1 elaborates (TASK-005); the
-//               single-requester ACK dead cycle stays — removing it fails
-//               the monbus_arbiter formal proof (ap_no_spurious)
+//   2026-10-04: N width guarded so CLIENTS=1 elaborates, and a
+//               gen_single_client degenerate branch added (TASK-005 follow-up):
+//               grant = request combinationally -- no mask LUTs, no priority
+//               encoder, no pending state, no single-requester dead cycle,
+//               and a withdrawn request can never leave a held grant. The
+//               multi-client ACK dead cycle stays (removing it fails the
+//               monbus_arbiter formal proof, ap_no_spurious)
 //   2025-09-15: Optimized ACK mode with unified state management
 //   2025-09-01: Added ACK protocol support
 //   2025-08-15: Initial implementation
@@ -299,6 +303,41 @@ module arbiter_round_robin #(
 );
 
     // =======================================================================
+    // Request gating (shared by both client-count branches)
+    // =======================================================================
+
+    logic [CLIENTS-1:0] w_requests_gated;
+    logic               w_any_requests;
+
+    // Single LUT level for request gating
+    assign w_requests_gated = block_arb ? '0 : request;
+    assign w_any_requests   = |w_requests_gated;
+
+    // =======================================================================
+    // Client-count specialization (bare if-generate: regions nest without
+    // generate/endgenerate pairing issues)
+    // =======================================================================
+    if (CLIENTS == 1) begin : gen_single_client
+            // Degenerate single-client case: arbitration collapses to the one
+            // request. The grant is combinational on the (gated) request, so
+            // a withdrawn request can never leave a held, spurious grant --
+            // the multi-client ACK-mode hazard measured in utility-ip/misc
+            // TASK-005 cannot exist here. No mask LUTs, no priority encoder,
+            // no pending state; both ACK modes behave identically (grant_ack
+            // is informational, as monbus_arbiter constructs it from the
+            // grant). Widths are guarded on the port list (N=1), so grant_id
+            // ties to zero.
+            assign grant       = w_requests_gated;
+            assign grant_valid = w_requests_gated[0];
+            assign grant_id    = '0;
+
+            `ALWAYS_FF_RST(clk, rst_n,
+                if (`RST_ASSERTED(rst_n)) last_grant <= '0;
+                else                      last_grant <= grant;
+            )
+        end else begin : gen_multi_client
+
+    // =======================================================================
     // Pre computed mask lookup table
     // =======================================================================
 
@@ -306,14 +345,12 @@ module arbiter_round_robin #(
     logic [CLIENTS-1:0] w_win_mask_decode [CLIENTS];
 
     // Generate mask lookup at elaboration time (no logic cost)
-    generate
-        for (genvar i = 0; i < CLIENTS; i++) begin : gen_mask_lut
-            // Proper mask generation for round-robin fairness
-            // After client i wins, mask clients 0 through i (give priority to i+1 and above)
-            assign w_mask_decode[i] = (CLIENTS'(1) << (i)) - CLIENTS'(1);
-            assign w_win_mask_decode[i] = ~((CLIENTS'(1) << (i + 1)) - CLIENTS'(1));
-        end
-    endgenerate
+    for (genvar i = 0; i < CLIENTS; i++) begin : gen_mask_lut
+        // Proper mask generation for round-robin fairness
+        // After client i wins, mask clients 0 through i (give priority to i+1 and above)
+        assign w_mask_decode[i] = (CLIENTS'(1) << (i)) - CLIENTS'(1);
+        assign w_win_mask_decode[i] = ~((CLIENTS'(1) << (i + 1)) - CLIENTS'(1));
+    end
 
     // =======================================================================
     // Streamlined state registers (pending ACK now unified with grant)
@@ -328,16 +365,10 @@ module arbiter_round_robin #(
     // Fast request preprocessing
     // =======================================================================
 
-    logic [CLIENTS-1:0] w_requests_gated;
     logic [CLIENTS-1:0] w_requests_masked;
     logic [CLIENTS-1:0] w_requests_unmasked;
-    logic               w_any_requests;
     logic               w_any_masked_requests;
     logic [CLIENTS-1:0] w_curr_mask_decode;
-
-    // Single LUT level for request gating
-    assign w_requests_gated = block_arb ? '0 : request;
-    assign w_any_requests = |w_requests_gated;
 
     // Fast mask application using LUT
     assign w_curr_mask_decode = grant_valid ? w_win_mask_decode[grant_id] :
@@ -371,24 +402,22 @@ module arbiter_round_robin #(
     logic w_can_grant;
     logic [CLIENTS-1:0] w_other_requests;  // Requests excluding ACK'd client
 
-    generate
-        if (WAIT_GNT_ACK == 1) begin : gen_ack_optimized
+    if (WAIT_GNT_ACK == 1) begin : gen_ack_optimized
 
-            // Fast ACK detection (single LUT)
-            assign w_ack_received = r_pending_ack && grant_ack[r_pending_client];
+        // Fast ACK detection (single LUT)
+        assign w_ack_received = r_pending_ack && grant_ack[r_pending_client];
 
-            // Calculate other requests (excluding ACK'd client)
-            assign w_other_requests = w_requests_gated & ~(CLIENTS'(1) << r_pending_client);
+        // Calculate other requests (excluding ACK'd client)
+        assign w_other_requests = w_requests_gated & ~(CLIENTS'(1) << r_pending_client);
 
-            // Grant permission logic - allow arbitration when no ACK pending or during ACK cycle
-            assign w_can_grant = !r_pending_ack || w_ack_received;
+        // Grant permission logic - allow arbitration when no ACK pending or during ACK cycle
+        assign w_can_grant = !r_pending_ack || w_ack_received;
 
-        end else begin : gen_no_ack_optimized
-            assign w_ack_received = 1'b0;
-            assign w_can_grant = 1'b1;
-            assign w_other_requests = '0;
-        end
-    endgenerate
+    end else begin : gen_no_ack_optimized
+        assign w_ack_received = 1'b0;
+        assign w_can_grant = 1'b1;
+        assign w_other_requests = '0;
+    end
 
     // =======================================================================
     // Output generation with atomic updates
@@ -500,6 +529,8 @@ module arbiter_round_robin #(
             end
         end
     )
+
+        end
 
 
 endmodule : arbiter_round_robin
