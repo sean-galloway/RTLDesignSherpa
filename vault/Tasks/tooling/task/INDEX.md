@@ -12,9 +12,9 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 25 | done (kept for history) |
+| [closed/](closed/) | 26 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -28,12 +28,6 @@ by construction rather than by discipline.
   (uart_axil_bridge, 3 missing rtl refs). Needs a GAP-annotation
   convention before the gate can go plural-aware
 
-- **TASK-027** (P3) — 43 broken testplan refs outside pumice (val/common 32,
-  fabric-gen-ip 9, val/amba 2): fix per area with pumice TASK-037's
-  update-or-delete judgment, then lower the ratcheted baseline
-  (`filelist_registry.py --testplans --update-testplan-baseline`). The gate
-  added by TASK-037 makes any NEW broken ref fail pre-commit/CI
-
 - **TASK-025** (P3) — cocotb 2.x is reachable but not yet: the import blocker is cocotb-bus 0.2.1 (fixed by 0.3.0, which our own DV cap forbids), and the remaining work is a 78-site `.value.integer` sweep across both repos
 
 
@@ -43,6 +37,10 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-027** — 42 broken testplan refs reconciled (val/common 11 repointed +
+  5 deletes, bridge {rd,wr} braces split, amba axis5/ repoint); baseline
+  emptied, gate green (closed 2026-10-04, commit c8510c231; residue filed
+  as TASK-028)
 - **TASK-026** — formal stale-flat self-detection, fanned out of rapids
   BUG-011 -- CLOSED 2026-10-03: `bin/formal_status.py --check-flats`
   re-flattens via each proof's own recipe (or its house check-flat target)

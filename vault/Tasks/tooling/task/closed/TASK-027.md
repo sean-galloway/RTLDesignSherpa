@@ -1,6 +1,13 @@
 # TASK-027: 43 broken testplan refs outside pumice (ratcheted baseline in place)
 
-**Status:** open 2026-10-03
+**Status:** CLOSED 2026-10-04. All 42 baseline refs resolved and the
+baseline emptied (commit c8510c231); `--testplans` gate green with 0
+outstanding. Breakdown: val/common 11 repointed to renamed 1:1
+successors + 5 deletes (dissolved modules); bridge 4 plans' {rd,wr}
+brace refs split into concrete plain rd/wr paths; val/amba axis5_{master,
+slave} repointed rtl/amba/axis/ -> rtl/amba/axis5/. Residue (gate blind
+to plural `rtl_files:`/`test_files:` keys; duplicate scalar keys collapse
+in verify_testplan_coverage) filed as tooling TASK-028.
 **Priority:** P3
 **Filed from:** closing pumice TASK-037 (testplan reconcile).
 
