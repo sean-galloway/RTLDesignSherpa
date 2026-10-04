@@ -12,8 +12,8 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [open/](open/) | 1 | accepted, not started |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
@@ -27,7 +27,9 @@ by construction rather than by discipline.
   all_classes FULL). Fix the grant waste + CLIENTS=1 width guard; observer
   workaround (OUT_DEPTH 16) rides it out meanwhile
 
-- **TASK-003** — axis4_intf_observer instantiates axis_monitor_lite instead of its private per-port tap (one implementation of the AXIS event set)
+## Active
+
+- **TASK-003** — axis4_intf_observer instantiates axis_monitor_lite instead of its private per-port tap; RTL done 2026-10-04 (c35c8304b), suite 12/12 green, board packet-class matrix pending the ecc-ip lane's harness
 
 
 ## Closed

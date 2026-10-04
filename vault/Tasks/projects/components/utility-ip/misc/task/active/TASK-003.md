@@ -1,6 +1,15 @@
 # TASK-003: axis4_intf_observer instantiates axis_monitor_lite instead of its private tap
 
-**Status:** open 2026-09-27  **Priority:** P3 -- one implementation of the AXIS
+**Status:** ACTIVE 2026-10-04. RTL DONE (commit c35c8304b): inline gen_tap
+replaced by per-port axis_monitor_lite, TAP_BLOCKED stickiness preserved,
+observer suite 12/12 green (gate/func/full from clean, tap_dropped now 0 on
+the all_classes stimulus). OUT_DEPTH=16 with a measured-reason comment
+(grant waste + err-FIFO burst stall; fix filed as TASK-004). REMAINING:
+the board packet-class matrix -- both harnesses that instantiate this
+observer (bch_loop, reed-solomon) live in the parallel ecc-ip lane, so the
+board run is parked pending that lane or a go-ahead.
+
+**Priority:** P3 -- one implementation of the AXIS
 event set instead of two; no behaviour change intended.
 
 Filed from amba/monitor-lite TASK-003 when it closed (Sean's rule: a shared
