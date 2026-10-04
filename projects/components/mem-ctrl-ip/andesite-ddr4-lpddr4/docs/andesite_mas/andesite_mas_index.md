@@ -66,16 +66,16 @@ link-ratchet rule — links only ever point at committed files).
 - [What Changes vs scoria](ch01_overview/02_what_changes_vs_scoria.md)
 
 ### Chapter 2: Functional Blocks
-- `ch02_blocks/01_cmd_formatter.md` — Command Formatter (ACT_n/BG encodings, LPDDR4 CA path)
-- `ch02_blocks/02_init_sequencer.md` — Init Sequencer (reset, MR order, gear-down)
-- `ch02_blocks/03_mode_register.md` — Mode Register (MR0-MR6 field maps)
-- `ch02_blocks/04_addr_mapper.md` — Address Mapper (bank-group decode)
-- `ch02_blocks/05_scheduler.md` — Scheduler and Arbiter (L/S policy)
-- `ch02_blocks/06_refresh_ctrl.md` — Refresh Controller (FGR on the inherited base)
-- `ch02_blocks/07_zq_ctrl.md` — ZQ Controller (MPC path)
-- `ch02_blocks/08_odt_ctrl.md` — ODT Controller (RTT_NOM/WR/PARK)
-- `ch02_blocks/09_training.md` — Training Interfaces (wrlvl/rdlvl/ca_train)
-- `ch02_blocks/10_dfi_datapath.md` — DFI Datapath Blocks (DBI)
+- [Command Formatter](ch02_blocks/01_cmd_formatter.md) — ACT_n/BG encodings, LPDDR4 CA path
+- [Init Sequencer](ch02_blocks/02_init_sequencer.md) — reset, MR order, gear-down
+- [Mode Register](ch02_blocks/03_mode_register.md) — MR0-MR6 field maps
+- [Address Mapper](ch02_blocks/04_addr_mapper.md) — bank-group decode
+- [Scheduler and Arbiter](ch02_blocks/05_scheduler.md) — L/S policy
+- [Refresh Controller](ch02_blocks/06_refresh_ctrl.md) — FGR on the inherited base
+- [ZQ Controller](ch02_blocks/07_zq_ctrl.md) — MPC path
+- [ODT Controller](ch02_blocks/08_odt_ctrl.md) — RTT_NOM/WR/PARK
+- [Training Interfaces](ch02_blocks/09_training.md) — wrlvl/rdlvl/ca_train
+- [DFI Datapath Blocks](ch02_blocks/10_dfi_datapath.md) — DBI
 
 ### Chapter 3: Interfaces
 - `ch03_interfaces/01_dfi40_pins.md` — DFI 4.0 Pin-Level Table
