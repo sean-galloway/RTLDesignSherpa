@@ -20,7 +20,6 @@
 // Created: 2026-10-04 (carried + DDR4 spacing growth)
 
 `timescale 1ns / 1ps
-`timescale 1ns / 1ps
 
 `include "reset_defs.svh"
 

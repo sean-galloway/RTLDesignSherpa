@@ -19,7 +19,6 @@
 // Created: 2026-10-04 (carried)
 
 `timescale 1ns / 1ps
-`timescale 1ns / 1ps
 
 `include "reset_defs.svh"
 
