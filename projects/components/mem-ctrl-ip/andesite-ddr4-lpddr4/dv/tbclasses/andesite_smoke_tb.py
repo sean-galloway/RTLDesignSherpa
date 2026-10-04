@@ -5,7 +5,7 @@
 
 Deliberately minimal: the smoke test's job is to prove the cocotb + verilator
 pipeline end-to-end, so this class drives its own clock rather than pulling in
-TBBase. The block-level testbenches (Tasks 3-5) use TBBase and the shared BFMs.
+TBBase. The block-level testbenches (Tasks 3-5) drive their own clocks and protocol checks.
 """
 
 import cocotb

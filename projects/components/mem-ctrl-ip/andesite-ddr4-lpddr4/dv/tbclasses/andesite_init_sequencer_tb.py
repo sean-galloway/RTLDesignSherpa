@@ -95,14 +95,17 @@ class AndesiteInitSequencerTB:
             await RisingEdge(d.clk)
         d.reset_n.value = 1
 
-    async def run(self, stall_at=None, max_cycles=2000):
+    async def run(self, stall_at=None, max_cycles=2000, hold_ack=False):
         """Run until init_done (return done cycle) or max_cycles (return None).
-        stall_at: cycle index at which cmd_ack is held low for one cycle."""
+        stall_at: cycle index at which cmd_ack is held low for one cycle.
+        hold_ack: never acknowledge -- the residency watchdog must fire."""
         d = self.dut
-        d.cmd_ack.value = 1
+        d.cmd_ack.value = 0 if hold_ack else 1
         self._cycle = 0
         while self._cycle < max_cycles:
-            if stall_at is not None and self._cycle == stall_at:
+            if hold_ack:
+                d.cmd_ack.value = 0
+            elif stall_at is not None and self._cycle == stall_at:
                 d.cmd_ack.value = 0
             elif stall_at is not None and self._cycle == stall_at + 1:
                 d.cmd_ack.value = 1

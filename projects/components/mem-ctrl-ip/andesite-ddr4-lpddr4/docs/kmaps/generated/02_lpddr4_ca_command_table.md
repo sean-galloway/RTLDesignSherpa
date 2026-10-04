@@ -17,4 +17,4 @@ LPDDR4 uses a 6-bit double-data-rate CA bus, two cycles per command, so each ent
 | REFab | TBC(JESD209-4) | None |
 | REFpb | TBC(JESD209-4) | Bank (controller-directed per-bank refresh) |
 
-Verdict posture: NOT CHECKED -- no RTL exists at MAS v0.1. When RTL lands, the generator re-points citations at the `.sv` lines that drive the CA mapper and this table is replaced by the actual JESD209-4 encodings.
+Verdict posture: per the owning block's RTL phase (P1 landed the formatter/mode_register/init_sequencer). When RTL lands, the generator re-points citations at the `.sv` lines that drive the CA mapper and this table is replaced by the actual JESD209-4 encodings.

@@ -197,11 +197,11 @@ LPDDR4_CA_COMMANDS = [
 def build_lpddr4_ca_commands(wb):
     km = new_kmap_sheet(wb, "LPDDR4 CA commands")
     km.sheet_intro(
-        "andesite LPDDR4 CA command contract (pre-RTL, cites MAS pages)",
+        "andesite LPDDR4 CA command contract (encodings TBC(JESD209-4); the DV-repo lpddr4_ca_map from the TASK-010 study is the pending source)",
         ["Contract-style table: command class, 12-bit CA encoding source, and",
          "carried fields. Exact CA bit encodings are deliberately not fabricated;",
          "they are TBC at the JESD209-4 cold-storage read (HAS Q1).",
-         "Verdict posture: NOT CHECKED -- no RTL exists at MAS v0.1."])
+         "Verdict posture: per the owning block's RTL phase (P1 landed the formatter/mode_register/init_sequencer)."])
     km.table(
         "LPDDR4 CA command placeholder", f"{CMD}:143",
         ["Command", "CA encoding (12-bit, two-cycle)", "Carries"],
@@ -233,7 +233,7 @@ def write_lpddr4_ca_command_table():
     for cmd, enc, carries in LPDDR4_CA_COMMANDS:
         lines.append("| {} | {} | {} |".format(cmd, enc, carries))
     lines.append("")
-    lines.append("Verdict posture: NOT CHECKED -- no RTL exists at MAS v0.1. "
+    lines.append("Verdict posture: per the owning block's RTL phase (P1 landed the formatter/mode_register/init_sequencer). "
                  "When RTL lands, the generator re-points citations at the "
                  "`.sv` lines that drive the CA mapper and this table is "
                  "replaced by the actual JESD209-4 encodings.")
@@ -263,10 +263,10 @@ def bg_map(*bits):
 def build_address_decode_maps(wb):
     km = new_kmap_sheet(wb, "Address decode maps")
     km.sheet_intro(
-        "andesite address decode maps (pre-RTL, cites MAS pages)",
+        "andesite address decode maps (structural map; addr_mapper RTL lands in P3)",
         ["Field-order table from the address-mapper decode fence and a 2-var",
          "K-map of the DDR4 design-point bank-group geometry.",
-         "Verdict posture: NOT CHECKED -- no RTL exists at MAS v0.1."])
+         "Verdict posture: per the owning block's RTL phase (P1 landed the formatter/mode_register/init_sequencer)."])
     km.table(
         "Field order by memtype", f"{AM}:77",
         ["Memtype", "Field order", "Note"],
@@ -323,7 +323,7 @@ def write_address_decode_maps():
             bg = bg_map(bg1, bg0)
             lines.append("| {} | {} | BG{} |".format(bg1, bg0, bg))
     lines.append("")
-    lines.append("Verdict posture: NOT CHECKED -- no RTL exists at MAS v0.1. "
+    lines.append("Verdict posture: per the owning block's RTL phase (P1 landed the formatter/mode_register/init_sequencer). "
                  "When RTL lands, the generator re-points citations at the "
                  "`.sv` lines that implement the field extraction and diffs "
                  "the implementation against these maps.")
@@ -403,11 +403,11 @@ MRProgrammingRows = [
 def build_mr_programming_maps(wb):
     km = new_kmap_sheet(wb, "MR0-MR6 programming maps")
     km.sheet_intro(
-        "andesite MR0-MR6 / LPDDR4 MRW programming maps (pre-RTL)",
+        "andesite MR0-MR6 / LPDDR4 MRW programming maps (mode_register RTL landed 2026-10-04; bit maps Q1)",
         ["Per-memtype mode-register semantics. Bit positions are named, not",
          "numbered; the exact bit maps are confirmed at the JESD79-4 /",
          "JESD209-4 cold-storage read (HAS Q1).",
-         "Verdict posture: NOT CHECKED -- no RTL exists at MAS v0.1."])
+         "Verdict posture: per the owning block's RTL phase (P1 landed the formatter/mode_register/init_sequencer)."])
     km.table(
         "MR programming map", f"{MR}:83",
         ["Memtype", "MR", "Field", "Function", "Values/notes"],
@@ -437,7 +437,7 @@ def write_mr_programming_maps():
         lines.append("| {} | {} | {} | {} | {} |".format(
             memtype, mr, field, func, vals))
     lines.append("")
-    lines.append("Verdict posture: NOT CHECKED -- no RTL exists at MAS v0.1. "
+    lines.append("Verdict posture: per the owning block's RTL phase (P1 landed the formatter/mode_register/init_sequencer). "
                  "When RTL lands, the generator re-points citations at the "
                  "`.sv` lines that hold the MR images and diffs the field "
                  "fanout against this map.")
@@ -478,10 +478,10 @@ def odt_policy(*bits):
 def build_odt_truth_table(wb):
     km = new_kmap_sheet(wb, "ODT truth table")
     km.sheet_intro(
-        "andesite ODT termination policy (pre-RTL, cites MAS pages)",
+        "andesite ODT termination policy (odt_ctrl RTL lands in P3)",
         ["Multi-valued K-map over access type and self/other rank. Mirrors the",
          "policy-state fence in the MAS ODT controller page.",
-         "Verdict posture: NOT CHECKED -- no RTL exists at MAS v0.1."])
+         "Verdict posture: per the owning block's RTL phase (P1 landed the formatter/mode_register/init_sequencer)."])
     km.kmap(
         "rtt = odt_policy(access[1:0], self)", f"{ODT}:88",
         "rtt = odt_policy(access[1:0], self)",
@@ -532,7 +532,7 @@ def write_odt_truth_table():
                  "accessed rank turns ODT off during reads, and non-accessed "
                  "ranks present RTT_NOM during writes.")
     lines.append("")
-    lines.append("Verdict posture: NOT CHECKED -- no RTL exists at MAS v0.1. "
+    lines.append("Verdict posture: per the owning block's RTL phase (P1 landed the formatter/mode_register/init_sequencer). "
                  "When RTL lands, the generator re-points citations at the "
                  "`.sv` lines that implement the policy state machine and diffs "
                  "the RTT selection against this table.")
@@ -556,11 +556,11 @@ FGR_ROWS = [
 def build_fgr_refresh_map(wb):
     km = new_kmap_sheet(wb, "FGR refresh select")
     km.sheet_intro(
-        "andesite FGR refresh select (pre-RTL, cites MAS pages)",
+        "andesite FGR refresh select (refresh_ctrl RTL lands in P3)",
         ["FGR factor from the MR3 image to effective tREFI reload and tRFC",
          "selection. Mirrors the interval-arithmetic fence in the MAS refresh",
          "controller page.",
-         "Verdict posture: NOT CHECKED -- no RTL exists at MAS v0.1."])
+         "Verdict posture: per the owning block's RTL phase (P1 landed the formatter/mode_register/init_sequencer)."])
     km.table(
         "FGR refresh select", f"{REF}:99",
         ["FGR select (MR3 image)", "Factor", "tREFI reload", "tRFC select"],
@@ -595,7 +595,7 @@ def write_fgr_refresh_map():
                  "CSR-derivation time (HAS Ch 5; numeric constants are HAS open "
                  "question Q1).")
     lines.append("")
-    lines.append("Verdict posture: NOT CHECKED -- no RTL exists at MAS v0.1. "
+    lines.append("Verdict posture: per the owning block's RTL phase (P1 landed the formatter/mode_register/init_sequencer). "
                  "When RTL lands, the generator re-points citations at the "
                  "`.sv` lines that implement the interval counter and diffs "
                  "the reload/select logic against this map.")
@@ -611,11 +611,11 @@ def write_fgr_refresh_map():
 def build_ddr4_command_decode(wb):
     km = new_kmap_sheet(wb, "DDR4 command decode")
     km.sheet_intro(
-        "andesite DDR4 command decode (pre-RTL, cites MAS pages)",
+        "andesite DDR4 command decode (citations at the landed RTL; per-command boolean SOP verdicts pending)",
         ["One K-map over the four DFI command pins, CS_n=0 slice. Each cell is",
          "the decoded command; the 8 codes outside the anchored truth table are",
          "X (illegal/unused), free to widen the per-command minimal covers.",
-         "Verdicts on the SOP table are DERIVED, not RTL-diffed -- no RTL exists",
+         "Verdicts on the SOP table are DERIVED, not RTL-diffed -- the decode is multi-valued;",
          "yet (HAS ch06 posture; citations re-point at .sv when RTL lands)."])
     km.kmap(
         "op = decode(ACT_n, RAS_n, CAS_n, WE_n)", f"{CMD}:91",
@@ -678,10 +678,9 @@ def write_ddr4_command_table():
     for name, code, sop in sop_rows():
         lines.append("| {} | {} | `{}` |".format(name, code, sop))
     lines.append("")
-    lines.append("Verdict posture: DERIVED, not RTL-diffed -- no RTL exists "
-                 "at MAS v0.1 (HAS ch06). When RTL lands, the generator "
-                 "re-points citations at `.sv` lines and the workbook diffs "
-                 "the implementation against these covers.")
+    lines.append("Verdict posture: citations pin the RTL decode lines; the decode "
+                 "is multi-valued, so per-command boolean kmaps with rtl_sop land "
+                 "in the P3 plan.")
     lines.append("")
     with open(path, "w") as f:
         f.write("\n".join(lines))

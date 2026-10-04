@@ -106,6 +106,8 @@ module andesite_init_sequencer #(
     logic [TINIT_WIDTH-1:0]     r_cnt;
     logic [TINIT_WIDTH-1:0]     w_load;
     logic                       w_enter;
+    logic [TINIT_WIDTH-1:0]     r_residency;
+    logic                       w_timeout;
     logic [2:0]                 r_mr_idx;
     logic [2:0]                 w_mr;
     logic [DATA_WIDTH-1:0]      w_mr_image;
@@ -162,7 +164,16 @@ module andesite_init_sequencer #(
             ST_ERROR:              if (csr_init_trigger) r_state_d = ST_POR;
             default: ;
         endcase
+
+        // Residency watchdog: any non-terminal state that holds past the
+        // counter's all-ones residency (a withheld cmd_ack is the expected
+        // trigger) latches the error state instead of blocking forever.
+        // The cap is the counter width's property, not a JEDEC timing.
+        if (r_state != ST_READY && r_state != ST_ERROR && w_timeout)
+            r_state_d = ST_ERROR;
     end
+
+    assign w_timeout = (r_residency == {TINIT_WIDTH{1'b1}});
 
     // Counter load value for the state being ENTERED (reload-only rule: the
     // value is captured at entry, so a CSR write mid-wait is inert).
@@ -189,13 +200,18 @@ module andesite_init_sequencer #(
         if (!reset_n) begin
             r_state     <= ST_POR;
             r_cnt       <= '0;
+            r_residency <= '0;
             r_mr_idx    <= '0;
         end else begin
             r_state <= r_state_d;
-            if (w_enter)
+            if (w_enter) begin
                 r_cnt <= w_load;
-            else if (r_cnt != 0)
-                r_cnt <= r_cnt - 1'b1;
+                r_residency <= '0;
+            end else begin
+                if (r_cnt != 0)
+                    r_cnt <= r_cnt - 1'b1;
+                r_residency <= r_residency + 1'b1;
+            end
 
             if (r_state == ST_POR) begin
                 r_mr_idx  <= '0;

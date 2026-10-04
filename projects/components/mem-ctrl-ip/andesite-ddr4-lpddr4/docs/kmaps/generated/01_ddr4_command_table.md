@@ -32,4 +32,4 @@ Derived by Quine-McCluskey with the 8 unused codes as don't-cares (they are free
 | PRE | 1010 | `!RAS_n & CAS_n` |
 | ZQ | 1110 | `RAS_n & CAS_n & !WE_n` |
 
-Verdict posture: DERIVED, not RTL-diffed -- no RTL exists at MAS v0.1 (HAS ch06). When RTL lands, the generator re-points citations at `.sv` lines and the workbook diffs the implementation against these covers.
+Verdict posture: citations pin the RTL decode lines; the decode is multi-valued, so per-command boolean kmaps with rtl_sop land in the P3 plan.

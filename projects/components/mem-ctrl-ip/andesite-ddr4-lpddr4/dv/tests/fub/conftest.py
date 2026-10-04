@@ -6,7 +6,7 @@ framework:
   * `from TBClasses.shared.utilities import get_paths` -- needs $REPO_ROOT/bin
     on sys.path (TBClasses lives under bin/ in the main repo and under
     tests/sim/ in the DV repo);
-  * `from tbclasses.andesite_cmd_arbiter_tb import AndesiteCmdArbiterTB` -- needs
+  * `from tbclasses.tbclasses.andesite_*_tb import AndesiteCmdArbiterTB` -- needs
     this component's dv/ directory on sys.path.
 
 Mirrors pumice's, deliberately: the two areas' tests are read side by side and

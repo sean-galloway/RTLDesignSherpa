@@ -37,4 +37,4 @@ Bit positions are intentionally named, not numbered; the exact bit maps are conf
 | LPDDR4 | MRW set | Refresh-related | Refresh mode bits | bit map per JESD209-4 (HAS Q1) |
 | LPDDR4 | MRW set | Vendor area | Vendor-specific MR space | bit map per JESD209-4 (HAS Q1) |
 
-Verdict posture: NOT CHECKED -- no RTL exists at MAS v0.1. When RTL lands, the generator re-points citations at the `.sv` lines that hold the MR images and diffs the field fanout against this map.
+Verdict posture: per the owning block's RTL phase (P1 landed the formatter/mode_register/init_sequencer). When RTL lands, the generator re-points citations at the `.sv` lines that hold the MR images and diffs the field fanout against this map.

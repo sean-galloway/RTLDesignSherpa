@@ -35,8 +35,11 @@ if _DV_DIR not in sys.path:
 
 from tbclasses.andesite_init_tb import AndesiteInitTb  # noqa: E402
 
-# Fixed JEDEC DDR4 command-table constants (nCK) at the TB's 1 MC clock
-# = 4 nCK framing; Q1 records the formal cold-storage confirmation.
+# Fixed JEDEC DDR4 command-table constants (nCK) translated at the TB's
+# 10 ns clock -- roughly 2x conservative (over-wait cannot violate); the
+# absolute nCK framing lands with the frequency-ratio work in P4. The AC
+# profile itself is the vendored CSV. Q1 records the formal cold-storage
+# confirmation of every value.
 CSRS = dict(tinit1=4, tinit3=4, tinit4=2, tmrd=2, tmod=6, tdllk=192, tzqinit=256)
 MR_IMAGES = [0x10 + m for m in range(7)]
 
@@ -59,14 +62,24 @@ async def cocotb_test_andesite_init_slice(dut):
     assert tb.violations() == {}, f"SOFT violations: {tb.violations()}"
     assert int(dut.init_err.value) == 0
 
-    # Gear-down configuration: the entry pulse must assert exactly once and
-    # the BFM's geardown behavior (G3) must see no violation.
+    # Gear-down configuration: the MAS fence's "program MR3 gear-down" step
+    # rides the MR image (the FSM issues the normal MR3 MRS with whatever
+    # image firmware configured). The test sets the gear-down bit in the MR3
+    # image -- bit position is Q1 (JESD79-4 cold-storage read) -- and asserts
+    # the bit reached the bus on the MR3 MRS.
+    Q1_MR3_GEAR_DOWN_BIT = 3
     csrs_gd = dict(CSRS, geardown=1)
-    done = await tb.run_init(csrs_gd, MR_IMAGES)
+    mr_gd = list(MR_IMAGES)
+    mr_gd[3] = MR_IMAGES[3] | (1 << Q1_MR3_GEAR_DOWN_BIT)
+    done = await tb.run_init(csrs_gd, mr_gd)
     assert done is not None, "gear-down configuration must reach READY"
     assert tb.geardown_cycles == 1, \
         f"gear-down entry must pulse exactly once, saw {tb.geardown_cycles}"
     tb.check_order(csrs_gd)
+    mr3 = next(e for e in tb.events
+               if e[1] == 0x0A and ((e[4] << 2) | e[2]) == 3)
+    assert (mr3[3] >> Q1_MR3_GEAR_DOWN_BIT) & 1 == 1, \
+        "MR3 gear-down bit must reach the bus on the MR3 MRS"
     assert tb.violations() == {}, f"SOFT violations (gear-down): {tb.violations()}"
 
 

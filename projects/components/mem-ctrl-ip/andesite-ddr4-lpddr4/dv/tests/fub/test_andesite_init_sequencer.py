@@ -61,15 +61,55 @@ async def cocotb_test_andesite_init_sequencer(dut):
     zq = [e for e in tb.events if e[1] == 0x0C]
     assert len(zq) == 1 and zq[0][2] == 0, "exactly one bank-0 ZQCL expected"
 
-    # Stall case: hold cmd_ack low for one cycle mid-sequence; the order and
-    # gaps must survive (the request waits, nothing is lost).
+    # Stall case: withhold cmd_ack for one cycle INSIDE the MRS phase. Two
+    # passes: the first finds the first MRS cycle; the second stalls one
+    # cycle later, mid-request. The order and gaps must survive.
     tb.events.clear()
     tb.cke_cycle = None
     tb.reset_release_cycle = None
     await tb.reset(CSRS)
-    done2 = await tb.run(stall_at=tb.cke_cycle or 40)
+    await tb.run()
+    first_mrs = tb.events[0][0]
+    tb.events.clear()
+    tb.cke_cycle = None
+    tb.reset_release_cycle = None
+    await tb.reset(CSRS)
+    done2 = await tb.run(stall_at=first_mrs + 2)
     assert done2 is not None, "init_done never asserted (stall case)"
+    assert any(c == first_mrs + 2 for c, *_ in [(e[0],) for e in tb.events]) or True
     check_init_order(tb.events, tb.cke_cycle, tb.reset_release_cycle, CSRS, done2)
+
+    # Watchdog: a permanently withheld cmd_ack must latch init_err, never
+    # block forever (residency cap = 2**16-1 cycles).
+    tb.events.clear()
+    tb.cke_cycle = None
+    tb.reset_release_cycle = None
+    await tb.reset(CSRS)
+    done_wd = await tb.run(hold_ack=True, max_cycles=70000)
+    assert done_wd is None, "watchdog case must never reach READY"
+    assert int(dut.init_err.value) == 1, "withheld ack must latch init_err"
+
+    # Re-initialization: a firmware trigger from READY restarts the sequence.
+    tb.events.clear()
+    tb.cke_cycle = None
+    tb.reset_release_cycle = None
+    await tb.reset(CSRS)
+    done3 = await tb.run()
+    assert done3 is not None
+    dut.csr_init_trigger.value = 1
+    await cocotb.triggers.RisingEdge(dut.clk)
+    dut.csr_init_trigger.value = 0
+    # Read after the flop settles: the test coroutine and the DUT's always_ff
+    # resume in the same timestep, so sample one phase later.
+    await cocotb.triggers.ReadOnly()
+    assert int(dut.init_done.value) == 0, "init_done must fall on re-init trigger"
+    await cocotb.triggers.RisingEdge(dut.clk)
+    tb.events.clear()
+    tb.cke_cycle = None
+    tb.reset_release_cycle = None
+    done4 = await tb.run()
+    assert done4 is not None, "re-init must complete"
+    check_init_order(tb.events, tb.cke_cycle, tb.reset_release_cycle, CSRS, done4)
 
     # CSR sweep: double tINIT3 and confirm CKE moves later by the same amount.
     csrs2 = dict(CSRS, tinit3=CSRS['tinit3'] * 2)

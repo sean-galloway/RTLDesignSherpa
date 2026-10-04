@@ -24,4 +24,4 @@ Field boundaries are runtime `ADDR_MAP`-style CSRs, reset to the design-point ge
 | 1 | 0 | BG2 |
 | 1 | 1 | BG3 |
 
-Verdict posture: NOT CHECKED -- no RTL exists at MAS v0.1. When RTL lands, the generator re-points citations at the `.sv` lines that implement the field extraction and diffs the implementation against these maps.
+Verdict posture: per the owning block's RTL phase (P1 landed the formatter/mode_register/init_sequencer). When RTL lands, the generator re-points citations at the `.sv` lines that implement the field extraction and diffs the implementation against these maps.

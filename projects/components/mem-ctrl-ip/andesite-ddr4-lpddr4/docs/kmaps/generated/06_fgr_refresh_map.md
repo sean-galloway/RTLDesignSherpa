@@ -14,4 +14,4 @@ DDR4 MR3 selects 1x, 2x, or 4x refresh granularity. The controller scales its in
 
 Timing values are named, not numbered; the exact values are runtime CSRs derived from the JESD79-4 speed bin at CSR-derivation time (HAS Ch 5; numeric constants are HAS open question Q1).
 
-Verdict posture: NOT CHECKED -- no RTL exists at MAS v0.1. When RTL lands, the generator re-points citations at the `.sv` lines that implement the interval counter and diffs the reload/select logic against this map.
+Verdict posture: per the owning block's RTL phase (P1 landed the formatter/mode_register/init_sequencer). When RTL lands, the generator re-points citations at the `.sv` lines that implement the interval counter and diffs the reload/select logic against this map.

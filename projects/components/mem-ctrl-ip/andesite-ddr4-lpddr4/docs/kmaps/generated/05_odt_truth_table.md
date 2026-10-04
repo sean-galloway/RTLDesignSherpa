@@ -18,4 +18,4 @@ Termination is per-rank. `access` encodes the granted command type: `00` = idle,
 
 The MAS policy states are: IDLE -> RTT_PARK; RD (other) -> RTT_NOM; WR (self) -> RTT_WR. The read-to-self and write-to-other cases follow from per-rank dynamic ODT: the accessed rank turns ODT off during reads, and non-accessed ranks present RTT_NOM during writes.
 
-Verdict posture: NOT CHECKED -- no RTL exists at MAS v0.1. When RTL lands, the generator re-points citations at the `.sv` lines that implement the policy state machine and diffs the RTT selection against this table.
+Verdict posture: per the owning block's RTL phase (P1 landed the formatter/mode_register/init_sequencer). When RTL lands, the generator re-points citations at the `.sv` lines that implement the policy state machine and diffs the RTT selection against this table.

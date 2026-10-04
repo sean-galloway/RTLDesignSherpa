@@ -179,3 +179,12 @@ IDLE -> ALERT_SEEN -> RESENDING -> IDLE
 Telemetry is kept in small saturating counters: alerts seen, commands dropped, and commands re-issued. These counters are visible to firmware and are reset only by controller reset or an explicit firmware clear.
 
 The recovery FSM does **not** trigger a full re-initialization. A single parity event drops one command and retransmits it; only a sustained or uncorrectable pattern would escalate to firmware-assisted MR5 re-programming or init re-run. That escalation policy is recorded as open question Q4 in the HAS, not hard-wired here.
+
+## Gear-down programming (P1 interpretation, 2026-10-04)
+
+The fence's "program MR3 gear-down" step rides the MR image: the FSM issues
+the normal MR3 MRS with whatever image firmware configured
+(`csr_mr3_image`), then the entry pulse and the sync wait follow ZQ-init.
+The gear-down bit's position in MR3 is Q1 (JESD79-4 cold-storage read) --
+the RTL makes no bit-position claim; the P1 test asserts the configured bit
+reaches the bus, wiring-only.

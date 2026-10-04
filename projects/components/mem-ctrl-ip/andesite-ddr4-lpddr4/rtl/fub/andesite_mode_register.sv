@@ -69,7 +69,7 @@ module andesite_mode_register #(
     localparam int MR1_RTT_NOM_LSB        = 8;    // [10:8], carried DDR3->DDR4
     localparam int MR2_RTT_WR_LSB         = 9;    // [11:9], review-verified
     localparam int MR5_RTT_PARK_LSB       = 6;    // [8:6], review-verified
-    localparam int MR5_CA_PARITY_LAT_LSB  = 0;    // [2:0], review-verified (Alliance)
+    localparam int MR5_CA_PARITY_LAT_LSB  = 0;    // field review-verified (Alliance); the output is the [1:0] slice, encoding map Q1
     localparam int MR1_WRLVL_BIT          = 7;    // carried DDR3
     // Placeholders -- wiring verified against the TB constants, positions
     // TBC at Q1:
@@ -136,7 +136,8 @@ module andesite_mode_register #(
     assign w_fgr3  = w_mr3[MR3_FGR_LSB +: 3];
 
     assign mpr_page_o     = w_mr3[MR3_MPR_PAGE_LSB +: 2];
-    // Legal FGR encodings are 000/001/010 (1x/2x/4x); anything above clamps
+    // FGR encodings 000/001/010 (1x/2x/4x; reserved codes per JESD79-4, Q1
+    // confirmation pending); anything above clamps
     // to 4x, the same posture scoria's TCR took for illegal derate codes.
     assign fgr_factor_o   = (w_fgr3 > 3'd2) ? 2'd2 : w_fgr3[1:0];
     assign rtt_nom_o      = w_mr1[MR1_RTT_NOM_LSB +: 3];
