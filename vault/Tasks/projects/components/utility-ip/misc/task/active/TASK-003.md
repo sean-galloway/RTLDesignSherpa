@@ -4,10 +4,19 @@
 replaced by per-port axis_monitor_lite, TAP_BLOCKED stickiness preserved,
 observer suite 12/12 green (gate/func/full from clean, tap_dropped now 0 on
 the all_classes stimulus). OUT_DEPTH=16 with a measured-reason comment
-(grant waste + err-FIFO burst stall; fix filed as TASK-004). REMAINING:
-the board packet-class matrix -- both harnesses that instantiate this
-observer (bch_loop, reed-solomon) live in the parallel ecc-ip lane, so the
-board run is parked pending that lane or a go-ahead.
+(grant waste + err-FIFO burst stall; fix filed as TASK-005). REMAINING:
+the board packet-class matrix -- HANDED OFF 2026-10-04 to the ecc-ip lane.
+Handoff facts measured by the utility-ip session: (a) bch_loop's
+fpga/tcl/{build_all,create_project,synth_only}.tcl are UNCOMMITTED local
+files and the dir is EMPTY as of Oct 4 01:52 -- bch_loop `make bitstream`
+is broken machine-wide until the lane restores them; (b) reed-solomon's
+build-loop has the scripts COMMITTED, instantiates this observer at
+rs_loop_harness.sv:1039, and its host scripts carry iface-observer
+campaigns -- the rs route is the ready A/B (bitstream at 1e9d9facb vs
+main, then program + campaign + compare per-port packets; tap_dropped is
+observer stat metric 15); (c) run any misc-fub sim with `source env_python`
+(SIM=verilator + PYTHONPATH; the misc-fub conftest lacks the rapids-style
+sys.path hardening).
 
 **Priority:** P3 -- one implementation of the AXIS
 event set instead of two; no behaviour change intended.
