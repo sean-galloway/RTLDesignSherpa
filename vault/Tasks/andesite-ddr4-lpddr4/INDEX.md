@@ -22,8 +22,12 @@ is `git mv`, so an item is in exactly one state by construction.
 - **TASK-001** (open) — the advanced scheduling / refresh modes survey that
   predates the docs tranche (roadmap:
   `vault/Tasks/memory-controllers/ADVANCED_MODES_ROADMAP.md`).
-- **TASK-005** (open) — DFI 4.0 spec acquisition + BFM study; un-blocks every
+- **TASK-005** (open) — DFI 4.0 study + BFM gap analysis; un-blocks every
   `§TBC(TASK-005)` clause citation in the HAS/MAS.
+- **TASK-006..009** (open) — filed 2026-10-04 from the operator's
+  ddr4/lpddr4 research indexes: parity recovery FSM, per-bank-group refresh,
+  LPDDR4 book reconciliation (incl. the bank-count conflict), and
+  verification reference models (DRAMsim3 + BFM CA encoder).
 
 ## Closed
 

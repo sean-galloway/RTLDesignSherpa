@@ -44,7 +44,7 @@
 | family docs | `../../../../docs/` | shared-core design and doctrine — owned by no single controller (see Table 0.1 note) |
 | JESD79-4 | outside the repo, cold storage | DDR4 device standard |
 | JESD209-4 | outside the repo, cold storage | LPDDR4 device standard |
-| DFI v4.0 | not on disk — acquisition/study is andesite TASK-005 | the PHY boundary; clause citations carry `§TBC(TASK-005)` until confirmed |
+| DFI v4.0 | operator research storage `/mnt/data/github/dfi-specs/` (on disk 2026-10-04); study is andesite TASK-005 | the PHY boundary; clause citations carry `§TBC(TASK-005)` until the study confirms them |
 
 : Table 0.2: Related documents
 

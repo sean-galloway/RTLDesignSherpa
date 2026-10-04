@@ -31,13 +31,19 @@ carry do not support DDR4 — and that is a deliberate strengthening of the
 rule, not a weakening: with no board even conceivable, nothing can be left
 for bring-up to find.
 
-**The BFM does not exist in-house.** Acquisition and study is andesite
-TASK-005, and until it closes, every DFI 4.0 clause citation in this book and
-the MAS carries `§TBC(TASK-005)`. The BFM is configured to the design-point
-geometry of Chapter 2.4 — the bank-group geometry on the DDR4 side, eight
-ungrouped banks per channel on the LPDDR4 side, x8 / x16 widths, four DFI
-phases — because verifying at the geometry the design point uses is free,
-and verifying at a different one silently weakens every result.
+**The in-house BFM is DFI 4.0-partial, not absent.** The DV repository's
+CocoTBFramework DFI component exists and already carries a CA-parity
+behavior; what it lacks is the LPDDR4 6-bit CA encoding (its `lpddr_ca.py`
+covers LPDDR2/3). Acquisition is therefore not the problem — gap analysis
+and extension are, and that is andesite TASK-005 (amended 2026-10-04, when
+the DFI v4.0 spec PDF also surfaced in the operator's research storage at
+`/mnt/data/github/dfi-specs/`). Until TASK-005 closes, every DFI 4.0 clause
+citation in this book and the MAS carries `§TBC(TASK-005)`. The BFM is
+configured to the design-point geometry of Chapter 2.4 — the bank-group
+geometry on the DDR4 side, eight ungrouped banks per channel on the LPDDR4
+side, x8 / x16 widths, four DFI phases — because verifying at the geometry
+the design point uses is free, and verifying at a different one silently
+weakens every result.
 
 The boundary is chosen for the reason pumice chose it: it is the one
 interface where the controller's obligations are fully specified by a

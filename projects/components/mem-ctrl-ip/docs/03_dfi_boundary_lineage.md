@@ -46,7 +46,9 @@ across the family without opening three books.
   `scoria-ddr3-lpddr3/docs/scoria_has/ch04_interfaces/01_dfi_v31.md`.
 - andesite's ch04 (`andesite-ddr4-lpddr4/docs/andesite_has/ch04_interfaces/`)
   owns the 4.0 boundary; its clause citations carry `§TBC(TASK-005)` until
-  the DFI 4.0 spec is acquired and studied
-  (`vault/Tasks/andesite-ddr4-lpddr4/task/open/TASK-005.md`).
+  the study confirms them. The DFI v4.0 spec PDF is on disk in the
+  operator's research storage (`/mnt/data/github/dfi-specs/`, cited
+  2026-10-04); the study and the in-house BFM's 4.0 gap analysis are
+  `vault/Tasks/andesite-ddr4-lpddr4/task/open/TASK-005.md`.
 - andesite's foundation document, `scoria-ddr3-lpddr3/docs/design-requirements.md`,
   is where the boundary was argued against the actual revisions.
