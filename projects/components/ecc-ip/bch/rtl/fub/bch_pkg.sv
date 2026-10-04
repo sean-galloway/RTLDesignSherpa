@@ -30,12 +30,14 @@ package bch_pkg;
     // CCSDS TC (63,56) modified BCH is the reference profile: m = 6, the field
     // polynomial is x^6 + x + 1 (0x43), t = 1, n = 63. FIRST_ROOT defaults to
     // 1 (narrow-sense); CCSDS overrides it to 0 to include the (x+1) factor.
+    /* verilator lint_off UNUSEDPARAM */
     parameter int FIELD_DIM     = 6;
     parameter int PRIM_POLY     = 'h43;
     parameter int T_BITS        = 1;
     parameter int N_BITS        = 63;
     parameter int BITS_PER_BEAT = 8;
     parameter int FIRST_ROOT    = 1;
+    /* verilator lint_on UNUSEDPARAM */
 
     // Largest generator degree this package can represent.  GF_MAX_M * 512 is
     // generous for every realistic profile (m=13,t=8 gives deg 104) while
@@ -56,6 +58,7 @@ package bch_pkg;
     // consecutive root range; each cyclotomic coset modulo 2^m - 1 contributes
     // its size once.
     // -------------------------------------------------------------------------
+    /* verilator lint_off UNUSEDSIGNAL */
     function automatic int bch_degree_g(input int m, input int prim, input int t, input int b);
         int n_full;
         int visited [(1 << GF_MAX_M)];
@@ -75,6 +78,7 @@ package bch_pkg;
         end
         return deg;
     endfunction
+    /* verilator lint_on UNUSEDSIGNAL */
 
     // -------------------------------------------------------------------------
     // Generator polynomial coefficients as a vector of GF_MAX_M-bit lanes.
