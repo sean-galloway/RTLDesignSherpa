@@ -13,3 +13,5 @@
 -f fub/andesite_rd_return_ring.f
 -f fub/andesite_dfi_cdc.f
 -f fub/andesite_cmd_history_checker.f
+-f fub/andesite_powerdown_ctrl.f
+-f fub/andesite_dfi_signal_pack.f
