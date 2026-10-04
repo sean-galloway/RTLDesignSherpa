@@ -15,9 +15,14 @@ Observer agent ids come from the RTL (axi4_intf_master_observer.sv):
 Both observers use the same scheme, so with one rd and one wr port each the
 live agents are 0 (reads) and 16 (writes).
 
-Only classes this build can actually emit are programmed: the harness builds
-ERROR / TIMEOUT / COMPL cones, and MON_CTRL enables them at reset. PERF is
-enabled here explicitly since its cone is built too.
+Only classes this build can actually emit are keyed, derived per observer at
+runtime from that observer's OWN OBS_CAPS0 (BUG-019): the candidates in LEGAL
+below are filtered through the register, and MON_CTRL arms exactly the keyed
+cones -- arming an unkeyed cone floods UNEXPECTED (measured 2026-10-03: with
+the perf cone retired, threshold packets the campaign armed but never keyed
+were ~89% of live traffic). On the current lite taps caps bit4/bit5 (perf/
+debug) read 0, so the perf candidates drop out and the arm word loses
+THRESHOLD/PERF along with them.
 
 Every iteration calls the BOARD'S PROGRAM, CharacterizationRunner.run_config
 -- the sequence the cosim runs via tb.run_dma_via_runner(): reset_stream,
@@ -46,7 +51,10 @@ import tally                                            # noqa: E402
 AGENT_RD, AGENT_WR = 0x00, 0x10        # from the observer RTL, see docstring
 PROTO_AXI = 0
 
-# (agent, proto, packet_type, event_code, label) -- ONLY what this build emits.
+# (agent, proto, packet_type, event_code, label) -- the CANDIDATE set. Each
+# observer's effective set is this list filtered by its OWN OBS_CAPS0 at
+# runtime (see _campaign); packet_type -> required caps state lives in
+# obs_addrs.filter_legal_by_caps.
 LEGAL = [
     (AGENT_RD, PROTO_AXI, 1, 0,  "rd_compl"),
     (AGENT_WR, PROTO_AXI, 1, 0,  "wr_compl"),
@@ -60,24 +68,26 @@ LEGAL = [
 MON_N_PROFILE = 32          # CAM depth as built; the hardware value overrides
 
 
-def configure_observers(bridge):
-    """Arm BOTH observers. Nothing else in the tree does this."""
-    for label, base in (("master", OBS.OBS_APB_BASE),
-                        ("slave",  OBS.SLAVE_OBS_APB_BASE)):
+def configure_observers(bridge, arm_by_tally):
+    """Arm BOTH observers, each with the MON_CTRL derived from its OWN caps.
+
+    `arm_by_tally` maps tally "stream" -> the master observer and "slave" ->
+    the slave observer. MONITOR_EN (bit 7) is the runtime arm: clearing it
+    disarms the tap WITHOUT rebuilding -- which is exactly how to tell "the
+    instrument is stalling the DMA" from "the DMA never launched" ($OBS_TAPS=0
+    exercises that path).
+    """
+    for tally_key, label, base in (("stream", "master", OBS.OBS_APB_BASE),
+                                   ("slave",  "slave",  OBS.SLAVE_OBS_APB_BASE)):
         # OBS_CTRL = 0 -> flush watermark 0 (emit every complete record).
         # The default is 16 records, and a short workload never reaches it.
         bridge.write(OBS.O("OBS_CTRL", base), 0)
-        # All emittable cones on. Reset already enables ERROR/TIMEOUT/COMPL;
-        # PERF is off at reset, and its cone IS built, so turn it on.
-        # MONITOR_EN (bit 7) is the runtime arm. Clearing it disarms the tap
-        # WITHOUT rebuilding -- which is exactly how to tell "the instrument is
-        # stalling the DMA" from "the DMA never launched".
-        _mon = 0x9F if os.environ.get("OBS_TAPS", "1") == "1" else 0x1F
-        bridge.write(OBS.O("MON_CTRL", base), _mon)
-        caps = bridge.read(OBS.O("OBS_CAPS0", base)) or 0
+        bridge.write(OBS.O("MON_CTRL", base), arm_by_tally[tally_key])
+        caps = OBS.read_caps0(bridge, base)
         print(f"  {label:6s} observer caps0=0x{caps:08X} "
               f"cones[err={caps & 1} tmo={(caps >> 1) & 1} compl={(caps >> 2) & 1} "
-              f"perf={(caps >> 4) & 1}] taps={(caps >> 6) & 1}")
+              f"thr={(caps >> 3) & 1} perf={(caps >> 4) & 1} dbg={(caps >> 5) & 1} "
+              f"ranges={(caps >> 12) & 0xF}] taps={(caps >> 6) & 1}")
 
 
 def main():
@@ -98,13 +108,34 @@ def main():
 def _campaign(bridge, args):
     runner = CharacterizationRunner(bridge, verbose=True)
     tally_rd, tally_cfg = tally.windows()
-    unexpected = tally.check_capacity(bridge, tally_cfg["stream"], LEGAL, MON_N_PROFILE)
-    labels = tally.labels(LEGAL, unexpected)
+
+    # Derive each observer's effective legal set AND its MON_CTRL arm from its
+    # OWN OBS_CAPS0, read live (BUG-019): the lite taps build no perf/debug
+    # cone, and the two observers are free to differ (measured 2026-10-03:
+    # master 0x42CF vs slave 0x424F). Arm exactly the keyed cones -- arming an
+    # unkeyed cone floods UNEXPECTED (threshold packets, measured at ~89% of
+    # live traffic once the perf packets that used to dwarf them retired).
+    monitor_en = os.environ.get("OBS_TAPS", "1") == "1"
+    legal_by_tally, arm_by_tally, retired = {}, {}, {}
+    for k, base in (("stream", OBS.OBS_APB_BASE), ("slave", OBS.SLAVE_OBS_APB_BASE)):
+        caps = OBS.read_caps0(bridge, base)
+        kept, ret = OBS.filter_legal_by_caps(LEGAL, caps)
+        legal_by_tally[k] = kept
+        arm_by_tally[k] = OBS.mon_ctrl_arm((t[2] for t in kept), monitor_en=monitor_en)
+        for t, why in ret:
+            retired[t[4]] = why
+    for label, why in retired.items():
+        print(f"  class retired by caps: {label:<12s} -- {why}")
+
+    unexpected = tally.check_capacity(bridge, tally_cfg["stream"],
+                                      legal_by_tally["stream"], MON_N_PROFILE)
+    labels_by_tally = {k: tally.labels(legal_by_tally[k], unexpected)
+                       for k in legal_by_tally}
 
     def pre_kick(br):
-        configure_observers(br)
+        configure_observers(br, arm_by_tally)
         for k in tally_cfg:
-            tally.program_cam(br, tally_cfg[k], LEGAL)
+            tally.program_cam(br, tally_cfg[k], legal_by_tally[k])
 
     cfg = CharConfig(name="obs", num_channels=1, channels=[args.channel],
                      descriptors_per_channel=args.descriptors,
@@ -119,18 +150,26 @@ def _campaign(bridge, args):
         bridge.write(H("CTRL"), compose("CTRL", FREEZE_TRACE=1))
         time.sleep(0.02)
         for k in tally_rd:
-            counts = tally.sweep_dense(bridge, tally_rd[k], len(LEGAL), unexpected)
+            counts = tally.sweep_dense(bridge, tally_rd[k], len(legal_by_tally[k]), unexpected)
             for b, c in counts.items():
                 totals[k][b] = totals[k].get(b, 0) + c
-            print(f"[{it:03d}] {k:6s} pass={done} {tally.format_counts(counts, labels)}")
+            print(f"[{it:03d}] {k:6s} pass={done} {tally.format_counts(counts, labels_by_tally[k])}")
 
     print("\n==== cumulative ====")
-    grand = 0
+    grand = unexp_total = 0
     for k in totals:
         tot = sum(totals[k].values())
         grand += tot
-        print(f"{k:6s} total={tot:>8}  {tally.format_counts(totals[k], labels)}")
+        unexp_total += totals[k].get(unexpected, 0)
+        print(f"{k:6s} total={tot:>8}  {tally.format_counts(totals[k], labels_by_tally[k])}")
     print(f"\nTOTAL PACKETS BINNED: {grand}")
+    if unexp_total:
+        print(f"UNEXPECTED={unexp_total}: tuples outside the caps-derived legal set "
+              f"reached the tallies (the tally's first-event capture identifies "
+              f"which). Under BUG-019's re-pin this is a FAIL, not a rounding "
+              f"error: arm-what-you-key leaves no legitimate source of "
+              f"unexpected packets.")
+        return 1
     return 0 if grand else 1
 
 

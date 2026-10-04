@@ -11,6 +11,13 @@ tuples actually fire is DISCOVERED per scenario, not guessed. Anything the
 monitors emit that is not in the candidate set lands in the single UNEXPECTED
 bin (flagged loudly).
 
+The candidate set is filtered against the bitstream's own build identity at
+runtime (BUG-019): BUILD_CONFIG.GEN_MON=0 compiles the CORE emitters (agents
+48/16) out of the harness, and the monlite datapath monitors build no perf/
+debug cone (8cce2ecce). Retired candidates print with their reason and stay
+out of the CAM -- a retired cone that ever emits again lands in UNEXPECTED,
+which is where it belongs.
+
 Every scenario is ONE call to the board's program, CharacterizationRunner
 .run_config(): reset_stream -> load_descriptors -> configure_stream (which
 applies the scenario's MonitorProgram) -> pre_kick (routing, ranges, timeouts,
@@ -42,10 +49,12 @@ import time
 _here = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(_here, "..", "..", "bin")))
 import stream_env  # noqa: F401,E402  (import side effect: sys.path setup)
-from harness_addrs import H, autodetect_port, compose, describe_build  # noqa: E402
+from harness_addrs import (H, autodetect_port, compose, describe_build,  # noqa: E402
+                           build_info)
 from characterization import CharacterizationRunner, CharConfig  # noqa: E402
 from stream_monitors import (MonitorProgram, route_monbus, arm_addr_ranges,  # noqa: E402
-                             set_timeouts, run_perf_windows, DATAPATH_MONITORS,
+                             set_timeouts, run_perf_windows, filter_legal_by_build,
+                             DATAPATH_MONITORS,
                              PKT_ERROR, PKT_COMPL, PKT_THRESHOLD, PKT_TIMEOUT,
                              PKT_PERF, PKT_ADDRMATCH, PKT_PERFWIN, PKT_PERFHIST)
 import tally  # noqa: E402
@@ -147,7 +156,8 @@ SCENARIOS = [
 ]
 
 
-def run_scenario(bridge, runner, sc, tally_rd, tally_cfg, unexpected, per_run_timeout_s):
+def run_scenario(bridge, runner, sc, tally_rd, tally_cfg, unexpected, per_run_timeout_s,
+                 candidates):
     name, channels, ndesc, xbytes, beats, classes, monitors, rmode, launches, setup = sc
     os.environ["XFER_BEATS"] = str(beats)          # burst size, read by configure_stream
     os.environ["CHAR_POLL_TIMEOUT_S"] = str(per_run_timeout_s)
@@ -160,7 +170,7 @@ def run_scenario(bridge, runner, sc, tally_rd, tally_cfg, unexpected, per_run_ti
         arm_addr_ranges(br, rmode)
         route_monbus(br, "stream_tally")           # the tally is what we SWEEP
         setup(br, runner)
-        tally.program_cam(br, tally_cfg, CANDIDATES)
+        tally.program_cam(br, tally_cfg, candidates)
 
     cfg = CharConfig(name=name, num_channels=len(channels), channels=list(channels),
                      descriptors_per_channel=ndesc, transfer_bytes=xbytes)
@@ -177,7 +187,7 @@ def run_scenario(bridge, runner, sc, tally_rd, tally_cfg, unexpected, per_run_ti
         bridge.write(H("CTRL"), compose("CTRL", FREEZE_TRACE=1))
         time.sleep(0.02)
         # Sweep per launch: the next run_config's reset clears the tally.
-        for b, c in tally.sweep_dense(bridge, tally_rd, len(CANDIDATES), unexpected).items():
+        for b, c in tally.sweep_dense(bridge, tally_rd, len(candidates), unexpected).items():
             counts[b] = counts.get(b, 0) + c
     return done, counts
 
@@ -186,9 +196,17 @@ def run_matrix(bridge, runner, *, reps=1, only=None, per_run_timeout_s=20.0):
     scenarios = [s for s in SCENARIOS if (only is None or s[0] in only)]
     rd, cfgw = tally.windows()
     tally_rd, tally_cfg = rd["stream"], cfgw["stream"]
-    unexpected = tally.check_capacity(bridge, tally_cfg, CANDIDATES, MON_N_PROFILE)
-    labels = tally.labels(CANDIDATES, unexpected)
-    print(f"candidate legal set: {len(CANDIDATES)} tuples (bin0..{len(CANDIDATES) - 1}, "
+
+    # BUG-019: derive the candidate set from what THIS bitstream reports
+    # (GEN_MON compiles the CORE emitters out; the monlite builds no perf/
+    # debug cone) instead of keying tuples that can never fire.
+    binfo = build_info(bridge)
+    candidates, retired = filter_legal_by_build(CANDIDATES, binfo)
+    for t, why in retired:
+        print(f"  candidate retired by build: {t[4]:<22s} -- {why}")
+    unexpected = tally.check_capacity(bridge, tally_cfg, candidates, MON_N_PROFILE)
+    labels = tally.labels(candidates, unexpected)
+    print(f"candidate legal set: {len(candidates)} tuples (bin0..{len(candidates) - 1}, "
           f"UNEXPECTED={unexpected}, CAM depth from hardware)")
 
     agg = {s[0]: {} for s in scenarios}
@@ -198,7 +216,7 @@ def run_matrix(bridge, runner, *, reps=1, only=None, per_run_timeout_s=20.0):
             name = sc[0]
             try:
                 done, counts = run_scenario(bridge, runner, sc, tally_rd, tally_cfg,
-                                            unexpected, per_run_timeout_s)
+                                            unexpected, per_run_timeout_s, candidates)
             except Exception as e:
                 print(f"  [{name}] EXCEPTION: {e}")
                 continue
@@ -223,6 +241,7 @@ def run_matrix(bridge, runner, *, reps=1, only=None, per_run_timeout_s=20.0):
     print("\n---------------- packet classes observed (any scenario) ----------------")
     MONBUS_EMITTABLE = {PKT_ADDRMATCH, PKT_COMPL, PKT_PERF, PKT_ERROR, PKT_TIMEOUT, PKT_THRESHOLD}
     CSR_ONLY = {PKT_PERFWIN: "perfwin", PKT_PERFHIST: "perfhist"}
+    retired_types = {t[2] for t, _w in retired}
     classes = {"addrmatch": PKT_ADDRMATCH, "completion": PKT_COMPL, "perf": PKT_PERF,
                "perfwin": PKT_PERFWIN, "perfhist": PKT_PERFHIST, "error": PKT_ERROR,
                "timeout": PKT_TIMEOUT, "threshold": PKT_THRESHOLD}
@@ -231,19 +250,27 @@ def run_matrix(bridge, runner, *, reps=1, only=None, per_run_timeout_s=20.0):
         for b, c in d.items():
             if b == unexpected or not c:
                 continue
-            seen_class.setdefault(CANDIDATES[b][2], set()).add(name)
+            seen_class.setdefault(candidates[b][2], set()).add(name)
+    emittable = MONBUS_EMITTABLE - retired_types
     covered = 0
     for cls, ty in classes.items():
         who = seen_class.get(ty)
         if ty in CSR_ONLY:
             print(f"  {cls:11s} (type {ty:#03x}): CSR-only (no monbus emit path; perfmon RFC pending)")
             continue
+        if ty in retired_types:
+            print(f"  {cls:11s} (type {ty:#03x}): retired on this build (monlite / GEN_MON=0)")
+            continue
         covered += int(bool(who))
         note = "OK  in " + ",".join(sorted(who)) if who else "not seen"
         print(f"  {cls:11s} (type {ty:#03x}): {note}")
     total_unexp = sum(d.get(unexpected, 0) for d in agg.values())
-    print(f"\nmonbus-emittable classes covered: {covered}/{len(MONBUS_EMITTABLE)} "
-          f"(perfwin/perfhist are CSR-only); total UNEXPECTED={total_unexp}"
+    notes = ["perfwin/perfhist are CSR-only"]
+    if retired_types:
+        notes.append("retired on this build: " + ",".join(
+            sorted(n for n, ty in classes.items() if ty in retired_types)))
+    print(f"\nmonbus-emittable classes covered: {covered}/{len(emittable)} "
+          f"({'; '.join(notes)}); total UNEXPECTED={total_unexp}"
           + ("  <-- packets emitted with a tuple NOT in the candidate set" if total_unexp else ""))
     return 0 if any(done_ok.values()) else 1
 

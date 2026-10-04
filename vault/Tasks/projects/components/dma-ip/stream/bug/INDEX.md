@@ -12,18 +12,26 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [open/](open/) | 0 | accepted, not started |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 18 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
+(none)
+
+## Active
+
 - **BUG-019** — the obs/mon host campaigns still arm and report the perf/
   debug cones the 2026-09-27 lite-taps rework retired (caps0 bit4/bit5 read 0),
   so obs live-traffic tallies land ~89% in UNEXPECTED and mon_coverage sees
-  4/8 tuples; re-baseline the campaigns against OBS_CAPS0
+  4/8 tuples; re-baseline the campaigns against OBS_CAPS0. ACTIVE 2026-10-04:
+  host side done and committed (obs_addrs caps helpers, arm-what-you-key,
+  matrix row SKIP by primary class, build-mon uses BUILD_CONFIG.GEN_MON +
+  LITE_RETIRED_TYPES); board re-pin of the results files parked — needs a
+  Genesys 2 session
 
 
 ## Closed

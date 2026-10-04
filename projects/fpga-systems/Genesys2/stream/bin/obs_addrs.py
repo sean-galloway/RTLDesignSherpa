@@ -78,3 +78,93 @@ def O(name: str, base: int = OBS_APB_BASE) -> int:
 
 def has(name: str) -> bool:
     return name in registers()
+
+
+# ---------------------------------------------------------------------------
+# OBS_CAPS0 (0x0D0) -- the observer's self-description, and the contract every
+# host campaign derives its expected classes from. Packed, not fielded; see
+# the CAPS PACKING note in obs_regs.rdl. [4] PERF_CONE and [5] DEBUG_CONE read
+# 0 on the lite taps REGARDLESS of TAP_ENABLE_* (78cddb5e2): the lite builds
+# neither cone, and reporting the parameter would send every caps-derived
+# consumer waiting for packets that can never come.
+# ---------------------------------------------------------------------------
+CAPS_ERROR_CONE, CAPS_TIMEOUT_CONE, CAPS_COMPL_CONE = 0x01, 0x02, 0x04
+CAPS_THRESHOLD_CONE, CAPS_PERF_CONE, CAPS_DEBUG_CONE = 0x08, 0x10, 0x20
+CAPS_MON_TAPS = 0x40
+CAPS_N_ADDR_RANGES_SHIFT = 12
+
+# packet type -> the OBS_CAPS0 state its emit path needs. AddrMatch rides the
+# address-range checker, so it keys on N_ADDR_RANGES rather than a cone bit.
+_TYPE_REQ = {
+    0x0: (CAPS_ERROR_CONE, "ERROR_CONE"),
+    0x1: (CAPS_COMPL_CONE, "COMPL_CONE"),
+    0x2: (CAPS_THRESHOLD_CONE, "THRESHOLD_CONE"),
+    0x3: (CAPS_TIMEOUT_CONE, "TIMEOUT_CONE"),
+    0x4: (CAPS_PERF_CONE, "PERF_CONE"),
+    0x8: ("ranges", "N_ADDR_RANGES"),
+    0xF: (CAPS_DEBUG_CONE, "DEBUG_CONE"),
+}
+
+# MON_CTRL (obs_regs.rdl) runtime cone enables, bit-for-bit the arm word the
+# obs campaigns write. Deriving the word from the legal set keeps "arm what
+# you key" structural instead of a comment that drifts (BUG-019: an arm word
+# that enabled THRESHOLD while no threshold tuple was keyed sent ~89% of live
+# traffic to UNEXPECTED once the perf packets that used to dwarf it retired).
+MON_CTRL_BITS = {0x0: 0,    # ERROR_EN
+                 0x3: 1,    # TIMEOUT_EN
+                 0x1: 2,    # COMPL_EN
+                 0x2: 3,    # THRESHOLD_EN
+                 0x4: 4,    # PERF_EN
+                 0xF: 5}    # DEBUG_EN
+MON_CTRL_ADDR_CHECK_EN = 6
+MON_CTRL_MONITOR_EN = 7
+
+
+def read_caps0(bridge, base: int = OBS_APB_BASE) -> int:
+    """OBS_CAPS0 from the observer behind `base` (master or slave window)."""
+    return bridge.read(O("OBS_CAPS0", base)) or 0
+
+
+def n_addr_ranges(caps0: int) -> int:
+    return (caps0 >> CAPS_N_ADDR_RANGES_SHIFT) & 0xF
+
+
+def filter_legal_by_caps(legal, caps0: int):
+    """Split a monbus legal set against ONE observer's OBS_CAPS0.
+
+    Returns (kept, retired): kept is the sublist whose emit path exists in
+    this build; retired is [(entry, reason)] for entries whose cone (or range
+    checker) is not built. A class the hardware cannot emit is a class the
+    board campaign can never cover -- the campaign must treat it as "not
+    applicable", never "not seen".
+    """
+    kept, retired = [], []
+    for t in legal:
+        req = _TYPE_REQ.get(t[2])
+        if req is None:
+            kept.append(t)
+            continue
+        want, name = req
+        have = n_addr_ranges(caps0) > 0 if want == "ranges" else bool(caps0 & want)
+        if have:
+            kept.append(t)
+        else:
+            retired.append((t, f"{name} not built (OBS_CAPS0=0x{caps0:08X})"))
+    return kept, retired
+
+
+def mon_ctrl_arm(ptypes, monitor_en: bool = True) -> int:
+    """MON_CTRL arm word enabling exactly the cones behind `ptypes`.
+
+    AddrMatch (0x8) has no cone enable -- it rides the address-range checker,
+    programmed per row by the obs matrix (ADDR_CHECK_EN is deliberately NOT
+    set here).
+    """
+    arm = 0
+    for t in ptypes:
+        b = MON_CTRL_BITS.get(t)
+        if b is not None:
+            arm |= 1 << b
+    if monitor_en:
+        arm |= 1 << MON_CTRL_MONITOR_EN
+    return arm

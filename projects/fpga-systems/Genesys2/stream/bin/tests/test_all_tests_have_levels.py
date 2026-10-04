@@ -59,6 +59,9 @@ FIXED_COST = {
         'over a fixed register set -- there is no "more" of it to do',
     'bin/tests/test_mon_configs.py':
         'monitor preset table lookups; a fixed table, checked exhaustively',
+    'bin/tests/test_monbus_legal_caps.py':
+        'pure caps-word/legal-set arithmetic over fixed synthetic register '
+        'values; no DUT, no board, no workload to scale',
     'bin/tests/test_stream_levels.py':
         'tests the level helper itself; scaling it by its own level would be '
         'circular',

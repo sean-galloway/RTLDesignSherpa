@@ -11,6 +11,13 @@ the dense bins." A bin > 0 means that exact tuple was observed on silicon; the
 UNEXPECTED bin counts every packet NOT in the loaded set (proof that other
 traffic is flowing, even before its exact tuple is enumerated here).
 
+The legal set is derived at runtime from the bitstream's own build identity
+(BUG-019), never hardcoded: BUILD_CONFIG.GEN_MON decides the CORE (proto 4)
+tuples -- GEN_MON=0 compiles those emitters out of the harness -- and the
+monlite datapath monitors build no perf/debug cone (8cce2ecce). Retired tuples
+are dropped from the CAM and print as "retired", never "not seen"; if one ever
+emits again it lands in UNEXPECTED, which is where it belongs.
+
 Each iteration is one call to the board's program (CharacterizationRunner
 .run_config) with the monitor program and the CAM applied inside it -- after
 the reset that would otherwise clear them. This file used to route the
@@ -29,10 +36,12 @@ import time
 _here = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(_here, "..", "..", "bin")))
 import stream_env  # noqa: F401,E402  (import side effect: sys.path setup)
-from harness_addrs import H, autodetect_port, compose, describe_build  # noqa: E402
+from harness_addrs import (H, autodetect_port, compose, describe_build,  # noqa: E402
+                           build_info)
 from characterization import CharacterizationRunner, CharConfig  # noqa: E402
 from stream_monitors import (MonitorProgram, route_monbus, arm_addr_ranges,  # noqa: E402
-                             run_perf_windows, PKT_COMPL, PKT_PERF, PKT_ADDRMATCH)
+                             run_perf_windows, filter_legal_by_build,
+                             PKT_COMPL, PKT_PERF, PKT_ADDRMATCH)
 import tally  # noqa: E402
 
 MON_N_PROFILE = 32               # legal-set capacity; the hardware value overrides
@@ -57,8 +66,21 @@ def run_coverage(bridge, runner, *, channel=0, minutes=10.0, iters=None,
                  xfer_bytes=4096, per_run_timeout_s=15.0):
     rd, cfgw = tally.windows()
     tally_rd, tally_cfg = rd["stream"], cfgw["stream"]
-    unexpected = tally.check_capacity(bridge, tally_cfg, STREAM_LEGAL, MON_N_PROFILE)
-    labels = tally.labels(STREAM_LEGAL, unexpected)
+
+    # BUG-019: the expected set comes from what THIS bitstream reports.
+    # GEN_MON (BUILD_CONFIG) ties the CORE emitters off in stream_harness.sv,
+    # so agents 48/16 can never emit; the monlite monitors build no perf/debug
+    # cone. Dropping retired tuples from the CAM also re-arms UNEXPECTED as a
+    # tripwire: a retired cone that ever emits again bins there, loudly.
+    binfo = build_info(bridge)
+    if not binfo["use_monitors"]:
+        raise SystemExit("BUILD_CONFIG reports USE_MONITORS=0 -- this is the "
+                         "build-mon campaign and cannot bin anything on this bitstream")
+    legal, retired = filter_legal_by_build(STREAM_LEGAL, binfo)
+    for t, why in retired:
+        print(f"  class retired by build: {t[4]:<22s} -- {why}")
+    unexpected = tally.check_capacity(bridge, tally_cfg, legal, MON_N_PROFILE)
+    labels = tally.labels(legal, unexpected)
     os.environ["CHAR_POLL_TIMEOUT_S"] = str(per_run_timeout_s)
 
     runner.mon_config = MonitorProgram(CLASSES, name="coverage")
@@ -66,9 +88,9 @@ def run_coverage(bridge, runner, *, channel=0, minutes=10.0, iters=None,
 
     def pre_kick(br):
         arm_addr_ranges(br, "match_all")           # every AR/AW emits AddrMatch
-        run_perf_windows(br)                       # PERF flows
+        run_perf_windows(br)     # inert on the monlite; kept for a full-monitor build
         route_monbus(br, "stream_tally")
-        tally.program_cam(br, tally_cfg, STREAM_LEGAL)
+        tally.program_cam(br, tally_cfg, legal)
 
     cfg = CharConfig(name="coverage", num_channels=1, channels=[channel],
                      descriptors_per_channel=2, transfer_bytes=xfer_bytes)
@@ -81,7 +103,7 @@ def run_coverage(bridge, runner, *, channel=0, minutes=10.0, iters=None,
         # FREEZE for a coherent read boundary; reads are live (no cache).
         bridge.write(H("CTRL"), compose("CTRL", FREEZE_TRACE=1))
         time.sleep(0.02)
-        counts = tally.sweep_dense(bridge, tally_rd, len(STREAM_LEGAL), unexpected)
+        counts = tally.sweep_dense(bridge, tally_rd, len(legal), unexpected)
         for b, c in counts.items():
             seen[b] = seen.get(b, 0) + c
         passed += int(done and bool(counts))
@@ -90,14 +112,16 @@ def run_coverage(bridge, runner, *, channel=0, minutes=10.0, iters=None,
 
     print(f"\nmon_coverage: {it} workloads, {passed} with tally hits")
     print("legal-set tuples observed on silicon:")
-    for i, (ag, pr, ty, ec, label) in enumerate(STREAM_LEGAL):
+    for i, (ag, pr, ty, ec, label) in enumerate(legal):
         c = seen.get(i, 0)
         print(f"  bin{i:2d} {label:22s} (ag{ag},p{pr},t{ty},e{ec:#04x}): {c}  "
               f"{'OK' if c else 'not seen'}")
+    for (ag, pr, ty, ec, label), why in retired:
+        print(f"  --   {label:22s} (ag{ag},p{pr},t{ty},e{ec:#04x}): retired ({why})")
     unexp = seen.get(unexpected, 0)
     print(f"  UNEXPECTED (tuples not in the legal set): {unexp}")
-    covered = sum(1 for i in range(len(STREAM_LEGAL)) if seen.get(i))
-    print(f"\ntuples seen: {covered}/{len(STREAM_LEGAL)}; UNEXPECTED={unexp} "
+    covered = sum(1 for i in range(len(legal)) if seen.get(i))
+    print(f"\ntuples seen: {covered}/{len(legal)}; UNEXPECTED={unexp} "
           f"({'other packets flowing' if unexp else 'none outside the set'})")
     return 0 if passed else 1
 

@@ -27,6 +27,12 @@ Three of these rows became possible only recently:
   Threshold   needed TAP_ENABLE_THRESHOLD_LOGIC; the reporter was not built.
   Debug       needed TAP_ENABLE_DEBUG_LOGIC; likewise.
   Error/ADDR_RANGE needed ADDR_RANGE_IS_ERROR; every range was DEBUG-flavoured.
+
+Rows whose cone the bitstream does not build are SKIPPED at runtime from
+OBS_CAPS0 (plan_class, BUG-019), and a row whose legal set only partially
+retires -- addrmatch loses its debug_side companions on the lite taps, since
+the lite builds no debug cone -- runs with the reduced set. A class the
+hardware cannot emit reads "SKIP", never "LOW".
 """
 
 import argparse
@@ -189,8 +195,50 @@ def configure_observers(bridge, mon_ctrl, rng, tuning):
         bridge.write(OBS.O("MON_CTRL", base), mon_ctrl)
 
 
-def run_class(bridge, name, args):
-    mon_ctrl, legal, rng, why = MATRIX[name]
+# The packet class each matrix row exists to prove. A row is SKIPPED when its
+# primary class has no emit path on this build (plan_class, BUG-019);
+# companion tuples may retire without skipping the row -- perf keys the
+# completions it structurally depends on, addrmatch keys the debug_side
+# packets its DEBUG-path arm also emits, so both rows' legal sets mix primary
+# and companion types.
+PRIMARY = {"compl": 0x1, "perf": 0x4, "addrmatch": 0x8, "error": 0x0,
+           "timeout": 0x3, "threshold": 0x2, "debug": 0xF}
+
+
+def plan_class(name, caps_list):
+    """Filter one matrix row's legal set against BOTH observers' OBS_CAPS0 and
+    decide whether the row can run at all (BUG-019).
+
+    A row's packets bin on BOTH tallies, so the row needs its emit path on
+    BOTH observers -- the stricter caps wins. The row is skipped when its
+    PRIMARY class (PRIMARY above) has no emit path; retired companion tuples
+    are dropped from the legal set with their reason printed. Returns
+    (kept, retired_reasons, skip_reason); skip_reason is None when the row
+    can run.
+    """
+    _mon_ctrl, legal, rng, _why = MATRIX[name]
+    kept = list(legal)
+    reasons = []
+    for caps in caps_list:
+        kept, retired = OBS.filter_legal_by_caps(kept, caps)
+        reasons.extend(why for _t, why in retired)
+    if not any(t[2] == PRIMARY[name] for t in kept):
+        why = "; ".join(reasons) or f"primary class {PRIMARY[name]:#x} filtered out"
+        return kept, reasons, f"primary class not emit-able on this build ({why})"
+    if rng is not None and not any(OBS.n_addr_ranges(c) for c in caps_list):
+        return kept, reasons, "address-range checker not built (N_ADDR_RANGES=0)"
+    return kept, reasons, None
+
+
+def run_class(bridge, name, args, caps_list):
+    mon_ctrl, _legal, rng, why = MATRIX[name]
+    kept, retired_reasons, skip_reason = plan_class(name, caps_list)
+    if skip_reason:
+        print(f"  [SKIP] {name:<10} {why}")
+        print(f"           {skip_reason}")
+        return name, None, 0
+    for r in retired_reasons:
+        print(f"           retired: {r}")
     runner = CharacterizationRunner(bridge)
     tally_rd, tally_cfg = tally.windows()
 
@@ -199,8 +247,8 @@ def run_class(bridge, name, args):
     # MON_N_PROFILE=32, so every "unexpected" figure was read from a bin that
     # does not exist in the hardware. The tally publishes its own sizing;
     # trust hardware over a constant.
-    unexpected = tally.check_capacity(bridge, tally_cfg["stream"], legal, UNEXPECTED)
-    labels = tally.labels(legal, unexpected)
+    unexpected = tally.check_capacity(bridge, tally_cfg["stream"], kept, UNEXPECTED)
+    labels = tally.labels(kept, unexpected)
 
     # Everything the observers and the tally need is armed INSIDE the board's
     # program, after its reset_stream() and STREAM config, before the kick:
@@ -211,7 +259,7 @@ def run_class(bridge, name, args):
         runner.set_resp_delay(rd_dly, wr_dly)        # by name; cleared for other classes
         configure_observers(br, mon_ctrl, rng, TUNING.get(name))
         for k in tally_cfg:
-            tally.program_cam(br, tally_cfg[k], legal)
+            tally.program_cam(br, tally_cfg[k], kept)
 
     cfg = CharConfig(name=name, num_channels=1, channels=[args.channel],
                      descriptors_per_channel=args.descriptors,
@@ -223,14 +271,16 @@ def run_class(bridge, name, args):
         bridge.write(H("CTRL"), compose("CTRL", FREEZE_TRACE=1))
         time.sleep(0.02)
         for k in tally_rd:
-            for b, c in tally.sweep_dense(bridge, tally_rd[k], len(legal), unexpected).items():
+            for b, c in tally.sweep_dense(bridge, tally_rd[k], len(kept), unexpected).items():
                 totals[k][b] = totals[k].get(b, 0) + c
 
     keyed = sum(v for k in totals for b, v in totals[k].items() if b != unexpected)
     unexp = sum(totals[k].get(unexpected, 0) for k in totals)
     detail = ", ".join(f"{labels.get(b, b)}={v}"
                        for k in ("stream",) for b, v in sorted(totals[k].items()))
-    status = "OK " if keyed >= args.min_packets else "LOW"
+    # BUG-019 re-pin: with arm-what-you-key the campaign structurally cannot
+    # produce unexpected packets, so any arrival is LOW, not a footnote.
+    status = "OK " if keyed >= args.min_packets and not unexp else "LOW"
     print(f"  [{status}] {name:<10} keyed={keyed:<9} unexpected={unexp:<7} {detail[:56]}")
     print(f"           {why}")
     return name, keyed, unexp
@@ -256,15 +306,25 @@ def main():
 
     results = []
     with UARTAxiBridge(port, 115200) as bridge:
+        caps_list = [OBS.read_caps0(bridge, OBS.OBS_APB_BASE),
+                     OBS.read_caps0(bridge, OBS.SLAVE_OBS_APB_BASE)]
+        print(f"observer caps: master=0x{caps_list[0]:08X} slave=0x{caps_list[1]:08X} "
+              f"(rows needing an unbuilt cone are skipped)")
         for name in classes:
-            results.append(run_class(bridge, name, args))
+            results.append(run_class(bridge, name, args, caps_list))
 
     print("\n==== summary ====")
-    ok = [r for r in results if r[1] >= args.min_packets]
+    ran = [r for r in results if r[1] is not None]
+    skipped = [r for r in results if r[1] is None]
+    ok = [r for r in ran if r[1] >= args.min_packets and not r[2]]
     for name, keyed, unexp in results:
-        print(f"  {name:<10} {keyed:>9} keyed  {unexp:>7} unexpected")
-    print(f"\n{len(ok)}/{len(results)} classes above the {args.min_packets}-packet floor")
-    return 0 if len(ok) == len(results) else 1
+        if keyed is None:
+            print(f"  {name:<10} {'SKIP':>9} (cone not built)")
+        else:
+            print(f"  {name:<10} {keyed:>9} keyed  {unexp:>7} unexpected")
+    tail = f"; {len(skipped)} skipped (cone not built, see per-row reasons)" if skipped else ""
+    print(f"\n{len(ok)}/{len(ran)} classes above the {args.min_packets}-packet floor{tail}")
+    return 0 if ran and len(ok) == len(ran) else 1
 
 
 if __name__ == "__main__":

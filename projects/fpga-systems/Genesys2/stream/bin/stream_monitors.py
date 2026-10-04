@@ -215,3 +215,39 @@ def run_perf_windows(bridge, window_cycles: int | None = None,
         if window_cycles is not None:
             bridge.write(A(f"{m}_PERF_WINDOW_CYCLES"), window_cycles)
         write_reg(bridge, f"{m}_PERF_CTRL", RUN=1)
+
+
+# ---------------------------------------------------------------------------
+# Post-8cce2ecce the in-core monitors are axi4_*_monlite: the lite builds the
+# address checker and the latency threshold, but NO perf cone (perf packets /
+# windows) and NO debug cone. Nothing on the bitstream REPORTS the retirement
+# -- DATA_MON_ENABLE_PERF_LOGIC is still plumbed (inert on the lite), so
+# BUILD_CONFIG.MAIN_CONES advertises a cone the silicon cannot emit. It is
+# therefore a host-side constant, stated once, here: swap the datapath
+# monitors back to the full monitor and this frozenset is the one line to
+# update. GEN_MON IS reported: with it 0 the CORE emitters (agents 48/16,
+# proto 4) are compiled out of the harness (stream_harness.sv ties GEN_MON to
+# 1'b0), which BUILD_CONFIG.GEN_MON exposes to the host.
+# ---------------------------------------------------------------------------
+LITE_RETIRED_TYPES: FrozenSet[int] = frozenset({PKT_PERF, PKT_DEBUG})
+
+
+def filter_legal_by_build(legal, build_info):
+    """Split a monbus legal set against THIS bitstream's build identity.
+
+    `build_info` is harness_addrs.build_info(bridge). GEN_MON decides the
+    CORE (proto 4) tuples; LITE_RETIRED_TYPES the cones the monlite never
+    built. Returns (kept, retired) with retired = [(entry, reason)] -- a class
+    the hardware cannot emit must read "retired", never "not seen".
+    """
+    core_ok = bool(build_info.get("gen_mon"))
+    kept, retired = [], []
+    for t in legal:
+        proto, ptype = t[1], t[2]
+        if proto == 4 and not core_ok:
+            retired.append((t, "GEN_MON=0: CORE emitters compiled out (BUILD_CONFIG)"))
+        elif ptype in LITE_RETIRED_TYPES:
+            retired.append((t, f"{_CLASS_NAME.get(ptype, ptype)} cone not built (monlite)"))
+        else:
+            kept.append(t)
+    return kept, retired
