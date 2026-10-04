@@ -80,12 +80,10 @@ lineage, the JEDEC generation deltas.
 
 ### Chapter 2: System Overview
 
-(lands with Task 3 of the docs tranche — entries below link as the chapters commit)
-
-- `ch02_overview/01_scope.md` — Scope and Goals
-- `ch02_overview/02_block_diagram.md` — Block Diagram
-- `ch02_overview/03_module_hierarchy.md` — Module Hierarchy
-- `ch02_overview/04_design_point.md` — The Target Design Point
+- [Scope and Goals](ch02_overview/01_scope.md)
+- [Block Diagram](ch02_overview/02_block_diagram.md)
+- [Module Hierarchy](ch02_overview/03_module_hierarchy.md)
+- [The Target Design Point](ch02_overview/04_design_point.md)
 
 ### Chapter 3: Architecture
 

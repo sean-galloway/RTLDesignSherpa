@@ -1,0 +1,76 @@
+flowchart TB
+    HOST_AXI["andesite_axi4_ifc<br/>INHERITED"] --> HOST_CHOP["axi_burst_chopper<br/>INHERITED"]
+    HOST_CHOP --> HOST_RIN["rd_intake<br/>INHERITED"]
+    HOST_CHOP --> HOST_WIN["wr_intake<br/>INHERITED"]
+    HOST_WIN --> HOST_WSPLIT["wr_splitter<br/>INHERITED"]
+    HOST_RIN --> SCHED
+    HOST_WSPLIT --> SCHED
+
+    subgraph SCHED["Scheduler"]
+        direction TB
+        SCHED_CORE["mem_cmd_scheduler<br/>MODIFIED — maintenance + L/S admission"]
+        SCHED_ARB["cmd_arbiter<br/>MODIFIED — tCCD_L/S aware"]
+        SCHED_PP["page_policy<br/>INHERITED"]
+        SCHED_RDCAM["rd_cmd_cam<br/>INHERITED"]
+        SCHED_WRCAM["wr_data_cam<br/>INHERITED"]
+        SCHED_BT["bank_timer / bank_timers<br/>INHERITED"]
+        SCHED_GT["global_timers<br/>MODIFIED — tRRD_L/S, tCCD_L/S"]
+        SCHED_AM["addr_mapper<br/>MODIFIED — bank-group decode"]
+        SCHED_CORE --> SCHED_ARB
+        SCHED_CORE --> SCHED_BT
+        SCHED_CORE --> SCHED_GT
+        SCHED_AM --> SCHED_CORE
+        SCHED_ARB --> SCHED_PP
+        SCHED_ARB --> SCHED_RDCAM
+        SCHED_ARB --> SCHED_WRCAM
+    end
+
+    subgraph MAINT["Maintenance"]
+        direction TB
+        MAINT_REF["refresh_ctrl<br/>MODIFIED — FGR 1x/2x/4x"]
+        MAINT_ZQ["zq_ctrl<br/>INHERITED — NEW submodule: LPDDR4 MPC path"]
+        MAINT_ODT["odt_ctrl<br/>NEW — RTT_NOM/WR/PARK"]
+    end
+    SCHED --> MAINT
+
+    subgraph INITTR["Init and training"]
+        direction TB
+        INIT_SEQ["init_sequencer<br/>MODIFIED — RESET#, gear-down, parity enable"]
+        INIT_MR["mode_register<br/>MODIFIED — MR0-MR6"]
+        INIT_WRLVL["wrlvl_ifc<br/>MODIFIED — interface only, no search loop"]
+        INIT_RDLVL["rdlvl_ifc<br/>NEW — MPR read leveling, no search loop"]
+        INIT_CA["ca_train_ifc<br/>NEW — LPDDR4 CA/WDQ training"]
+    end
+    INIT_SEQ --> SCHED
+    INIT_MR --> INIT_SEQ
+
+    subgraph DFI["DFI v4.0 layer"]
+        direction TB
+        DFI_PATH["dfi_cmd_path<br/>MODIFIED — ACT_n, BG, parity wires"]
+        DFI_FMT["dfi_cmd_formatter<br/>MODIFIED — NEW submodule: LPDDR4 CA path"]
+        DFI_RDA["dfi_rd_aligner<br/>MODIFIED — DBI read path"]
+        DFI_WRS["dfi_wr_serializer<br/>MODIFIED — DBI write path"]
+        DFI_CDC["dfi_cdc<br/>INHERITED"]
+        DFI_PACK["dfi_signal_pack<br/>carried dormant"]
+        DFI_HIST["cmd_history_checker<br/>INHERITED — DDR4 spacing set"]
+    end
+    SCHED --> DFI_FMT
+    MAINT --> DFI_PATH
+    DFI_FMT --> DFI_PATH
+    DFI_PATH --> DFI_RDA
+    DFI_PATH --> DFI_WRS
+
+    CSR["CSR block (PeakRDL)<br/>flow INHERITED — contents grow"] -.-> SCHED
+    CSR -.-> MAINT
+    CSR -.-> INITTR
+    CSR -.-> DFI
+
+    classDef inh fill:#228B22,color:#FFFFFF,stroke:#145214;
+    classDef mod fill:#E6A817,color:#000000,stroke:#8a650f;
+    classDef new fill:#C62828,color:#FFFFFF,stroke:#7a1414;
+    classDef dorm fill:#808080,color:#FFFFFF,stroke:#4d4d4d,stroke-dasharray:5 5;
+
+    class HOST_AXI,HOST_CHOP,HOST_RIN,HOST_WIN,HOST_WSPLIT,SCHED_PP,SCHED_RDCAM,SCHED_WRCAM,SCHED_BT,DFI_CDC,MAINT_ZQ inh;
+    class SCHED_CORE,SCHED_ARB,SCHED_GT,SCHED_AM,MAINT_REF,INIT_SEQ,INIT_MR,INIT_WRLVL,DFI_PATH,DFI_FMT,DFI_RDA,DFI_WRS mod;
+    class MAINT_ODT,INIT_RDLVL,INIT_CA new;
+    class DFI_PACK dorm;
