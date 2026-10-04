@@ -1,6 +1,6 @@
 # TASK-002: Author the BCH HAS v0.1
 
-**Status:** open 2026-10-03
+**Status:** closed 2026-10-03
 **Priority:** P3 — the component has no consumer yet; the HAS is the next
 planning artifact after the PRD, the same posture reed-solomon TASK-002 had
 **Owner:** TBD
@@ -35,3 +35,9 @@ and the structural facts that separate binary BCH from the sibling RS codec
 **2026-10-03 -- v0.1 skeleton authored.** `docs/bch_has/` tree landed with
 index, styles, front matter, six chapters, mermaid sources, and the PDF
 generator; every open item is tied to a PRD decision ID.
+
+**2026-10-03 -- closed.** Definition of done re-checked at recovery: the v0.1
+PDF builds from `docs/generate_has_pdf.sh` (rebuilt today), every TBD is tied
+to a PRD decision ID, and `bin/check_task_ids.py` passes. Encoder/syndrome
+RTL landed the same day (TASK-001 log); where the HAS cites RTL locations the
+fub/macro alignment commit keeps them true.
