@@ -40,3 +40,14 @@ Decisions open except D7 (share the reed-solomon GF layer), D9 direction
 (valid/ready core plus wrapper adapters, per RS D9), and D10 (consumer
 deferred to the memory-controller project). Next: read the references, then
 the HAS.
+
+**2026-10-03 (later) -- encoder half of the codec lands.** Beyond the
+stand-up: HAS v0.1 + MAS v0.1 authored (TASK-002 closed), and RTL+DV for
+`bch_pkg`, `bch_syndrome_unit` (fub) and `bch_encoder_core` (macro) with
+gate DV green on the three standing profiles (CCSDS (63,56) b=0, flash-class
+(4224,4120) t=8 m=13, narrow-sense (63,51) t=2). The encoder test run was
+interrupted by a session reset and then by two latent bugs it was the first
+to exercise: `bch_gen_poly_packed` built one (x + root) factor per cyclotomic
+COSET instead of per CONJUGATE (a degree-2 stand-in for the degree-7 CCSDS
+g(x)), and the TB's polynomial golden built GF(2) arrays where it needed
+Poly objects. Both fixed; the decoder stages continue under TASK-005.
