@@ -47,12 +47,15 @@ def _env_with_sv2v() -> dict:
 
 
 def make_flat_repo(tmp_path: Path, recipe_body: str,
-                   drift: bool = False) -> Path:
+                   drift: bool = False,
+                   dut_body: str | None = None) -> Path:
     """A scratch repo with one flatten-flow proof and a committed flat.
 
     ``recipe_body`` replaces the flat rule's recipe lines so the UNHANDLED
     case can plant an in-tree side effect. ``drift`` mutates the source after
     the flat is generated, planting staleness without touching the flat.
+    ``dut_body`` replaces the default trivial DUT (tests that need sv2v to
+    bake source locations into the flat pass an asserting design).
     """
     repo = tmp_path / "scratch"
     proof = repo / "formal" / "demo" / "block1"
@@ -61,12 +64,14 @@ def make_flat_repo(tmp_path: Path, recipe_body: str,
 
     shutil.copy(STATUS, repo / "bin" / "formal_status.py")
 
-    (proof / "dut.sv").write_text(
-        "module dut(input  logic        clk,\n"
-        "           input  logic [7:0] d,\n"
-        "           output logic [7:0] q);\n"
-        "  assign q = d;\n"
-        "endmodule\n")
+    if dut_body is None:
+        dut_body = (
+            "module dut(input  logic        clk,\n"
+            "           input  logic [7:0] d,\n"
+            "           output logic [7:0] q);\n"
+            "  assign q = d;\n"
+            "endmodule\n")
+    (proof / "dut.sv").write_text(dut_body)
     (proof / "block1.sby").write_text(
         "[options]\nmode bmc\n[script]\n"
         "read_verilog -formal block1_flat.v\n")
@@ -105,6 +110,10 @@ def run_check(repo: Path) -> subprocess.CompletedProcess:
 
 SIMPLE_RECIPE = "\t$(SV2V) dut.sv > $@\n"
 
+# The REPO_ROOT pattern real formal Makefiles use: absolute source paths, so
+# sv2v bakes the generating clone's checkout path into the flat.
+ABS_RECIPE = "\t$(SV2V) $(CURDIR)/dut.sv > $@\n"
+
 UNHANDLED_RECIPE = (
     "\t$(SV2V) dut.sv > $@\n"
     "\ttouch side_effect.txt\n")
@@ -140,6 +149,39 @@ def test_reformatted_flat_is_current(tmp_path):
     r = run_check(repo)
     assert r.returncode == 0, \
         f"a whitespace-only reformat flagged drift: {r.stdout}{r.stderr}"
+    assert "CURRENT" in r.stdout
+
+
+def test_foreign_checkout_root_is_current(tmp_path):
+    """A flat committed from a DIFFERENT clone's absolute root must not flag
+    STALE on this runner. Formal Makefiles export REPO_ROOT (git rev-parse
+    --show-toplevel) and pass absolute source paths, so sv2v bakes the
+    generating machine's checkout path into assertion source locations
+    (dev machine: /mnt/data/github/RTLDesignSherpa, CI: /home/runner/work/...)
+    -- same design, different prefix. The comparison masks any absolute
+    prefix entering the repo tree; a path-only difference is not drift."""
+    repo = make_flat_repo(
+        tmp_path, ABS_RECIPE,
+        dut_body=(
+            "module dut #(parameter int W = 1) (\n"
+            "           input  logic        clk,\n"
+            "           input  logic [7:0] d,\n"
+            "           output logic [7:0] q);\n"
+            "  assign q = d;\n"
+            "  generate\n"
+            "    if (W < 2) begin : gen_guard\n"
+            "      $error(\"unsupported W=%0d\", W);\n"
+            "    end\n"
+            "  endgenerate\n"
+            "endmodule\n"))
+    flat = repo / "formal" / "demo" / "block1" / "block1_flat.v"
+    assert str(repo) in flat.read_text(), \
+        "fixture must bake an absolute checkout path into the flat"
+    flat.write_text(flat.read_text().replace(
+        str(repo), "/home/runner/work/RTLDesignSherpa/RTLDesignSherpa"))
+    r = run_check(repo)
+    assert r.returncode == 0, \
+        f"a foreign checkout root flagged drift: {r.stdout}{r.stderr}"
     assert "CURRENT" in r.stdout
 
 

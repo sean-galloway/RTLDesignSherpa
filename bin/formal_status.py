@@ -186,7 +186,17 @@ def _writes_in_tree(line: str, allowed: str) -> bool:
 
 
 def _norm_tokens(path: pathlib.Path) -> list[str]:
-    return path.read_text(errors="replace").split()
+    text = path.read_text(errors="replace")
+    # Formal Makefiles export REPO_ROOT (git rev-parse --show-toplevel) and
+    # pass absolute source/include paths, so sv2v bakes the GENERATING
+    # clone's checkout path into assertion source-location strings. The
+    # committed flat may carry the dev machine's root while the runner's
+    # regeneration carries the CI root -- same design, different prefix.
+    # Mask any absolute prefix that enters the repo tree so the check
+    # compares design content, not where the clone lives.
+    text = re.sub(r"(?:/[^\s'\"]*)+/(?=(?:rtl|projects|formal|bin|docs|"
+                  r"vault|\.github)(?:/|\b))", "$REPO_ROOT/", text)
+    return text.split()
 
 
 def _first_diff(a: list[str], b: list[str]) -> str:
