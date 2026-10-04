@@ -1,7 +1,9 @@
 # andesite-ddr4-lpddr4 bootstrap — design spec
 
 **Date:** 2026-10-03
-**Status:** brainstormed with the owner; approved to write the spec
+**Status:** brainstormed with the owner; approved to write the spec; amended 2026-10-03
+(the mem_ctrl_pkg design and family doctrine move to a family-level `docs/`, per
+the owner's review)
 **Deliverable of this tranche:** documentation only — the andesite HAS, then the
 MAS, then the kmap book. RTL bootstrap is a follow-on implementation plan, written
 after this spec via superpowers:writing-plans.
@@ -18,8 +20,9 @@ Success looks like: three committed, house-styled books under
 `andesite-ddr4-lpddr4/docs/` — a Hardware Architecture Specification that a reader
 can trace block-by-block to scoria's, a Microarchitecture Specification covering the
 changed and new blocks in depth, and a generated kmap book pinning the DRAM command
-and mode-register encodings — plus the vault tasks that make the follow-on RTL work
-trackable.
+and mode-register encodings — **plus a family-level `mem-ctrl-ip/docs/` seed** owning
+the shared-core design and doctrine — and the vault tasks that make the follow-on
+RTL work trackable.
 
 ## 2. Scope decisions (owner answers, 2026-10-03)
 
@@ -36,12 +39,14 @@ trackable.
 (one book, both memtypes, memtype enum), with the predecessor swapped: scoria
 inherited from pumice; andesite inherits from scoria.
 
-The owner chose **"shared core first" as spec-first**: the HAS specifies
-`mem_ctrl_pkg` (two-bit memtype, shared timing structs, the scoria/pumice migration
-plan with conditions) as the architectural foundation. The refactor itself is
-**deferred** to andesite RTL bring-up — no shipping controller is touched in this
-tranche. `andesite_pkg` exists from day one; the migration note is recorded in the
-HAS so the duplication of three near-identical packages is deliberate and
+The owner chose **"shared core first" as spec-first**: `mem_ctrl_pkg` (two-bit
+memtype, shared timing structs, the scoria/pumice migration plan with conditions)
+is the architectural foundation. Its **design lives at family level**
+(`mem-ctrl-ip/docs/`), not in any controller's book — a design that migrates two
+shipping controllers is family property, and the controller that does not exist
+yet must not own it. The refactor itself is **deferred** to andesite RTL bring-up —
+no shipping controller is touched in this tranche. `andesite_pkg` exists from day
+one; the family doc records the three near-identical packages as deliberate and
 time-boxed, exactly as scoria recorded its own package duplication.
 
 Rejected alternatives: family-split books (more writing, breaks precedent);
@@ -50,6 +55,16 @@ refactor-now (touches two measured controllers before the new one exists).
 ## 4. Book set and file layout
 
 ```
+projects/components/mem-ctrl-ip/
+├── README.md                        # exists — gains a pointer to docs/
+└── docs/                            # NEW: family property; no single controller owns it
+    ├── INDEX.md                     # what's here; the ownership rule
+    ├── 01_mem_ctrl_pkg.md           # shared-core design + scoria/pumice migration plan
+    ├── 02_family_doctrine.md        # config-not-param; request/grant never-preempt;
+    │                                # AXI4 host-side shape; marking semantics; evidentiary rule
+    ├── 03_dfi_boundary_lineage.md   # 2.1 → 3.1 → 4.0 delta tables (per-controller ch04 stays authoritative)
+    └── 04_jedec_generation_deltas.md# DDR2→3→4 / LPDDR2→3→4 reuse argument; links the Simplified study books
+
 projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/
 ├── andesite_has/                    # mirrors scoria_has chapter shape
 │   ├── ch00_front_matter/00_document_info.md
@@ -57,7 +72,7 @@ projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/
 │   ├── ch02_overview/{01_scope,02_block_diagram,03_module_hierarchy,04_design_point}.md
 │   ├── ch03_architecture/           # the deltas heart (section 5)
 │   ├── ch04_interfaces/{01_dfi_v40,02_axi4_apb}.md
-│   ├── ch05_parameters/01_package_and_params.md   # incl. mem_ctrl_pkg foundation
+│   ├── ch05_parameters/01_package_and_params.md   # references mem-ctrl-ip/docs/01_mem_ctrl_pkg.md
 │   ├── ch06_integration/01_verification_open.md
 │   ├── assets/graphviz/01_block_diagram.{dot,png} # color-marked vs scoria
 │   └── andesite_has_index.md
@@ -82,8 +97,8 @@ claims, dated Status notes, and the evidentiary rule scoria's HAS carries
 
 **Ch1 introduction** — purpose; conventions: the marking semantics now run
 relative to **scoria** (INHERITED / MODIFIED / NEW), plus the mem_ctrl_pkg family
-note; definitions new to this tier: bank group, tCCD_L/tCCD_S, FGR, gear-down,
-CA parity, DBI, MPC.
+note pointing at the family docs; definitions new to this tier: bank group,
+tCCD_L/tCCD_S, FGR, gear-down, CA parity, DBI, MPC.
 
 **Ch2 overview** — scope (DDR4-led; LPDDR4 deltas per chapter; sim-only, no board —
 7-series targets do not carry DDR4); the color-marked block diagram against scoria;
@@ -114,18 +129,20 @@ and the deferred list (write CRC, LPDDR4 DVFS/DSM, self-refresh scheduling).
 **Ch4 interfaces** — `01_dfi_v40.md`: the 3.1→4.0 delta table (ACT_n, alert_n,
 gear-down handshake, parity, DBI wires, frequency ratios) and what transfers from
 scoria's ch04; `02_axi4_apb.md`: host side unchanged in shape, name-based regmap
-rule carried over.
+rule carried over. Both cite the family DFI lineage doc rather than restating
+earlier-version material.
 
-**Ch5 parameters** — the **mem_ctrl_pkg foundation chapter** (spec-first C):
-two-bit memtype, shared timing struct inventory, the scoria/pumice migration plan
-with conditions, recorded deferral; `andesite_pkg` initial content; geometry fixed
-per the design point; timings runtime CSRs; the build-time vs runtime table.
+**Ch5 parameters** — **references** `mem-ctrl-ip/docs/01_mem_ctrl_pkg.md` for the
+shared-core design, two-bit memtype, shared timing struct inventory, the
+scoria/pumice migration plan and its recorded deferral; owns only what is
+andesite's own: `andesite_pkg` initial content, geometry fixed per the design
+point, timings runtime CSRs, the build-time vs runtime table.
 
 **Ch6 integration** — verification strategy: sim-only, DFI 4.0 BFM (acquisition and
 study = named task); the open-questions table (write CRC, gear-down coverage scope,
 CA-parity scope, LPDDR4 DVFS/DSM, BFM provenance); what would make the HAS a 1.0;
-vault filing: **andesite TASK-001 (HAS), TASK-002 (MAS), TASK-003 (kmaps),
-TASK-004 (DFI 4.0 BFM study)** under
+vault filing: **andesite TASK-001 (HAS + family docs seed), TASK-002 (MAS),
+TASK-003 (kmaps), TASK-004 (DFI 4.0 BFM study)** under
 `vault/Tasks/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/task/`
 (the bch lane's path shape), with INDEX updates per the tasks convention.
 
@@ -153,14 +170,16 @@ contract workbook plus markdown renderings cited from MAS ch04 and HAS ch03.
 
 ## 8. Sequencing and gates
 
-1. **HAS v0.1** authored from the delta analysis ("no RTL exists" posture, as
-   scoria v0.1) → owner review → commit.
-2. **MAS** → owner review → commit.
-3. **Kmaps** (generator + generated artifacts) → owner review → commit.
-4. Each book: documentation header, index, graphviz assets per house style; vault
+1. **Family docs seed** — `mem-ctrl-ip/docs/`: INDEX, `01_mem_ctrl_pkg.md`,
+   `02_family_doctrine.md` (03/04 may stub with pointers in v0.1) → commit.
+2. **HAS v0.1** authored from the delta analysis ("no RTL exists" posture, as
+   scoria v0.1), ch5 referencing the family doc → owner review → commit.
+3. **MAS** → owner review → commit.
+4. **Kmaps** (generator + generated artifacts) → owner review → commit.
+5. Each book: documentation header, index, graphviz assets per house style; vault
    INDEX/ID updates land with the book that triggers them; `bin/check_task_ids.py`
    green before every commit.
-5. Handoff: superpowers:writing-plans produces the RTL-bootstrap implementation
+6. Handoff: superpowers:writing-plans produces the RTL-bootstrap implementation
    plan from this spec.
 
 ## 9. Out of scope
