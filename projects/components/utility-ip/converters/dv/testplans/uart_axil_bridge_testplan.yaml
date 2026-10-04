@@ -3,9 +3,10 @@
 
 module: uart_axil_bridge
 rtl_files:
-  - projects/components/utility-ip/converters/rtl/uart_axil_bridge.sv
-  - projects/components/utility-ip/converters/rtl/uart_rx.sv
-  - projects/components/utility-ip/converters/rtl/uart_tx.sv
+rtl_files:
+  - projects/components/utility-ip/converters/rtl/uart_to_axil4/uart_axil_bridge.sv
+  - projects/components/utility-ip/converters/rtl/uart_to_axil4/uart_rx.sv
+  - projects/components/utility-ip/converters/rtl/uart_to_axil4/uart_tx.sv
 test_files:
   - projects/components/utility-ip/converters/dv/tests/test_uart_axil_bridge.py
 

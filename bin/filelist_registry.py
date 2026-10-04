@@ -55,10 +55,56 @@ TESTPLAN_BASELINE = REPO_ROOT / "bin" / "testplan_refs_baseline.json"
 
 MODULE_RE = re.compile(r"^\s*module\s+([A-Za-z_]\w*)", re.M)
 
-# A testplan's top-level rtl_file:/test_file: refs. The schema is flat and
-# these keys sit at column 0, so a line regex is enough -- no yaml
-# dependency for a gate that must run anywhere the filelists gate runs.
-TESTPLAN_REF_RE = re.compile(r"^(rtl_file|test_file):\s*(\S*)\s*$", re.M)
+# A testplan's top-level refs, in both accepted spellings:
+#   rtl_file: <path>     scalar; a plan may repeat the key to name several
+#   rtl_files:           plural; a YAML list of '- <path>' items (or [])
+# The schema is flat and these keys sit at column 0, so line walking is
+# enough -- no yaml dependency for a gate that must run anywhere the
+# filelists gate runs.
+#
+# Ref-or-annotation convention (tooling TASK-028): a ref is checked only
+# when it is a single whitespace-free token. Free text on the value line
+# or on a list item ('test_file: none (TESTING GAP)',
+# '- "INTEGRATION TESTED ONLY - No direct FUB tests"') records an
+# intentional gap and is exempt. Prose means "known gap"; a bare path
+# means "must resolve".
+TESTPLAN_REF_RE = re.compile(r"^(rtl_file|test_file):\s*(\S*)\s*$")
+TESTPLAN_REFLIST_RE = re.compile(r"^(rtl_files|test_files):\s*(\[[^\]]*\])?\s*$")
+TESTPLAN_REFITEM_RE = re.compile(r"^\s*-\s*(\S+)\s*$")
+
+
+def testplan_refs(text: str):
+    """Yield (key, ref) for every checkable ref; convention above."""
+    lines = text.splitlines()
+    i = 0
+    while i < len(lines):
+        m = TESTPLAN_REF_RE.match(lines[i])
+        if m:
+            yield m.group(1), m.group(2)
+            i += 1
+            continue
+        m = TESTPLAN_REFLIST_RE.match(lines[i])
+        if m:
+            key = m.group(1)
+            inline = (m.group(2) or "").strip("[] ")
+            if inline:
+                for ref in inline.split(","):
+                    ref = ref.strip().strip("'\"")
+                    if ref:
+                        yield key, ref
+            i += 1
+            while i < len(lines):
+                item = TESTPLAN_REFITEM_RE.match(lines[i])
+                if item:
+                    yield key, item.group(1)
+                    i += 1
+                    continue
+                if re.match(r"^\s*-\s*\S", lines[i]):
+                    i += 1            # prose item: intentional-gap annotation
+                    continue
+                break
+            continue
+        i += 1
 
 # A $VAR / ${VAR} that survived expansion. FRAMEWORK_ROOT and STREAM_CHAR_ROOT
 # are exported by the per-flow Makefiles rather than by filelist_utils, and
@@ -1111,8 +1157,7 @@ def testplan_broken_refs() -> list[str]:
         except OSError as e:
             problems.append(f"{rel_plan}: unreadable ({e})")
             continue
-        for m in TESTPLAN_REF_RE.finditer(text):
-            key, ref = m.group(1), m.group(2)
+        for key, ref in testplan_refs(text):
             if not ref:
                 problems.append(f"{rel_plan}: {key} is empty")
                 continue

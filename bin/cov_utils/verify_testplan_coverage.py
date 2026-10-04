@@ -25,13 +25,20 @@ def parse_testplan(yaml_path):
     with open(yaml_path, 'r') as f:
         testplan = yaml.safe_load(f)
 
-    rtl_files = testplan.get('rtl_files') or (
+    rfs = testplan.get('rtl_files')
+    if isinstance(rfs, str):
+        rfs = [rfs] if rfs.strip() else []
+    rtl_files = rfs or (
         [testplan['rtl_file']] if testplan.get('rtl_file') else [])
+    tfs = testplan.get('test_file')
+    if not tfs:
+        plural = testplan.get('test_files')
+        tfs = ', '.join(plural) if isinstance(plural, list) else (plural or '')
     result = {
         'module': testplan.get('module') or testplan.get('module_group', 'unknown'),
         'rtl_file': testplan.get('rtl_file', ''),
         'rtl_files': rtl_files,          # multi-module testplans list several
-        'test_file': testplan.get('test_file', ''),
+        'test_file': tfs,                # singular or plural list, joined
         'scenarios': []
     }
 

@@ -3,10 +3,10 @@
 
 module_group: fub_legacy_untested
 rtl_files:
-  - projects/components/dma-ip/rapids/rtl/fub/sink_axi_write_engine.sv
-  - projects/components/dma-ip/rapids/rtl/fub/sink_sram_control.sv
-  - projects/components/dma-ip/rapids/rtl/fub/source_axi_read_engine.sv
-  - projects/components/dma-ip/rapids/rtl/fub/source_sram_control.sv
+  - projects/components/dma-ip/rapids/rtl/fub/sink_axi_write_engine.sv (legacy gap, replaced by beats generation)
+  - projects/components/dma-ip/rapids/rtl/fub/sink_sram_control.sv (legacy gap, replaced by beats generation)
+  - projects/components/dma-ip/rapids/rtl/fub/source_axi_read_engine.sv (legacy gap, replaced by beats generation)
+  - projects/components/dma-ip/rapids/rtl/fub/source_sram_control.sv (legacy gap, replaced by beats generation)
 test_files: none (TESTING GAP)
 
 # Module descriptions:
