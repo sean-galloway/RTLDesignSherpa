@@ -12,20 +12,13 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 3 | done (kept for history) |
+| [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
-
-- **TASK-005** — single-port observers pad monbus_arbiter to 2 clients; the
-  idle padding client wastes every other grant (measured monbus_ready 1/1
-  toggle), and burst back-pressure from the 64-record egress err FIFO then
-  drops tap events at the core's default OUT_DEPTH 4/8 (killed Channel on
-  all_classes FULL). Fix the grant waste + CLIENTS=1 width guard; observer
-  workaround (OUT_DEPTH 16) rides it out meanwhile
 
 ## Active
 
@@ -34,6 +27,12 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-005** — single-port arbiter padding: width guards landed in all
+  three arbiters (CLIENTS=1 elaborates), observer padding deleted, suite
+  12/12 green, arbiter formal PASS (closed 2026-10-04 as measurement-
+  disproven scope: the "wasted grant" was the documented single-requester
+  ACK dead cycle — removing it fails the monbus formal proof; OUT_DEPTH 16
+  stays for the err-FIFO burst)
 - **TASK-001** — all RDL lives in the rdl directory -- CLOSED 2026-09-29: obs/tally/dma_address_gen RDL under rdl/<block>/; 9 referrers updated; check_rdl_regen PASS from the new paths
 - **TASK-004** — misc placement pass: FUTURE.md is a work list at the component root -- CLOSED 2026-09-29: FUTURE.md deleted; its TASK-101 pointer moved to the CLAUDE.md module table
 - **TASK-002** — scrub the tests for completeness (misc)

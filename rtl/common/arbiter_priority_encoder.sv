@@ -201,7 +201,8 @@
 
 module arbiter_priority_encoder #(
     parameter int CLIENTS = 4,
-    parameter int N = $clog2(CLIENTS)
+    // Guarded so CLIENTS=1 elaborates (see arbiter_round_robin).
+    parameter int N = (CLIENTS > 1) ? $clog2(CLIENTS) : 1
 ) (
     input  logic [CLIENTS-1:0]  requests_masked,
     input  logic [CLIENTS-1:0]  requests_unmasked,

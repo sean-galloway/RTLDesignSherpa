@@ -131,7 +131,12 @@
 //      - Prevents priority advancement during pending transactions
 //
 //   4. Dead Cycle Handling:
-//      - Single request + ACK completion = mandatory dead cycle
+//      - Single request + ACK completion = mandatory dead cycle. The clear
+//        re-samples requests: the wrapper's ack fires the moment downstream
+//        ready lands, after which the client may legally withdraw valid, so
+//        a same-cycle re-grant could hold a grant nobody wants (measured:
+//        removing this cycle fails the monbus_arbiter formal proof,
+//        ap_no_spurious — utility-ip/misc TASK-005)
 //      - Multiple requests + ACK completion = immediate next grant
 //      - Optimizes throughput while maintaining correctness
 //
@@ -263,6 +268,9 @@
 //------------------------------------------------------------------------------
 // Version History:
 //------------------------------------------------------------------------------
+//   2026-10-04: N width guarded so CLIENTS=1 elaborates (TASK-005); the
+//               single-requester ACK dead cycle stays — removing it fails
+//               the monbus_arbiter formal proof (ap_no_spurious)
 //   2025-09-15: Optimized ACK mode with unified state management
 //   2025-09-01: Added ACK protocol support
 //   2025-08-15: Initial implementation
@@ -274,7 +282,10 @@
 module arbiter_round_robin #(
     parameter int CLIENTS      = 4,
     parameter int WAIT_GNT_ACK = 0,
-    parameter int N = $clog2(CLIENTS)
+    // Guarded so CLIENTS=1 elaborates: $clog2(1) is 0 and [-1:0] vectors
+    // break verilator (ASCRANGE). utility-ip/misc TASK-005: the observer
+    // padded to two clients for this alone.
+    parameter int N = (CLIENTS > 1) ? $clog2(CLIENTS) : 1
 ) (
     input  logic                clk,
     input  logic                rst_n,
@@ -450,7 +461,16 @@ module arbiter_round_robin #(
                     // r_pending_ack, r_pending_client unchanged
 
                 end else if (grant_valid == 1'b1 && w_ack_received && (w_other_requests == '0)) begin
-                    // Rule 3: grant_valid = 1, ack occurs, only pending client requesting → clear all
+                    // Rule 3: grant_valid = 1, ack occurs, only pending client requesting → clear all.
+                    // The clear is contract, not timidity: the wrapper's ack
+                    // (grant && valid && downstream-ready) completes a transfer
+                    // the moment ready lands, after which the client may legally
+                    // withdraw valid; re-granting combinationally in the ack
+                    // cycle would hold a grant the requester no longer wants.
+                    // Measured 2026-10-04 (utility-ip/misc TASK-005): removing
+                    // this cycle for back-to-back throughput fails the
+                    // monbus_arbiter formal proof (ap_no_spurious, step 5) —
+                    // grant_valid locks high on a withdrawn request.
                     grant            <= '0;
                     grant_id         <= '0;
                     grant_valid      <= 1'b0;

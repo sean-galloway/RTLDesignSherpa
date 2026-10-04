@@ -495,16 +495,14 @@ module axis4_intf_observer
     monbus_timestamp_t                              mon_time_w;
 
     // Per-source monbus streams + arbiter inputs (unpacked, as the arbiter
-    // expects). monbus_arbiter sizes its grant id as $clog2(CLIENTS), which
-    // is a [-1:0] vector at CLIENTS=1 -- Verilator refuses it (ASCRANGE) and
-    // no other consumer has ever built the arbiter with one client. A
-    // single-port observer therefore pads to two clients and ties the spare
-    // input idle; the arbiter then has the shape every other instance has.
-    localparam int ARB_CLIENTS = (NUM_PORTS < 2) ? 2 : NUM_PORTS;
-    logic                                           mon_valid    [ARB_CLIENTS];
-    logic                                           mon_ready    [ARB_CLIENTS];
-    monitor_packet_t                                mon_packet   [ARB_CLIENTS];
-    monbus_timestamp_t                              mon_ts       [ARB_CLIENTS];
+    // expects). CLIENTS=1 was once padded to two because the arbiter's grant
+    // id sized as [-1:0] and Verilator refused it (ASCRANGE); the arbiter
+    // widths are guarded now (utility-ip/misc TASK-005), so a single-port
+    // observer builds the arbiter with exactly one client.
+    logic                                           mon_valid    [NUM_PORTS];
+    logic                                           mon_ready    [NUM_PORTS];
+    monitor_packet_t                                mon_packet   [NUM_PORTS];
+    monbus_timestamp_t                              mon_ts       [NUM_PORTS];
 
     // =================================================================
     // Per-port AXIS event taps
@@ -533,15 +531,17 @@ module axis4_intf_observer
                 .CFI_MAX_FREQ_MHZ     (CFI_MAX_FREQ_MHZ),
                 .CFI_NUM_FREQ_ENTRIES (CFI_ENTRIES),
                 .CFI_FREQ_STRATEGY    (0),
-                // 16 deep, not the core default 4: the observer's single-port
-                // build pads the monbus arbiter to two clients, so a padded
-                // client wastes every other grant, and the egress err FIFO
-                // (64 records, 3 AXIL beats each) back-pressures in bursts
-                // (measured 2026-10-04, all_classes FULL: an 8-cycle stall
-                // at ~1.1 events/cycle killed Channel at depth 4 and 8; the
-                // pre-core tap survived only by priority-shedding load, its
-                // drops invisible). 16 rides out the measured stall with
-                // margin. arbiter padding waste filed separately.
+                // 16 deep, not the core default 4: the egress err FIFO (64
+                // records, 3 AXIL beats each) back-pressures in bursts, and
+                // the arbiter's documented single-requester ACK dead cycle
+                // caps steady drainage at one transfer per two cycles
+                // (measured 2026-10-04, all_classes FULL: an 8-cycle
+                // downstream stall at ~1.1 events/cycle killed Channel at
+                // depth 4 and 8; the pre-core tap survived only by
+                // priority-shedding load, its drops invisible). 16 rides out
+                // the measured stall with margin. (TASK-005 pursued removing
+                // the dead cycle; the monbus_arbiter formal proof shows it is
+                // contract-load, so the depth stays.)
                 .OUT_DEPTH            (16)
             ) u_axis_tap (
                 .aclk                  (aclk),
@@ -601,16 +601,8 @@ module axis4_intf_observer
     monitor_packet_t     arb_monbus_packet;
     monbus_timestamp_t   arb_monbus_timestamp;
 
-    generate
-        for (gi = NUM_PORTS; gi < ARB_CLIENTS; gi = gi + 1) begin : gen_arb_pad
-            assign mon_valid[gi]  = 1'b0;
-            assign mon_packet[gi] = '0;
-            assign mon_ts[gi]     = '0;
-        end
-    endgenerate
-
     monbus_arbiter #(
-        .CLIENTS            (ARB_CLIENTS),
+        .CLIENTS            (NUM_PORTS),
         .INPUT_SKID_ENABLE  (1),
         .OUTPUT_SKID_ENABLE (1),
         .INPUT_SKID_DEPTH   (2),

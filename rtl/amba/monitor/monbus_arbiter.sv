@@ -58,7 +58,8 @@ module monbus_arbiter
     parameter int OUTPUT_SKID_ENABLE = 1,        // Keep as int but convert internally
     parameter int INPUT_SKID_DEPTH   = 2,        // Must be 2..8 inclusive
     parameter int OUTPUT_SKID_DEPTH  = 2,        // Must be 2..8 inclusive
-    parameter int N = $clog2(CLIENTS),
+    // Guarded so CLIENTS=1 elaborates (see arbiter_round_robin).
+    parameter int N = (CLIENTS > 1) ? $clog2(CLIENTS) : 1,
 
     // Combined (packet + timestamp) width carried atomically through the
     // skid buffers. Derived from package localparams — not a configurable.

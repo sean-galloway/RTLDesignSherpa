@@ -1,7 +1,38 @@
 # TASK-005: the single-port observer's monbus arbiter padding wastes every other grant, and the egress err FIFO back-pressures the taps in bursts
 
-**Status:** open 2026-10-04. (Filed as TASK-004 in commit c35c8304b's message,
-renumbered the same day -- TASK-004 already existed closed in this lane.)
+**Status:** CLOSED 2026-10-04 as a measurement-driven disposition — the fix
+that survives verification is narrower than the task as filed, and the
+filed root cause was REFUTED.
+
+What landed:
+- Width guards `(CLIENTS>1) ? $clog2(CLIENTS) : 1` in
+  arbiter_round_robin, arbiter_priority_encoder, and monbus_arbiter, so
+  CLIENTS=1 elaborates (lint-verified); the observer's two-client padding
+  (ARB_CLIENTS + gen_arb_pad) is deleted and it now builds the arbiter with
+  exactly NUM_PORTS clients. Observer suite 12/12 green (gate/func/full).
+- arbiter_round_robin formal proof: PASS with the guards.
+
+What was disproven:
+- The filed claim "the idle padding client wastes every other grant" is
+  FALSE. The measured 1/1 monbus_ready toggle is the arbiter's DOCUMENTED
+  single-requester ACK-mode dead cycle (header: "Single request + ACK
+  completion = mandatory dead cycle"): the wrapper's ack
+  (grant && valid && downstream-ready) completes a transfer the moment
+  ready lands, after which the client may legally withdraw valid, so
+  re-granting combinationally in the ack cycle holds a grant nobody wants.
+  Measured 2026-10-04: removing the dead cycle (merging ack-mode Rules 3+4)
+  FAILS the monbus_arbiter formal proof (ap_no_spurious, step 5 — output
+  valid locks high on a withdrawn request). The change was reverted; the
+  experiment and its evidence are recorded in the arbiter's header and
+  version history. Padding removal is throughput-neutral by the same fact.
+- Separately measured: formal/common/monbus_arbiter's ap_no_spurious is
+  PRE-EXISTING RED — it fails at HEAD with and without these changes (the
+  parallel lane is editing its flat). Not caused by, and not fixed under,
+  this task.
+
+Consequence: the observer's OUT_DEPTH stays 16 (the egress err-FIFO burst
+stall is the binding constraint; the tap queue needs the depth to ride it
+out). The RTL comment now says exactly that.
 **Priority:** P3
 **Filed from:** utility-ip/misc TASK-003 (observer adopted axis_monitor_lite).
 
