@@ -271,9 +271,9 @@ inert.
 axi_data_dnsize #(
     .WIDE_WIDTH      (M_AXI_DATA_WIDTH),
     .NARROW_WIDTH    (S_AXI_DATA_WIDTH),
-    .WIDE_SB_WIDTH   (2),          // RRESP
-    .NARROW_SB_WIDTH (2),
-    .SB_BROADCAST    (1),          // Broadcast RRESP
+    .WIDE_SB_WIDTH   (R_SB_WIDTH), // {RRESP, RUSER, RID}
+    .NARROW_SB_WIDTH (R_SB_WIDTH),
+    .SB_BROADCAST    (1),          // Broadcast RRESP, carry RID/RUSER
     .TRACK_BURSTS    (1),
     .BURST_LEN_WIDTH (8)
 ) u_r_dnsize (
@@ -290,12 +290,12 @@ axi_data_dnsize #(
     .wide_valid      (m_axi_rvalid),
     .wide_ready      (m_axi_rready),
     .wide_data       (m_axi_rdata),
-    .wide_sideband   (m_axi_rresp),
+    .wide_sideband   (m_axi_r_sideband),
     .wide_last       (m_axi_rlast),
     .narrow_valid    (int_r_valid),
     .narrow_ready    (int_r_ready),
     .narrow_data     (int_rdata),
-    .narrow_sideband (int_rresp),
+    .narrow_sideband (int_r_sideband),
     .narrow_last     (int_rlast)
 );
 ```
@@ -316,55 +316,30 @@ converter: in UPSIZE mode the slave side is already narrow, so the
 ARLEN pushed into the FIFO is already in narrow-beat units —
 `blen_mem[...] <= int_arlen;` stores it unchanged.)
 
-## 2.6.8 RID Handling
+## 2.6.8 RID/RUSER Handling
 
-### ID Passthrough
+### ID/User Carry Through the Data Path
 
-RID is sampled from the master side and HELD:
+RID and RUSER are not latched globally. They are packed into the R sideband
+and carried through the data-width primitive alongside RRESP:
 
 ```systemverilog
-// from the RTL: latch rid/ruser on every master R handshake; AXI4
-// keeps RID constant across a transaction's beats, so "most recent
-// rid" is correct for whatever aggregated beat is being emitted
-`ALWAYS_FF_RST(aclk, aresetn,
-    ... else if (m_axi_rvalid && m_axi_rready) begin
-        r_rid_held   <= m_axi_rid;
-        r_ruser_held <= m_axi_ruser;
-    end
-)
-assign int_rid = r_rid_held;
+localparam int R_SB_WIDTH = AXI_ID_WIDTH + AXI_USER_WIDTH + 2;
+assign m_axi_r_sideband = {m_axi_rresp, m_axi_ruser, m_axi_rid};
+assign {int_rresp, int_ruser, int_rid} = int_r_sideband;
 ```
 
-### Ordering Constraint (applies to both directions)
+- DOWNSIZE path (`axi_data_upsize`): the sideband is `{RRESP, RUSER, RID}`.
+  `SB_BROADCAST_WIDTH` tells the upsizer to hold the low bits (RUSER+RID)
+  from the first narrow beat while still folding the high bits (RRESP) by
+  severity across the group.
+- UPSIZE path (`axi_data_dnsize`): the sideband passes through with
+  `SB_BROADCAST=1`, so RRESP is broadcast to every narrow beat while RID and
+  RUSER travel with their originating beat.
 
-**The master-side slave must return responses in AR/AW issue order across ALL
-IDs.** Neither converter carries a transaction ID through its data path, so
-neither can attribute an out-of-order completion to the burst it belongs to.
-
-Read side: the burst-length queue holds `{narrow ARLEN, start lane}` and
-nothing else, and `s_axi_rid` is a single register latched on every master R
-handshake. If a slave returns ID1's data before ID0's, ID1's beats are counted
-against ID0's queue head, `s_axi_rlast` fires at the wrong boundary, one
-aggregated wide beat can mix two transactions, and `s_axi_rid` is whichever ID
-handshaked most recently.
-
-Write side: the split queue is popped by `split_b_pop = m_axi_bvalid &&
-m_axi_bready` -- any arriving B pops the head, whatever its ID -- and
-`m_axi_bready = split_b_final ? int_b_ready : 1'b1` swallows a non-final
-response unconditionally. A B that arrives out of order is folded into the
-wrong burst's accumulator: the burst it actually belonged to never gets its
-response (the master hangs), the other burst's response is built from the
-wrong beats, and every later burst's framing is shifted by one.
-
-AXI4 permits both behaviours. A slave may complete different-ID transactions
-out of order and may interleave read data across IDs, and a multi-ported DDR
-controller normally does. Satisfying "one outstanding transaction per ID" is
-**not** sufficient -- two IDs with one transaction each meet that and still
-break the fold.
-
-Safe configurations are: an in-order master-side slave, or a single ID
-outstanding at a time. Nothing in the RTL enforces or detects a violation, so
-a breach corrupts data silently rather than failing (tracked as projects/components/utility-ip/converters BUG-001 (was CONV-001)).
+This ensures each slave R beat reports its own originating RID/RUSER even when
+master R responses from different IDs overtake each other through the converter
+(fixed 2026-10-04, projects/components/utility-ip/converters BUG-008).
 
 ## 2.6.9 Resource Utilization
 

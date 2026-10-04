@@ -11,8 +11,10 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes
 # Package files (none needed - uses reset_defs.svh only)
 PKGS :=
 
-# RTL dependencies (gaxi_skid_buffer used for timing closure)
-DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv
+# RTL dependencies (gaxi_skid_buffer + data-width primitives used by the DUT)
+DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
+        $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv \
+        $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv
 
 # Device under test
 DUT := $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv

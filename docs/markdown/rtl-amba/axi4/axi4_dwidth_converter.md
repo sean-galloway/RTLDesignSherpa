@@ -505,7 +505,15 @@ of <= 256 beats as it takes, recording each in a split queue so the W framing
 and the B fold stay consistent. WRAP never reaches this path: AXI4 caps WRAP
 at 16 beats, and `16 * WIDTH_RATIO <= 256` for every supported ratio.
 
-**Ordering constraint on the split fold.** The split records live in a single FIFO (`splitq_*`), and the B fold pops one entry per downstream response, forwarding a B to the slave only on the record marked final. That is correct while downstream B responses arrive in the order the split AWs were issued -- guaranteed by AXI4 within one ID, since the pieces of a split burst all carry the AWID of the burst they came from. It is NOT guaranteed across IDs: AXI4 permits a downstream to return B responses for different IDs in any order, and a single FIFO cannot tell them apart, so an interleaved response would be folded against the wrong record. Drive this converter from a single ID, or from a master that does not interleave write responses, until the fold is made ID-aware (tracked as projects/components/utility-ip/converters BUG-008 (was CONV-010)).
+**Split-fold B handling.** In downsize mode one slave write burst is split into
+as many master bursts as needed. The converter records each master burst's beat
+count in the `splitq_*` queue for W framing, while the B channel uses a
+separate per-burst CAM keyed by AWID. Each CAM entry holds the number of
+outstanding master bursts for that slave burst and the worst BRESP seen so far.
+A master B response searches the CAM for the oldest matching AWID, decrements
+the counter, folds the response, and forwards a slave B only when the counter
+reaches zero. Same-ID ordering is preserved; cross-ID responses can complete in
+any order (fixed 2026-10-04, projects/components/utility-ip/converters BUG-008).
 
 > The naive `(Slave AWLEN + 1) * WIDTH_RATIO - 1` this section used to give is
 > the bug the split logic replaced: computed into the 8-bit field it wrapped,
@@ -569,7 +577,7 @@ at 16 beats, and `16 * WIDTH_RATIO <= 256` for every supported ratio.
 
 ---
 
-**Last Updated:** 2025-10-20
+**Last Updated:** 2026-10-04
 
 ---
 

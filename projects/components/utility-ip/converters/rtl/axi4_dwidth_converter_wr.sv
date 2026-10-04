@@ -13,7 +13,7 @@
 //   directory (each with its own pytest suite). This wrapper still
 //   owns: AW/W/B skid buffers, the AW awlen/awsize rewrite, the
 //   wuser carry that the primitives don't handle, and the B channel
-//   pass-through.
+//   split-fold CAM (per-AWID outstanding-split counter, BUG-008).
 //
 //   For read conversion, use axi4_dwidth_converter_rd.sv.
 //
@@ -189,24 +189,29 @@ module axi4_dwidth_converter_wr #(
     logic [B_WIDTH-1:0]        int_b_data;
     logic                      int_b_valid;
 
+    // Shared DOWNSIZE control signals (driven in gen_aw_downsize, consumed
+    // by gen_b_fold for the per-burst B CAM).
+    logic       w_aw_issue;
+    logic       w_this_last;
+
+    // Burst-split queue / B CAM depth.  Shared across generate blocks so
+    // both the W framing queue and the per-burst B CAM are the same size.
+    localparam int SPLITQ_DEPTH = 16;
+
     // -----------------------------------------------------------------
     // Downsize burst-split queue (driven in gen_aw_downsize, consumed by
-    // the W framing counter and the B fold; tied off for upsize).
+    // the W framing counter; tied off for upsize).
     //
     // One slave burst can need more narrow beats than one legal master
     // burst can carry, so the AW splitter issues several master bursts
-    // and records each one here: its beat count (for W framing) and
-    // whether it is the slave burst's final one (for the B fold). Two
-    // read pointers walk one memory -- W pops per completed master
-    // burst, B pops per master response -- and since a burst's B always
-    // follows its W data, the B pointer is the laggard and full is
-    // checked against it alone.
+    // and records each one's beat count here for W framing.  The B
+    // channel no longer walks this queue: BUG-008 showed that out-of-order
+    // B responses across IDs misalign a single B read pointer, so the B
+    // fold is now a per-burst outstanding-split counter keyed by AWID.
     // -----------------------------------------------------------------
     logic       split_w_avail;   // an unconsumed entry exists for W framing
     logic [8:0] split_w_beats;   // its master-burst beat count (1..256)
     logic       split_w_pop;     // W side: consumed this entry
-    logic       split_b_final;   // head-of-B entry: last burst of its slave burst
-    logic       split_b_pop;     // B side: consumed one response
 
     // UPSIZE only (driven in gen_aw_upsize, consumed in gen_w_upsize):
     // start lane of the burst the next W beats belong to, and the gate
@@ -317,15 +322,12 @@ module axi4_dwidth_converter_wr #(
             localparam int MASTER_SIZE = $clog2(M_STRB_WIDTH);
             localparam int MAX_BEATS   = 256;
             localparam int CNTW        = 9 + $clog2(WIDTH_RATIO);
-            localparam int SPLITQ_DEPTH = 16;
             localparam int SPLITQ_AW    = $clog2(SPLITQ_DEPTH);
 
             logic [CNTW-1:0]           r_split_remaining;
             logic [AXI_ADDR_WIDTH-1:0] r_split_addr;
             logic                      r_split_active;
             logic [8:0]                w_this_beats;
-            logic                      w_this_last;
-            logic                      w_aw_issue;
 
             assign w_this_beats = (r_split_remaining > CNTW'(MAX_BEATS))
                                   ? 9'(MAX_BEATS) : 9'(r_split_remaining);
@@ -360,26 +362,25 @@ module axi4_dwidth_converter_wr #(
                 end
             )
 
-            // Split queue: one memory, two read pointers (see the
-            // declaration block above). Push at each master AW issue;
-            // AW is back-pressured on full so it cannot overflow.
+            // Split queue: one memory, one read pointer for W framing.
+            // Push at each master AW issue; AW is back-pressured on full
+            // so it cannot overflow.
             logic [9:0]           splitq_mem [SPLITQ_DEPTH];
-            logic [SPLITQ_AW:0]   splitq_wptr, splitq_rptr_w, splitq_rptr_b;
+            logic [SPLITQ_AW:0]   splitq_wptr, splitq_rptr_w;
             logic                 w_splitq_full;
 
-            // B trails W, so B's pointer is the laggard: full-check it.
+            // Full is checked against the W pointer: once W has framed a
+            // master burst's data the entry can be reused for new AWs.
             assign w_splitq_full =
-                (splitq_wptr[SPLITQ_AW-1:0] == splitq_rptr_b[SPLITQ_AW-1:0]) &&
-                (splitq_wptr[SPLITQ_AW]     != splitq_rptr_b[SPLITQ_AW]);
+                (splitq_wptr[SPLITQ_AW-1:0] == splitq_rptr_w[SPLITQ_AW-1:0]) &&
+                (splitq_wptr[SPLITQ_AW]     != splitq_rptr_w[SPLITQ_AW]);
             assign split_w_avail = (splitq_wptr != splitq_rptr_w);
             assign split_w_beats = splitq_mem[splitq_rptr_w[SPLITQ_AW-1:0]][8:0];
-            assign split_b_final = splitq_mem[splitq_rptr_b[SPLITQ_AW-1:0]][9];
 
             `ALWAYS_FF_RST(aclk, aresetn,
                 if (`RST_ASSERTED(aresetn)) begin
                     splitq_wptr   <= '0;
                     splitq_rptr_w <= '0;
-                    splitq_rptr_b <= '0;
                 end else begin
                     if (w_aw_issue) begin
                         splitq_mem[splitq_wptr[SPLITQ_AW-1:0]]
@@ -387,7 +388,6 @@ module axi4_dwidth_converter_wr #(
                         splitq_wptr <= splitq_wptr + 1'b1;
                     end
                     if (split_w_pop) splitq_rptr_w <= splitq_rptr_w + 1'b1;
-                    if (split_b_pop) splitq_rptr_b <= splitq_rptr_b + 1'b1;
                 end
             )
 
@@ -419,7 +419,6 @@ module axi4_dwidth_converter_wr #(
 
             assign split_w_avail = 1'b0;
             assign split_w_beats = 9'd0;
-            assign split_b_final = 1'b1;
 
             // Narrow-lane offset of the burst start inside the wide word.
             logic [LANE_W-1:0] w_aw_lane;
@@ -639,36 +638,157 @@ module axi4_dwidth_converter_wr #(
     generate
         if (DOWNSIZE) begin : gen_b_fold
             // A split slave burst gets several master B responses; the
-            // slave expects ONE. The split queue's head flag says whether
-            // the response now arriving belongs to the final master burst
-            // of its slave burst. Non-final responses are consumed
-            // immediately and folded (worst case wins -- the same fold
-            // axi4_to_axil4_wr uses); the final one carries the folded
-            // result to the slave. All master bursts of a slave burst
-            // share its ID, so forwarding the final B's ID is correct.
-            logic [1:0] r_b_worst;
+            // slave expects ONE.  The old implementation walked a single
+            // split-queue read pointer and assumed B responses arrived in
+            // issue order.  BUG-008: when responses return cross-ID out of
+            // order, that pointer misaligns and the wrong B is forwarded.
+            //
+            // Fix: keep a small CAM of outstanding slave bursts.  An entry
+            // is allocated when a slave burst's final master AW is issued,
+            // carrying the burst's AWID and the number of master bursts it
+            // was split into.  Every B response searches the CAM for the
+            // oldest matching AWID, decrements that burst's counter, folds
+            // the response (worst-case wins), and forwards only when the
+            // counter reaches zero.  Same-ID bursts stay in order; cross-ID
+            // bursts can complete in any order.
+            localparam int B_CAM_DEPTH = SPLITQ_DEPTH;
+            localparam int B_CAM_AW    = $clog2(B_CAM_DEPTH);
+
+            typedef struct packed {
+                logic [AXI_ID_WIDTH-1:0] id;
+                logic [7:0]              count;
+                logic [1:0]              worst;
+                logic [B_CAM_AW:0]       age;
+            } b_cam_entry_t;
+
+            b_cam_entry_t b_cam [B_CAM_DEPTH];
+            logic [B_CAM_DEPTH-1:0]  b_cam_valid;
+            logic [B_CAM_AW:0]       r_b_cam_next_age;
+
+            // The burst currently being split.  The AW splitter finishes one
+            // slave burst before accepting the next, so a single open-burst
+            // register is enough.
+            logic                    r_b_open_valid;
+            logic [AXI_ID_WIDTH-1:0] r_b_open_id;
+            logic [7:0]              r_b_open_count;
+
+            // Push the open burst to the CAM on its final master AW issue.
+            // Combinational: for a single-beat (unsplit) burst r_b_open_valid
+            // is still low on the issue cycle, so the count is exactly 1.
+            logic [7:0]              w_b_cam_push_count;
+            assign w_b_cam_push_count = r_b_open_valid ? (r_b_open_count + 8'd1)
+                                                       : 8'd1;
+
+            // Find a free CAM slot for the next push.
+            logic [B_CAM_AW-1:0] w_b_cam_free_idx;
+            logic                w_b_cam_free_found;
+            always_comb begin
+                w_b_cam_free_found = 1'b0;
+                w_b_cam_free_idx   = '0;
+                for (int i = 0; i < B_CAM_DEPTH; i++) begin
+                    if (!b_cam_valid[i] && !w_b_cam_free_found) begin
+                        w_b_cam_free_found = 1'b1;
+                        w_b_cam_free_idx   = B_CAM_AW'(i);
+                    end
+                end
+            end
+
+            // Find the oldest outstanding burst matching the current B ID.
+            logic [B_CAM_AW-1:0] w_b_cam_idx;
+            logic                w_b_cam_match;
+            logic [B_CAM_AW:0]   w_b_cam_best_age;
+            always_comb begin
+                w_b_cam_match    = 1'b0;
+                w_b_cam_idx      = '0;
+                w_b_cam_best_age = '1;
+                for (int i = 0; i < B_CAM_DEPTH; i++) begin
+                    if (b_cam_valid[i] && (b_cam[i].id == m_axi_bid) &&
+                        (b_cam[i].age < w_b_cam_best_age)) begin
+                        w_b_cam_best_age = b_cam[i].age;
+                        w_b_cam_idx      = B_CAM_AW'(i);
+                        w_b_cam_match    = 1'b1;
+                    end
+                end
+            end
+
+            // Drive B channel outputs.
+            assign int_bid      = m_axi_bid;
+            assign int_buser    = m_axi_buser;
+            assign int_b_valid  = m_axi_bvalid && w_b_cam_match &&
+                                  (b_cam[w_b_cam_idx].count == 8'd1);
+            assign int_bresp    = (m_axi_bresp > b_cam[w_b_cam_idx].worst)
+                                  ? m_axi_bresp : b_cam[w_b_cam_idx].worst;
+            assign m_axi_bready = (m_axi_bvalid && w_b_cam_match &&
+                                   (b_cam[w_b_cam_idx].count == 8'd1))
+                                  ? int_b_ready : 1'b1;
 
             `ALWAYS_FF_RST(aclk, aresetn,
                 if (`RST_ASSERTED(aresetn)) begin
-                    r_b_worst <= 2'b00;
-                end else if (m_axi_bvalid && m_axi_bready) begin
-                    if (split_b_final)
-                        r_b_worst <= 2'b00;              // slave burst done
-                    else if (m_axi_bresp > r_b_worst)
-                        r_b_worst <= m_axi_bresp;
+                    r_b_open_valid   <= 1'b0;
+                    r_b_open_id      <= '0;
+                    r_b_open_count   <= '0;
+                    r_b_cam_next_age <= '0;
+                    for (int i = 0; i < B_CAM_DEPTH; i++) begin
+                        b_cam_valid[i] <= 1'b0;
+                        b_cam[i]       <= '0;
+                    end
+                end else begin
+                    // Track the burst currently being split.
+                    if (w_aw_issue) begin
+                        if (!r_b_open_valid) begin
+                            // First master AW of a new slave burst.
+                            r_b_open_valid <= 1'b1;
+                            r_b_open_id    <= int_awid;
+                            r_b_open_count <= 8'd1;
+                        end else begin
+                            r_b_open_count <= r_b_open_count + 8'd1;
+                        end
+                    end
+
+                    // Close the open burst on its final master AW issue.
+                    if (int_aw_valid && int_aw_ready) begin
+                        r_b_open_valid <= 1'b0;
+                    end
+
+                    // Push finalized burst into the CAM when its last
+                    // master AW is issued.  Use the current AWID directly so
+                    // single-beat bursts do not suffer a register-update race.
+                    if (w_aw_issue && w_this_last) begin
+                        if (w_b_cam_free_found) begin
+                            b_cam_valid[w_b_cam_free_idx] <= 1'b1;
+                            b_cam[w_b_cam_free_idx].id    <= int_awid;
+                            b_cam[w_b_cam_free_idx].count <= w_b_cam_push_count;
+                            b_cam[w_b_cam_free_idx].worst <= 2'b00;
+                            b_cam[w_b_cam_free_idx].age   <= r_b_cam_next_age;
+                            r_b_cam_next_age <= r_b_cam_next_age + 1'b1;
+                        end
+                    end
+
+                    // Process an incoming master B response.
+                    if (m_axi_bvalid && m_axi_bready && w_b_cam_match) begin
+                        if (b_cam[w_b_cam_idx].count == 8'd1) begin
+                            b_cam_valid[w_b_cam_idx] <= 1'b0;
+                        end else begin
+                            b_cam[w_b_cam_idx].count <=
+                                b_cam[w_b_cam_idx].count - 8'd1;
+                            if (m_axi_bresp > b_cam[w_b_cam_idx].worst)
+                                b_cam[w_b_cam_idx].worst <= m_axi_bresp;
+                        end
+                    end
                 end
             )
 
-            assign split_b_pop  = m_axi_bvalid && m_axi_bready;
-            assign int_bid      = m_axi_bid;
-            assign int_bresp    = (m_axi_bresp > r_b_worst) ? m_axi_bresp
-                                                            : r_b_worst;
-            assign int_buser    = m_axi_buser;
-            assign int_b_valid  = m_axi_bvalid && split_b_final;
-            assign m_axi_bready = split_b_final ? int_b_ready : 1'b1;
+`ifdef SIMULATION
+            // The CAM should never overflow because the AW splitter cannot
+            // issue more slave bursts than the split queue has entries, and
+            // the CAM is the same depth.
+            always_ff @(posedge aclk) begin
+                if (aresetn && w_aw_issue && w_this_last && !w_b_cam_free_found)
+                    $error("axi4_dwidth_converter_wr: B CAM overflow");
+            end
+`endif
 
         end else begin : gen_b_pass
-            assign split_b_pop  = 1'b0;
             assign int_bid      = m_axi_bid;
             assign int_bresp    = m_axi_bresp;
             assign int_buser    = m_axi_buser;

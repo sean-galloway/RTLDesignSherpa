@@ -80,6 +80,9 @@ class AXI4DWidthConverterWriteTB(TBBase):
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
         self.TIMEOUT_CYCLES = self.convert_to_int(os.environ.get('TIMEOUT_CYCLES', '2000'))
 
+        # BUG-008 TDD: out-of-order B response test for the downsize split fold
+        self.ooo_b_test = os.environ.get('DWIDTH_WR_OOO_B_TEST', '0') == '1'
+
         # Calculate derived parameters
         self.WIDTH_RATIO = max(self.S_AXI_DATA_WIDTH, self.M_AXI_DATA_WIDTH) // \
                           min(self.S_AXI_DATA_WIDTH, self.M_AXI_DATA_WIDTH)
@@ -123,6 +126,10 @@ class AXI4DWidthConverterWriteTB(TBBase):
         # Need our own capture because AXI4SlaveWrite callbacks consume the _recvQ
         self.captured_aw_packets = []
         self.captured_w_packets = []
+
+        # BUG-008 TDD: timestamped WLAST and slave B events for OOO-B checks
+        self.captured_wlast_times = []
+        self.captured_b_events = []
 
         # Initialize AXI4 components (to be created in setup_clocks_and_reset)
         self.slave_write_master = None  # AXI4 Master Write on slave side (drives s_axi_aw*, s_axi_w*, monitors s_axi_b*)
@@ -168,21 +175,32 @@ class AXI4DWidthConverterWriteTB(TBBase):
         # Create AXI4 Slave Write on master side (monitors m_axi_aw*, m_axi_w*, drives m_axi_b*)
         # NO MEMORY MODEL - using queue-based verification
         try:
-            self.master_write_slave = create_axi4_slave_wr(
-                dut=self.dut,
-                clock=self.aclk,
-                prefix='m_axi_',
-                log=self.log,
-                data_width=self.M_AXI_DATA_WIDTH,
-                id_width=self.AXI_ID_WIDTH,
-                addr_width=self.AXI_ADDR_WIDTH,
-                super_debug=True  # Enable super_debug to validate signal connections
-            )
+            slave_kwargs = {
+                'dut': self.dut,
+                'clock': self.aclk,
+                'prefix': 'm_axi_',
+                'log': self.log,
+                'data_width': self.M_AXI_DATA_WIDTH,
+                'id_width': self.AXI_ID_WIDTH,
+                'addr_width': self.AXI_ADDR_WIDTH,
+                'super_debug': True  # Enable super_debug to validate signal connections
+            }
+            if self.ooo_b_test:
+                # BUG-008 TDD: drive B responses manually so we can force the
+                # cross-ID out-of-order arrival that the BFM's built-in OOO
+                # scheduler cannot guarantee while W data streams in-order.
+                slave_kwargs['response_delay'] = 1000000
+                self.log.info("BUG-008 OOO-B test: master-side slave BFM response disabled; B driven manually")
+
+            self.master_write_slave = create_axi4_slave_wr(**slave_kwargs)
 
             # Add our own callbacks to capture data BEFORE AXI4SlaveWrite processes it
             # (AXI4SlaveWrite callbacks consume the _recvQ, so we need to capture first)
             self.master_write_slave['AW'].add_callback(self._capture_aw_callback)
             self.master_write_slave['W'].add_callback(self._capture_w_callback)
+            if self.ooo_b_test:
+                self.master_write_slave['W'].add_callback(self._capture_wlast_callback)
+                self.slave_write_master['B'].add_callback(self._capture_b_callback)
 
             self.log.info("Created AXI4 Slave Write on master side (m_axi_aw*, m_axi_w*, m_axi_b*) - with capture callbacks")
         except Exception as e:
@@ -198,7 +216,6 @@ class AXI4DWidthConverterWriteTB(TBBase):
         await self.wait_clocks(self.aclk_name, 5)
 
         # Enable VCD dumping for debug
-        import os
         if os.environ.get('COCOTB_ENABLE_PROFILING', '0') == '1':
             import cocotb
             cocotb.log.info("VCD dumping enabled via COCOTB_ENABLE_PROFILING")
@@ -244,6 +261,23 @@ class AXI4DWidthConverterWriteTB(TBBase):
         })()
         self.captured_w_packets.append(pkt_copy)
         self.log.debug(f"Captured W #{len(self.captured_w_packets)}: data=0x{pkt_copy.data:X}, last={pkt_copy.last}")
+
+    def _capture_wlast_callback(self, w_pkt):
+        """BUG-008 TDD: record the simulation time of every master-side WLAST."""
+        if int(getattr(w_pkt, 'last', 0)) == 1:
+            self.captured_wlast_times.append(int(cocotb.utils.get_sim_time('ns')))
+            self.log.debug(f"Captured WLAST #{len(self.captured_wlast_times)} at "
+                           f"{self.captured_wlast_times[-1]}ns")
+
+    def _capture_b_callback(self, b_pkt):
+        """BUG-008 TDD: record every slave-side B response with its ID and time."""
+        self.captured_b_events.append({
+            'id': int(getattr(b_pkt, 'id', 0)),
+            'time': int(cocotb.utils.get_sim_time('ns')),
+        })
+        self.log.debug(f"Captured slave B #{len(self.captured_b_events)}: "
+                       f"id={self.captured_b_events[-1]['id']}, "
+                       f"time={self.captured_b_events[-1]['time']}ns")
 
     async def clear_bfm_state(self):
         """Clear BFM internal queues to prevent stale data from affecting subsequent tests."""
@@ -1016,3 +1050,154 @@ class AXI4DWidthConverterWriteTB(TBBase):
             self.log.error("Some Full tests FAILED")
 
         return all_success
+
+    async def run_ooo_b_test(self):
+        """BUG-008 TDD: split-fold must survive cross-ID out-of-order B responses.
+
+        Two slave write bursts with different AWIDs are issued concurrently.
+        Each burst is long enough to be split in the downsize path.  The
+        master-side slave BFM's auto-response is disabled; the test drives the
+        split-B responses manually so that all of ID1's responses return before
+        any of ID0's.  The old single-FIFO fold pops one record per B regardless
+        of ID, so it releases ID0's B early and ID1 never gets a B (or hangs).
+        The fixed per-ID counter fold must:
+          - return exactly one s_axi B per slave AW,
+          - each with the correct BID,
+          - each only after that ID's final master W beat has completed.
+        """
+        if not self.DOWNSIZE:
+            self.log.info("OOO-B test: only relevant in DOWNSIZE mode (no split in upsize)")
+            return True
+
+        self.log.info("=== BUG-008 OOO-B split-fold test ===")
+
+        # Pick two bursts with DIFFERENT split depths so the old FIFO fold
+        # cannot accidentally look correct.  ID0 splits; ID1 does not.
+        ratio = self.WIDTH_RATIO
+        slave_beats0 = (256 // ratio) + 1   # first length that does not fit one master burst
+        slave_beats1 = 2                    # fits in a single master burst
+        narrow_beats0 = slave_beats0 * ratio
+        narrow_beats1 = slave_beats1 * ratio
+        bursts_id0 = (narrow_beats0 + 255) // 256
+        bursts_id1 = (narrow_beats1 + 255) // 256
+        addr0, addr1 = 0x1000, 0x2000
+        id0, id1 = 0, 1
+
+        self.log.info(f"OOO-B: ID0 {slave_beats0} slave beats -> {narrow_beats0} narrow "
+                      f"({bursts_id0} master bursts); ID1 {slave_beats1} beats -> "
+                      f"{narrow_beats1} narrow ({bursts_id1} master bursts)")
+
+        # Clear capture state
+        self.captured_aw_packets.clear()
+        self.captured_w_packets.clear()
+        self.captured_wlast_times.clear()
+        self.captured_b_events.clear()
+
+        # Traceable data so WLAST timing is observable
+        data0 = self.generate_traceable_data(id0, slave_beats0)
+        data1 = self.generate_traceable_data(id1, slave_beats1)
+
+        # Issue both slave bursts concurrently (do NOT wait for B here)
+        task0 = cocotb.start_soon(self.write_transaction(addr0, data0, awid=id0))
+        task1 = cocotb.start_soon(self.write_transaction(addr1, data1, awid=id1))
+
+        # Wait until every master-side W beat has been captured.
+        expected_total_w = narrow_beats0 + narrow_beats1
+        timeout = self.TIMEOUT_CYCLES * 10
+        waited = 0
+        while len(self.captured_w_packets) < expected_total_w and waited < timeout:
+            await self.wait_clocks(self.aclk_name, 1)
+            waited += 1
+
+        if len(self.captured_w_packets) < expected_total_w:
+            self.log.error(f"OOO-B: W data incomplete ({len(self.captured_w_packets)}/"
+                           f"{expected_total_w} master beats after {waited} cycles)")
+            self.errors += 1
+            return False
+
+        # Drive the split-B responses cross-ID out of order: ID1 (shorter burst)
+        # first, then ID0's two split responses.  Each call waits for the
+        # handshake before returning.
+        b_ch = self.master_write_slave['B']
+        for _ in range(bursts_id1):
+            await b_ch.send(b_ch.create_packet(id=id1, resp=0))
+        for _ in range(bursts_id0):
+            await b_ch.send(b_ch.create_packet(id=id0, resp=0))
+
+        # Let the slave-side B responses propagate.
+        try:
+            await task0
+            await task1
+        except Exception as e:
+            self.log.error(f"OOO-B: write transaction failed: {e}")
+            self.errors += 1
+            return False
+
+        # Give the slave-side B capture a few cycles to record the last event
+        await self.wait_clocks(self.aclk_name, 10)
+
+        # Exactly one B per slave AW with correct ID
+        b_by_id = {}
+        for ev in self.captured_b_events:
+            bid = ev['id']
+            if bid in b_by_id:
+                self.log.error(f"OOO-B: multiple s_axi B responses for ID {bid}")
+                self.errors += 1
+            b_by_id[bid] = ev
+
+        if id0 not in b_by_id:
+            self.log.error("OOO-B: missing s_axi B for ID 0")
+            self.errors += 1
+        if id1 not in b_by_id:
+            self.log.error("OOO-B: missing s_axi B for ID 1")
+            self.errors += 1
+
+        if len(b_by_id) != 2:
+            return False
+
+        # Map each slave burst to its master AW records (AWs are issued in order)
+        aw_by_id = {id0: [], id1: []}
+        for aw in self.captured_aw_packets:
+            bid = int(getattr(aw, 'id', 0))
+            if bid in aw_by_id:
+                aw_by_id[bid].append(aw)
+
+        expected_bursts = {id0: bursts_id0, id1: bursts_id1}
+        ok = True
+        for bid, aw_list in aw_by_id.items():
+            if len(aw_list) != expected_bursts[bid]:
+                self.log.error(f"OOO-B: ID {bid} expected {expected_bursts[bid]} master AWs, got {len(aw_list)}")
+                self.errors += 1
+                ok = False
+                continue
+
+            # The final master burst of this ID is the last AW in its list
+            last_aw_pos = None
+            for i, a in enumerate(self.captured_aw_packets):
+                if int(getattr(a, 'id', 0)) == bid and a is aw_list[-1]:
+                    last_aw_pos = i
+                    break
+
+            if last_aw_pos is None or last_aw_pos >= len(self.captured_wlast_times):
+                self.log.error(f"OOO-B: cannot locate final WLAST for ID {bid}")
+                self.errors += 1
+                ok = False
+                continue
+
+            final_wlast_time = self.captured_wlast_times[last_aw_pos]
+            b_time = b_by_id[bid]['time']
+
+            if b_time < final_wlast_time:
+                self.log.error(f"OOO-B: ID {bid} B arrived at {b_time}ns, before its "
+                               f"final master WLAST at {final_wlast_time}ns")
+                self.errors += 1
+                ok = False
+            else:
+                self.log.info(f"OOO-B: ID {bid} B at {b_time}ns after final WLAST "
+                              f"at {final_wlast_time}ns")
+
+        if ok:
+            self.log.info("OOO-B split-fold test PASSED")
+        else:
+            self.log.error("OOO-B split-fold test FAILED")
+        return ok

@@ -12,18 +12,19 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 7 | done (kept for history) |
+| [closed/](closed/) | 8 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-008** — dwidth converter split-fold assumes in-order B across IDs
+(none)
 
 ## Closed
 
+- **BUG-008** — dwidth converter split-fold assumes in-order B across IDs
 - **BUG-001** — axi_data_dnsize burst-tracking LAST: early LAST on TRACK_BURSTS
 - **BUG-002** — the dnsize and upsize test files are decorative: 22/22 configs fail when asserted
 - **BUG-003** — dnsize DUAL buffer: dropped beats and misplaced LAST

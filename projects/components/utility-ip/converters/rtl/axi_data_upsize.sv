@@ -13,6 +13,8 @@
 //   Key Features:
 //   - Accumulates narrow beats into wide beat buffer
 //   - Configurable sideband handling (concatenate or OR together)
+//   - Optional broadcast/hold of low-order sideband bits (e.g. RID+RUSER)
+//     while high-order bits are severity-folded (e.g. RRESP)
 //   - Completes on counter reaching ratio OR narrow_last
 //   - Back-pressure aware (valid/ready handshaking)
 //
@@ -22,12 +24,15 @@
 //   NARROW_SB_WIDTH: Narrow sideband width (0=none, N/8 for WSTRB, 2 for RRESP)
 //   WIDE_SB_WIDTH: Wide sideband width (calculated or explicit)
 //   SB_OR_MODE: 0=concatenate sideband (WSTRB), 1=severity fold: keep numeric max (RRESP)
+//   SB_BROADCAST_WIDTH: low-order sideband bits held from first sub-beat;
+//     remaining high bits still use SB_OR_MODE fold (BUG-008)
 //
 // Usage Examples:
 //   Write UPSIZE (32→128):
 //     NARROW_WIDTH=32, WIDE_WIDTH=128, NARROW_SB_WIDTH=4, WIDE_SB_WIDTH=16, SB_OR_MODE=0
-//   Read DOWNSIZE (128→32):
-//     NARROW_WIDTH=128, WIDE_WIDTH=512, NARROW_SB_WIDTH=2, WIDE_SB_WIDTH=2, SB_OR_MODE=1
+//   Read DOWNSIZE (128→32) with RID+RUSER carry:
+//     NARROW_WIDTH=32, WIDE_WIDTH=128, NARROW_SB_WIDTH=R_SB_WIDTH, WIDE_SB_WIDTH=R_SB_WIDTH,
+//     SB_OR_MODE=1, SB_BROADCAST_WIDTH=AXI_ID_WIDTH+AXI_USER_WIDTH
 //
 // Author: RTL Design Sherpa
 // Created: 2025-10-24
@@ -43,6 +48,8 @@ module axi_data_upsize #(
     parameter int NARROW_SB_WIDTH = 0,        // Sideband width (0 if unused)
     parameter int WIDE_SB_WIDTH   = 0,        // Wide sideband width
     parameter int SB_OR_MODE      = 0,        // 0=concatenate, 1=severity fold (numeric max)
+    parameter int SB_BROADCAST_WIDTH = 0,     // Lowest sideband bits broadcast/held
+                                              // (remaining bits use SB_OR_MODE fold)
 
     // Calculated Parameters
     localparam int WIDTH_RATIO = WIDE_WIDTH / NARROW_WIDTH,
@@ -89,6 +96,11 @@ module axi_data_upsize #(
             $error("WIDE_WIDTH (%0d) must be integer multiple of NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
         if (WIDTH_RATIO < 2)
             $error("WIDTH_RATIO must be >= 2");
+        if (SB_BROADCAST_WIDTH > NARROW_SB_WIDTH)
+            $error("SB_BROADCAST_WIDTH (%0d) must be <= NARROW_SB_WIDTH (%0d)",
+                   SB_BROADCAST_WIDTH, NARROW_SB_WIDTH);
+        if (SB_OR_MODE != 0 && WIDE_SB_WIDTH != NARROW_SB_WIDTH)
+            $error("SB_OR_MODE fold requires WIDE_SB_WIDTH == NARROW_SB_WIDTH");
 
     end
 
@@ -225,20 +237,37 @@ module axi_data_upsize #(
                 // the fold keeps the largest value instead. Sub-beats of
                 // one exclusive access should all carry the same response
                 // anyway; if they diverge, the worst one wins.
-                `ALWAYS_FF_RST(aclk, aresetn,
-                    if (`RST_ASSERTED(aresetn)) begin
-                        r_sideband_accumulator <= '0;
-                    end else begin
-                        if (narrow_valid && narrow_ready) begin
-                            if (r_beat_ptr == '0) begin
-                                r_sideband_accumulator <= WIDE_SB_PORT_WIDTH'(narrow_sideband);
-                            end else if (WIDE_SB_PORT_WIDTH'(narrow_sideband)
-                                         > r_sideband_accumulator) begin
+                //
+                // BUG-008 extension: SB_BROADCAST_WIDTH low-order bits are
+                // captured on the first sub-beat and held (e.g. RID/RUSER),
+                // while the remaining high bits are still folded (RRESP).
+                if (SB_BROADCAST_WIDTH >= NARROW_SB_WIDTH) begin : gen_or_broadcast_all
+                    `ALWAYS_FF_RST(aclk, aresetn,
+                        if (`RST_ASSERTED(aresetn)) begin
+                            r_sideband_accumulator <= '0;
+                        end else begin
+                            if (narrow_valid && narrow_ready && r_beat_ptr == '0) begin
                                 r_sideband_accumulator <= WIDE_SB_PORT_WIDTH'(narrow_sideband);
                             end
                         end
-                    end
-                )
+                    )
+                end else begin : gen_or_fold_high
+                    `ALWAYS_FF_RST(aclk, aresetn,
+                        if (`RST_ASSERTED(aresetn)) begin
+                            r_sideband_accumulator <= '0;
+                        end else begin
+                            if (narrow_valid && narrow_ready) begin
+                                if (r_beat_ptr == '0) begin
+                                    r_sideband_accumulator <= WIDE_SB_PORT_WIDTH'(narrow_sideband);
+                                end else if (narrow_sideband[NARROW_SB_WIDTH-1:SB_BROADCAST_WIDTH]
+                                             > r_sideband_accumulator[NARROW_SB_WIDTH-1:SB_BROADCAST_WIDTH]) begin
+                                    r_sideband_accumulator[NARROW_SB_WIDTH-1:SB_BROADCAST_WIDTH]
+                                        <= narrow_sideband[NARROW_SB_WIDTH-1:SB_BROADCAST_WIDTH];
+                                end
+                            end
+                        end
+                    )
+                end
             end else begin : gen_concat_mode
                 // Concatenate mode: for WSTRB accumulation.
                 // Same single-NBA-per-cycle pattern as the data

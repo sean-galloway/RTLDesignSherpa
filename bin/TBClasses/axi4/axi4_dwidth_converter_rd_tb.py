@@ -78,6 +78,9 @@ class AXI4DWidthConverterReadTB(TBBase):
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
         self.TIMEOUT_CYCLES = self.convert_to_int(os.environ.get('TIMEOUT_CYCLES', '2000'))
 
+        # BUG-008 TDD: out-of-order R response test for the read converter RID carry
+        self.ooo_r_test = os.environ.get('DWIDTH_RD_OOO_R_TEST', '0') == '1'
+
         # Calculate derived parameters
         self.WIDTH_RATIO = max(self.S_AXI_DATA_WIDTH, self.M_AXI_DATA_WIDTH) // \
                           min(self.S_AXI_DATA_WIDTH, self.M_AXI_DATA_WIDTH)
@@ -165,17 +168,18 @@ class AXI4DWidthConverterReadTB(TBBase):
         # Create AXI4 Slave Read on master side (monitors m_axi_ar*, drives m_axi_r*)
         # NO MEMORY MODEL - using queue-based verification
         try:
-            self.master_read_slave = create_axi4_slave_rd(
-                dut=self.dut,
-                clock=self.aclk,
-                prefix='m_axi_',
-                log=self.log,
-                data_width=self.M_AXI_DATA_WIDTH,
-                id_width=self.AXI_ID_WIDTH,
-                addr_width=self.AXI_ADDR_WIDTH,
-                super_debug=True,  # Enable super_debug to validate signal connections
-                response_delay=1    # Add 1 cycle delay for response
-            )
+            slave_kwargs = {
+                'dut': self.dut,
+                'clock': self.aclk,
+                'prefix': 'm_axi_',
+                'log': self.log,
+                'data_width': self.M_AXI_DATA_WIDTH,
+                'id_width': self.AXI_ID_WIDTH,
+                'addr_width': self.AXI_ADDR_WIDTH,
+                'super_debug': True,  # Enable super_debug to validate signal connections
+                'response_delay': 1 if not self.ooo_r_test else 1000000,
+            }
+            self.master_read_slave = create_axi4_slave_rd(**slave_kwargs)
 
             # Add callback to capture AR on master side (monitor)
             self.master_read_slave['AR'].add_callback(self._capture_ar_callback)
@@ -236,7 +240,8 @@ class AXI4DWidthConverterReadTB(TBBase):
         pkt_copy = type('obj', (object,), {
             'data': int(getattr(r_pkt, 'data', 0)),
             'last': int(getattr(r_pkt, 'last', 0)),
-            'resp': int(getattr(r_pkt, 'resp', 0))  # R has resp, not strb
+            'resp': int(getattr(r_pkt, 'resp', 0)),  # R has resp, not strb
+            'id': int(getattr(r_pkt, 'id', 0)),
         })()
         self.captured_r_packets.append(pkt_copy)
 
@@ -245,7 +250,7 @@ class AXI4DWidthConverterReadTB(TBBase):
         interface_queue_len = len(self.slave_read_master['interface'].r_channel._recvQ)
         same_object = (self.slave_read_master['R'] is self.slave_read_master['interface'].r_channel)
 
-        self.log.info(f"R CALLBACK TRIGGERED #{len(self.captured_r_packets)}: data=0x{pkt_copy.data:X}, last={pkt_copy.last}, resp={pkt_copy.resp}")
+        self.log.info(f"R CALLBACK TRIGGERED #{len(self.captured_r_packets)}: data=0x{pkt_copy.data:X}, last={pkt_copy.last}, resp={pkt_copy.resp}, id={pkt_copy.id}")
         self.log.info(f"   Queue state: dict['R']._recvQ={queue_len}, interface.r_channel._recvQ={interface_queue_len}, same_object={same_object}")
 
     async def clear_bfm_state(self):
@@ -976,3 +981,145 @@ class AXI4DWidthConverterReadTB(TBBase):
             self.log.error("Some Full tests FAILED")
 
         return all_success
+
+    async def run_ooo_r_test(self):
+        """BUG-008 TDD: s_axi_rid must follow the data's originating ARID.
+
+        Two slave read bursts with different ARIDs are issued concurrently.
+        The downsize path splits ID0 into two master bursts while ID1 fits in
+        one.  The master-side slave BFM's auto-response is disabled; the test
+        drives the master R bursts manually so that the shorter ID1 burst
+        returns before ID0's split bursts (burst-atomic per ID, no beat
+        interleaving).  The old converter latches m_axi_rid on every master R
+        handshake and presents the most recent value, so the RID on some ID1
+        beats can be misattributed to ID0 when ID0's first narrow beat arrives
+        while ID1's last wide beat is still draining through the upsizer.  The
+        fixed converter carries {rid, ruser} through the primitive sideband, so
+        every s_axi R beat reports its own originating ID.
+        """
+        if not self.DOWNSIZE:
+            self.log.info("OOO-R test: only relevant in DOWNSIZE mode (read upsizer is where RID is lost)")
+            return True
+
+        self.log.info("=== BUG-008 OOO-R RID-carry test ===")
+
+        ratio = self.WIDTH_RATIO
+        slave_beats0 = (256 // ratio) + 1   # splits into two master bursts
+        slave_beats1 = 2                    # fits in one master burst
+        narrow_beats0 = slave_beats0 * ratio
+        narrow_beats1 = slave_beats1 * ratio
+        addr0, addr1 = 0x3000, 0x4000
+        id0, id1 = 0, 1
+
+        self.log.info(f"OOO-R: ID0 {slave_beats0} slave beats -> {narrow_beats0} narrow; "
+                      f"ID1 {slave_beats1} slave beats -> {narrow_beats1} narrow")
+
+        # Clear capture state
+        self.captured_ar_packets.clear()
+        self.captured_r_packets.clear()
+
+        # Stall the slave R channel from the start so converted wide beats pile
+        # up in the converter's skid buffer.  The narrow side remains ready
+        # while the skid has room, letting us flip r_rid_held to ID0 while ID1
+        # data is still inside the converter.
+        s_r_ch = self.slave_read_master['R']
+        s_r_ch.set_ready_policy('stall')
+
+        # Issue both reads concurrently (do NOT wait for R here)
+        task0 = cocotb.start_soon(self.read_transaction(addr0, slave_beats0, arid=id0))
+        task1 = cocotb.start_soon(self.read_transaction(addr1, slave_beats1, arid=id1))
+
+        # Wait until all master ARs have been captured.
+        expected_ar = 3  # ID0 split into 2, ID1 into 1
+        timeout = self.TIMEOUT_CYCLES * 10
+        waited = 0
+        while len(self.captured_ar_packets) < expected_ar and waited < timeout:
+            await self.wait_clocks(self.aclk_name, 1)
+            waited += 1
+
+        if len(self.captured_ar_packets) < expected_ar:
+            self.log.error(f"OOO-R: AR capture incomplete ({len(self.captured_ar_packets)}/{expected_ar})")
+            self.errors += 1
+            return False
+
+        # Drive master R bursts cross-ID out of order: ID1 first, then ID0.
+        # Each burst is driven back-to-back (burst-atomic per ID).
+        r_ch = self.master_read_slave['R']
+        s_r_ch = self.slave_read_master['R']
+        ar_by_id = {id0: [], id1: []}
+        for ar in self.captured_ar_packets:
+            ar_id = int(getattr(ar, 'id', 0))
+            if ar_id in ar_by_id:
+                ar_by_id[ar_id].append(ar)
+
+        # ID1 first (shorter burst)
+        for ar in ar_by_id[id1]:
+            beats = int(getattr(ar, 'len', 0)) + 1
+            for i in range(beats):
+                await r_ch.send(r_ch.create_packet(
+                    id=id1,
+                    data=(0xD0000000 + i) & ((1 << self.M_AXI_DATA_WIDTH) - 1),
+                    resp=0,
+                    last=1 if i == beats - 1 else 0,
+                ))
+
+        # Send a single ID0 narrow beat to update r_rid_held to 0 while ID1
+        # data is still held in the skid buffer.
+        if ar_by_id[id0]:
+            await r_ch.send(r_ch.create_packet(
+                id=id0,
+                data=0xE0000000 & ((1 << self.M_AXI_DATA_WIDTH) - 1),
+                resp=0,
+                last=0,
+            ))
+
+        # Release the slave R channel and finish driving ID0's split bursts.
+        s_r_ch.set_ready_policy('always')
+
+        for idx, ar in enumerate(ar_by_id[id0]):
+            beats = int(getattr(ar, 'len', 0)) + 1
+            start_i = 1 if idx == 0 else 0
+            for i in range(start_i, beats):
+                await r_ch.send(r_ch.create_packet(
+                    id=id0,
+                    data=(0xE0000000 + i) & ((1 << self.M_AXI_DATA_WIDTH) - 1),
+                    resp=0,
+                    last=1 if i == beats - 1 else 0,
+                ))
+
+        # Collect the slave-side R responses.
+        try:
+            await task0
+            await task1
+        except Exception as e:
+            self.log.error(f"OOO-R: read transaction failed: {e}")
+            self.errors += 1
+            return False
+
+        # Give the slave-side R capture time to finish.
+        await self.wait_clocks(self.aclk_name, 20)
+
+        expected_total = slave_beats0 + slave_beats1
+        if len(self.captured_r_packets) != expected_total:
+            self.log.error(f"OOO-R: expected {expected_total} slave R beats, got "
+                           f"{len(self.captured_r_packets)}")
+            self.errors += 1
+            return False
+
+        # Verify RID for every beat.  Because bursts are atomic per ID and ID1
+        # returned first, the first slave_beats1 beats should have id=1 and the
+        # remaining slave_beats0 beats should have id=0.
+        ok = True
+        for i, pkt in enumerate(self.captured_r_packets):
+            exp_id = id1 if i < slave_beats1 else id0
+            got_id = int(getattr(pkt, 'id', 0))
+            if got_id != exp_id:
+                self.log.error(f"OOO-R: beat {i} RID {got_id} != expected {exp_id}")
+                self.errors += 1
+                ok = False
+
+        if ok:
+            self.log.info("OOO-R RID-carry test PASSED")
+        else:
+            self.log.error("OOO-R RID-carry test FAILED")
+        return ok
