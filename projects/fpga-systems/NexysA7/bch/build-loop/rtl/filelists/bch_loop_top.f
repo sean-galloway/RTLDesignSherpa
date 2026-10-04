@@ -32,6 +32,7 @@ $REPO_ROOT/projects/fpga-systems/NexysA7/bch/build-loop/rtl/bch_loop_cfg_pkg.sv
 $REPO_ROOT/projects/fpga-systems/NexysA7/bch/build-loop/rtl/generated/bch_loop_regs/rtl/bch_loop_regs_pkg.sv
 $REPO_ROOT/projects/fpga-systems/NexysA7/bch/build-loop/rtl/generated/bch_loop_regs/rtl/bch_loop_regs.sv
 -f $REPO_ROOT/projects/components/ecc-ip/bch/rtl/filelists/bch_encoder_axis4.f
+-f $REPO_ROOT/projects/components/ecc-ip/bch/rtl/filelists/bch_beat_packer.f
 -f $REPO_ROOT/projects/components/ecc-ip/bch/rtl/filelists/bch_decoder_axis4.f
 -f $REPO_ROOT/projects/fpga-systems/NexysA7/bch/build-loop/rtl/filelists/bch_axi4_pipeline.f
 

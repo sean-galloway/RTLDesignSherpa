@@ -471,8 +471,10 @@ module bch_axi4_pipeline #(
         .m_axi_rlast(m4_rlast), .m_axi_ruser(m4_ruser),
         .m_axi_rvalid(m4_rvalid), .m_axi_rready(m4_rready));
 
-    localparam int K_TAIL = K_BITS % DW;
-    assign out_keep = (out_last && (K_TAIL != 0)) ? S'((1 << K_TAIL) - 1) : {S{1'b1}};
+    localparam int K_TAIL_BITS  = K_BITS % DW;
+    localparam int K_TAIL_BYTES = K_TAIL_BITS / 8;
+    assign out_keep = (out_last && (K_TAIL_BYTES != 0))
+                    ? S'((1 << K_TAIL_BYTES) - 1) : {S{1'b1}};
 
     // =========================================================================
     // Interface observer on the codec's own AXI4 master ports

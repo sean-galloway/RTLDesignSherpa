@@ -271,7 +271,13 @@ module bch_loop_harness
     /* verilator lint_on PINCONNECTEMPTY */
 
     // =========================================================================
-    // Encoder -> injector -> decoder
+    // Encoder -> packer -> injector -> decoder
+    // =========================================================================
+    // bch_encoder_axis4 emits a partial data beat mid-block and starts parity on
+    // a fresh beat; bch_decoder_core expects partial keep only on a block's LAST
+    // beat.  The bch_beat_packer repacks the encoder output into ceil(n/B) beats
+    // so the injector and decoder see the same packed codeword the AXI4 flavour
+    // uses internally.
     // =========================================================================
     logic          enc_in_valid, enc_in_ready, enc_out_valid, enc_out_ready, enc_out_last, enc_frame_err;
     logic          cw_out_valid, cw_out_ready;
@@ -293,9 +299,15 @@ module bch_loop_harness
 
     localparam int ND = 1;
 
+    logic          pkt_valid, pkt_ready, pkt_last;
+    logic [DW-1:0] pkt_data;
+    logic [DW-1:0] pkt_keep;      // per-bit, packed
+    logic [S-1:0]  pkt_strb;
+
     logic          inj_out_valid, inj_out_ready, inj_out_last;
     logic [DW-1:0] inj_out_data;
-    logic [S-1:0]  inj_out_keep;
+    logic [DW-1:0] inj_out_keep;  // per-bit, packed
+    logic [S-1:0]  inj_out_strb;
     logic [31:0]   inj_bits, inj_blocks, inj_over_t;
     logic [7:0]    inj_last;
 
@@ -313,6 +325,14 @@ module bch_loop_harness
 
     if (IFACE == "AXIS") begin : g_axis_path
 
+    // convert packed per-bit keep to byte strobe for the byte-aligned decoder
+    always_comb begin
+        for (int i = 0; i < S; i++) begin
+            pkt_strb[i]      = &pkt_keep[i*8 +: 8];
+            inj_out_strb[i]  = &inj_out_keep[i*8 +: 8];
+        end
+    end
+
     /* verilator lint_off PINCONNECTEMPTY */
     bch_encoder_axis4 #(
         .FIELD_DIM(M), .PRIM_POLY(CFG_PRIM_POLY), .T_BITS(T), .N_BITS(N),
@@ -327,15 +347,23 @@ module bch_loop_harness
         .m_axis_tlast(enc_out_last), .m_axis_tid(), .m_axis_tdest(), .m_axis_tuser(),
         .m_axis_tvalid(enc_out_valid), .m_axis_tready(enc_out_ready),
         .frame_err(enc_frame_err));
-    /* verilator lint_on PINCONNECTEMPTY */
+
+    bch_beat_packer #(
+        .BITS_PER_BEAT(DW), .DATA_WIDTH(DW)
+    ) u_packer (
+        .aclk(aclk), .aresetn(dp_rstn),
+        .in_valid(enc_out_valid), .in_ready(enc_out_ready),
+        .in_data(enc_out_data), .in_keep(enc_out_bitkeep), .in_last(enc_out_last),
+        .out_valid(pkt_valid), .out_ready(pkt_ready),
+        .out_data(pkt_data), .out_keep(pkt_keep), .out_last(pkt_last));
 
     bch_error_injector #(
         .FIELD_DIM(M), .PRIM_POLY(CFG_PRIM_POLY), .T_BITS(T), .N_BITS(N),
         .BITS_PER_BEAT(DW)
     ) u_inj (
         .aclk(aclk), .aresetn(dp_rstn),
-        .in_valid(enc_out_valid), .in_ready(enc_out_ready), .in_data(enc_out_data),
-        .in_keep(enc_out_bitkeep), .in_last(enc_out_last),
+        .in_valid(pkt_valid), .in_ready(pkt_ready), .in_data(pkt_data),
+        .in_keep(pkt_keep), .in_last(pkt_last),
         .out_valid(inj_out_valid), .out_ready(inj_out_ready), .out_data(inj_out_data),
         .out_keep(inj_out_keep), .out_last(inj_out_last),
         .cfg_mode(hwif_out.INJ_CFG.mode.value), .cfg_count(hwif_out.INJ_CFG.errors.value),
@@ -359,14 +387,13 @@ module bch_loop_harness
     assign w_obs4_pready  = 1'b1;
     assign w_obs4_pslverr = 1'b0;
 
-    /* verilator lint_off PINCONNECTEMPTY */
     bch_decoder_axis4 #(
         .FIELD_DIM(M), .PRIM_POLY(CFG_PRIM_POLY), .T_BITS(T), .N_BITS(N),
         .FIRST_ROOT(CFG_FIRST_ROOT), .BITS_PER_BEAT(DW),
         .AXIS_ID_WIDTH(0), .AXIS_DEST_WIDTH(0), .AXIS_USER_WIDTH(0)
     ) u_dec (
         .aclk(aclk), .aresetn(dp_rstn),
-        .s_axis_tdata(inj_out_data), .s_axis_tstrb(inj_out_keep),
+        .s_axis_tdata(inj_out_data), .s_axis_tstrb(inj_out_strb),
         .s_axis_tlast(inj_out_last),
         .s_axis_tid('0), .s_axis_tdest('0), .s_axis_tuser('0),
         .s_axis_tvalid(dec_in_valid[0]), .s_axis_tready(dec_in_ready[0]),
@@ -673,13 +700,13 @@ module bch_loop_harness
         w_obs_tlast[1]  = enc_out_last;
         w_obs_tvalid[1] = enc_out_valid;  w_obs_tready[1] = enc_out_ready;
 
-        w_obs_tdata[2]  = inj_out_data;   w_obs_tstrb[2]  = inj_out_keep;
-        w_obs_tlast[2]  = inj_out_last;
-        w_obs_tvalid[2] = dec_in_valid[0]; w_obs_tready[2] = dec_in_ready[0];
+        w_obs_tdata[2]  = pkt_data;       w_obs_tstrb[2]  = pkt_strb;
+        w_obs_tlast[2]  = pkt_last;
+        w_obs_tvalid[2] = pkt_valid;      w_obs_tready[2] = pkt_ready;
 
-        w_obs_tdata[3]  = dec_out_data[0]; w_obs_tstrb[3] = dec_out_keep[0];
-        w_obs_tlast[3]  = dec_out_last[0];
-        w_obs_tvalid[3] = dec_out_valid[0]; w_obs_tready[3] = dec_out_ready[0];
+        w_obs_tdata[3]  = inj_out_data;   w_obs_tstrb[3]  = inj_out_strb;
+        w_obs_tlast[3]  = inj_out_last;
+        w_obs_tvalid[3] = dec_in_valid[0]; w_obs_tready[3] = dec_in_ready[0];
     end
 
     /* verilator lint_off PINCONNECTEMPTY */
