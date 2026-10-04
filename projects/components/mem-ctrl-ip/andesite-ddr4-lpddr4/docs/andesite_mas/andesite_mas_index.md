@@ -27,9 +27,10 @@
 
 **Version:** 0.1 (draft)
 **Date:** 2026-10-03
-**Purpose:** Micro-architecture specification — the HAS taken one level down:
-per-block signal tables, cycle behavior, FSM policy, and the contract anchors
-the generated kmap book cites, for the andesite DDR4/LPDDR4 memory controller
+**Status:** v0.1 complete — all chapters committed. Micro-architecture
+specification — the HAS taken one level down: per-block signal tables, cycle
+behavior, FSM policy, and the contract anchors the generated kmap book cites,
+for the andesite DDR4/LPDDR4 memory controller
 (`projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/`).
 
 The MAS documents the changed and new blocks in depth. Inherited-unchanged
@@ -78,7 +79,7 @@ link-ratchet rule — links only ever point at committed files).
 - [DFI Datapath Blocks](ch02_blocks/10_dfi_datapath.md) — DBI
 
 ### Chapter 3: Interfaces
-- `ch03_interfaces/01_dfi40_pins.md` — DFI 4.0 Pin-Level Table
+- [DFI 4.0 Pin-Level Table](ch03_interfaces/01_dfi40_pins.md) — every HAS ch04 signal at pin level
 
 ### Chapter 4: Signal Contracts
-- `ch04_contracts/01_core_contracts.md` — Core Signal Contracts
+- [Core Signal Contracts](ch04_contracts/01_core_contracts.md) — contract terms, invariants, anchor map
