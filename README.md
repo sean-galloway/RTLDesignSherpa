@@ -68,7 +68,7 @@ Guided progression from primitives to systems. Each level links to the correspon
 - **Level 1 — [Common Building Blocks](rtl/common/)** + **[Math Library](rtl/math/)** · ~230 modules · counters, FIFOs, arbiters, data integrity, clock utilities (common) + integer and floating-point math (math)
 - **Level 2 — [AMBA Protocol Infrastructure](rtl/amba/)** · 155 modules · [AXI4](rtl/amba/axi4/) · [AXI5](rtl/amba/axi5/) · [AXI4-Lite](rtl/amba/axil4/) · [APB](rtl/amba/apb4/) · [APB5](rtl/amba/apb5/) · [AXIS4](rtl/amba/axis4/) · [AXIS5](rtl/amba/axis5/) · [Monitors + MonBus](rtl/amba/monitor/) · [Shared observation](rtl/amba/shared/)
 - **Level 3 — [Production Components](projects/components/)** · [STREAM](projects/components/dma-ip/stream/) · [RAPIDS](projects/components/dma-ip/rapids/) · [Bridge](projects/components/fabric-gen-ip/bridge/) · [APB xbar](projects/components/fabric-gen-ip/apbx-xbar/) · [Memory controllers](projects/components/mem-ctrl-ip/) · [Reed-Solomon](projects/components/ecc-ip/reed-solomon/) · [BCH](projects/components/ecc-ip/bch/) · [Retro legacy](projects/components/retro_legacy_blocks/) · [Converters](projects/components/utility-ip/converters/)
-- **Level 4 — [FPGA Projects](projects/fpga-systems/)** · Nexys A7: [cdc_counter_display](projects/fpga-systems/NexysA7/cdc_counter_display/) · [ddr2-characterization](projects/fpga-systems/NexysA7/pumice/ddr2-characterization/) · [reed-solomon loopback](projects/fpga-systems/NexysA7/reed-solomon/) · Genesys 2: [stream](projects/fpga-systems/Genesys2/stream/) · [rapids](projects/fpga-systems/Genesys2/rapids/) · [scoria](projects/fpga-systems/Genesys2/scoria/) · [asic-trials](projects/asic-trials/timing_characterization/)
+- **Level 4 — [FPGA Projects](projects/fpga-systems/)** · Nexys A7: [cdc_counter_display](projects/fpga-systems/NexysA7/cdc_counter_display/) · [pumice](projects/fpga-systems/NexysA7/pumice/) · [reed-solomon loopback](projects/fpga-systems/NexysA7/reed-solomon/) · Genesys 2: [stream](projects/fpga-systems/Genesys2/stream/) · [rapids](projects/fpga-systems/Genesys2/rapids/) · [scoria](projects/fpga-systems/Genesys2/scoria/) · [asic-trials](projects/asic-trials/timing_characterization/)
 
 <details>
 <summary>Visual diagram (Mermaid — desktop browsers only)</summary>
@@ -82,7 +82,7 @@ graph TD
     L1 -.- L1D[Counters, FIFOs, Arbiters<br/>Math, Floating-Point, Data Integrity]
     L2 -.- L2D[AXI4, AXI5, AXI4-Lite, APB, APB5<br/>AXIS4, AXIS5, Shared monitor/observation]
     L4 -.- L4D[STREAM, RAPIDS, Bridge, Converters<br/>Retro Legacy Blocks, Memory controllers]
-    L5 -.- L5D[Nexys A7 + Genesys 2 boards<br/>cdc_counter, ddr2-characterization<br/>stream, rapids, scoria]
+    L5 -.- L5D[Nexys A7 + Genesys 2 boards<br/>cdc_counter, pumice<br/>stream, rapids, scoria]
 
     click L1 "rtl/common/" "Common Building Blocks"
     click L2 "rtl/amba/" "AMBA Protocol Infrastructure"
@@ -136,15 +136,30 @@ Production-ready AXI/APB/AXIS infrastructure with built-in monitor + observation
 | [GAXI generic](docs/markdown/rtl-amba/gaxi/README.md) | 8 | [`rtl/amba/gaxi/`](rtl/amba/gaxi/) | sync/async FIFOs and skid buffers |
 | [Packages](docs/markdown/rtl-amba/includes/README.md) | 8 | [`rtl/amba/includes/`](rtl/amba/includes/) | shared `.svh`/types |
 
-**Monitor system:** every protocol directory ships dedicated `_mon`
-checkers that observe traffic onto a shared MonBus for logging,
-scoreboarding, and real-time performance counters. See the
-[Monitor System Whitepaper](docs/markdown/rtl-amba/monitor_system_whitepaper.md)
-([PDF](docs/pdfs/RTL_AMBA_Monitor_Whitepaper.pdf)) for the architecture.
-
 **Deep dive:** [docs/markdown/rtl-amba/index.md](docs/markdown/rtl-amba/index.md) (full shared/ inventory by role) · [rtl/amba/CLAUDE.md](rtl/amba/CLAUDE.md) · [docs/markdown/rtl-amba/index.md](docs/markdown/rtl-amba/index.md)
 
-### 3. **Clock Domain Crossing (CDC)** — Cross-cutting
+### 3. **Monitor System + MonBus** — Cross-cutting
+
+Every AMBA protocol directory ships dedicated `_mon` checkers that observe
+traffic onto a shared **MonBus** — a typed 128-bit event packet plus 64-bit
+timestamp — carrying error, completion, timeout, threshold, and performance
+events to logging, scoreboards, and real-time performance counters.
+
+| Building block | Where |
+|---|---|
+| Monitor cores, reporters, addr-check CAMs, MonBus arbiters | [`rtl/amba/monitor/`](rtl/amba/monitor/) |
+| Interface observers (master/slave), MonBus capture groups (AXIL/AXI4), shared observation utilities | [`rtl/amba/shared/`](rtl/amba/shared/) |
+| Tally / CAM agents (`monbus_tally_axil`, `axi4_intf_*_observer`) | [`projects/components/utility-ip/misc/`](projects/components/utility-ip/misc/) |
+
+On silicon: the Genesys 2 [stream characterization](projects/fpga-systems/Genesys2/stream/)
+runs the in-core rd/wr datapath monitors and interface observers against the
+STREAM DMA DUT, with compressed MonBus capture into on-board SRAM.
+
+**Architecture:** [Monitor System Whitepaper](docs/markdown/rtl-amba/monitor_system_whitepaper.md)
+([PDF](docs/pdfs/RTL_AMBA_Monitor_Whitepaper.pdf)) — packet format, event
+taxonomy, reporter cones, and the observation fabric.
+
+### 4. **Clock Domain Crossing (CDC)** — Cross-cutting
 
 [**Read the CDC class overview →**](docs/markdown/rtl-cdc/overview.md) (picking
 guide, what NOT to do, on-board demo)
@@ -169,7 +184,7 @@ doc still saying that, it is stale.
 
 **FPGA demo:** [projects/fpga-systems/NexysA7/cdc_counter_display/](projects/fpga-systems/NexysA7/cdc_counter_display/) — multi-clock counter CDC running on real hardware.
 
-### 4. Component Projects — [`projects/components/`](projects/components/)
+### 5. Component Projects — [`projects/components/`](projects/components/)
 
 Production-shaped reusable IP, ordered by IP type. Each has its own README + dv/ + dv/tbclasses/ (as applicable).
 
@@ -183,14 +198,14 @@ Production-shaped reusable IP, ordered by IP type. Each has its own README + dv/
 | scoria memory controller | In progress | DDR3 / LPDDR3 controller (simulation-verified; board bring-up ongoing) | [`projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/`](projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/) |
 | andesite memory controller | Planned | DDR4 / LPDDR4 controller (directory baseline) | [`projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/`](projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/) |
 | Reed-Solomon | Ready | RS(n,k) over GF(2^m); riBM or Euclidean solver, AXIS/AXI4 adapters, validated in loopback on Nexys A7 | [`projects/components/ecc-ip/reed-solomon/`](projects/components/ecc-ip/reed-solomon/) |
-| BCH | In progress | Binary BCH encoder/decoder sharing the GF(2^m) primitives; references + draft PRD, no RTL yet | [`projects/components/ecc-ip/bch/`](projects/components/ecc-ip/bch/) |
+| BCH | In progress | Binary BCH encoder/decoder importing the reed-solomon GF(2^m) layer (`gf_pkg`, riBM array); syndrome / key-equation / Chien fub blocks + encoder/decoder cores landed, dv gate tests running | [`projects/components/ecc-ip/bch/`](projects/components/ecc-ip/bch/) |
 | HIVE | Planned | Distributed RISC-V control | [`projects/components/compute-eng-ip/hive/`](projects/components/compute-eng-ip/hive/) |
 | Delta | Planned | Network-on-Chip mesh | [`projects/components/noc-ip/delta/`](projects/components/noc-ip/delta/) |
 | Retro legacy blocks | Ready | HPET, PIC, PIT, RTC, UART, GPIO | [`projects/components/retro_legacy_blocks/`](projects/components/retro_legacy_blocks/) |
 | Converters | Ready | UART↔AXIL, protocol conversion | [`projects/components/utility-ip/converters/`](projects/components/utility-ip/converters/) |
 | Misc | — | Mixed building blocks | [`projects/components/utility-ip/misc/`](projects/components/utility-ip/misc/) |
 
-### 5. FPGA Projects — [`projects/fpga-systems/`](projects/fpga-systems/)
+### 6. FPGA Projects — [`projects/fpga-systems/`](projects/fpga-systems/)
 
 Things that actually run on hardware, grouped by board. Each project ships
 its own README and flow.
@@ -200,7 +215,7 @@ its own README and flow.
 | Project | Goal | Where |
 |---|---|---|
 | cdc_counter_display | Live demo of multi-clock counter CDC on the board | [`projects/fpga-systems/NexysA7/cdc_counter_display/`](projects/fpga-systems/NexysA7/cdc_counter_display/) |
-| ddr2-characterization | DDR2 / LPDDR2 memory controller (pumice) bring-up and characterization on Nexys A7 | [`projects/fpga-systems/NexysA7/pumice/ddr2-characterization/`](projects/fpga-systems/NexysA7/pumice/ddr2-characterization/) (RTL: [`projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/`](projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/)) |
+| pumice | DDR2 / LPDDR2 controller campaign on Nexys A7: `build-perf` (pumice on real DDR2, the subject build) plus `ddr2-characterization` (LiteDRAM in pumice's place, the yardstick A/B) | [`projects/fpga-systems/NexysA7/pumice/`](projects/fpga-systems/NexysA7/pumice/) (controller RTL: [`projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/`](projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/)) |
 | reed-solomon | RS encoder/decoder loopback harness on the board (riBM and Euclid validated against each other) | [`projects/fpga-systems/NexysA7/reed-solomon/`](projects/fpga-systems/NexysA7/reed-solomon/) |
 
 **Digilent Genesys 2 (Kintex-7)** — [`projects/fpga-systems/Genesys2/`](projects/fpga-systems/Genesys2/)
@@ -225,7 +240,7 @@ Clock Domain A (Fast)    Clock Domain B (Slow)
    @ 100MHz         Sync      @ 10MHz
 ```
 
-### 6. Verification
+### 7. Verification
 
 | What | Where |
 |---|---|
@@ -234,10 +249,11 @@ Clock Domain A (Fast)    Clock Domain B (Slow)
 | Project tests (CocoTB + pytest, Pattern B) | under [`projects/components/`](projects/components/) — each `*/dv/tests/` |
 | Project-specific TBs | under [`projects/components/`](projects/components/) — each `*/dv/tbclasses/` |
 | Shared TB framework | [`bin/TBClasses/`](bin/TBClasses/) |
+| Formal proofs (SymbiYosys + pre-commit flat gates) | [`formal/`](formal/) — proof areas per block (scoria, stream, rapids, pumice, amba, cdc, converters) |
 | BFMs / scoreboards (external package) | [`cocotb-framework` on PyPI](https://pypi.org/project/cocotb-framework/) — source: [RTLDesignSherpa-DV](https://github.com/sean-galloway/RTLDesignSherpa-DV) — `pip install cocotb-framework` |
 | Verification architecture rules | [`GLOBAL_REQUIREMENTS.md`](GLOBAL_REQUIREMENTS.md) (Category 2), [`docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md`](docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md) |
 
-### 7. Tools
+### 8. Tools
 
 | Tool | Purpose | Where |
 |---|---|---|
@@ -247,7 +263,7 @@ Clock Domain A (Fast)    Clock Domain B (Slow)
 | `vivado_timing_failures.py` | Per-violation Vivado timing parser | [`bin/vivado_timing_failures.py`](bin/vivado_timing_failures.py) |
 | Misc scripts | Build/regen helpers, codemaps, doc generators | [bin/](bin/) · [tools/](tools/) · [scripts/](scripts/) |
 
-### 8. Documentation hub
+### 9. Documentation hub
 
 - [`docs/DOCUMENTATION_INDEX.md`](docs/DOCUMENTATION_INDEX.md) — full doc index
 - [`docs/markdown/rtl-common/index.md`](docs/markdown/rtl-common/index.md) — per-module specs (common library)
@@ -386,7 +402,7 @@ Build complete, production-ready peripherals for FPGA deployment (**10+ componen
 | Component | Status | Description |
 |-----------|--------|-------------|
 | **[Reed-Solomon](projects/components/ecc-ip/reed-solomon/)** | Ready | RS(n, k) over GF(2^m); riBM or Euclidean solver, optional AXIS/AXI4 adapters; loopback validated on Nexys A7 |
-| **[BCH](projects/components/ecc-ip/bch/)** | In Progress | Binary BCH encoder/decoder sharing the GF(2^m) primitives; references gathered, draft PRD, no RTL yet |
+| **[BCH](projects/components/ecc-ip/bch/)** | In Progress | Binary BCH encoder/decoder importing the reed-solomon GF(2^m) layer; syndrome / key-equation / Chien fub blocks + encoder/decoder cores landed, dv gate tests running |
 
 #### Retro Legacy Blocks
 
@@ -563,7 +579,7 @@ rtldesignsherpa/
 │   │   ├── dma-ip/              # STREAM / RAPIDS DMA engines
 │   │   ├── fabric-gen-ip/       # Bridge, APB crossbar
 │   │   ├── mem-ctrl-ip/         # pumice / scoria / andesite memory controllers
-│   │   ├── ecc-ip/              # Reed-Solomon (ready), BCH (in progress)
+│   │   ├── ecc-ip/              # Reed-Solomon (ready), BCH (in progress, RTL landed)
 │   │   ├── compute-eng-ip/      # HIVE distributed control (planned)
 │   │   ├── noc-ip/              # Delta NoC mesh (planned)
 │   │   ├── retro_legacy_blocks/ # Legacy peripherals (HPET, RTC, PIT, ...)
@@ -574,6 +590,10 @@ rtldesignsherpa/
 ├── val/                          # Validation/Test suites
 │   ├── common/                  # Common module tests
 │   └── amba/                    # AMBA protocol tests
+│
+├── formal/                       # Formal verification (SymbiYosys proof areas)
+│   ├── scoria/                  # scoria memory-controller proofs
+│   └── ...                      # stream, rapids, pumice, amba, cdc, converters, ...
 │
 ├── bin/                          # Tools and automation
 │   ├── CocoTBFramework/         # Testbench infrastructure (200+ files)
@@ -844,16 +864,17 @@ We welcome contributions at all levels:
 - **Retro Legacy Blocks** - 9 peripherals with MAS documentation
 - **RAPIDS DMA** - Advanced DMA in progress
 - **Floating-Point** - FP32 FMA, additional converters
+- **BCH codec** - RTL landed (syndrome / key-equation / Chien fub blocks + encoder/decoder cores), dv gate tests running
 
 ### Near-Term
 - Delta Network-on-Chip mesh implementation
 - HIVE distributed RISC-V control
 - NexysA7 FPGA integration examples
+- Formal verification expansion - sby proof areas live across scoria/stream/rapids/pumice, pre-commit stale-flat gate + CI job
 
 ### Long-Term
 - Complete SoC reference designs
 - PCIe/Ethernet/USB controllers
-- Formal verification integration
 - ASIC synthesis flow examples
 
 ---
