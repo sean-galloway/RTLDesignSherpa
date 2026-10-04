@@ -467,8 +467,8 @@ Collection of 9 legacy/retro peripherals with full APB interfaces:
 |-----------|--------|-------------|
 | **[Delta](projects/components/noc-ip/delta/)** | Planned | 4×4 Network-on-Chip mesh with virtual channels |
 | **[HIVE](projects/components/compute-eng-ip/hive/)** | Planned | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
-| **amber** | Planned | Blocking MESI snoopy L1 cache — first of the `cache-ip/` gemstone family (sedimentary, vs the volcanic-rock memory controllers); MonBus-instrumented research cache |
-| **jet** | Planned | Lockup-free (MSHR) MESI snoopy L1 — the non-blocking follow-on to amber, same `cache-ip/` family |
+| **[amber](projects/components/cache-ip/amber-mesi-l1/)** | Planned | Blocking MESI snoopy L1 cache — first of the [`cache-ip/`](projects/components/cache-ip/) gemstone family (sedimentary, vs the volcanic-rock memory controllers); MonBus-instrumented research cache |
+| **[jet](projects/components/cache-ip/jet-mesi-l1/)** | Planned | Lockup-free (MSHR) MESI snoopy L1 — the non-blocking follow-on to amber, same [`cache-ip/`](projects/components/cache-ip/) family |
 
 ---
 
