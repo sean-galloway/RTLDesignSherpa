@@ -38,8 +38,9 @@ exactly one state by construction rather than by discipline.
 - **TASK-038** — CLOSED 2026-10-04: both ddr2-char harnesses rebuilt on the
   post-sdpram-fix tree (pumice `61d35ff7` +0.132 ns, LiteDRAM `44a1b836`
   +0.321 ns, one commit, all smokes green) and every board-measured figure
-  repinned. Fix is off the char datapath: LiteDRAM cycle-identical to 09-10 on
-  all 14 points, pumice streaming within +0.2%; the A/B headline moves anyway
+  repinned. Fix is off the char datapath: LiteDRAM within 25 read-cycles of
+  09-10 on 13/14 points (worst row 0.22%), pumice streaming within +0.2%; the
+  A/B headline moves anyway
   (pumice reads at LiteDRAM parity page-friendly; 1.6-2.5x behind same-bank
   thrash; concurrent 2.00x/1.80x re-measured BOTH sides 2026-10-04). Knee
   (PUMICE-036) spot-checked 48 pts post-fix — did not move (4+4 to the digit).

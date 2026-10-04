@@ -779,7 +779,16 @@ clock, DDR2-300, BL4 on the x16 MT47H64M16. **Peak is 600 MB/s** (8 B per
 controller cycle). Raw CSVs in `docs/char_results/`; reproduce with
 `build-perf/host/pumice_master.py --char`.
 
-### Single stream, one direction at a time (`open_page`)
+### Single stream, one direction at a time (`open_page`) — measured 2026-09-10/14, pre-sdpram-fix
+
+> **Vintage + post-fix cross-check.** This table is the 2026-09-10/14
+> single-stream campaign (`docs/char_results/board_2026-09-10_burstlen.csv`),
+> pre-sdpram-fix (2026-10-02). The page-friendly rows re-measured essentially
+> unchanged 2026-10-03 (row_major bl8 rd 572.2, incremental bl8 rd 561.6,
+> `char_postfix_2026-10-03.csv`). The `col_major` rows moved between the
+> campaigns from controller scheduling work, not the sdpram fix: bl4
+> 102.4 -> 114.7, bl8 172.0 -> 195.2, bl16 262.1 -> 286.7 MB/s. The
+> Little's-law and bank-interleave findings below are unaffected.
 
 | access pattern | AxLEN | write MB/s | % peak | read MB/s | % peak | rd latency |
 |---|---|---|---|---|---|---|
@@ -842,16 +851,22 @@ Read MB/s from gap 0 to gap 15: 1+1 row_major 574 -> 206 (36% retained), 2+2
 
 > **Post-sdpram-fix spot-check (2026-10-04, `reports/bank_gap_sweep_postfix_2026-10-04.json`,
 > 48 points at gaps 0/4/8/15, all integrity-clean): the knee did not move.**
-> 4+4 reproduces the committed pre-fix record to the digit (bus 550.0 vs 549.9
-> MB/s, wr 275.0 vs 274.9, knee 15). Every cell's knee matches the table within
-> the spot's gap resolution (4+4 = 15, 3+3 = 15, 2+2 bends between gap 8 and 15,
-> 1+1 bends immediately — spot knee 0). Two caveats: per-direction rd/wr at
-> 2+2/3+3 are not comparable to the committed 2026-09-14 `bank_gap_sweep.json`
-> (the concurrent window measurement was rewritten three times since —
-> `3d6ad0093`, `6cac8cb83`, `326fab277` — the old 2+2/3+3 rows measured the
-> directions serially, which is why they sit at ~282 MB/s); and 1+1 reads at
-> gap ≥ 8 land on 299.6 MB/s in BOTH eras, the signature of tRTW=20 no longer
-> colliding once the gap spaces the turns. The knee conclusion rests on the
+> 4+4 reproduces the committed pre-fix record to the digit (bus 549.94 vs
+> 549.86 MB/s — both round to 549.9 — wr 275.0 vs 274.9, knee 15). The
+> incremental and row_major cells all match the published knees within the
+> spot's gap resolution (4+4 = 15, 3+3 = 15, 2+2 bends between gap 8 and 15,
+> 1+1 bends immediately — spot knee 0), and the post-fix col_major cells are
+> flat at every generator count (knee 15), consistent with the table. Two
+> caveats: per-direction rd/wr at 2+2/3+3 are not comparable to the committed
+> 2026-09-14 `bank_gap_sweep.json` (the concurrent window measurement went
+> through three versions — `3d6ad0093`, `6cac8cb83`, `326fab277`, the last two
+> after the sweep — the old 2+2/3+3 rows measured the directions serially,
+> which is why they sit at ~282 MB/s); and the committed pre-fix col_major rows
+> read page-friendly-shaped (the 09-14 tool never applied the col_major order),
+> so the col_major knee rests on the post-fix data plus the published table,
+> not the old raw rows. Finally, 1+1 reads at gap 8 land on 299.6 MB/s in BOTH
+> eras (both decline afterward) — the signature of tRTW=20 no longer colliding
+> once the gap spaces the turns. The knee conclusion rests on the
 > controller-side behavior, which the 2026-10-03 char matrix independently
 > reproduced to the digit (close_page `col_major` bl8 read 195.2 MB/s on both
 > the 2026-09-26 and 2026-10-03 images).

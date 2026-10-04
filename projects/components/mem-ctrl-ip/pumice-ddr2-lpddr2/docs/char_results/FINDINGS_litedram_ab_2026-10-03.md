@@ -56,9 +56,11 @@ The harness sdpram (`sdpram_slave_axil_axil`) serves the UART/CSR bridge;
 the characterization engines run autonomously after the kick, so the old
 ~2cyc/burst-boundary tax was off the datapath. Evidence:
 
-- LiteDRAM side is cycle-IDENTICAL to the 09-10 baseline on all 14 points
-  (e.g. incremental_bl4 rd 272,311 cycles then vs 272,311 now; every row
-  matches to the digit when both are normalized to 75 MHz).
+- LiteDRAM side is UNCHANGED from the 09-10 baseline within rebuild noise:
+  13 of 14 rows land within 25 read-cycles (e.g. incremental_bl4 rd 272,312
+  -> 272,311), and the one larger row, col_major_interleaved_bl16, differs by
+  3,495 cycles = 0.22% (1,613,076 vs 1,616,571). Nothing measurable, and
+  nothing pointing at the sdpram path.
 - pumice open_page page-friendly rows are within noise of the 09-10
   read_fixed_ring64 baseline (571.3 -> 572.3, +0.2%).
 - This is the same signature measured on the Genesys2 stream/rapids-beats
@@ -108,7 +110,7 @@ found). Profiles `concurrent` (1w+1r) and `multigen` (1w+2r), `--char-scale
 again reads 100.0 from the identity register (the known flow bug); normalized
 to the real 75 MHz by scaling 0.75 from recorded cycles.
 
-| scenario | pumice total | LiteDRAM total | ld/pum | 09-10 pumice | 09-10 LiteDRAM |
+| scenario | pumice total | LiteDRAM total | pum/ld | 09-10 pumice | 09-10 LiteDRAM |
 |---|---|---|---|---|---|
 | incremental bl8, 1w+1r | 552.4 | 247.5 | 2.23x | 552.6 | 247.5 |
 | row_major bl8, 1w+1r | **571.1** | **285.8** | **2.00x** | 570.1 | 285.6 |
@@ -116,9 +118,10 @@ to the real 75 MHz by scaling 0.75 from recorded cycles.
 
 **The concurrent claim stands post-fix, both sides.** pumice reproduces its
 09-10 totals within +0.2% (sdpram fix off the datapath, as the matrix showed),
-and LiteDRAM reproduces to the digit after 75 MHz normalization — so the 2.00x
-/ 1.80x advantage is a property of the two controllers, not of the measurement
-vintage. Also re-verified post-fix on the pumice side only: the bank/gap knee
-(PUMICE-036) spot-check, 48 points at gaps 0/4/8/15 — see the AT-A-GLANCE knee
-section; 4+4 reproduces the committed pre-fix record to the digit (bus 550.0
-MB/s), every cell's knee matches within spot resolution, knee DID NOT MOVE.
+and LiteDRAM reproduces within 0.07-0.2% after 75 MHz normalization — so the
+2.00x / 1.80x advantage is a property of the two controllers, not of the
+measurement vintage. Also re-verified post-fix on the pumice side only: the
+bank/gap knee (PUMICE-036) spot-check, 48 points at gaps 0/4/8/15 — see the
+AT-A-GLANCE knee section; 4+4 reproduces the committed pre-fix record to the
+digit (bus 549.9 both eras), the incremental/row_major knees match at every
+count within spot resolution, and knee DID NOT MOVE.

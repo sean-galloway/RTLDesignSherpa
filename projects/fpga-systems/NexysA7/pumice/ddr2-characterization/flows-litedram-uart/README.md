@@ -78,11 +78,12 @@ commit on the post-sdpram-fix tree (`amba 71d48b6f7`; pumice `build-perf` WNS
 analysis in
 `projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/docs/char_results/FINDINGS_litedram_ab_2026-10-03.md`:
 pumice `open_page` now **matches LiteDRAM on every page-friendly pattern**
-(writes 569-570 both, reads 561-572 both, ld/pum 1.00-1.01x — the "reads 2x"
+(writes 569-570 both, reads 561-579 both, ld/pum 1.00-1.01x — the "reads 2x"
 gap below was the pre-ring-fix state). LiteDRAM still leads same-bank row
 thrash 1.6-2.5x; pumice still leads bank-interleaved BL4 (0.78x). The LiteDRAM
-side was cycle-identical to the 2026-09-10 baseline on all 14 points: the
-sdpram fix does not touch this datapath.
+side is unchanged from the 2026-09-10 baseline within rebuild noise — 13 of
+14 rows within 25 read-cycles, worst row 0.22%: the sdpram fix does not touch
+this datapath.
 
 **Original run (2026-09-10, timing-clean build, WNS +0.195 ns, 35% LUTs):**
 `docs/char_results/litedram_2026-09-10_matrix.csv` and
