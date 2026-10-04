@@ -541,7 +541,21 @@ main {
   margin-bottom: 0.6rem;
 }
 .scen-subhead { font-weight: 700; margin: 0.8rem 0 0.35rem; }
-.scen-banks { display: flex; flex-wrap: wrap; gap: 0.35rem 0.6rem; }
+.scen-banks { display: flex; flex-wrap: wrap; gap: 0.35rem 0.6rem; align-items: flex-start; }
+.scen-bankgroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.3rem 0.4rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+.scen-bankgroup-h {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink-dim);
+}
 .scen-bank {
   font-family: var(--mono);
   font-size: 0.85rem;

@@ -55,16 +55,28 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
   function renderBankState(sc) {
     var topo = st.pack.topology;
     var wrap = el('div', 'scen-banks');
-    for (var b = 0; b < topo.banks; b++) {
+    var mk = function (b) {
       var entry = sc.bankState[b];
-      var label = 'B' + b;
-      if (topo.hasBankGroups) {
-        label = 'G' + DDRD.bg(topo, b) + ' ' + label;
-      }
-      wrap.appendChild(el('span',
+      return el('span',
         'scen-bank' + (entry.openRow === null ? '' : ' scen-bank-open'),
-        label + ': ' +
-        (entry.openRow === null ? 'idle' : 'open R' + entry.openRow)));
+        'B' + b + ': ' +
+        (entry.openRow === null ? 'idle' : 'open R' + entry.openRow));
+    };
+    if (topo.hasBankGroups) {
+      // One column per bank group, banks stacked inside it, so G0's four
+      // banks read as a unit and G1's four follow (was: one flat wrap).
+      for (var g = 0; g < topo.groups; g++) {
+        var col = el('div', 'scen-bankgroup');
+        col.appendChild(el('div', 'scen-bankgroup-h', 'G' + g));
+        for (var b = g * topo.banksPerGroup; b < (g + 1) * topo.banksPerGroup; b++) {
+          col.appendChild(mk(b));
+        }
+        wrap.appendChild(col);
+      }
+    } else {
+      for (var b0 = 0; b0 < topo.banks; b0++) {
+        wrap.appendChild(mk(b0));
+      }
     }
     return wrap;
   }
