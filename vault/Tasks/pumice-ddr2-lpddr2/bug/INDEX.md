@@ -2,7 +2,7 @@
 
 # pumice — bugs
 
-**Next ID: BUG-023** — never recycle a number, even when its item closed.
+**Next ID: BUG-024** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,13 +12,19 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 21 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **BUG-023** — the reset-parity manifest was re-based at BUG-020 (73 -> 65
+  FIELDS, correctly) but the test's `>= 70` floor was never moved, so
+  `test_the_pumice_manifest_covers_every_writable_field` has been red since
+  2026-09-28 and the TASK-015 pre-commit tripwire is decorative; re-base the
+  floor (or derive it) and fix the manifest docstring's stale "73 decisions"
 
 ## Closed
 
