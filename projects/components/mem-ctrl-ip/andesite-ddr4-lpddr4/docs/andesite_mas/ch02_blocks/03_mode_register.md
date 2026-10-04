@@ -54,12 +54,12 @@
 | `memtype_i` | in | 3 | family memtype enum from `andesite_pkg` |
 | `rank_i` | in | `RANK_WIDTH` | rank target for MR access |
 | `wr_en_i` | in | 1 | write strobe from init_sequencer or firmware |
-| `wr_addr_i` | in | 3 | MR index (0-6 for DDR4; LPDDR4 index per JESD209-4) |
+| `wr_addr_i` | in | 6 | MR index (0-6 for DDR4; LPDDR4 index per JESD209-4, 64-entry working bound) |
 | `wr_data_i` | in | `DATA_WIDTH` | MR write payload |
 | `rd_en_i` | in | 1 | read strobe for firmware readback |
-| `rd_addr_i` | in | 3 | MR index for readback |
+| `rd_addr_i` | in | 6 | MR index for readback |
 | `rd_data_o` | out | `DATA_WIDTH` | MR readback data |
-| `mr_sel_o` | out | 3 | MR index to formatter for MRS/MRW command |
+| `mr_sel_o` | out | 6 | MR index to formatter for MRS/MRW command |
 | `mr_data_o` | out | `DATA_WIDTH` | MR payload to formatter for MRS/MRW command |
 | `mpr_page_o` | out | 2 | MR3 MPR page select to `rdlvl_ifc` |
 | `fgr_factor_o` | out | 2 | MR3 FGR 1x/2x/4x select to `refresh_ctrl` |

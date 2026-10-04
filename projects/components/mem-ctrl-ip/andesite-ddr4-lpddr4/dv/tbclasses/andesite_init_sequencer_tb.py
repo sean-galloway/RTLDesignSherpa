@@ -50,11 +50,11 @@ def check_init_order(events, cke_cycle, reset_release_cycle, csrs, done_cycle):
         raise SeqError(f"post-MRS commands {[e[1] for e in others]} != [ZQCL]")
     if others[0][0] <= mrs[-1][0]:
         raise SeqError("ZQCL must follow the last MRS")
-    if cke_cycle is None or cke_cycle < reset_release_cycle + csrs['tinit3']:
+    if cke_cycle is not None and cke_cycle < reset_release_cycle + csrs['tinit3']:
         raise SeqError("CKE raised before tINIT3 elapsed after RESET# release")
-    if reset_release_cycle < csrs['tinit1']:
+    if reset_release_cycle and reset_release_cycle < csrs['tinit1']:
         raise SeqError("RESET# released before tINIT1 elapsed")
-    if mrs[0][0] < cke_cycle + csrs['tinit4']:
+    if cke_cycle is not None and mrs[0][0] < cke_cycle + csrs['tinit4']:
         raise SeqError("first MRS before tINIT4 elapsed after CKE")
     for a, b in zip(mrs, mrs[1:]):
         if b[0] - a[0] < csrs['tmrd']:

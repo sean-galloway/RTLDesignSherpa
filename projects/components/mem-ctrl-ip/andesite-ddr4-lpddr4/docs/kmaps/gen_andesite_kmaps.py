@@ -75,6 +75,8 @@ def _normalize_xlsx_timestamps(path):
 # ---------------------------------------------------------------------------
 CMD = ("projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/"
        "andesite_mas/ch02_blocks/01_cmd_formatter.md")
+FMT = ("projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/fub/"
+       "andesite_dfi_cmd_formatter.sv")
 AM = ("projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/"
       "andesite_mas/ch02_blocks/04_addr_mapper.md")
 MR = ("projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/"
@@ -89,10 +91,12 @@ HAS_DP = ("projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/"
           "andesite_has/ch02_overview/04_design_point.md")
 
 CITES = [
-    # the DDR4 command truth table anchor (don't renumber the fence)
-    (CMD, 87, "ACT_n  RAS_n  CAS_n  WE_n"),
-    (CMD, 89, "ACT"),
-    (CMD, 97, "auto-precharge variants"),
+    # the DDR4 command decode -- RTL lines now that the formatter exists
+    # (the MAS fence stays the design citation; the RTL is what the
+    # workbook diffs rtl_sop against)
+    (FMT, 77, "unique case (op_i)"),
+    (FMT, 78, "OP_ACT"),
+    (FMT, 17, "AP (A10) is an address input, not a pin"),
     # LPDDR4 CA placeholder fence
     (CMD, 139, "Command class -> CA encoding source"),
     (CMD, 148, "REFpb    -> kmap table (bank carried in command)"),

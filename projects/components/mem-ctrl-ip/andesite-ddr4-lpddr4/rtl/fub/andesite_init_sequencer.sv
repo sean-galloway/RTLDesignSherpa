@@ -107,7 +107,6 @@ module andesite_init_sequencer #(
     logic [TINIT_WIDTH-1:0]     w_load;
     logic                       w_enter;
     logic [2:0]                 r_mr_idx;
-    logic [TINIT_WIDTH-1:0]     r_gap_val;
     logic [2:0]                 w_mr;
     logic [DATA_WIDTH-1:0]      w_mr_image;
 
@@ -172,7 +171,11 @@ module andesite_init_sequencer #(
             ST_RESET_ASSERT:        w_load = tinit1_csr;
             ST_RESET_DEASSERT_WAIT: w_load = tinit3_csr;
             ST_CKE_WAIT:            w_load = tinit4_csr;
-            ST_MRS_GAP:             w_load = r_gap_val;
+            // Entered on the ack edge of an MRS; r_mr_idx still holds
+            // the acknowledged index -- 6 (MR0) means the gap to ZQCL is tMOD,
+            // every earlier MRS gaps by tMRD. Selecting here avoids the
+            // race against the index increment that a registered gap value had.
+            ST_MRS_GAP:             w_load = (r_mr_idx == 3'd6) ? tmod_csr : tmrd_csr;
             ST_DLLK_ZQINIT_WAIT:    w_load = (tdllk_csr > tzqinit_csr)
                                               ? tdllk_csr : tzqinit_csr;
             ST_GEAR_SYNC_WAIT:      w_load = tdllk_csr;  // sync bound; Q1 refines
@@ -187,7 +190,6 @@ module andesite_init_sequencer #(
             r_state     <= ST_POR;
             r_cnt       <= '0;
             r_mr_idx    <= '0;
-            r_gap_val   <= '0;
         end else begin
             r_state <= r_state_d;
             if (w_enter)
@@ -197,10 +199,7 @@ module andesite_init_sequencer #(
 
             if (r_state == ST_POR) begin
                 r_mr_idx  <= '0;
-                r_gap_val <= '0;
             end else if (r_state == ST_MRS_REQ && cmd_ack) begin
-                // Gap after this MRS: tMRD between MRS's, tMOD after MR0.
-                r_gap_val <= (r_mr_idx < 3'd6) ? tmrd_csr : tmod_csr;
                 r_mr_idx  <= r_mr_idx + 1'b1;
             end
         end
@@ -255,6 +254,9 @@ module andesite_init_sequencer #(
             ST_ZQCL_REQ: begin
                 cmd_req      = 1'b1;
                 cmd_op       = OP_ZQCL;
+                // A10=1 is what makes the command ZQCL rather than ZQCS
+                // (kmap anchor: A10 is the long/short select input).
+                cmd_addr     = 18'h000400;
                 zq_cal_start = 1'b1;
             end
             ST_GEARDOWN_ENTRY: begin

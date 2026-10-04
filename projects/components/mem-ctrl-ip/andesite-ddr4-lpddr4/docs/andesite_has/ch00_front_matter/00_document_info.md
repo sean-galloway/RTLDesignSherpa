@@ -75,6 +75,7 @@ confirmed, not claims whose substance is unverified.
 | Version | Date | Change |
 |---------|------|--------|
 | 0.1 | 2026-10-03 | First edition, from the 2026-10-03 bootstrap spec. Written before RTL, the way scoria's 0.1 was: the delta analysis settles the markings, the design point, and the DFI 4.0 boundary; the MAS and the kmap book follow as separate books. |
+| 0.2 | 2026-10-04 | P1 RTL landed per the RTL-bootstrap spec: `andesite_pkg`, `andesite_dfi_cmd_formatter`, `andesite_mode_register`, and `andesite_init_sequencer` exist with model-first DV. The init slice walks the DFI 4.0 BFM at DDR4-1600 (vendored jedec/ddr4-1600.csv timings) through JEDEC init with the anchored order proven at the pins and zero DRAM-state violations; gear-down entry exercised as a second configuration. The kmap book's command-decode citations now point at the RTL lines, so the workbook's SOP verdicts are live. First-consumer BFM gaps the slice exposed and the DV repo fixed: the v4.0 `cs` rename in the receive path and wired roster, and presence-guarded optional wires. The MAS Table 2.2/2.2.2 port tables were reconciled with the landed interface (v4.0 names, 5-bit `op_i`, 3-bit MR index on `cmd_bank`); deferred ports (`dfi_alert_n`, `ca_o`/`ca_valid_o`) are recorded as follow-ons, not stubs. |
 
 : Table 0.3: Revision history
 

@@ -30,7 +30,7 @@
 | Document Title | andesite DDR4/LPDDR4 Family Controller Micro-Architecture Specification |
 | Version | 0.1 (draft) |
 | Date | October 3, 2026 |
-| Status | Draft — no RTL exists; expands the owner-reviewed HAS v0.1's changed and new blocks to signal level. Every claim is inherited from a named scoria source, cited to JESD79-4 / JESD209-4 / DFI 4.0 with the `§TBC(TASK-005)` discipline, or recorded as an open question in the HAS ch06 |
+| Status | v0.1 with P1 RTL landed (2026-10-04): the init slice (`andesite_init_sequencer`, `andesite_mode_register`, `andesite_dfi_cmd_formatter`) exists and walks the DFI 4.0 BFM. This book expands the owner-reviewed HAS v0.1's changed and new blocks to signal level. Every claim is inherited from a named scoria source, cited to JESD79-4 / JESD209-4 / DFI 4.0 with the `§TBC(TASK-005)` discipline, or recorded as an open question in the HAS ch06 |
 | Classification | Open Source - MIT License |
 
 ## Revision History
@@ -38,6 +38,7 @@
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 0.1 | 2026-10-03 | RTL Design Sherpa | First draft, written before any RTL exists. Carries the HAS's changed/new blocks one level down: per-block interface tables, FSM policy, mechanism detail, and the contract anchors the generated kmap book cites. Inherited-unchanged blocks are referenced to scoria's books, not rewritten. |
+| 0.2 | 2026-10-04 | RTL Design Sherpa | P1 RTL reconciliation: Tables 2.2/2.2.2 (formatter, init_sequencer) and the mode_register interface now match the landed modules — v4.0 `dfi_cs` naming, 5-bit `op_i` carrying `OP_MPC`, 3-bit MR index on `cmd_bank`, 6-bit MR addresses, `csr_mrN_image` init payloads. Deferred ports (`dfi_alert_n`, `ca_o`/`ca_valid_o`) are recorded as follow-ons (TASK-006 / LPDDR4 breadth), not stubs. The kmap book's command-decode citations re-pointed at the RTL; the SOP verdicts are live. |
 
 ## Document Purpose
 
