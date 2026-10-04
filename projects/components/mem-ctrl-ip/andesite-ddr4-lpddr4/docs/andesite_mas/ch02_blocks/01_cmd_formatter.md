@@ -133,11 +133,11 @@ The activate command packs the row and bank-group fields onto the DFI address an
 
 Parity is generated in the formatter from the command pins plus the address/bank/bank-group bits that travel on the same DRAM clock edge. The insertion point is the registered pipeline stage that drives `dfi_parity_in`. Generation only runs when `parity_en_i` is asserted; that bit is cleared at reset and set by the init_sequencer once the MR sequence has programmed parity mode. This is the same init-side enable dependency scoria used for DLL-related gating.
 
-A parity error returned on `dfi_alert_n` is a DFI 4.0 alert event `§TBC(TASK-005)`. The formatter logs the raw `dfi_alert_n` pulse; the sequencer owns the recovery policy and the MR re-programming path.
+A parity error returned on `dfi_alert_n` is a DFI 4.0 alert event (`§3.5.7` command-address parity, `§4.11` alert handling). The formatter logs the raw `dfi_alert_n` pulse; the sequencer owns the recovery policy and the MR re-programming path, described in `ch02_blocks/02_init_sequencer.md` §"CA parity error recovery".
 
 ### NEW LPDDR4 CA submodule
 
-LPDDR4 uses a 6-bit double-data-rate CA bus, two cycles per command. The submodule takes the internal opcode, bank, and MPC/MRW payload and emits the two-cycle CA beat pair. Each command is therefore a 12-bit symbol split across two half-rates. The exact CA encodings are pinned by the kmap book's LPDDR4 CA-bus table in `docs/kmaps/generated/` (andesite TASK-004); this page does not fabricate them.
+LPDDR4 uses a 6-bit double-data-rate CA bus, two cycles per command (RD/WR); ACT is issued as an ACT-1/ACT-2 pair. The submodule takes the internal opcode, bank, and MPC/MRW payload and emits the two-cycle CA beat pair. Each command is therefore a 12-bit symbol split across two half-rates. The exact CA encodings are pinned by the kmap book's LPDDR4 CA-bus table in `docs/kmaps/generated/` (andesite TASK-004); this page does not fabricate them.
 
 ```text
 Command class -> CA encoding source
@@ -155,6 +155,12 @@ Command class -> CA encoding source
 : Table 2.4: LPDDR4 CA encoding placeholder (kmap book anchor)
 
 The submodule is combinational encoding plus the two-cycle registered shifter. The first cycle drives `ca_o` with CA[5:0]; the second cycle drives `ca_o` with CA[11:6]. `ca_valid_o` marks both cycles.
+
+### Inline CKE and per-command CA cycles (LPDDR4)
+
+LPDDR4 removed the dedicated `CKE` pin — JESD209-4E carries the CKE-equivalent state inline on the CA bus, and the LPDDR4 research index lists this as one of the big architectural breaks from LPDDR3. The `dfi_cke` output of this formatter is therefore DDR4-scoped only; for LPDDR4, the CA submodule encodes CKE-equivalent states (power-down entry/exit, self-refresh entry/exit) as CA-bus transactions. That ties directly to the HAS Ch 3.1 dormant-pair story: `powerdown_ctrl` and `dfi_signal_pack` are DDR4-scoped this edition, while LPDDR4 low-power states live in the CA encoding.
+
+The per-command CA cycle structure also differs from the flat "two cycles per command" wording in the purpose section. RD and WR span two CA cycles, but ACT is not a single two-cycle command — it is issued as an ACT-1 / ACT-2 pair on two separate clocks. The bit-level CA layouts for every command class are per JESD209-4E cold-storage confirmation; the kmap book's LPDDR4 CA table (`docs/kmaps/generated/02_lpddr4_ca_command_table.md`) is the authoritative placeholder and stays TBC until that confirmation is done.
 
 ## FSM policy
 

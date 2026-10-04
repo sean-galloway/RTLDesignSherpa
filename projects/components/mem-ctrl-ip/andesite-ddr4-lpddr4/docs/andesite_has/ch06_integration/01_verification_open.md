@@ -49,6 +49,8 @@ side, x8 / x16 widths, four DFI phases — because verifying at the geometry
 the design point uses is free, and verifying at a different one silently
 weakens every result.
 
+The verification target is therefore three counterparties, not one. The in-house DFI 4.0 BFM is the primary checker: it owns the protocol and the pin-level contract. DRAMsim3, cited in both the DDR4 and LPDDR4 research indexes (Li et al. 2020), is the cycle-accurate second reference for the command stream — it cross-checks that the sequence the controller issues is legal and produces the same DRAM state. For LPDDR4, the missing `lpddr4_ca_map.py` encoder (BFM gap G1) is closed by andesite TASK-010, and the BFM round-trip encode/decode tests for the CA encoder become the third counterparty — they prove the MAS CA tables and the RTL encoder agree before DRAMsim3 ever sees the stream.
+
 **BFM gap list vs HAS Table 4.1 / andesite design point.** Gaps are against
 the files read for this study: `behaviors/base.py`, `v3_1.py`, `v4_0.py`,
 `v5_2.py`, `v6_0.py`, `registry.py`; `ca_map.py`, `ca_transport.py`,
@@ -90,7 +92,7 @@ is also the test-plan structure.
 
 ## What must be verified, beyond the inherited suites
 
-Named now, because "new coverage" that isn't enumerated doesn't happen:
+Named now, because "new coverage" that isn't enumerated doesn't happen. Every item below is ultimately checked against at least one of the three counterparties named above — the DFI 4.0 BFM, DRAMsim3, or the LPDDR4 CA encoder round-trip tests:
 
 1. **The init sequences, in JEDEC's order, both memtypes.** A checker that
    asserts the order — RESET# held, the CKE waits, the MR3-MR6-MR5-MR4-MR2-
@@ -153,6 +155,7 @@ evidence, cited chapter by chapter where it transfers.
 | Q4 | CA parity: hardware counter vs firmware assist | A scope decision at MAS/RTL time; either way the protocol check of item 3 above must pass, and the split is recorded in the MAS |
 | Q5 | LPDDR4 DVFS/DSM, and the dormant pair's waking | A low-power consumer and a target that can measure power; wakes `powerdown_ctrl`/`dfi_signal_pack` per Ch 3.1 |
 | Q6 | DFI 4.0 clause confirmation and BFM provenance | **Closed on 2026-10-04.** The spec is acquired, every `§TBC(TASK-005)` suffix in this book and the MAS is confirmed or corrected, and the in-house BFM integration note and gap list are above. G1-G5 remain as extension work, not blockers to clause confirmation. |
+| Q7 | PB-REF evaluation (per-bank-group refresh accounting) | **DEFER WITH NAMED CONDITION.** PB-REF is a bounded MODIFIED-layer addition to `refresh_ctrl` behind the CSR policy hook scoria's TASK-001 built. Un-defer when RTL bring-up characterization shows refresh stalls attributable to device-wide `tRFC` serialization. Bhati 2016's FGR/per-bank findings (Table 2) give the cost/benefit summary: 2x/4x FGR shortens `tRFC` by refreshing fewer rows per command but issues refreshes more often, while per-bank refresh lets other banks stay available. PB-REF is orthogonal to the landed FGR work — FGR is a density/granularity choice, PB-REF is a bank-group stagger pattern — so either can land without the other. |
 
 : Table 6.1: The open questions, each with the condition that answers it
 

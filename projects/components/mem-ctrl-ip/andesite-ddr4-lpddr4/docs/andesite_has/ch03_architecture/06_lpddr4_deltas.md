@@ -75,6 +75,12 @@ reset, mode-register writes in JESD209-4's order, MPC ZQ calibration — with
 the same binding rule as DDR4's: the order is a citation, not a design
 choice. Chapter 3.2.
 
+**Inline CKE.** LPDDR4 has no dedicated `CKE` pin; the CKE-equivalent
+state is encoded on the CA bus, so power-down and self-refresh entry are
+CA-bus transactions rather than a separate pin. The formatter's `dfi_cke`
+output is DDR4-scoped; the LPDDR4 CA submodule handles CKE-equivalent
+states. Chapter 3.2 (MAS `ch02_blocks/01_cmd_formatter.md`).
+
 ## What LPDDR4 does *not* change
 
 Worth stating to keep the scope honest: the host side (nothing about LPDDR4

@@ -163,3 +163,19 @@ Ordering checks — for example, that MR3 is issued before MR0 — are assertion
 - **Re-initialization:** A firmware pulse on `csr_init_trigger` forces the FSM back to `POWER_ON_RESET`. The `init_done` output falls immediately so the scheduler stops admitting host commands.
 - **Gear-down and parity are independent CSR selects.** Either, both, or neither may be enabled; the FSM states exist for both paths.
 - **DFI 4.0 gear-down handshake:** The `gear_down_entry` pulse crosses to the PHY through the DFI 4.0 control surface `§TBC(TASK-005)`. The exact DFI signal names are public and live in the formatter chapter.
+
+## CA parity error recovery
+
+Recovery from a CA parity alert is handled by a small sub-FSM that sits beside the init FSM and never enters the bank machine. The formatter logs the raw `dfi_alert_n` pulse (see `ch02_blocks/01_cmd_formatter.md` §"CA parity"); that logged pulse is the entry event for this recovery FSM. DFI 4.0 alert and parity semantics are `§3.5.7` and `§4.11`.
+
+```text
+IDLE -> ALERT_SEEN -> RESENDING -> IDLE
+```
+
+* `IDLE` — waiting. The recovery FSM is transparent; normal scheduler grants pass through unchanged.
+* `ALERT_SEEN` — on the cycle the formatter's logged pulse arrives, the command currently in the grant stream is marked suspect and dropped. The FSM asserts a `retract` sideband to the scheduler, asking it to withdraw the suspect command and re-issue it from its request queue. The scheduler's request-never-preempts rule is preserved: the recovery request is just another maintenance-class request that must wait for the scheduler's grant, exactly like the init sequencer's `cmd_req`/`cmd_ack` pair.
+* `RESENDING` — after the JEDEC-named recovery interval has elapsed, the recovery FSM re-issues the dropped command through the same formatter path. The interval value is a runtime CSR loaded from the JESD79-4 speed bin at CSR-derivation time; no numeric constant is compiled into the RTL.
+
+Telemetry is kept in small saturating counters: alerts seen, commands dropped, and commands re-issued. These counters are visible to firmware and are reset only by controller reset or an explicit firmware clear.
+
+The recovery FSM does **not** trigger a full re-initialization. A single parity event drops one command and retransmits it; only a sustained or uncorrectable pattern would escalate to firmware-assisted MR5 re-programming or init re-run. That escalation policy is recorded as open question Q4 in the HAS, not hard-wired here.
