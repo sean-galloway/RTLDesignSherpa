@@ -134,6 +134,44 @@ has no beats equivalent, and it is exactly the kind of logic formal is good at:
   directly). Prove depth therefore re-pinned 14 -> 15 so the deepest witness
   and every observed CEX are in-budget -- and the depth-15 re-prove then
   PASSED, so the pin is verified, not assumed.
+- DIR 2 status 2026-10-03 — harness + flat + Makefile + .sby exist (untracked
+  until the close commit); cover depth 40 PASS (12/12). Prove FAILED at step 13
+  on `ap_strb_eq_shadow_1b`. **Root cause: a harness modeling bug, not a DUT
+  bug.** The trace showed the DUT popping its record queue at a packet's EMIT
+  (its count one lower during the final beat's presentation) while the shadow
+  popped at the HANDSHAKE; with the shadow queue full, a legal push during a
+  stalled final beat wrapped the shadow write pointer onto the occupied head
+  slot and overwrote the in-flight packet's record (head bytes changed 2 -> 16
+  mid-presentation; the first-beat expectation then mismatched). Fix: shadow
+  storage depth 4 -> 8 (max legal occupancy is DUT depth 4 + skew 1 = 5; the
+  wrap onto an un-popped slot becomes unreachable). PQD itself is unchanged —
+  `ap_pq_ready_eq` still models the DUT's own depth-4 queue exactly, and the
+  pop timing stays handshake-based, so no other assertion or cover moved.
+- CEX #2, same session: after the PQ fix the prove still failed at step 13,
+  now on the MID-packet `ap_strb_eq_shadow` -- a second, independent harness
+  bug. The first-beat branch set `s_emit_i <= 0`, but s_emit_i is the index of
+  the NEXT expected emit, so every mid-packet beat was checked against the
+  closed form one emit low (a 12-byte off=0 packet's second beat: predicted
+  pop 0 / 8 lanes; DUT emitted pop 1 / 4 lanes). The completing-beat
+  snapshot's `s_emit_i + 1` had masked this at captures, and the bug was
+  unreachable before ~step 13 because the AR->R->SRAM->drain->emit latency
+  puts every SECOND beat at step ~12-13 -- which is also why DIR 1's battery
+  never saw it. Fix: `s_emit_i <= 4'd1` in the first-beat branch (the
+  single-beat retire sub-branch is unaffected: s_emit_i is only read while
+  s_pkt_act). Both fixes are in the close commit.
+- DIR 2 close 2026-10-04 — **Prove depth 16 PASS in 1:45:45** (bitwuzla,
+  single core; step 14 ~40 min, step 15 ~58 min of it). smt2 re-grep on the
+  final run: 21/21 `ap_*` present -- DIR 2 carries 21 properties (DIR 1 has
+  16); the `ap_beats` trap name is the DUT's `w_cap_beats` wire here too.
+  Mutation battery, 6 breaks all CAUGHT: strb_invert_v2
+  (ap_byte_total_1b + ap_strb_eq_shadow_1b), hold_load_zero
+  (ap_byte_equality_1b @14), ready_forced (ap_pq_ready_eq @6), cap4k_break
+  (ap_ar_4k @6), arlen_cfg_break (ap_arlen_caps @5), pop_during_reset
+  (ap_out_needs_rec + ap_reset_no_new_out). A 7th candidate,
+  emit_without_record, was dropped as architecturally ineffective -- the
+  mutation is port-unobservable (DUT and shadow read the same stale slot)
+  -- and replaced by ready_forced. Cover depth 40 PASS, 12/12 `cp_*`,
+  deepest witness step 14 (cp_flush/cp_hold_prime/cp_interleave).
 - smt2 grep trap, measured 2026-10-02: `grep -o 'ap_[a-z0-9_]*' design_smt2.smt2`
   returns a 17th name, `ap_beats` -- that is the DUT's `w_cap_beats` wire
   (axi_write_engine), not a property. The property count is 16.
