@@ -12,35 +12,39 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 5 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 5 | done (kept for history) |
+| [closed/](closed/) | 10 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-006** — CA parity / `alert_n` recovery sub-FSM (3-state, out of the
-  bank machine), from the ddr4 research index.
-- **TASK-007** — per-bank-group refresh accounting (PB-REF, tRFC per bank
-  group); evaluation against Bhati 2016, decision recorded in HAS ch06.
-- **TASK-008** — LPDDR4 book reconciliation: inline CKE on the CA bus and
-  per-command CA cycle detail (bank-count conflict resolved by owner ruling
-  2026-10-04; the research index was corrected in place).
-- **TASK-009** — verification reference models: DRAMsim3 cross-check + BFM
-  `lpddr4_ca.py` encoder round-trip tests, recorded in HAS ch06.
-- **TASK-010** — BFM DFI 4.0 gap closure (G1-G5 from the TASK-005 study:
-  LPDDR4 CA map, 1600 CSVs, gear-down behavior, CA-VREF training, per-slice
-  read leveling); work lands in the RTLDesignSherpa-DV repo.
+None. The pre-RTL creation pass of 2026-10-04 closed everything the docs
+tranche and the dfi-specs research filing produced; the lane reopens when RTL
+bring-up or a new study generates work.
 
 ## Closed
 
+- **TASK-010** — BFM DFI 4.0 gap closure (G1-G5): closed 2026-10-04; landed
+  in the RTLDesignSherpa-DV repo as commit 61a27d8fee3b (+30 tests, 1538
+  unit passing); HAS ch06 gap table annotated with the commit and known
+  omissions.
+- **TASK-009** — verification reference models: closed 2026-10-04; HAS ch06
+  now names three counterparties (BFM, DRAMsim3, CA round-trip tests).
+- **TASK-008** — LPDDR4 book reconciliation: closed 2026-10-04; inline CKE
+  and per-command CA cycle detail in the MAS; bank-count conflict resolved
+  by owner ruling (index corrected in place).
+- **TASK-007** — PB-REF evaluation: closed 2026-10-04; DEFER WITH NAMED
+  CONDITION recorded as HAS ch06 Q7.
+- **TASK-006** — CA parity / `alert_n` recovery sub-FSM: closed 2026-10-04;
+  3-state recovery FSM specified in the MAS init_sequencer page.
 - **TASK-005** — DFI 4.0 spec study + BFM gap analysis: closed 2026-10-04;
   every clause citation confirmed against the on-disk spec, five corrections
-  recorded in-book, gap list filed as TASK-010.
+  recorded in-book, gap list filed as TASK-010 and now closed there too.
 - **TASK-001** — advanced scheduling / refresh modes survey: closed
-  2026-10-04; Bhati 2016-cited dispositions written into the file (adopt /
-  evaluate-at-bring-up / model-only), PB-REF delegated to TASK-007.
+  2026-10-04; Bhati 2016-cited dispositions (adopt / evaluate-at-bring-up /
+  model-only), PB-REF delegated to TASK-007.
 - **TASK-004** — author the andesite kmap book: closed 2026-10-04; six
   generated tables (DDR4 command decode, LPDDR4 CA, address decode, MR0-MR6,
   ODT, FGR) with the citation gate green and MAS/HAS citing them; the docs

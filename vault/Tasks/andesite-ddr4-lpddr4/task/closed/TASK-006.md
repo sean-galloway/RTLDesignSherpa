@@ -3,7 +3,7 @@
 > (research index, operator cold storage)
 
 **Priority:** P3
-**Status:** open 2026-10-04
+**Status:** closed 2026-10-04 — completed and owner-directed (pre-RTL creation pass)
 **Owner:** TBD
 
 The HAS/MAS specify CA parity generation and name the `alert_n` return path,

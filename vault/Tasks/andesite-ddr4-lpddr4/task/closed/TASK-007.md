@@ -4,7 +4,7 @@
 > refresh-tradeoffs survey named there
 
 **Priority:** P3
-**Status:** open 2026-10-04
+**Status:** closed 2026-10-04 — completed and owner-directed (pre-RTL creation pass)
 **Owner:** TBD
 
 The HAS/MAS refresh chapter (Ch 3.4 / `06_refresh_ctrl.md`) specifies FGR

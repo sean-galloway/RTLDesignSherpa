@@ -3,7 +3,7 @@
 > verification sections
 
 **Priority:** P3
-**Status:** open 2026-10-04
+**Status:** closed 2026-10-04 — completed and owner-directed (pre-RTL creation pass)
 **Owner:** TBD
 
 The HAS ch06 verification strategy names the DFI 4.0 BFM as the sole

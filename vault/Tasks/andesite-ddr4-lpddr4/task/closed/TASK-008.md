@@ -3,7 +3,7 @@
 > deltas list
 
 **Priority:** P2
-**Status:** open 2026-10-04
+**Status:** closed 2026-10-04 — completed and owner-directed (pre-RTL creation pass)
 **Owner:** TBD
 
 Three deltas between the research index and the andesite books, one of them a

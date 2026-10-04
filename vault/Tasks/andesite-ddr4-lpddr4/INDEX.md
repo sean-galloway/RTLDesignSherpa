@@ -19,19 +19,7 @@ is `git mv`, so an item is in exactly one state by construction.
 
 ## Open shortlist
 
-- **TASK-006..010** (open) — the post-tranche work list: parity recovery FSM,
-  PB-REF evaluation, LPDDR4 reconciliation (two items), verification
-  reference models, and BFM DFI 4.0 gap closure (G1-G5, DV-repo work).
-- Details: [task/INDEX.md](task/INDEX.md).
-
-## Closed
-
-- **TASK-005** (closed 2026-10-04) — DFI 4.0 spec study; citations
-  confirmed against the on-disk spec, BFM gaps filed as TASK-010.
-- **TASK-001** (closed 2026-10-04) — the advanced scheduling / refresh modes
-  survey; Bhati 2016-cited dispositions in the file.
-- **TASK-004** (closed 2026-10-04) — the andesite kmap book; six generated
-  tables, citation-gated, cited from MAS/HAS; docs tranche complete.
-- **TASK-003** (closed 2026-10-04) — the andesite MAS v0.1; owner-reviewed.
-- **TASK-002** (closed 2026-10-04) — the andesite HAS v0.1 and the family
-  docs seed; owner-reviewed.
+None — the pre-RTL creation pass of 2026-10-04 closed every open item
+(TASK-006..010 join TASK-001..005 in closed/). The lane reopens when RTL
+bring-up or a new study generates work. Details:
+[task/INDEX.md](task/INDEX.md).
