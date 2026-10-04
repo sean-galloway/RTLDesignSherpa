@@ -316,6 +316,28 @@ filelist_dirs = [
 ]
 
 [[area]]
+name = "nexys_bch_bridges"
+kind = "board"
+generated = true
+regen = "projects/fpga-systems/NexysA7/bch/bin/regen_bridges.sh"
+# 1x3 AXIL fabric for the BCH loop harness (host -> loop regs + two reserved
+# windows). Mirrors nexys_reed_solomon_bridges for the BCH board project.
+rtl_roots = []
+filelist_dirs = ["projects/fpga-systems/NexysA7/bch/rtl/bridges/filelists"]
+
+[[area]]
+name = "nexys_bch_loop"
+kind = "board"
+# BCH loop harness on the Nexys A7 (TASK-007): generator -> BCH encoder ->
+# error injector -> BCH decoder -> checker, behind the UART harness. The codec
+# itself is the bch component area.
+rtl_roots = []
+filelist_dirs = [
+    "projects/fpga-systems/NexysA7/bch/build-loop/rtl/filelists",
+    "projects/fpga-systems/NexysA7/bch/build-loop/dv/filelists",
+]
+
+[[area]]
 name = "nexys_cdc_display"
 kind = "board"
 rtl_roots = []

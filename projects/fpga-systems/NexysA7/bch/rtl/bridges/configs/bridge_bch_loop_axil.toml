@@ -1,0 +1,111 @@
+#==============================================================================
+# bridge_bch_loop_axil.toml
+#==============================================================================
+# 1-master x 3-slave AXI4-Lite/APB bridge for the BCH loop harness.
+# Sibling of ddr2-characterization's bridge_ddr2_char_axil, stripped to what
+# this flow needs plus the slots it will need.
+#
+# The single master is the host's UART -> AXIL bridge. The harness drives real
+# bus cycles onto this fabric; every register space in the design is a slave
+# window on it, so adding one is a bridge regeneration rather than a harness
+# rewrite. That is the point of the fabric and the reason this file exists:
+# the first cut of this harness wired uart_axil_bridge straight into one flat
+# register block, which worked on the board and left nowhere to put the
+# codec's own registers.
+#
+#   bch_loop_apb    0x00000000  4 KB  APB   The harness + workload register
+#                                           block, generated from
+#                                           build-loop/rtl/rs_loop_regs.rdl and
+#                                           attached through the shared
+#                                           apb4_to_peakrdl shim (the same
+#                                           route char_engine_block uses for
+#                                           chargen_regs). Base 0 so the host
+#                                           driver's HARNESS_BASE stays 0x0.
+#                                           Uses 0x000-0x07F today; 4 KB is the
+#                                           page-granular window.
+#
+#   bch_regs_apb    0x00010000  4 KB  APB   EXPANSION SLOT for rs_regs, the
+#                                           codec's OWN register block from PRD
+#                                           D9's standalone tops (ID, PROFILE,
+#                                           CTRL, job fields, statistics,
+#                                           interrupts). Typed APB/4 KB because
+#                                           that is the shape peakrdl_generate
+#                                           emits behind apb4_to_peakrdl, so
+#                                           adopting it is an instantiation
+#                                           rather than a bridge regen on this
+#                                           flow's critical path.
+#                                           UNTIL THEN THE HARNESS MUST TIE IT
+#                                           OFF (PREADY=1, PRDATA=0,
+#                                           PSLVERR=0) or a stray access to
+#                                           0x10000 hangs the host bus.
+#
+#   obs_apb        0x00020000  4 KB  APB   EXPANSION SLOT, same treatment,
+#                                           sized and typed for
+#                                           axi4_intf_master_observer's
+#                                           obs_regs block (12-bit PADDR). The
+#                                           loop's streams are the natural
+#                                           place to attach an observer when
+#                                           the codec gains AXI ends.
+#
+# Regenerate with bin/regen_bridges.sh; the build PREBUILD runs it with
+# --check so a drifted bridge fails the build rather than silently shipping.
+#==============================================================================
+
+[bridge]
+name = "bridge_bch_loop_axil"
+description = "1x3 AXIL->APB bridge for the BCH loop harness (loop regs + two expansion slots)"
+variants = ["no"]
+mon_preset = "all"
+
+[bridge.clock]
+name = "aclk"
+frequency_mhz = 100
+
+# ---- Master ----------------------------------------------------------------
+[[bridge.masters]]
+name        = "host"
+# `host_axi_` matches the wiring convention the other harnesses use.
+prefix      = "host_axi_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 0        # AXI4-Lite has no transaction IDs
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+
+# ---- Slaves ----------------------------------------------------------------
+[[bridge.slaves]]
+name        = "bch_loop_apb"
+prefix      = "bch_loop_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0        # APB has no IDs
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00000000"
+addr_range  = "0x00001000"     # 4 KB
+
+[[bridge.slaves]]
+name        = "bch_regs_apb"
+prefix      = "bch_regs_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00010000"
+addr_range  = "0x00001000"     # 4 KB
+
+[[bridge.slaves]]
+name        = "obs_apb"
+prefix      = "obs_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00020000"
+addr_range  = "0x00001000"     # 4 KB
