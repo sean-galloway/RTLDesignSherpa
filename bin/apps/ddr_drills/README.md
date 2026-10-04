@@ -114,3 +114,9 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
 so the browser (plain `<script>` tags) and node (`require()`) execute the
 same bytes. The script order in `index.html` and `JS_ORDER` in
 `test/run_tests.js` must stay in sync.
+
+Cache busting: every `<script>`/stylesheet URL in `index.html` and
+`selftest.html` carries a `?v=YYYYMMDD` query. GitHub Pages caches assets
+for ~10 minutes, so when you edit `js/` or `style.css`, bump that query on
+every tag (it changes the URL, forcing every browser to fetch the new
+bytes). `file://` ignores the query; the node suite is unaffected.

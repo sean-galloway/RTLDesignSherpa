@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DDR and HBM Drills</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20261003">
 </head>
 <body>
 
@@ -72,34 +72,34 @@
      scenarios. Pack files (later commits) load after scenarios.js and call
      DDRD.registerPack(). This order MUST match JS_ORDER in
      test/run_tests.js. -->
-<script src="js/registry.js"></script>
-<script src="js/rng.js"></script>
-<script src="js/model.js"></script>
-<script src="js/engine.js"></script>
-<script src="js/mutate.js"></script>
-<script src="js/scenarios.js"></script>
+<script src="js/registry.js?v=20261003"></script>
+<script src="js/rng.js?v=20261003"></script>
+<script src="js/model.js?v=20261003"></script>
+<script src="js/engine.js?v=20261003"></script>
+<script src="js/mutate.js?v=20261003"></script>
+<script src="js/scenarios.js?v=20261003"></script>
 <!-- Packs: self-register onto DDRD. Keep in sync with PACK_ORDER in
      test/run_tests.js. -->
-<script src="packs/hbm4.js"></script>
-<script src="packs/ddr2.js"></script>
-<script src="packs/lpddr2.js"></script>
-<script src="packs/ddr3.js"></script>
-<script src="packs/lpddr3.js"></script>
-<script src="packs/ddr4.js"></script>
-<script src="packs/lpddr4.js"></script>
-<script src="packs/ddr5.js"></script>
-<script src="packs/lpddr5.js"></script>
-<script src="packs/hbm2.js"></script>
-<script src="packs/hbm3.js"></script>
+<script src="packs/hbm4.js?v=20261003"></script>
+<script src="packs/ddr2.js?v=20261003"></script>
+<script src="packs/lpddr2.js?v=20261003"></script>
+<script src="packs/ddr3.js?v=20261003"></script>
+<script src="packs/lpddr3.js?v=20261003"></script>
+<script src="packs/ddr4.js?v=20261003"></script>
+<script src="packs/lpddr4.js?v=20261003"></script>
+<script src="packs/ddr5.js?v=20261003"></script>
+<script src="packs/lpddr5.js?v=20261003"></script>
+<script src="packs/hbm2.js?v=20261003"></script>
+<script src="packs/hbm3.js?v=20261003"></script>
 <!-- UI modes, then the shell. app.js boots on DOMContentLoaded.
      reference.js loads after timing.js: timing.js's mid-question panel
      calls its shared DDRD.buildTimingReference at mount time. -->
-<script src="js/quiz.js"></script>
-<script src="js/timing.js"></script>
-<script src="js/reference.js"></script>
-<script src="js/scenariodrill.js"></script>
-<script src="js/sandbox.js"></script>
-<script src="js/app.js"></script>
+<script src="js/quiz.js?v=20261003"></script>
+<script src="js/timing.js?v=20261003"></script>
+<script src="js/reference.js?v=20261003"></script>
+<script src="js/scenariodrill.js?v=20261003"></script>
+<script src="js/sandbox.js?v=20261003"></script>
+<script src="js/app.js?v=20261003"></script>
 
 </body>
 </html>
