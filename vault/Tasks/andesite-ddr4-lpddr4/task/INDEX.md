@@ -12,24 +12,25 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 2 | done (kept for history) |
+| [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **TASK-001** — advanced scheduling / refresh modes survey.
-- **TASK-004** — author the andesite kmap book (command truth tables, decode
-  maps, MR0-6 programming maps; generator-gated, cited from MAS/HAS); closes
-  when the tables land and the citation gate is green.
 - **TASK-005** — DFI 4.0 spec acquisition + BFM study; the spec is not on
   disk, so every DFI 4.0 claim in the books carries `§TBC(TASK-005)` until
   this confirms clause numbers and a BFM exists.
 
 ## Closed
 
+- **TASK-004** — author the andesite kmap book: closed 2026-10-04; six
+  generated tables (DDR4 command decode, LPDDR4 CA, address decode, MR0-MR6,
+  ODT, FGR) with the citation gate green and MAS/HAS citing them; the docs
+  tranche is complete with this close.
 - **TASK-003** — author the andesite MAS v0.1: closed 2026-10-04; the
   `andesite_mas/` book is complete at v0.1 and owner-reviewed, with the DFI
   4.0 pin table and the contract anchors the kmap book cites.

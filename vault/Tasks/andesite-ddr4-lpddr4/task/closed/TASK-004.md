@@ -3,7 +3,10 @@
 > Spec: `docs/superpowers/specs/2026-10-03-andesite-bootstrap-design.md`
 
 **Priority:** P2
-**Status:** open 2026-10-04
+**Status:** closed 2026-10-04 — the kmap book is complete and owner-reviewed:
+six generated tables, citation gate green, rerun-idempotent (sha256-verified
+across a 2-second boundary), cited from the MAS ch04 anchor map and the HAS
+ch03 pointer paragraph
 **Owner:** TBD
 
 Write the generated kmap book
