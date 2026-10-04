@@ -279,6 +279,12 @@ module bch_loop_harness
     logic          cw_out_window, cw_in_window;
     logic [DW-1:0] enc_out_data;
     logic [S-1:0]  enc_out_keep;
+    logic [DW-1:0] enc_out_bitkeep;
+
+    always_comb begin
+        for (int i = 0; i < S; i++)
+            enc_out_bitkeep[i*8 +: 8] = {8{enc_out_keep[i]}};
+    end
 
     assign enc_in_valid = gen_tvalid && !w_bypass;
 
@@ -329,7 +335,7 @@ module bch_loop_harness
     ) u_inj (
         .aclk(aclk), .aresetn(dp_rstn),
         .in_valid(enc_out_valid), .in_ready(enc_out_ready), .in_data(enc_out_data),
-        .in_keep(enc_out_keep), .in_last(enc_out_last),
+        .in_keep(enc_out_bitkeep), .in_last(enc_out_last),
         .out_valid(inj_out_valid), .out_ready(inj_out_ready), .out_data(inj_out_data),
         .out_keep(inj_out_keep), .out_last(inj_out_last),
         .cfg_mode(hwif_out.INJ_CFG.mode.value), .cfg_count(hwif_out.INJ_CFG.errors.value),

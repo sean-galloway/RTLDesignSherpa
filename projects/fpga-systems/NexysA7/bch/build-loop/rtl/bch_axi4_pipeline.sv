@@ -363,9 +363,9 @@ module bch_axi4_pipeline #(
                                                                   : r_inj_beat + 16'd1;
     )
 
-    logic [S-1:0] w_inj_in_keep;
+    logic [DW-1:0] w_inj_in_keep;
     assign w_inj_in_keep = (w_inj_blk_last && (N_TAIL != 0))
-                         ? S'((1 << N_TAIL) - 1) : {S{1'b1}};
+                         ? DW'((1 << N_TAIL) - 1) : {DW{1'b1}};
 
     localparam int SB_W = 1 + IDW + 2;
     logic            w_sb_wr_ready, w_sb_rd_valid;
