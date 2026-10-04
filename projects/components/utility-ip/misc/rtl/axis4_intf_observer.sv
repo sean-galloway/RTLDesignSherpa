@@ -22,11 +22,16 @@
 //       filter (AXIS_PKT_MASK / AXIS_MASK1..3) decides what reaches the err
 //       FIFO (s_axil_* drain + irq_out) or the bulk dump (m_axi_* / m_axil_*).
 //
-//   No AXIS monitor exists in rtl/amba/monitor -- the AXI observers wrap
-//   axi4_*_monlite, but there was never an axis4_* counterpart -- so the tap
-//   is written here, in the lite's discipline: no CAM, no timer pool, stamps
-//   not counters, and an event the monbus cannot take is DROPPED AND COUNTED
-//   rather than stalling anything. The drop count feeds OBS_STICKY.TAP_BLOCKED.
+//   The tap is the shared axis_monitor_lite core (rtl/amba/monitor), one
+//   instance per port -- the AXI observers wrap axi4_*_monlite; this one
+//   wraps the AXIS lite (utility-ip/misc TASK-003 retired the inline tap
+//   the core's event set was lifted from). Same discipline: no CAM, no
+//   timer pool, stamps not counters, and an event the monbus cannot take
+//   is DROPPED AND COUNTED rather than stalling anything -- the core
+//   queues up to two coincident events per cycle and reports accumulated
+//   drops as an Error/EVENT_DROPPED packet once its queue drains. The
+//   drop count feeds OBS_STICKY.TAP_BLOCKED (latched sticky here; the
+//   core's counter clears itself when the report leaves).
 //
 //   The AXIS packet vocabulary is monitor_amba4_pkg's (PROTOCOL_AXIS is
 //   valid for Error, Timeout, Completion, Credit, Channel and Stream; there
@@ -484,37 +489,6 @@ module axis4_intf_observer
     end
 
     // =================================================================
-    // Frequency-invariant microsecond stamp, shared by every tap. Same
-    // knobs as the lite: counter_freq_invariant divides aclk by the LUT
-    // entry cfg_freq_sel picks, so MON_TIMEOUT stays in microseconds at
-    // any build frequency on the grid.
-    // =================================================================
-    logic        w_tick;
-    logic [15:0] r_us;
-
-    counter_freq_invariant #(
-        .COUNTER_WIDTH    (1),
-        .MIN_FREQ_MHZ     (CFI_MIN_FREQ_MHZ),
-        .MAX_FREQ_MHZ     (CFI_MAX_FREQ_MHZ),
-        .NUM_FREQ_ENTRIES (CFI_ENTRIES),
-        .FREQ_STRATEGY    (0)
-    ) u_tick (
-        .clk          (aclk),
-        .rst_n        (aresetn),
-        .sync_reset_n (1'b1),
-        .freq_sel     (cfg_freq_sel),
-        .tick         (w_tick),
-        /* verilator lint_off PINCONNECTEMPTY */
-        .o_counter    ()
-        /* verilator lint_on PINCONNECTEMPTY */
-    );
-
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) r_us <= 16'd0;
-        else if (w_tick)            r_us <= r_us + 16'd1;
-    )
-
-    // =================================================================
     // Free-running timestamp (driven out by monbus_group, stamped onto
     // every packet at emission)
     // =================================================================
@@ -535,255 +509,87 @@ module axis4_intf_observer
     // =================================================================
     // Per-port AXIS event taps
     // =================================================================
+    // One axis_monitor_lite core per port (rtl/amba/monitor). The core's
+    // event set and payload layouts were lifted from this module's inline
+    // tap, which TASK-003 retired; deliberate core differences: up to two
+    // coincident events per cycle queue into a 4-deep FIFO (a RESUME that
+    // coincides with STREAM_END is ordinary traffic, not a drop), and
+    // accumulated drops leave as an Error/EVENT_DROPPED packet once the
+    // queue drains, never taking a live event's slot.
     genvar gi;
     generate
         for (gi = 0; gi < NUM_PORTS; gi = gi + 1) begin : gen_tap
-            // ---- the wire, this cycle ----
-            logic                       w_tv, w_tr, w_tl, w_hs;
-            assign w_tv = obs_axis_tvalid[gi];
-            assign w_tr = obs_axis_tready[gi];
-            assign w_tl = obs_axis_tlast[gi];
-            assign w_hs = w_tv & w_tr;
+            logic        w_tap_busy, w_tap_in_pkt;
+            logic [15:0] w_tap_error_count;
 
-            // ---- packet-level state ----
-            logic                       r_in_pkt;        // a beat accepted, tlast not yet seen
-            logic [31:0]                r_pkt_beats;     // beats accepted in the open packet
-            logic [31:0]                r_pkt_count;     // packets completed
-            logic [AXIS_ID_WIDTH-1:0]   r_pkt_tid;       // tid on the previous accepted beat
-            logic [AXIS_DEST_WIDTH-1:0] r_pkt_tdest;     // tdest on the previous accepted beat
-            logic                       r_paused;        // tvalid dropped inside a packet
-            logic [31:0]                w_pkt_beats_now; // beats INCLUDING this cycle's handshake
+            axis_monitor_lite #(
+                .UNIT_ID              (UNIT_ID),
+                .AGENT_ID             ({8'h00, 4'h2, 4'(gi)}), // agent: AXIS tap gi
+                .DATA_WIDTH           (DATA_WIDTH),
+                .ID_WIDTH             (AXIS_ID_WIDTH),
+                .DEST_WIDTH           (AXIS_DEST_WIDTH),
+                .AGE_WIDTH            (16),
+                .CFI_MIN_FREQ_MHZ     (CFI_MIN_FREQ_MHZ),
+                .CFI_MAX_FREQ_MHZ     (CFI_MAX_FREQ_MHZ),
+                .CFI_NUM_FREQ_ENTRIES (CFI_ENTRIES),
+                .CFI_FREQ_STRATEGY    (0),
+                // 16 deep, not the core default 4: the observer's single-port
+                // build pads the monbus arbiter to two clients, so a padded
+                // client wastes every other grant, and the egress err FIFO
+                // (64 records, 3 AXIL beats each) back-pressures in bursts
+                // (measured 2026-10-04, all_classes FULL: an 8-cycle stall
+                // at ~1.1 events/cycle killed Channel at depth 4 and 8; the
+                // pre-core tap survived only by priority-shedding load, its
+                // drops invisible). 16 rides out the measured stall with
+                // margin. arbiter padding waste filed separately.
+                .OUT_DEPTH            (16)
+            ) u_axis_tap (
+                .aclk                  (aclk),
+                .aresetn               (aresetn),
+                .clear                 (cam_clear),
+                .i_mon_time            (mon_time_w),
+                .axis_tvalid           (obs_axis_tvalid[gi]),
+                .axis_tready           (obs_axis_tready[gi]),
+                .axis_tlast            (obs_axis_tlast[gi]),
+                .axis_tid              (obs_axis_tid[gi]),
+                .axis_tdest            (obs_axis_tdest[gi]),
+                .axis_tstrb            (obs_axis_tstrb[gi]),
+                .cfg_freq_sel          (cfg_freq_sel),
+                .cfg_timeout_cnt       (cfg_timeout_us_w),
+                // TAP_ENABLE_*_LOGIC keeps the build-time cone pruning the
+                // inline tap had; the AXIS masks stay with the egress group.
+                .cfg_error_enable      (TAP_ENABLE_ERROR_LOGIC   & cfg_monitor_enable_w & cfg_error_enable_w),
+                .cfg_timeout_enable    (TAP_ENABLE_TIMEOUT_LOGIC & cfg_monitor_enable_w & cfg_timeout_enable_w),
+                .cfg_compl_enable      (TAP_ENABLE_COMPL_LOGIC   & cfg_monitor_enable_w & cfg_compl_enable_w),
+                .cfg_credit_enable     (TAP_ENABLE_CREDIT_LOGIC  & cfg_monitor_enable_w & cfg_credit_enable_w),
+                .cfg_channel_enable    (TAP_ENABLE_CHANNEL_LOGIC & cfg_monitor_enable_w & cfg_channel_enable_w),
+                .cfg_stream_enable     (TAP_ENABLE_STREAM_LOGIC  & cfg_monitor_enable_w & cfg_stream_enable_w),
+                .cfg_strb_check_enable (TAP_ENABLE_ERROR_LOGIC),
+                .cfg_stall_threshold   (cfg_latency_threshold_w),
+                .cfg_axis_pkt_mask     (16'h0000),
+                .monbus_valid          (mon_valid[gi]),
+                .monbus_ready          (mon_ready[gi]),
+                .monbus_packet         (mon_packet[gi]),
+                .monbus_timestamp      (mon_ts[gi]),
+                /* verilator lint_off UNUSEDSIGNAL */
+                .busy                  (w_tap_busy),
+                .in_packet             (w_tap_in_pkt),
+                .error_count           (w_tap_error_count),
+                /* verilator lint_on UNUSEDSIGNAL */
+                .packet_count          (tap_packets[gi]),
+                .dropped_count         (tap_dropped[gi])
+            );
 
-            // ---- stall-level state ----
-            logic                       r_valid_pend;    // tvalid high and not accepted last cycle
-            logic [31:0]                r_stall_cycles;  // consecutive tvalid & ~tready cycles
-            logic [15:0]                r_stall_stamp;   // r_us when the stall began
-            logic [15:0]                r_beat_stamp;    // r_us at the last accepted beat
-            logic                       r_tmo_hs_fired;  // one Timeout/HANDSHAKE per stall
-            logic                       r_tmo_pkt_fired; // one Timeout/PACKET per gap
-            logic                       r_credit_fired;  // one Credit/BACKPRESSURE per stall
-            logic [15:0]                w_stall_age, w_beat_age;
-
-            // ---- candidate events, cone-gated (constant-pruned when a cone
-            //      is not built) ----
-            logic w_en_err, w_en_tmo, w_en_compl, w_en_credit, w_en_stream, w_en_chan;
-            logic w_err_valid_drop, w_err_strb0;
-            logic w_tmo_hs, w_tmo_pkt;
-            logic w_compl;
-            logic w_credit;
-            logic w_chan_id, w_chan_dest;
-            logic w_strm_start, w_strm_pause, w_strm_resume;
-
-            // ---- the one packet this cycle can emit ----
-            logic                       w_ev_fire;
-            logic [3:0]                 w_ev_type;
-            logic [7:0]                 w_ev_code;
-            logic [63:0]                w_ev_data;
-            logic [3:0]                 w_ev_n;          // candidates this cycle
-            monitor_packet_t            w_ev_pkt;
-
-            // ---- holding register toward the arbiter ----
-            logic                       r_hold_valid;
-            monitor_packet_t            r_hold_pkt;
-            monbus_timestamp_t          r_hold_ts;
-            logic                       w_pop, w_can_take;
-            logic [15:0]                r_dropped;
-
-            assign w_pkt_beats_now = r_in_pkt ? (r_pkt_beats + 32'd1) : 32'd1;
-            assign w_stall_age     = r_us - r_stall_stamp;
-            assign w_beat_age      = r_us - r_beat_stamp;
-
-            assign w_en_err    = TAP_ENABLE_ERROR_LOGIC   & cfg_monitor_enable_w & cfg_error_enable_w;
-            assign w_en_tmo    = TAP_ENABLE_TIMEOUT_LOGIC & cfg_monitor_enable_w & cfg_timeout_enable_w;
-            assign w_en_compl  = TAP_ENABLE_COMPL_LOGIC   & cfg_monitor_enable_w & cfg_compl_enable_w;
-            assign w_en_credit = TAP_ENABLE_CREDIT_LOGIC  & cfg_monitor_enable_w & cfg_credit_enable_w;
-            assign w_en_stream = TAP_ENABLE_STREAM_LOGIC  & cfg_monitor_enable_w & cfg_stream_enable_w;
-            assign w_en_chan   = TAP_ENABLE_CHANNEL_LOGIC & cfg_monitor_enable_w & cfg_channel_enable_w;
-
-            // AXIS rule: once TVALID is asserted it must stay asserted until
-            // the handshake. r_valid_pend remembers an unaccepted TVALID; a
-            // low TVALID the cycle after is the violation.
-            assign w_err_valid_drop = w_en_err & r_valid_pend & ~w_tv;
-            // A beat that carries no payload byte. Legal AXIS (position
-            // bytes) but on a DMA stream it is a bug; AXIS_MASK1.ERROR_MASK
-            // drops it for a link where it is expected.
-            assign w_err_strb0      = w_en_err & w_hs & (obs_axis_tstrb[gi] == '0);
-
-            assign w_tmo_hs   = w_en_tmo & w_tv & ~w_tr & r_valid_pend
-                              & (w_stall_age >= cfg_timeout_us_w) & ~r_tmo_hs_fired;
-            assign w_tmo_pkt  = w_en_tmo & r_in_pkt & ~w_hs
-                              & (w_beat_age >= cfg_timeout_us_w) & ~r_tmo_pkt_fired;
-
-            assign w_compl    = w_en_compl & w_hs & w_tl;
-
-            // MON_LATENCY re-purposed as the stall length, in CYCLES, above
-            // which backpressure is reported. Once per stall.
-            assign w_credit   = w_en_credit & w_tv & ~w_tr
-                              & (r_stall_cycles >= cfg_latency_threshold_w) & ~r_credit_fired;
-
-            // Against the PREVIOUS beat, not the packet's first: a change then
-            // reports once, instead of on every remaining beat of the packet.
-            assign w_chan_id   = w_en_chan & w_hs & r_in_pkt & (obs_axis_tid[gi]   != r_pkt_tid);
-            assign w_chan_dest = w_en_chan & w_hs & r_in_pkt & (obs_axis_tdest[gi] != r_pkt_tdest);
-
-            assign w_strm_start  = w_en_stream & w_hs & ~r_in_pkt;
-            assign w_strm_pause  = w_en_stream & r_in_pkt & ~w_tv & ~r_paused;
-            assign w_strm_resume = w_en_stream & r_paused & w_tv;
-
-            // Priority when several fire in one cycle: Error > Timeout >
-            // Completion > Credit > Channel > Stream. The losers are counted
-            // in r_dropped, never silently discarded.
-            always_comb begin
-                w_ev_fire = 1'b0;
-                w_ev_type = PktTypeError;
-                w_ev_code = 8'h00;
-                w_ev_data = 64'h0;
-                w_ev_n    = 4'(  $countones({w_err_valid_drop, w_err_strb0, w_tmo_hs, w_tmo_pkt,
-                                             w_compl, w_credit, w_chan_id, w_chan_dest,
-                                             w_strm_start, w_strm_pause, w_strm_resume}));
-                if (w_err_valid_drop) begin
-                    w_ev_fire = 1'b1; w_ev_type = PktTypeError;
-                    w_ev_code = 8'(AXIS_ERR_VALID_TIMING);
-                    w_ev_data = {r_stall_cycles, r_pkt_count};
-                end else if (w_err_strb0) begin
-                    w_ev_fire = 1'b1; w_ev_type = PktTypeError;
-                    w_ev_code = 8'(AXIS_ERR_STRB_INVALID);
-                    w_ev_data = {w_pkt_beats_now, r_pkt_count};
-                end else if (w_tmo_hs) begin
-                    w_ev_fire = 1'b1; w_ev_type = PktTypeTimeout;
-                    w_ev_code = 8'(AXIS_TIMEOUT_HANDSHAKE);
-                    w_ev_data = {r_stall_cycles, w_stall_age, cfg_timeout_us_w};
-                end else if (w_tmo_pkt) begin
-                    w_ev_fire = 1'b1; w_ev_type = PktTypeTimeout;
-                    w_ev_code = 8'(AXIS_TIMEOUT_PACKET);
-                    w_ev_data = {r_pkt_beats, w_beat_age, cfg_timeout_us_w};
-                end else if (w_compl) begin
-                    w_ev_fire = 1'b1; w_ev_type = PktTypeCompletion;
-                    w_ev_code = 8'(AXIS_COMPL_STREAM_END);
-                    w_ev_data = {16'(obs_axis_tid[gi]), 16'(obs_axis_tdest[gi]), w_pkt_beats_now};
-                end else if (w_credit) begin
-                    w_ev_fire = 1'b1; w_ev_type = PktTypeCredit;
-                    w_ev_code = 8'(AXIS_CREDIT_BACKPRESSURE);
-                    w_ev_data = {r_stall_cycles, cfg_latency_threshold_w};
-                end else if (w_chan_id) begin
-                    w_ev_fire = 1'b1; w_ev_type = PktTypeChannel;
-                    w_ev_code = 8'(AXIS_CHAN_ID_CHANGE);
-                    w_ev_data = {16'(r_pkt_tid), 16'(obs_axis_tid[gi]), w_pkt_beats_now};
-                end else if (w_chan_dest) begin
-                    w_ev_fire = 1'b1; w_ev_type = PktTypeChannel;
-                    w_ev_code = 8'(AXIS_CHAN_DEST_CHANGE);
-                    w_ev_data = {16'(r_pkt_tdest), 16'(obs_axis_tdest[gi]), w_pkt_beats_now};
-                end else if (w_strm_start) begin
-                    w_ev_fire = 1'b1; w_ev_type = PktTypeStream;
-                    w_ev_code = 8'(AXIS_STREAM_START);
-                    w_ev_data = {16'(obs_axis_tid[gi]), 16'(obs_axis_tdest[gi]), r_pkt_count};
-                end else if (w_strm_pause) begin
-                    w_ev_fire = 1'b1; w_ev_type = PktTypeStream;
-                    w_ev_code = 8'(AXIS_STREAM_PAUSE);
-                    w_ev_data = {r_pkt_beats, r_pkt_count};
-                end else if (w_strm_resume) begin
-                    w_ev_fire = 1'b1; w_ev_type = PktTypeStream;
-                    w_ev_code = 8'(AXIS_STREAM_RESUME);
-                    w_ev_data = {r_pkt_beats, r_pkt_count};
-                end
-            end
-
-            assign w_ev_pkt = create_monitor_packet(
-                w_ev_type, PROTOCOL_AXIS, w_ev_code,
-                9'(obs_axis_tid[gi]),                 // channel_id = tid
-                UNIT_ID,
-                {8'h00, 4'h2, 4'(gi)},                // agent: AXIS tap gi
-                w_ev_data);
-
-            // ---- state ----
+            // TAP_BLOCKED is sticky until cam_clear. The core's dropped_count
+            // clears itself when the drop report leaves, so latch "a drop
+            // happened" to keep the CSR bit's since-clear meaning.
+            logic r_tap_lost;
             `ALWAYS_FF_RST(aclk, aresetn,
-                if (`RST_ASSERTED(aresetn)) begin
-                    r_in_pkt        <= 1'b0;
-                    r_pkt_beats     <= 32'd0;
-                    r_pkt_count     <= 32'd0;
-                    r_pkt_tid       <= '0;
-                    r_pkt_tdest     <= '0;
-                    r_paused        <= 1'b0;
-                    r_valid_pend    <= 1'b0;
-                    r_stall_cycles  <= 32'd0;
-                    r_stall_stamp   <= 16'd0;
-                    r_beat_stamp    <= 16'd0;
-                    r_tmo_hs_fired  <= 1'b0;
-                    r_tmo_pkt_fired <= 1'b0;
-                    r_credit_fired  <= 1'b0;
-                end else begin
-                    // packet tracking
-                    if (w_hs) begin
-                        r_beat_stamp    <= r_us;
-                        r_tmo_pkt_fired <= 1'b0;
-                        r_pkt_tid       <= obs_axis_tid[gi];
-                        r_pkt_tdest     <= obs_axis_tdest[gi];
-                        if (w_tl) begin
-                            r_in_pkt    <= 1'b0;
-                            r_pkt_beats <= 32'd0;
-                            r_pkt_count <= r_pkt_count + 32'd1;
-                        end else begin
-                            r_in_pkt    <= 1'b1;
-                            r_pkt_beats <= w_pkt_beats_now;
-                        end
-                    end else if (w_tmo_pkt) begin
-                        r_tmo_pkt_fired <= 1'b1;
-                    end
-                    // source bubble inside a packet
-                    if (w_strm_pause)       r_paused <= 1'b1;
-                    else if (w_tv || !r_in_pkt) r_paused <= 1'b0;
-                    // stall tracking
-                    if (w_tv && !w_tr) begin
-                        r_valid_pend   <= 1'b1;
-                        r_stall_cycles <= r_stall_cycles + 32'd1;
-                        if (!r_valid_pend) r_stall_stamp <= r_us;
-                        if (w_tmo_hs)      r_tmo_hs_fired <= 1'b1;
-                        if (w_credit)      r_credit_fired <= 1'b1;
-                    end else begin
-                        r_valid_pend   <= 1'b0;
-                        r_stall_cycles <= 32'd0;
-                        r_tmo_hs_fired <= 1'b0;
-                        r_credit_fired <= 1'b0;
-                    end
-                end
+                if (`RST_ASSERTED(aresetn))        r_tap_lost <= 1'b0;
+                else if (cam_clear)                r_tap_lost <= 1'b0;
+                else if (tap_dropped[gi] != 16'd0) r_tap_lost <= 1'b1;
             )
-
-            // ---- holding register: one packet in flight per tap ----
-            // The arbiter's input skid absorbs a cycle or two of merge
-            // backpressure; anything beyond that is a DROP, counted here.
-            assign w_pop      = r_hold_valid & mon_ready[gi];
-            assign w_can_take = ~r_hold_valid | w_pop;
-
-            `ALWAYS_FF_RST(aclk, aresetn,
-                if (`RST_ASSERTED(aresetn)) begin
-                    r_hold_valid <= 1'b0;
-                    r_hold_pkt   <= '0;
-                    r_hold_ts    <= '0;
-                    r_dropped    <= 16'd0;
-                end else begin
-                    if (w_ev_fire && w_can_take) begin
-                        r_hold_valid <= 1'b1;
-                        r_hold_pkt   <= w_ev_pkt;
-                        r_hold_ts    <= mon_time_w;
-                    end else if (w_pop) begin
-                        r_hold_valid <= 1'b0;
-                    end
-                    if (cam_clear) begin
-                        r_dropped <= 16'd0;
-                    end else if (w_ev_fire) begin
-                        // the winner is lost if the register is busy; every
-                        // simultaneous loser is lost regardless
-                        r_dropped <= r_dropped + 16'(w_ev_n) - (w_can_take ? 16'd1 : 16'd0);
-                    end
-                end
-            )
-
-            assign mon_valid[gi]  = r_hold_valid;
-            assign mon_packet[gi] = r_hold_pkt;
-            assign mon_ts[gi]     = r_hold_ts;
-            assign tap_dropped[gi] = r_dropped;
-            assign tap_packets[gi] = r_pkt_count;
-            assign tap_lost[gi]    = (r_dropped != 16'd0);
+            assign tap_lost[gi] = r_tap_lost;
         end
     endgenerate
 
