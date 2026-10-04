@@ -22,11 +22,11 @@
 
 # ODT Controller (`andesite_odt_ctrl`)
 
-**Module:** `andesite_odt_ctrl` (planned)
-**Location:** `projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/`
+**Module:** `andesite_odt_ctrl` (landed, NEW)
+**Location:** `projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/fub/`
 **Category:** termination policy / rank control
 **Parent:** `andesite_top` / scheduler boundary
-**Status:** specified — no RTL exists (HAS v0.1 posture)
+**Status:** landed, NEW — the ports table names the landed list; the fence below is the design citation
 
 ## Purpose
 
@@ -59,21 +59,21 @@ at CSR-derivation time (HAS Ch 5; numeric constants are HAS open question Q1).
 
 | Signal | Direction | Width | Description |
 |---|---|---|---|
-| `grant_rank` | in | `log2(NUM_RANKS)` | rank selected by the scheduler grant |
-| `grant_cmd` | in | cmd enc | command type of the granted beat (RD, WR, or other) |
-| `grant_valid` | in | 1 | the grant is valid this cycle |
-| `odt_pin` | out | `NUM_RANKS` | per-rank ODT pin toward the PHY/DRAM |
-| `rtt_nom_img` | in | CSR width | MR1 RTT_NOM field image |
-| `rtt_wr_img` | in | CSR width | MR2 RTT_WR field image |
-| `rtt_park_img` | in | CSR width | MR5 RTT_PARK field image |
-| `odtlon` | in | CSR width | ODTLon value |
-| `odtloff` | in | CSR width | ODTLoff value |
-| `odt_turn` | in | CSR width | write-to-read ODT turnaround |
-| `tadc` | in | CSR width | tADC value |
-| `init_done` | in | 1 | ownership transfers from `init_sequencer` to `odt_ctrl` |
-| `init_odt` | in | `NUM_RANKS` | ODT value held by `init_sequencer` until handoff |
-| `hist_state` | out | packed | per-rank ODT state history for telemetry |
-| `trans_count` | out | packed | per-rank transition counters for telemetry |
+| `mc_clk` | in | 1 | controller clock |
+| `mc_rst_n` | in | 1 | active-low reset |
+| `init_done_i` | in | 1 | ownership transfers from `init_sequencer` at this edge; `init_odt_i` is sampled as the starting pin value |
+| `init_odt_i` | in | `NUM_RANKS` | ODT value held by `init_sequencer` until handoff |
+| `grant_valid_i` | in | 1 | the grant tap is valid this cycle |
+| `grant_op_i` | in | 5 | granted command (`dram_op_e`: RD/RDA/WR/WRA decode; anything else holds state) |
+| `grant_rank_i` | in | `RKW` | rank selected by the grant |
+| `odt_pin_o` | out | `NUM_RANKS` | per-rank ODT pin toward the PHY/DRAM |
+| `odtlon_i` | in | 8 | assertion latency, command to ODT active |
+| `odtloff_i` | in | 8 | de-assertion latency, burst to ODT inactive |
+| `odt_turn_i` | in | 8 | write-to-read ODT turnaround |
+| `tadc_i` | in | 8 | command-to-ODT-change delay (also the handoff settle) |
+| `rtt_nom_img_i` | in | 3 | MR1 RTT_NOM image — a value contract (the RTT values are init-side); `rtt_wr_img_i`/`rtt_park_img_i` (MR2/MR5) ride alongside |
+| `hist_state_o` | out | 2 per rank | per-rank ODT policy state (packed) |
+| `trans_count_o` | out | 8 per rank | per-rank transition counters (packed) |
 
 : Table 2.8.2: `odt_ctrl` ports
 
