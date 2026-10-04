@@ -292,6 +292,47 @@ above them was fixed, and each was invisible until then. Assume there are more.
 The honest statement today is that cocotb 2.x is reachable for one suite of
 three, and that is not the same as being close.
 
+## Progress 2026-10-04: layer 1 PINNED and FIXED — the cancellation source is ours, not cocotb_bus
+
+The environment for the 2.x work now exists: `venv-cocotb2/` at this repo's
+root (gitignored, `venv*/` pattern) carries cocotb 2.1.0 + cocotb-bus 0.3.0 +
+cocotb-test 0.3.0, with the framework installed EDITABLE from the dev clone at
+`/mnt/data/github/RTLDesignSherpa-DV-dev`. The shared `venv/` stays on 1.9.2
+as the control; suite runs pick the venv after `source env_python`.
+
+**Pinning method, the reusable part:** `COCOTB_SCHEDULER_DEBUG=1` alone does
+NOT name the tasks — its messages go through `_log.debug` and are suppressed
+at INFO. `COCOTB_SCHEDULER_DEBUG=1 COCOTB_LOG_LEVEL=DEBUG` together log every
+cancellation as `Task <N running coro=<name>()> was cancelled but exited
+normally`. One bridge repro (`test_bridge_1x2_rd_basic_connectivity[gate]`)
+named exactly two offenders, both `coro=cycle_counter()`.
+
+**The site:** `cycle_counter()` in the framework compliance checkers —
+`components/axi4/axi4_compliance_checker.py` and the axil4 twin had a bare
+`except:` around their `while True: await RisingEdge(...)` loop. cocotb 2.x
+cancels leftover tasks by throwing `CancelledError` (a BaseException); the
+bare except swallowed it, the coroutine returned normally, and the scheduler
+converted that into the teardown RuntimeError — one per armed checker, which
+is why big bridge configs produced ~13 sub-exceptions per test. Every other
+cancelled coroutine (`_monitor_recv`, `_send_thread`, `drive`, `waiter`,
+`monitor_transactions`, `monitor_handshakes`) ends CANCELLED cleanly, so
+cocotb_bus 0.3.0 is cleared of suspicion — the AST scan's "obvious suspects"
+innocence was verified at runtime, and the task's worry that the scan "may be
+looking for the wrong thing" resolved in an unexpected direction: the
+suspected library is clean, our own checker was the swallower.
+
+**Fix:** RTLDesignSherpa-DV `6b8465b` — bare `except:` -> `except Exception:`
+in both copies (the axi5 copy already read `except Exception:`; aligned).
+Verified: the bridge repro passes under 2.1.0 (was 2 cancellation
+sub-exceptions) and passes under 1.9.2 with the dev tree on PYTHONPATH
+(control); DV unit suite 1546 passed with the 49 failures pre-existing
+(dfi_slave sim-launch, identical stashed). NOT pushed.
+
+**Remaining, re-measured:** the bool-cast layer (89 + 6), the 10 arithmetic
+sites, `.name` -> `._name` (28), child-object lookups, the TASK-020 matrix
+re-run, cocotb-coverage 2.0 — and a fresh full-suite pass, because each layer
+so far was invisible until the one above it was fixed.
+
 ## Two tools, and why they exist
 
 `bin/find_value_arith.py` and `bin/find_bool_value.py` are AST passes, not greps,
