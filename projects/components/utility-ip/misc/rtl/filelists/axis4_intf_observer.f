@@ -24,10 +24,10 @@ $REPO_ROOT/projects/components/utility-ip/misc/rtl/regs/generated/rtl/obs_regs_t
 # so a default-parameter elaboration never reaches the AXIL one and the
 # omission would hide until a harness set EGRESS_AXIL(1'b1).
 -f $REPO_ROOT/rtl/common/filelists/counter_freq_invariant.f
+-f $REPO_ROOT/rtl/amba/filelists/axis_monitor_lite.f
 -f $REPO_ROOT/rtl/amba/filelists/axis_bus_meter.f
 -f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f
 -f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_axil4_group.f
 -f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_axi4_group.f
 
-$REPO_ROOT/rtl/amba/monitor/axis_monitor_lite.sv
 $REPO_ROOT/projects/components/utility-ip/misc/rtl/axis4_intf_observer.sv
