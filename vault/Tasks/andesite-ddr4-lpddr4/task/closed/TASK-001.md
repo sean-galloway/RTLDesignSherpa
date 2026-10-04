@@ -3,7 +3,8 @@
 > Migrated 2026-09-25 from `projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/TASKS.md` (tooling TOOL-001). That file was a stub: "To be populated as RTL work begins."
 
 **Priority:** P3 — there is no ddr4-lpddr4 RTL yet; this is the design-requirements survey that precedes it.
-**Status:** open 2026-09-25 (carried forward unchanged from the stub)
+**Status:** closed 2026-10-04 — survey executed and owner-reviewed; findings
+and dispositions below (Bhati 2016 trade-offs cited throughout)
 **Owner:** TBD
 
 Config-bit-selectable, OFF-by-default, faithful-DRAM-model red→green each; commodity here

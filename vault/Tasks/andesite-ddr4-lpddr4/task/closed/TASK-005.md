@@ -3,13 +3,10 @@
 > Spec: `docs/superpowers/specs/2026-10-03-andesite-bootstrap-design.md`
 
 **Priority:** P2
-**Status:** open 2026-10-04 — **amended**: the acquisition half is done. The
-DFI v4.0 specification PDF is on disk in the operator's research storage
-(`/mnt/data/github/dfi-specs/DDR_PHY_Interface_Specification_v4_0.pdf`, cited
-2026-10-04 by the owner), alongside v2.1.1/v3.1/v5.2/v6.0 and the
-ddr4/lpddr4 research indexes. The "not on disk" posture the books were
-written under is lifted for *study*; the `§TBC(TASK-005)` suffixes in the
-HAS/MAS stay until this study confirms or corrects each clause citation.
+**Status:** closed 2026-10-04 — study executed and owner-reviewed; every
+substantive DFI 4.0 clause citation in the HAS/MAS confirmed against the
+on-disk spec, with five corrections recorded in-book and the BFM gap list
+(G1-G5) filed as andesite TASK-010
 **Owner:** TBD
 
 **BFM reconciliation (amendment, 2026-10-04):** an in-house DFI BFM exists —

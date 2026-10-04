@@ -5,7 +5,7 @@ summary: Task rollup for the ddr4-lpddr4 memory controller (projects/components/
 
 # andesite-ddr4-lpddr4 — task rollup
 
-**Next ID: TASK-006** — never recycle a number, even when its task closed.
+**Next ID: TASK-011** — never recycle a number, even when its task closed.
 
 **Every item is its own file**, `<ID>.md`, filed under the directory for its
 state (`open/`, `active/`, `closed/`, `dropped/`). Moving an item between states
@@ -15,41 +15,23 @@ is `git mv`, so an item is in exactly one state by construction.
 
 | Lane | For | Next ID |
 |---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | `TASK-006` |
+| [task/](task/INDEX.md) | planned work we decided to do | `TASK-011` |
 
 ## Open shortlist
 
-- **TASK-001** (open) — the advanced scheduling / refresh modes survey that
-  predates the docs tranche (roadmap:
-  `vault/Tasks/memory-controllers/ADVANCED_MODES_ROADMAP.md`).
-- **TASK-005** (open) — DFI 4.0 study + BFM gap analysis; un-blocks every
-  `§TBC(TASK-005)` clause citation in the HAS/MAS.
-- **TASK-006..009** (open) — filed 2026-10-04 from the operator's
-  ddr4/lpddr4 research indexes: parity recovery FSM, per-bank-group refresh,
-  LPDDR4 book reconciliation (incl. the bank-count conflict), and
-  verification reference models (DRAMsim3 + BFM CA encoder).
+- **TASK-006..010** (open) — the post-tranche work list: parity recovery FSM,
+  PB-REF evaluation, LPDDR4 reconciliation (two items), verification
+  reference models, and BFM DFI 4.0 gap closure (G1-G5, DV-repo work).
+- Details: [task/INDEX.md](task/INDEX.md).
 
 ## Closed
 
+- **TASK-005** (closed 2026-10-04) — DFI 4.0 spec study; citations
+  confirmed against the on-disk spec, BFM gaps filed as TASK-010.
+- **TASK-001** (closed 2026-10-04) — the advanced scheduling / refresh modes
+  survey; Bhati 2016-cited dispositions in the file.
 - **TASK-004** (closed 2026-10-04) — the andesite kmap book; six generated
   tables, citation-gated, cited from MAS/HAS; docs tranche complete.
-- **TASK-003** (closed 2026-10-04) — the andesite MAS v0.1; owner-reviewed,
-  book complete at v0.1.
+- **TASK-003** (closed 2026-10-04) — the andesite MAS v0.1; owner-reviewed.
 - **TASK-002** (closed 2026-10-04) — the andesite HAS v0.1 and the family
-  docs seed; owner-reviewed, book complete at v0.1.
-
-`bug/` and `issue/` lanes are created when this controller first needs one --
-there is no RTL here yet, so an empty lane would carry nothing. Open counts
-include the reserved `-000` template, which is never a real item.
-
-IDs are scoped to THIS area AND its lane. Cite one from outside as
-"andesite-ddr4-lpddr4 TASK-001".
-
-## Grouping
-
-`vault/Tasks/memory-controllers/` is a GROUPING directory and holds no items of
-its own, the same shape as `vault/Tasks/projects/components/`. The three
-controllers are leaf areas: this one, `ddr4-lpddr4`, and **pumice-ddr2-lpddr2,
-which stays at `vault/Tasks/pumice-ddr2-lpddr2/`** -- it is the only one with live work and
-was migrated long before this grouping existed (Sean, 2026-09-25: "group the
-memory controllers").
+  docs seed; owner-reviewed.
