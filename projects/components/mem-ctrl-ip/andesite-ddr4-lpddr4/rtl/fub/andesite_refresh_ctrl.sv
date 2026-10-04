@@ -10,8 +10,10 @@
 // Documentation:
 //   projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/andesite_mas/
 //
-// Carried from scoria_refresh_ctrl per andesite HAS ch02 (MODIFIED -- the andesite
-// delta lands in a later P3 task; this file is the clean carried base).
+// Carried from scoria_refresh_ctrl per andesite HAS ch02 (MODIFIED -- the
+// andesite FGR delta is marked ANDESITE FGR DELTA: factor-divided tREFI
+// reload, per-density tRFC select; reload-only scaling carried from the
+// Mode B posture).
 //
 // Author: sean galloway
 // Created: 2026-10-04 (carried)
@@ -58,6 +60,17 @@ module andesite_refresh_ctrl
     input  logic        tcr_en_i,                  // 0 = 1x interval (today)
     input  logic [1:0]  trefi_derate_i,            // 0=1x, 1=2x, 2=4x; 3 clamps to 2
 
+    // ANDESITE FGR DELTA: DDR4 fine-granularity refresh (JESD79-4 MR3
+    // image). 0=1x, 1=2x, 2=4x; an illegal encoding clamps to the 1x row
+    // per the kmap FGR select table -- deliberately NOT the Mode B 3->2
+    // clamp above. Factor 1x is bit-identical to the inherited base.
+    input  logic [1:0]  fgr_factor_i,
+    // tRFC per density: the recovery owner (arbiter) consumes
+    // refresh_trfc_o; the per-refresh busy window is tRFC(fgr).
+    input  logic [15:0] t_rfc_1x_i,
+    input  logic [15:0] t_rfc_2x_i,
+    input  logic [15:0] t_rfc_4x_i,
+
     output logic        refresh_req_o,
     input  logic        refresh_grant_i,
     // 1 = the granted command on the wire THIS cycle is OP_REFPB. The rotor
@@ -73,6 +86,11 @@ module andesite_refresh_ctrl
     output logic        refresh_drain_active_o,
     output logic        refresh_kind_o,        // 0=REFab, 1=REFpb
     output logic [BA_W-1:0] refresh_bank_o,    // valid in REFpb mode
+
+    // ANDESITE FGR DELTA: tRFC_active = tRFC(fgr), selected from the
+    // per-density CSRs. Wired to the arbiter's recovery input by the
+    // scheduler macro (the macro rewiring lands with the integration task).
+    output logic [15:0] refresh_trfc_o,
 
     // obs_* (future CSR readout)
     output logic [15:0] obs_refi_cnt_o,
@@ -116,7 +134,28 @@ module andesite_refresh_ctrl
     assign w_derate_shift = (!tcr_en_i) ? 2'd0
                           : (trefi_derate_i > 2'd2) ? 2'd2
                                                     : trefi_derate_i;
-    assign w_refi_eff_derated = w_refi_eff >> w_derate_shift;
+
+    // ANDESITE FGR DELTA: factor shift, composed BEFORE the Mode B derate
+    // (tREFI_effective = tREFI / fgr_factor per the MAS 06 fence; both
+    // stages divide by a power of two, so the order is immaterial, but the
+    // fence's order is kept).  Reload-only: like the derate, this touches
+    // the reload value, never the running counter -- a factor change
+    // mid-interval takes effect on the next reload.  The credit window
+    // ceiling (+-8) is unchanged; measured in time it scales with the
+    // interval because expiries arrive fgr_factor times as often.
+    logic [1:0]  w_fgr_shift;
+    logic [15:0] w_refi_eff_fgr;
+    assign w_fgr_shift = (fgr_factor_i > 2'd2) ? 2'd0 : fgr_factor_i;
+    assign w_refi_eff_fgr = w_refi_eff >> w_fgr_shift;
+
+    assign w_refi_eff_derated = w_refi_eff_fgr >> w_derate_shift;
+
+    // ANDESITE FGR DELTA: tRFC_active = tRFC(fgr) -- a pure mux; recovery is
+    // per-command in the consumer, so the select may follow the factor
+    // combinationally.
+    assign refresh_trfc_o = (w_fgr_shift == 2'd2) ? t_rfc_4x_i
+                           : (w_fgr_shift == 2'd1) ? t_rfc_2x_i
+                                                   : t_rfc_1x_i;
 
     // Credit limits, clamped: postpone <= 7 so the pending accumulator
     // (saturating at 8) can always exceed it and FORCE the refresh; pull-in

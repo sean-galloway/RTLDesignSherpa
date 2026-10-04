@@ -45,6 +45,8 @@ def configure(config,
             os.makedirs(os.path.join(coverage_dir, sub), exist_ok=True)
         logging.info(f'Coverage enabled. Data will be stored in: {coverage_dir}')
 
+    _ensure_coverage_compile_args_hook()
+
     config.option.log_file = os.path.join(log_dir, log_basename)
     config.option.log_file_level = 'DEBUG'
     config.option.log_cli = True
@@ -70,6 +72,48 @@ def sessionfinish(caller_file: str, area_name: str) -> None:
         from cov_utils.conftest_coverage import aggregate_all_coverage
         base_dir = os.path.dirname(os.path.abspath(caller_file))
         aggregate_all_coverage(base_dir, area_name)
+
+
+_COVERAGE_HOOK_INSTALLED = False
+
+
+def _ensure_coverage_compile_args_hook() -> None:
+    """Inject Verilator coverage flags centrally, exactly once per process.
+
+    coverage ISSUE-001 (2026-10-04): every migrated area delegates its
+    conftest here, but coverage data collection was wired only in the few
+    areas whose test files call ``get_coverage_compile_args()`` themselves
+    -- everywhere else ``COVERAGE=1`` ran green and produced zero .dat.
+    Rather than wire ~200 test files, wrap ``cocotb_test.simulator.run``
+    at its module attribute: pytest imports conftest (and therefore runs
+    ``configure``) BEFORE collecting test modules, and test modules bind
+    ``from cocotb_test.simulator import run`` at import time, so they pick
+    up the wrapper. The wrapper is inert unless ``COVERAGE=1`` is set at
+    call time, dedupes against flags a test file added itself (val/common,
+    the coverage TASK-002 areas), and never removes arguments.
+    """
+    global _COVERAGE_HOOK_INSTALLED
+    if _COVERAGE_HOOK_INSTALLED:
+        return
+    _COVERAGE_HOOK_INSTALLED = True
+    try:
+        import cocotb_test.simulator as _cts
+    except Exception:  # pragma: no cover - cocotb_test absent outside sim envs
+        return
+
+    _ct_run = _cts.run
+
+    def _run_with_coverage(*args, **kwargs):
+        if os.environ.get('COVERAGE', '0') == '1':
+            from cov_utils.conftest_coverage import get_coverage_compile_args
+            compile_args = list(kwargs.get('compile_args') or [])
+            for flag in get_coverage_compile_args():
+                if flag not in compile_args:
+                    compile_args.append(flag)
+            kwargs['compile_args'] = compile_args
+        return _ct_run(*args, **kwargs)
+
+    _cts.run = _run_with_coverage
 
 
 # Directories that should NEVER be scanned for tests, regardless of area.

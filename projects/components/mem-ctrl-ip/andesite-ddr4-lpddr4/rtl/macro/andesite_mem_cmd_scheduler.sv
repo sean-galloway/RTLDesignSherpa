@@ -113,7 +113,13 @@ module andesite_mem_cmd_scheduler
     // with the current t_refi_i (it otherwise reloads only on expiry).
     // Tie to 0 in production -- no effect unless pulsed.
     input  logic                      refi_reload_i,
-    input  logic [15:0]               t_rfc_i,          // mission-mode REF recovery (arbiter)
+    input  logic [15:0]               t_rfc_i,          // mission-mode REF recovery (the 1x density CSR)
+    // ANDESITE FGR DELTA: DDR4 fine-granularity refresh CSRs. t_rfc_i stays
+    // the 1x density value; refresh_ctrl selects tRFC(fgr) and returns it on
+    // refresh_trfc_o, which drives the arbiter's recovery input.
+    input  logic [1:0]                fgr_factor_i,     // 0=1x, 1=2x, 2=4x; illegal clamps to 1x
+    input  logic [15:0]               t_rfc_2x_i,       // tRFC at 2x density
+    input  logic [15:0]               t_rfc_4x_i,       // tRFC at 4x density
     input  logic [3:0]                refresh_burst_i,
     input  logic [3:0]                ref_postpone_i,   // REF_CTRL.postpone_limit
     input  logic [3:0]                ref_pullin_i,     // REF_CTRL.pullin_limit
@@ -239,6 +245,7 @@ module andesite_mem_cmd_scheduler
     logic mr_seq_we; logic [4:0] mr_seq_index; logic [15:0] mr_seq_data;
 
     logic refresh_req, refresh_drain, refresh_grant;
+    logic [15:0] w_refresh_trfc;   // ANDESITE FGR DELTA: tRFC(fgr) to the arbiter
 
     // advisory lookahead twins: what the pick pipeline decides on. The LIVE
     // w_bank_*_ready above stay wired to the arbiter too -- they are what its
@@ -368,6 +375,13 @@ module andesite_mem_cmd_scheduler
         .postpone_demand_streak_i(ref_postpone_demand_streak_i),
         .tcr_en_i                (ref_tcr_en_i),
         .trefi_derate_i          (ref_trefi_derate_i),
+        // ANDESITE FGR DELTA: factor + per-density tRFC CSRs; the selected
+        // recovery window feeds the arbiter's t_rfc_i below.
+        .fgr_factor_i            (fgr_factor_i),
+        .t_rfc_1x_i              (t_rfc_i),
+        .t_rfc_2x_i              (t_rfc_2x_i),
+        .t_rfc_4x_i              (t_rfc_4x_i),
+        .refresh_trfc_o          (w_refresh_trfc),
         .refresh_req_o   (refresh_req),
         .refresh_grant_i (refresh_grant),
         // refresh_grant fires at the arbiter's FIFO-PUSH, so the granted op is
@@ -614,7 +628,7 @@ module andesite_mem_cmd_scheduler
         .refresh_grant_o    (refresh_grant),
         .refresh_kind_i     (w_refresh_kind),
         .refresh_bank_i     (w_refresh_bank),
-        .t_rfc_i            (t_rfc_i),
+        .t_rfc_i            (w_refresh_trfc),
         .t_rfc_pb_i         (ref_trfc_pb_i),
         .zq_req_i           (w_zq_req),
         .zq_grant_o         (w_zq_grant),

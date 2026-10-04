@@ -23,7 +23,12 @@ summary: Verilator code coverage, functional bar, monbus packet-type matrix.
   Do NOT re-add copied `coverage-*` run targets or per-Makefile `coverage-report`
   targets -- that replication is exactly what the base file replaced.
 - One conftest implementation too: every area's `conftest.py` delegates coverage
-  collection + session-end aggregation to `bin/cov_utils/conftest_base.py`
+  collection + session-end aggregation to `bin/cov_utils/conftest_base.py`,
+  which ALSO injects Verilator's --coverage flags into every cocotb_test run
+  centrally (coverage ISSUE-001, 2026-10-04): test files no longer need to call
+  `get_coverage_compile_args()` themselves (existing calls still work; the
+  injection dedupes). A `coverage-report` run with zero merged .dat exits
+  nonzero -- a 0.0% report is a defect, never a pass.
   (`configure` / `sessionfinish` / `ignore_collect`) + `conftest_coverage.py`
   (`aggregate_verilator_coverage` for line, `aggregate_protocol_coverage`, and
   `get_coverage_compile_args` re-exported for test wrappers). bridge, converters,

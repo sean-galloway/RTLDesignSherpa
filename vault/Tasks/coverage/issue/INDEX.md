@@ -12,16 +12,23 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-001** — coverage data collection is unwired repo-wide:
-  `coverage-report` runs but reports 0% almost everywhere; only val/common
-  and pumice-fub pass Verilator's --coverage flags (surfaced closing
-  TASK-002; the three TASK-002 areas wired by hand as the reference)
+(none)
+
+## Closed
+
+- **ISSUE-001** — coverage data collection unwired repo-wide: RESOLVED 2026-10-04
+  into the structural fix -- conftest_base now injects Verilator's --coverage
+  flags centrally by wrapping cocotb_test.simulator.run (validated on
+  converters, previously 0/23 wired: 96.3% line coverage with no per-file
+  changes), plus a ratchet: coverage-report with 0 merged .dat exits 1.
+  Optional follow-up recorded: strip the redundant per-file wiring in the 5
+  hand-wired areas
 

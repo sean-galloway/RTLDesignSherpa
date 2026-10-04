@@ -170,6 +170,19 @@ def main():
     print(f'Coverage report: {out_dir}/latest_coverage_report.md')
     print(f'  Tests: {m["test_count"]}  Protocol: {m["overall_protocol_pct"]:.1f}%  '
           f'Line: {line_pct:.1f}%  (.dat merged: {n_dat})')
+    if n_dat == 0:
+        # Ratchet (coverage ISSUE-001, 2026-10-04): a report with no merged
+        # .dat means the COVERAGE=1 build never got Verilator's --coverage
+        # flags -- historically this printed "0.0%" and looked like a pass.
+        # Coverage flags are now injected centrally from
+        # cov_utils.conftest_base, so zero data is always a defect, not an
+        # empty area. Refuse to publish it silently.
+        print('ERROR: 0 coverage .dat files merged -- the COVERAGE=1 runs '
+              'produced no data.', file=sys.stderr)
+        print('  Did you run with COVERAGE=1? If yes, the area is not '
+              'reaching the central injection in cov_utils.conftest_base '
+              '(conftest must delegate to it).', file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == '__main__':

@@ -26,7 +26,7 @@
 **Location:** `rtl/fub/`
 **Category:** maintenance / refresh
 **Parent:** `andesite_core`
-**Status:** carried from scoria and landed (FGR delta per the fence below lands with the DDR4 refresh task); ports table reconciled to the landed port list
+**Status:** carried from scoria and landed, FGR delta included — the ports table names the landed list; the fence below is the design citation (the generator diffs it)
 
 ---
 
@@ -42,7 +42,6 @@ The block is MODIFIED, not rewritten. Every inherited property transfers with th
 |---|---|---|---|---|
 | `NUM_BANKS` | int | 8..16 | 8 | banks per rank |
 | `BA_W` | int | — | `$clog2(NUM_BANKS)` | bank-address width (drives `refresh_bank_o`) |
-| — | — | — | — | (no further parameters; the FGR factor and per-density tRFC CSRs land with the DDR4 FGR delta, no new parameters) |
 
 : Table 2.6.1: Refresh controller parameters
 
@@ -59,11 +58,10 @@ The block is MODIFIED, not rewritten. Every inherited property transfers with th
 | `refresh_burst_i` | in | 4 | refreshes owed per request cycle (the JEDEC burst) |
 | `refpb_mode_i` | in | 1 | 0 = all-bank `REF`, 1 = controller-directed per-bank refresh |
 | `demand_i` | in | 1 | demand indication from the scheduler side |
-| `elastic_en_i` | in | 1 | Mode A elastic refresh enable |
-| `pullin_idle_streak_i` | in | 8 | Mode A pull-in idle confirmation streak |
-| `postpone_demand_streak_i` | in | 7 | Mode A postpone demand streak |
-| `tcr_en_i` | in | 1 | Mode B temperature-compensated refresh enable |
-| `trefi_derate_i` | in | 2 | Mode B derate select; reload-only, as inherited |
+| `elastic_en_i` | in | 1 | Mode A elastic refresh enable; `pullin_idle_streak_i` (8) and `postpone_demand_streak_i` (7) ride as its thresholds |
+| `tcr_en_i` | in | 1 | Mode B temperature-compensated refresh enable; `trefi_derate_i` (2) is its derate select, reload-only as inherited |
+| `fgr_factor_i` | in | 2 | DDR4 FGR factor from the MR3 image: 0 = 1x, 1 = 2x, 2 = 4x; an illegal encoding clamps to the 1x row (the kmap FGR select table — deliberately not the Mode B 3→2 clamp) |
+| `t_rfc_1x_i` | in | 16 | `tRFC` at 1x density, runtime CSR; `t_rfc_2x_i` and `t_rfc_4x_i` carry the 2x/4x densities — the factor selects among them on `refresh_trfc_o` |
 | `postpone_limit_i` | in | 4 | credit-window postpone bound (JEDEC +8); `pullin_limit_i` is the pull-in bound |
 | `refresh_req_o` | out | 1 | request to the scheduler; held until `refresh_grant_i` — request-and-wait, never preempt |
 | `refresh_grant_i` | in | 1 | scheduler grant |
@@ -73,8 +71,11 @@ The block is MODIFIED, not rewritten. Every inherited property transfers with th
 | `refresh_bank_o` | out | `BA_W` | per-bank refresh target (the rotor output) |
 | `pending_refreshes_o` | out | 4 | credit-window occupancy (postpones owed) |
 | `obs_refi_cnt_o` | out | 16 | interval-countdown observability; `obs_drain_remaining_o`, `obs_bank_rotor_o`, `obs_grants_total_o`, `obs_pullin_credit_o`, `obs_postpone_events_o`, `obs_pullin_events_o` complete the telemetry set |
+| `refresh_trfc_o` | out | 16 | `tRFC_active = tRFC(fgr)`, the factor-selected recovery window; consumed by the recovery owner (the arbiter) when the macro rewiring lands |
 
 : Table 2.6.2: Refresh controller ports
+
+The FGR delta is reload-only: a factor change mid-interval takes effect on the next reload, never the running counter — the same posture Mode B carries. The factor and the per-density tRFC CSRs are ports, not parameters.
 
 ## Microarchitecture internals
 
@@ -90,7 +91,6 @@ The base mechanism is scoria's `refresh_ctrl`, proven in `formal/scoria/refresh_
 - The sixteen-cycle idle confirmation, because CAM occupancy blinks off between bursts and those micro-gaps must not be treated as idle.
 
 The credit ceiling is ±8 in every mode. Mode A and Mode B touch scheduling policy, not the credit arithmetic.
-
 ### DDR4 delta: fine-granularity refresh
 
 DDR4's MR3 selects 1x, 2x, or 4x refresh granularity. The controller scales its interval arithmetic by the FGR factor.
@@ -102,7 +102,7 @@ tRFC_active = tRFC(fgr)                 (CSR per density)
 credits window scales with the density bookkeeping — the ±8 ceiling is unchanged.
 ```
 
-`fgr_factor_csr` is the runtime copy of the MR3 field that `init_sequencer` programmed. The `tREFI` counter reloads with `tREFI_effective`. The per-refresh busy window uses `tRFC_active`, selected from the `tfgr_1x_csr`, `tfgr_2x_csr`, or `tfgr_4x_csr` register based on the factor.
+`fgr_factor_i` is the runtime copy of the MR3 field that `init_sequencer` programmed (0 = 1x, 1 = 2x, 2 = 4x; illegal clamps to the 1x row per the kmap FGR table — deliberately not the Mode B 3→2 clamp). The `tREFI` counter reloads with `tREFI_effective`. The per-refresh recovery window is `tRFC_active`, selected from the `t_rfc_1x_i`, `t_rfc_2x_i`, or `t_rfc_4x_i` CSR by the factor and exposed on `refresh_trfc_o` for the recovery owner; the scaling is reload-only, so a factor change mid-interval takes effect on the next reload.
 
 The credit-window bookkeeping scales with the density accounting, but the ±8 ceiling is unchanged. Postponing 8 refreshes at 4x granularity is not the same as postponing 8 refreshes at 1x; the bookkeeping must track effective refreshes, not raw commands.
 
