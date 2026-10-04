@@ -129,6 +129,20 @@ def test_current_flat_passes(tmp_path):
     assert "CURRENT" in r.stdout
 
 
+def test_reformatted_flat_is_current(tmp_path):
+    """A post-formatter flat -- one token per line, whitespace only --
+    still reports CURRENT. Committed flats may be formatted after sv2v
+    ([[reference_committed_sv_is_post_formatter]]); the comparison is
+    token-based, so formatting alone must never flag STALE."""
+    repo = make_flat_repo(tmp_path, SIMPLE_RECIPE)
+    flat = repo / "formal" / "demo" / "block1" / "block1_flat.v"
+    flat.write_text("\n".join(flat.read_text().split()) + "\n")
+    r = run_check(repo)
+    assert r.returncode == 0, \
+        f"a whitespace-only reformat flagged drift: {r.stdout}{r.stderr}"
+    assert "CURRENT" in r.stdout
+
+
 def test_unhandled_recipe_reported(tmp_path):
     """A recipe that writes in-tree is UNHANDLED and never executes."""
     repo = make_flat_repo(tmp_path, UNHANDLED_RECIPE)
