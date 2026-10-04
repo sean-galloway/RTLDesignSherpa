@@ -6,3 +6,9 @@
 -f fub/andesite_bank_timer.f
 -f fub/andesite_bank_timers.f
 -f fub/andesite_page_policy.f
+-f fub/andesite_rd_cmd_cam.f
+-f fub/andesite_wr_data_cam.f
+-f fub/andesite_wr_splitter.f
+-f fub/andesite_axi_burst_chopper.f
+-f fub/andesite_rd_return_ring.f
+-f fub/andesite_dfi_cdc.f
