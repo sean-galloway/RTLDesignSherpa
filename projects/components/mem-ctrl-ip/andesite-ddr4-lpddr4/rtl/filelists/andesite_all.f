@@ -12,3 +12,4 @@
 -f fub/andesite_axi_burst_chopper.f
 -f fub/andesite_rd_return_ring.f
 -f fub/andesite_dfi_cdc.f
+-f fub/andesite_cmd_history_checker.f

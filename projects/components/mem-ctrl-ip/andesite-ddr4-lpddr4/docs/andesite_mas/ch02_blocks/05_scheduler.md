@@ -162,3 +162,14 @@ The counter values are runtime CSRs, initialised from the JESD79-4/JESD209-4 spe
 - **Why the tag, not special-case ports:** scoria's ZQ design ended up with one maintenance request port and a source identifier. Refresh and ODT turnarounds join the same shape. The scheduler doesn't need to know what kind of maintenance it is granting; it only needs to know that maintenance beats host traffic and that only one source wins per cycle.
 - **L/S vs the old `tCCD`:** The inherited `tCCD` is kept as a fallback for modes where bank-group information is not available, but the primary check is the L/S pair. DV must prove that `tCCD_L` and `tCCD_S` subsume the old `tCCD` correctly for DDR4 and collapse to it for LPDDR4.
 - **Maintenance starvation:** Because maintenance never preempts, a pathological stream of host commands could delay refresh or ZQ. The refresh controller's credit window and the ZQ controller's overdue counter handle this at the source; the scheduler's only obligation is fair arbitration once the request is raised.
+
+## cmd_history_checker's DDR4 growth (landed 2026-10-04)
+
+The checker's spacing-parameter set now carries the long/short pairs the
+bank-group scheduler defines: `T_CCD_L`/`T_CCD_S` (CAS-to-CAS within /
+across a bank group) and `T_RRD_L`/`T_RRD_S` (ACT-to-ACT), all runtime
+parameters inert at 0, plus a `cmd_bg_i` bank-group command input. scoria's
+nine checks are byte-identical; checks (10)-(13) are additive. The ported
+suite proves each new check fires with its own fatal text (`fires_tccd_l/s`,
+`fires_trrd_l/s`) and that legal streams at both minima stay silent
+(`legal_ls_pairs_at_the_minimum`).
