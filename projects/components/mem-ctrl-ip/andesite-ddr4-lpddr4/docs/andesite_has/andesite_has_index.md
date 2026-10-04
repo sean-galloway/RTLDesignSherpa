@@ -96,10 +96,8 @@ lineage, the JEDEC generation deltas.
 
 ### Chapter 4: Interfaces
 
-(lands with Task 5)
-
-- `ch04_interfaces/01_dfi_v40.md` — DFI v4.0 Master Interface, and the v3.1 Delta
-- `ch04_interfaces/02_axi4_apb.md` — AXI4 Slave and APB CSR (both inherited)
+- [DFI v4.0 Master Interface, and the v3.1 Delta](ch04_interfaces/01_dfi_v40.md)
+- [AXI4 Slave and APB CSR (both inherited)](ch04_interfaces/02_axi4_apb.md)
 
 ### Chapter 5: Parameters
 
