@@ -57,6 +57,12 @@ formerly `ddr2-lpddr2` / `ddr2_lpddr2_*`: only the compound IP identifier was
 renamed, so the protocol words `DDR2` / `LPDDR2` still appear in comments,
 memtype config and timing docs.
 
+Shared family design and doctrine — the `mem_ctrl_pkg` shared-core design,
+the family doctrine, the DFI boundary lineage, and the JEDEC generation
+deltas — lives in [`docs/`](docs/); it is owned by no single controller, and
+each controller's book references it rather than restating it. Start at
+[`docs/INDEX.md`](docs/INDEX.md).
+
 Per-IP detail is in each directory's `CLAUDE.md` and `PRD.md`; the DDR3/DDR4
 mode roadmap is `vault/Tasks/memory-controllers/ADVANCED_MODES_ROADMAP.md`.
 
