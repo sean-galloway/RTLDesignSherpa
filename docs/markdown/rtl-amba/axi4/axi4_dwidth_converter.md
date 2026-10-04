@@ -515,13 +515,14 @@ the counter, folds the response, and forwards a slave B only when the counter
 reaches zero. Same-ID ordering is preserved; cross-ID responses can complete in
 any order (fixed 2026-10-04, projects/components/utility-ip/converters BUG-008).
 
-**Read-side ordering contract.** The read converter regenerates the slave-side
-RID/RUSER from the most recent master R beat. That is exact whenever each
-master R burst returns burst-atomic per ID — whole bursts may overtake each
-other across IDs; no ordering is required beyond AXI4's per-ID rule. What it
-cannot survive is BEAT-level R interleaving across IDs (the data primitives
-would merge beats of different transactions into one wide word); that case is
-tracked as projects/components/utility-ip/converters BUG-009.
+**Read-side ordering guarantee.** The read converter reassembles R beats
+per ID before reframing: a downstream may interleave R beats across ARIDs
+at beat level (AXI4's full freedom), and each slave R beat still carries
+its own RID/RUSER with per-ID order preserved. The layer is bounded by a
+one-outstanding-master-burst-per-ID reservation (same-ID chains serialize
+through reassembly; cross-ID traffic stays concurrent). Fixed 2026-10-04
+as projects/components/utility-ip/converters BUG-009; see the read
+converter's MAS 2.6.9 for the design.
 
 > The naive `(Slave AWLEN + 1) * WIDTH_RATIO - 1` this section used to give is
 > the bug the split logic replaced: computed into the 8-bit field it wrapped,

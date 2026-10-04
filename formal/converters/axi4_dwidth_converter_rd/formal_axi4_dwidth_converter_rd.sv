@@ -92,7 +92,14 @@ module formal_axi4_dwidth_converter_rd (
         .AXI_ADDR_WIDTH   (AXI_ADDR_WIDTH),
         .AXI_USER_WIDTH   (AXI_USER_WIDTH),
         .SKID_DEPTH_AR    (SKID_DEPTH_AR),
-        .SKID_DEPTH_R     (SKID_DEPTH_R)
+        .SKID_DEPTH_R     (SKID_DEPTH_R),
+        // Bound the BUG-009 reassembly pool for proof practicality: the
+        // formal instance verifies the reassembly LOGIC (per-ID demux,
+        // linked-list pool, scheduler, exact attribution) with small
+        // buffers; the 256-beat AXI4 sizing bound is waived under FORMAL
+        // in the DUT's elaboration checks.
+        .RASM_DEPTH             (8),
+        .RASM_MAX_OUTSTANDING   (2)
     ) dut (
         .aclk            (aclk),
         .aresetn         (aresetn),

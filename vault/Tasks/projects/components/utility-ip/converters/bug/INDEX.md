@@ -12,19 +12,23 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 8 | done (kept for history) |
+| [closed/](closed/) | 9 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-009** — dwidth read converter does not support beat-level R
-  interleaving across IDs (the burst-atomic-per-ID contract is verified
-  exact; filed closing BUG-008)
+(none)
 
 ## Closed
+
+- **BUG-009** — beat-level R interleave across IDs now supported: per-ID
+  reassembly layer in the read converter (demux by RID, shared beat pool,
+  one-outstanding-burst-per-ID reservation, burst-at-a-time feeding of the
+  untouched axi_data primitives); interleave + burst-OOO regressions
+  RED-verified against the pre-fix RTL; closed 2026-10-04
 
 - **BUG-008** — dwidth converter split-fold assumes in-order B across IDs
 - **BUG-001** — axi_data_dnsize burst-tracking LAST: early LAST on TRACK_BURSTS

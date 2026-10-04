@@ -30,6 +30,7 @@ This is infrastructure only - test intelligence resides in test runner.
 import os
 import random
 import cocotb
+from cocotb.triggers import RisingEdge
 
 # Framework imports
 from TBClasses.shared.tbbase import TBBase
@@ -77,6 +78,10 @@ class AXI4DWidthConverterReadTB(TBBase):
         self.TEST_CLK_PERIOD = self.convert_to_int(os.environ.get('TEST_CLK_PERIOD', '10'))
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
         self.TIMEOUT_CYCLES = self.convert_to_int(os.environ.get('TIMEOUT_CYCLES', '2000'))
+
+        # BUG-009 TDD: beat-level R interleave and burst-atomic OOO-R tests
+        self.interleave_test = os.environ.get('DWIDTH_RD_INTERLEAVE_TEST', '0') == '1'
+        self.ooo_r_test = os.environ.get('DWIDTH_RD_OOO_R_TEST', '0') == '1'
 
         # Calculate derived parameters
         self.WIDTH_RATIO = max(self.S_AXI_DATA_WIDTH, self.M_AXI_DATA_WIDTH) // \
@@ -165,17 +170,26 @@ class AXI4DWidthConverterReadTB(TBBase):
         # Create AXI4 Slave Read on master side (monitors m_axi_ar*, drives m_axi_r*)
         # NO MEMORY MODEL - using queue-based verification
         try:
-            self.master_read_slave = create_axi4_slave_rd(
-                dut=self.dut,
-                clock=self.aclk,
-                prefix='m_axi_',
-                log=self.log,
-                data_width=self.M_AXI_DATA_WIDTH,
-                id_width=self.AXI_ID_WIDTH,
-                addr_width=self.AXI_ADDR_WIDTH,
-                super_debug=True,  # Enable super_debug to validate signal connections
-                response_delay=1    # Add 1 cycle delay for response
-            )
+            slave_kwargs = {
+                'dut': self.dut,
+                'clock': self.aclk,
+                'prefix': 'm_axi_',
+                'log': self.log,
+                'data_width': self.M_AXI_DATA_WIDTH,
+                'id_width': self.AXI_ID_WIDTH,
+                'addr_width': self.AXI_ADDR_WIDTH,
+                'super_debug': True,  # Enable super_debug to validate signal connections
+            }
+            if self.interleave_test or self.ooo_r_test:
+                # BUG-009 TDD: drive R responses manually so we can force beat-level
+                # interleaving or whole-burst OOO that the BFM's in-order scheduler
+                # cannot produce while staying AXI4-compliant.
+                slave_kwargs['response_delay'] = 1000000
+                self.log.info("BUG-009 test: master-side slave BFM response disabled; R driven manually")
+            else:
+                slave_kwargs['response_delay'] = 1  # Add 1 cycle delay for response
+
+            self.master_read_slave = create_axi4_slave_rd(**slave_kwargs)
 
             # Add callback to capture AR on master side (monitor)
             self.master_read_slave['AR'].add_callback(self._capture_ar_callback)
@@ -236,7 +250,8 @@ class AXI4DWidthConverterReadTB(TBBase):
         pkt_copy = type('obj', (object,), {
             'data': int(getattr(r_pkt, 'data', 0)),
             'last': int(getattr(r_pkt, 'last', 0)),
-            'resp': int(getattr(r_pkt, 'resp', 0))  # R has resp, not strb
+            'resp': int(getattr(r_pkt, 'resp', 0)),  # R has resp, not strb
+            'id': int(getattr(r_pkt, 'id', 0))
         })()
         self.captured_r_packets.append(pkt_copy)
 
@@ -245,7 +260,7 @@ class AXI4DWidthConverterReadTB(TBBase):
         interface_queue_len = len(self.slave_read_master['interface'].r_channel._recvQ)
         same_object = (self.slave_read_master['R'] is self.slave_read_master['interface'].r_channel)
 
-        self.log.info(f"R CALLBACK TRIGGERED #{len(self.captured_r_packets)}: data=0x{pkt_copy.data:X}, last={pkt_copy.last}, resp={pkt_copy.resp}")
+        self.log.info(f"R CALLBACK TRIGGERED #{len(self.captured_r_packets)}: data=0x{pkt_copy.data:X}, last={pkt_copy.last}, resp={pkt_copy.resp}, id={pkt_copy.id}")
         self.log.info(f"   Queue state: dict['R']._recvQ={queue_len}, interface.r_channel._recvQ={interface_queue_len}, same_object={same_object}")
 
     async def clear_bfm_state(self):
@@ -317,6 +332,97 @@ class AXI4DWidthConverterReadTB(TBBase):
                 data_list.append(narrow_value)
 
         return data_list
+
+    def _build_interleave_r_beats(self, addr, slave_beats, txn_id, ar_records):
+        """Build master R beats and expected slave R beats for one transaction.
+
+        Uses the captured master AR records to set master-burst RLAST boundaries
+        (downsize split) and to compute the expected slave-side data/RLAST.
+
+        For downsize, master R beats are only generated for master AR splits that
+        have already been captured.  Sending beats before their split AR is issued
+        would land in the DUT reassembly layer with no record and with the wrong
+        RLAST, causing the burst to stall forever.
+        """
+        id_records = [a for a in ar_records if int(getattr(a, 'id', 0)) == txn_id]
+        if not id_records:
+            return [], []
+
+        if self.DOWNSIZE:
+            # Each slave wide beat becomes WIDTH_RATIO narrow master beats.
+            # The master AR records describe how the slave burst was split.
+            covered_narrow_beats = sum(
+                (int(getattr(a, 'len', 0)) + 1) for a in id_records)
+            covered_slave_beats = covered_narrow_beats // self.WIDTH_RATIO
+            master_beats = []
+            for b in range(covered_slave_beats):
+                for s in range(self.WIDTH_RATIO):
+                    data = ((txn_id & 0xFF) << 24) | \
+                           ((b & 0xFF) << 16) | \
+                           (0xDD << 8) | \
+                           (s & 0xFF)
+                    master_beats.append({'data': data, 'last': 0})
+
+            # Apply RLAST at the end of each master burst.
+            pos = 0
+            for ar in id_records:
+                blen = int(getattr(ar, 'len', 0)) + 1
+                master_beats[pos + blen - 1]['last'] = 1
+                pos += blen
+
+            # Expected slave beats: reconstruct wide data from narrow order.
+            expected = []
+            for b in range(covered_slave_beats):
+                wide = 0
+                for s in range(self.WIDTH_RATIO):
+                    narrow = master_beats[b * self.WIDTH_RATIO + s]['data']
+                    wide |= narrow << (s * self.M_AXI_DATA_WIDTH)
+                expected.append({'data': wide, 'last': 1 if b == covered_slave_beats - 1 else 0})
+            return master_beats, expected
+        else:
+            # Upsize: each master wide beat carries WIDTH_RATIO narrow beats.
+            # The first wide beat may start at a non-zero lane for unaligned
+            # addresses; ar_records carries the computed start lane implicitly
+            # through the addressed byte positions in the wide word.
+            lane = (addr % self.M_STRB_WIDTH) // self.S_STRB_WIDTH
+            wide_beats = (lane + slave_beats + self.WIDTH_RATIO - 1) // self.WIDTH_RATIO
+            master_beats = []
+            for w in range(wide_beats):
+                data = 0
+                for s in range(self.WIDTH_RATIO):
+                    nb = w * self.WIDTH_RATIO + s - lane
+                    if 0 <= nb < slave_beats:
+                        narrow = ((txn_id & 0xFF) << 24) | \
+                                 ((nb & 0xFF) << 16) | \
+                                 (0xDD << 8) | \
+                                 (nb & 0xFF)
+                        data |= narrow << (s * self.S_AXI_DATA_WIDTH)
+                master_beats.append({
+                    'data': data,
+                    'last': 1 if w == wide_beats - 1 else 0,
+                })
+
+            # Expected slave beats are just the narrow pattern in order.
+            expected = []
+            for b in range(slave_beats):
+                narrow = ((txn_id & 0xFF) << 24) | \
+                         ((b & 0xFF) << 16) | \
+                         (0xDD << 8) | \
+                         (b & 0xFF)
+                expected.append({'data': narrow, 'last': 1 if b == slave_beats - 1 else 0})
+            return master_beats, expected
+
+    async def _issue_ar_burst(self, addr, slave_beats, arid):
+        """Issue a single slave AR burst without waiting for R responses."""
+        arsize = (self.S_AXI_DATA_WIDTH // 8).bit_length() - 1
+        ar_packet = self.slave_read_master['interface'].create_ar_packet(
+            addr=addr,
+            len=slave_beats - 1,
+            id=arid,
+            size=arsize,
+            burst=1
+        )
+        await self.slave_read_master['AR'].send(ar_packet)
 
     async def read_transaction(self, addr, burst_len, arid=0, arsize=None, arburst=1):
         """
@@ -853,6 +959,351 @@ class AXI4DWidthConverterReadTB(TBBase):
             self.log.error("Some Medium tests FAILED")
 
         return all_success
+
+    async def _drive_interleave_r_beats(self, ids, slave_beats_list, addrs, timeout):
+        """Drive master R beats round-robin across IDs as their ARs are captured.
+
+        The reservation-based reassembly layer serializes master AR issue per
+        ID for downsize, so this helper rebuilds each ID's master beat list
+        from the currently captured ARs and drives the next available beat
+        every iteration.  Splits of a downsize burst are therefore emitted as
+        soon as their AR is captured, unlocking the next split's issue.
+        """
+        r_ch = self.master_read_slave['R']
+        expected_master_beats = {}
+        for addr, beats, arid in zip(addrs, slave_beats_list, ids):
+            if self.DOWNSIZE:
+                expected_master_beats[arid] = beats * self.WIDTH_RATIO
+            else:
+                lane = (addr % self.M_STRB_WIDTH) // self.S_STRB_WIDTH
+                expected_master_beats[arid] = (
+                    (lane + beats + self.WIDTH_RATIO - 1) // self.WIDTH_RATIO)
+
+        beats_by_id = {arid: [] for arid in ids}
+        next_idx = {arid: 0 for arid in ids}
+        waited = 0
+        pending = set(ids)
+
+        while pending and waited < timeout:
+            any_sent = False
+            for arid in ids:
+                idx = ids.index(arid)
+                m_beats, _ = self._build_interleave_r_beats(
+                    addrs[idx], slave_beats_list[idx], arid,
+                    self.captured_ar_packets)
+                beats_by_id[arid] = m_beats
+
+                if next_idx[arid] < len(beats_by_id[arid]):
+                    beat = beats_by_id[arid][next_idx[arid]]
+                    pkt = r_ch.create_packet(
+                        id=arid,
+                        data=beat['data'],
+                        resp=0,
+                        last=beat['last']
+                    )
+                    await r_ch.send(pkt)
+                    next_idx[arid] += 1
+                    any_sent = True
+
+                if next_idx[arid] >= expected_master_beats[arid]:
+                    pending.discard(arid)
+
+            if not any_sent:
+                await self.wait_clocks(self.aclk_name, 1)
+                waited += 1
+
+        if pending:
+            self.log.error(
+                f"BUG-009 interleave driver: timed out waiting for beats for IDs {pending}")
+            self.errors += 1
+
+    async def _collect_r_responses(self, ids, expected_total, timeout):
+        """Return per-ID response lists by polling the R-channel callback captures.
+
+        Direct sampling of s_axi_rvalid/rready is fragile here because the GAXI
+        consumer deasserts ready shortly after the handshake, so an edge-based
+        sampler can miss transfers.  The registered R callback fires exactly once
+        per completed beat, so we wait until it has recorded the expected number
+        of responses and then group them by ID.
+        """
+        resp_by_id = {arid: [] for arid in ids}
+        waited = 0
+        while (len(self.captured_r_packets) < expected_total
+               and waited < timeout):
+            await RisingEdge(self.aclk)
+            if len(self.captured_r_packets) >= expected_total:
+                break
+            waited += 1
+
+        for pkt in self.captured_r_packets:
+            if pkt.id in resp_by_id:
+                resp_by_id[pkt.id].append(pkt)
+        return resp_by_id
+
+    async def _drive_ooo_r_beats(self, ids, slave_beats_list, addrs, drive_order, timeout):
+        """Drive whole master R bursts in drive_order as their ARs are captured.
+
+        For downsize, splits of the same slave burst issue sequentially, so
+        beats are emitted incrementally as each split's AR is captured while
+        still respecting the per-ID drive_order.
+        """
+        r_ch = self.master_read_slave['R']
+        expected_master_beats = {}
+        for addr, beats, arid in zip(addrs, slave_beats_list, ids):
+            if self.DOWNSIZE:
+                expected_master_beats[arid] = beats * self.WIDTH_RATIO
+            else:
+                lane = (addr % self.M_STRB_WIDTH) // self.S_STRB_WIDTH
+                expected_master_beats[arid] = (
+                    (lane + beats + self.WIDTH_RATIO - 1) // self.WIDTH_RATIO)
+
+        for arid in drive_order:
+            idx = ids.index(arid)
+            next_idx = 0
+            waited = 0
+            while next_idx < expected_master_beats[arid] and waited < timeout:
+                m_beats, _ = self._build_interleave_r_beats(
+                    addrs[idx], slave_beats_list[idx], arid,
+                    self.captured_ar_packets)
+
+                if next_idx < len(m_beats):
+                    beat = m_beats[next_idx]
+                    pkt = r_ch.create_packet(
+                        id=arid,
+                        data=beat['data'],
+                        resp=0,
+                        last=beat['last']
+                    )
+                    await r_ch.send(pkt)
+                    next_idx += 1
+                    waited = 0
+                else:
+                    await self.wait_clocks(self.aclk_name, 1)
+                    waited += 1
+
+            if next_idx < expected_master_beats[arid]:
+                self.log.error(
+                    f"BUG-009 OOO-R driver: timed out waiting for beats for ID {arid}")
+                self.errors += 1
+                return
+
+    async def run_interleave_test(self):
+        """BUG-009 TDD: beat-level R interleaving across IDs must not corrupt data.
+
+        Two or three ARIDs are issued concurrently.  The master-side slave BFM
+        auto-response is disabled; the test drives the returning R beats one at
+        a time in round-robin ID order, with RLAST only on each master burst's
+        true last beat.  The old RTL feeds the raw interleaved stream into the
+        data primitive, so wide beats mix IDs and RID attribution follows the
+        most recent beat.  The fixed reassembly layer must deliver every slave
+        beat with the correct data, RID, and RLAST.
+        """
+        self.log.info("=== BUG-009 beat-level R interleave test ===")
+
+        ids = [0, 1, 2]
+        if self.DOWNSIZE:
+            # ID0 is split-eligible; the others are short single master bursts.
+            slave_beats_list = [(256 // self.WIDTH_RATIO) + 1, 2, 2]
+        else:
+            slave_beats_list = [4, 2, 3]
+        addrs = [0x1000, 0x2000, 0x3000]
+
+        self.captured_ar_packets.clear()
+        self.captured_r_packets.clear()
+
+        iface = self.master_read_slave['interface']
+        saved_response_delay = iface.response_delay_cycles
+        ok = True
+        try:
+            iface.response_delay_cycles = 1000000
+            # Consume slave-side R continuously so long bursts don't stall on
+            # the default valid-first ready policy.
+            self.slave_read_master['R'].set_ready_policy('always')
+
+            # Issue all slave ARs concurrently.
+            ar_tasks = []
+            for addr, beats, arid in zip(addrs, slave_beats_list, ids):
+                ar_tasks.append(cocotb.start_soon(
+                    self._issue_ar_burst(addr, beats, arid)))
+            for t in ar_tasks:
+                await t
+
+            timeout = self.TIMEOUT_CYCLES * 10
+
+            # Drive R beats incrementally as master ARs are captured.  The
+            # reservation-based downsize reassembly serializes AR issue per ID,
+            # so we cannot wait for all ARs before driving responses.
+            driver = cocotb.start_soon(
+                self._drive_interleave_r_beats(ids, slave_beats_list, addrs, timeout))
+
+            # Wait until all master AR records are captured.
+            expected_ar = 0
+            for addr, beats, arid in zip(addrs, slave_beats_list, ids):
+                if self.DOWNSIZE:
+                    expected_ar += (beats * self.WIDTH_RATIO + 255) // 256
+                else:
+                    expected_ar += 1
+            waited = 0
+            while len(self.captured_ar_packets) < expected_ar and waited < timeout:
+                await self.wait_clocks(self.aclk_name, 1)
+                waited += 1
+            if len(self.captured_ar_packets) < expected_ar:
+                self.log.error(f"BUG-009 interleave: only {len(self.captured_ar_packets)}/"
+                               f"{expected_ar} master ARs captured")
+                self.errors += 1
+                return False
+
+            # Build expected slave R beats per ID now that all ARs are known.
+            expected_by_id = {}
+            for addr, beats, arid in zip(addrs, slave_beats_list, ids):
+                _, exp = self._build_interleave_r_beats(
+                    addr, beats, arid, self.captured_ar_packets)
+                expected_by_id[arid] = exp
+
+            # Wait for the driver and all slave R responses.
+            expected_total = sum(len(v) for v in expected_by_id.values())
+            collector = cocotb.start_soon(
+                self._collect_r_responses(ids, expected_total, timeout))
+            await driver
+            recv_by_id = await collector
+            if sum(len(v) for v in recv_by_id.values()) != expected_total:
+                self.log.error(f"BUG-009 interleave: expected {expected_total} slave R "
+                               f"beats, got {sum(len(v) for v in recv_by_id.values())}")
+                self.errors += 1
+                ok = False
+
+            for arid in ids:
+                exp = expected_by_id[arid]
+                got = recv_by_id[arid]
+                if len(got) != len(exp):
+                    self.log.error(f"BUG-009 interleave: ID {arid} expected {len(exp)} "
+                                   f"slave beats, got {len(got)}")
+                    self.errors += 1
+                    ok = False
+                    continue
+                for i, (g, e) in enumerate(zip(got, exp)):
+                    g_data = int(getattr(g, 'data', 0))
+                    g_last = int(getattr(g, 'last', 0))
+                    if g_data != e['data'] or g_last != e['last']:
+                        self.log.error(
+                            f"BUG-009 interleave: ID {arid} beat {i} mismatch "
+                            f"data=0x{g_data:X}/0x{e['data']:X} last={g_last}/{e['last']}")
+                        self.errors += 1
+                        ok = False
+
+            if ok:
+                self.log.info("BUG-009 beat-level interleave test PASSED")
+            else:
+                self.log.error("BUG-009 beat-level interleave test FAILED")
+            return ok
+        finally:
+            iface.response_delay_cycles = saved_response_delay
+
+    async def run_ooo_r_burst_test(self):
+        """BUG-009 follow-up: whole master R bursts completing out of order across IDs.
+
+        The reassembly layer feeds one burst at a time to the primitive, so
+        completing ID1's entire burst before ID0's must still produce correct
+        per-ID data and RID on the slave side.
+        """
+        self.log.info("=== BUG-009 burst-atomic OOO R test ===")
+
+        ids = [0, 1]
+        if self.DOWNSIZE:
+            slave_beats_list = [2, (256 // self.WIDTH_RATIO) + 1]
+        else:
+            slave_beats_list = [2, 4]
+        addrs = [0x4000, 0x5000]
+        # Drive the shorter ID first, then the longer ID (opposite of issue order).
+        drive_order = [1, 0]
+
+        self.captured_ar_packets.clear()
+        self.captured_r_packets.clear()
+
+        iface = self.master_read_slave['interface']
+        saved_response_delay = iface.response_delay_cycles
+        ok = True
+        try:
+            iface.response_delay_cycles = 1000000
+            # Consume slave-side R continuously so long bursts don't stall on
+            # the default valid-first ready policy.
+            self.slave_read_master['R'].set_ready_policy('always')
+
+            ar_tasks = []
+            for addr, beats, arid in zip(addrs, slave_beats_list, ids):
+                ar_tasks.append(cocotb.start_soon(
+                    self._issue_ar_burst(addr, beats, arid)))
+            for t in ar_tasks:
+                await t
+
+            timeout = self.TIMEOUT_CYCLES * 10
+
+            # Drive whole bursts in drive_order as each ID's ARs are captured.
+            driver = cocotb.start_soon(
+                self._drive_ooo_r_beats(ids, slave_beats_list, addrs, drive_order, timeout))
+
+            # Wait until all master AR records are captured.
+            expected_ar = 0
+            for addr, beats, arid in zip(addrs, slave_beats_list, ids):
+                if self.DOWNSIZE:
+                    expected_ar += (beats * self.WIDTH_RATIO + 255) // 256
+                else:
+                    expected_ar += 1
+            waited = 0
+            while len(self.captured_ar_packets) < expected_ar and waited < timeout:
+                await self.wait_clocks(self.aclk_name, 1)
+                waited += 1
+            if len(self.captured_ar_packets) < expected_ar:
+                self.log.error(f"BUG-009 OOO-R: only {len(self.captured_ar_packets)}/"
+                               f"{expected_ar} master ARs captured")
+                self.errors += 1
+                return False
+
+            # Build expected slave R beats per ID now that all ARs are known.
+            expected_by_id = {}
+            for addr, beats, arid in zip(addrs, slave_beats_list, ids):
+                _, exp = self._build_interleave_r_beats(
+                    addr, beats, arid, self.captured_ar_packets)
+                expected_by_id[arid] = exp
+
+            # Wait for the driver and all slave R responses.
+            expected_total = sum(len(v) for v in expected_by_id.values())
+            collector = cocotb.start_soon(
+                self._collect_r_responses(ids, expected_total, timeout))
+            await driver
+            recv_by_id = await collector
+            if sum(len(v) for v in recv_by_id.values()) != expected_total:
+                self.log.error(f"BUG-009 OOO-R: expected {expected_total} slave R "
+                               f"beats, got {sum(len(v) for v in recv_by_id.values())}")
+                self.errors += 1
+                ok = False
+
+            for arid in ids:
+                exp = expected_by_id[arid]
+                got = recv_by_id[arid]
+                if len(got) != len(exp):
+                    self.log.error(f"BUG-009 OOO-R: ID {arid} expected {len(exp)} "
+                                   f"slave beats, got {len(got)}")
+                    self.errors += 1
+                    ok = False
+                    continue
+                for i, (g, e) in enumerate(zip(got, exp)):
+                    g_data = int(getattr(g, 'data', 0))
+                    g_last = int(getattr(g, 'last', 0))
+                    if g_data != e['data'] or g_last != e['last']:
+                        self.log.error(
+                            f"BUG-009 OOO-R: ID {arid} beat {i} mismatch "
+                            f"data=0x{g_data:X}/0x{e['data']:X} last={g_last}/{e['last']}")
+                        self.errors += 1
+                        ok = False
+
+            if ok:
+                self.log.info("BUG-009 burst-atomic OOO R test PASSED")
+            else:
+                self.log.error("BUG-009 burst-atomic OOO R test FAILED")
+            return ok
+        finally:
+            iface.response_delay_cycles = saved_response_delay
 
     async def run_full_test(self):
         """

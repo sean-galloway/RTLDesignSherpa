@@ -15,3 +15,6 @@
 -f fub/andesite_cmd_history_checker.f
 -f fub/andesite_powerdown_ctrl.f
 -f fub/andesite_dfi_signal_pack.f
+-f fub/andesite_rd_intake.f
+-f fub/andesite_wr_intake.f
+-f fub/andesite_addr_mapper.f

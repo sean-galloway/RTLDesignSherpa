@@ -52,18 +52,24 @@
 
 | Signal | Direction | Width | Description |
 |---|---|---|---|
-| `clk` | in | 1 | controller clock |
-| `rst_n` | in | 1 | active-low synchronous reset |
-| `sys_addr_i` | in | `SYS_ADDR_WIDTH` | incoming system address |
-| `memtype_i` | in | 3 | family memtype enum from `andesite_pkg` |
+| — | — | — | (no clock port: the mapper is pure combinational, carried from scoria) |
+| — | — | — | (no reset port for the same reason) |
+| `axi_addr_i` | in | `AXI_ADDR_WIDTH` | incoming system address |
+| `bank_lsb_i` | in | 5 | bank field LSB in the word address (field-boundary knob) |
 | `rank_o` | out | `RANK_WIDTH` | decoded rank / chip select |
 | `bg_o` | out | `BG_WIDTH` | decoded bank group (constant for LPDDR4) |
 | `bank_o` | out | `BANK_WIDTH` | decoded bank |
 | `row_o` | out | `ROW_WIDTH` | decoded row |
 | `col_o` | out | `COL_WIDTH` | decoded column (burst offset stripped) |
-| `addr_map_csr_i` | in | TBD | `ADDR_MAP`-style field-boundary CSRs | CSR |
-| `hash_en_i` | in | 1 | hash enable from CSR |
-| `hash_seed_i` | in | TBD | hash seed from CSR (carried from pumice if enabled) | CSR |
+| `byte offset` | in | — | `BYTE_OFFSET_WIDTH` parameter; log2 of the beat byte size |
+| `hash_en_i` | in | 1 | bank XOR-hash enable (carried from pumice) |
+| `hash_seed_i` | in | 8 | hash seed |
+
+`memtype_i` is deliberately absent: the decode is geometry-parameterized,
+not memtype-branched (the LPDDR4 degeneration is bg_o tied to zero by the
+consumer, per the note below the table). The `ADDR_MAP`-style field
+boundary is the `bank_lsb_i` knob, runtime-set, exactly as scoria's mapper.
+The `bg_o` delta is the andesite change; every other port is scoria's. |
 
 : Table 2.10: Address mapper ports
 
