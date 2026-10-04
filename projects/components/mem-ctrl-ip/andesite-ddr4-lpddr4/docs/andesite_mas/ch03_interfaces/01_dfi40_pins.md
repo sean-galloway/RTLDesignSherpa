@@ -31,8 +31,8 @@ catalog checks against when the BFM exists (andesite TASK-005).
 
 Citation discipline, restated from the HAS because it matters more here: the
 DFI 4.0 `§TBC(TASK-005)` specification is not on disk. Signal *names* are
-public and stated plainly; any sentence that assigns a DFI 4.0 clause
-`§TBC(TASK-005)` to a signal carries the suffix on the same line, and the
+public and stated plainly; any sentence that assigns a DFI 4.0 clause —
+`§TBC(TASK-005)` — to a signal carries the suffix on the same line, and the
 "behavior" column states what andesite does, not what a clause number says.
 
 Reset convention for the whole table: DFI outputs reset to the de-asserted,
