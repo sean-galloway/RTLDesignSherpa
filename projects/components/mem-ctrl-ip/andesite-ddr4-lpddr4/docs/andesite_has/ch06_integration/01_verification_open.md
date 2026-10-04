@@ -51,7 +51,7 @@ weakens every result.
 
 The verification target is therefore three counterparties, not one. The in-house DFI 4.0 BFM is the primary checker: it owns the protocol and the pin-level contract. DRAMsim3, cited in both the DDR4 and LPDDR4 research indexes (Li et al. 2020), is the cycle-accurate second reference for the command stream — it cross-checks that the sequence the controller issues is legal and produces the same DRAM state. For LPDDR4, the missing `lpddr4_ca_map.py` encoder (BFM gap G1) is closed by andesite TASK-010, and the BFM round-trip encode/decode tests for the CA encoder become the third counterparty — they prove the MAS CA tables and the RTL encoder agree before DRAMsim3 ever sees the stream.
 
-**BFM gap list vs HAS Table 4.1 / andesite design point.** Gaps are against
+**BFM gap list vs HAS Table 4.1 / andesite design point.** **CLOSED 2026-10-04 by RTLDesignSherpa-DV commit `61a27d8fee3b` (`dfi(bfm): close DFI 4.0 BFM gaps TASK-010`; +30 tests, 1538 unit passing). Known omissions recorded there: no LPDDR4-1600 CSV (JESD209-4E publishes no fixed speed-bin table — timings are density/vendor-dependent), DES/PDE idle entries omitted from the CA map, ACT modeled as one 4-edge command.** Gaps were against
 the files read for this study: `behaviors/base.py`, `v3_1.py`, `v4_0.py`,
 `v5_2.py`, `v6_0.py`, `registry.py`; `ca_map.py`, `ca_transport.py`,
 `ddr5_ca_map.py`, `dfi_signal_types.py`; `jedec/README.md` and the CSV
@@ -151,7 +151,7 @@ evidence, cited chapter by chapter where it transfers.
 |---|---|---|
 | Q1 | The numeric init constants (`tINIT*`, `tDLLK`, `tZQinit`, `tMRD`, `tMOD`) | Read from JESD79-4 / JESD209-4 in cold storage at CSR-derivation time (first RTL pass). Named, not invented, per the evidentiary rule |
 | Q2 | Write CRC: un-defer? | A characterization or board campaign that needs end-to-end write protection; the addition is bounded to the write datapath (Ch 3.1, 3.5) |
-| Q3 | Gear-down coverage scope in the first sims | Decided when the BFM's capabilities are known (TASK-005 close); full-rate-only is an acceptable first pass if the switch is protocol-checked |
+| Q3 | Gear-down coverage scope in the first sims | **ANSWERED 2026-10-04.** The BFM gained gear-down protocol validation (G3, closed in DV commit 61a27d8fee3b), so the first sims can protocol-check the mode switch itself; the full-rate-only fallback is no longer needed |
 | Q4 | CA parity: hardware counter vs firmware assist | A scope decision at MAS/RTL time; either way the protocol check of item 3 above must pass, and the split is recorded in the MAS |
 | Q5 | LPDDR4 DVFS/DSM, and the dormant pair's waking | A low-power consumer and a target that can measure power; wakes `powerdown_ctrl`/`dfi_signal_pack` per Ch 3.1 |
 | Q6 | DFI 4.0 clause confirmation and BFM provenance | **Closed on 2026-10-04.** The spec is acquired, every `§TBC(TASK-005)` suffix in this book and the MAS is confirmed or corrected, and the in-house BFM integration note and gap list are above. G1-G5 remain as extension work, not blockers to clause confirmation. |
