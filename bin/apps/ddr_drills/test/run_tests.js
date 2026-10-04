@@ -28,7 +28,8 @@ var TEST_ORDER = [
   'test_mutate.js',
   'test_scenarios.js',
   'test_packs.js',
-  'test_timing.js'
+  'test_timing.js',
+  'test_shell.js'
 ];
 
 // Content packs load after the js/ core, mirroring the <script> order in

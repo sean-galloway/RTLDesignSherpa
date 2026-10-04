@@ -1,6 +1,11 @@
 // app.js -- shell: pack picker, mode tabs, hash routing (#/mode/pack).
 // Browser-only (DOM); not require()d by the node harness. Mode modules
 // register themselves as DDRD.<name>Mode with { mount(el, pack), unmount() }.
+//
+// Mount policy: each mode's <section> is mounted at most once per pack and
+// stays in the document (hidden) when its tab is not active, so switching to
+// a reference tab and back never disturbs an in-progress drill question. A
+// section is re-mounted only when the technology pack changes.
 (function () {
   'use strict';
 
@@ -9,7 +14,9 @@
 
   var MODE_IDS = ['quiz', 'timing', 'scenario', 'sandbox', 'timingref',
                   'commands'];
-  var current = { mode: null, packId: null, mounted: null };
+  var current = { mode: null, packId: null };
+  // mode -> packId currently mounted in that mode's <section>.
+  var mountedPack = {};
 
   function packs() { return DDRD.listPacks(); }
 
@@ -64,13 +71,21 @@
     var mod = modeModule(current.mode);
     var pack = DDRD.getPack(current.packId);
     if (!mod || !pack) { return; }
-    if (current.mounted && current.mounted.unmount) {
-      current.mounted.unmount();
-    }
     var el = document.getElementById('mode-' + current.mode);
-    el.innerHTML = '';
-    mod.mount(el, pack);
-    current.mounted = mod;
+    // Re-mount only when this section was never mounted for the current
+    // pack; otherwise keep the live section (preserving any in-progress
+    // question) and just toggle visibility.
+    if (mountedPack[current.mode] !== pack.id) {
+      // Unmount only when replacing a previous mount (stale pack), never
+      // on the first mount of a section.
+      if (Object.prototype.hasOwnProperty.call(mountedPack, current.mode) &&
+          mod.unmount) {
+        mod.unmount();
+      }
+      el.innerHTML = '';
+      mod.mount(el, pack);
+      mountedPack[current.mode] = pack.id;
+    }
     showContainer(current.mode);
     refreshTabs();
     updateFooter(pack);
