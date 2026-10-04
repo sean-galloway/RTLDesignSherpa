@@ -12,18 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 4 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 1 | done (kept for history) |
+| [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **TASK-001** — advanced scheduling / refresh modes survey.
-- **TASK-003** — author the andesite MAS v0.1 (changed/new blocks in depth;
-  inherited blocks referenced to scoria's books); closes when owner-reviewed
-  complete.
 - **TASK-004** — author the andesite kmap book (command truth tables, decode
   maps, MR0-6 programming maps; generator-gated, cited from MAS/HAS); closes
   when the tables land and the citation gate is green.
@@ -33,6 +30,9 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-003** — author the andesite MAS v0.1: closed 2026-10-04; the
+  `andesite_mas/` book is complete at v0.1 and owner-reviewed, with the DFI
+  4.0 pin table and the contract anchors the kmap book cites.
 - **TASK-002** — author the andesite HAS v0.1 and the family docs seed:
   closed 2026-10-04; the `andesite_has/` book is complete at v0.1 and
   owner-reviewed, and the `mem-ctrl-ip/docs/` family seed is committed.

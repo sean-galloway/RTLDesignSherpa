@@ -3,7 +3,8 @@
 > Spec: `docs/superpowers/specs/2026-10-03-andesite-bootstrap-design.md`
 
 **Priority:** P2
-**Status:** open 2026-10-04
+**Status:** closed 2026-10-04 — the MAS v0.1 is complete and owner-reviewed
+(book assembly at fc61c80f)
 **Owner:** TBD
 
 Write the andesite Microarchitecture Specification v0.1
