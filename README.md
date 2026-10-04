@@ -119,6 +119,8 @@ Reusable primitives, technology-agnostic. **~230 modules across [`rtl/common/`](
 
 **Deep dive:** [docs/markdown/rtl-common/index.md](docs/markdown/rtl-common/index.md) (per-module specs) · [rtl/common/CLAUDE.md](rtl/common/CLAUDE.md)
 
+**Interactive drills:** the [FIFO Depth Calculator](https://sean-galloway.github.io/RTLDesignSherpa/fifo/) and [FIFO Flag Generator](https://sean-galloway.github.io/RTLDesignSherpa/fifo_flags/) apps size the FIFOs above ([`bin/apps/fifo_depth/`](bin/apps/fifo_depth/) · [`bin/apps/fifo_flags/`](bin/apps/fifo_flags/)); the [CRC Calculator](https://sean-galloway.github.io/RTLDesignSherpa/crc_calc/) app ([`bin/apps/crc_calc/`](bin/apps/crc_calc/)) shifts bits against the same `dataint_crc` parameters; [Slack & Pipelining Explorer](https://sean-galloway.github.io/RTLDesignSherpa/slack_explorer/) and [Q-Format Explorer](https://sean-galloway.github.io/RTLDesignSherpa/qformat_explorer/) cover timing slack and fixed-point fundamentals.
+
 ### 2. AMBA Protocols — [`rtl/amba/`](rtl/amba/)
 
 Production-ready AXI/APB/AXIS infrastructure with built-in monitor + observation. **155 modules across 8 protocol dirs + 48 shared.** Click any protocol name for its overview (features, modules, picking guide); click *RTL* for source.
@@ -194,6 +196,8 @@ doc still saying that, it is stale.
 
 **FPGA demo:** [projects/fpga-systems/NexysA7/cdc_counter_display/](projects/fpga-systems/NexysA7/cdc_counter_display/) — multi-clock counter CDC running on real hardware.
 
+**Interactive drills:** [CDC Drill](https://sean-galloway.github.io/RTLDesignSherpa/cdc_drill/) ([`bin/apps/cdc_drill/`](bin/apps/cdc_drill/)) gamifies violation-spotting and synchronizer choice, and the [MTBF Calculator](https://sean-galloway.github.io/RTLDesignSherpa/mtbf_calc/) ([`bin/apps/mtbf_calc/`](bin/apps/mtbf_calc/)) shows why two synchronizer flops are not enough at 1 GHz.
+
 ### 5. Component Projects — [`projects/components/`](projects/components/)
 
 Production-shaped reusable IP, ordered by IP type. Each has its own README + dv/ + dv/tbclasses/ (as applicable).
@@ -214,6 +218,8 @@ Production-shaped reusable IP, ordered by IP type. Each has its own README + dv/
 | Retro legacy blocks | Ready | HPET, PIC, PIT, RTC, UART, GPIO | [`projects/components/retro_legacy_blocks/`](projects/components/retro_legacy_blocks/) |
 | Converters | Ready | UART↔AXIL, protocol conversion | [`projects/components/utility-ip/converters/`](projects/components/utility-ip/converters/) |
 | Misc | — | Mixed building blocks | [`projects/components/utility-ip/misc/`](projects/components/utility-ip/misc/) |
+
+**Timing training:** the [DDR and HBM Drills](https://sean-galloway.github.io/RTLDesignSherpa/ddr_drills/) app ([`bin/apps/ddr_drills/`](bin/apps/ddr_drills/)) drills the material these memory controllers are built on — JEDEC timing-parameter quizzes, bank-state scheduling scenarios, and a live command sandbox across 11 memory technologies (DDR2→DDR5, LPDDR2→LPDDR5, HBM2→HBM4).
 
 ### 6. FPGA Projects — [`projects/fpga-systems/`](projects/fpga-systems/)
 
@@ -281,6 +287,27 @@ Clock Domain A (Fast)    Clock Domain B (Slow)
 - [`docs/markdown/projects/index.md`](docs/markdown/projects/index.md) — project documentation index
 - [`GLOBAL_REQUIREMENTS.md`](GLOBAL_REQUIREMENTS.md) — mandatory requirements across the whole repo
 - [`CLAUDE.md`](CLAUDE.md) — guidance for AI assistants working in this repo
+
+### 10. Interactive Drill Apps — [`bin/apps/`](bin/apps/)
+
+Nine zero-install, zero-build training apps (vanilla HTML/JS, no CDN, no
+network). Each ships a node-tested pure model in `js/model.js` and a
+zero-dependency suite — `node bin/apps/<app>/test/run_tests.js` — and the
+same suites gate the GitHub Pages deploy. Play them at
+[sean-galloway.github.io/RTLDesignSherpa](https://sean-galloway.github.io/RTLDesignSherpa/)
+or open `bin/apps/<app>/index.html` straight from disk.
+
+| App | Drills | Play | Source |
+|---|---|---|---|
+| DDR and HBM Drills | Memory-controller training: JEDEC quizzes, timing-parameter drill, bank-state scheduling, live sandbox (11 technologies) | [play](https://sean-galloway.github.io/RTLDesignSherpa/ddr_drills/) | [`bin/apps/ddr_drills/`](bin/apps/ddr_drills/) |
+| FIFO Depth Calculator | Worst-case async FIFO sizing, synchronizer margin, Gray/Johnson depth output | [play](https://sean-galloway.github.io/RTLDesignSherpa/fifo/) | [`bin/apps/fifo_depth/`](bin/apps/fifo_depth/) |
+| FIFO Flag Generator | Almost-full / almost-empty thresholds from depth, clock ratio, bubble tolerance | [play](https://sean-galloway.github.io/RTLDesignSherpa/fifo_flags/) | [`bin/apps/fifo_flags/`](bin/apps/fifo_flags/) |
+| MTBF Calculator | Synchronizer metastability MTBF vs stages, clock/data rates, resolution time | [play](https://sean-galloway.github.io/RTLDesignSherpa/mtbf_calc/) | [`bin/apps/mtbf_calc/`](bin/apps/mtbf_calc/) |
+| Slack & Pipelining Explorer | Setup/hold slack vs clock skew; latency-vs-throughput when pipelining | [play](https://sean-galloway.github.io/RTLDesignSherpa/slack_explorer/) | [`bin/apps/slack_explorer/`](bin/apps/slack_explorer/) |
+| Q-Format Explorer | Fixed-point Qm.n bit patterns (clickable), signed/unsigned, quantization error, wrap vs saturate | [play](https://sean-galloway.github.io/RTLDesignSherpa/qformat_explorer/) | [`bin/apps/qformat_explorer/`](bin/apps/qformat_explorer/) |
+| CDC Drill | Clock-domain crossings: spot the illegal crossing, pick the right synchronizer | [play](https://sean-galloway.github.io/RTLDesignSherpa/cdc_drill/) | [`bin/apps/cdc_drill/`](bin/apps/cdc_drill/) |
+| CRC Calculator | CRC-8/16/32 presets + custom polynomials, standard check strings, shift-register step view | [play](https://sean-galloway.github.io/RTLDesignSherpa/crc_calc/) | [`bin/apps/crc_calc/`](bin/apps/crc_calc/) |
+| Cache Simulator | Trace-driven sets/ways/block size, LRU/FIFO/RANDOM, compulsory/capacity/conflict split | [play](https://sean-galloway.github.io/RTLDesignSherpa/cache_sim/) | [`bin/apps/cache_sim/`](bin/apps/cache_sim/) |
 
 ---
 
