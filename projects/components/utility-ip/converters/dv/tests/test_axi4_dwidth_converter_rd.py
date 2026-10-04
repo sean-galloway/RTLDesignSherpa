@@ -106,6 +106,56 @@ async def axi4_dwidth_converter_rd_test(dut):
         await tb.wait_clocks('aclk', 10)
 
 
+@cocotb.test(timeout_time=30, timeout_unit="ms")
+async def axi4_dwidth_converter_rd_interleave_test(dut):
+    """BUG-009 TDD: beat-level R interleaving across IDs."""
+    os.environ['DWIDTH_RD_INTERLEAVE_TEST'] = '1'
+    tb = AXI4DWidthConverterReadTB(dut)
+
+    seed = int(os.environ.get('SEED', '42'))
+    random.seed(seed)
+    tb.log.info(f"Using seed: {seed}")
+
+    await tb.setup_clocks_and_reset()
+
+    try:
+        ok = await tb.run_interleave_test()
+        await tb.wait_clocks('aclk', 50)
+        stats = tb.get_statistics()
+        if ok and stats['errors'] == 0:
+            tb.log.info("BUG-009 INTERLEAVE TEST PASSED")
+        else:
+            tb.log.error("BUG-009 INTERLEAVE TEST FAILED")
+            assert False, "R beat-level interleave test failed"
+    finally:
+        await tb.wait_clocks('aclk', 10)
+
+
+@cocotb.test(timeout_time=30, timeout_unit="ms")
+async def axi4_dwidth_converter_rd_ooo_r_test(dut):
+    """BUG-009 follow-up: whole master R bursts completing OOO across IDs."""
+    os.environ['DWIDTH_RD_OOO_R_TEST'] = '1'
+    tb = AXI4DWidthConverterReadTB(dut)
+
+    seed = int(os.environ.get('SEED', '42'))
+    random.seed(seed)
+    tb.log.info(f"Using seed: {seed}")
+
+    await tb.setup_clocks_and_reset()
+
+    try:
+        ok = await tb.run_ooo_r_burst_test()
+        await tb.wait_clocks('aclk', 50)
+        stats = tb.get_statistics()
+        if ok and stats['errors'] == 0:
+            tb.log.info("BUG-009 OOO-R TEST PASSED")
+        else:
+            tb.log.error("BUG-009 OOO-R TEST FAILED")
+            assert False, "R burst-atomic OOO test failed"
+    finally:
+        await tb.wait_clocks('aclk', 10)
+
+
 def generate_test_params():
     """
     Generate test parameters for different width conversion scenarios.
@@ -117,31 +167,39 @@ def generate_test_params():
     # Phase 1-3: Upsize scenarios
     params = [
         # Upsize: 32-bit → 128-bit (4:1 ratio)
-        {'s_data_width': 32, 'm_data_width': 128, 'test_level': 'gate'},
+        {'s_data_width': 32, 'm_data_width': 128, 'test_level': 'gate',
+         'testcase': 'axi4_dwidth_converter_rd_test'},
 
         # Upsize: 64-bit → 256-bit (4:1 ratio)
-        {'s_data_width': 64, 'm_data_width': 256, 'test_level': 'gate'},
+        {'s_data_width': 64, 'm_data_width': 256, 'test_level': 'gate',
+         'testcase': 'axi4_dwidth_converter_rd_test'},
 
         # Upsize: 32-bit → 64-bit (2:1 ratio)
-        {'s_data_width': 32, 'm_data_width': 64, 'test_level': 'gate'},
+        {'s_data_width': 32, 'm_data_width': 64, 'test_level': 'gate',
+         'testcase': 'axi4_dwidth_converter_rd_test'},
 
         # Upsize: 64-bit → 128-bit (2:1 ratio)
-        {'s_data_width': 64, 'm_data_width': 128, 'test_level': 'gate'},
+        {'s_data_width': 64, 'm_data_width': 128, 'test_level': 'gate',
+         'testcase': 'axi4_dwidth_converter_rd_test'},
     ]
 
     # Phase 4: Downsize scenarios
     params.extend([
         # Downsize: 128-bit → 32-bit (4:1 ratio)
-        {'s_data_width': 128, 'm_data_width': 32, 'test_level': 'gate'},
+        {'s_data_width': 128, 'm_data_width': 32, 'test_level': 'gate',
+         'testcase': 'axi4_dwidth_converter_rd_test'},
 
         # Downsize: 256-bit → 64-bit (4:1 ratio)
-        {'s_data_width': 256, 'm_data_width': 64, 'test_level': 'gate'},
+        {'s_data_width': 256, 'm_data_width': 64, 'test_level': 'gate',
+         'testcase': 'axi4_dwidth_converter_rd_test'},
 
         # Downsize: 64-bit → 32-bit (2:1 ratio)
-        {'s_data_width': 64, 'm_data_width': 32, 'test_level': 'gate'},
+        {'s_data_width': 64, 'm_data_width': 32, 'test_level': 'gate',
+         'testcase': 'axi4_dwidth_converter_rd_test'},
 
         # Downsize: 128-bit → 64-bit (2:1 ratio)
-        {'s_data_width': 128, 'm_data_width': 64, 'test_level': 'gate'},
+        {'s_data_width': 128, 'm_data_width': 64, 'test_level': 'gate',
+         'testcase': 'axi4_dwidth_converter_rd_test'},
     ])
 
     # Phase 6: Medium and Full test levels (select width pairs)
@@ -154,9 +212,19 @@ def generate_test_params():
     for (narrow, wide) in medium_full_pairs:
         for level in ['func', 'full']:
             # Upsize
-            params.append({'s_data_width': narrow, 'm_data_width': wide, 'test_level': level})
+            params.append({'s_data_width': narrow, 'm_data_width': wide, 'test_level': level,
+                           'testcase': 'axi4_dwidth_converter_rd_test'})
             # Downsize
-            params.append({'s_data_width': wide, 'm_data_width': narrow, 'test_level': level})
+            params.append({'s_data_width': wide, 'm_data_width': narrow, 'test_level': level,
+                           'testcase': 'axi4_dwidth_converter_rd_test'})
+
+    # BUG-009: beat-level interleave and burst-atomic OOO-R regression rows.
+    # Run for a representative downsize and upsize configuration at gate level.
+    for (s, m) in [(128, 32), (32, 128)]:
+        params.append({'s_data_width': s, 'm_data_width': m, 'test_level': 'gate',
+                       'testcase': 'axi4_dwidth_converter_rd_interleave_test'})
+        params.append({'s_data_width': s, 'm_data_width': m, 'test_level': 'gate',
+                       'testcase': 'axi4_dwidth_converter_rd_ooo_r_test'})
 
     # Comprehensive coverage (uncomment for exhaustive testing)
     # test_levels = ['gate', 'func', 'full']
@@ -220,15 +288,17 @@ def test_axi4_dwidth_converter_rd(request, params):
     s_data_width = params['s_data_width']
     m_data_width = params['m_data_width']
     test_level = params['test_level']
+    testcase = params.get('testcase', 'axi4_dwidth_converter_rd_test')
 
     # Calculate conversion characteristics
     width_ratio = max(s_data_width, m_data_width) // min(s_data_width, m_data_width)
     mode = "upsize" if s_data_width < m_data_width else "downsize"
 
     # Create descriptive test name
+    testcase_tag = testcase.replace('axi4_dwidth_converter_rd_', '')
     test_name_plus_params = (f"test_axi4_dwidth_converter_rd_"
                             f"{s_data_width}to{m_data_width}_"
-                            f"{mode}_{width_ratio}x_{test_level}")
+                            f"{mode}_{width_ratio}x_{test_level}_{testcase_tag}")
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
@@ -265,7 +335,7 @@ def test_axi4_dwidth_converter_rd(request, params):
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
-        'COCOTB_LOG_LEVEL': 'DEBUG',
+        'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
         'COCOTB_TEST_TIMEOUT': str(timeout_ms),
         'SEED': os.environ.get('SEED', str(random.randint(0, 1000000))),
@@ -309,7 +379,7 @@ def test_axi4_dwidth_converter_rd(request, params):
 
     # Test execution with reporting
     print(f"\n{'='*80}")
-    print(f"AXI4 Read Data Width Converter Test: {test_level.upper()}")
+    print(f"AXI4 Read Data Width Converter Test: {test_level.upper()} ({testcase_tag})")
     print(f"Conversion: {s_data_width}-bit → {m_data_width}-bit ({mode} {width_ratio}:1)")
     print(f"Expected Duration: {timeout_ms/1000:.1f}s")
     print(f"Phase 1: Infrastructure and compilation check")
@@ -322,6 +392,7 @@ def test_axi4_dwidth_converter_rd(request, params):
             includes=includes,
             toplevel=toplevel,
             module=module,
+            testcase=testcase,
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
@@ -332,11 +403,11 @@ def test_axi4_dwidth_converter_rd(request, params):
             plus_args=['--trace'] if enable_waves else [],
         )
 
-        print(f"{test_level.upper()} TEST PASSED")
+        print(f"{test_level.upper()} TEST PASSED ({testcase_tag})")
         print(f"   Configuration: {s_data_width}→{m_data_width} ({mode} {width_ratio}:1)")
 
     except Exception as e:
-        print(f"{test_level.upper()} TEST FAILED: {str(e)}")
+        print(f"{test_level.upper()} TEST FAILED ({testcase_tag}): {str(e)}")
         print(f"   Configuration: {s_data_width}→{m_data_width} ({mode} {width_ratio}:1)")
         print(f"   Logs: {log_path}")
         print(f"   Waveforms: {cmd_filename}")
