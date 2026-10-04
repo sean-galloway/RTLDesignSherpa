@@ -15,13 +15,12 @@ direct conflict with the settled design point:
    still carries `dfi_cke` for DDR4; the LPDDR4 CA path must encode
    CKE-equivalent state). Books' dormant/power-down story (HAS Ch 3.1)
    interacts.
-2. **Bank count -- CONFLICT.** The research index lists "Bank groups (4 bank
-   groups x 4 banks = 16 banks per channel)" for LPDDR4; the andesite design
-   point (spec §2, owner-settled) is **8 banks per channel, no bank groups**,
-   and the geometry string is grep-gated across the books. Resolve against
-   JESD209-4E itself (cold storage) before any book changes; the design point
-   moves only by owner decision. If the index is wrong, correct the index
-   (operator's research dir, not this repo).
+2. **Bank count — RESOLVED 2026-10-04 (owner ruling).** The research index
+   claimed bank groups for LPDDR4; the owner ruled it wrong — bank groups
+   come online with DDR5/LPDDR5, and the andesite design point (8 banks per
+   channel, no bank groups, grep-gated across the books) stands. The index
+   has been corrected in place (`/mnt/data/github/dfi-specs/lpddr4/index.md`,
+   operator research storage, no repo commit). The books required no change.
 3. **CA cycle detail.** The index says RD/WR span 2 CA cycles and ACT splits
    into ACT-1/ACT-2; the MAS says "two cycles per command" flat. Add the
    per-command cycle structure to the CA submodule page at the next MAS edit
