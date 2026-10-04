@@ -318,7 +318,7 @@ module gaxi_skid_buffer (
 	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
 		if ((DEPTH < 2) || (DEPTH > 8)) begin : gen_depth_guard
-			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:101:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
+			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:101:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
 		end
 	endgenerate
 	genvar _gv_gi_1;
@@ -1034,7 +1034,7 @@ module apb4_master_stub (
 	);
 	always @(posedge pclk)
 		if ((presetn && (cmd_valid && cmd_ready)) && !fl_in_ready)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/amba/apb4/apb4_master_stub.sv:142:13 - apb4_master_stub.<unnamed_block>.<unnamed_block>\n msg: ", $time, "apb4_master_stub: first/last side FIFO overflow -- framing record dropped");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/amba/apb4/apb4_master_stub.sv:142:13 - apb4_master_stub.<unnamed_block>.<unnamed_block>\n msg: ", $time, "apb4_master_stub: first/last side FIFO overflow -- framing record dropped");
 	assign rsp_data = {out_cmd_last, out_cmd_first, rsp_pslverr, rsp_prdata};
 	apb4_master #(
 		.ADDR_WIDTH(ADDR_WIDTH),

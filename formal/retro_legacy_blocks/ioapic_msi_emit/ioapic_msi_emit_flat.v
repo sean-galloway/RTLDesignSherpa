@@ -62,9 +62,9 @@ module ioapic_msi_emit (
 	assign deliv_retry = rsp_valid && w_rsp_pslverr;
 	initial begin : param_check
 		if (DATA_WIDTH < 12)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_msi_emit.sv:180:13 - ioapic_msi_emit.param_check.<unnamed_block>\n msg: ", $time, "ioapic_msi_emit: DATA_WIDTH must be >= 12 to carry vector, delivery mode and destination mode (got %0d)", DATA_WIDTH);
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_msi_emit.sv:180:13 - ioapic_msi_emit.param_check.<unnamed_block>\n msg: ", $time, "ioapic_msi_emit: DATA_WIDTH must be >= 12 to carry vector, delivery mode and destination mode (got %0d)", DATA_WIDTH);
 		if (ADDR_WIDTH < 20)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_msi_emit.sv:182:13 - ioapic_msi_emit.param_check.<unnamed_block>\n msg: ", $time, "ioapic_msi_emit: ADDR_WIDTH must be >= 20 to carry the destination at [19:12] (got %0d)", ADDR_WIDTH);
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_msi_emit.sv:182:13 - ioapic_msi_emit.param_check.<unnamed_block>\n msg: ", $time, "ioapic_msi_emit: ADDR_WIDTH must be >= 20 to carry the destination at [19:12] (got %0d)", ADDR_WIDTH);
 	end
 	initial _sv2v_0 = 0;
 endmodule

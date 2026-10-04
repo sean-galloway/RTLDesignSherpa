@@ -31,7 +31,7 @@ module gaxi_skid_buffer (
 	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
 		if ((DEPTH < 2) || (DEPTH > 8)) begin : gen_depth_guard
-			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:101:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
+			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:101:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
 		end
 	endgenerate
 	genvar _gv_gi_1;
@@ -180,11 +180,11 @@ module ctrlrd_engine (
 	output wire [63:0] mon_timestamp;
 	initial begin
 		if (AXI_ID_WIDTH < CHAN_WIDTH) begin
-			$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/rtl/fub/ctrlrd_engine.sv:93:13 - ctrlrd_engine.<unnamed_block>.<unnamed_block>\n msg: ", $time, "AXI_ID_WIDTH (%0d) must be >= CHAN_WIDTH (%0d)", AXI_ID_WIDTH, CHAN_WIDTH);
+			$display("Fatal [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/rapids/rtl/fub/ctrlrd_engine.sv:93:13 - ctrlrd_engine.<unnamed_block>.<unnamed_block>\n msg: ", $time, "AXI_ID_WIDTH (%0d) must be >= CHAN_WIDTH (%0d)", AXI_ID_WIDTH, CHAN_WIDTH);
 			$finish(1);
 		end
 		if (AXI_DATA_WIDTH < 32) begin
-			$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/rtl/fub/ctrlrd_engine.sv:96:13 - ctrlrd_engine.<unnamed_block>.<unnamed_block>\n msg: ", $time, "AXI_DATA_WIDTH (%0d) must be >= 32 for 32-bit reads", AXI_DATA_WIDTH);
+			$display("Fatal [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/rapids/rtl/fub/ctrlrd_engine.sv:96:13 - ctrlrd_engine.<unnamed_block>.<unnamed_block>\n msg: ", $time, "AXI_DATA_WIDTH (%0d) must be >= 32 for 32-bit reads", AXI_DATA_WIDTH);
 			$finish(1);
 		end
 	end

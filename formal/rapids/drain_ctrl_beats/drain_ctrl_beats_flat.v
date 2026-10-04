@@ -235,5 +235,5 @@ module drain_ctrl_beats (
 	assign rd_almost_empty = r_rd_almost_empty;
 	always @(posedge axi_aclk)
 		if (((axi_aresetn && rd_valid) && !r_rd_empty) && (sv2v_cast_2BB65(rd_size) > data_available))
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/rtl/fub_beats/drain_ctrl_beats.sv:177:13 - drain_ctrl_beats.<unnamed_block>.<unnamed_block>\n msg: ", $time, "drain_ctrl_beats: over-drain -- rd_size=%0d exceeds data_available=%0d; rd_ptr will overshoot wr_ptr and permanently corrupt the occupancy count", rd_size, data_available);
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/rapids/rtl/fub_beats/drain_ctrl_beats.sv:177:13 - drain_ctrl_beats.<unnamed_block>.<unnamed_block>\n msg: ", $time, "drain_ctrl_beats: over-drain -- rd_size=%0d exceeds data_available=%0d; rd_ptr will overshoot wr_ptr and permanently corrupt the occupancy count", rd_size, data_available);
 endmodule

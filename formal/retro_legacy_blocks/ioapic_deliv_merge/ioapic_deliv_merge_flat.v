@@ -569,9 +569,9 @@ module ioapic_deliv_merge (
 	end
 	initial begin : param_check
 		if (NUM_SRC < 2)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_deliv_merge.sv:179:13 - ioapic_deliv_merge.param_check.<unnamed_block>\n msg: ", $time, "ioapic_deliv_merge: NUM_SRC must be >= 2 (got %0d); a single IOAPIC needs no merge", NUM_SRC);
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_deliv_merge.sv:179:13 - ioapic_deliv_merge.param_check.<unnamed_block>\n msg: ", $time, "ioapic_deliv_merge: NUM_SRC must be >= 2 (got %0d); a single IOAPIC needs no merge", NUM_SRC);
 		if (NUM_SRC > 16)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_deliv_merge.sv:181:13 - ioapic_deliv_merge.param_check.<unnamed_block>\n msg: ", $time, "ioapic_deliv_merge: NUM_SRC must be <= 16 (got %0d)", NUM_SRC);
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_deliv_merge.sv:181:13 - ioapic_deliv_merge.param_check.<unnamed_block>\n msg: ", $time, "ioapic_deliv_merge: NUM_SRC must be <= 16 (got %0d)", NUM_SRC);
 	end
 	initial _sv2v_0 = 0;
 endmodule

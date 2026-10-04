@@ -86,7 +86,7 @@ module ioapic_lowest_pri_arb (
 	assign cpu_irq_deliv_mode = deliv_deliv_mode;
 	initial begin : param_check
 		if ((NUM_CPUS < 1) || (NUM_CPUS > 255))
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_lowest_pri_arb.sv:161:13 - ioapic_lowest_pri_arb.param_check.<unnamed_block>\n msg: ", $time, "ioapic_lowest_pri_arb: NUM_CPUS=%0d out of range [1,255]", NUM_CPUS);
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_lowest_pri_arb.sv:161:13 - ioapic_lowest_pri_arb.param_check.<unnamed_block>\n msg: ", $time, "ioapic_lowest_pri_arb: NUM_CPUS=%0d out of range [1,255]", NUM_CPUS);
 	end
 	initial _sv2v_0 = 0;
 endmodule

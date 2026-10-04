@@ -39,11 +39,23 @@ STATUS = ROOT / "bin" / "formal_status.py"
 # v0.0.13. The mode's own discovery has the same fallback, so tests use it too.
 SV2V_DIR = "/mnt/data/tools"
 
+# Must match bin/formal_status.py:_canonical_root. The checker points
+# REPO_ROOT at this symlink so generated flats bake a machine-independent
+# path; fixtures must generate their flats under the same literal.
+CANON = "/tmp/rds-canonical-repo-root"
+
 
 def _env_with_sv2v() -> dict:
     env = dict(os.environ)
     env["PATH"] = SV2V_DIR + os.pathsep + env.get("PATH", "")
     return env
+
+
+def _point_canon_at(repo: Path) -> None:
+    link = Path(CANON)
+    if link.is_symlink() or link.exists():
+        link.unlink()
+    link.symlink_to(repo)
 
 
 def make_flat_repo(tmp_path: Path, recipe_body: str,
@@ -81,11 +93,14 @@ def make_flat_repo(tmp_path: Path, recipe_body: str,
         + recipe_body)
 
     # Generate the committed flat with the proof's own Makefile, exactly as
-    # a developer would. The recipe may side-effect in-tree (the UNHANDLED
-    # case plants one); that artifact belongs to the GENERATION, not to the
-    # check under test, so remove it and let the assertion below prove the
-    # checker never re-creates it.
-    subprocess.run(["make", "block1_flat.v"], cwd=proof, check=True,
+    # a developer would -- under the canonical REPO_ROOT, exactly as the
+    # checker regenerates it. The recipe may side-effect in-tree (the
+    # UNHANDLED case plants one); that artifact belongs to the GENERATION,
+    # not to the check under test, so remove it and let the assertion below
+    # prove the checker never re-creates it.
+    _point_canon_at(repo)
+    subprocess.run(["make", "block1_flat.v", f"REPO_ROOT={CANON}"],
+                   cwd=proof, check=True,
                    env=_env_with_sv2v(),
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     (proof / "side_effect.txt").unlink(missing_ok=True)
@@ -110,9 +125,11 @@ def run_check(repo: Path) -> subprocess.CompletedProcess:
 
 SIMPLE_RECIPE = "\t$(SV2V) dut.sv > $@\n"
 
-# The REPO_ROOT pattern real formal Makefiles use: absolute source paths, so
-# sv2v bakes the generating clone's checkout path into the flat.
-ABS_RECIPE = "\t$(SV2V) $(CURDIR)/dut.sv > $@\n"
+# The REPO_ROOT pattern real formal Makefiles use: absolute source paths under
+# the repo root, so sv2v bakes the generating clone's checkout path into the
+# flat. The fixture's DUT lives at formal/demo/block1/dut.sv in the scratch
+# repo, mirroring rtl/... sources in the real tree.
+ABS_RECIPE = "\t$(SV2V) $(REPO_ROOT)/formal/demo/block1/dut.sv > $@\n"
 
 UNHANDLED_RECIPE = (
     "\t$(SV2V) dut.sv > $@\n"
@@ -175,13 +192,40 @@ def test_foreign_checkout_root_is_current(tmp_path):
             "  endgenerate\n"
             "endmodule\n"))
     flat = repo / "formal" / "demo" / "block1" / "block1_flat.v"
-    assert str(repo) in flat.read_text(), \
-        "fixture must bake an absolute checkout path into the flat"
+    assert CANON in flat.read_text(), \
+        "fixture must bake the canonical checkout path into the flat"
     flat.write_text(flat.read_text().replace(
-        str(repo), "/home/runner/work/RTLDesignSherpa/RTLDesignSherpa"))
+        CANON, "/home/runner/work/RTLDesignSherpa/RTLDesignSherpa"))
     r = run_check(repo)
     assert r.returncode == 0, \
         f"a foreign checkout root flagged drift: {r.stdout}{r.stderr}"
+    assert "CURRENT" in r.stdout
+
+
+def test_check_flat_runs_under_canonical_root(tmp_path):
+    """The checker must regenerate flats through the SAME canonical REPO_ROOT
+    the committed flat was generated with -- otherwise the machine-specific
+    checkout path baked into source locations makes every machine flag every
+    other machine's flats stale. Rewriting the canonical path to a foreign
+    root on the CHECK side only (the committed flat keeps the canonical
+    bytes) must still report CURRENT, because the checker's own regeneration
+    uses the canonical root again."""
+    repo = make_flat_repo(tmp_path, ABS_RECIPE,
+                          dut_body=(
+                              "module dut #(parameter int W = 1) (\n"
+                              "           input  logic        clk,\n"
+                              "           input  logic [7:0] d,\n"
+                              "           output logic [7:0] q);\n"
+                              "  assign q = d;\n"
+                              "  generate\n"
+                              "    if (W < 2) begin : gen_guard\n"
+                              "      $error(\"unsupported W=%0d\", W);\n"
+                              "    end\n"
+                              "  endgenerate\n"
+                              "endmodule\n"))
+    r = run_check(repo)
+    assert r.returncode == 0, \
+        f"canonical-root check flagged drift: {r.stdout}{r.stderr}"
     assert "CURRENT" in r.stdout
 
 

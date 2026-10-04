@@ -37,11 +37,11 @@ module ioapic_boot_intx (
 	end
 	initial begin : param_check
 		if (NUM_IRQS < 1)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_boot_intx.sv:105:13 - ioapic_boot_intx.param_check.<unnamed_block>\n msg: ", $time, "ioapic_boot_intx: NUM_IRQS must be >= 1, got %0d", NUM_IRQS);
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_boot_intx.sv:105:13 - ioapic_boot_intx.param_check.<unnamed_block>\n msg: ", $time, "ioapic_boot_intx: NUM_IRQS must be >= 1, got %0d", NUM_IRQS);
 		if (NUM_PIC < 1)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_boot_intx.sv:108:13 - ioapic_boot_intx.param_check.<unnamed_block>\n msg: ", $time, "ioapic_boot_intx: NUM_PIC must be >= 1, got %0d", NUM_PIC);
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_boot_intx.sv:108:13 - ioapic_boot_intx.param_check.<unnamed_block>\n msg: ", $time, "ioapic_boot_intx: NUM_PIC must be >= 1, got %0d", NUM_PIC);
 		if ((1 << PIC_IDX_W) <= NUM_PIC)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_boot_intx.sv:111:13 - ioapic_boot_intx.param_check.<unnamed_block>\n msg: ", $time, "ioapic_boot_intx: PIC_IDX_W=%0d cannot hold NUM_PIC=%0d plus a no-reroute code", PIC_IDX_W, NUM_PIC);
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_boot_intx.sv:111:13 - ioapic_boot_intx.param_check.<unnamed_block>\n msg: ", $time, "ioapic_boot_intx: PIC_IDX_W=%0d cannot hold NUM_PIC=%0d plus a no-reroute code", PIC_IDX_W, NUM_PIC);
 	end
 	initial _sv2v_0 = 0;
 endmodule
