@@ -60,7 +60,7 @@ class AXIS5MasterBasicTB(TBBase):
     async def drive_fub_packet(self, data, last=1, id=0, dest=0, user=0, wakeup=0, strb=None):
         """Drive a packet through the FUB interface."""
         # Wait for ready
-        while not self.dut.fub_axis_tready.value:
+        while not int(self.dut.fub_axis_tready.value):
             await RisingEdge(self.dut.aclk)
 
         # Drive FUB signals
@@ -87,6 +87,6 @@ class AXIS5MasterBasicTB(TBBase):
         """Wait for AXIS transaction to complete."""
         for _ in range(timeout_cycles):
             await RisingEdge(self.dut.aclk)
-            if self.dut.m_axis_tvalid.value and self.dut.m_axis_tready.value:
+            if int(self.dut.m_axis_tvalid.value) and int(self.dut.m_axis_tready.value):
                 return True
         return False

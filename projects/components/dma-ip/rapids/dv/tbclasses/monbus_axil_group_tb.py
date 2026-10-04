@@ -497,7 +497,7 @@ class MonbusAxilGroupTB(TBBase):
     async def wait_for_interrupt(self, timeout_cycles: int = 1000) -> bool:
         """Wait for interrupt signal assertion"""
         for _ in range(timeout_cycles):
-            if hasattr(self.dut, 'interrupt') and self.dut.interrupt.value:
+            if hasattr(self.dut, 'interrupt') and int(self.dut.interrupt.value):
                 return True
             await self.wait_clocks(self.clk_name, 1)
         return False

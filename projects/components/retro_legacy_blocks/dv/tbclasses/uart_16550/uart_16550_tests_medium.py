@@ -1105,9 +1105,9 @@ class UART16550MediumTests:
             await self.tb.apb4_master.send(write_packet)
             for _ in range(20):
                 await RisingEdge(self.tb.pclk)
-                if (self.tb.dut.s_apb_PSEL.value and
-                        self.tb.dut.s_apb_PENABLE.value and
-                        self.tb.dut.s_apb_PREADY.value):
+                if (int(self.tb.dut.s_apb_PSEL.value) and
+                        int(self.tb.dut.s_apb_PENABLE.value) and
+                        int(self.tb.dut.s_apb_PREADY.value)):
                     break
             pslverr = bool(self.tb.dut.s_apb_PSLVERR.value)
             await RisingEdge(self.tb.pclk)

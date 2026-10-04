@@ -133,8 +133,8 @@ class AXI4IntfObserverTB(TBBase):
         await self.apb.send(pkt)
         for _ in range(100):
             await RisingEdge(self.dut.aclk)
-            if (self.dut.s_apb_psel.value and self.dut.s_apb_penable.value
-                    and self.dut.s_apb_pready.value):
+            if (int(self.dut.s_apb_psel.value) and int(self.dut.s_apb_penable.value)
+                    and int(self.dut.s_apb_pready.value)):
                 break
         rd = int(self.dut.s_apb_prdata.value)
         await RisingEdge(self.dut.aclk)

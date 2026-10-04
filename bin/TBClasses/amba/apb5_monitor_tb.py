@@ -98,7 +98,7 @@ class APB5MonitorTB(TBBase):
     async def drive_cmd_write(self, paddr, pwdata, pstrb=0xF, pprot=0, pauser=0, pwuser=0):
         """Drive a write command through the command interface."""
         # Wait for ready
-        while not self.dut.cmd_ready.value:
+        while not int(self.dut.cmd_ready.value):
             await RisingEdge(self.dut.aclk)
 
         # Drive command
@@ -119,7 +119,7 @@ class APB5MonitorTB(TBBase):
     async def drive_cmd_read(self, paddr, pprot=0, pauser=0):
         """Drive a read command through the command interface."""
         # Wait for ready
-        while not self.dut.cmd_ready.value:
+        while not int(self.dut.cmd_ready.value):
             await RisingEdge(self.dut.aclk)
 
         # Drive command
@@ -140,7 +140,7 @@ class APB5MonitorTB(TBBase):
     async def drive_rsp(self, prdata, pslverr=0, pruser=0, pbuser=0):
         """Drive a response through the response interface."""
         # Wait for ready
-        while not self.dut.rsp_ready.value:
+        while not int(self.dut.rsp_ready.value):
             await RisingEdge(self.dut.aclk)
 
         # Drive response
@@ -167,7 +167,7 @@ class APB5MonitorTB(TBBase):
         """Capture monitor packet output."""
         for _ in range(timeout_cycles):
             await RisingEdge(self.dut.aclk)
-            if self.dut.monbus_valid.value:
+            if int(self.dut.monbus_valid.value):
                 packet = int(self.dut.monbus_packet.value)
                 self.monitor_packets.append(packet)
                 self.log.info(f"Monitor packet captured: 0x{packet:016X}")

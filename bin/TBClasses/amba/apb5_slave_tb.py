@@ -77,7 +77,7 @@ class APB5SlaveBasicTB(TBBase):
 
         # Wait for PREADY
         timeout = 100
-        while not self.dut.s_apb_PREADY.value and timeout > 0:
+        while not int(self.dut.s_apb_PREADY.value) and timeout > 0:
             await RisingEdge(self.dut.pclk)
             timeout -= 1
 
@@ -113,7 +113,7 @@ class APB5SlaveBasicTB(TBBase):
 
         # Wait for PREADY
         timeout = 100
-        while not self.dut.s_apb_PREADY.value and timeout > 0:
+        while not int(self.dut.s_apb_PREADY.value) and timeout > 0:
             await RisingEdge(self.dut.pclk)
             timeout -= 1
 
@@ -135,7 +135,7 @@ class APB5SlaveBasicTB(TBBase):
     async def drive_command_response(self, prdata, pslverr=0, pruser=0, pbuser=0, delay=0):
         """Drive response through command interface."""
         # Wait for command
-        while not self.dut.cmd_valid.value:
+        while not int(self.dut.cmd_valid.value):
             await RisingEdge(self.dut.pclk)
 
         # Accept command
@@ -157,7 +157,7 @@ class APB5SlaveBasicTB(TBBase):
             self.dut.rsp_pbuser.value = pbuser
 
         # Wait for response acceptance
-        while not self.dut.rsp_ready.value:
+        while not int(self.dut.rsp_ready.value):
             await RisingEdge(self.dut.pclk)
 
         await RisingEdge(self.dut.pclk)

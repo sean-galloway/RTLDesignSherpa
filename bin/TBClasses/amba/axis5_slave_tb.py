@@ -60,7 +60,7 @@ class AXIS5SlaveBasicTB(TBBase):
     async def drive_axis_packet(self, data, last=1, id=0, dest=0, user=0, wakeup=0, strb=None):
         """Drive a packet through the AXIS slave interface."""
         # Wait for ready
-        while not self.dut.s_axis_tready.value:
+        while not int(self.dut.s_axis_tready.value):
             await RisingEdge(self.dut.aclk)
 
         # Drive AXIS signals
@@ -87,6 +87,6 @@ class AXIS5SlaveBasicTB(TBBase):
         """Wait for FUB transaction to complete."""
         for _ in range(timeout_cycles):
             await RisingEdge(self.dut.aclk)
-            if self.dut.fub_axis_tvalid.value and self.dut.fub_axis_tready.value:
+            if int(self.dut.fub_axis_tvalid.value) and int(self.dut.fub_axis_tready.value):
                 return True
         return False

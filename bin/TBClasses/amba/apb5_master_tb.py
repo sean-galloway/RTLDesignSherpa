@@ -68,7 +68,7 @@ class APB5MasterBasicTB(TBBase):
     async def drive_command(self, pwrite, paddr, pwdata=0, pstrb=0xF, pauser=0, pwuser=0):
         """Drive a command through the command interface."""
         # Wait for ready
-        while not self.dut.cmd_ready.value:
+        while not int(self.dut.cmd_ready.value):
             await RisingEdge(self.dut.pclk)
 
         # Drive command
@@ -92,7 +92,7 @@ class APB5MasterBasicTB(TBBase):
         """Wait for APB transaction to complete."""
         for _ in range(timeout_cycles):
             await RisingEdge(self.dut.pclk)
-            if hasattr(self.dut, 'm_apb_PENABLE') and self.dut.m_apb_PENABLE.value:
-                if hasattr(self.dut, 'm_apb_PREADY') and self.dut.m_apb_PREADY.value:
+            if hasattr(self.dut, 'm_apb_PENABLE') and int(self.dut.m_apb_PENABLE.value):
+                if hasattr(self.dut, 'm_apb_PREADY') and int(self.dut.m_apb_PREADY.value):
                     return True
         return False

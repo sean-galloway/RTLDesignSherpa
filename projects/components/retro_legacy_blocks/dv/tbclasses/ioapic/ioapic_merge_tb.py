@@ -102,7 +102,7 @@ class _IOAPICPort:
         data = 0
         for _ in range(100):
             await RisingEdge(self.tb.dut.pclk)
-            if self.psel.value and self.penable.value and self.pready.value:
+            if int(self.psel.value) and int(self.penable.value) and int(self.pready.value):
                 if capture_read:
                     data = int(self.prdata.value)
                 break

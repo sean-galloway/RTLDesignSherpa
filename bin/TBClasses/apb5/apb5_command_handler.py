@@ -115,7 +115,7 @@ class APB5CommandHandler:
         """
         while self.running:
             # Wait for command valid signal
-            while not self.dut.o_cmd_valid.value and self.running:
+            while not int(self.dut.o_cmd_valid.value) and self.running:
                 await RisingEdge(self.dut.pclk)
 
             if not self.running:
@@ -199,7 +199,7 @@ class APB5CommandHandler:
                 self.dut.i_rsp_pbuser.value = pbuser
 
             # Wait for ready acknowledgement
-            while not self.dut.o_rsp_ready.value and self.running:
+            while not int(self.dut.o_rsp_ready.value) and self.running:
                 await RisingEdge(self.dut.pclk)
 
             if not self.running:

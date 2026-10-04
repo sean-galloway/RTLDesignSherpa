@@ -310,9 +310,9 @@ class IOAPICTB(TBBase):
         timeout = 0
         while timeout < 100:
             await RisingEdge(self.dut.pclk)
-            if (self.dut.s_apb_PSEL.value and
-                self.dut.s_apb_PENABLE.value and
-                self.dut.s_apb_PREADY.value):
+            if (int(self.dut.s_apb_PSEL.value) and
+                int(self.dut.s_apb_PENABLE.value) and
+                int(self.dut.s_apb_PREADY.value)):
                 break
             timeout += 1
 
@@ -369,9 +369,9 @@ class IOAPICTB(TBBase):
         read_data = 0
         while timeout < 100:
             await RisingEdge(self.dut.pclk)
-            if (self.dut.s_apb_PSEL.value and
-                self.dut.s_apb_PENABLE.value and
-                self.dut.s_apb_PREADY.value):
+            if (int(self.dut.s_apb_PSEL.value) and
+                int(self.dut.s_apb_PENABLE.value) and
+                int(self.dut.s_apb_PREADY.value)):
                 read_data = int(self.dut.s_apb_PRDATA.value)
                 break
             timeout += 1
