@@ -55,7 +55,3 @@ check-flat: .check_flat_tmp
 
 .check_flat_tmp: $(DUT) $(PKGS)
 	$(SV2V) $(INC) $(PKGS) $(DUT) > $@
-
-clean:
-	rm -rf *_flat.v $@ scoria_cmd_arbiter_prove \
-	       scoria_cmd_arbiter_nofix scoria_cmd_arbiter_cover

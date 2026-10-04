@@ -203,6 +203,21 @@ def test_staged_mode_skips_untouched_proofs(tmp_path):
     assert "checked=0" in r.stdout
 
 
+def test_staged_mode_catches_staged_flat(tmp_path):
+    """Staging the flat file itself selects the proof, even when no source
+    is staged -- the 'regenerated flat restaged' half of the filter. The
+    reformat is whitespace-only, so the proof still reports CURRENT."""
+    repo = _git_repo(tmp_path, drift=False)
+    flat = repo / "formal" / "demo" / "block1" / "block1_flat.v"
+    flat.write_text("\n".join(flat.read_text().split()) + "\n")
+    _git(repo, "add", "formal/demo/block1/block1_flat.v")
+    r = _run_staged(repo)
+    assert r.returncode == 0, \
+        f"expected exit 0, got {r.returncode}: {r.stdout}{r.stderr}"
+    assert "checked=1" in r.stdout
+    assert "CURRENT" in r.stdout
+
+
 def test_gitignored_flat_area_is_skipped(tmp_path):
     """An area that gitignores *_flat.v (the formal/pumice pattern) skips
     cleanly instead of failing -- there is no committed flat to go stale."""

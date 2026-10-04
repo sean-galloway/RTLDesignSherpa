@@ -51,5 +51,3 @@ check-flat: .check_flat_tmp
 
 .check_flat_tmp: $(DUT) $(PKGS)
 	$(SV2V) $(INC) $(PKGS) $(DUT) > $@
-clean:
-	rm -rf *_flat.v $@ cmd_arbiter_prove cmd_arbiter_issue019 cmd_arbiter_cover

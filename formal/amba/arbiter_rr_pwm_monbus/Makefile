@@ -92,6 +92,3 @@ check-flat: .check_flat_tmp
 	$(SV2V) --define=FORMAL $(INC) $(PKGS) \
 	    $(addprefix /tmp/formal_arbiter_rr_pwm_monbus/,$(notdir $(DEPS) $(DUT))) > $@
 	@rm -rf /tmp/formal_arbiter_rr_pwm_monbus
-
-clean:
-	rm -rf $@ arbiter_rr_pwm_monbus_prove arbiter_rr_pwm_monbus_cover

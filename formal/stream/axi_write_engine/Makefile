@@ -72,6 +72,3 @@ check-flat: .check_flat_tmp
 
 .check_flat_tmp: $(DUT_PREP) $(PKGS) $(DEPS)
 	$(SV2V) $(INC) $(PKGS) $(DEPS) $(DUT_PREP) > $@
-
-clean:
-	rm -rf *_flat.v *_prove *_cover $(TMPDIR)

@@ -105,6 +105,3 @@ check-flat: .check_flat_tmp
 
 .check_flat_tmp: $(DUT) $(ENG_PREP) $(PKGS) $(DEPS)
 	$(SV2V) $(INC) $(PKGS) $(DEPS) $(ENG_PREP) $(DUT) > $@
-
-clean:
-	rm -rf *_flat.v *_prove *_cover $(TMPDIR)

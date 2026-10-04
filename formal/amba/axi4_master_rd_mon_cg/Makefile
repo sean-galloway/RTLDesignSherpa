@@ -102,6 +102,3 @@ check-flat: .check_flat_tmp
 	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) \
 		$(addprefix $(TMPDIR)/,$(notdir $(DEPS) $(DUT))) > $@
 	@rm -rf $(TMPDIR)
-
-clean:
-	rm -rf $@ axi4_master_rd_mon_cg_prove axi4_master_rd_mon_cg_cover

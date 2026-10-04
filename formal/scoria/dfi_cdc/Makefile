@@ -56,5 +56,3 @@ check-flat: .check_flat_tmp
 
 .check_flat_tmp: $(DUT) $(PKGS) $(DEPS)
 	$(SV2V) $(INC) $(PKGS) $(DEPS) $(DUT) > $@
-clean:
-	rm -rf *_flat.v $@ dfi_cdc_prove dfi_cdc_cover

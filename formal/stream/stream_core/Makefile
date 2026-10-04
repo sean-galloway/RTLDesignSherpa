@@ -102,10 +102,3 @@ check-flat: .check_flat_tmp
 	  $$(grep -E '\.sv$$' $(TMPDIR)/stream_core.flat.f \
 	     | sed 's|^$(AWE_SRC)$$|$(AWE_PREP)|') \
 	  > $@
-
-# Show the resolved source list (debugging aid: what the closure actually is).
-srcs: | $(TMPDIR)
-	$(FLATTEN) $(FILELIST) --absolute-paths --resolve-env
-
-clean:
-	rm -rf *_flat.v *_prove *_cover $(TMPDIR)

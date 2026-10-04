@@ -162,7 +162,16 @@ def _recipe_lines(d: pathlib.Path, flat: pathlib.Path,
 
 
 def _writes_in_tree(line: str, allowed: str) -> bool:
-    """True if a recipe line writes anywhere but the allowed redirect target."""
+    """True if a recipe line writes anywhere but the allowed redirect target.
+
+    This is an allowlist, not a sandbox: it names the writers seen in this
+    repo's recipes (redirects, cp/mv/touch/mkdir/rm, -o). A recipe using an
+    unlisted writer such as `sed -i`, `install`, or `dd` would slip through.
+    That is a deliberate posture -- the proofs whose recipes write in-tree
+    all delegate to their own check-flat target, so the replay path only
+    reaches simple single-redirect recipes -- but extend the list if a new
+    writer ever shows up in a formal Makefile.
+    """
     for m in re.finditer(r"(?:^|[\s;|])(?:\d*)>(?!&)\s*(\S+)", line):
         if m.group(1).strip('"\'') != allowed:
             return True
@@ -247,7 +256,9 @@ def check_flat(entry, env) -> tuple[str, str]:
             return ("UNHANDLED",
                     "recipe writes in-tree besides the flat; refusing to "
                     "replay -- add a check-flat target")
-    tmp = pathlib.Path(tempfile.mkstemp(suffix=".flat.v")[1])
+    fd, tmpname = tempfile.mkstemp(suffix=".flat.v")
+    os.close(fd)
+    tmp = pathlib.Path(tmpname)
     try:
         replay = [ln if i != redirect_hits[0]
                   else re.sub(r">\s*\"?" + re.escape(flat.name) + r"\s*$",
@@ -315,10 +326,14 @@ def check_flats(entries, args) -> int:
 
     if args.staged:
         staged = _staged_paths()
+        root = ROOT.resolve()
         kept = []
         for e in flatten:
-            flat_rel = e["dir"].resolve().relative_to(ROOT.resolve()).as_posix()
-            if flat_rel in staged or (_recipe_source_tokens(e, env) & staged):
+            flat = find_flat(e["dir"], e["name"])
+            flat_rel = (flat.resolve().relative_to(root).as_posix()
+                        if flat is not None else None)
+            if ((flat_rel is not None and flat_rel in staged)
+                    or (_recipe_source_tokens(e, env) & staged)):
                 kept.append(e)
         flatten = kept
 

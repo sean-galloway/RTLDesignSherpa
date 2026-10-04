@@ -77,6 +77,3 @@ check-flat: .check_flat_tmp
 	$(SV2V) $(INC) $(PKGS) $(DEPS) $(DUT) > $@.raw
 	$(PATCH) $@.raw $@
 	rm -f $@.raw
-
-clean:
-	rm -rf *_flat.v *.raw *_prove *_cover

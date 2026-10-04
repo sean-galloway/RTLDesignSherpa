@@ -45,5 +45,3 @@ check-flat: .check_flat_tmp
 
 .check_flat_tmp: $(DUT) $(PKGS) $(DEPS)
 	$(SV2V) $(INC) $(PKGS) $(DEPS) $(DUT) > $@
-clean:
-	rm -rf *_flat.v $@ rd_cmd_cam_prove rd_cmd_cam_cover

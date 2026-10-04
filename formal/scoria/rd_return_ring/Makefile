@@ -60,6 +60,3 @@ check-flat: .check_flat_tmp
 
 .check_flat_tmp: $(DUT) $(DEPS)
 	$(SV2V) $(INC) $(DEPS) $(DUT) > $@
-
-clean:
-	rm -rf *_flat.v $@ rd_return_ring_prove rd_return_ring_data rd_return_ring_cover

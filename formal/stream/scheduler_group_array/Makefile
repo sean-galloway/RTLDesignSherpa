@@ -119,6 +119,3 @@ check-flat: .check_flat_tmp
 	$(PATCH) $@.raw $@
 	rm -f $@.raw
 	@rm -rf $(TMPDIR)
-
-clean:
-	rm -rf *_flat.v *.raw *_prove *_cover

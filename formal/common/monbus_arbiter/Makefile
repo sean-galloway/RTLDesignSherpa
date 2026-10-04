@@ -58,6 +58,3 @@ check-flat: .check_flat_tmp
 	@for f in $(SRCS); do cp $$f $(TMPDIR)/; done
 	$(SV2V) --define=FORMAL $(INC) $(PKGS) $(addprefix $(TMPDIR)/,$(notdir $(SRCS))) > $@
 	@rm -rf $(TMPDIR)
-
-clean:
-	rm -rf monbus_arbiter_prove monbus_arbiter_cover

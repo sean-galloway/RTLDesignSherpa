@@ -55,6 +55,3 @@ check-flat: .check_flat_tmp
 	@for f in $(SRCS); do cp $$f $(TMPDIR)/; done
 	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) $(addprefix $(TMPDIR)/,$(notdir $(SRCS))) > $@
 	@rm -rf $(TMPDIR)
-
-clean:
-	rm -rf math_fp32_max_tree_8_prove math_fp32_max_tree_8_cover

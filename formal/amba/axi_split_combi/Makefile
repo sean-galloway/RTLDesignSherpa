@@ -55,6 +55,3 @@ check-flat: .check_flat_tmp
 	@for f in $(SRCS); do cp $$f $(TMPDIR)/; done
 	$(SV2V) --define=FORMAL $(INC) $(PKGS) $(addprefix $(TMPDIR)/,$(notdir $(SRCS))) > $@
 	@rm -rf $(TMPDIR)
-
-clean:
-	rm -rf axi_split_combi_prove axi_split_combi_cover

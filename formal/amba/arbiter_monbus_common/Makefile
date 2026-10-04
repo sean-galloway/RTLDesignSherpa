@@ -81,6 +81,3 @@ check-flat: .check_flat_tmp
 	$(SV2V) --define=FORMAL $(INC) $(PKGS) \
 	    $(addprefix $(TMPDIR)/,$(notdir $(DEPS) $(DUT))) > $@
 	@rm -rf $(TMPDIR)
-
-clean:
-	rm -rf $@ arbiter_monbus_common_prove arbiter_monbus_common_cover
