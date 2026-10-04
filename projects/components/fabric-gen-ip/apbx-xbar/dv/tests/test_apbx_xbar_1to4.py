@@ -35,6 +35,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.test_levels import current_level, level_env, reg_level_grid
+from cov_utils.conftest_coverage import get_coverage_compile_args
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -462,6 +463,7 @@ def test_apbx_xbar_1to4(request, aw, dw, base, test_level):
         "--trace-depth", "99",
         "--no-timing",
     ]
+    compile_args.extend(get_coverage_compile_args())
 
     # Test organization
     module = os.path.splitext(os.path.basename(__file__))[0]

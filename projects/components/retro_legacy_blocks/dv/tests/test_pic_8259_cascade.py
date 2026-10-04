@@ -42,6 +42,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.test_levels import level_env, reg_level_grid
+from cov_utils.conftest_coverage import get_coverage_compile_args
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
@@ -177,6 +178,7 @@ def test_pic_8259_cascade(request, test_level, description):
         "-Wno-MODDUP", "-Wno-GENUNNAMED", "-Wno-PINCONNECTEMPTY",
         "-Wno-UNUSEDSIGNAL", "-Wno-UNUSEDPARAM", "-Wno-SYNCASYNCNET",
     ]
+    compile_args.extend(get_coverage_compile_args())
 
     run(
         python_search=[tests_dir],

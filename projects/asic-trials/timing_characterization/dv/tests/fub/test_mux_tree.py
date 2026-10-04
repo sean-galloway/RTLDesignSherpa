@@ -16,6 +16,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from cov_utils.conftest_coverage import get_coverage_compile_args
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
@@ -108,6 +109,7 @@ def test_mux_tree(request, levels, num_flops, test_level):
         "--trace", "--trace-structs", "--trace-depth", "99",
         "-Wno-TIMESCALEMOD", "-Wno-WIDTHTRUNC", "-Wno-WIDTHEXPAND",
     ]
+    compile_args.extend(get_coverage_compile_args())
 
     try:
         run(

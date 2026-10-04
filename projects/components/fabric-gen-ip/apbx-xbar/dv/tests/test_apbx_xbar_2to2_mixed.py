@@ -23,6 +23,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_wave_config, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.test_levels import current_level, level_env, reg_level_grid
+from cov_utils.conftest_coverage import get_coverage_compile_args
 
 S0_BASE = 0x1000_0000   # slave0 (APB5), 64KB window
 S1_BASE = 0x1001_0000   # slave1 (APB4), 64KB window
@@ -202,6 +203,9 @@ def test_apbx_xbar_2to2_mixed(request, test_level):
 
     waves = get_wave_config(sim_build)
 
+    extra_args = ['--assert'] + waves['extra_args']
+    extra_args.extend(get_coverage_compile_args())
+
     run(
         python_search=[tests_dir],
         verilog_sources=verilog_sources,
@@ -211,7 +215,7 @@ def test_apbx_xbar_2to2_mixed(request, test_level):
         testcase="apbx_2to2_mixed_test",
         sim_build=sim_build,
         waves=False,
-        extra_args=['--assert'] + waves['extra_args'],
+        extra_args=extra_args,
         plus_args=waves['sim_args'],
         extra_env={
             'COCOTB_LOG_LEVEL': 'INFO',

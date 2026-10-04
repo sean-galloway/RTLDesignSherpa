@@ -37,6 +37,7 @@ from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.test_levels import level_env, reg_level_grid
+from cov_utils.conftest_coverage import get_coverage_compile_args
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -336,6 +337,7 @@ def test_rtc(request, test_level, description):
         "-Wno-MULTIDRIVEN",
         "-Wno-TIMESCALEMOD",
     ]
+    compile_args.extend(get_coverage_compile_args())
     sim_args = [
         "--trace",
         "--trace-structs",
@@ -544,6 +546,7 @@ def test_rtc_gh56_timeout_sweep(request, test_level):
         "-Wno-MULTIDRIVEN",
         "-Wno-TIMESCALEMOD",
     ]
+    compile_args.extend(get_coverage_compile_args())
     sim_args = [
         "--trace",
         "--trace-structs",

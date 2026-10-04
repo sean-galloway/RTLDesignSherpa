@@ -12,17 +12,25 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 1 | done (kept for history) |
+| [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-002** — Bring the last three test areas onto the base coverage path
+(none)
 
 ## Closed
+
+- **TASK-002** — CLOSED 2026-10-04: the Makefile migration had already
+  landed (71fe1ec5d, 76c6ff82b) but verification showed coverage data was
+  never produced — the Verilator --coverage flags were unwired. Wired
+  get_coverage_compile_args() into all 32 test runners of the three named
+  areas (apbx-xbar 6, retro_legacy 16, asic-trials 10); clean-build
+  COVERAGE=1 smokes now report Line 90.6/90.2/100.0%. Repo-wide remainder
+  (converters, rapids, scoria, rs, stream, bch, ...) filed as ISSUE-001
 
 - **TASK-001** — Coverage infrastructure consolidation (historical record)
 

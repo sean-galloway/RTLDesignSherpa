@@ -36,6 +36,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.test_levels import current_level, level_env, reg_level_grid
+from cov_utils.conftest_coverage import get_coverage_compile_args
 
 BASE = 0x1000_0000
 
@@ -234,6 +235,9 @@ def test_apbx_xbar_timing(request, dut_name, klass, test_level):
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
+    extra_args = ['--assert']
+    extra_args.extend(get_coverage_compile_args())
+
     run(
         python_search=[tests_dir],
         verilog_sources=verilog_sources,
@@ -243,7 +247,7 @@ def test_apbx_xbar_timing(request, dut_name, klass, test_level):
         testcase="apbx_xbar_timing_test",
         sim_build=sim_build,
         waves=False,
-        extra_args=['--assert'],
+        extra_args=extra_args,
         extra_env={
             'COCOTB_LOG_LEVEL': 'INFO',
             'LOG_PATH': log_path,
