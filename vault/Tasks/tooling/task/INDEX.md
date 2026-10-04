@@ -12,21 +12,13 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 26 | done (kept for history) |
+| [closed/](closed/) | 27 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
-
-- **TASK-028** (P3) — the testplan gate only parses singular
-  `rtl_file:`/`test_file:` scalars; plural-list plans (8 committed) are
-  unchecked, and duplicate scalar keys collapse to the last value in
-  `verify_testplan_coverage.py`. Measured: 13 plural refs don't resolve,
-  mostly intentional GAP annotations; one true-drift case
-  (uart_axil_bridge, 3 missing rtl refs). Needs a GAP-annotation
-  convention before the gate can go plural-aware
 
 - **TASK-025** (P3) — cocotb 2.x is reachable but not yet: the import blocker is cocotb-bus 0.2.1 (fixed by 0.3.0, which our own DV cap forbids), and the remaining work is a 78-site `.value.integer` sweep across both repos
 
@@ -37,6 +29,11 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-028** — testplan gate plural-aware (rtl_files:/test_files: lists
+  checked, prose = intentional-gap annotation); bridge 1x2-1x5 on the one
+  multi-file schema; uart_axil_bridge uart_to_axil4/ fix; runner joins
+  plural test_files (closed 2026-10-04, commit a5424e05a; gate 0 broken,
+  baseline empty)
 - **TASK-027** — 42 broken testplan refs reconciled (val/common 11 repointed +
   5 deletes, bridge {rd,wr} braces split, amba axis5/ repoint); baseline
   emptied, gate green (closed 2026-10-04, commit c8510c231; residue filed

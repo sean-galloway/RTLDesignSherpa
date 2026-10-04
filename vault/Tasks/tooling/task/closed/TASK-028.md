@@ -1,6 +1,13 @@
 # TASK-028: the testplan gate only sees singular `rtl_file:`/`test_file:` keys — plural-list plans are unchecked, and duplicate scalar keys are lossy in the coverage runner
 
-**Status:** open 2026-10-04
+**Status:** CLOSED 2026-10-04 (commit a5424e05a). Gate parses plural
+`rtl_files:`/`test_files:` lists under the same resolve-or-fail rule;
+ref-or-annotation convention documented in the parser (single token =
+checked ref, prose = intentional gap, mid-list prose skips without
+truncating). Bridge 1x2-1x5 on plural lists; uart_axil_bridge's 3 refs
+fixed for the uart_to_axil4/ move; fub_legacy_gaps' 4 legacy names
+annotated as gaps. Runner joins plural test_files and guards string-
+valued plural keys. Gate: 0 broken, baseline empty.
 **Priority:** P3
 **Filed from:** closing tooling TASK-027 (broken testplan refs).
 
