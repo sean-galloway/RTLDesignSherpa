@@ -101,9 +101,7 @@ lineage, the JEDEC generation deltas.
 
 ### Chapter 5: Parameters
 
-(lands with Task 6)
-
-- `ch05_parameters/01_package_and_params.md` — andesite_pkg, and Build-Time vs Runtime
+- [andesite_pkg, and Build-Time vs Runtime](ch05_parameters/01_package_and_params.md)
 
 ### Chapter 6: Integration
 
