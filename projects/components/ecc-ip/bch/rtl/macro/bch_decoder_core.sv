@@ -331,11 +331,14 @@ module bch_decoder_core
             if (u < w_flush_count) w_flush_keep[u] = 1'b1;
     end
 
-    assign w_synd_in_valid   = r_synd_flush ? 1'b1 : in_valid;
+    // Only let the syndrome unit step when this core actually accepts the beat.
+    // Otherwise the syndrome unit would consume beats that are held valid while
+    // the core is releasing a block, corrupting the next block's bit count.
+    assign w_synd_in_valid   = r_synd_flush ? 1'b1 : (in_valid && in_ready);
     assign w_synd_in_data    = r_synd_flush ? '0    : in_data;
     assign w_synd_in_keep    = r_synd_flush ? w_flush_keep : in_keep;
     assign w_synd_out_ready  = (r_state == SYND) && w_synd_out_valid;
-    assign in_ready          = ((r_state == IDLE) || ((r_state == SYND) && !r_synd_flush)) && w_synd_in_ready;
+    assign in_ready          = ((r_state == IDLE) || ((r_state == SYND) && !r_synd_flush && !r_block_ending)) && w_synd_in_ready;
 
     // Solver / Chien handshakes
     assign w_kes_out_ready   = (r_state == SOLVE) && w_kes_out_valid;
