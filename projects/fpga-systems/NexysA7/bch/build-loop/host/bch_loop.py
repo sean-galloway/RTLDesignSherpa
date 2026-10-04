@@ -100,6 +100,7 @@ class RunResult:
     decoders: int = 1
     timed_out: bool = False
     notes: list = field(default_factory=list)
+    gen_seed: int = 0
 
     @property
     def present(self):
@@ -272,7 +273,7 @@ class BchLoopDriver:
         return {"axis": self.axis_observer()}
 
     def collect(self, blocks: int, mode: int, count: int, rate: int, bypass: bool,
-                timed_out: bool = False, meters: bool = True,
+                gen_seed: int = 0, timed_out: bool = False, meters: bool = True,
                 iface_obs: bool = False) -> RunResult:
         st = self.status()
         r = self.regs.read
@@ -287,7 +288,7 @@ class BchLoopDriver:
             inj_symbols=r("INJ_SYMBOLS"), inj_blocks=r("INJ_BLOCKS"), inj_over_t=r("INJ_OVER_T"),
             obs=self._meters() if meters else {},
             iface_obs=self.iface_observer() if iface_obs else {},
-            timed_out=timed_out)
+            timed_out=timed_out, gen_seed=gen_seed & 0xFFFFFFFF)
 
     def run(self, mode: int = 0, count: int = 0, rate: int = 0, blocks: int = 8,
             gen_seed: int = 0, inj_seed: Optional[int] = None, bypass: bool = False,
@@ -298,5 +299,5 @@ class BchLoopDriver:
         self.configure(mode, count, rate, blocks, gen_seed, inj_seed, bypass, throttle_a, throttle_b)
         self.start()
         done = self.wait_done(timeout_s)
-        return self.collect(blocks, mode, count, rate, bypass, timed_out=not done,
-                            meters=meters, iface_obs=iface_obs)
+        return self.collect(blocks, mode, count, rate, bypass, gen_seed=gen_seed,
+                            timed_out=not done, meters=meters, iface_obs=iface_obs)

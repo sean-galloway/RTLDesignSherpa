@@ -56,11 +56,15 @@ def run(drv: BchLoopDriver, mode: int, count: int = 0, rate: int = 0, blocks: in
 
 
 def _lfsr_step(value: int, taps: tuple = (23, 3, 2, 1)) -> int:
-    """One Fibonacci LFSR step, matching shifter_lfsr with taps {23,3,2,1}."""
+    """One Fibonacci LFSR step, matching shifter_lfsr_fibonacci.
+
+    The RTL taps are 1-indexed positions; feedback is the XOR of those bit
+    positions, shifted into the MSB while the register shifts right.
+    """
     bit = 0
     for t in taps:
-        bit ^= (value >> t) & 1
-    return ((value << 1) | bit) & 0xFFFFFFFF
+        bit ^= (value >> (t - 1)) & 1
+    return ((value >> 1) | (bit << 31)) & 0xFFFFFFFF
 
 
 def expected_byte_crc(gen_seed: int, blocks: int, k_bits: int = CFG_K,
@@ -71,9 +75,12 @@ def expected_byte_crc(gen_seed: int, blocks: int, k_bits: int = CFG_K,
     last per block contributes all 4 bytes; the last contributes `last_bytes`
     bytes from lane 0. The checker runs in BYTE_CRC=1 mode, so this is the
     reference value for CRC_A.
+
+    A zero GEN_SEED maps to the RTL's default LFSR_SEED (0xDEADBEEF), matching
+    axis4_master_pattern_gen / axis4_slave_pattern_check.
     """
     k_beats = (k_bits + data_width - 1) // data_width
-    lfsr = gen_seed & 0xFFFFFFFF
+    lfsr = (gen_seed & 0xFFFFFFFF) if gen_seed else 0xDEADBEEF
     crc_bytes = bytearray()
     for _ in range(blocks):
         for b in range(k_beats):
@@ -89,14 +96,15 @@ def expected_byte_crc(gen_seed: int, blocks: int, k_bits: int = CFG_K,
 def verdict(r: RunResult, t: int = CFG_T) -> List[str]:
     """What is wrong with a run, as a list of complaints (empty = clean).
 
-      bypass, or count == 0          every block ok, no mismatching beat, CRCs match
+      bypass, or count == 0          every block ok, no mismatching beat, byte CRC matches
       COUNT mode with 1 <= e <= t    every block corrected with e bits, no mismatching
                                      beat, byte CRC matches expected
       COUNT mode with e > t          almost every block uncorrectable, and the checker
-                                     DID see mismatches
+                                     DID see mismatches (byte CRC wrong or data_err set)
       any mode                       the single decoder received every block, no framing errors
     """
     bad = []
+    byte_crc_want = expected_byte_crc(r.gen_seed, r.blocks)
     if r.timed_out:
         bad.append("run did not finish")
     for d in r.present:
@@ -120,18 +128,22 @@ def verdict(r: RunResult, t: int = CFG_T) -> List[str]:
         for d in r.present:
             if d.data_err:
                 bad.append(f"{d.name} checker: data_err={d.data_err} in bypass")
+            if d.crc != byte_crc_want:
+                bad.append(f"{d.name} checker: byte CRC 0x{d.crc:08X}, want 0x{byte_crc_want:08X}")
         return bad
     exact = r.mode == BchLoopDriver.INJ_COUNT
     e = r.count if exact else None
     for d in r.present:
         if e == 0 or r.mode == BchLoopDriver.INJ_NONE:
-            if d.blk_ok != r.blocks or d.data_err:
+            if d.blk_ok != r.blocks or d.data_err or d.crc != byte_crc_want:
                 bad.append(f"{d.name}: clean run gave ok={d.blk_ok}/{r.blocks} "
-                           f"data_err={d.data_err}")
+                           f"data_err={d.data_err} crc=0x{d.crc:08X}/0x{byte_crc_want:08X}")
         elif exact and e <= t:
-            if d.blk_corr != r.blocks or d.sym_corr != e * r.blocks or d.data_err:
+            if (d.blk_corr != r.blocks or d.sym_corr != e * r.blocks or d.data_err
+                    or d.crc != byte_crc_want):
                 bad.append(f"{d.name}: e={e} gave corrected={d.blk_corr}/{r.blocks} "
-                           f"bits={d.sym_corr} (want {e * r.blocks}) data_err={d.data_err}")
+                           f"bits={d.sym_corr} (want {e * r.blocks}) data_err={d.data_err} "
+                           f"crc=0x{d.crc:08X}/0x{byte_crc_want:08X}")
         elif exact and e > t:
             if d.blk_unc + d.blk_corr + d.blk_ok != r.blocks:
                 bad.append(f"{d.name}: e={e} > t left blocks unaccounted for: "
@@ -140,9 +152,9 @@ def verdict(r: RunResult, t: int = CFG_T) -> List[str]:
             if d.blk_ok and e < CFG_N - CFG_K + 1:
                 bad.append(f"{d.name}: e={e} > t gave {d.blk_ok} CLEAN block(s); an error "
                            f"pattern cannot be a codeword below weight {CFG_N - CFG_K + 1}")
-            if not d.data_err:
-                bad.append(f"{d.name}: e={e} > t yet the checker saw no mismatching beat -- "
-                           f"the errors did not reach it")
+            if not d.data_err and d.crc == byte_crc_want:
+                bad.append(f"{d.name}: e={e} > t yet the checker byte CRC matches -- "
+                           f"the errors did not reach the data")
         # BURST / RATE: only the agreement and delivery checks above apply
     if exact and r.inj_symbols != e * r.blocks:
         bad.append(f"injector placed {r.inj_symbols} bits, expected {e * r.blocks}")
