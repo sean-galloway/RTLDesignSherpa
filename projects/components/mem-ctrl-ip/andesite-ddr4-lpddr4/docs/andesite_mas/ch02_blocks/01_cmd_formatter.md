@@ -55,7 +55,7 @@ The andesite delta is the DDR4 fifth pin and bank-group wiring, plus a NEW LPDDR
 |---|---|---|---|
 | `clk` | in | 1 | controller clock; DFI 1:4 gear ratio means one command beat per four DRAM clocks `§TBC(TASK-005)` |
 | `rst_n` | in | 1 | active-low synchronous reset |
-| `op_i` | in | 4 | internal opcode: `OP_NOP`, `OP_ACT`, `OP_RD`, `OP_WR`, `OP_PRE`, `OP_REF`, `OP_ZQ`, `OP_MRS`, plus `OP_MPC` for LPDDR4 |
+| `op_i` | in | 5 | internal opcode, `andesite_pkg::dram_op_e`: `OP_NOP`..`OP_ZQCL` carried from scoria plus `OP_MPC`; the 5-bit enum carries the LPDDR4 MPC opcode selection |
 | `bank_i` | in | `BANK_WIDTH` | bank address from the mapper |
 | `bg_i` | in | `BG_WIDTH` | bank-group address from the mapper (DDR4) |
 | `row_i` | in | `ADDR_WIDTH` | row address, valid with `OP_ACT` |
@@ -63,7 +63,6 @@ The andesite delta is the DDR4 fifth pin and bank-group wiring, plus a NEW LPDDR
 | `rank_i` | in | `RANK_WIDTH` | chip select / rank target |
 | `memtype_i` | in | 3 | family memtype enum from `andesite_pkg` |
 | `parity_en_i` | in | 1 | enable CA parity generation after init |
-| `mpc_op_i` | in | 6 | LPDDR4 MPC opcode, valid with `OP_MPC` |
 | `dfi_act_n` | out | 1 | DFI 4.0 activate command pin `§TBC(TASK-005)` |
 | `dfi_ras_n` | out | 1 | DFI row-address strobe command pin |
 | `dfi_cas_n` | out | 1 | DFI column-address strobe command pin |
@@ -71,12 +70,9 @@ The andesite delta is the DDR4 fifth pin and bank-group wiring, plus a NEW LPDDR
 | `dfi_bank` | out | `BANK_WIDTH` | DFI bank address |
 | `dfi_bg` | out | `BG_WIDTH` | DFI bank-group address (DDR4) |
 | `dfi_address` | out | `ADDR_WIDTH` | DFI address bus |
-| `dfi_cs_n` | out | `RANK_WIDTH` | DFI chip-select, active low |
-| `dfi_cke` | out | `RANK_WIDTH` | DFI clock-enable |
+| `dfi_cs` | out | `RANKS` | DFI chip-select, active low; v4.0 catalog name (no `*_cs_n`) |
+| `dfi_cke` | out | 1 | DFI clock-enable; DDR4-scoped (LPDDR4 carries CKE inline on the CA bus) |
 | `dfi_parity_in` | out | 1 | DFI CA parity output to PHY `§TBC(TASK-005)` |
-| `dfi_alert_n` | in | 1 | DFI alert return from PHY: parity or command error `§TBC(TASK-005)` |
-| `ca_o` | out | `CA_WIDTH` | LPDDR4 CA bus to PHY, double-data-rate |
-| `ca_valid_o` | out | 1 | LPDDR4 CA two-cycle command valid |
 
 : Table 2.2: Command formatter ports
 
@@ -175,3 +171,15 @@ All command-to-command spacing is enforced upstream by `global_timers` and the s
 - Keep the DDR4 and LPDDR4 paths separate at the top level of this FUB. Merging them makes review harder and gains nothing — the memtype select is one mux at the output boundary.
 - `dfi_alert_n` is asynchronous at the PHY; sample it synchronously inside this block and export a one-cycle pulse.
 - LPDDR4's REFpb command names the bank explicitly in the CA encoding, which is why the refresh controller's per-bank scheduling lands naturally on this path.
+
+## P1 RTL interface (landed 2026-10-04)
+
+Table 2.2 above now matches the landed `andesite_dfi_cmd_formatter`: v4.0
+`dfi_cs` naming (no `*_cs_n`), a 5-bit `op_i` carrying `OP_MPC` in the enum
+(the standalone `mpc_op_i` port was retired with it), and a scalar
+`dfi_cke` (DDR4-scoped; LPDDR4's inline CKE rides the CA bus). The
+`dfi_alert_n` input and the `ca_o`/`ca_valid_o` pair are deferred on
+purpose — they land with the andesite TASK-006 recovery FSM and the LPDDR4
+breadth track respectively, not as untested stubs. The `CA_WIDTH` and
+`PARITY_EN` rows of Table 2.1 are design-point parameters; the RTL carries
+them as the CA-bus width constant and the `parity_en_i` port.

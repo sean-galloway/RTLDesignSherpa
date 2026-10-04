@@ -90,12 +90,12 @@ HAS_DP = ("projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/"
 
 CITES = [
     # the DDR4 command truth table anchor (don't renumber the fence)
-    (CMD, 91, "ACT_n  RAS_n  CAS_n  WE_n"),
-    (CMD, 93, "ACT"),
-    (CMD, 101, "auto-precharge variants"),
+    (CMD, 87, "ACT_n  RAS_n  CAS_n  WE_n"),
+    (CMD, 89, "ACT"),
+    (CMD, 97, "auto-precharge variants"),
     # LPDDR4 CA placeholder fence
-    (CMD, 143, "Command class -> CA encoding source"),
-    (CMD, 152, "REFpb    -> kmap table (bank carried in command)"),
+    (CMD, 139, "Command class -> CA encoding source"),
+    (CMD, 148, "REFpb    -> kmap table (bank carried in command)"),
     # address decode structure
     (AM, 77, "sys_addr -> { cs[CS-1:0],"),
     (AM, 78, "bg[BG-1:0]       (DDR4: BG0/BG1; LPDDR4: constant 0),"),
