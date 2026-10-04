@@ -1,10 +1,10 @@
-# Testplan for bin
+# Testplan for bin_to_bcd
 # Auto-generated on 2026-01-18 01:27:07
 # EDIT: Add functional scenarios to improve implied coverage
 
-module: bin
-rtl_file: rtl/common/bin.sv
-test_file: val/common/test_bin.py
+module: bin_to_bcd
+rtl_file: rtl/common/bin_to_bcd.sv
+test_file: val/common/test_bin_to_bcd.py
 
 # Raw Verilator coverage: 11/14 (78.6%)
 

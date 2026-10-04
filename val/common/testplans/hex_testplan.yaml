@@ -1,10 +1,10 @@
-# Testplan for hex
+# Testplan for hex_to_7seg
 # Auto-generated on 2026-01-18 01:27:07
 # EDIT: Add functional scenarios to improve implied coverage
 
-module: hex
-rtl_file: rtl/common/hex.sv
-test_file: val/common/test_hex.py
+module: hex_to_7seg
+rtl_file: rtl/common/hex_to_7seg.sv
+test_file: val/common/test_hex_to_7seg.py
 
 # Raw Verilator coverage: 2/21 (9.5%)
 

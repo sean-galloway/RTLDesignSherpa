@@ -1,10 +1,10 @@
-# Testplan for count
+# Testplan for count_leading_zeros
 # Auto-generated on 2026-01-18 01:27:07
 # EDIT: Add functional scenarios to improve implied coverage
 
-module: count
-rtl_file: rtl/common/count.sv
-test_file: val/common/test_count.py
+module: count_leading_zeros
+rtl_file: rtl/common/count_leading_zeros.sv
+test_file: val/common/test_count_leading_zeros.py
 
 # Raw Verilator coverage: 11/11 (100.0%)
 

@@ -1,10 +1,10 @@
-# Testplan for clock
+# Testplan for clock_gate_ctrl
 # Auto-generated on 2026-01-18 01:27:07
 # EDIT: Add functional scenarios to improve implied coverage
 
-module: clock
-rtl_file: rtl/common/clock.sv
-test_file: val/common/test_clock.py
+module: clock_gate_ctrl
+rtl_file: rtl/common/clock_gate_ctrl.sv
+test_file: val/common/test_clock_gate_ctrl.py
 
 # Raw Verilator coverage: 8/10 (80.0%)
 

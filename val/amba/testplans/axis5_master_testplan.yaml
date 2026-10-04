@@ -1,5 +1,5 @@
 module: axis5_master
-rtl_file: rtl/amba/axis/axis5_master.sv
+rtl_file: rtl/amba/axis5/axis5_master.sv
 test_file: val/amba/test_axis5_master.py
 parameters:
 - name: DATA_WIDTH

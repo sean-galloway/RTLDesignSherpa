@@ -2,7 +2,7 @@
 
 # tooling — tasks
 
-**Next ID: TASK-028** — never recycle a number, even when its item closed.
+**Next ID: TASK-029** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,13 +12,21 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 25 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **TASK-028** (P3) — the testplan gate only parses singular
+  `rtl_file:`/`test_file:` scalars; plural-list plans (8 committed) are
+  unchecked, and duplicate scalar keys collapse to the last value in
+  `verify_testplan_coverage.py`. Measured: 13 plural refs don't resolve,
+  mostly intentional GAP annotations; one true-drift case
+  (uart_axil_bridge, 3 missing rtl refs). Needs a GAP-annotation
+  convention before the gate can go plural-aware
 
 - **TASK-027** (P3) — 43 broken testplan refs outside pumice (val/common 32,
   fabric-gen-ip 9, val/amba 2): fix per area with pumice TASK-037's

@@ -1,10 +1,10 @@
-# Testplan for arbiter
+# Testplan for arbiter_round_robin_weighted
 # Auto-generated on 2026-01-18 01:27:07
 # EDIT: Add functional scenarios to improve implied coverage
 
-module: arbiter
-rtl_file: rtl/common/arbiter.sv
-test_file: val/common/test_arbiter.py
+module: arbiter_round_robin_weighted
+rtl_file: rtl/common/arbiter_round_robin_weighted.sv
+test_file: val/common/test_arbiter_round_robin_weighted.py
 
 # Raw Verilator coverage: 43/46 (93.5%)
 

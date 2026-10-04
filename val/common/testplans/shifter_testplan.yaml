@@ -1,10 +1,10 @@
-# Testplan for shifter
+# Testplan for shifter_universal
 # Auto-generated on 2026-01-18 01:27:07
 # EDIT: Add functional scenarios to improve implied coverage
 
-module: shifter
-rtl_file: rtl/common/shifter.sv
-test_file: val/common/test_shifter.py
+module: shifter_universal
+rtl_file: rtl/common/shifter_universal.sv
+test_file: val/common/test_shifter_universal.py
 
 # Raw Verilator coverage: 33/38 (86.8%)
 

@@ -1,10 +1,10 @@
-# Testplan for cam
+# Testplan for cam_tag
 # Auto-generated on 2026-01-18 01:27:07
 # EDIT: Add functional scenarios to improve implied coverage
 
-module: cam
-rtl_file: rtl/common/cam.sv
-test_file: val/common/test_cam.py
+module: cam_tag
+rtl_file: rtl/common/cam_tag.sv
+test_file: val/common/test_cam_tag.py
 
 # Raw Verilator coverage: 27/29 (93.1%)
 

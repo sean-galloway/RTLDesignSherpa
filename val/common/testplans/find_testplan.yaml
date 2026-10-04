@@ -1,10 +1,10 @@
-# Testplan for find
+# Testplan for find_first_set
 # Auto-generated on 2026-01-18 01:27:07
 # EDIT: Add functional scenarios to improve implied coverage
 
-module: find
-rtl_file: rtl/common/find.sv
-test_file: val/common/test_find.py
+module: find_first_set
+rtl_file: rtl/common/find_first_set.sv
+test_file: val/common/test_find_first_set.py
 
 # Raw Verilator coverage: 10/10 (100.0%)
 

@@ -1,10 +1,10 @@
-# Testplan for leading
+# Testplan for leading_one_trailing_one
 # Auto-generated on 2026-01-18 01:27:07
 # EDIT: Add functional scenarios to improve implied coverage
 
-module: leading
-rtl_file: rtl/common/leading.sv
-test_file: val/common/test_leading.py
+module: leading_one_trailing_one
+rtl_file: rtl/common/leading_one_trailing_one.sv
+test_file: val/common/test_leading_one_trailing_one.py
 
 # Raw Verilator coverage: 14/16 (87.5%)
 

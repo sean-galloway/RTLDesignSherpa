@@ -1,10 +1,10 @@
-# Testplan for reverse
+# Testplan for reverse_vector
 # Auto-generated on 2026-01-18 01:27:07
 # EDIT: Add functional scenarios to improve implied coverage
 
-module: reverse
-rtl_file: rtl/common/reverse.sv
-test_file: val/common/test_reverse.py
+module: reverse_vector
+rtl_file: rtl/common/reverse_vector.sv
+test_file: val/common/test_reverse_vector.py
 
 # Raw Verilator coverage: 5/5 (100.0%)
 

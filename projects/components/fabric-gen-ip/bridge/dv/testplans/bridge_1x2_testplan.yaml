@@ -2,8 +2,10 @@
 # Maps functional test scenarios to verification coverage
 
 module: bridge_1x2
-rtl_file: projects/components/fabric-gen-ip/bridge/rtl/generated/bridge_1x2_{rd,wr}/bridge_1x2_{rd,wr}.sv
-test_file: projects/components/fabric-gen-ip/bridge/dv/tests/test_bridge_1x2_{rd,wr}.py
+rtl_file: projects/components/fabric-gen-ip/bridge/rtl/generated/bridge_1x2_rd/bridge_1x2_rd.sv
+rtl_file: projects/components/fabric-gen-ip/bridge/rtl/generated/bridge_1x2_wr/bridge_1x2_wr.sv
+test_file: projects/components/fabric-gen-ip/bridge/dv/tests/test_bridge_1x2_rd.py
+test_file: projects/components/fabric-gen-ip/bridge/dv/tests/test_bridge_1x2_wr.py
 
 # Module description:
 # Single master to dual slave bridge with read-only (rd) or write-only (wr) variants.

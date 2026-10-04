@@ -1,10 +1,10 @@
-# Testplan for dataint
+# Testplan for dataint_crc
 # Auto-generated on 2026-01-18 01:27:07
 # EDIT: Add functional scenarios to improve implied coverage
 
-module: dataint
-rtl_file: rtl/common/dataint.sv
-test_file: val/common/test_dataint.py
+module: dataint_crc
+rtl_file: rtl/common/dataint_crc.sv
+test_file: val/common/test_dataint_crc.py
 
 # Raw Verilator coverage: 21/24 (87.5%)
 

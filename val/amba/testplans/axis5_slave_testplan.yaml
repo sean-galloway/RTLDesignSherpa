@@ -1,5 +1,5 @@
 module: axis5_slave
-rtl_file: rtl/amba/axis/axis5_slave.sv
+rtl_file: rtl/amba/axis5/axis5_slave.sv
 test_file: val/amba/test_axis5_slave.py
 parameters:
 - name: DATA_WIDTH
