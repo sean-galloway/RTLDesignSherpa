@@ -135,7 +135,10 @@ wrong and both get fixed.
 
 | scoria module | Marking | Cause | Where |
 |---|---|---|---|
-| `scoria_top`, `scoria_top_geared`, `scoria_core`, `scoria_axi4_ifc` | INHERITED | structure and host side unchanged | Ch 2.3 |
+| `scoria_top` | INHERITED | structure unchanged | Ch 2.3 |
+| `scoria_top_geared` | INHERITED | the host/DRAM width-gearing wrapper, unchanged | Ch 2.3 |
+| `scoria_core` | INHERITED | core assembly unchanged | Ch 2.3 |
+| `scoria_axi4_ifc` | INHERITED | the AXI4 host side is untouched by this generation | Ch 2.3, 4.2 |
 | `scoria_mem_cmd_scheduler` | MODIFIED | L/S admission alongside scoria's ZQ maintenance admission | 3.1 |
 | `scoria_dfi_layer` | MODIFIED | DFI 4.0 control surface and DBI wires | 4.1 |
 | `scoria_addr_mapper` | MODIFIED | bank-group decode | 3.1 |

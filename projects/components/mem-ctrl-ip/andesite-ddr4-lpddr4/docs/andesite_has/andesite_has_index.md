@@ -25,7 +25,8 @@
 
 **Version:** 0.1
 **Date:** 2026-10-03
-**Status:** v0.1, written from the delta analysis before RTL exists, per the
+**Status:** v0.1 complete — all six chapters committed, per the docs
+tranche plan. Written from the delta analysis before RTL exists, per the
 spec. No RTL exists for andesite; every block here is specified, not
 described. Every block is marked **INHERITED**, **MODIFIED** or **NEW**
 against the scoria DDR3/LPDDR3 controller, which is the architecture andesite
@@ -105,9 +106,7 @@ lineage, the JEDEC generation deltas.
 
 ### Chapter 6: Integration
 
-(lands with Task 7)
-
-- `ch06_integration/01_verification_open.md` — Verification Strategy, and the Open Questions
+- [Verification Strategy, and the Open Questions](ch06_integration/01_verification_open.md)
 
 ---
 
