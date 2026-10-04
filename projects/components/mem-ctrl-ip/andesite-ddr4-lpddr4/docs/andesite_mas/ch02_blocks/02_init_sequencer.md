@@ -72,7 +72,7 @@ All timing values are runtime CSRs, not parameters. That's the family rule: a ti
 | `cmd_req` | out | 1 | request to the formatter/scheduler for the next init command |
 | `cmd_ack` | in | 1 | grant: the command is issued this cycle |
 | `cmd_op` | out | opcode | init command opcode (MRS/MRW/ZQCL/MPC/etc.) |
-| `cmd_bank` | out | bank width | bank address, unused for most init commands |
+| `cmd_bank` | out | 3 | bank address (2 bits used); the MRS path carries the 3-bit MR index (0-6) |
 | `cmd_addr` | out | address width | MR index / MRW address field |
 | `zq_cal_start` | out | 1 | pulse to `zq_ctrl` to start ZQ calibration |
 | `gear_down_entry` | out | 1 | pulse to PHY/formatter to enter gear-down `§TBC(TASK-005)` |
