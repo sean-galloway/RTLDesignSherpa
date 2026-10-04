@@ -43,7 +43,7 @@ never stalls a command to make a termination point.
 |---|---|---|---|---|---|
 | `NUM_RANKS` | int | 1..4 | 1 | ranks sharing the DQ bus | A1 |
 | `RTT_NOM_IMG` | CSR field | vendor-defined | TBD | MR1 RTT_NOM image for this board | A2 |
-| `RTT_WR_IMG` | CSR field | vendor-defined | TBD | MR5 RTT_WR image for this board | A3 |
+| `RTT_WR_IMG` | CSR field | vendor-defined | TBD | MR2 RTT_WR image for this board | A3 |
 | `RTT_PARK_IMG` | CSR field | vendor-defined | TBD | MR5 RTT_PARK image for this board | A4 |
 | `ODTLon_CSR` | CSR | speed-bin range | TBD | assertion latency from command to ODT active | A5 |
 | `ODTLoff_CSR` | CSR | speed-bin range | TBD | de-assertion latency from command to ODT inactive | A6 |
@@ -64,7 +64,7 @@ at CSR-derivation time (HAS Ch 5; numeric constants are HAS open question Q1).
 | `grant_valid` | in | 1 | the grant is valid this cycle |
 | `odt_pin` | out | `NUM_RANKS` | per-rank ODT pin toward the PHY/DRAM |
 | `rtt_nom_img` | in | CSR width | MR1 RTT_NOM field image |
-| `rtt_wr_img` | in | CSR width | MR5 RTT_WR field image |
+| `rtt_wr_img` | in | CSR width | MR2 RTT_WR field image |
 | `rtt_park_img` | in | CSR width | MR5 RTT_PARK field image |
 | `odtlon` | in | CSR width | ODTLon value |
 | `odtloff` | in | CSR width | ODTLoff value |
@@ -89,7 +89,7 @@ state        | RTT applied   | entered when
 IDLE         | RTT_PARK      | no rank selected (park policy)
 RD (other)   | RTT_NOM       | a read granted to any rank
 WR (self)    | RTT_WR        | a write granted to this rank
-(per-rank; values are the MR1/MR5 images, CSR-programmed)
+(per-rank; values are the MR1/MR2/MR5 images, CSR-programmed)
 ```
 
 `RD (other)` means a read to any rank makes the rank that is *not* reading
@@ -124,7 +124,7 @@ machines on the same rank in this policy.
 ### The init seam
 
 Until `init_done`, the ODT pin belongs to `init_sequencer`. The init sequence
-programs MR1/MR5 and holds ODT per the JEDEC initialization constraint; after
+programs MR1/MR2/MR5 and holds ODT per the JEDEC initialization constraint; after
 the final mode-register writes it waits at least tMOD before raising
 `init_done`. At that cycle ownership transfers to `odt_ctrl`: the block
 samples `init_odt` as its starting pin value and from then on drives the pin

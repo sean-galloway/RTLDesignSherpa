@@ -110,7 +110,7 @@ LPDDR4-only command: MPC (multipurpose command), see CA submodule below
 
 : Table 2.3: DDR4 command truth table (citation anchor). Pin encodings are
 stated per the JESD79-4 command-truth-table convention and are confirmed at
-the HAS Q1 cold-storage read before RTL; the kmap book's DDR4 table (Task 11)
+the HAS Q1 cold-storage read before RTL; the kmap book's DDR4 table (andesite TASK-004)
 minimizes its qualifier SOPs from exactly this anchor.
 
 A10 inside `PRE` selects precharge-all (`PREA`); A10 inside `ZQ` selects

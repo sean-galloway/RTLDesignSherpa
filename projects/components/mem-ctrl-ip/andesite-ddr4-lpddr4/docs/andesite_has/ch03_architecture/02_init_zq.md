@@ -47,7 +47,7 @@ DDR4:
 | 8 | MRS to **MR4** |
 | 9 | MRS to **MR2** |
 | 10 | MRS to **MR1** (DLL enable, and ODT/RTT_NOM programming per the board) |
-| 11 | MRS to **MR0** (DLL reset, and CA parity latent mode set if parity is enabled later) |
+| 11 | MRS to **MR0** (DLL reset) |
 | 12 | **ZQCL** to start ZQ calibration |
 | 13 | Wait `tDLLK` and `tZQinit`; ready for normal operation |
 | 14 | *If gear-down is used:* program gear-down in MR3, run the gear-down entry sequence, wait its sync time — then normal operation at half CA rate |
@@ -90,8 +90,8 @@ both sides of the boundary switch together `§TBC(TASK-005)`. Whether the
 design point uses gear-down is a CSR-selectable choice; the FSM must support
 both rates because initialization always happens at full rate.
 
-**Parity enable.** CA parity is enabled through the MR sequence (MR4/MR5
-carry parity's programming; the exact fields are the MAS's mode-register
+**Parity enable.** CA parity is enabled through the MR sequence (MR5
+carries parity's programming; the exact fields are the MAS's mode-register
 chapter). The sequencer's obligation is ordering: parity may only be enabled
 once the bus is stable, and the formatter's parity counter starts counting
 from that point — a dependency between the sequencer and the formatter that
@@ -100,13 +100,14 @@ the FSM states must make explicit.
 **The mode-register set becomes seven.** `mode_register` (MODIFIED) carries
 MR0-MR6 for DDR4 — MR0 (burst, CAS latency, DLL reset, write recovery),
 MR1 (DLL enable, additive latency, RTT_NOM, write leveling), MR2 (CAS write
-latency, refresh-related selects), MR3 (**MPR access, FGR select, gear-down**),
-MR4 (write CRC's mode bits — inert this edition — and CA parity), MR5 (read
-and write DBI, RTT_PARK), MR6 (VrefDQ training) — and the LPDDR4 MR set
-beside it. Field-level maps are the MAS's business; this chapter binds the
-register count, the programming order, and which MRs couple to other blocks
-(MR3 to refresh and training, MR5 to ODT and the DBI datapath, MR4 to the
-parity machinery).
+latency, RTT_WR, write CRC mode bits — inert this edition, LP ASR), MR3 (**MPR
+access, FGR select, gear-down**), MR4 (temperature status,
+preamble, CAL), MR5 (read and write DBI, RTT_PARK, data-mask enable, CA parity
+latency/mode), MR6 (VrefDQ training) — and the LPDDR4 MR set beside it.
+Field-level maps are the MAS's business; this chapter binds the register
+count, the programming order, and which MRs couple to other blocks (MR3 to
+refresh and training, MR5 to ODT, DBI datapath and parity machinery, MR2
+RTT_WR to `odt_ctrl`).
 
 ## ZQ calibration
 

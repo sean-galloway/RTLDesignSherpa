@@ -74,6 +74,6 @@ It covers:
 | scoria HAS | `../../../scoria-ddr3-lpddr3/docs/scoria_has/` | the reuse pool; authoritative for inherited-unchanged blocks |
 | scoria design requirements | `../../../scoria-ddr3-lpddr3/docs/design-requirements.md` | the delta-analysis method; TASK-001 mode detail (§6) |
 | Kmap generator + workbook | `../kmaps/` | generated command-encoding tables citing this book's anchors |
-| CLAUDE.md | `../../../andesite-ddr4-lpddr4/CLAUDE.md` | area facts for a session working here |
+| Family README | `../../../../../README.md` | family overview and per-IP status |
 
 : Table 0.1: Related documents

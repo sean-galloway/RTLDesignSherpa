@@ -27,6 +27,7 @@ Rerun after MAS or RTL changes (from the repo root or this directory):
     python3 projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/kmaps/gen_andesite_kmaps.py
 """
 import os
+import re
 import sys
 import zipfile
 from datetime import datetime
@@ -42,18 +43,28 @@ from kmaps import (verify_citations, qm_minimize, sop_str,
 XLSX = os.path.join(HERE, "andesite_cmd_kmaps.xlsx")
 GEN = os.path.join(HERE, "generated")
 
-# Fixed zip timestamp so reruns are byte-identical. openpyxl sets zip entry
-# date_time from the wall clock; we rewrite them to a constant after save.
+# Fixed zip timestamp + core properties so reruns are byte-identical.
+# openpyxl sets zip entry date_time from the wall clock and also writes
+# dcterms:modified in docProps/core.xml from the current time; we rewrite both
+# to constants after save.
 _FIXED_ZIP_DATE = (2026, 10, 3, 0, 0, 0)
+_FIXED_CORE_MODIFIED = "2026-10-03T00:00:00Z"
 
 
 def _normalize_xlsx_timestamps(path):
-    """Rewrite every zip entry in an .xlsx to a fixed date_time."""
+    """Rewrite zip entry date_times and fix dcterms:modified in core.xml."""
+    core_re = re.compile(
+        r"(<dcterms:modified[^>]*>)[^<]*(</dcterms:modified>)")
     tmp = path + ".tmp"
     with zipfile.ZipFile(path, "r") as zin:
         with zipfile.ZipFile(tmp, "w", compression=zipfile.ZIP_DEFLATED) as zout:
             for info in zin.infolist():
                 data = zin.read(info.filename)
+                if info.filename == "docProps/core.xml":
+                    text = data.decode("utf-8")
+                    text = core_re.sub(
+                        r"\g<1>" + _FIXED_CORE_MODIFIED + r"\g<2>", text)
+                    data = text.encode("utf-8")
                 info.date_time = _FIXED_ZIP_DATE
                 zout.writestr(info, data)
     os.replace(tmp, path)
@@ -93,15 +104,15 @@ CITES = [
     # design-point geometry
     (HAS_DP, 37, "4 bank groups × 4 banks = 16 banks"),
     # DDR4 MR semantics table
-    (MR, 82, "| Register | Fields (semantics-binding) |"),
-    (MR, 84, "| MR0 | Burst length (fixed 8 or on-the-fly 4/8), read burst type (sequential/interleaved), CAS latency select, DLL reset bit, write recovery"),
-    (MR, 85, "| MR1 | DLL enable, additive latency (AL), RTT_NOM, write-leveling enable, TDQS enable, output driver impedance"),
-    (MR, 86, "| MR2 | CAS write latency (CWL), FGR-related select bits, write CRC enable bit (inert this edition per HAS Ch 3.1)"),
-    (MR, 87, "| MR3 | MPR operation and page select, FGR refresh factor (1x/2x/4x), gear-down mode, MPR read format"),
-    (MR, 88, "| MR4 | Write CRC mode bits (inert this edition per HAS Ch 3.1), CA parity latency/mode, temperature-controlled refresh range"),
-    (MR, 89, "| MR5 | Read DBI enable, write DBI enable, RTT_PARK, data-mask enable"),
-    (MR, 90, "| MR6 | VrefDQ training range and value, tCCD_L select"),
-    (MR, 98, "LPDDR4 doesn't use the same MRS command as DDR4"),
+    (MR, 83, "| Register | Fields (semantics-binding) |"),
+    (MR, 85, "| MR0 | Burst length (fixed 8 or on-the-fly 4/8), read burst type (sequential/interleaved), CAS latency select, DLL reset bit, write recovery"),
+    (MR, 86, "| MR1 | DLL enable, additive latency (AL), RTT_NOM, write-leveling enable, TDQS enable, output driver impedance"),
+    (MR, 87, "| MR2 | CAS write latency (CWL), RTT_WR, write CRC mode bits (inert this edition per HAS Ch 3.1), LP ASR |"),
+    (MR, 88, "| MR3 | MPR operation and page select, FGR refresh factor (1x/2x/4x), gear-down mode, MPR read format"),
+    (MR, 89, "| MR4 | Temperature status, preamble, CAL"),
+    (MR, 90, "| MR5 | Read DBI enable, write DBI enable, RTT_PARK, data-mask enable, CA parity latency/mode (A[2:0]), parity persistent-error (A9), parity error status (A4)"),
+    (MR, 91, "| MR6 | VrefDQ training range and value, tCCD_L select"),
+    (MR, 99, "LPDDR4 doesn't use the same MRS command as DDR4."),
     # ODT policy state fence
     (ODT, 88, "state        | RTT applied   | entered when"),
     (ODT, 89, "IDLE         | RTT_PARK      | no rank selected (park policy)"),
@@ -343,7 +354,11 @@ MRProgrammingRows = [
      "bit map per JESD79-4 (HAS Q1)"),
     ("DDR4", "MR2", "CAS write latency", "CWL select",
      "bit map per JESD79-4 (HAS Q1)"),
-    ("DDR4", "MR2", "Refresh-related selects", "FGR-related select bits",
+    ("DDR4", "MR2", "RTT_WR", "Write termination value",
+     "bit map per JESD79-4 (HAS Q1)"),
+    ("DDR4", "MR2", "Write CRC mode", "Inert this edition per HAS Ch 3.1",
+     "bit map per JESD79-4 (HAS Q1)"),
+    ("DDR4", "MR2", "LP ASR", "Low-power auto self-refresh select",
      "bit map per JESD79-4 (HAS Q1)"),
     ("DDR4", "MR3", "MPR access/select", "MPR operation and page select",
      "bit map per JESD79-4 (HAS Q1)"),
@@ -351,15 +366,19 @@ MRProgrammingRows = [
      "bit map per JESD79-4 (HAS Q1)"),
     ("DDR4", "MR3", "Gear-down", "Gear-down mode",
      "bit map per JESD79-4 (HAS Q1)"),
-    ("DDR4", "MR4", "Write CRC mode", "Inert this edition per HAS Ch 3.1",
+    ("DDR4", "MR4", "Temperature status", "Temperature status",
      "bit map per JESD79-4 (HAS Q1)"),
-    ("DDR4", "MR4", "CA parity", "CA parity latency/mode",
+    ("DDR4", "MR4", "Preamble", "Preamble mode",
+     "bit map per JESD79-4 (HAS Q1)"),
+    ("DDR4", "MR4", "CAL", "Command address latency",
      "bit map per JESD79-4 (HAS Q1)"),
     ("DDR4", "MR5", "RD DBI", "Read DBI enable",
      "bit map per JESD79-4 (HAS Q1)"),
     ("DDR4", "MR5", "WR DBI", "Write DBI enable",
      "bit map per JESD79-4 (HAS Q1)"),
     ("DDR4", "MR5", "RTT_PARK", "Idle termination value",
+     "bit map per JESD79-4 (HAS Q1)"),
+    ("DDR4", "MR5", "CA parity", "CA parity latency/mode",
      "bit map per JESD79-4 (HAS Q1)"),
     ("DDR4", "MR6", "VrefDQ", "VrefDQ training range and value",
      "bit map per JESD79-4 (HAS Q1)"),
@@ -386,7 +405,7 @@ def build_mr_programming_maps(wb):
          "JESD209-4 cold-storage read (HAS Q1).",
          "Verdict posture: NOT CHECKED -- no RTL exists at MAS v0.1."])
     km.table(
-        "MR programming map", f"{MR}:82",
+        "MR programming map", f"{MR}:83",
         ["Memtype", "MR", "Field", "Function", "Values/notes"],
         MRProgrammingRows,
         note=("DDR4 MR0-MR6 are MRS-programmed; LPDDR4 MRs are MRW-programmed "

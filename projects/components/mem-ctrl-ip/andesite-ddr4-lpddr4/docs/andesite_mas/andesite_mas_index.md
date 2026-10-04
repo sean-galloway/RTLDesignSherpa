@@ -49,7 +49,7 @@ this index, and these are companions, not chapters.
 - **Family docs** - `projects/components/mem-ctrl-ip/docs/` - the shared-core design and doctrine this book follows
 - **scoria HAS** - `projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/docs/scoria_has/` - the reuse pool; referenced for every inherited block
 - **Kmap book** - `projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/kmaps/` - the generated command-encoding workbook (generator, xlsx, `generated/*.md`)
-- **CLAUDE.md** - `projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/CLAUDE.md` - area facts for a session working here
+- **Family README** - `projects/components/mem-ctrl-ip/README.md` - family overview and per-IP status
 
 ---
 

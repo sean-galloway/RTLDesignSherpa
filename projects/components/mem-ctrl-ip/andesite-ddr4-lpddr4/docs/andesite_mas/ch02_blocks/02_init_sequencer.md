@@ -128,7 +128,7 @@ POWER_ON_RESET
 
 ### Sequencing rules
 
-The MR order is a citation, not a design choice. pumice's EMRS3-first correction is the family precedent, and andesite follows it: MR3 first, then MR6, MR5, MR4, MR2, MR1, MR0 last. MR0 carries the DLL reset and the CA parity latent mode setting, so it must wait until the bus is stable.
+The MR order is a citation, not a design choice. pumice's EMRS3-first correction is the family precedent, and andesite follows it: MR3 first, then MR6, MR5, MR4, MR2, MR1, MR0 last. MR0 carries the DLL reset only; CA parity latency/mode is programmed in MR5, so parity enable rides the MR5 program step. MR0 must wait until the bus is stable.
 
 Parity enable is ordered after bus stability for the same reason. Once `parity_enable_out` rises, the formatter's parity counter starts counting from that point; enabling it earlier would count commands that were not parity-protected.
 

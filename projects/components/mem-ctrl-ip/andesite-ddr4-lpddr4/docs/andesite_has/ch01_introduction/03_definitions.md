@@ -84,9 +84,9 @@ programs MR3, then switches; DFI v4.0 defines the controller/PHY handshake for
 the switch `§TBC(TASK-005)`.
 
 **CA parity**
-DDR4 command/address parity. The controller counts commands and checks parity
-on the DRAM's behalf of the bus; a parity error is signalled back on
-`dfi_alert_n`. How much of the parity machinery lands in hardware versus
+DDR4 command/address parity. The controller counts commands and generates the
+parity bit; the DRAM checks it and signals errors back on `dfi_alert_n`. How
+much of the parity machinery lands in hardware versus
 firmware is an open question (Chapter 6).
 
 **DBI (Data Bus Inversion)**

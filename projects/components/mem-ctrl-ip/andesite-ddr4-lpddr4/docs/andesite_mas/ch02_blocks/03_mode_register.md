@@ -64,10 +64,11 @@
 | `mpr_page_o` | out | 2 | MR3 MPR page select to `rdlvl_ifc` |
 | `fgr_factor_o` | out | 2 | MR3 FGR 1x/2x/4x select to `refresh_ctrl` |
 | `rtt_nom_o` | out | 3 | MR1 RTT_NOM value to `odt_ctrl` |
+| `rtt_wr_o` | out | 3 | MR2 RTT_WR value to `odt_ctrl` |
 | `rtt_park_o` | out | 3 | MR5 RTT_PARK value to `odt_ctrl` |
 | `rd_dbi_en_o` | out | 1 | MR5 read DBI enable to datapath |
 | `wr_dbi_en_o` | out | 1 | MR5 write DBI enable to datapath |
-| `ca_parity_lat_o` | out | 2 | MR4 CA parity latency/mode to formatter |
+| `ca_parity_lat_o` | out | 2 | MR5 CA parity latency/mode to formatter |
 | `wrlvl_en_o` | out | 1 | MR1 write-leveling enable to `wrlvl_ifc` |
 | `lpddr4_odt_o` | out | TBD | LPDDR4 ODT/DQ-ODT programming to PHY/odt_ctrl | JESD209-4 |
 
@@ -83,10 +84,10 @@ The DDR4 mode-register set expands scoria's four registers to seven. The table b
 |---|---|
 | MR0 | Burst length (fixed 8 or on-the-fly 4/8), read burst type (sequential/interleaved), CAS latency select, DLL reset bit, write recovery |
 | MR1 | DLL enable, additive latency (AL), RTT_NOM, write-leveling enable, TDQS enable, output driver impedance |
-| MR2 | CAS write latency (CWL), FGR-related select bits, write CRC enable bit (inert this edition per HAS Ch 3.1) |
+| MR2 | CAS write latency (CWL), RTT_WR, write CRC mode bits (inert this edition per HAS Ch 3.1), LP ASR |
 | MR3 | MPR operation and page select, FGR refresh factor (1x/2x/4x), gear-down mode, MPR read format |
-| MR4 | Write CRC mode bits (inert this edition per HAS Ch 3.1), CA parity latency/mode, temperature-controlled refresh range |
-| MR5 | Read DBI enable, write DBI enable, RTT_PARK, data-mask enable |
+| MR4 | Temperature status, preamble, CAL (command address latency) |
+| MR5 | Read DBI enable, write DBI enable, RTT_PARK, data-mask enable, CA parity latency/mode (A[2:0]), parity persistent-error (A9), parity error status (A4) |
 | MR6 | VrefDQ training range and value, tCCD_L select |
 
 : Table 2.7: DDR4 MR0-MR6 field semantics
@@ -103,9 +104,10 @@ LPDDR4 doesn't use the same MRS command as DDR4. Its MRs are written by MRW over
 |---|---|---|
 | MR3 FGR select | `refresh_ctrl` | Refresh interval scaling: 1x, 2x or 4x |
 | MR3 MPR page | `rdlvl_ifc` | MPR read-leveling page and format |
+| MR2 RTT_WR | `odt_ctrl` | Write termination for DDR4 |
 | MR5 RTT_PARK | `odt_ctrl` | Idle termination for DDR4 |
 | MR5 RD/WR DBI | datapath (`dfi_rd_aligner`, `dfi_wr_serializer`) | Data Bus Inversion enable |
-| MR4 CA parity | `dfi_cmd_formatter` | Parity latency and mode |
+| MR5 CA parity | `dfi_cmd_formatter` | Parity latency and mode |
 | MR1 write leveling | `wrlvl_ifc` | Write-leveling entry/exit |
 | MR1 RTT_NOM | `odt_ctrl` | Nominal termination for DDR4 |
 | MR2 CWL | datapath / scheduler | CAS write latency (value flows to write-data timing) |

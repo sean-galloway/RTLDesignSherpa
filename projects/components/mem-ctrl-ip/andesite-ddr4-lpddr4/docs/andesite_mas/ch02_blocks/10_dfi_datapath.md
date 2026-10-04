@@ -50,7 +50,7 @@ dormant per the HAS, so they don't get their own MAS page.
 ## Interface
 
 The full pin-level inventory of the DFI 4.0 boundary lives in
-`ch03_interfaces/01_dfi_v40.md`; this page describes the modules behind the
+`ch03_interfaces/01_dfi40_pins.md`; this page describes the modules behind the
 signals, not the signal list itself. The cross-reference is intentional —
 that page owns the table so this one doesn't duplicate it.
 
@@ -84,11 +84,11 @@ wider container through.
 ### `dfi_rd_aligner`: DBI on the read path
 
 The read aligner presents `dfi_rddata_dbi` alongside the read data. DBI is
-enabled per-byte from the MR5 read-DBI image: when enabled, the PHY inverts
-bytes whose DBI bit is set, and the aligner reports the inversion mask to the
-upper layers. The aligner does not interpret the data; it just aligns the
-mask to the same beat as the data. Read DBI is MR5-programmed and independent
-of write DBI.
+enabled per-byte from the MR5 read-DBI image: when enabled, the DRAM inverts
+bytes whose DBI bit is set at send time, and the receiver (PHY/controller)
+restores them. The aligner reports the inversion mask to the upper layers
+aligned to the same beat as the data. Read DBI is MR5-programmed and
+independent of write DBI.
 
 ```text
 per-byte behavior:
@@ -103,7 +103,7 @@ per-byte behavior:
 The write serializer applies `dfi_wrdata_dbi` to the write data before it
 reaches the PHY. When MR5 write-DBI is enabled, each byte whose DBI bit is set
 is inverted on the way out; when disabled, the DBI vector is ignored. Write
-CRC is explicitly out of scope this edition (HAS Ch 3.1; inert in MR4) — the
+CRC is explicitly out of scope this edition (HAS Ch 3.1; inert in MR2) — the
 serializer carries no CRC lane, no CRC state machine, and no stub. It is named
 here so nobody wires a placeholder.
 
@@ -118,7 +118,7 @@ per-byte behavior:
 ### `dfi_layer`: the 4.0 control surface
 
 `dfi_layer` presents the DFI 4.0 control surface at pin level. The signal
-inventory of HAS Ch 4's Table 4.1 lives here; `ch03_interfaces/01_dfi_v40.md`
+inventory of HAS Ch 4's Table 4.1 lives here; `ch03_interfaces/01_dfi40_pins.md`
 owns the full pin table. The layer's job is fan-out and registration: it
 routes training handshakes to the right interface block, it carries the
 datapath FIFOs, and it exposes `dfi_init`, `dfi_error`, `dfi_error_info`, and
@@ -164,6 +164,6 @@ inherited `dfi_cdc`, and those keep scoria's elastic-buffer policy.
   4.0 `§TBC(TASK-005)`.
 - Write CRC is out of scope this edition. The datapath has no CRC lane and no
   stub; if the condition in HAS Ch 3.1 changes, the change starts with the
-  MR4 image and a new datapath specification.
-- The full pin table belongs to `ch03_interfaces/01_dfi_v40.md`; this page
+  MR2 image and a new datapath specification.
+- The full pin table belongs to `ch03_interfaces/01_dfi40_pins.md`; this page
   intentionally cross-references rather than duplicates it.

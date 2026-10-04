@@ -44,7 +44,7 @@ kmap book.
 
 andesite is not a fresh design. scoria's architecture — itself pumice's,
 carried through board bring-up, a read-path rebuild, and a formal campaign
-that found two real bugs — is the starting point, and scoria's 24-FUB
+that found two real bugs — is the starting point, and scoria's 26-FUB
 inventory, books, CSR flow and verification apparatus are the immediate reuse
 pool. Re-deriving any of that would discard its evidence.
 

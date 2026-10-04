@@ -87,9 +87,4 @@ scoping explicit rather than dead-genericing over a pin LPDDR4 doesn't have.
    the write datapath and DM/DBI pins; its unblocking condition is named
    there.
 
-## The one-sentence summary, because it is easy to miss
 
-`odt_ctrl` is the smallest new block in this book and the most policy-shaped:
-it watches the command stream and keeps each rank's termination pointed at
-the right value at the right time — nothing more, which is exactly the
-problem DDR4 sets.

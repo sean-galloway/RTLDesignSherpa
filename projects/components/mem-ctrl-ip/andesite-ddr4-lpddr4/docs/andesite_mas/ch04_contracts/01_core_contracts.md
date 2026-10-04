@@ -78,9 +78,9 @@ anchor):
 
 1. Exactly one of the anchored encodings holds whenever `CS_n = 0`; the
    fence's rows are exhaustive and mutually exclusive.
-2. `ACT_n = 0` marks exactly two rows in the anchor: ACT (with `RAS_n=1,
-   CAS_n=1, WE_n=1`) and the MRS/REF pair — no other pin combination may
-   carry `ACT_n = 0`.
+2. `ACT_n = 0` marks exactly three rows in the anchor: ACT (with `RAS_n=1,
+   CAS_n=1, WE_n=1`), MRS (`RAS_n=0, CAS_n=0, WE_n=0`) and REF (`RAS_n=0,
+   CAS_n=0, WE_n=1`) — no other pin combination may carry `ACT_n = 0`.
 3. `AP` is an address input: it never appears in the pin-level table; the
    variants (RDA/WRA, PREA, ZQCL) are the RD/WR/PRE/ZQ rows qualified by
    `AP = 1`.
@@ -92,7 +92,7 @@ anchor):
 issues; forbidden rows — commands outside the anchored set, or any command
 while `parity_en_i` disagrees with the MR image — are `ILLEGAL`. The
 minimized qualifier SOPs for this table are the kmap book's DDR4 command
-table (Task 11 output); the workbook and this contract must always cite the
+table (andesite TASK-004 output); the workbook and this contract must always cite the
 same anchor lines.
 
 ## Contract: maintenance request/grant

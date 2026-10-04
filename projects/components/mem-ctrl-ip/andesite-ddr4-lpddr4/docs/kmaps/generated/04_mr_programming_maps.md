@@ -17,15 +17,19 @@ Bit positions are intentionally named, not numbered; the exact bit maps are conf
 | DDR4 | MR1 | RTT_NOM | Nominal termination value | bit map per JESD79-4 (HAS Q1) |
 | DDR4 | MR1 | Write leveling | Write-leveling enable | bit map per JESD79-4 (HAS Q1) |
 | DDR4 | MR2 | CAS write latency | CWL select | bit map per JESD79-4 (HAS Q1) |
-| DDR4 | MR2 | Refresh-related selects | FGR-related select bits | bit map per JESD79-4 (HAS Q1) |
+| DDR4 | MR2 | RTT_WR | Write termination value | bit map per JESD79-4 (HAS Q1) |
+| DDR4 | MR2 | Write CRC mode | Inert this edition per HAS Ch 3.1 | bit map per JESD79-4 (HAS Q1) |
+| DDR4 | MR2 | LP ASR | Low-power auto self-refresh select | bit map per JESD79-4 (HAS Q1) |
 | DDR4 | MR3 | MPR access/select | MPR operation and page select | bit map per JESD79-4 (HAS Q1) |
 | DDR4 | MR3 | FGR select | 1x / 2x / 4x refresh granularity | bit map per JESD79-4 (HAS Q1) |
 | DDR4 | MR3 | Gear-down | Gear-down mode | bit map per JESD79-4 (HAS Q1) |
-| DDR4 | MR4 | Write CRC mode | Inert this edition per HAS Ch 3.1 | bit map per JESD79-4 (HAS Q1) |
-| DDR4 | MR4 | CA parity | CA parity latency/mode | bit map per JESD79-4 (HAS Q1) |
+| DDR4 | MR4 | Temperature status | Temperature status | bit map per JESD79-4 (HAS Q1) |
+| DDR4 | MR4 | Preamble | Preamble mode | bit map per JESD79-4 (HAS Q1) |
+| DDR4 | MR4 | CAL | Command address latency | bit map per JESD79-4 (HAS Q1) |
 | DDR4 | MR5 | RD DBI | Read DBI enable | bit map per JESD79-4 (HAS Q1) |
 | DDR4 | MR5 | WR DBI | Write DBI enable | bit map per JESD79-4 (HAS Q1) |
 | DDR4 | MR5 | RTT_PARK | Idle termination value | bit map per JESD79-4 (HAS Q1) |
+| DDR4 | MR5 | CA parity | CA parity latency/mode | bit map per JESD79-4 (HAS Q1) |
 | DDR4 | MR6 | VrefDQ | VrefDQ training range and value | bit map per JESD79-4 (HAS Q1) |
 | LPDDR4 | MRW set | ODT/DQ-ODT | Termination programming | bit map per JESD209-4 (HAS Q1) |
 | LPDDR4 | MRW set | Drive strength | Output driver impedance | bit map per JESD209-4 (HAS Q1) |

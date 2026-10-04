@@ -39,7 +39,7 @@ inherits from scoria the same way scoria inherited from pumice.
    not laziness; those blocks carry simulation verification and formal proofs
    that a rewrite would discard.
 2. **Change only what the standards force.** Ten areas change, and the
-   modified set is a dozen blocks, not a rewrite. Chapter 3 is that list, and
+   modified set is thirteen blocks, not a rewrite. Chapter 3 is that list, and
    it is short on purpose.
 3. **Keep the DFI boundary clean.** No PHY responsibilities migrate into the
    controller — including every training *search*, which DDR4 and LPDDR4 make

@@ -28,7 +28,7 @@
 Twelve of scoria's twenty-six FUB files carry over with no functional change,
 plus the top, geared wrapper, core and AXI4 macro — Chapter 2.3 lists them and
 the count is reconciled there. This chapter covers only what changes: ten
-areas, absorbed by a modified set of a dozen blocks and three new ones. The
+areas, absorbed by a modified set of thirteen blocks and three new ones. The
 list is short by design, and it is an argument, not a convenience — the
 inherited blocks carry scoria's verification evidence (221 tests, 9 formal
 blocks at last measure), and re-deriving them would discard it.
