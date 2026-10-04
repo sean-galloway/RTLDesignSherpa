@@ -55,6 +55,11 @@ the workbook and the RTL agree; a drift fails the run. The anchor map:
 | ODT policy states | [08_odt_ctrl.md](../ch02_blocks/08_odt_ctrl.md) — policy-state fence |
 | Training flows and telemetry | [09_training.md](../ch02_blocks/09_training.md) — MPR/CA/WDQ flow fences, four-state encoding fence |
 | DFI datapath pin set and DBI | [10_dfi_datapath.md](../ch02_blocks/10_dfi_datapath.md) — pin-set and DBI fences |
+| LPDDR4 CA encodings | [generated/02_lpddr4_ca_command_table.md](../../kmaps/generated/02_lpddr4_ca_command_table.md) — TBC JESD209-4 |
+| Address decode | [generated/03_addr_decode_maps.md](../../kmaps/generated/03_addr_decode_maps.md) — design-point decode maps |
+| MR programming | [generated/04_mr_programming_maps.md](../../kmaps/generated/04_mr_programming_maps.md) — MR0-MR6 / LPDDR4 MRW |
+| ODT truth | [generated/05_odt_truth_table.md](../../kmaps/generated/05_odt_truth_table.md) — termination policy |
+| FGR select | [generated/06_fgr_refresh_map.md](../../kmaps/generated/06_fgr_refresh_map.md) — refresh granularity |
 
 : Table 4.1: Anchor map — the kmap generator cites these file:line pairs
 

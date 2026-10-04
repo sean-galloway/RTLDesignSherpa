@@ -59,6 +59,11 @@ The ten areas the bootstrap spec settled, with the blocks that absorb them:
 
 : Table 3.0: The ten delta areas, verbatim from the bootstrap spec
 
+The command encodings, decode maps, MR maps, ODT policy, and FGR select named
+by the ten areas above are pinned table-by-table in the generated kmap book
+([`../../kmaps/generated/`](../../kmaps/generated/)). The DDR4 command table's
+expected values feed the Chapter 6 verification item 6 checker.
+
 ## The ten areas, one paragraph each
 
 **1 — Bank groups.** DDR4 partitions its banks into groups, and command
