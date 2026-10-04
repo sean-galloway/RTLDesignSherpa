@@ -93,6 +93,63 @@ def test_filename_h1_mismatch_fails(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# Status/page mismatch, the INVERSE direction (site-audit TASK-002): a
+# terminal-status body sitting in a LIVE page inflates every rollup count
+# with work that is actually done. The terminal-page rule above cannot see
+# it; these pin that the live-page rule does. Warnings do not block, so the
+# assertions are on stdout with rc 0.
+# ---------------------------------------------------------------------------
+
+def test_terminal_body_in_open_page_warns(tmp_path):
+    repo = _lane(tmp_path)
+    p = _lane_dir(repo) / "open" / "TASK-001.md"
+    p.write_text("# TASK-001: an open item\n\n**Status:** done -- the work landed, the move did not\n")
+    r = _run(repo)
+    assert r.returncode == 0, r.stderr
+    assert "TASK-001 lives in open.md" in r.stdout and "rollup" in r.stdout
+
+
+def test_terminal_body_in_active_page_warns(tmp_path):
+    repo = _lane(tmp_path)
+    lane = _lane_dir(repo)
+    (lane / "active" / "TASK-003.md").write_text(
+        "# TASK-003: an active item\n\n**Status:** CLOSED 2026-09-01\n")
+    idx = lane / "INDEX.md"
+    idx.write_text(idx.read_text().replace(
+        "| [active/](active/) | 0 |", "| [active/](active/) | 1 |").replace(
+        "Next ID: TASK-003", "Next ID: TASK-004").replace(
+        "## Open", "## Active\n\n- **TASK-003** — item\n\n## Open"))
+    r = _run(repo)
+    assert r.returncode == 0, r.stderr
+    assert "TASK-003 lives in active.md" in r.stdout
+
+
+def test_live_body_in_open_page_stays_silent(tmp_path):
+    r = _run(_lane(tmp_path))
+    assert r.returncode == 0, r.stderr
+    assert "lives in open.md" not in r.stdout and "lives in active.md" not in r.stdout
+
+
+def test_flat_open_page_sees_it_too(tmp_path):
+    """The amba case that started TASK-002: a LEGACY flat open.md, not a lane."""
+    repo = tmp_path / "repo"
+    area = repo / "vault" / "Tasks" / "scratchflat"
+    area.mkdir(parents=True)
+    (area / "INDEX.md").write_text(
+        "# scratchflat\n\n**Next ID: SF-002** — never recycle a number.\n")
+    (area / "open.md").write_text(textwrap.dedent("""\
+        # scratchflat — open
+
+        ## SF-001 — a task
+        **Status:** closed 2026-09-01 -- fix landed, nobody moved the entry
+        """))
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    r = _run(repo)
+    assert r.returncode == 0, r.stderr
+    assert "SF-001 lives in open.md" in r.stdout
+
+
+# ---------------------------------------------------------------------------
 # Hook context: the checker must validate the tree being COMMITTED (tooling
 # BUG-014).
 #

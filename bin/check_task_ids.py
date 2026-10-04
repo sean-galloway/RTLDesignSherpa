@@ -15,9 +15,13 @@ Three failure modes this catches, all of which have actually happened:
    `closed: 15` while the file sat in open/; passed until 2026-09-28
    (tooling TASK-014). Now every row must equal the files on disk.
 
-3. **Status/page mismatch.** A task filed into closed.md whose body still
-   says `**Status:** open`. Found on two pumice entries: filed but never
-   re-statused, so they read as live work inside the closed page.
+3. **Status/page mismatch, BOTH directions.** A task filed into closed.md
+   whose body still says `**Status:** open` (found on two pumice entries:
+   filed but never re-statused, so they read as live work inside the closed
+   page) -- and the inverse, a CLOSED/DONE body sitting in open.md/active.md,
+   which inflates every rollup count with work that is actually done (six of
+   those in amba, 2026-09-14; found by hand because the checker only saw one
+   direction -- site-audit TASK-002).
 
 Historical collisions are grandfathered via KNOWN_COLLISIONS so the check
 can be enforcing from day one without forcing a risky renumber of closed
@@ -107,6 +111,18 @@ KNOWN_COLLISIONS = {
 # closed.md / dropped.md bodies should not claim to be live.
 TERMINAL_PAGES = {"closed.md": ("closed", "complete", "done", "resolved", "fixed"),
                   "dropped.md": ("dropped", "superseded", "wontfix")}
+# ... and live pages should not claim to be terminal: the SAME drift running
+# the other way, which the terminal-page rule above structurally cannot see.
+# Found by hand, not by checker: six entries sat in amba's open.md with bodies
+# reading CLOSED/DONE -- one behind a duplicate heading that made a single task
+# count as both open and closed -- and every rollup silently double-counted
+# them (site-audit TASK-002, 2026-09-14). A one-directional checker leaves the
+# inverse to be looked for by hand forever, so both directions warn here.
+# Statuses read by prefix on BOTH sides: "closed-in-all-but-name" warns here
+# exactly as "closed" does, and the terminal-page rule already worked that way.
+LIVE_PAGES = {"open.md", "active.md"}
+TERMINAL_STATUS = ("closed", "complete", "done", "resolved", "fixed",
+                   "dropped", "superseded", "wontfix")
 
 
 def repo_root() -> pathlib.Path:
@@ -436,6 +452,10 @@ def check_area(area: pathlib.Path) -> tuple[list[str], list[str]]:
         if want and status and not status.startswith(want):
             warns.append(f"{area_label(area)}: {tid} lives in {page} but its body says "
                          f"'**Status:** {status}' -- re-status it or move it")
+        elif page in LIVE_PAGES and status and status.startswith(TERMINAL_STATUS):
+            warns.append(f"{area_label(area)}: {tid} lives in {page} but its body says "
+                         f"'**Status:** {status}' -- closed work in a live page "
+                         f"inflates every rollup count; re-status it or move it")
     return errs, warns
 
 

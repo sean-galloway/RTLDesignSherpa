@@ -1,7 +1,11 @@
 # TASK-002: teach the checker to see BOTH directions (the 11-task triage is done)
 
 > Migrated 2026-09-27 from `vault/Tasks/site-audit/open.md` as **AUDIT-002** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
-**Status:** open 2026-08-28 — surfaced by `bin/check_task_ids.py`
+**Status:** CLOSED 2026-10-04 — the checker gap was the only thing keeping
+this open; the live-page direction now warns in `bin/check_task_ids.py`
+(`LIVE_PAGES`/`TERMINAL_STATUS`, four teeth tests in
+`bin/tests/test_check_task_ids.py`), and a full-tree run finds zero current
+violations, so the rule enforces from day one.
 **Priority:** P3 — bookkeeping, but it makes the rollup counts lie
 **Area:** cross-cutting (common + pumice + amba) — filed here rather
 than in `common/` because it is not common-area work; most of the
