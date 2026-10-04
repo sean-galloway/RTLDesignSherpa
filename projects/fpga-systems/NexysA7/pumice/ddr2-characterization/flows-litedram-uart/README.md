@@ -68,13 +68,34 @@ launching generators, as it waits on pumice's init.
 - `CTRL.soft_reset` re-arms the generators only; the user port has no reset
   input into the core.
 
-## Results (2026-09-10, timing-clean build, WNS +0.195 ns, 35% LUTs)
+## Results
 
+**Post-fix re-run (2026-10-03), the current A/B:** both images rebuilt from one
+commit on the post-sdpram-fix tree (`amba 71d48b6f7`; pumice `build-perf` WNS
++0.132 ns, this flow WNS +0.321 ns, both timing-clean).
+`char_results/litedram_2026-10-03_matrix.csv` (14/14 integrity) against pumice
+`build-perf/reports/char_postfix_2026-10-03.csv` (84/84 integrity), full
+analysis in
+`projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/docs/char_results/FINDINGS_litedram_ab_2026-10-03.md`:
+pumice `open_page` now **matches LiteDRAM on every page-friendly pattern**
+(writes 569-570 both, reads 561-572 both, ld/pum 1.00-1.01x — the "reads 2x"
+gap below was the pre-ring-fix state). LiteDRAM still leads same-bank row
+thrash 1.6-2.5x; pumice still leads bank-interleaved BL4 (0.78x). The LiteDRAM
+side was cycle-identical to the 2026-09-10 baseline on all 14 points: the
+sdpram fix does not touch this datapath.
+
+**Original run (2026-09-10, timing-clean build, WNS +0.195 ns, 35% LUTs):**
 `docs/char_results/litedram_2026-09-10_matrix.csv` and
 `FINDINGS_litedram_ab_2026-09-10.md` (under the pumice component docs).
 Streaming reads 564-579 MB/s and writes 554-569 MB/s at BL4 / 75 MHz / 1:2,
 14/14 integrity. Against pumice `open_page` on the same harness: writes equal,
-reads 2x (pumice 291.7), read latency 24.7 vs 49.2 cycles.
+reads 2x (pumice 291.7), read latency 24.7 vs 49.2 cycles. Concurrent
+both-directions points date from this run; both sides re-measured post-fix
+2026-10-04 (`char_results/litedram_concurrent_2026-10-04.csv`,
+`litedram_multigen_2026-10-04.csv` — 285.8 MB/s total 1+1 normalized to 75 MHz,
+reproducing 09-10's 285.6; pumice's side `build-perf/reports/concurrent_postfix_2026-10-04.csv`,
+571.1 MB/s total, the 2.00x stands; full table in the addendum to
+FINDINGS_litedram_ab_2026-10-03.md).
 
 ## History
 

@@ -11,7 +11,7 @@ clean read-leveling eye is found only at **`t_phy_wrlat = 0`** (bitslip 0, taps
 `rddata_delay = 8`, `cmd_delay = 1`.
 
 After the runtime page-policy fix, OPEN vs CLOSE page policy moved read
-throughput from ~12.7 MB/s to ~112 MB/s (8.8×) and write to ~44 MB/s (3.5×). For
+throughput from ~12.7 MB/s to ~112 MB/s (8.8×) and write to ~44 MB/s (3.5×) (measured 2026-07, pre-sdpram-fix). For
 reference, LiteDRAM on the same board reaches ~600 MB/s peak (300 MT/s memtest).
 
 ## Sticky errors look like a wedge

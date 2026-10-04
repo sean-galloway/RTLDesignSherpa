@@ -41,12 +41,14 @@ was fixed 2026-10-03 alongside BUG-021; every written copy of the wrong
 bound is corrected and the right one is guarded by
 `test_addr_mapper.py::minimum_bank_lsb_is_measured`.
 
-**Task lane: TASK-035, TASK-038, TASK-039.** TASK-035 finishes tier-1
+**Task lane: TASK-035.** TASK-035 finishes tier-1
 formal coverage (5 of 27 blocks; wr_data_cam counterexample + dfi_cdc
-name resolution remain). TASK-038 rebuilds the ddr2-char harness images
-with the fixed sdpram slave and repins pumice board perf — board-gated,
-batch with stream TASK-016. TASK-039 (filed closing TASK-037) authors
-testplans for the post-rearchitecture FUBs — they have tests but no
+name resolution remain). TASK-038 (rebuild the ddr2-char harness images
+with the fixed sdpram slave, repin pumice board perf) closed 2026-10-04:
+both images rebuilt timing-clean from one commit, the A/B re-run not
+edited (pumice at LiteDRAM parity page-friendly; concurrent 2.00x stands),
+knee spot-checked unmoved, docs repinned. TASK-039 (filed closing TASK-037)
+authors testplans for the post-rearchitecture FUBs — they have tests but no
 plans; refs are gate-checked.
 
 **Issue lane: ISSUE-020** — the paging perf assertions are calibrated

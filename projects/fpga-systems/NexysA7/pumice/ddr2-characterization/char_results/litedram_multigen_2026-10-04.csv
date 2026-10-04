@@ -1,0 +1,5 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,notes
+litedram,incremental_bl8,incremental,8,8000,0,0,1,0,1024000,100.0,412287,0.0018,124.19,412287,0.0037,248.37,91.44,16000,"concurrent 1w+2r of 4w+4r built, region 0x80000"
+litedram,row_major_bl8,row_major,8,8000,0,0,1,0,1024000,100.0,363964,0.0018,140.67,363964,0.0037,281.35,81.62,16000,"concurrent 1w+2r of 4w+4r built, region 0x800"
+litedram,col_major_bl8,col_major,8,8000,0,0,1,0,1024000,100.0,409637,0.0018,124.99,409637,0.0037,249.98,122.20,16000,"concurrent 1w+2r of 4w+4r built, region 0x4000000"
+litedram,col_major_interleaved_bl8,col_major_interleaved,8,8000,0,0,1,0,1024000,100.0,467346,0.0018,109.55,467346,0.0037,219.11,122.84,16000,"concurrent 1w+2r of 4w+4r built, region 0x4000000"

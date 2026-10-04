@@ -4,7 +4,12 @@ Every number in this chapter is from the Nexys A7, not simulation: 75 MHz
 controller clock, DDR2-300, BL4 on the x16 MT47H64M16, `open_page` policy, the
 4+4 generator bitstream. **Peak is 600 MB/s** — 8 bytes per controller cycle.
 Measured 2026-09-14; sections 8.2 and 8.5 re-measured 2026-09-26 on the
-post-RBL-removal bitstream.
+post-RBL-removal bitstream; the page-friendly and page-thrash rows re-verified
+2026-10-03 on the post-sdpram-fix image (`char_postfix_2026-10-03.csv` — the
+fix is on the harness UART/debug SRAM, off this datapath: row_major bl16 read
+572.3 MB/s, close_page `col_major` bl8 read 195.2 MB/s to the digit of the
+2026-09-26 campaign). The AxLEN/outstanding sweeps of 8.1/8.2 were not
+re-run post-fix; treat them as pre-fix dated.
 
 The figures and the raw records are in the repository, so nothing here has to
 be taken on trust: `build-perf/reports/bank_gap_sweep.json` (192 records),

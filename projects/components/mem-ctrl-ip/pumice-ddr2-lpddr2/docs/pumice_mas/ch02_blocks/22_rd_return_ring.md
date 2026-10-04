@@ -33,7 +33,7 @@
 > insert all the way to R-drain and buffered the returned data per entry. That
 > made the CAM's entry count the in-flight read limit, and Little's law then
 > bounds read bandwidth: eight entries over a ~27-cycle DRAM round trip is
-> 8 x 8 B / 27 cyc, about 180 MB/s on the board, no matter how good the
+> 8 x 8 B / 27 cyc, about 180 MB/s on the board (pre-ring-fix state, 2026-09; the return-ring fix took board reads to ~572 MB/s), no matter how good the
 > scheduler is.
 >
 > The ring splits the two jobs. The CAM entry now lives **insert -> issue

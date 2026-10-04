@@ -108,7 +108,9 @@ shortfall becomes a named cause rather than a disappointment.
 
 This is the honest system-level number and the one an architect budgeting
 bandwidth should be handed. On this board, with the read return ring at 64,
-reads reach **571.3 MB/s** and writes **570.2 MB/s**, which is 95% of the
+reads reach **572.3 MB/s** and writes **570.3 MB/s** (post-sdpram-fix image,
+re-measured 2026-10-03, `build-perf/reports/char_postfix_2026-10-03.csv`;
+571.3 / 570.2 pre-fix), which is 95% of the
 600 MB/s pin rate under a page-friendly pattern at a burst length long enough to
 amortize the activate.
 
@@ -167,7 +169,7 @@ Report the pair, and show the gap between them:
 
 ```
 Pin rate (reference):                600.0 MB/s     100%
-End-to-end payload (primary):        571.3 MB/s    95.2%
+End-to-end payload (primary):        572.3 MB/s    95.4%   (post-fix 2026-10-03; 571.3 pre-fix)
 Datapath productive (complementary):                  --
 ```
 

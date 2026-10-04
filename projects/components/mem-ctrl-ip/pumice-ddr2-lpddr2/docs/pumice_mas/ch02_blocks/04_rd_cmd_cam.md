@@ -43,7 +43,7 @@
 >
 > Why the split: with the CAM holding a read from insert to R-drain, its entry
 > count was the in-flight read limit, and Little's law capped read bandwidth at
-> roughly 180 MB/s on the board regardless of scheduling quality. The CAM now
+> roughly 180 MB/s on the board (pre-ring-fix state, 2026-09; the return-ring fix took board reads to ~572 MB/s) regardless of scheduling quality. The CAM now
 > only has to be as deep as the *scheduling* window; in-flight depth is the
 > ring's `RD_RET_DEPTH`.
 

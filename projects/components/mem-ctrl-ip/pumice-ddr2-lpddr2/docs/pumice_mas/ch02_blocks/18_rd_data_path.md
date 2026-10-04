@@ -47,7 +47,7 @@
 > reorder buffer and buffered returned data per entry. That was true before
 > the return ring landed (2026-09-08) and is not now: holding the read in the
 > CAM for its whole round trip made the CAM depth the in-flight limit and
-> capped read bandwidth by Little's law at roughly 180 MB/s on the board.
+> capped read bandwidth by Little's law at roughly 180 MB/s on the board (pre-ring-fix state, 2026-09; the return-ring fix took board reads to ~572 MB/s).
 >
 > The single clock-domain crossing between the domains is `pumice_dfi_cdc`
 > (async gaxi FIFOs). This chapter documents the aligner half and the

@@ -459,6 +459,8 @@ field so any policy combination is reachable. All commodity-legal.
 
 ### Axis 2 — Page policy / auto-precharge (Rixner open/closed + Happy 2015)
 
+> **Vintage:** the board figures in this section are 2026-09-26/27, pre-sdpram-fix (`amba 71d48b6f7`, 2026-10-02). The fix touches the harness UART/debug SRAM, off this datapath, and the 2026-10-03 post-fix re-run reproduced close_page `col_major` read to the digit (195.2 MB/s on both images; FINDINGS_litedram_ab_2026-10-03.md).
+
 The decision resolves to (a) the column command's auto-precharge bit and (b) a background
 per-bank precharge *request* that still respects tRAS/tRTP/tRP/tRC. All commodity-legal.
 

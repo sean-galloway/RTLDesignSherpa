@@ -113,7 +113,7 @@ The MISS path is TWO blocks with different lifetimes (2026-09-08):
 A read is admitted only when BOTH have room. The in-flight count is therefore
 `RD_RET_DEPTH` (32), not the CAM depth: before the split a read held its CAM
 entry for the whole DRAM round trip and eight entries bounded read bandwidth by
-Little's law (8 x 8 B / ~27 cyc = ~180 MB/s on the board). Sizing contract: the
+Little's law (8 x 8 B / ~27 cyc = ~180 MB/s on the board (pre-ring-fix state, 2026-09; the return-ring fix took board reads to ~572 MB/s)). Sizing contract: the
 DFI layer's `RD_MAX_OUTSTANDING` and return CDC FIFO (`RD_RET_DEPTH x
 BURST_WORDS`) must cover every in-flight read, because `dfi_rddata_valid` has no
 backpressure; `pumice_dfi_rd_aligner` asserts it. `pumice_rd_intake`'s order

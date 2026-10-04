@@ -343,7 +343,7 @@ adapt_time (Happy adaptive-timeout) mistake-counter thresholds.
 
 ### 0x07C — retired
 
-Was `PAGE_RBL_CFG` (RBLA miss-counter table shape). Modes 6/7 (`rbl_static`/`rbl_dyn`) were **RETIRED 2026-09-26**: measured on silicon at txn_scale=1000 on a workload built specifically to suit them (TASK-011), mode 6 lost 26% of bandwidth (195.2 -> 144.2 MB/s) by paying +22,827 ACTs to save precharges that never materialised, and mode 7's hill-climb drove its threshold to "never close early", landing bit-identical to plain open page. A write of 6 or 7 now falls through to the build default.
+Was `PAGE_RBL_CFG` (RBLA miss-counter table shape). Modes 6/7 (`rbl_static`/`rbl_dyn`) were **RETIRED 2026-09-26**: measured on silicon at txn_scale=1000 on a workload built specifically to suit them (TASK-011), mode 6 lost 26% of bandwidth (195.2 -> 144.2 MB/s) by paying +22,827 ACTs to save precharges that never materialised, and mode 7's hill-climb drove its threshold to "never close early", landing bit-identical to plain open page (pre-sdpram-fix 2026-10-02; off-datapath fix, reproduced 2026-10-03 — FINDINGS_litedram_ab_2026-10-03.md). A write of 6 or 7 now falls through to the build default.
 
 
 ### REF_CTRL @ 0x140 (rw)

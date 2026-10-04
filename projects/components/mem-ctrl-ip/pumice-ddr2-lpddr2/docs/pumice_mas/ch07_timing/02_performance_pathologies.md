@@ -11,6 +11,14 @@ completes, and the only symptom is the shape. That is the class that ships,
 because nothing fails. **Pathological** shapes are the ones where the design is
 wedged or about to be.
 
+> **Vintage.** These shapes were captured 2026-09, before the sdpram
+> burst-boundary fix (`amba 71d48b6f7`, 2026-10-02). The fix is on the harness
+> UART/debug SRAM, off this datapath, and the 2026-10-03 post-fix board re-run
+> reproduces the healthy endpoints these shapes are measured against (writes
+> 570.3, row_major read 572.3 MB/s — `char-perf/reports/char_postfix_2026-10-03.csv`,
+> FINDINGS_litedram_ab_2026-10-03.md). Captions below keep their capture-date
+> numbers; where a post-fix re-measure exists it is noted inline.
+
 ## Bad performance -- correct, just slow
 
 ![Admit gate at half rate](../assets/waves/13_bad_admit_gate_half_rate.png)
@@ -19,15 +27,15 @@ BAD PERF -- read admit at HALF rate. The arm bit was cleared by its own admit an
 
 ![Reads bounded by the return ring](../assets/waves/14_bad_ring_depth_bound.png)
 
-BAD PERF -- reads bounded by the RETURN RING, not by tCCD. Tickets allocate at admit and free only when the beat drains ~49 cycles later, so the sustained rate is DEPTH/latency: 32/49 = 0.78 col/cycle = 470.9 MB/s, which is exactly what the board measured at depth 32. Issue goes idle in bursts (alloc_ready low) even though every DRAM timer is clear. Depth 64 -> 571.3 MB/s.
+BAD PERF -- reads bounded by the RETURN RING, not by tCCD. Tickets allocate at admit and free only when the beat drains ~49 cycles later, so the sustained rate is DEPTH/latency: 32/49 = 0.78 col/cycle = 470.9 MB/s, which is exactly what the board measured at depth 32. Issue goes idle in bursts (alloc_ready low) even though every DRAM timer is clear. Depth 64 -> 571.3 MB/s (572.3 re-measured on the post-fix image, 2026-10-03).
 
 ![Page thrash](../assets/waves/15_bad_page_thrash_col_major.png)
 
-BAD PERF -- page thrash (col_major). Every access is a different row in the SAME bank, so each column costs PRE + tRP + ACT + tRCD before it can issue: ~8 cycles of overhead per 8 bytes. Board: 102.4 MB/s read at AxLEN 4 against 571.3 for row_major -- a 5.6x penalty with identical DRAM and identical controller settings. The fix is the ADDRESS MAP, not the controller.
+BAD PERF -- page thrash (col_major). Every access is a different row in the SAME bank, so each column costs PRE + tRP + ACT + tRCD before it can issue: ~8 cycles of overhead per 8 bytes. Board: 102.4 MB/s read at AxLEN 4 on the 2026-09-10 image (114.7 re-measured 2026-10-03, open_page col_major bl4) against 572.3 for row_major -- a 5x penalty with identical DRAM and identical controller settings. The fix is the ADDRESS MAP, not the controller.
 
 ![Read/write turnaround thrash](../assets/waves/16_bad_rw_turnaround_thrash.png)
 
-BAD PERF -- read/write turnaround thrash. Switching direction every column pays tWTR or tRTW each time and the DQ bus idles in the gap. This is the workload a global reorder window exists to fix: pumice batches same-direction columns and sustains 570.1 MB/s with both directions live, where LiteDRAM's per-bank round-robin pays the turnaround and reaches 285.6.
+BAD PERF -- read/write turnaround thrash. Switching direction every column pays tWTR or tRTW each time and the DQ bus idles in the gap. This is the workload a global reorder window exists to fix: pumice batches same-direction columns and sustains 571.1 MB/s with both directions live (2026-10-04 post-fix re-verification, 570.1 on 2026-09-10), where LiteDRAM's per-bank round-robin pays the turnaround and reaches 285.8 (285.6 on 2026-09-10).
 
 ![Refresh storm](../assets/waves/17_bad_refresh_storm.png)
 
@@ -41,7 +49,7 @@ PATHOLOGICAL -- row ping-pong between masters. Two generators on different ROWS 
 
 ![In-order serialization](../assets/waves/19_patho_inorder_serialization.png)
 
-PATHOLOGICAL -- in_order (SCHED_POLICY.order_mode=1). Every entry is eligible and several are page hits, but only the HEAD may issue, so a row-interleaved stream pays PRE+ACT between consecutive columns while the hit sits two entries back. This is the cost of the mode, not a defect: it exists to make ordering observable. Roughly 17x on the board -- use it to prove reordering is what is buying the bandwidth, never in production.
+PATHOLOGICAL -- in_order (SCHED_POLICY.order_mode=1). Every entry is eligible and several are page hits, but only the HEAD may issue, so a row-interleaved stream pays PRE+ACT between consecutive columns while the hit sits two entries back. This is the cost of the mode, not a defect: it exists to make ordering observable. Roughly 13x on the board (2026-10-03 post-fix image: 45.0 MB/s vs 572.3 open_page, row_major bl8; was ~17x against the 2026-09 close-page baseline) -- use it to prove reordering is what is buying the bandwidth, never in production.
 
 ![Stale bank image (closed)](../assets/waves/09_failure_stale_image_wedge.png)
 

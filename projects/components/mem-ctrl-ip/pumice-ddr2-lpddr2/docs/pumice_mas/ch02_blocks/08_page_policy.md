@@ -45,7 +45,11 @@ ring loses a ticket at `rd_gap >= 8`). The measurement below stands. Measured on
 strictly dominant over open page across every scenario in the suite --
 +41.2% on `col_major_interleaved_bl4`, +8.6..11.6% on `col_major`, and exactly
 flat on `incremental`/`row_major` -- with no scenario regressing and zero
-integrity failures. Two notes for anyone changing it:
+integrity failures.
+
+> **Vintage:** these board measurements are 2026-09-27, pre-sdpram-fix (`amba 71d48b6f7`, 2026-10-02); the fix is on the harness UART/debug SRAM, off this datapath, and the 2026-10-03 post-fix re-run reproduced `close_page col_major` read to the digit (195.2 MB/s on both images; FINDINGS_litedram_ab_2026-10-03.md).
+
+Two notes for anyone changing it:
 
 * `tr_init = 0` **disables the timeout entirely** (`f_tr`/`r_idle` below). It is
   not a "build default" sentinel on this field, which is why the reset had to

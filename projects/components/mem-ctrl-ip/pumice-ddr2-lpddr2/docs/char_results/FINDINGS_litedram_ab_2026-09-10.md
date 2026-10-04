@@ -1,5 +1,7 @@
 # LiteDRAM vs pumice through the SAME harness (2026-09-10)
 
+> **Superseded measurement context:** this A/B comparison was re-run 2026-10-03 on post-sdpram-fix images built from a single commit (both sides); see [`FINDINGS_litedram_ab_2026-10-03.md`](FINDINGS_litedram_ab_2026-10-03.md). Pumice streaming reads now match LiteDRAM within ~1%, and the concurrent both-directions numbers were re-verified 2026-10-04. This page stands as the dated 2026-09-10 original.
+
 Same board (Nexys A7-100T, MT47H64M16 x16 DDR2), same operating point (75 MHz
 sys / 1:2 / DDR2-300, MR0 = 0x0432: BL4, CL3), same RTL in front of the
 controller (`char_engine_block`: chargen_regs, generator arrays, crossbars, bus

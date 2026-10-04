@@ -15,14 +15,16 @@ write_latency=0.
 > **Corrected 2026-09-10.** These diagrams previously declared tCCD=2 and drew a
 > column every *other* cycle while captioned "~100% bus util", which cannot both
 > be true. `pumice_core.sv:255` clamps `t_ccd_i` up to `BURST_WORDS`, which is 1
-> here, and the board sustains 571.3 MB/s read. A column every cycle is the
-> ideal, and that is what these now show.
+> here, and the board sustains ~572 MB/s read (571.3 on the 2026-09-10/14
+> images, 572.3 re-measured on the post-sdpram-fix image of 2026-10-03 —
+> `docs/char_results/FINDINGS_litedram_ab_2026-10-03.md`). A column every cycle
+> is the ideal, and that is what these now show.
 
 ## Streaming
 
 ![Ideal open-page read stream](../assets/waves/01_open_read_stream.png)
 
-IDEAL open-page READ stream: a column EVERY cycle (tCCD=1 at BL4/x16/32b beat), rvalid continuous after the t_rddata_en+CL fill. 8 B/cycle = 600 MB/s peak; the board measures 571.3 (95%). No occupancy stall between same-bank columns -- the per-bank mask is AP-gated, so non-AP columns are spaced by tCCD alone.
+IDEAL open-page READ stream: a column EVERY cycle (tCCD=1 at BL4/x16/32b beat), rvalid continuous after the t_rddata_en+CL fill. 8 B/cycle = 600 MB/s peak; the board measures 572.3 (95%) post-fix 2026-10-03 (571.3 pre-fix). No occupancy stall between same-bank columns -- the per-bank mask is AP-gated, so non-AP columns are spaced by tCCD alone.
 
 ![Ideal open-page write stream](../assets/waves/02_open_write_stream.png)
 

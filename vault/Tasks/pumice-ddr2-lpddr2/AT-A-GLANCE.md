@@ -29,15 +29,31 @@ The cost is measurable and is the honest counterpart to the flexibility:
 | | pumice | LiteDRAM (same board, same PHY, same harness) |
 |---|---|---|
 | controller + PHY | **12 981 LUT / 9 667 FF** | 2 411 LUT / 2 046 FF |
-| streaming read | 571.3 MB/s | 579.5 MB/s |
-| streaming write | 570.3 MB/s | 569.2 MB/s |
-| concurrent read+write, one window | **570.1 MB/s total** | 285.6 MB/s |
+| streaming read | 572.3 MB/s | 579.5 MB/s |
+| streaming write | 570.3 MB/s | 569.3 MB/s |
+| concurrent read+write, one window | **571.1 MB/s total** | 285.8 MB/s |
+
+Measurement vintage: streaming rows re-measured 2026-10-03 on post-sdpram-fix
+images built from one commit (pumice `char_postfix_2026-10-03.csv`, LiteDRAM
+`litedram_2026-10-03_matrix.csv`, both fully integrity-clean; pumice read was
+571.3 pre-fix — `docs/char_results/FINDINGS_litedram_ab_2026-10-03.md`). The
+concurrent row is the 2026-10-04 re-verification on the same 2026-10-03 images
+(`reports/concurrent_postfix_2026-10-04.csv`,
+`char_results/litedram_concurrent_2026-10-04.csv`; 570.1 / 285.6 pre-fix) —
+the full A/B table is the addendum in FINDINGS_litedram_ab_2026-10-03.md.
 
 Roughly **five times the logic for equal streaming bandwidth** — and 2.0x
 LiteDRAM once both directions run at once, which is the workload the reorder
 window exists for. If you want a small controller, that table is the argument
 against this one. If you want to ask "what does adaptive page closing actually
 buy on hardware", it is the argument for it.
+
+> **Pre-sdpram-fix figures on this page.** Anything here dated 2026-09-xx (the
+> runtime-axes tables, the 2026-09-14 knee) predates the sdpram burst-boundary
+> fix (`amba 71d48b6f7`, 2026-10-02). The fix is on the harness UART/debug SRAM,
+> off the characterization datapath, and the 2026-10-03/04 post-fix board runs
+> reproduced the overlapping figures (close_page `col_major` bl8 read 195.2 MB/s
+> on both the 2026-09-26 and 2026-10-03 images; streaming within +0.2%).
 
 Everything below follows from that intent. Modes default to
 **encoding 0 = build default and bit-identical**, so the research surface costs
@@ -808,7 +824,7 @@ All 14 points integrity-clean. Reading this table:
   result is now generalised by the gap sweep below, which says WHY: one
   generator at gap 8 is still asking for more than the controller can deliver.
 
-### How much idle the controller absorbs — the gap knee (2026-09-14)
+### How much idle the controller absorbs — the gap knee (2026-09-14; post-fix spot-check 2026-10-04)
 
 192 points: N writers and N readers running CONCURRENTLY, one bank apiece,
 inter-burst gap 0..15, three address orders, at 4+4 / 3+3 / 2+2 / 1+1 engines.
@@ -823,6 +839,22 @@ largest gap whose read bandwidth is still within 3% of the gap-0 value:
 
 Read MB/s from gap 0 to gap 15: 1+1 row_major 574 -> 206 (36% retained), 2+2
 575 -> 417 (73%), 3+3 565 -> 565, 4+4 559 -> 559.
+
+> **Post-sdpram-fix spot-check (2026-10-04, `reports/bank_gap_sweep_postfix_2026-10-04.json`,
+> 48 points at gaps 0/4/8/15, all integrity-clean): the knee did not move.**
+> 4+4 reproduces the committed pre-fix record to the digit (bus 550.0 vs 549.9
+> MB/s, wr 275.0 vs 274.9, knee 15). Every cell's knee matches the table within
+> the spot's gap resolution (4+4 = 15, 3+3 = 15, 2+2 bends between gap 8 and 15,
+> 1+1 bends immediately — spot knee 0). Two caveats: per-direction rd/wr at
+> 2+2/3+3 are not comparable to the committed 2026-09-14 `bank_gap_sweep.json`
+> (the concurrent window measurement was rewritten three times since —
+> `3d6ad0093`, `6cac8cb83`, `326fab277` — the old 2+2/3+3 rows measured the
+> directions serially, which is why they sit at ~282 MB/s); and 1+1 reads at
+> gap ≥ 8 land on 299.6 MB/s in BOTH eras, the signature of tRTW=20 no longer
+> colliding once the gap spaces the turns. The knee conclusion rests on the
+> controller-side behavior, which the 2026-10-03 char matrix independently
+> reproduced to the digit (close_page `col_major` bl8 read 195.2 MB/s on both
+> the 2026-09-26 and 2026-10-03 images).
 
 * **The knee rises with generator count, and that is the expected shape.** A
   gap only bends the curve once aggregate demand falls BELOW what the
@@ -844,18 +876,22 @@ Read MB/s from gap 0 to gap 15: 1+1 row_major 574 -> 206 (36% retained), 2+2
 
 Every row above runs a write phase and then a read phase, so read/write
 turnaround is never paid. These run both together, which is the workload the
-reorder window exists for:
+reorder window exists for (re-measured 2026-10-04 on the 2026-10-03 post-fix
+pumice image, `reports/concurrent_postfix_2026-10-04.csv` /
+`multigen_postfix_2026-10-04.csv`; the 2026-09-10 values it reproduces are in
+parentheses):
 
 | load | write MB/s | read MB/s | **total** | % peak |
 |---|---|---|---|---|
-| 1 writer + 1 reader, row_major bl8 | 285.0 | 285.0 | **570.1** | **95.0%** |
-| 1 writer + 1 reader, incremental bl8 | 276.3 | 276.3 | 552.6 | 92.1% |
-| 1 writer + 2 readers, row_major bl8 | 190.1 | 380.2 | **570.2** | **95.0%** |
+| 1 writer + 1 reader, row_major bl8 | 285.5 | 285.5 | **571.1** | **95.2%** (570.1) |
+| 1 writer + 1 reader, incremental bl8 | 276.2 | 276.2 | 552.4 | 92.1% (552.6) |
+| 1 writer + 2 readers, row_major bl8 | 189.9 | 379.9 | **569.8** | **95.0%** (570.2) |
 
 **pumice holds ~95% of peak with one, two or three concurrent generators**, and
 the split follows the generator mix rather than collapsing. For contrast, the
-same harness driving LiteDRAM on the same board and PHY reaches 285.6 MB/s
-total on the 1+1 case — pumice is **2.00x** there, which is the one place the
+same harness driving LiteDRAM on the same board and PHY reaches 285.8 MB/s
+total on the 1+1 case (re-measured 2026-10-04 on the post-fix LiteDRAM image;
+285.6 on 2026-09-10) — pumice is **2.00x** there, which is the one place the
 extra area pays for itself.
 
 The `col_major` rows are deliberately absent from the concurrent table: those

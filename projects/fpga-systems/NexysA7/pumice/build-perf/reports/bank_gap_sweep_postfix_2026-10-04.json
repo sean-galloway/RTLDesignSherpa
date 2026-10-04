@@ -1,0 +1,2402 @@
+[
+  {
+    "order": "incremental",
+    "n_gen": 1,
+    "gap": 0,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 287.95104832178527,
+    "rd": 285.0440927580985,
+    "bus": 570.088185516197,
+    "wr_cycles": 33339,
+    "rd_cycles": 33679,
+    "window_cycles": 33679,
+    "bytes_per_direction": 128000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 2000,
+    "want_txn": 2000,
+    "notes": [
+      "concurrent 1w+1r of 4w+4r built, region 0x20000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 16000,
+        "backpressure": 11628,
+        "starvation": 34791071,
+        "idle": 1974,
+        "total": 34820673,
+        "window": 33339,
+        "productive_frac": 0.4799184138696422,
+        "backpressure_frac": 0.34878070727976246,
+        "idle_frac": 0.059209934311167105,
+        "other_frac": 0.11209094453942825
+      },
+      "rd": {
+        "productive": 16000,
+        "backpressure": 0,
+        "starvation": 34804673,
+        "idle": 0,
+        "total": 34820673,
+        "window": 33679,
+        "productive_frac": 0.4750734879301642,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.5249265120698359
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "incremental",
+    "n_gen": 1,
+    "gap": 4,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 213.06818181818184,
+    "rd": 222.02178588774026,
+    "bus": 426.1363636363637,
+    "wr_cycles": 45056,
+    "rd_cycles": 43239,
+    "window_cycles": 45056,
+    "bytes_per_direction": 128000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 2000,
+    "want_txn": 2000,
+    "notes": [
+      "concurrent 1w+1r of 4w+4r built, region 0x20000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 16000,
+        "backpressure": 17356,
+        "starvation": 34748313,
+        "idle": 3861,
+        "total": 34785530,
+        "window": 45056,
+        "productive_frac": 0.35511363636363635,
+        "backpressure_frac": 0.38520951704545453,
+        "idle_frac": 0.085693359375,
+        "other_frac": 0.17398348721590912
+      },
+      "rd": {
+        "productive": 16000,
+        "backpressure": 7830,
+        "starvation": 34761672,
+        "idle": 28,
+        "total": 34785530,
+        "window": 43239,
+        "productive_frac": 0.37003630981290037,
+        "backpressure_frac": 0.18108651911468812,
+        "idle_frac": 0.0006475635421725757,
+        "other_frac": 0.44822960753023894
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "incremental",
+    "n_gen": 1,
+    "gap": 8,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 168.85949482867795,
+    "rd": 299.17726252804783,
+    "bus": 337.7189896573559,
+    "wr_cycles": 56852,
+    "rd_cycles": 32088,
+    "window_cycles": 56852,
+    "bytes_per_direction": 128000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 2000,
+    "want_txn": 2000,
+    "notes": [
+      "concurrent 1w+1r of 4w+4r built, region 0x20000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 16000,
+        "backpressure": 0,
+        "starvation": 34767612,
+        "idle": 25346,
+        "total": 34808958,
+        "window": 56852,
+        "productive_frac": 0.28143249138112997,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.44582424540913246,
+        "other_frac": 0.27274326320973763
+      },
+      "rd": {
+        "productive": 16000,
+        "backpressure": 15988,
+        "starvation": 34776970,
+        "idle": 0,
+        "total": 34808958,
+        "window": 32088,
+        "productive_frac": 0.4986287708800798,
+        "backpressure_frac": 0.49825479930191974,
+        "idle_frac": 0.0,
+        "other_frac": 0.0031164298180004213
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "incremental",
+    "n_gen": 1,
+    "gap": 15,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 118.58146917499414,
+    "rd": 208.53698273053112,
+    "bus": 237.16293834998828,
+    "wr_cycles": 80957,
+    "rd_cycles": 46035,
+    "window_cycles": 80957,
+    "bytes_per_direction": 128000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 2000,
+    "want_txn": 2000,
+    "notes": [
+      "concurrent 1w+1r of 4w+4r built, region 0x20000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 16000,
+        "backpressure": 0,
+        "starvation": 34762597,
+        "idle": 36218,
+        "total": 34814815,
+        "window": 80957,
+        "productive_frac": 0.19763578195832354,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.44737329693541017,
+        "other_frac": 0.3549909211062663
+      },
+      "rd": {
+        "productive": 16000,
+        "backpressure": 29983,
+        "starvation": 34768832,
+        "idle": 0,
+        "total": 34814815,
+        "window": 46035,
+        "productive_frac": 0.3475616378842185,
+        "backpressure_frac": 0.6513087867926578,
+        "idle_frac": 0.0,
+        "other_frac": 0.0011295753231236327
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "row_major",
+    "n_gen": 1,
+    "gap": 0,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 285.349106797848,
+    "rd": 288.5482416591524,
+    "bus": 570.698213595696,
+    "wr_cycles": 33643,
+    "rd_cycles": 33270,
+    "window_cycles": 33643,
+    "bytes_per_direction": 128000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 2000,
+    "want_txn": 2000,
+    "notes": [
+      "concurrent 1w+1r of 4w+4r built, region 0x800"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 16000,
+        "backpressure": 11587,
+        "starvation": 34767992,
+        "idle": 2318,
+        "total": 34797897,
+        "window": 33643,
+        "productive_frac": 0.47558184466308,
+        "backpressure_frac": 0.34441042713194425,
+        "idle_frac": 0.06889991974556371,
+        "other_frac": 0.11110780845941208
+      },
+      "rd": {
+        "productive": 16000,
+        "backpressure": 0,
+        "starvation": 34781897,
+        "idle": 0,
+        "total": 34797897,
+        "window": 33270,
+        "productive_frac": 0.48091373609858734,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.5190862639014127
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "row_major",
+    "n_gen": 1,
+    "gap": 4,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 213.01617591585864,
+    "rd": 224.7191011235955,
+    "bus": 426.0323518317173,
+    "wr_cycles": 45067,
+    "rd_cycles": 42720,
+    "window_cycles": 45067,
+    "bytes_per_direction": 128000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 2000,
+    "want_txn": 2000,
+    "notes": [
+      "concurrent 1w+1r of 4w+4r built, region 0x800"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 16000,
+        "backpressure": 17334,
+        "starvation": 34762648,
+        "idle": 3866,
+        "total": 34799848,
+        "window": 45067,
+        "productive_frac": 0.35502695985976435,
+        "backpressure_frac": 0.3846273326380722,
+        "idle_frac": 0.08578338917611557,
+        "other_frac": 0.17456231832604785
+      },
+      "rd": {
+        "productive": 16000,
+        "backpressure": 7834,
+        "starvation": 34775986,
+        "idle": 28,
+        "total": 34799848,
+        "window": 42720,
+        "productive_frac": 0.37453183520599254,
+        "backpressure_frac": 0.1833801498127341,
+        "idle_frac": 0.0006554307116104869,
+        "other_frac": 0.44143258426966286
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "row_major",
+    "n_gen": 1,
+    "gap": 8,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 168.6192542110902,
+    "rd": 299.6067661194682,
+    "bus": 337.2385084221804,
+    "wr_cycles": 56933,
+    "rd_cycles": 32042,
+    "window_cycles": 56933,
+    "bytes_per_direction": 128000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 2000,
+    "want_txn": 2000,
+    "notes": [
+      "concurrent 1w+1r of 4w+4r built, region 0x800"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 16000,
+        "backpressure": 0,
+        "starvation": 34762335,
+        "idle": 25418,
+        "total": 34803753,
+        "window": 56933,
+        "productive_frac": 0.28103209035181703,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.44645460453515534,
+        "other_frac": 0.27251330511302757
+      },
+      "rd": {
+        "productive": 16000,
+        "backpressure": 15990,
+        "starvation": 34771763,
+        "idle": 0,
+        "total": 34803753,
+        "window": 32042,
+        "productive_frac": 0.49934461019911364,
+        "backpressure_frac": 0.4990325198177392,
+        "idle_frac": 0.0,
+        "other_frac": 0.0016228699831470905
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "row_major",
+    "n_gen": 1,
+    "gap": 15,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 118.49803737625597,
+    "rd": 208.53698273053112,
+    "bus": 236.99607475251193,
+    "wr_cycles": 81014,
+    "rd_cycles": 46035,
+    "window_cycles": 81014,
+    "bytes_per_direction": 128000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 2000,
+    "want_txn": 2000,
+    "notes": [
+      "concurrent 1w+1r of 4w+4r built, region 0x800"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 16000,
+        "backpressure": 28,
+        "starvation": 34752809,
+        "idle": 36218,
+        "total": 34805055,
+        "window": 81014,
+        "productive_frac": 0.19749672896042658,
+        "backpressure_frac": 0.00034561927568074654,
+        "idle_frac": 0.44705853309304566,
+        "other_frac": 0.355099118670847
+      },
+      "rd": {
+        "productive": 16000,
+        "backpressure": 29983,
+        "starvation": 34759072,
+        "idle": 0,
+        "total": 34805055,
+        "window": 46035,
+        "productive_frac": 0.3475616378842185,
+        "backpressure_frac": 0.6513087867926578,
+        "idle_frac": 0.0,
+        "other_frac": 0.0011295753231236327
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "col_major",
+    "n_gen": 1,
+    "gap": 0,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 97.29203826820172,
+    "rd": 188.2648258550361,
+    "bus": 194.58407653640344,
+    "wr_cycles": 98672,
+    "rd_cycles": 50992,
+    "window_cycles": 98672,
+    "bytes_per_direction": 128000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 2000,
+    "want_txn": 2000,
+    "notes": [
+      "concurrent 1w+1r of 4w+4r built, region 0x4000000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 16000,
+        "backpressure": 1160,
+        "starvation": 34709765,
+        "idle": 79431,
+        "total": 34806356,
+        "window": 98672,
+        "productive_frac": 0.16215339711366952,
+        "backpressure_frac": 0.01175612129074104,
+        "idle_frac": 0.8050004053834928,
+        "other_frac": 0.021090076212096687
+      },
+      "rd": {
+        "productive": 16000,
+        "backpressure": 0,
+        "starvation": 34790356,
+        "idle": 0,
+        "total": 34806356,
+        "window": 50992,
+        "productive_frac": 0.3137747097583935,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.6862252902416065
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "col_major",
+    "n_gen": 1,
+    "gap": 4,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 97.28612253997852,
+    "rd": 188.24267618337973,
+    "bus": 194.57224507995704,
+    "wr_cycles": 98678,
+    "rd_cycles": 50998,
+    "window_cycles": 98678,
+    "bytes_per_direction": 128000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 2000,
+    "want_txn": 2000,
+    "notes": [
+      "concurrent 1w+1r of 4w+4r built, region 0x4000000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 16000,
+        "backpressure": 1160,
+        "starvation": 34707168,
+        "idle": 79425,
+        "total": 34803753,
+        "window": 98678,
+        "productive_frac": 0.16214353756663086,
+        "backpressure_frac": 0.011755406473580737,
+        "idle_frac": 0.8048906544518535,
+        "other_frac": 0.02121040150793485
+      },
+      "rd": {
+        "productive": 16000,
+        "backpressure": 0,
+        "starvation": 34787753,
+        "idle": 0,
+        "total": 34803753,
+        "window": 50998,
+        "productive_frac": 0.31373779363896626,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.6862622063610337
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "col_major",
+    "n_gen": 1,
+    "gap": 8,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 97.30781706130392,
+    "rd": 188.4126236457843,
+    "bus": 194.61563412260784,
+    "wr_cycles": 98656,
+    "rd_cycles": 50952,
+    "window_cycles": 98656,
+    "bytes_per_direction": 128000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 2000,
+    "want_txn": 2000,
+    "notes": [
+      "concurrent 1w+1r of 4w+4r built, region 0x4000000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 16000,
+        "backpressure": 1160,
+        "starvation": 34711106,
+        "idle": 79391,
+        "total": 34807657,
+        "window": 98656,
+        "productive_frac": 0.1621796951021732,
+        "backpressure_frac": 0.011758027894907557,
+        "idle_frac": 0.8047255108660396,
+        "other_frac": 0.021336766136879626
+      },
+      "rd": {
+        "productive": 16000,
+        "backpressure": 0,
+        "starvation": 34791657,
+        "idle": 0,
+        "total": 34807657,
+        "window": 50952,
+        "productive_frac": 0.31402103940964043,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.6859789605903596
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "col_major",
+    "n_gen": 1,
+    "gap": 15,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 97.3058444322812,
+    "rd": 188.4052282450838,
+    "bus": 194.6116888645624,
+    "wr_cycles": 98658,
+    "rd_cycles": 50954,
+    "window_cycles": 98658,
+    "bytes_per_direction": 128000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 2000,
+    "want_txn": 2000,
+    "notes": [
+      "concurrent 1w+1r of 4w+4r built, region 0x4000000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 16000,
+        "backpressure": 1160,
+        "starvation": 34706569,
+        "idle": 79372,
+        "total": 34803101,
+        "window": 98658,
+        "productive_frac": 0.16217640738713535,
+        "backpressure_frac": 0.011757789535567314,
+        "idle_frac": 0.8045166129457317,
+        "other_frac": 0.021549190131565643
+      },
+      "rd": {
+        "productive": 16000,
+        "backpressure": 0,
+        "starvation": 34787101,
+        "idle": 0,
+        "total": 34803101,
+        "window": 50954,
+        "productive_frac": 0.31400871374180633,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.6859912862581936
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "incremental",
+    "n_gen": 2,
+    "gap": 0,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 282.94796410097706,
+    "rd": 554.080572549925,
+    "bus": 565.8959282019541,
+    "wr_cycles": 67857,
+    "rd_cycles": 34652,
+    "window_cycles": 67857,
+    "bytes_per_direction": 256000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 4000,
+    "want_txn": 4000,
+    "notes": [
+      "concurrent 2w+2r of 4w+4r built, region 0x20000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 32000,
+        "backpressure": 841,
+        "starvation": 34738118,
+        "idle": 34095,
+        "total": 34805054,
+        "window": 67857,
+        "productive_frac": 0.4715799401682951,
+        "backpressure_frac": 0.012393710302548005,
+        "idle_frac": 0.5024536893761882,
+        "other_frac": 0.013572660152968763
+      },
+      "rd": {
+        "productive": 32000,
+        "backpressure": 0,
+        "starvation": 34773054,
+        "idle": 0,
+        "total": 34805054,
+        "window": 34652,
+        "productive_frac": 0.9234676209165417,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.07653237908345834
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "incremental",
+    "n_gen": 2,
+    "gap": 4,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 282.80209744888936,
+    "rd": 554.080572549925,
+    "bus": 565.6041948977787,
+    "wr_cycles": 67892,
+    "rd_cycles": 34652,
+    "window_cycles": 67892,
+    "bytes_per_direction": 256000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 4000,
+    "want_txn": 4000,
+    "notes": [
+      "concurrent 2w+2r of 4w+4r built, region 0x20000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 32000,
+        "backpressure": 841,
+        "starvation": 34737435,
+        "idle": 34127,
+        "total": 34804403,
+        "window": 67892,
+        "productive_frac": 0.47133682908148233,
+        "backpressure_frac": 0.012387321039297709,
+        "idle_frac": 0.5026659989394922,
+        "other_frac": 0.013609850939727774
+      },
+      "rd": {
+        "productive": 32000,
+        "backpressure": 0,
+        "starvation": 34772403,
+        "idle": 0,
+        "total": 34804403,
+        "window": 34652,
+        "productive_frac": 0.9234676209165417,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.07653237908345834
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "incremental",
+    "n_gen": 2,
+    "gap": 8,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 282.86042605851674,
+    "rd": 554.2085209560097,
+    "bus": 565.7208521170335,
+    "wr_cycles": 67878,
+    "rd_cycles": 34644,
+    "window_cycles": 67878,
+    "bytes_per_direction": 256000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 4000,
+    "want_txn": 4000,
+    "notes": [
+      "concurrent 2w+2r of 4w+4r built, region 0x20000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 32000,
+        "backpressure": 812,
+        "starvation": 34743376,
+        "idle": 34072,
+        "total": 34810260,
+        "window": 67878,
+        "productive_frac": 0.47143404343086126,
+        "backpressure_frac": 0.011962638852058104,
+        "idle_frac": 0.5019593977430096,
+        "other_frac": 0.014643919974071107
+      },
+      "rd": {
+        "productive": 32000,
+        "backpressure": 0,
+        "starvation": 34778260,
+        "idle": 0,
+        "total": 34810260,
+        "window": 34644,
+        "productive_frac": 0.9236808682600162,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.07631913173998384
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "incremental",
+    "n_gen": 2,
+    "gap": 15,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 210.88935997276013,
+    "rd": 416.70283878808925,
+    "bus": 421.77871994552027,
+    "wr_cycles": 91043,
+    "rd_cycles": 46076,
+    "window_cycles": 91043,
+    "bytes_per_direction": 256000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 4000,
+    "want_txn": 4000,
+    "notes": [
+      "concurrent 2w+2r of 4w+4r built, region 0x20000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 32000,
+        "backpressure": 0,
+        "starvation": 34735616,
+        "idle": 45247,
+        "total": 34812863,
+        "window": 91043,
+        "productive_frac": 0.35148226662126686,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.49698494118163944,
+        "other_frac": 0.15153279219709365
+      },
+      "rd": {
+        "productive": 32000,
+        "backpressure": 13991,
+        "starvation": 34766872,
+        "idle": 0,
+        "total": 34812863,
+        "window": 46076,
+        "productive_frac": 0.6945047313134821,
+        "backpressure_frac": 0.3036504904939665,
+        "idle_frac": 0.0,
+        "other_frac": 0.0018447781925514106
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "row_major",
+    "n_gen": 2,
+    "gap": 0,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 282.84375828643823,
+    "rd": 554.1445393673516,
+    "bus": 565.6875165728765,
+    "wr_cycles": 67882,
+    "rd_cycles": 34648,
+    "window_cycles": 67882,
+    "bytes_per_direction": 256000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 4000,
+    "want_txn": 4000,
+    "notes": [
+      "concurrent 2w+2r of 4w+4r built, region 0x800"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 32000,
+        "backpressure": 841,
+        "starvation": 34736822,
+        "idle": 34090,
+        "total": 34803753,
+        "window": 67882,
+        "productive_frac": 0.47140626381073036,
+        "backpressure_frac": 0.012389145870775758,
+        "idle_frac": 0.5021949854158687,
+        "other_frac": 0.01400960490262515
+      },
+      "rd": {
+        "productive": 32000,
+        "backpressure": 0,
+        "starvation": 34771753,
+        "idle": 0,
+        "total": 34803753,
+        "window": 34648,
+        "productive_frac": 0.9235742322789194,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.07642576772108056
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "row_major",
+    "n_gen": 2,
+    "gap": 4,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 282.9271167958504,
+    "rd": 554.080572549925,
+    "bus": 565.8542335917008,
+    "wr_cycles": 67862,
+    "rd_cycles": 34652,
+    "window_cycles": 67862,
+    "bytes_per_direction": 256000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 4000,
+    "want_txn": 4000,
+    "notes": [
+      "concurrent 2w+2r of 4w+4r built, region 0x800"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 32000,
+        "backpressure": 812,
+        "starvation": 34737465,
+        "idle": 34127,
+        "total": 34804404,
+        "window": 67862,
+        "productive_frac": 0.47154519465975064,
+        "backpressure_frac": 0.011965459314491174,
+        "idle_frac": 0.502888214317291,
+        "other_frac": 0.013601131708467107
+      },
+      "rd": {
+        "productive": 32000,
+        "backpressure": 0,
+        "starvation": 34772404,
+        "idle": 0,
+        "total": 34804404,
+        "window": 34652,
+        "productive_frac": 0.9234676209165417,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.07653237908345834
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "row_major",
+    "n_gen": 2,
+    "gap": 8,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 282.8187603111006,
+    "rd": 554.1445393673516,
+    "bus": 565.6375206222012,
+    "wr_cycles": 67888,
+    "rd_cycles": 34648,
+    "window_cycles": 67888,
+    "bytes_per_direction": 256000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 4000,
+    "want_txn": 4000,
+    "notes": [
+      "concurrent 2w+2r of 4w+4r built, region 0x800"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 32000,
+        "backpressure": 841,
+        "starvation": 34748501,
+        "idle": 34124,
+        "total": 34815466,
+        "window": 67888,
+        "productive_frac": 0.47136460051850104,
+        "backpressure_frac": 0.012388050907376855,
+        "idle_frac": 0.5026514258779166,
+        "other_frac": 0.013595922696205576
+      },
+      "rd": {
+        "productive": 32000,
+        "backpressure": 0,
+        "starvation": 34783466,
+        "idle": 0,
+        "total": 34815466,
+        "window": 34648,
+        "productive_frac": 0.9235742322789194,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.07642576772108056
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "row_major",
+    "n_gen": 2,
+    "gap": 15,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 210.9519205414433,
+    "rd": 416.95621959694233,
+    "bus": 421.9038410828866,
+    "wr_cycles": 91016,
+    "rd_cycles": 46048,
+    "window_cycles": 91016,
+    "bytes_per_direction": 256000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 4000,
+    "want_txn": 4000,
+    "notes": [
+      "concurrent 2w+2r of 4w+4r built, region 0x800"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 32000,
+        "backpressure": 0,
+        "starvation": 34727187,
+        "idle": 45217,
+        "total": 34804404,
+        "window": 91016,
+        "productive_frac": 0.35158653423573877,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.49680275995429374,
+        "other_frac": 0.15161070580996755
+      },
+      "rd": {
+        "productive": 32000,
+        "backpressure": 13991,
+        "starvation": 34758413,
+        "idle": 0,
+        "total": 34804404,
+        "window": 46048,
+        "productive_frac": 0.6949270326615705,
+        "backpressure_frac": 0.303835128561501,
+        "idle_frac": 0.0,
+        "other_frac": 0.0012378387769284571
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "col_major",
+    "n_gen": 2,
+    "gap": 0,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 116.61595087553067,
+    "rd": 237.45918670228556,
+    "bus": 233.23190175106134,
+    "wr_cycles": 164643,
+    "rd_cycles": 80856,
+    "window_cycles": 164643,
+    "bytes_per_direction": 256000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 4000,
+    "want_txn": 4000,
+    "notes": [
+      "concurrent 2w+2r of 4w+4r built, region 0x2000000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 32000,
+        "backpressure": 58,
+        "starvation": 34643861,
+        "idle": 128484,
+        "total": 34804403,
+        "window": 164643,
+        "productive_frac": 0.1943599181258845,
+        "backpressure_frac": 0.00035227735160316565,
+        "idle_frac": 0.780379366265192,
+        "other_frac": 0.024908438257320364
+      },
+      "rd": {
+        "productive": 32000,
+        "backpressure": 0,
+        "starvation": 34772403,
+        "idle": 0,
+        "total": 34804403,
+        "window": 80856,
+        "productive_frac": 0.3957653111704759,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.604234688829524
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "col_major",
+    "n_gen": 2,
+    "gap": 4,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 116.60886834737296,
+    "rd": 237.47680890538035,
+    "bus": 233.21773669474592,
+    "wr_cycles": 164653,
+    "rd_cycles": 80850,
+    "window_cycles": 164653,
+    "bytes_per_direction": 256000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 4000,
+    "want_txn": 4000,
+    "notes": [
+      "concurrent 2w+2r of 4w+4r built, region 0x2000000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 32000,
+        "backpressure": 0,
+        "starvation": 34644474,
+        "idle": 128581,
+        "total": 34805055,
+        "window": 164653,
+        "productive_frac": 0.19434811391228826,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.7809210885923731,
+        "other_frac": 0.024730797495338686
+      },
+      "rd": {
+        "productive": 32000,
+        "backpressure": 0,
+        "starvation": 34773055,
+        "idle": 0,
+        "total": 34805055,
+        "window": 80850,
+        "productive_frac": 0.39579468150896724,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.6042053184910328
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "col_major",
+    "n_gen": 2,
+    "gap": 8,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 116.6138260267483,
+    "rd": 237.46506047938257,
+    "bus": 233.2276520534966,
+    "wr_cycles": 164646,
+    "rd_cycles": 80854,
+    "window_cycles": 164646,
+    "bytes_per_direction": 256000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 4000,
+    "want_txn": 4000,
+    "notes": [
+      "concurrent 2w+2r of 4w+4r built, region 0x2000000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 32000,
+        "backpressure": 29,
+        "starvation": 34644479,
+        "idle": 128545,
+        "total": 34805053,
+        "window": 164646,
+        "productive_frac": 0.19435637671124717,
+        "backpressure_frac": 0.00017613546639456775,
+        "idle_frac": 0.7807356388858521,
+        "other_frac": 0.02473184893650615
+      },
+      "rd": {
+        "productive": 32000,
+        "backpressure": 0,
+        "starvation": 34773053,
+        "idle": 0,
+        "total": 34805053,
+        "window": 80854,
+        "productive_frac": 0.395775100798971,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.6042248992010291
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "col_major",
+    "n_gen": 2,
+    "gap": 15,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 116.60603557698731,
+    "rd": 237.5296912114014,
+    "bus": 233.21207115397462,
+    "wr_cycles": 164657,
+    "rd_cycles": 80832,
+    "window_cycles": 164657,
+    "bytes_per_direction": 256000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 4000,
+    "want_txn": 4000,
+    "notes": [
+      "concurrent 2w+2r of 4w+4r built, region 0x2000000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 32000,
+        "backpressure": 0,
+        "starvation": 34644477,
+        "idle": 128578,
+        "total": 34805055,
+        "window": 164657,
+        "productive_frac": 0.19434339262831218,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.7808838980425976,
+        "other_frac": 0.024772709329090148
+      },
+      "rd": {
+        "productive": 32000,
+        "backpressure": 0,
+        "starvation": 34773055,
+        "idle": 0,
+        "total": 34805055,
+        "window": 80832,
+        "productive_frac": 0.39588281868566905,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.6041171813143309
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "incremental",
+    "n_gen": 3,
+    "gap": 0,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 279.00217970452894,
+    "rd": 548.4460694698354,
+    "bus": 558.0043594090579,
+    "wr_cycles": 103225,
+    "rd_cycles": 52512,
+    "window_cycles": 103225,
+    "bytes_per_direction": 384000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 6000,
+    "want_txn": 6000,
+    "notes": [
+      "concurrent 3w+3r of 4w+4r built, region 0x20000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 48000,
+        "backpressure": 1682,
+        "starvation": 34706064,
+        "idle": 53213,
+        "total": 34808959,
+        "window": 103225,
+        "productive_frac": 0.4650036328408816,
+        "backpressure_frac": 0.016294502300799225,
+        "idle_frac": 0.5155049648825382,
+        "other_frac": 0.003196899975781098
+      },
+      "rd": {
+        "productive": 48000,
+        "backpressure": 0,
+        "starvation": 34760959,
+        "idle": 0,
+        "total": 34808959,
+        "window": 52512,
+        "productive_frac": 0.9140767824497258,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.08592321755027421
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "incremental",
+    "n_gen": 3,
+    "gap": 4,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 279.02380421829736,
+    "rd": 547.9347805407051,
+    "bus": 558.0476084365947,
+    "wr_cycles": 103217,
+    "rd_cycles": 52561,
+    "window_cycles": 103217,
+    "bytes_per_direction": 384000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 6000,
+    "want_txn": 6000,
+    "notes": [
+      "concurrent 3w+3r of 4w+4r built, region 0x20000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 48000,
+        "backpressure": 1653,
+        "starvation": 34708732,
+        "idle": 53177,
+        "total": 34811562,
+        "window": 103217,
+        "productive_frac": 0.4650396736971623,
+        "backpressure_frac": 0.016014803762946027,
+        "idle_frac": 0.5151961401707084,
+        "other_frac": 0.0037493823691833184
+      },
+      "rd": {
+        "productive": 48000,
+        "backpressure": 0,
+        "starvation": 34763562,
+        "idle": 0,
+        "total": 34811562,
+        "window": 52561,
+        "productive_frac": 0.9132246342345085,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.0867753657654915
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "incremental",
+    "n_gen": 3,
+    "gap": 8,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 279.029210870513,
+    "rd": 548.0181911594009,
+    "bus": 558.058421741026,
+    "wr_cycles": 103215,
+    "rd_cycles": 52553,
+    "window_cycles": 103215,
+    "bytes_per_direction": 384000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 6000,
+    "want_txn": 6000,
+    "notes": [
+      "concurrent 3w+3r of 4w+4r built, region 0x20000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 48000,
+        "backpressure": 1653,
+        "starvation": 34702848,
+        "idle": 53204,
+        "total": 34805705,
+        "window": 103215,
+        "productive_frac": 0.46504868478418837,
+        "backpressure_frac": 0.016015114082255488,
+        "idle_frac": 0.5154677130262074,
+        "other_frac": 0.0034684881073486773
+      },
+      "rd": {
+        "productive": 48000,
+        "backpressure": 0,
+        "starvation": 34757705,
+        "idle": 0,
+        "total": 34805705,
+        "window": 52553,
+        "productive_frac": 0.9133636519323349,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.08663634806766507
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "incremental",
+    "n_gen": 3,
+    "gap": 15,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 279.03461773226235,
+    "rd": 548.0286192723398,
+    "bus": 558.0692354645247,
+    "wr_cycles": 103213,
+    "rd_cycles": 52552,
+    "window_cycles": 103213,
+    "bytes_per_direction": 384000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 6000,
+    "want_txn": 6000,
+    "notes": [
+      "concurrent 3w+3r of 4w+4r built, region 0x20000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 48000,
+        "backpressure": 1653,
+        "starvation": 34700896,
+        "idle": 53203,
+        "total": 34803752,
+        "window": 103213,
+        "productive_frac": 0.46505769622043736,
+        "backpressure_frac": 0.01601542441359131,
+        "idle_frac": 0.5154680127503318,
+        "other_frac": 0.0034588666156395442
+      },
+      "rd": {
+        "productive": 48000,
+        "backpressure": 0,
+        "starvation": 34755752,
+        "idle": 0,
+        "total": 34803752,
+        "window": 52552,
+        "productive_frac": 0.9133810321205663,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.08661896787943368
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "row_major",
+    "n_gen": 3,
+    "gap": 0,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 279.00217970452894,
+    "rd": 547.9764826759518,
+    "bus": 558.0043594090579,
+    "wr_cycles": 103225,
+    "rd_cycles": 52557,
+    "window_cycles": 103225,
+    "bytes_per_direction": 384000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 6000,
+    "want_txn": 6000,
+    "notes": [
+      "concurrent 3w+3r of 4w+4r built, region 0x800"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 48000,
+        "backpressure": 1653,
+        "starvation": 34702159,
+        "idle": 53243,
+        "total": 34805055,
+        "window": 103225,
+        "productive_frac": 0.4650036328408816,
+        "backpressure_frac": 0.01601356260595786,
+        "idle_frac": 0.5157955921530637,
+        "other_frac": 0.003187212400096895
+      },
+      "rd": {
+        "productive": 48000,
+        "backpressure": 0,
+        "starvation": 34757055,
+        "idle": 0,
+        "total": 34805055,
+        "window": 52557,
+        "productive_frac": 0.9132941377932531,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.08670586220674692
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "row_major",
+    "n_gen": 3,
+    "gap": 4,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 279.0102885043886,
+    "rd": 547.9347805407051,
+    "bus": 558.0205770087772,
+    "wr_cycles": 103222,
+    "rd_cycles": 52561,
+    "window_cycles": 103222,
+    "bytes_per_direction": 384000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 6000,
+    "want_txn": 6000,
+    "notes": [
+      "concurrent 3w+3r of 4w+4r built, region 0x800"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 48000,
+        "backpressure": 1624,
+        "starvation": 34700916,
+        "idle": 53212,
+        "total": 34803752,
+        "window": 103222,
+        "productive_frac": 0.4650171475073143,
+        "backpressure_frac": 0.0157330801573308,
+        "idle_frac": 0.5155102594408169,
+        "other_frac": 0.0037395128945379996
+      },
+      "rd": {
+        "productive": 48000,
+        "backpressure": 0,
+        "starvation": 34755752,
+        "idle": 0,
+        "total": 34803752,
+        "window": 52561,
+        "productive_frac": 0.9132246342345085,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.0867753657654915
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "row_major",
+    "n_gen": 3,
+    "gap": 8,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 278.9211176214227,
+    "rd": 547.9764826759518,
+    "bus": 557.8422352428454,
+    "wr_cycles": 103255,
+    "rd_cycles": 52557,
+    "window_cycles": 103255,
+    "bytes_per_direction": 384000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 6000,
+    "want_txn": 6000,
+    "notes": [
+      "concurrent 3w+3r of 4w+4r built, region 0x800"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 48000,
+        "backpressure": 1624,
+        "starvation": 34702871,
+        "idle": 53208,
+        "total": 34805703,
+        "window": 103255,
+        "productive_frac": 0.46486852936903783,
+        "backpressure_frac": 0.01572805191031911,
+        "idle_frac": 0.5153067648055785,
+        "other_frac": 0.004096653915064641
+      },
+      "rd": {
+        "productive": 48000,
+        "backpressure": 0,
+        "starvation": 34757703,
+        "idle": 0,
+        "total": 34805703,
+        "window": 52557,
+        "productive_frac": 0.9132941377932531,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.08670586220674692
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "row_major",
+    "n_gen": 3,
+    "gap": 15,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 279.0048825854452,
+    "rd": 548.4565138732837,
+    "bus": 558.0097651708904,
+    "wr_cycles": 103224,
+    "rd_cycles": 52511,
+    "window_cycles": 103224,
+    "bytes_per_direction": 384000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 6000,
+    "want_txn": 6000,
+    "notes": [
+      "concurrent 3w+3r of 4w+4r built, region 0x800"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 48000,
+        "backpressure": 1654,
+        "starvation": 34703495,
+        "idle": 53206,
+        "total": 34806355,
+        "window": 103224,
+        "productive_frac": 0.4650081376424087,
+        "backpressure_frac": 0.016023405409594668,
+        "idle_frac": 0.5154421452375416,
+        "other_frac": 0.0035263117104550323
+      },
+      "rd": {
+        "productive": 48000,
+        "backpressure": 0,
+        "starvation": 34758355,
+        "idle": 0,
+        "total": 34806355,
+        "window": 52511,
+        "productive_frac": 0.9140941897888062,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.08590581021119381
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "col_major",
+    "n_gen": 3,
+    "gap": 0,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 118.66110717405277,
+    "rd": 241.59655053813955,
+    "bus": 237.32221434810555,
+    "wr_cycles": 242708,
+    "rd_cycles": 119207,
+    "window_cycles": 242708,
+    "bytes_per_direction": 384000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 6000,
+    "want_txn": 6000,
+    "notes": [
+      "concurrent 3w+3r of 4w+4r built, region 0x2000000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 48000,
+        "backpressure": 3016,
+        "starvation": 34336117,
+        "idle": 185591,
+        "total": 34572724,
+        "window": 242708,
+        "productive_frac": 0.19776851195675463,
+        "backpressure_frac": 0.012426454834616081,
+        "idle_frac": 0.7646678313034593,
+        "other_frac": 0.025137201905169992
+      },
+      "rd": {
+        "productive": 48000,
+        "backpressure": 0,
+        "starvation": 34524724,
+        "idle": 0,
+        "total": 34572724,
+        "window": 119207,
+        "productive_frac": 0.4026609175635659,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.5973390824364341
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "col_major",
+    "n_gen": 3,
+    "gap": 4,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 118.66257390659443,
+    "rd": 241.59857725282285,
+    "bus": 237.32514781318886,
+    "wr_cycles": 242705,
+    "rd_cycles": 119206,
+    "window_cycles": 242705,
+    "bytes_per_direction": 384000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 6000,
+    "want_txn": 6000,
+    "notes": [
+      "concurrent 3w+3r of 4w+4r built, region 0x2000000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 48000,
+        "backpressure": 2987,
+        "starvation": 34565876,
+        "idle": 185588,
+        "total": 34802451,
+        "window": 242705,
+        "productive_frac": 0.19777095651099072,
+        "backpressure_frac": 0.012307121814548527,
+        "idle_frac": 0.764664922436703,
+        "other_frac": 0.025256999237757705
+      },
+      "rd": {
+        "productive": 48000,
+        "backpressure": 0,
+        "starvation": 34754451,
+        "idle": 0,
+        "total": 34802451,
+        "window": 119206,
+        "productive_frac": 0.4026642954213714,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.5973357045786286
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "col_major",
+    "n_gen": 3,
+    "gap": 8,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 118.65866270039099,
+    "rd": 241.60060400151002,
+    "bus": 237.31732540078198,
+    "wr_cycles": 242713,
+    "rd_cycles": 119205,
+    "window_cycles": 242713,
+    "bytes_per_direction": 384000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 6000,
+    "want_txn": 6000,
+    "notes": [
+      "concurrent 3w+3r of 4w+4r built, region 0x2000000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 48000,
+        "backpressure": 3075,
+        "starvation": 34567762,
+        "idle": 185566,
+        "total": 34804403,
+        "window": 242713,
+        "productive_frac": 0.197764437833985,
+        "backpressure_frac": 0.012669284298739664,
+        "idle_frac": 0.7645490764812762,
+        "other_frac": 0.025017201385999055
+      },
+      "rd": {
+        "productive": 48000,
+        "backpressure": 0,
+        "starvation": 34756403,
+        "idle": 0,
+        "total": 34804403,
+        "window": 119205,
+        "productive_frac": 0.40266767333585,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.5973323266641499
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "col_major",
+    "n_gen": 3,
+    "gap": 15,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 118.65719606453632,
+    "rd": 241.59655053813955,
+    "bus": 237.31439212907264,
+    "wr_cycles": 242716,
+    "rd_cycles": 119207,
+    "window_cycles": 242716,
+    "bytes_per_direction": 384000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 6000,
+    "want_txn": 6000,
+    "notes": [
+      "concurrent 3w+3r of 4w+4r built, region 0x2000000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 48000,
+        "backpressure": 3016,
+        "starvation": 34568438,
+        "idle": 185599,
+        "total": 34805053,
+        "window": 242716,
+        "productive_frac": 0.19776199344089387,
+        "backpressure_frac": 0.012426045254536165,
+        "idle_frac": 0.7646755879299263,
+        "other_frac": 0.025136373374643695
+      },
+      "rd": {
+        "productive": 48000,
+        "backpressure": 0,
+        "starvation": 34757053,
+        "idle": 0,
+        "total": 34805053,
+        "window": 119207,
+        "productive_frac": 0.4026609175635659,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.5973390824364341
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "incremental",
+    "n_gen": 4,
+    "gap": 0,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 274.96920917709735,
+    "rd": 542.1048916496082,
+    "bus": 549.9384183541947,
+    "wr_cycles": 139652,
+    "rd_cycles": 70835,
+    "window_cycles": 139652,
+    "bytes_per_direction": 512000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 8000,
+    "want_txn": 8000,
+    "notes": [
+      "concurrent 4w+4r of 4w+4r built, region 0x20000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 64000,
+        "backpressure": 205,
+        "starvation": 34663586,
+        "idle": 74660,
+        "total": 34802451,
+        "window": 139652,
+        "productive_frac": 0.45828201529516227,
+        "backpressure_frac": 0.0014679345802423166,
+        "idle_frac": 0.5346146134677627,
+        "other_frac": 0.0056354366568326375
+      },
+      "rd": {
+        "productive": 64000,
+        "backpressure": 0,
+        "starvation": 34738451,
+        "idle": 0,
+        "total": 34802451,
+        "window": 70835,
+        "productive_frac": 0.903508152749347,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.09649184725065296
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "incremental",
+    "n_gen": 4,
+    "gap": 4,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 274.84718782655995,
+    "rd": 542.1967439955946,
+    "bus": 549.6943756531199,
+    "wr_cycles": 139714,
+    "rd_cycles": 70823,
+    "window_cycles": 139714,
+    "bytes_per_direction": 512000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 8000,
+    "want_txn": 8000,
+    "notes": [
+      "concurrent 4w+4r of 4w+4r built, region 0x20000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 64000,
+        "backpressure": 147,
+        "starvation": 34665427,
+        "idle": 74829,
+        "total": 34804403,
+        "window": 139714,
+        "productive_frac": 0.45807864637759993,
+        "backpressure_frac": 0.00105214939089855,
+        "idle_frac": 0.5355869848404597,
+        "other_frac": 0.005282219391041787
+      },
+      "rd": {
+        "productive": 64000,
+        "backpressure": 0,
+        "starvation": 34740403,
+        "idle": 0,
+        "total": 34804403,
+        "window": 70823,
+        "productive_frac": 0.9036612399926578,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.0963387600073422
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "incremental",
+    "n_gen": 4,
+    "gap": 8,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 274.89440904860766,
+    "rd": 542.4648245465332,
+    "bus": 549.7888180972153,
+    "wr_cycles": 139690,
+    "rd_cycles": 70788,
+    "window_cycles": 139690,
+    "bytes_per_direction": 512000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 8000,
+    "want_txn": 8000,
+    "notes": [
+      "concurrent 4w+4r of 4w+4r built, region 0x20000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 64000,
+        "backpressure": 117,
+        "starvation": 34665393,
+        "idle": 74892,
+        "total": 34804402,
+        "window": 139690,
+        "productive_frac": 0.4581573484143461,
+        "backpressure_frac": 0.0008375689025699763,
+        "idle_frac": 0.5361300021476125,
+        "other_frac": 0.0048750805354713656
+      },
+      "rd": {
+        "productive": 64000,
+        "backpressure": 0,
+        "starvation": 34740402,
+        "idle": 0,
+        "total": 34804402,
+        "window": 70788,
+        "productive_frac": 0.9041080409108888,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.09589195908911119
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "incremental",
+    "n_gen": 4,
+    "gap": 15,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 274.9455836865621,
+    "rd": 542.49547920434,
+    "bus": 549.8911673731242,
+    "wr_cycles": 139664,
+    "rd_cycles": 70784,
+    "window_cycles": 139664,
+    "bytes_per_direction": 512000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 8000,
+    "want_txn": 8000,
+    "notes": [
+      "concurrent 4w+4r of 4w+4r built, region 0x20000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 64000,
+        "backpressure": 174,
+        "starvation": 34670087,
+        "idle": 74697,
+        "total": 34808958,
+        "window": 139664,
+        "productive_frac": 0.4582426394776034,
+        "backpressure_frac": 0.0012458471760797341,
+        "idle_frac": 0.5348336006415397,
+        "other_frac": 0.005677912704777133
+      },
+      "rd": {
+        "productive": 64000,
+        "backpressure": 0,
+        "starvation": 34744958,
+        "idle": 0,
+        "total": 34808958,
+        "window": 70784,
+        "productive_frac": 0.9041591320072333,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.0958408679927667
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "row_major",
+    "n_gen": 4,
+    "gap": 0,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 274.90424884561696,
+    "rd": 542.0742811163342,
+    "bus": 549.8084976912339,
+    "wr_cycles": 139685,
+    "rd_cycles": 70839,
+    "window_cycles": 139685,
+    "bytes_per_direction": 512000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 8000,
+    "want_txn": 8000,
+    "notes": [
+      "concurrent 4w+4r of 4w+4r built, region 0x800"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 64000,
+        "backpressure": 205,
+        "starvation": 34666185,
+        "idle": 74664,
+        "total": 34805054,
+        "window": 139685,
+        "productive_frac": 0.45817374807602823,
+        "backpressure_frac": 0.001467587786806028,
+        "idle_frac": 0.5345169488491964,
+        "other_frac": 0.005841715287969396
+      },
+      "rd": {
+        "productive": 64000,
+        "backpressure": 0,
+        "starvation": 34741054,
+        "idle": 0,
+        "total": 34805054,
+        "window": 70839,
+        "productive_frac": 0.9034571351938904,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.09654286480610963
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "row_major",
+    "n_gen": 4,
+    "gap": 4,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 274.92196225550555,
+    "rd": 542.1048916496082,
+    "bus": 549.8439245110111,
+    "wr_cycles": 139676,
+    "rd_cycles": 70835,
+    "window_cycles": 139676,
+    "bytes_per_direction": 512000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 8000,
+    "want_txn": 8000,
+    "notes": [
+      "concurrent 4w+4r of 4w+4r built, region 0x800"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 64000,
+        "backpressure": 147,
+        "starvation": 34666112,
+        "idle": 74795,
+        "total": 34805054,
+        "window": 139676,
+        "productive_frac": 0.4582032704258427,
+        "backpressure_frac": 0.0010524356367593573,
+        "idle_frac": 0.5354892751797016,
+        "other_frac": 0.005255018757696295
+      },
+      "rd": {
+        "productive": 64000,
+        "backpressure": 0,
+        "starvation": 34741054,
+        "idle": 0,
+        "total": 34805054,
+        "window": 70835,
+        "productive_frac": 0.903508152749347,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.09649184725065296
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "row_major",
+    "n_gen": 4,
+    "gap": 8,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 274.77048793228056,
+    "rd": 542.0742811163342,
+    "bus": 549.5409758645611,
+    "wr_cycles": 139753,
+    "rd_cycles": 70839,
+    "window_cycles": 139753,
+    "bytes_per_direction": 512000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 8000,
+    "want_txn": 8000,
+    "notes": [
+      "concurrent 4w+4r of 4w+4r built, region 0x800"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 64000,
+        "backpressure": 90,
+        "starvation": 34665996,
+        "idle": 74967,
+        "total": 34805053,
+        "window": 139753,
+        "productive_frac": 0.45795081322046755,
+        "backpressure_frac": 0.0006439933310912825,
+        "idle_frac": 0.5364249783546686,
+        "other_frac": 0.004980215093772555
+      },
+      "rd": {
+        "productive": 64000,
+        "backpressure": 0,
+        "starvation": 34741053,
+        "idle": 0,
+        "total": 34805053,
+        "window": 70839,
+        "productive_frac": 0.9034571351938904,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.09654286480610963
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "row_major",
+    "n_gen": 4,
+    "gap": 15,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 274.914089347079,
+    "rd": 542.0742811163342,
+    "bus": 549.828178694158,
+    "wr_cycles": 139680,
+    "rd_cycles": 70839,
+    "window_cycles": 139680,
+    "bytes_per_direction": 512000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 8000,
+    "want_txn": 8000,
+    "notes": [
+      "concurrent 4w+4r of 4w+4r built, region 0x800"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 64000,
+        "backpressure": 147,
+        "starvation": 34666107,
+        "idle": 74799,
+        "total": 34805053,
+        "window": 139680,
+        "productive_frac": 0.4581901489117984,
+        "backpressure_frac": 0.0010524054982817869,
+        "idle_frac": 0.5355025773195876,
+        "other_frac": 0.00525486827033228
+      },
+      "rd": {
+        "productive": 64000,
+        "backpressure": 0,
+        "starvation": 34741053,
+        "idle": 0,
+        "total": 34805053,
+        "window": 70839,
+        "productive_frac": 0.9034571351938904,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.09654286480610963
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "col_major",
+    "n_gen": 4,
+    "gap": 0,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 120.69361109626887,
+    "rd": 245.70653425814544,
+    "bus": 241.38722219253773,
+    "wr_cycles": 318161,
+    "rd_cycles": 156284,
+    "window_cycles": 318161,
+    "bytes_per_direction": 512000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 8000,
+    "want_txn": 8000,
+    "notes": [
+      "concurrent 4w+4r of 4w+4r built, region 0x1000000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 64000,
+        "backpressure": 58,
+        "starvation": 34494965,
+        "idle": 246031,
+        "total": 34805054,
+        "window": 318161,
+        "productive_frac": 0.20115601849378145,
+        "backpressure_frac": 0.00018229764175998944,
+        "idle_frac": 0.7732908810319303,
+        "other_frac": 0.025370802832528128
+      },
+      "rd": {
+        "productive": 64000,
+        "backpressure": 0,
+        "starvation": 34741054,
+        "idle": 0,
+        "total": 34805054,
+        "window": 156284,
+        "productive_frac": 0.40951089043024236,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.5904891095697576
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "col_major",
+    "n_gen": 4,
+    "gap": 4,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 120.68830046358137,
+    "rd": 245.69238545552264,
+    "bus": 241.37660092716274,
+    "wr_cycles": 318175,
+    "rd_cycles": 156293,
+    "window_cycles": 318175,
+    "bytes_per_direction": 512000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 8000,
+    "want_txn": 8000,
+    "notes": [
+      "concurrent 4w+4r of 4w+4r built, region 0x1000000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 64000,
+        "backpressure": 58,
+        "starvation": 34487141,
+        "idle": 246045,
+        "total": 34797244,
+        "window": 318175,
+        "productive_frac": 0.20114716743930228,
+        "backpressure_frac": 0.0001822896204918677,
+        "idle_frac": 0.7733008564469238,
+        "other_frac": 0.025369686493282084
+      },
+      "rd": {
+        "productive": 64000,
+        "backpressure": 0,
+        "starvation": 34733244,
+        "idle": 0,
+        "total": 34797244,
+        "window": 156293,
+        "productive_frac": 0.4094873090925377,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.5905126909074623
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "col_major",
+    "n_gen": 4,
+    "gap": 8,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 120.70840746631796,
+    "rd": 245.6908134669277,
+    "bus": 241.41681493263593,
+    "wr_cycles": 318122,
+    "rd_cycles": 156294,
+    "window_cycles": 318122,
+    "bytes_per_direction": 512000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 8000,
+    "want_txn": 8000,
+    "notes": [
+      "concurrent 4w+4r of 4w+4r built, region 0x1000000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 64000,
+        "backpressure": 32,
+        "starvation": 34495004,
+        "idle": 246018,
+        "total": 34805054,
+        "window": 318122,
+        "productive_frac": 0.20118067911052992,
+        "backpressure_frac": 0.00010059033955526497,
+        "idle_frac": 0.7733448173970993,
+        "other_frac": 0.025373913152815564
+      },
+      "rd": {
+        "productive": 64000,
+        "backpressure": 0,
+        "starvation": 34741054,
+        "idle": 0,
+        "total": 34805054,
+        "window": 156294,
+        "productive_frac": 0.4094846891115462,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.5905153108884538
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  },
+  {
+    "order": "col_major",
+    "n_gen": 4,
+    "gap": 15,
+    "txn": 2000,
+    "beats": 8,
+    "wr": 120.68867977898886,
+    "rd": 245.6688077385674,
+    "bus": 241.3773595579777,
+    "wr_cycles": 318174,
+    "rd_cycles": 156308,
+    "window_cycles": 318174,
+    "bytes_per_direction": 512000,
+    "peak_mb_s": 600.0,
+    "mism": 0,
+    "stray": 0,
+    "ok": true,
+    "rd_txn": 8000,
+    "want_txn": 8000,
+    "notes": [
+      "concurrent 4w+4r of 4w+4r built, region 0x1000000"
+    ],
+    "buckets": {
+      "wr": {
+        "productive": 64000,
+        "backpressure": 58,
+        "starvation": 34494302,
+        "idle": 246044,
+        "total": 34804404,
+        "window": 318174,
+        "productive_frac": 0.20114779963164808,
+        "backpressure_frac": 0.0001822901934161811,
+        "idle_frac": 0.7733001439463941,
+        "other_frac": 0.02536976622854159
+      },
+      "rd": {
+        "productive": 64000,
+        "backpressure": 0,
+        "starvation": 34740404,
+        "idle": 0,
+        "total": 34804404,
+        "window": 156308,
+        "productive_frac": 0.4094480128976124,
+        "backpressure_frac": 0.0,
+        "idle_frac": 0.0,
+        "other_frac": 0.5905519871023877
+      }
+    },
+    "prefill_mode": "per-point (measure_concurrent)"
+  }
+]

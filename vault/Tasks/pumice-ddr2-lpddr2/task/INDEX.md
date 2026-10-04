@@ -12,18 +12,13 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 32 | done (kept for history) |
+| [closed/](closed/) | 33 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
-
-- **TASK-038** — rebuild the ddr2-char harness images (build-perf and the
-  LiteDRAM A/B) with the fixed sdpram slave (amba 71d48b6f7, burst boundary
-  now free) and repin every board-measured figure taken with the pre-fix
-  slave; the LiteDRAM A/B moves on BOTH sides, so it is re-run, not edited
 
 - **TASK-035** — finish pumice's formal coverage. 5 of 27 blocks proven (11/11
   sby tasks); closes when TIER 1 is done — `pumice_cmd_arbiter` (which settles
@@ -39,6 +34,19 @@ exactly one state by construction rather than by discipline.
   depend on scoria and is a test, not a feature
 
 ## Closed
+
+- **TASK-038** — CLOSED 2026-10-04: both ddr2-char harnesses rebuilt on the
+  post-sdpram-fix tree (pumice `61d35ff7` +0.132 ns, LiteDRAM `44a1b836`
+  +0.321 ns, one commit, all smokes green) and every board-measured figure
+  repinned. Fix is off the char datapath: LiteDRAM cycle-identical to 09-10 on
+  all 14 points, pumice streaming within +0.2%; the A/B headline moves anyway
+  (pumice reads at LiteDRAM parity page-friendly; 1.6-2.5x behind same-bank
+  thrash; concurrent 2.00x/1.80x re-measured BOTH sides 2026-10-04). Knee
+  (PUMICE-036) spot-checked 48 pts post-fix — did not move (4+4 to the digit).
+  Cosim needs no re-baseline (no windows exist); uart suite 12/12 post-fix.
+  Docs: post-fix numbers or dated pre-fix notes across AT-A-GLANCE, HAS/MAS,
+  design-requirements, the A/B findings chain, the char guide; dated records
+  (closed tasks, generated CSR docs) left as-is by ruling
 
 - **TASK-039** — CLOSED 2026-10-03: the 13 post-rearchitecture testplans
   authored (63 scenarios: cmd_arbiter, bank_timers, rd/wr intakes,
