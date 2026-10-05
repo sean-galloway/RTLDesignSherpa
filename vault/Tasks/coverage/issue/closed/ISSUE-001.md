@@ -1,6 +1,7 @@
 # ISSUE-001: coverage data collection is unwired repo-wide — `coverage-report` runs but reports 0% almost everywhere
 
-**Status:** open 2026-10-04. Surfaced closing coverage TASK-002.
+**Status:** closed 2026-10-04 -- central injection hook + 0-data ratchet landed
+and validated (see "Resolution" below). Surfaced closing coverage TASK-002.
 **Priority:** P3 — the plumbing works and reports honestly; the missing piece is
 per-test-file Verilator flag wiring.
 
