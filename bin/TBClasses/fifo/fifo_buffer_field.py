@@ -75,10 +75,10 @@ class FifoFieldBufferTB(TBBase):
 
         # Setup clock and reset signals
         self.wr_clk = wr_clk
-        self.wr_clk_name = wr_clk.name
+        self.wr_clk_name = wr_clk._name
         self.wr_rstn = wr_rstn
         self.rd_clk = self.wr_clk if self.TEST_KIND == 'sync' else rd_clk
-        self.rd_clk_name = self.wr_clk_name if self.TEST_KIND == 'sync' else rd_clk.name
+        self.rd_clk_name = self.wr_clk_name if self.TEST_KIND == 'sync' else rd_clk._name
         self.rd_rstn = self.wr_rstn if self.TEST_KIND == 'sync' else rd_rstn
 
         # Log the test configuration

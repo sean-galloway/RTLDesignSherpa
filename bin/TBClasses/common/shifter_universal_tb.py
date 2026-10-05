@@ -10,7 +10,6 @@
 
 import os
 import random
-from cocotb.binary import BinaryValue
 
 from TBClasses.shared.tbbase import TBBase
 

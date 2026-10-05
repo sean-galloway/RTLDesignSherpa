@@ -584,6 +584,11 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
     # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "-Wno-TIMESCALEMOD",
+        "--trace",
+        "--trace-depth", "99",
+        "--trace-max-array", "1024",
+        "--trace-underscore",
+        "--trace-threads", "1",
     ]
 
 
@@ -792,6 +797,11 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
     # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "-Wno-TIMESCALEMOD",
+        "--trace",
+        "--trace-depth", "99",
+        "--trace-max-array", "1024",
+        "--trace-underscore",
+        "--trace-threads", "1",
     ]
 
 

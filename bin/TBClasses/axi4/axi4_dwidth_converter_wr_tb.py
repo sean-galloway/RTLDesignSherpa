@@ -223,8 +223,7 @@ class AXI4DWidthConverterWriteTB(TBBase):
 
         # Enable VCD dumping for debug
         if os.environ.get('COCOTB_ENABLE_PROFILING', '0') == '1':
-            import cocotb
-            cocotb.log.info("VCD dumping enabled via COCOTB_ENABLE_PROFILING")
+            self.log.info("VCD dumping enabled via COCOTB_ENABLE_PROFILING")
 
         self.log.info("Clock and reset setup complete")
 

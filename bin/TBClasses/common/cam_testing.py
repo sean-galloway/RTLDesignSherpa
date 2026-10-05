@@ -81,7 +81,7 @@ class CamTB(TBBase):
             # Verify tag was added successfully
             self.dut.tag_in_status.value = tag
             await self.wait_clocks('clk', 1)
-            if self.dut.tag_status == 1:
+            if int(self.dut.tag_status) == 1:
                 valid_tags.append(tag)
 
         self.check_not_empty()
@@ -111,7 +111,7 @@ class CamTB(TBBase):
             # Verify tag is removed
             self.dut.tag_in_status.value = tag
             await self.wait_clocks('clk', 1)
-            assert self.dut.tag_status == 0, f"Tag 0x{tag:x} was not properly removed"
+            assert int(self.dut.tag_status) == 0, f"Tag 0x{tag:x} was not properly removed"
 
         self.clear_interface()
         await self.wait_clocks('clk', 1)
@@ -134,19 +134,19 @@ class CamTB(TBBase):
 
 
     def check_empty(self):
-        assert self.dut.tags_empty == 1, f"CAM should be empty, but is not.{self.get_time_ns_str()}"
+        assert int(self.dut.tags_empty) == 1, f"CAM should be empty, but is not.{self.get_time_ns_str()}"
 
 
     def check_not_empty(self):
-        assert self.dut.tags_empty == 0, f"CAM should not be empty, but is.{self.get_time_ns_str()}"
+        assert int(self.dut.tags_empty) == 0, f"CAM should not be empty, but is.{self.get_time_ns_str()}"
 
 
     def check_full(self):
-        assert self.dut.tags_full == 1, f"CAM should be full, but is not.{self.get_time_ns_str()}"
+        assert int(self.dut.tags_full) == 1, f"CAM should be full, but is not.{self.get_time_ns_str()}"
 
 
     def check_not_full(self):
-        assert self.dut.tags_full == 0, f"CAM should not be full, but is{self.get_time_ns_str()}."
+        assert int(self.dut.tags_full) == 0, f"CAM should not be full, but is{self.get_time_ns_str()}."
 
 
     async def mark_one_valid(self, tag_value):
@@ -170,7 +170,7 @@ class CamTB(TBBase):
     async def check_tag(self, tag_value, check):
         self.dut.tag_in_status.value = tag_value
         await self.wait_clocks('clk', 1)
-        found = self.dut.tag_status
+        found = int(self.dut.tag_status)
         if check == 1:
             msg = f"Expected tag({self.hex_format(tag_value, self.max_val)}) to be True{self.get_time_ns_str()}"
         else:
@@ -203,7 +203,7 @@ class CamTB(TBBase):
         for tag in range(1 << self.N):
             self.dut.tag_in_status.value = tag
             await self.wait_clocks('clk', 1)
-            if self.dut.tag_status == 1:
+            if int(self.dut.tag_status) == 1:
                 valid_tags.append(tag)
 
         # Now invalidate all discovered valid tags
