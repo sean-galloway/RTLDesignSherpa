@@ -21,11 +21,13 @@
 -f fub/andesite_global_timers.f
 -f fub/andesite_cmd_arbiter.f
 -f macro/andesite_scheduler_layer.f
+-f macro/andesite_training_layer.f
 -f fub/andesite_refresh_ctrl.f
 -f fub/andesite_zq_ctrl.f
 -f fub/andesite_wrlvl_ifc.f
 -f fub/andesite_odt_ctrl.f
 -f fub/andesite_rdlvl_ifc.f
 -f fub/andesite_ca_train_ifc.f
+-f fub/andesite_dfi_cmd_path.f
 -f fub/andesite_dfi_wr_serializer.f
 -f fub/andesite_dfi_rd_aligner.f
