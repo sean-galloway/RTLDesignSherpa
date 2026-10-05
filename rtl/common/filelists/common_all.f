@@ -16,6 +16,7 @@
 $REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
 $REPO_ROOT/rtl/common/arbiter_round_robin.sv
 $REPO_ROOT/rtl/common/arbiter_round_robin_simple.sv
+$REPO_ROOT/rtl/common/arbiter_round_robin_simple_ack.sv
 $REPO_ROOT/rtl/common/arbiter_round_robin_weighted.sv
 $REPO_ROOT/rtl/common/arbiter_single_client.sv
 
