@@ -711,6 +711,11 @@ module axi4_dwidth_converter_wr #(
             // the strict `<` -- every 32nd burst's B then matches nothing,
             // is swallowed (m_axi_bready's no-match arm is 1'b1), and the
             // master waits for a B that has already been consumed.
+            // INVARIANT (owner, 2026-10-04): same-ID bursts are ALWAYS
+            // serialized (AXI same-ID ordering, enforced by the AW
+            // splitter), so at most one entry per ID is ever live and the
+            // age order within an ID can never be observed. Ages only
+            // order candidates during the search; the wrap at 32 is moot.
             logic [B_CAM_AW-1:0] w_b_cam_idx;
             logic                w_b_cam_match;
             logic [B_CAM_AW+1:0] w_b_cam_best_age;
