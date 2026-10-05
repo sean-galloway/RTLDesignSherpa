@@ -23,7 +23,7 @@
 
 # Every Stage: Math to Pseudocode
 
-Section 7.1 built the field, section 7.2 built the code, and section 7.3 walked a decode by hand. This page gives each stage the shape it has in the RTL: the equations first, then the register names and pseudocode, then the exact module and line numbers. The riBM key-equation solver is shared with the BCH decoder; the corresponding BCH page is at `../../../../bch/docs/bch_has/ch07_understanding_the_math/05_every_stage_math_to_pseudocode.md`.
+Section 7.1 built the field, section 7.2 built the code, and section 7.3 walked a decode by hand. This page turns each stage into the pseudocode the RTL actually runs — equation first, then the registers, then the exact module and line numbers. The riBM key-equation solver is shared with the BCH decoder; its math-to-pseudocode page is at `../../../../bch/docs/bch_has/ch07_understanding_the_math/05_every_stage_math_to_pseudocode.md`.
 
 | Math step | Hardware block | Cross-reference |
 |---|---|---|
@@ -38,7 +38,7 @@ Section 7.1 built the field, section 7.2 built the code, and section 7.3 walked 
 
 ## Encoder (`gf_lfsr_encoder`, wrapped by `rs_encoder_core`)
 
-The encoder divides the data polynomial by the generator polynomial $g(x) = \prod_{i=0}^{2t-1}(x - \alpha^{b+i})$ and appends the remainder as parity. The division is a $2t$-stage linear feedback shift register over $\mathrm{GF}(2^m)$.
+The encoder divides the data polynomial by the generator $g(x) = \prod_{i=0}^{2t-1}(x - \alpha^{b+i})$ and appends the remainder as parity. That division is a $2t$-stage linear feedback shift register over $\mathrm{GF}(2^m)$.
 
 **The math.**
 For one input symbol $d$:
@@ -82,7 +82,7 @@ for each drain beat:
 
 ## Syndrome unit (`syndrome_unit`, `gf_syndrome_cell`)
 
-The syndrome unit evaluates the received word at each generator root. There are $2t$ roots and therefore $2t$ independent syndrome cells.
+The syndrome unit evaluates the received word at each generator root. There are $2t$ roots, so there are $2t$ independent syndrome cells.
 
 **The math.**
 For root $\alpha^{b+i}$:
@@ -263,7 +263,7 @@ With the Chien search supplying $\text{odd\_sum} = X^{-1} \Lambda'(X^{-1})$, the
 
 $$e_j = \frac{X_j^{-(b+\mathit{off})} \cdot \Omega(X_j^{-1})}{\text{odd\_sum}}.$$
 
-The offset is $\mathit{off} = 2t$ for the riBM solver and $\mathit{off} = 0$ for the Euclid solver and for erasure mode. The reason is that riBM's `o_omega` is the *high half* of $S(x)\Lambda(x)$, coefficients $2t \ldots 3t-1$, not the textbook $\Omega = S\Lambda \bmod x^{2t}$. The extra $X^{-2t}$ factor in the numerator converts the high-half evaluator into the same ratio as the textbook form (`rtl/fub/forney_evaluator.sv:8-11,24-33`). The RTL does not use a $\Lambda_0$-normalization trick; it performs a real `gf_inv` per lane.
+Here's the part that trips people up: the offset is $\mathit{off} = 2t$ for the riBM solver and $\mathit{off} = 0$ for the Euclid solver and for erasure mode. riBM's `o_omega` is the *high half* of $S(x)\Lambda(x)$, coefficients $2t \ldots 3t-1$, not the textbook $\Omega = S\Lambda \bmod x^{2t}$. The extra $X^{-2t}$ factor in the numerator converts that high-half evaluator into the same ratio as the textbook form (`rtl/fub/forney_evaluator.sv:8-11,24-33`). The RTL doesn't use a $\Lambda_0$-normalization trick — it performs a real `gf_inv` per lane.
 
 **The pseudocode.**
 ```text
@@ -291,7 +291,7 @@ When `ERASURE_SUPPORT = 1`, the decoder accepts symbols flagged as known bad. An
 
 $$2\mu + f \leq 2t,$$
 
-where $\mu$ is the number of unknown errors and $f$ is the number of erasures. The RTL enforces the equivalent budget $w\_budget = (2t - f)/2$ (`rtl/macro/rs_decoder_core.sv:497-504`).
+where $\mu$ is the number of unknown errors and $f$ is the number of erasures. The RTL enforces the equivalent budget $w\_budget = (2t - f)/2$ (`rtl/macro/rs_decoder_core.sv:497-504`). Watch the boundary: $f = 2t$ is only valid when $\mu = 0$, because the budget drops to zero.
 
 **The math.**
 The erasure locator is
@@ -406,7 +406,7 @@ uncorrectable = r_sv2_correct &&
 
 ## Trace: RS(15,11) revisited
 
-The script `ch07_math_trace.py` (in this directory) reproduces the section 7.3 example with the same field and the RTL-shaped algorithms above. Its output is:
+The script `ch07_math_trace.py` (in this directory) reproduces the section 7.3 example with the same field and the RTL-shaped algorithms above. It reads Table 7.9 as polynomial coefficient order — position $j$ is the coefficient of $x^j$ — and feeds the RTL routines in the reversed transmission order; see the convention note at the start of section 7.3's worked example. Its output is:
 
 ```text
 GF(2^4) primitive polynomial 0x13 = x^4 + x + 1
@@ -429,4 +429,4 @@ profile checks: RS(255,239) and RS(252,236) both have n-k=16, 2t=16, d=17
 ALL CHECKS PASSED
 ```
 
-The riBM locator is `alpha^1 + alpha^6 x + alpha^0 x^2`. That is exactly `alpha^1` times the Peterson locator `1 + alpha^5 x + alpha^14 x^2` from section 7.3. Because Chien search looks for zeros, the common scale factor does not move the roots: they are still at positions 3 and 11. The Forney evaluator carries the same scale, and the `off = 2t` exponent converts the high-half riBM Omega into the same ratio as the textbook evaluator, so the magnitudes come out exactly `alpha^5` at `j = 3` and `alpha^9` at `j = 11`. The corrected word matches the original codeword, and the post-correction syndromes are all zero.
+The riBM locator is `alpha^1 + alpha^6 x + alpha^0 x^2`. That's exactly `alpha^1` times the Peterson locator `1 + alpha^5 x + alpha^14 x^2` from section 7.3. Because Chien search looks for zeros, the common scale factor doesn't move the roots: they're still at positions 3 and 11. The Forney evaluator carries the same scale, and the `off = 2t` exponent converts the high-half riBM Omega into the same ratio as the textbook evaluator, so the magnitudes come out exactly `alpha^5` at `j = 3` and `alpha^9` at `j = 11`. The corrected word matches the original codeword, and the post-correction syndromes are all zero.

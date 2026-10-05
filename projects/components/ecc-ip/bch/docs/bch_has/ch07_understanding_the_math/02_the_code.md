@@ -29,7 +29,7 @@ A binary BCH block of $n$ bits is a polynomial over $\mathrm{GF}(2)$:
 
 $$c(x) = c_0 + c_1 x + c_2 x^2 + \dots + c_{n-1} x^{n-1}, \quad c_i \in \{0,1\}$$
 
-The least significant bit is $c_0$; the most significant bit is $c_{n-1}$. This is not a general-purpose polynomial — it is just a convenient way to talk about a bit vector and its shifts at the same time.
+The least significant bit is $c_0$; the most significant bit is $c_{n-1}$, which is also the first transmitted bit. This is not a general-purpose polynomial — it is just a convenient way to talk about a bit vector and its shifts at the same time.
 
 These codes are cyclic. Multiply $c(x)$ by $x$ and reduce modulo $(x^n - 1)$:
 
@@ -37,7 +37,7 @@ $$x \cdot c(x) \bmod (x^n - 1)$$
 
 Because we are in characteristic $2$, $x^n - 1 = x^n + 1$. The reduction wraps the coefficient of $x^n$ around to the constant term, which is exactly a cyclic rotation of the $n$ bits. If $c(x)$ is a codeword, so is every cyclic shift of it.
 
-For a concrete 15-bit example, suppose $c(x)$ has a $1$ at $x^{14}$ and nowhere else. Then $x \cdot c(x) = x^{15}$, and reducing modulo $x^{15} + 1$ gives $1$, which places the $1$ at the constant term. The bit moved from position $14$ to position $0$. That cyclic property is why the encoder is a feedback shift register and why the decoder can treat a block as a single polynomial.
+For a concrete 15-bit example, suppose $c(x)$ has a $1$ at $x^{14}$ and nowhere else. Then $x \cdot c(x) = x^{15}$, and reducing modulo $x^{15} + 1$ gives $1$, which places the $1$ at the constant term. The bit moved from polynomial exponent $14$ to polynomial exponent $0$. That cyclic property is why the encoder is a feedback shift register and why the decoder can treat a block as a single polynomial.
 
 Every valid codeword is a multiple of the generator polynomial $g(x)$. If $u(x)$ is any polynomial of degree less than $k$, then $c(x) = u(x) \cdot g(x)$ is a codeword. There are $2^k$ such polynomials, so there are $2^k$ codewords. The generator polynomial therefore completely defines the code; the data bits only select which multiple of $g(x)$ we transmit. Systematic encoding chooses $u(x)$ so that the high coefficients of the product are exactly the data bits, then adds the remainder $r(x)$ to make the low coefficients the parity.
 
@@ -138,7 +138,7 @@ Take the 7-bit message
 
 $$d(x) = x^6 + x^3 + x^2 + 1$$
 
-In bit order $d_6 d_5 d_4 d_3 d_2 d_1 d_0$ this is $1001101$. Feed the bits into the encoder LFSR one at a time, most significant bit first. The generator is $g(x) = x^8 + x^7 + x^6 + x^4 + 1$, so the feedback taps are at positions $7$, $6$, $4$, and $0$. The $x^8$ term is implicit in the shift register: it is the bit that falls off the left end and becomes the feedback decision.
+In bit order $d_6 d_5 d_4 d_3 d_2 d_1 d_0$ this is $1001101$. Feed the bits into the encoder LFSR one at a time, most significant bit first—this is the same as transmission order. The generator is $g(x) = x^8 + x^7 + x^6 + x^4 + 1$, so the feedback taps are at positions $7$, $6$, $4$, and $0$. The $x^8$ term is implicit in the shift register: it is the bit that falls off the left end and becomes the feedback decision.
 
 | Step | Input bit | LFSR p7..p0 after update |
 |------|-----------|--------------------------|

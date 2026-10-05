@@ -45,7 +45,7 @@ The unit evaluates $R(x)$ at the $t$ independent roots as the bits stream in. It
 
 $$S_i = (\dots((r_{n-1} \alpha^i + r_{n-2}) \alpha^i + r_{n-3}) \dots ) \alpha^i + r_0$$
 
-Each arriving bit $r_j$ triggers one multiply by the constant $\alpha^i$ and one XOR into the accumulator. After the last bit the accumulator holds $S_i$. The multiply-by-constant is a fixed XOR network, so the syndrome cell is small and fast.
+Bits arrive most-significant first, so $r_{n-1}$ is the first transmitted bit. Each arriving bit $r_j$ triggers one multiply by the constant $\alpha^i$ and one XOR into the accumulator. After the last bit the accumulator holds $S_i$. The multiply-by-constant is a fixed XOR network, so the syndrome cell is small and fast.
 
 ## The evenness shortcut
 
@@ -53,7 +53,7 @@ In characteristic $2$, the freshman's dream from section 7.1 gives:
 
 $$(a + b)^2 = a^2 + b^2$$
 
-Apply this to a syndrome. If $e(x)$ has errors at positions $j_1, j_2, \dots$, then
+Apply this to a syndrome. If $e(x)$ has errors at polynomial exponents $j_1, j_2, \dots$, then
 
 $$S_i = \alpha^{i j_1} + \alpha^{i j_2} + \dots$$
 
@@ -69,7 +69,7 @@ Once $S_1$ and $S_3$ are known, $S_2$ and $S_4$ come for free by squaring. The s
 
 ## The key equation
 
-The error-locator polynomial $\Lambda(x)$ is the monic polynomial whose roots are the error locators $\alpha^{j_1}, \alpha^{j_2}, \dots$:
+The error-locator polynomial $\Lambda(x)$ is the monic polynomial whose roots are the error locators $\alpha^{j_1}, \alpha^{j_2}, \dots$, where each $j_l$ is a polynomial exponent:
 
 $$\Lambda(x) = (x + \alpha^{j_1})(x + \alpha^{j_2}) \cdots$$
 
@@ -91,19 +91,25 @@ For the worked example below we use the Peterson-Gorenstein-Zierler direct solve
 
 ## Chien search and binary correction
 
-After the solver produces $\Lambda(x)$, the Chien search evaluates it at every bit position:
+After the solver produces $\Lambda(x)$, the Chien search evaluates it at every polynomial exponent:
 
 $$\Lambda(\alpha^0), \Lambda(\alpha^1), \dots, \Lambda(\alpha^{n-1})$$
 
-If $\Lambda(\alpha^j) = 0$, bit $j$ is in error. The Chien search walks the $n$ positions in lock-step with the block buffer read-out, one position per cycle in the serial architecture or several positions per cycle if the throughput profile selects a parallel evaluation tree. Because the code is binary, every error value is $1$, so correction is a pure flip: the corrector XORs a $1$ into that bit as it leaves the block buffer. There is no Forney stage and no magnitude computation. That is the main mathematical difference between this binary BCH decoder and the reed-solomon decoder, which must also compute how much each symbol was corrupted.
+If $\Lambda(\alpha^j) = 0$, the coefficient of $x^j$—that is, bit $j$ in polynomial-exponent form—is in error. The Chien search walks the $n$ positions in lock-step with the block buffer read-out, one position per cycle in the serial architecture or several positions per cycle if the throughput profile selects a parallel evaluation tree. Because the code is binary, every error value is $1$, so correction is a pure flip: the corrector XORs a $1$ into that bit as it leaves the block buffer. There is no Forney stage and no magnitude computation. That is the main mathematical difference between this binary BCH decoder and the reed-solomon decoder, which must also compute how much each symbol was corrupted.
 
 ## Worked example: correcting two errors
+
+**Position convention.** In this example, "bit $j$" means the coefficient of $x^j$ in the codeword polynomial. The RTL counts transmission-order positions $p = 0, 1, \dots$ starting with the first transmitted bit, so coefficient $x^j$ corresponds to position
+
+$$p = n - 1 - j$$
+
+For the two flipped bits, exponents $j = \{10, 3\}$ map to RTL positions $p = \{4, 11\}$.
 
 We start with the 15-bit codeword from section 7.2:
 
 $$c = 1001101\,11000010$$
 
-Flip bit $10$ and bit $3$. In polynomial terms we add $x^{10} + x^3$ to $c(x)$. The received polynomial is:
+Flip the bits whose polynomial exponents are $10$ and $3$—that is, add $x^{10} + x^3$ to $c(x)$. The received polynomial is:
 
 $$R(x) = c(x) + x^{10} + x^3$$
 
@@ -121,7 +127,7 @@ We need $S_1 = R(\alpha)$ and $S_3 = R(\alpha^3)$. Using Table 7.2 from section 
 | S_3      | alpha^7      | 1011   | alpha^7  |
 : Table 7.7: Odd syndromes of the received word
 
-The value $S_1 = 1111$ comes from XORing the vectors for every set bit position in $R(x)$: $\alpha^{14} = 1001$, $\alpha^{11} = 1110$, $\alpha^8 = 0101$, $\alpha^7 = 1011$, $\alpha^6 = 1100$, $\alpha^3 = 1000$, and $\alpha^1 = 0010$. Chasing the accumulating XOR gives $1111 = \alpha^{12}$. For $S_3$ we use the same positions but with tripled exponents mod $15$, which is what the syndrome cell with root $\alpha^3$ accumulates.
+The value $S_1 = 1111$ comes from XORing the vectors for every set bit exponent in $R(x)$: $\alpha^{14} = 1001$, $\alpha^{11} = 1110$, $\alpha^8 = 0101$, $\alpha^7 = 1011$, $\alpha^6 = 1100$, $\alpha^3 = 1000$, and $\alpha^1 = 0010$. Chasing the accumulating XOR gives $1111 = \alpha^{12}$. For $S_3$ we use the same exponents but with tripled values mod $15$, which is what the syndrome cell with root $\alpha^3$ accumulates.
 
 The even syndromes follow from the shortcut:
 
@@ -160,6 +166,8 @@ So the error-locator polynomial is:
 
 $$\Lambda(x) = x^2 + \alpha^{12} x + \alpha^{13}$$
 
+Any nonzero scalar multiple of $\Lambda(x)$ has the same roots, so the Chien search and the corrector do not care about the exact scale. The riBM hardware in section 7.5 produces a scaled reciprocal of this form; the verdict logic only counts roots and checks degree, both of which are scale-invariant.
+
 ### Chien search
 
 Now evaluate $\Lambda(x)$ at $\alpha^j$ for $j = 0 \dots 14$.
@@ -183,7 +191,7 @@ Now evaluate $\Lambda(x)$ at $\alpha^j$ for $j = 0 \dots 14$.
 | 14 | 1001 | 1110 | |
 : Table 7.8: Chien search over the 15 bit positions
 
-The zeros occur at $j = 3$ and $j = 10$, exactly the positions we flipped. No other position yields zero, so the decoder does not invent extra errors. The corrector XORs those two bits, restoring:
+The zeros occur at $j = 3$ and $j = 10$, exactly the exponents we flipped (RTL positions $p = 11$ and $p = 4$). No other position yields zero, so the decoder does not invent extra errors. The corrector XORs those two bits, restoring:
 
 $$1001101\,11000010$$
 

@@ -29,7 +29,7 @@ The channel adds an error polynomial to the codeword:
 
 $$R(x) = c(x) + e(x).$$
 
-Each coefficient of $e(x)$ is a field element. A nonzero coefficient $e_j$ means the symbol at position $j$ is wrong, and the value can be any nonzero field element. This is the fundamental difference from binary BCH, where every error value is implicitly $1$. Reed-Solomon correction must find both the positions and the values.
+Each coefficient of $e(x)$ is a field element. A nonzero coefficient $e_j$ means the polynomial coefficient $c_j$ — and therefore the symbol the RTL transmits at position $n-1-j$ — is wrong, and the value can be any nonzero field element. This is the fundamental difference from binary BCH, where every error value is implicitly $1$. Reed-Solomon correction must find both the positions and the values.
 
 Because an error value can be any of $2^m - 1$ nonzero symbols, an RS decoder does more work than a binary decoder. Binary BCH only needs to know where the errors are; RS also needs to know by how much. That is why the decoder has both a locator polynomial and an evaluator polynomial, and why the final stage is a Forney computation rather than a simple bit flip.
 
@@ -45,7 +45,7 @@ The syndrome cells in chapter 3.2 compute each $S_i$ by Horner evaluation as the
 
 $$S_i \leftarrow \alpha^i \cdot S_i + R_j.$$
 
-One multiply-accumulate per syndrome, per symbol. The constant $\alpha^i$ is a known field element, so the multiplier is a fixed XOR network rather than a general field multiplier. With $S$ symbols per beat, the syndrome cell performs $S$ such updates in parallel, each at a different power of $\alpha$ corresponding to the symbol's position within the beat.
+Here $R_j$ is the symbol that just arrived, where arrival 0 is the first-transmitted (highest-degree) coefficient. One multiply-accumulate per syndrome, per symbol. The constant $\alpha^i$ is a known field element, so the multiplier is a fixed XOR network rather than a general field multiplier. With $S$ symbols per beat, the syndrome cell performs $S$ such updates in parallel, each at a different power of $\alpha$ corresponding to the symbol's position within the beat.
 
 ## The key equation
 
@@ -106,6 +106,8 @@ We take the codeword from section 7.2 and inject exactly two symbol errors:
 - position $j = 3$: add $\alpha^5$;
 - position $j = 11$: add $\alpha^9$.
 
+In this example, $j$ is the polynomial coefficient index: the table lists $c_0, c_1, \ldots, c_{14}$ from low degree to high degree. The RTL transmits the high-degree end first, so the syndrome cell sees $c_{14}$ as arrival 0, $c_{13}$ as arrival 1, and so on down to $c_0$. The syndrome values below are computed from the polynomial coefficient order shown; if you stream the symbols through the hardware, reverse the table order.
+
 The received word in polynomial coefficient order is:
 
 | Position | Received |
@@ -164,9 +166,11 @@ So
 
 $$\Lambda(x) = 1 + \alpha^5 x + \alpha^{14} x^2.$$
 
+Any nonzero scalar multiple of this locator has the same roots, so the riBM solver in section 7.5 may output a scaled version. The Forney stage there carries the same scale, and its `off = 2t` factor absorbs it, so the recovered error values stay identical.
+
 ### Chien search in the example
 
-We evaluate $\Lambda(\alpha^{-j})$ for $j = 0, 1, \ldots, 14$.
+We evaluate $\Lambda(\alpha^{-j})$ for $j = 0, 1, \ldots, 14$, still using the polynomial coefficient index from the table above. The RTL labels the transmitted position of $c_j$ as $n-1-j$, but the set of roots is the same.
 
 | j | alpha^{-j} | Lambda(alpha^{-j}) |
 |---:|---|---|

@@ -76,7 +76,7 @@ $$\mathrm{GF}(2^m)^* = \{1, \alpha, \alpha^2, \dots, \alpha^{2^m-2}\}$$
 
 The element $0$ is the extra element that makes the count $2^m$. Multiplication is easy in the power representation: $\alpha^i \cdot \alpha^j = \alpha^{i+j \bmod (2^m-1)}$. Addition is easy in the vector representation: XOR the corresponding bit vectors.
 
-A practical implementation keeps both a log table and an antilog table so it can switch between the two in a cycle or two. To see why both forms matter, multiply $(1 + \alpha)$ by $(\alpha + \alpha^2)$. In vector form these are $0011$ and $0110$.
+A practical implementation keeps both a log table and an antilog table so it can switch between the two in a cycle or two. To see why both forms matter, multiply $(1 + \alpha)$ by $(\alpha + \alpha^2)$. In vector form these are $0011$ and $0110$ (high-order bit first).
 
 $$(1 + \alpha)(\alpha + \alpha^2) = \alpha + \alpha^2 + \alpha^2 + \alpha^3 = \alpha + \alpha^3$$
 

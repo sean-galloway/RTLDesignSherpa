@@ -156,7 +156,7 @@ The final remainder is the parity, from low degree to high:
 
 $$r_0 = \alpha^0, \quad r_1 = \alpha^6, \quad r_2 = \alpha^1, \quad r_3 = \alpha^{14}.$$
 
-In stream order the encoder sends data first, then parity, because chapter 3.2 describes a systematic encoder that passes the data beats through and appends the parity at the end. The polynomial coefficient order $c_0, c_1, \ldots, c_{14}$ is the opposite: the parity coefficients sit at the low-degree end and the data coefficients at the high-degree end. The table below lists the codeword in polynomial order so that $c(x) = c_0 + c_1 x + \ldots + c_{14} x^{14}$ is easy to read.
+In stream order the encoder sends data first, then parity, because chapter 3.2 describes a systematic encoder that passes the data beats through and appends the parity at the end. The polynomial coefficient order $c_0, c_1, \ldots, c_{14}$ is the opposite: the parity coefficients sit at the low-degree end and the data coefficients at the high-degree end. The table below lists the codeword in polynomial order so that $c(x) = c_0 + c_1 x + \ldots + c_{14} x^{14}$ is easy to read. Position $j$ is the coefficient index, so position 0 is the $x^0$ coefficient and the encoder sends position 14 first.
 
 | Position | c_i |
 |---:|---|

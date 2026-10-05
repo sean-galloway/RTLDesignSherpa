@@ -23,11 +23,11 @@
 
 # Every Stage: Math to Pseudocode
 
-This section walks through each hardware block introduced in chapter 3.2, shows the exact equations it implements, and gives pseudocode whose identifiers match the RTL registers. The goal is to make the gap between the math in sections 7.1–7.3 and the Verilog as small as possible.
+Here's the bridge between the math in sections 7.1–7.3 and the Verilog in chapter 3.2. For each block you'll see the equation it implements, pseudocode that uses the same register names as the RTL, and a one-line hardware mapping.
 
 ## Encoder (bch_encoder_core)
 
-The encoder is systematic: the first $k$ input bits pass through unchanged and the remaining $n - k$ bits are the parity remainder.
+The encoder keeps the first $k$ input bits untouched and appends the parity remainder. Bits arrive most-significant first—the same order they leave the chip.
 
 **The math.** Shift the message polynomial $d(x)$ by $n - k$ positions and divide by $g(x)$:
 
@@ -65,11 +65,11 @@ for u = 0 .. w_par_beat_len - 1:
 r_lfsr <= r_lfsr << w_par_beat_len
 ```
 
-**In the RTL.** `lfsr_step` is the SystemVerilog function at `rtl/macro/bch_encoder_core.sv:143-160`; the unrolled chain and partial-beat mux are at `:175-186`; the parity drain reads the high-order lanes at `:231-238` and `frame_err` is raised on a bit-count mismatch at `:228`. The hardware is a single GF$(2^m)$ bit-LFSR unrolled `BITS_PER_BEAT` times; each `w_chain[u]` is a combinational copy of one serial LFSR step.
+**In the RTL.** `lfsr_step` lives at `rtl/macro/bch_encoder_core.sv:143-160`; the unrolled chain and partial-beat mux are at `:175-186`; the parity drain reads the high-order lanes at `:231-238`; and `frame_err` fires on a bit-count mismatch at `:228`. The hardware is a single GF$(2^m)$ bit-LFSR unrolled `BITS_PER_BEAT` times. Here's the part that bites: `w_chain` is purely combinational—only `r_lfsr` and the counters are clocked, so don't try to pipeline the chain itself.
 
 ## Syndrome unit (bch_syndrome_unit)
 
-The syndrome unit evaluates the received polynomial $R(x)$ at the $t$ independent odd roots.
+The syndrome unit evaluates the received polynomial $R(x)$ at the $t$ independent odd roots. The even syndromes aren't computed here; they're rebuilt later by squaring.
 
 **The math.** For each odd root exponent $j$ in the consecutive range:
 
@@ -101,11 +101,11 @@ for each odd root index j = 0 .. T - 1:
 out_no_error = (out_syndromes == 0)
 ```
 
-**In the RTL.** The syndrome fub is `rtl/fub/bch_syndrome_unit.sv:50`; it instantiates `T_BITS` copies of `gf_syndrome_cell` (`:128-144`) and computes `out_no_error` from the packed syndrome vector (`:155`). The shared `gf_syndrome_cell` itself is one `gf_mul_const` and a register (`projects/components/ecc-ip/reed-solomon/rtl/fub/gf/gf_syndrome_cell.sv:24-32`).
+**In the RTL.** The syndrome fub is `rtl/fub/bch_syndrome_unit.sv:50`; it instantiates `T_BITS` copies of `gf_syndrome_cell` (`:128-144`) and computes `out_no_error` from the packed syndrome vector (`:155`). The shared `gf_syndrome_cell` itself is one `gf_mul_const` and a register (`projects/components/ecc-ip/reed-solomon/rtl/fub/gf/gf_syndrome_cell.sv:24-32`). Don't go looking for $S_2$ or $S_4$ in this block—they're derived in the KES.
 
 ## Key-equation solver (bch_key_equation_solver)
 
-The solver turns the syndromes into the error-locator polynomial $\Lambda(x)$. For a binary BCH code only $\Lambda(x)$ is needed; there is no Forney stage because every error magnitude is 1.
+The solver turns the syndromes into the error-locator polynomial $\Lambda(x)$. For a binary BCH code only $\Lambda(x)$ is needed; there's no Forney stage because every error magnitude is 1.
 
 **The math.** The key equation is
 
@@ -160,11 +160,11 @@ out_lambda_degree = degree of Delta[t .. 3*t]
 out_more_than_t   = any Delta[t+i] != 0 for i > T
 ```
 
-**In the RTL.** The BCH wrapper reconstructs the full syndrome sequence at `rtl/fub/bch_key_equation_solver.sv:109-134`, instantiates the imported `key_equation_solver_ribm` at `:150-167`, and trims the locator to `Lambda_0 .. Lambda_t` at `:180-185`. The riBM module itself is in the reed-solomon component tree (`projects/components/ecc-ip/reed-solomon/rtl/fub/key_equation_solver_ribm.sv:95,137-145` for initialization, `:180-188` for the control update, and `:196-213` for output readout). A sister description of the same riBM math lives at `../../../../reed-solomon/docs/reed_solomon_has/ch07_understanding_the_math/05_every_stage_math_to_pseudocode.md`. The per-cell update is in `projects/components/ecc-ip/reed-solomon/rtl/fub/gf/ribm_pe.sv:24-34,62-83`.
+**In the RTL.** The BCH wrapper reconstructs the full syndrome sequence at `rtl/fub/bch_key_equation_solver.sv:109-134`, instantiates the imported `key_equation_solver_ribm` at `:150-167`, and trims the locator to `Lambda_0 .. Lambda_t` at `:180-185`. The riBM module itself is in the reed-solomon component tree (`projects/components/ecc-ip/reed-solomon/rtl/fub/key_equation_solver_ribm.sv:95,137-145` for initialization, `:180-188` for the control update, and `:196-213` for output readout). A sister description of the same riBM math lives at `../../../../reed-solomon/docs/reed_solomon_has/ch07_understanding_the_math/05_every_stage_math_to_pseudocode.md`. The per-cell update is in `projects/components/ecc-ip/reed-solomon/rtl/fub/gf/ribm_pe.sv:24-34,62-83`. One hard constraint: `KES_ALGO` isn't really a choice today—anything other than "RIBM" errors out at elaboration (`rtl/fub/bch_key_equation_solver.sv:103-105`).
 
 ## Chien search (bch_chien_search)
 
-The Chien search evaluates $\Lambda(x)$ at every bit position and flags the zeros.
+The Chien search evaluates $\Lambda(x)$ at every position and flags the zeros.
 
 **The math.** Position $p$ (counted from the first transmitted bit) has locator value $X_p = \alpha^{n-1-p}$. The position is in error when
 
@@ -231,11 +231,11 @@ out_data = r_buf[idx] ^ (r_flip[idx] & {B{r_release_apply}})
 // frame-err or uncorrectable: r_release_apply = 0, block emitted unchanged
 ```
 
-**In the RTL.** The block buffer and flip-mask array are at `rtl/macro/bch_decoder_core.sv:148-150`; the verdict expression is at `:359-365`; the XOR-based flip application is at `:377-380`; the capture of `r_flip` is at `:520-524`; and the uncorrectable/frame-err pass-through paths are at `:535-547,558-569`.
+**In the RTL.** The block buffer and flip-mask array are at `rtl/macro/bch_decoder_core.sv:148-150`; the verdict expression is at `:359-365`; the XOR-based flip application is at `:377-380`; the capture of `r_flip` is at `:520-524`; and the uncorrectable/frame-err pass-through paths are at `:535-547,558-569`. The trap here is subtle: if the verdict is "uncorrectable," `r_release_apply` stays zero and the block is emitted bit-for-bit unchanged—don't assume the corrector always XORs something.
 
 ## Trace
 
-The Python script `ch07_math_trace.py` in this directory reproduces the section-7.3 example with the same field, the same codeword, and the same errors. Its output is:
+The Python script `ch07_math_trace.py` in this directory reproduces the section-7.3 example with the same field, the same codeword, and the same errors. Section 7.3 now states its convention explicitly: "bit $j$" means polynomial exponent $j$, and the RTL reports the complementary transmission-order position $p = n - 1 - j$. The script's output is:
 
 ```text
 BCH(15,7) t=2 trace (bit 14 first):
@@ -259,8 +259,8 @@ BCH(15,7) t=2 trace (bit 14 first):
 | raw riBM $\Lambda_0,\Lambda_1,\Lambda_2$ | $\alpha^1, \alpha^{13}, \alpha^{14}$ | RTL array output (BCH wrapper keeps first three lanes) |
 | monic locator | $X^2 + \alpha^{12} X + \alpha^{13}$ | reciprocal-scaled form used by the section-7.3 Chien table |
 | Chien roots (exponents) | $\{3, 10\}$ | the flipped bits from section 7.3 |
-| RTL positions $p$ | $\{4, 11\}$ | transmission-order indices; $p = n-1-j$ for exponent $j$ |
+| RTL positions $p$ | $\{4, 11\}$ | transmission-order indices; see section 7.3 for the convention |
 | corrected word | `100110111000010` | identical to the section-7.2 codeword |
 : Table 7.12: Numeric trace of the section-7.3 example
 
-The raw riBM array output is a scalar multiple of the reciprocal of the textbook monic locator. The hardware's Chien cell wiring evaluates that raw polynomial at $\alpha^{-(n-1-p)}$, so the RTL position counter reports $p = 4$ and $p = 11$ for the same two errors that section 7.3 labels as bit exponents $10$ and $3$.
+The raw riBM array output is a scalar multiple of the reciprocal of the textbook monic locator. Evaluating that raw polynomial at $\alpha^{-(n-1-p)}$ is why the RTL position counter reports $p = 4$ and $p = 11$ for the same two errors that section 7.3 labels as exponents $10$ and $3$.

@@ -9,6 +9,32 @@ these are chaptered, versioned, table-heavy engineering specifications
 that build into DOCX/PDF through a pandoc pipeline — their structure is
 load-bearing and must survive humanization byte-exact.
 
+## Hard Rules From the Base Guide
+
+Two hard rules in the base guide are not style preferences, and both
+survive here:
+
+1. **No emoji. None.** Not in headings, bullets, tables, or status
+   markers. They break the LaTeX path these documents build through,
+   and the gate (`check_tag_survival.py`, plus the emoji check in
+   pre-commit/CI) treats an introduced emoji as FATAL. Use the base
+   guide's replacement table for any glyphs found in carried-over
+   text — a caveat glyph becomes `Caveat: ...`, never just deletion.
+2. **Never rewrite a code block.** Reproduced verbatim in this guide's
+   structure list below (item 6), but it is a *rule*, not a container
+   convention.
+
+One base-guide rule does **not** carry over: the canonical
+module-page section spine (`## Overview`, `## Ports`, ...) targets
+single-module reference pages. HAS/MAS documents are chaptered specs;
+their heading contract is this guide's structure list below, not the
+module spine. Do not rename HAS/MAS chapters onto the module template.
+
+Everything else in the base guide — identity, personality, language
+rules, tone calibration, gendered-language notes, final check — is
+incorporated by reference and applies unchanged. When in doubt, open
+the base guide; this file is an adaptation, not a replacement.
+
 ## The One-Sentence Rule
 
 Humanize the **prose between the structure**. Never the structure itself.
