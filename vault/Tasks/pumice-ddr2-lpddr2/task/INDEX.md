@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-040** — never recycle a number, even when its item closed.
+**Next ID: TASK-043** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -12,7 +12,7 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 33 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
@@ -20,6 +20,11 @@ exactly one state by construction rather than by discipline.
 
 ## Open
 
+- **TASK-042** — LPDDR2 board enablement: from "vaguely supported" to fully
+  enabled for the incoming LPDDR2 board -- runtime ZQ calibration (first
+  content of `pumice_training_layer` per the owner's MC-001 ruling), board
+  timing/CSR definition, BFM/DV gap check, bring-up harness, and REFpb
+  runtime exercise.
 - **TASK-035** — finish pumice's formal coverage. 5 of 27 blocks proven (11/11
   sby tasks); closes when TIER 1 is done — `pumice_cmd_arbiter` (which settles
   [[ISSUE-019]]), `pumice_wr_data_cam`, `pumice_rd_cmd_cam`, `pumice_dfi_cdc` —
