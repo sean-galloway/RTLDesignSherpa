@@ -42,6 +42,17 @@ PROGRAM_TCL = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 READBACK_TCL = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "jtag_readback.tcl")
 
+# A readback that returns targets but ZERO devices is not a wrong board -- it is
+# a broken enumeration. hw_server fresh-spawns per program attempt here and its
+# Digilent-probe discovery is racy on a multi-interface FTDI (the Genesys 2
+# appears once as a phantom no-device target and once as the real one, which
+# then reports "Target is already opened"); observed 2026-10-05 failing ~half
+# of all program attempts once a second probe (Nexys A7) shares the chain.
+# That signature gets a bounce-and-reread; a chain that enumerates devices but
+# not ours is a genuine refusal and is never retried.
+DEVICELESS_READBACK_ATTEMPTS = 5
+_HW_SERVER_SETTLE_S = 3
+
 
 class IdentityError(RuntimeError):
     """The board on the chain is not the board we were asked to drive."""
@@ -358,34 +369,60 @@ class Board:
         and approved records, and six weeks later nobody can tell which one they
         are holding. (Raised by the scoria session, and it is the sharper half of
         the asymmetry.)
+
+        A readback that enumerates no devices at all is retried with a bounced
+        hw_server (see DEVICELESS_READBACK_ATTEMPTS) -- that signature is the
+        hw_server probe-discovery race, not a chain fact, and believing it on
+        the first read turns every program attempt into a coin flip.
         """
         serial = self.jtag_serial
-        try:
-            chain = self.readback(vivado)
-        except IdentityError as exc:
-            return {"status": "inconclusive", "serial": serial,
-                    "detail": str(exc), "chain": None}
-        except subprocess.TimeoutExpired:
-            # A wedged hw_server is the commonest way the readback fails to
-            # come back at all, and it is squarely an inconclusive result. If
-            # it escaped as an exception it would take `program` down with it,
-            # which is the refusal the asymmetry exists to avoid.
-            return {"status": "inconclusive", "serial": serial,
-                    "detail": f"JTAG readback timed out after {vivado} was started",
-                    "chain": None}
-        except OSError as exc:
-            return {"status": "inconclusive", "serial": serial,
-                    "detail": f"could not run the JTAG readback: {exc}",
-                    "chain": None}
-        if not serial:
-            return {"status": "unjudged", "serial": None,
-                    "detail": "board has no registry JTAG serial", "chain": chain}
+        chain = None
+        for attempt in range(1, DEVICELESS_READBACK_ATTEMPTS + 1):
+            try:
+                chain = self.readback(vivado)
+            except IdentityError as exc:
+                return {"status": "inconclusive", "serial": serial,
+                        "detail": str(exc), "chain": None}
+            except subprocess.TimeoutExpired:
+                # A wedged hw_server is the commonest way the readback fails to
+                # come back at all, and it is squarely an inconclusive result. If
+                # it escaped as an exception it would take `program` down with it,
+                # which is the refusal the asymmetry exists to avoid.
+                return {"status": "inconclusive", "serial": serial,
+                        "detail": f"JTAG readback timed out after {vivado} was started",
+                        "chain": None}
+            except OSError as exc:
+                return {"status": "inconclusive", "serial": serial,
+                        "detail": f"could not run the JTAG readback: {exc}",
+                        "chain": None}
+            if not serial:
+                return {"status": "unjudged", "serial": None,
+                        "detail": "board has no registry JTAG serial", "chain": chain}
+            if chain["devices"] or attempt == DEVICELESS_READBACK_ATTEMPTS:
+                break
+            print(f"[program] identity: readback enumerated no devices "
+                  f"(hw_server enumeration race); bounce and retry "
+                  f"{attempt + 1}/{DEVICELESS_READBACK_ATTEMPTS}")
+            self._bounce_hw_server()
         try:
             self.verify_identity(vivado, readback=chain)
         except IdentityError as exc:
             return {"status": "wrong", "serial": serial,
                     "detail": str(exc), "chain": chain}
         return {"status": "verified", "serial": serial, "detail": "", "chain": chain}
+
+    def _bounce_hw_server(self) -> None:
+        """Kill any hw_server so the next readback spawns a fresh, clean one.
+
+        Only ever called between retries of a readback that enumerated zero
+        devices -- the hw_server Digilent-probe race leaves a phantom
+        no-device target and a poisoned real one, and no tcl-side reopen
+        recovers it. Safe to kill: the board lock serializes programming
+        flows, readbacks elsewhere cost seconds and fail inconclusive (their
+        callers can simply re-run), and hw_server respawns on demand.
+        """
+        subprocess.run(["pkill", "-x", "hw_server"], check=False)
+        time.sleep(_HW_SERVER_SETTLE_S)
 
     @staticmethod
     def bitstream_sha256(path: str) -> str:

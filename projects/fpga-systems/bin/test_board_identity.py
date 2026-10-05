@@ -249,6 +249,82 @@ def test_a_board_with_no_serial_is_unjudged_not_verified():
     assert v["status"] == "unjudged"
 
 
+# ---- the deviceless-readback race -------------------------------------------
+#
+# hw_server fresh-spawns per program attempt and its Digilent-probe discovery
+# races on a multi-interface FTDI: the chain comes back as targets with NO
+# devices -- the Genesys 2 probe appears once as a phantom no-device target
+# and once as the real one, which then reports "Target is already opened".
+# That signature is a broken readback, not a wrong board: the verdict must
+# bounce hw_server and re-read, and must NOT weaken a genuine refusal.
+# Captured live 2026-10-05: 5 of 7 program attempts on a two-probe chain
+# (this CHAIN fixture's lab) refused with exactly that readback.
+
+DEVICELESS = parse_readback(
+    f"JTAG_TARGET localhost:3121/xilinx_tcf/Digilent/{NEXYS_CHAIN_SERIAL}\n"
+    f"JTAG_TARGET localhost:3121/xilinx_tcf/Digilent/{GENESYS2_SERIAL}\n"
+    f"JTAG_TARGET localhost:3121/xilinx_tcf/Digilent/{GENESYS2_CHAIN_SERIAL}\n")
+
+
+def _flaky_board(serial, chains):
+    """A board whose readbacks return `chains` in order, repeating the last.
+
+    `_bounce_hw_server` is stubbed: these tests must never touch a real
+    hw_server, and the bounce is concurrency plumbing, not identity logic.
+    """
+    b = _board(serial)
+    calls = {"n": 0, "bounces": 0}
+
+    def fake_readback(vivado="vivado", timeout=240):
+        i = min(calls["n"], len(chains) - 1)
+        calls["n"] += 1
+        return chains[i]
+
+    def fake_bounce():
+        calls["bounces"] += 1
+
+    b.readback = fake_readback
+    b._bounce_hw_server = fake_bounce
+    b.calls = calls
+    return b
+
+
+def test_a_deviceless_readback_is_bounced_and_retried():
+    b = _flaky_board(GENESYS2_SERIAL, [DEVICELESS, parse_readback(CHAIN)])
+    v = b.identity_verdict()
+    assert v["status"] == "verified"
+    assert b.calls["n"] == 2
+    assert b.calls["bounces"] == 1
+
+
+def test_a_persistently_deviceless_readback_refuses_after_bounded_retries():
+    from board import DEVICELESS_READBACK_ATTEMPTS
+    b = _flaky_board(GENESYS2_SERIAL, [DEVICELESS])
+    v = b.identity_verdict()
+    assert v["status"] == "wrong"
+    assert b.calls["n"] == DEVICELESS_READBACK_ATTEMPTS
+    assert b.calls["bounces"] == DEVICELESS_READBACK_ATTEMPTS - 1
+    assert v["chain"] is not None
+
+
+def test_a_genuine_wrong_chain_is_not_retried():
+    # Devices enumerate fine; the board is simply not on the chain. Retrying
+    # that would only burn JTAG time -- the refusal has to stand on read 1.
+    b = _flaky_board("DEADBEEF", [parse_readback(CHAIN)])
+    v = b.identity_verdict()
+    assert v["status"] == "wrong"
+    assert b.calls["n"] == 1
+    assert b.calls["bounces"] == 0
+
+
+def test_a_serialless_board_is_unjudged_even_on_a_deviceless_readback():
+    b = _flaky_board(None, [DEVICELESS])
+    v = b.identity_verdict()
+    assert v["status"] == "unjudged"
+    assert b.calls["n"] == 1
+    assert b.calls["bounces"] == 0
+
+
 def test_inconclusive_and_verified_are_not_the_same_record():
     good = _verdict_board(GENESYS2_SERIAL, parse_readback(CHAIN)).identity_verdict()
     blind = _verdict_board(GENESYS2_SERIAL,
