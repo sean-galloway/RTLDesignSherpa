@@ -12,17 +12,18 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 15 | done (kept for history) |
+| [closed/](closed/) | 16 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-016** — FULL-level: 14 tests fail with AXI4 write B-timeouts; pre-existing at 1.9.2 parity (filed from tooling TASK-025)
 
 ## Closed
+
+- **BUG-016** — FULL-level: 14 tests fail with AXI4 write B-timeouts — RESOLVED 2026-10-04: converter B-CAM age-compare boundary swallowed every 32nd downsize B; best_age widened one bit, FULL suite green
 
 - **BUG-001** — Generator emits NUM_SLAVES as a body localparam used in the port list
 - **BUG-002** — All six *_mon_monitor stress tests fail (pre-existing)

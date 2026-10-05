@@ -533,6 +533,45 @@ async def cocotb_test_andesite_cmd_arbiter(dut):
         j = await wait_for(tb, lambda: tb.strobes()['rd_issue'] == 1, limit=20)
         chk(j is not None,
             "rd_issue never fired after the sink resumed")
+    elif tt == "num_bg_1_degenerates_ls_to_one_group":
+        # Review-Focus degeneration proof: NUM_BG==1 (the LPDDR4 corner) has
+        # exactly one bank group, so EVERY column pair is "same-group" and
+        # the long window governs all column spacing -- the short window
+        # must never let a column through, and no memtype input exists to
+        # consult. Cross-BANK is still cross-group-never: banks 0 and 7
+        # share group 0.
+        if int(os.environ.get("NUM_BG", "4")) != 1:
+            raise ValueError("this case must build with NUM_BG=1")
+        tb.all_banks_ready(True)
+        dut.t_ccd_i.value = 2                  # short window = 2
+        tb.set_bank_bits(dut.bank_row_active_i, {0: 1, 7: 1})
+        tb.set_open_rows({0: 0x11, 7: 0x77})
+        tb.set_entries('rd', {0: (0, 0x11, 0x10, 10), 1: (7, 0x77, 0x70, 8)})
+        await tb.settle(4)
+        i = await wait_for(tb, lambda: is_op(OP_RD))
+        chk(i is not None, "first column (bank 0) never issued")
+        p = tb.picked()
+        chk(p['bank'] == 0, f"first column went to bank {p['bank']}, expected 0")
+        # Leave only the other-bank candidate: with NUM_BG=1 it is the SAME
+        # group, so the L gate must govern even though the banks differ.
+        tb.set_entries('rd', {1: (7, 0x77, 0x70, 8)})
+        await tb.settle(4)
+        dut.tccd_l_ok_i.value = 0
+        saw = 0
+        for _ in range(20):
+            await tb.step()
+            if is_op(OP_RD):
+                saw += 1
+        chk(saw == 0,
+            f"NUM_BG=1: {saw} 'cross-bank' columns leaked through the short "
+            f"window -- the single-group degeneration is broken (L gate must "
+            f"govern every column)")
+        dut.tccd_l_ok_i.value = 1
+        i = await wait_for(tb, lambda: is_op(OP_RD), limit=40)
+        chk(i is not None, "NUM_BG=1: the second column never issued with the long window open")
+        p = tb.picked()
+        chk(p['bank'] == 7, f"the second column went to bank {p['bank']}, expected 7")
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {tt}")
 
@@ -546,6 +585,7 @@ _FUNC = _GATE + ["init_passthrough", "refresh_outranks_zq",
                  "zq_waits_without_falling_through",
                  "stall_zq_counts_the_wait", "zq_grant_pulses_once",
                  "act_waits_for_the_act_limit", "ls_same_group_waits_for_the_long_window",
+                 "num_bg_1_degenerates_ls_to_one_group",
                  "grants_wait_for_the_accepted_fire",
                  "cmd_backpressure_holds_the_pick",
                  "demand_queued_before_zq_stays_out_of_the_window",
@@ -555,11 +595,16 @@ _TEST_LEVEL = (os.environ.get("REG_LEVEL") or os.environ.get("TEST_LEVEL")
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FUNC}.get(_TEST_LEVEL, _FUNC)
 
 
+# Geometry overrides: the degeneration case builds the LPDDR4 corner.
+NUM_BG_BY_CASE = {"num_bg_1_degenerates_ls_to_one_group": 1}
+
+
 @pytest.mark.parametrize("test_type", _PARAMS)
 def test_andesite_cmd_arbiter(request, test_type):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "andesite_cmd_arbiter"
-    test_name = f"test_andesite_cmd_arbiter_{test_type}"
+    num_bg = NUM_BG_BY_CASE.get(test_type, 4)
+    test_name = f"test_andesite_cmd_arbiter_{test_type}_g{num_bg}"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
         filelist_path=("projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/"
@@ -570,9 +615,11 @@ def test_andesite_cmd_arbiter(request, test_type):
         includes=includes, toplevel=dut_name, module=module,
         testcase="cocotb_test_andesite_cmd_arbiter",
         sim_build=sim_build, simulator="verilator",
-        parameters={"NUM_BANKS": str(NUM_BANKS), "ROW_WIDTH": str(ROW_WIDTH)},
+        parameters={"NUM_BANKS": str(NUM_BANKS), "ROW_WIDTH": str(ROW_WIDTH),
+                    "NUM_BG": str(num_bg)},
         extra_env={"DUT": dut_name, "TEST_TYPE": test_type,
                    "NUM_BANKS": str(NUM_BANKS), "ROW_WIDTH": str(ROW_WIDTH),
+                   "NUM_BG": str(num_bg),
                    "TEST_LEVEL": _TEST_LEVEL, "COCOTB_LOG_LEVEL": "INFO",
                    "SEED": os.environ.get('SEED', str(random.randint(0, 99999))),
                    "COCOTB_RESULTS_FILE":

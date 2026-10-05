@@ -156,6 +156,10 @@ module andesite_cmd_arbiter
     // (per-candidate outputs selected with the last command's rank/group).
     input  logic                      tccd_l_ok_i,
     input  logic                      trrd_l_ok_i,
+    // ANDESITE L/S DELTA: the group of the registered pick, exposed for the
+    // global timers' per-candidate readiness select (the macro closes the
+    // loop: pick_group_o -> cand_bg_i -> tccd_l_window_ok_o -> tccd_l_ok_i).
+    output logic [((NUM_BG > 1) ? $clog2(NUM_BG) : 1)-1:0] pick_group_o,
     // tCCD in MC cycles, for the FORWARD column-spacing gate below (the
     // flopped tccd_ok_i alone is 3 pick-pipeline cycles stale at classify).
     input  logic [7:0]                t_ccd_i,
@@ -1770,5 +1774,6 @@ module andesite_cmd_arbiter
     // group -> the carried forward counter (short) gate already covers it.
     assign w_tccd_ls_ok = (w_pick_group != r_last_col_bg) || tccd_l_ok_i;
     assign w_trrd_ls_ok = (w_pick_group != r_last_act_bg) || trrd_l_ok_i;
+    assign pick_group_o = w_pick_group;
 
 endmodule : andesite_cmd_arbiter

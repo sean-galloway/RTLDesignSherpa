@@ -37,6 +37,10 @@ module andesite_mem_cmd_scheduler
     parameter int HIST_T_FAW  = 0,   // global 4-ACT window (ISSUE-019)
     parameter int HIST_T_RTW  = 0,   // global RD->WR turnaround window
     parameter int NUM_BANKS   = 8,
+    // ANDESITE L/S DELTA (P3 review I-1): bank-group count, passed to the
+    // arbiter and used for the event/pick group wires below (1 = LPDDR4
+    // degeneration, no memtype branch).
+    parameter int NUM_BG      = 4,
     parameter int ROW_WIDTH   = 14,
     parameter int COL_WIDTH   = 10,
     parameter int AXI_ID_WIDTH = 8,
@@ -108,6 +112,11 @@ module andesite_mem_cmd_scheduler
     input  logic [7:0]                t_wtr_i,
     input  logic [7:0]                t_rtw_i,
     input  logic [7:0]                t_ccd_i,
+    // ANDESITE L/S DELTA: the long/short pair CSRs (tCCD_L/S, tRRD_L/S).
+    input  logic [7:0]                t_ccd_l_i,
+    input  logic [7:0]                t_ccd_s_i,
+    input  logic [7:0]                t_rrd_l_i,
+    input  logic [7:0]                t_rrd_s_i,
     input  logic [15:0]               t_refi_i,
     // DV/bring-up knob: pulse to reload the tREFI countdown immediately
     // with the current t_refi_i (it otherwise reloads only on expiry).
@@ -553,8 +562,17 @@ module andesite_mem_cmd_scheduler
         .obs_ap_pending_o ()
     );
 
+    // ANDESITE L/S DELTA: group wires + timer readiness loop. group(bank)
+    // matches the arbiter's formula exactly; the design point is single-rank
+    // (RK0), so the timers' per-candidate rank select is constant zero.
+    localparam int BGW_EFF_M = (NUM_BG > 1) ? $clog2(NUM_BG) : 1;
+    logic [BGW_EFF_M-1:0] w_evt_bg, w_pick_group;
+    logic                 w_tccd_l_ok, w_trrd_l_ok, w_tccd_s_ok, w_trrd_s_ok;
+    assign w_evt_bg = (NUM_BG > 1) ? evt_bank[BKW-1 -: BGW_EFF_M] : '0;
+
     // ======================================================================
-    // andesite_global_timers — tFAW/tRRD (per-rank), tWTR/tRTW/tCCD (global).
+    // andesite_global_timers — tFAW/tRRD (per-rank), tWTR/tRTW/tCCD (global),
+    // plus the L/S pair windows (per-(rank,group) ACT, per-group column).
     // ======================================================================
     andesite_global_timers #(
         .NUM_RANKS(NUM_RANKS),
@@ -567,15 +585,28 @@ module andesite_mem_cmd_scheduler
         .t_wtr_global_i  (t_wtr_i),
         .t_rtw_i         (t_rtw_i),
         .t_ccd_i         (t_ccd_i),
+        // ANDESITE L/S DELTA
+        .t_ccd_l_i       (t_ccd_l_i),
+        .t_ccd_s_i       (t_ccd_s_i),
+        .t_rrd_l_i       (t_rrd_l_i),
+        .t_rrd_s_i       (t_rrd_s_i),
         .evt_act_i       (evt_act),
         .evt_act_rank_i  (evt_rank),
+        .evt_act_bg_i    (w_evt_bg),
         .evt_rd_i        (evt_rd),
         .evt_wr_i        (evt_wr),
+        .evt_col_bg_i    (w_evt_bg),
+        .cand_rank_i     ('0),
+        .cand_bg_i       (w_pick_group),
         .tfaw_window_ok_o(w_tfaw_ok),
         .trrd_window_ok_o(w_trrd_ok),
         .twtr_global_ok_o(w_twtr_ok),
         .trtw_window_ok_o(w_trtw_ok),
         .tccd_window_ok_o(w_tccd_ok),
+        .tccd_l_window_ok_o(w_tccd_l_ok),
+        .tccd_s_window_ok_o(w_tccd_s_ok),
+        .trrd_l_window_ok_o(w_trrd_l_ok),
+        .trrd_s_window_ok_o(w_trrd_s_ok),
         .obs_faw_nz_o    (),
         .obs_trrd_nz_o   (),
         .obs_twtr_nz_o   (),
@@ -636,7 +667,8 @@ module andesite_mem_cmd_scheduler
         .COL_WIDTH   (COL_WIDTH),
         .AXI_ID_WIDTH(IW),
         .NUM_ENTRIES (NUM_ENTRIES),
-        .AGE_WIDTH   (AGE_WIDTH)
+        .AGE_WIDTH   (AGE_WIDTH),
+        .NUM_BG      (NUM_BG)
     ) u_arbiter (
         .aclk               (aclk),
         .aresetn            (aresetn),
@@ -673,6 +705,9 @@ module andesite_mem_cmd_scheduler
         .twtr_ok_i          (w_twtr_ok),
         .trtw_ok_i          (w_trtw_ok),
         .tccd_ok_i          (w_tccd_ok),
+        .tccd_l_ok_i        (w_tccd_l_ok),
+        .trrd_l_ok_i        (w_trrd_l_ok),
+        .pick_group_o       (w_pick_group),
         .t_ccd_i            (t_ccd_i),
         .wr_sch_valid_i     (wr_sch_valid_i),
         .wr_sch_bank_i      (wr_sch_bank_i),
@@ -816,7 +851,10 @@ module andesite_mem_cmd_scheduler
             .cmd_valid_i(cmd_valid_o && cmd_ready_i),
             .cmd_op_i   (cmd_op_o),
             .cmd_rank_i (cmd_rank_o),
-            .cmd_bank_i (cmd_bank_o)
+            .cmd_bank_i (cmd_bank_o),
+            // P2 L/S growth: the issued command's bank group, same formula
+            // as the arbiter's group select.
+            .cmd_bg_i   (w_evt_bg)
         );
     end endgenerate
 

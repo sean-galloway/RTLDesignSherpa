@@ -705,17 +705,23 @@ module axi4_dwidth_converter_wr #(
             assign w_b_cam_slot_free = w_b_cam_free_found;
 
             // Find the oldest outstanding burst matching the current B ID.
+            // bridge BUG-016: best_age must be one bit WIDER than the entry
+            // age field. Entries take ages 0..31; with best_age the same
+            // width, its '1 init is 31 and an entry aged exactly 31 fails
+            // the strict `<` -- every 32nd burst's B then matches nothing,
+            // is swallowed (m_axi_bready's no-match arm is 1'b1), and the
+            // master waits for a B that has already been consumed.
             logic [B_CAM_AW-1:0] w_b_cam_idx;
             logic                w_b_cam_match;
-            logic [B_CAM_AW:0]   w_b_cam_best_age;
+            logic [B_CAM_AW+1:0] w_b_cam_best_age;
             always_comb begin
                 w_b_cam_match    = 1'b0;
                 w_b_cam_idx      = '0;
                 w_b_cam_best_age = '1;
                 for (int i = 0; i < B_CAM_DEPTH; i++) begin
                     if (b_cam_valid[i] && (b_cam[i].id == m_axi_bid) &&
-                        (b_cam[i].age < w_b_cam_best_age)) begin
-                        w_b_cam_best_age = b_cam[i].age;
+                        ({1'b0, b_cam[i].age} < w_b_cam_best_age)) begin
+                        w_b_cam_best_age = {1'b0, b_cam[i].age};
                         w_b_cam_idx      = B_CAM_AW'(i);
                         w_b_cam_match    = 1'b1;
                     end

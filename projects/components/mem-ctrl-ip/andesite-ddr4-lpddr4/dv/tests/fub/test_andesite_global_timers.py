@@ -413,6 +413,33 @@ async def cocotb_test_andesite_global_timers(dut):
         chk(len(acts) > n // 20,
             f"only {len(acts)} activates in {n} cycles -- the soak never got "
             f"going, so it proved nothing about the windows")
+    elif tt == "num_bg_1_single_group_degenerates":
+        # Review-Focus degeneration proof: NUM_BG==1 (the LPDDR4 corner) gives
+        # the timers exactly one group cell; a column event opens THE long
+        # window and the shared short window, and every candidate (any bg
+        # value the upper logic might present) reads that one cell. The L
+        # window governs because group is constant -- no memtype input
+        # exists to consult.
+        await tb.setup(ccd=0)
+        d = tb.dut
+        d.t_ccd_l_i.value = 5
+        d.t_ccd_s_i.value = 3
+        d.evt_col_bg_i.value = 0
+        await tb.event('evt_rd_i')
+        for cand in (0, 1, 2, 3):
+            d.cand_bg_i.value = cand
+            await Timer(1, 'ns')
+            assert int(d.tccd_l_window_ok_o.value) == 0,                 f"cand_bg={cand}: the single group's long window must be counting"
+        for _ in range(3):
+            await tb.tick()
+        d.cand_bg_i.value = 0
+        await Timer(1, 'ns')
+        assert int(d.tccd_s_window_ok_o.value) == 1, "short expires at tCCD_S"
+        assert int(d.tccd_l_window_ok_o.value) == 0, "long still counting at tCCD_S"
+        for _ in range(2):
+            await tb.tick()
+        assert int(d.tccd_l_window_ok_o.value) == 1, "long expires at tCCD_L"
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {tt}")
 
@@ -425,6 +452,7 @@ _FUNC = _GATE + ["tfaw_slots_are_a_sliding_window",
                  "turnaround_is_direction_specific",
                  "tccd_takes_either_column", "zero_disables_every_window",
                  "ls_windows_are_per_group",
+                 "num_bg_1_single_group_degenerates",
                  "per_rank_independence", "obs_tracks_the_counters",
                  "random_soak"]
 _TEST_LEVEL = (os.environ.get("REG_LEVEL") or os.environ.get("TEST_LEVEL")
@@ -447,8 +475,9 @@ def test_andesite_global_timers(request, test_type):
         includes=includes, toplevel=dut_name, module=module,
         testcase="cocotb_test_andesite_global_timers",
         sim_build=sim_build, simulator="verilator",
-        parameters={"NUM_RANKS": "2"} if test_type == "per_rank_independence"
-                   else {},
+        parameters=({"NUM_RANKS": "2"} if test_type == "per_rank_independence"
+                    else {"NUM_BG": "1"} if test_type == "num_bg_1_single_group_degenerates"
+                    else {}),
         extra_env={"DUT": dut_name, "TEST_TYPE": test_type,
                    "TEST_LEVEL": _TEST_LEVEL, "COCOTB_LOG_LEVEL": "INFO",
                    "SEED": os.environ.get('SEED', str(random.randint(0, 99999))),
