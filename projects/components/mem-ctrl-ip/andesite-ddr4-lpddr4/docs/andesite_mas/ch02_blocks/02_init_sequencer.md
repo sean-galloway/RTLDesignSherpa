@@ -80,6 +80,15 @@ All timing values are runtime CSRs, not parameters. That's the family rule: a ti
 | `init_done` | out | 1 | `READY` reached, normal operation may begin |
 | `init_err` | out | 1 | sequencing or timeout error, latched until re-init |
 | `ca_train_start` | out | 1 | LPDDR4 handoff to `ca_train_ifc` when training is required |
+| `parity_alert_i` | in | 1 | the formatter's logged CA-parity alert pulse; the recovery FSM's entry event |
+| `recovery_interval_i` | in | 16 | JEDEC-named recovery interval for `RESENDING`, runtime CSR |
+| `csr_telem_clear_i` | in | 1 | explicit firmware clear of the recovery telemetry |
+| `retract_req_o` | out | 1 | maintenance-class request asking the scheduler to withdraw the suspect command |
+| `retract_ack_i` | in | 1 | scheduler grant for the retract; request-and-wait, like `cmd_req`/`cmd_ack` |
+| `obs_recovery_state_o` | out | 2 | recovery sub-FSM state: 0 `IDLE`, 1 `ALERT_SEEN`, 2 `RESENDING` |
+| `obs_alerts_seen_o` | out | 16 | saturating telemetry: alerts seen |
+| `obs_cmds_dropped_o` | out | 16 | saturating telemetry: suspect commands dropped |
+| `obs_cmds_resent_o` | out | 16 | saturating telemetry: commands released for re-issue |
 
 : Table 2.2.2: Init sequencer ports
 

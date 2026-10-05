@@ -288,6 +288,18 @@ module andesite_mem_cmd_scheduler
         // ANDESITE DELTA (partial, T9 owns the full rewiring): the P1
         // sequencer takes the memtype as its CSR image, not a runtime port.
         .csr_memtype        (memtype_i),
+        // TASK-006 recovery FSM pins: parked at the macro until the init
+        // integration (T9) wires the alert source and the scheduler
+        // retract channel; grounded so no spurious alert can fire.
+        .parity_alert_i     (1'b0),
+        .recovery_interval_i(16'd0),
+        .csr_telem_clear_i  (1'b0),
+        .retract_req_o      (),
+        .retract_ack_i      (1'b0),
+        .obs_recovery_state_o(),
+        .obs_alerts_seen_o  (),
+        .obs_cmds_dropped_o (),
+        .obs_cmds_resent_o  (),
         .t_init_wait_i      (t_init_wait_i),
         .t_dll_wait_i       (t_dll_wait_i),
         .t_mrd_wait_i       (t_mrd_wait_i),

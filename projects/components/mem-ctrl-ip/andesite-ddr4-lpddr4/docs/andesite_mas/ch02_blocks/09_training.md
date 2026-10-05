@@ -22,11 +22,11 @@
 
 # Training Interfaces (`andesite_wrlvl_ifc`, `andesite_rdlvl_ifc`, `andesite_ca_train_ifc`)
 
-**Module:** `andesite_wrlvl_ifc` (MODIFIED, carried and landed), `andesite_rdlvl_ifc` (NEW — lands with the training task), `andesite_ca_train_ifc` (NEW — lands with the training task)
+**Module:** `andesite_wrlvl_ifc` (MODIFIED, carried and landed), `andesite_rdlvl_ifc` (NEW, landed), `andesite_ca_train_ifc` (NEW, landed)
 **Location:** `projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/fub/`
 **Category:** training control / PHY handshake
 **Parent:** `andesite_top` / DFI boundary
-**Status:** `wrlvl_ifc` carried from scoria and landed; the tables below name its landed port list. `rdlvl_ifc`/`ca_train_ifc` are specified on this page and land with the training task.
+**Status:** all three landed; the tables below name the landed port lists
 
 ## Purpose
 
@@ -71,8 +71,10 @@ The JEDEC timing windows arrive as runtime-CSR ports on the landed `wrlvl_ifc` �
 | `dfi_phylvl_ack_cs_n_i` | in | `NUM_CS` | PHY acknowledges the training request per CS |
 | `dfi_phy_wrlvl_cs_n_o` | out | `NUM_CS` | write-leveling chip-select to the PHY |
 | `dfi_wrlvl_strobe_o` | out | 1 | DQS strobe the PHY forwards for the prime-DQ sample |
+| `dfi_phy_rdlvl_cs_n_o` | out | `NUM_CS` | read-leveling chip-select, driven in `rdlvl_ifc`'s HANDSHAKE |
+| `dfi_phylvl_req_cs_n_i` | in | `NUM_CS` | PHY read-leveling request per CS (`rdlvl_ifc` handshake input) |
 
-The read-leveling and CA-training DFI signals (`dfi_phy_rdlvl_cs_n`, `dfi_phy_calvl_cs_n`, the pattern/periodic outputs, `dfi_ca_capture`) land with `rdlvl_ifc` and `ca_train_ifc`; the four rows above are the landed `wrlvl_ifc` set. The controller initiates the handshake — the host owns the delay sweep (design decision D2), so there is no PHY-driven request pin on this interface.
+The controller initiates the handshake — the host owns the delay sweep (design decision D2), so there is no PHY-driven request pin on `wrlvl_ifc`; `rdlvl_ifc` consumes the PHY's request and raises its own ack (`dfi_phylvl_ack_cs_n_o` is shared by both interfaces' handshakes on the DFI bus, one training kind at a time).
 
 : Table 2.9.2: DFI 4.0 training signals
 
@@ -96,8 +98,24 @@ The read-leveling and CA-training DFI signals (`dfi_phy_rdlvl_cs_n`, `dfi_phy_ca
 | `obs_timeout_o` | out | 1 | `t_wlmrd_max_i` expired (distinct status) |
 | `obs_ever_done_o` | out | 1 | converged at least once |
 | `obs_state_o` | out | 3 | FSM-state observability |
+| `rdlvl_en_i` | in | 1 | start one read-leveling sweep (a delay setting) |
+| `csr_mr3_mpr_enter_i` | in | 16 | MR3 image with MPR enable + pattern select (the RTL makes no MPR-bit-position claim — HAS Q1); `csr_mr3_mpr_exit_i` is the disable image |
+| `t_mpr_enter_i` | in | 16 | MRW ack to valid training pattern; `t_mpr_exit_i` / `t_mpr_readout_i` are the exit and capture windows |
+| `t_rdlvl_timeout_i` | in | 16 | read-leveling handshake bound (0 = none) |
+| `mpr_pattern_i` | in | 1 | observed DQ, latched per chip select in CAPTURE |
+| `cmd_req_o` | out | 1 | MRW/MPC request path (shared shape with the init sequencer) |
+| `cmd_ack_i` | in | 1 | formatter/scheduler grant for the request |
+| `cmd_op_o` | out | 5 | `OP_MRS` (`rdlvl_ifc`) / `OP_MPC` (`ca_train_ifc`) |
+| `cmd_bank_o` | out | 3 | MR index (3 = MR3 on the `rdlvl_ifc` MRW path) |
+| `cmd_addr_o` | out | 16 | the MR3 image on the MRW path |
+| `ca_train_en_i` | in | 1 | start one CA-training round; `wdq_cal_en_i` starts one WDQ-calibration round |
+| `csr_mpc_ca_enter_i` | in | 6 | MPC opcode image for CA-training entry (CSR; encodings TBC(JESD209-4) — driven, never decoded); `csr_mpc_ca_exit_i`, `csr_mpc_wdq_enter_i`, `csr_mpc_wdq_exit_i` are the sibling images |
+| `t_ca_train_i` | in | 16 | CA sample window; `t_wdq_cal_i` is the WDQ window; `t_ca_timeout_i` bounds the MPC handshake |
+| `ca_sample_i` | in | 1 | CA observation during SAMPLE; `wdq_sample_i` is the WDQ observation |
+| `mpc_op_o` | out | 6 | the opcode image presented on the MPC issue path |
+| `chan_sel_i` | in | 1 | LPDDR4 x16 channel select (channels train independently) |
 
-The `rdlvl_*` and `ca_train_*` host/CSR rows in the original sketch land with `rdlvl_ifc` and `ca_train_ifc`; the telemetry discipline they follow is exactly the landed `wrlvl_*` shape above.
+The telemetry discipline is the landed `wrlvl_*`/`obs_*` shape above, one counter set per interface.
 
 : Table 2.9.3: Host/CSR training interface
 

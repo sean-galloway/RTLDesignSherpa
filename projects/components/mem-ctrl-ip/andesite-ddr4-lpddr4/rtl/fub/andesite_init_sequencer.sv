@@ -78,7 +78,20 @@ module andesite_init_sequencer #(
     output logic                     parity_enable_out,
     output logic                     init_done,
     output logic                     init_err,
-    output logic                     ca_train_start
+    output logic                     ca_train_start,
+
+    // ----- TASK-006: CA-parity error recovery (MAS 02 fence). The recovery
+    // sub-FSM sits beside the init FSM and never enters the bank machine;
+    // the formatter's logged alert pulse is its entry event.
+    input  logic                     parity_alert_i,
+    input  logic [15:0]              recovery_interval_i,  // runtime CSR
+    input  logic                     csr_telem_clear_i,
+    output logic                     retract_req_o,        // maintenance-class
+    input  logic                     retract_ack_i,
+    output logic [1:0]               obs_recovery_state_o,
+    output logic [15:0]              obs_alerts_seen_o,
+    output logic [15:0]              obs_cmds_dropped_o,
+    output logic [15:0]              obs_cmds_resent_o
 );
 
     import andesite_pkg::*;
@@ -286,6 +299,84 @@ module andesite_init_sequencer #(
             end
             default: ;
         endcase
+    end
+
+    //=========================================================================
+    // TASK-006: CA-parity error recovery sub-FSM (MAS 02 fence).
+    //
+    // IDLE -> ALERT_SEEN -> RESENDING -> IDLE. The recovery FSM is
+    // transparent in IDLE; normal scheduler grants pass through unchanged.
+    // ALERT_SEEN marks the in-grant command suspect, drops it (telemetry),
+    // and raises retract_req_o -- a maintenance-class request that waits
+    // for the scheduler's grant like the init FSM's own cmd_req/cmd_ack
+    // pair, preserving request-never-preempts. RESENDING holds the
+    // recovery interval (runtime CSR), then releases the scheduler to
+    // re-issue the dropped command from its request queue. No full
+    // re-initialization here; escalation is HAS open question Q4.
+    //=========================================================================
+    typedef enum logic [1:0] {
+        RCV_IDLE       = 2'd0,
+        RCV_ALERT_SEEN = 2'd1,
+        RCV_RESENDING  = 2'd2
+    } rcv_state_e;
+
+    rcv_state_e         r_rcv_state;
+    logic [15:0]        r_rcv_cnt;
+    logic [15:0]        r_alerts_seen, r_cmds_dropped, r_cmds_resent;
+
+    assign obs_recovery_state_o = r_rcv_state;
+    assign obs_alerts_seen_o    = r_alerts_seen;
+    assign obs_cmds_dropped_o   = r_cmds_dropped;
+    assign obs_cmds_resent_o    = r_cmds_resent;
+    assign retract_req_o        = (r_rcv_state == RCV_ALERT_SEEN);
+
+    always_ff @(posedge clk or negedge reset_n) begin
+        if (!reset_n) begin
+            r_rcv_state    <= RCV_IDLE;
+            r_rcv_cnt      <= 16'd0;
+            r_alerts_seen  <= 16'd0;
+            r_cmds_dropped <= 16'd0;
+            r_cmds_resent  <= 16'd0;
+        end else begin
+            unique case (r_rcv_state)
+                RCV_IDLE: begin
+                    if (parity_alert_i) begin
+                        r_rcv_state <= RCV_ALERT_SEEN;
+                        if (!csr_telem_clear_i && (r_alerts_seen != 16'hFFFF))
+                            r_alerts_seen  <= r_alerts_seen + 16'd1;
+                        if (!csr_telem_clear_i && (r_cmds_dropped != 16'hFFFF))
+                            r_cmds_dropped <= r_cmds_dropped + 16'd1;
+                    end
+                end
+
+                RCV_ALERT_SEEN: begin
+                    if (retract_ack_i) begin
+                        r_rcv_state <= RCV_RESENDING;
+                        r_rcv_cnt   <= recovery_interval_i;
+                    end
+                end
+
+                RCV_RESENDING: begin
+                    if (r_rcv_cnt == 16'd0) begin
+                        r_rcv_state <= RCV_IDLE;
+                        if (!csr_telem_clear_i && (r_cmds_resent != 16'hFFFF))
+                            r_cmds_resent <= r_cmds_resent + 16'd1;
+                    end else begin
+                        r_rcv_cnt <= r_rcv_cnt - 16'd1;
+                    end
+                end
+
+                default: r_rcv_state <= RCV_IDLE;
+            endcase
+
+            // Explicit firmware clear zeroes the counters; it does not
+            // disturb the FSM. Clear wins over a same-cycle count.
+            if (csr_telem_clear_i) begin
+                r_alerts_seen  <= 16'd0;
+                r_cmds_dropped <= 16'd0;
+                r_cmds_resent  <= 16'd0;
+            end
+        end
     end
 
 endmodule : andesite_init_sequencer

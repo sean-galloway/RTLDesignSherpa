@@ -100,7 +100,18 @@ module andesite_init_tb (
         .parity_enable_out (w_parity_enable),
         .init_done         (init_done),
         .init_err          (init_err),
-        .ca_train_start    ()
+        .ca_train_start    (),
+        // TASK-006 recovery pins: this smoke-level tb has no alert source;
+        // grounded/open until the tb grows the parity scenario.
+        .parity_alert_i     (1'b0),
+        .recovery_interval_i(16'd0),
+        .csr_telem_clear_i  (1'b0),
+        .retract_req_o      (),
+        .retract_ack_i      (1'b0),
+        .obs_recovery_state_o(),
+        .obs_alerts_seen_o  (),
+        .obs_cmds_dropped_o (),
+        .obs_cmds_resent_o  ()
     );
 
     andesite_dfi_cmd_formatter #() u_formatter (
