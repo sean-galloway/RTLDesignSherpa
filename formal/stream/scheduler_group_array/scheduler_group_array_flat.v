@@ -345,7 +345,7 @@ module arbiter_round_robin (
 	reg _sv2v_0;
 	parameter signed [31:0] CLIENTS = 4;
 	parameter signed [31:0] WAIT_GNT_ACK = 0;
-	parameter signed [31:0] N = $clog2(CLIENTS);
+	parameter signed [31:0] N = (CLIENTS > 1 ? $clog2(CLIENTS) : 1);
 	input wire clk;
 	input wire rst_n;
 	input wire block_arb;
@@ -355,140 +355,156 @@ module arbiter_round_robin (
 	output reg [CLIENTS - 1:0] grant;
 	output reg [N - 1:0] grant_id;
 	output reg [CLIENTS - 1:0] last_grant;
-	wire [CLIENTS - 1:0] w_mask_decode [0:CLIENTS - 1];
-	wire [CLIENTS - 1:0] w_win_mask_decode [0:CLIENTS - 1];
-	genvar _gv_i_1;
+	wire [CLIENTS - 1:0] w_requests_gated;
+	wire w_any_requests;
+	assign w_requests_gated = (block_arb ? {CLIENTS {1'sb0}} : request);
+	assign w_any_requests = |w_requests_gated;
 	function automatic signed [CLIENTS - 1:0] sv2v_cast_6D6F8_signed;
 		input reg signed [CLIENTS - 1:0] inp;
 		sv2v_cast_6D6F8_signed = inp;
 	endfunction
 	generate
-		for (_gv_i_1 = 0; _gv_i_1 < CLIENTS; _gv_i_1 = _gv_i_1 + 1) begin : gen_mask_lut
-			localparam i = _gv_i_1;
-			assign w_mask_decode[i] = (sv2v_cast_6D6F8_signed(1) << i) - sv2v_cast_6D6F8_signed(1);
-			assign w_win_mask_decode[i] = ~((sv2v_cast_6D6F8_signed(1) << (i + 1)) - sv2v_cast_6D6F8_signed(1));
-		end
-	endgenerate
-	reg [N - 1:0] r_last_grant_id;
-	reg r_last_valid;
-	reg r_pending_ack;
-	reg [N - 1:0] r_pending_client;
-	wire [CLIENTS - 1:0] w_requests_gated;
-	wire [CLIENTS - 1:0] w_requests_masked;
-	wire [CLIENTS - 1:0] w_requests_unmasked;
-	wire w_any_requests;
-	wire w_any_masked_requests;
-	wire [CLIENTS - 1:0] w_curr_mask_decode;
-	assign w_requests_gated = (block_arb ? {CLIENTS {1'sb0}} : request);
-	assign w_any_requests = |w_requests_gated;
-	assign w_curr_mask_decode = (grant_valid ? w_win_mask_decode[grant_id] : (r_last_valid ? w_win_mask_decode[r_last_grant_id] : sv2v_cast_6D6F8_signed(1)));
-	assign w_requests_masked = w_requests_gated & w_curr_mask_decode;
-	assign w_requests_unmasked = w_requests_gated;
-	assign w_any_masked_requests = |w_requests_masked;
-	wire [N - 1:0] w_winner;
-	wire w_winner_valid;
-	arbiter_priority_encoder #(
-		.CLIENTS(CLIENTS),
-		.N(N)
-	) u_priority_encoder(
-		.requests_masked(w_requests_masked),
-		.requests_unmasked(w_requests_unmasked),
-		.any_masked_requests(w_any_masked_requests),
-		.winner(w_winner),
-		.winner_valid(w_winner_valid)
-	);
-	wire w_ack_received;
-	wire w_can_grant;
-	wire [CLIENTS - 1:0] w_other_requests;
-	generate
-		if (WAIT_GNT_ACK == 1) begin : gen_ack_optimized
-			assign w_ack_received = r_pending_ack && grant_ack[r_pending_client];
-			assign w_other_requests = w_requests_gated & ~(sv2v_cast_6D6F8_signed(1) << r_pending_client);
-			assign w_can_grant = !r_pending_ack || w_ack_received;
-		end
-		else begin : gen_no_ack_optimized
-			assign w_ack_received = 1'b0;
-			assign w_can_grant = 1'b1;
-			assign w_other_requests = 1'sb0;
-		end
-	endgenerate
-	wire w_should_grant;
-	reg [CLIENTS - 1:0] w_next_grant;
-	reg [N - 1:0] w_next_grant_id;
-	wire w_next_grant_valid;
-	assign w_should_grant = (w_winner_valid && w_any_requests) && w_can_grant;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		w_next_grant = 1'sb0;
-		w_next_grant_id = 1'sb0;
-		if (w_should_grant) begin
-			w_next_grant[w_winner] = 1'b1;
-			w_next_grant_id = w_winner;
-		end
-	end
-	assign w_next_grant_valid = w_should_grant;
-	always @(posedge clk or negedge rst_n)
-		if (!rst_n) begin
-			grant <= 1'sb0;
-			grant_id <= 1'sb0;
-			grant_valid <= 1'b0;
-			last_grant <= 1'sb0;
-			r_last_grant_id <= 1'sb0;
-			r_last_valid <= 1'sb0;
-			r_pending_ack <= 1'b0;
-			r_pending_client <= 1'sb0;
-		end
-		else begin
-			r_last_valid <= grant_valid;
-			if (WAIT_GNT_ACK == 0) begin
-				grant <= w_next_grant;
-				grant_id <= w_next_grant_id;
-				grant_valid <= w_next_grant_valid;
-				last_grant <= grant;
-				r_last_grant_id <= grant_id;
-			end
-			else if (grant_valid == 1'b0) begin
-				grant <= w_next_grant;
-				grant_id <= w_next_grant_id;
-				grant_valid <= w_next_grant_valid;
-				last_grant <= grant;
-				r_last_grant_id <= grant_id;
-				if (w_next_grant_valid) begin
-					r_pending_ack <= 1'b1;
-					r_pending_client <= w_next_grant_id;
-				end
-			end
-			else if ((grant_valid == 1'b1) && !w_ack_received)
-				;
-			else if (((grant_valid == 1'b1) && w_ack_received) && (w_other_requests == {CLIENTS {1'sb0}})) begin
-				grant <= 1'sb0;
-				grant_id <= 1'sb0;
-				grant_valid <= 1'b0;
-				last_grant <= grant;
-				r_last_grant_id <= grant_id;
-				r_pending_ack <= 1'b0;
-				r_pending_client <= 1'sb0;
-			end
-			else if (((grant_valid == 1'b1) && w_ack_received) && (w_other_requests != {CLIENTS {1'sb0}})) begin
-				if (w_next_grant_valid) begin
-					grant <= w_next_grant;
-					grant_id <= w_next_grant_id;
-					grant_valid <= w_next_grant_valid;
+		if (CLIENTS == 1) begin : gen_single_client
+			wire [CLIENTS:1] sv2v_tmp_14D78;
+			assign sv2v_tmp_14D78 = w_requests_gated;
+			always @(*) grant = sv2v_tmp_14D78;
+			wire [1:1] sv2v_tmp_6195E;
+			assign sv2v_tmp_6195E = w_requests_gated[0];
+			always @(*) grant_valid = sv2v_tmp_6195E;
+			wire [N:1] sv2v_tmp_E4D73;
+			assign sv2v_tmp_E4D73 = 1'sb0;
+			always @(*) grant_id = sv2v_tmp_E4D73;
+			always @(posedge clk or negedge rst_n)
+				if (!rst_n)
+					last_grant <= 1'sb0;
+				else
 					last_grant <= grant;
-					r_last_grant_id <= grant_id;
-					r_pending_ack <= 1'b1;
-					r_pending_client <= w_next_grant_id;
+		end
+		else begin : gen_multi_client
+			wire [CLIENTS - 1:0] w_mask_decode [0:CLIENTS - 1];
+			wire [CLIENTS - 1:0] w_win_mask_decode [0:CLIENTS - 1];
+			genvar _gv_i_1;
+			for (_gv_i_1 = 0; _gv_i_1 < CLIENTS; _gv_i_1 = _gv_i_1 + 1) begin : gen_mask_lut
+				localparam i = _gv_i_1;
+				assign w_mask_decode[i] = (sv2v_cast_6D6F8_signed(1) << i) - sv2v_cast_6D6F8_signed(1);
+				assign w_win_mask_decode[i] = ~((sv2v_cast_6D6F8_signed(1) << (i + 1)) - sv2v_cast_6D6F8_signed(1));
+			end
+			reg [N - 1:0] r_last_grant_id;
+			reg r_last_valid;
+			reg r_pending_ack;
+			reg [N - 1:0] r_pending_client;
+			wire [CLIENTS - 1:0] w_requests_masked;
+			wire [CLIENTS - 1:0] w_requests_unmasked;
+			wire w_any_masked_requests;
+			wire [CLIENTS - 1:0] w_curr_mask_decode;
+			assign w_curr_mask_decode = (grant_valid ? w_win_mask_decode[grant_id] : (r_last_valid ? w_win_mask_decode[r_last_grant_id] : sv2v_cast_6D6F8_signed(1)));
+			assign w_requests_masked = w_requests_gated & w_curr_mask_decode;
+			assign w_requests_unmasked = w_requests_gated;
+			assign w_any_masked_requests = |w_requests_masked;
+			wire [N - 1:0] w_winner;
+			wire w_winner_valid;
+			arbiter_priority_encoder #(
+				.CLIENTS(CLIENTS),
+				.N(N)
+			) u_priority_encoder(
+				.requests_masked(w_requests_masked),
+				.requests_unmasked(w_requests_unmasked),
+				.any_masked_requests(w_any_masked_requests),
+				.winner(w_winner),
+				.winner_valid(w_winner_valid)
+			);
+			wire w_ack_received;
+			wire w_can_grant;
+			wire [CLIENTS - 1:0] w_other_requests;
+			if (WAIT_GNT_ACK == 1) begin : gen_ack_optimized
+				assign w_ack_received = r_pending_ack && grant_ack[r_pending_client];
+				assign w_other_requests = w_requests_gated & ~(sv2v_cast_6D6F8_signed(1) << r_pending_client);
+				assign w_can_grant = !r_pending_ack || w_ack_received;
+			end
+			else begin : gen_no_ack_optimized
+				assign w_ack_received = 1'b0;
+				assign w_can_grant = 1'b1;
+				assign w_other_requests = 1'sb0;
+			end
+			wire w_should_grant;
+			reg [CLIENTS - 1:0] w_next_grant;
+			reg [N - 1:0] w_next_grant_id;
+			wire w_next_grant_valid;
+			assign w_should_grant = (w_winner_valid && w_any_requests) && w_can_grant;
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				w_next_grant = 1'sb0;
+				w_next_grant_id = 1'sb0;
+				if (w_should_grant) begin
+					w_next_grant[w_winner] = 1'b1;
+					w_next_grant_id = w_winner;
 				end
-				else begin
+			end
+			assign w_next_grant_valid = w_should_grant;
+			always @(posedge clk or negedge rst_n)
+				if (!rst_n) begin
 					grant <= 1'sb0;
 					grant_id <= 1'sb0;
 					grant_valid <= 1'b0;
+					last_grant <= 1'sb0;
+					r_last_grant_id <= 1'sb0;
+					r_last_valid <= 1'sb0;
 					r_pending_ack <= 1'b0;
 					r_pending_client <= 1'sb0;
 				end
-			end
+				else begin
+					r_last_valid <= grant_valid;
+					if (WAIT_GNT_ACK == 0) begin
+						grant <= w_next_grant;
+						grant_id <= w_next_grant_id;
+						grant_valid <= w_next_grant_valid;
+						last_grant <= grant;
+						r_last_grant_id <= grant_id;
+					end
+					else if (grant_valid == 1'b0) begin
+						grant <= w_next_grant;
+						grant_id <= w_next_grant_id;
+						grant_valid <= w_next_grant_valid;
+						last_grant <= grant;
+						r_last_grant_id <= grant_id;
+						if (w_next_grant_valid) begin
+							r_pending_ack <= 1'b1;
+							r_pending_client <= w_next_grant_id;
+						end
+					end
+					else if ((grant_valid == 1'b1) && !w_ack_received)
+						;
+					else if (((grant_valid == 1'b1) && w_ack_received) && (w_other_requests == {CLIENTS {1'sb0}})) begin
+						grant <= 1'sb0;
+						grant_id <= 1'sb0;
+						grant_valid <= 1'b0;
+						last_grant <= grant;
+						r_last_grant_id <= grant_id;
+						r_pending_ack <= 1'b0;
+						r_pending_client <= 1'sb0;
+					end
+					else if (((grant_valid == 1'b1) && w_ack_received) && (w_other_requests != {CLIENTS {1'sb0}})) begin
+						if (w_next_grant_valid) begin
+							grant <= w_next_grant;
+							grant_id <= w_next_grant_id;
+							grant_valid <= w_next_grant_valid;
+							last_grant <= grant;
+							r_last_grant_id <= grant_id;
+							r_pending_ack <= 1'b1;
+							r_pending_client <= w_next_grant_id;
+						end
+						else begin
+							grant <= 1'sb0;
+							grant_id <= 1'sb0;
+							grant_valid <= 1'b0;
+							r_pending_ack <= 1'b0;
+							r_pending_client <= 1'sb0;
+						end
+					end
+				end
 		end
+	endgenerate
 	initial _sv2v_0 = 0;
 endmodule
 module arbiter_priority_encoder (
@@ -500,7 +516,7 @@ module arbiter_priority_encoder (
 );
 	reg _sv2v_0;
 	parameter signed [31:0] CLIENTS = 4;
-	parameter signed [31:0] N = $clog2(CLIENTS);
+	parameter signed [31:0] N = (CLIENTS > 1 ? $clog2(CLIENTS) : 1);
 	input wire [CLIENTS - 1:0] requests_masked;
 	input wire [CLIENTS - 1:0] requests_unmasked;
 	input wire any_masked_requests;
@@ -1079,7 +1095,7 @@ module monbus_arbiter (
 	parameter signed [31:0] OUTPUT_SKID_ENABLE = 1;
 	parameter signed [31:0] INPUT_SKID_DEPTH = 2;
 	parameter signed [31:0] OUTPUT_SKID_DEPTH = 2;
-	parameter signed [31:0] N = $clog2(CLIENTS);
+	parameter signed [31:0] N = (CLIENTS > 1 ? $clog2(CLIENTS) : 1);
 	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
 	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
 	parameter signed [31:0] SKID_DATA_WIDTH = monitor_common_pkg_MONBUS_PKT_WIDTH + monitor_common_pkg_MONBUS_TS_WIDTH;

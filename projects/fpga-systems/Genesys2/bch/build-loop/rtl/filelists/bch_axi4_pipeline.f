@@ -7,7 +7,7 @@
 
 -f $REPO_ROOT/projects/components/ecc-ip/bch/rtl/filelists/bch_encoder_axi4.f
 -f $REPO_ROOT/projects/components/ecc-ip/bch/rtl/filelists/bch_decoder_axi4.f
--f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/error_injector.f
+-f $REPO_ROOT/projects/components/ecc-ip/bch/rtl/filelists/bch_error_injector.f
 -f $REPO_ROOT/rtl/amba/filelists/sdpram_slave_axi4_axi4.f
 
 # The AXI4 interface observer that fills the bridge's bch_regs_apb window:
