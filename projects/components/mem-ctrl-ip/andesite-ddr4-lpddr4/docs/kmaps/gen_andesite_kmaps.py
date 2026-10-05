@@ -81,6 +81,10 @@ AM = ("projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/"
       "andesite_mas/ch02_blocks/04_addr_mapper.md")
 MR = ("projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/"
       "andesite_mas/ch02_blocks/03_mode_register.md")
+AM_RTL = ("projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/fub/"
+          "andesite_addr_mapper.sv")
+MR_RTL = ("projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/fub/"
+          "andesite_mode_register.sv")
 ODT = ("projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/"
        "andesite_mas/ch02_blocks/08_odt_ctrl.md")
 REF = ("projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/"
@@ -100,23 +104,24 @@ CITES = [
     # LPDDR4 CA placeholder fence
     (CMD, 139, "Command class -> CA encoding source"),
     (CMD, 148, "REFpb    -> kmap table (bank carried in command)"),
-    # address decode structure
-    (AM, 77, "sys_addr -> { cs[CS-1:0],"),
-    (AM, 78, "bg[BG-1:0]       (DDR4: BG0/BG1; LPDDR4: constant 0),"),
-    (AM, 79, "bank[BANK-1:0]   (DDR4: 2 bits; LPDDR4: 3 bits),"),
-    (AM, 83, "Field boundaries are runtime CSRs (ADDR_MAP-style),"),
+    # address decode structure -- cited at the RTL anchor block (the MAS
+    # page fence stays the design citation; the RTL carries the same text)
+    (AM_RTL, 65, "sys_addr -> { cs[CS-1:0],"),
+    (AM_RTL, 66, "bg[BG-1:0]       (DDR4: BG0/BG1; LPDDR4: constant 0),"),
+    (AM_RTL, 67, "bank[BANK-1:0]   (DDR4: 2 bits; LPDDR4: 3 bits),"),
+    (AM_RTL, 69, "Field boundaries are runtime CSRs (ADDR_MAP-style),"),
     # design-point geometry
     (HAS_DP, 37, "4 bank groups × 4 banks = 16 banks"),
-    # DDR4 MR semantics table
-    (MR, 83, "| Register | Fields (semantics-binding) |"),
-    (MR, 85, "| MR0 | Burst length (fixed 8 or on-the-fly 4/8), read burst type (sequential/interleaved), CAS latency select, DLL reset bit, write recovery"),
-    (MR, 86, "| MR1 | DLL enable, additive latency (AL), RTT_NOM, write-leveling enable, TDQS enable, output driver impedance"),
-    (MR, 87, "| MR2 | CAS write latency (CWL), RTT_WR, write CRC mode bits (inert this edition per HAS Ch 3.1), LP ASR |"),
-    (MR, 88, "| MR3 | MPR operation and page select, FGR refresh factor (1x/2x/4x), gear-down mode, MPR read format"),
-    (MR, 89, "| MR4 | Temperature status, preamble, CAL"),
-    (MR, 90, "| MR5 | Read DBI enable, write DBI enable, RTT_PARK, data-mask enable, CA parity latency/mode (A[2:0]), parity persistent-error (A9), parity error status (A4)"),
-    (MR, 91, "| MR6 | VrefDQ training range and value, tCCD_L select"),
-    (MR, 99, "LPDDR4 doesn't use the same MRS command as DDR4."),
+    # DDR4 MR semantics table -- cited at the RTL anchor block
+    (MR_RTL, 28, "| Register | Fields (semantics-binding) |"),
+    (MR_RTL, 29, "| MR0 | Burst length (fixed 8 or on-the-fly 4/8), read burst type (sequential/interleaved), CAS latency select, DLL reset bit, write recovery"),
+    (MR_RTL, 30, "| MR1 | DLL enable, additive latency (AL), RTT_NOM, write-leveling enable, TDQS enable, output driver impedance"),
+    (MR_RTL, 31, "| MR2 | CAS write latency (CWL), RTT_WR, write CRC mode bits (inert this edition per HAS Ch 3.1), LP ASR |"),
+    (MR_RTL, 32, "| MR3 | MPR operation and page select, FGR refresh factor (1x/2x/4x), gear-down mode, MPR read format"),
+    (MR_RTL, 33, "| MR4 | Temperature status, preamble, CAL"),
+    (MR_RTL, 34, "| MR5 | Read DBI enable, write DBI enable, RTT_PARK, data-mask enable, CA parity latency/mode (A[2:0]), parity persistent-error (A9), parity error status (A4)"),
+    (MR_RTL, 35, "| MR6 | VrefDQ training range and value, tCCD_L select"),
+    (MR_RTL, 36, "LPDDR4 doesn't use the same MRS command as DDR4."),
     # ODT policy state fence
     (ODT, 88, "state        | RTT applied   | entered when"),
     (ODT, 89, "IDLE         | RTT_PARK      | no rank selected (park policy)"),

@@ -59,6 +59,16 @@ module andesite_addr_mapper
     logic [31:0] w_word;
     assign w_word = 32'(axi_addr_i[AW-1:BO]);
 
+    // Kmap citation anchor (docs/kmaps/gen_andesite_kmaps.py CITES): the
+    // address-decode structure and field-boundary fence, verbatim from the
+    // MAS 04 page so the drift gate diffs the same text at the RTL.
+    //   sys_addr -> { cs[CS-1:0],
+    //                 bg[BG-1:0]       (DDR4: BG0/BG1; LPDDR4: constant 0),
+    //                 bank[BANK-1:0]   (DDR4: 2 bits; LPDDR4: 3 bits),
+    //                 row[ROW-1:0], col[COL-1:0] }
+    // Field boundaries are runtime CSRs (ADDR_MAP-style), set by the
+    // bank_lsb_i knob; the fields above the bank shift with it.
+
     // Clamp bank_lsb to [0, COL_WIDTH] so col_hi width (CW - bank_lsb) stays >= 0
     // and the row/rank slices land where the geometry expects. (bank_lsb == CW is
     // ROW_MAJOR; below CW inserts the bank into the column = interleave.)

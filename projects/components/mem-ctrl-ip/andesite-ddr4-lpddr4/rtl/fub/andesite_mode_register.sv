@@ -22,6 +22,19 @@
 // Author: sean galloway
 // Created: 2026-10-04
 
+// Kmap citation anchor (docs/kmaps/gen_andesite_kmaps.py CITES): the DDR4
+// MR semantics table, verbatim from MAS Table 2.7 so the drift gate diffs
+// the same text at the RTL. Bit positions are HAS Q1; the structure is not.
+// | Register | Fields (semantics-binding) |
+// | MR0 | Burst length (fixed 8 or on-the-fly 4/8), read burst type (sequential/interleaved), CAS latency select, DLL reset bit, write recovery
+// | MR1 | DLL enable, additive latency (AL), RTT_NOM, write-leveling enable, TDQS enable, output driver impedance
+// | MR2 | CAS write latency (CWL), RTT_WR, write CRC mode bits (inert this edition per HAS Ch 3.1), LP ASR |
+// | MR3 | MPR operation and page select, FGR refresh factor (1x/2x/4x), gear-down mode, MPR read format
+// | MR4 | Temperature status, preamble, CAL
+// | MR5 | Read DBI enable, write DBI enable, RTT_PARK, data-mask enable, CA parity latency/mode (A[2:0]), parity persistent-error (A9), parity error status (A4)
+// | MR6 | VrefDQ training range and value, tCCD_L select
+// LPDDR4 doesn't use the same MRS command as DDR4.
+
 `timescale 1ns / 1ps
 
 module andesite_mode_register #(
