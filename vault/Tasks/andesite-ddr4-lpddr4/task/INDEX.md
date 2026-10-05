@@ -2,7 +2,7 @@
 
 # andesite-ddr4-lpddr4 — tasks
 
-**Next ID: TASK-011** — never recycle a number, even when its item closed.
+**Next ID: TASK-017** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 10 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,9 +20,11 @@ by construction rather than by discipline.
 
 ## Open
 
-None. The pre-RTL creation pass of 2026-10-04 closed everything the docs
-tranche and the dfi-specs research filing produced; the lane reopens when RTL
-bring-up or a new study generates work.
+- **TASK-016** — andesite macro integration + training/dfi/axi4 layer
+  births: P1 init/mode-register rewiring, parked-suite re-derivation,
+  `andesite_dfi_cmd_path`, `andesite_training_layer`, minors M-1..M-9,
+  `andesite_dfi_layer`, `andesite_axi4_layer`, `andesite_core` + top
+  suite. Plan: `docs/superpowers/plans/2026-10-04-andesite-macro-integration.md`.
 
 ## Closed
 
