@@ -2,7 +2,7 @@
 
 # tooling — tasks
 
-**Next ID: TASK-029** — never recycle a number, even when its item closed.
+**Next ID: TASK-030** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 27 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,13 @@ by construction rather than by discipline.
 
 ## Open
 
-- **TASK-025** (P3) — cocotb 2.x is reachable but not yet: the import blocker is cocotb-bus 0.2.1 (fixed by 0.3.0, which our own DV cap forbids), and the remaining work is a 78-site `.value.integer` sweep across both repos
+- **TASK-029** (P2) — validate cocotb-coverage 2.x on cocotb 2.1.0; the last
+  blocker on flipping the production pin off 1.9.2 (cocotb-coverage 1.2.0 cannot
+  coexist with 2.x). Unpins both repos on success; the flip itself is step 5.
+
+- **TASK-025** (P3) — cocotb 2.x migration measured COMPLETE over the BKM coverage
+  set (math/common/cdc green on 2.1.0, bridge at 1.9.2 parity); closure is the
+  owner's call — see the file for the layer-by-layer record and known gaps
 
 
 
