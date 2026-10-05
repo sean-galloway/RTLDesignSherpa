@@ -127,5 +127,5 @@ count. What changes is only the bus the calibration rides.
 
 **The scheduler consequence is one input, as it was in scoria.** Refresh
 demand, ZQ demand (DDR4 or LPDDR4), and the new odt_ctrl's turnarounds all
-arrive as maintenance-class requests; `mem_cmd_scheduler` arbitrates them
+arrive as maintenance-class requests; `scheduler_layer` arbitrates them
 with the same request/grant machinery it inherited.

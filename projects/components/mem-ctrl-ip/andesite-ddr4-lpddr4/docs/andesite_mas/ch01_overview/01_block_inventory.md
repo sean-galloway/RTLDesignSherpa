@@ -36,7 +36,7 @@ marking here that disagrees with the HAS is a defect here.
 | `init_sequencer` | MODIFIED | [ch02_blocks/02_init_sequencer.md](../ch02_blocks/02_init_sequencer.md) | Ch 3.2 |
 | `mode_register` | MODIFIED | [ch02_blocks/03_mode_register.md](../ch02_blocks/03_mode_register.md) | Ch 3.2 |
 | `addr_mapper` | MODIFIED | [ch02_blocks/04_addr_mapper.md](../ch02_blocks/04_addr_mapper.md) | Ch 3.1 |
-| `mem_cmd_scheduler` + `cmd_arbiter` | MODIFIED | [ch02_blocks/05_scheduler.md](../ch02_blocks/05_scheduler.md) | Ch 3.1 |
+| `scheduler_layer` + `cmd_arbiter` | MODIFIED | [ch02_blocks/05_scheduler.md](../ch02_blocks/05_scheduler.md) | Ch 3.1 |
 | `refresh_ctrl` | MODIFIED | [ch02_blocks/06_refresh_ctrl.md](../ch02_blocks/06_refresh_ctrl.md) | Ch 3.4 |
 | `zq_ctrl` (+ NEW LPDDR4 MPC submodule) | INHERITED / NEW | [ch02_blocks/07_zq_ctrl.md](../ch02_blocks/07_zq_ctrl.md) | Ch 3.2 |
 | `odt_ctrl` | NEW | [ch02_blocks/08_odt_ctrl.md](../ch02_blocks/08_odt_ctrl.md) | Ch 3.5 |

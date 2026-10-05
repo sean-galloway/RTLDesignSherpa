@@ -21,9 +21,3 @@ Family-wide conventions live here (see
 [ADVANCED_MODES_ROADMAP.md](ADVANCED_MODES_ROADMAP.md) for the feature
 roadmap): macros are `*_layer` (MC-001), FUB training interfaces keep
 `*_ifc`.
-
-## Open shortlist
-
-- [MC-001](task/open/MC-001.md) — macro names to the `*_layer` convention
-  on every memory controller (pumice_axi4_ifc → pumice_axi4_layer,
-  pumice/scoria/andesite mem_cmd_scheduler → scheduler_layer).

@@ -20,9 +20,9 @@
 
 <!-- End Header -->
 
-# Scheduler and Command Arbiter (`andesite_mem_cmd_scheduler` + `andesite_cmd_arbiter`)
+# Scheduler and Command Arbiter (`andesite_scheduler_layer` + `andesite_cmd_arbiter`)
 
-**Module:** `andesite_mem_cmd_scheduler.sv`, `andesite_cmd_arbiter.sv`
+**Module:** `andesite_scheduler_layer.sv`, `andesite_cmd_arbiter.sv`
 **Location:** `rtl/macro/` (scheduler), `rtl/fub/` (arbiter)
 **Category:** scheduling / arbitration
 **Parent:** `andesite_core`

@@ -325,7 +325,7 @@ module andesite_cmd_arbiter
     // closed fired anyway.
     //
     // MEASURED, not theorised. The first composed scheduler test
-    // (dv/tests/macro/test_scoria_mem_cmd_scheduler.py) died on 3 of 3 seeds
+    // (dv/tests/macro/test_scoria_scheduler_layer.py) died on 3 of 3 seeds
     // in ~30 s with the bound history checker reporting "GLOBAL tRRD violation
     // -- ACT only 1 cyc after another ACT (need 2)", and the testbench's
     // arbiter-side audit put the tight pair at the ARBITER's own output with
@@ -1645,7 +1645,7 @@ module andesite_cmd_arbiter
     // chains never learned the command had been issued. The controller's model
     // and the DRAM diverged, silently, in the one direction that matters.
     //
-    // Measured at the macro level (test_pumice_mem_cmd_scheduler.py,
+    // Measured at the macro level (test_pumice_scheduler_layer.py,
     // cocotb_test_timeout_pre_vs_pending_column) under the BOARD config, open
     // page + background timeout PRE, TR=2: 465 pushes, 9 with w_out_safe==0,
     // all 9 column RDs to a bank whose row the timeout PRE had just closed, and

@@ -4,14 +4,17 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: andesite_mem_cmd_scheduler
-// Purpose: mem_cmd_scheduler
+// Module: andesite_scheduler_layer
+// Purpose: The command-scheduling layer — the scoria-carried scheduler with
+//          the andesite bank-group-aware L/S admission delta (ANDESITE L/S
+//          DELTA). See andesite_mas ch02_blocks/05_scheduler.
 //
 // Documentation:
 //   projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/andesite_mas/
 //
-// Carried from scoria_mem_cmd_scheduler per andesite HAS ch02 (MODIFIED); the andesite
-// delta is marked ANDESITE L/S DELTA. This header is free-form provenance.
+// Carried from scoria_scheduler_layer per andesite HAS ch02 (MODIFIED); the
+// andesite delta is marked ANDESITE L/S DELTA. This header is free-form
+// provenance.
 //
 // Author: sean galloway
 // Created: 2026-10-04 (carried, andesite delta applied)
@@ -20,7 +23,7 @@
 
 `include "reset_defs.svh"
 
-module andesite_mem_cmd_scheduler
+module andesite_scheduler_layer
     import andesite_pkg::*;
 #(
     parameter int NUM_RANKS   = 1,
@@ -212,7 +215,7 @@ module andesite_mem_cmd_scheduler
     output logic [3:0]                cwl_o,
     output logic [3:0]                bl_o,
 
-    // ---- CAM per-entry vectors (external: scoria_axi4_ifc) ----
+    // ---- CAM per-entry vectors (external: andesite_axi4_layer) ----
     input  logic [NUM_ENTRIES-1:0]              wr_sch_valid_i,
     input  logic [NUM_ENTRIES*BKW-1:0]          wr_sch_bank_i,
     input  logic [NUM_ENTRIES*ROW_WIDTH-1:0]    wr_sch_row_i,
@@ -858,4 +861,4 @@ module andesite_mem_cmd_scheduler
         );
     end endgenerate
 
-endmodule : andesite_mem_cmd_scheduler
+endmodule : andesite_scheduler_layer

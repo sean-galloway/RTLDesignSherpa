@@ -1,4 +1,4 @@
-# Filelist for andesite_mem_cmd_scheduler
+# Filelist for andesite_scheduler_layer
 +incdir+$REPO_ROOT/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/includes
 +incdir+$REPO_ROOT/rtl/amba/includes
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
@@ -17,4 +17,4 @@ $REPO_ROOT/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/fub/andesite
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/filelists/fub/andesite_cmd_history_checker.f
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/filelists/fub/andesite_page_policy.f
 $REPO_ROOT/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/fub/andesite_cmd_arbiter.sv
-$REPO_ROOT/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/macro/andesite_mem_cmd_scheduler.sv
+$REPO_ROOT/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/macro/andesite_scheduler_layer.sv

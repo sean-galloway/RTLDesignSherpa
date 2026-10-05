@@ -74,7 +74,7 @@ global timers take the long/short pairs on as first-class counters. All four
 timings are runtime CSRs. LPDDR4 has no bank groups — its pair collapses to
 L = S, which the arbiter must degenerate to gracefully, not special-case.
 **Blocks:** `addr_mapper`, `cmd_arbiter`, `global_timers`,
-`mem_cmd_scheduler` — all MODIFIED (Ch 3.1).
+`scheduler_layer` — all MODIFIED (Ch 3.1).
 
 **2 — Command encoding.** DDR4 makes ACT a five-pin command: `ACT_n` plus
 RAS/CAS/WE, and carries BG0/BG1 on the address pins during activate. The

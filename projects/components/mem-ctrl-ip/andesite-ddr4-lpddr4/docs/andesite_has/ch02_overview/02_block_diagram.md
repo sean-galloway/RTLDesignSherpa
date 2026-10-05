@@ -35,7 +35,7 @@ in Chapter 3.1.
 
 ```mermaid
 flowchart TB
-    HOST_AXI["andesite_axi4_ifc<br/>INHERITED"] --> HOST_CHOP["axi_burst_chopper<br/>INHERITED"]
+    HOST_AXI["andesite_axi4_layer<br/>INHERITED"] --> HOST_CHOP["axi_burst_chopper<br/>INHERITED"]
     HOST_CHOP --> HOST_RIN["rd_intake<br/>INHERITED"]
     HOST_CHOP --> HOST_WIN["wr_intake<br/>INHERITED"]
     HOST_WIN --> HOST_WSPLIT["wr_splitter<br/>INHERITED"]
@@ -44,7 +44,7 @@ flowchart TB
 
     subgraph SCHED["Scheduler"]
         direction TB
-        SCHED_CORE["mem_cmd_scheduler<br/>MODIFIED — maintenance + L/S admission"]
+        SCHED_CORE["scheduler_layer<br/>MODIFIED — maintenance + L/S admission"]
         SCHED_ARB["cmd_arbiter<br/>MODIFIED — tCCD_L/S aware"]
         SCHED_PP["page_policy<br/>INHERITED"]
         SCHED_RDCAM["rd_cmd_cam<br/>INHERITED"]

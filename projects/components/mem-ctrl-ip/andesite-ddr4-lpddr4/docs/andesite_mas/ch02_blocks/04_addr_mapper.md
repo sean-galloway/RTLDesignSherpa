@@ -25,7 +25,7 @@
 **Module:** `andesite_addr_mapper.sv`
 **Location:** `rtl/fub/` (planned)
 **Category:** FUB
-**Parent:** `mem_cmd_scheduler` / `cmd_arbiter`
+**Parent:** `scheduler_layer` / `cmd_arbiter`
 **Status:** specified — no RTL exists (HAS v0.1 posture)
 
 ---
