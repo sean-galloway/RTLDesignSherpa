@@ -28,7 +28,7 @@
 
 # Board-facing wrappers and bring-up utilities (TASK-006)
 -f $REPO_ROOT/projects/components/ecc-ip/bch/rtl/filelists/bch_beat_packer.f
--f $REPO_ROOT/projects/components/ecc-ip/bch/rtl/filelists/bch_error_injector.f
+-f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/error_injector.f
 -f $REPO_ROOT/projects/components/ecc-ip/bch/rtl/filelists/bch_encoder_axis4.f
 -f $REPO_ROOT/projects/components/ecc-ip/bch/rtl/filelists/bch_decoder_axis4.f
 -f $REPO_ROOT/projects/components/ecc-ip/bch/rtl/filelists/bch_encoder_axi4.f

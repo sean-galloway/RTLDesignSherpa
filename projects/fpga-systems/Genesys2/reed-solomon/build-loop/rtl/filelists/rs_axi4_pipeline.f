@@ -7,7 +7,7 @@
 
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_encoder_axi4.f
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_decoder_axi4.f
--f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_error_injector.f
+-f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/error_injector.f
 -f $REPO_ROOT/rtl/amba/filelists/sdpram_slave_axi4_axi4.f
 
 # The AXI4 interface observer that fills the bridge's rs_regs_apb window:
