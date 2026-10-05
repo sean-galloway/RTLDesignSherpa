@@ -1,21 +1,21 @@
 # SPDX-License-Identifier: MIT
-# SPDX-FileCopyrightText: 2024-2025 sean galloway
+# SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: test_arbiter_round_robin_simple
-# Purpose: Test Runner for Simple Round Robin Arbiter
+# Module: test_arbiter_round_robin_simple_ack
+# Purpose: Test Runner for Simple Round Robin Arbiter with grant/ack handshake
 #
 # Documentation: PRD.md
 # Subsystem: tests
 #
 # Author: sean galloway
-# Created: 2025-10-18
+# Created: 2026-10-04
 
 """
-Test Runner for Simple Round Robin Arbiter
-Combinational grant, no ACK protocol or block_arb.
+Test Runner for Simple Round Robin Arbiter with grant/ack handshake
+Grant is registered and held until the owning client returns grant_ack.
 Follows the WRR test methodology: request-set scenarios in place of weight scenarios.
 """
 
@@ -31,21 +31,21 @@ import pytest
 # Import the testbench and utilities
 
 # Add repo root to path for CocoTBFramework imports
-from TBClasses.common.arbiter_round_robin_simple_tb import ArbiterRoundRobinSimpleTB
+from TBClasses.common.arbiter_round_robin_simple_ack_tb import ArbiterRoundRobinSimpleAckTB
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from cov_utils.conftest_coverage import get_coverage_compile_args
 
 @cocotb.test(timeout_time=20, timeout_unit="ms")
-async def arbiter_round_robin_simple_test(dut):
-    """Comprehensive test for the simple round robin arbiter"""
-    tb = ArbiterRoundRobinSimpleTB(dut)
+async def arbiter_round_robin_simple_ack_test(dut):
+    """Comprehensive test for the simple round robin ACK arbiter"""
+    tb = ArbiterRoundRobinSimpleAckTB(dut)
 
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    tb.log.info(f'simple round robin arbiter test starting with seed {seed}')
+    tb.log.info(f'simple round robin ACK arbiter test starting with seed {seed}')
 
     # One call: starts the clock and drives the reset sequence.
     await tb.setup_clocks_and_reset()
@@ -87,10 +87,21 @@ async def arbiter_round_robin_simple_test(dut):
         await tb.test_rapid_request_changes()
         await tb.handle_test_transition_ack_cleanup()
 
+        # Phase 5: Handshake directed tests (grant held until ACK)
+        time_ns = get_sim_time('ns')
+        tb.log.info(f"=== Phase 5: Grant/ACK Handshake @ {time_ns}ns ===")
+        tb.clear_interface()
+        await tb.wait_clocks('clk', 30)
+        tb.log.info("=== Scenario ARB-09: Grant held until owner ACK ===")
+        await tb.test_grant_held_until_ack()
+        tb.log.info("=== Scenario ARB-10: Back-to-back handoff on same-cycle ACK ===")
+        await tb.test_back_to_back_handoff()
+        await tb.handle_test_transition_ack_cleanup()
+
         # Phase 6: Dynamic arbitration liveness
         time_ns = get_sim_time('ns')
         tb.log.info(f"=== Phase 6: Dynamic Arbitration Liveness @ {time_ns}ns ===")
-        tb.log.info("=== Scenario ARB-09: Dynamic arbitration liveness ===")
+        tb.log.info("=== Scenario ARB-11: Dynamic arbitration liveness ===")
         await tb.test_dynamic_arbitration_liveness()
         await tb.handle_test_transition_ack_cleanup()
 
@@ -106,7 +117,7 @@ async def arbiter_round_robin_simple_test(dut):
         tb.log.info("=== ALL TESTS PASSED ===")
 
     except AssertionError as e:
-        tb.log.error(f"simple round robin arbiter test failed: {str(e)}")
+        tb.log.error(f"simple round robin ACK arbiter test failed: {str(e)}")
 
         try:
             final_stats = tb.monitor.get_comprehensive_stats()
@@ -155,22 +166,22 @@ def generate_test_params():
         return all_clients
 
 @pytest.mark.parametrize("clients", generate_test_params())
-def test_arbiter_round_robin_simple(request, clients):
-    """Run the simple round robin test"""
+def test_arbiter_round_robin_simple_ack(request, clients):
+    """Run the simple round robin ACK test"""
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn': 'rtl/common',
         'rtl_amba_includes': 'rtl/amba/includes',
     })
 
-    dut_name = "arbiter_round_robin_simple"
+    dut_name = "arbiter_round_robin_simple_ack"
     toplevel = dut_name
 
-    # Verilog sources for SIMPLE ROUND ROBIN arbiter
+    # Verilog sources for SIMPLE ROUND ROBIN ACK arbiter
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        module='arbiter_round_robin_simple'
+        module='arbiter_round_robin_simple_ack'
     )
 
     # Create a human readable test identifier
@@ -196,7 +207,7 @@ def test_arbiter_round_robin_simple(request, clients):
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    # RTL parameters for SIMPLE ROUND ROBIN (only N parameter)
+    # RTL parameters for SIMPLE ROUND ROBIN ACK (only N parameter)
     parameters = {'N': clients}
 
     # Environment variables
@@ -246,13 +257,13 @@ def test_arbiter_round_robin_simple(request, clients):
             waves=enable_waves,
         )
     except Exception as e:
-        print(f"Simple round robin test failed: {str(e)}")
+        print(f"Simple round robin ACK test failed: {str(e)}")
         print(f"Test configuration: {clients} clients")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run this command: {cmd_filename}")
 
-        print("\nTroubleshooting hints for simple arbiter:")
-        print("- Check that arbiter_round_robin_simple.sv is present")
+        print("\nTroubleshooting hints for simple ACK arbiter:")
+        print("- Check that arbiter_round_robin_simple_ack.sv is present")
         print("- Verify parameter N is correctly passed")
         print("- Look for signal interface compatibility issues")
         print("- Check testbench initialization")
