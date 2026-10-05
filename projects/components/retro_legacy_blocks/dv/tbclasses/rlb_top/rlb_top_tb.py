@@ -33,7 +33,7 @@ from cocotb.triggers import RisingEdge
 from cocotb.handle import SimHandleBase
 
 from TBClasses.shared.tbbase import TBBase
-from TBClasses.irq import IRQMonitorGroup
+from CocoTBFramework.components.irq import IRQMonitorGroup
 from CocoTBFramework.components.apb.apb_components import APBMaster
 from CocoTBFramework.components.apb.apb_packet import APBPacket
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
