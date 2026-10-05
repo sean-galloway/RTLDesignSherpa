@@ -50,7 +50,10 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
   function renderBankEditor() {
     var topo = st.pack.topology;
     // Same grouped-column presentation as the bank-state drill; the group
-    // header names the group, so the cell name is just the bank.
+    // header names the group, so the cell name is just the bank. Grouped
+    // wraps get the flex modifier so the G* boxes hug their content like
+    // the drill's do, instead of the .sand-banks grid stretching each one
+    // to a fraction of the page width.
     var grouped = DDRD.renderBankGroups(topo, function (bank) {
       var cell = el('label', 'sand-bankcell');
       cell.appendChild(el('span', 'sand-bankname', 'B' + bank));
@@ -64,7 +67,7 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
           recompute();
         }));
       return cell;
-    }, 'sand-banks');
+    }, topo.hasBankGroups ? 'sand-banks sand-banks-grouped' : 'sand-banks');
     st.bankEl.replaceWith(grouped);
     st.bankEl = grouped;
   }

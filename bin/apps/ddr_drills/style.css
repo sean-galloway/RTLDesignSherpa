@@ -656,6 +656,15 @@ main {
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 0.4rem;
 }
+/* Grouped wraps (.bg-group columns) size to their content -- same size and
+   shape as the bank-state drill's G* boxes -- instead of stretching to the
+   grid's 1fr tracks (which put a pair of groups at half the page each). */
+.sand-banks-grouped {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.6rem;
+  align-items: flex-start;
+}
 .sand-bankcell {
   display: flex;
   flex-direction: column;
