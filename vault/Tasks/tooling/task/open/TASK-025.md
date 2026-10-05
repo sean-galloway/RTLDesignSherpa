@@ -1,7 +1,7 @@
 # TASK-025: cocotb 2.x needs cocotb-bus 0.3.0 and a `.value.integer` sweep -- the blocker is measured, not guessed
 
 **Priority:** P3
-**Status:** open -- steps 1-3 DONE and RELEASED as cocotb-framework 0.6.9. Step 4 shows cocotb 2.x is reachable for ONE suite, not broadly: three further layers measured below.
+**Status:** open -- migration to cocotb 2.1.0 measured COMPLETE over the BKM coverage set (math/common/cdc fully green, bridge at exact parity with 1.9.2); see "Progress 2026-10-04 (evening)" below. Closure is the owner's call; known gaps listed there (bridge-14 pre-existing, cocotb-coverage 2.0, DV push).
 **Owner:** TBD
 **Filed:** 2026-10-01 (question 2 of [[TASK-020]], split out as that task instructed)
 
@@ -197,8 +197,8 @@ or `*`.
 
 ## Still open
 
-- The 10 arithmetic sites above.
-- Then re-run [[TASK-020]]'s matrix under cocotb 2.x.
+- ~~The 10 arithmetic sites above.~~ DONE 2026-10-04 -- fixed by the landed sweep; the finder's 3 remaining hits are verified false positives (PktType enum, two dataclass `.value` fields).
+- ~~Then re-run [[TASK-020]]'s matrix under cocotb 2.x.~~ DONE 2026-10-04, scope-corrected: the owner established bridge/math/common/cdc as the full coverage set (stream and val/amba superfluous), run with the BKM `make clean-all && make run-all-full-parallel` per area -- see "Progress 2026-10-04 (evening)".
 - `cocotb-coverage` 2.0 remains untested and capped.
 
 ## Released 2026-10-01: cocotb-framework 0.6.9
@@ -276,21 +276,18 @@ explicit handlers, and may be looking for the wrong thing entirely.
 **Do not start here by sweeping `except` clauses.** Find one failing test, get a
 real traceback out of it, and name the site before changing anything.
 
-## What is left
+## What is left -- RESOLVED 2026-10-04, see evening entry below
 
-1. **Pin the cancellation source** (bridge, 1232 occurrences). Blocked on getting
-   a real traceback, not on effort. Start here: it is the only layer whose cause
-   is unknown, and the others are mechanical once it is.
-2. The **bool-cast layer** (89 + 6 sites) -- the largest mechanical one.
-3. `.name` -> `._name` on handles (28 occurrences; site count not yet taken).
-4. The `contains no child object` cases, which are not obviously mechanical.
-5. Then re-measure the [[TASK-020]] matrix.
+1. ~~Pin the cancellation source~~ DONE -- pinned by scheduler-debug, fixed in `6b8465b`.
+2. ~~The bool-cast layer~~ DONE -- `beee9c304` (this repo, 82 sites) + `630b7c3` (DV, 7 sites); finder at 0 both sides; 1.x controls green.
+3. ~~`.name` -> `._name` on handles~~ DONE -- 12 sites across the six fifo/gaxi buffer TBs (`10d1d0f37`); the amba-only residue never reproduced inside the coverage set and is out of scope per the owner.
+4. ~~The `contains no child object` cases~~ superseded -- amba-only, never reproduced inside the coverage set; out of scope per the owner.
+5. ~~Then re-measure the matrix~~ DONE, scope-corrected to the BKM coverage set -- evening entry below.
 6. `cocotb-coverage` 2.0 still untested and capped.
 
-**Scale check before anyone plans this:** four layers surfaced only after the one
-above them was fixed, and each was invisible until then. Assume there are more.
-The honest statement today is that cocotb 2.x is reachable for one suite of
-three, and that is not the same as being close.
+The scale check's prediction held: three further layers surfaced inside the
+coverage set (removed-module imports, handle-`==`-int, trace build args), and
+each was invisible until the one above it was fixed.
 
 ## Progress 2026-10-04: layer 1 PINNED and FIXED — the cancellation source is ours, not cocotb_bus
 
@@ -332,6 +329,76 @@ sub-exceptions) and passes under 1.9.2 with the dev tree on PYTHONPATH
 sites, `.name` -> `._name` (28), child-object lookups, the TASK-020 matrix
 re-run, cocotb-coverage 2.0 — and a fresh full-suite pass, because each layer
 so far was invisible until the one above it was fixed.
+
+## Progress 2026-10-04 (evening): the BKM matrix is green — measured, not predicted
+
+Scope correction from the owner: running bridge/math/common/cdc under the new
+rev is complete coverage; stream and val/amba are superfluous. BKM sequence per
+area: `make clean-all && make run-all-full-parallel` with `venv-cocotb2/`
+active (cocotb 2.1.0; the shared `venv/` stays 1.9.2 as control). The earlier
+raw-`pytest` invocation was replaced by this; `--reruns 3` also absorbs the
+intermittent parallel-build flake recorded above.
+
+### Results (REG_LEVEL=FULL, cocotb 2.1.0)
+
+| Area | First BKM run (before these fixes) | Final | 1.9.2 control |
+| --- | --- | --- | --- |
+| math | 1 failed / 400 passed | **401 passed** | fma[params1] passes |
+| common | 49 failed + 5 errors / 856 | **945 passed** | cam_tag 4/4 passes |
+| cdc | 138 failed / 211 | **349 passed** | -- |
+| bridge | 14 failed / 424 (was 52/94 pre-cancellation-fix) | **424 passed / 14 failed — exact parity with 1.9.2** | the same 14 fail |
+
+### Layers found inside the coverage set, each invisible until the one above was fixed
+
+1. **Removed-module imports** — `cocotb.log` / `cocotb.binary` are gone in 2.0.
+   `arbiter_compliance.py` now imports SimLog try/except (`cocotb.logging` on
+   2.x, `cocotb.log` on 1.x — 1.9.2 has no `cocotb.logging`, so the fallback is
+   load-bearing). `shifter_universal_tb.py` carried a dead `BinaryValue` import;
+   deleted.
+2. **The `cocotb.log` logger attribute is gone too** — `arbiter_master.py`'s
+   `cocotb.log.getChild(...)` was a masked runtime landmine (collection died
+   before reaching it), replaced with `logging.getLogger("cocotb.ArbiterMaster")`;
+   two axi4 dwidth TBs used `cocotb.log.info(...)` where `self.log` was in hand.
+3. **Handle `.name` removed** — 12 sites across the six fifo/gaxi buffer TBs;
+   `._name` verified identical on 1.9.2 (the old deprecation shim served the
+   same attribute). Static sweep confirmed every other `.name` in the tree is
+   enum/dataclass/tempfile and must stay.
+4. **Handle `== int` removed** — 2.x `LogicObject.__eq__` accepts only
+   SimHandleBase, so `handle == 1` is silently always False. cam_tag failed on
+   it deterministically (4/4 configs); 8 sites in `cam_testing.py` fixed with
+   `int()`. A sweep of the coverage set found no other occurrences — this idiom
+   was cam-only.
+5. **Verilator trace build args (NOT cocotb-related)** —
+   `test_gaxi_buffer_async.py` passed `--trace` to the sim while its
+   `compile_args` had lost the trace flags (the comment still read "trace
+   compilation always enabled"); instant sim exit, 48 cdc failures. Pre-existing
+   — it fails identically under 1.9.2 — restored to match the sibling handshake
+   tests. Fixed anyway: cdc had to be green to trust the matrix.
+
+### Commits this round
+
+| Repo | Commit | Contents |
+| --- | --- | --- |
+| RTLDesignSherpa | `10d1d0f37` | the five items above, 11 files |
+| RTLDesignSherpa-DV | `0b05819` | SimLog dual import + logger fallback |
+
+Verification: every fix exercised under BOTH venvs; DV unit suite 1546 passed /
+1 skipped (identical to baseline) after the DV edits; RDS manual checks clean
+(links 0 broken, emoji ratchet clean, task-ids 90 areas).
+
+### Remaining known gaps (not this task's work unless the owner says otherwise)
+
+- **bridge-14** — the same 14 FULL-level tests fail under 1.9.2 with the same
+  AXI4-write B-timeout signature. Pre-existing, at parity; recommend filing as
+  its own issue against bridge FULL rather than holding this task open.
+- **fma[params1]** — failed once in the 48-way matrix run, then passed 5/5
+  unseeded standalone, passed with the original failing seed re-run, and passed
+  in the final in-suite FULL run. Watch item, not a layer.
+- **amba-only residue** from the first matrix (28 `.name`, 8 child-object) —
+  never reproduced inside the coverage set; out of scope per the owner.
+- `cocotb-coverage` 2.0 still untested and capped `<2`.
+- **RTLDesignSherpa-DV has 3 unpushed commits** (`6b8465b`, `630b7c3`,
+  `0b05819`) — push is the owner's call.
 
 ## Two tools, and why they exist
 
