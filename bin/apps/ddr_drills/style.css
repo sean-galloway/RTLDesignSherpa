@@ -423,6 +423,26 @@ main {
   flex-wrap: wrap;
   margin-bottom: 0.8rem;
 }
+.timing-bankref {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0.2rem 0 0.7rem;
+}
+.timing-bankref-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--ink-dim);
+  padding-top: 0.35rem;
+}
+.timing-bankref-bank {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--panel);
+}
 .timing-ref-btn {
   padding: 0.4rem 0.9rem;
   border: 1px solid var(--accent);
@@ -541,8 +561,11 @@ main {
   margin-bottom: 0.6rem;
 }
 .scen-subhead { font-weight: 700; margin: 0.8rem 0 0.35rem; }
-.scen-banks { display: flex; flex-wrap: wrap; gap: 0.35rem 0.6rem; align-items: flex-start; }
-.scen-bankgroup {
+/* -- shared: bank-group columns + assumptions note ------------------------- */
+/* Used by the bank-state drill, the timing drill's group reference, and the
+   sandbox bank editor, so all three present groups identically. */
+.bg-groups { display: flex; flex-wrap: wrap; gap: 0.35rem 0.6rem; align-items: flex-start; }
+.bg-group {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
@@ -550,12 +573,22 @@ main {
   border: 1px solid var(--border);
   border-radius: 5px;
 }
-.scen-bankgroup-h {
+.bg-group-h {
   font-family: var(--mono);
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--ink-dim);
 }
+.assume-note {
+  font-size: 0.82rem;
+  color: var(--ink-dim);
+  border: 1px dashed var(--border);
+  border-radius: 5px;
+  background: var(--panel);
+  padding: 0.35rem 0.6rem;
+  margin: 0.55rem 0;
+}
+.scen-banks { display: flex; flex-wrap: wrap; gap: 0.35rem 0.6rem; align-items: flex-start; }
 .scen-bank {
   font-family: var(--mono);
   font-size: 0.85rem;

@@ -76,6 +76,41 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
 
   DDRD.buildTimingReference = buildTimingReference;
 
+  // -- shared bank-group presentation ------------------------------------------
+  // One bordered column per bank group with the group's banks stacked inside
+  // (G0's banks read as a unit, then G1's); flat topologies render as a plain
+  // row. makeCell(bank) returns the element for one bank, so each mode keeps
+  // its own cell styling (scenario state chips, sandbox editors, the timing
+  // drill's static reference). Consumers: bank-state drill, timing drill,
+  // sandbox -- all three present groups identically by construction.
+  function renderBankGroups(topo, makeCell, wrapCls) {
+    var wrap = el('div', wrapCls || 'bg-groups');
+    if (topo.hasBankGroups) {
+      for (var g = 0; g < topo.groups; g++) {
+        var col = el('div', 'bg-group');
+        col.appendChild(el('div', 'bg-group-h', 'G' + g));
+        for (var b = g * topo.banksPerGroup;
+             b < (g + 1) * topo.banksPerGroup; b++) {
+          col.appendChild(makeCell(b));
+        }
+        wrap.appendChild(col);
+      }
+    } else {
+      for (var b0 = 0; b0 < topo.banks; b0++) {
+        wrap.appendChild(makeCell(b0));
+      }
+    }
+    return wrap;
+  }
+
+  // The artificial-geometry note as a ready-to-mount paragraph.
+  function assumptionsNote(topo) {
+    return el('p', 'assume-note', DDRD.assumptionsText(topo));
+  }
+
+  DDRD.renderBankGroups = renderBankGroups;
+  DDRD.assumptionsNote = assumptionsNote;
+
   // -- Timing Reference tab ---------------------------------------------------
 
   var timingrefState = null;

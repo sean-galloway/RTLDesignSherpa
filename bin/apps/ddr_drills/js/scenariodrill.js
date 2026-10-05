@@ -54,31 +54,15 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
 
   function renderBankState(sc) {
     var topo = st.pack.topology;
-    var wrap = el('div', 'scen-banks');
-    var mk = function (b) {
+    // Grouped presentation is the shared DDRD.renderBankGroups renderer, so
+    // the timing drill and sandbox show identical group columns.
+    return DDRD.renderBankGroups(topo, function (b) {
       var entry = sc.bankState[b];
       return el('span',
         'scen-bank' + (entry.openRow === null ? '' : ' scen-bank-open'),
         'B' + b + ': ' +
         (entry.openRow === null ? 'idle' : 'open R' + entry.openRow));
-    };
-    if (topo.hasBankGroups) {
-      // One column per bank group, banks stacked inside it, so G0's four
-      // banks read as a unit and G1's four follow (was: one flat wrap).
-      for (var g = 0; g < topo.groups; g++) {
-        var col = el('div', 'scen-bankgroup');
-        col.appendChild(el('div', 'scen-bankgroup-h', 'G' + g));
-        for (var b = g * topo.banksPerGroup; b < (g + 1) * topo.banksPerGroup; b++) {
-          col.appendChild(mk(b));
-        }
-        wrap.appendChild(col);
-      }
-    } else {
-      for (var b0 = 0; b0 < topo.banks; b0++) {
-        wrap.appendChild(mk(b0));
-      }
-    }
-    return wrap;
+    }, 'scen-banks');
   }
 
   function renderScheduleLines(container, cmds, reasons) {
@@ -216,6 +200,8 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
     st.scoreEl = el('div', 'scen-score');
     bar.appendChild(st.scoreEl);
     elRoot.appendChild(bar);
+
+    elRoot.appendChild(DDRD.assumptionsNote(st.pack.topology));
 
     st.promptEl = el('div', 'scen-prompt');
     elRoot.appendChild(st.promptEl);

@@ -26,6 +26,7 @@ var JS_ORDER = [
 var TEST_ORDER = [
   'test_engine.js',
   'test_mutate.js',
+  'test_model.js',
   'test_scenarios.js',
   'test_packs.js',
   'test_timing.js',

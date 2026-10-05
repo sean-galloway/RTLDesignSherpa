@@ -322,6 +322,20 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
     bar.appendChild(st.scoreEl);
     elRoot.appendChild(bar);
 
+    elRoot.appendChild(DDRD.assumptionsNote(st.pack.topology));
+
+    // Static bank-group reference: scope questions (same_group vs diff_group)
+    // are only answerable if the learner can see which banks share a group.
+    // Same stacked-column presentation as the bank-state drill.
+    if (st.pack.topology.hasBankGroups) {
+      var ref = el('div', 'timing-bankref');
+      ref.appendChild(el('span', 'timing-bankref-label', 'Bank groups'));
+      ref.appendChild(DDRD.renderBankGroups(st.pack.topology, function (b) {
+        return el('span', 'timing-bankref-bank', 'B' + b);
+      }));
+      elRoot.appendChild(ref);
+    }
+
     st.refEl = el('div', 'timing-reference');
     st.refEl.hidden = true;
     buildReference();

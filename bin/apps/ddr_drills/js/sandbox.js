@@ -49,27 +49,24 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
 
   function renderBankEditor() {
     var topo = st.pack.topology;
-    st.bankEl.innerHTML = '';
-    for (var b = 0; b < topo.banks; b++) {
-      (function (bank) {
-        var cell = el('label', 'sand-bankcell');
-        var name = 'B' + bank;
-        if (topo.hasBankGroups) {
-          name = 'G' + DDRD.bg(topo, bank) + ' ' + name;
-        }
-        cell.appendChild(el('span', 'sand-bankname', name));
-        var opts = [{ value: '-1', label: 'idle' }]
-          .concat(rangeOptions(topo.rows, 'open R'));
-        cell.appendChild(select('sand-banksel', opts,
-          st.bankState[bank].openRow === null ? '-1'
-                                              : String(st.bankState[bank].openRow),
-          function (v) {
-            st.bankState[bank].openRow = (v === '-1') ? null : parseInt(v, 10);
-            recompute();
-          }));
-        st.bankEl.appendChild(cell);
-      })(b);
-    }
+    // Same grouped-column presentation as the bank-state drill; the group
+    // header names the group, so the cell name is just the bank.
+    var grouped = DDRD.renderBankGroups(topo, function (bank) {
+      var cell = el('label', 'sand-bankcell');
+      cell.appendChild(el('span', 'sand-bankname', 'B' + bank));
+      var opts = [{ value: '-1', label: 'idle' }]
+        .concat(rangeOptions(topo.rows, 'open R'));
+      cell.appendChild(select('sand-banksel', opts,
+        st.bankState[bank].openRow === null ? '-1'
+                                            : String(st.bankState[bank].openRow),
+        function (v) {
+          st.bankState[bank].openRow = (v === '-1') ? null : parseInt(v, 10);
+          recompute();
+        }));
+      return cell;
+    }, 'sand-banks');
+    st.bankEl.replaceWith(grouped);
+    st.bankEl = grouped;
   }
 
   function renderReqList() {
@@ -165,6 +162,7 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
       builder: {}
     };
 
+    elRoot.appendChild(DDRD.assumptionsNote(topo));
     elRoot.appendChild(el('div', 'sand-subhead', 'Initial bank state'));
     st.bankEl = el('div', 'sand-banks');
     elRoot.appendChild(st.bankEl);

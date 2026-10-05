@@ -104,6 +104,23 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
   // These strings are the identity of a command/schedule: make_wrong_answers
   // dedups candidate wrong answers by them.
 
+  // The artificial-geometry disclaimer shown at the top of every drill and
+  // the sandbox. The drills run on a tiny on-purpose geometry so bank state
+  // is visible at a glance; the rules practiced are identical to real parts.
+  function assumptionsText(topo) {
+    var geo = topo.hasBankGroups
+      ? topo.groups + ' bank groups of ' + topo.banksPerGroup + ' banks'
+      : topo.banks + ' banks (no bank groups)';
+    var s = 'Artificial drill geometry: ' + geo + ', ' + topo.rows +
+            ' rows, ' + topo.cols + ' columns. Real parts differ -- ' +
+            'thousands of rows and columns, and often more banks or groups ' +
+            '-- but the scheduling and timing rules are the same.';
+    if (topo.sids > 0) {
+      s += ' This geometry repeats per stack (SID).';
+    }
+    return s;
+  }
+
   function fmt_sid(x) {
     return (x.sid !== undefined && x.sid !== null) ? 'S' + x.sid + ' ' : '';
   }
@@ -152,6 +169,7 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
   DDRD.make_bank_state = make_bank_state;
   DDRD.clone_bank_state = clone_bank_state;
   DDRD.bg = bg;
+  DDRD.assumptionsText = assumptionsText;
   DDRD.format_cmd = format_cmd;
   DDRD.format_req = format_req;
   DDRD.format_schedule = format_schedule;
