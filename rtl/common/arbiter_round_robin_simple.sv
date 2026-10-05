@@ -15,10 +15,12 @@
 
 `timescale 1ns / 1ps
 
-// Generic rotating-priority arbiter with masking/rotation (no if/case ladders in priority path)
+// Generic rotating-priority arbiter with masking (no if/case ladders in priority path)
 // - Parameterizable number of agents N (N >= 1)
 // - Remembers last granted index in a flop (r_last_grant)
-// - Uses rotation and lowest-set-bit isolate: x & (~x + 1)
+// - Masks off agents 0..last_grant (same win-mask LUT as arbiter_round_robin);
+//   if no masked request remains, falls back to the unmasked requests (wrap)
+// - Lowest-set-bit isolate: x & (~x + 1)
 // - Prefixes: w_* = wires, r_* = flops
 
 `include "reset_defs.svh"
@@ -39,46 +41,34 @@ module arbiter_round_robin_simple #(
     logic [W-1:0] r_last_grant;
 
     // ------------------------------
+    // Win-mask LUT: after agent i wins, only agents above i stay eligible
+    // (elaboration-time constants, same decode as arbiter_round_robin)
+    // ------------------------------
+    logic [N-1:0] w_win_mask_decode [N];
+
+    for (genvar i = 0; i < N; i++) begin : gen_mask_lut
+        assign w_win_mask_decode[i] = ~((N'(1) << (i + 1)) - N'(1));
+    end
+
+    // ------------------------------
     // Combinational priority logic
     // ------------------------------
     logic [W-1:0] w_grant_id;
-    logic [N-1:0] w_rot_req;
-    logic [N-1:0] w_rot_sel;
+    logic [N-1:0] w_req_masked;
+    logic         w_any_masked;
+    logic [N-1:0] w_req_sel;
     logic [N-1:0] w_nxt_grant;
     logic         w_grant_valid;
 
-    // Shift amount = last_grant + 1 (mod N), renamed per your request.
-    logic [W-1:0] w_shift_amount;       // 0..N-1
-    assign w_shift_amount = (r_last_grant == (W)'(N-1)) ? '0 : (r_last_grant + 1);
+    // Agents above the last winner first; if none of them is requesting, wrap to
+    // the full request vector. After agent N-1 wins the mask is all-zero, so the
+    // scan restarts from agent 0.
+    assign w_req_masked = request & w_win_mask_decode[r_last_grant];
+    assign w_any_masked = |w_req_masked;
+    assign w_req_sel    = w_any_masked ? w_req_masked : request;
 
-    // Rotate the request window so that agent (last_grant+1) lands at bit 0, then
-    // take the lowest set bit, then rotate back.
-    //
-    // The direction matters and used to be backwards. Rotating the request LEFT by
-    // s maps rotated bit j to original agent (j - s) mod N, so the scan started at
-    // agent (N - s) = (N - last - 1) instead of (last + 1). That is a REFLECTION of
-    // the priority pointer, not a rotation, and a reflection composed with itself is
-    // the identity -- so the pointer oscillated between two positions forever.
-    // With N=4 and all four agents requesting it granted 0,3,0,3,... and agents 1
-    // and 2 were NEVER served. Rotating RIGHT first maps rotated bit j to agent
-    // (j + s) mod N, so the scan starts at (last + 1) and advances, which is what
-    // round-robin means.
-    always_comb begin
-        if (w_shift_amount == '0) begin
-            w_rot_req = request;
-        end else begin
-            w_rot_req = (request >> w_shift_amount) | (request << ((W)'(N) - w_shift_amount));
-        end
-        // Isolate lowest set bit (one-hot). Works for zero too (yields zero).
-        w_rot_sel = w_rot_req & ((~w_rot_req) + {{(N-1){1'b0}}, 1'b1});
-
-        // Rotate back by the same amount to restore original bit positions
-        if (w_shift_amount == '0) begin
-            w_nxt_grant = w_rot_sel;
-        end else begin
-            w_nxt_grant = (w_rot_sel << w_shift_amount) | (w_rot_sel >> ((W)'(N) - w_shift_amount));
-        end
-    end
+    // Isolate lowest set bit (one-hot). Works for zero too (yields zero).
+    assign w_nxt_grant  = w_req_sel & ((~w_req_sel) + {{(N-1){1'b0}}, 1'b1});
 
     assign grant = w_nxt_grant;
     assign w_grant_valid = |w_nxt_grant;
