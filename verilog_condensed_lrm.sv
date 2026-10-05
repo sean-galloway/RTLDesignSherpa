@@ -443,43 +443,203 @@ module SyncFIFO_Hsk #(
 endmodule : SyncFIFO_Hsk
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Round-Robin Arbiter
+// Round-Robin Arbiter, one-hot grant + id (rtl/common/arbiter_round_robin_simple)
+//
+// Priority pointer is the LAST WINNER'S INDEX, decoded through an elaboration-time mask LUT.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-module rr_arbiter #(
-    parameter int N = 4
+module rr_arbiter_simple #(
+    parameter int N = 4,
+    parameter int W = (N > 1) ? $clog2(N) : 1
 ) (
     input  logic         clk,
     input  logic         rst_n,
-    input  logic [N-1:0] req,
-    output logic [N-1:0] gnt
+    input  logic [N-1:0] request,
+    output logic         grant_valid,
+    output logic [N-1:0] grant,
+    output logic [W-1:0] grant_id
 );
 
-    logic [N-1:0] mask;
-    logic [N-1:0] gnt_masked, gnt_unmasked;
+    logic [W-1:0] r_last_grant;
+    logic [N-1:0] w_win_mask [N];
+    logic [N-1:0] w_req_masked, w_req_sel;
 
-    // Lowest set bit within the masked window; fall back to unmasked if no masked request
-    assign gnt_masked   = req & mask  & ~((req & mask)  - 1'b1);
-    assign gnt_unmasked = req         & ~(req            - 1'b1);
-    assign gnt          = |gnt_masked ? gnt_masked : gnt_unmasked;
-
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) mask <= '1;
-        // Thermometer mask: EVERY agent above the last grant, not just the next one.
-        //
-        // This was `{gnt[N-2:0], gnt[N-1]}` -- a rotate of the one-hot grant, which
-        // makes `mask` one-hot too. Only agent last+1 then has priority, and if it
-        // is not requesting the masked term is empty and the arbiter falls back to
-        // gnt_unmasked, i.e. plain lowest-index-wins. With N=4 and req=1010 that
-        // grants agent 1 forever and starves agent 3. The all-requesting case still
-        // cycles 0,1,2,3 perfectly, which is what hides it.
-        //
-        // `~((gnt << 1) - 1)` sets every bit strictly above the last grant. When the
-        // top agent was granted, gnt<<1 truncates to 0 and the mask becomes 0, so the
-        // fallback path performs the wrap -- which is exactly what it is there for.
-        else if (|gnt) mask <= ~((gnt << 1) - 1'b1);
+    for (genvar i = 0; i < N; i++) begin : g_mask_lut
+        assign w_win_mask[i] = ~((N'(1) << (i + 1)) - N'(1));  // every agent above i
     end
 
-endmodule : rr_arbiter
+    assign w_req_masked = request & w_win_mask[r_last_grant];
+    assign w_req_sel    = |w_req_masked ? w_req_masked : request;  // nothing above -> wrap
+    assign grant        = w_req_sel & (~w_req_sel + N'(1));        // lowest set bit
+    assign grant_valid  = |grant;
+
+    always_comb begin
+        grant_id = r_last_grant;
+        for (int i = 0; i < N; i++) if (grant[i]) grant_id = W'(i);
+    end
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n)           r_last_grant <= W'(N-1);  // first pass starts at agent 0
+        else if (grant_valid) r_last_grant <= grant_id;
+    end
+
+endmodule : rr_arbiter_simple
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Round-Robin Arbiter with req/gnt/ack (rtl/common/arbiter_round_robin_simple_ack)
+//
+// Grant is REGISTERED and HELD until grant_ack from the granted agent. On the ack cycle: hand off
+// back-to-back if anyone else requests, otherwise clear for one cycle (the ack ended the transfer).
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+module rr_arbiter_simple_ack #(
+    parameter int N = 4,
+    parameter int W = (N > 1) ? $clog2(N) : 1
+) (
+    input  logic         clk,
+    input  logic         rst_n,
+    input  logic [N-1:0] request,
+    input  logic [N-1:0] grant_ack,
+    output logic         grant_valid,
+    output logic [N-1:0] grant,
+    output logic [W-1:0] grant_id
+);
+
+    logic [W-1:0] r_last_grant;
+    logic [N-1:0] r_grant;
+    logic         r_grant_valid;
+    logic [N-1:0] w_win_mask [N];
+    logic [N-1:0] w_req_masked, w_req_sel, w_nxt_grant;
+    logic [W-1:0] w_nxt_id;
+
+    for (genvar i = 0; i < N; i++) begin : g_mask_lut
+        assign w_win_mask[i] = ~((N'(1) << (i + 1)) - N'(1));
+    end
+
+    assign w_req_masked = request & w_win_mask[r_last_grant];
+    assign w_req_sel    = |w_req_masked ? w_req_masked : request;
+    assign w_nxt_grant  = w_req_sel & (~w_req_sel + N'(1));
+
+    always_comb begin
+        w_nxt_id = r_last_grant;
+        for (int i = 0; i < N; i++) if (w_nxt_grant[i]) w_nxt_id = W'(i);
+    end
+
+    wire w_ack       = r_grant_valid && |(grant_ack & r_grant);  // only the owner's ack counts
+    wire w_other_req = |(request & ~r_grant);
+
+    assign grant       = r_grant;
+    assign grant_valid = r_grant_valid;
+    assign grant_id    = r_last_grant;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            r_last_grant  <= W'(N-1);
+            r_grant       <= '0;
+            r_grant_valid <= 1'b0;
+        end else if (!r_grant_valid || (w_ack && w_other_req)) begin  // idle, or hand off on ack
+            r_grant       <= w_nxt_grant;
+            r_grant_valid <= |w_nxt_grant;
+            if (|w_nxt_grant) r_last_grant <= w_nxt_id;
+        end else if (w_ack) begin                                     // acked, nobody else waiting
+            r_grant       <= '0;
+            r_grant_valid <= 1'b0;
+        end
+        // else: hold until the owner acks
+    end
+
+endmodule : rr_arbiter_simple_ack
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Reset Synchronizer (rtl/cdc/reset_sync)
+//
+// Async assert, synchronous de-assert N clocks after rst_n releases. The full module adds polarity and
+// vendor-attribute parameters; this is the core.
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+module reset_sync #(
+    parameter int N = 3  // >= 2
+) (
+    input  logic clk,
+    input  logic rst_n,
+    output logic sync_rst_n
+);
+
+    (* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *) logic [N-1:0] r_sync;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) r_sync <= '0;                      // asserted immediately, whole chain
+        else        r_sync <= {r_sync[N-2:0], 1'b1};   // releases after N clocks
+    end
+
+    assign sync_rst_n = r_sync[N-1];
+
+endmodule : reset_sync
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Open-Loop Multi-Bit CDC (rtl/cdc/cdc_open_loop)
+//
+// Source captures data on a one-cycle src_valid and holds valid+data for STRETCH_CYCLES. Destination
+// synchronizes only the stretched valid and latches data on its rising edge -- no feedback path.
+// Requires STRETCH_CYCLES >= (SYNC_STAGES + 1) * f_src / f_dst so the destination cannot miss it.
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+module cdc_open_loop #(
+    parameter int DATA_WIDTH     = 8,
+    parameter int STRETCH_CYCLES = 8,
+    parameter int SYNC_STAGES    = 2   // >= 2
+) (
+    input  logic                  clk_src,
+    input  logic                  rst_src_n,
+    input  logic                  src_valid,   // one-cycle pulse
+    input  logic [DATA_WIDTH-1:0] src_data,
+    output logic                  src_busy,    // high during the stretch; new pulses are ignored
+    input  logic                  clk_dst,
+    input  logic                  rst_dst_n,
+    output logic                  dst_valid,   // one-cycle pulse
+    output logic [DATA_WIDTH-1:0] dst_data     // stable until the next dst_valid
+);
+
+    localparam int CW = $clog2(STRETCH_CYCLES + 1);
+
+    // Source domain: capture and stretch
+    logic [DATA_WIDTH-1:0] r_src_data;
+    logic                  r_src_valid;
+    logic [CW-1:0]         r_cnt;
+
+    assign src_busy = (r_cnt != '0);
+
+    always_ff @(posedge clk_src or negedge rst_src_n) begin
+        if (!rst_src_n) begin
+            r_src_data  <= '0;
+            r_src_valid <= 1'b0;
+            r_cnt       <= '0;
+        end else if (src_valid && !src_busy) begin
+            r_src_data  <= src_data;
+            r_src_valid <= 1'b1;
+            r_cnt       <= CW'(STRETCH_CYCLES);
+        end else if (src_busy) begin
+            r_cnt <= r_cnt - 1'b1;
+            if (r_cnt == CW'(1)) r_src_valid <= 1'b0;
+        end
+    end
+
+    // Destination domain: synchronize valid, latch data on its rising edge (data is stable by then)
+    (* ASYNC_REG = "TRUE" *) logic [SYNC_STAGES-1:0] r_sync;
+    logic r_sync_q;
+    wire  w_rise = r_sync[SYNC_STAGES-1] && !r_sync_q;
+
+    always_ff @(posedge clk_dst or negedge rst_dst_n) begin
+        if (!rst_dst_n) begin
+            r_sync    <= '0;
+            r_sync_q  <= 1'b0;
+            dst_valid <= 1'b0;
+            dst_data  <= '0;
+        end else begin
+            r_sync    <= {r_sync[SYNC_STAGES-2:0], r_src_valid};
+            r_sync_q  <= r_sync[SYNC_STAGES-1];
+            dst_valid <= w_rise;
+            if (w_rise) dst_data <= r_src_data;
+        end
+    end
+
+endmodule : cdc_open_loop
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Generate: conditional always_comb vs always_ff
