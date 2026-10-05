@@ -26,7 +26,7 @@
 **Module:** `init_sequencer.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent macro:** `pumice_mem_cmd_scheduler`
+**Parent macro:** `pumice_scheduler_layer`
 **Status:** Implemented — DDR2 and LPDDR2 sequences both complete (DDR2 validated on the Nexys A7 board; LPDDR2 passes the full sim suite for family reuse)
 
 > **Renamed / re-scoped:** an early sketch called this an `init_engine_fub`
@@ -124,7 +124,7 @@ so these were promoted from hardcoded constants to `INIT_TIMING`-programmable.
 | `dfi_init_start_o`    | output    | Asserted (registered) once `r_state != S_RESET`. Tells the PHY to begin its own init. |
 | `dfi_init_complete_i` | input     | PHY reports its DLL-lock / IO training complete. Gates the exit from `S_DFI_INIT`. |
 
-### MR-shadow write port (muxed with CSR by `pumice_mem_cmd_scheduler`)
+### MR-shadow write port (muxed with CSR by `pumice_scheduler_layer`)
 
 | Signal           | Direction | Width | Description                          |
 |------------------|-----------|-------|--------------------------------------|
@@ -285,7 +285,7 @@ issued to the DRAM but not shadowed.
 `init_busy_o` is high from reset (its reset value is 1) through every state
 except `S_DONE`. While busy:
 
-- The parent `pumice_mem_cmd_scheduler` forwards the sequencer's command
+- The parent `pumice_scheduler_layer` forwards the sequencer's command
   request to `dfi_cmd_formatter` and issues nothing of its own — the scheduler
   parks so exactly one command reaches DFI per `init_cmd_valid_o` pulse.
 - `refresh_ctrl.enable_i` is low (driven by `init_done_o`), so periodic refresh

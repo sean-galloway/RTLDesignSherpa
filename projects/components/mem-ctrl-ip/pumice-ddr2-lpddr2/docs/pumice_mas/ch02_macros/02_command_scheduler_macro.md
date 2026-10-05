@@ -21,9 +21,9 @@
 
 <!-- End Header -->
 
-# `pumice_mem_cmd_scheduler` (command scheduler macro)
+# `pumice_scheduler_layer` (command scheduler macro)
 
-**Module:** `pumice_mem_cmd_scheduler.sv`
+**Module:** `pumice_scheduler_layer.sv`
 **Location:** `rtl/macro/`
 **Category:** Layer-2 macro (the decision layer of `pumice_core`)
 **FUBs bundled:** arbiter + bank/global timers + refresh + init + mode reg + cmd FIFO
@@ -38,7 +38,7 @@ stream `{op, rank, bank, row, col, ap}` for the DFI layer to phase-pack.
 
 The scheduler is **single-issue**, **PHY / nphases-agnostic**, and runs on a
 single controller clock (`aclk`). The CAM sched-lookup / oldest / commit / issue
-ports are **external** -- the CAMs live in `pumice_axi4_ifc`. This replaces the
+ports are **external** -- the CAMs live in `pumice_axi4_layer`. This replaces the
 old `command_scheduler_macro` (`scheduler` / `xbank_timers` / `page_predictor` /
 `powerdown_ctrl` etc.); those names are retired.
 
@@ -68,7 +68,7 @@ stamps the timer per (rank,bank).
 
 ## External Boundaries
 
-- **CAM sched ports (to `pumice_axi4_ifc`):** for each of write and read, the
+- **CAM sched ports (to `pumice_axi4_layer`):** for each of write and read, the
   `N_LU = NUM_BANKS` lookup buses (`lu_valid/bank/row` out; `hit/slot/col/id/age`
   in), the `oldest_*` snapshot in, and the write `commit_*` / read `issue_*`
   handshake out.

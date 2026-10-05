@@ -58,13 +58,13 @@ a filelist under `filelists/fub/`, and a cocotb testbench under `dv/tests/`.
 ```
 pumice_top                                (CSR block + core)
 └── pumice_core
-    ├── pumice_axi4_ifc                        ("host AXI4 -> CAM-buffered requests")
+    ├── pumice_axi4_layer                        ("host AXI4 -> CAM-buffered requests")
     │   ├── pumice_wr_intake                   AXI4 slave wr + AW-meta FIFO + wr-data FIFO
     │   ├── pumice_rd_intake                   AXI4 slave rd + snarf probe
     │   ├── addr_mapper                        flat AXI addr -> (rank, bank, row, col)
     │   ├── pumice_wr_data_cam                 WR CAM + wr-data SRAM (fill/commit-drain/snarf)
     │   └── pumice_rd_cmd_cam                  RD CAM + rd SRAM (return-fill/drain)
-    ├── pumice_mem_cmd_scheduler               ("what command to issue this cycle")
+    ├── pumice_scheduler_layer               ("what command to issue this cycle")
     │   ├── pumice_cmd_arbiter                 single pick core (open-page inline)
     │   ├── pumice_bank_timers (bank_timer)    per-(rank,bank) FSM-free JEDEC "safe" timers
     │   ├── global_timers                      tFAW / tRRD / tWTR / tRTW / tCCD turnaround
@@ -84,7 +84,7 @@ Also present but not in the default top build: `page_predictor` and
 
 ## FUB Inventory
 
-### `pumice_axi4_ifc`
+### `pumice_axi4_layer`
 
 #### `pumice_wr_intake`
 - **Purpose**: AXI4 slave write engine. AW/W/B handshakes with an AW-meta FIFO
@@ -130,7 +130,7 @@ Also present but not in the default top build: `page_predictor` and
 - **Key params**: `NUM_ENTRIES`, `N_SRAM_SLOTS`, `NUM_RANKS`, `NUM_BANKS`,
   `ROW_WIDTH`, `BL`.
 
-### `pumice_mem_cmd_scheduler`
+### `pumice_scheduler_layer`
 
 #### `pumice_cmd_arbiter`
 - **Purpose**: The single command-pick core. Picks one abstract command per
@@ -244,9 +244,9 @@ following blocks were retired; their behavior now lives in the FUBs shown:
 | `odt_ctrl`                | ODT inside `dfi_cmd_formatter` / `mode_register` (no standalone block)              |
 | `page_predictor` (standalone) | open-page decision inline in `pumice_cmd_arbiter` (`page_predictor.sv` optional) |
 | `wr_cmd_cam`              | `pumice_wr_data_cam`                                                                |
-| `scheduler`               | `pumice_mem_cmd_scheduler` (`pumice_cmd_arbiter` + timers + refresh + init)         |
+| `scheduler`               | `pumice_scheduler_layer` (`pumice_cmd_arbiter` + timers + refresh + init)         |
 | `gear_dfi`                | `pumice_dfi_layer`                                                                  |
-| `axi_frontend` / `axi_intake` / `*_macro`-as-architecture | `pumice_axi4_ifc`, generated `pumice_csr`, `pumice_core` |
+| `axi_frontend` / `axi_intake` / `*_macro`-as-architecture | `pumice_axi4_layer`, generated `pumice_csr`, `pumice_core` |
 
 The old names may still appear in retired sentinel tests; they are not part of
 the current architecture.

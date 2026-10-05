@@ -26,14 +26,14 @@
 **Modules:** `pumice_wr_data_cam.sv`, `pumice_dfi_wr_serializer.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parents:** `pumice_axi4_ifc` (CAM), `pumice_dfi_layer` (serializer)
+**Parents:** `pumice_axi4_layer` (CAM), `pumice_dfi_layer` (serializer)
 **Status:** implemented
 
 > The old single-block `wr_beat_sequencer` / `wr_data_path_fub` no longer
 > exists. In the rearchitected controller the write data path is split
 > across two clock domains and two FUBs:
 >
-> - `pumice_wr_data_cam` (MC domain, inside `pumice_axi4_ifc`) — a
+> - `pumice_wr_data_cam` (MC domain, inside `pumice_axi4_layer`) — a
 >   write-command CAM plus a wr-data SRAM with three de-FSM'd movers.
 > - `pumice_dfi_wr_serializer` (DFI domain, inside `pumice_dfi_layer`) —
 >   a purely mechanical DFI-word streamer that drives `dfi_wrdata`.

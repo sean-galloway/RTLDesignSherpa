@@ -43,9 +43,9 @@
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/filelists/fub/refresh_ctrl.f
 
 # --- Macros ---
--f $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/filelists/macro/pumice_axi4_ifc.f
+-f $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/filelists/macro/pumice_axi4_layer.f
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/filelists/macro/pumice_dfi_layer.f
--f $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/filelists/macro/pumice_mem_cmd_scheduler.f
+-f $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/filelists/macro/pumice_scheduler_layer.f
 
 # --- Tops ---
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/filelists/top/pumice_core.f

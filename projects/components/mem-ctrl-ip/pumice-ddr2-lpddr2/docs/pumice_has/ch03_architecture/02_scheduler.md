@@ -23,13 +23,13 @@
 
 # Command Scheduler
 
-The command-scheduling layer is `pumice_mem_cmd_scheduler` (`rtl/macro/pumice_mem_cmd_scheduler.sv`). It is a single controller-clock (`aclk`) layer that wires together the pick core and all the timing / bring-up support blocks, and emits one abstract DRAM command stream `{op, rank, bank, row, col, ap}` into a command FIFO for the DFI layer to pack onto phases.
+The command-scheduling layer is `pumice_scheduler_layer` (`rtl/macro/pumice_scheduler_layer.sv`). It is a single controller-clock (`aclk`) layer that wires together the pick core and all the timing / bring-up support blocks, and emits one abstract DRAM command stream `{op, rank, bank, row, col, ap}` into a command FIFO for the DFI layer to pack onto phases.
 
-The scheduler does **not** hold the transaction queue — pending requests live in the two CAMs inside `pumice_axi4_ifc`. The scheduler reads them through external lookup / oldest / commit / issue ports.
+The scheduler does **not** hold the transaction queue — pending requests live in the two CAMs inside `pumice_axi4_layer`. The scheduler reads them through external lookup / oldest / commit / issue ports.
 
 ## Composition
 
-`pumice_mem_cmd_scheduler` instantiates:
+`pumice_scheduler_layer` instantiates:
 
 - **`pumice_cmd_arbiter`** — the single pick core (open-page decision is inline).
 - **`pumice_bank_timers`** (per-rank/bank `bank_timer` instances) — FSM-free per-bank JEDEC "safe" timers (see `03_bank_machines.md`).

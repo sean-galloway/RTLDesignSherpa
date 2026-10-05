@@ -23,7 +23,7 @@
 
 # Write and Read Data Paths
 
-The data path spans two clock domains. On the controller (`aclk`) side the two CAMs in `pumice_axi4_ifc` buffer burst data; on the DFI (`dfi_clk`) side the write serializer and read aligner drive/capture the DFI data bus. All four are **de-FSM'd streaming readers** — they are FIFO-fed / beat-counter datapaths with no active/slot state latch.
+The data path spans two clock domains. On the controller (`aclk`) side the two CAMs in `pumice_axi4_layer` buffer burst data; on the DFI (`dfi_clk`) side the write serializer and read aligner drive/capture the DFI data bus. All four are **de-FSM'd streaming readers** — they are FIFO-fed / beat-counter datapaths with no active/slot state latch.
 
 ## Controller-Side CAMs
 

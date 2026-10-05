@@ -27,7 +27,7 @@
 `pumice_wr_intake` / `pumice_rd_intake`
 **Location:** intakes in `rtl/fub/`; slaves in the shared AMBA library
 **Category:** FUB (intakes)
-**Parent:** `pumice_axi4_ifc`
+**Parent:** `pumice_axi4_layer`
 **Status:** Implemented
 
 > **Rearchitected:** the SWAG had a single `axi4_slave_fub` that also owned
@@ -53,7 +53,7 @@ two layers each:
   `addr_mapper`, push a decoded command downstream to a CAM, stream write/read
   data through FIFOs, and return B/R responses.
 
-Ahead of both intakes, `pumice_axi4_ifc` places the repo's
+Ahead of both intakes, `pumice_axi4_layer` places the repo's
 `axi_master_wr_splitter` / `axi_master_rd_splitter` so that each burst delivered
 to an intake is **exactly one DRAM burst** (aligned to `DRAM_BURST_BYTES =
 BL * DRAM_BEAT_WIDTH/8`). The intakes therefore assume "one AXI burst == one DFI

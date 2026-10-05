@@ -32,7 +32,7 @@ separate APB CSR clock).
 
 | Clock       | Polarity | Domain members                                                                 |
 |-------------|----------|--------------------------------------------------------------------------------|
-| `aclk`      | Posedge  | `pumice_csr`, `pumice_axi4_ifc` (AXI slave, burst splitters, both CAMs), `pumice_mem_cmd_scheduler` (arbiter, bank/global timers, refresh, init, mode register) |
+| `aclk`      | Posedge  | `pumice_csr`, `pumice_axi4_layer` (AXI slave, burst splitters, both CAMs), `pumice_scheduler_layer` (arbiter, bank/global timers, refresh, init, mode register) |
 | `dfi_clk`   | Posedge  | `pumice_dfi_layer` command path, write serializer, read aligner; the DFI 2.1 pin bus |
 
 `aclk` and `dfi_clk` are independent. The DFI-word datapath unit means one FIFO
@@ -65,7 +65,7 @@ gaxi FIFOs only** (`N_FLOP_CROSS` = 2 by default). Four things cross it:
 | Init handshake       | both                 | `init_start` out, `init_complete` back    |
 
 There is **no** APB-to-MC CSR crossing, no quiet-point override-staging
-crossing, and no CDC in the AXI4 datapath -- `pumice_axi4_ifc` runs entirely on
+crossing, and no CDC in the AXI4 datapath -- `pumice_axi4_layer` runs entirely on
 `aclk`. If the SoC's AXI master is on a different clock, an external clock
 converter is required upstream. The register block also runs on `aclk`, so CSR
 writes take effect combinationally through `hwif_out.*` into the config ports of
@@ -83,7 +83,7 @@ On power-on:
    software programs the timing, DFI-phase, page-policy, and address-map fields
    by name (never by hardcoded offset -- see `dv/tbclasses/pumice_regmap.py`).
    The controller idles with `init_done_o = 0`; AXI traffic is held off.
-3. The `init_sequencer` (inside `pumice_mem_cmd_scheduler`) drives
+3. The `init_sequencer` (inside `pumice_scheduler_layer`) drives
    `dfi_init_start_o` and walks the per-memtype JEDEC MRS init sequence,
    emitting init commands into the same arbiter path as normal traffic and
    waiting on the programmed init timings (`t_init_wait`, `t_dll_wait`,

@@ -3,7 +3,7 @@ TOTAL (flattened; optimized),,,,,,22622,56312,349988
 TOTAL (hierarchy kept; = sum of rows below),,,,,,46896,195306,944718
 pumice_top,,,,,,46896,195306,944718
 ,u_core (pumice_core),,,,,22776,93251,453139
-,,u_ifc (pumice_axi4_ifc),,,,16604,75938,348498
+,,u_ifc (pumice_axi4_layer),,,,16604,75938,348498
 ,,,u_wr_cam (pumice_wr_data_cam),,,5326,36578,143617
 ,,,,u_drain_q (gaxi_fifo_sync),,36,113,605
 ,,,,,fifo_control_inst (fifo_control),4,57,168
@@ -110,7 +110,7 @@ pumice_top,,,,,,46896,195306,944718
 ,,,u_cmd (pumice_dfi_cmd_path),,,47,287,1142
 ,,,,u_fmt (dfi_cmd_formatter),,42,259,1028
 ,,,u_wr (pumice_dfi_wr_serializer),,,35,142,685
-,,u_sched (pumice_mem_cmd_scheduler),,,,1185,9429,39646
+,,u_sched (pumice_scheduler_layer),,,,1185,9429,39646
 ,,,u_arbiter (pumice_cmd_arbiter),,,240,6173,20929
 ,,,u_bank_timers (pumice_bank_timers),,,448,1706,9880
 ,,,,u_bt (bank_timer),,56,207,1223

@@ -1,6 +1,6 @@
-module: pumice_axi4_ifc
-rtl_file: projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_axi4_ifc.sv
-test_file: projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/dv/tests/macro/test_pumice_axi4_ifc.py
+module: pumice_axi4_layer
+rtl_file: projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_axi4_layer.sv
+test_file: projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/dv/tests/macro/test_pumice_axi4_layer.py
 
 parameters:
 - name: AXI_ID_WIDTH
@@ -34,7 +34,7 @@ functional_scenarios:
 - id: AXI4-01
   name: Smoke
   description: "Write, same-id snarf, cross-id read, miss read, commit B"
-  test_function: test_pumice_axi4_ifc (smoke)
+  test_function: test_pumice_axi4_layer (smoke)
   priority: high
   status: verified
 
@@ -47,7 +47,7 @@ implied_coverage:
 notes: |
   AXI4 host front-end macro. Host AW/AR bursts are chopped to DFI-burst
   size (pumice_axi_burst_chopper: u_rd_split on the AR path at
-  pumice_axi4_ifc.sv:239, u_aw_chop inside pumice_wr_splitter on the AW
+  pumice_axi4_layer.sv:239, u_aw_chop inside pumice_wr_splitter on the AW
   path), fed to the dumb rd/wr intakes, with the write-data CAM (snarf
   source) and read-cmd CAM (reorder buffer) in between. The smoke test
   instantiates this macro directly via its own filelist with

@@ -479,7 +479,7 @@ pulse CTRL.init_force_restart.</p>
 - Base Offset: 0x40
 - Size: 0x4
 
-<p>RETIRED 2026-09-09. lookahead_active / force_inorder / age_max_runtime / txn_queue_high_water / lookahead_max_obs belonged to the pre-rearchitecture scheduler; nothing has consumed them since the CAM+arbiter scheduler (pumice_mem_cmd_scheduler) landed, so a write here was a silent no-op. Scheduling is SCHED_POLICY (order_mode selects in_order / age_threshold; FR-FCFS is the default and reorders across the whole CAM, so there is no lookahead window to size). The address is kept so the map does not shift.</p>
+<p>RETIRED 2026-09-09. lookahead_active / force_inorder / age_max_runtime / txn_queue_high_water / lookahead_max_obs belonged to the pre-rearchitecture scheduler; nothing has consumed them since the CAM+arbiter scheduler (pumice_scheduler_layer) landed, so a write here was a silent no-op. Scheduling is SCHED_POLICY (order_mode selects in_order / age_threshold; FR-FCFS is the default and reorders across the whole CAM, so there is no lookahead window to size). The address is kept so the map does not shift.</p>
 
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|

@@ -1,4 +1,4 @@
-# pumice_axi4_ifc — write/read front-end µarch (locked spec)
+# pumice_axi4_layer — write/read front-end µarch (locked spec)
 
 Reference for correctness at every boundary is **JEDEC DDR2 + DFI 2.1** (see
 `init_sequencer`/`dfi_cmd_formatter` for the command side). This doc covers the
@@ -91,7 +91,7 @@ tied 1:1 to banks). Each: in `{valid, bank, row}` → out `{hit, slot, col, id, 
 snarf's youngest). Consumed by the `command_scheduler`: it fires all N in one
 cycle, picks the globally-oldest hit (issue WR, no ACT), and **falls back to the
 `oldest` port** when all N miss. The chosen `slot` is driven back on `commit_slot`
-to evict after the write commits. These are external ports of `pumice_axi4_ifc`.
+to evict after the write commits. These are external ports of `pumice_axi4_layer`.
 
 ## pumice_rd_cmd_cam + pumice_rd_return_ring (inside the ifc)
 
@@ -119,7 +119,7 @@ BURST_WORDS`) must cover every in-flight read, because `dfi_rddata_valid` has no
 backpressure; `pumice_dfi_rd_aligner` asserts it. `pumice_rd_intake`'s order
 FIFO is sized `RD_RET_DEPTH + 8` so admission is never throttled below the ring.
 
-## FUB 3 — pumice_axi4_ifc (holds BOTH intakes + BOTH CAMs)
+## FUB 3 — pumice_axi4_layer (holds BOTH intakes + BOTH CAMs)
 
 ```
 host AXI4 → [wr/rd splitter] → pumice_wr_intake ─┐
@@ -140,7 +140,7 @@ external ports:  host AXI4 (pre-split);
   wr-data FIFO pops {data,strb,last} + one B; ragged burst → SLVERR/assert.
 - **rd_intake**: MISS → ar_push + drive DFI-read source → check R; HIT → drive
   snarf-probe hit+data → check R from snarf; interleave to prove in-order arbiter.
-- **pumice_axi4_ifc**: arbitrary host bursts → splitter → intakes; write then read
+- **pumice_axi4_layer**: arbitrary host bursts → splitter → intakes; write then read
   the same address → **real snarf** through the internal wr CAM (no mock); MISS read
   serviced via the internal rd CAM + a mocked DFI read-return; B/R consolidated to
   one per host burst.

@@ -26,7 +26,7 @@
 **Module:** `global_timers.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent macro:** `pumice_mem_cmd_scheduler`
+**Parent macro:** `pumice_scheduler_layer`
 **Status:** Implemented (per-rank tFAW/tRRD; global tWTR/tRTW/tCCD; strict-flop outputs)
 
 > **Replaces the retired cross-bank timer block.** The original `xbank_timers`

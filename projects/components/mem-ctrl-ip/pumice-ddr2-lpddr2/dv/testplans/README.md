@@ -43,14 +43,14 @@ into `pumice_rd_intake` + `pumice_wr_intake`), `wr_cmd_cam`,
 `command_scheduler_macro`, `data_path_macro`, `dfi_v21_interface_macro`,
 `pumice_core_macro`, `pumice_csr_slave`) whose hierarchies the AXI4
 front-end rework dissolved. Three were renamed in place: `scheduler` ->
-`pumice_mem_cmd_scheduler`, `rd_cmd_cam` -> `pumice_rd_cmd_cam`,
+`pumice_scheduler_layer`, `rd_cmd_cam` -> `pumice_rd_cmd_cam`,
 `page_predictor` -> `pumice_page_policy`.
 
 Closed 2026-10-03 (pumice TASK-039): the 13 post-rearchitecture FUBs and
 macros that had tests but no plans now have them (`pumice_cmd_arbiter`
 17 scenarios incl. the issue-rate companion test, `pumice_bank_timers` 6,
 `pumice_rd_intake` 3, `pumice_wr_intake` 8, `pumice_wr_data_cam` 9,
-`pumice_rd_return_ring` 5, `pumice_wr_splitter` 4, `pumice_axi4_ifc` 1,
+`pumice_rd_return_ring` 5, `pumice_wr_splitter` 4, `pumice_axi4_layer` 1,
 and the DFI stack `pumice_dfi_cdc` 1 / `pumice_dfi_cmd_path` 2 /
 `pumice_dfi_rd_aligner` 4 / `pumice_dfi_wr_serializer` 2 /
 `pumice_dfi_layer` 1), plus a SCHED-24 matrix scenario in the scheduler
@@ -61,7 +61,7 @@ testplans are listed with rationale under "No-plan rationale" below.
 
 | Testplan | Module | Test file | Scenarios |
 |----------|--------|-----------|----------:|
-| `scheduler_testplan.yaml` | pumice_mem_cmd_scheduler.sv | test_pumice_mem_cmd_scheduler.py, test_pumice_sched_matrix.py | 24 |
+| `scheduler_testplan.yaml` | pumice_scheduler_layer.sv | test_pumice_scheduler_layer.py, test_pumice_sched_matrix.py | 24 |
 | `pumice_cmd_arbiter_testplan.yaml` | pumice_cmd_arbiter.sv | test_pumice_cmd_arbiter.py, test_pumice_arbiter_issue_rate.py | 17 |
 | `refresh_ctrl_testplan.yaml` | refresh_ctrl.sv | test_refresh_ctrl.py | 10 |
 | `pumice_wr_data_cam_testplan.yaml` | pumice_wr_data_cam.sv | test_pumice_wr_data_cam.py | 9 |
@@ -82,7 +82,7 @@ testplans are listed with rationale under "No-plan rationale" below.
 | `dfi_signal_pack_testplan.yaml` | dfi_signal_pack.sv | test_dfi_signal_pack.py | 4 |
 | `addr_mapper_testplan.yaml` | addr_mapper.sv | test_addr_mapper.py | 4 |
 | `page_predictor_testplan.yaml` | pumice_page_policy.sv | test_page_predictor.py | 5 |
-| `pumice_axi4_ifc_testplan.yaml` | pumice_axi4_ifc.sv | test_pumice_axi4_ifc.py | 1 |
+| `pumice_axi4_layer_testplan.yaml` | pumice_axi4_layer.sv | test_pumice_axi4_layer.py | 1 |
 | `pumice_dfi_cdc_testplan.yaml` | pumice_dfi_cdc.sv | test_pumice_dfi_cdc.py | 1 |
 | `pumice_dfi_layer_testplan.yaml` | pumice_dfi_layer.sv | test_pumice_dfi_layer.py | 1 |
 
@@ -99,14 +99,14 @@ testplan (unit table above). The remaining uncovered items are:
 
 - `pumice_axi_burst_chopper` — RTL FUB with **no direct unit test**. Both
   instantiation sites are exercised through other plans: the read side
-  (`u_rd_split` in `pumice_axi4_ifc.sv`) runs single-sub-command mode
-  under `pumice_axi4_ifc_testplan.yaml` AXI4-01, and the write side
+  (`u_rd_split` in `pumice_axi4_layer.sv`) runs single-sub-command mode
+  under `pumice_axi4_layer_testplan.yaml` AXI4-01, and the write side
   (`u_aw_chop` inside `pumice_wr_splitter`) split/pad/ragged behavior is
   covered by `pumice_wr_splitter_testplan.yaml` WSPL-01..04. A standalone
   plan would claim coverage the tests do not give.
 - `pumice_cmd_history_checker` — debug scoreboard, compiled only when
   `CMD_HISTORY_EN=1` (off by default; instantiated inside
-  `pumice_dfi_cmd_path` and `pumice_mem_cmd_scheduler`). No direct unit
+  `pumice_dfi_cmd_path` and `pumice_scheduler_layer`). No direct unit
   test.
 - `test_pumice_config_array.py`, `test_pumice_telemetry_invariants.py`
   (fub/), `test_pumice_cmd_stream_checker.py` (macro/) — pure-Python

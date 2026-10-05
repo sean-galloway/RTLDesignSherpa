@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
-"""Pattern-B macro runner for `pumice_mem_cmd_scheduler`."""
+"""Pattern-B macro runner for `pumice_scheduler_layer`."""
 
 import os
 import sys
@@ -23,13 +23,13 @@ if _DV_DIR not in sys.path:
 from pumice_coverage import get_coverage_compile_args, get_coverage_env  # noqa: E402
 from tbclasses.pumice_dram_configs import dram_config  # noqa: E402
 _CTRL_T = dram_config()[1]      # the operating point this suite runs
-from tbclasses.pumice_mem_cmd_scheduler_tb import (  # noqa: E402
+from tbclasses.pumice_scheduler_layer_tb import (  # noqa: E402
     PumiceMemCmdSchedulerTB, OP_ACT, OP_RD, OP_WR, OP_PRE, OP_REF, OP_MRS,
 )
 from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 
 _FILELIST = ("projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/"
-             "rtl/filelists/macro/pumice_mem_cmd_scheduler.f")
+             "rtl/filelists/macro/pumice_scheduler_layer.f")
 
 
 @cocotb.test(timeout_time=5, timeout_unit="ms")
@@ -119,7 +119,7 @@ async def cocotb_test_refresh_vs_inflight_read(dut):
 
 
 @cocotb.test(timeout_time=5, timeout_unit="ms")
-async def cocotb_test_pumice_mem_cmd_scheduler(dut):
+async def cocotb_test_pumice_scheduler_layer(dut):
     tb = PumiceMemCmdSchedulerTB(dut)
     await tb.setup_clocks_and_reset()
 
@@ -356,13 +356,13 @@ async def cocotb_test_refresh_vs_read_stream(dut):
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
-def test_pumice_mem_cmd_scheduler_refresh_read_stream(request, test_level):
+def test_pumice_scheduler_layer_refresh_read_stream(request, test_level):
     """pumice BUG-014 (was PUMICE-037): sustained read stream across a refresh."""
     _run_scheduler(request, "cocotb_test_refresh_vs_read_stream", test_level=test_level)
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
-def test_pumice_mem_cmd_scheduler_refresh_inflight_read(request, test_level):
+def test_pumice_scheduler_layer_refresh_inflight_read(request, test_level):
     """Refresh vs an in-flight read: JEDEC spacing holds. PASSES.
 
     Written to reproduce pumice BUG-014 (was PUMICE-037) and it does NOT: the refresh path respects
@@ -374,8 +374,8 @@ def test_pumice_mem_cmd_scheduler_refresh_inflight_read(request, test_level):
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
-def test_pumice_mem_cmd_scheduler(request, test_level):
-    _run_scheduler(request, "cocotb_test_pumice_mem_cmd_scheduler", test_level=test_level)
+def test_pumice_scheduler_layer(request, test_level):
+    _run_scheduler(request, "cocotb_test_pumice_scheduler_layer", test_level=test_level)
 
 
 
@@ -698,13 +698,13 @@ async def cocotb_test_timeout_pre_vs_pending_column(dut):
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
-def test_pumice_mem_cmd_scheduler_timeout_pre_vs_pending_column(request, test_level):
+def test_pumice_scheduler_layer_timeout_pre_vs_pending_column(request, test_level):
     _run_scheduler(request, "cocotb_test_timeout_pre_vs_pending_column", test_level=test_level)
 
 
 def _run_scheduler(request, testcase, test_level='gate'):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "pumice_mem_cmd_scheduler"
+    dut_name = "pumice_scheduler_layer"
     test_name = f"{testcase}_{test_level}"
 
     verilog_sources, includes = get_sources_from_filelist(

@@ -1,10 +1,10 @@
-# pumice_mem_cmd_scheduler — µarch (locked spec)
+# pumice_scheduler_layer — µarch (locked spec)
 
-The command-scheduling layer between `pumice_axi4_ifc` (the CAMs) and the DFI
+The command-scheduling layer between `pumice_axi4_layer` (the CAMs) and the DFI
 layer. LiteDRAM-inspired split:
 
 ```
-pumice_axi4_ifc (CAMs)         pumice_mem_cmd_scheduler                 [DFI layer — future]
+pumice_axi4_layer (CAMs)         pumice_scheduler_layer                 [DFI layer — future]
   wr/rd sched_lu  ───────────>  per-bank timers + global timers +        drains cmd FIFO,
   wr/rd oldest    ───────────>  refresh + init + ARBITER  ── cmd FIFO ──> packs onto nphases,
   wr commit / rd issue <──────  (single abstract command / cycle)         serializes data,

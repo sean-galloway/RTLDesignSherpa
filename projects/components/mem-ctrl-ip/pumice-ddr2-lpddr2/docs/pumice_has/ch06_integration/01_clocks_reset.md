@@ -56,9 +56,9 @@ Both resets are active-low.
 Controller reset, tied to the `aclk` domain. The register block resets on
 `~aresetn` (`pumice_csr` `.rst(~aresetn)`). Resets:
 
-- Host AXI4 interface state (`pumice_axi4_ifc`)
+- Host AXI4 interface state (`pumice_axi4_layer`)
 - Write-data and read-command CAMs
-- Command scheduler and bank timers (`pumice_mem_cmd_scheduler`)
+- Command scheduler and bank timers (`pumice_scheduler_layer`)
 - Refresh manager and init sequencer
 - Register block (`pumice_csr`) and observation state
 

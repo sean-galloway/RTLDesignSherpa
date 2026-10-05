@@ -8,7 +8,7 @@
 Passive tracker for the command arbiter (`pumice_cmd_arbiter`).
 
 RETARGETED 2026-08-27: the pre-rearchitecture `scheduler` FUB is gone; the
-pick core is now `pumice_cmd_arbiter` inside `pumice_mem_cmd_scheduler`
+pick core is now `pumice_cmd_arbiter` inside `pumice_scheduler_layer`
 (scope `u_sched.u_arbiter`). The command/event/grant taps carried over
 unchanged; the powerdown / MR / issued-strobe taps did not survive the
 rearchitecture and were dropped. Added: the TASK-001 Axis-1 policy

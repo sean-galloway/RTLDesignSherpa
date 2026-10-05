@@ -147,7 +147,7 @@ style preference. Many are enforced by elaboration asserts or by DV gates.
   maximum (widest gear × config range) — you cannot resize wires at runtime.
   Runtime registers select the *active* subset. This is the same pattern for
   gear phases and burst length. The modivation for this is to simplify characterization across many modes. With one bitstream program, one can run the full characterization suite.
-- **Layering:** `pumice_axi4_ifc` (host AXI + CAMs) → `pumice_mem_cmd_scheduler`
+- **Layering:** `pumice_axi4_layer` (host AXI + CAMs) → `pumice_scheduler_layer`
   (bank timers + arbiter + refresh/init) → `pumice_dfi_layer` (single async CDC +
   DFI datapath). Internal data unit throughout is the **DFI word**.
 - **Address/timing config by name** through the PeakRDL register block; the
@@ -234,11 +234,11 @@ safe to change freely only when idle.
 
 ## Scheduling & DRAM Management (FR-FCFS, paging, refresh)
 
-The command-scheduling layer is `pumice_mem_cmd_scheduler` — one `aclk` layer that
+The command-scheduling layer is `pumice_scheduler_layer` — one `aclk` layer that
 wires a single pick core to the timing/bring-up blocks and emits one abstract DRAM
 command `{op, rank, bank, row, col, ap}` per cycle into a FIFO for the DFI layer to
 pack onto phases. It does **not** hold the transaction queue — pending requests
-live in the two CAMs inside `pumice_axi4_ifc`; the scheduler reads them through
+live in the two CAMs inside `pumice_axi4_layer`; the scheduler reads them through
 external lookup / `oldest` / commit / issue ports.
 
 **Composition:** `pumice_cmd_arbiter` (the single pick core), `pumice_bank_timers`

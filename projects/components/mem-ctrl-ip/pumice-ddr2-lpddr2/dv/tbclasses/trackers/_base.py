@@ -254,7 +254,7 @@ def wire_trackers(dut, *, output_dir: Optional[str] = None,
        actually monitors a different sub-module. Example for the
        core TB env. CURRENT hierarchy (updated 2026-08-27 for the
        rearchitected core: ``pumice_core`` instantiates ``u_sched``
-       (pumice_mem_cmd_scheduler), ``u_ifc`` (pumice_axi4_ifc) and
+       (pumice_scheduler_layer), ``u_ifc`` (pumice_axi4_layer) and
        ``u_dfi`` (pumice_dfi_layer)):
 
            wire_trackers(dut, scope_paths={

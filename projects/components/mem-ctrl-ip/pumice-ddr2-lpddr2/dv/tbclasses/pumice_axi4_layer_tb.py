@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
 """
-Integration testbench for `pumice_axi4_ifc`.
+Integration testbench for `pumice_axi4_layer`.
 
 The TB plays three external roles at once:
   * host AXI4 master  (drive AW/W/AR, observe B/R)
@@ -114,7 +114,7 @@ class PumiceAxi4IfcTB(TBBase):
         # wr_commit / rd_issue / rd_dfi_ret by GAXI masters, and
         # wr_cm_rd_ready_i by a GAXI slave. A second driver on a BFM-owned
         # signal is a conflict, not a convenience.
-        # (the CAM lookup ports are internalized in pumice_axi4_ifc, tied to '0;
+        # (the CAM lookup ports are internalized in pumice_axi4_layer, tied to '0;
         #  the scheduler consumes the exported wr_sch_*_o / rd_sch_*_o vectors)
 
     # ---- monitors -----------------------------------------------------------

@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
 """
-Macro testbench for `pumice_mem_cmd_scheduler`.
+Macro testbench for `pumice_scheduler_layer`.
 
 Exercises the REAL wiring of arbiter + pumice_bank_timers + global_timers +
 refresh_ctrl + init_sequencer + cmd FIFO. The TB plays:

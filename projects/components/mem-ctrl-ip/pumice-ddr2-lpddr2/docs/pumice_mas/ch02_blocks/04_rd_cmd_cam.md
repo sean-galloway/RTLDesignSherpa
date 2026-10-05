@@ -26,7 +26,7 @@
 **Module:** `pumice_rd_cmd_cam.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent:** `pumice_axi4_ifc`
+**Parent:** `pumice_axi4_layer`
 **Status:** Implemented (de-FSM'd streaming drain)
 
 > **Rearchitected:** the SWAG CAM was keyed by AXI ID and drove a `match_pending`

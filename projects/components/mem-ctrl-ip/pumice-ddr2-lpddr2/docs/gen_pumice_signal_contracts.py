@@ -84,8 +84,8 @@ CITES = [
     ('projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/refresh_ctrl.sv', 126, '// accumulator to exceed it:'),
     ('projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/refresh_ctrl.sv', 133, '//   number, so any latency between the request and the gran'),
     ('projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/refresh_ctrl.sv', 186, "else if (pend_n < MAX_PENDING) pend_n = pend_n + 4'd1;"),
-    ('projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_mem_cmd_scheduler.sv', 529, '.stall_turnaround_o        (stall_turnaround_o),'),
-    ('projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_mem_cmd_scheduler.sv', 576, 'end else begin : g_cmd_nodelay'),
+    ('projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_scheduler_layer.sv', 529, '.stall_turnaround_o        (stall_turnaround_o),'),
+    ('projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_scheduler_layer.sv', 576, 'end else begin : g_cmd_nodelay'),
 ]
 
 XLSX = os.path.join(HERE, "pumice_signal_contracts.xlsx")
@@ -98,7 +98,7 @@ IX_NOTE = Font(italic=True, color="6B7280")
 IX_WRAP = Alignment(horizontal="left", vertical="top", wrap_text=True)
 IX_THIN = Border(*[Side(style="thin", color="D1D5DB")] * 4)
 
-CONTRACT_SHEETS = {'AXI to CAMs': [['pumice_axi4_ifc — AXI <-> CAM signal contracts',
+CONTRACT_SHEETS = {'AXI to CAMs': [['pumice_axi4_layer — AXI <-> CAM signal contracts',
                   None,
                   None,
                   None,
@@ -449,7 +449,7 @@ CONTRACT_SHEETS = {'AXI to CAMs': [['pumice_axi4_ifc — AXI <-> CAM signal cont
                   'High while any AXI txn is in flight.',
                   'busy=0 => all CAMs empty, no pending B/R',
                   None]],
- 'Scheduler both dirs': [['pumice_mem_cmd_scheduler — upstream (<-CAMs) + downstream (->DFI)',
+ 'Scheduler both dirs': [['pumice_scheduler_layer — upstream (<-CAMs) + downstream (->DFI)',
                           None,
                           None,
                           None,
@@ -1787,7 +1787,7 @@ def build_refresh_sheet(wb):
     km = KmapWriter(ws)
     km.sheet_intro(
         "refresh_ctrl + scheduler top — K-maps (rtl/fub/refresh_ctrl.sv, "
-        "rtl/macro/pumice_mem_cmd_scheduler.sv)",
+        "rtl/macro/pumice_scheduler_layer.sv)",
         ["Flags: pend_nz=(r_pending>0), rem_nz=(r_burst_remaining>0), "
          "expired=(r_refi_cnt==0)."])
 
@@ -1837,7 +1837,7 @@ def build_refresh_sheet(wb):
              "JEDEC retention violation looming — the arbiter must be "
              "serving REFs.")
     km.kmap(
-        "busy_o", "pumice_mem_cmd_scheduler.sv",
+        "busy_o", "pumice_scheduler_layer.sv",
         "busy = !init_done || refresh_req || w_cmd_rd_valid || "
         "(|w_bank_row_active[0])",
         ["init_done", "refresh_req", "cmd_rd_valid", "any_row_active"],
@@ -1849,7 +1849,7 @@ def build_refresh_sheet(wb):
             ("cmd_rd_valid is the command FIFO's read-valid and is not gated "
              "on init_done, and any_row_active is a registered image, so all "
              "sixteen combinations are reachable.",
-             None, "pumice_mem_cmd_scheduler.sv:529,576"),
+             None, "pumice_scheduler_layer.sv:529,576"),
         ],
         depends_only_on='Busy is the OR of every reason the controller cannot be considered idle: init incomplete, a refresh outstanding, a command still in the read path, or any row left open. The bank index is folded into any_row_active because busy is a whole-controller output -- WHICH bank is open cannot change the answer.',
         rtl_sop='!init_done | refresh_req | cmd_rd_valid | any_row_active')

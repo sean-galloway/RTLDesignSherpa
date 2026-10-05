@@ -27,7 +27,7 @@
 > slave face -- what's supported, what's relaxed, what's omitted, and the
 > timing / ordering / backpressure semantics the integrator can rely on.
 >
-> The interface is implemented by `pumice_axi4_ifc` (section 2.1): a pair of
+> The interface is implemented by `pumice_axi4_layer` (section 2.1): a pair of
 > AMBA burst splitters feed the dumb `pumice_wr_intake` / `pumice_rd_intake`
 > blocks (each wrapping `axi4_slave_wr` / `axi4_slave_rd`), which push into the
 > write / read CAMs.

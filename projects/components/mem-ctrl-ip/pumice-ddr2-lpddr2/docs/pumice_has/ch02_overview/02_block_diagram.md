@@ -26,9 +26,9 @@
 ## Top-Level Block Diagram
 
 The controller's top-level data and control flow is shown below. AXI4 traffic
-enters at top-left into `pumice_axi4_ifc`, which maps addresses and pushes
+enters at top-left into `pumice_axi4_layer`, which maps addresses and pushes
 per-direction records into its two CAMs (`pumice_wr_data_cam`,
-`pumice_rd_cmd_cam`). The `pumice_mem_cmd_scheduler` layer queries the CAMs
+`pumice_rd_cmd_cam`). The `pumice_scheduler_layer` layer queries the CAMs
 each cycle and picks the next abstract command (`pumice_cmd_arbiter` against
 the bank and global timers). The `pumice_dfi_layer` crosses the single
 controller-to-PHY clock boundary (`pumice_dfi_cdc`) and formats the chosen

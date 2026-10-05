@@ -26,7 +26,7 @@
 **Modules:** `pumice_dfi_rd_aligner.sv`, `pumice_rd_return_ring.sv`, `pumice_rd_cmd_cam.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parents:** `pumice_dfi_layer` (aligner), `pumice_axi4_ifc` (ring, CAM)
+**Parents:** `pumice_dfi_layer` (aligner), `pumice_axi4_layer` (ring, CAM)
 **Status:** implemented
 
 > The old single-block `rd_cl_aligner` / `rd_data_path_fub` no longer
@@ -36,11 +36,11 @@
 > - `pumice_dfi_rd_aligner` (DFI domain, inside `pumice_dfi_layer`) —
 >   drives `dfi_rddata_en` at the right cycle for an issued READ and
 >   captures `dfi_rddata` words into the read return FIFO.
-> - `pumice_rd_return_ring` (MC domain, inside `pumice_axi4_ifc`) — the
+> - `pumice_rd_return_ring` (MC domain, inside `pumice_axi4_layer`) — the
 >   outstanding-read reorder buffer. Returns arrive in *issue* order into
 >   the slot named by the read's ticket, and the ring drains from its head
 >   in *AR* order to `pumice_rd_intake`. See §22.
-> - `pumice_rd_cmd_cam` (MC domain, inside `pumice_axi4_ifc`) — the
+> - `pumice_rd_cmd_cam` (MC domain, inside `pumice_axi4_layer`) — the
 >   scheduling window only. Its entry is freed the cycle the column issues.
 >
 > **Corrected 2026-09-09.** This chapter previously said the CAM was the

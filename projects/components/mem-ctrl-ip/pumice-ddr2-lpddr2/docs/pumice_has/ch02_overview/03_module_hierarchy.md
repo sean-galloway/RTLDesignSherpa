@@ -44,8 +44,8 @@ SoC level
     └── pumice_top               ← instantiated by the SoC
         ├── pumice_csr           ← PeakRDL passthrough cpuif register block
         └── pumice_core          ← the controller proper
-            ├── pumice_axi4_ifc          ← host AXI + wr/rd CAMs
-            ├── pumice_mem_cmd_scheduler ← "what command to issue this cycle"
+            ├── pumice_axi4_layer          ← host AXI + wr/rd CAMs
+            ├── pumice_scheduler_layer ← "what command to issue this cycle"
             └── pumice_dfi_layer         ← single CDC + DFI v2.1 datapath
 ```
 
@@ -58,8 +58,8 @@ and read aligner run on `dfi_clk`.
 
 | Layer / macro                  | FUBs                                                                                                                       |
 |--------------------------------|----------------------------------------------------------------------------------------------------------------------------|
-| `pumice_axi4_ifc`              | `pumice_wr_intake`, `pumice_rd_intake`, `addr_mapper`, `pumice_wr_data_cam`, `pumice_rd_cmd_cam`                            |
-| `pumice_mem_cmd_scheduler`     | `pumice_cmd_arbiter`, `pumice_bank_timers` (`bank_timer`), `global_timers`, `refresh_ctrl`, `init_sequencer`, `mode_register` |
+| `pumice_axi4_layer`              | `pumice_wr_intake`, `pumice_rd_intake`, `addr_mapper`, `pumice_wr_data_cam`, `pumice_rd_cmd_cam`                            |
+| `pumice_scheduler_layer`     | `pumice_cmd_arbiter`, `pumice_bank_timers` (`bank_timer`), `global_timers`, `refresh_ctrl`, `init_sequencer`, `mode_register` |
 | `pumice_dfi_layer`             | `pumice_dfi_cdc`, `pumice_dfi_cmd_path` (`dfi_cmd_formatter`, `dfi_signal_pack`), `pumice_dfi_wr_serializer`, `pumice_dfi_rd_aligner` |
 | `pumice_core`                  | (wraps the three layers above)                                                                                             |
 

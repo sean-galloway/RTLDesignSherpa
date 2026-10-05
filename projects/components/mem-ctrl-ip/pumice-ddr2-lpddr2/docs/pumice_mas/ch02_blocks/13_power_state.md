@@ -26,7 +26,7 @@
 **Module:** `powerdown_ctrl.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent macro:** `pumice_mem_cmd_scheduler`
+**Parent macro:** `pumice_scheduler_layer`
 **Status:** Live but optional — a single-channel idle-detect power-down requester. Not instantiated in the default top build. Deep Power Down, per-rank control, and refresh/init interlocks are TODO (see Open Questions).
 
 > **Renamed / rescoped.** An earlier SWAG called this `power_state_fub` and
@@ -57,7 +57,7 @@ commands, does **not** run any exit-timing counters (tXP / tXSDLL / tXSR), and
 does **not** coordinate a handshake with the refresh controller. All command
 issue, precondition enforcement (all banks precharged before SR), and exit
 timing are the responsibility of the parent scheduler
-(`pumice_mem_cmd_scheduler`) — this FUB is purely a request/grant + CKE-drive
+(`pumice_scheduler_layer`) — this FUB is purely a request/grant + CKE-drive
 block. It trusts the scheduler not to issue a grant before DRAM init completes.
 
 ---

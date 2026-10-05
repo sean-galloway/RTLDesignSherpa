@@ -26,7 +26,7 @@
 **Module:** `pumice_rd_return_ring.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent:** `pumice_axi4_ifc`
+**Parent:** `pumice_axi4_layer`
 **Status:** Implemented
 
 > **New block (2026-09-08).** Before it, `pumice_rd_cmd_cam` held a read from

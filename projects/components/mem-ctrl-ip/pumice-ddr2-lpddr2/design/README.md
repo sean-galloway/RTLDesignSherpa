@@ -70,7 +70,7 @@ Root-cause (full evidence in the analysis; key file:line below):
   `pumice_dfi_rd_aligner.sv:112-136`) — one short/dropped burst desyncs every
   later read with no recovery.
 - Reads and writes share **one in-order DFI command FIFO**
-  (`pumice_mem_cmd_scheduler.sv:505-519`); a stalled RD at its head
+  (`pumice_scheduler_layer.sv:505-519`); a stalled RD at its head
   **head-of-line-blocks the queued WRs** (`pumice_dfi_cmd_path.sv:130-148`), the
   write drain stalls (`pumice_wr_data_cam.sv:486-504`), and `commit_done`/B
   never fire (`:583-585`). **That is why the write engine wedges "first"** — it's
@@ -858,7 +858,7 @@ Sean: "Rate match the write." Three pieces, each a few lines:
      behind the one being fetched, so its data trails the command by a fixed
      pipeline latency, never by a queue. Occupancy is a registered counter
      (the FIFO's combinational `count` made a Verilator UNOPTFLAT loop).
-  2. `pumice_mem_cmd_scheduler`: every command leaves the cmd FIFO exactly
+  2. `pumice_scheduler_layer`: every command leaves the cmd FIFO exactly
      `CMD_DELAY` (6) cycles after it entered -- a token shift register + a
      matured-token counter gate the FIFO head. Spacing preserved exactly, and
      a WR's data reaches the DFI before the command does. CMD_FIFO_DEPTH 16.

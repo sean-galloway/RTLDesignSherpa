@@ -105,12 +105,12 @@ twice for one stimulus; with the fix, exactly once.
   `no_double_issue_rd`, `issued_pulse_width` *(retired with the FSM
   scheduler; the successor arbiter path is covered by
   `dv/tests/fub/test_pumice_cmd_arbiter.py` and
-  `dv/tests/macro/test_pumice_mem_cmd_scheduler.py`)*
+  `dv/tests/macro/test_pumice_scheduler_layer.py`)*
 - `dv/tests/fub/test_refresh_ctrl.py` — `grant_no_reissue`
 - `dv/tests/fub/test_powerdown_ctrl.py` — `grant_no_reissue`
 - `dv/tests/macro/test_command_scheduler_macro.py` —
   `no_double_issue_race` (full CAM-lag model) *(retired with the FSM
-  scheduler; see `dv/tests/macro/test_pumice_mem_cmd_scheduler.py`)*
+  scheduler; see `dv/tests/macro/test_pumice_scheduler_layer.py`)*
 
 ## Where this guard is still missing
 

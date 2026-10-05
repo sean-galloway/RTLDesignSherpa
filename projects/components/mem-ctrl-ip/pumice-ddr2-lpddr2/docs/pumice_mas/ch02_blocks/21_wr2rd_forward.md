@@ -30,7 +30,7 @@ the Write Data Path chapter).
 
 ## Why it was retired
 
-The rearchitected AXI4 interface (`pumice_axi4_ifc`) folded write-to-read
+The rearchitected AXI4 interface (`pumice_axi4_layer`) folded write-to-read
 forwarding into the write CAM rather than keeping it as a separate FUB on
 the AR path. The old `wr2rd_forward` block sat between `addr_mapper` and
 `rd_cmd_cam` and compared each AR against a `wr_cmd_cam` snapshot bus;
@@ -85,7 +85,7 @@ cross-id pair.
 
 ## Tests
 
-Covered by the `pumice_wr_data_cam` FUB test and the `pumice_axi4_ifc`
+Covered by the `pumice_wr_data_cam` FUB test and the `pumice_axi4_layer`
 integration tests (snarf stream, snarf-vs-DRAM-path selection, and the
 same-id / same-BL / unscheduled exclusion scenarios). See §17 for the
 detailed test plan.

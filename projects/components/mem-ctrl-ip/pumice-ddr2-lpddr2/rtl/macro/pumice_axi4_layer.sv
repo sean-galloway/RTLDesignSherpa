@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: pumice_axi4_ifc
+// Module: pumice_axi4_layer
 // Purpose: The pumice AXI4 host interface. Bolts the common AXI burst
 //          splitters onto the front of the dumb wr/rd intakes, and holds the
 //          wr-data CAM (write buffer + snarf source) and rd-cmd CAM (read
@@ -17,12 +17,12 @@
 //   external: scheduler lookup/oldest/commit(issue) ports on both CAMs,
 //             wr commit-data out (to wr_beat_sequencer), rd DFI-return in.
 //
-// Documentation: docs/uarch/PUMICE_AXI4_IFC_UARCH.md
+// Documentation: docs/uarch/PUMICE_AXI4_LAYER_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
 
-module pumice_axi4_ifc #(
+module pumice_axi4_layer #(
     parameter int AXI_ID_WIDTH      = 8,
     parameter int AXI_ADDR_WIDTH    = 32,
     parameter int AXI_DATA_WIDTH    = 64,
@@ -614,4 +614,4 @@ module pumice_axi4_ifc #(
 
     assign busy_o = w_wri_busy || w_rdi_busy || w_wrc_busy || w_rdc_busy || w_rdr_busy;
 
-endmodule : pumice_axi4_ifc
+endmodule : pumice_axi4_layer

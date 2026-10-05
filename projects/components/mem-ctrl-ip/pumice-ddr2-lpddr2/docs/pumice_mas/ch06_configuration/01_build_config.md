@@ -96,7 +96,7 @@ endgenerate
 
 ## Filelists
 
-FUB filelists live in `rtl/filelists/`. The live module hierarchy (top -> core -> `pumice_axi4_ifc` / `pumice_mem_cmd_scheduler` / `pumice_dfi_layer`) is fixed; the DDR2 vs LPDDR2 command paths coexist in `dfi_cmd_formatter` and branch on `memtype`, so a single build supports both families with dead-code elimination handling the unused branch. `page_predictor.sv` / `powerdown_ctrl.sv` are optional/not in the default top build (confirm via the filelists).
+FUB filelists live in `rtl/filelists/`. The live module hierarchy (top -> core -> `pumice_axi4_layer` / `pumice_scheduler_layer` / `pumice_dfi_layer`) is fixed; the DDR2 vs LPDDR2 command paths coexist in `dfi_cmd_formatter` and branch on `memtype`, so a single build supports both families with dead-code elimination handling the unused branch. `page_predictor.sv` / `powerdown_ctrl.sv` are optional/not in the default top build (confirm via the filelists).
 
 ## Open Questions / Future Work
 

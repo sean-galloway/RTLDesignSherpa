@@ -28,8 +28,8 @@
 **Purpose:** Implementation-level micro-architecture specification for the unified DDR2 / LPDDR2 memory controller family
 
 > **Note (v0.3):** Reconciled with the rearchitected RTL. The controller is a
-> three-layer core — `pumice_axi4_ifc` (intakes + wr_data_cam + rd_cmd_cam),
-> `pumice_mem_cmd_scheduler` (arbiter + FSM-free bank_timer + global_timers +
+> three-layer core — `pumice_axi4_layer` (intakes + wr_data_cam + rd_cmd_cam),
+> `pumice_scheduler_layer` (arbiter + FSM-free bank_timer + global_timers +
 > refresh + init + mode_register), `pumice_dfi_layer` (single async-FIFO CDC +
 > cmd_path/wr_serializer/rd_aligner) — under `pumice_core`, plus optional
 > `pumice_top_geared`. Chapters for SWAG-era blocks that no longer exist
@@ -59,12 +59,12 @@
 
 **Integration (Macros — pure structural):**
 - [Top-Level Integration (`pumice_core`)](ch02_blocks/01_top_integration.md)
-- [AXI4 Interface (`pumice_axi4_ifc`)](ch02_macros/01_axi_frontend_macro.md)
-- [Command Scheduler (`pumice_mem_cmd_scheduler`)](ch02_macros/02_command_scheduler_macro.md)
+- [AXI4 Interface (`pumice_axi4_layer`)](ch02_macros/01_axi_frontend_macro.md)
+- [Command Scheduler (`pumice_scheduler_layer`)](ch02_macros/02_command_scheduler_macro.md)
 - [Data Path (CAMs + DFI layer)](ch02_macros/03_data_path_macro.md)
 - [DFI v2.1 Layer (`pumice_dfi_layer`)](ch02_macros/04_dfi_v21_interface_macro.md)
 
-**AXI4 Interface FUBs (`pumice_axi4_ifc`):**
+**AXI4 Interface FUBs (`pumice_axi4_layer`):**
 - [AXI4 Intakes (`pumice_wr_intake`, `pumice_rd_intake`)](ch02_blocks/02_axi4_slave.md)
 - [Address Mapper (`addr_mapper`, bank_lsb)](ch02_blocks/03_addr_mapper.md)
 - [Read Command CAM (`pumice_rd_cmd_cam`)](ch02_blocks/04_rd_cmd_cam.md)
@@ -72,7 +72,7 @@
 - [Write Data CAM (`pumice_wr_data_cam`)](ch02_blocks/05_wr_cmd_cam.md)
 - [Write-to-Read Forward (snarf in `pumice_wr_data_cam`)](ch02_blocks/21_wr2rd_forward.md)
 
-**Scheduling FUBs (`pumice_mem_cmd_scheduler`):**
+**Scheduling FUBs (`pumice_scheduler_layer`):**
 - [Command Arbiter (`pumice_cmd_arbiter`)](ch02_blocks/07_scheduler.md) — CLOSE/OPEN/HAPPY_HYBRID
 - [Page-policy engine (`pumice_page_policy`)](ch02_blocks/08_page_policy.md)
 - [Cross-bank Turnaround Timers (`global_timers`)](ch02_blocks/10_xbank_timers.md)

@@ -35,7 +35,7 @@
 // ap_mode_en_i/ap_close_i + the timeout-PRE request (pumice_page_policy).
 //
 // v1 scope: single-rank pick (rank 0). Documentation:
-// docs/uarch/PUMICE_MEM_CMD_SCHEDULER_UARCH.md
+// docs/uarch/PUMICE_SCHEDULER_LAYER_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
@@ -1541,7 +1541,7 @@ module pumice_cmd_arbiter
     // chains never learned the command had been issued. The controller's model
     // and the DRAM diverged, silently, in the one direction that matters.
     //
-    // Measured at the macro level (test_pumice_mem_cmd_scheduler.py,
+    // Measured at the macro level (test_pumice_scheduler_layer.py,
     // cocotb_test_timeout_pre_vs_pending_column) under the BOARD config, open
     // page + background timeout PRE, TR=2: 465 pushes, 9 with w_out_safe==0,
     // all 9 column RDs to a bank whose row the timeout PRE had just closed, and

@@ -23,7 +23,7 @@
 
 # AXI4 Frontend
 
-The AXI frontend is `pumice_axi4_ifc` (`rtl/macro/pumice_axi4_ifc.sv`). It bolts the repository's common AXI burst splitters onto two "dumb" 1:1 intakes and holds the two CAMs that decouple AXI-side handshake from the DRAM-side command scheduler:
+The AXI frontend is `pumice_axi4_layer` (`rtl/macro/pumice_axi4_layer.sv`). It bolts the repository's common AXI burst splitters onto two "dumb" 1:1 intakes and holds the two CAMs that decouple AXI-side handshake from the DRAM-side command scheduler:
 
 ```
 host AXI4 -> [axi_master_wr_splitter] -> pumice_wr_intake -> pumice_wr_data_cam

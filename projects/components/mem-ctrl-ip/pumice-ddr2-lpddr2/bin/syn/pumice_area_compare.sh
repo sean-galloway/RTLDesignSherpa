@@ -38,14 +38,14 @@ python3 "$REPO_ROOT/bin/flatten_filelist.py" --resolve-env --absolute-paths \
 # ---- halved overlay -------------------------------------------------
 OVL="$WORK/half_rtl"
 mkdir -p "$OVL/macro" "$OVL/fub"
-for f in macro/pumice_mem_cmd_scheduler.sv macro/pumice_dfi_layer.sv \
+for f in macro/pumice_scheduler_layer.sv macro/pumice_dfi_layer.sv \
          fub/pumice_dfi_cdc.sv fub/pumice_wr_intake.sv \
          fub/pumice_rd_intake.sv; do
     cp "$RTL/$f" "$OVL/$f"
 done
 
 sed -i 's/parameter int CMD_FIFO_DEPTH = 8,/parameter int CMD_FIFO_DEPTH = 4,/' \
-    "$OVL/macro/pumice_mem_cmd_scheduler.sv"
+    "$OVL/macro/pumice_scheduler_layer.sv"
 sed -i -e 's/parameter int CMD_FIFO_DEPTH = 8,/parameter int CMD_FIFO_DEPTH = 4,/' \
        -e 's/parameter int WD_FIFO_DEPTH  = 16,/parameter int WD_FIFO_DEPTH  = 8,/' \
        -e 's/parameter int RD_FIFO_DEPTH  = 16,/parameter int RD_FIFO_DEPTH  = 8,/' \
@@ -64,7 +64,7 @@ sed -i -e 's/parameter int AR_FIFO_DEPTH     = 4,/parameter int AR_FIFO_DEPTH   
 # sed no-ops silently on a pattern miss, so prove every edit landed.
 EXPECT=13
 GOT=$(grep -hc "= *[0-9]*,$" /dev/null; grep -h "parameter int .*DEPTH" \
-        "$OVL/macro/pumice_mem_cmd_scheduler.sv" "$OVL/macro/pumice_dfi_layer.sv" \
+        "$OVL/macro/pumice_scheduler_layer.sv" "$OVL/macro/pumice_dfi_layer.sv" \
         "$OVL/fub/pumice_dfi_cdc.sv" "$OVL/fub/pumice_wr_intake.sv" \
         "$OVL/fub/pumice_rd_intake.sv" \
       | grep -v SKID | grep -cE "= *(2|4|8),") || true
@@ -74,7 +74,7 @@ if [ "$GOT" -ne "$EXPECT" ]; then
     exit 1
 fi
 
-sed -e "s|$RTL/macro/pumice_mem_cmd_scheduler.sv|$OVL/macro/pumice_mem_cmd_scheduler.sv|" \
+sed -e "s|$RTL/macro/pumice_scheduler_layer.sv|$OVL/macro/pumice_scheduler_layer.sv|" \
     -e "s|$RTL/macro/pumice_dfi_layer.sv|$OVL/macro/pumice_dfi_layer.sv|" \
     -e "s|$RTL/fub/pumice_dfi_cdc.sv|$OVL/fub/pumice_dfi_cdc.sv|" \
     -e "s|$RTL/fub/pumice_wr_intake.sv|$OVL/fub/pumice_wr_intake.sv|" \

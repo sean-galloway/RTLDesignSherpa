@@ -36,8 +36,8 @@ $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi
 $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_cmd_path.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_wr_serializer.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_rd_aligner.sv
-$REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_axi4_ifc.sv
-# pumice_mem_cmd_scheduler instantiates pumice_cmd_history_checker under
+$REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_axi4_layer.sv
+# pumice_scheduler_layer instantiates pumice_cmd_history_checker under
 # CMD_HISTORY_EN. It is a GATED submodule -- absent at CMD_HISTORY_EN=0 -- so
 # this filelist never carried it and the parameter could not be built from
 # this top at all: Verilator stopped with MODMISSING. A parameter the design
@@ -46,7 +46,7 @@ $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_a
 # assertion), which is the instrument for TASK-007. Compiled always; with
 # CMD_HISTORY_EN=0 it is simply not instantiated.
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/filelists/fub/pumice_cmd_history_checker.f
-$REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_mem_cmd_scheduler.sv
+$REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_scheduler_layer.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_dfi_layer.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/top/pumice_core.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/regs/generated/rtl/pumice_csr_pkg.sv

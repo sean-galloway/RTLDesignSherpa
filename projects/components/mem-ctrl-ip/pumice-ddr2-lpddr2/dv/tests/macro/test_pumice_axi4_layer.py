@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
-"""Pattern-B integration runner for `pumice_axi4_ifc`."""
+"""Pattern-B integration runner for `pumice_axi4_layer`."""
 
 import os
 import sys
@@ -20,15 +20,15 @@ if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 
 from pumice_coverage import get_coverage_compile_args, get_coverage_env  # noqa: E402
-from tbclasses.pumice_axi4_ifc_tb import PumiceAxi4IfcTB  # noqa: E402
+from tbclasses.pumice_axi4_layer_tb import PumiceAxi4IfcTB  # noqa: E402
 from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 
 _FILELIST = ("projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/"
-             "rtl/filelists/macro/pumice_axi4_ifc.f")
+             "rtl/filelists/macro/pumice_axi4_layer.f")
 
 
 @cocotb.test(timeout_time=8, timeout_unit="ms")
-async def cocotb_test_pumice_axi4_ifc(dut):
+async def cocotb_test_pumice_axi4_layer(dut):
     tb = PumiceAxi4IfcTB(dut)
     await tb.setup_clocks_and_reset()
     N = tb.EXP_BEATS
@@ -101,10 +101,10 @@ async def _round(tb, N, rnd):
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
-def test_pumice_axi4_ifc(request, test_level):
+def test_pumice_axi4_layer(request, test_level):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "pumice_axi4_ifc"
-    test_name = f"cocotb_test_pumice_axi4_ifc_{test_level}"
+    dut_name = "pumice_axi4_layer"
+    test_name = f"cocotb_test_pumice_axi4_layer_{test_level}"
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=_FILELIST
@@ -147,7 +147,7 @@ def test_pumice_axi4_ifc(request, test_level):
         includes=includes,
         toplevel=dut_name,
         module=module,
-        testcase="cocotb_test_pumice_axi4_ifc",
+        testcase="cocotb_test_pumice_axi4_layer",
         sim_build=sim_build,
         simulator="verilator",
         extra_env=extra_env,

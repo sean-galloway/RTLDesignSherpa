@@ -26,7 +26,7 @@
 **Module:** `global_timers.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent macro:** `pumice_mem_cmd_scheduler`
+**Parent macro:** `pumice_scheduler_layer`
 **Status:** implemented (v2 H)
 
 ## Purpose

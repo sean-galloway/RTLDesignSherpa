@@ -21,9 +21,9 @@
 
 <!-- End Header -->
 
-# `pumice_axi4_ifc` (AXI4 front-end macro)
+# `pumice_axi4_layer` (AXI4 front-end macro)
 
-**Module:** `pumice_axi4_ifc.sv`
+**Module:** `pumice_axi4_layer.sv`
 **Location:** `rtl/macro/`
 **Category:** Layer-1 macro (the AXI front-end of `pumice_core`)
 **FUBs bundled:** burst splitters + 2 intakes + 2 CAMs
@@ -63,7 +63,7 @@ of this MAS for the address-map field semantics.
 ## External Boundaries
 
 - **Upstream:** the host AXI4 slave port (SoC-facing).
-- **To `pumice_mem_cmd_scheduler`:** for each CAM, the `oldest_*` snapshot,
+- **To `pumice_scheduler_layer`:** for each CAM, the `oldest_*` snapshot,
   the `N_SCHED_LU` parallel `sched_lu_*` lookup ports (`valid/bank/row` in,
   `hit/slot/col/id/age` out), and the write `commit` / read `issue` handshakes.
   The scheduler drives these on `aclk`.
@@ -88,6 +88,6 @@ the sole read-your-write forwarding path; there is no separate forwarder.
 ## Tests
 
 FUB-level unit tests exist for each intake and each CAM
-(`dv/tests/fub/`), and a wrapper-level test drives `pumice_axi4_ifc` through the
+(`dv/tests/fub/`), and a wrapper-level test drives `pumice_axi4_layer` through the
 AXI4 BFMs (`AXI4MasterWrite`/`AXI4MasterRead` + `AXI4Sequence`). Drive AXI
 traffic through the BFMs -- never hand-poke `s_axi_*`.

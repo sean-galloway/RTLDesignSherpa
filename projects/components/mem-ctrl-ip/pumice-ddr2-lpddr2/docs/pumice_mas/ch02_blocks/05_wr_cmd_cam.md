@@ -26,7 +26,7 @@
 **Module:** `pumice_wr_data_cam.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent:** `pumice_axi4_ifc`
+**Parent:** `pumice_axi4_layer`
 **Status:** Implemented (fill / commit-drain / snarf movers)
 
 > **Rearchitected:** the SWAG `wr_cmd_cam` was an ID-keyed metadata CAM with

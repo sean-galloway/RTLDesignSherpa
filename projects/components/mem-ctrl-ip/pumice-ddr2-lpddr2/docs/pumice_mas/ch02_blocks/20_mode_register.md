@@ -26,7 +26,7 @@
 **Module:** `mode_register.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent macro:** `pumice_mem_cmd_scheduler`
+**Parent macro:** `pumice_scheduler_layer`
 **Status:** implemented (DDR2 + LPDDR2 decode)
 
 ## Purpose
@@ -73,7 +73,7 @@ For DDR2, `cl_o` is the raw MR0[6:4] field and `cwl_o` is simply `CL − 1`
 
 All outputs are strict-flop registered. Consumed by:
 
-- `pumice_cmd_arbiter` / `pumice_mem_cmd_scheduler` — use `cl_o`, `cwl_o`,
+- `pumice_cmd_arbiter` / `pumice_scheduler_layer` — use `cl_o`, `cwl_o`,
   `al_o` to time RD/WR latencies.
 - write data path (`pumice_dfi_wr_serializer` via `t_phy_wrlat`) — sized
   against `cwl_o` for the WR-to-wrdata window.

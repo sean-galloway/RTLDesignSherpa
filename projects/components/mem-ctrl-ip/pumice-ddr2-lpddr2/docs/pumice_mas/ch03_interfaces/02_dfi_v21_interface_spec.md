@@ -123,7 +123,7 @@ is correct for `a7ddrphy` (which handles read gearing internally).
 ## Status / Init Sub-Interface
 
 `dfi_init_start_o` and `dfi_init_complete_i` are the only status signals. The
-`init_sequencer` (in `pumice_mem_cmd_scheduler`) asserts `dfi_init_start` and
+`init_sequencer` (in `pumice_scheduler_layer`) asserts `dfi_init_start` and
 walks the JEDEC MRS init, waiting on `dfi_init_complete` from the PHY plus the
 programmed init-timing CSRs. These cross the CDC in `pumice_dfi_cdc`.
 

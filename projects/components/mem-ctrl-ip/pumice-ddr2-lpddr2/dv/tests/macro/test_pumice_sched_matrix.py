@@ -68,7 +68,7 @@ for _p in (_TESTS_DIR, _DV_DIR):
         sys.path.insert(0, _p)
 
 from pumice_coverage import get_coverage_compile_args, get_coverage_env  # noqa: E402
-from tbclasses.pumice_mem_cmd_scheduler_tb import (                      # noqa: E402
+from tbclasses.pumice_scheduler_layer_tb import (                      # noqa: E402
     PumiceMemCmdSchedulerTB, OP_ACT, OP_RD, OP_WR, OP_PRE, OP_REF,
 )
 from tbclasses.pumice_dram_configs import (                              # noqa: E402
@@ -77,7 +77,7 @@ from tbclasses.pumice_dram_configs import (                              # noqa:
 from tbclasses.pumice_cmd_stream_checker import assert_clean             # noqa: E402
 
 _FILELIST = ("projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/"
-             "rtl/filelists/macro/pumice_mem_cmd_scheduler.f")
+             "rtl/filelists/macro/pumice_scheduler_layer.f")
 
 # Paging modes, by the name the RTL and the CSR use for each.
 #   0 build_default  1 static_open  2 static_close(AP)  3 fixed_open
@@ -403,7 +403,7 @@ def _matrix_configs():
 @pytest.mark.parametrize("test_level", reg_level_grid())
 def test_pumice_sched_matrix(request, config, test_level):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "pumice_mem_cmd_scheduler"
+    dut_name = "pumice_scheduler_layer"
     test_name = f"sched_matrix_{config}_{test_level}"
 
     _model, ctrl, meta = dram_config(config)

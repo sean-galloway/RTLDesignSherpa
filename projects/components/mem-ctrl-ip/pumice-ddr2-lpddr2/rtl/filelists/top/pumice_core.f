@@ -40,8 +40,8 @@ $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi
 $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_wr_serializer.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_rd_aligner.sv
 # macros
-$REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_axi4_ifc.sv
-$REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_mem_cmd_scheduler.sv
+$REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_axi4_layer.sv
+$REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_scheduler_layer.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_dfi_layer.sv
 # top
 $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/top/pumice_core.sv

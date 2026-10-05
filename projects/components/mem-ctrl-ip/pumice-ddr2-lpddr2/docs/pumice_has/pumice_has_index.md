@@ -28,7 +28,7 @@
 **Purpose:** High-level hardware architecture specification for the unified DDR2 / LPDDR2 memory controller family
 
 > **Note (v0.4):** This revision reconciles the spec with the rearchitected RTL. The
-> controller is now a three-layer core (`pumice_axi4_ifc` + `pumice_mem_cmd_scheduler`
+> controller is now a three-layer core (`pumice_axi4_layer` + `pumice_scheduler_layer`
 > + `pumice_dfi_layer` under `pumice_core`), with an optional host-width wrapper
 > `pumice_top_geared`. The early SWAG blocks `txn_queue`, `bank_machine`,
 > `xbank_timers`, `cmd_encoder`, `odt_ctrl`, and a standalone `page_predictor` no
@@ -63,7 +63,7 @@
 
 ### Chapter 3: Architecture
 
-- [AXI4 Interface (`pumice_axi4_ifc`)](ch03_architecture/01_axi_frontend.md)
+- [AXI4 Interface (`pumice_axi4_layer`)](ch03_architecture/01_axi_frontend.md)
 - [Scheduler (closed-page; per-(rank,bank) timing query)](ch03_architecture/02_scheduler.md)
 - [Bank + Global Timers (`bank_timer`, `global_timers`)](ch03_architecture/03_bank_machines.md)
 - [Refresh Controller (`refresh_ctrl`)](ch03_architecture/04_refresh.md)

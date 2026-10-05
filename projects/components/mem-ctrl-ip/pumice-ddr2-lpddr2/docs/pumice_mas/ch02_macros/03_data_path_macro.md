@@ -23,7 +23,7 @@
 
 # Data Path (no standalone macro)
 
-**Category:** Distributed across `pumice_axi4_ifc` and `pumice_dfi_layer`
+**Category:** Distributed across `pumice_axi4_layer` and `pumice_dfi_layer`
 **Status:** the old `data_path_macro` (`wr_beat_sequencer` + `rd_cl_aligner`) is
 retired -- there is no `data_path_macro.sv` in the live tree.
 
@@ -33,7 +33,7 @@ retired -- there is no `data_path_macro.sv` in the live tree.
 rearchitected core this is **not a separate macro**. The data path is split
 across two of the three core layers:
 
-- The **burst buffers** live in the two CAMs inside `pumice_axi4_ifc`
+- The **burst buffers** live in the two CAMs inside `pumice_axi4_layer`
   (section 2.1). Write data is buffered in `pumice_wr_data_cam`'s SRAM; read
   return data is buffered in `pumice_rd_cmd_cam`'s SRAM. Both use de-FSM'd
   streaming read engines rather than a beat-sequencer FSM.
@@ -87,4 +87,4 @@ in the DFI layer.
 
 Covered by the CAM FUB tests and the DFI-layer FUB tests
 (`pumice_dfi_wr_serializer`, `pumice_dfi_rd_aligner`) in `dv/tests/fub/`, plus
-the `pumice_axi4_ifc` wrapper test for the end-to-end buffered data flow.
+the `pumice_axi4_layer` wrapper test for the end-to-end buffered data flow.

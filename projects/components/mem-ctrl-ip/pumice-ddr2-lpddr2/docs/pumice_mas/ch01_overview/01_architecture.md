@@ -41,8 +41,8 @@ pumice_top_geared (rtl/top/pumice_top_geared.sv)   -- OPTIONAL host-width wrappe
   |- pumice_top (rtl/top/pumice_top.sv)
        |- pumice_csr (regs/generated/rtl/, PeakRDL passthrough cpuif)
        |- pumice_core (rtl/top/pumice_core.sv)
-            |- pumice_axi4_ifc          (rtl/macro/pumice_axi4_ifc.sv)
-            |- pumice_mem_cmd_scheduler (rtl/macro/pumice_mem_cmd_scheduler.sv)
+            |- pumice_axi4_layer          (rtl/macro/pumice_axi4_layer.sv)
+            |- pumice_scheduler_layer (rtl/macro/pumice_scheduler_layer.sv)
             |- pumice_dfi_layer         (rtl/macro/pumice_dfi_layer.sv)
 ```
 
@@ -50,12 +50,12 @@ pumice_top_geared (rtl/top/pumice_top_geared.sv)   -- OPTIONAL host-width wrappe
 
 | Macro (module)             | Role                                                          | Chapter |
 |----------------------------|---------------------------------------------------------------|---------|
-| `pumice_axi4_ifc`          | Host AXI4 slave + burst splitters + write/read CAMs + snarf    | 2.1     |
-| `pumice_mem_cmd_scheduler` | Arbiter + per-bank/global timers + refresh + init + mode reg   | 2.2     |
+| `pumice_axi4_layer`          | Host AXI4 slave + burst splitters + write/read CAMs + snarf    | 2.1     |
+| `pumice_scheduler_layer` | Arbiter + per-bank/global timers + refresh + init + mode reg   | 2.2     |
 | `pumice_dfi_layer`         | Single async-FIFO CDC + DFI-clock command/write/read datapath  | 2.4     |
 
 The data path is **not** a standalone macro. Write and read burst buffers live
-in the CAMs inside `pumice_axi4_ifc` (SRAM-backed, de-FSM'd streaming readers);
+in the CAMs inside `pumice_axi4_layer` (SRAM-backed, de-FSM'd streaming readers);
 the DFI-clock serializer / aligner live in `pumice_dfi_layer`. Section 2.3
 documents this split in place of the old `data_path_macro`.
 
@@ -66,7 +66,7 @@ cpuif -- software programs every timing/phase/policy through the register bus.
 
 ## Read / Write Datapath: AXI -> split -> intake -> CAM
 
-The host AXI4 face is `pumice_axi4_ifc`. Each host burst is first split at
+The host AXI4 face is `pumice_axi4_layer`. Each host burst is first split at
 DRAM-burst-byte boundaries by the shared `axi_master_wr_splitter` /
 `axi_master_rd_splitter` (one DRAM burst per split command), then handed to the
 dumb 1:1 intakes:
@@ -113,7 +113,7 @@ length.
 
 ## Scheduler and Command Stream
 
-`pumice_mem_cmd_scheduler` queries both CAMs in the (bank, row) dimension via
+`pumice_scheduler_layer` queries both CAMs in the (bank, row) dimension via
 `N_LU = NUM_BANKS` parallel lookup ports, picks one command with
 `pumice_cmd_arbiter` (the open-page decision is **inline** in the arbiter --
 there is no separate `page_predictor` in the issue path), and emits a single

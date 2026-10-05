@@ -1,4 +1,4 @@
-# Filelist for pumice_mem_cmd_scheduler
+# Filelist for pumice_scheduler_layer
 +incdir+$REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/includes
 +incdir+$REPO_ROOT/rtl/amba/includes
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
@@ -15,4 +15,4 @@ $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/global_tim
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/filelists/fub/pumice_cmd_history_checker.f
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/filelists/fub/pumice_page_policy.f
 $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv
-$REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_mem_cmd_scheduler.sv
+$REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_scheduler_layer.sv

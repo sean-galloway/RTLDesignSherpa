@@ -63,8 +63,8 @@ them. There is no FSM, no CSR decode, and no arithmetic beyond the packed-bus
 
 ```
 pumice_core
-├── u_ifc   : pumice_axi4_ifc          (host AXI + wr/rd CAMs)          [aclk]
-├── u_sched : pumice_mem_cmd_scheduler (arbiter + timers + refresh/init)[aclk]
+├── u_ifc   : pumice_axi4_layer          (host AXI + wr/rd CAMs)          [aclk]
+├── u_sched : pumice_scheduler_layer (arbiter + timers + refresh/init)[aclk]
 └── u_dfi   : pumice_dfi_layer         (single async CDC + DFI datapath)[aclk→dfi_clk]
 ```
 
@@ -84,13 +84,13 @@ edge concern — the core does not gear internally).
 
 | Instance   | Module                        | Count | Clock              | Role                                            |
 |------------|-------------------------------|-------|--------------------|-------------------------------------------------|
-| `u_ifc`    | `pumice_axi4_ifc`             | 1     | `aclk`             | Host AXI4 face; wr-data CAM + rd-cmd CAM        |
-| `u_sched`  | `pumice_mem_cmd_scheduler`    | 1     | `aclk`             | Command arbiter + bank/global timers + refresh + init + mode-register shadow |
+| `u_ifc`    | `pumice_axi4_layer`             | 1     | `aclk`             | Host AXI4 face; wr-data CAM + rd-cmd CAM        |
+| `u_sched`  | `pumice_scheduler_layer`    | 1     | `aclk`             | Command arbiter + bank/global timers + refresh + init + mode-register shadow |
 | `u_dfi`    | `pumice_dfi_layer`            | 1     | `aclk` → `dfi_clk` | Single async CDC + DFI cmd/wr/rd datapath       |
 
 There are **no** `generate` fan-out blocks in `pumice_core`. Per-(rank, bank)
 fan-out (the bank timers) happens one level down, inside
-`pumice_mem_cmd_scheduler`.
+`pumice_scheduler_layer`.
 
 ### Inter-layer nets
 
@@ -109,7 +109,7 @@ fan-out (the bank timers) happens one level down, inside
    init sequencer and the DFI layer's PHY-init side.
 
 Note the parameter mapping at the IFC boundary: `pumice_core` passes
-`.BL(BL / DFI_RATE)` to `pumice_axi4_ifc` (the IFC/CAM view of burst length is in
+`.BL(BL / DFI_RATE)` to `pumice_axi4_layer` (the IFC/CAM view of burst length is in
 DFI words), while `pumice_dfi_layer` receives the full `.BL(BL)` (DRAM beats).
 
 ## `pumice_top` — CSR + by-name config

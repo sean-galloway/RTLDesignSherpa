@@ -26,7 +26,7 @@
 **Module:** `bank_timer.sv` (per-bank) / `pumice_bank_timers.sv` (aggregator)
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent macro:** `pumice_mem_cmd_scheduler`
+**Parent macro:** `pumice_scheduler_layer`
 **Status:** Implemented (FSM-free countdown-timer model)
 
 > **Replaces the retired bank machine.** The original architecture placed a

@@ -51,15 +51,15 @@ Each live FUB gets its own cocotb unit test (see `dv/tests/fub/`):
 | `pumice_dfi_rd_aligner`     | CL alignment; read-data assembly; back-pressure                          |
 
 The four macro wrappers and the integration levels are exercised at Layer 2/3:
-`pumice_axi4_ifc`, `pumice_mem_cmd_scheduler`, `pumice_dfi_layer`, `pumice_core`,
+`pumice_axi4_layer`, `pumice_scheduler_layer`, `pumice_dfi_layer`, `pumice_core`,
 and `pumice_top` (the PeakRDL `pumice_csr` register block is verified with the top).
 
 ### Layer 2: Subsystem Tests
 
 Multi-module integration tests, framed around the three macro layers (see `dv/tests/macro/`):
 
-- **AXI interface** (`pumice_axi4_ifc` = wr/rd intakes + the two CAMs): full AXI transaction flow with diverse traffic, including read-your-write snarf forwarding
-- **Command scheduler** (`pumice_mem_cmd_scheduler` = cmd arbiter + bank/global timers + refresh + init + mode register): scheduler decisions on representative queue contents, inline open-page reordering, refresh interleave
+- **AXI interface** (`pumice_axi4_layer` = wr/rd intakes + the two CAMs): full AXI transaction flow with diverse traffic, including read-your-write snarf forwarding
+- **Command scheduler** (`pumice_scheduler_layer` = cmd arbiter + bank/global timers + refresh + init + mode register): scheduler decisions on representative queue contents, inline open-page reordering, refresh interleave
 - **DFI layer** (`pumice_dfi_layer` = single CDC + cmd path + wr serializer + rd aligner): command/data flow across the clock-domain crossing with the DFI BFM slave
 
 ### Layer 3: End-to-End with DFI BFM Slave
