@@ -34,4 +34,4 @@ Python imports use `projects.components.utility_ip.<ip>...` (the alias in
 | Directory | What | Status |
 |---|---|---|
 | [`converters/`](converters/README.md) | AXI data-width converters (upsize / dnsize / wide-align) and protocol converters (AXI4 to APB4/APB5/AXIL/WB4 and back, PeakRDL adapter) | production; MAS under `converters/docs/converter_mas/` |
-| [`misc/`](misc/README.md) | ROM/RAM wrappers, interface observers, DMA address generator, monbus tallies, Verilator stubs | production |
+| [`misc/`](misc/README.md) | ROM/RAM wrappers, interface observers, DMA address generator, monbus tallies, the shared bit/symbol error injector, Verilator stubs | production |

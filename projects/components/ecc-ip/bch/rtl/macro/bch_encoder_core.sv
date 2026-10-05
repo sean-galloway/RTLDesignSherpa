@@ -123,10 +123,17 @@ module bch_encoder_core
     // -------------------------------------------------------------------------
     // Generator coefficients are stored in fixed GF_MAX_M-bit lanes, so index
     // by j*GF_MAX_M even though only the low M bits are used.
+    // Vivado rejects a part-select applied directly to a function call
+    // (Synth 8-12513, same trap the RS tree documented in its CLAUDE.md):
+    // land the full-width results in intermediates first, then slice.
+    localparam logic [BCH_MAX_DEG * GF_MAX_M - 1:0] GEN_PACKED_FULL =
+        bch_gen_poly_packed(M, PRIM_POLY, T_BITS, FIRST_ROOT);
+    localparam logic [BCH_MAX_DEG - 1:0]            GEN_BITS_FULL =
+        bch_gen_poly_bits(M, PRIM_POLY, T_BITS, FIRST_ROOT);
     localparam logic [DEG_G * GF_MAX_M - 1:0] GEN_PACKED =
-        bch_gen_poly_packed(M, PRIM_POLY, T_BITS, FIRST_ROOT)[DEG_G * GF_MAX_M - 1:0];
+        GEN_PACKED_FULL[DEG_G * GF_MAX_M - 1:0];
     localparam logic [DEG_G - 1:0]            GEN_BITS    =
-        bch_gen_poly_bits(M, PRIM_POLY, T_BITS, FIRST_ROOT)[DEG_G - 1:0];
+        GEN_BITS_FULL[DEG_G - 1:0];
 
     // Packed LFSR state: lane j occupies bits [j*M +: M]; lane 0 is the
     // low-order remainder coefficient, lane DEG_G-1 is the coefficient that

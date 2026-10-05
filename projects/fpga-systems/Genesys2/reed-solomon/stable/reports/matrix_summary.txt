@@ -1,0 +1,5 @@
+image                       WNS endpoints       LUTs     BRAM status
+genesys2_axis_ribm        1.072        0      21599        0 rc=0
+genesys2_axis_euclid      0.875        0      22948        0 rc=0
+genesys2_axi4_ribm        1.822        0      25629       12 rc=0
+genesys2_axi4_euclid      1.431        0      27764       12 rc=0

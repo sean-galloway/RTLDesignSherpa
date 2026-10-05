@@ -178,8 +178,18 @@ verilator-%:
 	if [ $$bad -eq 0 ]; then echo -e "$(GREEN)PASS $(AREA): $$n module(s) matching '$*'$(RESET)"; \
 	else echo -e "$(RED)FAIL $(AREA): $$bad of $$n -- logs in $(VERILATOR_DIR)/$(RESET)"; exit 1; fi
 
+.PHONY: lint-decl-order
+lint-decl-order: ## signals must be declared before use (implicit 1-bit nets)
+	@echo "[lint] declaration order ($(AREA))"
+	@RDS_ROOT_ENV="$(RDS_ROOT)" FL="$(abspath $(MASTER_FILELIST))" PYTHONPATH="$(RDS_ROOT)/bin$${PYTHONPATH:+:$$PYTHONPATH}" python3 -c \
+	  "import os; from TBClasses.shared.filelist_utils import get_sources_from_filelist as G; \
+	   s,_ = G(repo_root=os.environ['RDS_ROOT_ENV'], filelist_path=os.environ['FL']); \
+	   print(chr(10).join(f for f in s if f.endswith('.sv') and not f.endswith('_pkg.sv')))" \
+	  > .decl_order_files.txt || (echo "could not resolve the filelist closure -- refusing to skip the check" && false)
+	@python3 $(RDS_ROOT)/bin/check_sv_decl_order.py $$(cat .decl_order_files.txt) && rm -f .decl_order_files.txt
+
 .PHONY: lint-all
-lint-all: verilator verible ## Every lint tool available for this area
+lint-all: verilator verible lint-decl-order ## Every lint tool available for this area
 
 .PHONY: status
 status: ## Module and filelist counts for this area

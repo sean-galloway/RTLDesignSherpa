@@ -1,0 +1,36 @@
+flowchart TB
+    subgraph IN["Intake"]
+        i_load["i_load"]
+        i_omega["i_omega[T*m-1:0]"]
+        i_step["i_step"]
+        i_odd_sum["i_odd_sum[S*m-1:0]"]
+    end
+
+    subgraph FORNEY["forney_evaluator"]
+        init["load constant\nOmega_i * alpha^(-(i+OFF)(n-1))"]
+        cells["t Omega cells\nr_w[i] = Omega_i * X^-(i+OFF)"]
+        step["step constant\nalpha^((i+OFF)S)"]
+        lanes["S lane summers\nsum_i r_w[i] * alpha^((i+OFF)u)"]
+        inv["gf_inv per lane\n1 / odd_sum"]
+        mul["gf_mul per lane\nnum * inv"]
+        den_zero["o_den_zero[u] = (odd_sum == 0)"]
+    end
+
+    subgraph OUT["Outlet"]
+        o_err_val["o_err_val[S*m-1:0]"]
+        o_den_zero["o_den_zero[S-1:0]"]
+    end
+
+    i_load --> init
+    i_omega --> init
+    init --> cells
+    i_step --> step
+    cells --> step
+    step --> cells
+    cells --> lanes
+    lanes --> mul
+    i_odd_sum --> inv
+    inv --> mul
+    inv --> den_zero
+    mul --> o_err_val
+    den_zero --> o_den_zero

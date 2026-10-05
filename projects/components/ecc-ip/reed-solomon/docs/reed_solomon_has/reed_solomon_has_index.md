@@ -14,6 +14,7 @@ Listed as paths, not links: the document build inlines every Markdown link in
 this index, and these are companions, not chapters.
 
 - **PRD** - `projects/components/ecc-ip/reed-solomon/PRD.md` - product requirements: the decision table and candidate profiles
+- **MAS** - `projects/components/ecc-ip/reed-solomon/docs/reed_solomon_mas/reed_solomon_mas_index.md` - per-block micro-architecture of the landed RTL
 - **FUB catalog** - `projects/components/ecc-ip/reed-solomon/docs/rs_fub_catalog.md` - every block bottom-up with what it instantiates
 - **References** - `projects/components/ecc-ip/reed-solomon/References/README.md` - standards and papers, with source and licence
 - **CLAUDE.md** - `projects/components/ecc-ip/reed-solomon/CLAUDE.md` - area facts for a session working here
@@ -60,5 +61,10 @@ this index, and these are companions, not chapters.
 - [Candidate Profiles](ch06_integration/03_profiles.md)
 - [Verification Strategy](ch06_integration/04_verification.md)
 - [Synthesis and Implementation](ch06_integration/05_synthesis.md)
+
+### Chapter 7: Understanding the Math
+- [Fields and Polynomials](ch07_understanding_the_math/01_fields_and_polynomials.md)
+- [From Field to Code](ch07_understanding_the_math/02_the_code.md)
+- [Syndromes, the Key Equation, and Correction](ch07_understanding_the_math/03_decoding.md)
 
 ---

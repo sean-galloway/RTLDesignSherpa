@@ -44,7 +44,7 @@ the RS PRD's D7 (2026-09-29, Sean).
 | [`PRD.md`](PRD.md) | requirements draft v0.1: the decisions that pick the code (m, t, shortening, solver, throughput, consumer) and the candidate profiles from the standards and papers in `References/` |
 | [`References/`](References/README.md) | the papers and standards, with source and licence for each: both Massey BCH papers from his ETH archive, the CCSDS TC Blue Book (the free standard whose coding is a BCH code), the Guruswami-Rudra-Sudan coding-theory draft, the flash-memory reliability literature (Cai/Mutlu, Nabipour); plus a cited list of the classic papers and the open-source implementations worth a reuse survey |
 | [`docs/`](docs/) | HAS v0.1 (target architecture, one chapter per open PRD decision) and MAS v0.1 per-block specs (encoder, syndrome unit, KES, Chien search, decoder core) |
-| [`rtl/`](rtl/) | fub blocks (`bch_pkg`, `bch_syndrome_unit`, `bch_key_equation_solver`, `bch_chien_search`) + macro cores (`bch_encoder_core`, `bch_decoder_core`), filelists, lint reports; the GF(2^m) layer is imported from reed-solomon per PRD D7 |
+| [`rtl/`](rtl/) | fub blocks (`bch_pkg`, `bch_syndrome_unit`, `bch_key_equation_solver`, `bch_chien_search`) + macro cores (`bch_encoder_core`, `bch_decoder_core`), filelists, lint reports; the GF(2^m) layer is imported from reed-solomon per PRD D7; the error injector test stimulus is the shared [`utility-ip/misc/rtl/error_injector.sv`](../../utility-ip/misc/rtl/error_injector.sv) |
 | [`dv/`](dv/) | cocotb gate tests per block (`dv/tests/fub/`), parametrized over the (m, n, t, s) matrix (e.g. m13/n4224/t8, m06/n63/t2) |
 | [`CLAUDE.md`](CLAUDE.md) | area facts for a session working here |
 

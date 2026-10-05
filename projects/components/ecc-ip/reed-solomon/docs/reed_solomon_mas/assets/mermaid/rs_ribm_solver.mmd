@@ -1,0 +1,51 @@
+flowchart TB
+    subgraph IN["Inputs"]
+        i_start["i_start"]
+        i_synd["i_synd[2t*m-1:0]"]
+        i_erasure["i_erasure_count (ERASURE_SUPPORT)"]
+    end
+
+    subgraph INIT["Initial value generation"]
+        synd_init["S_0 .. S_{2t-1}"]
+        zero_init["0"]
+        one_init["1"]
+    end
+
+    subgraph ARRAY["3t + 1 ribm_pe cells"]
+        pe0["PE 0"]
+        pe_dots["..."]
+        pe_3t["PE 3t"]
+    end
+
+    subgraph CTRL["Iteration control"]
+        iter["r_iter 0 .. 2t"]
+        gamma["r_gamma"]
+        kreg["r_k"]
+        delta["w_delta = Delta~_0"]
+        swap["w_swap = (delta != 0) && (k >= 0)"]
+        kill["w_kill (force delta = 0)"]
+    end
+
+    subgraph OUT["Outputs"]
+        o_lambda["o_lambda = cells t .. 3t"]
+        o_omega["o_omega = cells 0 .. t-1"]
+        o_deg["o_deg / o_deg_err"]
+        o_done["o_done"]
+    end
+
+    i_start -->|load| ARRAY
+    i_synd --> synd_init
+    synd_init -->|cells 0 .. 2t-1| ARRAY
+    zero_init -->|cells 2t .. 3t-1| ARRAY
+    one_init -->|cell 3t| ARRAY
+    i_erasure --> kill
+    kill -->|masks delta| CTRL
+    ARRAY -->|Delta~_0| delta
+    delta --> swap
+    gamma -->|broadcast| ARRAY
+    swap -->|broadcast| ARRAY
+    iter -->|step| ARRAY
+    ARRAY --> o_lambda
+    ARRAY --> o_omega
+    ARRAY --> o_deg
+    CTRL --> o_done

@@ -95,13 +95,14 @@ It is an endpoint codec, never a mid-stream insert (PRD 4a). Until a consumer na
   (the runner passes `'"EUCLID"'` with the quotes) and the TB gets the same
   choice through the `KES_ALGO` environment variable, because cocotb cannot
   read a string parameter back from the DUT.
-- Board harness (2026-09-30): `projects/fpga-systems/NexysA7/reed-solomon/`
+- Board harness (2026-09-30): `projects/fpga-systems/Genesys2/reed-solomon/`
   runs RS(252,236) at 4 symbols per beat -- the reference code shortened by
   three so n and k are multiples of the beat, because the shared AXI-Stream
   checker compares whole 32-bit words and would flag a partial beat's zero
   lane. Two decoders (riBM, Euclid) share one injected stream; each has its
   own pattern checker and a comparator requires them to agree. The injector
-  is `rtl/rs_error_injector.sv`, AFTER the encoder by necessity. The shared
+  is the shared `utility-ip/misc` `error_injector` (SYMBOL_WIDTH = m), AFTER
+  the encoder by necessity. The shared
   `axis4_slave_pattern_check` in word mode computes its CRC over the
   REGENERATED pattern, not the received words: `data_err` is the data
   evidence, `crc_ok` only says the word count matched (it stays true on
@@ -153,13 +154,14 @@ It is an endpoint codec, never a mid-stream insert (PRD 4a). Until a consumer na
   `cocotb_test_*` prefixes). Golden model: `reedsolo` (MIT) or `galois` (MIT)
   from PyPI, driven through the same encode/decode calls the RTL sees -- never
   a hand-rolled GF table in the test.
-- Docs: the HAS is `docs/reed_solomon_has/` (index + `ch00`..`ch06`, styles
+- Docs: the HAS is `docs/reed_solomon_has/` (index + `ch00`..`ch07`, styles
   YAML, mermaid sources under `assets/mermaid/`), built by
   `docs/generate_has_pdf.sh` (flags as bridge's; `REPO_ROOT` is five levels
-  up because the component sits under `ecc-ip/`). Every Markdown link in the
+  up because the component sits under `ecc-ip/`). The MAS is
+  `docs/reed_solomon_mas/` (index + `ch00`..`ch04`, eight block pages for the
+  landed RTL), built by `docs/generate_mas_pdf.sh`. Every Markdown link in an
   index is inlined by the build, so companions are listed there as plain
-  paths. A MAS under `docs/reed_solomon_mas/` follows when there is a design
-  to describe.
+  paths.
 
 ## Reuse survey pointers
 

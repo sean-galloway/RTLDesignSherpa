@@ -31,8 +31,8 @@ lanes mirror the path: `vault/Tasks/projects/components/ecc-ip/<ip>/`.
 
 | Directory | Code | Status |
 |---|---|---|
-| [`reed-solomon/`](reed-solomon/README.md) | RS(n, k) over GF(2^m): valid/ready core with optional AXIS/AXI4 adapters, riBM or Euclidean solver, symbol width a parameter, scrambler behind `ENABLE_SCRAMBLER` | stood up 2026-09-29: references, draft PRD, FUB catalog, architecture sketch; no RTL yet ([PRD](reed-solomon/PRD.md), [catalog](reed-solomon/docs/rs_fub_catalog.md), [References](reed-solomon/References/README.md)) |
-| [`bch/`](bch/README.md) | binary BCH codes over GF(2^m): systematic cyclic encoder, odd-syndrome key equation (BM / Euclid / small-t family), Chien search with bit-flip correction (no Forney stage); shares the GF(2^m) primitives with reed-solomon | stood up 2026-10-03: references, draft PRD v0.1; no RTL yet ([PRD](bch/PRD.md), [References](bch/References/README.md)) |
+| [`reed-solomon/`](reed-solomon/README.md) | RS(n, k) over GF(2^m): valid/ready core with optional AXIS/AXI4 adapters, riBM or Euclidean solver, symbol width a parameter, scrambler behind `ENABLE_SCRAMBLER` | RTL landed 2026-09-30 (GF layer) and 2026-10-02 (encoder/decoder cores): PRD v0.1, HAS v0.1, MAS v0.1 ([PRD](reed-solomon/PRD.md), [catalog](reed-solomon/docs/rs_fub_catalog.md), [References](reed-solomon/References/README.md)) |
+| [`bch/`](bch/README.md) | binary BCH codes over GF(2^m): systematic cyclic encoder, odd-syndrome key equation (BM / Euclid / small-t family), Chien search with bit-flip correction (no Forney stage); shares the GF(2^m) primitives with reed-solomon | RTL landed 2026-10-03 (fub blocks + macro cores): PRD v0.1, HAS v0.1, MAS v0.1 ([PRD](bch/PRD.md), [References](bch/References/README.md)) |
 
 What belongs here and what does not: block codecs with their own field
 arithmetic and decoder machinery (RS; BCH as its own component; LDPC or polar

@@ -57,9 +57,10 @@ It covers:
 - integration requirements, verification strategy and synthesis plan
 
 Micro-architecture -- the GF arithmetic, the riBM and Euclidean arrays, the
-Chien and Forney datapaths, FSMs and signal-level timing -- belongs to the
-companion Micro-Architecture Specification (MAS), which does not exist yet.
-Until it does, `docs/rs_fub_catalog.md` is the block-level reference.
+Chien and Forney datapaths, FSMs and signal-level timing -- lives in the
+companion Micro-Architecture Specification (MAS) at
+`../reed_solomon_mas/`, written against the landed RTL. `docs/rs_fub_catalog.md`
+remains the bottom-up build plan the MAS checks the tree against.
 
 ## Intended Audience
 

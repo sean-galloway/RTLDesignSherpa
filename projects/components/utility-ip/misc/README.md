@@ -25,7 +25,7 @@
 
 **Version:** 1.2
 **Last Updated:** 2025-11-11
-**Status:** Active - Four complete utility modules
+**Status:** Active - Five complete utility modules
 
 ---
 
@@ -163,6 +163,50 @@ if read_crc == write_crc:
 else:
     print(f"FAIL: CRC mismatch - Read=0x{read_crc:08x}, Write=0x{write_crc:08x}")
 ```
+
+---
+
+### Error Injector (Shared Test Stimulus)
+
+**Status:** Complete
+
+**Description:**
+Stream error injector for codec and link validation, shared by the BCH and
+Reed-Solomon trees (it replaced both `bch_error_injector` and
+`rs_error_injector`). Sits on any coded valid/ready stream after the encoder:
+exact count (selection sampling), fixed burst, error rate, random burst
+clusters, localized windows, bad-block severity, or a deterministic walking
+pattern. `SYMBOL_WIDTH=1` makes it a bit injector; `SYMBOL_WIDTH=m` injects
+random nonzero GF(2^m) symbol values; an optional erasure sideband turns any
+placement mode into an erasure run for decoders that accept flagged positions.
+
+**Implementation:**
+- `rtl/error_injector.sv` - three-stage pipeline (accept / multiply / decide), valid/ready at both ends
+- `dv/tests/test_error_injector.py`, `dv/tbclasses/error_injector_tb.py` - bit-exact model, both granularities, all eight modes
+
+**Modes and CSR field mapping:**
+
+| Mode | Name | `cfg_count` | `cfg_rate` | `cfg_cnt_min` / `cfg_cnt_max` | `cfg_len_min` / `cfg_len_max` |
+|------|------|-------------|------------|-------------------------------|-------------------------------|
+| 0 | NONE | unused | unused | unused | unused |
+| 1 | COUNT | exact errors per block | unused | unused | unused |
+| 2 | BURST | consecutive error length | unused | unused | unused |
+| 3 | RATE | unused | per-symbol probability / 65536 | unused | unused |
+| 4 | CLUSTERS | unused | unused | clusters per block range | cluster length range |
+| 5 | LOCALIZED | unused | hit density inside the window | unused | window width range `[Wmin, Wmax]` |
+| 6 | BADBLOCK | unused | clean-rate when block is good | unused | `cfg_len_min` = bad-probability threshold `p`; `cfg_len_max` = elevated rate when bad |
+| 7 | DEBUG | consecutive errors per block | step (`base += step mod N_SYMBOLS`) | unused | unused |
+
+**Key Features:**
+- Eight modes: NONE, COUNT (exact, multi-cycle group decision at wide beats), BURST, RATE, CLUSTERS, LOCALIZED, BADBLOCK, DEBUG
+- Bit or symbol granularity by parameter; symbol hits add a random nonzero value
+- Erasure hit-mask sideband for flagged-position decoders
+- Injection statistics: total, blocks, over-t blocks, last-block count
+
+**Use Cases:**
+- Codec DV: error-count sweeps against correction bounds
+- Board bring-up: loop-harness corruption between encoder and decoder
+- Channels that flag known-bad positions (erasure mode)
 
 ---
 
@@ -569,10 +613,11 @@ When adding components to `misc/`:
 **Last Updated:** 2025-11-11
 **Maintained By:** RTL Design Sherpa Project
 
-**Status:** Active collection of utility components. Four complete modules:
+**Status:** Active collection of utility components. Five complete modules:
 - `axi4_slave_rom.sv` - AXI4 ROM wrapper
 - `axi4_slave_rd_pattern_gen.sv` - DMA test pattern generator with CRC
 - `axi4_slave_wr_crc_check.sv` - DMA test CRC checker
+- `error_injector.sv` - Shared stream error injector (eight modes)
 - `uart_to_axil4/` - UART to AXI4-Lite bridge (debug/control interface)
 
 ---

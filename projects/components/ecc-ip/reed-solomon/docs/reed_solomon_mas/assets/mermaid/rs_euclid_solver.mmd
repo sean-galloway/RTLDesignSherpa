@@ -1,0 +1,58 @@
+flowchart TB
+    subgraph IN["Inputs"]
+        i_start["i_start"]
+        i_synd["i_synd[2t*m-1:0]"]
+        i_erasure["i_erasure_count (ERASURE_SUPPORT)"]
+    end
+
+    subgraph REGS["Top-aligned register arrays"]
+        r_arr["R[0 .. 2t]"]
+        q_arr["Q[0 .. 2t]"]
+        l_arr["lam~[0 .. 2t+2]"]
+        mu_arr["mu~[0 .. 2t+2]"]
+    end
+
+    subgraph RULE["Cycle rule"]
+        wa["w_a = R[2t]"]
+        wb["w_b = Q[2t]"]
+        degr["r_deg_r"]
+        degq["r_deg_q"]
+        norm_r["w_norm_r"]
+        norm_q["w_norm_q"]
+        cross["w_cross"]
+        swap["w_swap = degR < degQ"]
+        stop["w_stop = t (+ ceil(f/2))"]
+    end
+
+    subgraph CROSS["Cross-multiply networks"]
+        rn["w_rn = Q[2t]*R ^ R[2t]*Q"]
+        ln["w_ln = Q[2t]*lam~ ^ R[2t]*mu~"]
+    end
+
+    subgraph OUT["Outputs"]
+        unshift["un-shift by 2t - degR"]
+        o_lambda["o_lambda[0 .. 2t]"]
+        o_omega["o_omega[0 .. t-1]"]
+        o_deg["o_deg / o_deg_err"]
+        o_done["o_done"]
+    end
+
+    i_start -->|"init"| REGS
+    i_synd -->|"top-align S_{2t-1} .. S_0"| REGS
+    i_erasure --> stop
+    REGS --> wa
+    REGS --> wb
+    wa --> CROSS
+    wb --> CROSS
+    degr --> RULE
+    degq --> RULE
+    wa --> RULE
+    wb --> RULE
+    stop --> RULE
+    RULE -->|"normalise / cross / swap"| REGS
+    CROSS -->|"write back * x"| REGS
+    REGS --> unshift
+    unshift --> o_lambda
+    unshift --> o_omega
+    unshift --> o_deg
+    RULE --> o_done

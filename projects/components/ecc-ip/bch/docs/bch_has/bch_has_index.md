@@ -60,4 +60,9 @@ this index, and these are companions, not chapters.
 - [Verification Strategy](ch06_integration/04_verification.md)
 - [Synthesis and Implementation](ch06_integration/05_synthesis.md)
 
+### Chapter 7: Understanding the Math
+- [Fields and Polynomials](ch07_understanding_the_math/01_fields_and_polynomials.md)
+- [From Field to Code](ch07_understanding_the_math/02_the_code.md)
+- [Syndromes, the Key Equation, and Correction](ch07_understanding_the_math/03_decoding.md)
+
 ---

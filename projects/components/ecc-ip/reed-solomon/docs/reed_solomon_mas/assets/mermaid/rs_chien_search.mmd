@@ -1,0 +1,32 @@
+flowchart TB
+    subgraph IN["Intake"]
+        i_load["i_load"]
+        i_lambda["i_lambda[(T+1)*m-1:0]"]
+        i_step["i_step"]
+    end
+
+    subgraph CHIEN["chien_search"]
+        init["load constant\nLambda_i * alpha^(-i(n-1))"]
+        cells["t+1 Chien cells\nr_c[i] = Lambda_i * X^-i"]
+        step["step constant\nalpha^(iS)"]
+        lanes["S lane summers\nsum_i r_c[i] * alpha^(iu)"]
+        root["o_root[u] = (sum == 0)"]
+        odd["o_odd_sum[u] = sum over odd i\n= X^-1 * Lambda'(X^-1)"]
+    end
+
+    subgraph OUT["Outlet"]
+        o_root["o_root[S-1:0]"]
+        o_odd_sum["o_odd_sum[S*m-1:0]"]
+    end
+
+    i_load --> init
+    i_lambda --> init
+    init --> cells
+    i_step --> step
+    cells --> step
+    step --> cells
+    cells --> lanes
+    lanes --> root
+    lanes --> odd
+    root --> o_root
+    odd --> o_odd_sum

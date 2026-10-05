@@ -14,7 +14,7 @@ b=1, BITS_PER_BEAT=32 (n whole 32-bit beats; k byte-aligned partial beat).
 
 ## Scope
 
-- `projects/fpga-systems/NexysA7/bch/` tree mirroring the RS area:
+- `projects/fpga-systems/Genesys2/bch/` tree mirroring the RS area:
   `bin/` (sequences, regen_bridges.sh, build_image_matrix.sh, run_smoke.py),
   `rtl/bridges/` (generated fabric + PREBUILD drift check),
   `build-loop/` (cfg pkg, RDL, harness, AXI4 pipeline, top, host driver +

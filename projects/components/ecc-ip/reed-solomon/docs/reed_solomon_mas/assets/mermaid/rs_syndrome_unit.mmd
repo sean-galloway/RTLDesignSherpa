@@ -1,0 +1,25 @@
+flowchart TB
+    subgraph IN["Intake"]
+        i_step["i_step"]
+        i_first["i_first"]
+        i_data["i_data[SYMBOLS_PER_BEAT*SYMBOL_WIDTH-1:0]"]
+        i_count["i_count"]
+    end
+
+    subgraph SYN["syndrome_unit"]
+        lanes["2t parallel gf_syndrome_cell\nS_i <- S_i * alpha^(b+i) ^ r_j"]
+        zero["ow_all_zero / ow_all_zero_next"]
+    end
+
+    subgraph OUT["Outlet"]
+        ow_synd["ow_synd[2t*SYMBOL_WIDTH-1:0]"]
+        ow_synd_next["ow_synd_next[2t*SYMBOL_WIDTH-1:0]"]
+    end
+
+    i_step --> lanes
+    i_first --> lanes
+    i_data --> lanes
+    i_count --> lanes
+    lanes --> ow_synd
+    lanes --> ow_synd_next
+    lanes --> zero

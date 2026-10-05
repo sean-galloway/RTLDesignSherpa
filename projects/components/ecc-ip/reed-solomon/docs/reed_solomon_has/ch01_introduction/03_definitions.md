@@ -41,7 +41,7 @@
 | scrambler / PRBS | the binary LFSR sequence a standard XORs onto the data for energy dispersal or sync; not part of the RS code |
 | AXIS | AXI4-Stream |
 | PRD | Product Requirements Document (`../../PRD.md`) |
-| MAS | Micro-Architecture Specification (companion, not yet written) |
+| MAS | Micro-Architecture Specification (companion, `../reed_solomon_mas/`) — per-block signal-level detail of the landed RTL |
 | FUB | functional unit block |
 
 : Table 1.1: Definitions and acronyms

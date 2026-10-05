@@ -1,0 +1,135 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 sean galloway
+//
+// BCH loop harness CSR -- PeakRDL source. The regblock IS generated from this
+// file (passthrough cpuif behind axil4_to_peakrdl); regenerate with
+// `make regmap` in the area (never hand-edit rtl/generated/ or the regmap).
+//
+// One flat AXI4-Lite slave at base 0x0, 32-bit registers.
+
+addrmap bch_loop_regs {
+    name = "BCH loop harness CSR";
+    desc = "Pattern generator -> BCH encoder -> error injector -> BCH decoder (RIBM) -> pattern checker";
+
+    default regwidth    = 32;
+    default accesswidth = 32;
+    default alignment   = 4;
+
+    reg { desc = "Bitstream identifier, ASCII BCHP";
+        field { sw = r; hw = w; } value[31:0] = 0x42434850;
+    } BUILD_ID @ 0x000;
+
+    reg { desc = "Read-write scratch for link sanity";
+        field { sw = rw; hw = r; } value[31:0] = 0;
+    } SCRATCH @ 0x004;
+
+    reg { desc = "Control";
+        field { sw = w; hw = r; singlepulse; desc = "reset the datapath (not the CSRs)"; } soft_reset[0:0] = 0;
+        field { sw = w; hw = r; singlepulse; desc = "clear the statistics";              }  clear[2:2] = 0;
+        field { sw = rw; hw = r; desc = "1: generator straight to the checkers, codec bypassed"; } bypass[3:3] = 0;
+        field { sw = rw; hw = r; desc = "1: random ready on checker A";  } throttle_a[4:4] = 0;
+        field { sw = rw; hw = r; desc = "1: random ready on checker B (tied off in this build)"; } throttle_b[5:5] = 0;
+        field { sw = rw; hw = r; desc = "1: reseed the injector on start"; } inj_seed_on_start[6:6] = 1;
+    } CTRL @ 0x008;
+
+    reg { desc = "Kick: start a run of GEN_BLOCKS blocks. Program every config register first.";
+        field { sw = w; hw = r; singlepulse; desc = "start the generators"; } start[0:0] = 0;
+    } GO @ 0x080;
+
+    // ---- bandwidth meters -------------------------------------------------
+    reg { desc = "Codec INPUT end: cycles that delivered a beat";              field { sw = r; hw = w; } value[31:0] = 0; } OBS_IN_PRODUCTIVE @ 0x090;
+    reg { desc = "Codec INPUT end: cycles valid was held off by ready";        field { sw = r; hw = w; } value[31:0] = 0; } OBS_IN_BACKPRESSURE @ 0x094;
+    reg { desc = "Codec INPUT end: cycles ready waited with no valid";         field { sw = r; hw = w; } value[31:0] = 0; } OBS_IN_STARVATION @ 0x098;
+    reg { desc = "Codec INPUT end: cycles neither side was asserting";         field { sw = r; hw = w; } value[31:0] = 0; } OBS_IN_IDLE @ 0x09C;
+    reg { desc = "Codec OUTPUT end: cycles that delivered a beat";             field { sw = r; hw = w; } value[31:0] = 0; } OBS_OUT_PRODUCTIVE @ 0x0A0;
+    reg { desc = "Codec OUTPUT end: cycles valid was held off by ready";       field { sw = r; hw = w; } value[31:0] = 0; } OBS_OUT_BACKPRESSURE @ 0x0A4;
+    reg { desc = "Codec OUTPUT end: cycles ready waited with no valid";        field { sw = r; hw = w; } value[31:0] = 0; } OBS_OUT_STARVATION @ 0x0A8;
+    reg { desc = "Codec OUTPUT end: cycles neither side was asserting";        field { sw = r; hw = w; } value[31:0] = 0; } OBS_OUT_IDLE @ 0x0AC;
+    reg { desc = "Codeword OUT of encoder: cycles that delivered a beat";      field { sw = r; hw = w; } value[31:0] = 0; } OBS_CW_OUT_PRODUCTIVE @ 0x0B0;
+    reg { desc = "Codeword OUT of encoder: cycles valid was held off";         field { sw = r; hw = w; } value[31:0] = 0; } OBS_CW_OUT_BACKPRESSURE @ 0x0B4;
+    reg { desc = "Codeword OUT of encoder: cycles ready waited with no valid"; field { sw = r; hw = w; } value[31:0] = 0; } OBS_CW_OUT_STARVATION @ 0x0B8;
+    reg { desc = "Codeword OUT of encoder: cycles neither side asserting";     field { sw = r; hw = w; } value[31:0] = 0; } OBS_CW_OUT_IDLE @ 0x0BC;
+    reg { desc = "Codeword INTO decoder: cycles that delivered a beat";        field { sw = r; hw = w; } value[31:0] = 0; } OBS_CW_IN_PRODUCTIVE @ 0x0C0;
+    reg { desc = "Codeword INTO decoder: cycles valid was held off";           field { sw = r; hw = w; } value[31:0] = 0; } OBS_CW_IN_BACKPRESSURE @ 0x0C4;
+    reg { desc = "Codeword INTO decoder: cycles ready waited with no valid";   field { sw = r; hw = w; } value[31:0] = 0; } OBS_CW_IN_STARVATION @ 0x0C8;
+    reg { desc = "Codeword INTO decoder: cycles neither side asserting";       field { sw = r; hw = w; } value[31:0] = 0; } OBS_CW_IN_IDLE @ 0x0CC;
+
+    reg { desc = "What this bitstream actually BUILT.";
+        field { sw = r; hw = w; desc = "decoders present, 1"; } decoders[2:0] = 1;
+        field { sw = r; hw = w; desc = "decoder solver: 0 = riBM, 1 = Euclid"; } kes_a[4:4] = 0;
+        field { sw = r; hw = w; desc = "datapath: 0 = AXIS stream pipe, 1 = AXI4 memory-to-memory job chain"; } iface[12:12] = 0;
+    } TOPOLOGY @ 0x084;
+
+    reg { desc = "Blocks per run";
+        field { sw = rw; hw = r; } blocks[15:0] = 8;
+    } GEN_BLOCKS @ 0x00C;
+
+    reg { desc = "Pattern generator LFSR seed (0 = the block's default)";
+        field { sw = rw; hw = r; } value[31:0] = 0;
+    } GEN_SEED @ 0x010;
+
+    reg { desc = "Error injector configuration";
+        field { sw = rw; hw = r; desc = "0 none, 1 exact count per block, 2 burst, 3 rate, 4 cluster"; } mode[2:0] = 0;
+        // not `count`: RegisterMap treats a register key named count as an array marker
+        field { sw = rw; hw = r; desc = "errors per block in BITS (modes 1, 2)"; } errors[15:8] = 0;
+        field { sw = rw; hw = r; desc = "bit error probability / 65536 (mode 3)"; } rate[31:16] = 0;
+    } INJ_CFG @ 0x014;
+
+    reg { desc = "Error injector LFSR seed";
+        field { sw = rw; hw = r; } value[31:0] = 0x0000ACE1;
+    } INJ_SEED @ 0x018;
+
+    reg { desc = "Error injector cluster count range (mode 4)";
+        field { sw = rw; hw = r; desc = "minimum clusters per block"; } cnt_min[7:0] = 1;
+        field { sw = rw; hw = r; desc = "maximum clusters per block"; } cnt_max[15:8] = 4;
+    } INJ_CNT @ 0x088;
+
+    reg { desc = "Error injector cluster length range (mode 4)";
+        field { sw = rw; hw = r; desc = "minimum errors per cluster"; } len_min[15:0] = 1;
+        field { sw = rw; hw = r; desc = "maximum errors per cluster"; } len_max[31:16] = 8;
+    } INJ_LEN @ 0x08C;
+
+    reg { desc = "Live status";
+        field { sw = r; hw = w; } busy[0:0] = 0;
+        field { sw = r; hw = w; } gen_done[1:1] = 0;
+        field { sw = r; hw = w; } chk_a_done[2:2] = 0;
+        field { sw = r; hw = w; } chk_b_done[3:3] = 0;
+        field { sw = r; hw = w; desc = "checker A saw a beat that did not match"; } data_err_a[4:4] = 0;
+        field { sw = r; hw = w; } data_err_b[5:5] = 0;
+        field { sw = r; hw = w; desc = "checker A CRC equals the generator's"; } crc_a_ok[7:7] = 0;
+        field { sw = r; hw = w; } crc_b_ok[8:8] = 0;
+        field { sw = r; hw = w; desc = "AXI4 datapath: a non-OKAY response on any stage, sticky"; } axi4_resp_err[10:10] = 0;
+        field { sw = r; hw = w; desc = "AXI4 datapath stage dones, bit 0 = seed, then encode, (inject), decode, drain. Bit 2 is always 0: the injector sits on the decoder read channel and has no stage of its own, so a complete chain reads 0x1B, not 0x1F."; } axi4_stage[15:11] = 0;
+        field { sw = r; hw = w; desc = "AXI4 datapath: GEN_BLOCKS exceeds what the four memories hold"; } axi4_overflow[16:16] = 0;
+    } STATUS @ 0x01C;
+
+    reg { desc = "The code this bitstream carries";
+        field { sw = r; hw = w; } n[15:0] = 0;
+        field { sw = r; hw = w; } t[23:16] = 0;
+        field { sw = r; hw = w; } m[27:24] = 0;
+        field { sw = r; hw = w; } spb[31:28] = 0;
+    } PROFILE @ 0x020;
+
+    reg { desc = "Generator CRC-32 over the run";  field { sw = r; hw = w; } value[31:0] = 0; } CRC_EXPECTED @ 0x024;
+    reg { desc = "Checker A CRC-32 over the run";  field { sw = r; hw = w; } value[31:0] = 0; } CRC_A @ 0x028;
+    reg { desc = "Checker B CRC-32 over the run (tied off in this build)"; field { sw = r; hw = w; } value[31:0] = 0; } CRC_B @ 0x02C;
+    reg { desc = "Packets (blocks) checker A received"; field { sw = r; hw = w; } value[31:0] = 0; } PKTS_A @ 0x030;
+    reg { desc = "Packets (blocks) checker B received (tied off)"; field { sw = r; hw = w; } value[31:0] = 0; } PKTS_B @ 0x034;
+    reg { desc = "Cycles from start until checker A had every block"; field { sw = r; hw = w; } value[31:0] = 0; } CYCLES @ 0x038;
+
+    reg { desc = "Decoder A: blocks with no errors";           field { sw = r; hw = w; } value[31:0] = 0; } BLK_OK_A @ 0x03C;
+    reg { desc = "Decoder A: blocks corrected";                field { sw = r; hw = w; } value[31:0] = 0; } BLK_CORR_A @ 0x040;
+    reg { desc = "Decoder A: blocks uncorrectable";            field { sw = r; hw = w; } value[31:0] = 0; } BLK_UNC_A @ 0x044;
+    reg { desc = "Decoder A: blocks with a framing error";     field { sw = r; hw = w; } value[31:0] = 0; } BLK_FRAME_A @ 0x048;
+    reg { desc = "Decoder A: bits corrected";                  field { sw = r; hw = w; } value[31:0] = 0; } SYM_CORR_A @ 0x04C;
+    reg { desc = "Decoder B: blocks with no errors (tied off)"; field { sw = r; hw = w; } value[31:0] = 0; } BLK_OK_B @ 0x050;
+    reg { desc = "Decoder B: blocks corrected (tied off)";     field { sw = r; hw = w; } value[31:0] = 0; } BLK_CORR_B @ 0x054;
+    reg { desc = "Decoder B: blocks uncorrectable (tied off)"; field { sw = r; hw = w; } value[31:0] = 0; } BLK_UNC_B @ 0x058;
+    reg { desc = "Decoder B: blocks with a framing error (tied off)"; field { sw = r; hw = w; } value[31:0] = 0; } BLK_FRAME_B @ 0x05C;
+    reg { desc = "Decoder B: bits corrected (tied off)";       field { sw = r; hw = w; } value[31:0] = 0; } SYM_CORR_B @ 0x060;
+
+    reg { desc = "Injector: bits corrupted";                   field { sw = r; hw = w; } value[31:0] = 0; } INJ_SYMBOLS @ 0x064;
+    reg { desc = "Injector: blocks with at least one error";   field { sw = r; hw = w; } value[31:0] = 0; } INJ_BLOCKS @ 0x068;
+    reg { desc = "Injector: blocks with more than t errors";   field { sw = r; hw = w; } value[31:0] = 0; } INJ_OVER_T @ 0x06C;
+    reg { desc = "Injector: errors in the most recent block";  field { sw = r; hw = w; } value[7:0] = 0;  } INJ_LAST @ 0x070;
+};

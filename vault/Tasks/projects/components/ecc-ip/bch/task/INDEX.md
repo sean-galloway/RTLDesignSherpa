@@ -27,7 +27,7 @@ by construction rather than by discipline.
 
 ## Open
 
-- **TASK-007** — BCH Nexys A7 board loop: `projects/fpga-systems/NexysA7/bch/`
+- **TASK-007** — BCH Nexys A7 board loop: `projects/fpga-systems/Genesys2/bch/`
   harness (generated fabric, bch_loop_regs, AXIS loop + AXI4 pipeline, host
   programs, UART cosim), both bitstreams, programmed-board smoke/sweep/soak
   in `stable/MANIFEST.md`; closes when the board evidence lands.

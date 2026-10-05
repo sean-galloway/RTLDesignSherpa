@@ -144,7 +144,7 @@ echo "------------------------------------------------------------"
 
 python3 "${MD2DOCX}" \
   "${MAS_INDEX}" "${OUTPUT_DOCX}" \
-  --style "pumice_mas/pumice_mas_styles.yaml" \
+  --style "bch_mas/bch_mas_styles.yaml" \
   --expand-index \
   --skip-index-content \
   --toc \

@@ -2,7 +2,7 @@
 
 # projects/components/ecc-ip/reed-solomon — tasks
 
-**Next ID: TASK-005** — never recycle a number, even when its item closed.
+**Next ID: TASK-006** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -27,6 +27,13 @@ by construction rather than by discipline.
   chain, with hand-checkable GF(2^4) worked numbers; novice voice, every
   symbol defined before use; BCH's matching chapter links here for the
   shared foundation.
+- **TASK-005** — RS decoder flags f = 2t erasure blocks uncorrectable: the
+  f = 16 boundary case is flagged uncorrectable on every block though the
+  design intent (B-stage `t_zero` bypass) and the code bound allow it; f = t
+  corrects and f = 2t+1 refuses correctly. Found by the `erasure` sequence on
+  the Genesys 2; reproduce in component DV first, identify which
+  final-verdict term fires, fix at the source (likely the C-stage
+  combined-degree threshold under ERASURE_SUPPORT).
 
 ## Closed
 

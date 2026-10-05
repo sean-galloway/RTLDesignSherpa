@@ -1,0 +1,49 @@
+flowchart TB
+    subgraph RX["Receive side A"]
+        rx_fire["i_rx_fire"]
+        rx_first["i_rx_first"]
+        rx_count["i_rx_count"]
+        rx_eras["i_rx_erasure[S-1:0]"]
+    end
+
+    subgraph EU["rs_erasure_unit"]
+        xpow["running X power\nalpha^(n-1-pos)"]
+        xfile["2t+1-entry X file\nr_xfile[0..2t]"]
+        fcnt["f counter + over flag"]
+        abpack["packed A->B record\no_ab / i_ab = {over, f, xfile}"]
+        trans["TRANS: Gamma build\nGamma(x)=prod(1+X_p x)\nGS = Gamma*S mod x^2t"]
+        win["solver window mux\nriBM: GS >> f\nEuclid: x^f * T"]
+        comb["COMB: Horner over Lambda_e\nLambda_c = Gamma*Lambda_e\nOmega_c = Lambda_e*GS mod x^2t"]
+        ctl["control\ni_trans_start / o_trans_done\ni_comb_start / o_comb_done"]
+    end
+
+    subgraph SOL["Solver interface"]
+        synd_in["i_synd[2t*M-1:0]"]
+        lam_e["i_lambda_e"]
+        deg_e["i_deg_e"]
+        kes_synd["o_kes_synd"]
+        lam_c["o_lambda_c"]
+        om_c["o_omega_c"]
+        deg_c["o_deg_c"]
+    end
+
+    rx_fire --> xpow
+    rx_first --> xpow
+    rx_count --> xpow
+    rx_eras --> xfile
+    xpow --> xfile
+    xfile --> fcnt
+    xfile --> abpack
+    fcnt --> abpack
+    abpack --> trans
+    synd_in --> trans
+    trans --> win
+    win --> kes_synd
+    lam_e --> comb
+    deg_e --> comb
+    trans --> comb
+    comb --> lam_c
+    comb --> om_c
+    comb --> deg_c
+    ctl --> trans
+    ctl --> comb

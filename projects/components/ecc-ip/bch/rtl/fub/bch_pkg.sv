@@ -61,7 +61,10 @@ package bch_pkg;
     /* verilator lint_off UNUSEDSIGNAL */
     function automatic int bch_degree_g(input int m, input int prim, input int t, input int b);
         int n_full;
-        int visited [(1 << GF_MAX_M)];
+        // 0/1 flags only: 'bit' keeps the array at 65536 bits -- an 'int'
+        // version is 2M bits and blows Vivado's 1M-bit per-variable limit
+        // (Synth 8-4556) even though the function only elaborates.
+        bit  visited [(1 << GF_MAX_M)];
         int deg;
         int e, cur;
         n_full = bch_order(m);
@@ -95,7 +98,9 @@ package bch_pkg;
 
         int       n_full;
         int       cur_deg;
-        int       visited [(1 << GF_MAX_M)];
+        // 0/1 flags only -- 'bit' for the same Vivado 8-4556 reason as
+        // bch_degree_g above.
+        bit       visited [(1 << GF_MAX_M)];
         gf_wide_t root;
         gf_wide_t poly [BCH_MAX_DEG + 1];
         gf_wide_t new_poly [BCH_MAX_DEG + 1];
