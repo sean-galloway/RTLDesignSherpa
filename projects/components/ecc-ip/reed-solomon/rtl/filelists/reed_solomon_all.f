@@ -31,4 +31,4 @@ $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/macro/rs_decoder_core.sv
 $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/fub/rs_erasure_unit.sv
 
 # Test stimulus
--f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/error_injector.f
+$REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/fub/rs_error_injector.sv
