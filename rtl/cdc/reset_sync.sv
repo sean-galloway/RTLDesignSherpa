@@ -7,8 +7,8 @@
 // Module: reset_sync
 // Purpose: //   Multi-stage asynchronous reset synchronizer for safe clock domain crossing.
 //
-// Documentation: docs/markdown/rtl-common/index.md
-// Subsystem: common
+// Documentation: docs/markdown/rtl-cdc/index.md
+// Subsystem: cdc
 //
 // Author: sean galloway
 // Created: 2025-10-18
@@ -206,8 +206,8 @@
 //------------------------------------------------------------------------------
 // Test:
 //------------------------------------------------------------------------------
-//   Location: val/common/test_reset_sync.py
-//   Run: pytest val/common/test_reset_sync.py -v
+//   Location: val/cdc/test_reset_sync.py
+//   Run: pytest val/cdc/test_reset_sync.py -v
 //   Coverage: >95%
 //   Key Test Scenarios:
 //     - FPGA async-assert, N=2,3,4

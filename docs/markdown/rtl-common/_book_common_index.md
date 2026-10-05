@@ -43,7 +43,6 @@
 - [leading_one_trailing_one](leading_one_trailing_one.md)
 - [pwm](pwm.md)
 - [rtl-common Quick Start Guide](quickstart.md)
-- [reset_sync](reset_sync.md)
 - [reverse_vector](reverse_vector.md)
 - [shifter_barrel](shifter_barrel.md)
 - [shifter_beat_pack](shifter_beat_pack.md)

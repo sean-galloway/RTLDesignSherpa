@@ -9,7 +9,8 @@
 #   - The counterpart of rtl/common/filelists/common_all.f and
 #     rtl/amba/filelists/amba_all.f. Those two used to carry these modules;
 #     AMBA-CDC-REORG moved them here, so they lint from this list now.
-#   - glitch_free_n_dff_arn and sync_pulse moved in from rtl/common 2026-08-08.
+#   - glitch_free_n_dff_arn and sync_pulse moved in from rtl/common 2026-08-08;
+#     reset_sync followed 2026-10-04.
 #   - Shared dependencies (counter_bin, fifo_control, leading_one_trailing_one,
 #     gaxi_skid_buffer) stay in their owning areas and arrive through the
 #     per-module -f includes below.
@@ -37,3 +38,4 @@
 -f $REPO_ROOT/rtl/cdc/filelists/gaxi_skid_buffer_async.f
 $REPO_ROOT/rtl/cdc/glitch_free_n_dff_arn.sv
 $REPO_ROOT/rtl/cdc/sync_pulse.sv
+$REPO_ROOT/rtl/cdc/reset_sync.sv

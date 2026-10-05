@@ -42,6 +42,7 @@ Four of these six share one reference page instead of a page each, because choos
 
 - **[glitch_free_n_dff_arn](glitch_free_n_dff_arn.md)** — the N-stage synchronizer primitive the blocks below are built from (moved here from rtl/common 2026-08-08)
 - **[sync_pulse](sync_pulse.md)** — toggle-based pulse synchronizer: exactly one destination pulse per source pulse, whatever the clock ratio
+- **[reset_sync](reset_sync.md)** — async-assert / sync-deassert reset bridge: the reset-domain crossing every block here assumes has already been done (moved here from rtl/common 2026-10-04)
 - **[cdc_synchronizer](cdc.md#cdc_synchronizer)** — N-stage flop synchronizer for a quasi-static value or a single flag
 - **[cdc_open_loop](cdc.md#cdc_open_loop)** — the source holds data and valid; no acknowledge comes back
 - **[cdc_2_phase_handshake](cdc.md#cdc_2_phase_handshake)** — toggle (NRZ) valid/ready handshake. Read [Reset Considerations](cdc.md#reset-considerations) first: it will fabricate a transfer if the domains can reset independently

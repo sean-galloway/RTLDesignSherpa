@@ -409,8 +409,8 @@ Integration points worth knowing about:
 
 ### Test Coverage
 Test coverage for the reset_sync module lives in:
-- **Testbench Class**: `bin/TBClasses/reset_sync_tb.py`
-- **Test Runner**: `val/common/test_reset_sync.py`
+- **Testbench Class**: `bin/TBClasses/cdc/reset_sync_tb.py`
+- **Test Runner**: `val/cdc/test_reset_sync.py`
 
 ### Test Scenarios
 - Reset assertion during various clock phases
@@ -448,13 +448,13 @@ endproperty
 ### Running Tests
 ```bash
 # Run all reset_sync tests (4 configurations: N=2,3,4,5)
-pytest val/common/test_reset_sync.py -v
+pytest val/cdc/test_reset_sync.py -v
 
 # Run specific configuration
-pytest val/common/test_reset_sync.py::test_reset_sync[2-min] -v
+pytest val/cdc/test_reset_sync.py::test_reset_sync[2-min] -v
 
 # Run with waveform generation
-pytest val/common/test_reset_sync.py -v -s
+pytest val/cdc/test_reset_sync.py -v -s
 ```
 
 ### Test Results
@@ -470,5 +470,5 @@ test and ruins someone's bring-up. Thorough verification earns its keep.
 
 ## Navigation
 
-- **[← Back to rtl-common Index](index.md)**
+- **[← Back to rtl-cdc Index](index.md)**
 - **[← Back to Main Documentation Index](../index.md)**

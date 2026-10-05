@@ -115,7 +115,7 @@ Reusable primitives, technology-agnostic. **~230 modules across [`rtl/common/`](
 | **Data integrity** | 7 | [`rtl/common/`](rtl/common/) (`dataint_*.sv`) | `dataint_crc` (300+ standards), `dataint_ecc_hamming` (SECDED), `dataint_parity` |
 | **Clock utilities** | 3 | [`rtl/common/`](rtl/common/) (`clock_*.sv`) | [`clock_divider`](rtl/common/clock_divider.sv), [`clock_gate_ctrl`](rtl/common/clock_gate_ctrl.sv), [`clock_pulse`](rtl/common/clock_pulse.sv) |
 | **Encoders / decoders** | 3 | [`rtl/common/`](rtl/common/) (`{encoder,decoder}*.sv`) | priority encoder, address decoder |
-| **Reset** | 1 | [`rtl/common/reset_sync.sv`](rtl/common/reset_sync.sv) | async-assert / sync-deassert reset bridge |
+| **Reset** | 1 | [`rtl/cdc/reset_sync.sv`](rtl/cdc/reset_sync.sv) (moved to rtl/cdc 2026-10-04) | async-assert / sync-deassert reset bridge |
 
 **Deep dive:** [docs/markdown/rtl-common/index.md](docs/markdown/rtl-common/index.md) (per-module specs) · [rtl/common/CLAUDE.md](rtl/common/CLAUDE.md)
 
@@ -191,7 +191,7 @@ doc still saying that, it is stale.
 | [`counter_bingray.sv`](rtl/cdc/counter_bingray.sv) / [`counter_johnson.sv`](rtl/cdc/counter_johnson.sv) | [`rtl/cdc/`](rtl/cdc/) | Dual-encoding counters for FIFO pointers |
 | [`fifo_async.sv`](rtl/cdc/fifo_async.sv) | [`rtl/cdc/`](rtl/cdc/) | Async FIFO for word-width CDC |
 | [`gaxi_fifo_async.sv`](rtl/cdc/gaxi_fifo_async.sv), [`gaxi_skid_buffer_async.sv`](rtl/cdc/gaxi_skid_buffer_async.sv) | [`rtl/cdc/`](rtl/cdc/) | AXI-shaped async FIFO + skid |
-| [`reset_sync.sv`](rtl/common/reset_sync.sv) | [`rtl/common/`](rtl/common/) | Async-assert / sync-deassert reset CDC |
+| [`reset_sync.sv`](rtl/cdc/reset_sync.sv) | [`rtl/cdc/`](rtl/cdc/) | Async-assert / sync-deassert reset CDC |
 | `apb4_slave_cdc.sv` (and `apb5_slave_cdc.sv`) | [`rtl/amba/apb4/`](rtl/amba/apb4/) / [`rtl/amba/apb5/`](rtl/amba/apb5/) | APB slave with CDC built in |
 
 **FPGA demo:** [projects/fpga-systems/NexysA7/cdc_counter_display/](projects/fpga-systems/NexysA7/cdc_counter_display/) — multi-clock counter CDC running on real hardware.

@@ -26,7 +26,7 @@ import cocotb
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
-from TBClasses.reset_sync_tb import ResetSyncTB
+from TBClasses.cdc.reset_sync_tb import ResetSyncTB
 from TBClasses.shared.utilities import get_paths, get_wave_config, sim_build_path
 from cov_utils.conftest_coverage import get_coverage_compile_args
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
@@ -68,9 +68,7 @@ def test_reset_sync(n, test_mode):
         test_mode: Test configuration name
     """
 
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_common': 'rtl/common',
-    })
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cdc': 'rtl/cdc'})
 
     dut_name = "reset_sync"
     # Get REG_LEVEL before creating test name

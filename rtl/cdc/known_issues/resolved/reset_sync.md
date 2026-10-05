@@ -23,6 +23,8 @@
 
 # reset_sync - Known RTL Issues
 
+> The module moved from `rtl/common` to `rtl/cdc` on 2026-10-04 (with its test, formal and doc page). Paths below are as they were when this issue was fixed.
+
 ## RESOLVED: Inverted Reset Polarity in Always Block
 
 **Severity**: High

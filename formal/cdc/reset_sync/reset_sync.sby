@@ -18,5 +18,5 @@ read -formal -sv formal_reset_sync.sv
 prep -top formal_reset_sync
 
 [files]
-reset_sync.sv ../../../rtl/common/reset_sync.sv
+reset_sync.sv ../../../rtl/cdc/reset_sync.sv
 formal_reset_sync.sv

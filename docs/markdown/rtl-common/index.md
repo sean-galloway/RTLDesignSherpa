@@ -71,9 +71,8 @@ the three agree.
 - **[clock_pulse](clock_pulse.md)** - Clock pulse generation and control
 
 #### Reset and Synchronization
-- **[reset_sync](reset_sync.md)** - Synchronous reset generation
-<!-- glitch_free_n_dff_arn and sync_pulse moved to rtl/cdc (2026-08-08):
-     see docs/markdown/rtl-cdc/ -->
+<!-- glitch_free_n_dff_arn and sync_pulse moved to rtl/cdc (2026-08-08),
+     reset_sync followed (2026-10-04): see docs/markdown/rtl-cdc/ -->
 - **[debounce](debounce.md)** - Input signal debouncing
 
 ### Counters and Sequences

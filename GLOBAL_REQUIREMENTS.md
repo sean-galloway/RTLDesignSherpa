@@ -63,7 +63,7 @@ conditional on `USE_ASYNC_RESET` and defaulted to SYNCHRONOUS, so `make lint`
 what the design was. The define is now a no-op; passing it is harmless and
 changes nothing. Deassertion still has to be synchronised externally.
 
-**The one exception, and it is structural:** `rtl/common/reset_sync.sv`. It is
+**The one exception, and it is structural:** `rtl/cdc/reset_sync.sv`. It is
 active-HIGH, which the macro cannot express without `RESET_ACTIVE_HIGH` set
 globally, so it keeps a raw `always_ff`. Documented at the flop itself. If you
 add another, document it there too and say WHY -- "it has always been like

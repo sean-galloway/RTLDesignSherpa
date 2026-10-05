@@ -35,7 +35,7 @@
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_4_phase_handshake.f
 -f $REPO_ROOT/rtl/cdc/filelists/sync_pulse.f
 -f $REPO_ROOT/rtl/cdc/filelists/glitch_free_n_dff_arn.f
--f $REPO_ROOT/rtl/common/filelists/reset_sync.f
+-f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
 
 # Layer 2: CMD/RSP to PeakRDL Adapter
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/peakrdl_to_cmdrsp.f

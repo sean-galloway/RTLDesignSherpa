@@ -1,5 +1,5 @@
 # Filelist for reset_sync module
-# Location: rtl/common/filelists/reset_sync.f
+# Location: rtl/cdc/filelists/reset_sync.f
 
 # Include directories
 +incdir+$REPO_ROOT/rtl/amba/includes
@@ -8,4 +8,4 @@
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 
 # reset_sync module
-$REPO_ROOT/rtl/common/reset_sync.sv
+$REPO_ROOT/rtl/cdc/reset_sync.sv

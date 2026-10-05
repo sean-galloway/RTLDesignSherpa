@@ -128,6 +128,7 @@ something to patch per-instantiation.
 | "...parity" | `dataint_parity.sv` | Even/odd parity |
 | "...clock divider" | `clock_divider.sv` | But warn: prefer PLL |
 | "...synchronizer/CDC" | `rtl/cdc/glitch_free_n_dff_arn.sv` or `rtl/cdc/sync_pulse.sv` (MOVED to rtl/cdc) | Safe CDC |
+| "...a reset synchronizer" | `rtl/cdc/reset_sync.sv` (MOVED to rtl/cdc 2026-10-04) | Async assert, sync deassert |
 | "...FIFO" | Point to `rtl/amba/gaxi/` | Production FIFOs |
 | "...priority encoder" | `arbiter_priority_encoder.sv` | Exists |
 | "...leading zeros" | `count_leading_zeros.sv` | Exists (scans MSB down) |

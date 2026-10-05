@@ -94,8 +94,10 @@ kind = "library"
 # crossings safe. glitch_free_n_dff_arn and sync_pulse joined them 2026-08-08:
 # both are pure CDC primitives, and cdc modules already depended on the first,
 # so the area used to reach BACK into rtl/common for its own core building
-# block. Shared deps they merely USE (fifo_control, counter_bin) stay in their
-# owning areas and are reached by -f include.
+# block. reset_sync followed 2026-10-04: an async-assert/sync-deassert reset
+# bridge is a reset-domain crossing, the same family. Shared deps they merely
+# USE (fifo_control, counter_bin) stay in their owning areas and are reached
+# by -f include.
 rtl_roots = ["rtl/cdc"]
 filelist_dirs = ["rtl/cdc/filelists"]
 

@@ -121,6 +121,7 @@ if want cdc; then
     rtl-cdc/gaxi_fifo_async.md
     rtl-cdc/gaxi_skid_buffer_async.md
     rtl-cdc/glitch_free_n_dff_arn.md
+    rtl-cdc/reset_sync.md
     rtl-common/clock_pulse.md
     rtl-amba/apb4/apb4_slave_cdc.md
     rtl-amba/apb4/apb4_slave_cdc_cg.md

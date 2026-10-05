@@ -84,8 +84,7 @@ $REPO_ROOT/rtl/common/leading_one_trailing_one.sv
 # PWM
 $REPO_ROOT/rtl/common/pwm.sv
 
-# Reset and Synchronization
-$REPO_ROOT/rtl/common/reset_sync.sv
+# reset_sync moved to rtl/cdc 2026-10-04 (it is a reset-domain crossing)
 
 # Shifters
 $REPO_ROOT/rtl/common/reverse_vector.sv

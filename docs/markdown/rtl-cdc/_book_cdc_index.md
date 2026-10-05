@@ -12,6 +12,7 @@
 - [GAXI asynchronous FIFO (`gaxi_fifo_async.sv`)](gaxi_fifo_async.md)
 - [gaxi_skid_buffer_async](gaxi_skid_buffer_async.md)
 - [glitch_free_n_dff_arn](glitch_free_n_dff_arn.md)
+- [reset_sync](reset_sync.md)
 - [clock_pulse](../rtl-common/clock_pulse.md)
 - [apb4_slave_cdc](../rtl-amba/apb4/apb4_slave_cdc.md)
 - [apb4_slave_cdc_cg](../rtl-amba/apb4/apb4_slave_cdc_cg.md)
