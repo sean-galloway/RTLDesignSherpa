@@ -9,8 +9,8 @@ $REPO_ROOT/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/includes/and
 $REPO_ROOT/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/fub/andesite_init_sequencer.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/fub/andesite_mode_register.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/fub/andesite_refresh_ctrl.sv
+$REPO_ROOT/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/fub/andesite_zq_mpc_lpddr4.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/fub/andesite_zq_ctrl.sv
-$REPO_ROOT/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/fub/andesite_wrlvl_ifc.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/fub/andesite_bank_timer.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/fub/andesite_bank_timers.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/fub/andesite_global_timers.sv

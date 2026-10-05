@@ -130,6 +130,13 @@ module andesite_cmd_arbiter
     input  logic [15:0]               t_zqcs_i,
     input  logic [7:0]                t_rfc_pb_i,       // REFpb recovery; 0 = t_rfc_i
 
+    // ---- maintenance-class training commands (from andesite_training_layer) ---
+    input  logic                      trn_cmd_req_i,
+    input  dram_op_e                  trn_cmd_op_i,
+    input  logic [BKW-1:0]            trn_cmd_bank_i,
+    input  logic [17:0]               trn_cmd_addr_i,
+    output logic                      trn_cmd_grant_o,
+
     // ---- per-bank readiness (from scoria_bank_timers) ----
     // LIVE readiness -- what the FINAL STAGE enforces against (w_out_safe).
     input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_act_ready_i,
@@ -256,6 +263,7 @@ module andesite_cmd_arbiter
     logic                 r_do_act, r_do_rd, r_do_wr, r_do_pre, r_grant;
     logic                 r_zq_grant;   // ZQCS fired; separate from r_grant so a
                                         // ZQ does not load the tRFC counter
+    logic                 r_trn_grant;  // training MRS/MPC fired
     logic                 r_wr_commit, r_rd_issue;
     logic [PTRW-1:0]      r_commit_slot, r_issue_slot;
 
@@ -1427,7 +1435,7 @@ module andesite_cmd_arbiter
     // model's refpb_with_open_row + the zero-data reads that follow).
     assign w_ref_safe = !w_any_active && !w_inflight_preact
                       && (r_guard0 == '0) && (r_guard1 == '0)
-                      && !w_rfc_busy && !r_grant && !r_zq_grant;
+                      && !w_rfc_busy && !r_grant && !r_zq_grant && !r_trn_grant;
 
     // REFpb safety: only the ROTOR bank must be closed (that is the whole
     // point of per-bank refresh — the other banks keep serving row hits).
@@ -1438,7 +1446,7 @@ module andesite_cmd_arbiter
     assign w_refpb_safe = !r_bank_row_active[RK0][refresh_bank_i]
                         && !w_inflight_preact
                         && (r_guard0 == '0) && (r_guard1 == '0)
-                        && !w_rfc_busy && !r_grant;
+                        && !w_rfc_busy && !r_grant && !r_trn_grant;
 
     // ZQCS safety. JESD79-3F 3.10: all banks idle and tRP met before ZQCL or
     // ZQCS. That is the same precondition REFab has, so it reuses the same
@@ -1453,7 +1461,7 @@ module andesite_cmd_arbiter
     assign w_zq_safe = !w_any_active && !w_inflight_preact
                      && (r_guard0 == '0) && (r_guard1 == '0)
                      && !w_rfc_busy && !w_zq_busy
-                     && !r_grant && !r_zq_grant;
+                     && !r_grant && !r_zq_grant && !r_trn_grant;
 
     // ========================================================================
     // Priority pick (combinational). Produces the abstract command + the
@@ -1467,6 +1475,7 @@ module andesite_cmd_arbiter
     logic            w_valid;
     logic            w_do_act, w_do_rd, w_do_wr, w_do_pre, w_grant;
     logic            w_zq_grant;
+    logic            w_trn_grant;
     logic            w_wr_commit, w_rd_issue;
     logic [PTRW-1:0] w_commit_slot, w_issue_slot;
 
@@ -1475,6 +1484,7 @@ module andesite_cmd_arbiter
         w_valid = 1'b0;
         w_do_act = 1'b0; w_do_rd = 1'b0; w_do_wr = 1'b0; w_do_pre = 1'b0; w_grant = 1'b0;
         w_zq_grant = 1'b0;
+        w_trn_grant = 1'b0;
         w_wr_commit = 1'b0; w_rd_issue = 1'b0; w_commit_slot = '0; w_issue_slot = '0;
 
         if (!init_done_i) begin
@@ -1535,6 +1545,23 @@ module andesite_cmd_arbiter
                 end
             end else if (w_zq_safe) begin
                 w_valid = 1'b1; w_op = OP_ZQCS; w_zq_grant = 1'b1;
+            end
+        end else if (trn_cmd_req_i) begin
+            // 4b. TRAINING (MRS/MPC): all banks must be idle (JESD79-4 MRS /
+            // JESD209-4 MPC). Same two-step shape as refresh/ZQ: close banks
+            // first, then issue + grant. Idles rather than falls through so
+            // host traffic cannot reopen rows.
+            if (w_any_active) begin
+                if (w_rfsh_pre_found) begin
+                    w_valid = 1'b1; w_op = OP_PRE; w_bank = w_rfsh_pre_bank;
+                    w_do_pre = 1'b1;
+                end
+            end else begin
+                w_valid = 1'b1; w_op = trn_cmd_op_i;
+                w_bank  = trn_cmd_bank_i[BKW-1:0];
+                w_row   = trn_cmd_addr_i[ROW_WIDTH-1:0];
+                w_col   = trn_cmd_addr_i[COL_WIDTH-1:0];
+                w_trn_grant = 1'b1;
             end
         end else if (w_pick_class == CL_COL && rd_col_f && rd_issue_ready_i
                      && w_rd_turn_live
@@ -1613,7 +1640,7 @@ module andesite_cmd_arbiter
             r_pick_valid <= 1'b0;
             r_do_act <= 1'b0; r_do_rd <= 1'b0; r_do_wr <= 1'b0; r_do_pre <= 1'b0;
             r_grant  <= 1'b0; r_wr_commit <= 1'b0; r_rd_issue <= 1'b0;
-            r_zq_grant <= 1'b0;
+            r_zq_grant <= 1'b0; r_trn_grant <= 1'b0;
         end else if (w_out_ready) begin
             r_pick_valid  <= w_valid;
             r_op          <= w_op;
@@ -1627,6 +1654,7 @@ module andesite_cmd_arbiter
             r_do_pre      <= w_do_pre;
             r_grant       <= w_grant;
             r_zq_grant    <= w_zq_grant;
+            r_trn_grant   <= w_trn_grant;
             r_wr_commit   <= w_wr_commit;
             r_commit_slot <= w_commit_slot;
             r_rd_issue    <= w_rd_issue;
@@ -1684,6 +1712,7 @@ module andesite_cmd_arbiter
     assign rd_issue_slot_o   = r_issue_slot;
     assign refresh_grant_o   = w_fire_out && r_grant;
     assign zq_grant_o        = w_fire_out && r_zq_grant;
+    assign trn_cmd_grant_o   = w_fire_out && r_trn_grant;
 
     // ---- guard update: 2-cycle per-bank block after a FIRED ACT/PRE. The
     // in-flight ACT/PRE (w_inflight_preact, folded into w_guarded) protects the

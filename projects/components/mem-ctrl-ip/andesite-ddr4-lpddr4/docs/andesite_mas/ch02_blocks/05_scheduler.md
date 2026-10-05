@@ -26,7 +26,7 @@
 **Location:** `rtl/macro/` (scheduler), `rtl/fub/` (arbiter)
 **Category:** scheduling / arbitration
 **Parent:** `andesite_core`
-**Status:** carried from scoria and landed — arbiter carries the L/S delta; the tables below name the landed port lists
+**Status:** carried from scoria and landed — arbiter carries the L/S delta; the tables below name the landed port lists. The macro's init/mode-register instances are rewired to the P1 blocks (macro-integration pass, 2026-10-05): the P1 `init_sequencer` is self-timed and DDR4-only, and the P1 `mode_register` policy outputs are the macro's observability contract.
 
 ---
 
@@ -67,6 +67,7 @@ The scheduler never invents a new arbitration philosophy. It takes scoria's mech
 | `rd_issue_valid_o` | out | 1 | read command wins this cycle; `rd_issue_slot_o` names the winning entry |
 | `wr_commit_valid_o` | out | 1 | write command wins this cycle; `wr_commit_slot_o` names the winning entry |
 | `cmd_valid_o` | out | 1 | issued command strobe toward the formatter path; `cmd_op_o`, `cmd_rank_o`, `cmd_bank_o`, `cmd_row_o`, `cmd_col_o`, `cmd_ap_o` carry it, `cmd_ready_i` back-pressures |
+| `cmd_bg_o` | out | `$clog2(NUM_BG)` | bank group of the issued command (the arbiter's registered-pick group, `bank[BKW-1 -: BGW]`); rides the widened command word `{ap,col,row,bg,bank,rank,op}` to the DFI formatter |
 
 ### Bank-group timing ports
 
@@ -97,6 +98,40 @@ The L/S counters live in the global timers; the arbiter consumes the ok flags. T
 The carried RTL keeps scoria's two request/grant pairs — one for refresh, one for ZQ — rather than one unified `maint_req`/`maint_tag` channel; the unified tagged channel stays the conceptual model, and the formatter-facing tag is derived downstream. The ODT turnaround request lands with `odt_ctrl` (Ch 2.8). The rule is inherited from scoria: request and wait, never preempt.
 
 : Table 2.5.2: Scheduler interface
+
+## Macro init/policy interface (P1 rewiring, landed 2026-10-05)
+
+The scheduler macro owns the P1 `init_sequencer` and `mode_register`
+instances. The scoria DDR3-era connections (`mc_clk`-style pins, the
+`dfi_init_start`/`dfi_init_complete` PHY handshake, and the CL/CWL/BL shadow
+outputs) retired with the rewiring — the P1 sequencer is self-timed
+(`tINIT*` CSRs; any non-DDR4 `memtype` latches `init_err`) and the P1
+register never carried latency shadows.
+
+| Signal | Direction | Width | Description |
+|---|---|---|---|
+| `t_init_wait_i` | in | 16 | `tINIT1` — RESET# low time |
+| `t_rp_wait_i` | in | 8 | `tINIT3` — RESET# release to CKE (zero-extended) |
+| `t_cke_wait_i` | in | 16 | `tINIT4` — CKE to first MRS |
+| `t_mrd_wait_i` | in | 8 | `tMRD` — MRS-to-MRS gap (zero-extended) |
+| `t_mod_wait_i` | in | 16 | `tMOD` — last MRS to ZQCL |
+| `t_dll_wait_i` / `t_zqinit_wait_i` | in | 16 | `tDLLK` / `tZQinit` |
+| `mr0_i` … `mr6_i` | in | 16 ×7 | DDR4 MR images; the P1 FSM writes MR3, MR6, MR5, MR4, MR2, MR1, MR0 |
+| `dram_reset_n_o` / `cke_o` | out | 1 | DRAM RESET# / CKE pins, driven by the P1 init FSM |
+| `init_done_o` / `init_err_o` | out | 1 | init complete / unsupported-memtype or watchdog error |
+| `zq_cal_start_o` | out | 1 | status strobe marking the init FSM's ZQCL issue (the ZQCL itself rides the command stream) |
+| `gear_down_entry_o` / `ca_train_start_o` / `parity_enable_o` | out | 1 | P1 init-FSM status outputs (parity latches on at MR5 per the init sequence) |
+| `rtt_nom_o` / `rtt_wr_o` / `rtt_park_o` | out | 3 | ODT policy images (the `odt_ctrl` observability contract) |
+| `rd_dbi_en_o` / `wr_dbi_en_o` | out | 1 | MR5 read/write DBI enables (the DFI datapath consumers) |
+| `mpr_page_o` / `fgr_factor_o` / `ca_parity_lat_o` / `lpddr4_odt_o` | out | 2 / 2 / 2 / 3 | MR3 MPR page, FGR factor, CA-parity latency, LPDDR4 ODT image |
+| `wrlvl_en_o` | out | 1 | MR1[7] — write-leveling mode authority (to the training layer) |
+
+Init commands (MRS / ZQCL) reach the DRAM through the ordinary command
+stream: the P1 `cmd_req`/`cmd_ack` handshake is honored by the arbiter's
+accept pulse (`cmd_ack` = accept qualified by `OP_MRS`/`OP_ZQCL`), and the
+arbiter forwards the init payload (`cmd_addr` low bits) on the stream's row
+field, exactly as the carried scoria forwarding did. The init MR index
+rides `cmd_bank` into the mode-register store's write address.
 
 ## Microarchitecture internals
 
@@ -137,6 +172,7 @@ The carried RTL keeps scoria's channel shape: two request/grant pairs into the a
 |---|---|---|
 | `refresh_ctrl` | `refresh_req_i`/`refresh_grant_o` | issue `REF` or LPDDR4 per-bank refresh |
 | `zq_ctrl` | `zq_req_i`/`zq_grant_o` | issue `ZQCS`, `ZQCL`, or LPDDR4 MPC ZQ calibration |
+| `andesite_training_layer` | `trn_cmd_req_i`/`trn_cmd_grant_o` | issue training `MRS` or `MPC`; request-and-wait, all-banks-idle two-step shape like refresh |
 | `odt_ctrl` | lands with Ch 2.8 | issue the ODT turnaround command or NOP-with-ODT |
 
 The rule is inherited from scoria: request and wait, never preempt. A maintenance source raises its `req` and holds it until `grant` arrives. It cannot yank the bus away from an in-flight host command.

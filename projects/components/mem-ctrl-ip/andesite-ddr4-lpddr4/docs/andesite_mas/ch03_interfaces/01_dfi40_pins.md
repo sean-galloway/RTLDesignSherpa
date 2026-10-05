@@ -81,21 +81,21 @@ Ch 4.1). A multi-rank build drives it from the granted command's rank
 
 | Pin | Dir | Clock | Reset | Source block | Behavior | Citation |
 |---|---|---|---|---|---|---|
-| `dfi_phy_wrlvl_cs` | out | DFI ctrl | 1 | [training](../ch02_blocks/09_training.md) | selects write leveling (v4.0 rename of `dfi_phy_wrlvl_cs_n`) | §3.6 DFI Training Interface |
-| `dfi_phy_rdlvl_cs` | out | DFI ctrl | 1 | [training](../ch02_blocks/09_training.md) | selects read leveling; unused by scoria, driven by `rdlvl_ifc` (v4.0 rename of `dfi_phy_rdlvl_cs_n`) | §3.6.1 Read Training Operation |
-| `dfi_phy_rdlvl_gate_cs` | out | DFI ctrl | 1 | [training](../ch02_blocks/09_training.md) | read-gate leveling select; presented, exercised per BFM capability (HAS Q3) (v4.0 rename of `dfi_phy_rdlvl_gate_cs_n`) | §3.6.1 Read Training Operation |
-| `dfi_phy_calvl_cs` | out | DFI ctrl | 1 | [training](../ch02_blocks/09_training.md) | selects CA training; driven by `ca_train_ifc` (v4.0 rename of `dfi_phy_calvl_cs_n`) | §3.6.4 CA Training Operation |
-| `dfi_lvl_pattern` | out | DFI ctrl | 0 | [training](../ch02_blocks/09_training.md) | training pattern select | §3.6.6 dfi_lvl_pattern Encoding |
-| `dfi_lvl_periodic` | out | DFI ctrl | 0 | [training](../ch02_blocks/09_training.md) | periodic-training control | §3.6.7 Periodic Training Flag |
-| `dfi_calvl_en` | out | DFI ctrl | 0 | [training](../ch02_blocks/09_training.md) | MC enables CA training logic | §3.6.4 CA Training Operation |
-| `dfi_calvl_req` | in | DFI ctrl | — | [training](../ch02_blocks/09_training.md) | PHY requests CA training | §3.6.4 CA Training Operation |
-| `dfi_calvl_capture` | out | DFI ctrl | 0 | [training](../ch02_blocks/09_training.md) | CA-training capture strobe from MC to PHY | §3.6.4 CA Training Operation |
-| `dfi_calvl_resp` | in | DFI ctrl | — | [training](../ch02_blocks/09_training.md) | CA-training response from PHY | §3.6.4 CA Training Operation |
-| `dfi_calvl_ca_sel` | out | DFI ctrl | 0 | [training](../ch02_blocks/09_training.md) | CA foreground pattern strobe | §3.6.4 CA Training Operation |
-| `dfi_calvl_data` | out | DFI data phases | 0 | [training](../ch02_blocks/09_training.md) | LPDDR4 CA VREF training data (per slice) | §3.6.4 CA Training Operation |
-| `dfi_calvl_done` | out | DFI data phases | 0 | [training](../ch02_blocks/09_training.md) | LPDDR4 CA VREF training done | §3.6.4 CA Training Operation |
-| `dfi_calvl_result` | in | DFI data phases | — | [training](../ch02_blocks/09_training.md) | LPDDR4 CA VREF training result from PHY | §3.6.4 CA Training Operation |
-| `dfi_calvl_strobe` | out | DFI data phases | 0 | [training](../ch02_blocks/09_training.md) | LPDDR4 CA VREF training strobe | §3.6.4 CA Training Operation |
+| `dfi_phy_wrlvl_cs` | out | DFI ctrl | 1 | [training_layer](../ch02_blocks/09_training.md) | selects write leveling (v4.0 rename of `dfi_phy_wrlvl_cs_n`) | §3.6 DFI Training Interface |
+| `dfi_phy_rdlvl_cs` | out | DFI ctrl | 1 | [training_layer](../ch02_blocks/09_training.md) | selects read leveling; unused by scoria, driven by `rdlvl_ifc` (v4.0 rename of `dfi_phy_rdlvl_cs_n`) | §3.6.1 Read Training Operation |
+| `dfi_phy_rdlvl_gate_cs` | out | DFI ctrl | 1 | [training_layer](../ch02_blocks/09_training.md) | read-gate leveling select; presented, exercised per BFM capability (HAS Q3) (v4.0 rename of `dfi_phy_rdlvl_gate_cs_n`) | §3.6.1 Read Training Operation |
+| `dfi_phy_calvl_cs` | out | DFI ctrl | 1 | [training_layer](../ch02_blocks/09_training.md) | selects CA training; driven by `ca_train_ifc` (v4.0 rename of `dfi_phy_calvl_cs_n`) | §3.6.4 CA Training Operation |
+| `dfi_lvl_pattern` | out | DFI ctrl | 0 | [training_layer](../ch02_blocks/09_training.md) | training pattern select | §3.6.6 dfi_lvl_pattern Encoding |
+| `dfi_lvl_periodic` | out | DFI ctrl | 0 | [training_layer](../ch02_blocks/09_training.md) | periodic-training control | §3.6.7 Periodic Training Flag |
+| `dfi_calvl_en` | out | DFI ctrl | 0 | [training_layer](../ch02_blocks/09_training.md) | MC enables CA training logic | §3.6.4 CA Training Operation |
+| `dfi_calvl_req` | in | DFI ctrl | — | [training_layer](../ch02_blocks/09_training.md) | PHY requests CA training | §3.6.4 CA Training Operation |
+| `dfi_calvl_capture` | out | DFI ctrl | 0 | [training_layer](../ch02_blocks/09_training.md) | CA-training capture strobe from MC to PHY | §3.6.4 CA Training Operation |
+| `dfi_calvl_resp` | in | DFI ctrl | — | [training_layer](../ch02_blocks/09_training.md) | CA-training response from PHY | §3.6.4 CA Training Operation |
+| `dfi_calvl_ca_sel` | out | DFI ctrl | 0 | [training_layer](../ch02_blocks/09_training.md) | CA foreground pattern strobe | §3.6.4 CA Training Operation |
+| `dfi_calvl_data` | out | DFI data phases | 0 | [training_layer](../ch02_blocks/09_training.md) | LPDDR4 CA VREF training data (per slice) | §3.6.4 CA Training Operation |
+| `dfi_calvl_done` | out | DFI data phases | 0 | [training_layer](../ch02_blocks/09_training.md) | LPDDR4 CA VREF training done | §3.6.4 CA Training Operation |
+| `dfi_calvl_result` | in | DFI data phases | — | [training_layer](../ch02_blocks/09_training.md) | LPDDR4 CA VREF training result from PHY | §3.6.4 CA Training Operation |
+| `dfi_calvl_strobe` | out | DFI data phases | 0 | [training_layer](../ch02_blocks/09_training.md) | LPDDR4 CA VREF training strobe | §3.6.4 CA Training Operation |
 
 : Table 3.3: Training and leveling pins
 
@@ -109,8 +109,8 @@ Ch 4.1). A multi-rank build drives it from the granted command's rank
 | `dfi_rddata_dbi` | in | DFI data phases | — | [dfi_datapath](../ch02_blocks/10_dfi_datapath.md) | read DBI, per byte; presented alongside `dfi_rddata` | §3.3.1 Read DBI |
 | `dfi_rddata_cs` | out | DFI data phases | 1 | [dfi_datapath](../ch02_blocks/10_dfi_datapath.md) | per-data-phase chip select, constant at one rank (inherited; v4.0 rename of `dfi_rddata_cs_n`) | §3.3.2 Read Data Chip Select |
 | `dfi_error` / `dfi_error_info` | in | DFI ctrl | — | boundary (alert handling) | error indication and info; scoria's surface, DDR4 CA-parity detail now used (HAS Ch 4.1) | §3.8 Error Interface |
-| `dfi_init_start` | out | DFI ctrl | active | [init_sequencer](../ch02_blocks/02_init_sequencer.md) | MC init/frequency-change request; initialization-in-progress indication; inherited surface | §3.5.1 Initialization |
-| `dfi_init_complete` | in | DFI ctrl | — | boundary | PHY init complete / frequency-change acknowledge | §3.5.1 Initialization |
+| `dfi_init_start` | out | DFI ctrl | active | [init_sequencer](../ch02_blocks/02_init_sequencer.md) via the DFI layer | MC init/frequency-change request; generated at the DFI layer from the P1 init FSM's busy/done (the P1 sequencer is self-timed and emits no PHY handshake of its own) | §3.5.1 Initialization |
+| `dfi_init_complete` | in | DFI ctrl | — | boundary | PHY init complete / frequency-change acknowledge; driven by the PHY, not consumed at this design point (self-timed init) | §3.5.1 Initialization |
 | `dfi_lp_ctrl_req` / `dfi_lp_data_req` | out | DFI ctrl | 0 | dormant (`powerdown_ctrl` pair) | exposed per the timeout-and-report rule; nothing consumes them at this design point (HAS Ch 3.1) | §3.7 Low Power Control Interface |
 
 : Table 3.4: Data-path and inherited pins

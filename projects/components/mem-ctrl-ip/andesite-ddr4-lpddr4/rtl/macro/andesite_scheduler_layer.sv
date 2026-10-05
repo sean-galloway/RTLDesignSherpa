@@ -138,18 +138,16 @@ module andesite_scheduler_layer
     input  logic [1:0]                ref_mode_i,       // REF_CTRL.mode (2=REFpb)
     input  logic [15:0]               ref_trefi_pb_i,   // REF_TIMING_PB.trefi_pb
     input  logic [7:0]                ref_trfc_pb_i,    // REF_TIMING_PB.trfc_pb
-    // init timing
-    input  logic [15:0]               t_init_wait_i,
-    input  logic [15:0]               t_dll_wait_i,
-    input  logic [7:0]                t_mrd_wait_i,
-    input  logic [7:0]                t_rp_wait_i,
-    input  logic [7:0]                t_rfc_wait_i,
-
-    // ----- DDR3 additions -----
-    input  logic [15:0]               t_xpr_wait_i,     // tXPR, init step 5
-    input  logic [15:0]               t_zqinit_wait_i,  // tZQinit, init step 11
+    // init timing (P1 init_sequencer CSRs; the 8-bit runtime CSRs zero-extend)
+    input  logic [15:0]               t_init_wait_i,    // tINIT1: RESET# low time
+    input  logic [15:0]               t_dll_wait_i,     // tDLLK
+    input  logic [7:0]                t_mrd_wait_i,     // tMRD (MRS->MRS gap)
+    input  logic [7:0]                t_rp_wait_i,      // tINIT3 (RESET# release->CKE)
+    input  logic [15:0]               t_cke_wait_i,     // tINIT4 (CKE->first MRS)
+    input  logic [15:0]               t_mod_wait_i,     // tMOD (last MRS->ZQCL)
+    input  logic [15:0]               t_zqinit_wait_i,  // tZQinit
     output logic                      dram_reset_n_o,   // RESET# -- a PIN
-    output logic [4:0]                mr_wr_o,          // write recovery MR0[11:9]
+    output logic                      cke_o,            // CKE -- a PIN (P1 init sequencer)
     output logic                      wrlvl_en_o,       // MR1[7]
 
     // ----- ZQ calibration (DDR3): andesite_zq_ctrl -----
@@ -175,45 +173,46 @@ module andesite_scheduler_layer
     output logic [15:0]               obs_ref_postpone_events_o,   // REF_STATS_POSTPONE
     output logic [15:0]               obs_ref_pullin_events_o,     // REF_STATS_PULLIN
 
-    // ----- write leveling (DDR3): andesite_wrlvl_ifc -----
-    // No search loop here: the controller emits one DQS edge per host strobe
-    // and reports the sampled prime DQ. The delay sweep is the host's, which
-    // is scoria design decision D2 -- see docs/design-requirements.md.
-    input  logic                      wrlvl_strobe_i,   // WRLVL_CFG.wrlvl_strobe
-    input  logic [3:0]                wrlvl_cs_sel_i,   // WRLVL_CFG.wrlvl_cs_sel
-    input  logic [15:0]               t_wldqsen_i,
-    input  logic [15:0]               t_wlmrd_i,
-    input  logic [15:0]               t_wlmrd_max_i,    // ours; 0 = no timeout
-    input  logic [15:0]               t_wlo_i,
-    input  logic [15:0]               t_wloe_i,
-    output logic [NUM_CS-1:0]         dfi_phylvl_req_cs_n_o,
-    input  logic [NUM_CS-1:0]         dfi_phylvl_ack_cs_n_i,
-    output logic [NUM_CS-1:0]         dfi_phy_wrlvl_cs_n_o,
-    output logic                      dfi_wrlvl_strobe_o,
-    input  logic                      wrlvl_prime_dq_i,
-    output logic                      wrlvl_result_valid_o,
-    output logic                      wrlvl_result_o,
-    output logic [15:0]               wrlvl_attempts_o,
-    output logic [15:0]               wrlvl_flips_o,
-    output logic                      wrlvl_timeout_o,
-    output logic                      wrlvl_ever_done_o,
-    output logic [2:0]                wrlvl_state_o,
-    // DDR2 mode-register values (CSR-backed MR0..MR3.VAL) for the init MRS chain
+    // ----- maintenance-class training commands (from andesite_training_layer)
+    input  logic                      trn_cmd_req_i,
+    output logic                      trn_cmd_ack_o,
+    input  dram_op_e                  trn_cmd_op_i,
+    input  logic [2:0]                trn_cmd_bank_i,
+    input  logic [17:0]               trn_cmd_addr_i,
+    input  logic [5:0]                trn_cmd_mpc_i,
+    // DDR4 mode-register CSR images for the init MRS chain
+    // (P1 write order MR3, MR6, MR5, MR4, MR2, MR1, MR0)
     input  logic [15:0]               mr0_i,
     input  logic [15:0]               mr1_i,
     input  logic [15:0]               mr2_i,
     input  logic [15:0]               mr3_i,
+    input  logic [15:0]               mr4_i,
+    input  logic [15:0]               mr5_i,
+    input  logic [15:0]               mr6_i,
     input  logic                      init_restart_i,   // CTRL.init_force_restart
 
-    // ---- DFI init handshake (to/from the PHY via the DFI layer) ----
-    output logic                      dfi_init_start_o,
-    input  logic                      dfi_init_complete_i,
+    // ---- init status. The P1 sequencer is self-timed (tINIT* CSRs); there
+    // is no DFI init handshake at the macro -- the DFI layer generates
+    // dfi_init_start from init_busy when it is born. ----
     output logic                      init_done_o,
+    output logic                      init_err_o,       // unsupported memtype / watchdog
+    output logic                      zq_cal_start_o,   // init-ZQCL status strobe
+    output logic                      gear_down_entry_o,
+    output logic                      ca_train_start_o,
+    output logic                      parity_enable_o,
 
-    // ---- mode-register shadow (to DFI layer) ----
-    output logic [3:0]                cl_o,
-    output logic [3:0]                cwl_o,
-    output logic [3:0]                bl_o,
+    // ---- P1 mode-register policy outputs: the observability contract the
+    // DFI / training / ODT consumers read. The scoria CL/CWL/BL shadow
+    // outputs retire here (the P1 register never had them). ----
+    output logic [2:0]                rtt_nom_o,
+    output logic [2:0]                rtt_wr_o,
+    output logic [2:0]                rtt_park_o,
+    output logic                      rd_dbi_en_o,
+    output logic                      wr_dbi_en_o,
+    output logic [1:0]                mpr_page_o,
+    output logic [1:0]                fgr_factor_o,
+    output logic [1:0]                ca_parity_lat_o,
+    output logic [2:0]                lpddr4_odt_o,
 
     // ---- CAM per-entry vectors (external: andesite_axi4_layer) ----
     input  logic [NUM_ENTRIES-1:0]              wr_sch_valid_i,
@@ -246,6 +245,7 @@ module andesite_scheduler_layer
     output dram_op_e                  cmd_op_o,
     output logic [RKW-1:0]            cmd_rank_o,
     output logic [BKW-1:0]            cmd_bank_o,
+    output logic [((NUM_BG > 1) ? $clog2(NUM_BG) : 1)-1:0] cmd_bg_o,
     output logic [ROW_WIDTH-1:0]      cmd_row_o,
     output logic [COL_WIDTH-1:0]      cmd_col_o,
     output logic                      cmd_ap_o,
@@ -256,8 +256,13 @@ module andesite_scheduler_layer
     // ---- internal nets ----
     logic init_done;
     logic init_cmd_valid; dram_op_e init_cmd_op;
+    logic init_cmd_valid_gated;          // req held one beat past accept -> gate
     logic [BKW-1:0] init_cmd_bank; logic [ROW_WIDTH-1:0] init_cmd_row;
-    logic mr_seq_we; logic [4:0] mr_seq_index; logic [15:0] mr_seq_data;
+    logic [17:0]      w_init_cmd_addr;   // P1 full-width init command address
+    logic             w_init_accept;     // an init-class command won this cycle
+    logic             w_init_cmd_ack;    // accept pulse back to the P1 sequencer
+    logic             w_init_zq_start;   // P1 init-ZQCL status strobe
+    logic mr_seq_we; logic [15:0] mr_seq_data;
 
     logic refresh_req, refresh_drain, refresh_grant;
     logic [15:0] w_refresh_trfc;   // ANDESITE FGR DELTA: tRFC(fgr) to the arbiter
@@ -279,98 +284,143 @@ module andesite_scheduler_layer
 
     logic evt_act, evt_rd, evt_wr, evt_pre, evt_ap;
     logic [RKW-1:0] evt_rank; logic [BKW-1:0] evt_bank; logic [ROW_WIDTH-1:0] evt_row;
+    // Declared ahead of the assignments below that consume them (the repo's
+    // declared-before-use gate rejects forward references; verilator and
+    // cocotb tolerate them, which is how they rode along from scoria).
+    logic [((NUM_BG > 1) ? $clog2(NUM_BG) : 1)-1:0] w_pick_group;
+    logic w_trn_cmd_grant;
 
     // arbiter -> cmd FIFO
     logic          a_cmd_valid, a_cmd_ready;
     dram_op_e      a_cmd_op;
     logic [RKW-1:0] a_cmd_rank; logic [BKW-1:0] a_cmd_bank;
+    logic [((NUM_BG > 1) ? $clog2(NUM_BG) : 1)-1:0] a_cmd_bg;
     logic [ROW_WIDTH-1:0] a_cmd_row; logic [COL_WIDTH-1:0] a_cmd_col; logic a_cmd_ap;
+    // The issued command's bank group: the arbiter's registered-pick group
+    // (bank[BKW-1 -: BGW], the JEDEC DDR4 mapping), aligned with a_cmd_*.
+    assign a_cmd_bg = w_pick_group;
 
-    assign init_done_o = init_done;
+    assign init_done_o    = init_done;
+    assign zq_cal_start_o = w_init_zq_start;
+    assign trn_cmd_ack_o  = w_trn_cmd_grant;
+
+    // P1 init accept/ack. MRS/ZQCL are the only ops init (or anything on the
+    // demand path) issues on this stream, so the arbiter accept pulse
+    // qualified by op class IS the honest ack. Coupling note: a future
+    // demand-path MRS/ZQCL source would spuriously ack init -- the honest fix
+    // then is an arbiter source qualifier, not a wider guess here.
+    assign w_init_accept = a_cmd_valid && a_cmd_ready
+                        && ((a_cmd_op == OP_MRS) || (a_cmd_op == OP_ZQCL));
+    assign w_init_cmd_ack = w_init_accept;
+    // The P1 FSM holds cmd_req until it clocks the ack; meanwhile the arbiter
+    // RE-PICKS the presented request into its registered pick every cycle, so
+    // a held request would push every command twice (the macro-integration
+    // suite caught MRS twins one cycle apart). The pick register makes the
+    // duplicate visible one cycle EARLY (the accept cycle itself re-arms it),
+    // so the gate must be combinational on THIS cycle's accept, not on a
+    // delayed copy: a_cmd_valid is the arbiter's registered pick, so
+    // w_init_accept is loop-free. The in-flight accept is unaffected -- it
+    // rides the register, not the request. Legal init spacing (tMRD/tMOD >= 3
+    // cycles) tolerates the one-cycle request drop.
+    assign init_cmd_valid_gated = init_cmd_valid && !w_init_accept;
+    // The P1 address is 18-bit; the carried stream nets are ROW_WIDTH. MRS
+    // (16'h0010+idx) and ZQCL (18'h000400) payloads fit the low 15 bits.
+    assign init_cmd_row   = w_init_cmd_addr[ROW_WIDTH-1:0];
 
     // ======================================================================
-    // andesite_init_sequencer — JEDEC MRS init; gates traffic until done.
+    // andesite_init_sequencer — P1 DDR4 init (JEDEC 79-4 sequence), gates
+    // traffic until done. Rewired to the P1 pin names: the carried scoria
+    // DDR3 connections were the 49 PINNOTFOUND the integration pass owns.
     // ======================================================================
     andesite_init_sequencer #(
-        .NUM_BANKS(NUM_BANKS),
-        .ROW_WIDTH(ROW_WIDTH)
+        .TINIT_WIDTH(16),
+        .ADDR_WIDTH (18),
+        .DATA_WIDTH (16)
     ) u_init (
-        .mc_clk             (aclk),
-        .mc_rst_n           (aresetn),
-        // ANDESITE DELTA (partial, T9 owns the full rewiring): the P1
-        // sequencer takes the memtype as its CSR image, not a runtime port.
-        .csr_memtype        (memtype_i),
-        // TASK-006 recovery FSM pins: parked at the macro until the init
-        // integration (T9) wires the alert source and the scheduler
-        // retract channel; grounded so no spurious alert can fire.
+        .clk                (aclk),
+        .reset_n            (aresetn),
+        .csr_memtype        (3'(memtype_i)),
+        .csr_init_trigger   (init_restart_i),
+        .csr_geardown_en    (1'b0),
+        .csr_parity_en      (1'b0),
+        .tinit1_csr         (t_init_wait_i),
+        .tinit3_csr         (16'(t_rp_wait_i)),  // RESET# release -> CKE (DDR3 named it tRP)
+        .tinit4_csr         (t_cke_wait_i),      // CKE -> first MRS (P1 splits this out)
+        .tdllk_csr          (t_dll_wait_i),
+        .tzqinit_csr        (t_zqinit_wait_i),
+        .tmrd_csr           (16'(t_mrd_wait_i)), // MRS -> MRS gap
+        .tmod_csr           (t_mod_wait_i),      // last MRS -> ZQCL
+        .csr_mr0_image      (mr0_i),
+        .csr_mr1_image      (mr1_i),
+        .csr_mr2_image      (mr2_i),
+        .csr_mr3_image      (mr3_i),
+        .csr_mr4_image      (mr4_i),
+        .csr_mr5_image      (mr5_i),
+        .csr_mr6_image      (mr6_i),
+        .cmd_ack            (w_init_cmd_ack),
+        // TASK-006 recovery FSM pins: parked -- grounded so no spurious alert
+        // can fire; the alert source + scheduler retract channel are the
+        // recorded TASK-006 wiring follow-on.
         .parity_alert_i     (1'b0),
         .recovery_interval_i(16'd0),
         .csr_telem_clear_i  (1'b0),
-        .retract_req_o      (),
         .retract_ack_i      (1'b0),
+        .retract_req_o      (),
         .obs_recovery_state_o(),
         .obs_alerts_seen_o  (),
         .obs_cmds_dropped_o (),
         .obs_cmds_resent_o  (),
-        .t_init_wait_i      (t_init_wait_i),
-        .t_dll_wait_i       (t_dll_wait_i),
-        .t_mrd_wait_i       (t_mrd_wait_i),
-        .t_rp_wait_i        (t_rp_wait_i),
-        .t_rfc_wait_i       (t_rfc_wait_i),
-        // DDR3 additions -- runtime CSRs, like every other enforced timing
-        .t_xpr_wait_i       (t_xpr_wait_i),
-        .t_zqinit_wait_i    (t_zqinit_wait_i),
-        // DDR3: RESET# is a device PIN, so it leaves the controller
-        .dram_reset_n_o     (dram_reset_n_o),
-        .mr0_i              (mr0_i),
-        .mr1_i              (mr1_i),
-        .mr2_i              (mr2_i),
-        .mr3_i              (mr3_i),
-        .init_restart_i     (init_restart_i),
-        .dfi_init_start_o   (dfi_init_start_o),
-        .dfi_init_complete_i(dfi_init_complete_i),
-        .mr_seq_we_o        (mr_seq_we),
-        .mr_seq_index_o     (mr_seq_index),
-        .mr_seq_data_o      (mr_seq_data),
-        .init_cmd_valid_o   (init_cmd_valid),
-        .init_cmd_op_o      (init_cmd_op),
-        .init_cmd_bank_o    (init_cmd_bank),
-        .init_cmd_row_o     (init_cmd_row),
-        .zqcl_req_o         (),
-        .zqcl_grant_i       (1'b0),
-        .init_busy_o        (),
-        .init_done_o        (init_done)
+        .mr_image_out       (mr_seq_data),
+        .mr_load            (mr_seq_we),
+        .reset_n_out        (dram_reset_n_o),
+        .cke_out            (cke_o),
+        .cmd_req            (init_cmd_valid),
+        .cmd_op             (init_cmd_op),
+        .cmd_bank           (init_cmd_bank),
+        .cmd_addr           (w_init_cmd_addr),
+        .zq_cal_start       (w_init_zq_start),
+        .gear_down_entry    (gear_down_entry_o),
+        .parity_enable_out  (parity_enable_o),
+        .ca_train_start     (ca_train_start_o),
+        .init_done          (init_done),
+        .init_err           (init_err_o)
     );
 
     // ======================================================================
-    // andesite_mode_register — shadow updated by init MRS; supplies CL/CWL/BL.
+    // andesite_mode_register — P1 shadow. The init FSM's mr_load/mr_image_out
+    // write the MR the init just issued (the MR index rides cmd_bank, per the
+    // P1 FSM's MR_ORDER). The policy outputs (RTT/DBI/MPR/parity-latency/
+    // LPDDR4-ODT/wrlvl) are the observability contract the DFI, training and
+    // ODT consumers read. The carried CL/CWL/BL shadow outputs retire with
+    // the scoria DDR3 register -- the P1 register never had them (latency
+    // values live in the MR images themselves).
     // ======================================================================
     andesite_mode_register #(
-        .NUM_RANKS(NUM_RANKS)
+        .DATA_WIDTH(16),
+        .RANKS     (NUM_RANKS)
     ) u_mode_reg (
-        .mc_clk        (aclk),
-        .mc_rst_n      (aresetn),
-        .memtype_i     (memtype_i),
-        .mr_we_i       (mr_seq_we),
-        .mr_index_i    (mr_seq_index),
-        .mr_data_i     (mr_seq_data),
-        .mr_rank_i     ('0),
-        .mr_req_o      (),
-        .mr_grant_i    (1'b0),
-        .mr_req_index_o(),
-        .mr_req_data_o (),
-        .mr_req_rank_o (),
-        .cl_o          (cl_o),
-        .cwl_o         (cwl_o),
-        .bl_o          (bl_o),
-        .al_o          (),
-        .drv_strength_o(),
-        .odt_o         (),
-        // DDR3 additions. wrlvl_en_o is MR1[7] -- the authority on whether the
-        // DRAM is in write-leveling mode -- routed out to the DFI layer, where
-        // andesite_wrlvl_ifc gates its handshake on it.
-        .wr_o          (mr_wr_o),
-        .wrlvl_en_o    (wrlvl_en_o)
+        .clk            (aclk),
+        .rst_n          (aresetn),
+        .memtype_i      (memtype_i),
+        .rank_i         ('0),                       // single-rank design point
+        .wr_en_i        (mr_seq_we),
+        .wr_addr_i      ({3'b000, init_cmd_bank}),  // MR index rides cmd_bank
+        .wr_data_i      (mr_seq_data),
+        .rd_en_i        (1'b0),
+        .rd_addr_i      ('0),
+        .rd_data_o      (),
+        .mr_sel_o       (),
+        .mr_data_o      (),
+        .mpr_page_o     (mpr_page_o),
+        .fgr_factor_o   (fgr_factor_o),
+        .rtt_nom_o      (rtt_nom_o),
+        .rtt_wr_o       (rtt_wr_o),
+        .rtt_park_o     (rtt_park_o),
+        .rd_dbi_en_o    (rd_dbi_en_o),
+        .wr_dbi_en_o    (wr_dbi_en_o),
+        .ca_parity_lat_o(ca_parity_lat_o),
+        .wrlvl_en_o     (wrlvl_en_o),
+        .lpddr4_odt_o   (lpddr4_odt_o)
     );
 
     // ======================================================================
@@ -475,48 +525,6 @@ module andesite_scheduler_layer
     );
 
     // ======================================================================
-    // andesite_wrlvl_ifc — DDR3 write leveling, host-driven.
-    // ======================================================================
-    // It does NOT touch the command path: leveling rides the DFI v3.1 per-CS
-    // PHY handshake, so there is no arbiter interaction and nothing to
-    // priority-order. wrlvl_en_i comes from andesite_mode_register, which is the
-    // authority -- JESD79-3F puts the mode in MR1[7], so the DRAM is in
-    // leveling mode exactly when that bit is set and the interface must agree
-    // with the register rather than keep its own copy.
-    //
-    // cs_sel is CSW bits wide (1 when NUM_CS=1) but the CSR field is 4, so it
-    // is truncated here. andesite_wrlvl_ifc range-guards the index internally as
-    // well: at NUM_CS=1 an unguarded cs_sel_i would index a 1-bit vector with
-    // a value that can be 1 and return X.
-    andesite_wrlvl_ifc #(
-        .NUM_CS (NUM_CS),
-        .CSW    (CSW)
-    ) u_wrlvl (
-        .mc_clk                (aclk),
-        .mc_rst_n              (aresetn),
-        .wrlvl_en_i            (wrlvl_en_o),
-        .strobe_i              (wrlvl_strobe_i),
-        .cs_sel_i              (CSW'(wrlvl_cs_sel_i)),
-        .t_wldqsen_i           (t_wldqsen_i),
-        .t_wlmrd_i             (t_wlmrd_i),
-        .t_wlmrd_max_i         (t_wlmrd_max_i),
-        .t_wlo_i               (t_wlo_i),
-        .t_wloe_i              (t_wloe_i),
-        .dfi_phylvl_req_cs_n_o (dfi_phylvl_req_cs_n_o),
-        .dfi_phylvl_ack_cs_n_i (dfi_phylvl_ack_cs_n_i),
-        .dfi_phy_wrlvl_cs_n_o  (dfi_phy_wrlvl_cs_n_o),
-        .dfi_wrlvl_strobe_o    (dfi_wrlvl_strobe_o),
-        .prime_dq_i            (wrlvl_prime_dq_i),
-        .result_valid_o        (wrlvl_result_valid_o),
-        .result_o              (wrlvl_result_o),
-        .obs_attempts_o        (wrlvl_attempts_o),
-        .obs_flips_o           (wrlvl_flips_o),
-        .obs_timeout_o         (wrlvl_timeout_o),
-        .obs_ever_done_o       (wrlvl_ever_done_o),
-        .obs_state_o           (wrlvl_state_o)
-    );
-
-    // ======================================================================
     // andesite_bank_timers — per-bank safe timers (open-page).
     // ======================================================================
     // BANK_LA = the pick pipeline's select-to-fire depth: the advisory image
@@ -569,7 +577,7 @@ module andesite_scheduler_layer
     // matches the arbiter's formula exactly; the design point is single-rank
     // (RK0), so the timers' per-candidate rank select is constant zero.
     localparam int BGW_EFF_M = (NUM_BG > 1) ? $clog2(NUM_BG) : 1;
-    logic [BGW_EFF_M-1:0] w_evt_bg, w_pick_group;
+    logic [BGW_EFF_M-1:0] w_evt_bg;
     logic                 w_tccd_l_ok, w_trrd_l_ok, w_tccd_s_ok, w_trrd_s_ok;
     assign w_evt_bg = (NUM_BG > 1) ? evt_bank[BKW-1 -: BGW_EFF_M] : '0;
 
@@ -681,7 +689,7 @@ module andesite_scheduler_layer
         .timeout_pre_req_i  (w_pp_to_req),
         .timeout_pre_bank_i (w_pp_to_bank),
         .init_done_i        (init_done),
-        .init_cmd_valid_i   (init_cmd_valid),
+        .init_cmd_valid_i   (init_cmd_valid_gated),
         .init_cmd_op_i      (init_cmd_op),
         .init_cmd_bank_i    (init_cmd_bank),
         .init_cmd_row_i     (init_cmd_row),
@@ -695,6 +703,11 @@ module andesite_scheduler_layer
         .zq_req_i           (w_zq_req),
         .zq_grant_o         (w_zq_grant),
         .t_zqcs_i           (t_zqcs_i),
+        .trn_cmd_req_i      (trn_cmd_req_i),
+        .trn_cmd_op_i       (trn_cmd_op_i),
+        .trn_cmd_bank_i     (trn_cmd_bank_i),
+        .trn_cmd_addr_i     (trn_cmd_addr_i),
+        .trn_cmd_grant_o    (w_trn_cmd_grant),
         .bank_act_ready_i   (w_bank_act_ready),
         .bank_rdwr_ready_i  (w_bank_rdwr_ready),
         .bank_pre_ready_i   (w_bank_pre_ready),
@@ -770,11 +783,11 @@ module andesite_scheduler_layer
     );
 
     // ======================================================================
-    // Output command FIFO (scheduler -> DFI). Packs {op,rank,bank,row,col,ap}.
+    // Output command FIFO (scheduler -> DFI). Packs {ap,col,row,bg,bank,rank,op}.
     // ======================================================================
-    localparam int CMD_W = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1;
+    localparam int CMD_W = $bits(dram_op_e) + RKW + BKW + BGW_EFF_M + ROW_WIDTH + COL_WIDTH + 1;
     logic [CMD_W-1:0] w_cmd_wr_data, w_cmd_rd_data;
-    assign w_cmd_wr_data = {a_cmd_ap, a_cmd_col, a_cmd_row, a_cmd_bank, a_cmd_rank,
+    assign w_cmd_wr_data = {a_cmd_ap, a_cmd_col, a_cmd_row, a_cmd_bg, a_cmd_bank, a_cmd_rank,
                             a_cmd_op};
 
     logic w_cmd_rd_valid, w_cmd_pop;
@@ -821,7 +834,7 @@ module andesite_scheduler_layer
                                     - (w_cmd_pop    ? TOKW'(1) : TOKW'(0));
     )
 
-    assign {cmd_ap_o, cmd_col_o, cmd_row_o, cmd_bank_o, cmd_rank_o, w_rd_op} = w_cmd_rd_data;
+    assign {cmd_ap_o, cmd_col_o, cmd_row_o, cmd_bg_o, cmd_bank_o, cmd_rank_o, w_rd_op} = w_cmd_rd_data;
     assign cmd_op_o    = w_rd_op;
 
     assign busy_o = !init_done || refresh_req || w_cmd_rd_valid
