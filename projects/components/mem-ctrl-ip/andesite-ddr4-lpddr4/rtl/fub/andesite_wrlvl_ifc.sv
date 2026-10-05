@@ -30,7 +30,7 @@ module andesite_wrlvl_ifc
     input  logic             mc_rst_n,
 
     // ----- mode: the DRAM is in write-leveling mode iff MR1[7] is set.
-    //       Driven from scoria_mode_register.wrlvl_en_o, which is the
+    //       Driven from andesite_mode_register.wrlvl_en_o, which is the
     //       authority: JESD79-3F says the DRAM enters leveling mode when A7
     //       in MR1 is high and exits when it is low.
     input  logic             wrlvl_en_i,

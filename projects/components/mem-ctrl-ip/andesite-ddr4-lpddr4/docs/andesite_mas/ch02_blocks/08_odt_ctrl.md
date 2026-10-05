@@ -81,21 +81,24 @@ at CSR-derivation time (HAS Ch 5; numeric constants are HAS open question Q1).
 
 ### Policy state table
 
-The termination policy is per-rank. Each rank is in one of three policy
-states, selected from the grant stream:
+The termination policy is per-rank. Each rank is in one of four policy
+states, selected from the grant stream (the landed RTL names:
 
 ```text
 state        | RTT applied   | entered when
-IDLE         | RTT_PARK      | no rank selected (park policy)
-RD (other)   | RTT_NOM       | a read granted to any rank
-WR (self)    | RTT_WR        | a write granted to this rank
+PARK         | RTT_PARK      | no rank selected (park policy)
+RD_NOM       | RTT_NOM       | a read granted to another rank (this rank terminates)
+RD_SELF      | ODT off       | a read granted to this rank (its own ODT stays off)
+WR           | RTT_WR        | a write granted to this rank
 (per-rank; values are the MR1/MR2/MR5 images, CSR-programmed)
 ```
 
-`RD (other)` means a read to any rank makes the rank that is *not* reading
-present RTT_NOM. `WR (self)` means a write to a rank makes that same rank
-present RTT_WR. A single-rank design point exercises IDLE and WR; the
-multi-rank coupling is already in the structure and is not special-cased away.
+`RD_NOM` means a read granted to another rank makes this rank present
+RTT_NOM. `RD_SELF` means a read granted to this rank keeps its own ODT off.
+`WR` means a write granted to a rank makes that rank present RTT_WR. A
+single-rank design point exercises PARK and WR (`RD_SELF` is the read case
+at one rank); the multi-rank coupling is already in the structure and is not
+special-cased away.
 
 ### Command-stream tap
 

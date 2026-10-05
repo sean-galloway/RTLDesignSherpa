@@ -589,12 +589,29 @@ async def cocotb_test_andesite_refresh_ctrl(dut):
             f"post-change reloads are not the 4x row: {reloads[1:]}")
         # Modes-still-clean: with the factor held at 1x, the elastic/TCR
         # modes behave exactly as the inherited suite proves -- re-run the
-        # elastic postpone case shape here with FGR wired but at 1x and
-        # compare its request cadence against the plain smoke cadence.
+        # elastic postpone case shape here with FGR wired but at 1x. The
+        # original check asserted presence only (review M-8); it now pins the
+        # TCR rate (derate=1 halves tREFI: 30 -> 15, so 250 cycles must
+        # produce well more than the plain rate) and the run's determinism
+        # (an identical rerun must reproduce the cadence bit-for-bit). An
+        # exact cross-mode cadence equality is spec-impossible -- TCR and
+        # elastic change the rate by design -- so those are the strongest
+        # honest bounds.
         req_fgr1x, _ = await tb.run_and_capture(
             refi=30, fgr_factor=0, tcr_en=1, trefi_derate=1,
             elastic_en=1, demand=1, postpone=2, cycles=250)
         chk(len(req_fgr1x) > 0, "modes-still-clean run never requested")
+        chk(len(req_fgr1x) >= 8,
+            f"TCR derate=1 must roughly double the rate: only "
+            f"{len(req_fgr1x)} requests in 250 cycles at refi=30 (the "
+            f"derated interval is ~15 cycles, so >= 8 even with elastic "
+            f"postponement slack)")
+        req_repeat, _ = await tb.run_and_capture(
+            refi=30, fgr_factor=0, tcr_en=1, trefi_derate=1,
+            elastic_en=1, demand=1, postpone=2, cycles=250)
+        chk(req_fgr1x == req_repeat,
+            "an identical modes rerun produced a different request cadence "
+            "-- the FGR-1x/modes path is not deterministic")
 
     else:
         raise ValueError(f"Unknown TEST_TYPE: {tt}")

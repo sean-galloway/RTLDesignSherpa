@@ -26,7 +26,7 @@
 **Location:** `rtl/fub/` (planned)
 **Category:** FUB
 **Parent:** `scheduler_layer` / `cmd_arbiter`
-**Status:** specified — no RTL exists (HAS v0.1 posture)
+**Status:** carried from scoria and landed — the tables below name the landed port lists
 
 ---
 
@@ -38,13 +38,13 @@
 
 | Parameter | Type | Range | Default | Meaning | Source |
 |---|---|---|---|---|---|
-| `SYS_ADDR_WIDTH` | int | 32..48 | 32 | host/system address width | design point |
-| `RANK_WIDTH` | int | 1..2 | 1 | rank/chip-select bits | design point |
+| `AXI_ADDR_WIDTH` | int | 32..48 | 32 | host/system address width | design point |
+| `NUM_RANKS` | int | 1, 2, 4 | 1 | ranks per channel | design point |
+| `NUM_BANKS` | int | 4, 8 | 8 | banks per rank | design point |
 | `BG_WIDTH` | int | 0..2 | 2 | bank-group bits (0 for LPDDR4) | design point |
-| `BANK_WIDTH` | int | 2..3 | 2 | bank bits (3 for LPDDR4) | design point |
-| `ROW_WIDTH` | int | 14..18 | 16 | row bits | design point |
+| `ROW_WIDTH` | int | 14..18 | 14 | row bits | design point |
 | `COL_WIDTH` | int | 10..12 | 10 | column bits (without burst offset) | design point |
-| `HASH_EN` | bit | 0/1 | 0 | enable address hashing | CSR |
+| `BYTE_OFFSET_WIDTH` | int | 3..5 | 3 | log2 of the beat byte size (8 B -> 3) | design point |
 
 : Table 2.9: Address mapper parameters
 
@@ -56,13 +56,12 @@
 | — | — | — | (no reset port for the same reason) |
 | `axi_addr_i` | in | `AXI_ADDR_WIDTH` | incoming system address |
 | `bank_lsb_i` | in | 5 | bank field LSB in the word address (field-boundary knob) |
-| `rank_o` | out | `RANK_WIDTH` | decoded rank / chip select |
+| `rank_o` | out | `$clog2(NUM_RANKS)` | decoded rank / chip select |
 | `bg_o` | out | `BG_WIDTH` | decoded bank group (constant for LPDDR4) |
-| `bank_o` | out | `BANK_WIDTH` | decoded bank |
+| `bank_o` | out | `$clog2(NUM_BANKS)` | decoded bank |
 | `row_o` | out | `ROW_WIDTH` | decoded row |
 | `col_o` | out | `COL_WIDTH` | decoded column (burst offset stripped) |
-| `byte offset` | in | — | `BYTE_OFFSET_WIDTH` parameter; log2 of the beat byte size |
-| `hash_en_i` | in | 1 | bank XOR-hash enable (carried from pumice) |
+| `hash_en_i` | in | 1 | bank XOR-hash enable (carried from pumice; `HASH_EN` was never a parameter) |
 | `hash_seed_i` | in | 8 | hash seed |
 
 : Table 2.10: Address mapper ports

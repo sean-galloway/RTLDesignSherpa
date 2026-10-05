@@ -205,7 +205,7 @@ module andesite_rd_intake #(
     logic [ROW_WIDTH-1:0] w_row;
     logic [COL_WIDTH-1:0] w_col;
 
-    // Align the mapped address DOWN to the AXI BEAT. scoria_addr_mapper indexes at
+    // Align the mapped address DOWN to the AXI BEAT. andesite_addr_mapper indexes at
     // DEVICE-word granularity (BYTE_OFFSET_WIDTH = log2(DRAM_DEVICE_WIDTH/8)),
     // which is FINER than one AXI beat whenever a beat spans several device
     // words -- e.g. a 128-bit beat over a 64-bit device word. The byte lanes

@@ -10,7 +10,7 @@
 // Documentation:
 //   projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/andesite_mas/
 //
-// Carried from scoria_wr_intake per andesite HAS ch02; see the P3 commit for
+// Carried from andesite_wr_intake per andesite HAS ch02; see the P3 commit for
 // the recorded andesite delta (this header is free-form provenance).
 //
 // Author: sean galloway
@@ -50,7 +50,7 @@ module andesite_wr_intake #(
     parameter int UW  = AXI_USER_WIDTH,
     parameter int SW  = AXI_DATA_WIDTH / 8,
     // (was: DRAM_BEAT_WIDTH + GEAR = AXI_DATA_WIDTH / DRAM_BEAT_WIDTH.
-    //  scoria_core instantiates the ifc with .DRAM_BEAT_WIDTH(DW), i.e. the
+    //  andesite_core instantiates the ifc with .DRAM_BEAT_WIDTH(DW), i.e. the
     //  AXI data width, so DRAM_BEAT_WIDTH here NEVER meant the DRAM beat
     //  width and GEAR was always exactly 1. A constant-1 factor sitting in a
     //  correctness check makes the check look width-aware when it is not.)
@@ -63,7 +63,7 @@ module andesite_wr_intake #(
     input  logic                     aclk,
     input  logic                     aresetn,
 
-    // Address-map config (passed to scoria_addr_mapper — ADDR_MAP register)
+    // Address-map config (passed to andesite_addr_mapper — ADDR_MAP register)
     input  logic [4:0]               bank_lsb_i,
     input  logic                     hash_en_i,
     input  logic [7:0]               hash_seed_i,
@@ -290,7 +290,7 @@ module andesite_wr_intake #(
     logic [ROW_WIDTH-1:0]  w_row;
     logic [COL_WIDTH-1:0]  w_col;
 
-    // Align the mapped address DOWN to the AXI BEAT. scoria_addr_mapper indexes at
+    // Align the mapped address DOWN to the AXI BEAT. andesite_addr_mapper indexes at
     // DEVICE-word granularity (BYTE_OFFSET_WIDTH = log2(DRAM_DEVICE_WIDTH/8)),
     // which is FINER than one AXI beat whenever a beat spans several device
     // words -- e.g. a 128-bit beat over a 64-bit device word. The byte lanes
@@ -416,10 +416,10 @@ module andesite_wr_intake #(
     always_ff @(posedge aclk) begin
         if (aresetn) begin
             if ((RAGGED_ASSERT != 0) && w_awm_wr_valid && w_awm_wr_ready && w_aw_err)
-                $error("scoria_wr_intake: ragged burst awlen+1=%0d AXI_BEATS_PER_BURST=%0d (must satisfy awlen+1 == AXI_BEATS_PER_BURST)",
+                $error("andesite_wr_intake: ragged burst awlen+1=%0d AXI_BEATS_PER_BURST=%0d (must satisfy awlen+1 == AXI_BEATS_PER_BURST)",
                        fub_awlen + 8'd1, AXI_BEATS_PER_BURST);
             if (w_err_b_fire && wr_done_valid_i)
-                $error("scoria_wr_intake: B push collision (err + wr_done same cycle)");
+                $error("andesite_wr_intake: B push collision (err + wr_done same cycle)");
         end
     end
     // synthesis translate_on

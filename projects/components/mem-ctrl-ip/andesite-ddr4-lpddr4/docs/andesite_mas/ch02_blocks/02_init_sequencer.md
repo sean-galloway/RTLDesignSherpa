@@ -183,7 +183,7 @@ IDLE -> ALERT_SEEN -> RESENDING -> IDLE
 
 * `IDLE` — waiting. The recovery FSM is transparent; normal scheduler grants pass through unchanged.
 * `ALERT_SEEN` — on the cycle the formatter's logged pulse arrives, the command currently in the grant stream is marked suspect and dropped. The FSM asserts a `retract` sideband to the scheduler, asking it to withdraw the suspect command and re-issue it from its request queue. The scheduler's request-never-preempts rule is preserved: the recovery request is just another maintenance-class request that must wait for the scheduler's grant, exactly like the init sequencer's `cmd_req`/`cmd_ack` pair.
-* `RESENDING` — after the JEDEC-named recovery interval has elapsed, the recovery FSM re-issues the dropped command through the same formatter path. The interval value is a runtime CSR loaded from the JESD79-4 speed bin at CSR-derivation time; no numeric constant is compiled into the RTL.
+* `RESENDING` — the FSM holds the JEDEC-named recovery interval, counting down, then returns to `IDLE`. It never drives a command out of `RESENDING`: release-to-scheduler, not re-issue — the scheduler re-issues the dropped command from its own request queue once the retract clears. The interval value is a runtime CSR loaded from the JESD79-4 speed bin at CSR-derivation time; no numeric constant is compiled into the RTL.
 
 Telemetry is kept in small saturating counters: alerts seen, commands dropped, and commands re-issued. These counters are visible to firmware and are reset only by controller reset or an explicit firmware clear.
 
