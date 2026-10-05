@@ -38,6 +38,13 @@ record, not discovered by accident in a venv rebuild.
   artifact, not the repo.
 - Shared venv synced and the installed wheel spot-checked (version, irq
   exports).
+- 2026-10-04 follow-up: the `board-layer` job in `.github/workflows/
+  filelist-checks.yml` still ran `pytest bin/TBClasses/irq/tests/` against the
+  deleted directory (its "nothing ran them" protection now lives in RDS-DV's
+  unit-tests job, `tests/unit/test_irq_logic.py`) — step removed, the cocotb
+  install rationale above it retired with it, and the untracked
+  `bin/TBClasses/irq/` pycache debris swept. RLB top smoke re-verified against
+  the released 1.0.0 wheel (func config, 166 s, passed).
 
 ## The breaking-change note
 

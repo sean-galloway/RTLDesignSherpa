@@ -46,6 +46,19 @@ jobs:
       - name: No test elaborates another protocol family's RTL
         run: python3 bin/check_test_dut_family.py
 
+      # Same rule make lint enforces for the harness flows (fpga_flow.mk's
+      # lint-decl-order): a signal used before its declaration silently becomes
+      # an implicit 1-bit net, which synthesizes as a single wire and only
+      # blows up in Vivado or on the board. Scoped to hand-written sources:
+      # packages and generated regblocks/bridges are excluded (packages
+      # declare-and-use inside a compilation unit; generated code is the
+      # generator's contract, checked at generation time).
+      - name: Signals declared before use (no implicit 1-bit nets)
+        run: |
+          git ls-files 'rtl/*.sv' 'rtl/**/*.sv' 'projects/components/*/rtl/**/*.sv' \
+          | grep -v '_pkg\.sv$' | grep -v '/generated/' \
+          | xargs python3 bin/check_sv_decl_order.py
+
       - name: No NEW broken markdown link
         run: python3 bin/check_broken_links.py --ratchet
 
@@ -144,21 +157,17 @@ jobs:
         with:
           python-version: '3.11'
 
-      # pytest plus cocotb; the tests are deliberately board-less and import
-      # pyserial lazily, so no hardware and no serial stack is needed. cocotb is
-      # needed only as an IMPORT: TBClasses.irq.irq_components imports cocotb at
-      # module level for its triggers, so collection fails without it even
-      # though the logic under test runs with no simulator.
-      - name: Install pytest and cocotb
-        run: python3 -m pip install --quiet pytest cocotb
+      # pytest only; the tests are deliberately board-less and import
+      # pyserial lazily, so no hardware and no serial stack is needed.
+      - name: Install pytest
+        run: python3 -m pip install --quiet pytest
 
+      # The interrupt-BFM decomposition tests moved with the BFM itself into
+      # RTLDesignSherpa-DV (consumed here as cocotb-framework 1.0.0); they now
+      # run in that repo's unit-tests job as tests/unit/test_irq_logic.py, so
+      # the "nothing ran them" protection lives there, not here.
       - name: Board selection and sequence ordering (board-less)
         run: python3 -m pytest projects/fpga-systems/bin/ -q
-
-      # RLB TASK-017 criterion 6. The test file inserts bin/ on sys.path itself,
-      # so this needs no PYTHONPATH (verified with env -u PYTHONPATH).
-      - name: Interrupt BFM decomposition logic (simulator-free)
-        run: python3 -m pytest bin/TBClasses/irq/tests/ -q
 
       # RLB TASK-018. The per-IR-line verdict's value is entirely in FAILING:
       # its fail-closed branch is one line, and if that regressed to True all
