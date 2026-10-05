@@ -51,9 +51,9 @@
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/filelists/fub/scoria_zq_ctrl.f
 
 # --- macro tier ---
--f $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/filelists/macro/scoria_axi4_ifc.f
+-f $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/filelists/macro/scoria_axi4_layer.f
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/filelists/macro/scoria_dfi_layer.f
--f $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/filelists/macro/scoria_mem_cmd_scheduler.f
+-f $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/filelists/macro/scoria_scheduler_layer.f
 
 # --- top tier (pulls the generated CSR block) ---
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/filelists/top/scoria_core.f

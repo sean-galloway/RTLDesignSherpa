@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: scoria_mem_cmd_scheduler
+// Module: scoria_scheduler_layer
 // Purpose: The pumice command-scheduling layer. Wires the command arbiter to
 //          the per-bank safe timers, global (bus/rank) timers, refresh
 //          controller, init sequencer + mode-register shadow, and an output
@@ -13,14 +13,14 @@
 //
 //          PHY/nphases-agnostic; single-issue; single controller clock (aclk).
 //          The CAM sched-lookup / oldest / commit / issue ports are EXTERNAL
-//          (the CAMs live in scoria_axi4_ifc).
+//          (the CAMs live in scoria_axi4_layer).
 //
 // Documentation: docs/uarch/PUMICE_MEM_CMD_SCHEDULER_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
 
-module scoria_mem_cmd_scheduler
+module scoria_scheduler_layer
     import scoria_pkg::*;
 #(
     parameter int NUM_RANKS   = 1,
@@ -194,7 +194,7 @@ module scoria_mem_cmd_scheduler
     output logic [3:0]                cwl_o,
     output logic [3:0]                bl_o,
 
-    // ---- CAM per-entry vectors (external: scoria_axi4_ifc) ----
+    // ---- CAM per-entry vectors (external: scoria_axi4_layer) ----
     input  logic [NUM_ENTRIES-1:0]              wr_sch_valid_i,
     input  logic [NUM_ENTRIES*BKW-1:0]          wr_sch_bank_i,
     input  logic [NUM_ENTRIES*ROW_WIDTH-1:0]    wr_sch_row_i,
@@ -779,4 +779,4 @@ module scoria_mem_cmd_scheduler
         );
     end endgenerate
 
-endmodule : scoria_mem_cmd_scheduler
+endmodule : scoria_scheduler_layer

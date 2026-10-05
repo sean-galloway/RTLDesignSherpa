@@ -57,11 +57,11 @@ PORTED = {
     "fub/scoria_bank_timers.sv":    "fub/pumice_bank_timers.sv",
     # MACRO tier. Measured 2026-10-01 while standing up the macro/top test
     # areas: of the six macro/top modules this is the only one still pumice's
-    # logic. dfi_layer (+91 lines), mem_cmd_scheduler (+133), scoria_core
+    # logic. dfi_layer (+91 lines), scheduler_layer (+133), scoria_core
     # (+94), scoria_top (+74) and top_geared (+19) all carry DDR3 work --
     # write leveling, ZQ, mode-register writes, RESET# -- and need their own
     # tests, which is what the macro/ and top/ areas are for.
-    "macro/scoria_axi4_ifc.sv":     "macro/pumice_axi4_ifc.sv",
+    "macro/scoria_axi4_layer.sv":     "macro/pumice_axi4_layer.sv",
 }
 
 # Where each one's coverage actually lives, for the failure message.
@@ -73,7 +73,7 @@ PUMICE_TEST = {
     "fub/scoria_rd_return_ring.sv": "test_pumice_rd_return_ring.py",
     "fub/scoria_dfi_cdc.sv":        "test_pumice_dfi_cdc.py",
     "fub/scoria_bank_timers.sv":    "test_pumice_bank_timers.py",
-    "macro/scoria_axi4_ifc.sv":     "test_pumice_axi4_ifc.py",
+    "macro/scoria_axi4_layer.sv":     "test_pumice_axi4_layer.py",
 }
 
 # Canonicalisation: STRIP the family prefix from both sides rather than

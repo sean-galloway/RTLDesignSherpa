@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: scoria_axi4_ifc
+// Module: scoria_axi4_layer
 // Purpose: The scoria AXI4 host interface. Bolts the common AXI burst
 //          splitters onto the front of the dumb wr/rd intakes, and holds the
 //          wr-data CAM (write buffer + snarf source) and rd-cmd CAM (read
@@ -27,7 +27,7 @@
 
 `include "reset_defs.svh"
 
-module scoria_axi4_ifc #(
+module scoria_axi4_layer #(
     parameter int AXI_ID_WIDTH      = 8,
     parameter int AXI_ADDR_WIDTH    = 32,
     parameter int AXI_DATA_WIDTH    = 64,
@@ -619,4 +619,4 @@ module scoria_axi4_ifc #(
 
     assign busy_o = w_wri_busy || w_rdi_busy || w_wrc_busy || w_rdc_busy || w_rdr_busy;
 
-endmodule : scoria_axi4_ifc
+endmodule : scoria_axi4_layer

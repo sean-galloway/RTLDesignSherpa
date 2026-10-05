@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
 
-"""Macro testbench for `scoria_mem_cmd_scheduler` -- the first COMPOSED scoria.
+"""Macro testbench for `scoria_scheduler_layer` -- the first COMPOSED scoria.
 
 Every scoria test before this one was a FUB test, and a FUB test mocks its
 module's neighbours. A mocked neighbour cannot disagree with you: it answers

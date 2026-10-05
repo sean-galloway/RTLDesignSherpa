@@ -53,7 +53,7 @@ _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 
-from tbclasses.scoria_mem_cmd_scheduler_tb import (  # noqa: E402
+from tbclasses.scoria_scheduler_layer_tb import (  # noqa: E402
     ScoriaMemCmdSchedulerTB, OP_ACT, OP_RD, OP_WR, OP_PRE, OP_PREA, OP_REF,
     OP_MRS, OP_ZQCS, OP_ZQCL,
 )
@@ -64,7 +64,7 @@ _SPACING, _PROG, _META = dram_config()
 
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")
-async def cocotb_test_scoria_mem_cmd_scheduler(dut):
+async def cocotb_test_scoria_scheduler_layer(dut):
     tt = os.environ.get("TEST_TYPE", "init_sequence_in_jedec_order")
     tb = ScoriaMemCmdSchedulerTB(dut)
     await tb.setup_clocks_and_reset()
@@ -471,19 +471,19 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FUNC}.get(_TEST_LEVEL, _FUNC)
 
 
 @pytest.mark.parametrize("test_type", _PARAMS)
-def test_scoria_mem_cmd_scheduler(request, test_type):
+def test_scoria_scheduler_layer(request, test_type):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "scoria_mem_cmd_scheduler"
-    test_name = f"test_scoria_mem_cmd_scheduler_{test_type}"
+    dut_name = "scoria_scheduler_layer"
+    test_name = f"test_scoria_scheduler_layer_{test_type}"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
         filelist_path=("projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/"
-                       "rtl/filelists/macro/scoria_mem_cmd_scheduler.f"))
+                       "rtl/filelists/macro/scoria_scheduler_layer.f"))
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True); os.makedirs(log_dir, exist_ok=True)
     run(python_search=[tests_dir], verilog_sources=verilog_sources,
         includes=includes, toplevel=dut_name, module=module,
-        testcase="cocotb_test_scoria_mem_cmd_scheduler",
+        testcase="cocotb_test_scoria_scheduler_layer",
         sim_build=sim_build, simulator="verilator",
         # HIST_T_* take the required SPACING, not the programmed value: the
         # checker's rule is "at least T cycles apart", while the CSR ports take

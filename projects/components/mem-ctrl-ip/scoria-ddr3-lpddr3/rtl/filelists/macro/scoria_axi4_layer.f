@@ -1,4 +1,4 @@
-# Filelist for scoria_axi4_ifc
+# Filelist for scoria_axi4_layer
 +incdir+$REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/includes
 +incdir+$REPO_ROOT/rtl/amba/includes
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
@@ -22,4 +22,4 @@ $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/fub/scoria_wr_
 $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/fub/scoria_rd_cmd_cam.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/fub/scoria_rd_return_ring.sv
 # wrapper
-$REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/macro/scoria_axi4_ifc.sv
+$REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/macro/scoria_axi4_layer.sv

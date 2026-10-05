@@ -10,7 +10,7 @@ digraph scoria_blocks {
 
     subgraph cluster_fe {
         label="Front end -- INHERITED in full"; style="rounded"; color="#228B22";
-        axi [label="scoria_axi4_ifc\n1:1 read and write intakes, write-data CAM,\nread-reorder CAM, in-order commit,\nFSM-free split / aggregate", fillcolor="#d5ecd5"];
+        axi [label="scoria_axi4_layer\n1:1 read and write intakes, write-data CAM,\nread-reorder CAM, in-order commit,\nFSM-free split / aggregate", fillcolor="#d5ecd5"];
     }
 
     subgraph cluster_sched {

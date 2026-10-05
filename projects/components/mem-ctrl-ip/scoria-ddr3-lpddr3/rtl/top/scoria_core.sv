@@ -7,8 +7,8 @@
 // Module: scoria_core
 // Purpose: The rearchitected pumice DDR3/LPDDR3 controller core. Wires the
 //          three layers built bottom-up this cycle:
-//            1. scoria_axi4_ifc          (host AXI + wr/rd CAMs)
-//            2. scoria_mem_cmd_scheduler (bank timers + arbiter + refresh/init)
+//            1. scoria_axi4_layer          (host AXI + wr/rd CAMs)
+//            2. scoria_scheduler_layer (bank timers + arbiter + refresh/init)
 //            3. scoria_dfi_layer         (single async CDC + DFI datapath)
 //
 //          Host AXI + scheduler + CAMs run on aclk; the DFI phase-packer + PHY
@@ -32,7 +32,7 @@ module scoria_core
     parameter int AXI_ADDR_WIDTH = 32,
     parameter int NUM_RANKS      = 1,
     // One CS_n per rank. Its own parameter because the DFI v3.1 leveling
-    // handshake is per-CS rather than per-rank; see scoria_mem_cmd_scheduler.
+    // handshake is per-CS rather than per-rank; see scoria_scheduler_layer.
     parameter int NUM_CS         = NUM_RANKS,
     parameter int NUM_BANKS      = 8,
     parameter int ROW_WIDTH      = 14,
@@ -421,7 +421,7 @@ module scoria_core
     // ======================================================================
     // Layer 1: AXI interface + CAMs
     // ======================================================================
-    scoria_axi4_ifc #(
+    scoria_axi4_layer #(
         .AXI_ID_WIDTH  (IW),
         .AXI_ADDR_WIDTH(AW),
         .AXI_DATA_WIDTH(DW),
@@ -533,7 +533,7 @@ module scoria_core
     // ======================================================================
     // Layer 2: command scheduler
     // ======================================================================
-    scoria_mem_cmd_scheduler #(
+    scoria_scheduler_layer #(
         .NUM_RANKS     (NUM_RANKS),
         .NUM_CS        (NUM_CS),
         .NUM_BANKS     (NUM_BANKS),

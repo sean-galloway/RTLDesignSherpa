@@ -44,8 +44,8 @@ $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/fub/scoria_dfi
 $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/fub/scoria_dfi_wr_serializer.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/fub/scoria_dfi_rd_aligner.sv
 # macros
-$REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/macro/scoria_axi4_ifc.sv
-$REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/macro/scoria_mem_cmd_scheduler.sv
+$REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/macro/scoria_axi4_layer.sv
+$REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/macro/scoria_scheduler_layer.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/macro/scoria_dfi_layer.sv
 # top
 $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/top/scoria_core.sv

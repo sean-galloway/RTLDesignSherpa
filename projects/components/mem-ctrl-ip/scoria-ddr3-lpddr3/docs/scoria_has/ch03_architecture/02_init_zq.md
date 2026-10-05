@@ -104,7 +104,7 @@ shape as refresh, and refresh has its own controller for the same reason.
 - carries a CSR-selectable **placement policy** (`ZQ_CFG.placement`,
   TASK-001 Mode C, specified below).
 
-**The scheduler change is one input, not a rework.** `scoria_mem_cmd_scheduler`
+**The scheduler change is one input, not a rework.** `scoria_scheduler_layer`
 already arbitrates refresh demand against demand traffic; ZQ adds a second
 maintenance source with the same shape.
 

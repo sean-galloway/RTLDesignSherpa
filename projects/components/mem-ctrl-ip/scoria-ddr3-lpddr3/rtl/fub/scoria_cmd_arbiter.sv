@@ -334,7 +334,7 @@ module scoria_cmd_arbiter
     // closed fired anyway.
     //
     // MEASURED, not theorised. The first composed scheduler test
-    // (dv/tests/macro/test_scoria_mem_cmd_scheduler.py) died on 3 of 3 seeds
+    // (dv/tests/macro/test_scoria_scheduler_layer.py) died on 3 of 3 seeds
     // in ~30 s with the bound history checker reporting "GLOBAL tRRD violation
     // -- ACT only 1 cyc after another ACT (need 2)", and the testbench's
     // arbiter-side audit put the tight pair at the ARBITER's own output with

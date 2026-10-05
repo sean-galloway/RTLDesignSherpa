@@ -57,7 +57,7 @@ the description does not mention the flop. Copy the module.
 | `refresh_ctrl` | MODIFIED (v0.9) | the `REFpb` mechanism is inherited unchanged, but TASK-001 Modes A/B add elastic pull-in/postpone streaks and the TCR tREFI derate behind CSRs; JEDEC ±8 ceiling untouched | 3.4 |
 | `powerdown_ctrl` | INHERITED | mechanism unchanged: CKE + `SRE`/`SRX`. The DFI low-power channel is unused on this PHY family | below |
 | `dfi_signal_pack` | INHERITED | every signal it packs is identical in v2.1.1 and v3.1 for DDR3; v3.1's new channels are driven at the layer above | Ch 4.1 |
-| `scoria_mem_cmd_scheduler` | MODIFIED | must admit ZQ demand alongside refresh | 3.2 |
+| `scoria_scheduler_layer` | MODIFIED | must admit ZQ demand alongside refresh | 3.2 |
 | `scoria_csr` | MODIFIED | new timing registers and leveling telemetry; TASK-001 mode-select fields and `REF_STATS` telemetry | Ch 5 |
 
 : Table 3.1: Every change, with its cause

@@ -49,7 +49,7 @@ module scoria_dfi_cmd_path
     // ---- DFI-WIRE command-history scoreboard (sim only, off by default) ----
     // The scheduler has an identical checker on ITS output. That one cannot see
     // this defect class: it binds at `cmd_valid_o && cmd_ready_i` inside
-    // scoria_mem_cmd_scheduler, which is UPSTREAM of the CMD_DELAY shift
+    // scoria_scheduler_layer, which is UPSTREAM of the CMD_DELAY shift
     // register, the CDC FIFO and this module. Every TASK-007 defect lived
     // downstream of it -- with the scheduler checker armed it reported ZERO
     // tRTW violations while the board ILA showed FOUR per capture. It was

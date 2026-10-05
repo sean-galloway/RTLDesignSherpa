@@ -40,7 +40,7 @@ $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/fub/scoria_dfi
 $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/fub/scoria_dfi_cmd_path.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/fub/scoria_dfi_wr_serializer.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/fub/scoria_dfi_rd_aligner.sv
-$REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/macro/scoria_axi4_ifc.sv
+$REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/macro/scoria_axi4_layer.sv
 # pumice_mem_cmd_scheduler instantiates pumice_cmd_history_checker under
 # CMD_HISTORY_EN. It is a GATED submodule -- absent at CMD_HISTORY_EN=0 -- so
 # this filelist never carried it and the parameter could not be built from
@@ -50,7 +50,7 @@ $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/macro/scoria_a
 # assertion), which is the instrument for TASK-007. Compiled always; with
 # CMD_HISTORY_EN=0 it is simply not instantiated.
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/filelists/fub/scoria_cmd_history_checker.f
-$REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/macro/scoria_mem_cmd_scheduler.sv
+$REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/macro/scoria_scheduler_layer.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/macro/scoria_dfi_layer.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/top/scoria_core.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/regs/generated/rtl/scoria_csr_pkg.sv
