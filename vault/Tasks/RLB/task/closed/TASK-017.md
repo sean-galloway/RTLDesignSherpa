@@ -156,3 +156,25 @@ fails without it even though the logic under test needs no simulator.
 **Dependencies:** RLB TASK-015 (the fabric) -- CLOSED 2026-09-28.
 
 ---
+
+---
+
+## Addendum 2026-10-04: placement reversed — the BFM moved to RDS-DV
+
+The placement decision quoted above was revisited and reversed. The BFM is
+generally useful — not specific to this subsystem — so we rolled it into the
+CocoTBFramework package as `CocoTBFramework.components.irq` and shipped it in
+cocotb-framework **1.0.0** (RDS-DV release `v1.0.0`; PyPI live 2026-10-04).
+
+Consequences recorded so this file stops sending readers to a deleted path:
+
+- `bin/TBClasses/irq/` was removed from this repo (`3fcff894e`).
+- The only consumer, `rlb_top_tb.py`, imports from the package now
+  (`a144e8b1d`); RLB bringup re-verified against the released 1.0.0 wheel.
+- Documentation: `docs/components/irq/` in RDS-DV (five pages).
+- Unit tests moved to RDS-DV `tests/unit/test_irq_logic.py`.
+- Anything out-of-tree still importing `TBClasses.irq` needs 1.0.0 and the
+  new import path — tracked as tooling ISSUE-003.
+
+The original 2026-09-28 text above is preserved as the record of that day's
+decision; this addendum is the 2026-10-04 decision superseding it.
