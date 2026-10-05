@@ -84,13 +84,12 @@ module andesite_rdlvl_ifc
         ST_REPORT    = 3'd5
     } state_e;
 
-    // four-state telemetry per the family page: 00 never, 01 converged,
-    // 10 timed out, 11 no result in window
+    // three-state telemetry: 00 never, 01 converged, 10 timed out. The 2-bit
+    // space keeps 11 reserved -- no live condition ever drives it (review M-3).
     typedef enum logic [1:0] {
         TELEM_NEVER   = 2'b00,
         TELEM_CONVERGED = 2'b01,
-        TELEM_TIMEOUT = 2'b10,
-        TELEM_NORESULT = 2'b11
+        TELEM_TIMEOUT = 2'b10
     } telemetry_e;
 
     state_e               r_state;
@@ -173,8 +172,9 @@ module andesite_rdlvl_ifc
                 end
 
                 ST_HANDSHAKE: begin
-                    // drive ack + rdlvl for the selected CS until the PHY
-                    // grants (its req drops); bounded by the timeout CSR.
+                    // drive ack + rdlvl for the selected CS while the PHY's
+                    // active-low request is asserted; transition to CAPTURE on
+                    // req assertion, bounded by the timeout CSR.
                     if (!dfi_phylvl_req_cs_n_i[cs_sel_i]) begin
                         r_state       <= ST_CAPTURE;
                         r_cnt         <= t_mpr_readout_i;

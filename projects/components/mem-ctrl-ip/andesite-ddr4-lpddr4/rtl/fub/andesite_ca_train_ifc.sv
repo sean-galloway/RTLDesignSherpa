@@ -78,11 +78,12 @@ module andesite_ca_train_ifc
         ST_REPORT    = 3'd4
     } state_e;
 
+    // three-state telemetry: 00 never, 01 converged, 10 timed out. The 2-bit
+    // space keeps 11 reserved -- no live condition ever drives it (review M-3).
     typedef enum logic [1:0] {
         TELEM_NEVER    = 2'b00,
         TELEM_CONVERGED = 2'b01,
-        TELEM_TIMEOUT  = 2'b10,
-        TELEM_NORESULT = 2'b11
+        TELEM_TIMEOUT  = 2'b10
     } telemetry_e;
 
     typedef enum logic [1:0] {
@@ -174,9 +175,12 @@ module andesite_ca_train_ifc
                     end else begin
                         r_result[chan_sel_i] <= wdq_sample_i;
                     end
-                    r_exit  <= 1'b1;
-                    r_state <= ST_MPC_ENTER;   // second pass drives the exit
-                    r_cnt   <= 16'd0;
+                    r_exit        <= 1'b1;
+                    r_state       <= ST_MPC_ENTER;   // second pass drives the exit
+                    r_cnt         <= 16'd0;
+                    // M-4: the exit pass gets its own timeout budget instead
+                    // of inheriting the enter pass's accumulated count.
+                    r_timeout_cnt <= 16'd0;
                 end
 
                 ST_REPORT: begin
