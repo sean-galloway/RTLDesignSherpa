@@ -66,5 +66,7 @@ this index, and these are companions, not chapters.
 - [Fields and Polynomials](ch07_understanding_the_math/01_fields_and_polynomials.md)
 - [From Field to Code](ch07_understanding_the_math/02_the_code.md)
 - [Syndromes, the Key Equation, and Correction](ch07_understanding_the_math/03_decoding.md)
+- [The Parameters n, k, t, m](ch07_understanding_the_math/04_the_parameters_n_k_t_m.md)
+- [Every Stage: Math to Pseudocode](ch07_understanding_the_math/05_every_stage_math_to_pseudocode.md)
 
 ---
