@@ -112,8 +112,11 @@ hardware to use it.
 
 ## What training costs the surrounding blocks
 
-The training interfaces touch three other blocks, and the touches are
-bounded. The `init_sequencer` gains training-entry states after ZQ
+The training interfaces touch a handful of other blocks, and the touches are
+bounded. The new `andesite_training_layer` macro holds the three training
+FUBs, owns the DFI training pins and the one-active mux, and issues MRS/MPC
+commands on a dedicated maintenance training channel (`trn_cmd_*`) into the
+scheduler. The `init_sequencer` gains training-entry states after ZQ
 (firmware-triggered, not autonomous — init hands the bus to training
 explicitly). The `mode_register` carries the MR3 MPR fields and the LPDDR4
 training-related MRs. The `dfi_cmd_formatter`'s LPDDR4 CA submodule issues
