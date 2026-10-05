@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# Reed-Solomon on the Nexys A7-100T
+# Reed-Solomon on the Genesys 2
 
 The Reed-Solomon codec (`projects/components/ecc-ip/reed-solomon`) on the
 board, in a loop that validates both key-equation solvers against each other
