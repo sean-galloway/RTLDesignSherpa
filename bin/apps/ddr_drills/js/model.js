@@ -107,7 +107,7 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
   // The artificial-geometry disclaimer shown at the top of every drill and
   // the sandbox. The drills run on a tiny on-purpose geometry so bank state
   // is visible at a glance; the rules practiced are identical to real parts.
-  // Entity ranges are spelled out (G0, G1 / B0-B7 / R0-R7 / C0-C7) so the
+  // Entity ranges are spelled out (BG0, BG1 / B0-B7 / R0-R7 / C0-C7) so the
   // labels used in questions and the sandbox need no separate decoding.
   function idRange(prefix, n) {
     return n > 1 ? prefix + '0-' + prefix + (n - 1) : prefix + '0';
@@ -117,7 +117,7 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
     var parts = [];
     if (topo.hasBankGroups) {
       var gids = [];
-      for (var g = 0; g < topo.groups; g++) { gids.push('G' + g); }
+      for (var g = 0; g < topo.groups; g++) { gids.push('BG' + g); }
       parts.push(topo.groups + ' bank groups (' + gids.join(', ') + ')');
     }
     parts.push(topo.banks + ' banks (' + idRange('B', topo.banks) +

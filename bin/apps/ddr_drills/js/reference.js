@@ -78,7 +78,7 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
 
   // -- shared bank-group presentation ------------------------------------------
   // One bordered column per bank group with the group's banks stacked inside
-  // (G0's banks read as a unit, then G1's); flat topologies render as a plain
+  // (BG0's banks read as a unit, then BG1's); flat topologies render as a plain
   // row. makeCell(bank) returns the element for one bank, so each mode keeps
   // its own cell styling (scenario state chips, sandbox editors, the timing
   // drill's static reference). Consumers: bank-state drill, timing drill,
@@ -88,7 +88,7 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
     if (topo.hasBankGroups) {
       for (var g = 0; g < topo.groups; g++) {
         var col = el('div', 'bg-group');
-        col.appendChild(el('div', 'bg-group-h', 'G' + g));
+        col.appendChild(el('div', 'bg-group-h', 'BG' + g));
         for (var b = g * topo.banksPerGroup;
              b < (g + 1) * topo.banksPerGroup; b++) {
           col.appendChild(makeCell(b));

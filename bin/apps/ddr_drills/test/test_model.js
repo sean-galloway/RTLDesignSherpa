@@ -19,7 +19,7 @@ var SUITES = (typeof window !== 'undefined' ? window : globalThis).DDRD_TEST_SUI
       var bg = DDRD.assumptionsText({ hasBankGroups: true, groups: 2,
                                       banksPerGroup: 4, banks: 8,
                                       rows: 8, cols: 8, sids: 0 });
-      T.ok(bg.indexOf('2 bank groups (G0, G1)') !== -1,
+      T.ok(bg.indexOf('2 bank groups (BG0, BG1)') !== -1,
            'BG topo enumerates the group ids');
       T.ok(bg.indexOf('8 banks (B0-B7)') !== -1,
            'BG topo spells the bank range');
