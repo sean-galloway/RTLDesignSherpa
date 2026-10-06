@@ -6,7 +6,11 @@
 > ledger punch list).
 
 **Priority:** P2
-**Status:** open
+**Status:** closed 2026-10-05 — all seven items landed per the plan's Task 9
+close-out: every andesite suite green (fub 225, macro 19, core top 4 — 248
+tests), master Verilator lint and `bin/filelist_registry.py --check` PASS,
+HAS/MAS ch00 v0.5 revision rows committed (b95cd24ac), review verdict
+recorded in the integration ledger (`.superpowers/sdd/2026-10-04-andesite-macro-integration/progress.md`).
 **Owner:** seang
 
 Execute the P3-recorded follow-on work, native inline on main, per-task

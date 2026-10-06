@@ -5,7 +5,7 @@ summary: Task rollup for the ddr4-lpddr4 memory controller (projects/components/
 
 # andesite-ddr4-lpddr4 — task rollup
 
-**Next ID: TASK-011** — never recycle a number, even when its task closed.
+**Next ID: TASK-017** — never recycle a number, even when its task closed.
 
 **Every item is its own file**, `<ID>.md`, filed under the directory for its
 state (`open/`, `active/`, `closed/`, `dropped/`). Moving an item between states

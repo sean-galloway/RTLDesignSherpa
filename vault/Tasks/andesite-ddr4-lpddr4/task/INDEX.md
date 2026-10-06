@@ -12,22 +12,26 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 10 | done (kept for history) |
+| [closed/](closed/) | 11 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-016** — andesite macro integration + training/dfi/axi4 layer
-  births: P1 init/mode-register rewiring, parked-suite re-derivation,
-  `andesite_dfi_cmd_path`, `andesite_training_layer`, minors M-1..M-9,
-  `andesite_dfi_layer`, `andesite_axi4_layer`, `andesite_core` + top
-  suite. Plan: `docs/superpowers/plans/2026-10-04-andesite-macro-integration.md`.
+None — TASK-016 (macro integration + training/dfi/axi4 layer births) closed
+2026-10-05; the lane reopens when bring-up or a new study generates work.
 
 ## Closed
 
+- **TASK-016** — andesite macro integration + training/dfi/axi4 layer
+  births: closed 2026-10-05; scheduler macro P1 rewiring, parked-suite
+  re-derivation, `andesite_dfi_cmd_path` (+ command-word `bg` widening),
+  `andesite_training_layer`, minors M-1..M-9, `andesite_dfi_layer`,
+  `andesite_axi4_layer`, `andesite_core` + 4-test top suite. 248 tests
+  green; HAS/MAS ch00 v0.5 rows committed. Plan:
+  `docs/superpowers/plans/2026-10-04-andesite-macro-integration.md`.
 - **TASK-010** — BFM DFI 4.0 gap closure (G1-G5): closed 2026-10-04; landed
   in the RTLDesignSherpa-DV repo as commit 61a27d8fee3b (+30 tests, 1538
   unit passing); HAS ch06 gap table annotated with the commit and known

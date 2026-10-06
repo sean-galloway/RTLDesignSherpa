@@ -15,4 +15,7 @@
 - **MC-001** — macro names to the `*_layer` convention on every memory
   controller: pumice_axi4_ifc → pumice_axi4_layer, mem_cmd_scheduler →
   scheduler_layer on all three trees; *_dfi_layer already conforms; FUB
-  training `*_ifc` blocks stay.
+  training `*_ifc` blocks stay. Landed on andesite as the four
+  `andesite_*_layer` macros (scheduler/training/dfi/axi4) + `andesite_core`
+  top under TASK-016 (closed 2026-10-05), completing the convention on all
+  three trees.
