@@ -5,9 +5,9 @@ summary: Which areas reached v1.0 on 2026-10-06, and the rule that every later c
 
 # Release status and post-1.0 change tracking
 
-Eight areas reached **v1.0 on 2026-10-06**: every issue filed against them is
-closed, the filed-issues list for each is empty, and the area is considered
-feature-complete for its declared scope. The areas:
+The following areas reached **v1.0 on 2026-10-06**: every issue filed against
+them is closed, the filed-issues list for each is empty, and the area is
+considered feature-complete for its declared scope.
 
 | Area | Repo path |
 |---|---|
@@ -19,6 +19,24 @@ feature-complete for its declared scope. The areas:
 | APBx xbar | `projects/components/fabric-gen-ip/apbx-xbar` |
 | bridge | `projects/components/fabric-gen-ip/bridge` |
 | retro legacy blocks | `projects/components/retro_legacy_blocks` |
+| rtl/common | `rtl/common` |
+| rtl/cdc | `rtl/cdc` |
+| rtl/math | `rtl/math` |
+| amba apb4 | `rtl/amba/apb4` |
+| amba apb5 | `rtl/amba/apb5` |
+| amba axi4 | `rtl/amba/axi4` |
+| amba axi5 | `rtl/amba/axi5` |
+| amba axil4 | `rtl/amba/axil4` |
+| amba axil5 | `rtl/amba/axil5` |
+| amba axis4 | `rtl/amba/axis4` |
+| amba axis5 | `rtl/amba/axis5` |
+| amba gaxi | `rtl/amba/gaxi` |
+| amba monitor | `rtl/amba/monitor` |
+| amba shared | `rtl/amba/shared` |
+| amba wb4 | `rtl/amba/wb4` |
+
+The amba declaration is per sub-area: `rtl/amba/ace` is deliberately excluded
+and is not at v1.0.
 
 v1.0 is a statement about issue state and declared scope, not a promise that
 the code cannot improve. RS keeps known open items (for example the erasure

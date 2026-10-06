@@ -23,8 +23,11 @@ note — it belongs to that block and nowhere else.
 ## rtl/
 
 - [rtl/amba](rtl/amba/INDEX.md) — AXI4/AXI5, APB, AXIS, monitors, monbus
-- [rtl/common](rtl/common/INDEX.md) — counters, arbiters, FIFOs, CDC, data integrity
-- [rtl/math](rtl/math/INDEX.md) — adders, multipliers, dividers
+  - amba sub-areas at v1.0 (2026-10-06), each tracked with the post-1.0 issue rule: `apb4`, `apb5`, `axi4`, `axi5`, `axil4`, `axil5`, `axis4`, `axis5`, `gaxi`, `monitor`, `shared`, `wb4`
+  - `ace` is **not** at v1.0; it is deliberately excluded from this declaration
+- [rtl/common](rtl/common/INDEX.md) — counters, arbiters, FIFOs, CDC, data integrity; v1.0 (2026-10-06)
+- `rtl/cdc` — synchronizers, handshakes, async FIFO; v1.0 (2026-10-06); area exists in the repo, no context note written yet
+- [rtl/math](rtl/math/INDEX.md) — adders, multipliers, dividers; v1.0 (2026-10-06)
 
 ## projects/components/
 
