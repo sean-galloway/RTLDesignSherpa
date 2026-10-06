@@ -26,12 +26,14 @@ note — it belongs to that block and nowhere else.
   - amba sub-areas at v1.0 (2026-10-06), each tracked with the post-1.0 issue rule: `apb4`, `apb5`, `axi4`, `axi5`, `axil4`, `axil5`, `axis4`, `axis5`, `gaxi`, `monitor`, `shared`, `wb4`
   - `ace` is **not** at v1.0; it is deliberately excluded from this declaration
 - [rtl/common](rtl/common/INDEX.md) — counters, arbiters, FIFOs, CDC, data integrity; v1.0 (2026-10-06)
-- `rtl/cdc` — synchronizers, handshakes, async FIFO; v1.0 (2026-10-06); area exists in the repo, no context note written yet
+- [rtl/cdc](rtl/cdc/INDEX.md) — synchronizers, handshake closures, async FIFO, gray counters; v1.0 (2026-10-06)
 - [rtl/math](rtl/math/INDEX.md) — adders, multipliers, dividers; v1.0 (2026-10-06)
+- `rtl/make` — shared area-makefile plumbing (`area.mk`), not a subsystem; no note by design
 
 ## projects/components/
 
 - [apbx-xbar](projects/components/fabric-gen-ip/apbx-xbar/INDEX.md) — v1.0 (2026-10-06)
+- `cache-ip` — amber-mesi-l1, jet-mesi-l1, onyx-ace-ccu coherent-cache studies; area exists in the repo, no context note written yet
 - [bridge](projects/components/fabric-gen-ip/bridge/INDEX.md) — generated crossbar; v1.0 (2026-10-06)
 - [converters](projects/components/utility-ip/converters/INDEX.md)
 - [delta](projects/components/noc-ip/delta/INDEX.md)
@@ -50,8 +52,14 @@ note — it belongs to that block and nowhere else.
 
 - [bin](projects/fpga-systems/bin/INDEX.md) — the shared board + UART layer (uart_link, uart_axi_bridge, boards registry, sequence runner)
 - [boards](projects/fpga-systems/boards/INDEX.md) — board definitions (nexys_a7_100t)
+- `de25-nano/andesite` — andesite on the DE25-Nano board; area exists in the repo, no context note written yet
+- `docs` — fpga-systems MAS book (`FPGA_SYSTEMS_MAS_v1.0.pdf`); documentation area, no context note by design
+- `Genesys2/bch` — BCH board harness; v1.0 (2026-10-06); area exists in the repo, no context note written yet
+- `Genesys2/reed-solomon` — RS board harness; v1.0 (2026-10-06); area exists in the repo, no context note written yet
+- `Genesys2/rapids` — RAPIDS board harness; v1.0 (2026-10-06); area exists in the repo, no context note written yet
 - [Genesys2/rapids_beats](projects/fpga-systems/Genesys2/rapids_beats/INDEX.md) — RAPIDS board characterization; v1.0 (2026-10-06)
-- `Genesys2/stream` — area exists in the repo, no context note written yet
+- `Genesys2/scoria` — scoria board harness (LiteDRAM build); area exists in the repo, no context note written yet
+- `Genesys2/stream` — stream board harness; v1.0 (2026-10-06); area exists in the repo, no context note written yet
 - [NexysA7/cdc_counter_display](projects/fpga-systems/NexysA7/cdc_counter_display/INDEX.md) — CDC demo on Nexys A7
 - [NexysA7/pumice/ddr2-characterization](projects/fpga-systems/NexysA7/pumice/ddr2-characterization/INDEX.md) — DDR2 board characterization campaign
 
