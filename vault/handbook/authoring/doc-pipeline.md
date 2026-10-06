@@ -48,6 +48,21 @@ LoF, LoT and LoW are built from caption encoding in the Markdown, not from a
 command-line flag. A missing list means a miscaptioned figure, not a missing
 option - look at the source, not the invocation.
 
+The encoding that reaches the scan is a **Heading paragraph** matching
+`Figure N[.N]: title` - house form `### Figure 2.1: The datapath`. The scan
+only inspects Heading-styled paragraphs, and it drops everything else. The
+`: Table N.N: caption` line after a pipe table is different: that one pandoc
+turns into a "Table Caption" paragraph on its own, which is why tables work
+with the colon form and figures do not.
+
+*Case (2026-10-05): two board-validation books shipped with every figure
+caption written as `: Figure 2.1: ...` - which pandoc parses as a DEFINITION
+LIST ('Definition' style), not a caption at all. Every figure was present and
+captioned in the body; the LoF said "No figures in this document." because
+the scan found zero Heading captions. Both books were also on the LibreOffice
+build path, which is NOT the problem - the HAS LoF populates through that
+same path because its captions are `### Figure` headings.*
+
 ## Two document species, different rules
 
 - **HAS/MAS spec reports** - the formal architecture/microarchitecture specs.
@@ -230,6 +245,16 @@ content vanished. Note the measurement trap: `pdftotext` output puts TOC lines
 and body headings in the same shape, so a naive `^[0-9]+\.[0-9]+ Title` grep
 counts both and will not answer this question cleanly.
 
+Exception: a `### Figure N.N: ...` LoF caption directly above a fence is
+consumed like any other heading, but a consumed caption does NOT reach the
+LoF scan (it is no longer a Heading paragraph) - the figure keeps its title
+and loses its list entry. The "do not guard" norm above is about descriptive
+section headings; for Figure captions, keep one line of prose between the
+caption and a following fence. *Case (2026-10-05): the BCH board-validation
+book lost Figure 2.1 from its LoF exactly this way - caption immediately
+above the second datapath fence - while Figure 2.2, same page, survived
+because nothing followed it.*
+
 ## A regeneration script must be a no-op on unchanged sources
 
 ImageMagick stamps wall-clock time into a `tIME` chunk, so re-running a
@@ -265,3 +290,19 @@ one. Both books had been building without a title-page logo --
 `STREAM_HAS_v0.95.pdf` contains no 400x400 image where every sibling book has
 one. **Check that a book's configured logo resolves**; it is referenced from
 YAML, not markdown, so no markdown link checker will ever catch it.
+
+## --assets-dir satisfies the renderer, not the link gate
+
+An image reference must be a real relative path from the page -
+`![fig](../assets/fig.png)` or `![fig](../../../stable/results/<run>/fig.png)`
+- not a bare filename resolved later by `--assets-dir`. The assets dirs exist
+so the RENDERER finds files outside the tree walk; they do nothing for
+`bin/check_broken_links.py`, which resolves `![...](target)` against the page
+and ratchets any target that does not exist on disk. A bare
+`![fig](fig_1.png)` builds a fine PDF and then blocks every commit with
+"file(s) grew a broken link", one retry loop per push attempt.
+
+*Case (2026-10-05): both board-validation books referenced their findings
+figures as bare filenames leaning on --assets-dir; the pre-commit gate
+refused 32 attempts across two sessions before the refs were repointed at the
+real relative paths. The PDF looked perfect the whole time.*
