@@ -667,10 +667,12 @@ main {
 }
 .sand-bankcell {
   display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.45rem;
   font-family: var(--mono);
   font-size: 0.82rem;
+  white-space: nowrap;
 }
 .sand-bankname { color: var(--ink-dim); }
 .sand-banksel, .sand-sel {
