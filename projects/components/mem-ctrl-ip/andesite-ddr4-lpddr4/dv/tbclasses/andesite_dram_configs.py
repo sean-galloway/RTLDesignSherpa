@@ -74,6 +74,41 @@ GENESYS2_DDR3_800 = {
     'tREFI_ns': 7812.5,               # 64 ms / 8192
 }
 
+# ---------------------------------------------------------------------------
+# The andesite top suite design point (DDR4, DFI 4.0, DFI_RATE 2).
+#
+#   DDR4-1600J speed bin, 8 banks, row 14 / col 10
+#   sys (MC) clock 200 MHz -> 5.0 ns per MC cycle
+#   DRAM clock     800 MHz -> 1.25 ns per CK, DFI_RATE = 2
+#
+# Values in nanoseconds from JESD79-4A (DDR4-1600J).  tREFI is the standard
+# 7.8 us ceiling; tRFC is the 2 Gb figure.
+# ---------------------------------------------------------------------------
+ANDESITE_DDR4_1600 = {
+    'name':    'andesite_ddr4_1600',
+    'mc_ns':   5.0,       # 200 MHz sys
+    'ck_ns':   1.25,      # 800 MHz DRAM clock
+    'dfi_rate': 2,
+    'dram_bl': 8,         # BL8
+    'num_banks': 8,
+    'row_width': 14,
+    'col_width': 10,
+    'ns': {
+        'tRCD': 13.75,
+        'tRP':  13.75,
+        'tWR':  15.0,
+        'tRAS': 35.0,
+        'tRC':  48.75,
+        'tRFC': 260.0,
+        'tFAW': 30.0,
+        'tRRD': 4.9,       # tRRD_S (4 nCK)
+        'tWTR': 2.5,       # tWTR_S (2 nCK)
+        'tRTP': 7.5,
+        'tCCD': 2.5,       # tCCD_S (4 nCK)
+    },
+    'tREFI_ns': 7800.0,   # 64 ms / 8192
+}
+
 
 def _spacing(ns, mc_ns):
     """Datasheet ns -> MC cycles of required command spacing (at least 1)."""
@@ -87,13 +122,15 @@ def dram_config(point=None):
     write to the CSR (spacing - 1, the N+1 convention); `meta` carries the
     clock, geometry and the point's name so a result can say what it measured.
     """
-    cfg = GENESYS2_DDR3_800 if point in (None, 'genesys2_ddr3_800') else None
+    cfg = {
+        None: ANDESITE_DDR4_1600,
+        'andesite_ddr4_1600': ANDESITE_DDR4_1600,
+        'genesys2_ddr3_800': GENESYS2_DDR3_800,
+    }.get(point)
     if cfg is None:
         raise ValueError(
-            f"unknown operating point {point!r}; andesite has exactly one today "
-            f"({GENESYS2_DDR3_800['name']}, HAS Chapter 2.4). Add it here with "
-            f"its datasheet nanoseconds rather than typing cycle counts into a "
-            f"test.")
+            f"unknown operating point {point!r}; andesite knows "
+            f"{ANDESITE_DDR4_1600['name']} and {GENESYS2_DDR3_800['name']}")
 
     mc = cfg['mc_ns']
     spacing = {k: _spacing(v, mc) for k, v in cfg['ns'].items()}

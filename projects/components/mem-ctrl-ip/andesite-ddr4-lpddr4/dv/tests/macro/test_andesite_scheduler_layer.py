@@ -409,15 +409,17 @@ async def cocotb_test_andesite_scheduler_layer(dut):
             before = len(tb.ops_of(OP_REF))
             dut.ref_tcr_en_i.value = 1
             dut.ref_trefi_derate_i.value = derate
-            dut.t_refi_i.value = 40
+            # Pick a tREFI well above tRFC so the rate limit is the interval,
+            # not the recovery window -- otherwise both derates saturate at the
+            # same tRFC-limited throughput and the doubling is invisible.
+            dut.t_refi_i.value = 100
             dut.refi_reload_i.value = 1
             await RisingEdge(dut.aclk)
             dut.refi_reload_i.value = 0
-            # Light traffic to keep demand present but not block REFs.
-            for c in range(2000):
+            # No traffic: REFab needs all banks idle, and the point is the
+            # tREFI interval, not contention with demand.
+            for _ in range(3000):
                 await RisingEdge(dut.aclk)
-                if tb.rd_entry is None and (c % 8) == 0:
-                    tb.rd_entry = dict(slot=0, bank=2, row=0x200, col=0)
             return len(tb.ops_of(OP_REF)) - before
 
         refs_0 = await count_refs(0)
