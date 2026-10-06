@@ -33,16 +33,20 @@ the second research artifact.
 
 ## Status
 
-**Scaffolded 2026-10-04** — README + PRD only. `rtl/`, `dv/`, `docs/` are
-placeholders; no RTL, no testbench, no register model. Decisions are OPEN in
-[PRD.md](PRD.md) until they record a name and a date; so far **D8 observation
-(`*_monlite`) is decided (2026-10-04), D4 snoop transport is ACE-shaped
-AC/CD/CR per the onyx D7 contract (2026-10-05), and D2 CPU-side interface is
-a GAXI slave (2026-10-06)**. An architecture sketch for the open decisions —
-the [Pre-HAS](docs/amber_has/amber_prehas.md) — landed 2026-10-06 and took
-owner direction the same day (pending-fill bypass for probe-during-fill; the
-two rigs as two tops, `amber` and `amber_ace`, on a shared core); it records
-proposed working defaults only, no decisions.
+**Scaffolded 2026-10-04; architecture decided 2026-10-06.** The [PRD](PRD.md)
+(v0.5) carries nine of eleven decision rows closed with name and date — D1
+geometry (32 KiB/64 B/4-way center + a tiny formal config), D2 GAXI CPU-side,
+D4 ACE snoop transport, D5 write-back + write-allocate, D6 plain MESI on a
+3-bit state field, D7 replacement {LRU, tree-PLRU, FIFO, RANDOM} default LRU,
+D8 `*_monlite` observation, D9 verification (control-layer SymbiYosys +
+cache_sim parity + FSM oracles derived from the gem5 Ruby MESI_Two_Level
+SLICC tables), D10 first consumer (TB masters bring-up, pair rig the gated
+deliverable); D3 and D11 remain OPEN. The full **[Hardware Architecture
+Specification](docs/amber_has/amber_has_index.md)** (chapter book, v1.0)
+ratifies the [Pre-HAS](docs/amber_has/amber_prehas.md) sketch — two tops,
+`amber` (pair rig) and `amber_ace` (onyx rig), on a shared `amber_core`.
+`rtl/`, `dv/` are still placeholders; no RTL, no testbench, no register
+model.
 
 ## What it teaches / why it exists
 

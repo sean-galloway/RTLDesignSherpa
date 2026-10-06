@@ -1,0 +1,47 @@
+flowchart TB
+    subgraph amber_top["amber — pair-rig top"]
+        axi4m_rd["axi4_master_rd"]
+        axi4m_wr["axi4_master_wr"]
+    end
+
+    subgraph amber_ace_top["amber_ace — onyx-rig top"]
+        acem_rd["axi4ace_master_rd"]
+        acem_wr["axi4ace_master_wr"]
+        ace_issue["amber_ace_issue"]
+    end
+
+    subgraph core["amber_core — shared rig-agnostic core"]
+        frontend["amber_cpu_frontend<br/>GAXI slave"]
+        ctrl["amber_control<br/>blocking FSM + bypass"]
+        tag["amber_tag_array<br/>sdpram_core port A/B"]
+        data["amber_data_array<br/>sdpram_core port A/B"]
+        repl["amber_repl"]
+        victim["amber_victim<br/>depth 1"]
+        fill["amber_fill"]
+        drain["amber_drain"]
+        snoop["amber_snoop_resp<br/>AC/CR/CD adapter"]
+        mon["amber_monlite"]
+    end
+
+    cpu["CPU / STREAM GAXI master"] --> frontend
+    frontend --> ctrl
+    ctrl --> tag
+    ctrl --> data
+    ctrl --> repl
+    ctrl --> victim
+    ctrl --> fill
+    ctrl --> drain
+    fill --> data
+    drain --> data
+    snoop --> tag
+    snoop --> data
+
+    snoop <-->|"AC / CR / CD"| peer["peer amber cache<br/>or onyx CCU"]
+    axi4m_rd <-->|"AR / R"| mem["memory"]
+    axi4m_wr <-->|"AW / W / B"| mem
+    acem_rd <-->|"AR / R"| onyx["onyx CCU"]
+    acem_wr <-->|"AW / W / B"| onyx
+    ace_issue --> acem_rd
+    ace_issue --> acem_wr
+    mon -->|"128-bit MonBus"| tally["monbus_tally_axil"]
+    ctrl --> mon

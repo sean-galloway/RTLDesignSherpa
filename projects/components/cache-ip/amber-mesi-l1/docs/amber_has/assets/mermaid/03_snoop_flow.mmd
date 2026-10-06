@@ -1,0 +1,26 @@
+sequenceDiagram
+    participant PEER as peer cache / onyx
+    participant ADAPTER as amber_snoop_resp
+    participant CTRL as amber_control
+    participant TAG as amber_tag_array
+    participant BYPASS as pending-fill bypass reg
+    participant DATA as amber_data_array
+
+    PEER->>ADAPTER: ACVALID / ACADDR / ACSNOOP
+    ADAPTER->>CTRL: snoop address + type
+    CTRL->>TAG: tag lookup (port B)
+    alt address matches pending fill
+        CTRL->>BYPASS: read post-fill state
+        BYPASS-->>CTRL: state + data-availability
+    else tag hit
+        TAG-->>CTRL: line state
+        CTRL->>DATA: read line data (port B)
+    else tag miss
+        TAG-->>CTRL: invalid
+    end
+    CTRL-->>ADAPTER: CRRESP
+    ADAPTER->>PEER: CRVALID / CRRESP
+    alt CRRESP requires data transfer
+        CTRL-->>ADAPTER: CD beats
+        ADAPTER->>PEER: CDVALID / CDLAST
+    end

@@ -1,0 +1,29 @@
+sequenceDiagram
+    participant CPU as CPU / STREAM
+    participant FE as amber_cpu_frontend
+    participant CTRL as amber_control
+    participant TAG as amber_tag_array
+    participant REPL as amber_repl
+    participant VICTIM as amber_victim
+    participant DRAIN as amber_drain
+    participant FILL as amber_fill
+    participant FABRIC as fabric read master
+    participant DATA as amber_data_array
+
+    CPU->>FE: read / write request
+    FE->>CTRL: accepted request
+    CTRL->>TAG: tag lookup (port A)
+    TAG-->>CTRL: miss
+    CTRL->>REPL: select victim way
+    alt victim line is dirty
+        CTRL->>VICTIM: stage victim line
+        CTRL->>DRAIN: launch AW/W burst
+        DRAIN->>FABRIC: WriteBack / AW
+    end
+    CTRL->>FILL: launch fill
+    FILL->>FABRIC: AR burst
+    FABRIC-->>FILL: R beats
+    FILL->>DATA: write line (port A)
+    CTRL->>TAG: install tag + MESI state
+    CTRL->>FE: replay original request
+    FE->>CPU: response
