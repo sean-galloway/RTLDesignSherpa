@@ -108,9 +108,10 @@ class AmberSnoopKmapTB(TBBase):
 
     async def _check_cell(self, state, snoop):
         exp_crresp, exp_next = self.model(state, snoop)
-        exp_crresp_int = 0
-        for bit in exp_crresp:
-            exp_crresp_int = (exp_crresp_int << 1) | bit
+        # IHI0022 wire order: WU[4] IS[3] PD[2] Err[1] DT[0]; the model
+        # tuple is logical (DT, Err, PD, IS, WU) and is packed here.
+        dt, err, pd, is_, wu = exp_crresp
+        exp_crresp_int = (wu << 4) | (is_ << 3) | (pd << 2) | (err << 1) | dt
         self.dut.line_state.value = state
         self.dut.snoop_type.value = snoop
         await Timer(1, units='ns')

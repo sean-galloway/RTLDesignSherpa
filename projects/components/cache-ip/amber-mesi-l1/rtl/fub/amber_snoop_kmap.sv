@@ -61,7 +61,8 @@ module amber_snoop_kmap
 (
     input  logic [2:0]                    line_state,   // cache_state_t value
     input  logic [2:0]                    snoop_type,   // amber_snoop_t value
-    output logic [AMBER_CRRESP_WIDTH-1:0] crresp,       // {DT, Err, PD, IS, WU}
+    output logic [AMBER_CRRESP_WIDTH-1:0] crresp,       // IHI0022 order:
+                                                        // {WU[4],IS[3],PD[2],Err[1],DT[0]}
     output logic [2:0]                    next_state    // cache_state_t value
 );
 

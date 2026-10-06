@@ -25,7 +25,12 @@
 
 **Module:** `amber_snoop_resp.sv`
 **Location:** `projects/components/cache-ip/amber-mesi-l1/rtl/fub/`
-**Status:** Pre-RTL micro-architecture contract
+**Status:** RTL landed 2026-10-06; this chapter is the contract the RTL
+implements. Wraps the house `axi4ace_snoop_slave` transport (which exists in
+`rtl/amba/ace` — confirmed). DV: `dv/tests/fub/test_amber_snoop_resp.py`,
+green at gate/func/full on both geometries; the FULL level is a 3000-snoop
+randomized soak over an evolving line-state model with per-transaction ACE
+compliance checks, not a token rerun.
 
 ---
 

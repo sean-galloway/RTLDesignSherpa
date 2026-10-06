@@ -99,16 +99,18 @@ package amber_pkg;
     } amber_write_policy_t;
 
     // ------------------------------------------------------------------
-    // CRRESP (IHI0022): {DataTransfer, Error, PassDirty, IsShared,
-    // WasUnique}. Error is always 0 in the Table 3.0 matrix -- amber has
-    // no snoop-responder error path in v1.0.
+    // CRRESP (IHI0022): bit 0 = DataTransfer, 1 = Error, 2 = PassDirty,
+    // 3 = IsShared, 4 = WasUnique. (The kmap TB carries the same order;
+    // the framework CRRESPBit enum in cocotb-framework 1.2.0 is the
+    // authority this was cross-checked against.) Error is always 0 in the
+    // Table 3.0 matrix -- amber has no snoop-responder error path in v1.0.
     // ------------------------------------------------------------------
     localparam int AMBER_CRRESP_WIDTH = 5;
-    localparam int AMBER_CRRESP_DT    = 4;
-    localparam int AMBER_CRRESP_ERR   = 3;
+    localparam int AMBER_CRRESP_DT    = 0;
+    localparam int AMBER_CRRESP_ERR   = 1;
     localparam int AMBER_CRRESP_PD    = 2;
-    localparam int AMBER_CRRESP_IS    = 1;
-    localparam int AMBER_CRRESP_WU    = 0;
+    localparam int AMBER_CRRESP_IS    = 3;
+    localparam int AMBER_CRRESP_WU    = 4;
 
     // HAS Table 3.0: CRRESP as a function of the probed line's current
     // state and the snoop type. This is the amber MESI interpretation of
@@ -165,7 +167,9 @@ package amber_pkg;
             end
             default: ;  // Invalid and reserved states: miss, no data
         endcase
-        return {dt, 1'b0, pd, is, wu};
+        // IHI0022 bit order: {WasUnique[4], IsShared[3], PassDirty[2],
+        // Error[1], DataTransfer[0]}.
+        return {wu, is, pd, 1'b0, dt};
     endfunction
 
     // HAS Table 3.0: next state of the probed line. Same authority and
