@@ -707,6 +707,19 @@ main {
   gap: 0.45rem;
   flex-wrap: wrap;
 }
+/* Two AXI entry columns: Reads (AR channel) / Writes (AW channel). Each
+   column keeps its own flow-control/id/address builder; the merged stream
+   below is what the scheduler sees. */
+.sand-cols {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.sand-col { flex: 1 1 320px; min-width: 0; }
+.sand-colhead { font-weight: 700; margin: 0.35rem 0 0.35rem; }
+.sand-clearrow { margin: 0.35rem 0 0.5rem; }
+.sand-sel:disabled { opacity: 0.45; }
 .sand-add, .sand-clear {
   padding: 0.35rem 0.8rem;
   border: 1px solid var(--accent);

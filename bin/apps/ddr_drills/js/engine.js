@@ -298,14 +298,73 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
 
   // Runs whichever policy a scenario declares. Shared by scenario building
   // and the wrong_policy mutator.
+  //
+  // Flow-control markers split the stream into segments, each scheduled
+  // independently with the bank state threaded through: FR-FCFS promotion
+  // and ACT pipelining cannot cross a marker, so a fence genuinely drains
+  // ("everything before fully scheduled before anything after") and an idle
+  // pins a bubble at its position. An idle marker additionally emits a
+  // '(IDLE bubble)' annotation between the segments; a fence is silent.
+  // The stream's implied final fence is just its end. A stream without
+  // markers is a single segment -- byte-identical to calling the leaf
+  // policy directly, which is what keeps the authored drills unchanged.
   function schedule_with_policy(policy, reqs, bankState, topo, opts) {
-    if (policy === 'close') {
-      return schedule_close_page(reqs, bankState, topo);
+    var segments = [];
+    var markerAfter = [];
+    var current = [];
+    reqs.forEach(function (r) {
+      if (DDRD.is_marker(r)) {
+        segments.push(current);
+        markerAfter.push(r);
+        current = [];
+      } else {
+        current.push(r);
+      }
+    });
+    segments.push(current);
+    markerAfter.push(null);
+
+    var allCmds = [];
+    var allReasons = [];
+    var reordered = [];
+    var state = DDRD.clone_bank_state(bankState);
+    var sawFrfcfs = (policy === 'frfcfs');
+
+    segments.forEach(function (seg, i) {
+      if (seg.length > 0) {
+        var result;
+        if (policy === 'close') {
+          result = schedule_close_page(seg, state, topo);
+        } else if (policy === 'frfcfs') {
+          result = schedule_fr_fcfs(seg, state, topo, opts);
+          reordered = reordered.concat(result.reordered);
+        } else {
+          result = schedule_open_page(seg, state, topo, opts);
+        }
+        allCmds = allCmds.concat(result.cmds);
+        allReasons = allReasons.concat(result.reasons);
+        state = result.bankState;
+      }
+      var marker = markerAfter[i];
+      if (marker) {
+        if (sawFrfcfs) {
+          reordered.push(marker);
+        }
+        if (marker.fc === 'idle') {
+          allCmds.push(DDRD.make_annotation('(IDLE bubble)',
+                                            'command bubble (IDLE)'));
+          allReasons.push('IDLE -- command bubble');
+        }
+      }
+    });
+
+    var out = { cmds: allCmds, reasons: allReasons, bankState: state };
+    if (sawFrfcfs) {
+      // Markers ride at their stream positions so the served-order display
+      // shows that nothing crossed them.
+      out.reordered = reordered;
     }
-    if (policy === 'frfcfs') {
-      return schedule_fr_fcfs(reqs, bankState, topo, opts);
-    }
-    return schedule_open_page(reqs, bankState, topo, opts);
+    return out;
   }
 
   DDRD.schedule_open_page = schedule_open_page;

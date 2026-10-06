@@ -10,6 +10,9 @@
 // their relative service order (see schedule_fr_fcfs); different IDs are
 // free to reorder. Requests without an id impose no ordering constraint.
 // The sandbox tags every request with an id; the authored drills omit it.
+// A request stream may also carry flow-control markers (see make_idle /
+// make_fence); schedule_with_policy consumes them, the leaf schedulers
+// never see them.
 //   {annotation: true, text: '(tWTR bubble)', detail: 'WR->RD turnaround'}
 //
 // Annotation commands are first-class Cmd objects. They mark bus-direction
@@ -53,6 +56,37 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
 
   function make_annotation(text, detail) {
     return { annotation: true, text: text, detail: detail };
+  }
+
+  // -- Flow-control markers ---------------------------------------------------
+  // A marker is a stream entry that is NOT a request: {fc: 'idle'|'fence'}.
+  //   idle  -- one command bubble at this stream position
+  //   fence -- drain point: nothing after the marker may be scheduled before
+  //            everything before it
+  // Both bound reordering (FR-FCFS promotion and ACT pipelining cannot cross
+  // either one); schedule_with_policy splits the stream into segments at the
+  // markers. The stream carries an implied fence at its very end. Markers are
+  // sandbox-only today: no drill generator produces them.
+  function make_idle() {
+    return { fc: 'idle' };
+  }
+
+  function make_fence() {
+    return { fc: 'fence' };
+  }
+
+  function is_marker(x) {
+    return typeof x === 'object' && x !== null && x.fc !== undefined;
+  }
+
+  function format_marker(m) {
+    return m.fc === 'idle' ? 'IDLE' : 'FENCE';
+  }
+
+  // One display format for any stream entry (request or marker); the
+  // sandbox's merged list and FR-FCFS served-order line both use this.
+  function format_stream_item(x) {
+    return is_marker(x) ? format_marker(x) : format_req(x);
   }
 
   function is_col_cmd(cmd) {
@@ -192,6 +226,11 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
   DDRD.make_req = make_req;
   DDRD.make_cmd = make_cmd;
   DDRD.make_annotation = make_annotation;
+  DDRD.make_idle = make_idle;
+  DDRD.make_fence = make_fence;
+  DDRD.is_marker = is_marker;
+  DDRD.format_marker = format_marker;
+  DDRD.format_stream_item = format_stream_item;
   DDRD.is_col_cmd = is_col_cmd;
   DDRD.is_real_cmd = is_real_cmd;
   DDRD.cmd_op = cmd_op;

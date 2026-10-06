@@ -78,6 +78,25 @@ var SUITES = (typeof window !== 'undefined' ? window : globalThis).DDRD_TEST_SUI
            'PRE id1 B1', 'format_cmd PRE carries the id');
       T.eq(DDRD.format_cmd(DDRD.make_cmd('RD', 1, null, 5)),
            'RD B1 C5', 'format_cmd without id is unchanged');
+
+      // -- flow-control markers ------------------------------------------------
+      var idle = DDRD.make_idle();
+      var fence = DDRD.make_fence();
+      T.ok(idle.fc === 'idle' && fence.fc === 'fence',
+           'make_idle/make_fence set the fc tag');
+      T.ok(DDRD.is_marker(idle) && DDRD.is_marker(fence),
+           'is_marker recognizes both markers');
+      T.ok(!DDRD.is_marker(DDRD.make_req('RD', 0, 0, 0)) &&
+           !DDRD.is_marker(DDRD.make_cmd('ACT', 0, 0)) &&
+           !DDRD.is_marker(null) && !DDRD.is_marker('idle'),
+           'is_marker rejects reqs, cmds, null, strings');
+      T.eq(DDRD.format_marker(idle), 'IDLE', 'format_marker idle');
+      T.eq(DDRD.format_marker(fence), 'FENCE', 'format_marker fence');
+      T.eq(DDRD.format_stream_item(idle), 'IDLE',
+           'format_stream_item passes markers through');
+      T.eq(DDRD.format_stream_item(DDRD.make_req('RD', 1, 2, 3, null, 2)),
+           'RD id2 B1 R2 C3',
+           'format_stream_item formats requests via format_req');
     }
   });
 })();

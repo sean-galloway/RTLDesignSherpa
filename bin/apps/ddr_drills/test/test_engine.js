@@ -396,6 +396,109 @@ var SUITES = (typeof window !== 'undefined' ? window : globalThis).DDRD_TEST_SUI
              label + ': close-page carries the id through ACT/RDA');
       });
 
+      // -- schedule_with_policy flow-control markers ------------------------
+      // Segmentation is stream structure, not topology logic, but the
+      // goldens run on both topologies to match this file's idiom.
+      bothTopos().forEach(function (pair) {
+        var label = pair[0];
+        var topo = pair[1];
+        var idle = DDRD.make_idle();
+        var fence = DDRD.make_fence();
+
+        // No markers -> a single segment, byte-identical to the leaf call.
+        var plainReqs = [req('RD', 0, 1, 4), req('RD', 1, 2, 0)];
+        var plainState = DDRD.make_bank_state(topo);
+        var viaPolicy = DDRD.schedule_with_policy(
+          'open', plainReqs, plainState, topo, null);
+        var direct = DDRD.schedule_open_page(plainReqs, plainState, topo, null);
+        t.eq(fmt(viaPolicy.cmds), fmt(direct.cmds),
+             label + ': marker-less stream matches the leaf policy exactly');
+        t.deepEq(viaPolicy.reasons, direct.reasons,
+                 label + ': marker-less reasons match too');
+
+        // IDLE pins a visible bubble at its stream position.
+        var bubbled = DDRD.schedule_with_policy(
+          'open', [req('RD', 0, 1, 4), idle, req('RD', 1, 2, 0)],
+          DDRD.make_bank_state(topo), topo, null);
+        t.eq(fmt(bubbled.cmds),
+             'ACT B0 R1\nRD B0 C4\n--- (IDLE bubble) ---\n' +
+             'ACT B1 R2\nRD B1 C0',
+             label + ': idle emits a bubble between the segments');
+        t.deepEq(bubbled.reasons,
+                 ['ACT B0 R1 -- bank idle', 'RD B0 C4 -- after ACT',
+                  'IDLE -- command bubble',
+                  'ACT B1 R2 -- bank idle', 'RD B1 C0 -- after ACT'],
+                 label + ': idle reason aligned in the reasons array');
+
+        // FENCE is silent but the bank state threads across it: the second
+        // request hits the row the first segment opened.
+        var fenced = DDRD.schedule_with_policy(
+          'open', [req('RD', 0, 1, 4), fence, req('RD', 0, 1, 7)],
+          DDRD.make_bank_state(topo), topo, null);
+        t.eq(fmt(fenced.cmds), 'ACT B0 R1\nRD B0 C4\nRD B0 C7',
+             label + ': fence is silent; state threads across the boundary');
+        t.deepEq(fenced.reasons,
+                 ['ACT B0 R1 -- bank idle', 'RD B0 C4 -- after ACT',
+                  'RD B0 C7 -- page hit'],
+                 label + ': post-fence request page-hits the opened row');
+
+        // ACT pipelining cannot cross a marker; without the marker the same
+        // requests pipeline (the control proves the boundary caused it).
+        var piped = DDRD.schedule_with_policy(
+          'open', [req('RD', 0, 1, 0), idle, req('RD', 1, 1, 1)],
+          DDRD.make_bank_state(topo), topo, null);
+        t.eq(fmt(piped.cmds),
+             'ACT B0 R1\nRD B0 C0\n--- (IDLE bubble) ---\n' +
+             'ACT B1 R1\nRD B1 C1',
+             label + ': idle bounds ACT pipelining');
+        var pipedCtrl = DDRD.schedule_with_policy(
+          'open', [req('RD', 0, 1, 0), req('RD', 1, 1, 1)],
+          DDRD.make_bank_state(topo), topo, null);
+        t.eq(fmt(pipedCtrl.cmds),
+             'ACT B0 R1\nACT B1 R1\nRD B0 C0\nRD B1 C1',
+             label + ': control without idle pipelines both ACTs');
+
+        // FR-FCFS: a fence blocks the cross-boundary hit jump, and the
+        // served-order display keeps the marker at its position.
+        var frState = DDRD.make_bank_state(topo);
+        frState[1].openRow = 2;
+        var frMiss = req('RD', 0, 1, 4);
+        var frHit = req('RD', 1, 2, 0);
+        var frFenced = DDRD.schedule_with_policy(
+          'frfcfs', [frMiss, fence, frHit], frState, topo, null);
+        t.deepEq(frFenced.reordered.map(DDRD.format_stream_item),
+                 ['RD B0 R1 C4', 'FENCE', 'RD B1 R2 C0'],
+                 label + ': fenced frfcfs serves in arrival order');
+        var frFree = DDRD.schedule_with_policy(
+          'frfcfs', [frMiss, frHit], frState, topo, null);
+        t.deepEq(frFree.reordered.map(DDRD.format_stream_item),
+                 ['RD B1 R2 C0', 'RD B0 R1 C4'],
+                 label + ': unfenced control: the hit jumps the miss');
+
+        // Empty leading segment: a leading fence is a silent no-op, a
+        // leading idle still emits its bubble first.
+        var leadFence = DDRD.schedule_with_policy(
+          'open', [fence, req('WR', 2, 3, 1)],
+          DDRD.make_bank_state(topo), topo, null);
+        t.eq(fmt(leadFence.cmds), 'ACT B2 R3\nWR B2 C1',
+             label + ': leading fence emits nothing');
+        var leadIdle = DDRD.schedule_with_policy(
+          'open', [idle, req('WR', 2, 3, 1)],
+          DDRD.make_bank_state(topo), topo, null);
+        t.eq(fmt(leadIdle.cmds),
+             '--- (IDLE bubble) ---\nACT B2 R3\nWR B2 C1',
+             label + ': leading idle bubbles first');
+
+        // Markers work under close-page too.
+        var closedIdle = DDRD.schedule_with_policy(
+          'close', [req('RD', 0, 1, 4), idle, req('RD', 1, 2, 0)],
+          DDRD.make_bank_state(topo), topo, null);
+        t.eq(fmt(closedIdle.cmds),
+             'ACT B0 R1\nRDA B0 C4\n--- (IDLE bubble) ---\n' +
+             'ACT B1 R2\nRDA B1 C0',
+             label + ': idle bubbles between close-page segments');
+      });
+
       // -- cross-cutting ----------------------------------------------------
       bothTopos().forEach(function (pair) {
         var label = pair[0];
