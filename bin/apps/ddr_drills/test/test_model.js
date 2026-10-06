@@ -57,6 +57,27 @@ var SUITES = (typeof window !== 'undefined' ? window : globalThis).DDRD_TEST_SUI
              t.indexOf(String(pack.topology.cols) + ' columns') !== -1,
              id + ' disclaimer names its geometry');
       });
+
+      // -- AXI-style id field ------------------------------------------------
+      // The id renders between the op and any sid, and only when present,
+      // so id-less drill text (and its dedup keys) are unchanged.
+      T.eq(DDRD.format_req(DDRD.make_req('RD', 1, 2, 3)), 'RD B1 R2 C3',
+           'format_req without id is unchanged');
+      T.eq(DDRD.format_req(DDRD.make_req('RD', 1, 2, 3, null, 2)),
+           'RD id2 B1 R2 C3', 'format_req carries the id after the op');
+      T.eq(DDRD.format_req(DDRD.make_req('WR', 1, 2, 3, 1, 0)),
+           'WR id0 S1 B1 R2 C3', 'id renders before the sid');
+      T.eq(DDRD.format_req(DDRD.make_req('RD', 1, 2, 3, 0, 0)),
+           'RD id0 S0 B1 R2 C3', 'id 0 is real (falsy but not null)');
+
+      T.eq(DDRD.format_cmd(DDRD.make_cmd('ACT', 1, 2, null, null, 3)),
+           'ACT id3 B1 R2', 'format_cmd ACT carries the id');
+      T.eq(DDRD.format_cmd(DDRD.make_cmd('RD', 1, null, 5, null, 1)),
+           'RD id1 B1 C5', 'format_cmd column cmd carries the id');
+      T.eq(DDRD.format_cmd(DDRD.make_cmd('PRE', 1, null, null, null, 1)),
+           'PRE id1 B1', 'format_cmd PRE carries the id');
+      T.eq(DDRD.format_cmd(DDRD.make_cmd('RD', 1, null, 5)),
+           'RD B1 C5', 'format_cmd without id is unchanged');
     }
   });
 })();

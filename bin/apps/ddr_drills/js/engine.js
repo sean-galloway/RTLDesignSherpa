@@ -42,12 +42,12 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
       reasons.push(reason);
     }
 
-    function push_act(bank, row, reason, sid) {
-      push(DDRD.make_cmd('ACT', bank, row, null, sid), reason);
+    function push_act(bank, row, reason, sid, id) {
+      push(DDRD.make_cmd('ACT', bank, row, null, sid, id), reason);
     }
 
-    function push_pre(bank, reason, sid) {
-      push(DDRD.make_cmd('PRE', bank, null, null, sid), reason);
+    function push_pre(bank, reason, sid, id) {
+      push(DDRD.make_cmd('PRE', bank, null, null, sid, id), reason);
     }
 
     // Emits a column command, inserting a turnaround annotation first when
@@ -138,7 +138,7 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
         if (state[ra.bank].openRow === null) {
           em.push_act(ra.bank, ra.row,
                       'ACT B' + ra.bank + ' R' + ra.row +
-                      ' -- bank idle (pipelined ACT, phase 1)', ra.sid);
+                      ' -- bank idle (pipelined ACT, phase 1)', ra.sid, ra.id);
           state[ra.bank].openRow = ra.row;
           actedBanks[ra.bank] = true;
         }
@@ -147,7 +147,8 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
       // identical, so no turnaround can fire here.
       for (var c = 0; c < reqs.length; c++) {
         var rc = reqs[c];
-        em.push_col(DDRD.make_cmd(rc.op, rc.bank, null, rc.col, rc.sid),
+        em.push_col(DDRD.make_cmd(rc.op, rc.bank, null, rc.col, rc.sid,
+                                  rc.id),
                     rc.op + ' B' + rc.bank + ' C' + rc.col +
                     (actedBanks[rc.bank]
                        ? ' -- after ACT (pipelined, phase 2)'
@@ -164,18 +165,20 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
       if (entry.openRow === null) {
         em.push_act(req.bank, req.row,
                     'ACT B' + req.bank + ' R' + req.row + ' -- bank idle',
-                    req.sid);
+                    req.sid, req.id);
         entry.openRow = req.row;
       } else if (entry.openRow !== req.row) {
         em.push_pre(req.bank,
                     'PRE B' + req.bank + ' -- row conflict (R' + entry.openRow +
-                    ' open)', req.sid);
+                    ' open)', req.sid, req.id);
         em.push_act(req.bank, req.row,
                     'ACT B' + req.bank + ' R' + req.row +
-                    ' -- page miss (R' + entry.openRow + ' open)', req.sid);
+                    ' -- page miss (R' + entry.openRow + ' open)', req.sid,
+                    req.id);
         entry.openRow = req.row;
       }
-      em.push_col(DDRD.make_cmd(req.op, req.bank, null, req.col, req.sid),
+      em.push_col(DDRD.make_cmd(req.op, req.bank, null, req.col, req.sid,
+                                req.id),
                   req.op + ' B' + req.bank + ' C' + req.col +
                   (wasHit ? ' -- page hit' : ' -- after ACT'));
     }
@@ -199,16 +202,17 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
       if (entry.openRow !== null) {
         em.push_pre(req.bank,
                     'PRE B' + req.bank + ' -- closing open row R' +
-                    entry.openRow + ' (close-page policy)', req.sid);
+                    entry.openRow + ' (close-page policy)', req.sid, req.id);
         entry.openRow = null;
       }
       em.push_act(req.bank, req.row,
                   'ACT B' + req.bank + ' R' + req.row + ' -- close-page policy',
-                  req.sid);
+                  req.sid, req.id);
       var type = DDRD.col_type_for(req.op, 'close');
       var auto = req.op === 'RD' ? 'read with auto-precharge'
                                  : 'write with auto-precharge';
-      em.push_col(DDRD.make_cmd(type, req.bank, null, req.col, req.sid),
+      em.push_col(DDRD.make_cmd(type, req.bank, null, req.col, req.sid,
+                                req.id),
                   type + ' B' + req.bank + ' C' + req.col + ' -- ' + auto);
       entry.openRow = null;
     }
@@ -225,11 +229,23 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
   // list is then fed through the open-page scheduler.
   // Returns {cmds, reasons, bankState, reordered} so the UI can show
   // served-vs-arrival order.
+  //
+  // AXI per-ID ordering constraint: a hit may jump a miss only when no
+  // request carrying the SAME id sits between them -- same-id requests
+  // keep their relative order, different ids reorder freely. Requests
+  // with no id never block and are never blocked (the authored drills
+  // omit ids and keep the classic unconstrained reorder).
   function schedule_fr_fcfs(reqs, bankState, topo, opts) {
     var initial = DDRD.clone_bank_state(bankState);
 
     function ready(req) {
       return initial[req.bank].openRow === req.row;
+    }
+
+    function sameId(a, b) {
+      return a.id !== undefined && a.id !== null &&
+             b.id !== undefined && b.id !== null &&
+             a.id === b.id;
     }
 
     var order = reqs.slice();
@@ -244,9 +260,22 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
       if (missIdx === -1) {
         break;
       }
+      // Eligible hit: ready, and no same-id request in the gap it would
+      // jump across. A blocked hit is skipped, not a stop -- a later hit
+      // with a different id may still be eligible.
       var hitIdx = -1;
       for (var j = missIdx + 1; j < order.length; j++) {
-        if (ready(order[j])) {
+        if (!ready(order[j])) {
+          continue;
+        }
+        var blocked = false;
+        for (var k = missIdx; k < j; k++) {
+          if (sameId(order[k], order[j])) {
+            blocked = true;
+            break;
+          }
+        }
+        if (!blocked) {
           hitIdx = j;
           break;
         }

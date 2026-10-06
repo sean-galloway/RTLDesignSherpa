@@ -322,6 +322,80 @@ var SUITES = (typeof window !== 'undefined' ? window : globalThis).DDRD_TEST_SUI
                  label + ': fr_fcfs with all hits keeps arrival order');
       });
 
+      // -- FR-FCFS per-ID ordering (AXI rule) -------------------------------
+      // Same-id requests keep their relative service order; different ids
+      // reorder freely. Id-less requests never constrain (control case
+      // below proves the constraint comes from the ids, not the shape).
+      bothTopos().forEach(function (pair) {
+        var label = pair[0];
+        var topo = pair[1];
+        var idReq = function (op, b, r, c, id) {
+          return DDRD.make_req(op, b, r, c, null, id);
+        };
+
+        // Control: same request shape WITHOUT ids -- the hit jumps the miss.
+        var ctrlState = DDRD.make_bank_state(topo);
+        ctrlState[0].openRow = 1;
+        ctrlState[1].openRow = 9;
+        ctrlState[2].openRow = 2;
+        var ctrl = DDRD.schedule_fr_fcfs(
+          [req('RD', 0, 1, 0), req('RD', 1, 5, 0), req('RD', 2, 2, 0)],
+          ctrlState, topo, null);
+        t.deepEq(ctrl.reordered.map(DDRD.format_req),
+                 ['RD B0 R1 C0', 'RD B2 R2 C0', 'RD B1 R5 C0'],
+                 label + ': control (no ids) hit jumps the miss');
+
+        // Every request id0: the hit may NOT jump the same-id miss.
+        var locked = DDRD.schedule_fr_fcfs(
+          [idReq('RD', 0, 1, 0, 0), idReq('RD', 1, 5, 0, 0),
+           idReq('RD', 2, 2, 0, 0)],
+          ctrlState, topo, null);
+        t.deepEq(locked.reordered.map(DDRD.format_req),
+                 ['RD id0 B0 R1 C0', 'RD id0 B1 R5 C0', 'RD id0 B2 R2 C0'],
+                 label + ': same-id hit stays behind the same-id miss');
+
+        // Different ids: the id1 hit jumps the id0 miss, ids show in text.
+        var jump = DDRD.schedule_fr_fcfs(
+          [idReq('RD', 1, 5, 0, 0), idReq('RD', 0, 1, 4, 1)],
+          ctrlState, topo, null);
+        t.deepEq(jump.reordered.map(DDRD.format_req),
+                 ['RD id1 B0 R1 C4', 'RD id0 B1 R5 C0'],
+                 label + ': different-id hit jumps the miss');
+        t.eq(fmt(jump.cmds),
+             'RD id1 B0 C4\nPRE id0 B1\nACT id0 B1 R5\nRD id0 B1 C0',
+             label + ': id0 commands carry the id through PRE/ACT/RD');
+
+        // A hit blocked by a same-id request must not stop a LATER hit
+        // with a different id from jumping. State: B1/B2 open on R9,
+        // B3 open on R2, B4 open on R7. A(id0,miss) B(id1,miss)
+        // C(id1,hit -- locked behind B) D(id2,hit -- free to jump).
+        var mixedState = DDRD.make_bank_state(topo);
+        mixedState[1].openRow = 9;
+        mixedState[2].openRow = 9;
+        mixedState[3].openRow = 2;
+        mixedState[4].openRow = 7;
+        var mixed = DDRD.schedule_fr_fcfs(
+          [idReq('RD', 1, 5, 0, 0), idReq('RD', 2, 5, 1, 1),
+           idReq('RD', 3, 2, 2, 1), idReq('RD', 4, 7, 3, 2)],
+          mixedState, topo, null);
+        t.deepEq(mixed.reordered.map(DDRD.format_req),
+                 ['RD id2 B4 R7 C3', 'RD id0 B1 R5 C0',
+                  'RD id1 B2 R5 C1', 'RD id1 B3 R2 C2'],
+                 label + ': blocked hit skipped, later different-id hit jumps');
+        t.eq(fmt(mixed.cmds),
+             'RD id2 B4 C3\n' +
+             'PRE id0 B1\nACT id0 B1 R5\nRD id0 B1 C0\n' +
+             'PRE id1 B2\nACT id1 B2 R5\nRD id1 B2 C1\n' +
+             'RD id1 B3 C2',
+             label + ': mixed-id schedule serves id2 hit, then in order');
+
+        // close-page threads the id into RDA/WRA as well.
+        var closed = DDRD.schedule_close_page(
+          [idReq('RD', 3, 5, 2, 2)], DDRD.make_bank_state(topo), topo);
+        t.eq(fmt(closed.cmds), 'ACT id2 B3 R5\nRDA id2 B3 C2',
+             label + ': close-page carries the id through ACT/RDA');
+      });
+
       // -- cross-cutting ----------------------------------------------------
       bothTopos().forEach(function (pair) {
         var label = pair[0];

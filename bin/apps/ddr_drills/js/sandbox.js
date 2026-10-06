@@ -1,9 +1,11 @@
 // sandbox.js -- Mode 4: the live scheduling sandbox.
 // Browser-only. The learner edits the initial bank state, builds a request
-// list (op/bank/row/col, plus SID when the topology has stacks), picks a
+// list (op/id/bank/row/col, plus SID when the topology has stacks), picks a
 // policy (open-page / close-page / FR-FCFS) and whether ACT pipelining is
 // allowed, and the annotated schedule with per-command reasons recomputes
-// on every change. Turnaround annotation labels come from the pack's
+// on every change. The id is an AXI-style transaction ID: same-id requests
+// keep their relative order under FR-FCFS, different ids reorder freely.
+// Turnaround annotation labels come from the pack's
 // scenarioTweaks.turnaround so the text matches the technology.
 // Registers as DDRD.sandboxMode = { mount, unmount }.
 var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
@@ -102,7 +104,8 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
       parseInt(st.builder.bank.value, 10),
       parseInt(st.builder.row.value, 10),
       parseInt(st.builder.col.value, 10),
-      topo.sids > 0 ? parseInt(st.builder.sid.value, 10) : null);
+      topo.sids > 0 ? parseInt(st.builder.sid.value, 10) : null,
+      parseInt(st.builder.id.value, 10));
     st.reqs.push(req);
     renderReqList();
     recompute();
@@ -179,6 +182,11 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
     st.builder.op = select('sand-sel', [
       { value: 'RD', label: 'RD' }, { value: 'WR', label: 'WR' }
     ], 'RD', function () {});
+    // AXI-style transaction ID: same-id requests keep their relative
+    // service order under FR-FCFS; different ids reorder freely. Four ids
+    // are enough to build interesting reorder windows.
+    st.builder.id = select('sand-sel', rangeOptions(4, 'ID'),
+                           '0', function () {});
     st.builder.bank = select('sand-sel', rangeOptions(topo.banks, 'B'),
                              '0', function () {});
     st.builder.row = select('sand-sel', rangeOptions(topo.rows, 'R'),
@@ -186,6 +194,7 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
     st.builder.col = select('sand-sel', rangeOptions(topo.cols, 'C'),
                             '0', function () {});
     buildRow.appendChild(st.builder.op);
+    buildRow.appendChild(st.builder.id);
     buildRow.appendChild(st.builder.bank);
     buildRow.appendChild(st.builder.row);
     buildRow.appendChild(st.builder.col);

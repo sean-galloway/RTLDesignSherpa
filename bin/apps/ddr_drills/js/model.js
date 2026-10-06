@@ -2,9 +2,14 @@
 // formats used as dedup keys (format_cmd / format_req / format_schedule).
 //
 // A Req is a memory request to schedule:
-//   {op: 'RD'|'WR', bank, row, col, sid?}
+//   {op: 'RD'|'WR', bank, row, col, sid?, id?}
 // A Cmd is one DRAM command (or an annotation) in a produced schedule:
-//   {type: 'ACT'|'PRE'|'RD'|'WR'|'RDA'|'WRA', bank, row?, col?, sid?}
+//   {type: 'ACT'|'PRE'|'RD'|'WR'|'RDA'|'WRA', bank, row?, col?, sid?, id?}
+//
+// id is an optional AXI-style transaction ID: same-ID requests must keep
+// their relative service order (see schedule_fr_fcfs); different IDs are
+// free to reorder. Requests without an id impose no ordering constraint.
+// The sandbox tags every request with an id; the authored drills omit it.
 //   {annotation: true, text: '(tWTR bubble)', detail: 'WR->RD turnaround'}
 //
 // Annotation commands are first-class Cmd objects. They mark bus-direction
@@ -18,15 +23,18 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
 
   var COL_TYPES = { RD: true, WR: true, RDA: true, WRA: true };
 
-  function make_req(op, bank, row, col, sid) {
+  function make_req(op, bank, row, col, sid, id) {
     var req = { op: op, bank: bank, row: row, col: col };
     if (sid !== undefined && sid !== null) {
       req.sid = sid;
     }
+    if (id !== undefined && id !== null) {
+      req.id = id;
+    }
     return req;
   }
 
-  function make_cmd(type, bank, row, col, sid) {
+  function make_cmd(type, bank, row, col, sid, id) {
     var cmd = { type: type, bank: bank };
     if (row !== undefined && row !== null) {
       cmd.row = row;
@@ -36,6 +44,9 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
     }
     if (sid !== undefined && sid !== null) {
       cmd.sid = sid;
+    }
+    if (id !== undefined && id !== null) {
+      cmd.id = id;
     }
     return cmd;
   }
@@ -138,23 +149,29 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
     return (x.sid !== undefined && x.sid !== null) ? 'S' + x.sid + ' ' : '';
   }
 
+  function fmt_id(x) {
+    return (x.id !== undefined && x.id !== null) ? 'id' + x.id + ' ' : '';
+  }
+
   function format_cmd(cmd) {
     if (cmd.annotation) {
       return '--- ' + cmd.text + ' ---';
     }
     switch (cmd.type) {
       case 'ACT':
-        return 'ACT ' + fmt_sid(cmd) + 'B' + cmd.bank + ' R' + cmd.row;
+        return 'ACT ' + fmt_id(cmd) + fmt_sid(cmd) +
+               'B' + cmd.bank + ' R' + cmd.row;
       case 'PRE':
-        return 'PRE ' + fmt_sid(cmd) + 'B' + cmd.bank;
+        return 'PRE ' + fmt_id(cmd) + fmt_sid(cmd) + 'B' + cmd.bank;
       default:
-        return cmd.type + ' ' + fmt_sid(cmd) + 'B' + cmd.bank + ' C' + cmd.col;
+        return cmd.type + ' ' + fmt_id(cmd) + fmt_sid(cmd) +
+               'B' + cmd.bank + ' C' + cmd.col;
     }
   }
 
   function format_req(req) {
-    return req.op + ' ' + fmt_sid(req) + 'B' + req.bank +
-           ' R' + req.row + ' C' + req.col;
+    return req.op + ' ' + fmt_id(req) + fmt_sid(req) +
+           'B' + req.bank + ' R' + req.row + ' C' + req.col;
   }
 
   function format_schedule(cmds) {
