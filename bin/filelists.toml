@@ -303,6 +303,18 @@ filelist_dirs = [
     "projects/fpga-systems/Genesys2/scoria/build-scoria/rtl/filelists",
 ]
 
+# andesite in the de25-nano area. The destination board is the DE25-Nano
+# (Intel, LPDDR4); the initial build targets the Genesys 2 as the timing/build
+# vehicle until the board lands (BOARD rides the shared registry). Skeleton
+# by design: no PHY, DFI pins terminate at an observability tree, an on-chip
+# AXI exerciser keeps the datapath load-bearing. Two lists: the synthesis
+# closure and the lint variant that adds the Xilinx primitive stubs.
+[[area]]
+name = "de25_andesite"
+kind = "board"
+rtl_roots = []
+filelist_dirs = ["projects/fpga-systems/de25-nano/andesite/build-andesite/rtl/filelists"]
+
 [[area]]
 name = "genesys2_rapids_beats_char"
 kind = "board"
