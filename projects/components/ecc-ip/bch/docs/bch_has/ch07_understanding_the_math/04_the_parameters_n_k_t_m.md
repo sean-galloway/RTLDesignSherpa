@@ -94,7 +94,7 @@ For many profiles the bound is loose; for the Genesys 2 profile below it's tight
 | Genesys 2 board | 13 | `0x201B` | 8 | 1 | 4224 | 4120 | 104 | (see package) |
 : Table 7.11: Built BCH profiles
 
-The Genesys 2 board loopback design runs the shortened profile BCH$(4224, 4120)$ with $t = 8$ (`projects/fpga-systems/Genesys2/bch/build-loop/rtl/bch_loop_cfg_pkg.sv:26-31`). The $m = 13$ primitive polynomial is $p(x) = x^{13} + x^4 + x^3 + x + 1$ (`0x201B`). The degree lands exactly at $m \cdot t = 104$, so the parity budget is fully used.
+The Genesys 2 board loopback design runs the shortened profile BCH$(4224, 4120)$ with $t = 8$ (`projects/fpga-systems/Genesys2/ecc-ip/bch/build-loop/rtl/bch_loop_cfg_pkg.sv:26-31`). The $m = 13$ primitive polynomial is $p(x) = x^{13} + x^4 + x^3 + x + 1$ (`0x201B`). The degree lands exactly at $m \cdot t = 104$, so the parity budget is fully used.
 
 ## Choosing the parameters: a worked example
 

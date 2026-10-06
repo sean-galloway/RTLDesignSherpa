@@ -11,4 +11,4 @@
 # `read32(addr) -> int`. In simulation a thin adapter binds those methods
 # to the testbench's APB master; on a board the same binding goes over a
 # UARTAxiBridge. The shape follows the reed-solomon host programs
-# (projects/fpga-systems/Genesys2/reed-solomon/build-loop/host/).
+# (projects/fpga-systems/Genesys2/ecc-ip/reed-solomon/build-loop/host/).

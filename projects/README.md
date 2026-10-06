@@ -18,7 +18,7 @@ projects/
 ├── fpga-systems/      # Board harnesses: <board>/<ip-area>/<ip>
 │   ├── NexysA7/misc-ip/cdc_counter_display/   # CDC teaching demo
 │   ├── NexysA7/pumice/                        # DDR2 characterization (Nexys A7)
-│   ├── Genesys2/bch/  Genesys2/reed-solomon/   # ECC loopbacks (Genesys 2)
+│   ├── Genesys2/ecc-ip/bch/  Genesys2/ecc-ip/reed-solomon/   # ECC loopbacks (Genesys 2)
 │   ├── Genesys2/stream/  Genesys2/rapids/  Genesys2/rapids_beats/
 │   └── ...
 └── asic-trials/timing_characterization/

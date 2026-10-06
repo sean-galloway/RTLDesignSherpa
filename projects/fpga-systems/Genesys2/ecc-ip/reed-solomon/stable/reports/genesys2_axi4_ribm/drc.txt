@@ -1,0 +1,653 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+----------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Sun Oct  4 23:39:10 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_drc -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/ecc-ip/reed-solomon/build-loop/fpga/reports/drc.txt
+| Design       : rs_loop_genesys2_top
+| Device       : xc7k325tffg900-2
+| Speed File   : -2
+| Design State : Fully Routed
+----------------------------------------------------------------------------------------------------------------------------------------------
+
+Report DRC
+
+Table of Contents
+-----------------
+1. REPORT SUMMARY
+2. REPORT DETAILS
+
+1. REPORT SUMMARY
+-----------------
+            Netlist: netlist
+          Floorplan: impl_1
+      Design limits: <entire design considered>
+           Ruledeck: default
+             Max checks: <unlimited>
+             Checks found: 100
++-----------+----------+----------------------------+--------+
+| Rule      | Severity | Description                | Checks |
++-----------+----------+----------------------------+--------+
+| CHECK-3   | Warning  | Report rule limit reached  | 1      |
+| DPIP-1    | Warning  | Input pipelining           | 30     |
+| DPOP-1    | Warning  | PREG Output pipelining     | 13     |
+| DPOP-2    | Warning  | MREG Output pipelining     | 19     |
+| DPOR-1    | Warning  | Asynchronous load check    | 17     |
+| REQP-1839 | Warning  | RAMB36 async control check | 20     |
++-----------+----------+----------------------------+--------+
+
+2. REPORT DETAILS
+-----------------
+CHECK-3#1 Warning
+Report rule limit reached  
+REQP-1839 rule limit reached: 20 violations have been found.
+Related violations: <none>
+
+DPIP-1#1 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/cfg_beats0 input u_harness/g_axi4_path.u_pipe/cfg_beats0/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#2 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_dec/cfg_beats0 input u_harness/g_axi4_path.u_pipe/u_dec/cfg_beats0/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#3 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_dec/cfg_beats0__0 input u_harness/g_axi4_path.u_pipe/u_dec/cfg_beats0__0/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#4 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_enc/cfg_beats0 input u_harness/g_axi4_path.u_pipe/u_enc/cfg_beats0/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#5 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_enc/cfg_beats0__0 input u_harness/g_axi4_path.u_pipe/u_enc/cfg_beats0__0/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#6 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out input u_harness/g_axi4_path.u_pipe/u_inj/p_1_out/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#7 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out input u_harness/g_axi4_path.u_pipe/u_inj/p_1_out/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#8 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0 input u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#9 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0 input u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#10 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_b_bstart0 input u_harness/g_axi4_path.u_pipe/u_inj/r_b_bstart0/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#11 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_b_bstart0 input u_harness/g_axi4_path.u_pipe/u_inj/r_b_bstart0/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#12 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[0]0 input u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[0]0/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#13 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[0]0 input u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[0]0/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#14 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[1]0 input u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[1]0/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#15 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[1]0 input u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[1]0/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#16 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[2]0 input u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[2]0/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#17 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[2]0 input u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[2]0/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#18 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[3]0 input u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[3]0/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#19 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[3]0 input u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[3]0/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#20 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_loc_start1 input u_harness/g_axi4_path.u_pipe/u_inj/r_loc_start1/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#21 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_loc_start1 input u_harness/g_axi4_path.u_pipe/u_inj/r_loc_start1/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#22 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_loc_start1__0 input u_harness/g_axi4_path.u_pipe/u_inj/r_loc_start1__0/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#23 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_loc_start1__0 input u_harness/g_axi4_path.u_pipe/u_inj/r_loc_start1__0/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#24 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_l2 input u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_l2/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#25 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_l2 input u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_l2/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#26 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_l2__0 input u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_l2__0/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#27 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_l2__0 input u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_l2__0/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#28 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_n2 input u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_n2/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#29 Warning
+Input pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_n2 input u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_n2/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPIP-1#30 Warning
+Input pipelining  
+DSP u_harness/w_num_beats input u_harness/w_num_beats/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+Related violations: <none>
+
+DPOP-1#1 Warning
+PREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/cfg_beats0 output u_harness/g_axi4_path.u_pipe/cfg_beats0/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+Related violations: <none>
+
+DPOP-1#2 Warning
+PREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_dec/cfg_beats0 output u_harness/g_axi4_path.u_pipe/u_dec/cfg_beats0/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+Related violations: <none>
+
+DPOP-1#3 Warning
+PREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_dec/cfg_beats0__0 output u_harness/g_axi4_path.u_pipe/u_dec/cfg_beats0__0/PATTERNDETECT is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+Related violations: <none>
+
+DPOP-1#4 Warning
+PREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_dec/cfg_beats0__0 output u_harness/g_axi4_path.u_pipe/u_dec/cfg_beats0__0/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+Related violations: <none>
+
+DPOP-1#5 Warning
+PREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_enc/cfg_beats0 output u_harness/g_axi4_path.u_pipe/u_enc/cfg_beats0/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+Related violations: <none>
+
+DPOP-1#6 Warning
+PREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_enc/cfg_beats0__0 output u_harness/g_axi4_path.u_pipe/u_enc/cfg_beats0__0/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+Related violations: <none>
+
+DPOP-1#7 Warning
+PREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out output u_harness/g_axi4_path.u_pipe/u_inj/p_1_out/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+Related violations: <none>
+
+DPOP-1#8 Warning
+PREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0 output u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+Related violations: <none>
+
+DPOP-1#9 Warning
+PREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_loc_start1 output u_harness/g_axi4_path.u_pipe/u_inj/r_loc_start1/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+Related violations: <none>
+
+DPOP-1#10 Warning
+PREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_l2 output u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_l2/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+Related violations: <none>
+
+DPOP-1#11 Warning
+PREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_l2__0 output u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_l2__0/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+Related violations: <none>
+
+DPOP-1#12 Warning
+PREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_n2 output u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_n2/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+Related violations: <none>
+
+DPOP-1#13 Warning
+PREG Output pipelining  
+DSP u_harness/w_num_beats output u_harness/w_num_beats/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+Related violations: <none>
+
+DPOP-2#1 Warning
+MREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/cfg_beats0 multiplier stage u_harness/g_axi4_path.u_pipe/cfg_beats0/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#2 Warning
+MREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_dec/cfg_beats0 multiplier stage u_harness/g_axi4_path.u_pipe/u_dec/cfg_beats0/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#3 Warning
+MREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_dec/cfg_beats0__0 multiplier stage u_harness/g_axi4_path.u_pipe/u_dec/cfg_beats0__0/PATTERNDETECT is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#4 Warning
+MREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_dec/cfg_beats0__0 multiplier stage u_harness/g_axi4_path.u_pipe/u_dec/cfg_beats0__0/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#5 Warning
+MREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_enc/cfg_beats0 multiplier stage u_harness/g_axi4_path.u_pipe/u_enc/cfg_beats0/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#6 Warning
+MREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_enc/cfg_beats0__0 multiplier stage u_harness/g_axi4_path.u_pipe/u_enc/cfg_beats0__0/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#7 Warning
+MREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out multiplier stage u_harness/g_axi4_path.u_pipe/u_inj/p_1_out/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#8 Warning
+MREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0 multiplier stage u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#9 Warning
+MREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_b_bstart0 multiplier stage u_harness/g_axi4_path.u_pipe/u_inj/r_b_bstart0/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#10 Warning
+MREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[0]0 multiplier stage u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[0]0/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#11 Warning
+MREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[1]0 multiplier stage u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[1]0/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#12 Warning
+MREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[2]0 multiplier stage u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[2]0/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#13 Warning
+MREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[3]0 multiplier stage u_harness/g_axi4_path.u_pipe/u_inj/r_b_lhs_hi_reg[3]0/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#14 Warning
+MREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_loc_start1 multiplier stage u_harness/g_axi4_path.u_pipe/u_inj/r_loc_start1/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#15 Warning
+MREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_loc_start1__0 multiplier stage u_harness/g_axi4_path.u_pipe/u_inj/r_loc_start1__0/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#16 Warning
+MREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_l2 multiplier stage u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_l2/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#17 Warning
+MREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_l2__0 multiplier stage u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_l2__0/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#18 Warning
+MREG Output pipelining  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_n2 multiplier stage u_harness/g_axi4_path.u_pipe/u_inj/w_fsm_n2/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#19 Warning
+MREG Output pipelining  
+DSP u_harness/w_num_beats multiplier stage u_harness/w_num_beats/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOR-1#1 Warning
+Asynchronous load check  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out output is connected to registers with an asynchronous reset (u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[0][0],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[1][0],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[2][0],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[3][0],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[4][0],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[5][0],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[6][0]
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[7][0]). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#2 Warning
+Asynchronous load check  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0 output is connected to registers with an asynchronous reset (u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[0][10],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[1][10],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[2][10],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[3][10],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[4][10],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[5][10],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[6][10]
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[7][10]). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#3 Warning
+Asynchronous load check  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0 output is connected to registers with an asynchronous reset (u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[0][11],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[1][11],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[2][11],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[3][11],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[4][11],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[5][11],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[6][11]
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[7][11]). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#4 Warning
+Asynchronous load check  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0 output is connected to registers with an asynchronous reset (u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[0][12],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[1][12],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[2][12],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[3][12],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[4][12],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[5][12],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[6][12]
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[7][12]). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#5 Warning
+Asynchronous load check  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0 output is connected to registers with an asynchronous reset (u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[0][13],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[1][13],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[2][13],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[3][13],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[4][13],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[5][13],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[6][13]
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[7][13]). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#6 Warning
+Asynchronous load check  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0 output is connected to registers with an asynchronous reset (u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[0][14],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[1][14],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[2][14],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[3][14],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[4][14],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[5][14],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[6][14]
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[7][14]). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#7 Warning
+Asynchronous load check  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0 output is connected to registers with an asynchronous reset (u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[0][15],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[1][15],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[2][15],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[3][15],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[4][15],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[5][15],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[6][15]
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[7][15]). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#8 Warning
+Asynchronous load check  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0 output is connected to registers with an asynchronous reset (u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[0][1],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[1][1],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[2][1],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[3][1],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[4][1],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[5][1],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[6][1]
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[7][1]). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#9 Warning
+Asynchronous load check  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0 output is connected to registers with an asynchronous reset (u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[0][2],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[1][2],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[2][2],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[3][2],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[4][2],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[5][2],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[6][2]
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[7][2]). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#10 Warning
+Asynchronous load check  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0 output is connected to registers with an asynchronous reset (u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[0][3],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[1][3],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[2][3],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[3][3],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[4][3],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[5][3],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[6][3]
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[7][3]). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#11 Warning
+Asynchronous load check  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0 output is connected to registers with an asynchronous reset (u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[0][4],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[1][4],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[2][4],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[3][4],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[4][4],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[5][4],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[6][4]
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[7][4]). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#12 Warning
+Asynchronous load check  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0 output is connected to registers with an asynchronous reset (u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[0][5],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[1][5],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[2][5],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[3][5],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[4][5],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[5][5],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[6][5]
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[7][5]). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#13 Warning
+Asynchronous load check  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0 output is connected to registers with an asynchronous reset (u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[0][6],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[1][6],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[2][6],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[3][6],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[4][6],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[5][6],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[6][6]
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[7][6]). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#14 Warning
+Asynchronous load check  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0 output is connected to registers with an asynchronous reset (u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[0][7],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[1][7],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[2][7],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[3][7],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[4][7],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[5][7],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[6][7]
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[7][7]). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#15 Warning
+Asynchronous load check  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0 output is connected to registers with an asynchronous reset (u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[0][8],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[1][8],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[2][8],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[3][8],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[4][8],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[5][8],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[6][8]
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[7][8]). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#16 Warning
+Asynchronous load check  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/p_1_out__0 output is connected to registers with an asynchronous reset (u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[0][9],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[1][9],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[2][9],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[3][9],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[4][9],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[5][9],
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[6][9]
+u_harness/g_axi4_path.u_pipe/u_inj/r_tab_start_reg[7][9]). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#17 Warning
+Asynchronous load check  
+DSP u_harness/g_axi4_path.u_pipe/u_inj/r_loc_start1 output is connected to registers with an asynchronous reset (u_harness/g_axi4_path.u_pipe/u_inj/r_loc_start_reg[0]). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+REQP-1839#1 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0 has an input control pin u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0/ADDRARDADDR[10] (net: u_harness/g_axi4_path.u_pipe/u_mem4/u_core/write_bram_addr[7]) which is driven by a register (u_harness/g_axi4_path.u_pipe/u_mem4/u_core/r_wr_addr_reg[9]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#2 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0 has an input control pin u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0/ADDRARDADDR[11] (net: u_harness/g_axi4_path.u_pipe/u_mem4/u_core/write_bram_addr[8]) which is driven by a register (u_harness/g_axi4_path.u_pipe/u_mem4/u_core/r_wr_addr_reg[10]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#3 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0 has an input control pin u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0/ADDRARDADDR[12] (net: u_harness/g_axi4_path.u_pipe/u_mem4/u_core/write_bram_addr[9]) which is driven by a register (u_harness/g_axi4_path.u_pipe/u_mem4/u_core/r_wr_addr_reg[11]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#4 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0 has an input control pin u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0/ADDRARDADDR[13] (net: u_harness/g_axi4_path.u_pipe/u_mem4/u_core/write_bram_addr[10]) which is driven by a register (u_harness/g_axi4_path.u_pipe/u_mem4/u_core/r_wr_addr_reg[12]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#5 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0 has an input control pin u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0/ADDRARDADDR[14] (net: u_harness/g_axi4_path.u_pipe/u_mem4/u_core/write_bram_addr[11]) which is driven by a register (u_harness/g_axi4_path.u_pipe/u_mem4/u_core/r_wr_addr_reg[13]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#6 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0 has an input control pin u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0/ADDRARDADDR[3] (net: u_harness/g_axi4_path.u_pipe/u_mem4/u_core/write_bram_addr[0]) which is driven by a register (u_harness/g_axi4_path.u_pipe/u_mem4/u_core/r_wr_addr_reg[2]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#7 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0 has an input control pin u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0/ADDRARDADDR[4] (net: u_harness/g_axi4_path.u_pipe/u_mem4/u_core/write_bram_addr[1]) which is driven by a register (u_harness/g_axi4_path.u_pipe/u_mem4/u_core/r_wr_addr_reg[3]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#8 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0 has an input control pin u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0/ADDRARDADDR[5] (net: u_harness/g_axi4_path.u_pipe/u_mem4/u_core/write_bram_addr[2]) which is driven by a register (u_harness/g_axi4_path.u_pipe/u_mem4/u_core/r_wr_addr_reg[4]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#9 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0 has an input control pin u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0/ADDRARDADDR[6] (net: u_harness/g_axi4_path.u_pipe/u_mem4/u_core/write_bram_addr[3]) which is driven by a register (u_harness/g_axi4_path.u_pipe/u_mem4/u_core/r_wr_addr_reg[5]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#10 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0 has an input control pin u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0/ADDRARDADDR[7] (net: u_harness/g_axi4_path.u_pipe/u_mem4/u_core/write_bram_addr[4]) which is driven by a register (u_harness/g_axi4_path.u_pipe/u_mem4/u_core/r_wr_addr_reg[6]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#11 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0 has an input control pin u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0/ADDRARDADDR[8] (net: u_harness/g_axi4_path.u_pipe/u_mem4/u_core/write_bram_addr[5]) which is driven by a register (u_harness/g_axi4_path.u_pipe/u_mem4/u_core/r_wr_addr_reg[7]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#12 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0 has an input control pin u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0/ADDRARDADDR[9] (net: u_harness/g_axi4_path.u_pipe/u_mem4/u_core/write_bram_addr[6]) which is driven by a register (u_harness/g_axi4_path.u_pipe/u_mem4/u_core/r_wr_addr_reg[8]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#13 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0 has an input control pin u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0/ADDRBWRADDR[10] (net: u_harness/g_axi4_path.u_pipe/u_mem4/u_core/read_bram_addr[7]) which is driven by a register (u_harness/g_axi4_path.u_pipe/u_mem4/u_core/r_rd_addr_reg[9]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#14 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0 has an input control pin u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0/ADDRBWRADDR[11] (net: u_harness/g_axi4_path.u_pipe/u_mem4/u_core/read_bram_addr[8]) which is driven by a register (u_harness/g_axi4_path.u_pipe/u_mem4/u_core/r_rd_addr_reg[10]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#15 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0 has an input control pin u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0/ADDRBWRADDR[12] (net: u_harness/g_axi4_path.u_pipe/u_mem4/u_core/read_bram_addr[9]) which is driven by a register (u_harness/g_axi4_path.u_pipe/u_mem4/u_core/r_rd_addr_reg[11]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#16 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0 has an input control pin u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0/ADDRBWRADDR[13] (net: u_harness/g_axi4_path.u_pipe/u_mem4/u_core/read_bram_addr[10]) which is driven by a register (u_harness/g_axi4_path.u_pipe/u_mem4/u_core/r_rd_addr_reg[12]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#17 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0 has an input control pin u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0/ADDRBWRADDR[14] (net: u_harness/g_axi4_path.u_pipe/u_mem4/u_core/read_bram_addr[11]) which is driven by a register (u_harness/g_axi4_path.u_pipe/u_mem4/u_core/r_rd_addr_reg[13]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#18 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0 has an input control pin u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0/ADDRBWRADDR[7] (net: u_harness/g_axi4_path.u_pipe/u_mem4/u_core/read_bram_addr[4]) which is driven by a register (u_harness/g_axi4_path.u_pipe/u_mem4/u_core/r_rd_addr_reg[6]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#19 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0 has an input control pin u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0/ADDRBWRADDR[8] (net: u_harness/g_axi4_path.u_pipe/u_mem4/u_core/read_bram_addr[5]) which is driven by a register (u_harness/g_axi4_path.u_pipe/u_mem4/u_core/r_rd_addr_reg[7]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#20 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0 has an input control pin u_harness/g_axi4_path.u_pipe/u_mem4/u_core/g_fullword.r_mem_reg_0/ADDRBWRADDR[9] (net: u_harness/g_axi4_path.u_pipe/u_mem4/u_core/read_bram_addr[6]) which is driven by a register (u_harness/g_axi4_path.u_pipe/u_mem4/u_core/r_rd_addr_reg[8]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+

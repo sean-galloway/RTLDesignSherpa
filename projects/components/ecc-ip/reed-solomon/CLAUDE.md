@@ -95,7 +95,7 @@ It is an endpoint codec, never a mid-stream insert (PRD 4a). Until a consumer na
   (the runner passes `'"EUCLID"'` with the quotes) and the TB gets the same
   choice through the `KES_ALGO` environment variable, because cocotb cannot
   read a string parameter back from the DUT.
-- Board harness (2026-09-30): `projects/fpga-systems/Genesys2/reed-solomon/`
+- Board harness (2026-09-30): `projects/fpga-systems/Genesys2/ecc-ip/reed-solomon/`
   runs RS(252,236) at 4 symbols per beat -- the reference code shortened by
   three so n and k are multiples of the beat, because the shared AXI-Stream
   checker compares whole 32-bit words and would flag a partial beat's zero

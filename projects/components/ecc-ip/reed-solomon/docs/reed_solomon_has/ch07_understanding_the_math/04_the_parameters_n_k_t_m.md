@@ -94,7 +94,7 @@ Table 7.17 shows the two shipped parameter sets: the unconstrained library defau
 | Profile | $(n,k)$ | $t$ | $m$ | $b$ | $S$ | Notes |
 |---|---|---|---|---|---|---|
 | Library default | $(255,239)$ | 8 | 8 | 0 | 1 | Full-length code (`rtl/macro/rs_encoder_core.sv:66-70`) |
-| Genesys 2 board | $(252,236)$ | 8 | 8 | 0 | 4 | RS$(255,239)$ shortened by 3 symbols so $n$ and $k$ are multiples of the 32-bit beat (`projects/fpga-systems/Genesys2/reed-solomon/build-loop/rtl/rs_loop_cfg_pkg.sv:10-13,26-37`) |
+| Genesys 2 board | $(252,236)$ | 8 | 8 | 0 | 4 | RS$(255,239)$ shortened by 3 symbols so $n$ and $k$ are multiples of the 32-bit beat (`projects/fpga-systems/Genesys2/ecc-ip/reed-solomon/build-loop/rtl/rs_loop_cfg_pkg.sv:10-13,26-37`) |
 : Table 7.17: Two shipped Reed-Solomon profiles
 
 The board configuration is explicit about why it shortens: a 32-bit AXI-Stream pattern checker compares whole beats, so every beat must be full (`rs_loop_cfg_pkg.sv:10-13`). Setting `N_SYMBOLS = 252` achieves that with no extra hardware.
