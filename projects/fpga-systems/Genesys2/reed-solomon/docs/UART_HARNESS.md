@@ -249,8 +249,11 @@ A few things are intentionally left in simulation or are still open:
 dual-decoder comparator with `ENABLE_COMPARE=1` is the sim/DV domain; it caught
 real harness bugs (dropped/duplicated beats under skewed drains) without costing
 a bitstream.
-- The soak campaign has a default time budget. It is long enough to visit FIFO
-occupancies and counter wraps a short run never sees, but it is not infinite.
+- The soak campaign ran to completion on 2026-10-06: the million-block soak on
+  `axi4_ribm` passed with 0 failing runs and 2 mis-decodes out of 74,240 blocks
+  pushed past the correction limit — a 1-in-37,120 rate, below the model's
+  predicted roughly 1-in-20,000 at e = t + 1. The pass criterion is the bounded
+  mis-decode rate, not zero.
 - The erasure `f = 2t` boundary is a known open bug, filed as
 `vault/Tasks/projects/components/ecc-ip/reed-solomon/task/open/TASK-005.md`.
 `f = t` corrects and `f = 2t + 1` refuses on the board; `f = 2t` is flagged

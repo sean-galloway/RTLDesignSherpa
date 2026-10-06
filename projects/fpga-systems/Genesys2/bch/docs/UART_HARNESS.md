@@ -144,7 +144,7 @@ Two bitstreams are built: `bch_loop_genesys2_axis.bit` and `bch_loop_genesys2_ax
 
 ### What is deliberately NOT board-tested
 
-Some things are out of scope, and it is worth saying so plainly. The soak campaign ran to its default time budget, not the 1-million-block headline target, and passed 12,288 mixed-mode blocks with zero mis-decodes. BCH has no erasure path in this harness: the injector's `out_erasure` is tied off and `cfg_mark_erasure` is held low. And the board validates only the `BCH(4224,4120) t=8` profile; smaller profiles like `(63,57) t=1` are covered in simulation and component DV, not on the board.
+Some things are out of scope, and it is worth saying so plainly. The 2026-10-05 million-block soak ran on the AXIS image and passed: 1,000,000 blocks in 31,910s with zero mis-decodes of the 74,560 blocks pushed past the correction limit. BCH has no erasure path in this harness: the injector's `out_erasure` is tied off and `cfg_mark_erasure` is held low. And the board validates only the `BCH(4224,4120) t=8` profile; smaller profiles like `(63,57) t=1` are covered in simulation and component DV, not on the board.
 
 ## Operating it
 
