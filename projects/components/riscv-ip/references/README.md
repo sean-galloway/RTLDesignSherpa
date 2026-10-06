@@ -13,6 +13,12 @@ book or RTL comment cites the spec, cite the chapter (e.g. "unpriv ch.
 2.5, JALR") rather than a page number — page numbers drift between spec
 releases.
 
+Research literature behind the design decisions is curated in
+[`microarchitecture-papers.md`](microarchitecture-papers.md) — fifteen
+papers organized by the decision each guides (pipeline partition, branch
+prediction, precise interrupts, write policies, checkpoint-restore OOO),
+with honest availability notes.
+
 Future additions as rungs demand them: the RISC-V psABI (toolchain run),
 the debug specification, profile docs. Add them here with the same
 provenance table row.
