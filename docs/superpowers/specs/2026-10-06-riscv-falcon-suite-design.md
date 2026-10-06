@@ -45,10 +45,11 @@ Directory layout follows the `mem-ctrl-ip/` precedent:
 ```
 projects/components/riscv-ip/
 ├── README.md                suite overview: the ladder, what each rung teaches
-├── kestrel-rv32i/           rtl/ docs/ val/
-├── merlin-rv32i/            rtl/ docs/ val/
-├── peregrine-rv32im/        rtl/ docs/ val/
-├── gyrfalcon-rv32im/        rtl/ docs/ val/
+├── kestrel-rv32i/           rtl/ docs/ dv/
+├── merlin-rv32i/            rtl/ docs/ dv/
+├── peregrine-rv32im/        rtl/ docs/ dv/
+├── gyrfalcon-rv32im/        rtl/ docs/ dv/
+├── references/              common primary sources (the RISC-V ISA manuals)
 └── docs/                    suite-level: ISA quick reference, naming rationale
 ```
 
