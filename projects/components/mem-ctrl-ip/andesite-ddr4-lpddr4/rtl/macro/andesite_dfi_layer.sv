@@ -155,7 +155,8 @@ module andesite_dfi_layer
     output logic [NUM_RANKS-1:0]       dfi_rddata_cs_o,
 
     // DFI init
-    output logic                       dfi_init_start_o
+    output logic                       dfi_init_start_o,
+    input  logic                       dfi_init_complete_i
 );
 
     // ---- CDC dfi-side nets ----
@@ -253,7 +254,7 @@ module andesite_dfi_layer
         .prd_valid_i     (prd_valid),
         .prd_ready_o     (prd_ready),
         .prd_data_i      (prd_data),
-        .pinit_complete_i(1'b0)
+        .pinit_complete_i(dfi_init_complete_i)
     );
 
     assign dfi_init_start_o = pinit_start;

@@ -202,6 +202,7 @@ module andesite_rd_intake #(
     // ---- decode the AR at the inlet ----------------------------------------
     logic [RKW-1:0]       w_rank;
     logic [BKW-1:0]       w_bank;
+    logic [1:0]           w_bg;
     logic [ROW_WIDTH-1:0] w_row;
     logic [COL_WIDTH-1:0] w_col;
 
@@ -236,6 +237,7 @@ module andesite_rd_intake #(
         .hash_seed_i(hash_seed_i),
         .rank_o     (w_rank),
         .bank_o     (w_bank),
+        .bg_o       (w_bg),
         .row_o      (w_row),
         .col_o      (w_col)
     );
