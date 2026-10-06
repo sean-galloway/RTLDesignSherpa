@@ -54,6 +54,7 @@ note — it belongs to that block and nowhere else.
 - [boards](projects/fpga-systems/boards/INDEX.md) — board definitions (nexys_a7_100t)
 - `de25-nano/andesite` — andesite on the DE25-Nano board; area exists in the repo, no context note written yet
 - `docs` — fpga-systems MAS book (`FPGA_SYSTEMS_MAS_v1.0.pdf`); documentation area, no context note by design
+- [rtl/mem_char_framework](projects/fpga-systems/rtl/INDEX.md) — shared memory-characterization harness used by pumice and scoria
 - `Genesys2/bch` — BCH board harness; v1.0 (2026-10-06); area exists in the repo, no context note written yet
 - `Genesys2/reed-solomon` — RS board harness; v1.0 (2026-10-06); area exists in the repo, no context note written yet
 - `Genesys2/rapids` — RAPIDS board harness; v1.0 (2026-10-06); area exists in the repo, no context note written yet
