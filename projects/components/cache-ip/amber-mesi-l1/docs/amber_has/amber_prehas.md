@@ -23,7 +23,10 @@
 
 # amber — Pre-Hardware Architecture Specification (Pre-HAS)
 
-**Version:** 0.3 (draft, 2026-10-06)
+**Version:** 0.3 (draft, 2026-10-06) — **superseded by the
+[full HAS](amber_has_index.md) (v1.0, same day)** once the PRD closed its
+rows (v0.5): the chapter book ratifies this sketch, and this file is kept as
+the decision-path record.
 **Status:** architecture sketch written while the PRD decisions are still
 OPEN. This document records **no decisions**. "PROPOSED" marks a working
 default put forward so the decision rows can be argued with concretely; a
