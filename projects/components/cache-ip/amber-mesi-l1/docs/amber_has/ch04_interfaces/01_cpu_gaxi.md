@@ -29,26 +29,44 @@ The CPU-side port is a GAXI slave (amber D2). We chose GAXI over a plain valid/r
 
 ## Channel structure
 
-`amber_cpu_frontend` presents a GAXI request/response slave. Signal names are
-the amber GAXI binding proposed by this specification; the frontend RTL may
-adopt the packed field-config vectors the house GAXI primitives use
-internally — the channel semantics in this table are the contract.
+The CPU-side port is **two house-GAXI streams** (amber D2) — the
+packed-payload valid/ready pattern of `rtl/amba/gaxi/` (`gaxi_skid_buffer`,
+`gaxi_fifo_sync`: `wr_valid`/`wr_ready`/`wr_data` in,
+`rd_valid`/`rd_ready`/`rd_data` out), which is exactly the house plumbing
+D2's rationale points at. `amber_cpu_frontend` is the slave: it receives the
+request stream and drives the response stream.
 
-| Signal | Direction | Width | Meaning |
+Request stream (CPU → amber, slave input):
+
+| Signal | Direction | Width | Payload |
 |---|---|---|---|
-| `gaxi_addr` | in | `ADDR_WIDTH` | byte address of the access |
-| `gaxi_wdata` | in | `BUS_WIDTH` | write data (single beat) |
-| `gaxi_we` | in | 1 | 1 = write, 0 = read |
-| `gaxi_be` | in | `BUS_WIDTH/8` | byte enables for writes |
-| `gaxi_valid` | in | 1 | request valid |
-| `gaxi_ready` | out | 1 | request accepted |
-| `gaxi_rdata` | out | `BUS_WIDTH` | read response data |
-| `gaxi_rvalid` | out | 1 | response valid |
-| `gaxi_rready` | in | 1 | response accepted |
+| `cpu_req_wr_valid` | in | 1 | request valid |
+| `cpu_req_wr_ready` | out | 1 | request accepted |
+| `cpu_req_wr_data` | in | `CPU_REQ_W` | packed {`addr`, `we`, `be`, `wdata`} |
 
-: Table 4.0: CPU-side GAXI slave port
+Response stream (amber → CPU, slave output):
 
-The frontend latches the accepted request and holds it until `amber_control` returns the response. Because the cache is blocking, the response channel is naturally in-order and carries no ID tags. Write-allocate fills are expressed as read-modify-write sequences inside `amber_control`; the GAXI slave itself sees only single-beat reads and writes.
+| Signal | Direction | Width | Payload |
+|---|---|---|---|
+| `cpu_rsp_rd_valid` | out | 1 | response valid |
+| `cpu_rsp_rd_ready` | in | 1 | response accepted |
+| `cpu_rsp_rd_data` | out | `CPU_RSP_W` | packed {`rdata`} |
+
+: Table 4.0: CPU-side GAXI slave channels
+
+Field packing follows the house field-width convention the AMBA wrappers use
+(`CPU_REQ_W = ADDR_WIDTH + 1 + BUS_WIDTH/8 + BUS_WIDTH`, `CPU_RSP_W =
+BUS_WIDTH`; the frontend's field config fixes the bit ranges). If the CPU
+agent prefers named fields at the boundary, the flattened per-field view
+(`fub_*`-style, the way the AMBA wrappers expose their FUB side) carries the
+same payload — the packed GAXI streams are the contract; naming is RTL
+bring-up detail.
+
+The frontend latches the accepted request and holds it until `amber_control`
+returns the response. Because the cache is blocking, the response stream is
+naturally in-order and carries no ID tags. Write-allocate fills are
+read-modify-write sequences inside `amber_control`; the GAXI slave itself
+sees only single-beat reads and writes.
 
 ## No register block
 
