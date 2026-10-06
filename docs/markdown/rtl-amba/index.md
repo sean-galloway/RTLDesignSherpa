@@ -226,6 +226,27 @@ Enhanced streaming with wake-up signaling and data poisoning support.
 
 ---
 
+### ACE (AXI Coherency Extensions)
+
+AXI4 extended with coherent transaction types and snoop channels, for the `cache-ip` family (amber/jet caches, onyx CCU).
+
+**[ACE Module Documentation](ace/README.md)**
+
+#### Front-Side Movers
+- **[axi4ace_master_rd](ace/axi4ace_master_rd.md)** - ACE read master with `ARSNOOP[3:0]` and auto-pulsed `RACK`
+- **[axi4ace_master_wr](ace/axi4ace_master_wr.md)** - ACE write master with `AWSNOOP[2:0]` and auto-pulsed `WACK`
+- **[axi4ace_slave_rd](ace/axi4ace_slave_rd.md)** - ACE read slave with `ARSNOOP[3:0]` pass-through
+- **[axi4ace_slave_wr](ace/axi4ace_slave_wr.md)** - ACE write slave with `AWSNOOP[2:0]` pass-through
+
+#### Snoop-Side Movers
+- **[axi4ace_snoop_slave](ace/axi4ace_snoop_slave.md)** - Cache-side snoop responder transport: AC in, CR/CD out
+- **[axi4ace_snoop_master](ace/axi4ace_snoop_master.md)** - CCU-side snoop initiator transport: AC out, CR/CD in
+
+#### Monitor Wrappers
+- All eight `axi4ace_*_monlite` wrappers are documented collectively in **[axi_monitor_lite_wrappers](monitor/axi_monitor_lite_wrappers.md)**
+
+---
+
 ## Shared Infrastructure and Utilities
 
 Infrastructure components used across all AMBA protocols.
@@ -255,8 +276,9 @@ Infrastructure components used across all AMBA protocols.
 - **[axi_monitor_trans_mgr](monitor/axi_monitor_trans_mgr.md)** - AXI transaction-table management (CAM-backed)
 - **[monitor_trans_cam](monitor/monitor_trans_cam.md)** - Multi-port ID CAM with opaque payload (backs trans_mgr)
 - **[axi_monitor_addr_check](monitor/axi_monitor_addr_check.md)** - Per-channel address-match watchpoints
-- **[axi_monitor_lite](monitor/axi_monitor_lite.md)** - The AXI/AXIL transaction monitor at a fifth of the gates; behind every `_monlite` wrapper
+- **[axi_monitor_lite](monitor/axi_monitor_lite.md)** - The AXI/AXIL transaction monitor at a fifth of the gates; behind every front-side `_monlite` wrapper
 - **[axis_monitor_lite](monitor/axis_monitor_lite.md)** - The AXI4-Stream monitor in the lite discipline: packets, stalls, bubbles, TID/TDEST changes as Stream/Credit/Channel/Error/Timeout/Completion packets
+- **[axi4ace_snoop_monitor_lite](monitor/axi4ace_snoop_monitor_lite.md)** - The ACE snoop-channel lite monitor: tracks snoops in AC-issue order because snoop channels have no ID; behind the two ACE snoop-side `_monlite` wrappers
 - **axi4_intf_master_observer** - Standalone, protocol-agnostic interface observer (wraps any AXI4 master interface from outside; companion to the per-DMA `axi_monitor_*` family). Includes `axi_bus_meter` and `axi_perf_latency_hist` per port. Lives at `projects/components/utility-ip/misc/rtl/axi4_intf_master_observer.sv`; the `axi4_dma_observer` copy in `rtl/amba/shared/` was retired 2026-08-14.
 
 ### Monitor Bus Delivery + Bulk-Trace Compression

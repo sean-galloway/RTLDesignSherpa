@@ -249,6 +249,23 @@ $REPO_ROOT/rtl/amba/axi5/stubs/axi5_slave_stub.sv
 $REPO_ROOT/rtl/amba/axi5/stubs/axi5_slave_wr_stub.sv
 
 # =============================================================================
+# ACE - AXI Coherency Extensions (AXI4 + snoop channels, cache-ip family)
+# =============================================================================
+$REPO_ROOT/rtl/amba/ace/axi4ace_master_rd.sv
+$REPO_ROOT/rtl/amba/ace/axi4ace_master_rd_monlite.sv
+$REPO_ROOT/rtl/amba/ace/axi4ace_master_wr.sv
+$REPO_ROOT/rtl/amba/ace/axi4ace_master_wr_monlite.sv
+$REPO_ROOT/rtl/amba/ace/axi4ace_slave_rd.sv
+$REPO_ROOT/rtl/amba/ace/axi4ace_slave_rd_monlite.sv
+$REPO_ROOT/rtl/amba/ace/axi4ace_slave_wr.sv
+$REPO_ROOT/rtl/amba/ace/axi4ace_slave_wr_monlite.sv
+$REPO_ROOT/rtl/amba/ace/axi4ace_snoop_master.sv
+$REPO_ROOT/rtl/amba/ace/axi4ace_snoop_master_monlite.sv
+$REPO_ROOT/rtl/amba/ace/axi4ace_snoop_slave.sv
+$REPO_ROOT/rtl/amba/ace/axi4ace_snoop_slave_monlite.sv
+$REPO_ROOT/rtl/amba/monitor/axi4ace_snoop_monitor_lite.sv
+
+# =============================================================================
 # AXIS5 - AXI Stream v5
 # =============================================================================
 $REPO_ROOT/rtl/amba/axis5/axis5_master.sv

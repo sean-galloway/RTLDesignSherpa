@@ -36,7 +36,7 @@ import re
 import subprocess
 import sys
 
-FAMILIES = ('axil4', 'axil5', 'axis4', 'axis5', 'axi4', 'axi5',
+FAMILIES = ('axil4', 'axil5', 'axis4', 'axis5', 'axi4', 'axi4ace', 'axi5',
             'apb4', 'apb5', 'gaxi')
 # A runner names its DUT as either `dut_name = "..."` or `toplevel = "..."`.
 # Matching only the first skipped 17 files silently -- including all four

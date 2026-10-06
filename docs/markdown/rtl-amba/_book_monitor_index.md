@@ -11,6 +11,7 @@
 - [arbiter_monbus_common](monitor/arbiter_monbus_common.md)
 - [arbiter_rr_pwm_monbus](monitor/arbiter_rr_pwm_monbus.md)
 - [arbiter_wrr_pwm_monbus](monitor/arbiter_wrr_pwm_monbus.md)
+- [axi4ace_snoop_monitor_lite](monitor/axi4ace_snoop_monitor_lite.md)
 - [axi_monitor_addr_check](monitor/axi_monitor_addr_check.md)
 - [AXI Monitor Base](monitor/axi_monitor_base.md)
 - [AXI Monitor Filtered](monitor/axi_monitor_filtered.md)

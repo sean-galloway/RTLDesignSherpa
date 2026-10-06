@@ -71,7 +71,7 @@ graph TD
     L4 --> L5[Level 5: Complete FPGA Projects]
 
     L1 -.- L1D[Counters, FIFOs, Arbiters<br/>Math, Floating-Point, Data Integrity]
-    L2 -.- L2D[APB, AXI4, AXI4-Lite<br/>AXI-Stream, AMBA5 protocols]
+    L2 -.- L2D[APB, AXI4, AXI4-Lite<br/>AXI-Stream, ACE, AMBA5 protocols]
     L3 -.- L3D[CDC Counter Display<br/>APB Crossbar, Bridges]
     L4 -.- L4D[STREAM, RAPIDS, Bridge<br/>Converters, Retro Legacy Blocks]
     L5 -.- L5D[NexysA7 FPGA Projects<br/>Full SoC designs]
@@ -89,7 +89,7 @@ graph TD
 - **[Common Library](../../rtl/common)** (224 modules) - [Documentation](rtl-common/index.md) - [AI Guide](../../rtl/common/CLAUDE.md)
   - Counters, FIFOs, arbiters, integer math, floating-point (BF16/FP16/FP32/FP8), data integrity
 - **[AMBA Infrastructure](../../rtl/amba)** (124 modules) - [Documentation](rtl-amba/index.md) - [AI Guide](../../rtl/amba/CLAUDE.md)
-  - APB, AXI4, AXI4-Lite, AXI-Stream, AMBA5 protocols
+  - APB, AXI4, AXI4-Lite, AXI-Stream, ACE, AMBA5 protocols
 
 ### Component Projects
 | Component | Status | Description |
@@ -419,11 +419,12 @@ pytest projects/components/retro_legacy_blocks/dv/tests/hpet/ -v
 rtldesignsherpa/
 ├── rtl/                          # RTL source code (350+ modules)
 │   ├── common/                   # 224 building blocks (counters, math, FP, etc.)
-│   ├── amba/                     # 124 AMBA protocol modules
+│   ├── amba/                     # 138 AMBA protocol modules
 │   │   ├── apb/                 # APB protocol
 │   │   ├── axi4/                # AXI4 full protocol
 │   │   ├── axil4/               # AXI4-Lite
 │   │   ├── axis/                # AXI4-Stream
+│   │   ├── ace/                 # AXI Coherency Extensions
 │   │   ├── axi5/                # AMBA5 components
 │   │   ├── apb5/                # APB5 protocol
 │   │   ├── gaxi/                # Generic AXI infrastructure
@@ -658,7 +659,7 @@ pytest val/{subsystem}/test_my_module.py -v
 ### Module Counts
 
 - **224 Common Modules** - Counters, FIFOs, arbiters, math, floating-point
-- **124 AMBA Modules** - APB, AXI4, AXI4-Lite, AXI-Stream, AMBA5
+- **138 AMBA Modules** - APB, AXI4, AXI4-Lite, AXI-Stream, ACE, AMBA5
 - **10+ Production Components** - DMA engines, bridges, legacy peripherals
 - **350+ Total RTL Modules** - Complete verification infrastructure
 

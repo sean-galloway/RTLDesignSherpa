@@ -72,6 +72,10 @@ AMBA Protocol Family
         Unidirectional data streaming
         Back-pressure flow control
         Packet-based data transfer
+    ACE (AXI Coherency Extensions)
+        Coherent memory access for multi-cache systems
+        Snoop channels (AC/CR/CD) and transaction-type fields
+        Used by the cache-ip family (amber/jet caches, onyx CCU)
 
  AMBA 5 (Next-Generation Features)
      APB5 (Enhanced Peripheral Bus)
@@ -94,8 +98,8 @@ AMBA Protocol Family
 ### Implementation Architecture
 
 ```
-RTL AMBA Library Architecture (134 modules under rtl/amba/)
- AMBA 4 Protocol Implementations (45 modules)
+RTL AMBA Library Architecture (148 modules under rtl/amba/)
+ AMBA 4 Protocol Implementations (59 modules)
     APB4 (9 modules) -- rtl/amba/apb4/
       Masters, slaves, clock-gating and CDC variants, test stubs
     AXI4 (16 modules) -- rtl/amba/axi4/
@@ -104,6 +108,9 @@ RTL AMBA Library Architecture (134 modules under rtl/amba/)
       Read/write masters and slaves, clock-gating and monitored variants
     AXI4-Stream (4 modules) -- rtl/amba/axis4/
        Masters and slaves, clock-gating variants
+    ACE (14 modules) -- rtl/amba/ace/
+       Front-side read/write masters and slaves, snoop-side movers,
+       and lite-monitor wrappers for the cache-ip family
 
  Other bus protocols (9 modules)
     Wishbone B4 (9 modules) -- rtl/amba/wb4/
@@ -687,6 +694,7 @@ endmodule
 | `axi4/` | AXI4 module documentation |
 | `axi5/` | AXI5 module documentation |
 | `axil4/` | AXI4-Lite module documentation |
+| `ace/` | ACE module documentation |
 | `axis4/` | AXI4-Stream module documentation |
 | `axis5/` | AXI5-Stream module documentation |
 | `gaxi/` | Generic AXI infrastructure |

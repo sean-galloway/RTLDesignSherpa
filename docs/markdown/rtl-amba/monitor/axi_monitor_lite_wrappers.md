@@ -23,8 +23,8 @@
 
 # AXI Monitor Lite Wrappers
 
-**Module:** `axi4_master_rd_monlite.sv` / `axi4_master_wr_monlite.sv` / `axi4_slave_rd_monlite.sv` / `axi4_slave_wr_monlite.sv` / `axi5_master_rd_monlite.sv` / `axi5_master_wr_monlite.sv` / `axi5_slave_rd_monlite.sv` / `axi5_slave_wr_monlite.sv` / `axil4_master_rd_monlite.sv` / `axil4_master_wr_monlite.sv` / `axil4_slave_rd_monlite.sv` / `axil4_slave_wr_monlite.sv` / `axil5_master_rd_monlite.sv` / `axil5_master_wr_monlite.sv` / `axil5_slave_rd_monlite.sv` / `axil5_slave_wr_monlite.sv` / `axi4_master_rd_monlite_cg.sv` / `axi4_master_wr_monlite_cg.sv` / `axi4_slave_rd_monlite_cg.sv` / `axi4_slave_wr_monlite_cg.sv` / `axi5_master_rd_monlite_cg.sv` / `axi5_master_wr_monlite_cg.sv` / `axi5_slave_rd_monlite_cg.sv` / `axi5_slave_wr_monlite_cg.sv` / `axil4_master_rd_monlite_cg.sv` / `axil4_master_wr_monlite_cg.sv` / `axil4_slave_rd_monlite_cg.sv` / `axil4_slave_wr_monlite_cg.sv` / `axil5_master_rd_monlite_cg.sv` / `axil5_master_wr_monlite_cg.sv` / `axil5_slave_rd_monlite_cg.sv` / `axil5_slave_wr_monlite_cg.sv`
-**Location:** `rtl/amba/axi4/`, `rtl/amba/axi5/`, `rtl/amba/axil4/`, `rtl/amba/axil5/`
+**Module:** `axi4_master_rd_monlite.sv` / `axi4_master_wr_monlite.sv` / `axi4_slave_rd_monlite.sv` / `axi4_slave_wr_monlite.sv` / `axi5_master_rd_monlite.sv` / `axi5_master_wr_monlite.sv` / `axi5_slave_rd_monlite.sv` / `axi5_slave_wr_monlite.sv` / `axil4_master_rd_monlite.sv` / `axil4_master_wr_monlite.sv` / `axil4_slave_rd_monlite.sv` / `axil4_slave_wr_monlite.sv` / `axil5_master_rd_monlite.sv` / `axil5_master_wr_monlite.sv` / `axil5_slave_rd_monlite.sv` / `axil5_slave_wr_monlite.sv` / `axi4ace_master_rd_monlite.sv` / `axi4ace_master_wr_monlite.sv` / `axi4ace_slave_rd_monlite.sv` / `axi4ace_slave_wr_monlite.sv` / `axi4ace_snoop_slave_monlite.sv` / `axi4ace_snoop_master_monlite.sv` / `axi4_master_rd_monlite_cg.sv` / `axi4_master_wr_monlite_cg.sv` / `axi4_slave_rd_monlite_cg.sv` / `axi4_slave_wr_monlite_cg.sv` / `axi5_master_rd_monlite_cg.sv` / `axi5_master_wr_monlite_cg.sv` / `axi5_slave_rd_monlite_cg.sv` / `axi5_slave_wr_monlite_cg.sv` / `axil4_master_rd_monlite_cg.sv` / `axil4_master_wr_monlite_cg.sv` / `axil4_slave_rd_monlite_cg.sv` / `axil4_slave_wr_monlite_cg.sv` / `axil5_master_rd_monlite_cg.sv` / `axil5_master_wr_monlite_cg.sv` / `axil5_slave_rd_monlite_cg.sv` / `axil5_slave_wr_monlite_cg.sv`
+**Location:** `rtl/amba/axi4/`, `rtl/amba/axi5/`, `rtl/amba/axil4/`, `rtl/amba/axil5/`, `rtl/amba/ace/`
 **Category:** Protocol wrappers with the lite monitor
 **Status:** Production Ready (amba/monitor-lite TASK-001, 2026-09-26)
 
@@ -32,24 +32,24 @@
 
 ## Overview
 
-Thirty-two wrappers, one page. Each `<core>_monlite` is the core wrapper
-(`axi4_master_rd`, `axil5_slave_wr`, and so on) with
-[`axi_monitor_lite`](axi_monitor_lite.md) watching its bus-side channels; each
-`<core>_monlite_cg` is that lite wrapper behind one `amba_clock_gate_ctrl`. They
-are the lite-monitor siblings of the `_mon` and `_mon_cg` wrappers: same core,
-same taps, same 128-bit `monitor_packet_t` on the same monbus with the same
-`UNIT_ID`/`AGENT_ID`, so the monbus arbiter, the AXI-Lite group, the tally and
-the host tooling cannot tell the two apart. The difference is what they cost
-and what they can be asked for: about a fifth of the monitor LUTs (677 against
-3,249 per read monitor in the same bridge fixture) and the packet classes the
-lite emits -- error, timeout, completion, threshold (active-count and latency),
-address-range match and miss, and the drop report.
+Forty-eight wrappers, one page. Each `<core>_monlite` is the core wrapper
+(`axi4_master_rd`, `axil5_slave_wr`, `axi4ace_snoop_slave`, and so on) with
+the appropriate lite monitor watching its bus-side channels; each
+`<core>_monlite_cg` is that lite wrapper behind one `amba_clock_gate_ctrl`.
+They are the lite-monitor siblings of the `_mon` and `_mon_cg` wrappers: same
+core, same taps, same 128-bit `monitor_packet_t` on the same monbus with the
+same `UNIT_ID`/`AGENT_ID`, so the monbus arbiter, the AXI-Lite group, the tally
+and the host tooling cannot tell the two apart. The difference is what they
+cost and what they can be asked for: about a fifth of the monitor LUTs (677
+against 3,249 per read monitor in the same bridge fixture) and the packet
+classes the lite emits -- error, timeout, completion, threshold (active-count
+and latency), address-range match and miss, and the drop report.
 
 Every core parameter and port is declared verbatim and passed through by name;
-only the monitor section differs from `<core>`. The thirty-two files are
-generated from the core module headers and the lite tap wiring, which is why
-one page describes them all: the monitor section below is identical on every
-one, and the per-wrapper facts fit in two tables.
+only the monitor section differs from `<core>`. The files are generated from
+the core module headers and the lite tap wiring, which is why one page
+describes them all: the monitor section below is identical within each family,
+and the per-wrapper facts fit in three tables.
 
 | Family | Role | Channel | Lite wrapper | Clock-gated lite wrapper | Wraps | Full-monitor siblings |
 |---|---|---|---|---|---|---|
@@ -89,7 +89,24 @@ port and drives nothing.
 
 : Table 2: The eight AXIS wrappers
 
-Their monitor section is the AXIS core's, not the AXI one's: parameters
+### The eight ACE wrappers (2026-10-05)
+
+The ACE family adds AXI Coherency Extensions to the AXI4 movers (`ARSNOOP[3:0]`, `AWSNOOP[2:0]`, auto-pulsed `RACK`/`WACK` on the masters) and adds three snoop channels (AC/CR/CD) for cache-to-CCU traffic. Front-side ACE wrappers reuse [`axi_monitor_lite`](axi_monitor_lite.md) exactly as the AXI4 wrappers do. Snoop-side wrappers use the new [`axi4ace_snoop_monitor_lite`](axi4ace_snoop_monitor_lite.md) because snoop channels have no transaction ID: CR and CDLAST are attributed to the oldest outstanding AC.
+
+| Family | Role | Channel | Lite wrapper | Wraps | Monitor core | Tapped port |
+|---|---|---|---|---|---|---|
+| ACE | master | read | `axi4ace_master_rd_monlite` | `axi4ace_master_rd` | `axi_monitor_lite` | `m_axi_*` read channels |
+| ACE | master | write | `axi4ace_master_wr_monlite` | `axi4ace_master_wr` | `axi_monitor_lite` | `m_axi_*` write channels |
+| ACE | slave | read | `axi4ace_slave_rd_monlite` | `axi4ace_slave_rd` | `axi_monitor_lite` | `s_axi_*` read channels |
+| ACE | slave | write | `axi4ace_slave_wr_monlite` | `axi4ace_slave_wr` | `axi_monitor_lite` | `s_axi_*` write channels |
+| ACE | snoop | slave (cache side) | `axi4ace_snoop_slave_monlite` | `axi4ace_snoop_slave` | `axi4ace_snoop_monitor_lite` | `m_axi_ac*` / `m_axi_cr*` / `m_axi_cd*` |
+| ACE | snoop | master (CCU side) | `axi4ace_snoop_master_monlite` | `axi4ace_snoop_master` | `axi4ace_snoop_monitor_lite` | `m_axi_ac*` / `m_axi_cr*` / `m_axi_cd*` |
+
+: Table 3: The eight ACE wrappers
+
+There are no `_cg` ACE wrappers in this release. The front-side ACE wrappers carry the same monitor port list as the AXI4 wrappers (with the core's ACE fields passed through). The snoop-side wrappers expose the smaller control set of `axi4ace_snoop_monitor_lite`: `clear`, `cfg_monitor_enable`, `cfg_error_enable`, `cfg_timeout_enable`, `cfg_compl_enable`, `cfg_timeout_cycles`, `cfg_freq_sel`, `i_mon_time`, plus the monbus and status outputs.
+
+The AXIS wrappers' monitor section is the AXIS core's, not the AXI one's: parameters
 `USE_MONITOR`, `UNIT_ID`, `AGENT_ID`, `OUT_DEPTH`, `ACLK_MHZ`,
 `CFI_MIN/MAX_FREQ_MHZ` (no table, so no `MAX_TRANSACTIONS`,
 `ACTIVE_TRANS_THRESHOLD` or address ranges); control pins `cam_clear`,
@@ -122,6 +139,11 @@ command that finds no free table entry is counted (`refused_count`) and left
 untracked, so its beats report as orphans. Consumers that need the perf
 window keep a meter beside the lite (STREAM's `axi_bus_meter`, RAPIDS'
 descriptor-port meter), not inside it.
+
+The ACE snoop-side wrappers additionally do not carry the full AXI monitor's
+transaction table: `axi4ace_snoop_monitor_lite` tracks snoops in AC-issue order
+because snoop channels have no ID, and it emits only error, timeout, and
+completion packets.
 
 ---
 
@@ -313,8 +335,9 @@ directly.
 - Consumers that relied on `block_ready` to bound the table get drop-and-count
   instead; the count is always reported, the identity of the lost events is not.
 - Filelists: `rtl/amba/filelists/<wrapper>.f`, each the core's closure plus
-  `axi_monitor_lite.f` (and `amba_clock_gate_ctrl.f` for the `_cg` variants);
-  nothing from the full monitor family.
+  `axi_monitor_lite.f` (or `axi4ace_snoop_monitor_lite.f` for the two snoop-side
+  ACE wrappers), and `amba_clock_gate_ctrl.f` for the `_cg` variants; nothing
+  from the full monitor family.
 
 ---
 
@@ -330,10 +353,10 @@ directly.
 
 `val/amba/monitor-lite/` holds one test per wrapper (`test_<wrapper>.py`, the
 same TB and scenarios as the `_mon` / `_mon_cg` tests with the DUT swapped),
-the lite's own TB (`test_axi_monitor_lite.py`), and
-`test_monlite_cg_gating.py`, the six-phase BFM-driven structural gating test
-over all sixteen clock-gated wrappers at two idle counts and two shared delay
-profiles.
+the lite's own TB (`test_axi_monitor_lite.py`), the ACE snoop monitor's own
+TB (`test_axi4ace_snoop_monitor_lite.py`), and `test_monlite_cg_gating.py`,
+the six-phase BFM-driven structural gating test over all sixteen clock-gated
+wrappers at two idle counts and two shared delay profiles.
 
 ```bash
 source env_python
@@ -342,7 +365,7 @@ make -C val/amba/monitor-lite run-all-full-parallel
 
 ---
 
-**Last Updated:** 2026-09-27
+**Last Updated:** 2026-10-05
 
 ---
 

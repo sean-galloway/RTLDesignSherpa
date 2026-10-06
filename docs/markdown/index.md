@@ -82,9 +82,10 @@ Complete implementation of ARM AMBA protocols:
 - **AXI4 (Full)**: High-performance memory-mapped interfaces with burst support
 - **AXI4-Lite**: Register access interfaces with simplified protocol
 - **AXI4-Stream**: High-throughput streaming data interfaces
+- **ACE (AXI Coherency Extensions)**: Coherent memory-mapped interfaces with snoop channels for the cache-ip family
 - **Infrastructure**: Skid buffers, arbiters, protocol bridges, monitors
 
-*66+ modules supporting complete AMBA-based system design*
+*80+ modules supporting complete AMBA-based system design*
 
 ### Verification Framework
 

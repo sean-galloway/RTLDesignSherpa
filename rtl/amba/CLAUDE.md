@@ -217,6 +217,24 @@ gaxi_fifo_sync #(.REGISTERED(0), .DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 
 > Dedicated AXIL4 wrappers (not the old `IS_AXI=0` parameter overload). Share `axi_monitor_base` and packet format with the AXI4 wrappers.
 
+### ACE — AXI Coherency Extensions (`rtl/amba/ace/`, 2026-10-05)
+
+AXI4 + ACE for the `cache-ip` family (amber/jet caches, onyx CCU). The
+front-side movers add `ARSNOOP[3:0]`/`AWSNOOP[2:0]` to the address-channel
+payloads; masters auto-pulse `RACK`/`WACK` (no ordering semantics in the
+current subset — see `projects/components/cache-ip/References/AMBA_ACE_Interface_Definition.md`).
+The snoop movers are new channels (AC/CR/CD), not variants. Only base +
+`_monlite` exist: no `_cg`, no `_mon`, no stubs.
+
+| Module | Purpose | Documentation |
+|---|---|---|
+| `axi4ace_master_rd.sv` / `axi4ace_master_wr.sv` | ACE master channel movers (fub→m_axi) with snoop-type fields + auto RACK/WACK | `docs/markdown/rtl-amba/ace/axi4ace_master_rd.md`, `docs/markdown/rtl-amba/ace/axi4ace_master_wr.md` |
+| `axi4ace_slave_rd.sv` / `axi4ace_slave_wr.sv` | ACE slave channel movers (s_axi→fub) with snoop-type fields | `docs/markdown/rtl-amba/ace/axi4ace_slave_rd.md`, `docs/markdown/rtl-amba/ace/axi4ace_slave_wr.md` |
+| `axi4ace_snoop_slave.sv` | Cache-side snoop responder transport: AC in, CR/CD out (amber/jet adapter plumbing) | `docs/markdown/rtl-amba/ace/axi4ace_snoop_slave.md` |
+| `axi4ace_snoop_master.sv` | CCU-side snoop initiator transport: AC out, CR/CD in (onyx fanout plumbing) | `docs/markdown/rtl-amba/ace/axi4ace_snoop_master.md` |
+| `axi4ace_*_monlite.sv` (8) | Each mover wrapped with the lite monitor; front-side taps reuse `axi_monitor_lite` | `docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md` |
+| `monitor/axi4ace_snoop_monitor_lite.sv` | ACE-aware lite monitor core: snoops have no ID — CR/CD correlate to ACs in issue order; COMPL/ERROR/TIMEOUT packets, drop-and-count, never stalls | `docs/markdown/rtl-amba/monitor/axi4ace_snoop_monitor_lite.md` |
+
 ### Supporting Infrastructure — `rtl/amba/monitor/` + `rtl/amba/shared/`
 
 All protocol-agnostic. The monitor core, monbus infrastructure and monbus arbiters live in `rtl/amba/monitor/`. The protocol `*_mon` wrappers do NOT -- each lives with the protocol it wraps (`axi4/`, `axi5/`, `axil4/`, `apb/`, `apb5/`), because a wrapper pairs one protocol block with the shared core and belongs to the protocol, not to the core; observation/storage/test helpers live in `rtl/amba/shared/`; CDC helpers moved OUT to the top-level `rtl/cdc/` area (AMBA-CDC-REORG) -- see `rtl/cdc/CLAUDE.md`. The wrappers instantiate the monitor-core pieces below.
