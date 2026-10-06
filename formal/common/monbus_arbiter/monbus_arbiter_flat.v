@@ -501,16 +501,13 @@ module arbiter_round_robin (
 			);
 			wire w_ack_received;
 			wire w_can_grant;
-			wire [CLIENTS - 1:0] w_other_requests;
 			if (WAIT_GNT_ACK == 1) begin : gen_ack_optimized
 				assign w_ack_received = r_pending_ack && grant_ack[r_pending_client];
-				assign w_other_requests = w_requests_gated & ~(sv2v_cast_6D6F8_signed(1) << r_pending_client);
 				assign w_can_grant = !r_pending_ack || w_ack_received;
 			end
 			else begin : gen_no_ack_optimized
 				assign w_ack_received = 1'b0;
 				assign w_can_grant = 1'b1;
-				assign w_other_requests = 1'sb0;
 			end
 			wire w_should_grant;
 			reg [CLIENTS - 1:0] w_next_grant;
@@ -561,7 +558,16 @@ module arbiter_round_robin (
 					end
 					else if ((grant_valid == 1'b1) && !w_ack_received)
 						;
-					else if (((grant_valid == 1'b1) && w_ack_received) && (w_other_requests == {CLIENTS {1'sb0}})) begin
+					else if (w_next_grant_valid) begin
+						grant <= w_next_grant;
+						grant_id <= w_next_grant_id;
+						grant_valid <= w_next_grant_valid;
+						last_grant <= grant;
+						r_last_grant_id <= grant_id;
+						r_pending_ack <= 1'b1;
+						r_pending_client <= w_next_grant_id;
+					end
+					else begin
 						grant <= 1'sb0;
 						grant_id <= 1'sb0;
 						grant_valid <= 1'b0;
@@ -569,24 +575,6 @@ module arbiter_round_robin (
 						r_last_grant_id <= grant_id;
 						r_pending_ack <= 1'b0;
 						r_pending_client <= 1'sb0;
-					end
-					else if (((grant_valid == 1'b1) && w_ack_received) && (w_other_requests != {CLIENTS {1'sb0}})) begin
-						if (w_next_grant_valid) begin
-							grant <= w_next_grant;
-							grant_id <= w_next_grant_id;
-							grant_valid <= w_next_grant_valid;
-							last_grant <= grant;
-							r_last_grant_id <= grant_id;
-							r_pending_ack <= 1'b1;
-							r_pending_client <= w_next_grant_id;
-						end
-						else begin
-							grant <= 1'sb0;
-							grant_id <= 1'sb0;
-							grant_valid <= 1'b0;
-							r_pending_ack <= 1'b0;
-							r_pending_client <= 1'sb0;
-						end
 					end
 				end
 		end

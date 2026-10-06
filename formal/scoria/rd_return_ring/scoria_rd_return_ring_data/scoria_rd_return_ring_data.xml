@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+<testsuite timestamp="2026-10-01T08:06:29" hostname="amdtrp" package="scoria_rd_return_ring" id="0" name="data" tests="14" errors="0" failures="0" time="39" skipped="5">
+<properties>
+<property name="os" value="Linux"/>
+<property name="expect" value="PASS"/>
+<property name="status" value="PASS"/>
+</properties>
+<testcase classname="data" name="build execution" time="0">
+</testcase>
+<testcase classname="data" name="Property ASSERT in formal_scoria_rd_return_ring at formal_scoria_rd_return_ring.sv:266.13-266.62" time="0" type="ASSERT" location="formal_scoria_rd_return_ring.sv:266.13-266.62" id="a_burst_length">
+</testcase>
+<testcase classname="data" name="Property ASSERT in formal_scoria_rd_return_ring at formal_scoria_rd_return_ring.sv:240.25-240.62" time="0" type="ASSERT" location="formal_scoria_rd_return_ring.sv:240.25-240.62" id="a_busy_when_occupied">
+</testcase>
+<testcase classname="data" name="Property ASSERT in formal_scoria_rd_return_ring at formal_scoria_rd_return_ring.sv:303.26-303.75" time="0" type="ASSERT" location="formal_scoria_rd_return_ring.sv:303.26-303.75" id="a_data_integrity">
+</testcase>
+<testcase classname="data" name="Property ASSERT in formal_scoria_rd_return_ring at formal_scoria_rd_return_ring.sv:261.9-261.66" time="0" type="ASSERT" location="formal_scoria_rd_return_ring.sv:261.9-261.66" id="a_no_fabrication">
+</testcase>
+<testcase classname="data" name="Property ASSERT in formal_scoria_rd_return_ring at formal_scoria_rd_return_ring.sv:230.9-230.58" time="0" type="ASSERT" location="formal_scoria_rd_return_ring.sv:230.9-230.58" id="a_no_free_empty">
+</testcase>
+<testcase classname="data" name="Property ASSERT in formal_scoria_rd_return_ring at formal_scoria_rd_return_ring.sv:225.9-225.49" time="0" type="ASSERT" location="formal_scoria_rd_return_ring.sv:225.9-225.49" id="a_occ_le_depth">
+</testcase>
+<testcase classname="data" name="Property ASSERT in formal_scoria_rd_return_ring at formal_scoria_rd_return_ring.sv:226.9-226.57" time="0" type="ASSERT" location="formal_scoria_rd_return_ring.sv:226.9-226.57" id="a_occ_matches">
+</testcase>
+<testcase classname="data" name="Property ASSERT in formal_scoria_rd_return_ring at formal_scoria_rd_return_ring.sv:236.9-236.77" time="0" type="ASSERT" location="formal_scoria_rd_return_ring.sv:236.9-236.77" id="a_ready_is_notfull">
+</testcase>
+<testcase classname="data" name="Property ASSERT in formal_scoria_rd_return_ring at formal_scoria_rd_return_ring.sv:233.9-233.60" time="0" type="ASSERT" location="formal_scoria_rd_return_ring.sv:233.9-233.60" id="a_ticket_is_tail">
+</testcase>
+<testcase classname="data" name="Property COVER in formal_scoria_rd_return_ring at formal_scoria_rd_return_ring.sv:320.9-320.51" time="0" type="COVER" location="formal_scoria_rd_return_ring.sv:320.9-320.51" id="c_back_to_back">
+<skipped />
+</testcase>
+<testcase classname="data" name="Property COVER in formal_scoria_rd_return_ring at formal_scoria_rd_return_ring.sv:316.9-316.41" time="0" type="COVER" location="formal_scoria_rd_return_ring.sv:316.9-316.41" id="c_data_checked">
+<skipped />
+</testcase>
+<testcase classname="data" name="Property COVER in formal_scoria_rd_return_ring at formal_scoria_rd_return_ring.sv:314.9-314.57" time="0" type="COVER" location="formal_scoria_rd_return_ring.sv:314.9-314.57" id="c_drain_burst">
+<skipped />
+</testcase>
+<testcase classname="data" name="Property COVER in formal_scoria_rd_return_ring at formal_scoria_rd_return_ring.sv:319.9-319.71" time="0" type="COVER" location="formal_scoria_rd_return_ring.sv:319.9-319.71" id="c_out_of_order">
+<skipped />
+</testcase>
+<testcase classname="data" name="Property COVER in formal_scoria_rd_return_ring at formal_scoria_rd_return_ring.sv:313.9-313.54" time="0" type="COVER" location="formal_scoria_rd_return_ring.sv:313.9-313.54" id="c_ring_full">
+<skipped />
+</testcase>
+<system-out>SBY  8:05:44 [scoria_rd_return_ring_data] Removing directory '/mnt/data/github/RTLDesignSherpa/formal/scoria/rd_return_ring/scoria_rd_return_ring_data'.
+SBY  8:05:44 [scoria_rd_return_ring_data] Copy '/mnt/data/github/RTLDesignSherpa/formal/scoria/rd_return_ring/formal_scoria_rd_return_ring.sv' to '/mnt/data/github/RTLDesignSherpa/formal/scoria/rd_return_ring/scoria_rd_return_ring_data/src/formal_scoria_rd_return_ring.sv'.
+SBY  8:05:44 [scoria_rd_return_ring_data] Copy '/mnt/data/github/RTLDesignSherpa/formal/scoria/rd_return_ring/ring_flat.v' to '/mnt/data/github/RTLDesignSherpa/formal/scoria/rd_return_ring/scoria_rd_return_ring_data/src/ring_flat.v'.
+SBY  8:05:44 [scoria_rd_return_ring_data] engine_0: smtbmc bitwuzla
+SBY  8:05:44 [scoria_rd_return_ring_data] base: starting process &quot;cd scoria_rd_return_ring_data/src; yosys -ql ../model/design.log ../model/design.ys&quot;
+SBY  8:05:44 [scoria_rd_return_ring_data] base: Warning: Replacing memory \r_sk_resp with list of registers. See ring_flat.v:488
+SBY  8:05:44 [scoria_rd_return_ring_data] base: Warning: Replacing memory \r_sk_blast with list of registers. See ring_flat.v:487
+SBY  8:05:44 [scoria_rd_return_ring_data] base: Warning: Replacing memory \r_sk_data with list of registers. See ring_flat.v:486
+SBY  8:05:44 [scoria_rd_return_ring_data] base: Warning: Replacing memory \r_resp with list of registers. See ring_flat.v:455
+SBY  8:05:44 [scoria_rd_return_ring_data] base: Warning: Replacing memory \r_ready with list of registers. See ring_flat.v:454
+SBY  8:05:44 [scoria_rd_return_ring_data] base: finished (returncode=0)
+SBY  8:05:44 [scoria_rd_return_ring_data] prep: starting process &quot;cd scoria_rd_return_ring_data/model; yosys -ql design_prep.log design_prep.ys&quot;
+SBY  8:05:45 [scoria_rd_return_ring_data] prep: finished (returncode=0)
+SBY  8:05:45 [scoria_rd_return_ring_data] smt2: starting process &quot;cd scoria_rd_return_ring_data/model; yosys -ql design_smt2.log design_smt2.ys&quot;
+SBY  8:05:45 [scoria_rd_return_ring_data] smt2: finished (returncode=0)
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: starting process &quot;cd scoria_rd_return_ring_data; yosys-smtbmc -s bitwuzla --presat --unroll --noprogress -t 18  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2&quot;
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Solver: bitwuzla
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 0..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 0..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 1..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 1..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 2..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 2..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 3..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 3..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 4..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 4..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 5..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 5..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 6..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 6..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 7..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 7..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 8..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 8..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 9..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 9..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 10..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 10..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 11..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 11..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 12..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 12..
+SBY  8:05:46 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 13..
+SBY  8:05:46 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 13..
+SBY  8:05:46 [scoria_rd_return_ring_data] engine_0: ##   0:00:01  Checking assumptions in step 14..
+SBY  8:05:46 [scoria_rd_return_ring_data] engine_0: ##   0:00:01  Checking assertions in step 14..
+SBY  8:05:47 [scoria_rd_return_ring_data] engine_0: ##   0:00:02  Checking assumptions in step 15..
+SBY  8:05:47 [scoria_rd_return_ring_data] engine_0: ##   0:00:02  Checking assertions in step 15..
+SBY  8:05:51 [scoria_rd_return_ring_data] engine_0: ##   0:00:06  Checking assumptions in step 16..
+SBY  8:05:51 [scoria_rd_return_ring_data] engine_0: ##   0:00:06  Checking assertions in step 16..
+SBY  8:06:02 [scoria_rd_return_ring_data] engine_0: ##   0:00:17  Checking assumptions in step 17..
+SBY  8:06:02 [scoria_rd_return_ring_data] engine_0: ##   0:00:17  Checking assertions in step 17..
+SBY  8:06:29 [scoria_rd_return_ring_data] engine_0: ##   0:00:44  Status: passed
+SBY  8:06:29 [scoria_rd_return_ring_data] engine_0: finished (returncode=0)
+SBY  8:06:29 [scoria_rd_return_ring_data] engine_0: Status returned by engine: pass
+SBY  8:06:29 [scoria_rd_return_ring_data] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:44 (44)
+SBY  8:06:29 [scoria_rd_return_ring_data] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:39 (39)
+SBY  8:06:29 [scoria_rd_return_ring_data] summary: engine_0 (smtbmc bitwuzla) returned pass
+SBY  8:06:29 [scoria_rd_return_ring_data] summary: engine_0 did not produce any traces
+SBY  8:06:29 [scoria_rd_return_ring_data] DONE (PASS, rc=0)
+</system-out>
+<system-err>
+</system-err>
+</testsuite>
+</testsuites>

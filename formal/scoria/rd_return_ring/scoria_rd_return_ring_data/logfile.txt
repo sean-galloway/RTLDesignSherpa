@@ -1,0 +1,61 @@
+SBY  8:05:44 [scoria_rd_return_ring_data] Removing directory '/mnt/data/github/RTLDesignSherpa/formal/scoria/rd_return_ring/scoria_rd_return_ring_data'.
+SBY  8:05:44 [scoria_rd_return_ring_data] Copy '/mnt/data/github/RTLDesignSherpa/formal/scoria/rd_return_ring/formal_scoria_rd_return_ring.sv' to '/mnt/data/github/RTLDesignSherpa/formal/scoria/rd_return_ring/scoria_rd_return_ring_data/src/formal_scoria_rd_return_ring.sv'.
+SBY  8:05:44 [scoria_rd_return_ring_data] Copy '/mnt/data/github/RTLDesignSherpa/formal/scoria/rd_return_ring/ring_flat.v' to '/mnt/data/github/RTLDesignSherpa/formal/scoria/rd_return_ring/scoria_rd_return_ring_data/src/ring_flat.v'.
+SBY  8:05:44 [scoria_rd_return_ring_data] engine_0: smtbmc bitwuzla
+SBY  8:05:44 [scoria_rd_return_ring_data] base: starting process "cd scoria_rd_return_ring_data/src; yosys -ql ../model/design.log ../model/design.ys"
+SBY  8:05:44 [scoria_rd_return_ring_data] base: Warning: Replacing memory \r_sk_resp with list of registers. See ring_flat.v:488
+SBY  8:05:44 [scoria_rd_return_ring_data] base: Warning: Replacing memory \r_sk_blast with list of registers. See ring_flat.v:487
+SBY  8:05:44 [scoria_rd_return_ring_data] base: Warning: Replacing memory \r_sk_data with list of registers. See ring_flat.v:486
+SBY  8:05:44 [scoria_rd_return_ring_data] base: Warning: Replacing memory \r_resp with list of registers. See ring_flat.v:455
+SBY  8:05:44 [scoria_rd_return_ring_data] base: Warning: Replacing memory \r_ready with list of registers. See ring_flat.v:454
+SBY  8:05:44 [scoria_rd_return_ring_data] base: finished (returncode=0)
+SBY  8:05:44 [scoria_rd_return_ring_data] prep: starting process "cd scoria_rd_return_ring_data/model; yosys -ql design_prep.log design_prep.ys"
+SBY  8:05:45 [scoria_rd_return_ring_data] prep: finished (returncode=0)
+SBY  8:05:45 [scoria_rd_return_ring_data] smt2: starting process "cd scoria_rd_return_ring_data/model; yosys -ql design_smt2.log design_smt2.ys"
+SBY  8:05:45 [scoria_rd_return_ring_data] smt2: finished (returncode=0)
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: starting process "cd scoria_rd_return_ring_data; yosys-smtbmc -s bitwuzla --presat --unroll --noprogress -t 18  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2"
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Solver: bitwuzla
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 0..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 0..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 1..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 1..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 2..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 2..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 3..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 3..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 4..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 4..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 5..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 5..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 6..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 6..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 7..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 7..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 8..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 8..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 9..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 9..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 10..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 10..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 11..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 11..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 12..
+SBY  8:05:45 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 12..
+SBY  8:05:46 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assumptions in step 13..
+SBY  8:05:46 [scoria_rd_return_ring_data] engine_0: ##   0:00:00  Checking assertions in step 13..
+SBY  8:05:46 [scoria_rd_return_ring_data] engine_0: ##   0:00:01  Checking assumptions in step 14..
+SBY  8:05:46 [scoria_rd_return_ring_data] engine_0: ##   0:00:01  Checking assertions in step 14..
+SBY  8:05:47 [scoria_rd_return_ring_data] engine_0: ##   0:00:02  Checking assumptions in step 15..
+SBY  8:05:47 [scoria_rd_return_ring_data] engine_0: ##   0:00:02  Checking assertions in step 15..
+SBY  8:05:51 [scoria_rd_return_ring_data] engine_0: ##   0:00:06  Checking assumptions in step 16..
+SBY  8:05:51 [scoria_rd_return_ring_data] engine_0: ##   0:00:06  Checking assertions in step 16..
+SBY  8:06:02 [scoria_rd_return_ring_data] engine_0: ##   0:00:17  Checking assumptions in step 17..
+SBY  8:06:02 [scoria_rd_return_ring_data] engine_0: ##   0:00:17  Checking assertions in step 17..
+SBY  8:06:29 [scoria_rd_return_ring_data] engine_0: ##   0:00:44  Status: passed
+SBY  8:06:29 [scoria_rd_return_ring_data] engine_0: finished (returncode=0)
+SBY  8:06:29 [scoria_rd_return_ring_data] engine_0: Status returned by engine: pass
+SBY  8:06:29 [scoria_rd_return_ring_data] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:44 (44)
+SBY  8:06:29 [scoria_rd_return_ring_data] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:39 (39)
+SBY  8:06:29 [scoria_rd_return_ring_data] summary: engine_0 (smtbmc bitwuzla) returned pass
+SBY  8:06:29 [scoria_rd_return_ring_data] summary: engine_0 did not produce any traces
+SBY  8:06:29 [scoria_rd_return_ring_data] DONE (PASS, rc=0)

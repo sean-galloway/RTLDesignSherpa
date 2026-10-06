@@ -1,0 +1,14 @@
+# running in scoria_rd_return_ring_data/src/
+read_verilog -formal ring_flat.v
+read -formal -sv formal_scoria_rd_return_ring.sv
+# cover builds WITH F_DATA, deliberately. Built without it, `w_check` is tied
+# low by the g_nodata arm and c_data_checked reports unreachable -- which is
+# what happened the first time this ran. A cover task that cannot reach its own
+# cover point is the vacuity check failing on itself.
+chparam -set F_DATA 1 formal_scoria_rd_return_ring
+prep -top formal_scoria_rd_return_ring
+
+hierarchy -smtcheck
+rename -witness
+write_jny -no-connections ../model/design.json
+write_rtlil ../model/design.il

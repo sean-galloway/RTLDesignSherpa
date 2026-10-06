@@ -44,9 +44,12 @@ SLICC tables), D10 first consumer (TB masters bring-up, pair rig the gated
 deliverable); D3 and D11 remain OPEN. The full **[Hardware Architecture
 Specification](docs/amber_has/amber_has_index.md)** (chapter book, v1.0)
 ratifies the [Pre-HAS](docs/amber_has/amber_prehas.md) sketch — two tops,
-`amber` (pair rig) and `amber_ace` (onyx rig), on a shared `amber_core`.
-`rtl/`, `dv/` are still placeholders; no RTL, no testbench, no register
-model.
+`amber` (pair rig) and `amber_ace` (onyx rig), on a shared `amber_core`. The
+**[Micro-Architecture Specification](docs/amber_mas/amber_mas_index.md)** and
+pre-RTL **[signal-contract / K-map workbook](docs/gen_amber_contracts_kmaps.py)**
+now close the implementation decisions the HAS deferred (pipeline staging,
+array banking, FSM state encoding, replacement datapaths, interface timing).
+`rtl/`, `dv/` are still placeholders; no RTL, no testbench, no register model.
 
 ## What it teaches / why it exists
 

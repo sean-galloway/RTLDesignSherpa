@@ -1,0 +1,17 @@
+#!/bin/bash
+# Build amber Micro-Architecture Specification document
+# Usage: ./cmd [version]
+# Example: ./cmd 1.0
+
+VERSION="${1:-1.0}"
+OUTPUT_BASE="amber_mas_v${VERSION}"
+
+python3 /mnt/data/github/RTLDesignSherpa/bin/md_to_docx.py \
+    amber_mas_index.md "${OUTPUT_BASE}.docx" \
+    --expand-index --pdf --pagebreak --toc --number-sections \
+    --skip-index-content --narrow-margins \
+    --title-page title.md \
+    --style amber_mas_styles.yaml \
+    --assets-dir assets/images \
+    --assets-dir assets/mermaid \
+    --assets-dir assets/wavedrom
