@@ -111,7 +111,7 @@ class AndesiteInitTb:
             self._cycle += 1
             if int(d.phy_dfi_geardown_en.value) == 1:
                 self.geardown_cycles += 1
-            if int(d.phy_dfi_cs.value) == 0:
+            if int(d.phy_dfi_cs_n.value) == 0:
                 key = (int(d.phy_dfi_act_n.value), int(d.phy_dfi_ras_n.value),
                        int(d.phy_dfi_cas_n.value), int(d.phy_dfi_we_n.value))
                 op = _PIN2OP.get(key)

@@ -31,7 +31,9 @@ module andesite_init_tb (
 
     output logic        phy_dfi_reset_n,
     output logic        phy_dfi_cke,
-    output logic [0:0]  phy_dfi_cs,
+    // Named phy_dfi_cs_n (not the v4.0 'cs') because the DV framework's
+    // DFISlavePHY monitor binds the legacy cs_n wire; cf. andesite_core_tb.sv.
+    output logic [0:0]  phy_dfi_cs_n,
     output logic        phy_dfi_act_n,
     output logic        phy_dfi_ras_n,
     output logic        phy_dfi_cas_n,
@@ -50,6 +52,22 @@ module andesite_init_tb (
     input  logic [63:0] phy_dfi_rddata,
     input  logic [7:0]  phy_dfi_rddata_en,
     input  logic        phy_dfi_rddata_valid,
+    // v3.0 Error interface, v2.1 init handshake, and v2.1 update handshakes:
+    // not exercised by this P1 slice (no error injection, no DFI init/update
+    // choreography), but declared so the DV framework's per-version behavior
+    // dispatch can bind them -- it samples ctrlupd_req/ctrlupd_ack/
+    // phyupd_req/error/init_start/init_complete unconditionally (only the
+    // alert_n/phyupd_type paths are presence-tolerant). MC-side outputs tie
+    // to protocol idle (no request); PHY-side inputs dangle like the read
+    // wires above (the BFM drives its own idle levels at construction).
+    input  logic        phy_dfi_error,
+    input  logic        phy_dfi_error_info,
+    input  logic        phy_dfi_init_complete,
+    input  logic        phy_dfi_ctrlupd_ack,
+    input  logic        phy_dfi_phyupd_req,
+    output logic        phy_dfi_init_start,
+    output logic        phy_dfi_ctrlupd_req,
+    output logic        phy_dfi_phyupd_ack,
     output logic        init_done,
     output logic        init_err
 );
@@ -126,7 +144,7 @@ module andesite_init_tb (
         .rank_i        (1'b0),
         .memtype_i     (MEMTYPE_DDR4),
         .parity_en_i   (w_parity_enable),
-        .dfi_cs        (phy_dfi_cs),
+        .dfi_cs        (phy_dfi_cs_n),
         .dfi_act_n     (phy_dfi_act_n),
         .dfi_ras_n     (phy_dfi_ras_n),
         .dfi_cas_n     (phy_dfi_cas_n),
@@ -169,6 +187,10 @@ module andesite_init_tb (
     assign phy_dfi_wrdata_mask = '0;
     assign phy_dfi_wrdata_en  = '0;
     assign phy_dfi_odt        = '0;
+    // Protocol idle on the MC-side handshake outputs (see port comment).
+    assign phy_dfi_init_start  = 1'b0;
+    assign phy_dfi_ctrlupd_req = 1'b0;
+    assign phy_dfi_phyupd_ack  = 1'b0;
 
     // The init slice owns the bus in P1: the formatter is a pure pipeline, so
     // the request is acknowledged combinationally (one-deep, never full).
