@@ -171,7 +171,7 @@ All mechanical buttons require debouncing:
 // rtl/common/debounce.sv samples on a slow tick rather than counting clocks,
 // so it takes no clock-frequency parameter: give it a ~10 ms tick (e.g. from
 // counter_freq_invariant) and a delay in ticks. This is how
-// NexysA7/cdc_counter_display wires it.
+// misc-ip/cdc_counter_display wires it.
 debounce #(
     .N              (1),        // one button
     .DEBOUNCE_DELAY (4),        // stable for 4 ticks before the output moves

@@ -36,7 +36,7 @@ Each project includes:
 
 ### Nexys A7
 
-#### [CDC Counter Display](fpga-systems/NexysA7/cdc_counter_display/)
+#### [CDC Counter Display](fpga-systems/misc-ip/cdc_counter_display/)
 
 **Educational demonstration of Clock Domain Crossing (CDC)**
 
@@ -54,7 +54,7 @@ Each project includes:
 
 **Quick Start:**
 ```bash
-cd NexysA7/cdc_counter_display
+cd misc-ip/cdc_counter_display
 make sim      # Run simulation
 make build    # Build bitstream
 make program  # Program FPGA

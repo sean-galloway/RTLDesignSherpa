@@ -378,9 +378,9 @@ name = "nexys_cdc_display"
 kind = "board"
 rtl_roots = []
 filelist_dirs = [
-    "projects/fpga-systems/NexysA7/cdc_counter_display/build-demo/rtl/filelists",
-    "projects/fpga-systems/NexysA7/cdc_counter_display/build-demo/dv/filelists",
-    "projects/fpga-systems/NexysA7/cdc_counter_display/build-phase1/rtl/filelists",
+    "projects/fpga-systems/misc-ip/cdc_counter_display/build-demo/rtl/filelists",
+    "projects/fpga-systems/misc-ip/cdc_counter_display/build-demo/dv/filelists",
+    "projects/fpga-systems/misc-ip/cdc_counter_display/build-phase1/rtl/filelists",
 ]
 
 [[area]]
