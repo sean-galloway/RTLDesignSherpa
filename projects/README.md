@@ -6,20 +6,22 @@ This directory contains complete, ready-to-build FPGA projects demonstrating pra
 
 ## Project Organization
 
-Projects are organized by FPGA development board:
+Projects are organized by IP area (board targets live inside each harness):
 
 ```
 projects/
 ├── components/        # Reusable RTL components / IP (see components/README.md)
-│   ├── apbx_xbar/  bridge/  converters/  delta/  hive/
-│   ├── mem-ctrl-ip/  misc/  rapids/  retro_legacy_blocks/  stream/
+│   ├── fabric-gen-ip/  dma-ip/  ecc-ip/  mem-ctrl-ip/
+│   ├── noc-ip/  compute-eng-ip/  cache-ip/
+│   ├── utility-ip/  retro_legacy_blocks/
 │   └── ...
-├── NexysA7/           # Digilent Nexys A7-100T projects
-│   ├── cdc_counter_display/       # CDC teaching demo
-│   ├── timing_characterization/   # generic timing/fmax characterization
-│   ├── rapids_beats/   # RAPIDS beats DMA on-chip characterization
-│   └── ddr2-characterization/     # DDR2 controller on-chip characterization
-└── (future boards)/
+├── fpga-systems/      # Board harnesses, grouped by the same IP areas
+│   ├── misc-ip/cdc_counter_display/   # CDC teaching demo (Nexys A7)
+│   ├── NexysA7/pumice/                # DDR2 characterization (Nexys A7)
+│   ├── Genesys2/bch/  Genesys2/reed-solomon/   # ECC loopbacks (Genesys 2)
+│   ├── Genesys2/stream/  Genesys2/rapids/  Genesys2/rapids_beats/
+│   └── ...
+└── asic-trials/timing_characterization/
 ```
 
 Each project includes:
