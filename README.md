@@ -68,7 +68,7 @@ Guided progression from primitives to systems. Each level links to the correspon
 - **Level 1 — [Common Building Blocks](rtl/common/)** + **[Math Library](rtl/math/)** · ~230 modules · counters, FIFOs, arbiters, data integrity, clock utilities (common) + integer and floating-point math (math)
 - **Level 2 — [AMBA Protocol Infrastructure](rtl/amba/)** · 155 modules · [AXI4](rtl/amba/axi4/) · [AXI5](rtl/amba/axi5/) · [AXI4-Lite](rtl/amba/axil4/) · [APB](rtl/amba/apb4/) · [APB5](rtl/amba/apb5/) · [AXIS4](rtl/amba/axis4/) · [AXIS5](rtl/amba/axis5/) · [Monitors + MonBus](rtl/amba/monitor/) · [Shared observation](rtl/amba/shared/)
 - **Level 3 — [Production Components](projects/components/)** · [STREAM](projects/components/dma-ip/stream/) · [RAPIDS](projects/components/dma-ip/rapids/) · [Bridge](projects/components/fabric-gen-ip/bridge/) · [APB xbar](projects/components/fabric-gen-ip/apbx-xbar/) · [Memory controllers](projects/components/mem-ctrl-ip/) · [Reed-Solomon](projects/components/ecc-ip/reed-solomon/) · [BCH](projects/components/ecc-ip/bch/) · [Retro legacy](projects/components/retro_legacy_blocks/) · [Converters](projects/components/utility-ip/converters/)
-- **Level 4 — [FPGA Projects](projects/fpga-systems/)** · misc-ip: [cdc_counter_display](projects/fpga-systems/misc-ip/cdc_counter_display/) · Nexys A7: [pumice](projects/fpga-systems/NexysA7/pumice/) · Genesys 2: [bch loopback](projects/fpga-systems/Genesys2/bch/) · [reed-solomon loopback](projects/fpga-systems/Genesys2/reed-solomon/) · [stream](projects/fpga-systems/Genesys2/stream/) · [rapids](projects/fpga-systems/Genesys2/rapids/) · [scoria](projects/fpga-systems/Genesys2/scoria/) · [asic-trials](projects/asic-trials/timing_characterization/)
+- **Level 4 — [FPGA Projects](projects/fpga-systems/)** · Nexys A7: [cdc_counter_display](projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display/) · [pumice](projects/fpga-systems/NexysA7/pumice/) · Genesys 2: [bch loopback](projects/fpga-systems/Genesys2/bch/) · [reed-solomon loopback](projects/fpga-systems/Genesys2/reed-solomon/) · [stream](projects/fpga-systems/Genesys2/stream/) · [rapids](projects/fpga-systems/Genesys2/rapids/) · [scoria](projects/fpga-systems/Genesys2/scoria/) · [asic-trials](projects/asic-trials/timing_characterization/)
 
 <details>
 <summary>Visual diagram (Mermaid — desktop browsers only)</summary>
@@ -194,7 +194,7 @@ doc still saying that, it is stale.
 | [`reset_sync.sv`](rtl/cdc/reset_sync.sv) | [`rtl/cdc/`](rtl/cdc/) | Async-assert / sync-deassert reset CDC |
 | `apb4_slave_cdc.sv` (and `apb5_slave_cdc.sv`) | [`rtl/amba/apb4/`](rtl/amba/apb4/) / [`rtl/amba/apb5/`](rtl/amba/apb5/) | APB slave with CDC built in |
 
-**FPGA demo:** [projects/fpga-systems/misc-ip/cdc_counter_display/](projects/fpga-systems/misc-ip/cdc_counter_display/) — multi-clock counter CDC running on real hardware.
+**FPGA demo:** [projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display/](projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display/) — multi-clock counter CDC running on real hardware.
 
 **Interactive drills:** [CDC Drill](https://sean-galloway.github.io/RTLDesignSherpa/cdc_drill/) ([`bin/apps/cdc_drill/`](bin/apps/cdc_drill/)) gamifies violation-spotting and synchronizer choice, and the [MTBF Calculator](https://sean-galloway.github.io/RTLDesignSherpa/mtbf_calc/) ([`bin/apps/mtbf_calc/`](bin/apps/mtbf_calc/)) shows why two synchronizer flops are not enough at 1 GHz.
 
@@ -230,7 +230,7 @@ its own README and flow.
 
 | Project | Goal | Where |
 |---|---|---|
-| cdc_counter_display | Live demo of multi-clock counter CDC on the board | [`projects/fpga-systems/misc-ip/cdc_counter_display/`](projects/fpga-systems/misc-ip/cdc_counter_display/) |
+| cdc_counter_display | Live demo of multi-clock counter CDC on the board | [`projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display/`](projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display/) |
 | pumice | DDR2 / LPDDR2 controller campaign on Nexys A7: `build-perf` (pumice on real DDR2, the subject build) plus `ddr2-characterization` (LiteDRAM in pumice's place, the yardstick A/B) | [`projects/fpga-systems/NexysA7/pumice/`](projects/fpga-systems/NexysA7/pumice/) (controller RTL: [`projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/`](projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/)) |
 
 **Digilent Genesys 2 (Kintex-7)** — [`projects/fpga-systems/Genesys2/`](projects/fpga-systems/Genesys2/)

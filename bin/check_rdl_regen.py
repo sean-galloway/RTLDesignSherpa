@@ -262,11 +262,11 @@ MANIFEST = [
         # only the TB-facing regmap. Comparing artifacts the tree does not
         # carry would report permanent staleness.
         "name": "cdc_demo_csr (NexysA7 cdc demo, regmap only)",
-        "rdl": "projects/fpga-systems/misc-ip/cdc_counter_display/build-demo/rtl/cdc_demo_csr.rdl",
-        "sources": ["projects/fpga-systems/misc-ip/cdc_counter_display/build-demo/rtl/cdc_demo_csr.rdl"],
+        "rdl": "projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display/build-demo/rtl/cdc_demo_csr.rdl",
+        "sources": ["projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display/build-demo/rtl/cdc_demo_csr.rdl"],
         "flags": ["--no-html"],
         "regmap_output": "cdc_demo_csr_regmap.py",
-        "compare": [("projects/fpga-systems/misc-ip/cdc_counter_display/build-demo/dv/tbclasses/cdc_demo_csr_regmap.py", "cdc_demo_csr_regmap.py")],
+        "compare": [("projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display/build-demo/dv/tbclasses/cdc_demo_csr_regmap.py", "cdc_demo_csr_regmap.py")],
     },
     # --- retro_legacy_blocks -------------------------------------------------
     # These use --copy-rtl, which flat-copies the generated rtl/*.sv into

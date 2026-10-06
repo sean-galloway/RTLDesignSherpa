@@ -15,9 +15,9 @@ projects/
 │   ├── noc-ip/  compute-eng-ip/  cache-ip/
 │   ├── utility-ip/  retro_legacy_blocks/
 │   └── ...
-├── fpga-systems/      # Board harnesses, grouped by the same IP areas
-│   ├── misc-ip/cdc_counter_display/   # CDC teaching demo (Nexys A7)
-│   ├── NexysA7/pumice/                # DDR2 characterization (Nexys A7)
+├── fpga-systems/      # Board harnesses: <board>/<ip-area>/<ip>
+│   ├── NexysA7/misc-ip/cdc_counter_display/   # CDC teaching demo
+│   ├── NexysA7/pumice/                        # DDR2 characterization (Nexys A7)
 │   ├── Genesys2/bch/  Genesys2/reed-solomon/   # ECC loopbacks (Genesys 2)
 │   ├── Genesys2/stream/  Genesys2/rapids/  Genesys2/rapids_beats/
 │   └── ...
@@ -38,7 +38,7 @@ Each project includes:
 
 ### Nexys A7
 
-#### [CDC Counter Display](fpga-systems/misc-ip/cdc_counter_display/)
+#### [CDC Counter Display](fpga-systems/NexysA7/misc-ip/cdc_counter_display/)
 
 **Educational demonstration of Clock Domain Crossing (CDC)**
 
@@ -56,7 +56,7 @@ Each project includes:
 
 **Quick Start:**
 ```bash
-cd misc-ip/cdc_counter_display
+cd NexysA7/misc-ip/cdc_counter_display
 make sim      # Run simulation
 make build    # Build bitstream
 make program  # Program FPGA
