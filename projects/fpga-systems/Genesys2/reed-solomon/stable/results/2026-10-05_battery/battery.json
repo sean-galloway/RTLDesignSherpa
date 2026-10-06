@@ -1,0 +1,2332 @@
+{
+  "meta": {
+    "serial": "200300B818A0",
+    "date": "2026-10-05",
+    "generated": "2026-10-06T00:02:22Z",
+    "repo": "https://github.com/sean-galloway/RTLDesignSherpa"
+  },
+  "summary": {
+    "images": 4,
+    "passed": 4,
+    "failed": 0,
+    "partial": 0,
+    "program_failed": 0,
+    "unknown": 0,
+    "campaigns": {
+      "clusters": {
+        "combos": 16,
+        "failing": 0
+      },
+      "localized": {
+        "combos": 12,
+        "failing": 0
+      },
+      "badblock": {
+        "combos": 16,
+        "failing": 0
+      },
+      "random": {
+        "combos": 256,
+        "failing": 0
+      }
+    }
+  },
+  "images": [
+    {
+      "name": "axis_euclid",
+      "log_file": "projects/fpga-systems/Genesys2/reed-solomon/stable/results/2026-10-05_battery/logs/battery_1_axis_euclid.txt",
+      "codec": "RS",
+      "params": {
+        "n": 252,
+        "k": 236,
+        "t": 8,
+        "m": 8,
+        "spb": 4
+      },
+      "solver": "Euclid; no comparator, so the B-side counters and CMP_* read 0 by design",
+      "topology": "1",
+      "program_failed": false,
+      "program_failed_reason": null,
+      "sequences": {
+        "init": {
+          "status": "PASS"
+        },
+        "smoke": {
+          "status": "PASS"
+        },
+        "sweep": {
+          "status": "PASS"
+        },
+        "random": {
+          "status": "PASS"
+        },
+        "clusters": {
+          "status": "PASS"
+        },
+        "localized": {
+          "status": "PASS"
+        },
+        "badblock": {
+          "status": "PASS"
+        }
+      },
+      "smoke": [
+        {
+          "label": "bypass",
+          "cyc/blk": 59.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "label": "clean",
+          "cyc/blk": 71.5,
+          "riBM": {
+            "ok": 16,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "label": "e=8",
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "label": "e=9",
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "label": "debug",
+          "cyc/blk": 72.4,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        }
+      ],
+      "sweep": [
+        {
+          "e": 0,
+          "cyc/blk": 197.4,
+          "riBM": {
+            "ok": 16,
+            "corr": 0,
+            "unc": 0
+          },
+          "riBM_sym": 0,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 1,
+          "cyc/blk": 198.3,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 16,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 2,
+          "cyc/blk": 198.4,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 32,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 3,
+          "cyc/blk": 198.6,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 48,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 4,
+          "cyc/blk": 198.7,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 64,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 5,
+          "cyc/blk": 198.8,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 80,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 6,
+          "cyc/blk": 198.9,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 96,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 7,
+          "cyc/blk": 199.1,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 112,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 8,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 128,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 9,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 10,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 11,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 12,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 13,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 14,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 15,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 16,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 17,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 18,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        }
+      ],
+      "random": {
+        "runs": 64,
+        "blocks": 16,
+        "n": 252,
+        "k": 236,
+        "mix": "31 exact-count, 12 burst, 21 rate",
+        "clean": 90,
+        "corrected": 499,
+        "uncorrectable": 435,
+        "failing": 0
+      },
+      "campaigns": {
+        "clusters": {
+          "combos": 4,
+          "blocks": 16,
+          "n": 252,
+          "k": 236,
+          "failing": 0
+        },
+        "localized": {
+          "combos": 3,
+          "blocks": 16,
+          "n": 252,
+          "k": 236,
+          "failing": 0
+        },
+        "badblock": {
+          "combos": 4,
+          "blocks": 16,
+          "n": 252,
+          "k": 236,
+          "failing": 0
+        }
+      },
+      "soak_progress": [],
+      "soak_final": null,
+      "errors": [],
+      "status": "PASS",
+      "run_summary": "ALL PASS"
+    },
+    {
+      "name": "axi4_ribm",
+      "log_file": "projects/fpga-systems/Genesys2/reed-solomon/stable/results/2026-10-05_battery/logs/battery_2_axi4_ribm.txt",
+      "codec": "RS",
+      "params": {
+        "n": 252,
+        "k": 236,
+        "t": 8,
+        "m": 8,
+        "spb": 4
+      },
+      "solver": "riBM; no comparator, so the B-side counters and CMP_* read 0 by design",
+      "topology": "1",
+      "program_failed": false,
+      "program_failed_reason": null,
+      "sequences": {
+        "init": {
+          "status": "PASS"
+        },
+        "smoke": {
+          "status": "PASS"
+        },
+        "sweep": {
+          "status": "PASS"
+        },
+        "random": {
+          "status": "PASS"
+        },
+        "clusters": {
+          "status": "PASS"
+        },
+        "localized": {
+          "status": "PASS"
+        },
+        "badblock": {
+          "status": "PASS"
+        }
+      },
+      "smoke": [
+        {
+          "label": "bypass",
+          "cyc/blk": 59.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "label": "clean",
+          "cyc/blk": 254.0,
+          "riBM": {
+            "ok": 16,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "label": "e=8",
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "label": "e=9",
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "label": "debug",
+          "cyc/blk": 255.1,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        }
+      ],
+      "sweep": [
+        {
+          "e": 0,
+          "cyc/blk": 379.9,
+          "riBM": {
+            "ok": 16,
+            "corr": 0,
+            "unc": 0
+          },
+          "riBM_sym": 0,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 1,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 16,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 2,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 32,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 3,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 48,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 4,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 64,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 5,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 80,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 6,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 96,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 7,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 112,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 8,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 128,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 9,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 10,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 11,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 12,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 13,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 14,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 15,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 16,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 17,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 18,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        }
+      ],
+      "random": {
+        "runs": 64,
+        "blocks": 16,
+        "n": 252,
+        "k": 236,
+        "mix": "31 exact-count, 12 burst, 21 rate",
+        "clean": 90,
+        "corrected": 499,
+        "uncorrectable": 435,
+        "failing": 0
+      },
+      "campaigns": {
+        "clusters": {
+          "combos": 4,
+          "blocks": 16,
+          "n": 252,
+          "k": 236,
+          "failing": 0
+        },
+        "localized": {
+          "combos": 3,
+          "blocks": 16,
+          "n": 252,
+          "k": 236,
+          "failing": 0
+        },
+        "badblock": {
+          "combos": 4,
+          "blocks": 16,
+          "n": 252,
+          "k": 236,
+          "failing": 0
+        }
+      },
+      "soak_progress": [],
+      "soak_final": null,
+      "errors": [],
+      "status": "PASS",
+      "run_summary": "ALL PASS"
+    },
+    {
+      "name": "axis_ribm",
+      "log_file": "projects/fpga-systems/Genesys2/reed-solomon/stable/results/2026-10-05_battery/logs/battery_3_axis_ribm_axi4_euclid.txt",
+      "codec": "RS",
+      "params": {
+        "n": 252,
+        "k": 236,
+        "t": 8,
+        "m": 8,
+        "spb": 4
+      },
+      "solver": "riBM; no comparator, so the B-side counters and CMP_* read 0 by design",
+      "topology": "1",
+      "program_failed": false,
+      "program_failed_reason": null,
+      "sequences": {
+        "init": {
+          "status": "PASS"
+        },
+        "smoke": {
+          "status": "PASS"
+        },
+        "sweep": {
+          "status": "PASS"
+        },
+        "random": {
+          "status": "PASS"
+        },
+        "clusters": {
+          "status": "PASS"
+        },
+        "localized": {
+          "status": "PASS"
+        },
+        "badblock": {
+          "status": "PASS"
+        }
+      },
+      "smoke": [
+        {
+          "label": "bypass",
+          "cyc/blk": 59.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "label": "clean",
+          "cyc/blk": 71.5,
+          "riBM": {
+            "ok": 16,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "label": "e=8",
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "label": "e=9",
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "label": "debug",
+          "cyc/blk": 72.8,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        }
+      ],
+      "sweep": [
+        {
+          "e": 0,
+          "cyc/blk": 197.4,
+          "riBM": {
+            "ok": 16,
+            "corr": 0,
+            "unc": 0
+          },
+          "riBM_sym": 0,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 1,
+          "cyc/blk": 198.8,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 16,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 2,
+          "cyc/blk": 198.8,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 32,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 3,
+          "cyc/blk": 198.9,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 48,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 4,
+          "cyc/blk": 198.9,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 64,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 5,
+          "cyc/blk": 199.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 80,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 6,
+          "cyc/blk": 199.1,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 96,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 7,
+          "cyc/blk": 199.1,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 112,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 8,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 128,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 9,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 10,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 11,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 12,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 13,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 14,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 15,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 16,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 17,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 18,
+          "cyc/blk": 199.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        }
+      ],
+      "random": {
+        "runs": 64,
+        "blocks": 16,
+        "n": 252,
+        "k": 236,
+        "mix": "31 exact-count, 12 burst, 21 rate",
+        "clean": 90,
+        "corrected": 499,
+        "uncorrectable": 435,
+        "failing": 0
+      },
+      "campaigns": {
+        "clusters": {
+          "combos": 4,
+          "blocks": 16,
+          "n": 252,
+          "k": 236,
+          "failing": 0
+        },
+        "localized": {
+          "combos": 3,
+          "blocks": 16,
+          "n": 252,
+          "k": 236,
+          "failing": 0
+        },
+        "badblock": {
+          "combos": 4,
+          "blocks": 16,
+          "n": 252,
+          "k": 236,
+          "failing": 0
+        }
+      },
+      "soak_progress": [],
+      "soak_final": null,
+      "errors": [],
+      "status": "PASS",
+      "run_summary": "ALL PASS"
+    },
+    {
+      "name": "axi4_euclid",
+      "log_file": "projects/fpga-systems/Genesys2/reed-solomon/stable/results/2026-10-05_battery/logs/battery_3_axis_ribm_axi4_euclid.txt",
+      "codec": "RS",
+      "params": {
+        "n": 252,
+        "k": 236,
+        "t": 8,
+        "m": 8,
+        "spb": 4
+      },
+      "solver": "Euclid; no comparator, so the B-side counters and CMP_* read 0 by design",
+      "topology": "1",
+      "program_failed": false,
+      "program_failed_reason": null,
+      "sequences": {
+        "init": {
+          "status": "PASS"
+        },
+        "smoke": {
+          "status": "PASS"
+        },
+        "sweep": {
+          "status": "PASS"
+        },
+        "random": {
+          "status": "PASS"
+        },
+        "clusters": {
+          "status": "PASS"
+        },
+        "localized": {
+          "status": "PASS"
+        },
+        "badblock": {
+          "status": "PASS"
+        }
+      },
+      "smoke": [
+        {
+          "label": "bypass",
+          "cyc/blk": 59.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "label": "clean",
+          "cyc/blk": 254.0,
+          "riBM": {
+            "ok": 16,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "label": "e=8",
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "label": "e=9",
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "label": "debug",
+          "cyc/blk": 254.6,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        }
+      ],
+      "sweep": [
+        {
+          "e": 0,
+          "cyc/blk": 379.9,
+          "riBM": {
+            "ok": 16,
+            "corr": 0,
+            "unc": 0
+          },
+          "riBM_sym": 0,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 1,
+          "cyc/blk": 380.6,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 16,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 2,
+          "cyc/blk": 380.6,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 32,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 3,
+          "cyc/blk": 380.7,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 48,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 4,
+          "cyc/blk": 380.8,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 64,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 5,
+          "cyc/blk": 380.8,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 80,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 6,
+          "cyc/blk": 380.9,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 96,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 7,
+          "cyc/blk": 380.9,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 112,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 8,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 128,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 9,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 10,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 11,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 12,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 13,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 14,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 15,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 16,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 17,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 18,
+          "cyc/blk": 381.0,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        }
+      ],
+      "random": {
+        "runs": 64,
+        "blocks": 16,
+        "n": 252,
+        "k": 236,
+        "mix": "31 exact-count, 12 burst, 21 rate",
+        "clean": 90,
+        "corrected": 499,
+        "uncorrectable": 435,
+        "failing": 0
+      },
+      "campaigns": {
+        "clusters": {
+          "combos": 4,
+          "blocks": 16,
+          "n": 252,
+          "k": 236,
+          "failing": 0
+        },
+        "localized": {
+          "combos": 3,
+          "blocks": 16,
+          "n": 252,
+          "k": 236,
+          "failing": 0
+        },
+        "badblock": {
+          "combos": 4,
+          "blocks": 16,
+          "n": 252,
+          "k": 236,
+          "failing": 0
+        }
+      },
+      "soak_progress": [],
+      "soak_final": null,
+      "errors": [],
+      "status": "PASS",
+      "run_summary": "ALL PASS"
+    }
+  ],
+  "superseded": [
+    {
+      "image": "axis_ribm",
+      "log_file": "projects/fpga-systems/Genesys2/reed-solomon/stable/results/2026-10-05_battery/logs/battery_2_axi4_ribm.txt",
+      "status": "PROGRAM_FAILED",
+      "reason": "program failed -- kept section from projects/fpga-systems/Genesys2/reed-solomon/stable/results/2026-10-05_battery/logs/battery_1_axis_euclid.txt"
+    },
+    {
+      "image": "axi4_ribm",
+      "log_file": "projects/fpga-systems/Genesys2/reed-solomon/stable/results/2026-10-05_battery/logs/battery_1_axis_euclid.txt",
+      "status": "PASS",
+      "reason": "superseded by richer section -- kept section from projects/fpga-systems/Genesys2/reed-solomon/stable/results/2026-10-05_battery/logs/battery_2_axi4_ribm.txt"
+    },
+    {
+      "image": "axi4_euclid",
+      "log_file": "projects/fpga-systems/Genesys2/reed-solomon/stable/results/2026-10-05_battery/logs/battery_2_axi4_ribm.txt",
+      "status": "PROGRAM_FAILED",
+      "reason": "program failed -- kept section from projects/fpga-systems/Genesys2/reed-solomon/stable/results/2026-10-05_battery/logs/battery_1_axis_euclid.txt"
+    },
+    {
+      "image": "axis_ribm",
+      "log_file": "projects/fpga-systems/Genesys2/reed-solomon/stable/results/2026-10-05_battery/logs/battery_1_axis_euclid.txt",
+      "status": "FAIL",
+      "reason": "init FAIL -- kept section from projects/fpga-systems/Genesys2/reed-solomon/stable/results/2026-10-05_battery/logs/battery_3_axis_ribm_axi4_euclid.txt"
+    },
+    {
+      "image": "axi4_euclid",
+      "log_file": "projects/fpga-systems/Genesys2/reed-solomon/stable/results/2026-10-05_battery/logs/battery_1_axis_euclid.txt",
+      "status": "PASS",
+      "reason": "superseded by richer section -- kept section from projects/fpga-systems/Genesys2/reed-solomon/stable/results/2026-10-05_battery/logs/battery_3_axis_ribm_axi4_euclid.txt"
+    }
+  ]
+}

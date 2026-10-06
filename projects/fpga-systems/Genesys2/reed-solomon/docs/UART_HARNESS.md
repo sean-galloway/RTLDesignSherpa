@@ -270,7 +270,11 @@ bin/run_smoke.py --board genesys2 --port /dev/ttyUSB0 --sequences init smoke swe
 See `README.md` and `Makefile` for the full target list (bitstream, lint, sim,
 regmap) and `build-loop/host/host_rs_loop.py` for the lower-level CLI. Build
 evidence and the board-validation record live in `stable/MANIFEST.md` and the
-four `stable/reports/genesys2_*` directories. The math behind the codec is in
+four `stable/reports/genesys2_*` directories. Campaign transcripts turn into
+reports with `projects/fpga-systems/bin/report_battery.py` (JSON artifacts,
+correction-boundary / decode-cost / soak-timeline figures, and a generated
+`FINDINGS.md`); published runs live under `stable/results/`. The math behind
+the codec is in
 the component HAS chapter 7 at
 `projects/components/ecc-ip/reed-solomon/docs/reed_solomon_has/ch07_understanding_the_math/`.
 The sister BCH harness is documented at `../../bch/docs/UART_HARNESS.md`.
