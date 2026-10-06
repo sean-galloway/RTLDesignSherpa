@@ -23,13 +23,20 @@
 
 # amber — Product Requirements (DRAFT)
 
-**Version:** 0.2 (draft, 2026-10-04)
+**Version:** 0.4 (draft, 2026-10-06)
 **Status:** decisions pending — this page records the questions and the
 candidates, not answers. A decision becomes DECIDED when it records a name
 and a date, the way the reed-solomon PRD does it. Until then every row below
 is OPEN.
 v0.2: D8 decided — `*_monlite` observation wrappers (never `_mon` on the
 measured paths).
+v0.3: D4 decided — snoop transport is ACE-shaped (AC/CD/CR) per the
+[onyx D7](../onyx-ace-ccu/PRD.md) port contract, family decision
+2026-10-05. The snoop-filter (directory-lite) half of D4 stays deferred and
+is reopened as [onyx D3](../onyx-ace-ccu/PRD.md).
+v0.4: D2 decided (Sean, 2026-10-06) — CPU-side interface is a **GAXI
+slave**. House BFM/monitor coverage and skid/FIFO plumbing already exist,
+and STREAM can attach as first real consumer without an adapter.
 
 ## 1. Purpose
 
@@ -67,9 +74,9 @@ from `rtl/amba/`.
 | # | Decision | Candidates | What it drives |
 |---|---|---|---|
 | D1 | Cache geometry | OPEN: total size (4–32 KiB), line size (32–64 B), associativity (2–8 ways) as elaboration parameters, vs a fixed 32 KiB / 64 B / 4-way profile with parameters deferred | tag/data array dimensions, the whole DV matrix |
-| D2 | CPU-side interface | OPEN: plain valid/ready native port (reed-solomon D9 shape) vs AXI4 slave vs GAXI; must express single-beat reads, write-allocate fills, and (if write-through is chosen) store-without-allocate | front-end FSM, adapter surface, first consumer |
+| D2 | CPU-side interface | **DECIDED 2026-10-06 (Sean): GAXI slave.** Chosen over the plain valid/ready native port and the AXI4 slave: house BFM/monitor coverage and skid/FIFO plumbing already exist, and STREAM can attach as first real consumer without an adapter. Must express single-beat reads, write-allocate fills, and (if write-through is chosen) store-without-allocate | front-end FSM, adapter surface, first consumer |
 | D3 | Memory-side interface | OPEN: AXI4 read/write masters on the house `axi4_master_rd/wr` wrappers (stream/rapids pattern) vs GAXI vs a simple direct SRAM port for bring-up | fill/drain engines, burst behavior on misses |
-| D4 | Snoop transport | OPEN: dedicated snoop bus (req/broadcast/response, custom but tiny) vs an AXI ACE-lite-shaped channel vs snooping on the AXI4 fabric directly; plus whether a snoop filter (directory-lite) is in scope for amber or deferred to a third IP | the coherence bus, formal surface, gate count |
+| D4 | Snoop transport | **DECIDED 2026-10-05 (Sean): ACE-shaped transport — amber implements the AC/CD/CR snoop channels exactly as [onyx D7](../onyx-ace-ccu/PRD.md) defines them (family decision: cache-ip is ACE-shaped), staying bus-agnostic internally behind a thin adapter.** Chosen over a custom dedicated snoop bus and over snooping on the AXI4 fabric directly; the ACE-lite-shaped candidate was set aside because a snoop responder must drive CR responses and CD data — ACE-Lite carries no snoop channels at all. The snoop-filter (directory-lite) sub-question stays deferred, reopened as [onyx D3](../onyx-ace-ccu/PRD.md). | the coherence bus, formal surface, gate count |
 | D5 | Write policy | OPEN: write-back + write-allocate (the research default — MESI's M state earns its keep) vs write-through + no-allocate (simpler, slower); dirty-eviction handling under it | M-state logic, memory traffic, formal targets |
 | D6 | MESI variant | OPEN: plain MESI vs MOESI/MEOSI ownership (O state cuts dirty transfers between caches); default lean MESI, upgrade path noted | state machine count, snoop response matrix |
 | D7 | Replacement policy | OPEN: true LRU vs tree-PLRU vs FIFO vs random, pluggable per elaboration parameter; must be the same policy set the [cache simulator](../../../../bin/apps/cache_sim/) models so sim-vs-RTL cross-check is exact | policy engine, cross-check fidelity |
@@ -101,5 +108,6 @@ decision, not an amber requirement.
 ## 6. Where the block sits
 
 Research cache on the AMBA fabric: CPU-side slave (D2), memory-side AXI4
-masters (D3), snoop port to peer caches (D4), MonBus observation (D8).
+masters (D3), snoop port toward onyx / peer caches (D4 — ACE-shaped
+AC/CD/CR, decided 2026-10-05), MonBus observation (D8).
 Standalone-testable with TB masters before any consumer exists (D10).

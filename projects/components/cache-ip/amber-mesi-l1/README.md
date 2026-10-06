@@ -34,8 +34,15 @@ the second research artifact.
 ## Status
 
 **Scaffolded 2026-10-04** — README + PRD only. `rtl/`, `dv/`, `docs/` are
-placeholders; no RTL, no testbench, no register model. Every design decision
-is OPEN in [PRD.md](PRD.md) until it records a decision with a date.
+placeholders; no RTL, no testbench, no register model. Decisions are OPEN in
+[PRD.md](PRD.md) until they record a name and a date; so far **D8 observation
+(`*_monlite`) is decided (2026-10-04), D4 snoop transport is ACE-shaped
+AC/CD/CR per the onyx D7 contract (2026-10-05), and D2 CPU-side interface is
+a GAXI slave (2026-10-06)**. An architecture sketch for the open decisions —
+the [Pre-HAS](docs/amber_has/amber_prehas.md) — landed 2026-10-06 and took
+owner direction the same day (pending-fill bypass for probe-during-fill; the
+two rigs as two tops, `amber` and `amber_ace`, on a shared core); it records
+proposed working defaults only, no decisions.
 
 ## What it teaches / why it exists
 
@@ -56,8 +63,8 @@ is OPEN in [PRD.md](PRD.md) until it records a decision with a date.
 
 1. Parameterised L1 data cache (sets/ways/line size as elaboration
    parameters) with pluggable replacement policy.
-2. Snoopy MESI coherence over an in-repo bus, correct against a Python
-   golden model and SymbiYosys proofs.
+2. Snoopy MESI coherence over an ACE-shaped snoop port (PRD D4), correct
+   against a Python golden model and SymbiYosys proofs.
 3. MonBus-instrumented: hit/miss/snoop/eviction events observable in sim and
    on FPGA.
 4. FPGA-cost characterisation (Nexys A7 and/or Genesys 2) the way the rest of
