@@ -25,13 +25,24 @@
 
 **Module:** `amber_repl.sv`
 **Location:** `projects/components/cache-ip/amber-mesi-l1/rtl/fub/`
-**Status:** Pre-RTL micro-architecture contract
+**Status:** RTL landed 2026-10-06; this chapter is the micro-architecture
+contract the RTL implements. DV: `dv/tests/fub/test_amber_repl.py`, green at
+gate/func/full across all four policies x {128/4, 16/2, 64/8} geometries.
+The TB carries an independent Python golden model per policy (tree-PLRU
+included — it still has no cache_sim golden; the TB model is the check).
 
 ---
 
 ## Overview
 
 `amber_repl` selects the victim way on a cache miss. The policy is an elaboration parameter `REPL_POLICY` with supported values `lru`, `tree_plru`, `fifo`, and `random`. LRU is the default; tree-PLRU is the timing-tight fallback.
+
+In the RTL the parameter is declared `int` holding the `amber_repl_t`
+encoding from `amber_pkg` (house precedent: `fifo_sync` MEM_STYLE is typed,
+but a typed enum parameter receives `-G` overrides as raw 32-bit constants
+and verilator WIDTHTRUNCs values 2/3 — the int declaration keeps test-time
+overrides width-clean; the generate branches compare against
+`int'(AMBER_REPL_*)` casts).
 
 ---
 
@@ -75,7 +86,9 @@ The victim way is the one with `rank[set][w] == WAYS-1`.
 
 ## FIFO
 
-Each set maintains a FIFO queue of way indices. On a miss, the head of the queue is the victim; the installed way is pushed to the tail. On a hit, the queue is unchanged (FIFO does not recency-stack).
+Each set maintains a FIFO queue of way indices, stored as a ring with a head pointer. On a miss, the head of the queue is the victim; on an install, the ring slot at the head is overwritten with the installed way and the head advances — the popped victim slot becomes the tail, so one write plus one head bump is the whole update. On a hit, the queue is unchanged (FIFO does not recency-stack); the TB golden model encodes the same rule (`UPDATES_ON_HIT = False`).
+
+This matches `cache_sim` exactly, under the invariant that the installed way equals the victim way — which `amber_control` guarantees because fills install into the victim way. Installing into any other way would require a mid-queue removal this ring does not perform; that is a contract, not an accident.
 
 This matches `cache_sim` exactly.
 
@@ -99,17 +112,21 @@ Tree-PLRU does **not** have a `cache_sim` golden model today. It is cross-checke
 
 ## Policy Selection
 
-The policy is selected at elaboration time:
+The policy is selected at elaboration time; the RTL declares the parameter
+`int` (values are the `amber_repl_t` encodings) and generates exactly one
+branch:
 
 ```systemverilog
+parameter int REPL_POLICY = int'(AMBER_REPL_LRU)   // values: amber_repl_t
+
 generate
-    if (REPL_POLICY == "lru") begin : gen_lru
+    if (REPL_POLICY == int'(AMBER_REPL_LRU)) begin : gen_lru
         // true LRU rank array
-    end else if (REPL_POLICY == "fifo") begin : gen_fifo
-        // FIFO queue array
-    end else if (REPL_POLICY == "random") begin : gen_random
+    end else if (REPL_POLICY == int'(AMBER_REPL_FIFO)) begin : gen_fifo
+        // FIFO ring array
+    end else if (REPL_POLICY == int'(AMBER_REPL_RANDOM)) begin : gen_random
         // LFSR per set
-    end else if (REPL_POLICY == "tree_plru") begin : gen_tree_plru
+    end else if (REPL_POLICY == int'(AMBER_REPL_TREE_PLRU)) begin : gen_tree_plru
         // binary tree PLRU
     end
 endgenerate

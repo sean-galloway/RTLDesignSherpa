@@ -11,3 +11,4 @@
 $REPO_ROOT/projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_snoop_kmap.sv
 $REPO_ROOT/projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_tag_array.sv
 $REPO_ROOT/projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_data_array.sv
+$REPO_ROOT/projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_repl.sv
