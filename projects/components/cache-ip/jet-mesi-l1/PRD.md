@@ -25,10 +25,11 @@
 
 **Version:** 0.1 (draft, 2026-10-04)
 **Status:** scaffold only — inherits every DECIDED row of
-[amber's PRD](../amber-mesi-l1/PRD.md) (geometry, interfaces, snoop
-transport, write policy, MESI variant, replacement, observation,
-verification). The rows below are the deltas jet must decide for itself; all
-are OPEN until they record a name and a date.
+[amber's PRD](../amber-mesi-l1/PRD.md). Decided inherited rows so far: D8
+observation (`*_monlite`, 2026-10-04) and D4 snoop transport (ACE-shaped
+AC/CD/CR per the onyx D7 contract, 2026-10-05). The rows below are the
+deltas jet must decide for itself; all are OPEN until they record a name
+and a date.
 
 ## 1. Purpose
 
