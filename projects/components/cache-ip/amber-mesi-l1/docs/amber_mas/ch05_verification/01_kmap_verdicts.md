@@ -46,9 +46,28 @@ The verdict logic is implemented in `bin/kmaps/minimize.py`:
 | **RTL-REDUNDANT** | The RTL SOP includes extra literals or terms but produces the same truth table. | Document why the redundancy exists (timing, readability, defensive coding). |
 | **RTL-DIFFERS** | The RTL SOP produces a different truth table than the derived cover. | Investigate: bug, unstated invariant, or missing relation. |
 
-## Pre-RTL Status
+## First-Verdict Status (2026-10-06)
 
-Until RTL exists, every kmap sheet ends with `VERDICT: NOT CHECKED — supply rtl_sop= to diff the RTL against the derived cover`. This is honest. The value of the workbook now is to make the intended logic explicit and mechanically derivable before any RTL is written.
+The first RTL slice landed: `amber_pkg` (the Table 3.0 decode functions
+`amber_snoop_crresp` / `amber_snoop_next_state`) and its module wrapper
+`amber_snoop_kmap`. Verdicts for the six snoop sheets (the four CRRESP maps
+and the two next-state maps):
+
+- **Truth-table equivalence: PASS at gate/func/full.** The TB
+  (`dv/tests/fub/test_amber_snoop_kmap.py`) carries an independent copy of
+  HAS Table 3.0 and exhausts the reachable space at gate, adds the reserved
+  encodings at func, and the whole 3-bit x 3-bit space at full. One real
+  discrepancy was caught and resolved in the TB's favor of the documentation:
+  Modified + CleanInvalid carries `IsShared=1` per Table 3.0.
+- **SOP-literal diff against the QM-derived covers: NOT CHECKED, deferred.**
+  The RTL implements the table as a case decode, not minimal SOP literals;
+  the meaningful diff is the truth-table one above. Supplying `rtl_sop=` and
+  re-deriving is deferred until `amber_snoop_resp` integrates this decode —
+  if the integration restructures the logic, the literal diff would be
+  repeated work.
+
+All other sheets (address decode, control FSM, MonBus events) remain
+pre-RTL contracts with `VERDICT: NOT CHECKED`.
 
 ---
 

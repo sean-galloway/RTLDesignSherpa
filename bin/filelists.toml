@@ -76,6 +76,16 @@ rtl_roots = ["projects/components/ecc-ip/bch/rtl"]
 filelist_dirs = ["projects/components/ecc-ip/bch/rtl/filelists"]
 
 [[area]]
+name = "amber"
+kind = "component"
+# cache-ip family. Registered 2026-10-06 with its first RTL, the amber
+# MESI L1 slice (amber_pkg, amber_snoop_kmap, amber_tag_array,
+# amber_data_array), so --check has owned these modules from the first
+# commit rather than discovering them at an audit.
+rtl_roots = ["projects/components/cache-ip/amber-mesi-l1/rtl"]
+filelist_dirs = ["projects/components/cache-ip/amber-mesi-l1/rtl/filelists"]
+
+[[area]]
 name = "misc"
 kind = "component"
 # Small shared oddments (dma_address_gen, simple_rom, axi4_slave_rom). It had no

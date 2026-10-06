@@ -25,13 +25,29 @@
 
 **Modules:** `amber_tag_array.sv`, `amber_data_array.sv`
 **Location:** `projects/components/cache-ip/amber-mesi-l1/rtl/fub/`
-**Status:** Pre-RTL micro-architecture contract
+**Status:** RTL landed 2026-10-06; this chapter is the micro-architecture
+contract the RTL implements. DV: `dv/tests/fub/test_amber_{tag,data}_array.py`,
+green at gate/func/full across the default and tiny-formal geometries.
 
 ---
 
 ## Overview
 
-Both arrays are built from the house `sdpram_core` primitive. They are simple dual-port RAMs: one write port and one read port per physical instance, mapped so that port A serves CPU/fill traffic and port B serves snoop traffic. The HAS F8 decision (dual-port `sdpram_core`) is implemented here.
+Both arrays are per-way inferred RAMs — the same storage idiom the house
+FIFOs and `sdpram_core` use internally, with the GLOBAL_REQUIREMENTS 1.2
+synthesis attributes. They are **not** `sdpram_core` instances: `sdpram_core`
+(`rtl/amba/shared`) is a FUB/AXI burst *slave*, the wrong shape for a
+multi-way parallel tag lookup or single-beat random data readout. Each array
+has one synchronous write port (one-hot way select) and two combinational
+lookup ports: port A serves CPU/fill traffic and port B serves snoop traffic,
+matching the port assignment below. Combinational read keeps the hit/miss
+decision and the snoop CRRESP path inside one cycle; it maps to distributed
+RAM (tags) / block RAM (data) rather than a wrapped burst slave.
+
+The one-write / two-read shape exceeds a single physical 2-port BRAM; per-way
+flat storage (`way * SETS + set` for tags, `way * (SETS*FILL_BEATS) + {set,
+beat}` for data) lets synthesis bank per way at the default geometry. That is
+the HAS F8 dual-port decision implemented at L1-array granularity.
 
 ---
 
@@ -47,7 +63,8 @@ TAG_STATE_WIDTH = TAG_WIDTH + 3
 
 where `TAG_WIDTH = ADDR_WIDTH - SET_INDEX_WIDTH - LINE_OFFSET_WIDTH` and the 3 bits carry `cache_state_t`.
 
-The memory word is packed as `{tag[TAG_WIDTH-1:0], state[2:0]}`.
+The memory word is packed as `{tag[TAG_WIDTH-1:0], state[2:0]}` — verified by
+the DV against per-location values that place nonzero patterns in both fields.
 
 ### Port assignment
 
@@ -100,18 +117,19 @@ The address is `{set_index, beat_index}`.
 
 ### Snoop data readout
 
-A snoop that requires data transfer reads the matching way from port B beat-by-beat. `amber_control` drives `data_b_addr = {snoop_set, beat}` and increments the beat counter each cycle until the line is complete. The data is forwarded to `amber_snoop_resp` for CD transmission.
+A snoop that requires data transfer reads the matching way from port B beat-by-beat. `amber_control` drives `b_addr = {snoop_set, beat}`, increments the beat counter each cycle until the line is complete, and supplies the hit way on `b_way` (from the tag compare on port B). The data is forwarded to `amber_snoop_resp` for CD transmission.
 
 ---
 
 ## Reset Behavior
 
-The `sdpram_core` contents are not reset. After `aresetn` deassertion, `amber_control` treats all ways as Invalid until the first access. Two implementation options are acceptable:
-
-1. A software/init sequence walks all sets and writes `STATE_I` to every way.
-2. An `initial` block (simulation only) or a one-cycle hardware clear loop invalidates all lines.
-
-The chosen approach will be recorded when RTL lands. The formal proofs assume all lines are Invalid after reset.
+The arrays carry **no reset port** (GLOBAL_REQUIREMENTS 1.4 — SRAM contents
+are not reset, and real BRAM has no reset pin). After `aresetn` deassertion,
+`amber_control` treats all ways as Invalid until the init walk completes;
+option 1 from the pre-RTL review is the contract: a hardware sequence walks
+all sets and writes `STATE_I` to every way (the DV TBs perform the same walk
+so unwritten locations cannot leak X's). The formal proofs assume all lines
+are Invalid after reset.
 
 ---
 

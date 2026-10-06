@@ -265,6 +265,7 @@ area you are in. Paths relative to `projects/components/`.
 | Bridge | `bridge/` | protocol converters, clock domain crossing |
 | misc | `utility-ip/misc/` | reusable utility components: ROM/RAM wrappers, pattern generators |
 | ecc-ip / Reed-Solomon | `ecc-ip/reed-solomon/` | RS codec (GF(2^m), BM/Euclid, Chien/Forney); stand-up only -- PRD decisions pending, References/ populated |
+| cache-ip / amber | `cache-ip/amber-mesi-l1/` | MESI L1 with ACE snoop port (PRD D2/D4); first RTL slice: amber_pkg, amber_snoop_kmap, tag/data arrays |
 
 ---
 

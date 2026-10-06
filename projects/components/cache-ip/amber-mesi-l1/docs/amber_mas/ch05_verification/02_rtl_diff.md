@@ -32,6 +32,12 @@ After the first RTL commit for a module, update the corresponding sheet in [`gen
 3. Re-run the generator.
 4. Review each sheet's verdict.
 
+First landing (2026-10-06): the snoop CRRESP / next-state decode exists as
+`amber_pkg` functions + `amber_snoop_kmap`. See
+[01_kmap_verdicts.md](01_kmap_verdicts.md) for why its sheets record
+truth-table PASS but a deferred SOP-literal diff; the procedure above applies
+to every sheet still at `rtl_sop=None`.
+
 ## Diff Checklist
 
 For every sheet that reports **RTL-DIFFERS**:
