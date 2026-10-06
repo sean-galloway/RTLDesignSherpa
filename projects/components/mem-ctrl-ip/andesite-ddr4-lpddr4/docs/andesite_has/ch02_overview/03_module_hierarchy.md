@@ -42,7 +42,7 @@ markings sum to that number.
 | `andesite_axi4_layer` | `scoria_axi4_ifc` | INHERITED |
 | `andesite_scheduler_layer` | `scoria_mem_cmd_scheduler` | MODIFIED — bank-group-aware L/S admission, on top of scoria's ZQ maintenance admission |
 | `andesite_training_layer` | — | NEW — holds the three training FUBs, owns the DFI training pins + one-active mux, and issues MRS/MPC on the scheduler's maintenance training channel |
-| `andesite_dfi_layer` | `scoria_dfi_layer` | MODIFIED — DFI 4.0 control surface, DBI wires |
+| `andesite_dfi_layer` | `scoria_dfi_layer` | IMPLEMENTED — DFI 4.0 control surface, DBI wires (TASK-016 t6) |
 
 : Table 2.1: Top and macro tier
 

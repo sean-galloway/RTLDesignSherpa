@@ -23,7 +23,7 @@
 `include "reset_defs.svh"
 
 module andesite_dfi_cdc #(
-    parameter int CMD_DW       = 32,   // {op,rank,bank,row,col,ap} packed
+    parameter int CMD_DW       = 32,   // {ap,col,row,bg,bank,rank,op} packed
     parameter int WD_DW        = 72,   // {data,strb,last}
     parameter int RD_DW        = 66,   // {data,resp,last}
     // Depths are powers of two, which is what the default Gray pointer

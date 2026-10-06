@@ -33,3 +33,4 @@
 -f fub/andesite_dfi_cmd_path.f
 -f fub/andesite_dfi_wr_serializer.f
 -f fub/andesite_dfi_rd_aligner.f
+-f top/andesite_core.f
