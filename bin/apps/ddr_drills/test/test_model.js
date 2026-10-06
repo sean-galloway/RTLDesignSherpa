@@ -19,11 +19,14 @@ var SUITES = (typeof window !== 'undefined' ? window : globalThis).DDRD_TEST_SUI
       var bg = DDRD.assumptionsText({ hasBankGroups: true, groups: 2,
                                       banksPerGroup: 4, banks: 8,
                                       rows: 8, cols: 8, sids: 0 });
-      T.ok(bg.indexOf('2 bank groups of 4 banks') !== -1,
-           'BG topo names the group count');
-      T.ok(bg.indexOf('8 rows, 8 columns') !== -1,
-           'BG topo names rows and columns');
-      T.ok(bg.indexOf('(no bank groups)') === -1,
+      T.ok(bg.indexOf('2 bank groups (G0, G1)') !== -1,
+           'BG topo enumerates the group ids');
+      T.ok(bg.indexOf('8 banks (B0-B7)') !== -1,
+           'BG topo spells the bank range');
+      T.ok(bg.indexOf('8 rows (R0-R7)') !== -1 &&
+           bg.indexOf('8 columns (C0-C7)') !== -1,
+           'BG topo spells the row/column ranges');
+      T.ok(bg.indexOf('no bank groups') === -1,
            'BG topo does not claim flatness');
       T.ok(bg.indexOf('SID') === -1,
            'BG topo without stacks omits the SID clause');
@@ -32,10 +35,10 @@ var SUITES = (typeof window !== 'undefined' ? window : globalThis).DDRD_TEST_SUI
       var flat = DDRD.assumptionsText({ hasBankGroups: false, groups: 1,
                                         banksPerGroup: 8, banks: 8,
                                         rows: 8, cols: 8, sids: 0 });
-      T.ok(flat.indexOf('8 banks (no bank groups)') !== -1,
-           'flat topo says so explicitly');
-      T.ok(flat.indexOf('8 rows, 8 columns') !== -1,
-           'flat topo names rows and columns');
+      T.ok(flat.indexOf('8 banks (B0-B7, no bank groups)') !== -1,
+           'flat topo says so explicitly inside the bank range');
+      T.ok(flat.indexOf('8 rows (R0-R7)') !== -1,
+           'flat topo spells the row range');
 
       // Flat with stacks (hbm2-style): the SID clause rides along.
       var sid = DDRD.assumptionsText({ hasBankGroups: false, groups: 1,

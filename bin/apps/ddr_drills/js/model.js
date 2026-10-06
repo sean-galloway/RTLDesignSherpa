@@ -107,14 +107,27 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
   // The artificial-geometry disclaimer shown at the top of every drill and
   // the sandbox. The drills run on a tiny on-purpose geometry so bank state
   // is visible at a glance; the rules practiced are identical to real parts.
+  // Entity ranges are spelled out (G0, G1 / B0-B7 / R0-R7 / C0-C7) so the
+  // labels used in questions and the sandbox need no separate decoding.
+  function idRange(prefix, n) {
+    return n > 1 ? prefix + '0-' + prefix + (n - 1) : prefix + '0';
+  }
+
   function assumptionsText(topo) {
-    var geo = topo.hasBankGroups
-      ? topo.groups + ' bank groups of ' + topo.banksPerGroup + ' banks'
-      : topo.banks + ' banks (no bank groups)';
-    var s = 'Artificial drill geometry: ' + geo + ', ' + topo.rows +
-            ' rows, ' + topo.cols + ' columns. Real parts differ -- ' +
-            'thousands of rows and columns, and often more banks or groups ' +
-            '-- but the scheduling and timing rules are the same.';
+    var parts = [];
+    if (topo.hasBankGroups) {
+      var gids = [];
+      for (var g = 0; g < topo.groups; g++) { gids.push('G' + g); }
+      parts.push(topo.groups + ' bank groups (' + gids.join(', ') + ')');
+    }
+    parts.push(topo.banks + ' banks (' + idRange('B', topo.banks) +
+               (topo.hasBankGroups ? '' : ', no bank groups') + ')');
+    parts.push(topo.rows + ' rows (' + idRange('R', topo.rows) + ')');
+    parts.push(topo.cols + ' columns (' + idRange('C', topo.cols) + ')');
+    var s = 'Artificial drill geometry: ' + parts.join(', ') +
+            '. Real parts differ -- thousands of rows and columns, and ' +
+            'often more banks or groups -- but the scheduling and timing ' +
+            'rules are the same.';
     if (topo.sids > 0) {
       s += ' This geometry repeats per stack (SID).';
     }
