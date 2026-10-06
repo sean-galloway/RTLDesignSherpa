@@ -22,6 +22,8 @@
 -f fub/andesite_cmd_arbiter.f
 -f macro/andesite_scheduler_layer.f
 -f macro/andesite_training_layer.f
+-f macro/andesite_dfi_layer.f
+-f macro/andesite_axi4_layer.f
 -f fub/andesite_refresh_ctrl.f
 -f fub/andesite_zq_ctrl.f
 -f fub/andesite_wrlvl_ifc.f
