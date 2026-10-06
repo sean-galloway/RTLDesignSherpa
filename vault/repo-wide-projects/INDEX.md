@@ -28,24 +28,26 @@ note — it belongs to that block and nowhere else.
 
 ## projects/components/
 
-- [apbx-xbar](projects/components/fabric-gen-ip/apbx-xbar/INDEX.md)
-- [bridge](projects/components/fabric-gen-ip/bridge/INDEX.md) — generated crossbar
+- [apbx-xbar](projects/components/fabric-gen-ip/apbx-xbar/INDEX.md) — v1.0 (2026-10-06)
+- [bridge](projects/components/fabric-gen-ip/bridge/INDEX.md) — generated crossbar; v1.0 (2026-10-06)
 - [converters](projects/components/utility-ip/converters/INDEX.md)
 - [delta](projects/components/noc-ip/delta/INDEX.md)
-- [dma-ip/rapids](projects/components/dma-ip/rapids/INDEX.md) — beats rearchitecture
-- [dma-ip/stream](projects/components/dma-ip/stream/INDEX.md) — reference DV implementation
+- `ecc-ip/bch` — v1.0 (2026-10-06); area exists in the repo, no context note written yet
+- `ecc-ip/reed-solomon` — v1.0 (2026-10-06); area exists in the repo, no context note written yet
+- [dma-ip/rapids](projects/components/dma-ip/rapids/INDEX.md) — beats rearchitecture; v1.0 (2026-10-06)
+- [dma-ip/stream](projects/components/dma-ip/stream/INDEX.md) — reference DV implementation; v1.0 (2026-10-06)
 - [hive](projects/components/compute-eng-ip/hive/INDEX.md)
 - [mem-ctrl-ip/pumice-ddr2-lpddr2](projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/INDEX.md) — board-validated
 - [mem-ctrl-ip/scoria-ddr3-lpddr3](projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/INDEX.md)
 - [andesite-ddr4-lpddr4](projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/INDEX.md)
 - [misc](projects/components/utility-ip/misc/INDEX.md)
-- [retro_legacy_blocks](projects/components/retro_legacy_blocks/INDEX.md) — PIC, PIT, HPET, IOAPIC, SMBus, UART, RTC, GPIO, PM/ACPI
+- [retro_legacy_blocks](projects/components/retro_legacy_blocks/INDEX.md) — PIC, PIT, HPET, IOAPIC, SMBus, UART, RTC, GPIO, PM/ACPI; v1.0 (2026-10-06)
 
 ## projects/fpga-systems/
 
 - [bin](projects/fpga-systems/bin/INDEX.md) — the shared board + UART layer (uart_link, uart_axi_bridge, boards registry, sequence runner)
 - [boards](projects/fpga-systems/boards/INDEX.md) — board definitions (nexys_a7_100t)
-- [Genesys2/rapids_beats](projects/fpga-systems/Genesys2/rapids_beats/INDEX.md) — RAPIDS board characterization
+- [Genesys2/rapids_beats](projects/fpga-systems/Genesys2/rapids_beats/INDEX.md) — RAPIDS board characterization; v1.0 (2026-10-06)
 - `Genesys2/stream` — area exists in the repo, no context note written yet
 - [NexysA7/cdc_counter_display](projects/fpga-systems/NexysA7/cdc_counter_display/INDEX.md) — CDC demo on Nexys A7
 - [NexysA7/pumice/ddr2-characterization](projects/fpga-systems/NexysA7/pumice/ddr2-characterization/INDEX.md) — DDR2 board characterization campaign

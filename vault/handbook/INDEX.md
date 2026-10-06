@@ -25,6 +25,12 @@ and rationale) > code comments. On conflict, the requirement wins.
 - [agents/](agents/INDEX.md) - the five repo-resident agent roles: loadout,
   write scope, and what ends the task
 
+## Status
+
+- [release-status](release-status.md) - which areas reached v1.0 on
+  2026-10-06, and the rule that every later change to them is tracked with a
+  GitHub issue
+
 ## Skills
 
 - [[skills]] - the reverse index: every `.claude/skills/` signpost and the
