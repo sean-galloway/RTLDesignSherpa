@@ -28,7 +28,7 @@
 **Purpose:** What was built, how it was exercised, and what the board says about
 the RS(252,236) t=8 codec on the Digilent Genesys 2. This book rolls up the
 four-image matrix, the 2026-10-05 battery, the erasure boundary finding, and
-the scheduled million-block soak.
+the completed million-block soak.
 
 ---
 
@@ -51,7 +51,7 @@ the scheduled million-block soak.
 
 ### Chapter 4: Findings
 - [Battery Results](ch04_findings/01_battery.md)
-- [Soak Run Scheduled](ch04_findings/02_soak.md)
+- [Soak Results](ch04_findings/02_soak.md)
 
 ### Chapter 5: Limits
 - [Honest Limits](ch05_limits/01_limits.md)
@@ -65,6 +65,7 @@ the scheduled million-block soak.
 | Harness documentation | `docs/UART_HARNESS.md` |
 | Build record | `stable/MANIFEST.md` |
 | Battery artifacts | `stable/results/2026-10-05_battery/` |
+| Soak artifacts | `stable/results/2026-10-05_soak/` |
 | Bitstreams | `stable/reports/genesys2_{axis_ribm,axis_euclid,axi4_ribm,axi4_euclid}/` |
 
 | Item | Value |

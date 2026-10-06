@@ -115,7 +115,9 @@ SOAK_PROGRESS_RE = re.compile(
 SOAK_FINAL_RE = re.compile(
     r"^\[soak\]\s+([\d,]+)\s+blocks\s+in\s+([\d.]+)s\s+\(([\d.]+)\s+blk/s\);\s+"
     r"([\d,]+)\s+clean\s+/\s+([\d,]+)\s+corrected\s+/\s+([\d,]+)\s+uncorrectable;\s+"
-    r"([\d,]+)\s+(bits|symbols) corrected;\s+([\d,]+)\s+failing run\(s\)"
+    r"([\d,]+)\s+(bits|symbols)\s+corrected;\s+"
+    r"(?:(\d+)\s+beats\s+compared[^;]*;\s+)?"
+    r"([\d,]+)\s+failing run\(s\)"
 )
 
 SOAK_THRESHOLD_RE = re.compile(
@@ -376,13 +378,17 @@ def parse_section(name, lines, log_file):
                 "corrected": int(m.group(5).replace(",", "")),
                 "uncorrectable": int(m.group(6).replace(",", "")),
                 "bits_corrected": int(m.group(7).replace(",", "")),
-                "failing_runs": int(m.group(9).replace(",", "")),
+                "corrected_unit": m.group(8),
+                "failing_runs": int(m.group(10).replace(",", "")),
             }
+            if m.group(9) is not None:
+                record["soak_final"]["beats_compared"] = int(m.group(9))
             continue
 
         m = SOAK_THRESHOLD_RE.match(line)
         if m:
-            sf = record.setdefault("soak_final", {})
+            sf = record.get("soak_final") or {}
+            record["soak_final"] = sf
             sf["misdecoded"] = int(m.group(1).replace(",", ""))
             sf["over_t_blocks"] = int(m.group(2).replace(",", ""))
             sf["misdecode_rate"] = f"{m.group(3)} (1 in {m.group(4)})"
@@ -926,7 +932,10 @@ def render_findings(records, summary, meta, out_dir, figure_paths, superseded):
             lines.append(f"| clean | {_fmt(sf.get('clean'), 'int')} |")
             lines.append(f"| corrected | {_fmt(sf.get('corrected'), 'int')} |")
             lines.append(f"| uncorrectable | {_fmt(sf.get('uncorrectable'), 'int')} |")
-            lines.append(f"| bits_corrected | {_fmt(sf.get('bits_corrected'), 'int')} |")
+            unit = sf.get('corrected_unit', 'bits')
+            lines.append(f"| {unit}_corrected | {_fmt(sf.get('bits_corrected'), 'int')} |")
+            if sf.get("beats_compared") is not None:
+                lines.append(f"| beats_compared_ribm_vs_euclid | {_fmt(sf.get('beats_compared'), 'int')} |")
             lines.append(f"| failing_runs | {_fmt(sf.get('failing_runs'), 'int')} |")
             lines.append(f"| over_t_blocks | {_fmt(sf.get('over_t_blocks'), 'int')} |")
             lines.append(f"| misdecoded | {_fmt(sf.get('misdecoded'), 'int')} |")

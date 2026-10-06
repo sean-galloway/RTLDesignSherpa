@@ -19,6 +19,9 @@ The 2026-10-05 battery demonstrates that four single-decoder bitstreams
   all images.
 - The matching verdict counts between riBM and Euclid images are themselves a
   cross-solver check.
+- The 2026-10-05 million-block soak on `axi4_ribm` passed: 0 failing runs,
+  and 2 mis-decodes out of 74,240 over-t blocks, below the model's
+  approximately 1-in-20,000 bound at e = t + 1.
 
 That is board evidence that both key-equation solvers behave identically under
 the same workload and that the codec honours the correction boundary.
@@ -30,5 +33,5 @@ possible error pattern or every smaller RS profile. The dual-decoder on-chip
 comparator is present in simulation but not in the production board matrix;
 agreement is proven by running identical deterministic campaigns on the two
 single-decoder images. The erasure `f = 2t` boundary is a known open issue
-(TASK-005) and is called out in Chapter 3 and Chapter 5. The scheduled soak
-has not completed at publication time; Chapter 4 says what it will report.
+(TASK-005) and is called out in Chapter 3 and Chapter 5. The million-block
+soak completed on 2026-10-06; Chapter 4 reports its counters.

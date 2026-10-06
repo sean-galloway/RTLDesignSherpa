@@ -43,7 +43,8 @@ campaign on both flavours is a free sanity check. The AXI4 flavor refuses a
 ## Deliberately not board-tested
 
 The dual-decoder comparator with `ENABLE_COMPARE=1` is the sim/DV domain. The
-soak campaign has a default time budget and is scheduled separately. The
+soak campaign runs separately from the battery because of its wall time —
+hours at UART rates; it completed on 2026-10-06 and is reported in Chapter 4. The
 component DV matrix exercises the codec in ways the board harness does not
 replicate. The erasure `f = 2t` boundary is a known open issue, detailed in the
 next section.
