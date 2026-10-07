@@ -14,12 +14,13 @@ it against the decoder's output, so the verdict comes from a reference that
 never saw the errors.
 
 The harness directory moved from `NexysA7/` to `Genesys2/` on 2026-10-05.
-`BCH_TARGET` still accepts `nexys_a7_100t` as a build option, but the Genesys
-2 is the primary target: the k325t-2 has the room and timing margin to hold
-the full BCH(4224,4120) loop at 100 MHz with both AXIS and AXI4 flavours, and
-both images came out timing-clean on the board build with positive slack. The
-Nexys flow is preserved so existing scripts do not break, but it is no longer
-the target for harness-class work.
+`BCH_TARGET` still accepts `nexys_a7_100t` as a build option, and since
+2026-10-07 the same tree carries a first-class small profile for it (issue
+#82): `BCH_PROFILE=small` builds BCH(248,224) t=3 for the A7-100T at 50 MHz
+(WNS +7.8 ns, 38% LUT). The Genesys 2 remains the primary target for the full
+profile: the k325t-2 has the room and timing margin to hold the full
+BCH(4224,4120) loop at 100 MHz with both AXIS and AXI4 flavours, and both
+images came out timing-clean on the board build with positive slack.
 
 Two bitstreams are built: `bch_loop_genesys2_axis.bit` and
 `bch_loop_genesys2_axi4.bit`. The AXIS flavour is a single streaming pipe; the

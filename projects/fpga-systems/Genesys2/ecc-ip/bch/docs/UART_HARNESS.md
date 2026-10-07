@@ -110,7 +110,7 @@ flowchart LR
 
 The register path is the same in both flavours. The host talks by name, not by offset: `BchLoopDriver` wraps `UARTAxiBridge` with `UartRegisterMap` over `bch_loop_regs_regmap.py`. The only raw addresses in the host code are the two expansion-window bases used to attach observer register maps: `OBS_AXI4_BASE = 0x00010000` and `OBS_AXIS_BASE = 0x00020000` in `build-loop/host/bch_loop.py`. Those bases match `rtl/bridges/generated/bridge_bch_loop_axil/bridge_bch_loop_axil.toml`; if a window moves, the bridge is regenerated and the host picks it up in one place.
 
-Clock and reset come from `bch_loop_genesys2_top`: the 200 MHz LVDS system clock passes through `IBUFDS` and an `MMCME2_BASE` with `CLKFBOUT_MULT_F = 6` and `CLKOUT0_DIVIDE_F = 12`, giving a 100 MHz harness clock. The Nexys A7 top runs the same 100 MHz directly. That frequency was chosen because the BCH loop and the UART divisor both close timing comfortably at 100 MHz on the k325t-2, and it keeps the AXIS and AXI4 flavours interchangeable from the host's point of view.
+Clock and reset come from `bch_loop_genesys2_top`: the 200 MHz LVDS system clock passes through `IBUFDS` and an `MMCME2_BASE` with `CLKFBOUT_MULT_F = 6` and `CLKOUT0_DIVIDE_F = 12`, giving a 100 MHz harness clock. The Nexys A7 top runs the full profile on the same 100 MHz directly. That frequency was chosen because the BCH loop and the UART divisor both close timing comfortably at 100 MHz on the k325t-2, and it keeps the AXIS and AXI4 flavours interchangeable from the host's point of view. The small Nexys profile is different: it divides the 100 MHz pin in fabric to 50 MHz, because the Artix-7 -1 speed grade cannot close this loop at 100 MHz (see the small-profile section below).
 
 ## The FPGA-testing choices, and why
 
@@ -136,7 +136,17 @@ The host link is a plain UART at 115200 baud, driven by `uart_axil_bridge`. That
 
 ### Genesys 2 over Nexys A7 for these harnesses
 
-The harness directory moved from `NexysA7/` to `Genesys2/` on 2026-10-05. `BCH_TARGET` still accepts `nexys_a7_100t` as a build option, but the Genesys 2 is the primary target. The k325t-2 has the room and timing margin to hold the full BCH(4224,4120) loop at 100 MHz with both AXIS and AXI4 flavours; both images came out timing-clean on the board build with positive slack. The Nexys flow is preserved so existing scripts do not break, but it is no longer the target for harness-class work.
+The harness directory moved from `NexysA7/` to `Genesys2/` on 2026-10-05. `BCH_TARGET` still accepts `nexys_a7_100t` as a build option, but the Genesys 2 is the primary target for the full profile. The k325t-2 has the room and timing margin to hold the full BCH(4224,4120) loop at 100 MHz with both AXIS and AXI4 flavours; both images came out timing-clean on the board build with positive slack.
+
+### The small Nexys A7 profile: BCH(248,224) t=3
+
+The same harness also runs on the Nexys A7-100T at a reduced geometry, selected at build time with `BCH_PROFILE=small` (the default `BCH_PROFILE=board` is unchanged). The small profile is BCH(248,224) t=3, shortened from BCH(255,231) over GF(2^8) with primitive polynomial 0x11D: 32-bit beats, 7 data beats per block, distinct BUILD_ID "BCHS" so `init` fails loudly against the wrong bitstream. Because the Artix-7 -1 speed grade cannot close even this small loop at 100 MHz (the board build measured WNS -4.3 ns), the small profile divides the 100 MHz pin clock in fabric to 50 MHz (`CFG_SYS_CLK_HZ` matches, so the UART stays at 115200 baud). The post-route result is comfortable: WNS +7.8 ns at 38% LUT, 0 block RAM. Build it with:
+
+```bash
+make -C build-loop bitstream BCH_TARGET=nexys_a7_100t BCH_PROFILE=small
+```
+
+The deterministic campaign sequences, the host programs, and the UART-equivalence sim all run unchanged against either profile; the host reads the geometry from the PROFILE CSR and the BUILD_ID, not from compile-time constants. The Genesys 2 board evidence (battery, million-block soak) belongs to the board profile; the small profile is the teaching/bring-up target for the A7. Tracked as issue #82.
 
 ### AXIS vs AXI4 flavours covering both integration styles
 
@@ -144,7 +154,7 @@ Two bitstreams are built: `bch_loop_genesys2_axis.bit` and `bch_loop_genesys2_ax
 
 ### What is deliberately NOT board-tested
 
-Some things are out of scope, and it is worth saying so plainly. The 2026-10-05 million-block soak ran on the AXIS image and passed: 1,000,000 blocks in 31,910s with zero mis-decodes of the 74,560 blocks pushed past the correction limit. BCH has no erasure path in this harness: the injector's `out_erasure` is tied off and `cfg_mark_erasure` is held low. And the board validates only the `BCH(4224,4120) t=8` profile; smaller profiles like `(63,57) t=1` are covered in simulation and component DV, not on the board.
+Some things are out of scope, and it is worth saying so plainly. The 2026-10-05 million-block soak ran on the AXIS image and passed: 1,000,000 blocks in 31,910s with zero mis-decodes of the 74,560 blocks pushed past the correction limit. BCH has no erasure path in this harness: the injector's `out_erasure` is tied off and `cfg_mark_erasure` is held low. The board validates two profiles: BCH(4224,4120) t=8 on the Genesys 2, and the small BCH(248,224) t=3 on the Nexys A7 (see the small-profile section above); profiles smaller than that, like `(63,57) t=1`, are covered in simulation and component DV, not on any board.
 
 ## Operating it
 

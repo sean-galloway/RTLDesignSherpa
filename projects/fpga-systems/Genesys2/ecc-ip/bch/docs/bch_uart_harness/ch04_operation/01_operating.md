@@ -7,6 +7,12 @@ per-build help under `build-loop/`. A typical board run looks like:
 bin/run_smoke.py --board genesys2 --port /dev/ttyUSB0 --sequences init smoke sweep
 ```
 
+For the Nexys A7 small profile, build the bitstream with
+`make -C build-loop bitstream BCH_TARGET=nexys_a7_100t BCH_PROFILE=small`
+and drive the same sequences over the A7's UART; `init` proves the "BCHS"
+BUILD_ID and the PROFILE CSR reports n=248, t=3, so the host programs pick up
+the geometry from the board.
+
 Board timing, utilisation, and the matrix summary are recorded in
 `stable/MANIFEST.md` and `stable/reports/{genesys2_axis,genesys2_axi4}/`.
 Campaign transcripts turn into reports with
