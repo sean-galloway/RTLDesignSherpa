@@ -304,6 +304,7 @@ module error_injector #(
     logic [M-1:0]          r_a_val [S];
     logic [15:0]           r_a_rem [S];    // n - pos - u, the selection-sampling denominator
     logic [S-1:0]          r_a_inrange;    // pos + u < n
+    logic [POS_W-1:0]      r_a_dbghold;    // 7 DEBUG: base snapshot at the block's first beat
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
@@ -311,6 +312,7 @@ module error_injector #(
             r_first <= 1'b1;
             r_a_v   <= 1'b0;
             r_a_data <= '0; r_a_keep <= '0; r_a_last <= 1'b0; r_a_first <= 1'b0; r_a_pos <= '0;
+            r_a_dbghold <= '0;
             r_a_inrange <= '0;
             for (int u = 0; u < S; u++) begin
                 r_a_r16[u] <= '0;
@@ -419,12 +421,18 @@ module error_injector #(
             r_draw_cnt <= '0;
         end else begin
             // snapshot the stream states on the block's first accepted beat;
-            // 7 DEBUG advances its deterministic walk here too
+            // 7 DEBUG advances its deterministic walk here too. The DEBUG
+            // base is snapshotted BEFORE the advance: decisions run at stage
+            // C, after the next block's first beat has already advanced the
+            // live register -- a block deciding against the live base shifts
+            // every hit one step and loses the hit whose position falls in
+            // the block's last beats (issue #87).
             if (w_a_fire && r_first) begin
                 r_xa_hold <= w_rnd_a;
                 r_xb_hold <= w_rnd_b;
                 r_snap_pending <= 1'b1;
                 r_draw_done <= 1'b0;
+                r_a_dbghold <= r_dbg_base;
                 r_dbg_base <= (r_dbg_base + POS_W'(r_rate) >= POS_W'(N))
                               ? (r_dbg_base + POS_W'(r_rate) - POS_W'(N))
                               : (r_dbg_base + POS_W'(r_rate));
@@ -501,12 +509,13 @@ module error_injector #(
     logic [15:0]           r_b_r16 [S];
     logic [M-1:0]          r_b_val [S];
     logic [POS_W-1:0]      r_b_bstart;
+    logic [POS_W-1:0]      r_b_dbghold;   // 7 DEBUG base, block-aligned copy
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_b_v <= 1'b0;
             r_b_data <= '0; r_b_keep <= '0; r_b_last <= 1'b0; r_b_first <= 1'b0; r_b_pos <= '0;
-            r_b_bstart <= '0; r_b_inrange <= '0;
+            r_b_bstart <= '0; r_b_inrange <= '0; r_b_dbghold <= '0;
             for (int u = 0; u < S; u++) begin
                 r_b_lhs_hi[u] <= '0; r_b_r16[u] <= '0; r_b_val[u] <= '0;
             end
@@ -520,6 +529,7 @@ module error_injector #(
                 r_b_pos    <= r_a_pos;
                 r_b_inrange <= r_a_inrange;
                 r_b_bstart <= w_bprod[31:16];
+                r_b_dbghold <= r_a_dbghold;
                 for (int u = 0; u < S; u++) begin
                     r_b_lhs_hi[u] <= w_lhs[u][31:16];
                     r_b_r16[u] <= r_a_r16[u];
@@ -548,6 +558,7 @@ module error_injector #(
     logic [7:0]       r_e_left;       // COUNT: errors still to place after the previous beat
     logic [7:0]       r_blk_errors;   // injected so far in this block
     logic [POS_W-1:0] r_burst_start;
+    logic [POS_W-1:0] r_dbg_run;      // 7 DEBUG base, held across the block's beats
 
     logic [S-1:0]          w_hit;
     logic [DATA_WIDTH-1:0] w_mask;
@@ -562,6 +573,7 @@ module error_injector #(
         logic [7:0]       e_left;
         logic [POS_W-1:0] pos;
         logic [POS_W-1:0] bstart;
+        logic [POS_W-1:0] dbg_base;
         logic [7:0]       k;
         logic [16:0]      dpos;
         int               base;
@@ -571,6 +583,7 @@ module error_injector #(
         e_left     = '0;
         pos        = '0;
         bstart     = '0;
+        dbg_base   = '0;
         k          = '0;
         dpos       = '0;
         base       = 0;
@@ -588,6 +601,7 @@ module error_injector #(
         end
         e_left = r_b_first ? r_count : r_e_left;
         bstart = r_b_first ? r_b_bstart : r_burst_start;
+        dbg_base = r_b_first ? r_b_dbghold : r_dbg_run;
         // BURST / RATE / CLUSTERS / LOCALIZED / BADBLOCK / DEBUG:
         // per-lane independent, single cycle
         w_hits = '0;
@@ -610,8 +624,8 @@ module error_injector #(
                                          && (r_b_r16[u] < r_rate);
                     3'd6:    w_hit[u] = (r_b_r16[u] < r_rate_eff);
                     3'd7: begin
-                        dpos = (pos >= r_dbg_base) ? (17'(pos) - 17'(r_dbg_base))
-                                                   : (17'(pos) + 17'(N) - 17'(r_dbg_base));
+                        dpos = (pos >= dbg_base) ? (17'(pos) - 17'(dbg_base))
+                                                 : (17'(pos) + 17'(N) - 17'(dbg_base));
                         w_hit[u] = (dpos < 17'(r_count));
                     end
                     default: w_hit[u] = 1'b0;
@@ -705,6 +719,7 @@ module error_injector #(
             r_e_left            <= '0;
             r_blk_errors        <= '0;
             r_burst_start       <= '0;
+            r_dbg_run           <= '0;
             o_inj_symbols       <= '0;
             o_inj_blocks        <= '0;
             o_inj_over_t        <= '0;
@@ -718,6 +733,7 @@ module error_injector #(
                 r_c_last <= r_b_last;
                 r_c_erasure <= r_mark_erasure ? w_hit : '0;
                 if (r_b_first) r_burst_start <= r_b_bstart;
+                if (r_b_first) r_dbg_run    <= r_b_dbghold;
                 r_e_left <= w_e_after;
             end else if (out_valid && out_ready) begin
                 r_c_v <= 1'b0;

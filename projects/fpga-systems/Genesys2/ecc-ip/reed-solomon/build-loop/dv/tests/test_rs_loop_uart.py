@@ -13,6 +13,11 @@ the UNMODIFIED programs in host/rs_loop_programs.py.
   uart_clean     no errors: every block ok, CRCs match, riBM == Euclid
   uart_correct   e = t per block: every block corrected with t symbols
   uart_over_t    e = t + 1: every block uncorrectable, riBM == Euclid
+  uart_debug_walk
+                 7 DEBUG: one hit per block at every block length, both
+                 profiles (regression for the live-base race of issue #87:
+                 at 16 beats/block the last beats decided against the next
+                 block's base, losing one hit and duplicating another)
   uart_throttle  e = t under random checker ready
   uart_skew      e = t with ONLY checker A throttled, so the two decoder
                  outputs drain at different rates. This is the case that
@@ -235,6 +240,40 @@ async def cocotb_test_uart_over_t(dut):
     t = (await cocotb.external(drv.profile)())["t"]
     r = await cocotb.external(lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=t + 1, blocks=4))()
     _report(dut, f"e={t + 1}", r)
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_uart_debug_walk(dut):
+    """7 DEBUG: exactly one hit per block, every block hit, at every geometry.
+
+    Regression for issue #87: the debug base advanced on the NEXT block's
+    first beat while the current block's beats were still deciding, so every
+    hit shifted one step and any hit whose position fell in a block's last
+    beats was lost (RS(64,56), 16 beats/block: 15 of 16 blocks hit, one
+    double-hit -- deterministic on board and in sim). The base is snapshotted
+    per block now; this test pins one-hit-per-block at short and long block
+    lengths on both profiles.
+    """
+    drv, _ = await _bringup(dut)
+    n = (await cocotb.external(drv.profile)())["n"]
+    for blocks in (16, 8, 32, 4):
+        step = n // blocks if n > blocks else 1
+        r = await cocotb.external(
+            lambda: progs.run(drv, rl.RsLoopDriver.INJ_DEBUG, count=1, rate=step,
+                              blocks=blocks))()
+        a = r.a
+        dut._log.info("debug walk blocks=%d step=%d: inj_blocks=%d/%d ok=%d corr=%d sym=%d",
+                      blocks, step, r.inj_blocks, blocks,
+                      a.blk_ok, a.blk_corr, a.sym_corr)
+        _check_sim_budget(dut, f"debug walk blocks={blocks}")
+        assert r.inj_symbols == blocks, \
+            f"blocks={blocks}: inj_symbols={r.inj_symbols}, want {blocks}"
+        assert r.inj_blocks == blocks, \
+            f"blocks={blocks}: inj_blocks={r.inj_blocks}, want {blocks} (issue #87)"
+        assert a.blk_ok == 0 and a.blk_corr == blocks and a.sym_corr == blocks, \
+            f"blocks={blocks}: ok={a.blk_ok} corr={a.blk_corr} sym={a.sym_corr}, " \
+            f"want 0/{blocks}/{blocks}"
+        assert not a.data_err, f"blocks={blocks}: data_err={a.data_err}"
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
@@ -744,6 +783,11 @@ def test_rs_loop_uart_correct(request):
 
 def test_rs_loop_uart_over_t(request):
     _run("cocotb_test_uart_over_t")
+
+
+def test_rs_loop_uart_debug_walk(request):
+    """7 DEBUG walk: one hit per block at every block length (issue #87)."""
+    _run("cocotb_test_uart_debug_walk")
 
 
 def test_rs_loop_uart_throttle(request):
