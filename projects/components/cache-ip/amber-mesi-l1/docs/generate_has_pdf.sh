@@ -17,7 +17,7 @@ set -euo pipefail
 # ------------------------------------------------------------
 
 # Default values
-REV="0.4"
+REV="1.0"
 ASSETS="amber_has/assets"
 HAS_INDEX="amber_has/amber_has_index.md"
 

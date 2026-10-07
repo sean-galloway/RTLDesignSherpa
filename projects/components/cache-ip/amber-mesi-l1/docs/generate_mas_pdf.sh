@@ -17,7 +17,7 @@ set -euo pipefail
 # ------------------------------------------------------------
 
 # Default values
-REV="0.4"
+REV="1.0"
 ASSETS="amber_mas/assets"
 MAS_INDEX="amber_mas/amber_mas_index.md"
 
