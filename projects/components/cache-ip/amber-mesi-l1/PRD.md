@@ -46,6 +46,17 @@ verification = Pattern-B grids + control-layer SymbiYosys at tiny geometry +
 cache_sim parity on LRU/FIFO/RANDOM + FSM oracles derived from the gem5
 Ruby MESI_Two_Level SLICC tables; first consumer = TB masters bring-up, pair
 rig the gated deliverable, STREAM attach the documented future hook.
+v0.6 (Sean, 2026-10-07): D3 and D11 decided, unblocking the cache-core RTL.
+D3 — memory-side is **AXI4 read/write masters on the house
+`axi4_master_rd`/`axi4_master_wr` wrappers (the stream/rapids pattern)**,
+observed through `*_monlite` per D8: the monlite decision needs monitored
+memory-side channels, the masters match the house BFM/monitor coverage that
+D2 chose GAXI for on the CPU side, and the pair rig's shared memory hangs
+off them through house fabric. The simple-SRAM-port bring-up shortcut was
+set aside as a rewrite-in-waiting. D11 — **DECIDED in the documented
+shared-primitives direction: `sdpram_core`-based tag/data stores (house
+no-bespoke-SRAM rule) + `gaxi_fifo_sync` house FIFOs for the pending/fill
+queues**; FPGA attributes per GLOBAL_REQUIREMENTS.md.
 
 ## 1. Purpose
 
@@ -84,7 +95,7 @@ from `rtl/amba/`.
 |---|---|---|---|
 | D1 | Cache geometry | **DECIDED 2026-10-06 (Sean): 32 KiB / 64 B lines / 4 ways (128 sets) as the default center, fully elaboration-parameterised (4–32 KiB, 32–64 B, 2–8 ways), plus a reserved tiny config — 16 sets / 2 ways / 64 B — for SymbiYosys tractability.** Board BRAM does not bind (~9 of 135 36Kb RAMs on Nexys A7 at the default), so geometry serves the DV matrix and the proofs, not the board | tag/data array dimensions, the whole DV matrix |
 | D2 | CPU-side interface | **DECIDED 2026-10-06 (Sean): GAXI slave.** Chosen over the plain valid/ready native port and the AXI4 slave: house BFM/monitor coverage and skid/FIFO plumbing already exist, and STREAM can attach as first real consumer without an adapter. Must express single-beat reads, write-allocate fills, and (if write-through is chosen) store-without-allocate | front-end FSM, adapter surface, first consumer |
-| D3 | Memory-side interface | OPEN: AXI4 read/write masters on the house `axi4_master_rd/wr` wrappers (stream/rapids pattern) vs GAXI vs a simple direct SRAM port for bring-up | fill/drain engines, burst behavior on misses |
+| D3 | Memory-side interface | **DECIDED 2026-10-07 (Sean): AXI4 read/write masters on the house `axi4_master_rd`/`axi4_master_wr` wrappers (stream/rapids pattern), `*_monlite` observation per D8.** Chosen over GAXI (D2 already spent that on the CPU side) and over the simple SRAM bring-up port (a rewrite-in-waiting); matches D8's monitored-paths requirement and the pair-rig shared-memory hook | fill/drain engines, burst behavior on misses |
 | D4 | Snoop transport | **DECIDED 2026-10-05 (Sean): ACE-shaped transport — amber implements the AC/CD/CR snoop channels exactly as [onyx D7](../onyx-ace-ccu/PRD.md) defines them (family decision: cache-ip is ACE-shaped), staying bus-agnostic internally behind a thin adapter.** Chosen over a custom dedicated snoop bus and over snooping on the AXI4 fabric directly; the ACE-lite-shaped candidate was set aside because a snoop responder must drive CR responses and CD data — ACE-Lite carries no snoop channels at all. The snoop-filter (directory-lite) sub-question stays deferred, reopened as [onyx D3](../onyx-ace-ccu/PRD.md). | the coherence bus, formal surface, gate count |
 | D5 | Write policy | **DECIDED 2026-10-06 (Sean): write-back + write-allocate.** Write-through/no-allocate deletes the coherence traffic the research exists to measure — dirty snoop transfers (PassDirty), WriteBack drains, onyx's memory-read elision — and leaves MESI's M state with no job; it stays available as a bring-up mode only | M-state logic, memory traffic, formal targets |
 | D6 | MESI variant | **DECIDED 2026-10-06 (Sean): plain MESI on a 3-bit state field.** MOESI's O-state is a later elaboration upgrade (encoding headroom reserved now, ~512 extra tag bits); its win — dirty→shared without a memory read — is a measurement for the pair rig, not a v1 requirement | state machine count, snoop response matrix |
@@ -92,7 +103,7 @@ from `rtl/amba/`.
 | D8 | Observation | **DECIDED 2026-10-04 (Sean): `*_monlite` wrappers, not the heavyweight `_mon`.** MonBus taps for hits, misses (class split if the model supplies it), snoops, evictions, and state transitions, observed through the `axi4_monlite` / `axil4_monlite` family — same 128-bit MonBus packets, UNIT/AGENT ids, and host tooling as `_mon`, ~1/5 the monitor gates, and a drop-and-count policy that never stalls the port. Rationale for a research cache: the observer must not perturb what it measures — a `_mon` wrapper that gates the port when its tracking tables fill would corrupt the very miss-latency numbers amber and jet exist to produce. The events D8 lists are emitted as MonBus packets and tallied by the standard agents (`monbus_tally_axil`); heavyweight `_mon` stays available as a DV cross-check, never on the measured paths. | perf counters, board capture, DV scoreboards |
 | D9 | Verification strategy | **DECIDED 2026-10-06 (Sean): Pattern-B cocotb GATE/FUNC/FULL grids over the geometry × policy × rig matrix (ACE BFMs: cocotb-framework 1.2.0); SymbiYosys scoped to the control layer — `amber_control`, `amber_snoop_resp`, the pending-fill bypass, the victim-buffer handoff — proven at the tiny 16-set/2-way geometry; cache_sim trace-replay parity across LRU/FIFO/RANDOM. The Python reference model and the FSM oracles derive from the gem5 Ruby `MESI_Two_Level` SLICC tables in [`../References/gem5-ruby-protocols/`](../References/gem5-ruby-protocols/) — `L1cache.sm`'s enumerated transient states are the derivation source for the `amber_pkg` state encoding, and every stable and transient transition is cross-checked against an executable protocol spec, not prose** | DV structure, formal areas, CI time |
 | D10 | First consumer | **DECIDED 2026-10-06 (Sean): standalone TB masters for bring-up; the gated deliverable is the pair rig — two ambers + shared memory, the coherence research rig.** STREAM attach is documented as the future integration hook (D2's GAXI choice is what makes it cheap later); the onyx rig is sequenced per onyx D10 — onyx waits behind the pair rig | integration scope, what "done" means |
-| D11 | Data/tag arrays | OPEN (direction: shared primitives): `sdpram_core`-based tag/data stores + house FIFOs for pending/fill queues; FPGA attributes per [`../../../../GLOBAL_REQUIREMENTS.md`](../../../../GLOBAL_REQUIREMENTS.md) | area/timing headroom, the no-bespoke-SRAM rule |
+| D11 | Data/tag arrays | **DECIDED 2026-10-07 (Sean), in the documented shared-primitives direction: `sdpram_core`-based tag/data stores + `gaxi_fifo_sync` house FIFOs for the pending/fill queues**; FPGA attributes per [`../../../../GLOBAL_REQUIREMENTS.md`](../../../../GLOBAL_REQUIREMENTS.md). House no-bespoke-SRAM rule applies | area/timing headroom, the no-bespoke-SRAM rule |
 
 ## 4. Success criteria
 
