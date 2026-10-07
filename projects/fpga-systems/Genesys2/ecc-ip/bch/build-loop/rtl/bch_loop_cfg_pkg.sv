@@ -50,7 +50,7 @@ package bch_loop_cfg_pkg;
     localparam int CFG_K_TAIL     = CFG_K_BITS % CFG_DATA_WIDTH;  // 0 bits (full last beat)
 
     // the board
-    localparam int          CFG_SYS_CLK_HZ = 50_000_000;   // 50 MHz: BUFGCE_DIV by 2 in bch_loop_top (`ifdef BCH_LOOP_SMALL)
+    localparam int          CFG_SYS_CLK_HZ = 50_000_000;   // 50 MHz: fabric divide-by-2 in bch_loop_top (`ifdef BCH_LOOP_SMALL)
     localparam int          CFG_UART_BAUD  = 115_200;
     localparam logic [31:0] CFG_BUILD_ID   = 32'h4243_4853;   // "BCHS"
 
