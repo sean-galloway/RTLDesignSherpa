@@ -91,7 +91,7 @@ is superseded, or moved to [[BRIDGE-017]] / dropped.
 Five generated bridges under the board-characterization frameworks are stale
 with respect to the bridge generator:
 
-    projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/bridges/generated/bridge_ddr2_char_axil
+    projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2_char_framework/rtl/bridges/generated/bridge_ddr2_char_axil
     projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil
     .../bridge_stream_char_axil_mon
     .../bridge_stream_mon_axil

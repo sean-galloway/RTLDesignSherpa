@@ -19,7 +19,7 @@ an index, not storage). Most of the 366 `.f` follow this
 
 **Loose `.f` directly beside RTL, no `filelists/` subdir:**
 - [ ] `projects/components/retro_legacy_blocks/rtl/rlb_top/rlb_top.f`
-- [ ] `projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/ddr2_char_macro.f`
+- [ ] `projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2_char_framework/rtl/ddr2_char_macro.f`
 
 **TB/harness `.f` -- RESOLVED (Sean, 2026-07-24):** a testbench with its own
 harness gets its own filelist, co-located WITH the TB (its `filelists/` dir),

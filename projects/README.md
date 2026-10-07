@@ -17,7 +17,7 @@ projects/
 │   └── ...
 ├── fpga-systems/      # Board harnesses: <board>/<ip-area>/<ip>
 │   ├── NexysA7/misc-ip/cdc_counter_display/   # CDC teaching demo
-│   ├── NexysA7/pumice/                        # DDR2 characterization (Nexys A7)
+│   ├── NexysA7/mem-ctrl-ip/pumice/             # DDR2 characterization (Nexys A7)
 │   ├── Genesys2/ecc-ip/bch/  Genesys2/ecc-ip/reed-solomon/   # ECC loopbacks (Genesys 2)
 │   ├── Genesys2/dma-ip/stream/  Genesys2/dma-ip/rapids/  Genesys2/dma-ip/rapids_beats/
 │   └── ...
@@ -75,12 +75,12 @@ make program  # Program FPGA
 
 ---
 
-#### [DDR2 Characterization](fpga-systems/NexysA7/pumice/ddr2-characterization/)
+#### [DDR2 Characterization](fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/)
 
 **On-chip characterization of the DDR2 memory controller**
 
 - **Component:** [mem-ctrl-ip](components/mem-ctrl-ip/)
-- **Report:** [README + docs](fpga-systems/NexysA7/pumice/ddr2-characterization/) · [reports](fpga-systems/NexysA7/pumice/ddr2-characterization/)
+- **Report:** [README + docs](fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/) · [reports](fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/)
 - **Board:** Nexys A7-100T (on-board DDR2)
 - **Status:** Active
 
@@ -221,7 +221,7 @@ When adding new projects:
 | [stream](components/dma-ip/stream/) | Active | [PRD](components/dma-ip/stream/PRD.md) |
 | [rapids](components/dma-ip/rapids/) | Active | [PRD](components/dma-ip/rapids/PRD.md) · [spec](components/dma-ip/rapids/docs/) · char: [report](fpga-systems/Genesys2/dma-ip/rapids_beats/docs/rapids_beats_findings.md) |
 | [bridge](components/fabric-gen-ip/bridge/) | Active | [PRD](components/fabric-gen-ip/bridge/PRD.md) |
-| [mem-ctrl-ip](components/mem-ctrl-ip/) | Active | [README](components/mem-ctrl-ip/README.md) · char: [ddr2](fpga-systems/NexysA7/pumice/ddr2-characterization/) |
+| [mem-ctrl-ip](components/mem-ctrl-ip/) | Active | [README](components/mem-ctrl-ip/README.md) · char: [ddr2](fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/) |
 | [hive](components/compute-eng-ip/hive/) | Retired 2026-09-27 | [PRD](components/compute-eng-ip/hive/PRD.md) · [spec](components/compute-eng-ip/hive/docs/hive_spec/) |
 | [delta](components/noc-ip/delta/) | Retired 2026-09-27 | [PRD](components/noc-ip/delta/PRD.md) · [spec](components/noc-ip/delta/docs/delta_spec/) |
 | [retro_legacy_blocks](components/retro_legacy_blocks/) | Active | [PRD](components/retro_legacy_blocks/PRD.md) |
@@ -230,7 +230,7 @@ When adding new projects:
 ### Characterization reports (Nexys A7-100T)
 
 - [RAPIDS](fpga-systems/Genesys2/dma-ip/rapids_beats/docs/rapids_beats_findings.md) — split src/snk engines, golden-CRC suite (48/48 on silicon)
-- [DDR2](fpga-systems/NexysA7/pumice/ddr2-characterization/) · [Timing](asic-trials/timing_characterization/)
+- [DDR2](fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/) · [Timing](asic-trials/timing_characterization/)
 
 ---
 

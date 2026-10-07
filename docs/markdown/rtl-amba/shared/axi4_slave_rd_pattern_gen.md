@@ -274,7 +274,7 @@ Covered from `val/amba/` with the rest of the shared area — run everything wit
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
 - Index: `docs/markdown/rtl-amba/index.md`
-- Harness: `projects/fpga-systems/NexysA7/pumice/ddr2-characterization/README.md`
+- Harness: `projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/README.md`
 
 ---
 

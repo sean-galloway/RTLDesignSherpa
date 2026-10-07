@@ -11,7 +11,7 @@
 //          Accumulates a CRC-32 over the data written so the read-side
 //          (axi4_master_rd_crc_check) has an expected value to compare against.
 //
-// Documentation: projects/fpga-systems/NexysA7/pumice/ddr2-characterization/README.md
+// Documentation: projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/README.md
 // Subsystem: amba (shared characterization harness blocks)
 //
 // Author: sean galloway

@@ -5,7 +5,7 @@
 tooling TASK-022 put a board-keyed lock on the make targets
 (`projects/fpga-systems/bin/board_lock.sh`), and the scoria host driver then took
 the same lock from Python
-(`projects/fpga-systems/Genesys2/scoria/host/board_lock.py`) so a directly-invoked
+(`projects/fpga-systems/Genesys2/mem-ctrl-ip/scoria/host/board_lock.py`) so a directly-invoked
 runner is guarded too.
 
 WHY THIS TEST EXISTS. Two implementations of one lock key, with nothing pinning
@@ -43,7 +43,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SHELL_LOCK = REPO_ROOT / "projects/fpga-systems/bin/board_lock.sh"
-PY_LOCK = REPO_ROOT / "projects/fpga-systems/Genesys2/scoria/host/board_lock.py"
+PY_LOCK = REPO_ROOT / "projects/fpga-systems/Genesys2/mem-ctrl-ip/scoria/host/board_lock.py"
 
 # Boards the registry knows, plus the cases the derivation has to handle
 # identically on both sides: a name with no registry entry (falls back to the

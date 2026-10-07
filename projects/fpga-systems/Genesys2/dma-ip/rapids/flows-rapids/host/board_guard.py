@@ -10,7 +10,7 @@
 # Documentation: projects/fpga-systems/Genesys2/dma-ip/rapids/flows-rapids/
 # Subsystem: rapids_byte_harness
 
-"""The lock itself is the scoria module's (Genesys2/scoria/host/board_lock.py),
+"""The lock itself is the scoria module's (Genesys2/mem-ctrl-ip/scoria/host/board_lock.py),
 imported from its home rather than copied, so there is one key derivation and
 one exit code (98). Two cases it does not cover, handled here:
 

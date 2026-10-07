@@ -9,10 +9,10 @@ AXI4 port differs. Both images were built from the same commit on
 2026-10-03: pumice `build-perf` (sha256 `61d35ff7...`, WNS +0.132 ns) and
 LiteDRAM `flows-litedram-uart` (sha256 `44a1b836...`, WNS +0.321 ns).
 
-Sources: `board_2026-10-03` = `projects/fpga-systems/NexysA7/pumice/build-perf/
+Sources: `board_2026-10-03` = `projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/build-perf/
 reports/char_postfix_2026-10-03.csv` (pumice `open_page`, the best pumice
 preset, 84/84 integrity PASS) and `litedram_2026-10-03_matrix.csv` under
-`projects/fpga-systems/NexysA7/pumice/ddr2-characterization/char_results/`
+`projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/char_results/`
 (14/14 PASS). Bandwidth is timer-based (bytes / FPGA-timer cycles); both
 sides normalized to the 75 MHz engine clock.
 

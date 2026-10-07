@@ -46,7 +46,7 @@ export STREAM_ROOT=$REPO_ROOT/projects/components/dma-ip/stream
 # wrong for the other flow. Filelists should use the unambiguous names below.
 export STREAM_CHAR_ROOT=$REPO_ROOT/projects/fpga-systems/Genesys2/dma-ip/stream
 export STREAM_CHAR_FRAMEWORK_ROOT=$REPO_ROOT/projects/fpga-systems/Genesys2/dma-ip/stream
-export DDR2_CHAR_FRAMEWORK_ROOT=$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework
+export DDR2_CHAR_FRAMEWORK_ROOT=$REPO_ROOT/projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2_char_framework
 export TIMING_CHAR_ROOT=$REPO_ROOT/projects/asic-trials/timing_characterization
 
 # Activate the venv, and FAIL if there isn't one.

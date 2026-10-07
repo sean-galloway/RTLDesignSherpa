@@ -11,10 +11,10 @@
       ]
     },
     {
-      "root": "projects/fpga-systems/NexysA7/pumice",
+      "root": "projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice",
       "extraPaths": [
         "projects/fpga-systems/bin",
-        "projects/fpga-systems/NexysA7/pumice/bin",
+        "projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/bin",
         "bin",
         "."
       ]

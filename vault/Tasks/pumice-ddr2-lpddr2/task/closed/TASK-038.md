@@ -18,9 +18,9 @@ agreeing to the digit.
 Rebuild and re-measure every pumice-family board harness that pulls the
 sdpram, then repin the docs:
 
-- `projects/fpga-systems/NexysA7/pumice/build-perf/`
+- `projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/build-perf/`
   (`ddr2_char_harness.f`) — the pumice board perf characterization image.
-- `projects/fpga-systems/NexysA7/pumice/ddr2-characterization/flows-litedram-uart/`
+- `projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/flows-litedram-uart/`
   (`litedram_char_harness.f`) — the LiteDRAM same-harness A/B image; BOTH
   sides of the A/B move, so the comparison needs re-running, not editing.
 - Sim-side equivalence checks that assert cycle windows

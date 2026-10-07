@@ -16,7 +16,7 @@ projects/fpga-systems/Genesys2/dma-ip/rapids_beats/flows-rapids-beats/tcl/fileli
 projects/fpga-systems/Genesys2/dma-ip/stream/fpga/tcl/filelist_utils.tcl
 projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display/build-demo/fpga/tcl/filelist_utils.tcl
 projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display/build-phase1/fpga/tcl/filelist_utils.tcl
-projects/fpga-systems/NexysA7/pumice/build-perf/fpga/tcl/filelist_utils.tcl
+projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/build-perf/fpga/tcl/filelist_utils.tcl
 rtl/amba/fpga/tcl/filelist_utils.tcl
 ```
 

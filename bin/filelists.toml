@@ -229,9 +229,9 @@ filelist_dirs = [
 name = "nexys_ddr2_char_bridges"
 kind = "board"
 generated = true
-regen = "projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/bin/regen_bridges.sh"
+regen = "projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2_char_framework/bin/regen_bridges.sh"
 rtl_roots = []
-filelist_dirs = ["projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/bridges/filelists"]
+filelist_dirs = ["projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2_char_framework/rtl/bridges/filelists"]
 
 [[area]]
 name = "nexys_reed_solomon_bridges"
@@ -270,7 +270,7 @@ filelist_dirs = ["projects/fpga-systems/Genesys2/dma-ip/stream/rtl/filelists"]
 # (nexys_ddr2_char*) point at a DIFFERENT NexysA7 project and stay.
 
 # The memory-characterization framework, shared across boards. Promoted out of
-# NexysA7/pumice/ddr2_char_framework on 2026-09-30: the engine was already
+# NexysA7/mem-ctrl-ip/pumice/ddr2_char_framework on 2026-09-30: the engine was already
 # advertised as DUT-agnostic but lived under one controller's board directory
 # and imported that controller's package, so a DDR3 harness could not use it and
 # the LiteDRAM yardstick build compiled the whole DDR2 controller it was meant
@@ -287,10 +287,10 @@ name = "nexys_ddr2_char"
 kind = "board"
 rtl_roots = []
 filelist_dirs = [
-    "projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/dv/filelists",
-    "projects/fpga-systems/NexysA7/pumice/build-perf/rtl/filelists",
-    "projects/fpga-systems/NexysA7/pumice/ddr2-characterization/flows-litedram-uart/rtl/filelists",
-    "projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/filelists",
+    "projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2_char_framework/dv/filelists",
+    "projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/build-perf/rtl/filelists",
+    "projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/flows-litedram-uart/rtl/filelists",
+    "projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2_char_framework/rtl/filelists",
 ]
 
 # scoria on the Genesys 2. Two builds by design -- scoria on real DDR3 and
@@ -301,16 +301,16 @@ name = "genesys2_scoria"
 kind = "board"
 rtl_roots = []
 filelist_dirs = [
-    "projects/fpga-systems/Genesys2/scoria/build-litedram/rtl/filelists",
-    "projects/fpga-systems/Genesys2/scoria/rtl/filelists",
+    "projects/fpga-systems/Genesys2/mem-ctrl-ip/scoria/build-litedram/rtl/filelists",
+    "projects/fpga-systems/Genesys2/mem-ctrl-ip/scoria/rtl/filelists",
     # The generated config bridge's list. Registered for the reason the
     # registry exists: a broken `-f` in a generated filelist is otherwise
     # found by the Vivado run that fails to elaborate, 90 seconds in.
-    "projects/fpga-systems/Genesys2/scoria/rtl/bridges/filelists",
+    "projects/fpga-systems/Genesys2/mem-ctrl-ip/scoria/rtl/bridges/filelists",
     # The scoria board build, the A-side of the A/B. Two lists: the synthesis
     # closure and a lint variant that swaps the generated PHY for a blackbox
     # stub and adds the Xilinx primitive stubs.
-    "projects/fpga-systems/Genesys2/scoria/build-scoria/rtl/filelists",
+    "projects/fpga-systems/Genesys2/mem-ctrl-ip/scoria/build-scoria/rtl/filelists",
 ]
 
 # andesite in the de25-nano area. The destination board is the DE25-Nano
@@ -323,7 +323,7 @@ filelist_dirs = [
 name = "de25_andesite"
 kind = "board"
 rtl_roots = []
-filelist_dirs = ["projects/fpga-systems/de25-nano/andesite/build-andesite/rtl/filelists"]
+filelist_dirs = ["projects/fpga-systems/de25-nano/mem-ctrl-ip/andesite/build-andesite/rtl/filelists"]
 
 [[area]]
 name = "genesys2_rapids_beats_char"

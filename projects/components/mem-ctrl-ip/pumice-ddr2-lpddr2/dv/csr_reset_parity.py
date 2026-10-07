@@ -34,7 +34,7 @@ RDL = "../rtl/macro/pumice_csr.rdl"
 CLOCK = {
     "hz": 75000000,
     "env": "PUMICE_MC_CLK_HZ",
-    "declared_by": "projects/fpga-systems/NexysA7/pumice/build-perf/host/pumice_char.py",
+    "declared_by": "projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/build-perf/host/pumice_char.py",
     "note": "board_ddr2_300 in dv/tbclasses/pumice_dram_configs.py carries the "
             "same 75 MHz; that table is what the sim layers run.",
 }

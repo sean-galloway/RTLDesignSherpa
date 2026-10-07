@@ -72,7 +72,7 @@ port-naming* discrepancy, not a missing feature -- but a PHY integrator wiring
 to DFI will look for `dfi_reset_n` and not find it.
 
 The same wrong belief was written down in the FPGA harness:
-`projects/fpga-systems/Genesys2/scoria/rtl/scoria_char_macro.sv` said "RESET_n
+`projects/fpga-systems/Genesys2/mem-ctrl-ip/scoria/rtl/scoria_char_macro.sv` said "RESET_n
 is a real DRAM pin: the DFI spec carries no reset signal, so it leaves the
 controller directly". Corrected in the same pass, with the catalog measurement
 beside it.

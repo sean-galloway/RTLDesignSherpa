@@ -2,7 +2,7 @@
 #
 # Why this exists: scoria's HAS had questions no DDR2 artifact could answer.
 # The LiteDRAM core in the pumice flow
-# (projects/fpga-systems/NexysA7/pumice/ddr2-characterization/flows-litedram-uart/)
+# (projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/flows-litedram-uart/)
 # is a DDR2 configuration, and ZQ calibration, write leveling and MR3 are all
 # DDR3-and-later -- grepping it for ZQ returns nothing, which is an absence and
 # not an answer. A DDR3 core is a second independent implementation to compare

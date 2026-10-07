@@ -258,8 +258,8 @@ axi4_master_wr_pattern_gen #(
 ## Related Modules
 
 ### Used By
-- `projects/fpga-systems/NexysA7/pumice/build-perf/rtl/ddr2_char_harness.sv` — on-chip write driver
-- DDR2 characterization macro / harness CSR blocks under `projects/fpga-systems/NexysA7/pumice/ddr2-characterization/`
+- `projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/build-perf/rtl/ddr2_char_harness.sv` — on-chip write driver
+- DDR2 characterization macro / harness CSR blocks under `projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/`
 
 ### Uses
 - **axi4_master_wr.sv** — standard AXI4 write master protocol handler (AW/W/B skid + compliance)
@@ -289,7 +289,7 @@ Covered from `val/amba/` with the rest of the shared area — run everything wit
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
 - Index: `docs/markdown/rtl-amba/index.md`
-- Harness: `projects/fpga-systems/NexysA7/pumice/ddr2-characterization/README.md`
+- Harness: `projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/README.md`
 
 ---
 

@@ -8,7 +8,7 @@ sequence and one or more test sequences -- in its own `bin/` directory. A
 `run_<test>.py` composes the transport once and asks the runner for an order:
 
     runner = SequenceRunner(ctx)
-    runner.discover("projects/fpga-systems/NexysA7/pumice/bin")
+    runner.discover("projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/bin")
     report = runner.run(["init", "write_read"])
 
 Two rules this module enforces, because both failure modes are silent:

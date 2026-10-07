@@ -16,10 +16,10 @@ runner.ctx.bus = driver        # inject the already-built transport
 report = runner.run(order)
 ```
 
-Reference area: `projects/fpga-systems/NexysA7/pumice/bin/` (`seq_init.py`,
+Reference area: `projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/bin/` (`seq_init.py`,
 `seq_write_read.py`, `seq_memtest.py`, `run_smoke.py`). Areas nest by board and
 component; the build flow they drive stays where it is (pumice's drivers still
-live under `projects/fpga-systems/NexysA7/pumice/build-perf/host/`).
+live under `projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/build-perf/host/`).
 
 ## The two rules, and the failure each prevents
 

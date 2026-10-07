@@ -13,7 +13,7 @@
 //          Accumulates a CRC-32 over the returned data so the harness can
 //          also compare actual_crc against the writer's expected_crc.
 //
-// Documentation: projects/fpga-systems/NexysA7/pumice/ddr2-characterization/README.md
+// Documentation: projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/README.md
 // Subsystem: amba (shared characterization harness blocks)
 //
 // Author: sean galloway

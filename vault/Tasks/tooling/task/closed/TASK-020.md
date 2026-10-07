@@ -154,7 +154,7 @@ Runnable suites in the tree: **20**. Exercised here: **3** (`val/amba`,
     retro_legacy_blocks, utility-ip/converters, utility-ip/misc,
     asic-trials/timing_characterization,
     fpga-systems/Genesys2/dma-ip/stream/{build-mon,build-obs,build-perf,rtl/bridges},
-    fpga-systems/NexysA7/pumice/ddr2_char_framework
+    fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2_char_framework
 
 The three were chosen as this task's acceptance named them, and they span the
 three distinct test structures in the tree (a `val/` Pattern A area, a bridge

@@ -282,8 +282,8 @@ assign integrity_ok = (rd_actual_crc == wr_expected_crc) && !rd_data_error;
 ## Related Modules
 
 ### Used By
-- `projects/fpga-systems/NexysA7/pumice/build-perf/rtl/ddr2_char_harness.sv` — on-chip read checker
-- DDR2 characterization macro / harness CSR blocks under `projects/fpga-systems/NexysA7/pumice/ddr2-characterization/`
+- `projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/build-perf/rtl/ddr2_char_harness.sv` — on-chip read checker
+- DDR2 characterization macro / harness CSR blocks under `projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/`
 
 ### Uses
 - **axi4_master_rd.sv** — standard AXI4 read master protocol handler (AR/R skid + compliance)
@@ -313,7 +313,7 @@ Covered from `val/amba/` with the rest of the shared area — run everything wit
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
 - Index: `docs/markdown/rtl-amba/index.md`
-- Harness: `projects/fpga-systems/NexysA7/pumice/ddr2-characterization/README.md`
+- Harness: `projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/README.md`
 
 ---
 

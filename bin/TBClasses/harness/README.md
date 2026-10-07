@@ -73,7 +73,7 @@ The shared RTL bridge (`UARTAxiBridge`, ASCII `W/R` protocol) lives in
    ```
 
 Reference implementations:
-- `projects/fpga-systems/NexysA7/pumice/ddr2-characterization/` (host `build-perf/host/`, sim
+- `projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/` (host `build-perf/host/`, sim
   `ddr2_char_framework/dv/tests/test_ddr2_char_uart.py`) — DFI-model backend.
 - `projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display/` (host `host/cdc_demo.py` +
   `cdc_programs.py`, sim `dv/tests/test_cdc_demo_uart.py`, CSR

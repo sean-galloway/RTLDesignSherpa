@@ -320,7 +320,7 @@ exported and only the board host ever looked at it.
 Consumers: `dv/tests/fub/test_pumice_telemetry_invariants.py` (15 unit tests),
 `dv/tests/top/test_pumice_top.py::cocotb_test_telemetry_invariants` (real
 counters over three per-pattern windows at proven quiescence), and on the board
-`projects/fpga-systems/NexysA7/pumice/bin/seq_telemetry.py` -- the SAME module
+`projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/bin/seq_telemetry.py` -- the SAME module
 in both places. Layer 0 gets a board sequence too, `seq_reset_parity.py`, which
 reads every `ships` field back over UART before `init` touches anything: the
 file-level gate cannot speak for what the flops in the part come up holding.

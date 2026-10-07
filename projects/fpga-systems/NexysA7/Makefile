@@ -52,7 +52,7 @@ CLEAN_DIRS = $(CLEAN_ALL_DIRS) $(CLEAN_ONLY_DIRS)
 # Directories to check for disk usage on `make status`.
 STATUS_ROOTS = \
     misc-ip/cdc_counter_display \
-    pumice \
+    mem-ctrl-ip/pumice \
     reed-solomon
 
 

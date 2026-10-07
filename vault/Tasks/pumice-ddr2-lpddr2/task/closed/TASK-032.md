@@ -7,7 +7,7 @@
 
 ## Filelists outside a `filelists/` dir (2 -- the pumice share of the baseline)
 
-- `projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/ddr2_char_macro.f`
+- `projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2_char_framework/rtl/ddr2_char_macro.f`
   and `rtl/chargen_regs.f` -> `rtl/filelists/`. Referrers: the `-f` line in
   `ddr2_char_macro.f` itself (pulls `chargen_regs.f`),
   `build-perf/rtl/filelists/ddr2_char_harness.f:16`,

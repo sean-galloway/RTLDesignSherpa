@@ -39,7 +39,7 @@ from which its architecture is derived.
   AXI in and DFI out with data through the whole datapath.
 - Target design point: Digilent Genesys 2, K7DDRPHY, 2 x MT41J256M16,
   DDR3-800 — 3200 MB/s theoretical peak. See HAS Chapter 2.4.
-- Board build flow exists (`projects/fpga-systems/Genesys2/scoria/build-scoria/`,
+- Board build flow exists (`projects/fpga-systems/Genesys2/mem-ctrl-ip/scoria/build-scoria/`,
   board top + harness, passing lint); no bitstream yet. First out-of-context
   synthesis found the design point missing 100 MHz by ~2 ns
   ([BUG-003](../../../../vault/Tasks/scoria-ddr3-lpddr3/bug/open/BUG-003.md), P1).

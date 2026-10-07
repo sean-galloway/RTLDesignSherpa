@@ -637,7 +637,7 @@ drives an ARRAY of independently programmed AXI4 masters, split by direction,
 and that array is the reason a board number can distinguish "the controller
 will not go bank-parallel" from "the stimulus never asked it to".
 
-`projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/` —
+`projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2_char_framework/` —
 `char_engine_block.sv` (the DUT-agnostic spine) and `chargen_regs.rdl` (config).
 
 ### How many streams

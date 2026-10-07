@@ -13,7 +13,7 @@ a plain glob over those prefixes.
 ## Skeleton
 
 ```
-<area>/                     e.g. projects/fpga-systems/NexysA7/pumice
+<area>/                     e.g. projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice
   bin/                      sequences + runners, SHARED by every build here
     run_*.py                a runner: picks board, resolves port, opens transport
     seq_*.py                one sequence; declares `requires`, uses ctx.bus only

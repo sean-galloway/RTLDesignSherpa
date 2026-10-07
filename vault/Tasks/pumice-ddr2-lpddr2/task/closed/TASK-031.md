@@ -8,7 +8,7 @@ every other clean target is on it).
 
 ## The one-line change
 
-`projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/dv/tests/Makefile`,
+`projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2_char_framework/dv/tests/Makefile`,
 `clean:` target: replace
 
     rm -rf local_sim_build logs

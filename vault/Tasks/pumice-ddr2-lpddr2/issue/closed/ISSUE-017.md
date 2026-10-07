@@ -8,7 +8,7 @@ without noticing, and board results were reported from them.
 
 ## What happens
 
-`projects/fpga-systems/NexysA7/pumice/build-perf` selects its frequency profile
+`projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/build-perf` selects its frequency profile
 from an environment variable:
 
     fpga/tcl/create_project.tcl:146

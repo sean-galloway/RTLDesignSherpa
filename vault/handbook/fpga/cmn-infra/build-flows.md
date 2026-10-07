@@ -32,7 +32,7 @@ A build needing a different recipe overrides the VARIABLE (`BUILD_TCL := ...`),
 not the rule. `make help` is generated from the `##` comments, so it cannot
 drift from the real target set.
 
-Reference: `projects/fpga-systems/NexysA7/pumice/` -- a per-build Makefile of
+Reference: `projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/` -- a per-build Makefile of
 five variables, plus an area dispatcher (`make bitstream BUILD=litedram`,
 `make ab` to run both builds back to back).
 

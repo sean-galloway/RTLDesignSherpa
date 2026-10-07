@@ -226,5 +226,5 @@ writes and 0.01 MB/s on reads. The extraction changed nothing measurable.
   row-major, open page), the best of its matrix.
 - LiteDRAM utilisation columns are meter-window artefacts at this run size,
   as the host notes; bandwidth is stamp-based and unaffected.
-- Repro: `make -C projects/fpga-systems/NexysA7/pumice/ddr2-characterization/flows-litedram-uart program`
+- Repro: `make -C projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/flows-litedram-uart program`
   then `make ... host-litedram_char ARGS="--char-profile matrix --char-scale 1000 --csv <path>"`.

@@ -15,7 +15,7 @@
 **Intent (Sean):** "drop liteddr into the pumice harness so testing is the same."
 
 **START HERE, DO NOT REBUILD:**
-`projects/fpga-systems/NexysA7/pumice/ddr2-characterization/flows-litedram-uart/`
+`projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/flows-litedram-uart/`
 
 That flow already exists and is documented as **WIRED** in its `HARNESS_PLAN.md`:
 
