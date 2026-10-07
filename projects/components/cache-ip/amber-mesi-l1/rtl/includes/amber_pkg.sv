@@ -8,10 +8,11 @@
 // Purpose:
 //   Shared package for the amber MESI L1 cache: geometry parameter defaults
 //   (HAS Table 5.0), derived quantities, MESI state encodings, snoop type
-//   encodings, replacement / write policy enums, and the HAS Table 3.0
-//   snoop CRRESP / next-state decode. Single source of truth for RTL and
-//   DV; the kmap workbook and the Python reference model both diff against
-//   what is declared here.
+//   encodings, replacement / write policy enums, the control-plane enums
+//   (FSM states, MonBus event codes, ACE request classes, miss classes),
+//   and the HAS Table 3.0 snoop CRRESP / next-state decode. Single source
+//   of truth for RTL and DV; the kmap workbook and the Python reference
+//   model both diff against what is declared here.
 //
 // Documentation: projects/components/cache-ip/amber-mesi-l1/docs/amber_has/ch05_parameters/01_parameters.md
 // Subsystem: amber
@@ -97,6 +98,79 @@ package amber_pkg;
         AMBER_WRITE_WB_WA = 1'b0,   // write-back / write-allocate
         AMBER_WRITE_WT_NA = 1'b1    // write-through / no-allocate bring-up
     } amber_write_policy_t;
+
+    // ------------------------------------------------------------------
+    // Control FSM states (MAS ch02 FSM table + DECISION D-3 CTRL_INIT):
+    // the one-hot FSM amber_control implements. Stable states persist
+    // between CPU requests; transient states exist only while a miss,
+    // fill, drain, or snoop is in progress, mirroring the gem5 Ruby
+    // MESI_Two_Level-L1cache.sm philosophy that every in-flight condition
+    // is an explicit enumerated state. Codes 12-15 are reserved; the RTL
+    // FSM decodes them to CTRL_ERROR (MAS ch02 illegal-state default).
+    // ------------------------------------------------------------------
+    typedef enum logic [3:0] {
+        AMBER_CTRL_IDLE        = 4'h0,   // waiting for a CPU request
+        AMBER_CTRL_INIT        = 4'h1,   // D-3: post-reset state init walk
+        AMBER_CTRL_LOOKUP      = 4'h2,   // tag/state lookup on port A
+        AMBER_CTRL_HIT_RD      = 4'h3,   // read hit: data out, response
+        AMBER_CTRL_HIT_WR      = 4'h4,   // write hit: merge, promote to M
+        AMBER_CTRL_MISS_VICTIM = 4'h5,   // victim way select + victim read
+        AMBER_CTRL_MISS_DRAIN  = 4'h6,   // dirty victim staged, drain out
+        AMBER_CTRL_MISS_FILL   = 4'h7,   // fill launched, wait RLAST
+        AMBER_CTRL_FILL_WRITE  = 4'h8,   // commit fill data + tag/state
+        AMBER_CTRL_REPLAY      = 4'h9,   // re-present latched request
+        AMBER_CTRL_SNOOP       = 4'hA,   // service snoop on port B
+        AMBER_CTRL_ERROR       = 4'hB    // sticky fatal, reset-cleared
+    } ctrl_state_t;
+
+    // ------------------------------------------------------------------
+    // MonBus event codes (MAS ch04 Table 4.1.1). event_code is the 8-bit
+    // field of the house 128-bit MonBus packet (monitor_common_pkg
+    // layout [104:97]); the packet_type pairing is amber_monlite's
+    // concern (Task 8), not this enum's.
+    // ------------------------------------------------------------------
+    typedef enum logic [7:0] {
+        AMBER_EV_HIT        = 8'h00,   // CTRL_HIT_RD / CTRL_HIT_WR
+        AMBER_EV_MISS       = 8'h01,   // CTRL_MISS_VICTIM
+        AMBER_EV_SNOOP      = 8'h02,   // AC handshake accepted
+        AMBER_EV_EVICT      = 8'h03,   // dirty victim staged to victim buf
+        AMBER_EV_TRANSITION = 8'h04,   // tag-array state write
+        AMBER_EV_FILL_START = 8'h05,   // CTRL_MISS_FILL
+        AMBER_EV_FILL_END   = 8'h06,   // CTRL_FILL_WRITE
+        AMBER_EV_DRAIN_START= 8'h07,   // CTRL_MISS_DRAIN
+        AMBER_EV_DRAIN_END  = 8'h08,   // drain_done
+        AMBER_EV_DROPPED    = 8'h09    // packet dropped to backpressure
+    } amber_event_t;
+
+    // ------------------------------------------------------------------
+    // Coherent request classes, the onyx D2 subset amber issues (MAS ch02/08
+    // Table 2.8.1): what a cpu miss / upgrade / eviction asks the
+    // interconnect for. ReadShared/ReadUnique ride the read (AR) channel;
+    // CleanUnique/MakeUnique/WriteBack/Evict ride the write (AW) channel.
+    // The Task 2 FSM oracle emits the first three as its miss-request
+    // classes; WriteBack/Evict come from the victim path (Task 5/12).
+    // ------------------------------------------------------------------
+    typedef enum logic [2:0] {
+        AMBER_ACE_READ_SHARED  = 3'b000,   // read miss, shared intent
+        AMBER_ACE_READ_UNIQUE  = 3'b001,   // read miss, exclusive intent
+        AMBER_ACE_CLEAN_UNIQUE = 3'b010,   // upgrade S -> M, no data
+        AMBER_ACE_MAKE_UNIQUE  = 3'b011,   // whole-line write, no fetch
+        AMBER_ACE_WRITE_BACK   = 3'b100,   // dirty eviction with data
+        AMBER_ACE_EVICT        = 3'b101    // clean eviction, no data
+    } amber_ace_req_t;
+
+    // ------------------------------------------------------------------
+    // Miss classification (MAS ch04 Miss-Class Encoding), following the
+    // cache_sim computation: the golden model supplies the class and the
+    // RTL records what it is told; when no model is present the class is
+    // AMBER_MISS_UNKNOWN.
+    // ------------------------------------------------------------------
+    typedef enum logic [1:0] {
+        AMBER_MISS_COMPULSORY = 2'b00,   // first access to this line
+        AMBER_MISS_CAPACITY   = 2'b01,   // evicted by capacity pressure
+        AMBER_MISS_CONFLICT   = 2'b10,   // evicted by mapping conflict
+        AMBER_MISS_UNKNOWN    = 2'b11    // no golden model present
+    } amber_miss_class_t;
 
     // ------------------------------------------------------------------
     // CRRESP (IHI0022): bit 0 = DataTransfer, 1 = Error, 2 = PassDirty,
