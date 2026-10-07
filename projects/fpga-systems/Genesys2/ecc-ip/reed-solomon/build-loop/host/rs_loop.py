@@ -10,9 +10,9 @@ PeakRDL-generated `rs_loop_regs_regmap.py`. No offsets live here.
 Because the bridge is INJECTABLE, the identical driver drives the FPGA over
 pyserial or a cocotb sim over `CocotbUartChannel`.
 
-    from rs_loop import RsLoopDriver, EXPECTED_BUILD_ID
+    from rs_loop import RsLoopDriver, KNOWN_BUILD_IDS
     d = RsLoopDriver(port="/dev/ttyUSB1")
-    assert d.build_id() == EXPECTED_BUILD_ID
+    assert d.build_id() in KNOWN_BUILD_IDS
     r = d.run(mode=RsLoopDriver.INJ_COUNT, count=8, blocks=64)
 """
 from __future__ import annotations
@@ -49,7 +49,21 @@ OBS_REGMAP = os.path.join(
 # built; on the AXI4 flavour its seams are tied off and it reads 0).
 OBS_AXI4_BASE = 0x00010000
 OBS_AXIS_BASE = 0x00020000
-EXPECTED_BUILD_ID = 0x5253_4C50   # "RSLP"
+
+# Supported RS loop profiles, keyed by BUILD_ID. The PROFILE CSR exposes n,
+# t, m and spb but not k, so the host derives k = n - 2t for each profile.
+PROFILES = {
+    0x5253_4C50: {"name": "board", "n": 252, "t": 8, "m": 8, "spb": 4},
+    0x5253_4C53: {"name": "small", "n": 64,  "t": 4, "m": 8, "spb": 4},
+}
+KNOWN_BUILD_IDS = set(PROFILES)
+
+# Backwards-compatible aliases for code that has not been switched to the
+# profile table. They name the original board profile.
+CFG_N = PROFILES[0x5253_4C50]["n"]
+CFG_K = PROFILES[0x5253_4C50]["n"] - 2 * PROFILES[0x5253_4C50]["t"]
+CFG_T = PROFILES[0x5253_4C50]["t"]
+EXPECTED_BUILD_ID = 0x5253_4C50
 
 
 @dataclass
@@ -101,6 +115,7 @@ class RunResult:
     mark: bool = False
     timed_out: bool = False
     notes: list = field(default_factory=list)
+    profile: Optional[dict] = None
 
     @property
     def present(self):
@@ -138,6 +153,15 @@ class RsLoopDriver:
         self.obs_axi4 = UartRegisterMap(bridge, start_address=OBS_AXI4_BASE, regmap_file=OBS_REGMAP)
         self.obs_axis = UartRegisterMap(bridge, start_address=OBS_AXIS_BASE, regmap_file=OBS_REGMAP)
         self._topo = None        # TOPOLOGY is static per bitstream; read once
+        self._profile = None     # BUILD_ID-derived profile; cached once
+
+    def _detect_profile(self) -> dict:
+        bid = self.build_id()
+        if bid not in KNOWN_BUILD_IDS:
+            raise RuntimeError(
+                f"unknown RS loop bitstream: BUILD_ID=0x{bid:08X} "
+                f"(expected one of {sorted(KNOWN_BUILD_IDS):#x})")
+        return PROFILES[bid]
 
     # -- identity -----------------------------------------------------------
     def build_id(self) -> int:
@@ -152,6 +176,8 @@ class RsLoopDriver:
         return out
 
     def profile(self) -> dict:
+        if self._profile is None:
+            self._profile = self._detect_profile()
         w = self.regs.read("PROFILE")
         return dict(n=w & 0xFFFF, t=(w >> 16) & 0xFF, m=(w >> 24) & 0xF, spb=(w >> 28) & 0xF)
 
@@ -364,7 +390,8 @@ class RsLoopDriver:
 
     def collect(self, blocks: int, mode: int, count: int, rate: int, bypass: bool,
                 timed_out: bool = False, meters: bool = True,
-                iface_obs: bool = False, mark: bool = False) -> RunResult:
+                iface_obs: bool = False, mark: bool = False,
+                profile: Optional[dict] = None) -> RunResult:
         """Read one run's result back.
 
         meters=False skips the four bandwidth windows, which is SIXTEEN
@@ -396,7 +423,8 @@ class RsLoopDriver:
             cmp_beats=r("CMP_BEATS"), cmp_err=st["cmp_err"], mark=mark,
             obs=self._meters() if meters else {},
             iface_obs=self.iface_observer() if iface_obs else {},
-            cmp_misaligned=st["cmp_misaligned"], timed_out=timed_out)
+            cmp_misaligned=st["cmp_misaligned"], timed_out=timed_out,
+            profile=profile)
 
     def run(self, mode: int = 0, count: int = 0, rate: int = 0, blocks: int = 8,
             gen_seed: int = 0, inj_seed: Optional[int] = None, bypass: bool = False, meters: bool = True,
@@ -407,7 +435,9 @@ class RsLoopDriver:
         self.clear()
         self.configure(mode, count, rate, blocks, gen_seed, inj_seed, bypass, throttle_a,
                        throttle_b, mark=mark)
+        prof = self.profile()
         self.start()
         done = self.wait_done(timeout_s)
         return self.collect(blocks, mode, count, rate, bypass, timed_out=not done,
-                            meters=meters, iface_obs=iface_obs, mark=mark)
+                            meters=meters, iface_obs=iface_obs, mark=mark,
+                            profile=prof)

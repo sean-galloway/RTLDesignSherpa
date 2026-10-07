@@ -4,6 +4,14 @@
 set_property -dict {PACKAGE_PIN E3 IOSTANDARD LVCMOS33} [get_ports CLK100MHZ]
 create_clock -period 10.000 -name sys_clk_pin -waveform {0.000 5.000} [get_ports CLK100MHZ]
 
+# Small profile (RS_LOOP_SMALL) only: rs_loop_top divides the 100 MHz pin in
+# fabric (toggle flop through the BUFG) to a 50 MHz sys_clk. Guarded so the
+# board profile, which wires the BUFG straight through, skips it.
+if {[llength [get_cells -quiet -hier -filter {NAME =~ *clk_div*}]] > 0} {
+    create_generated_clock -name sys_clk_div2 -source [get_ports CLK100MHZ] \
+        -divide_by 2 [get_pins u_sys_bufg/O]
+}
+
 # BTNR is CPU_RESETN on Digilent's pin map; synchronised inside the top
 set_property -dict {PACKAGE_PIN C12 IOSTANDARD LVCMOS33} [get_ports CPU_RESETN]
 set_false_path -from [get_ports CPU_RESETN] -to [get_clocks sys_clk_pin]

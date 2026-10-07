@@ -2,11 +2,11 @@
 # SPDX-FileCopyrightText: 2026 sean galloway
 """rs loop init: prove the link and the bitstream before any run.
 
-BUILD_ID must be RSLP, SCRATCH must round-trip, and the PROFILE register tells
-the later sequences what code the board carries (t drives the expectations).
-TOPOLOGY tells them what the bitstream BUILT -- one decoder or two, and which
-solver is in each slot -- so nothing downstream has to be told which image is
-loaded. Touches registers only through ctx.bus (an RsLoopDriver).
+BUILD_ID must be a known profile ID, SCRATCH must round-trip, and the PROFILE
+register tells the later sequences what code the board carries (t drives the
+expectations). TOPOLOGY tells them what the bitstream BUILT -- one decoder or
+two, and which solver is in each slot -- so nothing downstream has to be told
+which image is loaded. Touches registers only through ctx.bus (an RsLoopDriver).
 """
 from __future__ import annotations
 

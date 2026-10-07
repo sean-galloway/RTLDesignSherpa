@@ -51,7 +51,34 @@ module rs_loop_top
     // -------------------------------------------------------------------------
     logic sys_clk, sys_clk_pad, sys_rstn;
     IBUF u_sys_ibuf (.I(CLK100MHZ), .O(sys_clk_pad));
+`ifdef RS_LOOP_SMALL
+    // Artix-7 -1 cannot close the small profile at 100 MHz (board WNS was
+    // expected to miss, as BCH's small profile did), so the small profile runs
+    // at 50 MHz. BUFGCE_DIV is UltraScale-only and black-boxes on 7-series;
+    // divide in fabric instead: a toggle flop on the 100 MHz pin clock through
+    // the BUFG gives a global 50 MHz. The divider is reset by the pushbutton
+    // synchronized into the pin-clock domain; after release it free-runs, which
+    // only fixes the starting phase. CFG_SYS_CLK_HZ in the small profile block
+    // matches, so the UART divisor still yields 115200 baud.
+    logic                       clk_div;
+    logic                       div_rstn_pad;
+    (* ASYNC_REG = "TRUE" *) logic r_divrst0, r_divrst1;
+    `ALWAYS_FF_RST(sys_clk_pad, CPU_RESETN,
+        if (`RST_ASSERTED(CPU_RESETN)) begin
+            r_divrst0 <= 1'b0;
+            r_divrst1 <= 1'b0;
+        end else begin
+            r_divrst0 <= 1'b1;
+            r_divrst1 <= r_divrst0;
+        end)
+    assign div_rstn_pad = r_divrst1;
+    `ALWAYS_FF_RST(sys_clk_pad, div_rstn_pad,
+        if (`RST_ASSERTED(div_rstn_pad)) clk_div <= 1'b0;
+        else                             clk_div <= ~clk_div;)
+    BUFG u_sys_bufg (.I(clk_div), .O(sys_clk));
+`else
     BUFG u_sys_bufg (.I(sys_clk_pad), .O(sys_clk));
+`endif
 
     (* ASYNC_REG = "TRUE" *) logic r_rstn_sync0, r_rstn_sync1;
     `ALWAYS_FF_RST(sys_clk, CPU_RESETN,

@@ -24,7 +24,7 @@ class Sweep(Sequence):
         t = ctx.result("init").profile["t"]
         blocks = ctx.param("blocks", 16)
         counts = ctx.param("counts") or list(range(0, 2 * t + 3))
-        rows = progs.sweep(drv, counts, blocks=blocks, t=t, throttle=ctx.param("throttle", False))
+        rows = progs.sweep(drv, counts, blocks=blocks, throttle=ctx.param("throttle", False))
         for row in rows:
             ctx.say("[sweep] " + progs.format_row(row))
         bad = [row for row in rows if not row.ok]

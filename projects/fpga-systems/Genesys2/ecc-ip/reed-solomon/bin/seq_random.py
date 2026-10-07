@@ -71,7 +71,7 @@ class RandomCampaign(Sequence):
                         gen_seed=gen_seed, inj_seed=inj_seed,
                         throttle_a=bool(rnd.getrandbits(1)),
                         throttle_b=bool(rnd.getrandbits(1)))
-            bad = progs.verdict(r, t)
+            bad = progs.verdict(r)
             clean += r.a.blk_ok
             corrected += r.a.blk_corr
             uncorrectable += r.a.blk_unc

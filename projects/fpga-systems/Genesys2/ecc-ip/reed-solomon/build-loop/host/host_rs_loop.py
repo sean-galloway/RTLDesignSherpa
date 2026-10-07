@@ -44,8 +44,8 @@ def cmd_smoke(args, drv):
     return 0 if r.ok else 1
 
 
-def _print_run(r, t):
-    bad = progs.verdict(r, t)
+def _print_run(r):
+    bad = progs.verdict(r)
     print(f"  blocks={r.blocks} mode={r.mode} count={r.count} rate={r.rate} bypass={r.bypass} "
           f"cycles={r.cycles} ({r.cycles_per_block:.1f}/block)")
     for d in (r.a, r.b):
@@ -59,14 +59,14 @@ def _print_run(r, t):
 
 
 def cmd_bypass(args, drv):
-    return _print_run(progs.bypass(drv, blocks=args.blocks), drv.profile()["t"])
+    return _print_run(progs.bypass(drv, blocks=args.blocks))
 
 
 def cmd_run(args, drv):
     r = progs.run(drv, MODES[args.mode], count=args.count, rate=args.rate, blocks=args.blocks,
                   throttle=args.throttle, gen_seed=args.gen_seed, inj_seed=args.inj_seed,
                   mark=args.mark)
-    return _print_run(r, drv.profile()["t"])
+    return _print_run(r)
 
 
 def cmd_erasure(args, drv):
@@ -172,7 +172,7 @@ def cmd_obs(args, drv):
     caps = drv.observer_caps()
     prof = drv.profile()
     r = progs.iface_observers(drv, blocks=args.blocks, count=args.count)
-    bad = progs.verdict(r, prof["t"])
+    bad = progs.verdict(r)
     print(f"  {r.blocks} blocks, e={args.count}: {r.cycles} cycles "
           f"({r.cycles_per_block:.1f}/block)")
     print(progs.format_iface_obs(r, prof, caps))
@@ -235,7 +235,7 @@ def main(argv=None):
     p = sub.add_parser("bw", help="one run, reported as bandwidth from the meters")
     p.add_argument("--blocks", type=int, default=64)
     p.add_argument("--count", type=int, default=0, help="errors per block")
-    p.add_argument("--t", type=int, default=8, help="the profile's t, for the verdict")
+    p.add_argument("--t", type=int, default=None, help="the profile's t, for the verdict (default from PROFILE)")
     p.add_argument("--throttle", action="store_true", help="random checker ready")
     p.add_argument("--bypass", action="store_true",
                    help="codec out of the loop: the 100%% bandwidth reference")

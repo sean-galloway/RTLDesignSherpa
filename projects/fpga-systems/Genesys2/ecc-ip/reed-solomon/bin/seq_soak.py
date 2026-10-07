@@ -119,7 +119,7 @@ class Soak(Sequence):
                         throttle_b=bool(rnd.getrandbits(1)),
                         timeout_s=max(30.0, blocks * n * 4e-8 + 15.0))
 
-            bad = progs.verdict(r, t)
+            bad = progs.verdict(r)
             done += blocks
             if mode == RsLoopDriver.INJ_COUNT and count > t:
                 over_t_blocks += blocks

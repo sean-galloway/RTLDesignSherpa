@@ -35,8 +35,10 @@ class Smoke(Sequence):
         failures = []
         for label, fn in plan:
             r = fn()
-            bad = progs.verdict(r, t)
+            bad = progs.verdict(r)
             if label == "debug":
+                ctx.say(f"[smoke] debug details: inj_symbols={r.inj_symbols} inj_blocks={r.inj_blocks} "
+                        f"inj_over_t={r.inj_over_t} last={getattr(r, 'inj_last', 'n/a')}")
                 for d in r.present:
                     if d.blk_corr != blocks or d.sym_corr != blocks:
                         bad.append(f"{d.name} debug walk: expected {blocks} corrected blocks with "

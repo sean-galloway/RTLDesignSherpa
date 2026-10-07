@@ -52,7 +52,7 @@ the UNMODIFIED programs in host/rs_loop_programs.py.
                  the entire bring-up because of it.
 
 Blocks per run are few (2..4): a 32-bit UART transaction costs ~3000 sim
-cycles, a block only 63.
+cycles; a board-profile block is 63 beats.
 """
 import os
 import pathlib
@@ -103,7 +103,6 @@ def _check_sim_budget(dut, label):
     assert ms <= SIM_TIME_BUDGET_MS, (
         f"{label} used {ms:.1f} ms of sim time, over the {SIM_TIME_BUDGET_MS:.0f} ms budget -- "
         f"raise the sim baud (CLKS_PER_BIT is {CLKS_PER_BIT}), do not shrink the test")
-T = 8   # the profile's t; the smoke test also reads it back from PROFILE
 
 
 def _fabric_windows():
@@ -142,7 +141,7 @@ async def _bringup(dut):
 
 def _report(dut, label, r):
     _check_sim_budget(dut, label)
-    bad = progs.verdict(r, T)
+    bad = progs.verdict(r)
     dut._log.info("%s: %d blocks in %d cycles (%.1f/block); riBM ok/corr/unc=%d/%d/%d sym=%d crc_ok=%s; "
                   "Euclid ok/corr/unc=%d/%d/%d sym=%d crc_ok=%s; inj=%d; cmp data/status=%d/%d over %d beats",
                   label, r.blocks, r.cycles, r.cycles_per_block,
@@ -157,9 +156,11 @@ async def cocotb_test_uart_smoke(dut):
     drv, chan = await _bringup(dut)
     r = await cocotb.external(lambda: progs.smoke(drv))()
     dut._log.info("smoke: build_id=0x%08X profile=%s ok=%s", r.build_id, r.profile, r.ok)
-    assert r.build_id == rl.EXPECTED_BUILD_ID, f"BUILD_ID 0x{r.build_id:08X}"
+    assert r.build_id in rl.KNOWN_BUILD_IDS, f"BUILD_ID 0x{r.build_id:08X}"
     assert r.ok, f"smoke failed: {r.scratch}"
-    assert r.profile == dict(n=252, t=T, m=8, spb=4), r.profile
+    want = rl.PROFILES[r.build_id].copy()
+    want.pop("name")
+    assert r.profile == want, f"profile {r.profile} != expected {want}"
     tx = chan.tx_bytes()
     assert tx.startswith((b"R ", b"W ")), f"unexpected first bytes: {tx[:8]!r}"
 
@@ -190,13 +191,13 @@ async def cocotb_test_uart_windows(dut):
     reads = await cocotb.external(lambda: [(n, a, drv.bridge.read(a)) for n, a in plan])()
     for name, addr, val in reads:
         dut._log.info("window %-24s @0x%05X -> 0x%08X", name, addr, val)
-    assert reads[0][2] == rl.EXPECTED_BUILD_ID, (
+    assert reads[0][2] in rl.KNOWN_BUILD_IDS, (
         f"the loop window ({reads[0][0]}) read 0x{reads[0][2]:08X}")
     for name, addr, val in reads[1:-1]:
-        assert val != rl.EXPECTED_BUILD_ID, (
-            f"window {name} @0x{addr:05X} read back BUILD_ID -- "
+        assert val not in rl.KNOWN_BUILD_IDS, (
+            f"window {name} @0x{addr:05X} read back a BUILD_ID -- "
             "the host address is being truncated before the fabric")
-    assert reads[-1][2] == rl.EXPECTED_BUILD_ID, "the loop window stopped answering after the others"
+    assert reads[-1][2] in rl.KNOWN_BUILD_IDS, "the loop window stopped answering after the others"
 
     caps = await cocotb.external(drv.observer_caps)()
     dut._log.info("observer caps: %s", caps)
@@ -223,23 +224,26 @@ async def cocotb_test_uart_clean(dut):
 @cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_uart_correct(dut):
     drv, _ = await _bringup(dut)
-    r = await cocotb.external(lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=T, blocks=4))()
-    _report(dut, f"e={T}", r)
+    t = (await cocotb.external(drv.profile)())["t"]
+    r = await cocotb.external(lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=t, blocks=4))()
+    _report(dut, f"e={t}", r)
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_uart_over_t(dut):
     drv, _ = await _bringup(dut)
-    r = await cocotb.external(lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=T + 1, blocks=4))()
-    _report(dut, f"e={T + 1}", r)
+    t = (await cocotb.external(drv.profile)())["t"]
+    r = await cocotb.external(lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=t + 1, blocks=4))()
+    _report(dut, f"e={t + 1}", r)
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_uart_throttle(dut):
     drv, _ = await _bringup(dut)
-    r = await cocotb.external(lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=T, blocks=3,
+    t = (await cocotb.external(drv.profile)())["t"]
+    r = await cocotb.external(lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=t, blocks=3,
                                                 throttle=True))()
-    _report(dut, f"e={T} throttled", r)
+    _report(dut, f"e={t} throttled", r)
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
@@ -254,10 +258,11 @@ async def cocotb_test_uart_skew(dut):
     riBM-vs-Euclid mismatch when the two agree completely.
     """
     drv, _ = await _bringup(dut)
-    r = await cocotb.external(lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=T, blocks=4,
+    t = (await cocotb.external(drv.profile)())["t"]
+    r = await cocotb.external(lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=t, blocks=4,
                                                 throttle_a=True, throttle_b=False))()
     assert not r.cmp_misaligned, "comparator streams misaligned: a beat was dropped"
-    _report(dut, f"e={T} skewed drain", r)
+    _report(dut, f"e={t} skewed drain", r)
 
 
 @cocotb.test(timeout_time=600, timeout_unit="ms")
@@ -376,18 +381,19 @@ async def cocotb_test_uart_single(dut):
     as the primary decoder with its own checker and CRC.
     """
     drv, _ = await _bringup(dut)
-    r = await cocotb.external(lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=T, blocks=4))()
+    t = (await cocotb.external(drv.profile)())["t"]
+    r = await cocotb.external(lambda: progs.run(drv, rl.RsLoopDriver.INJ_COUNT, count=t, blocks=4))()
     assert not r.timed_out, "the single-decoder run never finished"
     assert r.a.blk_corr == r.blocks, (
         f"single decoder: corrected {r.a.blk_corr}/{r.blocks}")
-    assert r.a.sym_corr == T * r.blocks, (
-        f"single decoder: {r.a.sym_corr} symbols corrected, want {T * r.blocks}")
+    assert r.a.sym_corr == t * r.blocks, (
+        f"single decoder: {r.a.sym_corr} symbols corrected, want {t * r.blocks}")
     assert not r.a.data_err and r.a.crc_ok, (
         f"single decoder: data_err={r.a.data_err} crc_ok={r.a.crc_ok}")
     assert r.cmp_beats == 0 and not r.cmp_err and not r.cmp_misaligned, (
         f"comparator should be INACTIVE with one decoder, got beats={r.cmp_beats} "
         f"err={r.cmp_err} misaligned={r.cmp_misaligned}")
-    _report(dut, f"single Euclid decoder, e={T}", r)
+    _report(dut, f"single Euclid decoder, e={t}", r)
 
 
 @cocotb.test(timeout_time=400, timeout_unit="ms")
@@ -409,12 +415,13 @@ async def cocotb_test_uart_axi4(dut):
     """
     drv, _ = await _bringup(dut)
     topo = await cocotb.external(drv.topology)()
+    t = (await cocotb.external(drv.profile)())["t"]
     assert topo["iface"] == "AXI4", f"expected an AXI4 build, TOPOLOGY says {topo['iface']}"
     assert topo["decoders"] == 1, f"the AXI4 chain carries one decoder, got {topo['decoders']}"
 
     for label, mode, count in (("clean", rl.RsLoopDriver.INJ_COUNT, 0),
-                               (f"e={T}", rl.RsLoopDriver.INJ_COUNT, T),
-                               (f"e={T + 1}", rl.RsLoopDriver.INJ_COUNT, T + 1)):
+                               (f"e={t}", rl.RsLoopDriver.INJ_COUNT, t),
+                               (f"e={t + 1}", rl.RsLoopDriver.INJ_COUNT, t + 1)):
         r = await cocotb.external(lambda m=mode, c=count: progs.run(drv, m, count=c, blocks=3))()
         # progs.AXI4_STAGE_MASK, not a literal: the chain lost its inject stage
         # when the injector moved onto the decoder's read channel, and a second
@@ -436,7 +443,7 @@ async def cocotb_test_uart_axi4(dut):
         "an oversized AXI4 run should set STATUS.axi4_overflow and never kick")
     assert r.axi4_stage == 0x00, (
         f"a refused run must not start any stage, got 0x{r.axi4_stage:02X}")
-    bad = progs.verdict(r, T)
+    bad = progs.verdict(r)
     assert any("refused" in b for b in bad), (
         f"the verdict should name the refusal; it said {bad}")
     dut._log.info("AXI4 oversized run correctly refused: stage=0x%02X", r.axi4_stage)
@@ -679,7 +686,12 @@ async def cocotb_test_uart_axi4_bw_slope(dut):
 def _run(testcase: str, parameters=None, suffix=""):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "rs_loop_uart_tb_top"
-    filelist_path = "projects/fpga-systems/Genesys2/ecc-ip/reed-solomon/build-loop/dv/filelists/rs_loop_uart_tb_top.f"
+    if os.environ.get("RS_PROFILE", "board") == "small":
+        filelist_path = "projects/fpga-systems/Genesys2/ecc-ip/reed-solomon/build-loop/dv/filelists/rs_loop_uart_tb_top_small.f"
+        compile_args = ["+define+RS_LOOP_SMALL"]
+    else:
+        filelist_path = "projects/fpga-systems/Genesys2/ecc-ip/reed-solomon/build-loop/dv/filelists/rs_loop_uart_tb_top.f"
+        compile_args = []
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=filelist_path)
     sim_build = sim_build_path(tests_dir, testcase + suffix)
     os.makedirs(sim_build, exist_ok=True)
@@ -690,7 +702,7 @@ def _run(testcase: str, parameters=None, suffix=""):
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{testcase}{suffix}.xml"),
     }
-    compile_args = [
+    compile_args += [
         "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
         "-Wno-UNUSEDSIGNAL", "-Wno-UNUSEDPARAM", "-Wno-VARHIDDEN",

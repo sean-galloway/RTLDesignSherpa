@@ -14,9 +14,9 @@ callers decide how to print it.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 
-from rs_loop import RsLoopDriver, RunResult, EXPECTED_BUILD_ID
+from rs_loop import RsLoopDriver, RunResult, KNOWN_BUILD_IDS
 
 
 @dataclass
@@ -27,7 +27,7 @@ class SmokeResult:
 
     @property
     def build_id_ok(self) -> bool:
-        return self.build_id == EXPECTED_BUILD_ID
+        return self.build_id in KNOWN_BUILD_IDS
 
     @property
     def ok(self) -> bool:
@@ -70,7 +70,7 @@ def run(drv: RsLoopDriver, mode: int, count: int = 0, rate: int = 0, blocks: int
                    throttle_b=throttle if throttle_b is None else throttle_b)
 
 
-def verdict(r: RunResult, t: int) -> List[str]:
+def verdict(r: RunResult, t: Optional[int] = None) -> List[str]:
     """What is wrong with a run, as a list of complaints (empty = clean).
 
     The expectations depend on the regime:
@@ -117,6 +117,10 @@ def verdict(r: RunResult, t: int) -> List[str]:
     Python. So the accepted blocks are counted and the two solvers are still
     required to agree, while bounding the RATE is left to the soak.
     """
+    if r.profile is None:
+        raise ValueError("RunResult has no profile -- cannot judge geometry-specific checks")
+    if t is None:
+        t = r.profile["t"]
     bad = []
     if r.timed_out:
         bad.append("run did not finish")
@@ -383,8 +387,10 @@ class SweepRow:
         return not self.complaints
 
 
-def sweep(drv: RsLoopDriver, counts: Iterable[int], blocks: int = 16, t: int = 8,
+def sweep(drv: RsLoopDriver, counts: Iterable[int], blocks: int = 16, t: Optional[int] = None,
           gen_seed: int = 0, throttle: bool = False) -> List[SweepRow]:
+    if t is None:
+        t = drv.profile()["t"]
     rows = []
     for e in counts:
         r = run(drv, RsLoopDriver.INJ_COUNT, count=e, blocks=blocks, gen_seed=gen_seed,

@@ -38,7 +38,7 @@ class Erasure(Sequence):
         rows = []
         for f in (t, 2 * t, 2 * t + 1):
             r = progs.run(drv, RsLoopDriver.INJ_COUNT, count=f, blocks=blocks, mark=True)
-            complaints = progs.verdict(r, t)
+            complaints = progs.verdict(r)
             rows.append((f, r, complaints))
             ctx.say(f"[erasure] f={f:>2}  cyc/blk={r.cycles_per_block:7.1f}  "
                     f"riBM ok/corr/unc={r.a.blk_ok}/{r.a.blk_corr}/{r.a.blk_unc} sym={r.a.sym_corr}  "
