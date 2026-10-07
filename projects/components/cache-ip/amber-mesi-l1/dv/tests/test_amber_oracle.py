@@ -245,7 +245,8 @@ def _build_table():
     # IS_I -- read fill in flight that an invalidating snoop already
     # claimed: fill data still commits, the line installs Invalid.
     # gem5: IS_I x Data_all_Acks -> I .sm:1390 (u_writeDataToL1Cache!)
-    # gem5: IS_I x Data_Exclusive -> I .sm:1438
+    # gem5: IS_I x Data_Exclusive -> E .sm:1438 (DIVERGES: amber commits I
+    #       for both flavors -- divergence 8, invalidation-sticks)
     # gem5: {IS,IS_I} x Inv -> IS_I  .sm:1364 (repeat invalidations stick)
     # =====================================================================
     add('IS_I', 'CPU_RD', exp_next='IS_I', exp_result='STALL', cite=f'{SM}:1072 stall')
