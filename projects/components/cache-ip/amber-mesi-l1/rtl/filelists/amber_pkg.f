@@ -6,4 +6,4 @@
 # policy enums, and the HAS Table 3.0 snoop CRRESP / next-state decode.
 # Listed FIRST by every other amber filelist -- nothing here elaborates alone.
 
-$REPO_ROOT/projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_pkg.sv
+$REPO_ROOT/projects/components/cache-ip/amber-mesi-l1/rtl/includes/amber_pkg.sv

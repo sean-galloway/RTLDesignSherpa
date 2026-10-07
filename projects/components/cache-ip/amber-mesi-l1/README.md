@@ -91,3 +91,16 @@ follows the per-component layout of
 filelists registry, Pattern-B cocotb tests) and the mandatory rules in
 [`../../CLAUDE.md`](../../CLAUDE.md) (reset macros, shared `sdpram_core` /
 FIFO primitives, array syntax).
+
+RTL layout as landed (Sean, 2026-10-06 conventions):
+
+- `rtl/includes/` — `amber_pkg.sv`: the shared package (geometry defaults,
+  state/snoop encodings, Table 3.0 decode). Packages live here, not in `fub/`.
+- `rtl/fub/` — the leaf blocks (snoop kmap, tag/data arrays, repl,
+  snoop responder).
+- `rtl/top/` — the top-level wrappers, named `<ip>_top.sv`. amber has two
+  rigs sharing `amber_core`: `amber_top.sv` (pair rig, plain AXI4) and
+  `amber_ace_top.sv` (onyx rig, ACE) land here when they exist.
+- `rtl/filelists/` — hand-maintained per-module lists plus `amber_all.f`.
+- `dv/tests/fub/`, `dv/tbclasses/` — Pattern-B grids (fine for a block this
+  size; larger IPs split dv/tests into fub/macro/top sub-areas).
