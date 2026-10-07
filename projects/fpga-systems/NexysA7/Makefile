@@ -49,11 +49,13 @@ CLEAN_ONLY_DIRS =
 # All dirs that we'll visit for the light `clean` target (superset of both).
 CLEAN_DIRS = $(CLEAN_ALL_DIRS) $(CLEAN_ONLY_DIRS)
 
-# Directories to check for disk usage on `make status`.
+# Directories to check for disk usage on `make status`. The ecc-ip entry
+# points (ecc-ip/bch, ecc-ip/reed-solomon) are README+Makefile delegators to
+# the Genesys2 harness tree, so they hold no build artifacts and are not
+# listed; the pre-reorg `reed-solomon` path they replace did not exist.
 STATUS_ROOTS = \
     misc-ip/cdc_counter_display \
-    mem-ctrl-ip/pumice \
-    reed-solomon
+    mem-ctrl-ip/pumice
 
 
 # ==============================================================================
