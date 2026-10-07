@@ -96,6 +96,6 @@ performs two word reads/writes and is not atomic, which the spec never
 promised anyway.
 
 **Source:** RISC-V Instruction Set Manual, Volume I, section 2.1.6;
-`rtl/kestrel_core.sv` (L/S rotation and retry);
+`rtl/top/kestrel_core.sv` (L/S rotation and retry);
 `dv/tests/programs/ls_misaligned.s`, `ls_chain.s`;
 task-7 report (cross-word fix round)

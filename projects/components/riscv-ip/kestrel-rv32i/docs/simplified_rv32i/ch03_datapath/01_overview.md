@@ -58,6 +58,6 @@ catalog the state and its gating (section 3), and specify the RVFI
 retire interface (section 4). Chapter 4 opens the decode truth table
 itself.
 
-**Source:** `rtl/kestrel_core.sv`, `rtl/kestrel_regfile.sv`,
-`rtl/kestrel_decode.sv`, `rtl/kestrel_alu.sv`, `rtl/kestrel_imm_gen.sv`,
-`rtl/kestrel_pkg.sv`
+**Source:** `rtl/top/kestrel_core.sv`, `rtl/fub/kestrel_regfile.sv`,
+`rtl/fub/kestrel_decode.sv`, `rtl/fub/kestrel_alu.sv`, `rtl/fub/kestrel_imm_gen.sv`,
+`rtl/includes/kestrel_pkg.sv`

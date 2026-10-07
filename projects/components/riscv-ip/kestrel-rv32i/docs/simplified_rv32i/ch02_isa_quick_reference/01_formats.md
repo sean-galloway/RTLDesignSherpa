@@ -76,4 +76,4 @@ instruction rather than a shift — matching the spec's reserved-encoding
 rules (spec Volume I, section 2.1.4).
 
 **Source:** RISC-V Instruction Set Manual, Volume I, sections 1.5, 2.1.2,
-2.1.3, 2.1.4; `rtl/kestrel_imm_gen.sv`, `rtl/kestrel_decode.sv`
+2.1.3, 2.1.4; `rtl/fub/kestrel_imm_gen.sv`, `rtl/fub/kestrel_decode.sv`

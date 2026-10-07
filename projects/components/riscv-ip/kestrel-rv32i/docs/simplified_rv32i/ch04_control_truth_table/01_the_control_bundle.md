@@ -52,10 +52,10 @@ by a row halts, loudly, instead of executing as something plausible.
 ## Reading the table
 
 The next section gives the table in full, transcribed from
-`rtl/kestrel_decode.sv`. Notation is defined at the top of that
+`rtl/fub/kestrel_decode.sv`. Notation is defined at the top of that
 section: the 17-bit key as `opcode.funct3.funct7`, `any` for don't-care
 key fields, abbreviated bundle columns (`alu`, `imm`, `aPC`, `bImm`,
 `rd`), non-default values only (`—` means the default), and `dmem`
 sizes in bytes (B/H/W).
 
-**Source:** `rtl/kestrel_decode.sv`, `rtl/kestrel_pkg.sv`
+**Source:** `rtl/fub/kestrel_decode.sv`, `rtl/includes/kestrel_pkg.sv`

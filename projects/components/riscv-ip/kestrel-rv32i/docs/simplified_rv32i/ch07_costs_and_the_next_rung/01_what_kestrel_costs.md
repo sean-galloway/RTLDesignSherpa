@@ -73,7 +73,7 @@ overlaps (hazards), and the hazards need policy (forwarding, stalls,
 flushes). That is not a defect of the next design; it is the price of
 the frequency, and merlin exists to teach how to pay it deliberately.
 
-**Source:** `rtl/kestrel_core.sv` (datapath structure); Patterson and
+**Source:** `rtl/top/kestrel_core.sv` (datapath structure); Patterson and
 Séquin, "RISC I" (ISCA 1981) and Hennessy et al., "MIPS: A
 Microprocessor Architecture" (MICRO 1982) — papers entries 1 and 3;
 Flynn, "Very High-Speed Computing Systems" (1966) for the

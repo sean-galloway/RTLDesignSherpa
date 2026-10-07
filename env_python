@@ -31,6 +31,7 @@ export BRIDGE_ROOT=$REPO_ROOT/projects/components/fabric-gen-ip/bridge
 export CONVERTERS_ROOT=$REPO_ROOT/projects/components/utility-ip/converters
 export DELTA_ROOT=$REPO_ROOT/projects/components/noc-ip/delta
 export MISC_ROOT=$REPO_ROOT/projects/components/utility-ip/misc
+export KESTREL_ROOT=$REPO_ROOT/projects/components/riscv-ip/kestrel-rv32i
 export RAPIDS_ROOT=$REPO_ROOT/projects/components/dma-ip/rapids
 export RETRO_ROOT=$REPO_ROOT/projects/components/retro_legacy_blocks
 export STREAM_ROOT=$REPO_ROOT/projects/components/dma-ip/stream

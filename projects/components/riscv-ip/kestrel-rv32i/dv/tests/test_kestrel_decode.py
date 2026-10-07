@@ -403,7 +403,7 @@ def test_kestrel_decode(request, dut_name, testcase, test_level, description=Non
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="projects/components/riscv-ip/kestrel-rv32i/rtl/filelists/kestrel.f",
+        filelist_path="projects/components/riscv-ip/kestrel-rv32i/rtl/filelists/kestrel_all.f",
     )
 
     extra_env = {

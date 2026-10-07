@@ -132,6 +132,7 @@ ROOT_VARS = {
     "BRIDGE_ROOT": "projects/components/fabric-gen-ip/bridge",
     "CONVERTERS_ROOT": "projects/components/utility-ip/converters",
     "DELTA_ROOT": "projects/components/noc-ip/delta",
+    "KESTREL_ROOT": "projects/components/riscv-ip/kestrel-rv32i",
     "MISC_ROOT": "projects/components/utility-ip/misc",
     "RAPIDS_ROOT": "projects/components/dma-ip/rapids",
     "RETRO_ROOT": "projects/components/retro_legacy_blocks",

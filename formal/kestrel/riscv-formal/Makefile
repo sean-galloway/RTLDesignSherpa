@@ -44,12 +44,12 @@ CHECKS_DIR := $(CURDIR)/checks
 RTL_V      := $(CHECKS_DIR)/rtl_v
 HARNESS    := $(REPO_ROOT)/formal/checks $(REPO_ROOT)/formal/insns
 
-RTL_SV := $(RTL)/kestrel_pkg.sv \
-          $(RTL)/kestrel_regfile.sv \
-          $(RTL)/kestrel_alu.sv \
-          $(RTL)/kestrel_imm_gen.sv \
-          $(RTL)/kestrel_decode.sv \
-          $(RTL)/kestrel_core.sv
+RTL_SV := $(RTL)/includes/kestrel_pkg.sv \
+          $(RTL)/fub/kestrel_regfile.sv \
+          $(RTL)/fub/kestrel_alu.sv \
+          $(RTL)/fub/kestrel_imm_gen.sv \
+          $(RTL)/fub/kestrel_decode.sv \
+          $(RTL)/top/kestrel_core.sv
 
 .PHONY: checks clean
 

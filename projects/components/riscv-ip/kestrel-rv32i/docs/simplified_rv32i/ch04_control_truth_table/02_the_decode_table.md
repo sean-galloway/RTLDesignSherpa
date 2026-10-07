@@ -1,7 +1,7 @@
 # The Decode Table
 
 The full `unique casez ({opcode, funct3, funct7})` of
-`rtl/kestrel_decode.sv`, transcribed row for row. The key column is the
+`rtl/fub/kestrel_decode.sv`, transcribed row for row. The key column is the
 17-bit casez key written as `opcode.funct3.funct7`; `any` marks a
 don't-care key field. Bundle columns show only non-default values and
 are abbreviated to keep the table readable — `alu` is `alu_op`, `imm`
@@ -105,6 +105,6 @@ Three design rulings visible in the table deserve explicit mention:
    depends on the register operands it never evaluates. Chapter 5 gives
    the condition.
 
-**Source:** `rtl/kestrel_decode.sv` (the `unique casez` in full),
-`rtl/kestrel_pkg.sv` (HALT_* encodings), `rtl/kestrel_core.sv`
+**Source:** `rtl/fub/kestrel_decode.sv` (the `unique casez` in full),
+`rtl/includes/kestrel_pkg.sv` (HALT_* encodings), `rtl/top/kestrel_core.sv`
 (misaligned-target halt)

@@ -77,5 +77,5 @@ datapath logic is truth tables and muxes; FSMs only where control is
 unavoidable — shows up here as the reason kestrel's control can be
 exhaustively checked rather than merely simulated.
 
-**Source:** `rtl/kestrel_core.sv` (halt register, PC register, retry
+**Source:** `rtl/top/kestrel_core.sv` (halt register, PC register, retry
 bit, merge register, retirement counter); falcon-suite RTL style brief

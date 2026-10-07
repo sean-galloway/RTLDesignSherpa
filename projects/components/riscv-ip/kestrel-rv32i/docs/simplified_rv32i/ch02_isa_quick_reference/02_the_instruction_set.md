@@ -115,4 +115,4 @@ HINT encodings (base instructions writing x0, spec Volume I, section
 the architectural effect is the NOP the spec recommends.
 
 **Source:** RISC-V Instruction Set Manual, Volume I, sections 2.1.4,
-2.1.5, 2.1.6, 2.1.9; `rtl/kestrel_decode.sv`, `rtl/kestrel_core.sv`
+2.1.5, 2.1.6, 2.1.9; `rtl/fub/kestrel_decode.sv`, `rtl/top/kestrel_core.sv`

@@ -87,7 +87,7 @@ deliberately visible in the decode table.
 | `4'h3` | HALT_IALIGN | core, misaligned taken control transfer | instruction-address-misaligned trap |
 | `4'hF` | HALT_ILL | decode, default row | illegal instruction |
 
-: The four halt causes (encoding centralized in `rtl/kestrel_pkg.sv`)
+: The four halt causes (encoding centralized in `rtl/includes/kestrel_pkg.sv`)
 
 Causes 1, 2, and `F` come from decode; cause 3 can only be raised by the
 core, because it needs the resolved next PC and the branch decision that
@@ -96,4 +96,4 @@ it.
 
 **Source:** RISC-V Instruction Set Manual, Volume I, sections 2.1.7,
 2.1.8, 4.1, 4.2; Volume II, chapter 3 (MRET, machine trap state);
-`rtl/kestrel_decode.sv`, `rtl/kestrel_core.sv`, `rtl/kestrel_pkg.sv`
+`rtl/fub/kestrel_decode.sv`, `rtl/top/kestrel_core.sv`, `rtl/includes/kestrel_pkg.sv`

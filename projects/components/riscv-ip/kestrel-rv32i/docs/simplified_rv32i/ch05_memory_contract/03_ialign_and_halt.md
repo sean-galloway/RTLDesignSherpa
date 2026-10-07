@@ -70,6 +70,6 @@ says so because the distinction matters the moment a real cache enters
 at rung 3.
 
 **Source:** RISC-V Instruction Set Manual, Volume I, sections 1.5,
-2.1.5; `rtl/kestrel_pkg.sv` (cause encoding and ownership comment),
-`rtl/kestrel_core.sv` (misalign_target, writeback gating),
-`rtl/kestrel_decode.sv`; task-9 report (the formal CEX that pinned this)
+2.1.5; `rtl/includes/kestrel_pkg.sv` (cause encoding and ownership comment),
+`rtl/top/kestrel_core.sv` (misalign_target, writeback gating),
+`rtl/fub/kestrel_decode.sv`; task-9 report (the formal CEX that pinned this)

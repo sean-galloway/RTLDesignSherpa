@@ -73,5 +73,5 @@ cycle, the PC, and the field — which is how the misaligned-jump defect
 of Chapter 6 was localized from a formal counterexample in minutes
 rather than debugged from waveforms.
 
-**Source:** `rtl/kestrel_core.sv` (RVFI aggregation block);
+**Source:** `rtl/top/kestrel_core.sv` (RVFI aggregation block);
 vendor/riscv-formal/docs/rvfi.md; `dv/tbclasses/kestrel/rv32i_interpreter.py`

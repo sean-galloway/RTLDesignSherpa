@@ -69,6 +69,6 @@ the core starts anywhere.
   I, chapter 3) is satisfied vacuously by a core that issues at most one
   access at a time and never reorders; there is nothing to model.
 
-**Source:** `rtl/kestrel_core.sv` (port list, L/S datapath);
+**Source:** `rtl/top/kestrel_core.sv` (port list, L/S datapath);
 `dv/tb/kestrel_tb_top.sv` (unified testbench memory, wstrb-honoring
 store port); falcon-suite RTL style brief

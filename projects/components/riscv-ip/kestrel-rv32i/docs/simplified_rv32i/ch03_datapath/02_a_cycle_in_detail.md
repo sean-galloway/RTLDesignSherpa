@@ -97,5 +97,5 @@ selected by funct3; the ALU simultaneously computes `pc + imm`; the
 next-PC mux row 3 wins; the PC register loads the target on the next
 edge and rvfi reports a beat with `pc_wdata` equal to that target.
 
-**Source:** `rtl/kestrel_core.sv` (fetch, source muxes, ALU instance,
-comparator, next-PC mux, writeback mux); `rtl/kestrel_decode.sv`
+**Source:** `rtl/top/kestrel_core.sv` (fetch, source muxes, ALU instance,
+comparator, next-PC mux, writeback mux); `rtl/fub/kestrel_decode.sv`

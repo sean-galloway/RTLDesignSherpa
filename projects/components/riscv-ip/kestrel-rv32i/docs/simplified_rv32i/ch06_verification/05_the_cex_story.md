@@ -94,5 +94,5 @@ for independence, and formal proofs as the gate that keeps honest
 optimizations honest.
 
 **Source:** task-9 report (counterexample chain, proposed fix) and fix
-round 1 (fix, directed test, re-run evidence); `rtl/kestrel_pkg.sv`,
-`rtl/kestrel_core.sv`; `dv/tests/programs/system_misalign_jmp.s`
+round 1 (fix, directed test, re-run evidence); `rtl/includes/kestrel_pkg.sv`,
+`rtl/top/kestrel_core.sv`; `dv/tests/programs/system_misalign_jmp.s`
