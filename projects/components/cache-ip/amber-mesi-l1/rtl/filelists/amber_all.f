@@ -1,15 +1,31 @@
-# Master filelist for the amber component
-# Location: projects/components/cache-ip/amber-mesi-l1/rtl/filelists/amber_all.f
+# ==============================================================================
+# AMBER - Master Filelist
+# ==============================================================================
 #
-# The lint/sim closure for the amber MESI L1. First RTL slice (2026-10-06):
-# the shared package plus the three leaf blocks -- the snoop kmap decode and
-# the tag/data arrays. Control-path blocks (amber_control, fill/drain,
-# replacement, victim, snoop responder, ACE issue) join as they land.
+# Purpose: the compile closure for every module this area owns. Verified when
+# written: every module-declaring .sv under rtl/ is reachable from the lists
+# below, with no orphans and no duplicate module names.
+#
+# `-f` includes each block's own filelist; never hand-list sources here.
+# ==============================================================================
 
--f $REPO_ROOT/projects/components/cache-ip/amber-mesi-l1/rtl/filelists/amber_pkg.f
+# Shared package
+-f $AMBER_ROOT/rtl/filelists/amber_pkg.f
 
-$REPO_ROOT/projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_snoop_kmap.sv
-$REPO_ROOT/projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_tag_array.sv
-$REPO_ROOT/projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_data_array.sv
-$REPO_ROOT/projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_repl.sv
-$REPO_ROOT/projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_snoop_resp.sv
+# Leaf FUBs (first RTL slice, 2026-10-06)
+-f $AMBER_ROOT/rtl/filelists/amber_snoop_kmap.f
+-f $AMBER_ROOT/rtl/filelists/amber_tag_array.f
+-f $AMBER_ROOT/rtl/filelists/amber_data_array.f
+-f $AMBER_ROOT/rtl/filelists/amber_repl.f
+-f $AMBER_ROOT/rtl/filelists/amber_snoop_resp.f
+
+# Control-plane and datapath blocks (stubs filled by later tasks)
+-f $AMBER_ROOT/rtl/filelists/amber_control.f
+-f $AMBER_ROOT/rtl/filelists/amber_pending_fill_bypass.f
+-f $AMBER_ROOT/rtl/filelists/amber_victim.f
+-f $AMBER_ROOT/rtl/filelists/amber_fill.f
+-f $AMBER_ROOT/rtl/filelists/amber_drain.f
+-f $AMBER_ROOT/rtl/filelists/amber_frontend.f
+-f $AMBER_ROOT/rtl/filelists/amber_core.f
+-f $AMBER_ROOT/rtl/filelists/amber_top.f
+-f $AMBER_ROOT/rtl/filelists/amber_ace_top.f
