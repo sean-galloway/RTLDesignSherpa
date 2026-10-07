@@ -70,21 +70,43 @@ from tbclasses.kestrel.rv32ui_battery import (                       # noqa: E40
 # ---------------------------------------------------------------------------
 # Directed program for the AXIL window test (assembled at address 0).
 #   addi x1, x0, 0x123   (0x12300093)
-#   sw   x1, 0x20(x0)    (0x02102023)  -- store 0x123 to dmem byte 0x20
+#   sw   x1, 0x20(x0)    (0x02102023)  -- store 0x123 to byte 0x20 (imem
+#                                         array: addr[16] clear)
 #   lw   x2, 0x20(x0)    (0x02002103)  -- load it back
+#   lui  x3, 0x10        (0x000101B7)  -- x3 = 0x10000 (dmem region)
+#   sw   x1, 0x20(x3)    (0x0211A023)  -- store 0x123 to byte 0x10020
+#                                         (dmem array: addr[16] set)
+#   lw   x4, 0x20(x3)    (0x0201A203)  -- load it back through the
+#                                         core->dmem cross-mux read
+#   jal  x0, +0xffe8      (0x7E90F06F)  -- pc-relative jump to 0x10000:
+#                                         fetch code from the dmem region
+#                                         through the imem port cross-mux
+# code at 0x10000 (word index 0x4000):
+#   addi x5, x0, 0x55    (0x05500293)
 #   ecall                (0x00000073)  -- halt, cause 1
-# Encodings are verified by the golden interpreter before the DUT runs.
+# Encodings are verified by the golden interpreter before the DUT runs, and
+# the load/fetch beats are pinned explicitly below.
 # ---------------------------------------------------------------------------
 PROG_WORDS = {
     0: 0x1230_0093,
     1: 0x0210_2023,
     2: 0x0200_2103,
-    3: 0x0000_0073,
+    3: 0x0001_01B7,
+    4: 0x0211_A023,
+    5: 0x0201_A203,
+    6: 0x7E90_F06F,
+    0x4000: 0x0550_0293,
+    0x4001: 0x0000_0073,
 }
-PROG_STORE_ADDR = 0x20        # dmem byte address the program stores to
+PROG_STORE_ADDR = 0x20        # low byte address the program stores to
 # Same word in the AXIL map: byte 0x20 has addr[16] clear, so the unified
-# map holds it in the imem array; the dmem region is exercised above.
+# map holds it in the imem array; the dmem region is exercised below.
 PROG_STORE_AXIL = 0x00020
+# High store target and the dmem-region code, in the AXIL map.
+PROG_HIMEM_ADDR = 0x10020     # byte address in the dmem region (addr[16]=1)
+PROG_HIMEM_AXIL = 0x10020
+PROG_HICODE_AXIL = 0x10000    # jal target, code fetched from the dmem array
+PROG_HICODE_INSN = 0x0550_0293
 
 
 async def _window(dut):
@@ -134,6 +156,27 @@ async def _window(dut):
     assert await tb.axil_read(PROG_STORE_AXIL) == 0x123, \
         "core store not visible through the AXIL read port"
     assert await tb.axil_read(0x0) == PROG_WORDS[0]
+
+    # Core->dmem cross-mux (review finding 2): the second store/load pair
+    # targets byte 0x10020 (addr[16] set), so the store lands in the dmem
+    # array via core_wr_dmem and the load's dmem_rdata selects the dmem
+    # array on dmem_addr[16]; the jal'd code at 0x10000 is fetched from the
+    # dmem array through the imem port's imem_addr[16] select.  The golden
+    # diff above already pins every beat; these pin the cross-mux fields
+    # explicitly and close the loop through the AXIL read port.
+    loads = [b for b in tb.trace if b["mem_rmask"] == 0xF]
+    assert len(loads) == 2, f"expected 2 load beats, got {len(loads)}"
+    hi_load = loads[1]
+    assert hi_load["mem_addr"] == PROG_HIMEM_ADDR, \
+        f"high load at 0x{hi_load['mem_addr']:x}, expected 0x{PROG_HIMEM_ADDR:x}"
+    assert hi_load["rd_addr"] == 4 and hi_load["rd_wdata"] == 0x123, \
+        "high load did not return the stored value through the dmem array"
+    assert any(b["pc"] == PROG_HICODE_AXIL and b["insn"] == PROG_HICODE_INSN
+               for b in tb.trace), \
+        "no beat fetched from the dmem region through the imem port"
+    assert await tb.axil_read(PROG_HIMEM_AXIL) == 0x123, \
+        "core store to the dmem array not visible through the AXIL read port"
+    assert await tb.axil_read(PROG_HICODE_AXIL) == PROG_HICODE_INSN
 
     dut._log.info("AXIL window + run-release checks PASSED")
 

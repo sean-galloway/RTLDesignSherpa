@@ -33,8 +33,10 @@
 //
 // Memory arrays carry (* ram_style = "distributed" *) so reads stay
 // combinational: a block RAM's synchronous read would break kestrel's
-// single-cycle contract.  Each array is 1W + 2R (core port + AXIL readback
-// port); synthesis replicates distributed RAM for the second read.
+// single-cycle contract.  Each array has one write port and, under the
+// unified address map, up to three combinational read ports: the core
+// fetch, the core L/S cross read, and the AXIL readback.  Distributed RAM
+// read replication absorbs that in synthesis.
 //
 // Documentation: projects/components/riscv-ip/README.md
 // Subsystem: riscv-ip/kestrel-rv32i
@@ -233,8 +235,11 @@ module kestrel_mem_loader #(
     logic [WORD_IDX_W-1:0]      core_wr_idx;
 
     // Loader writes land while in load mode and the address maps to a
-    // memory region (CTRL writes only touch the register).
-    assign ld_wr_fire = w_fire && !wr_addr_q[CTRL_BIT];
+    // memory region (CTRL writes only touch the register).  The !run_q
+    // term makes "the loader owns the write ports only in load mode" true
+    // by construction -- writes in run mode were already unreachable by
+    // protocol, this just says so in logic.
+    assign ld_wr_fire = w_fire && !wr_addr_q[CTRL_BIT] && !run_q;
     assign ld_wr_idx  = wr_addr_q[WORD_IDX_W-1:0];
     assign ld_wr_imem = ld_wr_fire && !wr_addr_q[DMEM_BIT];
     assign ld_wr_dmem = ld_wr_fire &&  wr_addr_q[DMEM_BIT];
