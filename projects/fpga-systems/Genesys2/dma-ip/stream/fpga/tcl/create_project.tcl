@@ -1,25 +1,37 @@
 #==============================================================================
-# create_project.tcl -- Vivado project for the STREAM MONITOR coverage build
+# create_project.tcl -- Vivado project for the STREAM characterization build
 #==============================================================================
-# Board:  Digilent Genesys 2 (Kintex-7 xc7k325tffg900-2)  [genesys2-only flow]
-# Top:    stream_genesys2_top  (8 channels, USE_AXI_MONITORS=1, profile tally)
+# Boards: Digilent Genesys 2 (Kintex-7 xc7k325tffg900-2, default) or
+#         Digilent Nexys A7-100T (Artix-7 xc7a100tcsg324-1, BOARD=nexys*)
+# Top:    stream_genesys2_top / stream_char_top
 # Usage:  REPO_ROOT=... STREAM_ROOT=... CONVERTERS_ROOT=... MISC_ROOT=... \
 #         Run via `make project` -- fpga_flow.mk exports FPGA_FILELIST,
 #         FPGA_PROJECT_ROOT, FPGA_BUILD_ROOT and the *_ROOT filelist anchors.
-# The Makefile sets these env vars for you.
+# The Makefile sets these env vars for you (and exports BOARD).
 #==============================================================================
 
 set project_name "stream"
 set project_dir  "build/vivado_project"
 
-# Genesys 2 only (the monitor coverage harness targets the 325T; the A7 lacks
-# the BRAM/LUT headroom for 8 channels + the two profile tallies).
+# Board target selection (env BOARD; default genesys2). The Nexys A7-100T is the
+# 4-channel narrow build: pins-only top, 100 MHz direct clocking, no MMCM.
+# Keep TOP/FILELIST switches in the per-build Makefiles in lockstep with this.
 set part_name      "xc7k325tffg900-2"
 set board_part_str "digilentinc.com:genesys2:part0:1.1"
 set top_name       "stream_genesys2_top"
 set top_flist_name "stream_genesys2_top.f"
 set xdc_name       "stream_genesys2_top.xdc"
-set board_label    "Genesys 2 (xc7k325t-2) -- monitor coverage"
+set board_label    "Genesys 2 (xc7k325t-2)"
+set board_is_a7    0
+if {[info exists ::env(BOARD)] && [string match "nexys*" $::env(BOARD)]} {
+    set part_name      "xc7a100tcsg324-1"
+    set board_part_str "digilentinc.com:nexys-a7-100t:part0:1.3"
+    set top_name       "stream_char_top"
+    set top_flist_name "stream_char_top.f"
+    set xdc_name       "stream_char_top.xdc"
+    set board_label    "Nexys A7-100T (xc7a100t-1)"
+    set board_is_a7    1
+}
 
 set script_dir   [file dirname [file normalize [info script]]]
 # The uniform flow (make/fpga_flow.mk) exports these; the fallbacks keep the
@@ -99,8 +111,14 @@ set_property top $top_name $src_fs
 # 1350 VCO gives a nonsense rate. Keep the XDC led_slow_clk in lockstep
 # (-divide_by = 2 * FPGA_CLK_HZ / 200 Hz, i.e. 900000 at 90 MHz).
 set generics {}
-if {[info exists ::env(STREAM_VCO_MHZ)]}          { lappend generics "VCO_MHZ=$::env(STREAM_VCO_MHZ)" }
-if {[info exists ::env(STREAM_CLKOUT0_DIVIDE)]}   { lappend generics "CLKOUT0_DIVIDE=$::env(STREAM_CLKOUT0_DIVIDE)" }
+# VCO_MHZ / CLKOUT0_DIVIDE exist only on the Genesys 2 top (its MMCM harness
+# clock). The A7 top runs CLK100MHZ directly; handing it a generic it does not
+# have is ignored by Vivado but errors the lint gate -- the exact trap the
+# USE_AXI_MONITORS comment below describes.
+if {!$board_is_a7} {
+    if {[info exists ::env(STREAM_VCO_MHZ)]}          { lappend generics "VCO_MHZ=$::env(STREAM_VCO_MHZ)" }
+    if {[info exists ::env(STREAM_CLKOUT0_DIVIDE)]}   { lappend generics "CLKOUT0_DIVIDE=$::env(STREAM_CLKOUT0_DIVIDE)" }
+}
 if {[info exists ::env(STREAM_NUM_CHANNELS)]}      { lappend generics "NUM_CHANNELS=$::env(STREAM_NUM_CHANNELS)" }
 if {[info exists ::env(MON_N_PROFILE)]}            { lappend generics "MON_N_PROFILE=$::env(MON_N_PROFILE)" }
 if {[info exists ::env(MON_ERROR_FLAVOR)]}         { lappend generics "MON_ERROR_FLAVOR=$::env(MON_ERROR_FLAVOR)" }

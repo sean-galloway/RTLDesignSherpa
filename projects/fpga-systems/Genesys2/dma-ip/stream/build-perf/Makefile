@@ -28,9 +28,19 @@ TCL_DIR   := $(FRAMEWORK_ROOT)/fpga/tcl
 export FPGA_CONSTRAINTS_DIR := $(FRAMEWORK_ROOT)/fpga/constraints
 
 FLOW      := stream_perf
+# Board target: TOP/FILELIST follow BOARD. The Nexys A7-100T build uses the
+# pins-only stream_char_top (100 MHz direct, no MMCM); Genesys 2 keeps the
+# MMCM wrapper. BOARD is exported so fpga/tcl/create_project.tcl sees it --
+# a bare (unexported) make variable never reaches the tcl env.
+BOARD     ?= genesys2
+export BOARD
+ifeq ($(BOARD),genesys2)
 TOP       := stream_genesys2_top
 FILELIST  := $(FRAMEWORK_ROOT)/rtl/filelists/stream_genesys2_top.f
-BOARD     ?= genesys2
+else
+TOP       := stream_char_top
+FILELIST  := $(FRAMEWORK_ROOT)/rtl/filelists/stream_char_top.f
+endif
 SEQ_DIR   := $(FRAMEWORK_ROOT)/bin
 SIM_TESTS ?= $(SELF_DIR)/dv/tests
 
@@ -52,16 +62,20 @@ export OBS_ENABLE_MON_TAPS ?= 0
 # Pinned, not inherited: the RTL default is 1350/15 (90 MHz), and a build
 # that does not state its clock silently follows any change to that default.
 # VCO must be a multiple of 25 -- MULT_F moves in 0.125 steps off 200 MHz.
+# Genesys 2 ONLY: the A7 top has no MMCM (CLK100MHZ direct), and both the tcl
+# and fpga_flow.mk's LINT_GENERICS -G list must not see these for BOARD=nexys*.
+ifeq ($(BOARD),genesys2)
 export STREAM_VCO_MHZ        ?= 1200
 export STREAM_CLKOUT0_DIVIDE ?= 12
+endif
 # NOTE: no trailing comments on these lines. Make keeps the whitespace BEFORE a
 # trailing '#', so `?= 8      # comment` sets the variable to "8      ". That
 # value reaches create_project.tcl, which braces it to preserve the spaces, and
 # Vivado is handed the generic {NUM_CHANNELS=8      }. Its elaborator then spins
 # at 100% CPU forever -- which is why this build has NEVER produced a bitstream
 # while build-mon, whose exports carry no inline comments, always has.
-# no monitor CAMs to fit, so all 8 channels
-export STREAM_NUM_CHANNELS ?= 8
+# no monitor CAMs to fit, so all 8 channels on Genesys 2; 4 on the Nexys A7
+export STREAM_NUM_CHANNELS ?= $(if $(filter genesys2,$(BOARD)),8,4)
 # Tally CAM depth. 32, not 64: the host keys exactly 32 candidate tuples
 # (rd/wr x every EMITTABLE class, + 2 core), and 64 doubled the parallel
 # key-comparators in BOTH tallies for entries nothing could ever match --
@@ -72,6 +86,13 @@ export STREAM_NUM_CHANNELS ?= 8
 export MON_N_PROFILE       ?= 32
 # irrelevant with monitors off; kept explicit
 export MON_ERROR_FLAVOR    ?= 0
+
+# Artifact name carries the board + channel count: the flow default
+# (stream_perf.bit) would let a Nexys A7 4-channel build silently overwrite
+# the Genesys 2 8-channel bitstream (build-mon already encodes both).
+FPGA_DIR  := $(SELF_DIR)/fpga
+BOARD_TOKEN := $(if $(filter genesys2,$(BOARD)),genesys2,nexysa7)
+BITSTREAM := $(FPGA_DIR)/bitstream/$(FLOW)_$(BOARD_TOKEN)_$(STREAM_NUM_CHANNELS)ch.bit
 
 PREBUILD := bash $(FRAMEWORK_ROOT)/bin/regen_bridges.sh bridge_stream_mon_axil
 
