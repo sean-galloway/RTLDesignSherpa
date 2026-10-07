@@ -119,6 +119,22 @@ class RV32IInterpreter:
         next_pc = pc + 4
         rd_val = None
 
+        # immediates for branches/jumps (sign-extended, LSB already zero for B/J)
+        imm_b = sext(
+            ((insn >> 31) & 0x1) << 12
+            | ((insn >> 7) & 0x1) << 11
+            | ((insn >> 25) & 0x3F) << 5
+            | ((insn >> 8) & 0xF) << 1,
+            13,
+        )
+        imm_j = sext(
+            ((insn >> 31) & 0x1) << 20
+            | ((insn >> 12) & 0xFF) << 12
+            | ((insn >> 20) & 0x1) << 11
+            | ((insn >> 21) & 0x3FF) << 1,
+            21,
+        )
+
         if opcode == 0x13:                        # OP-IMM
             if f3 == 0:
                 rd_val = (a + imm_i) & MASK32     # ADDI
@@ -159,6 +175,28 @@ class RV32IInterpreter:
             rd_val = insn & 0xFFFFF000
         elif opcode == 0x17:                      # AUIPC
             rd_val = (pc + (insn & 0xFFFFF000)) & MASK32
+        elif opcode == 0x63:                      # BRANCH
+            taken = False
+            if f3 == 0:                            # BEQ
+                taken = a == b
+            elif f3 == 1:                          # BNE
+                taken = a != b
+            elif f3 == 4:                          # BLT
+                taken = s32(a) < s32(b)
+            elif f3 == 5:                          # BGE
+                taken = s32(a) >= s32(b)
+            elif f3 == 6:                          # BLTU
+                taken = a < b
+            elif f3 == 7:                          # BGEU
+                taken = a >= b
+            next_pc = (pc + imm_b) & MASK32 if taken else (pc + 4) & MASK32
+            rd = 0                                 # branches do not write rd
+        elif opcode == 0x6F:                      # JAL
+            rd_val = (pc + 4) & MASK32
+            next_pc = (pc + imm_j) & MASK32
+        elif opcode == 0x67 and f3 == 0:          # JALR
+            rd_val = (pc + 4) & MASK32
+            next_pc = ((a + imm_i) & MASK32) & ~1
         elif opcode == 0x73 and f3 == 0:          # SYSTEM: ECALL/EBREAK halt
             self.halt_cause = 1 if ((insn >> 20) & 0xFFF) == 0 else 2
             self.halt_pc = pc
@@ -168,11 +206,8 @@ class RV32IInterpreter:
                 f"golden: opcode 0x{opcode:02x} not implemented "
                 f"(Task 5 slice is OP/OP-IMM/LUI/AUIPC; see extension notes)")
 
-        if rd_val is None:
-            raise NotImplementedError(
-                f"golden: opcode 0x{opcode:02x} funct3 {f3} not implemented")
-
         # Shared retire tail: append the beat, commit the rd write.
+        rd_wdata = (rd_val & MASK32) if (rd != 0 and rd_val is not None) else 0
         self.trace.append({
             "order": order,
             "pc": pc,
@@ -185,7 +220,7 @@ class RV32IInterpreter:
             "rd_addr": rd,
             # riscv-formal rule: rd_wdata must be zero whenever rd_addr is
             # zero — the discarded architectural write is not reported.
-            "rd_wdata": (rd_val & MASK32) if rd != 0 else 0,
+            "rd_wdata": rd_wdata,
             "pc_wdata": next_pc,
             "mem_addr": 0,
             "mem_rmask": 0,
@@ -193,7 +228,7 @@ class RV32IInterpreter:
             "mem_rdata": 0,
             "mem_wdata": 0,
         })
-        if rd != 0:
+        if rd != 0 and rd_val is not None:
             x[rd] = rd_val & MASK32
         x[0] = 0
         return next_pc

@@ -160,8 +160,9 @@ module kestrel_core #(
 
     // Writeback: LUI takes its immediate straight from imm_gen (the ALU is
     // not involved in U-immediates); AUIPC reaches the ALU with src_a=PC and
-    // uses the ALU result here.
-    assign rd_wdata = (opcode == OPCODE_LUI) ? imm : alu_y;
+    // uses the ALU result here; JAL/JALR write pc+4 as the link value.
+    assign rd_wdata = (opcode == OPCODE_LUI) ? imm :
+                      (jump || jalr)          ? (pc + PC_INCR) : alu_y;
 
     // Dedicated branch comparator: eq/lt/ltu computed from rs1_data/rs2_data
     // with the funct3 condition select, in parallel with the ALU computing
@@ -194,7 +195,7 @@ module kestrel_core #(
     // Next-PC mux. Branches/jumps are wired now; this slice's programs are
     // straight-line and Task 6 brings their golden vectors.
     always_comb begin
-        if (jump) begin
+        if (jump || jalr) begin
             next_pc = jalr ? ((rs1_data + imm) & JALR_ALIGN_MASK) : (pc + imm);
         end else if (branch_taken) begin
             next_pc = pc + imm;
