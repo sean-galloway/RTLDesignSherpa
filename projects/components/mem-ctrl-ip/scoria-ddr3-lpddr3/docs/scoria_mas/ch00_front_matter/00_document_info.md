@@ -1,0 +1,87 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
+# Document Information
+
+## scoria DDR3/LPDDR3 Family Controller Micro-Architecture Specification
+
+| Property | Value |
+|----------|-------|
+| Document Title | scoria DDR3/LPDDR3 Family Controller Micro-Architecture Specification |
+| Version | 0.1 (first issue) |
+| Date | October 7, 2026 |
+| Status | v0.1, written against complete RTL. The scoria controller is sim-verified (HAS v0.9 records 221 tests and 9 formal blocks measured 2026-10-01; TASK-001's bounded advanced modes landed afterwards with their own suites). The testbench tier today runs 21 cocotb/pytest modules — 18 FUB, 2 macro, 1 top — from `dv/tests/`, plus the 9 SymbiYosys suites under `formal/scoria/`. Where this book and the RTL disagree, the RTL is the authority and this book is defective. |
+| Classification | Open Source - MIT License |
+
+## Revision History
+
+| Version | Date | Author | Description |
+|---------|------|--------|-------------|
+| 0.1 | 2026-10-07 | RTL Design Sherpa | First issue. The HAS (v0.9) taken one level down after the fact: every active block documented at signal level — interface tables, cycle behavior, FSM policy, and the traps worth institutionalizing — plus the DFI v3.1 pin-level table and the signal-contract anchor map a future kmap book will cite. The dormant pair (`powerdown_ctrl`, `dfi_signal_pack`) shares one page. The MC-001 rename (`scoria_axi4_ifc` → `scoria_axi4_layer`, `scoria_mem_cmd_scheduler` → `scoria_scheduler_layer`) is recorded where it matters; older family documents may still use the old names. |
+
+## Document Purpose
+
+This Micro-Architecture Specification (MAS) is the implementation-level view of
+the scoria controller — the HAS (`../scoria_has/`) taken one level down. It is
+the document an RTL maintainer reads before touching the SystemVerilog and a
+verification engineer reads before writing checkers.
+
+The sibling books shaped it: pumice's MAS is the mechanistic ancestor scoria's
+blocks inherit from, and andesite's MAS explicitly references this book for
+every block andesite inherits unchanged. That makes this book the family's
+middle reference — the place where the DDR3/LPDDR3 mechanisms are stated
+definitively.
+
+It covers:
+
+- every active block's interface, parameters, and internal mechanism,
+  including the FSM policy for each: where a state machine is required, where
+  one is forbidden, and what replaces it elsewhere
+- the three layer assemblies and how they wire together in `scoria_core`
+- the DFI v3.1 pin-level table the HAS's interface chapter promises
+- the core signal contracts, each named against its RTL anchor and, where one
+  exists, its formal proof
+
+## Intended Audience
+
+- RTL maintainers modifying or porting the controller (the LPDDR3 wake-up of
+  the dormant power-down pair is the first named candidate)
+- Verification engineers building on the cocotb tiers in `dv/tests/` and the
+  formal suites in `formal/scoria/`
+- The andesite lane, which inherits this book's blocks and must not re-derive
+  them
+
+## Related Documents
+
+| Document | Location | Content |
+|---|---|---|
+| Hardware Architecture Specification | `../scoria_has/` | the v0.9 architecture this document expands; bindings between the two follow the HAS |
+| design-requirements.md | `../design-requirements.md` | the delta analysis against JESD79-3F / JESD209-3C / DFI 3.1; TASK-001 mode detail (§6) |
+| PRD | `../../PRD.md` | product requirements |
+| Family docs | `../../../docs/` | shared-core design (`mem_ctrl_pkg`) and the five family doctrines |
+| pumice MAS | `../../../pumice-ddr2-lpddr2/docs/pumice_mas/` | the mechanistic ancestor; scoria's inherited blocks carry pumice's evidence |
+| andesite MAS | `../../../andesite-ddr4-lpddr4/docs/andesite_mas/` | the downstream consumer of this book's inheritance |
+| CSR reference | `../../regs/generated/docs/scoria_csr.md` | the generated register documentation (PeakRDL output) |
+| Family README | `../../../README.md` | family overview and per-IP status |
+
+: Table 0.1: Related documents
