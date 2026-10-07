@@ -17,7 +17,7 @@ set -euo pipefail
 # ------------------------------------------------------------
 
 # Default values
-REV="0.4"
+REV="0.5"
 ASSETS="andesite_mas/assets"
 MAS_INDEX="andesite_mas/andesite_mas_index.md"
 
