@@ -41,6 +41,14 @@ if {$target eq "genesys2"} {
     exit 1
 }
 
+# Small profile: the top divides the 100 MHz pin to 50 MHz in fabric, and this
+# build's xdc declares the generated clock unconditionally. Kept in step with
+# the Makefile's BCH_PROFILE switch (board | small).
+if {[info exists ::env(BCH_PROFILE)] && $::env(BCH_PROFILE) eq "small"
+        && $target eq "nexys_a7_100t"} {
+    set xdc_name "bch_loop_small.xdc"
+}
+
 set script_dir   [file dirname [file normalize [info script]]]
 # Project root: where Vivado WRITES (build/, reports/, bitstream/) and where
 # the constraints live. Falls back to the script-relative guess for direct

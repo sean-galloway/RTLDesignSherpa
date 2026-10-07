@@ -1,10 +1,15 @@
-# Reed-Solomon loop harness on the Nexys A7-100T: 100 MHz clock, active-low reset,
+# BCH loop harness on the Nexys A7-100T: 100 MHz clock, active-low reset,
 # UART and LED[7:0]. Pins per projects/fpga-systems/boards/nexys_a7_100t/master.xdc.
 
 set_property -dict {PACKAGE_PIN E3 IOSTANDARD LVCMOS33} [get_ports CLK100MHZ]
 create_clock -period 10.000 -name sys_clk_pin -waveform {0.000 5.000} [get_ports CLK100MHZ]
 
-
+# This file constrains ONLY the BCH_LOOP_SMALL build: bch_loop_top divides the
+# 100 MHz pin in fabric (toggle flop through the BUFG) to a 50 MHz sys_clk.
+# The board profile uses bch_loop.xdc, which has no generated clock. The
+# create_project.tcl picks this file by BCH_PROFILE, so no runtime guard.
+create_generated_clock -name sys_clk_div2 -source [get_ports CLK100MHZ] \
+    -divide_by 2 [get_pins u_sys_bufg/O]
 
 # BTNR is CPU_RESETN on Digilent's pin map; synchronised inside the top
 set_property -dict {PACKAGE_PIN C12 IOSTANDARD LVCMOS33} [get_ports CPU_RESETN]

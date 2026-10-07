@@ -27,6 +27,14 @@ The Reed-Solomon codec (`projects/components/ecc-ip/reed-solomon`) on the
 board, in a loop that validates both key-equation solvers against each other
 and against a reference that never saw the errors.
 
+**Also runs on the Nexys A7-100T.** The same tree builds a small profile for
+the A7 with `make -C build-loop bitstream RS_TARGET=nexys_a7_100t
+RS_PROFILE=small`: RS(64,56) t=4 shortened from 255 over GF(2^8), 50 MHz
+fabric clock divide (the Artix-7 -1 misses 100 MHz), distinct BUILD_ID "RSLS".
+Post-route: WNS positive, ~26% LUT. The host discovers the geometry from the
+PROFILE CSR and BUILD_ID, so the same campaign sequences drive both boards.
+Tracked as issue #83; see `docs/UART_HARNESS.md` for the mechanism.
+
 ## The loop (build-loop)
 
 ```

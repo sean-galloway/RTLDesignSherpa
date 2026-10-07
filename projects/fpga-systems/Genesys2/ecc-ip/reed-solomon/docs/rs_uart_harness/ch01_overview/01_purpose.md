@@ -17,6 +17,8 @@ The harness directory moved from `projects/fpga-systems/NexysA7/reed-solomon/`
 to `projects/fpga-systems/Genesys2/ecc-ip/reed-solomon/` on 2026-10-05. Set
 `RS_TARGET=genesys2` to build for the Kintex-7 XC7K325T-2; the default
 `nexys_a7_100t` keeps the original names and report layout byte-identical.
-The Genesys 2 image matrix is four bitstreams:
+Since 2026-10-07 the same tree also carries a small profile for the A7
+(`RS_PROFILE=small`, issue #83): RS(64,56) t=4 at 50 MHz, distinct BUILD_ID
+"RSLS". The Genesys 2 image matrix is four bitstreams:
 `rs_loop_genesys2_{axis_ribm,axis_euclid,axi4_ribm,axi4_euclid}.bit` — two
 integration flavours times two solvers, one solver per bitstream.

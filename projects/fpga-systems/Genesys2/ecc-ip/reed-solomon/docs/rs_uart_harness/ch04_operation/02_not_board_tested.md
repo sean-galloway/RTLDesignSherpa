@@ -12,8 +12,9 @@ A few things are intentionally left in simulation or are still open:
   uncorrectable even though the design intent says it should correct.
 - The component DV matrix — 195 cells per `TASK-001.md` — exercises the codec
   in ways the board harness does not replicate.
-- The board validates only the RS(252,236) t=8, S=4 profile; other profiles
-  are covered in simulation and component DV.
+- The board validates two profiles: RS(252,236) t=8, S=4 on the Genesys 2, and
+  the small RS(64,56) t=4 on the Nexys A7 (`RS_PROFILE=small`, issue #83);
+  profiles outside those two are covered in simulation and component DV.
 - The 2026-10-05 million-block soak is statistical, not exhaustive; its
   counters, the 2-of-74,240 mis-decodes, and the bounded-rate pass criterion
   are reported in the Board Validation Report.

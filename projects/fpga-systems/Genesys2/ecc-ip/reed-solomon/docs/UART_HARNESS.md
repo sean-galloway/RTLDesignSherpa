@@ -150,11 +150,13 @@ Clock and reset differ only at the board top. On the Genesys 2 the 200 MHz LVDS
 system clock passes through `IBUFDS` into an `MMCME2_BASE` with VCO = 1200 MHz
 and `CLKOUT0_DIVIDE_F = 12`, producing the 100 MHz harness clock
 (`build-loop/rtl/rs_loop_genesys2_top.sv`). The Nexys A7 top uses the on-board
-100 MHz clock directly (`build-loop/rtl/rs_loop_top.sv`). Both synchronize the
-active-low pushbutton reset into the 100 MHz domain before it reaches
-`rs_loop_harness`. All of the downstream geometry — including the UART divisor —
-comes from `rs_loop_cfg_pkg.sv`, so the clock constant and the MMCM output
-cannot drift apart.
+100 MHz clock directly for the board profile; under `RS_LOOP_SMALL` it divides
+the pin to 50 MHz in fabric (`build-loop/rtl/rs_loop_top.sv`), because the
+Artix-7 -1 speed grade cannot close even the small loop at 100 MHz. Both
+synchronize the active-low pushbutton reset into the harness clock domain
+before it reaches `rs_loop_harness`. All of the downstream geometry —
+including the UART divisor — comes from `rs_loop_cfg_pkg.sv`, so the clock
+constant and the divider output cannot drift apart.
 
 ## The FPGA-testing choices, and why
 
@@ -225,8 +227,28 @@ The Kintex-7 XC7K325T-2 was chosen because it has room for the full harness plus
 observers and still closes timing with positive slack. The four Genesys 2 images
 routed with WNS from +0.875 ns to +1.822 ns. The Nexys A7-100T flow is kept as a
 target option (`RS_TARGET=nexys_a7_100t`) and the original image names and
-report layout stay byte-identical, but the Genesys 2 is the primary target for
-harness-class work.
+report layout stay byte-identical; the Genesys 2 is the primary target for the
+full profile.
+
+### The small Nexys A7 profile: RS(64,56) t=4
+
+The same harness also runs on the Nexys A7-100T at a reduced geometry,
+selected at build time with `RS_PROFILE=small` (the default `RS_PROFILE=board`
+is unchanged). The small profile is RS(64,56) t=4, shortened from RS(255,247)
+over GF(2^8) with primitive polynomial 0x11D: 8-bit symbols, 4 symbols per
+32-bit beat, 14 data beats and 16 codeword beats per block, distinct BUILD_ID
+"RSLS" so `init` fails loudly against the wrong bitstream. Like the BCH small
+profile, it divides the 100 MHz pin clock in fabric to 50 MHz — the Artix-7 -1
+speed grade cannot close the loop at 100 MHz — with `CFG_SYS_CLK_HZ` matching
+so the UART stays at 115200 baud. Build it with:
+
+```bash
+make -C build-loop bitstream RS_TARGET=nexys_a7_100t RS_PROFILE=small
+```
+
+The campaign sequences and the UART-equivalence sim run unchanged against
+either profile; the host reads the geometry from the PROFILE CSR and the
+BUILD_ID. Tracked as issue #83.
 
 ### AXIS and AXI4 flavors cover both integration styles
 
