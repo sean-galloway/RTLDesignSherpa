@@ -91,7 +91,7 @@ module bch_beat_packer #(
 
     // -- handshakes ----------------------------------------------------------
     assign in_ready  = ((w_cnt <= (HW'(ACC) - w_base)) || (w_ft && out_ready))
-                    && !(r_flush && in_last);
+                    && !r_flush;
     assign w_avail   = r_flush ? r_cur : r_held;
     assign out_valid = (w_avail >= HW'(S)) || (r_flush && (w_avail != '0)) || w_ft;
 

@@ -54,6 +54,7 @@ class FilelistFlattener:
         self.verbose = verbose
         self.seen_files: Set[str] = set()
         self.seen_incdirs: Set[str] = set()
+        self.seen_defines: Set[str] = set()
         # Filelists currently being expanded, to catch `-f` cycles.
         self._active: Set[str] = set()
 
@@ -162,7 +163,7 @@ class FilelistFlattener:
         finally:
             self._active.discard(resolved)
 
-    def _parse_filelist_inner(self, filepath: str, base_dir: Path) -> Tuple[List[str], List[str], List[str]]:
+    def _parse_filelist_inner(self, filepath: str, base_dir: Path) -> Tuple[List[str], List[str], List[str], List[str]]:
         """
         Parse a single filelist file.
 
@@ -171,11 +172,12 @@ class FilelistFlattener:
             base_dir: Base directory for relative paths
 
         Returns:
-            Tuple of (incdir_lines, file_lines, excluded_f_lines)
+            Tuple of (incdir_lines, file_lines, excluded_f_lines, define_lines)
         """
         incdirs = []
         files = []
         excluded_refs = []
+        defines = []
 
         resolved_path = self._resolve_path(filepath, base_dir)
 
@@ -215,6 +217,10 @@ class FilelistFlattener:
                 output_incdir = self._restore_env_vars(resolved_incdir)
                 incdirs.append(f"+incdir+{output_incdir}")
 
+            # Handle +define+
+            elif line.startswith('+define+'):
+                defines.append(line)
+
             # Handle -f includes
             elif line.startswith('-f ') or line.startswith('-f\t'):
                 ref_path = line[3:].strip()
@@ -224,12 +230,13 @@ class FilelistFlattener:
                     excluded_refs.append(line)
                 else:
                     # Recursively parse the included filelist
-                    sub_incdirs, sub_files, sub_excluded = self._parse_filelist(
+                    sub_incdirs, sub_files, sub_excluded, sub_defines = self._parse_filelist(
                         ref_path, filelist_dir
                     )
                     incdirs.extend(sub_incdirs)
                     files.extend(sub_files)
                     excluded_refs.extend(sub_excluded)
+                    defines.extend(sub_defines)
 
             # Handle regular file entries
             else:
@@ -237,7 +244,7 @@ class FilelistFlattener:
                 output_file = self._restore_env_vars(resolved_file)
                 files.append(output_file)
 
-        return incdirs, files, excluded_refs
+        return incdirs, files, excluded_refs, defines
 
     def flatten(self, input_file: str) -> str:
         """
@@ -257,7 +264,7 @@ class FilelistFlattener:
 
         self._log(f"Processing: {input_path}")
 
-        incdirs, files, excluded_refs = self._parse_filelist(str(input_path), base_dir)
+        incdirs, files, excluded_refs, defines = self._parse_filelist(str(input_path), base_dir)
 
         # Build output
         output_lines = []
@@ -266,6 +273,17 @@ class FilelistFlattener:
         output_lines.append(f"# Flattened filelist generated from: {input_file}")
         output_lines.append(f"# Excluded patterns: {self.exclude_patterns if self.exclude_patterns else 'none'}")
         output_lines.append("")
+
+        # Defines (preserved verbatim; order is not semantically significant)
+        if defines:
+            output_lines.append("# =============================================================================")
+            output_lines.append("# Defines")
+            output_lines.append("# =============================================================================")
+            for d in defines:
+                if not self.dedup or d not in self.seen_defines:
+                    output_lines.append(d)
+                    self.seen_defines.add(d)
+            output_lines.append("")
 
         # Excluded -f references (kept as-is)
         if excluded_refs:

@@ -56,7 +56,6 @@ import bch_loop_programs as progs                                   # noqa: E402
 
 CLKS_PER_BIT = 4
 SIM_TIME_BUDGET_MS = 100.0
-T = 8
 
 
 def _check_sim_budget(dut, label):
@@ -98,7 +97,7 @@ async def _bringup(dut):
 
 def _report(dut, label, r):
     _check_sim_budget(dut, label)
-    bad = progs.verdict(r, T)
+    bad = progs.verdict(r)
     dut._log.info("%s: %d blocks in %d cycles (%.1f/block); ok/corr/unc=%d/%d/%d sym=%d data_err=%s; "
                   "inj=%d",
                   label, r.blocks, r.cycles, r.cycles_per_block,
@@ -112,9 +111,11 @@ async def cocotb_test_uart_smoke(dut):
     drv, chan = await _bringup(dut)
     r = await cocotb.external(lambda: progs.smoke(drv))()
     dut._log.info("smoke: build_id=0x%08X profile=%s ok=%s", r.build_id, r.profile, r.ok)
-    assert r.build_id == bl.EXPECTED_BUILD_ID, f"BUILD_ID 0x{r.build_id:08X}"
+    assert r.build_id in bl.KNOWN_BUILD_IDS, f"BUILD_ID 0x{r.build_id:08X}"
     assert r.ok, f"smoke failed: {r.scratch}"
-    assert r.profile == dict(n=4224, k=4120, t=T, m=13, spb=4), r.profile
+    want = bl.PROFILES[r.build_id].copy()
+    want.pop("name")
+    assert r.profile == want, f"profile {r.profile} != expected {want}"
     tx = chan.tx_bytes()
     assert tx.startswith((b"R ", b"W ")), f"unexpected first bytes: {tx[:8]!r}"
 
@@ -127,13 +128,13 @@ async def cocotb_test_uart_windows(dut):
     reads = await cocotb.external(lambda: [(n, a, drv.bridge.read(a)) for n, a in plan])()
     for name, addr, val in reads:
         dut._log.info("window %-24s @0x%05X -> 0x%08X", name, addr, val)
-    assert reads[0][2] == bl.EXPECTED_BUILD_ID, (
+    assert reads[0][2] in bl.KNOWN_BUILD_IDS, (
         f"the loop window ({reads[0][0]}) read 0x{reads[0][2]:08X}")
     for name, addr, val in reads[1:-1]:
-        assert val != bl.EXPECTED_BUILD_ID, (
-            f"window {name} @0x{addr:05X} read back BUILD_ID -- "
+        assert val not in bl.KNOWN_BUILD_IDS, (
+            f"window {name} @0x{addr:05X} read back a BUILD_ID -- "
             "the host address is being truncated before the fabric")
-    assert reads[-1][2] == bl.EXPECTED_BUILD_ID, "the loop window stopped answering after the others"
+    assert reads[-1][2] in bl.KNOWN_BUILD_IDS, "the loop window stopped answering after the others"
 
     caps = await cocotb.external(drv.observer_caps)()
     dut._log.info("observer caps: %s", caps)
@@ -158,23 +159,26 @@ async def cocotb_test_uart_clean(dut):
 @cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_uart_correct(dut):
     drv, _ = await _bringup(dut)
-    r = await cocotb.external(lambda: progs.run(drv, bl.BchLoopDriver.INJ_COUNT, count=T, blocks=4))()
-    _report(dut, f"e={T}", r)
+    t = (await cocotb.external(drv.profile)())["t"]
+    r = await cocotb.external(lambda: progs.run(drv, bl.BchLoopDriver.INJ_COUNT, count=t, blocks=4))()
+    _report(dut, f"e={t}", r)
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_uart_over_t(dut):
     drv, _ = await _bringup(dut)
-    r = await cocotb.external(lambda: progs.run(drv, bl.BchLoopDriver.INJ_COUNT, count=T + 1, blocks=4))()
-    _report(dut, f"e={T + 1}", r)
+    t = (await cocotb.external(drv.profile)())["t"]
+    r = await cocotb.external(lambda: progs.run(drv, bl.BchLoopDriver.INJ_COUNT, count=t + 1, blocks=4))()
+    _report(dut, f"e={t + 1}", r)
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_uart_throttle(dut):
     drv, _ = await _bringup(dut)
-    r = await cocotb.external(lambda: progs.run(drv, bl.BchLoopDriver.INJ_COUNT, count=T, blocks=3,
+    t = (await cocotb.external(drv.profile)())["t"]
+    r = await cocotb.external(lambda: progs.run(drv, bl.BchLoopDriver.INJ_COUNT, count=t, blocks=3,
                                                 throttle=True))()
-    _report(dut, f"e={T} throttled", r)
+    _report(dut, f"e={t} throttled", r)
 
 
 @cocotb.test(timeout_time=600, timeout_unit="ms")
@@ -223,9 +227,10 @@ async def cocotb_test_uart_axi4(dut):
     assert topo["iface"] == "AXI4", f"expected an AXI4 build, TOPOLOGY says {topo['iface']}"
     assert topo["decoders"] == 1, f"the AXI4 chain carries one decoder, got {topo['decoders']}"
 
+    t = (await cocotb.external(drv.profile)())["t"]
     for label, mode, count in (("clean", bl.BchLoopDriver.INJ_COUNT, 0),
-                               (f"e={T}", bl.BchLoopDriver.INJ_COUNT, T),
-                               (f"e={T + 1}", bl.BchLoopDriver.INJ_COUNT, T + 1)):
+                               (f"e={t}", bl.BchLoopDriver.INJ_COUNT, t),
+                               (f"e={t + 1}", bl.BchLoopDriver.INJ_COUNT, t + 1)):
         r = await cocotb.external(lambda m=mode, c=count: progs.run(drv, m, count=c, blocks=3))()
         assert (r.axi4_stage & progs.AXI4_STAGE_MASK) == progs.AXI4_STAGE_MASK, (
             f"AXI4 {label}: chain stopped at stage 0x{r.axi4_stage:02X}, "
@@ -237,7 +242,7 @@ async def cocotb_test_uart_axi4(dut):
     r = await cocotb.external(lambda: progs.run(drv, over, count=0, blocks=4096))()
     assert r.axi4_overflow, "an oversized AXI4 run should set STATUS.axi4_overflow and never kick"
     assert r.axi4_stage == 0x00, f"a refused run must not start any stage, got 0x{r.axi4_stage:02X}"
-    bad = progs.verdict(r, T)
+    bad = progs.verdict(r)
     assert any("refused" in b for b in bad), f"the verdict should name the refusal; it said {bad}"
     dut._log.info("AXI4 oversized run correctly refused: stage=0x%02X", r.axi4_stage)
 
@@ -409,7 +414,12 @@ async def cocotb_test_uart_axi4_bw_slope(dut):
 def _run(testcase: str, parameters=None, suffix=""):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "bch_loop_uart_tb_top"
-    filelist_path = "projects/fpga-systems/Genesys2/ecc-ip/bch/build-loop/dv/filelists/bch_loop_uart_tb_top.f"
+    if os.environ.get("BCH_PROFILE", "board") == "small":
+        filelist_path = "projects/fpga-systems/Genesys2/ecc-ip/bch/build-loop/dv/filelists/bch_loop_uart_tb_top_small.f"
+        compile_args = ["+define+BCH_LOOP_SMALL"]
+    else:
+        filelist_path = "projects/fpga-systems/Genesys2/ecc-ip/bch/build-loop/dv/filelists/bch_loop_uart_tb_top.f"
+        compile_args = []
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=filelist_path)
     sim_build = sim_build_path(tests_dir, testcase + suffix)
     os.makedirs(sim_build, exist_ok=True)
@@ -420,7 +430,7 @@ def _run(testcase: str, parameters=None, suffix=""):
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{testcase}{suffix}.xml"),
     }
-    compile_args = [
+    compile_args += [
         "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
         "-Wno-UNUSEDSIGNAL", "-Wno-UNUSEDPARAM", "-Wno-VARHIDDEN",

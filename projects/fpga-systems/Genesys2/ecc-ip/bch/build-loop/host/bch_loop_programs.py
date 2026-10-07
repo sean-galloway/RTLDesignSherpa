@@ -15,9 +15,9 @@ from __future__ import annotations
 
 import binascii
 from dataclasses import dataclass, field
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 
-from bch_loop import BchLoopDriver, RunResult, CFG_N, CFG_K, CFG_T
+from bch_loop import BchLoopDriver, RunResult, KNOWN_BUILD_IDS, PROFILES, CFG_T
 
 
 @dataclass
@@ -28,8 +28,7 @@ class SmokeResult:
 
     @property
     def build_id_ok(self) -> bool:
-        from bch_loop import EXPECTED_BUILD_ID
-        return self.build_id == EXPECTED_BUILD_ID
+        return self.build_id in KNOWN_BUILD_IDS
 
     @property
     def ok(self) -> bool:
@@ -72,19 +71,21 @@ def _lfsr_step(value: int, taps: tuple = (23, 3, 2, 1)) -> int:
     return ((value >> 1) | (bit << 31)) & 0xFFFFFFFF
 
 
-def expected_byte_crc(gen_seed: int, blocks: int, k_bits: int = CFG_K,
-                      data_width: int = 32, last_bytes: int = 3) -> int:
+def expected_byte_crc(gen_seed: int, blocks: int, k_bits: int,
+                      data_width: int = 32) -> int:
     """Byte-granular CRC-32 the checker computes for the generator's stream.
 
     The generator produces one 32-bit LFSR word per beat. Every beat except the
-    last per block contributes all 4 bytes; the last contributes `last_bytes`
-    bytes from lane 0. The checker runs in BYTE_CRC=1 mode, so this is the
-    reference value for CRC_A.
+    last per block contributes all 4 bytes; the last contributes the remaining
+    bytes needed for `k_bits`. The checker runs in BYTE_CRC=1 mode, so this is
+    the reference value for CRC_A.
 
     A zero GEN_SEED maps to the RTL's default LFSR_SEED (0xDEADBEEF), matching
     axis4_master_pattern_gen / axis4_slave_pattern_check.
     """
     k_beats = (k_bits + data_width - 1) // data_width
+    tail_bits = k_bits % data_width
+    last_bytes = data_width // 8 if tail_bits == 0 else (tail_bits + 7) // 8
     lfsr = (gen_seed & 0xFFFFFFFF) if gen_seed else 0xDEADBEEF
     crc_bytes = bytearray()
     for _ in range(blocks):
@@ -98,7 +99,7 @@ def expected_byte_crc(gen_seed: int, blocks: int, k_bits: int = CFG_K,
     return binascii.crc32(crc_bytes) & 0xFFFFFFFF
 
 
-def verdict(r: RunResult, t: int = CFG_T) -> List[str]:
+def verdict(r: RunResult, t: Optional[int] = None) -> List[str]:
     """What is wrong with a run, as a list of complaints (empty = clean).
 
       bypass, or count == 0          every block ok, no mismatching beat, byte CRC matches
@@ -109,7 +110,13 @@ def verdict(r: RunResult, t: int = CFG_T) -> List[str]:
       any mode                       the single decoder received every block, no framing errors
     """
     bad = []
-    byte_crc_want = expected_byte_crc(r.gen_seed, r.blocks)
+    if r.profile is None:
+        raise ValueError("RunResult has no profile -- cannot judge geometry-specific checks")
+    prof = r.profile
+    if t is None:
+        t = prof["t"]
+    n, k = prof["n"], prof["k"]
+    byte_crc_want = expected_byte_crc(r.gen_seed, r.blocks, k_bits=k)
     if r.timed_out:
         bad.append("run did not finish")
     for d in r.present:
@@ -154,9 +161,10 @@ def verdict(r: RunResult, t: int = CFG_T) -> List[str]:
                 bad.append(f"{d.name}: e={e} > t left blocks unaccounted for: "
                            f"unc={d.blk_unc} + corr={d.blk_corr} + ok={d.blk_ok} "
                            f"!= {r.blocks}")
-            if d.blk_ok and e < CFG_N - CFG_K + 1:
+            min_dist = n - k + 1
+            if d.blk_ok and e < min_dist:
                 bad.append(f"{d.name}: e={e} > t gave {d.blk_ok} CLEAN block(s); an error "
-                           f"pattern cannot be a codeword below weight {CFG_N - CFG_K + 1}")
+                           f"pattern cannot be a codeword below weight {min_dist}")
             if not d.data_err and d.crc == byte_crc_want:
                 bad.append(f"{d.name}: e={e} > t yet the checker byte CRC matches -- "
                            f"the errors did not reach the data")
@@ -252,8 +260,9 @@ def bandwidth(r: RunResult) -> str:
 
 
 def bandwidth_slope(small, large, n: int, k: int, s: int) -> str:
-    cw_beats = -(-n // s)
-    msg_beats = -(-k // s)
+    bits_per_beat = s * 8
+    cw_beats = -(-n // bits_per_beat)
+    msg_beats = -(-k // bits_per_beat)
     db = large.blocks - small.blocks
     if db <= 0:
         return "bandwidth_slope needs two different block counts"

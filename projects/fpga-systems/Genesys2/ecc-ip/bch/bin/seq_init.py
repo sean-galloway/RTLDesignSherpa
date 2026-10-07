@@ -2,10 +2,10 @@
 # SPDX-FileCopyrightText: 2026 sean galloway
 """bch loop init: prove the link and the bitstream before any run.
 
-BUILD_ID must be BCHP, SCRATCH must round-trip, and the PROFILE register tells
-the later sequences what code the board carries (t drives the expectations).
-TOPOLOGY tells them what the bitstream BUILT -- one RIBM decoder, AXIS or AXI4.
-Touches registers only through ctx.bus (a BchLoopDriver).
+BUILD_ID must be a known profile ID, SCRATCH must round-trip, and the PROFILE
+register tells the later sequences what code the board carries (t drives the
+expectations). TOPOLOGY tells them what the bitstream BUILT -- one RIBM decoder,
+AXIS or AXI4. Touches registers only through ctx.bus (a BchLoopDriver).
 """
 from __future__ import annotations
 

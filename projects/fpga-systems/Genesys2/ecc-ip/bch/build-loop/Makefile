@@ -10,20 +10,33 @@ RDS_ROOT := $(if $(REPO_ROOT),$(REPO_ROOT),$(shell git rev-parse --show-toplevel
 
 export CONVERTERS_ROOT ?= $(RDS_ROOT)/projects/components/utility-ip/converters
 
-FLOW      := bch_loop
+FLOW       := bch_loop
 BCH_TARGET ?= nexys_a7_100t
+BCH_PROFILE ?= board
 export BCH_TARGET
+export BCH_PROFILE
 
 ifeq ($(BCH_TARGET),genesys2)
   TOP       := bch_loop_genesys2_top
   FILELIST  := $(SELF_DIR)/rtl/filelists/bch_loop_genesys2_top.f
-  BITSTREAM := $(SELF_DIR)/fpga/bitstream/$(FLOW)_genesys2.bit
-  ILA_BITSTREAM := $(SELF_DIR)/fpga/bitstream/$(FLOW)_genesys2_ila.bit
+  ifeq ($(BCH_PROFILE),small)
+    BITSTREAM     := $(SELF_DIR)/fpga/bitstream/$(FLOW)_small_genesys2.bit
+    ILA_BITSTREAM := $(SELF_DIR)/fpga/bitstream/$(FLOW)_small_genesys2_ila.bit
+  else
+    BITSTREAM     := $(SELF_DIR)/fpga/bitstream/$(FLOW)_genesys2.bit
+    ILA_BITSTREAM := $(SELF_DIR)/fpga/bitstream/$(FLOW)_genesys2_ila.bit
+  endif
 else
   TOP       := bch_loop_top
-  FILELIST  := $(SELF_DIR)/rtl/filelists/bch_loop_top.f
-  BITSTREAM := $(SELF_DIR)/fpga/bitstream/$(FLOW).bit
-  ILA_BITSTREAM := $(SELF_DIR)/fpga/bitstream/$(FLOW)_ila.bit
+  ifeq ($(BCH_PROFILE),small)
+    FILELIST      := $(SELF_DIR)/rtl/filelists/bch_loop_top_small.f
+    BITSTREAM     := $(SELF_DIR)/fpga/bitstream/$(FLOW)_small.bit
+    ILA_BITSTREAM := $(SELF_DIR)/fpga/bitstream/$(FLOW)_small_ila.bit
+  else
+    FILELIST      := $(SELF_DIR)/rtl/filelists/bch_loop_top.f
+    BITSTREAM     := $(SELF_DIR)/fpga/bitstream/$(FLOW).bit
+    ILA_BITSTREAM := $(SELF_DIR)/fpga/bitstream/$(FLOW)_ila.bit
+  endif
 endif
 
 # UART-equivalence cocotb sim: the REAL uart_axil_bridge + harness driving the

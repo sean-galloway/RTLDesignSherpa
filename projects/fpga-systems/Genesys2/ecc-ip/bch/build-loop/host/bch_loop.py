@@ -10,9 +10,12 @@ PeakRDL-generated `bch_loop_regs_regmap.py`. No offsets live here.
 Because the bridge is INJECTABLE, the identical driver drives the FPGA over
 pyserial or a cocotb sim over `CocotbUartChannel`.
 
-    from bch_loop import BchLoopDriver, EXPECTED_BUILD_ID
+The driver learns the active geometry from the BUILD_ID CSR, so one host
+program works with every supported profile.
+
+    from bch_loop import BchLoopDriver, KNOWN_BUILD_IDS
     d = BchLoopDriver(port="/dev/ttyUSB1")
-    assert d.build_id() == EXPECTED_BUILD_ID
+    assert d.build_id() in KNOWN_BUILD_IDS
     r = d.run(mode=BchLoopDriver.INJ_COUNT, count=8, blocks=64)
 """
 from __future__ import annotations
@@ -50,13 +53,21 @@ OBS_REGMAP = os.path.join(
 # built; on the AXI4 flavour its seams are tied off and it reads 0).
 OBS_AXI4_BASE = 0x00010000
 OBS_AXIS_BASE = 0x00020000
-EXPECTED_BUILD_ID = 0x4243_4850   # "BCHP"
 
-# This harness is fixed at BCH(4224,4120) t=8 over GF(2^13); the PROFILE CSR
-# exposes n, t, m, spb but not k, so the host carries the one known k here.
-CFG_N = 4224
-CFG_K = 4120
-CFG_T = 8
+# Supported BCH loop profiles, keyed by BUILD_ID. The PROFILE CSR exposes n,
+# t, m and spb but not k, so the host carries the known k for each profile.
+PROFILES = {
+    0x4243_4850: {"name": "board", "n": 4224, "k": 4120, "t": 8, "m": 13, "spb": 4},
+    0x4243_4853: {"name": "small", "n": 248,  "k": 224, "t": 3, "m": 8,  "spb": 4},
+}
+KNOWN_BUILD_IDS = set(PROFILES)
+
+# Backwards-compatible aliases for code that has not been switched to the
+# profile table. They name the original board profile.
+CFG_N = PROFILES[0x4243_4850]["n"]
+CFG_K = PROFILES[0x4243_4850]["k"]
+CFG_T = PROFILES[0x4243_4850]["t"]
+EXPECTED_BUILD_ID = 0x4243_4850
 
 
 @dataclass
@@ -101,6 +112,7 @@ class RunResult:
     timed_out: bool = False
     notes: list = field(default_factory=list)
     gen_seed: int = 0
+    profile: Optional[dict] = None
 
     @property
     def present(self):
@@ -132,6 +144,15 @@ class BchLoopDriver:
         self.obs_axi4 = UartRegisterMap(bridge, start_address=OBS_AXI4_BASE, regmap_file=OBS_REGMAP)
         self.obs_axis = UartRegisterMap(bridge, start_address=OBS_AXIS_BASE, regmap_file=OBS_REGMAP)
         self._topo = None
+        self._profile = None
+
+    def _detect_profile(self) -> dict:
+        bid = self.build_id()
+        if bid not in KNOWN_BUILD_IDS:
+            raise RuntimeError(
+                f"unknown BCH loop bitstream: BUILD_ID=0x{bid:08X} "
+                f"(expected one of {sorted(KNOWN_BUILD_IDS):#x})")
+        return PROFILES[bid]
 
     def build_id(self) -> int:
         return self.regs.read("BUILD_ID")
@@ -145,9 +166,12 @@ class BchLoopDriver:
         return out
 
     def profile(self) -> dict:
+        if self._profile is None:
+            self._profile = self._detect_profile()
         w = self.regs.read("PROFILE")
+        p = self._profile
         return dict(n=w & 0xFFFF, t=(w >> 16) & 0xFF, m=(w >> 24) & 0xF, spb=(w >> 28) & 0xF,
-                    k=CFG_K)
+                    k=p["k"])
 
     def soft_reset(self) -> None:
         self.regs.write("CTRL", rmw=True, soft_reset=1)
@@ -285,7 +309,7 @@ class BchLoopDriver:
 
     def collect(self, blocks: int, mode: int, count: int, rate: int, bypass: bool,
                 gen_seed: int = 0, timed_out: bool = False, meters: bool = True,
-                iface_obs: bool = False) -> RunResult:
+                iface_obs: bool = False, profile: Optional[dict] = None) -> RunResult:
         st = self.status()
         r = self.regs.read
         return RunResult(
@@ -299,7 +323,8 @@ class BchLoopDriver:
             inj_symbols=r("INJ_SYMBOLS"), inj_blocks=r("INJ_BLOCKS"), inj_over_t=r("INJ_OVER_T"),
             obs=self._meters() if meters else {},
             iface_obs=self.iface_observer() if iface_obs else {},
-            timed_out=timed_out, gen_seed=gen_seed & 0xFFFFFFFF)
+            timed_out=timed_out, gen_seed=gen_seed & 0xFFFFFFFF,
+            profile=profile)
 
     def run(self, mode: int = 0, count: int = 0, rate: int = 0, blocks: int = 8,
             gen_seed: int = 0, inj_seed: Optional[int] = None, bypass: bool = False,
@@ -308,7 +333,9 @@ class BchLoopDriver:
         self.soft_reset()
         self.clear()
         self.configure(mode, count, rate, blocks, gen_seed, inj_seed, bypass, throttle_a, throttle_b)
+        prof = self.profile()
         self.start()
         done = self.wait_done(timeout_s)
         return self.collect(blocks, mode, count, rate, bypass, gen_seed=gen_seed,
-                            timed_out=not done, meters=meters, iface_obs=iface_obs)
+                            timed_out=not done, meters=meters, iface_obs=iface_obs,
+                            profile=prof)

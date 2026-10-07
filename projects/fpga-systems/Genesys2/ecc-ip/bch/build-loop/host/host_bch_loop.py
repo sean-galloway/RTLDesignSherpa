@@ -171,7 +171,7 @@ def main(argv=None):
     p = sub.add_parser("bw", help="one run, reported as bandwidth from the meters")
     p.add_argument("--blocks", type=int, default=64)
     p.add_argument("--count", type=int, default=0, help="errors per block")
-    p.add_argument("--t", type=int, default=8, help="the profile's t, for the verdict")
+    p.add_argument("--t", type=int, default=None, help="the profile's t, for the verdict (default from PROFILE)")
     p.add_argument("--throttle", action="store_true")
     p.add_argument("--bypass", action="store_true")
     p.add_argument("--slope", action="store_true")

@@ -37,6 +37,8 @@ class Smoke(Sequence):
             r = fn()
             bad = progs.verdict(r, t)
             if label == "debug":
+                ctx.say(f"[smoke] debug details: inj_symbols={r.inj_symbols} inj_blocks={r.inj_blocks} "
+                        f"inj_over_t={r.inj_over_t} last={getattr(r, 'inj_last', 'n/a')}")
                 if r.a.blk_corr != blocks or r.a.sym_corr != blocks:
                     bad.append(f"debug walk: expected {blocks} corrected blocks with 1 symbol each, "
                                f"got corr={r.a.blk_corr} sym={r.a.sym_corr}")
