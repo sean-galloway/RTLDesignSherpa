@@ -6,3 +6,4 @@ $REPO_ROOT/projects/components/riscv-ip/kestrel-rv32i/rtl/kestrel_regfile.sv
 $REPO_ROOT/projects/components/riscv-ip/kestrel-rv32i/rtl/kestrel_alu.sv
 $REPO_ROOT/projects/components/riscv-ip/kestrel-rv32i/rtl/kestrel_imm_gen.sv
 $REPO_ROOT/projects/components/riscv-ip/kestrel-rv32i/rtl/kestrel_decode.sv
+$REPO_ROOT/projects/components/riscv-ip/kestrel-rv32i/rtl/kestrel_core.sv
