@@ -91,6 +91,25 @@ BKM re-run gate is the commitment):
    rebuild is expected to be uneventful — but it is a shared-resource
    change and gets a go signal, not a silent default.
 
+## Switch runbook (morning of the flip)
+
+Sequenced so a failure at any step leaves a working tree behind.
+
+1. `git pull` in RDS (pins at `a9a8120d4`) and confirm `venv-cocotb2/`
+   still imports (it is the reference 2.x env if rollback is needed).
+2. Rebuild the shared venv from the new pins:
+   `python3 -m venv venv --upgrade-deps` style rebuild per house practice,
+   then `venv/bin/pip install -r requirements.txt`. The full-set
+   resolution was dry-run validated 2026-10-06 (90 packages, no
+   conflicts). If pip serves stale metadata, add `--no-cache-dir`.
+3. `source env_python && cd val/math && make clean-all && make run-all-full-parallel`
+   — repeat for `val/common`, `val/cdc` (the BKM set per Sean; bridge
+   was already validated at exact parity in TASK-025 and is serial/heavy).
+4. Green = flip done; close this task and note the date in TASK-025.
+   Red = do NOT debug forward on a half-switched venv: rebuild the old
+   venv from the pre-flip requirements (`git show 8fb596b57^:requirements.txt`),
+   file what failed, and decide from a working baseline.
+
 ## Done when
 
 - One BKM area produces a valid coverage database under cocotb 2.1.0 with
