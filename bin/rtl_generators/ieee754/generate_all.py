@@ -13,8 +13,8 @@
 #     - math_adder_han_carlson_*.sv - Prefix adders (16, 22, 32, 44, 48, 72-bit)
 #     - math_multiplier_dadda_4to2_*.sv - Dadda trees (11x11, 24x24)
 #
-#   FP32 Modules (5 modules):
-#     - math_ieee754_2008_fp32_{mantissa_mult,exponent_adder,multiplier,adder,fma}.sv
+#   FP32 Modules (6 modules):
+#     - math_ieee754_2008_fp32_{mantissa_mult,exponent_adder,multiplier,adder,fma,divider}.sv
 #
 #   FP16 Modules (5 modules):
 #     - math_ieee754_2008_fp16_{mantissa_mult,exponent_adder,multiplier,adder,fma}.sv
@@ -60,6 +60,7 @@ from rtl_generators.ieee754.fp32_exponent_adder import generate_fp32_exponent_ad
 from rtl_generators.ieee754.fp32_multiplier import generate_fp32_multiplier
 from rtl_generators.ieee754.fp32_adder import generate_fp32_adder
 from rtl_generators.ieee754.fp32_fma import generate_fp32_fma
+from rtl_generators.ieee754.fp32_divider import generate_fp32_divider
 # FP16
 from rtl_generators.ieee754.fp16_mantissa_mult import generate_fp16_mantissa_mult
 from rtl_generators.ieee754.fp16_exponent_adder import generate_fp16_exponent_adder
@@ -143,6 +144,11 @@ def generate_fp32_modules(output_dir):
 
     print('Generating FP32 FMA...')
     name = generate_fp32_fma(output_dir)
+    generated.append(name)
+    print(f'  Created: {name}.sv')
+
+    print('Generating FP32 divider...')
+    name = generate_fp32_divider(output_dir)
     generated.append(name)
     print(f'  Created: {name}.sv')
 
@@ -302,6 +308,7 @@ def print_dependency_order():
     print('    - math_ieee754_2008_fp32_multiplier.sv')
     print('    - math_ieee754_2008_fp32_adder.sv')
     print('    - math_ieee754_2008_fp32_fma.sv')
+    print('    - math_ieee754_2008_fp32_divider.sv')
     print('')
     print('  FP16 modules (generated):')
     print('    - math_ieee754_2008_fp16_mantissa_mult.sv')

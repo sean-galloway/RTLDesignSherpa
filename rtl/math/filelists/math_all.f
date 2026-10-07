@@ -183,6 +183,7 @@ $REPO_ROOT/rtl/math/math_ieee754_2008_fp16_fma.sv
 $REPO_ROOT/rtl/math/math_ieee754_2008_fp16_mantissa_mult.sv
 $REPO_ROOT/rtl/math/math_ieee754_2008_fp16_multiplier.sv
 $REPO_ROOT/rtl/math/math_ieee754_2008_fp32_adder.sv
+$REPO_ROOT/rtl/math/math_ieee754_2008_fp32_divider.sv
 $REPO_ROOT/rtl/math/math_ieee754_2008_fp32_exponent_adder.sv
 $REPO_ROOT/rtl/math/math_ieee754_2008_fp32_fma.sv
 $REPO_ROOT/rtl/math/math_ieee754_2008_fp32_mantissa_mult.sv
