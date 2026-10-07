@@ -9,11 +9,13 @@
 //          immediate generator, ALU, register file, writeback, next-PC mux,
 //          halt, and first-class RVFI retire ports.
 //
-//          Task 7 adds the load/store datapath with in-word rotated strobes
-//          (ruling R4): dmem_addr is word-aligned, rdata is right-shifted by
-//          the byte offset, store wstrb/wdata are left-shifted by the byte
-//          offset, and bytes that rotate past bit 31 are dropped.  This is a
-//          spec-silent design decision documented here for verification.
+//          Task 7 adds the load/store datapath.  Aligned and in-word
+//          misaligned accesses complete in one cycle; cross-word misaligned
+//          accesses hold PC for one retry cycle and issue a second beat at
+//          the next word.  This follows the plan's Global Constraints
+//          spec-silent decision: kestrel handles misaligned L/S in hardware
+//          (byte-lane rotation) rather than trapping, so rv32ui-p-ma_data
+//          passes without a trap mechanism.
 //
 // Documentation: projects/components/riscv-ip/README.md
 // Subsystem: riscv-ip/kestrel-rv32i
@@ -76,9 +78,12 @@ module kestrel_core #(
 
     // The PC register and the RVFI retirement counter are the only state
     // besides the register file (Task 8 adds the halt holding register).
+    // Task 7 adds one retry bit (control state only) for cross-word L/S.
     logic [31:0] pc;
     logic [31:0] next_pc;
     logic [63:0] retire_count;
+    logic        ls_retry;
+    logic [31:0] ls_rdata_lo;
 
     // Fetch
     logic [31:0] insn;
@@ -132,6 +137,7 @@ module kestrel_core #(
     logic [31:0] rs1_data;
     logic [31:0] rs2_data;
     logic [31:0] rd_wdata;
+    logic        rd_wen_eff;
 
     kestrel_regfile u_regfile (
         .clk      (clk),
@@ -142,7 +148,7 @@ module kestrel_core #(
         .rs2_data (rs2_data),
         .rd_addr  (insn[11:7]),
         .rd_data  (rd_wdata),
-        .rd_wen   (rd_wen)
+        .rd_wen   (rd_wen_eff)
     );
 
     // Source muxes: PC vs rs1, immediate vs rs2.
@@ -168,55 +174,114 @@ module kestrel_core #(
         .ltu ()
     );
 
-    // Load/store datapath: in-word rotated strobes (ruling R4).
-    // dmem_addr is word-aligned; the byte offset rotates both the strobe and
-    // the data.  Bytes that shift past bit 31 are dropped by the 32-bit bus.
+    // Load/store datapath: byte-lane rotation with a single retry bit for
+    // cross-word accesses.  Aligned and in-word misaligned accesses complete
+    // in one cycle; when addr[1:0] + access_size > 4 the PC is held and a
+    // second beat is issued at the next word.  The retry bit is control
+    // state only — the datapath remains FSM-free.
     localparam logic [3:0] STRB_BYTE = 4'b0001;
     localparam logic [3:0] STRB_HALF = 4'b0011;
     localparam logic [3:0] STRB_WORD = 4'b1111;
 
-    logic       ls_active;
-    logic       ls_load;
-    logic [3:0] ls_size_mask;
-    logic [1:0] ls_offset;
+    logic        ls_active;
+    logic        ls_load;
+    logic        ls_store;
+    logic [2:0]  ls_size_bytes;
+    logic [3:0]  ls_size_mask;
+    logic [31:0] ls_data_mask;
+    logic [1:0]  ls_offset;
+    logic [2:0]  ls_tail_size;
+    logic [2:0]  ls_head_size;
+    logic        ls_crossing;
+    logic        ls_first;
+    logic        ls_second;
+    logic        ls_single;
     logic [31:0] ls_rdata_shifted;
+    logic [31:0] ls_raw_rdata;
     logic [31:0] ls_load_data;
+    logic [3:0]  ls_head_strobe;
+    logic [31:0] ls_wdata_first;
+    logic [31:0] ls_wdata_second;
 
-    assign ls_active = dmem_req;
-    assign ls_load   = dmem_req & ~dmem_we;
-    assign ls_offset = alu_y[1:0];
+    assign ls_active  = dmem_req;
+    assign ls_load    = dmem_req & ~dmem_we;
+    assign ls_store   = dmem_req & dmem_we;
+    assign ls_offset  = alu_y[1:0];
 
     always_comb begin
         unique case (dmem_size)
-            2'b00:   ls_size_mask = STRB_BYTE;
-            2'b01:   ls_size_mask = STRB_HALF;
-            2'b10:   ls_size_mask = STRB_WORD;
-            default: ls_size_mask = 4'b0000;
+            2'b00:   ls_size_bytes = 3'd1;
+            2'b01:   ls_size_bytes = 3'd2;
+            2'b10:   ls_size_bytes = 3'd4;
+            default: ls_size_bytes = 3'd1;
+        endcase
+        ls_size_mask = (ls_size_bytes == 3'd4) ? STRB_WORD :
+                       (ls_size_bytes == 3'd2) ? STRB_HALF : STRB_BYTE;
+        unique case (ls_size_bytes)
+            3'd1:    ls_data_mask = 32'h0000_00FF;
+            3'd2:    ls_data_mask = 32'h0000_FFFF;
+            default: ls_data_mask = 32'hFFFF_FFFF;
         endcase
     end
 
-    assign dmem_addr      = {alu_y[31:2], 2'b00};
-    assign dmem_wdata     = rs2_data << {ls_offset, 3'b000};
-    assign dmem_wstrb     = ls_active & dmem_we ? (ls_size_mask << ls_offset) : 4'b0000;
+    assign ls_tail_size = 3'd4 - {1'b0, ls_offset};
+    assign ls_head_size = ls_size_bytes - ls_tail_size;
+    assign ls_crossing  = ls_active & ((ls_offset + ls_size_bytes[2:0]) > 4'd4);
+    assign ls_second    = ls_retry;
+    assign ls_first     = ls_crossing & ~ls_second;
+    assign ls_single    = ls_active & ~ls_crossing;
+
+    assign dmem_addr = ls_second ? {alu_y[31:2] + 30'd1, 2'b00}
+                                 : {alu_y[31:2], 2'b00};
+
+    assign ls_wdata_first  = rs2_data << {ls_offset, 3'b000};
+    assign ls_wdata_second = rs2_data >> {ls_tail_size, 3'b000};
+    assign ls_head_strobe  = (ls_head_size == 3'd0) ? 4'b0000 :
+                             (ls_head_size == 3'd1) ? 4'b0001 :
+                             (ls_head_size == 3'd2) ? 4'b0011 :
+                             (ls_head_size == 3'd3) ? 4'b0111 : 4'b1111;
+
+    assign dmem_wdata = ls_second ? ls_wdata_second : ls_wdata_first;
+    assign dmem_wstrb = ls_store ? (ls_second ? ls_head_strobe
+                                              : (ls_size_mask << ls_offset))
+                                 : 4'b0000;
+
+    logic [31:0] ls_tail_mask;
+    logic [31:0] ls_head_mask;
+
+    assign ls_tail_mask = (ls_tail_size == 3'd0) ? 32'd0 :
+                          (ls_tail_size == 3'd1) ? 32'h0000_00FF :
+                          (ls_tail_size == 3'd2) ? 32'h0000_FFFF :
+                          (ls_tail_size == 3'd3) ? 32'h00FF_FFFF :
+                                                   32'hFFFF_FFFF;
+    assign ls_head_mask = (ls_head_size == 3'd0) ? 32'd0 :
+                          (ls_head_size == 3'd1) ? 32'h0000_00FF :
+                          (ls_head_size == 3'd2) ? 32'h0000_FFFF :
+                                                   32'h00FF_FFFF;
     assign ls_rdata_shifted = dmem_rdata >> {ls_offset, 3'b000};
+    assign ls_raw_rdata     = ls_second ? (((dmem_rdata & ls_head_mask) << ({ls_tail_size, 3'b000}))
+                                            | (ls_rdata_lo & ls_tail_mask))
+                                        : (ls_rdata_shifted & ls_data_mask);
 
     always_comb begin
         unique case (funct3)
-            3'b000:  ls_load_data = {{24{ls_rdata_shifted[7]}},  ls_rdata_shifted[7:0]};   // LB
-            3'b100:  ls_load_data = {24'b0,                       ls_rdata_shifted[7:0]};   // LBU
-            3'b001:  ls_load_data = {{16{ls_rdata_shifted[15]}}, ls_rdata_shifted[15:0]};  // LH
-            3'b101:  ls_load_data = {16'b0,                      ls_rdata_shifted[15:0]};  // LHU
-            3'b010:  ls_load_data = ls_rdata_shifted;                                      // LW
-            default: ls_load_data = ls_rdata_shifted;
+            3'b000:  ls_load_data = {{24{ls_raw_rdata[7]}},  ls_raw_rdata[7:0]};   // LB
+            3'b100:  ls_load_data = {24'b0,                  ls_raw_rdata[7:0]};   // LBU
+            3'b001:  ls_load_data = {{16{ls_raw_rdata[15]}}, ls_raw_rdata[15:0]};  // LH
+            3'b101:  ls_load_data = {16'b0,                  ls_raw_rdata[15:0]};  // LHU
+            3'b010:  ls_load_data = ls_raw_rdata;                                  // LW
+            default: ls_load_data = ls_raw_rdata;
         endcase
     end
 
     // Writeback: LUI takes its immediate straight from imm_gen; loads take the
-    // shifted/sign-extended data; JAL/JALR write pc+4; everything else uses the
-    // ALU result.
-    assign rd_wdata = (opcode == OPCODE_LUI) ? imm :
-                      ls_load                ? ls_load_data :
-                      (jump || jalr)         ? (pc + PC_INCR) : alu_y;
+    // assembled/sign-extended data; JAL/JALR write pc+4; everything else uses
+    // the ALU result.  The register-file write is suppressed during the first
+    // cycle of a crossing load so the partial word is not committed early.
+    assign rd_wen_eff = rd_wen & ~ls_first;
+    assign rd_wdata   = (opcode == OPCODE_LUI) ? imm :
+                        ls_load                ? ls_load_data :
+                        (jump || jalr)         ? (pc + PC_INCR) : alu_y;
 
     // Dedicated branch comparator: eq/lt/ltu computed from rs1_data/rs2_data
     // with the funct3 condition select, in parallel with the ALU computing
@@ -263,12 +328,33 @@ module kestrel_core #(
     assign halt       = |dec_halt_cause;
     assign halt_cause = dec_halt_cause;
 
-    // PC register: hold on halt, run otherwise.
+    // PC register: hold on halt or on the first cycle of a cross-word access.
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             pc <= RESET_ADDR;
         end else begin
-            pc <= halt ? pc : next_pc;
+            pc <= halt ? pc : (ls_first ? pc : next_pc);
+        end
+    )
+
+    // Cross-word L/S retry bit: control state only, set on the first beat and
+    // cleared after the second beat.  No FSM in the datapath.
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            ls_retry <= 1'b0;
+        end else begin
+            ls_retry <= ls_first;
+        end
+    )
+
+    // Capture the shifted first-word read data for merging on the retry cycle.
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            ls_rdata_lo <= '0;
+        end else begin
+            if (ls_first) begin
+                ls_rdata_lo <= ls_rdata_shifted;
+            end
         end
     )
 
@@ -287,15 +373,15 @@ module kestrel_core #(
     // register and when the destination is x0 — riscv-formal requires
     // rd_wdata == 0 whenever rd_addr == 0, so the discarded write to x0 is
     // not reported (the regfile discards that write architecturally as
-    // well); mem fields report the rotated address, strobes and data for
-    // every load/store and are zero otherwise; rs fields always reflect the
-    // register-file read ports (x0 reads return 0 naturally).
+    // well); mem fields report the unaligned access address, packed strobes
+    // and assembled data on the final cycle of an access and are zero
+    // otherwise; rs fields always reflect the register-file read ports (x0
+    // reads return 0 naturally).  rvfi_valid is low during the first cycle of
+    // a cross-word access and high only on the final cycle.
     logic rd_wb;
-    logic [3:0] ls_strobe;
 
     assign rd_wb          = rd_wen & (insn[11:7] != 5'd0);
-    assign ls_strobe      = ls_size_mask << ls_offset;
-    assign rvfi_valid     = rst_n & ~halt;
+    assign rvfi_valid     = rst_n & ~halt & ~ls_first;
     assign rvfi_order     = retire_count;
     assign rvfi_pc_rdata  = pc;
     assign rvfi_pc_wdata  = next_pc;
@@ -308,9 +394,9 @@ module kestrel_core #(
     assign rvfi_rd_addr   = rd_wb ? insn[11:7] : 5'd0;
     assign rvfi_rd_wdata  = rd_wb ? rd_wdata  : 32'd0;
     assign rvfi_mem_addr  = ls_active ? alu_y : 32'd0;
-    assign rvfi_mem_rmask = ls_load  ? ls_strobe : 4'd0;
-    assign rvfi_mem_wmask = ls_active & dmem_we ? ls_strobe : 4'd0;
-    assign rvfi_mem_rdata = ls_load  ? ls_rdata_shifted : 32'd0;
-    assign rvfi_mem_wdata = ls_active & dmem_we ? dmem_wdata : 32'd0;
+    assign rvfi_mem_rmask = ls_load   ? ls_size_mask : 4'd0;
+    assign rvfi_mem_wmask = ls_store  ? ls_size_mask : 4'd0;
+    assign rvfi_mem_rdata = ls_load   ? ls_raw_rdata : 32'd0;
+    assign rvfi_mem_wdata = ls_store  ? rs2_data     : 32'd0;
 
 endmodule : kestrel_core

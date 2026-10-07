@@ -71,8 +71,11 @@ class KestrelTB:
                 self.halt_cause = int(self.dut.halt_cause.value)
                 self.halt_pc = int(self.dut.rvfi_pc_rdata.value)
                 break
-            assert int(self.dut.rvfi_valid.value) == 1, \
-                "rvfi_valid low while running (halt not raised)"
+            # Cross-word L/S retires over two cycles: rvfi_valid is low on the
+            # first (retry) beat and high only on the final beat.  Skip the
+            # retry cycles; the trace-length diff catches missing retire beats.
+            if int(self.dut.rvfi_valid.value) == 0:
+                continue
             self.trace.append(self._sample_beat())
         else:
             last_pc = self.trace[-1]["pc"] if self.trace else 0

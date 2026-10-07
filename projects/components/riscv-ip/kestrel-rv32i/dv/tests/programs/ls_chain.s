@@ -5,9 +5,9 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Program: ls_chain
-# Purpose: Store-then-load-back dependent chain.  Each store retires in cycle
-#          N and the following load in cycle N+1, pinning the single-cycle
-#          memory semantics of the kestrel datapath.
+# Purpose: Store-then-load-back dependent chain, including a cross-word
+#          store followed immediately by a cross-word load.  Pins the
+#          two-cycle memory semantics and the full assembled value.
 #
 # Documentation: projects/components/riscv-ip/README.md
 # Subsystem: riscv-ip/kestrel-rv32i
@@ -20,21 +20,22 @@
 _start:
     li    x10, 0x100       # data base address
 
+    # ---- Cross-word word store then load back ----
     li    x11, 0x89ABCDEF
-    sw    x11, 0(x10)      # word store
-    lw    x1,  0(x10)      # load it back immediately
+    sw    x11, 6(x10)      # word store crossing 0x104/0x108
+    lw    x1,  6(x10)      # load it back immediately: full value
 
-    li    x12, 0x1234
-    sh    x12, 0(x10)      # halfword store at offset 0
-    lh    x2,  0(x10)      # load back
+    # ---- Cross-word halfword store then load back ----
+    li    x12, 0xABCD
+    sh    x12, 7(x10)      # halfword store crossing 0x104/0x108
+    lh    x2,  7(x10)      # signed load back
+    lhu   x3,  7(x10)      # unsigned load back
 
-    li    x13, 0xAB
+    # ---- Aligned byte store then load back ----
+    li    x13, 0x80
     sb    x13, 2(x10)      # byte store at offset 2
-    lbu   x3,  2(x10)      # load back unsigned
-
-    li    x14, 0x80
-    sb    x14, 3(x10)      # byte store at offset 3 (sign-extension boundary)
-    lb    x4,  3(x10)      # load back signed
+    lb    x4,  2(x10)      # signed load back
+    lbu   x5,  2(x10)      # unsigned load back
 
     ecall                  # halt, cause 1
     .size _start, . - _start

@@ -42,13 +42,13 @@ word per line, ``@`` records carry WORD indices, sparse (no zero padding).
 ``load_verilog_hex`` returns ``{word_index: word}``; fetches of unwritten
 words return 0 (matching the tb_top zero-initialized memories).
 
-Load/store model (Task 7 ruling R4)
------------------------------------
-The core implements in-word rotated strobes: the byte address offset rotates
-both the strobe and the data by ``offset*8`` bits.  Misaligned accesses that
-cross the 32-bit bus lane boundary are handled inside the addressed word;
-bytes that rotate past bit 31 are dropped.  The interpreter mirrors this
-exactly so the golden trace matches the RTL datapath.
+Load/store model (Task 7)
+--------------------------
+The golden model implements architectural RISC-V misaligned semantics: an
+access that crosses a 32-bit word boundary reads/writes both words and
+assembles the full value.  Aligned and in-word misaligned accesses touch a
+single word.  RVFI mem fields report the unaligned byte address, a packed
+strobe starting at bit 0, and the assembled access data.
 """
 
 MASK32 = 0xFFFFFFFF
@@ -65,24 +65,61 @@ def s32(value):
     return value - (1 << 32) if value & 0x80000000 else value
 
 
-def _size_mask(size):
-    """Byte strobe for a single in-word access (size = 1/2/4 bytes)."""
-    return (1 << size) - 1
-
-
-def _rotate_strobe(size, offset):
-    """Hardware-style rotated 4-bit strobe, truncated to the bus width."""
-    return (_size_mask(size) << offset) & 0xF
+def _data_mask(size):
+    """Bit mask for ``size`` bytes (size = 1/2/4)."""
+    return (1 << (size * 8)) - 1
 
 
 def _store_merge(word, wdata, wstrb):
-    """Merge rotated_wdata into word using the 4-bit byte strobe."""
+    """Merge wdata into word using the 4-bit byte strobe."""
     result = word
     for b in range(4):
         if (wstrb >> b) & 1:
             lo = b * 8
-            result = (result & ~(0xFF << lo)) | ((wdata >> lo) & 0xFF) << lo
+            result = (result & ~(0xFF << lo)) | (((wdata >> lo) & 0xFF) << lo)
     return result & MASK32
+
+
+def _arch_load(dmem, addr, size):
+    """Architectural load: return raw little-endian value of ``size`` bytes."""
+    offset = addr & 0x3
+    if offset + size <= 4:
+        word = dmem.get(addr >> 2, 0)
+        raw = (word >> (offset * 8)) & _data_mask(size)
+    else:
+        tail_size = 4 - offset
+        head_size = size - tail_size
+        word0 = dmem.get(addr >> 2, 0)
+        word1 = dmem.get((addr >> 2) + 1, 0)
+        tail = (word0 >> (offset * 8)) & _data_mask(tail_size)
+        head = word1 & _data_mask(head_size)
+        raw = (head << (tail_size * 8)) | tail
+    return raw & _data_mask(size)
+
+
+def _arch_store(dmem, addr, size, value):
+    """Architectural store: write ``size`` bytes from ``value`` at ``addr``."""
+    offset = addr & 0x3
+    value &= _data_mask(size)
+    if offset + size <= 4:
+        idx = addr >> 2
+        wstrb = ((1 << size) - 1) << offset
+        wdata = value << (offset * 8)
+        dmem[idx] = _store_merge(dmem.get(idx, 0), wdata, wstrb)
+    else:
+        tail_size = 4 - offset
+        head_size = size - tail_size
+        idx0 = addr >> 2
+        idx1 = idx0 + 1
+        tail = value & _data_mask(tail_size)
+        head = (value >> (tail_size * 8)) & _data_mask(head_size)
+        tail_strobe = ((1 << tail_size) - 1) << offset
+        dmem[idx0] = _store_merge(
+            dmem.get(idx0, 0), tail << (offset * 8), tail_strobe
+        )
+        head_strobe = (1 << head_size) - 1
+        dmem[idx1] = _store_merge(dmem.get(idx1, 0), head, head_strobe)
+    return value
 
 
 def load_verilog_hex(path):
@@ -115,34 +152,25 @@ class RV32IInterpreter:
         self.halt_pc = None
 
     def _load(self, addr, size, signed):
-        """Return (rd_val, rmask, rvfi_rdata) for a rotated in-word load."""
-        word = self.dmem.get(addr >> 2, 0)
-        offset = addr & 0x3
-        shift = offset * 8
-        rotated = (word >> shift) & MASK32
-        rmask = _rotate_strobe(size, offset)
+        """Return (rd_val, rmask, rvfi_rdata) for an architectural load."""
+        raw = _arch_load(self.dmem, addr, size)
+        rmask = (1 << size) - 1
         if size == 1:
-            val = rotated & 0xFF
+            val = raw & 0xFF
             if signed:
                 val = sext(val, 8)
         elif size == 2:
-            val = rotated & 0xFFFF
+            val = raw & 0xFFFF
             if signed:
                 val = sext(val, 16)
         else:
-            val = rotated & MASK32
-        return val & MASK32, rmask, rotated
+            val = raw & MASK32
+        return val & MASK32, rmask, raw
 
     def _store(self, addr, size, value):
-        """Commit a rotated in-word store; return (wmask, rvfi_wdata)."""
-        offset = addr & 0x3
-        shift = offset * 8
-        data_mask = (1 << (size * 8)) - 1
-        rotated_wdata = ((value & data_mask) << shift) & MASK32
-        wmask = _rotate_strobe(size, offset)
-        idx = addr >> 2
-        self.dmem[idx] = _store_merge(self.dmem.get(idx, 0), rotated_wdata, wmask)
-        return wmask, rotated_wdata
+        """Commit an architectural store; return (wmask, rvfi_wdata)."""
+        raw = _arch_store(self.dmem, addr, size, value)
+        return (1 << size) - 1, raw
 
     def run(self, max_insns=100_000):
         """Execute until halt (ecall/ebreak) or the retirement budget expires."""
