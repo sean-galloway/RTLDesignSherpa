@@ -642,16 +642,36 @@ def _slope_stats(small, large, key):
     return d_prod, d_win, d_prod / d_win, d_win / d_blocks
 
 
+# Measured per-block costs on this exact RTL. The unified error injector's
+# three-stage block pipeline does not overlap blocks (issue #89): a seam it
+# sits on retires a block in three passes, so the slope window per block is
+# INJ_PASSES x the block's beats -- 189 cycles at full size, 48 on the
+# small profile. The AXI4 flavour's encoder-side codeword output does not
+# pass the injector and streams at line rate at both profiles, while its
+# message channel adds the memory path on top of the passes (370 cycles
+# per block at full size, 92 on the small profile). The board's 100% cw
+# figures in the docstrings below predate the unified injector; board
+# re-measurement is pending. A new profile must be measured and entered in
+# MSG_CPB before its slope test can run.
+INJ_PASSES = 3
+MSG_CPB = {252: 370, 64: 92}
+
+
 @cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_uart_bw_slope(dut):
     """The board's `bw --slope` on the single-solver AXIS image, smaller counts.
 
     Board axis_ribm reads both codeword seams at 100.0% as a slope over
-    64 -> 256 blocks. The sim uses 16 -> 64: the fill is one fixed term, so
-    any two block counts cancel it, and a block's cost here is the register
-    traffic, not its 63 beats. ENABLE_COMPARE=0 matches the board images
-    one-for-one (one riBM decoder, no comparator -- the comparator changes
-    the very handshake the meters measure).
+    64 -> 256 blocks -- on the pre-unification images; the unified error
+    injector now retires each block in three passes (issue #89), which is
+    what this test pins. The sim uses 16 -> 64: the fill is one fixed term,
+    so any two block counts cancel it. ENABLE_COMPARE=0 matches the board
+    images one-for-one (one riBM decoder, no comparator -- the comparator
+    changes the very handshake the meters measure).
+
+    Both profiles: the codeword window per block is INJ_PASSES x cw_beats
+    (189 cycles at full size, 48 on the small profile's 16-beat blocks),
+    while the beats stay at line count (issue #88's calibration).
     """
     drv, _ = await _bringup(dut)
     prof = await cocotb.external(drv.profile)()
@@ -665,9 +685,11 @@ async def cocotb_test_uart_bw_slope(dut):
     cw_beats = -(-n // s)
     for key in ("cw_out", "cw_in"):
         d_prod, d_win, util, per_blk = _slope_stats(small, large, key)
-        assert d_prod == d_win == 48 * cw_beats, (
-            f"{key}: {d_prod} beats in {d_win} cycles over 48 blocks -- "
-            f"line rate is {48 * cw_beats} of each")
+        assert d_prod == 48 * cw_beats, (
+            f"{key}: {d_prod} beats over 48 blocks -- want {48 * cw_beats}")
+        assert d_win == 48 * INJ_PASSES * cw_beats, (
+            f"{key}: window {d_win} cycles, expected {48 * INJ_PASSES * cw_beats} "
+            f"-- sim and board diverge on the same RTL")
     _check_sim_budget(dut, "AXIS slope")
 
 
@@ -680,13 +702,18 @@ async def cocotb_test_uart_axi4_bw_slope(dut):
     AXIS. The ~97%/98.5% this test used to assert (cw_out 3118, cw_in 3069,
     2026-10-01 board figures) was the old slave's per-burst boundary cost,
     paid once per 64-beat burst and surviving the slope difference because
-    the burst count scales with the block count. With the boundary free, the
-    codeword window IS the line rate: 48 blocks x 63 beats = 3024 cycles for
-    both seams. The message channel stays codec-throughput-bound (2832 beats
-    in 11712 cycles, 24.2%) -- the decoder's own pace, not the memory's; it
-    was 11983 before the fix. Board re-measurement against the rebuilt images
-    is pending; until then bandwidth.txt's 2026-10-01 figures describe the
-    OLD slave and this test's numbers are the sim's.
+    the burst count scales with the block count. Those 100% figures describe
+    the PRE-UNIFICATION images: the unified error injector now retires each
+    block in three passes (issue #89), so today's RTL reads cw_out at line
+    rate (the encoder's output does not pass the injector), cw_in at
+    3 x 63 = 189 cycles per block, and the message channel at 370 -- the
+    old 244 plus the injector's two extra passes. Board re-measurement
+    against the rebuilt images is pending; until then this test's numbers
+    are the sim's, as are the small-profile ones below.
+
+    On the small profile the same split holds at 16-beat blocks: cw_out at
+    line rate (16 cycles per block), cw_in at 3 x 16 = 48, and the message
+    channel at 92 cycles per block (issues #88, #89).
     """
     drv, _ = await _bringup(dut)
     topo = await cocotb.external(drv.topology)()
@@ -701,21 +728,23 @@ async def cocotb_test_uart_axi4_bw_slope(dut):
                   progs.bandwidth_slope(small, large, n, k, s))
     cw_beats = -(-n // s)
     msg_beats = -(-k // s)
-    for key, beats, win in (("cw_out", 48 * cw_beats, 3024),
-                            ("cw_in", 48 * cw_beats, 3024),
-                            ("in", 48 * msg_beats, 11712),
-                            ("out", 48 * msg_beats, 11712)):
+    for key, beats, cpb in (("cw_out", cw_beats, cw_beats),
+                            ("cw_in", cw_beats, INJ_PASSES * cw_beats),
+                            ("in", msg_beats, MSG_CPB[n]),
+                            ("out", msg_beats, MSG_CPB[n])):
         d_prod, d_win, util, per_blk = _slope_stats(small, large, key)
-        assert d_prod == beats, f"{key}: {d_prod} beats, want {beats}"
-        assert d_win == win, (
-            f"{key}: window {d_win} cycles, expected {win} -- "
+        assert d_prod == 48 * beats, (
+            f"{key}: {d_prod} beats, want {48 * beats}")
+        assert d_win == 48 * cpb, (
+            f"{key}: window {d_win} cycles, expected {48 * cpb} -- "
             "sim and board diverge on the same RTL")
-        if key.startswith("cw"):
+        if key.startswith("cw") and cpb == beats:
             assert d_prod == d_win, (
                 f"{key}: read {util:.1%} -- the codeword seam must be at "
                 "line rate now that the slave boundary is free")
         else:
-            assert d_prod < d_win, f"{key}: read {util:.1%} -- the message channel is codec-bound"
+            assert d_prod < d_win, (
+                f"{key}: read {util:.1%} -- the channel is codec-bound")
     _check_sim_budget(dut, "AXI4 slope")
 
 

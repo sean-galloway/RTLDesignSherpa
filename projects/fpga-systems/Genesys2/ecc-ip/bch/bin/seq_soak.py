@@ -19,6 +19,7 @@ default 16).
 """
 from __future__ import annotations
 
+from math import comb
 import random
 import time
 
@@ -37,6 +38,7 @@ class Soak(Sequence):
         drv = ctx.bus
         prof = ctx.result("init").profile
         t, n, k = prof["t"], prof["n"], prof["k"]
+        m = prof["m"]
 
         target = ctx.param("target", 1_000_000)
         blocks = ctx.param("blocks", 4096)
@@ -103,6 +105,19 @@ class Soak(Sequence):
                         f"{done / el:.0f} blk/s  clean/corr/unc="
                         f"{clean}/{corrected}/{uncorrectable}  {len(failures)} failing run(s)")
 
+        # A ceiling, not an expectation -- and calibrated to the code's
+        # geometry, not universal. Any bounded-distance decoder intrinsically
+        # accepts ~C(n,t)/2^(mt) of beyond-t words: the A7 campaign's
+        # reference model measured 15.6% on the small profile against this
+        # 15.0% heuristic (issue #86), so where the floor beats the legacy
+        # 1e-2 the ceiling must rise above the physics. The 1.25 margin sits
+        # ~11 binomial sigma over the model rate at the A7 soak's sample size
+        # -- a decoder with a real accept bug sails past it, sampling noise
+        # cannot reach it.
+        base = ctx.param("miscorrect_ceiling", 1e-2)
+        floor = comb(n, t) / 2 ** (m * t)
+        ceiling = max(base, 1.25 * floor)
+
         el = time.time() - t0
         rate_mis = miscorrected / over_t_blocks if over_t_blocks else 0.0
         ctx.say(f"[soak] {done} blocks in {el:.0f}s ({done / max(el, 1e-9):.0f} blk/s); "
@@ -111,13 +126,15 @@ class Soak(Sequence):
         if over_t_blocks:
             ctx.say(f"[soak] beyond the threshold: {miscorrected} of {over_t_blocks} blocks "
                     f"were accepted and silently mis-decoded "
-                    f"({rate_mis:.2e}, 1 in {over_t_blocks / max(miscorrected, 1):.0f})")
+                    f"({rate_mis:.2e}, 1 in {over_t_blocks / max(miscorrected, 1):.0f}); "
+                    f"the code's intrinsic floor on this geometry is ~{floor:.2e}, "
+                    f"ceiling {ceiling:.2e}")
 
-        CEILING = ctx.param("miscorrect_ceiling", 1e-2)
-        if over_t_blocks and rate_mis > CEILING:
+        if over_t_blocks and rate_mis > ceiling:
             raise RuntimeError(
                 f"beyond the threshold {miscorrected} of {over_t_blocks} blocks were "
-                f"accepted ({rate_mis:.2e}), over the {CEILING:.0e} ceiling -- the "
+                f"accepted ({rate_mis:.2e}), over the {ceiling:.2e} ceiling "
+                f"(base {base:.0e}, code floor {floor:.2e} x 1.25) -- the "
                 f"decoder is accepting blocks it should be flagging")
         if failures:
             raise RuntimeError(f"{len(failures)} soak run(s) failed out of "
