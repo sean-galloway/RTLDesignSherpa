@@ -219,6 +219,17 @@ filelist_dirs = [
     "projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/dv/filelists",
 ]
 
+[[area]]
+name = "riscv-ip/kestrel-rv32i"
+kind = "component"
+# Single-cycle RV32I core (falcon-suite rung 1). Registered 2026-10-06 with
+# no RTL yet -- Tasks 3-8 will append to rtl/filelists/kestrel.f.
+rtl_roots = ["projects/components/riscv-ip/kestrel-rv32i/rtl"]
+filelist_dirs = [
+    "projects/components/riscv-ip/kestrel-rv32i/rtl/filelists",
+    "projects/components/riscv-ip/kestrel-rv32i/dv/filelists",
+]
+
 # ---------------------------------------------------------------------------
 # Board / characterization projects. These own little or no library RTL; they
 # assemble the areas above. Coverage is not enforced, but the no-hand-listing
