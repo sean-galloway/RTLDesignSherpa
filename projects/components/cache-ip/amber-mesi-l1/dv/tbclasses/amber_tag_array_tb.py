@@ -26,7 +26,7 @@ from TBClasses.shared.tbbase import TBBase
 class AmberTagArrayTB(TBBase):
     """Drives amber_tag_array and scores both lookup ports against a model."""
 
-    OP_COUNTS = {'gate': 16, 'func': 128, 'full': 1024}
+    OP_COUNTS = {'gate': 16, 'func': 2048, 'full': 4096}
 
     def __init__(self, dut, **kwargs):
         super().__init__(dut)
@@ -117,6 +117,16 @@ class AmberTagArrayTB(TBBase):
         for way in range(self.WAYS):
             await self.write_entry(0, way, self._entry_value(0, way))
         await self.read_check_set(0)
+
+        # Directed (all levels): read-after-write on the same set with no
+        # idle between the write edge and the read -- catches storage that
+        # defers writes or services reads from stale state. Boundary sets
+        # included.
+        for set_idx in (0, self.SETS - 1):
+            for way in range(self.WAYS):
+                val = self._entry_value(set_idx, way) ^ 0x5A5A
+                await self.write_entry(set_idx, way, val)
+                await self.read_check_set(set_idx)
 
         # Level-scaled random traffic: writes then spot reads on both ports.
         n_ops = self.OP_COUNTS[self.TEST_LEVEL]

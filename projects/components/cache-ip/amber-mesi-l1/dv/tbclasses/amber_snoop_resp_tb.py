@@ -40,8 +40,8 @@ class AmberSnoopRespTB(TBBase):
     # (profile, snoop count, control ready delay range, beat gap range)
     LEVELS = {
         'gate': ('fast', None, (0, 0), (0, 0)),              # directed cells
-        'func': ('gaxi_backpressure', 300, (0, 3), (0, 2)),
-        'full': ('gaxi_stress', 3000, (0, 8), (0, 4)),
+        'func': ('gaxi_backpressure', 600, (0, 3), (0, 2)),
+        'full': ('gaxi_stress', 6000, (0, 8), (0, 4)),
     }
 
     # IHI0022 ACSNOOP -> internal order for the model
@@ -218,6 +218,17 @@ class AmberSnoopRespTB(TBBase):
             pool = [0x2000 + i * self.LINE_BYTES for i in range(64)]
             for a in pool:
                 self.seed_line(a)
+            # Directed (func/full): pipelining across transactions. The AC
+            # skid exists so the master can present the next snoop while the
+            # current response is still sequencing -- issue zero-gap pairs
+            # and same-line pairs and verify both responses against the
+            # evolving model with no idle between them.
+            for addr in pool[:8]:
+                self.seed_line(addr, 'M')
+                st = self.SNOOPS[0]
+                await self.issue_and_check(addr, st)
+                await self.issue_and_check(addr, st)      # same line, evolved
+                await self.issue_and_check(addr, self.SNOOPS[3])
             for n in range(self.n_snoops):
                 addr = random.choice(pool)
                 if addr not in self.line_data and random.random() < 0.5:

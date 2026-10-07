@@ -24,7 +24,7 @@ from TBClasses.shared.tbbase import TBBase
 class AmberDataArrayTB(TBBase):
     """Drives amber_data_array and scores both read ports against a model."""
 
-    OP_COUNTS = {'gate': 16, 'func': 128, 'full': 1024}
+    OP_COUNTS = {'gate': 16, 'func': 2048, 'full': 4096}
 
     def __init__(self, dut, **kwargs):
         super().__init__(dut)
@@ -136,6 +136,16 @@ class AmberDataArrayTB(TBBase):
             await self.write_beat(0, 0, 1, 0x5A & ((1 << self.BUS_WIDTH) - 1),
                                   1 << (self.STRB_W - 1))
             await self.read_check(0, 0, 1)
+
+        # Directed (full): byte-enable sweep -- every nonzero partial mask,
+        # each preserving the bytes it does not select.
+        if self.TEST_LEVEL == 'full' and self.STRB_W > 1:
+            base = random.randrange(1 << self.BUS_WIDTH)
+            for mask in range(1, 1 << self.STRB_W):
+                await self.write_beat(0, 1, 0, base, (1 << self.STRB_W) - 1)
+                patch = random.randrange(1 << self.BUS_WIDTH)
+                await self.write_beat(0, 1, 0, patch, mask)
+                await self.read_check(0, 1, 0)
 
         # Level-scaled random traffic, mixing full and partial writes.
         n_ops = self.OP_COUNTS[self.TEST_LEVEL]

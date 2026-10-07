@@ -131,7 +131,7 @@ class TreePlruModel:
 class AmberReplTB(TBBase):
     """Drives amber_repl and scores the victim way against a policy model."""
 
-    OP_COUNTS = {'gate': 200, 'func': 2000, 'full': 20000}
+    OP_COUNTS = {'gate': 200, 'func': 4000, 'full': 40000}
     MODELS = {'lru': LruModel, 'fifo': FifoModel,
               'random': RandomModel, 'tree_plru': TreePlruModel}
 
@@ -233,6 +233,29 @@ class AmberReplTB(TBBase):
             await RisingEdge(self.dut.clk)
             self.dut.repl_req.value = 0
 
+        # Directed (all levels): single-set saturation. Hammer one set far
+        # past its associativity, hitting a victim after every install --
+        # this is where rank/ring/tree corruption shows up first.
+        for set_idx in (0, self.SETS // 2, self.SETS - 1):
+            for i in range(4 * self.WAYS):
+                await self._op(set_idx, do_hit=(i % 3 == 0), op_idx=-1)
+
+        if self.TEST_LEVEL == 'full':
+            # Adversarial recency patterns, victim checked every step:
+            #  1. cyclic scan 0..W-1 -- the classic pseudo-LRU pathological
+            #     pattern (a true LRU must still pick the scan start).
+            #  2. hit-run: touch ways W-1 down to 0 in order, then verify
+            #     the victim is the least-recently-touched way.
+            sets = random.sample(range(self.SETS), min(self.SETS, 4))
+            for set_idx in sets:
+                for _ in range(3):
+                    for w in range(self.WAYS):
+                        await self._hit_way(set_idx, w)
+                await self._op(set_idx, do_hit=True, op_idx=-1)
+                for w in reversed(range(self.WAYS)):
+                    await self._hit_way(set_idx, w)
+                await self._op(set_idx, do_hit=True, op_idx=-1)
+
         n_ops = self.OP_COUNTS[self.TEST_LEVEL]
         self.log.info(f"amber_repl: {n_ops} policy ops at {self.TEST_LEVEL}")
         for i in range(n_ops):
@@ -242,6 +265,16 @@ class AmberReplTB(TBBase):
                 await self._op(random.randrange(self.SETS),
                                do_hit=(random.random() < 0.5), op_idx=i)
         return self.mismatches == 0
+
+    async def _hit_way(self, set_idx, way):
+        """A hit on an explicit way (directed patterns)."""
+        self.dut.repl_set.value = set_idx
+        self.dut.repl_hit.value = 1
+        self.dut.repl_hit_way.value = way
+        await RisingEdge(self.dut.clk)
+        self.dut.repl_hit.value = 0
+        if self.model.UPDATES_ON_HIT:
+            self.model.update(set_idx, way)
 
     def get_test_report(self):
         return {'checks': self.checks, 'mismatches': self.mismatches}
