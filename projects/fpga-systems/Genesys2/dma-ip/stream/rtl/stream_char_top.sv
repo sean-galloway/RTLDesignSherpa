@@ -158,9 +158,14 @@ module stream_char_top #(
                                 w_any_error,        // [1]
                                 w_stream_irq};      // [0]
 
-    assign w_led_status_result = (w_timer_pass ? LED_PATTERN_PASS : LED_PATTERN_FAIL);
-    // Bit 3 of both patterns is 0; substitute the live heartbeat there.
-    assign w_led_status_result[3] = w_heartbeat[3];
+    // One always_comb: bit 3 is the live heartbeat overriding the pattern
+    // bit. Two overlapping continuous assigns (whole vector + bit select)
+    // multiply-drive the net -- Vivado synth rewires that into neighboring
+    // cones (caught as DRC MDRV-1 on u_harness/o_heartbeat).
+    always_comb begin
+        w_led_status_result = w_timer_pass ? LED_PATTERN_PASS : LED_PATTERN_FAIL;
+        w_led_status_result[3] = w_heartbeat[3];
+    end
 
     assign w_led_status = w_timer_done ? w_led_status_result : w_led_status_idle;
 
