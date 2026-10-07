@@ -1,0 +1,4 @@
+# Generated riscv-formal task dirs — regenerate with `make checks` in this
+# directory.  genchecks.py owns checks/ (it rmtrees and rewrites it), so
+# nothing inside is committed; the rtl_v/ sv2v output lives inside it.
+/checks/
