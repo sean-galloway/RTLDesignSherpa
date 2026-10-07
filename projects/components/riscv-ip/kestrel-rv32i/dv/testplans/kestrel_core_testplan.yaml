@@ -1,0 +1,294 @@
+# Testplan for kestrel_core
+# Maps functional test scenarios to verification coverage (top level).
+# STATUS: ISA classes, branches/jumps (incl. IALIGN halt), loads/stores
+# (incl. cross-word retry), system layer, the rv32ui battery, and spike
+# lockstep are verified. Two full-level gaps are declared and tracked:
+# CORE-17 (randomized-stream fuzz vs spike lockstep) and CORE-18
+# (functional coverage closure) — Phase C owns both.
+
+module: kestrel_core
+rtl_file: projects/components/riscv-ip/kestrel-rv32i/rtl/top/kestrel_core.sv
+test_file:
+  - projects/components/riscv-ip/kestrel-rv32i/dv/tests/test_kestrel_core.py
+  - projects/components/riscv-ip/kestrel-rv32i/dv/tests/test_kestrel_branch.py
+  - projects/components/riscv-ip/kestrel-rv32i/dv/tests/test_kestrel_ls.py
+  - projects/components/riscv-ip/kestrel-rv32i/dv/tests/test_kestrel_rv32ui.py
+  - projects/components/riscv-ip/kestrel-rv32i/dv/tests/test_kestrel_mem_loader.py
+
+# Module description:
+# Single-cycle RV32I core: PC register, decode truth table, immediate
+# generator, ALU, register file, writeback mux, next-PC mux, halt holding
+# register, and first-class RVFI retire ports. Loads/stores rotate byte
+# strobes; a cross-word access holds PC for one retry cycle and retires over
+# two beats (rvfi_valid low on the first). Decode halt causes 1/2/F latch the
+# halt register; a taken branch/jump/jalr to a non-4-aligned target raises
+# cause 3 (HALT_IALIGN). The halting instruction retires as an rvfi_trap
+# beat, then rvfi_valid stays low forever and the PC freezes.
+
+parameters:
+  - name: RESET_ADDR
+    default: 32'h0000_0000
+    description: "Reset fetch address; tested at 0x0, 0x100, and the
+                  riscv-tests link base 0x80000000"
+
+functional_scenarios:
+  - id: CORE-01
+    name: "Review focus pins: x0 discard and dependent ALU back-to-back"
+    description: "focus.hex: addi x0,x0,5 / add x0,x1,x2 must retire with
+                  rd_addr=0/rd_wdata=0 on the RVFI trace, and back-to-back
+                  dependent ALU ops must produce golden writebacks — diffed
+                  full-field against RV32IInterpreter."
+    test_function: "cocotb_test_kestrel_core_focus"
+    test_level: func
+    priority: high
+    status: verified
+    covers_lines: [309, 310, 313, 448, 450, 461, 462]
+
+  - id: CORE-02
+    name: "OP / OP-IMM sweep vs golden (incl. LUI/AUIPC)"
+    description: "rv32ui_ops.hex runs one vector per R-type and I-type ALU op
+                  plus lui/auipc: every RVFI beat (pc, insn, rs1/rs2 rdata,
+                  rd writeback, pc_wdata) must equal the golden interpreter;
+                  the two x0-discard vectors must appear in the trace."
+    test_function: "cocotb_test_kestrel_core_ops"
+    test_level: func
+    priority: high
+    status: verified
+    covers_lines: [182, 183, 189, 191, 199, 310, 313]
+
+  - id: CORE-03
+    name: "Reset vector: first fetch is exactly RESET_ADDR"
+    description: "focus_at_0x100.hex with RESET_ADDR=0x100: the first retired
+                  beat's pc_rdata must be 0x100 (check_first_pc), and the
+                  trace must match the golden model relocated to 0x100."
+    test_function: "cocotb_test_kestrel_core_reset_vector"
+    test_level: gate
+    priority: high
+    status: verified
+    covers_lines: [392, 393, 394]
+
+  - id: CORE-04
+    name: "RVFI invariants on every run"
+    description: "All golden-trace cases assert the protocol invariants:
+                  rvfi_order is 0,1,2,...; first pc == RESET_ADDR; rd_wdata==0
+                  whenever rd_addr==0; halt cause/pc match golden; post-halt
+                  sampling pins halt held, rvfi_valid low, PC frozen."
+    test_function: "cocotb_test_kestrel_core_focus"
+    test_level: gate
+    priority: high
+    status: verified
+    covers_lines: [422, 423, 424, 425, 426, 427, 428, 451, 452, 453, 461, 462]
+
+  - id: CORE-05
+    name: "Branches: all six conditions, taken and not-taken"
+    description: "branch_all.hex covers beq/bne/blt/bge/bltu/bgeu in both
+                  directions across equal/less/greater operands (signed and
+                  unsigned corners): every retired pc_wdata must follow the
+                  golden taken path via the dedicated rs1/rs2 comparator."
+    test_function: "cocotb_test_kestrel_branch_all"
+    test_level: func
+    priority: high
+    status: verified
+    covers_lines: [319, 320, 321, 322, 325, 326, 327, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 341, 348, 349]
+
+  - id: CORE-06
+    name: "JAL / JALR: link values and target alignment"
+    description: "jal_jalr.hex: JAL forward/backward, JALR through a register
+                  target, and the LSB-clear rule ((rs1+imm)&0xFFFFFFFE): link
+                  rd_wdata must be pc+4 on every JAL/JALR beat, and pc_wdata
+                  must follow the golden target sequence."
+    test_function: "cocotb_test_kestrel_branch_jal_jalr"
+    test_level: func
+    priority: high
+    status: verified
+    covers_lines: [88, 345, 346, 347, 313]
+
+  - id: CORE-07
+    name: "Taken-loop timing path (sum 1..10)"
+    description: "loop_sum.hex: a taken add-loop must retire the golden beat
+                  count with correct pc sequencing and final x-register
+                  writebacks (trace diff), pinning the single-cycle taken-
+                  branch path."
+    test_function: "cocotb_test_kestrel_branch_loop_sum"
+    test_level: func
+    priority: high
+    status: verified
+
+  - id: CORE-08
+    name: "Aligned loads/stores: every size and sign"
+    description: "ls_basic.hex: word/halfword/byte stores then lb/lbu/lh/lhu/
+                  lw readbacks at aligned addresses: rvfi_mem_addr/rmask/
+                  wmask/rdata/wdata plus rd writebacks must equal golden for
+                  every access (the TB memory honors the rotated strobe with
+                  a per-byte merge)."
+    test_function: "cocotb_test_kestrel_ls_basic"
+    test_level: func
+    priority: high
+    status: verified
+    covers_lines: [230, 231, 232, 235, 244, 245, 246, 247, 248, 261, 268, 269, 270, 271, 290, 291, 292, 293, 294, 295, 296, 297, 463, 464, 465, 466, 467]
+
+  - id: CORE-09
+    name: "In-word misaligned accesses: rotated strobes"
+    description: "ls_misaligned.hex: sh/sb and lh/lhu/lb/lbu at word offsets
+                  1..3 that stay inside one word: the rotated dmem_wstrb and
+                  shifted wdata must land the right bytes (TB byte-merge
+                  contract) and the assembled rdata must match golden."
+    test_function: "cocotb_test_kestrel_ls_misaligned"
+    test_level: func
+    priority: high
+    status: verified
+    covers_lines: [233, 258, 259, 261, 268, 269, 270, 271, 285]
+
+  - id: CORE-10
+    name: "Cross-word L/S: PC-hold retry cycle and two-beat retire"
+    description: "ls_misaligned.hex and ls_chain.hex include sw/sh crossing
+                  a word boundary (offsets 1..3): the first beat must hold PC
+                  (rvfi_valid low), the retry beat issues at the next word
+                  with the head strobe/data, and the final assembled value
+                  (lw/lh/lhu readbacks) must equal golden."
+    test_function: "cocotb_test_kestrel_ls_misaligned"
+    test_level: full
+    priority: high
+    status: verified
+    covers_lines: [251, 252, 253, 254, 255, 256, 257, 258, 259, 263, 268, 269, 285, 286, 287, 288, 391, 396, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418, 419, 451]
+
+  - id: CORE-11
+    name: "Store-to-load dependency: single-cycle memory visibility"
+    description: "ls_chain.hex: a cross-word store immediately followed by
+                  the load of the same address must return the full assembled
+                  stored value — pinning that stores are visible to the very
+                  next cycle's load (combinational-read memory contract)."
+    test_function: "cocotb_test_kestrel_ls_chain"
+    test_level: func
+    priority: high
+    status: verified
+
+  - id: CORE-12
+    name: "System layer: FENCE/FENCE.I NOPs, ECALL/EBREAK halt+hold"
+    description: "system_fence.hex / system_ecall.hex / system_ebreak.hex:
+                  the three fence beats must retire with no rd/mem side
+                  effects and pc+4; ecall/ebreak must halt with cause 1/2,
+                  retire the rvfi_trap beat (no rd write, no mem fields),
+                  then hold halt with rvfi_valid low and PC frozen."
+    test_function: "cocotb_test_kestrel_rv32ui_system"
+    test_level: func
+    priority: high
+    status: verified
+    covers_lines: [369, 380, 381, 382, 383, 384, 385, 386, 388, 389, 392, 396, 451, 456]
+
+  - id: CORE-13
+    name: "IALIGN halt: misaligned taken control-flow target (cause 3)"
+    description: "system_misalign_jmp.hex: the aligned JAL at the top must
+                  retire normally (link x1=pc+4), then the +2-offset JAL must
+                  halt with cause 3 — its trap beat carries the misaligned
+                  target on pc_wdata, the rd writeback is suppressed, and the
+                  core holds. This is the Task-9 riscv-formal CEX fix."
+    test_function: "cocotb_test_kestrel_rv32ui_system"
+    test_level: full
+    priority: high
+    status: verified
+    covers_lines: [374, 375, 376, 377, 378, 388, 389, 396, 450, 451, 456]
+
+  - id: CORE-14
+    name: "rv32ui-p-* battery: all 42 vendor images pass"
+    description: "Every rv32ui-p-*.hex image runs to the ecall halt with
+                  gp==1 (tohost convention; the store port is also watched):
+                  gate runs the simple/add/addi smoke subset, func and full
+                  run all 42. Archived summaries: 42/42 at func and full,
+                  3/3 at gate (logs/rv32ui_battery/)."
+    test_function: "cocotb_test_kestrel_rv32ui_battery"
+    test_level: full
+    priority: high
+    status: verified
+
+  - id: CORE-15
+    name: "Spike lockstep: (pc, insn) stream and trap records"
+    description: "At func level each battery image is also diffed against
+                  `spike --isa=RV32I -l` commit records: the (pc, insn) stream
+                  must match 1:1, mid-stream spike exceptions must only be the
+                  investigated CSR-stub divergence (mnstatus, counted and
+                  reported), spike must trap at the halt pc, and spike's exit
+                  code must confirm tohost==1. Uses the hardware-misaligned
+                  spike 1.1.0 build (KESTREL_SPIKE)."
+    test_function: "cocotb_test_kestrel_rv32ui_battery"
+    test_level: func
+    priority: high
+    status: verified
+
+  - id: CORE-16
+    name: "Board path: battery through the AXIL loader"
+    description: "The same battery contract with images streamed through
+                  kestrel_mem_loader's AXIL port (KestrelLoaderTB): golden
+                  full-field diff plus spike lockstep at func, gate/full run
+                  the simple/add/addi subset — logs/rv32ui_battery_loader
+                  shows 3/3 at every level. Detailed scenarios live in
+                  kestrel_mem_loader_testplan.yaml (ML-01..ML-07)."
+    test_function: "cocotb_test_kestrel_mem_loader_golden"
+    test_level: func
+    priority: high
+    status: verified
+
+  - id: CORE-17
+    name: "Randomized instruction-stream fuzz vs spike lockstep"
+    description: "Declared gap (Phase C): every stimulus today is a directed
+                  program or a vendor image. A SEED-driven random RV32I
+                  instruction stream (constrained to halt) diffed against
+                  spike's commit log at full level would close the remaining
+                  opcode/interaction space the golden programs do not reach."
+    test_function: "cocotb_test_kestrel_fuzz_stream"
+    test_level: full
+    priority: high
+    status: not_implemented
+
+  - id: CORE-18
+    name: "Functional coverage closure"
+    description: "Declared gap (Phase C): no covergroup/cover-property
+                  collection exists for kestrel yet — coverage today is
+                  implied-via-scenario only (this directory). Phase C will
+                  define the cover model (ISA classes, halt causes, L/S
+                  offset x size cross, retry paths) and wire it into the
+                  regression."
+    test_function: "test_kestrel_core[coverage-closure]"
+    test_level: full
+    priority: medium
+    status: not_implemented
+
+parameter_coverage:
+  - RESET_ADDR: 0x00000000
+    test_level: full
+    status: verified
+  - RESET_ADDR: 0x00000100
+    test_level: full
+    status: verified
+  - RESET_ADDR: 0x80000000
+    test_level: full
+    status: verified
+
+implied_coverage:
+  total_scenarios: 18
+  scenario_tracked: 16
+  implied_covered: 16
+  implied_percentage: 88.9
+
+notes: |
+  Test tops: kestrel_tb_top (behavioral unified 64 Ki word memory, +imem
+  plusarg load, tb_mem_* backdoor for the battery) and kestrel_loader_tb_top
+  (core behind kestrel_mem_loader). The RV32IInterpreter golden model
+  implements architectural misaligned L/S semantics so cross-word accesses
+  diff as one retired beat; the TB sampler skips the retry cycle and the
+  trace-length diff catches a missing retire.
+
+  Level semantics (REG_LEVEL grid from make/tests.mk): GATE runs one gate
+  cell per case, FUNC adds the func cell, FULL adds the full cell. Scenario
+  test_level fields name the deepest cell at which the scenario is claimed.
+  The rv32ui battery reads TEST_LEVEL inside the sim: gate = 3-image smoke,
+  func = 42 images + spike lockstep, full = 42 images without lockstep.
+
+  Phase C owns the two not_implemented scenarios (CORE-17 fuzz, CORE-18
+  coverage closure). The planned test_function strings are placeholders that
+  intentionally match no current JUnit node, so the coverage tracker keeps
+  reporting them as not implemented until the tests land.
+
+  Related verification not claimed here: riscv-formal (formal/kestrel/
+  riscv-formal, 42/42 insn checks per the riscv-ip README) — a SymbiYosys
+  flow with no JUnit output, tracked outside this plan set.

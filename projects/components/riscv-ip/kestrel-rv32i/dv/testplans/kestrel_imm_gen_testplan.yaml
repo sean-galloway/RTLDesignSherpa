@@ -1,0 +1,98 @@
+# Testplan for kestrel_imm_gen
+# Maps functional test scenarios to verification coverage.
+# STATUS: all five immediate formats verified with sign-extension vectors;
+# a randomized sweep is the one declared gap (IG-06).
+
+module: kestrel_imm_gen
+rtl_file: projects/components/riscv-ip/kestrel-rv32i/rtl/fub/kestrel_imm_gen.sv
+test_file: projects/components/riscv-ip/kestrel-rv32i/dv/tests/test_kestrel_decode.py
+
+# Module description:
+# RV32I immediate sign-extension unit: selects and assembles the I/S/B/U/J
+# immediates from the instruction word (imm_sel_e). I/S/B/J sign-extend from
+# insn[31]; B and J force LSB=0; U is not sign-extended (insn[31:12] << 12).
+
+parameters: []
+
+functional_scenarios:
+  - id: IG-01
+    name: "I-format immediate, both signs"
+    description: "IMM_VECTORS drive addi x1, x2, +5 and addi x1, x2, -5:
+                  imm must sign-extend insn[31:20] to 0x00000005 / 0xFFFFFFFB."
+    test_function: "cocotb_test_kestrel_imm_gen"
+    test_level: gate
+    priority: high
+    status: verified
+    covers_lines: [42]
+
+  - id: IG-02
+    name: "S-format immediate, both signs"
+    description: "sw x3, 4(x2) and sw x3, -4(x2): imm must assemble
+                  insn[31:25]|insn[11:7] as 0x00000004 / 0xFFFFFFFC."
+    test_function: "cocotb_test_kestrel_imm_gen"
+    test_level: gate
+    priority: high
+    status: verified
+    covers_lines: [43, 44]
+
+  - id: IG-03
+    name: "B-format immediate, both signs, LSB forced 0"
+    description: "beq forward (+4) and beq backward (-4): imm must assemble
+                  the scattered B bits with LSB=0 and sign-extend the 13-bit
+                  result (0x00000004 / 0xFFFFFFFC)."
+    test_function: "cocotb_test_kestrel_imm_gen"
+    test_level: gate
+    priority: high
+    status: verified
+    covers_lines: [46, 47, 48, 49, 50]
+
+  - id: IG-04
+    name: "U-format upper immediate"
+    description: "lui x1, 0x12345: imm must be {insn[31:12], 12'b0} =
+                  0x12345000 (no sign extension past bit 31 by construction)."
+    test_function: "cocotb_test_kestrel_imm_gen"
+    test_level: gate
+    priority: high
+    status: verified
+    covers_lines: [51]
+
+  - id: IG-05
+    name: "J-format immediate, both signs, LSB forced 0"
+    description: "jal +4 / jal -4: imm must assemble the scattered J bits
+                  (insn[31], insn[19:12], insn[20], insn[30:21], 1'b0) and
+                  sign-extend the 21-bit result (0x00000004 / 0xFFFFFFFC)."
+    test_function: "cocotb_test_kestrel_imm_gen"
+    test_level: gate
+    priority: high
+    status: verified
+    covers_lines: [52, 53, 54, 55, 56]
+
+  - id: IG-06
+    name: "Randomized immediate sweep vs golden"
+    description: "Declared gap: IMM_VECTORS is 9 directed encodings. A SEED-
+                  driven sweep (random insn words x all 5 sels against
+                  imm_golden) would close bit-position nits in the B/J scatter
+                  maps. Planned as an extension of cocotb_test_kestrel_imm_gen."
+    test_function: "cocotb_test_kestrel_imm_gen (randomized sweep)"
+    test_level: full
+    priority: low
+    status: not_implemented
+
+parameter_coverage: []
+
+implied_coverage:
+  total_scenarios: 6
+  scenario_tracked: 5
+  implied_covered: 5
+  implied_percentage: 83.3
+
+notes: |
+  `cocotb_test_kestrel_imm_gen` lives in test_kestrel_decode.py and is
+  selected from DUT_CASES ("kestrel_imm_gen", toplevel=kestrel_imm_gen);
+  gate/func/full cells all pass under
+  dv/tests/local_sim_build/cocotb_test_kestrel_imm_gen_{gate,func,full}/.
+
+  IG-06 stays not_implemented on purpose: the directed vectors cover every
+  format in both signs plus the B/J LSB-zero rule, but they are nine points,
+  not a sweep. The golden model (imm_golden in the test file) already exists
+  for the randomized extension.

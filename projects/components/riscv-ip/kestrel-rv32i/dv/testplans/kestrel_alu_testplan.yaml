@@ -1,0 +1,96 @@
+# Testplan for kestrel_alu
+# Maps functional test scenarios to verification coverage.
+# STATUS: all unit scenarios verified at gate/func/full (exhaustive golden-model
+# sweep). Note: eq/lt/ltu are verified at unit level but are deliberately left
+# unconnected inside kestrel_core (branch decisions use a dedicated comparator).
+
+module: kestrel_alu
+rtl_file: projects/components/riscv-ip/kestrel-rv32i/rtl/fub/kestrel_alu.sv
+test_file: projects/components/riscv-ip/kestrel-rv32i/dv/tests/test_kestrel_decode.py
+
+# Module description:
+# RV32I ALU and branch comparator: 10 alu_op_e operations on 32-bit a/b with
+# 32-bit y plus eq/lt/ltu comparison flags. Shifts take shamt = b[4:0]; SRA
+# is sign-propagating; SLT/SLTU zero-extend their comparison result.
+
+parameters: []
+
+functional_scenarios:
+  - id: ALU-01
+    name: "ADD / SUB arithmetic with 32-bit wraparound"
+    description: "Drive op=ADD/SUB across the corner+random value matrix
+                  (0x0, 0x1, 0xFFFFFFFF, 0x7FFFFFFF, 0x80000000, 0x55555555,
+                  0xAAAAAAAA, 0x12345678, 0xFEDCBA98, plus 8 SEED-random
+                  values): y must match the Python golden model truncated to
+                  32 bits (overflow wraps)."
+    test_function: "cocotb_test_kestrel_alu"
+    test_level: func
+    priority: high
+    status: verified
+    covers_lines: [47, 48]
+
+  - id: ALU-02
+    name: "AND / OR / XOR logical operations"
+    description: "Same value matrix on op=AND/OR/XOR: y must equal the golden
+                  bitwise result."
+    test_function: "cocotb_test_kestrel_alu"
+    test_level: func
+    priority: high
+    status: verified
+    covers_lines: [49, 50, 51]
+
+  - id: ALU-03
+    name: "SLL / SRL / SRA shifts with b[4:0] shamt"
+    description: "Shift ops over the matrix: shamt is b[4:0] (values with
+                  bit5+ set must behave as shamt mod 32); SRL logical,
+                  SRA arithmetic (sign-propagating on 0x80000000 and negative
+                  golden values)."
+    test_function: "cocotb_test_kestrel_alu"
+    test_level: func
+    priority: high
+    status: verified
+    covers_lines: [30, 31, 33, 34, 35, 39, 52, 53, 54]
+
+  - id: ALU-04
+    name: "SLT / SLTU and eq/lt/ltu comparison flags"
+    description: "op=SLT uses signed a/b comparison; op=SLTU unsigned; the
+                  dedicated eq/lt/ltu outputs are checked against golden on
+                  every vector of the matrix (equal operands, INT_MIN vs -1
+                  style corner pairs included)."
+    test_function: "cocotb_test_kestrel_alu"
+    test_level: func
+    priority: high
+    status: verified
+    covers_lines: [37, 38, 41, 42, 43, 55, 56]
+
+  - id: ALU-05
+    name: "Exhaustive op x value matrix completion"
+    description: "The sweep runs all 10 ops x 16 a-values x 16 b-values
+                  (2,560 vectors, 4 outputs checked per vector) so every
+                  unique-case arm of the ALU including the default arm is hit
+                  and no op is left at a single stimulus point."
+    test_function: "cocotb_test_kestrel_alu"
+    test_level: full
+    priority: medium
+    status: verified
+    covers_lines: [45, 46, 57]
+
+parameter_coverage: []
+
+implied_coverage:
+  total_scenarios: 5
+  scenario_tracked: 5
+  implied_covered: 5
+  implied_percentage: 100.0
+
+notes: |
+  `cocotb_test_kestrel_alu` lives in test_kestrel_decode.py and is selected
+  from DUT_CASES ("kestrel_alu", toplevel=kestrel_alu) — one Verilator build
+  per (case, level) cell, all three cells passing under
+  dv/tests/local_sim_build/cocotb_test_kestrel_alu_{gate,func,full}/.
+
+  Integration note (not a gap): kestrel_core leaves the ALU's eq/lt/ltu
+  outputs unconnected — with alu_src_a=PC on branches those flags would
+  compare pc against imm, so branch decisions come from a dedicated rs1/rs2
+  comparator in kestrel_core (Task 4 review ruling). The flags are still
+  verified here at unit level.

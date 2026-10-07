@@ -1,0 +1,191 @@
+# Testplan for kestrel_mem_loader
+# Maps functional test scenarios to verification coverage (Task 11 board glue).
+# STATUS: directed AXIL/window/isolation scenarios and the golden board path
+# verified; AXIL backpressure stress and run-mode loader-write rejection are
+# declared gaps (ML-08, ML-09).
+
+module: kestrel_mem_loader
+rtl_file: projects/components/riscv-ip/kestrel-rv32i/rtl/fub/kestrel_mem_loader.sv
+test_file: projects/components/riscv-ip/kestrel-rv32i/dv/tests/test_kestrel_mem_loader.py
+
+# Module description:
+# AXIL-slave board loader for kestrel_core: two 64 KB async-read distributed
+# RAM arrays (imem/dmem) plus a CTRL register (bit 0 = run), wrapped in the
+# amba axil4_slave_wr / axil4_slave_rd skid leaf slaves. Address map on
+# s_axil addr[17:0]: [17]=CTRL, [16]=dmem vs imem region, [15:2]=word index.
+# Load mode (CTRL.run==0) owns the RAM write ports and holds the core in
+# reset via core_rst_n; writing CTRL.run=1 hands the write ports to the core.
+# All ports (AXIL + core fetch + core L/S) see one unified address space via
+# the addr[16] array select.
+
+parameters:
+  - name: AXIL_ADDR_WIDTH
+    default: 18
+    description: "AXIL slave address width; bits [17:0] of the map below"
+  - name: AXIL_DATA_WIDTH
+    default: 32
+    description: "AXIL data width (one 32-bit word per beat)"
+  - name: MEM_WORDS
+    default: 16384
+    description: "Words per region (64 KB imem + 64 KB dmem)"
+  - name: SKID_DEPTH_AW
+    default: 2
+    description: "AW skid depth in the axil4_slave_wr leaf"
+  - name: SKID_DEPTH_W
+    default: 2
+    description: "W skid depth in the axil4_slave_wr leaf"
+  - name: SKID_DEPTH_B
+    default: 2
+    description: "B skid depth in the axil4_slave_wr leaf"
+  - name: SKID_DEPTH_AR
+    default: 2
+    description: "AR skid depth in the axil4_slave_rd leaf"
+  - name: SKID_DEPTH_R
+    default: 4
+    description: "R skid depth in the axil4_slave_rd leaf"
+
+functional_scenarios:
+  - id: ML-01
+    name: "AXIL window: full-word writes and reads, both regions"
+    description: "AXIL write/read at 0x100 (imem region) and 0x10100 (dmem
+                  region) through the CocoTBFramework AXIL4 master: each
+                  written word must read back unchanged through the AXIL read
+                  port."
+    test_function: "cocotb_test_kestrel_mem_loader_window"
+    test_level: gate
+    priority: high
+    status: verified
+    covers_lines: [185, 186, 187, 191, 194, 214, 242, 243, 244, 245, 311, 315, 318, 319, 320, 321, 322]
+
+  - id: ML-02
+    name: "wstrb partial-word byte merge on loader writes"
+    description: "Rewrite the same word with strb=0b0101 (imem) and 0b1010
+                  (dmem): only the strobed bytes may change — readback must
+                  show 0xAA22CC44 / 0x11BB33DD, proving per-byte wstrb merge."
+    test_function: "cocotb_test_kestrel_mem_loader_window"
+    test_level: func
+    priority: high
+    status: verified
+    covers_lines: [261, 262, 263, 264, 265, 277, 278, 279, 280, 281]
+
+  - id: ML-03
+    name: "CTRL.run readback and release sequencing"
+    description: "CTRL (AXIL 0x20000) reads 0 while in load mode; after
+                  run_to_halt writes CTRL.run=1, core_rst_n must be high and
+                  the core must reach the program's ecall halt — run must not
+                  leak before the CTRL write."
+    test_function: "cocotb_test_kestrel_mem_loader_window"
+    test_level: gate
+    priority: high
+    status: verified
+    covers_lines: [167, 169, 198, 203, 214, 215, 216, 217, 316, 317]
+
+  - id: ML-04
+    name: "Load-mode isolation: core held, PC parked, no retirement"
+    description: "With rst_n released but CTRL.run still 0: core_rst_n stays
+                  low, imem_addr parks at RESET_ADDR, rvfi_valid stays 0, a
+                  loader write becomes visible on the core-side read port, and
+                  CTRL.run still reads 0."
+    test_function: "cocotb_test_kestrel_mem_loader_isolation"
+    test_level: gate
+    priority: high
+    status: verified
+    covers_lines: [169, 242, 302, 303, 304, 305]
+
+  - id: ML-05
+    name: "Core<->memory cross-mux: dmem-array access and dmem-region fetch"
+    description: "The directed program stores/loads at byte 0x10020 (addr[16]
+                  set -> dmem array via core_wr_dmem) and fetches code at
+                  0x10000 through the imem port's dmem select: the trace must
+                  contain the high load (rd=x4, data 0x123) and a beat
+                  fetched from the dmem region."
+    test_function: "cocotb_test_kestrel_mem_loader_window"
+    test_level: func
+    priority: high
+    status: verified
+    covers_lines: [249, 250, 251, 252, 302, 303, 304, 305]
+
+  - id: ML-06
+    name: "Run-mode observability: core stores visible through the AXIL port"
+    description: "After the core runs, its stores to 0x20 (imem array) and
+                  0x10020 (dmem array) must read back as 0x123 through the
+                  AXIL read port, and the loaded instruction word at AXIL 0x0
+                  must match the image — closing the loop through the unified
+                  map in both directions."
+    test_function: "cocotb_test_kestrel_mem_loader_window"
+    test_level: func
+    priority: high
+    status: verified
+    covers_lines: [249, 250, 251, 252, 315, 318, 319, 320, 321, 322]
+
+  - id: ML-07
+    name: "Golden-trace board path (battery images streamed over AXIL)"
+    description: "RV32UIBattery with tb_class=KestrelLoaderTB streams battery
+                  images word-by-word through the AXIL port (core boots at
+                  LINK_BASE 0x80000000): the golden interpreter full-field
+                  diff plus the spike (pc, insn) lockstep must pass — gate
+                  runs rv32ui-p-add, func/full run simple/add/addi
+                  (logs/rv32ui_battery_loader summaries: 3/3 at every level)."
+    test_function: "cocotb_test_kestrel_mem_loader_golden"
+    test_level: func
+    priority: high
+    status: verified
+
+  - id: ML-08
+    name: "AXIL skid backpressure / busy-tap behavior"
+    description: "Declared gap: o_dbg_busy_wr/o_dbg_busy_rd are tapped on the
+                  TB top but no test holds bready/rready low to fill the
+                  skids and asserts on the busy taps or eventual drain
+                  ordering. Planned: a directed backpressure test on
+                  kestrel_loader_tb_top."
+    test_function: "cocotb_test_kestrel_mem_loader_backpressure"
+    test_level: full
+    priority: medium
+    status: not_implemented
+
+  - id: ML-09
+    name: "Loader write in run mode is rejected (ld_wr_fire !run_q guard)"
+    description: "Declared gap: ld_wr_fire = w_fire && !addr[CTRL] && !run_q
+                  makes loader writes unreachable in run mode by construction,
+                  but no test issues an AXIL memory write after CTRL.run and
+                  checks the arrays are untouched. Planned: extend the window
+                  test with a post-run poison write."
+    test_function: "cocotb_test_kestrel_mem_loader_window (run-mode write)"
+    test_level: func
+    priority: low
+    status: not_implemented
+
+parameter_coverage:
+  - AXIL_ADDR_WIDTH: 18
+    AXIL_DATA_WIDTH: 32
+    MEM_WORDS: 16384
+    SKID_DEPTH_AW: 2
+    SKID_DEPTH_W: 2
+    SKID_DEPTH_B: 2
+    SKID_DEPTH_AR: 2
+    SKID_DEPTH_R: 4
+    test_level: full
+    status: verified
+
+implied_coverage:
+  total_scenarios: 9
+  scenario_tracked: 7
+  implied_covered: 7
+  implied_percentage: 77.8
+
+notes: |
+  DUT is kestrel_loader_tb_top (kestrel_mem_loader + kestrel_core); the
+  three cases run per gate/func/full cell with one Verilator build each, all
+  passing under dv/tests/local_sim_build/cocotb_test_kestrel_mem_loader_*_*/
+
+  The leaf slaves (axil4_slave_wr / axil4_slave_rd) have their own testplans
+  under the amba area; this plan claims only the loader wrapper logic: the
+  CTRL register, the load/run write-port muxes, the byte-merge arrays, the
+  unified address map, and the core reset hold.
+
+  Only the default parameterization is exercised (single build config);
+  parameter_coverage therefore records the default combination as verified
+  and no sweep is claimed.
+
+  ML-07's spike lockstep only runs at func level (battery contract); the
+  full-level cell reruns the same three images without lockstep.
