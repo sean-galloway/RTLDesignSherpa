@@ -190,7 +190,7 @@ module rapids_byte_top #(
     // silently-wrong tick rate or an MMCM DRC deep in synth.
     initial begin
         if (VCO_MHZ != 0) begin
-            if ((VCO_MHZ * 8) % 1000 != 0)
+            if ((VCO_MHZ * 8) % 100 != 0)
                 $error("VCO_MHZ=%0d is not a multiple of 12.5: MULT_F=%0f is off the MMCM 0.125 grid",
                        VCO_MHZ, real'(VCO_MHZ) / 100.0);
             if (VCO_MHZ < 600 || VCO_MHZ > 1200)

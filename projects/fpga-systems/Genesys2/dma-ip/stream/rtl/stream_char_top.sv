@@ -84,7 +84,7 @@ module stream_char_top #(
             $error("MON_ERROR_FLAVOR=%0d invalid (0=all-except-error, 1=error-only, 2=all cones)",
                    MON_ERROR_FLAVOR);
         if (VCO_MHZ != 0) begin
-            if ((VCO_MHZ * 8) % 1000 != 0)
+            if ((VCO_MHZ * 8) % 100 != 0)
                 $error("VCO_MHZ=%0d is not a multiple of 12.5: MULT_F=%0f is off the MMCM 0.125 grid",
                        VCO_MHZ, real'(VCO_MHZ) / 100.0);
             if (VCO_MHZ < 600 || VCO_MHZ > 1200)
