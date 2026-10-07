@@ -1,0 +1,63 @@
+# Testplan for amber_snoop_kmap (HAS Table 3.0 decode as a module boundary)
+# Maps functional scenarios to the exhaustive truth-table DV.
+
+module: amber_snoop_kmap
+rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_snoop_kmap.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/includes/amber_pkg.sv
+test_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_snoop_kmap.py
+
+# Decode authority: amber HAS Table 3.0 (amber MESI interpretation of the
+# cocotb-framework 1.2.0 ACE BFM default handler, bit for bit). CRRESP wire
+# order is IHI0022: DT[0] Err[1] PD[2] IS[3] WU[4]. The TB carries an
+# INDEPENDENT copy of the table; a test that shared code with the DUT could
+# never fail for the right reason.
+
+parameters:
+  - name: (none — encodings come from amber_pkg)
+    note: Combinational module; no geometry parameters.
+
+scenarios:
+  - name: reachable_matrix
+    level: gate
+    what: All 24 reachable {I,S,E,M} x {ReadShared,ReadOnce,ReadUnique,
+      CleanShared,CleanInvalid,MakeInvalid} cells; CRRESP bits and next_state
+      each checked (48 assertions per pass).
+    status: covered
+  - name: reserved_snoop_codes
+    level: func
+    what: Snoop codes 6/7 (not IHI0022 encodings) with all four states must
+      decode to the safe default (no transfer, next Invalid) — the same
+      cells the kmap workbook marks don't-care.
+    status: covered
+  - name: reserved_states
+    level: func
+    what: Owned (3'b100, MOESI headroom per PRD D6) and reserved state
+      encodings 5/6/7 decode to the safe default.
+    status: covered
+  - name: exhaustive_space
+    level: full
+    what: Whole 3-bit state x 3-bit snoop space (64 cells) in one pass,
+      including all reserved combinations at once.
+    status: covered
+  - name: m_clean_invalid_is_shared
+    level: gate
+    what: Regression cell — Modified + CleanInvalid carries IsShared=1 per
+      Table 3.0. Caught a real TB model bug during bring-up (the RTL was
+      right); locked as a named scenario so it can never be silently
+      re-weakened.
+    status: covered
+
+coverage_points:
+  - line: 69
+    type: always_comb
+    content: "decode: crresp/next_state from amber_pkg functions"
+    covered: true
+    tests: [gate, func, full]
+
+gaps:
+  - X-propagation on inputs is not checked (Verilator two-state; matches the
+    house simulation posture).
+  - SOP-literal diff against the QM-derived kmap covers is deferred until
+    amber_snoop_resp integration — see amber_mas ch05_verification/01.

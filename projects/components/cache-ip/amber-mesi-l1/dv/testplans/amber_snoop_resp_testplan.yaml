@@ -1,0 +1,104 @@
+# Testplan for amber_snoop_resp (ACE snoop responder)
+# Maps functional scenarios to the BFM-driven DV. DUT wraps the house
+# axi4ace_snoop_slave transport plus the SR FSM and ACSNOOP translation.
+
+module: amber_snoop_resp
+rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_snoop_resp.sv
+  - rtl/amba/ace/axi4ace_snoop_slave.sv   # transport (cross-area, -f'd)
+test_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_snoop_resp.py
+
+# Contract: MAS ch02_blocks/07. One closed response at a time; CR only
+# after the final CD beat (IHI0022 + onyx-D4). CRRESP wire order IHI0022.
+# DV: AXI4ACESnoopMaster on the ACE pins; an independent HAS Table 3.0
+# model in a control-stub coroutine with EVOLVING line states and data.
+# Compliance: ACEComplianceChecker.validate_for_snoop per transaction.
+
+parameters:
+  - name: ADDR_WIDTH
+    default: 32
+  - name: DATA_WIDTH / LINE_BYTES
+    default: 64 / 64
+    description: CD beat width / line size; grid also runs 32 / 32
+
+scenarios:
+  - name: table30_directed
+    level: gate
+    what: One transaction per reachable Table 3.0 cell (24), immediate
+      handshakes; CRRESP bits, beat count, beat content checked.
+    status: covered
+  - name: backpressure_response
+    level: func
+    what: 600 randomized snoops under gaxi_backpressure (CR ready stalls
+      30-50 cycles exceed the CR skid depth of 4); per-transaction
+      scoring + compliance.
+    status: covered
+  - name: stress_soak
+    level: full
+    what: 6000 randomized snoops under gaxi_stress over a 64-line pool
+      whose states EVOLVE per the Table 3.0 next-state column — a snoop to
+      a line snooped earlier reflects the updated state.
+    status: covered
+  - name: pipelining_zero_gap
+    level: func/full
+    what: Zero-gap same-line pairs issued while the previous response is
+      still sequencing — exercises the AC skid (depth 2) and confirms
+      response serialization.
+    status: covered
+  - name: data_integrity
+    level: all
+    what: Every DT response's CD beats compared against the model's line
+      data; non-DT responses must return zero beats.
+    status: covered
+  - name: crresp_bit_order
+    level: gate (regression)
+    what: IHI0022 order DT[0]..WU[4] locked by the framework CRRESPBit
+      enum. Caught a real pkg bug at bring-up (DT was at bit 4).
+    status: covered
+
+  - name: reset_recovery
+    level: func/full
+    what: aresetn taken low for 5 cycles mid-soak (while idle) and the FSM
+      confirmed to return to IDLE and keep responding correctly.
+    status: covered
+
+coverage_points:
+  - line: 166
+    type: always_comb
+    content: "ACSNOOP 4-bit -> amber 3-bit translation"
+    covered: true
+  - line: 182
+    type: typedef
+    content: "SR FSM states IDLE/LOOKUP/DATA/RESP"
+    covered: true
+  - line: 193
+    type: assign
+    content: "ctrl_snoop_req raised in LOOKUP"
+    covered: true
+  - line: 199
+    type: assign
+    content: "fub_acready only in IDLE"
+    covered: true
+  - line: 201
+    type: assign
+    content: "fub_crvalid only in RESP (after CDLAST)"
+    covered: true
+  - line: 204
+    type: assign
+    content: "CD pass-through gating in DATA"
+    covered: true
+
+gaps:
+  - Illegal ACSNOOP codes (0x2-0x6, 0xA/0xB, 0xD-0xF) map to the safe
+    default in RTL but are NOT driven: the framework issue_snoop takes the
+    SnoopType enum, which has no values for them. Needs raw AC driving or a
+    framework extension; recorded, not silently skipped.
+  - Reset MID-TRANSACTION (a snoop in flight when aresetn falls) is not
+    exercised; recovery from idle-phase reset is the reset_recovery
+    scenario. Amber's global reset contract assumes quiescence; a true
+    mid-flight abort scenario needs the BFM to tolerate a dropped
+    transaction and remains recorded here.
+  - AC skid overflow (3+ snoops presented while busy) exceeds the designed
+    two-deep skid; protocol-legal but outside amber's one-closed-response
+    contract. Not tested by design.

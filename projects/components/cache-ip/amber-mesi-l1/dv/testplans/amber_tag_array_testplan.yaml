@@ -1,0 +1,86 @@
+# Testplan for amber_tag_array (per-way tag+state store)
+# Maps functional scenarios to the Pattern-B grid DV.
+
+module: amber_tag_array
+rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_tag_array.sv
+test_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_tag_array.py
+
+# Contract: MAS ch02_blocks/03. Storage word {tag, state[2:0]}; one sync
+# write port (one-hot way); two COMBINATIONAL lookup ports (A = CPU/fill,
+# B = snoop); no reset port — validity is amber_control's init walk.
+# Read-before-write-edge / read-after-write-edge timing is part of the
+# contract (the hit path and the snoop path both consume the same cycle).
+
+parameters:
+  - name: SETS
+    default: 128
+    description: sets, power of two (16-512); grid also runs 16
+  - name: WAYS
+    default: 4
+    description: associativity (2-8); grid also runs 2
+  - name: ADDR_WIDTH
+    default: 32
+    description: address width; derives TAG_WIDTH
+  - name: LINE_BYTES
+    default: 64
+    description: line size; derives SET_INDEX_WIDTH via offset
+
+scenarios:
+  - name: per_way_rw_both_ports
+    level: gate
+    what: Distinct packing-sensitive value per way at set 0; both lookup
+      ports checked per way.
+    status: covered
+  - name: read_after_write_no_idle
+    level: gate
+    what: Write followed immediately (next cycle) by a lookup of the same
+      set on both ports — the new data must be visible. Boundary sets
+      0 and SETS-1, every way.
+    status: covered
+  - name: read_during_write_cycle
+    level: gate
+    what: Lookup driven DURING the write cycle (before the edge) sees the
+      OLD data on both ports; after the edge the NEW data. Combinational-
+      read timing contract made explicit.
+    status: covered
+  - name: isolation_and_boundaries
+    level: func
+    what: Random traffic at 2048 ops (full 4096) with dictionary model;
+      per-way isolation and set-address aliasing are model-checked on
+      every read.
+    status: covered
+  - name: exhaustive_roundtrip
+    level: full
+    what: Every (set, way) written with a unique value, then every set read
+      on both ports and every way scored.
+    status: covered
+  - name: init_walk_equivalence
+    level: all
+    what: The TB performs the amber_control post-reset init walk (STATE_I
+      everywhere) before scoring, so unwritten locations cannot leak X —
+      this stands in for the control-side init sequence until amber_control
+      lands.
+    status: covered
+
+coverage_points:
+  - line: 125
+    type: initial
+    content: "elaboration checks: SETS/LINE_BYTES power of two, WAYS>=2"
+    covered: true
+  - line: 145
+    type: always_ff
+    content: "synchronous write port, one-hot way decode"
+    covered: true
+  - line: 155
+    type: always_comb
+    content: "combinational dual-port lookup"
+    covered: true
+
+gaps:
+  - Read-during-write cycle timing on the DATA array (same named scenario
+    as the tag array) is still only incidentally sampled — port the
+    directed phase over.
+  - Multi-bit wr_way_onehot is a contract violation by definition; not
+    tested (would be an assertion in amber_control, not here).

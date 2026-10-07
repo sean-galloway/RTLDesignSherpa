@@ -234,6 +234,14 @@ class AmberSnoopRespTB(TBBase):
                 if addr not in self.line_data and random.random() < 0.5:
                     self.seed_line(addr)   # refill: another master touched it
                 await self.issue_and_check(addr, random.choice(self.SNOOPS))
+                # Directed (testplan reset recovery): halfway through, take
+                # aresetn low for a few cycles while idle and confirm the
+                # FSM returns to IDLE and keeps responding correctly.
+                if n == self.n_snoops // 2:
+                    self.dut.aresetn.value = 0
+                    await self.wait_clocks('aclk', 5)
+                    self.dut.aresetn.value = 1
+                    await self.wait_clocks('aclk', 2)
         stub.cancel()
         return self.mismatches == 0
 

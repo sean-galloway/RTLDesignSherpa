@@ -1,0 +1,65 @@
+# Testplan for amber_data_array (per-way line-data store, byte enables)
+# Maps functional scenarios to the Pattern-B grid DV.
+
+module: amber_data_array
+rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_data_array.sv
+test_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_data_array.py
+
+# Contract: MAS ch02_blocks/03. Depth SETS*FILL_BEATS, width BUS_WIDTH,
+# address {set, beat}; one sync write port with per-byte enables (fills
+# full-beat, CPU write merge partial); two combinational read ports with
+# explicit way select; no reset port.
+
+parameters:
+  - name: SETS / WAYS
+    default: 128 / 4
+    description: geometry; grid also runs 16 / 2
+  - name: LINE_BYTES / BUS_WIDTH
+    default: 64 / 64
+    description: line size and beat width (FILL_BEATS = 8); grid also runs
+      32 / 32 to exercise a different stride/enable shape
+
+scenarios:
+  - name: full_beat_rw_both_ports
+    level: gate
+    what: Full-beat writes read back on both ports; way isolation checked
+      by interleaved writes to adjacent ways.
+    status: covered
+  - name: byte_enable_merge
+    level: gate
+    what: Two partial writes at opposite byte lanes preserve each other's
+      bytes and the original line content.
+    status: covered
+  - name: byte_enable_sweep
+    level: full
+    what: Every nonzero partial mask (2^STRB_W - 1 masks) applied over a
+      known base; unselected bytes verified preserved each time.
+    status: covered
+  - name: addressing_sweep
+    level: func/full
+    what: Random traffic with dictionary model exercises {set, beat}
+      addressing and both read ports; full adds an exhaustive unique-value
+      round trip over ways x sets x beats.
+    status: covered
+
+coverage_points:
+  - line: 128
+    type: initial
+    content: "elaboration checks (power-of-two geometry, BUS_WIDTH%8)"
+    covered: true
+  - line: 151
+    type: always_ff
+    content: "byte-enabled write port, one-hot way decode"
+    covered: true
+  - line: 166
+    type: always_comb
+    content: "combinational dual-port read with way select"
+    covered: true
+
+gaps:
+  - Read-during-write cycle timing (same contract as the tag array) is not
+    explicitly directed — random traffic samples it only incidentally.
+  - Partial-byte fills (fill with wr_be != all-ones) never occur by
+    contract; not tested.

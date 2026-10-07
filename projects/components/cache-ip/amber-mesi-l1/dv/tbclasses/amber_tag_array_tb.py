@@ -128,6 +128,32 @@ class AmberTagArrayTB(TBBase):
                 await self.write_entry(set_idx, way, val)
                 await self.read_check_set(set_idx)
 
+        # Directed (testplan read_during_write_cycle): the lookup driven in
+        # the SAME cycle as the write must see the OLD data before the edge
+        # and the NEW data after it -- the combinational-read timing
+        # contract made explicit.
+        old = self.model[(0, 0)]
+        new = old ^ 0x155
+        self.dut.a_set.value = 0
+        self.dut.b_set.value = 0
+        self.dut.wr_en.value = 1
+        self.dut.wr_way_onehot.value = 1
+        self.dut.wr_set.value = 0
+        self.dut.wr_tag_state.value = new
+        await Timer(1, units='ns')
+        mid_a = int(self.dut.a_tag_state.value) & ((1 << self.TAG_STATE_WIDTH) - 1)
+        mid_b = int(self.dut.b_tag_state.value) & ((1 << self.TAG_STATE_WIDTH) - 1)
+        self._score("rdw mid-cycle port A sees old", mid_a, old)
+        self._score("rdw mid-cycle port B sees old", mid_b, old)
+        await RisingEdge(self.dut.clk)
+        self.dut.wr_en.value = 0
+        await Timer(1, units='ns')
+        post_a = int(self.dut.a_tag_state.value) & ((1 << self.TAG_STATE_WIDTH) - 1)
+        post_b = int(self.dut.b_tag_state.value) & ((1 << self.TAG_STATE_WIDTH) - 1)
+        self._score("rdw post-edge port A sees new", post_a, new)
+        self._score("rdw post-edge port B sees new", post_b, new)
+        self.model[(0, 0)] = new
+
         # Level-scaled random traffic: writes then spot reads on both ports.
         n_ops = self.OP_COUNTS[self.TEST_LEVEL]
         for _ in range(n_ops):

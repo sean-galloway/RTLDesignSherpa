@@ -1,0 +1,99 @@
+# Testplan for amber_repl (replacement-policy engine)
+# Maps functional scenarios to the Pattern-B grid DV. Four policies, one
+# elaborated per build; every cell runs an independent Python golden model.
+
+module: amber_repl
+rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_repl.sv
+test_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_repl.py
+
+# Contract: MAS ch02_blocks/04. repl_hit / repl_update mutually exclusive.
+# FIFO update is exact under the install-into-victim-way invariant
+# (amber_control guarantee). random requires power-of-two WAYS; tree_plru
+# requires power-of-two WAYS. Policy state is control state: resettable.
+
+parameters:
+  - name: SETS / WAYS
+    default: 128 / 4
+    description: grid runs (128,4), (16,2) tiny-formal, (64,8) deep
+  - name: REPL_POLICY
+    default: 0 (lru)
+    description: amber_repl_t encoding; grid sweeps all four policies
+  - name: REPL_SEED
+    default: 32'h0000ACE1
+    description: random-policy LFSR seed (all sets)
+
+scenarios:
+  - name: reset_victim_per_set
+    level: all
+    what: Sampled post-reset victim per set matches the reset state (LRU
+      -> way WAYS-1, FIFO -> way 0, RANDOM -> seed truncated, TREE -> 0).
+    status: covered
+  - name: single_set_saturation
+    level: all
+    what: Three sets (0, middle, last) hammered 4*WAYS accesses with a
+      victim check after every install — rank/ring/tree corruption shows
+      up here first.
+    status: covered
+  - name: adversarial_recency
+    level: full
+    what: Cyclic 0..W-1 scan (the classic pseudo-LRU pathological pattern)
+      and an ordered hit-run W-1..0, victim verified at every step against
+      the golden model.
+    status: covered
+  - name: random_traffic
+    level: func 4k / full 40k ops
+    what: Uniform random set/hit-install traffic, 20% idle cycles, victim
+      checked on every request.
+    status: covered
+  - name: fifo_ignores_hits
+    level: all
+    what: FIFO golden model carries UPDATES_ON_HIT=False per the contract;
+      hit traffic must not move the ring. (Caught a real TB bug at
+      bring-up — the RTL was right.)
+    status: covered
+  - name: lfsr_parity
+    level: all (random policy)
+    what: TB models the same 32-bit Fibonacci LFSR (taps 32,22,2,1),
+      sample-then-advance per request; per-set streams verified.
+    status: covered
+  - name: tree_model_independent
+    level: all (tree_plru policy)
+    what: TB carries its own heap-indexed binary-tree model (no cache_sim
+      golden exists per PRD D7 caveat).
+    status: covered
+
+coverage_points:
+  - line: 144
+    type: initial
+    content: "shared elaboration checks"
+    covered: true
+  - line: 154
+    type: generate
+    content: "gen_lru rank array update + victim mux"
+    covered: true
+    tests: [lru cells, all levels]
+  - line: 190
+    type: generate
+    content: "gen_fifo ring + head advance"
+    covered: true
+  - line: 220
+    type: generate
+    content: "gen_random LFSR advance"
+    covered: true
+  - line: 249
+    type: generate
+    content: "gen_tree_plru tree update + follow"
+    covered: true
+  - line: 293
+    type: generate
+    content: "gen_unknown policy guard"
+    covered: false
+    note: $error branch; reached only by an out-of-range REPL_POLICY
+      elaboration. Not exercised (would fail the build by design).
+
+gaps:
+  - gen_unknown is intentionally unexercised (elaboration $error).
+  - hit-to-current-MRU-way no-op boundary: implicitly covered by the
+    hit-run pattern but not named; acceptable.
