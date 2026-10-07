@@ -276,7 +276,8 @@ def _build_table():
     add('IS_I', 'FILL_DONE', fill='S', exp_next='I', exp_result='COMMIT',
         cite=f'{SM}:1390 (IS_I, Data_all_Acks, I) data committed, state I')
     add('IS_I', 'FILL_DONE', fill='E', exp_next='I', exp_result='COMMIT',
-        cite=f'{SM}:1438 (IS_I, Data_Exclusive, I)')
+        cite=f'{SM}:1438 (IS_I, Data_Exclusive, E) DIVERGES: gem5 installs E; '
+             f'amber commits I (divergence 8, invalidation-sticks)')
 
     # =====================================================================
     # IM -- write-miss fill in flight (installs M, write merges on replay
@@ -386,22 +387,25 @@ def _build_table():
         cite=f'{SM}:1072 stall')
     add('SINK_WB_ACK', 'SNOOP_READ_SHARED', exp_next='SINK_WB_ACK',
         exp_result='RESPOND', ref='M', exp_crresp=CR_M_RS,
-        cite=f'{SM}: none; victim buffer re-serves (analog .sm:1562)')
+        cite=f'{SM}: none (no Fwd_* from SINK_WB_ACK); victim buffer re-serves; '
+             f'.sm:1562 Inv is ack-only, cited as CONTRAST not support')
     add('SINK_WB_ACK', 'SNOOP_READ_ONCE', exp_next='SINK_WB_ACK',
         exp_result='RESPOND', ref='M', exp_crresp=CR_M_RO,
-        cite=f'{SM}: none; HAS T3.0 M row')
+        cite=f'{SM}: none; HAS T3.0 M row; contrast .sm:1562')
     add('SINK_WB_ACK', 'SNOOP_READ_UNIQUE', exp_next='SINK_WB_ACK',
         exp_result='RESPOND', ref='M', exp_crresp=CR_M_RO,
-        cite=f'{SM}: none; HAS T3.0 M row')
+        cite=f'{SM}: none; HAS T3.0 M row; contrast .sm:1562')
     add('SINK_WB_ACK', 'SNOOP_CLEAN_SHARED', exp_next='SINK_WB_ACK',
         exp_result='RESPOND', ref='M', exp_crresp=CR_M_RS,
-        cite=f'{SM}: none; HAS T3.0 M row')
+        cite=f'{SM}: none; HAS T3.0 M row; contrast .sm:1562')
     add('SINK_WB_ACK', 'SNOOP_CLEAN_INVALID', exp_next='SINK_WB_ACK',
         exp_result='RESPOND', ref='M', exp_crresp=CR_M_RS,
-        cite=f'{SM}:1562 (SINK_WB_ACK, Inv)')
+        cite=f'{SM}:1562 (SINK_WB_ACK, Inv) CONTRAST: gem5 acks only '
+             f'(fi_sendInvAck -- its WB already delivered the data); amber '
+             f're-serves DT+PD+IS from the victim buffer (derivation)')
     add('SINK_WB_ACK', 'SNOOP_MAKE_INVALID', exp_next='SINK_WB_ACK',
         exp_result='RESPOND', ref='M', exp_crresp=CR_NONE,
-        cite=f'{SM}:1562 analog; IHI0022 forbids DT')
+        cite=f'{SM}:1562 as CONTRAST (ack-only); IHI0022 forbids DT')
     add('SINK_WB_ACK', 'DRAIN_DONE', exp_next='I', exp_result='COMMIT',
         cite=f'{SM}:1567 (SINK_WB_ACK, WB_Ack, I)')
 

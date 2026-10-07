@@ -128,14 +128,34 @@ All citations are `transition(...)` blocks in `MESI_Two_Level-L1cache.sm`.
    derived: the victim buffer holds the line until WB_Ack and re-serves it
    (Review Focus 3); CleanShared drains the dirty data and keeps the line
    out; MakeInvalid answers no-transfer (IHI0022) and does not cancel the
-   in-flight drain.
+   in-flight drain. **Contrast, not support**: gem5's SINK_WB_ACK × Inv
+   (.sm:1562) is `fi_sendInvAck` — ack-only, *no data* — because gem5's WB
+   already delivered the dirty data to the directory before the Inv
+   arrived. Amber's SINK_WB_ACK × snoop answers are data-full (DT per
+   Table 3.0 at the victim's M state): the dirty data is still local in
+   the victim buffer and must be re-served on CD. `.sm:1562` is therefore
+   cited as contrast wherever a SINK_WB_ACK snoop row references it.
 6. **E × CleanShared stays E** (pkg `IS+WU`, no transfer). gem5 has no
    clean-probe transaction; the row is IHI0022/Table 3.0 only. Same for
-   `S × CleanShared` (no-op).
+   `S × CleanShared` (no-op). The same Table-3.0-only status covers
+   **M × CleanShared → S (`DT+PD+IS`)** explicitly: gem5 has no clean-shared
+   probe that downgrades a dirty line — its only dirty-downgrade path is
+   `Fwd_GETS` (.sm:1338), which also transfers to the *requestor*; the
+   write-back-to-memory-only reading of CleanShared on M exists solely in
+   HAS Table 3.0.
 7. **CRRESP `IsShared` on M × CleanInvalid** (pkg sets IS=1 where gem5's
    writeback at .sm:1321 carries no such notion): the pkg follows the
    cocotb-framework 1.2.0 ACE BFM default handler family matrix — the pkg
    is binding, the oracle matches it, end of story.
+8. **IS_I × exclusive-fill-data: gem5 installs E; amber commits Invalid**.
+   `.sm:1438` is `transition(IS_I, Data_Exclusive, E)` — the directory was
+   blocked when it sent the exclusive data, so gem5 installs the line
+   **E** even though an Inv already raced the fetch. Amber commits I: the
+   invalidating snoop claimed the line and the invalidation sticks (MAS
+   ch02/02 post-commit application — the same policy class as divergence
+   3). Note gem5's own two response flavors disagree once an Inv raced:
+   `Data_all_Acks` → I (.sm:1390) but `Data_Exclusive` → E (.sm:1438).
+   Amber sides with the invalidation-sticks reading for both.
 
 ## 5. Completions
 
@@ -147,10 +167,14 @@ All citations are `transition(...)` blocks in `MESI_Two_Level-L1cache.sm`.
   SM` .sm:1485, `Ack` counting .sm:957) are directory artifacts; amber's
   blocking fill has no partial-ack condition (single outstanding
   transaction, RLAST-or-B-completion semantics).
-- **IS_I × FILL_DONE → I**: .sm:1390/1438 — data still written to the
-  entry, state Invalid. This is the strongest evidence that amber's
-  post-commit-invalidation (divergence 3) is the same resolution gem5
-  already uses for the read-miss race.
+- **IS_I × FILL_DONE → I (amber, both fill flavors)**: gem5's
+  `Data_all_Acks` path installs I — data still written to the entry, state
+  Invalid (.sm:1390) — but its `Data_Exclusive` path installs **E**
+  (.sm:1438): the two gem5 response flavors disagree once an Inv raced,
+  and amber commits Invalid in both cases (divergence 8,
+  invalidation-sticks). The .sm:1390 flavor remains the strongest evidence
+  that amber's post-commit-invalidation (divergence 3) is the same
+  resolution gem5 already uses for the read-miss race.
 - **M_I/SINK_WB_ACK × DRAIN_DONE → I**: .sm:1315 (`M_I WB_Ack I`),
   .sm:1567 (`SINK_WB_ACK WB_Ack I`).
 - **CPU access during any transient → stall**: .sm:1072

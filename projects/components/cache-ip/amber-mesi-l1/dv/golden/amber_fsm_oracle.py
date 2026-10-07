@@ -240,6 +240,10 @@ def _im_step(state, event, pending):
         _unreachable(state, event)
     # Snoop during a write-miss fill: answered at the post-fill M state;
     # the post-commit effect chains against any pending effect.
+    # Corner: a fixed-point snoop on the effective state (e.g. pending 'I'
+    # + READ_SHARED: I -> I) clears pending to None, so the fill commits M
+    # -- the earlier invalidation does not stick. Deterministic but UNCITED
+    # corner -- Task 3 must pin the intended behavior before relying on it.
     effective = pending or 'M'
     nxt = _decode_next(effective, event)
     return StepResult(state, 'RESPOND', None, _decode_crresp('M', event),
