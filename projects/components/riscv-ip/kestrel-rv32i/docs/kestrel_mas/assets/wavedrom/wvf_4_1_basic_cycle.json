@@ -1,0 +1,79 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "P...",
+      "period": 1
+    },
+    {
+      "name": "",
+      "wave": "x2x2x.",
+      "data": [
+        "cycle n (LW)",
+        "cycle n+1 (ADDI)"
+      ]
+    },
+    {
+      "name": "pc",
+      "wave": "=.==",
+      "data": [
+        "A0",
+        "A0+4"
+      ],
+      "period": 1
+    },
+    {
+      "name": "imem_addr",
+      "wave": "=.==",
+      "data": [
+        "A0",
+        "A0+4"
+      ],
+      "period": 1
+    },
+    {
+      "name": "dmem_req",
+      "wave": "10..",
+      "period": 1
+    },
+    {
+      "name": "dmem_we",
+      "wave": "0...",
+      "period": 1
+    },
+    {
+      "name": "dmem_addr",
+      "wave": "x=x.",
+      "data": [
+        "W (rs1+imm)"
+      ]
+    },
+    {
+      "name": "dmem_rdata",
+      "wave": "x=x.",
+      "data": [
+        "mem[W]"
+      ]
+    },
+    {
+      "name": "rvfi_valid",
+      "wave": "11..",
+      "period": 1
+    },
+    {
+      "name": "rvfi_order",
+      "wave": "=.==",
+      "data": [
+        "k",
+        "k+1"
+      ],
+      "period": 1
+    }
+  ],
+  "config": {
+    "hscale": 1.6
+  },
+  "head": {
+    "text": "Basic single-cycle execution: LW at cycle n, ADDI at cycle n+1"
+  }
+}

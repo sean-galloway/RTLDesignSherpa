@@ -1,0 +1,65 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "P..",
+      "period": 1
+    },
+    {
+      "name": "",
+      "wave": "x2x2x2x",
+      "data": [
+        "cycle n (beat 1)",
+        "cycle n+1 (beat 2)",
+        "cycle n+2"
+      ]
+    },
+    {
+      "name": "pc",
+      "wave": "x===x",
+      "data": [
+        "A4 (held)",
+        "A4",
+        "A4+4"
+      ]
+    },
+    {
+      "name": "dmem_req",
+      "wave": "x110x"
+    },
+    {
+      "name": "dmem_we",
+      "wave": "x110x"
+    },
+    {
+      "name": "dmem_addr",
+      "wave": "x==x",
+      "data": [
+        "W",
+        "W+4"
+      ]
+    },
+    {
+      "name": "dmem_wstrb",
+      "wave": "x2x2x",
+      "data": [
+        "4'b1000",
+        "4'b0001"
+      ]
+    },
+    {
+      "name": "ls_retry",
+      "wave": "x010x"
+    },
+    {
+      "name": "rvfi_valid",
+      "wave": "x010x"
+    }
+  ],
+  "config": {
+    "hscale": 1.6
+  },
+  "head": {
+    "text": "Cross-word store of a halfword at byte offset 3 (SH@3)"
+  }
+}
