@@ -1,10 +1,10 @@
 # Testplan for kestrel_core
 # Maps functional test scenarios to verification coverage (top level).
 # STATUS: ISA classes, branches/jumps (incl. IALIGN halt), loads/stores
-# (incl. cross-word retry), system layer, the rv32ui battery, and spike
-# lockstep are verified. Two full-level gaps are declared and tracked:
-# CORE-17 (randomized-stream fuzz vs spike lockstep) and CORE-18
-# (functional coverage closure) — Phase C owns both.
+# (incl. cross-word retry), system layer, the rv32ui battery, spike
+# lockstep, and the CORE-17 constrained-random fuzz are verified. One
+# full-level gap remains and is tracked: CORE-18 (functional coverage
+# closure) -- Phase C owns it.
 
 module: kestrel_core
 rtl_file: projects/components/riscv-ip/kestrel-rv32i/rtl/top/kestrel_core.sv
@@ -14,6 +14,7 @@ test_files:
   - projects/components/riscv-ip/kestrel-rv32i/dv/tests/test_kestrel_ls.py
   - projects/components/riscv-ip/kestrel-rv32i/dv/tests/test_kestrel_rv32ui.py
   - projects/components/riscv-ip/kestrel-rv32i/dv/tests/test_kestrel_mem_loader.py
+  - projects/components/riscv-ip/kestrel-rv32i/dv/tests/test_kestrel_fuzz.py
 
 # Module description:
 # Single-cycle RV32I core: PC register, decode truth table, immediate
@@ -238,15 +239,33 @@ functional_scenarios:
 
   - id: CORE-17
     name: "Randomized instruction-stream fuzz vs spike lockstep"
-    description: "Declared gap (Phase C): every stimulus today is a directed
-                  program or a vendor image. A SEED-driven random RV32I
-                  instruction stream (constrained to halt) diffed against
-                  spike's commit log at full level would close the remaining
-                  opcode/interaction space the golden programs do not reach."
+    description: "Seeded constrained-random RV32I streams (tbclasses/kestrel/
+                  fuzz_gen.py): weighted OP/OP-IMM/LUI/AUIPC mix, structured
+                  forward branches, counted backward loops, jal/jalr calls to
+                  generated leaf subroutines, and loads/stores of every size
+                  at random byte offsets -- deliberately misaligned, hitting
+                  the cross-word 2-cycle retry -- all confined to a fully
+                  initialized 512-byte data region; every stream terminates
+                  li gp,1; ecall.  Per stream the DUT trace is diffed
+                  full-field against the golden interpreter and (pc, insn)
+                  lockstepped against spike (misaligned build) with the
+                  tohost exit-code check, at EVERY level (the fuzz subclass
+                  widens the rv32ui battery's func-only lockstep gate): gate
+                  = the committed 5-seed corpus (fuzz_seeds_gate.json),
+                  func = 25 fresh streams, full = 200 streams, func/full
+                  derived from the SEED env so an explicit SEED reproduces a
+                  failing stream.  Constraints are enforced by construction
+                  (register pools, label-only targets, bounded loops, no
+                  SYSTEM/ebreak in the body; the prologue zeroes the whole
+                  GPR file because spike's boot preamble clobbers t0/a0/a1).
+                  Regenerate with `make run-kestrel_fuzz-{gate,func,full}`
+                  from dv/tests (summaries land under
+                  dv/tests/logs/kestrel_fuzz_battery/, gitignored): 5/5 gate,
+                  25/25 func, 200/200 full, verified locally on 2026-10-07."
     test_function: "cocotb_test_kestrel_fuzz_stream"
     test_level: full
     priority: high
-    status: not_implemented
+    status: verified
 
   - id: CORE-18
     name: "Functional coverage closure"
@@ -274,9 +293,9 @@ parameter_coverage:
 
 implied_coverage:
   total_scenarios: 18
-  scenario_tracked: 16
-  implied_covered: 16
-  implied_percentage: 88.9
+  scenario_tracked: 17
+  implied_covered: 17
+  implied_percentage: 94.4
 
 notes: |
   Test tops: kestrel_tb_top (behavioral unified 64 Ki word memory, +imem
@@ -292,10 +311,10 @@ notes: |
   The rv32ui battery reads TEST_LEVEL inside the sim: gate = 3-image smoke,
   func = 42 images + spike lockstep, full = 42 images without lockstep.
 
-  Phase C owns the two not_implemented scenarios (CORE-17 fuzz, CORE-18
-  coverage closure). The planned test_function strings are placeholders that
-  intentionally match no current JUnit node, so the coverage tracker keeps
-  reporting them as not implemented until the tests land.
+  Phase C owns the one remaining not_implemented scenario (CORE-18 coverage
+  closure). Its planned test_function string is a placeholder that
+  intentionally matches no current JUnit node, so the coverage tracker keeps
+  reporting it as not implemented until the cover model lands.
 
   Related verification not claimed here: riscv-formal (formal/kestrel/
   riscv-formal, 42/42 insn checks per the riscv-ip README) — a SymbiYosys

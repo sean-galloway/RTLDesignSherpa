@@ -300,7 +300,17 @@ def lockstep_diff(core_trace, halt_pc, entry_pc, records):
 # ---------------------------------------------------------------------------
 
 class RV32UIBattery:
-    """Run every rv32ui-p-* image through the DUT and score it."""
+    """Run every rv32ui-p-* image through the DUT and score it.
+
+    ``image_words``/``image_elf``/``discover`` are the subclass seam: the
+    CORE-17 fuzz battery (test_kestrel_fuzz.py) overrides them to feed
+    generated programs through the same run/verdict/lockstep machinery.
+    """
+
+    title = "rv32ui battery"
+    # Levels that run the golden interpreter diff + spike lockstep.  The
+    # fuzz subclass widens this to every level (its raison d'etre).
+    lockstep_levels = ("func",)
 
     def __init__(self, dut, repo_root, level, work_dir, tb_class=None,
                  tests=None):
@@ -317,18 +327,33 @@ class RV32UIBattery:
         self.tb_class = tb_class or KestrelTB
         self.tests = tests
 
-    async def run(self):
-        tb = self.tb_class(self.dut, reset_addr=LINK_BASE)
-        await tb.ensure_clock()
-
+    def discover(self):
+        """Ordered test names for this run (subclasses override)."""
         names = discover_tests(self.repo_root)
         if self.tests is not None:
             wanted = set(self.tests)
             names = [n for n in names if n in wanted]
         elif self.level == "gate":
             names = [n for n in names if n in GATE_TESTS]
+        return names
+
+    def image_words(self, name):
+        """{full_word_addr: word} image for a test name (subclasses
+        override; the default serves the vendor rv32ui-p-* hex images)."""
+        return normalize_image(self.repo_root, name)
+
+    def image_elf(self, name):
+        """ELF for a test name: symbols (tohost) + spike lockstep input."""
+        return Path(self.repo_root) / "vendor" / "riscv-tests" / "isa" / \
+            f"rv32ui-p-{name}"
+
+    async def run(self):
+        tb = self.tb_class(self.dut, reset_addr=LINK_BASE)
+        await tb.ensure_clock()
+
+        names = self.discover()
         self.dut._log.info(
-            f"rv32ui battery ({self.level} level): {len(names)} tests")
+            f"{self.title} ({self.level} level): {len(names)} tests")
 
         for name in names:
             result = await self._run_one(tb, name)
@@ -337,23 +362,23 @@ class RV32UIBattery:
             lock = (f" lockstep={'ok' if result['lockstep_ok'] else 'FAIL'}"
                     if result["lockstep_ran"] else "")
             self.dut._log.info(
-                f"rv32ui-p-{name}: {status} cause={result['halt_cause']} "
+                f"{name}: {status} cause={result['halt_cause']} "
                 f"gp={result['gp']} beats={result['beats']}{lock} "
                 f"{result['detail']}")
 
         failures = [r["name"] for r in self.results if not r["passed"]]
         passed = len(self.results) - len(failures)
         self.dut._log.info(
-            f"rv32ui battery summary: {passed}/{len(self.results)} passed"
+            f"{self.title} summary: {passed}/{len(self.results)} passed"
             + (f", failures: {failures}" if failures else ""))
         self._write_summary()
-        assert not failures, f"rv32ui battery failures: {failures}"
+        assert not failures, f"{self.title} failures: {failures}"
         return self.results
 
     def _write_summary(self):
         """Per-test result table to <work_dir>/rv32ui_battery_summary.txt."""
         lines = [
-            f"rv32ui battery ({self.level} level) "
+            f"{self.title} ({self.level} level) "
             f"{sum(r['passed'] for r in self.results)}/{len(self.results)}",
             f"{'test':<12} {'status':<6} {'cause':<5} {'gp':<10} {'beats':<6} "
             f"{'lockstep':<8} detail",
@@ -362,7 +387,7 @@ class RV32UIBattery:
             lock = ("ok" if r["lockstep_ok"] else
                     ("FAIL" if r["lockstep_ran"] else "-"))
             lines.append(
-                f"rv32ui-p-{r['name']:<5} {'PASS' if r['passed'] else 'FAIL'}"
+                f"{r['name']:<12} {'PASS' if r['passed'] else 'FAIL'}"
                 f"  {r['halt_cause'] if r['halt_cause'] is not None else 'N/A':<5}"
                 f" {r['gp']:#010x} {r['beats']:<6} {lock:<8} {r['detail']}")
         (self.work_dir / f"rv32ui_battery_summary_{self.level}.txt").write_text(
@@ -374,9 +399,8 @@ class RV32UIBattery:
             "beats": 0, "detail": "", "lockstep_ran": False,
             "lockstep_ok": False, "stub_traps": [],
         }
-        words = normalize_image(self.repo_root, name)
-        elf = Path(self.repo_root) / "vendor" / "riscv-tests" / "isa" / \
-            f"rv32ui-p-{name}"
+        words = self.image_words(name)
+        elf = self.image_elf(name)
         entry, symbols = read_elf32(elf)
         tohost = symbols.get("tohost")
         if tohost is None:
@@ -402,7 +426,7 @@ class RV32UIBattery:
         # direct tohost write of 1 (should one ever commit) also passes.
         passed = (tb.halt_cause == 1 and gp == 1) or (1 in tb.tohost_writes)
 
-        if self.level == "func":
+        if self.level in self.lockstep_levels:
             result["lockstep_ran"] = True
             ok, detail = self._lockstep(tb, name, words, entry, tohost)
             if not ok:
@@ -434,9 +458,7 @@ class RV32UIBattery:
             return False, f"golden diff: {exc}"
 
         log_path = self.work_dir / f"spike_{name}.log"
-        rc = run_spike(
-            Path(self.repo_root) / "vendor" / "riscv-tests" / "isa" /
-            f"rv32ui-p-{name}", log_path)
+        rc = run_spike(self.image_elf(name), log_path)
         records = parse_spike_log(log_path)
         ok, errors, stub_traps, term_trap = lockstep_diff(
             tb.trace, tb.halt_pc, entry, records)

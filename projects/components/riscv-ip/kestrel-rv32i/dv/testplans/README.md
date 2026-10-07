@@ -37,13 +37,11 @@ testplan convention so the same coverage rollup applies
 | `kestrel_imm_gen_testplan.yaml` | kestrel_imm_gen.sv | test_kestrel_decode.py | 6 | 6 | 0 |
 | `kestrel_decode_testplan.yaml` | kestrel_decode.sv | test_kestrel_decode.py | 12 | 12 | 0 |
 | `kestrel_mem_loader_testplan.yaml` | kestrel_mem_loader.sv | test_kestrel_mem_loader.py | 9 | 9 | 0 |
-| `kestrel_core_testplan.yaml` | kestrel_core.sv | test_kestrel_{core,branch,ls,rv32ui,mem_loader}.py | 18 | 16 | 2 |
-| **Total** | | | **55** | **53** | **2** |
+| `kestrel_core_testplan.yaml` | kestrel_core.sv | test_kestrel_{core,branch,ls,rv32ui,mem_loader,fuzz}.py | 18 | 17 | 1 |
+| **Total** | | | **55** | **54** | **1** |
 
 Not-implemented scenarios and why:
 
-- **CORE-17** — randomized instruction-stream fuzz vs spike lockstep
-  (**Phase C**).
 - **CORE-18** — functional coverage closure / cover model (**Phase C**).
 
 ## What each plan covers
@@ -75,9 +73,10 @@ Not-implemented scenarios and why:
 - **CORE (kestrel_core)**: ISA classes via golden trace, branches/jumps
   (incl. IALIGN halt cause 3), loads/stores incl. the cross-word 2-cycle
   retry, the system layer (FENCE NOPs, ECALL/EBREAK halt+hold, illegal
-  halt, trap-beat shape), RVFI invariants, the 42-image rv32ui battery, and
-  spike lockstep. Phase C gaps (fuzz, coverage closure) are tracked as
-  not_implemented.
+  halt, trap-beat shape), RVFI invariants, the 42-image rv32ui battery,
+  spike lockstep, and the CORE-17 constrained-random fuzz (seeded streams
+  vs the interpreter full-field diff plus spike lockstep at every level).
+  Phase C gap (coverage closure) is tracked as not_implemented.
 
 ## JUnit naming convention (observed)
 

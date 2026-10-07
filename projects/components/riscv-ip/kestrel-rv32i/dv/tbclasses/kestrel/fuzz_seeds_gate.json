@@ -1,0 +1,10 @@
+{
+  "description": "CORE-17 gate smoke corpus: the gate battery level runs exactly these five fixed constrained-random RV32I streams (deterministic per seed; regenerate any stream with fuzz_gen.generate_stream(seed)).",
+  "seeds": [
+    305441741,
+    4027035233,
+    2154365581,
+    3105709533,
+    2745677018
+  ]
+}
