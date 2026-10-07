@@ -15,7 +15,7 @@ regblock". Was: open 2026-08-16.
   problem -- an earlier summary did and it made the task look untouched.)
 * `obs_regs.rdl` carries the status fields: HIST_DATA, HIST_METRIC,
   HIST_SAMPLE_LOST, COMPRESS_EN, compression/Compressor and FIFO fields.
-* `projects/fpga-systems/Genesys2/stream/bin/obs_addrs.py` exists, so the host
+* `projects/fpga-systems/Genesys2/dma-ip/stream/bin/obs_addrs.py` exists, so the host
   reads them by name ([[feedback_registers_by_name]]).
 
 **The one bullet still open is NOT monitor code.** "Repoint the readers" is

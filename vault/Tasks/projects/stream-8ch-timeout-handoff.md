@@ -184,7 +184,7 @@ state at the moment it strands.
 ## Reproduce
 
 ```bash
-cd projects/fpga-systems/Genesys2/stream/build-mon
+cd projects/fpga-systems/Genesys2/dma-ip/stream/build-mon
 make clean-all                     # ALWAYS
 cd dv/tests
 SIM_NUM_CHANNELS=8 DMA_TIMEOUT_CLOCKS=2000000 \
@@ -195,7 +195,7 @@ SIM_NUM_CHANNELS=8 DMA_TIMEOUT_CLOCKS=2000000 \
 Board re-run (bitstream already programmed and committed):
 
 ```bash
-cd projects/fpga-systems/Genesys2/stream/build-perf
+cd projects/fpga-systems/Genesys2/dma-ip/stream/build-perf
 python3 host/host_characterize.py --port /dev/ttyUSB0 --output results.csv
 # NOTE: --output writes CSV regardless of a .json extension
 ```

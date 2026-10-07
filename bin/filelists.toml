@@ -248,22 +248,22 @@ filelist_dirs = ["projects/fpga-systems/Genesys2/ecc-ip/reed-solomon/rtl/bridges
 name = "genesys2_stream_bridges"
 kind = "board"
 generated = true
-regen = "projects/fpga-systems/Genesys2/stream/bin/regen_bridges.sh"
+regen = "projects/fpga-systems/Genesys2/dma-ip/stream/bin/regen_bridges.sh"
 rtl_roots = []
-filelist_dirs = ["projects/fpga-systems/Genesys2/stream/rtl/bridges/filelists"]
+filelist_dirs = ["projects/fpga-systems/Genesys2/dma-ip/stream/rtl/bridges/filelists"]
 
 [[area]]
 name = "genesys2_stream"
 kind = "board"
 rtl_roots = []
-filelist_dirs = ["projects/fpga-systems/Genesys2/stream/rtl/filelists"]
+filelist_dirs = ["projects/fpga-systems/Genesys2/dma-ip/stream/rtl/filelists"]
 
 # REMOVED 2026-08-30: the two "nexys_stream_char" areas registered
 # projects/NexysA7/stream_characterization, which is being deleted. Their
 # successors are already registered above -- "genesys2_stream_bridges" and
 # "genesys2_stream" -- and the perf scripts, report datasets and the
 # stream_char_guide doc book were consolidated into
-# projects/fpga-systems/Genesys2/stream/ before removal.
+# projects/fpga-systems/Genesys2/dma-ip/stream/ before removal.
 #
 # nexys_stream_char was already FAILING --check with 2 broken refs, so this
 # also retires a known-bad entry rather than a working one. The DDR2 areas
@@ -329,7 +329,7 @@ filelist_dirs = ["projects/fpga-systems/de25-nano/andesite/build-andesite/rtl/fi
 name = "genesys2_rapids_beats_char"
 kind = "board"
 rtl_roots = []
-filelist_dirs = ["projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/filelists"]
+filelist_dirs = ["projects/fpga-systems/Genesys2/dma-ip/rapids_beats/flows-rapids-beats/filelists"]
 
 # Byte-granular RAPIDS (rapids_top, rapids TASK-019) on the same bench: its own
 # area beside rapids_beats so the beats flow keeps building unchanged.
@@ -337,7 +337,7 @@ filelist_dirs = ["projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats
 name = "genesys2_rapids_byte_char"
 kind = "board"
 rtl_roots = []
-filelist_dirs = ["projects/fpga-systems/Genesys2/rapids/flows-rapids/filelists"]
+filelist_dirs = ["projects/fpga-systems/Genesys2/dma-ip/rapids/flows-rapids/filelists"]
 
 [[area]]
 name = "nexys_reed_solomon_loop"

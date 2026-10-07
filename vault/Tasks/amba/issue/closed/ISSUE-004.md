@@ -64,9 +64,9 @@ a fix.
 
 Every consumer of `sdpram_slave_axi4_axi4` pays it:
 
-- `projects/fpga-systems/Genesys2/stream/rtl/stream_harness.sv`
-- `projects/fpga-systems/Genesys2/rapids/flows-rapids/rtl/rapids_byte_harness.sv`
-- `projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/rtl/rapids_char_harness.sv`
+- `projects/fpga-systems/Genesys2/dma-ip/stream/rtl/stream_harness.sv`
+- `projects/fpga-systems/Genesys2/dma-ip/rapids/flows-rapids/rtl/rapids_byte_harness.sv`
+- `projects/fpga-systems/Genesys2/dma-ip/rapids_beats/flows-rapids-beats/rtl/rapids_char_harness.sv`
 - the RS AXI4 harness and its two component TB tops
 
 RS only noticed because its meters were gated to a single stage, which is what

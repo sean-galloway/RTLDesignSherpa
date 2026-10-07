@@ -311,7 +311,7 @@ vivado*
 # so 43 files / 21 MB of Vivado output ended up tracked against this policy --
 # and `make clean-all`, which correctly treats a build dir as disposable, then
 # deleted TRACKED files. That destroyed a verified bitstream more than once
-# (see Genesys2/stream/stable/MANIFEST.md).
+# (see Genesys2/dma-ip/stream/stable/MANIFEST.md).
 #
 # Anything worth keeping is COPIED to the area's `stable/` sibling, which is
 # outside every clean target's blast radius -- `make -C <build-dir> keep`.

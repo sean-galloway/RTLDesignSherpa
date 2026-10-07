@@ -9,7 +9,7 @@ this header listed as open are all resolved:
 
 | Was "still open" | Where it ended |
 |---|---|
-| the FPGA harness variant for the byte build | `projects/fpga-systems/Genesys2/rapids/` exists and its harness sim passes; board-characterized on two bitstreams (perf report v0.2) |
+| the FPGA harness variant for the byte build | `projects/fpga-systems/Genesys2/dma-ip/rapids/` exists and its harness sim passes; board-characterized on two bitstreams (perf report v0.2) |
 | the HAS/MAS chapters | `docs/rapids_has/` + `docs/rapids_mas/` at v0.2, PDFs and DOCX rebuilt |
 | EXT descriptors with byte offsets | NOT done and never will be: TYPE=EXT stays beat-aligned, a permanent limitation Sean accepted 2026-09-30 (509a1828a) |
 | the full-level regressions | re-run from `clean-all` after the last RTL commit; `top`/`top_beats` re-run again on 2026-10-01 behind the rapids BUG-010 fix. Counts in the Verification record |
@@ -191,7 +191,7 @@ shared) with these changes:
 ## Board harness: its own Genesys 2 area (2026-09-30)
 
 Sean: "In the genesys2 area create a rapids area separate from the
-rapids-beats area." `projects/fpga-systems/Genesys2/rapids/` is that area:
+rapids-beats area." `projects/fpga-systems/Genesys2/dma-ip/rapids/` is that area:
 `flows-rapids/` mirrors `flows-rapids-beats/` (same bench, UART host flow,
 golden-CRC method), renamed `rapids_byte_*`, harness ID `RAPB`, built around
 `rapids_top` only. The beats area is untouched except for one tie-off line

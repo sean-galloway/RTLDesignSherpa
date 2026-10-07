@@ -25,8 +25,8 @@ TASK-084 at 5 -- it is 13, and two files were missed entirely):
 | `projects/components/dma-ip/stream/rtl/macro/stream_core.sv:123` | `[[AMBA-MONTRACK]]` | amba BUG-029 |
 | `projects/components/dma-ip/stream/dv/tests/top/test_stream_top_mon_cfg.py:20` | `[[AMBA-MONTRACK]]` | amba BUG-029 |
 | `projects/components/dma-ip/stream/dv/tbclasses/stream_core_tb.py:39` | `TASK-084` | amba BUG-036 |
-| `projects/fpga-systems/Genesys2/stream/build-mon/dv/tests/test_stream_mon.py:365` | `TASK-084` | amba BUG-036 |
-| `projects/fpga-systems/Genesys2/stream/stable-obs/MANIFEST.md:49` | `TASK-083` | amba BUG-035 |
+| `projects/fpga-systems/Genesys2/dma-ip/stream/build-mon/dv/tests/test_stream_mon.py:365` | `TASK-084` | amba BUG-036 |
+| `projects/fpga-systems/Genesys2/dma-ip/stream/stable-obs/MANIFEST.md:49` | `TASK-083` | amba BUG-035 |
 | `formal/amba/axi_monitor_addr_check/formal_axi_monitor_addr_check.sv:20,208` | `AMBA-MONBUS-STABILITY` | amba BUG-028 |
 | `vault/handbook/design/signal-contracts-and-kmaps.md:275` | `[[AMBA-MONTRACK]]` | amba BUG-029 |
 | `vault/handbook/dv/formal.md:82` | `AMBA-MONBUS-STABILITY` | amba BUG-028 |
@@ -65,7 +65,7 @@ rather than done:
 3. `python3 bridge_generator.py --bulk bridge_batch.csv --generate-tests`
 4. `make clean-all && make run-all-func` against the regenerated tree
 
-Step 2-3 also rewrite `projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/`,
+Step 2-3 also rewrite `projects/fpga-systems/Genesys2/dma-ip/stream/rtl/bridges/generated/`,
 which the STREAM/Genesys owner holds, so it needs coordinating with that session
 rather than being run unilaterally. Hand-editing the 157 generated files instead would
 be reverted on the next regen -- exactly the inverse failure that

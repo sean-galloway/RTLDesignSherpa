@@ -84,7 +84,7 @@ is superseded, or moved to [[BRIDGE-017]] / dropped.
 
 <!-- Moved from vault/Tasks/amba/ 2026-09-14: a bridge task, filed under amba -->
 ## BRIDGE-NEXYSA7-REGEN — the five NexysA7 char-framework bridges cannot be regenerated in place
-**Status:** CLOSED 2026-09-11, overtaken. The five bridges no longer exist in that form: the stream characterization frameworks moved to `projects/fpga-systems/Genesys2/stream/rtl/bridges/` and were respun there, and the pumice `ddr2_char_framework/rtl/bridges/` now keeps its tomls in a `configs/` sibling (the layout this item prescribed) and was regenerated in place on 2026-09-11 (a1e53e5fd, BRIDGE-016 downstream). Nothing left to do.
+**Status:** CLOSED 2026-09-11, overtaken. The five bridges no longer exist in that form: the stream characterization frameworks moved to `projects/fpga-systems/Genesys2/dma-ip/stream/rtl/bridges/` and were respun there, and the pumice `ddr2_char_framework/rtl/bridges/` now keeps its tomls in a `configs/` sibling (the layout this item prescribed) and was regenerated in place on 2026-09-11 (a1e53e5fd, BRIDGE-016 downstream). Nothing left to do.
 **Was:** open 2026-07-28 (found by Claude during the USE_JOHNSON sweep)
 **Priority:** P3
 

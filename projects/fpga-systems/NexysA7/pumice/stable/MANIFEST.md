@@ -13,7 +13,7 @@ This exists because `make clean-all` in `build-perf` deletes everything under
 `fpga/bitstream` and `fpga/reports` — that is the correct behaviour for a build
 directory, and it is why nothing worth keeping may live there. `stable/` is a
 sibling of `build-perf`, outside that blast radius. Same convention as
-`projects/fpga-systems/Genesys2/stream/stable/`; promote a build with
+`projects/fpga-systems/Genesys2/dma-ip/stream/stable/`; promote a build with
 `make -C build-perf keep`.
 
 ## Contents

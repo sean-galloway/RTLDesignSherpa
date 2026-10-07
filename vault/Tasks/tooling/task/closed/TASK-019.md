@@ -12,10 +12,10 @@ copies:
 ```
 projects/asic-trials/timing_characterization/fpga/tcl/filelist_utils.tcl   (fixed 2026-09-29)
 projects/components/fabric-gen-ip/bridge/fpga/tcl/filelist_utils.tcl
-projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/tcl/filelist_utils.tcl
-projects/fpga-systems/Genesys2/stream/fpga/tcl/filelist_utils.tcl
-projects/fpga-systems/NexysA7/cdc_counter_display/build-demo/fpga/tcl/filelist_utils.tcl
-projects/fpga-systems/NexysA7/cdc_counter_display/build-phase1/fpga/tcl/filelist_utils.tcl
+projects/fpga-systems/Genesys2/dma-ip/rapids_beats/flows-rapids-beats/tcl/filelist_utils.tcl
+projects/fpga-systems/Genesys2/dma-ip/stream/fpga/tcl/filelist_utils.tcl
+projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display/build-demo/fpga/tcl/filelist_utils.tcl
+projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display/build-phase1/fpga/tcl/filelist_utils.tcl
 projects/fpga-systems/NexysA7/pumice/build-perf/fpga/tcl/filelist_utils.tcl
 rtl/amba/fpga/tcl/filelist_utils.tcl
 ```

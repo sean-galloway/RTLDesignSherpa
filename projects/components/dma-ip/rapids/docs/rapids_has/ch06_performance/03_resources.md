@@ -51,7 +51,7 @@ the reports.
 
 ## FPGA Resource Summary
 
-Source: `projects/fpga-systems/Genesys2/rapids/reports/perf/json/rapids_byte_build_bytecrc.json` and `rapids_byte_build_wordcrc.json`, extracted from the post-route reports by `reports/extract_build_metrics.py`.
+Source: `projects/fpga-systems/Genesys2/dma-ip/rapids/reports/perf/json/rapids_byte_build_bytecrc.json` and `rapids_byte_build_wordcrc.json`, extracted from the post-route reports by `reports/extract_build_metrics.py`.
 
 The harness has two checker builds. `BYTE_CRC=1` is the standard bitstream:
 the byte-wise CRC checkers take 9 cycles per 32-byte beat and verify every

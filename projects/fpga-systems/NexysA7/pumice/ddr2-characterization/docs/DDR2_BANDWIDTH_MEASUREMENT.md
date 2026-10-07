@@ -8,7 +8,7 @@ only the worked numbers are specific.
 **Purpose:** settle what "bandwidth" and "efficiency" mean for a memory
 controller before any number is published, enumerate the candidate denominators,
 and name the primary plus complementary pair to report. The companion document
-[DMA_UTILIZATION_MEASUREMENT](../../../../Genesys2/stream/docs/DMA_UTILIZATION_MEASUREMENT.md)
+[DMA_UTILIZATION_MEASUREMENT](../../../../Genesys2/dma-ip/stream/docs/DMA_UTILIZATION_MEASUREMENT.md)
 does the same job for the STREAM DMA, and this one deliberately mirrors its
 shape so the two areas argue about efficiency in the same vocabulary.
 

@@ -1,0 +1,725 @@
+# Genesys 2 STREAM obs build -- sdpram-fix re-measurement 2026-10-03
+# bitstream: build-obs fresh build (post 71d48b6f7 + lite-taps 78cddb5e2)
+60696ace63fed2c77ad4d3f1f511d06dd85801c9b5a9dac1d4078454192bfa5f  build-obs/fpga/bitstream/stream_mon_4ch_obs_obsmaster_obsslave.bit
+# observer instrument changed 2026-09-27 (78cddb5e2): lite taps, no perf/debug cone (caps0 bit4/bit5 read 0)
+
+make: Entering directory '/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/dma-ip/stream/build-obs'
+python3 /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/dma-ip/stream/build-obs/host/host_obs_campaign.py 
+[autodetect] stream harness found on /dev/ttyUSB0
+Connected to /dev/ttyUSB0 at 115200 baud
+obs_campaign: port=/dev/ttyUSB0  build v1 all-cones nch=4 clk=60.0MHz n_profile=32 monitors=0 gen_mon=0
+[13:39:30] --- obs: 1ch x 8desc x 64KB ---
+[13:39:31]   Loaded 64 words into desc_ram
+[13:39:31]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+[13:39:31]   monbus compression: ON (WRMON_ENABLE=0x20)
+[13:39:31]   STREAM configured: rd_prefetch=on, axi_beats rd=16 wr=16, ch_mask=0x01 (channels [0])
+[13:39:32]   Timer armed: expected_beats=32768 (= 524288 bytes / 16 B/beat)
+  master observer caps0=0x000042CF cones[err=1 tmo=1 compl=1 perf=0] taps=1
+  slave  observer caps0=0x0000424F cones[err=1 tmo=1 compl=1 perf=0] taps=1
+[13:39:32]   Staged channel 0 desc addr 0x00020020
+[13:39:32]   Launched together, mask=0x01
+Invalid response format: b'ERR'
+[13:39:32]   DMA completed in 0.064s
+[13:39:32]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:39:33]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:39:33]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:39:33]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:39:33]   Trace: 0 packets, overflow=no
+[13:39:33]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:39:33]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[000] stream pass=True rd_compl=117 wr_compl=115 UNEXPECTED=1964
+[000] slave  pass=True rd_compl=110 wr_compl=109 rd_timeout=60 UNEXPECTED=1977
+[13:39:33] --- obs: 1ch x 8desc x 64KB ---
+[13:39:34]   Loaded 64 words into desc_ram
+[13:39:34]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+[13:39:35]   monbus compression: ON (WRMON_ENABLE=0x20)
+[13:39:35]   STREAM configured: rd_prefetch=on, axi_beats rd=16 wr=16, ch_mask=0x01 (channels [0])
+[13:39:35]   Timer armed: expected_beats=32768 (= 524288 bytes / 16 B/beat)
+  master observer caps0=0x000042CF cones[err=1 tmo=1 compl=1 perf=0] taps=1
+  slave  observer caps0=0x0000424F cones[err=1 tmo=1 compl=1 perf=0] taps=1
+[13:39:35]   Staged channel 0 desc addr 0x00020020
+[13:39:35]   Launched together, mask=0x01
+Invalid response format: b'ERR'
+[13:39:35]   DMA completed in 0.064s
+[13:39:35]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:39:36]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:39:36]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:39:36]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:39:36]   Trace: 0 packets, overflow=no
+[13:39:36]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:39:36]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[001] stream pass=True rd_compl=117 wr_compl=115 UNEXPECTED=1964
+[001] slave  pass=True rd_compl=110 wr_compl=109 rd_timeout=60 UNEXPECTED=1977
+[13:39:36] --- obs: 1ch x 8desc x 64KB ---
+[13:39:37]   Loaded 64 words into desc_ram
+[13:39:37]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+[13:39:38]   monbus compression: ON (WRMON_ENABLE=0x20)
+[13:39:38]   STREAM configured: rd_prefetch=on, axi_beats rd=16 wr=16, ch_mask=0x01 (channels [0])
+[13:39:38]   Timer armed: expected_beats=32768 (= 524288 bytes / 16 B/beat)
+  master observer caps0=0x000042CF cones[err=1 tmo=1 compl=1 perf=0] taps=1
+  slave  observer caps0=0x0000424F cones[err=1 tmo=1 compl=1 perf=0] taps=1
+[13:39:38]   Staged channel 0 desc addr 0x00020020
+[13:39:38]   Launched together, mask=0x01
+Invalid response format: b'ERR'
+[13:39:38]   DMA completed in 0.064s
+[13:39:39]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:39:39]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:39:39]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:39:39]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:39:39]   Trace: 0 packets, overflow=no
+[13:39:39]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:39:39]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[002] stream pass=True rd_compl=117 wr_compl=115 UNEXPECTED=1964
+[002] slave  pass=True rd_compl=110 wr_compl=109 rd_timeout=60 UNEXPECTED=1977
+[13:39:39] --- obs: 1ch x 8desc x 64KB ---
+[13:39:40]   Loaded 64 words into desc_ram
+[13:39:40]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+[13:39:41]   monbus compression: ON (WRMON_ENABLE=0x20)
+[13:39:41]   STREAM configured: rd_prefetch=on, axi_beats rd=16 wr=16, ch_mask=0x01 (channels [0])
+[13:39:41]   Timer armed: expected_beats=32768 (= 524288 bytes / 16 B/beat)
+  master observer caps0=0x000042CF cones[err=1 tmo=1 compl=1 perf=0] taps=1
+  slave  observer caps0=0x0000424F cones[err=1 tmo=1 compl=1 perf=0] taps=1
+[13:39:41]   Staged channel 0 desc addr 0x00020020
+[13:39:41]   Launched together, mask=0x01
+Invalid response format: b'ERR'
+[13:39:42]   DMA completed in 0.064s
+[13:39:42]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:39:42]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:39:42]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:39:42]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:39:42]   Trace: 0 packets, overflow=no
+[13:39:42]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:39:42]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[003] stream pass=True rd_compl=117 wr_compl=115 UNEXPECTED=1964
+[003] slave  pass=True rd_compl=110 wr_compl=109 rd_timeout=60 UNEXPECTED=1977
+[13:39:42] --- obs: 1ch x 8desc x 64KB ---
+[13:39:44]   Loaded 64 words into desc_ram
+[13:39:44]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+[13:39:44]   monbus compression: ON (WRMON_ENABLE=0x20)
+[13:39:44]   STREAM configured: rd_prefetch=on, axi_beats rd=16 wr=16, ch_mask=0x01 (channels [0])
+[13:39:44]   Timer armed: expected_beats=32768 (= 524288 bytes / 16 B/beat)
+  master observer caps0=0x000042CF cones[err=1 tmo=1 compl=1 perf=0] taps=1
+  slave  observer caps0=0x0000424F cones[err=1 tmo=1 compl=1 perf=0] taps=1
+[13:39:45]   Staged channel 0 desc addr 0x00020020
+[13:39:45]   Launched together, mask=0x01
+Invalid response format: b'ERR'
+[13:39:45]   DMA completed in 0.064s
+[13:39:45]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:39:45]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:39:45]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:39:45]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:39:45]   Trace: 0 packets, overflow=no
+[13:39:45]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:39:45]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[004] stream pass=True rd_compl=117 wr_compl=115 UNEXPECTED=1964
+[004] slave  pass=True rd_compl=110 wr_compl=109 rd_timeout=60 UNEXPECTED=1977
+[13:39:46] --- obs: 1ch x 8desc x 64KB ---
+[13:39:47]   Loaded 64 words into desc_ram
+[13:39:47]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+[13:39:47]   monbus compression: ON (WRMON_ENABLE=0x20)
+[13:39:47]   STREAM configured: rd_prefetch=on, axi_beats rd=16 wr=16, ch_mask=0x01 (channels [0])
+[13:39:47]   Timer armed: expected_beats=32768 (= 524288 bytes / 16 B/beat)
+  master observer caps0=0x000042CF cones[err=1 tmo=1 compl=1 perf=0] taps=1
+  slave  observer caps0=0x0000424F cones[err=1 tmo=1 compl=1 perf=0] taps=1
+[13:39:48]   Staged channel 0 desc addr 0x00020020
+[13:39:48]   Launched together, mask=0x01
+Invalid response format: b'ERR'
+[13:39:48]   DMA completed in 0.064s
+[13:39:48]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:39:48]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:39:48]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:39:48]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:39:48]   Trace: 0 packets, overflow=no
+[13:39:48]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:39:48]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[005] stream pass=True rd_compl=117 wr_compl=115 UNEXPECTED=1964
+[005] slave  pass=True rd_compl=110 wr_compl=109 rd_timeout=60 UNEXPECTED=1977
+[13:39:49] --- obs: 1ch x 8desc x 64KB ---
+[13:39:50]   Loaded 64 words into desc_ram
+[13:39:50]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+[13:39:50]   monbus compression: ON (WRMON_ENABLE=0x20)
+[13:39:50]   STREAM configured: rd_prefetch=on, axi_beats rd=16 wr=16, ch_mask=0x01 (channels [0])
+[13:39:50]   Timer armed: expected_beats=32768 (= 524288 bytes / 16 B/beat)
+  master observer caps0=0x000042CF cones[err=1 tmo=1 compl=1 perf=0] taps=1
+  slave  observer caps0=0x0000424F cones[err=1 tmo=1 compl=1 perf=0] taps=1
+[13:39:51]   Staged channel 0 desc addr 0x00020020
+[13:39:51]   Launched together, mask=0x01
+Invalid response format: b'ERR'
+[13:39:51]   DMA completed in 0.064s
+[13:39:51]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:39:51]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:39:51]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:39:51]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:39:51]   Trace: 0 packets, overflow=no
+[13:39:51]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:39:51]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[006] stream pass=True rd_compl=117 wr_compl=115 UNEXPECTED=1964
+[006] slave  pass=True rd_compl=110 wr_compl=109 rd_timeout=60 UNEXPECTED=1977
+[13:39:52] --- obs: 1ch x 8desc x 64KB ---
+[13:39:53]   Loaded 64 words into desc_ram
+[13:39:53]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+[13:39:53]   monbus compression: ON (WRMON_ENABLE=0x20)
+[13:39:53]   STREAM configured: rd_prefetch=on, axi_beats rd=16 wr=16, ch_mask=0x01 (channels [0])
+[13:39:53]   Timer armed: expected_beats=32768 (= 524288 bytes / 16 B/beat)
+  master observer caps0=0x000042CF cones[err=1 tmo=1 compl=1 perf=0] taps=1
+  slave  observer caps0=0x0000424F cones[err=1 tmo=1 compl=1 perf=0] taps=1
+[13:39:54]   Staged channel 0 desc addr 0x00020020
+[13:39:54]   Launched together, mask=0x01
+Invalid response format: b'ERR'
+[13:39:54]   DMA completed in 0.064s
+[13:39:54]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:39:54]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:39:54]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:39:54]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:39:55]   Trace: 0 packets, overflow=no
+[13:39:55]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:39:55]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[007] stream pass=True rd_compl=117 wr_compl=115 UNEXPECTED=1964
+[007] slave  pass=True rd_compl=110 wr_compl=109 rd_timeout=60 UNEXPECTED=1977
+[13:39:55] --- obs: 1ch x 8desc x 64KB ---
+[13:39:56]   Loaded 64 words into desc_ram
+[13:39:56]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+[13:39:56]   monbus compression: ON (WRMON_ENABLE=0x20)
+[13:39:56]   STREAM configured: rd_prefetch=on, axi_beats rd=16 wr=16, ch_mask=0x01 (channels [0])
+[13:39:56]   Timer armed: expected_beats=32768 (= 524288 bytes / 16 B/beat)
+  master observer caps0=0x000042CF cones[err=1 tmo=1 compl=1 perf=0] taps=1
+  slave  observer caps0=0x0000424F cones[err=1 tmo=1 compl=1 perf=0] taps=1
+[13:39:57]   Staged channel 0 desc addr 0x00020020
+[13:39:57]   Launched together, mask=0x01
+Invalid response format: b'ERR'
+[13:39:57]   DMA completed in 0.064s
+[13:39:57]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:39:58]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:39:58]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:39:58]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:39:58]   Trace: 0 packets, overflow=no
+[13:39:58]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:39:58]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[008] stream pass=True rd_compl=117 wr_compl=115 UNEXPECTED=1964
+[008] slave  pass=True rd_compl=110 wr_compl=109 rd_timeout=60 UNEXPECTED=1977
+[13:39:58] --- obs: 1ch x 8desc x 64KB ---
+[13:39:59]   Loaded 64 words into desc_ram
+[13:39:59]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+[13:39:59]   monbus compression: ON (WRMON_ENABLE=0x20)
+[13:39:59]   STREAM configured: rd_prefetch=on, axi_beats rd=16 wr=16, ch_mask=0x01 (channels [0])
+[13:39:59]   Timer armed: expected_beats=32768 (= 524288 bytes / 16 B/beat)
+  master observer caps0=0x000042CF cones[err=1 tmo=1 compl=1 perf=0] taps=1
+  slave  observer caps0=0x0000424F cones[err=1 tmo=1 compl=1 perf=0] taps=1
+[13:40:00]   Staged channel 0 desc addr 0x00020020
+[13:40:00]   Launched together, mask=0x01
+Invalid response format: b'ERR'
+[13:40:00]   DMA completed in 0.064s
+[13:40:00]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:01]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:01]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:01]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:01]   Trace: 0 packets, overflow=no
+[13:40:01]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:01]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[009] stream pass=True rd_compl=117 wr_compl=115 UNEXPECTED=1964
+[009] slave  pass=True rd_compl=110 wr_compl=109 rd_timeout=60 UNEXPECTED=1977
+[13:40:01] --- obs: 1ch x 8desc x 64KB ---
+[13:40:02]   Loaded 64 words into desc_ram
+[13:40:02]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+[13:40:02]   monbus compression: ON (WRMON_ENABLE=0x20)
+[13:40:02]   STREAM configured: rd_prefetch=on, axi_beats rd=16 wr=16, ch_mask=0x01 (channels [0])
+[13:40:02]   Timer armed: expected_beats=32768 (= 524288 bytes / 16 B/beat)
+  master observer caps0=0x000042CF cones[err=1 tmo=1 compl=1 perf=0] taps=1
+  slave  observer caps0=0x0000424F cones[err=1 tmo=1 compl=1 perf=0] taps=1
+[13:40:03]   Staged channel 0 desc addr 0x00020020
+[13:40:03]   Launched together, mask=0x01
+Invalid response format: b'ERR'
+[13:40:03]   DMA completed in 0.064s
+[13:40:03]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:04]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:04]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:04]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:04]   Trace: 0 packets, overflow=no
+[13:40:04]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:04]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[010] stream pass=True rd_compl=117 wr_compl=115 UNEXPECTED=1964
+[010] slave  pass=True rd_compl=110 wr_compl=109 rd_timeout=60 UNEXPECTED=1977
+[13:40:04] --- obs: 1ch x 8desc x 64KB ---
+[13:40:05]   Loaded 64 words into desc_ram
+[13:40:05]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+[13:40:06]   monbus compression: ON (WRMON_ENABLE=0x20)
+[13:40:06]   STREAM configured: rd_prefetch=on, axi_beats rd=16 wr=16, ch_mask=0x01 (channels [0])
+[13:40:06]   Timer armed: expected_beats=32768 (= 524288 bytes / 16 B/beat)
+  master observer caps0=0x000042CF cones[err=1 tmo=1 compl=1 perf=0] taps=1
+  slave  observer caps0=0x0000424F cones[err=1 tmo=1 compl=1 perf=0] taps=1
+[13:40:06]   Staged channel 0 desc addr 0x00020020
+[13:40:06]   Launched together, mask=0x01
+Invalid response format: b'ERR'
+[13:40:06]   DMA completed in 0.064s
+[13:40:06]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:07]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:07]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:07]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:07]   Trace: 0 packets, overflow=no
+[13:40:07]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:07]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[011] stream pass=True rd_compl=117 wr_compl=115 UNEXPECTED=1964
+[011] slave  pass=True rd_compl=110 wr_compl=109 rd_timeout=60 UNEXPECTED=1977
+[13:40:07] --- obs: 1ch x 8desc x 64KB ---
+[13:40:08]   Loaded 64 words into desc_ram
+[13:40:08]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+[13:40:09]   monbus compression: ON (WRMON_ENABLE=0x20)
+[13:40:09]   STREAM configured: rd_prefetch=on, axi_beats rd=16 wr=16, ch_mask=0x01 (channels [0])
+[13:40:09]   Timer armed: expected_beats=32768 (= 524288 bytes / 16 B/beat)
+  master observer caps0=0x000042CF cones[err=1 tmo=1 compl=1 perf=0] taps=1
+  slave  observer caps0=0x0000424F cones[err=1 tmo=1 compl=1 perf=0] taps=1
+[13:40:09]   Staged channel 0 desc addr 0x00020020
+[13:40:09]   Launched together, mask=0x01
+Invalid response format: b'ERR'
+[13:40:09]   DMA completed in 0.064s
+[13:40:10]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:10]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:10]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:10]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:10]   Trace: 0 packets, overflow=no
+[13:40:10]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:10]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[012] stream pass=True rd_compl=117 wr_compl=115 UNEXPECTED=1964
+[012] slave  pass=True rd_compl=110 wr_compl=109 rd_timeout=60 UNEXPECTED=1977
+[13:40:10] --- obs: 1ch x 8desc x 64KB ---
+[13:40:11]   Loaded 64 words into desc_ram
+[13:40:11]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+[13:40:12]   monbus compression: ON (WRMON_ENABLE=0x20)
+[13:40:12]   STREAM configured: rd_prefetch=on, axi_beats rd=16 wr=16, ch_mask=0x01 (channels [0])
+[13:40:12]   Timer armed: expected_beats=32768 (= 524288 bytes / 16 B/beat)
+  master observer caps0=0x000042CF cones[err=1 tmo=1 compl=1 perf=0] taps=1
+  slave  observer caps0=0x0000424F cones[err=1 tmo=1 compl=1 perf=0] taps=1
+[13:40:12]   Staged channel 0 desc addr 0x00020020
+[13:40:12]   Launched together, mask=0x01
+Invalid response format: b'ERR'
+[13:40:12]   DMA completed in 0.064s
+[13:40:13]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:13]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:13]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:13]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:13]   Trace: 0 packets, overflow=no
+[13:40:13]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:13]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[013] stream pass=True rd_compl=117 wr_compl=115 UNEXPECTED=1964
+[013] slave  pass=True rd_compl=110 wr_compl=109 rd_timeout=60 UNEXPECTED=1977
+[13:40:13] --- obs: 1ch x 8desc x 64KB ---
+[13:40:14]   Loaded 64 words into desc_ram
+[13:40:14]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+[13:40:15]   monbus compression: ON (WRMON_ENABLE=0x20)
+[13:40:15]   STREAM configured: rd_prefetch=on, axi_beats rd=16 wr=16, ch_mask=0x01 (channels [0])
+[13:40:15]   Timer armed: expected_beats=32768 (= 524288 bytes / 16 B/beat)
+  master observer caps0=0x000042CF cones[err=1 tmo=1 compl=1 perf=0] taps=1
+  slave  observer caps0=0x0000424F cones[err=1 tmo=1 compl=1 perf=0] taps=1
+[13:40:16]   Staged channel 0 desc addr 0x00020020
+[13:40:16]   Launched together, mask=0x01
+Invalid response format: b'ERR'
+[13:40:16]   DMA completed in 0.064s
+[13:40:16]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:16]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:16]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:16]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:16]   Trace: 0 packets, overflow=no
+[13:40:16]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:16]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[014] stream pass=True rd_compl=117 wr_compl=115 UNEXPECTED=1964
+[014] slave  pass=True rd_compl=110 wr_compl=109 rd_timeout=60 UNEXPECTED=1977
+[13:40:16] --- obs: 1ch x 8desc x 64KB ---
+[13:40:18]   Loaded 64 words into desc_ram
+[13:40:18]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+[13:40:18]   monbus compression: ON (WRMON_ENABLE=0x20)
+[13:40:18]   STREAM configured: rd_prefetch=on, axi_beats rd=16 wr=16, ch_mask=0x01 (channels [0])
+[13:40:18]   Timer armed: expected_beats=32768 (= 524288 bytes / 16 B/beat)
+  master observer caps0=0x000042CF cones[err=1 tmo=1 compl=1 perf=0] taps=1
+  slave  observer caps0=0x0000424F cones[err=1 tmo=1 compl=1 perf=0] taps=1
+[13:40:19]   Staged channel 0 desc addr 0x00020020
+[13:40:19]   Launched together, mask=0x01
+Invalid response format: b'ERR'
+[13:40:19]   DMA completed in 0.064s
+[13:40:19]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:19]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:19]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:19]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:19]   Trace: 0 packets, overflow=no
+[13:40:19]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:19]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[015] stream pass=True rd_compl=117 wr_compl=115 UNEXPECTED=1964
+[015] slave  pass=True rd_compl=110 wr_compl=109 rd_timeout=60 UNEXPECTED=1977
+[13:40:20] --- obs: 1ch x 8desc x 64KB ---
+[13:40:21]   Loaded 64 words into desc_ram
+[13:40:21]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+[13:40:21]   monbus compression: ON (WRMON_ENABLE=0x20)
+[13:40:21]   STREAM configured: rd_prefetch=on, axi_beats rd=16 wr=16, ch_mask=0x01 (channels [0])
+[13:40:21]   Timer armed: expected_beats=32768 (= 524288 bytes / 16 B/beat)
+  master observer caps0=0x000042CF cones[err=1 tmo=1 compl=1 perf=0] taps=1
+  slave  observer caps0=0x0000424F cones[err=1 tmo=1 compl=1 perf=0] taps=1
+[13:40:22]   Staged channel 0 desc addr 0x00020020
+[13:40:22]   Launched together, mask=0x01
+Invalid response format: b'ERR'
+[13:40:22]   DMA completed in 0.064s
+[13:40:22]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:22]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:22]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:22]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:22]   Trace: 0 packets, overflow=no
+[13:40:22]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:22]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[016] stream pass=True rd_compl=117 wr_compl=115 UNEXPECTED=1964
+[016] slave  pass=True rd_compl=110 wr_compl=109 rd_timeout=60 UNEXPECTED=1977
+[13:40:23] --- obs: 1ch x 8desc x 64KB ---
+[13:40:24]   Loaded 64 words into desc_ram
+[13:40:24]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+[13:40:24]   monbus compression: ON (WRMON_ENABLE=0x20)
+[13:40:24]   STREAM configured: rd_prefetch=on, axi_beats rd=16 wr=16, ch_mask=0x01 (channels [0])
+[13:40:24]   Timer armed: expected_beats=32768 (= 524288 bytes / 16 B/beat)
+  master observer caps0=0x000042CF cones[err=1 tmo=1 compl=1 perf=0] taps=1
+  slave  observer caps0=0x0000424F cones[err=1 tmo=1 compl=1 perf=0] taps=1
+[13:40:25]   Staged channel 0 desc addr 0x00020020
+[13:40:25]   Launched together, mask=0x01
+Invalid response format: b'ERR'
+[13:40:25]   DMA completed in 0.064s
+[13:40:25]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:25]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:25]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:25]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:25]   Trace: 0 packets, overflow=no
+[13:40:25]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:25]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[017] stream pass=True rd_compl=117 wr_compl=115 UNEXPECTED=1964
+[017] slave  pass=True rd_compl=110 wr_compl=109 rd_timeout=60 UNEXPECTED=1977
+[13:40:26] --- obs: 1ch x 8desc x 64KB ---
+[13:40:27]   Loaded 64 words into desc_ram
+[13:40:27]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+[13:40:27]   monbus compression: ON (WRMON_ENABLE=0x20)
+[13:40:27]   STREAM configured: rd_prefetch=on, axi_beats rd=16 wr=16, ch_mask=0x01 (channels [0])
+[13:40:27]   Timer armed: expected_beats=32768 (= 524288 bytes / 16 B/beat)
+  master observer caps0=0x000042CF cones[err=1 tmo=1 compl=1 perf=0] taps=1
+  slave  observer caps0=0x0000424F cones[err=1 tmo=1 compl=1 perf=0] taps=1
+[13:40:28]   Staged channel 0 desc addr 0x00020020
+[13:40:28]   Launched together, mask=0x01
+Invalid response format: b'ERR'
+[13:40:28]   DMA completed in 0.064s
+[13:40:28]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:29]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:29]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:29]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:29]   Trace: 0 packets, overflow=no
+[13:40:29]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:29]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[018] stream pass=True rd_compl=117 wr_compl=115 UNEXPECTED=1964
+[018] slave  pass=True rd_compl=110 wr_compl=109 rd_timeout=60 UNEXPECTED=1977
+[13:40:29] --- obs: 1ch x 8desc x 64KB ---
+[13:40:30]   Loaded 64 words into desc_ram
+[13:40:30]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+[13:40:30]   monbus compression: ON (WRMON_ENABLE=0x20)
+[13:40:30]   STREAM configured: rd_prefetch=on, axi_beats rd=16 wr=16, ch_mask=0x01 (channels [0])
+[13:40:30]   Timer armed: expected_beats=32768 (= 524288 bytes / 16 B/beat)
+  master observer caps0=0x000042CF cones[err=1 tmo=1 compl=1 perf=0] taps=1
+  slave  observer caps0=0x0000424F cones[err=1 tmo=1 compl=1 perf=0] taps=1
+[13:40:31]   Staged channel 0 desc addr 0x00020020
+[13:40:31]   Launched together, mask=0x01
+Invalid response format: b'ERR'
+[13:40:31]   DMA completed in 0.064s
+[13:40:31]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:32]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:32]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:32]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:32]   Trace: 0 packets, overflow=no
+[13:40:32]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:32]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[019] stream pass=True rd_compl=117 wr_compl=115 UNEXPECTED=1964
+[019] slave  pass=True rd_compl=110 wr_compl=109 rd_timeout=60 UNEXPECTED=1977
+
+==== cumulative ====
+stream total=   43920  rd_compl=2340 wr_compl=2300 UNEXPECTED=39280
+slave  total=   45120  rd_compl=2200 wr_compl=2180 rd_timeout=1200 UNEXPECTED=39540
+
+TOTAL PACKETS BINNED: 89040
+UART connection closed
+make: Leaving directory '/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/dma-ip/stream/build-obs'
+
+make: Entering directory '/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/dma-ip/stream/build-obs'
+python3 /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/dma-ip/stream/build-obs/host/host_obs_matrix.py 
+[autodetect] stream harness found on /dev/ttyUSB0
+packet-class matrix: 7 classes, 3 iterations each
+floor for OK: 1000 packets
+
+Connected to /dev/ttyUSB0 at 115200 baud
+[13:40:32] --- compl: 1ch x 8desc x 64KB ---
+[13:40:34]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:40:34]   DMA completed in 0.064s
+[13:40:34]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:35]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:35]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:35]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:35]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:35]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[13:40:35] --- compl: 1ch x 8desc x 64KB ---
+[13:40:36]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:40:37]   DMA completed in 0.064s
+[13:40:37]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:37]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:37]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:37]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:37]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:37]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[13:40:37] --- compl: 1ch x 8desc x 64KB ---
+[13:40:39]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:40:39]   DMA completed in 0.064s
+[13:40:39]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:40]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:40]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:40]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:40]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:40]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+  [OK ] compl      keyed=13164     unexpected=0       rd_compl=3291, wr_compl=3291
+           one Completion per transaction on a clean DMA
+[13:40:40] --- perf: 1ch x 8desc x 64KB ---
+[13:40:41]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:40:42]   DMA completed in 0.064s
+[13:40:42]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:42]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:42]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:42]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:42]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:42]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[13:40:43] --- perf: 1ch x 8desc x 64KB ---
+[13:40:44]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:40:45]   DMA completed in 0.064s
+[13:40:45]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:45]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:45]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:45]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:45]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:45]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[13:40:45] --- perf: 1ch x 8desc x 64KB ---
+[13:40:46]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:40:47]   DMA completed in 0.064s
+[13:40:47]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:48]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:48]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:48]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:48]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:48]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+  [OK ] perf       keyed=13164     unexpected=0       rd_compl=3291, wr_compl=3291
+           Perf derives from completions, so both cones are on by necessity
+[13:40:48] --- addrmatch: 1ch x 8desc x 64KB ---
+[13:40:49]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:40:50]   DMA completed in 0.064s
+[13:40:50]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:51]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:51]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:51]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:51]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:51]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[13:40:51] --- addrmatch: 1ch x 8desc x 64KB ---
+[13:40:52]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:40:53]   DMA completed in 0.064s
+[13:40:53]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:53]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:53]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:53]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:53]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:53]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[13:40:54] --- addrmatch: 1ch x 8desc x 64KB ---
+[13:40:55]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:40:56]   DMA completed in 0.064s
+[13:40:56]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:56]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:56]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:56]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:56]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:56]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+  [OK ] addrmatch  keyed=13140     unexpected=0       rd_addrmatch=3288, wr_addrmatch=3282
+           every AR/AW is a range HIT -> AddrMatch
+[13:40:56] --- error: 1ch x 8desc x 64KB ---
+[13:40:58]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:40:58]   DMA completed in 0.064s
+[13:40:59]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:40:59]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:40:59]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:59]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:40:59]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:40:59]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[13:40:59] --- error: 1ch x 8desc x 64KB ---
+[13:41:00]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:41:01]   DMA completed in 0.064s
+[13:41:01]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:41:02]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:41:02]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:41:02]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:41:02]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:41:02]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[13:41:02] --- error: 1ch x 8desc x 64KB ---
+[13:41:03]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:41:04]   DMA completed in 0.064s
+[13:41:04]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:41:04]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:41:04]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:41:04]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:41:04]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:41:04]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+  [OK ] error      keyed=13140     unexpected=0       rd_err_addrrange=3288, wr_err_addrrange=3282
+           every command MISSES the allowlist -> Error/ADDR_RANGE
+[13:41:04] --- timeout: 1ch x 8desc x 64KB ---
+[13:41:05]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:41:06]   DMA completed in 0.064s
+[13:41:06]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:41:07]   Datapath util:  R=  0.0%  W=  0.0%  End-to-end=  0.0%
+[13:41:07]   R bus: prod   0.0%  bp  0.0%  starv 100.0%
+[13:41:07]   W bus: prod   0.0%  bp  0.0%  starv 100.0%
+[13:41:07]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:41:07]   Bus  throughput: 105.0 MB/s (FPGA timer 4.760 ms; E2E util 0.0%; ceiling 458 MB/s net-moved at 60 MHz)
+[13:41:07] --- timeout: 1ch x 8desc x 64KB ---
+[13:41:08]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:41:09]   DMA completed in 0.064s
+[13:41:09]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:41:09]   Datapath util:  R=  0.0%  W=  0.0%  End-to-end=  0.0%
+[13:41:09]   R bus: prod   0.0%  bp  0.0%  starv 100.0%
+[13:41:09]   W bus: prod   0.0%  bp  0.0%  starv 100.0%
+[13:41:09]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:41:09]   Bus  throughput: 105.0 MB/s (FPGA timer 4.760 ms; E2E util 0.0%; ceiling 458 MB/s net-moved at 60 MHz)
+[13:41:09] --- timeout: 1ch x 8desc x 64KB ---
+[13:41:10]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:41:11]   DMA completed in 0.064s
+[13:41:11]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:41:12]   Datapath util:  R=  0.0%  W=  0.0%  End-to-end=  0.0%
+[13:41:12]   R bus: prod   0.0%  bp  0.0%  starv 100.0%
+[13:41:12]   W bus: prod   0.0%  bp  0.0%  starv 100.0%
+[13:41:12]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:41:12]   Bus  throughput: 105.0 MB/s (FPGA timer 4.760 ms; E2E util 0.0%; ceiling 458 MB/s net-moved at 60 MHz)
+  [LOW] timeout    keyed=168       unexpected=0       
+           slave response delayed 2048 cyc so transactions genuinely expire
+[13:41:12] --- threshold: 1ch x 8desc x 64KB ---
+[13:41:13]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:41:14]   DMA completed in 0.064s
+[13:41:14]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:41:14]   Datapath util:  R= 99.5%  W= 99.5%  End-to-end= 99.7%
+[13:41:14]   R bus: prod  99.5%  bp  0.0%  starv   0.5%
+[13:41:14]   W bus: prod  99.5%  bp  0.0%  starv   0.5%
+[13:41:14]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:41:14]   Bus  throughput: 912.5 MB/s (FPGA timer 0.548 ms; E2E util 99.7%; ceiling 458 MB/s net-moved at 60 MHz)
+[13:41:15] --- threshold: 1ch x 8desc x 64KB ---
+[13:41:16]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:41:17]   DMA completed in 0.064s
+[13:41:17]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:41:17]   Datapath util:  R= 99.5%  W= 99.5%  End-to-end= 99.7%
+[13:41:17]   R bus: prod  99.5%  bp  0.0%  starv   0.5%
+[13:41:17]   W bus: prod  99.5%  bp  0.0%  starv   0.5%
+[13:41:17]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:41:17]   Bus  throughput: 912.5 MB/s (FPGA timer 0.548 ms; E2E util 99.7%; ceiling 458 MB/s net-moved at 60 MHz)
+[13:41:17] --- threshold: 1ch x 8desc x 64KB ---
+[13:41:18]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:41:19]   DMA completed in 0.064s
+[13:41:19]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:41:20]   Datapath util:  R= 99.5%  W= 99.5%  End-to-end= 99.7%
+[13:41:20]   R bus: prod  99.5%  bp  0.0%  starv   0.5%
+[13:41:20]   W bus: prod  99.5%  bp  0.0%  starv   0.5%
+[13:41:20]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:41:20]   Bus  throughput: 912.5 MB/s (FPGA timer 0.548 ms; E2E util 99.7%; ceiling 458 MB/s net-moved at 60 MHz)
+  [OK ] threshold  keyed=13185     unexpected=0       rd_thr_latency=3300, wr_thr_latency=3291
+           slave delayed 64 cyc against a 1-cycle latency threshold
+[13:41:20] --- debug: 1ch x 8desc x 64KB ---
+[13:41:21]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:41:22]   DMA completed in 0.064s
+[13:41:22]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:41:22]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:41:22]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:41:22]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:41:22]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:41:22]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[13:41:23] --- debug: 1ch x 8desc x 64KB ---
+[13:41:24]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:41:24]   DMA completed in 0.064s
+[13:41:25]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:41:25]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:41:25]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:41:25]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:41:25]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:41:25]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+[13:41:25] --- debug: 1ch x 8desc x 64KB ---
+[13:41:26]   Descriptors loaded in 1.0s (64 writes)
+Invalid response format: b'ERR'
+Invalid response format: b'ERR'
+[13:41:27]   DMA completed in 0.064s
+[13:41:27]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[13:41:27]   Datapath util:  R= 99.8%  W= 99.8%  End-to-end= 99.9%
+[13:41:27]   R bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:41:27]   W bus: prod  99.8%  bp  0.0%  starv   0.2%
+[13:41:27]   Wall throughput: 7.8 MB/s (0 MB in 0.064s; includes UART overhead)
+[13:41:27]   Bus  throughput: 914.2 MB/s (FPGA timer 0.547 ms; E2E util 99.9%; ceiling 458 MB/s net-moved at 60 MHz)
+  [LOW] debug      keyed=0         unexpected=0       
+           one Debug packet per (slot, state change)
+UART connection closed
+
+==== summary ====
+  compl          13164 keyed        0 unexpected
+  perf           13164 keyed        0 unexpected
+  addrmatch      13140 keyed        0 unexpected
+  error          13140 keyed        0 unexpected
+  timeout          168 keyed        0 unexpected
+  threshold      13185 keyed        0 unexpected
+  debug              0 keyed        0 unexpected
+
+5/7 classes above the 1000-packet floor
+make: *** [/mnt/data/github/RTLDesignSherpa/make/fpga_flow.mk:293: host-obs_matrix] Error 1
+make: Leaving directory '/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/dma-ip/stream/build-obs'

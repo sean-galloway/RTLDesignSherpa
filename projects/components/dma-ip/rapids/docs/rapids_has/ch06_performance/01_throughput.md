@@ -138,7 +138,7 @@ mode, and that build does not exist yet.
 
 ### Byte Campaign (Correctness)
 
-Source: `projects/fpga-systems/Genesys2/rapids/reports/board`, files
+Source: `projects/fpga-systems/Genesys2/dma-ip/rapids/reports/board`, files
 `rapids_byte_bytes_20260930_072516.json` and
 `rapids_byte_smoke_20260930_072435.json`. Two channels were active, one
 descriptor per channel.
@@ -163,7 +163,7 @@ launch and are not throughput.
 
 ### RAPIDS Beats Performance Report
 
-Source: `projects/fpga-systems/Genesys2/rapids_beats/reports/perf/README.md`,
+Source: `projects/fpga-systems/Genesys2/dma-ip/rapids_beats/reports/perf/README.md`,
 version 2.2. Build: RAPIDS Beats, 8 channels, 256 bits, 4 KB of buffer per
 channel, 100 MHz. Every row is golden-CRC checked. Utilization is engaged
 utilization: productive cycles over productive, backpressure and starvation

@@ -19,9 +19,9 @@ Rebuild and re-measure the Genesys2 stream harness (all three instrumented
 builds share the sdpram through `stream_harness.f` /
 `instrumentation_common.f`), then repin the docs:
 
-- `projects/fpga-systems/Genesys2/stream/build-perf/`
-- `projects/fpga-systems/Genesys2/stream/build-obs/`
-- `projects/fpga-systems/Genesys2/stream/build-mon/`
+- `projects/fpga-systems/Genesys2/dma-ip/stream/build-perf/`
+- `projects/fpga-systems/Genesys2/dma-ip/stream/build-obs/`
+- `projects/fpga-systems/Genesys2/dma-ip/stream/build-mon/`
 
 Then repin every pinned figure taken with the pre-fix slave: the board
 perf/monitor results (the 40/40 runs) and any doc/table quoting stream

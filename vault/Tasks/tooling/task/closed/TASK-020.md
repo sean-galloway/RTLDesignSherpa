@@ -153,7 +153,7 @@ Runnable suites in the tree: **20**. Exercised here: **3** (`val/amba`,
     mem-ctrl-ip/pumice-ddr2-lpddr2, mem-ctrl-ip/scoria-ddr3-lpddr3,
     retro_legacy_blocks, utility-ip/converters, utility-ip/misc,
     asic-trials/timing_characterization,
-    fpga-systems/Genesys2/stream/{build-mon,build-obs,build-perf,rtl/bridges},
+    fpga-systems/Genesys2/dma-ip/stream/{build-mon,build-obs,build-perf,rtl/bridges},
     fpga-systems/NexysA7/pumice/ddr2_char_framework
 
 The three were chosen as this task's acceptance named them, and they span the

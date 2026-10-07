@@ -5,7 +5,7 @@ summary: The STREAM component on the Genesys 2 - two builds (monitor validation,
 
 # Genesys 2 -- stream
 
-`projects/fpga-systems/Genesys2/stream/` -- STREAM on the Kintex-7 XC7K325T,
+`projects/fpga-systems/Genesys2/dma-ip/stream/` -- STREAM on the Kintex-7 XC7K325T,
 in the [[area-structure]] layout. One component, two builds over a shared
 component layer:
 
@@ -41,7 +41,7 @@ component layer it has one owner and no walk.
 The uniform targets ([[build-flows]]); nothing here is stream-specific:
 
 ```sh
-cd projects/fpga-systems/Genesys2/stream/build-mon
+cd projects/fpga-systems/Genesys2/dma-ip/stream/build-mon
 make targets                 # what exists on disk: tcl, host programs, sequences
 make lint                    # verilator, whole harness -- seconds
 make sim                     # cocotb harness sim, no board

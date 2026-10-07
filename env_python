@@ -44,8 +44,8 @@ export STREAM_ROOT=$REPO_ROOT/projects/components/dma-ip/stream
 # depends on which flow is driving (stream_char_framework vs ddr2_char_framework).
 # That name is deliberately NOT defined here: one global value would be silently
 # wrong for the other flow. Filelists should use the unambiguous names below.
-export STREAM_CHAR_ROOT=$REPO_ROOT/projects/fpga-systems/Genesys2/stream
-export STREAM_CHAR_FRAMEWORK_ROOT=$REPO_ROOT/projects/fpga-systems/Genesys2/stream
+export STREAM_CHAR_ROOT=$REPO_ROOT/projects/fpga-systems/Genesys2/dma-ip/stream
+export STREAM_CHAR_FRAMEWORK_ROOT=$REPO_ROOT/projects/fpga-systems/Genesys2/dma-ip/stream
 export DDR2_CHAR_FRAMEWORK_ROOT=$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework
 export TIMING_CHAR_ROOT=$REPO_ROOT/projects/asic-trials/timing_characterization
 

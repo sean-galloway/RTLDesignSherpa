@@ -14,7 +14,7 @@
   "projects/components/dma-ip/stream/dv/tests/macro/test_stream_performance_profile.py": 2,
   "projects/components/dma-ip/stream/dv/tests/top/test_stream_top.py": 5,
   "projects/components/dma-ip/stream/dv/tests/top/test_stream_top_monbus.py": 1,
-  "projects/fpga-systems/Genesys2/stream/build-mon/dv/tests/test_stream_mon.py": 5,
-  "projects/fpga-systems/Genesys2/stream/build-obs/dv/tests/test_stream_mon.py": 3,
+  "projects/fpga-systems/Genesys2/dma-ip/stream/build-mon/dv/tests/test_stream_mon.py": 5,
+  "projects/fpga-systems/Genesys2/dma-ip/stream/build-obs/dv/tests/test_stream_mon.py": 3,
   "val/amba/test_wb4_monitor.py": 10
 }

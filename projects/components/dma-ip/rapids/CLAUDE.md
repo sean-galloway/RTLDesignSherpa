@@ -53,7 +53,7 @@
 > TYPE=EXT (row/column striding) descriptors stay beat-aligned by design: aligned addresses,
 > beat-multiple lengths. Linear descriptors may start at any byte on either side.
 >
-> Silicon (2026-09-30, `projects/fpga-systems/Genesys2/rapids/reports/perf/README.md` v0.2):
+> Silicon (2026-09-30, `projects/fpga-systems/Genesys2/dma-ip/rapids/reports/perf/README.md` v0.2):
 > 117/117 byte-wise points on the standard bitstream; beat-aligned rows on the word-wide
 > checker bitstream reach 3182 MB/s sink and 3199 MB/s source of the 3200 MB/s peak. Traps:
 > the word-wide checker CRCs only slice 0 of each beat and ignores strobes (beats golden, not

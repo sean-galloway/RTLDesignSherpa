@@ -19,7 +19,7 @@ projects/
 │   ├── NexysA7/misc-ip/cdc_counter_display/   # CDC teaching demo
 │   ├── NexysA7/pumice/                        # DDR2 characterization (Nexys A7)
 │   ├── Genesys2/ecc-ip/bch/  Genesys2/ecc-ip/reed-solomon/   # ECC loopbacks (Genesys 2)
-│   ├── Genesys2/stream/  Genesys2/rapids/  Genesys2/rapids_beats/
+│   ├── Genesys2/dma-ip/stream/  Genesys2/dma-ip/rapids/  Genesys2/dma-ip/rapids_beats/
 │   └── ...
 └── asic-trials/timing_characterization/
 ```
@@ -64,12 +64,12 @@ make program  # Program FPGA
 
 ---
 
-#### [RAPIDS Characterization](fpga-systems/Genesys2/rapids_beats/)
+#### [RAPIDS Characterization](fpga-systems/Genesys2/dma-ip/rapids_beats/)
 
 **On-chip characterization of the split RAPIDS "beats" DMA (two wholly-separate src/snk engines)**
 
 - **Component:** [rapids](components/dma-ip/rapids/) — docs: [PRD](components/dma-ip/rapids/PRD.md) · [spec](components/dma-ip/rapids/docs/)
-- **Report:** [characterization findings](fpga-systems/Genesys2/rapids_beats/docs/rapids_beats_findings.md) (regenerate the PDF with `fpga-systems/Genesys2/rapids_beats/docs/generate_pdf.sh`) · host flow: [flows-rapids-beats](fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/)
+- **Report:** [characterization findings](fpga-systems/Genesys2/dma-ip/rapids_beats/docs/rapids_beats_findings.md) (regenerate the PDF with `fpga-systems/Genesys2/dma-ip/rapids_beats/docs/generate_pdf.sh`) · host flow: [flows-rapids-beats](fpga-systems/Genesys2/dma-ip/rapids_beats/flows-rapids-beats/)
 - **Board:** Nexys A7-100T · timing-closed @ 100 MHz; both data paths CRC-validated on silicon (`make smoke` / `make suite`)
 - **Status:** Characterized (split engines, golden-CRC suite 48/48 on hardware)
 
@@ -219,7 +219,7 @@ When adding new projects:
 | [converters](components/utility-ip/converters/) | Production Ready | [README](components/utility-ip/converters/README.md) |
 | [apbx_xbar](components/fabric-gen-ip/apbx-xbar/) | Production Ready | [PRD](components/fabric-gen-ip/apbx-xbar/PRD.md) |
 | [stream](components/dma-ip/stream/) | Active | [PRD](components/dma-ip/stream/PRD.md) |
-| [rapids](components/dma-ip/rapids/) | Active | [PRD](components/dma-ip/rapids/PRD.md) · [spec](components/dma-ip/rapids/docs/) · char: [report](fpga-systems/Genesys2/rapids_beats/docs/rapids_beats_findings.md) |
+| [rapids](components/dma-ip/rapids/) | Active | [PRD](components/dma-ip/rapids/PRD.md) · [spec](components/dma-ip/rapids/docs/) · char: [report](fpga-systems/Genesys2/dma-ip/rapids_beats/docs/rapids_beats_findings.md) |
 | [bridge](components/fabric-gen-ip/bridge/) | Active | [PRD](components/fabric-gen-ip/bridge/PRD.md) |
 | [mem-ctrl-ip](components/mem-ctrl-ip/) | Active | [README](components/mem-ctrl-ip/README.md) · char: [ddr2](fpga-systems/NexysA7/pumice/ddr2-characterization/) |
 | [hive](components/compute-eng-ip/hive/) | Retired 2026-09-27 | [PRD](components/compute-eng-ip/hive/PRD.md) · [spec](components/compute-eng-ip/hive/docs/hive_spec/) |
@@ -229,7 +229,7 @@ When adding new projects:
 
 ### Characterization reports (Nexys A7-100T)
 
-- [RAPIDS](fpga-systems/Genesys2/rapids_beats/docs/rapids_beats_findings.md) — split src/snk engines, golden-CRC suite (48/48 on silicon)
+- [RAPIDS](fpga-systems/Genesys2/dma-ip/rapids_beats/docs/rapids_beats_findings.md) — split src/snk engines, golden-CRC suite (48/48 on silicon)
 - [DDR2](fpga-systems/NexysA7/pumice/ddr2-characterization/) · [Timing](asic-trials/timing_characterization/)
 
 ---

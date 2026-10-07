@@ -37,7 +37,7 @@ A consumer config that no build touches is checked by nothing.
 - `host` and `monbus_wr` in `bridge_stream_char_axil.toml` -> `id_width = 0`,
   comment rewritten to say why. Slaves keep their widths (8 on the AXI-Lite
   slaves, 10 on desc_ram per bridge TASK-005, was BRIDGE-016). Same shape as `d83c33971`.
-- Regenerated through `projects/fpga-systems/Genesys2/stream/bin/regen_bridges.sh
+- Regenerated through `projects/fpga-systems/Genesys2/dma-ip/stream/bin/regen_bridges.sh
   bridge_stream_char_axil`. The plain bridge's top module is byte-identical
   (only `host_adapter.sv` / `monbus_wr_adapter.sv` pick up the placeholder-ID
   comment); the `_mon` variant picks up the `_monlite` wrappers like every

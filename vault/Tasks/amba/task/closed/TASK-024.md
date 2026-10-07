@@ -354,7 +354,7 @@ NUM_BANKS=4`, and 16 is the depth measured to close (WNS +1.018 ns; 40 entries
 `test_axi_monitor_trans_mgr` reports "four outstanding AR(id=2) occupy 2
 slot(s), expected 4" at N=8/B=4, and passes at N=16/B=4.
 
-**Debug collateral:** `projects/fpga-systems/Genesys2/stream/build-perf/dv/tests/GTKW/ch3-sram-counts.gtkw`
+**Debug collateral:** `projects/fpga-systems/Genesys2/dma-ip/stream/build-perf/dv/tests/GTKW/ch3-sram-counts.gtkw`
 (110 signals across the three SRAM pointer pairs and both engines) against the
 pinned `local_sim_build/ch3-hang.fst`.
 

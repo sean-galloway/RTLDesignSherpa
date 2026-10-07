@@ -112,7 +112,7 @@ Unlike the staged address there is no separate HIGH word for the launch:
 `KICK_ENABLE` is a single 32-bit write regardless of how many channels it starts.
 
 **Reference host implementation.**
-`projects/fpga-systems/Genesys2/stream/bin/harness_kick.py::batch_kick` does
+`projects/fpga-systems/Genesys2/dma-ip/stream/bin/harness_kick.py::batch_kick` does
 exactly stage-then-launch, and the other host scripts import it rather than
 re-implementing the sequence.
 

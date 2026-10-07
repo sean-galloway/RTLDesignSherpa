@@ -254,8 +254,8 @@ different files, neither guarded.
 consumers that never include `fpga_flow.mk`, so they never see even the
 build-directory lock:
 
-    projects/fpga-systems/Genesys2/rapids/flows-rapids/Makefile          <-- the near miss
-    projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/Makefile
+    projects/fpga-systems/Genesys2/dma-ip/rapids/flows-rapids/Makefile          <-- the near miss
+    projects/fpga-systems/Genesys2/dma-ip/rapids_beats/flows-rapids-beats/Makefile
     projects/asic-trials/timing_characterization/fpga/Makefile
 
 The rapids flow that was mid-characterization is one of them. **Acceptance

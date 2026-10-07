@@ -181,15 +181,15 @@ MANIFEST = [
     },
     {
         "name": "harness_csr_regs (Genesys2 stream)",
-        "rdl": "projects/fpga-systems/Genesys2/stream/regs/harness_csr_regs.rdl",
-        "sources": ["projects/fpga-systems/Genesys2/stream/regs/harness_csr_regs.rdl"],
+        "rdl": "projects/fpga-systems/Genesys2/dma-ip/stream/regs/harness_csr_regs.rdl",
+        "sources": ["projects/fpga-systems/Genesys2/dma-ip/stream/regs/harness_csr_regs.rdl"],
         "flags": ["--no-html"],
         "regmap_output": None,
         "compare": [
-            ("projects/fpga-systems/Genesys2/stream/rtl/regs/generated/rtl/harness_csr_regs_top.sv", "rtl/harness_csr_regs_top.sv"),
-            ("projects/fpga-systems/Genesys2/stream/rtl/regs/generated/rtl/harness_csr_regs_top_pkg.sv", "rtl/harness_csr_regs_top_pkg.sv"),
-            ("projects/fpga-systems/Genesys2/stream/rtl/regs/generated/harness_csr_regs_top_regmap.py", "harness_csr_regs_top_regmap.py"),
-            ("projects/fpga-systems/Genesys2/stream/rtl/regs/generated/docs/harness_csr_regs_top.md", "docs/harness_csr_regs_top.md"),
+            ("projects/fpga-systems/Genesys2/dma-ip/stream/rtl/regs/generated/rtl/harness_csr_regs_top.sv", "rtl/harness_csr_regs_top.sv"),
+            ("projects/fpga-systems/Genesys2/dma-ip/stream/rtl/regs/generated/rtl/harness_csr_regs_top_pkg.sv", "rtl/harness_csr_regs_top_pkg.sv"),
+            ("projects/fpga-systems/Genesys2/dma-ip/stream/rtl/regs/generated/harness_csr_regs_top_regmap.py", "harness_csr_regs_top_regmap.py"),
+            ("projects/fpga-systems/Genesys2/dma-ip/stream/rtl/regs/generated/docs/harness_csr_regs_top.md", "docs/harness_csr_regs_top.md"),
         ],
     },
     {

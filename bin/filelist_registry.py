@@ -120,7 +120,7 @@ UNRESOLVED_VAR = re.compile(r"\$\{?[A-Z_][A-Z0-9_]*\}?")
 #
 # STREAM_CHAR_ROOT is deliberately NOT here, though env_python and
 # filelist_utils both define it. It is per-FLOW -- flows-stream-bridge,
-# flows-stream-monitor and Genesys2/stream each export it as their own
+# flows-stream-monitor and Genesys2/dma-ip/stream each export it as their own
 # directory -- so any single value is wrong for the others. It used to be
 # pinned to flows-stream-bridge, which mis-resolved every monitor-flow filelist
 # and reported seven perfectly good references as broken. Flow variables are
@@ -139,7 +139,7 @@ ROOT_VARS = {
     # The Nexys stream_characterization area was deleted 2026-08-30 and its
     # collateral consolidated into the Genesys 2 flow, which is where every
     # consumer of this variable now lives.
-    "STREAM_CHAR_FRAMEWORK_ROOT": "projects/fpga-systems/Genesys2/stream",
+    "STREAM_CHAR_FRAMEWORK_ROOT": "projects/fpga-systems/Genesys2/dma-ip/stream",
     "DDR2_CHAR_FRAMEWORK_ROOT": "projects/fpga-systems/NexysA7/pumice/ddr2_char_framework",
     "TIMING_CHAR_ROOT": "projects/asic-trials/timing_characterization",
 }

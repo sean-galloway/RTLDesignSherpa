@@ -299,7 +299,7 @@ When adding a protocol value, add the fixture in the same commit and let the
 
 The inverse of the dead-branch rule. A generator's own fixtures are its
 regression, but the configs that MATTER live with their consumers:
-`projects/fpga-systems/Genesys2/stream/rtl/bridges/configs/`,
+`projects/fpga-systems/Genesys2/dma-ip/stream/rtl/bridges/configs/`,
 `projects/fpga-systems/NexysA7/pumice/.../rtl/bridges/configs/`. Nothing in
 the generator's `make test` reads them, and a board flow regenerates only
 the bridge it builds. So a validator rule can land and silently break a

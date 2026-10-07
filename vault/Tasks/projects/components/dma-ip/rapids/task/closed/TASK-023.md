@@ -22,9 +22,9 @@ not as current numbers.
 Rebuild and re-measure both Genesys2 rapids harnesses that pull the sdpram,
 then repin the docs:
 
-- `projects/fpga-systems/Genesys2/rapids/` (`rapids_byte_harness.f`) —
+- `projects/fpga-systems/Genesys2/dma-ip/rapids/` (`rapids_byte_harness.f`) —
   the byte perf + monitor images.
-- `projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/`
+- `projects/fpga-systems/Genesys2/dma-ip/rapids_beats/flows-rapids-beats/`
   (`rapids_char_harness.f`) — the char harness.
 
 Then repin every pinned figure taken with the pre-fix slave:

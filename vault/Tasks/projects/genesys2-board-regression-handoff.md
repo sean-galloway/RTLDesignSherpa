@@ -6,7 +6,7 @@ while every simulation passes.**
 
 ## Board state as you inherit it
 
-- Programmed with `projects/fpga-systems/Genesys2/stream/stable/bitstream/
+- Programmed with `projects/fpga-systems/Genesys2/dma-ip/stream/stable/bitstream/
   stream_mon_8ch_allcones_obsmaster_obsslave.bit` (the last known-good image).
 - Verified working after reprogramming: `1desc_1ch_1MB` = **65,583 cycles**,
   1524.8 MB/s, PASS -- bit-for-bit the historical baseline number.
@@ -148,14 +148,14 @@ zeros; it is called by no flow, Makefile or doc.
 
 ```bash
 # board, known-good (works today)
-cd projects/fpga-systems/Genesys2/stream/build-perf
+cd projects/fpga-systems/Genesys2/dma-ip/stream/build-perf
 python3 host/host_characterize.py --port /dev/ttyUSB0 --configs 1desc_1ch_1MB
 
 # sim at board config
 /tmp/claude-1000/rowcol_sim.sh          # GEN_MON=0 + row/col, 8ch, monitors on
 
 # rebuild (preserve the .bit BEFORE programming)
-cd projects/fpga-systems/Genesys2/stream/build-mon
+cd projects/fpga-systems/Genesys2/dma-ip/stream/build-mon
 make clean-all && make bitstream
 sha256sum fpga/bitstream/*.bit          # record it
 NCH=8 FLAVOR=2 bash bin/check_observer_params.sh

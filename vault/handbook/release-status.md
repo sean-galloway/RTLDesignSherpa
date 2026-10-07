@@ -14,7 +14,7 @@ considered feature-complete for its declared scope.
 | Reed-Solomon | `projects/components/ecc-ip/reed-solomon` |
 | Binary BCH | `projects/components/ecc-ip/bch` |
 | STREAM DMA | `projects/components/dma-ip/stream` |
-| RAPIDS beats (board characterization) | `projects/fpga-systems/Genesys2/rapids_beats` |
+| RAPIDS beats (board characterization) | `projects/fpga-systems/Genesys2/dma-ip/rapids_beats` |
 | RAPIDS | `projects/components/dma-ip/rapids` |
 | APBx xbar | `projects/components/fabric-gen-ip/apbx-xbar` |
 | bridge | `projects/components/fabric-gen-ip/bridge` |

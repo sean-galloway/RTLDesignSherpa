@@ -41,9 +41,9 @@ error, they will hang or report zero work. Every caller must add a `KICK_ENABLE`
 
 Known call sites (`grep -rn "CH[0-9]_CTRL_"`):
 - `projects/components/dma-ip/stream/dv/tbclasses/stream_core_tb.py` (7)
-- `projects/fpga-systems/Genesys2/stream/build-perf/dv/tests/test_stream_device.py` (6)
-- `projects/fpga-systems/Genesys2/stream/bin/stream_device.py` (3)
-- `projects/fpga-systems/Genesys2/stream/build-perf/dv/tests/test_stream_ext_suite.py` (2)
+- `projects/fpga-systems/Genesys2/dma-ip/stream/build-perf/dv/tests/test_stream_device.py` (6)
+- `projects/fpga-systems/Genesys2/dma-ip/stream/bin/stream_device.py` (3)
+- `projects/fpga-systems/Genesys2/dma-ip/stream/build-perf/dv/tests/test_stream_ext_suite.py` (2)
 - NexysA7 `flows-stream-bridge` mirrors (reference-only per owner; needs no build)
 
 ## Suggested order

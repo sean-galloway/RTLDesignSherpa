@@ -220,7 +220,7 @@ axis4_master_pattern_gen #(
 ## Related Modules
 
 ### Used By
-- `projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/rtl/rapids_char_harness.sv` — on-chip AXIS sink stimulus
+- `projects/fpga-systems/Genesys2/dma-ip/rapids_beats/flows-rapids-beats/rtl/rapids_char_harness.sv` — on-chip AXIS sink stimulus
 - RAPIDS sink-path characterization flows
 
 ### Uses

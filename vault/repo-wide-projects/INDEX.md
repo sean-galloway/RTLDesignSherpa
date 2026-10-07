@@ -57,10 +57,10 @@ note — it belongs to that block and nowhere else.
 - [rtl/mem_char_framework](projects/fpga-systems/rtl/INDEX.md) — shared memory-characterization harness used by pumice and scoria
 - `Genesys2/ecc-ip/bch` — BCH board harness; v1.0 (2026-10-06); area exists in the repo, no context note written yet
 - `Genesys2/ecc-ip/reed-solomon` — RS board harness; v1.0 (2026-10-06); area exists in the repo, no context note written yet
-- `Genesys2/rapids` — RAPIDS board harness; v1.0 (2026-10-06); area exists in the repo, no context note written yet
-- [Genesys2/rapids_beats](projects/fpga-systems/Genesys2/rapids_beats/INDEX.md) — RAPIDS board characterization; v1.0 (2026-10-06)
+- `Genesys2/dma-ip/rapids` — RAPIDS board harness; v1.0 (2026-10-06); area exists in the repo, no context note written yet
+- [Genesys2/dma-ip/rapids_beats](projects/fpga-systems/Genesys2/dma-ip/rapids_beats/INDEX.md) — RAPIDS board characterization; v1.0 (2026-10-06)
 - `Genesys2/scoria` — scoria board harness (LiteDRAM build); area exists in the repo, no context note written yet
-- `Genesys2/stream` — stream board harness; v1.0 (2026-10-06); area exists in the repo, no context note written yet
+- `Genesys2/dma-ip/stream` — stream board harness; v1.0 (2026-10-06); area exists in the repo, no context note written yet
 - [NexysA7/misc-ip/cdc_counter_display](projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display/INDEX.md) — CDC demo on Nexys A7
 - [NexysA7/pumice/ddr2-characterization](projects/fpga-systems/NexysA7/pumice/ddr2-characterization/INDEX.md) — DDR2 board characterization campaign
 

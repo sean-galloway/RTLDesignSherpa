@@ -12,7 +12,7 @@
   `dv/tests/fub_beats/test_{alloc_ctrl,drain_ctrl,latency_bridge}_beats.py`
   (`filelist_path=`), and `bin/filelists.toml` rapids `filelist_dirs`
   (`.../dv/tb` -> `.../dv/filelists`).
-- `projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/flists/{rapids_char_genesys2_top,rapids_char_harness,rapids_char_top}.f`
+- `projects/fpga-systems/Genesys2/dma-ip/rapids_beats/flows-rapids-beats/flists/{rapids_char_genesys2_top,rapids_char_harness,rapids_char_top}.f`
   -> `flows-rapids-beats/filelists/`. Referrers: `tcl/create_project.tcl:140`
   (`$project_root/flists/`), `tcl/synth_only.tcl` header comment,
   `dv/test_rapids_char_harness.py`, `dv/test_rapids_char_top_kick.py`, the
