@@ -9,6 +9,12 @@
 //          immediate generator, ALU, register file, writeback, next-PC mux,
 //          halt, and first-class RVFI retire ports.
 //
+//          Task 7 adds the load/store datapath with in-word rotated strobes
+//          (ruling R4): dmem_addr is word-aligned, rdata is right-shifted by
+//          the byte offset, store wstrb/wdata are left-shifted by the byte
+//          offset, and bytes that rotate past bit 31 are dropped.  This is a
+//          spec-silent design decision documented here for verification.
+//
 // Documentation: projects/components/riscv-ip/README.md
 // Subsystem: riscv-ip/kestrel-rv32i
 //
@@ -56,6 +62,8 @@ module kestrel_core #(
 
     localparam logic [31:0] PC_INCR          = 32'd4;
     localparam logic [31:0] JALR_ALIGN_MASK  = 32'hFFFF_FFFE;
+    localparam logic [6:0]  OPCODE_LOAD      = 7'b0000011;
+    localparam logic [6:0]  OPCODE_STORE     = 7'b0100011;
     localparam logic [6:0]  OPCODE_LUI       = 7'b0110111;
 
     // funct3 encodings selecting the branch condition
@@ -88,6 +96,8 @@ module kestrel_core #(
     logic       alu_src_a_pc;
     logic       alu_src_b_imm;
     logic       rd_wen;
+    logic       dmem_we;
+    logic [1:0] dmem_size;
     logic       branch;
     logic       jump;
     logic       jalr;
@@ -100,9 +110,9 @@ module kestrel_core #(
         .alu_src_a_pc  (alu_src_a_pc),
         .alu_src_b_imm (alu_src_b_imm),
         .rd_wen        (rd_wen),
-        .dmem_req      (),
-        .dmem_we       (),
-        .dmem_size     (),
+        .dmem_req      (dmem_req),
+        .dmem_we       (dmem_we),
+        .dmem_size     (dmem_size),
         .branch        (branch),
         .jump          (jump),
         .jalr          (jalr),
@@ -158,11 +168,55 @@ module kestrel_core #(
         .ltu ()
     );
 
-    // Writeback: LUI takes its immediate straight from imm_gen (the ALU is
-    // not involved in U-immediates); AUIPC reaches the ALU with src_a=PC and
-    // uses the ALU result here; JAL/JALR write pc+4 as the link value.
+    // Load/store datapath: in-word rotated strobes (ruling R4).
+    // dmem_addr is word-aligned; the byte offset rotates both the strobe and
+    // the data.  Bytes that shift past bit 31 are dropped by the 32-bit bus.
+    localparam logic [3:0] STRB_BYTE = 4'b0001;
+    localparam logic [3:0] STRB_HALF = 4'b0011;
+    localparam logic [3:0] STRB_WORD = 4'b1111;
+
+    logic       ls_active;
+    logic       ls_load;
+    logic [3:0] ls_size_mask;
+    logic [1:0] ls_offset;
+    logic [31:0] ls_rdata_shifted;
+    logic [31:0] ls_load_data;
+
+    assign ls_active = dmem_req;
+    assign ls_load   = dmem_req & ~dmem_we;
+    assign ls_offset = alu_y[1:0];
+
+    always_comb begin
+        unique case (dmem_size)
+            2'b00:   ls_size_mask = STRB_BYTE;
+            2'b01:   ls_size_mask = STRB_HALF;
+            2'b10:   ls_size_mask = STRB_WORD;
+            default: ls_size_mask = 4'b0000;
+        endcase
+    end
+
+    assign dmem_addr      = {alu_y[31:2], 2'b00};
+    assign dmem_wdata     = rs2_data << {ls_offset, 3'b000};
+    assign dmem_wstrb     = ls_active & dmem_we ? (ls_size_mask << ls_offset) : 4'b0000;
+    assign ls_rdata_shifted = dmem_rdata >> {ls_offset, 3'b000};
+
+    always_comb begin
+        unique case (funct3)
+            3'b000:  ls_load_data = {{24{ls_rdata_shifted[7]}},  ls_rdata_shifted[7:0]};   // LB
+            3'b100:  ls_load_data = {24'b0,                       ls_rdata_shifted[7:0]};   // LBU
+            3'b001:  ls_load_data = {{16{ls_rdata_shifted[15]}}, ls_rdata_shifted[15:0]};  // LH
+            3'b101:  ls_load_data = {16'b0,                      ls_rdata_shifted[15:0]};  // LHU
+            3'b010:  ls_load_data = ls_rdata_shifted;                                      // LW
+            default: ls_load_data = ls_rdata_shifted;
+        endcase
+    end
+
+    // Writeback: LUI takes its immediate straight from imm_gen; loads take the
+    // shifted/sign-extended data; JAL/JALR write pc+4; everything else uses the
+    // ALU result.
     assign rd_wdata = (opcode == OPCODE_LUI) ? imm :
-                      (jump || jalr)          ? (pc + PC_INCR) : alu_y;
+                      ls_load                ? ls_load_data :
+                      (jump || jalr)         ? (pc + PC_INCR) : alu_y;
 
     // Dedicated branch comparator: eq/lt/ltu computed from rs1_data/rs2_data
     // with the funct3 condition select, in parallel with the ALU computing
@@ -204,12 +258,6 @@ module kestrel_core #(
         end
     end
 
-    // dmem is tied to harmless defaults: loads/stores land in Task 7.
-    assign dmem_req   = 1'b0;
-    assign dmem_addr  = '0;
-    assign dmem_wstrb = '0;
-    assign dmem_wdata = '0;
-
     // Halt is combinational from decode in this slice; Task 8 adds the
     // holding register that keeps halt raised after the decode input clears.
     assign halt       = |dec_halt_cause;
@@ -239,12 +287,14 @@ module kestrel_core #(
     // register and when the destination is x0 — riscv-formal requires
     // rd_wdata == 0 whenever rd_addr == 0, so the discarded write to x0 is
     // not reported (the regfile discards that write architecturally as
-    // well); mem fields are zero until Task 7 populates them; rs fields
-    // always reflect the register-file read ports (x0 reads return 0
-    // naturally because the regfile discards x0 writes).
+    // well); mem fields report the rotated address, strobes and data for
+    // every load/store and are zero otherwise; rs fields always reflect the
+    // register-file read ports (x0 reads return 0 naturally).
     logic rd_wb;
+    logic [3:0] ls_strobe;
 
     assign rd_wb          = rd_wen & (insn[11:7] != 5'd0);
+    assign ls_strobe      = ls_size_mask << ls_offset;
     assign rvfi_valid     = rst_n & ~halt;
     assign rvfi_order     = retire_count;
     assign rvfi_pc_rdata  = pc;
@@ -257,10 +307,10 @@ module kestrel_core #(
     assign rvfi_rs2_rdata = rs2_data;
     assign rvfi_rd_addr   = rd_wb ? insn[11:7] : 5'd0;
     assign rvfi_rd_wdata  = rd_wb ? rd_wdata  : 32'd0;
-    assign rvfi_mem_addr  = 32'd0;
-    assign rvfi_mem_rmask = 4'd0;
-    assign rvfi_mem_wmask = 4'd0;
-    assign rvfi_mem_rdata = 32'd0;
-    assign rvfi_mem_wdata = 32'd0;
+    assign rvfi_mem_addr  = ls_active ? alu_y : 32'd0;
+    assign rvfi_mem_rmask = ls_load  ? ls_strobe : 4'd0;
+    assign rvfi_mem_wmask = ls_active & dmem_we ? ls_strobe : 4'd0;
+    assign rvfi_mem_rdata = ls_load  ? ls_rdata_shifted : 32'd0;
+    assign rvfi_mem_wdata = ls_active & dmem_we ? dmem_wdata : 32'd0;
 
 endmodule : kestrel_core

@@ -41,6 +41,14 @@ Hex image format: normalized kestrel images (normalize_hex.py) — one 32-bit
 word per line, ``@`` records carry WORD indices, sparse (no zero padding).
 ``load_verilog_hex`` returns ``{word_index: word}``; fetches of unwritten
 words return 0 (matching the tb_top zero-initialized memories).
+
+Load/store model (Task 7 ruling R4)
+-----------------------------------
+The core implements in-word rotated strobes: the byte address offset rotates
+both the strobe and the data by ``offset*8`` bits.  Misaligned accesses that
+cross the 32-bit bus lane boundary are handled inside the addressed word;
+bytes that rotate past bit 31 are dropped.  The interpreter mirrors this
+exactly so the golden trace matches the RTL datapath.
 """
 
 MASK32 = 0xFFFFFFFF
@@ -55,6 +63,26 @@ def sext(value, bits):
 def s32(value):
     """Reinterpret an unsigned 32-bit value as signed."""
     return value - (1 << 32) if value & 0x80000000 else value
+
+
+def _size_mask(size):
+    """Byte strobe for a single in-word access (size = 1/2/4 bytes)."""
+    return (1 << size) - 1
+
+
+def _rotate_strobe(size, offset):
+    """Hardware-style rotated 4-bit strobe, truncated to the bus width."""
+    return (_size_mask(size) << offset) & 0xF
+
+
+def _store_merge(word, wdata, wstrb):
+    """Merge rotated_wdata into word using the 4-bit byte strobe."""
+    result = word
+    for b in range(4):
+        if (wstrb >> b) & 1:
+            lo = b * 8
+            result = (result & ~(0xFF << lo)) | ((wdata >> lo) & 0xFF) << lo
+    return result & MASK32
 
 
 def load_verilog_hex(path):
@@ -78,12 +106,43 @@ class RV32IInterpreter:
 
     def __init__(self, imem_words, reset_addr=0):
         self.imem = dict(imem_words)
+        self.dmem = {}
         self.regs = [0] * 32
         self.pc = reset_addr
         self.reset_addr = reset_addr
         self.trace = []
         self.halt_cause = None
         self.halt_pc = None
+
+    def _load(self, addr, size, signed):
+        """Return (rd_val, rmask, rvfi_rdata) for a rotated in-word load."""
+        word = self.dmem.get(addr >> 2, 0)
+        offset = addr & 0x3
+        shift = offset * 8
+        rotated = (word >> shift) & MASK32
+        rmask = _rotate_strobe(size, offset)
+        if size == 1:
+            val = rotated & 0xFF
+            if signed:
+                val = sext(val, 8)
+        elif size == 2:
+            val = rotated & 0xFFFF
+            if signed:
+                val = sext(val, 16)
+        else:
+            val = rotated & MASK32
+        return val & MASK32, rmask, rotated
+
+    def _store(self, addr, size, value):
+        """Commit a rotated in-word store; return (wmask, rvfi_wdata)."""
+        offset = addr & 0x3
+        shift = offset * 8
+        data_mask = (1 << (size * 8)) - 1
+        rotated_wdata = ((value & data_mask) << shift) & MASK32
+        wmask = _rotate_strobe(size, offset)
+        idx = addr >> 2
+        self.dmem[idx] = _store_merge(self.dmem.get(idx, 0), rotated_wdata, wmask)
+        return wmask, rotated_wdata
 
     def run(self, max_insns=100_000):
         """Execute until halt (ecall/ebreak) or the retirement budget expires."""
@@ -118,6 +177,11 @@ class RV32IInterpreter:
         b = x[rs2]
         next_pc = pc + 4
         rd_val = None
+        mem_addr = 0
+        mem_rmask = 0
+        mem_wmask = 0
+        mem_rdata = 0
+        mem_wdata = 0
 
         # immediates for branches/jumps (sign-extended, LSB already zero for B/J)
         imm_b = sext(
@@ -133,6 +197,11 @@ class RV32IInterpreter:
             | ((insn >> 20) & 0x1) << 11
             | ((insn >> 21) & 0x3FF) << 1,
             21,
+        )
+        imm_s = sext(
+            ((insn >> 25) & 0x7F) << 5
+            | ((insn >> 7) & 0x1F),
+            12,
         )
 
         if opcode == 0x13:                        # OP-IMM
@@ -197,6 +266,32 @@ class RV32IInterpreter:
         elif opcode == 0x67 and f3 == 0:          # JALR
             rd_val = (pc + 4) & MASK32
             next_pc = ((a + imm_i) & MASK32) & ~1
+        elif opcode == 0x03:                      # LOAD
+            mem_addr = (a + imm_i) & MASK32
+            if f3 == 0:                            # LB
+                rd_val, mem_rmask, mem_rdata = self._load(mem_addr, 1, True)
+            elif f3 == 1:                          # LH
+                rd_val, mem_rmask, mem_rdata = self._load(mem_addr, 2, True)
+            elif f3 == 2:                          # LW
+                rd_val, mem_rmask, mem_rdata = self._load(mem_addr, 4, False)
+            elif f3 == 4:                          # LBU
+                rd_val, mem_rmask, mem_rdata = self._load(mem_addr, 1, False)
+            elif f3 == 5:                          # LHU
+                rd_val, mem_rmask, mem_rdata = self._load(mem_addr, 2, False)
+            else:
+                raise NotImplementedError(f"golden: load funct3 {f3} not modelled")
+        elif opcode == 0x23:                      # STORE
+            mem_addr = (a + imm_s) & MASK32
+            if f3 == 0:                            # SB
+                size = 1
+            elif f3 == 1:                          # SH
+                size = 2
+            elif f3 == 2:                          # SW
+                size = 4
+            else:
+                raise NotImplementedError(f"golden: store funct3 {f3} not modelled")
+            mem_wmask, mem_wdata = self._store(mem_addr, size, b)
+            rd = 0                                 # stores do not write rd
         elif opcode == 0x73 and f3 == 0:          # SYSTEM: ECALL/EBREAK halt
             self.halt_cause = 1 if ((insn >> 20) & 0xFFF) == 0 else 2
             self.halt_pc = pc
@@ -222,11 +317,11 @@ class RV32IInterpreter:
             # zero — the discarded architectural write is not reported.
             "rd_wdata": rd_wdata,
             "pc_wdata": next_pc,
-            "mem_addr": 0,
-            "mem_rmask": 0,
-            "mem_wmask": 0,
-            "mem_rdata": 0,
-            "mem_wdata": 0,
+            "mem_addr": mem_addr,
+            "mem_rmask": mem_rmask,
+            "mem_wmask": mem_wmask,
+            "mem_rdata": mem_rdata,
+            "mem_wdata": mem_wdata,
         })
         if rd != 0 and rd_val is not None:
             x[rd] = rd_val & MASK32

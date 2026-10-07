@@ -9,6 +9,12 @@
 //          Programs load at time 0 via +imem=<hex> (+dmem=<hex>) plusargs
 //          into $readmemh word arrays; all reads are combinational.
 //
+//          Data-memory writes honor dmem_wstrb per byte.  The kestrel L/S
+//          datapath rotates the strobe and data by the byte offset, so this
+//          byte-wise merge is the contract that pins rotated-strobe behavior
+//          (Task 7 ruling R4: in-word rotated strobes, bytes that rotate past
+//          bit 31 are dropped).
+//
 // Documentation: projects/components/riscv-ip/README.md
 // Subsystem: riscv-ip/kestrel-rv32i
 //
@@ -85,7 +91,7 @@ module kestrel_tb_top #(
     assign imem_rdata = imem[imem_addr[MEM_ADDR_MSB:WORD_ADDR_LSB]];
     assign dmem_rdata = dmem[dmem_addr[MEM_ADDR_MSB:WORD_ADDR_LSB]];
 
-    // Store port honors the byte strobes; dead logic until Task 7 wires L/S.
+    // Store port: byte-wise merge using the rotated strobe from the core.
     `ALWAYS_FF_RST(clk, rst_n,
         if (!`RST_ASSERTED(rst_n)) begin
             if (dmem_req && (|dmem_wstrb)) begin
