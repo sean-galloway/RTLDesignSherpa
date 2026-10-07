@@ -9,7 +9,9 @@
 #
 # Generates an IEEE 754-2008 single-precision floating-point adder with:
 # - Configurable pipeline stages for frequency/latency tradeoff
-# - Flush-to-zero (FTZ) for subnormal inputs
+# - Flush-to-zero (FTZ) for subnormal inputs (default)
+# - Optional full IEEE 754-2008 gradual underflow on inputs and outputs
+#   (SUBNORMAL_SUPPORT=1)
 # - Round-to-nearest-even (RNE) rounding
 # - Full special case handling (zero, inf, NaN)
 # - Reuses existing shifter_barrel and count_leading_zeros modules
@@ -24,6 +26,16 @@
 #   PIPE_STAGE_2: After mantissa alignment
 #   PIPE_STAGE_3: After mantissa add/subtract
 #   PIPE_STAGE_4: After normalization
+#
+# Subnormal handling:
+#   SUBNORMAL_SUPPORT=0 (default): FTZ. Subnormal inputs are treated as zero
+#     and results never subnormal (byte-identical legacy behavior).
+#   SUBNORMAL_SUPPORT=1: subnormal operands decode with hidden bit 0 at
+#     effective exponent 1-bias, and subnormal results are produced by a
+#     post-normalization right shift with sticky capture, rounded RNE. A
+#     rounding carry out of pre-round exponent 0 produces min-normal, not a
+#     flush (math BUG-004 ruling); ow_underflow asserts only for a tiny
+#     after-rounding result that is also inexact.
 #
 # Latency: 1 + PIPE_STAGE_1 + PIPE_STAGE_2 + PIPE_STAGE_3 + PIPE_STAGE_4 cycles
 #
@@ -62,7 +74,8 @@ module math_ieee754_2008_fp32_adder #(
     parameter bit PIPE_STAGE_1 = 1'b0,  // After exponent diff + swap
     parameter bit PIPE_STAGE_2 = 1'b0,  // After alignment shifter
     parameter bit PIPE_STAGE_3 = 1'b0,  // After mantissa add/sub
-    parameter bit PIPE_STAGE_4 = 1'b0   // After normalize
+    parameter bit PIPE_STAGE_4 = 1'b0,  // After normalize
+    parameter bit SUBNORMAL_SUPPORT = 1'b0  // 0: FTZ (legacy); 1: IEEE 754-2008 gradual underflow
 ) (
     input  logic        i_clk,
     input  logic        i_rst_n,
@@ -114,13 +127,26 @@ module math_ieee754_2008_fp32_adder #(
     wire w_a_is_nan      = (w_exp_a == 8'hFF) && (w_mant_a != 23'h000000);
     wire w_b_is_nan      = (w_exp_b == 8'hFF) && (w_mant_b != 23'h000000);
 
-    // Effective zero (FTZ mode: subnormals treated as zero)
-    wire w_a_eff_zero    = w_a_is_zero || w_a_is_subnorm;
-    wire w_b_eff_zero    = w_b_is_zero || w_b_is_subnorm;
+    // Effective zero (FTZ mode: subnormals treated as zero; with
+    // SUBNORMAL_SUPPORT=1 only true zeros are effective zero)
+    wire w_a_eff_zero    = w_a_is_zero || (w_a_is_subnorm && !SUBNORMAL_SUPPORT);
+    wire w_b_eff_zero    = w_b_is_zero || (w_b_is_subnorm && !SUBNORMAL_SUPPORT);
 
     // Normal number detection (has implied leading 1)
     wire w_a_is_normal   = ~w_a_eff_zero && ~w_a_is_inf && ~w_a_is_nan;
     wire w_b_is_normal   = ~w_b_eff_zero && ~w_b_is_inf && ~w_b_is_nan;
+
+    // Hidden-1 flags: 0 for subnormals when SUBNORMAL_SUPPORT=1 (they decode
+    // as 0.mantissa at effective exponent 1-bias). Identical to *_is_normal
+    // when SUBNORMAL_SUPPORT=0.
+    wire w_a_hidden1     = w_a_is_normal && (!SUBNORMAL_SUPPORT || !w_a_is_subnorm);
+    wire w_b_hidden1     = w_b_is_normal && (!SUBNORMAL_SUPPORT || !w_b_is_subnorm);
+
+    // Exponents adjusted for subnormal decode: a subnormal operates at
+    // effective biased exponent 1. Identical to the raw exponent when
+    // SUBNORMAL_SUPPORT=0.
+    wire [7:0]  w_exp_a_adj = (SUBNORMAL_SUPPORT && w_a_is_subnorm) ? 8'd1 : w_exp_a;
+    wire [7:0]  w_exp_b_adj = (SUBNORMAL_SUPPORT && w_b_is_subnorm) ? 8'd1 : w_exp_b;
 
     // Special case flags
     wire w_any_nan       = w_a_is_nan || w_b_is_nan;
@@ -128,24 +154,27 @@ module math_ieee754_2008_fp32_adder #(
     wire w_any_inf       = w_a_is_inf || w_b_is_inf;
 
     // Exponent comparison: determine which operand has larger magnitude
-    wire [8:0]  w_exp_diff_raw = {1'b0, w_exp_a} - {1'b0, w_exp_b};
+    // (compared on subnormal-adjusted exponents)
+    wire [8:0]  w_exp_diff_raw = {1'b0, w_exp_a_adj} - {1'b0, w_exp_b_adj};
     wire        w_exp_a_larger = ~w_exp_diff_raw[8];
-    wire        w_exp_equal    = (w_exp_a == w_exp_b);
-    wire        w_mant_a_larger = (w_mant_a >= w_mant_b);
+    wire        w_exp_equal    = (w_exp_a_adj == w_exp_b_adj);
+    // Equal exponents tiebreak on the full significand (hidden bit included)
+    // so a subnormal never masquerades as the larger operand
+    wire        w_mant_a_larger = ({w_a_hidden1, w_mant_a} >= {w_b_hidden1, w_mant_b});
     wire        w_a_larger     = w_exp_a_larger && (~w_exp_equal || w_mant_a_larger);
 
     // Absolute exponent difference (for shift amount)
-    wire [7:0]  w_exp_diff     = w_a_larger ? (w_exp_a - w_exp_b) : (w_exp_b - w_exp_a);
+    wire [7:0]  w_exp_diff     = w_a_larger ? (w_exp_a_adj - w_exp_b_adj) : (w_exp_b_adj - w_exp_a_adj);
 
     // Swap operands so larger magnitude is always "operand L"
     wire        w_sign_l       = w_a_larger ? w_sign_a : w_sign_b;
     wire        w_sign_s       = w_a_larger ? w_sign_b : w_sign_a;
-    wire [7:0]  w_exp_l        = w_a_larger ? w_exp_a  : w_exp_b;
+    wire [7:0]  w_exp_l        = w_a_larger ? w_exp_a_adj : w_exp_b_adj;
     wire [22:0] w_mant_l       = w_a_larger ? w_mant_a : w_mant_b;
     wire [22:0] w_mant_s       = w_a_larger ? w_mant_b : w_mant_a;
-    wire        w_l_is_normal  = w_a_larger ? w_a_is_normal : w_b_is_normal;
-    wire        w_s_is_normal  = w_a_larger ? w_b_is_normal : w_a_is_normal;
-    wire        w_s_eff_zero   = w_a_larger ? w_b_eff_zero  : w_a_eff_zero;
+    wire        w_l_hidden1    = w_a_larger ? w_a_hidden1 : w_b_hidden1;
+    wire        w_s_hidden1    = w_a_larger ? w_b_hidden1 : w_a_hidden1;
+    wire        w_s_eff_zero   = w_a_larger ? w_b_eff_zero : w_a_eff_zero;
 
     // Effective operation: add or subtract based on signs
     wire        w_eff_sub      = w_sign_l ^ w_sign_s;
@@ -161,7 +190,7 @@ module math_ieee754_2008_fp32_adder #(
     logic        r1_sign_a, r1_sign_b, r1_result_sign, r1_eff_sub;
     logic [7:0]  r1_exp_l, r1_exp_diff;
     logic [22:0] r1_mant_l, r1_mant_s;
-    logic        r1_l_is_normal, r1_s_is_normal, r1_s_eff_zero;
+    logic        r1_l_hidden1, r1_s_hidden1, r1_s_eff_zero;
 
     generate
         if (PIPE_STAGE_1) begin : gen_pipe1
@@ -183,8 +212,8 @@ module math_ieee754_2008_fp32_adder #(
                     r1_exp_diff     <= 8'h0;
                     r1_mant_l       <= 23'h0;
                     r1_mant_s       <= 23'h0;
-                    r1_l_is_normal  <= 1'b0;
-                    r1_s_is_normal  <= 1'b0;
+                    r1_l_hidden1    <= 1'b0;
+                    r1_s_hidden1    <= 1'b0;
                     r1_s_eff_zero   <= 1'b0;
                 end else begin
                     r1_valid        <= i_valid;
@@ -203,8 +232,8 @@ module math_ieee754_2008_fp32_adder #(
                     r1_exp_diff     <= w_exp_diff;
                     r1_mant_l       <= w_mant_l;
                     r1_mant_s       <= w_mant_s;
-                    r1_l_is_normal  <= w_l_is_normal;
-                    r1_s_is_normal  <= w_s_is_normal;
+                    r1_l_hidden1    <= w_l_hidden1;
+                    r1_s_hidden1    <= w_s_hidden1;
                     r1_s_eff_zero   <= w_s_eff_zero;
                 end
             end
@@ -226,8 +255,8 @@ module math_ieee754_2008_fp32_adder #(
                 r1_exp_diff     = w_exp_diff;
                 r1_mant_l       = w_mant_l;
                 r1_mant_s       = w_mant_s;
-                r1_l_is_normal  = w_l_is_normal;
-                r1_s_is_normal  = w_s_is_normal;
+                r1_l_hidden1    = w_l_hidden1;
+                r1_s_hidden1    = w_s_hidden1;
                 r1_s_eff_zero   = w_s_eff_zero;
             end
         end
@@ -240,8 +269,8 @@ module math_ieee754_2008_fp32_adder #(
     // Extend mantissas with implied bit and guard bits
     // Format: {implied_1, mant[22:0], guard, round, sticky_placeholder}
     // = 27 bits total for alignment
-    wire [26:0] w_mant_l_ext = {r1_l_is_normal, r1_mant_l, 3'b000};
-    wire [26:0] w_mant_s_ext = {r1_s_is_normal, r1_mant_s, 3'b000};
+    wire [26:0] w_mant_l_ext = {r1_l_hidden1, r1_mant_l, 3'b000};
+    wire [26:0] w_mant_s_ext = {r1_s_hidden1, r1_mant_s, 3'b000};
 
     // Alignment: right-shift smaller mantissa by exponent difference
     wire [26:0] w_mant_s_aligned;
@@ -512,8 +541,33 @@ module math_ieee754_2008_fp32_adder #(
         end
     end
 
-    wire w_exp_overflow  = w_exp_adjusted[8] || (w_exp_adjusted[7:0] >= 8'hFF);
+    // Overflow: with SUBNORMAL_SUPPORT=1 a negative adjusted exponent is the
+    // subnormal result path (never an overflow), so the check requires a
+    // non-negative exponent that reached 0xFF
+    wire w_exp_overflow  = SUBNORMAL_SUPPORT ?
+                           (~w_exp_adjusted[8] && (w_exp_adjusted[7:0] >= 8'hFF)) :
+                           (w_exp_adjusted[8] || (w_exp_adjusted[7:0] >= 8'hFF));
     wire w_exp_underflow = w_exp_adjusted[8] || (w_exp_adjusted[7:0] == 8'h00);
+
+    // -------------------------------------------------------------------------
+    // Gradual-underflow output path (SUBNORMAL_SUPPORT=1 only)
+    //
+    // When the fully normalized exponent is <= 0 the exact result lies in the
+    // subnormal range. Right-shift the normalized {hidden, mant, GRS} vector
+    // onto the subnormal grid (exponent 1-bias), folding every shifted-out
+    // bit into the sticky, then round RNE exactly as on the normal path. A
+    // rounding carry out of pre-round exponent 0 produces min-normal, not a
+    // flush (math BUG-004 ruling). With SUBNORMAL_SUPPORT=0 w_subnorm_active
+    // is constant 0 and this block folds away.
+    // -------------------------------------------------------------------------
+    wire        w_subnorm_active = SUBNORMAL_SUPPORT && w_exp_underflow;
+    wire [8:0]  w_subnorm_shift  = 9'd1 - w_exp_adjusted;              // in [1, 26] when active
+    wire [26:0] w_subnorm_mask   = (27'h0000001 << w_subnorm_shift[4:0]) - 27'h0000001;
+    wire [26:0] w_mant_subnorm   = w_mant_normalized >> w_subnorm_shift[4:0];
+    wire        w_subnorm_sticky = |(w_mant_normalized & w_subnorm_mask);
+
+    wire [26:0] w_mant_round_in     = w_subnorm_active ? w_mant_subnorm : w_mant_normalized;
+    wire        w_norm_sticky_total = w_subnorm_active ? (w_norm_sticky | w_subnorm_sticky) : w_norm_sticky;
 
     // =========================================================================
     // Pipeline Stage 4 (optional)
@@ -562,11 +616,11 @@ module math_ieee754_2008_fp32_adder #(
                     r4_sign_b          <= r3_sign_b;
                     r4_result_sign     <= r3_result_sign;
                     r4_exp_adjusted    <= w_exp_adjusted[7:0];
-                    r4_mant_normalized <= w_mant_normalized;
+                    r4_mant_normalized <= w_mant_round_in;
                     r4_exp_overflow    <= w_exp_overflow;
                     r4_exp_underflow   <= w_exp_underflow;
                     r4_sum_is_zero     <= r3_sum_is_zero;
-                    r4_norm_sticky     <= w_norm_sticky;
+                    r4_norm_sticky     <= w_norm_sticky_total;
                 end
             end
         end else begin : gen_no_pipe4
@@ -583,11 +637,11 @@ module math_ieee754_2008_fp32_adder #(
                 r4_sign_b          = r3_sign_b;
                 r4_result_sign     = r3_result_sign;
                 r4_exp_adjusted    = w_exp_adjusted[7:0];
-                r4_mant_normalized = w_mant_normalized;
+                r4_mant_normalized = w_mant_round_in;
                 r4_exp_overflow    = w_exp_overflow;
                 r4_exp_underflow   = w_exp_underflow;
                 r4_sum_is_zero     = r3_sum_is_zero;
-                r4_norm_sticky     = w_norm_sticky;
+                r4_norm_sticky     = w_norm_sticky_total;
             end
         end
     endgenerate
@@ -615,9 +669,11 @@ module math_ieee754_2008_fp32_adder #(
     // Final mantissa
     wire [22:0] w_mant_out = w_round_overflow ? 23'h000000 : w_mant_rounded[22:0];
 
-    // Final exponent
-    wire [8:0] w_exp_out_raw = {1'b0, r4_exp_adjusted} + {8'b0, w_round_overflow};
-    wire [7:0] w_exp_out     = w_exp_out_raw[7:0];
+    // Final exponent (base is 0 on the subnormal path: a rounding carry out of
+    // pre-round exponent 0 yields min-normal, not a flush -- BUG-004 ruling)
+    wire [7:0]  w_exp_base    = (SUBNORMAL_SUPPORT && r4_exp_underflow) ? 8'h00 : r4_exp_adjusted;
+    wire [8:0]  w_exp_out_raw = {1'b0, w_exp_base} + {8'b0, w_round_overflow};
+    wire [7:0]  w_exp_out     = w_exp_out_raw[7:0];
 
     // Final overflow check
     wire w_final_overflow = r4_exp_overflow || (w_exp_out_raw >= 9'h0FF);
@@ -643,17 +699,39 @@ module math_ieee754_2008_fp32_adder #(
         end else if (r4_a_eff_zero && r4_b_eff_zero) begin
             ow_result = {r4_sign_a & r4_sign_b, 8'h00, 23'h000000};
         end else if (r4_a_eff_zero) begin
-            ow_result = {r4_sign_b, r4_exp_adjusted, w_mant_out};
+            // Zero + b: b passed through the datapath. On the subnormal path
+            // (b subnormal with SUBNORMAL_SUPPORT=1) the exponent base and
+            // shifted mantissa come from w_exp_out/w_mant_out instead of the
+            // raw adjusted exponent.
+            if (SUBNORMAL_SUPPORT && r4_exp_underflow) begin
+                ow_result = {w_final_sign, w_exp_out, w_mant_out};
+            end else begin
+                ow_result = {r4_sign_b, r4_exp_adjusted, w_mant_out};
+            end
         end else if (r4_b_eff_zero) begin
-            ow_result = {r4_sign_a, r4_exp_adjusted, w_mant_out};
+            if (SUBNORMAL_SUPPORT && r4_exp_underflow) begin
+                ow_result = {w_final_sign, w_exp_out, w_mant_out};
+            end else begin
+                ow_result = {r4_sign_a, r4_exp_adjusted, w_mant_out};
+            end
         end else if (r4_sum_is_zero) begin
             ow_result = {1'b0, 8'h00, 23'h000000};
         end else if (w_final_overflow) begin
             ow_result   = {w_final_sign, 8'hFF, 23'h000000};
             ow_overflow = 1'b1;
         end else if (r4_exp_underflow) begin
-            ow_result    = {w_final_sign, 8'h00, 23'h000000};
-            ow_underflow = 1'b1;
+            if (SUBNORMAL_SUPPORT) begin
+                // Gradual underflow: subnormal result from the shifted vector.
+                // ow_underflow per IEEE 754: tiny AFTER rounding AND inexact.
+                // A subnormal sum is always exact (the exact result is a grid
+                // point the subnormal encoding holds), and a rounding carry to
+                // min-normal is not tiny -- so the flag stays deasserted.
+                ow_result    = {w_final_sign, w_exp_out, w_mant_out};
+                ow_underflow = (w_exp_out == 8'h00) && (w_guard_bit | w_round_bit | w_sticky_bit);
+            end else begin
+                ow_result    = {w_final_sign, 8'h00, 23'h000000};
+                ow_underflow = 1'b1;
+            end
         end
     end
 

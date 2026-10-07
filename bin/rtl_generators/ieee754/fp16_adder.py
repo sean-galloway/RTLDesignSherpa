@@ -12,6 +12,16 @@
 #
 # Extended mantissa: 14 bits (10 mant + 1 implicit + 3 GRS)
 #
+# Subnormal handling:
+#   SUBNORMAL_SUPPORT=0 (default): FTZ. Subnormal inputs are treated as zero
+#     and results never subnormal (byte-identical legacy behavior).
+#   SUBNORMAL_SUPPORT=1: subnormal operands decode with hidden bit 0 at
+#     effective exponent 1-bias, and subnormal results are produced by a
+#     post-normalization right shift with sticky capture, rounded RNE. A
+#     rounding carry out of pre-round exponent 0 produces min-normal, not a
+#     flush (math BUG-004 ruling); ow_underflow asserts only for a tiny
+#     after-rounding result that is also inexact.
+#
 # Documentation: docs/IEEE754_ARCHITECTURE.md
 # Subsystem: common
 #
@@ -40,7 +50,8 @@ module math_ieee754_2008_fp16_adder #(
     parameter bit PIPE_STAGE_1 = 1'b0,  // Pipeline after swap
     parameter bit PIPE_STAGE_2 = 1'b0,  // Pipeline after alignment
     parameter bit PIPE_STAGE_3 = 1'b0,  // Pipeline after add
-    parameter bit PIPE_STAGE_4 = 1'b0   // Pipeline after normalize
+    parameter bit PIPE_STAGE_4 = 1'b0,  // Pipeline after normalize
+    parameter bit SUBNORMAL_SUPPORT = 1'b0  // 0: FTZ (legacy); 1: IEEE 754-2008 gradual underflow
 ) (
     input  logic        i_clk,
     input  logic        i_rst_n,
@@ -75,34 +86,51 @@ wire w_b_is_inf = (w_exp_b == 5'h1F) & (w_mant_b == 10'h000);
 wire w_a_is_nan = (w_exp_a == 5'h1F) & (w_mant_a != 10'h000);
 wire w_b_is_nan = (w_exp_b == 5'h1F) & (w_mant_b != 10'h000);
 
-wire w_a_eff_zero = w_a_is_zero | w_a_is_subnormal;
-wire w_b_eff_zero = w_b_is_zero | w_b_is_subnormal;
+// Effective zero: FTZ folds subnormals into zero; with SUBNORMAL_SUPPORT=1
+// only true zeros are effective zero
+wire w_a_eff_zero = w_a_is_zero | (w_a_is_subnormal & ~SUBNORMAL_SUPPORT);
+wire w_b_eff_zero = w_b_is_zero | (w_b_is_subnormal & ~SUBNORMAL_SUPPORT);
 wire w_a_is_normal = ~w_a_eff_zero & ~w_a_is_inf & ~w_a_is_nan;
 wire w_b_is_normal = ~w_b_eff_zero & ~w_b_is_inf & ~w_b_is_nan;
 
-// Exponent comparison and operand swap
-// Always put larger exponent operand first
+// Hidden-1 flags: 0 for subnormals when SUBNORMAL_SUPPORT=1 (they decode as
+// 0.mantissa at effective exponent 1-bias). Identical to *_is_normal when
+// SUBNORMAL_SUPPORT=0.
+wire w_a_h1 = w_a_is_normal & (~SUBNORMAL_SUPPORT | ~w_a_is_subnormal);
+wire w_b_h1 = w_b_is_normal & (~SUBNORMAL_SUPPORT | ~w_b_is_subnormal);
 
-wire w_a_exp_larger = (w_exp_a >= w_exp_b);
+// Exponents adjusted for subnormal decode: a subnormal operates at effective
+// biased exponent 1. Identical to the raw exponent when SUBNORMAL_SUPPORT=0.
+wire [4:0] w_exp_a_adj = (SUBNORMAL_SUPPORT & w_a_is_subnormal) ? 5'd1 : w_exp_a;
+wire [4:0] w_exp_b_adj = (SUBNORMAL_SUPPORT & w_b_is_subnormal) ? 5'd1 : w_exp_b;
+
+// Exponent comparison and operand swap
+// Always put larger exponent operand first (subnormal-adjusted exponents)
+
+wire w_a_exp_larger = (w_exp_a_adj >= w_exp_b_adj);
 
 // Swapped operands (larger exponent first)
 wire       w_sign_larger  = w_a_exp_larger ? w_sign_a : w_sign_b;
-wire [4:0] w_exp_larger   = w_a_exp_larger ? w_exp_a : w_exp_b;
+wire [4:0] w_exp_larger   = w_a_exp_larger ? w_exp_a_adj : w_exp_b_adj;
 wire [9:0] w_mant_larger  = w_a_exp_larger ? w_mant_a : w_mant_b;
-wire       w_larger_normal = w_a_exp_larger ? w_a_is_normal : w_b_is_normal;
+wire       w_larger_h1    = w_a_exp_larger ? w_a_h1 : w_b_h1;
+wire       w_larger_sub   = w_a_exp_larger ? w_a_is_subnormal : w_b_is_subnormal;
 
 wire       w_sign_smaller  = w_a_exp_larger ? w_sign_b : w_sign_a;
-wire [4:0] w_exp_smaller   = w_a_exp_larger ? w_exp_b : w_exp_a;
+wire [4:0] w_exp_smaller   = w_a_exp_larger ? w_exp_b_adj : w_exp_a_adj;
 wire [9:0] w_mant_smaller  = w_a_exp_larger ? w_mant_b : w_mant_a;
-wire       w_smaller_normal = w_a_exp_larger ? w_b_is_normal : w_a_is_normal;
+wire       w_smaller_h1    = w_a_exp_larger ? w_b_h1 : w_a_h1;
+wire       w_smaller_sub   = w_a_exp_larger ? w_b_is_subnormal : w_a_is_subnormal;
 
 wire [4:0] w_exp_diff = w_exp_larger - w_exp_smaller;
 
 // Extended mantissas with implied bit
-// Format: 1.mmmmmmmmmm + 3 GRS bits = 14 bits total
-
-wire [13:0] w_mant_larger_ext = w_larger_normal ? {1'b1, w_mant_larger, 3'b0} : 14'h0;
-wire [13:0] w_mant_smaller_ext = w_smaller_normal ? {1'b1, w_mant_smaller, 3'b0} : 14'h0;
+// Format: h.mmmmmmmmmm + 3 GRS bits = 14 bits total; subnormals carry hidden
+// bit 0 when SUBNORMAL_SUPPORT=1, and are zeroed entirely when it is 0
+wire [13:0] w_mant_larger_ext = w_larger_h1 ? {1'b1, w_mant_larger, 3'b0} :
+    (SUBNORMAL_SUPPORT & w_larger_sub ? {1'b0, w_mant_larger, 3'b0} : 14'h0);
+wire [13:0] w_mant_smaller_ext = w_smaller_h1 ? {1'b1, w_mant_smaller, 3'b0} :
+    (SUBNORMAL_SUPPORT & w_smaller_sub ? {1'b0, w_mant_smaller, 3'b0} : 14'h0);
 
 // Mantissa alignment (shift smaller mantissa right)
 
@@ -162,14 +190,36 @@ wire [14:0] w_mant_norm = w_add_overflow ?
 wire signed [6:0] w_exp_adjusted = $signed({2'b0, w_exp_larger}) +
     $signed({6'b0, w_add_overflow}) - $signed({3'b0, w_norm_shift});
 
+// -------------------------------------------------------------------------
+// Gradual-underflow output path (SUBNORMAL_SUPPORT=1 only)
+//
+// When the adjusted exponent is < 1 the exact result lies in the subnormal
+// range. Right-shift the normalized {hidden, mant, GRS} vector onto the
+// subnormal grid (exponent 1-bias), folding every shifted-out bit into the
+// sticky, then round RNE exactly as on the normal path. A rounding carry out
+// of pre-round exponent 0 produces min-normal, not a flush (math BUG-004
+// ruling). With SUBNORMAL_SUPPORT=0 w_subnorm_path is constant 0 and this
+// block folds away.
+// -------------------------------------------------------------------------
+wire w_subnorm_path = SUBNORMAL_SUPPORT & (w_exp_adjusted < 7'sd1);
+wire signed [6:0] w_subnorm_shift_s = 7'sd1 - w_exp_adjusted;  // in [1, 13] when active
+wire [3:0] w_subnorm_shift = w_subnorm_shift_s[3:0];
+wire [14:0] w_subnorm_mask = (15'h0001 << w_subnorm_shift) - 15'h0001;
+wire [14:0] w_mant_subnorm = w_mant_norm >> w_subnorm_shift;
+wire w_subnorm_sticky = |(w_mant_norm & w_subnorm_mask);
+
+wire [14:0] w_mant_round_in = w_subnorm_path ? w_mant_subnorm : w_mant_norm;
+wire w_sticky_total = w_subnorm_path ? (w_sticky_from_shift | w_subnorm_sticky) : w_sticky_from_shift;
+
 // Round-to-Nearest-Even rounding
 
 // Extract mantissa, guard, round, sticky
 // Format after normalization: [14]=0, [13]=implied, [12:3]=mant, [2:0]=GRS
-wire [9:0] w_mant_pre = w_mant_norm[12:3];
-wire w_guard = w_mant_norm[2];
-wire w_round = w_mant_norm[1];
-wire w_sticky = w_mant_norm[0] | w_sticky_from_shift;
+// (on the subnormal path the implied bit has shifted down with the rest)
+wire [9:0] w_mant_pre = w_mant_round_in[12:3];
+wire w_guard = w_mant_round_in[2];
+wire w_round = w_mant_round_in[1];
+wire w_sticky = w_mant_round_in[0] | w_sticky_total;
 
 // RNE: round up if G=1 and (R=1 or S=1 or LSB=1)
 wire w_round_up = w_guard & (w_round | w_sticky | w_mant_pre[0]);
@@ -181,8 +231,10 @@ wire w_round_overflow = w_mant_rounded[10];
 // Final mantissa
 wire [9:0] w_mant_final = w_round_overflow ? 10'h000 : w_mant_rounded[9:0];
 
-// Final exponent
-wire signed [6:0] w_exp_final = w_exp_adjusted + {6'b0, w_round_overflow};
+// Final exponent (base is 0 on the subnormal path: a rounding carry out of
+// pre-round exponent 0 yields min-normal, not a flush -- BUG-004 ruling)
+wire signed [6:0] w_exp_base = w_subnorm_path ? 7'sd0 : w_exp_adjusted;
+wire signed [6:0] w_exp_final = w_exp_base + {6'b0, w_round_overflow};
 
 // Special case handling
 
@@ -194,8 +246,12 @@ wire w_invalid = w_inf_sub;
 // Overflow: exp > 30
 wire w_overflow = ~w_exp_final[6] & (w_exp_final > 7'sd30);
 
-// Underflow: exp < 1
-wire w_underflow = w_exp_final[6] | (w_exp_final < 7'sd1);
+// Underflow: exp < 1. With SUBNORMAL_SUPPORT=1 the flag follows IEEE 754:
+// tiny AFTER rounding AND inexact (a subnormal sum is always exact, so the
+// flag stays deasserted on the subnormal path)
+wire w_underflow = w_subnorm_path ?
+    ((w_exp_final < 7'sd1) & (w_guard | w_round | w_sticky)) :
+    (w_exp_final[6] | (w_exp_final < 7'sd1));
 
 // Result assembly
 
@@ -218,13 +274,29 @@ always_comb begin
     end else if (w_overflow) begin
         r_result = {w_result_sign, 5'h1F, 10'h000};
         r_overflow = 1'b1;
-    end else if (w_underflow | (w_mant_sum_abs == 15'h0)) begin
-        r_result = {w_result_sign, 5'h00, 10'h000};
-        r_underflow = w_underflow & (w_mant_sum_abs != 15'h0);
-    end else if (w_a_eff_zero) begin
-        r_result = i_b;
-    end else if (w_b_eff_zero) begin
-        r_result = i_a;
+    end else if (SUBNORMAL_SUPPORT) begin
+        // Gradual underflow: exact zero stays exact; a result in the
+        // subnormal range comes from the shifted vector; otherwise fall
+        // through to the effective-zero passthroughs and the normal result.
+        if (w_mant_sum_abs == 15'h0) begin
+            r_result = {w_result_sign, 5'h00, 10'h000};  // exact cancellation
+        end else if (w_subnorm_path) begin
+            r_result = {w_result_sign, w_exp_final[4:0], w_mant_final};
+            r_underflow = w_underflow;
+        end else if (w_a_eff_zero) begin
+            r_result = i_b;
+        end else if (w_b_eff_zero) begin
+            r_result = i_a;
+        end
+    end else begin
+        if (w_underflow | (w_mant_sum_abs == 15'h0)) begin
+            r_result = {w_result_sign, 5'h00, 10'h000};
+            r_underflow = w_underflow & (w_mant_sum_abs != 15'h0);
+        end else if (w_a_eff_zero) begin
+            r_result = i_b;
+        end else if (w_b_eff_zero) begin
+            r_result = i_a;
+        end
     end
 end
 
