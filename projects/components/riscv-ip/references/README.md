@@ -17,7 +17,13 @@ Research literature behind the design decisions is curated in
 [`microarchitecture-papers.md`](microarchitecture-papers.md) — fifteen
 papers organized by the decision each guides (pipeline partition, branch
 prediction, precise interrupts, write policies, checkpoint-restore OOO),
-with honest availability notes.
+with honest availability notes and DOIs.
+
+Where a legitimate open PDF exists, a local copy lives in
+[`papers/`](papers/README.md) (RISC I, the Waterman dissertation, and
+the BOOM report as of 2026-10-07); the other twelve are paywalled with
+full citations in the list — fetch them through an institutional
+subscription.
 
 Future additions as rungs demand them: the RISC-V psABI (toolchain run),
 the debug specification, profile docs. Add them here with the same
