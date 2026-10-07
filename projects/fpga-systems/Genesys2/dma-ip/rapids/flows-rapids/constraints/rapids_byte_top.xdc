@@ -27,9 +27,11 @@ create_clock -period 10.000 -name sys_clk_pin -waveform {0.000 5.000} -add [get_
 ##==============================================================================
 set_property -dict {PACKAGE_PIN C12 IOSTANDARD LVCMOS33} [get_ports CPU_RESETN]
 
-## Reset is asynchronous — don't waste timing effort on it.
+## Reset is asynchronous — don't waste timing effort on it. Port-based (not
+## clock-qualified) so it still matches when the derate MMCM renames the
+## harness domain clk_unbuf.
 set_input_delay -clock [get_clocks sys_clk_pin] 0.000 [get_ports CPU_RESETN]
-set_false_path -from [get_ports CPU_RESETN] -to [get_clocks sys_clk_pin]
+set_false_path -from [get_ports CPU_RESETN]
 
 ##==============================================================================
 ## USB UART (FTDI chip — FT2232HQ)
@@ -39,11 +41,15 @@ set_false_path -from [get_ports CPU_RESETN] -to [get_clocks sys_clk_pin]
 set_property -dict {PACKAGE_PIN C4 IOSTANDARD LVCMOS33} [get_ports UART_TXD_IN]
 set_property -dict {PACKAGE_PIN D4 IOSTANDARD LVCMOS33} [get_ports UART_RXD_OUT]
 
-## UART is async at 115.2 kbaud — timing is relaxed. Flag as async to sys_clk.
+## UART is async at 115.2 kbaud — timing is relaxed. Port-based false paths
+## (NOT clock-qualified): when the harness clock runs through the derate MMCM
+## its domain is named clk_unbuf, not sys_clk_pin, and a clock-qualified false
+## path silently stops matching -- measured as a -1.561 ns inter-clock hit on
+## UART_RXD_OUT in the 75 MHz build.
 set_input_delay  -clock [get_clocks sys_clk_pin] 0.000 [get_ports UART_TXD_IN]
 set_output_delay -clock [get_clocks sys_clk_pin] 0.000 [get_ports UART_RXD_OUT]
-set_false_path -from [get_ports UART_TXD_IN]  -to [get_clocks sys_clk_pin]
-set_false_path -from [get_clocks sys_clk_pin] -to [get_ports UART_RXD_OUT]
+set_false_path -from [get_ports UART_TXD_IN]
+set_false_path -to   [get_ports UART_RXD_OUT]
 
 ##==============================================================================
 ## LEDs (16 user LEDs)
