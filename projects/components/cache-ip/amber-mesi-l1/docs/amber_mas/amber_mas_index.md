@@ -23,7 +23,7 @@
 
 # amber MAS Index
 
-**Version:** 1.0
+**Version:** 0.5
 **Date:** 2026-10-06
 **Purpose:** Micro-architecture specification for the amber blocking MESI snoopy L1 cache
 

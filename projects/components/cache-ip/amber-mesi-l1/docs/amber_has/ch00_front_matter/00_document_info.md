@@ -26,7 +26,7 @@
 | Field | Value |
 |-------|-------|
 | Title | amber — Blocking MESI Snoopy L1 Cache — Hardware Architecture Specification |
-| Version | 1.0 |
+| Version | 0.5 |
 | Date | 2026-10-06 |
 | Status | HAS ratifies the Pre-HAS sketch; PRD decisions D1, D2, D4, D5, D6, D7, D8, D9, D10 are DECIDED. D3 (memory-side shape) and D11 (array construction) remain OPEN and are recorded in the chapters they shape. |
 | Scope | `amber` and `amber_ace` tops, the shared `amber_core`, interfaces, parameters, and integration rules for the pair rig and the onyx rig. |
@@ -63,7 +63,7 @@
 
 | Version | Date | Change |
 |---------|------|--------|
-| 1.0 | 2026-10-06 | Full HAS. Ratifies Pre-HAS F1–F18 against PRD v0.5 decisions, fixes the two-top structure, the module set, the interface pin contracts, the parameter sketch, the verification strategy, and the open D3/D11 questions. |
+| 0.5 | 2026-10-06 | Full HAS. Ratifies Pre-HAS F1–F18 against PRD v0.5 decisions, fixes the two-top structure, the module set, the interface pin contracts, the parameter sketch, the verification strategy, and the open D3/D11 questions. |
 
 : Table 0.3: Revision history
 

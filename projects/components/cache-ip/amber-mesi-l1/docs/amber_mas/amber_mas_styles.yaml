@@ -110,7 +110,7 @@ title_page:
   logo_width: 2.5
   company: "RTL Design Sherpa"
   title: "amber — Blocking MESI Snoopy L1 Cache"
-  subtitle: "Micro-Architecture Specification 1.0"
+  subtitle: "Micro-Architecture Specification 0.5"
   date: "October 6, 2026"
   # Colors reference the colors section above
   company_color: primary

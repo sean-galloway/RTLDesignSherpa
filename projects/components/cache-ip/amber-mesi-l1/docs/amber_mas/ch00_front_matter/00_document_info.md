@@ -34,7 +34,7 @@ This document is the Micro-Architecture Specification (MAS) for `amber`, a param
 | Source | Title | Version |
 |--------|-------|---------|
 | RTL Design Sherpa | amber Product Requirements Document | 0.5 |
-| RTL Design Sherpa | amber Hardware Architecture Specification | 1.0 |
+| RTL Design Sherpa | amber Hardware Architecture Specification | 0.5 |
 | RTL Design Sherpa | amber Pre-HAS sketch | 1.0 |
 | ARM | AMBA AXI and ACE Protocol Specification | IHI0022H |
 | gem5 | Ruby `MESI_Two_Level` protocol extract | commit f5c5a6e |
@@ -107,7 +107,7 @@ Simple dual-port RAM. The house `sdpram_core` primitive is the only allowed tag/
 
 | Rev | Date | Author | Notes |
 |-----|------|--------|-------|
-| 1.0 | 2026-10-06 | seang | Initial amber MAS: index, ch01–ch06, styles, title, and pre-RTL kmap workbook. No RTL yet; all micro-architecture proposals are contracts for the landing implementation. |
+| 0.5 | 2026-10-06 | seang | Initial amber MAS: index, ch01–ch06, styles, title, and pre-RTL kmap workbook. No RTL yet; all micro-architecture proposals are contracts for the landing implementation. |
 
 : amber MAS Document Revision History
 

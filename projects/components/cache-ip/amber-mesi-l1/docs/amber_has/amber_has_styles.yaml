@@ -101,7 +101,7 @@ margins:
 lists:
   lot: true    # List of Tables
   lof: true    # List of Figures
-  low: false   # List of Waveforms (HAS has no detailed timing diagrams in v1.0)
+  low: false   # List of Waveforms (HAS has no detailed timing diagrams in v0.5)
 
 # Title page configuration
 title_page:
@@ -110,7 +110,7 @@ title_page:
   logo_width: 2.5
   company: "RTL Design Sherpa"
   title: "amber — Blocking MESI Snoopy L1 Cache"
-  subtitle: "Hardware Architecture Specification 1.0"
+  subtitle: "Hardware Architecture Specification 0.5"
   date: "October 6, 2026"
   company_color: primary
   title_color: secondary

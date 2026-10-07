@@ -23,7 +23,7 @@
 
 # amber — Blocking MESI Snoopy L1 Cache — Hardware Architecture Specification
 
-**Version:** 1.0
+**Version:** 0.5
 **Date:** 2026-10-06
 **Status:** full HAS ratifies the Pre-HAS sketch; PRD decisions D1, D2, D4, D5, D6, D7, D8, D9, D10 are DECIDED. D3 (memory-side shape) and D11 (array construction) remain OPEN and are recorded honestly in the chapters they shape.
 
