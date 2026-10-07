@@ -1,0 +1,1093 @@
+{
+  "meta": {
+    "serial": "210292BFA3EE",
+    "date": "2026-10-07",
+    "generated": "2026-10-07T14:03:16Z",
+    "repo": "https://github.com/sean-galloway/RTLDesignSherpa"
+  },
+  "summary": {
+    "images": 2,
+    "passed": 2,
+    "failed": 0,
+    "partial": 0,
+    "program_failed": 0,
+    "unknown": 0,
+    "campaigns": {
+      "clusters": {
+        "combos": 4,
+        "failing": 0
+      },
+      "localized": {
+        "combos": 3,
+        "failing": 0
+      },
+      "badblock": {
+        "combos": 4,
+        "failing": 0
+      },
+      "random": {
+        "combos": 64,
+        "failing": 0
+      }
+    }
+  },
+  "images": [
+    {
+      "name": "nexys_a7_rsls",
+      "log_file": "projects/fpga-systems/Genesys2/ecc-ip/reed-solomon/stable/results/2026-10-07_a7_battery/logs/rs_a7_func.log",
+      "codec": "RS",
+      "params": {
+        "n": 64,
+        "k": 56,
+        "t": 4,
+        "m": 8,
+        "spb": 4
+      },
+      "solver": "riBM; no comparator, so the B-side counters and CMP_* read 0 by design",
+      "topology": "1",
+      "program_failed": false,
+      "program_failed_reason": null,
+      "sequences": {
+        "init": {
+          "status": "PASS"
+        },
+        "smoke": {
+          "status": "PASS"
+        },
+        "sweep": {
+          "status": "PASS"
+        },
+        "random": {
+          "status": "PASS"
+        },
+        "clusters": {
+          "status": "PASS"
+        },
+        "localized": {
+          "status": "PASS"
+        },
+        "badblock": {
+          "status": "PASS"
+        }
+      },
+      "smoke": [
+        {
+          "label": "bypass",
+          "cyc/blk": 14.2,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "label": "clean",
+          "cyc/blk": 18.8,
+          "riBM": {
+            "ok": 16,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "label": "e=4",
+          "cyc/blk": 51.7,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "label": "e=5",
+          "cyc/blk": 51.7,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "label": "debug",
+          "cyc/blk": 19.6,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        }
+      ],
+      "sweep": [
+        {
+          "e": 0,
+          "cyc/blk": 50.7,
+          "riBM": {
+            "ok": 16,
+            "corr": 0,
+            "unc": 0
+          },
+          "riBM_sym": 0,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 1,
+          "cyc/blk": 51.5,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 16,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 2,
+          "cyc/blk": 51.6,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 32,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 3,
+          "cyc/blk": 51.6,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 48,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 4,
+          "cyc/blk": 51.7,
+          "riBM": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "riBM_sym": 64,
+          "riBM_data": "ok",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 5,
+          "cyc/blk": 51.7,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 6,
+          "cyc/blk": 51.7,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 7,
+          "cyc/blk": 51.7,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 8,
+          "cyc/blk": 51.7,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 9,
+          "cyc/blk": 51.7,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        },
+        {
+          "e": 10,
+          "cyc/blk": 51.7,
+          "riBM": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 16
+          },
+          "riBM_sym": 0,
+          "riBM_data": "x",
+          "Euclid": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "Euclid_sym": 0,
+          "Euclid_data": "ok",
+          "A=B": "yes",
+          "status": "PASS",
+          "codec": "RS"
+        }
+      ],
+      "random": {
+        "runs": 64,
+        "blocks": 4,
+        "n": 64,
+        "k": 56,
+        "mix": "31 exact-count, 15 burst, 18 rate",
+        "clean": 58,
+        "corrected": 90,
+        "uncorrectable": 108,
+        "failing": 0
+      },
+      "campaigns": {
+        "clusters": {
+          "combos": 4,
+          "blocks": 16,
+          "n": 64,
+          "k": 56,
+          "failing": 0
+        },
+        "localized": {
+          "combos": 3,
+          "blocks": 16,
+          "n": 64,
+          "k": 56,
+          "failing": 0
+        },
+        "badblock": {
+          "combos": 4,
+          "blocks": 64,
+          "n": 64,
+          "k": 56,
+          "failing": 0
+        }
+      },
+      "soak_progress": [],
+      "soak_final": null,
+      "errors": [],
+      "status": "PASS",
+      "run_summary": "ALL PASS"
+    },
+    {
+      "name": "rs_a7_soak",
+      "log_file": "projects/fpga-systems/Genesys2/ecc-ip/reed-solomon/stable/results/2026-10-07_a7_battery/logs/rs_a7_soak.log",
+      "codec": "RS",
+      "params": {
+        "n": 64,
+        "k": 56,
+        "t": 4,
+        "m": 8,
+        "spb": 4
+      },
+      "solver": "riBM; no comparator, so the B-side counters and CMP_* read 0 by design",
+      "topology": "1",
+      "program_failed": false,
+      "program_failed_reason": null,
+      "sequences": {
+        "init": {
+          "status": "PASS"
+        },
+        "soak": {
+          "status": "PASS"
+        }
+      },
+      "smoke": [],
+      "sweep": [],
+      "random": null,
+      "campaigns": {},
+      "soak_progress": [
+        {
+          "done": 1024,
+          "total": 62528,
+          "wall_s": 9.0,
+          "blk_s": 111.0,
+          "clean": 208,
+          "corr": 751,
+          "unc": 65,
+          "failing": 0
+        },
+        {
+          "done": 2048,
+          "total": 62528,
+          "wall_s": 18.0,
+          "blk_s": 111.0,
+          "clean": 367,
+          "corr": 1481,
+          "unc": 200,
+          "failing": 0
+        },
+        {
+          "done": 3072,
+          "total": 62528,
+          "wall_s": 28.0,
+          "blk_s": 111.0,
+          "clean": 592,
+          "corr": 2063,
+          "unc": 417,
+          "failing": 0
+        },
+        {
+          "done": 4096,
+          "total": 62528,
+          "wall_s": 37.0,
+          "blk_s": 111.0,
+          "clean": 676,
+          "corr": 2810,
+          "unc": 610,
+          "failing": 0
+        },
+        {
+          "done": 5120,
+          "total": 62528,
+          "wall_s": 46.0,
+          "blk_s": 111.0,
+          "clean": 822,
+          "corr": 3546,
+          "unc": 752,
+          "failing": 0
+        },
+        {
+          "done": 6144,
+          "total": 62528,
+          "wall_s": 55.0,
+          "blk_s": 111.0,
+          "clean": 1168,
+          "corr": 4005,
+          "unc": 971,
+          "failing": 0
+        },
+        {
+          "done": 7168,
+          "total": 62528,
+          "wall_s": 65.0,
+          "blk_s": 111.0,
+          "clean": 1402,
+          "corr": 4533,
+          "unc": 1233,
+          "failing": 0
+        },
+        {
+          "done": 8192,
+          "total": 62528,
+          "wall_s": 74.0,
+          "blk_s": 111.0,
+          "clean": 1620,
+          "corr": 5211,
+          "unc": 1361,
+          "failing": 0
+        },
+        {
+          "done": 9216,
+          "total": 62528,
+          "wall_s": 83.0,
+          "blk_s": 111.0,
+          "clean": 1770,
+          "corr": 5957,
+          "unc": 1489,
+          "failing": 0
+        },
+        {
+          "done": 10240,
+          "total": 62528,
+          "wall_s": 92.0,
+          "blk_s": 111.0,
+          "clean": 2099,
+          "corr": 6650,
+          "unc": 1491,
+          "failing": 0
+        },
+        {
+          "done": 11264,
+          "total": 62528,
+          "wall_s": 101.0,
+          "blk_s": 111.0,
+          "clean": 2443,
+          "corr": 7265,
+          "unc": 1556,
+          "failing": 0
+        },
+        {
+          "done": 12288,
+          "total": 62528,
+          "wall_s": 111.0,
+          "blk_s": 111.0,
+          "clean": 2699,
+          "corr": 7712,
+          "unc": 1877,
+          "failing": 0
+        },
+        {
+          "done": 13312,
+          "total": 62528,
+          "wall_s": 120.0,
+          "blk_s": 111.0,
+          "clean": 2875,
+          "corr": 8364,
+          "unc": 2073,
+          "failing": 0
+        },
+        {
+          "done": 14336,
+          "total": 62528,
+          "wall_s": 129.0,
+          "blk_s": 111.0,
+          "clean": 3113,
+          "corr": 9085,
+          "unc": 2138,
+          "failing": 0
+        },
+        {
+          "done": 15360,
+          "total": 62528,
+          "wall_s": 138.0,
+          "blk_s": 111.0,
+          "clean": 3331,
+          "corr": 9752,
+          "unc": 2277,
+          "failing": 0
+        },
+        {
+          "done": 16384,
+          "total": 62528,
+          "wall_s": 147.0,
+          "blk_s": 111.0,
+          "clean": 3499,
+          "corr": 10464,
+          "unc": 2421,
+          "failing": 0
+        },
+        {
+          "done": 17408,
+          "total": 62528,
+          "wall_s": 157.0,
+          "blk_s": 111.0,
+          "clean": 3784,
+          "corr": 11139,
+          "unc": 2485,
+          "failing": 0
+        },
+        {
+          "done": 18432,
+          "total": 62528,
+          "wall_s": 166.0,
+          "blk_s": 111.0,
+          "clean": 3848,
+          "corr": 11907,
+          "unc": 2677,
+          "failing": 0
+        },
+        {
+          "done": 19456,
+          "total": 62528,
+          "wall_s": 175.0,
+          "blk_s": 111.0,
+          "clean": 4070,
+          "corr": 12678,
+          "unc": 2708,
+          "failing": 0
+        },
+        {
+          "done": 20480,
+          "total": 62528,
+          "wall_s": 184.0,
+          "blk_s": 111.0,
+          "clean": 4283,
+          "corr": 13361,
+          "unc": 2836,
+          "failing": 0
+        },
+        {
+          "done": 21504,
+          "total": 62528,
+          "wall_s": 194.0,
+          "blk_s": 111.0,
+          "clean": 4442,
+          "corr": 14033,
+          "unc": 3029,
+          "failing": 0
+        },
+        {
+          "done": 22528,
+          "total": 62528,
+          "wall_s": 203.0,
+          "blk_s": 111.0,
+          "clean": 4623,
+          "corr": 14804,
+          "unc": 3101,
+          "failing": 0
+        },
+        {
+          "done": 23552,
+          "total": 62528,
+          "wall_s": 212.0,
+          "blk_s": 111.0,
+          "clean": 4803,
+          "corr": 15500,
+          "unc": 3249,
+          "failing": 0
+        },
+        {
+          "done": 24576,
+          "total": 62528,
+          "wall_s": 221.0,
+          "blk_s": 111.0,
+          "clean": 5002,
+          "corr": 16325,
+          "unc": 3249,
+          "failing": 0
+        },
+        {
+          "done": 25600,
+          "total": 62528,
+          "wall_s": 230.0,
+          "blk_s": 111.0,
+          "clean": 5203,
+          "corr": 16956,
+          "unc": 3441,
+          "failing": 0
+        },
+        {
+          "done": 26624,
+          "total": 62528,
+          "wall_s": 240.0,
+          "blk_s": 111.0,
+          "clean": 5431,
+          "corr": 17624,
+          "unc": 3569,
+          "failing": 0
+        },
+        {
+          "done": 27648,
+          "total": 62528,
+          "wall_s": 249.0,
+          "blk_s": 111.0,
+          "clean": 5551,
+          "corr": 18397,
+          "unc": 3700,
+          "failing": 0
+        },
+        {
+          "done": 28672,
+          "total": 62528,
+          "wall_s": 258.0,
+          "blk_s": 111.0,
+          "clean": 5743,
+          "corr": 19229,
+          "unc": 3700,
+          "failing": 0
+        },
+        {
+          "done": 29696,
+          "total": 62528,
+          "wall_s": 267.0,
+          "blk_s": 111.0,
+          "clean": 5802,
+          "corr": 19938,
+          "unc": 3956,
+          "failing": 0
+        },
+        {
+          "done": 30720,
+          "total": 62528,
+          "wall_s": 276.0,
+          "blk_s": 111.0,
+          "clean": 6056,
+          "corr": 20260,
+          "unc": 4404,
+          "failing": 0
+        },
+        {
+          "done": 31744,
+          "total": 62528,
+          "wall_s": 286.0,
+          "blk_s": 111.0,
+          "clean": 6312,
+          "corr": 20899,
+          "unc": 4533,
+          "failing": 0
+        },
+        {
+          "done": 32768,
+          "total": 62528,
+          "wall_s": 295.0,
+          "blk_s": 111.0,
+          "clean": 6418,
+          "corr": 21817,
+          "unc": 4533,
+          "failing": 0
+        },
+        {
+          "done": 33792,
+          "total": 62528,
+          "wall_s": 304.0,
+          "blk_s": 111.0,
+          "clean": 6692,
+          "corr": 22534,
+          "unc": 4566,
+          "failing": 0
+        },
+        {
+          "done": 34816,
+          "total": 62528,
+          "wall_s": 313.0,
+          "blk_s": 111.0,
+          "clean": 6818,
+          "corr": 23301,
+          "unc": 4697,
+          "failing": 0
+        },
+        {
+          "done": 35840,
+          "total": 62528,
+          "wall_s": 323.0,
+          "blk_s": 111.0,
+          "clean": 6928,
+          "corr": 24087,
+          "unc": 4825,
+          "failing": 0
+        },
+        {
+          "done": 36864,
+          "total": 62528,
+          "wall_s": 332.0,
+          "blk_s": 111.0,
+          "clean": 7160,
+          "corr": 24687,
+          "unc": 5017,
+          "failing": 0
+        },
+        {
+          "done": 37888,
+          "total": 62528,
+          "wall_s": 341.0,
+          "blk_s": 111.0,
+          "clean": 7271,
+          "corr": 25472,
+          "unc": 5145,
+          "failing": 0
+        },
+        {
+          "done": 38912,
+          "total": 62528,
+          "wall_s": 350.0,
+          "blk_s": 111.0,
+          "clean": 7673,
+          "corr": 26027,
+          "unc": 5212,
+          "failing": 0
+        },
+        {
+          "done": 39936,
+          "total": 62528,
+          "wall_s": 359.0,
+          "blk_s": 111.0,
+          "clean": 7864,
+          "corr": 26603,
+          "unc": 5469,
+          "failing": 0
+        },
+        {
+          "done": 40960,
+          "total": 62528,
+          "wall_s": 369.0,
+          "blk_s": 111.0,
+          "clean": 7997,
+          "corr": 27430,
+          "unc": 5533,
+          "failing": 0
+        },
+        {
+          "done": 41984,
+          "total": 62528,
+          "wall_s": 378.0,
+          "blk_s": 111.0,
+          "clean": 8158,
+          "corr": 28165,
+          "unc": 5661,
+          "failing": 0
+        },
+        {
+          "done": 43008,
+          "total": 62528,
+          "wall_s": 387.0,
+          "blk_s": 111.0,
+          "clean": 8429,
+          "corr": 28853,
+          "unc": 5726,
+          "failing": 0
+        },
+        {
+          "done": 44032,
+          "total": 62528,
+          "wall_s": 396.0,
+          "blk_s": 111.0,
+          "clean": 8665,
+          "corr": 29578,
+          "unc": 5789,
+          "failing": 0
+        },
+        {
+          "done": 45056,
+          "total": 62528,
+          "wall_s": 405.0,
+          "blk_s": 111.0,
+          "clean": 8855,
+          "corr": 30271,
+          "unc": 5930,
+          "failing": 0
+        },
+        {
+          "done": 46080,
+          "total": 62528,
+          "wall_s": 415.0,
+          "blk_s": 111.0,
+          "clean": 9041,
+          "corr": 30917,
+          "unc": 6122,
+          "failing": 0
+        },
+        {
+          "done": 47104,
+          "total": 62528,
+          "wall_s": 424.0,
+          "blk_s": 111.0,
+          "clean": 9263,
+          "corr": 31572,
+          "unc": 6269,
+          "failing": 0
+        },
+        {
+          "done": 48128,
+          "total": 62528,
+          "wall_s": 433.0,
+          "blk_s": 111.0,
+          "clean": 9433,
+          "corr": 32296,
+          "unc": 6399,
+          "failing": 0
+        },
+        {
+          "done": 49152,
+          "total": 62528,
+          "wall_s": 442.0,
+          "blk_s": 111.0,
+          "clean": 9704,
+          "corr": 32985,
+          "unc": 6463,
+          "failing": 0
+        },
+        {
+          "done": 50176,
+          "total": 62528,
+          "wall_s": 452.0,
+          "blk_s": 111.0,
+          "clean": 9963,
+          "corr": 33616,
+          "unc": 6597,
+          "failing": 0
+        },
+        {
+          "done": 51200,
+          "total": 62528,
+          "wall_s": 461.0,
+          "blk_s": 111.0,
+          "clean": 10086,
+          "corr": 34453,
+          "unc": 6661,
+          "failing": 0
+        },
+        {
+          "done": 52224,
+          "total": 62528,
+          "wall_s": 470.0,
+          "blk_s": 111.0,
+          "clean": 10315,
+          "corr": 34992,
+          "unc": 6917,
+          "failing": 0
+        },
+        {
+          "done": 53248,
+          "total": 62528,
+          "wall_s": 479.0,
+          "blk_s": 111.0,
+          "clean": 10384,
+          "corr": 35794,
+          "unc": 7070,
+          "failing": 0
+        },
+        {
+          "done": 54272,
+          "total": 62528,
+          "wall_s": 488.0,
+          "blk_s": 111.0,
+          "clean": 10508,
+          "corr": 36536,
+          "unc": 7228,
+          "failing": 0
+        },
+        {
+          "done": 55296,
+          "total": 62528,
+          "wall_s": 498.0,
+          "blk_s": 111.0,
+          "clean": 10713,
+          "corr": 37226,
+          "unc": 7357,
+          "failing": 0
+        },
+        {
+          "done": 56320,
+          "total": 62528,
+          "wall_s": 507.0,
+          "blk_s": 111.0,
+          "clean": 10752,
+          "corr": 37954,
+          "unc": 7614,
+          "failing": 0
+        },
+        {
+          "done": 57344,
+          "total": 62528,
+          "wall_s": 516.0,
+          "blk_s": 111.0,
+          "clean": 10973,
+          "corr": 38753,
+          "unc": 7618,
+          "failing": 0
+        },
+        {
+          "done": 58368,
+          "total": 62528,
+          "wall_s": 525.0,
+          "blk_s": 111.0,
+          "clean": 11341,
+          "corr": 39409,
+          "unc": 7618,
+          "failing": 0
+        },
+        {
+          "done": 59392,
+          "total": 62528,
+          "wall_s": 535.0,
+          "blk_s": 111.0,
+          "clean": 11583,
+          "corr": 40104,
+          "unc": 7705,
+          "failing": 0
+        },
+        {
+          "done": 60416,
+          "total": 62528,
+          "wall_s": 544.0,
+          "blk_s": 111.0,
+          "clean": 11756,
+          "corr": 40816,
+          "unc": 7844,
+          "failing": 0
+        },
+        {
+          "done": 61440,
+          "total": 62528,
+          "wall_s": 553.0,
+          "blk_s": 111.0,
+          "clean": 11882,
+          "corr": 41522,
+          "unc": 8036,
+          "failing": 0
+        },
+        {
+          "done": 62464,
+          "total": 62528,
+          "wall_s": 562.0,
+          "blk_s": 111.0,
+          "clean": 12106,
+          "corr": 42064,
+          "unc": 8294,
+          "failing": 0
+        }
+      ],
+      "soak_final": {
+        "blocks_final": 62528,
+        "wall_s": 563.0,
+        "blk_per_s": 111.0,
+        "clean": 12138,
+        "corrected": 42096,
+        "uncorrectable": 8294,
+        "bits_corrected": 100090,
+        "corrected_unit": "symbols",
+        "failing_runs": 0,
+        "beats_compared": 0,
+        "misdecoded": 0,
+        "over_t_blocks": 4928,
+        "misdecode_rate": "0.00e+00 (1 in 4928)"
+      },
+      "errors": [],
+      "status": "PASS",
+      "run_summary": "ALL PASS"
+    }
+  ],
+  "superseded": []
+}

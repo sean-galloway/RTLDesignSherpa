@@ -1,0 +1,974 @@
+{
+  "meta": {
+    "serial": "210292BFA3EE",
+    "date": "2026-10-07",
+    "generated": "2026-10-07T14:03:08Z",
+    "repo": "https://github.com/sean-galloway/RTLDesignSherpa"
+  },
+  "summary": {
+    "images": 2,
+    "passed": 1,
+    "failed": 1,
+    "partial": 0,
+    "program_failed": 0,
+    "unknown": 0,
+    "campaigns": {
+      "clusters": {
+        "combos": 4,
+        "failing": 0
+      },
+      "localized": {
+        "combos": 3,
+        "failing": 0
+      },
+      "badblock": {
+        "combos": 4,
+        "failing": 0
+      },
+      "random": {
+        "combos": 64,
+        "failing": 0
+      }
+    }
+  },
+  "images": [
+    {
+      "name": "nexys_a7_bchs",
+      "log_file": "projects/fpga-systems/Genesys2/ecc-ip/bch/stable/results/2026-10-07_a7_battery/logs/bch_a7_func.log",
+      "codec": "BCH",
+      "params": {
+        "n": 248,
+        "k": 224,
+        "t": 3,
+        "m": 8,
+        "spb": 4
+      },
+      "solver": "RIBM; datapath AXIS; no comparator, so the B-side counters read 0 by design",
+      "topology": "1",
+      "program_failed": false,
+      "program_failed_reason": null,
+      "sequences": {
+        "init": {
+          "status": "PASS"
+        },
+        "smoke": {
+          "status": "PASS"
+        },
+        "sweep": {
+          "status": "PASS"
+        },
+        "random": {
+          "status": "PASS"
+        },
+        "clusters": {
+          "status": "PASS"
+        },
+        "localized": {
+          "status": "PASS"
+        },
+        "badblock": {
+          "status": "PASS"
+        }
+      },
+      "smoke": [
+        {
+          "label": "bypass",
+          "cyc/blk": 14.1,
+          "A": {
+            "ok": 0,
+            "corr": 0,
+            "unc": 0
+          },
+          "sym": 0,
+          "data": "ok",
+          "status": "PASS",
+          "codec": "BCH"
+        },
+        {
+          "label": "clean",
+          "cyc/blk": 20.8,
+          "A": {
+            "ok": 16,
+            "corr": 0,
+            "unc": 0
+          },
+          "sym": 0,
+          "data": "ok",
+          "status": "PASS",
+          "codec": "BCH"
+        },
+        {
+          "label": "e=3",
+          "cyc/blk": 138.6,
+          "A": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "sym": 48,
+          "data": "ok",
+          "status": "PASS",
+          "codec": "BCH"
+        },
+        {
+          "label": "e=4",
+          "cyc/blk": 138.6,
+          "A": {
+            "ok": 0,
+            "corr": 3,
+            "unc": 13
+          },
+          "sym": 9,
+          "data": "ok",
+          "status": "PASS",
+          "codec": "BCH"
+        },
+        {
+          "label": "debug",
+          "cyc/blk": 38.8,
+          "A": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "sym": 16,
+          "data": "ok",
+          "status": "PASS",
+          "codec": "BCH"
+        }
+      ],
+      "sweep": [
+        {
+          "e": 0,
+          "cyc/blk": 137.4,
+          "A": {
+            "ok": 16,
+            "corr": 0,
+            "unc": 0
+          },
+          "A_sym": 0,
+          "A_data": "ok",
+          "status": "PASS",
+          "A=B": "yes",
+          "codec": "BCH"
+        },
+        {
+          "e": 1,
+          "cyc/blk": 138.6,
+          "A": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "A_sym": 16,
+          "A_data": "ok",
+          "status": "PASS",
+          "A=B": "yes",
+          "codec": "BCH"
+        },
+        {
+          "e": 2,
+          "cyc/blk": 138.6,
+          "A": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "A_sym": 32,
+          "A_data": "ok",
+          "status": "PASS",
+          "A=B": "yes",
+          "codec": "BCH"
+        },
+        {
+          "e": 3,
+          "cyc/blk": 138.6,
+          "A": {
+            "ok": 0,
+            "corr": 16,
+            "unc": 0
+          },
+          "A_sym": 48,
+          "A_data": "ok",
+          "status": "PASS",
+          "A=B": "yes",
+          "codec": "BCH"
+        },
+        {
+          "e": 4,
+          "cyc/blk": 138.6,
+          "A": {
+            "ok": 0,
+            "corr": 3,
+            "unc": 13
+          },
+          "A_sym": 9,
+          "A_data": "ok",
+          "status": "PASS",
+          "A=B": "yes",
+          "codec": "BCH"
+        },
+        {
+          "e": 5,
+          "cyc/blk": 138.6,
+          "A": {
+            "ok": 0,
+            "corr": 3,
+            "unc": 13
+          },
+          "A_sym": 9,
+          "A_data": "ok",
+          "status": "PASS",
+          "A=B": "yes",
+          "codec": "BCH"
+        },
+        {
+          "e": 6,
+          "cyc/blk": 138.6,
+          "A": {
+            "ok": 0,
+            "corr": 4,
+            "unc": 12
+          },
+          "A_sym": 12,
+          "A_data": "ok",
+          "status": "PASS",
+          "A=B": "yes",
+          "codec": "BCH"
+        },
+        {
+          "e": 7,
+          "cyc/blk": 138.6,
+          "A": {
+            "ok": 0,
+            "corr": 1,
+            "unc": 15
+          },
+          "A_sym": 3,
+          "A_data": "ok",
+          "status": "PASS",
+          "A=B": "yes",
+          "codec": "BCH"
+        },
+        {
+          "e": 8,
+          "cyc/blk": 138.6,
+          "A": {
+            "ok": 0,
+            "corr": 5,
+            "unc": 11
+          },
+          "A_sym": 15,
+          "A_data": "ok",
+          "status": "PASS",
+          "A=B": "yes",
+          "codec": "BCH"
+        }
+      ],
+      "random": {
+        "runs": 64,
+        "blocks": 4,
+        "n": 248,
+        "k": 224,
+        "mix": "32 exact-count, 11 burst, 21 rate",
+        "clean": 38,
+        "corrected": 91,
+        "uncorrectable": 127,
+        "failing": 0
+      },
+      "campaigns": {
+        "clusters": {
+          "combos": 4,
+          "blocks": 16,
+          "n": 248,
+          "k": 224,
+          "failing": 0
+        },
+        "localized": {
+          "combos": 3,
+          "blocks": 16,
+          "n": 248,
+          "k": 224,
+          "failing": 0
+        },
+        "badblock": {
+          "combos": 4,
+          "blocks": 64,
+          "n": 248,
+          "k": 224,
+          "failing": 0
+        }
+      },
+      "soak_progress": [],
+      "soak_final": null,
+      "errors": [],
+      "status": "PASS",
+      "run_summary": "ALL PASS"
+    },
+    {
+      "name": "bch_a7_soak",
+      "log_file": "projects/fpga-systems/Genesys2/ecc-ip/bch/stable/results/2026-10-07_a7_battery/logs/bch_a7_soak.log",
+      "codec": "BCH",
+      "params": {
+        "n": 248,
+        "k": 224,
+        "t": 3,
+        "m": 8,
+        "spb": 4
+      },
+      "solver": "RIBM; datapath AXIS; no comparator, so the B-side counters read 0 by design",
+      "topology": "1",
+      "program_failed": false,
+      "program_failed_reason": null,
+      "sequences": {
+        "init": {
+          "status": "PASS"
+        },
+        "soak": {
+          "status": "FAIL"
+        }
+      },
+      "smoke": [],
+      "sweep": [],
+      "random": null,
+      "campaigns": {},
+      "soak_progress": [
+        {
+          "done": 1024,
+          "total": 62528,
+          "wall_s": 8.0,
+          "blk_s": 121.0,
+          "clean": 100,
+          "corr": 702,
+          "unc": 222,
+          "failing": 0
+        },
+        {
+          "done": 2048,
+          "total": 62528,
+          "wall_s": 17.0,
+          "blk_s": 121.0,
+          "clean": 279,
+          "corr": 1489,
+          "unc": 280,
+          "failing": 0
+        },
+        {
+          "done": 3072,
+          "total": 62528,
+          "wall_s": 25.0,
+          "blk_s": 121.0,
+          "clean": 478,
+          "corr": 2188,
+          "unc": 406,
+          "failing": 0
+        },
+        {
+          "done": 4096,
+          "total": 62528,
+          "wall_s": 34.0,
+          "blk_s": 121.0,
+          "clean": 714,
+          "corr": 2868,
+          "unc": 514,
+          "failing": 0
+        },
+        {
+          "done": 5120,
+          "total": 62528,
+          "wall_s": 42.0,
+          "blk_s": 121.0,
+          "clean": 860,
+          "corr": 3576,
+          "unc": 684,
+          "failing": 0
+        },
+        {
+          "done": 6144,
+          "total": 62528,
+          "wall_s": 51.0,
+          "blk_s": 121.0,
+          "clean": 1072,
+          "corr": 4223,
+          "unc": 849,
+          "failing": 0
+        },
+        {
+          "done": 7168,
+          "total": 62528,
+          "wall_s": 59.0,
+          "blk_s": 121.0,
+          "clean": 1197,
+          "corr": 4887,
+          "unc": 1084,
+          "failing": 0
+        },
+        {
+          "done": 8192,
+          "total": 62528,
+          "wall_s": 68.0,
+          "blk_s": 121.0,
+          "clean": 1488,
+          "corr": 5563,
+          "unc": 1141,
+          "failing": 0
+        },
+        {
+          "done": 9216,
+          "total": 62528,
+          "wall_s": 76.0,
+          "blk_s": 121.0,
+          "clean": 1737,
+          "corr": 6168,
+          "unc": 1311,
+          "failing": 0
+        },
+        {
+          "done": 10240,
+          "total": 62528,
+          "wall_s": 84.0,
+          "blk_s": 121.0,
+          "clean": 1917,
+          "corr": 6907,
+          "unc": 1416,
+          "failing": 0
+        },
+        {
+          "done": 11264,
+          "total": 62528,
+          "wall_s": 93.0,
+          "blk_s": 121.0,
+          "clean": 2169,
+          "corr": 7679,
+          "unc": 1416,
+          "failing": 0
+        },
+        {
+          "done": 12288,
+          "total": 62528,
+          "wall_s": 101.0,
+          "blk_s": 121.0,
+          "clean": 2401,
+          "corr": 8295,
+          "unc": 1592,
+          "failing": 0
+        },
+        {
+          "done": 13312,
+          "total": 62528,
+          "wall_s": 110.0,
+          "blk_s": 121.0,
+          "clean": 2677,
+          "corr": 8934,
+          "unc": 1701,
+          "failing": 0
+        },
+        {
+          "done": 14336,
+          "total": 62528,
+          "wall_s": 118.0,
+          "blk_s": 121.0,
+          "clean": 2782,
+          "corr": 9746,
+          "unc": 1808,
+          "failing": 0
+        },
+        {
+          "done": 15360,
+          "total": 62528,
+          "wall_s": 127.0,
+          "blk_s": 121.0,
+          "clean": 3082,
+          "corr": 10282,
+          "unc": 1996,
+          "failing": 0
+        },
+        {
+          "done": 16384,
+          "total": 62528,
+          "wall_s": 135.0,
+          "blk_s": 121.0,
+          "clean": 3245,
+          "corr": 10825,
+          "unc": 2314,
+          "failing": 0
+        },
+        {
+          "done": 17408,
+          "total": 62528,
+          "wall_s": 144.0,
+          "blk_s": 121.0,
+          "clean": 3416,
+          "corr": 11554,
+          "unc": 2438,
+          "failing": 0
+        },
+        {
+          "done": 18432,
+          "total": 62528,
+          "wall_s": 152.0,
+          "blk_s": 121.0,
+          "clean": 3497,
+          "corr": 12275,
+          "unc": 2660,
+          "failing": 0
+        },
+        {
+          "done": 19456,
+          "total": 62528,
+          "wall_s": 161.0,
+          "blk_s": 121.0,
+          "clean": 3683,
+          "corr": 12870,
+          "unc": 2903,
+          "failing": 0
+        },
+        {
+          "done": 20480,
+          "total": 62528,
+          "wall_s": 169.0,
+          "blk_s": 121.0,
+          "clean": 3937,
+          "corr": 13569,
+          "unc": 2974,
+          "failing": 0
+        },
+        {
+          "done": 21504,
+          "total": 62528,
+          "wall_s": 177.0,
+          "blk_s": 121.0,
+          "clean": 4243,
+          "corr": 14165,
+          "unc": 3096,
+          "failing": 0
+        },
+        {
+          "done": 22528,
+          "total": 62528,
+          "wall_s": 186.0,
+          "blk_s": 121.0,
+          "clean": 4354,
+          "corr": 14949,
+          "unc": 3225,
+          "failing": 0
+        },
+        {
+          "done": 23552,
+          "total": 62528,
+          "wall_s": 194.0,
+          "blk_s": 121.0,
+          "clean": 4708,
+          "corr": 15619,
+          "unc": 3225,
+          "failing": 0
+        },
+        {
+          "done": 24576,
+          "total": 62528,
+          "wall_s": 203.0,
+          "blk_s": 121.0,
+          "clean": 4958,
+          "corr": 16294,
+          "unc": 3324,
+          "failing": 0
+        },
+        {
+          "done": 25600,
+          "total": 62528,
+          "wall_s": 211.0,
+          "blk_s": 121.0,
+          "clean": 5071,
+          "corr": 17196,
+          "unc": 3333,
+          "failing": 0
+        },
+        {
+          "done": 26624,
+          "total": 62528,
+          "wall_s": 220.0,
+          "blk_s": 121.0,
+          "clean": 5419,
+          "corr": 17588,
+          "unc": 3617,
+          "failing": 0
+        },
+        {
+          "done": 27648,
+          "total": 62528,
+          "wall_s": 228.0,
+          "blk_s": 121.0,
+          "clean": 5460,
+          "corr": 18451,
+          "unc": 3737,
+          "failing": 0
+        },
+        {
+          "done": 28672,
+          "total": 62528,
+          "wall_s": 237.0,
+          "blk_s": 121.0,
+          "clean": 5622,
+          "corr": 19195,
+          "unc": 3855,
+          "failing": 0
+        },
+        {
+          "done": 29696,
+          "total": 62528,
+          "wall_s": 245.0,
+          "blk_s": 121.0,
+          "clean": 5918,
+          "corr": 19674,
+          "unc": 4104,
+          "failing": 0
+        },
+        {
+          "done": 30720,
+          "total": 62528,
+          "wall_s": 253.0,
+          "blk_s": 121.0,
+          "clean": 6177,
+          "corr": 20373,
+          "unc": 4170,
+          "failing": 0
+        },
+        {
+          "done": 31744,
+          "total": 62528,
+          "wall_s": 262.0,
+          "blk_s": 121.0,
+          "clean": 6521,
+          "corr": 20988,
+          "unc": 4235,
+          "failing": 0
+        },
+        {
+          "done": 32768,
+          "total": 62528,
+          "wall_s": 270.0,
+          "blk_s": 121.0,
+          "clean": 6813,
+          "corr": 21599,
+          "unc": 4356,
+          "failing": 0
+        },
+        {
+          "done": 33792,
+          "total": 62528,
+          "wall_s": 279.0,
+          "blk_s": 121.0,
+          "clean": 6969,
+          "corr": 22358,
+          "unc": 4465,
+          "failing": 0
+        },
+        {
+          "done": 34816,
+          "total": 62528,
+          "wall_s": 287.0,
+          "blk_s": 121.0,
+          "clean": 7403,
+          "corr": 22786,
+          "unc": 4627,
+          "failing": 0
+        },
+        {
+          "done": 35840,
+          "total": 62528,
+          "wall_s": 296.0,
+          "blk_s": 121.0,
+          "clean": 7718,
+          "corr": 23309,
+          "unc": 4813,
+          "failing": 0
+        },
+        {
+          "done": 36864,
+          "total": 62528,
+          "wall_s": 304.0,
+          "blk_s": 121.0,
+          "clean": 7817,
+          "corr": 24177,
+          "unc": 4870,
+          "failing": 0
+        },
+        {
+          "done": 37888,
+          "total": 62528,
+          "wall_s": 313.0,
+          "blk_s": 121.0,
+          "clean": 8044,
+          "corr": 24766,
+          "unc": 5078,
+          "failing": 0
+        },
+        {
+          "done": 38912,
+          "total": 62528,
+          "wall_s": 321.0,
+          "blk_s": 121.0,
+          "clean": 8273,
+          "corr": 25360,
+          "unc": 5279,
+          "failing": 0
+        },
+        {
+          "done": 39936,
+          "total": 62528,
+          "wall_s": 329.0,
+          "blk_s": 121.0,
+          "clean": 8649,
+          "corr": 25822,
+          "unc": 5465,
+          "failing": 0
+        },
+        {
+          "done": 40960,
+          "total": 62528,
+          "wall_s": 338.0,
+          "blk_s": 121.0,
+          "clean": 8847,
+          "corr": 26522,
+          "unc": 5591,
+          "failing": 0
+        },
+        {
+          "done": 41984,
+          "total": 62528,
+          "wall_s": 346.0,
+          "blk_s": 121.0,
+          "clean": 9150,
+          "corr": 27101,
+          "unc": 5733,
+          "failing": 0
+        },
+        {
+          "done": 43008,
+          "total": 62528,
+          "wall_s": 355.0,
+          "blk_s": 121.0,
+          "clean": 9378,
+          "corr": 27784,
+          "unc": 5846,
+          "failing": 0
+        },
+        {
+          "done": 44032,
+          "total": 62528,
+          "wall_s": 363.0,
+          "blk_s": 121.0,
+          "clean": 9477,
+          "corr": 28555,
+          "unc": 6000,
+          "failing": 0
+        },
+        {
+          "done": 45056,
+          "total": 62528,
+          "wall_s": 372.0,
+          "blk_s": 121.0,
+          "clean": 9720,
+          "corr": 29110,
+          "unc": 6226,
+          "failing": 0
+        },
+        {
+          "done": 46080,
+          "total": 62528,
+          "wall_s": 380.0,
+          "blk_s": 121.0,
+          "clean": 9903,
+          "corr": 29945,
+          "unc": 6232,
+          "failing": 0
+        },
+        {
+          "done": 47104,
+          "total": 62528,
+          "wall_s": 389.0,
+          "blk_s": 121.0,
+          "clean": 10179,
+          "corr": 30570,
+          "unc": 6355,
+          "failing": 0
+        },
+        {
+          "done": 48128,
+          "total": 62528,
+          "wall_s": 397.0,
+          "blk_s": 121.0,
+          "clean": 10379,
+          "corr": 31393,
+          "unc": 6356,
+          "failing": 0
+        },
+        {
+          "done": 49152,
+          "total": 62528,
+          "wall_s": 405.0,
+          "blk_s": 121.0,
+          "clean": 10591,
+          "corr": 32205,
+          "unc": 6356,
+          "failing": 0
+        },
+        {
+          "done": 50176,
+          "total": 62528,
+          "wall_s": 414.0,
+          "blk_s": 121.0,
+          "clean": 10831,
+          "corr": 32860,
+          "unc": 6485,
+          "failing": 0
+        },
+        {
+          "done": 51200,
+          "total": 62528,
+          "wall_s": 422.0,
+          "blk_s": 121.0,
+          "clean": 11158,
+          "corr": 33557,
+          "unc": 6485,
+          "failing": 0
+        },
+        {
+          "done": 52224,
+          "total": 62528,
+          "wall_s": 431.0,
+          "blk_s": 121.0,
+          "clean": 11398,
+          "corr": 34102,
+          "unc": 6724,
+          "failing": 0
+        },
+        {
+          "done": 53248,
+          "total": 62528,
+          "wall_s": 439.0,
+          "blk_s": 121.0,
+          "clean": 11639,
+          "corr": 34751,
+          "unc": 6858,
+          "failing": 0
+        },
+        {
+          "done": 54272,
+          "total": 62528,
+          "wall_s": 448.0,
+          "blk_s": 121.0,
+          "clean": 12093,
+          "corr": 35193,
+          "unc": 6986,
+          "failing": 0
+        },
+        {
+          "done": 55296,
+          "total": 62528,
+          "wall_s": 456.0,
+          "blk_s": 121.0,
+          "clean": 12383,
+          "corr": 35722,
+          "unc": 7191,
+          "failing": 0
+        },
+        {
+          "done": 56320,
+          "total": 62528,
+          "wall_s": 465.0,
+          "blk_s": 121.0,
+          "clean": 12678,
+          "corr": 36449,
+          "unc": 7193,
+          "failing": 0
+        },
+        {
+          "done": 57344,
+          "total": 62528,
+          "wall_s": 473.0,
+          "blk_s": 121.0,
+          "clean": 12817,
+          "corr": 37274,
+          "unc": 7253,
+          "failing": 0
+        },
+        {
+          "done": 58368,
+          "total": 62528,
+          "wall_s": 482.0,
+          "blk_s": 121.0,
+          "clean": 13111,
+          "corr": 37843,
+          "unc": 7414,
+          "failing": 0
+        },
+        {
+          "done": 59392,
+          "total": 62528,
+          "wall_s": 490.0,
+          "blk_s": 121.0,
+          "clean": 13233,
+          "corr": 38725,
+          "unc": 7434,
+          "failing": 0
+        },
+        {
+          "done": 60416,
+          "total": 62528,
+          "wall_s": 498.0,
+          "blk_s": 121.0,
+          "clean": 13527,
+          "corr": 39452,
+          "unc": 7437,
+          "failing": 0
+        },
+        {
+          "done": 61440,
+          "total": 62528,
+          "wall_s": 507.0,
+          "blk_s": 121.0,
+          "clean": 13837,
+          "corr": 40044,
+          "unc": 7559,
+          "failing": 0
+        },
+        {
+          "done": 62464,
+          "total": 62528,
+          "wall_s": 515.0,
+          "blk_s": 121.0,
+          "clean": 14149,
+          "corr": 40590,
+          "unc": 7725,
+          "failing": 0
+        }
+      ],
+      "soak_final": {
+        "blocks_final": 62528,
+        "wall_s": 516.0,
+        "blk_per_s": 121.0,
+        "clean": 14149,
+        "corrected": 40654,
+        "uncorrectable": 7725,
+        "bits_corrected": 80767,
+        "corrected_unit": "bits",
+        "failing_runs": 0,
+        "misdecoded": 887,
+        "over_t_blocks": 5952,
+        "misdecode_rate": "1.49e-01 (1 in 7)"
+      },
+      "errors": [
+        "[seq] soak raised: RuntimeError: beyond the threshold 887 of 5952 blocks were accepted (1.49e-01), over the 1e-02 ceiling -- the decoder is accepting blocks it should be flagging\n",
+        "Traceback (most recent call last):\n",
+        "    raise RuntimeError(\n",
+        "RuntimeError: beyond the threshold 887 of 5952 blocks were accepted (1.49e-01), over the 1e-02 ceiling -- the decoder is accepting blocks it should be flagging\n",
+        "  soak  FAIL   515.84s  RuntimeError: beyond the threshold 887 of 5952 blocks were accepted (1.49e-01), over the 1e-02 ceiling -- the decoder is accepting blocks it should be flagging\n",
+        "  soak  FAIL   515.84s  RuntimeError: beyond the threshold 887 of 5952 blocks were accepted (1.49e-01), over the 1e-02 ceiling -- the decoder is accepting blocks it should be flagging\n"
+      ],
+      "status": "FAIL",
+      "run_summary": "FAILURES"
+    }
+  ],
+  "superseded": []
+}
