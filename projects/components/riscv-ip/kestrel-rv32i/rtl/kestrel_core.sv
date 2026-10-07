@@ -28,6 +28,17 @@
 //          drop), which lets the p-env preamble run; anything else in
 //          SYSTEM or MISC-MEM is an illegal-instruction halt (cause 0xF).
 //
+//          Task 9 adds the instruction-address-misaligned halt.  RV32I
+//          (IALIGN=32, no C extension) mandates a trap when taken control
+//          flow — a taken branch, JAL, or JALR — targets an address that
+//          is not 4-byte aligned, and rvfi.md requires that beat on RVFI.
+//          Kestrel has no exception machinery, so like ecall/ebreak/
+//          illegal it halts: cause 3 (HALT_IALIGN, encoding in kestrel_pkg)
+//          from the halt holding register below, the beat retiring with
+//          rvfi_trap=1, the rd writeback suppressed, and the PC frozen.
+//          The riscv-formal insn_{beq,bne,blt,bge,bltu,bgeu,jal,jalr}
+//          checks prove it.
+//
 // Documentation: projects/components/riscv-ip/README.md
 // Subsystem: riscv-ip/kestrel-rv32i
 //
@@ -292,8 +303,10 @@ module kestrel_core #(
     // instructions write a hard zero (no CSR state exists); everything else
     // uses the ALU result.  The register-file write is suppressed during the
     // first cycle of a crossing load so the partial word is not committed
-    // early, and on the halt cycle decode holds rd_wen low.
-    assign rd_wen_eff = rd_wen & ~ls_first;
+    // early, and whenever halt is raised or held (Task 9: the misaligned
+    // control-flow halt has decode rd_wen set for JAL/JALR, so the gate is
+    // the halt itself, not decode's rd_wen).
+    assign rd_wen_eff = rd_wen & ~ls_first & ~halt;
     assign rd_wdata   = csr_stub              ? 32'd0        :
                         (opcode == OPCODE_LUI) ? imm          :
                         ls_load                ? ls_load_data :
@@ -344,18 +357,36 @@ module kestrel_core #(
     // halting cycle is visible immediately — the PC freezes, the halting
     // instruction retires its RVFI trap beat, and rvfi_valid drops on the
     // following cycle (halt_q) and stays low forever.
-    logic halt_q;
+    //
+    // Task 9 adds the instruction-address-misaligned halt: a taken branch
+    // or jump whose resolved target is not 4-byte aligned (IALIGN=32, no
+    // C extension) must trap per RV32I; kestrel has no exception machinery
+    // so it halts with cause 3 (HALT_IALIGN, kestrel_pkg) exactly like the
+    // decode halt causes — same trap beat, same rd-writeback suppression
+    // via `halt`, same PC freeze.  Decode never sets rd_wen on its own
+    // halt causes, but JAL/JALR do, which is why the writeback gate uses
+    // `halt` and not decode's rd_wen.
+    logic       halt_q;
+    logic       misalign_target;
+    logic [3:0] halt_cause_eff;
+    logic       halt_now;
+
+    assign misalign_target = (jump | jalr | branch_taken)
+                           & (next_pc[1:0] != 2'b00);
+    assign halt_cause_eff  = dec_halt_cause
+                           | (misalign_target ? HALT_IALIGN : HALT_NONE);
+    assign halt_now        = |halt_cause_eff;
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             halt_q <= 1'b0;
         end else begin
-            halt_q <= halt_q | (|dec_halt_cause);
+            halt_q <= halt_q | halt_now;
         end
     )
 
-    assign halt       = halt_q | (|dec_halt_cause);
-    assign halt_cause = dec_halt_cause;
+    assign halt       = halt_q | halt_now;
+    assign halt_cause = halt_cause_eff;
 
     // PC register: hold on halt or on the first cycle of a cross-word access.
     `ALWAYS_FF_RST(clk, rst_n,
@@ -399,26 +430,30 @@ module kestrel_core #(
     )
 
     // RVFI aggregation. rd fields are zeroed when decode is not writing a
-    // register and when the destination is x0 — riscv-formal requires
-    // rd_wdata == 0 whenever rd_addr == 0, so the discarded write to x0 is
-    // not reported (the regfile discards that write architecturally as
-    // well); mem fields report the unaligned access address, packed strobes
-    // and assembled data on the final cycle of an access and are zero
-    // otherwise; rs fields always reflect the register-file read ports (x0
-    // reads return 0 naturally).  rvfi_valid is low during the first cycle
-    // of a cross-word access, high on the final beat, and — Task 8 — high
-    // for exactly one more beat on the halting cycle: the halting
-    // instruction retires as an rvfi_trap beat (rvfi_trap=1, no rd write,
-    // no memory fields), after which the latched halt holds rvfi_valid low.
+    // register, when the destination is x0, and whenever halt is raised or
+    // held (the Task-9 misaligned control-flow halt retires JAL/JALR
+    // encodings whose decode rd_wen is set, so the rvfi view is gated by
+    // `halt` like the regfile write) — riscv-formal requires rd_wdata == 0
+    // whenever rd_addr == 0, so the discarded write to x0 is not reported
+    // (the regfile discards that write architecturally as well); mem fields
+    // report the unaligned access address, packed strobes and assembled
+    // data on the final cycle of an access and are zero otherwise; rs
+    // fields always reflect the register-file read ports (x0 reads return 0
+    // naturally).  rvfi_valid is low during the first cycle of a cross-word
+    // access, high on the final beat, and — Task 8 — high for exactly one
+    // more beat on the halting cycle: the halting instruction (ecall/
+    // ebreak/illegal/Task-9 misaligned target) retires as an rvfi_trap beat
+    // (rvfi_trap=1, no rd write, no memory fields), after which the latched
+    // halt holds rvfi_valid low.
     logic rd_wb;
 
-    assign rd_wb          = rd_wen & (insn[11:7] != 5'd0);
+    assign rd_wb          = rd_wen & (insn[11:7] != 5'd0) & ~halt;
     assign rvfi_valid     = rst_n & ~halt_q & ~ls_first;
     assign rvfi_order     = retire_count;
     assign rvfi_pc_rdata  = pc;
     assign rvfi_pc_wdata  = next_pc;
     assign rvfi_insn      = insn;
-    assign rvfi_trap      = |dec_halt_cause;
+    assign rvfi_trap      = halt_now;
     assign rvfi_rs1_addr  = insn[19:15];
     assign rvfi_rs2_addr  = insn[24:20];
     assign rvfi_rs1_rdata = rs1_data;

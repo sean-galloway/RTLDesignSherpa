@@ -27,6 +27,12 @@ no less — so a full-field trace diff is meaningful:
   system stub — no CSR state exists, reads return zero, writes are
   dropped, MRET falls through to pc+4.  This mirrors decode exactly and
   lets the battery's p-env preamble (``csrw mtvec`` etc.) execute.
+* Taken control flow to a non-4-aligned target (branch/JAL/JALR) halts
+  with cause 3 (Task 9): RV32I with IALIGN=32 mandates the
+  instruction-address-misaligned trap and kestrel has no exception
+  machinery, so — like ecall/ebreak — it halts.  The trap beat reports
+  the misaligned target as ``pc_wdata``, matching the core's
+  ``rvfi_pc_wdata = next_pc``.
 * Any other encoding — unknown opcodes and RESERVED encodings of
   implemented opcodes (OP/OP-IMM funct7 mismatches, branch funct3 2/3,
   load/store funct3 holes, MISC-MEM funct3 2-7, SYSTEM funct3 100,
@@ -190,12 +196,16 @@ class RV32IInterpreter:
                 f"pc=0x{self.reset_addr:x}")
         return self.trace
 
-    def _halt(self, order, insn, cause):
+    def _halt(self, order, insn, cause, pc_wdata=None):
         """Record the RVFI trap beat for the halting instruction, then stop.
 
         rs fields report the register-file read ports exactly like a normal
         beat (ebreak's imm12 bit overlaps the rs2 field, so they are not in
         general zero); rd and mem fields are architecturally empty.
+        ``pc_wdata`` defaults to pc+4 (ecall/ebreak/illegal decode their
+        target as the fall-through); the Task-9 misaligned control-flow
+        halt passes the misaligned target, matching the core's
+        ``rvfi_pc_wdata = next_pc`` on that beat.
         """
         rs1 = (insn >> 15) & 0x1F
         rs2 = (insn >> 20) & 0x1F
@@ -210,7 +220,8 @@ class RV32IInterpreter:
             "rs2_rdata": self.regs[rs2],
             "rd_addr": 0,
             "rd_wdata": 0,
-            "pc_wdata": (self.pc + 4) & MASK32,
+            "pc_wdata": ((self.pc + 4) & MASK32) if pc_wdata is None
+                        else (pc_wdata & MASK32),
             "mem_addr": 0,
             "mem_rmask": 0,
             "mem_wmask": 0,
@@ -362,16 +373,24 @@ class RV32IInterpreter:
                 raise NotImplementedError(        # branch funct3 2/3 reserved
                     f"golden: branch funct3 {f3} reserved")
             next_pc = (pc + imm_b) & MASK32 if taken else (pc + 4) & MASK32
+            if taken and next_pc & 0x3:
+                # Task 9: IALIGN=32 — a taken branch to a non-4-aligned
+                # target traps; kestrel halts (cause 3) with no rd write.
+                return self._halt(order, insn, 3, pc_wdata=next_pc)
             rd = 0                                 # branches do not write rd
         elif opcode == 0x6F:                      # JAL
             rd_val = (pc + 4) & MASK32
             next_pc = (pc + imm_j) & MASK32
+            if next_pc & 0x3:
+                return self._halt(order, insn, 3, pc_wdata=next_pc)
         elif opcode == 0x67:                      # JALR
             if f3 != 0:
                 raise NotImplementedError(        # JALR requires funct3 0
                     f"golden: jalr funct3 {f3} reserved")
             rd_val = (pc + 4) & MASK32
             next_pc = ((a + imm_i) & MASK32) & ~1
+            if next_pc & 0x3:
+                return self._halt(order, insn, 3, pc_wdata=next_pc)
         elif opcode == 0x03:                      # LOAD
             mem_addr = (a + imm_i) & MASK32
             if f3 == 0:                            # LB

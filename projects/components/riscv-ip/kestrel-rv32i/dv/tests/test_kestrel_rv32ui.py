@@ -128,6 +128,27 @@ async def _system_directed(dut):
     assert tb.trace[0]["rd_addr"] == 1 and tb.trace[0]["rd_wdata"] == 0x123
     assert tb.trace[1]["rd_addr"] == 2 and tb.trace[1]["rd_wdata"] == 0x124
 
+    # Misaligned control-flow target halts with cause 3 and the rvfi_trap
+    # beat (Task 9, riscv-formal CEX fix): the aligned JAL at the top of
+    # the program must still retire normally (link value x1 = pc+4), then
+    # the +2-offset JAL traps on its own beat.  The golden interpreter
+    # models the halt (it does not raise like the illegal encoding), so the
+    # full-field trace diff — including the trap beat's pc_wdata carrying
+    # the misaligned target — is checked here.  check_pc_sequential does
+    # not apply: the trap beat redirects the PC to the misaligned target.
+    golden = await _load_and_run(tb, "system_misalign_jmp.hex")
+    tb.check_halt(expected_cause=3, expected_halt_pc=golden.halt_pc)
+    tb.check_first_pc()
+    tb.check_order_sequence()
+    tb.check_x0_rd_zero()
+    tb.check_trace(golden.trace)
+    tb.check_trap_beat()
+    assert tb.trace[0]["rd_addr"] == 1 and tb.trace[0]["rd_wdata"] == 4, \
+        "aligned JAL regression: link value missing"
+    misaligned_beat = tb.trace[-1]
+    assert misaligned_beat["pc_wdata"] == 0x12 and misaligned_beat["trap"] == 1, \
+        "misaligned JAL must trap with the +2 target on pc_wdata"
+
     dut._log.info("system layer directed checks PASSED")
 
 
@@ -143,7 +164,8 @@ async def _battery(dut):
 
 @cocotb.test(timeout_time=2000, timeout_unit="ms")
 async def cocotb_test_kestrel_rv32ui_system(dut):
-    """FENCE/FENCE.I NOPs, ECALL/EBREAK halt+hold, illegal-instruction trap."""
+    """FENCE/FENCE.I NOPs, ECALL/EBREAK halt+hold, illegal-instruction
+    trap, misaligned-jump-target halt with the rvfi_trap beat (cause 3)."""
     await _system_directed(dut)
 
 

@@ -1,0 +1,16 @@
+
+/tmp/sm.o:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	00c000ef          	jal	c <aligned_tgt>
+   4:	00100113          	li	sp,1
+   8:	00200113          	li	sp,2
+
+0000000c <aligned_tgt>:
+   c:	00700193          	li	gp,7
+  10:	0020006f          	j	12 <aligned_tgt+0x6>
+  14:	00100213          	li	tp,1
+  18:	00000073          	ecall

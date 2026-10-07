@@ -6,6 +6,10 @@
 //
 // Module: kestrel_decode
 // Purpose: RV32I instruction decoder producing the datapath control bundle.
+//          Halt-cause encoding lives in kestrel_pkg (single source of
+//          truth); decode raises ecall/ebreak/illegal (1/2/F), while cause 3
+//          (misaligned control-flow target, Task 9) is raised by
+//          kestrel_core, which can see the resolved next PC.
 //
 // Documentation: projects/components/riscv-ip/README.md
 // Subsystem: riscv-ip/kestrel-rv32i
@@ -62,11 +66,9 @@ module kestrel_decode (
     localparam logic [6:0] F7_SUB  = 7'b0100000;
     localparam logic [6:0] F7_SRA  = 7'b0100000;
 
-    // Halt-cause encoding
-    localparam logic [3:0] HALT_NONE   = 4'h0;
-    localparam logic [3:0] HALT_ECALL  = 4'h1;
-    localparam logic [3:0] HALT_EBREAK = 4'h2;
-    localparam logic [3:0] HALT_ILL    = 4'hF;
+    // Halt causes (HALT_* ) are defined in kestrel_pkg — one encoding for
+    // decode (ecall/ebreak/illegal) and kestrel_core (cause 3, misaligned
+    // control-flow target).
 
     // SYSTEM funct3 encodings
     localparam logic [2:0] F3_PRIV   = 3'b000;

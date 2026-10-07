@@ -40,4 +40,14 @@ package kestrel_pkg;
         J
     } imm_sel_e;
 
+    // Halt-cause encoding, single source of truth for kestrel_decode
+    // (ecall/ebreak/illegal) and kestrel_core (misaligned control-flow
+    // target, Task 9).  Cause 3 is raised only in the core: decode cannot
+    // see it, the condition needs the resolved next-PC and branch decision.
+    localparam logic [3:0] HALT_NONE   = 4'h0;
+    localparam logic [3:0] HALT_ECALL  = 4'h1;
+    localparam logic [3:0] HALT_EBREAK = 4'h2;
+    localparam logic [3:0] HALT_IALIGN = 4'h3;
+    localparam logic [3:0] HALT_ILL    = 4'hF;
+
 endpackage : kestrel_pkg
