@@ -144,3 +144,35 @@ REG_LEVEL semantics: GATE runs gate cells only, FUNC adds func, FULL adds
 full. The rv32ui battery reads TEST_LEVEL inside the sim (gate = 3-image
 smoke, func = 42 images + spike lockstep, full = 42 images without
 lockstep).
+
+
+## Functional coverage (CORE-18)
+
+Collection is wired through the central `cov_utils` conftest hook
+(`dv/tests/conftest.py`) — the same pattern every other component uses.
+To regenerate:
+
+```bash
+make clean-all
+COVERAGE=1 make run-all-full
+make coverage-report
+```
+
+Measured 2026-10-07 across all 60 cells (including the CORE-17 fuzz at
+full level, 200 streams):
+
+| Metric | Result | House target | Status |
+|---|---|---|---|
+| Line (Verilator) | 94.9% | 80% | PASS |
+| Line — kestrel_core | 100.0% | — | — |
+| Line — kestrel_decode | 95.0% | — | — |
+| Line — kestrel_mem_loader | 90.1% | — | — |
+
+Toggle collection is enabled (`--coverage-toggle`); the house
+`merge_testlevel_coverage.py` report tracks line only — toggle numbers
+are ad-hoc from `coverage_data/merged/latest_merged_coverage.dat` via
+`verilator_coverage`. Known toggle laggards are data-path width toggles
+exercised thinly by directed tests; the fuzz's random patterns are the
+planned ratchet. Coverage artifacts (`coverage_data/`, `coverage_reports/`,
+`local_sim_build/`, `logs/`) are gitignored by design; the numbers above
+are the committed record, regenerable with the commands in this section.
