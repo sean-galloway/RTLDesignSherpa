@@ -46,7 +46,7 @@ is referred to in prose ("kestrel sees the whole machine in one cycle").
 
 | Directory | Codename | ISA | Microarchitecture | Status |
 |---|---|---|---|---|
-| [`kestrel-rv32i/`](kestrel-rv32i/) | **kestrel** | RV32I | single-cycle | Planned; structure only |
+| [`kestrel-rv32i/`](kestrel-rv32i/) | **kestrel** | RV32I | single-cycle | RTL complete; rv32ui battery 42/42 with spike lockstep; riscv-formal 42/42; doc book v0.1 published; board loader sim-verified |
 | [`merlin-rv32i/`](merlin-rv32i/) | **merlin** | RV32I | 5-stage in-order pipeline | Planned; structure only |
 | [`peregrine-rv32im/`](peregrine-rv32im/) | **peregrine** | RV32IM | advanced in-order: predictor, traps, L1 caches, AXI master | Planned; structure only |
 | [`gyrfalcon-rv32im/`](gyrfalcon-rv32im/) | **gyrfalcon** | RV32IM | out-of-order capstone: rename, ROB, reservation stations | Planned; structure only |
@@ -90,7 +90,9 @@ in-order retirement — the honest, complete OOO story.
 
 - **Doc book** — *Simplified RV32I: kestrel* and successors, Memory Notes
   branding, built through `bin/md_to_docx.py` to DOCX/PDF, following the
-  Simplified DFI books' precedent. Each book lives in its rung's `docs/`.
+  Simplified DFI books' precedent. Each book lives in its rung's `docs/`;
+  the kestrel edition is published at
+  [`kestrel-rv32i/docs/simplified_rv32i/`](kestrel-rv32i/docs/simplified_rv32i/).
 - **Formal** — riscv-formal-style ISA compliance where it pays: full on
   kestrel, retire-interface on merlin, targeted properties (exception
   precision, recovery, in-order commit, deadlock freedom) on
