@@ -183,7 +183,9 @@ class RV32IInterpreter:
             "rs1_rdata": a,
             "rs2_rdata": b,
             "rd_addr": rd,
-            "rd_wdata": rd_val & MASK32,
+            # riscv-formal rule: rd_wdata must be zero whenever rd_addr is
+            # zero — the discarded architectural write is not reported.
+            "rd_wdata": (rd_val & MASK32) if rd != 0 else 0,
             "pc_wdata": next_pc,
             "mem_addr": 0,
             "mem_rmask": 0,

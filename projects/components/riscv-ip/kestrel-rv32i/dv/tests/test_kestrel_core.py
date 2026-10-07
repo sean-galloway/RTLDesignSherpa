@@ -66,10 +66,12 @@ async def _run_case(dut, hex_name, reset_addr):
     tb.check_first_pc()
     tb.check_order_sequence()
     tb.check_pc_sequential()
+    tb.check_x0_rd_zero()
     tb.check_trace(golden.trace)
     dut._log.info(
         f"{hex_name}: {len(tb.trace)} beats retired, "
         "trace matches golden model")
+    return tb
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
@@ -81,7 +83,12 @@ async def cocotb_test_kestrel_core_focus(dut):
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def cocotb_test_kestrel_core_ops(dut):
     """One vector per OP/OP-IMM op plus LUI/AUIPC, diffed against golden."""
-    await _run_case(dut, "rv32ui_ops.hex", 0x0000_0000)
+    tb = await _run_case(dut, "rv32ui_ops.hex", 0x0000_0000)
+    # The two x0-discard vectors must actually retire (x0 writes report
+    # rd_addr=0 with rd_wdata=0 — pinned by KestrelTB.check_x0_rd_zero).
+    x0_beats = [b for b in tb.trace
+                if b["insn"] in (0x00500013, 0x00208033)]  # addi x0,x0,5 / add x0,x1,x2
+    assert len(x0_beats) == 2, "x0-discard vectors missing from the trace"
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")

@@ -134,6 +134,14 @@ class KestrelTB:
                 f"beat {i}: pc_wdata=0x{beat['pc_wdata']:x} " \
                 f"expected pc+4=0x{(beat['pc'] + 4) & 0xFFFFFFFF:x}"
 
+    def check_x0_rd_zero(self):
+        """riscv-formal rule: rd_wdata must be zero whenever rd_addr is zero."""
+        for i, beat in enumerate(self.trace):
+            if beat["rd_addr"] == 0:
+                assert beat["rd_wdata"] == 0, (
+                    f"beat {i}: rd_addr=0 but rd_wdata=0x{beat['rd_wdata']:x} "
+                    f"(pc=0x{beat['pc']:x} insn=0x{beat['insn']:08x})")
+
     def check_trace(self, golden_trace):
         """Instruction-by-instruction diff against the golden interpreter."""
         assert len(self.trace) == len(golden_trace), \

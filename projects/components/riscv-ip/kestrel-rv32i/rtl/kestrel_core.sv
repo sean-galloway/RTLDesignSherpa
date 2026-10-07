@@ -54,8 +54,9 @@ module kestrel_core #(
 
     import kestrel_pkg::*;
 
-    localparam logic [31:0] PC_INCR     = 32'd4;
-    localparam logic [6:0]  OPCODE_LUI  = 7'b0110111;
+    localparam logic [31:0] PC_INCR          = 32'd4;
+    localparam logic [31:0] JALR_ALIGN_MASK  = 32'hFFFF_FFFE;
+    localparam logic [6:0]  OPCODE_LUI       = 7'b0110111;
 
     // funct3 encodings selecting the branch condition
     localparam logic [2:0] F3_BEQ       = 3'b000;
@@ -194,7 +195,7 @@ module kestrel_core #(
     // straight-line and Task 6 brings their golden vectors.
     always_comb begin
         if (jump) begin
-            next_pc = jalr ? (rs1_data + imm) : (pc + imm);
+            next_pc = jalr ? ((rs1_data + imm) & JALR_ALIGN_MASK) : (pc + imm);
         end else if (branch_taken) begin
             next_pc = pc + imm;
         end else begin
@@ -234,9 +235,15 @@ module kestrel_core #(
     )
 
     // RVFI aggregation. rd fields are zeroed when decode is not writing a
-    // register; mem fields are zero until Task 7 populates them; rs fields
+    // register and when the destination is x0 — riscv-formal requires
+    // rd_wdata == 0 whenever rd_addr == 0, so the discarded write to x0 is
+    // not reported (the regfile discards that write architecturally as
+    // well); mem fields are zero until Task 7 populates them; rs fields
     // always reflect the register-file read ports (x0 reads return 0
     // naturally because the regfile discards x0 writes).
+    logic rd_wb;
+
+    assign rd_wb          = rd_wen & (insn[11:7] != 5'd0);
     assign rvfi_valid     = rst_n & ~halt;
     assign rvfi_order     = retire_count;
     assign rvfi_pc_rdata  = pc;
@@ -247,8 +254,8 @@ module kestrel_core #(
     assign rvfi_rs2_addr  = insn[24:20];
     assign rvfi_rs1_rdata = rs1_data;
     assign rvfi_rs2_rdata = rs2_data;
-    assign rvfi_rd_addr   = rd_wen ? insn[11:7] : 5'd0;
-    assign rvfi_rd_wdata  = rd_wen ? rd_wdata  : 32'd0;
+    assign rvfi_rd_addr   = rd_wb ? insn[11:7] : 5'd0;
+    assign rvfi_rd_wdata  = rd_wb ? rd_wdata  : 32'd0;
     assign rvfi_mem_addr  = 32'd0;
     assign rvfi_mem_rmask = 4'd0;
     assign rvfi_mem_wmask = 4'd0;
