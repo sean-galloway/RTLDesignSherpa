@@ -107,7 +107,9 @@ close $fh
 # Nexys, rapids_char_genesys2_top on the Genesys 2) so this flow is board-agnostic.
 set top_name [get_property top [get_filesets sources_1]]
 set bit_src "$project_root/build/vivado_project/rapids_char.runs/impl_1/${top_name}.bit"
-set bit_dst "$project_root/bitstream/rapids_char.bit"
+set bit_dst [expr {[info exists ::env(RAPIDS_BITSTREAM_NAME)] \
+                   ? "$project_root/bitstream/$::env(RAPIDS_BITSTREAM_NAME)" \
+                   : "$project_root/bitstream/rapids_char.bit"}]
 file mkdir "$project_root/bitstream"
 if {[file exists $bit_src]} {
     file copy -force $bit_src $bit_dst

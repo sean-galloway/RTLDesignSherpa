@@ -27,9 +27,11 @@ create_clock -period 10.000 -name sys_clk_pin -waveform {0.000 5.000} -add [get_
 ##==============================================================================
 set_property -dict {PACKAGE_PIN C12 IOSTANDARD LVCMOS33} [get_ports CPU_RESETN]
 
-## Reset is asynchronous — don't waste timing effort on it.
+## Reset is asynchronous — don't waste timing effort on it. Port-based (not
+## clock-qualified) so it still matches when the derate MMCM renames the
+## harness domain clk_unbuf.
 set_input_delay -clock [get_clocks sys_clk_pin] 0.000 [get_ports CPU_RESETN]
-set_false_path -from [get_ports CPU_RESETN] -to [get_clocks sys_clk_pin]
+set_false_path -from [get_ports CPU_RESETN]
 
 ##==============================================================================
 ## USB UART (FTDI chip — FT2232HQ)
@@ -39,11 +41,14 @@ set_false_path -from [get_ports CPU_RESETN] -to [get_clocks sys_clk_pin]
 set_property -dict {PACKAGE_PIN C4 IOSTANDARD LVCMOS33} [get_ports UART_TXD_IN]
 set_property -dict {PACKAGE_PIN D4 IOSTANDARD LVCMOS33} [get_ports UART_RXD_OUT]
 
-## UART is async at 115.2 kbaud — timing is relaxed. Flag as async to sys_clk.
+## UART is async at 115.2 kbaud — timing is relaxed. Port-based false paths
+## (NOT clock-qualified): when the harness clock runs through the derate MMCM
+## its domain is named clk_unbuf, not sys_clk_pin, and a clock-qualified false
+## path silently stops matching (measured -1.561 ns on the byte-flow sibling).
 set_input_delay  -clock [get_clocks sys_clk_pin] 0.000 [get_ports UART_TXD_IN]
 set_output_delay -clock [get_clocks sys_clk_pin] 0.000 [get_ports UART_RXD_OUT]
-set_false_path -from [get_ports UART_TXD_IN]  -to [get_clocks sys_clk_pin]
-set_false_path -from [get_clocks sys_clk_pin] -to [get_ports UART_RXD_OUT]
+set_false_path -from [get_ports UART_TXD_IN]
+set_false_path -to   [get_ports UART_RXD_OUT]
 
 ##==============================================================================
 ## LEDs (16 user LEDs)
@@ -117,14 +122,22 @@ set_false_path -from [get_pins -hier -filter {NAME =~ r_rst_sync_reg/C}]
 ##==============================================================================
 ## led_status_driver divides aclk to ~200 Hz through a BUFG and crosses the
 ## status word via cdc_2_phase_handshake. LED OBUFs then sit on the slow
-## generated clock (5 ms budget) rather than sys_clk_pin (10 ns budget).
+## generated clock (10 ms budget) rather than sys_clk_pin (10 ns budget).
+##
+## Harness clock: 100 MHz default (CLK100MHZ direct). A derated build
+## (A7_CLK_MHZ=75 etc.) exports HARNESS_CLK_HZ so the divide and the fast-leg
+## max_delay follow the actual aclk. The slow period is constant: the divide
+## count retargets to hold LED_UPDATE_HZ at 200.
+
+set hclk_hz [expr {[info exists ::env(HARNESS_CLK_HZ)] ? $::env(HARNESS_CLK_HZ) : 100000000}]
+set led_div [expr {2 * $hclk_hz / 200}]
 
 ## (1) Declare the divided clock. LED_UPDATE_HZ = 200 => divide-by
-##     2 * 100M / 200 = 1_000_000 at the BUFG input.
+##     2 * hclk / 200 at the BUFG input.
 create_generated_clock -name led_slow_clk \
     -source [get_pins -hier -filter \
              {NAME =~ *u_led_status_driver/r_div_count_reg[0]/C}] \
-    -divide_by 1000000 \
+    -divide_by $led_div \
     [get_pins -hier -filter {NAME =~ *u_led_status_driver/u_slow_bufg/O}]
 
 ## (2) aclk and led_slow_clk are asynchronous. The CDC handshake handles all
@@ -142,11 +155,12 @@ set_max_delay -datapath_only \
     -from [get_pins -hier -filter "${led_hs_pre}r_req_tog_reg/C"] \
     -to   [get_pins -hier -filter "${led_hs_pre}r_req_sync_reg[0]/D"] \
     5.000
-##     ack toggle: src=led_slow_clk, dst=aclk
+##     ack toggle: src=led_slow_clk, dst=aclk (fast period follows hclk_hz)
+set fast_period_ns [format %.3f [expr {1.0e9 / double($hclk_hz)}]]
 set_max_delay -datapath_only \
     -from [get_pins -hier -filter "${led_hs_pre}r_ack_tog_reg/C"] \
     -to   [get_pins -hier -filter "${led_hs_pre}r_ack_sync_reg[0]/D"] \
-    10.000
+    $fast_period_ns
 ##     Data bus (held stable in src across the toggle round trip)
 set_max_delay -datapath_only \
     -from [get_pins -hier -filter "${led_hs_pre}r_src_data_hold_reg[*]/C"] \

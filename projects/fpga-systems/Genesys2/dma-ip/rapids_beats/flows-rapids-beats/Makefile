@@ -48,10 +48,30 @@ export FLOW_ROOT := $(SELF_DIR)
 VIVADO      ?= vivado
 VIVADO_BATCH = $(VIVADO) -mode batch -notrace
 
+# ---- A7 harness clock (derate knob) -----------------------------------------
+# 100 (default) runs CLK100MHZ direct through the top's bypass. Set A7_CLK_MHZ
+# to derate Nexys builds onto the common dma-ip frequency; the VCO pair is
+# derived (75 -> 750/10, 60 -> 600/10, 50 -> 1000/20), exported as
+# RAPIDS_VCO_MHZ/RAPIDS_CLKOUT0_DIVIDE build generics, and HARNESS_CLK_HZ
+# feeds the XDC led_slow constraints so the CDC timing follows the real aclk.
+# Defined BEFORE BITSTREAM so the artifact names can carry CLK_TOKEN.
+A7_CLK_MHZ ?= 100
+ifneq ($(A7_CLK_MHZ),100)
+export RAPIDS_VCO_MHZ        := $(if $(filter 50,$(A7_CLK_MHZ)),1000,$(shell echo $$(($(A7_CLK_MHZ)*10))))
+export RAPIDS_CLKOUT0_DIVIDE := $(if $(filter 50,$(A7_CLK_MHZ)),20,10)
+export HARNESS_CLK_HZ        := $(shell echo $$(($(A7_CLK_MHZ)*1000000)))
+endif
+# Harness-clock derate token (A7_CLK_MHZ != 100): keeps derated bitstreams
+# from overwriting the 100 MHz artifacts.
+CLK_TOKEN := $(if $(filter 100,$(A7_CLK_MHZ)),,_clk$(A7_CLK_MHZ))
+
 TCL       := $(SELF_DIR)/tcl
 PROJECT   := $(SELF_DIR)/build/vivado_project/rapids_char.xpr
-BITSTREAM := $(SELF_DIR)/bitstream/rapids_char.bit
+BITSTREAM := $(SELF_DIR)/bitstream/rapids_char$(CLK_TOKEN).bit
 REPORTS   := $(SELF_DIR)/reports
+# Tcl copy destination (build_all.tcl) -- keeps the copied artifact named like
+# the make-level BITSTREAM, derate token included.
+export RAPIDS_BITSTREAM_NAME := $(notdir $(BITSTREAM))
 
 HARNESS_TEST := projects/fpga-systems/Genesys2/dma-ip/rapids_beats/flows-rapids-beats/dv/test_rapids_char_harness.py
 # `sim` runs the WHOLE dv directory, not one pinned file. TASK-081 shipped a

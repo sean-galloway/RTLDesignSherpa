@@ -119,8 +119,14 @@
 `include "reset_defs.svh"
 
 module rapids_char_top #(
-    parameter int FPGA_CLK_HZ   = 100_000_000,
-    parameter int UART_BAUD     = 115_200,
+    // Harness clock. VCO_MHZ=0 (default) BYPASSES the MMCM: aclk = CLK100MHZ
+    // direct at 100 MHz. Derate with VCO_MHZ/CLKOUT0_DIVIDE when a build
+    // misses timing on the -1 fabric: 750/10 -> 75 MHz, 600/10 -> 60 MHz,
+    // 1000/20 -> 50 MHz. MULT_F = VCO_MHZ/100 must stay on the MMCM 0.125
+    // grid (VCO multiple of 12.5) inside the Artix-7 -1 range 600..1200.
+    parameter int VCO_MHZ        = 0,
+    parameter int CLKOUT0_DIVIDE = 10,
+    parameter int UART_BAUD      = 115_200,
     // NUM_CHANNELS is overridable so the board target can build a narrower
     // configuration. Default 8 matches the harness/DUT native geometry; the
     // RAPIDS beats DUT (512-bit datapath, 256-bit descriptors) is area-heavy,
@@ -170,17 +176,81 @@ module rapids_char_top #(
 );
 
     localparam int CIW          = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1;
+    // Derived harness clock frequency (0.125-grid VCO over CLKOUT0_DIVIDE);
+    // single source of truth for the UART divisor / LED update / 7-seg scan.
+    localparam int FPGA_CLK_HZ  = (VCO_MHZ == 0) ? 100_000_000
+                                                 : (VCO_MHZ * 1_000_000) / CLKOUT0_DIVIDE;
     localparam int CLKS_PER_BIT = FPGA_CLK_HZ / UART_BAUD;
     localparam int DESC_SW       = DESC_DATA_WIDTH / 8;
 
+    // Elaboration guards: an unbuildable clock pair must fail here, not as a
+    // silently-wrong tick rate or an MMCM DRC deep in synth.
+    initial begin
+        if (VCO_MHZ != 0) begin
+            if ((VCO_MHZ * 8) % 100 != 0)
+                $error("VCO_MHZ=%0d is not a multiple of 12.5: MULT_F=%0f is off the MMCM 0.125 grid",
+                       VCO_MHZ, real'(VCO_MHZ) / 100.0);
+            if (VCO_MHZ < 600 || VCO_MHZ > 1200)
+                $error("VCO_MHZ=%0d outside the Artix-7 -1 MMCM range 600..1200", VCO_MHZ);
+            if ((VCO_MHZ * 1_000_000) % CLKOUT0_DIVIDE != 0)
+                $error("VCO_MHZ=%0d / CLKOUT0_DIVIDE=%0d is not an integer Hz frequency",
+                       VCO_MHZ, CLKOUT0_DIVIDE);
+        end
+    end
+
     // =========================================================================
-    // Reset synchronization — async assert, sync deassert. ASYNC_REG keeps the
+    // Harness clock. BYPASS (default): aclk = CLK100MHZ. Derated: 100 MHz ->
+    // IBUF -> MMCM (VCO = 100 MHz x MULT_F) -> BUFG. Vivado auto-derives the
+    // MMCM output clock from sys_clk_pin -- no XDC generated-clock needed.
+    // =========================================================================
+    logic clk_ib, clk_unbuf, aclk, clkfb, clkfb_buf, mmcm_locked;
+
+    generate
+    if (VCO_MHZ == 0) begin : g_clk_bypass
+        assign aclk        = CLK100MHZ;
+        assign mmcm_locked = 1'b1;
+    end else begin : g_clk_mmcm
+        localparam real CLKFBOUT_MULT = real'(VCO_MHZ) / 100.0;
+
+        IBUF u_ibuf (.I(CLK100MHZ), .O(clk_ib));
+
+        MMCME2_BASE #(
+            .BANDWIDTH        ("OPTIMIZED"),
+            .CLKIN1_PERIOD    (10.000),               // 100 MHz
+            .DIVCLK_DIVIDE    (1),
+            .CLKFBOUT_MULT_F  (CLKFBOUT_MULT),        // VCO = 100 MHz * MULT
+            .CLKOUT0_DIVIDE_F (CLKOUT0_DIVIDE),
+            .CLKOUT0_DUTY_CYCLE(0.500),
+            .CLKOUT0_PHASE    (0.000),
+            .STARTUP_WAIT     ("FALSE")
+        ) u_mmcm (
+            .CLKIN1   (clk_ib),
+            .CLKFBIN  (clkfb_buf),
+            .CLKFBOUT (clkfb),
+            .CLKFBOUTB(),
+            .CLKOUT0  (clk_unbuf),
+            .CLKOUT0B (), .CLKOUT1 (), .CLKOUT1B(), .CLKOUT2 (), .CLKOUT2B(),
+            .CLKOUT3  (), .CLKOUT3B(), .CLKOUT4 (), .CLKOUT5 (), .CLKOUT6 (),
+            .LOCKED   (mmcm_locked),
+            .RST      (1'b0),
+            .PWRDWN   (1'b0)
+        );
+        BUFG u_bufg_fb (.I(clkfb),     .O(clkfb_buf));
+        BUFG u_bufg_c0 (.I(clk_unbuf), .O(aclk));
+    end
+    endgenerate
+
+    logic rst_n_raw;
+    assign rst_n_raw = CPU_RESETN & mmcm_locked;
+
+    // =========================================================================
+    // Reset synchronization -- async assert, sync deassert. ASYNC_REG keeps the
     // flops adjacent for MTBF. False path to r_rst_meta/D is set in the XDC.
     // =========================================================================
     (* ASYNC_REG = "TRUE" *) logic r_rst_meta;
     (* ASYNC_REG = "TRUE" *) logic r_rst_sync;
-    `ALWAYS_FF_RST(CLK100MHZ, CPU_RESETN,
-        if (`RST_ASSERTED(CPU_RESETN)) begin
+    `ALWAYS_FF_RST(aclk, rst_n_raw,
+        if (`RST_ASSERTED(rst_n_raw)) begin
             r_rst_meta <= 1'b0;
             r_rst_sync <= 1'b0;
         end else begin
@@ -189,7 +259,6 @@ module rapids_char_top #(
         end
     )
 
-    wire aclk    = CLK100MHZ;
     wire aresetn = r_rst_sync;
 
     // =========================================================================

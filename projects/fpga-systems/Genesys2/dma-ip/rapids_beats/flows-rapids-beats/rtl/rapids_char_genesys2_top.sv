@@ -106,7 +106,6 @@ module rapids_char_genesys2_top #(
     assign led = led16[7:0];
 
     rapids_char_top #(
-        .FPGA_CLK_HZ      (100_000_000),
         .UART_BAUD        (UART_BAUD),
         .NUM_CHANNELS     (NUM_CHANNELS),
         .DATA_WIDTH       (DATA_WIDTH),

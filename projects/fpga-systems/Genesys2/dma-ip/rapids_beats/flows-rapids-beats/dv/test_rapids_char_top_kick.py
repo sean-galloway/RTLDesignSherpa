@@ -189,8 +189,8 @@ def _run(request, testcase: str):
         'NUM_CHANNELS': 8,
         'APB_ADDR_WIDTH': 13,
         'APB_DATA_WIDTH': 32,
-        # Keep the RTL's UART divisor locked to the TB's clks_per_bit.
-        'FPGA_CLK_HZ': FPGA_CLK_HZ,
+        # VCO_MHZ=0 (default) bypasses the MMCM: aclk = CLK100MHZ direct, so
+        # the RTL UART divisor stays locked to the TB's clks_per_bit.
         'UART_BAUD': UART_BAUD,
     }
     extra_env = {
