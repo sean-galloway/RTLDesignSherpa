@@ -6,7 +6,7 @@
 #
 # Module: rv32i_interpreter
 # Purpose: Tiny golden RV32I interpreter. Executes the same hex image the
-#          kestrel TB loads into imem and produces the RVFI beat trace the
+#          kestrel TB loads into memory and produces the RVFI beat trace the
 #          cocotb TB diffs against the core's observed trace.
 #
 # Documentation: projects/components/riscv-ip/README.md
@@ -17,38 +17,41 @@
 
 """Golden RV32I interpreter for the kestrel lockstep TB.
 
-EXTENSION POINT (Tasks 6-8)
----------------------------
-This interpreter intentionally covers ONLY the instructions the current core
-implements. ``RV32IInterpreter._exec`` dispatches by opcode; an unimplemented
-opcode raises ``NotImplementedError`` naming the extension task:
+The interpreter models exactly what the kestrel core implements — no more,
+no less — so a full-field trace diff is meaningful:
 
-* Task 6: OPCODE_BRANCH (0x63), OPCODE_JAL (0x6F), OPCODE_JALR (0x67) —
-  set ``next_pc`` to the taken target (and pc+4 as JAL/JALR rd data).
-* Task 7: OPCODE_LOAD (0x03), OPCODE_STORE (0x23) — model dmem and fill the
-  mem_* beat fields (rmask/wmask/rdata/wdata, mem_addr).
-* Task 8: OPCODE_FENCE (0x0F) retires as a NOP; OPCODE_SYSTEM already halts
-  here (ecall/ebreak), and illegal instructions should halt with cause 0xF
-  instead of raising, to mirror decode.
+* RV32I user instructions (OP/OP-IMM/LOAD/STORE/BRANCH/JAL/JALR/LUI/AUIPC).
+* FENCE and FENCE.I retire as NOPs (MISC-MEM funct3 0/1).
+* SYSTEM: ECALL/EBREAK halt (causes 1/2); MRET and the CSR class
+  (CSRRW/CSRRS/CSRRC and immediate forms) retire through kestrel's
+  system stub — no CSR state exists, reads return zero, writes are
+  dropped, MRET falls through to pc+4.  This mirrors decode exactly and
+  lets the battery's p-env preamble (``csrw mtvec`` etc.) execute.
+* Any other encoding — unknown opcodes and RESERVED encodings of
+  implemented opcodes (OP/OP-IMM funct7 mismatches, branch funct3 2/3,
+  load/store funct3 holes, MISC-MEM funct3 2-7, SYSTEM funct3 100,
+  SYSTEM funct3=0 with an unimplemented imm12) — raises
+  ``NotImplementedError`` instead of guessing, so the golden can never
+  silently agree with a core that halts illegal on it (deferred minor M2).
 
-To extend: add a branch of the dispatch in ``_exec``, compute ``rd_val`` /
-``next_pc``, and let the shared tail append the retire record. A retire
-record must be appended for EVERY retired instruction and NONE for the
-halting instruction (the core's rvfi_valid is low the cycle decode raises
-halt), so the traces stay index-aligned with the core's.
+Task 8 trap beats: the halting instruction (ecall/ebreak) retires as an
+RVFI trap beat — ``trap=1``, no rd write, no memory fields, ``pc_wdata``
+pc+4 — appended after which ``run()`` stops.  The core emits the matching
+beat the cycle decode raises halt, so traces stay index-aligned.
 
-Hex image format: normalized kestrel images (normalize_hex.py) — one 32-bit
-word per line, ``@`` records carry WORD indices, sparse (no zero padding).
-``load_verilog_hex`` returns ``{word_index: word}``; fetches of unwritten
-words return 0 (matching the tb_top zero-initialized memories).
-
-Load/store model (Task 7)
---------------------------
-The golden model implements architectural RISC-V misaligned semantics: an
-access that crosses a 32-bit word boundary reads/writes both words and
-assembles the full value.  Aligned and in-word misaligned accesses touch a
-single word.  RVFI mem fields report the unaligned byte address, a packed
+Memory model: unified (von Neumann).  The data memory is seeded with the
+image, so self-modifying code (the rv32ui-p-fence_i signature overwrite)
+is fetched correctly, matching the tb_top unified array.  Loads/stores
+implement architectural RISC-V misaligned semantics: an access crossing a
+32-bit word boundary reads/writes both words and assembles the full
+value.  RVFI mem fields report the unaligned byte address, a packed
 strobe starting at bit 0, and the assembled access data.
+
+Hex image format: normalized kestrel images (normalize_hex.py) — one
+32-bit word per line, ``@`` records carry WORD indices, sparse (no zero
+padding).  ``load_verilog_hex`` returns ``{word_index: word}``.  Battery
+callers key this map by the FULL word address (add the link base >> 2)
+because the interpreter runs in the core's address space.
 """
 
 MASK32 = 0xFFFFFFFF
@@ -139,11 +142,13 @@ def load_verilog_hex(path):
 
 
 class RV32IInterpreter:
-    """Minimal RV32I golden model: imem image in, RVFI retire trace out."""
+    """Minimal RV32I golden model: memory image in, RVFI retire trace out."""
 
     def __init__(self, imem_words, reset_addr=0):
-        self.imem = dict(imem_words)
-        self.dmem = {}
+        # Unified memory: the image seeds the data memory; instruction fetches
+        # read the same array (self-modifying code must be visible, matching
+        # the tb_top unified memory).
+        self.dmem = dict(imem_words)
         self.regs = [0] * 32
         self.pc = reset_addr
         self.reset_addr = reset_addr
@@ -175,7 +180,7 @@ class RV32IInterpreter:
     def run(self, max_insns=100_000):
         """Execute until halt (ecall/ebreak) or the retirement budget expires."""
         for order in range(max_insns):
-            next_pc = self._exec(order, self.imem.get(self.pc >> 2, 0))
+            next_pc = self._exec(order, self.dmem.get(self.pc >> 2, 0))
             if next_pc is None:
                 break
             self.pc = next_pc
@@ -184,6 +189,37 @@ class RV32IInterpreter:
                 f"golden: no halt after {max_insns} retired insns from "
                 f"pc=0x{self.reset_addr:x}")
         return self.trace
+
+    def _halt(self, order, insn, cause):
+        """Record the RVFI trap beat for the halting instruction, then stop.
+
+        rs fields report the register-file read ports exactly like a normal
+        beat (ebreak's imm12 bit overlaps the rs2 field, so they are not in
+        general zero); rd and mem fields are architecturally empty.
+        """
+        rs1 = (insn >> 15) & 0x1F
+        rs2 = (insn >> 20) & 0x1F
+        self.trace.append({
+            "order": order,
+            "pc": self.pc,
+            "insn": insn,
+            "trap": 1,
+            "rs1_addr": rs1,
+            "rs2_addr": rs2,
+            "rs1_rdata": self.regs[rs1],
+            "rs2_rdata": self.regs[rs2],
+            "rd_addr": 0,
+            "rd_wdata": 0,
+            "pc_wdata": (self.pc + 4) & MASK32,
+            "mem_addr": 0,
+            "mem_rmask": 0,
+            "mem_wmask": 0,
+            "mem_rdata": 0,
+            "mem_wdata": 0,
+        })
+        self.halt_cause = cause
+        self.halt_pc = self.pc
+        return None
 
     def _exec(self, order, insn):
         """Execute one instruction; return next PC or None when halted.
@@ -236,6 +272,9 @@ class RV32IInterpreter:
             if f3 == 0:
                 rd_val = (a + imm_i) & MASK32     # ADDI
             elif f3 == 1:
+                if f7 != 0x00:
+                    raise NotImplementedError(    # SLLI funct7 must be 0
+                        f"golden: slli funct7 0x{f7:02x} reserved")
                 rd_val = (a << shamt) & MASK32    # SLLI
             elif f3 == 2:
                 rd_val = int(s32(a) < imm_i)      # SLTI
@@ -244,36 +283,69 @@ class RV32IInterpreter:
             elif f3 == 4:
                 rd_val = a ^ (imm_i & MASK32)     # XORI
             elif f3 == 5:
-                rd_val = ((s32(a) >> shamt) if (insn >> 30) & 1
-                          else (a >> shamt)) & MASK32   # SRAI / SRLI
+                if f7 == 0x00:
+                    rd_val = (a >> shamt) & MASK32        # SRLI
+                elif f7 == 0x20:
+                    rd_val = (s32(a) >> shamt) & MASK32   # SRAI
+                else:
+                    raise NotImplementedError(    # SRLI/SRAI funct7 hole
+                        f"golden: srli/srai funct7 0x{f7:02x} reserved")
             elif f3 == 6:
                 rd_val = a | (imm_i & MASK32)     # ORI
             elif f3 == 7:
                 rd_val = a & (imm_i & MASK32)     # ANDI
         elif opcode == 0x33:                      # OP
             if f3 == 0:
-                rd_val = ((a - b) if f7 == 0x20 else (a + b)) & MASK32
+                if f7 == 0x00:
+                    rd_val = (a + b) & MASK32     # ADD
+                elif f7 == 0x20:
+                    rd_val = (a - b) & MASK32     # SUB
+                else:
+                    raise NotImplementedError(
+                        f"golden: add/sub funct7 0x{f7:02x} reserved")
             elif f3 == 1:
+                if f7 != 0x00:
+                    raise NotImplementedError(
+                        f"golden: sll funct7 0x{f7:02x} reserved")
                 rd_val = (a << (b & 0x1F)) & MASK32
             elif f3 == 2:
+                if f7 != 0x00:
+                    raise NotImplementedError(
+                        f"golden: slt funct7 0x{f7:02x} reserved")
                 rd_val = int(s32(a) < s32(b))     # SLT
             elif f3 == 3:
+                if f7 != 0x00:
+                    raise NotImplementedError(
+                        f"golden: sltu funct7 0x{f7:02x} reserved")
                 rd_val = int(a < b)               # SLTU
             elif f3 == 4:
+                if f7 != 0x00:
+                    raise NotImplementedError(
+                        f"golden: xor funct7 0x{f7:02x} reserved")
                 rd_val = a ^ b                    # XOR
             elif f3 == 5:
-                rd_val = ((s32(a) >> (b & 0x1F)) if f7 == 0x20
-                          else (a >> (b & 0x1F))) & MASK32  # SRA / SRL
+                if f7 == 0x00:
+                    rd_val = (a >> (b & 0x1F)) & MASK32        # SRL
+                elif f7 == 0x20:
+                    rd_val = (s32(a) >> (b & 0x1F)) & MASK32   # SRA
+                else:
+                    raise NotImplementedError(
+                        f"golden: srl/sra funct7 0x{f7:02x} reserved")
             elif f3 == 6:
+                if f7 != 0x00:
+                    raise NotImplementedError(
+                        f"golden: or funct7 0x{f7:02x} reserved")
                 rd_val = a | b                    # OR
             elif f3 == 7:
+                if f7 != 0x00:
+                    raise NotImplementedError(
+                        f"golden: and funct7 0x{f7:02x} reserved")
                 rd_val = a & b                    # AND
         elif opcode == 0x37:                      # LUI
             rd_val = insn & 0xFFFFF000
         elif opcode == 0x17:                      # AUIPC
             rd_val = (pc + (insn & 0xFFFFF000)) & MASK32
         elif opcode == 0x63:                      # BRANCH
-            taken = False
             if f3 == 0:                            # BEQ
                 taken = a == b
             elif f3 == 1:                          # BNE
@@ -286,12 +358,18 @@ class RV32IInterpreter:
                 taken = a < b
             elif f3 == 7:                          # BGEU
                 taken = a >= b
+            else:
+                raise NotImplementedError(        # branch funct3 2/3 reserved
+                    f"golden: branch funct3 {f3} reserved")
             next_pc = (pc + imm_b) & MASK32 if taken else (pc + 4) & MASK32
             rd = 0                                 # branches do not write rd
         elif opcode == 0x6F:                      # JAL
             rd_val = (pc + 4) & MASK32
             next_pc = (pc + imm_j) & MASK32
-        elif opcode == 0x67 and f3 == 0:          # JALR
+        elif opcode == 0x67:                      # JALR
+            if f3 != 0:
+                raise NotImplementedError(        # JALR requires funct3 0
+                    f"golden: jalr funct3 {f3} reserved")
             rd_val = (pc + 4) & MASK32
             next_pc = ((a + imm_i) & MASK32) & ~1
         elif opcode == 0x03:                      # LOAD
@@ -307,7 +385,8 @@ class RV32IInterpreter:
             elif f3 == 5:                          # LHU
                 rd_val, mem_rmask, mem_rdata = self._load(mem_addr, 2, False)
             else:
-                raise NotImplementedError(f"golden: load funct3 {f3} not modelled")
+                raise NotImplementedError(        # load funct3 3/6/7 reserved
+                    f"golden: load funct3 {f3} reserved")
         elif opcode == 0x23:                      # STORE
             mem_addr = (a + imm_s) & MASK32
             if f3 == 0:                            # SB
@@ -317,17 +396,38 @@ class RV32IInterpreter:
             elif f3 == 2:                          # SW
                 size = 4
             else:
-                raise NotImplementedError(f"golden: store funct3 {f3} not modelled")
+                raise NotImplementedError(        # store funct3 3-7 reserved
+                    f"golden: store funct3 {f3} reserved")
             mem_wmask, mem_wdata = self._store(mem_addr, size, b)
             rd = 0                                 # stores do not write rd
-        elif opcode == 0x73 and f3 == 0:          # SYSTEM: ECALL/EBREAK halt
-            self.halt_cause = 1 if ((insn >> 20) & 0xFFF) == 0 else 2
-            self.halt_pc = pc
-            return None
+        elif opcode == 0x0F:                      # MISC-MEM
+            if f3 > 1:
+                raise NotImplementedError(        # MISC-MEM funct3 2-7 reserved
+                    f"golden: misc-mem funct3 {f3} reserved")
+            # FENCE / FENCE.I retire as NOPs for this core.
+        elif opcode == 0x73:                      # SYSTEM
+            if f3 == 0:
+                sys_imm = (insn >> 20) & 0xFFF
+                if sys_imm == 0x000:
+                    return self._halt(order, insn, 1)      # ECALL
+                if sys_imm == 0x001:
+                    return self._halt(order, insn, 2)      # EBREAK
+                if sys_imm == 0x302:
+                    pass                                   # MRET: stub, fall through
+                else:
+                    raise NotImplementedError(
+                        f"golden: system imm12 0x{sys_imm:03x} not modelled")
+            elif f3 == 4:
+                raise NotImplementedError(        # SYSTEM funct3 100 reserved
+                    f"golden: system funct3 4 reserved")
+            else:
+                # CSR stub: no CSR state exists; reads return zero (rd write
+                # of zero), writes are dropped.  Covers CSRRW/CSRRS/CSRRC and
+                # the immediate forms — exactly the core's decode behaviour.
+                rd_val = 0
         else:
             raise NotImplementedError(
-                f"golden: opcode 0x{opcode:02x} not implemented "
-                f"(Task 5 slice is OP/OP-IMM/LUI/AUIPC; see extension notes)")
+                f"golden: opcode 0x{opcode:02x} not implemented")
 
         # Shared retire tail: append the beat, commit the rd write.
         rd_wdata = (rd_val & MASK32) if (rd != 0 and rd_val is not None) else 0

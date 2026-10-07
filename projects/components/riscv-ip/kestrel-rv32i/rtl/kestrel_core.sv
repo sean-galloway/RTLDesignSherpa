@@ -17,6 +17,17 @@
 //          (byte-lane rotation) rather than trapping, so rv32ui-p-ma_data
 //          passes without a trap mechanism.
 //
+//          Task 8 adds the system layer.  Halt is a holding register:
+//          any nonzero decode halt_cause latches halt, freezes the PC, and
+//          stops retirement; the halting instruction retires as an RVFI
+//          trap beat (rvfi_valid=1, rvfi_trap=1) and rvfi_valid stays low
+//          thereafter.  FENCE/FENCE.I retire as NOPs; MRET falls through
+//          to pc+4 (the riscv-tests p-env always points mepc at the next
+//          instruction); the SYSTEM CSR class retires through a zero
+//          writeback (kestrel has no CSR state — reads return zero, writes
+//          drop), which lets the p-env preamble run; anything else in
+//          SYSTEM or MISC-MEM is an illegal-instruction halt (cause 0xF).
+//
 // Documentation: projects/components/riscv-ip/README.md
 // Subsystem: riscv-ip/kestrel-rv32i
 //
@@ -76,8 +87,8 @@ module kestrel_core #(
     localparam logic [2:0] F3_BLTU      = 3'b110;
     localparam logic [2:0] F3_BGEU      = 3'b111;
 
-    // The PC register and the RVFI retirement counter are the only state
-    // besides the register file (Task 8 adds the halt holding register).
+    // The PC register, the RVFI retirement counter, and the Task-8 halt
+    // holding register are the only state besides the register file.
     // Task 7 adds one retry bit (control state only) for cross-word L/S.
     logic [31:0] pc;
     logic [31:0] next_pc;
@@ -107,6 +118,7 @@ module kestrel_core #(
     logic       jump;
     logic       jalr;
     logic [3:0] dec_halt_cause;
+    logic       csr_stub;
 
     kestrel_decode u_decode (
         .insn          (insn),
@@ -121,7 +133,8 @@ module kestrel_core #(
         .branch        (branch),
         .jump          (jump),
         .jalr          (jalr),
-        .halt_cause    (dec_halt_cause)
+        .halt_cause    (dec_halt_cause),
+        .csr_stub      (csr_stub)
     );
 
     // Immediate generator.
@@ -275,11 +288,14 @@ module kestrel_core #(
     end
 
     // Writeback: LUI takes its immediate straight from imm_gen; loads take the
-    // assembled/sign-extended data; JAL/JALR write pc+4; everything else uses
-    // the ALU result.  The register-file write is suppressed during the first
-    // cycle of a crossing load so the partial word is not committed early.
+    // assembled/sign-extended data; JAL/JALR write pc+4; CSR-stubbed SYSTEM
+    // instructions write a hard zero (no CSR state exists); everything else
+    // uses the ALU result.  The register-file write is suppressed during the
+    // first cycle of a crossing load so the partial word is not committed
+    // early, and on the halt cycle decode holds rd_wen low.
     assign rd_wen_eff = rd_wen & ~ls_first;
-    assign rd_wdata   = (opcode == OPCODE_LUI) ? imm :
+    assign rd_wdata   = csr_stub              ? 32'd0        :
+                        (opcode == OPCODE_LUI) ? imm          :
                         ls_load                ? ls_load_data :
                         (jump || jalr)         ? (pc + PC_INCR) : alu_y;
 
@@ -323,9 +339,22 @@ module kestrel_core #(
         end
     end
 
-    // Halt is combinational from decode in this slice; Task 8 adds the
-    // holding register that keeps halt raised after the decode input clears.
-    assign halt       = |dec_halt_cause;
+    // Halt holding register (Task 8): any nonzero decode halt_cause latches
+    // halt.  The output also ORs the combinational cause so the first
+    // halting cycle is visible immediately — the PC freezes, the halting
+    // instruction retires its RVFI trap beat, and rvfi_valid drops on the
+    // following cycle (halt_q) and stays low forever.
+    logic halt_q;
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            halt_q <= 1'b0;
+        end else begin
+            halt_q <= halt_q | (|dec_halt_cause);
+        end
+    )
+
+    assign halt       = halt_q | (|dec_halt_cause);
     assign halt_cause = dec_halt_cause;
 
     // PC register: hold on halt or on the first cycle of a cross-word access.
@@ -376,17 +405,20 @@ module kestrel_core #(
     // well); mem fields report the unaligned access address, packed strobes
     // and assembled data on the final cycle of an access and are zero
     // otherwise; rs fields always reflect the register-file read ports (x0
-    // reads return 0 naturally).  rvfi_valid is low during the first cycle of
-    // a cross-word access and high only on the final cycle.
+    // reads return 0 naturally).  rvfi_valid is low during the first cycle
+    // of a cross-word access, high on the final beat, and — Task 8 — high
+    // for exactly one more beat on the halting cycle: the halting
+    // instruction retires as an rvfi_trap beat (rvfi_trap=1, no rd write,
+    // no memory fields), after which the latched halt holds rvfi_valid low.
     logic rd_wb;
 
     assign rd_wb          = rd_wen & (insn[11:7] != 5'd0);
-    assign rvfi_valid     = rst_n & ~halt & ~ls_first;
+    assign rvfi_valid     = rst_n & ~halt_q & ~ls_first;
     assign rvfi_order     = retire_count;
     assign rvfi_pc_rdata  = pc;
     assign rvfi_pc_wdata  = next_pc;
     assign rvfi_insn      = insn;
-    assign rvfi_trap      = 1'b0;
+    assign rvfi_trap      = |dec_halt_cause;
     assign rvfi_rs1_addr  = insn[19:15];
     assign rvfi_rs2_addr  = insn[24:20];
     assign rvfi_rs1_rdata = rs1_data;
@@ -396,7 +428,7 @@ module kestrel_core #(
     assign rvfi_mem_addr  = ls_active ? alu_y : 32'd0;
     assign rvfi_mem_rmask = ls_load   ? ls_size_mask : 4'd0;
     assign rvfi_mem_wmask = ls_store  ? ls_size_mask : 4'd0;
-    assign rvfi_mem_rdata = ls_load   ? ls_raw_rdata : 32'd0;
-    assign rvfi_mem_wdata = ls_store  ? rs2_data     : 32'd0;
+    assign rvfi_mem_rdata = ls_load   ? ls_raw_rdata          : 32'd0;
+    assign rvfi_mem_wdata = ls_store  ? (rs2_data & ls_data_mask) : 32'd0;
 
 endmodule : kestrel_core

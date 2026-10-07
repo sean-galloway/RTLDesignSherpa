@@ -5,15 +5,25 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: kestrel_tb_top
-// Purpose: kestrel_core wrapped with behavioral 64 KiB word memories.
-//          Programs load at time 0 via +imem=<hex> (+dmem=<hex>) plusargs
-//          into $readmemh word arrays; all reads are combinational.
+// Purpose: kestrel_core wrapped with a behavioral 64 KiB unified (von
+//          Neumann) word memory.  Programs load at time 0 via +imem=<hex>
+//          (+dmem=<hex>) plusargs into $readmemh word arrays; all reads are
+//          combinational.  Unified memory means instruction fetches see
+//          data-memory stores (self-modifying code, rv32ui-p-fence_i) with
+//          no extra coherence path.
 //
 //          Data-memory writes honor dmem_wstrb per byte.  The kestrel L/S
 //          datapath rotates the strobe and data by the byte offset, so this
 //          byte-wise merge is the contract that pins rotated-strobe behavior
 //          (Task 7 ruling R4: in-word rotated strobes, bytes that rotate past
 //          bit 31 are dropped).
+//
+//          Task 8 adds a TB backdoor write port (tb_mem_*) so the rv32ui
+//          battery can load all 42 vendor images through one Verilator
+//          build: the runner asserts reset, streams the normalized image
+//          one word per cycle, releases reset, and runs to halt.  The
+//          riscv-tests tohost mailbox is observed on the store port
+//          (dmem_req/dmem_addr/dmem_wstrb/dmem_wdata are top-level ports).
 //
 // Documentation: projects/components/riscv-ip/README.md
 // Subsystem: riscv-ip/kestrel-rv32i
@@ -52,7 +62,12 @@ module kestrel_tb_top #(
     output logic [3:0]  rvfi_mem_rmask,
     output logic [3:0]  rvfi_mem_wmask,
     output logic [31:0] rvfi_mem_rdata,
-    output logic [31:0] rvfi_mem_wdata
+    output logic [31:0] rvfi_mem_wdata,
+    // TB backdoor image loader (Task 8 battery): write one word per cycle
+    // while the core is held in reset.  Not part of the DUT contract.
+    input  logic        tb_mem_we,
+    input  logic [31:0] tb_mem_addr,
+    input  logic [31:0] tb_mem_wdata
 );
 
     localparam int MEM_WORDS      = 65536;
@@ -61,8 +76,7 @@ module kestrel_tb_top #(
     localparam int BYTE_LANES     = 4;
     localparam int BYTE_WIDTH     = 8;
 
-    logic [31:0] imem [0:MEM_WORDS-1];
-    logic [31:0] dmem [0:MEM_WORDS-1];
+    logic [31:0] mem [0:MEM_WORDS-1];
 
     string imem_file;
     string dmem_file;
@@ -73,34 +87,38 @@ module kestrel_tb_top #(
 
     initial begin
         for (int i = 0; i < MEM_WORDS; i++) begin
-            imem[i] = '0;
-            dmem[i] = '0;
+            mem[i] = '0;
         end
         if ($value$plusargs("imem=%s", imem_file)) begin
-            $readmemh(imem_file, imem);
+            $readmemh(imem_file, mem);
         end
         if ($value$plusargs("dmem=%s", dmem_file)) begin
-            $readmemh(dmem_file, dmem);
+            $readmemh(dmem_file, mem);
         end
-        // NOTE(later tasks): riscv-tests images terminate by writing a status
-        // code to their tohost symbol in dmem; Tasks 8 and 11 watch the store
-        // port for that address. ECALL-terminated images (this task) need no
-        // watch — decode halts the core directly.
     end
 
-    assign imem_rdata = imem[imem_addr[MEM_ADDR_MSB:WORD_ADDR_LSB]];
-    assign dmem_rdata = dmem[dmem_addr[MEM_ADDR_MSB:WORD_ADDR_LSB]];
+    assign imem_rdata = mem[imem_addr[MEM_ADDR_MSB:WORD_ADDR_LSB]];
+    assign dmem_rdata = mem[dmem_addr[MEM_ADDR_MSB:WORD_ADDR_LSB]];
 
     // Store port: byte-wise merge using the rotated strobe from the core.
+    // Gated by reset so a backdoor image load cannot race a decode of the
+    // half-written memory.  The backdoor write sits in the same block (one
+    // process drives mem); it is deliberately not reset-gated so the
+    // battery can stream images during reset assertion.
     `ALWAYS_FF_RST(clk, rst_n,
-        if (!`RST_ASSERTED(rst_n)) begin
-            if (dmem_req && (|dmem_wstrb)) begin
-                for (int b = 0; b < BYTE_LANES; b++) begin
-                    if (dmem_wstrb[b]) begin
-                        dmem[dmem_addr[MEM_ADDR_MSB:WORD_ADDR_LSB]][b*BYTE_WIDTH +: BYTE_WIDTH]
-                            <= dmem_wdata[b*BYTE_WIDTH +: BYTE_WIDTH];
+        begin
+            if (!`RST_ASSERTED(rst_n)) begin
+                if (dmem_req && (|dmem_wstrb)) begin
+                    for (int b = 0; b < BYTE_LANES; b++) begin
+                        if (dmem_wstrb[b]) begin
+                            mem[dmem_addr[MEM_ADDR_MSB:WORD_ADDR_LSB]][b*BYTE_WIDTH +: BYTE_WIDTH]
+                                <= dmem_wdata[b*BYTE_WIDTH +: BYTE_WIDTH];
+                        end
                     end
                 end
+            end
+            if (tb_mem_we) begin
+                mem[tb_mem_addr[MEM_ADDR_MSB:WORD_ADDR_LSB]] <= tb_mem_wdata;
             end
         end
     )

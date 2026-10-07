@@ -62,7 +62,8 @@ async def _run_case(dut, hex_name, reset_addr):
     tb = KestrelTB(dut, reset_addr=reset_addr)
     await tb.run()
 
-    tb.check_halt(expected_cause=1, expected_halt_pc=golden.halt_pc)
+    tb.check_halt(expected_cause=golden.halt_cause,
+                  expected_halt_pc=golden.halt_pc)
     tb.check_first_pc()
     tb.check_order_sequence()
     tb.check_pc_sequential()

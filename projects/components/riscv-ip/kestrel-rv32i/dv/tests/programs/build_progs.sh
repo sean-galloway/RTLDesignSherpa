@@ -26,9 +26,9 @@ OBJCOPY="$TOOLCHAIN/riscv-none-elf-objcopy"
 
 cd "$(dirname "$0")"
 
-for src in focus.s rv32ui_ops.s focus_at_0x100.s branch_all.s jal_jalr.s loop_sum.s ls_basic.s ls_misaligned.s ls_chain.s; do
+for src in focus.s rv32ui_ops.s focus_at_0x100.s branch_all.s jal_jalr.s loop_sum.s ls_basic.s ls_misaligned.s ls_chain.s system_fence.s system_ecall.s system_ebreak.s system_illegal.s; do
     name="${src%.s}"
-    "$AS" -march=rv32i -mabi=ilp32 "$src" -o "$name.o"
+    "$AS" -march=rv32i_zifencei -mabi=ilp32 "$src" -o "$name.o"
     "$OBJDUMP" -d "$name.o" > "$name.dump"
     "$OBJCOPY" -O verilog "$name.o" "$name.raw.hex"
     python3 normalize_hex.py "$name.raw.hex" "$name.hex"

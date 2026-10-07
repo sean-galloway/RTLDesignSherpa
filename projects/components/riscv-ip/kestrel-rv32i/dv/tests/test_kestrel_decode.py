@@ -163,6 +163,7 @@ def _ctrl(
     jump=0,
     jalr=0,
     halt_cause=0,
+    csr_stub=0,
 ):
     return {
         "alu_op": alu_op,
@@ -177,6 +178,7 @@ def _ctrl(
         "jump": jump,
         "jalr": jalr,
         "halt_cause": halt_cause,
+        "csr_stub": csr_stub,
     }
 
 
@@ -234,10 +236,29 @@ DECODE_GOLDEN = {
     # System (halt paths)
     0x00000073: _ctrl(halt_cause=1),   # ecall
     0x00100073: _ctrl(halt_cause=2),   # ebreak
+
+    # MISC-MEM: FENCE / FENCE.I retire as NOPs (funct3 000/001)
+    0x0ff0000f: _ctrl(),               # fence iorw, iorw
+    0x0000100f: _ctrl(),               # fence.i
+
+    # System stubs: MRET falls through to pc+4; the CSR class retires with a
+    # zero writeback (no CSR state exists — reads return zero, writes drop).
+    0x30200073: _ctrl(),                          # mret
+    0x30029573: _ctrl(rd_wen=1, csr_stub=1),      # csrrw a0, mstatus, t0
+    0x30005573: _ctrl(rd_wen=1, csr_stub=1),      # csrrwi a0, mstatus, 0
+    0xf1402573: _ctrl(rd_wen=1, csr_stub=1),      # csrr  a0, mhartid
 }
 # fmt: on
 
 ILLEGAL_WORDS = [0x00000000, 0xFFFFFFFF]
+
+# RESERVED encodings of implemented opcodes must land on the illegal halt.
+RESERVED_WORDS = [
+    0x30004073,      # SYSTEM funct3=100 (reserved)
+    0x10500073,      # SYSTEM funct3=0, imm12=0x105 (wfi: not implemented)
+    0x0000200f,      # MISC-MEM funct3=2 (reserved)
+    0x02109133,      # sll with funct7=0x01 (reserved)
+]
 
 # Words chosen so that imm_golden can exercise every format including sign
 # extension and the large U/J encodings.
@@ -281,6 +302,7 @@ def _check_decode(dut, exp):
     assert int(dut.jump.value) == exp["jump"], f"jump mismatch"
     assert int(dut.jalr.value) == exp["jalr"], f"jalr mismatch"
     assert int(dut.halt_cause.value) == exp["halt_cause"], f"halt_cause mismatch"
+    assert int(dut.csr_stub.value) == exp["csr_stub"], f"csr_stub mismatch"
 
 
 # ---------------------------------------------------------------------------
@@ -346,7 +368,7 @@ async def cocotb_test_kestrel_decode(dut):
         _check_decode(dut, expected)
 
     illegal = _ctrl(halt_cause=0xF)
-    for insn in ILLEGAL_WORDS:
+    for insn in ILLEGAL_WORDS + RESERVED_WORDS:
         dut.insn.value = insn
         await Timer(1, units="ns")
         _check_decode(dut, illegal)
