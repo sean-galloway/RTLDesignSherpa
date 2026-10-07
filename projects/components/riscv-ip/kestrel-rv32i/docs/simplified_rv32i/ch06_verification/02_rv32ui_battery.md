@@ -18,7 +18,7 @@ commit-log records, lockstep-checked as section 3 describes):
 | addi | 277 | 5284 | PASS / lockstep ok |
 | and | 520 | 5527 | PASS / lockstep ok |
 | andi | 233 | 5240 | PASS / lockstep ok |
-| auipc | 93 | 5107 | PASS / lockstep ok |
+| auipc | 93 | 5100 | PASS / lockstep ok |
 | beq | 326 | 5333 | PASS / lockstep ok |
 | bge | 344 | 5351 | PASS / lockstep ok |
 | bgeu | 369 | 5376 | PASS / lockstep ok |

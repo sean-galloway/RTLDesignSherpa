@@ -61,7 +61,7 @@ merlin (Chapter 7).
 
 ### Chapter 4: The Control Truth Table
 
-- [01_the_control_bundle.md](ch04_control_truth_table/01_the_control_bundle.md) - The fourteen decode outputs and the default bundle
+- [01_the_control_bundle.md](ch04_control_truth_table/01_the_control_bundle.md) - The thirteen decode outputs and the default bundle
 - [02_the_decode_table.md](ch04_control_truth_table/02_the_decode_table.md) - The full decode case as a table, every row
 
 ### Chapter 5: The Memory Contract

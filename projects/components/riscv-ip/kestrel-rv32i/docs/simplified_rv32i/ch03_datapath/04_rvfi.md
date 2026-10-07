@@ -39,8 +39,8 @@ stream:
    a beat writing x0 reports `rd_addr = 0` with `rd_wdata = 0`. This is
    not merely tidiness: riscv-formal requires `rd_wdata == 0` whenever
    `rd_addr == 0`, and the early core failed exactly there until the rule
-   was pinned (Chapter 6). The register file independently discards the
-   x0 write architecturally.
+   was pinned. The register file independently discards the x0
+   write architecturally.
 2. **The retry's first cycle is silent.** During the first beat of a
    cross-word access, `rvfi_valid` is low (`ls_first` masks it): no
    partial beat leaks out. The access reports one beat on its final

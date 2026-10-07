@@ -25,7 +25,7 @@ the source.
 | `kestrel_regfile` | 32 x 32-bit registers, two combinational read ports, one synchronous write, x0 tied to zero | 32 words |
 | `kestrel_imm_gen` | Builds the 32-bit immediate for the five formats | none |
 | `kestrel_alu` | Ten operations: ADD SUB AND OR XOR SLL SRL SRA SLT SLTU | none |
-| `kestrel_decode` | Combinational truth table from `{opcode, funct3, funct7}` to a 14-field control bundle | none |
+| `kestrel_decode` | Combinational truth table from `{opcode, funct3, funct7}` to a thirteen-field control bundle | none |
 | `kestrel_core` | Wires the leaves together: source muxes, branch comparator, next-PC mux, writeback mux, load/store rotation, halt, RVFI | 5 flops + counters |
 
 : kestrel's six modules

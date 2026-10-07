@@ -69,9 +69,10 @@ the flow:
 
 The first clean build proved the flow end to end and returned 34/42
 passing — the eight failures all counterexamples of one genuine core
-bug, told in the next section. After the fix, a clean rebuild reports
-**42/42 PASS** (z3/smtbmc), reproduced identically across three full
-runs including one from `make clean`:
+bug, told in the next section. After the fix, a full rebuild reports
+**42/42 PASS** (z3/smtbmc) — and the pre-fix 34/42 failure had itself
+reproduced identically across three full runs including one from
+`make clean`, so the green verdict is stable state, not a lucky run:
 
 ```bash
 export PATH=/mnt/data/tools/oss-cad-suite/bin:/tmp/sv2v/sv2v-Linux:$PATH

@@ -58,10 +58,11 @@ retry bit of control state (Chapter 3):
 
 ![Cross-word misaligned access timing: two beats, one retirement](../assets/images/fig_5_1_retry.png)
 
-The retry is visible on exactly four pins plus RVFI: `dmem_addr` steps
-by one word, `dmem_req` stays high across both beats, the PC freezes,
-and `rvfi_valid` marks only the final cycle. Everything else in the core
-is unaware the retry happened.
+The retry is visible on the memory pins and RVFI: `dmem_addr` steps
+by one word, `dmem_req` (and `dmem_we` for stores) stays high across
+both beats, the PC freezes for the retry cycle, and `rvfi_valid` marks
+only the final cycle. Everything else in the core is unaware the retry
+happened.
 
 ## Worked example: a halfword across the boundary
 

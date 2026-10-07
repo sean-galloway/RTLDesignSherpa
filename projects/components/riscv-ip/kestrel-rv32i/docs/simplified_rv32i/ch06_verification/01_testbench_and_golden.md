@@ -32,7 +32,7 @@ stays raised, `rvfi_valid` stays low, `rvfi_pc_rdata` frozen.
 
 ## The golden interpreter
 
-`rv32i_interpreter.py` is a ~90-line Python model of RV32I that emits
+`rv32i_interpreter.py` is a 476-line Python model of RV32I that emits
 the same RVFI beat format as the core — one record per retired
 instruction, none for anything that doesn't retire, plus the halt state.
 Its memory model mirrors the core's conventions exactly: word-based,

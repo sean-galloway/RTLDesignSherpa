@@ -21,8 +21,12 @@ for `insn_beq_ch0`, is identical for all eight:
    reported `rvfi_trap`. The checker assumed a valid BEQ beat; the ISA
    model says it traps; the core reported no trap.
 3. The VCD at the check step shows `spec_valid=1, spec_trap=1,
-   rvfi_trap=0`, with retired instruction `0x98001DE3` — opcode
-   `1100011`, funct3 `000`: a BEQ.
+   rvfi_trap=0`, with retired instruction `0x980001E3` — a
+   `beq x0, x0` (opcode `1100011`, funct3 `000`), taken by construction,
+   whose B-immediate targets `0xFFFFF996`: an address with
+   `next_pc[1:0] = 2`. (The sibling checks carry their own stimuli —
+   `insn_bne_ch0`'s trace, for instance, retires `0x80121163`, a taken
+   `bne` to another misaligned target.)
 4. The model source (`vendor/riscv-formal/insns/insn_beq.v`) computes
    `spec_trap = (next_pc[1:0] != 0) || !misa_ok` for IALIGN=32: any
    taken control transfer to a non-4-aligned target must trap. The JAL
