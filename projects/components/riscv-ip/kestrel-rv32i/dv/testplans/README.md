@@ -99,11 +99,12 @@ name — there are no pytest-parametrized `[case-level]` node names in the
 cocotb XML.
 
 Results XML layout: the wrappers set `COCOTB_RESULTS_FILE` to
-`dv/tests/logs/results_<testcase>_<level>.xml`. The archived run artifacts
-checked in today live one level down at
+`dv/tests/logs/results_<testcase>_<level>.xml`. Both `dv/tests/logs/` and
+`dv/tests/local_sim_build/` are gitignored — nothing is checked in; every
+run regenerates them. The per-cell cocotb XMLs also land one level down at
 `dv/tests/local_sim_build/<testcase>_<level>/<rand>_results.xml` with
-identical testcase names. To feed the tracker from archived artifacts,
-flatten them first:
+identical testcase names, so to feed the tracker from a previous local run,
+flatten its XMLs first:
 
 ```bash
 cd projects/components/riscv-ip/kestrel-rv32i/dv/tests
@@ -113,17 +114,25 @@ find local_sim_build -name '*_results.xml' -exec cp {} logs/ \;
 ## Rollup
 
 ```bash
-# From the repo root, after a regression (or after flattening archived XMLs
-# into dv/tests/logs/ as above):
+# From the repo root, after a regression (or after flattening a previous
+# local run's XMLs into dv/tests/logs/ as above):
 python3 bin/cov_utils/functional_coverage_tracker.py \
     --testplans-dir projects/components/riscv-ip/kestrel-rv32i/dv/testplans \
     --report \
     --results-dir projects/components/riscv-ip/kestrel-rv32i/dv/tests/logs
 ```
 
-The `implied_coverage` block in each YAML is the functional-coverage
-contribution: `scenario_tracked` counts `status: verified` scenarios,
-`implied_percentage = tracked / total_scenarios`.
+The tracker exists for per-scenario status verification: it matches each
+YAML's `test_function` strings against the JUnit XML testcase names and
+reports whether the referenced cocotb tests actually ran and passed. Its
+functional-coverage percentage shows 0% for these plans — by design, as in
+the pumice house: these YAMLs carry no `coverage_points` blocks, so the
+tool has no cover data to score. The scenario-level rollup for kestrel is
+each YAML's `implied_coverage` block: `scenario_tracked` counts
+`status: verified` scenarios and `implied_percentage = tracked /
+total_scenarios`. Per-scenario `covers_lines` attribution from Verilator
+`.dat` files is the pumice `update_testplan_coverage.py` workflow and is
+deliberately not wired in kestrel yet (CORE-18 owns the cover model).
 
 ## Running the tests
 

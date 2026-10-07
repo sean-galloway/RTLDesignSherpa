@@ -8,7 +8,7 @@
 
 module: kestrel_core
 rtl_file: projects/components/riscv-ip/kestrel-rv32i/rtl/top/kestrel_core.sv
-test_file:
+test_files:
   - projects/components/riscv-ip/kestrel-rv32i/dv/tests/test_kestrel_core.py
   - projects/components/riscv-ip/kestrel-rv32i/dv/tests/test_kestrel_branch.py
   - projects/components/riscv-ip/kestrel-rv32i/dv/tests/test_kestrel_ls.py
@@ -194,8 +194,11 @@ functional_scenarios:
     description: "Every rv32ui-p-*.hex image runs to the ecall halt with
                   gp==1 (tohost convention; the store port is also watched):
                   gate runs the simple/add/addi smoke subset, func and full
-                  run all 42. Archived summaries: 42/42 at func and full,
-                  3/3 at gate (logs/rv32ui_battery/)."
+                  run all 42. Regenerate the evidence with `make
+                  run-kestrel_rv32ui-{gate,func,full}` from dv/tests
+                  (summaries land under dv/tests/logs/rv32ui_battery/,
+                  gitignored — nothing is checked in): 3/3 at gate, 42/42
+                  at func and full, verified locally on 2026-10-07."
     test_function: "cocotb_test_kestrel_rv32ui_battery"
     test_level: full
     priority: high
@@ -219,10 +222,15 @@ functional_scenarios:
     name: "Board path: battery through the AXIL loader"
     description: "The same battery contract with images streamed through
                   kestrel_mem_loader's AXIL port (KestrelLoaderTB): golden
-                  full-field diff plus spike lockstep at func, gate/full run
-                  the simple/add/addi subset — logs/rv32ui_battery_loader
-                  shows 3/3 at every level. Detailed scenarios live in
-                  kestrel_mem_loader_testplan.yaml (ML-01..ML-07)."
+                  full-field diff plus spike lockstep at func. Per
+                  test_kestrel_mem_loader.py:231 the gate cell runs only
+                  rv32ui-p-add; func and full run simple/add/addi. Regenerate
+                  with `make run-kestrel_mem_loader-{gate,func,full}` from
+                  dv/tests (summaries land under
+                  dv/tests/logs/rv32ui_battery_loader/, gitignored): 1/1 at
+                  gate, 3/3 at func/full, verified locally on 2026-10-07.
+                  Detailed scenarios live in kestrel_mem_loader_testplan.yaml
+                  (ML-01..ML-07)."
     test_function: "cocotb_test_kestrel_mem_loader_golden"
     test_level: func
     priority: high

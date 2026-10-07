@@ -167,9 +167,11 @@ implied_coverage:
 
 notes: |
   `cocotb_test_kestrel_decode` lives in test_kestrel_decode.py and is
-  selected from DUT_CASES ("kestrel_decode", toplevel=kestrel_decode);
-  gate/func/full cells all pass under
-  dv/tests/local_sim_build/cocotb_test_kestrel_decode_{gate,func,full}/.
+  selected from DUT_CASES ("kestrel_decode", toplevel=kestrel_decode).
+  The gate/func/full cells pass; regenerate any of them with `make
+  run-kestrel_decode-{gate,func,full}` from dv/tests (one Verilator build
+  per cell under dv/tests/local_sim_build/, gitignored). Verified locally
+  on 2026-10-07.
 
   Table size: DECODE_GOLDEN holds 45 encodings — the 37 canonical RV32I
   integer instructions, plus mret, fence, fence.i, ecall, ebreak, and 3

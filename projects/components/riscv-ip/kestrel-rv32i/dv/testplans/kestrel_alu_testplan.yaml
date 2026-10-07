@@ -67,13 +67,19 @@ functional_scenarios:
     name: "Exhaustive op x value matrix completion"
     description: "The sweep runs all 10 ops x 16 a-values x 16 b-values
                   (2,560 vectors, 4 outputs checked per vector) so every
-                  unique-case arm of the ALU including the default arm is hit
-                  and no op is left at a single stimulus point."
+                  defined unique-case arm of the ALU is exercised across the
+                  full value matrix and no op is left at a single stimulus
+                  point. The default arm (kestrel_alu.sv:57) is unreachable
+                  in this test by construction — the sweep drives op 0..9
+                  only — and unreachable in integration too: kestrel_decode
+                  emits only the 10 defined alu_op values, which
+                  riscv-formal's insn-model proofs (formal/kestrel/, 42/42)
+                  bound for every 32-bit instruction."
     test_function: "cocotb_test_kestrel_alu"
     test_level: full
     priority: medium
     status: verified
-    covers_lines: [45, 46, 57]
+    covers_lines: [45, 46]
 
 parameter_coverage: []
 
@@ -86,8 +92,9 @@ implied_coverage:
 notes: |
   `cocotb_test_kestrel_alu` lives in test_kestrel_decode.py and is selected
   from DUT_CASES ("kestrel_alu", toplevel=kestrel_alu) — one Verilator build
-  per (case, level) cell, all three cells passing under
-  dv/tests/local_sim_build/cocotb_test_kestrel_alu_{gate,func,full}/.
+  per (case, level) cell. The gate/func/full cells pass; regenerate with
+  `make run-kestrel_decode-{gate,func,full}` from dv/tests (builds under
+  dv/tests/local_sim_build/, gitignored). Verified locally on 2026-10-07.
 
   Integration note (not a gap): kestrel_core leaves the ALU's eq/lt/ltu
   outputs unconnected — with alu_src_a=PC on branches those flags would

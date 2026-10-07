@@ -125,7 +125,11 @@ functional_scenarios:
                   LINK_BASE 0x80000000): the golden interpreter full-field
                   diff plus the spike (pc, insn) lockstep must pass — gate
                   runs rv32ui-p-add, func/full run simple/add/addi
-                  (logs/rv32ui_battery_loader summaries: 3/3 at every level)."
+                  (test_kestrel_mem_loader.py:231). Regenerate with `make
+                  run-kestrel_mem_loader-{gate,func,full}` from dv/tests
+                  (summaries land under dv/tests/logs/rv32ui_battery_loader/,
+                  gitignored): 1/1 at gate, 3/3 at func/full, verified
+                  locally on 2026-10-07."
     test_function: "cocotb_test_kestrel_mem_loader_golden"
     test_level: func
     priority: high
@@ -175,8 +179,10 @@ implied_coverage:
 
 notes: |
   DUT is kestrel_loader_tb_top (kestrel_mem_loader + kestrel_core); the
-  three cases run per gate/func/full cell with one Verilator build each, all
-  passing under dv/tests/local_sim_build/cocotb_test_kestrel_mem_loader_*_*/
+  cases run per gate/func/full cell with one Verilator build each and pass.
+  Regenerate with `make run-kestrel_mem_loader-{gate,func,full}` from
+  dv/tests (builds under dv/tests/local_sim_build/, gitignored). Verified
+  locally on 2026-10-07.
 
   The leaf slaves (axil4_slave_wr / axil4_slave_rd) have their own testplans
   under the amba area; this plan claims only the loader wrapper logic: the

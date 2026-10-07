@@ -88,9 +88,11 @@ implied_coverage:
 
 notes: |
   `cocotb_test_kestrel_imm_gen` lives in test_kestrel_decode.py and is
-  selected from DUT_CASES ("kestrel_imm_gen", toplevel=kestrel_imm_gen);
-  gate/func/full cells all pass under
-  dv/tests/local_sim_build/cocotb_test_kestrel_imm_gen_{gate,func,full}/.
+  selected from DUT_CASES ("kestrel_imm_gen", toplevel=kestrel_imm_gen).
+  The gate/func/full cells pass; regenerate any of them with `make
+  run-kestrel_decode-{gate,func,full}` from dv/tests (one Verilator build
+  per cell under dv/tests/local_sim_build/, gitignored). Verified locally
+  on 2026-10-07.
 
   IG-06 stays not_implemented on purpose: the directed vectors cover every
   format in both signs plus the B/J LSB-zero rule, but they are nine points,
