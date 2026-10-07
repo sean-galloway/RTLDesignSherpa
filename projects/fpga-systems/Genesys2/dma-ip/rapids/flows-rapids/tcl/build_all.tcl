@@ -105,9 +105,14 @@ close $fh
 # ---- Copy bitstream into bitstream/ for easy access ----
 # Derive the bitstream name from the actual top module (rapids_byte_top on the
 # Nexys, rapids_byte_genesys2_top on the Genesys 2) so this flow is board-agnostic.
+# The destination carries the derate token when the build exports one
+# (A7_CLK_MHZ != 100 -> Makefile CLK_TOKEN), so a derated run cannot
+# overwrite the 100 MHz artifact.
 set top_name [get_property top [get_filesets sources_1]]
 set bit_src "$project_root/build/vivado_project/rapids_byte.runs/impl_1/${top_name}.bit"
-set bit_dst "$project_root/bitstream/rapids_byte.bit"
+set bit_dst [expr {[info exists ::env(RAPIDS_BITSTREAM_NAME)] \
+                   ? "$project_root/bitstream/$::env(RAPIDS_BITSTREAM_NAME)" \
+                   : "$project_root/bitstream/rapids_byte.bit"}]
 file mkdir "$project_root/bitstream"
 if {[file exists $bit_src]} {
     file copy -force $bit_src $bit_dst

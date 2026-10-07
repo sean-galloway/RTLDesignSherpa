@@ -80,6 +80,20 @@ export STREAM_VCO_MHZ        ?= 1200
 export STREAM_CLKOUT0_DIVIDE ?= 20
 endif
 
+# ---- A7 harness clock (derate knob) -----------------------------------------
+# 100 (default) runs CLK100MHZ direct through the top's bypass. Set A7_CLK_MHZ
+# to derate Nexys builds that miss timing on the -1 fabric; the VCO pair is
+# derived (75 -> 750/10, 60 -> 600/10, 50 -> 1000/20) and HARNESS_CLK_HZ feeds
+# the XDC led_slow constraints so the CDC timing follows the real aclk.
+A7_CLK_MHZ ?= 100
+ifneq ($(BOARD),genesys2)
+ifneq ($(A7_CLK_MHZ),100)
+export STREAM_VCO_MHZ        := $(if $(filter 50,$(A7_CLK_MHZ)),1000,$(shell echo $$(($(A7_CLK_MHZ)*10))))
+export STREAM_CLKOUT0_DIVIDE := $(if $(filter 50,$(A7_CLK_MHZ)),20,10)
+export HARNESS_CLK_HZ        := $(shell echo $$(($(A7_CLK_MHZ)*1000000)))
+endif
+endif
+
 # ---- Build geometry (Vivado generics) --------------------------------------
 # Genesys 2 runs 8 channels; the Nexys A7-100T build runs 4 (the -1 100T
 # fabric does not close the instrumented 8-channel geometry).
@@ -112,7 +126,8 @@ export MON_ERROR_FLAVOR    ?= 2
 # disagree with the bitstream again.
 FPGA_DIR  := $(SELF_DIR)/fpga
 MON_CONES := $(if $(filter 2,$(MON_ERROR_FLAVOR)),allcones,$(if $(filter 1,$(MON_ERROR_FLAVOR)),error,allexcepterror))
-BITSTREAM := $(FPGA_DIR)/bitstream/$(FLOW)_$(STREAM_NUM_CHANNELS)ch_$(MON_CONES)_obsmaster_obsslave.bit
+CLK_TOKEN := $(if $(filter 100,$(A7_CLK_MHZ)),,clk$(A7_CLK_MHZ))
+BITSTREAM := $(FPGA_DIR)/bitstream/$(FLOW)_$(STREAM_NUM_CHANNELS)ch_$(MON_CONES)$(CLK_TOKEN)_obsmaster_obsslave.bit
 
 # Keep the generated bridge in lockstep with its .toml/.csv before any synthesis
 # (cheap, and stops a stale checkout producing a stale bitstream). fpga_flow.mk

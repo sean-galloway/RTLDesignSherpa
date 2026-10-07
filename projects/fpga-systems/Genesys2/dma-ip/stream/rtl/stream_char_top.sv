@@ -9,9 +9,12 @@
 //          launch mechanism.
 //
 // Differences vs the Genesys 2 top (stream_genesys2_top.sv):
-//   - Board clocking: the Nexys A7 provides a 100 MHz single-ended oscillator
-//     (E3), so aclk = CLK100MHZ directly -- no IBUFDS/MMCM. FPGA_CLK_HZ is a
-//     parameter solely so the UART divisor / heartbeat / timer stay derived.
+//   - Board clocking: default is the BYPASS -- aclk = CLK100MHZ direct at
+//     100 MHz, no MMCM. VCO_MHZ/CLKOUT0_DIVIDE derate the harness clock for
+//     builds that miss timing on the -1 fabric (750/10 -> 75 MHz, 600/10 ->
+//     60 MHz, 1000/20 -> 50 MHz); VCO = 100 MHz x MULT_F must stay on the
+//     0.125 grid (VCO multiple of 12.5) inside the Artix-7 -1 range
+//     600..1200 MHz, enforced by the elaboration guards below.
 //   - NUM_CHANNELS defaults to 4: the -1 100T fabric does not close the
 //     instrumented 8-channel geometry (see build-mon/Makefile); 4 is the
 //     board's design point. Override via the STREAM_NUM_CHANNELS generic.
@@ -34,9 +37,13 @@
 `include "reset_defs.svh"
 
 module stream_char_top #(
-    // Single source of truth for the UART divisor, heartbeat, LED update rate
-    // and characterization timer. The Nexys A7 oscillator is 100 MHz.
-    parameter int FPGA_CLK_HZ      = 100_000_000,
+    // Harness clock. VCO_MHZ=0 (default) BYPASSES the MMCM: aclk = CLK100MHZ
+    // direct at 100 MHz. Derate with VCO_MHZ/CLKOUT0_DIVIDE when a build
+    // misses timing on the -1 fabric: 750/10 -> 75 MHz, 600/10 -> 60 MHz,
+    // 1000/20 -> 50 MHz. MULT_F = VCO_MHZ/100 must stay on the MMCM 0.125
+    // grid and inside the Artix-7 -1 VCO range (guards below).
+    parameter int VCO_MHZ        = 0,
+    parameter int CLKOUT0_DIVIDE = 10,
     // The -1 100T closes 4 channels with the monitors built; 8 is the Genesys 2
     // geometry. Same power-of-2 set the DUT supports (1/2/4/8).
     parameter int NUM_CHANNELS     = 4,
@@ -70,15 +77,75 @@ module stream_char_top #(
     output logic        DP             // decimal point, active low
 );
 
-    // Elaboration guard: catch an invalid cone mode at compile time rather
-    // than as a silently-different bitstream.
+    // Elaboration guard: catch an invalid cone mode or an unbuildable clock
+    // pair at compile time rather than as a silently-wrong bitstream.
     initial begin
         if (MON_ERROR_FLAVOR < 0 || MON_ERROR_FLAVOR > 2)
             $error("MON_ERROR_FLAVOR=%0d invalid (0=all-except-error, 1=error-only, 2=all cones)",
                    MON_ERROR_FLAVOR);
+        if (VCO_MHZ != 0) begin
+            if ((VCO_MHZ * 8) % 1000 != 0)
+                $error("VCO_MHZ=%0d is not a multiple of 12.5: MULT_F=%0f is off the MMCM 0.125 grid",
+                       VCO_MHZ, real'(VCO_MHZ) / 100.0);
+            if (VCO_MHZ < 600 || VCO_MHZ > 1200)
+                $error("VCO_MHZ=%0d outside the Artix-7 -1 MMCM range 600..1200", VCO_MHZ);
+            if ((VCO_MHZ * 1_000_000) % CLKOUT0_DIVIDE != 0)
+                $error("VCO_MHZ=%0d / CLKOUT0_DIVIDE=%0d is not an integer Hz frequency",
+                       VCO_MHZ, CLKOUT0_DIVIDE);
+        end
     end
 
-    wire aclk    = CLK100MHZ;
+    // Derived harness clock frequency; single source of truth for the UART
+    // divisor, heartbeat, LED update rate and characterization timer.
+    localparam int FPGA_CLK_HZ = (VCO_MHZ == 0) ? 100_000_000
+                                                : (VCO_MHZ * 1_000_000) / CLKOUT0_DIVIDE;
+
+    // =========================================================================
+    // Harness clock. BYPASS (default): aclk = CLK100MHZ. Derated: 100 MHz ->
+    // IBUF -> MMCM (VCO = 100 MHz x MULT_F) -> BUFG. Reset is held asserted
+    // until the MMCM locks (bypass ties locked high). Vivado auto-derives the
+    // MMCM output clock from sys_clk_pin, so the XDC needs no generated-clock
+    // declaration for it.
+    // =========================================================================
+    logic clk_ib, clk_unbuf, aclk, clkfb, clkfb_buf, mmcm_locked;
+
+    generate
+    if (VCO_MHZ == 0) begin : g_clk_bypass
+        assign aclk        = CLK100MHZ;
+        assign mmcm_locked = 1'b1;
+    end else begin : g_clk_mmcm
+        localparam real CLKFBOUT_MULT = real'(VCO_MHZ) / 100.0;
+
+        IBUF u_ibuf (.I(CLK100MHZ), .O(clk_ib));
+
+        MMCME2_BASE #(
+            .BANDWIDTH        ("OPTIMIZED"),
+            .CLKIN1_PERIOD    (10.000),               // 100 MHz
+            .DIVCLK_DIVIDE    (1),
+            .CLKFBOUT_MULT_F  (CLKFBOUT_MULT),        // VCO = 100 MHz * MULT
+            .CLKOUT0_DIVIDE_F (CLKOUT0_DIVIDE),
+            .CLKOUT0_DUTY_CYCLE(0.500),
+            .CLKOUT0_PHASE    (0.000),
+            .STARTUP_WAIT     ("FALSE")
+        ) u_mmcm (
+            .CLKIN1   (clk_ib),
+            .CLKFBIN  (clkfb_buf),
+            .CLKFBOUT (clkfb),
+            .CLKFBOUTB(),
+            .CLKOUT0  (clk_unbuf),
+            .CLKOUT0B (), .CLKOUT1 (), .CLKOUT1B(), .CLKOUT2 (), .CLKOUT2B(),
+            .CLKOUT3  (), .CLKOUT3B(), .CLKOUT4 (), .CLKOUT5 (), .CLKOUT6 (),
+            .LOCKED   (mmcm_locked),
+            .RST      (1'b0),
+            .PWRDWN   (1'b0)
+        );
+        BUFG u_bufg_fb (.I(clkfb),     .O(clkfb_buf));
+        BUFG u_bufg_c0 (.I(clk_unbuf), .O(aclk));
+    end
+    endgenerate
+
+    logic rst_n_raw;
+    assign rst_n_raw = CPU_RESETN & mmcm_locked;
 
     // =========================================================================
     // Reset synchronization -- async assert, sync deassert. ASYNC_REG keeps the
@@ -87,8 +154,8 @@ module stream_char_top #(
     // =========================================================================
     (* ASYNC_REG = "TRUE" *) logic r_rst_meta;
     (* ASYNC_REG = "TRUE" *) logic r_rst_sync;
-    `ALWAYS_FF_RST(CLK100MHZ, CPU_RESETN,
-        if (`RST_ASSERTED(CPU_RESETN)) begin
+    `ALWAYS_FF_RST(aclk, rst_n_raw,
+        if (`RST_ASSERTED(rst_n_raw)) begin
             r_rst_meta <= 1'b0;
             r_rst_sync <= 1'b0;
         end else begin

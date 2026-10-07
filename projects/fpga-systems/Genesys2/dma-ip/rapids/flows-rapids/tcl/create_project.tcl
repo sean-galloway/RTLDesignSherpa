@@ -199,7 +199,12 @@ puts "Setting top module: $top_name"
 set_property top $top_name $src_fs
 
 # Narrow the board geometry + memory sizing via top-level generics (see header).
-set_property generic "NUM_CHANNELS=$num_channels DATA_WIDTH=$data_width SRAM_DEPTH=$sram_depth DESC_RAM_ENTRIES=$desc_ram_entries USE_ROW_COL_MAJOR_ADDRESSING=$row_col USE_AXI_MONITORS=$use_axi_monitors GEN_MON=$gen_mon USE_OBSERVERS=$use_observers OBS_ENABLE_MON_TAPS=$obs_enable_mon_taps BYTE_CRC=$byte_crc MON_CAPTURE=$mon_capture" $src_fs
+set top_generics "NUM_CHANNELS=$num_channels DATA_WIDTH=$data_width SRAM_DEPTH=$sram_depth DESC_RAM_ENTRIES=$desc_ram_entries USE_ROW_COL_MAJOR_ADDRESSING=$row_col USE_AXI_MONITORS=$use_axi_monitors GEN_MON=$gen_mon USE_OBSERVERS=$use_observers OBS_ENABLE_MON_TAPS=$obs_enable_mon_taps BYTE_CRC=$byte_crc MON_CAPTURE=$mon_capture"
+# Harness-clock derate (A7 only, default bypass): the Makefile exports the
+# derived pair when A7_CLK_MHZ != 100. 750/10 -> 75 MHz, 600/10 -> 60 MHz.
+if {[info exists ::env(RAPIDS_VCO_MHZ)]}        { append top_generics " VCO_MHZ=$::env(RAPIDS_VCO_MHZ)" }
+if {[info exists ::env(RAPIDS_CLKOUT0_DIVIDE)]} { append top_generics " CLKOUT0_DIVIDE=$::env(RAPIDS_CLKOUT0_DIVIDE)" }
+set_property generic $top_generics $src_fs
 
 update_compile_order -fileset sources_1
 

@@ -111,14 +111,13 @@ set_property top $top_name $src_fs
 # 1350 VCO gives a nonsense rate. Keep the XDC led_slow_clk in lockstep
 # (-divide_by = 2 * FPGA_CLK_HZ / 200 Hz, i.e. 900000 at 90 MHz).
 set generics {}
-# VCO_MHZ / CLKOUT0_DIVIDE exist only on the Genesys 2 top (its MMCM harness
-# clock). The A7 top runs CLK100MHZ directly; handing it a generic it does not
-# have is ignored by Vivado but errors the lint gate -- the exact trap the
-# USE_AXI_MONITORS comment below describes.
-if {!$board_is_a7} {
-    if {[info exists ::env(STREAM_VCO_MHZ)]}          { lappend generics "VCO_MHZ=$::env(STREAM_VCO_MHZ)" }
-    if {[info exists ::env(STREAM_CLKOUT0_DIVIDE)]}   { lappend generics "CLKOUT0_DIVIDE=$::env(STREAM_CLKOUT0_DIVIDE)" }
-}
+# VCO_MHZ / CLKOUT0_DIVIDE: the Genesys 2 top ALWAYS takes them (its MMCM
+# harness clock; build Makefiles export both). The A7 top only takes them when
+# a build is derated (A7_CLK_MHZ != 100 exports the derived pair) -- its
+# default VCO_MHZ=0 bypasses the MMCM and hands it a generic it does not take
+# would be ignored by Vivado but errors the lint gate.
+if {[info exists ::env(STREAM_VCO_MHZ)]}          { lappend generics "VCO_MHZ=$::env(STREAM_VCO_MHZ)" }
+if {[info exists ::env(STREAM_CLKOUT0_DIVIDE)]}   { lappend generics "CLKOUT0_DIVIDE=$::env(STREAM_CLKOUT0_DIVIDE)" }
 if {[info exists ::env(STREAM_NUM_CHANNELS)]}      { lappend generics "NUM_CHANNELS=$::env(STREAM_NUM_CHANNELS)" }
 if {[info exists ::env(MON_N_PROFILE)]}            { lappend generics "MON_N_PROFILE=$::env(MON_N_PROFILE)" }
 if {[info exists ::env(MON_ERROR_FLAVOR)]}         { lappend generics "MON_ERROR_FLAVOR=$::env(MON_ERROR_FLAVOR)" }

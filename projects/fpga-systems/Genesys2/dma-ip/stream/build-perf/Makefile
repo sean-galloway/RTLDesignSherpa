@@ -68,6 +68,20 @@ ifeq ($(BOARD),genesys2)
 export STREAM_VCO_MHZ        ?= 1200
 export STREAM_CLKOUT0_DIVIDE ?= 12
 endif
+
+# ---- A7 harness clock (derate knob) -----------------------------------------
+# 100 (default) runs CLK100MHZ direct through the top's bypass. Set A7_CLK_MHZ
+# to derate Nexys builds that miss timing on the -1 fabric; the VCO pair is
+# derived (75 -> 750/10, 60 -> 600/10, 50 -> 1000/20) and HARNESS_CLK_HZ feeds
+# the XDC led_slow constraints so the CDC timing follows the real aclk.
+A7_CLK_MHZ ?= 100
+ifneq ($(BOARD),genesys2)
+ifneq ($(A7_CLK_MHZ),100)
+export STREAM_VCO_MHZ        := $(if $(filter 50,$(A7_CLK_MHZ)),1000,$(shell echo $$(($(A7_CLK_MHZ)*10))))
+export STREAM_CLKOUT0_DIVIDE := $(if $(filter 50,$(A7_CLK_MHZ)),20,10)
+export HARNESS_CLK_HZ        := $(shell echo $$(($(A7_CLK_MHZ)*1000000)))
+endif
+endif
 # NOTE: no trailing comments on these lines. Make keeps the whitespace BEFORE a
 # trailing '#', so `?= 8      # comment` sets the variable to "8      ". That
 # value reaches create_project.tcl, which braces it to preserve the spaces, and
@@ -92,7 +106,8 @@ export MON_ERROR_FLAVOR    ?= 0
 # the Genesys 2 8-channel bitstream (build-mon already encodes both).
 FPGA_DIR  := $(SELF_DIR)/fpga
 BOARD_TOKEN := $(if $(filter genesys2,$(BOARD)),genesys2,nexysa7)
-BITSTREAM := $(FPGA_DIR)/bitstream/$(FLOW)_$(BOARD_TOKEN)_$(STREAM_NUM_CHANNELS)ch.bit
+CLK_TOKEN := $(if $(filter 100,$(A7_CLK_MHZ)),,clk$(A7_CLK_MHZ))
+BITSTREAM := $(FPGA_DIR)/bitstream/$(FLOW)_$(BOARD_TOKEN)$(CLK_TOKEN)_$(STREAM_NUM_CHANNELS)ch.bit
 
 PREBUILD := bash $(FRAMEWORK_ROOT)/bin/regen_bridges.sh bridge_stream_mon_axil
 
