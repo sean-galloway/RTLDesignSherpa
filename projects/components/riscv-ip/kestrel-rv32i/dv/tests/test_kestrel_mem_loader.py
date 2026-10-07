@@ -42,7 +42,7 @@ from pathlib import Path
 
 import cocotb
 import pytest
-from cocotb.triggers import FallingEdge
+from cocotb.triggers import FallingEdge, RisingEdge
 from cocotb_test.simulator import run
 
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
@@ -58,6 +58,7 @@ if str(PROGRAMS_DIR) not in sys.path:
     sys.path.insert(0, str(PROGRAMS_DIR))
 
 from tbclasses.kestrel.kestrel_loader_tb import (                    # noqa: E402
+    AXIL_ADDR_MASK,
     CTRL_ADDR,
     KestrelLoaderTB,
 )
@@ -178,6 +179,28 @@ async def _window(dut):
         "core store to the dmem array not visible through the AXIL read port"
     assert await tb.axil_read(PROG_HICODE_AXIL) == PROG_HICODE_INSN
 
+    # Run-mode write rejection (ML-09): with CTRL.run already 1, an AXIL
+    # write into the memory window must not touch the arrays --
+    # ld_wr_fire = w_fire && !addr[CTRL] && !run_q gates the loader's write
+    # client off in run mode.  The core is halted with its fetch parked on
+    # the ecall word (pc freezes at halt_pc), so poison aimed at that very
+    # word is observable on the core-side read port: if the write landed,
+    # imem_rdata would flip while imem_addr holds.
+    halt_pc = golden.halt_pc
+    halt_word = PROG_WORDS[halt_pc >> 2]
+    poison_axil = halt_pc & AXIL_ADDR_MASK   # ecall word, dmem array (addr[16]=1)
+    resp = await tb.axil_write(poison_axil, 0xDEAD_BEEF)
+    assert resp == 0, \
+        "run-mode write B response not OKAY (leaf slaves always answer OKAY)"
+    assert await tb.axil_read(poison_axil) == halt_word, \
+        "run-mode AXIL write landed in the array"
+    for _ in range(4):
+        assert int(dut.imem_addr.value) == halt_pc, \
+            "core fetch address moved after halt"
+        assert int(dut.imem_rdata.value) == halt_word, \
+            "run-mode AXIL write visible on the core-side fetch port"
+        await FallingEdge(dut.clk)
+
     dut._log.info("AXIL window + run-release checks PASSED")
 
 
@@ -220,6 +243,101 @@ async def _isolation(dut):
     dut._log.info("load-mode isolation checks PASSED")
 
 
+# Cycles s_axil_bready / s_axil_rready are held low mid-transaction while
+# the loader's response beat is asserting.
+BACKPRESSURE_HOLD_CYCLES = 8
+# Bound the wait for a response beat so a broken hold fails instead of
+# hanging the sim.
+BACKPRESSURE_WAIT_CYCLES = 100
+
+
+async def _backpressure(dut):
+    """AXIL backpressure: hold bready low with a B beat pending, then
+    rready low with an R beat pending.  The loader must hold bvalid/rvalid
+    (stable, OKAY) for the whole stall, assert the leaf busy taps, and
+    deliver each transaction exactly once once ready returns."""
+    tb = KestrelLoaderTB(dut, reset_addr=0x0000_0000)
+    await tb.ensure_clock()
+    await tb.assert_reset()
+    await tb.enter_load_mode_only()
+    assert int(dut.core_rst_n.value) == 0, "core_rst_n high in load mode"
+
+    # --- write channel: B beat held under a bready stall ---
+    # A couple of settle cycles after each policy flip: the BFM's channel
+    # monitor can be up to a cycle behind applying it, and a response beat
+    # that lands on that stale cycle is consumed with ready high before
+    # the stall is visible on the pin.
+    tb.master["write"].b_channel.set_ready_policy("stall")
+    for _ in range(2):
+        await RisingEdge(dut.clk)
+    writer = cocotb.start_soon(tb.axil_write(0x100, 0xA5A5_5A5A))
+    for _ in range(BACKPRESSURE_WAIT_CYCLES):
+        if int(dut.s_axil_bvalid.value) == 1:
+            break
+        await FallingEdge(dut.clk)
+    else:
+        raise AssertionError("bvalid never asserted under bready stall")
+    held = 0
+    for _ in range(BACKPRESSURE_HOLD_CYCLES):
+        assert int(dut.s_axil_bvalid.value) == 1, \
+            "bvalid dropped while bready held low"
+        assert int(dut.s_axil_bresp.value) == 0, \
+            "bresp changed while bready held low"
+        assert int(dut.dbg_busy_wr.value) == 1, \
+            "busy tap low while the B beat is held"
+        await FallingEdge(dut.clk)
+        held += 1
+    # Release just after a rising edge: the held beat then sees bready=1 for
+    # a full cycle, so the monitor observes valid&&ready mid-cycle and the
+    # handshake completes on the next rising edge.  (Releasing mid-cycle
+    # would let a registered bvalid pop at the intervening rising edge
+    # before the monitor ever samples it.)
+    await RisingEdge(dut.clk)
+    tb.master["write"].b_channel.set_ready_policy("always")
+    resp = await writer
+    assert resp == 0, "B response not OKAY after bready release"
+    assert held == BACKPRESSURE_HOLD_CYCLES
+
+    # The stalled write landed exactly once; the pipeline still drains in
+    # order (a neighbor write is untouched, a follow-up write works).
+    assert await tb.axil_read(0x100) == 0xA5A5_5A5A, \
+        "backpressured write lost or duplicated"
+    await tb.axil_write(0x104, 0x1234_5678)
+    assert await tb.axil_read(0x104) == 0x1234_5678
+    assert await tb.axil_read(0x100) == 0xA5A5_5A5A
+
+    # --- read channel: R beat held under an rready stall ---
+    tb.master["read"].r_channel.set_ready_policy("stall")
+    for _ in range(2):
+        await RisingEdge(dut.clk)
+    reader = cocotb.start_soon(tb.axil_read(0x100))
+    for _ in range(BACKPRESSURE_WAIT_CYCLES):
+        if int(dut.s_axil_rvalid.value) == 1:
+            break
+        await FallingEdge(dut.clk)
+    else:
+        raise AssertionError("rvalid never asserted under rready stall")
+    held_data = int(dut.s_axil_rdata.value)
+    for _ in range(BACKPRESSURE_HOLD_CYCLES):
+        assert int(dut.s_axil_rvalid.value) == 1, \
+            "rvalid dropped while rready held low"
+        assert int(dut.s_axil_rresp.value) == 0, \
+            "rresp changed while rready held low"
+        assert int(dut.s_axil_rdata.value) == held_data, \
+            "rdata changed while rvalid held without rready"
+        assert int(dut.dbg_busy_rd.value) == 1, \
+            "busy tap low while the R beat is held"
+        await FallingEdge(dut.clk)
+    await RisingEdge(dut.clk)
+    tb.master["read"].r_channel.set_ready_policy("always")
+    data = await reader
+    assert data == 0xA5A5_5A5A, "read data wrong after rready release"
+
+    # And the read channel still works normally afterwards.
+    assert await tb.axil_read(0x104) == 0x1234_5678
+    dut._log.info("AXIL backpressure checks PASSED")
+
+
 async def _golden(dut):
     """Golden-trace board path: battery images streamed through the AXIL
     port; the battery's golden interpreter diff + spike lockstep are reused
@@ -250,6 +368,14 @@ async def cocotb_test_kestrel_mem_loader_isolation(dut):
 
 
 @cocotb.test(timeout_time=2000, timeout_unit="ms")
+async def cocotb_test_kestrel_mem_loader_backpressure(dut):
+    """AXIL backpressure: bready/rready held low mid-transaction -- the
+    loader holds bvalid/rvalid stable (OKAY) and no beat is lost or
+    duplicated once the stall releases."""
+    await _backpressure(dut)
+
+
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
 async def cocotb_test_kestrel_mem_loader_golden(dut):
     """Battery images through the AXIL board path: golden interpreter diff
     + spike lockstep (func level), gate = rv32ui-p-add only."""
@@ -265,6 +391,7 @@ async def cocotb_test_kestrel_mem_loader_golden(dut):
 CASES = {
     "cocotb_test_kestrel_mem_loader_window": 0x0000_0000,
     "cocotb_test_kestrel_mem_loader_isolation": 0x0000_0000,
+    "cocotb_test_kestrel_mem_loader_backpressure": 0x0000_0000,
     "cocotb_test_kestrel_mem_loader_golden": LINK_BASE,
 }
 

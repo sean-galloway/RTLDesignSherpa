@@ -90,9 +90,10 @@ class KestrelLoaderTB(KestrelTB):
     # ------------------------------------------------------------------
 
     async def axil_write(self, addr, data, strb=None):
-        """One AXIL write through the framework master; strb=None = full."""
-        await self.master["write_register"](addr & AXIL_ADDR_MASK, data,
-                                            strb)
+        """One AXIL write through the framework master; strb=None = full.
+        Returns the B response code (0 = OKAY)."""
+        return await self.master["write_register"](addr & AXIL_ADDR_MASK, data,
+                                                   strb)
 
     async def axil_read(self, addr):
         """One AXIL read through the framework master."""

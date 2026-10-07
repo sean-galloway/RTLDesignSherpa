@@ -1,7 +1,7 @@
 # Testplan for kestrel_imm_gen
 # Maps functional test scenarios to verification coverage.
-# STATUS: all five immediate formats verified with sign-extension vectors;
-# a randomized sweep is the one declared gap (IG-06).
+# STATUS: all five immediate formats verified with sign-extension vectors
+# plus a SEED-driven randomized sweep (625 vectors) against imm_golden.
 
 module: kestrel_imm_gen
 rtl_file: projects/components/riscv-ip/kestrel-rv32i/rtl/fub/kestrel_imm_gen.sv
@@ -69,22 +69,23 @@ functional_scenarios:
 
   - id: IG-06
     name: "Randomized immediate sweep vs golden"
-    description: "Declared gap: IMM_VECTORS is 9 directed encodings. A SEED-
-                  driven sweep (random insn words x all 5 sels against
-                  imm_golden) would close bit-position nits in the B/J scatter
-                  maps. Planned as an extension of cocotb_test_kestrel_imm_gen."
-    test_function: "cocotb_test_kestrel_imm_gen (randomized sweep)"
+    description: "SEED-driven sweep on top of the directed IMM_VECTORS: 625
+                  random instruction words (125 per format class, opcode and
+                  funct3 forced valid per class, all payload bits random)
+                  each diffed exactly against imm_golden in Python — closing
+                  bit-position nits in the B/J scatter maps."
+    test_function: "cocotb_test_kestrel_imm_gen"
     test_level: full
     priority: low
-    status: not_implemented
+    status: verified
 
 parameter_coverage: []
 
 implied_coverage:
   total_scenarios: 6
-  scenario_tracked: 5
-  implied_covered: 5
-  implied_percentage: 83.3
+  scenario_tracked: 6
+  implied_covered: 6
+  implied_percentage: 100.0
 
 notes: |
   `cocotb_test_kestrel_imm_gen` lives in test_kestrel_decode.py and is
@@ -94,7 +95,8 @@ notes: |
   per cell under dv/tests/local_sim_build/, gitignored). Verified locally
   on 2026-10-07.
 
-  IG-06 stays not_implemented on purpose: the directed vectors cover every
-  format in both signs plus the B/J LSB-zero rule, but they are nine points,
-  not a sweep. The golden model (imm_golden in the test file) already exists
-  for the randomized extension.
+  IG-06's sweep draws 125 words per format class with the SEED pattern the
+  ALU/regfile tests use (opcode+funct3 anchored to a decode-legal
+  instruction of the class, payload bits fully random) and diffs every
+  vector exactly against imm_golden — the golden model that already
+  existed for the directed IMM_VECTORS.

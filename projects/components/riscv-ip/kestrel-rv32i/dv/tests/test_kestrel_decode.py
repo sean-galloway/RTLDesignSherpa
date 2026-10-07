@@ -247,6 +247,9 @@ DECODE_GOLDEN = {
     0x30029573: _ctrl(rd_wen=1, csr_stub=1),      # csrrw a0, mstatus, t0
     0x30005573: _ctrl(rd_wen=1, csr_stub=1),      # csrrwi a0, mstatus, 0
     0xf1402573: _ctrl(rd_wen=1, csr_stub=1),      # csrr  a0, mhartid
+    0x3002b573: _ctrl(rd_wen=1, csr_stub=1),      # csrrc a0, mstatus, t0
+    0x3000e573: _ctrl(rd_wen=1, csr_stub=1),      # csrrsi a0, mstatus, 1
+    0x3000f573: _ctrl(rd_wen=1, csr_stub=1),      # csrrci a0, mstatus, 1
 }
 # fmt: on
 
@@ -273,6 +276,23 @@ IMM_VECTORS = [
     (0x004000EF, IMM_J, 4),          # jal forward
     (0xFFDFF0EF, IMM_J, -4),         # jal backward
 ]
+
+# Valid (opcode, funct3) anchors per immediate format class, mirroring
+# kestrel_decode's table so randomized sweep words stay legal instructions
+# of the class under test.  Bits [31:15] and [11:7] (rs1, rd, funct7, and
+# every immediate payload bit) are randomized per vector; funct3 is forced
+# to a value decode accepts for the anchor opcode.
+IMM_FORMAT_CLASSES = {
+    IMM_I: [(0b0010011, f3) for f3 in range(8)]           # OP-IMM, all funct3
+          + [(0b0000011, f3) for f3 in (0, 1, 2, 4, 5)]   # LOAD
+          + [(0b1100111, 0)],                             # JALR
+    IMM_S: [(0b0100011, f3) for f3 in (0, 1, 2)],         # STORE
+    IMM_B: [(0b1100011, f3) for f3 in (0, 1, 4, 5, 6, 7)],# BRANCH
+    IMM_U: [(0b0110111, 0), (0b0010111, 0)],              # LUI / AUIPC
+    IMM_J: [(0b1101111, 0)],                              # JAL
+}
+
+IMM_RANDOM_VECTORS_PER_FORMAT = 125   # 5 formats x 125 = 625 sweep vectors
 
 ALU_OP_LIST = list(range(10))
 ALU_VALUES = [
@@ -345,7 +365,12 @@ async def cocotb_test_kestrel_alu(dut):
 
 @cocotb.test(timeout_time=100, timeout_unit="us")
 async def cocotb_test_kestrel_imm_gen(dut):
-    """Golden vectors for all five immediate formats."""
+    """Golden vectors for all five immediate formats plus a SEED-driven
+    randomized sweep against imm_golden."""
+    seed = int(os.environ.get("SEED", "0"))
+    random.seed(seed)
+    dut._log.info(f"kestrel_imm_gen test with seed {seed}")
+
     for insn, sel, expected in IMM_VECTORS:
         dut.insn.value = insn
         dut.sel.value = sel
@@ -355,6 +380,26 @@ async def cocotb_test_kestrel_imm_gen(dut):
             f"imm sel={sel} insn=0x{insn:08x}: got 0x{got:08x}, "
             f"expected 0x{_mask32(expected):08x}"
         )
+
+    # Randomized sweep (IG-06): random payload bits per format class, golden
+    # computed Python-side by imm_golden and compared exactly.
+    swept = 0
+    for sel, anchors in IMM_FORMAT_CLASSES.items():
+        for _ in range(IMM_RANDOM_VECTORS_PER_FORMAT):
+            opcode, funct3 = random.choice(anchors)
+            insn = ((random.getrandbits(17) << 15) | (funct3 << 12)
+                    | (random.getrandbits(5) << 7) | opcode)
+            dut.insn.value = insn
+            dut.sel.value = sel
+            await Timer(1, units="ns")
+            got = int(dut.imm.value)
+            exp = _mask32(imm_golden(insn, sel))
+            assert got == exp, (
+                f"imm sweep sel={sel} insn=0x{insn:08x}: got 0x{got:08x}, "
+                f"expected 0x{exp:08x}"
+            )
+            swept += 1
+    dut._log.info(f"kestrel_imm_gen randomized sweep: {swept} vectors PASSED")
 
     dut._log.info("kestrel_imm_gen test PASSED")
 

@@ -34,20 +34,14 @@ testplan convention so the same coverage rollup applies
 |----------|--------|--------------|----------:|---------:|----------:|
 | `kestrel_regfile_testplan.yaml` | kestrel_regfile.sv | test_kestrel_regfile.py | 5 | 5 | 0 |
 | `kestrel_alu_testplan.yaml` | kestrel_alu.sv | test_kestrel_decode.py | 5 | 5 | 0 |
-| `kestrel_imm_gen_testplan.yaml` | kestrel_imm_gen.sv | test_kestrel_decode.py | 6 | 5 | 1 |
-| `kestrel_decode_testplan.yaml` | kestrel_decode.sv | test_kestrel_decode.py | 12 | 11 | 1 |
-| `kestrel_mem_loader_testplan.yaml` | kestrel_mem_loader.sv | test_kestrel_mem_loader.py | 9 | 7 | 2 |
+| `kestrel_imm_gen_testplan.yaml` | kestrel_imm_gen.sv | test_kestrel_decode.py | 6 | 6 | 0 |
+| `kestrel_decode_testplan.yaml` | kestrel_decode.sv | test_kestrel_decode.py | 12 | 12 | 0 |
+| `kestrel_mem_loader_testplan.yaml` | kestrel_mem_loader.sv | test_kestrel_mem_loader.py | 9 | 9 | 0 |
 | `kestrel_core_testplan.yaml` | kestrel_core.sv | test_kestrel_{core,branch,ls,rv32ui,mem_loader}.py | 18 | 16 | 2 |
-| **Total** | | | **55** | **49** | **6** |
+| **Total** | | | **55** | **53** | **2** |
 
 Not-implemented scenarios and why:
 
-- **IG-06** — randomized immediate sweep vs `imm_golden` (directed vectors
-  cover all 5 formats both signs today).
-- **DEC-11** — CSRRC / CSRRSI / CSRRCI stub forms have no golden-table row
-  (CSRRW / CSRRS / CSRRWI do).
-- **ML-08** — AXIL skid backpressure / busy-tap behavior.
-- **ML-09** — loader write issued after CTRL.run must not touch the arrays.
 - **CORE-17** — randomized instruction-stream fuzz vs spike lockstep
   (**Phase C**).
 - **CORE-18** — functional coverage closure / cover model (**Phase C**).
@@ -62,18 +56,22 @@ Not-implemented scenarios and why:
   are unconnected inside kestrel_core by design (branch comparator is
   separate) — verified at unit level only.
 - **IG (kestrel_imm_gen)**: I/S/B/U/J immediate assembly and sign extension
-  with directed ±vectors; B/J LSB-zero rule.
-- **DEC (kestrel_decode)**: the 45-encoding golden truth table (37 canonical
-  RV32I + mret + fence/fence.i + ecall/ebreak + 3 CSR-stub forms), illegal /
-  reserved encodings landing on halt cause 0xF, ecall/ebreak causes 1/2.
-  Halt cause 3 (IALIGN) is decode-invisible by design and lives in the CORE
-  plan (CORE-13).
+  with directed ±vectors; B/J LSB-zero rule; plus a SEED-driven randomized
+  sweep (625 vectors, opcode+funct3 anchored per format class) against the
+  Python `imm_golden`.
+- **DEC (kestrel_decode)**: the 48-encoding golden truth table (37 canonical
+  RV32I + mret + fence/fence.i + ecall/ebreak + all 6 CSR-stub forms),
+  illegal / reserved encodings landing on halt cause 0xF, ecall/ebreak
+  causes 1/2. Halt cause 3 (IALIGN) is decode-invisible by design and lives
+  in the CORE plan (CORE-13).
 - **ML (kestrel_mem_loader)**: AXIL window over both 64 KB regions, per-byte
   wstrb merge, CTRL.run readback/release sequencing, load-mode isolation
   (core_rst_n hold, parked PC, no retirement), core↔dmem cross-mux both
-  directions, run-mode observability through the AXIL port, and the
-  golden-trace board path (battery images streamed over AXIL with spike
-  lockstep).
+  directions, run-mode observability through the AXIL port, AXIL
+  backpressure (bready/rready held low — bvalid/rvalid hold, busy taps,
+  no lost beat), run-mode loader-write rejection (post-CTRL.run poison
+  write leaves the arrays untouched, B still OKAY), and the golden-trace
+  board path (battery images streamed over AXIL with spike lockstep).
 - **CORE (kestrel_core)**: ISA classes via golden trace, branches/jumps
   (incl. IALIGN halt cause 3), loads/stores incl. the cross-word 2-cycle
   retry, the system layer (FENCE NOPs, ECALL/EBREAK halt+hold, illegal

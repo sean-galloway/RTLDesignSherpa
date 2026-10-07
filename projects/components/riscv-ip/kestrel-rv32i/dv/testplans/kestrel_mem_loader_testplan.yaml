@@ -1,8 +1,8 @@
 # Testplan for kestrel_mem_loader
 # Maps functional test scenarios to verification coverage (Task 11 board glue).
-# STATUS: directed AXIL/window/isolation scenarios and the golden board path
-# verified; AXIL backpressure stress and run-mode loader-write rejection are
-# declared gaps (ML-08, ML-09).
+# STATUS: directed AXIL/window/isolation scenarios, the golden board path,
+# AXIL backpressure stress (ML-08), and run-mode loader-write rejection
+# (ML-09) are all verified.
 
 module: kestrel_mem_loader
 rtl_file: projects/components/riscv-ip/kestrel-rv32i/rtl/fub/kestrel_mem_loader.sv
@@ -137,27 +137,35 @@ functional_scenarios:
 
   - id: ML-08
     name: "AXIL skid backpressure / busy-tap behavior"
-    description: "Declared gap: o_dbg_busy_wr/o_dbg_busy_rd are tapped on the
-                  TB top but no test holds bready/rready low to fill the
-                  skids and asserts on the busy taps or eventual drain
-                  ordering. Planned: a directed backpressure test on
-                  kestrel_loader_tb_top."
+    description: "Directed backpressure test on kestrel_loader_tb_top: the
+                  framework master's bready/rready are held low for 8 cycles
+                  mid-transaction (runtime stall policy on the B/R channel
+                  drivers). bvalid/rvalid must hold the whole stall with
+                  bresp/rresp stable OKAY and rdata unchanged, the
+                  o_dbg_busy_wr/o_dbg_busy_rd leaf taps must read 1, and
+                  after release each transaction must complete exactly once
+                  (readback matches, follow-up traffic unaffected)."
     test_function: "cocotb_test_kestrel_mem_loader_backpressure"
     test_level: full
     priority: medium
-    status: not_implemented
+    status: verified
+    covers_lines: [185, 186, 187, 195, 196, 214, 215, 219, 220, 311, 312,
+                   313]
 
   - id: ML-09
     name: "Loader write in run mode is rejected (ld_wr_fire !run_q guard)"
-    description: "Declared gap: ld_wr_fire = w_fire && !addr[CTRL] && !run_q
-                  makes loader writes unreachable in run mode by construction,
-                  but no test issues an AXIL memory write after CTRL.run and
-                  checks the arrays are untouched. Planned: extend the window
-                  test with a post-run poison write."
-    test_function: "cocotb_test_kestrel_mem_loader_window (run-mode write)"
+    description: "With CTRL.run already 1 and the core halted (PC frozen on
+                  the ecall word), an AXIL write of 0xDEADBEEF to that very
+                  word must not land: AXIL readback still shows the ecall,
+                  the core-side fetch port (imem_addr/imem_rdata held) shows
+                  no poison, and the B response is OKAY per the leaf slaves —
+                  ld_wr_fire = w_fire && !addr[CTRL] && !run_q drops the
+                  beat in logic, not with an error."
+    test_function: "cocotb_test_kestrel_mem_loader_window"
     test_level: func
     priority: low
-    status: not_implemented
+    status: verified
+    covers_lines: [242, 243, 244, 245]
 
 parameter_coverage:
   - AXIL_ADDR_WIDTH: 18
@@ -173,16 +181,17 @@ parameter_coverage:
 
 implied_coverage:
   total_scenarios: 9
-  scenario_tracked: 7
-  implied_covered: 7
-  implied_percentage: 77.8
+  scenario_tracked: 9
+  implied_covered: 9
+  implied_percentage: 100.0
 
 notes: |
   DUT is kestrel_loader_tb_top (kestrel_mem_loader + kestrel_core); the
-  cases run per gate/func/full cell with one Verilator build each and pass.
-  Regenerate with `make run-kestrel_mem_loader-{gate,func,full}` from
-  dv/tests (builds under dv/tests/local_sim_build/, gitignored). Verified
-  locally on 2026-10-07.
+  four cases (window, isolation, backpressure, golden) run per
+  gate/func/full cell with one Verilator build each and pass. Regenerate
+  with `make run-kestrel_mem_loader-{gate,func,full}` from dv/tests (builds
+  under dv/tests/local_sim_build/, gitignored). Verified locally on
+  2026-10-07.
 
   The leaf slaves (axil4_slave_wr / axil4_slave_rd) have their own testplans
   under the amba area; this plan claims only the loader wrapper logic: the

@@ -230,7 +230,7 @@ functional_scenarios:
                   dv/tests/logs/rv32ui_battery_loader/, gitignored): 1/1 at
                   gate, 3/3 at func/full, verified locally on 2026-10-07.
                   Detailed scenarios live in kestrel_mem_loader_testplan.yaml
-                  (ML-01..ML-07)."
+                  (ML-01..ML-09)."
     test_function: "cocotb_test_kestrel_mem_loader_golden"
     test_level: func
     priority: high

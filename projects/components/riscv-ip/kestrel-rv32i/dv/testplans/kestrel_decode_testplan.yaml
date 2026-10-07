@@ -1,8 +1,8 @@
 # Testplan for kestrel_decode
 # Maps functional test scenarios to verification coverage.
-# STATUS: decode truth table verified across all 45 golden encodings plus
-# 6 illegal/reserved words; CSRRC/CSRRSI/CSRRCI stub forms are the one
-# declared gap (DEC-11). Halt cause 3 (IALIGN) is intentionally not a decode
+# STATUS: decode truth table verified across all 48 golden encodings plus
+# 6 illegal/reserved words, including all six CSR-stub forms (DEC-11
+# closed 2026-10-07). Halt cause 3 (IALIGN) is intentionally not a decode
 # scenario — decode cannot see it; it lives in kestrel_core (CORE-13).
 
 module: kestrel_decode
@@ -131,18 +131,21 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [185, 186, 187, 188, 189, 190]
+    covers_lines: [185, 186, 188]
 
   - id: DEC-11
     name: "CSR-stub class, remaining funct3 forms (CSRRC / CSRRSI / CSRRCI)"
-    description: "Declared gap: the golden table covers CSRRW/CSRRS/CSRRWI;
-                  CSRRC, CSRRSI and CSRRCI share the identical
-                  csr_stub=1 + rd_wen=1 arm in RTL but have no golden-table
-                  row today. Planned as additional DECODE_GOLDEN entries."
-    test_function: "cocotb_test_kestrel_decode (csr_f3_forms)"
+    description: "Golden-table rows for csrrc a0, mstatus, t0 (0x3002b573),
+                  csrrsi a0, mstatus, 1 (0x3000e573), and csrrci a0,
+                  mstatus, 1 (0x3000f573) — assembler-verified encodings.
+                  All three drive the same csr_stub=1 + rd_wen=1 stub arm as
+                  the DEC-10 rows; the table now holds every implemented
+                  SYSTEM funct3 form."
+    test_function: "cocotb_test_kestrel_decode"
     test_level: func
     priority: low
-    status: not_implemented
+    status: verified
+    covers_lines: [187, 189, 190]
 
   - id: DEC-12
     name: "Illegal and reserved encodings halt with cause 0xF"
@@ -161,9 +164,9 @@ parameter_coverage: []
 
 implied_coverage:
   total_scenarios: 12
-  scenario_tracked: 11
-  implied_covered: 11
-  implied_percentage: 91.7
+  scenario_tracked: 12
+  implied_covered: 12
+  implied_percentage: 100.0
 
 notes: |
   `cocotb_test_kestrel_decode` lives in test_kestrel_decode.py and is
@@ -173,14 +176,17 @@ notes: |
   per cell under dv/tests/local_sim_build/, gitignored). Verified locally
   on 2026-10-07.
 
-  Table size: DECODE_GOLDEN holds 45 encodings — the 37 canonical RV32I
-  integer instructions, plus mret, fence, fence.i, ecall, ebreak, and 3
-  CSR-stub forms (csrrw/csrrwi/csrr). Instruction words were assembled with
-  riscv-none-elf-as -march=rv32i (see the golden-table header comment).
+  Table size: DECODE_GOLDEN holds 48 encodings — the 37 canonical RV32I
+  integer instructions, plus mret, fence, fence.i, ecall, ebreak, and all
+  6 CSR-stub forms (csrrw/csrrs/csrrc/csrrwi/csrrsi/csrrci). Instruction
+  words were assembled with riscv-none-elf-as -march=rv32i_zicsr (see the
+  golden-table header comment); the DEC-11 encodings were verified the
+  same way when the rows landed.
 
-  Split honesty: DEC-10 is verified only for the three funct3 forms with
-  golden rows; DEC-11 carries the remaining three forms even though the RTL
-  arm is shared — the test does not drive them today.
+  Split history: DEC-10 originally claimed all six CSR arms from three
+  driven forms; DEC-11 now drives the remaining three (CSRRC/CSRRSI/
+  CSRRCI), so the covers_lines split — DEC-10 owns the CSRRW/CSRRS/
+  CSRRWI arms, DEC-11 owns CSRRC/CSRRSI/CSRRCI.
 
   Cause 3 (HALT_IALIGN, misaligned taken control-flow target) is deliberately
   absent from this plan: kestrel_decode cannot see the resolved next PC, so
