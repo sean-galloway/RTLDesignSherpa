@@ -302,20 +302,30 @@ def lockstep_diff(core_trace, halt_pc, entry_pc, records):
 class RV32UIBattery:
     """Run every rv32ui-p-* image through the DUT and score it."""
 
-    def __init__(self, dut, repo_root, level, work_dir):
+    def __init__(self, dut, repo_root, level, work_dir, tb_class=None,
+                 tests=None):
         self.dut = dut
         self.repo_root = str(repo_root)
         self.level = level
         self.work_dir = Path(work_dir)
         self.work_dir.mkdir(parents=True, exist_ok=True)
         self.results = []
+        # Task 11 board path: the same runner with a different TB class (the
+        # image loads through the AXIL port instead of the TB backdoor).
+        # `tests` pins an explicit subset of image names, overriding both
+        # discovery and the gate-level smoke filter.
+        self.tb_class = tb_class or KestrelTB
+        self.tests = tests
 
     async def run(self):
-        tb = KestrelTB(self.dut, reset_addr=LINK_BASE)
+        tb = self.tb_class(self.dut, reset_addr=LINK_BASE)
         await tb.ensure_clock()
 
         names = discover_tests(self.repo_root)
-        if self.level == "gate":
+        if self.tests is not None:
+            wanted = set(self.tests)
+            names = [n for n in names if n in wanted]
+        elif self.level == "gate":
             names = [n for n in names if n in GATE_TESTS]
         self.dut._log.info(
             f"rv32ui battery ({self.level} level): {len(names)} tests")
