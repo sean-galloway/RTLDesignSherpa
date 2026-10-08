@@ -79,6 +79,7 @@ package chargen_regs_pkg;
         chargen_regs__crc_t__in_t ACTUAL_CRC;
         chargen_regs__count_t__in_t BEATS_MISM;
         chargen_regs__count_t__in_t STRAY_BEATS;
+        chargen_regs__count_t__in_t ERR_BITS;
     } chargen_regs__rd_gen_t__in_t;
 
     typedef struct {
@@ -201,8 +202,12 @@ package chargen_regs_pkg;
     } chargen_regs__axi_attr_t__axi_burst__out_t;
 
     typedef struct {
-        logic value;
+        logic [1:0] value;
     } chargen_regs__axi_attr_t__data_mode__out_t;
+
+    typedef struct {
+        logic value;
+    } chargen_regs__axi_attr_t__hammer_en__out_t;
 
     typedef struct {
         logic [5:0] value;
@@ -214,6 +219,7 @@ package chargen_regs_pkg;
         chargen_regs__axi_attr_t__axi_size__out_t axi_size;
         chargen_regs__axi_attr_t__axi_burst__out_t axi_burst;
         chargen_regs__axi_attr_t__data_mode__out_t data_mode;
+        chargen_regs__axi_attr_t__hammer_en__out_t hammer_en;
         chargen_regs__axi_attr_t__max_outstanding__out_t max_outstanding;
     } chargen_regs__axi_attr_t__out_t;
 
@@ -224,6 +230,14 @@ package chargen_regs_pkg;
     typedef struct {
         chargen_regs__seed_t__seed__out_t seed;
     } chargen_regs__seed_t__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } chargen_regs__fill_t__pattern__out_t;
+
+    typedef struct {
+        chargen_regs__fill_t__pattern__out_t pattern;
+    } chargen_regs__fill_t__out_t;
 
     typedef struct {
         chargen_regs__addr_t__out_t START_ADDR;
@@ -237,6 +251,7 @@ package chargen_regs_pkg;
         chargen_regs__seed_t__out_t HASH_SEED0;
         chargen_regs__seed_t__out_t HASH_SEED1;
         chargen_regs__seed_t__out_t HASH_SEED2;
+        chargen_regs__fill_t__out_t FILL_PATTERN;
     } chargen_regs__wr_gen_t__out_t;
 
     typedef struct {
@@ -251,6 +266,7 @@ package chargen_regs_pkg;
         chargen_regs__seed_t__out_t HASH_SEED0;
         chargen_regs__seed_t__out_t HASH_SEED1;
         chargen_regs__seed_t__out_t HASH_SEED2;
+        chargen_regs__fill_t__out_t FILL_PATTERN;
     } chargen_regs__rd_gen_t__out_t;
 
     typedef struct {

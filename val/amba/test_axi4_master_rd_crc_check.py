@@ -19,6 +19,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist, filelist_for
 from TBClasses.axi4.axi4_master_rd_crc_check_tb import RdCrcCheckTB
+from TBClasses.axi4.axi4_master_wr_pattern_gen_tb import WrPatternGenTB
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
@@ -39,6 +40,9 @@ async def cocotb_test_axi4_master_rd_crc_check(dut):
         "rd_gap_inserts_idle": _rd_gap_inserts_idle,
         "hash_mode_match":     _hash_mode_match,
         "hash_mode_low_entropy": _hash_mode_low_entropy,
+        "hammer_mode":         _hammer_mode,
+        "fill_mode_match":     _fill_mode_match,
+        "fill_mismatch_err_bits": _fill_mismatch_err_bits,
         "arvalid_no_drop":     _arvalid_no_drop,
         "id_mode_counter":     _id_mode_counter,
         "id_mode_lfsr":        _id_mode_lfsr,
@@ -370,6 +374,85 @@ async def _hash_mode_low_entropy(tb: RdCrcCheckTB):
     )
 
 
+async def _hammer_mode(tb: RdCrcCheckTB):
+    """cfg_hammer_en=1: AR addresses alternate base / base+stride_0 per
+    transaction. Because the same address is visited multiple times, the
+    data must be address-derived (hash mode) rather than a phase-counter
+    LFSR, or the final memory state would not match the reader's beat-0
+    expectation."""
+    BASE = 0x1000
+    STRIDE = 0x1000
+    BURST = 1
+    SEEDS = (0x9E3779B9, 0x85EBCA6B, 0xC2B2AE35)
+    for N in (4, 5):
+        tb.ar_log.clear()
+        tb.return_lfsr_data = True
+        await tb.program(start_addr=BASE, stride_0=STRIDE, burst_len=BURST,
+                         txn_count=N, hammer_en=1, data_mode=1,
+                         hash_seed0=SEEDS[0], hash_seed1=SEEDS[1],
+                         hash_seed2=SEEDS[2])
+        await tb.pulse_start()
+        await tb.wait_done()
+        assert len(tb.ar_log) == N, f"N={N}: ARs got {len(tb.ar_log)}"
+        for i, ar in enumerate(tb.ar_log):
+            expected_addr = BASE + (i & 1) * STRIDE
+            assert ar.addr == expected_addr, (
+                f"N={N} AR[{i}].addr = 0x{ar.addr:X} "
+                f"want 0x{expected_addr:X}"
+            )
+        assert int(tb.dut.o_data_error.value) == 0
+        assert int(tb.dut.o_actual_crc_valid.value) == 0
+
+
+async def _fill_mode_match(tb: RdCrcCheckTB):
+    """data_mode=2: the reader expects cfg_fill_pattern on every beat.
+    Preload the same replicated pattern and assert a clean compare.
+    o_actual_crc_valid stays low because the CRC pipeline is only
+    meaningful for the LFSR stream."""
+    BURST = 4
+    N = 3
+    PAT = 0x5A5A5A5A
+    BYTES_PER_BEAT = tb.AXI_DATA_WIDTH // 8
+    await tb.program(start_addr=0x200, stride_0=BURST * BYTES_PER_BEAT,
+                     burst_len=BURST, txn_count=N, data_mode=2,
+                     fill_pattern=PAT)
+    await tb.pulse_start()
+    await tb.wait_done()
+    assert len(tb.ar_log) == N
+    assert int(tb.dut.o_data_error.value) == 0
+    assert int(tb.dut.o_beats_mismatched.value) == 0
+    assert int(tb.dut.o_actual_crc_valid.value) == 0
+
+
+async def _fill_mismatch_err_bits(tb: RdCrcCheckTB):
+    """data_mode=2 with garbage R data: o_data_error sticks, every beat
+    mismatches, and o_err_bits accumulates the per-beat bit-flip
+    popcount (saturating at 32 bits)."""
+    BURST = 2
+    N = 2
+    PAT = 0x12345678
+    GARBAGE = 0xBADCAFE_DEADBEEF
+    BYTES_PER_BEAT = tb.AXI_DATA_WIDTH // 8
+    tb.return_lfsr_data = False
+    tb.garbage_word = GARBAGE
+    await tb.program(start_addr=0x300, stride_0=BURST * BYTES_PER_BEAT,
+                     burst_len=BURST, txn_count=N, data_mode=2,
+                     fill_pattern=PAT)
+    await tb.pulse_start()
+    await tb.wait_done()
+    total_beats = BURST * N
+    assert int(tb.dut.o_data_error.value) == 1
+    assert int(tb.dut.o_beats_mismatched.value) == total_beats
+    expected_per_beat = bin(GARBAGE ^ WrPatternGenTB.expected_fill_beat_data(tb, PAT)).count('1')
+    expected_bits = expected_per_beat * total_beats
+    expected_bits = min(expected_bits, (1 << 32) - 1)
+    got_bits = int(tb.dut.o_err_bits.value)
+    assert got_bits == expected_bits, (
+        f"o_err_bits = {got_bits}, want {expected_bits} "
+        f"({total_beats} beats × {expected_per_beat} bits)"
+    )
+
+
 async def _kb4(tb: RdCrcCheckTB):
     """4 KiB engine read — 128 bursts × 4 beats × 8 bytes from BASE=0.
 
@@ -485,7 +568,8 @@ _ALL_TYPES = ["smoke_match", "multi_burst_match", "address_walk",
               "data_mismatch_sticky", "beats_mismatched_count",
               "rresp_error_sticky", "rerun_after_done",
               "rd_gap_inserts_idle", "hash_mode_match",
-              "hash_mode_low_entropy", "arvalid_no_drop",
+              "hash_mode_low_entropy", "hammer_mode", "fill_mode_match",
+              "fill_mismatch_err_bits", "arvalid_no_drop",
               "id_mode_counter", "id_mode_lfsr",
               "kb4", "kb32", "stray_beat_drained", "rready_never_throttles",
               "outstanding_dial"]

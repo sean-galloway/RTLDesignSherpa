@@ -384,6 +384,7 @@ module char_engine_block
     logic [NUM_GEN-1:0] w_rd_rresp_err, w_rd_stray_err;
 
     logic [TXN_COUNT_WIDTH-1:0] w_rd_beats_mism [NUM_GEN];
+    logic [31:0]                w_rd_err_bits   [NUM_GEN];
     logic [TXN_COUNT_WIDTH-1:0] w_rd_stray_cnt  [NUM_GEN];
     logic [31:0]                w_wr_crc        [NUM_GEN];
     logic [31:0]                w_rd_crc        [NUM_GEN];
@@ -421,6 +422,7 @@ module char_engine_block
         .rd_stray_err_o  (w_rd_stray_err),
         .rd_crc_o        (w_rd_crc),
         .rd_beats_mism_o (w_rd_beats_mism),
+        .rd_err_bits_o   (w_rd_err_bits),
         .rd_stray_cnt_o  (w_rd_stray_cnt),
 
         .rd_dbg_valid    (rd_dbg_valid),
@@ -566,6 +568,7 @@ module char_engine_block
             cg_in.RD_GEN[g].STATUS.stray_beat_error.next = w_rd_stray_err[g];
             cg_in.RD_GEN[g].ACTUAL_CRC.crc.next        = w_rd_crc[g];
             cg_in.RD_GEN[g].BEATS_MISM.beats.next        = 32'(w_rd_beats_mism[g]);
+            cg_in.RD_GEN[g].ERR_BITS.beats.next          = w_rd_err_bits[g];
             cg_in.RD_GEN[g].STRAY_BEATS.beats.next       = 32'(w_rd_stray_cnt[g]);
         end
 
@@ -575,7 +578,7 @@ module char_engine_block
 
         cg_in.ERRORS.wr_bresp_error.next = 8'(w_wr_bresp_err);
         // Any read-side error at all -- the per-generator STATUS says which.
-        cg_in.ERRORS.rd_any_error.next   = 8'(w_rd_data_err | w_rd_rresp_err | w_rd_stray_err);
+        cg_in.ERRORS.rd_any_error.next   = 8'(w_rd_data_err) | 8'(w_rd_rresp_err) | 8'(w_rd_stray_err);
 
         // Identity, from this instance's own parameters, so the count the host
         // programs cannot drift from the count that was compiled.

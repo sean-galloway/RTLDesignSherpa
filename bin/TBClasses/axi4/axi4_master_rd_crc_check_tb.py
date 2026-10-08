@@ -110,6 +110,10 @@ class RdCrcCheckTB(TBBase):
         # preload uses hash_beat_data instead of LFSR_advance.
         self.data_mode: int = 0
         self.hash_seeds: tuple = (0, 0, 0)
+        # Rowhammer / aggressor-pair mode (set by program()). When 1 the
+        # address generator index is the transaction counter LSB, so burst
+        # bases alternate start_addr / start_addr+stride_0.
+        self.hammer_en: int = 0
         # Preload geometry — saved on program() so we know what range to
         # fill once pulse_start() is called.
         self._preload_start_addr: int = 0
@@ -185,7 +189,9 @@ class RdCrcCheckTB(TBBase):
         self.dut.cfg_axi_size.value         = 3
         self.dut.cfg_axi_burst.value        = 1
         self.dut.cfg_lfsr_seed.value        = 0
+        self.dut.cfg_hammer_en.value        = 0
         self.dut.cfg_data_mode.value        = 0
+        self.dut.cfg_fill_pattern.value     = 0
         self.dut.cfg_hash_seed0.value       = 0
         self.dut.cfg_hash_seed1.value       = 0
         self.dut.cfg_hash_seed2.value       = 0
@@ -235,16 +241,34 @@ class RdCrcCheckTB(TBBase):
             return
         total_beats = self._preload_txn_count * self._preload_burst_len
         bpp = self.BYTES_PER_BEAT
+        base = self._preload_start_addr
+
+        def burst_base(bi: int) -> int:
+            # In hammer mode the address generator index is the transaction
+            # counter LSB, so burst bases alternate base / base+stride_0.
+            if self.hammer_en:
+                return base + (bi & 1) * self._preload_stride
+            return base + bi * self._preload_stride
 
         if self.data_mode == 1:
             # Hash mode: data per byte addr (engine reader hashes
             # araddr+k*bpp; mirror at the same bpp granularity).
-            base = self._preload_start_addr
             for bi in range(self._preload_txn_count):
                 for k in range(self._preload_burst_len):
-                    byte_addr = base + bi * self._preload_stride + k * bpp
+                    byte_addr = burst_base(bi) + k * bpp
                     data = _LfsrMirror.expected_hash_beat_data(
                         self, byte_addr & 0xFFFFFFFF, self.hash_seeds)
+                    self.memory.write(byte_addr,
+                                      self.memory.integer_to_bytearray(
+                                          data, bpp))
+        elif self.data_mode == 2:
+            # FILL mode: cfg_fill_pattern replicated across each beat.
+            data = _LfsrMirror.expected_fill_beat_data(self, self.fill_pattern)
+            if not self.return_lfsr_data:
+                data = self.garbage_word & self.MASK_DATA
+            for bi in range(self._preload_txn_count):
+                for k in range(self._preload_burst_len):
+                    byte_addr = burst_base(bi) + k * bpp
                     self.memory.write(byte_addr,
                                       self.memory.integer_to_bytearray(
                                           data, bpp))
@@ -260,11 +284,10 @@ class RdCrcCheckTB(TBBase):
             payload = [self._replicate(w) if self.return_lfsr_data
                        else (self.garbage_word & self.MASK_DATA)
                        for w in lfsr_seq]
-            base = self._preload_start_addr
             idx = 0
             for bi in range(self._preload_txn_count):
                 for k in range(self._preload_burst_len):
-                    byte_addr = base + bi * self._preload_stride + k * bpp
+                    byte_addr = burst_base(bi) + k * bpp
                     self.memory.write(byte_addr,
                                       self.memory.integer_to_bytearray(
                                           payload[idx], bpp))
@@ -278,7 +301,9 @@ class RdCrcCheckTB(TBBase):
                       txn_count: int = 1, axi_id: int = 0,
                       axi_size: int = 3, axi_burst: int = 1,
                       lfsr_seed: int = 0, rd_gap: int = 0,
+                      hammer_en: int = 0,
                       data_mode: int = 0,
+                      fill_pattern: int = 0,
                       hash_seed0: int = 0,
                       hash_seed1: int = 0,
                       hash_seed2: int = 0,
@@ -296,7 +321,9 @@ class RdCrcCheckTB(TBBase):
         self.dut.cfg_axi_size.value         = axi_size
         self.dut.cfg_axi_burst.value        = axi_burst
         self.dut.cfg_lfsr_seed.value        = lfsr_seed
-        self.dut.cfg_data_mode.value        = data_mode & 0x1
+        self.dut.cfg_hammer_en.value        = hammer_en & 0x1
+        self.dut.cfg_data_mode.value        = data_mode & 0x3
+        self.dut.cfg_fill_pattern.value     = fill_pattern & 0xFFFFFFFF
         self.dut.cfg_hash_seed0.value       = hash_seed0 & 0xFFFFFFFF
         self.dut.cfg_hash_seed1.value       = hash_seed1 & 0xFFFFFFFF
         self.dut.cfg_hash_seed2.value       = hash_seed2 & 0xFFFFFFFF
@@ -306,7 +333,9 @@ class RdCrcCheckTB(TBBase):
         # contents phase-lock with what the reader engine expects.
         self.lfsr_seed = (lfsr_seed if lfsr_seed != 0
                           else self.LFSR_DEFAULT_SEED)
-        self.data_mode   = data_mode & 0x1
+        self.data_mode   = data_mode & 0x3
+        self.fill_pattern = fill_pattern & 0xFFFFFFFF
+        self.hammer_en   = hammer_en & 0x1
         self.hash_seeds  = (hash_seed0 & 0xFFFFFFFF,
                             hash_seed1 & 0xFFFFFFFF,
                             hash_seed2 & 0xFFFFFFFF)

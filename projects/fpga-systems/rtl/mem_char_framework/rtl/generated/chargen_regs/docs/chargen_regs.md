@@ -19,9 +19,9 @@ Don't override. Generated from: $root
 | 0x080| WR_GEN[2]|  — |
 | 0x0C0| WR_GEN[3]|  — |
 | 0x200| RD_GEN[0]|  — |
-| 0x240| RD_GEN[1]|  — |
-| 0x280| RD_GEN[2]|  — |
-| 0x2C0| RD_GEN[3]|  — |
+| 0x280| RD_GEN[1]|  — |
+| 0x300| RD_GEN[2]|  — |
+| 0x380| RD_GEN[3]|  — |
 | 0x400|    GO    |  — |
 | 0x404|   DONE   |  — |
 | 0x408|  ERRORS  |  — |
@@ -50,6 +50,7 @@ Don't override. Generated from: $root
 | 0x20 | HASH_SEED0 |  — |
 | 0x24 | HASH_SEED1 |  — |
 | 0x28 | HASH_SEED2 |  — |
+| 0x2C |FILL_PATTERN|  — |
 | 0x30 |   STATUS   |  — |
 | 0x34 |EXPECTED_CRC|  — |
 
@@ -133,7 +134,7 @@ Don't override. Generated from: $root
 - Base Offset: 0x18
 - Size: 0x4
 
-<p>AXI id / id_mode / size / burst / data_mode / outstanding cap</p>
+<p>AXI id / id_mode / size / burst / hammer_en / data_mode / outstanding cap</p>
 
 | Bits|   Identifier  |Access|Reset|Name|
 |-----|---------------|------|-----|----|
@@ -141,8 +142,9 @@ Don't override. Generated from: $root
 | 9:8 |    id_mode    |  rw  | 0x0 |  — |
 |12:10|    axi_size   |  rw  | 0x0 |  — |
 |14:13|   axi_burst   |  rw  | 0x0 |  — |
-|  15 |   data_mode   |  rw  | 0x0 |  — |
-|21:16|max_outstanding|  rw  | 0x0 |  — |
+|16:15|   data_mode   |  rw  | 0x0 |  — |
+|  17 |   hammer_en   |  rw  | 0x0 |  — |
+|23:18|max_outstanding|  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -192,6 +194,18 @@ Don't override. Generated from: $root
 |----|----------|------|-----|----|
 |31:0|   seed   |  rw  | 0x0 |  — |
 
+### FILL_PATTERN register
+
+- Absolute Address: 0x2C
+- Base Offset: 0x2C
+- Size: 0x4
+
+<p>32-bit fill pattern, replicated across the data bus in data_mode=2</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|  pattern |  rw  | 0x0 |  — |
+
 ### STATUS register
 
 - Absolute Address: 0x30
@@ -240,6 +254,7 @@ Don't override. Generated from: $root
 | 0x20 | HASH_SEED0 |  — |
 | 0x24 | HASH_SEED1 |  — |
 | 0x28 | HASH_SEED2 |  — |
+| 0x2C |FILL_PATTERN|  — |
 | 0x30 |   STATUS   |  — |
 | 0x34 |EXPECTED_CRC|  — |
 
@@ -323,7 +338,7 @@ Don't override. Generated from: $root
 - Base Offset: 0x18
 - Size: 0x4
 
-<p>AXI id / id_mode / size / burst / data_mode / outstanding cap</p>
+<p>AXI id / id_mode / size / burst / hammer_en / data_mode / outstanding cap</p>
 
 | Bits|   Identifier  |Access|Reset|Name|
 |-----|---------------|------|-----|----|
@@ -331,8 +346,9 @@ Don't override. Generated from: $root
 | 9:8 |    id_mode    |  rw  | 0x0 |  — |
 |12:10|    axi_size   |  rw  | 0x0 |  — |
 |14:13|   axi_burst   |  rw  | 0x0 |  — |
-|  15 |   data_mode   |  rw  | 0x0 |  — |
-|21:16|max_outstanding|  rw  | 0x0 |  — |
+|16:15|   data_mode   |  rw  | 0x0 |  — |
+|  17 |   hammer_en   |  rw  | 0x0 |  — |
+|23:18|max_outstanding|  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -382,6 +398,18 @@ Don't override. Generated from: $root
 |----|----------|------|-----|----|
 |31:0|   seed   |  rw  | 0x0 |  — |
 
+### FILL_PATTERN register
+
+- Absolute Address: 0x6C
+- Base Offset: 0x2C
+- Size: 0x4
+
+<p>32-bit fill pattern, replicated across the data bus in data_mode=2</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|  pattern |  rw  | 0x0 |  — |
+
 ### STATUS register
 
 - Absolute Address: 0x70
@@ -430,6 +458,7 @@ Don't override. Generated from: $root
 | 0x20 | HASH_SEED0 |  — |
 | 0x24 | HASH_SEED1 |  — |
 | 0x28 | HASH_SEED2 |  — |
+| 0x2C |FILL_PATTERN|  — |
 | 0x30 |   STATUS   |  — |
 | 0x34 |EXPECTED_CRC|  — |
 
@@ -513,7 +542,7 @@ Don't override. Generated from: $root
 - Base Offset: 0x18
 - Size: 0x4
 
-<p>AXI id / id_mode / size / burst / data_mode / outstanding cap</p>
+<p>AXI id / id_mode / size / burst / hammer_en / data_mode / outstanding cap</p>
 
 | Bits|   Identifier  |Access|Reset|Name|
 |-----|---------------|------|-----|----|
@@ -521,8 +550,9 @@ Don't override. Generated from: $root
 | 9:8 |    id_mode    |  rw  | 0x0 |  — |
 |12:10|    axi_size   |  rw  | 0x0 |  — |
 |14:13|   axi_burst   |  rw  | 0x0 |  — |
-|  15 |   data_mode   |  rw  | 0x0 |  — |
-|21:16|max_outstanding|  rw  | 0x0 |  — |
+|16:15|   data_mode   |  rw  | 0x0 |  — |
+|  17 |   hammer_en   |  rw  | 0x0 |  — |
+|23:18|max_outstanding|  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -572,6 +602,18 @@ Don't override. Generated from: $root
 |----|----------|------|-----|----|
 |31:0|   seed   |  rw  | 0x0 |  — |
 
+### FILL_PATTERN register
+
+- Absolute Address: 0xAC
+- Base Offset: 0x2C
+- Size: 0x4
+
+<p>32-bit fill pattern, replicated across the data bus in data_mode=2</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|  pattern |  rw  | 0x0 |  — |
+
 ### STATUS register
 
 - Absolute Address: 0xB0
@@ -620,6 +662,7 @@ Don't override. Generated from: $root
 | 0x20 | HASH_SEED0 |  — |
 | 0x24 | HASH_SEED1 |  — |
 | 0x28 | HASH_SEED2 |  — |
+| 0x2C |FILL_PATTERN|  — |
 | 0x30 |   STATUS   |  — |
 | 0x34 |EXPECTED_CRC|  — |
 
@@ -703,7 +746,7 @@ Don't override. Generated from: $root
 - Base Offset: 0x18
 - Size: 0x4
 
-<p>AXI id / id_mode / size / burst / data_mode / outstanding cap</p>
+<p>AXI id / id_mode / size / burst / hammer_en / data_mode / outstanding cap</p>
 
 | Bits|   Identifier  |Access|Reset|Name|
 |-----|---------------|------|-----|----|
@@ -711,8 +754,9 @@ Don't override. Generated from: $root
 | 9:8 |    id_mode    |  rw  | 0x0 |  — |
 |12:10|    axi_size   |  rw  | 0x0 |  — |
 |14:13|   axi_burst   |  rw  | 0x0 |  — |
-|  15 |   data_mode   |  rw  | 0x0 |  — |
-|21:16|max_outstanding|  rw  | 0x0 |  — |
+|16:15|   data_mode   |  rw  | 0x0 |  — |
+|  17 |   hammer_en   |  rw  | 0x0 |  — |
+|23:18|max_outstanding|  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -762,6 +806,18 @@ Don't override. Generated from: $root
 |----|----------|------|-----|----|
 |31:0|   seed   |  rw  | 0x0 |  — |
 
+### FILL_PATTERN register
+
+- Absolute Address: 0xEC
+- Base Offset: 0x2C
+- Size: 0x4
+
+<p>32-bit fill pattern, replicated across the data bus in data_mode=2</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|  pattern |  rw  | 0x0 |  — |
+
 ### STATUS register
 
 - Absolute Address: 0xF0
@@ -792,28 +848,30 @@ Don't override. Generated from: $root
 
 - Absolute Address: 0x200
 - Base Offset: 0x200
-- Size: 0x40
+- Size: 0x44
 - Array Dimensions: [4]
-- Array Stride: 0x40
-- Total Size: 0x100
+- Array Stride: 0x80
+- Total Size: 0x200
 
-|Offset| Identifier|Name|
-|------|-----------|----|
-| 0x00 | START_ADDR|  — |
-| 0x04 |  STRIDE_0 |  — |
-| 0x08 |  STRIDE_1 |  — |
-| 0x0C |WRAP_MASK_0|  — |
-| 0x10 |WRAP_MASK_1|  — |
-| 0x14 |  BLEN_TXN |  — |
-| 0x18 |  AXI_ATTR |  — |
-| 0x1C | LFSR_SEED |  — |
-| 0x20 | HASH_SEED0|  — |
-| 0x24 | HASH_SEED1|  — |
-| 0x28 | HASH_SEED2|  — |
-| 0x30 |   STATUS  |  — |
-| 0x34 | ACTUAL_CRC|  — |
-| 0x38 | BEATS_MISM|  — |
-| 0x3C |STRAY_BEATS|  — |
+|Offset| Identifier |Name|
+|------|------------|----|
+| 0x00 | START_ADDR |  — |
+| 0x04 |  STRIDE_0  |  — |
+| 0x08 |  STRIDE_1  |  — |
+| 0x0C | WRAP_MASK_0|  — |
+| 0x10 | WRAP_MASK_1|  — |
+| 0x14 |  BLEN_TXN  |  — |
+| 0x18 |  AXI_ATTR  |  — |
+| 0x1C |  LFSR_SEED |  — |
+| 0x20 | HASH_SEED0 |  — |
+| 0x24 | HASH_SEED1 |  — |
+| 0x28 | HASH_SEED2 |  — |
+| 0x2C |FILL_PATTERN|  — |
+| 0x30 |   STATUS   |  — |
+| 0x34 | ACTUAL_CRC |  — |
+| 0x38 | BEATS_MISM |  — |
+| 0x3C | STRAY_BEATS|  — |
+| 0x40 |  ERR_BITS  |  — |
 
 ### START_ADDR register
 
@@ -895,7 +953,7 @@ Don't override. Generated from: $root
 - Base Offset: 0x18
 - Size: 0x4
 
-<p>AXI id / id_mode / size / burst / data_mode / outstanding cap</p>
+<p>AXI id / id_mode / size / burst / hammer_en / data_mode / outstanding cap</p>
 
 | Bits|   Identifier  |Access|Reset|Name|
 |-----|---------------|------|-----|----|
@@ -903,8 +961,9 @@ Don't override. Generated from: $root
 | 9:8 |    id_mode    |  rw  | 0x0 |  — |
 |12:10|    axi_size   |  rw  | 0x0 |  — |
 |14:13|   axi_burst   |  rw  | 0x0 |  — |
-|  15 |   data_mode   |  rw  | 0x0 |  — |
-|21:16|max_outstanding|  rw  | 0x0 |  — |
+|16:15|   data_mode   |  rw  | 0x0 |  — |
+|  17 |   hammer_en   |  rw  | 0x0 |  — |
+|23:18|max_outstanding|  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -953,6 +1012,18 @@ Don't override. Generated from: $root
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
 |31:0|   seed   |  rw  | 0x0 |  — |
+
+### FILL_PATTERN register
+
+- Absolute Address: 0x22C
+- Base Offset: 0x2C
+- Size: 0x4
+
+<p>32-bit fill pattern, replicated across the data bus in data_mode=2</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|  pattern |  rw  | 0x0 |  — |
 
 ### STATUS register
 
@@ -1006,216 +1077,10 @@ Don't override. Generated from: $root
 |----|----------|------|-----|----|
 |31:0|   beats  |   r  | 0x0 |  — |
 
-## RD_GEN register file
+### ERR_BITS register
 
 - Absolute Address: 0x240
-- Base Offset: 0x200
-- Size: 0x40
-- Array Dimensions: [4]
-- Array Stride: 0x40
-- Total Size: 0x100
-
-|Offset| Identifier|Name|
-|------|-----------|----|
-| 0x00 | START_ADDR|  — |
-| 0x04 |  STRIDE_0 |  — |
-| 0x08 |  STRIDE_1 |  — |
-| 0x0C |WRAP_MASK_0|  — |
-| 0x10 |WRAP_MASK_1|  — |
-| 0x14 |  BLEN_TXN |  — |
-| 0x18 |  AXI_ATTR |  — |
-| 0x1C | LFSR_SEED |  — |
-| 0x20 | HASH_SEED0|  — |
-| 0x24 | HASH_SEED1|  — |
-| 0x28 | HASH_SEED2|  — |
-| 0x30 |   STATUS  |  — |
-| 0x34 | ACTUAL_CRC|  — |
-| 0x38 | BEATS_MISM|  — |
-| 0x3C |STRAY_BEATS|  — |
-
-### START_ADDR register
-
-- Absolute Address: 0x240
-- Base Offset: 0x0
-- Size: 0x4
-
-<p>32-bit address</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|   addr   |  rw  | 0x0 |  — |
-
-### STRIDE_0 register
-
-- Absolute Address: 0x244
-- Base Offset: 0x4
-- Size: 0x4
-
-<p>Signed address stride, STRIDE_WIDTH=24 (two's complement)</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|23:0|  stride  |  rw  | 0x0 |  — |
-
-### STRIDE_1 register
-
-- Absolute Address: 0x248
-- Base Offset: 0x8
-- Size: 0x4
-
-<p>Signed address stride, STRIDE_WIDTH=24 (two's complement)</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|23:0|  stride  |  rw  | 0x0 |  — |
-
-### WRAP_MASK_0 register
-
-- Absolute Address: 0x24C
-- Base Offset: 0xC
-- Size: 0x4
-
-<p>32-bit address wrap mask</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|   mask   |  rw  | 0x0 |  — |
-
-### WRAP_MASK_1 register
-
-- Absolute Address: 0x250
-- Base Offset: 0x10
-- Size: 0x4
-
-<p>32-bit address wrap mask</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|   mask   |  rw  | 0x0 |  — |
-
-### BLEN_TXN register
-
-- Absolute Address: 0x254
-- Base Offset: 0x14
-- Size: 0x4
-
-<p>Burst length / transaction count / inter-burst gap</p>
-
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-| 7:0 | burst_len|  rw  | 0x0 |  — |
-| 23:8| txn_count|  rw  | 0x0 |  — |
-|27:24|    gap   |  rw  | 0x0 |  — |
-
-### AXI_ATTR register
-
-- Absolute Address: 0x258
-- Base Offset: 0x18
-- Size: 0x4
-
-<p>AXI id / id_mode / size / burst / data_mode / outstanding cap</p>
-
-| Bits|   Identifier  |Access|Reset|Name|
-|-----|---------------|------|-----|----|
-| 7:0 |     axi_id    |  rw  | 0x0 |  — |
-| 9:8 |    id_mode    |  rw  | 0x0 |  — |
-|12:10|    axi_size   |  rw  | 0x0 |  — |
-|14:13|   axi_burst   |  rw  | 0x0 |  — |
-|  15 |   data_mode   |  rw  | 0x0 |  — |
-|21:16|max_outstanding|  rw  | 0x0 |  — |
-
-### LFSR_SEED register
-
-- Absolute Address: 0x25C
-- Base Offset: 0x1C
-- Size: 0x4
-
-<p>32-bit generator seed</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|   seed   |  rw  | 0x0 |  — |
-
-### HASH_SEED0 register
-
-- Absolute Address: 0x260
-- Base Offset: 0x20
-- Size: 0x4
-
-<p>32-bit generator seed</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|   seed   |  rw  | 0x0 |  — |
-
-### HASH_SEED1 register
-
-- Absolute Address: 0x264
-- Base Offset: 0x24
-- Size: 0x4
-
-<p>32-bit generator seed</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|   seed   |  rw  | 0x0 |  — |
-
-### HASH_SEED2 register
-
-- Absolute Address: 0x268
-- Base Offset: 0x28
-- Size: 0x4
-
-<p>32-bit generator seed</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|   seed   |  rw  | 0x0 |  — |
-
-### STATUS register
-
-- Absolute Address: 0x270
-- Base Offset: 0x30
-- Size: 0x4
-
-<p>Per-generator completion and sticky error status</p>
-
-|Bits|   Identifier   |Access|Reset|Name|
-|----|----------------|------|-----|----|
-|  0 |      done      |   r  | 0x0 |  — |
-|  1 |    crc_valid   |   r  | 0x0 |  — |
-|  2 |   data_error   |   r  | 0x0 |  — |
-|  3 |   rresp_error  |   r  | 0x0 |  — |
-|  4 |stray_beat_error|   r  | 0x0 |  — |
-
-### ACTUAL_CRC register
-
-- Absolute Address: 0x274
-- Base Offset: 0x34
-- Size: 0x4
-
-<p>32-bit CRC, computed by the engine</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    crc   |   r  | 0x0 |  — |
-
-### BEATS_MISM register
-
-- Absolute Address: 0x278
-- Base Offset: 0x38
-- Size: 0x4
-
-<p>32-bit event count, computed by the engine</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|   beats  |   r  | 0x0 |  — |
-
-### STRAY_BEATS register
-
-- Absolute Address: 0x27C
-- Base Offset: 0x3C
+- Base Offset: 0x40
 - Size: 0x4
 
 <p>32-bit event count, computed by the engine</p>
@@ -1228,28 +1093,30 @@ Don't override. Generated from: $root
 
 - Absolute Address: 0x280
 - Base Offset: 0x200
-- Size: 0x40
+- Size: 0x44
 - Array Dimensions: [4]
-- Array Stride: 0x40
-- Total Size: 0x100
+- Array Stride: 0x80
+- Total Size: 0x200
 
-|Offset| Identifier|Name|
-|------|-----------|----|
-| 0x00 | START_ADDR|  — |
-| 0x04 |  STRIDE_0 |  — |
-| 0x08 |  STRIDE_1 |  — |
-| 0x0C |WRAP_MASK_0|  — |
-| 0x10 |WRAP_MASK_1|  — |
-| 0x14 |  BLEN_TXN |  — |
-| 0x18 |  AXI_ATTR |  — |
-| 0x1C | LFSR_SEED |  — |
-| 0x20 | HASH_SEED0|  — |
-| 0x24 | HASH_SEED1|  — |
-| 0x28 | HASH_SEED2|  — |
-| 0x30 |   STATUS  |  — |
-| 0x34 | ACTUAL_CRC|  — |
-| 0x38 | BEATS_MISM|  — |
-| 0x3C |STRAY_BEATS|  — |
+|Offset| Identifier |Name|
+|------|------------|----|
+| 0x00 | START_ADDR |  — |
+| 0x04 |  STRIDE_0  |  — |
+| 0x08 |  STRIDE_1  |  — |
+| 0x0C | WRAP_MASK_0|  — |
+| 0x10 | WRAP_MASK_1|  — |
+| 0x14 |  BLEN_TXN  |  — |
+| 0x18 |  AXI_ATTR  |  — |
+| 0x1C |  LFSR_SEED |  — |
+| 0x20 | HASH_SEED0 |  — |
+| 0x24 | HASH_SEED1 |  — |
+| 0x28 | HASH_SEED2 |  — |
+| 0x2C |FILL_PATTERN|  — |
+| 0x30 |   STATUS   |  — |
+| 0x34 | ACTUAL_CRC |  — |
+| 0x38 | BEATS_MISM |  — |
+| 0x3C | STRAY_BEATS|  — |
+| 0x40 |  ERR_BITS  |  — |
 
 ### START_ADDR register
 
@@ -1331,7 +1198,7 @@ Don't override. Generated from: $root
 - Base Offset: 0x18
 - Size: 0x4
 
-<p>AXI id / id_mode / size / burst / data_mode / outstanding cap</p>
+<p>AXI id / id_mode / size / burst / hammer_en / data_mode / outstanding cap</p>
 
 | Bits|   Identifier  |Access|Reset|Name|
 |-----|---------------|------|-----|----|
@@ -1339,8 +1206,9 @@ Don't override. Generated from: $root
 | 9:8 |    id_mode    |  rw  | 0x0 |  — |
 |12:10|    axi_size   |  rw  | 0x0 |  — |
 |14:13|   axi_burst   |  rw  | 0x0 |  — |
-|  15 |   data_mode   |  rw  | 0x0 |  — |
-|21:16|max_outstanding|  rw  | 0x0 |  — |
+|16:15|   data_mode   |  rw  | 0x0 |  — |
+|  17 |   hammer_en   |  rw  | 0x0 |  — |
+|23:18|max_outstanding|  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -1389,6 +1257,18 @@ Don't override. Generated from: $root
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
 |31:0|   seed   |  rw  | 0x0 |  — |
+
+### FILL_PATTERN register
+
+- Absolute Address: 0x2AC
+- Base Offset: 0x2C
+- Size: 0x4
+
+<p>32-bit fill pattern, replicated across the data bus in data_mode=2</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|  pattern |  rw  | 0x0 |  — |
 
 ### STATUS register
 
@@ -1442,36 +1322,50 @@ Don't override. Generated from: $root
 |----|----------|------|-----|----|
 |31:0|   beats  |   r  | 0x0 |  — |
 
-## RD_GEN register file
+### ERR_BITS register
 
 - Absolute Address: 0x2C0
-- Base Offset: 0x200
-- Size: 0x40
-- Array Dimensions: [4]
-- Array Stride: 0x40
-- Total Size: 0x100
+- Base Offset: 0x40
+- Size: 0x4
 
-|Offset| Identifier|Name|
-|------|-----------|----|
-| 0x00 | START_ADDR|  — |
-| 0x04 |  STRIDE_0 |  — |
-| 0x08 |  STRIDE_1 |  — |
-| 0x0C |WRAP_MASK_0|  — |
-| 0x10 |WRAP_MASK_1|  — |
-| 0x14 |  BLEN_TXN |  — |
-| 0x18 |  AXI_ATTR |  — |
-| 0x1C | LFSR_SEED |  — |
-| 0x20 | HASH_SEED0|  — |
-| 0x24 | HASH_SEED1|  — |
-| 0x28 | HASH_SEED2|  — |
-| 0x30 |   STATUS  |  — |
-| 0x34 | ACTUAL_CRC|  — |
-| 0x38 | BEATS_MISM|  — |
-| 0x3C |STRAY_BEATS|  — |
+<p>32-bit event count, computed by the engine</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   beats  |   r  | 0x0 |  — |
+
+## RD_GEN register file
+
+- Absolute Address: 0x300
+- Base Offset: 0x200
+- Size: 0x44
+- Array Dimensions: [4]
+- Array Stride: 0x80
+- Total Size: 0x200
+
+|Offset| Identifier |Name|
+|------|------------|----|
+| 0x00 | START_ADDR |  — |
+| 0x04 |  STRIDE_0  |  — |
+| 0x08 |  STRIDE_1  |  — |
+| 0x0C | WRAP_MASK_0|  — |
+| 0x10 | WRAP_MASK_1|  — |
+| 0x14 |  BLEN_TXN  |  — |
+| 0x18 |  AXI_ATTR  |  — |
+| 0x1C |  LFSR_SEED |  — |
+| 0x20 | HASH_SEED0 |  — |
+| 0x24 | HASH_SEED1 |  — |
+| 0x28 | HASH_SEED2 |  — |
+| 0x2C |FILL_PATTERN|  — |
+| 0x30 |   STATUS   |  — |
+| 0x34 | ACTUAL_CRC |  — |
+| 0x38 | BEATS_MISM |  — |
+| 0x3C | STRAY_BEATS|  — |
+| 0x40 |  ERR_BITS  |  — |
 
 ### START_ADDR register
 
-- Absolute Address: 0x2C0
+- Absolute Address: 0x300
 - Base Offset: 0x0
 - Size: 0x4
 
@@ -1483,7 +1377,7 @@ Don't override. Generated from: $root
 
 ### STRIDE_0 register
 
-- Absolute Address: 0x2C4
+- Absolute Address: 0x304
 - Base Offset: 0x4
 - Size: 0x4
 
@@ -1495,7 +1389,7 @@ Don't override. Generated from: $root
 
 ### STRIDE_1 register
 
-- Absolute Address: 0x2C8
+- Absolute Address: 0x308
 - Base Offset: 0x8
 - Size: 0x4
 
@@ -1507,7 +1401,7 @@ Don't override. Generated from: $root
 
 ### WRAP_MASK_0 register
 
-- Absolute Address: 0x2CC
+- Absolute Address: 0x30C
 - Base Offset: 0xC
 - Size: 0x4
 
@@ -1519,7 +1413,7 @@ Don't override. Generated from: $root
 
 ### WRAP_MASK_1 register
 
-- Absolute Address: 0x2D0
+- Absolute Address: 0x310
 - Base Offset: 0x10
 - Size: 0x4
 
@@ -1531,7 +1425,7 @@ Don't override. Generated from: $root
 
 ### BLEN_TXN register
 
-- Absolute Address: 0x2D4
+- Absolute Address: 0x314
 - Base Offset: 0x14
 - Size: 0x4
 
@@ -1545,11 +1439,11 @@ Don't override. Generated from: $root
 
 ### AXI_ATTR register
 
-- Absolute Address: 0x2D8
+- Absolute Address: 0x318
 - Base Offset: 0x18
 - Size: 0x4
 
-<p>AXI id / id_mode / size / burst / data_mode / outstanding cap</p>
+<p>AXI id / id_mode / size / burst / hammer_en / data_mode / outstanding cap</p>
 
 | Bits|   Identifier  |Access|Reset|Name|
 |-----|---------------|------|-----|----|
@@ -1557,12 +1451,13 @@ Don't override. Generated from: $root
 | 9:8 |    id_mode    |  rw  | 0x0 |  — |
 |12:10|    axi_size   |  rw  | 0x0 |  — |
 |14:13|   axi_burst   |  rw  | 0x0 |  — |
-|  15 |   data_mode   |  rw  | 0x0 |  — |
-|21:16|max_outstanding|  rw  | 0x0 |  — |
+|16:15|   data_mode   |  rw  | 0x0 |  — |
+|  17 |   hammer_en   |  rw  | 0x0 |  — |
+|23:18|max_outstanding|  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
-- Absolute Address: 0x2DC
+- Absolute Address: 0x31C
 - Base Offset: 0x1C
 - Size: 0x4
 
@@ -1574,7 +1469,7 @@ Don't override. Generated from: $root
 
 ### HASH_SEED0 register
 
-- Absolute Address: 0x2E0
+- Absolute Address: 0x320
 - Base Offset: 0x20
 - Size: 0x4
 
@@ -1586,7 +1481,7 @@ Don't override. Generated from: $root
 
 ### HASH_SEED1 register
 
-- Absolute Address: 0x2E4
+- Absolute Address: 0x324
 - Base Offset: 0x24
 - Size: 0x4
 
@@ -1598,7 +1493,7 @@ Don't override. Generated from: $root
 
 ### HASH_SEED2 register
 
-- Absolute Address: 0x2E8
+- Absolute Address: 0x328
 - Base Offset: 0x28
 - Size: 0x4
 
@@ -1608,9 +1503,21 @@ Don't override. Generated from: $root
 |----|----------|------|-----|----|
 |31:0|   seed   |  rw  | 0x0 |  — |
 
+### FILL_PATTERN register
+
+- Absolute Address: 0x32C
+- Base Offset: 0x2C
+- Size: 0x4
+
+<p>32-bit fill pattern, replicated across the data bus in data_mode=2</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|  pattern |  rw  | 0x0 |  — |
+
 ### STATUS register
 
-- Absolute Address: 0x2F0
+- Absolute Address: 0x330
 - Base Offset: 0x30
 - Size: 0x4
 
@@ -1626,7 +1533,7 @@ Don't override. Generated from: $root
 
 ### ACTUAL_CRC register
 
-- Absolute Address: 0x2F4
+- Absolute Address: 0x334
 - Base Offset: 0x34
 - Size: 0x4
 
@@ -1638,7 +1545,7 @@ Don't override. Generated from: $root
 
 ### BEATS_MISM register
 
-- Absolute Address: 0x2F8
+- Absolute Address: 0x338
 - Base Offset: 0x38
 - Size: 0x4
 
@@ -1650,8 +1557,265 @@ Don't override. Generated from: $root
 
 ### STRAY_BEATS register
 
-- Absolute Address: 0x2FC
+- Absolute Address: 0x33C
 - Base Offset: 0x3C
+- Size: 0x4
+
+<p>32-bit event count, computed by the engine</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   beats  |   r  | 0x0 |  — |
+
+### ERR_BITS register
+
+- Absolute Address: 0x340
+- Base Offset: 0x40
+- Size: 0x4
+
+<p>32-bit event count, computed by the engine</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   beats  |   r  | 0x0 |  — |
+
+## RD_GEN register file
+
+- Absolute Address: 0x380
+- Base Offset: 0x200
+- Size: 0x44
+- Array Dimensions: [4]
+- Array Stride: 0x80
+- Total Size: 0x200
+
+|Offset| Identifier |Name|
+|------|------------|----|
+| 0x00 | START_ADDR |  — |
+| 0x04 |  STRIDE_0  |  — |
+| 0x08 |  STRIDE_1  |  — |
+| 0x0C | WRAP_MASK_0|  — |
+| 0x10 | WRAP_MASK_1|  — |
+| 0x14 |  BLEN_TXN  |  — |
+| 0x18 |  AXI_ATTR  |  — |
+| 0x1C |  LFSR_SEED |  — |
+| 0x20 | HASH_SEED0 |  — |
+| 0x24 | HASH_SEED1 |  — |
+| 0x28 | HASH_SEED2 |  — |
+| 0x2C |FILL_PATTERN|  — |
+| 0x30 |   STATUS   |  — |
+| 0x34 | ACTUAL_CRC |  — |
+| 0x38 | BEATS_MISM |  — |
+| 0x3C | STRAY_BEATS|  — |
+| 0x40 |  ERR_BITS  |  — |
+
+### START_ADDR register
+
+- Absolute Address: 0x380
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>32-bit address</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   addr   |  rw  | 0x0 |  — |
+
+### STRIDE_0 register
+
+- Absolute Address: 0x384
+- Base Offset: 0x4
+- Size: 0x4
+
+<p>Signed address stride, STRIDE_WIDTH=24 (two's complement)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|23:0|  stride  |  rw  | 0x0 |  — |
+
+### STRIDE_1 register
+
+- Absolute Address: 0x388
+- Base Offset: 0x8
+- Size: 0x4
+
+<p>Signed address stride, STRIDE_WIDTH=24 (two's complement)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|23:0|  stride  |  rw  | 0x0 |  — |
+
+### WRAP_MASK_0 register
+
+- Absolute Address: 0x38C
+- Base Offset: 0xC
+- Size: 0x4
+
+<p>32-bit address wrap mask</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   mask   |  rw  | 0x0 |  — |
+
+### WRAP_MASK_1 register
+
+- Absolute Address: 0x390
+- Base Offset: 0x10
+- Size: 0x4
+
+<p>32-bit address wrap mask</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   mask   |  rw  | 0x0 |  — |
+
+### BLEN_TXN register
+
+- Absolute Address: 0x394
+- Base Offset: 0x14
+- Size: 0x4
+
+<p>Burst length / transaction count / inter-burst gap</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 7:0 | burst_len|  rw  | 0x0 |  — |
+| 23:8| txn_count|  rw  | 0x0 |  — |
+|27:24|    gap   |  rw  | 0x0 |  — |
+
+### AXI_ATTR register
+
+- Absolute Address: 0x398
+- Base Offset: 0x18
+- Size: 0x4
+
+<p>AXI id / id_mode / size / burst / hammer_en / data_mode / outstanding cap</p>
+
+| Bits|   Identifier  |Access|Reset|Name|
+|-----|---------------|------|-----|----|
+| 7:0 |     axi_id    |  rw  | 0x0 |  — |
+| 9:8 |    id_mode    |  rw  | 0x0 |  — |
+|12:10|    axi_size   |  rw  | 0x0 |  — |
+|14:13|   axi_burst   |  rw  | 0x0 |  — |
+|16:15|   data_mode   |  rw  | 0x0 |  — |
+|  17 |   hammer_en   |  rw  | 0x0 |  — |
+|23:18|max_outstanding|  rw  | 0x0 |  — |
+
+### LFSR_SEED register
+
+- Absolute Address: 0x39C
+- Base Offset: 0x1C
+- Size: 0x4
+
+<p>32-bit generator seed</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   seed   |  rw  | 0x0 |  — |
+
+### HASH_SEED0 register
+
+- Absolute Address: 0x3A0
+- Base Offset: 0x20
+- Size: 0x4
+
+<p>32-bit generator seed</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   seed   |  rw  | 0x0 |  — |
+
+### HASH_SEED1 register
+
+- Absolute Address: 0x3A4
+- Base Offset: 0x24
+- Size: 0x4
+
+<p>32-bit generator seed</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   seed   |  rw  | 0x0 |  — |
+
+### HASH_SEED2 register
+
+- Absolute Address: 0x3A8
+- Base Offset: 0x28
+- Size: 0x4
+
+<p>32-bit generator seed</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   seed   |  rw  | 0x0 |  — |
+
+### FILL_PATTERN register
+
+- Absolute Address: 0x3AC
+- Base Offset: 0x2C
+- Size: 0x4
+
+<p>32-bit fill pattern, replicated across the data bus in data_mode=2</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|  pattern |  rw  | 0x0 |  — |
+
+### STATUS register
+
+- Absolute Address: 0x3B0
+- Base Offset: 0x30
+- Size: 0x4
+
+<p>Per-generator completion and sticky error status</p>
+
+|Bits|   Identifier   |Access|Reset|Name|
+|----|----------------|------|-----|----|
+|  0 |      done      |   r  | 0x0 |  — |
+|  1 |    crc_valid   |   r  | 0x0 |  — |
+|  2 |   data_error   |   r  | 0x0 |  — |
+|  3 |   rresp_error  |   r  | 0x0 |  — |
+|  4 |stray_beat_error|   r  | 0x0 |  — |
+
+### ACTUAL_CRC register
+
+- Absolute Address: 0x3B4
+- Base Offset: 0x34
+- Size: 0x4
+
+<p>32-bit CRC, computed by the engine</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    crc   |   r  | 0x0 |  — |
+
+### BEATS_MISM register
+
+- Absolute Address: 0x3B8
+- Base Offset: 0x38
+- Size: 0x4
+
+<p>32-bit event count, computed by the engine</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   beats  |   r  | 0x0 |  — |
+
+### STRAY_BEATS register
+
+- Absolute Address: 0x3BC
+- Base Offset: 0x3C
+- Size: 0x4
+
+<p>32-bit event count, computed by the engine</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   beats  |   r  | 0x0 |  — |
+
+### ERR_BITS register
+
+- Absolute Address: 0x3C0
+- Base Offset: 0x40
 - Size: 0x4
 
 <p>32-bit event count, computed by the engine</p>

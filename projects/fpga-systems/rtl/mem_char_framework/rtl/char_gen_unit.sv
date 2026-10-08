@@ -160,6 +160,7 @@ module char_gen_unit #(
     output logic [NUM_GEN-1:0]        rd_stray_err_o,
     output logic [31:0]               rd_crc_o [NUM_GEN],
     output logic [TXN_COUNT_WIDTH-1:0] rd_beats_mism_o [NUM_GEN],
+    output logic [31:0]                rd_err_bits_o   [NUM_GEN],
     output logic [TXN_COUNT_WIDTH-1:0] rd_stray_cnt_o  [NUM_GEN],
 
     //---- Reader debug FIFO drain (generator 0 only) ----------------------
@@ -295,6 +296,7 @@ module char_gen_unit #(
     logic [NUM_GEN-1:0] w_rd_done, w_rd_crc_valid, w_rd_data_err;
     logic [NUM_GEN-1:0] w_rd_rresp_err, w_rd_stray_err;
     logic [TXN_COUNT_WIDTH-1:0] w_rd_beats_mism [NUM_GEN];
+    logic [31:0]                w_rd_err_bits   [NUM_GEN];
     logic [TXN_COUNT_WIDTH-1:0] w_rd_stray_cnt  [NUM_GEN];
     logic [31:0]                w_wr_crc        [NUM_GEN];
     logic [31:0]                w_rd_crc        [NUM_GEN];
@@ -313,6 +315,7 @@ module char_gen_unit #(
         assign wr_crc_o[g]       = w_wr_crc[g];
         assign rd_crc_o[g]       = w_rd_crc[g];
         assign rd_beats_mism_o[g] = w_rd_beats_mism[g];
+        assign rd_err_bits_o[g]   = w_rd_err_bits[g];
         assign rd_stray_cnt_o[g]  = w_rd_stray_cnt[g];
     end
     endgenerate
@@ -372,8 +375,10 @@ module char_gen_unit #(
             .cfg_id_mode          (cfg_i.WR_GEN[g].AXI_ATTR.id_mode.value),
             .cfg_axi_size         (cfg_i.WR_GEN[g].AXI_ATTR.axi_size.value),
             .cfg_axi_burst        (cfg_i.WR_GEN[g].AXI_ATTR.axi_burst.value),
+            .cfg_hammer_en        (cfg_i.WR_GEN[g].AXI_ATTR.hammer_en.value),
             .cfg_lfsr_seed        (cfg_i.WR_GEN[g].LFSR_SEED.seed.value),
             .cfg_data_mode        (cfg_i.WR_GEN[g].AXI_ATTR.data_mode.value),
+            .cfg_fill_pattern     (cfg_i.WR_GEN[g].FILL_PATTERN.pattern.value),
             .cfg_hash_seed0       (cfg_i.WR_GEN[g].HASH_SEED0.seed.value),
             .cfg_hash_seed1       (cfg_i.WR_GEN[g].HASH_SEED1.seed.value),
             .cfg_hash_seed2       (cfg_i.WR_GEN[g].HASH_SEED2.seed.value),
@@ -443,8 +448,10 @@ module char_gen_unit #(
             .cfg_id_mode          (cfg_i.RD_GEN[g].AXI_ATTR.id_mode.value),
             .cfg_axi_size         (cfg_i.RD_GEN[g].AXI_ATTR.axi_size.value),
             .cfg_axi_burst        (cfg_i.RD_GEN[g].AXI_ATTR.axi_burst.value),
+            .cfg_hammer_en        (cfg_i.RD_GEN[g].AXI_ATTR.hammer_en.value),
             .cfg_lfsr_seed        (cfg_i.RD_GEN[g].LFSR_SEED.seed.value),
             .cfg_data_mode        (cfg_i.RD_GEN[g].AXI_ATTR.data_mode.value),
+            .cfg_fill_pattern     (cfg_i.RD_GEN[g].FILL_PATTERN.pattern.value),
             .cfg_hash_seed0       (cfg_i.RD_GEN[g].HASH_SEED0.seed.value),
             .cfg_hash_seed1       (cfg_i.RD_GEN[g].HASH_SEED1.seed.value),
             .cfg_hash_seed2       (cfg_i.RD_GEN[g].HASH_SEED2.seed.value),
@@ -459,6 +466,7 @@ module char_gen_unit #(
             .o_stray_beat_error   (w_rd_stray_err[g]),
             .o_stray_beats        (w_rd_stray_cnt[g]),
             .o_beats_mismatched   (w_rd_beats_mism[g]),
+            .o_err_bits           (w_rd_err_bits[g]),
             .m_axi_arid           (gr_arid[g]),
             .m_axi_araddr         (gr_araddr[g]),
             .m_axi_arlen          (gr_arlen[g]),

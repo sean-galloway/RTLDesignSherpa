@@ -175,12 +175,23 @@ module axi4_master_rd_crc_check #(
 
     input  logic [LFSR_WIDTH-1:0]               cfg_lfsr_seed,    // 0 → use param
 
+    // Rowhammer / aggressor-pair mode: when 1, the index fed to
+    // dma_address_gen is the LSB of the transaction counter, so AR/R
+    // addresses alternate base, base+stride_0 per transaction. stride_0
+    // is reused as the aggressor-pair offset; no new stride port is
+    // added. Both AR and R addr-gens see the same hammer index so the
+    // two paths stay in lockstep.
+    input  logic                                cfg_hammer_en,
+
     // Data source select: 0 = phase-counter LFSR; 1 = address-derived
-    // hash. In hash mode each beat's expected data is a pure function
-    // of its byte address, so multi-id / OOO completion still validates
-    // (the per-beat compare looks up f(addr) not the LFSR phase). MUST
-    // match the writer's cfg_data_mode + seeds for cross-block validity.
-    input  logic                                cfg_data_mode,
+    // hash; 2 = fill_pattern replicated across the data bus. In hash
+    // mode each beat's expected data is a pure function of its byte
+    // address, so multi-id / OOO completion still validates (the per-beat
+    // compare looks up f(addr) not the LFSR phase). FILL mode compares
+    // against cfg_fill_pattern replicated across the bus. MUST match the
+    // writer's cfg_data_mode + seeds / fill_pattern for cross-block validity.
+    input  logic [1:0]                          cfg_data_mode,
+    input  logic [31:0]                         cfg_fill_pattern,
     input  logic [31:0]                         cfg_hash_seed0,
     input  logic [31:0]                         cfg_hash_seed1,
     input  logic [31:0]                         cfg_hash_seed2,
@@ -214,6 +225,7 @@ module axi4_master_rd_crc_check #(
     output logic                                o_data_error,        // sticky on R beat mismatch
     output logic                                o_rresp_error,       // sticky on non-OKAY R beat
     output logic [TXN_COUNT_WIDTH-1:0]          o_beats_mismatched,  // count of mismatching R beats
+    output logic [31:0]                         o_err_bits,          // accumulated popcount of mismatch bits
     // 1:1 accounting: TOO MANY beats is as much an error as too few. A stray /
     // late / duplicate R beat arriving while the engine is not consuming
     // (IDLE / DONE / GAP, or RUN with no burst outstanding) is DRAINED here
@@ -314,7 +326,9 @@ module axi4_master_rd_crc_check #(
     logic [2:0]                   r_axi_size;
     logic [1:0]                   r_axi_burst;
     logic [LFSR_WIDTH-1:0]        r_lfsr_seed_eff;
-    logic                         r_data_mode;
+    logic                         r_hammer_en;       // rowhammer address mode
+    logic [1:0]                   r_data_mode;       // 0=LFSR, 1=ADDR_HASH, 2=FILL
+    logic [31:0]                  r_fill_pattern;
     logic [31:0]                  r_hash_seed0;
     logic [31:0]                  r_hash_seed1;
     logic [31:0]                  r_hash_seed2;
@@ -333,7 +347,20 @@ module axi4_master_rd_crc_check #(
     // dma_address_gen — two independent instances walking the same
     // descriptor. AR path uses u_addr_gen_ar; R path (for hash-mode
     // expected data regen) uses u_addr_gen_r.
+    //
+    // In hammer mode the index is the LSB of the transaction counter so
+    // addresses alternate base / base+stride_0 per transaction. The mux
+    // is applied identically to AR and R to keep the two paths in
+    // lockstep.
     //==========================================================================
+    logic [INDEX_WIDTH-1:0]       w_ar_addr_index;
+    logic [INDEX_WIDTH-1:0]       w_r_addr_index;
+
+    assign w_ar_addr_index = r_hammer_en ? INDEX_WIDTH'(r_ar_req_count[0])
+                                         : INDEX_WIDTH'(r_ar_req_count);
+    assign w_r_addr_index  = r_hammer_en ? INDEX_WIDTH'(r_r_req_count[0])
+                                         : INDEX_WIDTH'(r_r_req_count);
+
     logic                         w_ar_addr_req_valid;
     logic                         w_ar_addr_req_ready;
     logic                         w_ar_addr_result_valid;
@@ -363,7 +390,7 @@ module axi4_master_rd_crc_check #(
 
         .i_req_valid       (w_ar_addr_req_valid),
         .o_req_ready       (w_ar_addr_req_ready),
-        .i_req_index_0     (INDEX_WIDTH'(r_ar_req_count)),
+        .i_req_index_0     (w_ar_addr_index),
         .i_req_index_1     (INDEX_WIDTH'(0)),
         .i_req_tag         (8'd0),
 
@@ -390,7 +417,7 @@ module axi4_master_rd_crc_check #(
 
         .i_req_valid       (w_r_addr_req_valid),
         .o_req_ready       (w_r_addr_req_ready),
-        .i_req_index_0     (INDEX_WIDTH'(r_r_req_count)),
+        .i_req_index_0     (w_r_addr_index),
         .i_req_index_1     (INDEX_WIDTH'(0)),
         .i_req_tag         (8'd0),
 
@@ -540,13 +567,17 @@ module axi4_master_rd_crc_check #(
     assign fub_rready    = w_r_consuming || w_stray_beat;
 
     //==========================================================================
-    // Expected pattern data — two sources, muxed by r_data_mode:
+    // Expected pattern data — three sources, muxed by r_data_mode:
     //   mode 0: 32-bit Fibonacci LFSR replicated across DW (phase-counter)
     //   mode 1: 32-bit Murmur3-fmix-style address hash, per-32-bit slice
+    //   mode 2: cfg_fill_pattern replicated across DW
     //==========================================================================
     localparam int REPLICATION_FACTOR = (DW + 31) / 32;
     logic [REPLICATION_FACTOR*32-1:0] w_expected_replicated;
     assign w_expected_replicated = {REPLICATION_FACTOR{w_lfsr_out}};
+
+    logic [REPLICATION_FACTOR*32-1:0] w_fill_replicated;
+    assign w_fill_replicated = {REPLICATION_FACTOR{r_fill_pattern}};
 
     // Per-beat byte address for hash mode. Anchored on w_r_addr_result
     // (current burst's base from the R addr-gen).
@@ -603,12 +634,25 @@ module axi4_master_rd_crc_check #(
     end
 
     logic [DW-1:0] w_cp_expected;
-    assign w_cp_expected = r_data_mode ? w_hash_expected
-                                       : w_expected_replicated[DW-1:0];
+    always_comb begin
+        unique case (r_data_mode)
+            2'd0:    w_cp_expected = w_expected_replicated[DW-1:0];
+            2'd1:    w_cp_expected = w_hash_expected;
+            2'd2:    w_cp_expected = w_fill_replicated[DW-1:0];
+            default: w_cp_expected = w_expected_replicated[DW-1:0];
+        endcase
+    end
 
     // Per-beat data mismatch, at the beat itself.
     logic w_cp_mismatch;
     assign w_cp_mismatch = w_r_beat && (fub_rdata != w_cp_expected);
+
+    // Per-beat bit-flip popcount, accumulated over the run and saturated
+    // at all-ones. This quantifies rowhammer-induced bit flips without
+    // disturbing the existing beat-level mismatch count.
+    logic [31:0] w_beat_err_bits;
+    assign w_beat_err_bits = w_r_beat ? 32'($countones(fub_rdata ^ w_cp_expected))
+                                      : 32'd0;
 
     //==========================================================================
     // Sequential FSM + counters + sticky errors
@@ -628,7 +672,9 @@ module axi4_master_rd_crc_check #(
             r_axi_size         <= 3'd0;
             r_axi_burst        <= 2'd1;
             r_lfsr_seed_eff    <= LFSR_SEED;
-            r_data_mode        <= 1'b0;
+            r_hammer_en        <= 1'b0;
+            r_data_mode        <= 2'b00;
+            r_fill_pattern     <= 32'd0;
             r_hash_seed0       <= 32'd0;
             r_hash_seed1       <= 32'd0;
             r_hash_seed2       <= 32'd0;
@@ -644,6 +690,7 @@ module axi4_master_rd_crc_check #(
             o_data_error       <= 1'b0;
             o_rresp_error      <= 1'b0;
             o_beats_mismatched <= '0;
+            o_err_bits         <= '0;
             o_stray_beat_error <= 1'b0;
             o_stray_beats      <= '0;
         end else begin
@@ -666,7 +713,9 @@ module axi4_master_rd_crc_check #(
                         r_axi_size      <= cfg_axi_size;
                         r_axi_burst     <= cfg_axi_burst;
                         r_lfsr_seed_eff <= (cfg_lfsr_seed == '0) ? LFSR_SEED : cfg_lfsr_seed;
+                        r_hammer_en     <= cfg_hammer_en;
                         r_data_mode     <= cfg_data_mode;
+                        r_fill_pattern  <= cfg_fill_pattern;
                         r_hash_seed0    <= cfg_hash_seed0;
                         r_hash_seed1    <= cfg_hash_seed1;
                         r_hash_seed2    <= cfg_hash_seed2;
@@ -683,6 +732,7 @@ module axi4_master_rd_crc_check #(
                         o_data_error       <= 1'b0;
                         o_rresp_error      <= 1'b0;
                         o_beats_mismatched <= '0;
+                        o_err_bits         <= '0;
                         o_stray_beat_error <= 1'b0;
                         o_stray_beats      <= '0;
                         r_state         <= (cfg_txn_count == '0) ? S_DONE : S_RUN;
@@ -710,7 +760,7 @@ module axi4_master_rd_crc_check #(
                             r_bursts_done    <= r_bursts_done + 1'b1;
                             if (r_bursts_done + 1'b1 == r_txn_count) begin
                                 r_state            <= S_DONE;
-                                o_actual_crc_valid <= !r_data_mode;
+                                o_actual_crc_valid <= (r_data_mode == 2'd0);
                             end else if (r_rd_gap != 4'd0) begin
                                 r_state    <= S_GAP;
                                 r_gap_left <= r_rd_gap;
@@ -744,7 +794,9 @@ module axi4_master_rd_crc_check #(
                         r_axi_size      <= cfg_axi_size;
                         r_axi_burst     <= cfg_axi_burst;
                         r_lfsr_seed_eff <= (cfg_lfsr_seed == '0) ? LFSR_SEED : cfg_lfsr_seed;
+                        r_hammer_en     <= cfg_hammer_en;
                         r_data_mode     <= cfg_data_mode;
+                        r_fill_pattern  <= cfg_fill_pattern;
                         r_hash_seed0    <= cfg_hash_seed0;
                         r_hash_seed1    <= cfg_hash_seed1;
                         r_hash_seed2    <= cfg_hash_seed2;
@@ -761,6 +813,7 @@ module axi4_master_rd_crc_check #(
                         o_data_error       <= 1'b0;
                         o_rresp_error      <= 1'b0;
                         o_beats_mismatched <= '0;
+                        o_err_bits         <= '0;
                         r_state            <= (cfg_txn_count == '0) ? S_DONE : S_RUN;
                     end
                 end
@@ -772,6 +825,11 @@ module axi4_master_rd_crc_check #(
             if (w_cp_mismatch) begin
                 o_data_error       <= 1'b1;
                 o_beats_mismatched <= o_beats_mismatched + 1'b1;
+            end
+            if (w_r_beat) begin
+                logic [32:0] w_err_sum;
+                w_err_sum = {1'b0, o_err_bits} + {1'b0, w_beat_err_bits};
+                o_err_bits <= w_err_sum[32] ? '1 : w_err_sum[31:0];
             end
             if (w_r_beat && fub_rresp != 2'b00) begin
                 o_rresp_error <= 1'b1;

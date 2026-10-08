@@ -61,7 +61,7 @@
 //
 // Address space: 4 KB APB window (12-bit PADDR), matching the bridge slot.
 //   0x000..0x0FF   WR_GEN[0..3]   0x40 stride (0x100..0x1FF reserved for 4..7)
-//   0x200..0x2FF   RD_GEN[0..3]   0x40 stride (0x300..0x3FF reserved for 4..7)
+//   0x200..0x3FF   RD_GEN[0..3]   0x80 stride (no reserved space at NUM_GEN=4)
 //   0x400..        global launch / status / identity
 //=============================================================================
 
@@ -98,6 +98,8 @@ addrmap chargen_regs {
         field { sw = rw; hw = r; } mask[31:0]  = 0; };
     reg seed_t {  desc = "32-bit generator seed";
         field { sw = rw; hw = r; } seed[31:0]  = 0; };
+    reg fill_t {  desc = "32-bit fill pattern, replicated across the data bus in data_mode=2";
+        field { sw = rw; hw = r; } pattern[31:0] = 0; };
     reg crc_t {   desc = "32-bit CRC, computed by the engine";
         field { sw = r;  hw = w; } crc[31:0]   = 0; };
     reg count_t { desc = "32-bit event count, computed by the engine";
@@ -124,12 +126,21 @@ addrmap chargen_regs {
     };
 
     reg axi_attr_t {
-        desc = "AXI id / id_mode / size / burst / data_mode / outstanding cap";
-        field { sw = rw; hw = r; } axi_id[7:0]     = 0;
-        field { sw = rw; hw = r; } id_mode[9:8]    = 0;
-        field { sw = rw; hw = r; } axi_size[12:10] = 0;
-        field { sw = rw; hw = r; } axi_burst[14:13]= 0;
-        field { sw = rw; hw = r; } data_mode[15:15]= 0;
+        desc = "AXI id / id_mode / size / burst / hammer_en / data_mode / outstanding cap";
+        field { sw = rw; hw = r; } axi_id[7:0]      = 0;
+        field { sw = rw; hw = r; } id_mode[9:8]     = 0;
+        field { sw = rw; hw = r; } axi_size[12:10]  = 0;
+        field { sw = rw; hw = r; } axi_burst[14:13] = 0;
+        // Data source: 0 = LFSR phase counter, 1 = address-derived hash,
+        // 2 = FILL_PATTERN replicated across the data bus. Widened from one
+        // bit at [15] to two bits at [16:15] so everything below bit 15 is
+        // unchanged; bit 14 is already occupied by axi_burst.
+        field { sw = rw; hw = r; } data_mode[16:15] = 0;
+        // Rowhammer / aggressor-pair mode: the address-generator index becomes
+        // the LSB of the transaction counter, so addresses alternate
+        // base / base+stride_0 per transaction. stride_0 is reused as the
+        // aggressor-pair offset.
+        field { sw = rw; hw = r; } hammer_en[17:17] = 0;
         // Active cap on bursts in flight for THIS generator, 1..GEN_MAX_
         // OUTSTANDING. 0 = as built, which is also the reset value, so a host
         // that never writes this field gets the pre-existing behaviour.
@@ -140,7 +151,7 @@ addrmap chargen_regs {
         // above the built ceiling saturate at it in RTL rather than wrapping.
         // Six bits, so a 32-deep build is reachable and 33..63 still clamp
         // visibly instead of aliasing to a small number.
-        field { sw = rw; hw = r; } max_outstanding[21:16] = 0;
+        field { sw = rw; hw = r; } max_outstanding[23:18] = 0;
     };
 
     //=========================================================================
@@ -162,6 +173,7 @@ addrmap chargen_regs {
         seed_t     HASH_SEED0   @ 0x20;
         seed_t     HASH_SEED1   @ 0x24;
         seed_t     HASH_SEED2   @ 0x28;
+        fill_t     FILL_PATTERN @ 0x2C;
 
         reg {
             desc = "Per-generator completion and sticky error status";
@@ -195,6 +207,7 @@ addrmap chargen_regs {
         seed_t     HASH_SEED0   @ 0x20;
         seed_t     HASH_SEED1   @ 0x24;
         seed_t     HASH_SEED2   @ 0x28;
+        fill_t     FILL_PATTERN @ 0x2C;
 
         reg {
             desc = "Per-generator completion and sticky error status";
@@ -212,6 +225,11 @@ addrmap chargen_regs {
         // sticky bit cannot tell them apart.
         count_t    BEATS_MISM   @ 0x38;
         count_t    STRAY_BEATS  @ 0x3C;
+
+        // Accumulated popcount of mismatched bits across the run, saturated at
+        // all-ones. Quantifies rowhammer-induced bit flips without disturbing
+        // the beat-level mismatch count.
+        count_t    ERR_BITS     @ 0x40;
     };
 
     //=========================================================================
@@ -223,7 +241,7 @@ addrmap chargen_regs {
     // something other than bank concurrency, so the host asserts the mapping.
     //=========================================================================
     wr_gen_t WR_GEN[4] @ 0x000 += 0x40;
-    rd_gen_t RD_GEN[4] @ 0x200 += 0x40;
+    rd_gen_t RD_GEN[4] @ 0x200 += 0x80;
 
     //=========================================================================
     // Global launch and roll-up (0x400..)

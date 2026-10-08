@@ -52,6 +52,8 @@ async def cocotb_test_axi4_master_wr_pattern_gen(dut):
         "awvalid_no_drop":   _awvalid_no_drop,
         "id_mode_counter":   _id_mode_counter,
         "id_mode_lfsr":      _id_mode_lfsr,
+        "hammer_mode":       _hammer_mode,
+        "fill_mode":         _fill_mode,
         "kb4":               _kb4,
         "kb32":              _kb32,
         "outstanding_dial":  _outstanding_dial,
@@ -403,6 +405,61 @@ async def _hash_mode_data(tb: WrPatternGenTB):
     assert int(tb.dut.o_expected_crc_valid.value) == 0
 
 
+async def _hammer_mode(tb: WrPatternGenTB):
+    """cfg_hammer_en=1: the transaction counter's LSB drives the address
+    generator index, so AW addresses alternate base / base+stride_0. The
+    W path uses the same hammer index and stays in lockstep, so the W
+    beat sequence matches the expected LFSR order."""
+    BASE = 0x1000
+    STRIDE = 0x1000
+    BURST = 1
+    for N in (4, 5):
+        tb.aw_log.clear()
+        tb.w_log.clear()
+        await tb.program(start_addr=BASE, stride_0=STRIDE, burst_len=BURST,
+                         txn_count=N, hammer_en=1)
+        await tb.pulse_start()
+        await tb.wait_done()
+        assert len(tb.aw_log) == N, f"N={N}: AWs got {len(tb.aw_log)}"
+        assert len(tb.w_log) == N * BURST, (
+            f"N={N}: W beats got {len(tb.w_log)} want {N * BURST}"
+        )
+        for i, aw in enumerate(tb.aw_log):
+            expected_addr = BASE + (i & 1) * STRIDE
+            assert aw.addr == expected_addr, (
+                f"N={N} AW[{i}].addr = 0x{aw.addr:X} "
+                f"want 0x{expected_addr:X}"
+            )
+        expected = tb.expected_data_words(N * BURST)
+        for k, (w, e) in enumerate(zip(tb.w_log, expected)):
+            assert w.data == e, (
+                f"N={N} W beat {k}: data 0x{w.data:016X} want 0x{e:016X}"
+            )
+        assert int(tb.dut.o_expected_crc_valid.value) == 1
+
+
+async def _fill_mode(tb: WrPatternGenTB):
+    """data_mode=2: every W beat is cfg_fill_pattern replicated across the
+    data bus. o_expected_crc_valid stays low because the CRC pipeline is
+    only meaningful for the LFSR stream."""
+    BURST = 4
+    N = 3
+    PAT = 0xA5A5A5A5
+    BYTES_PER_BEAT = tb.AXI_DATA_WIDTH // 8
+    await tb.program(start_addr=0x200, stride_0=BURST * BYTES_PER_BEAT,
+                     burst_len=BURST, txn_count=N, data_mode=2,
+                     fill_pattern=PAT)
+    await tb.pulse_start()
+    await tb.wait_done()
+    assert len(tb.w_log) == N * BURST
+    expected = tb.expected_fill_beat_data(PAT)
+    for k, w in enumerate(tb.w_log):
+        assert w.data == expected, (
+            f"W beat {k}: data 0x{w.data:016X} want 0x{expected:016X}"
+        )
+    assert int(tb.dut.o_expected_crc_valid.value) == 0
+
+
 async def _kb4(tb: WrPatternGenTB):
     """4 KiB engine write — 128 bursts × 4 beats × 8 bytes from BASE=0.
 
@@ -542,7 +599,8 @@ _ALL_TYPES = ["smoke", "multi_burst", "address_walk",
               "bresp_error_sticky", "rerun_after_done",
               "wr_gap_inserts_idle", "hash_mode_data",
               "awvalid_no_drop", "id_mode_counter",
-              "id_mode_lfsr", "kb4", "kb32", "outstanding_dial"]
+              "id_mode_lfsr", "hammer_mode", "fill_mode",
+              "kb4", "kb32", "outstanding_dial"]
 _GATE = ["smoke", "multi_burst", "address_walk"]
 _FUNC = list(_ALL_TYPES)
 _FULL = list(_ALL_TYPES)

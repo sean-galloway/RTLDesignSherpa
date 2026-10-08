@@ -49,7 +49,9 @@ async def _setup(dut):
     dut.cfg_axi_size.value         = 3
     dut.cfg_axi_burst.value        = 1
     dut.cfg_lfsr_seed.value        = 0
+    dut.cfg_hammer_en.value        = 0
     dut.cfg_data_mode.value        = 0
+    dut.cfg_fill_pattern.value     = 0
     dut.cfg_hash_seed0.value       = 0
     dut.cfg_hash_seed1.value       = 0
     dut.cfg_hash_seed2.value       = 0
@@ -73,7 +75,9 @@ async def _program(dut, *, start_addr: int, stride_0: int = 0,
                    burst_len: int = 4, txn_count: int = 4,
                    axi_id: int = 0, lfsr_seed: int = 0,
                    wr_gap: int = 0, rd_gap: int = 0,
+                   hammer_en: int = 0,
                    data_mode: int = 0,
+                   fill_pattern: int = 0,
                    hash_seed0: int = 0,
                    hash_seed1: int = 0,
                    hash_seed2: int = 0,
@@ -86,7 +90,9 @@ async def _program(dut, *, start_addr: int, stride_0: int = 0,
     dut.cfg_axi_id.value           = axi_id
     dut.cfg_id_mode.value          = id_mode & 0x3
     dut.cfg_lfsr_seed.value        = lfsr_seed
-    dut.cfg_data_mode.value        = data_mode & 0x1
+    dut.cfg_hammer_en.value        = hammer_en & 0x1
+    dut.cfg_data_mode.value        = data_mode & 0x3
+    dut.cfg_fill_pattern.value     = fill_pattern & 0xFFFFFFFF
     dut.cfg_hash_seed0.value       = hash_seed0 & 0xFFFFFFFF
     dut.cfg_hash_seed1.value       = hash_seed1 & 0xFFFFFFFF
     dut.cfg_hash_seed2.value       = hash_seed2 & 0xFFFFFFFF
@@ -161,6 +167,8 @@ async def cocotb_test_pair(dut):
         "hash_mode":     _hash_mode,
         "hash_mode_low_entropy": _hash_mode_low_entropy_pair,
         "hash_mode_id_counter":  _hash_mode_id_counter,
+        "hammer_mode":   _hammer_mode,
+        "fill_mode":     _fill_mode,
         "kb4":           _kb4,
         "kb32":          _kb32,
     }
@@ -312,6 +320,40 @@ async def _hash_mode_id_counter(dut):
     await _check_clean_hash(dut)
 
 
+async def _hammer_mode(dut):
+    """End-to-end in rowhammer / aggressor-pair mode. Both engines see
+    cfg_hammer_en, so AW/AR addresses alternate base/base+stride_0. The
+    data must be address-derived (hash mode) so the same aggressor
+    address always compares clean regardless of beat order."""
+    SEEDS = (0x9E3779B9, 0x85EBCA6B, 0xC2B2AE35)
+    BURST = 1
+    N = 5
+    await _program(dut, start_addr=0x1000, stride_0=0x1000,
+                   burst_len=BURST, txn_count=N,
+                   data_mode=1, hammer_en=1,
+                   hash_seed0=SEEDS[0], hash_seed1=SEEDS[1],
+                   hash_seed2=SEEDS[2])
+    await _pulse_wr(dut); await _wait_wr_done(dut)
+    await _pulse_rd(dut); await _wait_rd_done(dut)
+    await _check_clean_hash(dut)
+
+
+async def _fill_mode(dut):
+    """End-to-end in FILL mode: writer replicates cfg_fill_pattern on
+    every beat; reader expects the same replicated pattern. The CRC
+    pipeline is not the contract here, so the hash-mode clean check
+    (CRC valid low + per-beat compare clean) is reused."""
+    BURST = 4
+    N = 3
+    PAT = 0xDEADBEEF
+    await _program(dut, start_addr=0x700, stride_0=BURST * 8,
+                   burst_len=BURST, txn_count=N,
+                   data_mode=2, fill_pattern=PAT)
+    await _pulse_wr(dut); await _wait_wr_done(dut)
+    await _pulse_rd(dut); await _wait_rd_done(dut)
+    await _check_clean_hash(dut)
+
+
 async def _kb32(dut):
     """32 KiB engine-only round-trip: 1024 bursts × 4 beats × 8 bytes.
     Mirrors the NexysA7 kb32 workload (the failing one) but bypasses
@@ -374,7 +416,8 @@ async def _rerun(dut):
 
 _ALL_TYPES = ["smoke", "row_walk", "seed_override", "rerun", "gapped",
               "hash_mode", "hash_mode_low_entropy",
-              "hash_mode_id_counter", "kb4", "kb32"]
+              "hash_mode_id_counter", "hammer_mode", "fill_mode",
+              "kb4", "kb32"]
 _GATE = [(t,) for t in ["smoke", "row_walk"]]
 _FUNC = [(t,) for t in _ALL_TYPES]
 _FULL = _FUNC

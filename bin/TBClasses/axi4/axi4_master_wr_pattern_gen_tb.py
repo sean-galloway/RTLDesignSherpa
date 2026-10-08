@@ -209,7 +209,9 @@ class WrPatternGenTB(TBBase):
         self.dut.cfg_axi_size.value         = 3
         self.dut.cfg_axi_burst.value        = 1  # INCR
         self.dut.cfg_lfsr_seed.value        = 0
+        self.dut.cfg_hammer_en.value        = 0
         self.dut.cfg_data_mode.value        = 0
+        self.dut.cfg_fill_pattern.value     = 0
         self.dut.cfg_hash_seed0.value       = 0
         self.dut.cfg_hash_seed1.value       = 0
         self.dut.cfg_hash_seed2.value       = 0
@@ -246,7 +248,9 @@ class WrPatternGenTB(TBBase):
                       txn_count: int = 1, axi_id: int = 0,
                       axi_size: int = 3, axi_burst: int = 1,
                       lfsr_seed: int = 0, wr_gap: int = 0,
+                      hammer_en: int = 0,
                       data_mode: int = 0,
+                      fill_pattern: int = 0,
                       hash_seed0: int = 0,
                       hash_seed1: int = 0,
                       hash_seed2: int = 0,
@@ -264,7 +268,9 @@ class WrPatternGenTB(TBBase):
         self.dut.cfg_axi_size.value         = axi_size
         self.dut.cfg_axi_burst.value        = axi_burst
         self.dut.cfg_lfsr_seed.value        = lfsr_seed
-        self.dut.cfg_data_mode.value        = data_mode & 0x1
+        self.dut.cfg_hammer_en.value        = hammer_en & 0x1
+        self.dut.cfg_data_mode.value        = data_mode & 0x3
+        self.dut.cfg_fill_pattern.value     = fill_pattern & 0xFFFFFFFF
         self.dut.cfg_hash_seed0.value       = hash_seed0 & 0xFFFFFFFF
         self.dut.cfg_hash_seed1.value       = hash_seed1 & 0xFFFFFFFF
         self.dut.cfg_hash_seed2.value       = hash_seed2 & 0xFFFFFFFF
@@ -273,7 +279,7 @@ class WrPatternGenTB(TBBase):
         # Stash for the post-run CRC cross-check in wait_done()
         self._last_total_beats = burst_len * txn_count
         self._last_lfsr_seed = lfsr_seed
-        self._last_data_mode = data_mode & 0x1
+        self._last_data_mode = data_mode & 0x3
         await RisingEdge(self.dut.aclk)
         await Timer(_NBA_SETTLE_PS, units="ps")
 
@@ -406,4 +412,14 @@ class WrPatternGenTB(TBBase):
             slice_addr = (byte_addr + s * 4) & 0xFFFFFFFF
             slice_word = WrPatternGenTB.addr_hash32(slice_addr, s0, s1, s2)
             full |= slice_word << (s * 32)
+        return full & self.MASK_DATA
+
+    def expected_fill_beat_data(self, fill_pattern: int) -> int:
+        """One beat's expected data = fill_pattern replicated across the
+        data bus (data_mode=2)."""
+        rep = (self.AXI_DATA_WIDTH + 31) // 32
+        full = 0
+        w = fill_pattern & 0xFFFFFFFF
+        for s in range(rep):
+            full |= w << (s * 32)
         return full & self.MASK_DATA

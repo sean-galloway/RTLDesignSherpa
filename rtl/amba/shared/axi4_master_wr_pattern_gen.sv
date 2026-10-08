@@ -158,14 +158,24 @@ module axi4_master_wr_pattern_gen #(
     // Lets the CSR re-seed without recompile.
     input  logic [LFSR_WIDTH-1:0]               cfg_lfsr_seed,
 
+    // Rowhammer / aggressor-pair mode: when 1, the index fed to
+    // dma_address_gen is the LSB of the transaction counter, so AW/W
+    // addresses alternate base, base+stride_0 per transaction. stride_0
+    // is reused as the aggressor-pair offset; no new stride port is
+    // added. Both AW and W addr-gens see the same hammer index so the
+    // two channels stay in lockstep.
+    input  logic                                cfg_hammer_en,
+
     // Data source select: 0 = phase-counter LFSR (default, OOO-unsafe);
-    // 1 = address-derived hash (OOO-safe, data is f(beat_byte_addr)).
+    // 1 = address-derived hash (OOO-safe, data is f(beat_byte_addr));
+    // 2 = fill_pattern replicated across the data bus.
     // Hash mode lets multi-id / OOO-completion traffic still validate
     // because each beat's expected data is a pure function of its
     // address — no phase counter to get out of sync. The 3 seeds drive
     // a Murmur3-fmix-style mixer (xor-shift + odd mul) so all-zero or
     // all-one input addresses don't collapse to stuck output patterns.
-    input  logic                                cfg_data_mode,
+    input  logic [1:0]                          cfg_data_mode,
+    input  logic [31:0]                         cfg_fill_pattern,
     input  logic [31:0]                         cfg_hash_seed0,
     input  logic [31:0]                         cfg_hash_seed1,
     input  logic [31:0]                         cfg_hash_seed2,
@@ -287,7 +297,9 @@ module axi4_master_wr_pattern_gen #(
     logic [2:0]                   r_axi_size;
     logic [1:0]                   r_axi_burst;
     logic [LFSR_WIDTH-1:0]        r_lfsr_seed_eff;
-    logic                         r_data_mode;       // 0=LFSR, 1=ADDR_HASH
+    logic                         r_hammer_en;       // rowhammer address mode
+    logic [1:0]                   r_data_mode;       // 0=LFSR, 1=ADDR_HASH, 2=FILL
+    logic [31:0]                  r_fill_pattern;
     logic [31:0]                  r_hash_seed0;
     logic [31:0]                  r_hash_seed1;
     logic [31:0]                  r_hash_seed2;
@@ -309,7 +321,20 @@ module axi4_master_wr_pattern_gen #(
     // dma_address_gen — two independent instances walking the same
     // descriptor. AW path uses u_addr_gen_aw; W path uses u_addr_gen_w.
     // Same cfg + same indices => same address sequence in both.
+    //
+    // In hammer mode the index is the LSB of the transaction counter so
+    // addresses alternate base / base+stride_0 per transaction. The mux
+    // is applied identically to AW and W to keep the two channels in
+    // lockstep.
     //==========================================================================
+    logic [INDEX_WIDTH-1:0]       w_aw_addr_index;
+    logic [INDEX_WIDTH-1:0]       w_w_addr_index;
+
+    assign w_aw_addr_index = r_hammer_en ? INDEX_WIDTH'(r_aw_req_count[0])
+                                         : INDEX_WIDTH'(r_aw_req_count);
+    assign w_w_addr_index  = r_hammer_en ? INDEX_WIDTH'(r_w_req_count[0])
+                                         : INDEX_WIDTH'(r_w_req_count);
+
     logic                         w_aw_addr_req_valid;
     logic                         w_aw_addr_req_ready;
     logic                         w_aw_addr_result_valid;
@@ -339,7 +364,7 @@ module axi4_master_wr_pattern_gen #(
 
         .i_req_valid       (w_aw_addr_req_valid),
         .o_req_ready       (w_aw_addr_req_ready),
-        .i_req_index_0     (INDEX_WIDTH'(r_aw_req_count)),
+        .i_req_index_0     (w_aw_addr_index),
         .i_req_index_1     (INDEX_WIDTH'(0)),
         .i_req_tag         (8'd0),
 
@@ -366,7 +391,7 @@ module axi4_master_wr_pattern_gen #(
 
         .i_req_valid       (w_w_addr_req_valid),
         .o_req_ready       (w_w_addr_req_ready),
-        .i_req_index_0     (INDEX_WIDTH'(r_w_req_count)),
+        .i_req_index_0     (w_w_addr_index),
         .i_req_index_1     (INDEX_WIDTH'(0)),
         .i_req_tag         (8'd0),
 
@@ -537,14 +562,16 @@ module axi4_master_wr_pattern_gen #(
     assign fub_bready        = (r_state != S_IDLE);
 
     //==========================================================================
-    // Data path — two sources, muxed by r_data_mode:
+    // Data path — three sources, muxed by r_data_mode:
     //   mode 0: 32-bit Fibonacci LFSR replicated across DW (phase-counter,
     //           breaks under multi-id / OOO completion)
     //   mode 1: 32-bit Murmur3-fmix-style address hash, per-32-bit slice
     //           (OOO-safe: each beat's data is f(byte_addr, seeds), so
     //           reorder doesn't perturb the per-beat compare)
+    //   mode 2: cfg_fill_pattern replicated across DW (constant per beat,
+    //           used for rowhammer aggressor fills)
     //
-    // In mode 1 the CRC pipeline (which was built for the phase-counter
+    // In modes 1 and 2 the CRC pipeline (built for the phase-counter
     // contract) is not load-bearing; o_expected_crc_valid is gated low and
     // the harness must use per-beat compare (o_data_error) for integrity.
     //==========================================================================
@@ -626,9 +653,21 @@ module axi4_master_wr_pattern_gen #(
         end
     end
 
-    // Mode mux: hash data or the raw LFSR stream, both available this cycle.
+    // FILL mode: cfg_fill_pattern replicated across the data bus.
+    logic [DW-1:0] w_fill_wdata;
+    assign w_fill_wdata = {REP{cfg_fill_pattern}};
+
+    // Mode mux: hash data, raw LFSR stream, or replicated fill pattern.
+    // All three are available this cycle.
     logic [DW-1:0] w_wdata_out;
-    assign w_wdata_out = r_data_mode ? w_hash_wdata : w_data_replicated[DW-1:0];
+    always_comb begin
+        unique case (r_data_mode)
+            2'd0:    w_wdata_out = w_data_replicated[DW-1:0];
+            2'd1:    w_wdata_out = w_hash_wdata;
+            2'd2:    w_wdata_out = w_fill_wdata[DW-1:0];
+            default: w_wdata_out = w_data_replicated[DW-1:0];
+        endcase
+    end
 
     // W is driven straight from the generator now. There is no pipeline to
     // decouple from, so a beat is admitted exactly when the AXI W channel
@@ -656,7 +695,9 @@ module axi4_master_wr_pattern_gen #(
             r_axi_size        <= 3'd0;
             r_axi_burst       <= 2'd1;   // INCR
             r_lfsr_seed_eff   <= LFSR_SEED;
-            r_data_mode       <= 1'b0;
+            r_hammer_en       <= 1'b0;
+            r_data_mode       <= 2'b00;
+            r_fill_pattern    <= 32'd0;
             r_hash_seed0      <= 32'd0;
             r_hash_seed1      <= 32'd0;
             r_hash_seed2      <= 32'd0;
@@ -690,7 +731,9 @@ module axi4_master_wr_pattern_gen #(
                         r_axi_size      <= cfg_axi_size;
                         r_axi_burst     <= cfg_axi_burst;
                         r_lfsr_seed_eff <= (cfg_lfsr_seed == '0) ? LFSR_SEED : cfg_lfsr_seed;
+                        r_hammer_en     <= cfg_hammer_en;
                         r_data_mode     <= cfg_data_mode;
+                        r_fill_pattern  <= cfg_fill_pattern;
                         r_hash_seed0    <= cfg_hash_seed0;
                         r_hash_seed1    <= cfg_hash_seed1;
                         r_hash_seed2    <= cfg_hash_seed2;
@@ -769,7 +812,9 @@ module axi4_master_wr_pattern_gen #(
                         r_axi_size      <= cfg_axi_size;
                         r_axi_burst     <= cfg_axi_burst;
                         r_lfsr_seed_eff <= (cfg_lfsr_seed == '0) ? LFSR_SEED : cfg_lfsr_seed;
+                        r_hammer_en     <= cfg_hammer_en;
                         r_data_mode     <= cfg_data_mode;
+                        r_fill_pattern  <= cfg_fill_pattern;
                         r_hash_seed0    <= cfg_hash_seed0;
                         r_hash_seed1    <= cfg_hash_seed1;
                         r_hash_seed2    <= cfg_hash_seed2;
@@ -814,7 +859,7 @@ module axi4_master_wr_pattern_gen #(
             end
             if (r_state == S_RUN && w_w_beat && w_gen_wlast
                 && r_w_bursts_done + 1'b1 == r_txn_count
-                && !r_data_mode) begin
+                && r_data_mode == 2'd0) begin
                 r_crc_capture_pending <= 2'b01;
             end
         end
