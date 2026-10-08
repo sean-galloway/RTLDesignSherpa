@@ -2,7 +2,7 @@
 
 # math — bugs
 
-**Next ID: BUG-007** — never recycle a number, even when its item closed.
+**Next ID: BUG-008** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
