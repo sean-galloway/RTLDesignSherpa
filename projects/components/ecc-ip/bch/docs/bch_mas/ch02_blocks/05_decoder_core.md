@@ -35,8 +35,10 @@ Corrections are applied at the output read, not during the Chien walk
 "first corrected beat leaves as soon as the Chien walk starts" is
 corrected: the corrected image is computed during the walk but released
 only after the verdict. Single outstanding block; pipelining is PRD D6
-open work. Known limitation: a block longer than N_BITS deadlocks the
-input (named in the RTL header).
+open work. Framing violations cannot deadlock the input (issue #90): a
+block that reaches N_BITS without `in_last`, or overshoots it, is buffered
+up to BEATS_N beats, released with frame_err, and the syndrome unit is
+cleared for the next block.
 
 ---
 

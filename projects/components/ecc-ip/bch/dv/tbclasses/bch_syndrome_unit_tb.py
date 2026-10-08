@@ -96,6 +96,8 @@ class BCHSyndromeTB(TBBase):
 
     async def deassert_reset(self):
         self.rst_n.value = 1
+        # framing-abort input (issue #90): not exercised at this level, held off
+        self.dut.i_clear.value = 0
 
     def _score(self, what, got, exp):
         self.checks += 1

@@ -12,6 +12,9 @@ Scenarios:
   blocks        random data blocks with 0..t, t+1, and heavier error loads
   framing       a short block and a long block: frame_err, passthrough, and
                 the next clean block is clean
+  over_n        blocks LONGER than N (issue #90): both deadlock flavors must
+                flag frame_err, emit the buffered prefix, and the next clean
+                block must decode normally
   backpressure  one block under each TEST_LEVEL profile
 
 Author: RTL Design Sherpa
@@ -320,6 +323,62 @@ class BCHDecoderCoreTB(TBBase):
         out = await self.collect(self.expected_beats(frame_err=False),
                                  timeout_cycles=40 * self.N + 400)
         self._score_block("block after framing", enc2, out)
+        return self.mismatches == 0
+
+    async def run_over_n(self):
+        """Issue #90: a block longer than N must never deadlock the core.
+
+        Two flavors, two different circular waits pre-fix:
+          exact    -- the running count reaches N on a NON-final beat (partial
+                      keep), the syndrome unit completes and stalls in_ready
+                      while the core waits for in_last
+          overshoot-- full keeps blow the count past N without it ever
+                      equaling N, the syndrome unit never completes, and the
+                      frame-err block waits forever for a syndrome result
+        Both must flag frame_err, emit the buffered prefix (at most BEATS_N
+        beats), and leave the next clean block decodable.
+        """
+        self.set_profile('constrained')
+        buffered = (self.N + self.B - 1) // self.B * self.B  # BEATS_N beats' worth of bits
+
+        # flavor: exact-N mid-block, then more beats
+        data = self._random_data()
+        enc = self.model.encode(data)
+        tail = [random.randint(0, 1) for _ in range(self.B)]
+        beats = self.beats_of(enc) + self.beats_of(tail)
+        for i, (d, k) in enumerate(beats):
+            pkt = self.master.create_packet(data=d, keep=k,
+                                            last=1 if i == len(beats) - 1 else 0)
+            await self.master.send(pkt)
+        out = await self.collect((self.N + self.B - 1) // self.B,
+                                 timeout_cycles=40 * self.N + 400)
+        self._score_framing_block("over-N exact", list(enc), out)
+
+        # recovery
+        data2 = self._random_data()
+        enc2 = self.model.encode(data2)
+        await self.send_block(enc2)
+        out = await self.collect(self.expected_beats(frame_err=False),
+                                 timeout_cycles=40 * self.N + 400)
+        self._score_block("block after over-N exact", enc2, out)
+
+        # flavor: full keeps overshoot N without ever equaling it
+        data3 = self._random_data()
+        enc3 = self.model.encode(data3)
+        tail3 = [random.randint(0, 1) for _ in range(self.B)]
+        rx3 = list(enc3) + tail3
+        await self.send_block(rx3)
+        out = await self.collect((self.N + self.B - 1) // self.B,
+                                 timeout_cycles=40 * self.N + 400)
+        self._score_framing_block("over-N overshoot", rx3[:buffered], out)
+
+        # recovery
+        data4 = self._random_data()
+        enc4 = self.model.encode(data4)
+        await self.send_block(enc4)
+        out = await self.collect(self.expected_beats(frame_err=False),
+                                 timeout_cycles=40 * self.N + 400)
+        self._score_block("block after over-N overshoot", enc4, out)
         return self.mismatches == 0
 
     def _score_framing_block(self, label, rx_block, out_pkts):

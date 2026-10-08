@@ -35,6 +35,12 @@
 //   Throughput: one received beat per cycle while the downstream solver keeps
 //   up; a block costs ceil(N_BITS / BITS_PER_BEAT) cycles.
 //
+//   i_clear aborts the in-flight accumulation: the bit counter and any
+//   pending out_valid drop, and the next accepted beat starts a fresh block.
+//   The decoder core asserts it when a framing violation (a block longer
+//   than N_BITS, issue #90) makes the accumulated state meaningless; without
+//   it the unit would carry the garbage count into the next block.
+//
 //------------------------------------------------------------------------------
 // Parameters:
 //------------------------------------------------------------------------------
@@ -68,6 +74,7 @@ module bch_syndrome_unit
     /* verilator lint_off UNUSEDSIGNAL */
     input  logic                  in_last,
     /* verilator lint_on UNUSEDSIGNAL */
+    input  logic                  i_clear,
 
     output logic                  out_valid,
     input  logic                  out_ready,
@@ -159,14 +166,21 @@ module bch_syndrome_unit
             r_bit_count <= '0;
             r_out_valid <= 1'b0;
         end else begin
-            if (w_syndrome_done) begin
+            if (i_clear) begin
+                // framing abort (issue #90): the accumulated count and any
+                // pending result are meaningless; start the next block clean
                 r_bit_count <= '0;
-                r_out_valid <= 1'b1;
-            end else if (w_in_fire) begin
-                r_bit_count <= r_bit_count + CNT_W'(w_in_count);
-            end
-            if (r_out_valid && out_ready) begin
                 r_out_valid <= 1'b0;
+            end else begin
+                if (w_syndrome_done) begin
+                    r_bit_count <= '0;
+                    r_out_valid <= 1'b1;
+                end else if (w_in_fire) begin
+                    r_bit_count <= r_bit_count + CNT_W'(w_in_count);
+                end
+                if (r_out_valid && out_ready) begin
+                    r_out_valid <= 1'b0;
+                end
             end
         end
     )

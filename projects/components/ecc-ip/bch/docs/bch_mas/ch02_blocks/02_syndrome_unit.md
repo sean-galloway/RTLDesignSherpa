@@ -68,6 +68,7 @@ GF(2^m) multiply-accumulate lanes, one per odd syndrome.
 | `out_ready` | in | 1 | downstream accepts the syndromes |
 | `out_syndromes` | out | `T_BITS * m` | `{S_2t-1, ..., S_3, S_1}` packed GF values |
 | `out_no_error` | out | 1 | all odd syndromes are zero |
+| `i_clear` | in | 1 | abort the in-flight accumulation: bit counter and any pending `out_valid` drop, and the next accepted beat starts a fresh block. Asserted by the decoder core on a framing violation (a block past `N_BITS`, issue #90) so the garbage count cannot leak into the next block |
 
 : Table 2.4: Syndrome unit ports
 

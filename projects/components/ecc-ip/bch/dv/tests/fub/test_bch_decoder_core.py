@@ -40,6 +40,7 @@ async def cocotb_test_bch_decoder_core(dut):
     await tb.setup_clocks_and_reset()
     ok = await tb.run_blocks()
     ok &= await tb.run_framing()
+    ok &= await tb.run_over_n()
     ok &= await tb.run_backpressure()
     report = tb.get_test_report()
     tb.log.info(f"Test report: {report}")

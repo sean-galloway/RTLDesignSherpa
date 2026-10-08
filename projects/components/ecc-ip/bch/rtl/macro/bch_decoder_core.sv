@@ -57,11 +57,13 @@
 //   first K_BITS in ceil(K_BITS/BITS_PER_BEAT) beats; frame-err blocks emit
 //   every received bit that was buffered.
 //
-//   Known limitation (TASK-005): a block longer than N_BITS deadlocks the
-//   input — once the first syndrome unit holds N bits it drops in_ready and
-//   the remaining beats never arrive. Framing is verified for short blocks
-//   and for blocks longer than K but shorter than N; the > N corner is a
-//   named follow-up, and inter-block pipelining stays open under PRD D6.
+//   Over-long blocks (issue #90): a block whose bit count reaches N without
+//   in_last, or overshoots N, is a framing violation. The core keeps
+//   accepting it (buffered up to BEATS_N beats; the surplus is dropped),
+//   declares frame_err when in_last arrives, emits the buffered prefix, and
+//   clears the syndrome unit so the next block starts clean -- a runaway
+//   stream can stall the pipeline but can never deadlock it. Inter-block
+//   pipelining stays open under PRD D6.
 //
 //------------------------------------------------------------------------------
 // Parameters:
@@ -153,6 +155,7 @@ module bch_decoder_core
     logic [CNT_W-1:0] r_rx_bit_count;
     logic [BEAT_W-1:0] r_rx_beat_count;
     logic              r_frame_err;
+    logic              r_over_n;
     logic [BEAT_W-1:0] r_rx_beats_total;
     logic              r_block_ending;
     logic              r_synd_flush;
@@ -184,6 +187,7 @@ module bch_decoder_core
     logic              w_synd_out_ready;
     logic [T*M-1:0]    w_synd_out_syndromes;
     logic              w_synd_out_no_error;
+    logic              w_synd_clear;
 
     // During a SYND flush we feed zero padding into the syndrome unit so it
     // reaches N_BITS and can be handshaked clean for the next block.
@@ -204,6 +208,7 @@ module bch_decoder_core
         .in_data     (w_synd_in_data),
         .in_keep     (w_synd_in_keep),
         .in_last     (in_last),
+        .i_clear     (w_synd_clear),
         .out_valid   (w_synd_out_valid),
         .out_ready   (w_synd_out_ready),
         .out_syndromes(w_synd_out_syndromes),
@@ -286,6 +291,7 @@ module bch_decoder_core
             .in_data     (w_rechk_data),
             .in_keep     (w_rechk_keep),
             .in_last     (w_chien_out_last),
+            .i_clear     (1'b0),
             .out_valid   (w_rechk_out_valid),
             .out_ready   (w_rechk_out_ready),
             .out_syndromes(),
@@ -303,21 +309,40 @@ module bch_decoder_core
     // -------------------------------------------------------------------------
     logic [CW-1:0]     w_in_count;
     logic              w_in_fire;
+    logic [CNT_W-1:0]  w_rx_base;
     logic [CNT_W-1:0]  w_rx_bit_next;
     logic              w_frame_err_event;
+    logic              w_over_n_event;
+    logic              w_over_n_now;
     logic [BEAT_W-1:0] w_rx_beat_next;
     logic [BEAT_W-1:0] w_rx_beats_now;
     logic              w_block_ending_now;
     logic              w_synd_result_valid;
     logic              w_verdict_correctable;
 
+    // The bit count the presenting beat would extend: the live block's count
+    // in SYND, zero in IDLE -- r_rx_bit_count is not re-initialised until the
+    // first beat fires, so outside SYND it still holds the PREVIOUS block's
+    // total and must not seed the next block's framing arithmetic.
+    assign w_rx_base          = (r_state == IDLE) ? CNT_W'(0) : r_rx_bit_count;
     assign w_in_count         = CW'(bch_keep_count(64'(in_keep), B));
     assign w_in_fire          = in_valid && in_ready;
-    assign w_rx_bit_next      = r_rx_bit_count + CNT_W'(w_in_count);
-    assign w_frame_err_event  = w_in_fire && in_last && (w_rx_bit_next != CNT_W'(N));
+    assign w_rx_bit_next      = w_rx_base + CNT_W'(w_in_count);
+    // Framing violation: the last beat lands anywhere but on N, or the count
+    // reaches/passes N on a non-final beat (issue #90 -- an over-long block).
+    // in_valid-based, not in_fire-based: feeding it back through in_ready
+    // would close a combinational loop, and a beat presenting past N is a
+    // violation whether or not this cycle accepts it.
+    assign w_over_n_event     = in_valid && !in_last && (w_rx_bit_next >= CNT_W'(N));
+    assign w_frame_err_event  = w_in_fire && ((in_last && (w_rx_bit_next != CNT_W'(N)))
+                                              || (!in_last && (w_rx_bit_next >= CNT_W'(N))));
     assign w_rx_beat_next     = r_rx_beat_count + BEAT_W'(1);
     assign w_rx_beats_now     = (r_state == IDLE) ? BEAT_W'(1) : w_rx_beat_next;
     assign w_block_ending_now = w_in_fire && in_last;
+    // Per-block over-N view: in IDLE the registered flag is stale (it belongs
+    // to the previous block), so only the current beat's event counts there.
+    assign w_over_n_now       = (r_state == IDLE) ? w_over_n_event
+                                                  : (r_over_n || w_over_n_event);
 
     // Only act on a syndrome-unit result once the block boundary has arrived.
     // For a too-long block the result may become valid before in_last; we wait.
@@ -331,14 +356,23 @@ module bch_decoder_core
             if (u < w_flush_count) w_flush_keep[u] = 1'b1;
     end
 
-    // Only let the syndrome unit step when this core actually accepts the beat.
-    // Otherwise the syndrome unit would consume beats that are held valid while
-    // the core is releasing a block, corrupting the next block's bit count.
-    assign w_synd_in_valid   = r_synd_flush ? 1'b1 : (in_valid && in_ready);
+    // Only let the syndrome unit step when this core actually accepts the beat,
+    // and never past N bits of the current block: beyond N the block is a
+    // framing violation whose surplus must not re-arm or corrupt the unit's
+    // accumulation (issue #90).
+    assign w_synd_in_valid   = r_synd_flush ? 1'b1 : (in_valid && in_ready && !w_over_n_now);
     assign w_synd_in_data    = r_synd_flush ? '0    : in_data;
     assign w_synd_in_keep    = r_synd_flush ? w_flush_keep : in_keep;
     assign w_synd_out_ready  = (r_state == SYND) && w_synd_out_valid;
-    assign in_ready          = ((r_state == IDLE) || ((r_state == SYND) && !r_synd_flush && !r_block_ending)) && w_synd_in_ready;
+    // Once a block is over-N the unit's in_ready is moot (it is either holding
+    // a completed result or frozen mid-count): keep accepting so the sender
+    // can reach in_last and the violation can be released.
+    assign in_ready          = ((r_state == IDLE)
+                                || ((r_state == SYND) && !r_synd_flush && !r_block_ending))
+                               && (w_over_n_now || w_synd_in_ready);
+    // The unit's accumulated state is meaningless for an over-N block; clear
+    // it as the block releases so the next block starts from zero.
+    assign w_synd_clear      = (r_state == SYND) && r_over_n && r_block_ending;
 
     // Solver / Chien handshakes
     assign w_kes_out_ready   = (r_state == SOLVE) && w_kes_out_valid;
@@ -394,6 +428,7 @@ module bch_decoder_core
             r_rx_bit_count   <= '0;
             r_rx_beat_count  <= '0;
             r_frame_err      <= 1'b0;
+            r_over_n         <= 1'b0;
             r_rx_beats_total <= '0;
             r_block_ending   <= 1'b0;
             r_synd_flush     <= 1'b0;
@@ -425,6 +460,7 @@ module bch_decoder_core
                         r_buf[0]        <= in_data;
                         r_buf_keep[0]   <= in_keep;
                         r_frame_err     <= w_frame_err_event;
+                        r_over_n        <= w_over_n_event;
                         r_block_ending  <= w_block_ending_now;
                         if (in_last) begin
                             r_rx_beats_total <= BEAT_W'(1);
@@ -439,16 +475,23 @@ module bch_decoder_core
 
                 SYND: begin
                     if (w_in_fire) begin
-                        /* verilator lint_off WIDTHTRUNC */
-                        r_buf[r_rx_beat_count]      <= in_data;
-                        r_buf_keep[r_rx_beat_count] <= in_keep;
-                        /* verilator lint_on WIDTHTRUNC */
+                        // An over-N block can outgrow the buffer; store the
+                        // first BEATS_N beats and drop the surplus (issue #90).
+                        if (r_rx_beat_count < BEAT_W'(BEATS_N)) begin
+                            /* verilator lint_off WIDTHTRUNC */
+                            r_buf[r_rx_beat_count]      <= in_data;
+                            r_buf_keep[r_rx_beat_count] <= in_keep;
+                            /* verilator lint_on WIDTHTRUNC */
+                        end
                         r_rx_bit_count              <= w_rx_bit_next;
-                        r_rx_beat_count             <= w_rx_beat_next;
+                        r_rx_beat_count             <= (r_rx_beat_count == BEAT_W'(BEATS_N))
+                                                       ? BEAT_W'(BEATS_N) : w_rx_beat_next;
                         r_frame_err                 <= w_frame_err_event;
+                        r_over_n                    <= w_over_n_now;
                         r_block_ending              <= w_block_ending_now;
                         if (in_last) begin
-                            r_rx_beats_total <= w_rx_beats_now;
+                            r_rx_beats_total <= (w_rx_beats_now > BEAT_W'(BEATS_N))
+                                                ? BEAT_W'(BEATS_N) : w_rx_beats_now;
                             if (w_frame_err_event && (w_rx_bit_next < CNT_W'(N))) begin
                                 r_synd_flush <= 1'b1;
                                 r_flush_rem  <= CNT_W'(N) - w_rx_bit_next;
@@ -462,7 +505,20 @@ module bch_decoder_core
                             r_flush_rem <= '0;
                     end
 
-                    if (w_synd_result_valid) begin
+                    if (r_over_n && r_block_ending) begin
+                        // issue #90: over-long block -- the syndrome result is
+                        // moot; release the buffered prefix as frame_err and
+                        // clear the syndrome unit (w_synd_clear) for the next
+                        r_state          <= RELEASE;
+                        r_block_ending   <= 1'b0;
+                        r_release_idx    <= '0;
+                        r_release_beats  <= r_rx_beats_total;
+                        r_release_apply  <= 1'b0;
+                        r_st_ok          <= 1'b0;
+                        r_st_corrected   <= '0;
+                        r_st_uncorrectable <= 1'b0;
+                        r_st_frame_err   <= 1'b1;
+                    end else if (w_synd_result_valid) begin
                         // syndrome result is ready and the block has ended
                         if (r_frame_err) begin
                             r_state          <= RELEASE;
