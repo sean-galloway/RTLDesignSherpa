@@ -1,7 +1,7 @@
 # TASK-025: cocotb 2.x needs cocotb-bus 0.3.0 and a `.value.integer` sweep -- the blocker is measured, not guessed
 
 **Priority:** P3
-**Status:** open -- migration to cocotb 2.1.0 measured COMPLETE over the BKM coverage set (math/common/cdc fully green, bridge at exact parity with 1.9.2); see "Progress 2026-10-04 (evening)" below. Closure is the owner's call; known gaps listed there (bridge-14 pre-existing, cocotb-coverage 2.0, DV push).
+**Status:** closed 2026-10-08 (owner-confirmed) — production venv flipped to cocotb 2.1.0 this morning; BKM full matrix green (math 431/431, common 950/950, cdc 353/353); TASK-029 closed on the same evidence. The 2026-10-04 known gaps are all resolved or dispositioned (see the flip date-stamp below).
 **Owner:** TBD
 **Filed:** 2026-10-01 (question 2 of [[TASK-020]], split out as that task instructed)
 
