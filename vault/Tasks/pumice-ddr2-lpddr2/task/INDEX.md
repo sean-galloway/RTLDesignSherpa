@@ -12,9 +12,9 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 33 | done (kept for history) |
+| [closed/](closed/) | 34 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
@@ -25,11 +25,6 @@ exactly one state by construction rather than by discipline.
   content of `pumice_training_layer` per the owner's MC-001 ruling), board
   timing/CSR definition, BFM/DV gap check, bring-up harness, and REFpb
   runtime exercise.
-- **TASK-035** — finish pumice's formal coverage. 5 of 27 blocks proven (11/11
-  sby tasks); closes when TIER 1 is done — `pumice_cmd_arbiter` (which settles
-  [[ISSUE-019]]), `pumice_wr_data_cam`, `pumice_rd_cmd_cam`, `pumice_dfi_cdc` —
-  not when all 27 are. Per-block done criteria and the traps already paid for
-  are in the item
 
 ## Deferred
 
@@ -39,6 +34,18 @@ exactly one state by construction rather than by discipline.
   depend on scoria and is a test, not a feature
 
 ## Closed
+
+- **TASK-035** — CLOSED 2026-10-08: tier 1 proven, all four done-criteria on
+  every tier-1 block; area at 21/21 sby tasks. `dfi_cdc` finished (token/data
+  pairing, no-beat-lost/duplicated, init semantics; 13/13 covers, 8/8
+  mutations) and `wr_data_cam` finished (commit data integrity via a
+  drain-queue attribution model, framing/lifecycle; 9/9 covers, 3/3
+  mutations; the old readback counterexample refuted as a wrapper bug). The
+  campaign's load-bearing discovery: yosys 0.62 resolves dotted `dut.*`
+  refs to FREE INPUTS — the injected-probe-port pattern (dfi_cdc's
+  inject_probes.py) replaces them; the rest of the area audits clean. No RTL
+  defects. Tier 2/3 explicitly out of scope per the item's own definition of
+  done.
 
 - **TASK-038** — CLOSED 2026-10-04: both ddr2-char harnesses rebuilt on the
   post-sdpram-fix tree (pumice `61d35ff7` +0.132 ns, LiteDRAM `44a1b836`

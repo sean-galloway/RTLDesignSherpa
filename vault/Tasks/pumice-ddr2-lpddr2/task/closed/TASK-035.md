@@ -2,7 +2,8 @@
 
 **Priority:** P3 — the blocks where a wrong answer damages a device or corrupts
 data silently are already done; what remains is depth, not exposure.
-**Status:** open 2026-09-28
+**Status:** CLOSED 2026-10-08 — tier 1 proven, all four done-criteria met on
+every tier-1 block; see the close-out at the bottom.
 **Owner:** TBD
 **Related:** [[ISSUE-019]] (tier 1 below is how to settle it), [[TASK-034]]
 
@@ -146,3 +147,61 @@ expressible at all. It is also what makes remaining item 1 tractable.
   ready condition asserts into a full FIFO and stores nothing.
 * **The filelist is the dependency authority.** Hand-assembling `dfi_cdc`'s
   closure missed `gray2bin` and `counter_bingray` and the build failed outright.
+
+---
+
+## 2026-10-08 — CLOSED: tier 1 complete, 21/21 sby tasks
+
+The two partial tier-1 blocks finished today; the area runs **21/21 PASS**
+(`export PATH=/mnt/data/tools:$PATH && make -C formal formal-pumice` — sv2v
+lives at /mnt/data/tools, which the dfi_cdc Makefile now falls back to, but
+the whole-area recipe still wants it on PATH).
+
+**`dfi_cdc` — complete.** Three families: F1 token/data pairing, F2
+no-beat-lost/duplicated per stream (shadow-based, in order), F3 init
+semantics (rising-edge push, sticky monotonic). 13/13 cover points reached;
+8/8 mutations FAIL, recorded in the wrapper header. No RTL defects — every
+counterexample during the campaign was a wrapper bug.
+
+**`wr_data_cam` — complete.** The 2026-09-29 blocker (drain attribution:
+the drain is started by an upstream DECISION, not by the commit handshake)
+is modelled per-burst through a commit drain-queue model rather than
+assumed away; no-slot-reuse is argued from FETCH-last eviction. F1 commit
+data integrity + F2 framing/lifecycle, split into prove_f1/prove_f2/cover
+tasks with deliberate BMC 20/20/26, 9/9 covers, 3/3 mutations FAIL. The
+old disabled readback counterexample is **refuted as a wrapper bug** — see
+the free-probes finding below. No RTL defect.
+
+**The discovery that retroactively explains this item's hardest month:
+yosys 0.62 never resolves dotted hierarchical references (`dut.w_*`) from
+a wrapper — they elaborate as implicit undriven wires, i.e. FREE INPUTS
+in formal.** Both partial blocks' earlier models (including the "working"
+hierarchical probes this item's 2026-09-29 entry celebrated, and
+wr_data_cam's five failed models) were at points asserting on free
+variables. The working pattern is probe ports injected into the generated
+untracked flat (`formal/pumice/dfi_cdc/inject_probes.py`), with every
+source hookup audited instance-by-instance at build time and zero dotted
+refs remaining. Audited the rest of the area: no other formal/pumice
+wrapper uses dotted refs, so the 2026-09-29 "complete" blocks
+(cmd_arbiter — the BUG-021 finder — rd_cmd_cam, bank_timer,
+global_timers, refresh_ctrl, rd_return_ring, addr_mapper) are NOT
+suspect. Other formal areas were not audited — that is the one follow-up
+this close recommends (cheap: grep for `dut.` in their wrappers; any hit
+before today's date is suspect).
+
+**Done-criteria verification, all four, both blocks:** prove and cover
+PASS under the area make; every cover point reached (verified per-trace —
+sby cover does not fail on unreached depth); ≥1 mutation per property
+family FAILS, recorded in each wrapper header; assumptions state
+themselves explicitly (the wr_data_cam wrapper's header documents what it
+assumes about the upstream DECISION/FIRE split and why that is published
+behavior, not a hazard assumed away).
+
+**Tier 2 and 3 remain unproven by this item's own definition of done** —
+reconsider as a separate item if the marginal value justifies it: the
+silent-failure blocks are now covered, and a bug in tier 2 shows up as a
+stall or a wrong count that sim finds.
+
+Residual (not this item): cmd_arbiter/monbus_arbiter `--check-flats`
+recipes truncate their flat when sv2v is missing from PATH; with
+/mnt/data/tools on PATH they regenerate fine. Worth a tooling-lane fix.

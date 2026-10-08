@@ -1,23 +1,33 @@
 [tasks]
-prove
+prove_f1
+prove_f2
 cover
 
 [options]
-# 2 slots x 2 beats: fill, land, commit and drain takes ~14 cycles. 26 leaves
-# room to fill both slots and drain one while the other is still resident.
-prove: mode bmc
-prove: depth 26
+# Small geometry (NE=2, BEATS=2): a complete fill/land/commit/drain cycle is
+# ~8 cycles; depth 20 leaves room for a reuse/refill window while keeping the
+# expensive data-integrity query (prove_f1) inside a bounded budget.
+prove_f1: mode bmc
+prove_f1: depth 20
+prove_f2: mode bmc
+prove_f2: depth 20
 cover: mode cover
 cover: depth 26
 
 [engines]
-prove: smtbmc bitwuzla
+prove_f1: smtbmc bitwuzla
+prove_f2: smtbmc bitwuzla
 cover: smtbmc bitwuzla
 
 [script]
 read_verilog -formal wr_flat.v
 read -formal -sv formal_wr_data_cam.sv
-prep -top formal_wr_data_cam
+prove_f1: chparam -set FAMILY1 1 -set FAMILY2 0 formal_wr_data_cam
+prove_f2: chparam -set FAMILY1 0 -set FAMILY2 1 formal_wr_data_cam
+cover:    chparam -set FAMILY1 1 -set FAMILY2 1 formal_wr_data_cam
+prove_f1: prep -top formal_wr_data_cam
+prove_f2: prep -top formal_wr_data_cam
+cover:    prep -top formal_wr_data_cam
 
 [files]
 formal_wr_data_cam.sv

@@ -8,6 +8,11 @@
 # rather than merely watched for.
 *_flat.v
 
+# sv2v pre-injection intermediates (dfi_cdc's probe-injection flow builds the
+# flat in two steps; the intermediate is generated, never committed, same
+# reasoning as the flats above).
+*_sv2v.v
+
 # sby output. Listed by ARTIFACT rather than by workdir name: the per-task dir
 # is <block>_<task>/, but a bare `sby -f x.sby` writes to <block>/ instead, and
 # a per-block list of both shapes would need a new line for every block added.
