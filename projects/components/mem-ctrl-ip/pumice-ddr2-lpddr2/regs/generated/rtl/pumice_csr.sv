@@ -96,6 +96,17 @@ module pumice_csr (
         struct {
             logic ROW_HIT;
         } OBS_ROW_HIT[8];
+        logic CAL_CTRL;
+        logic CAL_ZQ_INTERVAL;
+        logic CAL_ZQ_TIMING;
+        logic CAL_TRAIN_TIMING;
+        struct {
+            logic VAL;
+        } CAL_MRR32_DATA[4];
+        struct {
+            logic VAL;
+        } CAL_MRR40_DATA[4];
+        logic CAL_STATUS;
         logic REF_CTRL;
         logic REF_TIMING_PB;
         logic PAGE_STATS_HIT;
@@ -152,6 +163,17 @@ module pumice_csr (
         for(int i0=0; i0<8; i0++) begin
             decoded_reg_strb.OBS_ROW_HIT[i0].ROW_HIT = cpuif_req_masked & (cpuif_addr == 12'h80 + (12)'(i0) * 12'h4);
         end
+        decoded_reg_strb.CAL_CTRL = cpuif_req_masked & (cpuif_addr == 12'ha0);
+        decoded_reg_strb.CAL_ZQ_INTERVAL = cpuif_req_masked & (cpuif_addr == 12'ha4);
+        decoded_reg_strb.CAL_ZQ_TIMING = cpuif_req_masked & (cpuif_addr == 12'ha8);
+        decoded_reg_strb.CAL_TRAIN_TIMING = cpuif_req_masked & (cpuif_addr == 12'hac);
+        for(int i0=0; i0<4; i0++) begin
+            decoded_reg_strb.CAL_MRR32_DATA[i0].VAL = cpuif_req_masked & (cpuif_addr == 12'hb0 + (12)'(i0) * 12'h4);
+        end
+        for(int i0=0; i0<4; i0++) begin
+            decoded_reg_strb.CAL_MRR40_DATA[i0].VAL = cpuif_req_masked & (cpuif_addr == 12'he0 + (12)'(i0) * 12'h4);
+        end
+        decoded_reg_strb.CAL_STATUS = cpuif_req_masked & (cpuif_addr == 12'hf0);
         decoded_reg_strb.REF_CTRL = cpuif_req_masked & (cpuif_addr == 12'h140);
         decoded_reg_strb.REF_TIMING_PB = cpuif_req_masked & (cpuif_addr == 12'h144);
         decoded_reg_strb.PAGE_STATS_HIT = cpuif_req_masked & (cpuif_addr == 12'h148);
@@ -470,6 +492,54 @@ module pumice_csr (
         } PAGE_TIMEOUT_CFG;
         struct {
             struct {
+                logic next;
+                logic load_next;
+            } zq_en;
+            struct {
+                logic next;
+                logic load_next;
+            } zq_defer_en;
+            struct {
+                logic next;
+                logic load_next;
+            } cal_start;
+            struct {
+                logic next;
+                logic load_next;
+            } cal_abort;
+            struct {
+                logic [12:0] next;
+                logic load_next;
+            } zq_overdue_max;
+        } CAL_CTRL;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } VAL;
+        } CAL_ZQ_INTERVAL;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } t_zqcs;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } t_zqcl;
+        } CAL_ZQ_TIMING;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } t_mrr;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } t_readout;
+        } CAL_TRAIN_TIMING;
+        struct {
+            struct {
                 logic [1:0] next;
                 logic load_next;
             } mode;
@@ -722,6 +792,44 @@ module pumice_csr (
                 logic [7:0] value;
             } tr_init;
         } PAGE_TIMEOUT_CFG;
+        struct {
+            struct {
+                logic value;
+            } zq_en;
+            struct {
+                logic value;
+            } zq_defer_en;
+            struct {
+                logic value;
+            } cal_start;
+            struct {
+                logic value;
+            } cal_abort;
+            struct {
+                logic [12:0] value;
+            } zq_overdue_max;
+        } CAL_CTRL;
+        struct {
+            struct {
+                logic [31:0] value;
+            } VAL;
+        } CAL_ZQ_INTERVAL;
+        struct {
+            struct {
+                logic [15:0] value;
+            } t_zqcs;
+            struct {
+                logic [15:0] value;
+            } t_zqcl;
+        } CAL_ZQ_TIMING;
+        struct {
+            struct {
+                logic [15:0] value;
+            } t_mrr;
+            struct {
+                logic [15:0] value;
+            } t_readout;
+        } CAL_TRAIN_TIMING;
         struct {
             struct {
                 logic [1:0] value;
@@ -2127,6 +2235,238 @@ module pumice_csr (
         end
     end
     assign hwif_out.PAGE_TIMEOUT_CFG.tr_init.value = field_storage.PAGE_TIMEOUT_CFG.tr_init.value;
+    // Field: pumice_csr.CAL_CTRL.zq_en
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CAL_CTRL.zq_en.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CAL_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CAL_CTRL.zq_en.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.CAL_CTRL.zq_en.next = next_c;
+        field_combo.CAL_CTRL.zq_en.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CAL_CTRL.zq_en.value <= 1'h0;
+        end else begin
+            if(field_combo.CAL_CTRL.zq_en.load_next) begin
+                field_storage.CAL_CTRL.zq_en.value <= field_combo.CAL_CTRL.zq_en.next;
+            end
+        end
+    end
+    assign hwif_out.CAL_CTRL.zq_en.value = field_storage.CAL_CTRL.zq_en.value;
+    // Field: pumice_csr.CAL_CTRL.zq_defer_en
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CAL_CTRL.zq_defer_en.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CAL_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CAL_CTRL.zq_defer_en.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end
+        field_combo.CAL_CTRL.zq_defer_en.next = next_c;
+        field_combo.CAL_CTRL.zq_defer_en.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CAL_CTRL.zq_defer_en.value <= 1'h0;
+        end else begin
+            if(field_combo.CAL_CTRL.zq_defer_en.load_next) begin
+                field_storage.CAL_CTRL.zq_defer_en.value <= field_combo.CAL_CTRL.zq_defer_en.next;
+            end
+        end
+    end
+    assign hwif_out.CAL_CTRL.zq_defer_en.value = field_storage.CAL_CTRL.zq_defer_en.value;
+    // Field: pumice_csr.CAL_CTRL.cal_start
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CAL_CTRL.cal_start.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CAL_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CAL_CTRL.cal_start.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+            load_next_c = '1;
+        end
+        field_combo.CAL_CTRL.cal_start.next = next_c;
+        field_combo.CAL_CTRL.cal_start.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CAL_CTRL.cal_start.value <= 1'h0;
+        end else begin
+            if(field_combo.CAL_CTRL.cal_start.load_next) begin
+                field_storage.CAL_CTRL.cal_start.value <= field_combo.CAL_CTRL.cal_start.next;
+            end
+        end
+    end
+    assign hwif_out.CAL_CTRL.cal_start.value = field_storage.CAL_CTRL.cal_start.value;
+    assign hwif_out.CAL_CTRL.cal_start.swmod = decoded_reg_strb.CAL_CTRL && decoded_req_is_wr && |(decoded_wr_biten[4:4]);
+    // Field: pumice_csr.CAL_CTRL.cal_abort
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CAL_CTRL.cal_abort.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CAL_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CAL_CTRL.cal_abort.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
+            load_next_c = '1;
+        end
+        field_combo.CAL_CTRL.cal_abort.next = next_c;
+        field_combo.CAL_CTRL.cal_abort.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CAL_CTRL.cal_abort.value <= 1'h0;
+        end else begin
+            if(field_combo.CAL_CTRL.cal_abort.load_next) begin
+                field_storage.CAL_CTRL.cal_abort.value <= field_combo.CAL_CTRL.cal_abort.next;
+            end
+        end
+    end
+    assign hwif_out.CAL_CTRL.cal_abort.value = field_storage.CAL_CTRL.cal_abort.value;
+    assign hwif_out.CAL_CTRL.cal_abort.swmod = decoded_reg_strb.CAL_CTRL && decoded_req_is_wr && |(decoded_wr_biten[5:5]);
+    // Field: pumice_csr.CAL_CTRL.zq_overdue_max
+    always_comb begin
+        automatic logic [12:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CAL_CTRL.zq_overdue_max.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CAL_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CAL_CTRL.zq_overdue_max.value & ~decoded_wr_biten[28:16]) | (decoded_wr_data[28:16] & decoded_wr_biten[28:16]);
+            load_next_c = '1;
+        end
+        field_combo.CAL_CTRL.zq_overdue_max.next = next_c;
+        field_combo.CAL_CTRL.zq_overdue_max.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CAL_CTRL.zq_overdue_max.value <= 13'h0;
+        end else begin
+            if(field_combo.CAL_CTRL.zq_overdue_max.load_next) begin
+                field_storage.CAL_CTRL.zq_overdue_max.value <= field_combo.CAL_CTRL.zq_overdue_max.next;
+            end
+        end
+    end
+    assign hwif_out.CAL_CTRL.zq_overdue_max.value = field_storage.CAL_CTRL.zq_overdue_max.value;
+    // Field: pumice_csr.CAL_ZQ_INTERVAL.VAL
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CAL_ZQ_INTERVAL.VAL.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CAL_ZQ_INTERVAL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CAL_ZQ_INTERVAL.VAL.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.CAL_ZQ_INTERVAL.VAL.next = next_c;
+        field_combo.CAL_ZQ_INTERVAL.VAL.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CAL_ZQ_INTERVAL.VAL.value <= 32'h0;
+        end else begin
+            if(field_combo.CAL_ZQ_INTERVAL.VAL.load_next) begin
+                field_storage.CAL_ZQ_INTERVAL.VAL.value <= field_combo.CAL_ZQ_INTERVAL.VAL.next;
+            end
+        end
+    end
+    assign hwif_out.CAL_ZQ_INTERVAL.VAL.value = field_storage.CAL_ZQ_INTERVAL.VAL.value;
+    // Field: pumice_csr.CAL_ZQ_TIMING.t_zqcs
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CAL_ZQ_TIMING.t_zqcs.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CAL_ZQ_TIMING && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CAL_ZQ_TIMING.t_zqcs.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.CAL_ZQ_TIMING.t_zqcs.next = next_c;
+        field_combo.CAL_ZQ_TIMING.t_zqcs.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CAL_ZQ_TIMING.t_zqcs.value <= 16'h0;
+        end else begin
+            if(field_combo.CAL_ZQ_TIMING.t_zqcs.load_next) begin
+                field_storage.CAL_ZQ_TIMING.t_zqcs.value <= field_combo.CAL_ZQ_TIMING.t_zqcs.next;
+            end
+        end
+    end
+    assign hwif_out.CAL_ZQ_TIMING.t_zqcs.value = field_storage.CAL_ZQ_TIMING.t_zqcs.value;
+    // Field: pumice_csr.CAL_ZQ_TIMING.t_zqcl
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CAL_ZQ_TIMING.t_zqcl.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CAL_ZQ_TIMING && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CAL_ZQ_TIMING.t_zqcl.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.CAL_ZQ_TIMING.t_zqcl.next = next_c;
+        field_combo.CAL_ZQ_TIMING.t_zqcl.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CAL_ZQ_TIMING.t_zqcl.value <= 16'h0;
+        end else begin
+            if(field_combo.CAL_ZQ_TIMING.t_zqcl.load_next) begin
+                field_storage.CAL_ZQ_TIMING.t_zqcl.value <= field_combo.CAL_ZQ_TIMING.t_zqcl.next;
+            end
+        end
+    end
+    assign hwif_out.CAL_ZQ_TIMING.t_zqcl.value = field_storage.CAL_ZQ_TIMING.t_zqcl.value;
+    // Field: pumice_csr.CAL_TRAIN_TIMING.t_mrr
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CAL_TRAIN_TIMING.t_mrr.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CAL_TRAIN_TIMING && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CAL_TRAIN_TIMING.t_mrr.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.CAL_TRAIN_TIMING.t_mrr.next = next_c;
+        field_combo.CAL_TRAIN_TIMING.t_mrr.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CAL_TRAIN_TIMING.t_mrr.value <= 16'h2;
+        end else begin
+            if(field_combo.CAL_TRAIN_TIMING.t_mrr.load_next) begin
+                field_storage.CAL_TRAIN_TIMING.t_mrr.value <= field_combo.CAL_TRAIN_TIMING.t_mrr.next;
+            end
+        end
+    end
+    assign hwif_out.CAL_TRAIN_TIMING.t_mrr.value = field_storage.CAL_TRAIN_TIMING.t_mrr.value;
+    // Field: pumice_csr.CAL_TRAIN_TIMING.t_readout
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CAL_TRAIN_TIMING.t_readout.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CAL_TRAIN_TIMING && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CAL_TRAIN_TIMING.t_readout.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.CAL_TRAIN_TIMING.t_readout.next = next_c;
+        field_combo.CAL_TRAIN_TIMING.t_readout.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CAL_TRAIN_TIMING.t_readout.value <= 16'h0;
+        end else begin
+            if(field_combo.CAL_TRAIN_TIMING.t_readout.load_next) begin
+                field_storage.CAL_TRAIN_TIMING.t_readout.value <= field_combo.CAL_TRAIN_TIMING.t_readout.next;
+            end
+        end
+    end
+    assign hwif_out.CAL_TRAIN_TIMING.t_readout.value = field_storage.CAL_TRAIN_TIMING.t_readout.value;
     // Field: pumice_csr.REF_CTRL.mode
     always_comb begin
         automatic logic [1:0] next_c;
@@ -2259,7 +2599,7 @@ module pumice_csr (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[53];
+    logic [31:0] readback_array[66];
     assign readback_array[0][0:0] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_start.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_force_restart.value : '0;
     assign readback_array[0][3:2] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
@@ -2370,34 +2710,60 @@ module pumice_csr (
     for(genvar i0=0; i0<8; i0++) begin
         assign readback_array[i0 * 1 + 27][31:0] = (decoded_reg_strb.OBS_ROW_HIT[i0].ROW_HIT && !decoded_req_is_wr) ? hwif_in.OBS_ROW_HIT[i0].ROW_HIT.VAL.next : '0;
     end
-    assign readback_array[35][1:0] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.mode.value : '0;
-    assign readback_array[35][3:2] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
-    assign readback_array[35][7:4] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.postpone_limit.value : '0;
-    assign readback_array[35][11:8] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.pullin_limit.value : '0;
-    assign readback_array[35][12:12] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? hwif_in.REF_CTRL.perbank_supported.next : '0;
-    assign readback_array[35][31:13] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 19'h0 : '0;
-    assign readback_array[36][15:0] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? field_storage.REF_TIMING_PB.trefi_pb.value : '0;
-    assign readback_array[36][23:16] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? field_storage.REF_TIMING_PB.trfc_pb.value : '0;
-    assign readback_array[36][31:24] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[37][31:0] = (decoded_reg_strb.PAGE_STATS_HIT && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_HIT.VAL.next : '0;
-    assign readback_array[38][31:0] = (decoded_reg_strb.PAGE_STATS_MISS && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_MISS.VAL.next : '0;
-    assign readback_array[39][31:0] = (decoded_reg_strb.PAGE_STATS_EMPTY && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_EMPTY.VAL.next : '0;
-    assign readback_array[40][31:0] = (decoded_reg_strb.SCHED_STATS_ACT && !decoded_req_is_wr) ? hwif_in.SCHED_STATS_ACT.VAL.next : '0;
-    assign readback_array[41][31:0] = (decoded_reg_strb.SCHED_STATS_PRE && !decoded_req_is_wr) ? hwif_in.SCHED_STATS_PRE.VAL.next : '0;
-    assign readback_array[42][31:0] = (decoded_reg_strb.REF_STATS_REF && !decoded_req_is_wr) ? hwif_in.REF_STATS_REF.VAL.next : '0;
-    assign readback_array[43][31:0] = (decoded_reg_strb.STALL_BP && !decoded_req_is_wr) ? hwif_in.STALL_BP.VAL.next : '0;
-    assign readback_array[44][31:0] = (decoded_reg_strb.STALL_REFRESH && !decoded_req_is_wr) ? hwif_in.STALL_REFRESH.VAL.next : '0;
-    assign readback_array[45][31:0] = (decoded_reg_strb.STALL_TURNAROUND && !decoded_req_is_wr) ? hwif_in.STALL_TURNAROUND.VAL.next : '0;
-    assign readback_array[46][31:0] = (decoded_reg_strb.STALL_TCCD && !decoded_req_is_wr) ? hwif_in.STALL_TCCD.VAL.next : '0;
-    assign readback_array[47][31:0] = (decoded_reg_strb.STALL_ACTLIMIT && !decoded_req_is_wr) ? hwif_in.STALL_ACTLIMIT.VAL.next : '0;
-    assign readback_array[48][31:0] = (decoded_reg_strb.STALL_BANKTIMER && !decoded_req_is_wr) ? hwif_in.STALL_BANKTIMER.VAL.next : '0;
-    assign readback_array[49][31:0] = (decoded_reg_strb.STALL_NOREQ && !decoded_req_is_wr) ? hwif_in.STALL_NOREQ.VAL.next : '0;
-    assign readback_array[50][31:0] = (decoded_reg_strb.REF_STATS_REF_BUSY && !decoded_req_is_wr) ? hwif_in.REF_STATS_REF_BUSY.VAL.next : '0;
-    assign readback_array[51][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
-    assign readback_array[51][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[51][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
-    assign readback_array[51][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
-    assign readback_array[52][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[35][0:0] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? field_storage.CAL_CTRL.zq_en.value : '0;
+    assign readback_array[35][1:1] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? field_storage.CAL_CTRL.zq_defer_en.value : '0;
+    assign readback_array[35][3:2] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
+    assign readback_array[35][4:4] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? field_storage.CAL_CTRL.cal_start.value : '0;
+    assign readback_array[35][5:5] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? field_storage.CAL_CTRL.cal_abort.value : '0;
+    assign readback_array[35][15:6] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? 10'h0 : '0;
+    assign readback_array[35][28:16] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? field_storage.CAL_CTRL.zq_overdue_max.value : '0;
+    assign readback_array[35][31:29] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? 3'h0 : '0;
+    assign readback_array[36][31:0] = (decoded_reg_strb.CAL_ZQ_INTERVAL && !decoded_req_is_wr) ? field_storage.CAL_ZQ_INTERVAL.VAL.value : '0;
+    assign readback_array[37][15:0] = (decoded_reg_strb.CAL_ZQ_TIMING && !decoded_req_is_wr) ? field_storage.CAL_ZQ_TIMING.t_zqcs.value : '0;
+    assign readback_array[37][31:16] = (decoded_reg_strb.CAL_ZQ_TIMING && !decoded_req_is_wr) ? field_storage.CAL_ZQ_TIMING.t_zqcl.value : '0;
+    assign readback_array[38][15:0] = (decoded_reg_strb.CAL_TRAIN_TIMING && !decoded_req_is_wr) ? field_storage.CAL_TRAIN_TIMING.t_mrr.value : '0;
+    assign readback_array[38][31:16] = (decoded_reg_strb.CAL_TRAIN_TIMING && !decoded_req_is_wr) ? field_storage.CAL_TRAIN_TIMING.t_readout.value : '0;
+    for(genvar i0=0; i0<4; i0++) begin
+        assign readback_array[i0 * 1 + 39][31:0] = (decoded_reg_strb.CAL_MRR32_DATA[i0].VAL && !decoded_req_is_wr) ? hwif_in.CAL_MRR32_DATA[i0].VAL.VAL.next : '0;
+    end
+    for(genvar i0=0; i0<4; i0++) begin
+        assign readback_array[i0 * 1 + 43][31:0] = (decoded_reg_strb.CAL_MRR40_DATA[i0].VAL && !decoded_req_is_wr) ? hwif_in.CAL_MRR40_DATA[i0].VAL.VAL.next : '0;
+    end
+    assign readback_array[47][0:0] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? hwif_in.CAL_STATUS.zq_busy.next : '0;
+    assign readback_array[47][1:1] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? hwif_in.CAL_STATUS.cal_busy.next : '0;
+    assign readback_array[47][2:2] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? hwif_in.CAL_STATUS.cal_done.next : '0;
+    assign readback_array[47][3:3] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? hwif_in.CAL_STATUS.cal_err.next : '0;
+    assign readback_array[47][4:4] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? hwif_in.CAL_STATUS.zq_overdue.next : '0;
+    assign readback_array[47][15:5] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? 11'h0 : '0;
+    assign readback_array[47][31:16] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? hwif_in.CAL_STATUS.zqcs_total.next : '0;
+    assign readback_array[48][1:0] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.mode.value : '0;
+    assign readback_array[48][3:2] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
+    assign readback_array[48][7:4] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.postpone_limit.value : '0;
+    assign readback_array[48][11:8] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.pullin_limit.value : '0;
+    assign readback_array[48][12:12] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? hwif_in.REF_CTRL.perbank_supported.next : '0;
+    assign readback_array[48][31:13] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 19'h0 : '0;
+    assign readback_array[49][15:0] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? field_storage.REF_TIMING_PB.trefi_pb.value : '0;
+    assign readback_array[49][23:16] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? field_storage.REF_TIMING_PB.trfc_pb.value : '0;
+    assign readback_array[49][31:24] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[50][31:0] = (decoded_reg_strb.PAGE_STATS_HIT && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_HIT.VAL.next : '0;
+    assign readback_array[51][31:0] = (decoded_reg_strb.PAGE_STATS_MISS && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_MISS.VAL.next : '0;
+    assign readback_array[52][31:0] = (decoded_reg_strb.PAGE_STATS_EMPTY && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_EMPTY.VAL.next : '0;
+    assign readback_array[53][31:0] = (decoded_reg_strb.SCHED_STATS_ACT && !decoded_req_is_wr) ? hwif_in.SCHED_STATS_ACT.VAL.next : '0;
+    assign readback_array[54][31:0] = (decoded_reg_strb.SCHED_STATS_PRE && !decoded_req_is_wr) ? hwif_in.SCHED_STATS_PRE.VAL.next : '0;
+    assign readback_array[55][31:0] = (decoded_reg_strb.REF_STATS_REF && !decoded_req_is_wr) ? hwif_in.REF_STATS_REF.VAL.next : '0;
+    assign readback_array[56][31:0] = (decoded_reg_strb.STALL_BP && !decoded_req_is_wr) ? hwif_in.STALL_BP.VAL.next : '0;
+    assign readback_array[57][31:0] = (decoded_reg_strb.STALL_REFRESH && !decoded_req_is_wr) ? hwif_in.STALL_REFRESH.VAL.next : '0;
+    assign readback_array[58][31:0] = (decoded_reg_strb.STALL_TURNAROUND && !decoded_req_is_wr) ? hwif_in.STALL_TURNAROUND.VAL.next : '0;
+    assign readback_array[59][31:0] = (decoded_reg_strb.STALL_TCCD && !decoded_req_is_wr) ? hwif_in.STALL_TCCD.VAL.next : '0;
+    assign readback_array[60][31:0] = (decoded_reg_strb.STALL_ACTLIMIT && !decoded_req_is_wr) ? hwif_in.STALL_ACTLIMIT.VAL.next : '0;
+    assign readback_array[61][31:0] = (decoded_reg_strb.STALL_BANKTIMER && !decoded_req_is_wr) ? hwif_in.STALL_BANKTIMER.VAL.next : '0;
+    assign readback_array[62][31:0] = (decoded_reg_strb.STALL_NOREQ && !decoded_req_is_wr) ? hwif_in.STALL_NOREQ.VAL.next : '0;
+    assign readback_array[63][31:0] = (decoded_reg_strb.REF_STATS_REF_BUSY && !decoded_req_is_wr) ? hwif_in.REF_STATS_REF_BUSY.VAL.next : '0;
+    assign readback_array[64][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
+    assign readback_array[64][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[64][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
+    assign readback_array[64][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
+    assign readback_array[65][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
 
     // Reduce the array
     always_comb begin
@@ -2405,7 +2771,7 @@ module pumice_csr (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<53; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<66; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

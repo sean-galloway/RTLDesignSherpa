@@ -373,6 +373,114 @@ def test_pumice_scheduler_layer_refresh_inflight_read(request, test_level):
     _run_scheduler(request, "cocotb_test_refresh_vs_inflight_read", test_level=test_level)
 
 
+@cocotb.test(timeout_time=5, timeout_unit="ms")
+async def cocotb_test_training_priority_and_gate(dut):
+    """Training-layer arbiter priority and cal_busy gating.
+
+    The training channel (ZQ / lp_cal) sits between refresh and demand in the
+    arbiter: it can preempt demand traffic but must wait for an in-flight
+    refresh to finish. A raised cal_busy_i blocks demand-class column commands
+    and ACT to any bank so the post-calibration quiet window is honoured.
+    """
+    tb = PumiceMemCmdSchedulerTB(dut)
+    await tb.setup_clocks_and_reset()
+    assert await tb.complete_init(), "init_done never asserted"
+
+    # Drain the init MRS stream so a later check for an MRS command does not
+    # accidentally capture a leftover init MRS from the output FIFO.
+    for _ in range(100):
+        await tb.wait_clocks('aclk', 1)
+        if not int(dut.busy_o.value):
+            break
+
+    tb.cmds.clear()
+
+    # Drive a training MRS request (e.g. MRW/MRR maintenance command).
+    dut.trn_cmd_req_i.value = 1
+    dut.trn_cmd_op_i.value = OP_MRS
+    dut.trn_cmd_bank_i.value = 0
+    dut.trn_cmd_row_i.value = (10 << 8) | 0x56   # MR10 ZQCS opcode
+    dut.trn_cmd_mrr_i.value = 0
+    dut.cal_busy_i.value = 0
+
+    # Wait for the training command to be granted and observed at cmd output.
+    for _ in range(40):
+        await tb.wait_clocks('aclk', 1)
+        if int(dut.trn_cmd_grant_o.value):
+            break
+    assert int(dut.trn_cmd_grant_o.value), "training request was never granted"
+
+    # Discard any commands that were already in the output FIFO so we only see
+    # the granted training command emerge.
+    tb.cmds.clear()
+
+    # Wait until it emerges from the cmd FIFO.
+    for _ in range(40):
+        await tb.wait_clocks('aclk', 1)
+        if tb.cmds and tb.cmds[-1]['op'] == OP_MRS:
+            break
+    mrs = tb.ops_of(OP_MRS)
+    assert mrs, "training MRS never reached cmd output"
+    assert mrs[-1]['bank'] == 0
+    assert int(dut.cmd_mrr_o.value) == 0, "cmd_mrr_o should follow trn_cmd_mrr_i"
+
+    # Drop the request and wait for the output FIFO to drain so the MRR is not
+    # confused with the previous MRS still in flight.
+    dut.trn_cmd_req_i.value = 0
+    for _ in range(100):
+        await tb.wait_clocks('aclk', 1)
+        if not int(dut.busy_o.value):
+            break
+
+    # Prepare the MRR fields one cycle before asserting the request so the
+    # arbiter samples trn_cmd_mrr_i == 1 on the grant cycle.
+    dut.trn_cmd_mrr_i.value = 1
+    dut.trn_cmd_row_i.value = (32 << 8) | 0x00   # MR32 MRR
+    await tb.wait_clocks('aclk', 1)
+
+    # Drive an MRR training command while still idle and check cmd_mrr_o.
+    dut.trn_cmd_req_i.value = 1
+    for _ in range(40):
+        await tb.wait_clocks('aclk', 1)
+        if int(dut.trn_cmd_grant_o.value):
+            break
+    assert int(dut.trn_cmd_grant_o.value), "MRR training request was never granted"
+
+    # Discard any earlier FIFO contents so the next MRS is the MRR we just drove.
+    tb.cmds.clear()
+
+    for _ in range(40):
+        await tb.wait_clocks('aclk', 1)
+        if tb.cmds and tb.cmds[-1]['op'] == OP_MRS:
+            break
+    mrs = tb.ops_of(OP_MRS)
+    assert mrs, "MRR training command did not reach cmd output"
+    assert int(dut.cmd_mrr_o.value) == 1, "cmd_mrr_o must be 1 for MRR"
+
+    # Now raise cal_busy_i and present a demand read. It must not issue while
+    # calibration holds the bus quiet.
+    tb.cmds.clear()
+    dut.cal_busy_i.value = 1
+    dut.trn_cmd_req_i.value = 0
+    tb.rd_entry = {'bank': 3, 'row': 0x123, 'col': 0x40,
+                   'id': 0x1, 'age': 5, 'slot': 1}
+    for _ in range(60):
+        await tb.wait_clocks('aclk', 1)
+    rds = tb.ops_of(OP_RD)
+    acts = tb.ops_of(OP_ACT)
+    assert len(rds) == 0 and len(acts) == 0, \
+        f"demand traffic issued while cal_busy_i high (RD={len(rds)} ACT={len(acts)})"
+
+    # Drop cal_busy_i; the pending read should now flow.
+    dut.cal_busy_i.value = 0
+    for _ in range(80):
+        await tb.wait_clocks('aclk', 1)
+        if tb.rd_issued:
+            break
+    assert tb.rd_issued, "pending read never issued after cal_busy_i dropped"
+    tb.log.info("PASS: training priority, cal_busy gating, and cmd_mrr forwarding")
+
+
 @pytest.mark.parametrize("test_level", reg_level_grid())
 def test_pumice_scheduler_layer(request, test_level):
     _run_scheduler(request, "cocotb_test_pumice_scheduler_layer", test_level=test_level)
@@ -695,6 +803,11 @@ async def cocotb_test_timeout_pre_vs_pending_column(dut):
             f"{len(rej)} pushes this arm had w_out_safe==0.\n"
             f"  bank {BANK} stream: {trace}\n"
             f"  guard trace logged above.")
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_scheduler_layer_training(request, test_level):
+    _run_scheduler(request, "cocotb_test_training_priority_and_gate", test_level=test_level)
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())

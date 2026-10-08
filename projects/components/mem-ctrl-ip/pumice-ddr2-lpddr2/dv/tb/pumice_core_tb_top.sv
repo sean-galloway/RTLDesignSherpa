@@ -215,6 +215,16 @@ module pumice_core_tb_top
         // no runtime MR retune in this TB, init_restart tied off.
         .mr0_i(16'h0433), .mr1_i(16'h0000), .mr2_i(16'h0000), .mr3_i(16'h0000),
         .init_restart_i(1'b0),
+        // Training layer (ZQ + DQ cal) tied off: this TB scores the datapath
+        // and paging sweep, not calibration. Enables 0 make both FUBs inert;
+        // outputs left open by name on purpose.
+        .zq_en_i(1'b0), .zq_defer_en_i(1'b0), .zq_interval_i(32'h0),
+        .t_zqcs_i(16'h0), .t_zqcl_i(16'h0), .zq_overdue_max_i(13'h0),
+        .cal_start_i(1'b0), .cal_abort_i(1'b0),
+        .t_mrr_i(16'h0), .t_readout_i(16'h0),
+        .mrr32_data_o(), .mrr40_data_o(),
+        .cal_busy_o(), .cal_done_o(), .cal_err_o(),
+        .zq_busy_o(), .zq_overdue_o(), .zqcs_total_o(),
         .bank_lsb_i(bank_lsb_i), .hash_en_i(hash_en_i), .hash_seed_i(hash_seed_i),
         .t_rcd_i(t_rcd_i), .t_rp_i(t_rp_i), .t_ras_i(t_ras_i), .t_rc_i(t_rc_i),
         .t_wr_i(t_wr_i), .t_rtp_i(t_rtp_i), .t_faw_i(t_faw_i), .t_rrd_i(t_rrd_i),

@@ -16,7 +16,7 @@ import random
 import cocotb
 import pytest
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge
+from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
@@ -387,6 +387,70 @@ async def cocotb_test_rd_aligner_backpressure(dut):
     dut._log.info("PASS: backpressure at MAX_OUTSTANDING, in-order multi-outstanding capture")
 
 
+@cocotb.test(timeout_time=2, timeout_unit="ms")
+async def cocotb_test_rd_aligner_cal_capture(dut):
+    """Calibration sideband capture: a single-cycle cal_expect pulse arms the
+    aligner; the first subsequent dfi_rddata_valid beat is captured and emitted
+    on cal_data_o with a one-cycle cal_valid_o pulse."""
+    cocotb.start_soon(Clock(dut.dfi_clk, 10, units='ns').start())
+    dut.dfi_rstn.value = 0
+    dut.t_rddata_en_i.value = 0
+    dut.dfi_rddata_i.value = 0
+    dut.dfi_rddata_valid_i.value = 0
+    dut.cal_expect_i.value = 0
+    op_src = fub_pulse_producer(dut, "op", dut.dfi_clk, log=dut._log,
+                                valid="op_valid_i", ready="op_ready_o")
+    fub_consumer(dut, "rd", dut.dfi_clk, log=dut._log,
+                 valid="rd_valid_o", ready="rd_ready_i",
+                 fields={'data': ("rd_data_o", DFI_DW),
+                         'resp': ("rd_resp_o", 2),
+                         'last': ("rd_last_o", 1)})
+    for _ in range(4):
+        await RisingEdge(dut.dfi_clk)
+    dut.dfi_rstn.value = 1
+    for _ in range(3):
+        await RisingEdge(dut.dfi_clk)
+
+    # Arm calibration capture.
+    dut.cal_expect_i.value = 1
+    await RisingEdge(dut.dfi_clk)
+    await Timer(1, units='ps')
+    dut.cal_expect_i.value = 0
+
+    # First valid beat should be captured.
+    beat0 = 0xA5A5_A5A5_A5A5_A5A5_A5A5_A5A5_A5A5_A5A5
+    dut.dfi_rddata_i.value = beat0
+    dut.dfi_rddata_valid_i.value = (1 << DFI_RATE) - 1
+    await RisingEdge(dut.dfi_clk)
+    await Timer(1, units='ps')
+    assert int(dut.cal_valid_o.value) == 1, "cal_valid_o should pulse on capture"
+    assert int(dut.cal_data_o.value) == beat0, "cal_data_o should hold first beat"
+
+    # A second valid beat must NOT update cal_data_o (one-shot per arm).
+    beat1 = 0x5A5A_5A5A_5A5A_5A5A_5A5A_5A5A_5A5A_5A5A
+    dut.dfi_rddata_i.value = beat1
+    await RisingEdge(dut.dfi_clk)
+    await Timer(1, units='ps')
+    assert int(dut.cal_valid_o.value) == 0, "cal_valid_o must be one cycle wide"
+    assert int(dut.cal_data_o.value) == beat0, "cal_data_o must hold first beat"
+
+    # Re-arm and capture a new beat.
+    dut.dfi_rddata_valid_i.value = 0
+    dut.cal_expect_i.value = 1
+    await RisingEdge(dut.dfi_clk)
+    await Timer(1, units='ps')
+    dut.cal_expect_i.value = 0
+    dut.dfi_rddata_i.value = beat1
+    dut.dfi_rddata_valid_i.value = (1 << DFI_RATE) - 1
+    await RisingEdge(dut.dfi_clk)
+    await Timer(1, units='ps')
+    assert int(dut.cal_valid_o.value) == 1
+    assert int(dut.cal_data_o.value) == beat1
+
+    dut.dfi_rddata_valid_i.value = 0
+    dut._log.info("PASS: calibration sideband one-shot capture")
+
+
 def _run_fub(testcase: str, bl_words: int, max_outstanding: int = 8, test_level: str = 'gate'):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_dfi_rd_aligner"
@@ -432,3 +496,9 @@ def test_pumice_dfi_rd_aligner_backpressure(request, test_level):
     # Multi-outstanding + op_ready backpressure with a small tracking depth.
     _run_fub("cocotb_test_rd_aligner_backpressure", bl_words=1, max_outstanding=2,
              test_level=test_level)
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_dfi_rd_aligner_cal_capture(request, test_level):
+    # Calibration sideband one-shot capture.
+    _run_fub("cocotb_test_rd_aligner_cal_capture", bl_words=4, test_level=test_level)

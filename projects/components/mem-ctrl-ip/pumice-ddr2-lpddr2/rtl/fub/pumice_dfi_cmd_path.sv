@@ -90,9 +90,9 @@ module pumice_dfi_cmd_path
     parameter int RKW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW = $clog2(NUM_BANKS),
     parameter int PHW = (DFI_RATE > 1) ? $clog2(DFI_RATE) : 1,
-    // Packed command word: {ap, col, row, bank, rank, op}  (matches the
+    // Packed command word: {mrr, ap, col, row, bank, rank, op}  (matches the
     // scheduler's cmd FIFO packing).
-    parameter int CMD_DW = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1,
+    parameter int CMD_DW = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1,
     // Sub-command COUNT width: holds the value N_SUBCMD (1..N_SUBCMD), so it
     // needs clog2(N_SUBCMD+1) bits (clog2(N) alone cannot represent N).
     parameter int SUBW_MAX = $clog2(N_SUBCMD + 1)
@@ -144,12 +144,13 @@ module pumice_dfi_cmd_path
 
     // ---- unpack the command word ----
     logic                w_ap;
+    logic                w_mrr;
     logic [COL_WIDTH-1:0] w_col;
     logic [ROW_WIDTH-1:0] w_row;
     logic [BKW-1:0]       w_bank;
     logic [RKW-1:0]       w_rank;
     dram_op_e             w_op;
-    assign {w_ap, w_col, w_row, w_bank, w_rank, w_op} = cmd_data_i;
+    assign {w_mrr, w_ap, w_col, w_row, w_bank, w_rank, w_op} = cmd_data_i;
 
     // ---- command accept gate (NO TIMING HERE) ------------------------------
     // ALL JEDEC delays come from the scheduler. This layer is a constant-latency
@@ -269,6 +270,7 @@ module pumice_dfi_cmd_path
                 .cmd_bank_i   (w_bank),
                 .cmd_row_i    (w_row),
                 .cmd_col_i    (sub_col),
+                .cmd_mrr_i    (w_mrr),
                 .cmd_len_i    ('0),
                 .rd_phase_i   (sub_phase),
                 .wr_phase_i   (sub_phase),

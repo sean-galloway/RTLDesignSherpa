@@ -69,6 +69,7 @@ async def cocotb_test_dfi_cmd_formatter(dut):
         "a10_auto_pre": _a10_auto_pre,
         "cmd_invalid":  _cmd_invalid,
         "lpddr2_ca":    _lpddr2_ca,
+        "lpddr2_mrr":   _lpddr2_mrr,
         "random_soak":  _random_soak,
     }
     if test_type not in scenarios:
@@ -158,6 +159,17 @@ async def _lpddr2_ca(tb: DfiCmdFormatterTB):
                                      memtype=MEMTYPE_LPDDR2)
 
 
+async def _lpddr2_mrr(tb: DfiCmdFormatterTB):
+    """LPDDR2 MRR (mode-register read) encoding. MRR shares the MRW payload
+    layout but inverts CA3r; OP[7:0] is ignored (set to 0 by the sequencer)."""
+    # MR32 and MR40 are the LPDDR2 DQ calibration pattern registers.
+    for mr in (32, 40):
+        # row[13:8] = MA[5:0], row[7:0] = OP (0 for MRR)
+        row = (mr << 8) | 0x00
+        await tb.drive_and_check(op=OP_MRS, rank=0, bank=0, row=row, col=0,
+                                 memtype=MEMTYPE_LPDDR2, cmd_mrr=True)
+
+
 async def _random_soak(tb: DfiCmdFormatterTB):
     rng = random.Random(tb.SEED ^ 0xDF1)
     n = {'gate': 32, 'func': 200, 'full': 800}.get(tb.TEST_LEVEL, 200)
@@ -182,11 +194,12 @@ _ALL_TYPES = [
     "a10_auto_pre",
     "cmd_invalid",
     "lpddr2_ca",
+    "lpddr2_mrr",
     "random_soak",
 ]
 
 # (test_type, DFI_RATE, NUM_RANKS)
-_GATE = [(t, 2, 1) for t in ["all_ops", "a10_auto_pre", "cmd_invalid", "lpddr2_ca"]]
+_GATE = [(t, 2, 1) for t in ["all_ops", "a10_auto_pre", "cmd_invalid", "lpddr2_ca", "lpddr2_mrr"]]
 _FUNC = [(t, 2, 1) for t in _ALL_TYPES] + [
     (t, 4, 1) for t in ["all_ops", "a10_auto_pre", "cmd_invalid"]
 ] + [

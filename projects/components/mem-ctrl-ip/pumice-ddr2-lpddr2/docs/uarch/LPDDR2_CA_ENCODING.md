@@ -56,7 +56,7 @@ scope for the CA formatter.
 | Command                | CA0r | CA1r | CA2r | CA3r | notes |
 |------------------------|:----:|:----:|:----:|:----:|-------|
 | MRW (Mode Reg Write)   |  L   |  L   |  L   |  L   | init / MR programming |
-| MRR (Mode Reg Read)    |  L   |  L   |  L   |  H   | not used by pumice (write-only MR) |
+| MRR (Mode Reg Read)    |  L   |  L   |  L   |  H   | DQ calibration reads MR32 / MR40 |
 | Refresh — per bank     |  L   |  L   |  H   |  L   | 8-bank devices only (NOTE 11) |
 | Refresh — all bank     |  L   |  L   |  H   |  H   | |
 | Activate               |  L   |  H   |  —   |  —   | CA2r+ carry row bits |
@@ -127,6 +127,22 @@ All other CA pins `X`.
   bank port could not); MA[7:6]=0. The `init_sequencer` LPDDR2 chain (Reset MR63 ->
   ZQ MR10 -> MR1/2/3) drives it.
 
+### MRR — Mode Register Read  (CA0r=L, CA1r=L, CA2r=L, CA3r=H)
+
+MRR uses the SAME MA field packing as MRW; CA3r is inverted to distinguish read
+from write (JESD209-2F §5.12). The OP field is not driven by the device during an
+MRR, so the controller drives OP[7:0]=0.
+
+| edge | CA0 | CA1 | CA2 | CA3 | CA4 | CA5 | CA6 | CA7 | CA8 | CA9 |
+|------|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+| r    |  L  |  L  |  L  |  H  | MA0 | MA1 | MA2 | MA3 | MA4 | MA5 |
+| f    | MA6 | MA7 |  0  |  0  |  0  |  0  |  0  |  0  |  0  |  0  |
+
+The formatter selects MRW vs MRR through the `cmd_mrr_i` sideband: `cmd_mrr_i=0`
+⇒ MRW (CA3r=L), `cmd_mrr_i=1` ⇒ MRR (CA3r=H). The training layer drives MRR for
+`pumice_lp_cal` (MR32 pattern A, MR40 pattern B) and MRW for `pumice_zq_ctrl`
+(MR10 ZQCS/ZQCL).
+
 ---
 
 ## 4. pumice geometry mapping (defaults: 8 banks, ROW_WIDTH=14, COL_WIDTH=10)
@@ -159,8 +175,9 @@ Auto-precharge: `AP = CA0f`.
    self-times reads off `dfi_rddata_en`.
 3. **Power-down / self-refresh** entry/exit ride CKE+CS sequences, not CA opcodes
    (Table 61) — handled by `powerdown_ctrl` / the init sequencer, not this formatter.
-4. **MRR** (mode-register read) is unused: pumice programs MRs but never reads them
-   back over the bus.
+4. **MRR** (mode-register read) is used by the training layer for LPDDR2 DQ
+   calibration: MR32 returns pattern A, MR40 returns pattern B. The formatter
+   encodes it by inverting CA3r relative to MRW under control of `cmd_mrr_i`.
 5. **Endianness of the flat word** is fixed by §1 (CA0 = LSB of each half). Both the
    RTL and the BFM MUST agree on this; the conformance test drives the RTL and
    decodes with `lpddr_ca.decode_lpddr2_ca`, so any disagreement fails immediately.

@@ -61,7 +61,12 @@ module pumice_dfi_rd_aligner #(
     input  logic                        rd_ready_i,
     output logic [DFI_DATA_WIDTH-1:0]   rd_data_o,
     output logic [1:0]                  rd_resp_o,
-    output logic                        rd_last_o
+    output logic                        rd_last_o,
+
+    // calibration capture sideband (dfi_clk domain)
+    input  logic                        cal_expect_i,
+    output logic [DFI_DATA_WIDTH-1:0]   cal_data_o,
+    output logic                        cal_valid_o
 );
 
     localparam logic [1:0] RESP_OKAY = 2'b00;
@@ -144,6 +149,34 @@ module pumice_dfi_rd_aligner #(
     assign rd_data_o  = dfi_rddata_i;
     assign rd_resp_o  = RESP_OKAY;
     assign rd_last_o  = rd_valid_o && (r_rcnt == (CNTW+1)'(BL_WORDS - 1));
+
+    // ---- calibration capture sideband ---------------------------------------
+    // Armed by a single-cycle cal_expect pulse; captures the first valid beat
+    // and holds it until the next arm. The arbiter contract guarantees no read
+    // is outstanding, so this cannot collide with the normal read FIFO path.
+    logic                      r_cal_armed;
+    logic [DFI_DATA_WIDTH-1:0] r_cal_data;
+    logic                      r_cal_valid;
+
+    `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
+        if (`RST_ASSERTED(dfi_rstn)) begin
+            r_cal_armed <= 1'b0;
+            r_cal_data  <= '0;
+            r_cal_valid <= 1'b0;
+        end else begin
+            if (cal_expect_i) r_cal_armed <= 1'b1;
+            if (r_cal_armed && (|dfi_rddata_valid_i)) begin
+                r_cal_data  <= dfi_rddata_i;
+                r_cal_valid <= 1'b1;
+                r_cal_armed <= 1'b0;
+            end else begin
+                r_cal_valid <= 1'b0;
+            end
+        end
+    )
+
+    assign cal_data_o  = r_cal_data;
+    assign cal_valid_o = r_cal_valid;
 
     `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
         if (`RST_ASSERTED(dfi_rstn)) begin

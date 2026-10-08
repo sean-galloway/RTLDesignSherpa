@@ -175,8 +175,20 @@ FIELDS = {
     "TIMINGS_RTP_RTW.tRTP": dict(ships=0x04, note="board part"),
     "TIMINGS_RTP_RTW.tRTW": dict(ships=0x06, note="derived from MEASURED DQ occupancy (BUG-014), not a formula"),
 
+    # ---- LPDDR2 calibration / training --------------------------------------
+    "CAL_CTRL.zq_en": dict(ships=0x0, note="ZQ periodic calibration disabled by default"),
+    "CAL_CTRL.zq_defer_en": dict(ships=0x0, note="ZQ Mode-C deferral disabled by default"),
+    "CAL_CTRL.zq_overdue_max": dict(ships=0x0, note="no ZQ overdue limit by default"),
+    "CAL_ZQ_INTERVAL.VAL": dict(ships=0x0, note="ZQ interval 0 = disabled"),
+    "CAL_ZQ_TIMING.t_zqcs": dict(ships=0x0, note="ZQCS hold disabled by default"),
+    "CAL_ZQ_TIMING.t_zqcl": dict(ships=0x0, note="ZQCL hold disabled by default"),
+    "CAL_TRAIN_TIMING.t_mrr": dict(ships=0x2, note="MRR-to-MRR spacing default = 2 MC cycles"),
+    "CAL_TRAIN_TIMING.t_readout": dict(ships=0x0, note="MRR readout timeout disabled by default; programmed before cal_start"),
+
     # ---- waived: command strobes ---------------------------------------------
     "CTRL.init_start": dict(waived="write-1 command strobe, not configuration; reset 0 is the only correct reset"),
+    "CAL_CTRL.cal_start": dict(waived="write-1 command strobe; self-clearing, not configuration"),
+    "CAL_CTRL.cal_abort": dict(waived="write-1 command strobe; self-clearing, not configuration"),
     "CTRL.init_force_restart": dict(waived="write-1 command strobe"),
     "CTRL.soft_reset": dict(waived="write-1 command strobe; clears every instrument by design"),
     "CTRL.pwr_req_active": dict(waived="power-state request strobe"),

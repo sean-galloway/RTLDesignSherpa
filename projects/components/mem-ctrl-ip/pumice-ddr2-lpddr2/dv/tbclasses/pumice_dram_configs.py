@@ -41,7 +41,7 @@ import os
 import sys
 
 _HOST_DIR = ("/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/NexysA7/"
-             "pumice/build-perf/host")
+             "mem-ctrl-ip/pumice/build-perf/host")
 if _HOST_DIR not in sys.path:
     sys.path.insert(0, _HOST_DIR)
 

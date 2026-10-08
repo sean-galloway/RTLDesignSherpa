@@ -121,6 +121,11 @@ module pumice_top
     logic [31:0] w_stat_row_hit [NUM_BANKS];   // per-bank row hits (BUG-020)
     logic [31:0] w_stat_act, w_stat_pre, w_stat_ref;
     logic [31:0] w_stat_ref_busy;   // TASK-012: REFs with work pending
+    // training layer status
+    logic [DFI_DATA_WIDTH-1:0] w_mrr32_data, w_mrr40_data;
+    logic                      w_cal_busy, w_cal_done, w_cal_err;
+    logic                      w_zq_busy, w_zq_overdue;
+    logic [15:0]               w_zqcs_total;
     always_comb begin
         hwif_in = '{default: '0};
         hwif_in.STALL_BP.VAL.next  = w_stall_bp;
@@ -147,6 +152,17 @@ module pumice_top
         hwif_in.SCHED_STATS_PRE.VAL.next   = w_stat_pre;
         hwif_in.REF_STATS_REF.VAL.next     = w_stat_ref;
         hwif_in.REF_STATS_REF_BUSY.VAL.next = w_stat_ref_busy;
+        // Training layer status (LPDDR2 calibration)
+        for (int b = 0; b < (DFI_DATA_WIDTH / 32); b++) begin
+            hwif_in.CAL_MRR32_DATA[b].VAL.VAL.next = w_mrr32_data[b*32 +: 32];
+            hwif_in.CAL_MRR40_DATA[b].VAL.VAL.next = w_mrr40_data[b*32 +: 32];
+        end
+        hwif_in.CAL_STATUS.zq_busy.next     = w_zq_busy;
+        hwif_in.CAL_STATUS.cal_busy.next    = w_cal_busy;
+        hwif_in.CAL_STATUS.cal_done.next    = w_cal_done;
+        hwif_in.CAL_STATUS.cal_err.next     = w_cal_err;
+        hwif_in.CAL_STATUS.zq_overdue.next  = w_zq_overdue;
+        hwif_in.CAL_STATUS.zqcs_total.next  = w_zqcs_total;
         // Init status. STATUS.init_done is the ONLY way software can tell
         // that bring-up finished -- and it was never driven, so it read 0
         // forever while the sequencer sat in S_DONE with init_done_o = 1.
@@ -332,6 +348,24 @@ module pumice_top
         .cwl_o              (),
         .bl_o               (),
         .init_done_o        (init_done_o),
+        .zq_en_i            (hwif_out.CAL_CTRL.zq_en.value),
+        .zq_defer_en_i      (hwif_out.CAL_CTRL.zq_defer_en.value),
+        .zq_interval_i      (hwif_out.CAL_ZQ_INTERVAL.VAL.value),
+        .t_zqcs_i           (hwif_out.CAL_ZQ_TIMING.t_zqcs.value),
+        .t_zqcl_i           (hwif_out.CAL_ZQ_TIMING.t_zqcl.value),
+        .zq_overdue_max_i   (hwif_out.CAL_CTRL.zq_overdue_max.value),
+        .cal_start_i        (hwif_out.CAL_CTRL.cal_start.swmod),
+        .cal_abort_i        (hwif_out.CAL_CTRL.cal_abort.swmod),
+        .t_mrr_i            (hwif_out.CAL_TRAIN_TIMING.t_mrr.value),
+        .t_readout_i        (hwif_out.CAL_TRAIN_TIMING.t_readout.value),
+        .mrr32_data_o       (w_mrr32_data),
+        .mrr40_data_o       (w_mrr40_data),
+        .cal_busy_o         (w_cal_busy),
+        .cal_done_o         (w_cal_done),
+        .cal_err_o          (w_cal_err),
+        .zq_busy_o          (w_zq_busy),
+        .zq_overdue_o       (w_zq_overdue),
+        .zqcs_total_o       (w_zqcs_total),
         .s_axi_awid         (s_axi_awid),
         .s_axi_awaddr       (s_axi_awaddr),
         .s_axi_awlen        (s_axi_awlen),

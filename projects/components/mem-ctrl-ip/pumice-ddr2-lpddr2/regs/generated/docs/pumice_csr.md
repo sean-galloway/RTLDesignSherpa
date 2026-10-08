@@ -49,6 +49,19 @@ Don't override. Generated from: $root
 | 0x094|     OBS_ROW_HIT[5]    |      Per-Bank Row Hit Observation      |
 | 0x098|     OBS_ROW_HIT[6]    |      Per-Bank Row Hit Observation      |
 | 0x09C|     OBS_ROW_HIT[7]    |      Per-Bank Row Hit Observation      |
+| 0x0A0|        CAL_CTRL       |           Calibration Control          |
+| 0x0A4|    CAL_ZQ_INTERVAL    |               ZQ Interval              |
+| 0x0A8|     CAL_ZQ_TIMING     |           ZQ Post-Grant Hold           |
+| 0x0AC|    CAL_TRAIN_TIMING   |             Training Timing            |
+| 0x0B0|   CAL_MRR32_DATA[0]   |           MRR32 Captured Data          |
+| 0x0B4|   CAL_MRR32_DATA[1]   |           MRR32 Captured Data          |
+| 0x0B8|   CAL_MRR32_DATA[2]   |           MRR32 Captured Data          |
+| 0x0BC|   CAL_MRR32_DATA[3]   |           MRR32 Captured Data          |
+| 0x0E0|   CAL_MRR40_DATA[0]   |           MRR40 Captured Data          |
+| 0x0E4|   CAL_MRR40_DATA[1]   |           MRR40 Captured Data          |
+| 0x0E8|   CAL_MRR40_DATA[2]   |           MRR40 Captured Data          |
+| 0x0EC|   CAL_MRR40_DATA[3]   |           MRR40 Captured Data          |
+| 0x0F0|       CAL_STATUS      |           Calibration Status           |
 | 0x140|        REF_CTRL       |          Refresh Mode Control          |
 | 0x144|     REF_TIMING_PB     |         Per-Bank Refresh Timing        |
 | 0x148|     PAGE_STATS_HIT    |Page Stats: Column Ops (misnamed 'Hits')|
@@ -1302,6 +1315,393 @@ timeout precharge before its column command issues, and reopened
 #### VAL field
 
 <p>Row-hit count</p>
+
+### CAL_CTRL register
+
+- Absolute Address: 0xA0
+- Base Offset: 0xA0
+- Size: 0x4
+
+<p>ZQ + DQ calibration control strobes and enables</p>
+
+| Bits|  Identifier  |Access|Reset|Name|
+|-----|--------------|------|-----|----|
+|  0  |     zq_en    |  rw  | 0x0 |  — |
+|  1  |  zq_defer_en |  rw  | 0x0 |  — |
+| 3:2 |   RSVD_3_2   |   r  | 0x0 |  — |
+|  4  |   cal_start  |  rw  | 0x0 |  — |
+|  5  |   cal_abort  |  rw  | 0x0 |  — |
+| 15:6|   RSVD_15_6  |   r  | 0x0 |  — |
+|28:16|zq_overdue_max|  rw  | 0x0 |  — |
+|31:29|  RSVD_31_29  |   r  | 0x0 |  — |
+
+#### zq_en field
+
+<p>Enable periodic ZQCS/ZQCL</p>
+
+#### zq_defer_en field
+
+<p>Mode-C deferral: hold ZQ under demand</p>
+
+#### RSVD_3_2 field
+
+<p>Reserved</p>
+
+#### cal_start field
+
+<p>Write 1 to start a DQ-cal sequence (self-clearing command)</p>
+
+#### cal_abort field
+
+<p>Write 1 to abort the current DQ-cal sequence</p>
+
+#### RSVD_15_6 field
+
+<p>Reserved</p>
+
+#### zq_overdue_max field
+
+<p>Max ZQ deferral cycles before overdue (0 = no cap)</p>
+
+#### RSVD_31_29 field
+
+<p>Reserved</p>
+
+### CAL_ZQ_INTERVAL register
+
+- Absolute Address: 0xA4
+- Base Offset: 0xA4
+- Size: 0x4
+
+<p>ZQCS interval in MC cycles, 0 = disabled</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |  rw  | 0x0 |  — |
+
+#### VAL field
+
+<p>ZQCS interval</p>
+
+### CAL_ZQ_TIMING register
+
+- Absolute Address: 0xA8
+- Base Offset: 0xA8
+- Size: 0x4
+
+<p>Bus-quiet window after a ZQCS/ZQCL MRW grant</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 15:0|  t_zqcs  |  rw  | 0x0 |  — |
+|31:16|  t_zqcl  |  rw  | 0x0 |  — |
+
+#### t_zqcs field
+
+<p>ZQCS post-grant hold</p>
+
+#### t_zqcl field
+
+<p>ZQCL post-grant hold</p>
+
+### CAL_TRAIN_TIMING register
+
+- Absolute Address: 0xAC
+- Base Offset: 0xAC
+- Size: 0x4
+
+<p>MRR spacing and readout timeout for DQ calibration</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 15:0|   t_mrr  |  rw  | 0x2 |  — |
+|31:16| t_readout|  rw  | 0x0 |  — |
+
+#### t_mrr field
+
+<p>MRR-to-MRR spacing (MC cycles)</p>
+
+#### t_readout field
+
+<p>MRR issue -&gt; data timeout</p>
+
+## CAL_MRR32_DATA register file
+
+- Absolute Address: 0xB0
+- Base Offset: 0xB0
+- Size: 0x4
+- Array Dimensions: [4]
+- Array Stride: 0x4
+- Total Size: 0x10
+
+<p>First captured DFI read-data beat for MRR MR32 (pattern A).</p>
+
+|Offset|Identifier|Name|
+|------|----------|----|
+|  0x0 |    VAL   |  — |
+
+### VAL register
+
+- Absolute Address: 0xB0
+- Base Offset: 0x0
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>32-bit slice of captured MRR32 data</p>
+
+## CAL_MRR32_DATA register file
+
+- Absolute Address: 0xB4
+- Base Offset: 0xB0
+- Size: 0x4
+- Array Dimensions: [4]
+- Array Stride: 0x4
+- Total Size: 0x10
+
+<p>First captured DFI read-data beat for MRR MR32 (pattern A).</p>
+
+|Offset|Identifier|Name|
+|------|----------|----|
+|  0x0 |    VAL   |  — |
+
+### VAL register
+
+- Absolute Address: 0xB4
+- Base Offset: 0x0
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>32-bit slice of captured MRR32 data</p>
+
+## CAL_MRR32_DATA register file
+
+- Absolute Address: 0xB8
+- Base Offset: 0xB0
+- Size: 0x4
+- Array Dimensions: [4]
+- Array Stride: 0x4
+- Total Size: 0x10
+
+<p>First captured DFI read-data beat for MRR MR32 (pattern A).</p>
+
+|Offset|Identifier|Name|
+|------|----------|----|
+|  0x0 |    VAL   |  — |
+
+### VAL register
+
+- Absolute Address: 0xB8
+- Base Offset: 0x0
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>32-bit slice of captured MRR32 data</p>
+
+## CAL_MRR32_DATA register file
+
+- Absolute Address: 0xBC
+- Base Offset: 0xB0
+- Size: 0x4
+- Array Dimensions: [4]
+- Array Stride: 0x4
+- Total Size: 0x10
+
+<p>First captured DFI read-data beat for MRR MR32 (pattern A).</p>
+
+|Offset|Identifier|Name|
+|------|----------|----|
+|  0x0 |    VAL   |  — |
+
+### VAL register
+
+- Absolute Address: 0xBC
+- Base Offset: 0x0
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>32-bit slice of captured MRR32 data</p>
+
+## CAL_MRR40_DATA register file
+
+- Absolute Address: 0xE0
+- Base Offset: 0xE0
+- Size: 0x4
+- Array Dimensions: [4]
+- Array Stride: 0x4
+- Total Size: 0x10
+
+<p>First captured DFI read-data beat for MRR MR40 (pattern B).</p>
+
+|Offset|Identifier|Name|
+|------|----------|----|
+|  0x0 |    VAL   |  — |
+
+### VAL register
+
+- Absolute Address: 0xE0
+- Base Offset: 0x0
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>32-bit slice of captured MRR40 data</p>
+
+## CAL_MRR40_DATA register file
+
+- Absolute Address: 0xE4
+- Base Offset: 0xE0
+- Size: 0x4
+- Array Dimensions: [4]
+- Array Stride: 0x4
+- Total Size: 0x10
+
+<p>First captured DFI read-data beat for MRR MR40 (pattern B).</p>
+
+|Offset|Identifier|Name|
+|------|----------|----|
+|  0x0 |    VAL   |  — |
+
+### VAL register
+
+- Absolute Address: 0xE4
+- Base Offset: 0x0
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>32-bit slice of captured MRR40 data</p>
+
+## CAL_MRR40_DATA register file
+
+- Absolute Address: 0xE8
+- Base Offset: 0xE0
+- Size: 0x4
+- Array Dimensions: [4]
+- Array Stride: 0x4
+- Total Size: 0x10
+
+<p>First captured DFI read-data beat for MRR MR40 (pattern B).</p>
+
+|Offset|Identifier|Name|
+|------|----------|----|
+|  0x0 |    VAL   |  — |
+
+### VAL register
+
+- Absolute Address: 0xE8
+- Base Offset: 0x0
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>32-bit slice of captured MRR40 data</p>
+
+## CAL_MRR40_DATA register file
+
+- Absolute Address: 0xEC
+- Base Offset: 0xE0
+- Size: 0x4
+- Array Dimensions: [4]
+- Array Stride: 0x4
+- Total Size: 0x10
+
+<p>First captured DFI read-data beat for MRR MR40 (pattern B).</p>
+
+|Offset|Identifier|Name|
+|------|----------|----|
+|  0x0 |    VAL   |  — |
+
+### VAL register
+
+- Absolute Address: 0xEC
+- Base Offset: 0x0
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>32-bit slice of captured MRR40 data</p>
+
+### CAL_STATUS register
+
+- Absolute Address: 0xF0
+- Base Offset: 0xF0
+- Size: 0x4
+
+<p>Training layer telemetry; sticky done/err, cleared by soft reset</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+|  0  |  zq_busy |   r  |  —  |  — |
+|  1  | cal_busy |   r  |  —  |  — |
+|  2  | cal_done |   r  |  —  |  — |
+|  3  |  cal_err |   r  |  —  |  — |
+|  4  |zq_overdue|   r  |  —  |  — |
+| 15:5| RSVD_15_5|   r  | 0x0 |  — |
+|31:16|zqcs_total|   r  | 0x0 |  — |
+
+#### zq_busy field
+
+<p>ZQ calibration busy</p>
+
+#### cal_busy field
+
+<p>DQ calibration busy</p>
+
+#### cal_done field
+
+<p>DQ calibration done (sticky)</p>
+
+#### cal_err field
+
+<p>DQ calibration error (sticky)</p>
+
+#### zq_overdue field
+
+<p>ZQ interval expired without grant</p>
+
+#### RSVD_15_5 field
+
+<p>Reserved</p>
+
+#### zqcs_total field
+
+<p>ZQCS/ZQCL commands issued since reset</p>
 
 ### REF_CTRL register
 

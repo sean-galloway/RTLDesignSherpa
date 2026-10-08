@@ -188,6 +188,26 @@ module pumice_core
     output logic [3:0]                 cl_o, cwl_o, bl_o,
     output logic                       init_done_o,
 
+    // ---- training layer controls / status (CSR) ----
+    input  logic                       zq_en_i,
+    input  logic                       zq_defer_en_i,
+    input  logic [31:0]                zq_interval_i,
+    input  logic [15:0]                t_zqcs_i,
+    input  logic [15:0]                t_zqcl_i,
+    input  logic [12:0]                zq_overdue_max_i,
+    input  logic                       cal_start_i,
+    input  logic                       cal_abort_i,
+    input  logic [15:0]                t_mrr_i,
+    input  logic [15:0]                t_readout_i,
+    output logic [DFI_DATA_WIDTH-1:0]  mrr32_data_o,
+    output logic [DFI_DATA_WIDTH-1:0]  mrr40_data_o,
+    output logic                       cal_busy_o,
+    output logic                       cal_done_o,
+    output logic                       cal_err_o,
+    output logic                       zq_busy_o,
+    output logic                       zq_overdue_o,
+    output logic [15:0]                zqcs_total_o,
+
     // ---- host AXI4 (data width = DFI word; external dwidth shim separate) ----
     input  logic [IW-1:0]  s_axi_awid,   input logic [AW-1:0] s_axi_awaddr,
     input  logic [7:0]     s_axi_awlen,  input logic [2:0]    s_axi_awsize,
@@ -233,7 +253,7 @@ module pumice_core
 );
 
     localparam int PTRW = $clog2(NUM_ENTRIES);
-    localparam int CMD_DW = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1;
+    localparam int CMD_DW = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1;
     localparam int WD_DW  = 1 + DFI_STRB_WIDTH + DFI_DATA_WIDTH;
     localparam int RD_DW  = 1 + 2 + DFI_DATA_WIDTH;
 
@@ -306,9 +326,22 @@ module pumice_core
     logic [BKW-1:0]            w_cmd_bank;
     logic [ROW_WIDTH-1:0]      w_cmd_row;
     logic [COL_WIDTH-1:0]      w_cmd_col;
-    logic                      w_cmd_ap;
+    logic                      w_cmd_ap, w_cmd_mrr;
     logic [CMD_DW-1:0]         w_cmd_data;
-    assign w_cmd_data = {w_cmd_ap, w_cmd_col, w_cmd_row, w_cmd_bank, w_cmd_rank, w_cmd_op};
+    assign w_cmd_data = {w_cmd_mrr, w_cmd_ap, w_cmd_col, w_cmd_row, w_cmd_bank, w_cmd_rank, w_cmd_op};
+
+    // ---- scheduler <-> training layer ----
+    logic                      w_trn_req, w_trn_grant;
+    dram_op_e                  w_trn_op;
+    logic [BKW-1:0]            w_trn_bank;
+    logic [17:0]               w_trn_row;
+    logic                      w_trn_mrr;
+    logic                      w_cal_busy;
+
+    // ---- DFI layer <-> training layer calibration sideband ----
+    logic                      w_cal_expect;
+    logic [DFI_DATA_WIDTH-1:0] w_cal_data;
+    logic                      w_cal_valid;
 
     // ---- init handshake scheduler <-> DFI (ctl side) ----
     logic                      w_init_start, w_init_complete;
@@ -536,14 +569,63 @@ module pumice_core
         .cmd_rank_o (w_cmd_rank),
         .cmd_bank_o (w_cmd_bank),
         .cmd_row_o  (w_cmd_row),
-        .cmd_col_o  (w_cmd_col),
-        .cmd_ap_o   (w_cmd_ap),
-        .busy_o     ()
+        .cmd_col_o       (w_cmd_col),
+        .cmd_ap_o        (w_cmd_ap),
+        .cmd_mrr_o       (w_cmd_mrr),
+        .trn_cmd_req_i   (w_trn_req),
+        .trn_cmd_grant_o (w_trn_grant),
+        .trn_cmd_op_i    (w_trn_op),
+        .trn_cmd_bank_i  (w_trn_bank),
+        .trn_cmd_row_i   (ROW_WIDTH'(w_trn_row)),
+        .trn_cmd_mrr_i   (w_trn_mrr),
+        .cal_busy_i      (w_cal_busy),
+        .busy_o          ()
     );
 
-    // ======================================================================
+    // =======================================================================
+    // Layer 2b: training layer (ZQ periodic cal + MRR DQ cal)
+    // =======================================================================
+    pumice_training_layer #(
+        .DFI_DATA_WIDTH(DFI_DATA_WIDTH)
+    ) u_training (
+        .mc_clk          (aclk),
+        .mc_rst_n        (aresetn),
+        .init_done_i     (init_done_o),
+        .memtype_i       (memtype_i),
+        .zq_en_i         (zq_en_i),
+        .zq_defer_en_i   (zq_defer_en_i),
+        .zq_interval_i   (zq_interval_i),
+        .t_zqcs_i        (t_zqcs_i),
+        .t_zqcl_i        (t_zqcl_i),
+        .zq_overdue_max_i(zq_overdue_max_i),
+        .cal_start_i     (cal_start_i),
+        .cal_abort_i     (cal_abort_i),
+        .t_mrr_i         (t_mrr_i),
+        .t_readout_i     (t_readout_i),
+        .trn_cmd_req_o   (w_trn_req),
+        .trn_cmd_grant_i (w_trn_grant),
+        .trn_cmd_op_o    (w_trn_op),
+        .trn_cmd_bank_o  (w_trn_bank),
+        .trn_cmd_row_o   (w_trn_row),
+        .trn_cmd_mrr_o   (w_trn_mrr),
+        .dfi_clk         (dfi_clk),
+        .dfi_rstn        (dfi_rstn),
+        .cal_expect_o    (w_cal_expect),
+        .cal_data_i      (w_cal_data),
+        .cal_valid_i     (w_cal_valid),
+        .cal_busy_o      (w_cal_busy),
+        .cal_done_o      (cal_done_o),
+        .cal_err_o       (cal_err_o),
+        .mrr32_data_o    (mrr32_data_o),
+        .mrr40_data_o    (mrr40_data_o),
+        .zq_busy_o       (zq_busy_o),
+        .zq_overdue_o    (zq_overdue_o),
+        .zqcs_total_o    (zqcs_total_o)
+    );
+
+    // =======================================================================
     // Layer 3: DFI layer (single CDC + datapath)
-    // ======================================================================
+    // =======================================================================
     pumice_dfi_layer #(
         .NUM_RANKS       (NUM_RANKS),
         .NUM_BANKS       (NUM_BANKS),
@@ -609,6 +691,9 @@ module pumice_core
         .dfi_rddata_en_o    (dfi_rddata_en_o),
         .dfi_rddata_i       (dfi_rddata_i),
         .dfi_rddata_valid_i (dfi_rddata_valid_i),
+        .cal_expect_i       (w_cal_expect),
+        .cal_data_o         (w_cal_data),
+        .cal_valid_o        (w_cal_valid),
         .dfi_init_start_o   (dfi_init_start_o),
         .dfi_init_complete_i(dfi_init_complete_i)
     );

@@ -13,12 +13,25 @@
     <dt>Array Stride:</dt><dd>+0x4</dd>
     <dt>Total Size:</dt><dd class="address">0x20</dd>
     
-    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl#L442" target="_blank">pumice_csr.rdl</a></dd>
+    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl#L487" target="_blank">pumice_csr.rdl</a></dd>
     
 </dl>
 <h2>Description</h2>
 <div id="_Content.desc">
-<p>Rolling row-hit count per bank. Reset on read or soft_reset.</p>
+<p>Free-running row-hit count per bank: column ops issued to a bank
+whose row was ALREADY OPEN. Driven by pumice_page_policy from the
+issued command stream (pumice BUG-020 wired these; before that
+they, and every other OBS_* register, read zero forever).</p>
+<p>Read two and subtract for a window, as with PAGE_STATS_<em> and
+SCHED_STATS_</em>; they clear only on aresetn. This used to be
+<code>sw=rw, onread=rclr</code>, which could never have worked: the field is
+hw=w and driven every cycle, so the hardware rewrites the value
+the read cleared.</p>
+<p>These are the SOUND row-hit count. Do not re-derive hits as
+PAGE_STATS_HIT - SCHED_STATS_ACT: that goes negative under a
+background-close mode, because a row can be opened, hit by the
+timeout precharge before its column command issues, and reopened
+(pumice ISSUE-014).</p>
 </div>
 
 <h2>Contents</h2>

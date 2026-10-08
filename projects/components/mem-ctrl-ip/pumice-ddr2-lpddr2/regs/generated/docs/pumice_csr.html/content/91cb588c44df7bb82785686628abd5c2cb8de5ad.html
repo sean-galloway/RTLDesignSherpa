@@ -10,7 +10,7 @@
     <dt>Base Offset:</dt><dd class="address">0x0</dd>
     <dt>Size:</dt><dd class="address">0xff8</dd>
     
-    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl#L16" target="_blank">pumice_csr.rdl</a></dd>
+    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl#L18" target="_blank">pumice_csr.rdl</a></dd>
     
 </dl>
 <h2>Description</h2>
@@ -275,121 +275,77 @@
             <a class="headerlink" href="#OBS_ROW_HIT" title="Permalink to this row"></a>
         </td>
     </tr>
+    <tr id="CAL_CTRL">
+        <td class="address">0x0A0</td>
+        <td><a href="?p=pumice_csr.CAL_CTRL" data-id="30" onclick="onClickNodeLink(event); return(false)">CAL_CTRL</a></td>
+        <td>Calibration Control</td>
+        <td>
+            <a class="headerlink" href="#CAL_CTRL" title="Permalink to this row"></a>
+        </td>
+    </tr>
+    <tr id="CAL_ZQ_INTERVAL">
+        <td class="address">0x0A4</td>
+        <td><a href="?p=pumice_csr.CAL_ZQ_INTERVAL" data-id="31" onclick="onClickNodeLink(event); return(false)">CAL_ZQ_INTERVAL</a></td>
+        <td>ZQ Interval</td>
+        <td>
+            <a class="headerlink" href="#CAL_ZQ_INTERVAL" title="Permalink to this row"></a>
+        </td>
+    </tr>
+    <tr id="CAL_ZQ_TIMING">
+        <td class="address">0x0A8</td>
+        <td><a href="?p=pumice_csr.CAL_ZQ_TIMING" data-id="32" onclick="onClickNodeLink(event); return(false)">CAL_ZQ_TIMING</a></td>
+        <td>ZQ Post-Grant Hold</td>
+        <td>
+            <a class="headerlink" href="#CAL_ZQ_TIMING" title="Permalink to this row"></a>
+        </td>
+    </tr>
+    <tr id="CAL_TRAIN_TIMING">
+        <td class="address">0x0AC</td>
+        <td><a href="?p=pumice_csr.CAL_TRAIN_TIMING" data-id="33" onclick="onClickNodeLink(event); return(false)">CAL_TRAIN_TIMING</a></td>
+        <td>Training Timing</td>
+        <td>
+            <a class="headerlink" href="#CAL_TRAIN_TIMING" title="Permalink to this row"></a>
+        </td>
+    </tr>
+    <tr id="CAL_MRR32_DATA">
+        <td class="address">0x0B0</td>
+        <td><a href="?p=pumice_csr.CAL_MRR32_DATA" data-id="34" onclick="onClickNodeLink(event); return(false)">CAL_MRR32_DATA[4]</a></td>
+        <td>MRR32 Captured Data</td>
+        <td>
+            <a class="headerlink" href="#CAL_MRR32_DATA" title="Permalink to this row"></a>
+        </td>
+    </tr>
     <tr class="reserved-addr">
-    <td class="address">0x0A0</td>
+    <td class="address">0x0C0</td>
     <td>-</td>
     <td>-</td>
     <td></td>
 </tr>
-    <tr id="OBS_REF_LATENCY">
-        <td class="address">0x0C0</td>
-        <td><a href="?p=pumice_csr.OBS_REF_LATENCY" data-id="30" onclick="onClickNodeLink(event); return(false)">OBS_REF_LATENCY[8]</a></td>
-        <td>Per-Bank Refresh Latency Observation</td>
+    <tr id="CAL_MRR40_DATA">
+        <td class="address">0x0E0</td>
+        <td><a href="?p=pumice_csr.CAL_MRR40_DATA" data-id="36" onclick="onClickNodeLink(event); return(false)">CAL_MRR40_DATA[4]</a></td>
+        <td>MRR40 Captured Data</td>
         <td>
-            <a class="headerlink" href="#OBS_REF_LATENCY" title="Permalink to this row"></a>
+            <a class="headerlink" href="#CAL_MRR40_DATA" title="Permalink to this row"></a>
+        </td>
+    </tr>
+    <tr id="CAL_STATUS">
+        <td class="address">0x0F0</td>
+        <td><a href="?p=pumice_csr.CAL_STATUS" data-id="38" onclick="onClickNodeLink(event); return(false)">CAL_STATUS</a></td>
+        <td>Calibration Status</td>
+        <td>
+            <a class="headerlink" href="#CAL_STATUS" title="Permalink to this row"></a>
         </td>
     </tr>
     <tr class="reserved-addr">
-    <td class="address">0x0E0</td>
-    <td>-</td>
-    <td>-</td>
-    <td></td>
-</tr>
-    <tr id="OBS_TXN_QUEUE_DEPTH_MAX">
-        <td class="address">0x100</td>
-        <td><a href="?p=pumice_csr.OBS_TXN_QUEUE_DEPTH_MAX" data-id="32" onclick="onClickNodeLink(event); return(false)">OBS_TXN_QUEUE_DEPTH_MAX</a></td>
-        <td>-</td>
-        <td>
-            <a class="headerlink" href="#OBS_TXN_QUEUE_DEPTH_MAX" title="Permalink to this row"></a>
-        </td>
-    </tr>
-    <tr id="OBS_TXN_QUEUE_DEPTH_AVG">
-        <td class="address">0x104</td>
-        <td><a href="?p=pumice_csr.OBS_TXN_QUEUE_DEPTH_AVG" data-id="33" onclick="onClickNodeLink(event); return(false)">OBS_TXN_QUEUE_DEPTH_AVG</a></td>
-        <td>-</td>
-        <td>
-            <a class="headerlink" href="#OBS_TXN_QUEUE_DEPTH_AVG" title="Permalink to this row"></a>
-        </td>
-    </tr>
-    <tr id="OBS_REFRESH_PENDING_MAX">
-        <td class="address">0x108</td>
-        <td><a href="?p=pumice_csr.OBS_REFRESH_PENDING_MAX" data-id="34" onclick="onClickNodeLink(event); return(false)">OBS_REFRESH_PENDING_MAX</a></td>
-        <td>-</td>
-        <td>
-            <a class="headerlink" href="#OBS_REFRESH_PENDING_MAX" title="Permalink to this row"></a>
-        </td>
-    </tr>
-    <tr id="OBS_REFRESH_DEFER_HIST_0">
-        <td class="address">0x10C</td>
-        <td><a href="?p=pumice_csr.OBS_REFRESH_DEFER_HIST_0" data-id="35" onclick="onClickNodeLink(event); return(false)">OBS_REFRESH_DEFER_HIST_0</a></td>
-        <td>-</td>
-        <td>
-            <a class="headerlink" href="#OBS_REFRESH_DEFER_HIST_0" title="Permalink to this row"></a>
-        </td>
-    </tr>
-    <tr id="OBS_REFRESH_DEFER_HIST_1">
-        <td class="address">0x110</td>
-        <td><a href="?p=pumice_csr.OBS_REFRESH_DEFER_HIST_1" data-id="36" onclick="onClickNodeLink(event); return(false)">OBS_REFRESH_DEFER_HIST_1</a></td>
-        <td>-</td>
-        <td>
-            <a class="headerlink" href="#OBS_REFRESH_DEFER_HIST_1" title="Permalink to this row"></a>
-        </td>
-    </tr>
-    <tr id="OBS_REFRESH_DEFER_HIST_2">
-        <td class="address">0x114</td>
-        <td><a href="?p=pumice_csr.OBS_REFRESH_DEFER_HIST_2" data-id="37" onclick="onClickNodeLink(event); return(false)">OBS_REFRESH_DEFER_HIST_2</a></td>
-        <td>-</td>
-        <td>
-            <a class="headerlink" href="#OBS_REFRESH_DEFER_HIST_2" title="Permalink to this row"></a>
-        </td>
-    </tr>
-    <tr id="OBS_REFRESH_DEFER_HIST_3">
-        <td class="address">0x118</td>
-        <td><a href="?p=pumice_csr.OBS_REFRESH_DEFER_HIST_3" data-id="38" onclick="onClickNodeLink(event); return(false)">OBS_REFRESH_DEFER_HIST_3</a></td>
-        <td>-</td>
-        <td>
-            <a class="headerlink" href="#OBS_REFRESH_DEFER_HIST_3" title="Permalink to this row"></a>
-        </td>
-    </tr>
-    <tr class="reserved-addr">
-    <td class="address">0x11C</td>
-    <td>-</td>
-    <td>-</td>
-    <td></td>
-</tr>
-    <tr id="OBS_AXI_R_LATENCY_AVG">
-        <td class="address">0x130</td>
-        <td><a href="?p=pumice_csr.OBS_AXI_R_LATENCY_AVG" data-id="39" onclick="onClickNodeLink(event); return(false)">OBS_AXI_R_LATENCY_AVG</a></td>
-        <td>-</td>
-        <td>
-            <a class="headerlink" href="#OBS_AXI_R_LATENCY_AVG" title="Permalink to this row"></a>
-        </td>
-    </tr>
-    <tr id="OBS_AXI_R_LATENCY_P99">
-        <td class="address">0x134</td>
-        <td><a href="?p=pumice_csr.OBS_AXI_R_LATENCY_P99" data-id="40" onclick="onClickNodeLink(event); return(false)">OBS_AXI_R_LATENCY_P99</a></td>
-        <td>-</td>
-        <td>
-            <a class="headerlink" href="#OBS_AXI_R_LATENCY_P99" title="Permalink to this row"></a>
-        </td>
-    </tr>
-    <tr id="OBS_AXI_W_LATENCY_AVG">
-        <td class="address">0x138</td>
-        <td><a href="?p=pumice_csr.OBS_AXI_W_LATENCY_AVG" data-id="41" onclick="onClickNodeLink(event); return(false)">OBS_AXI_W_LATENCY_AVG</a></td>
-        <td>-</td>
-        <td>
-            <a class="headerlink" href="#OBS_AXI_W_LATENCY_AVG" title="Permalink to this row"></a>
-        </td>
-    </tr>
-    <tr class="reserved-addr">
-    <td class="address">0x13C</td>
+    <td class="address">0x0F4</td>
     <td>-</td>
     <td>-</td>
     <td></td>
 </tr>
     <tr id="REF_CTRL">
         <td class="address">0x140</td>
-        <td><a href="?p=pumice_csr.REF_CTRL" data-id="42" onclick="onClickNodeLink(event); return(false)">REF_CTRL</a></td>
+        <td><a href="?p=pumice_csr.REF_CTRL" data-id="39" onclick="onClickNodeLink(event); return(false)">REF_CTRL</a></td>
         <td>Refresh Mode Control</td>
         <td>
             <a class="headerlink" href="#REF_CTRL" title="Permalink to this row"></a>
@@ -397,7 +353,7 @@
     </tr>
     <tr id="REF_TIMING_PB">
         <td class="address">0x144</td>
-        <td><a href="?p=pumice_csr.REF_TIMING_PB" data-id="43" onclick="onClickNodeLink(event); return(false)">REF_TIMING_PB</a></td>
+        <td><a href="?p=pumice_csr.REF_TIMING_PB" data-id="40" onclick="onClickNodeLink(event); return(false)">REF_TIMING_PB</a></td>
         <td>Per-Bank Refresh Timing</td>
         <td>
             <a class="headerlink" href="#REF_TIMING_PB" title="Permalink to this row"></a>
@@ -405,7 +361,7 @@
     </tr>
     <tr id="PAGE_STATS_HIT">
         <td class="address">0x148</td>
-        <td><a href="?p=pumice_csr.PAGE_STATS_HIT" data-id="44" onclick="onClickNodeLink(event); return(false)">PAGE_STATS_HIT</a></td>
+        <td><a href="?p=pumice_csr.PAGE_STATS_HIT" data-id="41" onclick="onClickNodeLink(event); return(false)">PAGE_STATS_HIT</a></td>
         <td>Page Stats: Column Ops (misnamed 'Hits')</td>
         <td>
             <a class="headerlink" href="#PAGE_STATS_HIT" title="Permalink to this row"></a>
@@ -413,7 +369,7 @@
     </tr>
     <tr id="PAGE_STATS_MISS">
         <td class="address">0x14C</td>
-        <td><a href="?p=pumice_csr.PAGE_STATS_MISS" data-id="45" onclick="onClickNodeLink(event); return(false)">PAGE_STATS_MISS</a></td>
+        <td><a href="?p=pumice_csr.PAGE_STATS_MISS" data-id="42" onclick="onClickNodeLink(event); return(false)">PAGE_STATS_MISS</a></td>
         <td>Page Stats: Misses</td>
         <td>
             <a class="headerlink" href="#PAGE_STATS_MISS" title="Permalink to this row"></a>
@@ -421,7 +377,7 @@
     </tr>
     <tr id="PAGE_STATS_EMPTY">
         <td class="address">0x150</td>
-        <td><a href="?p=pumice_csr.PAGE_STATS_EMPTY" data-id="46" onclick="onClickNodeLink(event); return(false)">PAGE_STATS_EMPTY</a></td>
+        <td><a href="?p=pumice_csr.PAGE_STATS_EMPTY" data-id="43" onclick="onClickNodeLink(event); return(false)">PAGE_STATS_EMPTY</a></td>
         <td>Page Stats: Empties</td>
         <td>
             <a class="headerlink" href="#PAGE_STATS_EMPTY" title="Permalink to this row"></a>
@@ -429,7 +385,7 @@
     </tr>
     <tr id="SCHED_STATS_ACT">
         <td class="address">0x154</td>
-        <td><a href="?p=pumice_csr.SCHED_STATS_ACT" data-id="47" onclick="onClickNodeLink(event); return(false)">SCHED_STATS_ACT</a></td>
+        <td><a href="?p=pumice_csr.SCHED_STATS_ACT" data-id="44" onclick="onClickNodeLink(event); return(false)">SCHED_STATS_ACT</a></td>
         <td>Sched Stats: Activates</td>
         <td>
             <a class="headerlink" href="#SCHED_STATS_ACT" title="Permalink to this row"></a>
@@ -437,7 +393,7 @@
     </tr>
     <tr id="SCHED_STATS_PRE">
         <td class="address">0x158</td>
-        <td><a href="?p=pumice_csr.SCHED_STATS_PRE" data-id="48" onclick="onClickNodeLink(event); return(false)">SCHED_STATS_PRE</a></td>
+        <td><a href="?p=pumice_csr.SCHED_STATS_PRE" data-id="45" onclick="onClickNodeLink(event); return(false)">SCHED_STATS_PRE</a></td>
         <td>Sched Stats: Precharges</td>
         <td>
             <a class="headerlink" href="#SCHED_STATS_PRE" title="Permalink to this row"></a>
@@ -445,7 +401,7 @@
     </tr>
     <tr id="REF_STATS_REF">
         <td class="address">0x15C</td>
-        <td><a href="?p=pumice_csr.REF_STATS_REF" data-id="49" onclick="onClickNodeLink(event); return(false)">REF_STATS_REF</a></td>
+        <td><a href="?p=pumice_csr.REF_STATS_REF" data-id="46" onclick="onClickNodeLink(event); return(false)">REF_STATS_REF</a></td>
         <td>Refresh Stats: Refreshes</td>
         <td>
             <a class="headerlink" href="#REF_STATS_REF" title="Permalink to this row"></a>
@@ -453,7 +409,7 @@
     </tr>
     <tr id="STALL_BP">
         <td class="address">0x160</td>
-        <td><a href="?p=pumice_csr.STALL_BP" data-id="50" onclick="onClickNodeLink(event); return(false)">STALL_BP</a></td>
+        <td><a href="?p=pumice_csr.STALL_BP" data-id="47" onclick="onClickNodeLink(event); return(false)">STALL_BP</a></td>
         <td>Stall: DFI backpressure</td>
         <td>
             <a class="headerlink" href="#STALL_BP" title="Permalink to this row"></a>
@@ -461,7 +417,7 @@
     </tr>
     <tr id="STALL_REFRESH">
         <td class="address">0x164</td>
-        <td><a href="?p=pumice_csr.STALL_REFRESH" data-id="51" onclick="onClickNodeLink(event); return(false)">STALL_REFRESH</a></td>
+        <td><a href="?p=pumice_csr.STALL_REFRESH" data-id="48" onclick="onClickNodeLink(event); return(false)">STALL_REFRESH</a></td>
         <td>Stall: refresh</td>
         <td>
             <a class="headerlink" href="#STALL_REFRESH" title="Permalink to this row"></a>
@@ -469,7 +425,7 @@
     </tr>
     <tr id="STALL_TURNAROUND">
         <td class="address">0x168</td>
-        <td><a href="?p=pumice_csr.STALL_TURNAROUND" data-id="52" onclick="onClickNodeLink(event); return(false)">STALL_TURNAROUND</a></td>
+        <td><a href="?p=pumice_csr.STALL_TURNAROUND" data-id="49" onclick="onClickNodeLink(event); return(false)">STALL_TURNAROUND</a></td>
         <td>Stall: bus turnaround</td>
         <td>
             <a class="headerlink" href="#STALL_TURNAROUND" title="Permalink to this row"></a>
@@ -477,7 +433,7 @@
     </tr>
     <tr id="STALL_TCCD">
         <td class="address">0x16C</td>
-        <td><a href="?p=pumice_csr.STALL_TCCD" data-id="53" onclick="onClickNodeLink(event); return(false)">STALL_TCCD</a></td>
+        <td><a href="?p=pumice_csr.STALL_TCCD" data-id="50" onclick="onClickNodeLink(event); return(false)">STALL_TCCD</a></td>
         <td>Stall: column spacing</td>
         <td>
             <a class="headerlink" href="#STALL_TCCD" title="Permalink to this row"></a>
@@ -485,7 +441,7 @@
     </tr>
     <tr id="STALL_ACTLIMIT">
         <td class="address">0x170</td>
-        <td><a href="?p=pumice_csr.STALL_ACTLIMIT" data-id="54" onclick="onClickNodeLink(event); return(false)">STALL_ACTLIMIT</a></td>
+        <td><a href="?p=pumice_csr.STALL_ACTLIMIT" data-id="51" onclick="onClickNodeLink(event); return(false)">STALL_ACTLIMIT</a></td>
         <td>Stall: activate rate limit</td>
         <td>
             <a class="headerlink" href="#STALL_ACTLIMIT" title="Permalink to this row"></a>
@@ -493,7 +449,7 @@
     </tr>
     <tr id="STALL_BANKTIMER">
         <td class="address">0x174</td>
-        <td><a href="?p=pumice_csr.STALL_BANKTIMER" data-id="55" onclick="onClickNodeLink(event); return(false)">STALL_BANKTIMER</a></td>
+        <td><a href="?p=pumice_csr.STALL_BANKTIMER" data-id="52" onclick="onClickNodeLink(event); return(false)">STALL_BANKTIMER</a></td>
         <td>Stall: per-bank timer</td>
         <td>
             <a class="headerlink" href="#STALL_BANKTIMER" title="Permalink to this row"></a>
@@ -501,7 +457,7 @@
     </tr>
     <tr id="STALL_NOREQ">
         <td class="address">0x178</td>
-        <td><a href="?p=pumice_csr.STALL_NOREQ" data-id="56" onclick="onClickNodeLink(event); return(false)">STALL_NOREQ</a></td>
+        <td><a href="?p=pumice_csr.STALL_NOREQ" data-id="53" onclick="onClickNodeLink(event); return(false)">STALL_NOREQ</a></td>
         <td>Stall: nothing pending</td>
         <td>
             <a class="headerlink" href="#STALL_NOREQ" title="Permalink to this row"></a>
@@ -509,7 +465,7 @@
     </tr>
     <tr id="REF_STATS_REF_BUSY">
         <td class="address">0x17C</td>
-        <td><a href="?p=pumice_csr.REF_STATS_REF_BUSY" data-id="57" onclick="onClickNodeLink(event); return(false)">REF_STATS_REF_BUSY</a></td>
+        <td><a href="?p=pumice_csr.REF_STATS_REF_BUSY" data-id="54" onclick="onClickNodeLink(event); return(false)">REF_STATS_REF_BUSY</a></td>
         <td>Refresh Stats: Refreshes with demand</td>
         <td>
             <a class="headerlink" href="#REF_STATS_REF_BUSY" title="Permalink to this row"></a>
@@ -521,23 +477,9 @@
     <td>-</td>
     <td></td>
 </tr>
-    <tr id="OBS_WORDS">
-        <td class="address">0x1C0</td>
-        <td><a href="?p=pumice_csr.OBS_WORDS" data-id="58" onclick="onClickNodeLink(event); return(false)">OBS_WORDS[9]</a></td>
-        <td>Observation Word Harvest</td>
-        <td>
-            <a class="headerlink" href="#OBS_WORDS" title="Permalink to this row"></a>
-        </td>
-    </tr>
-    <tr class="reserved-addr">
-    <td class="address">0x1E4</td>
-    <td>-</td>
-    <td>-</td>
-    <td></td>
-</tr>
     <tr id="ID">
         <td class="address">0xFF0</td>
-        <td><a href="?p=pumice_csr.ID" data-id="60" onclick="onClickNodeLink(event); return(false)">ID</a></td>
+        <td><a href="?p=pumice_csr.ID" data-id="55" onclick="onClickNodeLink(event); return(false)">ID</a></td>
         <td>Module ID</td>
         <td>
             <a class="headerlink" href="#ID" title="Permalink to this row"></a>
@@ -545,7 +487,7 @@
     </tr>
     <tr id="BUILD">
         <td class="address">0xFF4</td>
-        <td><a href="?p=pumice_csr.BUILD" data-id="61" onclick="onClickNodeLink(event); return(false)">BUILD</a></td>
+        <td><a href="?p=pumice_csr.BUILD" data-id="56" onclick="onClickNodeLink(event); return(false)">BUILD</a></td>
         <td>Build Hash</td>
         <td>
             <a class="headerlink" href="#BUILD" title="Permalink to this row"></a>

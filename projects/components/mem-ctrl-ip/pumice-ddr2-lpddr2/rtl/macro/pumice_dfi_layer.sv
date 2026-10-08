@@ -99,7 +99,7 @@ module pumice_dfi_layer
     // BL_WORDS (legacy); set separately when the DRAM beat != device word.
     parameter int RD_EN_CYC = BL_WORDS,
     // FIFO payloads
-    parameter int CMD_DW = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1,
+    parameter int CMD_DW = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1,
     parameter int WD_DW  = 1 + DFI_STRB_WIDTH + DFI_DATA_WIDTH,   // {last,strb,data}
     parameter int RD_DW  = 1 + 2 + DFI_DATA_WIDTH                 // {last,resp,data}
 ) (
@@ -165,6 +165,10 @@ module pumice_dfi_layer
     output logic [DFI_EN_WIDTH-1:0]    dfi_rddata_en_o,
     input  logic [DFI_DATA_WIDTH-1:0]  dfi_rddata_i,
     input  logic [DFI_VALID_WIDTH-1:0] dfi_rddata_valid_i,
+    // calibration capture sideband (dfi_clk domain)
+    input  logic                       cal_expect_i,
+    output logic [DFI_DATA_WIDTH-1:0] cal_data_o,
+    output logic                       cal_valid_o,
     // DFI init handshake (to/from PHY)
     output logic                       dfi_init_start_o,
     input  logic                       dfi_init_complete_i
@@ -352,7 +356,10 @@ module pumice_dfi_layer
         .rd_ready_i        (prd_ready),
         .rd_data_o         (w_rd_data),
         .rd_resp_o         (w_rd_resp),
-        .rd_last_o         (w_rd_last)
+        .rd_last_o         (w_rd_last),
+        .cal_expect_i      (cal_expect_i),
+        .cal_data_o        (cal_data_o),
+        .cal_valid_o       (cal_valid_o)
     );
 
     wire unused = &{1'b0, w_fire_rank, 1'b0};

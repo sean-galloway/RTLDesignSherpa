@@ -69,6 +69,63 @@ package pumice_csr_pkg;
     } pumice_csr__OBS_ROW_HIT__in_t;
 
     typedef struct {
+        logic [31:0] next;
+    } pumice_csr__CAL_MRR32_DATA__VAL__VAL__in_t;
+
+    typedef struct {
+        pumice_csr__CAL_MRR32_DATA__VAL__VAL__in_t VAL;
+    } pumice_csr__CAL_MRR32_DATA__VAL__in_t;
+
+    typedef struct {
+        pumice_csr__CAL_MRR32_DATA__VAL__in_t VAL;
+    } pumice_csr__CAL_MRR32_DATA__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } pumice_csr__CAL_MRR40_DATA__VAL__VAL__in_t;
+
+    typedef struct {
+        pumice_csr__CAL_MRR40_DATA__VAL__VAL__in_t VAL;
+    } pumice_csr__CAL_MRR40_DATA__VAL__in_t;
+
+    typedef struct {
+        pumice_csr__CAL_MRR40_DATA__VAL__in_t VAL;
+    } pumice_csr__CAL_MRR40_DATA__in_t;
+
+    typedef struct {
+        logic next;
+    } pumice_csr__CAL_STATUS__zq_busy__in_t;
+
+    typedef struct {
+        logic next;
+    } pumice_csr__CAL_STATUS__cal_busy__in_t;
+
+    typedef struct {
+        logic next;
+    } pumice_csr__CAL_STATUS__cal_done__in_t;
+
+    typedef struct {
+        logic next;
+    } pumice_csr__CAL_STATUS__cal_err__in_t;
+
+    typedef struct {
+        logic next;
+    } pumice_csr__CAL_STATUS__zq_overdue__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } pumice_csr__CAL_STATUS__zqcs_total__in_t;
+
+    typedef struct {
+        pumice_csr__CAL_STATUS__zq_busy__in_t zq_busy;
+        pumice_csr__CAL_STATUS__cal_busy__in_t cal_busy;
+        pumice_csr__CAL_STATUS__cal_done__in_t cal_done;
+        pumice_csr__CAL_STATUS__cal_err__in_t cal_err;
+        pumice_csr__CAL_STATUS__zq_overdue__in_t zq_overdue;
+        pumice_csr__CAL_STATUS__zqcs_total__in_t zqcs_total;
+    } pumice_csr__CAL_STATUS__in_t;
+
+    typedef struct {
         logic next;
     } pumice_csr__REF_CTRL__perbank_supported__in_t;
 
@@ -193,6 +250,9 @@ package pumice_csr_pkg;
         pumice_csr__STATUS_HISTORY__in_t STATUS_HISTORY;
         pumice_csr__TEMP_DERATE_RANK0__in_t TEMP_DERATE_RANK0;
         pumice_csr__OBS_ROW_HIT__in_t OBS_ROW_HIT[8];
+        pumice_csr__CAL_MRR32_DATA__in_t CAL_MRR32_DATA[4];
+        pumice_csr__CAL_MRR40_DATA__in_t CAL_MRR40_DATA[4];
+        pumice_csr__CAL_STATUS__in_t CAL_STATUS;
         pumice_csr__REF_CTRL__in_t REF_CTRL;
         pumice_csr__PAGE_STATS_HIT__in_t PAGE_STATS_HIT;
         pumice_csr__PAGE_STATS_MISS__in_t PAGE_STATS_MISS;
@@ -583,6 +643,70 @@ package pumice_csr_pkg;
     } pumice_csr__PAGE_TIMEOUT_CFG__out_t;
 
     typedef struct {
+        logic value;
+    } pumice_csr__CAL_CTRL__zq_en__out_t;
+
+    typedef struct {
+        logic value;
+    } pumice_csr__CAL_CTRL__zq_defer_en__out_t;
+
+    typedef struct {
+        logic value;
+        logic swmod;
+    } pumice_csr__CAL_CTRL__cal_start__out_t;
+
+    typedef struct {
+        logic value;
+        logic swmod;
+    } pumice_csr__CAL_CTRL__cal_abort__out_t;
+
+    typedef struct {
+        logic [12:0] value;
+    } pumice_csr__CAL_CTRL__zq_overdue_max__out_t;
+
+    typedef struct {
+        pumice_csr__CAL_CTRL__zq_en__out_t zq_en;
+        pumice_csr__CAL_CTRL__zq_defer_en__out_t zq_defer_en;
+        pumice_csr__CAL_CTRL__cal_start__out_t cal_start;
+        pumice_csr__CAL_CTRL__cal_abort__out_t cal_abort;
+        pumice_csr__CAL_CTRL__zq_overdue_max__out_t zq_overdue_max;
+    } pumice_csr__CAL_CTRL__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } pumice_csr__CAL_ZQ_INTERVAL__VAL__out_t;
+
+    typedef struct {
+        pumice_csr__CAL_ZQ_INTERVAL__VAL__out_t VAL;
+    } pumice_csr__CAL_ZQ_INTERVAL__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pumice_csr__CAL_ZQ_TIMING__t_zqcs__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pumice_csr__CAL_ZQ_TIMING__t_zqcl__out_t;
+
+    typedef struct {
+        pumice_csr__CAL_ZQ_TIMING__t_zqcs__out_t t_zqcs;
+        pumice_csr__CAL_ZQ_TIMING__t_zqcl__out_t t_zqcl;
+    } pumice_csr__CAL_ZQ_TIMING__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pumice_csr__CAL_TRAIN_TIMING__t_mrr__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pumice_csr__CAL_TRAIN_TIMING__t_readout__out_t;
+
+    typedef struct {
+        pumice_csr__CAL_TRAIN_TIMING__t_mrr__out_t t_mrr;
+        pumice_csr__CAL_TRAIN_TIMING__t_readout__out_t t_readout;
+    } pumice_csr__CAL_TRAIN_TIMING__out_t;
+
+    typedef struct {
         logic [1:0] value;
     } pumice_csr__REF_CTRL__mode__out_t;
 
@@ -637,6 +761,10 @@ package pumice_csr_pkg;
         pumice_csr__SCHED_WR_WM__out_t SCHED_WR_WM;
         pumice_csr__PAGE_POLICY_CFG__out_t PAGE_POLICY_CFG;
         pumice_csr__PAGE_TIMEOUT_CFG__out_t PAGE_TIMEOUT_CFG;
+        pumice_csr__CAL_CTRL__out_t CAL_CTRL;
+        pumice_csr__CAL_ZQ_INTERVAL__out_t CAL_ZQ_INTERVAL;
+        pumice_csr__CAL_ZQ_TIMING__out_t CAL_ZQ_TIMING;
+        pumice_csr__CAL_TRAIN_TIMING__out_t CAL_TRAIN_TIMING;
         pumice_csr__REF_CTRL__out_t REF_CTRL;
         pumice_csr__REF_TIMING_PB__out_t REF_TIMING_PB;
     } pumice_csr__out_t;

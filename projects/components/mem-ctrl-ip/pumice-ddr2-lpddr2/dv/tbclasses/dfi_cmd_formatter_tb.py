@@ -275,10 +275,12 @@ class DfiCmdFormatterTB(TBBase):
     async def drive_and_check(self, *, op: int, rank: int = 0, bank: int = 0,
                               row: int = 0, col: int = 0, length: int = 0,
                               memtype: int = MEMTYPE_DDR2,
+                              cmd_mrr: bool = False,
                               valid: bool = True) -> None:
         """Drive a (op, rank, bank, row, col) combination and verify the
         full multi-phase output against the reference model."""
         self.dut.memtype_i.value = memtype
+        self.dut.cmd_mrr_i.value = int(cmd_mrr)
         if valid:
             n0 = self._fires
             await self.cmd_bfm._driver_send(self.cmd_bfm.create_packet(
@@ -330,7 +332,8 @@ class DfiCmdFormatterTB(TBBase):
             # LPDDR2: bit-exact CA-bus conformance (JESD209-2F Table 60) —
             # the 20-bit dfi_address word must match the BFM encoder, and
             # ras/cas/we hold idle with cs_n active on phase 0.
-            self._check_lpddr2_ca(op=op, rank=rank, bank=bank, row=row, col=col)
+            self._check_lpddr2_ca(op=op, rank=rank, bank=bank, row=row, col=col,
+                                  cmd_mrr=cmd_mrr)
         else:
             self._check_phase(0, PhaseDecoded.nop(self.DFI_CS_WIDTH))
 
@@ -390,7 +393,7 @@ class DfiCmdFormatterTB(TBBase):
     }
 
     def _check_lpddr2_ca(self, *, op: int, rank: int, bank: int,
-                         row: int, col: int) -> None:
+                         row: int, col: int, cmd_mrr: bool = False) -> None:
         """Bit-exact LPDDR2 CA-bus conformance against the BFM encoder/decoder.
 
         The whole command rides the flat 20-bit CA word on dfi_address (low
@@ -418,6 +421,9 @@ class DfiCmdFormatterTB(TBBase):
             # row[13:8] = MR index, row[7:0] = MR data.
             kw.update(mr_addr=(row_m >> 8) & 0x3F, mr_data=row_m & 0xFF)
         expected_word = encode_lpddr2_ca(cmd, **kw)
+        if cmd == _DC.MRS and cmd_mrr:
+            # MRR is MRW with CA3r inverted (JESD209-2F §5.12).
+            expected_word |= (1 << 3)
 
         # Full flat dfi_address; the CA word lives in the low 20 bits.
         raw = int(self.dut.dfi_address_o.value)
@@ -444,8 +450,12 @@ class DfiCmdFormatterTB(TBBase):
         elif cmd == _DC.REF:
             assert args["all_banks"] == extra["all_banks"]
         elif cmd == _DC.MRS:
-            assert args.get("mr_addr") == ((row_m >> 8) & 0x3F) \
-                and args.get("mr_data") == (row_m & 0xFF)
+            if cmd_mrr:
+                assert args.get("is_mrr"), "decode should flag MRR (CA3r=1)"
+                assert args.get("mr_addr") == ((row_m >> 8) & 0x3F)
+            else:
+                assert args.get("mr_addr") == ((row_m >> 8) & 0x3F) \
+                    and args.get("mr_data") == (row_m & 0xFF)
 
         # Control strobes idle; cs_n active for the target rank on phase 0 only,
         # deselected ('1) on all upper phases.

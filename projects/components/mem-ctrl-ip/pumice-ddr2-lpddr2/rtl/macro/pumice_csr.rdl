@@ -510,6 +510,85 @@ addrmap pumice_csr {
     } OBS_ROW_HIT[8] @ 0x080 += 0x4;
 
     //=========================================================================
+    // LPDDR2 Calibration / Training (0x0A0 – 0x0EF)
+    //=========================================================================
+
+    reg {
+        name = "Calibration Control";
+        desc = "ZQ + DQ calibration control strobes and enables";
+
+        field { sw = rw; hw = r; desc = "Enable periodic ZQCS/ZQCL"; } zq_en[0:0] = 1'b0;
+        field { sw = rw; hw = r; desc = "Mode-C deferral: hold ZQ under demand"; } zq_defer_en[1:1] = 1'b0;
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_3_2[3:2] = 2'h0;
+        field { sw = rw; hw = r; swmod; desc = "Write 1 to start a DQ-cal sequence (self-clearing command)"; } cal_start[4:4] = 1'b0;
+        field { sw = rw; hw = r; swmod; desc = "Write 1 to abort the current DQ-cal sequence"; } cal_abort[5:5] = 1'b0;
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_15_6[15:6] = 10'h0;
+        field { sw = rw; hw = r; desc = "Max ZQ deferral cycles before overdue (0 = no cap)"; } zq_overdue_max[28:16] = 13'h0;
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_31_29[31:29] = 3'h0;
+
+    } CAL_CTRL @ 0x0A0;
+
+    reg {
+        name = "ZQ Interval";
+        desc = "ZQCS interval in MC cycles, 0 = disabled";
+
+        field { sw = rw; hw = r; desc = "ZQCS interval"; } VAL[31:0] = 32'h0;
+
+    } CAL_ZQ_INTERVAL @ 0x0A4;
+
+    reg {
+        name = "ZQ Post-Grant Hold";
+        desc = "Bus-quiet window after a ZQCS/ZQCL MRW grant";
+
+        field { sw = rw; hw = r; desc = "ZQCS post-grant hold"; } t_zqcs[15:0]  = 16'h0;
+        field { sw = rw; hw = r; desc = "ZQCL post-grant hold"; } t_zqcl[31:16] = 16'h0;
+
+    } CAL_ZQ_TIMING @ 0x0A8;
+
+    reg {
+        name = "Training Timing";
+        desc = "MRR spacing and readout timeout for DQ calibration";
+
+        field { sw = rw; hw = r; desc = "MRR-to-MRR spacing (MC cycles)"; } t_mrr[15:0]  = 16'h2;
+        field { sw = rw; hw = r; desc = "MRR issue -> data timeout"; } t_readout[31:16] = 16'h0;
+
+    } CAL_TRAIN_TIMING @ 0x0AC;
+
+    regfile {
+        name = "MRR32 Captured Data";
+        desc = "First captured DFI read-data beat for MRR MR32 (pattern A).";
+
+        reg {
+            field { sw = r; hw = w; desc = "32-bit slice of captured MRR32 data"; } VAL[31:0];
+        } VAL @ 0x0;
+
+    } CAL_MRR32_DATA[4] @ 0x0B0 += 0x4;
+
+    regfile {
+        name = "MRR40 Captured Data";
+        desc = "First captured DFI read-data beat for MRR MR40 (pattern B).";
+
+        reg {
+            field { sw = r; hw = w; desc = "32-bit slice of captured MRR40 data"; } VAL[31:0];
+        } VAL @ 0x0;
+
+    } CAL_MRR40_DATA[4] @ 0x0E0 += 0x4;
+
+    reg {
+        name = "Calibration Status";
+        desc = "Training layer telemetry; sticky done/err, cleared by soft reset";
+
+        field { sw = r; hw = w; desc = "ZQ calibration busy"; } zq_busy[0:0];
+        field { sw = r; hw = w; desc = "DQ calibration busy"; } cal_busy[1:1];
+        field { sw = r; hw = w; desc = "DQ calibration done (sticky)"; } cal_done[2:2];
+        field { sw = r; hw = w; desc = "DQ calibration error (sticky)"; } cal_err[3:3];
+        field { sw = r; hw = w; desc = "ZQ interval expired without grant"; } zq_overdue[4:4];
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_15_5[15:5] = 11'h0;
+        field { sw = r; hw = w; desc = "ZQCS/ZQCL commands issued since reset"; } zqcs_total[31:16] = 16'h0;
+
+    } CAL_STATUS @ 0x0F0;
+
+    //=========================================================================
     // System Observation (0x100 – 0x1FF)
     //=========================================================================
 

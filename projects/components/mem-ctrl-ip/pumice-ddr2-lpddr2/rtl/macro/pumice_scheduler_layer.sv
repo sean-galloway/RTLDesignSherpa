@@ -171,6 +171,16 @@ module pumice_scheduler_layer
     output logic [ROW_WIDTH-1:0]      cmd_row_o,
     output logic [COL_WIDTH-1:0]      cmd_col_o,
     output logic                      cmd_ap_o,
+    output logic                      cmd_mrr_o,
+
+    // ---- training command channel (from pumice_training_layer) ----
+    input  logic                      trn_cmd_req_i,
+    output logic                      trn_cmd_grant_o,
+    input  dram_op_e                  trn_cmd_op_i,
+    input  logic [BKW-1:0]            trn_cmd_bank_i,
+    input  logic [ROW_WIDTH-1:0]      trn_cmd_row_i,
+    input  logic                      trn_cmd_mrr_i,
+    input  logic                      cal_busy_i,
 
     output logic                      busy_o
 );
@@ -206,6 +216,7 @@ module pumice_scheduler_layer
     dram_op_e      a_cmd_op;
     logic [RKW-1:0] a_cmd_rank; logic [BKW-1:0] a_cmd_bank;
     logic [ROW_WIDTH-1:0] a_cmd_row; logic [COL_WIDTH-1:0] a_cmd_col; logic a_cmd_ap;
+    logic          a_cmd_mrr;
 
     assign init_done_o = init_done;
 
@@ -458,6 +469,13 @@ module pumice_scheduler_layer
         .init_cmd_op_i      (init_cmd_op),
         .init_cmd_bank_i    (init_cmd_bank),
         .init_cmd_row_i     (init_cmd_row),
+        .trn_cmd_req_i      (trn_cmd_req_i),
+        .trn_cmd_op_i       (trn_cmd_op_i),
+        .trn_cmd_bank_i     (trn_cmd_bank_i),
+        .trn_cmd_row_i      (trn_cmd_row_i),
+        .trn_cmd_mrr_i      (trn_cmd_mrr_i),
+        .trn_cmd_grant_o    (trn_cmd_grant_o),
+        .cal_busy_i         (cal_busy_i),
         .refresh_req_i      (refresh_req),
         .refresh_drain_i    (refresh_drain),
         .refresh_grant_o    (refresh_grant),
@@ -526,6 +544,7 @@ module pumice_scheduler_layer
         .cmd_row_o          (a_cmd_row),
         .cmd_col_o          (a_cmd_col),
         .cmd_ap_o           (a_cmd_ap),
+        .cmd_mrr_o          (a_cmd_mrr),
         .stall_bp_o        (stall_bp_o),
         .stall_refresh_o        (stall_refresh_o),
         .stall_turnaround_o        (stall_turnaround_o),
@@ -538,9 +557,9 @@ module pumice_scheduler_layer
     // ======================================================================
     // Output command FIFO (scheduler -> DFI). Packs {op,rank,bank,row,col,ap}.
     // ======================================================================
-    localparam int CMD_W = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1;
+    localparam int CMD_W = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1;
     logic [CMD_W-1:0] w_cmd_wr_data, w_cmd_rd_data;
-    assign w_cmd_wr_data = {a_cmd_ap, a_cmd_col, a_cmd_row, a_cmd_bank, a_cmd_rank,
+    assign w_cmd_wr_data = {a_cmd_mrr, a_cmd_ap, a_cmd_col, a_cmd_row, a_cmd_bank, a_cmd_rank,
                             a_cmd_op};
 
     logic w_cmd_rd_valid, w_cmd_pop;
@@ -587,7 +606,7 @@ module pumice_scheduler_layer
                                     - (w_cmd_pop    ? TOKW'(1) : TOKW'(0));
     )
 
-    assign {cmd_ap_o, cmd_col_o, cmd_row_o, cmd_bank_o, cmd_rank_o, w_rd_op} = w_cmd_rd_data;
+    assign {cmd_mrr_o, cmd_ap_o, cmd_col_o, cmd_row_o, cmd_bank_o, cmd_rank_o, w_rd_op} = w_cmd_rd_data;
     assign cmd_op_o    = w_rd_op;
 
     assign busy_o = !init_done || refresh_req || w_cmd_rd_valid

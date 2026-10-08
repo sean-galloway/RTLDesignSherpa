@@ -85,6 +85,7 @@ module dfi_cmd_formatter
     input  logic [ROW_WIDTH-1:0]          cmd_row_i,
     input  logic [COL_WIDTH-1:0]          cmd_col_i,
     input  logic [BURST_LEN_WIDTH-1:0]    cmd_len_i,
+    input  logic                          cmd_mrr_i,
 
     // ----- runtime DFI command-phase placement (CSR-driven) -----
     // Which DFI sub-phase carries the READ vs WRITE command, to match the PHY's
@@ -310,10 +311,9 @@ module dfi_cmd_formatter
                 w_ca_r[2] = 1'b1;
             end
             OP_MRS: begin
-                // MRW: MA0..MA5 -> CA4r..CA9r ; MA6,MA7 -> CA0f,CA1f ; OP0..OP7 -> CA2f..CA9f
-                // NOTE: init carries MR index on the 3-bit bank port, so only
-                // MR0..MR7 are expressible today. Full LPDDR2 MR range (MR10/63…)
-                // needs a wider init MR-index path — see TASK-LPDDR2-INIT.
+                // MRW / MRR share the same MA/OP field packing; MRR is MRW with
+                // CA3r inverted (JESD209-2F §5.12).
+                w_ca_r[3] = cmd_mrr_i;            // 0=MRW, 1=MRR
                 w_ca_r[4] = w_mr_ma[0]; w_ca_r[5] = w_mr_ma[1]; w_ca_r[6] = w_mr_ma[2];
                 w_ca_r[7] = w_mr_ma[3]; w_ca_r[8] = w_mr_ma[4]; w_ca_r[9] = w_mr_ma[5];
                 w_ca_f[0] = w_mr_ma[6]; w_ca_f[1] = w_mr_ma[7];

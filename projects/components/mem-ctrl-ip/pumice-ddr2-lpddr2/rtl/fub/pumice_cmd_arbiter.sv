@@ -136,6 +136,15 @@ module pumice_cmd_arbiter
     input  logic [15:0]               t_rfc_i,
     input  logic [7:0]                t_rfc_pb_i,       // REFpb recovery; 0 = t_rfc_i
 
+    // ---- training (from pumice_training_layer) ----
+    input  logic                      trn_cmd_req_i,
+    input  dram_op_e                  trn_cmd_op_i,
+    input  logic [BKW-1:0]            trn_cmd_bank_i,
+    input  logic [ROW_WIDTH-1:0]      trn_cmd_row_i,
+    input  logic                      trn_cmd_mrr_i,
+    output logic                      trn_cmd_grant_o,
+    input  logic                      cal_busy_i,
+
     // ---- per-bank readiness (from pumice_bank_timers) ----
     // LIVE readiness -- what the FINAL STAGE enforces against (w_out_safe).
     input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_act_ready_i,
@@ -199,6 +208,7 @@ module pumice_cmd_arbiter
     output logic [ROW_WIDTH-1:0]      cmd_row_o,
     output logic [COL_WIDTH-1:0]      cmd_col_o,
     output logic                      cmd_ap_o,
+    output logic                      cmd_mrr_o,
 
     // ---- stall-cause attribution (TASK-006) --------------------------------
     // The bus meters say a cycle was not productive; these say WHY, so a
@@ -248,9 +258,10 @@ module pumice_cmd_arbiter
     logic [ROW_WIDTH-1:0] r_row;
     logic [COL_WIDTH-1:0] r_col_out;
     logic                 r_ap_out;
-    logic                 r_do_act, r_do_rd, r_do_wr, r_do_pre, r_grant;
+    logic                 r_do_act, r_do_rd, r_do_wr, r_do_pre, r_do_trn, r_grant;
     logic                 r_wr_commit, r_rd_issue;
     logic [PTRW-1:0]      r_commit_slot, r_issue_slot;
+    logic                 r_cmd_mrr;
 
     // Pre-pick registers -- see the STAGE 1a/1b/2 split below. Declared
     // here because the schedulable mask reads the guards derived from them.
@@ -325,10 +336,13 @@ module pumice_cmd_arbiter
         // BUG-021: the pre-pick re-check let a second ACT fire one cycle after
         // the first while trrd_ok_i was already 0). The global_timers ok
         // outputs are strict flops of the counters, so this adds no comb loop.
-        if      (r_do_act)            w_out_safe = bank_act_ready_i [RK0][r_bank]
+        // Training post-grant hold (cal_busy_i) blocks every demand-class op.
+        if      (r_do_act)            w_out_safe = !cal_busy_i
+                                                  && bank_act_ready_i [RK0][r_bank]
                                                   && tfaw_ok_i[RK0] && trrd_ok_i[RK0];
-        else if (r_do_rd || r_do_wr)  w_out_safe = bank_rdwr_ready_i[RK0][r_bank];
-        else if (r_do_pre)            w_out_safe = bank_pre_ready_i [RK0][r_bank];
+        else if (r_do_rd || r_do_wr)  w_out_safe = !cal_busy_i && bank_rdwr_ready_i[RK0][r_bank];
+        else if (r_do_pre)            w_out_safe = !cal_busy_i && bank_pre_ready_i [RK0][r_bank];
+        else if (r_do_trn)            w_out_safe = 1'b1;
     end
     // HOLD (never drop) an ACT whose only obstacle is the rank-global windows:
     // per-bank it is ready, so nothing about its bank changed; only the shared
@@ -337,7 +351,8 @@ module pumice_cmd_arbiter
     // racing the same window again. Counters only reload on an ACT fire and
     // nothing else can fire past this register, so the hold is bounded by the
     // window length -- no deadlock.
-    assign w_out_hold   = r_pick_valid && r_do_act && bank_act_ready_i[RK0][r_bank]
+    assign w_out_hold   = r_pick_valid && !cal_busy_i && r_do_act
+                          && bank_act_ready_i[RK0][r_bank]
                           && !(tfaw_ok_i[RK0] && trrd_ok_i[RK0]);
     assign w_out_reject = r_pick_valid && !w_out_safe && !w_out_hold;
     assign w_out_ready  = !r_pick_valid || (cmd_ready_i && !w_out_hold) || w_out_reject;
@@ -1382,6 +1397,15 @@ module pumice_cmd_arbiter
                         && (r_guard0 == '0) && (r_guard1 == '0)
                         && !w_rfc_busy && !r_grant;
 
+    // Training-calibration grant safety: all banks idle, no row-affecting
+    // command in flight or inside its guard window, and no REF recovery.
+    // (The "no in-flight write data" contract is satisfied by the scheduler
+    // draining the write path before asserting trn_cmd_req_i.)
+    logic w_trn_safe;
+    assign w_trn_safe = !w_any_active && !w_inflight_preact
+                        && (r_guard0 == '0) && (r_guard1 == '0)
+                        && !w_rfc_busy && !r_grant;
+
     // ========================================================================
     // Priority pick (combinational). Produces the abstract command + the
     // side-effects (evt / commit / issue / grant), all gated on cmd accept.
@@ -1392,14 +1416,14 @@ module pumice_cmd_arbiter
     logic [COL_WIDTH-1:0] w_col;
     logic            w_ap_out;
     logic            w_valid;
-    logic            w_do_act, w_do_rd, w_do_wr, w_do_pre, w_grant;
+    logic            w_do_act, w_do_rd, w_do_wr, w_do_pre, w_do_trn, w_grant;
     logic            w_wr_commit, w_rd_issue;
     logic [PTRW-1:0] w_commit_slot, w_issue_slot;
 
     always_comb begin
         w_op = OP_NOP; w_bank = '0; w_row = '0; w_col = '0; w_ap_out = 1'b0;
         w_valid = 1'b0;
-        w_do_act = 1'b0; w_do_rd = 1'b0; w_do_wr = 1'b0; w_do_pre = 1'b0; w_grant = 1'b0;
+        w_do_act = 1'b0; w_do_rd = 1'b0; w_do_wr = 1'b0; w_do_pre = 1'b0; w_do_trn = 1'b0; w_grant = 1'b0;
         w_wr_commit = 1'b0; w_rd_issue = 1'b0; w_commit_slot = '0; w_issue_slot = '0;
 
         if (!init_done_i) begin
@@ -1434,6 +1458,11 @@ module pumice_cmd_arbiter
             end else if (w_ref_safe) begin
                 w_valid = 1'b1; w_op = OP_REF; w_grant = 1'b1;
             end
+        end else if (trn_cmd_req_i && w_trn_safe) begin
+            // 3. TRAINING (ZQ / lp_cal) — passes through verbatim.
+            w_valid = 1'b1; w_op = trn_cmd_op_i;
+            w_bank = trn_cmd_bank_i; w_row = trn_cmd_row_i;
+            w_do_trn = 1'b1;
         end else if (w_pick_class == CL_COL && rd_col_f && rd_issue_ready_i
                      && w_rd_turn_live
                      && !(w_col_wrf && wr_col_f && wr_commit_ready_i
@@ -1510,6 +1539,7 @@ module pumice_cmd_arbiter
         if (`RST_ASSERTED(aresetn)) begin
             r_pick_valid <= 1'b0;
             r_do_act <= 1'b0; r_do_rd <= 1'b0; r_do_wr <= 1'b0; r_do_pre <= 1'b0;
+            r_do_trn <= 1'b0; r_cmd_mrr <= 1'b0;
             r_grant  <= 1'b0; r_wr_commit <= 1'b0; r_rd_issue <= 1'b0;
         end else if (w_out_ready) begin
             r_pick_valid  <= w_valid;
@@ -1522,6 +1552,8 @@ module pumice_cmd_arbiter
             r_do_rd       <= w_do_rd;
             r_do_wr       <= w_do_wr;
             r_do_pre      <= w_do_pre;
+            r_do_trn      <= w_do_trn;
+            r_cmd_mrr     <= w_do_trn ? trn_cmd_mrr_i : 1'b0;
             r_grant       <= w_grant;
             r_wr_commit   <= w_wr_commit;
             r_commit_slot <= w_commit_slot;
@@ -1562,6 +1594,7 @@ module pumice_cmd_arbiter
     assign cmd_row_o   = r_row;
     assign cmd_col_o   = r_col_out;
     assign cmd_ap_o    = r_ap_out;
+    assign cmd_mrr_o   = r_cmd_mrr;
 
     // ---- event strobes (fire when the registered command is accepted) ----
     assign evt_act_o = w_fire_out && r_do_act;
@@ -1579,6 +1612,7 @@ module pumice_cmd_arbiter
     assign rd_issue_valid_o  = w_fire_out && r_rd_issue;
     assign rd_issue_slot_o   = r_issue_slot;
     assign refresh_grant_o   = w_fire_out && r_grant;
+    assign trn_cmd_grant_o   = w_fire_out && r_do_trn;
 
     // ---- guard update: 2-cycle per-bank block after a FIRED ACT/PRE. The
     // in-flight ACT/PRE (w_inflight_preact, folded into w_guarded) protects the

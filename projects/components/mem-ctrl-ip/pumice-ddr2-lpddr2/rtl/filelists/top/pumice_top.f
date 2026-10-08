@@ -36,6 +36,12 @@ $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi
 $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_cmd_path.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_wr_serializer.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_rd_aligner.sv
+# training layer + CDC helpers
+-f $REPO_ROOT/rtl/cdc/filelists/sync_pulse.f
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_synchronizer.f
+$REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_zq_ctrl.sv
+$REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_lp_cal.sv
+$REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_training_layer.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_axi4_layer.sv
 # pumice_scheduler_layer instantiates pumice_cmd_history_checker under
 # CMD_HISTORY_EN. It is a GATED submodule -- absent at CMD_HISTORY_EN=0 -- so

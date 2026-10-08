@@ -10,12 +10,23 @@
     <dt>Base Offset:</dt><dd class="address">0x10</dd>
     <dt>Size:</dt><dd class="address">0x4</dd>
     
-    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl#L145" target="_blank">pumice_csr.rdl</a></dd>
+    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl#L147" target="_blank">pumice_csr.rdl</a></dd>
     
 </dl>
 <h2>Description</h2>
 <div id="_Content.desc">
-<p>Packed timing parameters in MC cycles</p>
+<p>Packed core per-bank JEDEC windows, in MC (controller) cycles.
+EVERY JEDEC timing field in this map is a count of cycles to
+BLOCK, so a window programmed to N is enforced as N+1 cycles of
+command spacing -- the counter is loaded with N on the event and
+the gate opens the cycle after it would reach zero. Measured and
+bounded tight in formal/pumice/{bank_timer,global_timers}
+(a_*_bound_n1). Program the JEDEC value from the part datasheet;
+do NOT subtract one to compensate, or the register stops reading
+as the part's timing. pumice TASK-034 tracks whether to recover
+that cycle -- it is a board measurement, because the empirical
+rtw_guard in the host's tRTW derivation was tuned with it
+present.</p>
 </div>
 
 <h2>Contents</h2>
@@ -123,27 +134,27 @@
     <a class="headerlink" href="#tRAS.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.tRAS.desc">
-<p>tRAS</p>
+<p>tRAS -- MC cycles to block; spacing enforced is N+1</p>
 </div>
 
 <h3 id="tRP.desc">tRP
     <a class="headerlink" href="#tRP.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.tRP.desc">
-<p>tRP</p>
+<p>tRP -- MC cycles to block; spacing enforced is N+1</p>
 </div>
 
 <h3 id="tRCD.desc">tRCD
     <a class="headerlink" href="#tRCD.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.tRCD.desc">
-<p>tRCD</p>
+<p>tRCD -- MC cycles to block; spacing enforced is N+1</p>
 </div>
 
 <h3 id="tRC.desc">tRC
     <a class="headerlink" href="#tRC.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.tRC.desc">
-<p>tRC</p>
+<p>tRC -- MC cycles to block; spacing enforced is N+1</p>
 </div>
 </div>

@@ -10,13 +10,25 @@
     <dt>Base Offset:</dt><dd class="address">0x64</dd>
     <dt>Size:</dt><dd class="address">0x4</dd>
     
-    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl#L237" target="_blank">pumice_csr.rdl</a></dd>
+    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl#L250" target="_blank">pumice_csr.rdl</a></dd>
     
 </dl>
 <h2>Description</h2>
 <div id="_Content.desc">
-<p>t_phy_wrlat: WRITE command -&gt; dfi_wrdata_en (0 for a7ddrphy
-pre-pull). t_rddata_en: RD command -&gt; dfi_rddata_en window.
+<p>t_phy_wrlat: WRITE command -&gt; dfi_wrdata_en. t_rddata_en:
+RD command -&gt; dfi_rddata_en window.
+t_phy_wrlat resets to 1 because BOTH board host paths program 1,
+and the old reset of 0 agreed with neither (TASK-015 layer 0).
+t_rddata_en resets to 6 -- what <code>init</code> programs
+(pumice_master.SimpleTest: the ILA-validated tuple wrlat=1,
+rden=6, rddata_delay=7). pumice_char.ControllerConfig programs 1
+with rddata_delay=2 instead, a DIFFERENT valid point on the
+measured diagonal rddata_delay = t_rddata_en + 1 (the a7ddrphy
+data-vs-valid offset is a fixed 1 cycle). Two host paths
+programming two points is pumice ISSUE-015; the reset follows
+<code>init</code>, the bring-up authority. Do NOT pin a stale tuple here:
+overriding these to 0/6 on 2026-09-21 corrupted data on all four
+cells while still reporting healthy bandwidth.
 memtype: 0=DDR2, 1=LPDDR2. refresh_burst: 1..8 REFs drained per
 request. All hw-readable so they drive the controller core.</p>
 </div>
@@ -137,7 +149,7 @@ request. All hw-readable so they drive the controller core.</p>
         <td><a href="#t_phy_wrlat.desc">t_phy_wrlat</a></td>
         <td>
             <span title='Readable and Writable'>rw</span></td>
-        <td>0x0
+        <td>0x1
         </td>
         <td>
             <input id="_FieldValueTestert_phy_wrlat" class="field-value-tester"
