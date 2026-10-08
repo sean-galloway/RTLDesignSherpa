@@ -75,8 +75,11 @@ The generated workbook contains:
 - a contract sheet for the core signals
 - a kmap sheet per block with the key combinational decisions
 - term lists, invariants, decision tables, `depends_only_on` sufficiency
-  arguments, and `rtl_sop` expressions for pre-RTL review
+  arguments, and `rtl_sop` expressions for review against the landed RTL
 
-For every kmap the verdict is currently `NOT CHECKED` because no RTL exists
-yet. That is the correct pre-RTL posture; the verdict becomes meaningful once
-`rtl_sop` can be diffed against the derived minimal cover.
+Since the 2026-10-08 citation migration (TASK-003 close) every citation
+points at the landed RTL `file:line` and the generator's
+`verify_citations` gate fails the build if an RTL edit moves a quoted line.
+For every kmap the verdict is the derived minimal cover diffed against
+`rtl_sop` (IDENTICAL or DIFFERS); all eight maps of the landed design
+render IDENTICAL.

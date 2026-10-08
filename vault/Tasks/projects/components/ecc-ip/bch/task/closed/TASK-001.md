@@ -1,6 +1,8 @@
 # TASK-001: Stand up the BCH component
 
-**Status:** open 2026-10-03
+**Status:** closed 2026-10-08 — the umbrella is realized: component stood up,
+full codec landed (encoder + decoder stages, TASK-005), wrappers and gate DV
+(TASK-006), board harness built and validated on both boards (TASK-007).
 **Priority:** P3 — waits on a real consumer (the memory-controller project
 named in RS PRD D10 / reed-solomon TASK-003), the same posture
 reed-solomon TASK-001 had
@@ -51,3 +53,12 @@ to exercise: `bch_gen_poly_packed` built one (x + root) factor per cyclotomic
 COSET instead of per CONJUGATE (a degree-2 stand-in for the degree-7 CCSDS
 g(x)), and the TB's polynomial golden built GF(2) arrays where it needed
 Poly objects. Both fixed; the decoder stages continue under TASK-005.
+
+**2026-10-08 -- closed.** Everything the umbrella scope named has since
+landed: the decoder stages (KES via the shared riBM, Chien, decoder core —
+TASK-005 closed after the over-N deadlock fix), AXIS4/AXI4 wrappers + beat
+packer + gate DV (TASK-006), the ch07 math chapter (TASK-004), and the board
+loop harness validated on the Genesys 2 (2026-10-04 battery, `stable/
+MANIFEST.md`) and on the Nexys A7 post-#89 (TASK-007, battery 7/7 + 62,528-
+block soak). Remaining open surface: the TASK-003 contract re-point at
+landed RTL, and the consumer question (still deferred, same as RS TASK-003).

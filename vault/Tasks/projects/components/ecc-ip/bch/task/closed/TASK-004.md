@@ -1,7 +1,12 @@
 # TASK-004: Author the BCH math chapter for novices
 
 **Priority:** P3
-**Status:** open 2026-10-03
+**Status:** closed 2026-10-08 — the chapter exists and is published: HAS
+ch07 "Understanding the Math" with all five sections (fields/polynomials,
+the code, decoding, the n/k/t/m parameters page, and the stage-by-stage
+math-to-pseudocode page), worked numbers re-verified by
+`ch07_math_trace.py` on 2026-10-08 (ALL CHECKS PASSED), and the chapter
+carried through the publication ambiguity/voice passes.
 **Owner:** TBD
 
 The BCH documentation stack (PRD, HAS, MAS) assumes the reader already
@@ -52,3 +57,10 @@ chapter that takes them from zero to following the decoder math.
 **2026-10-03 -- filed**, alongside the matching reed-solomon TASK-004. The
 two chapters cross-link: the finite-field foundation lives with RS, the
 binary-code depth lives here.
+
+**2026-10-08 -- closed.** One recorded deviation: the "write the foundation
+once, link it" plan became two sister chapters — each component's ch07
+carries its own fields/polynomials intro (the RS tree owns the `gf_*`
+primitives and the BCH chapter says so inline; the math-to-pseudocode pages
+cross-link each other). Same content authority, better novice continuity;
+no second copy of any parameter or port table.

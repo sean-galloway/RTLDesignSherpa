@@ -1,6 +1,8 @@
 # TASK-003: Author the BCH MAS v0.1 and signal-contract kmaps
 
-**Status:** open 2026-10-03
+**Status:** closed 2026-10-08 — the MAS v0.1 and the workbook landed
+2026-10-03; the post-RTL half of the scope (citation re-point at landed RTL)
+is done on 2026-10-08 with every definition-of-done item green.
 **Priority:** P3 — the next planning artifact after the HAS, the same posture
 reed-solomon TASK-003 will have
 **Owner:** TBD
@@ -45,3 +47,18 @@ exist for the four block diagrams. The generator imports `bin/kmaps/`, emits
 the workbook, and passes `verify_citations` against the MAS pages. Contracts
 cite MAS pages today and are scheduled to be re-pointed at RTL lines after the
 first RTL lands.
+
+**2026-10-08 -- post-RTL re-point; closed.** Every workbook citation moved
+from the MAS pages to the landed RTL `file:line` (`bch_encoder_core.sv`,
+`bch_syndrome_unit.sv`, `bch_chien_search.sv`, `bch_decoder_core.sv`); the
+`verify_citations` gate now fails the build on any RTL drift under a quoted
+line. The kmaps were re-derived against the landed design where
+implementation moved a qualifier between blocks relative to the pre-RTL MAS
+(`out_flip_en` carries only root & position-valid; the correctable /
+pass-through gating lives in the decoder core as registered
+`r_release_apply`, applied at `out_data`) — the maps follow the RTL and say
+where the other half lives. All eight maps render VERDICT: IDENTICAL (the RTL
+is already minimal for every mapped qualifier). The contract-sheet rows,
+the posture sheet (now the migration record), and the two MAS pages that
+described the pre-RTL posture were updated to match; `check_task_ids.py
+--area projects/components/ecc-ip/bch/task` passes.

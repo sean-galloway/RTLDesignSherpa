@@ -1,6 +1,10 @@
 # TASK-006: BCH top wrappers (AXIS + AXI4) and bit-error injector
 
-**Status:** active 2026-10-03
+**Status:** closed 2026-10-08 — wrappers and the shared bit-granular injector
+landed 2026-10-04 (AXIS + AXI4 tops, beat packer, gate DV); close condition
+re-verified today: Verilator + Verible + declaration-order lint green on all
+22 modules, and the wrappers have been exercised end-to-end by the 14-test
+UART harness suite and both boards' batteries since.
 **Priority:** P3
 **Owner:** TBD
 
