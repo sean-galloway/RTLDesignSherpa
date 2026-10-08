@@ -22,7 +22,6 @@
 # Control-plane and datapath blocks (stubs filled by later tasks)
 -f $AMBER_ROOT/rtl/filelists/amber_control.f
 -f $AMBER_ROOT/rtl/filelists/amber_pending_fill_bypass.f
--f $AMBER_ROOT/rtl/filelists/amber_victim.f
 -f $AMBER_ROOT/rtl/filelists/amber_fill.f
 -f $AMBER_ROOT/rtl/filelists/amber_drain.f
 -f $AMBER_ROOT/rtl/filelists/amber_frontend.f
