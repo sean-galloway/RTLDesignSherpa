@@ -73,6 +73,8 @@ The register block decodes a 4 KB region (12-bit address). Layout, matching `rtl
 | 0x040 – 0x05C  | Scheduler / Page / Refresh / Addr-map / Init tuning + init timing |
 | 0x054, 0x060, 0x064 | tRTP/tRTW, DFI command phase, PHY/DFI data timing    |
 | 0x080 – 0x09C  | Per-bank row-hit observation (NUM_BANKS = 8)             |
+| 0x0A0 – 0x0BC  | LPDDR2 calibration / training control (`CAL_CTRL`, `CAL_ZQ_INTERVAL`, `CAL_ZQ_TIMING`, `CAL_TRAIN_TIMING`, `CAL_MRR32_DATA[4]`) |
+| 0x0E0 – 0x0F0  | `CAL_MRR40_DATA[4]` + `CAL_STATUS` (training telemetry)  |
 | 0x0C0 – 0x0DC  | Per-bank refresh-latency observation                     |
 | 0x100 – 0x138  | System observation / telemetry                           |
 | 0x1C0 – 0x1E0  | Packed observation-word harvest (9 words)                |

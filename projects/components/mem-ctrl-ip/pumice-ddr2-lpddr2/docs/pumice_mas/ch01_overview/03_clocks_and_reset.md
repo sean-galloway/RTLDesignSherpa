@@ -53,13 +53,13 @@ in the controller.
 
 ## CDC
 
-There is exactly **one** clock-domain crossing in the whole controller, and it
+There is exactly **one datapath** clock-domain crossing in the controller, and it
 lives in `pumice_dfi_cdc` inside `pumice_dfi_layer`. It is built from **async
 gaxi FIFOs only** (`N_FLOP_CROSS` = 2 by default). Four things cross it:
 
 | Stream               | Direction            | Payload                                  |
 |----------------------|----------------------|------------------------------------------|
-| Command              | `aclk` -> `dfi_clk`  | `{op, rank, bank, row, col, ap}` (`CMD_DW`) |
+| Command              | `aclk` -> `dfi_clk`  | `{mrr, ap, col, row, bank, rank, op}` (`CMD_DW`) |
 | Write data           | `aclk` -> `dfi_clk`  | `{last, strb, data}` DFI-word (`WD_DW`)   |
 | Read data            | `dfi_clk` -> `aclk`  | `{last, resp, data}` DFI-word (`RD_DW`)   |
 | Init handshake       | both                 | `init_start` out, `init_complete` back    |
@@ -72,6 +72,11 @@ writes take effect combinationally through `hwif_out.*` into the config ports of
 `pumice_core` (no staging register). Timing/phase/policy fields should be
 programmed while the controller is idle (before `init_start`, or at a quiet
 point) since they feed the timers and phase-packers directly.
+
+Sideband note: the training layer owns a second, non-datapath crossing for the
+read-aligner calibration capture (`cal_expect` down, captured beat up) — see
+[ch02/25](../ch02_macros/05_training_layer_macro.md). It touches no AXI or DRAM
+data stream.
 
 ## Reset / Init Sequence
 

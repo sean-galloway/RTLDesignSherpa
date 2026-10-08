@@ -31,7 +31,7 @@
 > **Note:** the early SWAG used a five-`*_macro` hierarchy
 > (`pumice_core_macro`, `axi_frontend_macro`, `command_scheduler_macro`,
 > `data_path_macro`, `dfi_v21_interface_macro`). That naming is retired. The
-> live controller is a three-layer stack instantiated by `pumice_core`, wrapped
+> live controller is a four-layer stack instantiated by `pumice_core`, wrapped
 > by `pumice_top` (which adds the PeakRDL CSR block) and optionally by
 > `pumice_top_geared` (which adds a host-width AXI dwidth shim).
 
@@ -42,7 +42,7 @@
 The controller top is structural wiring only — every behavioral statement lives
 in a FUB or a layer macro. Two files make up the top:
 
-- **`pumice_core`** — wires the three functional layers on their two clocks and
+- **`pumice_core`** — wires the four functional layers on their two clocks and
   exposes host AXI4 plus the DFI 2.1 pin bus. Config arrives on ports.
 - **`pumice_top`** — instantiates `pumice_core` plus the PeakRDL-generated
   `pumice_csr` register block, and drives every core config port **by name** from
@@ -55,25 +55,28 @@ An optional third file, `pumice_top_geared`, wraps `pumice_top` with a free
 slave and the fixed-`DW` core. `HOST == DW` is a generate bypass (bit-identical).
 See [`docs/AXI_DRAM_GEARING_SCOPE.md`](../../AXI_DRAM_GEARING_SCOPE.md).
 
-## `pumice_core` — the three layers
+## `pumice_core` — the four layers
 
-`pumice_core` instantiates exactly three layer modules and the nets between
+`pumice_core` instantiates exactly four layer modules and the nets between
 them. There is no FSM, no CSR decode, and no arithmetic beyond the packed-bus
 `assign` for the command word.
 
 ```
 pumice_core
-├── u_ifc   : pumice_axi4_layer          (host AXI + wr/rd CAMs)          [aclk]
-├── u_sched : pumice_scheduler_layer (arbiter + timers + refresh/init)[aclk]
-└── u_dfi   : pumice_dfi_layer         (single async CDC + DFI datapath)[aclk→dfi_clk]
+├── u_ifc       : pumice_axi4_layer          (host AXI + wr/rd CAMs)          [aclk]
+├── u_sched     : pumice_scheduler_layer (arbiter + timers + refresh/init)[aclk]
+├── u_training  : pumice_training_layer    (ZQ + lp_cal + trn_cmd mux + CDC)[aclk→dfi_clk]
+└── u_dfi       : pumice_dfi_layer         (single async CDC + DFI datapath)[aclk→dfi_clk]
 ```
 
 - Host AXI, the scheduler, and both CAMs run on **`aclk`** (`aresetn`).
 - The DFI phase-packer and PHY interface run on **`dfi_clk`** (`dfi_rstn`).
-- The **one** clock crossing in the whole controller is inside
-  `pumice_dfi_layer` (async gaxi FIFOs only). `pumice_dfi_layer` is instantiated
-  with `.ctl_clk(aclk)` / `.ctl_rstn(aresetn)` on the control side and
-  `.dfi_clk` / `.dfi_rstn` on the PHY side.
+- The datapath clock crossing is inside `pumice_dfi_layer` (async gaxi FIFOs
+  only); `pumice_dfi_layer` is instantiated with `.ctl_clk(aclk)` /
+  `.ctl_rstn(aresetn)` on the control side and `.dfi_clk` / `.dfi_rstn` on
+  the PHY side. The training layer owns a second, sideband-only crossing
+  (cal_expect down / captured data up for the read-aligner calibration
+  capture) — see [ch02/25](../ch02_macros/05_training_layer_macro.md).
 
 The internal data unit is the **DFI word** (`DFI_DATA_WIDTH = DRAM_BEAT_WIDTH *
 DFI_RATE`, default 128). The host AXI data width equals the DFI word; a host that

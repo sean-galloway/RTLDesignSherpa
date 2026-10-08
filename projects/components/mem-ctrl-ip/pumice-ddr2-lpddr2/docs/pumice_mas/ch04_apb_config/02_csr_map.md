@@ -75,7 +75,14 @@ The register map is a SystemRDL source, `rtl/macro/pumice_csr.rdl`. It is compil
 | 0x060  | `DFI_PHASE`               | DFI READ/WRITE command sub-phase placement                |
 | 0x064  | `PHY_TIMING`              | t_phy_wrlat / t_rddata_en / memtype / refresh_burst       |
 | 0x080..0x09C | `OBS_ROW_HIT[8]`     | Per-bank row-hit count (RO, free-running)                 |
-| 0x0C0..0x1E0 | *(retired holes)*    | 27 `OBS_*` registers removed 2026-09-28 — see BUG-020     |
+| 0x0A0        | `CAL_CTRL`           | ZQ + DQ calibration control strobes and enables           |
+| 0x0A4        | `CAL_ZQ_INTERVAL`    | ZQCS interval in MC cycles, 0 = disabled                  |
+| 0x0A8        | `CAL_ZQ_TIMING`      | ZQ post-grant hold windows (`t_zqcs` / `t_zqcl`)          |
+| 0x0AC        | `CAL_TRAIN_TIMING`   | MRR spacing (`t_mrr`) and readout timeout (`t_readout`)   |
+| 0x0B0..0x0BC | `CAL_MRR32_DATA[4]`  | Captured MRR-MR32 beat 0, 32-bit slices (RO)              |
+| 0x0E0..0x0EC | `CAL_MRR40_DATA[4]`  | Captured MRR-MR40 beat 0, 32-bit slices (RO)              |
+| 0x0F0        | `CAL_STATUS`         | Training-layer telemetry (busy / done / err / overdue / count) |
+| 0x0C0..0x0DC, 0x100..0x1E0 | *(retired holes)* | 27 `OBS_*` registers removed 2026-09-28 — see BUG-020 |
 | 0xFF0  | `ID`                      | Module ID (version / memtype / n_phases / 0xD2)           |
 | 0xFF4  | `BUILD`                   | Build hash                                                |
 
@@ -369,6 +376,101 @@ REFpb intervals (MC cycles). All-bank tREFI/tRFCab stay in TIMINGS_RFC_REFI.
 | 23:16 | `trfc_pb` | 0x0 | rw | tRFCpb recovery |
 | 31:24 | `RSVD` | 0x0 | r | Reserved |
 
+
+### LPDDR2 Calibration / Training registers (0x0A0–0x0F0)
+
+> **Added to this chapter at rev 0.8** with the training layer
+> (`pumice_training_layer`: `pumice_zq_ctrl` + `pumice_lp_cal`). The window
+> sits in the free range between `OBS_ROW_HIT` (0x080–0x09F) and the retired
+> 0x0C0 hole; retired holes are never reused (pumice doctrine). Field names,
+> widths, and reset values below are transcribed from `rtl/macro/pumice_csr.rdl`
+> — the RDL wins on any drift. See
+> [ch02/23](../ch02_blocks/23_zq_ctrl.md),
+> [ch02/24](../ch02_blocks/24_lp_cal.md), and
+> [ch04/05](05_training_interface_contracts.md).
+
+### CAL_CTRL @ 0x0A0 (rw)
+
+| Bits  | Field           | Default | Access | Notes                                                        |
+|-------|-----------------|---------|--------|--------------------------------------------------------------|
+| 0     | `zq_en`         | 0       | rw     | Enable periodic ZQCS/ZQCL                                     |
+| 1     | `zq_defer_en`   | 0       | rw     | Mode-C deferral: hold ZQ under demand                         |
+| 3:2   | `RSVD_3_2`      | 0       | r      | Reserved                                                      |
+| 4     | `cal_start`     | 0       | rw     | Write 1 to start a DQ-cal sequence (self-clearing command, `swmod`) |
+| 5     | `cal_abort`     | 0       | rw     | Write 1 to abort the current DQ-cal sequence (`swmod`)        |
+| 15:6  | `RSVD_15_6`     | 0       | r      | Reserved                                                      |
+| 28:16 | `zq_overdue_max`| 0       | rw     | Max ZQ deferral cycles before overdue (0 = no cap)            |
+| 31:29 | `RSVD_31_29`    | 0       | r      | Reserved                                                      |
+
+The `cal_start`/`cal_abort` bits are write-one strobes: they self-clear and
+never read back set. Run gating lives in the FUBs (`zq_en` additionally
+requires `init_done` + LPDDR2 + nonzero interval; `cal_start` requires
+`init_done` + LPDDR2), so writing `cal_start` on a DDR2 build is a silent
+no-op.
+
+### CAL_ZQ_INTERVAL @ 0x0A4 (rw)
+
+| Bits  | Field | Default | Access | Notes                                             |
+|-------|-------|---------|--------|---------------------------------------------------|
+| 31:0  | `VAL` | 0       | rw     | ZQCS interval in MC cycles, 0 = disabled          |
+
+### CAL_ZQ_TIMING @ 0x0A8 (rw)
+
+| Bits  | Field    | Default | Access | Notes                                        |
+|-------|----------|---------|--------|----------------------------------------------|
+| 15:0  | `t_zqcs` | 0       | rw     | ZQCS post-grant hold (bus-quiet window)      |
+| 31:16 | `t_zqcl` | 0       | rw     | ZQCL post-grant hold                         |
+
+Both holds count mc_clk cycles from the grant; the busy indication folds
+into the arbiter's `w_out_safe` so demand-class traffic cannot fire inside
+the window.
+
+### CAL_TRAIN_TIMING @ 0x0AC (rw)
+
+| Bits  | Field       | Default (dec) | Access | Notes                              |
+|-------|-------------|---------------|--------|------------------------------------|
+| 15:0  | `t_mrr`     | 2             | rw     | MRR-to-MRR spacing (MC cycles)     |
+| 31:16 | `t_readout` | 0             | rw     | MRR issue → data timeout           |
+
+`t_mrr = 2` matches JEDEC tMRR. A `t_readout` of 0 makes the lp_cal
+wait-data states time out on the first cycle without data — program a real
+window (covering `RL·tCK + tDQSCK + tDQSQ`) before starting a calibration.
+
+### CAL_MRR32_DATA[4] @ 0x0B0 += 0x4 (RO)
+
+| Bits  | Field | Default | Access | Notes                                                  |
+|-------|-------|---------|--------|--------------------------------------------------------|
+| 31:0  | `VAL` | 0       | r      | 32-bit slice of captured MRR32 data (pattern A)        |
+
+First captured DFI read-data beat for MRR MR32, as four 32-bit slices
+(`CAL_MRR32_DATA0..3` at 0x0B0/0x0B4/0x0B8/0x0BC). Hardware-written; reset
+value 0.
+
+### CAL_MRR40_DATA[4] @ 0x0E0 += 0x4 (RO)
+
+| Bits  | Field | Default | Access | Notes                                                  |
+|-------|-------|---------|--------|--------------------------------------------------------|
+| 31:0  | `VAL` | 0       | r      | 32-bit slice of captured MRR40 data (pattern B)        |
+
+First captured DFI read-data beat for MRR MR40, as four 32-bit slices
+(`CAL_MRR40_DATA0..3` at 0x0E0/0x0E4/0x0E8/0x0EC).
+
+### CAL_STATUS @ 0x0F0 (RO, hw-written)
+
+| Bits  | Field        | Default | Notes                                                        |
+|-------|--------------|---------|--------------------------------------------------------------|
+| 0     | `zq_busy`    | 0       | ZQ calibration busy (post-grant hold window)                 |
+| 1     | `cal_busy`   | 0       | DQ calibration busy (lp_cal FSM not idle)                    |
+| 2     | `cal_done`   | 0       | DQ calibration done (sticky)                                 |
+| 3     | `cal_err`    | 0       | DQ calibration error (sticky)                                |
+| 4     | `zq_overdue` | 0       | ZQ interval expired without grant                            |
+| 15:5  | `RSVD_15_5`  | 0       | Reserved                                                     |
+| 31:16 | `zqcs_total` | 0       | ZQCS/ZQCL commands issued since reset                        |
+
+Sticky means what it says: `cal_done`/`cal_err` survive `cal_abort` and are
+cleared by soft reset (a fresh `cal_start` also re-arms them). The full
+DFI-width captured beats land in `CAL_MRR32_DATA` / `CAL_MRR40_DATA`; the
+x16 DQ[8] pattern-A mirror is in the captured data, not in this register.
 
 ### Observation registers (RO)
 

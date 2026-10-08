@@ -17,7 +17,7 @@ set -euo pipefail
 # ------------------------------------------------------------
 
 # Default values
-REV="0.4"
+REV="0.8"
 ASSETS="pumice_mas/assets"
 MAS_INDEX="pumice_mas/pumice_mas_index.md"
 

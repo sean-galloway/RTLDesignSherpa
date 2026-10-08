@@ -23,9 +23,17 @@
 
 # DDR2 / LPDDR2 Family Controller Micro-Architecture Specification Index
 
-**Version:** 0.4
-**Date:** 2026-07-12
+**Version:** 0.8
+**Date:** 2026-10-08
 **Purpose:** Implementation-level micro-architecture specification for the unified DDR2 / LPDDR2 memory controller family
+
+> **Note (v0.8):** LPDDR2 calibration and training landed in the RTL. New
+> fourth layer `pumice_training_layer` (`pumice_zq_ctrl` + `pumice_lp_cal`)
+> drives the scheduler's new `trn_cmd` maintenance channel (arbiter priority
+> init > refresh > trn > demand); MRR rides the command FIFO as a 1-bit flag
+> (`{mrr, ap, col, row, bank, rank, op}`), the formatter emits the MRR CA
+> word, and the read aligner gained a cal-capture sideband. Seven CSRs at
+> 0x0A0–0x0F0 (`CAL_*`) document it — see ch02 and ch04.
 
 > **Note (v0.3):** Reconciled with the rearchitected RTL. The controller is a
 > three-layer core — `pumice_axi4_layer` (intakes + wr_data_cam + rd_cmd_cam),
@@ -90,6 +98,11 @@
 - [DFI Command Formatter (`dfi_cmd_formatter`)](ch02_blocks/14_cmd_encoder.md)
 - [DFI Layer / Gearing (`pumice_dfi_layer`)](ch02_blocks/15_gear_dfi.md)
 
+**Training layer (LPDDR2 calibration / training):**
+- [Training Layer (`pumice_training_layer`)](ch02_macros/05_training_layer_macro.md)
+- [ZQ Calibration Controller (`pumice_zq_ctrl`)](ch02_blocks/23_zq_ctrl.md)
+- [DQ-Calibration Sequencer (`pumice_lp_cal`)](ch02_blocks/24_lp_cal.md)
+
 **Absorbed (kept for design rationale; no standalone FUB exists today):**
 - [Transaction Queue — absorbed into intake+CAMs](ch02_blocks/06_txn_queue.md)
 - [Bank Machine — replaced by FSM-free bank_timer](ch02_blocks/09_bank_machine.md)
@@ -106,6 +119,7 @@
 - [Register Map](ch04_apb_config/02_csr_map.md)
 - [Runtime Overrides and Quiet Points](ch04_apb_config/03_runtime_overrides.md)
 - [Family-Wide Config-Bit Applicability](ch04_apb_config/04_family_config_bits.md)
+- [Training-Layer Interface Contracts](ch04_apb_config/05_training_interface_contracts.md)
 
 ### Chapter 5: Programming
 

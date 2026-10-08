@@ -34,7 +34,7 @@
 wires the command arbiter to the per-bank safe timers, the global (bus/rank)
 turnaround timers, the refresh controller, the init sequencer plus mode-register
 shadow, and an output command FIFO. It emits a single abstract DRAM command
-stream `{op, rank, bank, row, col, ap}` for the DFI layer to phase-pack.
+stream `{mrr, ap, col, row, bank, rank, op}` for the DFI layer to phase-pack.
 
 The scheduler is **single-issue**, **PHY / nphases-agnostic**, and runs on a
 single controller clock (`aclk`). The CAM sched-lookup / oldest / commit / issue
@@ -53,7 +53,7 @@ old `command_scheduler_macro` (`scheduler` / `xbank_timers` / `page_predictor` /
 | `refresh_ctrl`        | tREFI down-counter + 8-deep postpone; `refresh_req`/`refresh_drain` to the arbiter, `refresh_grant` back. Enabled after init. |
 | `init_sequencer`      | DDR2 + LPDDR2 JEDEC MRS init microprogram. Drives `dfi_init_start_o`, emits init commands into the arbiter, and writes the MR shadow. Gates traffic until `init_done`. |
 | `mode_register`       | MR shadow updated by the init MRS writes; decodes CL / CWL / BL (and AL / drive-strength / ODT). Supplies `cl_o`/`cwl_o`/`bl_o` to the DFI layer. |
-| `gaxi_fifo_sync`      | Output command FIFO (`CMD_FIFO_DEPTH`), packs `{ap, col, row, bank, rank, op}` (`CMD_W` bits) into the abstract command stream to the DFI layer. |
+| `gaxi_fifo_sync`      | Output command FIFO (`CMD_FIFO_DEPTH`), packs `{mrr, ap, col, row, bank, rank, op}` (`CMD_W` bits) into the abstract command stream to the DFI layer. The `mrr` bit (added with the training layer) marks a maintenance MRR; demand-class commands always carry 0. |
 
 ## FSM-Free Bank Timing
 
@@ -73,7 +73,12 @@ stamps the timer per (rank,bank).
   in), the `oldest_*` snapshot in, and the write `commit_*` / read `issue_*`
   handshake out.
 - **Command stream out (to `pumice_dfi_layer`):**
-  `cmd_valid/ready` + `{op, rank, bank, row, col, ap}`.
+  `cmd_valid/ready` + `{mrr, ap, col, row, bank, rank, op}`.
+- **Maintenance channel in (from `pumice_training_layer`):** `trn_cmd_req` +
+  payload + `trn_cmd_grant` back — ZQ/MRR calibration traffic, priority
+  init > refresh > trn > demand; see
+  [ch02/25](05_training_layer_macro.md) and
+  [ch04/05](../ch04_apb_config/05_training_interface_contracts.md).
 - **Mode-register shadow out:** `cl_o` / `cwl_o` / `bl_o` to the DFI layer.
 - **Init handshake:** `dfi_init_start_o` out and `dfi_init_complete_i` in
   (routed to/from the PHY via the DFI layer); `init_done_o` status out.
@@ -90,4 +95,8 @@ buffered in the FIFO, or while any bank row is active.
 The scheduler has a macro-level test that exercises the arbiter against the two
 real CAMs -- combinational pickers must be macro-tested, since registered
 feedback latency can hide double-issue hazards that a FUB-only test misses. Each
-constituent FUB also has its own unit test in `dv/tests/fub/`.
+constituent FUB also has its own unit test in `dv/tests/fub/`. The training
+channel adds `cocotb_test_training_priority_and_gate` to
+`dv/tests/macro/test_pumice_scheduler_layer.py` (training priority vs
+refresh/demand, all-banks-idle gating, demand blocked during `cal_busy`,
+fire==valid invariant).

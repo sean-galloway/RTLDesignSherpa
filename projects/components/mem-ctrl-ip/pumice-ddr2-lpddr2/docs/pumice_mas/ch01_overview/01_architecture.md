@@ -24,13 +24,13 @@
 # Architecture and Datapath
 
 This chapter is the implementation-level architectural orientation: the live
-three-layer hierarchy, the read/write datapath flow, and the clocking
+four-layer hierarchy, the read/write datapath flow, and the clocking
 topology. Per-macro detail is in section 2; per-interface detail is in
 section 3.
 
 ## Layer Hierarchy
 
-The controller is a **three-layer core** wrapped by a top that adds the
+The controller is a **four-layer core** wrapped by a top that adds the
 PeakRDL-generated register block. The top-of-tree is `pumice_top`
 (`rtl/top/pumice_top.sv`), with an optional host-width wrapper
 `pumice_top_geared` above it:
@@ -43,15 +43,17 @@ pumice_top_geared (rtl/top/pumice_top_geared.sv)   -- OPTIONAL host-width wrappe
        |- pumice_core (rtl/top/pumice_core.sv)
             |- pumice_axi4_layer          (rtl/macro/pumice_axi4_layer.sv)
             |- pumice_scheduler_layer (rtl/macro/pumice_scheduler_layer.sv)
+            |- pumice_training_layer    (rtl/macro/pumice_training_layer.sv, LPDDR2 cal/training)
             |- pumice_dfi_layer         (rtl/macro/pumice_dfi_layer.sv)
 ```
 
-`pumice_core` wires the three macros, built bottom-up:
+`pumice_core` wires the four macros, built bottom-up:
 
 | Macro (module)             | Role                                                          | Chapter |
 |----------------------------|---------------------------------------------------------------|---------|
 | `pumice_axi4_layer`          | Host AXI4 slave + burst splitters + write/read CAMs + snarf    | 2.1     |
 | `pumice_scheduler_layer` | Arbiter + per-bank/global timers + refresh + init + mode reg   | 2.2     |
+| `pumice_training_layer`  | ZQ calibration + DQ-cal (MRR) sequencer + `trn_cmd` mux + cal CDC (LPDDR2 only) | 2.5 |
 | `pumice_dfi_layer`         | Single async-FIFO CDC + DFI-clock command/write/read datapath  | 2.4     |
 
 The data path is **not** a standalone macro. Write and read burst buffers live
