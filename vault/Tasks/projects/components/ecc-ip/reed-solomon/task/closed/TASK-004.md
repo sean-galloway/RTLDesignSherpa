@@ -1,7 +1,7 @@
 # TASK-004: Author the RS math chapter for novices
 
 **Priority:** P3
-**Status:** open 2026-10-03
+**Status:** closed 2026-10-08
 **Owner:** TBD
 
 The RS documentation stack (PRD, HAS, MAS, FUB catalog) assumes the reader
@@ -49,3 +49,11 @@ zero to following the decoder math.
 **2026-10-03 -- filed**, alongside the matching bch TASK-004 (same chapter
 for the binary codec; the two must cross-link and share the finite-field
 foundation rather than restate it).
+**2026-10-08 -- closed.** Landed as HAS ch07 `understanding_the_math` with
+all five sections, including the later-requested n/k/t/m parameter
+treatment and every-stage math-to-pseudocode. `ch07_math_trace.py`
+verifies every worked number against the component model: ALL CHECKS
+PASSED (GF(2^4) tables, RS(255,239) and RS(252,236) profile checks,
+correction round-trip, post-correction syndromes zero). BCH's sister
+chapter (bch TASK-004, closed same day) cross-links here for the shared
+foundation.
