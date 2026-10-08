@@ -1,0 +1,103 @@
+# Testplan for amber_fill (AXI4 read-master sequencing engine, MAS ch02_blocks/06
+# + ch03_interfaces/02). The engine drives the fub_axi_* upstream side of the
+# house axi4_master_rd wrapper (DECISION D3); the unit TB closes the loop with
+# the house CocoTBFramework AXI4 slave responder on the wrapper's m_axi side
+# (create_axi4_slave_rd + shared MemoryModel). Binding port names are the
+# landed amber_control group (fill_start/fill_addr/fill_req_class out,
+# fill_done/fill_beat_valid/fill_beat_idx in; fill_beat_data/fill_last go to
+# the data array/bypass at integration, observed here at the harness pins).
+
+module: amber_fill
+rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_fill.sv
+test_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_fill_drain.py
+
+# Contract: MAS ch02_blocks/06 + ch03_interfaces/02. ARLEN = FILL_BEATS-1,
+# ARSIZE = log2(BUS_WIDTH/8), ARBURST = INCR, ARADDR = fill_addr (line-aligned
+# byte address from amber_control). fill_done pulses exactly one cycle after
+# the fub-side RLAST acceptance. R beats stage in a gaxi_fifo_sync DEPTH=4
+# (DECISION D-6: snoop-imposed port-A stalls can pause data-array writes
+# without dropping fub_axi_rready; the beat-output side has no backpressure
+# input -- the landed control contract makes the beat consumer always-ready).
+# A CLEAN_UNIQUE upgrade (fill_req_class) carries NO fill data (MAS ch02/02,
+# pinned by UpgradeNoBypassArm in the control suite): no AR is issued, no
+# beats pulse, fill_done completes the handshake anyway. Single outstanding
+# per MAS ch03/02: no second AR before the previous RLAST is consumed -- the
+# blocking pipeline guarantees this and the TB asserts it on both the
+# fub-side (engine) and m_axi-side (protocol-visible) taps.
+
+parameters:
+  - name: ADDR_WIDTH / SETS / LINE_BYTES / BUS_WIDTH
+    default: 32 / 128 / 64 / 64
+    description: geometry per amber_pkg defaults; the grid also runs the
+      tiny 16-set config (identical FILL_BEATS=8 both cells, house convention)
+
+scenarios:
+  - name: FillBurstWaveform
+    level: gate
+    what: >
+      One READ_SHARED fill per MAS ch03/02 waveform: AR handshake with
+      araddr == fill_addr, arlen == FILL_BEATS-1, arsize == log2(STRB_W),
+      arburst == INCR; exactly FILL_BEATS fub-side R beats; fill_done pulses
+      exactly one cycle after the fub RLAST acceptance; fill_beat_valid
+      presents each beat with fill_beat_idx incrementing 0..FILL_BEATS-1,
+      fill_beat_data == the memory-side line bytes, fill_last only on the
+      final beat. No second AR on fub or m_axi taps.
+    status: covered
+  - name: UpgradeNoFetch
+    level: gate
+    what: >
+      fill_req_class == CLEAN_UNIQUE (the S->M upgrade, MAS ch02/02): the
+      engine issues NO AR (fub_axi_arvalid never rises, m_axi_arvalid never
+      rises), pulses NO fill beat, and completes with fill_done exactly one
+      cycle after fill_start -- the control-side upgrade handshake with no
+      data in flight (same contract the control TB's timing stub models).
+    status: covered
+  - name: ReadUniqueData
+    level: func
+    what: >
+      READ_UNIQUE fills against randomized line contents in the shared
+      MemoryModel: every beat's data scored byte-exact against the model,
+      beat order scored against the model's INCR walk. Covers the
+      write-miss fetch class end to end.
+    status: covered
+  - name: RBackpressureIntegrity
+    level: func
+    what: >
+      Randomized R-channel latency/gaps (responder valid_delay profile) plus
+      AR ready stalls (responder ready_delay profile): beat data, idx order
+      and fill_last are unaffected; the fub rready is high in every receive
+      cycle unless the staging FIFO is full (sampled against the FIFO count
+      tap -- rready may only be low at full, never spuriously). Beat count
+      per transaction stays exactly FILL_BEATS.
+    status: covered
+  - name: SingleOutstanding
+    level: func
+    what: >
+      MAS ch03/02 "Single Outstanding": a stream of back-to-back fills with
+      the responder holding R back; on both the fub-side tap and the m_axi
+      protocol tap, no AR handshake occurs between a burst's AR handshake
+      and its RLAST handshake, and the next transaction's AR handshake lands
+      strictly after the previous RLAST.
+    status: covered
+  - name: NoStrayBeatsInvariant
+    level: all
+    what: >
+      EVERY-CYCLE invariant: fill_beat_valid rises only inside a fill window
+      (fill_start .. fill_done) and the FIFO is drained before the next
+      fill_start (arithmetic guarantee: DEPTH=4 < the control's minimum
+      fill_done -> next fill_start path of >= 5 cycles; scored from the
+      taps each observable cycle, mirroring the control suite's
+      BypassNeverAnswersInvalid pattern).
+    status: covered
+  - name: FillRandomSoak
+    level: full
+    what: >
+      Randomized fill stream (SEED-pinned): random class mix
+      (READ_SHARED/READ_UNIQUE/CLEAN_UNIQUE), random line addresses, random
+      responder backpressure profile switches mid-stream, writeback->refetch
+      round trips through the shared MemoryModel. Soak counts recorded in
+      the run log; fill+drain run CONCURRENTLY (independent AXI channels)
+      to prove engine independence.
+    status: covered

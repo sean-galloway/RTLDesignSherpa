@@ -1,0 +1,108 @@
+# Testplan for amber_drain (AXI4 write-master sequencing engine, MAS
+# ch02_blocks/06 + ch03_interfaces/02). The engine drives the fub_axi_*
+# upstream side of the house axi4_master_wr wrapper (DECISION D3); the unit
+# TB closes the loop with the house CocoTBFramework AXI4 slave responder on
+# the wrapper's m_axi side (create_axi4_slave_wr + shared MemoryModel).
+# DECISION D-6: victim beats are forwarded DIRECTLY from the latched payload
+# register -- no local queue; the wrapper's AW/W/B skids (DEPTH 2/4/2)
+# absorb responder backpressure. RTL addition over the MAS ch02/06 interface
+# table (which still shows the pre-D3 drain_beat_* W-channel pins): the
+# victim {addr, data} arrives as engine inputs (victim_addr/victim_data),
+# wired at integration to amber_control's staged payload outputs
+# (ctrl_victim_addr_in/ctrl_victim_data_in), which hold stable for the whole
+# drain window by construction (registered at the gather, untouched until
+# the next miss's CTRL_MISS_VICTIM, unreachable while this drain is
+# outstanding). drain_start is the qualifier -- the buffer holds a dirty
+# victim exactly when the control launches a drain.
+
+module: amber_drain
+rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_drain.sv
+test_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_fill_drain.py
+
+# Contract: MAS ch02_blocks/06 + ch03_interfaces/02. AWLEN = FILL_BEATS-1,
+# AWSIZE = log2(BUS_WIDTH/8), AWBURST = INCR, AWADDR = victim_addr, WSTRB
+# all-1s every beat. Waveform order: AW handshake, then W beats, WLAST
+# handshake, then B handshake; drain_done pulses exactly one cycle after
+# the fub-side B handshake. Single outstanding per MAS ch03/02: no second
+# AW before the previous B -- the blocking pipeline guarantees this and the
+# TB asserts it on both the fub-side (engine) and m_axi-side
+# (protocol-visible) taps. AXI payload-hold laws: awvalid/awaddr and
+# wvalid/wdata/wstrb/wlast hold stable under deasserted ready.
+
+parameters:
+  - name: ADDR_WIDTH / SETS / LINE_BYTES / BUS_WIDTH
+    default: 32 / 128 / 64 / 64
+    description: geometry per amber_pkg defaults; the grid also runs the
+      tiny 16-set config (identical FILL_BEATS=8 both cells, house convention)
+
+scenarios:
+  - name: DrainBurstWaveform
+    level: gate
+    what: >
+      One drain per MAS ch03/02 waveform: AW handshake with awaddr ==
+      victim_addr, awlen == FILL_BEATS-1, awsize == log2(STRB_W), awburst
+      == INCR; exactly FILL_BEATS W beats with wdata == the victim_data
+      slices in order, wstrb all-1s, wlast only on the final beat; AW
+      handshake strictly before the first W handshake; WLAST handshake
+      strictly before the B handshake; drain_done exactly one cycle after
+      the fub B handshake. No second AW on fub or m_axi taps.
+    status: covered
+  - name: WritebackRoundTrip
+    level: func
+    what: >
+      The drained line lands in the shared MemoryModel through the
+      responder's strobe-aware write; a subsequent fill of the same address
+      returns the exact victim bytes -- the writeback payload survives the
+      wrapper's AW/W/B skids both directions. Scored byte-exact per beat.
+    status: covered
+  - name: WBackpressurePayloadHold
+    level: func
+    what: >
+      Randomized W ready stalls (responder ready_delay profile): while
+      wvalid is high and wready low, wdata/wstrb/wlast are sampled stable
+      every stall cycle (AXI payload-hold law, fub-side tap); beat count
+      and order unaffected. Same law checked on AW addr/len/size/burst
+      under awready stalls and on AR in the fill suite.
+    status: covered
+  - name: BResponseDelay
+    level: func
+    what: >
+      Randomized B latency (responder valid_delay profile): drain_done
+      follows the B handshake, never WLAST -- the engine waits for the
+      response before retiring the transaction (the victim buffer's
+      SINK_WB_ACK ownership in the control suite depends on it).
+    status: covered
+  - name: SingleOutstanding
+    level: func
+    what: >
+      MAS ch03/02 "Single Outstanding": a stream of back-to-back drains;
+      on both the fub-side tap and the m_axi protocol tap, no AW handshake
+      occurs between a transaction's AW handshake and its B handshake, and
+      the next AW lands strictly after the previous B.
+    status: covered
+  - name: DrainRandomSoak
+    level: full
+    what: >
+      Randomized drain stream (SEED-pinned): random victim {addr, data},
+      random responder backpressure profile switches mid-stream; fills and
+      drains run CONCURRENTLY (independent AXI channels) against the shared
+      MemoryModel with disjoint address ranges, proving engine independence
+      and giving the round-trip scoreboard traffic in both directions.
+      Soak counts recorded in the run log.
+    status: covered
+
+# NOTE on AXI4_COMPLIANCE_CHECK: the suite runs with the house compliance
+# checker enabled (AXI4_COMPLIANCE_CHECK=1), as the house axi4 runners do.
+# The framework checker's own W-channel beat counter samples at the falling
+# edge and races its responder BFM's mid-cycle wready changes under
+# ready-stall profiles, printing "[W] W beat received with no outstanding
+# AW" / "WLAST asserted early" lines that are demonstrably false: the house
+# axi4_master_wr suite (DUT = the wrapper itself, GAXI W master BFM as the
+# producer) prints the identical lines on passing runs, and this suite
+# scores every W beat byte-exact at both fub and m_axi plus the byte-exact
+# MemoryModel writeback. The DUT-side protocol contract (payload-hold laws,
+# handshake integrity, single-outstanding, waveform order) is scored by the
+# TB's own race-free monitor (samples just before the rising edge, where
+# every protocol-relevant signal is settled).
