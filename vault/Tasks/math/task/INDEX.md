@@ -2,7 +2,7 @@
 
 # math — tasks
 
-**Next ID: TASK-006** — never recycle a number, even when its item closed.
+**Next ID: TASK-007** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 5 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,6 +20,10 @@ by construction rather than by discipline.
 
 ## Open
 
+- **TASK-006** — systematic special-value Cartesian product grid for the bf16
+  TB family (filed from the BUG-007 escape analysis): a shared ~81-cell
+  product through each module's golden, seed-independent, so a missing
+  special-value corner cannot recur.
 
 ## Closed
 

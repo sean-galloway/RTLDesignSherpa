@@ -232,9 +232,14 @@ wire w_invalid_op = w_zero_div_zero | w_inf_div_inf;
 // Division by zero (non-zero / zero = infinity)
 wire w_div_by_zero = ~w_a_eff_zero & ~w_a_is_inf & ~w_a_is_nan & w_b_eff_zero;
 
-// Zero result: zero / non-zero finite OR finite / infinity
+// Zero result: zero / non-zero finite OR zero / infinity OR finite / infinity.
+// The ~w_b_is_inf qualifier used to exclude the 0/inf cell from this class;
+// with it gone (b_is_inf already implies ~b_eff_zero), the exact-zero
+// quotient claims the zero-result branch and line 267's ~w_result_zero
+// suppresses ow_underflow -- underflow = tiny AND inexact, and 0/inf is
+// exact (BUG-007).
 wire w_finite_div_inf = ~w_a_eff_zero & ~w_a_is_inf & ~w_a_is_nan & w_b_is_inf;
-wire w_result_zero = (w_a_eff_zero & ~w_b_eff_zero & ~w_b_is_inf & ~w_b_is_nan) | w_finite_div_inf;
+wire w_result_zero = (w_a_eff_zero & ~w_b_eff_zero & ~w_b_is_nan) | w_finite_div_inf;
 
 // Infinity result: infinity / finite OR finite / zero (div by zero)
 wire w_result_inf = (w_a_is_inf & ~w_b_is_inf & ~w_b_is_nan) | w_div_by_zero;

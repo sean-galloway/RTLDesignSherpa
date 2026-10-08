@@ -12,21 +12,24 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 6 | done (kept for history) |
+| [closed/](closed/) | 7 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-007** — bf16_divider asserts ow_underflow on the exact-zero quotient
-  0.0/inf (`w_result_zero` misses the `a=0, b=inf` case; combinational, latent —
-  surfaced by a random draw in the 2026-10-08 flip matrix; TB golden already
-  expects `unf=0`). Not cocotb-version-related.
-
 ## Closed
 
+- **BUG-007** — bf16_divider asserts ow_underflow on the exact-zero quotient
+  0.0/inf -- CLOSED 2026-10-08 (fix-RTL): `w_result_zero` dropped its
+  `~w_b_is_inf` qualifier (implied by `~w_b_eff_zero`), claiming 0/inf —
+  all four signs plus FTZ subnormal/inf — for the zero-result branch, whose
+  `~w_result_zero` then suppresses the flag. Directed regression added
+  (5 vectors), mutation-checked; divider FULL 4/4. Escape analysis and the
+  prevention task (math TASK-006, shared special-value product grid) recorded
+  in the closed file.
 - **BUG-006** — bf16_adder underflow can report as +infinity/overflow (wrap bit shared by both flags)
 - **BUG-002** — levels are decorative: TEST_LEVEL exported but never gates depth; FULL == FUNC grids
 - **BUG-003** — fp16/fp8 multiplier rounding deviates from RNE (family sweep of MATH-001)

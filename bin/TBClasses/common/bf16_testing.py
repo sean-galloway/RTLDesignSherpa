@@ -2898,6 +2898,22 @@ class BF16DividerTB(TBBase):
         if not await self.test_single_divide(NEG_INF, ONE, "-inf/1"):
             failures.append("-inf/1 failed")
 
+        # Zero / infinity: the quotient is EXACTLY zero, so ow_underflow must
+        # stay 0 (underflow = tiny AND inexact). BUG-007: the RTL's
+        # w_result_zero missed this cell and the exponent path (0 - 255 + 127
+        # < 1) leaked ow_underflow=1. Covers all four sign combinations plus
+        # the FTZ subnormal-dividend form.
+        if not await self.test_single_divide(ZERO, INF, "0/inf"):
+            failures.append("0/inf failed")
+        if not await self.test_single_divide(ZERO, NEG_INF, "0/-inf"):
+            failures.append("0/-inf failed")
+        if not await self.test_single_divide(NEG_ZERO, INF, "-0/inf"):
+            failures.append("-0/inf failed")
+        if not await self.test_single_divide(NEG_ZERO, NEG_INF, "-0/-inf"):
+            failures.append("-0/-inf failed")
+        if not await self.test_single_divide(SUBNORMAL, INF, "subnormal/inf"):
+            failures.append("subnormal/inf failed")
+
         # NaN propagation
         if not await self.test_single_divide(NAN, ONE, "nan/1"):
             failures.append("nan/1 failed")
