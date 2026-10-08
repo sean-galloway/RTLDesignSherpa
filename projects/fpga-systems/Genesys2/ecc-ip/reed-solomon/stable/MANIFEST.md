@@ -22,10 +22,15 @@ deterministic DEBUG walk), sweep, random, clusters, localized, and
 badblock all PASS, with the A=B dual-decoder agreement flag set on every
 run. The injector is the shared `utility-ip/misc` `error_injector`
 (inherited every BCH-pace fix: 3-bit mode, serialized draw, fixed-count
-draw, ungated mode-5 window). One finding: **f = 2t erasures flag
-uncorrectable** (f = t corrects, f = 2t+1 refuses by inspection, the
-boundary fails downstream of the B-stage t_zero bypass) -- filed as
-`vault/Tasks/projects/components/ecc-ip/reed-solomon/task/open/TASK-005.md`.
+draw, ungated mode-5 window). One finding from that battery: **f = 2t
+erasures flagged uncorrectable** -- RESOLVED 2026-10-08 (TASK-005 closed):
+not a decoder defect. The run sat in the uncommitted injector-migration
+window with the host regmap writing INJ_CFG.mark at bit 2 against hardware
+already at bit 3, so the flags never reached the decoder and f = 16 decoded
+errors-only. f433fcaec committed the consistent mark flip (2 -> 3); an
+era-exact A/B on the Genesys 2 (the stashed 2026-10-04 bitstream and a fresh
+current-main image both PASS `init erasure` at f = 8/16/17) plus the board
+geometry added to the decoder-core DV matrix close it.
 
 The A7 images below are kept for the small board; the A7 is no longer the
 target for harness-class work. They were built by

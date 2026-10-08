@@ -36,6 +36,7 @@ PROFILES = [
     (8, 0x11D, 8, 255, 'RIBM', 1),    # reference: full-length, t = 8
     (8, 0x11D, 8, 255, 'RIBM', 4),    # 255 = 63 beats + 3; k = 239 = 59 beats + 3
     (8, 0x11D, 8, 255, 'RIBM', 8),    # a 64-bit bus
+    (8, 0x11D, 8, 252, 'RIBM', 4),    # board profile: 252 = 63 beats exactly (TASK-005)
     (8, 0x11D, 8, 204, 'RIBM', 8),    # DVB shortened: 204 = 25 beats + 4
     (8, 0x11D, 1, 21, 'RIBM', 4),     # RS(21,19): two parity symbols
     (4, 0x13, 2, 15, 'RIBM', 3),      # small field, odd S

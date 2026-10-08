@@ -12,9 +12,9 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 2 | done (kept for history) |
+| [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
@@ -27,18 +27,12 @@ by construction rather than by discipline.
   chain, with hand-checkable GF(2^4) worked numbers; novice voice, every
   symbol defined before use; BCH's matching chapter links here for the
   shared foundation.
-- **TASK-005** — RS decoder flags f = 2t erasure blocks uncorrectable: the
-  f = 16 boundary case is flagged uncorrectable on every block though the
-  design intent (B-stage `t_zero` bypass) and the code bound allow it; f = t
-  corrects and f = 2t+1 refuses correctly. Found by the `erasure` sequence on
-  the Genesys 2; reproduce in component DV first, identify which
-  final-verdict term fires, fix at the source (likely the C-stage
-  combined-degree threshold under ERASURE_SUPPORT).
 
 ## Closed
 
 - **TASK-001** — Stand up the Reed-Solomon component -- CLOSED 2026-10-02: codec, both solvers, AXIS + AXI4 wrappers, 195-cell DV area, HAS, and the four-image Nexys A7 loop harness all exist and board-pass; sim harness reproduces the board's bandwidth slopes to the cycle. Successors: TASK-002 (erasures), TASK-003 (first consumer).
 - **TASK-002** — Erasure decoding (PRD D5) -- CLOSED 2026-10-03: elaboration-time `ERASURE_SUPPORT` (default 0, off state bit-identical with its own OFF test), erasure locator + Forney erasure path proven model-first against reedsolo, both solvers, per-beat sideband on the AXIS wrapper and job-level `cfg_erasure` on the AXI4 wrapper, injector `INJ_CFG.mark` mode on the harness, full DV matrix. Surfaced and fixed amba BUG-038 (axis4 tuser mis-slice) and the harness SC_W truncation. Consumer pull-in rides with TASK-003.
+- **TASK-005** — RS decoder flags f = 2t erasure blocks uncorrectable -- CLOSED 2026-10-08: never the decoder. The 10-04 failure's symptom pattern (f=8 corrects, f=16 uncorrectable every block, f=17 refuses) is exactly errors-only decoding of an unmarked stream: the run sat in the uncommitted unified-injector migration window, with the host regmap writing INJ_CFG.mark at bit 2 against hardware already at bit 3. f433fcaec committed the consistent flip (mark 2→3 across RDL, regblock, regmap) — that is the fix; no board re-ran the erasure sequence afterward, so the task stayed open on stale evidence. Era-exact A/B on the Genesys 2: the stashed 2026-10-04 bitstream and a fresh current-main image both PASS `init erasure` (f=8/16/17, blocks=16); component DV at the board geometry RS(252,236) S=4 and the dual-solver harness sim also pass. Board geometry added to the decoder-core matrix so the sim keeps the case.
 
 ## Deferred
 
