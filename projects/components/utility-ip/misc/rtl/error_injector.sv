@@ -84,7 +84,11 @@
 //   accumulate in registers and release on the final group. GRP is 2 so the
 //   conditional-increment ripple stays carry-chain shallow post-route; COUNT
 //   mode on a 32-bit beat takes 16 cycles (~6 Mbit/s), far above any UART-fed
-//   loop rate. BURST, RATE and CLUSTERS are per-lane independent and stay
+//   loop rate. A beat that has no errors left to place -- every count=0 beat,
+//   and the tail of a block whose count is already placed -- shortcuts the
+//   walk: e_left == 0 clamps every lane's capacity to zero, so the decision is
+//   final after group 0 and clean beats stream at line rate (issue #89).
+//   BURST, RATE and CLUSTERS are per-lane independent and stay
 //   single-cycle, full rate.
 //
 //   Pipeline (each stage a register with valid/ready):
@@ -217,6 +221,7 @@ module error_injector #(
     logic [S-1:0]     r_mask_acc;
 
     logic [7:0]       w_start_k, w_k_next, w_grp_hits;
+    logic             w_e_start_zero;   // COUNT beat with no errors left: 1-cycle decision
     logic [GRP-1:0]   w_ghit;
     logic [GRP-1:0]   w_gkeep;
     logic [7:0]       w_kp [GRP];         // group-local capacity; 0 = cannot hit
@@ -235,10 +240,15 @@ module error_injector #(
 
     assign w_c_ready = (!r_c_v || out_ready) && !r_dec_busy && !w_draw_wait;
     // COUNT holds the beat in B for N_GRP decision cycles; in that mode B only
-    // refills once empty. BURST / RATE / CLUSTERS keep the single-cycle
-    // overlap; the app modes also pause the input for the draw walk and hold
-    // the block-start beat until the table is complete.
-    assign w_b_ready = !r_b_v || (w_c_ready && !w_count_mode);
+    // refills once empty, EXCEPT in the decision's release cycle -- the fire
+    // consumes r_b_* combinationally, so A->B may transfer the next beat in
+    // the same edge (issue #89: this bubble plus the vacuous walk below cost
+    // three cycles per beat on clean characterization runs). BURST / RATE /
+    // CLUSTERS keep the single-cycle overlap; the app modes also pause the
+    // input for the draw walk and hold the block-start beat until the table
+    // is complete.
+    assign w_b_ready = !r_b_v || (w_c_ready && !w_count_mode)
+                       || (w_count_mode && w_dec_fire);
     assign w_a_ready = !r_a_v || (w_b_ready && !w_draw_hold);
     assign in_ready  = w_a_ready;
     assign w_a_fire  = in_valid && w_a_ready;
@@ -567,7 +577,17 @@ module error_injector #(
 
     assign w_count_mode = (r_mode == 3'd1);
     assign w_dec_step   = r_b_v && (w_c_fire || r_dec_busy);
-    assign w_dec_fire   = w_dec_step && (!w_count_mode || (r_cyc == CYC_W'(N_GRP-1)));
+    // A COUNT beat with no errors left to place cannot hit: every lane's
+    // capacity is e_left - lhs_hi clamped at zero, so the group walk is
+    // vacuous and the decision (all-zero mask, e_left unchanged) is final
+    // after group 0. Fire it in one cycle and let clean blocks -- count=0
+    // runs, blocks whose errors are already placed -- stream at line rate
+    // instead of paying N_GRP+1 cycles per beat (issue #89). Blocks still
+    // carrying errors take the full walk, unchanged.
+    assign w_e_start_zero = w_count_mode && (r_b_first ? (r_count == 8'd0)
+                                                       : (r_e_left == 8'd0));
+    assign w_dec_fire   = w_dec_step && (!w_count_mode || (r_cyc == CYC_W'(N_GRP-1))
+                                         || w_e_start_zero);
 
     always_comb begin
         logic [7:0]       e_left;
@@ -687,7 +707,10 @@ module error_injector #(
             end else if (w_dec_step) begin
                 r_cyc <= r_cyc + 1'b1;
             end
-            if (w_c_fire && w_count_mode && (N_GRP > 1)) begin
+            if (w_c_fire && w_count_mode && (N_GRP > 1) && !w_e_start_zero) begin
+                // a decision that completes this cycle (last group, or the
+                // no-errors-left shortcut) must not set busy: it would survive
+                // the fire above and make the NEXT beat walk phantom groups
                 r_dec_busy <= 1'b1;
             end
             if (w_dec_step && !w_dec_fire) begin

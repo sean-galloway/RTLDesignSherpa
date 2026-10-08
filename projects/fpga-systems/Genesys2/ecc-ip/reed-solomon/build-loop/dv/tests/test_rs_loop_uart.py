@@ -642,19 +642,16 @@ def _slope_stats(small, large, key):
     return d_prod, d_win, d_prod / d_win, d_win / d_blocks
 
 
-# Measured per-block costs on this exact RTL. The unified error injector's
-# three-stage block pipeline does not overlap blocks (issue #89): a seam it
-# sits on retires a block in three passes, so the slope window per block is
-# INJ_PASSES x the block's beats -- 189 cycles at full size, 48 on the
-# small profile. The AXI4 flavour's encoder-side codeword output does not
-# pass the injector and streams at line rate at both profiles, while its
-# message channel adds the memory path on top of the passes (370 cycles
-# per block at full size, 92 on the small profile). The board's 100% cw
-# figures in the docstrings below predate the unified injector; board
-# re-measurement is pending. A new profile must be measured and entered in
-# MSG_CPB before its slope test can run.
-INJ_PASSES = 3
-MSG_CPB = {252: 370, 64: 92}
+# Measured per-block costs on this exact RTL. The error injector streams at
+# line rate since issue #89 (a COUNT beat with no errors left to place fires
+# in one cycle, so clean characterization runs pass 1 beat/cycle): every
+# codeword seam's slope window per block is its line-rate beats -- 63 cycles
+# at full size, 16 on the small profile -- on both the AXIS and the AXI4
+# build. The AXI4 message channel is decoder/memory-paced: 244 cycles per
+# block at full size, 60 on the small profile. A new profile must be measured
+# and entered in MSG_CPB before its slope test can run.
+INJ_PASSES = 1
+MSG_CPB = {252: 244, 64: 60}
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
@@ -662,16 +659,15 @@ async def cocotb_test_uart_bw_slope(dut):
     """The board's `bw --slope` on the single-solver AXIS image, smaller counts.
 
     Board axis_ribm reads both codeword seams at 100.0% as a slope over
-    64 -> 256 blocks -- on the pre-unification images; the unified error
-    injector now retires each block in three passes (issue #89), which is
-    what this test pins. The sim uses 16 -> 64: the fill is one fixed term,
-    so any two block counts cancel it. ENABLE_COMPARE=0 matches the board
-    images one-for-one (one riBM decoder, no comparator -- the comparator
-    changes the very handshake the meters measure).
+    64 -> 256 blocks, and the unified error injector has streamed at line
+    rate since issue #89 (a COUNT beat with no errors left to place fires in
+    one cycle), which is what this test pins. The sim uses 16 -> 64: the fill
+    is one fixed term, so any two block counts cancel it. ENABLE_COMPARE=0
+    matches the board images one-for-one (one riBM decoder, no comparator --
+    the comparator changes the very handshake the meters measure).
 
-    Both profiles: the codeword window per block is INJ_PASSES x cw_beats
-    (189 cycles at full size, 48 on the small profile's 16-beat blocks),
-    while the beats stay at line count (issue #88's calibration).
+    Both profiles: the codeword window per block is the line-rate beats
+    (63 cycles at full size, 16 on the small profile's 16-beat blocks).
     """
     drv, _ = await _bringup(dut)
     prof = await cocotb.external(drv.profile)()
@@ -702,18 +698,18 @@ async def cocotb_test_uart_axi4_bw_slope(dut):
     AXIS. The ~97%/98.5% this test used to assert (cw_out 3118, cw_in 3069,
     2026-10-01 board figures) was the old slave's per-burst boundary cost,
     paid once per 64-beat burst and surviving the slope difference because
-    the burst count scales with the block count. Those 100% figures describe
-    the PRE-UNIFICATION images: the unified error injector now retires each
-    block in three passes (issue #89), so today's RTL reads cw_out at line
-    rate (the encoder's output does not pass the injector), cw_in at
-    3 x 63 = 189 cycles per block, and the message channel at 370 -- the
-    old 244 plus the injector's two extra passes. Board re-measurement
-    against the rebuilt images is pending; until then this test's numbers
-    are the sim's, as are the small-profile ones below.
+    the burst count scales with the block count. Between 2026-10-05 and
+    2026-10-07 the unified error injector charged three passes per block in
+    COUNT mode (issue #89); that regression is fixed now -- a COUNT beat with
+    no errors left fires in one cycle -- so today's RTL reads every codeword
+    seam at line rate and the message channel at its decoder/memory pace:
+    244 cycles per block at full size, 60 on the small profile. Board
+    re-measurement against the rebuilt images is pending; until then this
+    test's numbers are the sim's, as are the small-profile ones below.
 
-    On the small profile the same split holds at 16-beat blocks: cw_out at
-    line rate (16 cycles per block), cw_in at 3 x 16 = 48, and the message
-    channel at 92 cycles per block (issues #88, #89).
+    On the small profile the same holds at 16-beat blocks: codeword seams at
+    line rate (16 cycles per block) and the message channel at 60 cycles
+    per block (issues #88, #89).
     """
     drv, _ = await _bringup(dut)
     topo = await cocotb.external(drv.topology)()
