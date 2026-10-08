@@ -3,10 +3,13 @@
 **Date:** 2026-10-06
 **Status:** Draft for review
 **Path:** `projects/components/riscv-ip/`
+**Amended 2026-10-08:** rung 5 (garuda-rv32imf) penciled in beyond the
+original four-rung scope, at the same depth as the other unimplemented
+rungs. Everything else is unchanged from the 2026-10-06 draft.
 
 ## Summary
 
-A ladder of four independent, clean-slate RISC-V cores whose primary product
+A ladder of five independent, clean-slate RISC-V cores whose primary product
 is education, in the same spirit as the pumice/scoria/andesite
 memory-controller line. Each rung is a complete, verified, documented design that a
 student can hold in their head; the rungs ascend in microarchitectural
@@ -23,12 +26,16 @@ not the cheapest to produce.
   verification framework, the formal/ culture.
 - **Non-goal:** performance. No rung chases benchmarks; clocks/area are
   reported for curiosity, not optimized.
-- **Non-goal:** Linux-capability. The ISA tops out at RV32IM + machine-mode
-  traps; no MMU, no supervisor mode, no compressed instructions.
+- **Non-goal:** Linux-capability. The ISA tops out at RV32IMF + machine-mode
+  traps; no MMU, no supervisor mode, no compressed instructions, no D
+  extension (single-precision F only, rung 5), no Zfh.
 
 ## Naming and placement
 
-Falcon species in strict size order, one per rung:
+Falcon species in strict size order, one per rung. The falcon sequence
+ends at rung 4 — gyrfalcon is the largest living species — so rung 5 steps
+deliberately to mythology: garuda, the giant divine raptor, king of birds,
+one past the largest falcon.
 
 | Rung | Core | ISA | Microarchitecture |
 |------|------|-----|-------------------|
@@ -36,6 +43,7 @@ Falcon species in strict size order, one per rung:
 | 2 | **merlin-rv32i** | RV32I | 5-stage in-order pipeline |
 | 3 | **peregrine-rv32im** | RV32IM | advanced in-order: predictor, traps, L1 caches, AXI master |
 | 4 | **gyrfalcon-rv32im** | RV32IM | out-of-order capstone: rename, ROB, reservation stations |
+| 5 | **garuda-rv32imf** | RV32IMF | gyrfalcon's OoO + FPU: FP rename, fcsr precise flags, non-pipelined long-latency FPU units |
 
 (Echo noted: SpaceX also flew Kestrel/Merlin engines. These are bird names
 first; the suite's theme is falconry/ornithology.)
@@ -49,6 +57,7 @@ projects/components/riscv-ip/
 ├── merlin-rv32i/            rtl/ docs/ dv/
 ├── peregrine-rv32im/        rtl/ docs/ dv/
 ├── gyrfalcon-rv32im/        rtl/ docs/ dv/
+├── garuda-rv32imf/          rtl/ docs/ dv/
 ├── references/              common primary sources (the RISC-V ISA manuals)
 └── docs/                    suite-level: ISA quick reference, naming rationale
 ```
@@ -143,21 +152,59 @@ The largest falcon, apex of the ladder: the machine hides the program order.
   on an OOO core is disproportionate; optional stretch goal only.
 - **Packaging:** *Simplified RV32IM: gyrfalcon — out-of-order execution* book.
 
+## Rung 5 — garuda (RV32IMF delta on gyrfalcon)
+
+The mythical capstone: the king of birds takes the OoO machine into
+floating point.
+
+- **ISA:** RV32IMF + Zicsr, identical to gyrfalcon plus the full F
+  extension — FADD/FSUB/FMUL/FDIV/FSQRT, the four fused FMA forms,
+  FSGNJ/N/X, FMIN/FMAX, FEQ/FLT/FLE, FCLASS, FMV.X.W/FMV.W.X,
+  FCVT.W[U].S/FCVT.S.W[U], FLW/FSW, and `fcsr` (RM field plus the five
+  accrued exception flags NV/DZ/OF/UF/NX). Single precision only: no D,
+  no Zfh, no quad.
+- **Microarchitecture (defaults chosen, parameterized where cheap):**
+  gyrfalcon's machine plus a 32-architectural × 48-physical FP register
+  file with its own rename map and free list; two FP reservation
+  stations (FP add/FMA pipe; FP divide/sqrt) feeding the repo's
+  `math_ieee754_2008_fp32_*` units — multi-cycle FMUL/FADD/FMA and the
+  **non-pipelined** 9–11-cycle Goldschmidt FDIV / Newton-rsqrt FSQRT as
+  the long-latency structural-stall lesson; issue holds while the
+  non-pipelined unit is busy, wakeup broadcasts on completion. `fcsr`
+  accrued flags are architectural state made precise at commit: the ROB
+  carries each instruction's flag contribution and OR-merges at
+  retirement. Reuses gyrfalcon's predictor, L1s, trap machinery, and AXI
+  fabric unchanged.
+- **Teaches:** long-latency execution scheduling and non-pipelined
+  units inside an OoO scheduler, FP architectural state and precise
+  accrued flags, the F ISA delta end to end — and what it means to
+  consume a verified arithmetic library instead of building one.
+- **Verification:** `rv32ui` + `rv32um` + `rv32uf` batteries; spike
+  lockstep (spike RV32IMF) with randomized program streams as the
+  primary gate; FPU integration TBs reuse the exact-integer oracles
+  already proven in `val/math/` for every unit. Targeted formal —
+  in-order commit extended over FP state, fcsr flag-merge correctness.
+  riscv-formal's F-extension support is limited; unit-level formal on
+  the math blocks (family `formal/common/math_*` pattern) compensates.
+- **Packaging:** *Simplified RV32IMF: garuda — floating point* book.
+
 ## Suite-wide packaging
 
 - **Doc books:** one per rung, Memory Notes branding, `bin/md_to_docx.py`
   pipeline to DOCX/PDF, following the Simplified DFI books' precedent.
 - **Drill app:** `bin/apps/core_drills` (ddr_drills architecture: packs,
-  pure model layer, node test suite, cache-busted deploy) with four modes —
+  pure model layer, node test suite, cache-busted deploy) with five modes —
   pipeline stage-viewer with forwarding arrows (merlin), hazard quiz
-  (merlin), branch-predictor drill (peregrine), and a rename/ROB viewer
+  (merlin), branch-predictor drill (peregrine), a rename/ROB viewer
   that watches instructions land, rename, complete out of order, and
-  retire in order (gyrfalcon). The app gets its own design doc before
+  retire in order (gyrfalcon), and an FP long-latency scheduler viewer
+  that watches FP instructions occupy the non-pipelined divider with
+  fcsr flags merging at retirement (garuda). The app gets its own design doc before
   implementation; its modes arrive as the rungs they visualize land.
 - **Verification infrastructure:** spike ISS as the golden model throughout;
   riscv-tests batteries per ISA scope; cocotb lockstep TBs in the rds-dv
   framework; sby-based formal where it pays (rung 1 fully, rung 2 via the
-  retire interface, rungs 3–4 targeted properties).
+  retire interface, rungs 3–5 targeted properties).
 
 ## Build order and milestones
 
@@ -168,9 +215,14 @@ The largest falcon, apex of the ladder: the machine hides the program order.
 4. **peregrine** — RTL, caches, predictor, traps, batteries + targeted
    formal, book; predictor drill mode added to the app.
 5. **gyrfalcon** — RTL, lockstep + targeted formal, book; ROB viewer mode.
+6. **garuda** — RTL: FPU units consumed from `rtl/math`, FP rename +
+   free list, fcsr ROB flag-merge; rv32ui/um/uf batteries + lockstep +
+   targeted formal, book; FP scheduler drill mode. Gated by gyrfalcon
+   landing.
 
 Effort rises steeply by rung (kestrel: small; merlin: medium; peregrine:
-large; gyrfalcon: very large, 2–4× peregrine). The ladder is the point —
+large; gyrfalcon: very large, 2–4× peregrine; garuda: large — a
+peregrine-sized delta on gyrfalcon). The ladder is the point —
 each rung is finishable, and finishing is what makes it teachable.
 
 ## Open decisions (defaults chosen, revisit at implementation)
@@ -182,6 +234,13 @@ each rung is finishable, and finishing is what makes it teachable.
   book so the simplification is itself instructional.
 - gyrfalcon: 2-wide dispatch, 32-entry ROB, 64 physical registers,
   checkpoint-restore rename rollback — parameterized where cheap.
+- garuda: 32-arch × 48-phys FP register file with its own rename +
+  free list; RNE hard-wired (the fcsr RM field is readable; requesting
+  any other mode raises NV — the documented simplification, itself
+  instructional); FDIV/FSQRT share one non-pipelined unit behind an FP
+  reservation station with a busy scoreboard; SUBNORMAL_SUPPORT=0 (FTZ)
+  at the units for v1 — the math blocks' gradual-underflow mode is a
+  build-time knob, not an ISA-visible default.
 
 ## Dependencies
 
@@ -191,3 +250,10 @@ each rung is finishable, and finishing is what makes it teachable.
   blocking L1s marked as its replacement slot.
 - `axi4_monlite` wrappers (existing) for the peregrine/gyrfalcon fabric
   ports, per the cache-IP note that that IP line uses them too.
+- `rtl/math` ieee754 fp32 family (existing, verified 2026-10-07): the
+  fp32 adder/multiplier/FMA with the `SUBNORMAL_SUPPORT` parameter, the
+  Goldschmidt divider and Newton-rsqrt square root, plus comparator and
+  min/max — consumed as-is, never rebuilt inside garuda. Genuinely
+  missing F-extension pieces (FCVT int↔fp32 both directions, FSGNJ,
+  FCLASS) are small new RTL in the math generator family, scheduled
+  with garuda's build.
