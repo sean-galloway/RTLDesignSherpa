@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 6 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,6 +20,10 @@ by construction rather than by discipline.
 
 ## Open
 
+- **BUG-007** — bf16_divider asserts ow_underflow on the exact-zero quotient
+  0.0/inf (`w_result_zero` misses the `a=0, b=inf` case; combinational, latent —
+  surfaced by a random draw in the 2026-10-08 flip matrix; TB golden already
+  expects `unf=0`). Not cocotb-version-related.
 
 ## Closed
 

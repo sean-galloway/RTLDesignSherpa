@@ -1,7 +1,7 @@
 # TASK-029: validate cocotb-coverage on cocotb 2.1.0 — the last blocker on the production pin flip
 
 **Priority:** P2
-**Status:** validated 2026-10-06 — pin flip committed (RDS `8fb596b57`, RDS-DV cap lifted); the shared-venv rebuild + BKM matrix re-run is the remaining operational step
+**Status:** closed 2026-10-08 — production shared venv rebuilt on the new pins; BKM matrix green at full (math 431/431, common 950/950, cdc 353/353)
 **Owner:** TBD
 **Filed:** 2026-10-04
 **Refs:** [[TASK-025]] (the 2.x migration this gates), tooling ISSUE-003, RDS-DV `pyproject.toml:46-50`
@@ -116,3 +116,25 @@ Sequenced so a failure at any step leaves a working tree behind.
   cocotb-coverage 2.x, matched against a 1.9.2 control.
 - Both pins updated (or the split-venv fallback recorded as a decision).
 - The `cocotb==2.1.0` flip committed with a green BKM re-run.
+
+## Closure (2026-10-08, the flip)
+
+Runbook executed in order; every step left a working tree behind.
+
+1. RDS already current; HEAD pins match the runbook state.
+2. Shared venv rebuilt in place from `requirements.txt`: cocotb 2.1.0,
+   cocotb-bus 0.3.0, cocotb-coverage 2.0, cocotb-framework 1.2.1.
+   `pip check` clean; `CocoTBFramework.components.irq` import verified.
+3. BKM matrix, `make clean-all && make run-all-full-parallel` per area:
+   - `val/common` — **950/950 passed**
+   - `val/cdc`    — **353/353 passed**
+   - `val/math`   — 430/431 on the first run; the single failure
+     (`test_math_bf16_divider[params3]`, 0.0/inf raising `ow_underflow`)
+     diagnosed as a LATENT hand-written-RTL flag bug, deterministic and
+     cocotb-version-independent (TB golden already expects `unf=0`).
+     Full retry: **431/431 passed**. Filed as math BUG-007; fix is
+     tracked there, not blocking the flip.
+4. Both repos unpinned. cocotb-coverage 2.0 is the production version.
+
+Known residues carried in TASK-025 (owner's call): bridge-14 pre-existing
+note, amba `.name` residue, DV-side matrix history.

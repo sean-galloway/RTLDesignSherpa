@@ -12,21 +12,18 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 27 | done (kept for history) |
+| [closed/](closed/) | 28 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-029** (P2) — validate cocotb-coverage 2.x on cocotb 2.1.0; the last
-  blocker on flipping the production pin off 1.9.2 (cocotb-coverage 1.2.0 cannot
-  coexist with 2.x). Unpins both repos on success; the flip itself is step 5.
-
 - **TASK-025** (P3) — cocotb 2.x migration measured COMPLETE over the BKM coverage
   set (math/common/cdc green on 2.1.0, bridge at 1.9.2 parity); closure is the
-  owner's call — see the file for the layer-by-layer record and known gaps
+  owner's call — see the file for the layer-by-layer record and known gaps.
+  Production venv flipped 2026-10-08 (TASK-029 closed on that evidence).
 
 
 
@@ -35,6 +32,11 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-029** (P2) — CLOSED 2026-10-08: production venv rebuilt on cocotb 2.1.0 /
+  bus 0.3.0 / coverage 2.0 / framework 1.2.1; BKM full matrix green (math 431/431,
+  common 950/950, cdc 353/353). One math failure on the first run diagnosed as
+  latent hand-written RTL (bf16_divider 0.0/inf underflow flag — math BUG-007),
+  not version-related; full retry green.
 - **TASK-028** — testplan gate plural-aware (rtl_files:/test_files: lists
   checked, prose = intentional-gap annotation); bridge 1x2-1x5 on the one
   multi-file schema; uart_axil_bridge uart_to_axil4/ fix; runner joins

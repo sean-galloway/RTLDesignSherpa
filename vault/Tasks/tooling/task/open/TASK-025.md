@@ -415,3 +415,12 @@ because every regex tried on these patterns was wrong:
 
 Neither a grep, nor an AST hit count, nor an error count is the measurement on
 its own.
+
+## Flip date-stamp (2026-10-08)
+
+The production pin flip this task gated LANDED this morning: shared venv
+rebuilt on cocotb 2.1.0 / cocotb-bus 0.3.0 / cocotb-coverage 2.0 /
+cocotb-framework 1.2.1, BKM full matrix green (math 431/431, common
+950/950, cdc 353/353). TASK-029 closed on the same evidence. The known
+gaps above are unchanged; closure of this record remains the owner's
+call.
