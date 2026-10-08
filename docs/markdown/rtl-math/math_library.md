@@ -122,8 +122,14 @@ Detailed per-format coverage: [math_fp16_modules.md](math_fp16_modules.md),
 
 | Methodology | Modules | Research |
 |-------------|---------|----------|
-| Goldschmidt (multiplicative convergence) | `math_bf16_goldschmidt_div`, `math_bf16_divider` | Goldschmidt, R.E. (1964), "Applications of Division by Convergence," M.Sc. thesis, MIT |
+| Goldschmidt (multiplicative convergence) | `math_bf16_goldschmidt_div`, `math_bf16_divider`, `math_ieee754_2008_fp32_divider` | Goldschmidt, R.E. (1964), "Applications of Division by Convergence," M.Sc. thesis, MIT |
 | Newton-Raphson reciprocal | `math_bf16_newton_raphson_recip`, `math_bf16_reciprocal`, `math_bf16_fast_reciprocal` | Iterative `x_{n+1} = x_n(2 - a·x_n)` refinement of a seed |
+| Newton-Raphson reciprocal square root | `math_ieee754_2008_fp32_sqrt` | Iterative refinement of a seed toward 1/sqrt(b); exact-residual RNE decided by an incremental-square isqrt compare (no half-ULP ties) |
+
+The fp32 pair is documented with the rest of the IEEE 754-2008 family in
+[math_ieee754_modules.md](math_ieee754_modules.md) — both are iterative FSM
+units with `SUBNORMAL_SUPPORT`, and both share the fp32 `mantissa_mult`, one
+multiply per FSM cycle.
 
 ### Conversion
 
@@ -216,7 +222,7 @@ generator owns. Change the generator, regenerate, move on.
 This is the library catalogue -- each module page above carries its own
 Testing section with the suite that covers it. The whole area runs with
 `make -C val/math clean-all && make -C val/math run-all-{gate,func,full}-parallel`
-(119 wrappers, REG_LEVEL x TEST_LEVEL grid), and the formal suite lives in
+(122 wrappers, REG_LEVEL x TEST_LEVEL grid), and the formal suite lives in
 `formal/common/math_*/`.
 
 ## References

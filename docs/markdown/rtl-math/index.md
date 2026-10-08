@@ -23,7 +23,7 @@
 
 # rtl-math module index
 
-**RTL:** `rtl/math/` (172 modules)
+**RTL:** `rtl/math/` (174 modules)
 **Tests:** `val/math/`
 **Common building blocks:** [rtl-common](../rtl-common/index.md)
 
@@ -125,10 +125,10 @@ other.
 
 ### IEEE 754-2008 compliant arithmetic
 
-- **[math_ieee754_modules](math_ieee754_modules.md)** — IEEE 754-2008 arithmetic (10 modules; multipliers sweep-verified to spec incl. RNE and after-rounding underflow -- the adder/FMA underflow corner is unaudited, see rtl/math/CLAUDE.md)
+- **[math_ieee754_modules](math_ieee754_modules.md)** — IEEE 754-2008 arithmetic (12 modules; FTZ by default, full gradual underflow via `SUBNORMAL_SUPPORT=1` on every block; all eight arithmetic units run exact-integer-oracle suites at both parameter values, and the divider/sqrt TBs pin the FSM latencies exactly)
   - FP16: `adder`, `multiplier`, `fma`, `mantissa_mult`, `exponent_adder`
-  - FP32: `adder`, `multiplier`, `fma`, `mantissa_mult`, `exponent_adder`
-  - Features: proper subnormal handling, pipelined options, full status flags
+  - FP32: `adder`, `multiplier`, `fma`, `divider`, `sqrt`, `mantissa_mult`, `exponent_adder`
+  - Features: `SUBNORMAL_SUPPORT=0` FTZ (legacy default) / `=1` IEEE 754-2008 gradual underflow, complete special-case handling, full status flags
 
 ### Compressors and prefix cells
 

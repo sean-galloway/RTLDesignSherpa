@@ -4,12 +4,15 @@
 
 ## Overview
 
-**What:** 172 arithmetic modules -- integer adders/subtractors/multipliers
+**What:** 174 arithmetic modules -- integer adders/subtractors/multipliers
 (Brent-Kung, Han-Carlson, Dadda, Wallace), and the floating-point families:
 bf16 and fp8 e4m3/e5m2 each carry multiplier/adder/FMA plus comparisons and
 activations; fp16/fp32 arithmetic lives under the `math_ieee754_2008_*` names
-(the plain `math_fp16_*`/`math_fp32_*` prefixes are comparisons, activations
-and conversions only); every cross-format conversion exists.
+-- adder/multiplier/FMA on both formats plus the fp32 divider and sqrt, every
+arithmetic block carrying `SUBNORMAL_SUPPORT` (default 0: legacy FTZ; 1: IEEE
+754-2008 gradual underflow) -- (the plain `math_fp16_*`/`math_fp32_*` prefixes
+are comparisons, activations and conversions only); every cross-format
+conversion exists.
 **Where the docs are:** [`docs/markdown/rtl-math/overview.md`](../../docs/markdown/rtl-math/overview.md)
 -- the catalogue is [`index.md`](../../docs/markdown/rtl-math/index.md).
 **Tests:** `val/math/` · **Filelists:** `rtl/math/filelists/` (lint the area
@@ -44,7 +47,12 @@ the same commit.
   closed false-alarm with exhaustive sweep evidence).
 - Underflow is detected AFTER rounding, per IEEE 754: a rounding carry out of
   pre-round exponent 0 produces min-normal, not a flush (math BUG-004 (was MATH-008), Sean's
-  ruling). The adders/FMAs have NOT been audited for this corner.
+  ruling). The adders/FMAs/multipliers have been audited for this corner at
+  both SUBNORMAL_SUPPORT values since (math TASK-005, 2026-10-07, exact-integer
+  oracles per vector). Note the sqrt can neither overflow nor underflow
+  (halved exponents move toward zero): it has no ow_overflow port and
+  ow_underflow is tied 0 -- SUBNORMAL_SUPPORT=1 there only normalizes
+  subnormal INPUTS, never produces subnormal results.
 - E4M3 is OCP-style: exp=0xF is normal except mant=7 (NaN); overflow
   saturates to max normal (0x7E), and rounding carry at exp=0xF must be
   caught as overflow, not wrapped (the silent-+0.0 conversion bug class).
@@ -68,7 +76,7 @@ see the math BUG-003 (was MATH-007)/008 records in `vault/Tasks/math/closed.md`.
 
 - Directed patterns for functional coverage, not exhaustive sweeps --
   non-exhaustive stimulus is never a finding here (Sean).
-- Every test builds from a filelist (`get_sources_from_filelist`); all 119
+- Every test builds from a filelist (`get_sources_from_filelist`); all 122
   tests were converted (math TASK-001, was MATH-003) -- do not reintroduce hand-listed sources.
 - The TB expected-value models for the multipliers are exact integer models
   in `bin/TBClasses/common/{fp_testing,bf16_testing}.py`; float-threshold

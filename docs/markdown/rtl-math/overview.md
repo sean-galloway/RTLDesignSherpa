@@ -23,14 +23,14 @@
 
 # Arithmetic
 
-**RTL:** `rtl/math/` (172 modules)
-**Filelists:** `rtl/math/filelists/` (38) — lint the whole area with `math_all.f`
-**Tests:** `val/math/` (119)
+**RTL:** `rtl/math/` (174 modules)
+**Filelists:** `rtl/math/filelists/` (175) — lint the whole area with `math_all.f`
+**Tests:** `val/math/` (122)
 
 Everything that computes a number lives here: integer add, subtract and
 multiply, and the IEEE-754-style floating-point operators in bf16, fp16, fp32
 and the two fp8 flavours. The library was split out of `rtl/common/` because it
-had outgrown it — 172 of the repository's modules are arithmetic, and mixing
+had outgrown it — 174 of the repository's modules are arithmetic, and mixing
 them with counters and FIFOs made both harder to navigate. If a doc still says
 `rtl/common/math_*`, it's stale.
 
@@ -38,7 +38,7 @@ them with counters and FIFOs made both harder to navigate. If a doc still says
 
 ## Overview
 
-Read [the Math Library map](math_library.md) first. A flat list of 172 files
+Read [the Math Library map](math_library.md) first. A flat list of 174 files
 isn't navigable, so that page organizes the library the way you'd actually
 search it: by **operation**, and within each operation by **methodology** —
 the algorithm and the paper it comes from. Brent-Kung against Han-Carlson for
@@ -90,7 +90,7 @@ pages walk through the group-generate/propagate algebra that all of them use.
 Two things set this area apart from every other area in the repository, and
 both change how you work in it.
 
-**Most of it is generated.** 118 of the 172 modules carry a generator banner.
+**Most of it is generated.** 120 of the 174 modules carry a generator banner.
 They come out of `bin/math_generate.py` (integer) and the two floating-point
 entry points `bin/rtl_generators/bf16/generate_all.py` (the bf16 family) and
 `bin/rtl_generators/ieee754/generate_all.py` (fp16/fp32/fp8 + conversions) --
@@ -107,7 +107,7 @@ change touches dozens of files at once.
 **One page covers many modules.** Width-parameterized instances carry a suffix
 (`_008`, `_016`, `_032`) and format variants carry a tag (`bf16`, `fp16`,
 `fp32`, `fp8_e4m3`, `fp8_e5m2`). A single methodology page documents all of
-its instances — which is how two dozen module pages cover 172 modules, and why
+its instances — which is how two dozen module pages cover 174 modules, and why
 you should look for the *methodology* page, not a page named after your exact
 file.
 

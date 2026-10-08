@@ -11,7 +11,7 @@ Pick the lane before filing:
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 1 | 0 | 4 | 0 | 0 |
+| [task/](task/INDEX.md) | 1 | 0 | 5 | 0 | 0 |
 | [bug/](bug/INDEX.md) | 1 | 0 | 6 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 1 | 0 | 1 | 0 | 0 |
 
@@ -23,12 +23,19 @@ Math library (rtl/math, val/math, docs/markdown/rtl-math) work.
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 1 | 0 | 3 | 0 | 0 |
-| [bug/](bug/INDEX.md) | 0 | 0 | 5 | 0 | 0 |
-| [issue/](issue/INDEX.md) | 0 | 0 | 1 | 0 | 0 |
+| [task/](task/INDEX.md) | 1 | 0 | 5 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 1 | 0 | 6 | 0 | 0 |
+| [issue/](issue/INDEX.md) | 1 | 0 | 1 | 0 | 0 |
 
 ## Recently closed
 
+- **TASK-005** (2026-10-07) — IEEE 754 gradual underflow
+  (`SUBNORMAL_SUPPORT`, default 0 = legacy FTZ) across all six ieee754
+  fp16/fp32 arithmetic blocks plus NEW fp32 divider (Goldschmidt, 1/9/10
+  cycles) and sqrt (Newton-Raphson reciprocal-sqrt, 1/10/11 cycles); exact
+  integer oracles, both param values, 0 failures at gate/func/full. Five
+  commits: cf9520e2b, 0dc286dbd, f0b5e3f3f, 065148c0a, 02140c782. Record:
+  [task/closed/TASK-005.md](task/closed/TASK-005.md).
 - **MATH-008** (2026-08-11) — underflow edge fixed to IEEE per Sean ("Follow
   ieee, I messed up"): all five multipliers now detect underflow AFTER
   rounding, so a rounding carry out of pre-round exponent 0 yields min-normal
