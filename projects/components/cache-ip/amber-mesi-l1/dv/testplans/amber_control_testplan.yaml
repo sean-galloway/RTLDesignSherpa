@@ -151,7 +151,31 @@ scenarios:
       replayed write re-upgrades via CLEAN_UNIQUE (oracle IM x RS
       composition, gem5 .sm:1244), the line ends M with the store merged.
       Asserted: both fill classes, the S-then-M install pair, response
-      data, and the EVERY-CYCLE bypass invariant.
+      data, and the EVERY-CYCLE bypass invariant. (The S-ref polarity of
+      this class is SnoopPendingReadSharedFill.)
+    status: covered
+  - name: SnoopPendingReadSharedFill
+    level: func
+    what: >
+      The previously-unstimulated polarity of the pending-fill bypass:
+      a READ_SHARED fill arms the register with pf_state=S; a
+      READ_SHARED snoop mid-fill is answered at the S reference (CRRESP
+      IsShared-only, no data transfer), no CD beats flow, S x RS is a
+      fixed point so no post-commit effect arms, the fill commits Shared,
+      and the response returns the fill beat. Asserted: one READ_SHARED
+      fill, the S install, response data, the invariant, and the final
+      state staying S.
+    status: covered
+  - name: IdleGrantBackToLookup
+    level: func
+    what: >
+      The IDLE-grant/back-to-lookup defensive path (sn_back_to_lookup): a
+      snoop is granted from IDLE in the SAME cycle a CPU request is
+      accepted. Snoop priority detours through CTRL_SNOOP; the request is
+      latched with the grant; the return goes to LOOKUP instead of IDLE.
+      Asserted: the grant and the request accept coincide, the snoop
+      CRRESP decodes at the installed S state, and the read miss on the
+      latched request completes with its fill (the request is not lost).
     status: covered
   - name: SnoopPostCommitApplies
     level: func
@@ -177,14 +201,21 @@ scenarios:
   - name: BypassNeverAnswersInvalid
     level: all
     what: >
-      Class (d): TB invariant, asserted EVERY cycle a bypass-targeted
-      snoop is open (Task 4 brief): the bypass response's reference state
-      is the post-fill state, never the pre-fill STATE_I; at the grant
-      cycle CRRESP equals the Table 3.0 decode at the post-fill state; a
-      CD beat is never presented before the corresponding fill beat has
-      been delivered. Implemented as the _pf_invariant cocotb coroutine
-      (its own fill model from the tap events) and live during every
-      directed snoop scenario plus the FULL idle-snoop soak.
+      Class (d): the bypass never answers with the pre-fill STATE_I.
+      What is actually asserted, honestly split: (1) the DUT-side
+      guarantee is STRUCTURAL -- pf_match requires pf_active (the leaf's
+      match is gated by the active bit), and pf_state can only load S or
+      M while active (the install-state mux; an upgrade never arms the
+      register at all), so a matching snoop's reference state is never
+      Invalid by construction; CRRESP equality at the grant cycle is
+      scored against the pkg Table 3.0 decode at that reference state.
+      (2) The EVERY-CYCLE coroutine (_pf_invariant) is TB
+      defense-in-depth, not the DUT guarantee: it carries its own fill
+      model from the tap events and scores, each cycle a
+      bypass-targeted snoop is open, that the observed CRRESP equals the
+      post-fill decode, that the tracked post-fill state is not I, and
+      that no CD beat is presented before the corresponding fill beat
+      has been delivered.
     status: covered
   - name: UpgradeNoBypassArm
     level: func

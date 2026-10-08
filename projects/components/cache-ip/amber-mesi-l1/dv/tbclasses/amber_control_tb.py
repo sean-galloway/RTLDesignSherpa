@@ -238,8 +238,14 @@ class AmberControlTB(TBBase):
         return int.from_bytes(bytes(line_data[lo:lo + self.STRB_W]), 'little')
 
     def _hit_way(self, set_idx, line):
+        # first way holding the tag in a VALID slot state -- mirrors the
+        # DUT hit compare, which requires state in {S,E,M}. A snoop
+        # invalidate leaves the tag in place with state I (a duplicate
+        # can exist elsewhere); matching on the tag alone would return
+        # the dead slot.
         for w in range(self.WAYS):
-            if self.tags.get((set_idx, w)) == line:
+            if (self.tags.get((set_idx, w)) == line
+                    and self.slot_state.get((set_idx, w), 'I') != 'I'):
                 return w
         return None
 
@@ -1228,6 +1234,93 @@ class AmberControlTB(TBBase):
                             label='pf')
         self.log.info("SnoopPendingFillBypass directed done")
 
+    async def _snoop_pending_read_shared_fill(self):
+        # MINOR-1 completion: the S-ref polarity of the bypass. A read
+        # miss arms the register with pf_state=S; a READ_SHARED snoop
+        # mid-fill must decode at the S reference (IsShared only, no
+        # data transfer), present no CD beats, leave no post-commit
+        # effect armed (S x RS is a fixed point), and the fill commits
+        # Shared with the response returning the fill beat.
+        sr = 8
+        line_x = self._line_of(self._compose_addr(0x7C, sr))
+        accept, p = await self._start_miss(self._compose_addr(0x7C, sr), 0,
+                                           label='prs:rd_miss', wait_beats=2)
+        self._score("prs: read miss class", p['class'], ACE_READ_SHARED)
+        self._score("prs: bypass armed with S", self.inv_pf_state, 'S')
+        await self._snoop(line_x, 'SNOOP_READ_SHARED', 'prs:rs_mid_fill',
+                          exp_ref='S')
+        accept, rsp_cyc, rsp_data = await self._req_await_rsp(accept,
+                                                              'prs:rsp')
+        sl = self._slice(accept, rsp_cyc)
+        fills = [q for _, k, q in sl if k == 'fill_start']
+        self._score("prs: exactly one fill", len(fills), 1)
+        self._score("prs: fill class READ_SHARED", fills[0]['class'],
+                    ACE_READ_SHARED)
+        wr = self._tag_wr_for(sl, line_x)
+        self._score("prs: commit installs S", wr['tag_state'] & 0x7,
+                    STATE_CODE['S'])
+        self._score("prs: rsp = fill beat", rsp_data,
+                    self._beat_of_line(self._mem_line(line_x), 0))
+        self._replay_models(sl, sr, line_x, label='prs')
+        self._score("prs: line stays S", self.line_state.get(line_x), 'S')
+        self.log.info("SnoopPendingReadSharedFill directed done")
+
+    async def _idle_grant_back_to_lookup(self):
+        # MINOR-4: the IDLE-grant/back-to-lookup defensive path. A snoop
+        # granted from IDLE in the SAME cycle a CPU request is accepted:
+        # snoop priority detours through CTRL_SNOOP, the request is
+        # latched, and the return goes to LOOKUP (sn_back_to_lookup) --
+        # the accepted request must not be lost.
+        si = 12
+        line_y = self._line_of(self._compose_addr(0x7D, si))
+        line_z = self._line_of(self._compose_addr(0x7E, si))
+        await self._txn(self._compose_addr(0x7D, si), 0,
+                        label='igl:rd_y')            # Y -> S (installed)
+        d = self.dut
+        await self._negedge_settled()
+        d.snoop_req.value = 1
+        d.snoop_type.value = SNOOP_CODES['SNOOP_READ_SHARED']
+        d.snoop_addr.value = (line_y & self.LINE_MASK) << self.OFFSET_BITS
+        d.req_valid.value = 1
+        d.req_addr.value = self._compose_addr(0x7E, si)
+        d.req_we.value = 0
+        d.req_be.value = (1 << self.STRB_W) - 1
+        d.req_wdata.value = 0
+        # the grant cycle: snoop wins priority, req_ready stays high and
+        # the request is latched this same cycle (poll mid-cycle so the
+        # drives have been evaluated)
+        accept_cyc = None
+        for _ in range(50):
+            await Timer(500, units='ps')
+            if int(d.snoop_ready.value):
+                accept_cyc = self.cyc
+                break
+            await FallingEdge(d.clk)
+        if accept_cyc is None:
+            raise RuntimeError("igl: snoop never granted from IDLE")
+        self._score("igl: request accepted with grant",
+                    int(d.ctrl_req_ready.value), 1)
+        got_crresp = int(d.ctrl_crresp.value)
+        self._score("igl: snoop crresp at S ref", got_crresp, 0b01000)
+        await RisingEdge(d.clk)      # handshake posedge
+        await Timer(500, units='ps')
+        d.snoop_req.value = 0
+        d.req_valid.value = 0
+        # the response proves the back-to-lookup return re-presented the
+        # latched request (read miss on Z -> fill -> S -> rsp)
+        accept_cyc, rsp_cyc, rsp_data = await self._req_await_rsp(
+            accept_cyc, 'igl:rsp')
+        sl = self._slice(accept_cyc, rsp_cyc)
+        fills = [q for _, k, q in sl if k == 'fill_start']
+        self._score("igl: Z filled once", len(fills), 1)
+        self._score("igl: Z fill class", fills[0]['class'], ACE_READ_SHARED)
+        self._score("igl: rsp = Z fill beat", rsp_data,
+                    self._beat_of_line(self._mem_line(line_z), 0))
+        self._replay_models(sl, si, line_z, label='igl')
+        self._score("igl: Y still S", self.line_state.get(line_y), 'S')
+        self._score("igl: Z installed S", self.line_state.get(line_z), 'S')
+        self.log.info("IdleGrantBackToLookup directed done")
+
     async def _snoop_post_commit(self):
         # Class (b): a snoop applied after the fill commit changes the
         # state normally (tag lookup on port B, downgrade write applied).
@@ -1531,6 +1624,10 @@ class AmberControlTB(TBBase):
             self.scenarios['BeZeroWrite'] = True
             await self._snoop_pending_fill()
             self.scenarios['SnoopPendingFillBypass'] = True
+            await self._snoop_pending_read_shared_fill()
+            self.scenarios['SnoopPendingReadSharedFill'] = True
+            await self._idle_grant_back_to_lookup()
+            self.scenarios['IdleGrantBackToLookup'] = True
             await self._snoop_post_commit()
             self.scenarios['SnoopPostCommitApplies'] = True
             await self._snoop_other_line_mid_fill()

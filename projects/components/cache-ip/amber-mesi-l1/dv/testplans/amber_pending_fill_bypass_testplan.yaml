@@ -56,10 +56,13 @@ scenarios:
     level: func (via amber_control)
     what: >
       State accuracy (MAS ch02/02): a matching snoop is answered at
-      pf_state (the post-fill state), never the pre-fill Invalid state --
-      the EVERY-CYCLE invariant. SnoopPendingFillBypass (M) and
-      SnoopOtherLineMidFill/SnoopPostCommitApplies (installed states)
-      pin the CRRESP values beat-for-beat against the oracle decode.
+      pf_state (the post-fill state), never the pre-fill Invalid state.
+      Pinned for BOTH polarities: SnoopPendingFillBypass (pf_state=M) and
+      SnoopPendingReadSharedFill (pf_state=S, the previously
+      unstimulated polarity -- IsShared-only CRRESP, no transfer, no
+      post-commit effect, S install). SnoopOtherLineMidFill /
+      SnoopPostCommitApplies pin the pf no-match decode from the
+      installed state.
     status: covered
   - name: PfStallUntilLateBeat
     level: func (via amber_control)
@@ -73,10 +76,13 @@ scenarios:
   - name: PfNeverAnswersInvalid
     level: all (via amber_control)
     what: >
-      The Task 4 brief's class (d): while a bypass-targeted snoop is open,
-      every cycle asserts the response references the post-fill state
-      (CRRESP == Table 3.0 decode at pf_state at the grant cycle; pf_state
-      is never STATE_I; no unreceived CD beat is presented).
+      The Task 4 brief's class (d), honestly split: the DUT-side
+      guarantee is structural -- pf_match requires pf_active and pf_state
+      only loads S/M while active, so the reference state is never
+      Invalid by construction; CRRESP equality is scored at the grant
+      cycle. The EVERY-CYCLE coroutine is TB defense-in-depth (its own
+      tap-event fill model scoring the observed response each cycle a
+      bypass-targeted snoop is open).
     status: covered
 
 gaps:

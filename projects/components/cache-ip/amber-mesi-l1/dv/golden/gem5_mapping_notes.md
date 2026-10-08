@@ -124,7 +124,7 @@ All citations are `transition(...)` blocks in `MESI_Two_Level-L1cache.sm`.
    UNCITED: the oracle previously *cleared* a pending `'I'` on a
    fixed-point snoop (the fill would have committed M, un-invalidating
    the race); `_im_step` now keeps the effect (matching `_is_step`'s
-   existing branch), pinned by four new table rows in
+   existing branch), pinned by five new table rows in
    `test_amber_oracle.py` and the `ImStepPendingClearCorner` directed RTL
    test. A second snoop inside the killed-upgrade window (SM converted to
    IM before the re-fetch commits) is answered at the installed S state in
