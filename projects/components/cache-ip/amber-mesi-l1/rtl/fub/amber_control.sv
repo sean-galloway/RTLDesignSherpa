@@ -522,10 +522,15 @@ module amber_control
     // victim at the fill way, and the fill beats are overwriting its data
     // -- the WB completed before the fill started (drain_done < fill_start
     // ordering), so the line is answered Invalid, no transfer (gem5 M_I x
-    // WB_Ack -> I, .sm:1315)
+    // WB_Ack -> I, .sm:1315). The match is (way, tag, SET)-exact: the
+    // victim way/tag name a slot of the PENDING transaction's set, and a
+    // same-way+tag hit in any other set is an ordinary installed hit (the
+    // Task 7 closed loop caught the missing set term as a false stale on a
+    // cross-set collision).
     logic sn_stale_gnt;
     assign sn_stale_gnt = (state_q == OH_MISS_FILL) && !upgr_q
                           && sn_hit_any
+                          && (sn_set_grant == req_set)
                           && (sn_hit_way == victim_way_q)
                           && (sn_hit_tag == victim_tag_q);
 
@@ -930,9 +935,13 @@ module amber_control
                 ctrl_tag_a_wr_tag_state  = { {TAG_WIDTH{1'b0}}, AMBER_STATE_I };
             end
             OH_HIT_WR: begin
-                // byte-merge write; promote E->M (M keeps its tag entry)
+                // byte-merge write; promote E->M (M keeps its tag entry).
+                // The promotion write targets the hit way -- the one-hot
+                // must be driven here (a zero one-hot is a silent drop:
+                // found by the Task 7 closed loop's E-seeded write hits).
                 ctrl_data_a_wr_en = 1'b1;
                 ctrl_tag_a_wr_en  = (hit_state_q != AMBER_STATE_M);
+                ctrl_tag_a_wr_way_onehot = hit_way_onehot;
                 ctrl_tag_a_wr_tag_state = {req_tag, AMBER_STATE_M};
                 ctrl_repl_hit     = 1'b1;
             end

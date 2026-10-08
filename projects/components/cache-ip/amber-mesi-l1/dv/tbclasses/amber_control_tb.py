@@ -432,7 +432,9 @@ class AmberControlTB(TBBase):
                 self._score('pf invariant: post-fill state is not Invalid',
                             self.inv_pf_state == 'I', False)
                 if int(d.ctrl_cdvalid.value):
-                    self._score('pf invariant: no CD beat before received',
+                    self._score('pf invariant: no CD beat before received '
+                                f'(beat {self.inv_cd_beat}, received '
+                                f'{sorted(self.inv_pf_beats)})',
                                 self.inv_cd_beat in self.inv_pf_beats, True)
 
     async def _victim_invariant(self):
@@ -1024,8 +1026,22 @@ class AmberControlTB(TBBase):
                         self.line_state[evicted] = 'I'
                     self.tags[(set_idx, model_victim_way)] = line
                 else:
+                    # hit-path tag write: only the write-hit promotion
+                    # (E -> M; pinned by the Task 7 closed loop, where E
+                    # lines arrive through the TB backdoor). A read hit or
+                    # an already-M write hit never writes the tag.
+                    promo = we and res.next_state == 'M'
                     self._score(f"{label} hit: unexpected tag write",
-                                True, False)
+                                not promo, False)
+                    if promo:
+                        self._score(f"{label} hit promotion state",
+                                    wr_state, 0x3)   # AMBER_STATE_M
+                        wr_way = p['way_oh'].bit_length() - 1
+                        way = self._hit_way(set_idx, line)
+                        self._score(f"{label} hit promotion way",
+                                    wr_way, way)
+                        if way is not None:
+                            self.slot_state[(set_idx, way)] = 'M'
             elif kind == 'repl_update':
                 self._score(f"{label} repl_update way", p['way'],
                             installed_way)

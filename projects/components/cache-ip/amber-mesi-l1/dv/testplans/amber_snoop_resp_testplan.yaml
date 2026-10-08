@@ -1,19 +1,30 @@
 # Testplan for amber_snoop_resp (ACE snoop responder)
-# Maps functional scenarios to the BFM-driven DV. DUT wraps the house
-# axi4ace_snoop_slave transport plus the SR FSM and ACSNOOP translation.
+# Maps functional scenarios to the BFM-driven DV. DUT: the closed-loop
+# harness amber_snoop_resp_th (Task 7): REAL amber_control + landed
+# tag/data/repl arrays + REAL amber_snoop_resp on the house
+# axi4ace_snoop_slave transport.
 
 module: amber_snoop_resp
 rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tb/amber_snoop_resp_th.sv
   - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_snoop_resp.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_control.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_tag_array.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_data_array.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_repl.sv
   - rtl/amba/ace/axi4ace_snoop_slave.sv   # transport (cross-area, -f'd)
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_snoop_resp.py
 
 # Contract: MAS ch02_blocks/07. One closed response at a time; CR only
 # after the final CD beat (IHI0022 + onyx-D4). CRRESP wire order IHI0022.
-# DV: AXI4ACESnoopMaster on the ACE pins; an independent HAS Table 3.0
-# model in a control-stub coroutine with EVOLVING line states and data.
-# Compliance: ACEComplianceChecker.validate_for_snoop per transaction.
+# DV: AXI4ACESnoopMaster on the ACE pins; line states live in the REAL
+# tag/data arrays (M/S seeded by CPU transactions, E through the TB
+# tag-array backdoor -- the CPU path never installs E); the evolving
+# line-state model (mem / cache_data / line_state / tags / slot_state /
+# lru) is the scoreboard. Compliance: ACEComplianceChecker per
+# transaction (check_crresp_validity, check_cr_order,
+# check_cd_order with the expected beat count).
 
 parameters:
   - name: ADDR_WIDTH
@@ -21,12 +32,27 @@ parameters:
   - name: DATA_WIDTH / LINE_BYTES
     default: 64 / 64
     description: CD beat width / line size; grid also runs 32 / 32
+  - name: SETS / WAYS
+    default: 128 / 4 (amber_pkg)
+    description: control/array geometry (the control suite owns the
+      SETS/WAYS variation axis)
 
 scenarios:
   - name: table30_directed
     level: gate
     what: One transaction per reachable Table 3.0 cell (24), immediate
-      handshakes; CRRESP bits, beat count, beat content checked.
+      handshakes; CRRESP bits, beat count, beat content checked. M/S
+      seeded through real CPU transactions, E via the TB tag-array
+      backdoor, I left untouched.
+    status: covered
+  - name: EWriteHitPromotes
+    level: gate
+    what: Task 7 found-and-fixed pin -- the landed amber_control drove
+      HIT_WR's E->M promotion with an all-zeros way one-hot (silent drop;
+      E never occurs without a backdoor so the control suite could not
+      see it). Backdoor-seed E, CPU write hit, verify the tag array
+      actually holds M (readback) and a snoop decodes at M with the
+      merged data.
     status: covered
   - name: backpressure_response
     level: func
@@ -37,13 +63,14 @@ scenarios:
   - name: stress_soak
     level: full
     what: 6000 randomized snoops under gaxi_stress over a 64-line pool
-      whose states EVOLVE per the Table 3.0 next-state column — a snoop to
-      a line snooped earlier reflects the updated state.
+      whose states EVOLVE per the Table 3.0 next-state column -- a snoop
+      to a line snooped earlier reflects the updated state. Refill = the
+      CPU re-acquiring the line (read -> S, write -> M, backdoor -> E).
     status: covered
   - name: pipelining_zero_gap
     level: func/full
     what: Zero-gap same-line pairs issued while the previous response is
-      still sequencing — exercises the AC skid (depth 2) and confirms
+      still sequencing -- exercises the AC skid (depth 2) and confirms
       response serialization.
     status: covered
   - name: data_integrity
@@ -56,11 +83,37 @@ scenarios:
     what: IHI0022 order DT[0]..WU[4] locked by the framework CRRESPBit
       enum. Caught a real pkg bug at bring-up (DT was at bit 4).
     status: covered
-
   - name: reset_recovery
     level: func/full
-    what: aresetn taken low for 5 cycles mid-soak (while idle) and the FSM
-      confirmed to return to IDLE and keep responding correctly.
+    what: aresetn taken low mid-soak (while idle) and the FSM confirmed
+      to return to IDLE (init walk verified, arrays read back Invalid)
+      and keep responding correctly. NOTE: the stub-era model-survives-
+      reset fiction is gone -- the cache-side model resets with the
+      arrays; the memory side survives (it is the DRAM).
+    status: covered
+  - name: SnoopVictimLineDuringGather
+    level: func/full
+    what: T5-review composition (both halves were pinned separately
+      before). The ACE snoop for the dirty VICTIM line is raised during
+      the multi-cycle gather: it stalls (never granted in a MISS_VICTIM
+      cycle), grants at MISS_DRAIN after the victim_load strobe, and is
+      served from the staged buffer (M + staged CD content). Grant
+      window proven from the tap event stream; the evicting transaction
+      completes normally and a refetch proves the writeback payload.
+    status: covered
+  - name: real_control_loop
+    level: func/full
+    what: NEW (Task 7). Randomized snoops against an amber
+      simultaneously serving random CPU traffic -- both ports live.
+      Each iteration issues a random request and, while the miss/fill/
+      drain machinery is in flight, up to two snoops at classified
+      targets: the pending line (pending-fill-bypass reference at the
+      original post-fill state; an invalidating snoop kills the fill --
+      commit-I/re-fetch or downgrade/re-upgrade compositions), the dirty
+      victim (staged-buffer service at M through the drain window), the
+      clean victim (stale-entry rule, with the live-copy-at-victim-slot
+      discrimination), and other installed lines. Post-commit pends are
+      applied by the concurrent-aware slice scorer, mirroring pend_vld_q.
     status: covered
 
 coverage_points:
@@ -88,6 +141,18 @@ coverage_points:
     type: assign
     content: "CD pass-through gating in DATA"
     covered: true
+  - line: 218
+    type: always_comb
+    content: "amber_control OH_HIT_WR promotion one-hot (E -> M)"
+    covered: true
+    note: "found all-zeros (silent drop) by the Task 7 closed loop;
+      fixed + pinned by EWriteHitPromotes"
+  - line: 233
+    type: assign
+    content: "amber_control sn_stale_gnt set-exact match"
+    covered: true
+    note: "found missing set term (cross-set way+tag collision
+      false-stale) by the real_control_loop; fixed"
 
 gaps:
   - Illegal ACSNOOP codes (0x2-0x6, 0xA/0xB, 0xD-0xF) map to the safe
@@ -102,3 +167,18 @@ gaps:
   - AC skid overflow (3+ snoops presented while busy) exceeds the designed
     two-deep skid; protocol-legal but outside amber's one-closed-response
     contract. Not tested by design.
+  - Mid-transaction snoop timing: the window-sensitive cases (pending
+    line, draining victim) require the grant and every CD beat inside a
+    handful of cycles. The TB drives the AC + CD channels with the fast
+    profile for those snoops (CR keeps the level backpressure) and orders
+    them first in the plan; the unbounded level-profile AC valid_delay
+    (up to 50 cycles) and CD ready stalls would land grants/beats past
+    the window and change which case the DUT answers. The heavy
+    backpressure soak remains on the quiescent pool snoops and on the
+    mid-transaction CR responses. Recorded as a DV trade-off, not a DUT
+    gap.
+  - E-state write-hit promotion is only reachable via the TB backdoor
+    (amber's install states are S/M; the MOESI headroom state has no
+    CPU-path producer). The promotion path is pinned by
+    EWriteHitPromotes; if a future exclusive-fill producer lands, the
+    path re-arms by construction.
