@@ -12,25 +12,26 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 16 | done (kept for history) |
+| [closed/](closed/) | 17 | done (kept for history) |
 | [dropped/](dropped/) | 3 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
-## Open
-
-- **ISSUE-020** — the paging perf assertions (sweep exact-100% claim at
-  default geometry, pref_row_first floor, ISSUE-002 floors at board
-  geometry) are calibrated against pre-compliant tFAW/tRRD window
-  behavior; pumice's gate fails on them in combinations. Re-pin the
-  baselines (Sean's call, ISSUE-002 process) or fund a skid/bypass so
-  fire-stage holds stop head-of-line blocking. Surfaced while closing
-  BUG-021; all numbers measured there.
-
-
-
 ## Closed
+
+- **ISSUE-020** — CLOSED 2026-10-08 (option 1, re-pin): the exact-100%
+  write-utilization and W-run-length claims now exempt static_close behind
+  measured floors (0.80 / 0.15 at default geometry), and the sched_cross
+  pref_row_first board floor is re-pinned 0.40 -> 0.30 (measured 33.57%
+  with tFAW/tRRD enforced at the fire stage since BUG-021 — that IS the
+  compliant number; default side unchanged, green at 76.34%). Every floor
+  mutation-proven per the ISSUE-002 discipline; nothing green weakened.
+  The skid/bypass stays declined (75 MHz WNS path; ISSUE-001 flop-stage
+  ruling). Close-out also root-caused two masked fub reds to the cocotb
+  2.1.0 pin flip (`8fb596b57`): unanchored COCOTB_TEST_FILTER made
+  prefix-named TBs select each other; 4 call sites anchored with '$'. No
+  RTL defect. Full run-all-gate green, both geometries.
 
 - **ISSUE-019** — CLOSED: `pumice_cmd_history_checker` now carries GLOBAL tRRD
   and tFAW checks on a per-rank ACT history, armed from the live config in both

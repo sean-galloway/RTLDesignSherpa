@@ -289,8 +289,13 @@ def _run(request, testcase, test_level='gate'):
     compile_args = ["+define+USE_ASYNC_RESET"] + get_coverage_compile_args()
     extra_env.update(get_coverage_env(test_name, sim_build=sim_build))
 
+    # Anchor the 2.x unanchored COCOTB_TEST_FILTER regex: this module holds
+    # cocotb_test_wr_splitter_single and ..._single_beat, so an unanchored name
+    # selects both (same cocotb-2.1 pin-flip root cause as the ISSUE-020
+    # wr_intake / dfi_cmd_path fub fixes).
     run(python_search=[tests_dir], verilog_sources=verilog_sources,
-        includes=includes, toplevel=dut_name, module=module, testcase=testcase,
+        includes=includes, toplevel=dut_name, module=module,
+        testcase=f"{testcase}$",
         sim_build=sim_build, simulator="verilator", extra_env=extra_env,
         parameters=params, compile_args=compile_args,
         waves=bool(int(os.environ.get("WAVES", "0"))), keep_files=True,

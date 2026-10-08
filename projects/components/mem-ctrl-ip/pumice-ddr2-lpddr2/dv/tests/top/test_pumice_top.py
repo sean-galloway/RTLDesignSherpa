@@ -1717,9 +1717,13 @@ def _run(request, testcase, extra_env=None, params_over=None):
     if extra_env:
         env.update(extra_env)
     env.update(params)
+    # Anchor the 2.x unanchored COCOTB_TEST_FILTER regex: this module holds
+    # cocotb_test_pumice_top plus ..._partial_rd / ..._partial_strb, so an
+    # unanchored name selects the partial tests too (same cocotb-2.1 pin-flip
+    # root cause as the ISSUE-020 fub fixes).
     run(python_search=[tests_dir], verilog_sources=verilog_sources,
         includes=includes, toplevel=dut_name, module=module,
-        testcase=testcase, sim_build=sim_build, simulator="verilator",
+        testcase=f"{testcase}$", sim_build=sim_build, simulator="verilator",
         extra_env=env, parameters=params,
         compile_args=["+define+USE_ASYNC_RESET", "--public-flat-rw",
                       "-Wno-MULTIDRIVEN"],

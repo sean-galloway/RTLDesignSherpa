@@ -203,8 +203,14 @@ def _run_cmd_path(testcase, params, extra_params=None, test_level='gate'):
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
                  **level_env(test_level)}
     extra_env.update(params)
+    # cocotb>=2 (pin flip 8fb596b57) routes 'testcase' through COCOTB_TEST_FILTER,
+    # an UNANCHORED regex (re.search): the bare name 'cocotb_test_pumice_dfi_cmd_path'
+    # also matched the '_pack' test, which then ran this N_SUBCMD=1 smoke build and
+    # drove n_subcmd_i=2 into the 1-bit port (the N_SUBCMD=1 build can only ever
+    # express n_subcmd 1 -- the packing space needs the N_SUBCMD=2 '_pack' wrapper).
+    # The '$' restores the pre-2.x exact-match selection: one cocotb test per build.
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
-        toplevel=dut_name, module=module, testcase=testcase,
+        toplevel=dut_name, module=module, testcase=f"{testcase}$",
         sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
         compile_args=["+define+USE_ASYNC_RESET"], waves=False, keep_files=True, timescale="1ns/1ps")
 

@@ -1,6 +1,9 @@
 # ISSUE-020: the paging perf assertions are calibrated against pre-compliant tFAW/tRRD window behavior; pumice's gate cannot be green until they are re-pinned or the pipeline grows a bypass
 
-**Status:** open 2026-10-03
+**Status:** CLOSED 2026-10-08 — option 1 (re-pin) shipped; option 2 (the
+skid/bypass) declined for now: it is a microarchitectural feature with
+timing-cone risk on the 75 MHz WNS path, not a bug fix, and can be funded
+later — the floors would simply be re-pinned again after it lands.
 **Priority:** P2 — nothing here is a new RTL defect; it is a set of
 assertions whose baselines encode behavior the design no longer exhibits
 (willingly), and the gate fails on them in combinations.
@@ -72,3 +75,53 @@ Exactly one of:
 **Related:** [[ISSUE-002]] (the accepted-shortfall machinery these
 assertions belong to), [[ISSUE-018]] (the dominant cost), [[BUG-021]]
 (the fix that surfaced this).
+
+## 2026-10-08 — CLOSED: re-pinned per option 1; two masked fub reds
+root-caused to the cocotb 2.1 pin flip, not RTL
+
+**Measured fresh at HEAD (2026-10-08), both geometries**, then re-pinned,
+each floor mutation-proven per the ISSUE-002 close discipline (tighten ->
+gap-reported failure -> restore):
+
+| assertion | geometry | before | re-pinned to | measured |
+|---|---|---|---|---|
+| sweep exact-100% write-util claim | default | exactly 1.00 | static_close carved out, floor 0.80 | 90.67% |
+| sweep W-run-length claim | default | exactly 1.00 | static_close floor 0.15 | 140/768 = 18.2% |
+| sched_cross exact-100% claim | default | exactly 1.00 | static_close floor 0.80 | 92.53-94.81% |
+| sched_cross pref_row_first floor | board | 0.40 | 0.30 | 33.57% |
+
+Margins follow the file's existing band (~11-18% under measured, same
+shape as ACCEPTED_CEILING_FRAC), so a floor catches a step change, not
+drift. Nothing green was weakened: the default-geometry pref_row_first
+floor stays 0.75 (measured 76.34%, green), ACCEPTED_CEILING_FRAC,
+perf_write_ceiling, and the in_order floors are untouched. Rationale
+comments at each site name ISSUE-020 and BUG-021 and state that the
+windows are now enforced — the old numbers encoded JEDEC violations, so
+re-pinning them to "what the compliant design measures" is the fix, not a
+weakening. Option 2 (the 1-deep class bypass / skid) stays declined: it is
+a microarchitectural feature on the 75 MHz WNS path, and ISSUE-001's
+ruling (flop stages are by design) covers the pipeline depth it would
+attack; if it is ever funded, these floors are re-measured and re-pinned
+again — that is exactly the machinery this close installs.
+
+**What the red gate was hiding (the BUG-023 lesson, second instance).**
+With the perf assertions re-pinned, two fub reds surfaced that had been
+masked since 2026-10-06: `test_pumice_dfi_cmd_path` (ValueError driving
+`n_subcmd_i=2` into a 1-bit port) and `test_pumice_wr_intake`(+bl8) (RTL
+assert "ragged burst awlen+1=5 AXI_BEATS_PER_BURST=4"). Both looked like
+training-era RTL fallout (both files last touched by `0439f9d80`); both
+were TB-selection bugs from the cocotb 2.1.0 pin flip (`8fb596b57`):
+`cocotb_test` now passes the testcase through `COCOTB_TEST_FILTER`, an
+UNANCHORED regex, so `cocotb_test_pumice_dfi_cmd_path` also selected
+`..._pack` and `cocotb_test_pumice_wr_intake` also selected `..._ragged`.
+No RTL defect; the intake guardrail fired correctly on intentionally
+illegal traffic that was never meant to run in those builds. Fix: anchor
+`testcase=f"{testcase}$"` at the run() call site — 4 sites total,
+including two latent prefix collisions swept and fixed the same way
+(`wr_splitter` `_single`/`_single_beat`, `top` `_top`/`_partial_rd`/
+`_partial_strb`).
+
+**Done when, verified:** top 194/194 at BOTH geometries; the two
+repaired fub gates pass on clean rebuild (results XML proves the smoke
+build runs exactly its own cocotb test); full `make run-all-gate` green
+(fub + macro + top + phy, both geometries) at the closing commit's HEAD.

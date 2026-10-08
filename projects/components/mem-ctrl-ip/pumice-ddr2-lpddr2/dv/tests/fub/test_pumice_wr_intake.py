@@ -161,13 +161,19 @@ def _run(request, testcase, ragged_assert, bl=4):
     compile_args += get_coverage_compile_args()
     extra_env.update(get_coverage_env(test_name, sim_build=sim_build))
 
+    # cocotb>=2 (pin flip 8fb596b57) routes 'testcase' through COCOTB_TEST_FILTER,
+    # an UNANCHORED regex (re.search): the bare name 'cocotb_test_pumice_wr_intake'
+    # also matched the '_ragged' test, which drove an awlen+1 != AXI_BEATS_PER_BURST
+    # burst into these RAGGED_ASSERT=1 legal builds and tripped the intake
+    # guardrail (the ragged case is only legal in the RAGGED_ASSERT=0 '_ragged'
+    # wrappers). The '$' restores the pre-2.x exact-match selection.
     run(
         python_search=[tests_dir],
         verilog_sources=verilog_sources,
         includes=includes,
         toplevel=dut_name,
         module=module,
-        testcase=testcase,
+        testcase=f"{testcase}$",
         sim_build=sim_build,
         simulator="verilator",
         extra_env=extra_env,

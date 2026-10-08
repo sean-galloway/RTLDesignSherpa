@@ -1709,11 +1709,14 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
     # The arbiter issues at most ONE DFI command per cycle, so no mode can
     # exceed BL_WORDS / commands_per_access beats per cycle. At BL_WORDS=4 even
     # a 2-command close-page access clears 1.0, so "every mode reads 100%" is
-    # reachable and is still required exactly. At BL_WORDS=1 (the board) an
-    # access that costs more than one command CANNOT reach 100% -- measured
-    # cmds/access 1.04 for the open modes and 2.04 for close -- so there the
-    # claim is made against the ceiling instead. The strict default-geometry
-    # gate is unchanged; this only adds a check where none was possible.
+    # reachable and is still required exactly -- for every mode except
+    # static_close, which BUG-021 carved out of the exact claim (below). At
+    # BL_WORDS=1 (the board) an access that costs more than one command CANNOT
+    # reach 100% -- measured cmds/access 1.04 for the open modes and 2.04 for
+    # close -- so there the claim is made against the ceiling instead. The
+    # strict default-geometry gate is otherwise unchanged; this only adds a
+    # check where none was possible.
+    AP_MODES = {"static_close"}
     cpa_by_name = {nm: c8 for nm, c8, _, _ in cpa_rows}
     short8, below_ceiling = [], []
     for _, nm, u, _, _, _, _, _, _ in rows:
@@ -1729,10 +1732,34 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
         elif u < 0.85 * ceil:
             below_ceiling.append((nm, round(100.0 * u, 2),
                                   round(100.0 * ceil, 1), round(cpa, 2)))
+    # static_close is no longer held to the exact-100% claim. BUG-021
+    # (2026-10-03) now enforces tFAW/tRRD at the fire stage -- legal, and
+    # formal-proven in formal/pumice -- and the 8-bank close-page stream
+    # front-loads ACTs into the tFAW window: the held ACT parks head-of-line in
+    # the single-issue output register, in front of ready columns, so the
+    # write channel pays tFAW waits it cannot hide. Measured 2026-10-08 at
+    # HEAD, default geometry: 90.67% with 162 actlimit stall cycles -- that IS
+    # the compliant number; the exact claim encoded pre-compliant window
+    # behavior. Re-pinned per ISSUE-020 option 1 (option 2, the skid/bypass,
+    # is declined for now). Floor 0.80 sits ~12% under the measured point --
+    # the same margin shape as ACCEPTED_CEILING_FRAC -- so it catches a step
+    # change below it, not a few points of drift. The open-page modes keep the
+    # exact claim; nothing that is green is weakened.
+    short_close = [r for r in short8 if r[0] in AP_MODES]
+    short8 = [r for r in short8 if r[0] not in AP_MODES]
     assert not short8, (
         f"paging modes below 100% write utilization WITH bank parallelism: "
         f"{short8}. With 8-way rotation and refresh parked nothing should "
         f"stall the write channel.")
+    CLOSE_AP_UTIL_FLOOR = 0.80
+    short_close = [r for r in short_close if r[1] / 100.0 < CLOSE_AP_UTIL_FLOOR]
+    assert not short_close, (
+        f"close-page mode(s) below the ISSUE-020 floor "
+        f"({CLOSE_AP_UTIL_FLOOR:.0%} write utilization; tFAW/tRRD enforced at "
+        f"the fire stage since BUG-021): {short_close}. The measured compliant "
+        f"point is ~91% -- the actlimit stalls are tFAW waits the design "
+        f"cannot hide without a bypass. Under the floor is a step change, not "
+        f"the accepted shortfall.")
     # ACCEPTED, with a floor. The close-page family reaches ~63% of its own
     # command-bus ceiling because every access pays ACT + column and the
     # ACT->column path is 8 aclk against tRCD 3 -- pick-pipeline and
@@ -1790,21 +1817,39 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
     # Board measures 148/192 for the open modes.
     #
     # The auto-precharge modes are exempted rather than scaled: they issue
-    # ACT + column per access, so at one beat per access there is no stream to
-    # be contiguous -- they measure 31/192, and a fraction that admitted that
-    # would admit anything.
-    # rbl_static/rbl_dyn retired 2026-09-26; static_close is the only
-    # auto-precharge-every-access mode left.
-    AP_MODES = {"static_close"}
+    # ACT + column per access, so at one beat per access (the board) there is
+    # no stream to be contiguous -- they measure 31/192, and a fraction that
+    # admitted that would admit anything. rbl_static/rbl_dyn retired
+    # 2026-09-26; static_close is the only auto-precharge-every-access mode
+    # left (AP_MODES is defined with the util claim above).
     RUN_FRAC = 1.0 if GEOM_UTIL_SCALE >= 1.0 else 0.70
     chopped = [(n, run, beats) for _, n, _, _, _, _, _, run, beats in rows
-               if run < RUN_FRAC * beats
-               and not (GEOM_UTIL_SCALE < 1.0 and n in AP_MODES)]
+               if run < RUN_FRAC * beats and n not in AP_MODES]
     assert not chopped, (
         f"W data not back-to-back with bank parallelism (mode, max_run, "
         f"beats; need >= {RUN_FRAC:.0%} of beats): {chopped}. A stream chopped "
         f"into short runs can still read 100% utilization -- max_run is the "
         f"claim that catches it.")
+    # ISSUE-020: at the default geometry the same BUG-021 tFAW holds chop
+    # static_close's stream, so the exact one-unbroken-run claim is replaced
+    # by a floor there too. Measured 2026-10-08 at HEAD: longest unbroken run
+    # 140 of 768 beats (18.2%) -- the held ACT breaks the W stream every tFAW
+    # window. Floor 0.15 sits ~18% under that, inside the file's usual band
+    # (ACCEPTED_CEILING_FRAC ~12%, in_order ~19% under measured), so it
+    # catches a halving of the compliant stream, not drift. The board
+    # exemption above stands -- at one beat per access there is no stream to
+    # measure.
+    if GEOM_UTIL_SCALE >= 1.0:
+        CLOSE_AP_RUN_FLOOR = 0.15
+        close_chopped = [(n, run, beats)
+                         for _, n, _, _, _, _, _, run, beats in rows
+                         if n in AP_MODES and run < CLOSE_AP_RUN_FLOOR * beats]
+        assert not close_chopped, (
+            f"close-page mode(s) below the ISSUE-020 run-length floor "
+            f"(longest unbroken W run >= {CLOSE_AP_RUN_FLOOR:.0%} of beats; "
+            f"tFAW/tRRD enforced at the fire stage since BUG-021): "
+            f"{close_chopped}. The compliant stream is chopped by tFAW holds; "
+            f"under the floor is a step change.")
 
     spread = [(n, round(100.0 * u8, 1), round(100.0 * u1, 1))
               for _, n, u8, _, u1, _, _, _, _ in rows if u1 < 0.99]
@@ -1921,16 +1966,24 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
     # slot); the physical tCCD exposed the cost (2026-09-09, pumice ISSUE-006 (was PUMICE-021)).
     ROW_FIRST = "pref_row_first"
     # 0.75 is the BL_WORDS=4 number: ACT-over-COL costs one column slot in
-    # five there (a 5-cycle period, 4/5 = 80%). At BL_WORDS=1 an access is ONE
-    # column and one ACT, so under row_first they alternate and the column can
-    # win at most every other slot -- a ~50% ceiling by construction, not a
-    # stall. Board measures 43.05% (static_close, rbl_static) and 47.52%
-    # (rbl_dyn) against that ceiling.
-    ROW_FIRST_FLOOR = 0.75 if GEOM_UTIL_SCALE >= 1.0 else 0.40
+    # five there (a 5-cycle period, 4/5 = 80%). Measured 76.34% at HEAD
+    # (2026-10-08) -- still "one slot in five" minus a little tFAW (BUG-021) --
+    # so the default-geometry floor is unchanged. At BL_WORDS=1 an access is
+    # ONE column and one ACT, so under row_first they alternate and the column
+    # can win at most every other slot -- a ~50% ceiling by construction, not
+    # a stall. That argument priced the ACTs as free; BUG-021 (2026-10-03)
+    # then enforced tFAW/tRRD at the fire stage, and the board measurement
+    # fell to 33.57% (measured 2026-10-03, re-measured unchanged 2026-10-08).
+    # The windows are legal and formal-proven, so 33.57% IS the compliant
+    # number and the 0.40 floor encoded the pre-compliant stream. Re-pinned
+    # per ISSUE-020 option 1 to 0.30, ~11% under the measured point -- it
+    # catches a step change below it, not drift.
+    ROW_FIRST_FLOOR = 0.75 if GEOM_UTIL_SCALE >= 1.0 else 0.30
     # Same command-bus ceiling as the paging sweep: one DFI command per cycle
     # caps beats/cycle at BL_WORDS / commands_per_access. At BL_WORDS=4 that
-    # is >= 1.0 for every combination here, so the exact-100% claim stands
-    # unchanged. At BL_WORDS=1 a combination whose paging mode precharges per
+    # is >= 1.0 for every combination here, so the exact-100% claim stands --
+    # for every combination except static_close, which BUG-021 carved out
+    # (below). At BL_WORDS=1 a combination whose paging mode precharges per
     # access cannot reach it, and demanding 100% there measures the geometry.
     short, short_ceil = [], []
     for p_, s_, u, _, _, _, _, cpa in rows:
@@ -1943,11 +1996,29 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
         elif u < 0.85 * ceil:
             short_ceil.append((p_, s_, round(100.0 * u, 2),
                                round(100.0 * ceil, 1)))
+    # Same ISSUE-020 / BUG-021 re-pin as the paging sweep: static_close is
+    # exempt from the exact-100% claim and floored instead. The 8-bank
+    # close-page stream front-loads ACTs into the enforced tFAW window, and
+    # the held ACT parks head-of-line in front of ready columns. Measured
+    # 2026-10-08 at HEAD, default geometry: 92.53% (default scheduling) /
+    # 94.81% (the other non-default knobs) across the 8 non-exempt
+    # static_close combinations. Floor 0.80 is the same margin shape as the
+    # sweep floor (~12% under the measured worst point).
+    short_close = [r for r in short if r[0] == "static_close"]
+    short = [r for r in short if r[0] != "static_close"]
     assert not short, (
         "{} of {} paging x scheduling combinations below 100% write "
         "utilization: {}. With bank parallelism and refresh parked, no "
         "scheduling policy except {} should stall the write channel.".format(
             len(short), len(rows), short[:10], ORDERED))
+    CLOSE_SHORT_FLOOR = 0.80
+    short_close = [r for r in short_close if r[2] / 100.0 < CLOSE_SHORT_FLOOR]
+    assert not short_close, (
+        "static_close combination(s) below the ISSUE-020 floor "
+        "({:.0%} write utilization; tFAW/tRRD enforced at the fire stage "
+        "since BUG-021): {}. The measured compliant point is 92-95%; under "
+        "the floor is a step change, not the accepted shortfall.".format(
+            CLOSE_SHORT_FLOOR, short_close))
     # Same accepted floor as the paging sweep -- see ISSUE-002 there.
     ACCEPTED_CEILING_FRAC = 0.55
     sc_regressed = [r for r in short_ceil if r[2] < ACCEPTED_CEILING_FRAC * r[3]]
