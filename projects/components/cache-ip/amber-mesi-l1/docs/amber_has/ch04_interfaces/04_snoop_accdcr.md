@@ -27,39 +27,15 @@
 
 `amber_snoop_resp` is the ACE-shaped snoop responder (amber D4). It decouples the cache core from ACE signaling: the fabric side speaks real ACE AC/CR/CD; the core side is a bus-agnostic `{address, type, response, data}` transaction.
 
-## Real snoop-slave port (`axi4ace_snoop_slave`)
+## House-module pin contract — not restated here
 
-The module's external (manager → cache) side uses `m_axi_*`; the internal (cache FSM) side uses `fub_*`:
-
-| Signal | Direction | Width | Notes |
-|---|---|---|---|
-| `m_axi_acaddr` | in | `ADDR_WIDTH` | snoop address |
-| `m_axi_acsnoop[3:0]` | in | 4 | snoop transaction type |
-| `m_axi_acprot[2:0]` | in | 3 | snoop protection |
-| `m_axi_acvalid` | in | 1 | AC valid |
-| `m_axi_acready` | out | 1 | AC ready |
-| `m_axi_crresp[4:0]` | out | 5 | snoop response |
-| `m_axi_crvalid` | out | 1 | CR valid |
-| `m_axi_crready` | in | 1 | CR ready |
-| `m_axi_cddata` | out | `DATA_WIDTH` | snoop data |
-| `m_axi_cdlast` | out | 1 | CD last beat |
-| `m_axi_cdvalid` | out | 1 | CD valid |
-| `m_axi_cdready` | in | 1 | CD ready |
-| `fub_acaddr` | out | `ADDR_WIDTH` | internal snoop address |
-| `fub_acsnoop[3:0]` | out | 4 | internal snoop type |
-| `fub_acprot[2:0]` | out | 3 | internal snoop protection |
-| `fub_acvalid` | out | 1 | internal AC valid |
-| `fub_acready` | in | 1 | internal AC ready |
-| `fub_crresp[4:0]` | in | 5 | internal response |
-| `fub_crvalid` | in | 1 | internal CR valid |
-| `fub_crready` | out | 1 | internal CR ready |
-| `fub_cddata` | in | `DATA_WIDTH` | internal snoop data |
-| `fub_cdlast` | in | 1 | internal CD last |
-| `fub_cdvalid` | in | 1 | internal CD valid |
-| `fub_cdready` | out | 1 | internal CD ready |
-| `busy` | out | 1 | activity status for clock gating |
-
-: Table 4.5: `axi4ace_snoop_slave` pin contract
+`axi4ace_snoop_slave` is a house module: its full `m_axi_*`/`fub_*` pin
+contract lives in `rtl/amba/ace/axi4ace_snoop_slave.sv` and the AMBA
+documentation index — this HAS does not duplicate it. The amber-visible
+facts are the boundary rule and the ordering guarantee in the next
+section; on the internal side, the cache core drives CRRESP combinationally
+at the `fub_acvalid/fub_acready` grant and sources CD beats on
+`fub_cdvalid/fub_cdready`, one transaction at a time (single control FSM).
 
 ## Ordering and the family convention
 

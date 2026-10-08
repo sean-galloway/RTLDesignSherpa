@@ -29,11 +29,11 @@ The CPU-side port is a GAXI slave (amber D2). We chose GAXI over a plain valid/r
 
 ## Channel structure
 
-The CPU-side port is **two house-GAXI streams** (amber D2) — the
-packed-payload valid/ready pattern of `rtl/amba/gaxi/` (`gaxi_skid_buffer`,
-`gaxi_fifo_sync`: `wr_valid`/`wr_ready`/`wr_data` in,
-`rd_valid`/`rd_ready`/`rd_data` out), which is exactly the house plumbing
-D2's rationale points at. `amber_cpu_frontend` is the slave: it receives the
+The CPU-side port is **two house-GAXI streams** (amber D2) —
+`wr_valid`/`wr_ready`/`wr_data` in, `rd_valid`/`rd_ready`/`rd_data` out.
+The house GAXI pattern and its plumbing (`gaxi_skid_buffer`,
+`gaxi_fifo_sync`) are documented with the `rtl/amba/gaxi/` modules, not
+restated here. `amber_cpu_frontend` is the slave: it receives the
 request stream and drives the response stream.
 
 Request stream (CPU → amber, slave input):

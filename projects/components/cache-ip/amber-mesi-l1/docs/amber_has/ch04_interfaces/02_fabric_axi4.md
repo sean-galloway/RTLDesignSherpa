@@ -47,6 +47,13 @@ The plain AXI4 master stack exposes the standard five AXI4 channels toward memor
 
 The exact pin names and widths follow the `axi4_master_rd` and `axi4_master_wr` module parameters. The cache supplies address, length, size, and burst type; ID and user fields pass through or are tied to defaults configurable at the top.
 
-## Open point: D3
+## D3: decided
 
-The memory-side interface is D3, still open. The direction is AXI4 on the house wrappers, but the final parameter defaults (ID width, user width, skid depths) and the exact handoff from `amber_fill`/`amber_drain` to the wrappers are part of closing D3 in RTL.
+The memory-side interface is PRD **D3, decided 2026-10-07 (v0.6)**: AXI4
+read/write masters on the house `axi4_master_rd`/`axi4_master_wr` wrappers
+(the stream/rapids pattern), observed through `*_monlite` per D8 — chosen
+over GAXI (D2 already spent that on the CPU side) and over a simple SRAM
+bring-up port. The fill/drain engines drive the `fub_axi_*` upstream side
+of those wrappers; ID/user fields take the wrappers' parameter defaults;
+skid depths are the wrappers' house defaults. The pair rig's shared memory
+hangs off the `m_axi_*` sides through house fabric (Chapter 6).
