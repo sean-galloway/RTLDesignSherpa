@@ -15,4 +15,7 @@
 # Pending-fill bypass register (instantiated by amber_control)
 -f $AMBER_ROOT/rtl/filelists/amber_pending_fill_bypass.f
 
+# Depth-1 victim buffer (instantiated by amber_control)
+-f $AMBER_ROOT/rtl/filelists/amber_victim.f
+
 $AMBER_ROOT/rtl/fub/amber_control.sv

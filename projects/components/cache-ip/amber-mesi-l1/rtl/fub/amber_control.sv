@@ -74,13 +74,15 @@
 //     pf_state; the data array serves the fill way, each CD beat gated by
 //     pf_data_valid and stalled until it arrives) > the stale-victim entry
 //     during a fill (no transfer: the WB completed before the fill started,
-//     gem5 M_I x WB_Ack -> I, .sm:1315) > the port-B tag hit (installed
-//     state; dirty victims still draining are served from the staged copy
-//     at M, SINK_WB_ACK). A state change on an installed line is written
-//     on port A inside the service; a state change on the pending line is
-//     remembered (pend_vld/pend_state) and applied at fill commit. CD
-//     beats flow on cdvalid && cdready with cdlast on the final beat; CR
-//     presentation is amber_snoop_resp's concern (after CDLAST).
+//     gem5 M_I x WB_Ack -> I, .sm:1315) > the victim-buffer match while
+//     the drain is outstanding (the buffer owns the line until the WB ack,
+//     answered at M with CD sourced from victim_data, SINK_WB_ACK, gem5
+//     .sm:1352/.sm:1357) > the port-B tag hit (installed state). A state
+//     change on an installed line is written on port A inside the service;
+//     a state change on the pending line is remembered (pend_vld/pend_state)
+//     and applied at fill commit. CD beats flow on cdvalid && cdready with
+//     cdlast on the final beat; CR presentation is amber_snoop_resp's
+//     concern (after CDLAST).
 //
 //   The miss-path launch decision is the workbook K-map cover, evaluated in
 //   CTRL_MISS_VICTIM (hit is 0 by construction there):
@@ -114,7 +116,8 @@
 //------------------------------------------------------------------------------
 // Related Modules:
 //   - Instantiated by: amber_core (test harness: dv/tb/amber_control_th.sv)
-//   - Instantiated: amber_pending_fill_bypass (the bypass register leaf)
+//   - Instantiated: amber_pending_fill_bypass (the bypass register leaf),
+//     amber_victim (the depth-1 victim buffer leaf)
 //   - Package: amber_pkg (ctrl_state_t, cache_state_t, amber_ace_req_t,
 //     amber_snoop_crresp / amber_snoop_next_state decode authority)
 //
@@ -195,7 +198,9 @@ module amber_control
     output logic                        ctrl_repl_update,
     output logic [WAY_INDEX_WIDTH-1:0]  ctrl_repl_hit_way,
 
-    // depth-1 victim buffer
+    // depth-1 victim buffer leaf (amber_victim, MAS ch02_blocks/05):
+    // the load strobe + staged payload in; the buffer fields are consumed
+    // internally (snoop bypass match + CD source) and observed by the TB
     output logic                        ctrl_victim_load,
     output logic [ADDR_WIDTH-1:0]       ctrl_victim_addr_in,
     output logic [LINE_BYTES*8-1:0]     ctrl_victim_data_in,
@@ -444,6 +449,42 @@ module amber_control
     );
 
     // ------------------------------------------------------------------
+    // Depth-1 victim buffer (leaf, MAS ch02_blocks/05). amber_control
+    // gathers the dirty victim line over FILL_BEATS data-array port-A
+    // read cycles (DECISION D-5: the array port is BUS_WIDTH wide, so the
+    // single-cycle full-line load of MAS ch02 is unreachable); the
+    // victim_load strobe marks the gather-complete cycle (the final
+    // beat's capture) and the buffer owns the line until the write-back
+    // completes (victim_clear on ctrl_drain_done). The buffer never loads
+    // while busy -- the single-outstanding property makes the strobe
+    // unreachable before the retire, and the leaf guards it (Review
+    // Focus 2).
+    // ------------------------------------------------------------------
+    logic                      victim_busy_unused, victim_empty_unused;
+    logic                      victim_valid;
+    logic [ADDR_WIDTH-1:0]     victim_buf_addr;
+    logic [LINE_BYTES*8-1:0]   victim_buf_data;
+
+    amber_victim #(
+        .ADDR_WIDTH (ADDR_WIDTH),
+        .SETS       (SETS),
+        .LINE_BYTES (LINE_BYTES),
+        .BUS_WIDTH  (BUS_WIDTH)
+    ) u_victim (
+        .clk            (clk),
+        .rst_n          (rst_n),
+        .victim_load    (ctrl_victim_load),
+        .victim_addr_in (ctrl_victim_addr_in),
+        .victim_data_in (ctrl_victim_data_in),
+        .victim_clear   (ctrl_drain_done),
+        .victim_busy    (victim_busy_unused),
+        .victim_empty   (victim_empty_unused),
+        .victim_valid   (victim_valid),
+        .victim_addr    (victim_buf_addr),
+        .victim_data    (victim_buf_data)
+    );
+
+    // ------------------------------------------------------------------
     // Snoop port-B lookup (combinational, grant cycle) and reference
     // state resolution
     // ------------------------------------------------------------------
@@ -488,13 +529,19 @@ module amber_control
                           && (sn_hit_way == victim_way_q)
                           && (sn_hit_tag == victim_tag_q);
 
-    // draining-victim match: the victim buffer still owns the data until
-    // the WB ack (SINK_WB_ACK; gem5 .sm:1352/.sm:1357) -- served from the
-    // array at M, no tag write, the drain continues
-    logic sn_victim_gnt;
-    assign sn_victim_gnt = (state_q == OH_MISS_DRAIN) && sn_hit_any
-                           && (sn_hit_way == victim_way_q)
-                           && (sn_hit_tag == victim_tag_q);
+    // victim-buffer match (MAS ch02/05 bypass): while the drain is
+    // outstanding the buffer owns the line (SINK_WB_ACK; gem5
+    // .sm:1352/.sm:1357) -- victim_valid && (snoop line address ==
+    // victim_addr), line offset ignored. Self-gating: valid is high
+    // exactly from the gather-complete strobe to the drain-done edge, so
+    // no state qualifier is needed (the pf and stale resolutions above
+    // are state-gated to MISS_FILL, exclusive with the valid window).
+    // The buffer only ever holds a dirty victim, so the reference state
+    // is M with CD sourced from victim_data.
+    logic victim_match;
+    assign victim_match = victim_valid
+                          && (w_sn_line_addr
+                              == victim_buf_addr[ADDR_WIDTH-1:LINE_OFFSET_WIDTH]);
 
     // the upgrade's own line (installed S during the upgrade): an
     // invalidating snoop kills the upgrade (gem5 SM x Inv -> IM,
@@ -511,6 +558,7 @@ module amber_control
     logic [2:0] sn_ref_grant;
     assign sn_ref_grant = sn_pf_gnt_match  ? pf_state
                         : sn_stale_gnt     ? AMBER_STATE_I
+                        : victim_match     ? AMBER_STATE_M
                         : sn_hit_any       ? sn_hit_state
                         :                    AMBER_STATE_I;
 
@@ -716,7 +764,7 @@ module amber_control
                 sn_hit_state_q <= sn_hit_state;
                 sn_hit_tag_q   <= sn_hit_tag;
                 sn_stale_q     <= sn_stale_gnt;
-                sn_victim_q    <= sn_victim_gnt;
+                sn_victim_q    <= victim_match;
                 sn_upgr_line_q <= sn_upgr_line_gnt;
                 sn_dt_q        <= sn_crresp_grant[AMBER_CRRESP_DT];
                 sn_ref_q       <= sn_ref_grant;
@@ -860,7 +908,14 @@ module amber_control
         ctrl_crresp  = amber_snoop_crresp(
             (state_q == OH_SNOOP) ? sn_ref_q : sn_ref_grant,
             (state_q == OH_SNOOP) ? sn_type_q : ctrl_snoop_type);
-        ctrl_cddata  = ctrl_data_b_rdata;
+        // CD data: a victim-buffer hit is sourced from the buffer (MAS
+        // ch02/05 bypass -- the line is owned there while the drain is
+        // outstanding); every other transfer reads the data array on
+        // port B
+        ctrl_cddata  = sn_victim_q
+                       ? victim_buf_data[32'(sn_beat_q) * BUS_WIDTH
+                                         +: BUS_WIDTH]
+                       : ctrl_data_b_rdata;
         ctrl_cdlast  = 1'b0;
         ctrl_cdvalid = 1'b0;
 

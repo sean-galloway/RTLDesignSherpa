@@ -1,0 +1,120 @@
+# Testplan for amber_victim (depth-1 victim buffer, MAS ch02_blocks/05).
+# The leaf is integrated inside amber_control (loaded by the
+# gather-complete strobe in CTRL_MISS_VICTIM, cleared on the drain-done
+# pulse) and is exercised through the amber_control suite; Task 13 proves
+# it standalone (formal). The integration scenarios below name where each
+# contract point is pinned.
+
+module: amber_victim
+rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_victim.sv
+test_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_control.py
+
+# Contract: MAS ch02_blocks/05. Fields victim_addr (full line address, for
+# AW) / victim_data (LINE_BYTES*8) / victim_valid. victim_load stages a
+# dirty victim; DECISION D-5: the line is gathered over FILL_BEATS
+# data-array port-A read cycles (the array port is BUS_WIDTH wide per MAS
+# ch03, so MAS ch02's single-cycle full-line victim_load is unreachable),
+# and victim_load is the gather-complete (final-beat) strobe -- one cycle
+# after the last array read, with the full line registered. The buffer is
+# never loaded while valid (single-outstanding property); the drain
+# completes before the peer fill considers the data authoritative
+# (drain_done < fill_start, control-side ordering). Snoop bypass
+# (MAS ch02/05): victim_valid && (snoop line address == victim_addr),
+# line offset ignored; CD beats sourced from victim_data.
+
+parameters:
+  - name: ADDR_WIDTH / SETS / LINE_BYTES / BUS_WIDTH
+    default: 32 / 128 / 64 / 64
+    description: geometry; grid also runs 16 sets / 2 ways (tiny formal config)
+
+scenarios:
+  - name: VictimLoadAndClear
+    level: func (via amber_control)
+    what: >
+      victim_load arms {addr, data, valid} from the staged payload in
+      CTRL_MISS_VICTIM (DECISION D-5 gather-complete strobe); victim_clear
+      (ctrl_drain_done) drops valid. Pinned cycle-exact by
+      VictimBufferHandshake: valid sets the cycle after the strobe, holds
+      through the drain-done cycle, clears the next cycle; busy ==
+      valid and empty == !valid scored every cycle by the EVERY-CYCLE
+      invariant coroutine. RTL addition over the MAS handshake table:
+      victim_clear is a leaf input (the register lives in the leaf, same
+      pattern as pf_clear); recorded for Task 14.
+    status: covered
+  - name: VictimLoadWhileBusyNever
+    level: all (via amber_control)
+    what: >
+      Review Focus 2, depth-1 safety: the buffer is NEVER loaded while
+      busy. The DUT-side guarantee is structural -- the blocking pipeline
+      raises victim_load only from CTRL_MISS_VICTIM of the single
+      outstanding transaction, and the previous victim retired at
+      drain_done < fill_start < response, so the strobe can never overlap
+      the valid window; the leaf additionally IGNORES a load requested
+      while busy (the draining victim can never be overwritten). The
+      EVERY-CYCLE invariant coroutine scores each observable cycle that
+      no victim_load lands while valid, that the valid window matches the
+      tap-event model exactly, and that addr/data hold stable while
+      valid (TB defense-in-depth, mirroring BypassNeverAnswersInvalid).
+    status: covered
+  - name: VictimSnoopBypass
+    level: func (via amber_control)
+    what: >
+      Review Focus 3: a snoop for the victim line while the drain is
+      outstanding is answered at the M reference (SINK_WB_ACK; gem5
+      .sm:1352/.sm:1357) with CD beats sourced from the BUFFER, no tag
+      write, the drain uninterrupted. Source discrimination is real:
+      SnoopHitsVictimBypass poisons the victim way in the data array
+      mid-drain via the raw backdoor write port (tagged bd_wr so the
+      generic scorers skip it), so array-sourced beats would mismatch;
+      the staged content is the only correct answer. Drain completes
+      before the peer fill considers data authoritative
+      (drain_done < fill_start, pinned by the generic slice scorer's
+      ordering checks), and a refetch returns the drained payload.
+      The match is the MAS ch02/05 bypass condition
+      (victim_valid && snoop line == victim_addr, offset ignored),
+      self-gating: valid is high exactly across the drain window.
+      The grant-cycle coincidence with the drain-done cycle (valid still
+      high through it) is covered by construction: the invariant pins the
+      window cycle-exactly and the match is combinational on valid.
+    status: covered
+  - name: VictimGatherSnoopPriority
+    level: func (via amber_control)
+    what: >
+      Review Focus 9: the multi-cycle victim gather on data-array port A
+      never grants a snoop mid-beat. SnoopPriorityDuringGather holds a
+      snoop (READ_SHARED on an installed S line, a fixed point) from the
+      evicting request's accept through the gather; the per-cycle sample
+      stream scores ready == 0 in EVERY CTRL_MISS_VICTIM cycle and the
+      grant landing in CTRL_MISS_DRAIN after the victim_load strobe
+      (safe-boundary grant policy, control-side).
+    status: covered
+  - name: VictimDirtyOnly
+    level: func (via amber_control)
+    what: >
+      Clean victims never touch the buffer: the valid window model of the
+      EVERY-CYCLE invariant stays empty across every clean-victim
+      transaction (MissSequenceCleanVictim, HitSequence, upgrades, and
+      the FULL soak all run with the invariant live). The buffer holds
+      exactly the dirty victim by construction (victim_load asserts only
+      on the dirty-victim path), which is what makes the bypass reference
+      state M unconditional.
+    status: covered
+
+gaps:
+  - >
+    Standalone leaf-level stimulus (port-level load/clear sweeps, reset
+    values, the load-while-busy ignore path driven deliberately) is
+    deferred to Task 13, which proves the leaf standalone per the DECISION
+    D-2 pattern; the register is fully exercised in integration by the
+    amber_control suite above. The load-while-busy ignore path is not
+    stimulus-reachable in integration (the invariant proves the request
+    never arises), so it lands in the Task 13 proof contract.
+  - >
+    MAS ch02 erratum (Task 14 owns the doc edit): ch02_blocks/05's
+    handshake table shows victim_load as a single-cycle full-line stage;
+    DECISION D-5 makes it the gather-complete strobe over FILL_BEATS
+    port-A read cycles. The ch02/05 Timing table row
+    ("CTRL_MISS_VICTIM, victim is M: victim_load asserted") is consistent
+    with the landed timing.

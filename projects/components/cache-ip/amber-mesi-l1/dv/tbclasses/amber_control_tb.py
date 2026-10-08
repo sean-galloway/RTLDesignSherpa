@@ -42,6 +42,27 @@ Directed pins:
   SnoopStaleVictimMidFill      snoop for the already-drained victim during
                                the fill: no-transfer (WB completed, M_I x
                                WB_Ack -> I, .sm:1315)
+  VictimBufferHandshake        the depth-1 leaf (amber_victim inside
+                               amber_control, observed hierarchically):
+                               valid sets the cycle after the victim_load
+                               strobe, busy/empty polarity, addr/data held
+                               stable while valid, clear at drain_done
+  SnoopHitsVictimBypass        Review Focus 3: a snoop for the victim line
+                               while the drain is outstanding is served from
+                               the BUFFER -- the TB poisons the victim way in
+                               the data array mid-drain, so array-sourced CD
+                               beats would mismatch; drain completes before
+                               the peer fill considers data authoritative
+  SnoopPriorityDuringGather    Review Focus 9: a snoop held through the
+                               multi-cycle victim gather is never granted
+                               mid-beat (ready low in every MISS_VICTIM
+                               cycle); the grant lands at MISS_DRAIN after
+                               the victim_load strobe
+  VictimLoadWhileBusyNever     Review Focus 2: EVERY-CYCLE invariant -- the
+                               leaf is never loaded while busy (depth-1
+                               safety under the single-outstanding
+                               property); valid window tracked from the
+                               taps, addr/data stable while valid
   BeZeroWrite                  be == 0 write merges nothing (MINOR 2)
   StrayReqInInit               req_valid during INIT is ignored; ready is
                                IDLE-only (MINOR 2)
@@ -200,6 +221,11 @@ class AmberControlTB(TBBase):
         self.snoops = 0
         self.scenarios = {}
 
+        # backdoor data-array writes (the bypass-source pin) are tagged
+        # bd_wr by the monitor/pf invariant so the generic fill-beat
+        # accounting never mistakes them for fill beats
+        self._suppress_fill_wr = False
+
         self.log.info(f"AmberControlTB sets={self.SETS} ways={self.WAYS} "
                       f"level={self.TEST_LEVEL} seed={self.SEED}")
 
@@ -289,6 +315,7 @@ class AmberControlTB(TBBase):
         cocotb.start_soon(self._drain_stub())
         cocotb.start_soon(self._victim_way_tracker())
         cocotb.start_soon(self._pf_invariant())
+        cocotb.start_soon(self._victim_invariant())
         await self.wait_clocks('clk', 3)
         await self.deassert_reset()
 
@@ -325,7 +352,12 @@ class AmberControlTB(TBBase):
                     'tag_state': int(d.tag_wr_tag_state.value),
                 }))
             if int(d.data_wr_en.value):
-                kind = 'ctrl_wr' if int(d.ctrl_data_wr_en.value) else 'fill_wr'
+                if int(d.ctrl_data_wr_en.value):
+                    kind = 'ctrl_wr'
+                elif self._suppress_fill_wr:
+                    kind = 'bd_wr'
+                else:
+                    kind = 'fill_wr'
                 self.events.append((self.cyc, kind, {
                     'way_oh': int(d.data_wr_way_onehot.value),
                     'addr': int(d.data_wr_addr.value),
@@ -384,7 +416,8 @@ class AmberControlTB(TBBase):
                 self.inv_pf_state = 'S' if cls == ACE_READ_SHARED else 'M'
                 self.inv_pf_beats = set()
                 self.inv_pf_active = cls != ACE_CLEAN_UNIQUE
-            if int(d.data_wr_en.value) and not int(d.ctrl_data_wr_en.value):
+            if int(d.data_wr_en.value) and not int(d.ctrl_data_wr_en.value) \
+                    and not self._suppress_fill_wr:
                 self.inv_pf_beats.add(int(d.data_wr_addr.value)
                                       & (self.FILL_BEATS - 1))
             if int(d.fill_done.value):
@@ -401,6 +434,52 @@ class AmberControlTB(TBBase):
                 if int(d.ctrl_cdvalid.value):
                     self._score('pf invariant: no CD beat before received',
                                 self.inv_cd_beat in self.inv_pf_beats, True)
+
+    async def _victim_invariant(self):
+        """VictimLoadWhileBusyNever (Review Focus 2): asserted EVERY cycle.
+
+        Tracks the depth-1 victim buffer (amber_victim, instantiated inside
+        amber_control as u_victim) from the hierarchical taps and scores,
+        each observable cycle:
+          - victim_busy == victim_valid, victim_empty == !victim_valid;
+          - valid matches the tap-event model: sets the cycle AFTER a
+            victim_load, clears the cycle AFTER drain_done (exactly the
+            drain window in between);
+          - NEVER a victim_load while valid -- the load-while-busy case is
+            impossible under the single-outstanding property, so the DUT
+            must never request it;
+          - while valid, victim_addr / victim_data hold the loaded values
+            (the snoop bypass reads them combinationally).
+        """
+        d = self.dut
+        leaf = d.u_control.u_victim
+        exp_vld = False
+        exp_addr = 0
+        exp_data = 0
+        while True:
+            await self._negedge_settled()
+            got_vld = int(leaf.victim_valid.value)
+            got_addr = int(leaf.victim_addr.value)
+            got_data = int(leaf.victim_data.value)
+            self._score('victim inv: busy == valid',
+                        int(leaf.victim_busy.value), got_vld)
+            self._score('victim inv: empty == !valid',
+                        int(leaf.victim_empty.value), 1 - got_vld)
+            self._score('victim inv: valid window', got_vld, exp_vld)
+            if got_vld:
+                self._score('victim inv: addr held', got_addr, exp_addr)
+                self._score('victim inv: data held', got_data, exp_data)
+            if int(d.victim_load.value):
+                # the strobe lands at the upcoming edge: valid must be low
+                # NOW (never load while busy) and set next cycle
+                self._score('victim inv: never load while busy', got_vld, 0)
+                exp_vld = 1
+                exp_addr = int(d.victim_addr.value)
+                exp_data = int(d.victim_data.value)
+            elif int(d.drain_done.value):
+                # the clear lands at the upcoming edge: valid must still be
+                # set NOW (held through the drain-done cycle) and drop next
+                exp_vld = 0
 
     async def _victim_way_tracker(self):
         """The fill stub needs the install way; it observes the same repl
@@ -572,13 +651,16 @@ class AmberControlTB(TBBase):
     # ------------------------------------------------------------------
     async def _snoop(self, line, snoop, label, exp_ref=None, exp_crresp=None,
                      exp_line=None, cd_hold=0, exp_tag_write=None,
-                     update_model=True):
+                     update_model=True, samples=None):
         """Issue one snoop (held until ready), score the response against
         the oracle decode at exp_ref (default: the line's model state), and
         consume the CD beats when CRRESP.DataTransfer is set. exp_line is
         the expected beat content (defaults to the model cache content).
         exp_tag_write overrides the tag-downgrade expectation (the
-        draining-victim and stale-victim cases suppress it)."""
+        draining-victim and stale-victim cases suppress it). If `samples`
+        is a list, one dict per wait cycle {cyc, state, ready, victim_load,
+        drain_start} is appended -- the grant-window analysis of
+        SnoopPriorityDuringGather."""
         d = self.dut
         addr = (line & self.LINE_MASK) << self.OFFSET_BITS
         st = self.line_state.get(line, 'I')
@@ -609,6 +691,14 @@ class AmberControlTB(TBBase):
             d.snoop_addr.value = addr
             for _ in range(self.RSP_TIMEOUT_CYCLES):
                 await Timer(500, units='ps')
+                if samples is not None:
+                    samples.append({
+                        'cyc': self.cyc,
+                        'state': int(d.ctrl_state.value),
+                        'ready': int(d.snoop_ready.value),
+                        'victim_load': int(d.victim_load.value),
+                        'drain_start': int(d.drain_start.value),
+                    })
                 if int(d.snoop_ready.value):
                     grant_cyc = self.cyc
                     got_crresp = int(d.ctrl_crresp.value)
@@ -1576,6 +1666,213 @@ class AmberControlTB(TBBase):
                     self.line_state.get(line_vs), 'S')
         self.log.info("Victim snoop suite directed done")
 
+    # ------------------------------------------------------------------
+    # Task 5 directed suite: depth-1 victim buffer (leaf) + bypass handoff
+    # ------------------------------------------------------------------
+    async def _backdoor_data_write(self, set_idx, way, beat_vals):
+        """Raw data-array write via the fill-beat port with NO
+        fill_beat_valid strobe -- models external interference for the
+        bypass-source pin. Tagged bd_wr by the monitor/pf invariant so the
+        generic fill-beat accounting skips it."""
+        d = self.dut
+        full_be = (1 << self.STRB_W) - 1
+        self._suppress_fill_wr = True
+        for b, val in enumerate(beat_vals):
+            await self._negedge()
+            d.fillbeat_wr_en.value = 1
+            d.fillbeat_wr_addr.value = (set_idx << self.BEAT_BITS) | b
+            d.fillbeat_wr_way.value = way
+            d.fillbeat_wr_data.value = val
+            d.fillbeat_wr_be.value = full_be
+        await self._negedge()
+        d.fillbeat_wr_en.value = 0
+        d.fillbeat_wr_be.value = 0
+        self._suppress_fill_wr = False
+
+    async def _victim_buffer_suite(self):
+        await self._victim_buffer_handshake()
+        self.scenarios['VictimBufferHandshake'] = True
+        await self._snoop_hits_victim_bypass()
+        self.scenarios['SnoopHitsVictimBypass'] = True
+        await self._snoop_priority_during_gather()
+        self.scenarios['SnoopPriorityDuringGather'] = True
+
+    async def _victim_buffer_handshake(self):
+        # VictimBufferHandshake: cycle-exact leaf observation. The buffer
+        # (amber_victim inside amber_control, tapped hierarchically) sets
+        # valid the cycle after the victim_load strobe, holds addr/data
+        # stable through the drain window, and clears at drain_done. The
+        # EVERY-CYCLE invariant owns the exhaustive claim; this directed
+        # test pins the window endpoints on one dirty-victim eviction.
+        svh = 3
+        line_v = self._line_of(self._compose_addr(0xC0, svh))
+        await self._txn(self._compose_addr(0xC0, svh), 1,
+                        wdata=0x5CA1AB1ED00DFEED,
+                        label='vbh:wr_v')                    # V -> M
+        for i in range(1, self.WAYS):
+            await self._txn(self._compose_addr(0xC0 + i, svh), 0,
+                            label=f'vbh:fill[{i}]')
+        accept = await self._req_issue(self._compose_addr(0xC5, svh), 0,
+                                       (1 << self.STRB_W) - 1, 0,
+                                       'vbh:evict_miss')
+        await self._wait_tap('victim_load',
+                             pred=lambda p: self._line_of(p['addr']) == line_v)
+        d = self.dut
+        leaf = d.u_control.u_victim
+        exp_addr = (line_v & self.LINE_MASK) << self.OFFSET_BITS
+        exp_data = int.from_bytes(bytes(self.cache_data[line_v]), 'little')
+        # first cycle after the strobe: valid set, polarity, payload
+        await self._negedge_settled()
+        self._score("vbh: valid sets after victim_load",
+                    int(leaf.victim_valid.value), 1)
+        self._score("vbh: busy with valid", int(leaf.victim_busy.value), 1)
+        self._score("vbh: empty deasserted", int(leaf.victim_empty.value), 0)
+        self._score("vbh: addr is the victim line base",
+                    int(leaf.victim_addr.value), exp_addr)
+        self._score("vbh: data is the staged line",
+                    int(leaf.victim_data.value), exp_data)
+        # window endpoint: held through drain_done, clear the next cycle
+        saw_done = False
+        for _ in range(self.RSP_TIMEOUT_CYCLES):
+            await self._negedge_settled()
+            if not saw_done:
+                self._score("vbh: valid held through drain",
+                            int(leaf.victim_valid.value), 1)
+                self._score("vbh: addr held", int(leaf.victim_addr.value),
+                            exp_addr)
+                self._score("vbh: data held", int(leaf.victim_data.value),
+                            exp_data)
+                if int(d.drain_done.value):
+                    saw_done = True
+            else:
+                self._score("vbh: valid clears after drain_done",
+                            int(leaf.victim_valid.value), 0)
+                break
+        self._score("vbh: drain_done observed", saw_done, True)
+        accept, rsp_cyc, rsp_data = await self._req_await_rsp(accept,
+                                                              'vbh:rsp')
+        sl = self._slice(accept, rsp_cyc)
+        line_new = self._line_of(self._compose_addr(0xC5, svh))
+        set_idx = self._set_of_line(line_new)
+        res = oracle_step(self.line_state.get(line_new, 'I'), 'CPU_RD')
+        self._score_slice(self._compose_addr(0xC5, svh), line_new, set_idx, 0,
+                          0, (1 << self.STRB_W) - 1, 0, res, rsp_data, sl,
+                          'vbh')
+        self.txns += 1
+        # refetch the drained line: the writeback payload round trip
+        await self._txn(self._compose_addr(0xC0, svh), 0,
+                        label='vbh:refetch')
+        self._score("vbh: refetch returns the drained data",
+                    self.line_state.get(line_v), 'S')
+        self.log.info("VictimBufferHandshake directed done")
+
+    async def _snoop_hits_victim_bypass(self):
+        # SnoopHitsVictimBypass (Review Focus 3): a snoop for the victim
+        # line while the drain is outstanding is served from the BUFFER.
+        # The TB poisons the victim way in the data array mid-drain via the
+        # raw backdoor, so array-sourced CD beats would mismatch the staged
+        # content; the staged content is the only correct answer. The
+        # drain then completes before the peer fill considers the data
+        # authoritative (drain_done < fill_start, pinned by the generic
+        # slice scorer), and a refetch proves the writeback payload.
+        svb = 7
+        line_v = self._line_of(self._compose_addr(0xD0, svb))
+        await self._txn(self._compose_addr(0xD0, svb), 1,
+                        wdata=0xD00DFEED5CA1AB1E,
+                        label='vbp:wr_v')                     # V -> M
+        for i in range(1, self.WAYS):
+            await self._txn(self._compose_addr(0xD0 + i, svb), 0,
+                            label=f'vbp:fill[{i}]')
+        # widen the drain window so the poison + snoop fit deterministically
+        saved_latency = self.drain_latency
+        self.drain_latency = self.FILL_BEATS + 16
+        accept = await self._req_issue(self._compose_addr(0xD5, svb), 0,
+                                       (1 << self.STRB_W) - 1, 0,
+                                       'vbp:evict_miss')
+        await self._wait_tap('victim_load',
+                             pred=lambda p: self._line_of(p['addr']) == line_v)
+        await self._wait_tap('drain_start')
+        # poison the victim way: the staged line stays in the buffer only
+        poison = [int.from_bytes(bytes([0xB0 | b]) * self.STRB_W, 'little')
+                  for b in range(self.FILL_BEATS)]
+        await self._backdoor_data_write(svb, self.stub_victim_way, poison)
+        staged = bytes(self.cache_data[line_v])
+        poison_line = b''.join(v.to_bytes(self.STRB_W, 'little')
+                               for v in poison)
+        self._score("vbp: poison differs from the staged line",
+                    poison_line == staged, False)
+        await self._snoop(line_v, 'SNOOP_READ_UNIQUE', 'vbp:ru_mid_drain',
+                          exp_ref='M', exp_line=staged, exp_tag_write=False)
+        # restore only now: the drain stub captured the widened latency at
+        # drain_start, and restoring earlier could race its read
+        self.drain_latency = saved_latency
+        accept, rsp_cyc, rsp_data = await self._req_await_rsp(accept,
+                                                              'vbp:rsp')
+        sl = self._slice(accept, rsp_cyc)
+        line_new = self._line_of(self._compose_addr(0xD5, svb))
+        set_idx = self._set_of_line(line_new)
+        res = oracle_step(self.line_state.get(line_new, 'I'), 'CPU_RD')
+        self._score_slice(self._compose_addr(0xD5, svb), line_new, set_idx, 0,
+                          0, (1 << self.STRB_W) - 1, 0, res, rsp_data, sl,
+                          'vbp')
+        self.txns += 1
+        await self._txn(self._compose_addr(0xD0, svb), 0,
+                        label='vbp:refetch')
+        self._score("vbp: refetch returns the drained data",
+                    self.line_state.get(line_v), 'S')
+        self.log.info("SnoopHitsVictimBypass directed done")
+
+    async def _snoop_priority_during_gather(self):
+        # SnoopPriorityDuringGather (Review Focus 9): a snoop presented
+        # during the multi-cycle victim gather must not be granted
+        # mid-beat. The snoop (READ_SHARED on an installed S line in
+        # another set -- a fixed point) is raised right after the evicting
+        # accept and held; the per-cycle sample stream proves ready stayed
+        # low through every MISS_VICTIM cycle and the grant landed at
+        # MISS_DRAIN after the victim_load strobe.
+        sg = 3
+        line_u = self._line_of(self._compose_addr(0xB0, 20))
+        await self._txn(self._compose_addr(0xB0, 20), 0,
+                        label='grs:rd_u')                     # U -> S
+        line_v = self._line_of(self._compose_addr(0xE0, sg))
+        await self._txn(self._compose_addr(0xE0, sg), 1, wdata=0x600DC0DE,
+                        label='grs:wr_v')                     # V -> M
+        for i in range(1, self.WAYS):
+            await self._txn(self._compose_addr(0xE0 + i, sg), 0,
+                            label=f'grs:fill[{i}]')
+        accept = await self._req_issue(self._compose_addr(0xE4, sg), 0,
+                                       (1 << self.STRB_W) - 1, 0,
+                                       'grs:evict_miss')
+        samples = []
+        await self._snoop(line_u, 'SNOOP_READ_SHARED', 'grs:rs_held',
+                          samples=samples)
+        mv = [s for s in samples if s['state'] == ST_MISS_VICTIM]
+        self._score("grs: snoop held through the whole gather", len(mv) > 0,
+                    True)
+        self._score("grs: no grant in any MISS_VICTIM cycle (stall)",
+                    any(s['ready'] for s in mv), False)
+        g = next((s for s in samples if s['ready']), None)
+        self._score("grs: grant observed", g is not None, True)
+        if g is not None:
+            self._score("grs: grant at MISS_DRAIN (after the gather)",
+                        g['state'], ST_MISS_DRAIN)
+            self._score("grs: victim_load strobe preceded the grant",
+                        any(s['victim_load']
+                            for s in samples[:samples.index(g)]), True)
+        accept, rsp_cyc, rsp_data = await self._req_await_rsp(accept,
+                                                              'grs:rsp')
+        sl = self._slice(accept, rsp_cyc)
+        line_new = self._line_of(self._compose_addr(0xE4, sg))
+        set_idx = self._set_of_line(line_new)
+        res = oracle_step(self.line_state.get(line_new, 'I'), 'CPU_RD')
+        self._score_slice(self._compose_addr(0xE4, sg), line_new, set_idx, 0,
+                          0, (1 << self.STRB_W) - 1, 0, res, rsp_data, sl,
+                          'grs')
+        self.txns += 1
+        self._score("grs: U untouched (S fixed point)",
+                    self.line_state.get(line_u), 'S')
+        self.log.info("SnoopPriorityDuringGather directed done")
+
     async def _full_random(self):
         n = self.FULL_TXN[self.TEST_LEVEL]
         pool_tags = 4 * self.WAYS + 2
@@ -1640,6 +1937,11 @@ class AmberControlTB(TBBase):
             await self._victim_snoop_suite()
             self.scenarios['SnoopDrainingVictim'] = True
             self.scenarios['SnoopStaleVictimMidFill'] = True
+            await self._victim_buffer_suite()
+            self.scenarios['VictimBufferHandshake'] = True
+            self.scenarios['SnoopHitsVictimBypass'] = True
+            self.scenarios['SnoopPriorityDuringGather'] = True
+            self.scenarios['VictimLoadWhileBusyNever'] = True
         if self.TEST_LEVEL == 'full':
             await self._full_random()
             self.scenarios['FullRandomLockstep'] = True

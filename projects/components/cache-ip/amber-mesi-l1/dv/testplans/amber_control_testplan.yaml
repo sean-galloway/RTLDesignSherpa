@@ -17,8 +17,13 @@ test_files:
 # grant cycle per the amber_snoop_resp contract), serves CD beats from the
 # data array (pending-fill bypass hits read the fill way, gated per-beat by
 # pf_data_valid), and applies downgrades on port A inside the service.
-# Partner stubs (frontend/fill/drain/victim/snoop) model handshake timing
-# only (D-12), never protocol.
+# Victim buffer (Task 5): the dirty victim line is gathered over FILL_BEATS
+# data-array port-A read cycles into the depth-1 leaf amber_victim (DECISION
+# D-5: victim_load is the gather-complete strobe); a snoop for the victim
+# line while the drain is outstanding is answered at M with CD sourced from
+# the buffer (MAS ch02/05 bypass), and the buffer is never loaded while
+# busy. Partner stubs (frontend/fill/drain/victim/snoop) model handshake
+# timing only (D-12), never protocol.
 
 parameters:
   - name: SETS
@@ -244,13 +249,64 @@ scenarios:
     level: func
     what: >
       A snoop for the dirty victim while the drain is outstanding is
-      served from the staged line at the M state (SINK_WB_ACK; the victim
-      buffer still owns the data until the WB ack, gem5 .sm:1352/.sm:1357
-      -- mapping-notes divergence 5 contrast). Directed: dirty victim,
-      snoop mid-drain answers DT+PD with the exact victim content, no tag
-      write is applied (the victim retires at drain_done regardless), the
-      drain and fill proceed in order, and a refetch returns the drained
-      payload end to end.
+      served at the M state (SINK_WB_ACK; the victim buffer still owns
+      the data until the WB ack, gem5 .sm:1352/.sm:1357 -- mapping-notes
+      divergence 5 contrast). Directed: dirty victim, snoop mid-drain
+      answers DT+PD with the exact victim content, no tag write is
+      applied (the victim retires at drain_done regardless), the drain
+      and fill proceed in order, and a refetch returns the drained
+      payload end to end. Task 5 reroutes the CD source from the data
+      array to the amber_victim buffer (the content is identical while
+      the drain is outstanding; the source discrimination is pinned by
+      SnoopHitsVictimBypass).
+    status: covered
+  - name: VictimBufferHandshake
+    level: func
+    what: >
+      Cycle-exact leaf observation (amber_victim inside amber_control,
+      tapped hierarchically): valid sets the cycle after the victim_load
+      strobe (DECISION D-5 gather-complete pulse), busy/empty polarity,
+      the staged {addr, data} held stable through the drain window, clear
+      at drain_done. The EVERY-CYCLE invariant owns the exhaustive claim;
+      this directed test pins the window endpoints on one dirty-victim
+      eviction, and the generic slice scorer proves the dirty-victim
+      machinery (victim_load < drain_start < drain_done < fill_start).
+    status: covered
+  - name: SnoopHitsVictimBypass
+    level: func
+    what: >
+      Review Focus 3: the victim bypass serves CD from the BUFFER. The TB
+      poisons the victim way in the data array mid-drain through the raw
+      backdoor write port (tagged bd_wr so the generic fill-beat
+      accounting skips it), so array-sourced beats would mismatch the
+      staged content; the drain completes before the peer fill considers
+      data authoritative, and the refetch returns the drained payload.
+      (The MAS ch02 single-cycle victim_load erratum and the
+      victim_clear leaf-input addition are recorded in
+      amber_victim_testplan.yaml for Task 14.)
+    status: covered
+  - name: SnoopPriorityDuringGather
+    level: func
+    what: >
+      Review Focus 9: the multi-cycle victim gather on data-array port A
+      honors the snoop-priority stall rule. A snoop held from the
+      evicting accept through the gather is never granted mid-beat: the
+      per-cycle sample stream (amber_control_tb._snoop samples=...) shows
+      ready low in EVERY CTRL_MISS_VICTIM cycle and the grant landing in
+      CTRL_MISS_DRAIN after the victim_load strobe; the evicting
+      transaction then completes normally through the snoop detour.
+    status: covered
+  - name: VictimLoadWhileBusyNever
+    level: all
+    what: >
+      Review Focus 2: the depth-1 buffer is never loaded while busy. The
+      DUT-side guarantee is structural (single-outstanding: victim_load
+      only from CTRL_MISS_VICTIM of the one in-flight transaction; the
+      previous victim retired at drain_done) plus the leaf's
+      load-while-busy ignore; the EVERY-CYCLE invariant coroutine scores
+      each observable cycle (no load during valid, exact valid window,
+      addr/data stable while valid) across every scenario and the FULL
+      soak.
     status: covered
   - name: SnoopStaleVictimMidFill
     level: func
@@ -325,6 +381,17 @@ coverage_points:
     content: >
       Miss-path K-map cover wires {kmap_start_drain, kmap_start_fill,
       kmap_replay_now} evaluated in CTRL_MISS_VICTIM per the workbook axes.
+    covered: true
+  - line: 0
+    type: structural
+    content: >
+      Victim-buffer bypass mux: the CTRL_SNOOP reference-state resolution
+      is the priority chain pf match > stale victim (fill) > victim-buffer
+      match (M, CD sourced from victim_data, MAS ch02/05) > port-B tag
+      hit; the pf/stale terms are state-gated to MISS_FILL, the
+      victim-buffer term self-gates on victim_valid (high exactly across
+      the drain window), so the chain is mutually exclusive by
+      construction.
     covered: true
 
 gaps:
