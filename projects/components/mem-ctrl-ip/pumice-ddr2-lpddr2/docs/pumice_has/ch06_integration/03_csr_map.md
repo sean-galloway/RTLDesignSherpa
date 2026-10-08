@@ -263,7 +263,7 @@ drive the controller core.
 geometry (DFI_RATE, DRAM_BEAT_WIDTH, NUM_BANKS, ROW/COL width, BL) remains
 build-time — see §5.1.
 
-## Per-Bank Observation (0x080 – 0x0DF)
+## Per-Bank Observation (0x080 – 0x09F)
 
 Single-rank (rank 0), `NUM_BANKS = 8`. Each is a `regfile` of 8 word-wide
 registers striding by 4 bytes.
@@ -283,6 +283,68 @@ Until 2026-09-28 these were `sw = rw` with `onread = rclr`, which could never
 have worked — the field is `hw = w` and driven every cycle, so the hardware
 rewrites whatever a read clears.
 
+## Calibration / Training (0x0A0 – 0x0FF)
+
+LPDDR2 ZQ calibration and MRR DQ calibration, driven and harvested by
+`pumice_training_layer` (Ch 3.9). Both FUBs are inert for DDR2 builds, so every
+register in this block reads its reset (or holds zero) when `memtype == DDR2`.
+
+### `CAL_CTRL` (0x0A0, R/W)
+
+| Bits  | Field            | Reset | Description                                             |
+|-------|------------------|-------|---------------------------------------------------------|
+| 0     | `zq_en`          | 0     | Enable periodic ZQCS/ZQCL                                |
+| 1     | `zq_defer_en`    | 0     | Mode-C deferral: hold ZQ under demand (see Ch 3.9 — the ZQ FUB's `demand_i` is tied off in the current integration, so this is dormant until the sideband lands) |
+| 3:2   | `RSVD_3_2`       | 0     | Reserved                                                 |
+| 4     | `cal_start`      | 0     | Write 1 to start a DQ-cal sequence (self-clearing strobe) |
+| 5     | `cal_abort`      | 0     | Write 1 to abort the current DQ-cal sequence             |
+| 15:6  | `RSVD_15_6`      | 0     | Reserved                                                 |
+| 28:16 | `zq_overdue_max` | 0     | Max ZQ deferral cycles before overdue (0 = no cap)       |
+| 31:29 | `RSVD_31_29`     | 0     | Reserved                                                 |
+
+### `CAL_ZQ_INTERVAL` (0x0A4, R/W)
+
+`VAL[31:0]`, reset 0. ZQCS interval in MC cycles; 0 disables periodic ZQ.
+
+### `CAL_ZQ_TIMING` (0x0A8, R/W)
+
+| Bits  | Field    | Reset | Description                                          |
+|-------|----------|-------|------------------------------------------------------|
+| 15:0  | `t_zqcs` | 0     | Post-grant bus-quiet hold for ZQCS (MC cycles)       |
+| 31:16 | `t_zqcl` | 0     | Post-grant bus-quiet hold for ZQCL (MC cycles)       |
+
+### `CAL_TRAIN_TIMING` (0x0AC, R/W)
+
+| Bits  | Field       | Reset | Description                                       |
+|-------|-------------|-------|---------------------------------------------------|
+| 15:0  | `t_mrr`     | 0x2   | MRR-to-MRR spacing, MC cycles (JEDEC tMRR = 2)    |
+| 31:16 | `t_readout` | 0     | MRR issue → captured-data timeout                 |
+
+### `CAL_MRR32_DATA[0..3]` (0x0B0 + N×4, R only)
+
+First captured DFI read-data beat for MRR MR32 (DQ-cal pattern A). Four 32-bit
+slices of the full DFI read width (128 bits at the default geometry); `hw = w`,
+harvested from `pumice_lp_cal`. Held until the next `cal_start` run captures a
+new beat.
+
+### `CAL_MRR40_DATA[0..3]` (0x0E0 + N×4, R only)
+
+First captured DFI read-data beat for MRR MR40 (DQ-cal pattern B). Same layout
+as `CAL_MRR32_DATA`. The array starts at 0x0E0 because the retired 0x0C0–0x0DC
+hole below is never reused.
+
+### `CAL_STATUS` (0x0F0, R only)
+
+| Bits  | Field        | Description                                                   |
+|-------|--------------|---------------------------------------------------------------|
+| 0     | `zq_busy`    | ZQ calibration busy (post-grant hold window)                  |
+| 1     | `cal_busy`   | DQ calibration busy (sequence in progress)                    |
+| 2     | `cal_done`   | DQ calibration done — sticky, cleared only by soft reset      |
+| 3     | `cal_err`    | DQ calibration readout timeout — sticky, cleared by soft reset |
+| 4     | `zq_overdue` | ZQ interval expired without grant (see the `demand_i` note above) |
+| 15:5  | `RSVD_15_5`  | Reserved                                                      |
+| 31:16 | `zqcs_total` | ZQCS/ZQCL commands issued since reset                         |
+
 ## Retired observation registers (0x0C0 – 0x1E0)
 
 Twenty-seven `OBS_*` registers were removed on 2026-09-28. They were in the
@@ -290,7 +352,8 @@ register map, in this book and in the generated docs, and **nothing drove them**
 `pumice_top` carried no `hwif_in.OBS_*` assignment, so every one read zero
 forever. A 99.4%-row-hit board workload reporting zero hits is what finally
 surfaced it (pumice BUG-020). Their addresses are left as holes so the rest of
-the map does not shift.
+the map does not shift; the calibration registers above were allocated around
+them (0x0B0–0x0BC before the hole, 0x0E0 / 0x0F0 after it), never through it.
 
 | Range | Was | Why it went |
 |-------|-----|-------------|

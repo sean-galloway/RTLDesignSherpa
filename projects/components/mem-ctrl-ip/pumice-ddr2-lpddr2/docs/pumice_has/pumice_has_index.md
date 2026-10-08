@@ -23,8 +23,8 @@
 
 # DDR2 / LPDDR2 Family Controller Hardware Architecture Specification Index
 
-**Version:** 0.4
-**Date:** 2026-07-12
+**Version:** 0.9
+**Date:** 2026-10-08
 **Purpose:** High-level hardware architecture specification for the unified DDR2 / LPDDR2 memory controller family
 
 > **Note (v0.4):** This revision reconciles the spec with the rearchitected RTL. The
@@ -36,6 +36,14 @@
 > `global_timers`, `dfi_cmd_formatter`, and the arbiter's inline open-page logic.
 > Address mapping is now the single `ADDR_MAP.bank_lsb` knob (the 3-scheme selector is
 > retired); LPDDR2 is fully functional. See [FUB Breakdown](ch02_overview/05_fub_breakdown.md).
+
+> **Note (v0.9):** The core gained its fourth layer, `pumice_training_layer`
+> (LPDDR2 ZQ calibration, MRR-based DQ calibration, and the maintenance
+> arbitration that carries both) — see
+> [Training Layer](ch03_architecture/09_training.md). The core under
+> `pumice_core` is therefore `pumice_axi4_layer` + `pumice_scheduler_layer` +
+> `pumice_training_layer` + `pumice_dfi_layer`; the DFI pin bus and the
+> host AXI interface are unchanged.
 
 ---
 
@@ -71,6 +79,7 @@
 - [DFI v2.1 Output Pipeline (`dfi_cmd_formatter`, `dfi_signal_pack`)](ch03_architecture/06_encoder_output.md)
 - [Write / Read Data Paths (CAMs + DFI serializer/aligner)](ch03_architecture/07_data_paths.md)
 - [DFI v2.1 Layer and CSR (`pumice_dfi_layer`, `pumice_csr`)](ch03_architecture/08_dfi_csr.md)
+- [Training Layer (`pumice_training_layer`, `pumice_zq_ctrl`, `pumice_lp_cal`) — LPDDR2](ch03_architecture/09_training.md)
 
 ### Chapter 4: Interfaces
 

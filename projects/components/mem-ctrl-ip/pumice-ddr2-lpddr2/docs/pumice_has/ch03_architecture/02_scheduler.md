@@ -23,7 +23,7 @@
 
 # Command Scheduler
 
-The command-scheduling layer is `pumice_scheduler_layer` (`rtl/macro/pumice_scheduler_layer.sv`). It is a single controller-clock (`aclk`) layer that wires together the pick core and all the timing / bring-up support blocks, and emits one abstract DRAM command stream `{op, rank, bank, row, col, ap}` into a command FIFO for the DFI layer to pack onto phases.
+The command-scheduling layer is `pumice_scheduler_layer` (`rtl/macro/pumice_scheduler_layer.sv`). It is a single controller-clock (`aclk`) layer that wires together the pick core and all the timing / bring-up support blocks, and emits one abstract DRAM command stream `{op, rank, bank, row, col, ap, mrr}` into a command FIFO for the DFI layer to pack onto phases.
 
 The scheduler does **not** hold the transaction queue — pending requests live in the two CAMs inside `pumice_axi4_layer`. The scheduler reads them through external lookup / oldest / commit / issue ports.
 
@@ -51,10 +51,11 @@ Pick exactly one abstract DRAM command per cycle and push it into the scheduler-
 - Global readiness from `global_timers`: `tfaw_ok`, `trrd_ok` (per-rank), `twtr_ok`, `trtw_ok`, `tccd_ok`.
 - Per-bank scheduler lookups into both CAMs (query each bank's open row), plus the CAMs' `oldest` ports.
 - Refresh request / drain from `refresh_ctrl`; init command passthrough from `init_sequencer`.
+- Training maintenance request `trn_cmd_*` from `pumice_training_layer`, plus its post-grant bus-quiet hold `cal_busy_i` (see `09_training.md`).
 
 ### Outputs
 
-- Command push `{op, rank, bank, row, col, ap}` with `cmd_valid` / `cmd_ready`.
+- Command push `{op, rank, bank, row, col, ap, mrr}` with `cmd_valid` / `cmd_ready`.
 - Event strobes to the timers (`evt_act`, `evt_rd`, `evt_wr`, `evt_pre`, `evt_ap`, `evt_rank`, `evt_bank`, `evt_row`) — fired only on an accepted issue.
 - CAM side effects: write-CAM commit, read-CAM issue, refresh grant — all gated on accepted issue.
 
@@ -66,8 +67,9 @@ Evaluated combinationally each cycle (descending priority):
 
 1. **Init in progress** (`!init_done`) — forward the `init_sequencer` command verbatim; block all normal traffic.
 2. **Refresh** (`refresh_req` or drain active) — precharge active banks one per cycle, then — only under `w_ref_safe` (all rows closed in the registered view, nothing row-affecting in flight or guarded, prior REF's tRFC recovery elapsed) — issue `REF` and assert the refresh grant. Each fired REF loads the arbiter's tRFC down-counter (`TIMINGS_RFC_REFI.tRFC`); while non-zero, ACTs and further REFs are blocked.
-3. **Column row-hit** — a `RD`/`WR` to an already-open row whose bank is column-ready (`bank_rdwr_ready`) and whose bus turnaround permits it (`tccd_ok` + `twtr_ok` for reads / `trtw_ok` for writes). **Reads have priority over writes**; within each, the **oldest** entry (max CAM relative age) wins the tie-break.
-4. **Fallback** — no ready row-hit: `ACT` the oldest pending op's row on an idle bank (subject to `tfaw_ok` / `trrd_ok` and the ACT/PRE guard), or `PRE` a bank that is open on the wrong row.
+3. **Training** (`trn_cmd_req` from the training layer) — only under `w_trn_safe` (every bank idle, nothing row-affecting in flight or guarded, tRFC elapsed, no grant in flight); the op passes through verbatim and `trn_cmd_grant` pulses on the fire. During the FUBs' post-grant hold (`cal_busy`), every demand class below is gated off in `w_out_safe`.
+4. **Column row-hit** — a `RD`/`WR` to an already-open row whose bank is column-ready (`bank_rdwr_ready`) and whose bus turnaround permits it (`tccd_ok` + `twtr_ok` for reads / `trtw_ok` for writes). **Reads have priority over writes**; within each, the **oldest** entry (max CAM relative age) wins the tie-break.
+5. **Fallback** — no ready row-hit: `ACT` the oldest pending op's row on an idle bank (subject to `tfaw_ok` / `trrd_ok` and the ACT/PRE guard), or `PRE` a bank that is open on the wrong row.
 
 The fallback target is read-priority: the read CAM's `oldest` port is consulted first, then the write CAM's.
 

@@ -33,7 +33,7 @@ Translate the scheduler's chosen `dram_op_e` plus `(rank, bank, row, col)` into 
 
 ### Input
 
-The command arrives on `cmd_valid_i` / `cmd_ready_o` (always ready) with `cmd_op_i` (`dram_op_e`), `cmd_rank_i`, `cmd_bank_i`, `cmd_row_i`, `cmd_col_i`, `cmd_len_i`, and the runtime phase-placement knobs `rd_phase_i` / `wr_phase_i`.
+The command arrives on `cmd_valid_i` / `cmd_ready_o` (always ready) with `cmd_op_i` (`dram_op_e`), `cmd_rank_i`, `cmd_bank_i`, `cmd_row_i`, `cmd_col_i`, `cmd_len_i`, `cmd_mrr_i` (MRR vs MRW select on the LPDDR2 `OP_MRS` CA word), and the runtime phase-placement knobs `rd_phase_i` / `wr_phase_i`.
 
 ### Multi-Phase Output
 
@@ -68,9 +68,11 @@ The auto-precharge / all-bank bit is A10. MRS data rides `cmd_row_i` (ROW_WIDTH)
 
 For LPDDR2 the command rides the multiplexed 10-bit CA bus over 2 edges, packed as a flat 20-bit word carried on `dfi_address` (low bits); `ras_n`/`cas_n`/`we_n` stay idle and `cs_n` asserts for the target rank. The two CA edges are already inside the word, so there is no per-DFI-phase command placement.
 
-The CA word is built **bit-exact to JESD209-2F Table 60**, matching the DV BFM's `lpddr_ca` encoder. Layout: `w_lpddr2_ca[i] = CA{i}` rising edge (i = 0..9), `w_lpddr2_ca[10+i] = CA{i}` falling edge. Encoded commands include ACT, RD/RDA, WR/WRA, PRE, PREA, REF (all-bank), REFPB (per-bank), and MRW; NOP/Deselect drives CA0r..CA3r high. Column bit C0 is implied 0 and never transmitted; the auto-precharge flag lands on CA0f. The transcription reference is `docs/uarch/LPDDR2_CA_ENCODING.md`.
+The CA word is built **bit-exact to JESD209-2F Table 60**, matching the DV BFM's `lpddr_ca` encoder. Layout: `w_lpddr2_ca[i] = CA{i}` rising edge (i = 0..9), `w_lpddr2_ca[10+i] = CA{i}` falling edge. Encoded commands include ACT, RD/RDA, WR/WRA, PRE, PREA, REF (all-bank), REFPB (per-bank), MRW, and MRR; NOP/Deselect drives CA0r..CA3r high. Column bit C0 is implied 0 and never transmitted; the auto-precharge flag lands on CA0f. The transcription reference is `docs/uarch/LPDDR2_CA_ENCODING.md`.
 
 For MRW, `MA0..MA5` map to `CA4r..CA9r`, `MA6/MA7` to `CA0f/CA1f`, and `OP0..OP7` to `CA2f..CA9f`. The init sequencer supplies the full MR index by packing `{MA[5:0], OP[7:0]}` into the ROW field, so MR10/MR63 are reachable.
+
+MRR rides the same `OP_MRS` branch as a mode: `cmd_mrr_i` drives CA3r (`1` for MRR, `0` for MRW), so MRR is MRW with CA3r inverted, bit-exact to JESD209-2F §5.12 — the MA select field packing is unchanged and the OP field is don't-care-zero for MRR. LPDDR2 has no ZQCS/ZQCL opcodes, so those stay on the default NOP branch: ZQ calibration is pure MRW (see `09_training.md`).
 
 > Note: the module's top-of-file header comment still carries a stale "LPDDR2 (TODO)" line from an earlier revision. The body implements the full bit-exact CA encoding above; LPDDR2 reads and writes are functional and pass the sim suite.
 

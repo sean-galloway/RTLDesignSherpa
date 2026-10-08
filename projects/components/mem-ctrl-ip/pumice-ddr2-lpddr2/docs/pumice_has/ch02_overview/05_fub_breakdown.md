@@ -24,7 +24,7 @@
 # FUB Breakdown
 
 This section documents the **actual** Functional Unit Block decomposition as
-implemented in the rearchitected RTL: three integration layers under
+implemented in the rearchitected RTL: four integration layers under
 `pumice_core`, each built from leaf FUBs, driven by a PeakRDL CSR block in
 `pumice_top`.
 
@@ -38,7 +38,7 @@ pumice/
 ├── dv/                        # cocotb tests, BFM glue, tbclasses
 └── rtl/
     ├── top/                   # pumice_top, pumice_core, pumice_top_geared
-    ├── macro/                 # the three layer macros + pumice_csr.rdl + generated/
+    ├── macro/                 # the four layer macros + pumice_csr.rdl + generated/
     ├── fub/                   # leaf FUBs (this section)
     ├── includes/              # shared `defines, package files (pumice_pkg)
     └── filelists/
@@ -53,7 +53,7 @@ a filelist under `filelists/fub/`, and a cocotb testbench under `dv/tests/`.
 ## Layer Hierarchy
 
 `pumice_top` instantiates the PeakRDL `pumice_csr` block (config by name) and
-`pumice_core`, which wires the three layers:
+`pumice_core`, which wires the four layers:
 
 ```
 pumice_top                                (CSR block + core)
@@ -71,8 +71,11 @@ pumice_top                                (CSR block + core)
     │   ├── refresh_ctrl                       tREFI postponer, REFab/REFpb dispatch
     │   ├── init_sequencer                     DDR2 + LPDDR2 JEDEC MR init
     │   └── mode_register                      MR shadow -> live CL/CWL/BL/AL
-    └── pumice_dfi_layer                       ("single CDC + DFI v2.1 datapath")
-        ├── pumice_dfi_cdc                     the ONE clock crossing (async gaxi FIFOs)
+    ├── pumice_training_layer                ("LPDDR2 ZQ + DQ calibration; inert for DDR2")
+    │   ├── pumice_zq_ctrl                     periodic ZQCS/ZQCL as MRW(MR10) maintenance
+    │   └── pumice_lp_cal                      one-shot MRR MR32/MR40 DQ calibration
+    └── pumice_dfi_layer                       ("single datapath CDC + DFI v2.1 datapath")
+        ├── pumice_dfi_cdc                     the ONE datapath crossing (async gaxi FIFOs)
         ├── pumice_dfi_cmd_path                unpack cmd, drive DFI via dfi_cmd_formatter
         │       (uses dfi_cmd_formatter + dfi_signal_pack)
         ├── pumice_dfi_wr_serializer           commit-drain WR CAM -> dfi_wrdata + mask
@@ -182,6 +185,42 @@ Also present but not in the default top build: `page_predictor` and
 - **Key params**: `NUM_RANKS`, `MAX_MR_IDX` (17; covers DDR2 MR0..3 and LPDDR2
   MR0..16).
 
+### `pumice_training_layer`
+
+#### `pumice_zq_ctrl`
+- **Purpose**: Periodic ZQ calibration for LPDDR2 as maintenance traffic.
+  LPDDR2 has no ZQCS/ZQCL command — both are MRW to MR10 (OP `0x56`/`0xAB`) —
+  so the FUB only raises requests and holds the post-grant bus-quiet window
+  (`t_zqcs`/`t_zqcl`); the arbiter emits the MRW verbatim. Interval countdown,
+  Mode-C defer-under-demand with overdue escalation to ZQCL, `zqcs_total` /
+  `zq_overdue` telemetry.
+- **Run gating**: `zq_en && init_done && memtype == MEMTYPE_LPDDR2 && interval != 0`.
+  Inert for DDR2 (no ZQ pin).
+- **Runtime inputs**: `zq_interval_i`, `t_zqcs_i`, `t_zqcl_i`, `zq_defer_en_i`,
+  `zq_overdue_max_i` (the CAL_* CSRs).
+
+#### `pumice_lp_cal`
+- **Purpose**: One-shot DQ-calibration sequencer. On `cal_start`: wait for the
+  maintenance grant, issue MRR to MR32 (pattern A), capture the first
+  `dfi_rddata_valid` beat via the read aligner's cal sideband, wait `t_mrr`,
+  repeat for MR40 (pattern B), set sticky `cal_done`. Sticky `cal_err` on
+  `t_readout` timeout; `cal_abort` cancels. The DQ-vs-tap sweep itself lives in
+  firmware — this is the interface, not the search.
+- **Run gating**: `init_done && memtype == MEMTYPE_LPDDR2`. Inert for DDR2 (no
+  MRR).
+- **Runtime inputs**: `t_mrr_i`, `t_readout_i` (`CAL_TRAIN_TIMING`).
+- **Notable**: the layer ties the ZQ FUB's `demand_i` to `1'b0` pending a
+  scheduler demand sideband, so Mode-C deferral is implemented and FUB-tested
+  but dormant in the current integration.
+
+#### `pumice_training_layer` (the macro itself)
+- **Purpose**: Holds the two FUBs, arbitrates them one-active onto the single
+  `trn_cmd_*` maintenance channel into the scheduler's arbiter (ZQ > lp_cal),
+  and owns the `mc_clk` ↔ `dfi_clk` CDC for the calibration sideband
+  (`sync_pulse` / `cdc_synchronizer`).
+- **See**: Ch 3.9 for the full behavioral description, the MRR command path,
+  and the arbitration policy.
+
 ### `pumice_dfi_layer`
 
 #### `pumice_dfi_cdc`
@@ -213,6 +252,9 @@ Also present but not in the default top build: `page_predictor` and
 #### `pumice_dfi_rd_aligner`
 - **Purpose**: Drives `dfi_rddata_en` `t_rddata_en` cycles after a READ command;
   captures `dfi_rddata` beats; return-fills them into `pumice_rd_cmd_cam`.
+  Also hosts the calibration capture sideband (`cal_expect_i` arm, first-valid
+  beat captured to `cal_data_o`, `cal_valid_o` pulse) used by the training
+  layer's MRR DQ calibration.
 - **Runtime inputs**: `t_rddata_en_i`, `t_phy_wrlat_i`, `rd_phase_i`,
   `wr_phase_i`.
 
@@ -253,7 +295,7 @@ the current architecture.
 
 ## Integration
 
-The three layer macros are structural wiring; behavioral logic lives in the
+The four layer macros are structural wiring; behavioral logic lives in the
 leaf FUBs. The principal wiring concerns:
 
 1. **Arbiter ↔ timing fan-out**: `pumice_bank_timers` exposes per-(rank,bank)
@@ -262,5 +304,8 @@ leaf FUBs. The principal wiring concerns:
 2. **CAM ↔ DFI-datapath coupling**: `pumice_wr_data_cam`'s commit-drain feeds
    `pumice_dfi_wr_serializer`; `pumice_dfi_rd_aligner`'s return-fill advances
    `pumice_rd_cmd_cam`.
-3. **The single CDC**: everything up to `pumice_dfi_cdc` is on `aclk`; the
-   command path, serializer, and aligner are on `dfi_clk`.
+3. **The single datapath CDC**: everything up to `pumice_dfi_cdc` is on `aclk`;
+   the command path, serializer, and aligner are on `dfi_clk`. The training
+   layer's calibration sideband crosses the same boundary separately
+   (`cal_expect` down, captured MRR data up) — narrow, FIFO-less, no datapath
+   traffic.

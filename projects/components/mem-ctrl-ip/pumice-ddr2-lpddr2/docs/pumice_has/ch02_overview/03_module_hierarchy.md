@@ -23,7 +23,7 @@
 
 # Module Hierarchy
 
-The controller is decomposed into **three layers under `pumice_core`**, each
+The controller is decomposed into **four layers under `pumice_core`**, each
 built from leaf FUBs. Each FUB is independently verified at the unit level;
 each layer is verified as an integration ("macro") unit. See
 [FUB Breakdown](05_fub_breakdown.md) for the per-FUB role descriptions and
@@ -46,12 +46,16 @@ SoC level
         └── pumice_core          ← the controller proper
             ├── pumice_axi4_layer          ← host AXI + wr/rd CAMs
             ├── pumice_scheduler_layer ← "what command to issue this cycle"
-            └── pumice_dfi_layer         ← single CDC + DFI v2.1 datapath
+            ├── pumice_training_layer  ← LPDDR2 ZQ + DQ calibration (inert for DDR2)
+            └── pumice_dfi_layer         ← single datapath CDC + DFI v2.1 datapath
 ```
 
-The single controller-to-PHY clock crossing lives inside `pumice_dfi_layer`
-(`pumice_dfi_cdc`, async FIFOs only). The host AXI interface, CAMs, and
-command scheduler all run on `aclk`; the DFI command path, write serializer,
+The single controller-to-PHY clock crossing for the datapaths lives inside
+`pumice_dfi_layer` (`pumice_dfi_cdc`, async FIFOs only). The training layer owns
+one small sideband crossing of its own (`cal_expect` down, captured MRR data up)
+for the read aligner's calibration capture — see
+[Training](../ch03_architecture/09_training.md). The host AXI interface, CAMs,
+and command scheduler all run on `aclk`; the DFI command path, write serializer,
 and read aligner run on `dfi_clk`.
 
 ## Layer Groupings
@@ -60,8 +64,9 @@ and read aligner run on `dfi_clk`.
 |--------------------------------|----------------------------------------------------------------------------------------------------------------------------|
 | `pumice_axi4_layer`              | `pumice_wr_intake`, `pumice_rd_intake`, `addr_mapper`, `pumice_wr_data_cam`, `pumice_rd_cmd_cam`                            |
 | `pumice_scheduler_layer`     | `pumice_cmd_arbiter`, `pumice_bank_timers` (`bank_timer`), `global_timers`, `refresh_ctrl`, `init_sequencer`, `mode_register` |
+| `pumice_training_layer`      | `pumice_zq_ctrl` (periodic ZQ calibration), `pumice_lp_cal` (one-shot MRR DQ calibration)                                  |
 | `pumice_dfi_layer`             | `pumice_dfi_cdc`, `pumice_dfi_cmd_path` (`dfi_cmd_formatter`, `dfi_signal_pack`), `pumice_dfi_wr_serializer`, `pumice_dfi_rd_aligner` |
-| `pumice_core`                  | (wraps the three layers above)                                                                                             |
+| `pumice_core`                  | (wraps the four layers above)                                                                                              |
 
 Also present in the tree but not in the default top build: `page_predictor`
 and `powerdown_ctrl` (referenced / optional; verify against the filelists in
@@ -79,15 +84,22 @@ not an elaboration parameter. The memtype-dependent logic lives in:
   packs the 10-bit JESD209-2F CA-bus command (two edges) onto `dfi_address`.
 - **`init_sequencer`** — runs the DDR2 or LPDDR2 JEDEC MR/init sequence.
 - **`mode_register`** — CL / CWL / BL / AL decode differs by memtype.
+- **`pumice_training_layer`** — both FUBs gate on `memtype == MEMTYPE_LPDDR2`;
+  DDR2 has no ZQ pin and no MRR, so the layer is inert for DDR2 builds.
 
 Both memtypes pass the full simulation suite.
 
-## Single Clock-Domain Crossing
+## Clock-Domain Crossings
 
-The design has exactly one clock-domain crossing: `pumice_dfi_cdc` inside
+The datapath clock-domain crossing is exactly one: `pumice_dfi_cdc` inside
 `pumice_dfi_layer`, built from asynchronous gaxi FIFOs. One FIFO word is one
 DFI cycle, so the command / write-data / read-data datapaths are bubble-free.
 Everything up to the CDC is on `aclk`; everything past it is on `dfi_clk`.
+
+The training layer adds one narrow sideband crossing (`sync_pulse` /
+`cdc_synchronizer`, not FIFOs): `cal_expect` down to `dfi_clk` to arm the read
+aligner's calibration capture, and the captured MRR beat back up to `aclk`.
+It carries no datapath traffic — see Chapter 3.9.
 
 ## What Changed vs the Earlier Architecture
 

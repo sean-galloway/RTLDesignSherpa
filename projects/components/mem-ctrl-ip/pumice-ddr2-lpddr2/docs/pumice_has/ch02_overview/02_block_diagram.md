@@ -30,12 +30,15 @@ enters at top-left into `pumice_axi4_layer`, which maps addresses and pushes
 per-direction records into its two CAMs (`pumice_wr_data_cam`,
 `pumice_rd_cmd_cam`). The `pumice_scheduler_layer` layer queries the CAMs
 each cycle and picks the next abstract command (`pumice_cmd_arbiter` against
-the bank and global timers). The `pumice_dfi_layer` crosses the single
+the bank and global timers). The `pumice_training_layer` (not drawn) raises
+LPDDR2 ZQ / DQ-calibration maintenance commands on a dedicated `trn_cmd_*`
+channel into the arbiter and owns the calibration read-capture sideband into
+the DFI layer (Ch 3.9). The `pumice_dfi_layer` crosses the single
 controller-to-PHY clock boundary (`pumice_dfi_cdc`) and formats the chosen
 command into DFI v2.1 wires (`dfi_cmd_formatter` / `dfi_signal_pack`), while
 its write serializer and read aligner move write beats out and return read
 beats in alignment with the scheduled commands. `pumice_top` instantiates
-`pumice_core` (these three layers) plus the PeakRDL `pumice_csr` block that
+`pumice_core` (these four layers) plus the PeakRDL `pumice_csr` block that
 drives all configuration by name.
 
 ![Top-Level Block Diagram](../assets/mermaid/01_block_diagram.png)
