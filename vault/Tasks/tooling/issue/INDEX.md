@@ -12,24 +12,22 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 2 | done (kept for history) |
+| [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-003** — cocotb-framework 1.0.0: external dependency major rev; IRQ BFM promoted into
-  the package, breaking `TBClasses.irq` imports outside this repo. Advisory/tracking; closes as a
-  recorded no-action once local venvs sync past 1.0.0.
-
-- **ISSUE-002** — task areas are named two ways for sibling IPs: `vault/Tasks/pumice-ddr2-lpddr2/`
-  (top level, codename) vs `vault/Tasks/scoria-ddr3-lpddr3/` (nested,
-  protocol name), so a new component area has no way to tell which is intended.
-  Cheapest to settle now, while scoria and andesite hold two items between them.
+None.
 
 ## Closed
+
+- **ISSUE-003** — CLOSED (recorded no-action, 2026-10-08): cocotb-framework major-rev
+  advisory fully absorbed — package at 1.2.1 (IRQ BFM promotion intact), the carried
+  `cocotb-coverage<2` gap lifted and validated under TASK-029, and the shared-venv
+  flip removes the last pre-1.0.0 venv. Owner-confirmed closure.
 
 - **ISSUE-002** — CLOSED: the compound `<codename>-<protocols>` form is the
   directory name at every level (component dir, task area, knowledge mirror). All

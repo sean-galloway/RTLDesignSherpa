@@ -1,9 +1,10 @@
 # ISSUE-003: cocotb-framework 1.0.0 — external dependency major rev; IRQ BFM promoted into the package
 
 **Priority:** P2
-**Status:** open
+**Status:** closed (recorded no-action, owner-confirmed 2026-10-08)
 **Owner:** TBD
 **Filed:** 2026-10-04
+**Closed:** 2026-10-08
 **Refs:** RTLDesignSherpa-DV release `v1.0.0`; RDS commits `3fcff894e`, `a144e8b1d`; tooling TASK-025
 
 ## What changed
@@ -67,3 +68,19 @@ in the RLB suite.
 - `cocotb-coverage` remains capped `<2` (2.0 untested).
 - The amba-only residue from the first 2.x matrix (28 `.name`, 8
   child-object cases) was deferred per the BKM coverage-set scoping.
+
+## Closure (2026-10-08)
+
+Recorded no-action, owner-confirmed. Everything this advisory tracked has
+shipped and been absorbed:
+
+- Framework is at **1.2.1** on PyPI (IRQ BFM promotion intact, RLB consumer
+  switched, docs + 16 unit tests in the package).
+- The carried `cocotb-coverage<2` gap is resolved: cap lifted in the 1.2.0/1.2.1
+  line and cocotb-coverage 2.0 validated under cocotb 2.1.0 (TASK-029).
+- The shared-venv flip (TASK-029 runbook, morning of 2026-10-08) rebuilds the
+  last venv past 1.0.0 — the stale-venv telltale
+  (`ModuleNotFoundError: CocoTBFramework.components.irq`) no longer reachable
+  from any house venv.
+
+No remaining code work, as predicted in "What would close this".
