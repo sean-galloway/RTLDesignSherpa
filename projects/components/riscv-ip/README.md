@@ -23,7 +23,7 @@
 
 # RISC-V Falcon Suite
 
-Four independent, clean-slate RISC-V cores whose primary product is
+Five independent, clean-slate RISC-V cores whose primary product is
 **education**, in the same spirit as the
 [pumice/scoria/andesite memory-controller line](../mem-ctrl-ip/README.md).
 Each rung is a complete, verified, documented design small enough to hold
@@ -38,11 +38,14 @@ Design spec (source of truth for scope, ISA, verification, packaging):
 
 ## The ladder
 
-Each rung carries a falcon-codename (species in strict size order,
-tracking complexity). The codename is the RTL identifier prefix and the
-module/package prefix; the DIRECTORY is the compound `<codename>-<isa>`
-form — `kestrel-rv32i`, not `kestrel`. The bare codename is how the core
-is referred to in prose ("kestrel sees the whole machine in one cycle").
+Each rung carries a raptor-codename, real falcons first (species in strict
+size order, tracking complexity). The falcon run ends at gyrfalcon — the
+largest living species — so the top rung steps deliberately to mythology:
+garuda, the giant divine raptor, king of birds, one past the largest falcon.
+The codename is the RTL identifier prefix and the module/package prefix;
+the DIRECTORY is the compound `<codename>-<isa>` form — `kestrel-rv32i`,
+not `kestrel`. The bare codename is how the core is referred to in prose
+("kestrel sees the whole machine in one cycle").
 
 | Directory | Codename | ISA | Microarchitecture | Status |
 |---|---|---|---|---|
@@ -50,6 +53,7 @@ is referred to in prose ("kestrel sees the whole machine in one cycle").
 | [`merlin-rv32i/`](merlin-rv32i/) | **merlin** | RV32I | 5-stage in-order pipeline | Planned; structure only |
 | [`peregrine-rv32im/`](peregrine-rv32im/) | **peregrine** | RV32IM | advanced in-order: predictor, traps, L1 caches, AXI master | Planned; structure only |
 | [`gyrfalcon-rv32im/`](gyrfalcon-rv32im/) | **gyrfalcon** | RV32IM | out-of-order capstone: rename, ROB, reservation stations | Planned; structure only |
+| [`garuda-rv32imf/`](garuda-rv32imf/) | **garuda** | RV32IMF | gyrfalcon's OoO plus an FPU: FP register file + rename, fcsr precise flags, non-pipelined long-latency units | Planned; structure only (penciled in; beyond the 2026-10-06 design spec, which pins four rungs) |
 
 ## Goals per rung
 
@@ -85,6 +89,18 @@ wakeup/select over common data buses, speculative dispatch with
 checkpoint-restore rename rollback. **Delivers:** register renaming and
 WAR/WAW elimination, the ROB as an undo log, out-of-order completion with
 in-order retirement — the honest, complete OOO story.
+
+**garuda — float it.** The RV32IMF delta on gyrfalcon's OoO: a 32-entry
+FP register file with its own rename, an `fcsr` whose five accrued
+exception flags (NV/DZ/OF/UF/NX) stay precise-exception-clean through the
+ROB, and the repo's ieee754 fp32 arithmetic behind the reservation
+stations — multi-cycle FMUL/FADD and the non-pipelined Goldschmidt FDIV /
+Newton-rsqrt FSQRT (9–11 cycle class) as the long-latency-unit lesson.
+Rounding hard-wired RNE; any other requested mode raises NV, keeping the
+CSR story honest without a dynamic rounding-mode datapath. **Delivers:**
+long-latency execution scheduling, FP architectural state, and the F-extension
+ISA delta (F regs, `fcsr`, FMV/FCVT/FSGNJ/FCLASS) — consuming the math
+library's `math_ieee754_2008_fp32_*` blocks end-to-end.
 
 ## Packaging (per rung, the MC-line treatment)
 
