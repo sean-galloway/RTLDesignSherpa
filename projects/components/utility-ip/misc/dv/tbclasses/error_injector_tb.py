@@ -57,6 +57,7 @@ class ErrorInjectorModel:
         self.bad = False
         self.rate_eff = 0
         self.dbg_base = 0
+        self.dbg_hold = 0
         self.seed_load(seed)
 
     def seed_load(self, seed):
@@ -131,7 +132,12 @@ class ErrorInjectorModel:
             self.bad = (xa0 & 0xFFFF) < len_min
             self.rate_eff = len_max if self.bad else rate
         elif mode == 7:  # DEBUG
+            # Mirror the RTL's r_a_dbghold/r_dbg_base pair (issue #87): the
+            # block decides against the pre-advance base and the live base
+            # walks on, so block b hits (b*step + j) mod N per the mode's
+            # spec -- the hold, not the advanced register.
             step = rate % self.N
+            self.dbg_hold = self.dbg_base
             self.dbg_base = (self.dbg_base + step) % self.N
 
     def process_beat(self, data, keep, last, mode, count=0, rate=0,
@@ -241,7 +247,7 @@ class ErrorInjectorModel:
                 if not (keep >> u) & 1:
                     continue
                 pos_u = self.pos + u
-                dpos = (pos_u - self.dbg_base) if pos_u >= self.dbg_base else (pos_u + self.N - self.dbg_base)
+                dpos = (pos_u - self.dbg_hold) if pos_u >= self.dbg_hold else (pos_u + self.N - self.dbg_hold)
                 hit = dpos < count
                 if hit:
                     out_data ^= ((self._val(u, r16[u]) & ((1 << self.M) - 1)) << (u * self.M))
@@ -701,9 +707,9 @@ class ErrorInjectorTB(TBBase):
                     expected = set()
                     base = self.model.dbg_base
                     for b in range(n_blocks):
-                        base = (base + step) % self.N
                         for j in range(min(count, self.N)):
                             expected.add((base + j) % self.N)
+                        base = (base + step) % self.N
                     predicted_set = set()
                     total_hits = 0
                     for b in range(n_blocks):
