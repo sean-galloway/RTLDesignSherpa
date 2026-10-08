@@ -1,0 +1,92 @@
+# Testplan for amber_pending_fill_bypass (pending-fill / load-miss bypass
+# register, MAS ch02_blocks/02). The leaf is integrated inside
+# amber_control (loaded in CTRL_MISS_FILL, cleared in CTRL_FILL_WRITE,
+# per-beat updates from the fill-beat interface) and is exercised through
+# the amber_control suite; Task 13 proves it standalone (formal). The
+# integration scenarios below name where each contract point is pinned.
+
+module: amber_pending_fill_bypass
+rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_pending_fill_bypass.sv
+test_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_control.py
+
+# Contract: MAS ch02_blocks/02. Fields pf_addr / pf_state /
+# pf_data_valid[FILL_BEATS] / pf_active. Loaded when a true fill launches
+# (READ_SHARED -> STATE_S, READ_UNIQUE -> STATE_M; an upgrade carries no
+# fill data and does NOT arm the register). pf_data_valid bits set per
+# accepted fill beat. Match: pf_active && (snoop_line_addr == pf_addr),
+# line offset ignored. Cleared at fill commit (CTRL_FILL_WRITE).
+
+parameters:
+  - name: ADDR_WIDTH / SETS / LINE_BYTES / BUS_WIDTH
+    default: 32 / 128 / 64 / 64
+    description: geometry; grid also runs 16 sets (tiny formal config)
+
+scenarios:
+  - name: PfLoadAndClear
+    level: func (via amber_control)
+    what: >
+      pf_load arms {addr, state, empty valid mask} in CTRL_MISS_FILL and
+      pf_clear (CTRL_FILL_WRITE) drops pf_active. Observed through the
+      bypass invariant TB model (armed exactly from fill_start to
+      fill_done of true fills; never armed for CLEAN_UNIQUE upgrades --
+      UpgradeNoBypassArm asserts inv_pf_active == False mid-upgrade).
+    status: covered
+  - name: PfBeatValidAccumulation
+    level: func (via amber_control)
+    what: >
+      Each fill beat sets its pf_data_valid bit as it is written into the
+      data array (MAS ch02/06 beat interface). Pinned by the
+      BypassNeverAnswersInvalid invariant (a CD beat is never presented
+      before the corresponding fill beat has been delivered, asserted
+      every cycle) and by SnoopPendingFillBypass, where the CD consumer
+      deliberately outruns the burst and observes the stall.
+    status: covered
+  - name: PfMatchIgnoresLineOffset
+    level: func (via amber_control)
+    what: >
+      The match compare uses {tag, set} and ignores the line offset: the
+      directed snoops address the line base; the FULL idle-snoop soak
+      randomizes beats implicitly by line choice. (Dedicated beat-offset
+      snoop addressing is deferred to the Task 13 standalone proof,
+      where the leaf's match port is driven directly.)
+    status: covered
+  - name: PfServesPostFillState
+    level: func (via amber_control)
+    what: >
+      State accuracy (MAS ch02/02): a matching snoop is answered at
+      pf_state (the post-fill state), never the pre-fill Invalid state --
+      the EVERY-CYCLE invariant. SnoopPendingFillBypass (M) and
+      SnoopOtherLineMidFill/SnoopPostCommitApplies (installed states)
+      pin the CRRESP values beat-for-beat against the oracle decode.
+    status: covered
+  - name: PfStallUntilLateBeat
+    level: func (via amber_control)
+    what: >
+      A CD beat whose pf_data_valid bit is clear must not be presented:
+      cdvalid holds low until the beat arrives (MAS ch02/02 "Snoop vs
+      Fill Ordering"). SnoopPendingFillBypass holds cd_ready low with
+      beats still in flight and checks the invariant every cycle plus
+      beat-data stability under backpressure.
+    status: covered
+  - name: PfNeverAnswersInvalid
+    level: all (via amber_control)
+    what: >
+      The Task 4 brief's class (d): while a bypass-targeted snoop is open,
+      every cycle asserts the response references the post-fill state
+      (CRRESP == Table 3.0 decode at pf_state at the grant cycle; pf_state
+      is never STATE_I; no unreceived CD beat is presented).
+    status: covered
+
+gaps:
+  - >
+    Standalone leaf-level stimulus (port-level pf_load/pf_beat_set sweeps,
+    reset values, X-propagation on reserved inputs) is deferred to Task
+    13, which proves the leaf standalone per DECISION D-2; the register is
+    fully exercised in integration by the amber_control suite above.
+  - >
+    pf_state only ever loads S or M in this integration (READ_SHARED /
+    READ_UNIQUE fills; the exclusive fill qualifier arrives with the Task
+    5 fill FUB). The E load path is the same two-bit mux and is covered
+    by the Task 13 standalone proof contract.

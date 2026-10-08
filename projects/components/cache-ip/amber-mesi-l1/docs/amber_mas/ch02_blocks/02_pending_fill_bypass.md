@@ -23,14 +23,18 @@
 
 # Pending-Fill Bypass Register
 
-**Module:** `amber_control` sub-block
-**Status:** Pre-RTL micro-architecture contract
+**Module:** `amber_pending_fill_bypass.sv` (leaf, instantiated by `amber_control`)
+**Location:** `projects/components/cache-ip/amber-mesi-l1/rtl/fub/`
+**Status:** RTL landed (Task 4); built as a leaf (DECISION D-2) so Task 13
+proves it standalone. Integration scenarios:
+`dv/testplans/amber_pending_fill_bypass_testplan.yaml` (via the
+`amber_control` suite).
 
 ---
 
 ## Purpose
 
-While a fill is outstanding, a snoop may arrive for the same line. The pending-fill bypass register lets `amber_control` answer that snoop with the post-fill state and any fill beats already received, before the tag and data arrays have been updated. This is the only place in amber where a line can be observed in a state that has not yet been committed to the arrays, so its correctness is a SymbiYosys target.
+While a fill is outstanding, a snoop may arrive for the same line. The pending-fill bypass register lets `amber_control` answer that snoop with the post-fill state and any fill beats already received, before the tag and data arrays have been updated. This is the only place in amber where a line can be observed in a state that has not yet been committed to the arrays, so its correctness is a SymbiYosys target (Task 13).
 
 ---
 
@@ -43,13 +47,22 @@ While a fill is outstanding, a snoop may arrive for the same line. The pending-f
 | `pf_data_valid` | `FILL_BEATS` | Per-beat mask: bit[i] is 1 when fill beat i has been received. |
 | `pf_active` | 1 | Register is valid and the fill is still outstanding. |
 
-The register is loaded in `CTRL_MISS_FILL` when `amber_fill` is launched. `pf_state` is determined by the request type:
+The register is loaded in `CTRL_MISS_FILL` when the fill is launched. `pf_state` is determined by the request type:
 
 - Read miss to shared → `STATE_S`
-- Read miss to exclusive → `STATE_E`
+- Read miss to exclusive → `STATE_E` (arrives with the Task 5 fill FUB's exclusive qualifier; unreachable in the Task 4 integration, which installs S deterministically)
 - Write miss (whole-line allocate) → `STATE_M`
 
-`pf_data_valid` is updated as each R beat is accepted by `amber_fill`. The snoop responder can forward fill beats whose `pf_data_valid` bit is set; beats not yet received stall the CD channel until they arrive.
+**An upgrade (`CLEAN_UNIQUE`) does NOT load the register** (MINOR-1
+decision, pinned by the `UpgradeNoBypassArm` directed test): an upgrade
+carries no fill data in flight — the line stays installed in S and snoops
+are answered from the tag array on port B — and a bypass armed with no
+beats would deadlock the CD channel against `pf_data_valid` bits that can
+never set. The load is qualified `!upgr_q` in `amber_control`.
+
+`pf_data_valid` is updated as each R beat is accepted by `amber_fill` (the
+`ctrl_fill_beat_valid`/`ctrl_fill_beat_idx` strobe, MAS ch02/06). The
+snoop responder can forward fill beats whose `pf_data_valid` bit is set; beats not yet received stall the CD channel until they arrive.
 
 ---
 
@@ -76,7 +89,7 @@ The line address is `{tag, set_index}`; the line offset is ignored. The kmap wor
 | `CTRL_FILL_WRITE` | Bypass register contents written to arrays; `pf_active` cleared. |
 | `CTRL_REPLAY` | Original request now hits the installed line. |
 
-The critical correctness property is **state-accuracy**: the bypass register must answer with the post-fill state, never the pre-fill (Invalid) state. A snoop that would invalidate the line after the fill must see the post-fill state and then be allowed to perform its invalidation in the normal snoop path.
+The critical correctness property is **state-accuracy**: the bypass register must answer with the post-fill state, never the pre-fill (Invalid) state. A snoop that would invalidate the line after the fill must see the post-fill state and then be allowed to perform its invalidation in the normal snoop path. The invalidation/downgrade itself is NOT a register field (MAS ch02/02 names exactly the four fields above): it is control-side context (`pend_vld`/`pend_state`), armed by a snoop whose Table-3.0 next-state differs from the resolved reference state and consumed at `CTRL_FILL_WRITE` — **invalidation-sticks**: once armed, a later downgrade snoop does not overwrite an armed I (gem5 `IS_I` `.sm:1390`; mapping-notes divergences 3/8; the `_im_step` fixed-point corner is pinned by the `ImStepPendingClearCorner` directed test and four new oracle table rows).
 
 ---
 
@@ -91,4 +104,4 @@ The fill still completes normally into the arrays after `RLAST`. The snoop does 
 
 ---
 
-**Last Updated:** 2026-10-06
+**Last Updated:** 2026-10-07 (Task 4: RTL landed)

@@ -114,7 +114,22 @@ All citations are `transition(...)` blocks in `MESI_Two_Level-L1cache.sm`.
    exclusive fetch (IM) per .sm:1526; a *downgrade* snoop during IM
    (RS/CS) commits S and the replayed write re-upgrades (composes with
    .sm:1244). Ordering-equivalent to gem5's "Fwd arrives after the store
-   completed" serialization.
+   completed" serialization. **Task 4 pin (2026-10-07):** once the
+   post-commit effect is armed it is *sticky* — a later shared-domain
+   snoop is still answered at the original post-fill state (the bypass
+   register answers at `pf_state`, never at the pending effect) and the
+   fill commits the armed effect unchanged; gem5's own `IS_I` repeat
+   handling answers at the fill state too (.sm:1364 pattern). This closes
+   the `_im_step` pending-clear corner the Task 2 review flagged as
+   UNCITED: the oracle previously *cleared* a pending `'I'` on a
+   fixed-point snoop (the fill would have committed M, un-invalidating
+   the race); `_im_step` now keeps the effect (matching `_is_step`'s
+   existing branch), pinned by four new table rows in
+   `test_amber_oracle.py` and the `ImStepPendingClearCorner` directed RTL
+   test. A second snoop inside the killed-upgrade window (SM converted to
+   IM before the re-fetch commits) is answered at the installed S state in
+   the RTL vs gem5's converted-IM M — a one-cycle window, recorded in the
+   control testplan gaps.
 4. **Snoop during a fill is answered at the post-fill state** (the
    pending-fill bypass, MAS ch02/02). gem5 cannot see this case — a
    forwarded request never targets a line the directory knows is only

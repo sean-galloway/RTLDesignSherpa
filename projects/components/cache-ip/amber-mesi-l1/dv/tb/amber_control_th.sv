@@ -6,18 +6,19 @@
 //
 // Module: amber_control_th
 // Purpose:
-//   Test harness for the amber_control bring-up (Task 3). Wires the DUT to
-//   the landed tag/data/repl arrays and exposes the partner-stub handshake
-//   pins (fill/drain/victim/frontend/snoop) at the top so the cocotb TB can
-//   model partner timing per D-12. Pure wiring + the data-array write-port
-//   mux: control owns the port for CPU write merges; the fill stub drives it
-//   with received beats while a fill is outstanding (never simultaneous --
-//   control writes only in CTRL_HIT_WR, fills only in CTRL_MISS_FILL).
+//   Test harness for the amber_control bring-up (Task 3, snoop service
+//   Task 4). Wires the DUT to the landed tag/data/repl arrays and exposes
+//   the partner-stub handshake pins (fill/drain/victim/frontend/snoop) at
+//   the top so the cocotb TB can model partner timing per D-12. Pure wiring
+//   + two muxes: the data-array write port (control's CPU merge wins over
+//   the fill stub's received beats -- never simultaneous) and the tag-array
+//   port-B lookup (control owns port B only while it services a snoop;
+//   otherwise the TB keeps its init-walk readback backdoor).
 //
 // Documentation: projects/components/cache-ip/amber-mesi-l1/docs/amber_mas/ch02_blocks/01_amber_control.md
 // Subsystem: amber
 //
-// Author: RTL Design Sherpa
+// Author: sean galloway
 // Created: 2026-10-07
 
 `timescale 1ns / 1ps
@@ -36,8 +37,11 @@
 //   scoreboard observes the muxed port plus both enables, so every array
 //   write is attributable.
 //
-//   Tag-array port B is a TB backdoor read this task (snoop service is
-//   Task 4 and leaves port B idle).
+//   Tag-array port B is shared: amber_control drives it while a snoop is
+//   being serviced (ctrl_tag_b_req, high in the grant cycle and throughout
+//   CTRL_SNOOP); the rest of the time the TB's init-walk readback backdoor
+//   owns it. Data-array port B is control-exclusive (the TB never backdoors
+//   it): the snoop CD datapath reads hit/fill beats through it.
 //
 //------------------------------------------------------------------------------
 // Parameters: same geometry contract as the arrays (amber_pkg defaults).
@@ -45,8 +49,9 @@
 //
 // Notes:
 //   - No resets or registers here: this is pure wiring.
-//   - Snoop responder outputs of control are observed-only this task; the
-//     snoop inputs are stub-tied by the TB.
+//   - The snoop responder handshake pins model the amber_snoop_resp
+//     core-facing contract (D-12): req held until ready; CRRESP latched at
+//     the handshake; CD beats on cdvalid && cdready.
 //
 //==============================================================================
 
@@ -92,14 +97,18 @@ module amber_control_th
     output logic [ADDR_WIDTH-1:0]     victim_addr,
     output logic [LINE_BYTES*8-1:0]   victim_data,
 
-    // fill-beat datapath: the stub writes received beats into the data array
+    // fill-beat datapath: the stub writes received beats into the data
+    // array and strobes the beat index to control (pf_data_valid update,
+    // MAS ch02/06)
     input  logic                       fillbeat_wr_en,
     input  logic [MEM_ADDR_WIDTH-1:0]  fillbeat_wr_addr,
     input  logic [WAY_INDEX_WIDTH-1:0] fillbeat_wr_way,
     input  logic [BUS_WIDTH-1:0]       fillbeat_wr_data,
     input  logic [STRB_W-1:0]          fillbeat_wr_be,
+    input  logic                       fill_beat_valid,
+    input  logic [BEAT_INDEX_WIDTH-1:0] fill_beat_idx,
 
-    // snoop inputs (stub-tied this task); responder outputs observed only
+    // snoop responder core-facing handshake (amber_snoop_resp timing model)
     input  logic                      snoop_req,
     input  logic [2:0]                snoop_type,
     input  logic [ADDR_WIDTH-1:0]     snoop_addr,
@@ -132,7 +141,8 @@ module amber_control_th
     output logic [WAY_INDEX_WIDTH-1:0] repl_hit_way,
     output logic [WAY_INDEX_WIDTH-1:0] repl_victim_way,
 
-    // tag-array port B: TB backdoor read (snoop service inert this task)
+    // tag-array port B: TB backdoor read, muxed against control's snoop
+    // lookup (control wins while ctrl_tag_b_req is high)
     input  logic [SET_INDEX_WIDTH-1:0] tag_b_set,
     output logic [WAYS-1:0][TAG_STATE_WIDTH-1:0] tag_b_tag_state
 );
@@ -142,6 +152,9 @@ module amber_control_th
     // ------------------------------------------------------------------
     logic [SET_INDEX_WIDTH-1:0]            ctrl_tag_a_set;
     logic [WAYS-1:0][TAG_STATE_WIDTH-1:0]  ctrl_tag_a_tag_state;
+    logic                                  ctrl_tag_b_req;
+    logic [SET_INDEX_WIDTH-1:0]            ctrl_tag_b_set;
+    logic [WAYS-1:0][TAG_STATE_WIDTH-1:0]  ctrl_tag_b_tag_state;
     logic [MEM_ADDR_WIDTH-1:0]             ctrl_data_a_addr;
     logic [WAY_INDEX_WIDTH-1:0]            ctrl_data_a_way;
     logic [BUS_WIDTH-1:0]                  ctrl_data_a_rdata;
@@ -149,6 +162,9 @@ module amber_control_th
     logic [MEM_ADDR_WIDTH-1:0]             ctrl_data_a_wr_addr;
     logic [BUS_WIDTH-1:0]                  ctrl_data_a_wr_wdata;
     logic [STRB_W-1:0]                     ctrl_data_a_wr_be;
+    logic [MEM_ADDR_WIDTH-1:0]             ctrl_data_b_addr;
+    logic [WAY_INDEX_WIDTH-1:0]            ctrl_data_b_way;
+    logic [BUS_WIDTH-1:0]                  ctrl_data_b_rdata;
     logic [SET_INDEX_WIDTH-1:0]            ctrl_repl_set;
     logic [WAY_INDEX_WIDTH-1:0]            ctrl_repl_way;
     logic [WAY_INDEX_WIDTH-1:0]            ctrl_repl_hit_way;
@@ -184,12 +200,18 @@ module amber_control_th
         .ctrl_data_a_wr_addr     (ctrl_data_a_wr_addr),
         .ctrl_data_a_wr_wdata    (ctrl_data_a_wr_wdata),
         .ctrl_data_a_wr_be       (ctrl_data_a_wr_be),
+        .ctrl_tag_b_req          (ctrl_tag_b_req),
+        .ctrl_tag_b_set          (ctrl_tag_b_set),
+        .ctrl_tag_b_tag_state    (ctrl_tag_b_tag_state),
+        .ctrl_data_b_addr        (ctrl_data_b_addr),
+        .ctrl_data_b_way         (ctrl_data_b_way),
+        .ctrl_data_b_rdata       (ctrl_data_b_rdata),
         .ctrl_repl_req           (repl_req),
         .ctrl_repl_set           (ctrl_repl_set),
         .ctrl_repl_way           (ctrl_repl_way),
         .ctrl_repl_hit           (repl_hit),
         .ctrl_repl_update        (repl_update),
-        .ctrl_repl_hit_way       (repl_hit_way),
+        .ctrl_repl_hit_way       (ctrl_repl_hit_way),
         .ctrl_victim_load        (victim_load),
         .ctrl_victim_addr_in     (victim_addr),
         .ctrl_victim_data_in     (victim_data),
@@ -197,6 +219,8 @@ module amber_control_th
         .ctrl_fill_addr          (fill_addr),
         .ctrl_req_class          (fill_req_class),
         .ctrl_fill_done          (fill_done),
+        .ctrl_fill_beat_valid    (fill_beat_valid),
+        .ctrl_fill_beat_idx      (fill_beat_idx),
         .ctrl_drain_start        (drain_start),
         .ctrl_drain_done         (drain_done),
         .ctrl_snoop_req          (snoop_req),
@@ -213,6 +237,12 @@ module amber_control_th
         .ctrl_state              (ctrl_state)
     );
 
+    // Tag-array port-B mux: control owns the port only while servicing a
+    // snoop (grant cycle + CTRL_SNOOP); the TB backdoor owns it otherwise.
+    logic [SET_INDEX_WIDTH-1:0] tag_b_set_muxed;
+
+    assign tag_b_set_muxed = ctrl_tag_b_req ? ctrl_tag_b_set : tag_b_set;
+
     amber_tag_array #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
@@ -222,13 +252,16 @@ module amber_control_th
         .clk           (clk),
         .a_set         (ctrl_tag_a_set),
         .a_tag_state   (ctrl_tag_a_tag_state),
-        .b_set         (tag_b_set),
-        .b_tag_state   (tag_b_tag_state),
+        .b_set         (tag_b_set_muxed),
+        .b_tag_state   (ctrl_tag_b_tag_state),
         .wr_en         (tag_wr_en),
         .wr_way_onehot (tag_wr_way_onehot),
         .wr_set        (tag_wr_set),
         .wr_tag_state  (tag_wr_tag_state)
     );
+
+    // the TB backdoor observes the same port-B data the DUT sees
+    assign tag_b_tag_state = ctrl_tag_b_tag_state;
 
     // Data-array write-port mux: control (CPU merge) wins over fill beats.
     logic [WAYS-1:0] fillbeat_wr_way_onehot;
@@ -266,9 +299,9 @@ module amber_control_th
         .a_addr        (ctrl_data_a_addr),
         .a_way         (ctrl_data_a_way),
         .a_rdata       (ctrl_data_a_rdata),
-        .b_addr        ({MEM_ADDR_WIDTH{1'b0}}),
-        .b_way         ({WAY_INDEX_WIDTH{1'b0}}),
-        .b_rdata       (),
+        .b_addr        (ctrl_data_b_addr),
+        .b_way         (ctrl_data_b_way),
+        .b_rdata       (ctrl_data_b_rdata),
         .wr_en         (data_wr_en),
         .wr_way_onehot (data_wr_way_onehot),
         .wr_addr       (data_wr_addr),
@@ -287,11 +320,15 @@ module amber_control_th
         .repl_victim_way (repl_victim_way),
         .repl_hit        (repl_hit),
         .repl_update     (repl_update),
-        .repl_hit_way    (repl_hit_way)
+        .repl_hit_way    (ctrl_repl_hit_way)
     );
 
     // repl_victim_way feeds the DUT as ctrl_repl_way (wire-join here; the
     // tap above is the scoreboard's observation point).
     assign ctrl_repl_way = repl_victim_way;
+
+    // the repl policy-update way is both the control output and the repl
+    // engine's update input -- one wire, observed at the top
+    assign repl_hit_way = ctrl_repl_hit_way;
 
 endmodule : amber_control_th

@@ -11,11 +11,14 @@ test_files:
 # Contract: MAS ch02_blocks/01. One-hot FSM (pkg ctrl_state_t), unique case,
 # illegal/multi-hot -> sticky CTRL_ERROR (reset-cleared). Tag/data port A
 # driven per the landed array contracts; amber_repl req/hit/update per its
-# landed contract. Snoop inputs are stub-tied this task (Task 4 services
-# snoops); the pending-fill bypass register exists so the K-map
-# pending_bypass_match axis is real logic, but no stimulus can set it while
-# the CPU path owns the pipeline. Partner stubs (frontend/fill/drain/victim)
-# model handshake timing only (D-12), never protocol.
+# landed contract. Snoop service (Task 4): CTRL_SNOOP grants at safe
+# boundaries only (IDLE / MISS_FILL with the bypass armed or an upgrade /
+# MISS_DRAIN), answers on tag-array port B (CRRESP combinational at the
+# grant cycle per the amber_snoop_resp contract), serves CD beats from the
+# data array (pending-fill bypass hits read the fill way, gated per-beat by
+# pf_data_valid), and applies downgrades on port A inside the service.
+# Partner stubs (frontend/fill/drain/victim/snoop) model handshake timing
+# only (D-12), never protocol.
 
 parameters:
   - name: SETS
@@ -120,18 +123,155 @@ scenarios:
       by MissSequence and FullRandomLockstep.
     status: covered
   - name: ImStepPendingClearCorner
+    level: func
+    what: >
+      Carried contract from Task 2 review, pinned this task: a write miss
+      (IM fill); an invalidating snoop (READ_UNIQUE) arms the post-commit
+      pending 'I'; a later shared-domain snoop (READ_SHARED) is STILL
+      answered at the post-fill M state (CRRESP carries DataTransfer --
+      never the pre-fill Invalid row; the EVERY-CYCLE
+      BypassNeverAnswersInvalid invariant is live through both snoops);
+      the fill commits I (invalidation-sticks, gem5 IS_I .sm:1390,
+      mapping-notes divergences 3/8); the replayed write re-fetches
+      (READ_UNIQUE) and ends M with the store merged. The oracle corner
+      itself was closed in amber_fsm_oracle.py (_im_step keeps a pending
+      effect through a fixed-point snoop instead of the previous
+      deterministic-but-UNCITED clear) and pinned with four new table rows
+      in test_amber_oracle.py.
+    status: covered
+  - name: SnoopPendingFillBypass
+    level: func
+    what: >
+      Class (a): pre-RLAST snoop for the pending line. A write miss; after
+      two fill beats a READ_SHARED snoop is answered with the post-fill M
+      CRRESP and the beats already received, while cd_ready is held low
+      (the CD data holds stable under backpressure and late beats arrive
+      during the hold -- the DUT stalls CD rather than forward unreceived
+      beats). The downgrade applies post-commit: the fill commits S, the
+      replayed write re-upgrades via CLEAN_UNIQUE (oracle IM x RS
+      composition, gem5 .sm:1244), the line ends M with the store merged.
+      Asserted: both fill classes, the S-then-M install pair, response
+      data, and the EVERY-CYCLE bypass invariant.
+    status: covered
+  - name: SnoopPostCommitApplies
+    level: func
+    what: >
+      Class (b): a snoop applied after the fill commit changes the state
+      normally -- CLEAN_INVALID on an installed M line answers DT+PD+IS
+      with the (merged) line content on CD, the tag downgrade write lands,
+      and a following read misses, refills Shared, and returns the
+      memory-side bytes.
+    status: covered
+  - name: SnoopOtherLineMidFill
+    level: func
+    what: >
+      Class (c): snoops for OTHER lines interleaved mid-fill at legal
+      boundaries. While a read fill is in flight: READ_UNIQUE on an
+      installed M line (dirty data out, invalidate), READ_SHARED on an
+      installed S line (no transfer), and MAKE_INVALID on a never-touched
+      line (miss, no transfer) are each answered from the installed state;
+      the fill is unaffected (one READ_SHARED fill, S install, correct
+      response). The invalidated line refills on the next read; the S line
+      still hits afterwards.
+    status: covered
+  - name: BypassNeverAnswersInvalid
     level: all
     what: >
-      Carried contract from Task 2 review: the oracle's _im_step pending-
-      clear corner (a shared-domain snoop clearing a pending invalidation
-      during an IM fill) is UNCITED. It cannot arise this task: snoop
-      service is Task 4, snoop inputs are stub-tied, and nothing in the CPU
-      path sets the post-commit pending register. Recorded here as
-      unreachable-by-construction; the intended amber rule for Task 4 is
-      invalidation-sticks (a pending post-commit effect, once armed, is not
-      cleared by later snoops -- gem5 IS_I .sm:1390, mapping-notes
-      divergences 3/8), which Task 4 must pin with a directed test.
-    status: not_applicable
+      Class (d): TB invariant, asserted EVERY cycle a bypass-targeted
+      snoop is open (Task 4 brief): the bypass response's reference state
+      is the post-fill state, never the pre-fill STATE_I; at the grant
+      cycle CRRESP equals the Table 3.0 decode at the post-fill state; a
+      CD beat is never presented before the corresponding fill beat has
+      been delivered. Implemented as the _pf_invariant cocotb coroutine
+      (its own fill model from the tap events) and live during every
+      directed snoop scenario plus the FULL idle-snoop soak.
+    status: covered
+  - name: UpgradeNoBypassArm
+    level: func
+    what: >
+      MINOR 1 pin: an upgrade (CLEAN_UNIQUE) carries NO fill data, so per
+      MAS ch02/02 it must NOT arm the pending-fill bypass -- the register
+      exists for "while a fill is outstanding". Directed: with an upgrade
+      in flight, READ_SHARED is answered from the installed S entry
+      (IsShared only, no data transfer -- the M-state bypass decode would
+      have demanded one); the bypass model in the invariant TB is
+      provably inactive; exactly one fill start (no beats) runs and the
+      write merges to M. Recorded decision: pf loads only on READ_SHARED /
+      READ_UNIQUE fills (CTRL_MISS_FILL with !upgr_q).
+    status: covered
+  - name: UpgradeKilledByInvalidatingSnoop
+    level: func
+    what: >
+      SM x Inv -> IM conversion (gem5 .sm:1526) realized through the
+      invalidation-sticks policy: READ_UNIQUE during an upgrade is
+      answered no-transfer at S; the upgrade commits I (not M); the
+      replayed write re-misses as a READ_UNIQUE fetch, installs M, and
+      merges. Asserted: two fills (CLEAN_UNIQUE then READ_UNIQUE), the
+      I-then-M install pair, response data.
+    status: covered
+  - name: SnoopDrainingVictim
+    level: func
+    what: >
+      A snoop for the dirty victim while the drain is outstanding is
+      served from the staged line at the M state (SINK_WB_ACK; the victim
+      buffer still owns the data until the WB ack, gem5 .sm:1352/.sm:1357
+      -- mapping-notes divergence 5 contrast). Directed: dirty victim,
+      snoop mid-drain answers DT+PD with the exact victim content, no tag
+      write is applied (the victim retires at drain_done regardless), the
+      drain and fill proceed in order, and a refetch returns the drained
+      payload end to end.
+    status: covered
+  - name: SnoopStaleVictimMidFill
+    level: func
+    what: >
+      Coherence hazard pin: after drain_done (< fill_start by the Task 3
+      dirty-victim ordering) the victim's data belongs to the memory side
+      and the local copy is being overwritten by the fill beats; a snoop
+      for the victim line during the fill must be answered Invalid,
+      no-transfer (M_I x WB_Ack -> I, gem5 .sm:1315), never re-serving the
+      partially overwritten copy from the tag B hit. Directed: CRRESP 0,
+      no tag write, refetch round trip intact.
+    status: covered
+  - name: BeZeroWrite
+    level: func
+    what: >
+      MINOR 2: a write with be == 0 merges nothing. A be-0 write miss
+      still installs M (write-allocate) with the raw fill bytes intact; a
+      be-0 write hit leaves the line untouched; read backs return the fill
+      bytes. Scored through the generic oracle-lockstep slice machinery.
+    status: covered
+  - name: StrayReqInInit
+    level: gate
+    what: >
+      MINOR 2: a req_valid pulse raised during the INIT walk is ignored --
+      req_ready is IDLE-only, the walk is undisturbed (no LOOKUP entered,
+      no response raised, the SETS ordered all-way STATE_I writes still
+      observed, readback clean) and the dropped request never executes.
+    status: covered
+  - name: MidTransactionReset
+    level: func
+    what: >
+      MINOR 2: reset asserted mid-transaction must re-run the init walk
+      and not lock up. NOT IMPLEMENTED: the control FSM itself resets
+      cleanly (the IllegalStateError scenario re-runs the walk after a
+      reset and recovers), but a reset landing inside a live partner
+      handshake (fill/drain in flight) is a TOP-LEVEL reset-strategy
+      property -- the stubs, amber_core, and the ACE transport must
+      define/survive it together. Owned by Task 9/14 (integration/reset
+      strategy); recorded here honestly instead of being faked at the
+      unit level.
+    status: not_implemented
+  - name: IdleSnoopSoak
+    level: full
+    what: >
+      Randomized snoop coverage interleaved with the 10k-transaction
+      oracle-lockstep stream: between quiescent transactions a random
+      snoop type is issued to a random pool line; the CRRESP is decoded at
+      the line's model state, DT responses carry the model line content
+      beat for beat, and the downgrade/invalidate (with its tag write when
+      the state changes) applies to the model so subsequent transactions
+      observe it.
+    status: covered
 
 coverage_points:
   - line: 0
@@ -158,8 +298,8 @@ coverage_points:
 
 gaps:
   - >
-    E (Exclusive) stable state is unreachable in this task's integration:
-    the fill stub carries no exclusive/read-response indication, so read
+    E (Exclusive) stable state is unreachable in this integration: the
+    fill stub carries no exclusive/read-response indication, so read
     misses deterministically install S (MAS ch02_blocks/02 pf_state: read
     to shared -> STATE_S). E-row protocol behavior is pinned by the Task 2
     oracle/pkg-pin suites; the control-side E->M promotion branch
@@ -167,12 +307,29 @@ gaps:
     is exercised only via the upgrade/install-M paths. Closes when Task 5
     (fill) models the fill qualifier.
   - >
-    Snoop-during-fill (pending-fill bypass service, CTRL_SNOOP) is Task 4;
-    the bypass axis of the K-map is logic-complete but stimulus-unreachable
-    this task. CTRL_SNOOP has no entering edge and decodes to CTRL_ERROR if
-    ever reached (Task 4 rewrites that arm).
+    A second snoop arriving AFTER an upgrade has been killed but BEFORE
+    its replay re-fetch commits (the SM-converted-to-IM window) is
+    answered at the installed S state in the RTL, while the gem5 SM x
+    Fwd_* rows (.sm:1526 family) answer at the converted IM state's
+    post-fill M. Observable only by two snoops inside a single
+    killed-upgrade window; the kill itself is pinned by
+    UpgradeKilledByInvalidatingSnoop. Recorded, not silently taken.
   - >
     CTRL_ERROR entry via reserved tag-array contents (O/RSV states) is
     benign-absorbed (treated as miss/clean) rather than fatal: the init
     walk guarantees STATE_I everywhere, so reserved contents cannot arise
     without a prior fabricating fault.
+  - >
+    A killed-fill replay (ImStepPendingClearCorner /
+    UpgradeKilledByInvalidatingSnoop) can leave the line's tag in TWO
+    ways of one set: the killed fill commits {tag, I} at the victim way
+    and the re-fetch installs the line at another way, so a transient
+    {tag, I} duplicate slot exists. It is benign and pinned: Invalid
+    entries never hit (port A or port B) and are reclaimed on the way's
+    next eviction; the TB model tracks way-exact slot state for
+    victim-dirty prediction. gem5 reuses the TBE entry (no duplicate);
+    amber's blocking-pipeline realization trades the duplicate slot for
+    the replay loop. Recorded, not silently taken.
+  - >
+    MidTransactionReset is recorded not_implemented above (top-level reset
+    strategy: Task 9/14).

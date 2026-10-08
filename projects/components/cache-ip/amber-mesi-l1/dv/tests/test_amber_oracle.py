@@ -316,6 +316,20 @@ def _build_table():
         cite='MAS ch02/02 post-commit downgrade; gem5 ordering-equivalent (.sm:1338 after .sm:1497)')
     add('IM', 'FILL_DONE', in_pending='I', exp_next='I', exp_result='COMMIT',
         cite=f'{SM}:1390 pattern: fill data committed, line installs Invalid')
+    # Pending-effect stickiness corner (Task 4 pin, ImStepPendingClearCorner):
+    # once the post-commit invalidation is armed, a later shared-domain snoop
+    # is still answered at the post-fill M state and the fill COMMITS I.
+    # The bypass answers repeat snoops at the ORIGINAL post-fill state with
+    # the pending register sticky (invalidation-sticks: divergences 3/8;
+    # gem5 IS_I repeat handling .sm:1364 answers at the fill state too).
+    for _sn, _cr in (('SNOOP_READ_SHARED', CR_M_RS), ('SNOOP_READ_ONCE', CR_M_RO),
+                     ('SNOOP_CLEAN_SHARED', CR_M_RS), ('SNOOP_MAKE_INVALID', CR_NONE)):
+        add('IM', _sn, in_pending='I', exp_next='IM', exp_result='RESPOND',
+            ref='M', exp_crresp=_cr, exp_pending='I',
+            cite=f'{SM}:1364/1390 pattern; invalidation-sticks corner pinned by Task 4')
+    add('IM', 'SNOOP_CLEAN_SHARED', in_pending='S', exp_next='IM',
+        exp_result='RESPOND', ref='M', exp_crresp=CR_M_RS, exp_pending='S',
+        cite='pending downgrade sticks through the fixed-point snoop (Task 4 corner)')
 
     # =====================================================================
     # SM -- upgrade (CleanUnique) in flight; the S line stays installed,

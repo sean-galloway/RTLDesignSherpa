@@ -238,16 +238,21 @@ def _im_step(state, event, pending):
         return StepResult(pending or 'M', 'COMMIT', None, None, None)
     if event == 'DRAIN_DONE':
         _unreachable(state, event)
-    # Snoop during a write-miss fill: answered at the post-fill M state;
-    # the post-commit effect chains against any pending effect.
-    # Corner: a fixed-point snoop on the effective state (e.g. pending 'I'
-    # + READ_SHARED: I -> I) clears pending to None, so the fill commits M
-    # -- the earlier invalidation does not stick. Deterministic but UNCITED
-    # corner -- Task 3 must pin the intended behavior before relying on it.
+    # Snoop during a write-miss fill: answered at the post-fill M state
+    # (the bypass register answers at the ORIGINAL post-fill state, never
+    # at the pending effect); the post-commit effect chains against any
+    # pending effect. A fixed-point snoop on the effective state (e.g.
+    # pending 'I' + READ_SHARED: I -> I) KEEPS pending armed -- a pending
+    # post-commit effect, once armed, is not cleared by later snoops
+    # (invalidation-sticks: gem5 IS_I .sm:1390; mapping-notes divergences
+    # 3/8). Corner pinned by Task 4 (ImStepPendingClearCorner directed
+    # test); the previous deterministic clear was UNCITED.
     effective = pending or 'M'
     nxt = _decode_next(effective, event)
-    return StepResult(state, 'RESPOND', None, _decode_crresp('M', event),
-                      None if nxt == effective else nxt)
+    if nxt == effective:
+        return StepResult(state, 'RESPOND', None, _decode_crresp('M', event),
+                          pending)
+    return StepResult(state, 'RESPOND', None, _decode_crresp('M', event), nxt)
 
 
 def _sm_step(state, event, pending):

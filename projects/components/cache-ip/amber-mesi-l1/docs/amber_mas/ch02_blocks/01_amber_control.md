@@ -25,7 +25,8 @@
 
 **Module:** `amber_control.sv`
 **Location:** `projects/components/cache-ip/amber-mesi-l1/rtl/fub/`
-**Status:** Landed (Task 3); scored against the Task 2 FSM oracle at
+**Status:** Landed (Task 3: CPU path; Task 4: snoop-during-fill service +
+pending-fill bypass leaf); scored against the Task 2 gem5-derived oracle at
 gate/func/full, geometries s16w2 + s128w4
 
 ---
@@ -104,6 +105,21 @@ On the cycle after request acceptance, `amber_control` drives `ctrl_tag_a_set`; 
 
 `amber_control` resolves CPU-vs-snoop contention with snoop priority. A pending snoop can cause the CPU pipeline to stall for one cycle at safe boundaries (after a tag-array access completes, never mid-burst). The snoop path uses `tag_b_*` and `data_b_*` ports exclusively; it never needs port A except when a snoop triggers an invalidation or downgrade, which is applied on the next available port-A cycle.
 
+Landed behavior (Task 4): the grant is restricted to safe waiting states —
+`CTRL_IDLE`, `CTRL_MISS_FILL` (once the bypass is armed, or while an
+upgrade waits on its acknowledge), and `CTRL_MISS_DRAIN` — so the pipeline
+stalls exactly one cycle at the boundary plus the CD transfer time. The
+response reference state resolves as: pending-fill bypass match (answered
+at the post-fill `pf_state`, CD beats sourced from the fill way and gated
+per-beat by `pf_data_valid`, stalled until the beat arrives) > the stale
+victim entry during a fill (no transfer — the writeback already completed,
+gem5 `M_I × WB_Ack → I`) > the port-B tag hit (installed state; a dirty
+victim still draining is served at M from the staged copy, `SINK_WB_ACK`).
+An invalidating/downgrading snoop on the pending line is remembered
+(`pend_vld`/`pend_state`, invalidation-sticks) and applied at fill commit;
+on an installed line it is written on port A inside the service. CR
+presentation after CDLAST is `amber_snoop_resp`'s contract, not control's.
+
 ---
 
 ## Key Control Signals
@@ -133,12 +149,18 @@ the port-A schedule is address + write strobe, no read enable.
 | `ctrl_fill_addr` | to `amber_fill` | Line-aligned fill address. |
 | `ctrl_req_class` | to `amber_fill` / `amber_ace_issue` | Request class of the in-flight miss (READ_SHARED / READ_UNIQUE / CLEAN_UNIQUE). |
 | `ctrl_fill_done` | from `amber_fill` | Fill completed (RLAST accepted). |
+| `ctrl_fill_beat_valid` / `ctrl_fill_beat_idx` | from `amber_fill` | Received-beat strobe + index; feeds the bypass `pf_data_valid` (MAS ch02/06). |
 | `ctrl_drain_start` | to `amber_drain` | Launch a drain from `amber_victim`. |
 | `ctrl_drain_done` | from `amber_drain` | Drain completed (B handshake). |
-| `ctrl_snoop_req` | from `amber_snoop_resp` | Snoop address + type valid (Task 4 service). |
-| `ctrl_snoop_ready` | to `amber_snoop_resp` | Control accepts snoop this cycle (tied 0 until Task 4). |
-| `ctrl_crresp` | to `amber_snoop_resp` | 5-bit CRRESP result (Task 4). |
-| `ctrl_cddata` / `ctrl_cdlast` / `ctrl_cdvalid` | to `amber_snoop_resp` | CD beat data/last/valid (Task 4). |
+| `ctrl_tag_b_req` | to `amber_tag_array` (via core mux) | Port-B ownership: high in the snoop grant cycle and throughout `CTRL_SNOOP`. |
+| `ctrl_tag_b_set` | to `amber_tag_array` | Port-B lookup set (snoop set). |
+| `ctrl_tag_b_tag_state` | from `amber_tag_array` | Per-way `{tag, state}` snoop lookup result (combinational). |
+| `ctrl_data_b_addr` / `ctrl_data_b_way` | to `amber_data_array` | Port-B CD read `{set, beat}` at the hit way (or the fill way for a bypass hit). |
+| `ctrl_data_b_rdata` | from `amber_data_array` | CD beat data (combinational). |
+| `ctrl_snoop_req` | from `amber_snoop_resp` | Snoop address + type valid; held until `ctrl_snoop_ready`. |
+| `ctrl_snoop_ready` | to `amber_snoop_resp` | Control accepts the snoop this cycle (safe-boundary grant). |
+| `ctrl_crresp` | to `amber_snoop_resp` | 5-bit CRRESP result, combinational at the grant cycle (latched by the adapter). |
+| `ctrl_cddata` / `ctrl_cdlast` / `ctrl_cdvalid` | to `amber_snoop_resp` | CD beat data/last/valid (each beat gated servable; CR is presented by the adapter after CDLAST). |
 | `ctrl_cdready` | from `amber_snoop_resp` | CD beat accepted. |
 | `ctrl_req_ready` | to `amber_cpu_frontend` | Ready for the next CPU request (IDLE, init done). |
 | `ctrl_rsp_valid` | to `amber_cpu_frontend` | Response valid (one-cycle pulse). |
@@ -160,4 +182,4 @@ The sheet is marked **PROPOSED** because it is a micro-architecture proposal own
 
 ---
 
-**Last Updated:** 2026-10-06
+**Last Updated:** 2026-10-07 (Task 4: snoop service + bypass integration)

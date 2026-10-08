@@ -46,10 +46,11 @@ The verdict logic is implemented in `bin/kmaps/minimize.py`:
 | **RTL-REDUNDANT** | The RTL SOP includes extra literals or terms but produces the same truth table. | Document why the redundancy exists (timing, readability, defensive coding). |
 | **RTL-DIFFERS** | The RTL SOP produces a different truth table than the derived cover. | Investigate: bug, unstated invariant, or missing relation. |
 
-## Control-Sheet Verdict (2026-10-07)
+## Control-Sheet Verdict (2026-10-07, updated Task 4)
 
-`amber_control` landed (Task 3). Verdict for the `K-maps amber control`
-miss-path sheet (axes `{hit, victim_dirty, pending_bypass_match}`, outputs
+`amber_control` landed (Task 3, CPU path; Task 4, snoop service). Verdict
+for the `K-maps amber control` miss-path sheet (axes
+`{hit, victim_dirty, pending_bypass_match}`, outputs
 `{start_drain, start_fill, replay_now}`):
 
 - **Truth-table equivalence: PASS at gate/func/full, both geometries**
@@ -62,13 +63,26 @@ miss-path sheet (axes `{hit, victim_dirty, pending_bypass_match}`, outputs
   The two reachable cells are exercised by directed dirty/clean-victim
   misses and by the 10k-transaction randomized oracle-lockstep suite
   (`dv/tests/test_amber_control.py`).
-- **`pending_bypass_match` axis: logic-complete, stimulus-unreachable this
-  task.** In the blocking pipeline a CPU lookup never coincides with an
-  armed pending-fill bypass register (single outstanding transaction), and
-  snoop service (the axis's real consumer) is Task 4 with the snoop inputs
-  stub-tied — so the axis is structurally constant-0 on the CPU path and
-  `replay_now` is defensive-only. Re-visited when Task 4 wires snoop
-  service.
+- **`pending_bypass_match` axis (2026-10-07 Task 4 update): now
+  stimulus-reachable — driven on the snoop decision path.** With
+  `CTRL_SNOOP` service live, the same pf registers feed the snoop
+  reference-state resolution (bypass match → post-fill `pf_state` +
+  `pf_data_valid`-gated CD beats). Directed classes
+  `SnoopPendingFillBypass` (pre-RLAST snoop, CD stall until a late beat),
+  `SnoopOtherLineMidFill` / `SnoopPostCommitApplies` (pf no-match →
+  port-B installed-state decode), `ImStepPendingClearCorner` (repeat
+  snoop with the invalidation pending), and `UpgradeNoBypassArm` (upgrade
+  in flight: pf unarmed, snoop answered from the installed S entry)
+  exercise both polarities of the axis plus the every-cycle
+  `BypassNeverAnswersInvalid` invariant. On the miss path itself the axis
+  remains constant-0 **by construction** — the pf register's lifetime is
+  exactly `CTRL_MISS_FILL..CTRL_FILL_WRITE` of the single outstanding
+  transaction and fills re-arm only after `CTRL_FILL_WRITE` clears it, so
+  `CTRL_MISS_VICTIM` entry is exclusive with an armed bypass; the
+  killed-upgrade re-fetch (`ImStepPendingClearCorner`,
+  `UpgradeKilledByInvalidatingSnoop`) drives the full
+  LOOKUP→MISS_VICTIM→MISS_FILL→FILL_WRITE→REPLAY re-lookup sequence with
+  the axis at its constant-0 value. `replay_now` stays defensive-only.
 - **SOP-literal diff against the QM-derived covers: NOT CHECKED**, same
   rationale as the snoop sheets (the RTL expresses the cover as named
   decision wires, not minimized literals; the meaningful diff is the
@@ -99,4 +113,4 @@ with `VERDICT: NOT CHECKED`.
 
 ---
 
-**Last Updated:** 2026-10-07
+**Last Updated:** 2026-10-07 (Task 4 snoop-service update)
