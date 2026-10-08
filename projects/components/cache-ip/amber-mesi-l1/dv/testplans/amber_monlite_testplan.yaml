@@ -1,0 +1,139 @@
+# Testplan for amber_monlite (drop-and-count MonBus observer, DECISION D8 /
+# MAS ch04). The module is exercised through the amber_monlite_th closure
+# (amber_frontend_th = REAL amber_cpu_frontend + REAL amber_control +
+# landed arrays, plus amber_monlite tapped at the MAS ch04 emit points).
+# Run: dv/tests/test_amber_monlite.py. A second grid dimension, mon_mode,
+# selects USE_MONITOR=1 (tap) or the USE_MONITOR=0 tie-off (notap).
+
+module: amber_monlite
+rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_monlite.sv
+test_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_monlite.py
+
+# Contract: MAS ch04 Table 4.1.1. One 128-bit house-format packet per event
+# (monitor_common_pkg layout, PROTOCOL_CORE, designer-allocated
+# AGENT_ID=16'h00A0 / UNIT_ID=8'h01, PktTypePerf; the drop report is
+# PktTypeError). event_data packing (right-aligned fields):
+#   HIT      [15:0] set | [19:16] way | [22:20] state_before |
+#            [25:23] state_after | [26] we
+#   MISS     [15:0] set | [19:16] way | [21:20] miss_class | [22] we
+#   SNOOP    [2:0] snoop_type | [3] hit | [8:4] response_class (CRRESP)
+#   EVICT    [15:0] set | [19:16] way | [20] dirty | [52:21] line_addr
+#   TRANSITION [15:0] set | [19:16] way | [22:20] old_state |
+#            [25:23] new_state | [29:26] cause (1=HIT_WR, 2=FILL_WRITE,
+#            4=SNOOP; INIT-walk writes are suppressed, not transitions)
+#   FILL_/DRAIN_ start/end  zero-extended line_addr [63:0]
+#   DROPPED  [7:0] saturating dropped_count
+# Emission: state-entry strobes registered at the emit point; the MISS
+# packet is deferred one cycle so the victim way (registered at the
+# MISS_VICTIM entry) is exact. Every miss replays through HIT_RD/HIT_WR,
+# so every transaction ends with a HIT event; upgrades commit their S->M
+# tag write in FILL_WRITE (a TRANSITION, cause FILL_WRITE) and replay as a
+# hit at M. Drop-and-count: full queue drops and counts (8-bit
+# saturating); the count is re-emitted as Error/AMBER_EV_DROPPED once the
+# queue has drained and nothing else fires (STREAM monitor-lite idiom).
+# The observer never drives the closure (Review Focus 5).
+
+parameters:
+  - name: ADDR_WIDTH / DATA_WIDTH / LINE_BYTES
+    default: 32 / 64 / 64
+    description: geometry; grid also runs the narrow 32-bit bus / 32 B lines
+  - name: USE_MONITOR
+    default: 1
+    description: >
+      1 = observer live (tap cells); 0 = outputs tied off (notap cells,
+      house gen_no_monitor idiom) -- the "absent" half of the
+      present-vs-absent pin at the module boundary.
+
+scenarios:
+  - name: EventClassMatrix
+    level: gate (tap)
+    what: >
+      Directed sweep producing EVERY Table 4.1.1 class with hand-computed
+      payload expectations: read miss + fill (MISS/FILL_START/FILL_END/
+      TRANSITION/HIT), read hit (HIT), upgrade (FILL_START/FILL_END/
+      TRANSITION S->M/HIT at M), true write hit, dirty-victim eviction
+      (EVICT/DRAIN_START/DRAIN_END), an M-line READ_SHARED snoop with
+      state change (SNOOP hit + TRANSITION M->S, PassDirty CRRESP), and a
+      snoop miss (SNOOP, hit=0, no transition). Payloads matched in
+      emission order against the TB's independent event model; causal
+      order pinned (MISS < FILL_START < FILL_END; EVICT <= DRAIN_START <
+      DRAIN_END). Every accepted packet is format-scored: protocol CORE,
+      agent/unit ids, reserved zero, channel zero, PktTypePerf (Error for
+      the drop report), timestamp == the side-band cycle at emission.
+    status: covered
+  - name: DropAndCount
+    level: func (tap)
+    what: >
+      MAS ch04/02: monbus_ready held low through a 6-miss burst forces the
+      4-deep queue over: dropped_count accumulates (sampled > 0 while
+      stalled, saturating 8-bit). On release the DROPPED report is the
+      next packet, its count equals the tap sample, the tap clears after
+      emission. The strict stream matcher then replays the fired-class
+      trace through an exact queue model and requires the predicted
+      received stream to equal the observed packets packet-for-packet
+      (class, payload, timestamp == firing cycle, acceptance cycle,
+      report counts) -- no event may vanish without being counted.
+    status: covered
+  - name: PresentVsAbsent
+    level: gate + func (tap)
+    what: >
+      Review Focus 5 / D8 measurement integrity, pinned end to end: the
+      same seeded stimulus (7 transactions + a snoop + a dirty-victim
+      sweep) run twice in one simulation with a DUT reset between --
+      run A with monbus_ready free, run B with monbus_ready stalled
+      through the busy phases. The frontend behavior signatures (per
+      transaction: accept offset, response offset, response data) are
+      required to be CYCLE-IDENTICAL; the expectation streams are
+      identical; only the packet stream differs (run B drops packets, its
+      DROPPED count > 0). The USE_MONITOR=0 notap cells complement this
+      at the module boundary: the observer tied off is asserted silent
+      (monbus_valid never rises, dropped_count tied zero) while the
+      inherited frontend suite passes underneath.
+    status: covered
+  - name: FullSoak
+    level: full (tap)
+    what: >
+      2500 randomized transactions plus quiescence snoops (~10%) with
+      randomized monbus backpressure (per-cycle ready probability 0.65;
+      ~8k stalled-head cycles measured): the strict stream matcher
+      predicts every received packet (class, payload, timestamp,
+      acceptance cycle, drop-report counts) from the DUT's own firing
+      trace zipped with the transaction model (true-LRU victim
+      prediction, snoop CRRESP decode from the pinned oracle helpers) --
+      15.7k packets per geometry scored with zero mismatches. notap
+      cells run the tie-off configuration over the same traffic.
+    status: covered
+  - name: ObserverSilent
+    level: all (notap)
+    what: >
+      USE_MONITOR=0: monbus_valid never asserts across the inherited
+      frontend scenarios, dropped_count stays zero, and the frontend
+      suite's own checks pass -- the absent configuration is behaviorally
+      the closure alone.
+    status: covered
+
+gaps:
+  - >
+    Snoops are issued at quiescence (between CPU transactions). The
+    mid-transaction compositions (pending-fill bypass, victim-buffer
+    bypass, gather-window snoops) are proven by the amber_control and
+    amber_snoop_resp suites; the observer's taps for those windows
+    (post-fill state, victim buffer match) are the same signals scored
+    there, and the deferred-MISS / latched-context mechanism is
+    transaction-local, so quiescence coverage is the honest unit
+    boundary. A mid-fill snoop variant is recorded for the amber_core
+    integration suite (Task 9+).
+  - >
+    monbus_tally_axil host-tally integration is a system-level check
+    (AXI-Lite register walk): this suite scores the packet stream
+    directly, which is what the tally agent consumes; the hookup lands
+    with amber_core where the arbitered monbus exists. The packet format
+    scored here is the house monitor_common_pkg layout the tally parses.
+  - >
+    The E-state TRANSITION (write-hit promotion E->M, cause HIT_WR) is not
+    stimulus-reachable without a tag-array backdoor (the CPU path never
+    installs E, MAS ch02 install states are S/M); the cause decode is
+    pinned structurally by the directed matrix's FILL_WRITE and SNOOP
+    causes. Recorded for the integration suite's backdoor coverage.

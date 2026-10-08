@@ -1,0 +1,124 @@
+# Testplan for amber_cpu_frontend (CPU-facing GAXI slave, MAS ch02_blocks/09
+# + ch03_interfaces/01). The module is exercised through the
+# amber_frontend_th closure (REAL frontend + REAL amber_control + landed
+# tag/data/repl arrays); the house GAXIMaster/GAXISlave BFMs drive and
+# consume the GAXI channels. Run: dv/tests/test_amber_frontend.py.
+
+module: amber_cpu_frontend
+rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_cpu_frontend.sv
+test_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_frontend.py
+
+# Contract: MAS ch02_blocks/09. CPU_REQ_W = ADDR_WIDTH + 1 + BUS_WIDTH/8 +
+# BUS_WIDTH, packed {addr, we, be, wdata} (addr at the MSBs); CPU_RSP_W =
+# BUS_WIDTH ({rdata}). cpu_req_wr_ready only while amber_control is in
+# CTRL_IDLE with response-staging FIFO room; the accepted request is
+# presented to control as a single-cycle req_valid pulse with the fields
+# held from accept to response; the response is staged in a gaxi_fifo_sync
+# DEPTH=2 (DECISION D-6) and held stable under cpu_rsp_rd_ready low. A miss
+# (fill + D-4 replay) is a single GAXI transaction end to end.
+
+parameters:
+  - name: ADDR_WIDTH / DATA_WIDTH / LINE_BYTES
+    default: 32 / 64 / 64
+    description: geometry; grid also runs the narrow 32-bit bus / 32 B lines
+
+scenarios:
+  - name: InitReady
+    level: gate
+    what: >
+      cpu_req_wr_ready stays low for the whole INIT walk (D-3) and rises
+      only after every set holds STATE_I; bounded by SETS + margin cycles.
+    status: covered
+  - name: HitSequence
+    level: gate
+    what: >
+      Directed read miss (fill + replay), read hit, upgrade (write to the
+      installed S line, CLEAN_UNIQUE, no fill beats), true write hit on the
+      promoted M line, and a readback of the merged bytes. Every
+      transaction scored: exactly one GAXI accept with the exact packed
+      payload, exactly one control-side fe_req pulse, exactly one response
+      with data equal to the memory-side content model (read) or the
+      request payload (write). Hit transactions assert no miss machinery
+      (no MISS_VICTIM / fill on the path).
+    status: covered
+  - name: MissSequence
+    level: gate
+    what: >
+      Clean-victim miss (no drain) and dirty-victim miss (victim_load +
+      drain_start + drain_done on the taps). The GAXI boundary sees one
+      request and one response per transaction regardless of the internal
+      machinery; response data still equals the content model.
+    status: covered
+  - name: UpgradeVisibleOnce
+    level: gate
+    what: >
+      A write to a Shared line is an upgrade: exactly one fill_start with
+      class CLEAN_UNIQUE, no victim select, one GAXI request/response
+      (MAS ch02/02: no fill data in flight).
+    status: covered
+  - name: ReadyOnlyIdle
+    level: all
+    what: >
+      EVERY-CYCLE sampling across a full miss transaction: whenever
+      cpu_req_wr_ready is high the control FSM is in CTRL_IDLE and
+      ctrl_req_ready is high (ready is a pure pass-through); the ready
+      stays low through every non-IDLE cycle of the miss sequence (the
+      blocking contract, MAS ch02/09).
+    status: covered
+  - name: BackpressureHeld
+    level: func
+    what: >
+      Response held under cpu_rsp_rd_ready low for 12 sampled cycles:
+      valid stays high and cpu_rsp_rd_data is byte-stable every cycle
+      (DECISION D-6 staging); after the release the data is the expected
+      beat. The EVERY-CYCLE rsp-stability invariant (valid hold + payload
+      stability from rise to handshake) runs in every scenario and level.
+    status: covered
+  - name: PipelinedResponses
+    level: func
+    what: >
+      Back-to-back requests with the first response held unaccepted: the
+      second request is still accepted and served (FIFO depth 2 gives one
+      entry of slack beyond the stalled response), and the responses
+      arrive in request order.
+    status: covered
+  - name: SnoopDetour
+    level: func
+    what: >
+      A request presented while a snoop is granted detours through
+      CTRL_SNOOP (snoop_gnt on the taps) and still completes as exactly
+      one request / one response with content-model data: the snoop
+      priority stall is invisible at the GAXI boundary.
+    status: covered
+  - name: ReplaySingleTransaction
+    level: func
+    what: >
+      A write miss exercises fill + D-4 replay internally (FILL_WRITE and
+      REPLAY states on the taps) while the GAXI boundary still sees one
+      accept and one response; a readback returns the fill data with the
+      write bytes merged per be.
+    status: covered
+  - name: FullSoak
+    level: full
+    what: >
+      2500 randomized transactions (random tags/sets/beats, mixed
+      read/write, random valid and ready delays) with the every-cycle
+      invariants live; every response scored against the content model;
+      final balance responses == accepts. Seeds pinned per test node by
+      the repo-root conftest.
+    status: covered
+
+gaps:
+  - >
+    The mid-transaction snoop compositions (pending-fill bypass service,
+    victim-buffer bypass, snoop during the victim gather) are proven by
+    the amber_control and amber_snoop_resp suites; this suite keeps
+    snoops at quiescence except for the single SnoopDetour overlap case
+    (a fixed-point snoop granted at IDLE, the only boundary the blocking
+    contract makes visible to the frontend).
+  - >
+    be == 0 writes and stray-request-in-INIT are control-suite pins
+    (MINOR-2); the frontend passes them through transparently and does not
+    re-pin them here.
