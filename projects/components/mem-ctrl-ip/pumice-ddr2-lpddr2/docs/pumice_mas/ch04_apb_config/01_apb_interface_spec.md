@@ -75,7 +75,7 @@ The register block decodes a 4 KB region (12-bit address). Layout, matching `rtl
 | 0x080 – 0x09C  | Per-bank row-hit observation (NUM_BANKS = 8)             |
 | 0x0A0 – 0x0BC  | LPDDR2 calibration / training control (`CAL_CTRL`, `CAL_ZQ_INTERVAL`, `CAL_ZQ_TIMING`, `CAL_TRAIN_TIMING`, `CAL_MRR32_DATA[4]`) |
 | 0x0E0 – 0x0F0  | `CAL_MRR40_DATA[4]` + `CAL_STATUS` (training telemetry)  |
-| 0x0C0 – 0x0DC  | Per-bank refresh-latency observation                     |
+| 0x0C0 – 0x0DC  | Retired — was `OBS_REF_LATENCY[8]`; removed 2026-09-28 (BUG-020), never reused |
 | 0x100 – 0x138  | System observation / telemetry                           |
 | 0x1C0 – 0x1E0  | Packed observation-word harvest (9 words)                |
 | 0xFF0 – 0xFF4  | Module identification + build hash                        |

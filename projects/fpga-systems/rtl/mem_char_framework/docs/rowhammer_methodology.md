@@ -147,8 +147,8 @@ more. Two habits keep the number meaningful:
 - Read `ERR_BITS` per pass (the recipe does), and if it saturates, re-run
   the victim readback in windows — split the row walk into chunks and sum
   per-chunk err_bits, keeping each chunk under the ceiling.
-- Cross-check with `BEATS_MISM`. err_bits ≫ 32 × BEATS_MIM says many bits
-  per beat flipped; err_bits ≈ BEATS_MIM says scattered single-bit upsets.
+- Cross-check with `BEATS_MISM`. err_bits ≫ 32 × BEATS_MISM says many bits
+  per beat flipped; err_bits ≈ BEATS_MISM says scattered single-bit upsets.
   The two distributions point at different physics.
 
 Also remember what err_bits is *not*: it compares against the FILL
