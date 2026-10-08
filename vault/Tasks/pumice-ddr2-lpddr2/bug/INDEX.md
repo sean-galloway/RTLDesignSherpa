@@ -12,21 +12,22 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 21 | done (kept for history) |
+| [closed/](closed/) | 22 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
-## Open
+## Closed
 
 - **BUG-023** — the reset-parity manifest was re-based at BUG-020 (73 -> 65
-  FIELDS, correctly) but the test's `>= 70` floor was never moved, so
-  `test_the_pumice_manifest_covers_every_writable_field` has been red since
-  2026-09-28 and the TASK-015 pre-commit tripwire is decorative; re-base the
-  floor (or derive it) and fix the manifest docstring's stale "73 decisions"
-
-## Closed
+  FIELDS, correctly) but the test's `>= 70` floor was never moved, so the
+  floor test was red 2026-09-28 -> 2026-10-07 — FIXED 2026-10-08: it went
+  green by accident when the training block added 10 CAL fields (65 -> 75);
+  fixed properly per the bug's option 2 — the manifest now carries
+  `DOCUMENTED_FIELD_COUNT` (75) directly above FIELDS with a truthful
+  composition docstring, and the test asserts equality against it; the sweep
+  found no other population-pinned count asserts
 
 - **BUG-022** — the `ADDR_MAP.bank_lsb` documented lower bound was
   `log2(BL/DFI_RATE)` where the correct bound is `log2(DRAM_BL)`, a trap

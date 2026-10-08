@@ -146,4 +146,10 @@ def test_the_pumice_manifest_covers_every_writable_field(tmp_path):
         f"undeclared: {sorted(set(fields) - set(man.FIELDS))}; "
         f"stale entries: {sorted(set(man.FIELDS) - set(fields))}"
     )
-    assert len(fields) >= 70, f"only {len(fields)} sw=rw fields -- did the regmap shrink?"
+    assert len(fields) == man.DOCUMENTED_FIELD_COUNT, (
+        f"{len(fields)} sw=rw fields vs DOCUMENTED_FIELD_COUNT="
+        f"{man.DOCUMENTED_FIELD_COUNT} in dv/csr_reset_parity.py -- the count "
+        f"must move with the design (BUG-023): update the constant and the "
+        f"docstring composition note in the same commit that adds or retires "
+        f"fields. A floor that does not move is decorative."
+    )

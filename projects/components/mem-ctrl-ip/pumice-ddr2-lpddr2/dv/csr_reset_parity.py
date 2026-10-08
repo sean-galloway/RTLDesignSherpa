@@ -19,9 +19,14 @@ records `swept`, because that is the stronger statement: the field is exercised
 at more than its reset. `ships` is for the fields where the reset is the ONLY
 value anything runs, which is precisely the population pumice BUG-003 came from.
 
-WHY THE FILE IS THIS LONG. It is 73 decisions. Before it existed they were 73
+WHY THE FILE IS THIS LONG. It is 75 decisions. Before it existed they were
 defaults nobody had read, and one of them (policy_mode resetting to the legacy
-build default while the board programmed mode 3) is what BUG-003 was.
+build default while the board programmed mode 3) is what BUG-003 was. The
+population churns: 73 at TASK-015, 65 after BUG-020 retired the 27 undriven
+OBS_* registers, +10 writable fields with the 2026-10-07 LPDDR2 calibration
+block. DOCUMENTED_FIELD_COUNT below must always equal len(FIELDS) --
+bin/tests/test_check_csr_reset_parity.py enforces it, because a count pinned
+anywhere else went stale and red for ten days (BUG-023).
 """
 
 # Paths are relative to THIS file.
@@ -44,6 +49,12 @@ _CONFIGS = "projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/dv/tbclasses/pumi
 _JEDEC = ("the JEDEC command-stream checker (dv/tbclasses/pumice_cmd_stream_checker.py) "
           "asserts on the emitted command stream, so a wrong value shows up as a "
           "state or timing violation rather than as a slow run")
+
+# The authoritative population count. bin/tests/test_check_csr_reset_parity.py
+# asserts len(FIELDS) == this number; the tripwire only works if the count
+# moves in the SAME commit as the fields. BUG-023: the old floor (>= 70) lived
+# in bin/tests, was never re-based at BUG-020, and was red for ten days.
+DOCUMENTED_FIELD_COUNT = 75
 
 FIELDS = {
     # ---- swept: DV runs more than the reset, with an oracle ------------------
