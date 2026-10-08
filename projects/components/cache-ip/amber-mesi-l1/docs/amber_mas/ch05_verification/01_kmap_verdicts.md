@@ -46,6 +46,34 @@ The verdict logic is implemented in `bin/kmaps/minimize.py`:
 | **RTL-REDUNDANT** | The RTL SOP includes extra literals or terms but produces the same truth table. | Document why the redundancy exists (timing, readability, defensive coding). |
 | **RTL-DIFFERS** | The RTL SOP produces a different truth table than the derived cover. | Investigate: bug, unstated invariant, or missing relation. |
 
+## Control-Sheet Verdict (2026-10-07)
+
+`amber_control` landed (Task 3). Verdict for the `K-maps amber control`
+miss-path sheet (axes `{hit, victim_dirty, pending_bypass_match}`, outputs
+`{start_drain, start_fill, replay_now}`):
+
+- **Truth-table equivalence: PASS at gate/func/full, both geometries**
+  (tiny s16w2 + default s128w4). The RTL implements the workbook's PROPOSED
+  cover literally, evaluated in `CTRL_MISS_VICTIM` where `hit == 0` by
+  construction:
+  `start_drain = victim_dirty & !pending_bypass_match`,
+  `start_fill = !victim_dirty & !pending_bypass_match`,
+  `replay_now = pending_bypass_match`.
+  The two reachable cells are exercised by directed dirty/clean-victim
+  misses and by the 10k-transaction randomized oracle-lockstep suite
+  (`dv/tests/test_amber_control.py`).
+- **`pending_bypass_match` axis: logic-complete, stimulus-unreachable this
+  task.** In the blocking pipeline a CPU lookup never coincides with an
+  armed pending-fill bypass register (single outstanding transaction), and
+  snoop service (the axis's real consumer) is Task 4 with the snoop inputs
+  stub-tied — so the axis is structurally constant-0 on the CPU path and
+  `replay_now` is defensive-only. Re-visited when Task 4 wires snoop
+  service.
+- **SOP-literal diff against the QM-derived covers: NOT CHECKED**, same
+  rationale as the snoop sheets (the RTL expresses the cover as named
+  decision wires, not minimized literals; the meaningful diff is the
+  truth-table one).
+
 ## First-Verdict Status (2026-10-06)
 
 The first RTL slice landed: `amber_pkg` (the Table 3.0 decode functions
@@ -66,9 +94,9 @@ and the two next-state maps):
   if the integration restructures the logic, the literal diff would be
   repeated work.
 
-All other sheets (address decode, control FSM, MonBus events) remain
-pre-RTL contracts with `VERDICT: NOT CHECKED`.
+All other sheets (address decode, MonBus events) remain pre-RTL contracts
+with `VERDICT: NOT CHECKED`.
 
 ---
 
-**Last Updated:** 2026-10-06
+**Last Updated:** 2026-10-07

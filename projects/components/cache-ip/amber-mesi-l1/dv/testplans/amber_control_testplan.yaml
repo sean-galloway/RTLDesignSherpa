@@ -1,0 +1,178 @@
+# Testplan for amber_control (blocking pipeline FSM, CPU path)
+# Maps functional scenarios to the oracle-lockstep DV.
+
+module: amber_control
+rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_control.sv
+  - projects/components/cache-ip/amber-mesi-l1/dv/tb/amber_control_th.sv
+test_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_control.py
+
+# Contract: MAS ch02_blocks/01. One-hot FSM (pkg ctrl_state_t), unique case,
+# illegal/multi-hot -> sticky CTRL_ERROR (reset-cleared). Tag/data port A
+# driven per the landed array contracts; amber_repl req/hit/update per its
+# landed contract. Snoop inputs are stub-tied this task (Task 4 services
+# snoops); the pending-fill bypass register exists so the K-map
+# pending_bypass_match axis is real logic, but no stimulus can set it while
+# the CPU path owns the pipeline. Partner stubs (frontend/fill/drain/victim)
+# model handshake timing only (D-12), never protocol.
+
+parameters:
+  - name: SETS
+    default: 128
+    description: sets, power of two (16-512); grid also runs 16
+  - name: WAYS
+    default: 4
+    description: associativity (2-8); grid also runs 2
+  - name: ADDR_WIDTH
+    default: 32
+    description: address width; derives TAG_WIDTH
+  - name: LINE_BYTES
+    default: 64
+    description: line size; derives FILL_BEATS at BUS_WIDTH=64
+  - name: BUS_WIDTH
+    default: 64
+    description: beat width; derives STRB_W
+
+scenarios:
+  - name: InitWalk
+    level: gate
+    what: >
+      After reset deassertion the FSM walks every set writing STATE_I to
+      every way (one cycle per set, all-ways write). Asserted: req_ready
+      stays low for the whole walk (Review Focus 7 -- first req_ready only
+      after all sets hold STATE_I), exactly SETS ordered all-way writes are
+      observed, then a port-B readback of every set of every way reads
+      back Invalid.
+    status: covered
+  - name: HitSequence
+    level: gate
+    what: >
+      Directed rd/wr hits on installed lines, scored per transaction against
+      oracle.step(): S read hit (no state/tag write, repl_hit at the model
+      way, LRU update), S write = upgrade (see MissSequence), M write hit
+      (byte-merge via be observed on the data write port, no E->M-style tag
+      rewrite since the line is already M), M read hit returning the merged
+      data. Exactly one response per transaction; fill/drain/victim
+      machinery provably idle on hits.
+    status: covered
+  - name: MissSequenceCleanVictim
+    level: func
+    what: >
+      Fresh set, WAYS read fills (install Shared), then a miss that evicts
+      the eldest line: victim way predicted by the TB LRU model and matched
+      against the DUT's repl tap; no victim_load and no drain (clean
+      victim); fill class READ_SHARED; install {tag, S} at the victim way;
+      REPLAY hits.
+    status: covered
+  - name: MissSequenceDirtyVictim
+    level: func
+    what: >
+      Fresh set, the eldest slot made Modified by a write miss, remaining
+      ways filled clean, then a miss evicting the M line: victim_load
+      observed with the exact line address and content of the model's dirty
+      line, drain_start after victim_load, drain_done before fill_start
+      (ordering asserted), the observed victim data is committed to the TB
+      memory model at drain_done, fill installs, replay hits. A partial-be
+      write miss replays the D-4 merge (raw fill + be-merge on the replayed
+      hit) and a following read returns the merged bytes.
+    status: covered
+  - name: MissSequenceUpgrade
+    level: func
+    what: >
+      S line written by the CPU: oracle says MISS with CLEAN_UNIQUE. The DUT
+      must go LOOKUP -> MISS_FILL with NO victim select, NO data beats, and
+      commit {tag, M} at the hit way on FILL_WRITE (repl_hit, not
+      repl_update), then replay the write hit and merge.
+    status: covered
+  - name: IllegalStateError
+    level: func
+    what: >
+      The one-hot state vector is corrupted to a multi-hot encoding via a
+      hierarchical handle; the FSM must land on CTRL_ERROR (sticky:
+      req_ready low, state ERROR across cycles) with reset the only exit,
+      and after reset the init walk re-runs and a transaction succeeds.
+    status: covered
+  - name: FullRandomLockstep
+    level: full
+    what: >
+      10k randomized transactions per geometry (random set/line from a
+      per-set pool larger than WAYS to force evictions, random beat, ~50%
+      writes with random byte enables, 30% line locality), each diffed
+      against oracle.step() lockstep: FSM path (hit service vs
+      miss/victim/drain/fill/replay), fill request class, victim-way
+      prediction, install tag+state+way, eviction accounting, drain
+      ordering, D-4 merge data integrity, response data, and LRU policy
+      update parity.
+    status: covered
+  - name: KmapMissPathVerdict
+    level: all
+    what: >
+      The miss-path decision is implemented as the workbook's PROPOSED
+      cover evaluated in CTRL_MISS_VICTIM: start_drain =
+      !hit & victim_dirty & !pending_bypass_match, start_fill =
+      !hit & !victim_dirty & !pending_bypass_match, replay_now =
+      !hit & pending_bypass_match. In the blocking CPU path a lookup never
+      coincides with an active bypass register (single outstanding
+      transaction), so pending_bypass_match is structurally constant-0 for
+      CPU requests this task and replay_now is defensive-only; the two
+      reachable cells (clean-victim fill, dirty-victim drain) are covered
+      by MissSequence and FullRandomLockstep.
+    status: covered
+  - name: ImStepPendingClearCorner
+    level: all
+    what: >
+      Carried contract from Task 2 review: the oracle's _im_step pending-
+      clear corner (a shared-domain snoop clearing a pending invalidation
+      during an IM fill) is UNCITED. It cannot arise this task: snoop
+      service is Task 4, snoop inputs are stub-tied, and nothing in the CPU
+      path sets the post-commit pending register. Recorded here as
+      unreachable-by-construction; the intended amber rule for Task 4 is
+      invalidation-sticks (a pending post-commit effect, once armed, is not
+      cleared by later snoops -- gem5 IS_I .sm:1390, mapping-notes
+      divergences 3/8), which Task 4 must pin with a directed test.
+    status: not_applicable
+
+coverage_points:
+  - line: 0
+    type: structural
+    content: >
+      One-hot unique-case FSM with default -> CTRL_ERROR arm; every output
+      is a function of state_q + latched request context only (logic-only,
+      no latches).
+    covered: true
+  - line: 0
+    type: structural
+    content: >
+      D-4 write-allocate merge: fill installs the raw memory-side line
+      (full-be beat writes during the fill); the replayed write hit merges
+      the CPU bytes via be on the data-array write port; one GAXI request,
+      one response.
+    covered: true
+  - line: 0
+    type: structural
+    content: >
+      Miss-path K-map cover wires {kmap_start_drain, kmap_start_fill,
+      kmap_replay_now} evaluated in CTRL_MISS_VICTIM per the workbook axes.
+    covered: true
+
+gaps:
+  - >
+    E (Exclusive) stable state is unreachable in this task's integration:
+    the fill stub carries no exclusive/read-response indication, so read
+    misses deterministically install S (MAS ch02_blocks/02 pf_state: read
+    to shared -> STATE_S). E-row protocol behavior is pinned by the Task 2
+    oracle/pkg-pin suites; the control-side E->M promotion branch
+    (write hit on E) is the same code path as M->M with a tag rewrite and
+    is exercised only via the upgrade/install-M paths. Closes when Task 5
+    (fill) models the fill qualifier.
+  - >
+    Snoop-during-fill (pending-fill bypass service, CTRL_SNOOP) is Task 4;
+    the bypass axis of the K-map is logic-complete but stimulus-unreachable
+    this task. CTRL_SNOOP has no entering edge and decodes to CTRL_ERROR if
+    ever reached (Task 4 rewrites that arm).
+  - >
+    CTRL_ERROR entry via reserved tag-array contents (O/RSV states) is
+    benign-absorbed (treated as miss/clean) rather than fatal: the init
+    walk guarantees STATE_I everywhere, so reserved contents cannot arise
+    without a prior fabricating fault.

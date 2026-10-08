@@ -25,7 +25,8 @@
 
 **Module:** `amber_control.sv`
 **Location:** `projects/components/cache-ip/amber-mesi-l1/rtl/fub/`
-**Status:** Pre-RTL micro-architecture contract
+**Status:** Landed (Task 3); scored against the Task 2 FSM oracle at
+gate/func/full, geometries s16w2 + s128w4
 
 ---
 
@@ -84,7 +85,7 @@ The HAS deferred pipeline staging to the MAS. This section fixes it.
 
 ### Stage 1: Tag lookup (`CTRL_LOOKUP`)
 
-On the cycle after request acceptance, `amber_control` drives `tag_a_addr` and `tag_a_en`. The tag array returns `{tag, state}` on the next cycle. The lookup also selects the victim way from `amber_repl` combinatorially so that the victim is known on the same cycle the hit/miss decision is made.
+On the cycle after request acceptance, `amber_control` drives `ctrl_tag_a_set`; the tag array returns per-way `{tag, state}` combinationally on `ctrl_tag_a_tag_state`. The lookup also selects the victim way from `amber_repl` combinatorially so that the victim is known on the same cycle the hit/miss decision is made.
 
 ### Stage 2: Hit or miss decision
 
@@ -107,30 +108,43 @@ On the cycle after request acceptance, `amber_control` drives `tag_a_addr` and `
 
 ## Key Control Signals
 
+Landed port names (the table is checked against `amber_control.sv`). Read
+data (tag/state, hit read data) is combinational on the landed arrays, so
+the port-A schedule is address + write strobe, no read enable.
+
 | Signal | Direction | Meaning |
 |--------|-----------|---------|
-| `ctrl_tag_a_addr` | to `amber_tag_array` | Port A address (set index). |
-| `ctrl_tag_a_en` | to `amber_tag_array` | Port A read/write enable. |
-| `ctrl_tag_a_wdata` | to `amber_tag_array` | Port A write data {tag, state}. |
-| `ctrl_tag_a_way` | to `amber_tag_array` | Way select for write. |
-| `ctrl_data_a_addr` | to `amber_data_array` | Port A address {set, way, beat}. |
-| `ctrl_data_a_en` | to `amber_data_array` | Port A byte-enable / write enable. |
-| `ctrl_data_a_wdata` | to `amber_data_array` | Port A write data. |
-| `ctrl_repl_req` | to `amber_repl` | Request replacement decision. |
+| `ctrl_tag_a_set` | to `amber_tag_array` | Port A lookup set index. |
+| `ctrl_tag_a_tag_state` | from `amber_tag_array` | Per-way `{tag, state}` lookup result. |
+| `ctrl_tag_a_wr_en` | to `amber_tag_array` | Port A write enable (init walk / install / promotion). |
+| `ctrl_tag_a_wr_tag_state` | to `amber_tag_array` | Port A write data {tag, state}. |
+| `ctrl_tag_a_wr_way_onehot` | to `amber_tag_array` | Way select for write (all-ones on the init walk). |
+| `ctrl_data_a_addr` | to `amber_data_array` | Port A address {set, beat}. |
+| `ctrl_data_a_way` | to `amber_data_array` | Port A read way (hit way or victim way). |
+| `ctrl_data_a_rdata` | from `amber_data_array` | Hit read data (combinational). |
+| `ctrl_data_a_wr_en` | to `amber_data_array` | CPU write-merge enable (hit / replayed D-4 merge). |
+| `ctrl_data_a_wr_wdata` | to `amber_data_array` | Merge write data. |
+| `ctrl_data_a_wr_be` | to `amber_data_array` | Per-byte merge enables. |
+| `ctrl_repl_req` | to `amber_repl` | Request replacement decision (one-cycle pulse per miss). |
 | `ctrl_repl_way` | from `amber_repl` | Selected victim way. |
-| `ctrl_victim_wr` | to `amber_victim` | Strobe to load victim line. |
+| `ctrl_repl_hit` / `ctrl_repl_update` | to `amber_repl` | Policy update: hit service / fill install (upgrade fires hit). |
+| `ctrl_victim_load` | to `amber_victim` | Strobe: stage the dirty victim line from the data array. |
 | `ctrl_fill_start` | to `amber_fill` | Launch a fill for this line address. |
+| `ctrl_fill_addr` | to `amber_fill` | Line-aligned fill address. |
+| `ctrl_req_class` | to `amber_fill` / `amber_ace_issue` | Request class of the in-flight miss (READ_SHARED / READ_UNIQUE / CLEAN_UNIQUE). |
 | `ctrl_fill_done` | from `amber_fill` | Fill completed (RLAST accepted). |
 | `ctrl_drain_start` | to `amber_drain` | Launch a drain from `amber_victim`. |
 | `ctrl_drain_done` | from `amber_drain` | Drain completed (B handshake). |
-| `ctrl_snoop_req` | from `amber_snoop_resp` | Snoop address + type valid. |
-| `ctrl_snoop_ready` | to `amber_snoop_resp` | Control accepts snoop this cycle. |
-| `ctrl_snoop_crresp` | to `amber_snoop_resp` | 5-bit CRRESP result. |
-| `ctrl_snoop_cddata` | to `amber_snoop_resp` | CD beat data. |
-| `ctrl_snoop_cdlast` | to `amber_snoop_resp` | CD last beat. |
-| `ctrl_req_ready` | to `amber_cpu_frontend` | Ready for next CPU request. |
-| `ctrl_rsp_valid` | to `amber_cpu_frontend` | Response valid. |
-| `ctrl_rsp_data` | to `amber_cpu_frontend` | Response read data. |
+| `ctrl_snoop_req` | from `amber_snoop_resp` | Snoop address + type valid (Task 4 service). |
+| `ctrl_snoop_ready` | to `amber_snoop_resp` | Control accepts snoop this cycle (tied 0 until Task 4). |
+| `ctrl_crresp` | to `amber_snoop_resp` | 5-bit CRRESP result (Task 4). |
+| `ctrl_cddata` / `ctrl_cdlast` / `ctrl_cdvalid` | to `amber_snoop_resp` | CD beat data/last/valid (Task 4). |
+| `ctrl_cdready` | from `amber_snoop_resp` | CD beat accepted. |
+| `ctrl_req_ready` | to `amber_cpu_frontend` | Ready for the next CPU request (IDLE, init done). |
+| `ctrl_rsp_valid` | to `amber_cpu_frontend` | Response valid (one-cycle pulse). |
+| `ctrl_rsp_data` | to `amber_cpu_frontend` | Response read data / write echo. |
+| `ctrl_init_busy` / `ctrl_init_set` | status | Init-walk in progress / current set. |
+| `ctrl_state` | status | FSM state (pkg `ctrl_state_t` encoding, observability). |
 
 ---
 
