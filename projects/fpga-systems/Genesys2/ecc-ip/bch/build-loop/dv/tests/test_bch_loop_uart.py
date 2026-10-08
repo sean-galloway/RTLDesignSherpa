@@ -33,6 +33,7 @@ import pytest
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, Timer
 from cocotb.utils import get_sim_time
+from cocotb._bridge import bridge
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
@@ -109,7 +110,7 @@ def _report(dut, label, r):
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_uart_smoke(dut):
     drv, chan = await _bringup(dut)
-    r = await cocotb.external(lambda: progs.smoke(drv))()
+    r = await bridge(lambda: progs.smoke(drv))()
     dut._log.info("smoke: build_id=0x%08X profile=%s ok=%s", r.build_id, r.profile, r.ok)
     assert r.build_id in bl.KNOWN_BUILD_IDS, f"BUILD_ID 0x{r.build_id:08X}"
     assert r.ok, f"smoke failed: {r.scratch}"
@@ -125,7 +126,7 @@ async def cocotb_test_uart_windows(dut):
     drv, _ = await _bringup(dut)
     windows = _fabric_windows()
     plan = windows + [windows[0]]
-    reads = await cocotb.external(lambda: [(n, a, drv.bridge.read(a)) for n, a in plan])()
+    reads = await bridge(lambda: [(n, a, drv.bridge.read(a)) for n, a in plan])()
     for name, addr, val in reads:
         dut._log.info("window %-24s @0x%05X -> 0x%08X", name, addr, val)
     assert reads[0][2] in bl.KNOWN_BUILD_IDS, (
@@ -136,7 +137,7 @@ async def cocotb_test_uart_windows(dut):
             "the host address is being truncated before the fabric")
     assert reads[-1][2] in bl.KNOWN_BUILD_IDS, "the loop window stopped answering after the others"
 
-    caps = await cocotb.external(drv.observer_caps)()
+    caps = await bridge(drv.observer_caps)()
     dut._log.info("observer caps: %s", caps)
     assert caps["axis"]["bus_meter"] and caps["axis"]["rd_ports"] == 4, caps["axis"]
     assert caps["axi4"]["rd_ports"] == 0 and caps["axi4"]["caps0"] == 0, caps["axi4"]
@@ -145,38 +146,38 @@ async def cocotb_test_uart_windows(dut):
 @cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_uart_bypass(dut):
     drv, _ = await _bringup(dut)
-    r = await cocotb.external(lambda: progs.bypass(drv, blocks=3))()
+    r = await bridge(lambda: progs.bypass(drv, blocks=3))()
     _report(dut, "bypass", r)
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_uart_clean(dut):
     drv, _ = await _bringup(dut)
-    r = await cocotb.external(lambda: progs.run(drv, bl.BchLoopDriver.INJ_NONE, blocks=3))()
+    r = await bridge(lambda: progs.run(drv, bl.BchLoopDriver.INJ_NONE, blocks=3))()
     _report(dut, "clean", r)
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_uart_correct(dut):
     drv, _ = await _bringup(dut)
-    t = (await cocotb.external(drv.profile)())["t"]
-    r = await cocotb.external(lambda: progs.run(drv, bl.BchLoopDriver.INJ_COUNT, count=t, blocks=4))()
+    t = (await bridge(drv.profile)())["t"]
+    r = await bridge(lambda: progs.run(drv, bl.BchLoopDriver.INJ_COUNT, count=t, blocks=4))()
     _report(dut, f"e={t}", r)
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_uart_over_t(dut):
     drv, _ = await _bringup(dut)
-    t = (await cocotb.external(drv.profile)())["t"]
-    r = await cocotb.external(lambda: progs.run(drv, bl.BchLoopDriver.INJ_COUNT, count=t + 1, blocks=4))()
+    t = (await bridge(drv.profile)())["t"]
+    r = await bridge(lambda: progs.run(drv, bl.BchLoopDriver.INJ_COUNT, count=t + 1, blocks=4))()
     _report(dut, f"e={t + 1}", r)
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_uart_throttle(dut):
     drv, _ = await _bringup(dut)
-    t = (await cocotb.external(drv.profile)())["t"]
-    r = await cocotb.external(lambda: progs.run(drv, bl.BchLoopDriver.INJ_COUNT, count=t, blocks=3,
+    t = (await bridge(drv.profile)())["t"]
+    r = await bridge(lambda: progs.run(drv, bl.BchLoopDriver.INJ_COUNT, count=t, blocks=3,
                                                 throttle=True))()
     _report(dut, f"e={t} throttled", r)
 
@@ -197,7 +198,7 @@ async def cocotb_test_uart_sequences(dut):
         runner = SequenceRunner(ctx=ctx).discover(_SEQ)
         return runner.run(["init", "smoke", "sweep"])
 
-    report = await cocotb.external(prog)()
+    report = await bridge(prog)()
     dut._log.info("sequence run:\n%s", report.summary())
     _check_sim_budget(dut, "sequences (init -> smoke -> sweep, board defaults)")
     assert report.ok, f"the BCH loop sequences failed in sim:\n{report.summary()}"
@@ -214,7 +215,7 @@ async def cocotb_test_uart_random(dut):
         runner = SequenceRunner(ctx=ctx).discover(_SEQ)
         return runner.run(["init", "random"])
 
-    report = await cocotb.external(prog)()
+    report = await bridge(prog)()
     dut._log.info("random campaign:\n%s", report.summary())
     _check_sim_budget(dut, "random campaign (64 runs, board defaults)")
     assert report.ok, f"the random campaign failed in sim:\n{report.summary()}"
@@ -223,15 +224,15 @@ async def cocotb_test_uart_random(dut):
 @cocotb.test(timeout_time=400, timeout_unit="ms")
 async def cocotb_test_uart_axi4(dut):
     drv, _ = await _bringup(dut)
-    topo = await cocotb.external(drv.topology)()
+    topo = await bridge(drv.topology)()
     assert topo["iface"] == "AXI4", f"expected an AXI4 build, TOPOLOGY says {topo['iface']}"
     assert topo["decoders"] == 1, f"the AXI4 chain carries one decoder, got {topo['decoders']}"
 
-    t = (await cocotb.external(drv.profile)())["t"]
+    t = (await bridge(drv.profile)())["t"]
     for label, mode, count in (("clean", bl.BchLoopDriver.INJ_COUNT, 0),
                                (f"e={t}", bl.BchLoopDriver.INJ_COUNT, t),
                                (f"e={t + 1}", bl.BchLoopDriver.INJ_COUNT, t + 1)):
-        r = await cocotb.external(lambda m=mode, c=count: progs.run(drv, m, count=c, blocks=3))()
+        r = await bridge(lambda m=mode, c=count: progs.run(drv, m, count=c, blocks=3))()
         assert (r.axi4_stage & progs.AXI4_STAGE_MASK) == progs.AXI4_STAGE_MASK, (
             f"AXI4 {label}: chain stopped at stage 0x{r.axi4_stage:02X}, "
             f"wanted 0x{progs.AXI4_STAGE_MASK:02X}")
@@ -239,7 +240,7 @@ async def cocotb_test_uart_axi4(dut):
         _report(dut, f"AXI4 {label}", r)
 
     over = bl.BchLoopDriver.INJ_COUNT
-    r = await cocotb.external(lambda: progs.run(drv, over, count=0, blocks=4096))()
+    r = await bridge(lambda: progs.run(drv, over, count=0, blocks=4096))()
     assert r.axi4_overflow, "an oversized AXI4 run should set STATUS.axi4_overflow and never kick"
     assert r.axi4_stage == 0x00, f"a refused run must not start any stage, got 0x{r.axi4_stage:02X}"
     bad = progs.verdict(r)
@@ -250,7 +251,7 @@ async def cocotb_test_uart_axi4(dut):
 @cocotb.test(timeout_time=400, timeout_unit="ms")
 async def cocotb_test_uart_observers(dut):
     drv, _ = await _bringup(dut)
-    prof = await cocotb.external(drv.profile)()
+    prof = await bridge(drv.profile)()
     s = prof["spb"]
     k_beats = -(-prof["k"] // (s * 8))
     cw_beats = -(-prof["n"] // (s * 8))
@@ -260,13 +261,13 @@ async def cocotb_test_uart_observers(dut):
     enc_beats = k_beats + -(-(prof["n"] - prof["k"]) // (s * 8))
     blocks = 3
 
-    caps = await cocotb.external(drv.observer_caps)()
+    caps = await bridge(drv.observer_caps)()
     dut._log.info("observer caps: %s", caps)
     assert caps["axis"]["bus_meter"] and not caps["axis"]["mon_taps"], caps["axis"]
     assert caps["axis"]["rd_ports"] == 4, caps["axis"]
     assert caps["axi4"]["rd_ports"] == 0, caps["axi4"]
 
-    r = await cocotb.external(
+    r = await bridge(
         lambda: progs.run(drv, bl.BchLoopDriver.INJ_COUNT, count=0, blocks=blocks,
                           iface_obs=True))()
     _report(dut, "observers: clean", r)
@@ -293,7 +294,7 @@ async def cocotb_test_uart_observers(dut):
     assert r.obs["cw_out"]["productive"] == obs["cw_out"]["productive"], (
         f"old meter {r.obs['cw_out']['productive']} != observer {obs['cw_out']['productive']}")
 
-    obs2 = (await cocotb.external(
+    obs2 = (await bridge(
         lambda: progs.run(drv, bl.BchLoopDriver.INJ_COUNT, count=0, blocks=blocks,
                           iface_obs=True))()).iface_obs["axis"]
     for seam in want:
@@ -305,20 +306,20 @@ async def cocotb_test_uart_observers(dut):
 @cocotb.test(timeout_time=400, timeout_unit="ms")
 async def cocotb_test_uart_axi4_observers(dut):
     drv, _ = await _bringup(dut)
-    topo = await cocotb.external(drv.topology)()
+    topo = await bridge(drv.topology)()
     assert topo["iface"] == "AXI4", f"expected an AXI4 build, TOPOLOGY says {topo['iface']}"
-    prof = await cocotb.external(drv.profile)()
+    prof = await bridge(drv.profile)()
     s = prof["spb"]
     k_beats = -(-prof["k"] // (s * 8))
     cw_beats = -(-prof["n"] // (s * 8))
     blocks = 3
 
-    caps = await cocotb.external(drv.observer_caps)()
+    caps = await bridge(drv.observer_caps)()
     dut._log.info("observer caps: %s", caps)
     assert caps["axi4"]["bus_meter"] and not caps["axi4"]["mon_taps"], caps["axi4"]
     assert (caps["axi4"]["rd_ports"], caps["axi4"]["wr_ports"]) == (2, 2), caps["axi4"]
 
-    r = await cocotb.external(
+    r = await bridge(
         lambda: progs.run(drv, bl.BchLoopDriver.INJ_COUNT, count=0, blocks=blocks,
                           iface_obs=True))()
     _report(dut, "AXI4 observers: clean", r)
@@ -331,14 +332,14 @@ async def cocotb_test_uart_axi4_observers(dut):
         assert d["productive"] == beats, f"{port}: productive {d['productive']}, want {beats}"
         assert d["hist_total"] > 0, f"{port}: no transactions timed"
 
-    hist = await cocotb.external(lambda: drv.axi4_observer(hist=True))()
+    hist = await bridge(lambda: drv.axi4_observer(hist=True))()
     for hm, label in ((0, "AR->first-R"), (1, "AR->RLAST")):
         total = hist["enc_rd"]["hist_total"]
         binned = sum(hist["enc_rd"]["hist"][hm])
         dut._log.info("  enc_rd %s: bins sum %d over %d timed", label, binned, total)
         assert binned == total, f"enc_rd {label}: bins sum {binned} != hist_total {total}"
 
-    axis = await cocotb.external(drv.axis_observer)()
+    axis = await bridge(drv.axis_observer)()
     assert axis["msg_in"]["beats"] == blocks * k_beats, axis["msg_in"]
     # the AXI4 build drains the decoder through the write engine, so there is
     # no AXIS msg_out seam; the outlet is already checked via dec_wr above
@@ -359,13 +360,13 @@ def _slope_stats(small, large, key):
 @cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_uart_bw_slope(dut):
     drv, _ = await _bringup(dut)
-    prof = await cocotb.external(drv.profile)()
+    prof = await bridge(drv.profile)()
     n, k, s = prof["n"], prof["k"], prof["spb"]
     # RANDOM at rate 0 (no hits, single-cycle) measures the datapath's full
     # rate; COUNT mode would throttle the loop to the group-walk decision rate
-    small = await cocotb.external(
+    small = await bridge(
         lambda: progs.run(drv, bl.BchLoopDriver.INJ_RANDOM, rate=0, blocks=16))()
-    large = await cocotb.external(
+    large = await bridge(
         lambda: progs.run(drv, bl.BchLoopDriver.INJ_RANDOM, rate=0, blocks=64))()
     dut._log.info("AXIS slope 16 -> 64 blocks:\n" +
                   progs.bandwidth_slope(small, large, n, k, s))
@@ -385,14 +386,14 @@ async def cocotb_test_uart_bw_slope(dut):
 @cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_uart_axi4_bw_slope(dut):
     drv, _ = await _bringup(dut)
-    topo = await cocotb.external(drv.topology)()
+    topo = await bridge(drv.topology)()
     assert topo["iface"] == "AXI4", f"expected an AXI4 build, TOPOLOGY says {topo['iface']}"
-    prof = await cocotb.external(drv.profile)()
+    prof = await bridge(drv.profile)()
     n, k, s = prof["n"], prof["k"], prof["spb"]
     # same rationale as the AXIS slope: RANDOM at rate 0 for full rate
-    small = await cocotb.external(
+    small = await bridge(
         lambda: progs.run(drv, bl.BchLoopDriver.INJ_RANDOM, rate=0, blocks=16))()
-    large = await cocotb.external(
+    large = await bridge(
         lambda: progs.run(drv, bl.BchLoopDriver.INJ_RANDOM, rate=0, blocks=64))()
     dut._log.info("AXI4 slope 16 -> 64 blocks:\n" +
                   progs.bandwidth_slope(small, large, n, k, s))

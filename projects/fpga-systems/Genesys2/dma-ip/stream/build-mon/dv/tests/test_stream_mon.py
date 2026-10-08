@@ -19,6 +19,7 @@ import random
 
 import pytest
 import cocotb
+from cocotb._bridge import bridge
 from cocotb_test.simulator import run
 
 from TBClasses.apb.register_map import RegisterMap
@@ -431,7 +432,7 @@ async def cocotb_test_scenario_order(dut):
 
     rd, cfgw = HM.tally.windows()
     tally_rd, tally_cfg = rd["stream"], cfgw["stream"]
-    unexpected = await cocotb.external(
+    unexpected = await bridge(
         lambda: HM.tally.check_capacity(bridge, tally_cfg, HM.CANDIDATES, HM.MON_N_PROFILE))()
     labels = HM.tally.labels(HM.CANDIDATES, unexpected)
     sc = {s[0]: s for s in HM.SCENARIOS}
@@ -485,7 +486,7 @@ async def cocotb_test_scenario_order(dut):
 
     async def run(name):
         before = dict(hs)
-        done, counts = await cocotb.external(
+        done, counts = await bridge(
             lambda: HM.run_scenario(bridge, runner, sc[name], tally_rd, tally_cfg, unexpected, 5000.0))()
         errs = sum(c for b, c in counts.items() if b != unexpected and HM.CANDIDATES[b][2] == HM.PKT_ERROR)
         delta = {k: hs[k] - before[k] for k in hs}
@@ -767,13 +768,13 @@ async def cocotb_test_stream_mon_compress(dut):
 
     def run():
         # The runner is built in the worker thread: its constructor reads
-        # BUILD_CLK_HZ over the bridge, which is a cocotb.function call and
+        # BUILD_CLK_HZ over the bridge, which is a resume call and
         # must not be made from the scheduler's thread.
         return mon_compress.measure_compression(
             tb.bridge, descriptors=ndesc, xfer_bytes=xfer, max_slots=256,
             log=lambda m: log.info(f"[compress] {m}"))
 
-    res = await cocotb.external(run)()
+    res = await bridge(run)()
 
     assert res['dma_pass'], f"[compress] DMA workload did not pass: {res.get('reason')}"
     assert res['populated'], (

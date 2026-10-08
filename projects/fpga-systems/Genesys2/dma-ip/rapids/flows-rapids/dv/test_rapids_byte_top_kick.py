@@ -30,6 +30,7 @@ import sys
 import pytest
 import cocotb
 from cocotb.triggers import RisingEdge, ClockCycles
+from cocotb._bridge import bridge
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import (get_paths, create_view_cmd,
@@ -138,7 +139,7 @@ async def cocotb_test_kick_enable_written(dut):
     cocotb.start_soon(_apb_recorder(dut, writes)())
 
     mask = 0b0101                      # channels 0 and 2
-    await cocotb.external(lambda: _stage_and_go(io, 1, mask))()
+    await bridge(lambda: _stage_and_go(io, 1, mask))()
     await ClockCycles(dut.CLK100MHZ, 4000)   # let the sequencer drain
 
     dut._log.info("APB writes: %s", [(hex(a), hex(d)) for a, d in writes])
@@ -174,7 +175,7 @@ async def cocotb_test_empty_mask_is_a_noop(dut):
     writes = []
     cocotb.start_soon(_apb_recorder(dut, writes)())
 
-    await cocotb.external(lambda: _stage_and_go(io, 1, 0))()
+    await bridge(lambda: _stage_and_go(io, 1, 0))()
     await ClockCycles(dut.CLK100MHZ, 4000)
 
     kick_addr = _snk_addr('KICK_ENABLE')

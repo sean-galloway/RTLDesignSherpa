@@ -30,6 +30,7 @@ import sys
 import pytest
 import cocotb
 from cocotb.triggers import ClockCycles
+from cocotb._bridge import bridge
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
@@ -396,7 +397,7 @@ async def cocotb_test_char_families(dut):
         return pc.run_profile(drv, profile, txn_scale=1, base_addr=0x0,
                               timeout_s=60)
 
-    recs = await cocotb.external(prog)()
+    recs = await bridge(prog)()
     configs = sorted({r.config for r in recs})
     dut._log.info("\n%s", pc.format_table(recs))
 
@@ -661,7 +662,7 @@ async def cocotb_test_char_concurrent_gap(dut):
             out.append((gap, r))
         return out
 
-    recs = await cocotb.external(prog)()
+    recs = await bridge(prog)()
 
     # Results to a FILE, not just the log. cocotb output is swallowed on a
     # PASS, so a passing run leaves no evidence of what it actually ran -- and

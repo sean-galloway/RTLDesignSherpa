@@ -26,7 +26,7 @@
 #
 # Transport: RapidsByteIO's methods are SYNCHRONOUS (they block on byte I/O), so
 # they must never be called bare from a coroutine -- they run on a worker thread
-# via cocotb.external, which lets them block while the simulator advances. Whole
+# via bridge, which lets them block while the simulator advances. Whole
 # sequences are wrapped per call, not individual registers: each external is a
 # thread handoff, and the ddr2_char framework established the coarse-grained
 # pattern.
@@ -40,6 +40,7 @@ import os
 import sys
 
 import cocotb
+from cocotb._bridge import bridge
 
 from TBClasses.shared.utilities import get_repo_root
 from TBClasses.shared.tbbase import TBBase
@@ -167,7 +168,7 @@ class RapidsByteHarnessTB(TBBase):
         # Prove the link before trusting anything downstream. A wrong baud or a
         # dead UART otherwise shows up much later as "the DMA moved no beats",
         # which is a far more expensive thing to debug than a bad ID read.
-        ident = await cocotb.external(lambda: self.io.csr_read_reg("CTRL"))()
+        ident = await bridge(lambda: self.io.csr_read_reg("CTRL"))()
         assert ident == CSR_ID_EXPECTED, (
             f"harness CSR ID read 0x{ident if ident is not None else 0:08X}, "
             f"expected 0x{CSR_ID_EXPECTED:08X} -- UART link is not up "
@@ -178,7 +179,7 @@ class RapidsByteHarnessTB(TBBase):
         # through it passes configure=False so the code under test is the only
         # thing that touches the DUT after the link proof.
         if configure:
-            await cocotb.external(self.campaign.configure)()
+            await bridge(self.campaign.configure)()
 
     async def assert_reset(self):
         self.rst_n.value = 0
@@ -278,7 +279,7 @@ class RapidsByteHarnessTB(TBBase):
             return self.campaign.run_sink_selfcheck(active, beats,
                                                     SIM_POLL_TIMEOUT_S,
                                                     pkt_bytes=pkt_bytes, offset=offset)
-        ok, detail = await cocotb.external(prog)()
+        ok, detail = await bridge(prog)()
         # The geometry the host read back from the harness BUILD register: a
         # passing run states what it simulated (sim == board is the contract).
         self.log.info(f"BUILD (from CSR): {self.campaign.design}")
@@ -306,6 +307,6 @@ class RapidsByteHarnessTB(TBBase):
                                                       SIM_POLL_TIMEOUT_S,
                                                       backpressure=backpressure,
                                                       pkt_bytes=pkt_bytes, offset=offset)
-        ok, detail = await cocotb.external(prog)()
+        ok, detail = await bridge(prog)()
         self._log_detail('SOURCE', ok, detail)
         return ok, detail

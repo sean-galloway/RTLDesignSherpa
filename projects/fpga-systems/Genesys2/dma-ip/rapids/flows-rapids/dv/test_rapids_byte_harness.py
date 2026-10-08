@@ -35,6 +35,7 @@ import sys
 
 import pytest
 import cocotb
+from cocotb._bridge import bridge
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
@@ -99,7 +100,7 @@ async def cocotb_test_byte_perf(dut):
     pts = [byte_perf._pt('size', 1, payload=77, offset=5),
            byte_perf._pt('beat', 1, beats=4)]
     for pt in pts:
-        row = await cocotb.external(lambda pt=pt: byte_perf.run_point(tb.campaign, pt, 60.0))()
+        row = await bridge(lambda pt=pt: byte_perf.run_point(tb.campaign, pt, 60.0))()
         assert row['pass'], f"{pt['id']}: {row}"
         for d in ('sink', 'source'):
             r = row[d]

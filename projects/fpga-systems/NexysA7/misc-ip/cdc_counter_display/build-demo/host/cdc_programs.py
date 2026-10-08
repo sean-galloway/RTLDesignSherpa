@@ -6,7 +6,7 @@
 These functions take a `CdcDemoDriver` and drive the harness by name. They are
 pure logic (no printing, no argparse) so the *identical* program runs against
 the FPGA (from host_cdc_demo.py over pyserial) and in a cocotb sim (from
-dv/tests/test_cdc_demo_uart.py via cocotb.external over the real uart_axil_bridge
+dv/tests/test_cdc_demo_uart.py via bridge over the real uart_axil_bridge
 RTL). Same bytes on the wire → silicon and sim are equivalent.
 
 The digital-contract programs (smoke / press / cfg_load / cdc_mode_check) return

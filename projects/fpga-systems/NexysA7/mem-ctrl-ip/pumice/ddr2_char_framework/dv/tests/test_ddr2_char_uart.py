@@ -7,7 +7,7 @@ wraps the full `ddr2_char_harness` (real UART bridge + harness_csr + engines +
 pumice controller); a cocotb UARTMaster/Monitor drives the identical ASCII W/R
 byte stream the host sends to the FPGA. The DFI side is the framework's
 DFISlavePHY + MemoryModel loopback (no a7ddrphy — not simulatable). The
-synchronous host program runs in a worker thread via cocotb.external and talks
+synchronous host program runs in a worker thread via bridge and talks
 to the sim through CocotbUartChannel (see cocotb_uart_bridge.py).
 
 Tests:
@@ -25,6 +25,7 @@ import sys
 import pytest
 import cocotb
 from cocotb.triggers import ClockCycles
+from cocotb._bridge import bridge
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
@@ -248,7 +249,7 @@ async def cocotb_test_uart_smoke(dut):
                        mism=drv.beats_mismatched())
         return results
 
-    r = await cocotb.external(prog)()
+    r = await bridge(prog)()
     dut._log.info("smoke results: %s", r)
     assert r["build_id"] == 0x44445232, f"BUILD_ID mismatch: 0x{r['build_id']:08X}"
     assert r["scratch"] == 0x00C0FFEE, f"SCRATCH round-trip failed: {r['scratch']:#x}"
@@ -309,7 +310,7 @@ async def cocotb_test_uart_pagehit(dut):
                        mism=drv.beats_mismatched())
         return results
 
-    r = await cocotb.external(prog)()
+    r = await bridge(prog)()
     dut._log.info("PAGEHIT results (NTXN=%d): %s", NTXN, r)
     assert r["wr"] and r["rd"], f"engine did not finish: {r}"
     assert r["valid"] and r["match"] and r["mism"] == 0, (
@@ -380,7 +381,7 @@ async def cocotb_test_uart_concurrent(dut):
                 rd_error=int(st.rd_error), wr_error=int(st.wr_error)))
         return results
 
-    r = await cocotb.external(prog)()
+    r = await bridge(prog)()
     dut._log.info("CONCURRENT results: %s", r)
     assert "init_fail" not in r, f"init write hang @ {r.get('init_fail')}"
     for i, rd in enumerate(r["rounds"]):
@@ -426,7 +427,7 @@ async def cocotb_test_uart_multichunk(dut):
         return {"bl2": wr_rd(2, 0x5A5A0001),   # 1 chunk (control)
                 "bl4": wr_rd(4, 0x5A5A0001)}   # 2 chunks (the fix)
 
-    r = await cocotb.external(prog)()
+    r = await bridge(prog)()
     dut._log.info("MULTICHUNK rate=%d: %s", DFI_RATE, r)
     for name in ("bl2", "bl4"):
         w, rd, mism = r[name]
@@ -446,7 +447,7 @@ async def cocotb_test_uart_simple(dut):
         st.init(do_leveling=False)
         return st.run(burst_len=8, txn_count=8)
 
-    res = await cocotb.external(prog)()
+    res = await bridge(prog)()
     dut._log.info("SimpleTest: ok=%s exp=0x%08X act=0x%08X mism=%d",
                   res.ok, res.expected, res.actual, res.mismatched)
     assert res.ok, (f"SimpleTest failed: exp=0x{res.expected:08X} "
@@ -497,7 +498,7 @@ async def cocotb_test_uart_sequences(dut):
         runner = SequenceRunner(ctx=ctx).discover(_SEQ)
         return runner.run(["init", "write_read"])
 
-    report = await cocotb.external(prog)()
+    report = await bridge(prog)()
     dut._log.info("sequence run:\n%s", report.summary())
     assert report.ok, f"pumice sequences failed in sim:\n{report.summary()}"
 
@@ -546,7 +547,7 @@ async def cocotb_test_uart_sweep(dut):
                                   id_mode=dc.ID_MODE_COUNTER)
         return results
 
-    r = await cocotb.external(prog)()
+    r = await bridge(prog)()
     dut._log.info("sweep results (NPKT=%d): %s", NPKT, r)
     assert r["build_id"] == 0x44445232, f"BUILD_ID mismatch: 0x{r['build_id']:08X}"
     for name in ("inorder", "ooo"):

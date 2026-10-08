@@ -17,7 +17,7 @@ on the Genesys 2 mon bitstream.
 
 Library + launcher (see the stream host-objects note): `test_stream_mon_compress`
 imports `measure_compression` and drives it over the cosim bridge under
-cocotb.external; build-mon/host/host_mon_compress.py is the CLI over pyserial.
+bridge; build-mon/host/host_mon_compress.py is the CLI over pyserial.
 """
 from __future__ import annotations
 

@@ -30,6 +30,7 @@ import subprocess
 import sys
 
 import cocotb
+from cocotb._bridge import bridge
 import pytest
 
 from TBClasses.shared.test_levels import reg_level_grid
@@ -104,7 +105,7 @@ async def cocotb_test_campaign(dut):
     cocotb.start_soon(mon.run())
     argv = shlex.split(os.environ['TEST_CAMPAIGN_ARGV'])
     results = os.environ['TEST_CAMPAIGN_RESULTS']
-    rc = await cocotb.external(lambda: main(
+    rc = await bridge(lambda: main(
         argv + ['--results', results], io=tb.io, campaign_hook=sim_transport_hook,
         transport='sim-uart'))()
     if rc != 0 and mon.log_max:

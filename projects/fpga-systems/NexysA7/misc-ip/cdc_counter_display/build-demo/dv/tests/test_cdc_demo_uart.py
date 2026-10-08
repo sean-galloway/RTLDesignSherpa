@@ -10,7 +10,7 @@ here at co-prime periods (the MMCM/BUFGMUX clock tree in cdc_demo_top does not
 simulate in Verilator — it is the "analog" part, replaced behaviorally).
 
 The synchronous host programs (cdc_programs.*) run in a worker thread via
-cocotb.external and talk to the sim through CocotbUartChannel — the UNMODIFIED
+bridge and talk to the sim through CocotbUartChannel — the UNMODIFIED
 programs the FPGA CLI runs. Tests:
 
   * uart_smoke    — BUILD_ID + SCRATCH round-trip + per-counter snapshot over the
@@ -28,6 +28,7 @@ import cocotb
 import pytest
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, Timer
+from cocotb._bridge import bridge
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
@@ -80,7 +81,7 @@ async def _bringup(dut):
 @cocotb.test(timeout_time=50, timeout_unit="ms")
 async def cocotb_test_uart_smoke(dut):
     drv, chan = await _bringup(dut)
-    r = await cocotb.external(lambda: progs.smoke(drv))()
+    r = await bridge(lambda: progs.smoke(drv))()
     dut._log.info("smoke: build_id=0x%08X ok=%s", r.build_id, r.ok)
     assert r.build_id == cd.EXPECTED_BUILD_ID, f"BUILD_ID 0x{r.build_id:08X}"
     assert r.ok, f"smoke failed: scratch={r.scratch}"
@@ -93,7 +94,7 @@ async def cocotb_test_uart_smoke(dut):
 @cocotb.test(timeout_time=80, timeout_unit="ms")
 async def cocotb_test_uart_press(dut):
     drv, _chan = await _bringup(dut)
-    r = await cocotb.external(lambda: progs.press(drv, counter=0, count=5))()
+    r = await bridge(lambda: progs.press(drv, counter=0, count=5))()
     dut._log.info("press: 0x%04X -> 0x%04X (exp 0x%04X) dPRESS=%d",
                   r.value_before, r.value_after, r.value_expected, r.press_delta)
     assert r.ok, (f"press failed: value 0x{r.value_after:04X} exp "
@@ -103,7 +104,7 @@ async def cocotb_test_uart_press(dut):
 @cocotb.test(timeout_time=80, timeout_unit="ms")
 async def cocotb_test_uart_cfg_load(dut):
     drv, _chan = await _bringup(dut)
-    r = await cocotb.external(lambda: progs.cfg_load(drv, counter=1))()
+    r = await bridge(lambda: progs.cfg_load(drv, counter=1))()
     dut._log.info("cfg_load: mid=0x%04X reload=0x%04X (target 0x%04X)",
                   r.value_mid, r.value_reload, r.reload_target)
     assert r.ok, (f"cfg_load failed: reload 0x{r.value_reload:04X} target "
@@ -113,7 +114,7 @@ async def cocotb_test_uart_cfg_load(dut):
 @cocotb.test(timeout_time=80, timeout_unit="ms")
 async def cocotb_test_uart_cdc_mode(dut):
     drv, _chan = await _bringup(dut)
-    r = await cocotb.external(lambda: progs.cdc_mode_check(drv, counter=2))()
+    r = await bridge(lambda: progs.cdc_mode_check(drv, counter=2))()
     dut._log.info("cdc_mode: %s", r.checks)
     assert r.ok, f"cdc_mode round-trip failed: {r.checks}"
 

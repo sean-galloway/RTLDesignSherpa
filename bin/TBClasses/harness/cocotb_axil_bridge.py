@@ -12,17 +12,21 @@ both cases (only the ByteChannel differs), sim and FPGA are equivalent at the
 wire.
 
 Sync/async bridge: the synchronous program runs in a worker thread (via
-`cocotb.external`); this channel's `write`/`read_until` are `cocotb.function`
-wrappers — the inverse of `external`. When the worker calls them, cocotb hands
-the wrapped coroutine to the scheduler, ADVANCES SIM TIME while it drives the
-UARTMaster / drains the UARTMonitor, and returns the result to the worker. This
-is the pattern that actually steps the simulation (a free-running pump + plain
-thread queues does not — the scheduler stalls while the worker blocks).
+`bridge` from `cocotb._bridge`, the 2.x replacement for the old `external`
+helper); this channel's `write`/`read_until` are `resume` wrappers from
+`cocotb._bridge` -- the 2.x replacement for the old `function` helper, the
+inverse of `bridge`. When the worker calls them, cocotb hands the wrapped
+coroutine to the scheduler, ADVANCES SIM TIME while it drives the UARTMaster /
+drains the UARTMonitor, and returns the result to the worker. This is the
+pattern that actually steps the simulation (a free-running pump + plain thread
+queues does not -- the scheduler stalls while the worker blocks).
 """
-
 from __future__ import annotations
 
-import cocotb
+# NOTE: bridge/resume live in cocotb's private _bridge module in 2.1.0 -- the
+# public re-export the 2.0 changelog promised is not there; import from the
+# private module (single place, so a future move is one edit).
+from cocotb._bridge import resume
 from cocotb.triggers import RisingEdge
 
 from CocoTBFramework.components.uart.uart_components import UARTMaster, UARTMonitor
@@ -30,7 +34,7 @@ from CocoTBFramework.components.uart.uart_components import UARTMaster, UARTMoni
 
 class CocotbUartChannel:
     """ByteChannel over a cocotb UARTMaster/Monitor, callable from a worker
-    thread (under cocotb.external) via cocotb.function wrappers.
+    thread (under bridge) via resume wrappers.
 
     Duck-types the subset of serial.Serial that UARTAxiBridge uses:
     write / read_until / reset_*_buffer / close / is_open.
@@ -46,10 +50,11 @@ class CocotbUartChannel:
         self._monitor = UARTMonitor(dut, "uart_mon", tx_signal, clock,
                                     clks_per_bit=clks_per_bit, direction="TX",
                                     log=log)
-        # cocotb.function: lets the synchronous worker call these coroutines and
-        # block until they complete, while the scheduler advances the sim.
-        self._send = cocotb.function(self._send_coro)
-        self._recv = cocotb.function(self._recv_coro)
+        # resume (2.x replacement for the old function helper): lets the
+        # synchronous worker call these coroutines and block until they complete,
+        # while the scheduler advances the sim.
+        self._send = resume(self._send_coro)
+        self._recv = resume(self._recv_coro)
 
     async def _send_coro(self, data: bytes):
         for b in data:

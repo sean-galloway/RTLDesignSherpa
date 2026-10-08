@@ -31,6 +31,7 @@ import os
 import sys
 import cocotb
 from cocotb.triggers import RisingEdge, Timer
+from cocotb._bridge import bridge
 
 from TBClasses.shared.utilities import get_repo_root
 from TBClasses.shared.tbbase import TBBase
@@ -346,7 +347,7 @@ class StreamHarnessTB(TBBase):
 
         # THE bridge. Synchronous, and identical to what host_characterize.py
         # constructs with port=... on silicon -- only the channel differs. Hand
-        # this to host programs under cocotb.external; never wrap tb.uart_write
+        # this to host programs under bridge; never wrap tb.uart_write
         # in a private shim class (that hooks in ABOVE the ASCII protocol, so
         # the UART framing the board actually speaks goes untested).
         self.bridge = UARTAxiBridge(channel=self.channel)
@@ -794,8 +795,8 @@ class StreamHarnessTB(TBBase):
         the same host program that runs on the FPGA. Requires the harness built
         with USE_ROW_COL_MAJOR_ADDRESSING=1.
 
-        The host program is synchronous; it runs under `cocotb.external` while a
-        `cocotb.function`-wrapped bridge over the async UART steps the sim (the
+        The host program is synchronous; it runs under `bridge` while a
+        `resume`-wrapped bridge over the async UART steps the sim (the
         harness-methodology pattern, NOT a pump).
         """
         from stream_device import Stream
@@ -814,7 +815,7 @@ class StreamHarnessTB(TBBase):
             # (each poll is a real UART read); a healthy transfer needs a handful.
             return ext.run_suite(stream, channel=0, W=W, H=H, poll_max=400)
 
-        results = await cocotb.external(program)()
+        results = await bridge(program)()
         all_ok = True
         for case in ext.CASES:
             r = results[case]
@@ -855,7 +856,7 @@ class StreamHarnessTB(TBBase):
         # Open/read the perf windows with the TB's proven async path (rw_perf).
         # The Stream host program (host_ext_char.py) reads perf by name too and
         # is byte-identical on the board (synchronous pyserial); only in sim does
-        # the perf read need the async TB path (a cocotb.function/external timing
+        # the perf read need the async TB path (a resume/external timing
         # artifact makes an under-external window read come back empty). The DMA
         # itself IS the board Stream program (program_case + run + wait).
         records = []
@@ -870,7 +871,7 @@ class StreamHarnessTB(TBBase):
                     ec.batch_kick(stream.bridge, {0: kick})  # stage CHx_CTRL + one KICK_ENABLE
                     return ec.wait_done(stream, 0, poll_max=4000)
 
-                res = await cocotb.external(dma)()
+                res = await bridge(dma)()
                 await self.wait_clocks(self.clk_name, 200)
                 await self.uart_write(APB_RDMON_PERF_BASE + PERF_OFF_CTRL, 0x0)
                 await self.uart_write(APB_WRMON_PERF_BASE + PERF_OFF_CTRL, 0x0)
@@ -940,7 +941,7 @@ class StreamHarnessTB(TBBase):
             stream.enable_channel(channel, True)
             return kick
 
-        kick = await cocotb.external(program)()
+        kick = await bridge(program)()
         self.log.info(f"ext_chain: depth={depth} {W}x{H} transpose chain, "
                       f"expected_total={expected_total} beats, kick=0x{kick:08X}")
 
@@ -1031,7 +1032,7 @@ class StreamHarnessTB(TBBase):
                 kick = stream.load_ext_chain(channel, _descs)
                 stream.enable_channel(channel, True)
                 return kick
-            kick = await cocotb.external(program)()
+            kick = await bridge(program)()
             # Stage (LOW only -- 32-bit harness, HIGH resets to 0), then launch.
             await self.uart_write(A(f"CH{channel}_CTRL_LOW"), kick & 0xFFFF_FFFF)
             await self.uart_write(A("KICK_ENABLE"), 1 << channel)
@@ -1137,8 +1138,8 @@ class StreamHarnessTB(TBBase):
         way the board moves it" must come through HERE -- a second
         orchestration is how sim stopped predicting silicon.
 
-        Synchronous runner in a worker thread via `cocotb.external`; the
-        channel's `cocotb.function` wrappers step the simulator. NOT a pump.
+        Synchronous runner in a worker thread via `bridge`; the
+        channel's `resume` wrappers step the simulator. NOT a pump.
         """
         from descriptor_builder import CharConfig
 
@@ -1158,7 +1159,7 @@ class StreamHarnessTB(TBBase):
         runner.log = lambda msg, _l=self.log: _l.info(f"  [runner] {msg}")
 
         self.log.info(f"=== runner.run_config({cfg.name}) -- board's program ===")
-        result = await cocotb.external(lambda: runner.run_config(cfg))()
+        result = await bridge(lambda: runner.run_config(cfg))()
 
         # NOTE the key is 'pass', not 'passed'. Getting this wrong reads as a
         # DUT failure: .get('passed') is None, bool(None) is False, and the
