@@ -188,6 +188,7 @@ $REPO_ROOT/rtl/math/math_ieee754_2008_fp32_exponent_adder.sv
 $REPO_ROOT/rtl/math/math_ieee754_2008_fp32_fma.sv
 $REPO_ROOT/rtl/math/math_ieee754_2008_fp32_mantissa_mult.sv
 $REPO_ROOT/rtl/math/math_ieee754_2008_fp32_multiplier.sv
+$REPO_ROOT/rtl/math/math_ieee754_2008_fp32_sqrt.sv
 $REPO_ROOT/rtl/math/math_int_to_bf16.sv
 $REPO_ROOT/rtl/math/math_multiplier_dadda_4to2_008.sv
 $REPO_ROOT/rtl/math/math_multiplier_dadda_4to2_011.sv
