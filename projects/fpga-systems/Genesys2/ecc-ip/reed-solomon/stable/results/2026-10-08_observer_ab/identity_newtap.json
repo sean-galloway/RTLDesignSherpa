@@ -1,0 +1,39 @@
+{
+  "bitstream": "/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/ecc-ip/reed-solomon/build-loop/fpga/bitstream/rs_loop_genesys2.bit",
+  "bitstream_sha256": "b6938f683f66b5998441fefcf483249f84c2dfcc58d562a92ec3e0aef1a13e46",
+  "board": "genesys2",
+  "expected_serial": "200300B818A0",
+  "identity": {
+    "chain": {
+      "devices": [
+        {
+          "idcode": "n/a",
+          "name": "xc7a100t_0",
+          "part": "xc7a100t",
+          "target": "localhost:3121/xilinx_tcf/Digilent/210292BFA3EEA"
+        },
+        {
+          "idcode": "n/a",
+          "name": "xc7k325t_0",
+          "part": "xc7k325t",
+          "target": "localhost:3121/xilinx_tcf/Digilent/200300B818A0B"
+        }
+      ],
+      "targets": [
+        {
+          "serial": "210292BFA3EEA",
+          "target": "localhost:3121/xilinx_tcf/Digilent/210292BFA3EEA"
+        },
+        {
+          "serial": "200300B818A0B",
+          "target": "localhost:3121/xilinx_tcf/Digilent/200300B818A0B"
+        }
+      ]
+    },
+    "detail": "",
+    "serial": "200300B818A0",
+    "status": "verified"
+  },
+  "programmed": true,
+  "when": "2026-10-08T16:54:46-0700"
+}

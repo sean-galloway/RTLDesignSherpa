@@ -1,0 +1,138 @@
+{
+  "profile": {
+    "n": 252,
+    "t": 8,
+    "m": 8,
+    "spb": 4
+  },
+  "caps": {
+    "axi4": {
+      "bus_meter": false,
+      "mon_taps": false,
+      "rd_ports": 0,
+      "wr_ports": 0,
+      "channels": 0,
+      "caps0": 0,
+      "caps1": 0
+    },
+    "axis": {
+      "bus_meter": true,
+      "mon_taps": false,
+      "rd_ports": 4,
+      "wr_ports": 0,
+      "channels": 1,
+      "caps0": 128,
+      "caps1": 65540
+    }
+  },
+  "runs": [
+    {
+      "msg_in": {
+        "productive": 472,
+        "backpressure": 28,
+        "starvation": 140,
+        "idle": 0,
+        "window": 640,
+        "utilisation": 0.7375,
+        "bytes": 1888,
+        "beats": 472,
+        "packets": 8,
+        "tap_dropped": 0,
+        "tap_packets": 8
+      },
+      "cw_out": {
+        "productive": 504,
+        "backpressure": 0,
+        "starvation": 136,
+        "idle": 0,
+        "window": 640,
+        "utilisation": 0.7875,
+        "bytes": 2016,
+        "beats": 504,
+        "packets": 8,
+        "tap_dropped": 0,
+        "tap_packets": 8
+      },
+      "cw_in": {
+        "productive": 504,
+        "backpressure": 0,
+        "starvation": 136,
+        "idle": 0,
+        "window": 640,
+        "utilisation": 0.7875,
+        "bytes": 2016,
+        "beats": 504,
+        "packets": 8,
+        "tap_dropped": 0,
+        "tap_packets": 8
+      },
+      "msg_out": {
+        "productive": 472,
+        "backpressure": 0,
+        "starvation": 168,
+        "idle": 0,
+        "window": 640,
+        "utilisation": 0.7375,
+        "bytes": 1888,
+        "beats": 472,
+        "packets": 8,
+        "tap_dropped": 0,
+        "tap_packets": 8
+      }
+    },
+    {
+      "msg_in": {
+        "productive": 472,
+        "backpressure": 28,
+        "starvation": 140,
+        "idle": 0,
+        "window": 640,
+        "utilisation": 0.7375,
+        "bytes": 1888,
+        "beats": 472,
+        "packets": 8,
+        "tap_dropped": 0,
+        "tap_packets": 8
+      },
+      "cw_out": {
+        "productive": 504,
+        "backpressure": 0,
+        "starvation": 136,
+        "idle": 0,
+        "window": 640,
+        "utilisation": 0.7875,
+        "bytes": 2016,
+        "beats": 504,
+        "packets": 8,
+        "tap_dropped": 0,
+        "tap_packets": 8
+      },
+      "cw_in": {
+        "productive": 504,
+        "backpressure": 0,
+        "starvation": 136,
+        "idle": 0,
+        "window": 640,
+        "utilisation": 0.7875,
+        "bytes": 2016,
+        "beats": 504,
+        "packets": 8,
+        "tap_dropped": 0,
+        "tap_packets": 8
+      },
+      "msg_out": {
+        "productive": 472,
+        "backpressure": 0,
+        "starvation": 168,
+        "idle": 0,
+        "window": 640,
+        "utilisation": 0.7375,
+        "bytes": 1888,
+        "beats": 472,
+        "packets": 8,
+        "tap_dropped": 0,
+        "tap_packets": 8
+      }
+    }
+  ]
+}

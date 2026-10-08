@@ -1,0 +1,349 @@
+{
+ "meta": {
+  "date": "2026-10-08T23:54:53.419272+00:00",
+  "board": "Genesys 2 (jtag 200300B818A0, uart AU05X8RM)",
+  "port": "/dev/ttyUSB0",
+  "bitstream": "rs_loop_genesys2.bit",
+  "bitstream_sha256": "b6938f683f66b5998441fefcf483249f84c2dfcc58d562a92ec3e0aef1a13e46",
+  "git_head": "7addbfca0830b263628604911fc0d0ee99e30e30",
+  "build_id": "0x52534C50",
+  "profile": {
+   "n": 252,
+   "t": 8,
+   "m": 8,
+   "spb": 4
+  },
+  "topology": {
+   "decoders": 1,
+   "kes_a": false,
+   "kes_b": false,
+   "compare": false,
+   "iface": "AXIS",
+   "erasure": true,
+   "name_a": "riBM",
+   "name_b": "riBM"
+  },
+  "caps": {
+   "axi4": {
+    "bus_meter": false,
+    "mon_taps": false,
+    "rd_ports": 0,
+    "wr_ports": 0,
+    "channels": 0,
+    "caps0": 0,
+    "caps1": 0
+   },
+   "axis": {
+    "bus_meter": true,
+    "mon_taps": false,
+    "rd_ports": 4,
+    "wr_ports": 0,
+    "channels": 1,
+    "caps0": 128,
+    "caps1": 65540
+   }
+  }
+ },
+ "iterations": [
+  {
+   "label": "clean16_a",
+   "blocks": 16,
+   "mode": 1,
+   "count": 0,
+   "throttle": false,
+   "cycles": 1144,
+   "cycles_per_block": 71.5,
+   "run_ok": true,
+   "cmp_beats": 0,
+   "cmp_data_mismatch": 0,
+   "cmp_status_mismatch": 0,
+   "tap_blocked_sticky": false,
+   "ports": {
+    "msg_in": {
+     "productive": 944,
+     "backpressure": 60,
+     "starvation": 140,
+     "idle": 0,
+     "beats": 944,
+     "packets": 16,
+     "tap_dropped": 0,
+     "tap_packets": 16,
+     "bytes": 3776
+    },
+    "cw_out": {
+     "productive": 1008,
+     "backpressure": 0,
+     "starvation": 136,
+     "idle": 0,
+     "beats": 1008,
+     "packets": 16,
+     "tap_dropped": 0,
+     "tap_packets": 16,
+     "bytes": 4032
+    },
+    "cw_in": {
+     "productive": 1008,
+     "backpressure": 0,
+     "starvation": 136,
+     "idle": 0,
+     "beats": 1008,
+     "packets": 16,
+     "tap_dropped": 0,
+     "tap_packets": 16,
+     "bytes": 4032
+    },
+    "msg_out": {
+     "productive": 944,
+     "backpressure": 0,
+     "starvation": 200,
+     "idle": 0,
+     "beats": 944,
+     "packets": 16,
+     "tap_dropped": 0,
+     "tap_packets": 16,
+     "bytes": 3776
+    }
+   }
+  },
+  {
+   "label": "clean16_b",
+   "blocks": 16,
+   "mode": 1,
+   "count": 0,
+   "throttle": false,
+   "cycles": 1144,
+   "cycles_per_block": 71.5,
+   "run_ok": true,
+   "cmp_beats": 0,
+   "cmp_data_mismatch": 0,
+   "cmp_status_mismatch": 0,
+   "tap_blocked_sticky": false,
+   "ports": {
+    "msg_in": {
+     "productive": 944,
+     "backpressure": 60,
+     "starvation": 140,
+     "idle": 0,
+     "beats": 944,
+     "packets": 16,
+     "tap_dropped": 0,
+     "tap_packets": 16,
+     "bytes": 3776
+    },
+    "cw_out": {
+     "productive": 1008,
+     "backpressure": 0,
+     "starvation": 136,
+     "idle": 0,
+     "beats": 1008,
+     "packets": 16,
+     "tap_dropped": 0,
+     "tap_packets": 16,
+     "bytes": 4032
+    },
+    "cw_in": {
+     "productive": 1008,
+     "backpressure": 0,
+     "starvation": 136,
+     "idle": 0,
+     "beats": 1008,
+     "packets": 16,
+     "tap_dropped": 0,
+     "tap_packets": 16,
+     "bytes": 4032
+    },
+    "msg_out": {
+     "productive": 944,
+     "backpressure": 0,
+     "starvation": 200,
+     "idle": 0,
+     "beats": 944,
+     "packets": 16,
+     "tap_dropped": 0,
+     "tap_packets": 16,
+     "bytes": 3776
+    }
+   }
+  },
+  {
+   "label": "e_eq_t_16",
+   "blocks": 16,
+   "mode": 1,
+   "count": 8,
+   "throttle": false,
+   "cycles": 2087,
+   "cycles_per_block": 130.4375,
+   "run_ok": true,
+   "cmp_beats": 0,
+   "cmp_data_mismatch": 0,
+   "cmp_status_mismatch": 0,
+   "tap_blocked_sticky": false,
+   "ports": {
+    "msg_in": {
+     "productive": 944,
+     "backpressure": 964,
+     "starvation": 178,
+     "idle": 1,
+     "beats": 944,
+     "packets": 16,
+     "tap_dropped": 0,
+     "tap_packets": 16,
+     "bytes": 3776
+    },
+    "cw_out": {
+     "productive": 1008,
+     "backpressure": 914,
+     "starvation": 164,
+     "idle": 1,
+     "beats": 1008,
+     "packets": 16,
+     "tap_dropped": 0,
+     "tap_packets": 16,
+     "bytes": 4032
+    },
+    "cw_in": {
+     "productive": 1008,
+     "backpressure": 0,
+     "starvation": 1079,
+     "idle": 0,
+     "beats": 1008,
+     "packets": 16,
+     "tap_dropped": 0,
+     "tap_packets": 16,
+     "bytes": 4032
+    },
+    "msg_out": {
+     "productive": 944,
+     "backpressure": 0,
+     "starvation": 1143,
+     "idle": 0,
+     "beats": 944,
+     "packets": 16,
+     "tap_dropped": 0,
+     "tap_packets": 16,
+     "bytes": 3776
+    }
+   }
+  },
+  {
+   "label": "e_gt_t_16",
+   "blocks": 16,
+   "mode": 1,
+   "count": 9,
+   "throttle": false,
+   "cycles": 2087,
+   "cycles_per_block": 130.4375,
+   "run_ok": true,
+   "cmp_beats": 0,
+   "cmp_data_mismatch": 0,
+   "cmp_status_mismatch": 0,
+   "tap_blocked_sticky": false,
+   "ports": {
+    "msg_in": {
+     "productive": 944,
+     "backpressure": 964,
+     "starvation": 178,
+     "idle": 1,
+     "beats": 944,
+     "packets": 16,
+     "tap_dropped": 0,
+     "tap_packets": 16,
+     "bytes": 3776
+    },
+    "cw_out": {
+     "productive": 1008,
+     "backpressure": 914,
+     "starvation": 164,
+     "idle": 1,
+     "beats": 1008,
+     "packets": 16,
+     "tap_dropped": 0,
+     "tap_packets": 16,
+     "bytes": 4032
+    },
+    "cw_in": {
+     "productive": 1008,
+     "backpressure": 0,
+     "starvation": 1079,
+     "idle": 0,
+     "beats": 1008,
+     "packets": 16,
+     "tap_dropped": 0,
+     "tap_packets": 16,
+     "bytes": 4032
+    },
+    "msg_out": {
+     "productive": 944,
+     "backpressure": 0,
+     "starvation": 1143,
+     "idle": 0,
+     "beats": 944,
+     "packets": 16,
+     "tap_dropped": 0,
+     "tap_packets": 16,
+     "bytes": 3776
+    }
+   }
+  },
+  {
+   "label": "clean64",
+   "blocks": 64,
+   "mode": 1,
+   "count": 0,
+   "throttle": false,
+   "cycles": 4168,
+   "cycles_per_block": 65.125,
+   "run_ok": true,
+   "cmp_beats": 0,
+   "cmp_data_mismatch": 0,
+   "cmp_status_mismatch": 0,
+   "tap_blocked_sticky": false,
+   "ports": {
+    "msg_in": {
+     "productive": 3776,
+     "backpressure": 252,
+     "starvation": 140,
+     "idle": 0,
+     "beats": 3776,
+     "packets": 64,
+     "tap_dropped": 0,
+     "tap_packets": 64,
+     "bytes": 15104
+    },
+    "cw_out": {
+     "productive": 4032,
+     "backpressure": 0,
+     "starvation": 136,
+     "idle": 0,
+     "beats": 4032,
+     "packets": 64,
+     "tap_dropped": 0,
+     "tap_packets": 64,
+     "bytes": 16128
+    },
+    "cw_in": {
+     "productive": 4032,
+     "backpressure": 0,
+     "starvation": 136,
+     "idle": 0,
+     "beats": 4032,
+     "packets": 64,
+     "tap_dropped": 0,
+     "tap_packets": 64,
+     "bytes": 16128
+    },
+    "msg_out": {
+     "productive": 3776,
+     "backpressure": 0,
+     "starvation": 392,
+     "idle": 0,
+     "beats": 3776,
+     "packets": 64,
+     "tap_dropped": 0,
+     "tap_packets": 64,
+     "bytes": 15104
+    }
+   }
+  }
+ ]
+}
