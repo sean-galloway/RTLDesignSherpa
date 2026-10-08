@@ -12,23 +12,25 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 4 | done (kept for history) |
+| [closed/](closed/) | 5 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-005** — no harness exercises a master's multi-outstanding path,
-  because the slave they all use serialises bursts (ISSUE-004). `r_outstanding`
-  in `rs_axi4_write_engine` can only ever hold 0 or 1 against it, so
-  `MAX_OUTSTANDING(4)` is untested logic in shipped IP. Options: a pipelining
-  slave variant for DV, drive the engines from the AXI4 BFM instead, or
-  constrain the IP to depth 1.
-
 ## Closed
 
+- **ISSUE-005** — no harness exercises a master's multi-outstanding path.
+  CLOSED 2026-10-08, no-action: Sean's call — no harness should; traffic-shape
+  pressure is test generator RTL's job (pumice/scoria generators; stream/rapids
+  drive multi-outstanding against slave blocks instantiating real receive
+  RTL), not Python-BFM extensions. Post-ISSUE-004 sdpram exercises the
+  engine's counter over 0..3 in sim and on the Genesys 2 board; only the
+  exact clamp at MAX_OUTSTANDING=4 is unexercised, and 4 is margin above the
+  deepest shipped slave (3). If a future pipelined slave needs the clamp
+  proven, the instrument is the RTL pipelined-slave variant — filed then.
 - **ISSUE-004** — `sdpram_core` serialises bursts: one in flight per direction,
   so a master's outstanding depth is inert and ~2.0 (write) / ~1.6 (read)
   cycles land at each burst boundary. CLOSED 2026-10-01, no-action: a single

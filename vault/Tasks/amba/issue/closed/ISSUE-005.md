@@ -1,8 +1,29 @@
 # ISSUE-005: no harness exercises a master's multi-outstanding path
 
 **Priority:** P2
-**Status:** open
+**Status:** closed no-action 2026-10-08 — Sean's call, recorded
 **Owner:** TBD
+
+> **RESOLUTION 2026-10-08 (Sean):** no harness should exercise this. The
+> repo's instrument for traffic-shape pressure is test generator RTL — the
+> generators in pumice/scoria, and stream/rapids driving multi-outstanding
+> traffic against slave test blocks that instantiate the exact receive RTL a
+> real slave would use — not Python-BFM extensions to val harnesses. The BFM
+> option below is declined. Basis for the close, per ISSUE-004 precedent, is
+> this call; the supporting facts checked before recording it:
+>
+> - Post-ISSUE-004 `sdpram_slave_axi4_axi4` (BURST_Q_DEPTH=2) accepts AW n+1
+>   while burst n is in flight, so the engine's `r_outstanding` counter IS
+>   exercised — over the full 0..3 range (increment on AW, decrement on B,
+>   threshold compare). What is not exercised is only the exact clamp at
+>   MAX_OUTSTANDING=4, and 4 is margin above the deepest shipped slave (3),
+>   per the engine's own comment ("bounded so the slave is not flooded").
+> - The shipped Genesys2 RS pipeline (`rs_axi4_pipeline.sv`) wires
+>   `rs_axi4_write_engine` to `sdpram_slave_axi4_axi4`, so the board loop
+>   exercises the same 0..3 range in hardware.
+> - If a future pipelined slave ever needs the clamp proven at depth, the
+>   instrument is the RTL pipelined-slave variant from the options table
+>   below — filed as its own issue then, against that slave.
 
 > **UPDATE 2026-10-02:** the premise below is partially gone. ISSUE-004 was
 > fixed after all (Sean's call): sdpram_core now queues two commands per
