@@ -32,8 +32,15 @@ import time
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_GENESYS2 = os.path.normpath(os.path.join(_HERE, os.pardir, os.pardir, os.pardir))
-_SCORIA_HOST = os.path.join(_GENESYS2, 'scoria', 'host')
+# host -> flows-rapids -> rapids -> dma-ip -> Genesys2 (four levels; the
+# dma-ip grouping added one -- issue #92: this used three and landed on
+# dma-ip, so the scoria import AND the shared-bin path below were both wrong).
+_GENESYS2 = os.path.normpath(os.path.join(_HERE, os.pardir, os.pardir,
+                                          os.pardir, os.pardir))
+# scoria lives under the mem-ctrl-ip grouping since the fpga-systems area
+# reorg (issue #92: this used to join straight to <Genesys2>/scoria/host and
+# every real-hardware run died on the board_lock import).
+_SCORIA_HOST = os.path.join(_GENESYS2, 'mem-ctrl-ip', 'scoria', 'host')
 _FPGA_BIN = os.path.normpath(os.path.join(_GENESYS2, os.pardir, 'bin'))
 # The SHARED readback script (projects/fpga-systems/bin). This flow used to
 # carry its own copy, which predated the shared one; the two Tcl bodies were
@@ -41,7 +48,10 @@ _FPGA_BIN = os.path.normpath(os.path.join(_GENESYS2, os.pardir, 'bin'))
 # Handed over by the RLB-cleanup session on 2026-10-01 as a rapids follow-up
 # to tooling TASK-022.
 TCL = os.path.join(_FPGA_BIN, 'jtag_readback.tcl')
-BOARD = 'genesys2'
+# The board under test. The flows Makefile exports BOARD (default genesys2);
+# direct runs pick it up from the environment so an A7 run brackets the A7
+# serial instead of the Genesys 2 one (issue #92: this was hardcoded).
+BOARD = os.environ.get('BOARD', 'genesys2')
 
 if _SCORIA_HOST not in sys.path:
     sys.path.insert(0, _SCORIA_HOST)
