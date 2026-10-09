@@ -1,0 +1,133 @@
+# Testplan for amber_eviction_macro (macro composition suite 3:
+# eviction/writeback). Maps the group's cross-block scenarios to the
+# BFM-driven DV. DUT: the test wrapper amber_eviction_macro_test (Task
+# 9.5): REAL amber_control (with the victim depth-1 leaf) + landed
+# tag/data/repl arrays + REAL amber_drain on its house axi4_master_wr
+# transport; the TB closes the wrapper's m_axi AW/W/B pins with the
+# house AXI4 write responder + a shared MemoryModel. Fill stays a timing
+# stub (D-12, the control suite's fill model); snoops enter on the
+# control-facing pins.
+
+module: amber_eviction_macro
+rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tb/amber_eviction_macro_test.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_control.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_victim.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_drain.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_tag_array.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_data_array.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_repl.sv
+  - rtl/amba/axi/axi4_master_wr.sv   # transport (cross-area, -f'd)
+test_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_eviction_macro.py
+
+# Contract: MAS ch02_blocks/05 (the depth-1 victim buffer) + /06 (drain)
+# + ch03_interfaces/02. The control staged payload (victim_load /
+# victim_addr / victim_data) feeds the REAL drain burst. The golden
+# memory is write-through into the responder MemoryModel: the W channel
+# payload the engine writes is the same content the model retires at
+# drain_done, and a later fill reads the written-back bytes from the
+# responder. The mid-drain window the snoop compositions need is widened
+# with a delayed-B responder profile (the stub-era widened-latency
+# discipline applied to the real engine's B return).
+
+parameters:
+  - name: SETS / WAYS
+    default: 128 / 4 (amber_pkg)
+    description: the macro grid runs the tiny formal config (16 / 2) and
+      the pkg default
+  - name: LINE_BYTES / BUS_WIDTH
+    default: 64 / 64
+    description: fixed at the pkg defaults (FILL_BEATS=8)
+
+scenarios:
+  - name: InitWalk
+    level: gate
+    what: same pin as the other macros, scored against the real arrays.
+    status: covered
+  - name: WritebackRoundTrip
+    level: gate
+    what: a dirty eviction drives the REAL AW/W/B burst -- exactly one
+      AW (line-aligned at the victim line, awlen = FILL_BEATS-1,
+      awsize = log2(bus bytes), INCR), FILL_BEATS W beats with WLAST
+      only on the final beat, payload byte-equal the staged cache line,
+      exactly one OKAY B, and B STRICTLY before drain_done (the engine
+      cannot fake done latency); the evicting transaction completes and
+      a refetch returns the written-back bytes from the MemoryModel.
+    status: covered
+  - name: VictimBufferHandshake
+    level: func
+    what: the inherited directed window-endpoint pin: valid sets the
+      cycle after victim_load, payload held stable, clear after
+      drain_done -- now with the REAL engine holding the window open for
+      the whole B round trip. The EVERY-CYCLE VictimLoadWhileBusyNever
+      invariant runs throughout every level.
+    status: covered
+  - name: SnoopDrainingVictim
+    level: func
+    what: the inherited composition: a snoop for the dirty victim line
+      while the drain is outstanding is served from the staged buffer at
+      M (SINK_WB_ACK) -- the buffer owns the line until the REAL B
+      returns; drain completes after the snoop; refetch proves the
+      payload. The drain is kept outstanding with the delayed-B window.
+    status: covered
+  - name: SnoopStaleVictimMidFill
+    level: func
+    what: the inherited composition: after the drain completed (B <
+      fill launch), the victim line belongs to the memory side; a snoop
+      for it during the fill is answered Invalid, no transfer; the
+      refetch proves the writeback payload survived the race.
+    status: covered
+  - name: DrainBackpressureDrain
+    level: func
+    what: a dirty eviction under the slow responder profile (AW/W ready
+      stalls 1-10 cycles, B latency 2-12): the W payload is byte-equal
+      the staged line regardless of the backpressure, drain_done still
+      strictly after B, victim retired to memory.
+    status: covered
+  - name: EvictionSoak
+    level: func/full
+    what: SEED-pinned randomized write-heavy stream (70% writes; 2.5k
+      func / 10k full transactions) over a bounded working set -- dirty
+      victims drain through the real engine continuously, oracle
+      lockstep per transaction, responder profile switches mid-soak.
+    status: covered
+
+coverage_points:
+  - line: 1
+    type: module
+    content: "amber_eviction_macro_test: control + victim leaf + real
+      amber_drain + axi4_master_wr"
+    covered: true
+  - line: 1
+    type: group_interaction
+    content: "dirty-victim gather: control staged payload -> real AW/W/B
+      burst"
+    covered: true
+  - line: 1
+    type: engine_pin
+    content: "drain ordering: B handshake strictly before drain_done
+      (real B latency, not a fixed stub delay)"
+    covered: true
+  - line: 1
+    type: engine_pin
+    content: "W payload integrity under AW/W backpressure"
+    covered: true
+  - line: 1
+    type: invariant
+    content: "VictimLoadWhileBusyNever (depth-1 leaf) EVERY cycle under
+      real drain windows"
+    covered: true
+
+gaps:
+  - Mid-drain snoop window control: with the stub the TB widened
+    self.drain_latency; the real engine has no such knob, so the delayed-
+    B responder profile (24-40 cycles, safely past a full snoop service)
+    keeps the drain outstanding. B-backpressure coverage beyond that
+    range is the drain unit suite's territory.
+  - Fill-side behavior is a timing stub here by design -- the real fill
+    composition is group 2's cell.
+  - The SnoopHitsVictimBypass poison variant (data-array backdoor) stays
+    with the control unit suite; the buffer-service composition it
+    supports is pinned here through SnoopDrainingVictim with the staged
+    payload check.

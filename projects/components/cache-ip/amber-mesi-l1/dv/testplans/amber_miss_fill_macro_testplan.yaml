@@ -1,0 +1,163 @@
+# Testplan for amber_miss_fill_macro (macro composition suite 2: miss/fill
+# path). Maps the group's cross-block scenarios to the BFM-driven DV.
+# DUT: the test wrapper amber_miss_fill_macro_test (Task 9.5): REAL
+# amber_control (with the pending_fill_bypass leaf) + landed
+# tag/data/repl arrays + REAL amber_fill on its house axi4_master_rd
+# transport; the TB closes the wrapper's m_axi AR/R pins with the house
+# AXI4 read responder + a shared MemoryModel. Drain/victim stay timing
+# stubs (D-12); snoops enter on the control-facing pins.
+
+module: amber_miss_fill_macro
+rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tb/amber_miss_fill_macro_test.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_control.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_pending_fill_bypass.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_fill.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_tag_array.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_data_array.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_repl.sv
+  - rtl/amba/axi/axi4_master_rd.sv   # transport (cross-area, -f'd)
+test_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_miss_fill_macro.py
+
+# Contract: MAS ch02_blocks/02 (pending_fill_bypass) + /06 (fill) +
+# ch03_interfaces/02 (the fub_axi waveform). The wrapper wires the fill
+# beats into the data array with the landed core idiom (install way =
+# u_control.victim_way_q tapped READ-ONLY; control's CPU merge wins the
+# write port). The golden memory is write-through into the responder
+# MemoryModel, so the REAL fill reads exactly the bytes the oracle
+# scores against; default lines install lazily at request issue (the
+# engine reads memory at AR time, there is no stub behind the DUT).
+
+parameters:
+  - name: SETS / WAYS
+    default: 128 / 4 (amber_pkg)
+    description: the macro grid runs the tiny formal config (16 / 2) and
+      the pkg default
+  - name: LINE_BYTES / BUS_WIDTH
+    default: 64 / 64
+    description: fixed at the pkg defaults (FILL_BEATS=8)
+
+scenarios:
+  - name: InitWalk
+    level: gate
+    what: same pin as the lookup macro, scored against the real arrays.
+    status: covered
+  - name: FillOrchestration
+    level: gate
+    what: the first read miss drives the REAL AR channel -- exactly one
+      burst, araddr line-aligned at the fill line, arlen = FILL_BEATS-1,
+      arsize = log2(bus bytes), INCR; R beats gathered through the
+      engine + transport into the data array (FILL_BEATS fill_wr taps);
+      response data == the MemoryModel bytes.
+    status: covered
+  - name: UpgradeNoFetchEngine
+    level: gate
+    what: a CLEAN_UNIQUE upgrade raises NO AR transaction at all (the
+      timing stub suppressed beats by construction; the engine must not
+      issue one) -- AR count delta == 0 across the upgrade, one
+      CLEAN_UNIQUE fill, no beats, response = wdata.
+    status: covered
+  - name: MissSequence
+    level: func
+    what: clean + dirty victim, upgrade, partial-be merge -- through the
+      real AR/R path; victim-way parity per eviction.
+    status: covered
+  - name: SnoopPendingFillBypass
+    level: func
+    what: the inherited Task-4 pin against the real R channel: pre-RLAST
+      snoop for the pending line answered at the post-fill state with
+      received beats only (cd_hold backpressure on beat 0), the RS
+      downgrade applies post-commit (commit S, replayed write re-upgrades
+      CLEAN_UNIQUE).
+    status: covered
+  - name: SnoopPendingReadSharedFill
+    level: func
+    what: the S-reference polarity: bypass armed with S, READ_SHARED
+      mid-fill decodes at S (IsShared, no transfer), commit installs S,
+      no post-commit effect, response = fill beat.
+    status: covered
+  - name: IdleGrantBackToLookup
+    level: func
+    what: a snoop granted from IDLE in the same cycle a CPU request is
+      accepted detours through CTRL_SNOOP and returns to LOOKUP -- the
+      latched request then misses through the REAL fill and the response
+      returns the MemoryModel bytes (its lines are pre-installed in the
+      responder model; the scenario drives req_valid directly, bypassing
+      the issue-time install).
+    status: covered
+  - name: SnoopPostCommitApplies
+    level: func
+    what: a post-commit invalidate applies normally; the CPU re-access
+      re-fetches through the real AR channel.
+    status: covered
+  - name: SnoopOtherLineMidFill
+    level: func
+    what: other-line snoops interleaved mid-fill are answered from the
+      installed state; the fill is unaffected (class/addr/beat checks).
+    status: covered
+  - name: KilledFillRefetch
+    level: func
+    what: an invalidating snoop (READ_UNIQUE) mid-fill kills the pending
+      write miss: commit installs Invalid, the replayed write re-observes
+      the miss and the REAL fill RE-ISSUES a second AR burst
+      (READ_UNIQUE) -- two fills, both READ_UNIQUE, commit-I then
+      install-M, response = wdata. This is the group-2 killed-fill
+      re-fetch pin; the REAL re-orchestration (second AR) is what the
+      timing stub never performed.
+    status: covered
+  - name: UpgradeNoBypassArm / UpgradeKilledByInvalidatingSnoop
+    level: func
+    what: inherited pins -- upgrades do not arm the bypass; an
+      invalidating snoop during the upgrade converts it to commit-I +
+      replay re-fetch (CLEAN_UNIQUE then READ_UNIQUE) through the real
+      engine.
+    status: covered
+  - name: FullRandomLockstep / IdleSnoopSoak
+    level: func/full
+    what: SEED-pinned randomized stream with idle snoops (2.5k func /
+      10k full transactions) -- oracle lockstep per transaction through
+      the real fill; BypassNeverAnswersInvalid asserted EVERY cycle.
+    status: covered
+
+coverage_points:
+  - line: 1
+    type: module
+    content: "amber_miss_fill_macro_test: control + pfb leaf + real
+      amber_fill + axi4_master_rd"
+    covered: true
+  - line: 1
+    type: group_interaction
+    content: "fill beat -> data-array write mux (victim_way_q tap, core
+      idiom); control CPU merge priority"
+    covered: true
+  - line: 1
+    type: engine_pin
+    content: "AR channel shape: single burst, line-aligned, arlen/arsize/
+      arburst per MAS ch03/02"
+    covered: true
+  - line: 1
+    type: engine_pin
+    content: "CLEAN_UNIQUE issues no AR (upgrade no-fetch at the pins)"
+    covered: true
+  - line: 1
+    type: engine_pin
+    content: "killed-fill re-fetch re-issues a real AR burst"
+    covered: true
+
+gaps:
+  - The invalidation-STICKS corner (a shared-domain snoop must not clear
+    an armed pending-I; control suite ImStepPendingClearCorner) needs two
+    follow-on snoops inside ONE fill window; the real engine's done
+    latency (~2 cycles after RLAST vs the stub's beat+6) makes that
+    window an artifact -- the second snoop deterministically lands in the
+    re-fetch window instead. The stickiness pin stays with the control
+    unit suite (stub timing) and the coherence macro's real_control_loop
+    (prompt-AC snoops arm both kill and downgrade plans); the macro pins
+    the killed-fill re-fetch itself (KilledFillRefetch).
+  - Responder backpressure profiles (the fill R staging FIFO's skid
+    behavior under slow R) are owned by the fill unit suite; this macro
+    runs the fast profile for the directed pins and the randomized soak
+    to keep the window-pinned scenarios deterministic.
+  - Drain-side behavior is a timing stub here by design -- the real
+    drain composition is group 3's cell.

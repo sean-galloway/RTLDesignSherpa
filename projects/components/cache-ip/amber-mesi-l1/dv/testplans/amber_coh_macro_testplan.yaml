@@ -1,0 +1,161 @@
+# Testplan for amber_coh_macro (macro composition suite 4: coherence /
+# snoop loop). This is the PROMOTED Task 7 ad-hoc composition as a named
+# macro regression cell: DUT the test wrapper amber_coh_macro_test
+# (Task 9.5) -- REAL amber_control (with the pending_fill_bypass /
+# victim leaves) + landed tag/data/repl arrays + REAL amber_snoop_resp
+# on the house axi4ace_snoop_slave transport; fill/drain partner timing
+# stubbed (D-12). Snoops enter at the ACE boundary only; the ctrl_*
+# snoop handshake is internal to the wrapper and observed through taps.
+
+module: amber_coh_macro
+rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tb/amber_coh_macro_test.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_snoop_resp.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_control.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_pending_fill_bypass.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_victim.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_tag_array.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_data_array.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_repl.sv
+  - rtl/amba/ace/axi4ace_snoop_slave.sv   # transport (cross-area, -f'd)
+test_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_coh_macro.py
+
+# Contract: MAS ch02_blocks/07. One closed response at a time; CR only
+# after the final CD beat (IHI0022 + onyx-D4). CRRESP wire order IHI0022.
+# DV: AXI4ACESnoopMaster on the ACE pins; line states live in the REAL
+# tag/data arrays (M/S seeded by CPU transactions, E through the TB
+# tag-array backdoor); the evolving line-state model is the scoreboard.
+# Compliance: ACEComplianceChecker per transaction. The Task 7 scenario
+# family is reused unchanged (AmberSnoopRespTB superclass); this macro
+# adds the tiny (16/2) geometry to the grid.
+
+parameters:
+  - name: SETS / WAYS
+    default: 128 / 4 (amber_pkg)
+    description: the macro grid runs the tiny formal config (16 / 2) and
+      the pkg default (the Task 7 suite ran the responder bus/line grid
+      at a fixed 128/4)
+  - name: ADDR_WIDTH / DATA_WIDTH / LINE_BYTES
+    default: 32 / 64 / 64
+    description: fixed at the pkg defaults (FILL_BEATS=8)
+
+scenarios:
+  - name: table30_directed
+    level: gate
+    what: one snoop per reachable HAS Table 3.0 cell (24); M/S seeded by
+      real CPU transactions, E through the TB backdoor, I untouched.
+    status: covered
+  - name: EWriteHitPromotes
+    level: gate
+    what: TASK-7 FOUND-AND-FIXED PIN, travels with this promotion:
+      HIT_WR's E->M promotion one-hot (amber_control.sv:944, found as an
+      all-zeros way one-hot silent drop). Backdoor-seed E, CPU write
+      hit, tag-array readback proves M, a snoop decodes at M with the
+      merged data.
+    status: covered
+  - name: backpressure_response
+    level: func
+    what: 600 randomized snoops under gaxi_backpressure (CR ready stalls
+      past the CR skid depth); per-transaction scoring + compliance.
+    status: covered
+  - name: stress_soak
+    level: full
+    what: 6000 randomized snoops under gaxi_stress over a 64-line pool
+      whose states EVOLVE per the Table 3.0 next-state column; refill =
+      the CPU re-acquiring the line (read -> S, write -> M, backdoor ->
+      E).
+    status: covered
+  - name: pipelining_zero_gap
+    level: func/full
+    what: ZERO-GAP AC pairs (and same-line triples) issued while the
+      previous response is still sequencing -- the AC skid (depth 2) and
+      response serialization stay pinned at both geometries.
+    status: covered
+  - name: reset_recovery
+    level: func/full
+    what: aresetn taken low mid-soak (while idle); the init walk re-
+      invalidates the arrays; the cache-side model resets with them.
+    status: covered
+  - name: SnoopVictimLineDuringGather
+    level: func/full
+    what: the ACE snoop for the dirty VICTIM line raised during the
+      multi-cycle gather stalls (never granted in a MISS_VICTIM cycle),
+      grants at MISS_DRAIN after the victim_load strobe, and is served
+      from the staged buffer; the evicting transaction completes and a
+      refetch proves the writeback payload.
+    status: covered
+  - name: real_control_loop
+    level: func/full
+    what: TASK-7 PROMOTED HEADLINER: randomized snoops against an amber
+      simultaneously serving random CPU traffic -- both ports live.
+      Each iteration issues a random request and, while the miss/fill/
+      drain machinery is in flight, up to two snoops at classified
+      targets: pending line (bypass reference at the post-fill state;
+      invalidating snoop kills the fill -- commit-I/re-fetch or
+      downgrade/re-upgrade), dirty victim (staged-buffer service through
+      the drain window), clean victim (STALE-ENTRY rule with the
+      cross-set way+tag collision discrimination -- the sn_stale_gnt
+      SET-NARROWING PIN, amber_control.sv:531-535, found by this loop),
+      and other installed lines. Post-commit pends applied by the
+      concurrent-aware slice scorer, mirroring pend_vld_q.
+    status: covered
+  - name: data_integrity / crresp_bit_order
+    level: all
+    what: every DT response's CD beats compared against the model line;
+      IHI0022 CRRESP bit order locked by the framework enum.
+    status: covered
+
+coverage_points:
+  - line: 944
+    type: always_comb
+    content: "amber_control OH_HIT_WR promotion one-hot (E -> M)"
+    covered: true
+    note: "found all-zeros (silent drop) by the Task 7 closed loop;
+      fixed + pinned by EWriteHitPromotes; green at every level and
+      geometry of this macro"
+  - line: 531
+    type: always_comb
+    content: "amber_control sn_stale_gnt set-exact match"
+    covered: true
+    note: "found missing set term (cross-set way+tag collision
+      false-stale) by the real_control_loop; fixed; the stale-victim
+      discrimination rides every func/full loop iteration"
+  - line: 1
+    type: module
+    content: "amber_coh_macro_test: control + snoop_resp + pfb/victim
+      leaves + landed arrays/repl"
+    covered: true
+    note: "the promoted amber_snoop_resp_th wiring carried verbatim"
+
+gaps:
+  - Carried from the Task 7 suite (unchanged by the promotion): illegal
+    ACSNOOP codes are not driveable through the framework enum; reset
+    mid-transaction needs BFM abort tolerance; AC skid overflow (3+
+    snoops while busy) exceeds the one-closed-response contract;
+    mid-transaction window timing uses prompt AC/CD for the
+    window-sensitive snoops with the heavy backpressure reserved for
+    quiescent and CR-side responses (recorded DV trade-offs, not DUT
+    gaps).
+  - The tiny (16/2) geometry wraps the 64-line pool across 4 sets, so
+    the directed compositions' pool-free set discipline falls back to a
+    fixed set (the compositions are set-content independent by
+    construction); the 128/4 geometry keeps the original discipline.
+  - Tiny-geometry model bookkeeping: the control suite's plain-
+    transaction scorer retires a victim slot's old line unconditionally,
+    which over-retires the line-level state when the set holds a
+    snoop-invalidate corpse of that line beside a live re-installed
+    copy (routine at 2 ways). The macro reconciles the txn's set after
+    each plain scoring (live-copy rule, matching the loop scorer's
+    _retire_line_at); only the over-retired signature is repaired,
+    every other drift class still scores loudly. Not a DUT gap -- the
+    RTL provably keeps the live copy.
+  - real_control_loop 'oth'-snoop stability at 2 ways: the inherited
+    target rule excludes the PLANNED victim, but a mid-fill kill re-
+    fetches through a RE-SELECTED victim drawn from the transaction's
+    own set; the macro excludes every set-mate from the 'oth' pool (the
+    DUT serves the underlying snoop-during-drain composition correctly
+    from the staged buffer -- SINK_WB_ACK -- this is the scoreboard's
+    stability guarantee, not a DUT gap).
+  - E-state seeding remains backdoor-only (amber's install states are
+    S/M); the promotion pin EWriteHitPromotes covers the path.

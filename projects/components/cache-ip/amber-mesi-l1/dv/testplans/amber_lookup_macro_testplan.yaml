@@ -1,0 +1,105 @@
+# Testplan for amber_lookup_macro (macro composition suite 1: lookup
+# dataplane). Maps the group's cross-block scenarios to the BFM-driven DV.
+# DUT: the test wrapper amber_lookup_macro_test (Task 9.5): amber_control
+# + landed amber_tag_array / amber_data_array / amber_repl; fill/drain/
+# victim/snoop partners are timing stubs at the boundary (D-12) -- the
+# group carries no fill/drain/victim/snoop FUBs.
+
+module: amber_lookup_macro
+rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tb/amber_lookup_macro_test.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_control.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_tag_array.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_data_array.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_repl.sv
+test_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_lookup_macro.py
+
+# Contract: MAS ch01 hierarchy (the group is the control dataplane closure)
+# + the landed block contracts MAS ch02_blocks/01,03,04. The wrapper is
+# pure wiring: the data-array write mux (control CPU merge wins over fill
+# beats) and the tag-array port-B mux are the landed harness idioms. The
+# scoreboard is the Task 2 gem5-derived oracle lockstep (AmberControlTB
+# machinery) against the REAL arrays and repl engine.
+
+parameters:
+  - name: SETS / WAYS
+    default: 128 / 4 (amber_pkg)
+    description: the macro grid runs the tiny formal config (16 / 2) and
+      the pkg default; the control suite owns the wider SETS/WAYS axis
+  - name: LINE_BYTES / BUS_WIDTH
+    default: 64 / 64
+    description: fixed at the pkg defaults (FILL_BEATS=8)
+
+scenarios:
+  - name: InitWalk
+    level: gate
+    what: init walk scored against the REAL tag array -- one write per
+      set, all ways, STATE_I, set order, plus a full port-B readback of
+      every set/way; a stray request during the walk is ignored
+      (StrayReqInInit).
+    status: covered
+  - name: HitSequence
+    level: gate
+    what: directed rd/wr hits per reachable state -- miss -> S, read
+      hits, S -> M upgrade (CLEAN_UNIQUE), M write merge, second-way
+      install, policy-update parity with the repl engine per beat.
+    status: covered
+  - name: MissSequence
+    level: func
+    what: clean-victim eviction, dirty-victim eviction (writeback into
+      the golden memory + refetch round trip), upgrade path, partial-be
+      write merge -- victim-way parity scored against the real repl at
+      every eviction.
+    status: covered
+  - name: BeZeroWrite
+    level: func
+    what: be == 0 merges nothing (MINOR 2 pin): write miss installs M
+      with raw fill data; be-0 write hit leaves the line untouched.
+    status: covered
+  - name: LookupSoakLockstep
+    level: func/full
+    what: SEED-pinned randomized pure-transaction soak (no snoops -- the
+      snoop loop is group 4's cell) over a bounded working set that
+      forces evictions at every geometry: hit/miss decode, multi-way
+      compare, promotion, victim selection, data-integrity vs the
+      oracle lockstep, 30% same-line repeats.
+    status: covered
+  - name: data_integrity
+    level: all
+    what: every response compared against the model line content; fills,
+      merges, and read backs byte-exact.
+    status: covered
+
+coverage_points:
+  - line: 1
+    type: module
+    content: "amber_lookup_macro_test: control + tag/data arrays + repl"
+    covered: true
+    note: "structurally the amber_control_th composition, pinned as the
+      named macro cell on the bring-up ladder (unit -> macro ->
+      amber_core); T11's pair rig inherits these scenarios"
+  - line: 1
+    type: group_interaction
+    content: "control <-> tag_array multi-way compare + hit-way decode"
+    covered: true
+  - line: 1
+    type: group_interaction
+    content: "control <-> repl victim-way select + hit/install updates"
+    covered: true
+  - line: 1
+    type: group_interaction
+    content: "control <-> data_array merge writes + fill-beat installs"
+    covered: true
+
+gaps:
+  - The E-state rows (write-hit E->M promotion one-hot) are NOT pinned
+    here: E never occurs without the TB backdoor, and the backdoor +
+    EWriteHitPromotes pin travel with the coherence macro (group 4).
+    The datapath-reachable promotion (S->M upgrade, M merge) is covered
+    by HitSequence / MissSequence.
+  - Partner timing is stubbed per D-12 by design -- the REAL fill/drain
+    engine compositions are group 2 / group 3's cells.
+  - IllegalStateError (sticky CTRL_ERROR) stays with the control unit
+    suite: its only drive is an LHS hierarchical force of the FSM state
+    vector, and the macro wrappers keep to read-only taps.
