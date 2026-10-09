@@ -1,0 +1,693 @@
+2026-10-08: mon_coverage run, Genesys2 board 200300B818A0 (BUG-019 board re-pin)
+bitstream sha256: 5eb85603a31482fb590e4ce84720172e5fd74e2e251f09121f6c37b54f5cc6f8
+build-mon fresh build from HEAD 180bf7bc6 (in-core monlite monitors; GEN_MON=0;
+  expected tuples derived from BUILD_CONFIG + LITE_RETIRED_TYPES at runtime)
+# build: WNS +1.011ns  LUTs 86820/203800 (42.6%)  regs 85354  BRAM 26
+make: Entering directory '/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/dma-ip/stream/build-mon'
+python3 /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/dma-ip/stream/build-mon/host/host_mon_coverage.py --iters 60
+[autodetect] stream harness found on /dev/ttyUSB0
+mon_coverage: port=/dev/ttyUSB0 iters=60
+Connected to /dev/ttyUSB0 at 115200 baud
+  build v1 all-cones nch=8 clk=60.0MHz n_profile=32 monitors=1 gen_mon=0
+  class retired by build: rd_perf                -- perf cone not built (monlite)
+  class retired by build: wr_perf                -- perf cone not built (monlite)
+  class retired by build: sched_desc_complete    -- GEN_MON=0: CORE emitters compiled out (BUILD_CONFIG)
+  class retired by build: desc_loaded            -- GEN_MON=0: CORE emitters compiled out (BUILD_CONFIG)
+[17:39:26] --- coverage: 1ch x 2desc x 4KB ---
+[17:39:26]   Descriptors loaded in 0.2s (16 writes)
+[17:39:27]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:39:27]   DMA completed in 0.064s
+[17:39:28]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:39:28]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:39:28]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:28]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:28]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:39:28]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0000] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:39:28] --- coverage: 1ch x 2desc x 4KB ---
+[17:39:28]   Descriptors loaded in 0.2s (16 writes)
+[17:39:29]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:39:29]   DMA completed in 0.064s
+[17:39:30]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:39:30]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:39:30]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:30]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:30]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:39:30]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0001] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:39:30] --- coverage: 1ch x 2desc x 4KB ---
+[17:39:31]   Descriptors loaded in 0.2s (16 writes)
+[17:39:32]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:39:32]   DMA completed in 0.064s
+[17:39:32]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:39:32]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:39:32]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:32]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:32]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:39:32]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0002] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:39:32] --- coverage: 1ch x 2desc x 4KB ---
+[17:39:33]   Descriptors loaded in 0.2s (16 writes)
+[17:39:34]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:39:34]   DMA completed in 0.064s
+[17:39:34]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:39:34]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:39:34]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:34]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:34]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:39:34]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0003] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:39:34] --- coverage: 1ch x 2desc x 4KB ---
+[17:39:35]   Descriptors loaded in 0.2s (16 writes)
+[17:39:36]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:39:36]   DMA completed in 0.064s
+[17:39:36]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:39:36]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:39:36]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:36]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:36]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:39:36]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0004] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:39:36] --- coverage: 1ch x 2desc x 4KB ---
+[17:39:37]   Descriptors loaded in 0.2s (16 writes)
+[17:39:38]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:39:38]   DMA completed in 0.064s
+[17:39:38]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:39:38]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:39:38]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:38]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:38]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:39:38]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0005] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:39:38] --- coverage: 1ch x 2desc x 4KB ---
+[17:39:39]   Descriptors loaded in 0.2s (16 writes)
+[17:39:40]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:39:40]   DMA completed in 0.064s
+[17:39:40]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:39:40]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:39:40]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:40]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:40]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:39:40]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0006] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:39:41] --- coverage: 1ch x 2desc x 4KB ---
+[17:39:41]   Descriptors loaded in 0.2s (16 writes)
+[17:39:42]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:39:42]   DMA completed in 0.064s
+[17:39:42]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:39:42]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:39:42]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:42]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:43]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:39:43]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0007] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:39:43] --- coverage: 1ch x 2desc x 4KB ---
+[17:39:43]   Descriptors loaded in 0.2s (16 writes)
+[17:39:44]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:39:44]   DMA completed in 0.064s
+[17:39:44]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:39:45]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:39:45]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:45]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:45]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:39:45]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0008] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:39:45] --- coverage: 1ch x 2desc x 4KB ---
+[17:39:45]   Descriptors loaded in 0.2s (16 writes)
+[17:39:46]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:39:46]   DMA completed in 0.064s
+[17:39:46]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:39:47]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:39:47]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:47]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:47]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:39:47]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0009] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:39:47] --- coverage: 1ch x 2desc x 4KB ---
+[17:39:47]   Descriptors loaded in 0.2s (16 writes)
+[17:39:48]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:39:48]   DMA completed in 0.064s
+[17:39:48]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:39:49]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:39:49]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:49]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:49]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:39:49]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0010] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:39:49] --- coverage: 1ch x 2desc x 4KB ---
+[17:39:49]   Descriptors loaded in 0.2s (16 writes)
+[17:39:50]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:39:50]   DMA completed in 0.064s
+[17:39:50]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:39:51]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:39:51]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:51]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:51]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:39:51]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0011] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:39:51] --- coverage: 1ch x 2desc x 4KB ---
+[17:39:51]   Descriptors loaded in 0.2s (16 writes)
+[17:39:52]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:39:52]   DMA completed in 0.064s
+[17:39:52]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:39:53]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:39:53]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:53]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:53]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:39:53]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0012] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:39:53] --- coverage: 1ch x 2desc x 4KB ---
+[17:39:53]   Descriptors loaded in 0.2s (16 writes)
+[17:39:54]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:39:54]   DMA completed in 0.064s
+[17:39:55]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:39:55]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:39:55]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:55]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:55]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:39:55]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0013] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:39:55] --- coverage: 1ch x 2desc x 4KB ---
+[17:39:55]   Descriptors loaded in 0.2s (16 writes)
+[17:39:56]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:39:56]   DMA completed in 0.064s
+[17:39:57]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:39:57]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:39:57]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:57]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:57]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:39:57]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0014] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:39:57] --- coverage: 1ch x 2desc x 4KB ---
+[17:39:57]   Descriptors loaded in 0.2s (16 writes)
+[17:39:59]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:39:59]   DMA completed in 0.064s
+[17:39:59]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:39:59]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:39:59]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:59]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:39:59]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:39:59]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0015] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:39:59] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:00]   Descriptors loaded in 0.2s (16 writes)
+[17:40:01]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:01]   DMA completed in 0.064s
+[17:40:01]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:01]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:01]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:01]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:01]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:01]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0016] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:01] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:02]   Descriptors loaded in 0.2s (16 writes)
+[17:40:03]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:03]   DMA completed in 0.063s
+[17:40:03]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:03]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:03]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:03]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:03]   Wall throughput: 0.1 MB/s (0 MB in 0.063s; includes UART overhead)
+[17:40:03]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0017] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:03] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:04]   Descriptors loaded in 0.2s (16 writes)
+[17:40:05]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:05]   DMA completed in 0.064s
+[17:40:05]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:05]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:05]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:05]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:05]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:05]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0018] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:05] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:06]   Descriptors loaded in 0.2s (16 writes)
+[17:40:07]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:07]   DMA completed in 0.064s
+[17:40:07]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:07]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:07]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:07]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:07]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:07]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0019] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:08] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:08]   Descriptors loaded in 0.2s (16 writes)
+[17:40:09]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:09]   DMA completed in 0.064s
+[17:40:09]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:09]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:09]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:09]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:09]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:09]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0020] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:10] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:10]   Descriptors loaded in 0.2s (16 writes)
+[17:40:11]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:11]   DMA completed in 0.064s
+[17:40:11]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:12]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:12]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:12]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:12]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:12]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0021] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:12] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:12]   Descriptors loaded in 0.2s (16 writes)
+[17:40:13]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:13]   DMA completed in 0.064s
+[17:40:13]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:14]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:14]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:14]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:14]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:14]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0022] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:14] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:14]   Descriptors loaded in 0.2s (16 writes)
+[17:40:15]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:15]   DMA completed in 0.064s
+[17:40:15]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:16]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:16]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:16]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:16]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:16]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0023] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:16] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:16]   Descriptors loaded in 0.2s (16 writes)
+[17:40:17]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:17]   DMA completed in 0.064s
+[17:40:17]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:18]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:18]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:18]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:18]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:18]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0024] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:18] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:18]   Descriptors loaded in 0.2s (16 writes)
+[17:40:19]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:19]   DMA completed in 0.064s
+[17:40:19]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:20]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:20]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:20]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:20]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:20]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0025] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:20] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:20]   Descriptors loaded in 0.2s (16 writes)
+[17:40:21]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:21]   DMA completed in 0.064s
+[17:40:21]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:22]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:22]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:22]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:22]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:22]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0026] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:22] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:22]   Descriptors loaded in 0.2s (16 writes)
+[17:40:23]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:23]   DMA completed in 0.064s
+[17:40:24]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:24]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:24]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:24]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:24]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:24]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0027] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:24] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:24]   Descriptors loaded in 0.2s (16 writes)
+[17:40:25]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:26]   DMA completed in 0.064s
+[17:40:26]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:26]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:26]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:26]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:26]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:26]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0028] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:26] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:27]   Descriptors loaded in 0.2s (16 writes)
+[17:40:28]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:28]   DMA completed in 0.064s
+[17:40:28]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:28]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:28]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:28]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:28]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:28]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0029] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:28] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:29]   Descriptors loaded in 0.2s (16 writes)
+[17:40:30]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:30]   DMA completed in 0.064s
+[17:40:30]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:30]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:30]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:30]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:30]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:30]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0030] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:30] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:31]   Descriptors loaded in 0.2s (16 writes)
+[17:40:32]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:32]   DMA completed in 0.064s
+[17:40:32]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:32]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:32]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:32]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:32]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:32]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0031] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:32] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:33]   Descriptors loaded in 0.2s (16 writes)
+[17:40:34]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:34]   DMA completed in 0.064s
+[17:40:34]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:34]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:34]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:34]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:34]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:34]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0032] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:34] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:35]   Descriptors loaded in 0.2s (16 writes)
+[17:40:36]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:36]   DMA completed in 0.064s
+[17:40:36]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:36]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:36]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:36]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:36]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:36]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0033] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:37] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:37]   Descriptors loaded in 0.2s (16 writes)
+[17:40:38]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:38]   DMA completed in 0.064s
+[17:40:38]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:38]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:38]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:38]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:39]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:39]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0034] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:39] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:39]   Descriptors loaded in 0.2s (16 writes)
+[17:40:40]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:40]   DMA completed in 0.064s
+[17:40:40]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:41]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:41]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:41]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:41]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:41]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0035] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:41] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:41]   Descriptors loaded in 0.2s (16 writes)
+[17:40:42]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:42]   DMA completed in 0.064s
+[17:40:42]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:43]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:43]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:43]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:43]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:43]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0036] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:43] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:43]   Descriptors loaded in 0.2s (16 writes)
+[17:40:44]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:44]   DMA completed in 0.064s
+[17:40:44]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:45]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:45]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:45]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:45]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:45]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0037] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:45] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:45]   Descriptors loaded in 0.2s (16 writes)
+[17:40:46]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:46]   DMA completed in 0.064s
+[17:40:46]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:47]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:47]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:47]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:47]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:47]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0038] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:47] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:47]   Descriptors loaded in 0.2s (16 writes)
+[17:40:48]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:48]   DMA completed in 0.064s
+[17:40:48]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:49]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:49]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:49]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:49]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:49]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0039] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:49] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:49]   Descriptors loaded in 0.2s (16 writes)
+[17:40:50]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:50]   DMA completed in 0.064s
+[17:40:51]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:51]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:51]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:51]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:51]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:51]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0040] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:51] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:51]   Descriptors loaded in 0.2s (16 writes)
+[17:40:52]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:52]   DMA completed in 0.064s
+[17:40:53]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:53]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:53]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:53]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:53]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:53]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0041] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:53] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:53]   Descriptors loaded in 0.2s (16 writes)
+[17:40:55]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:55]   DMA completed in 0.064s
+[17:40:55]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:55]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:55]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:55]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:55]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:55]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0042] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:55] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:56]   Descriptors loaded in 0.2s (16 writes)
+[17:40:57]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:57]   DMA completed in 0.064s
+[17:40:57]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:57]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:57]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:57]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:57]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:57]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0043] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:57] --- coverage: 1ch x 2desc x 4KB ---
+[17:40:58]   Descriptors loaded in 0.2s (16 writes)
+[17:40:59]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:40:59]   DMA completed in 0.064s
+[17:40:59]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:40:59]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:40:59]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:59]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:40:59]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:40:59]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0044] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:40:59] --- coverage: 1ch x 2desc x 4KB ---
+[17:41:00]   Descriptors loaded in 0.2s (16 writes)
+[17:41:01]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:41:01]   DMA completed in 0.064s
+[17:41:01]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:41:01]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:41:01]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:01]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:01]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:41:01]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0045] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:41:01] --- coverage: 1ch x 2desc x 4KB ---
+[17:41:02]   Descriptors loaded in 0.2s (16 writes)
+[17:41:03]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:41:03]   DMA completed in 0.064s
+[17:41:03]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:41:03]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:41:03]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:03]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:03]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:41:03]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0046] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:41:04] --- coverage: 1ch x 2desc x 4KB ---
+[17:41:04]   Descriptors loaded in 0.2s (16 writes)
+[17:41:05]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:41:05]   DMA completed in 0.064s
+[17:41:05]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:41:05]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:41:05]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:05]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:05]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:41:05]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0047] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:41:06] --- coverage: 1ch x 2desc x 4KB ---
+[17:41:06]   Descriptors loaded in 0.2s (16 writes)
+[17:41:07]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:41:07]   DMA completed in 0.064s
+[17:41:07]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:41:08]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:41:08]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:08]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:08]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:41:08]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0048] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:41:08] --- coverage: 1ch x 2desc x 4KB ---
+[17:41:08]   Descriptors loaded in 0.2s (16 writes)
+[17:41:09]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:41:09]   DMA completed in 0.064s
+[17:41:09]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:41:10]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:41:10]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:10]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:10]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:41:10]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0049] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:41:10] --- coverage: 1ch x 2desc x 4KB ---
+[17:41:10]   Descriptors loaded in 0.2s (16 writes)
+[17:41:11]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:41:11]   DMA completed in 0.064s
+[17:41:11]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:41:12]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:41:12]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:12]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:12]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:41:12]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0050] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:41:12] --- coverage: 1ch x 2desc x 4KB ---
+[17:41:12]   Descriptors loaded in 0.2s (16 writes)
+[17:41:13]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:41:13]   DMA completed in 0.064s
+[17:41:13]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:41:14]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:41:14]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:14]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:14]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:41:14]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0051] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:41:14] --- coverage: 1ch x 2desc x 4KB ---
+[17:41:14]   Descriptors loaded in 0.2s (16 writes)
+[17:41:15]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:41:15]   DMA completed in 0.064s
+[17:41:15]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:41:16]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:41:16]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:16]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:16]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:41:16]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0052] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:41:16] --- coverage: 1ch x 2desc x 4KB ---
+[17:41:16]   Descriptors loaded in 0.2s (16 writes)
+[17:41:17]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:41:17]   DMA completed in 0.064s
+[17:41:17]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:41:18]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:41:18]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:18]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:18]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:41:18]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0053] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:41:18] --- coverage: 1ch x 2desc x 4KB ---
+[17:41:18]   Descriptors loaded in 0.2s (16 writes)
+[17:41:19]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:41:19]   DMA completed in 0.064s
+[17:41:20]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:41:20]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:41:20]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:20]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:20]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:41:20]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0054] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:41:20] --- coverage: 1ch x 2desc x 4KB ---
+[17:41:20]   Descriptors loaded in 0.2s (16 writes)
+[17:41:22]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:41:22]   DMA completed in 0.064s
+[17:41:22]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:41:22]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:41:22]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:22]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:22]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:41:22]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0055] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:41:22] --- coverage: 1ch x 2desc x 4KB ---
+[17:41:23]   Descriptors loaded in 0.2s (16 writes)
+[17:41:24]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:41:24]   DMA completed in 0.064s
+[17:41:24]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:41:24]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:41:24]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:24]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:24]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:41:24]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0056] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:41:24] --- coverage: 1ch x 2desc x 4KB ---
+[17:41:25]   Descriptors loaded in 0.2s (16 writes)
+[17:41:26]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:41:26]   DMA completed in 0.064s
+[17:41:26]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:41:26]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:41:26]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:26]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:26]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:41:26]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0057] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:41:26] --- coverage: 1ch x 2desc x 4KB ---
+[17:41:27]   Descriptors loaded in 0.2s (16 writes)
+[17:41:28]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:41:28]   DMA completed in 0.064s
+[17:41:28]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:41:28]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:41:28]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:28]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:28]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:41:28]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0058] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+[17:41:28] --- coverage: 1ch x 2desc x 4KB ---
+[17:41:29]   Descriptors loaded in 0.2s (16 writes)
+[17:41:30]   [perf-window] WIN_ACTIVE (RUN still high): RD=0 WR=0 (0 = auto-closed in hardware)
+[17:41:30]   DMA completed in 0.064s
+[17:41:30]   CRC MATCH (rd=0xCE53EC12 wr=0xCE53EC12)
+[17:41:30]   Datapath util:  R= 91.1%  W= 91.1%  End-to-end= 91.6%
+[17:41:30]   R bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:30]   W bus: prod  91.1%  bp  0.0%  starv   8.9%
+[17:41:30]   Wall throughput: 0.1 MB/s (0 MB in 0.064s; includes UART overhead)
+[17:41:30]   Bus  throughput: 838.6 MB/s (FPGA timer 0.009 ms; E2E util 91.6%; ceiling 458 MB/s net-moved at 60 MHz)
+cov[0059] pass=True bins: rd_addrmatch=21 wr_addrmatch=19 rd_completion=16 wr_completion=14
+
+mon_coverage: 60 workloads, 60 with tally hits
+legal-set tuples observed on silicon:
+  bin 0 rd_addrmatch           (ag9,p0,t8,e0x01): 1260  OK
+  bin 1 wr_addrmatch           (ag10,p0,t8,e0x01): 1140  OK
+  bin 2 rd_completion          (ag9,p0,t1,e0x00): 960  OK
+  bin 3 wr_completion          (ag10,p0,t1,e0x00): 840  OK
+  --   rd_perf                (ag9,p0,t4,e0x07): retired (perf cone not built (monlite))
+  --   wr_perf                (ag10,p0,t4,e0x07): retired (perf cone not built (monlite))
+  --   sched_desc_complete    (ag48,p4,t1,e0x01): retired (GEN_MON=0: CORE emitters compiled out (BUILD_CONFIG))
+  --   desc_loaded            (ag16,p4,t1,e0x40): retired (GEN_MON=0: CORE emitters compiled out (BUILD_CONFIG))
+  UNEXPECTED (tuples not in the legal set): 0
+
+tuples seen: 4/4; UNEXPECTED=0 (none outside the set)
+UART connection closed
+make: Leaving directory '/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/dma-ip/stream/build-mon'
+
+# board-leg exit code: host-mon_coverage=0 (0 = pass)
