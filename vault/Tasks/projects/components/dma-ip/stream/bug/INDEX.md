@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 19 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,12 +20,9 @@ by construction rather than by discipline.
 
 ## Open
 
-- **BUG-020** — arming the obs error cone makes the monlite shared output
-  queue lossy: ~90% of completion events dropped and honestly reported as
-  AXI_ERR_EVENT_DROPPED (0x0E) packets, tripping the obs campaign hard fail
-  (board A/B isolation measured 2026-10-08; ERR_EN is necessary and
-  sufficient, error-type masking avoids it). RTL investigation + campaign
-  disposition open.
+(none — BUG-020 moved to the amba lane as **amba BUG-039** on 2026-10-08: the
+monlite err_en queue loss is a defect in rtl/amba/monitor/axi_monitor_lite.sv,
+not in stream. Next ID stays BUG-021 so the number is never recycled.)
 
 ## Active
 

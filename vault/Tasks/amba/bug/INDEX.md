@@ -2,7 +2,7 @@
 
 # amba — bugs
 
-**Next ID: BUG-039** — never recycle a number, even when its item closed.
+**Next ID: BUG-040** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,13 +12,22 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 38 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **BUG-039** — arming cfg_error_enable makes the axi_monitor_lite shared output
+  queue lossy: ~90% of completion events dropped and honestly reported as
+  AXI_ERR_EVENT_DROPPED (0x0E) packets. Filed as stream BUG-020 from the
+  2026-10-08 obs-campaign board session; moved to the amba lane the same day
+  (defect is in the rtl/amba monitor core; the stream campaign exposed it).
+  Board A/B: ERROR_EN necessary and sufficient; error-type source mask avoids
+  it; zero error-class packets emitted on clean traffic — scope + fix options
+  in the item.
 
 
 ## Closed
