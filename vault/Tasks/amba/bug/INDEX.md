@@ -12,25 +12,26 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 38 | done (kept for history) |
+| [closed/](closed/) | 39 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-039** — arming cfg_error_enable makes the axi_monitor_lite shared output
-  queue lossy: ~90% of completion events dropped and honestly reported as
-  AXI_ERR_EVENT_DROPPED (0x0E) packets. Filed as stream BUG-020 from the
-  2026-10-08 obs-campaign board session; moved to the amba lane the same day
-  (defect is in the rtl/amba monitor core; the stream campaign exposed it).
-  Board A/B: ERROR_EN necessary and sufficient; error-type source mask avoids
-  it; zero error-class packets emitted on clean traffic — scope + fix options
-  in the item.
-
+(none)
 
 ## Closed
+
+- **BUG-039** — arming cfg_error_enable made the axi_monitor_lite shared output
+  queue lossy (~90% of completions dropped, reported as EVENT_DROPPED) — CLOSED
+  2026-10-09: monitor-side completion hold + drain-gated drop reports +
+  OUT_DEPTH 4→16 (60c8c230b), then the record-path pipeline end to end
+  (monbus_group_core write FSM, tally pending-count B, new stream_tally_arbiter
+  — board A/B Genesys 2: campaign delivery 54% -> ~92%; residual ~8% is the
+  arbiter's structural 2-cycles-per-transfer rate, detected/dropped-and-counted/
+  reported exactly, stream-side disposition tracked in stream's lane)
 
 - **BUG-038** — axis4_slave/master tuser unpack ate low bits with ID or DEST zero-width (UW>0); found via reed-solomon TASK-002 erasure sideband — CLOSED 2026-10-02: per-field slices (axis5 style) in both modules
 - **BUG-036** — SOFT_RESET does not fully reset the monitor subsystem -- CLOSED 2026-09-28: not reset state; the in-core group filtered every packet with DAXMON's registers (stream BUG-017, fixed)
