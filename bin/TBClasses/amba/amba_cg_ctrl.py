@@ -93,7 +93,7 @@ class AxiClockGateCtrl(TBBase):
         # Process user valid signals
         for signal_name in self.user_valid_signals:
             signal_path = f"{self.instance_path}.{signal_name}" if self.instance_path else signal_name
-            if signal := self._get_signal(signal_path):
+            if (signal := self._get_signal(signal_path)) is not None:
                 self.user_valid_paths.append(signal)
             else:
                 self.log.warning(f"User valid signal not found: {signal_path}")
@@ -101,7 +101,7 @@ class AxiClockGateCtrl(TBBase):
         # Process AXI valid signals
         for signal_name in self.axi_valid_signals:
             signal_path = f"{self.instance_path}.{signal_name}" if self.instance_path else signal_name
-            if signal := self._get_signal(signal_path):
+            if (signal := self._get_signal(signal_path)) is not None:
                 self.axi_valid_paths.append(signal)
             else:
                 self.log.warning(f"AXI valid signal not found: {signal_path}")
@@ -132,11 +132,11 @@ class AxiClockGateCtrl(TBBase):
 
         # Log which signals were found
         signals_found = []
-        if self.clock_signal: signals_found.append(f"clock({self.clock_signal_name})")
-        if self.gating_signal: signals_found.append(f"gating({self.gating_signal_name})")
-        if self.idle_signal: signals_found.append(f"idle({self.idle_signal_name})")
-        if self.enable_signal: signals_found.append(f"enable({self.enable_signal_name})")
-        if self.idle_count_signal: signals_found.append(f"idle_count({self.idle_count_signal_name})")
+        if self.clock_signal is not None: signals_found.append(f"clock({self.clock_signal_name})")
+        if self.gating_signal is not None: signals_found.append(f"gating({self.gating_signal_name})")
+        if self.idle_signal is not None: signals_found.append(f"idle({self.idle_signal_name})")
+        if self.enable_signal is not None: signals_found.append(f"enable({self.enable_signal_name})")
+        if self.idle_count_signal is not None: signals_found.append(f"idle_count({self.idle_count_signal_name})")
 
         self.log.info(f"Cached control signals: {', '.join(signals_found)}")
 
@@ -170,7 +170,7 @@ class AxiClockGateCtrl(TBBase):
         Args:
             enable: True to enable clock gating, False to disable
         """
-        if self.enable_signal:
+        if self.enable_signal is not None:
             self.enable_signal.value = 1 if enable else 0
             self.is_enabled = enable
             self.log.info(f"Clock gating {'enabled' if enable else 'disabled'} via {self.enable_signal_name}")
@@ -184,7 +184,7 @@ class AxiClockGateCtrl(TBBase):
         Args:
             count: Number of idle cycles before clock gating is activated
         """
-        if self.idle_count_signal:
+        if self.idle_count_signal is not None:
             self.idle_count_signal.value = count
             self.idle_count = count
             self.log.info(f"Idle count set to {count} via {self.idle_count_signal_name}")
@@ -240,14 +240,14 @@ class AxiClockGateCtrl(TBBase):
                 stats['active_cycles'] += 1
 
             # Track gating if signal available
-            if self.gating_signal and self.gating_signal.value == 1:
+            if self.gating_signal is not None and self.gating_signal.value == 1:
                 stats['gated_cycles'] += 1
                 self.is_gated = True
             else:
                 self.is_gated = False
 
             # Track idle state if signal available
-            if self.idle_signal:
+            if self.idle_signal is not None:
                 self.is_idle = (self.idle_signal.value == 1)
 
         # Calculate percentages
@@ -268,10 +268,10 @@ class AxiClockGateCtrl(TBBase):
             Dict with current state information
         """
         # Update gating and idle state from signals if available
-        if self.gating_signal:
+        if self.gating_signal is not None:
             self.is_gated = bool(self.gating_signal.value)
 
-        if self.idle_signal:
+        if self.idle_signal is not None:
             self.is_idle = bool(self.idle_signal.value)
 
         return {
