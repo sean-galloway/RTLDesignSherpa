@@ -1,0 +1,123 @@
+# Testplan for amber_core (first end-to-end cache top, Task 9, MAS ch01
+# hierarchy). amber_core composes the nine landed FUBs -- amber_cpu_frontend,
+# amber_control (with the pending_fill_bypass / victim leaves), amber_tag_array,
+# amber_data_array, amber_repl, amber_fill, amber_drain, amber_snoop_resp,
+# amber_monlite -- as PURE STRUCTURAL integration: no new control logic.
+# The core deliberately does NOT contain the house axi4_master_rd/wr transports
+# (DECISION D3): its memory side is the raw fub_axi_* master-side pins the
+# engines drive; the amber_top rig (Task 10) wraps the transports around it.
+# Run: dv/tests/test_amber_core.py. The TB closes the core with the house
+# CocoTBFramework AXI4 slave responders at the fub_axi_* pins (shared
+# MemoryModel) and the house ACE snoop master on the snoop port.
+
+module: amber_core
+rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/rtl/top/amber_core.sv
+test_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_core.py
+
+# Contract: MAS ch01 block diagram + ch02 block contracts. External shape =
+# MAS ch01/02 minus the top-level masters: CPU GAXI slave, fub_axi_* rd/wr
+# master sides, ACE snoop responder, MonBus (*_monlite only, PRD D8), plus
+# the pair-rig coherence sideband coh_req_{valid,addr,type} (DECISION D-8,
+# amber_ace_req_t encoding; fills and upgrades on the fill channel, dirty
+# write-backs on the drain channel, clean evictions are silent). The
+# data-array write port is muxed control-CPU-merge-wins over fill beats
+# (never simultaneous by construction, the landed harness idiom); fill beats
+# install into the victim way at {fill set, beat idx}. MonBus observation
+# taps that name control-internal registers use read-only hierarchical
+# references -- the same sanctioned pattern as the landed harnesses; the
+# fill-way select for the beat datapath taps u_control.victim_way_q because
+# the victim way exists only inside the control context (repl_victim_way is
+# not stable across the MISS_VICTIM -> MISS_FILL boundary for RANDOM).
+
+# D11 ruling (recorded verbatim in the Task 9 commit message): PRD D11 says
+# "sdpram_core-based tag/data stores"; the landed arrays (green DV, MAS ch03)
+# are per-way inferred RAMs using exactly the sdpram_core internal idiom,
+# because sdpram_core the module is a FUB/AXI burst slave -- the wrong shape
+# for a same-cycle multi-way tag compare. Task resolution: keep the landed
+# arrays; satisfy D11's queue half with the two gaxi_fifo_sync instances from
+# D-6 (frontend D-6 staging FIFO + the monlite observer queue, both already
+# landed); the genuine sdpram_core consumer is the Task 11 pair-rig shared
+# memory. MAS ch01 ("arrays are built from sdpram_core") vs ch03 (explicitly
+# not) contradiction is errata for Task 14.
+
+parameters:
+  - name: SETS / WAYS / LINE_BYTES / BUS_WIDTH
+    default: 128 / 4 / 64 / 64
+    description: >
+      geometry per amber_pkg (HAS Table 5.0). Grid: bring-up smoke
+      (4/2/32/32, FIFO), tiny (16/2/64/64), default (128/4/64/64).
+  - name: REPL_POLICY
+    default: 0 (LRU)
+    description: >
+      replacement policy (amber_repl_t): 0=lru, 1=tree_plru, 2=fifo, 3=random.
+      The bring-up cell runs FIFO per the Task 9 brief; the TB carries an
+      independent LRU/FIFO model for victim prediction.
+  - name: AXI_ID_WIDTH / AXI_USER_WIDTH
+    default: 8 / 1
+    description: fub_axi id/user field widths, matching the engines
+  - name: USE_MONITOR
+    default: 1
+    description: 0 ties the MonBus observer outputs off (house idiom)
+
+scenarios:
+  - name: InitWalk
+    level: gate
+    description: >
+      Post-reset walk writes STATE_I to every way before the first lookup
+      (MAS ch03 option 1; the arrays carry no reset). cpu_req_wr_ready stays
+      low for the whole walk; a request presented mid-walk is held, never
+      accepted early (a lookup before walk completion is illegal). The TB
+      model mirrors the walk: every line Invalid until init_busy falls.
+  - name: FirstHitLatency
+    level: gate
+    description: >
+      First access to a cold line misses (whole-line fill through the real
+      AXI4 read path); the immediate re-access hits in a constant number of
+      cycles, bounded and identical across subsequent hits.
+  - name: DirectedSequence
+    level: gate
+    description: >
+      Read miss / read hit / write hit (E->M promotion) / upgrade (S write,
+      CLEAN_UNIQUE, no fill data) / dirty eviction (write-back lands in the
+      memory model through the real AXI4 write path) / write-merge readback,
+      all scored against the golden models with the Task 2 oracle lockstep.
+  - name: SnoopSequence
+    level: gate
+    description: >
+      ACE snoops (all six IHI0022 types the core translates) against
+      installed M/E/S lines through the real snoop port: CRRESP bit-for-bit
+      vs the oracle Table 3.0 decode, CD beat content vs the golden line,
+      post-snoop state re-verified by a following CPU access.
+  - name: RandomOracleLockstep
+    level: func
+    description: >
+      SEED-pinned randomized CPU traffic (read/write, random be, bounded
+      working set) with snoops interleaved while misses are in flight
+      (pending line, draining victim, other lines) -- CRRESP/CD vs the
+      oracle transient states, response data vs the memory/cache content
+      models, victim prediction through the TB repl model (dirty-eviction
+      detection). Responder timing profiles switched mid-stream.
+  - name: MonliteTallyCrossCheck
+    level: func
+    description: >
+      The monlite packet stream is counted per event class and compared
+      against the event counts derived from the oracle/model transaction
+      replay (HIT == transactions, MISS == victim selections, SNOOP, EVICT,
+      FILL_/DRAIN_ start/end pairing, TRANSITION) -- the first integration
+      check of the observer taps wired in amber_core. mon_ready held high:
+      zero drops expected.
+  - name: MonbusCongestion
+    level: func
+    description: >
+      monbus_ready held low across a traffic burst: packets drop-and-count
+      (never backpressure the cache), a DROPPED report re-emerges once the
+      bus frees, the live dropped_count returns to zero, no deadlock.
+  - name: FullSoak
+    level: full
+    description: >
+      Long randomized soak (5k transactions, snoops on most miss windows,
+      all responder profiles, mid-stream profile switches) -- the oracle
+      lockstep and tally cross-check run continuously; final quiescence
+      check (no dangling monbus valid, dropped_count zero).
