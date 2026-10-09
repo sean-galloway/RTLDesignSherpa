@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/rapids — issues
 
-**Next ID: ISSUE-007** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-008** — never recycle a number, even when its item closed.
 
 An observed problem that is not yet a diagnosed defect or a decided piece of work: an anomaly, a risk, an open question. It RESOLVES INTO a bug, a task, or a recorded no-action.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 6 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,6 +20,12 @@ by construction rather than by discipline.
 
 ## Open
 
+- **ISSUE-007** — MONCAP reads nothing on observer-only rapids builds: the
+  interface observers' monbus goes to a discard responder, the capture
+  buffer sources only rapids_top's in-core monitor stream. Board A/B of the
+  TASK-003 tap swap used observer telemetry instead (exact old≡lite match);
+  per-class board readout needs the proposed gen_moncap source hookup or a
+  declared out-of-scope.
 
 ## Closed
 
