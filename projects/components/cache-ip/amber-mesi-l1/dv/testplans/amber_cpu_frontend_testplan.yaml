@@ -112,6 +112,22 @@ scenarios:
 
 gaps:
   - >
+    D14 carry-forward (plan-mandated traceability): illegal-ACSOOP
+    stimulus and mid-transaction reset are not covered here. Illegal
+    ACSNOOP: not applicable at this level -- the frontend never sees
+    ACE snoop encodings (they enter downstream at amber_snoop_resp's
+    translation table, and the harness models the responder contract
+    with the compact 3-bit type); the reserved-encoding safe-default
+    contract is pinned in the amber_control / amber_oracle suites
+    (pkg decode contraction, snoop codes 6/7) and lands end-to-end in
+    test_amber_snoop_resp. Mid-transaction reset: the frontend holds no
+    transaction context beyond the D-6 staging FIFO (reset through
+    rst_n only), and the behavior is control-defined -- pinned as
+    recorded-not-implemented in the amber_control suite and carried to
+    Task 9/14 (amber_core integration / MAS errata); the INIT-walk
+    restart side (this module's only reset-observable) is pinned by
+    InitReady.
+  - >
     The mid-transaction snoop compositions (pending-fill bypass service,
     victim-buffer bypass, snoop during the victim gather) are proven by
     the amber_control and amber_snoop_resp suites; this suite keeps

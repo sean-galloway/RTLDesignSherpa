@@ -116,6 +116,29 @@ scenarios:
 
 gaps:
   - >
+    D14 carry-forward (plan-mandated traceability): illegal-ACSOOP
+    stimulus and mid-transaction reset are not covered here. Illegal
+    ACSNOOP: not applicable at this level -- the observer taps the
+    compact 3-bit snoop type after amber_snoop_resp's ACSNOOP
+    translation, so the 4-bit reserved encodings never reach these
+    taps; the reserved-encoding safe-default contract is pinned in the
+    amber_control / amber_oracle suites and end-to-end in
+    test_amber_snoop_resp (which owns the translation table).
+    Mid-transaction reset: recorded-not-implemented at the amber_control
+    level (carried to Task 9/14); the observer is reset-transparent
+    (queue pointers and drop counter reset, taps re-synced at the
+    INIT-walk entry strobe) and adds no reset-observable state of its
+    own beyond what the matrix's post-reset streams already exercise.
+  - >
+    MISS-payload miss_class is wired to AMBER_MISS_UNKNOWN at this
+    level: no golden model rides the closure, and the DUT's
+    classification (fill_req_class at the harness top) is the ACE
+    request class, not the cache_sim {compulsory, capacity, conflict}
+    computation -- mapping one to the other without the model would
+    fabricate data. The tap_miss_class port exists for amber_core
+    (Task 9), where the model can supply the class; both harness and TB
+    tie UNKNOWN consistently, so the field is pinned as-wired.
+  - >
     Snoops are issued at quiescence (between CPU transactions). The
     mid-transaction compositions (pending-fill bypass, victim-buffer
     bypass, gather-window snoops) are proven by the amber_control and

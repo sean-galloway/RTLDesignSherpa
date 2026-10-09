@@ -92,6 +92,11 @@
 //     Description: designer-allocated house monitor ids (monitor_common_pkg
 //       allocation rules; amber = 16'h00A0, monlite unit = 8'h01)
 //     Type: logic
+//   DROP_CODE:
+//     Description: event_code of the drop-report packet (the only amber
+//       constant in the otherwise amber-free counting engine; a lift to
+//       utility-ip/misc overrides this — T8 review Minor #3)
+//     Type: logic [7:0]
 //   USE_MONITOR:
 //     Description: 0 = tie monbus outputs off, count held at zero
 //     Type: bit
@@ -123,6 +128,7 @@ module amber_monlite
     parameter int BUS_WIDTH   = AMBER_BUS_WIDTH,
     parameter logic [15:0] AGENT_ID     = 16'h00A0,
     parameter logic [7:0]  UNIT_ID      = 8'h01,
+    parameter logic [7:0]  DROP_CODE    = 8'(AMBER_EV_DROPPED),
     parameter bit          USE_MONITOR  = 1'b1,
     parameter int          OUT_DEPTH    = 4,
     localparam int SET_INDEX_WIDTH   = $clog2(SETS),
@@ -454,7 +460,7 @@ module amber_monlite
                                 c_code[w_p1_idx], 9'd0, UNIT_ID, AGENT_ID,
                                 c_data[w_p1_idx])
         : create_monitor_packet(PktTypeError, PROTOCOL_CORE,
-                                8'(AMBER_EV_DROPPED), 9'd0, UNIT_ID,
+                                DROP_CODE, 9'd0, UNIT_ID,
                                 AGENT_ID, 64'(r_dropped));
     assign w_slot1_ts = i_mon_time;
 

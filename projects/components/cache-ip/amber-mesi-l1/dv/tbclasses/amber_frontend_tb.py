@@ -125,9 +125,6 @@ class AmberFrontendTB(TBBase):
         self.cyc = 0
         self.stub_victim_way = 0
 
-        # event-cursor for _wait_event
-        self._tap_pos = 0
-
         # response bookkeeping: slave callback appends here
         self.rsp_log = []
 
@@ -421,21 +418,6 @@ class AmberFrontendTB(TBBase):
     # ------------------------------------------------------------------
     # event helpers
     # ------------------------------------------------------------------
-    async def _wait_event(self, kind, timeout=2000, pred=None, start=None):
-        """Await the next tap event of `kind` (from the cursor) matching
-        pred; returns (cyc, payload)."""
-        pos = self._tap_pos if start is None else start
-        while True:
-            while pos < len(self.events):
-                cyc, k, p = self.events[pos]
-                pos += 1
-                if k == kind and (pred is None or pred(p)):
-                    self._tap_pos = max(self._tap_pos, pos)
-                    return cyc, p
-            if len(self.events) and self.events[-1][0] > self.cyc + timeout:
-                raise RuntimeError(f"timeout waiting for {kind}")
-            await self._negedge_settled()
-
     def _slice(self, lo, hi):
         return [e for e in self.events if lo <= e[0] <= hi]
 
@@ -859,7 +841,6 @@ class AmberFrontendTB(TBBase):
         self.mem = {}
         self.events = []
         self.rsp_log = []
-        self._tap_pos = 0
         self.txns = 0
         self.snoops = 0
         self.cyc = 0
