@@ -1,0 +1,147 @@
+# Testplan for the amber ACE rig (Task 12): `amber_ace_issue` +
+# `amber_ace_top` -- the onyx-rig top on ACE masters. One amber_ace_top
+# (amber_core + amber_ace_issue + the axi4ace_master_rd/wr_monlite
+# transports + the D-7 monbus_arbiter) against a Python onyx-D2 manager
+# model on the ACE master pins.
+# Run: dv/tests/test_amber_ace_top.py.
+#
+# DUT (rig cells): amber_ace_top directly as the toplevel (the same
+# single-DUT integration idiom as test_amber_core.py; MAS ch01/02 port
+# names aclk/aresetn). The ACE master pins close onto hand-rolled GAXI
+# responders (the framework has no front-side ACE slave responder; onyx
+# itself is not built yet) over the shared MemoryModel: AR+ARSNOOP -> R
+# burst from memory, AW+AWSNOOP -> WriteBack (W+B into memory) or AW-only
+# (B immediately, no W), auto-pulsed RACK/WACK observed. The ACE snoop
+# responder port is driven by the house snoop master (the manager's
+# maintenance view); the CPU side by the house GAXI BFM pair. Observation
+# is hierarchical read-only (the sanctioned pattern): coh_req taps, snoop
+# grant handshakes, tag-array words, monlite internals via u_core.
+#
+# DUT (row cells): dv/tb/amber_ace_issue_th.sv -- pure wiring exposing
+# amber_ace_issue's event/engine/wrapper pins for the Table 2.8.1 row
+# suite.
+#
+# Table 2.8.1 contract under test (MAS ch02/08; the ace_issue block is the
+# only new logic, a combinational event->transaction map):
+#   * read miss, shared intent   -> AR    ARSNOOP=ReadShared (4'h1)
+#   * read miss, exclusive intent-> AR    ARSNOOP=ReadUnique (4'h7)
+#   * write to Shared line       -> AW-only AWSNOOP=CleanUnique (3'h6), no W
+#   * write to Invalid (whole)   -> AW-only AWSNOOP=MakeUnique (3'h4), no W
+#   * dirty eviction             -> AW+W  AWSNOOP=WriteBack (3'h3), victim data
+#   * clean eviction             -> AW-only AWSNOOP=Evict (3'h5), no W
+#   AWSNOOP/ARSNOOP encodings: framework ACETransactionType where the
+#   value fits the wire width (ReadShared 0x1, ReadUnique 0x7,
+#   WriteBack 0x3, Evict 0x5, MakeUnique 0xC -> low-3 0x4); CleanUnique's
+#   framework value (0xB) collides with WriteBack under 3-bit truncation,
+#   so the family AWSNOOP assigns the next free code 0x6.
+#   The AW-only B responses carry AWONLY_ID (8'h01) so the block's BID mux
+#   swallows them before the drain engine's B channel (bready is a
+#   D_B-state output; a stray AW-only credit would otherwise misretire the
+#   next WriteBack). RACK/WACK auto-pulse one cycle after the last R beat /
+#   the B handshake (house wrapper behavior).
+#   Rig-level note: amber_control maps whole-line write misses to
+#   ReadUnique+merge (not MakeUnique) and drops clean victims silently (no
+#   Evict), so the MakeUnique/Evict rows are proven on the unit wrapper;
+#   the rig asserts they are never issued.
+
+module: amber_ace_top
+rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_ace_issue.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/top/amber_ace_top.sv
+test_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_ace_top.py
+
+parameters:
+  - name: SETS / WAYS / LINE_BYTES / BUS_WIDTH
+    default: 128 / 4 / 64 / 64
+    description: >
+      geometry per amber_pkg (HAS Table 5.0). Grid: tiny formal config
+      (16/2/64/64) + pkg default (128/4/64/64).
+  - name: REPL_POLICY
+    default: 0 (LRU)
+    description: replacement policy (amber_repl_t). The TB carries an
+      independent LRU model for victim prediction.
+  - name: USE_MONITOR
+    default: 1
+    description: >
+      0 ties all three MonBus observers (amber_monlite + the two ace
+      monlites) off. A USE_MONITOR=0 cell per geometry re-runs the gate
+      suite asserting functional equivalence + observer silence.
+
+scenarios:
+  - name: InitWalk
+    level: gate
+    description: >
+      Inherited core integration contract: cpu_req_wr_ready stays low
+      until init_busy falls; a request presented mid-walk is held. The
+      first fill goes out as a ReadShared AR and the manager's R burst
+      installs the line.
+  - name: FirstHitLatency
+    level: gate
+    description: >
+      Cold access misses through the real ACE read path; warm hits are
+      constant-latency.
+  - name: AceTableRows
+    level: gate
+    description: >
+      The Table 2.8.1 rows end-to-end on the master pins. (a) cold read ->
+      ARSNOOP=ReadShared at the line base, whole-line burst. (b) cold write
+      -> ARSNOOP=ReadUnique, merge, readback. (c) write to a Shared line ->
+      AW-only CleanUnique at the line base: no W beats accompany it, the
+      manager's B returns and the WACK auto-pulses, the line reads back
+      Modified; the AW carries AWONLY_ID so the response is swallowed off
+      the drain engine. (d) dirty eviction -> AWSNOOP=WriteBack with one
+      W burst whose beats land in the manager memory (victim bytes audit).
+      MakeUnique/Evict: asserted never issued at rig level (control maps
+      those events to ReadUnique+merge / silent drop; unit suite owns the
+      rows).
+  - name: DirectedSequence
+    level: gate
+    description: >
+      Inherited directed sequence through the ACE transports: miss/hit/
+      upgrade/merge/dirty-eviction with the memory-model audit; every
+      coherence launch now closes through the ACE master pins.
+  - name: SnoopSequence
+    level: gate
+    description: >
+      Directed snoops (ReadShared / MakeInvalid / ReadUnique) against
+      installed lines: CRRESP + CD beats scored bit-for-bit at the grant
+      (oracle), post-snoop CPU re-verification, and the framework ACE
+      compliance checker fed from the responder pins.
+  - name: RandomOracleLockstep
+    level: func
+    description: >
+      Seeded random CPU traffic against the observation-driven 1-cache
+      oracle (AmberCoreTB machinery) with mid-miss + idle snoops, responder
+      profile switches, and the manager model closing the ACE pins; MonBus
+      tally cross-check; final pin accounting (one AR per fill launch with
+      the matching ARSNOOP, one WriteBack AW per drain, one CleanUnique
+      AW-only per upgrade, one B/WACK per AW, one RACK per AR, W beats only
+      as write-back victim data); ACE compliance violations == 0.
+  - name: MonbusCongestion
+    level: func
+    description: >
+      Inherited congestion phase: monbus stall forces observer
+      drop-and-count without perturbing the cache; dropped_count clears.
+  - name: MonbusPresentVsAbsent
+    level: gate
+    description: >
+      USE_MONITOR=0 elaboration re-runs the gate suite: every functional/
+      coherence check stays green with identical seeding and the MonBus is
+      silent (no valid, no drops) -- the observer never perturbs the
+      measured path.
+  - name: IssueTableRows
+    level: gate
+    description: >
+      Unit-side (amber_ace_issue_th): per Table 2.8.1 row, drive the cache
+      event and capture ARSNOOP/AWSNOOP + address + burst on the wrapper
+      pins, hold under backpressure, prove CleanUnique/MakeUnique/Evict
+      are AW-only with the engine AW untouched, prove WriteBack stamps the
+      engine AW, and prove the AW-only B responses are swallowed by the
+      AWONLY_ID BID mux while engine B responses pass through.
+  - name: FullSoak
+    level: full
+    description: >
+      Long randomized soak (5k transactions, mid-miss snoops, all directed
+      families re-run first), final pin accounting + memory audit +
+      quiescence.

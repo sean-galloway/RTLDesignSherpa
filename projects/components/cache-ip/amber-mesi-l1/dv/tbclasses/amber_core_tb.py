@@ -207,6 +207,22 @@ class AmberCoreTB(TBBase):
     FULL_TXN = {'gate': 0, 'func': 400, 'full': 5000}
     RSP_TIMEOUT_CYCLES = 3000
 
+    # clock/reset/mon_time port names: the core names them clk/rst_n/
+    # mon_time; the rig tops (amber_top / amber_ace_top, MAS ch01/02) name
+    # them aclk/aresetn/i_mon_time -- subclasses override.
+    CLK_PORT = 'clk'
+    RST_PORT = 'rst_n'
+    MON_TIME_PORT = 'mon_time'
+
+    @property
+    def _tap(self):
+        """Hierarchical-tap root for core-internal signals (u_control,
+        u_snoop, u_repl, u_tag, coh_req_*, mon_dropped). This TB drives
+        the core directly so the taps ARE its top ports; rig tops own a
+        u_core instance and override this to dut.u_core (the sanctioned
+        read-only reference pattern)."""
+        return self.dut
+
     # responder timing profiles (house FlexRandomizer shapes; same set as
     # the amber_fill/amber_drain unit suite)
     PROFILES = {
@@ -404,8 +420,9 @@ class AmberCoreTB(TBBase):
     # clock/reset/BFMs
     # ------------------------------------------------------------------
     async def setup_clocks_and_reset(self, period_ns=10):
-        await self.start_clock('clk', freq=period_ns, units='ns')
+        await self.start_clock(self.CLK_PORT, freq=period_ns, units='ns')
         d = self.dut
+        clk = getattr(d, self.CLK_PORT)
 
         req_fields = FieldConfig.from_dict(
             field_dict={'data': {'bits': self.CPU_REQ_W, 'default': 0}},
@@ -421,13 +438,13 @@ class AmberCoreTB(TBBase):
 
         self.master = GAXIMaster(
             dut=d, title='cpu_req', prefix='',
-            clock=d.clk, field_config=req_fields,
+            clock=clk, field_config=req_fields,
             timeout_cycles=self.RSP_TIMEOUT_CYCLES,
             mode='skid', bus_name='cpu_req_wr', pkt_prefix='',
             multi_sig=False, randomizer=master_rand, log=self.log)
         self.slave = GAXISlave(
             dut=d, title='cpu_rsp', prefix='',
-            clock=d.clk, field_config=rsp_fields,
+            clock=clk, field_config=rsp_fields,
             timeout_cycles=self.RSP_TIMEOUT_CYCLES,
             mode='skid', bus_name='cpu_rsp_rd', pkt_prefix='',
             multi_sig=False,
@@ -438,14 +455,14 @@ class AmberCoreTB(TBBase):
 
         # memory side: house AXI4 responders on the raw fub_axi_* pins
         self.rd_components = create_axi4_slave_rd(
-            dut=d, clock=d.clk, prefix='fub_axi', log=self.log,
+            dut=d, clock=clk, prefix='fub_axi', log=self.log,
             id_width=8, addr_width=self.ADDR_WIDTH,
             data_width=self.BUS_WIDTH, user_width=1,
             memory_model=self.memory_model)
         self.ar_slave = self.rd_components['AR']
         self.r_master = self.rd_components['R']
         self.wr_components = create_axi4_slave_wr(
-            dut=d, clock=d.clk, prefix='fub_axi', log=self.log,
+            dut=d, clock=clk, prefix='fub_axi', log=self.log,
             id_width=8, addr_width=self.ADDR_WIDTH,
             data_width=self.BUS_WIDTH, user_width=1,
             memory_model=self.memory_model)
@@ -455,7 +472,7 @@ class AmberCoreTB(TBBase):
 
         # ACE snoop master on the snoop responder port
         self.snoop_master = create_axi4ace_snoop_master(
-            dut=d, clock=d.clk, prefix='m_axi_', log=self.log,
+            dut=d, clock=clk, prefix='m_axi_', log=self.log,
             ifc_name='sn', addr_width=self.ADDR_WIDTH,
             data_width=self.BUS_WIDTH)['interface']
 
@@ -470,15 +487,15 @@ class AmberCoreTB(TBBase):
         await self.assert_reset()
         cocotb.start_soon(self._monitor())
         cocotb.start_soon(self._monbus_ready_driver())
-        await self.wait_clocks('clk', 3)
+        await self.wait_clocks(self.CLK_PORT, 3)
         await self.deassert_reset()
         self.set_profile('fast')
 
     async def assert_reset(self):
-        self.dut.rst_n.value = 0
+        getattr(self.dut, self.RST_PORT).value = 0
 
     async def deassert_reset(self):
-        self.dut.rst_n.value = 1
+        getattr(self.dut, self.RST_PORT).value = 1
 
     def set_profile(self, name):
         cfg = self.PROFILES[name]
@@ -493,7 +510,7 @@ class AmberCoreTB(TBBase):
         self.rsp_log.append((self.cyc, data))
 
     async def _negedge_settled(self):
-        await FallingEdge(self.dut.clk)
+        await FallingEdge(getattr(self.dut, self.CLK_PORT))
         await Timer(500, units='ps')
 
     # ------------------------------------------------------------------
@@ -501,12 +518,13 @@ class AmberCoreTB(TBBase):
     # ------------------------------------------------------------------
     async def _monitor(self):
         d = self.dut
+        clk = getattr(d, self.CLK_PORT)
         prev_state = -1
         while True:
-            await FallingEdge(d.clk)
+            await FallingEdge(clk)
             await Timer(100, units='ps')
             self.cyc += 1
-            d.mon_time.value = self.cyc
+            getattr(d, self.MON_TIME_PORT).value = self.cyc
 
             st = int(d.ctrl_state.value)
             if st != prev_state:
@@ -525,16 +543,16 @@ class AmberCoreTB(TBBase):
                                     {'addr': addr, 'we': we, 'be': be,
                                      'wdata': wdata}))
 
-            if int(d.coh_req_valid.value):
+            if int(self._tap.coh_req_valid.value):
                 self.coh_req_count += 1
                 self.events.append((self.cyc, 'coh_req', {
-                    'addr': int(d.coh_req_addr.value),
-                    'type': int(d.coh_req_type.value)}))
+                    'addr': int(self._tap.coh_req_addr.value),
+                    'type': int(self._tap.coh_req_type.value)}))
 
             # snoop grant: model-step at the grant cycle -- the DUT state
             # sampled here is exactly the resolution the RTL used
-            if int(d.u_snoop.ctrl_snoop_req.value) \
-                    and int(d.u_control.ctrl_snoop_ready.value):
+            if int(self._tap.u_snoop.ctrl_snoop_req.value) \
+                    and int(self._tap.u_control.ctrl_snoop_ready.value):
                 self._on_snoop_grant(st)
 
             if int(d.mon_valid.value) and int(d.mon_ready.value):
@@ -624,10 +642,10 @@ class AmberCoreTB(TBBase):
         # victim-way parity with the DUT's repl engine: a divergence here
         # poisons every eviction prediction downstream
         self._score(f"{txn['label']}: victim way parity", way,
-                    int(self.dut.u_repl.repl_victim_way.value))
+                    int(self._tap.u_repl.repl_victim_way.value))
         vline = self.tags.get((set_idx, way))
         vstate = self.slot_state.get((set_idx, way), 'I')
-        dut_ts = int(self.dut.u_tag.mem[way * self.SETS + set_idx].value)
+        dut_ts = int(self._tap.u_tag.mem[way * self.SETS + set_idx].value)
         dut_tag, dut_state = dut_ts >> 3, self._decode3(dut_ts & 7)
         # NB: the model's tags map (set, way) -> LINE NUMBER; the array
         # word is {tag, state} with tag = line >> SET_BITS
@@ -719,8 +737,8 @@ class AmberCoreTB(TBBase):
     # ------------------------------------------------------------------
     def _on_snoop_grant(self, dut_state):
         d = self.dut
-        line = self._line_of(int(d.u_snoop.ctrl_snoop_addr.value))
-        name = NAME_BY_CODE[int(d.u_snoop.ctrl_snoop_type.value)]
+        line = self._line_of(int(self._tap.u_snoop.ctrl_snoop_addr.value))
+        name = NAME_BY_CODE[int(self._tap.u_snoop.ctrl_snoop_type.value)]
         st = self._cur_state(line)
         fill = 'S' if st in ('IS', 'IS_I') else None
         pend = self.pend_eff if self.pend_line == line else None
@@ -794,7 +812,7 @@ class AmberCoreTB(TBBase):
     async def _monbus_ready_driver(self):
         d = self.dut
         while True:
-            await FallingEdge(d.clk)
+            await FallingEdge(getattr(self.dut, self.CLK_PORT))
             if self.mon_mode == 'free':
                 d.mon_ready.value = 1
             elif self.mon_mode == 'stall':
@@ -1129,7 +1147,7 @@ class AmberCoreTB(TBBase):
         self._score("monbus tally: no drop reports pre-congestion",
                     self._drop_reports, 0)
         self._score("monbus: live dropped_count zero pre-congestion",
-                    int(self.dut.mon_dropped.value), 0)
+                    int(self._tap.mon_dropped.value), 0)
 
     async def _s_monbus_congestion(self):
         self.mon_mode = 'stall'
@@ -1147,12 +1165,12 @@ class AmberCoreTB(TBBase):
         self._score("congestion: drop report re-emitted",
                     self._drop_reports > reports0, True)
         for _ in range(500):
-            if int(self.dut.mon_dropped.value) == 0 \
+            if int(self._tap.mon_dropped.value) == 0 \
                     and not int(self.dut.mon_valid.value):
                 break
             await self._negedge_settled()
         self._score("congestion: dropped_count cleared",
-                    int(self.dut.mon_dropped.value), 0)
+                    int(self._tap.mon_dropped.value), 0)
         self._scenario('MonbusCongestion')
 
     # ------------------------------------------------------------------
@@ -1197,7 +1215,7 @@ class AmberCoreTB(TBBase):
             await self._s_monbus_congestion()
 
         # quiescence: nothing dangling
-        await self.wait_clocks('clk', 10)
+        await self.wait_clocks(self.CLK_PORT, 10)
         self._score("quiescent: no monbus valid at end",
                     int(self.dut.mon_valid.value), 0)
         self._score("quiescent: ctrl not in ERROR",
