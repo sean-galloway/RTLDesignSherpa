@@ -254,6 +254,26 @@ Expected: five registry/link PASS lines; the five existing unit suites (kmap, ta
 
 ---
 
+### Macro composition suites (T9.5 — inserted task, runs between Tasks 9 and 10)
+
+Inserted per controller ruling (2026-10-08) + user directive. The eight landed FUBs cluster into four interaction groups around `amber_control`; each group becomes a **new SystemVerilog wrapper module** so cocotb drives a real DUT top (user directive: harness-side Python composition is not acceptable for these). Test-only wrappers take a `_test` suffix (user-approved; the repo `_th` idiom stays for plain harnesses). Suites are committed under `dv/tb/`, `dv/tbclasses/`, `dv/tests/`, `dv/testplans/` and run as regression cells — they are the bring-up ladder between unit suites and `amber_core`, and T11's pair rig inherits their pinned scenarios.
+
+**Groups:**
+1. **Lookup dataplane** — control + tag_array + data_array + repl (hit/miss, promotion, victim selection, multi-way compare, init-walk interaction).
+2. **Miss/fill path** — control + pending_fill_bypass + fill (fill orchestration, mid-fill snoop service, killed-fill re-fetch, beat gathering).
+3. **Eviction/writeback** — control + victim + drain (dirty-victim gather, victim-buffer pressure, drain ordering).
+4. **Coherence/snoop loop** — control + snoop_resp + pending_fill_bypass + victim (PassDirty forwarding, snoop-vs-gather interleave, CR-after-CDLAST, zero-gap AC). Promote the Task 7 ad-hoc composition (`amber_snoop_resp_th.sv` + `real_control_loop`) into this named macro suite rather than building a fourth from scratch.
+
+**Files:**
+- Create: `dv/tb/amber_{lookup,miss_fill,eviction,coh}_macro_test.sv` (wrapper modules, `_test` suffix)
+- Create: `dv/tbclasses/amber_{lookup,miss_fill,eviction,coh}_macro_tb.py`, `dv/tests/test_amber_{...}_macro.py`, `dv/testplans/amber_{...}_macro_testplan.yaml`
+
+**Interfaces:** each wrapper instantiates only its group's landed FUBs plus harness BFMs (hierarchical taps per the sanctioned pattern); external ports = the union of member FUB ports the scenarios need. No production RTL is created or modified.
+
+**Sign-off:** gate/func green per macro (tiny + default geometries); FULL for the coherence macro (it carries the T7-found bug pins). Randomized scenarios per group must cover the cross-block interactions the unit suites cannot reach (snoop-during-fill, victim-while-draining, killed-fill re-fetch, zero-gap AC mid-miss).
+
+---
+
 ### Task 10: cache_sim trace-replay parity suite
 
 **Files:**
