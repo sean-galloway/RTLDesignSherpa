@@ -13,8 +13,8 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 4 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 5 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -22,11 +22,15 @@ by construction rather than by discipline.
 
 ## Active
 
-- **TASK-003** — axis4_intf_observer instantiates axis_monitor_lite instead of its private per-port tap; RTL done 2026-10-04 (c35c8304b), suite 12/12 green, board packet-class matrix pending the ecc-ip lane's harness
-
+None.
 
 ## Closed
 
+- **TASK-003** — CLOSED 2026-10-08: axis4_intf_observer on per-port
+  axis_monitor_lite; board packet-class matrix ACCEPT via the reed-solomon
+  Genesys 2 route (commit a4d9affa0) — per-port class counts identical
+  old-tap vs monitor_lite, tap_dropped 0<=0 (RS harness runs
+  ENABLE_MON_TAPS=0; drop-elimination evidence is the 12/12 sim suite).
 - **TASK-005** — single-port arbiter padding: width guards landed in all
   three arbiters (CLIENTS=1 elaborates), observer padding deleted, suite
   12/12 green, arbiter formal PASS (closed 2026-10-04 as measurement-

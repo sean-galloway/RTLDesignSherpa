@@ -1,6 +1,6 @@
 # TASK-003: axis4_intf_observer instantiates axis_monitor_lite instead of its private tap
 
-**Status:** ACTIVE 2026-10-04. RTL DONE (commit c35c8304b): inline gen_tap
+**Status:** CLOSED 2026-10-08. RTL DONE (commit c35c8304b): inline gen_tap
 replaced by per-port axis_monitor_lite, TAP_BLOCKED stickiness preserved,
 observer suite 12/12 green (gate/func/full from clean, tap_dropped now 0 on
 the all_classes stimulus). OUT_DEPTH=16 with a measured-reason comment
@@ -49,3 +49,33 @@ Acceptance: observer tests green at FULL from clean; per-iteration monbus
 class counts unchanged on the board build except `tap_dropped`, which should
 be lower; the observer no longer contains a second copy of the AXIS event
 table.
+
+## Closure (2026-10-08) — board packet-class matrix, ACCEPT
+
+Orphaned board leg completed via the ready reed-solomon Genesys 2 route
+(commit a4d9affa0, results in
+projects/fpga-systems/Genesys2/ecc-ip/reed-solomon/stable/results/2026-10-08_observer_ab/):
+
+- rs_loop bitstream from main (observer = per-port axis_monitor_lite):
+  ~5.2 min, WNS +1.168 ns, 21,532 LUTs. Board = Genesys 2 (UART ttyUSB0,
+  JTAG 200300B818A0B) under the serial board lock; Nexys A7 and the
+  sibling Digilent board untouched.
+- Campaigns: 8-block clean x2 matrix (new-tap image) + 16/64-block and
+  e=t/t+1 extended runs (A/B with the old-tap image captured by the
+  sibling baseline leg through the same lock).
+- **Acceptance: ACCEPT.** Every per-iteration per-port monbus class count
+  is identical between old tap and monitor_lite (msg/cw/msg seams),
+  tap_packets == packets on both images, and all codec verdicts PASS.
+  tap_dropped = 0 -> 0: measured structural fact — the RS harness builds
+  the observer with ENABLE_MON_TAPS=0 (rs_loop_harness.sv:980), so no
+  monbus events exist to drop on either image; the drop-elimination
+  evidence proper (sim baseline 11..13 -> 0) remains the 12/12 observer
+  suite from the RTL leg. The "lower, target ~0" bound is satisfied as
+  0 <= 0.
+- Extended-run counts match the committed pre-rework MANIFEST baseline to
+  the digit (944/1008 beats @16 blk, 3776/4032 @64, 71.5/65.1 cyc/blk).
+
+Follow-up filed from the session: tooling ISSUE-004 (hw_server
+partial-enumeration race — partial device list missing exactly the
+target refuses without retry; the repo's bounce-and-retry only covers
+fully empty lists).

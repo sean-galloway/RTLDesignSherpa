@@ -12,30 +12,31 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 18 | done (kept for history) |
+| [open/](open/) | 1 | accepted, not started |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 19 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-(none)
+- **BUG-020** — arming the obs error cone makes the monlite shared output
+  queue lossy: ~90% of completion events dropped and honestly reported as
+  AXI_ERR_EVENT_DROPPED (0x0E) packets, tripping the obs campaign hard fail
+  (board A/B isolation measured 2026-10-08; ERR_EN is necessary and
+  sufficient, error-type masking avoids it). RTL investigation + campaign
+  disposition open.
 
 ## Active
 
-- **BUG-019** — the obs/mon host campaigns still arm and report the perf/
-  debug cones the 2026-09-27 lite-taps rework retired (caps0 bit4/bit5 read 0),
-  so obs live-traffic tallies land ~89% in UNEXPECTED and mon_coverage sees
-  4/8 tuples; re-baseline the campaigns against OBS_CAPS0. ACTIVE 2026-10-04:
-  host side done and committed (obs_addrs caps helpers, arm-what-you-key,
-  matrix row SKIP by primary class, build-mon uses BUILD_CONFIG.GEN_MON +
-  LITE_RETIRED_TYPES); board re-pin of the results files parked — needs a
-  Genesys 2 session
-
+(none)
 
 ## Closed
 
+- **BUG-019** — CLOSED 2026-10-08: obs/mon campaigns re-based on live caps /
+  GEN_MON / LITE_RETIRED_TYPES; board re-pin done (bff808b68) — mon_coverage
+  exact match, matrix 4/5 w/ 2 skips, obs_campaign hard-fails on the BUG-020
+  drop-flood (filed forward).
 - **BUG-018** — both AXI engines wrap a 256-beat burst to 0 beats (8-bit "AxLEN + 1"); the rapids BUG-009 lines, fixed the same way (burst clamped to the buffer) with the rapids engine unit suites ported -- CLOSED 2026-09-29
 
 - **BUG-017** — the in-core monbus group filtered every packet with DAXMON's registers (amba BUG-036) -- CLOSED 2026-09-28 (fix 201babbb5)

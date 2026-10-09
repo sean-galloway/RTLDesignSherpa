@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,11 @@ by construction rather than by discipline.
 
 ## Open
 
-None.
+- **ISSUE-004** — hw_server partial-enumeration race: a partial JTAG device
+  list missing exactly the intended target refuses programming without retry
+  (bounce-and-retry only covers fully-empty lists). Hit twice on 2026-10-08;
+  both times a manual retry succeeded. Candidate: extend the retry to partial
+  enumerations.
 
 ## Closed
 
