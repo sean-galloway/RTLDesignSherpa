@@ -27,4 +27,5 @@
 -f $AMBER_ROOT/rtl/filelists/amber_frontend.f
 -f $AMBER_ROOT/rtl/filelists/amber_core.f
 -f $AMBER_ROOT/rtl/filelists/amber_top.f
+-f $AMBER_ROOT/rtl/filelists/amber_pair_fabric.f
 -f $AMBER_ROOT/rtl/filelists/amber_ace_top.f

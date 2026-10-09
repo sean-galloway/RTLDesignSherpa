@@ -1,0 +1,149 @@
+# Testplan for the amber pair rig (Task 11, THE gated deliverable): two
+# amber_top caches + the amber_pair_fabric snoopy manager + the house
+# sdpram_slave_axi4_axi4 shared memory, coherent end-to-end.
+# Run: dv/tests/test_amber_pair_rig.py.
+#
+# DUT: dv/tb/amber_pair_rig_tb.sv (the rig harness; `_tb` TH idiom). It
+# instantiates two amber_top DUTs (u_amber0/u_amber1 -- each amber_core +
+# axi4_master_rd_monlite/axi4_master_wr_monlite transports + the D-7
+# monbus_arbiter merging {amber_monlite, rd_monlite, wr_monlite} onto one
+# MonBus port pair), the amber_pair_fabric, and one sdpram_slave_axi4_axi4
+# shared memory. mon_time is sourced at rig level by a free-running counter
+# inside the TH (documented choice; MAS ch04/05 rig-level sourcing). CPU GAXI
+# ports cpu0_*/cpu1_*, one MonBus observation output per cache (mon0/mon1).
+# Everything else is observed through hierarchical taps (the sanctioned
+# read-only pattern): per-cache ACE responder pins, snoop grant handshakes,
+# tag-array words, fabric debug outputs, and the sdpram r_mem backdoor
+# (quiescent-phase deposit/readback, the same TB discipline as the landed
+# suites' hierarchical taps).
+
+# Fabric contract under test (DECISION D-8 + the Task-11 design):
+#   * ONE coherence transaction at a time (serialized grant point; fair
+#     round-robin between the two caches). A coherence transaction = one
+#     latched coh_req fill/upgrade pulse -> AC to the peer -> CR/CD gather ->
+#     DataTransfer: the CD line is buffered (depth-1 per direction) and the
+#     requester's R beats are sourced from the buffer (memory AR suppressed);
+#     no DataTransfer: the AR passes through to the shared memory. Dirty
+#     write-backs (WRITE_BACK pulses) are pure write-port pass-through.
+#   * Kill rule: if the peer has an UNGRANTED same-line fill pending when the
+#     AC is issued, the snoop is MakeInvalid (IHI0022 forbids DT on MI): the
+#     peer's pending fill is invalidated instead of deadlocking the CD gather
+#     on a fabric-held AR, and its replay re-requests through the fabric.
+#   * Point-of-coherence absorption: a PassDirty response also writes the
+#     forwarded line to the shared memory (AW id 8'hAx), keeping sdpram
+#     coherent; while an absorption is pending, pass-through reads and
+#     write-backs to the same line hold (addr-match stall registers).
+#   * Snoop map: READ_SHARED->SNOOP_READ_SHARED(4'h1), READ_UNIQUE->
+#     SNOOP_READ_UNIQUE(4'h7), CLEAN_UNIQUE->SNOOP_MAKE_INVALID(4'hC).
+
+module: amber_pair_rig
+rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/rtl/top/amber_pair_fabric.sv
+  - projects/components/cache-ip/amber-mesi-l1/rtl/top/amber_top.sv
+test_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_pair_rig.py
+
+parameters:
+  - name: SETS / WAYS / LINE_BYTES / BUS_WIDTH
+    default: 128 / 4 / 64 / 64
+    description: >
+      geometry per amber_pkg (HAS Table 5.0). Grid: tiny formal config
+      (16/2/64/64) + pkg default (128/4/64/64).
+  - name: REPL_POLICY
+    default: 0 (LRU)
+    description: replacement policy (amber_repl_t). The TB carries an
+      independent per-cache LRU model for victim prediction.
+  - name: USE_MONITOR
+    default: 1
+    description: >
+      0 ties all three MonBus observers (amber_monlite + rd/wr monlites) off.
+      A USE_MONITOR=0 cell per geometry re-runs the whole suite asserting
+      functional equivalence + observer silence (scenario g).
+  - name: MEM_DEPTH
+    default: 16384 words
+    description: >
+      sdpram word depth, sized by the runner to the TB working set
+      (SPAN lines x FILL_BEATS words); the TB only touches backed lines.
+
+scenarios:
+  - name: InitWalk
+    level: gate
+    description: >
+      Both caches' init walks complete before their first accepts; requests
+      presented mid-walk are held. The model mirrors both walks.
+  - name: PassDirtyForwarding
+    level: gate
+    description: >
+      (a) cache1 writes line X (read-unique fill, merge, M). Memory X is then
+      poisoned with a byte-distinct stale pattern (sdpram r_mem backdoor).
+      cache0 reads X: the fabric must source the fill from cache1's CD
+      (PassDirty), NOT the stale memory. Checks: cache0 response == cache1's
+      merged bytes; the memory AR for X is suppressed during the window
+      (memory-side arvalid tap); cache1 downgraded to S and still hits with
+      the same content; after the fabric's absorption write, the memory audit
+      shows cache1's bytes (point-of-coherence pin).
+  - name: UpgradeInvalidatesPeer
+    level: gate
+    description: >
+      (b) Both caches hold X Shared. cache0 CPU-writes X (CLEAN_UNIQUE
+      upgrade): the fabric drives MakeInvalid to cache1, which drops its
+      copy (no data). cache1 then reads X: miss -> fabric forwards (snoop
+      hits cache0 at M -> PassDirty CD) and cache1 receives cache0's merged
+      bytes. cache0 ends Shared, cache1 Shared, memory absorbed.
+  - name: DirtyEvictionWriteback
+    level: gate
+    description: >
+      (c) cache0 writes X (M), then the set is filled to force the dirty
+      eviction: the WRITE_BACK pulse passes through the fabric write port
+      and the memory audit shows X's dirty bytes. A subsequent cache1 read
+      of X (miss, peer Invalid, no DataTransfer) reads the written-back
+      bytes from the shared memory -- the write-back is visible to peers.
+  - name: EDowngradeReadShared
+    level: gate
+    description: >
+      (d) cache0 fills X (installs S), then the TB promotes cache0's tag
+      word to E (quiescent hierarchical deposit -- the CPU path never
+      installs E, so the Table 3.0 E rows are unreachable otherwise, the
+      documented T7 backdoor purpose). cache1 misses X: the fabric's
+      READ_SHARED snoop hits E -> DT+IS+WU with clean data, cache1 installs
+      S, cache0 downgrades to S (tag-array readback).
+  - name: SimultaneousSameLineMisses
+    level: gate
+    description: >
+      (e) N iterations drive BOTH CPUs at the SAME line in the same cycle
+      (read/read, write/write, read/write mixes across iterations): the
+      serialized fabric grants one, kills or forwards correctly, and both
+      caches end with model-consistent state and correct responses --
+      no deadlock (bounded completion). Fairness: the fabric grant tap
+      shows both directions winning first service across the iteration
+      set (round-robin, not winner-take-all).
+  - name: RandomDualCpuLockstep
+    level: func
+    description: >
+      (f) Two concurrent seeded random CPU drivers (read/write, random be,
+      bounded working set spanning both caches' sets) with the 2-cache
+      Python lockstep model: per-cache tag/slot/content/repl/transient
+      models (Task 9 machinery) + fabric rules -- snoop resolution at the
+      observed fabric transactions (kill prediction vs actual ACSNOOP,
+      CRRESP/CD vs oracle at the peer's observed grant, DT data source,
+      AR suppression, PassDirty absorption into the memory model, WB
+      pass-through). Final memory audit of every touched line vs the
+      memory model; per-cache MonBus tally cross-check; ACE compliance
+      checker fed from the ACE taps (0 violations). Mid-miss peer traffic
+      arises naturally from the concurrency (killed fills, victim-buffer
+      snoops, drain-during-miss compositions inherited from the T9.5
+      macros stay exercised through the real cache pipeline).
+  - name: MonbusPresentVsAbsent
+    level: func
+    description: >
+      (g) USE_MONITOR=0 elaboration re-runs the whole suite: every
+      functional/coherence check stays green with identical seeding, and
+      both MonBus outputs are silent (no valid, no drops) -- the observer
+      never perturbs the measured path (Review Focus 5, re-checked at rig
+      level per the plan; T8 pinned the unit-level equivalence).
+  - name: FullSoak
+    level: full
+    description: >
+      Long dual-CPU soak (both drivers, deeper transaction counts, all
+      directed families re-run at the end), final quiescence (no dangling
+      monbus valid, dropped counts zero, fabric idle, memory audit clean).
