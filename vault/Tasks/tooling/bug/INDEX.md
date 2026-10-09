@@ -2,7 +2,7 @@
 
 # tooling — bugs
 
-**Next ID: BUG-016** — never recycle a number, even when its item closed.
+**Next ID: BUG-017** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 14 | done (kept for history) |
+| [closed/](closed/) | 15 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -29,6 +29,7 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **BUG-016** — the one val/amba runner that didn't pin a simulator fell into cocotb-test's icarus default, and the oss-cad-suite vvp wrapper's glibc-2.35 libm cannot host system libpython3.12 -- CLOSED 2026-10-08: simulator="verilator" pinned in test_axis4_pattern_pair.py (uniform with its siblings); 3/3 params re-passed in 31 s; residual trap + the libm-swap remedy documented in-file
 - **BUG-014** — `check_task_ids` globbed the worktree, so as a pre-commit hook it validated a different tree than the one it approved -- CLOSED 2026-09-30: `tracker_tree()` materialises the index being committed; `--tasks-root` added; 6 new teeth tests (11 total), 2 end-to-end reproducers that failed before the fix, mutation-tested 3 ways
 - **BUG-013** — `check_port_consumers.py` cannot see unpacked-array ports, so it -- CLOSED 2026-09-29: regex takes unpacked dims; unexplained-pin guard reports shapes the parser misses; end-to-end test in bin/tests
 - **BUG-004** — conftests stamp TEST_LEVEL, killing per-cell depth -- CLOSED 2026-09-27: mechanism + checker done, 7 of 8 areas converted; pumice's conversion is pumice BUG-019

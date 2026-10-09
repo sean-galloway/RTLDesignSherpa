@@ -115,6 +115,11 @@ def test_axis4_pattern_pair(request, num_ch, dw, lfsr_w):
                                    test_name_plus_params)
 
     try:
+        # simulator is pinned, not defaulted: cocotb-test falls back to
+        # icarus (via $SIM) when this is omitted, and the oss-cad-suite vvp
+        # wrapper forces its own glibc-2.35 libm, which the system
+        # libpython3.12 (glibc 2.38+) cannot load against. Every sibling
+        # runner in val/amba pins verilator the same way.
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
@@ -123,6 +128,7 @@ def test_axis4_pattern_pair(request, num_ch, dw, lfsr_w):
             module=module,
             parameters=rtl_parameters,
             sim_build=sim_build,
+            simulator="verilator",
             extra_env=extra_env,
             waves=enable_waves,
             keep_files=True,
