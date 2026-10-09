@@ -2,7 +2,7 @@
 
 # tooling — issues
 
-**Next ID: ISSUE-004** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-005** — never recycle a number, even when its item closed.
 
 An observed problem that is not yet a diagnosed defect or a decided piece of work: an anomaly, a risk, an open question. It RESOLVES INTO a bug, a task, or a recorded no-action.
 

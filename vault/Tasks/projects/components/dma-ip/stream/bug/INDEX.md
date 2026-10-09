@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/stream — bugs
 
-**Next ID: BUG-020** — never recycle a number, even when its item closed.
+**Next ID: BUG-021** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 

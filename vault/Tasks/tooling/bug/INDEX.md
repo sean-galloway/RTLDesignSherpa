@@ -2,7 +2,7 @@
 
 # tooling — bugs
 
-**Next ID: BUG-015** — never recycle a number, even when its item closed.
+**Next ID: BUG-016** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,13 +12,18 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 14 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **BUG-015** — the cocotb 2.x flip matrix did not cover the UART-equivalence
+  suites: 16 files still used the removed `cocotb.external`/`cocotb.function`
+  (fixed in 61ea5dc13); re-run the touched suites under 2.1.0 and extend the
+  flip matrix to cover the bridge consumers.
 
 
 
