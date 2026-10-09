@@ -467,13 +467,19 @@ module amber_monlite
     // occupancy (FIFO + deferral) is tracked as a small registered
     // counter -- the house fifo's own count output reflects next-pointer
     // state and would close a combinational loop through the takes.
-    // Every fifo_wr_valid beat is accepted (room is budgeted before
-    // asserting it), so counting beats is exact.
+    // r_eff_q counts a deferral-bound beat only from its take cycle, so
+    // while r_pend_q is set the registered value lags the true
+    // occupancy by one; w_room1 therefore budgets on true occupancy
+    // (w_eff_cnt + r_pend_q) -- a chained slot 1 must find wr_ready the
+    // next cycle unconditionally, with no reliance on which taps can or
+    // cannot fire beside the drain. Every fifo_wr_valid beat is accepted
+    // (room is budgeted before asserting it), so counting beats is exact.
     // ------------------------------------------------------------------
     logic [OQW:0] r_eff_q;
     wire [OQW:0] w_eff_cnt  = r_eff_q;
     wire         w_q_empty  = (w_eff_cnt == '0);
-    wire         w_room1    = (w_eff_cnt <= (OQW+1)'(OUT_DEPTH - 1));
+    wire         w_room1    = (w_eff_cnt + (OQW+1)'(r_pend_q))
+                              <= (OQW+1)'(OUT_DEPTH - 1);
     wire         w_room2    = (w_eff_cnt <= (OQW+1)'(OUT_DEPTH - 2));
 
     `ALWAYS_FF_RST(clk, rst_n,
@@ -518,8 +524,9 @@ module amber_monlite
     // deferral register (stream order preserved: the deferred entry is
     // always the older). Every wr_valid beat is guaranteed wr_ready (the
     // deferral had its room budgeted by w_room2; the report fires only
-    // into an empty queue; slot 1 checks w_room1), so the FIFO never
-    // silently drops a beat.
+    // into an empty queue; slot 1 checks w_room1 budgeted on TRUE
+    // occupancy so a chained beat always finds room next cycle), so the
+    // FIFO never silently drops a beat.
     // ------------------------------------------------------------------
     monitor_packet_t   w_slot1_pkt, w_slot2_pkt;
     monbus_timestamp_t w_slot1_ts;
@@ -550,9 +557,9 @@ module amber_monlite
             r_pend_ts  <= '0;
         end else begin
             // slot 2 of a co-fire pair defers; a slot 1 arriving while
-            // the deferral drains chains behind it (unreachable today --
-            // a grant never lands in REPLAY/IDLE-adjacent cycles -- but
-            // counted-correct either way)
+            // the deferral drains chains behind it (grant-independent
+            // taps can fire beside the drain; w_room1's true-occupancy
+            // budget makes the chain unconditionally safe)
             if (w_take2) begin
                 r_pend_q   <= 1'b1;
                 r_pend_pkt <= w_slot2_pkt;
