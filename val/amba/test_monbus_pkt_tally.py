@@ -213,6 +213,39 @@ class PktTallyTB(TBBase):
 
 
 @cocotb.test()
+async def tally_ingest_rate_test(dut):
+    """BUG-039: pin the tally's own sustained ingest rate (packets/cycle).
+
+    Each accepted packet costs the bin SRAM a read-modify-write; the header
+    claims 'at most 1 packet / 2 cycles'. The board's full record chain
+    measured ~1 packet / 15 cycles under campaign load -- this test isolates
+    the tally's contribution so the slow stage can be named. Floor 0.4.
+    """
+    tb = PktTallyTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.load_legal_set([(9, 0, 1, 0)])
+    pkt = make_packet(1, 0, 0, agent_id=9)
+    dut.in_valid.value = 1
+    dut.in_packet.value = pkt
+    dut.in_ts.value = 0
+    accepted = 0
+    cycles = 2000
+    for _ in range(cycles):
+        await ReadOnly()
+        if int(dut.in_ready.value):
+            accepted += 1
+        await RisingEdge(dut.clk)
+    dut.in_valid.value = 0
+    rate = accepted / cycles
+    tb.log.info(f"[tally ingest rate] {accepted} accepts in {cycles} cycles "
+                f"= {rate:.3f} packets/cycle (1 per {cycles / max(accepted, 1):.1f})")
+    assert rate >= 0.4, (
+        f"tally ingest rate {rate:.3f} packets/cycle is below the 1-per-2.5-cycles "
+        f"floor the monitor reporters are designed against (amba BUG-039)")
+    await tb.do_clear()   # leave the bins zeroed for the next test in this build
+
+
+@cocotb.test()
 async def tally_test(dut):
     tb = PktTallyTB(dut)
     await tb.setup_clocks_and_reset()

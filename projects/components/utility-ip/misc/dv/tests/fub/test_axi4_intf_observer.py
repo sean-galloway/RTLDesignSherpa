@@ -289,6 +289,138 @@ async def cocotb_test_observer_packet_coverage(dut):
     tb.check_record_framing()
 
 
+@cocotb.test(timeout_time=20, timeout_unit="ms")
+async def cocotb_test_observer_consumer_sustained(dut):
+    """amba BUG-039: the observer's monbus consumer, not the monitor, is the
+    campaign bottleneck -- reproduce it and pin the accounting.
+
+    Board shape (stream build-obs, arm 0x85, 1ch x 8desc x 64KB): per monitor
+    ~2048 completions are offered per run, ~1110 are delivered, and ONE
+    Error/EVENT_DROPPED report carries ~938 -- 1110 + 938 == 2048 exactly.
+    Conservation closes: the drops are REAL. The consumer (arbiter -> group
+    raw expander -> write FIFO -> AXIL write master -> tally ingest) drains
+    slower than the campaign offers, the 16-deep queue + completion hold
+    absorb what they can, and the excess is dropped and counted. With the
+    error cone armed those drops REPORT (the 0x0E flood); with it disarmed
+    the SAME drops are silent -- which is why the COMPL-only baseline looked
+    clean while being equally starved (keyed 2195 ~= the same consumer
+    ceiling, ~1800 drops unreported).
+
+    This test reproduces that in sim: offer clean bursts faster than a
+    duty-cycled sink accepts, then require the accounting identity
+        offered == delivered completions + EVENT_DROPPED-reported drops
+    after a full drain. CONSUMER_DUTY=1 is the fast-consumer control;
+    CONSUMER_DUTY=5 approximates the measured board ingest.
+    """
+    duty = int(os.environ.get("CONSUMER_DUTY", "1"))
+    n_pairs = int(os.environ.get("SUSTAIN_N", "400"))
+    pace = int(os.environ.get("SUSTAIN_PACE", "0"))
+    tb = AXI4IntfObserverTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.start_egress_sink(beat_duty=duty)
+    await tb.write_reg("OBS_CTRL", 0)                 # flush every record
+    await tb.write_reg("OBS_BASE_ADDR", 0x0000_0000)
+    await tb.write_reg("OBS_LIMIT_ADDR", 0x0000_FFFF)
+    # The exact on-board arm, read back by probe_config_dump 2026-10-08:
+    # COMPL|ERROR|MONITOR, MON_TIMEOUT=1024, MON_LATENCY=0xFFFF, all masks 0.
+    await tb.write_reg("MON_CTRL", 0x0000_0085)
+    await tb.write_reg("MON_TIMEOUT", 0x0000_0400)
+    await tb.write_reg("MON_LATENCY", 0x0000_FFFF)
+
+    start = len(tb.packets)
+    offered = 0
+    curve = []
+    sample_on = True
+
+    async def _curve_sampler():
+        cyc = 0
+        while sample_on:
+            await tb.wait_clocks("aclk", 200)
+            cyc += 200
+            curve.append((cyc, len(tb.packets) - start))
+    cocotb.start_soon(_curve_sampler())
+
+    for i in range(n_pairs):
+        # gap=1: one settle cycle after AR/AW -- the monitor must register the
+        # address before its data arrives (drive_read_burst's docstring; gap=0
+        # manufactures DATA_ORPHAN protocol complaints, not DUT behavior)
+        await tb.drive_read_burst(addr=0x1000 + (i % 64) * 0x40, arid=i % 16,
+                                  beats=2, gap=1)
+        offered += 1
+        await tb.drive_write_burst(addr=0x2000 + (i % 64) * 0x40,
+                                   awid=(i + 8) % 16, beats=2, gap=1)
+        offered += 1
+        if pace:
+            await tb.wait_clocks("aclk", pace)   # SUSTAIN_PACE>0 = board-rate offered
+    # drain: duty-cycled consumer, 16-deep queue, drop reports wait for an
+    # empty queue -- give it far more than enough
+    await tb.wait_clocks("aclk", 400 * duty + 2000)
+    sample_on = False
+    await tb.wait_clocks("aclk", 250)   # let the sampler observe the flag
+
+    delivered = 0
+    reported_drops = 0
+    n_reports = 0
+    for pk, rec in zip(tb.packets[start:], tb.records[start:]):
+        raw = (rec[1] << 64) | rec[2]
+        if pk.packet_type == PktType.PktTypeCompletion:
+            delivered += 1
+        elif pk.packet_type == PktType.PktTypeError and pk.event_code == 0x0E:
+            n_reports += 1
+            reported_drops += raw & 0xFFFF_FFFF   # r_dropped rides data[AW-1:0]
+        else:
+            assert False, (f"clean traffic with 0x85 produced a non-completion, "
+                           f"non-drop packet: {pk}")
+    accounted = delivered + reported_drops
+    tb.log.info(
+        f"[BUG-039 consumer] duty={duty} pace={pace} offered={offered} "
+        f"delivered={delivered} "
+        f"({100.0 * delivered / offered:.1f}%) drop_reports={n_reports} "
+        f"reported_drops={reported_drops} accounted={accounted}")
+    tb.log.info(f"[BUG-039 consumer] delivery curve (cycle, delivered): {curve}")
+    assert accounted == offered, (
+        f"accounting identity broken at duty={duty}: offered={offered} but "
+        f"delivered={delivered} + reported={reported_drops} = {accounted} "
+        f"(residual queue/hold must be drained by the wait)")
+
+
+@cocotb.test(timeout_time=20, timeout_unit="ms")
+async def cocotb_test_observer_egress_ceiling(dut):
+    """Measure the observer egress's sustained record rate with an
+    always-ready sink (duty=1). The board's tally ingest is the other half of
+    the BUG-039 consumer; this half is the observer's own arbiter -> group
+    raw expander (3 beats per record) -> write FIFO -> AXIL write master.
+    """
+    tb = AXI4IntfObserverTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.start_egress_sink(beat_duty=1)
+    await tb.write_reg("OBS_CTRL", 0)
+    await tb.write_reg("OBS_BASE_ADDR", 0x0000_0000)
+    await tb.write_reg("OBS_LIMIT_ADDR", 0x0000_FFFF)
+    await tb.write_reg("MON_CTRL", 0x0000_0085)
+    await tb.write_reg("MON_TIMEOUT", 0x0000_0400)
+    await tb.write_reg("MON_LATENCY", 0x0000_FFFF)
+
+    n = 200
+    start = len(tb.packets)
+    # offer faster than any plausible egress (flat out, gap=1)
+    for i in range(n):
+        await tb.drive_read_burst(addr=0x1000 + (i % 64) * 0x40, arid=i % 16,
+                                  beats=2, gap=1)
+        await tb.drive_write_burst(addr=0x2000 + (i % 64) * 0x40,
+                                   awid=(i + 8) % 16, beats=2, gap=1)
+    # measure the cycles until the nth record egresses (poll in slices)
+    cycles = 0
+    while len(tb.packets) < start + n and cycles < 20000:
+        await tb.wait_clocks("aclk", 20)
+        cycles += 20
+    got = len(tb.packets) - start
+    ceiling = got / cycles if cycles else 0.0
+    tb.log.info(f"[BUG-039 ceiling] {got} records in {cycles} cycles "
+                f"-> sustained egress ~{ceiling:.3f} records/cycle "
+                f"(1 record per {1.0 / ceiling:.1f} cycles)")
+
+
 @cocotb.test(timeout_time=4, timeout_unit="ms")
 async def cocotb_test_observer_all_classes(dut):
     """Every packet CLASS the observer can emit, on a build with every cone.
@@ -667,6 +799,41 @@ def test_axi4_intf_slave_observer_packets(request, test_level):
     _run_observer(request, 'axi4_intf_slave_observer', dict(_PARAMS),
                   testcase="cocotb_test_observer_packet_coverage",
                   test_level=test_level)
+
+
+@pytest.mark.parametrize("duty", [1, 5, 0])
+def test_axi4_intf_master_observer_consumer_sustained(request, duty):
+    """BUG-039: consumer-starvation accounting identity at a throttled sink.
+
+    duty=1 is the fast-consumer control (must deliver ~everything);
+    duty=5 approximates a slow ingest; duty=0 models the real tally
+    (beats 0/1 free, beat 2 gated by a 1-per-2-cycle RMW). Drops may appear
+    at any duty -- the accounting identity must close exactly every time.
+    """
+    os.environ["CONSUMER_DUTY"] = str(duty)
+    _run_observer(request, 'axi4_intf_master_observer', dict(_PARAMS),
+                  testcase="cocotb_test_observer_consumer_sustained",
+                  test_level="gate")
+
+
+@pytest.mark.parametrize("duty,pace", [(5, 10)])
+def test_axi4_intf_master_observer_consumer_board_rate(request, duty, pace):
+    """BUG-039: the board-shaped point -- offered ~0.1 records/cycle (measured
+    campaign rate) against a duty-5 sink (the board tally-ingest rate).
+    Expect delivered fraction ~= the board's 54%."""
+    os.environ["CONSUMER_DUTY"] = str(duty)
+    os.environ["SUSTAIN_PACE"] = str(pace)
+    os.environ["SUSTAIN_N"] = "200"
+    _run_observer(request, 'axi4_intf_master_observer', dict(_PARAMS),
+                  testcase="cocotb_test_observer_consumer_sustained",
+                  test_level="gate")
+
+
+def test_axi4_intf_master_observer_egress_ceiling(request):
+    """BUG-039: the observer egress's own sustained record rate (duty=1)."""
+    _run_observer(request, 'axi4_intf_master_observer', dict(_PARAMS),
+                  testcase="cocotb_test_observer_egress_ceiling",
+                  test_level="gate")
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())

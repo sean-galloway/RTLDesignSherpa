@@ -151,7 +151,7 @@ class AXI4IntfObserverTB(TBBase):
     # -- so the TB plays the bus being watched. There is no AXI slave here to
     # drive with a BFM; these signals only need to look like a real handshake.
 
-    async def start_egress_sink(self):
+    async def start_egress_sink(self, beat_duty=1):
         """Accept the monbus group's AXIL writes and DECODE the records.
 
         Counting beats is not verification -- it cannot tell a completion from
@@ -162,6 +162,20 @@ class AXI4IntfObserverTB(TBBase):
 
         Without a sink the group's write FIFO fills and the taps back-pressure,
         which looks exactly like "the monitors never emitted".
+
+        beat_duty > 1 models a slow downstream consumer (the board tally
+        ingest): m_axil_wready is presented one cycle in every beat_duty,
+        so a record needs ~3*beat_duty cycles. Used by
+        cocotb_test_observer_consumer_sustained (amba BUG-039).
+
+        beat_duty == 0 selects a TALLY-FAITHFUL model of the real
+        monbus_tally_axil ingest: beats 0/1 of each record are accepted
+        whenever offered, but the record-completing beat 2 is gated by a
+        1-per-2-cycle read-modify-write (the bin SRAM RMW), AND the next
+        record's beats cannot start until the RMW finishes (the B response
+        waits for beat 2; the AXIL master waits for B). If this collapses
+        delivery to ~1 record per 15 cycles, the board's consumer bottleneck
+        is the handshake interlock, not any single stage's native rate.
         """
         self.egress_beats = 0
         self.packets = []           # decoded MonitorPacket objects
@@ -173,8 +187,21 @@ class AXI4IntfObserverTB(TBBase):
         self.dut.m_axil_bresp.value = 0
 
         async def _sink():
+            cyc = 0
+            rmw_busy = 0            # tally-faithful mode: RMW cycles remaining
             while True:
                 await RisingEdge(self.dut.aclk)
+                if beat_duty == 0:
+                    # tally-faithful: beat 2 needs the RMW free; an accepted
+                    # beat 2 occupies the RMW for 2 cycles
+                    if rmw_busy > 0:
+                        rmw_busy -= 1
+                        self.dut.m_axil_wready.value = 0
+                    else:
+                        self.dut.m_axil_wready.value = 1
+                else:
+                    self.dut.m_axil_wready.value = 1 if (cyc % beat_duty) == 0 else 0
+                cyc += 1
                 if int(self.dut.m_axil_wvalid.value) and int(self.dut.m_axil_wready.value):
                     self._rec.append(int(self.dut.m_axil_wdata.value))
                     if len(self._rec) == 3:
@@ -186,6 +213,8 @@ class AXI4IntfObserverTB(TBBase):
                         pkt = (self._rec[1] << 64) | self._rec[2]
                         self.packets.append(monbus_parse(pkt))
                         self._rec = []
+                        if beat_duty == 0:
+                            rmw_busy = 2      # the accepted beat 2 starts an RMW
                 if int(self.dut.m_axil_awvalid.value) and int(self.dut.m_axil_awready.value):
                     self.egress_beats += 1
                     self.dut.m_axil_bvalid.value = 1
