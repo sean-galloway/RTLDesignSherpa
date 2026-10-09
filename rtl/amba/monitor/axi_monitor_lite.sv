@@ -553,6 +553,25 @@ module axi_monitor_lite
     logic               w_tmo_held_take;   // the pick queued the held timeout this cycle
     logic               w_tmo_saved;       // a fresh timeout went into the hold this cycle
     logic               w_tmo_save_scan;   // ...and it was the scan hit (else the command stall)
+    // A completion is registered for exactly one cycle (r_e_compl), and it
+    // collides with higher classes in ordinary traffic -- an SLVERR beat on
+    // one ID lands the same cycle a clean read completes on another, and the
+    // queue can be full at exactly that moment. Before this hold, that
+    // completion was dropped and counted, so arming the error cone made the
+    // queue lossy against an unrelated class (board-measured as ~90% of
+    // completions lost, amba BUG-039). A fresh completion the pick could not
+    // queue -- it lost to a higher class, or won while the queue was full --
+    // is HELD here with its payload (id, address, latency) and offered on the
+    // following cycles, oldest first, at the completion rung; a second one
+    // arriving while the hold is full and not draining is still lost and
+    // counted. Same contract as the TASK-004 timeout/latency holds: class
+    // priority is unchanged, only the one-cycle-transit loss is removed.
+    logic               r_cmp_pend;
+    logic [IW-1:0]      r_cmp_id;
+    logic [AW-1:0]      r_cmp_addr;
+    logic [15:0]        r_cmp_latency;
+    logic               w_cmp_held_take;   // the pick queued the held completion this cycle
+    logic               w_cmp_saved;       // a fresh completion went into the hold this cycle
     logic               r_e_scan_phase, r_e_data_decerr, r_e_resp_decerr;
     logic [SW-1:0]      r_e_dslot, r_e_bslot, r_e_tslot, r_e_cslot;
     logic [IW-1:0]      r_e_data_id, r_e_resp_id, r_e_cmd_id;
@@ -567,6 +586,7 @@ module axi_monitor_lite
             r_e_scan_hit <= 1'b0; r_e_cmd_tmo <= 1'b0; r_e_compl <= 1'b0; r_e_thresh <= 1'b0;
             r_lat_pend <= 1'b0; r_lat_id <= '0; r_lat_addr <= '0; r_lat_latency <= '0;
             r_tmo_pend <= 1'b0; r_tmo_code <= '0; r_tmo_id <= '0; r_tmo_addr <= '0;
+            r_cmp_pend <= 1'b0; r_cmp_id <= '0; r_cmp_addr <= '0; r_cmp_latency <= '0;
             r_e_scan_phase <= 1'b0; r_e_data_decerr <= 1'b0; r_e_resp_decerr <= 1'b0;
             r_e_dslot <= '0; r_e_bslot <= '0; r_e_tslot <= '0; r_e_cslot <= '0;
             r_e_data_id <= '0; r_e_resp_id <= '0; r_e_cmd_id <= '0; r_e_cmd_addr <= '0;
@@ -605,6 +625,15 @@ module axi_monitor_lite
                     r_tmo_addr <= r_e_cmd_addr;
                 end
             end else if (w_tmo_held_take)       r_tmo_pend <= 1'b0;
+            // held completion: load the fresh one the pick left behind (the
+            // slot still holds the completed entry this cycle), else release
+            if (clear)                          r_cmp_pend <= 1'b0;
+            else if (w_cmp_saved) begin
+                r_cmp_pend    <= 1'b1;
+                r_cmp_id      <= r_id[r_e_cslot];
+                r_cmp_addr    <= r_addr[r_e_cslot];
+                r_cmp_latency <= r_e_latency;
+            end else if (w_cmp_held_take)       r_cmp_pend <= 1'b0;
             r_e_scan_phase <= r_phase[r_scan];
             r_e_data_decerr <= data_resp[0];
             r_e_resp_decerr <= resp_code[0];
@@ -627,10 +656,12 @@ module axi_monitor_lite
 
     // ------------------------------------------------------------------
     // Packet pick, from the registered events. Priority when events collide:
-    // error > timeout > completion > threshold. An event that arrives while
-    // the queue is full, or loses the pick, is dropped and counted; the count
-    // goes out as an Error/EVENT_DROPPED packet the next time the queue has
-    // room and nothing else wants it. ONE table read serves every class:
+    // error > timeout > completion > threshold. A completion the pick could
+    // not queue is HELD one deep (r_cmp_pend, same contract as the timeout
+    // and latency holds) instead of dropped; every other event that arrives
+    // while the queue is full, or loses the pick, is dropped and counted; the
+    // count goes out as an Error/EVENT_DROPPED packet once the queue has
+    // DRAINED and nothing else wants it. ONE table read serves every class:
     // the winner names a slot, and that slot's id and address are muxed once.
     // ------------------------------------------------------------------
     function automatic logic type_allowed(input logic [3:0] t);
@@ -672,7 +703,8 @@ module axi_monitor_lite
     wire [7:0] w_tmo_code = r_tmo_pend   ? r_tmo_code :
                             r_e_scan_hit ? (r_e_scan_phase ? AXI_TIMEOUT_RESP : AXI_TIMEOUT_DATA) : AXI_TIMEOUT_CMD;
     wire [1:0] w_tmo_fired = w_tmo_en ? (2'(r_e_scan_hit) + 2'(r_e_cmd_tmo)) : 2'd0;
-    wire       w_cmp_v = r_e_compl  && w_cmp_en;
+    wire       w_cmp_fresh = r_e_compl && w_cmp_en;                     // a fresh completion fired this cycle
+    wire       w_cmp_v     = (w_cmp_fresh || r_cmp_pend) && w_cmp_en;   // the completion rung: held first, then fresh
     wire       w_thr_v = (r_e_thresh || r_lat_pend) && w_thr_en;
     wire [1:0] w_thr_fired = w_thr_en ? 2'(r_e_thresh) : 2'd0;   // the held latency event is offered, not fired, each cycle
 
@@ -701,7 +733,11 @@ module axi_monitor_lite
             end
         end else if (w_cmp_v) begin
             w_evt_v = 1'b1; w_evt_type = PktTypeCompletion; w_evt_code = AXI_COMPL_TRANS_COMPLETE;
-            w_evt_from_slot = 1'b1; w_evt_slot = r_e_cslot; w_evt_hi = r_e_latency;
+            // held: its own captured payload, the slot may already be reused;
+            // fresh: the one table read serves it
+            w_evt_from_slot = !r_cmp_pend; w_evt_slot = r_e_cslot;
+            w_evt_id_alt = r_cmp_id; w_evt_addr_alt = r_cmp_addr;
+            w_evt_hi = r_cmp_pend ? r_cmp_latency : r_e_latency;
         end else if (w_thr_v) begin
             w_evt_v = 1'b1; w_evt_type = PktTypeThreshold;
             if (r_e_thresh) begin
@@ -718,9 +754,12 @@ module axi_monitor_lite
     wire [IW-1:0] w_evt_id   = w_evt_from_slot ? r_id[w_evt_slot]   : w_evt_id_alt;
     wire [AW-1:0] w_evt_addr = w_evt_from_slot ? r_addr[w_evt_slot] : w_evt_addr_alt;
 
-    // events offered this cycle vs the one that can go out
+    // events offered this cycle vs the one that can go out. Offered counts
+    // FRESH events only; a held event going out is not a fired event, so it
+    // does not count against the offered total (the earlier form subtracted
+    // it and underflowed the 4-bit count by 15 when a held event went out).
     logic            w_wr_ready;
-    wire [3:0] w_offered = w_err_fired + 4'(w_tmo_fired) + 4'(w_cmp_v) + 4'(w_thr_fired);
+    wire [3:0] w_offered = w_err_fired + 4'(w_tmo_fired) + 4'(w_cmp_fresh) + 4'(w_thr_fired);
     wire       w_take    = w_evt_v && w_wr_ready;
     assign     w_lat_take = w_take && w_thr_v && !w_err_v && !w_tmo_v && !w_cmp_v && !r_e_thresh;   // the winner was the held latency event
     // timeout class won the pick: the held one goes first, else one fresh one
@@ -731,18 +770,34 @@ module axi_monitor_lite
     assign     w_tmo_saved = (w_tmo_left != 2'd0) && (!r_tmo_pend || w_tmo_held_take);
     // which fresh one is saved: the scan hit unless it was the one just taken
     assign     w_tmo_save_scan = r_e_scan_hit && !(w_tmo_fresh_taken && r_e_scan_hit);
+    // completion class won the pick: the held one goes first, else the fresh
+    // one. A fresh completion the pick left behind -- it lost to a higher
+    // class, or it won while the queue was full -- is HELD if the hold is
+    // free (the held one left this cycle, or none was held); only a fresh
+    // completion arriving at a full hold that is not draining is lost.
+    wire       w_cmp_take  = w_take && w_cmp_v && !w_err_v && !w_tmo_v;
+    assign     w_cmp_held_take = w_cmp_take && r_cmp_pend;
+    wire       w_cmp_fresh_taken = w_cmp_take && !r_cmp_pend;
+    assign     w_cmp_saved = w_cmp_fresh && !w_cmp_fresh_taken && (!r_cmp_pend || w_cmp_held_take);
+    wire       w_cmp_lost  = w_cmp_fresh && !w_cmp_fresh_taken && !w_cmp_saved;
     // lost: every FIRED event the pick could not queue and the hold could not
     // keep, plus a latency hit that arrived while one was already held and not
     // leaving. A held event going out is not a fired event, so it does not
-    // count against the offered total (the earlier form subtracted it and
-    // underflowed the 4-bit count by 15 when a held latency event went out).
-    wire       w_take_fresh = w_take && !w_lat_take && !w_tmo_held_take;
+    // count against the offered total.
+    wire       w_take_fresh = w_take && !w_lat_take && !w_tmo_held_take && !w_cmp_held_take;
     wire       w_lat_lost = w_lat_hit && r_lat_pend && !w_lat_take;
-    wire [3:0] w_lost    = w_offered - 4'(w_take_fresh) - 4'(w_tmo_saved) + 4'(w_lat_lost);
+    wire [3:0] w_lost    = w_offered - 4'(w_take_fresh) - 4'(w_tmo_saved) - 4'(w_cmp_saved) + 4'(w_lat_lost);
 
     logic [15:0] r_dropped, r_refused, r_completed, r_errors;
-    // pending drop report: emitted when the queue has room and nothing else wants it
-    wire w_drop_rpt = (r_dropped != 16'd0) && !w_evt_v && w_wr_ready && w_err_en;
+    // Pending drop report: emitted only when the queue has DRAINED and nothing
+    // else wants it -- the axis_monitor_lite rule (amba BUG-039). The earlier
+    // "has room" form let a report take a slot ahead of live events while the
+    // bus was congested (which is exactly when drops happen), and each idle
+    // cycle added another, so the report stream itself amplified the
+    // congestion it reported. Emitted into an EMPTY queue, one report can
+    // never evict a live event, and the count keeps accumulating (saturating)
+    // until the queue drains.
+    wire w_drop_rpt = (r_dropped != 16'd0) && !w_evt_v && w_q_empty && w_err_en && !clear;
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
@@ -890,7 +945,7 @@ module axi_monitor_lite
     )
 
     assign active_count         = 8'(w_occupancy);
-    assign busy                 = (|r_valid) || monbus_valid || w_addr_valid || r_lat_pend || r_tmo_pend;
+    assign busy                 = (|r_valid) || monbus_valid || w_addr_valid || r_lat_pend || r_tmo_pend || r_cmp_pend;
     assign perf_completed_count = r_completed;
     assign perf_error_count     = r_errors;
     assign dropped_count        = r_dropped;

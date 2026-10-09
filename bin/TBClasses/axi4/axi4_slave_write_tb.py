@@ -72,7 +72,7 @@ class AXI4SlaveWriteTB(TBBase):
 
         # Setup clock and reset signals
         self.aclk = aclk
-        self.aclk_name = aclk._name if aclk else 'aclk'
+        self.aclk_name = aclk._name if aclk is not None else 'aclk'
         self.aresetn = aresetn
 
         # Set limits based on widths

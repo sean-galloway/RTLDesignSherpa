@@ -41,7 +41,7 @@ module axi4_master_rd_monlite
     parameter logic [15:0] AGENT_ID               = 16'h000A,
     parameter int          MAX_TRANSACTIONS       = 8,      // table entries; a command finding none is counted, not tracked
     parameter int          ACTIVE_TRANS_THRESHOLD = MAX_TRANSACTIONS / 2,
-    parameter int          OUT_DEPTH              = 4,      // monbus output queue, a power of two
+    parameter int          OUT_DEPTH              = 16,     // monbus output queue, a power of two; 16 rides out the ~8-cycle observer-egress stall measured at 1.1 events/cycle (axis_monitor_lite precedent; amba BUG-039)
     parameter int          N_ADDR_RANGES          = 0,      // address-range checker windows; 0 = not built
     parameter logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0] ADDR_RANGE_IS_ERROR = '0,  // per range: 1 = miss is an error, 0 = hit is a match
     parameter int          ACLK_MHZ               = 100,

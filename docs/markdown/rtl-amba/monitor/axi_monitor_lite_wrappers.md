@@ -156,7 +156,7 @@ completion packets.
 | `AGENT_ID` | logic [15:0] | `16'h000A` | Agent id in every packet |
 | `MAX_TRANSACTIONS` | int | `8` | table entries; a command finding none is counted, not tracked |
 | `ACTIVE_TRANS_THRESHOLD` | int | `MAX_TRANSACTIONS / 2` | Table occupancy that fires a threshold packet (rising edge) |
-| `OUT_DEPTH` | int | `4` | monbus output queue, a power of two |
+| `OUT_DEPTH` | int | `4` | monbus output queue, a power of two. `16` on `axi4_master_rd_monlite` / `axi4_master_wr_monlite` (2026-10-08, amba BUG-039): 16 rides out the ~8-cycle observer-egress stall measured at ~1.1 events/cycle, the same margin the interface observers already run their AXIS taps at |
 | `N_ADDR_RANGES` | int | `0` | address-range checker windows; 0 = not built |
 | `ADDR_RANGE_IS_ERROR` | logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0] | `'0` | per range: 1 = miss is an error, 0 = hit is a match |
 | `ACLK_MHZ` | int | `100` | Clock in MHz; keeps the 1 us tick exact |

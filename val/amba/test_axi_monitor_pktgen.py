@@ -1058,7 +1058,7 @@ async def cocotb_test_timeout_starvation_monlite(dut):
         assert drop_reported + pending >= 1, "the victim's timeout neither arrived nor was counted as dropped"
 
 
-def _run_lite(request, testcase, extra=None):
+def _run_lite(request, testcase, extra=None, n_slots=4):
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_monitor': 'rtl/amba/monitor', 'rtl_amba_includes': 'rtl/amba/includes',
@@ -1071,7 +1071,7 @@ def _run_lite(request, testcase, extra=None):
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, module=dut_name)
-    rtl_parameters = {'MAX_TRANSACTIONS': '4', 'ID_WIDTH': '4', 'ADDR_WIDTH': '32',
+    rtl_parameters = {'MAX_TRANSACTIONS': str(n_slots), 'ID_WIDTH': '4', 'ADDR_WIDTH': '32',
                       'IS_READ': '1', 'IS_AXI': '1', 'UNIT_ID': '1', 'AGENT_ID': '10'}
     extra_env = {
         'DUT': dut_name, 'LOG_PATH': log_path, 'COCOTB_LOG_LEVEL': 'INFO', 'TEST_CLK_PERIOD': '10',
@@ -1097,3 +1097,82 @@ def _run_lite(request, testcase, extra=None):
 def test_axi_monitor_pktgen_timeout_starvation_monlite(request, duty):
     """The lite's counterpart of timeout_starvation: measured, accounting asserted."""
     _run_lite(request, "cocotb_test_timeout_starvation_monlite", {'FLOOD_DUTY': duty})
+
+
+# ---------------------------------------------------------------------------
+# amba BUG-039 -- a completion that finds the output queue FULL must be held,
+# not dropped. Board shape: with the error cone armed, ~90% of completions
+# were dropped-and-counted while zero error packets were emitted; the loss
+# mechanism fills the shared queue, and the deepest cut was the completion
+# that won the pick on a full queue -- dropped on the spot, though a slot was
+# free one cycle later. The completion now rides the same one-deep hold the
+# timeout (TASK-004) and latency events got. Regression: fill the queue with
+# the consumer stalled (OUT_DEPTH=4 -> 4 completions in), fire a 5th
+# completion into the full queue, then drain. Pre-fix: 4 delivered + 1 drop
+# report. Fixed: 5 delivered, zero drops, accounting exact.
+# ---------------------------------------------------------------------------
+@cocotb.test(timeout_time=20, timeout_unit="ms")
+async def cocotb_test_completion_held_when_queue_full(dut):
+    """A completion that wins the pick on a full queue is held, not dropped."""
+    _apply_seed()
+    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    await _lite_setup(dut, 0xFFFF)                  # cfg_timeout_cnt = never
+    captured = []
+    drop_reported = 0
+
+    async def _cap():
+        nonlocal drop_reported
+        while True:
+            await RisingEdge(dut.aclk)
+            await ReadOnly()
+            if int(dut.monbus_valid.value) and int(dut.monbus_ready.value):
+                raw = int(dut.monbus_packet.value)
+                d = decode_monbus(raw)
+                if d['packet_type'] == PKT_ERROR and d['event_code'] == LITE_ERR_EVENT_DROPPED:
+                    drop_reported += (raw & 0xFFFF)
+                else:
+                    captured.append(d)
+    cocotb.start_soon(_cap())
+
+    n_reads = 5
+    # Consumer stalled for the whole fill: every completion the queue cannot
+    # hold must survive in the hold, not become a drop report.
+    dut.monbus_ready.value = 0
+    for k in range(n_reads):
+        dut.cmd_id.value = k + 1
+        dut.cmd_addr.value = 0xC000_0000 | ((k + 1) << 8)
+        dut.cmd_len.value = 0
+        dut.cmd_valid.value = 1
+        await RisingEdge(dut.aclk)
+    dut.cmd_valid.value = 0
+    for k in range(n_reads):
+        dut.data_id.value = k + 1
+        dut.data_last.value = 1
+        dut.data_resp.value = 0
+        dut.data_valid.value = 1
+        await RisingEdge(dut.aclk)
+    dut.data_valid.value = 0
+    # drain
+    dut.monbus_ready.value = 1
+    await idle(dut, 60)
+
+    compl = [d for d in captured if d['packet_type'] == PKT_COMPLETION]
+    pending = int(dut.dropped_count.value)
+    dut._log.info(
+        f"[BUG-039] {n_reads} completions into a stalled depth-4 queue: "
+        f"delivered={len(compl)} drop_reports={drop_reported} pending={pending} "
+        f"completed_count={int(dut.perf_completed_count.value)}")
+    assert len(compl) == n_reads, (
+        f"{n_reads} clean reads completed but only {len(compl)} completion "
+        f"packets were delivered (drop_reports={drop_reported}, "
+        f"pending={pending}): a completion that found the queue full was "
+        f"dropped instead of held (amba BUG-039).")
+    assert drop_reported == 0 and pending == 0, (
+        f"no event may be lost here: drop_reports={drop_reported} "
+        f"pending={pending}")
+    assert int(dut.perf_completed_count.value) == n_reads
+
+
+def test_axi_monitor_pktgen_completion_held_when_queue_full(request):
+    """BUG-039: a completion on a full queue is held and delivered, not dropped."""
+    _run_lite(request, "cocotb_test_completion_held_when_queue_full", n_slots=8)

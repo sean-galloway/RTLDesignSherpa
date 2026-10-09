@@ -315,15 +315,34 @@ the completion cycle itself, which chained the RRESP decode, the slot pick,
 the subtract, the compare and the drop-count adder into 21 logic levels
 (amba/monitor-lite ISSUE-002).
 
+### Completion hold
+
+A completion that the pick could not queue -- it lost to a higher class, or
+it won while the output queue was full -- is held with its own payload (id,
+address, latency) and offered on the following cycles, oldest first, at the
+completion rung. This is the same contract the timeout and latency holds
+above have (monitor-lite TASK-004), extended to the completion class on
+2026-10-08: coincidence is ordinary traffic (an erroring beat on one ID
+while a clean transaction completes on another), and arming a detection cone
+must change what is reported, never whether an unrelated class is delivered
+-- the lite discipline's original complaint, board-measured as ~90 % of
+completions dropped while the error cone was armed and zero error packets
+were ever emitted (amba BUG-039). A second completion arriving while the
+hold is full and not draining is still lost and counted.
+
 ### Drop and count
 
 Events go into the output queue. If the queue is full when an event fires, or
 two events fire in one cycle (error > timeout > completion > threshold picks
 the one that goes), the rest are dropped and counted -- except the one
-timeout and the one latency event the holds above can keep. The next time the queue
-has room and nothing else wants it, one `Error/EVENT_DROPPED` packet carries
-the count and the counter restarts. The consumer therefore always knows how
-many events it did not see.
+completion, the one timeout and the one latency event the holds above can
+keep. Once the queue has DRAINED and nothing else wants it, one
+`Error/EVENT_DROPPED` packet carries the count and the counter restarts --
+the report waits for an empty queue (the `axis_monitor_lite` rule) rather
+than merely a non-full one, because a report must never take the slot a live
+event needs while the bus is congested, which is exactly when drops happen
+(amba BUG-039). The consumer therefore always knows how many events it did
+not see.
 
 ## Verification
 
@@ -353,7 +372,7 @@ many events it did not see.
   | `test_axi_monitor_runtime_disable` | 1 | table drains with a class runtime-disabled and under backpressure; `refused_count` stays 0 (no `block_ready` to wedge) |
   | `test_axi_mon_block_ready` | 16 cells on 11 wrappers (`LiteRefuseCheck`) | the table filled and refused, `admitted == transaction_count + refused_count + live` exactly, occupancy never above the depth. Depth follows the TB's bus-measured concurrency (the AXI-Lite and AXI5 read BFMs hold at most 4 in flight, the AXI-Lite write BFM 2), and `axil4_master_wr_monlite` is not claimed: its core taps behind the write skid and never sees two outstanding |
   | `test_axi_monitor_soak` | 1 (`monitor_soak_monlite`) | 60k-200k cycles of random reads with errors, stalls and 15 % consumer backpressure: generated completions + errors + timeouts == delivered + drops reported + drops pending, exactly (60k cycles: 10,655 = 7,648 + 1,909 + 965 + 133) |
-  | `test_axi_monitor_pktgen` | 2 (timeout starvation) | one stalled read against an SLVERR flood: accounting exact; the victim's timeout is delivered at a 1-in-2 error duty and LOST (counted) at 1-per-cycle -- see amba/monitor-lite TASK-004 |
+  | `test_axi_monitor_pktgen` | 2 (timeout starvation) + 1 (BUG-039 completion hold) | one stalled read against an SLVERR flood: accounting exact; the victim's timeout is delivered at a 1-in-2 error duty and LOST (counted) at 1-per-cycle -- see amba/monitor-lite TASK-004. Plus: five clean completions fired into a consumer-stalled depth-4 queue are all delivered with zero drop reports -- the completion that finds the queue full is held, not dropped (amba BUG-039) |
 
   Every check reports its count, not a bare verdict.
 
