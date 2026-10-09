@@ -2,7 +2,7 @@
 
 # tooling — bugs
 
-**Next ID: BUG-017** — never recycle a number, even when its item closed.
+**Next ID: BUG-018** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,12 +14,16 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 15 | done (kept for history) |
+| [closed/](closed/) | 16 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
+- **BUG-017** — `test_rs_loop_uart_windows` fails Verilator compile on
+  UNOPTFLAT `w_epoch`; blocked on the amba lane's uncommitted
+  `monbus_group_core.sv` rework (concurrent-edit contamination found by
+  BUG-015's re-run; handed to the amba lane).
 - **BUG-015** — the cocotb 2.x flip matrix did not cover the UART-equivalence
   suites: 16 files still used the removed `cocotb.external`/`cocotb.function`
   (fixed in 61ea5dc13); re-run the touched suites under 2.1.0 and extend the
@@ -28,6 +32,8 @@ by construction rather than by discipline.
 
 
 ## Closed
+
+- **BUG-015** — the cocotb 2.x flip matrix did not cover the UART-equivalence suites -- CLOSED 2026-10-09: 5-suite re-run under 2.1.0 green except uart_windows (concurrent-edit artifact, tooling BUG-017); re-run found + fixed two real defects (scenario_order bridge-name shadowing from the 61ea5dc13 rename; a missing `candidates` arg dead since 471692b07) and the unanchored-COCOTB_TEST_FILTER 2.x selection break (root-conftest anchor patch in both repos, upstream cocotb-test#285 filed); flip matrix extended to the documented two-matrix rule in vault/handbook/dv/running-regressions.md
 
 - **BUG-016** — the one val/amba runner that didn't pin a simulator fell into cocotb-test's icarus default, and the oss-cad-suite vvp wrapper's glibc-2.35 libm cannot host system libpython3.12 -- CLOSED 2026-10-08: simulator="verilator" pinned in test_axis4_pattern_pair.py (uniform with its batch siblings); 3/3 params re-passed in 31 s; val/conftest.py now defaults SIM=verilator with a loud warning when env_python wasn't sourced, so no unpinned runner can silently fall to icarus; residual trap + the libm-swap remedy documented in-file
 - **BUG-014** — `check_task_ids` globbed the worktree, so as a pre-commit hook it validated a different tree than the one it approved -- CLOSED 2026-09-30: `tracker_tree()` materialises the index being committed; `--tasks-root` added; 6 new teeth tests (11 total), 2 end-to-end reproducers that failed before the fix, mutation-tested 3 ways

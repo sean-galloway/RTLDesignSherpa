@@ -355,3 +355,52 @@ executed under before believing a timeout.
 
 Related: [[seeds-and-determinism]] (a rerun that changes seeds is not a
 reproduction), [[bfm-usage]], [[coverage]].
+
+## A cocotb version bump runs TWO matrices, and the second one is the trap
+
+Measured 2026-10-08 (tooling BUG-015). The 2.1.0 flip matrix gated TASK-025
+on the `val/` BKM areas — math, common, cdc, bridge — and was pronounced
+green on pass counts. The same flip broke every silicon/sim-equivalence UART
+suite at startup: sixteen files still imported `cocotb.external` /
+`cocotb.function`, which 2.x removed, and not one of those suites was in the
+matrix. Every one of them failed at time 0 with
+`module 'cocotb' has no attribute 'function'`. The breakage surfaced by
+accident a day later, through a board-matrix `verify-sim` gate that happened
+to exist for an unrelated reason.
+
+The `val/` matrix cannot catch this class: the UART suites are the only
+consumers of the bridge-to-host threading API (`cocotb._bridge` today —
+`bridge`/`resume`; the harness shim is `bin/TBClasses/harness/cocotb_axil_bridge.py`),
+so an API removal kills them and only them, at import time, before a single
+test body executes. A suite that dies at startup does not fail the areas you
+ran; it is absent from them.
+
+Rule: a cocotb minor or major bump does not move the pin until BOTH halves
+ran clean from `clean-all`:
+
+1. the `val/` BKM matrix — `make clean-all && make run-all-full-parallel`
+   per area (math, common, cdc, bridge);
+2. every `cocotb._bridge` consumer suite, at FUNC from clean. Derive the
+   list from the tree on the day you run it — do not recall it:
+
+       grep -rl "cocotb\._bridge" bin/TBClasses projects --include='*.py'
+
+   As of BUG-015 the consumer suites are (one command each, all
+   `source env_python` first):
+
+   | Suite | Command |
+   | --- | --- |
+   | RS loop UART | `make -C projects/fpga-systems/Genesys2/ecc-ip/reed-solomon/build-loop clean-all sim` |
+   | BCH loop UART | `make -C projects/fpga-systems/Genesys2/ecc-ip/bch/build-loop clean-all sim` |
+   | stream build-mon | `make -C projects/fpga-systems/Genesys2/dma-ip/stream/build-mon clean-all sim` |
+   | rapids byte harness | `make -C projects/fpga-systems/Genesys2/dma-ip/rapids/flows-rapids clean-all sim` |
+   | rapids char harness | `make -C projects/fpga-systems/Genesys2/dma-ip/rapids_beats/flows-rapids-beats clean-all sim` |
+   | pumice ddr2 char | `make -C projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2_char_framework/dv/tests clean run-func-parallel` |
+   | cdc demo UART | `make -C projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display/build-demo <sim target>` |
+
+   If the grep finds a directory not in the table, that IS the finding: add
+   its suite before flipping.
+
+Quote pass counts for both halves, the same as any other regression. The
+2026-10-09 re-run of the five non-routine suites under 2.1.0 is the worked
+example recorded in tooling BUG-015.

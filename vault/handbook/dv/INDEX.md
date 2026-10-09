@@ -7,7 +7,7 @@ summary: Verification practice - frameworks, determinism, coverage, formal.
 
 - [[escape-analysis]] - the RTL defects that got past a green suite, and the
   exact test-gap that let each one through
-- [[running-regressions]] - ALWAYS clean-all first; the Makefile targets, the levels
+- [[running-regressions]] - ALWAYS clean-all first; the Makefile targets, the levels; a cocotb bump runs the `val/` matrix AND every `cocotb._bridge` (UART-equivalence) suite
 - [[rds-dv-axes]] - BFM / sequence / randomization are ORTHOGONAL; where the RDS-DV docs live
 - [[bfm-usage]] - use RDS-DV BFMs, never re-roll; the factory map + trap list
 - [[randomization]] - the 19 FlexConfigGen profiles; random traffic does NOT prove fairness

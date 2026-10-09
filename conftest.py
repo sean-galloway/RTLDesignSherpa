@@ -47,8 +47,10 @@ that drift -- see silent-fallbacks rule 12.
 """
 
 import hashlib
+import inspect
 import os
 import random
+import re
 
 import pytest
 
@@ -91,6 +93,62 @@ def seed_for(nodeid: str) -> int:
     return int(digest[:8], 16) % (_SEED_MAX + 1)
 
 
+def _patch_cocotb_testcase_anchor():
+    """Restore exact-name ``testcase=`` selection under cocotb 2.x.
+
+    cocotb 1.x matched the ``TESTCASE`` env value against test NAMES
+    exactly. cocotb 2.x reads ``COCOTB_TEST_FILTER`` and matches it with
+    ``re.search`` over ``<module>.<test>`` fullnames. cocotb-test 0.3.0
+    (latest; no fix released) passes its ``testcase=`` kwarg to
+    ``COCOTB_TEST_FILTER`` UNANCHORED, so ``testcase='monitor_soak'``
+    also selects ``monitor_soak_monlite`` -- every multi-test module runs
+    ALL its tests in EVERY build (tooling BUG-015, observed on
+    val/amba/test_axi_monitor_soak.py where the monlite test then fails
+    against the pktgen DUT).
+
+    The patch anchors each testcase as ``\\b<name>$`` before cocotb-test
+    hands it to the simulator, restoring 1.x exact-name semantics for all
+    ~80 call sites at once. No-op when cocotb-test is not importable, and
+    idempotent. DELETE THIS when cocotb-test releases a fix that anchors
+    the filter itself -- a double anchor is harmless regex, but the patch
+    should not outlive its reason.
+    """
+    global _TESTCASE_ANCHOR_ACTIVE
+    try:
+        import cocotb_test.simulator as cts
+    except Exception:
+        return
+
+    orig = cts.Simulator.__init__
+    try:
+        tc_pos = list(inspect.signature(orig).parameters).index("testcase") - 1
+    except ValueError:
+        tc_pos = None  # no testcase parameter: nothing to anchor
+
+    def anchored(tc: str) -> str:
+        # Plain identifiers at every call site; escape keeps the anchor
+        # honest if a future site passes regex metacharacters.
+        return r"\b" + re.escape(tc) + "$"
+
+    def patched(self, *args, **kwargs):
+        tc = kwargs.get("testcase")
+        if tc is None and tc_pos is not None and len(args) > tc_pos:
+            tc = args[tc_pos]
+        if isinstance(tc, str):
+            if "testcase" in kwargs:
+                kwargs["testcase"] = anchored(tc)
+            elif tc_pos is not None and len(args) > tc_pos:
+                args = args[:tc_pos] + (anchored(tc),) + args[tc_pos + 1:]
+        return orig(self, *args, **kwargs)
+
+    cts.Simulator.__init__ = patched
+    _TESTCASE_ANCHOR_ACTIVE = True
+
+
+_TESTCASE_ANCHOR_ACTIVE = False
+_patch_cocotb_testcase_anchor()
+
+
 @pytest.fixture(autouse=True)
 def rds_pin_seed(request):
     """Export SEED for this test, stable across its own reruns."""
@@ -117,8 +175,14 @@ def pytest_report_header(config):
     A seed you cannot see is a seed you cannot reproduce -- which was half of
     what made the rerun behaviour above so expensive to notice.
     """
+    lines = []
+    if _TESTCASE_ANCHOR_ACTIVE:
+        lines.append("rds: cocotb-test testcase= anchored to exact-name "
+                     "selection (BUG-015; remove when cocotb-test fixes it)")
     if _EXPLICIT_SEED is not None:
-        return f"rds: SEED pinned to {_EXPLICIT_SEED} for every test (explicit)"
-    return (f"rds: seed base {_session_base()} "
-            f"(replay this run with RDS_SEED_BASE=<base>; "
-            f"one test with SEED=<n>)")
+        lines.append(f"rds: SEED pinned to {_EXPLICIT_SEED} for every test (explicit)")
+    else:
+        lines.append(f"rds: seed base {_session_base()} "
+                     f"(replay this run with RDS_SEED_BASE=<base>; "
+                     f"one test with SEED=<n>)")
+    return lines

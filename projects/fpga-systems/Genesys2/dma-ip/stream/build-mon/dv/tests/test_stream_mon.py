@@ -19,7 +19,11 @@ import random
 
 import pytest
 import cocotb
-from cocotb._bridge import bridge
+# Aliased: this file unpacks `tb.bridge` (the UARTAxiBridge driver) into a
+# LOCAL named `bridge` in the scenario-order test, which would shadow the
+# cocotb 2.x thread bridge under its plain name (tooling BUG-015 re-run
+# finding -- the 61ea5dc13 rename collided with the local).
+from cocotb._bridge import bridge as cbridge
 from cocotb_test.simulator import run
 
 from TBClasses.apb.register_map import RegisterMap
@@ -432,9 +436,17 @@ async def cocotb_test_scenario_order(dut):
 
     rd, cfgw = HM.tally.windows()
     tally_rd, tally_cfg = rd["stream"], cfgw["stream"]
-    unexpected = await bridge(
-        lambda: HM.tally.check_capacity(bridge, tally_cfg, HM.CANDIDATES, HM.MON_N_PROFILE))()
-    labels = HM.tally.labels(HM.CANDIDATES, unexpected)
+    # BUG-019 (471692b07): run_scenario takes the BUILD-FILTERED candidate set,
+    # the same legal-set contract the board's run_matrix honors; passing the
+    # raw table broke here with a missing-argument TypeError the moment the
+    # suite was re-run (2026-10-09). Derive it from THIS build, like the board.
+    binfo = await cbridge(lambda: HM.build_info(bridge))()
+    candidates, retired = HM.filter_legal_by_build(HM.CANDIDATES, binfo)
+    for _t, _why in retired:
+        tb.log.info(f"[order] candidate retired by build: {_t[4]} -- {_why}")
+    unexpected = await cbridge(
+        lambda: HM.tally.check_capacity(bridge, tally_cfg, candidates, HM.MON_N_PROFILE))()
+    labels = HM.tally.labels(candidates, unexpected)
     sc = {s[0]: s for s in HM.SCENARIOS}
 
     def _pins():
@@ -486,9 +498,10 @@ async def cocotb_test_scenario_order(dut):
 
     async def run(name):
         before = dict(hs)
-        done, counts = await bridge(
-            lambda: HM.run_scenario(bridge, runner, sc[name], tally_rd, tally_cfg, unexpected, 5000.0))()
-        errs = sum(c for b, c in counts.items() if b != unexpected and HM.CANDIDATES[b][2] == HM.PKT_ERROR)
+        done, counts = await cbridge(
+            lambda: HM.run_scenario(bridge, runner, sc[name], tally_rd, tally_cfg,
+                                    unexpected, 5000.0, candidates))()
+        errs = sum(c for b, c in counts.items() if b != unexpected and candidates[b][2] == HM.PKT_ERROR)
         delta = {k: hs[k] - before[k] for k in hs}
         tb.log.info(f"[order] {name:10s} pass={done} ERROR-class={errs} "
                     f"unexpected={counts.get(unexpected, 0)} in-core handshakes={delta} "
@@ -774,7 +787,7 @@ async def cocotb_test_stream_mon_compress(dut):
             tb.bridge, descriptors=ndesc, xfer_bytes=xfer, max_slots=256,
             log=lambda m: log.info(f"[compress] {m}"))
 
-    res = await bridge(run)()
+    res = await cbridge(run)()
 
     assert res['dma_pass'], f"[compress] DMA workload did not pass: {res.get('reason')}"
     assert res['populated'], (
