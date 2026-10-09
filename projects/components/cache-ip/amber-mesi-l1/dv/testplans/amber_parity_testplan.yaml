@@ -1,0 +1,85 @@
+# Testplan for amber_parity (cache_sim trace-replay parity grid, Task 10,
+# PRD success criterion 1).  amber_core (Task 9) replays committed
+# cache_sim traces and hit/miss/miss-class counts are compared EXACTLY
+# against the cache_sim JS golden model (bin/apps/cache_sim/js/model.js,
+# driven by dv/golden/cache_sim_harness.py):
+#
+#   grid = {traces} x {LRU, FIFO, RANDOM} x {128/4/64/64, 16/2/64/64}
+#
+# DECISION D-9 mapping: cache_sim is word-addressed (byte-addr = word << 2,
+# blockSize = LINE_BYTES/4 words) and models a read-only footprint, so the
+# TB replays every access as a read (writes would replay as same-footprint
+# write-allocate accesses and cannot change the counts).  LRU/FIFO get
+# exact NATIVE parity against the shipped model bytes.  RANDOM (mulberry32
+# in the app, a per-set 32-bit Fibonacci LFSR taps 32/22/2/1 seeded
+# 32'h0000_ACE1 in amber_repl) cannot parity natively, so RANDOM cells run
+# the recorded extension dv/golden/cache_sim_lfsr_extension.js -- anchored
+# textual patches applied to a COMPILED COPY of the model, never an in-place
+# app edit.  The extension also upgrades RANDOM parity to per-miss
+# victim-way parity (the LFSR draw sequence is deterministic per set).
+# Traces are deterministic committed artifacts (dv/traces/, pinned seeds in
+# gen_traces.py); per-cell runtime randomness (BFM jitter) is pinned by the
+# repo-root conftest like every other area.  No snoops run in parity cells:
+# the cache_sim golden has no coherence, so any coherence traffic would
+# change the counts (coherence parity is Task 11's pair rig).
+# Run: dv/tests/test_amber_parity.py
+
+module: amber_parity
+rtl_files:
+  - projects/components/cache-ip/amber-mesi-l1/rtl/top/amber_core.sv
+test_files:
+  - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_parity.py
+
+parameters:
+  - name: SETS / WAYS / LINE_BYTES / BUS_WIDTH
+    default: 128 / 4 / 64 / 64
+    description: >
+      geometry per amber_pkg.  Grid: pkg default (128/4/64/64) and the tiny
+      formal config (16/2/64/64).
+  - name: REPL_POLICY
+    default: 0 (LRU)
+    description: >
+      replacement policy (amber_repl_t): 0=lru, 2=fifo, 3=random.  1
+      (tree_plru) has no cache_sim golden (PRD D7 caveat) and is not in the
+      grid.  RANDOM cells use the recorded LFSR extension (D-9).
+  - name: PARITY_TRACE / PARITY_EXPECT / PARITY_OUT
+    default: dv/traces/<name>.txt
+    description: >
+      per-cell cell wiring: the committed trace file, the JS golden totals
+      JSON (computed pytest-side, re-compared after the sim), and the TB
+      report JSON the wrapper re-reads for the defense-in-depth comparison.
+
+scenarios:
+  - name: GoldenRunnerValidation
+    level: gate
+    description: >
+      No RTL.  The app's own node suite (bin/apps/cache_sim/test/
+      run_tests.js) is green in this environment; its hand-computed
+      expectations (direct-mapped vs 2-way classification, compulsory
+      counting, capacity-vs-conflict split, LRU/FIFO divergence, block-size
+      grouping, FA zero-conflict) are reproduced through the parity
+      harness; the recorded LFSR extension bit-matches the Python reference
+      LFSR for ways 2/4/8, draws on every miss (no empty-way preference),
+      and provably differs from native mulberry32; the exact-count
+      comparator is checked non-vacuous.
+  - name: TraceReplayParity
+    level: gate
+    description: >
+      Smoke cell: seq_1k replayed through amber_core at both geometries,
+      all three policies, exact count parity vs cache_sim.  Streaming
+      send_burst replay; per-access DUT outcome (miss == pass through
+      MISS_VICTIM) locked per-access against a faithful Python port of
+      model.js Cache.access; per-miss victim-way parity for RANDOM; read
+      data checked against the memory model (read-only footprint); shadow
+      fully-associative model (identical algorithm to model.js simulate())
+      classifies compulsory/capacity/conflict.
+  - name: TraceReplayParityGrid
+    level: func
+    description: >
+      Full grid: 5 traces (seq_1k / strided_8k / walk_16k / thrash_32k /
+      mix_100k, 1k-100k accesses) x {LRU, FIFO, RANDOM} x {128/4/64/64,
+      16/2/64/64}.  Per cell: exact equality of hits/misses/compulsory/
+      capacity/conflict vs cache_sim totals -- any drift is a bug in RTL or
+      harness, never toleranced.  Class mix spans compulsory-only
+      (seq_1k), conflict-heavy cyclic strides, LRU-walk working-set reuse,
+      capacity-dominated thrash, and the 100k mix.
