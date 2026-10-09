@@ -13,7 +13,7 @@ flowchart LR
     CSR -.->|"kick pulse"| DUT
     APB --> DUT
     DESCM --> DRAM
-    RDM --> RDLY["axi_response_delay<br/>(R side)"] --> RGEN["axi4_slave_rd_pattern_gen<br/>LFSR stream + per-channel CRC"]
+    RDM --> RDLY["axi_response_delay<br/>(R side)"] --> RGEN["axi4_slave_rd_injector<br/>LFSR stream + per-channel CRC"]
     WRM --> BDLY["axi_response_delay<br/>(B side)"] --> WCHK["axi4_slave_wr_crc_check<br/>per-channel CRC"]
     RGEN --> CMP{"read CRC ==<br/>write CRC?"}
     WCHK --> CMP

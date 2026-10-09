@@ -5,9 +5,9 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Module: tb_axis4_pattern_pair
-# Purpose: Test runner for axis4_master_pattern_gen -> axis4_slave_pattern_check
+# Purpose: Test runner for axis4_master_injector -> axis4_slave_pattern_check
 #
-# Documentation: docs/markdown/rtl-amba/shared/axis4_master_pattern_gen.md
+# Documentation: docs/markdown/rtl-amba/shared/axis4_master_injector.md
 # Subsystem: tests
 #
 # Author: sean galloway
@@ -63,7 +63,7 @@ def test_axis4_pattern_pair(request, num_ch, dw, lfsr_w):
 
     gen_sources, gen_inc = get_sources_from_filelist(
         repo_root=repo_root,
-        module='axis4_master_pattern_gen')
+        module='axis4_master_injector')
     chk_sources, chk_inc = get_sources_from_filelist(
         repo_root=repo_root,
         module='axis4_slave_pattern_check')

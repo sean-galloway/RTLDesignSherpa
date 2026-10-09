@@ -37,7 +37,7 @@ the mechanism, and it is the stimulus, not the DUT:
 - the write engine's outstanding count sums to 7.9 across the eight channels
   in steady state, and on average exactly one channel has `w_data_ok`: the whole
   `AW_MAX_OUTSTANDING = 8` window belongs to ONE channel at a time;
-- the harness's AXIS generator (`axis4_master_pattern_gen`) streams channels
+- the harness's AXIS generator (`axis4_master_injector`) streams channels
   sequentially by design -- "finish one channel, then the next", so each
   channel's LFSR sequence is contiguous for the golden CRC -- so only one sink
   channel ever holds data, and the sink SRAM (256 beats per channel) is

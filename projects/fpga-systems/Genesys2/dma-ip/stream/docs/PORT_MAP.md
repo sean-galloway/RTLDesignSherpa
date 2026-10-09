@@ -102,7 +102,7 @@ writes those same descriptors as 8 × 32-bit AXIL stores via the bridge
 
 | Edge                            | Channels | Protocol | Addr | Data | Connects                                              |
 | ------------------------------- | -------- | -------- | ---- | ---- | ----------------------------------------------------- |
-| `rd_*` wires (`rd_arid`, `rd_araddr`, `rd_rdata`, …) | rd | AXI4 | 32 | **128** | STREAM's `m_axi_rd_*` ↔ `axi4_slave_rd_pattern_gen` (DMA source) |
+| `rd_*` wires (`rd_arid`, `rd_araddr`, `rd_rdata`, …) | rd | AXI4 | 32 | **128** | STREAM's `m_axi_rd_*` ↔ `axi4_slave_rd_injector` (DMA source) |
 | `wr_*` wires (`wr_awid`, `wr_awaddr`, `wr_wdata`, …) | wr | AXI4 | 32 | **128** | STREAM's `m_axi_wr_*` ↔ `axi4_slave_wr_crc_check`     (DMA sink) |
 
 `DATA_WIDTH = 128` is a harness top-level parameter (default 128 bits).

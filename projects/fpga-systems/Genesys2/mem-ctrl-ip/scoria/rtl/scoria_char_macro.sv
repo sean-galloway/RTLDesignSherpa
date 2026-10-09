@@ -39,7 +39,7 @@
 // Description:
 //   Wraps the three blocks that form the bring-up + characterization loop:
 //
-//     axi4_master_wr_pattern_gen  →┐
+//     axi4_master_wr_injector  →┐
 //                                  ├→  scoria_top  →  DFI (external)
 //     axi4_master_rd_crc_check    →┘
 //
@@ -71,7 +71,7 @@ module scoria_char_macro
     parameter int AXI_ADDR_WIDTH   = 32,
     parameter int AXI_DATA_WIDTH   = 64,
     // AXI_ID_WIDTH=8 to match the pattern-gen engines' internal 8-bit LFSR
-    // for the ID-picker (axi4_master_wr_pattern_gen slices cfg_axi_id[7:0]
+    // for the ID-picker (axi4_master_wr_injector slices cfg_axi_id[7:0]
     // for the LFSR seed; narrower ID widths cause a synth part-select
     // error). Same width stream_top_ch8 uses for its native AXI_ID_WIDTH.
     parameter int AXI_ID_WIDTH     = 8,

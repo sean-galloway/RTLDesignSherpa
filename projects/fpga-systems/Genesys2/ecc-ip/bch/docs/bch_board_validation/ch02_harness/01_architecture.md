@@ -13,7 +13,7 @@
 | `bridge_bch_loop_axil` | Generated fabric | 1-master x 3-slave AXIL-to-APB fabric. |
 | `uart_axil_bridge` | `projects/components/utility-ip/converters/rtl/uart_to_axil4/uart_axil_bridge.sv` | UART byte stream to AXI4-Lite master. |
 | `apb4_to_peakrdl` | `projects/components/utility-ip/converters/rtl/apb4_to_peakrdl.sv` | APB4 slave to PeakRDL cpuif shim. |
-| `axis4_master_pattern_gen` | `rtl/amba/shared/axis4_master_pattern_gen.sv` | LFSR data source, one packet per block, per-channel CRC-32. |
+| `axis4_master_injector` | `rtl/amba/shared/axis4_master_injector.sv` | LFSR data source, one packet per block, per-channel CRC-32. |
 | `bch_encoder_axis4` / `bch_encoder_core` | Component BCH RTL | BCH encoder, AXIS wrapper around the core. |
 | `bch_beat_packer` | Component BCH RTL | Repacks encoder output into `ceil(n/BITS_PER_BEAT)` codeword beats. |
 | `error_injector` | `projects/components/utility-ip/misc/rtl/error_injector.sv` | Shared bit-granular injector, modes 0..7, sits after the encoder. |
@@ -55,7 +55,7 @@ flowchart LR
     win0 --> ctrl["CTRL / GO / GEN_BLOCKS / INJ_CFG<br/>BUILD_ID / SCRATCH / PROFILE / TOPOLOGY"]
 
     subgraph loop ["Codec loop"]
-        gen["axis4_master_pattern_gen<br/>LFSR + CRC-32"]
+        gen["axis4_master_injector<br/>LFSR + CRC-32"]
         enc["bch_encoder_core"]
         inj["error_injector<br/>SYMBOL_WIDTH=1"]
         dec["bch_decoder_core<br/>riBM"]

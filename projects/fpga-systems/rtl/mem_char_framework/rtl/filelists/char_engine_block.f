@@ -30,7 +30,7 @@ $REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/mem_char_pkg.sv
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/apb4_to_peakrdl.f
 
 # The pattern generators and the perf instruments the engine instantiates.
--f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr_pattern_gen.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr_injector.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_crc_check.f
 -f $REPO_ROOT/rtl/amba/filelists/axi_bus_meter.f
 -f $REPO_ROOT/rtl/amba/filelists/axi_perf_latency_hist.f

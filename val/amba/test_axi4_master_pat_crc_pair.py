@@ -434,7 +434,7 @@ def test_axi4_master_pat_crc_pair(request, test_type):
     test_name = f"test_axi4_master_pat_crc_pair_{test_type}"
 
     # Combine the wr + rd filelists, then add the wrapper
-    wr_fl = "rtl/amba/filelists/axi4_master_wr_pattern_gen.f"
+    wr_fl = "rtl/amba/filelists/axi4_master_wr_injector.f"
     rd_fl = "rtl/amba/filelists/axi4_master_rd_crc_check.f"
     wr_sources, wr_includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=wr_fl)

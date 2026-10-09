@@ -111,7 +111,7 @@ Deliver the host-side half of the approved rowhammer design (the RTL
 half shipped in `9ce4cd1da`).
 
 Facts already committed (read them, do not re-derive):
-`rtl/amba/shared/axi4_master_wr_pattern_gen.sv` and
+`rtl/amba/shared/axi4_master_wr_injector.sv` and
 `rtl/amba/shared/axi4_master_rd_crc_check.sv` — `cfg_hammer_en`
 (address index = `count[0]`, ping-pongs base / base+stride_0 per txn),
 2-bit `data_mode` (0=LFSR, 1=ADDR_HASH, 2=FILL with
@@ -141,4 +141,4 @@ field layout `data_mode[16:15]`, `hammer_en[17]`,
    tests, run it. Env: `source venv-cocotb2/bin/activate` from the repo
    root, then `python -m pytest <path> -q`. Existing amba generator
    suites must still pass if you touch shared fixtures (run
-   `python -m pytest val/amba/test_axi4_master_wr_pattern_gen.py val/amba/test_axi4_master_rd_crc_check.py val/amba/test_axi4_master_pat_crc_pair.py -q`).
+   `python -m pytest val/amba/test_axi4_master_wr_injector.py val/amba/test_axi4_master_rd_crc_check.py val/amba/test_axi4_master_pat_crc_pair.py -q`).

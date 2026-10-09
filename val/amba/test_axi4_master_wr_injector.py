@@ -7,7 +7,7 @@
 # skid races, FIFO drain corners, mid-burst stalls. Current scenarios
 # only use default timing, which masks bugs only triggered by specific
 # valid/ready stall patterns.
-"""Unit-test runner for `axi4_master_wr_pattern_gen`.
+"""Unit-test runner for `axi4_master_wr_injector`.
 
 Pins the contracts the harness (and the read-side counterpart) rely on:
   - cfg_start → AW/W → cfg_done end-to-end
@@ -29,14 +29,14 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist, filelist_for
-from TBClasses.axi4.axi4_master_wr_pattern_gen_tb import WrPatternGenTB
+from TBClasses.axi4.axi4_master_wr_injector_tb import WrInjectorTB
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
-async def cocotb_test_axi4_master_wr_pattern_gen(dut):
+async def cocotb_test_axi4_master_wr_injector(dut):
     test_type = os.environ.get("TEST_TYPE", "smoke")
     slave_profile = os.environ.get("SLAVE_PROFILE", "backtoback")
-    tb = WrPatternGenTB(dut)
+    tb = WrInjectorTB(dut)
     await tb.setup_clocks_and_reset()
     tb.set_slave_delay_profile(slave_profile)
     scenarios = {
@@ -68,7 +68,7 @@ async def cocotb_test_axi4_master_wr_pattern_gen(dut):
 # ---------------------------------------------------------------------------
 
 
-async def _smoke(tb: WrPatternGenTB):
+async def _smoke(tb: WrInjectorTB):
     """One burst of 1 beat. cfg_done asserts. Master saw 1 AW + 1 W."""
     await tb.program(start_addr=0x100, burst_len=1, txn_count=1,
                      axi_id=3, lfsr_seed=0xDEADBEEF)
@@ -83,7 +83,7 @@ async def _smoke(tb: WrPatternGenTB):
     assert int(tb.dut.o_expected_crc_valid.value) == 1
 
 
-async def _multi_burst(tb: WrPatternGenTB):
+async def _multi_burst(tb: WrInjectorTB):
     """4 bursts of 4 beats. Verify counts + last positions."""
     BURST = 4
     N = 4
@@ -104,7 +104,7 @@ async def _multi_burst(tb: WrPatternGenTB):
         )
 
 
-async def _address_walk(tb: WrPatternGenTB):
+async def _address_walk(tb: WrInjectorTB):
     """ARaddr per burst follows base + N*stride. Pins dma_address_gen
     consumption + stride semantics under serial-burst v1."""
     BASE = 0x4000
@@ -122,7 +122,7 @@ async def _address_walk(tb: WrPatternGenTB):
         )
 
 
-async def _data_matches_lfsr(tb: WrPatternGenTB):
+async def _data_matches_lfsr(tb: WrInjectorTB):
     """W beats follow the documented Fibonacci LFSR sequence with the
     32-bit value replicated across the data bus. Catches any drift
     between the RTL LFSR step and the Python mirror that the read-side
@@ -143,7 +143,7 @@ async def _data_matches_lfsr(tb: WrPatternGenTB):
         )
 
 
-async def _done_waits_for_b(tb: WrPatternGenTB):
+async def _done_waits_for_b(tb: WrInjectorTB):
     """cfg_done must NOT assert until all B responses received. We
     delay the B responder by gating it from outside."""
     # Override the B responder: park bresp_outstanding until we release
@@ -166,7 +166,7 @@ async def _done_waits_for_b(tb: WrPatternGenTB):
     )
 
 
-async def _bresp_error_sticky(tb: WrPatternGenTB):
+async def _bresp_error_sticky(tb: WrInjectorTB):
     """A single non-OKAY BRESP must latch o_bresp_error for the rest
     of the run."""
     BURST = 2
@@ -180,7 +180,7 @@ async def _bresp_error_sticky(tb: WrPatternGenTB):
     )
 
 
-async def _wr_gap_inserts_idle(tb: WrPatternGenTB):
+async def _wr_gap_inserts_idle(tb: WrInjectorTB):
     """cfg_wr_gap > 0 inserts N idle cycles between bursts. Verify the
     workload still completes (cfg_done asserts) with the same AW/W counts
     as the no-gap path; the timing change isn't directly observable from
@@ -194,7 +194,7 @@ async def _wr_gap_inserts_idle(tb: WrPatternGenTB):
     assert len(tb.w_log)  == N * BURST
 
 
-async def _outstanding_dial(tb: WrPatternGenTB):
+async def _outstanding_dial(tb: WrInjectorTB):
     """cfg_max_outstanding caps bursts in flight below the built ceiling.
 
     Mirror of the read engine's scenario. MAX_OUTSTANDING is the hardware
@@ -271,7 +271,7 @@ async def _outstanding_dial(tb: WrPatternGenTB):
     await _run_at((1 << OSW) - 1, BUILT, exact=False)
 
 
-async def _id_mode_counter(tb: WrPatternGenTB):
+async def _id_mode_counter(tb: WrInjectorTB):
     """id_mode=COUNTER: AW IDs walk start..start+N-1 (mod 256)."""
     BURST = 2
     N = 6
@@ -288,7 +288,7 @@ async def _id_mode_counter(tb: WrPatternGenTB):
         )
 
 
-async def _id_mode_lfsr(tb: WrPatternGenTB):
+async def _id_mode_lfsr(tb: WrInjectorTB):
     """id_mode=LFSR: AW IDs are an 8-bit Fibonacci LFSR. The exact
     sequence is deterministic but we don't pin it here — just assert:
     (a) the IDs are not stuck (>=N/2 distinct in N samples for N>=8)
@@ -312,7 +312,7 @@ async def _id_mode_lfsr(tb: WrPatternGenTB):
     )
 
 
-async def _awvalid_no_drop(tb: WrPatternGenTB):
+async def _awvalid_no_drop(tb: WrInjectorTB):
     """At cfg_wr_gap=0 with pipelined AW, awvalid must NOT drop between
     the first AW being driven and the last AW being handshaked. (After
     the last AW handshake awvalid is allowed to deassert — no more work.)
@@ -371,7 +371,7 @@ async def _awvalid_no_drop(tb: WrPatternGenTB):
     await tb.wait_done()
 
 
-async def _hash_mode_data(tb: WrPatternGenTB):
+async def _hash_mode_data(tb: WrInjectorTB):
     """data_mode=1: W beats are addr_hash32 of the per-beat byte address.
     The Python mirror computes the same hash per beat, so we can compare
     bit-for-bit. Also asserts o_expected_crc_valid stays low in hash mode
@@ -405,7 +405,7 @@ async def _hash_mode_data(tb: WrPatternGenTB):
     assert int(tb.dut.o_expected_crc_valid.value) == 0
 
 
-async def _hammer_mode(tb: WrPatternGenTB):
+async def _hammer_mode(tb: WrInjectorTB):
     """cfg_hammer_en=1: the transaction counter's LSB drives the address
     generator index, so AW addresses alternate base / base+stride_0. The
     W path uses the same hammer index and stays in lockstep, so the W
@@ -438,7 +438,7 @@ async def _hammer_mode(tb: WrPatternGenTB):
         assert int(tb.dut.o_expected_crc_valid.value) == 1
 
 
-async def _fill_mode(tb: WrPatternGenTB):
+async def _fill_mode(tb: WrInjectorTB):
     """data_mode=2: every W beat is cfg_fill_pattern replicated across the
     data bus. o_expected_crc_valid stays low because the CRC pipeline is
     only meaningful for the LFSR stream."""
@@ -460,7 +460,7 @@ async def _fill_mode(tb: WrPatternGenTB):
     assert int(tb.dut.o_expected_crc_valid.value) == 0
 
 
-async def _kb4(tb: WrPatternGenTB):
+async def _kb4(tb: WrInjectorTB):
     """4 KiB engine write — 128 bursts × 4 beats × 8 bytes from BASE=0.
 
     Pins the writer alone against the AXI4SlaveWrite BFM + MemoryModel:
@@ -529,7 +529,7 @@ async def _kb4(tb: WrPatternGenTB):
     assert len(tb.w_log)  == N * BURST
 
 
-async def _kb32(tb: WrPatternGenTB):
+async def _kb32(tb: WrInjectorTB):
     """32 KiB engine write — 1024 bursts × 4 beats × 8 bytes. Same
     verification structure as kb4, scaled out to the kb32 workload that
     fails in NexysA7. Isolates writer engine + WR-side AXI BFM."""
@@ -564,7 +564,7 @@ async def _kb32(tb: WrPatternGenTB):
     assert len(tb.w_log)  == N * BURST
 
 
-async def _rerun_after_done(tb: WrPatternGenTB):
+async def _rerun_after_done(tb: WrInjectorTB):
     """After cfg_done, a second cfg_start pulse must re-run the workload
     cleanly with fresh state (no leftover counters / errors)."""
     # Run #1
@@ -618,12 +618,12 @@ _SLAVE_PROFILES = ("backtoback", "fixed", "fast", "constrained",
 
 @pytest.mark.parametrize("slave_profile", _SLAVE_PROFILES)
 @pytest.mark.parametrize("test_type", _SCENARIOS)
-def test_axi4_master_wr_pattern_gen(request, test_type, slave_profile):
+def test_axi4_master_wr_injector(request, test_type, slave_profile):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "axi4_master_wr_pattern_gen"
-    test_name = f"test_axi4_master_wr_pattern_gen_{test_type}_{slave_profile}"
+    dut_name = "axi4_master_wr_injector"
+    test_name = f"test_axi4_master_wr_injector_{test_type}_{slave_profile}"
 
-    filelist_path = filelist_for(repo_root, 'axi4_master_wr_pattern_gen')
+    filelist_path = filelist_for(repo_root, 'axi4_master_wr_injector')
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 
@@ -667,7 +667,7 @@ def test_axi4_master_wr_pattern_gen(request, test_type, slave_profile):
     run(python_search=[tests_dir],
         verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module,
-        testcase="cocotb_test_axi4_master_wr_pattern_gen",
+        testcase="cocotb_test_axi4_master_wr_injector",
         sim_build=sim_build, simulator="verilator",
         extra_env=extra_env, parameters=parameters,
         compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,

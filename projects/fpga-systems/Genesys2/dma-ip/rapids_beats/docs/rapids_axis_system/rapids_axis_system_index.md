@@ -65,7 +65,7 @@ variants and the flow; this one is the stream side in depth.
 | AXIS links | `s_axis` into the SINK (DUT is the slave), `m_axis` out of the SOURCE (DUT is the master) |
 | Width | 256 bits, `tstrb` 32 bits, since the v2.0 design point (512 before) |
 | Sideband | `tid[7:0]` carries the channel, `tdest[3:0]` and `tuser[0]` pass through, `tlast` ends a packet |
-| Stimulus | `axis4_master_pattern_gen` (harness CSR `GEN_*`), `axis4_slave_pattern_check` (`CHK_*`) |
+| Stimulus | `axis4_master_injector` (harness CSR `GEN_*`), `axis4_slave_pattern_check` (`CHK_*`) |
 | Meters | `axis_bus_meter` on each link: cycle buckets plus exact bytes and packets |
 | Observers | `axis4_intf_observer`, two ports, per-`tid`, own APB window (`USE_OBSERVERS=1`) |
 | In-core | one AXIS monitor-lite per half on MonBus (`USE_AXI_MONITORS=1`, rapids TASK-015) |

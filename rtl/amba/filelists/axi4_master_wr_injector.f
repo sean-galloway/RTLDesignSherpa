@@ -1,5 +1,5 @@
-# Filelist for axi4_master_wr_pattern_gen
-# Location: rtl/amba/filelists/axi4_master_wr_pattern_gen.f
+# Filelist for axi4_master_wr_injector
+# Location: rtl/amba/filelists/axi4_master_wr_injector.f
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 
@@ -16,4 +16,4 @@ $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_master_wr.sv
 -f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/dma_address_gen.f
 
-$REPO_ROOT/rtl/amba/shared/axi4_master_wr_pattern_gen.sv
+$REPO_ROOT/rtl/amba/shared/axi4_master_wr_injector.sv

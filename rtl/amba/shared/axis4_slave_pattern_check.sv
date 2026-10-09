@@ -8,8 +8,8 @@
 // Purpose: AXI-Stream slave that checks a deterministic, PER-CHANNEL LFSR data
 //          pattern. This is the AXIS SOURCE checker for the RAPIDS
 //          characterization harness and is pattern/CRC-CONSISTENT with
-//          axi4_slave_rd_pattern_gen: the per-channel 32-bit CRC-32 it computes
-//          is bit-identical to axi4_slave_rd_pattern_gen.read_crc_value for the
+//          axi4_slave_rd_injector: the per-channel 32-bit CRC-32 it computes
+//          is bit-identical to axi4_slave_rd_injector.read_crc_value for the
 //          same stream (source self-check: rd_gen -> m_axis -> axis_check).
 //
 // Description:
@@ -19,12 +19,12 @@
 //     - the received tdata is compared against the locally-regenerated pattern
 //       {REP{lfsr_out[ch]}}; any mismatch latches o_data_error (sticky);
 //     - that channel's LFSR + dataint_crc-32 advance (fed the 32-bit
-//       lfsr_out[ch], exactly like axi4_slave_rd_pattern_gen).
+//       lfsr_out[ch], exactly like axi4_slave_rd_injector).
 //   The LFSR advances only on accepted beats, so the check is independent of
 //   upstream stalls / interleave order across channels.
 //
 //   Per-channel CRC (o_actual_crc[ch]/o_actual_crc_valid[ch]) mirrors
-//   axi4_slave_rd_pattern_gen.read_crc_value semantics -- NOT the old XOR-fold.
+//   axi4_slave_rd_injector.read_crc_value semantics -- NOT the old XOR-fold.
 //
 // CRC bit-consistency (copied VERBATIM from the axi4 blocks): identical LFSR
 //   (WIDTH=32, TAP_INDEX_WIDTH=12, TAP_COUNT=4, seed ^ ch) + identical
@@ -51,12 +51,12 @@ module axis4_slave_pattern_check #(
     parameter int          AXIS_DEST_WIDTH  = 4,
     parameter int          AXIS_USER_WIDTH  = 1,
 
-    // LFSR parameters (32-bit fixed; MUST MATCH axi4_slave_rd_pattern_gen!)
+    // LFSR parameters (32-bit fixed; MUST MATCH axi4_slave_rd_injector!)
     parameter int          LFSR_WIDTH       = 32,
     parameter logic [31:0] LFSR_SEED        = 32'hDEADBEEF,
     parameter logic [47:0] LFSR_TAPS        = {12'd23, 12'd3, 12'd2, 12'd1},
 
-    // CRC parameters (fixed; MUST MATCH axi4_slave_rd_pattern_gen!)
+    // CRC parameters (fixed; MUST MATCH axi4_slave_rd_injector!)
     parameter int          CRC_WIDTH        = 32,
     parameter int          CRC_DATA_WIDTH   = 32,
     parameter logic [31:0] CRC_POLY         = 32'h04C11DB7,
@@ -84,7 +84,7 @@ module axis4_slave_pattern_check #(
     input  logic [LFSR_WIDTH-1:0]         cfg_lfsr_seed,      // 0 => use LFSR_SEED param
     input  logic                          ready_en,           // s_axis_tready = ready_en
 
-    // Per-channel actual CRC (mirrors axi4_slave_rd_pattern_gen.read_crc_value)
+    // Per-channel actual CRC (mirrors axi4_slave_rd_injector.read_crc_value)
     output logic [NUM_CHANNELS-1:0][31:0] o_actual_crc,
     output logic [NUM_CHANNELS-1:0]       o_actual_crc_valid,
     output logic                          o_data_error,       // sticky: any beat mismatch
@@ -170,7 +170,7 @@ module axis4_slave_pattern_check #(
     // Per-channel LFSR pattern regenerators + CRC-32 calculators
     //==========================================================================
     // seed/taps/replication/CRC instantiation + gating are copied VERBATIM from
-    // axi4_slave_rd_pattern_gen so the per-channel 32-bit CRC is bit-identical.
+    // axi4_slave_rd_injector so the per-channel 32-bit CRC is bit-identical.
 
     genvar gch;
     generate

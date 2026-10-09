@@ -963,7 +963,7 @@ class StreamHarnessTB(TBBase):
 
         try:
             wr_beats = int(self._dma_slaves().u_wr_crc_check.write_beat_count_total.value)
-            rd_beats = int(self._dma_slaves().u_rd_pattern_gen.read_beat_count_total.value)
+            rd_beats = int(self._dma_slaves().u_rd_injector.read_beat_count_total.value)
         except Exception:
             wr_beats = rd_beats = -1
 
@@ -1046,7 +1046,7 @@ class StreamHarnessTB(TBBase):
                 await self.wait_clocks(self.clk_name, 100)
             try:
                 wr = int(self._dma_slaves().u_wr_crc_check.write_beat_count_total.value)
-                rd = int(self._dma_slaves().u_rd_pattern_gen.read_beat_count_total.value)
+                rd = int(self._dma_slaves().u_rd_injector.read_beat_count_total.value)
             except Exception:
                 wr = rd = -1
             ok = done and (wr == cum_expected) and (rd == cum_expected)
@@ -1094,7 +1094,7 @@ class StreamHarnessTB(TBBase):
                     h = getattr(h, part)
                 # Prove it: the counters the callers read must be reachable.
                 _ = h.u_wr_crc_check.write_beat_count_total
-                _ = h.u_rd_pattern_gen.read_beat_count_total
+                _ = h.u_rd_injector.read_beat_count_total
             except AttributeError as exc:
                 tried.append(f"{'.'.join(path)} ({exc.__class__.__name__})")
                 continue
@@ -1489,7 +1489,7 @@ class StreamHarnessTB(TBBase):
             st = await self.read_status() or {}
             try:
                 wr_beats = int(self._dma_slaves().u_wr_crc_check.write_beat_count_total.value)
-                rd_beats = int(self._dma_slaves().u_rd_pattern_gen.read_beat_count_total.value)
+                rd_beats = int(self._dma_slaves().u_rd_injector.read_beat_count_total.value)
             except Exception:
                 wr_beats = -1
                 rd_beats = -1
@@ -1745,7 +1745,7 @@ class StreamHarnessTB(TBBase):
             self.log.info(f"  RD latency hist AR->RLAST:  {self._rd_hist_rlast}")
             self.log.info(f"  WR latency hist AW->B:      {self._wr_hist_b}")
 
-        # 6a. Diagnostic: wait until pattern_gen + crc_check beat counts match
+        # 6a. Diagnostic: wait until injector + crc_check beat counts match
         # the descriptor total before checking CRCs. The IRQ fires on the very
         # first per-burst completion packet, which is *much* earlier than the
         # final beat — so reading CRCs immediately after IRQ samples them
@@ -1757,7 +1757,7 @@ class StreamHarnessTB(TBBase):
         max_extra_clocks = max(timeout_clocks, expected_total * 4)
         elapsed = 0
         while elapsed < max_extra_clocks:
-            rd_beats = int(self._dma_slaves().u_rd_pattern_gen.read_beat_count_total.value)
+            rd_beats = int(self._dma_slaves().u_rd_injector.read_beat_count_total.value)
             wr_beats = int(self._dma_slaves().u_wr_crc_check.write_beat_count_total.value)
             if wr_beats >= expected_total and rd_beats >= expected_total:
                 self.log.info(f"  Beats reached expected ({expected_total}) after {elapsed} extra clocks")
@@ -1843,7 +1843,7 @@ class StreamHarnessTB(TBBase):
         # are now per-channel packed arrays — read the aggregate `_total`
         # outputs instead of treating the array as a scalar.
         try:
-            rd_beats = int(self._dma_slaves().u_rd_pattern_gen.read_beat_count_total.value)
+            rd_beats = int(self._dma_slaves().u_rd_injector.read_beat_count_total.value)
             wr_beats = int(self._dma_slaves().u_wr_crc_check.write_beat_count_total.value)
             expected_beats = transfer_bytes // 16  # DATA_WIDTH=128 → 16 B/beat
             self.log.info(

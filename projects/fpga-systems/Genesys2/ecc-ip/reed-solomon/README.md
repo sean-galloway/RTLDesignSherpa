@@ -46,7 +46,7 @@ UART -> uart_axil_bridge -> bridge_rs_loop_axil (generated 1x3 fabric)
                               |  obs_apb      0x00020000  -> axis4_intf_observer on the
                               |                            four AXIS seams (every image)
                                                      |
-  axis4_master_pattern_gen (32-bit, one packet per block, LFSR data + CRC-32)
+  axis4_master_injector (32-bit, one packet per block, LFSR data + CRC-32)
         |                                    \
   rs_encoder_core RS(252,236)                 \  bypass: generator straight to
         |                                      \ the checkers, codec out of loop

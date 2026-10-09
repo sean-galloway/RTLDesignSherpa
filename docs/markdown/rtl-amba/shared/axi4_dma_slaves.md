@@ -31,7 +31,7 @@
 
 ## Overview
 
-`axi4_dma_slaves` bundles a synthetic AXI4 read *source* and write *sink* into one block that a DMA or streaming engine can plug into for source/sink characterization without a real memory backend. The read side (`axi4_slave_rd_pattern_gen`) answers AR bursts with LFSR-generated data; the write side (`axi4_slave_wr_crc_check`) accepts AW/W bursts and CRCs the data. Both compute CRC-32 with the same configuration, so a master that reads the pattern and writes it straight back produces matching read/write CRCs when the datapath is clean.
+`axi4_dma_slaves` bundles a synthetic AXI4 read *source* and write *sink* into one block that a DMA or streaming engine can plug into for source/sink characterization without a real memory backend. The read side (`axi4_slave_rd_injector`) answers AR bursts with LFSR-generated data; the write side (`axi4_slave_wr_crc_check`) accepts AW/W bursts and CRCs the data. Both compute CRC-32 with the same configuration, so a master that reads the pattern and writes it straight back produces matching read/write CRCs when the datapath is clean.
 
 Characterizing a DMA needs a memory model on both its read and write ports. Rather than instantiate a real RAM (and its checking logic) twice, this block wraps the two purpose-built synthetic slaves and exposes their combined port surface as a single AXI4 read+write slave. The read side manufactures a deterministic pattern; the write side verifies one. Because the CRC polynomial, init, xorout, and reflection settings are threaded identically into both children, the two CRCs are on the same footing — the master writes back the same LFSR data it read, and both sides compute against the same CRC.
 
@@ -149,11 +149,11 @@ Characterizing a DMA needs a memory model on both its read and write ports. Rath
 
 ### Structural Composition
 
-The module is a thin structural wrapper: it instantiates one `axi4_slave_rd_pattern_gen` (`u_rd_pattern_gen`) and one `axi4_slave_wr_crc_check` (`u_wr_crc_check`) and fans the top-level ports out to them. There is no additional logic — all behavior lives in the two children, documented separately.
+The module is a thin structural wrapper: it instantiates one `axi4_slave_rd_injector` (`u_rd_injector`) and one `axi4_slave_wr_crc_check` (`u_wr_crc_check`) and fans the top-level ports out to them. There is no additional logic — all behavior lives in the two children, documented separately.
 
 ### Read Side (LFSR Source)
 
-`u_rd_pattern_gen` handles the AR/R channels. It returns per-channel LFSR-generated data (32-bit LFSR replicated to the bus width) and accumulates a per-channel CRC-32 over the emitted stream. Its `crc_lfsr_reset` is driven from the top-level `read_lfsr_reset`. LFSR configuration (`LFSR_WIDTH`, `LFSR_SEED`, `LFSR_TAPS`, `REPLICATION_FACTOR`) reaches only this side.
+`u_rd_injector` handles the AR/R channels. It returns per-channel LFSR-generated data (32-bit LFSR replicated to the bus width) and accumulates a per-channel CRC-32 over the emitted stream. Its `crc_lfsr_reset` is driven from the top-level `read_lfsr_reset`. LFSR configuration (`LFSR_WIDTH`, `LFSR_SEED`, `LFSR_TAPS`, `REPLICATION_FACTOR`) reaches only this side.
 
 ### Write Side (CRC Sink)
 
@@ -246,11 +246,11 @@ assign integrity_ok = (rd_crc[ch] == wr_crc[ch]);
 - `projects/fpga-systems/Genesys2/dma-ip/rapids_beats/flows-rapids-beats/rtl/rapids_char_harness.sv` — source/sink termination
 
 ### Uses
-- **axi4_slave_rd_pattern_gen.sv** — the read-side LFSR data source + CRC
+- **axi4_slave_rd_injector.sv** — the read-side LFSR data source + CRC
 - **axi4_slave_wr_crc_check.sv** — the write-side CRC-checking sink
 
 ### See Also
-- **axi4_master_wr_pattern_gen.sv** / **axi4_master_rd_crc_check.sv** — the master-side counterparts (drive traffic instead of terminating it)
+- **axi4_master_wr_injector.sv** / **axi4_master_rd_crc_check.sv** — the master-side counterparts (drive traffic instead of terminating it)
 - **axi4_intf_master_observer.sv** — non-intrusive observability wrapper for a DMA's master ports (`projects/components/utility-ip/misc/rtl/`)
 
 ---
@@ -269,7 +269,7 @@ Covered from `val/amba/` with the rest of the shared area — run everything wit
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
 - Index: `docs/markdown/rtl-amba/index.md`
-- Read child: `docs/markdown/rtl-amba/shared/axi4_slave_rd_pattern_gen.md`
+- Read child: `docs/markdown/rtl-amba/shared/axi4_slave_rd_injector.md`
 - Write child: `docs/markdown/rtl-amba/shared/axi4_slave_wr_crc_check.md`
 
 ---

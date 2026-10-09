@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2026 sean galloway
 //
-// TB wrapper for the axi4_master_wr_pattern_gen / axi4_master_rd_crc_check
+// TB wrapper for the axi4_master_wr_injector / axi4_master_rd_crc_check
 // pair. Both DUTs share clock + reset. Each has its own slave-side stub
 // backed by a single shared SystemVerilog memory array, so the writer's
 // W beats land in mem[idx] and the reader's R beats sample mem[idx]. End
@@ -107,7 +107,7 @@ module tb_axi4_master_pat_crc_pair #(
     logic [AXI_USER_WIDTH-1:0] wr_buser;
     logic          wr_bvalid, wr_bready;
 
-    axi4_master_wr_pattern_gen #(
+    axi4_master_wr_injector #(
         .AXI_ID_WIDTH   (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH (AXI_DATA_WIDTH),

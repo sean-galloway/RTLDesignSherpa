@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
 // Module: tb_axis4_pattern_pair
-// Purpose: Pair the MULTI-CHANNEL axis4_master_pattern_gen -> axis4_slave_
+// Purpose: Pair the MULTI-CHANNEL axis4_master_injector -> axis4_slave_
 //          pattern_check (m_axis driven straight into s_axis) so a cocotb test
 //          can arm both, stream several beats across multiple tids, and verify
 //          PER-CHANNEL: no data error, matching per-channel beat counts, and
@@ -73,7 +73,7 @@ module tb_axis4_pattern_pair #(
     assign o_axis_hs  = axis_tvalid && axis_tready;
     assign o_axis_tid = axis_tid;
 
-    axis4_master_pattern_gen #(
+    axis4_master_injector #(
         .NUM_CHANNELS    (NUM_CHANNELS),
         .AXIS_DATA_WIDTH (AXIS_DATA_WIDTH),
         .AXIS_ID_WIDTH   (AXIS_ID_WIDTH),

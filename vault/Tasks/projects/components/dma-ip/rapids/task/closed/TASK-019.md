@@ -42,7 +42,7 @@ allocation, the settle window) carry over on day one.
 | sink `m_axi_wstrb` | `axi_write_engine_beats.sv:772`: all ones | every W beat writes all 32 bytes, whatever arrived |
 | source `m_axis_tstrb` | `src_data_path_axis_beats.sv:352`: all ones | the egress stream never marks a partial beat |
 | top-level byte counter | `rapids_beats_top.sv:671` sums `$countones(m_axi_wr_wstrb)` | correct machinery, always counts full beats today |
-| harness generator | `axis4_master_pattern_gen.sv:282`: `tstrb` all ones | cannot produce a partial beat |
+| harness generator | `axis4_master_injector.sv:282`: `tstrb` all ones | cannot produce a partial beat |
 | harness checker | `axis4_slave_pattern_check` takes `s_axis_tstrb` and does not use it | cannot check one |
 | harness write CRC | `axi4_slave_wr_crc_check` passes `wstrb` through to the memory model only; the CRC hashes the full data word | a partial beat would CRC bytes that were never written |
 | golden model | `rapids_char_golden.py` hashes whole 32-bit words | no byte-wise reference |
@@ -104,7 +104,7 @@ and from a 64-byte beat to `DATA_WIDTH/8`.
    and give the harness and report a bytes-per-beat efficiency beside
    utilization, because a byte-granular transfer can sit at 100 % beat
    utilization while moving one byte per beat.
-5. **Harness.** `axis4_master_pattern_gen` needs a partial-beat mode
+5. **Harness.** `axis4_master_injector` needs a partial-beat mode
    (byte length per packet, a chosen last-beat `tstrb`, and a first-beat
    offset if packed data is not the contract) with the LFSR and CRC advanced
    per valid byte, not per beat; `axis4_slave_pattern_check` must honour
@@ -201,7 +201,7 @@ that had broken its host readout independently of this task.
 
 What the byte harness adds, all additive on the shared blocks:
 
-- `axis4_master_pattern_gen.cfg_last_bytes`: the tlast beat of every packet
+- `axis4_master_injector.cfg_last_bytes`: the tlast beat of every packet
   carries that many strobed bytes (0 = all), so a packet of N bytes is
   ceil(N / lanes) beats with a partial last beat. CSR `GEN_LASTB` (0x02C).
 - `axis4_slave_pattern_check` and `axi4_slave_wr_crc_check` parameter

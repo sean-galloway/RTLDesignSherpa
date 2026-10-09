@@ -13,7 +13,7 @@
 | `bridge_bch_loop_axil` | `rtl/bridges/generated/bridge_bch_loop_axil/bridge_bch_loop_axil.sv` | Generated 1-master x 3-slave AXIL-to-APB fabric. |
 | `uart_axil_bridge` | `projects/components/utility-ip/converters/rtl/uart_to_axil4/uart_axil_bridge.sv` | UART byte stream to AXI4-Lite master. |
 | `apb4_to_peakrdl` | `projects/components/utility-ip/converters/rtl/apb4_to_peakrdl.sv` | APB4 slave to PeakRDL cpuif shim. |
-| `axis4_master_pattern_gen` | `rtl/amba/shared/axis4_master_pattern_gen.sv` | LFSR data source, one packet per block, per-channel CRC-32. |
+| `axis4_master_injector` | `rtl/amba/shared/axis4_master_injector.sv` | LFSR data source, one packet per block, per-channel CRC-32. |
 | `bch_encoder_axis4` / `bch_encoder_core` | `projects/components/ecc-ip/bch/rtl/top/bch_encoder_axis4.sv`, `rtl/macro/bch_encoder_core.sv` | BCH encoder, AXIS wrapper around the core. |
 | `bch_beat_packer` | `projects/components/ecc-ip/bch/rtl/fub/bch_beat_packer.sv` | Repacks encoder output into `ceil(n/BITS_PER_BEAT)` codeword beats. |
 | `error_injector` | `projects/components/utility-ip/misc/rtl/error_injector.sv` | Shared bit-granular injector, modes 0..7, sits after the encoder. |

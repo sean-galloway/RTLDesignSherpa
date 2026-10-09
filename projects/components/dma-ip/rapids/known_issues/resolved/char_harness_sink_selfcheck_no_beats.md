@@ -151,7 +151,7 @@ start -- no `golden_crc(0,n)` for n=1..12 matches, nor a window advanced by one
 or two.
 
 Why nothing caught it: the golden's `_KNOWN_GOOD` values are exactly the ones
-the SOURCE path verifies, so the model is pinned to `axi4_slave_rd_pattern_gen`
+the SOURCE path verifies, so the model is pinned to `axi4_slave_rd_injector`
 and `axis4_slave_pattern_check`. The only test covering the AXIS *master*
 generator, `val/amba/test_axis4_pattern_pair` (3 passed), asserts
 `gen_crc == chk_crc` -- but the checker CRCs exactly what the generator sent,

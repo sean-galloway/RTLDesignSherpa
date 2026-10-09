@@ -9,7 +9,7 @@
 // This is the DDR2 sibling of stream_char_framework/rtl/harness_csr.sv.
 // Same shape (skid-buffered AXIL slave, one write FSM + one read decode),
 // different register map. Because the char macro has two indepedent
-// master-side engines (axi4_master_wr_pattern_gen + axi4_master_rd_crc_check)
+// master-side engines (axi4_master_wr_injector + axi4_master_rd_crc_check)
 // each with ~15 cfg inputs, this CSR block ALSO holds every engine cfg
 // register — the host writes them here, this block fans them out as
 // steady-state signals to the char macro.

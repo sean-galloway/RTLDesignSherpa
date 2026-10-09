@@ -626,7 +626,7 @@ async def cocotb_test_char_concurrent_gap(dut):
     """The pumice BUG-014 (was PUMICE-037) shape, driven by the REAL hardware engines.
 
     Everything about the stimulus here is the silicon datapath: the same
-    axi4_master_wr_pattern_gen / axi4_master_rd_crc_check instances inside
+    axi4_master_wr_injector / axi4_master_rd_crc_check instances inside
     char_gen_unit, the same pumice_top, the same harness CSRs, programmed by
     the same host code (pumice_char.measure_concurrent) that runs on the board.
     Only the PHY + DRAM are modelled. Nothing here approximates a generator

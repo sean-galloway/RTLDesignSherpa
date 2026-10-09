@@ -31,7 +31,7 @@
 
 ## Overview
 
-`axi4_slave_wr_crc_check` is a write-only AXI4 slave that accepts AW/W bursts, folds the written data into a per-channel CRC-32, and returns B responses. It is the *sink* counterpart to `axi4_slave_rd_pattern_gen`: a master under test writes data, this slave CRCs it, and the resulting CRC can be compared against an independently computed golden value to prove the write path carried the data intact.
+`axi4_slave_wr_crc_check` is a write-only AXI4 slave that accepts AW/W bursts, folds the written data into a per-channel CRC-32, and returns B responses. It is the *sink* counterpart to `axi4_slave_rd_injector`: a master under test writes data, this slave CRCs it, and the resulting CRC can be compared against an independently computed golden value to prove the write path carried the data intact.
 
 The write half of a DMA characterization loop needs a slave that accepts write traffic at full rate and reports whether the data arrived correctly. This module CRCs the incoming write data per channel using exactly the same CRC-32 configuration as the read pattern generator, so if a master reads the LFSR pattern and writes it straight back, the write-side CRC must equal the read-side CRC. Any mismatch localizes a data-path corruption to the write path.
 
@@ -47,7 +47,7 @@ The write half of a DMA characterization loop needs a slave that accepts write t
 
 - Write-only AXI4 slave (AW + W + B channels) built on the standard `axi4_slave_wr` protocol handler
 - Per-channel independent CRC-32 state, demuxed off the low bits of the captured `awid`
-- CRC-32/Ethernet (poly `0x04C11DB7`, reflected in/out) — bit-identical to `axi4_slave_rd_pattern_gen`
+- CRC-32/Ethernet (poly `0x04C11DB7`, reflected in/out) — bit-identical to `axi4_slave_rd_injector`
 - Configurable 32-bit data slice (`CRC_SLICE_OFFSET`) selects which 32-bit lane of a wide bus is CRC'd
 - Gapless back-to-back bursts (AW accepted on the last W beat) so `wready` never drops mid-stream
 - Separately-latched B id/user so back-to-back bursts return the correct response id
@@ -77,7 +77,7 @@ The write half of a DMA characterization loop needs a slave that accepts write t
 | CRC_SLICE_OFFSET | int | 0 | Which 32-bit slice of `wdata` to CRC (in 32-bit units) |
 | CIW | int | (NUM_CHANNELS>1) ? $clog2(NUM_CHANNELS) : 1 | Derived: channel-index width |
 
-**Note:** `CRC_*` must match `axi4_slave_rd_pattern_gen` exactly. A compile-time `$error` fires if `CRC_SLICE_OFFSET` selects a slice beyond `AXI_DATA_WIDTH`.
+**Note:** `CRC_*` must match `axi4_slave_rd_injector` exactly. A compile-time `$error` fires if `CRC_SLICE_OFFSET` selects a slice beyond `AXI_DATA_WIDTH`.
 
 ---
 
@@ -243,7 +243,7 @@ axi4_slave_wr_crc_check #(
 
 ## Design Notes
 
-- **CRC config must match the source:** the whole point is a comparable value. `CRC_POLY`, `CRC_INIT`, `CRC_XOROUT`, `CRC_REFIN`, `CRC_REFOUT`, and the 32-bit slice width are all fixed to mirror `axi4_slave_rd_pattern_gen`.
+- **CRC config must match the source:** the whole point is a comparable value. `CRC_POLY`, `CRC_INIT`, `CRC_XOROUT`, `CRC_REFIN`, `CRC_REFOUT`, and the 32-bit slice width are all fixed to mirror `axi4_slave_rd_injector`.
 - **Channel demux by AW id, not W sideband:** because W is in-order behind AW and only one burst is active at a time, the captured `awid` unambiguously names the channel for that burst's W beats.
 - **B responses queue through a 16-deep FIFO** (`BFIFO_DEPTH`): up to 16 completed bursts can await their B handshake without loss, so a slow B-drain or gapless multi-channel bursts are safe up to that depth.
 - **Gapless accept is a measurement fix:** the back-to-back AW accept prevents the sink from injecting a false ~1-cycle-per-burst starvation into write-side utilization numbers.
@@ -254,7 +254,7 @@ axi4_slave_wr_crc_check #(
 ## Related Modules
 
 ### Used By
-- `axi4_dma_slaves` — bundles this write sink with `axi4_slave_rd_pattern_gen` into a single source/sink slave pair
+- `axi4_dma_slaves` — bundles this write sink with `axi4_slave_rd_injector` into a single source/sink slave pair
 - `projects/NexysA7/stream_characterization/flows-stream-bridge/rtl/stream_char_harness.sv` — on-chip write sink
 - `projects/fpga-systems/Genesys2/dma-ip/rapids_beats/flows-rapids-beats/rtl/rapids_char_harness.sv` — on-chip write sink
 
@@ -263,7 +263,7 @@ axi4_slave_wr_crc_check #(
 - **dataint_crc.sv** — per-channel CRC-32 accumulator
 
 ### See Also
-- **axi4_slave_rd_pattern_gen.sv** — the matching read-side pattern source (same CRC config)
+- **axi4_slave_rd_injector.sv** — the matching read-side pattern source (same CRC config)
 - **axi4_dma_slaves.sv** — the source/sink bundle
 - **axis4_slave_pattern_check.sv** — AXIS equivalent checker
 

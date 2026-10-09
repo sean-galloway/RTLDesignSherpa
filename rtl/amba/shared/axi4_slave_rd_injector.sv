@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 //==============================================================================
-// Module: axi4_slave_rd_pattern_gen
+// Module: axi4_slave_rd_injector
 //==============================================================================
 //
 // TODO -- ARCHITECTURAL RULE: every AXI/AXIL agent must use the standard
@@ -47,7 +47,7 @@
 
 `include "reset_defs.svh"
 
-module axi4_slave_rd_pattern_gen #(
+module axi4_slave_rd_injector #(
     // AXI parameters
     parameter int NUM_CHANNELS  = 1,
     parameter int SKID_DEPTH_AR = 2,
@@ -509,4 +509,4 @@ module axi4_slave_rd_pattern_gen #(
         .busy               (busy)
     );
 
-endmodule : axi4_slave_rd_pattern_gen
+endmodule : axi4_slave_rd_injector

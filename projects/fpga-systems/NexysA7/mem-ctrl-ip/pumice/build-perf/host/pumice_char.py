@@ -47,7 +47,7 @@ The two headline "perf issue" signals the summary flags:
 
 IMPORTANT -- single address dimension. The harness pattern generator walks ONE
 dma_address_gen dimension (index_0; index_1 / stride_1 are held at 0 in a single
-instance, see axi4_master_wr_pattern_gen.sv). So all families are expressed
+instance, see axi4_master_wr_injector.sv). So all families are expressed
 through stride_0 + wrap_mask_0 + burst_len, NOT a nested 2D loop.
 
 Sim vs board. Over the DFI-loopback sim there is no a7ddrphy and no DDR2 page

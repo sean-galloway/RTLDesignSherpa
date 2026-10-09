@@ -231,12 +231,12 @@ next engine that reuses these packages qualifies from the start.
 The harness wraps `rapids_beats_top` with everything needed to drive it from a
 host PC and check both directions on-chip, while leaving the DUT untouched:
 
-- **On-chip AXIS pattern generator and checker.** `axis4_master_pattern_gen`
+- **On-chip AXIS pattern generator and checker.** `axis4_master_injector`
   drives `s_axis` for the sink path; `axis4_slave_pattern_check` consumes
   `m_axis` on the source path. Both are multi-channel with a **per-channel LFSR
   seeded `seed ^ ch`** and a **CRC-32** computed over the actual beats, so the
   data is deterministic and independently reproducible per channel.
-- **Memory-side pattern / CRC.** `axi4_slave_rd_pattern_gen` backs `m_axi_rd`
+- **Memory-side pattern / CRC.** `axi4_slave_rd_injector` backs `m_axi_rd`
   with the same deterministic LFSR stream (this is the source path's memory),
   and `axi4_slave_wr_crc_check` CRCs everything written on `m_axi_wr` (the sink
   path's memory).

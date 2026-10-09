@@ -254,7 +254,7 @@ module bch_loop_harness
     assign w_num_beats = 32'(w_blocks) * 32'(CFG_K_BEATS);
 
     /* verilator lint_off PINCONNECTEMPTY */
-    axis4_master_pattern_gen #(
+    axis4_master_injector #(
         .NUM_CHANNELS(1), .AXIS_DATA_WIDTH(DW), .AXIS_ID_WIDTH(1), .AXIS_DEST_WIDTH(1), .AXIS_USER_WIDTH(1)
     ) u_gen (
         .clk(aclk), .rst_n(dp_rstn),

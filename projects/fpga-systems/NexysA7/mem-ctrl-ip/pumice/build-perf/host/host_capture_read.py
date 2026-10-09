@@ -79,7 +79,7 @@ def drive_reads(port, baud):
     # (enough to see a one-word shift) but repeats every 32 bits, so it cannot
     # tell slot 0 from slot 2. Later beats advance the LFSR, which keeps beat
     # boundaries visible. A fully distinct per-slot pattern would need a
-    # constant/walking data_mode added to axi4_master_wr_pattern_gen (:502-505
+    # constant/walking data_mode added to axi4_master_wr_injector (:502-505
     # documents the only two modes) and a rebuild.
     PHASE_SEED = int(_os.environ.get("CAP_PHASE_SEED", "0"), 0)
     if PHASE_SEED:

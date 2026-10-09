@@ -11,7 +11,7 @@
 -f $REPO_ROOT/rtl/common/filelists/shifter_lfsr_fibonacci.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr.f
--f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd_pattern_gen.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd_injector.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr_crc_check.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_dma_slaves.f
 -f $FRAMEWORK_ROOT/rtl/filelists/instrumentation_mon.f

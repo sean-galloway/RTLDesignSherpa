@@ -8,8 +8,8 @@
 # Purpose: Deterministic, bit-exact software reference model of the on-chip
 #          RAPIDS characterization pattern (per-channel LFSR -> CRC-32).
 #          Mirrors rtl/common/shifter_lfsr_fibonacci.sv and rtl/common/dataint_crc.sv
-#          exactly as wired by axi4_slave_rd_pattern_gen.sv /
-#          axi4_slave_wr_crc_check.sv / axis4_master_pattern_gen.sv.
+#          exactly as wired by axi4_slave_rd_injector.sv /
+#          axi4_slave_wr_crc_check.sv / axis4_master_injector.sv.
 #
 # Documentation: projects/fpga-systems/Genesys2/dma-ip/rapids_beats/flows-rapids-beats/
 # Subsystem: rapids_char_harness

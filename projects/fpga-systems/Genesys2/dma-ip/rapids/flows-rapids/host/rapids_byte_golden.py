@@ -8,8 +8,8 @@
 # Purpose: Deterministic, bit-exact software reference model of the on-chip
 #          RAPIDS characterization pattern (per-channel LFSR -> CRC-32).
 #          Mirrors rtl/common/shifter_lfsr_fibonacci.sv and rtl/common/dataint_crc.sv
-#          exactly as wired by axi4_slave_rd_pattern_gen.sv /
-#          axi4_slave_wr_crc_check.sv / axis4_master_pattern_gen.sv.
+#          exactly as wired by axi4_slave_rd_injector.sv /
+#          axi4_slave_wr_crc_check.sv / axis4_master_injector.sv.
 #
 # Documentation: projects/fpga-systems/Genesys2/dma-ip/rapids/flows-rapids/
 # Subsystem: rapids_byte_harness
@@ -141,7 +141,7 @@ def crc32_over_bytes(data: bytes) -> int:
 
 def beat_bytes(word: int, beat_size: int) -> bytes:
     """The bytes of one pattern beat: the 32-bit LFSR word replicated across
-    the beat (axis4_master_pattern_gen / axi4_slave_rd_pattern_gen), little-
+    the beat (axis4_master_injector / axi4_slave_rd_injector), little-
     endian, lane 0 first."""
     return word.to_bytes(4, 'little') * (beat_size // 4)
 

@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: axi4_master_wr_pattern_gen
+// Module: axi4_master_wr_injector
 // Purpose: Master-side write driver for memory-controller characterization.
 //          Walks an algorithmic address mix (via dma_address_gen) and emits
 //          LFSR-pattern data (via shifter_lfsr_fibonacci) through axi4_master_wr.
@@ -22,7 +22,7 @@
 `include "reset_defs.svh"
 
 //==============================================================================
-// Module: axi4_master_wr_pattern_gen
+// Module: axi4_master_wr_injector
 //==============================================================================
 // Description:
 //   Drives a CSR-programmed sequence of AXI4 write bursts at the FUB side of
@@ -54,7 +54,7 @@
 //   the slave's awready throttling.
 //
 //   Address dimensions: walks dma_address_gen's index_0 only; index_1 is
-//   held at 0. To exercise the 2D path, instantiate a second pattern_gen
+//   held at 0. To exercise the 2D path, instantiate a second injector
 //   with a different cfg_addr_stride_1 + descriptor program.
 //
 // Parameters:
@@ -69,7 +69,7 @@
 //   INDEX_WIDTH    - dma_address_gen index width; default 16
 //   STRIDE_WIDTH   - dma_address_gen signed stride width; default 24
 //==============================================================================
-module axi4_master_wr_pattern_gen #(
+module axi4_master_wr_injector #(
     // ---- AXI ----
     parameter int SKID_DEPTH_AW = 2,
     parameter int SKID_DEPTH_W  = 4,
@@ -264,9 +264,9 @@ module axi4_master_wr_pattern_gen #(
     always_ff @(posedge aclk) begin
         if (aresetn && cfg_start && (BURST_LEN_MULTIPLE > 1)) begin
             assert (cfg_burst_len != 8'd0)
-                else $error("axi4_master_wr_pattern_gen: cfg_burst_len=0 illegal");
+                else $error("axi4_master_wr_injector: cfg_burst_len=0 illegal");
             assert ((32'(cfg_burst_len) % BURST_LEN_MULTIPLE) == 0)
-                else $error("axi4_master_wr_pattern_gen: cfg_burst_len=%0d not a multiple of BURST_LEN_MULTIPLE=%0d (AXI beats per DRAM burst) -> ragged burst -> SLVERR/partial write",
+                else $error("axi4_master_wr_injector: cfg_burst_len=%0d not a multiple of BURST_LEN_MULTIPLE=%0d (AXI beats per DRAM burst) -> ragged burst -> SLVERR/partial write",
                             cfg_burst_len, BURST_LEN_MULTIPLE);
         end
     end
@@ -619,7 +619,7 @@ module axi4_master_wr_pattern_gen #(
     //
     // Changing the function changes every expected data value, which is fine
     // and checked: writer, reader and the Python mirror in
-    // bin/TBClasses/axi4/axi4_master_wr_pattern_gen_tb.py::addr_hash32 must
+    // bin/TBClasses/axi4/axi4_master_wr_injector_tb.py::addr_hash32 must
     // agree bit for bit, and the cross-block CRC compare fails loudly if they
     // do not. Keep all three in step.
     // Argument is `v`, not `x`: f_addr_hash32 below declares its own local
@@ -949,4 +949,4 @@ module axi4_master_wr_pattern_gen #(
         .busy            ()
     );
 
-endmodule : axi4_master_wr_pattern_gen
+endmodule : axi4_master_wr_injector

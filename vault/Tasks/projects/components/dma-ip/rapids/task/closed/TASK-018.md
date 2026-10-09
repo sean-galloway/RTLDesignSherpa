@@ -5,7 +5,7 @@
 
 ## Why
 
-`axis4_master_pattern_gen` streams channels sequentially (finish one channel,
+`axis4_master_injector` streams channels sequentially (finish one channel,
 then the next) so each channel's LFSR sequence stays contiguous for the golden
 CRC. That means only one sink channel ever holds data, and every sink number
 measured under memory latency (perf report 7.5) is ONE channel's window
@@ -24,7 +24,7 @@ generator is the same block and gains the mode for free.
 
 ---
 
-**CLOSED 2026-09-28.** `axis4_master_pattern_gen` gained `cfg_interleave`
+**CLOSED 2026-09-28.** `axis4_master_injector` gained `cfg_interleave`
 (latched with the mask on `cfg_start`): the same next-active scan hands the bus
 to the next active channel after every accepted beat and wraps to the first, so
 one round counter and one packet counter serve every channel; a channel's LFSR

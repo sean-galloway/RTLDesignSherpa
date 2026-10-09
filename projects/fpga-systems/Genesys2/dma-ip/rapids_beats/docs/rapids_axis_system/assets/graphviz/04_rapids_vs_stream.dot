@@ -17,10 +17,10 @@ digraph rapids_vs_stream {
 
     subgraph cluster_rapids {
         label="rapids harness"; style="rounded"; color="#228B22";
-        r_gen [label="axis4_master_pattern_gen\n-> s_axis (SINK ingress)", fillcolor="#e8f1ff"];
+        r_gen [label="axis4_master_injector\n-> s_axis (SINK ingress)", fillcolor="#e8f1ff"];
         r_snk [label="rapids_snk_beats\ns_axis -> SRAM -> m_axi_wr", fillcolor="#d5ecd5", penwidth=2];
         r_wr [label="axi4_slave_wr_crc_check\nbehind m_axi_wr", fillcolor="#e8f1ff"];
-        r_rd [label="axi4_slave_rd_pattern_gen\nbehind m_axi_rd", fillcolor="#e8f1ff"];
+        r_rd [label="axi4_slave_rd_injector\nbehind m_axi_rd", fillcolor="#e8f1ff"];
         r_src [label="rapids_src_beats\nm_axi_rd -> SRAM -> m_axis", fillcolor="#d5ecd5", penwidth=2];
         r_chk [label="axis4_slave_pattern_check\n<- m_axis (SOURCE egress)", fillcolor="#e8f1ff"];
         r_meas [label="four meters (two AXI, two AXIS) +\naxi4_intf_master_observer and axis4_intf_observer,\nor the in-core monitors including\ntwo AXIS monitor-lites", fillcolor="#e9f7e9"];

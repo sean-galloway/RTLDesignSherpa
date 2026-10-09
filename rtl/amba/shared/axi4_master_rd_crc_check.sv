@@ -8,7 +8,7 @@
 // Purpose: Master-side read driver + integrity checker for memory-controller
 //          characterization. Walks the SAME algorithmic address mix
 //          (via dma_address_gen) and the SAME LFSR seed schedule as
-//          axi4_master_wr_pattern_gen, so the returned R beats can be
+//          axi4_master_wr_injector, so the returned R beats can be
 //          compared bit-for-bit against the locally-regenerated pattern.
 //          Accumulates a CRC-32 over the returned data so the harness can
 //          also compare actual_crc against the writer's expected_crc.
@@ -33,7 +33,7 @@
 //   and the running CRC is accumulated over the LFSR words.
 //
 //   Workflow:
-//     1. Software programs cfg_* (same shape as axi4_master_wr_pattern_gen)
+//     1. Software programs cfg_* (same shape as axi4_master_wr_injector)
 //     2. Software pulses cfg_start.
 //     3. The block walks index_0 = 0..cfg_txn_count-1 through
 //        dma_address_gen, issuing one AR per index. For each AR it
@@ -54,7 +54,7 @@
 //
 //   The LFSR + CRC config (seed, polynomial, width) MUST match the writer
 //   side or the comparison and CRC roll-up are meaningless. The default
-//   parameters here mirror axi4_master_wr_pattern_gen exactly.
+//   parameters here mirror axi4_master_wr_injector exactly.
 //
 //   ===== OUT-OF-ORDER COMPLETION — KNOWN LIMITATION (v2 TODO) =====
 //
@@ -96,12 +96,12 @@ module axi4_master_rd_crc_check #(
     parameter int AXI_DATA_WIDTH = 64,
     parameter int AXI_USER_WIDTH = 1,
 
-    // ---- LFSR (MUST match axi4_master_wr_pattern_gen) ----
+    // ---- LFSR (MUST match axi4_master_wr_injector) ----
     parameter int                    LFSR_WIDTH = 32,
     parameter logic [31:0]           LFSR_SEED  = 32'hDEADBEEF,
     parameter logic [47:0]           LFSR_TAPS  = {12'd23, 12'd3, 12'd2, 12'd1},
 
-    // ---- CRC (MUST match axi4_master_wr_pattern_gen) ----
+    // ---- CRC (MUST match axi4_master_wr_injector) ----
     parameter int                    CRC_WIDTH      = 32,
     parameter int                    CRC_DATA_WIDTH = 32,
     parameter logic [CRC_WIDTH-1:0]  CRC_POLY       = 32'h04C11DB7,
@@ -153,7 +153,7 @@ module axi4_master_rd_crc_check #(
     input  logic                       aresetn,
 
     // ==========================================================================
-    // Configuration — same shape as axi4_master_wr_pattern_gen so the
+    // Configuration — same shape as axi4_master_wr_injector so the
     // harness CSR can drive both blocks from one descriptor word.
     // ==========================================================================
     input  logic [AW-1:0]                       cfg_start_addr,
@@ -436,7 +436,7 @@ module axi4_master_rd_crc_check #(
     logic                         w_lfsr_load;
     logic [LFSR_WIDTH-1:0]        w_lfsr_out;
 
-    // Same combinational seed mux as axi4_master_wr_pattern_gen.
+    // Same combinational seed mux as axi4_master_wr_injector.
     logic [LFSR_WIDTH-1:0] w_lfsr_seed_data;
     assign w_lfsr_seed_data = w_lfsr_load
                             ? ((cfg_lfsr_seed == '0) ? LFSR_SEED
@@ -588,8 +588,8 @@ module axi4_master_rd_crc_check #(
     //-------------------------------------------------------------------------
     // Address hash + per-beat compare, combinational
     //-------------------------------------------------------------------------
-    // Must match axi4_master_wr_pattern_gen's f_addr_hash32 and the Python
-    // mirror in bin/TBClasses/axi4/axi4_master_wr_pattern_gen_tb.py bit for
+    // Must match axi4_master_wr_injector's f_addr_hash32 and the Python
+    // mirror in bin/TBClasses/axi4/axi4_master_wr_injector_tb.py bit for
     // bit -- see the writer for why the function is four seeded rotate-XOR
     // rounds instead of Murmur3 fmix, and for the avalanche measurements.
     //

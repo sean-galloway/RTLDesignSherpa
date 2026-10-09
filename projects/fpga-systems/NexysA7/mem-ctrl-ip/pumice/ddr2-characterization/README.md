@@ -78,7 +78,7 @@ configuration; check both before comparing it against a current run.
 - **2026-06-25** — Directory renamed `pumice-memory-controller/` →
   `ddr2-characterization/`. Harness architecture recorded: reuse
   `dma_address_gen`, the stream CRC block, `harness_csr` and the LED/7-seg
-  drivers; author two new master-side blocks, `axi4_master_wr_pattern_gen` and
+  drivers; author two new master-side blocks, `axi4_master_wr_injector` and
   `axi4_master_rd_crc_check`, by adapting stream's slave-side equivalents.
 - **2026-09-10** — The DUT-agnostic half of `ddr2_char_macro` (chargen regs,
   generator arrays, perf taps) extracted into

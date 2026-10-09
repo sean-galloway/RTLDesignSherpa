@@ -1,7 +1,7 @@
 """
 AXI4 Slave Read Pattern Generator - FUB Test Runner
 
-Tests the axi4_slave_rd_pattern_gen module independently:
+Tests the axi4_slave_rd_injector module independently:
   - Single-beat AXI4 read
   - Multi-beat burst reads
   - Back-to-back transactions
@@ -26,8 +26,8 @@ from TBClasses.shared.test_levels import current_level, level_env, reg_level_gri
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
-from projects.components.utility_ip.misc.dv.tbclasses.axi4_slave_rd_pattern_gen_tb import (
-    AXI4SlaveRdPatternGenTB,
+from projects.components.utility_ip.misc.dv.tbclasses.axi4_slave_rd_injector_tb import (
+    AXI4SlaveRdInjectorTB,
 )
 
 
@@ -36,8 +36,8 @@ from projects.components.utility_ip.misc.dv.tbclasses.axi4_slave_rd_pattern_gen_
 # ===========================================================================
 
 @cocotb.test(timeout_time=500, timeout_unit="ms")
-async def cocotb_test_axi4_slave_rd_pattern_gen(dut):
-    """Unified test for axi4_slave_rd_pattern_gen."""
+async def cocotb_test_axi4_slave_rd_injector(dut):
+    """Unified test for axi4_slave_rd_injector."""
     test_type = os.environ.get('TEST_TYPE', 'single')
     # Burst GEOMETRY is protocol structure and stays fixed; the COUNTS are
     # the depth knob, so they are what the level scales.
@@ -45,7 +45,7 @@ async def cocotb_test_axi4_slave_rd_pattern_gen(dut):
           'func': dict(b2b=4, crc=16, stream=16, big_burst=16),
           'full': dict(b2b=12, crc=32, stream=48, big_burst=32)}[current_level()]
 
-    tb = AXI4SlaveRdPatternGenTB(dut)
+    tb = AXI4SlaveRdInjectorTB(dut)
     await tb.setup_clocks_and_reset()
 
     if test_type == 'single':
@@ -94,7 +94,7 @@ def generate_params():
     return params
 
 
-rd_pattern_gen_params = generate_params()
+rd_injector_params = generate_params()
 
 
 # ===========================================================================
@@ -104,9 +104,9 @@ rd_pattern_gen_params = generate_params()
 @pytest.mark.parametrize("test_level", reg_level_grid())
 @pytest.mark.parametrize(
     "test_type, data_width, id_width, user_width",
-    rd_pattern_gen_params,
+    rd_injector_params,
 )
-def test_axi4_slave_rd_pattern_gen(request, test_type, data_width, id_width,
+def test_axi4_slave_rd_injector(request, test_type, data_width, id_width,
                                     user_width, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root_path, tests_dir, log_dir, rtl_dict = get_paths({
@@ -117,9 +117,9 @@ def test_axi4_slave_rd_pattern_gen(request, test_type, data_width, id_width,
         'rtl_common': 'rtl/common',
     })
 
-    dut_name = "axi4_slave_rd_pattern_gen"
+    dut_name = "axi4_slave_rd_injector"
 
-    # rtl/amba/filelists/axi4_slave_rd_pattern_gen.f owns this dependency graph -- the
+    # rtl/amba/filelists/axi4_slave_rd_injector.f owns this dependency graph -- the
     # common CRC/LFSR primitives, the gaxi skid buffer, the axi4 slave and the
     # DUT, plus the reset_defs include path the macro needs. Hand-listing them
     # here duplicated it, so a dependency added in rtl/amba was invisible to
@@ -127,7 +127,7 @@ def test_axi4_slave_rd_pattern_gen(request, test_type, data_width, id_width,
     # test_dma_address_gen.py on 2026-09-07.
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/amba/filelists/axi4_slave_rd_pattern_gen.f')
+        filelist_path='rtl/amba/filelists/axi4_slave_rd_injector.f')
 
     dw_str = TBBase.format_dec(data_width, 3)
     iw_str = TBBase.format_dec(id_width, 2)
@@ -186,7 +186,7 @@ def test_axi4_slave_rd_pattern_gen(request, test_type, data_width, id_width,
             includes=includes,
             toplevel=dut_name,
             module=module,
-            testcase="cocotb_test_axi4_slave_rd_pattern_gen",
+            testcase="cocotb_test_axi4_slave_rd_injector",
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,

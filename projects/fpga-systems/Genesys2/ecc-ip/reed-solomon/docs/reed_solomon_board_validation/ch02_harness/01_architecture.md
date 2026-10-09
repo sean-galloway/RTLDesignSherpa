@@ -10,7 +10,7 @@
 | `rs_loop_harness` | `build-loop/rtl/rs_loop_harness.sv` | Codec loop, register decode, bandwidth meters, observers, verdict tallies. |
 | `rs_loop_cfg_pkg` | `build-loop/rtl/rs_loop_cfg_pkg.sv` | Single source of geometry: RS(252,236), 4 symbols/beat. |
 | `rs_loop_regs` | Generated from `build-loop/rtl/rs_loop_regs.rdl` | Host-visible CSR block. |
-| `axis4_master_pattern_gen` | `rtl/amba/shared/axis4_master_pattern_gen.sv` | LFSR data source plus expected CRC-32, one packet per block. |
+| `axis4_master_injector` | `rtl/amba/shared/axis4_master_injector.sv` | LFSR data source plus expected CRC-32, one packet per block. |
 | `axis4_slave_pattern_check` | `rtl/amba/shared/axis4_slave_pattern_check.sv` | Regenerates the same LFSR pattern and compares beats per decoder. |
 | `rs_encoder_core` | Component RS RTL | RS(252,236) encoder. |
 | `error_injector` | Shared utility RTL | Post-encoder corruption: modes 0..7 plus erasure mark. |
@@ -55,7 +55,7 @@ flowchart LR
     end
 
     subgraph datapath["Codec datapath (AXIS flavor)"]
-        gen["axis4_master_pattern_gen"]
+        gen["axis4_master_injector"]
         enc["rs_encoder_core"]
         inj["error_injector"]
         decA["rs_decoder_core A"]

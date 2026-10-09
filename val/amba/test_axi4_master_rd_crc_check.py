@@ -19,7 +19,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist, filelist_for
 from TBClasses.axi4.axi4_master_rd_crc_check_tb import RdCrcCheckTB
-from TBClasses.axi4.axi4_master_wr_pattern_gen_tb import WrPatternGenTB
+from TBClasses.axi4.axi4_master_wr_injector_tb import WrInjectorTB
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
@@ -363,11 +363,11 @@ async def _hash_mode_low_entropy(tb: RdCrcCheckTB):
     # Sanity check on the Python mirror itself: consecutive byte addresses
     # at addr=0 must not collide. (If they do, the hash is broken even
     # before talking about RTL.)
-    from TBClasses.axi4.axi4_master_wr_pattern_gen_tb import WrPatternGenTB
+    from TBClasses.axi4.axi4_master_wr_injector_tb import WrInjectorTB
     vals = set()
     for k in range(BURST):
         byte_addr = (k * BYTES_PER_BEAT) & 0xFFFFFFFF
-        v = WrPatternGenTB.addr_hash32(byte_addr, *SEEDS)
+        v = WrInjectorTB.addr_hash32(byte_addr, *SEEDS)
         vals.add(v)
     assert len(vals) == BURST, (
         f"hash collisions at low-entropy addrs: only {len(vals)}/{BURST} distinct"
@@ -443,7 +443,7 @@ async def _fill_mismatch_err_bits(tb: RdCrcCheckTB):
     total_beats = BURST * N
     assert int(tb.dut.o_data_error.value) == 1
     assert int(tb.dut.o_beats_mismatched.value) == total_beats
-    expected_per_beat = bin(GARBAGE ^ WrPatternGenTB.expected_fill_beat_data(tb, PAT)).count('1')
+    expected_per_beat = bin(GARBAGE ^ WrInjectorTB.expected_fill_beat_data(tb, PAT)).count('1')
     expected_bits = expected_per_beat * total_beats
     expected_bits = min(expected_bits, (1 << 32) - 1)
     got_bits = int(tb.dut.o_err_bits.value)

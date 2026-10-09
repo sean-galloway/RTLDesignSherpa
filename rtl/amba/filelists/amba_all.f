@@ -38,12 +38,12 @@ $REPO_ROOT/rtl/amba/shared/axi4_dma_slaves.sv
 # projects/components/utility-ip/misc. -f its list rather than naming the path.
 -f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/dma_address_gen.f
 $REPO_ROOT/rtl/amba/shared/axi4_master_rd_crc_check.sv
-$REPO_ROOT/rtl/amba/shared/axi4_master_wr_pattern_gen.sv
-$REPO_ROOT/rtl/amba/shared/axi4_slave_rd_pattern_gen.sv
+$REPO_ROOT/rtl/amba/shared/axi4_master_wr_injector.sv
+$REPO_ROOT/rtl/amba/shared/axi4_slave_rd_injector.sv
 $REPO_ROOT/rtl/amba/shared/axi4_slave_wr_crc_check.sv
 $REPO_ROOT/rtl/amba/shared/axi_bus_meter.sv
 $REPO_ROOT/rtl/amba/shared/axi_perf_latency_hist.sv
-$REPO_ROOT/rtl/amba/shared/axis4_master_pattern_gen.sv
+$REPO_ROOT/rtl/amba/shared/axis4_master_injector.sv
 $REPO_ROOT/rtl/amba/shared/axis4_slave_pattern_check.sv
 $REPO_ROOT/rtl/amba/shared/axis_bus_meter.sv
 $REPO_ROOT/rtl/amba/shared/sdpram_core.sv

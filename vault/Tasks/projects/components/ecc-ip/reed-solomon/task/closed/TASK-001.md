@@ -174,7 +174,7 @@ block at S = 8, decoder 33. One TB bug on the way (a shadowed `vals` in ForneyTB
 HAS 3.2, 4.1, 5.1 (with a measured table), 5.2, 6.2 and the catalog updated.
 
 **2026-09-30 -- Nexys A7 loop harness (Sean: "build this in the nexysa7 board").**
-`projects/fpga-systems/NexysA7/reed-solomon/build-loop`: axis4_master_pattern_gen
+`projects/fpga-systems/NexysA7/reed-solomon/build-loop`: axis4_master_injector
 -> rs_encoder_core RS(252,236) S=4 -> rs_error_injector -> rs_decoder_core x2
 (RIBM, EUCLID) -> axis4_slave_pattern_check x2 + comparator + tallies, PeakRDL
 CSRs (`rs_loop_regs.rdl`) behind the UART bridge via a new shared

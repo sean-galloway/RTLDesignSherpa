@@ -76,7 +76,7 @@ Read-only memory (ROM) with AXI4 read interface. Combines `axi4_slave_rd` protoc
 AXI4 read slave that generates pseudo-random patterns using 32-bit LFSR and computes CRC-32 for DMA validation. Used with companion write CRC checker to verify data integrity across DMA transfers.
 
 **Files:**
-- `rtl/amba/shared/axi4_slave_rd_pattern_gen.sv` (repo-shared AMBA module; misc carries its tests in `dv/tests/fub/test_axi4_slave_rd_pattern_gen.py`)
+- `rtl/amba/shared/axi4_slave_rd_injector.sv` (repo-shared AMBA module; misc carries its tests in `dv/tests/fub/test_axi4_slave_rd_injector.py`)
 
 **Key Features:**
 - 32-bit LFSR pattern generator (maximal length sequence)
@@ -142,7 +142,7 @@ AXI W data → Extract 32-bit slice → CRC-32 → write_crc_value (output)
 - Streaming data path verification
 - End-to-end transfer validation
 
-**Companion Module:** `axi4_slave_rd_pattern_gen.sv`
+**Companion Module:** `axi4_slave_rd_injector.sv`
 
 **Example DMA Test Flow (Python via UART):**
 ```python
@@ -501,7 +501,7 @@ pytest projects/components/utility-ip/misc/dv/tests/ -v
 
 # Run specific component tests
 pytest projects/components/utility-ip/misc/dv/tests/fub/test_dma_address_gen.py -v
-pytest projects/components/utility-ip/misc/dv/tests/fub/test_axi4_slave_rd_pattern_gen.py -v
+pytest projects/components/utility-ip/misc/dv/tests/fub/test_axi4_slave_rd_injector.py -v
 pytest projects/components/utility-ip/misc/dv/tests/fub/test_axi4_slave_wr_crc_check.py -v
 
 # Run with waveforms
@@ -615,7 +615,7 @@ When adding components to `misc/`:
 
 **Status:** Active collection of utility components. Five complete modules:
 - `axi4_slave_rom.sv` - AXI4 ROM wrapper
-- `axi4_slave_rd_pattern_gen.sv` - DMA test pattern generator with CRC
+- `axi4_slave_rd_injector.sv` - DMA read-data injector with CRC
 - `axi4_slave_wr_crc_check.sv` - DMA test CRC checker
 - `error_injector.sv` - Shared stream error injector (eight modes)
 - `uart_to_axil4/` - UART to AXI4-Lite bridge (debug/control interface)

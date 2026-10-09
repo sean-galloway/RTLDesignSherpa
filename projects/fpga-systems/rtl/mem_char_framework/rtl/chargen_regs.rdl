@@ -155,7 +155,7 @@ addrmap chargen_regs {
     };
 
     //=========================================================================
-    // One write generator (axi4_master_wr_pattern_gen)
+    // One write generator (axi4_master_wr_injector)
     //
     // Config occupies 0x00..0x28 in exactly the order and layout harness_csr
     // used for the single-engine build, so host code that programmed the old

@@ -4,11 +4,11 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: axis4_master_pattern_gen
+// Module: axis4_master_injector
 // Purpose: AXI-Stream master that emits a deterministic, PER-CHANNEL LFSR data
 //          pattern for characterization/verification. This is the AXIS SINK
 //          stimulus for the RAPIDS characterization harness and is
-//          pattern/CRC-CONSISTENT with axi4_slave_rd_pattern_gen /
+//          pattern/CRC-CONSISTENT with axi4_slave_rd_injector /
 //          axi4_slave_wr_crc_check: the per-channel 32-bit CRC-32 it computes
 //          is bit-identical to what axi4_slave_wr_crc_check produces for the
 //          same emitted stream (sink self-check: axis_gen -> m_axi_wr ->
@@ -22,7 +22,7 @@
 //   round-robin beat by beat across the active channels so every active
 //   channel holds data in the DUT at once (the aggregate-window case). Each
 //   channel N maintains an
-//   independent LFSR seeded (seed ^ N) -- IDENTICAL to axi4_slave_rd_pattern_gen
+//   independent LFSR seeded (seed ^ N) -- IDENTICAL to axi4_slave_rd_injector
 //   -- and its own dataint_crc-32 instance. Each beat:
 //     - m_axis_tid   = channel index
 //     - m_axis_tdata = {REP{lfsr_out[ch]}}  (32-bit LFSR replicated to fill bus)
@@ -36,7 +36,7 @@
 //   channels take the bus differs.
 //
 //   The per-channel expected CRC is exported continuously (o_expected_crc[ch],
-//   o_expected_crc_valid[ch]) mirroring axi4_slave_rd_pattern_gen's
+//   o_expected_crc_valid[ch]) mirroring axi4_slave_rd_injector's
 //   read_crc_value / read_crc_valid semantics -- NOT the old XOR-fold signature.
 //
 // CRC bit-consistency (copied VERBATIM from the axi4 blocks):
@@ -59,19 +59,19 @@
 
 `include "reset_defs.svh"
 
-module axis4_master_pattern_gen #(
+module axis4_master_injector #(
     parameter int          NUM_CHANNELS     = 1,
     parameter int          AXIS_DATA_WIDTH  = 512,
     parameter int          AXIS_ID_WIDTH    = 8,
     parameter int          AXIS_DEST_WIDTH  = 4,
     parameter int          AXIS_USER_WIDTH  = 1,
 
-    // LFSR parameters (32-bit fixed; MUST MATCH axi4_slave_rd_pattern_gen!)
+    // LFSR parameters (32-bit fixed; MUST MATCH axi4_slave_rd_injector!)
     parameter int          LFSR_WIDTH       = 32,
     parameter logic [31:0] LFSR_SEED        = 32'hDEADBEEF,
     parameter logic [47:0] LFSR_TAPS        = {12'd23, 12'd3, 12'd2, 12'd1},
 
-    // CRC parameters (fixed; MUST MATCH axi4_slave_rd_pattern_gen /
+    // CRC parameters (fixed; MUST MATCH axi4_slave_rd_injector /
     // axi4_slave_wr_crc_check!)
     parameter int          CRC_WIDTH        = 32,
     parameter int          CRC_DATA_WIDTH   = 32,   // process 32-bit LFSR output only
@@ -105,7 +105,7 @@ module axis4_master_pattern_gen #(
     output logic                          cfg_busy,
     output logic                          cfg_done,           // 1-cycle pulse at end of run
 
-    // Per-channel expected CRC (mirrors axi4_slave_rd_pattern_gen.read_crc_value)
+    // Per-channel expected CRC (mirrors axi4_slave_rd_injector.read_crc_value)
     output logic [NUM_CHANNELS-1:0][31:0] o_expected_crc,
     output logic [NUM_CHANNELS-1:0]       o_expected_crc_valid,
     output logic [NUM_CHANNELS-1:0][31:0] o_beat_count,       // per-channel beats emitted
@@ -199,7 +199,7 @@ module axis4_master_pattern_gen #(
     // Per-channel LFSR pattern generators + CRC-32 calculators
     //==========================================================================
     // seed/taps/replication/CRC instantiation + gating are copied VERBATIM from
-    // axi4_slave_rd_pattern_gen so the per-channel 32-bit CRC is bit-identical.
+    // axi4_slave_rd_injector so the per-channel 32-bit CRC is bit-identical.
 
     genvar gch;
     generate
@@ -376,4 +376,4 @@ module axis4_master_pattern_gen #(
         end
     )
 
-endmodule : axis4_master_pattern_gen
+endmodule : axis4_master_injector

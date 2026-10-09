@@ -4,7 +4,7 @@
 // Module: axi4_dma_slaves
 // Purpose: Synthetic AXI4 slave pair for DMA / streaming engine
 //          characterization. Combines:
-//            - axi4_slave_rd_pattern_gen  (AR/R: synthetic LFSR data source)
+//            - axi4_slave_rd_injector     (AR/R: synthetic LFSR data source)
 //            - axi4_slave_wr_crc_check    (AW/W/B: CRC-checking sink)
 //          into one block that an AXI master can plug into for
 //          source/sink testing without a real memory backend.
@@ -151,7 +151,7 @@ module axi4_dma_slaves #(
     // ---------------------------------------------------------------
     // Read side: LFSR-driven synthetic data + CRC accumulator
     // ---------------------------------------------------------------
-    axi4_slave_rd_pattern_gen #(
+    axi4_slave_rd_injector #(
         .NUM_CHANNELS       (NUM_CHANNELS),
         .SKID_DEPTH_AR      (SKID_DEPTH_AR),
         .SKID_DEPTH_R       (SKID_DEPTH_R),
@@ -170,7 +170,7 @@ module axi4_dma_slaves #(
         .CRC_REFIN          (CRC_REFIN),
         .CRC_REFOUT         (CRC_REFOUT),
         .REPLICATION_FACTOR (REPLICATION_FACTOR)
-    ) u_rd_pattern_gen (
+    ) u_rd_injector (
         .aclk                  (aclk),
         .aresetn               (aresetn),
         .crc_lfsr_reset        (read_lfsr_reset),

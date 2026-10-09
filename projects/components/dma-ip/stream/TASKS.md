@@ -147,7 +147,7 @@ addr-gen queues instead.
 `result_addr = base + index_0*stride_0 + index_1*stride_1`, signed strides +
 power-of-2 wrap masks → linear / row-major / col-major / circular / reverse /
 scatter. 2-stage pipelined, valid/ready. Already used this exact way in
-`rtl/amba/shared/axi4_master_wr_pattern_gen.sv`. Linear is the strict subset
+`rtl/amba/shared/axi4_master_wr_injector.sv`. Linear is the strict subset
 `stride_0=beat_size, stride_1=0, wrap=0`.
 
 **Acceptance Criteria:**

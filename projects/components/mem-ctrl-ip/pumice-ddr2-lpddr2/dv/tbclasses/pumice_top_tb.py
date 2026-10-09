@@ -522,7 +522,7 @@ class DDR2LPDDR2TopTB:
 
         BFM default timing inserts bubbles on valid/ready, which DOESN'T
         match what real engine traffic looks like (the engine's
-        axi4_master_wr_pattern_gen drives every cycle). Use 'backtoback'
+        axi4_master_wr_injector drives every cycle). Use 'backtoback'
         to mimic the engine. Mixing profiles per channel is a future
         extension that'll catch a much broader bug class than the
         single-profile sweep we have today — most controller-side

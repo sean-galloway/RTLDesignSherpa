@@ -14,7 +14,7 @@
 //   One generator unit, N generator blocks inside it, one AXI4 master port out
 //   that hooks straight to the memory controller's s_axi:
 //
-//     cfg_i -> axi4_master_wr_pattern_gen [NUM_GEN] -\
+//     cfg_i -> axi4_master_wr_injector [NUM_GEN] -\
 //                                                     >-- m_axi_* -> the MC
 //              axi4_master_rd_crc_check   [NUM_GEN] -/
 //
@@ -88,7 +88,7 @@ module char_gen_unit #(
     parameter int AXI_ADDR_WIDTH   = 32,
     parameter int AXI_DATA_WIDTH   = 64,
     // AXI_ID_WIDTH=8 to match the pattern-gen engines' internal 8-bit LFSR
-    // for the ID-picker (axi4_master_wr_pattern_gen slices cfg_axi_id[7:0]).
+    // for the ID-picker (axi4_master_wr_injector slices cfg_axi_id[7:0]).
     parameter int AXI_ID_WIDTH     = 8,
     parameter int AXI_USER_WIDTH   = 8,
     parameter int AXI_STRB_WIDTH   = AXI_DATA_WIDTH / 8,
@@ -350,7 +350,7 @@ module char_gen_unit #(
     //=========================================================================
     generate
     for (genvar g = 0; g < NUM_GEN; g++) begin : g_wr_engine
-        axi4_master_wr_pattern_gen #(
+        axi4_master_wr_injector #(
             .AXI_ID_WIDTH       (AXI_ID_WIDTH),
             .AXI_ADDR_WIDTH     (AXI_ADDR_WIDTH),
             .AXI_DATA_WIDTH     (AXI_DATA_WIDTH),

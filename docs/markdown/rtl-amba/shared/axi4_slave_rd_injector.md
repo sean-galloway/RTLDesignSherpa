@@ -21,9 +21,9 @@
 
 <!-- End Header -->
 
-# AXI4 Slave Read Pattern Generator
+# AXI4 Slave Read Injector
 
-**Module:** `axi4_slave_rd_pattern_gen.sv`
+**Module:** `axi4_slave_rd_injector.sv`
 **Location:** `rtl/amba/shared/`
 **Status:** Production Ready
 
@@ -31,7 +31,7 @@
 
 ## Overview
 
-`axi4_slave_rd_pattern_gen` is a read-only AXI4 slave that answers AR bursts with deterministic, LFSR-generated data and accumulates a running CRC-32 over the stream it emits. It exists to serve as a synthetic data *source* for DMA / streaming-engine characterization: a master under test issues read bursts, the slave returns a reproducible pseudo-random pattern, and the same pattern (and CRC) can be regenerated anywhere else in the system to prove end-to-end data integrity.
+`axi4_slave_rd_injector` is a read-only AXI4 slave that answers AR bursts with deterministic, LFSR-generated data and accumulates a running CRC-32 over the stream it emits. It exists to serve as a synthetic data *source* for DMA / streaming-engine characterization: a master under test issues read bursts, the slave returns a reproducible pseudo-random pattern, and the same pattern (and CRC) can be regenerated anywhere else in the system to prove end-to-end data integrity.
 
 Characterizing a DMA read path needs a slave that is both *fast* (never the bottleneck) and *checkable* (the returned data is a known function of the request). A real memory backend gives you neither cheaply. This module instead generates its read data from a Fibonacci LFSR, so every beat is a deterministic function of `(seed, beat_index)`, and folds that same data into a CRC-32 the harness can compare against an independently computed golden value.
 
@@ -193,7 +193,7 @@ device and the parameters you elaborate with; run your own build.
 ## Usage Examples
 ```systemverilog
 // Synthetic read source for a 4-channel DMA characterization run.
-axi4_slave_rd_pattern_gen #(
+axi4_slave_rd_injector #(
     .NUM_CHANNELS   (4),
     .AXI_ID_WIDTH   (8),
     .AXI_ADDR_WIDTH (32),
@@ -255,7 +255,7 @@ axi4_slave_rd_pattern_gen #(
 ### See Also
 - **axi4_slave_wr_crc_check.sv** — the matching write-side CRC sink (same CRC config)
 - **axi4_dma_slaves.sv** — the source/sink bundle
-- **axis4_master_pattern_gen.sv** — AXIS equivalent of this generator
+- **axis4_master_injector.sv** — AXIS equivalent of this generator
 
 ---
 
@@ -268,7 +268,7 @@ Covered from `val/amba/` with the rest of the shared area — run everything wit
 ## References
 
 ### Source Code
-- RTL: `rtl/amba/shared/axi4_slave_rd_pattern_gen.sv`
+- RTL: `rtl/amba/shared/axi4_slave_rd_injector.sv`
 - Protocol Handler: `rtl/amba/axi4/axi4_slave_rd.sv`
 
 ### Documentation

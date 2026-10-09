@@ -48,7 +48,7 @@ harness blocks scale with NUM_CHANNELS; only the DUT does.
 | **u_stream** | `stream_top_ch8` | **20 370** | **20 568** | **8.0** | **1** | **DMA + monitors (see §0.2)** |
 | u_bridge | `bridge_stream_char_axil` | 1 899 | 1 777 | 0 | 0 | host AXIL xbar fanout (CSR / desc-ram / STREAM APB / debug-SRAM / status) |
 | u_csr | `harness_csr` | 1 427 | 613 | 0 | 0 | harness registers (kick, timer, resp-delay knobs, status mirror) |
-| u_rd_pattern | `axi4_slave_rd_pattern_gen` | 1 419 | 1 222 | 0 | 0 | R-side LFSR pattern generator + per-channel CRC slave |
+| u_rd_pattern | `axi4_slave_rd_injector` | 1 419 | 1 222 | 0 | 0 | R-side LFSR pattern generator + per-channel CRC slave |
 | u_wr_crc_check | `axi4_slave_wr_crc_check` | 1 331 | 943 | 0 | 0 | W-side per-channel CRC checker slave |
 | u_desc_ram | `desc_ram` | 814 | 574 | 0 | 0 | descriptor source memory (LUTRAM, 128 × 256 b) |
 | u_uart | `uart_axil_bridge` | 459 | 617 | 0 | 0 | UART RX/TX → AXIL host bridge |
@@ -210,7 +210,7 @@ The harness wraps `stream_top_ch8` with everything needed to drive it from a hos
 - **`harness_csr` — the instrumentation hub.** Holds the kick-burst path, the response-delay programming registers, the cycle-stamp timer, status outputs, and the LED/7-seg drivers. Not part of the engine; this is the harness's nervous system.
 - **`stream_top_ch8` — the DUT.** Three AXI4 masters: descriptor fetch, data read, data write. Each master is 8-deep outstanding (per channel) with 16-beat bursts.
 - **Harness slaves.** Each AXI master is wrapped by a slave that produces or checks data with deterministic patterns:
-  - `axi4_slave_rd_pattern_gen` produces an LFSR-driven byte stream and computes a per-channel CRC over what was actually read.
+  - `axi4_slave_rd_injector` produces an LFSR-driven byte stream and computes a per-channel CRC over what was actually read.
   - `axi4_slave_wr_crc_check` accepts writes and computes a per-channel CRC over what was actually written. End of test the read CRC and write CRC are compared.
   - `axi_response_delay` (R and B sides) injects programmable, pipelined memory latency between the slaves and the DUT — this is the hook that makes the latency-tolerance experiments possible.
 - **Status out.** LEDs, 7-seg digits, and the IRQ pin show real-time and post-test status. PASS = `0x0123` on the LEDs and `"0123"` on the 7-seg; FAIL = `0x9999` everywhere.
@@ -282,7 +282,7 @@ Single-channel correctness is easy: pull a deterministic LFSR pattern from the r
 
 Multi-channel breaks that. If all channels share one slave's LFSR/CRC computation, the per-beat data ordering at the shared slave depends on AXI ID interleave between channels — which in turn depends on arbitration timing, which is exactly the thing the experiment is supposed to vary. The CRCs don't match, but not for the reason of any actual data corruption.
 
-The fix is per-channel state inside the slaves: `axi4_slave_rd_pattern_gen` runs an independent LFSR per AXI ID, and `axi4_slave_wr_crc_check` computes one CRC per AXI ID. The DUT writes `awid = ch` and `arid = ch` so the slaves can demux. With per-channel CRCs, end-of-test verification compares ch-0 read CRC against ch-0 write CRC, ch-1 against ch-1, and so on. A CRC mismatch on a channel now genuinely flags corruption on that channel, independent of how the channels interleaved at the AXI level.
+The fix is per-channel state inside the slaves: `axi4_slave_rd_injector` runs an independent LFSR per AXI ID, and `axi4_slave_wr_crc_check` computes one CRC per AXI ID. The DUT writes `awid = ch` and `arid = ch` so the slaves can demux. With per-channel CRCs, end-of-test verification compares ch-0 read CRC against ch-0 write CRC, ch-1 against ch-1, and so on. A CRC mismatch on a channel now genuinely flags corruption on that channel, independent of how the channels interleaved at the AXI level.
 
 ### 3.6 Hook 5: Configuration package for sweeps
 

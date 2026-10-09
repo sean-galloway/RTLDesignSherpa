@@ -13,7 +13,7 @@
 //   Everything in the characterization loop that is NOT the memory controller:
 //
 //     chargen_regs (per-generator config, PeakRDL behind an APB window)
-//       -> char_gen_unit: axi4_master_wr_pattern_gen [NUM_GEN]
+//       -> char_gen_unit: axi4_master_wr_injector [NUM_GEN]
 //                         axi4_master_rd_crc_check   [NUM_GEN]
 //                         + the N:1 merge onto ONE AXI4 master port (m_axi_*)
 //       + axi_bus_meter x2 and axi_perf_latency_hist x2 tapped on that port
@@ -42,7 +42,7 @@ module char_engine_block
     parameter int AXI_ADDR_WIDTH   = 32,
     parameter int AXI_DATA_WIDTH   = 64,
     // AXI_ID_WIDTH=8 to match the pattern-gen engines' internal 8-bit LFSR
-    // for the ID-picker (axi4_master_wr_pattern_gen slices cfg_axi_id[7:0]).
+    // for the ID-picker (axi4_master_wr_injector slices cfg_axi_id[7:0]).
     parameter int AXI_ID_WIDTH     = 8,
     parameter int AXI_USER_WIDTH   = 8,
     parameter int AXI_STRB_WIDTH   = AXI_DATA_WIDTH / 8,

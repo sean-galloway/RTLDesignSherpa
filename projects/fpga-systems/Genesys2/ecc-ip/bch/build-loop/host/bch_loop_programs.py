@@ -81,7 +81,7 @@ def expected_byte_crc(gen_seed: int, blocks: int, k_bits: int,
     the reference value for CRC_A.
 
     A zero GEN_SEED maps to the RTL's default LFSR_SEED (0xDEADBEEF), matching
-    axis4_master_pattern_gen / axis4_slave_pattern_check.
+    axis4_master_injector / axis4_slave_pattern_check.
     """
     k_beats = (k_bits + data_width - 1) // data_width
     tail_bits = k_bits % data_width

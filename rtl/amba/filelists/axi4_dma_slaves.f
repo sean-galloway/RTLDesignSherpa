@@ -7,7 +7,7 @@
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 
--f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd_pattern_gen.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd_injector.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr_crc_check.f
 
 $REPO_ROOT/rtl/amba/shared/axi4_dma_slaves.sv

@@ -280,7 +280,7 @@ All protocol-agnostic. The monitor core, monbus infrastructure and monbus arbite
 
 **Storage helpers (5)** — used by harnesses, not the monitor path itself: `sdpram_core.sv` (shared core) + `sdpram_slave_{axi4,axil}_{axi4,axil}.sv` (4 protocol-pair wrappers). Replaces the deleted unified `sdpram_slave.sv`.
 
-**Test infrastructure helpers:** `axi4_dma_slaves.sv`, `axi4_slave_rd_pattern_gen.sv`, `axi4_slave_wr_crc_check.sv`, `axi_master_{rd,wr}_splitter.sv`, `axi_split_combi.sv`, `axi_gen_addr.sv`, `amba_clock_gate_ctrl.sv`, `apb_monitor_addr_check.sv`
+**Test infrastructure helpers:** `axi4_dma_slaves.sv`, `axi4_slave_rd_injector.sv`, `axi4_slave_wr_crc_check.sv`, `axi_master_{rd,wr}_splitter.sv`, `axi_split_combi.sv`, `axi_gen_addr.sv`, `amba_clock_gate_ctrl.sv`, `apb_monitor_addr_check.sv`
 
 **Removed:** the prior `mon_temp/` legacy `trans_mgr` (deleted in `d246a72d`) and the unified `sdpram_slave.sv` (replaced by `sdpram_core.sv` + 4 wrappers). Don't reference these in new code.
 

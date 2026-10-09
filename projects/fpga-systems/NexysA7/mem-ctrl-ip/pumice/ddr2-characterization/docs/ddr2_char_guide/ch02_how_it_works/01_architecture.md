@@ -30,7 +30,7 @@ host transaction to the right slave via per-slave adapters.
 |------|------|
 | `build-perf/rtl/ddr2_char_top.sv` | FPGA pin-level top: wraps the harness, the flat-DFI→per-phase adapter, and the a7ddrphy black box; MMCM clock synthesis (sys / sys2x / sys4x / sys4x_dqs), IDELAYCTRL, DDR2 pads. |
 | `build-perf/rtl/ddr2_char_harness.sv` | Internal integration: `uart_axil_bridge` + `bridge_ddr2_char_axil` + `harness_csr` + `debug_sram` + `dfi_mon_ram` + `ddr2_char_macro` + char timer + LED / 7-seg. |
-| `ddr2_char_framework/rtl/char_engine_block.sv` | The DUT-agnostic spine: `chargen_regs` (per-generator config behind the `chargen_apb` window), the generator arrays (`axi4_master_wr_pattern_gen` / `axi4_master_rd_crc_check`), the two per-direction crossbars that merge them onto one AXI4 master, and the perf taps (bus meters + latency histograms) on that port. Shared by the pumice and LiteDRAM flows. |
+| `ddr2_char_framework/rtl/char_engine_block.sv` | The DUT-agnostic spine: `chargen_regs` (per-generator config behind the `chargen_apb` window), the generator arrays (`axi4_master_wr_injector` / `axi4_master_rd_crc_check`), the two per-direction crossbars that merge them onto one AXI4 master, and the perf taps (bus meters + latency histograms) on that port. Shared by the pumice and LiteDRAM flows. |
 | `ddr2_char_framework/rtl/ddr2_char_macro.sv` | Wraps `char_engine_block` around pumice: the block's AXI4 master drives the controller's `s_axi`, and the APB CSR / DFI / runtime controls pass through. |
 | `ddr2_char_framework/rtl/harness_csr.sv` | The AXIL CSR slave (Chapter 5). Hand-written (self-clearing pulses, latches, PHY passthrough). |
 | `ddr2_char_framework/rtl/dfi_v21_flat_to_a7ddrphy.sv` | Combinational adapter: pumice's phase-packed flat DFI v2.1 → a7ddrphy per-phase ports (`NPHASES = 4`). |
@@ -43,7 +43,7 @@ host transaction to the right slave via per-slave adapters.
 Inside `char_engine_block` (instantiated by `ddr2_char_macro`, and by the LiteDRAM flow's `char_engine_harness`), master-side AXI4 engines generate and check
 traffic against the controller's `s_axi` port:
 
-- **Write engine** (`axi4_master_wr_pattern_gen`) — emits an LFSR data pattern
+- **Write engine** (`axi4_master_wr_injector`) — emits an LFSR data pattern
   across the programmed address pattern, and latches an expected CRC.
 - **Read engine** (`axi4_master_rd_crc_check`) — re-reads the same pattern and
   computes an actual CRC, plus a per-beat mismatch count.

@@ -18,9 +18,9 @@ digraph harness_blocks {
 
     subgraph cluster_stim {
         label="Stimulus and checking (synthesizable, seeded)"; style="rounded"; color="#404040";
-        gen  [label="axis4_master_pattern_gen\nsink ingress: LFSR data, beats/ch,\nchannel mask, GEN_MODE interleave", fillcolor="#e8f1ff"];
+        gen  [label="axis4_master_injector\nsink ingress: LFSR data, beats/ch,\nchannel mask, GEN_MODE interleave", fillcolor="#e8f1ff"];
         chk  [label="axis4_slave_pattern_check\nsource egress: CRC per channel,\nchk_ready_en backpressure knob", fillcolor="#e8f1ff"];
-        rdgen [label="axi4_slave_rd_pattern_gen\nbacks m_axi_rd: LFSR read data", fillcolor="#e8f1ff"];
+        rdgen [label="axi4_slave_rd_injector\nbacks m_axi_rd: LFSR read data", fillcolor="#e8f1ff"];
         wrcrc [label="axi4_slave_wr_crc_check\nbacks m_axi_wr: CRC per channel", fillcolor="#e8f1ff"];
         dly  [label="axi_response_delay x2\nRESP_DELAY on R and on B:\nthe memory-latency knob", fillcolor="#e8f1ff"];
     }

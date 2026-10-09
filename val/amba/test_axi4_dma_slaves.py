@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
 """Unit-test runner for `axi4_dma_slaves` -- the bundle wrapper combining
-`axi4_slave_rd_pattern_gen` (AR/R) and `axi4_slave_wr_crc_check` (AW/W/B)
+`axi4_slave_rd_injector` (AR/R) and `axi4_slave_wr_crc_check` (AW/W/B)
 behind one aclk/aresetn.
 
 The TB drives BOTH sides of the one DUT with the RDS-DV framework's
@@ -11,7 +11,7 @@ AXI4MasterRead/AXI4MasterWrite BFMs -- never a hand-rolled poke.
 Integration scenario (from the module header comment): "the master
 writes back the same LFSR data it read, so both sides compute against
 the same CRC". This is the one thing only the bundle can prove -- the
-per-block tests (test_axi4_slave_rd_pattern_gen.py,
+per-block tests (test_axi4_slave_rd_injector.py,
 test_axi4_slave_wr_crc_check.py) already cover each side in isolation.
 
 REG_LEVEL (env, default FUNC) selects how many (test_type, test_level)

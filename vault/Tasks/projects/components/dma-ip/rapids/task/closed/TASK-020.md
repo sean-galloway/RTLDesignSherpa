@@ -34,7 +34,7 @@ error path are covered only in the unit and macro sims.
 
 The two synthetic AXI slaves in `rtl/amba/shared/` are where a response is
 manufactured, and both hardwired OKAY (`axi4_slave_wr_crc_check.sv` BRESP,
-`axi4_slave_rd_pattern_gen.sv` RRESP). They are SHARED with STREAM's harness
+`axi4_slave_rd_injector.sv` RRESP). They are SHARED with STREAM's harness
 and the RAPIDS-beats harness, so the hook follows the `BYTE_CRC` precedent:
 a `parameter bit ERR_INJECT = 1'b0` whose 0 case elaborates none of the logic
 and holds the response at OKAY. Every other consumer keeps today's behaviour
@@ -95,13 +95,13 @@ not something to infer from a status bit. That box stays open deliberately.
 | `val/amba/test_axi4_slave_wr_crc_check.py`, whole file | 6/6 (the five ERR_INJECT=0 scenarios unchanged) |
 | `val/amba` read-side injection cell, RED then GREEN | RED on the missing parameter, then pass |
 | read-side mutation check (hold `fub_axi_rresp` at OKAY) | test FAILS on the SLVERR expectation only, restore verified |
-| `val/amba/test_axi4_slave_rd_pattern_gen.py`, whole file | 6/6 |
+| `val/amba/test_axi4_slave_rd_injector.py`, whole file | 6/6 |
 | `val/amba/test_axi4_dma_slaves.py` (the wrapper) | 4/4 |
 | verilator `--lint-only -Wall` elaboration, all three blocks | PINMISSING-clean after the fix below; the rest are pre-existing warnings in untouched files |
 | yosys `-sv` parse, both harnesses + both slaves | 0 errors |
 
 **One real bug the lint caught.** The first wrapper edit tied off only the
-WRITE leaf; `u_rd_pattern_gen`'s five new inputs were left unconnected.
+WRITE leaf; `u_rd_injector`'s five new inputs were left unconnected.
 `test_axi4_dma_slaves.py` still passed 4/4, because Verilator defaults a
 missing input pin to 0 and 0 is exactly "disarmed". A test cannot see that
 class of mistake; only an elaboration warning can. (Related: the repo's lint

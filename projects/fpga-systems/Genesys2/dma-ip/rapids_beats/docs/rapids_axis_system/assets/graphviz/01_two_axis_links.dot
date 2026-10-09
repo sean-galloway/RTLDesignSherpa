@@ -5,7 +5,7 @@ digraph two_axis_links {
     node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
     edge  [fontname="Helvetica", fontsize=9];
 
-    gen [label="axis4_master_pattern_gen\nAXIS master, no address channel\nper-channel LFSR (seed ^ ch) + CRC-32\nsequential or interleaved channel schedule\ncfg: seed, beats/ch, beats/pkt (tlast), mask, tdest", fillcolor="#e8f1ff"];
+    gen [label="axis4_master_injector\nAXIS master, no address channel\nper-channel LFSR (seed ^ ch) + CRC-32\nsequential or interleaved channel schedule\ncfg: seed, beats/ch, beats/pkt (tlast), mask, tdest", fillcolor="#e8f1ff"];
     chk [label="axis4_slave_pattern_check\nAXIS slave, tready = ready_en (backpressure knob)\ndemux by tid into a per-channel LFSR + CRC-32\nsticky data_error, per-channel CRCs,\naggregate beats and packets (tlast)", fillcolor="#e8f1ff"];
 
     subgraph cluster_dut {
@@ -21,7 +21,7 @@ digraph two_axis_links {
         obs [label="axis4_intf_observer  (USE_OBSERVERS=1)\nport 0 = s_axis, port 1 = m_axis\nper-tid utilization, exact bytes (tstrb),\npackets (tlast), MonBus taps; own APB window", fillcolor="#e9f7e9", style="rounded,filled,dashed"];
     }
 
-    mem [label="the memory side\naxi_response_delay -> axi4_slave_wr_crc_check (sink)\naxi_response_delay <- axi4_slave_rd_pattern_gen (source)", fillcolor="#f4f4f4"];
+    mem [label="the memory side\naxi_response_delay -> axi4_slave_wr_crc_check (sink)\naxi_response_delay <- axi4_slave_rd_injector (source)", fillcolor="#f4f4f4"];
 
     gen -> snk [label="s_axis  256-bit, tid[7:0], tdest[3:0], tuser, tstrb, tlast", penwidth=2];
     src -> chk [label="m_axis  256-bit, tid = channel, tlast", penwidth=2];

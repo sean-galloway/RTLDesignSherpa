@@ -19,7 +19,7 @@ flowchart LR
     win0 --> ctrl["CTRL / GO / GEN_BLOCKS / INJ_CFG<br/>BUILD_ID / SCRATCH / PROFILE / TOPOLOGY"]
 
     subgraph loop ["Codec loop"]
-        gen["axis4_master_pattern_gen<br/>LFSR + CRC-32"]
+        gen["axis4_master_injector<br/>LFSR + CRC-32"]
         enc["bch_encoder_core"]
         inj["error_injector<br/>SYMBOL_WIDTH=1"]
         dec["bch_decoder_core<br/>riBM"]

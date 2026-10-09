@@ -1,7 +1,7 @@
 """
 AXI4 Slave Read Pattern Generator Testbench
 
-TB class for axi4_slave_rd_pattern_gen.sv FUB testing.
+TB class for axi4_slave_rd_injector.sv FUB testing.
 Drives AXI4 AR channel with burst requests and verifies R channel
 responses contain LFSR-generated pattern data.
 
@@ -15,8 +15,8 @@ from cocotb.triggers import RisingEdge, ReadOnly
 from TBClasses.shared.tbbase import TBBase
 
 
-class AXI4SlaveRdPatternGenTB(TBBase):
-    """Testbench for axi4_slave_rd_pattern_gen module."""
+class AXI4SlaveRdInjectorTB(TBBase):
+    """Testbench for axi4_slave_rd_injector module."""
 
     def __init__(self, dut, **kwargs):
         super().__init__(dut)

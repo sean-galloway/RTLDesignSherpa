@@ -8,9 +8,9 @@
 //
 // Instantiates:
 //   - rapids_beats_top          (DUT: split SOURCE + SINK beats DMA)
-//   - axis4_master_pattern_gen  (drives DUT s_axis_* : sink-ingress stimulus)
+//   - axis4_master_injector  (drives DUT s_axis_* : sink-ingress stimulus)
 //   - axis4_slave_pattern_check (consumes DUT m_axis_*: source-egress check)
-//   - axi4_slave_rd_pattern_gen (backs DUT m_axi_rd_*  : 512b source data source)
+//   - axi4_slave_rd_injector (backs DUT m_axi_rd_*  : 512b source data source)
 //   - axi4_slave_wr_crc_check   (backs DUT m_axi_wr_*  : 512b sink data verify)
 //   - sdpram_slave_axi4_axi4 x2 (descriptor RAM per half; DUT reads port A via
 //                                {src,snk}_m_axi_desc_*, host writes descriptors
@@ -1466,11 +1466,11 @@ module rapids_char_harness #(
     // AXIS pattern generator -> DUT s_axis (sink-ingress stimulus)
     //=========================================================================
     // NOTE: LFSR/CRC params left at defaults, which are IDENTICAL across
-    // axis4_master_pattern_gen, axis4_slave_pattern_check,
-    // axi4_slave_rd_pattern_gen and axi4_slave_wr_crc_check (LFSR_SEED=DEADBEEF,
+    // axis4_master_injector, axis4_slave_pattern_check,
+    // axi4_slave_rd_injector and axi4_slave_wr_crc_check (LFSR_SEED=DEADBEEF,
     // LFSR_TAPS={32,22,2,1}, CRC-32 Ethernet 0x04C11DB7). This keeps the on-chip
     // self-check (per-channel CRC) bit-consistent across all four blocks.
-    axis4_master_pattern_gen #(
+    axis4_master_injector #(
         .NUM_CHANNELS    (NUM_CHANNELS),
         .AXIS_DATA_WIDTH (DATA_WIDTH),
         .AXIS_ID_WIDTH   (AXIS_ID_WIDTH),
@@ -1537,7 +1537,7 @@ module rapids_char_harness #(
     //=========================================================================
     // Source-data memory: LFSR pattern generator backing DUT m_axi_rd_*
     //=========================================================================
-    axi4_slave_rd_pattern_gen #(
+    axi4_slave_rd_injector #(
         .NUM_CHANNELS   (NUM_CHANNELS),
         .AXI_ID_WIDTH   (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH (ADDR_WIDTH),

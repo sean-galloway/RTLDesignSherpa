@@ -99,7 +99,7 @@ the hierarchy.
 | `rtl/amba/axi4` | `axi4_master_rd`, `axi4_master_wr` (+ `_monlite`, `_cg`) | AXI4 boundaries, behind the read / write engines | timing isolation and monitoring exactly as STREAM's masters |
 | `projects/components/dma-ip/stream/rtl/fub` | `axi_read_engine`, `axi_write_engine` | the shape (and, if the interfaces fit, the code) of `rs_axi_read_engine` / `rs_axi_write_engine` | STREAM's engines are multi-channel (`NC`) and SRAM-coupled; the RS engines are single-job and FIFO-coupled, so expect a reduction rather than an instantiation -- decide when the AXI4 boundary is built |
 | `rtl/amba/monitor` | `axis_monitor_lite` | throughput / stall / TLAST observation on both ports → monbus | via the monlite wrapper variants; no hand-rolled counters |
-| `rtl/amba/shared` | `axis4_master_pattern_gen`, `axis4_slave_pattern_check` | DV traffic and check at the boundaries | already used for the AXIS monitors |
+| `rtl/amba/shared` | `axis4_master_injector`, `axis4_slave_pattern_check` | DV traffic and check at the boundaries | already used for the AXIS monitors |
 | `rtl/common` | `counter_bin`, `counter_load_clear` | position, iteration and block counters | `MAX` = n for position |
 | `rtl/common` | `shifter_beat_pack` | `symbol_pack` | |
 | `rtl/common` | `shifter_lfsr_*` | DV only: error-pattern and data generation | not in the codec |

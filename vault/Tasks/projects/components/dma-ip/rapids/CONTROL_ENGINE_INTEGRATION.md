@@ -136,7 +136,7 @@ rapids_core_beats: expose m_axi_ctrlrd_*, m_axi_ctrlwr_*; fold ctrl monitors int
 - [~] **Stage 8 — characterization harness.** STARTED. Built the reusable AXIS data
       generator/checker (the missing pieces flagged at the start of this thread — no AXIS
       pattern gens existed in rtl/amba/shared):
-      * rtl/amba/shared/axis4_master_pattern_gen.sv — LFSR-pattern AXIS master (tdata = REP x
+      * rtl/amba/shared/axis4_master_injector.sv — LFSR-pattern AXIS master (tdata = REP x
         lfsr_out, advances per accepted beat so it's stall-independent; tlast per cfg_beats_per_pkt;
         XOR-fold signature o_expected_sig).
       * rtl/amba/shared/axis4_slave_pattern_check.sv — AXIS sink; regenerates the LFSR, per-beat
@@ -163,7 +163,7 @@ rapids_core_beats: expose m_axi_ctrlrd_*, m_axi_ctrlwr_*; fold ctrl monitors int
       REMAINING (DV): rapids_beats_top_tb.py + rapids_core_beats_tb.py drive fill/drain -> switch
       to AXIS BFMs (tid=channel); update test_rapids_beats_top.py + test_rapids_core_beats.py.
       THEN harness top (clone stream_characterization) + m_axi memory (reuse
-      axi4_slave_rd_pattern_gen/wr_crc_check) + AXIS gen->sink and source->AXIS-checker wiring +
+      axi4_slave_rd_injector/wr_crc_check) + AXIS gen->sink and source->AXIS-checker wiring +
       semaphore memory on the ctrl masters + XDC/build/host.
 
 ## Stage 9 (user directive) — split core into two WHOLLY-SEPARATE halves
@@ -295,15 +295,15 @@ semaphore memory) are all verified end-to-end at the top through the real APB re
 STAGE G step 4 (characterization harness) STARTED:
 - [x] rapids_char_harness.sv (+ filelists/rapids_char_harness.f) built + LINT-CLEAN (RC 0). Location:
       projects/fpga-systems/Genesys2/dma-ip/rapids_beats/flows-rapids-beats/. Wraps rapids_beats_top with:
-      axis4_master_pattern_gen -> s_axis (sink stimulus); axis4_slave_pattern_check <- m_axis (source
-      check); axi4_slave_rd_pattern_gen <- m_axi_rd (source data, 512b); axi4_slave_wr_crc_check <-
+      axis4_master_injector -> s_axis (sink stimulus); axis4_slave_pattern_check <- m_axis (source
+      check); axi4_slave_rd_injector <- m_axi_rd (source data, 512b); axi4_slave_wr_crc_check <-
       m_axi_wr (sink verify, 512b); TWO sdpram_slave_axi4_axi4 desc RAMs (DUT reads port A, host writes
       port B exposed); REAL shared 32b semaphore RAM per half (ctrlwr write port + ctrlrd read port ->
       same backing, doorbell observable by gate); always-accept m_axil_mon responder; s_apb + pattern
       gen/checker control+status exposed as the sim/host control surface.
 - [x] CONSISTENCY CORRECTION (user: "Axis gen MUST be multi channel; checks axis->axi4 must be
-      consistent"): REVISED axis4_master_pattern_gen + axis4_slave_pattern_check from single-channel
-      XOR-fold to MULTI-CHANNEL + dataint_crc, mirroring axi4_slave_rd_pattern_gen/wr_crc_check EXACTLY
+      consistent"): REVISED axis4_master_injector + axis4_slave_pattern_check from single-channel
+      XOR-fold to MULTI-CHANNEL + dataint_crc, mirroring axi4_slave_rd_injector/wr_crc_check EXACTLY
       (per-channel shifter_lfsr_fibonacci seed=LFSR_SEED^ch; pattern={REP{lfsr_out}}; per-channel
       dataint_crc DATA_WIDTH=32/CRC_WIDTH=32/POLY=0x04C11DB7/INIT=0xFFFFFFFF/XOROUT=0xFFFFFFFF/REFIN=REFOUT=1,
       gating copied verbatim). All FOUR self-check blocks now share identical LFSR (0xDEADBEEF, taps
@@ -358,9 +358,9 @@ producer-consumer) + multi-channel AXIS<->AXI4-consistent pattern gen/checker + 
 (RTL + multi-channel sim self-check GREEN + NexysA7 board top lint-clean + build/host flow). Everything
 synthesizable is lint-clean; functional behavior proven multi-channel in sim. Only real-HW/Vivado steps remain.
 Original full-harness note (FPGA build) on the split top:
-harness top wiring axis4_master_pattern_gen -> s_axis (sink write) + m_axis -> axis4_slave_pattern_check
+harness top wiring axis4_master_injector -> s_axis (sink write) + m_axis -> axis4_slave_pattern_check
 (source read) [both gen/checker already built + verified 4/4], m_axi memory via
-axi4_slave_rd_pattern_gen/wr_crc_check, semaphore memory on the ctrl masters, XDC/build/host + cocotb harness TB. (2) AXIS BFMs
+axi4_slave_rd_injector/wr_crc_check, semaphore memory on the ctrl masters, XDC/build/host + cocotb harness TB. (2) AXIS BFMs
 (CocoTBFramework create_axis_master/slave, tid=channel) replacing the old fill/drain drivers in
 rapids_core_beats_tb.py + rapids_beats_top_tb.py. (3) split-aware TBs/tests: two descriptor
 masters, two control-master responders, source path (m_axi_rd mem -> m_axis check) + sink path

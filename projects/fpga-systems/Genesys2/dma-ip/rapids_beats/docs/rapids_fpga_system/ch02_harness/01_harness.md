@@ -88,9 +88,9 @@ board and the simulator see the same bytes.
 
 | Block | Side | What it does |
 |-------|------|--------------|
-| `axis4_master_pattern_gen` | SINK ingress (`s_axis`) | LFSR data from `GEN_SEED`, `GEN_NBEATS` per channel, `GEN_CHMASK`, `GEN_BPP` beats per packet, `GEN_TDEST`; `GEN_MODE.INTERLEAVE` round-robins the active channels one beat at a time instead of finishing one channel before starting the next |
+| `axis4_master_injector` | SINK ingress (`s_axis`) | LFSR data from `GEN_SEED`, `GEN_NBEATS` per channel, `GEN_CHMASK`, `GEN_BPP` beats per packet, `GEN_TDEST`; `GEN_MODE.INTERLEAVE` round-robins the active channels one beat at a time instead of finishing one channel before starting the next |
 | `axis4_slave_pattern_check` | SOURCE egress (`m_axis`) | per-channel CRC of what arrives; `CHK_CTRL.chk_ready_en` is the egress backpressure knob |
-| `axi4_slave_rd_pattern_gen` | backs `m_axi_rd` | LFSR read data for the SOURCE, a CRC of what it served |
+| `axi4_slave_rd_injector` | backs `m_axi_rd` | LFSR read data for the SOURCE, a CRC of what it served |
 | `axi4_slave_wr_crc_check` | backs `m_axi_wr` | per-channel CRC of what the SINK wrote |
 | `axi_response_delay` x2 | in front of both slaves | `RESP_DELAY`: hold R and B for a programmed number of cycles, the memory-latency knob of the latency sweeps |
 

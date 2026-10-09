@@ -8,12 +8,12 @@ An earlier version of this README carried full parameter tables, port lists, and
 
 | Module | What it is | Page |
 |---|---|---|
-| `axi4_master_wr_pattern_gen` | Write-side characterization master: LFSR/hash pattern generator with running CRC | [page](axi4_master_wr_pattern_gen.md) |
+| `axi4_master_wr_injector` | Write-side characterization master: LFSR/hash traffic injector with running CRC | [page](axi4_master_wr_injector.md) |
 | `axi4_master_rd_crc_check` | Read-side characterization master: regenerates the pattern, per-beat compare + running CRC | [page](axi4_master_rd_crc_check.md) |
-| `axi4_slave_rd_pattern_gen` | Slave-side read pattern generator (serves the expected stream) | [page](axi4_slave_rd_pattern_gen.md) |
+| `axi4_slave_rd_injector` | Slave-side read-data injector (serves the expected stream) | [page](axi4_slave_rd_injector.md) |
 | `axi4_slave_wr_crc_check` | Slave-side write CRC accumulator (no compare logic — integrity is an external CRC-vs-CRC check; 16-deep B FIFO) | [page](axi4_slave_wr_crc_check.md) |
 | `axi4_dma_slaves` | Wrapper bundling the two slave-side blocks for DMA loopback | [page](axi4_dma_slaves.md) |
-| `axis4_master_pattern_gen` | AXIS pattern source (same LFSR family) | [page](axis4_master_pattern_gen.md) |
+| `axis4_master_injector` | AXIS traffic injector (same LFSR family) | [page](axis4_master_injector.md) |
 | `axis4_slave_pattern_check` | AXIS pattern sink/checker | [page](axis4_slave_pattern_check.md) |
 | `axi_bus_meter` | Always-on AXI bandwidth/beat/burst meter | [page](axi_bus_meter.md) |
 | `axis_bus_meter` | AXIS variant of the bus meter | [page](axis_bus_meter.md) |

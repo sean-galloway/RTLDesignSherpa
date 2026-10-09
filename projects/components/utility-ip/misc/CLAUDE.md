@@ -117,7 +117,7 @@ User logic (BRAM, LFSR, CRC accumulator, etc.) lives on the wrapper's
 `fub_axi_*` user-side queue and never touches the AXI handshake directly.
 
 The two synthetic test slaves used by `stream_char_harness`
-(`axi4_slave_rd_pattern_gen.sv` and `axi4_slave_wr_crc_check.sv`)
+(`axi4_slave_rd_injector.sv` and `axi4_slave_wr_crc_check.sv`)
 have been promoted into `rtl/amba/shared/` so they're reusable across
 projects. Their AXI4 handshake is hand-rolled around the standard
 `axi4_slave_rd` / `axi4_slave_wr` skids and doesn't go through the

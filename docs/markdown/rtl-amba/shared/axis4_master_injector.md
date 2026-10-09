@@ -21,9 +21,9 @@
 
 <!-- End Header -->
 
-# AXI-Stream Master Pattern Generator
+# AXI-Stream Master Injector
 
-**Module:** `axis4_master_pattern_gen.sv`
+**Module:** `axis4_master_injector.sv`
 **Location:** `rtl/amba/shared/`
 **Status:** Production Ready
 
@@ -31,12 +31,12 @@
 
 ## Overview
 
-`axis4_master_pattern_gen` is an AXI-Stream master that emits a deterministic, per-channel LFSR data pattern for characterization and verification. It is the AXIS *sink* stimulus for the RAPIDS characterization harness, and it is pattern/CRC-consistent with the AXI4 pattern blocks: the per-channel 32-bit CRC-32 it computes is bit-identical to what `axi4_slave_wr_crc_check` produces for the same emitted stream (self-check path: `axis_gen → m_axi_wr → wr_crc_check`).
+`axis4_master_injector` is an AXI-Stream master that emits a deterministic, per-channel LFSR data pattern for characterization and verification. It is the AXIS *sink* stimulus for the RAPIDS characterization harness, and it is pattern/CRC-consistent with the AXI4 pattern blocks: the per-channel 32-bit CRC-32 it computes is bit-identical to what `axi4_slave_wr_crc_check` produces for the same emitted stream (self-check path: `axis_gen → m_axi_wr → wr_crc_check`).
 
 ### Key Features
 
 - AXI-Stream master (`m_axis_*`) with no address channel — simpler than the AXI4 pattern generators
-- Per-channel independent LFSR (seed `^ ch`) and CRC-32, copied verbatim from `axi4_slave_rd_pattern_gen`
+- Per-channel independent LFSR (seed `^ ch`) and CRC-32, copied verbatim from `axi4_slave_rd_injector`
 - Two channel schedules: sequential (finish one channel's beats, then the next) or, with `cfg_interleave`, round-robin beat by beat across the active channels so every channel holds data in the sink at once; per-channel data, CRC and packet boundaries are identical in both
 - Channel mask (`cfg_channel_mask`) selects active channels (0 → all)
 - Programmable beats-per-channel and `tlast` cadence (`cfg_beats_per_pkt`)
@@ -79,7 +79,7 @@ Characterizing a stream-consuming engine (a "sink") needs a deterministic source
 | REP | int | AXIS_DATA_WIDTH/LFSR_WIDTH | Derived: 32-bit LFSR copies per beat |
 | CIW | int | (NUM_CHANNELS>1) ? $clog2(NUM_CHANNELS) : 1 | Derived: channel-index width |
 
-**Note:** LFSR + CRC parameters must match `axi4_slave_rd_pattern_gen` / `axi4_slave_wr_crc_check` for cross-block CRC consistency.
+**Note:** LFSR + CRC parameters must match `axi4_slave_rd_injector` / `axi4_slave_wr_crc_check` for cross-block CRC consistency.
 
 ---
 
@@ -144,7 +144,7 @@ In the interleaved mode (`cfg_interleave = 1`, latched on `cfg_start`) the same 
 
 ### Per-Channel LFSR + CRC (Verbatim from the AXI4 blocks)
 
-Each channel owns a `shifter_lfsr_fibonacci` (32-bit, taps `{23,3,2,1}`, seed `w_seed ^ ch`) and a `dataint_crc` (CRC-32/Ethernet, `cascade_sel = 4'b1000`). The active channel advances on its accepted beat (`ch_beat = w_beat && r_ch == ch`); all channels reload their seed / clear their CRC on the global load pulse (`cfg_start` in IDLE). The seed, taps, replication, CRC instantiation, and gating are copied verbatim from `axi4_slave_rd_pattern_gen` so the per-channel 32-bit CRC is bit-identical. Per-channel valid flags and beat counters track alongside, and `o_beat_count_total` is a combinational sum for the harness stop trigger.
+Each channel owns a `shifter_lfsr_fibonacci` (32-bit, taps `{23,3,2,1}`, seed `w_seed ^ ch`) and a `dataint_crc` (CRC-32/Ethernet, `cascade_sel = 4'b1000`). The active channel advances on its accepted beat (`ch_beat = w_beat && r_ch == ch`); all channels reload their seed / clear their CRC on the global load pulse (`cfg_start` in IDLE). The seed, taps, replication, CRC instantiation, and gating are copied verbatim from `axi4_slave_rd_injector` so the per-channel 32-bit CRC is bit-identical. Per-channel valid flags and beat counters track alongside, and `o_beat_count_total` is a combinational sum for the harness stop trigger.
 
 ### Stream Outputs and tlast Cadence
 
@@ -172,7 +172,7 @@ none have been measured against a target device.
 ## Usage Examples
 ```systemverilog
 // AXIS stimulus for a 4-channel RAPIDS sink characterization run.
-axis4_master_pattern_gen #(
+axis4_master_injector #(
     .NUM_CHANNELS    (4),
     .AXIS_DATA_WIDTH (512),
     .AXIS_ID_WIDTH   (8),
@@ -209,7 +209,7 @@ axis4_master_pattern_gen #(
 
 ## Design Notes
 
-- **CRC-consistency by construction:** the LFSR and CRC blocks are copied verbatim from `axi4_slave_rd_pattern_gen`, so a stream emitted here and re-CRC'd by `axi4_slave_wr_crc_check` (or checked by `axis4_slave_pattern_check`) yields identical per-channel CRCs.
+- **CRC-consistency by construction:** the LFSR and CRC blocks are copied verbatim from `axi4_slave_rd_injector`, so a stream emitted here and re-CRC'd by `axi4_slave_wr_crc_check` (or checked by `axis4_slave_pattern_check`) yields identical per-channel CRCs.
 - **Either schedule keeps sequences contiguous per channel:** the checker demultiplexes by `tid` and regenerates each channel's LFSR from its own beats, so sequential and interleaved runs verify the same way. Interleaving exists for the sink-side measurement (rapids ISSUE-006): sequential streaming leaves only one sink channel holding data, so the measured window was one channel's, not the DUT's.
 - **No address channel:** as a pure stream the generator is simpler than the AXI4 pattern gens — no `dma_address_gen`, no burst FSM, just per-channel beat counting.
 - **Backpressure-safe:** advancing only on accepted beats decouples the data sequence from `tready` timing.
@@ -229,7 +229,7 @@ axis4_master_pattern_gen #(
 
 ### See Also
 - **axis4_slave_pattern_check.sv** — the matching AXIS checker (same LFSR/CRC config)
-- **axi4_slave_rd_pattern_gen.sv** — the AXI4 read pattern source this is copied from
+- **axi4_slave_rd_injector.sv** — the AXI4 read pattern source this is copied from
 - **axi4_slave_wr_crc_check.sv** — CRC sink whose values match this generator
 
 ---
@@ -239,7 +239,7 @@ axis4_master_pattern_gen #(
 `val/amba/test_axis4_pattern_pair.py` covers this module. It drives the generator and checker as a pair through a `tb_` wrapper.
 
 The test is named for the PAIR rather than the module, which is why an
-earlier audit looking only for `val/**/test_axis4_master_pattern_gen.py` reported it as
+earlier audit looking only for `val/**/test_axis4_master_injector.py` reported it as
 having no coverage. It does.
 
 Treat any behaviour described on this page as unverified by simulation.
@@ -249,7 +249,7 @@ Treat any behaviour described on this page as unverified by simulation.
 ## References
 
 ### Source Code
-- RTL: `rtl/amba/shared/axis4_master_pattern_gen.sv`
+- RTL: `rtl/amba/shared/axis4_master_injector.sv`
 
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`

@@ -64,7 +64,7 @@
 #
 # NB: desc_ram was in the original 1x5 layout as a placeholder for a
 # future dma_address_gen path. Removed because the pattern-gen engines
-# (axi4_master_wr_pattern_gen + axi4_master_rd_crc_check) have their own
+# (axi4_master_wr_injector + axi4_master_rd_crc_check) have their own
 # strided address generator driven directly from harness_csr cfg regs
 # at 0x100 / 0x180 — no descriptor RAM needed. If we later want a
 # scripted / trace-replay workload class the pattern-gen engines can't

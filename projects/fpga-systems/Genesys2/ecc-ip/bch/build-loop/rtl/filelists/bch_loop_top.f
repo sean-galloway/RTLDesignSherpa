@@ -19,7 +19,7 @@
 -f $REPO_ROOT/projects/components/ecc-ip/bch/rtl/filelists/bch_encoder_core.f
 -f $REPO_ROOT/projects/components/ecc-ip/bch/rtl/filelists/bch_decoder_core.f
 -f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/error_injector.f
--f $REPO_ROOT/rtl/amba/filelists/axis4_master_pattern_gen.f
+-f $REPO_ROOT/rtl/amba/filelists/axis4_master_injector.f
 -f $REPO_ROOT/rtl/amba/filelists/axis4_slave_pattern_check.f
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
 -f $REPO_ROOT/rtl/common/filelists/shifter_lfsr.f

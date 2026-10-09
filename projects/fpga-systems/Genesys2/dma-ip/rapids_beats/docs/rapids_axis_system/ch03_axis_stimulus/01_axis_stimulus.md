@@ -29,11 +29,11 @@ memory models so that a CRC can be predicted in software. Both are
 `rtl/amba/shared` blocks, built for this harness and reused by STREAM's
 generator since the interleave work.
 
-## The generator: `axis4_master_pattern_gen`
+## The generator: `axis4_master_injector`
 
 An AXIS master with no address channel. Per channel it runs an independent
 LFSR seeded with `seed ^ channel` and a CRC-32 over what it emits, the same
-LFSR and CRC as `axi4_slave_rd_pattern_gen`, so a stream integrity check and
+LFSR and CRC as `axi4_slave_rd_injector`, so a stream integrity check and
 a memory integrity check produce comparable numbers. The LFSR and the CRC
 advance only on accepted beats: beat N of channel C is a function of
 `(seed ^ C, N)` regardless of how `tready` stalled it, which is what makes

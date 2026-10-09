@@ -21,7 +21,7 @@ for each module name:
 | `dataint_ecc_hamming_encode_secded` | `test_dataint_ecc_hamming_secded.py` -- builds `ecc_secded_wrapper` around encoder+decoder, 5 tests |
 | `dataint_ecc_hamming_decode_secded` | same |
 | `sdpram_slave_axi4_axi4` | `test_sdpram_slave.py` |
-| `axis4_master_pattern_gen` | `test_axis4_pattern_pair.py` |
+| `axis4_master_injector` | `test_axis4_pattern_pair.py` |
 | `axis4_slave_pattern_check` | same |
 
 Both ECC modules were the P2 items in the original filing. They were covered

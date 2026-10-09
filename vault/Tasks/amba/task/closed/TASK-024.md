@@ -143,7 +143,7 @@ Counted at both ends over 0..7030 us:
 | tap | AR handshakes, id 3 |
 |---|---|
 | `harness.f_rd_ar` (what STREAM sees) | 49 |
-| `u_rd_pattern_gen.fub_axi_ar` (what the slave sees) | 367 |
+| `u_rd_injector.fub_axi_ar` (what the slave sees) | 367 |
 
 Each replay is a well-formed 16-beat burst (15.97 beats/AR), so every
 per-transaction property passed. What broke was CONSERVATION, which nothing

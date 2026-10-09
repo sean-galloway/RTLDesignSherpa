@@ -21,9 +21,9 @@
 
 <!-- End Header -->
 
-# AXI4 Master Write Pattern Generator
+# AXI4 Master Write Injector
 
-**Module:** `axi4_master_wr_pattern_gen.sv`
+**Module:** `axi4_master_wr_injector.sv`
 **Location:** `rtl/amba/shared/`
 **Status:** Production Ready
 
@@ -31,7 +31,7 @@
 
 ## Overview
 
-`axi4_master_wr_pattern_gen` is a CSR-programmed AXI4 write *master* for memory-controller characterization. On a start pulse it walks an algorithmic address mix (via `dma_address_gen`) and streams LFSR-pattern data through `axi4_master_wr`, accumulating a CRC-32 over the data it writes. It pairs with `axi4_master_rd_crc_check`, which regenerates the same pattern on the read side so the two CRCs (and per-beat compares) validate end-to-end data integrity through a real DRAM controller.
+`axi4_master_wr_injector` is a CSR-programmed AXI4 write *master* for memory-controller characterization. On a start pulse it walks an algorithmic address mix (via `dma_address_gen`) and streams LFSR-pattern data through `axi4_master_wr`, accumulating a CRC-32 over the data it writes. It pairs with `axi4_master_rd_crc_check`, which regenerates the same pattern on the read side so the two CRCs (and per-beat compares) validate end-to-end data integrity through a real DRAM controller.
 
 Bringing up a memory controller means driving it with realistic, deterministic write traffic and proving the data survives the round trip. This block drives the writes: it walks a programmable address pattern and emits reproducible data, folding that data into a CRC-32 that becomes the "expected" value for the read-side checker. The write data can be a simple LFSR phase counter (fast, but order-sensitive) or an address-derived hash (each beat's data is a pure function of its byte address, so multi-id / out-of-order completion still validates).
 
@@ -202,7 +202,7 @@ device and the parameters you elaborate with; run your own build.
 ## Usage Examples
 ```systemverilog
 // Write driver for a DDR2 characterization sweep (LFSR data mode).
-axi4_master_wr_pattern_gen #(
+axi4_master_wr_injector #(
     .AXI_ID_WIDTH   (8),
     .AXI_ADDR_WIDTH (32),
     .AXI_DATA_WIDTH (64)
@@ -283,7 +283,7 @@ Covered from `val/amba/` with the rest of the shared area — run everything wit
 ## References
 
 ### Source Code
-- RTL: `rtl/amba/shared/axi4_master_wr_pattern_gen.sv`
+- RTL: `rtl/amba/shared/axi4_master_wr_injector.sv`
 - Protocol Handler: `rtl/amba/axi4/axi4_master_wr.sv`
 
 ### Documentation

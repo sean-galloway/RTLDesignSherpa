@@ -22,7 +22,7 @@ flowchart LR
     end
 
     subgraph datapath["Codec datapath (AXIS flavor)"]
-        gen["axis4_master_pattern_gen"]
+        gen["axis4_master_injector"]
         enc["rs_encoder_core"]
         inj["error_injector"]
         decA["rs_decoder_core A"]

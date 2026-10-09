@@ -10,7 +10,7 @@
 //   straight from the core.
 //
 //   AW and W are DECOUPLED and walk the same job independently, which is the
-//   arrangement axi4_master_wr_pattern_gen uses. Neither needs a queue of
+//   arrangement axi4_master_wr_injector uses. Neither needs a queue of
 //   burst lengths between them: both derive their burst boundaries from the
 //   same (cfg_beats, cfg_burst_len) pair, so two counters stay in step by
 //   construction. AW then runs as fast as awready allows while W runs at the

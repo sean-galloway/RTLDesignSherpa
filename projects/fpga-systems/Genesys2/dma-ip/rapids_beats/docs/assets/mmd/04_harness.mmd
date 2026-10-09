@@ -5,9 +5,9 @@ flowchart TB
 
     subgraph HARN["rapids_char_harness"]
         DUT["rapids_beats_top (DUT)"]
-        GEN["axis4_master_pattern_gen"]
+        GEN["axis4_master_injector"]
         CHK["axis4_slave_pattern_check"]
-        RDPAT["axi4_slave_rd_pattern_gen"]
+        RDPAT["axi4_slave_rd_injector"]
         WRCRC["axi4_slave_wr_crc_check"]
         DRAM1["desc RAM (SRC)"]
         DRAM2["desc RAM (SNK)"]

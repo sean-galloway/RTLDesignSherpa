@@ -45,7 +45,7 @@ module axi4_slave_wr_crc_check #(
     parameter int AXI_DATA_WIDTH = 64,
     parameter int AXI_USER_WIDTH = 1,
 
-    // CRC parameters (MUST MATCH axi4_slave_rd_pattern_gen!)
+    // CRC parameters (MUST MATCH axi4_slave_rd_injector!)
     parameter int CRC_WIDTH      = 32,
     parameter int CRC_DATA_WIDTH = 32,
     parameter logic [31:0] CRC_POLY    = 32'h04C11DB7,

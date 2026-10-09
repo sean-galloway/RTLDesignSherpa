@@ -149,7 +149,7 @@ class DescriptorBuilder:
 
     Args:
         data_width: STREAM DATA_WIDTH in bits (default 128)
-        src_base: Base source address (arbitrary — pattern_gen ignores it)
+        src_base: Base source address (arbitrary — injector ignores it)
         dst_base: Base destination address (arbitrary — crc_check ignores it)
     """
 
@@ -214,7 +214,7 @@ class DescriptorBuilder:
             is_last = (d == num_descriptors - 1)
 
             # Source/dest addresses: offset per descriptor so each transfer
-            # is nominally to a different region (pattern_gen/crc_check don't
+            # is nominally to a different region (injector/crc_check don't
             # care, but it's more realistic).
             src = self.src_base + d * transfer_bytes
             dst = self.dst_base + d * transfer_bytes

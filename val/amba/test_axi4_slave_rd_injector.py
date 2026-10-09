@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
-"""Unit-test runner for `axi4_slave_rd_pattern_gen`.
+"""Unit-test runner for `axi4_slave_rd_injector`.
 
 This block IS an AXI4 slave (LFSR pattern source + per-channel CRC-32
 accumulator over AR/R). The TB drives it with the RDS-DV framework's
@@ -34,7 +34,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist, filelist_for
-from TBClasses.axi4.axi4_slave_rd_pattern_gen_tb import SlaveRdPatternGenTB
+from TBClasses.axi4.axi4_slave_rd_injector_tb import SlaveRdInjectorTB
 
 
 # ---------------------------------------------------------------------------
@@ -52,14 +52,14 @@ _DEPTH = {
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
-async def cocotb_test_axi4_slave_rd_pattern_gen(dut):
+async def cocotb_test_axi4_slave_rd_injector(dut):
     test_type = os.environ.get("TEST_TYPE", "smoke")
     test_level = os.environ.get("TEST_LEVEL", "gate").lower()
     if test_level not in _DEPTH:
         test_level = "gate"
     depth = _DEPTH[test_level]
 
-    tb = SlaveRdPatternGenTB(dut)
+    tb = SlaveRdInjectorTB(dut)
     await tb.setup_clocks_and_reset()
 
     scenarios = {
@@ -80,7 +80,7 @@ async def cocotb_test_axi4_slave_rd_pattern_gen(dut):
 # ---------------------------------------------------------------------------
 
 
-async def _smoke(tb: SlaveRdPatternGenTB, depth: dict):
+async def _smoke(tb: SlaveRdInjectorTB, depth: dict):
     """Single-beat read on channel 0 returns the LFSR seed word."""
     data = await tb.read_burst(addr=0x100, burst_len=1, axi_id=0)
     expected = tb.expected_data_words(1, channel=0)
@@ -91,7 +91,7 @@ async def _smoke(tb: SlaveRdPatternGenTB, depth: dict):
     assert tb.beat_count_total() == 1
 
 
-async def _sequential(tb: SlaveRdPatternGenTB, depth: dict):
+async def _sequential(tb: SlaveRdInjectorTB, depth: dict):
     """N single-beat reads on channel 0 continue ONE LFSR sequence --
     burst boundaries must not reset or skip beats."""
     n = depth["seq_n"]
@@ -109,7 +109,7 @@ async def _sequential(tb: SlaveRdPatternGenTB, depth: dict):
     assert tb.crc_value(0) == tb.expected_crc32(n, channel=0)
 
 
-async def _multi_beat_burst(tb: SlaveRdPatternGenTB, depth: dict):
+async def _multi_beat_burst(tb: SlaveRdInjectorTB, depth: dict):
     """One AR burst of N beats returns N consecutive LFSR advances."""
     n = depth["burst"]
     got = await tb.read_burst(addr=0x2000, burst_len=n, axi_id=0)
@@ -120,7 +120,7 @@ async def _multi_beat_burst(tb: SlaveRdPatternGenTB, depth: dict):
     assert tb.beat_count_total() == n
 
 
-async def _crc_telemetry(tb: SlaveRdPatternGenTB, depth: dict):
+async def _crc_telemetry(tb: SlaveRdInjectorTB, depth: dict):
     """Per-channel CRC-32 + beat-count telemetry match the software
     reference after reading N beats."""
     n = depth["crc_len"]
@@ -138,7 +138,7 @@ async def _crc_telemetry(tb: SlaveRdPatternGenTB, depth: dict):
     )
 
 
-async def _two_channel_interleave(tb: SlaveRdPatternGenTB, depth: dict):
+async def _two_channel_interleave(tb: SlaveRdInjectorTB, depth: dict):
     """NUM_CHANNELS=2 build: interleave bursts across channel 0 and
     channel 1. Each channel's LFSR/CRC stream must be independent of the
     other's traffic -- ch0's second burst continues where its first
@@ -174,7 +174,7 @@ async def _two_channel_interleave(tb: SlaveRdPatternGenTB, depth: dict):
 # REG_LEVEL grid -- selects (test_type, test_level) combinations.
 # ---------------------------------------------------------------------------
 
-async def _rresp_error_injection(tb: SlaveRdPatternGenTB, depth: dict):
+async def _rresp_error_injection(tb: SlaveRdInjectorTB, depth: dict):
     """RRESP injection (rapids TASK-020). The harness read slave always
     answered OKAY, so no RAPIDS test could reach a DUT's read-error path.
     With ERR_INJECT=1 the slave lets `skip` bursts answer OKAY, answers
@@ -245,12 +245,12 @@ _ERR_INJECT_FOR = {"rresp_error_injection": 1}
 
 
 @pytest.mark.parametrize("test_type, test_level", _COMBOS)
-def test_axi4_slave_rd_pattern_gen(request, test_type, test_level):
+def test_axi4_slave_rd_injector(request, test_type, test_level):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "axi4_slave_rd_pattern_gen"
-    test_name = f"test_axi4_slave_rd_pattern_gen_{test_type}_{test_level}_{_REG_LEVEL.lower()}"
+    dut_name = "axi4_slave_rd_injector"
+    test_name = f"test_axi4_slave_rd_injector_{test_type}_{test_level}_{_REG_LEVEL.lower()}"
 
-    filelist_path = filelist_for(repo_root, 'axi4_slave_rd_pattern_gen')
+    filelist_path = filelist_for(repo_root, 'axi4_slave_rd_injector')
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 
@@ -295,7 +295,7 @@ def test_axi4_slave_rd_pattern_gen(request, test_type, test_level):
     run(python_search=[tests_dir],
         verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module,
-        testcase="cocotb_test_axi4_slave_rd_pattern_gen",
+        testcase="cocotb_test_axi4_slave_rd_injector",
         sim_build=sim_build, simulator="verilator",
         extra_env=extra_env, parameters=parameters,
         compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,

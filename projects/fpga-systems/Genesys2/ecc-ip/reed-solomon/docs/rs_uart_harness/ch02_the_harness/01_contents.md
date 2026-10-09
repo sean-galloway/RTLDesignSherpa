@@ -13,7 +13,7 @@ unless it lives in a shared area.
 | `rs_loop_harness` | `build-loop/rtl/rs_loop_harness.sv` | Codec loop, register decode, bandwidth meters, observers, verdict tallies. |
 | `rs_loop_cfg_pkg` | `build-loop/rtl/rs_loop_cfg_pkg.sv` | Single source of geometry: RS(252,236), 4 symbols/beat, shortened so n and k are multiples of the beat. |
 | `rs_loop_regs` | Generated from `build-loop/rtl/rs_loop_regs.rdl` via the shared `apb4_to_peakrdl` shim | Host-visible register block: BUILD_ID RSLP, SCRATCH, PROFILE, TOPOLOGY, INJ_CFG, INJ_SEED, etc. |
-| `axis4_master_pattern_gen` | `rtl/amba/shared/axis4_master_pattern_gen.sv` | LFSR data source plus expected CRC-32, one packet per block. |
+| `axis4_master_injector` | `rtl/amba/shared/axis4_master_injector.sv` | LFSR data source plus expected CRC-32, one packet per block. |
 | `axis4_slave_pattern_check` | `rtl/amba/shared/axis4_slave_pattern_check.sv` | Regenerates the same LFSR pattern and compares beats per decoder. |
 | `rs_encoder_core` | `projects/components/ecc-ip/reed-solomon/rtl/macro/rs_encoder_core.sv` | RS(252,236) encoder. |
 | `error_injector` | `projects/components/utility-ip/misc/rtl/error_injector.sv` | Post-encoder corruption: modes 0 none, 1 exact count, 2 burst, 3 rate, 4 clusters, 5 localized, 6 badblock, 7 debug. |

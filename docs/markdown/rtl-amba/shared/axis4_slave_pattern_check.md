@@ -31,12 +31,12 @@
 
 ## Overview
 
-`axis4_slave_pattern_check` is an AXI-Stream slave that consumes a stream and checks it against a deterministic, per-channel LFSR pattern, computing a per-channel CRC-32 as it goes. It is the AXIS *source* checker for the RAPIDS characterization harness and is pattern/CRC-consistent with `axi4_slave_rd_pattern_gen`: the per-channel CRC-32 it computes is bit-identical to `axi4_slave_rd_pattern_gen.read_crc_value` for the same stream (self-check path: `rd_gen → m_axis → axis_check`).
+`axis4_slave_pattern_check` is an AXI-Stream slave that consumes a stream and checks it against a deterministic, per-channel LFSR pattern, computing a per-channel CRC-32 as it goes. It is the AXIS *source* checker for the RAPIDS characterization harness and is pattern/CRC-consistent with `axi4_slave_rd_injector`: the per-channel CRC-32 it computes is bit-identical to `axi4_slave_rd_injector.read_crc_value` for the same stream (self-check path: `rd_gen → m_axis → axis_check`).
 
 ### Key Features
 
 - AXI-Stream slave (`s_axis_*`), pure sink with `tready` driven by a `ready_en` input to model backpressure
-- Per-channel independent LFSR (seed `^ ch`) and CRC-32, copied verbatim from `axi4_slave_rd_pattern_gen`
+- Per-channel independent LFSR (seed `^ ch`) and CRC-32, copied verbatim from `axi4_slave_rd_injector`
 - Incoming beats demuxed by `s_axis_tid[CIW-1:0]` into the matching channel context
 - Per-beat compare against the locally regenerated pattern; sticky `o_data_error` on any mismatch
 - Per-channel actual-CRC / beat-count telemetry plus aggregate beat and packet (`tlast`) counters
@@ -46,7 +46,7 @@ Characterizing a stream-*producing* engine (a "source") needs a checker that kno
 
 **Use Cases:**
 - Terminating and verifying a RAPIDS source engine's AXIS output during characterization
-- Source self-check: check a stream produced from `axi4_slave_rd_pattern_gen` and compare CRCs
+- Source self-check: check a stream produced from `axi4_slave_rd_injector` and compare CRCs
 - Per-channel integrity checking under backpressure (via `ready_en`)
 - On-chip (FPGA) stream checker in the RAPIDS characterization harness
 
@@ -78,7 +78,7 @@ Characterizing a stream-*producing* engine (a "source") needs a checker that kno
 | REP | int | AXIS_DATA_WIDTH/LFSR_WIDTH | Derived: 32-bit LFSR copies per beat |
 | CIW | int | (NUM_CHANNELS>1) ? $clog2(NUM_CHANNELS) : 1 | Derived: channel-index width |
 
-**Note:** LFSR + CRC parameters must match `axi4_slave_rd_pattern_gen` / `axis4_master_pattern_gen` for cross-block CRC consistency.
+**Note:** LFSR + CRC parameters must match `axi4_slave_rd_injector` / `axis4_master_injector` for cross-block CRC consistency.
 
 ---
 
@@ -133,7 +133,7 @@ Characterizing a stream-*producing* engine (a "source") needs a checker that kno
 
 ### Per-Channel LFSR + CRC Regeneration (Verbatim from the Generator)
 
-Each channel owns a `shifter_lfsr_fibonacci` (32-bit, taps `{23,3,2,1}`, seed `w_seed ^ ch`) and a `dataint_crc` (CRC-32/Ethernet, `cascade_sel = 4'b1000`). On `cfg_start` (the arm/load pulse) every channel reloads its seed and clears its CRC / counters. A channel advances only on an accepted beat carrying its `tid` (`ch_beat = w_beat && w_ch == ch`). The seed, taps, replication, CRC instantiation, and gating are copied verbatim from `axi4_slave_rd_pattern_gen`, so the per-channel CRC is bit-identical. Each channel exposes `o_actual_crc`, `o_actual_crc_valid`, and `o_beat_count`; `o_beat_count_total` is a combinational sum.
+Each channel owns a `shifter_lfsr_fibonacci` (32-bit, taps `{23,3,2,1}`, seed `w_seed ^ ch`) and a `dataint_crc` (CRC-32/Ethernet, `cascade_sel = 4'b1000`). On `cfg_start` (the arm/load pulse) every channel reloads its seed and clears its CRC / counters. A channel advances only on an accepted beat carrying its `tid` (`ch_beat = w_beat && w_ch == ch`). The seed, taps, replication, CRC instantiation, and gating are copied verbatim from `axi4_slave_rd_injector`, so the per-channel CRC is bit-identical. Each channel exposes `o_actual_crc`, `o_actual_crc_valid`, and `o_beat_count`; `o_beat_count_total` is a combinational sum.
 
 ### Per-Beat Compare and Sticky Error
 
@@ -198,7 +198,7 @@ assign stream_ok = !chk_data_error && (chk_crc[ch] == gen_expected_crc[ch]);
 
 ## Design Notes
 
-- **CRC-consistency by construction:** the LFSR and CRC blocks are copied verbatim from `axi4_slave_rd_pattern_gen`, so a stream produced by that generator (or by `axis4_master_pattern_gen`) yields identical per-channel CRCs here.
+- **CRC-consistency by construction:** the LFSR and CRC blocks are copied verbatim from `axi4_slave_rd_injector`, so a stream produced by that generator (or by `axis4_master_injector`) yields identical per-channel CRCs here.
 - **Compare uses the pre-advance LFSR value:** the expected data is sampled before the channel's LFSR steps on the same clock edge, so the beat is compared against the value the generator emitted, not the next one.
 - **Two integrity signals:** sticky `o_data_error` pinpoints that *some* beat disagreed, while the per-channel CRC lets the harness confirm the exact stream matched end-to-end.
 - **Backpressure via `ready_en`:** exposing readiness as a config input lets sweeps drive the checker as an always-ready sink or as a throttling one without extra logic.
@@ -217,8 +217,8 @@ assign stream_ok = !chk_data_error && (chk_crc[ch] == gen_expected_crc[ch]);
 - **dataint_crc.sv** — per-channel CRC-32 accumulator
 
 ### See Also
-- **axis4_master_pattern_gen.sv** — the matching AXIS generator (same LFSR/CRC config)
-- **axi4_slave_rd_pattern_gen.sv** — the AXI4 read pattern source this is copied from
+- **axis4_master_injector.sv** — the matching AXIS generator (same LFSR/CRC config)
+- **axi4_slave_rd_injector.sv** — the AXI4 read pattern source this is copied from
 - **axi4_master_rd_crc_check.sv** — the AXI4 read-side per-beat compare + CRC counterpart
 
 ---

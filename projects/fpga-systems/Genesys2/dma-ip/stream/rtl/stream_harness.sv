@@ -13,7 +13,7 @@
 //   - desc_ram                        (descriptor storage)
 //   - stream_tally / slave_tally      (observer monbus records, counted)
 //   - comp_sram                       (STREAM monbus capture, host download)
-//   - axi4_slave_rd_pattern_gen       (DMA source)
+//   - axi4_slave_rd_injector       (DMA source)
 //   - axi4_slave_wr_crc_check         (DMA sink)
 //   - stream_top_ch8                  (DUT: STREAM DMA)
 //
@@ -863,7 +863,7 @@ module stream_harness #(
     // =========================================================================
     // Unit reset: pulse-extend csr_soft_reset and AND with aresetn so a
     // single CSR write resets the whole DMA+harness unit (sram, bridge,
-    // monitors, scheduler, descriptor engine, meters, pattern_gen,
+    // monitors, scheduler, descriptor engine, meters, injectors,
     // crc_check, response-delay queues). Without this, the soft reset
     // path the host has been using (STREAM.GLOBAL_RST) only resets
     // per-channel state -- the monitor blocks and the SRAM controller

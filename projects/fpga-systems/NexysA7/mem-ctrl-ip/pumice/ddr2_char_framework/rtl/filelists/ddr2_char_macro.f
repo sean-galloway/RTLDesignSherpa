@@ -4,7 +4,7 @@
 # and DFI without touching the internal AXI plumbing.
 
 # Engines bring their own deps (common, gaxi, axi4_master_wr/rd, addr-gen).
--f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr_pattern_gen.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr_injector.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_crc_check.f
 
 # Perf: bus meters + latency histograms tapped on the internal AXI wires.

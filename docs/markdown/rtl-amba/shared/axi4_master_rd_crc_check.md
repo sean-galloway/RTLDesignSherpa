@@ -31,12 +31,12 @@
 
 ## Overview
 
-`axi4_master_rd_crc_check` is a CSR-programmed AXI4 read *master* and integrity checker for memory-controller characterization. It walks the *same* algorithmic address mix (via `dma_address_gen`) and the *same* LFSR / hash schedule as `axi4_master_wr_pattern_gen`, so each returned R beat can be compared bit-for-bit against a locally regenerated pattern. It also accumulates a CRC-32 over the regenerated stream, so the harness can compare `o_actual_crc` against the writer's `o_expected_crc`.
+`axi4_master_rd_crc_check` is a CSR-programmed AXI4 read *master* and integrity checker for memory-controller characterization. It walks the *same* algorithmic address mix (via `dma_address_gen`) and the *same* LFSR / hash schedule as `axi4_master_wr_injector`, so each returned R beat can be compared bit-for-bit against a locally regenerated pattern. It also accumulates a CRC-32 over the regenerated stream, so the harness can compare `o_actual_crc` against the writer's `o_expected_crc`.
 
 The read half of a memory-controller integrity loop has to know what it *should* receive. This block regenerates the writer's exact data locally — either from the same LFSR phase counter or from the same address hash — and compares every returned R beat against it, latching any mismatch. It also rolls the regenerated data into a CRC-32 that should equal the writer's expected CRC when the wire is clean. Together those give you both a per-beat pinpoint (which beat disagreed) and a whole-run summary (the CRC compare).
 
 **Use cases:**
-- Reading back a DDR / memory controller and verifying the data written by `axi4_master_wr_pattern_gen`
+- Reading back a DDR / memory controller and verifying the data written by `axi4_master_wr_injector`
 - Address-pattern integrity sweeps sharing one descriptor with the write generator
 - Multi-id / out-of-order read validation using hash (address-derived) expected data
 - On-chip (FPGA) read checker in the DDR2 characterization harness
@@ -83,7 +83,7 @@ The read half of a memory-controller integrity loop has to know what it *should*
 | DBG_FIFO_DEPTH | int | 0 | >0 elaborates a debug FIFO capturing per-beat records; 0 ties `dbg_*` off |
 | IW / AW / DW / UW | int | — | Aliases for id/addr/data/user widths |
 
-**Note:** LFSR + CRC parameters must match `axi4_master_wr_pattern_gen` or the compare and CRC roll-up are meaningless. Internally `REPLICATION_FACTOR = (DW+31)/32` and `HSTAGES = 4` compare-pipeline stages.
+**Note:** LFSR + CRC parameters must match `axi4_master_wr_injector` or the compare and CRC roll-up are meaningless. Internally `REPLICATION_FACTOR = (DW+31)/32` and `HSTAGES = 4` compare-pipeline stages.
 
 ---
 
@@ -271,7 +271,7 @@ assign integrity_ok = (rd_actual_crc == wr_expected_crc) && !rd_data_error;
 
 ## Design Notes
 
-- **Mirror the writer exactly:** LFSR seed schedule, CRC config, address descriptor, and ID modes are all mirror images of `axi4_master_wr_pattern_gen` — that symmetry is what makes the CRCs and per-beat expected values comparable.
+- **Mirror the writer exactly:** LFSR seed schedule, CRC config, address descriptor, and ID modes are all mirror images of `axi4_master_wr_injector` — that symmetry is what makes the CRCs and per-beat expected values comparable.
 - **Per-beat compare + CRC are complementary:** the compare localizes the failing beat; the CRC gives a single-register whole-run summary. Both are provided so a failure can be both detected and pinpointed.
 - **Compare pipeline aligns delayed expected with delayed rdata:** the returned data is intentionally delayed the same `HSTAGES` as the hash so the compare is apples-to-apples, and `cfg_done` waits for the pipeline to drain.
 - **OOO is a real v1 limitation:** with multi-id OOO completion, use hash data mode (`cfg_data_mode = 1`) or hold the read block single-outstanding — the header spells out the v2 per-address-hash fix.
@@ -293,8 +293,8 @@ assign integrity_ok = (rd_actual_crc == wr_expected_crc) && !rd_data_error;
 - **gaxi_fifo_sync.sv** — optional debug capture FIFO
 
 ### See Also
-- **axi4_master_wr_pattern_gen.sv** — the matching write-side driver (same LFSR/CRC/hash/descriptor config)
-- **axi4_slave_rd_pattern_gen.sv** — the slave-side read pattern source
+- **axi4_master_wr_injector.sv** — the matching write-side driver (same LFSR/CRC/hash/descriptor config)
+- **axi4_slave_rd_injector.sv** — the slave-side read pattern source
 
 ---
 

@@ -4,8 +4,8 @@
 # Builds the synthesizable characterization harness that wraps the split
 # rapids_beats_top DUT with on-chip pattern generators/checkers + memories:
 #   - rapids_beats_top          (DUT, via its own filelist below)
-#   - axis4_master_pattern_gen  / axis4_slave_pattern_check  (AXIS stimulus/check)
-#   - axi4_slave_rd_pattern_gen / axi4_slave_wr_crc_check     (512b data src/sink)
+#   - axis4_master_injector  / axis4_slave_pattern_check  (AXIS stimulus/check)
+#   - axi4_slave_rd_injector / axi4_slave_wr_crc_check     (512b data src/sink)
 #   - sdpram_slave_axi4_axi4 x4 (descriptor RAM x2 + control semaphore RAM x2)
 #
 # The DUT filelist below already provides the AMBA package set, gaxi leaves,
@@ -35,11 +35,11 @@
 -f $REPO_ROOT/rtl/amba/filelists/sdpram_core.f
 
 # ---- On-chip pattern generators / checkers + memories ----
--f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd_pattern_gen.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd_injector.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr_crc_check.f
 -f $REPO_ROOT/rtl/amba/filelists/axi_bus_meter.f
 -f $REPO_ROOT/rtl/amba/filelists/axis_bus_meter.f
--f $REPO_ROOT/rtl/amba/filelists/axis4_master_pattern_gen.f
+-f $REPO_ROOT/rtl/amba/filelists/axis4_master_injector.f
 -f $REPO_ROOT/rtl/amba/filelists/axis4_slave_pattern_check.f
 -f $REPO_ROOT/rtl/amba/filelists/sdpram_slave_axi4_axi4.f
 
