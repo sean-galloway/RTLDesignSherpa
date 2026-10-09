@@ -251,7 +251,7 @@ class AmberMonliteTB(AmberFrontendTB):
                  int(self.dut.snoop_req.value),
                  int(self.dut.snoop_ready.value),
                  int(self.dut.ctrl_state.value),
-                 int(d.w_q_count.value)))
+                 int(d.u_out_q.count.value)))
             self.fired_total += len(fired)
             if fired:
                 self.fired_trace.append((self.cyc,) + fired)

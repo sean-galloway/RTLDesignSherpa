@@ -17,4 +17,7 @@
 # Shared amber package (AMBER_EV_* event codes, geometry)
 -f $AMBER_ROOT/rtl/filelists/amber_pkg.f
 
+# MonBus output queue (DECISION D11 shared storage primitive)
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
+
 $AMBER_ROOT/rtl/fub/amber_monlite.sv

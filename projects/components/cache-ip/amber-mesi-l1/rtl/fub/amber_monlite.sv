@@ -61,18 +61,26 @@
 //     FILL_/DRAIN_ start/end  zero-extended line_addr
 //     DROPPED    [7:0] dropped_count
 //
-//   Output queue: OUT_DEPTH entries (unreset storage, wrapping pointers,
-//   two write slots a cycle -- a TRANSITION can co-fire with the HIT_WR
-//   promotion or the FILL_END it accompanies). Priority EVICT > SNOOP >
-//   HIT_RD > HIT_WR > MISS > FILL_START > DRAIN_START > FILL_END >
-//   DRAIN_END > TRANSITION; candidates that find no room are dropped and
-//   counted, never stalled (Review Focus 5).
+//   Output queue: the house gaxi_fifo_sync (D11 shared storage primitive)
+//     holds OUT_DEPTH {timestamp, packet} words. Up to two candidates
+//     fire per cycle -- a TRANSITION co-firing with the HIT_WR promotion
+//     or the FILL_END it accompanies, the only pairs by construction --
+//     and the single FIFO write port defers slot 2 through a one-entry
+//     register into the next cycle; take decisions run on the effective
+//     occupancy (FIFO count + deferral) so the w_take1/w_take2 drop
+//     accounting is identical to a two-slot queue and the deferral is
+//     invisible at the pins (the deferred entry always sits behind the
+//     entries ahead of it, whose drain hides the one-cycle transport).
+//     Priority EVICT > SNOOP > HIT_RD > HIT_WR > MISS > FILL_START >
+//     DRAIN_START > FILL_END > DRAIN_END > TRANSITION; candidates that
+//     find no room are dropped and counted, never stalled (Review Focus
+//     5).
 //
 //   Drop-and-count (MAS ch04/02, the STREAM monitor-lite idiom): an 8-bit
 //   saturating counter accumulates the drops; when it is non-zero, no
 //   candidate fires this cycle and the queue has drained, the count is
-//   re-emitted as PktTypeError/AMBER_EV_DROPPED and the counter clears. A
-//   report is pushed into an EMPTY queue only -- it must never take the
+//   re-emitted as PktTypeError/DROP_CODE and the counter clears. A
+//   report is pushed into a DRAINED queue only -- it must never take the
 //   slot a live event needs while the bus is congested.
 //
 //   Timestamp: the 64-bit side-band is captured INTO the queue entry at
@@ -107,6 +115,7 @@
 //------------------------------------------------------------------------------
 // Related Modules:
 //   - Instantiated by: amber_core (test harness: dv/tb/amber_monlite_th.sv)
+//   - Queue: gaxi_fifo_sync u_out_q (house shared storage primitive, D11)
 //   - Package: monitor_common_pkg (packet layout), amber_pkg (event codes,
 //     ctrl_state_t, cache_state_t)
 //
@@ -387,17 +396,49 @@ module amber_monlite
         + 4'(c_fire[8]) + 4'(c_fire[9]));
 
     // ------------------------------------------------------------------
-    // Output queue: OUT_DEPTH entries {packet, timestamp}, unreset
-    // storage, two write slots (priority order), one read.
+    // Output queue: the house gaxi_fifo_sync (DECISION D11 shared storage
+    // primitive, same idiom as the amber_cpu_frontend D-6 staging FIFO)
+    // holds {timestamp, packet} words. The candidate logic may fire twice
+    // in a cycle (the TRANSITION co-fire with HIT_WR / FILL_WRITE, the
+    // only co-fire pairs by construction); the FIFO has one write port,
+    // so slot 2 rides a one-entry deferral register and enters the FIFO
+    // the next cycle. The deferral is invisible at the pins: take
+    // decisions run on the EFFECTIVE occupancy (FIFO count + deferral),
+    // which keeps the w_take1/w_take2 drop accounting identical to a
+    // two-slot queue, and the deferred entry always sits behind the
+    // entries ahead of it, whose drain hides the one-cycle transport
+    // (a co-fire pair is always followed by a fire-free cycle: FILL_WRITE
+    // -> REPLAY, HIT_WR -> IDLE, and no grant lands in either).
+    // House memory idiom: the FIFO storage carries no reset; only the
+    // deferral register and the drop counter are resettable flops.
     // ------------------------------------------------------------------
+    localparam int QW  = MONBUS_PKT_WIDTH + MONBUS_TS_WIDTH;
     localparam int OQW = (OUT_DEPTH > 1) ? $clog2(OUT_DEPTH) : 1;
-    monitor_packet_t   r_q_pkt [OUT_DEPTH];
-    monbus_timestamp_t r_q_ts  [OUT_DEPTH];
-    logic [OQW:0]      r_q_wp, r_q_rp;
-    wire  [OQW:0]      w_q_count = r_q_wp - r_q_rp;
-    wire               w_q_empty = (w_q_count == '0);
-    wire               w_room1   = (w_q_count <= (OQW+1)'(OUT_DEPTH - 1));
-    wire               w_room2   = (w_q_count <= (OQW+1)'(OUT_DEPTH - 2));
+
+    logic                       r_pend_q;   // deferral register valid
+    monitor_packet_t            r_pend_pkt;
+    monbus_timestamp_t          r_pend_ts;
+
+    logic [QW-1:0]              fifo_wdata;
+    logic                       fifo_wr_valid, fifo_wr_ready;
+    logic [QW-1:0]              fifo_rdata;
+    logic                       fifo_rd_valid, fifo_rd_ready;
+    logic [$clog2(OUT_DEPTH):0] fifo_count;
+
+    gaxi_fifo_sync #(
+        .DATA_WIDTH (QW),
+        .DEPTH      (OUT_DEPTH)
+    ) u_out_q (
+        .axi_aclk    (clk),
+        .axi_aresetn (rst_n),
+        .wr_valid    (fifo_wr_valid),
+        .wr_ready    (fifo_wr_ready),
+        .wr_data     (fifo_wdata),
+        .rd_ready    (fifo_rd_ready),
+        .count       (fifo_count),
+        .rd_valid    (fifo_rd_valid),
+        .rd_data     (fifo_rdata)
+    );
 
     // first/second priority candidates
     logic [3:0]  w_p1_idx, w_p2_idx;
@@ -422,10 +463,30 @@ module amber_monlite
 
     // ------------------------------------------------------------------
     // Drop accounting and the pending drop report (STREAM monitor-lite
-    // idiom: the count goes out into an EMPTY queue only).
+    // idiom: the count goes out into a DRAINED queue only). Effective
+    // occupancy (FIFO + deferral) is tracked as a small registered
+    // counter -- the house fifo's own count output reflects next-pointer
+    // state and would close a combinational loop through the takes.
+    // Every fifo_wr_valid beat is accepted (room is budgeted before
+    // asserting it), so counting beats is exact.
     // ------------------------------------------------------------------
+    logic [OQW:0] r_eff_q;
+    wire [OQW:0] w_eff_cnt  = r_eff_q;
+    wire         w_q_empty  = (w_eff_cnt == '0);
+    wire         w_room1    = (w_eff_cnt <= (OQW+1)'(OUT_DEPTH - 1));
+    wire         w_room2    = (w_eff_cnt <= (OQW+1)'(OUT_DEPTH - 2));
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_eff_q <= '0;
+        end else begin
+            r_eff_q <= r_eff_q + (OQW+1)'(fifo_wr_valid)
+                       - (OQW+1)'(fifo_rd_valid && fifo_rd_ready);
+        end
+    )
+
     wire        w_take1    = w_fire1 && w_room1;
-    wire        w_take2    = w_fire2 && w_room2;
+    wire        w_take2    = w_fire2 && w_room2 && !r_pend_q;
     wire [3:0]  w_lost     = w_fire_n - 4'(w_take1) - 4'(w_take2);
     logic [7:0] r_dropped;
 
@@ -450,9 +511,17 @@ module amber_monlite
     )
 
     // ------------------------------------------------------------------
-    // Queue push/pop
+    // Queue push path. The single FIFO write port serves, in order: the
+    // deferral register (slot 2 of last cycle's co-fire pair), then slot
+    // 1 of this cycle, then the drop report -- the three are mutually
+    // exclusive except deferral + slot 1, where slot 1 chains into the
+    // deferral register (stream order preserved: the deferred entry is
+    // always the older). Every wr_valid beat is guaranteed wr_ready (the
+    // deferral had its room budgeted by w_room2; the report fires only
+    // into an empty queue; slot 1 checks w_room1), so the FIFO never
+    // silently drops a beat.
     // ------------------------------------------------------------------
-    monitor_packet_t w_slot1_pkt;
+    monitor_packet_t   w_slot1_pkt, w_slot2_pkt;
     monbus_timestamp_t w_slot1_ts;
 
     assign w_slot1_pkt = w_fire1
@@ -463,32 +532,38 @@ module amber_monlite
                                 DROP_CODE, 9'd0, UNIT_ID,
                                 AGENT_ID, 64'(r_dropped));
     assign w_slot1_ts = i_mon_time;
+    assign w_slot2_pkt = create_monitor_packet(c_ptype[w_p2_idx],
+                                               PROTOCOL_CORE,
+                                               c_code[w_p2_idx], 9'd0,
+                                               UNIT_ID, AGENT_ID,
+                                               c_data[w_p2_idx]);
 
-    wire w_push1 = USE_MONITOR && (w_take1 || w_drop_rpt);
-    wire w_push2 = USE_MONITOR && w_take2;
-    wire w_q_pop = monbus_valid && monbus_ready;
-
-    always_ff @(posedge clk) begin
-        if (w_push1) begin
-            r_q_pkt[r_q_wp[OQW-1:0]] <= w_slot1_pkt;
-            r_q_ts [r_q_wp[OQW-1:0]] <= w_slot1_ts;
-        end
-        if (w_push2) begin
-            r_q_pkt[OQW'(r_q_wp[OQW-1:0] + 1'b1)]
-                <= create_monitor_packet(c_ptype[w_p2_idx], PROTOCOL_CORE,
-                                         c_code[w_p2_idx], 9'd0, UNIT_ID,
-                                         AGENT_ID, c_data[w_p2_idx]);
-            r_q_ts[OQW'(r_q_wp[OQW-1:0] + 1'b1)] <= i_mon_time;
-        end
-    end
+    assign fifo_wr_valid = r_pend_q || w_take1 || w_drop_rpt;
+    assign fifo_wdata    = r_pend_q ? {r_pend_ts, r_pend_pkt}
+                                    : (w_take1 ? {w_slot1_ts, w_slot1_pkt}
+                                               : {i_mon_time, w_slot1_pkt});
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            r_q_wp <= '0;
-            r_q_rp <= '0;
+            r_pend_q   <= 1'b0;
+            r_pend_pkt <= '0;
+            r_pend_ts  <= '0;
         end else begin
-            r_q_wp <= r_q_wp + (OQW+1)'(w_push1) + (OQW+1)'(w_push2);
-            if (w_q_pop) r_q_rp <= r_q_rp + 1'b1;
+            // slot 2 of a co-fire pair defers; a slot 1 arriving while
+            // the deferral drains chains behind it (unreachable today --
+            // a grant never lands in REPLAY/IDLE-adjacent cycles -- but
+            // counted-correct either way)
+            if (w_take2) begin
+                r_pend_q   <= 1'b1;
+                r_pend_pkt <= w_slot2_pkt;
+                r_pend_ts  <= i_mon_time;
+            end else if (r_pend_q && w_take1) begin
+                r_pend_q   <= 1'b1;
+                r_pend_pkt <= w_slot1_pkt;
+                r_pend_ts  <= w_slot1_ts;
+            end else begin
+                r_pend_q <= 1'b0;
+            end
         end
     )
 
@@ -505,17 +580,21 @@ module amber_monlite
                            tap_tag_wr_en, tap_tag_wr_set, tap_tag_wr_way,
                            tap_tag_wr_new_state, tap_state_old,
                            tap_fill_addr, tap_drain_done, i_mon_time, clk};
+    logic unused_fifo;
+    assign unused_fifo = &{1'b0, fifo_wr_ready, fifo_count};
     /* verilator lint_on UNUSEDSIGNAL */
 
     if (USE_MONITOR) begin : gen_monitor
-        assign monbus_valid     = !w_q_empty;
-        assign monbus_packet    = r_q_pkt[r_q_rp[OQW-1:0]];
-        assign monbus_timestamp = r_q_ts[r_q_rp[OQW-1:0]];
+        assign monbus_valid     = fifo_rd_valid;
+        assign monbus_packet    = fifo_rdata[MONBUS_PKT_WIDTH-1:0];
+        assign monbus_timestamp = fifo_rdata[QW-1:MONBUS_PKT_WIDTH];
+        assign fifo_rd_ready    = monbus_ready;
         assign dropped_count    = r_dropped;
     end else begin : gen_no_monitor
         assign monbus_valid     = 1'b0;
         assign monbus_packet    = '0;
         assign monbus_timestamp = '0;
+        assign fifo_rd_ready    = 1'b0;
         assign dropped_count    = 8'd0;
     end
 
