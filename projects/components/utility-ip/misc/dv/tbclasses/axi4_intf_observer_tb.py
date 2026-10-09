@@ -27,7 +27,7 @@ import sys
 from pathlib import Path
 
 import cocotb
-from cocotb.triggers import RisingEdge
+from cocotb.triggers import RisingEdge, ReadOnly
 
 from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.apb.apb_components import APBMaster
@@ -181,6 +181,8 @@ class AXI4IntfObserverTB(TBBase):
         self.packets = []           # decoded MonitorPacket objects
         self.records = []           # full 192-bit wire records
         self._rec = []              # partial 3-beat record
+        self.egress_cyc = 0         # sink-local cycle counter (rate measure)
+        self.egress_done_cyc = []   # cycle index of each completed record
         self.dut.m_axil_awready.value = 1
         self.dut.m_axil_wready.value = 1
         self.dut.m_axil_bvalid.value = 0
@@ -189,8 +191,49 @@ class AXI4IntfObserverTB(TBBase):
         async def _sink():
             cyc = 0
             rmw_busy = 0            # tally-faithful mode: RMW cycles remaining
+            # drive the cycle-0 levels before the loop starts
+            self.dut.m_axil_wready.value = 1
             while True:
-                await RisingEdge(self.dut.aclk)
+                # Sample the CURRENT cycle in the preponed (ReadOnly) phase so
+                # a pulsed valid is seen exactly once -- reading after
+                # RisingEdge returns the NEXT cycle's registered outputs and
+                # can double-count / miss a one-cycle W pulse, which the
+                # pipelined write FSM (amba BUG-039) now produces.
+                await ReadOnly()
+                aw_hs = (int(self.dut.m_axil_awvalid.value)
+                         and int(self.dut.m_axil_awready.value))
+                w_hs = (int(self.dut.m_axil_wvalid.value)
+                        and int(self.dut.m_axil_wready.value))
+                b_hs = (int(self.dut.m_axil_bvalid.value)
+                        and int(self.dut.m_axil_bready.value))
+                wdata = int(self.dut.m_axil_wdata.value)
+                await RisingEdge(self.dut.aclk)   # these handshakes land here
+                if aw_hs:
+                    self.egress_beats += 1
+                if w_hs:
+                    self._rec.append(wdata)
+                    if len(self._rec) == 3:
+                        # 192-bit wire record: beat0 = {tag[3:0], source_ts[59:0]},
+                        # beat1 = packet[127:64], beat2 = packet[63:0]. Keep all
+                        # three -- the framing is as much a contract as the
+                        # packet, and it must be IDENTICAL on both observers.
+                        self.records.append(tuple(self._rec))
+                        pkt = (self._rec[1] << 64) | self._rec[2]
+                        self.packets.append(monbus_parse(pkt))
+                        self._rec = []
+                        self.egress_done_cyc.append(cyc)
+                        if beat_duty == 0:
+                            rmw_busy = 2      # the accepted beat 2 starts an RMW
+                # B model: AXI completes a write with B AFTER its W handshake
+                # (legal slaves never respond before data).  B per write: on
+                # an AXIL port every beat is one write, so arm B on every
+                # accepted W beat and hold it until consumed.  A same-cycle
+                # arm+consume nets to one outstanding B (arm wins).
+                if b_hs and not w_hs:
+                    self.dut.m_axil_bvalid.value = 0
+                if w_hs:
+                    self.dut.m_axil_bvalid.value = 1
+                cyc += 1
                 if beat_duty == 0:
                     # tally-faithful: beat 2 needs the RMW free; an accepted
                     # beat 2 occupies the RMW for 2 cycles
@@ -201,25 +244,7 @@ class AXI4IntfObserverTB(TBBase):
                         self.dut.m_axil_wready.value = 1
                 else:
                     self.dut.m_axil_wready.value = 1 if (cyc % beat_duty) == 0 else 0
-                cyc += 1
-                if int(self.dut.m_axil_wvalid.value) and int(self.dut.m_axil_wready.value):
-                    self._rec.append(int(self.dut.m_axil_wdata.value))
-                    if len(self._rec) == 3:
-                        # 192-bit wire record: beat0 = {tag[3:0], source_ts[59:0]},
-                        # beat1 = packet[127:64], beat2 = packet[63:0]. Keep all
-                        # three -- the framing is as much a contract as the
-                        # packet, and it must be IDENTICAL on both observers.
-                        self.records.append(tuple(self._rec))
-                        pkt = (self._rec[1] << 64) | self._rec[2]
-                        self.packets.append(monbus_parse(pkt))
-                        self._rec = []
-                        if beat_duty == 0:
-                            rmw_busy = 2      # the accepted beat 2 starts an RMW
-                if int(self.dut.m_axil_awvalid.value) and int(self.dut.m_axil_awready.value):
-                    self.egress_beats += 1
-                    self.dut.m_axil_bvalid.value = 1
-                elif int(self.dut.m_axil_bready.value) and int(self.dut.m_axil_bvalid.value):
-                    self.dut.m_axil_bvalid.value = 0
+                self.egress_cyc = cyc
         cocotb.start_soon(_sink())
 
     async def drive_read_burst(self, addr=0x1000, arid=0, beats=4, rresp=0, gap=3):

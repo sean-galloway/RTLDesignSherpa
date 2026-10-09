@@ -377,10 +377,15 @@ class MonbusGroupHarness:
             raise
 
     async def _trace_consumer_body(self):
-        # Single-outstanding AXIL/AXI4 slave-write consumer: accept one AW,
-        # capture its W beat(s) (wready throttled for backpressure), then
-        # complete B, before accepting the next AW. Driving awready only when
-        # idle enforces one-in-flight and keeps the master FSM unwedged.
+        # Multi-outstanding, in-order slave model.  The group write FSM
+        # pipelines AW/W/B (amba BUG-039 fix), so up to a few writes are in
+        # flight at once; a single-outstanding model cannot represent that.
+        # AXI4 requires W beats in AW order and forbids interleaving across
+        # bursts, so W beats attribute to bursts front-to-back; each burst
+        # completes with its own B, returned in order.  awready/wready are
+        # the throttle (ready_prob / randomizer); bvalid follows the oldest
+        # un-completed burst.
+        from collections import deque
         p = self.trace_prefix
         clk = self.clock
         awvalid = self._sig(p, "awvalid")
@@ -392,59 +397,74 @@ class MonbusGroupHarness:
         wdata = self._sig(p, "wdata")
         wlast = self._sig(p, "wlast")            # axi4 only (None for axil)
         bready = self._sig(p, "bready")
-        cur_addr = 0
-        cur_awlen = 0
-        cur_awsize = None
-        cur_awburst = None
-        cur_beats = []                           # data beats of the current burst
-        cur_wlast = []                           # wlast flag per captured beat
-        aw_seen = False
-        w_done = False                           # W (or W burst) captured
+        awready_s = self._sig(p, "awready")
+        wready_s = self._sig(p, "wready")
+        bvalid_s = self._sig(p, "bvalid")
         self._set(self._sig(p, "bresp"), 0)
-        self._set(self._sig(p, "bvalid"), 0)
-        self._set(self._sig(p, "awready"), 1)
+        self._set(bvalid_s, 0)
+        self._set(awready_s, 1)
+        self._set(wready_s, 0)
+        bursts = deque()   # in AW order; each: addr/awlen/awsize/awburst,
+                           # beats[], wlast_flags[], w_rem (beats left), b_done
+        bvalid_d = 0       # bvalid driven for the cycle being sampled
+        rdy_d = 0          # wready driven for the cycle being sampled
         while not self._stop["trace"]:
             rdy = self._trace_ready()
-            self._set(self._sig(p, "wready"), rdy)
-            self._set(self._sig(p, "awready"), 0 if aw_seen else 1)
-            in_b = aw_seen and w_done
-            self._set(self._sig(p, "bvalid"), 1 if in_b else 0)
+            self._set(wready_s, rdy)
+            self._set(awready_s, 1)
+            front_done = bool(bursts) and bursts[0]["w_rem"] == 0
+            bvalid_d = 1 if front_done else 0
+            rdy_d = rdy
+            self._set(bvalid_s, bvalid_d)
             if rdy == 0:
                 self.stats.trace_backpressure_cycles += 1
+            # Sample the CURRENT cycle preponed (ReadOnly) so a one-cycle
+            # valid pulse is seen exactly once; reading after RisingEdge
+            # returns the next cycle's registered outputs and can
+            # double-count / miss (the pipelined group write FSM produces
+            # pulsed valids -- amba BUG-039).
+            await ReadOnly()
+            aw_hs = self._get(awvalid) == 1
+            b_take = bvalid_d and self._get(bready) == 1
+            w_take = self._get(wvalid) == 1 and rdy_d == 1
+            wdata_v = self._get(wdata)
+            wl_v = 1 if wlast is None else (self._get(wlast) or 0)
+            aw_addr_v = self._get(awaddr) or 0
+            aw_len_v = self._get(awlen) or 0
+            aw_size_v = self._get(awsize)
+            aw_burst_v = self._get(awburst)
             await RisingEdge(clk)
-            # B handshake first (completes the prior transaction -> burst)
-            if in_b and self._get(bready) == 1:
+            # The handshakes sampled above complete at this edge.
+            if b_take:
+                b = bursts.popleft()
                 self._trace_bursts.append({
-                    'addr': cur_addr, 'awlen': cur_awlen,
-                    'awsize': cur_awsize, 'awburst': cur_awburst,
-                    'beats': list(cur_beats), 'wlast_flags': list(cur_wlast),
+                    'addr': b['addr'], 'awlen': b['awlen'],
+                    'awsize': b['awsize'], 'awburst': b['awburst'],
+                    'beats': list(b['beats']),
+                    'wlast_flags': list(b['wlast_flags']),
                 })
-                aw_seen = False
-                w_done = False
-                cur_beats = []
-                cur_wlast = []
-                self._set(self._sig(p, "bvalid"), 0)
-            # AW handshake (only when idle -> awready was 1)
-            if not aw_seen and self._get(awvalid) == 1:
-                cur_addr = self._get(awaddr) or 0
-                cur_awlen = self._get(awlen) or 0
-                cur_awsize = self._get(awsize)
-                cur_awburst = self._get(awburst)
+            if aw_hs:
+                bursts.append({
+                    'addr': aw_addr_v,
+                    'awlen': aw_len_v,
+                    'awsize': aw_size_v,
+                    'awburst': aw_burst_v,
+                    'beats': [], 'wlast_flags': [],
+                    'w_rem': aw_len_v + 1,
+                })
                 self.stats.trace_aw += 1
-                aw_seen = True
-            # W handshake (throttled by wready=rdy)
-            if aw_seen and not w_done and self._get(wvalid) == 1 and rdy == 1:
-                d = self._get(wdata) & self._mask
-                wl = 1 if wlast is None else (self._get(wlast) or 0)
-                self._trace_beats.append((cur_addr, d))
+            # W handshake, attributed to the oldest burst (AXI W order)
+            if w_take and bursts:
+                b = bursts[0]
+                d = wdata_v & self._mask
+                self._trace_beats.append((b['addr'], d))
                 self.stats.trace_beats += 1
-                cur_beats.append(d)
-                cur_wlast.append(wl)
-                if wl == 1:
-                    w_done = True
-        self._set(self._sig(p, "wready"), 0)
-        self._set(self._sig(p, "bvalid"), 0)
-        self._set(self._sig(p, "awready"), 0)
+                b['beats'].append(d)
+                b['wlast_flags'].append(wl_v)
+                b['w_rem'] -= 1
+        self._set(wready_s, 0)
+        self._set(bvalid_s, 0)
+        self._set(awready_s, 0)
 
     @property
     def trace_beats(self):

@@ -186,6 +186,21 @@ module monbus_group_core
     output logic                          fub_s_rlast,
     output logic                          fub_s_rvalid,
     input  logic                          fub_s_rready
+`ifdef FORMAL
+    ,
+    // Formal-only probes of the pipelined write-burst writer.
+    output logic [1:0]                    f_r_wr_state,
+    output logic [ADDR_WIDTH-1:0]         f_r_wr_addr,
+    output logic [15:0]                   f_r_cyc_total,
+    output logic [16:0]                   f_r_aw_cov_beats,
+    output logic [16:0]                   f_r_b_beats,
+    output logic [8:0]                    f_r_aw_subs,
+    output logic [8:0]                    f_r_b_subs,
+    output logic [2:0]                    f_r_os_count,
+    output logic [2:0]                    f_r_ws_count,
+    output logic [9:0]                    f_r_w_rem_in_sub,
+    output logic                          f_w_aw_issue
+`endif
 );
 
     // ==================================================================
@@ -759,32 +774,60 @@ module monbus_group_core
     //
     //   No mid-burst wrap: the burst is sized so the last byte is <=
     //   cfg_limit_addr AND does not cross the 4KB boundary AXI4 demands.
+    //
+    //   PIPELINED ISSUE (amba BUG-039, 2026-10-08): while a drain cycle
+    //   runs, the AW / W / B handshakes are decoupled into independent
+    //   streams.  The old WR_AW -> WR_W -> WR_B sequence serialized the
+    //   three handshakes per beat (~4 cycles/beat on an AXIL build, ~12
+    //   cycles per raw 3-beat record), capping the monitor -> record-store
+    //   path at ~0.08 records/cycle against a campaign offering ~0.125.
+    //   The leaf masters present independent AW/W/B skid buffers and the
+    //   monbus write carries no response payload (bresp/bid dropped), so a
+    //   B handshake is purely a credit return.  AW therefore free-runs up
+    //   to WR_OS_CAP outstanding writes, W streams the FIFO in AW (sub-
+    //   burst) order, and B closes the cycle when every committed beat has
+    //   its credit back.  Sub-burst boundaries (awlen / wlast) ride in two
+    //   small circular length queues pushed at every AW handshake; AXI's
+    //   per-ID in-order B guarantee makes the credit accounting exact.
     // ==================================================================
 
-    typedef enum logic [2:0] {
-        WR_IDLE  = 3'd0,
-        WR_AW    = 3'd1,
-        WR_W     = 3'd2,
-        WR_B     = 3'd3
+    // Max outstanding writes the issue logic allows.  The leaf skids are
+    // 2 deep, but the B-return pipeline (leaf B skid + the slave's B
+    // register) adds ~2 more cycles of transit; 4 covers it without letting
+    // AW run far enough ahead to stress slaves that only tolerate a couple
+    // of outstanding single-beat writes.
+    localparam int WR_OS_CAP = 4;
+
+    typedef enum logic [1:0] {
+        WR_IDLE  = 2'd0,
+        WR_RUN   = 2'd1
     } wr_state_t;
 
     wr_state_t                   r_wr_state;
-    logic [ADDR_WIDTH-1:0]       r_wr_addr;
-    logic [ADDR_WIDTH-1:0]       r_aw_addr;          // latched AW address
-    logic [7:0]                  r_aw_len;           // latched awlen (=sub-burst beats-1)
-    logic [8:0]                  r_w_beats_remaining; // beats left in current sub-burst W
-    logic [15:0]                 r_unit_remaining;   // beats left in this drain cycle
+    logic [ADDR_WIDTH-1:0]       r_wr_addr;           // running write pointer (plan source in IDLE)
+    logic [15:0]                 r_cyc_total;         // beats committed this drain cycle
+    logic [16:0]                 r_aw_cov_beats;      // beats covered by issued AWs
+    logic [8:0]                  r_aw_subs;           // AW (sub-burst) handshakes issued
+    logic [8:0]                  r_b_subs;            // B handshakes returned (credit)
+    logic [16:0]                 r_b_beats;           // beats credited by returned Bs
+    logic [9:0]                  r_w_rem_in_sub;      // beats left in W-side current sub-burst (0 = none loaded)
+    logic [8:0]                  r_os_len [0:WR_OS_CAP-1]; // B-side sub-burst lengths (beats-1), AW order
+    logic [1:0]                  r_os_rd, r_os_wr;
+    logic [2:0]                  r_os_count;
+    logic [8:0]                  r_ws_len [0:WR_OS_CAP-1]; // W-side sub-burst lengths (beats-1), AW order
+    logic [1:0]                  r_ws_rd, r_ws_wr;
+    logic [2:0]                  r_ws_count;
     logic [31:0]                 r_timeout_cnt;
 
     // Beats geometry. The ADDRESS-derived drain-plan math (window / 4KB
     // caps off r_wr_addr, the min tree, and the whole-record rounding) is a
     // long combinational chain; doing it in the same cycle as the WR_IDLE
-    // -> WR_AW commit was the 100 MHz critical path (it fed straight back
+    // commit was the 100 MHz critical path (it fed straight back
     // into r_wr_addr). r_wr_addr is STABLE while the writer sits in WR_IDLE
-    // (only WR_W advances it), so that math is pipelined over 4 registered
-    // stages and the FSM consumes the pre-computed plan (r_plan_*).
-    // geom_valid gates the commit until the pipeline reflects the settled
-    // r_wr_addr.
+    // (WR_RUN advances it per AW issue), so that math is pipelined over 4
+    // registered stages and the FSM consumes the pre-computed plan
+    // (r_plan_*). geom_valid gates the commit until the pipeline reflects
+    // the settled r_wr_addr.
     //
     // IMPORTANT: the FIFO-occupancy cap is NOT pipelined -- the FIFO keeps
     // filling while the writer sits in WR_IDLE, so a pipelined (4-cycle
@@ -999,49 +1042,93 @@ module monbus_group_core
 
     assign do_flush = (flush_trigger_watermark || flush_trigger_timeout) && have_one_unit;
 
-    // AW / W / B drive
-    assign fub_m_awid    = '0;
-    assign fub_m_awsize  = 3'd3;          // 2^3 = 8 bytes
-    assign fub_m_awburst = 2'b01;         // INCR
-    assign fub_m_awvalid = (r_wr_state == WR_AW);
-    assign fub_m_awaddr  = r_aw_addr;
-    assign fub_m_awlen   = r_aw_len;
+    // AW / W / B drive -- three independent streams while a drain cycle
+    // runs (see the section header).  AW covers cycle beats as fast as the
+    // leaf accepts addresses and the outstanding window allows; W streams
+    // the write FIFO in the AW (sub-burst) order AXI4 demands; B is a pure
+    // credit return consumed all cycle long.
+    logic [16:0] w_aw_beats_rem;     // cycle beats not yet covered by an AW
+    logic [16:0] w_aw_sub_len_p1;    // beats the next AW covers
+    logic        w_aw_issue;
+    logic        w_w_issue;
+    logic        w_b_issue;
+    logic        w_ws_pop;           // W-side queue pop this cycle
 
-    assign fub_m_wvalid  = (r_wr_state == WR_W) && write_fifo_rd_valid;
-    assign fub_m_wdata   = write_fifo_rd_data;
-    assign fub_m_wstrb   = 8'hFF;
-    assign fub_m_wlast   = (r_wr_state == WR_W) && (r_w_beats_remaining == 9'd1);
+    assign w_aw_beats_rem  = 17'(r_cyc_total) - r_aw_cov_beats;
+    assign w_aw_sub_len_p1 = (w_aw_beats_rem < 17'(MAX_BURST_BEATS))
+                           ? w_aw_beats_rem : 17'(MAX_BURST_BEATS);
 
-    assign fub_m_bready  = (r_wr_state == WR_B);
+    assign fub_m_awid      = '0;
+    assign fub_m_awsize    = 3'd3;          // 2^3 = 8 bytes
+    assign fub_m_awburst   = 2'b01;         // INCR
+    assign fub_m_awvalid   = (r_wr_state == WR_RUN) && (w_aw_beats_rem != 17'd0)
+                          && (r_os_count < 3'(WR_OS_CAP));
+    assign fub_m_awaddr    = r_wr_addr;
+    assign fub_m_awlen     = 8'(w_aw_sub_len_p1 - 17'd1);
+    assign w_aw_issue      = fub_m_awvalid && fub_m_awready;
 
-    // Pop a beat from the FIFO on each accepted W beat
-    assign write_fifo_rd_ready = (r_wr_state == WR_W) && fub_m_wready && write_fifo_rd_valid;
+    assign fub_m_wvalid    = (r_wr_state == WR_RUN) && (r_w_rem_in_sub != 10'd0)
+                          && write_fifo_rd_valid;
+    assign fub_m_wdata     = write_fifo_rd_data;
+    assign fub_m_wstrb     = 8'hFF;
+    assign fub_m_wlast     = (r_w_rem_in_sub == 10'd1);
+    assign write_fifo_rd_ready = fub_m_wvalid && fub_m_wready;
+    assign w_w_issue       = write_fifo_rd_ready;
+
+    assign fub_m_bready    = (r_wr_state == WR_RUN);
+    assign w_b_issue       = fub_m_bvalid && fub_m_bready;
+
+    // W-side queue pop: on the last beat of the loaded sub-burst (handover)
+    // or on a load while no sub-burst is loaded.
+    always_comb begin
+        if (w_w_issue)
+            w_ws_pop = (r_w_rem_in_sub == 10'd1) && (r_ws_count != 3'd0);
+        else
+            w_ws_pop = (r_w_rem_in_sub == 10'd0) && (r_ws_count != 3'd0);
+    end
 
     // FSM
     //
     // A drain cycle is launched from WR_IDLE when do_flush asserts and
     // beats_planned_units >= BEATS_PER_UNIT. The cycle commits to
     // emitting `beats_planned_units` total beats at consecutive
-    // 8-byte-stride addresses starting at eff_addr.
+    // 8-byte-stride addresses starting at r_plan_addr.
     //
     // Each sub-burst inside the drain cycle is bounded by MAX_BURST_BEATS
-    // (the per-AW limit imposed by the master leaf). The cycle emits as
-    // many AW + N x W + B sub-bursts as needed: AXI4 with
-    // MAX_BURST_BEATS=64 typically emits a single large sub-burst per
-    // cycle, while AXIL with MAX_BURST_BEATS=1 emits one sub-burst per
-    // beat. The address advances per beat regardless.
-    //
-    // r_unit_remaining tracks how many beats are left in this drain
-    // cycle. r_w_beats_remaining tracks how many beats are left in the
-    // current sub-burst (for wlast assertion).
+    // (the per-AW limit imposed by the master leaf): AXI4 with
+    // MAX_BURST_BEATS=64 typically issues a single large sub-burst per
+    // cycle, while AXIL with MAX_BURST_BEATS=1 issues one sub-burst per
+    // beat. In WR_RUN the three channels then flow independently -- AW
+    // free-runs up to WR_OS_CAP outstanding writes, W pops the FIFO in
+    // sub-burst order (wlast from the W-side length queue), and B returns
+    // close the cycle once every committed beat is credited (B-side queue
+    // accumulates the credited beats; AXI in-order B per ID makes it
+    // exact). The address advances per AW issue, so r_wr_addr -- the IDLE
+    // plan source -- is stable in WR_IDLE and moves only in WR_RUN.
     `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
         if (`RST_ASSERTED(axi_aresetn)) begin
             r_wr_state          <= WR_IDLE;
             r_wr_addr           <= '0;
-            r_aw_addr           <= '0;
-            r_aw_len            <= 8'd0;
-            r_w_beats_remaining <= 9'd0;
-            r_unit_remaining    <= 16'd0;
+            r_cyc_total         <= 16'd0;
+            r_aw_cov_beats      <= 17'd0;
+            r_aw_subs           <= 9'd0;
+            r_b_subs            <= 9'd0;
+            r_b_beats           <= 17'd0;
+            r_w_rem_in_sub      <= 10'd0;
+            r_os_len[0]         <= 9'd0;
+            r_os_len[1]         <= 9'd0;
+            r_os_len[2]         <= 9'd0;
+            r_os_len[3]         <= 9'd0;
+            r_os_rd             <= 2'd0;
+            r_os_wr             <= 2'd0;
+            r_os_count          <= 3'd0;
+            r_ws_len[0]         <= 9'd0;
+            r_ws_len[1]         <= 9'd0;
+            r_ws_len[2]         <= 9'd0;
+            r_ws_len[3]         <= 9'd0;
+            r_ws_rd             <= 2'd0;
+            r_ws_wr             <= 2'd0;
+            r_ws_count          <= 3'd0;
             r_timeout_cnt       <= 32'd0;
             r_geom_settle       <= 3'd0;
         end else begin
@@ -1049,7 +1136,7 @@ module monbus_group_core
             // not currently emitting; clear on W handshake or when empty.
             if (write_fifo_empty) begin
                 r_timeout_cnt <= 32'd0;
-            end else if (r_wr_state == WR_W && fub_m_wvalid && fub_m_wready) begin
+            end else if (w_w_issue) begin
                 r_timeout_cnt <= 32'd0;
             end else if (r_timeout_cnt < 32'(FLUSH_TIMEOUT_CYCLES)) begin
                 r_timeout_cnt <= r_timeout_cnt + 32'd1;
@@ -1095,20 +1182,20 @@ module monbus_group_core
                     // handles the out-of-window rewind to cfg_base_addr.
                     if (do_flush && geom_valid && r_plan_ok) begin
                         logic [15:0] total_units;   // beats this drain cycle
-                        logic [15:0] first_sub_burst;
 
                         total_units = (r_plan_geo_units < w_fifo_units)
                                     ? r_plan_geo_units : w_fifo_units;
-                        first_sub_burst = (total_units < 16'(MAX_BURST_BEATS))
-                                        ? total_units
-                                        : 16'(MAX_BURST_BEATS);
 
-                        r_wr_addr  <= r_plan_addr;
-                        r_aw_addr  <= r_plan_addr;
-                        r_aw_len   <= 8'(first_sub_burst - 16'd1);
-                        r_w_beats_remaining <= 9'(first_sub_burst);
-                        r_unit_remaining    <= total_units;
-                        r_wr_state <= WR_AW;
+                        r_wr_addr      <= r_plan_addr;
+                        r_cyc_total    <= total_units;
+                        r_aw_cov_beats <= 17'd0;
+                        r_aw_subs      <= 9'd0;
+                        r_b_subs       <= 9'd0;
+                        r_b_beats      <= 17'd0;
+                        r_w_rem_in_sub <= 10'd0;
+                        r_os_count     <= 3'd0;
+                        r_ws_count     <= 3'd0;
+                        r_wr_state     <= WR_RUN;
                     end else if (do_flush && geom_valid && !r_plan_ok
                                  && (r_wr_addr == r_cfg_base_addr)) begin
                         // Base itself cannot host a whole record: cfg_base_addr
@@ -1155,50 +1242,97 @@ module monbus_group_core
                     end
                 end
 
-                WR_AW: begin
-                    if (fub_m_awvalid && fub_m_awready) begin
-                        r_wr_state <= WR_W;
+                WR_RUN: begin
+                    // -- AW stream: cover cycle beats, one sub-burst per
+                    //    handshake, up to the outstanding cap.  Push each
+                    //    sub-burst's length into both bookkeeping queues.
+                    if (w_aw_issue) begin
+                        r_aw_cov_beats <= r_aw_cov_beats + w_aw_sub_len_p1;
+                        r_aw_subs      <= r_aw_subs + 9'd1;
+                        r_wr_addr      <= r_wr_addr
+                                        + ADDR_WIDTH'(w_aw_sub_len_p1 * 17'(BYTES_PER_BEAT));
+                        r_os_len[r_os_wr] <= 9'(w_aw_sub_len_p1 - 17'd1);
+                        r_os_wr        <= r_os_wr + 2'd1;
+                        r_ws_len[r_ws_wr] <= 9'(w_aw_sub_len_p1 - 17'd1);
+                        r_ws_wr        <= r_ws_wr + 2'd1;
                     end
-                end
 
-                WR_W: begin
-                    if (fub_m_wvalid && fub_m_wready) begin
-                        // Advance address one beat. r_unit_remaining counts
-                        // total beats in this drain cycle; r_w_beats_remaining
-                        // counts beats in the current sub-burst (for wlast).
-                        r_wr_addr           <= r_wr_addr + ADDR_WIDTH'(BYTES_PER_BEAT);
-                        r_w_beats_remaining <= r_w_beats_remaining - 9'd1;
-                        r_unit_remaining    <= r_unit_remaining - 16'd1;
-                        if (r_w_beats_remaining == 9'd1) begin
-                            r_wr_state <= WR_B;
-                        end
+                    // -- B stream: credit return, in AW order (AXI per-ID
+                    //    in-order guarantee).
+                    if (w_b_issue) begin
+                        r_b_beats <= r_b_beats + 17'(r_os_len[r_os_rd]) + 17'd1;
+                        r_b_subs  <= r_b_subs + 9'd1;
+                        r_os_rd   <= r_os_rd + 2'd1;
                     end
-                end
 
-                WR_B: begin
-                    if (fub_m_bvalid && fub_m_bready) begin
-                        if (r_unit_remaining > 16'd0) begin
-                            // More beats to emit in this drain cycle --
-                            // launch the next sub-burst at r_wr_addr (which
-                            // has been advancing per W beat).
-                            logic [15:0] next_sub_burst;
-                            next_sub_burst = (r_unit_remaining < 16'(MAX_BURST_BEATS))
-                                           ? r_unit_remaining
-                                           : 16'(MAX_BURST_BEATS);
-                            r_aw_addr  <= r_wr_addr;
-                            r_aw_len   <= 8'(next_sub_burst - 16'd1);
-                            r_w_beats_remaining <= 9'(next_sub_burst);
-                            r_wr_state <= WR_AW;
+                    // -- cycle close: every committed beat has its credit
+                    //    back AND has been handed to the leaf.  The W-side
+                    //    guard keeps the cycle open until the last W beat
+                    //    leaves even if a slave model returns B early
+                    //    (legal AXI orders B after W, but the FSM must not
+                    //    depend on slave courtesy to finish its own data).
+                    if ((r_b_beats
+                            + (w_b_issue ? (17'(r_os_len[r_os_rd]) + 17'd1)
+                                         : 17'd0)) == 17'(r_cyc_total)
+                            && (r_w_rem_in_sub == 10'd0)
+                            && (r_ws_count == 3'd0)) begin
+                        r_wr_state <= WR_IDLE;
+                    end
+
+                    // -- W stream: pop the FIFO in sub-burst order.  Load the
+                    //    next sub-burst from the W-side queue either one beat
+                    //    ahead (seamless handover on the last beat of the
+                    //    current sub-burst) or whenever no sub-burst is
+                    //    loaded and a length is queued.
+                    if (w_w_issue) begin
+                        if (r_w_rem_in_sub == 10'd1) begin
+                            r_w_rem_in_sub <= w_ws_pop
+                                            ? (10'(r_ws_len[r_ws_rd]) + 10'd1)
+                                            : 10'd0;
                         end else begin
-                            r_wr_state <= WR_IDLE;
+                            r_w_rem_in_sub <= r_w_rem_in_sub - 10'd1;
                         end
+                    end else if (w_ws_pop) begin
+                        r_w_rem_in_sub <= 10'(r_ws_len[r_ws_rd]) + 10'd1;
                     end
+                    if (w_ws_pop) begin
+                        r_ws_rd <= r_ws_rd + 2'd1;
+                    end
+
+                    // -- queue occupancy: one combined update per queue so
+                    //    simultaneous push/pop cannot clobber (NBA last-win).
+                    case ({w_aw_issue, w_b_issue})
+                        2'b10:   r_os_count <= r_os_count + 3'd1;
+                        2'b01:   r_os_count <= r_os_count - 3'd1;
+                        default: ;
+                    endcase
+                    case ({w_aw_issue, w_ws_pop})
+                        2'b10:   r_ws_count <= r_ws_count + 3'd1;
+                        2'b01:   r_ws_count <= r_ws_count - 3'd1;
+                        default: ;
+                    endcase
                 end
 
                 default: r_wr_state <= WR_IDLE;
             endcase
         end
     )
+
+`ifdef FORMAL
+    // Formal-only probes: expose the pipelined writer state for harness-side
+    // checks (hierarchical references are not supported by the sv2v/Yosys flow).
+    assign f_r_wr_state     = r_wr_state;
+    assign f_r_wr_addr      = r_wr_addr;
+    assign f_r_cyc_total    = r_cyc_total;
+    assign f_r_aw_cov_beats = r_aw_cov_beats;
+    assign f_r_b_beats      = r_b_beats;
+    assign f_r_aw_subs      = r_aw_subs;
+    assign f_r_b_subs       = r_b_subs;
+    assign f_r_os_count     = r_os_count;
+    assign f_r_ws_count     = r_ws_count;
+    assign f_r_w_rem_in_sub = r_w_rem_in_sub;
+    assign f_w_aw_issue     = w_aw_issue;
+`endif
 
     // Lint: bresp/bid not used internally
     /* verilator lint_off UNUSED */

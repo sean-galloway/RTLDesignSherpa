@@ -31,4 +31,5 @@ $FRAMEWORK_ROOT/rtl/stream_cfg_pkg.sv
 # the DMA-slave bus, and a saturated table there gated the bus (49 ARs in,
 # 367 accepted). Replaced by axi4_dma_slaves + axi4_intf_slave_observer,
 # which observes the same wires without driving them.
+$FRAMEWORK_ROOT/rtl/stream_tally_arbiter.sv
 $FRAMEWORK_ROOT/rtl/stream_harness.sv

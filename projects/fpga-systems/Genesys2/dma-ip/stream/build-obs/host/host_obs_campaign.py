@@ -79,9 +79,16 @@ def configure_observers(bridge, arm_by_tally):
     """
     for tally_key, label, base in (("stream", "master", OBS.OBS_APB_BASE),
                                    ("slave",  "slave",  OBS.SLAVE_OBS_APB_BASE)):
-        # OBS_CTRL = 0 -> flush watermark 0 (emit every complete record).
-        # The default is 16 records, and a short workload never reaches it.
-        bridge.write(OBS.O("OBS_CTRL", base), 0)
+        # OBS_CTRL: FLUSH_WATERMARK at the RDL default (16 beats = 5 raw
+        # records per drain cycle).  Watermark 0 (per-record flushes) was
+        # tried here too and made no measurable difference to the campaign
+        # (amba BUG-039 bring-up, 2026-10-09): the chain ceiling is the
+        # record-ingest arbiter's 2-cycles-per-transfer structural rate,
+        # and the campaign's offered rate runs ~8% above what the chain
+        # sustains during bursts -- the residual shows up as EVENT_DROPPED
+        # reports in UNEXPECTED.  The default watermark is kept because it
+        # is the intended operating point for long workloads.
+        bridge.write(OBS.O("OBS_CTRL", base), 16)
         bridge.write(OBS.O("MON_CTRL", base), arm_by_tally[tally_key])
         caps = OBS.read_caps0(bridge, base)
         print(f"  {label:6s} observer caps0=0x{caps:08X} "

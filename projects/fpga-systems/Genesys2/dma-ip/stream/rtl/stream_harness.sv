@@ -1645,8 +1645,10 @@ module stream_harness #(
     // Priority to the observer: in obs the bridge side is idle, in mon the
     // observer side is idle, so the arbiter never actually contends -- it
     // exists so neither path can be starved if both are ever armed at once.
-    // Grant is LATCHED until B completes; an AXIL write is three handshakes and
-    // interleaving two masters mid-burst would corrupt both.
+    // Grant is released at the transfer's W handshake and each B response is
+    // routed in order through a side-queue (see the RTL note on the arbiter
+    // below); an AXIL write is three handshakes and the tally accepts
+    // multiple outstanding writes, so back-to-back transfers are safe.
     // ROUND-ROBIN, not strict priority. This was `if (obs) else if (bridge)`,
     // which grants the observer unconditionally: the grant is latched to B and
     // re-arbitrated the moment it drops, so a continuous observer record stream
@@ -1656,44 +1658,30 @@ module stream_harness #(
     // (agents 9/10), which read as "the in-core ADDR_RANGE path is dead".
     // r_s4_last_obs remembers who won last; when both ask, the other side goes
     // first, which bounds either side's wait to one transfer.
-    logic r_s4_gr_bridge, r_s4_gr_obs, r_s4_busy, r_s4_last_obs;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_s4_gr_bridge <= 1'b0; r_s4_gr_obs <= 1'b0; r_s4_busy <= 1'b0;
-            r_s4_last_obs  <= 1'b0;
-        end else if (!r_s4_busy) begin
-            if (dmamon_awvalid && (!s4_awvalid || !r_s4_last_obs)) begin
-                r_s4_gr_obs <= 1'b1; r_s4_busy <= 1'b1; r_s4_last_obs <= 1'b1;
-            end else if (s4_awvalid) begin
-                r_s4_gr_bridge <= 1'b1; r_s4_busy <= 1'b1; r_s4_last_obs <= 1'b0;
-            end
-        end else if (tally_s4_bvalid && tally_s4_bready) begin
-            r_s4_gr_bridge <= 1'b0; r_s4_gr_obs <= 1'b0; r_s4_busy <= 1'b0;
-        end
-    )
-
-    always_comb begin
-        if (r_s4_gr_bridge) begin
-            tally_s4_awaddr  = s4_awaddr;  tally_s4_awprot = s4_awprot;
-            tally_s4_awvalid = s4_awvalid; tally_s4_wdata  = s4_wdata;
-            tally_s4_wstrb   = s4_wstrb;   tally_s4_wvalid = s4_wvalid;
-            tally_s4_bready  = s4_bready;
-        end else begin
-            tally_s4_awaddr  = dmamon_awaddr;  tally_s4_awprot = dmamon_awprot;
-            tally_s4_awvalid = dmamon_awvalid; tally_s4_wdata  = dmamon_wdata;
-            tally_s4_wstrb   = dmamon_wstrb;   tally_s4_wvalid = dmamon_wvalid;
-            tally_s4_bready  = dmamon_bready;
-        end
-    end
-
-    assign dmamon_awready = r_s4_gr_obs    ? tally_s4_awready : 1'b0;
-    assign dmamon_wready  = r_s4_gr_obs    ? tally_s4_wready  : 1'b0;
-    assign dmamon_bvalid  = r_s4_gr_obs    ? tally_s4_bvalid  : 1'b0;
-    assign dmamon_bresp   = tally_s4_bresp;
-    assign s4_awready  = r_s4_gr_bridge ? tally_s4_awready : 1'b0;
-    assign s4_wready   = r_s4_gr_bridge ? tally_s4_wready  : 1'b0;
-    assign s4_bvalid   = r_s4_gr_bridge ? tally_s4_bvalid  : 1'b0;
-    assign s4_bresp    = tally_s4_bresp;
+    // Round-robin between the observer's monbus group (direct) and the bridge
+    // window, pipelined across transfers (amba BUG-039) -- see
+    // stream_tally_arbiter for the grant/B-route design and why the slave mux
+    // is grant-gated.
+    stream_tally_arbiter #(.ADDR_WIDTH(32), .DATA_WIDTH(64)) u_s4_tally_arb (
+        .aclk(aclk), .aresetn(aresetn),
+        .obs_awaddr(dmamon_awaddr), .obs_awprot(dmamon_awprot),
+        .obs_awvalid(dmamon_awvalid), .obs_awready(dmamon_awready),
+        .obs_wdata(dmamon_wdata), .obs_wstrb(dmamon_wstrb),
+        .obs_wvalid(dmamon_wvalid), .obs_wready(dmamon_wready),
+        .obs_bresp(dmamon_bresp), .obs_bvalid(dmamon_bvalid),
+        .obs_bready(dmamon_bready),
+        .br_awaddr(s4_awaddr), .br_awprot(s4_awprot),
+        .br_awvalid(s4_awvalid), .br_awready(s4_awready),
+        .br_wdata(s4_wdata), .br_wstrb(s4_wstrb),
+        .br_wvalid(s4_wvalid), .br_wready(s4_wready),
+        .br_bresp(s4_bresp), .br_bvalid(s4_bvalid), .br_bready(s4_bready),
+        .t_awaddr(tally_s4_awaddr), .t_awprot(tally_s4_awprot),
+        .t_awvalid(tally_s4_awvalid), .t_awready(tally_s4_awready),
+        .t_wdata(tally_s4_wdata), .t_wstrb(tally_s4_wstrb),
+        .t_wvalid(tally_s4_wvalid), .t_wready(tally_s4_wready),
+        .t_bresp(tally_s4_bresp), .t_bvalid(tally_s4_bvalid),
+        .t_bready(tally_s4_bready)
+    );
 
     // s6 write channel: RECORD INGEST for u_slave_tally, arbitrated between the
     // observer's monbus group (direct) and the bridge window @ 0xC0000.
@@ -1710,8 +1698,10 @@ module stream_harness #(
     // Priority to the observer: in obs the bridge side is idle, in mon the
     // observer side is idle, so the arbiter never actually contends -- it
     // exists so neither path can be starved if both are ever armed at once.
-    // Grant is LATCHED until B completes; an AXIL write is three handshakes and
-    // interleaving two masters mid-burst would corrupt both.
+    // Grant is released at the transfer's W handshake and each B response is
+    // routed in order through a side-queue (see the RTL note on the arbiter
+    // below); an AXIL write is three handshakes and the tally accepts
+    // multiple outstanding writes, so back-to-back transfers are safe.
     // ROUND-ROBIN, not strict priority. This was `if (obs) else if (bridge)`,
     // which grants the observer unconditionally: the grant is latched to B and
     // re-arbitrated the moment it drops, so a continuous observer record stream
@@ -1721,44 +1711,28 @@ module stream_harness #(
     // (agents 9/10), which read as "the in-core ADDR_RANGE path is dead".
     // r_s6_last_obs remembers who won last; when both ask, the other side goes
     // first, which bounds either side's wait to one transfer.
-    logic r_s6_gr_bridge, r_s6_gr_obs, r_s6_busy, r_s6_last_obs;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_s6_gr_bridge <= 1'b0; r_s6_gr_obs <= 1'b0; r_s6_busy <= 1'b0;
-            r_s6_last_obs  <= 1'b0;
-        end else if (!r_s6_busy) begin
-            if (slmon_awvalid && (!s6_awvalid || !r_s6_last_obs)) begin
-                r_s6_gr_obs <= 1'b1; r_s6_busy <= 1'b1; r_s6_last_obs <= 1'b1;
-            end else if (s6_awvalid) begin
-                r_s6_gr_bridge <= 1'b1; r_s6_busy <= 1'b1; r_s6_last_obs <= 1'b0;
-            end
-        end else if (tally_s6_bvalid && tally_s6_bready) begin
-            r_s6_gr_bridge <= 1'b0; r_s6_gr_obs <= 1'b0; r_s6_busy <= 1'b0;
-        end
-    )
-
-    always_comb begin
-        if (r_s6_gr_bridge) begin
-            tally_s6_awaddr  = s6_awaddr;  tally_s6_awprot = s6_awprot;
-            tally_s6_awvalid = s6_awvalid; tally_s6_wdata  = s6_wdata;
-            tally_s6_wstrb   = s6_wstrb;   tally_s6_wvalid = s6_wvalid;
-            tally_s6_bready  = s6_bready;
-        end else begin
-            tally_s6_awaddr  = slmon_awaddr;  tally_s6_awprot = slmon_awprot;
-            tally_s6_awvalid = slmon_awvalid; tally_s6_wdata  = slmon_wdata;
-            tally_s6_wstrb   = slmon_wstrb;   tally_s6_wvalid = slmon_wvalid;
-            tally_s6_bready  = slmon_bready;
-        end
-    end
-
-    assign slmon_awready = r_s6_gr_obs    ? tally_s6_awready : 1'b0;
-    assign slmon_wready  = r_s6_gr_obs    ? tally_s6_wready  : 1'b0;
-    assign slmon_bvalid  = r_s6_gr_obs    ? tally_s6_bvalid  : 1'b0;
-    assign slmon_bresp   = tally_s6_bresp;
-    assign s6_awready  = r_s6_gr_bridge ? tally_s6_awready : 1'b0;
-    assign s6_wready   = r_s6_gr_bridge ? tally_s6_wready  : 1'b0;
-    assign s6_bvalid   = r_s6_gr_bridge ? tally_s6_bvalid  : 1'b0;
-    assign s6_bresp    = tally_s6_bresp;
+    // s6: same arbiter as s4 (observer monbus group direct vs the bridge
+    // window @ 0xC0000) -- see stream_tally_arbiter.
+    stream_tally_arbiter #(.ADDR_WIDTH(32), .DATA_WIDTH(64)) u_s6_tally_arb (
+        .aclk(aclk), .aresetn(aresetn),
+        .obs_awaddr(slmon_awaddr), .obs_awprot(slmon_awprot),
+        .obs_awvalid(slmon_awvalid), .obs_awready(slmon_awready),
+        .obs_wdata(slmon_wdata), .obs_wstrb(slmon_wstrb),
+        .obs_wvalid(slmon_wvalid), .obs_wready(slmon_wready),
+        .obs_bresp(slmon_bresp), .obs_bvalid(slmon_bvalid),
+        .obs_bready(slmon_bready),
+        .br_awaddr(s6_awaddr), .br_awprot(s6_awprot),
+        .br_awvalid(s6_awvalid), .br_awready(s6_awready),
+        .br_wdata(s6_wdata), .br_wstrb(s6_wstrb),
+        .br_wvalid(s6_wvalid), .br_wready(s6_wready),
+        .br_bresp(s6_bresp), .br_bvalid(s6_bvalid), .br_bready(s6_bready),
+        .t_awaddr(tally_s6_awaddr), .t_awprot(tally_s6_awprot),
+        .t_awvalid(tally_s6_awvalid), .t_awready(tally_s6_awready),
+        .t_wdata(tally_s6_wdata), .t_wstrb(tally_s6_wstrb),
+        .t_wvalid(tally_s6_wvalid), .t_wready(tally_s6_wready),
+        .t_bresp(tally_s6_bresp), .t_bvalid(tally_s6_bvalid),
+        .t_bready(tally_s6_bready)
+    );
 
 
     // =========================================================================

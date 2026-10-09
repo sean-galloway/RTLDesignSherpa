@@ -318,7 +318,7 @@ module gaxi_skid_buffer (
 	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
 		if ((DEPTH < 2) || (DEPTH > 8)) begin : gen_depth_guard
-			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:101:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
+			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:101:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
 		end
 	endgenerate
 	genvar _gv_gi_1;
@@ -1418,7 +1418,18 @@ module monbus_group_core (
 	fub_s_rresp,
 	fub_s_rlast,
 	fub_s_rvalid,
-	fub_s_rready
+	fub_s_rready,
+	f_r_wr_state,
+	f_r_wr_addr,
+	f_r_cyc_total,
+	f_r_aw_cov_beats,
+	f_r_b_beats,
+	f_r_aw_subs,
+	f_r_b_subs,
+	f_r_os_count,
+	f_r_ws_count,
+	f_r_w_rem_in_sub,
+	f_w_aw_issue
 );
 	reg _sv2v_0;
 	parameter signed [31:0] FIFO_DEPTH_ERR = 64;
@@ -1512,6 +1523,17 @@ module monbus_group_core (
 	output wire fub_s_rlast;
 	output wire fub_s_rvalid;
 	input wire fub_s_rready;
+	output wire [1:0] f_r_wr_state;
+	output wire [ADDR_WIDTH - 1:0] f_r_wr_addr;
+	output wire [15:0] f_r_cyc_total;
+	output wire [16:0] f_r_aw_cov_beats;
+	output wire [16:0] f_r_b_beats;
+	output wire [8:0] f_r_aw_subs;
+	output wire [8:0] f_r_b_subs;
+	output wire [2:0] f_r_os_count;
+	output wire [2:0] f_r_ws_count;
+	output wire [9:0] f_r_w_rem_in_sub;
+	output wire f_w_aw_issue;
 	localparam signed [31:0] BYTES_PER_BEAT = 8;
 	localparam [3:0] WRITE_TAG_RAW = 4'h0;
 	wire w_use_comp;
@@ -1885,12 +1907,23 @@ module monbus_group_core (
 	assign write_fifo_empty = !write_fifo_rd_valid;
 	assign write_fifo_full = !write_fifo_wr_ready;
 	assign write_fifo_count = {{(16 - WRITE_FIFO_AW) - 1 {1'b0}}, write_fifo_beat_count};
-	reg [2:0] r_wr_state;
+	localparam signed [31:0] WR_OS_CAP = 4;
+	reg [1:0] r_wr_state;
 	reg [ADDR_WIDTH - 1:0] r_wr_addr;
-	reg [ADDR_WIDTH - 1:0] r_aw_addr;
-	reg [7:0] r_aw_len;
-	reg [8:0] r_w_beats_remaining;
-	reg [15:0] r_unit_remaining;
+	reg [15:0] r_cyc_total;
+	reg [16:0] r_aw_cov_beats;
+	reg [8:0] r_aw_subs;
+	reg [8:0] r_b_subs;
+	reg [16:0] r_b_beats;
+	reg [9:0] r_w_rem_in_sub;
+	reg [8:0] r_os_len [0:3];
+	reg [1:0] r_os_rd;
+	reg [1:0] r_os_wr;
+	reg [2:0] r_os_count;
+	reg [8:0] r_ws_len [0:3];
+	reg [1:0] r_ws_rd;
+	reg [1:0] r_ws_wr;
+	reg [2:0] r_ws_count;
 	reg [31:0] r_timeout_cnt;
 	wire [15:0] beats_in_fifo;
 	reg s0_in_window;
@@ -2000,101 +2033,177 @@ module monbus_group_core (
 	assign flush_trigger_watermark = r_fifo_beats >= cfg_flush_watermark;
 	assign flush_trigger_timeout = r_timeout_cnt >= FLUSH_TIMEOUT_CYCLES;
 	assign do_flush = (flush_trigger_watermark || flush_trigger_timeout) && have_one_unit;
+	wire [16:0] w_aw_beats_rem;
+	wire [16:0] w_aw_sub_len_p1;
+	wire w_aw_issue;
+	wire w_w_issue;
+	wire w_b_issue;
+	reg w_ws_pop;
+	function automatic [16:0] sv2v_cast_17;
+		input reg [16:0] inp;
+		sv2v_cast_17 = inp;
+	endfunction
+	assign w_aw_beats_rem = sv2v_cast_17(r_cyc_total) - r_aw_cov_beats;
+	function automatic signed [16:0] sv2v_cast_17_signed;
+		input reg signed [16:0] inp;
+		sv2v_cast_17_signed = inp;
+	endfunction
+	assign w_aw_sub_len_p1 = (w_aw_beats_rem < sv2v_cast_17_signed(MAX_BURST_BEATS) ? w_aw_beats_rem : sv2v_cast_17_signed(MAX_BURST_BEATS));
 	assign fub_m_awid = 1'sb0;
 	assign fub_m_awsize = 3'd3;
 	assign fub_m_awburst = 2'b01;
-	assign fub_m_awvalid = r_wr_state == 3'd1;
-	assign fub_m_awaddr = r_aw_addr;
-	assign fub_m_awlen = r_aw_len;
-	assign fub_m_wvalid = (r_wr_state == 3'd2) && write_fifo_rd_valid;
-	assign fub_m_wdata = write_fifo_rd_data;
-	assign fub_m_wstrb = 8'hff;
-	assign fub_m_wlast = (r_wr_state == 3'd2) && (r_w_beats_remaining == 9'd1);
-	assign fub_m_bready = r_wr_state == 3'd3;
-	assign write_fifo_rd_ready = ((r_wr_state == 3'd2) && fub_m_wready) && write_fifo_rd_valid;
-	function automatic signed [15:0] sv2v_cast_16_signed;
-		input reg signed [15:0] inp;
-		sv2v_cast_16_signed = inp;
+	function automatic signed [2:0] sv2v_cast_3_signed;
+		input reg signed [2:0] inp;
+		sv2v_cast_3_signed = inp;
 	endfunction
+	assign fub_m_awvalid = ((r_wr_state == 2'd1) && (w_aw_beats_rem != 17'd0)) && (r_os_count < sv2v_cast_3_signed(WR_OS_CAP));
+	assign fub_m_awaddr = r_wr_addr;
 	function automatic [7:0] sv2v_cast_8;
 		input reg [7:0] inp;
 		sv2v_cast_8 = inp;
+	endfunction
+	assign fub_m_awlen = sv2v_cast_8(w_aw_sub_len_p1 - 17'd1);
+	assign w_aw_issue = fub_m_awvalid && fub_m_awready;
+	assign fub_m_wvalid = ((r_wr_state == 2'd1) && (r_w_rem_in_sub != 10'd0)) && write_fifo_rd_valid;
+	assign fub_m_wdata = write_fifo_rd_data;
+	assign fub_m_wstrb = 8'hff;
+	assign fub_m_wlast = r_w_rem_in_sub == 10'd1;
+	assign write_fifo_rd_ready = fub_m_wvalid && fub_m_wready;
+	assign w_w_issue = write_fifo_rd_ready;
+	assign fub_m_bready = r_wr_state == 2'd1;
+	assign w_b_issue = fub_m_bvalid && fub_m_bready;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (w_w_issue)
+			w_ws_pop = (r_w_rem_in_sub == 10'd1) && (r_ws_count != 3'd0);
+		else
+			w_ws_pop = (r_w_rem_in_sub == 10'd0) && (r_ws_count != 3'd0);
+	end
+	function automatic [ADDR_WIDTH - 1:0] sv2v_cast_A5DC5;
+		input reg [ADDR_WIDTH - 1:0] inp;
+		sv2v_cast_A5DC5 = inp;
 	endfunction
 	function automatic [8:0] sv2v_cast_9;
 		input reg [8:0] inp;
 		sv2v_cast_9 = inp;
 	endfunction
-	function automatic signed [ADDR_WIDTH - 1:0] sv2v_cast_A5DC5_signed;
-		input reg signed [ADDR_WIDTH - 1:0] inp;
-		sv2v_cast_A5DC5_signed = inp;
+	function automatic [9:0] sv2v_cast_10;
+		input reg [9:0] inp;
+		sv2v_cast_10 = inp;
 	endfunction
 	always @(posedge axi_aclk or negedge axi_aresetn)
 		if (!axi_aresetn) begin
-			r_wr_state <= 3'd0;
+			r_wr_state <= 2'd0;
 			r_wr_addr <= 1'sb0;
-			r_aw_addr <= 1'sb0;
-			r_aw_len <= 8'd0;
-			r_w_beats_remaining <= 9'd0;
-			r_unit_remaining <= 16'd0;
+			r_cyc_total <= 16'd0;
+			r_aw_cov_beats <= 17'd0;
+			r_aw_subs <= 9'd0;
+			r_b_subs <= 9'd0;
+			r_b_beats <= 17'd0;
+			r_w_rem_in_sub <= 10'd0;
+			r_os_len[0] <= 9'd0;
+			r_os_len[1] <= 9'd0;
+			r_os_len[2] <= 9'd0;
+			r_os_len[3] <= 9'd0;
+			r_os_rd <= 2'd0;
+			r_os_wr <= 2'd0;
+			r_os_count <= 3'd0;
+			r_ws_len[0] <= 9'd0;
+			r_ws_len[1] <= 9'd0;
+			r_ws_len[2] <= 9'd0;
+			r_ws_len[3] <= 9'd0;
+			r_ws_rd <= 2'd0;
+			r_ws_wr <= 2'd0;
+			r_ws_count <= 3'd0;
 			r_timeout_cnt <= 32'd0;
 			r_geom_settle <= 3'd0;
 		end
 		else begin
 			if (write_fifo_empty)
 				r_timeout_cnt <= 32'd0;
-			else if (((r_wr_state == 3'd2) && fub_m_wvalid) && fub_m_wready)
+			else if (w_w_issue)
 				r_timeout_cnt <= 32'd0;
 			else if (r_timeout_cnt < FLUSH_TIMEOUT_CYCLES)
 				r_timeout_cnt <= r_timeout_cnt + 32'd1;
-			if (((r_wr_state != 3'd0) || (cfg_base_addr != r_cfg_base_addr)) || (cfg_limit_addr != r_cfg_limit_addr))
+			if (((r_wr_state != 2'd0) || (cfg_base_addr != r_cfg_base_addr)) || (cfg_limit_addr != r_cfg_limit_addr))
 				r_geom_settle <= 3'd0;
 			else if (r_geom_settle != 3'd5)
 				r_geom_settle <= r_geom_settle + 3'd1;
 			case (r_wr_state)
-				3'd0:
+				2'd0:
 					if ((do_flush && geom_valid) && r_plan_ok) begin : sv2v_autoblock_1
 						reg [15:0] total_units;
-						reg [15:0] first_sub_burst;
 						total_units = (r_plan_geo_units < w_fifo_units ? r_plan_geo_units : w_fifo_units);
-						first_sub_burst = (total_units < sv2v_cast_16_signed(MAX_BURST_BEATS) ? total_units : sv2v_cast_16_signed(MAX_BURST_BEATS));
 						r_wr_addr <= r_plan_addr;
-						r_aw_addr <= r_plan_addr;
-						r_aw_len <= sv2v_cast_8(first_sub_burst - 16'd1);
-						r_w_beats_remaining <= sv2v_cast_9(first_sub_burst);
-						r_unit_remaining <= total_units;
-						r_wr_state <= 3'd1;
+						r_cyc_total <= total_units;
+						r_aw_cov_beats <= 17'd0;
+						r_aw_subs <= 9'd0;
+						r_b_subs <= 9'd0;
+						r_b_beats <= 17'd0;
+						r_w_rem_in_sub <= 10'd0;
+						r_os_count <= 3'd0;
+						r_ws_count <= 3'd0;
+						r_wr_state <= 2'd1;
 					end
 					else if (((do_flush && geom_valid) && !r_plan_ok) && (r_wr_addr == r_cfg_base_addr))
 						r_wr_addr <= {r_cfg_base_addr[ADDR_WIDTH - 1:12] + 1'b1, 12'd0};
 					else if (((do_flush && geom_valid) && !r_plan_ok) && (r_wr_addr != r_cfg_base_addr))
 						r_wr_addr <= r_cfg_base_addr;
-				3'd1:
-					if (fub_m_awvalid && fub_m_awready)
-						r_wr_state <= 3'd2;
-				3'd2:
-					if (fub_m_wvalid && fub_m_wready) begin
-						r_wr_addr <= r_wr_addr + sv2v_cast_A5DC5_signed(BYTES_PER_BEAT);
-						r_w_beats_remaining <= r_w_beats_remaining - 9'd1;
-						r_unit_remaining <= r_unit_remaining - 16'd1;
-						if (r_w_beats_remaining == 9'd1)
-							r_wr_state <= 3'd3;
+				2'd1: begin
+					if (w_aw_issue) begin
+						r_aw_cov_beats <= r_aw_cov_beats + w_aw_sub_len_p1;
+						r_aw_subs <= r_aw_subs + 9'd1;
+						r_wr_addr <= r_wr_addr + sv2v_cast_A5DC5(w_aw_sub_len_p1 * sv2v_cast_17_signed(BYTES_PER_BEAT));
+						r_os_len[r_os_wr] <= sv2v_cast_9(w_aw_sub_len_p1 - 17'd1);
+						r_os_wr <= r_os_wr + 2'd1;
+						r_ws_len[r_ws_wr] <= sv2v_cast_9(w_aw_sub_len_p1 - 17'd1);
+						r_ws_wr <= r_ws_wr + 2'd1;
 					end
-				3'd3:
-					if (fub_m_bvalid && fub_m_bready) begin
-						if (r_unit_remaining > 16'd0) begin : sv2v_autoblock_2
-							reg [15:0] next_sub_burst;
-							next_sub_burst = (r_unit_remaining < sv2v_cast_16_signed(MAX_BURST_BEATS) ? r_unit_remaining : sv2v_cast_16_signed(MAX_BURST_BEATS));
-							r_aw_addr <= r_wr_addr;
-							r_aw_len <= sv2v_cast_8(next_sub_burst - 16'd1);
-							r_w_beats_remaining <= sv2v_cast_9(next_sub_burst);
-							r_wr_state <= 3'd1;
-						end
+					if (w_b_issue) begin
+						r_b_beats <= (r_b_beats + sv2v_cast_17(r_os_len[r_os_rd])) + 17'd1;
+						r_b_subs <= r_b_subs + 9'd1;
+						r_os_rd <= r_os_rd + 2'd1;
+					end
+					if ((((r_b_beats + (w_b_issue ? sv2v_cast_17(r_os_len[r_os_rd]) + 17'd1 : 17'd0)) == sv2v_cast_17(r_cyc_total)) && (r_w_rem_in_sub == 10'd0)) && (r_ws_count == 3'd0))
+						r_wr_state <= 2'd0;
+					if (w_w_issue) begin
+						if (r_w_rem_in_sub == 10'd1)
+							r_w_rem_in_sub <= (w_ws_pop ? sv2v_cast_10(r_ws_len[r_ws_rd]) + 10'd1 : 10'd0);
 						else
-							r_wr_state <= 3'd0;
+							r_w_rem_in_sub <= r_w_rem_in_sub - 10'd1;
 					end
-				default: r_wr_state <= 3'd0;
+					else if (w_ws_pop)
+						r_w_rem_in_sub <= sv2v_cast_10(r_ws_len[r_ws_rd]) + 10'd1;
+					if (w_ws_pop)
+						r_ws_rd <= r_ws_rd + 2'd1;
+					case ({w_aw_issue, w_b_issue})
+						2'b10: r_os_count <= r_os_count + 3'd1;
+						2'b01: r_os_count <= r_os_count - 3'd1;
+						default:
+							;
+					endcase
+					case ({w_aw_issue, w_ws_pop})
+						2'b10: r_ws_count <= r_ws_count + 3'd1;
+						2'b01: r_ws_count <= r_ws_count - 3'd1;
+						default:
+							;
+					endcase
+				end
+				default: r_wr_state <= 2'd0;
 			endcase
 		end
+	assign f_r_wr_state = r_wr_state;
+	assign f_r_wr_addr = r_wr_addr;
+	assign f_r_cyc_total = r_cyc_total;
+	assign f_r_aw_cov_beats = r_aw_cov_beats;
+	assign f_r_b_beats = r_b_beats;
+	assign f_r_aw_subs = r_aw_subs;
+	assign f_r_b_subs = r_b_subs;
+	assign f_r_os_count = r_os_count;
+	assign f_r_ws_count = r_ws_count;
+	assign f_r_w_rem_in_sub = r_w_rem_in_sub;
+	assign f_w_aw_issue = w_aw_issue;
 	reg [AXI_ID_WIDTH_M - 1:0] _unused_bid = fub_m_bid;
 	reg [1:0] _unused_bresp = fub_m_bresp;
 	initial _sv2v_0 = 0;

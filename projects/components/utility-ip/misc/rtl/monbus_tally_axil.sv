@@ -126,14 +126,24 @@ module monbus_tally_axil
     assign rec_wready  = (r_beat == 2'd2) ? w_tally_in_ready : 1'b1;
     assign w_w_hs      = rec_wvalid & rec_wready;
 
-    // B response: one per (aw,w) pair.
-    logic r_rec_bvalid;
+    // B response: one per (aw,w) pair.  The producers (monbus group write
+    // masters, amba BUG-039 pipelined issue) keep several writes outstanding,
+    // so this is a DOWN-COUNTER of accepted-but-unreturned Bs rather than a
+    // level: every accepted W owes one B; every consumed B retires one.  Bs
+    // return in the order the writes completed (single AXIL ID), so the level
+    // with in-order handshakes is an exact per-write response.
+    logic [3:0] r_b_pending;
+    logic       w_b_hs;
+    assign w_b_hs = rec_bvalid & rec_bready;
     `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) r_rec_bvalid <= 1'b0;
-        else if (w_w_hs)            r_rec_bvalid <= 1'b1;
-        else if (rec_bready)        r_rec_bvalid <= 1'b0;
+        if (`RST_ASSERTED(aresetn)) r_b_pending <= 4'd0;
+        else case ({w_w_hs, w_b_hs})
+            2'b10:   r_b_pending <= r_b_pending + 4'd1;   // owe one
+            2'b01:   r_b_pending <= r_b_pending - 4'd1;   // retire one
+            default: ;                                   // both: net zero
+        endcase
     )
-    assign rec_bvalid = r_rec_bvalid;
+    assign rec_bvalid = (r_b_pending != 4'd0);
     assign rec_bresp  = 2'b00;
 
     // 3-beat record reassembler.

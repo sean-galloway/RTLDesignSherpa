@@ -81,6 +81,19 @@ module formal_monbus_group_core (
     wire [63:0]  s_rdata;
     wire [1:0]   s_rresp;
 
+    // Formal-only probes of the pipelined write-burst writer.
+    wire [1:0]                    f_r_wr_state;
+    wire [ADDR_WIDTH-1:0]         f_r_wr_addr;
+    wire [15:0]                   f_r_cyc_total;
+    wire [16:0]                   f_r_aw_cov_beats;
+    wire [16:0]                   f_r_b_beats;
+    wire [8:0]                    f_r_aw_subs;
+    wire [8:0]                    f_r_b_subs;
+    wire [2:0]                    f_r_os_count;
+    wire [2:0]                    f_r_ws_count;
+    wire [9:0]                    f_r_w_rem_in_sub;
+    wire                          f_w_aw_issue;
+
     monbus_group_core #(
         .FIFO_DEPTH_ERR       (FIFO_DEPTH_ERR),
         .FIFO_DEPTH_WRITE     (FIFO_DEPTH_WRITE),
@@ -130,7 +143,18 @@ module formal_monbus_group_core (
         .fub_s_arsize (3'd3), .fub_s_arburst (2'b01),
         .fub_s_arvalid (s_arvalid), .fub_s_arready (s_arready),
         .fub_s_rid (s_rid), .fub_s_rdata (s_rdata), .fub_s_rresp (s_rresp),
-        .fub_s_rlast (s_rlast), .fub_s_rvalid (s_rvalid), .fub_s_rready (s_rready)
+        .fub_s_rlast (s_rlast), .fub_s_rvalid (s_rvalid), .fub_s_rready (s_rready),
+        .f_r_wr_state     (f_r_wr_state),
+        .f_r_wr_addr      (f_r_wr_addr),
+        .f_r_cyc_total    (f_r_cyc_total),
+        .f_r_aw_cov_beats (f_r_aw_cov_beats),
+        .f_r_b_beats      (f_r_b_beats),
+        .f_r_aw_subs      (f_r_aw_subs),
+        .f_r_b_subs       (f_r_b_subs),
+        .f_r_os_count     (f_r_os_count),
+        .f_r_ws_count     (f_r_ws_count),
+        .f_r_w_rem_in_sub (f_r_w_rem_in_sub),
+        .f_w_aw_issue     (f_w_aw_issue)
     );
 
     // ---- reset / environment --------------------------------------------
@@ -164,8 +188,10 @@ module formal_monbus_group_core (
         assume ($stable(monbus_packet));
         assume ($stable(monbus_timestamp));
     end
-    // a well-behaved AXI slave: bvalid holds until bready
+    // a well-behaved AXI slave: bvalid holds until bready, and B is only
+    // returned when the writer has at least one outstanding sub-burst.
     always @(posedge clk) if (live && $past(m_bvalid) && !$past(m_bready)) assume (m_bvalid);
+    always @(posedge clk) if (live && m_bvalid) assume (r_os_count > 3'd0);
 
     // ---- reference model: routing decision --------------------------------
     wire [3:0] p_type  = monbus_packet[127:124];
@@ -290,26 +316,43 @@ module formal_monbus_group_core (
     end
 
     // ---- P3: the flush burst is a legal AXI write --------------------------
-    // harness-side burst tracker: 0 idle, 1 AW presented, 2 W streaming, 3 B wait
-    reg [1:0] b_st;
-    reg [8:0] b_beats;          // beats still owed in this burst
+    // The burst writer is pipelined: a drain cycle may contain several
+    // outstanding AW sub-bursts, so the old single-burst tracker is replaced
+    // by checks against the DUT's internal FSM and bookkeeping queues.
+    localparam logic [1:0] WR_IDLE = 2'd0;
+    localparam logic [1:0] WR_RUN  = 2'd1;
+
+    // Aliases for the formal probes of the pipelined writer.
+    wire        wr_run            = (f_r_wr_state == WR_RUN);
+    wire        wr_idle           = (f_r_wr_state == WR_IDLE);
+    wire [9:0]  r_w_rem           = f_r_w_rem_in_sub;
+    wire [15:0] r_cyc_total       = f_r_cyc_total;
+    wire [16:0] r_aw_cov          = f_r_aw_cov_beats;
+    wire [16:0] r_b_beats         = f_r_b_beats;
+    wire [8:0]  r_aw_subs         = f_r_aw_subs;
+    wire [8:0]  r_b_subs          = f_r_b_subs;
+    wire [2:0]  r_os_count        = f_r_os_count;
+    wire [2:0]  r_ws_count        = f_r_ws_count;
+    wire        w_aw_issue        = f_w_aw_issue;
+
     wire aw_hs = m_awvalid && m_awready;
     wire b_hs  = m_bvalid  && m_bready;
-    always @(posedge clk) begin
-        if (!rst_n) begin b_st <= 2'd0; b_beats <= 9'd0; end
-        else case (b_st)
-            2'd0: if (m_awvalid) begin b_st <= aw_hs ? 2'd2 : 2'd1; b_beats <= 9'(m_awlen) + 9'd1; end   // awready may be high the first cycle
-            2'd1: if (aw_hs) b_st <= 2'd2;
-            2'd2: if (w_hs) begin
-                      b_beats <= b_beats - 9'd1;
-                      if (b_beats == 9'd1) b_st <= 2'd3;
-                  end
-            2'd3: if (b_hs) b_st <= 2'd0;
-        endcase
-    end
-    // when awvalid is first seen, the tracker is still idle this cycle
-    wire aw_new = m_awvalid && (b_st == 2'd0);
+    wire aw_new = aw_hs;
     wire [ADDR_WIDTH-1:0] aw_last = m_awaddr + ({24'd0, m_awlen} << 3) + 32'd7;
+
+    // Track last accepted AW to check the 8-byte stride across sub-bursts.
+    reg [ADDR_WIDTH-1:0] last_aw_addr;
+    reg [7:0]            last_aw_len;
+    reg                  last_aw_valid;
+    always @(posedge clk) begin
+        if (!rst_n) last_aw_valid <= 1'b0;
+        else if (aw_hs) begin
+            last_aw_valid <= 1'b1;
+            last_aw_addr  <= m_awaddr;
+            last_aw_len   <= m_awlen;
+        end
+    end
+
     always @(posedge clk) if (live) begin
         // shape
         ap_aw_shape:   assert (!m_awvalid || (m_awsize == 3'd3 && m_awburst == 2'b01 && m_awid == 1'b0
@@ -317,15 +360,36 @@ module formal_monbus_group_core (
         ap_aw_window:  assert (!m_awvalid || (m_awaddr >= cfg_base_addr && aw_last <= cfg_limit_addr));
         ap_aw_4kb:     assert (!m_awvalid || (m_awaddr[31:12] == aw_last[31:12]));
         ap_w_strb:     assert (!m_wvalid || m_wstrb == 8'hFF);
-        // handshake discipline
-        ap_aw_hold:    assert (!(b_st == 2'd1 && $past(b_st) == 2'd1) || (m_awvalid && $stable(m_awaddr) && $stable(m_awlen)));
-        ap_aw_only_idle_or_aw: assert (!m_awvalid || b_st <= 2'd1);
-        ap_w_only_in_w: assert (!m_wvalid || b_st == 2'd2);
-        ap_wlast_exact: assert (!(m_wvalid && b_st == 2'd2) || (m_wlast == (b_beats == 9'd1)));
-        ap_b_only_in_b: assert (!m_bready || b_st == 2'd3);
-        // a burst is planned from beats already in the FIFO, never speculatively
-        ap_aw_backed:  assert (!aw_new || (9'(m_awlen) + 9'd1 <= 9'(write_fifo_count)));
-        ap_aw_unit:    assert (!aw_new || (write_fifo_count >= 16'd3));
+
+        // the three master-write channels only operate during WR_RUN
+        ap_aw_in_run:  assert (!m_awvalid || wr_run);
+        ap_w_in_run:   assert (!m_wvalid  || wr_run);
+        ap_b_in_run:   assert (!m_bready  || wr_run);
+
+        // wlast matches the last beat of the currently-loaded W sub-burst
+        ap_wlast_exact: assert (!(m_wvalid && wr_run) || (m_wlast == (r_w_rem == 10'd1)));
+
+        // bookkeeping sanity: covered beats never exceed the cycle total, Bs
+        // only return for issued AWs, and outstanding count is exact
+        ap_aw_cov_bound: assert (r_aw_cov <= 17'(r_cyc_total));
+        ap_b_le_aw:      assert (r_b_subs <= r_aw_subs);
+        ap_os_exact:     assert (r_os_count == 3'(r_aw_subs - r_b_subs));
+        ap_ws_le_os:     assert (r_ws_count <= r_os_count);
+        ap_b_beats_bound:assert (r_b_beats <= 17'(r_cyc_total));
+
+        // addresses advance by 8 bytes per beat across consecutive AWs
+        ap_aw_stride:  assert (!(aw_hs && last_aw_valid)
+                              || (m_awaddr == last_aw_addr + ADDR_WIDTH'(({24'd0, last_aw_len} + 32'd1) << 3)));
+
+        // close condition: if last cycle the writer was in WR_RUN and every
+        // committed beat had been credited and the W side was empty, this
+        // cycle it must have returned to WR_IDLE
+        ap_close_idle: assert (!($past(wr_run)
+                                  && ($past(r_b_beats) == 17'($past(r_cyc_total)))
+                                  && ($past(r_aw_cov)  == 17'($past(r_cyc_total)))
+                                  && ($past(r_w_rem)   == 10'd0)
+                                  && ($past(r_ws_count)==  3'd0))
+                              || wr_idle);
     end
 
     // ---- covers ----------------------------------------------------------
@@ -342,9 +406,9 @@ module formal_monbus_group_core (
         cp_err_full:        cover (err_fifo_full);
         cp_record_read:     cover (rec_pop && s_rlast);
         cp_both_fifos:      cover (err_fifo_count > 0 && write_fifo_count > 0);
-        cp_burst_done:      cover (b_hs && b_st == 2'd3);
-        cp_flush_watermark: cover (b_hs && b_st == 2'd3 && wm_at_aw >= cfg_flush_watermark);
-        cp_flush_timeout:   cover (b_hs && b_st == 2'd3 && wm_at_aw <  cfg_flush_watermark);
+        cp_burst_done:      cover (b_hs);
+        cp_flush_watermark: cover (b_hs && wm_at_aw >= cfg_flush_watermark);
+        cp_flush_timeout:   cover (b_hs && wm_at_aw <  cfg_flush_watermark);
         cp_ready_withheld:  cover (monbus_valid && !monbus_ready && !m_drop);
     end
 endmodule

@@ -30,6 +30,7 @@ import sys
 
 import pytest
 import cocotb
+from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
@@ -318,6 +319,34 @@ async def cocotb_test_observer_consumer_sustained(dut):
     tb = AXI4IntfObserverTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.start_egress_sink(beat_duty=duty)
+    if os.environ.get("BUG039_PROBE"):
+        from cocotb.triggers import ReadOnly
+        core = dut.g_egress_axil.u_group.u_core
+        async def _probe():
+            prev_state = 0
+            for cyc in range(3000):
+                await ReadOnly()
+                st = int(core.r_wr_state.value)
+                if st == 1 or prev_state == 1:
+                    print(f"OPROBE cyc={cyc} state={st} "
+                          f"total={int(core.r_cyc_total.value)} "
+                          f"awcov={int(core.r_aw_cov_beats.value)} "
+                          f"awsub={int(core.r_aw_subs.value)} "
+                          f"bsub={int(core.r_b_subs.value)} "
+                          f"bbeats={int(core.r_b_beats.value)} "
+                          f"rem={int(core.r_w_rem_in_sub.value)} "
+                          f"oscnt={int(core.r_os_count.value)} "
+                          f"wscnt={int(core.r_ws_count.value)} "
+                          f"osrd={int(core.r_os_rd.value)} oswr={int(core.r_os_wr.value)} "
+                          f"wsv={int(core.r_ws_len[0].value)}{int(core.r_ws_len[1].value)}"
+                          f"{int(core.r_ws_len[2].value)}{int(core.r_ws_len[3].value)} "
+                          f"awv={int(dut.m_axil_awvalid.value)} awr={int(dut.m_axil_awready.value)} "
+                          f"wv={int(dut.m_axil_wvalid.value)} wr={int(dut.m_axil_wready.value)} "
+                          f"bv={int(dut.m_axil_bvalid.value)} br={int(dut.m_axil_bready.value)} "
+                          f"fifocnt={int(core.write_fifo_beat_count.value)}")
+                prev_state = st
+                await RisingEdge(dut.aclk)
+        cocotb.start_soon(_probe())
     await tb.write_reg("OBS_CTRL", 0)                 # flush every record
     await tb.write_reg("OBS_BASE_ADDR", 0x0000_0000)
     await tb.write_reg("OBS_LIMIT_ADDR", 0x0000_FFFF)
@@ -403,22 +432,47 @@ async def cocotb_test_observer_egress_ceiling(dut):
 
     n = 200
     start = len(tb.packets)
-    # offer faster than any plausible egress (flat out, gap=1)
+    # offer faster than any plausible egress (flat out, gap=1); records may
+    # complete DURING the offer now that the write path pipelines, so the
+    # elapsed window must cover offering plus drain (sink-local cycles).
     for i in range(n):
         await tb.drive_read_burst(addr=0x1000 + (i % 64) * 0x40, arid=i % 16,
                                   beats=2, gap=1)
         await tb.drive_write_burst(addr=0x2000 + (i % 64) * 0x40,
                                    awid=(i + 8) % 16, beats=2, gap=1)
-    # measure the cycles until the nth record egresses (poll in slices)
-    cycles = 0
-    while len(tb.packets) < start + n and cycles < 20000:
+    # wait for the nth record to complete (poll in slices)
+    polls = 0
+    while len(tb.packets) < start + n and polls < 20000:
         await tb.wait_clocks("aclk", 20)
-        cycles += 20
+        polls += 1
     got = len(tb.packets) - start
-    ceiling = got / cycles if cycles else 0.0
-    tb.log.info(f"[BUG-039 ceiling] {got} records in {cycles} cycles "
+    last = start + got - 1
+    # Steady-state tail: the offer loop paces the front of the run, so the
+    # ceiling is the completion rate of the LAST k records -- by then the
+    # write FIFO is full and completions are back-to-back at pure egress
+    # speed (this is equally valid when egress, not the offer, is the
+    # bottleneck: the tail is then paced by egress for both halves).
+    k = min(100, got - 1) if got > 1 else 0
+    cycles = (tb.egress_done_cyc[last] - tb.egress_done_cyc[last - k]) if k else 0
+    ceiling = k / cycles if cycles else 0.0
+    tb.log.info(f"[BUG-039 ceiling] {got} records offered, last {k} completed "
+                f"in {cycles} sink cycles "
                 f"-> sustained egress ~{ceiling:.3f} records/cycle "
-                f"(1 record per {1.0 / ceiling:.1f} cycles)")
+                + (f"(1 record per {1.0 / ceiling:.1f} cycles)"
+                   if ceiling > 0 else ""))
+    # Floor: the raw 3-beat record path through one 64-bit AXIL port is
+    # physically capped at 1 beat/cycle = 0.333 records/cycle.  The measured
+    # rate also pays the geometry pipeline's 5-cycle re-settle per drain
+    # cycle (the deliberate amba ISSUE-001 100 MHz timing fix) and any
+    # timeout-driven 1-record flushes, so the sustained number lands at
+    # ~0.17 -- 2x the pre-fix serial AW/W/B chain (0.082) and above the
+    # board campaign's 0.125 offered rate, which is the requirement.
+    assert got >= n, (
+        f"egress delivered only {got}/{n} waited-on records "
+        f"-- records are being lost, not just slowed")
+    assert ceiling >= 0.15, (
+        f"egress sustained {ceiling:.3f} records/cycle (< 0.15) -- the record "
+        f"path is not pipelined (amba BUG-039 regression)")
 
 
 @cocotb.test(timeout_time=4, timeout_unit="ms")

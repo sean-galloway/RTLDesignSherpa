@@ -82,6 +82,14 @@ async def cocotb_test_monbus_group_soft_reset_reissue(dut):
     await tb.setup_interfaces()
 
     # ---- Phase A: fill without draining --------------------------------
+    # Stop the trace consumer so the master-write side starves: with the
+    # pipelined write FSM (amba BUG-039) a live void sink drains the write
+    # FIFO faster than the fill loop can sample it, which would leave
+    # write_fifo_count at 0 and make phase B's reset check vacuous.  The
+    # consumer exits to awready=wready=bvalid=0, so nothing drains while
+    # the FIFOs fill.
+    tb.mon.stop_trace_consumer()
+    await tb.wait_clocks(tb.clk_name, 4)
     await _fill(tb, BATCH, 0xA)
     err_a, wr_a = _fifo_counts(dut)
     tb.log.info(f"[TASK-084] phase A (filled, undrained): "
