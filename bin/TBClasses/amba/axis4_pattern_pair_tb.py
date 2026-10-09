@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
 # Module: Axis4PatternPairTB
-# Purpose: Testbench for axis4_master_pattern_gen -> axis4_slave_pattern_check
+# Purpose: Testbench for axis4_master_injector -> axis4_slave_pattern_check
 # Subsystem: framework
 #
 # TB class lives here per rtl/amba/CLAUDE.md Rule #0 and GLOBAL_REQUIREMENTS

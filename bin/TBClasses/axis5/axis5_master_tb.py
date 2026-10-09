@@ -76,7 +76,7 @@ class AXIS5MasterTB(TBBase):
 
         # Setup clock and reset signals
         self.aclk = aclk
-        self.aclk_name = aclk._name if aclk else 'aclk'
+        self.aclk_name = aclk._name if aclk is not None else 'aclk'
         self.aresetn = aresetn
 
         # Calculate derived parameters

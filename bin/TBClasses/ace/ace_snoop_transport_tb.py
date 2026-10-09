@@ -79,7 +79,7 @@ class AXI4ACESnoopTransportTB(TBBase):
         self.data_mask = (1 << self.TEST_DATA_WIDTH) - 1
 
         self.aclk = aclk
-        self.aclk_name = aclk._name if aclk else 'aclk'
+        self.aclk_name = aclk._name if aclk is not None else 'aclk'
         self.aresetn = aresetn
         self.master_prefix = master_prefix
         self.slave_prefix = slave_prefix

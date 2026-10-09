@@ -22,7 +22,7 @@ The module header of the bundling wrapper (``axi4_dma_slaves.sv``) spells
 out the actual integrity architecture: "the master writes back the same
 LFSR data it read, so both sides compute against the same CRC" -- i.e.
 corruption is detected EXTERNALLY, by comparing this module's
-``write_crc_value`` against the read-side ``axi4_slave_rd_pattern_gen``'s
+``write_crc_value`` against the read-side ``axi4_slave_rd_injector``'s
 ``read_crc_value`` (that comparison is exercised in
 ``test_axi4_dma_slaves.py``, which drives both sides of one DUT).
 

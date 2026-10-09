@@ -88,7 +88,7 @@ class SdpramSlaveMixedTB(TBBase):
         self.mask = (1 << self.data_width) - 1
 
         self.aclk = aclk
-        self.aclk_name = aclk._name if aclk else 'aclk'
+        self.aclk_name = aclk._name if aclk is not None else 'aclk'
         self.aresetn = aresetn
 
         self.log.info(

@@ -71,7 +71,7 @@ class APB5MasterTB(TBBase):
 
         # Setup clock and reset signals
         self.pclk = pclk
-        self.pclk_name = pclk._name if pclk else 'pclk'
+        self.pclk_name = pclk._name if pclk is not None else 'pclk'
         self.presetn = presetn
 
         # Set limits based on widths

@@ -72,7 +72,7 @@ class AXI4ACEMasterWriteTB(TBBase):
         random.seed(self.SEED)
 
         self.aclk = aclk
-        self.aclk_name = aclk._name if aclk else 'aclk'
+        self.aclk_name = aclk._name if aclk is not None else 'aclk'
         self.aresetn = aresetn
 
         self.MAX_ADDR = (2 ** self.TEST_ADDR_WIDTH) - 1

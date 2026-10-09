@@ -88,8 +88,8 @@ class AXIL4MasterMonitorTB(TBBase):
         random.seed(self.SEED)
 
         self.is_write = is_write
-        self.aclk = aclk if aclk else dut.aclk
-        self.aresetn = aresetn if aresetn else dut.aresetn
+        self.aclk = aclk if aclk is not None else dut.aclk
+        self.aresetn = aresetn if aresetn is not None else dut.aresetn
 
         # Create memory model for the slave side
         bytes_per_line = max(4, (self.TEST_DATA_WIDTH + 7) // 8)

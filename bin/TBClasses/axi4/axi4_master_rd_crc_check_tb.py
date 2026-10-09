@@ -42,8 +42,8 @@ from cocotb.triggers import RisingEdge, Timer
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
 from TBClasses.common.lfsr_mirror import simulate_xor_lfsr as _shared_lfsr
-from TBClasses.axi4.axi4_master_wr_pattern_gen_tb import (
-    WrPatternGenTB as _LfsrMirror,
+from TBClasses.axi4.axi4_master_wr_injector_tb import (
+    WrInjectorTB as _LfsrMirror,
 )
 
 from CocoTBFramework.components.axi4.axi4_interfaces import AXI4SlaveRead

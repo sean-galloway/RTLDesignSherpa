@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
-# Module: axi4_slave_rd_pattern_gen_tb
-# Purpose: Direct FUB TB for axi4_slave_rd_pattern_gen. This block IS an
+# Module: axi4_slave_rd_injector_tb
+# Purpose: Direct FUB TB for axi4_slave_rd_injector. This block IS an
 #          AXI4 slave (LFSR pattern source + per-channel CRC-32
 #          accumulator), so the TB drives it with the framework's
 #          AXI4MasterRead BFM on the s_axi_* port -- never a hand-rolled
 #          AR/R poke.
 
-"""TB for `axi4_slave_rd_pattern_gen`.
+"""TB for `axi4_slave_rd_injector`.
 
 Drives the DUT's ``s_axi_*`` (AR/R) port with the framework's
 ``AXI4MasterRead`` interface (``CocoTBFramework.components.axi4.axi4_interfaces``).
@@ -55,7 +55,7 @@ from CocoTBFramework.components.axi4.axi4_interfaces import AXI4MasterRead
 _NBA_SETTLE_PS = 100
 
 
-class SlaveRdPatternGenTB(TBBase):
+class SlaveRdInjectorTB(TBBase):
     CLK = 10
 
     LFSR_DEFAULT_SEED = 0xDEADBEEF
@@ -65,7 +65,7 @@ class SlaveRdPatternGenTB(TBBase):
     def __init__(self, dut) -> None:
         super().__init__(dut)
         self.dut = dut
-        self.log = logging.getLogger("slave_rd_pattern_gen_tb")
+        self.log = logging.getLogger("slave_rd_injector_tb")
         self.log.setLevel(logging.INFO)
 
         self.AXI_DATA_WIDTH = self.convert_to_int(

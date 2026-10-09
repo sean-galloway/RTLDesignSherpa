@@ -3,7 +3,7 @@
 #
 # Module: axi4_dma_slaves_tb
 # Purpose: Direct FUB TB for axi4_dma_slaves -- the bundle wrapper that
-#          combines axi4_slave_rd_pattern_gen (AR/R) and
+#          combines axi4_slave_rd_injector (AR/R) and
 #          axi4_slave_wr_crc_check (AW/W/B) behind one aclk/aresetn.
 
 """TB for `axi4_dma_slaves`.
@@ -41,7 +41,7 @@ from CocoTBFramework.components.axi4.axi4_interfaces import (
     AXI4MasterRead, AXI4MasterWrite,
 )
 
-from TBClasses.axi4.axi4_slave_rd_pattern_gen_tb import SlaveRdPatternGenTB
+from TBClasses.axi4.axi4_slave_rd_injector_tb import SlaveRdInjectorTB
 from TBClasses.axi4.axi4_slave_wr_crc_check_tb import SlaveWrCrcCheckTB
 
 
@@ -51,8 +51,8 @@ _NBA_SETTLE_PS = 100
 class DmaSlavesTB(TBBase):
     CLK = 10
 
-    LFSR_DEFAULT_SEED = SlaveRdPatternGenTB.LFSR_DEFAULT_SEED
-    LFSR_TAPS = SlaveRdPatternGenTB.LFSR_TAPS
+    LFSR_DEFAULT_SEED = SlaveRdInjectorTB.LFSR_DEFAULT_SEED
+    LFSR_TAPS = SlaveRdInjectorTB.LFSR_TAPS
     LFSR_WIDTH = 32
 
     def __init__(self, dut) -> None:

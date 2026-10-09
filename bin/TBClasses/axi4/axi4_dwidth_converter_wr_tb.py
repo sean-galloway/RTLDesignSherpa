@@ -99,9 +99,9 @@ class AXI4DWidthConverterWriteTB(TBBase):
         random.seed(self.SEED)
 
         # Setup clock and reset signals
-        self.aclk = aclk if aclk else dut.aclk
+        self.aclk = aclk if aclk is not None else dut.aclk
         self.aclk_name = self.aclk._name if hasattr(self.aclk, '_name') else 'aclk'
-        self.aresetn = aresetn if aresetn else dut.aresetn
+        self.aresetn = aresetn if aresetn is not None else dut.aresetn
 
         # Log configuration
         mode_str = "UPSIZE" if self.UPSIZE else "DOWNSIZE"

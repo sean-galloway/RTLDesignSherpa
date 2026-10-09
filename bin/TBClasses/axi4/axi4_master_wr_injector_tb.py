@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
-# Module: axi4_master_wr_pattern_gen_tb
-# Purpose: Direct FUB TB for axi4_master_wr_pattern_gen. Drives the cfg
+# Module: axi4_master_wr_injector_tb
+# Purpose: Direct FUB TB for axi4_master_wr_injector. Drives the cfg
 #          interface and acts as a minimal AXI4 slave on the M side so
 #          the FSM exercises end-to-end (cfg_start -> AW/W/B -> cfg_done).
 
-"""TB for `axi4_master_wr_pattern_gen`.
+"""TB for `axi4_master_wr_injector`.
 
 Terminates the M-side AXI with the framework's ``AXI4SlaveWrite`` BFM
 backed by a shared ``MemoryModel``:
@@ -84,7 +84,7 @@ class _Axi4SlaveWriteWithBrespOverride(AXI4SlaveWrite):
         self.b_channel.create_packet = _wrapped
 
 
-class WrPatternGenTB(TBBase):
+class WrInjectorTB(TBBase):
     CLK = 10
 
     LFSR_DEFAULT_SEED = 0xDEADBEEF
@@ -98,7 +98,7 @@ class WrPatternGenTB(TBBase):
     def __init__(self, dut, *, mem_bytes: int = DEFAULT_MEM_BYTES) -> None:
         super().__init__(dut)
         self.dut = dut
-        self.log = logging.getLogger("wr_pattern_gen_tb")
+        self.log = logging.getLogger("wr_injector_tb")
         self.log.setLevel(logging.INFO)
 
         self.AXI_DATA_WIDTH = self.convert_to_int(
@@ -372,7 +372,7 @@ class WrPatternGenTB(TBBase):
     def addr_hash32(addr: int, s0: int, s1: int, s2: int) -> int:
         """Four seeded rotate-XOR rounds, 32-bit truncated.
 
-        Mirrors f_addr_hash32 in BOTH axi4_master_wr_pattern_gen.sv and
+        Mirrors f_addr_hash32 in BOTH axi4_master_wr_injector.sv and
         axi4_master_rd_crc_check.sv, which are identical by contract. All
         three must change together; the cross-block CRC compare is what
         catches it if they do not.
@@ -410,7 +410,7 @@ class WrPatternGenTB(TBBase):
         full = 0
         for s in range(rep):
             slice_addr = (byte_addr + s * 4) & 0xFFFFFFFF
-            slice_word = WrPatternGenTB.addr_hash32(slice_addr, s0, s1, s2)
+            slice_word = WrInjectorTB.addr_hash32(slice_addr, s0, s1, s2)
             full |= slice_word << (s * 32)
         return full & self.MASK_DATA
 
