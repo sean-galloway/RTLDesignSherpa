@@ -31,6 +31,12 @@ and rationale) > code comments. On conflict, the requirement wins.
   2026-10-06, and the rule that every later change to them is tracked with a
   GitHub issue
 
+## Reference library
+
+- [[book-library]] - the converted textbook library at
+  `/mnt/data/github/calibre/books/` (machine-local, not in git): find a
+  chapter by `area-*`/`lang-*` tag, read one section, cite it.
+
 ## Skills
 
 - [[skills]] - the reverse index: every `.claude/skills/` signpost and the

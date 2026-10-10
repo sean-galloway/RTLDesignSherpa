@@ -16,6 +16,7 @@ durable lesson, it goes in the **note**, and the skill keeps pointing at it.
 
 | Skill | Signposts (handbook note) | What it covers |
 |-------|---------------------------|----------------|
+| [book-library](../../.claude/skills/book-library/SKILL.md) | [[book-library]] | The converted textbook library at `/mnt/data/github/calibre/books/`: find a chapter by `area-*`/`lang-*` tag, read one section, cite it |
 | [coverage](../../.claude/skills/coverage/SKILL.md) | [[coverage]] | Verilator line/toggle coverage, functional coverage, the monbus packet-type matrix |
 | [doc-methods](../../.claude/skills/doc-methods/SKILL.md) | [[doc-pipeline]] | The Sherpa doc pipeline — `md_to_docx --style`, caption-encoded lists, RTL PDF books |
 | [doc-placement](../../.claude/skills/doc-placement/SKILL.md) | [[doc-placement]] | What kind of doc lives where; a beside-code README is a link, not a copy |
