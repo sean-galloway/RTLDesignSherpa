@@ -3,6 +3,7 @@
 **Priority:** P3
 **Status:** OPEN (process/hygiene; resolves into ISSUE-002's reconcile + a convention note)
 **Owner:** TBD
+**GitHub:** #95 (consumer-facing record of the found/fixed items + this protocol)
 
 ## The episode (2026-10-10, BUG-008)
 

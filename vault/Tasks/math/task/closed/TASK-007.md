@@ -3,6 +3,7 @@
 **Priority:** P3
 **Status:** FIXED 2026-10-10 (grid helper in fp_testing.py adopted by 13 base-class TBs and all 8 ieee754_2008 files; grid surfaced one real RTL bug — BUG-008 — and one clamp contract deviation now encoded in the golden)
 **Owner:** TBD
+**GitHub:** #95
 
 ## Resolution (2026-10-10)
 
