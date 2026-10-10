@@ -52,7 +52,10 @@ Tags come from calibre (`organize/tags.tsv` in the pipeline repo) and appear in
 Coarse categories (`hw-rtl`, `comp-arch`, `ml-ai`, `software`, ...) exist too.
 `LOCKED` marks books whose DRM the toolchain cannot yet remove; they are in
 calibre but have no Markdown tree, so they appear only at the end of
-`LIBRARY.md`.
+`LIBRARY.md`. `source-pdf` marks a tree built from a DRM-free PDF the owner
+holds instead of the Kindle file; the text is the same but figures are page
+renders and the odd page number survives inside code listings. Check the
+edition in the title: a PDF may be an older edition than the Kindle copy.
 
 ## Citing
 
