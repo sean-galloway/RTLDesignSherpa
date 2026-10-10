@@ -36,7 +36,7 @@ with the tooling-TASK-026 `check-flat` target):
 Plus `formal/amber/specialize_params.py` (see Toolchain findings) and the
 `.sby` / Makefile / wrapper / flat per directory.
 
-## The safety/liveness split (and why the depths are 60 and 126)
+## The safety/liveness split (and why the depth is 126 for both)
 
 amber_control carries two proof obligations of very different shape, and
 one wrapper serves both poorly:

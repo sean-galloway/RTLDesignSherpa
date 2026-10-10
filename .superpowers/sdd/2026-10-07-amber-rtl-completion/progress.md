@@ -339,3 +339,11 @@
   agent-101 resumed on the delta. OPEN: owner decision on a fresh on-disk
   depth-126 safety run — the repo now reproduces the config; the recorded
   PASS already covers the content.
+- T13 REVIEW R1 RE-REVIEW (agent-101): APPROVED with 1 nit. All 8 findings
+  RESOLVED; cross-checks consistent (sby/report/README agree on safety 126 /
+  cover 80, engines boolector, fill window 12 non-vacuous). Nit: report
+  section heading still said "depths are 60 and 126" — fixed editorially in
+  this commit. Owner ruling 2026-10-10: no fresh on-disk safety run; the
+  recorded non-vacuous PASS stands and the repo now reproduces its config.
+  TASK 13 COMPLETE. Commits: 69db03018 (config), 5374b299c (report+ledger),
+  this commit (nit + final ledger).
