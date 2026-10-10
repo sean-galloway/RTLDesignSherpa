@@ -342,7 +342,7 @@ class AndesiteMemCmdSchedulerTB(TBBase):
         made an arbiter-side count come up exactly one short and wrongly
         exonerate the arbiter.
         """
-        arb = self.dut.u_arbiter
+        arb = self.dut.u_core.u_arbiter
         cyc = 0
         while True:
             await RisingEdge(self.dut.aclk)

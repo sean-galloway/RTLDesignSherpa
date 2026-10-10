@@ -338,6 +338,42 @@ lint PASS, andesite pytest 247 passed, scoria lint PASS, scoria pytest 227
 passed. Registry check PASS; audit PASS; links 0 broken; task-ids PASS.
 - commit <TODO>: common shell + wrappers + scoria refactor + test updates.
 
-RESUME HERE: Task 5 step 2 — scheduler merge design, pending inventory review
-(mc_scheduler_knobs.md). Remaining DFI revs (scoria 3.1, andesite 4.0) follow
-after scheduler merge.
+Task 5 step 2: scheduler merge design executed as wrapper migration to common
+`mc_scheduler_layer` / `mc_cmd_arbiter`. Pumice wrapper was already migrated;
+scoria and andesite wrappers converted to thin rock-specific shells that
+instantiate the common core with their original parameter values and child
+modules (init_sequencer, mode_register, refresh_ctrl, zq_ctrl, page_policy).
+Key common-core changes driven by the migration:
+- `mc_cmd_arbiter.sv`: added missing `r_zq_grant` output-register registration
+  (fixed scoria ZQ gate failures); added `maint_col_i` port and drives `w_col`
+  for maintenance commands (andesite MRS/MPC encoding); corrected
+  `w_tccd_ls_ok`/`w_trrd_ls_ok` to match original andesite degenerate-NUM_BG=1
+  behavior: `(w_pick_group != r_last_*_bg) || *_l_ok_i`.
+- `mc_scheduler_layer.sv`: added `maint_col_i` passthrough to arbiter; added
+  pre-FIFO `cmd_accept_o` / `cmd_accept_op_o` outputs (used by andesite init
+  sequencer `cmd_ack`).
+- Pumice/scoria wrappers tie off `maint_col_i` and leave the new accept outputs
+  open (no consumer). Andesite wrapper maps `trn_cmd_*` to the maintenance slot
+  and uses `cmd_accept_*` for init MRS/ZQCL ack.
+- Filelists updated so each rock's master/top/macro filelists include the common
+  layer/arbiter `-f` instead of standalone rock sources; `andesite_all.f` cleaned
+  of now-redundant common files.
+- DV probe path fix: `andesite_scheduler_layer_tb.py:345` `u_arbiter` ->
+  `u_core.u_arbiter`.
+Verification:
+- common-ip lint: PASS (24 modules)
+- pumice lint: PASS (60 modules); pumice gate suite: run-all-gate-parallel PASS
+  across fub/macro/top/phy; pumice func suite: run-all-func-parallel PASS
+  (fub 159 + macro 98 + top 215 + phy 32 passed, 4 skipped)
+- scoria lint: PASS (60 modules); scoria gate suite: run-all-gate-parallel PASS
+  across fub/macro/top (53 + 14 + 2 tests); scoria func suite:
+  run-all-func-parallel PASS (fub 204 + macro 19 + top 4 tests)
+- andesite lint: PASS (57 modules); andesite gate suite: fub 55 passed,
+  macro 5 passed, top 2 passed; andesite func suite: fub 225 passed,
+  macro 18 passed, top 4 passed
+Registry check, task-ids, and hook suite are expected to pass at commit time.
+Uncommitted changes are confined to the wrapper/common-core files above.
+
+Task 5 step 3 (full functional regression) complete. Next: commit the wrapper
+migration, then continue with scheduler-merge internals / remaining DFI revs
+(scoria 3.1, andesite 4.0) per the plan.

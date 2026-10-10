@@ -133,6 +133,7 @@ module mc_scheduler_layer
     input  dram_op_e                  maint_op_i,
     input  logic [BKW-1:0]            maint_bank_i,
     input  logic [ROW_WIDTH-1:0]      maint_row_i,
+    input  logic [COL_WIDTH-1:0]      maint_col_i,
     input  logic [MAINT_EXTRA_WIDTH-1:0] maint_extra_i,
     input  logic                      maint_busy_i,
 
@@ -190,7 +191,13 @@ module mc_scheduler_layer
     output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_row_active_o,
     output logic [NUM_RANKS-1:0][NUM_BANKS-1:0][ROW_WIDTH-1:0]  bank_open_row_o,
 
-    output logic                      busy_o
+    output logic                      busy_o,
+
+    // Pre-FIFO command accept (arbiter-side).  Some rocks (andesite) need to
+    // ack their init_sequencer in the same cycle the arbiter takes the
+    // command, before the output FIFO/delay stages absorb it.
+    output logic                      cmd_accept_o,
+    output dram_op_e                  cmd_accept_op_o
 );
 
     // ---- internal nets ----
@@ -350,6 +357,7 @@ module mc_scheduler_layer
         .maint_op_i         (maint_op_i),
         .maint_bank_i       (maint_bank_i),
         .maint_row_i        (maint_row_i),
+        .maint_col_i        (maint_col_i),
         .maint_extra_i      (maint_extra_i),
         .maint_busy_i       (maint_busy_i),
         .bank_act_ready_i   (w_bank_act_ready),
@@ -481,5 +489,8 @@ module mc_scheduler_layer
 
     assign busy_o = !init_done_i || refresh_req_i || w_cmd_rd_valid
                  || (|w_bank_row_active[0]);
+
+    assign cmd_accept_o    = a_cmd_valid && a_cmd_ready;
+    assign cmd_accept_op_o = a_cmd_op;
 
 endmodule : mc_scheduler_layer

@@ -199,6 +199,7 @@ module pumice_cmd_arbiter
         .maint_op_i         (trn_cmd_op_i),
         .maint_bank_i       (trn_cmd_bank_i),
         .maint_row_i        (trn_cmd_row_i),
+        .maint_col_i        ('0),
         .maint_extra_i      (w_maint_extra),
         .maint_busy_i       (cal_busy_i),
         .bank_act_ready_i   (bank_act_ready_i),

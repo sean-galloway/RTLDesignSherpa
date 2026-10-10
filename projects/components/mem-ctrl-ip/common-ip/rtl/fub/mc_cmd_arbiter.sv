@@ -103,6 +103,7 @@ module mc_cmd_arbiter
     input  dram_op_e                  maint_op_i,
     input  logic [BKW-1:0]            maint_bank_i,
     input  logic [ROW_WIDTH-1:0]      maint_row_i,
+    input  logic [COL_WIDTH-1:0]      maint_col_i,
     input  logic [MAINT_EXTRA_WIDTH-1:0] maint_extra_i,
     input  logic                      maint_busy_i,     // demand-class block (pumice cal_busy_i semantics)
 
@@ -953,7 +954,7 @@ module mc_cmd_arbiter
             end
         end else if (maint_req_i && w_maint_safe) begin
             w_valid = 1'b1; w_op = maint_op_i;
-            w_bank = maint_bank_i; w_row = maint_row_i;
+            w_bank = maint_bank_i; w_row = maint_row_i; w_col = maint_col_i;
             w_maint_grant = 1'b1;
         end else if (w_pick_class == CL_COL && rd_col_f && rd_issue_ready_i
                      && w_rd_turn_live
@@ -1003,7 +1004,7 @@ module mc_cmd_arbiter
         if (`RST_ASSERTED(aresetn)) begin
             r_pick_valid <= 1'b0;
             r_do_act <= 1'b0; r_do_rd <= 1'b0; r_do_wr <= 1'b0; r_do_pre <= 1'b0;
-            r_grant  <= 1'b0; r_maint_grant <= 1'b0; r_wr_commit <= 1'b0; r_rd_issue <= 1'b0;
+            r_grant  <= 1'b0; r_maint_grant <= 1'b0; r_zq_grant <= 1'b0; r_wr_commit <= 1'b0; r_rd_issue <= 1'b0;
             r_cmd_extra <= '0;
         end else if (w_out_ready) begin
             r_pick_valid  <= w_valid;
@@ -1018,6 +1019,7 @@ module mc_cmd_arbiter
             r_do_pre      <= w_do_pre;
             r_grant       <= w_grant;
             r_maint_grant <= w_maint_grant;
+            r_zq_grant    <= w_zq_grant;
             r_cmd_extra   <= w_maint_grant ? maint_extra_i : '0;
             r_wr_commit   <= w_wr_commit;
             r_commit_slot <= w_commit_slot;
@@ -1126,8 +1128,10 @@ module mc_cmd_arbiter
         end
     )
 
-    assign w_tccd_ls_ok = (NUM_BG > 1) ? ((w_pick_group != r_last_col_bg) || tccd_l_ok_i) : 1'b1;
-    assign w_trrd_ls_ok = (NUM_BG > 1) ? ((w_pick_group != r_last_act_bg) || trrd_l_ok_i) : 1'b1;
+    // Degenerates correctly at NUM_BG==1: w_pick_group/r_last_*_bg are both
+    // zero, so the same-group term is true and the long window governs.
+    assign w_tccd_ls_ok = (w_pick_group != r_last_col_bg) || tccd_l_ok_i;
+    assign w_trrd_ls_ok = (w_pick_group != r_last_act_bg) || trrd_l_ok_i;
     assign pick_group_o = w_pick_group;
 
 endmodule : mc_cmd_arbiter
