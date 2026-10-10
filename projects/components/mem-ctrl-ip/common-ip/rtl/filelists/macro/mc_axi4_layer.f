@@ -1,4 +1,5 @@
 # Filelist for mc_axi4_layer (common-ip; extracted from pumice Phase 2 Task 3)
+# Storage (wr_data_cam + rd_cmd_cam) moved to mc_storage_layer.f.
 +incdir+$REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/includes
 +incdir+$REPO_ROOT/rtl/amba/includes
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
@@ -14,11 +15,9 @@ $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 # pumice FSM-free splitters + aggregators
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_axi_burst_chopper.f
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_wr_splitter.f
-# pumice fubs
+# pumice fubs (intakes only; CAMs live in mc_storage_layer)
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_wr_intake.f
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_rd_intake.f
--f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_wr_data_cam.f
--f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_rd_cmd_cam.f
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_rd_return_ring.f
 # wrapper
 $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/macro/mc_axi4_layer.sv

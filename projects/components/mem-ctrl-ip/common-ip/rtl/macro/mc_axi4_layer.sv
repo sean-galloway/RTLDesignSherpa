@@ -5,17 +5,16 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: mc_axi4_layer
-// Purpose: The pumice AXI4 host interface. Bolts the common AXI burst
-//          splitters onto the front of the dumb wr/rd intakes, and holds the
-//          wr-data CAM (write buffer + snarf source) and rd-cmd CAM (read
-//          reorder buffer). Presents the host AXI4 face and exposes the
-//          scheduler + DFI-data ports outward.
+// Purpose: The family AXI4 host interface. Bolts the common AXI burst
+//          splitters onto the front of the wr/rd intakes. The write-data CAM
+//          and rd-cmd CAM now live in mc_storage_layer; this module exposes
+//          the raw intake pushes and the snarf probe/hit/data stream as
+//          inter-layer ports, and keeps the in-flight read return ring.
 //
-//   host AXI4 -> [wr/rd splitter] -> mc_wr_intake -> mc_wr_data_cam
-//                                 -> mc_rd_intake -> mc_rd_cmd_cam
-//   snarf: rd_intake probes wr CAM; hit -> streamed from wr CAM SRAM.
-//   external: scheduler lookup/oldest/commit(issue) ports on both CAMs,
-//             wr commit-data out (to wr_beat_sequencer), rd DFI-return in.
+//   host AXI4 -> [wr/rd splitter] -> mc_wr_intake -> mc_storage_layer (wr CAM)
+//                                 -> mc_rd_intake -> mc_storage_layer (rd CAM)
+//   snarf: rd_intake probe goes to storage; hit + data stream return here.
+//   external: inter-layer ports to mc_storage_layer on both sides.
 //
 // Documentation: docs/uarch/PUMICE_AXI4_LAYER_UARCH.md
 `timescale 1ns / 1ps
@@ -55,8 +54,6 @@ module mc_axi4_layer #(
     parameter int N_SCHED_LU      = 4,
     parameter int AGE_WIDTH       = 16,
     // Reads the controller can hold IN FLIGHT (mc_rd_return_ring DEPTH).
-    // Independent of NUM_ENTRIES (the scheduling window): a read's CAM entry
-    // frees at issue, its ring slot at R-drain. Power of 2.
     parameter int RD_RET_DEPTH    = 32,
 
     // Derived
@@ -74,9 +71,9 @@ module mc_axi4_layer #(
     input  logic                     aclk,
     input  logic                     aresetn,
 
-    input  logic [4:0]               bank_lsb_i,   // ADDR_MAP.bank_lsb
-    input  logic                     hash_en_i,    // ADDR_MAP.hash_en
-    input  logic [7:0]               hash_seed_i,  // ADDR_MAP.hash_seed
+    input  logic [4:0]               bank_lsb_i,
+    input  logic                     hash_en_i,
+    input  logic [7:0]               hash_seed_i,
 
     //=========================================================================
     // Host AXI4 (pre-split)
@@ -107,59 +104,78 @@ module mc_axi4_layer #(
     input  logic           s_axi_rready,
 
     //=========================================================================
-    // WR CAM scheduler + commit-data ports (to scheduler / wr_beat_sequencer)
+    // WR intake -> storage layer (WR data CAM) push interface
     //=========================================================================
-    output logic [NUM_ENTRIES-1:0]              wr_sch_valid_o,
-    output logic [NUM_ENTRIES*BKW-1:0]          wr_sch_bank_o,
-    output logic [NUM_ENTRIES*ROW_WIDTH-1:0]    wr_sch_row_o,
-    output logic [NUM_ENTRIES*COL_WIDTH-1:0]    wr_sch_col_o,
-    output logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  wr_sch_older_o,
-    output logic [NUM_ENTRIES-1:0]              wr_sch_age_exceed_o,
-    output logic [NUM_ENTRIES*4-1:0]            wr_sch_qos_o,
-    output logic [15:0]                         wr_sch_head_rel_o,
-    input  logic                          wr_commit_valid_i,
-    output logic                          wr_commit_ready_o,
-    input  logic [PTRW-1:0]               wr_commit_slot_i,
-    output logic                          wr_cm_rd_valid_o,
-    input  logic                          wr_cm_rd_ready_i,
-    output logic [DW-1:0]                 wr_cm_rd_data_o,
-    output logic [SW-1:0]                 wr_cm_rd_strb_o,
-    output logic                          wr_cm_rd_last_o,
+    output logic                aw_push_valid_o,
+    input  logic                aw_push_ready_i,
+    output logic [BKW-1:0]      aw_push_bank_o,
+    output logic [ROW_WIDTH-1:0]aw_push_row_o,
+    output logic [COL_WIDTH-1:0]aw_push_col_o,
+    output logic [IW-1:0]       aw_push_id_o,
+    output logic [3:0]          aw_push_qos_o,
+    output logic                aw_push_agg_o,
+    output logic                aw_push_last_o,
+
+    output logic                wd_valid_o,
+    input  logic                wd_ready_i,
+    output logic [DW-1:0]       wd_data_o,
+    output logic [SW-1:0]       wd_strb_o,
+    output logic                wd_last_o,
+
+    // commit-done notification from storage WR CAM -> WR intake
+    input  logic                wr_done_valid_i,
+    input  logic [IW-1:0]       wr_done_id_i,
 
     //=========================================================================
-    // RD CAM scheduler + DFI-return ports (to scheduler / DFI read path)
+    // RD intake <-> storage layer (WR data CAM snarf)
     //=========================================================================
-    output logic [NUM_ENTRIES-1:0]              rd_sch_valid_o,
-    output logic [NUM_ENTRIES*BKW-1:0]          rd_sch_bank_o,
-    output logic [NUM_ENTRIES*ROW_WIDTH-1:0]    rd_sch_row_o,
-    output logic [NUM_ENTRIES*COL_WIDTH-1:0]    rd_sch_col_o,
-    output logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  rd_sch_older_o,
-    output logic [NUM_ENTRIES-1:0]              rd_sch_age_exceed_o,
-    output logic [NUM_ENTRIES*4-1:0]            rd_sch_qos_o,
-    output logic [15:0]                         rd_sch_head_rel_o,
-    // SCHED_POLICY.age_thresh -> both CAMs (MC cycles / 16; 0 = off)
-    input  logic [7:0]                          sched_age_thresh_i,
-    input  logic                          rd_issue_valid_i,
-    output logic                          rd_issue_ready_o,
-    input  logic [PTRW-1:0]               rd_issue_slot_i,
-    input  logic                          rd_dfi_ret_valid_i,
-    output logic                          rd_dfi_ret_ready_o,
-    input  logic [DW-1:0]                 rd_dfi_ret_data_i,
-    input  logic [1:0]                    rd_dfi_ret_resp_i,
-    input  logic                          rd_dfi_ret_last_i,
+    output logic                snarf_probe_valid_o,
+    output logic [BKW-1:0]      snarf_probe_bank_o,
+    output logic [ROW_WIDTH-1:0]snarf_probe_row_o,
+    output logic [COL_WIDTH-1:0]snarf_probe_col_o,
+    output logic [IW-1:0]       snarf_probe_id_o,
+    output logic [7:0]          snarf_probe_len_o,
+    input  logic                snarf_hit_i,
+    output logic                snarf_accept_o,
+    input  logic                snarf_rd_valid_i,
+    output logic                snarf_rd_ready_o,
+    input  logic [DW-1:0]       snarf_rd_data_i,
+    input  logic                snarf_rd_last_i,
 
-    output logic                          busy_o
+    //=========================================================================
+    // RD intake -> storage layer (RD cmd CAM) push interface
+    //=========================================================================
+    output logic                ar_push_valid_o,
+    input  logic                ar_push_ready_i,
+    output logic [BKW-1:0]      ar_push_bank_o,
+    output logic [ROW_WIDTH-1:0]ar_push_row_o,
+    output logic [COL_WIDTH-1:0]ar_push_col_o,
+    output logic [IW-1:0]       ar_push_id_o,
+    output logic [3:0]          ar_push_qos_o,
+
+    //=========================================================================
+    // Return ring <-> storage layer (RD cmd CAM)
+    //=========================================================================
+    output logic                rt_alloc_ready_o,
+    output logic [$clog2(RD_RET_DEPTH)-1:0] rt_alloc_ticket_o,
+    output logic                rd_iss_ready_o,
+    input  logic                rd_iss_valid_i,
+    input  logic [$clog2(RD_RET_DEPTH)-1:0] rd_iss_ticket_i,
+    input  logic                rd_cam_ins_ready_i,
+
+    //=========================================================================
+    // DFI return stream -> return ring
+    //=========================================================================
+    input  logic                rd_dfi_ret_valid_i,
+    output logic                rd_dfi_ret_ready_o,
+    input  logic [DW-1:0]       rd_dfi_ret_data_i,
+    input  logic [1:0]          rd_dfi_ret_resp_i,
+    input  logic                rd_dfi_ret_last_i,
+
+    output logic                busy_o
 );
 
     import mc_common_pkg::*;
-
-    // AXI beats per DFI burst: the chop granularity. Each sub-command spans one
-    // DRAM burst, so the intake sees "one AXI sub-burst == one DFI burst".
-    // (was: localparam AXI_BEATS_PER_BURST = DRAM_BURST_BYTES / SW -- the
-    //  same number derived a second way. The ifc is instantiated with
-    //  DRAM_BEAT_WIDTH == the AXI data width, so SW == DRAM_BEAT_WIDTH/8 and
-    //  it reduced to the parameter itself. Two derivations of one quantity
-    //  is a mismatch waiting to happen.)
 
     // ======================================================================
     // Split -> intake AXI nets
@@ -170,6 +186,11 @@ module mc_axi4_layer #(
     logic [3:0]    sw_awregion;logic [UW-1:0] sw_awuser; logic       sw_awvalid, sw_awready;
     logic [DW-1:0] sw_wdata;  logic [SW-1:0] sw_wstrb;   logic sw_wlast;
     logic [UW-1:0] sw_wuser;  logic          sw_wvalid,  sw_wready;
+
+    // Return ring -> rd_intake drain nets (declared early for decl-order lint).
+    logic                drain_valid, drain_ready, drain_last;
+    logic [DW-1:0]       drain_data;
+    logic [1:0]          drain_resp;
 
     logic [IW-1:0] sr_arid;   logic [AW-1:0] sr_araddr;  logic [7:0] sr_arlen;
     logic [2:0]    sr_arsize; logic [1:0]    sr_arburst; logic       sr_arlock;
@@ -183,8 +204,6 @@ module mc_axi4_layer #(
     logic sr_ar_agg, sr_ar_last;   // rd chopper -> rd_intake
 
     // ---- WR request side: chop AW into DFI-burst sub-commands + reframe W ---
-    // Tags each sub-AW with agg/last; the wr CAM strobes exactly one host B on
-    // the final sub. B flows wr_intake -> s_axi directly (no aggregator module).
     mc_wr_splitter #(
         .AXI_ID_WIDTH  (IW),
         .AXI_ADDR_WIDTH(AW),
@@ -237,9 +256,6 @@ module mc_axi4_layer #(
     );
 
     // ---- RD request side: chop AR into DFI-burst sub-commands ---------------
-    // Tags each sub-AR with last; the rd intake's AR-order FIFO collapses the
-    // per-sub RLAST. R flows rd_intake -> s_axi directly (no aggregator module).
-    // Reads collapse on `last` alone, so m_ax_agg is unused here.
     mc_axi_burst_chopper #(
         .AXI_ID_WIDTH  (IW),
         .AXI_ADDR_WIDTH(AW),
@@ -280,35 +296,9 @@ module mc_axi4_layer #(
     );
 
     // ======================================================================
-    // intake <-> CAM nets
+    // intakes
     // ======================================================================
-    // wr_intake -> wr_cam
-    logic                aw_push_valid, aw_push_ready;
-    logic [BKW-1:0]      aw_push_bank;  logic [ROW_WIDTH-1:0] aw_push_row;
-    logic [COL_WIDTH-1:0] aw_push_col;  logic [IW-1:0]        aw_push_id;
-    logic                aw_push_agg,   aw_push_last;
-    logic                wd_valid, wd_ready, wd_last;
-    logic [DW-1:0]       wd_data;       logic [SW-1:0]        wd_strb;
-    logic                wr_done_valid; logic [IW-1:0]        wr_done_id;
-
-    // rd_intake <-> wr_cam (snarf) and rd_cam
-    logic                snarf_probe_valid, snarf_hit, snarf_accept;
-    logic [BKW-1:0]      snarf_bank;    logic [ROW_WIDTH-1:0] snarf_row;
-    logic [COL_WIDTH-1:0] snarf_col;
-    logic [IW-1:0]       snarf_id;      logic [7:0]           snarf_len;
-    logic                snarf_rd_valid, snarf_rd_ready, snarf_rd_last;
-    logic [DW-1:0]       snarf_rd_data;
-    logic                ar_push_valid, ar_push_ready;
-    logic                rt_alloc_ready, rd_cam_ins_ready;
-    logic [$clog2(RD_RET_DEPTH)-1:0] rt_alloc_ticket, rd_iss_ticket;
-    logic                rd_iss_valid, rd_iss_ready;
-    logic [BKW-1:0]      ar_push_bank;  logic [ROW_WIDTH-1:0] ar_push_row;
-    logic [COL_WIDTH-1:0] ar_push_col;  logic [IW-1:0]        ar_push_id;
-    logic [3:0]           ar_push_qos;   logic [3:0]           aw_push_qos;
-    logic                drain_valid, drain_ready, drain_last;
-    logic [DW-1:0]       drain_data;    logic [1:0]           drain_resp;
-
-    logic w_wri_busy, w_rdi_busy, w_wrc_busy, w_rdc_busy;
+    logic w_wri_busy, w_rdi_busy;
 
     // ---- WR intake ----
     mc_wr_intake #(
@@ -357,106 +347,26 @@ module mc_axi4_layer #(
         .s_axi_buser    (s_axi_buser),
         .s_axi_bvalid   (s_axi_bvalid),
         .s_axi_bready   (s_axi_bready),
-        .aw_push_valid_o(aw_push_valid),
-        .aw_push_ready_i(aw_push_ready),
+        .aw_push_valid_o(aw_push_valid_o),
+        .aw_push_ready_i(aw_push_ready_i),
         .aw_push_rank_o (),
-        .aw_push_bank_o (aw_push_bank),
-        .aw_push_row_o  (aw_push_row),
-        .aw_push_col_o  (aw_push_col),
-        .aw_push_id_o   (aw_push_id),
-        .aw_push_qos_o  (aw_push_qos),
+        .aw_push_bank_o (aw_push_bank_o),
+        .aw_push_row_o  (aw_push_row_o),
+        .aw_push_col_o  (aw_push_col_o),
+        .aw_push_id_o   (aw_push_id_o),
+        .aw_push_qos_o  (aw_push_qos_o),
         .aw_push_err_o  (),
-        .aw_push_agg_o  (aw_push_agg),
-        .aw_push_last_o (aw_push_last),
-        .wdata_valid_o  (wd_valid),
-        .wdata_ready_i  (wd_ready),
-        .wdata_o        (wd_data),
-        .wstrb_o        (wd_strb),
-        .wlast_o        (wd_last),
-        .wr_done_valid_i(wr_done_valid),
-        .wr_done_id_i   (wr_done_id),
+        .aw_push_agg_o  (aw_push_agg_o),
+        .aw_push_last_o (aw_push_last_o),
+        .wdata_valid_o  (wd_valid_o),
+        .wdata_ready_i  (wd_ready_i),
+        .wdata_o        (wd_data_o),
+        .wstrb_o        (wd_strb_o),
+        .wlast_o        (wd_last_o),
+        .wr_done_valid_i(wr_done_valid_i),
+        .wr_done_id_i   (wr_done_id_i),
         .wr_done_resp_i (2'b00),
         .busy_o         (w_wri_busy)
-    );
-
-    // ---- WR data CAM ----
-    mc_wr_data_cam #(
-        .NUM_ENTRIES   (NUM_ENTRIES),
-        .N_SCHED_LU    (N_SCHED_LU),
-        .NUM_BANKS     (NUM_BANKS),
-        .ROW_WIDTH     (ROW_WIDTH),
-        .COL_WIDTH     (COL_WIDTH),
-        .AXI_ID_WIDTH  (IW),
-        .AXI_DATA_WIDTH(DW),
-        .AXI_BEATS_PER_BURST            (AXI_BEATS_PER_BURST),
-        .AGE_WIDTH     (AGE_WIDTH),
-        .N_SRAM_SLOTS  (N_SRAM_SLOTS)
-    ) u_wr_cam (
-        .aclk               (aclk),
-        .aresetn            (aresetn),
-        .ins_valid_i        (aw_push_valid),
-        .ins_ready_o        (aw_push_ready),
-        .ins_bank_i         (aw_push_bank),
-        .ins_row_i          (aw_push_row),
-        .ins_col_i          (aw_push_col),
-        .ins_id_i           (aw_push_id),
-        .ins_qos_i          (aw_push_qos),
-        .ins_agg_i          (aw_push_agg),
-        .ins_last_i         (aw_push_last),
-        .wd_valid_i         (wd_valid),
-        .wd_ready_o         (wd_ready),
-        .wd_data_i          (wd_data),
-        .wd_strb_i          (wd_strb),
-        .wd_last_i          (wd_last),
-        .snarf_probe_valid_i(snarf_probe_valid),
-        .snarf_probe_bank_i (snarf_bank),
-        .snarf_probe_row_i  (snarf_row),
-        .snarf_probe_col_i  (snarf_col),
-        .snarf_probe_id_i   (snarf_id),
-        .snarf_probe_len_i  (snarf_len),
-        .snarf_hit_o        (snarf_hit),
-        .snarf_accept_i     (snarf_accept),
-        .snarf_rd_valid_o   (snarf_rd_valid),
-        .snarf_rd_ready_i   (snarf_rd_ready),
-        .snarf_rd_data_o    (snarf_rd_data),
-        .snarf_rd_last_o    (snarf_rd_last),
-        // legacy sched-lookup / oldest ports unused: the scheduler reads the
-        // sch_* per-entry vectors and does the match/argmax itself. Tied off
-        // (inputs 0, outputs open) -> pruned by synthesis.
-        .oldest_valid_o     (),
-        .oldest_bank_o      (),
-        .oldest_row_o       (),
-        .oldest_col_o       (),
-        .oldest_id_o        (),
-        .oldest_slot_o      (),
-        .sched_lu_valid_i   ('0),
-        .sched_lu_bank_i    ('0),
-        .sched_lu_row_i     ('0),
-        .sched_lu_hit_o     (),
-        .sched_lu_slot_o    (),
-        .sched_lu_col_o     (),
-        .sched_lu_id_o      (),
-        .sched_lu_age_o     (),
-        .sch_valid_o        (wr_sch_valid_o),
-        .sch_bank_o         (wr_sch_bank_o),
-        .sch_row_o          (wr_sch_row_o),
-        .sch_col_o          (wr_sch_col_o),
-        .sch_older_o        (wr_sch_older_o),
-        .age_thresh_i       (sched_age_thresh_i),
-        .sch_age_exceed_o   (wr_sch_age_exceed_o),
-        .sch_qos_o          (wr_sch_qos_o),
-        .sch_head_rel_o     (wr_sch_head_rel_o),
-        .commit_valid_i     (wr_commit_valid_i),
-        .commit_ready_o     (wr_commit_ready_o),
-        .commit_slot_i      (wr_commit_slot_i),
-        .cm_rd_valid_o      (wr_cm_rd_valid_o),
-        .cm_rd_ready_i      (wr_cm_rd_ready_i),
-        .cm_rd_data_o       (wr_cm_rd_data_o),
-        .cm_rd_strb_o       (wr_cm_rd_strb_o),
-        .cm_rd_last_o       (wr_cm_rd_last_o),
-        .commit_done_valid_o(wr_done_valid),
-        .commit_done_id_o   (wr_done_id),
-        .busy_o             (w_wrc_busy)
     );
 
     // ---- RD intake ----
@@ -505,27 +415,27 @@ module mc_axi4_layer #(
         .s_axi_ruser        (s_axi_ruser),
         .s_axi_rvalid       (s_axi_rvalid),
         .s_axi_rready       (s_axi_rready),
-        .ar_push_valid_o    (ar_push_valid),
-        .ar_push_ready_i    (ar_push_ready),
+        .ar_push_valid_o    (ar_push_valid_o),
+        .ar_push_ready_i    (ar_push_ready_i),
         .ar_push_rank_o     (),
-        .ar_push_bank_o     (ar_push_bank),
-        .ar_push_row_o      (ar_push_row),
-        .ar_push_col_o      (ar_push_col),
-        .ar_push_id_o       (ar_push_id),
-        .ar_push_qos_o      (ar_push_qos),
-        .snarf_probe_valid_o(snarf_probe_valid),
+        .ar_push_bank_o     (ar_push_bank_o),
+        .ar_push_row_o      (ar_push_row_o),
+        .ar_push_col_o      (ar_push_col_o),
+        .ar_push_id_o       (ar_push_id_o),
+        .ar_push_qos_o      (ar_push_qos_o),
+        .snarf_probe_valid_o(snarf_probe_valid_o),
         .snarf_probe_rank_o (),
-        .snarf_probe_bank_o (snarf_bank),
-        .snarf_probe_row_o  (snarf_row),
-        .snarf_probe_col_o  (snarf_col),
-        .snarf_probe_id_o   (snarf_id),
-        .snarf_probe_len_o  (snarf_len),
-        .snarf_hit_i        (snarf_hit),
-        .snarf_accept_o     (snarf_accept),
-        .snarf_rd_valid_i   (snarf_rd_valid),
-        .snarf_rd_ready_o   (snarf_rd_ready),
-        .snarf_rd_data_i    (snarf_rd_data),
-        .snarf_rd_last_i    (snarf_rd_last),
+        .snarf_probe_bank_o (snarf_probe_bank_o),
+        .snarf_probe_row_o  (snarf_probe_row_o),
+        .snarf_probe_col_o  (snarf_probe_col_o),
+        .snarf_probe_id_o   (snarf_probe_id_o),
+        .snarf_probe_len_o  (snarf_probe_len_o),
+        .snarf_hit_i        (snarf_hit_i),
+        .snarf_accept_o     (snarf_accept_o),
+        .snarf_rd_valid_i   (snarf_rd_valid_i),
+        .snarf_rd_ready_o   (snarf_rd_ready_o),
+        .snarf_rd_data_i    (snarf_rd_data_i),
+        .snarf_rd_last_i    (snarf_rd_last_i),
         .dfi_rd_valid_i     (drain_valid),
         .dfi_rd_ready_o     (drain_ready),
         .dfi_rd_data_i      (drain_data),
@@ -534,65 +444,9 @@ module mc_axi4_layer #(
         .busy_o             (w_rdi_busy)
     );
 
-    // ---- RD cmd CAM (scheduling window) + return ring (in-flight reads) ----
-    // A read is admitted when BOTH have room; the ring's tail ticket rides
-    // into the CAM entry and comes back out on issue.
-    assign ar_push_ready = rd_cam_ins_ready && rt_alloc_ready;
-
-    mc_rd_cmd_cam #(
-        .NUM_ENTRIES   (NUM_ENTRIES),
-        .N_SCHED_LU    (N_SCHED_LU),
-        .NUM_BANKS     (NUM_BANKS),
-        .ROW_WIDTH     (ROW_WIDTH),
-        .COL_WIDTH     (COL_WIDTH),
-        .AXI_ID_WIDTH  (IW),
-        .AGE_WIDTH     (AGE_WIDTH),
-        .RD_RET_DEPTH  (RD_RET_DEPTH)
-    ) u_rd_cam (
-        .aclk       (aclk),
-        .aresetn    (aresetn),
-        .ins_valid_i(ar_push_valid && rt_alloc_ready),
-        .ins_ready_o(rd_cam_ins_ready),
-        .ins_bank_i (ar_push_bank),
-        .ins_row_i  (ar_push_row),
-        .ins_col_i  (ar_push_col),
-        .ins_id_i   (ar_push_id),
-        .ins_qos_i  (ar_push_qos),
-        .ins_ticket_i(rt_alloc_ticket),
-        // legacy sched-lookup / oldest ports unused (scheduler reads sch_*).
-        .sched_lu_valid_i('0),
-        .sched_lu_bank_i ('0),
-        .sched_lu_row_i  ('0),
-        .sched_lu_hit_o  (),
-        .sched_lu_slot_o (),
-        .sched_lu_col_o  (),
-        .sched_lu_id_o   (),
-        .sched_lu_age_o  (),
-        .oldest_valid_o  (),
-        .oldest_bank_o   (),
-        .oldest_row_o    (),
-        .oldest_col_o    (),
-        .oldest_id_o     (),
-        .oldest_slot_o   (),
-        .sch_valid_o     (rd_sch_valid_o),
-        .sch_bank_o      (rd_sch_bank_o),
-        .sch_row_o       (rd_sch_row_o),
-        .sch_col_o       (rd_sch_col_o),
-        .sch_older_o     (rd_sch_older_o),
-        .age_thresh_i    (sched_age_thresh_i),
-        .sch_age_exceed_o(rd_sch_age_exceed_o),
-        .sch_qos_o       (rd_sch_qos_o),
-        .sch_head_rel_o  (rd_sch_head_rel_o),
-        .issue_valid_i   (rd_issue_valid_i),
-        .issue_ready_o   (rd_issue_ready_o),
-        .issue_slot_i    (rd_issue_slot_i),
-        .iss_valid_o     (rd_iss_valid),
-        .iss_ready_i     (rd_iss_ready),
-        .iss_ticket_o    (rd_iss_ticket),
-        .busy_o          (w_rdc_busy)
-    );
-
+    // ---- RD return ring (in-flight reads) ----
     logic w_rdr_busy;
+
     mc_rd_return_ring #(
         .DEPTH              (RD_RET_DEPTH),
         .AXI_DATA_WIDTH     (DW),
@@ -600,12 +454,12 @@ module mc_axi4_layer #(
     ) u_rd_ring (
         .aclk            (aclk),
         .aresetn         (aresetn),
-        .alloc_valid_i   (ar_push_valid && rd_cam_ins_ready),
-        .alloc_ready_o   (rt_alloc_ready),
-        .alloc_ticket_o  (rt_alloc_ticket),
-        .issue_valid_i   (rd_iss_valid),
-        .issue_ready_o   (rd_iss_ready),
-        .issue_ticket_i  (rd_iss_ticket),
+        .alloc_valid_i   (ar_push_valid_o && rd_cam_ins_ready_i),
+        .alloc_ready_o   (rt_alloc_ready_o),
+        .alloc_ticket_o  (rt_alloc_ticket_o),
+        .issue_valid_i   (rd_iss_valid_i),
+        .issue_ready_o   (rd_iss_ready_o),
+        .issue_ticket_i  (rd_iss_ticket_i),
         .dfi_ret_valid_i (rd_dfi_ret_valid_i),
         .dfi_ret_ready_o (rd_dfi_ret_ready_o),
         .dfi_ret_data_i  (rd_dfi_ret_data_i),
@@ -620,6 +474,6 @@ module mc_axi4_layer #(
         .busy_o          (w_rdr_busy)
     );
 
-    assign busy_o = w_wri_busy || w_rdi_busy || w_wrc_busy || w_rdc_busy || w_rdr_busy;
+    assign busy_o = w_wri_busy || w_rdi_busy || w_rdr_busy;
 
 endmodule : mc_axi4_layer
