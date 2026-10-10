@@ -42,6 +42,7 @@
 
 module pumice_page_policy
     import pumice_pkg::*;
+    import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int NUM_RANKS = 1,
     parameter int NUM_BANKS = 8,

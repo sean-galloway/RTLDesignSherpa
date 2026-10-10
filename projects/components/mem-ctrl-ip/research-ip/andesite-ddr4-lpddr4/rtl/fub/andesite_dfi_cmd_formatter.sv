@@ -58,6 +58,7 @@ module andesite_dfi_cmd_formatter #(
 );
 
     import andesite_pkg::*;
+    import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 
     // Combinational encode per the anchored truth table. Default is the
     // NOP/DES posture (all command pins high).

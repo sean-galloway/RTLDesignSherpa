@@ -27,6 +27,7 @@
 
 module pumice_zq_ctrl
     import pumice_pkg::*;
+    import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int MR10_INDEX = 10
 ) (

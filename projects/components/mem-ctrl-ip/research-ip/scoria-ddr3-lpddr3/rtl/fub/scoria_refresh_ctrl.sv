@@ -60,6 +60,7 @@
 
 module scoria_refresh_ctrl
     import scoria_pkg::*;
+    import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int NUM_BANKS = 8,
     parameter int BA_W      = $clog2(NUM_BANKS)

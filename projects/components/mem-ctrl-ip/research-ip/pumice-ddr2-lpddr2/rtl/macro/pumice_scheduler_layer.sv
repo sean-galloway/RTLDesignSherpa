@@ -22,6 +22,7 @@
 
 module pumice_scheduler_layer
     import pumice_pkg::*;
+    import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int NUM_RANKS   = 1,
     // Optional issued-command-history scoreboard (audit-only; see the generate

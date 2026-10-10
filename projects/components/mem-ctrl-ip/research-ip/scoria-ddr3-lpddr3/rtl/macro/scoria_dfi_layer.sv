@@ -26,6 +26,7 @@
 
 module scoria_dfi_layer
     import scoria_pkg::*;
+    import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int NUM_RANKS      = 1,
     parameter int NUM_CS         = NUM_RANKS,

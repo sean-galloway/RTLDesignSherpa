@@ -47,6 +47,7 @@ module scoria_char_harness
     // field with different meanings -- MEMTYPE=0 is DDR3 here and DDR2 on
     // pumice -- which is why the cast below is explicit rather than implicit.
     import mem_char_pkg::*;
+    import mc_common_pkg::*;  // family symbols (Vivado: no pkg-export honor)
     import scoria_pkg::memtype_e;
 #(
     // ---- host ------------------------------------------------------------

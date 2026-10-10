@@ -45,6 +45,7 @@
 //==============================================================================
 module ddr2_char_macro
     import pumice_pkg::*;
+    import mc_common_pkg::*;  // family symbols (Vivado: no pkg-export honor)
 #(
     // ---- AXI4 ----
     // DV-only command-history scoreboards (off by default). CMD_HISTORY_EN arms

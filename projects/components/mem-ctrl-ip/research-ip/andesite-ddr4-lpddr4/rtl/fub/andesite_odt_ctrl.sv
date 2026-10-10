@@ -27,6 +27,7 @@
 
 module andesite_odt_ctrl
     import andesite_pkg::*;
+    import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int NUM_RANKS = 1,
     parameter int RKW       = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1

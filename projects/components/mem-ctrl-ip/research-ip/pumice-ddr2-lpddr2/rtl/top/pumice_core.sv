@@ -27,6 +27,7 @@
 
 module pumice_core
     import pumice_pkg::*;
+    import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int AXI_ID_WIDTH   = 8,
     parameter int AXI_ADDR_WIDTH = 32,

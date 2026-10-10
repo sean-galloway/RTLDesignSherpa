@@ -95,6 +95,7 @@ module andesite_init_sequencer #(
 );
 
     import andesite_pkg::*;
+    import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 
     // The MR order is the anchor's citation: MR3 first, MR0 last.
     localparam logic [2:0] MR_ORDER [7] = '{3, 6, 5, 4, 2, 1, 0};

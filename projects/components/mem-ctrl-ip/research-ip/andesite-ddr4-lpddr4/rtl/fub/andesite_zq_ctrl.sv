@@ -25,6 +25,7 @@
 
 module andesite_zq_ctrl
     import andesite_pkg::*;
+    import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 (
     input  logic        mc_clk,
     input  logic        mc_rst_n,

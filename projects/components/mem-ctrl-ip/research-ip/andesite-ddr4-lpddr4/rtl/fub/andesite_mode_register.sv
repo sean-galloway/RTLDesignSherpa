@@ -72,6 +72,7 @@ module andesite_mode_register #(
 );
 
     import andesite_pkg::*;
+    import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 
     // ------------------------------------------------------------------
     // Q1 BIT-MAP BLOCK. Verified positions cite the review (Micron/Alliance

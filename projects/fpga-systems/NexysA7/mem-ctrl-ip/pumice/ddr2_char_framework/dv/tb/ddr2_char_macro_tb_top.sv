@@ -13,6 +13,7 @@
 
 module ddr2_char_macro_tb_top
     import pumice_pkg::*;
+    import mc_common_pkg::*;  // family symbols (Vivado: no pkg-export honor)
 #(
     parameter int AXI_ADDR_WIDTH   = 32,
     parameter int AXI_DATA_WIDTH   = 64,

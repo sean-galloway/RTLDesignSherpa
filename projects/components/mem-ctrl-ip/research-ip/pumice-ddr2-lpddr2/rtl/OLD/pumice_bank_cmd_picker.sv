@@ -59,6 +59,7 @@
 
 module pumice_bank_cmd_picker
     import pumice_pkg::*;
+    import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int BANK_ID     = 0,
     parameter int NUM_ENTRIES = 8,

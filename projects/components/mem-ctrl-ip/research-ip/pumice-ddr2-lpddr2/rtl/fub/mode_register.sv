@@ -33,6 +33,7 @@
 
 module mode_register
     import pumice_pkg::*;
+    import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int NUM_RANKS  = 1,
     parameter int MAX_MR_IDX = 17,   // 0..16; LPDDR2 supports up to MR16

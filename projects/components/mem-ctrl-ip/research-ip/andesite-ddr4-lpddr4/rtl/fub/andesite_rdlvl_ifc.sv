@@ -26,6 +26,7 @@
 
 module andesite_rdlvl_ifc
     import andesite_pkg::*;
+    import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int NUM_CS = 1,
     parameter int CSW    = (NUM_CS > 1) ? $clog2(NUM_CS) : 1

@@ -26,6 +26,7 @@
 
 module pumice_lp_cal
     import pumice_pkg::*;
+    import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int DFI_DATA_WIDTH = 128,
     parameter int MR32_INDEX     = 32,
