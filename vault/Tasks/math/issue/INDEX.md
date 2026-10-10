@@ -2,7 +2,7 @@
 
 # math — issues
 
-**Next ID: ISSUE-003** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-004** — never recycle a number, even when its item closed.
 
 An observed problem that is not yet a diagnosed defect or a decided piece of work: an anomaly, a risk, an open question. It RESOLVES INTO a bug, a task, or a recorded no-action.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,6 +20,10 @@ by construction rather than by discipline.
 
 ## Open
 
+- **ISSUE-003** — required-regen fixes can drag unrelated changes into a
+  commit (dates + stale templates); mitigation protocol: reconcile drift
+  (ISSUE-002), stop date-stamping regens, surgical-revert protocol, optional
+  regen-cleanliness CI gate
 - **ISSUE-002** — full ieee754 generator regen produces ~115 files of drift
   (Created-date stamps + stale reset-macro template vs committed RTL); needs a
   one-time reconcile so future regens are no-op diffs
