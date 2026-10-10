@@ -2,7 +2,7 @@
 
 # math — tasks
 
-**Next ID: TASK-007** — never recycle a number, even when its item closed.
+**Next ID: TASK-008** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 6 | done (kept for history) |
+| [closed/](closed/) | 7 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -24,6 +24,12 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-007** — propagate the special-value Cartesian product grid to the
+  IEEE-754 (fp_testing) TB family (closed 2026-10-10: `special_value_grid` +
+  `fp_special_value_product` in bin/TBClasses/common/fp_testing.py, 13 base-class
+  TBs + all 8 ieee754_2008 files; surfaced and fixed BUG-008, encoded the clamp
+  (sign,magnitude) comparator contract in the golden; ieee754 16/16, val/math
+  145/145, formal re-proven)
 - **TASK-006** — systematic special-value Cartesian product grid for the bf16
   TB family (closed 2026-10-09: `bf16_special_value_product` in
   bin/TBClasses/common/bf16_testing.py adopted by 16 TBs, 9x9 grid binary /

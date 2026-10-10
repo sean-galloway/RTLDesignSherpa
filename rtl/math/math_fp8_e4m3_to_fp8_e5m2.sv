@@ -11,7 +11,7 @@
 // Subsystem: math
 //
 // Author: sean galloway
-// Created: 2026-01-03
+// Created: 2026-10-10
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/ieee754/fp_conversions.py
@@ -36,8 +36,8 @@ wire [2:0] w_mant = i_a[2:0];
 // Special case detection
 wire w_is_zero = (w_exp == 4'h0) & (w_mant == 3'h0);
 wire w_is_subnormal = (w_exp == 4'h0) & (w_mant != 3'h0);
-wire w_is_inf = (w_exp == 4'hF) & (w_mant == 3'h0);
-wire w_is_nan = (w_exp == 4'hF) & (w_mant != 3'h0);
+wire w_is_inf = 1'b0;  // FP8_E4M3 has no infinity
+wire w_is_nan = (w_exp == 4'hF) & (w_mant == 3'h7);
 
 // Exponent conversion
 wire signed [6:0] w_exp_adjusted = $signed({3'b0, w_exp}) + 7'sd8;

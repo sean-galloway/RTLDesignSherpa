@@ -25,7 +25,8 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.common.fp_testing import (
-    FPAdderTB, FPUtils, FORMATS
+    FPAdderTB, FPUtils, FORMATS,
+    special_value_grid, fp_special_value_product,
 )
 
 # =============================================================================
@@ -271,6 +272,12 @@ class FPAdderSubnormalTB(FPAdderTB):
         mode = "gradual-underflow" if self.subnormal_support else "ftz-regression"
         self.log.info(f"Starting {mode} adder tests "
                       f"(SUBNORMAL_SUPPORT={int(self.subnormal_support)})")
+
+        # math TASK-007: systematic special-value Cartesian product (9x9 = 81 cells)
+        await fp_special_value_product(self.test_single_checked,
+                                       special_value_grid(self.fmt),
+                                       special_value_grid(self.fmt),
+                                       log=self.log)
 
         for name, a, b in self._directed_vectors():
             await self.test_single_checked(a, b, f"directed_{name}")

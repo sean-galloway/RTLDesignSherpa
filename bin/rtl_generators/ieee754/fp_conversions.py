@@ -205,9 +205,19 @@ wire [{src_mant-1}:0] w_mant = i_a[{src_mant_hi}:0];
 // Special case detection
 wire w_is_zero = (w_exp == {src_exp}'h0) & (w_mant == {src_mant}'h0);
 wire w_is_subnormal = (w_exp == {src_exp}'h0) & (w_mant != {src_mant}'h0);
-wire w_is_inf = (w_exp == {src_exp}'h{src_exp_max:X}) & (w_mant == {src_mant}'h0);
-wire w_is_nan = (w_exp == {src_exp}'h{src_exp_max:X}) & (w_mant != {src_mant}'h0);
+'''
 
+    if src_has_inf:
+        content += f'''wire w_is_inf = (w_exp == {src_exp}'h{src_exp_max:X}) & (w_mant == {src_mant}'h0);
+wire w_is_nan = (w_exp == {src_exp}'h{src_exp_max:X}) & (w_mant != {src_mant}'h0);
+'''
+    else:
+        # E4M3 special case: exp=max, mant=max is NaN (no infinity)
+        content += f'''wire w_is_inf = 1'b0;  // {src_fmt.upper()} has no infinity
+wire w_is_nan = (w_exp == {src_exp}'h{src_exp_max:X}) & (w_mant == {src_mant}'h{(1 << src_mant) - 1:X});
+'''
+
+    content += f'''
 // Exponent conversion with overflow/underflow detection
 wire signed [{src_exp+1}:0] w_exp_adjusted = $signed({{2'b0, w_exp}}) - {src_exp+2}'sd{exp_diff};
 
@@ -362,9 +372,19 @@ wire [{src_mant-1}:0] w_mant = i_a[{src_mant_hi}:0];
 // Special case detection
 wire w_is_zero = (w_exp == {src_exp}'h0) & (w_mant == {src_mant}'h0);
 wire w_is_subnormal = (w_exp == {src_exp}'h0) & (w_mant != {src_mant}'h0);
-wire w_is_inf = (w_exp == {src_exp}'h{src_exp_max:X}) & (w_mant == {src_mant}'h0);
-wire w_is_nan = (w_exp == {src_exp}'h{src_exp_max:X}) & (w_mant != {src_mant}'h0);
+'''
 
+    if src_has_inf:
+        content += f'''wire w_is_inf = (w_exp == {src_exp}'h{src_exp_max:X}) & (w_mant == {src_mant}'h0);
+wire w_is_nan = (w_exp == {src_exp}'h{src_exp_max:X}) & (w_mant != {src_mant}'h0);
+'''
+    else:
+        # E4M3 special case: exp=max, mant=max is NaN (no infinity)
+        content += f'''wire w_is_inf = 1'b0;  // {src_fmt.upper()} has no infinity
+wire w_is_nan = (w_exp == {src_exp}'h{src_exp_max:X}) & (w_mant == {src_mant}'h{(1 << src_mant) - 1:X});
+'''
+
+    content += f'''
 // Exponent conversion
 '''
     exp_width = max(src_exp, dst_exp) + 2

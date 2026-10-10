@@ -2,7 +2,7 @@
 
 # math — bugs
 
-**Next ID: BUG-008** — never recycle a number, even when its item closed.
+**Next ID: BUG-009** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 7 | done (kept for history) |
+| [closed/](closed/) | 8 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -22,6 +22,11 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **BUG-008** — math_fp8_e4m3_to_fp8_e5m2 converts the top of the e4m3 range
+  (exp=15, mant=1..6; 264..448 incl. max-normal) to e5m2 NaN + ow_invalid
+  (CLOSED 2026-10-10; fix-generator: narrowing conversion templates now emit the
+  format-aware no-infinity source decode; module regenerated, formal prove+cover
+  PASS; caught by the TASK-007 special-value grid on first landing)
 - **BUG-007** — bf16_divider asserts ow_underflow on the exact-zero quotient
   0.0/inf -- CLOSED 2026-10-08 (fix-RTL): `w_result_zero` dropped its
   `~w_b_is_inf` qualifier (implied by `~w_b_eff_zero`), claiming 0/inf —

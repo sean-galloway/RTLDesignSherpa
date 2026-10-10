@@ -11,9 +11,9 @@ Pick the lane before filing:
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 1 | 0 | 5 | 0 | 0 |
-| [bug/](bug/INDEX.md) | 1 | 0 | 6 | 0 | 0 |
-| [issue/](issue/INDEX.md) | 1 | 0 | 1 | 0 | 0 |
+| [task/](task/INDEX.md) | 1 | 0 | 7 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 1 | 0 | 8 | 0 | 0 |
+| [issue/](issue/INDEX.md) | 2 | 0 | 1 | 0 | 0 |
 
 Items live one per file under the lane directories below; this page is the
 area overview. See [the convention](../INDEX.md) for the definitions.
@@ -23,12 +23,20 @@ Math library (rtl/math, val/math, docs/markdown/rtl-math) work.
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 1 | 0 | 5 | 0 | 0 |
-| [bug/](bug/INDEX.md) | 1 | 0 | 6 | 0 | 0 |
-| [issue/](issue/INDEX.md) | 1 | 0 | 1 | 0 | 0 |
+| [task/](task/INDEX.md) | 1 | 0 | 7 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 1 | 0 | 8 | 0 | 0 |
+| [issue/](issue/INDEX.md) | 2 | 0 | 1 | 0 | 0 |
 
 ## Recently closed
 
+- **BUG-008** (2026-10-10) — math_fp8_e4m3_to_fp8_e5m2 NaN'd the top of the e4m3
+  range (264..448); narrowing generator templates hardcoded the infinity-style
+  source decode. Format-aware decode, regenerated, formal re-proven; found by the
+  TASK-007 special-value grid. Record: [bug/closed/BUG-008.md](bug/closed/BUG-008.md).
+- **TASK-007** (2026-10-10) — special-value Cartesian product grid propagated to the
+  IEEE-754 fp_testing TB family (13 base classes + all 8 ieee754_2008 files);
+  surfaced BUG-008 and the clamp comparator contract. Record:
+  [task/closed/TASK-007.md](task/closed/TASK-007.md).
 - **TASK-005** (2026-10-07) — IEEE 754 gradual underflow
   (`SUBNORMAL_SUPPORT`, default 0 = legacy FTZ) across all six ieee754
   fp16/fp32 arithmetic blocks plus NEW fp32 divider (Goldschmidt, 1/9/10

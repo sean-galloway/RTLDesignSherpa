@@ -25,7 +25,8 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.common.fp_testing import (
-    FPFMATB, FPUtils, FORMATS
+    FPFMATB, FPUtils, FORMATS,
+    special_value_grid, fp_special_value_product,
 )
 
 # =============================================================================
@@ -634,6 +635,13 @@ class FPFMASubnormalTB(FPFMATB):
         mode = "gradual-underflow" if self.subnormal_support else "ftz-regression"
         self.log.info(f"Starting {mode} FMA tests "
                       f"(SUBNORMAL_SUPPORT={int(self.subnormal_support)})")
+
+        # math TASK-007: systematic special-value Cartesian product (9x9x9 = 729 cells)
+        await fp_special_value_product(self.test_single_checked,
+                                       special_value_grid(self.fmt),
+                                       special_value_grid(self.fmt),
+                                       special_value_grid(self.fmt),
+                                       log=self.log)
 
         # Independent cross-validation of the integer oracle against a
         # fractions.Fraction model before any DUT comparison

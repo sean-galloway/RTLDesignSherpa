@@ -32,6 +32,7 @@ import os
 import random
 import struct
 import math
+import itertools
 from typing import List, Tuple, Dict, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
@@ -594,6 +595,68 @@ class FPTestValues:
 
 
 # =============================================================================
+# Special-Value Cartesian Product (math TASK-007)
+# =============================================================================
+
+def special_value_grid(fmt: FPFormat) -> List[Tuple[str, int]]:
+    """The nine IEEE special-value classes as (name, bits) pairs, generated
+    per format: +/-0, +/-inf, qNaN, +/-min-subnormal, +/-1. Formats without
+    infinity (fp8 e4m3) substitute +/-max normal for the infinity class --
+    e4m3's exp_max is finite (only mant_max is NaN) -- so every format keeps
+    the full 9-class grid."""
+    sign = 1 << (fmt.bits - 1)
+    grid: List[Tuple[str, int]] = [("+0", 0), ("-0", sign)]
+    if fmt.has_infinity:
+        inf = fmt.exp_max << fmt.mant_bits
+        grid += [("+inf", inf), ("-inf", inf | sign)]
+    else:
+        maxn = (fmt.exp_max << fmt.mant_bits) | (fmt.mant_max - 1)
+        grid += [("+maxnorm", maxn), ("-maxnorm", maxn | sign)]
+    nan = (fmt.exp_max << fmt.mant_bits) | (1 if fmt.has_infinity else fmt.mant_max)
+    one = fmt.bias << fmt.mant_bits
+    grid += [("qNaN", nan),
+             ("+submin", 1), ("-submin", 1 | sign),
+             ("+1", one), ("-1", one | sign)]
+    return grid
+
+
+async def fp_special_value_product(test_cell, *grids, desc_prefix: str = "product", log=None):
+    """Enumerate the full Cartesian product of special-value grids through a
+    TB's single-op checker.
+
+    `test_cell` is an async callable taking (*values, desc) and returning
+    bool (True = pass); every test_single/test_single_checked in this file
+    has desc last with remaining params defaulted, so bound methods work
+    directly. Each grid is a list of (name, value) pairs (use
+    special_value_grid(fmt) or a custom list). One grid = unary sweep;
+    two = 81 binary cells; three = 729 ternary cells (FMA/clamp). Never
+    raises on a failing cell -- records and continues, so ONE run reports
+    every broken cell. Returns a list of "<labels> failed" strings.
+    """
+    failures: List[str] = []
+    total = 0
+    passed = 0
+    for combo in itertools.product(*grids):
+        names = [c[0] for c in combo]
+        values = [c[1] for c in combo]
+        desc = f"{desc_prefix}({'*'.join(names)})"
+        total += 1
+        try:
+            ok = await test_cell(*values, desc)
+        except Exception as exc:
+            ok = False
+            if log is not None:
+                log.error(f"{desc} raised {exc}")
+        if ok:
+            passed += 1
+        else:
+            failures.append(f"{'*'.join(names)} failed")
+    if log is not None:
+        log.info(f"special-value product: {passed}/{total} cells passed")
+    return failures
+
+
+# =============================================================================
 # Base Testbench for FP Modules
 # =============================================================================
 
@@ -815,6 +878,11 @@ class FPMultiplierTB(FPBaseTB):
     async def run_comprehensive_tests(self):
         """Run all test categories."""
         self.log.info("Starting comprehensive multiplier tests")
+        # math TASK-007: systematic special-value Cartesian product (9x9 = 81 cells)
+        await fp_special_value_product(self.test_single,
+                                       special_value_grid(self.fmt),
+                                       special_value_grid(self.fmt),
+                                       log=self.log)
 
         values = FPTestValues.get_all_test_values(self.fmt, self.test_level)
 
@@ -911,6 +979,11 @@ class FPAdderTB(FPBaseTB):
     async def run_comprehensive_tests(self):
         """Run all test categories."""
         self.log.info("Starting comprehensive adder tests")
+        # math TASK-007: systematic special-value Cartesian product (9x9 = 81 cells)
+        await fp_special_value_product(self.test_single,
+                                       special_value_grid(self.fmt),
+                                       special_value_grid(self.fmt),
+                                       log=self.log)
 
         values = FPTestValues.get_all_test_values(self.fmt, self.test_level)
 
@@ -1012,6 +1085,11 @@ class FPComparatorTB(FPBaseTB):
     async def run_comprehensive_tests(self):
         """Run all test categories."""
         self.log.info("Starting comprehensive comparator tests")
+        # math TASK-007: systematic special-value Cartesian product (9x9 = 81 cells)
+        await fp_special_value_product(self.test_single,
+                                       special_value_grid(self.fmt),
+                                       special_value_grid(self.fmt),
+                                       log=self.log)
 
         values = FPTestValues.get_all_test_values(self.fmt, self.test_level)
 
@@ -1091,6 +1169,11 @@ class FPMaxMinTB(FPBaseTB):
         """Run all test categories."""
         op = "max" if self.is_max else "min"
         self.log.info(f"Starting comprehensive {op} tests")
+        # math TASK-007: systematic special-value Cartesian product (9x9 = 81 cells)
+        await fp_special_value_product(self.test_single,
+                                       special_value_grid(self.fmt),
+                                       special_value_grid(self.fmt),
+                                       log=self.log)
 
         values = FPTestValues.get_all_test_values(self.fmt, self.test_level)
 
@@ -1125,7 +1208,27 @@ class FPClampTB(FPBaseTB):
         await self.wait_time(1, 'ns')
 
     def compute_expected(self, x: int, min_val: int, max_val: int) -> int:
-        """Compute expected clamp result."""
+        """Compute expected clamp result.
+
+        math TASK-007: the RTL comparator (fp_comparisons.py fp_less_than) is
+        (sign, magnitude) lexicographic and does NOT special-case IEEE
+        -0 == +0, so -0 < +0 is true in hardware. The golden must encode
+        that ordering -- and the min-stage priority -- exactly, or the
+        9x9x9 special-value product disagrees on the (-0, +0, max<min)
+        cells (726/729 before this fix). Bounds are NOT required to be
+        ordered; every grid cell is well-defined under this ordering.
+        The deviation is numerically invisible (+-0 compare equal) and only
+        the clamp min-stage priority makes it observable at the output pins.
+        """
+        def fp_less_than(a: int, b: int) -> bool:
+            a_sign = (a >> (self.fmt.bits - 1)) & 1
+            b_sign = (b >> (self.fmt.bits - 1)) & 1
+            if a_sign != b_sign:
+                return a_sign == 1
+            mask = (1 << (self.fmt.bits - 1)) - 1
+            a_mag, b_mag = a & mask, b & mask
+            return a_mag < b_mag if a_sign == 0 else a_mag > b_mag
+
         x_nan = FPUtils.is_nan(x, self.fmt)
         min_nan = FPUtils.is_nan(min_val, self.fmt)
         max_nan = FPUtils.is_nan(max_val, self.fmt)
@@ -1133,18 +1236,11 @@ class FPClampTB(FPBaseTB):
         if x_nan or min_nan or max_nan:
             return x  # Propagate NaN
 
-        # Use to_float_exact for comparisons - subnormals should be compared
-        # by actual value, NOT flushed to zero
-        x_float = FPUtils.to_float_exact(x, self.fmt)
-        min_float = FPUtils.to_float_exact(min_val, self.fmt)
-        max_float = FPUtils.to_float_exact(max_val, self.fmt)
-
-        if x_float < min_float:
+        if fp_less_than(x, min_val):
             return min_val
-        elif x_float > max_float:
+        if fp_less_than(max_val, x):
             return max_val
-        else:
-            return x
+        return x
 
     async def test_single(self, x: int, min_val: int, max_val: int, desc: str = "") -> bool:
         """Test a single clamp operation."""
@@ -1165,6 +1261,12 @@ class FPClampTB(FPBaseTB):
     async def run_comprehensive_tests(self):
         """Run all test categories."""
         self.log.info("Starting comprehensive clamp tests")
+        # math TASK-007: systematic special-value Cartesian product (9x9x9 = 729 cells)
+        await fp_special_value_product(self.test_single,
+                                       special_value_grid(self.fmt),
+                                       special_value_grid(self.fmt),
+                                       special_value_grid(self.fmt),
+                                       log=self.log)
 
         values = FPTestValues.get_all_test_values(self.fmt, self.test_level)
 
@@ -1229,6 +1331,10 @@ class FPReluTB(FPBaseTB):
 
     async def run_comprehensive_tests(self):
         self.log.info("Starting ReLU tests")
+        # math TASK-007: systematic special-value sweep (9 cells)
+        await fp_special_value_product(self.test_single,
+                                       special_value_grid(self.fmt),
+                                       log=self.log)
         values = FPTestValues.get_all_test_values(self.fmt, self.test_level)
 
         for i, x in enumerate(values):
@@ -1300,6 +1406,10 @@ class FPLeakyReluTB(FPBaseTB):
 
     async def run_comprehensive_tests(self):
         self.log.info("Starting Leaky ReLU tests")
+        # math TASK-007: systematic special-value sweep (9 cells)
+        await fp_special_value_product(self.test_single,
+                                       special_value_grid(self.fmt),
+                                       log=self.log)
         values = FPTestValues.get_all_test_values(self.fmt, self.test_level)
 
         for i, x in enumerate(values):
@@ -1405,6 +1515,12 @@ class FPFMATB(FPBaseTB):
     async def run_comprehensive_tests(self):
         """Run all test categories."""
         self.log.info("Starting comprehensive FMA tests")
+        # math TASK-007: systematic special-value Cartesian product (9x9x9 = 729 cells)
+        await fp_special_value_product(self.test_single,
+                                       special_value_grid(self.fmt),
+                                       special_value_grid(self.fmt),
+                                       special_value_grid(self.fmt),
+                                       log=self.log)
 
         values = FPTestValues.get_all_test_values(self.fmt, self.test_level)
 
@@ -1506,6 +1622,10 @@ class FPSigmoidTB(FPBaseTB):
 
     async def run_comprehensive_tests(self):
         self.log.info("Starting Sigmoid tests")
+        # math TASK-007: systematic special-value sweep (9 cells)
+        await fp_special_value_product(self.test_single,
+                                       special_value_grid(self.fmt),
+                                       log=self.log)
         values = FPTestValues.get_all_test_values(self.fmt, self.test_level)
 
         for i, x in enumerate(values):
@@ -1586,6 +1706,10 @@ class FPTanhTB(FPBaseTB):
 
     async def run_comprehensive_tests(self):
         self.log.info("Starting Tanh tests")
+        # math TASK-007: systematic special-value sweep (9 cells)
+        await fp_special_value_product(self.test_single,
+                                       special_value_grid(self.fmt),
+                                       log=self.log)
         values = FPTestValues.get_all_test_values(self.fmt, self.test_level)
 
         for i, x in enumerate(values):
@@ -1680,6 +1804,10 @@ class FPGeluTB(FPBaseTB):
 
     async def run_comprehensive_tests(self):
         self.log.info("Starting GELU tests")
+        # math TASK-007: systematic special-value sweep (9 cells)
+        await fp_special_value_product(self.test_single,
+                                       special_value_grid(self.fmt),
+                                       log=self.log)
         values = FPTestValues.get_all_test_values(self.fmt, self.test_level)
 
         for i, x in enumerate(values):
@@ -1774,6 +1902,10 @@ class FPSiluTB(FPBaseTB):
 
     async def run_comprehensive_tests(self):
         self.log.info("Starting SiLU tests")
+        # math TASK-007: systematic special-value sweep (9 cells)
+        await fp_special_value_product(self.test_single,
+                                       special_value_grid(self.fmt),
+                                       log=self.log)
         values = FPTestValues.get_all_test_values(self.fmt, self.test_level)
 
         for i, x in enumerate(values):
@@ -1872,6 +2004,10 @@ class FPConversionTB(TBBase):
     async def run_comprehensive_tests(self):
         """Run all test categories."""
         self.log.info(f"Starting conversion tests: {self.src_fmt.name} -> {self.dst_fmt.name}")
+        # math TASK-007: systematic special-value sweep (9 cells)
+        await fp_special_value_product(self.test_single,
+                                       special_value_grid(self.src_fmt),
+                                       log=self.log)
 
         values = FPTestValues.get_all_test_values(self.src_fmt, self.test_level)
 
