@@ -321,3 +321,21 @@
   conversions; H&P ch5 absent from the local conversion (same truncation
   the cod-riscv memo hit) — recorded as gap, not cited. Committed
   separately as docs(cache-ip). Feeds the T14 / v1.0 doc text.
+- T13 REVIEW R1 (agent-101, primary): CHANGES-REQUESTED — 4 Important: the
+  committed amber_control.sby held the UNDER-DERIVED prove depth 60 (and
+  cover 132), not the 126/80 the recorded PASS ran at, so the recorded
+  depth-126 safety PASS was not reproducible from the repo. Root cause: the
+  staged snapshot swept by 95ee1c8fe predated the controller's depth
+  140->126 derivation edits; the derivation never reached the index. All 8
+  findings verified against files before fixing. Fixes in 69db03018
+  (pathspec formal/amber): prove depth 60->126 with derivation comment,
+  cover 132->80, snoop_resp cover engine z3->boolector, wrapper comment
+  k-induction -> BMC. Report fixes in the accompanying sdd commit: A-fill-2
+  assumption 6->12 cycles (wrapper uses f_fill_wait < 12), data-array
+  abstraction wording (ctrl_data_b_rdata / ctrl_cddata tied to 0; values
+  unclaimed, not free). Index note: the first fix commit attempt hit a
+  shared-trunk index-write race (another session staging mem-ctrl files
+  concurrently); commit object landed, index re-synced after. Re-review:
+  agent-101 resumed on the delta. OPEN: owner decision on a fresh on-disk
+  depth-126 safety run — the repo now reproduces the config; the recorded
+  PASS already covers the content.

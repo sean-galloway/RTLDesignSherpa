@@ -79,10 +79,12 @@ Abstractions:
   walk's net effect (all Invalid) is the model's reset state, and the walk's
   writes are applied as they happen. The poison property is checked on this
   model, so a dropped or misdirected invalidation write fails the proof.
-- **Data arrays: free inputs.** Port-A/B read data only feed `rsp_data`,
+- **Data arrays: values not claimed.** Port-A/B read data only feed `rsp_data`,
   the victim-line gather, and CD data — never any MESI-state decision. The
-  state proofs therefore quantify over all data values (strongest
-  abstraction: anything the array could return).
+  state proofs therefore never branch on data values; the unclaimed return
+  payloads are tied to 0 in the wrappers (`ctrl_data_b_rdata` in
+  `formal_amber_control.sv`, `ctrl_cddata` in `formal_amber_snoop_resp.sv`)
+  — sound precisely because no property claims those payload values.
 - **Replacement engine: free input** (`repl_way`); any victim way is legal.
 - **fill / drain partners: free inputs with well-formedness + fairness.**
 - **snoop responder side: free inputs** (`snoop_req/type/addr`, `cdready`).
@@ -94,7 +96,7 @@ Assumptions (each an environment obligation, recorded in
 |---|---|---|
 | A-reset | house protocol: reset asserted at time 0, released after 2 cycles, never re-asserted | house pattern |
 | A-fill-1 | `fill_done` only after `fill_start` seen, one pulse per launch | D-12 partner contract (done pulses) |
-| A-fill-2 | fill done forced within 6 cycles of start (fair partner) | fairness, not an RTL bound; the bounded-residence assertions are the contrapositive of deadlock |
+| A-fill-2 | fill done forced within 12 cycles of start (fair partner) | fairness, not an RTL bound; the bounded-residence assertions are the contrapositive of deadlock |
 | A-fill-3 | `fill_done` implies all 8 beats strobed (RLAST contract); beats arrive in order 0..7, one strobe per beat, only between start and done | AXI R-channel data-before-RLAST, in-order beats |
 | A-drain | drain done only after start, one pulse, forced within 6 cycles | D-12 + fairness |
 | A-cd | `cdready` stalls at most 1 cycle per beat (fair manager) | fairness |
