@@ -267,7 +267,7 @@ module mc_scheduler_layer
 
     // ======================================================================
     // mc_global_timers — tFAW/tRRD (per-rank), tWTR/tRTW/tCCD (global),
-    // plus optional L/S pair windows.
+    // plus optional L/S pair windows (per-(rank,group) ACT, per-group column).
     // ======================================================================
     localparam bit HAS_LS_PAIRS = (NUM_BG > 1);
     logic [BGW_EFF-1:0] w_evt_bg;

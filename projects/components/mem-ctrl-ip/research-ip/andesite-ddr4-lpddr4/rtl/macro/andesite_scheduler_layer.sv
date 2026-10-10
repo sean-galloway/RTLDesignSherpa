@@ -252,6 +252,18 @@ module andesite_scheduler_layer
     assign zq_cal_start_o = w_init_zq_start;
     assign trn_cmd_ack_o  = w_trn_cmd_grant;
 
+    // P1 init accept/ack gating. MRS/ZQCL are the only ops init issues on this
+    // stream, so the arbiter accept pulse qualified by op class IS the honest
+    // ack. The P1 FSM holds cmd_req until it clocks the ack; meanwhile the
+    // arbiter RE-PICKS the presented request into its registered pick every
+    // cycle, so a held request would push every command twice (the
+    // macro-integration suite caught MRS twins one cycle apart). The pick
+    // register makes the duplicate visible one cycle EARLY (the accept cycle
+    // itself re-arms it), so the gate must be combinational on THIS cycle's
+    // accept, not on a delayed copy: a_cmd_valid is the arbiter's registered
+    // pick, so w_init_accept is loop-free. The in-flight accept is unaffected --
+    // it rides the register, not the request. Legal init spacing (tMRD/tMOD >= 3
+    // cycles) tolerates the one-cycle request drop.
     assign w_init_accept = w_cmd_accept && ((w_cmd_accept_op == OP_MRS) || (w_cmd_accept_op == OP_ZQCL));
     assign w_init_cmd_ack = w_init_accept;
     assign init_cmd_valid_gated = init_cmd_valid && !w_init_accept;
@@ -517,6 +529,10 @@ module andesite_scheduler_layer
         .t_zqcs_i           (t_zqcs_i),
         .maint_req_i        (trn_cmd_req_i),
         .maint_grant_o      (w_trn_cmd_grant),
+        // TRAINING (MRS/MPC): all banks must be idle (JESD79-4 MRS /
+        // JESD209-4 MPC). Same two-step shape as refresh/ZQ: the common core
+        // closes banks first, then issues + grants. Idles rather than falls
+        // through so host traffic cannot reopen rows.
         .maint_op_i         (trn_cmd_op_i),
         .maint_bank_i       (trn_cmd_bank_i[BKW-1:0]),
         .maint_row_i        (trn_cmd_addr_i[ROW_WIDTH-1:0]),

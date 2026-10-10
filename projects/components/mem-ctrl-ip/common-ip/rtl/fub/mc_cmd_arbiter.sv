@@ -95,6 +95,9 @@ module mc_cmd_arbiter
     // ---- ZQ calibration (rock-side source; present when HAS_ZQ=1) ----
     input  logic                      zq_req_i,
     output logic                      zq_grant_o,
+    // tZQCS in MC cycles, max(64 nCK, 80 ns) for MT41J256M16. Enforced HERE,
+    // not in the rock zq_ctrl: JESD79-3F 3.10 forbids EVERY command during the
+    // window (a refresh included), and only the arbiter can block the pick.
     input  logic [15:0]               t_zqcs_i,
 
     // ---- generic maintenance-class training commands (rock-side source) ----
@@ -123,7 +126,13 @@ module mc_cmd_arbiter
     input  logic                      twtr_ok_i,
     input  logic                      trtw_ok_i,
     input  logic                      tccd_ok_i,
-    // L/S pair readiness when NUM_BG > 1 (tied off / constant-1 otherwise)
+    // L/S pair readiness when NUM_BG > 1 (tied off / constant-1 otherwise).
+    // ANDESITE L/S DELTA: the long/short pair CSRs (tCCD_L/S, tRRD_L/S) drive
+    // per-group column windows and per-(rank,group) ACT windows, plus an
+    // ANY-group short window each. l_ok for a candidate = its group's long
+    // window has expired; s_ok = the short window since the LAST column/ACT
+    // anywhere has expired. The same-group term lets the long window govern
+    // same-group spacing while the short window governs cross-group spacing.
     input  logic                      tccd_l_ok_i,
     input  logic                      trrd_l_ok_i,
     output logic [BGW_EFF-1:0]        pick_group_o,
@@ -232,6 +241,47 @@ module mc_cmd_arbiter
     // ---- FINAL-STAGE TIMING ENFORCEMENT -------------------------------------
     // Union of pumice BUG-021 hold, scoria BUG-001/BUG-002 re-checks, and
     // andesite L/S re-checks. Real timing is enforced HERE.
+    //
+    // The pick pipeline decides on a REGISTERED bank image (r_bank_act_ready),
+    // so by the time a command reaches here the timers it was judged against are
+    // four register stages old. Make this stage the authority instead: the op in
+    // the output register is re-checked against the LIVE, unregistered bank
+    // readiness, and may not fire until that says safe. Everything upstream is
+    // advisory.
+    //
+    // A rejected pick is usually DROPPED, never held: dropping is lossless (every
+    // CAM commit/issue is qualified by w_fire_out, so an unfired entry stays
+    // schedulable and is simply re-picked), while holding freezes w_out_ready and
+    // head-of-line blocks the whole pipeline behind one command -- measured as a
+    // REGRESSION (close-page 30.77% -> 28.57%) when a stalled column occupied the
+    // slot and blocked the ACT it was waiting for.
+    //
+    // The ONE exception is the rank-global ACT gate (w_out_hold below): while
+    // tFAW/tRRD are shut no ACT can fire ANYWHERE, the wait is bounded by the
+    // window itself, and dropping instead costs a full 3-4 cycle re-pick that
+    // arrives at the same closing window again -- measured on pumice BUG-021 A/B
+    // at board geometry (perf_paging_sweep static_close, ISSUE-002 floor =
+    // 26.95%): 30.77% accepted calibration -> 21.12% at HEAD pre-fix -> 18.57%
+    // with the gate DROPping -> 30.14% with the gate HOLDing, back at the
+    // accepted calibration. scoria BUG-001 independently measured the same class
+    // of failure: 3/3 seeds with bound history checker reporting "GLOBAL tRRD
+    // violation -- ACT only 1 cyc after another ACT (need 2)".
+    //
+    // tFAW/tRRD are RANK-GLOBAL, so an ACT re-validates them HERE, at the fire,
+    // not only at the STAGE-1b pre-pick two registers up (pumice BUG-021 / scoria
+    // BUG-001: the pre-pick re-check let a second ACT fire one cycle after the
+    // first while trrd_ok_i was already 0). The global_timers ok outputs are
+    // strict flops of the counters, so this adds no comb loop.
+    //
+    // Refresh and init commands carry no bank and are never gated here.
+    //
+    // !w_zq_busy on every demand class: BUG-002. The tZQCS window is checked in
+    // the pick cone, but the window counter loads on the ACCEPTED FIRE, so
+    // during the ZQCS's own fire cycle w_zq_busy is still 0 and the cone picks
+    // freely. That pick lands in the output register and fires one cycle later,
+    // INSIDE the window -- and JESD79-3F 3.10 forbids every command while the
+    // device calibrates. Rejecting here is the proven path; w_out_reject
+    // returns the slot to the CAM, which is what the tFAW/tRRD terms rely on.
     logic [15:0] r_zqcs_cnt;
     logic        w_zq_busy;
     assign w_zq_busy = (r_zqcs_cnt != 16'd0);
@@ -333,6 +383,8 @@ module mc_cmd_arbiter
         if (r_pick_valid && r_do_wr) w_wr_col_inflight_ent[r_commit_slot] = 1'b1;
     end
 
+    // Classify-time ACT gate, retained ONLY under row_first (access_pref == 2).
+    // See the ISSUE-002 rationale in the classify block below.
     logic w_act_classify_gate;
     assign w_act_classify_gate = (sched_access_pref_i == 2'd2)
                                ? (tfaw_ok_i[RK0] && trrd_ok_i[RK0]) : 1'b1;
@@ -370,11 +422,35 @@ module mc_cmd_arbiter
     assign w_wr_turn_block = r_rdfire0 || r_rdfire1;
 
     // ---- auto-precharge column guard ---------------------------------------
+    // AUTO-PRECHARGE same-bank serialization (CLOSE/AP): each RDA/WRA closes its
+    // bank, so a same-bank column may not issue until the close lands and the row
+    // is re-ACTed. Two spans, column masks ONLY, gated by f_ap(b):
+    //   * w_col_inflight_bank: a column to b anywhere in the pick pipeline --
+    //     reuses w_col_inflight_guard (selection + pre-pick; reads the REGISTERED
+    //     STAGE-1a snapshot for the selection term, so NO comb loop) plus the
+    //     output stage. Covers RDA1's ~3 pipeline cycles.
+    //   * r_ap_closing[b]: set on an AP-column fire, HELD until
+    //     r_bank_row_active[b] drops (measured 6 cyc RDA-fire->drop, > the
+    //     pipeline depth) -- bridges the stale-row window the pipeline span alone
+    //     cannot. Together: continuous coverage selection..close, so no same-bank
+    //     AP read hits the closed row.
     logic [NUM_BANKS-1:0] r_apguard0, r_apguard1;
     logic [NUM_BANKS-1:0] w_ap_col_guard;
     assign w_ap_col_guard = r_apguard0 | r_apguard1;
 
     // PRE-only column guard
+    // THREE stages: the registered bank image is up to 3 cycles stale end-to-end
+    // (bank_timer update + its output register + the arbiter's input register) —
+    // a 2-deep guard left a 1-cycle hole that still wedged the parked-victim
+    // pattern intermittently.
+    //
+    // !w_pre_col_guard: a PRE fired on this bank within the last 3 cycles — the
+    // registered row image is STALE and a column picked against it lands on the
+    // just-closed row (the RD issues, its data never returns, and the AR-order
+    // drain wedges behind it forever). PRE-only on purpose: the general w_guarded
+    // also covers RD/WR fires and would throttle back-to-back same-bank columns.
+    // Found by the parked-victim pattern in test_pumice_core_sched_order; latent
+    // since the bank-parallel refactor.
     logic [NUM_BANKS-1:0] r_preguard0, r_preguard1, r_preguard2;
     logic [NUM_BANKS-1:0] w_pre_col_guard;
     assign w_pre_col_guard = r_preguard0 | r_preguard1 | r_preguard2;
@@ -434,6 +510,30 @@ module mc_cmd_arbiter
     endfunction
 
     // ---- classify each pool entry into column / activate / precharge --------
+    // ISSUE-002: tFAW/tRRD gate the FIRE, not the classify. Both are rank-global
+    // (not per-bank), so gating the MASK zeroed every ACT candidate the moment
+    // tRRD closed; the 3-stage pick pipeline then drained completely and cost 3
+    // more cycles to refill once it reopened. Under CLOSE page that is an ACT per
+    // access, so the stream ran 6 commands then stalled 5 cycles -- 30.77%
+    // against a 49% command-bus ceiling. Letting candidates flow costs nothing:
+    // the classes are separate pipeline registers picked by priority at the
+    // output, so an ACT waiting on tRRD does not block a column, and
+    // w_act_gate_live re-checks both at the STAGE-1b pre-pick.
+    //
+    // tFAW/tRRD are deliberately NOT gated here: both are rank-global, and
+    // zeroing the mask on a closed window drains the whole 3-stage pick pipeline
+    // at a 3-cycle refill cost. They are re-checked live at STAGE-1b
+    // (w_act_gate_live) and again at the fire stage (w_out_safe, pumice BUG-021
+    // / scoria BUG-001).
+    //
+    // The classify-time ACT gate (w_act_classify_gate) is retained ONLY under
+    // row_first. Under COLUMN_FIRST it is free -- columns still win the class,
+    // they just no longer get 3 slots by default purely because no ACT could be
+    // in flight. Under ROW_FIRST it is NOT free: ACT beats COL by definition, so
+    // candidates arriving earlier take column slots that the drained pipeline
+    // used to leave to them, and pref_row_first drops from ~80% to 72.45% under
+    // the close-biased paging modes. That mode's arbitration is a characterized
+    // result (TASK-002), so it keeps the old gate and the old numbers.
     logic [POOL-1:0]        pool_col_m, pool_act_m, pool_pre_m;
     logic [NUM_ENTRIES-1:0] rd_col_m, rd_act_m, rd_pre_m;
     logic [NUM_ENTRIES-1:0] wr_col_m, wr_act_m, wr_pre_m;
@@ -453,6 +553,22 @@ module mc_cmd_arbiter
             automatic logic           phit = r_bank_row_active[RK0][pbank]
                                              && (f_pool_row(PTXW'(e)) == r_bank_open_row[RK0][pbank]);
             if (pool_valid[e]) begin
+                // COLUMN. The sink-FIFO gate is direction-specific and
+                // correctness-critical: an RD may only fire when the rd CAM's
+                // issue-order FIFO has room (rd_issue_ready_i), a WR only when
+                // the wr CAM's drain FIFO has room (wr_commit_ready_i) --
+                // otherwise the column issues to DRAM but its CAM drops it
+                // (double-issue + misrouted return for RD, stale-DRAM write for
+                // WR). ACT/PRE touch no CAM and stay free, so the arbiter keeps
+                // working while a sink is full. The pdir-conditioned turnaround
+                // terms are the tWTR (RD-after-WR) / tRTW (WR-after-RD)
+                // direction-crossing masks; the per-entry inflight term stops a
+                // slot queued anywhere in the pick pipeline being re-selected;
+                // !w_pre_col_guard covers a PRE fired on this bank within the
+                // last 3 cycles (the registered row image is stale -- a column
+                // picked against it lands on the just-closed row and the
+                // AR-order drain wedges behind it forever: parked-victim pattern
+                // in test_pumice_core_sched_order).
                 pool_col_m[e] = phit && r_bank_rdwr_ready[RK0][pbank] && w_tccd_fwd_ok
                               && (pdir ? trtw_ok_i : twtr_ok_i)
                               && (pdir ? wr_commit_ready_i : rd_issue_ready_i)
@@ -502,6 +618,23 @@ module mc_cmd_arbiter
     endfunction
 
     // ---- ORDER_MODE overlay -----------------------------------------------
+    // in_order and age_threshold are BASE-build modes (2026-09-09): in_order
+    // masks each CAM down to its oldest entry (two levels off the older matrix
+    // FR-FCFS already reads) and lets the arbiter's normal read/write preference
+    // (drain watermarks, round robin, age-boost tiebreak) choose the side -- each
+    // channel is strictly FIFO, which is what the mode is for as a test baseline;
+    // AXI orders nothing between AR and AW, and the read-after-write hazard is
+    // the CAM snarf's. age_threshold ANDs the CAMs' registered age flags into the
+    // masks.
+    //
+    // What stays ENHANCED (+define+PUMICE_ENHANCED) is GLOBAL age order in
+    // in_order: read-head vs write-head decided by comparing the two CAMs' oldest
+    // relative ages (w_rd_head_wins). That compare -- CAM older matrix -> oldest
+    // select -> 16-bit rel-age mux -> export -> compare -> mask -> pick -- is the
+    // cone that missed 75 MHz by 21 ps (pumice ISSUE-007 (was PUMICE-024));
+    // without the define the sch_head_rel export constant-propagates away. On a
+    // base bitstream in_order therefore orders WITHIN each channel and may issue
+    // a read behind a younger write (or vice versa) at the arbiter's preference.
     localparam logic [1:0] ORDER_IN_ORDER = 2'd1;
     localparam logic [1:0] ORDER_AGE_THR  = 2'd3;
 
@@ -674,6 +807,55 @@ module mc_cmd_arbiter
     )
 
     // ---- STAGE 1b ----------------------------------------------------------
+    // Per-class selection (the deep argmax, now on registers). arg_sel/
+    // arg_oldest run on the STAGE-1a snapshot, so the argmax cone is a clean
+    // register-to-register hop. The result (w_sel_*) feeds the registered
+    // pre-pick flop, so the pick is now CAM-match+mask -> FLOP(1a) -> arg_sel
+    // -> FLOP(pre-pick). See pumice ISSUE-005 (was PUMICE-017)/018.
+    //
+    // DOUBLE-ISSUE RE-VALIDATION (critical). The snapshot mask is 1 cycle stale,
+    // so a slot committed/issued in the gap -- its CAM sch_valid dropped -- must
+    // not be re-picked and issued twice. INTERSECT each registered candidate mask
+    // with the LIVE per-CAM schedulable signal (rd/wr_sch_valid_i, which the CAM
+    // drops the cycle a slot is committed) before the argmax: a slot that left
+    // the schedulable set is excluded, and an empty intersected mask yields
+    // found=0 (a bubble, always safe). This is the SECOND line of defense; the
+    // forward guards stop the same-slot re-pick during the cycles before
+    // sch_valid has had time to drop.
+    //
+    // LIVE ACT-GATE RE-VALIDATION (critical, PUMICE-018). sch_valid alone is NOT
+    // enough for ACTIVATE: the snapshot also freezes the rank-global ACT gates
+    // (tRFC recovery w_rfc_busy, tFAW, tRRD), and those are NOT covered by the
+    // per-bank re-issue guards. If a REF fires in the snapshot gap, w_rfc_busy
+    // rises the NEXT cycle -- but the snapshot captured its ACT candidates with
+    // w_rfc_busy=0, so a stale ACT would issue inside tRFC. Re-apply these LIVE,
+    // single-bit rank gates to the ACT picks here (cheap: no deep match, and
+    // they cannot form a loop -- they depend on a counter/inputs, not on the
+    // guards they would feed). Squashing the class is safe; the ACT re-arms once
+    // the timer clears.
+    //
+    // LIVE TURNAROUND RE-VALIDATION (TASK-007 board, 2026-09-17). Exactly the
+    // same class of bug as the ACT gate above, fixed the same way. The column
+    // MASKS apply trtw_ok_i/twtr_ok_i and the fire-history guards at CLASSIFY
+    // time, ~3 pick-pipeline cycles before the command actually issues. A WRITE
+    // selected while no read had recently fired therefore issues INTO a read
+    // burst that began in the meantime. Board ILA, batching on: @2025 RD b0
+    // @2026 RD b0 @2027 RD b0 @2028 WR b2 @2029 RD b0 -- a RD->WR turnaround of
+    // ONE cycle where tRTW is 20, four times in one 4096-sample capture. The DFI
+    // command path used to absorb this with a pacer of its own; that pacer is
+    // gone -- all JEDEC timing belongs to the scheduler -- so the gate has to
+    // hold HERE, in the cycle the command actually leaves.
+    //
+    // ONE-CYCLE BLIND SPOT (board round 2). The turnaround guards above are not
+    // sufficient on their own: r_rdfire0 loads from `w_fire_out && r_do_rd`,
+    // i.e. the cycle AFTER a read leaves the output register, while this pick is
+    // evaluated the cycle BEFORE its own command leaves. So a WRITE picked in the
+    // very cycle a READ fires out sees r_rdfire0 still 0 and issues one cycle
+    // behind it -- exactly the surviving `RD@2027 -> WR@2028 gap=1`. Adding the
+    // in-flight fire term (`!(w_fire_out && r_do_wr)`) closes the seam between
+    // "firing now" and "fired, recorded". w_fire_out is r_pick_valid &&
+    // cmd_ready_i -- registers and an input, never the combinational pick, so
+    // this cannot form a loop.
     logic w_act_gate_live;
     assign w_act_gate_live = !w_rfc_busy && tfaw_ok_i[RK0] && trrd_ok_i[RK0] && w_trrd_ls_ok;
 
@@ -700,6 +882,27 @@ module mc_cmd_arbiter
     end
 
     // ---- registered pre-pick -----------------------------------------------
+    // Fed by STAGE-1b arg_sel. Every consumer below (the write-first decision,
+    // the class-priority mux, and the main pick) reads these, so the names are
+    // unchanged from the pre-pipeline version -- only their source moved
+    // (combinational -> STAGE-1b argmax on the STAGE-1a snapshot). The register
+    // advances with the output stage (w_out_ready): it HOLDS its decision under
+    // cmd-FIFO backpressure rather than dropping or re-deriving it, which is why
+    // a plain flop is right here and a skid buffer would be wrong (the pre-pick
+    // is a re-evaluated decision, not a stream that must not lose a beat). See
+    // pumice ISSUE-005 (was PUMICE-017)/018.
+    //
+    // Pre-MUXED pick operands (pumice ISSUE-005 (was PUMICE-017), 2026-09-09).
+    // The output stage used to index the CAM's flat {bank,row,col} vectors with
+    // the REGISTERED slot -- six wide NUM_ENTRIES:1 muxes sitting AFTER the
+    // pre-pick flop and feeding r_bank/r_row/r_col, which is the arbiter's
+    // 75 MHz critical path (r_*_pop -> ... -> r_bank). Muxing at the pre-pick
+    // flop instead moves them into the STAGE-1b cycle, where arg_sel has already
+    // resolved and there is slack, and leaves the output stage with only the
+    // small class-priority mux over already-narrow values. Sampling one cycle
+    // earlier is safe AND more coherent: a CAM entry's {bank,row,col} are fixed
+    // at insert and the forward guards stop a just-selected slot being
+    // re-selected, so these read the same epoch the decision was made in.
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             rd_col_f <= 1'b0; wr_col_f <= 1'b0; rd_act_f <= 1'b0;
@@ -799,6 +1002,9 @@ module mc_cmd_arbiter
                 stall_actlimit_o   <= stall_actlimit_o + 32'h1;
             else if (r_pick_valid)
                 stall_bp_o         <= stall_bp_o + 32'h1;
+            // Ordered ahead of refresh to match the cone: inside tZQCS the
+            // refresh branch cannot run, so charging those cycles to refresh
+            // would name a blocker that was not blocking.
             else if (HAS_ZQ && (w_zq_busy || zq_req_i))
                 stall_zq_o         <= stall_zq_o + 32'h1;
             else if (refresh_req_i || refresh_drain_i)
@@ -895,6 +1101,41 @@ module mc_cmd_arbiter
     // ========================================================================
     // Priority pick (combinational)
     // ========================================================================
+    // ZQCS safety. JESD79-3F 3.10: all banks idle and tRP met before ZQCL or
+    // ZQCS. That is the same precondition REFab has, so w_zq_safe reuses the
+    // same terms -- including the !r_zq_grant term, which exists for exactly the
+    // reason !r_grant does on w_ref_safe: zq_req_o stays asserted for one cycle
+    // past the grant (both it and obs_busy_o are Q of r_state, so the request
+    // has not yet seen the state move), and without this the branch would
+    // re-pick a SECOND ZQCS while the first sits in the output register --
+    // r_zqcs_cnt loads a cycle too late to stop it. Also !w_zq_busy, so a ZQCS
+    // cannot land inside another one's window.
+    //
+    // The refresh branch sits ABOVE ZQCS on purpose: inside tZQCS the refresh
+    // branch cannot run, so charging those cycles to refresh would name a
+    // blocker that was not blocking.
+    //
+    // tZQCS — the DRAM is calibrating and accepts NO command (JESD79-3F 3.10).
+    // Idle; do NOT fall through to refresh or to a column pick. A refresh that
+    // comes due inside the window is absorbed by the rock refresh_ctrl's
+    // postpone credit: tZQCS is ~16 MC cycles at 1:4 against a tREFI of ~1950,
+    // so the window costs at most one postponed refresh and never a missed one.
+    //
+    // ZQCS — periodic output-driver calibration. Precharge every open bank first
+    // (JESD79-3F 3.10 requires all banks idle), then issue. Same two-step shape
+    // as REFab and it reuses the same precharge picker; it also idles rather
+    // than falling through while it waits for the banks to close -- a fall-through
+    // would let column traffic reopen rows behind it and the calibration would
+    // never find an all-idle moment.
+    //
+    // ACTIVATE the oldest pending op's idle+ready bank (bank-parallel).
+    // w_act_gate_live (tRFC / tFAW / tRRD) is re-checked HERE as well as at
+    // STAGE-1b: an ACT selected in the one cycle between a refresh's tRFC
+    // expiring and the NEXT REF firing (pulled-in refreshes 10 cycles apart)
+    // reached this stage with rfc_busy already set, and the refresh branch no
+    // longer shielded it because the pull-in path drops refresh_req the cycle
+    // after the grant. Probed 2026-09-09: REF pushed at 39480 ns, ACT bank7 at
+    // 39500 ns -- 2 cycles.
     dram_op_e        w_op;
     logic [BKW-1:0]  w_bank;
     logic [ROW_WIDTH-1:0] w_row;
@@ -968,6 +1209,16 @@ module mc_cmd_arbiter
             w_bank = wr_col_bank; w_col = wr_col_col;
             w_valid = 1'b1; w_op = wr_col_ap ? OP_WRA : OP_WR;
             w_ap_out = wr_col_ap; w_do_wr = 1'b1; w_wr_commit = 1'b1; w_commit_slot = wr_col_s;
+        // ACTIVATE the oldest pending op's idle+ready bank (bank-parallel).
+        // Qualified by the LIVE ACT gate (tRFC/tFAW/tRRD). The fire stage
+        // re-checks it and simply falls through when it is low, so an ACT class
+        // chosen while the gate is shut spends the output slot and issues
+        // nothing. That was invisible while the classify mask also gated on
+        // tFAW/tRRD -- no ACT candidate could exist with the gate shut. Now that
+        // candidates flow through the pipeline during the window (ISSUE-002),
+        // the class must not be selected unless it can actually fire, or
+        // row_first loses a column slot to every blocked ACT: static_close
+        // measured 72.45% against its 75% floor.
         end else if (w_pick_class == CL_ACT && rd_act_f && w_act_gate_live
                      && !(w_act_wrf && wr_act_f)) begin
             w_valid = 1'b1; w_op = OP_ACT;
@@ -1029,6 +1280,30 @@ module mc_cmd_arbiter
     )
 
     // ---- command push outputs ----------------------------------------------
+    // GATED BY w_out_safe (pumice BUG-003). w_out_reject above makes w_out_ready
+    // true so an unsafe pick is OVERWRITTEN next cycle, and the comment there
+    // calls that "dropping". It was not dropping anything: cmd_valid_o was
+    // r_pick_valid unconditionally, so while the unsafe pick sat in the output
+    // register the FIFO accepted it (w_write = wr_valid && wr_ready) and the
+    // DRAM executed it -- and because w_fire_out DOES include w_out_safe, evt_*_o
+    // never strobed, so the bank timers and the guard chains never learned the
+    // command had been issued. The controller's model and the DRAM diverged,
+    // silently, in the one direction that matters.
+    //
+    // Measured at the macro level (test_pumice_scheduler_layer.py,
+    // cocotb_test_timeout_pre_vs_pending_column) under the BOARD config, open
+    // page + background timeout PRE, TR=2: 465 pushes, 9 with w_out_safe==0, all
+    // 9 column RDs to a bank whose row the timeout PRE had just closed, and
+    // exactly those 9 were the illegal column ops the JEDEC replay flagged (1:1,
+    // no others). Both baselines -- open page with the timeout off, and static
+    // close -- had 0 unsafe pushes and 0 illegal ops. The gate was never the
+    // problem; it caught all nine. The drop simply did not exist.
+    //
+    // With this gate, w_fire_out == cmd_valid_o && cmd_ready_i identically, so
+    // the fire IS the push by construction and the two cannot diverge again.
+    // Retracting valid is safe here: gaxi_fifo_sync drives wr_ready from a
+    // REGISTERED !r_wr_full (no combinational path back to wr_valid, so no loop)
+    // and pushes only on wr_valid && wr_ready.
     assign cmd_valid_o = r_pick_valid && w_out_safe;
     assign cmd_op_o    = r_op;
     assign cmd_rank_o  = RKW'(RK0);
@@ -1101,6 +1376,14 @@ module mc_cmd_arbiter
     )
 
     // ---- tZQCS block counter ------------------------------------------------
+    // Load on a FIRED ZQCS, count down to 0. Keyed on r_zq_grant, not r_grant,
+    // so a refresh does not load it and a calibration does not load the tRFC
+    // counter. The two windows are independent and both are honoured, but by
+    // DIFFERENT mechanisms: w_zq_safe carries an explicit !w_rfc_busy term,
+    // while a refresh is kept out of the tZQCS window by the cone's priority-2
+    // block, not by a term on w_ref_safe. Do not "tidy" that into a symmetric
+    // pair of terms -- w_ref_safe feeds the pick cone that once missed 75 MHz by
+    // 21 ps, and the block already holds.
     generate if (HAS_ZQ) begin : g_zqcs_cnt
         `ALWAYS_FF_RST(aclk, aresetn,
             if (`RST_ASSERTED(aresetn)) begin
