@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from TBClasses.shared.utilities import get_repo_root
+import re  # Phase 2 Task 2: BG-delta strip in the parity gate
 
 _REPO = Path(get_repo_root())
 _ANDESITE = (
@@ -42,7 +43,19 @@ def test_andesite_scoria_axi4_logic_parity():
     scoria_text = _SCORIA.read_text()
     andesite_text = _ANDESITE.read_text()
 
-    if andesite_text == _as_renamed_scoria(scoria_text):
+    # Phase 2 (2026-10-10, Task 2): andesite's axi4 layer gained the intake
+    # BG parameterization (.BG_WIDTH(2), .HAS_BG(1) on both mc_{wr,rd}_intake
+    # instantiations — the DDR4 bank-group address mapping). That is a
+    # deliberate, enumerable divergence from scoria's layer; strip those two
+    # connection lines before comparing so the parity gate keeps guarding
+    # everything else. (Both files retire when mc_axi4_layer lands in
+    # Phase 2 Task 3.)
+    andesite_text = "\n".join(
+        ln for ln in andesite_text.splitlines()
+        if not re.search(r"\.(BG_WIDTH|HAS_BG)\s*\(", ln)
+    )
+
+    if andesite_text.rstrip("\n") == _as_renamed_scoria(scoria_text).rstrip("\n"):
         return
 
     import difflib

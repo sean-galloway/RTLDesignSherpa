@@ -23,8 +23,8 @@ from pumice_coverage import get_coverage_compile_args, get_coverage_env  # noqa:
 from tbclasses.pumice_wr_data_cam_tb import PumiceWrDataCamTB  # noqa: E402
 from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 
-_FILELIST = ("projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/"
-             "rtl/filelists/fub/pumice_wr_data_cam.f")
+_FILELIST = ("projects/components/mem-ctrl-ip/common-ip/"
+             "rtl/filelists/fub/mc_wr_data_cam.f")
 
 
 @cocotb.test(timeout_time=5, timeout_unit="ms")
@@ -190,7 +190,7 @@ async def cocotb_test_pumice_wr_data_cam(dut):
 @pytest.mark.parametrize("test_level", reg_level_grid())
 def test_pumice_wr_data_cam(request, test_level):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "pumice_wr_data_cam"
+    dut_name = "mc_wr_data_cam"
     test_name = f"cocotb_test_pumice_wr_data_cam_{test_level}"
 
     verilog_sources, includes = get_sources_from_filelist(

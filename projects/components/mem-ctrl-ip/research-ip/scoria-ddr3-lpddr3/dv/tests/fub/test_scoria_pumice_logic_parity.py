@@ -47,14 +47,17 @@ _PU = _REPO / "projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rt
 # scoria file  ->  pumice file. The pumice tree names some of these with the
 # `pumice_` prefix and some without, which is why this is a table and not a
 # format string.
+#
+# Phase 2 (2026-10-10, Task 2): the FUB-tier pairs for rd_cmd_cam,
+# wr_data_cam, rd_intake, wr_intake and bank_timers were REMOVED from this
+# table — those blocks now live ONCE in common-ip as mc_* modules that both
+# rocks instantiate, so the invariant this test guarded (scoria's copy ==
+# pumice's copy) is enforced by construction. What remains are the pairs
+# still pending extraction (rd_return_ring, dfi_cdc) and the macro tier
+# (axi4_layer retires in Phase 2 Task 3; dfi_layer/scheduler in Tasks 5-6).
 PORTED = {
-    "fub/scoria_rd_cmd_cam.sv":     "fub/pumice_rd_cmd_cam.sv",
-    "fub/scoria_wr_data_cam.sv":    "fub/pumice_wr_data_cam.sv",
-    "fub/scoria_rd_intake.sv":      "fub/pumice_rd_intake.sv",
-    "fub/scoria_wr_intake.sv":      "fub/pumice_wr_intake.sv",
     "fub/scoria_rd_return_ring.sv": "fub/pumice_rd_return_ring.sv",
     "fub/scoria_dfi_cdc.sv":        "fub/pumice_dfi_cdc.sv",
-    "fub/scoria_bank_timers.sv":    "fub/pumice_bank_timers.sv",
     # MACRO tier. Measured 2026-10-01 while standing up the macro/top test
     # areas: of the six macro/top modules this is the only one still pumice's
     # logic. dfi_layer (+91 lines), scheduler_layer (+133), scoria_core
@@ -66,13 +69,8 @@ PORTED = {
 
 # Where each one's coverage actually lives, for the failure message.
 PUMICE_TEST = {
-    "fub/scoria_rd_cmd_cam.sv":     "test_pumice_rd_cmd_cam.py",
-    "fub/scoria_wr_data_cam.sv":    "test_pumice_wr_data_cam.py",
-    "fub/scoria_rd_intake.sv":      "test_pumice_rd_intake.py",
-    "fub/scoria_wr_intake.sv":      "test_pumice_wr_intake.py",
     "fub/scoria_rd_return_ring.sv": "test_pumice_rd_return_ring.py",
     "fub/scoria_dfi_cdc.sv":        "test_pumice_dfi_cdc.py",
-    "fub/scoria_bank_timers.sv":    "test_pumice_bank_timers.py",
     "macro/scoria_axi4_layer.sv":     "test_pumice_axi4_layer.py",
 }
 

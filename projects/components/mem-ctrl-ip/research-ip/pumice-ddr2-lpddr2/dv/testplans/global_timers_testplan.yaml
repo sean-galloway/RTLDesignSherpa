@@ -1,5 +1,5 @@
-module: global_timers
-rtl_file: projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/global_timers.sv
+module: mc_global_timers
+rtl_file: projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_global_timers.sv
 test_file: projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/dv/tests/fub/test_global_timers.py
 
 parameters:

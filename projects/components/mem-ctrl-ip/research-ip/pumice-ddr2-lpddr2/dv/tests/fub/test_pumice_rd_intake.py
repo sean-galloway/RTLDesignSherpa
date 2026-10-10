@@ -40,8 +40,8 @@ _LEVEL = {"GATE": "gate", "BASIC": "gate",
     (os.environ.get("REG_LEVEL") or os.environ.get("TEST_LEVEL")
      or "FUNC").upper(), "func")
 
-_FILELIST = ("projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/"
-             "rtl/filelists/fub/pumice_rd_intake.f")
+_FILELIST = ("projects/components/mem-ctrl-ip/common-ip/"
+             "rtl/filelists/fub/mc_rd_intake.f")
 
 
 @cocotb.test(timeout_time=5, timeout_unit="ms")
@@ -103,7 +103,7 @@ async def cocotb_test_pumice_rd_intake(dut):
 
 def test_pumice_rd_intake(request):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "pumice_rd_intake"
+    dut_name = "mc_rd_intake"
     test_name = "cocotb_test_pumice_rd_intake"
 
     verilog_sources, includes = get_sources_from_filelist(

@@ -463,21 +463,23 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FUNC}.get(_TEST_LEVEL, _FUNC)
 @pytest.mark.parametrize("test_type", _PARAMS)
 def test_andesite_global_timers(request, test_type):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "andesite_global_timers"
+    dut_name = "mc_global_timers"
     test_name = f"test_andesite_global_timers_{test_type}"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path=("projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/"
-                       "rtl/filelists/fub/andesite_global_timers.f"))
+        filelist_path=("projects/components/mem-ctrl-ip/common-ip/"
+                       "rtl/filelists/fub/mc_global_timers.f"))
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True); os.makedirs(log_dir, exist_ok=True)
     run(python_search=[tests_dir], verilog_sources=verilog_sources,
         includes=includes, toplevel=dut_name, module=module,
         testcase="cocotb_test_andesite_global_timers",
         sim_build=sim_build, simulator="verilator",
-        parameters=({"NUM_RANKS": "2"} if test_type == "per_rank_independence"
-                    else {"NUM_BG": "1"} if test_type == "num_bg_1_single_group_degenerates"
-                    else {}),
+        parameters=({"NUM_RANKS": "2", "HAS_LS_PAIRS": "1"}
+                    if test_type == "per_rank_independence"
+                    else {"NUM_BG": "1", "HAS_LS_PAIRS": "1"}
+                    if test_type == "num_bg_1_single_group_degenerates"
+                    else {"HAS_LS_PAIRS": "1"}),
         extra_env={"DUT": dut_name, "TEST_TYPE": test_type,
                    "TEST_LEVEL": _TEST_LEVEL, "COCOTB_LOG_LEVEL": "INFO",
                    "SEED": os.environ.get('SEED', str(random.randint(0, 99999))),

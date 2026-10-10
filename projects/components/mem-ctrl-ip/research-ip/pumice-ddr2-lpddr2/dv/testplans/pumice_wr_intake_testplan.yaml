@@ -1,5 +1,5 @@
 module: pumice_wr_intake
-rtl_file: projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_wr_intake.sv
+rtl_file: projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_wr_intake.sv
 test_file: projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/dv/tests/fub/test_pumice_wr_intake.py
 
 parameters:

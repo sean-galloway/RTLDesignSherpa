@@ -43,8 +43,8 @@ _LEVEL = {"GATE": "gate", "BASIC": "gate",
     (os.environ.get("REG_LEVEL") or os.environ.get("TEST_LEVEL")
      or "FUNC").upper(), "func")
 
-_FILELIST = ("projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/"
-             "rtl/filelists/fub/pumice_wr_intake.f")
+_FILELIST = ("projects/components/mem-ctrl-ip/common-ip/"
+             "rtl/filelists/fub/mc_wr_intake.f")
 
 
 # ---------------------------------------------------------------------------
@@ -124,7 +124,7 @@ async def cocotb_test_pumice_wr_intake_ragged(dut):
 # ---------------------------------------------------------------------------
 def _run(request, testcase, ragged_assert, bl=4):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "pumice_wr_intake"
+    dut_name = "mc_wr_intake"
     test_name = f"{testcase}_bl{bl}"
 
     verilog_sources, includes = get_sources_from_filelist(

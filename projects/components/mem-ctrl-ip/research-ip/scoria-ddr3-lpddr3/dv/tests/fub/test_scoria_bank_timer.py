@@ -253,12 +253,12 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FUNC}.get(_TEST_LEVEL, _FUNC)
 @pytest.mark.parametrize("test_type", _PARAMS)
 def test_scoria_bank_timer(request, test_type):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "scoria_bank_timer"
+    dut_name = "mc_bank_timer"
     test_name = f"test_scoria_bank_timer_{test_type}"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path=("projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/"
-                       "rtl/filelists/fub/scoria_bank_timers.f"))
+        filelist_path=("projects/components/mem-ctrl-ip/common-ip/"
+                       "rtl/filelists/fub/mc_bank_timers.f"))
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True); os.makedirs(log_dir, exist_ok=True)
     run(python_search=[tests_dir], verilog_sources=verilog_sources,

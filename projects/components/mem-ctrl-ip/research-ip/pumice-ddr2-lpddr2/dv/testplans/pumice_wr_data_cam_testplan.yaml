@@ -1,5 +1,5 @@
 module: pumice_wr_data_cam
-rtl_file: projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_wr_data_cam.sv
+rtl_file: projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_wr_data_cam.sv
 test_file: projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/dv/tests/fub/test_pumice_wr_data_cam.py
 
 parameters:

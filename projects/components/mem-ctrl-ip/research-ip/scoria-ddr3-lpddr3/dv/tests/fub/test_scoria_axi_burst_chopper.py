@@ -421,12 +421,12 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FUNC}.get(_TEST_LEVEL, _FUNC)
 @pytest.mark.parametrize("test_type, chunk, pad", _PARAMS)
 def test_scoria_axi_burst_chopper(request, test_type, chunk, pad):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "scoria_axi_burst_chopper"
+    dut_name = "mc_axi_burst_chopper"
     test_name = f"test_scoria_axi_burst_chopper_{test_type}_c{chunk}_p{pad}"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path=("projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/"
-                       "rtl/filelists/fub/scoria_axi_burst_chopper.f"))
+        filelist_path=("projects/components/mem-ctrl-ip/common-ip/"
+                       "rtl/filelists/fub/mc_axi_burst_chopper.f"))
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True); os.makedirs(log_dir, exist_ok=True)
     run(python_search=[tests_dir], verilog_sources=verilog_sources,

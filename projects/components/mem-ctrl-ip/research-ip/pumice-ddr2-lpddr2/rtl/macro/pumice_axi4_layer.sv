@@ -11,8 +11,8 @@
 //          reorder buffer). Presents the host AXI4 face and exposes the
 //          scheduler + DFI-data ports outward.
 //
-//   host AXI4 -> [wr/rd splitter] -> pumice_wr_intake -> pumice_wr_data_cam
-//                                 -> pumice_rd_intake -> pumice_rd_cmd_cam
+//   host AXI4 -> [wr/rd splitter] -> mc_wr_intake -> mc_wr_data_cam
+//                                 -> mc_rd_intake -> mc_rd_cmd_cam
 //   snarf: rd_intake probes wr CAM; hit -> streamed from wr CAM SRAM.
 //   external: scheduler lookup/oldest/commit(issue) ports on both CAMs,
 //             wr commit-data out (to wr_beat_sequencer), rd DFI-return in.
@@ -181,7 +181,7 @@ module pumice_axi4_layer #(
     // ---- WR request side: chop AW into DFI-burst sub-commands + reframe W ---
     // Tags each sub-AW with agg/last; the wr CAM strobes exactly one host B on
     // the final sub. B flows wr_intake -> s_axi directly (no aggregator module).
-    pumice_wr_splitter #(
+    mc_wr_splitter #(
         .AXI_ID_WIDTH  (IW),
         .AXI_ADDR_WIDTH(AW),
         .AXI_DATA_WIDTH(DW),
@@ -236,7 +236,7 @@ module pumice_axi4_layer #(
     // Tags each sub-AR with last; the rd intake's AR-order FIFO collapses the
     // per-sub RLAST. R flows rd_intake -> s_axi directly (no aggregator module).
     // Reads collapse on `last` alone, so m_ax_agg is unused here.
-    pumice_axi_burst_chopper #(
+    mc_axi_burst_chopper #(
         .AXI_ID_WIDTH  (IW),
         .AXI_ADDR_WIDTH(AW),
         .AXI_USER_WIDTH(UW),
@@ -307,7 +307,7 @@ module pumice_axi4_layer #(
     logic w_wri_busy, w_rdi_busy, w_wrc_busy, w_rdc_busy;
 
     // ---- WR intake ----
-    pumice_wr_intake #(
+    mc_wr_intake #(
         .AXI_ID_WIDTH     (IW),
         .AXI_ADDR_WIDTH   (AW),
         .AXI_DATA_WIDTH   (DW),
@@ -374,7 +374,7 @@ module pumice_axi4_layer #(
     );
 
     // ---- WR data CAM ----
-    pumice_wr_data_cam #(
+    mc_wr_data_cam #(
         .NUM_ENTRIES   (NUM_ENTRIES),
         .N_SCHED_LU    (N_SCHED_LU),
         .NUM_BANKS     (NUM_BANKS),
@@ -454,7 +454,7 @@ module pumice_axi4_layer #(
     );
 
     // ---- RD intake ----
-    pumice_rd_intake #(
+    mc_rd_intake #(
         .AXI_ID_WIDTH     (IW),
         .AXI_ADDR_WIDTH   (AW),
         .AXI_DATA_WIDTH   (DW),
@@ -531,7 +531,7 @@ module pumice_axi4_layer #(
     // into the CAM entry and comes back out on issue.
     assign ar_push_ready = rd_cam_ins_ready && rt_alloc_ready;
 
-    pumice_rd_cmd_cam #(
+    mc_rd_cmd_cam #(
         .NUM_ENTRIES   (NUM_ENTRIES),
         .N_SCHED_LU    (N_SCHED_LU),
         .NUM_BANKS     (NUM_BANKS),

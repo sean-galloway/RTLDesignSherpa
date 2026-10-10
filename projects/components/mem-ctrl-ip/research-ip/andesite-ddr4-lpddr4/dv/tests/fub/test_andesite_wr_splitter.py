@@ -341,12 +341,12 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FUNC}.get(_TEST_LEVEL, _FUNC)
 @pytest.mark.parametrize("test_type, chunk", _PARAMS)
 def test_andesite_wr_splitter(request, test_type, chunk):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "andesite_wr_splitter"
+    dut_name = "mc_wr_splitter"
     test_name = f"test_andesite_wr_splitter_{test_type}_c{chunk}"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path=("projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/"
-                       "rtl/filelists/fub/andesite_wr_splitter.f"))
+        filelist_path=("projects/components/mem-ctrl-ip/common-ip/"
+                       "rtl/filelists/fub/mc_wr_splitter.f"))
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True); os.makedirs(log_dir, exist_ok=True)
     run(python_search=[tests_dir], verilog_sources=verilog_sources,

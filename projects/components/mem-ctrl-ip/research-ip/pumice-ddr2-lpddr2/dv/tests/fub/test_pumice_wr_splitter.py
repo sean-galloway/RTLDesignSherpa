@@ -42,8 +42,8 @@ from pumice_coverage import get_coverage_compile_args, get_coverage_env  # noqa:
 from tbclasses.pumice_fub_bfm import fub_consumer, fub_producer   # noqa: E402
 from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 
-_FILELIST = ("projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/"
-             "rtl/filelists/fub/pumice_wr_splitter.f")
+_FILELIST = ("projects/components/mem-ctrl-ip/common-ip/"
+             "rtl/filelists/fub/mc_wr_splitter.f")
 
 AXI_BEATS_PER_BURST = 4          # AXI beats per DRAM burst (must match the param below)
 
@@ -265,7 +265,7 @@ async def cocotb_test_wr_splitter_single_beat(dut):
 # ---------------------------------------------------------------------------
 def _run(request, testcase, test_level='gate'):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "pumice_wr_splitter"
+    dut_name = "mc_wr_splitter"
     test_name = f"{testcase}_{test_level}"
 
     verilog_sources, includes = get_sources_from_filelist(

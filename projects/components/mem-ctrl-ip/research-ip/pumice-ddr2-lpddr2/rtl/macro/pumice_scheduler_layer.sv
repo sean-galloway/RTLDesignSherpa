@@ -324,7 +324,7 @@ module pumice_scheduler_layer
     );
 
     // ======================================================================
-    // pumice_bank_timers — per-bank safe timers (open-page).
+    // mc_bank_timers — per-bank safe timers (open-page).
     // ======================================================================
     // BANK_LA = the pick pipeline's select-to-fire depth: the advisory image
     // is sampled into r_bank_*_ready and the command fires four register
@@ -335,7 +335,7 @@ module pumice_scheduler_layer
     // EARLIER than the assumed depth would be wrong, and nothing can.
     // Over-estimating costs a dropped pick at the final gate, never a
     // violation; the reject rate lands in stall_banktimer_o.
-    pumice_bank_timers #(
+    mc_bank_timers #(
         .NUM_RANKS(NUM_RANKS),
         .NUM_BANKS(NUM_BANKS),
         .ROW_WIDTH(ROW_WIDTH),
@@ -373,9 +373,9 @@ module pumice_scheduler_layer
     );
 
     // ======================================================================
-    // global_timers — tFAW/tRRD (per-rank), tWTR/tRTW/tCCD (global).
+    // mc_global_timers — tFAW/tRRD (per-rank), tWTR/tRTW/tCCD (global).
     // ======================================================================
-    global_timers #(
+    mc_global_timers #(
         .NUM_RANKS(NUM_RANKS),
         .NUM_BANKS(NUM_BANKS)
     ) u_global_timers (
@@ -390,6 +390,21 @@ module pumice_scheduler_layer
         .evt_act_rank_i  (evt_rank),
         .evt_rd_i        (evt_rd),
         .evt_wr_i        (evt_wr),
+
+        // ANDESITE L/S DELTA pins tied off: generations 2/3 run HAS_LS_PAIRS=0
+        // (the common module's generate drives these outputs constant-1).
+        .t_ccd_l_i      (8'd0),
+        .t_ccd_s_i      (8'd0),
+        .t_rrd_l_i      (8'd0),
+        .t_rrd_s_i      (8'd0),
+        .evt_act_bg_i   ('0),
+        .evt_col_bg_i   ('0),
+        .cand_rank_i    ('0),
+        .cand_bg_i      ('0),
+        .tccd_l_window_ok_o (),
+        .tccd_s_window_ok_o (),
+        .trrd_l_window_ok_o (),
+        .trrd_s_window_ok_o (),
         .tfaw_window_ok_o(w_tfaw_ok),
         .trrd_window_ok_o(w_trrd_ok),
         .twtr_global_ok_o(w_twtr_ok),

@@ -25,8 +25,8 @@ from tbclasses.pumice_bank_timers_tb import (  # noqa: E402
 )
 from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 
-_FILELIST = ("projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/"
-             "rtl/filelists/fub/pumice_bank_timers.f")
+_FILELIST = ("projects/components/mem-ctrl-ip/common-ip/"
+             "rtl/filelists/fub/mc_bank_timers.f")
 
 
 @cocotb.test(timeout_time=3, timeout_unit="ms")
@@ -99,7 +99,7 @@ async def cocotb_test_pumice_bank_timers(dut):
 @pytest.mark.parametrize("test_level", reg_level_grid())
 def test_pumice_bank_timers(request, test_level):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "pumice_bank_timers"
+    dut_name = "mc_bank_timers"
     test_name = f"cocotb_test_pumice_bank_timers_{test_level}"
 
     verilog_sources, includes = get_sources_from_filelist(

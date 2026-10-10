@@ -525,7 +525,7 @@ module andesite_scheduler_layer
     );
 
     // ======================================================================
-    // andesite_bank_timers — per-bank safe timers (open-page).
+    // mc_bank_timers — per-bank safe timers (open-page).
     // ======================================================================
     // BANK_LA = the pick pipeline's select-to-fire depth: the advisory image
     // is sampled into r_bank_*_ready and the command fires four register
@@ -536,7 +536,7 @@ module andesite_scheduler_layer
     // EARLIER than the assumed depth would be wrong, and nothing can.
     // Over-estimating costs a dropped pick at the final gate, never a
     // violation; the reject rate lands in stall_banktimer_o.
-    andesite_bank_timers #(
+    mc_bank_timers #(
         .NUM_RANKS(NUM_RANKS),
         .NUM_BANKS(NUM_BANKS),
         .ROW_WIDTH(ROW_WIDTH),
@@ -582,12 +582,16 @@ module andesite_scheduler_layer
     assign w_evt_bg = (NUM_BG > 1) ? evt_bank[BKW-1 -: BGW_EFF_M] : '0;
 
     // ======================================================================
-    // andesite_global_timers — tFAW/tRRD (per-rank), tWTR/tRTW/tCCD (global),
+    // mc_global_timers — tFAW/tRRD (per-rank), tWTR/tRTW/tCCD (global),
     // plus the L/S pair windows (per-(rank,group) ACT, per-group column).
     // ======================================================================
-    andesite_global_timers #(
+    mc_global_timers #(
         .NUM_RANKS(NUM_RANKS),
-        .NUM_BANKS(NUM_BANKS)
+        .NUM_BANKS(NUM_BANKS),
+        // ANDESITE L/S DELTA: generation-4 long/short pair windows live.
+        .NUM_BG     (NUM_BG),
+        .BGW        (BGW_EFF_M),
+        .HAS_LS_PAIRS(1)
     ) u_global_timers (
         .mc_clk          (aclk),
         .mc_rst_n        (aresetn),
