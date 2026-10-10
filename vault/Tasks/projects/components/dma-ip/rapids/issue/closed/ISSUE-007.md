@@ -38,6 +38,16 @@ observer completions on ch0-3 and AXI observer completions (plus two
 Error/0x0B tap observations) all decode cleanly. Existing sink/source
 self-checks on the default build unchanged.
 
+**Board proof (Genesys 2, 2026-10-09, obs+capture rebuild, WNS +0.283
+ns):** BUILD = 0x21090840 (OBSERVERS=1, GEN_MON=0, MON_CAPTURE=1), SINK
+self-check golden-validated (4 ch x 64 beats, CRC == golden all
+channels, observers' meters exact vs bare meters dprod_vs_meter=0), then
+`MONCAP_CNT = 111 words, wrapped=0` -- pre-fix this read **0** on this
+exact topology. Decoded **37 records, protocols [0, 1]**: AXI-observer
+completions per channel plus its Error/0x0B tap observations and AXIS-
+observer records, same decode as sim. The TASK-003 matrix's per-class
+observer readout is board-real.
+
 ## Observation
 
 A rapids byte build with `USE_OBSERVERS=1 OBS_ENABLE_MON_TAPS=1 MON_CAPTURE=1`
