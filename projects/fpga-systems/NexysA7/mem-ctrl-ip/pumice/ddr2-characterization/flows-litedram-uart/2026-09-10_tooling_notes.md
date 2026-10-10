@@ -87,7 +87,7 @@ counters and host program unchanged. Tracked as pumice TASK-027 (was PUMICE-026)
 ## Recipe corrections (2026-09-30, from standing up a DDR3 reference core)
 
 The recipe above was re-derived once more, for
-`projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/bin/regen_litedram_ddr3_ref.sh`
+`projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/bin/regen_litedram_ddr3_ref.sh`
 (a DDR3 core generated to be READ, as reference for the scoria HAS). Three
 things it did not say, each of which cost an attempt:
 

@@ -22,7 +22,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.environ.get("REPO_ROOT") or os.popen(
     "git rev-parse --show-toplevel").read().strip()
 FW = os.path.join(REPO, "projects/fpga-systems/rtl/mem_char_framework/dv/tbclasses")
-SC = os.path.join(REPO, "projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3",
+SC = os.path.join(REPO, "projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3",
                   "regs/generated/scoria_csr_regmap.py")
 
 #: self.<attr> -> which regmap that Device is constructed with.

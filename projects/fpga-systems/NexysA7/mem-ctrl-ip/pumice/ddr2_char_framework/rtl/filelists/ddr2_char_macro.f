@@ -13,7 +13,7 @@
 
 # pumice controller top (geared) — pulls in axi4_ifc / scheduler / dfi_layer
 # / core / PeakRDL csr + the host<->core AXI dwidth converters.
--f $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/filelists/top/pumice_top_geared.f
+-f $REPO_ROOT/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/rtl/filelists/top/pumice_top_geared.f
 
 # APB CSR window -> controller cpuif shim (apb4_slave_cdc + peakrdl_to_cmdrsp).
 # counter_bin + fifo_control already come in via pumice_top_geared.f.

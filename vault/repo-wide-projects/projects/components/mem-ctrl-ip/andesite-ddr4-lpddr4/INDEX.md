@@ -1,18 +1,18 @@
 ---
-title: projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4
+title: projects/components/mem-ctrl-ip/mem-ctrl-research-ip/andesite-ddr4-lpddr4
 summary: DDR4/LPDDR4 controller
-repo: projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4
+repo: projects/components/mem-ctrl-ip/mem-ctrl-research-ip/andesite-ddr4-lpddr4
 ---
 
-# projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4
+# projects/components/mem-ctrl-ip/mem-ctrl-research-ip/andesite-ddr4-lpddr4
 
-**Code:** [`projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/`](../../../../../../projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4)
+**Code:** [`projects/components/mem-ctrl-ip/mem-ctrl-research-ip/andesite-ddr4-lpddr4/`](../../../../../../projects/components/mem-ctrl-ip/mem-ctrl-research-ip/andesite-ddr4-lpddr4)
 
 DDR4/LPDDR4 controller
 
 ## What lives here
 
-Knowledge notes about `projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4` - design intent, gotchas, decisions and
+Knowledge notes about `projects/components/mem-ctrl-ip/mem-ctrl-research-ip/andesite-ddr4-lpddr4` - design intent, gotchas, decisions and
 their rationale. Not a duplicate of the code and not a substitute for it.
 
 Method and practice belong in [the handbook](../../../../../../vault/handbook/INDEX.md); work items belong in

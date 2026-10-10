@@ -10,7 +10,7 @@
 # synthesis (`make phy`) or Vivado fails on a missing module 90 seconds in,
 # which is the same trap regen.sh records for VexRiscv.
 
-+incdir+$REPO_ROOT/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/includes
++incdir+$REPO_ROOT/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/rtl/includes
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 # The harness, which carries the controller, the engine and the instruments.

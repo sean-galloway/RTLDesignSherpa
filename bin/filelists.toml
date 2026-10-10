@@ -184,11 +184,11 @@ filelist_dirs = ["projects/components/fabric-gen-ip/apbx-xbar/rtl/filelists"]
 [[area]]
 name = "pumice"
 kind = "component"
-rtl_roots = ["projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl"]
+rtl_roots = ["projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/rtl"]
 filelist_dirs = [
-    "projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/filelists",
+    "projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/rtl/filelists",
     # DV tb_top assemblies (consumer-only: -f the component filelists + tb files)
-    "projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/dv/filelists",
+    "projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/dv/filelists",
 ]
 
 [[area]]
@@ -198,13 +198,13 @@ kind = "component"
 # modules ported from pumice, plus scoria_dfi_cmd_formatter with the DDR3
 # command encodings. macro/ and top/ land with the remaining modified FUBs
 # (dfi_signal_pack, init_sequencer, mode_register).
-rtl_roots = ["projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl"]
+rtl_roots = ["projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/rtl"]
 filelist_dirs = [
-    "projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/rtl/filelists",
+    "projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/rtl/filelists",
     # The DV wrappers' lists, same as pumice registers its own. Unregistered,
     # a broken `-f` in a tb filelist is found by the test that fails to
     # compile rather than by the registry.
-    "projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/dv/filelists",
+    "projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/dv/filelists",
 ]
 
 [[area]]
@@ -213,10 +213,10 @@ kind = "component"
 # DDR4/LPDDR4 sibling of scoria. RTL bootstrap started 2026-10-04 (P0
 # scaffolding + andesite_pkg; init slice per
 # docs/superpowers/plans/2026-10-04-andesite-rtl-bootstrap-p0p1.md).
-rtl_roots = ["projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl"]
+rtl_roots = ["projects/components/mem-ctrl-ip/mem-ctrl-research-ip/andesite-ddr4-lpddr4/rtl"]
 filelist_dirs = [
-    "projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/rtl/filelists",
-    "projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/dv/filelists",
+    "projects/components/mem-ctrl-ip/mem-ctrl-research-ip/andesite-ddr4-lpddr4/rtl/filelists",
+    "projects/components/mem-ctrl-ip/mem-ctrl-research-ip/andesite-ddr4-lpddr4/dv/filelists",
 ]
 
 [[area]]

@@ -31,7 +31,7 @@ harness that surrounds the controller and why each block is shaped the way it
 is, why one harness source produces five targets, and how a host command becomes
 a number. The pumice DDR2/LPDDR2 controller is the device under test; its own
 architecture lives in the pumice HAS/MAS under
-`projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/docs/`.
+`projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/docs/`.
 
 > The measured results live in `build-perf/results/` and
 > `ddr2-characterization/char_results/`. This book explains the apparatus those

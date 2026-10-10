@@ -1,0 +1,61 @@
+module: pumice_dfi_rd_aligner
+rtl_file: projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_rd_aligner.sv
+test_file: projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/dv/tests/fub/test_pumice_dfi_rd_aligner.py
+
+parameters:
+- name: DFI_DATA_WIDTH
+  default: 128
+- name: DFI_RATE
+  default: 2
+- name: BL_WORDS
+  default: 4
+- name: EN_CYC
+  default: 4
+- name: MAX_OUTSTANDING
+  default: 8
+- name: RDEN_W
+  default: 8
+
+coverage_points: []
+
+functional_scenarios:
+- id: DFIRA-01
+  name: Smoke
+  description: "rddata_en window and bubble-free capture sweep t_rddata_en"
+  test_function: test_pumice_dfi_rd_aligner (smoke)
+  priority: high
+  status: verified
+- id: DFIRA-02
+  name: PHY preamble rejection
+  description: "Preamble valid before window is not captured"
+  test_function: test_pumice_dfi_rd_aligner (phy_preamble)
+  priority: high
+  status: verified
+- id: DFIRA-03
+  name: tCCD pacing
+  description: "Read windows keep tCCD spacing instead of collapsing"
+  test_function: test_pumice_dfi_rd_aligner (tccd_paced)
+  priority: high
+  status: verified
+- id: DFIRA-04
+  name: Backpressure
+  description: "op_ready backpressure at MAX_OUTSTANDING and in-order retire"
+  test_function: test_pumice_dfi_rd_aligner (backpressure)
+  priority: high
+  status: verified
+
+implied_coverage:
+  total_scenarios: 4
+  scenario_tracked: 4
+  implied_covered: 4
+  implied_percentage: 100.0
+
+notes: |
+  DFI read-data alignment on dfi_clk. On an admitted READ (op_valid &&
+  op_ready) it drives the dfi_rddata_en window starting t_rddata_en cycles
+  later, captures PHY return data, and pushes one DFI-word/cycle into the
+  read CDC FIFO; multiple reads may be outstanding with op_ready
+  backpressure at MAX_OUTSTANDING. The preamble/tCCD/backpressure wrappers
+  force BL_WORDS=1 (backpressure also MAX_OUTSTANDING=2) to model x16 BL4
+  cadence. The PHY-preamble case (BUG-014) rejects a7ddrphy valid asserted
+  one cycle before the enable window.

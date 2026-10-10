@@ -29,7 +29,7 @@
 | Version | 1.0 |
 | Date | 2026-09-29 |
 | Scope | The DDR2 characterization system: board, the harness around the controller, the five things built from one harness source, and the host flow |
-| Not in scope | The pumice controller itself (HAS/MAS under `projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/docs/`); the measured results (`build-perf/results/`, `ddr2-characterization/char_results/`) |
+| Not in scope | The pumice controller itself (HAS/MAS under `projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/docs/`); the measured results (`build-perf/results/`, `ddr2-characterization/char_results/`) |
 | Status | Current; written against the tree after the `mem-ctrl-ip` and `fabric-gen-ip` family moves |
 
 : Table 0.1: Document information
@@ -38,7 +38,7 @@
 
 | Document | Where | What it gives you |
 |---|---|---|
-| pumice HAS / MAS | `projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/docs/` | the controller's own architecture; this book treats it as the DUT |
+| pumice HAS / MAS | `projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/docs/` | the controller's own architecture; this book treats it as the DUT |
 | Harness address map | `build-perf/host/ADDRESS_MAP.md` | the authoritative register decode, mirrored from the RTL |
 | LiteDRAM flow README | `ddr2-characterization/flows-litedram-uart/README.md` | the A/B reference build and its config |
 | DDR2 char guide | `ddr2-characterization/docs/ddr2_char_guide/` | the older operator guide (v0.90) |

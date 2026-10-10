@@ -1,6 +1,6 @@
 # LiteDRAM DDR3 core for the Genesys 2 -- the A/B YARDSTICK, and the board proof.
 #
-# Distinct from projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/bin/
+# Distinct from projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/bin/
 # litedram_ddr3_ref.yml, which is a READ-ONLY reference: that one targets
 # A7DDRPHY / MT41K128M16 for continuity with the DDR2 reference core, is never
 # synthesized, and says "no board is chosen for scoria". A board is chosen now,

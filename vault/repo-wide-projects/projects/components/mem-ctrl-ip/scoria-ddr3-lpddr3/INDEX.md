@@ -1,18 +1,18 @@
 ---
-title: projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3
+title: projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3
 summary: DDR3/LPDDR3 controller
-repo: projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3
+repo: projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3
 ---
 
-# projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3
+# projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3
 
-**Code:** [`projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/`](../../../../../../projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3)
+**Code:** [`projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/`](../../../../../../projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3)
 
 DDR3/LPDDR3 controller
 
 ## What lives here
 
-Knowledge notes about `projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3` - design intent, gotchas, decisions and
+Knowledge notes about `projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3` - design intent, gotchas, decisions and
 their rationale. Not a duplicate of the code and not a substitute for it.
 
 Method and practice belong in [the handbook](../../../../../../vault/handbook/INDEX.md); work items belong in

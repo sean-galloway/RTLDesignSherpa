@@ -22,7 +22,7 @@ harness source, and the measurement flow.
 | [`docs/ddr2_char_guide/`](docs/ddr2_char_guide/) | the older operator guide (v0.90) |
 
 The controller under test lives at
-[`projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/`](../../../../components/mem-ctrl-ip/pumice-ddr2-lpddr2/),
+[`projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/`](../../../../../components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/),
 with its own HAS and MAS in that component's `docs/`.
 
 ---

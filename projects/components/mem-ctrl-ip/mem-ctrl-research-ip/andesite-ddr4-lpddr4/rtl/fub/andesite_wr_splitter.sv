@@ -1,0 +1,185 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2026 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: andesite_wr_splitter
+// Purpose: wr_splitter
+//
+// Documentation:
+//   projects/components/mem-ctrl-ip/mem-ctrl-research-ip/andesite-ddr4-lpddr4/docs/andesite_mas/
+//
+// Carried unchanged from scoria_wr_splitter per andesite HAS ch02 (INHERITED).
+// The only differences from the scoria source are the module name, the
+// package import where one existed, and this header. Verification evidence
+// transfers with scoria's suite where one exists at this tier.
+//
+// Author: sean galloway
+// Created: 2026-10-04 (carried)
+
+`timescale 1ns / 1ps
+
+`include "reset_defs.svh"
+
+module andesite_wr_splitter #(
+    parameter int AXI_ID_WIDTH   = 8,
+    parameter int AXI_ADDR_WIDTH = 32,
+    parameter int AXI_DATA_WIDTH = 64,
+    parameter int AXI_USER_WIDTH = 1,
+    parameter int AXI_BEATS_PER_BURST    = 1,   // AXI beats per DFI burst (power of 2)
+    // Derived
+    parameter int IW = AXI_ID_WIDTH,
+    parameter int AW = AXI_ADDR_WIDTH,
+    parameter int DW = AXI_DATA_WIDTH,
+    parameter int UW = AXI_USER_WIDTH,
+    parameter int SW = AXI_DATA_WIDTH / 8
+) (
+    input  logic              aclk,
+    input  logic              aresetn,
+
+    // ---- host AW/W in ------------------------------------------------------
+    input  logic [IW-1:0]     fub_awid,
+    input  logic [AW-1:0]     fub_awaddr,
+    input  logic [7:0]        fub_awlen,
+    input  logic [2:0]        fub_awsize,
+    input  logic [1:0]        fub_awburst,
+    input  logic              fub_awlock,
+    input  logic [3:0]        fub_awcache,
+    input  logic [2:0]        fub_awprot,
+    input  logic [3:0]        fub_awqos,
+    input  logic [3:0]        fub_awregion,
+    input  logic [UW-1:0]     fub_awuser,
+    input  logic              fub_awvalid,
+    output logic              fub_awready,
+    input  logic [DW-1:0]     fub_wdata,
+    input  logic [SW-1:0]     fub_wstrb,
+    input  logic              fub_wlast,
+    input  logic [UW-1:0]     fub_wuser,
+    input  logic              fub_wvalid,
+    output logic              fub_wready,
+
+    // ---- sub-command AW/W out (to intake) ---------------------------------
+    output logic [IW-1:0]     m_awid,
+    output logic [AW-1:0]     m_awaddr,
+    output logic [7:0]        m_awlen,
+    output logic [2:0]        m_awsize,
+    output logic [1:0]        m_awburst,
+    output logic              m_awlock,
+    output logic [3:0]        m_awcache,
+    output logic [2:0]        m_awprot,
+    output logic [3:0]        m_awqos,
+    output logic [3:0]        m_awregion,
+    output logic [UW-1:0]     m_awuser,
+    output logic              m_awvalid,
+    input  logic              m_awready,
+    output logic [DW-1:0]     m_wdata,
+    output logic [SW-1:0]     m_wstrb,
+    output logic              m_wlast,
+    output logic [UW-1:0]     m_wuser,
+    output logic              m_wvalid,
+    input  logic              m_wready,
+
+    // ---- aggregation sideband (aligned with m_aw*) ------------------------
+    output logic              m_aw_agg,   // sub-command is part of a split
+    output logic              m_aw_last   // sub-command is the final one
+);
+
+    // ---- AW: burst chopper -------------------------------------------------
+    andesite_axi_burst_chopper #(
+        .AXI_ID_WIDTH  (IW),
+        .AXI_ADDR_WIDTH(AW),
+        .AXI_USER_WIDTH(UW),
+        .STRB_BYTES    (SW),
+        .AXI_BEATS_PER_BURST   (AXI_BEATS_PER_BURST),
+        .PAD_TO_CHUNK  (1)
+    ) u_aw_chop (
+        .aclk        (aclk),
+        .aresetn     (aresetn),
+        .fub_axid    (fub_awid),
+        .fub_axaddr  (fub_awaddr),
+        .fub_axlen   (fub_awlen),
+        .fub_axsize  (fub_awsize),
+        .fub_axburst (fub_awburst),
+        .fub_axlock  (fub_awlock),
+        .fub_axcache (fub_awcache),
+        .fub_axprot  (fub_awprot),
+        .fub_axqos   (fub_awqos),
+        .fub_axregion(fub_awregion),
+        .fub_axuser  (fub_awuser),
+        .fub_axvalid (fub_awvalid),
+        .fub_axready (fub_awready),
+        .m_axid      (m_awid),
+        .m_axaddr    (m_awaddr),
+        .m_axlen     (m_awlen),
+        .m_axsize    (m_awsize),
+        .m_axburst   (m_awburst),
+        .m_axlock    (m_awlock),
+        .m_axcache   (m_awcache),
+        .m_axprot    (m_awprot),
+        .m_axqos     (m_awqos),
+        .m_axregion  (m_awregion),
+        .m_axuser    (m_awuser),
+        .m_axvalid   (m_awvalid),
+        .m_axready   (m_awready),
+        .m_ax_agg    (m_aw_agg),
+        .m_ax_last   (m_aw_last)
+    );
+
+    // ---- W: pass data through, regenerate WLAST every AXI_BEATS_PER_BURST beats -----
+    // A DRAM burst is indivisible: the device always transfers BL beats. So a
+    // host burst that does NOT fill a whole DRAM burst is completed here with
+    // zero-strobe FILLER beats rather than rejected. strb=0 becomes DM=1 in
+    // scoria_dfi_wr_serializer (dfi_wrdata_mask_o = ~wd_strb_i), so the device
+    // clocks the beat and writes nothing -- which is exactly what DDR2's data
+    // mask is for. That makes EVERY legal AxLEN work, including AxLEN=0.
+    //
+    // Before this, a short or ragged burst reached scoria_wr_intake with
+    // (awlen+1)*GEAR != BL and was answered with SLVERR and dropped, so a
+    // compliant master issuing a single-beat write silently lost it.
+    logic [8:0] r_wcnt;   // beats until the next re-framed WLAST (down-counter)
+    logic [8:0] r_pad;    // filler beats still owed on the current chunk
+    logic       w_padding;
+    logic       w_wacc;
+    logic       w_short_last;
+
+    assign w_padding = (r_pad != 9'd0);
+
+    // While padding the host is held off (fub_wready low) and the filler beats
+    // are generated locally; data/user are don't-care because strb is zero.
+    assign m_wdata    = w_padding ? '0   : fub_wdata;
+    assign m_wstrb    = w_padding ? '0   : fub_wstrb;
+    assign m_wuser    = w_padding ? '0   : fub_wuser;
+    assign m_wvalid   = w_padding ? 1'b1 : fub_wvalid;
+    assign fub_wready = w_padding ? 1'b0 : m_wready;
+
+    // WLAST closes a chunk ONLY at the CHUNK boundary now. The host's own
+    // wlast no longer terminates a short chunk -- it starts the padding.
+    assign m_wlast = w_padding ? (r_pad == 9'd1) : (r_wcnt == 9'd0);
+
+    assign w_wacc = m_wvalid && m_wready;
+
+
+    // Host ended its burst mid-chunk: owe (r_wcnt) filler beats.
+    assign w_short_last = fub_wlast && (r_wcnt != 9'd0);
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_wcnt <= 9'(AXI_BEATS_PER_BURST - 1);
+            r_pad  <= 9'd0;
+        end else if (w_wacc) begin
+            if (w_padding) begin
+                r_pad  <= r_pad - 9'd1;
+                // last filler closes the chunk and rearms the counter
+                r_wcnt <= (r_pad == 9'd1) ? 9'(AXI_BEATS_PER_BURST - 1)
+                                          : (r_wcnt - 9'd1);
+            end else if (w_short_last) begin
+                r_pad  <= r_wcnt;
+                r_wcnt <= r_wcnt - 9'd1;
+            end else begin
+                r_wcnt <= m_wlast ? 9'(AXI_BEATS_PER_BURST - 1) : (r_wcnt - 9'd1);
+            end
+        end
+    )
+
+endmodule : andesite_wr_splitter
