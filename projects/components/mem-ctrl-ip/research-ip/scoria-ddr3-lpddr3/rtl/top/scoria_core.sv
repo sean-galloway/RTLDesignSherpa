@@ -9,10 +9,10 @@
 //          three layers built bottom-up this cycle:
 //            1. mc_axi4_layer          (host AXI + wr/rd CAMs)
 //            2. scoria_scheduler_layer (bank timers + arbiter + refresh/init)
-//            3. scoria_dfi_layer         (single async CDC + DFI datapath)
+//            3. mc_dfi_3p1_layer         (single async CDC + DFI 3.1 datapath)
 //
 //          Host AXI + scheduler + CAMs run on aclk; the DFI phase-packer + PHY
-//          run on dfi_clk; the ONE clock crossing lives in scoria_dfi_layer's
+//          run on dfi_clk; the ONE clock crossing lives in mc_dfi_3p1_layer's
 //          CDC (async gaxi FIFOs only). Internal data unit = the DFI word
 //          (DFI_DATA_WIDTH); the host AXI data width is the DFI word too (an
 //          external 64<->128 dwidth shim is a separate edge concern).
@@ -231,7 +231,7 @@ module scoria_core
 
     // ----- write leveling (DDR3). The DFI v3.1 leveling handshake is per-CS
     //       and leaves the controller unaltered -- it does not go through
-    //       scoria_dfi_layer, because there is no gearing to do on it: the
+    //       mc_dfi_3p1_layer, because there is no gearing to do on it: the
     //       request/ack pair is a slow control handshake, not phase data. -----
     input  logic                       wrlvl_strobe_i,
     input  logic [3:0]                 wrlvl_cs_sel_i,
@@ -357,7 +357,7 @@ module scoria_core
     localparam int CMD_DELAY_EFF = (CMD_DELAY == 0) ? (5 + 2 * BURST_WORDS) : CMD_DELAY;
     // tCCD can never be shorter than a column's DQ occupancy (BURST_WORDS DFI
     // words). This clamp is LOAD-BEARING: the DFI cmd path no longer paces
-    // columns (it must never stall -- see scoria_dfi_cmd_path), so this is the
+    // columns (it must never stall -- see mc_dfi_3p1_cmd_path), so this is the
     // ONLY thing standing between a too-small tCCD CSR and columns issued on
     // top of the previous burst's data on the shared DQ bus.
     logic [7:0] w_t_ccd_eff;
@@ -863,7 +863,7 @@ module scoria_core
     assign dfi_wrdata_cs_n_o = '0;
     assign dfi_rddata_cs_n_o = '0;
 
-    scoria_dfi_layer #(
+    mc_dfi_3p1_layer #(
         .NUM_RANKS       (NUM_RANKS),
         .NUM_CS          (NUM_CS),
         .NUM_BANKS       (NUM_BANKS),

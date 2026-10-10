@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
-"""Unit test for `scoria_dfi_wr_serializer` -- write-data drive timing.
+"""Unit test for `mc_dfi_wr_serializer` -- write-data drive timing.
 
 This is the write-side mirror of the read aligner, and like it, it was
 rewritten to be stateless for a specific reason recorded in its header: "The
@@ -345,12 +345,12 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FUNC}.get(_TEST_LEVEL, _FUNC)
 @pytest.mark.parametrize("test_type, bl_words, wrlat", _PARAMS)
 def test_scoria_dfi_wr_serializer(request, test_type, bl_words, wrlat):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "scoria_dfi_wr_serializer"
+    dut_name = "mc_dfi_wr_serializer"
     test_name = f"test_scoria_dfi_wr_serializer_{test_type}_b{bl_words}"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path=("projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/"
-                       "rtl/filelists/fub/scoria_dfi_wr_serializer.f"))
+        filelist_path=("projects/components/mem-ctrl-ip/common-ip/"
+                       "rtl/filelists/fub/mc_dfi_wr_serializer.f"))
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True); os.makedirs(log_dir, exist_ok=True)
     run(python_search=[tests_dir], verilog_sources=verilog_sources,

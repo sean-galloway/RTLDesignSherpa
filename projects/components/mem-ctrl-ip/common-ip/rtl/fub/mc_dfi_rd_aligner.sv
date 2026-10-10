@@ -5,13 +5,15 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: mc_dfi_rd_aligner
-// Purpose: DFI 2.1 read-data alignment (dfi_clk). On an admitted READ op, drive
-//          dfi_rddata_en for the read window starting t_rddata_en DFI cycles
-//          later; capture dfi_rddata as the PHY returns it and push one
-//          DFI-word/cycle into the read CDC FIFO {last, resp, data}.
+// Purpose: Common DFI 2.1/3.1/4.0 read-data alignment (dfi_clk). On an admitted
+//          READ op, drive dfi_rddata_en for the read window starting
+//          t_rddata_en DFI cycles later; capture dfi_rddata as the PHY returns
+//          it and push one DFI-word/cycle into the read CDC FIFO
+//          {last, resp, data}.
 //
 //          Extracted from pumice_dfi_rd_aligner during Phase 2 common-layer
-//          reorg (2026-10-10).
+//          reorg (2026-10-10). Extended with HAS_CAL_CAPTURE (2.1 uses the
+//          calibration sideband, 3.1/4.0 do not) and HAS_DBI (4.0 only).
 //
 //          MULTI-OUTSTANDING with a safe valid/ready handshake: a read is
 //          admitted on op_valid_i && op_ready_o. Up to MAX_OUTSTANDING reads may
@@ -41,7 +43,12 @@ module mc_dfi_rd_aligner #(
     parameter int BL_WORDS        = 4,          // DFI words captured per read
     parameter int EN_CYC          = BL_WORDS,   // rddata_en window width (DQ occupancy)
     parameter int MAX_OUTSTANDING = 8,          // outstanding-read tracking depth (exposed)
-    parameter int RDEN_W          = 8
+    parameter int RDEN_W          = 8,
+    parameter int DFI_STRB_WIDTH  = DFI_DATA_WIDTH / 8,
+    // Calibration capture sideband. The 2.1 layer uses it; 3.1/4.0 layers do not.
+    parameter int HAS_CAL_CAPTURE = 1,
+    // Read DBI (DFI 4.0). The 2.1/3.1 layers do not use DBI.
+    parameter int HAS_DBI         = 0
 ) (
     input  logic                        dfi_clk,
     input  logic                        dfi_rstn,
@@ -66,7 +73,12 @@ module mc_dfi_rd_aligner #(
     output logic [1:0]                  rd_resp_o,
     output logic                        rd_last_o,
 
-    // calibration capture sideband (dfi_clk domain)
+    // Read DBI (DFI 4.0 only; tied/ignored when HAS_DBI=0)
+    input  logic                        rd_dbi_en_i,
+    input  logic [DFI_STRB_WIDTH-1:0]   dfi_rddata_dbi_i,
+    output logic [DFI_STRB_WIDTH-1:0]   rd_dbi_o,
+
+    // calibration capture sideband (dfi_clk domain; unused when HAS_CAL_CAPTURE=0)
     input  logic                        cal_expect_i,
     output logic [DFI_DATA_WIDTH-1:0]   cal_data_o,
     output logic                        cal_valid_o
@@ -152,34 +164,42 @@ module mc_dfi_rd_aligner #(
     assign rd_data_o  = dfi_rddata_i;
     assign rd_resp_o  = RESP_OKAY;
     assign rd_last_o  = rd_valid_o && (r_rcnt == (CNTW+1)'(BL_WORDS - 1));
+    assign rd_dbi_o   = (HAS_DBI != 0) ? (rd_dbi_en_i ? dfi_rddata_dbi_i : '0) : '0;
 
     // ---- calibration capture sideband ---------------------------------------
     // Armed by a single-cycle cal_expect pulse; captures the first valid beat
     // and holds it until the next arm. The arbiter contract guarantees no read
     // is outstanding, so this cannot collide with the normal read FIFO path.
-    logic                      r_cal_armed;
-    logic [DFI_DATA_WIDTH-1:0] r_cal_data;
-    logic                      r_cal_valid;
+    generate
+        if (HAS_CAL_CAPTURE != 0) begin : g_cal_capture
+            logic                      r_cal_armed;
+            logic [DFI_DATA_WIDTH-1:0] r_cal_data;
+            logic                      r_cal_valid;
 
-    `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
-        if (`RST_ASSERTED(dfi_rstn)) begin
-            r_cal_armed <= 1'b0;
-            r_cal_data  <= '0;
-            r_cal_valid <= 1'b0;
-        end else begin
-            if (cal_expect_i) r_cal_armed <= 1'b1;
-            if (r_cal_armed && (|dfi_rddata_valid_i)) begin
-                r_cal_data  <= dfi_rddata_i;
-                r_cal_valid <= 1'b1;
-                r_cal_armed <= 1'b0;
-            end else begin
-                r_cal_valid <= 1'b0;
-            end
+            `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
+                if (`RST_ASSERTED(dfi_rstn)) begin
+                    r_cal_armed <= 1'b0;
+                    r_cal_data  <= '0;
+                    r_cal_valid <= 1'b0;
+                end else begin
+                    if (cal_expect_i) r_cal_armed <= 1'b1;
+                    if (r_cal_armed && (|dfi_rddata_valid_i)) begin
+                        r_cal_data  <= dfi_rddata_i;
+                        r_cal_valid <= 1'b1;
+                        r_cal_armed <= 1'b0;
+                    end else begin
+                        r_cal_valid <= 1'b0;
+                    end
+                end
+            )
+
+            assign cal_data_o  = r_cal_data;
+            assign cal_valid_o = r_cal_valid;
+        end else begin : g_no_cal_capture
+            assign cal_data_o  = '0;
+            assign cal_valid_o = 1'b0;
         end
-    )
-
-    assign cal_data_o  = r_cal_data;
-    assign cal_valid_o = r_cal_valid;
+    endgenerate
 
     `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
         if (`RST_ASSERTED(dfi_rstn)) begin

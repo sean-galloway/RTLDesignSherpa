@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
-"""Unit test for `scoria_dfi_cmd_path` -- the conduit that must not pace.
+"""Unit test for `mc_dfi_3p1_cmd_path` -- the conduit that must not pace.
 
 Two board failures are written into this module's header, and both are what
 this file is for.
@@ -115,7 +115,7 @@ class CmdPathTB(TBBase):
     async def drive(self, word):
         """Present one command and step to the cycle its wire appears on.
 
-        scoria_dfi_cmd_formatter has STRICT-FLOP outputs, so the DFI buses show
+        scoria_dfi_cmd_formatter (rock-local formatter) has STRICT-FLOP outputs, so the DFI buses show
         the command one cycle after it is presented. Reading them in the
         presenting cycle sees the PREVIOUS command -- which, from reset, is an
         idle bus, and every phase check then reads "nothing was driven" no
@@ -401,12 +401,12 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FUNC}.get(_TEST_LEVEL, _FUNC)
 @pytest.mark.parametrize("test_type, n_subcmd", _PARAMS)
 def test_scoria_dfi_cmd_path(request, test_type, n_subcmd):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "scoria_dfi_cmd_path"
+    dut_name = "mc_dfi_3p1_cmd_path"
     test_name = f"test_scoria_dfi_cmd_path_{test_type}_s{n_subcmd}"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path=("projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/"
-                       "rtl/filelists/fub/scoria_dfi_cmd_path.f"))
+        filelist_path=("projects/components/mem-ctrl-ip/common-ip/"
+                       "rtl/filelists/fub/mc_dfi_3p1_cmd_path.f"))
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True); os.makedirs(log_dir, exist_ok=True)
     run(python_search=[tests_dir], verilog_sources=verilog_sources,

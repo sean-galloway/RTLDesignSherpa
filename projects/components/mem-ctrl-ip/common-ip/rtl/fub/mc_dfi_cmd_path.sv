@@ -5,16 +5,18 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: mc_dfi_cmd_path
-// Purpose: Common DFI 2.1 command path. Pops the abstract command stream (from
-//          the CDC cmd FIFO), unpacks {op,rank,bank,row,col,ap}, and drives the
-//          multi-phase DFI command bus via the silicon-proven dfi_cmd_formatter.
-//          Emits wr_fire/rd_fire strobes (+ op) so the write serializer / read
-//          aligner can schedule their data phases relative to the command.
+// Purpose: Common DFI 2.1/3.1 command path. Pops the abstract command stream
+//          (from the CDC cmd FIFO), unpacks {op,rank,bank,row,col,ap} (and an
+//          optional MRR bit for 2.1), and drives the multi-phase DFI command bus
+//          via the silicon-proven dfi_cmd_formatter. Emits wr_fire/rd_fire
+//          strobes (+ op) so the write serializer / read aligner can schedule
+//          their data phases relative to the command.
 //
 //          Extracted from pumice_dfi_cmd_path during Phase 2 common-layer
-//          reorg (2026-10-10). The CMD_HISTORY_EN scoreboard remains the
-//          pumice-specific pumice_cmd_history_checker for backwards
-//          compatibility; it is gated off by default.
+//          reorg (2026-10-10). Extended with HAS_MRR for scoria DFI 3.1 reuse.
+//          The CMD_HISTORY_EN scoreboard remains the pumice-specific
+//          pumice_cmd_history_checker for backwards compatibility; it is gated
+//          off by default.
 //
 // Runs entirely on dfi_clk (the CDC is the only crossing). One command per DFI
 // cycle; for BL8 @ nphases=4 that is full DQ bandwidth.
@@ -71,6 +73,11 @@ module mc_dfi_cmd_path
     parameter int HIST_T_RFC     = 0,
     parameter int HIST_T_WTR     = 0,
     parameter int HIST_T_RTW     = 0,
+    // Command-word MRR bit. pumice (2.1 layer) carries {mrr, ap, col, row, bank,
+    // rank, op}; scoria (3.1 layer) carries {ap, col, row, bank, rank, op}.
+    // HAS_MRR=1 preserves the 2.1 default; HAS_MRR=0 drops the bit from CMD_DW
+    // and ties the formatter's cmd_mrr_i to 0.
+    parameter int HAS_MRR        = 1,
     // Sub-DFI-word burst packing (task #146). N_SUBCMD sub-column-commands of one
     // scheduled column command are issued in ONE DFI cycle at command phases
     // {base, base+SUB_PHASE_STRIDE, ...} and columns {col, col+SUB_COL_STRIDE,
@@ -95,9 +102,10 @@ module mc_dfi_cmd_path
     parameter int RKW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW = $clog2(NUM_BANKS),
     parameter int PHW = (DFI_RATE > 1) ? $clog2(DFI_RATE) : 1,
-    // Packed command word: {mrr, ap, col, row, bank, rank, op}  (matches the
-    // scheduler's cmd FIFO packing).
-    parameter int CMD_DW = $bits(dram_op_e) + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1,
+    // Packed command word: {mrr, ap, col, row, bank, rank, op} when HAS_MRR=1;
+    // {ap, col, row, bank, rank, op} when HAS_MRR=0. Matches the scheduler's
+    // cmd FIFO packing.
+    parameter int CMD_DW = $bits(dram_op_e) + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + HAS_MRR,
     // Sub-command COUNT width: holds the value N_SUBCMD (1..N_SUBCMD), so it
     // needs clog2(N_SUBCMD+1) bits (clog2(N) alone cannot represent N).
     parameter int SUBW_MAX = $clog2(N_SUBCMD + 1)
@@ -155,7 +163,14 @@ module mc_dfi_cmd_path
     logic [BKW-1:0]       w_bank;
     logic [RKW-1:0]       w_rank;
     dram_op_e             w_op;
-    assign {w_mrr, w_ap, w_col, w_row, w_bank, w_rank, w_op} = cmd_data_i;
+    generate
+        if (HAS_MRR != 0) begin : g_unpack_mrr
+            assign {w_mrr, w_ap, w_col, w_row, w_bank, w_rank, w_op} = cmd_data_i;
+        end else begin : g_unpack_no_mrr
+            assign {w_ap, w_col, w_row, w_bank, w_rank, w_op} = cmd_data_i;
+            assign w_mrr = 1'b0;
+        end
+    endgenerate
 
     // ---- command accept gate (NO TIMING HERE) ------------------------------
     // ALL JEDEC delays come from the scheduler. This layer is a constant-latency

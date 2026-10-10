@@ -362,6 +362,9 @@ module mc_dfi_2p1_layer
         .rd_data_o         (w_rd_data),
         .rd_resp_o         (w_rd_resp),
         .rd_last_o         (w_rd_last),
+        .rd_dbi_en_i       (1'b0),
+        .dfi_rddata_dbi_i  ('0),
+        .rd_dbi_o          (),
         .cal_expect_i      (cal_expect_i),
         .cal_data_o        (cal_data_o),
         .cal_valid_o       (cal_valid_o)

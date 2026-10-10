@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
-"""Unit test for `scoria_dfi_rd_aligner` -- read-enable window + capture framing.
+"""Unit test for `mc_dfi_rd_aligner` -- read-enable window + capture framing.
 
 Two things in this module have been got wrong before, both recorded in its own
 comments, and both are the reason this file exists:
@@ -237,7 +237,7 @@ async def cocotb_test_scoria_dfi_rd_aligner(dut):
         # A build with EN_CYC < BL_WORDS therefore DROPS words silently: the
         # stream goes short and every later beat shifts.
         #
-        # Reachable? RD_EN_CYC exists in scoria_dfi_layer precisely for the
+        # Reachable? RD_EN_CYC exists in mc_dfi_3p1_layer precisely for the
         # narrow-device case ("set separately when the DRAM beat != device
         # word") and NO instantiation ever sets it -- it defaults to BL_WORDS
         # everywhere, while scoria_top computes the true DQ occupancy
@@ -444,13 +444,13 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FUNC}.get(_TEST_LEVEL, _FUNC)
 @pytest.mark.parametrize("test_type, bl_words, en_cyc, rdlat", _PARAMS)
 def test_scoria_dfi_rd_aligner(request, test_type, bl_words, en_cyc, rdlat):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "scoria_dfi_rd_aligner"
+    dut_name = "mc_dfi_rd_aligner"
     test_name = (f"test_scoria_dfi_rd_aligner_{test_type}"
                  f"_b{bl_words}_e{en_cyc}")
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path=("projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/"
-                       "rtl/filelists/fub/scoria_dfi_rd_aligner.f"))
+        filelist_path=("projects/components/mem-ctrl-ip/common-ip/"
+                       "rtl/filelists/fub/mc_dfi_rd_aligner.f"))
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True); os.makedirs(log_dir, exist_ok=True)
     run(python_search=[tests_dir], verilog_sources=verilog_sources,

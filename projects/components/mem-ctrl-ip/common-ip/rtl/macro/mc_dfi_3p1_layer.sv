@@ -4,12 +4,12 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: scoria_dfi_layer
-// Purpose: The pumice DFI layer. Holds the single controller<->PHY crossing
-//          (scoria_dfi_cdc, async gaxi FIFOs only) and the dfi_clk-domain
-//          command path + write serializer + read aligner. Presents the
-//          controller-clock command/wrdata/rddata streams on one side and the
-//          DFI 2.1 pin bus on the other.
+// Module: mc_dfi_3p1_layer
+// Purpose: Common DFI 3.1 layer. Holds the single controller<->PHY crossing
+//          (mc_dfi_cdc, async gaxi FIFOs only) and the dfi_clk-domain command
+//          path + write serializer + read aligner. Presents the controller-clock
+//          command/wrdata/rddata streams on one side and the DFI 3.1 pin bus on
+//          the other.
 //
 //   ctl_clk : cmd (from scheduler), wrdata (from wr CAM), rddata (to rd CAM),
 //             init_start/init_complete
@@ -19,13 +19,17 @@
 // Internal datapath unit = the DFI word (dfi_wrdata width, all DFI_RATE phases).
 // One FIFO word = one DFI cycle => bubble-free.
 //
+//          Extracted from scoria_dfi_layer during Phase 2 common-layer reorg
+//          (2026-10-10). Authority: JEDEC DFI 3.1 specification plus the
+//          simplified study notes in
+//          projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/docs/simplified_dfi_3_1/.
+//
 // Documentation: docs/uarch/PUMICE_DFI_LAYER_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
 
-module scoria_dfi_layer
-    import scoria_pkg::*;
+module mc_dfi_3p1_layer
     import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int NUM_RANKS      = 1,
@@ -59,7 +63,7 @@ module scoria_dfi_layer
     // behind the short burst forever).
     parameter int RD_FIFO_DEPTH  = 32,
     parameter int N_FLOP_CROSS   = 2,
-    // Async-FIFO pointer encoding, forwarded to scoria_dfi_cdc: 0 = Gray
+    // Async-FIFO pointer encoding, forwarded to mc_dfi_cdc: 0 = Gray
     // (power-of-2 depths only), 1 = Johnson (any depth, DEPTH-bit pointers).
     // Gray by default -- Johnson is opt-in.
     parameter int USE_JOHNSON    = 0,
@@ -83,7 +87,7 @@ module scoria_dfi_layer
     // DFI words captured/driven per burst-group. Clamped to >=1 so the
     // sub-DFI-word regime (DFI_BEATS_PER_BURST/DFI_RATE < 1) frames exactly one DFI word.
     // DFI-wire command-history scoreboard (sim only, off by default). Passed
-    // straight through to scoria_dfi_cmd_path; see the note there for why a
+    // straight through to mc_dfi_3p1_cmd_path; see the note there for why a
     // second instance is needed when the scheduler already has one.
     parameter int CMD_HISTORY_EN = 0,
     parameter int HIST_T_RCD     = 0,
@@ -247,7 +251,7 @@ module scoria_dfi_layer
     // ======================================================================
     // Single CDC (async gaxi FIFOs only)
     // ======================================================================
-    scoria_dfi_cdc #(
+    mc_dfi_cdc #(
         .CMD_DW      (CMD_DW),
         .WD_DW       (WD_DW),
         .RD_DW       (RD_DW),
@@ -293,7 +297,7 @@ module scoria_dfi_layer
     // ======================================================================
     // Command path (dfi_clk): cmd FIFO -> DFI command bus + fire strobes
     // ======================================================================
-    scoria_dfi_cmd_path #(
+    mc_dfi_3p1_cmd_path #(
         .NUM_RANKS       (NUM_RANKS),
         .NUM_BANKS       (NUM_BANKS),
         .ROW_WIDTH       (ROW_WIDTH),
@@ -343,7 +347,7 @@ module scoria_dfi_layer
     // ======================================================================
     // Write serializer (dfi_clk): wrdata FIFO -> dfi_wrdata at t_phy_wrlat
     // ======================================================================
-    scoria_dfi_wr_serializer #(
+    mc_dfi_wr_serializer #(
         .DFI_DATA_WIDTH(DFI_DATA_WIDTH),
         .DFI_RATE      (DFI_RATE)
     ) u_wr (
@@ -364,13 +368,15 @@ module scoria_dfi_layer
     // ======================================================================
     // Read aligner (dfi_clk): dfi_rddata -> rddata FIFO at t_rddata_en
     // ======================================================================
-    scoria_dfi_rd_aligner #(
+    mc_dfi_rd_aligner #(
         .DFI_DATA_WIDTH (DFI_DATA_WIDTH),
         .DFI_RATE       (DFI_RATE),
         .DFI_VALID_WIDTH(DFI_VALID_WIDTH),
         .BL_WORDS       (BL_WORDS),
         .EN_CYC         (RD_EN_CYC),
-        .MAX_OUTSTANDING(RD_MAX_OUTSTANDING)
+        .MAX_OUTSTANDING(RD_MAX_OUTSTANDING),
+        .HAS_CAL_CAPTURE(0),
+        .HAS_DBI        (0)
     ) u_rd (
         .dfi_clk           (dfi_clk),
         .dfi_rstn          (dfi_rstn),
@@ -384,7 +390,13 @@ module scoria_dfi_layer
         .rd_ready_i        (prd_ready),
         .rd_data_o         (w_rd_data),
         .rd_resp_o         (w_rd_resp),
-        .rd_last_o         (w_rd_last)
+        .rd_last_o         (w_rd_last),
+        .rd_dbi_en_i       (1'b0),
+        .dfi_rddata_dbi_i  ('0),
+        .rd_dbi_o          (),
+        .cal_expect_i      (1'b0),
+        .cal_data_o        (),
+        .cal_valid_o       ()
     );
 
     wire unused = &{1'b0, w_fire_rank, 1'b0};
@@ -455,4 +467,4 @@ module scoria_dfi_layer
         .o_pulse     (dfi_wrlvl_strobe_o)
     );
 
-endmodule : scoria_dfi_layer
+endmodule : mc_dfi_3p1_layer

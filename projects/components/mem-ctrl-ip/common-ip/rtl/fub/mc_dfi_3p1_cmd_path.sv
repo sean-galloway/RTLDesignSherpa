@@ -4,12 +4,18 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: scoria_dfi_cmd_path
-// Purpose: DFI-domain command path. Pops the abstract command stream (from the
-//          CDC cmd FIFO), unpacks {op,rank,bank,row,col,ap}, and drives the
-//          multi-phase DFI command bus via the silicon-proven scoria_dfi_cmd_formatter.
-//          Emits wr_fire/rd_fire strobes (+ op) so the write serializer / read
+// Module: mc_dfi_3p1_cmd_path
+// Purpose: Common DFI 3.1 command path. Pops the abstract command stream (from
+//          the CDC cmd FIFO), unpacks {op,rank,bank,row,col,ap}, and drives the
+//          multi-phase DFI command bus via the silicon-proven
+//          scoria_dfi_cmd_formatter (DDR3 command encodings). Emits
+//          wr_fire/rd_fire strobes (+ op) so the write serializer / read
 //          aligner can schedule their data phases relative to the command.
+//
+//          Extracted from scoria_dfi_cmd_path during Phase 2 common-layer
+//          reorg (2026-10-10). The CMD_HISTORY_EN scoreboard remains the
+//          scoria-specific scoria_cmd_history_checker for backwards
+//          compatibility; it is gated off by default.
 //
 // Runs entirely on dfi_clk (the CDC is the only crossing). One command per DFI
 // cycle; for BL8 @ nphases=4 that is full DQ bandwidth.
@@ -37,8 +43,7 @@
 
 `include "reset_defs.svh"
 
-module scoria_dfi_cmd_path
-    import scoria_pkg::*;
+module mc_dfi_3p1_cmd_path
     import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int NUM_RANKS      = 1,
@@ -50,7 +55,7 @@ module scoria_dfi_cmd_path
     // ---- DFI-WIRE command-history scoreboard (sim only, off by default) ----
     // The scheduler has an identical checker on ITS output. That one cannot see
     // this defect class: it binds at `cmd_valid_o && cmd_ready_i` inside
-    // scoria_scheduler_layer, which is UPSTREAM of the CMD_DELAY shift
+    // scoria_scheduler_layer (now the consumer's scheduler), which is UPSTREAM
     // register, the CDC FIFO and this module. Every TASK-007 defect lived
     // downstream of it -- with the scheduler checker armed it reported ZERO
     // tRTW violations while the board ILA showed FOUR per capture. It was
@@ -119,7 +124,7 @@ module scoria_dfi_cmd_path
     output logic                       cmd_ready_o,
     input  logic [CMD_DW-1:0]          cmd_data_i,
 
-    // ---- DFI command bus (to scoria_dfi_signal_pack / PHY) ----
+    // ---- DFI command bus (to the DFI signal pack / PHY) ----
     output logic [DFI_ADDR_BUS_W-1:0]  dfi_address_o,
     output logic [DFI_BANK_BUS_W-1:0]  dfi_bank_o,
     output logic [DFI_CTRL_BUS_W-1:0]  dfi_cas_n_o,
@@ -132,7 +137,7 @@ module scoria_dfi_cmd_path
     output logic                       wr_fire_o,   // WR / WRA issued
     output logic                       rd_fire_o,   // RD / RDA issued
     input  logic                       rd_op_ready_i, // rd aligner has a free slot
-    // A complete write burst is staged on the DFI side (scoria_dfi_cdc token).
+    // A complete write burst is staged on the DFI side (mc_dfi_cdc token).
     // A WR/WRA is held until then and wr_accept_o pops the token the cycle the
     // command is accepted -- the mirror of rd_op_ready_i. With the controller's
     // rate-matched commit + CMD_DELAY the hold NEVER happens (a hold stalls the
@@ -170,12 +175,10 @@ module scoria_dfi_cmd_path
     // wire treated the symptom and supplied the stall that caused it.
     //
     // The scheduler already enforces every one of these, off the same CSRs:
-    //   tCCD       scoria_cmd_arbiter r_tccd_fwd, clamped to >= BURST_WORDS in
-    //              scoria_core (w_t_ccd_eff) so columns are never issued closer
-    //              than a burst's DQ occupancy -- exactly what the column pacer
-    //              here used to guarantee.
-    //   tRTW/tWTR  scoria_global_timers r_trtw_cnt/r_twtr_cnt -> trtw_ok_i/twtr_ok_i,
-    //              gating the arbiter's rd/wr column masks.
+    //   tCCD       scoria_cmd_arbiter (consumer scheduler) r_tccd_fwd, clamped
+    //              to >= BURST_WORDS in scoria_core (w_t_ccd_eff) so columns are
+    //              never issued closer than a burst's DQ occupancy.
+    //   tRTW/tWTR  scoria_global_timers r_trtw_cnt/r_twtr_cnt -> trtw_ok_i/twtr_ok_i.
     //   tRFC       scoria_cmd_arbiter r_rfc_cnt -> w_act_gate_live.
     //   tRCD/tRP/tRAS/tRRD/tFAW   scoria_bank_timer + the arbiter's rank gates.
     // A second copy of a timing is how two sides drift apart; there is now one.
@@ -197,8 +200,9 @@ module scoria_dfi_cmd_path
     // A column command that packs n_subcmd_i JEDEC bursts into one DFI word is
     // driven as n_subcmd_i sub-column-commands issued in ONE DFI cycle, each on
     // its own DFI phase (base + s*sub_phase_stride) at col + s*sub_col_stride.
-    // One scoria_dfi_cmd_formatter per sub places its command on its phase; the buses
-    // MERGE (cs/ctrl AND, addr/bank/odt OR) into a single multi-phase word, since
+    // One DDR3 command formatter (scoria_dfi_cmd_formatter) per sub places its
+    // command on its phase; the buses MERGE (cs/ctrl AND, addr/bank/odt OR) into
+    // a single multi-phase word, since
     // each active sub owns a DISTINCT phase and inactive subs/other phases are
     // NOP (cs_n/ctrl all-ones, addr/bank/odt zero). Non-column ops and the
     // runtime n_subcmd_i==1 case use ONLY sub 0 on the base phase => bit-identical
@@ -404,14 +408,14 @@ module scoria_dfi_cmd_path
     // synthesis translate_off
     initial begin
         assert ((DFI_RATE > 0) && ((DFI_RATE & (DFI_RATE - 1)) == 0))
-            else $fatal(1, "scoria_dfi_cmd_path: DFI_RATE(%0d) must be power-of-two (RTL mirror of dfi_timing.bl_anchored_slot_mask nphases rule)", DFI_RATE);
+            else $fatal(1, "mc_dfi_3p1_cmd_path: DFI_RATE(%0d) must be power-of-two (RTL mirror of dfi_timing.bl_anchored_slot_mask nphases rule)", DFI_RATE);
         if (N_SUBCMD > 1) begin
             assert (N_SUBCMD * SUB_PHASE_STRIDE == DFI_RATE)
-                else $fatal(1, "scoria_dfi_cmd_path: N_SUBCMD(%0d)*SUB_PHASE_STRIDE(%0d) != DFI_RATE(%0d) - sub-word anchors do not tile the DFI cycle (RTL mirror of the anchored-slot-mask contract)", N_SUBCMD, SUB_PHASE_STRIDE, DFI_RATE);
+                else $fatal(1, "mc_dfi_3p1_cmd_path: N_SUBCMD(%0d)*SUB_PHASE_STRIDE(%0d) != DFI_RATE(%0d) - sub-word anchors do not tile the DFI cycle (RTL mirror of the anchored-slot-mask contract)", N_SUBCMD, SUB_PHASE_STRIDE, DFI_RATE);
             assert ((N_SUBCMD - 1) * SUB_PHASE_STRIDE < DFI_RATE)
-                else $fatal(1, "scoria_dfi_cmd_path: last sub anchor out of range");
+                else $fatal(1, "mc_dfi_3p1_cmd_path: last sub anchor out of range");
         end
     end
     // synthesis translate_on
 
-endmodule : scoria_dfi_cmd_path
+endmodule : mc_dfi_3p1_cmd_path

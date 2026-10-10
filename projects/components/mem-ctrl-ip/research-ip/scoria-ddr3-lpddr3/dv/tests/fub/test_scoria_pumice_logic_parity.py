@@ -48,25 +48,18 @@ _PU = _REPO / "projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rt
 # `pumice_` prefix and some without, which is why this is a table and not a
 # format string.
 #
-# Phase 2 (2026-10-10, Task 2): the FUB-tier pairs for rd_cmd_cam,
-# wr_data_cam, rd_intake, wr_intake and bank_timers were REMOVED from this
+# Phase 2 (2026-10-10): the FUB-tier pairs for rd_cmd_cam, wr_data_cam,
+# rd_intake, wr_intake, bank_timers and the DFI CDC were REMOVED from this
 # table — those blocks now live ONCE in common-ip as mc_* modules that both
 # rocks instantiate, so the invariant this test guarded (scoria's copy ==
-# pumice's copy) is enforced by construction. What remains are the pairs
-# still pending extraction (rd_return_ring, dfi_cdc) and the macro tier
-# (axi4_layer retires in Phase 2 Task 3; dfi_layer/scheduler in Tasks 5-6).
+# pumice's copy) is enforced by construction. The DFI layer itself was
+# extracted to mc_dfi_3p1_layer (Task 6). This table is intentionally empty
+# until another porting relationship appears.
 PORTED = {
-    "fub/scoria_dfi_cdc.sv":        "fub/pumice_dfi_cdc.sv",
-    # MACRO tier: retired 2026-10-10 in Phase 2 Task 3 -- scoria_axi4_layer
-    # and pumice_axi4_layer both moved to the single common-ip module
-    # mc_axi4_layer (the invariant is now structural). What remains above are
-    # the pairs still pending extraction (rd_return_ring, dfi_cdc; the
-    # dfi_layer/scheduler/core follow in Phase 2 Tasks 5-6).
 }
 
 # Where each one's coverage actually lives, for the failure message.
 PUMICE_TEST = {
-    "fub/scoria_dfi_cdc.sv":        "test_pumice_dfi_cdc.py",
 }
 
 # Canonicalisation: STRIP the family prefix from both sides rather than
