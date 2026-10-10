@@ -24,6 +24,7 @@
 
 module ddr2_char_harness
     import pumice_pkg::*;
+    import mc_common_pkg::*;  // memtype_e family encodings (Vivado: pumice_pkg's export is not honored)
     import mem_char_pkg::*;   // mem_variant_e, from harness_csr
 #(
     // DV-only command-history scoreboards (off by default). CMD_HISTORY_EN arms
@@ -460,12 +461,14 @@ module ddr2_char_harness
     logic [31:0]  w_obs_wr_hist_count, w_obs_wr_hist_total;
 
     // harness_csr speaks the framework's generation-neutral mem_variant_e; the
-    // controller speaks pumice_pkg's memtype_e. Both are one bit with the same
-    // ordering (DDR variant = 0, LP variant = 1), and this cast is the single
-    // place the DDR2 generation is named -- see mem_char_pkg's header.
+    // controller speaks the FAMILY memtype_e (mc_common_pkg, common-ip doc 01):
+    // DDR2 vs LPDDR2 are no longer one bit apart (MEMTYPE_LPDDR2 = 3'b100), so
+    // the legacy 1-bit cast is an explicit mapping. This is the single place
+    // the DDR2 generation is named -- see mem_char_pkg's header.
     mem_variant_e w_mem_variant;
     memtype_e     w_memtype;
-    assign w_memtype = memtype_e'(w_mem_variant);
+    always_comb w_memtype = (w_mem_variant == MEMVARIANT_LP) ? MEMTYPE_LPDDR2
+                                                             : MEMTYPE_DDR2;
     logic [7:0]   w_t_phy_wrlat, w_t_rddata_en;
     logic         w_rd_in_order;
     logic [3:0]   w_cap_lookahead_max, w_cap_synth_mask;
