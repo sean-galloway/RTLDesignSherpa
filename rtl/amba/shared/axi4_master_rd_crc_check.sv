@@ -654,6 +654,24 @@ module axi4_master_rd_crc_check #(
     assign w_beat_err_bits = w_r_beat ? 32'($countones(fub_rdata ^ w_cp_expected))
                                       : 32'd0;
 
+    // Register the per-beat popcount before the accumulator. At 66.67 MHz the
+    // comb cone beat-counter -> expected-data -> XOR -> $countones -> 32-bit
+    // add -> saturate (26 levels, failing all 32 o_err_bits bits in all 4
+    // engines) missed by up to -0.374 ns; the register leaves ~19 levels up
+    // front and turns the accumulate into a register-to-register add. The
+    // skid is zero on cycles that followed no accepted beat, so the
+    // accumulator adds the trailing beat one cycle after its handshake --
+    // still before cfg_done can be sampled over the CSR bus. Cleared on an
+    // accepted cfg_start so a back-to-back run cannot inherit the previous
+    // run's trailing count.
+    logic [31:0] r_beat_err_bits;
+    `ALWAYS_FF_RST(aclk, aresetn, begin
+        if (`RST_ASSERTED(aresetn))                                     r_beat_err_bits <= '0;
+        else if (cfg_start && ((r_state == S_IDLE) || (r_state == S_DONE)))
+                                                                        r_beat_err_bits <= '0;
+        else                                                            r_beat_err_bits <= w_beat_err_bits;
+    end)
+
     //==========================================================================
     // Sequential FSM + counters + sticky errors
     //==========================================================================
@@ -826,9 +844,12 @@ module axi4_master_rd_crc_check #(
                 o_data_error       <= 1'b1;
                 o_beats_mismatched <= o_beats_mismatched + 1'b1;
             end
-            if (w_r_beat) begin
+            // Accumulate the REGISTERED per-beat popcount (see r_beat_err_bits
+            // above): the trailing beat lands one cycle after its handshake, 0
+            // on every other cycle.
+            begin
                 logic [32:0] w_err_sum;
-                w_err_sum = {1'b0, o_err_bits} + {1'b0, w_beat_err_bits};
+                w_err_sum = {1'b0, o_err_bits} + {1'b0, r_beat_err_bits};
                 o_err_bits <= w_err_sum[32] ? '1 : w_err_sum[31:0];
             end
             if (w_r_beat && fub_rresp != 2'b00) begin
@@ -839,8 +860,10 @@ module axi4_master_rd_crc_check #(
 
     assign w_lfsr_load = cfg_start && ((r_state == S_IDLE) || (r_state == S_DONE));
 
-    // The compare is combinational at the R beat, so a trailing beat's
-    // mismatch is accumulated as it happens and needs no drain. o_actual_crc
+    // The compare is combinational at the R beat and the popcount accumulate
+    // follows one cycle later on the registered operand; a trailing beat's
+    // mismatch is still accumulated before cfg_done can be sampled, so it
+    // needs no drain. o_actual_crc
     // does: dataint_crc registers its accumulator, so the final beat's word
     // lands one cycle AFTER the beat that completed the run. The old four-stage
     // compare pipeline hid that by holding done off for five cycles; with the
