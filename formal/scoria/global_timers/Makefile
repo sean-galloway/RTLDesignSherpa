@@ -5,7 +5,7 @@
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
-SCORIA    := $(REPO_ROOT)/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3
+SCORIA    := $(REPO_ROOT)/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3
 
 INC  := -I$(REPO_ROOT)/rtl/amba/includes -I$(SCORIA)/rtl/includes
 PKGS := $(SCORIA)/rtl/includes/scoria_pkg.sv

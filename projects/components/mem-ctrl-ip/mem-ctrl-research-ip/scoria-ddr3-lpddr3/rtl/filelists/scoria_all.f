@@ -3,7 +3,7 @@
 # ==============================================================================
 #
 # Purpose: the compile closure for every module this area owns, so that
-#          `make lint-mem-ctrl-ip/scoria-ddr3-lpddr3` has sources.
+#          `make lint-mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3` has sources.
 # Usage:   verilator --lint-only -f filelists/scoria_all.f
 #
 # `-f` includes each block's own filelist; never hand-list sources here.

@@ -3,7 +3,7 @@
 # ==============================================================================
 #
 # Purpose: the compile closure for every module this area owns, so that
-#          `make lint-mem-ctrl-ip/pumice-ddr2-lpddr2` has sources.
+#          `make lint-mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2` has sources.
 # Usage:   verilator --lint-only -f filelists/pumice_all.f
 #
 # `-f` includes each block s own filelist; never hand-list sources here.
