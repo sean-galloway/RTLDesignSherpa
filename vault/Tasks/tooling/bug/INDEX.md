@@ -2,7 +2,7 @@
 
 # tooling — bugs
 
-**Next ID: BUG-018** — never recycle a number, even when its item closed.
+**Next ID: BUG-019** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 17 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,12 @@ by construction rather than by discipline.
 
 ## Open
 
-(none)
+- **BUG-018** — concurrent agents on the shared trunk truncate each other's
+  `__pycache__` bytecode: `EOFError: marshal data too short` at import,
+  masquerading as DV/move regressions (traceback paths can predate a move —
+  they come from the corrupt .pyc). Verified race between parallel pytest
+  runs; workaround: `PYTHONPYCACHEPREFIX` private cache + `-p no:cacheprovider`.
+  Candidate structural fixes recorded in the item.
 
 ## Closed
 
