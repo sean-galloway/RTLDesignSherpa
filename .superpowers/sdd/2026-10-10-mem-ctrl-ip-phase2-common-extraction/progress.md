@@ -374,6 +374,55 @@ Verification:
 Registry check, task-ids, and hook suite are expected to pass at commit time.
 Uncommitted changes are confined to the wrapper/common-core files above.
 
-Task 5 step 3 (full functional regression) complete. Next: commit the wrapper
-migration, then continue with scheduler-merge internals / remaining DFI revs
-(scoria 3.1, andesite 4.0) per the plan.
+Task 5 step 3 (full functional regression) complete. Wrapper migration
+committed as 15dc1ff7b.
+
+Task 5 step 2b (follow-up): restored silicon-bug-history comments that the
+mechanical wrapper migration dropped from mc_scheduler_knobs.md §6.4 inventory.
+Comments-only change; zero logic touched. Restored rationales:
+- parked-victim pattern / PRE-only column guard (3-cycle stale-row window)
+- ISSUE-002: tFAW/tRRD gate the fire, not the classify mask (30.77% -> 18.57%
+  drop vs hold numbers)
+- pumice BUG-021 / scoria BUG-001 rank-global ACT re-check at fire stage
+- pumice BUG-002 / BUG-003 fire-stage gating notes
+- pumice ISSUE-005 pre-pick operand muxing and registered pre-pick rationale
+- PUMICE-018 / TASK-007 live ACT/turnaround re-validation and one-cycle blind
+  spot
+- P1 init accept/ack gating in andesite wrapper (MRS twins prevention)
+- ZQCS safety / JESD79-3F 3.10 / tZQCS counter asymmetry note
+- andesite L/S delta and training MRS/MPC notes
+- ORDER_MODE tiers / ISSUE-007 75 MHz margin note
+Verification: common-ip + pumice + scoria + andesite lint PASS;
+fub/test_pumice_cmd_arbiter.py[gate] PASS as compile check.
+Committed as 64e2d3b34.
+
+Task 6 step 3: scoria DFI layer extracted to common `mc_dfi_3p1_layer` /
+`mc_dfi_3p1_cmd_path`, with shared FUBs (`mc_dfi_cdc`, `mc_dfi_wr_serializer`,
+`mc_dfi_rd_aligner`) extended to cover scoria via parameters
+(`HAS_CAL_CAPTURE`, `HAS_DBI` on the aligner; `HAS_DBI` on the serializer;
+`HAS_MRR` on the command path). Scoria core/filelists/DV repointed; redundant
+scoria DFI FUBs and their filelists removed. Verification:
+- common-ip lint: PASS (41 modules)
+- scoria lint: PASS (60 modules)
+- scoria gate suite: run-all-gate PASS (fub 53 + macro 14 + top 2 tests)
+- scoria func suite: run-all-func PASS (fub 204 + macro 19 + top 4 tests)
+- registry check/audit/placement/blindspots PASS; task-ids PASS; links 0 broken
+Committed as a8d0b4a38.
+
+Task 6 step 4: andesite DFI layer extracted to common `mc_dfi_4p0_layer` /
+`mc_dfi_4p0_cmd_path`. The 4.0 layer instantiates the shared FUBs with
+`HAS_DBI=1` (serializer + aligner) and `HAS_CAL_CAPTURE=0` (aligner);
+`mc_dfi_4p0_cmd_path` consumes the rock-shared `andesite_dfi_cmd_formatter`
+(stays rock-side, no `andesite_pkg` symbols required by the moved module).
+Andesite core/filelists/DV repointed; redundant andesite DFI FUBs and their
+filelists removed. Verification:
+- common-ip lint: PASS (41 modules)
+- andesite lint: PASS (57 modules)
+- andesite gate suite: fub 55 + macro 5 + top 2 tests, all PASS
+- registry check/audit/placement/blindspots PASS; task-ids PASS; links 0 broken
+- SEED=12345, PYTHONPYPCACHEPREFIX=/tmp/pycache-dfirev
+Committed as <TODO>.
+
+RESUME HERE: Phase-2 common-ip extraction is complete (all six layers: pkg,
+nine FUBs + storage, axi4, training, scheduler, per-revision DFI). Await the
+next partner directive / plan (product-ip naming/bring-up or a new phase).

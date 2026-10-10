@@ -166,12 +166,12 @@ async def cocotb_test_andesite_dfi_layer_smoke(dut):
 @pytest.mark.parametrize("_run", [0])
 def test_andesite_dfi_layer_smoke(request, _run):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "andesite_dfi_layer"
+    dut_name = "mc_dfi_4p0_layer"
     test_name = "test_andesite_dfi_layer_smoke"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path=("projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/"
-                       "rtl/filelists/macro/andesite_dfi_layer.f"))
+        filelist_path=("projects/components/mem-ctrl-ip/common-ip/rtl/"
+                       "filelists/macro/mc_dfi_4p0_layer.f"))
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)

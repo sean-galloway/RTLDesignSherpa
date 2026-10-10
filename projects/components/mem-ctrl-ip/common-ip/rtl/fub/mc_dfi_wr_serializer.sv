@@ -31,7 +31,10 @@ module mc_dfi_wr_serializer #(
     parameter int DFI_RATE       = 2,
     parameter int DFI_STRB_WIDTH = DFI_DATA_WIDTH / 8,
     parameter int DFI_EN_WIDTH   = DFI_RATE,
-    parameter int WRLAT_W        = 8
+    parameter int WRLAT_W        = 8,
+    // Write DBI (DFI 4.0). When disabled the DBI inputs are ignored and the
+    // module is bit-identical to the DFI 2.1/3.1 serializer.
+    parameter int HAS_DBI        = 0
 ) (
     input  logic                        dfi_clk,
     input  logic                        dfi_rstn,
@@ -47,6 +50,10 @@ module mc_dfi_wr_serializer #(
     input  logic [DFI_DATA_WIDTH-1:0]   wd_data_i,
     input  logic [DFI_STRB_WIDTH-1:0]   wd_strb_i,
     input  logic                        wd_last_i,
+
+    // Write DBI (DFI 4.0 only; ignored when HAS_DBI=0)
+    input  logic                        db_wr_dbi_en_i,
+    input  logic [DFI_STRB_WIDTH-1:0]   wd_dbi_i,
 
     // DFI write-data bus
     output logic [DFI_DATA_WIDTH-1:0]   dfi_wrdata_o,
@@ -91,9 +98,21 @@ module mc_dfi_wr_serializer #(
     assign w_drive    = (w_owed_now != '0) && wd_valid_i;
     assign wd_ready_o = w_drive;                 // pop as we drive (1 word/cycle)
 
-    assign dfi_wrdata_o      = wd_data_i;
-    assign dfi_wrdata_en_o   = w_drive ? {DFI_EN_WIDTH{1'b1}}   : '0;
-    assign dfi_wrdata_mask_o = w_drive ? ~wd_strb_i             : '0;
+    assign dfi_wrdata_en_o = w_drive ? {DFI_EN_WIDTH{1'b1}} : '0;
+
+    generate
+        if (HAS_DBI != 0) begin : g_dbi
+            logic [DFI_DATA_WIDTH-1:0] w_dbi_expand;
+            for (genvar gb = 0; gb < DFI_STRB_WIDTH; gb++) begin : g_expand
+                assign w_dbi_expand[gb*8 +: 8] = {8{wd_dbi_i[gb]}};
+            end
+            assign dfi_wrdata_o      = wd_data_i ^ (db_wr_dbi_en_i ? w_dbi_expand : '0);
+            assign dfi_wrdata_mask_o = w_drive ? (db_wr_dbi_en_i ? wd_dbi_i : ~wd_strb_i) : '0;
+        end else begin : g_no_dbi
+            assign dfi_wrdata_o      = wd_data_i;
+            assign dfi_wrdata_mask_o = w_drive ? ~wd_strb_i : '0;
+        end
+    endgenerate
 
     // a driven word marked last completes the front burst
     logic w_burst_last;

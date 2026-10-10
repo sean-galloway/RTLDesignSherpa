@@ -465,13 +465,13 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FUNC}.get(_TEST_LEVEL, _FUNC)
 @pytest.mark.parametrize("test_type, bl_words, en_cyc, rdlat", _PARAMS)
 def test_andesite_dfi_rd_aligner(request, test_type, bl_words, en_cyc, rdlat):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "andesite_dfi_rd_aligner"
+    dut_name = "mc_dfi_rd_aligner"
     test_name = (f"test_andesite_dfi_rd_aligner_{test_type}"
                  f"_b{bl_words}_e{en_cyc}")
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path=("projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/"
-                       "rtl/filelists/fub/andesite_dfi_rd_aligner.f"))
+        filelist_path=("projects/components/mem-ctrl-ip/common-ip/rtl/"
+                       "filelists/fub/mc_dfi_rd_aligner.f"))
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True); os.makedirs(log_dir, exist_ok=True)
     run(python_search=[tests_dir], verilog_sources=verilog_sources,
@@ -481,7 +481,8 @@ def test_andesite_dfi_rd_aligner(request, test_type, bl_words, en_cyc, rdlat):
         parameters={"DFI_DATA_WIDTH": str(DFI_DATA_WIDTH),
                     "DFI_RATE": str(DFI_RATE),
                     "BL_WORDS": str(bl_words), "EN_CYC": str(en_cyc),
-                    "MAX_OUTSTANDING": str(MAX_OUTSTANDING)},
+                    "MAX_OUTSTANDING": str(MAX_OUTSTANDING),
+                    "HAS_DBI": "1", "HAS_CAL_CAPTURE": "0"},
         extra_env={"DUT": dut_name, "TEST_TYPE": test_type,
                    "BL_WORDS": str(bl_words), "EN_CYC": str(en_cyc),
                    "RDLAT": str(rdlat), "TEST_LEVEL": _TEST_LEVEL,

@@ -4,34 +4,30 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: andesite_dfi_cmd_path
-// Purpose: DFI-clock-domain command formatter wrapper. Accepts the widened
-//          scheduler command word {ap,col,row,bg,bank,rank,op}, presents each
-//          accepted command to the P1 single-shot formatter for exactly one
-//          cycle, and exposes the registered DFI 4.0 pin vector plus fire
-//          strobes aligned with those registered pins. Structural holds
-//          only (aligner readiness, staged write data); every JEDEC spacing
-//          lives in the scheduler.
+// Module: mc_dfi_4p0_cmd_path
+// Purpose: Common DFI 4.0 command path. Accepts the widened scheduler command
+//          word {ap,col,row,bg,bank,rank,op}, presents each accepted command to
+//          the rock-local P1 single-shot formatter for exactly one cycle, and
+//          exposes the registered DFI 4.0 pin vector plus fire strobes aligned
+//          with those registered pins. Structural holds only (aligner readiness,
+//          staged write data); every JEDEC spacing lives in the scheduler.
 //
-// Carried shape: scoria_dfi_cmd_path's registered pipeline, its read/write
+//          Extracted from andesite_dfi_cmd_path during Phase 2 common-layer
+//          reorg (2026-10-10).
+//
+// Carried shape: mc_dfi_3p1_cmd_path's registered pipeline, its read/write
 // hold classes, and its fire-strobe contract -- WITHOUT the per-sub phase
-// fan-out. DDR4 single-channel commands have no sub-word framing, and
-// andesite's formatter slot is the P1 single-shot block (no valid/ready, no
-// phases). The container widens scoria's word by bg[1:0] between row and
+// fan-out. DDR4 single-channel commands have no sub-word framing, and the
+// formatter slot is the rock-local P1 single-shot block (no valid/ready, no
+// phases). The container widens the 3.1 word by bg[1:0] between row and
 // bank: {ap,col,row,bg,bank,rank,op}.
 //
-// Documentation:
-//   projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/docs/andesite_mas/
-//
-// Author: sean galloway
-// Created: 2026-10-05 (macro integration pass, TASK-016 t3)
-
+// Documentation: docs/uarch/PUMICE_DFI_LAYER_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
 
-module andesite_dfi_cmd_path
-    import andesite_pkg::*;
+module mc_dfi_4p0_cmd_path
     import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int NUM_RANKS  = 1,
@@ -204,4 +200,4 @@ module andesite_dfi_cmd_path
         end
     )
 
-endmodule : andesite_dfi_cmd_path
+endmodule : mc_dfi_4p0_cmd_path

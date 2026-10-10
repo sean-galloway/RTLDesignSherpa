@@ -360,6 +360,8 @@ module mc_dfi_3p1_layer
         .wd_data_i        (w_wd_data),
         .wd_strb_i        (w_wd_strb),
         .wd_last_i        (w_wd_last),
+        .db_wr_dbi_en_i   (1'b0),
+        .wd_dbi_i         ('0),
         .dfi_wrdata_o     (dfi_wrdata_o),
         .dfi_wrdata_en_o  (w_dfi_wrdata_en),
         .dfi_wrdata_mask_o(dfi_wrdata_mask_o)

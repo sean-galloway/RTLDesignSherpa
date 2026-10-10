@@ -10,10 +10,10 @@
 //            1. mc_axi4_layer      (host AXI + wr/rd CAMs)
 //            2. andesite_scheduler_layer (bank timers + arbiter + refresh/init)
 //            3. andesite_training_layer  (DFI training pins + maintenance cmds)
-//            4. andesite_dfi_layer       (async CDC + DFI 4.0 datapath)
+//            4. mc_dfi_4p0_layer       (async CDC + DFI 4.0 datapath)
 //
 //          Host AXI + scheduler + CAMs run on aclk; the DFI phase-packer + PHY
-//          run on dfi_clk; the clock crossings live in andesite_dfi_layer's
+//          run on dfi_clk; the clock crossings live in mc_dfi_4p0_layer's
 //          CDC and andesite_training_layer's training-pin synchronizers.
 //          Internal data unit = the DFI word (DFI_DATA_WIDTH); the host AXI
 //          data width is the DFI word too (an external dwidth shim is a
@@ -879,7 +879,7 @@ module andesite_core
     // ======================================================================
     // Layer 4: DFI layer (async CDC + datapath)
     // ======================================================================
-    andesite_dfi_layer #(
+    mc_dfi_4p0_layer #(
         .NUM_RANKS       (NUM_RANKS),
         .NUM_BANKS       (NUM_BANKS),
         .NUM_BG          (NUM_BG),

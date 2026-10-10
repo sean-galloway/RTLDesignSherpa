@@ -4,38 +4,38 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: andesite_dfi_layer
-// Purpose: DFI 4.0 datapath assembly for andesite. Holds the single
-//          controller<->PHY crossing (andesite_dfi_cdc async gaxi FIFOs) and
-//          the dfi_clk-domain command path + write serializer + read aligner.
-//          Presents the controller-clock command/wrdata/rddata streams on one
-//          side and the DFI 4.0 pin bus on the other.
+// Module: mc_dfi_4p0_layer
+// Purpose: Common DFI 4.0 layer. Holds the single controller<->PHY crossing
+//          (mc_dfi_cdc async gaxi FIFOs) and the dfi_clk-domain command path +
+//          write serializer + read aligner. Presents the controller-clock
+//          command/wrdata/rddata streams on one side and the DFI 4.0 pin bus on
+//          the other.
 //
-// Composition (TASK-016 t6):
-//   * andesite_dfi_cdc     : ctl <-> dfi async FIFOs
-//   * andesite_dfi_cmd_path: widened {ap,col,row,bg,bank,rank,op} -> DFI pins
-//   * andesite_dfi_wr_serializer: DFI write data at t_phy_wrlat
-//   * andesite_dfi_rd_aligner   : DFI read data alignment at t_rddata_en
+// Composition:
+//   * mc_dfi_cdc           : ctl <-> dfi async FIFOs
+//   * mc_dfi_4p0_cmd_path  : widened {ap,col,row,bg,bank,rank,op} -> DFI pins
+//   * mc_dfi_wr_serializer : DFI write data at t_phy_wrlat (HAS_DBI=1)
+//   * mc_dfi_rd_aligner    : DFI read data alignment at t_rddata_en (HAS_DBI=1)
 //
-// Training pins live on andesite_training_layer, NOT here. The P1 formatter's
-// dfi_cke output is a DDR4 placeholder; the real CKE pin (cke_i) is registered
-// onto dfi_cke_o. dfi_init_start_o is the CDC's registered init_busy_i.
+//          Extracted from andesite_dfi_layer during Phase 2 common-layer reorg
+//          (2026-10-10). Authority: JEDEC DFI 4.0 specification plus the
+//          simplified study notes in
+//          projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/docs/andesite_mas/.
+//
+// Training pins live on the rock-specific training layer, NOT here. The P1
+// formatter's dfi_cke output is a DDR4 placeholder; the real CKE pin (cke_i) is
+// registered onto dfi_cke_o. dfi_init_start_o is the CDC's registered
+// init_busy_i.
 //
 // Single-rank design point: dfi_wrdata_cs_o and dfi_rddata_cs_o are driven
-// constant zero, matching scoria's v3.1 precedent.
+// constant zero, matching the scoria v3.1 precedent.
 //
-// Documentation:
-//   projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/docs/andesite_mas/
-//
-// Author: sean galloway
-// Created: 2026-10-05 (macro integration pass, TASK-016 t6)
-
+// Documentation: docs/uarch/PUMICE_DFI_LAYER_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
 
-module andesite_dfi_layer
-    import andesite_pkg::*;
+module mc_dfi_4p0_layer
     import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int NUM_RANKS       = 1,
@@ -217,7 +217,7 @@ module andesite_dfi_layer
     // ======================================================================
     // Single CDC (async gaxi FIFOs)
     // ======================================================================
-    andesite_dfi_cdc #(
+    mc_dfi_cdc #(
         .CMD_DW      (CMD_DW),
         .WD_DW       (WD_DW),
         .RD_DW       (RD_DW),
@@ -263,7 +263,7 @@ module andesite_dfi_layer
     // ======================================================================
     // Command path (dfi_clk): cmd FIFO -> DFI command bus + fire strobes
     // ======================================================================
-    andesite_dfi_cmd_path #(
+    mc_dfi_4p0_cmd_path #(
         .NUM_RANKS (NUM_RANKS),
         .NUM_BANKS (NUM_BANKS),
         .NUM_BG    (NUM_BG),
@@ -299,9 +299,10 @@ module andesite_dfi_layer
     // ======================================================================
     // Write serializer (dfi_clk): wrdata FIFO -> dfi_wrdata at t_phy_wrlat
     // ======================================================================
-    andesite_dfi_wr_serializer #(
+    mc_dfi_wr_serializer #(
         .DFI_DATA_WIDTH(DFI_DATA_WIDTH),
-        .DFI_RATE      (DFI_RATE)
+        .DFI_RATE      (DFI_RATE),
+        .HAS_DBI       (1)
     ) u_wr (
         .dfi_clk          (dfi_clk),
         .dfi_rstn         (dfi_rstn),
@@ -322,12 +323,14 @@ module andesite_dfi_layer
     // ======================================================================
     // Read aligner (dfi_clk): dfi_rddata -> rddata FIFO at t_rddata_en
     // ======================================================================
-    andesite_dfi_rd_aligner #(
+    mc_dfi_rd_aligner #(
         .DFI_DATA_WIDTH (DFI_DATA_WIDTH),
         .DFI_RATE       (DFI_RATE),
         .BL_WORDS       (BL_WORDS),
         .EN_CYC         (RD_EN_CYC),
-        .MAX_OUTSTANDING(RD_MAX_OUTSTANDING)
+        .MAX_OUTSTANDING(RD_MAX_OUTSTANDING),
+        .HAS_CAL_CAPTURE(0),
+        .HAS_DBI        (1)
     ) u_rd (
         .dfi_clk           (dfi_clk),
         .dfi_rstn          (dfi_rstn),
@@ -344,7 +347,10 @@ module andesite_dfi_layer
         .rd_last_o         (w_rd_last),
         .rd_dbi_en_i       (rd_dbi_en_i),
         .dfi_rddata_dbi_i  (dfi_rddata_dbi_i),
-        .rd_dbi_o          (w_rd_dbi)
+        .rd_dbi_o          (w_rd_dbi),
+        .cal_expect_i      (1'b0),
+        .cal_data_o        (),
+        .cal_valid_o       ()
     );
 
     // ======================================================================
@@ -370,4 +376,4 @@ module andesite_dfi_layer
     wire unused = &{1'b0, w_fire_rank, init_done_i, rd_phase_i, wr_phase_i,
                     w_cmd_cke, w_init_complete_unused, 1'b0};
 
-endmodule : andesite_dfi_layer
+endmodule : mc_dfi_4p0_layer
