@@ -7,7 +7,7 @@
 // Module: andesite_core
 // Purpose: The andesite DDR4/LPDDR4 controller core. Wires the four macro
 //          layers built bottom-up this cycle:
-//            1. andesite_axi4_layer      (host AXI + wr/rd CAMs)
+//            1. mc_axi4_layer      (host AXI + wr/rd CAMs)
 //            2. andesite_scheduler_layer (bank timers + arbiter + refresh/init)
 //            3. andesite_training_layer  (DFI training pins + maintenance cmds)
 //            4. andesite_dfi_layer       (async CDC + DFI 4.0 datapath)
@@ -369,7 +369,7 @@ module andesite_core
     // ======================================================================
     // Layer 1: AXI interface + CAMs
     // ======================================================================
-    andesite_axi4_layer #(
+    mc_axi4_layer #(
         .AXI_ID_WIDTH  (IW),
         .AXI_ADDR_WIDTH(AW),
         .AXI_DATA_WIDTH(DW),
@@ -380,6 +380,9 @@ module andesite_core
         .ROW_WIDTH        (ROW_WIDTH),
         .COL_WIDTH        (COL_WIDTH),
         .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH),
+        // ANDESITE BG DELTA: DDR4 bank-group intake mapping
+        .BG_WIDTH        (2),
+        .HAS_BG          (1),
         .AXI_BEATS_PER_BURST   (BURST_WORDS),
         .NUM_ENTRIES      (NUM_ENTRIES),
         .N_SRAM_SLOTS     (N_SRAM_SLOTS),

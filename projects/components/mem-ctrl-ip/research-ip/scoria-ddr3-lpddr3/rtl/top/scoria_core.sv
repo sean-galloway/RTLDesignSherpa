@@ -7,7 +7,7 @@
 // Module: scoria_core
 // Purpose: The rearchitected pumice DDR3/LPDDR3 controller core. Wires the
 //          three layers built bottom-up this cycle:
-//            1. scoria_axi4_layer          (host AXI + wr/rd CAMs)
+//            1. mc_axi4_layer          (host AXI + wr/rd CAMs)
 //            2. scoria_scheduler_layer (bank timers + arbiter + refresh/init)
 //            3. scoria_dfi_layer         (single async CDC + DFI datapath)
 //
@@ -421,7 +421,7 @@ module scoria_core
     // ======================================================================
     // Layer 1: AXI interface + CAMs
     // ======================================================================
-    scoria_axi4_layer #(
+    mc_axi4_layer #(
         .AXI_ID_WIDTH  (IW),
         .AXI_ADDR_WIDTH(AW),
         .AXI_DATA_WIDTH(DW),

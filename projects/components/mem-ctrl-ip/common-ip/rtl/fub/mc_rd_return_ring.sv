@@ -4,25 +4,37 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: andesite_rd_return_ring
-// Purpose: rd_return_ring
+// Module: mc_rd_return_ring
+// Purpose: AR-order read-return buffer, decoupled from the scheduling CAM.
+//          A read is given a TICKET (a ring slot) when it is admitted, in AR
+//          order; the CAM entry that schedules it is freed the cycle the column
+//          ISSUES, and the ticket alone follows the read through DRAM. Returns
+//          arrive in ISSUE order (the DFI path is in order), land in the
+//          ticket's slot, and the ring drains from its head in AR order once the
+//          head's data is complete. So the number of reads the controller can
+//          hold in flight is DEPTH (this ring), not the CAM's entry count: the
+//          CAM only has to be as deep as the scheduling window.
 //
-// Documentation:
-//   projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/docs/andesite_mas/
+//          Why: with the CAM holding a read from insert to R-drain, eight
+//          entries over a ~27-cycle DRAM round trip bound read bandwidth by
+//          Little's law to ~8 x 8 B / 27 cyc = 180 MB/s on the board. Here the
+//          CAM entry lives insert -> issue only, and DEPTH bounds the in-flight
+//          count (32 = 8 B/cycle sustained across a 27-cycle round trip).
 //
-// Carried unchanged from scoria_rd_return_ring per andesite HAS ch02 (INHERITED).
-// The only differences from the scoria source are the module name, the
-// package import where one existed, and this header. Verification evidence
-// transfers with scoria's suite where one exists at this tier.
+//          FSM-free. State is a head/tail pointer pair, a per-slot ready bit +
+//          resp, the issue-order ticket FIFO, and the BRAM. No age matrix, no
+//          oldest pick: AR order IS the ring order.
 //
-// Author: sean galloway
-// Created: 2026-10-04 (carried)
-
+//          The 2-deep prefetch skid over the synchronous-read BRAM is the one
+//          from mc_rd_cmd_cam (same 1-cycle read latency contract; see the
+//          note at the BRAM process).
+//
+// Documentation: docs/uarch/PUMICE_AXI4_IFC_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
 
-module andesite_rd_return_ring #(
+module mc_rd_return_ring #(
     parameter int DEPTH           = 32,     // in-flight reads (power of 2)
     parameter int AXI_DATA_WIDTH  = 64,
     parameter int AXI_BEATS_PER_BURST = 4,  // beats per DRAM burst
@@ -242,7 +254,7 @@ module andesite_rd_return_ring #(
     // -------------------------------------------------------------------------
     // Data storage: reset-free clocked process so Vivado maps it to Block RAM.
     // READ LATENCY IS EXACTLY 1 CYCLE and the fetch pipeline depends on it
-    // (r_if_* pairs with r_rd_q the cycle after w_fetch). See scoria_rd_cmd_cam
+    // (r_if_* pairs with r_rd_q the cycle after w_fetch). See mc_rd_cmd_cam
     // for the full note.
     // -------------------------------------------------------------------------
     always_ff @(posedge aclk) begin
@@ -255,14 +267,6 @@ module andesite_rd_return_ring #(
     // the DFI that the ring never saw issued -- a lost ticket, and every later
     // read would fill the wrong slot. Also: a ticket must never be issued for
     // a slot that is not allocated.
-    //
-    // BOTH ARE INPUT CONTRACTS, not properties of this block -- they constrain
-    // whoever drives it. formal/scoria/rd_return_ring states them canonically
-    // as assumptions (`assume (!issue_valid_i || (occ_o != 0))` and the
-    // dfi_ret pair), so the proof takes them as given and cannot replace these
-    // checks. Kept because this block has no dedicated DV suite; see scoria
-    // TASK-007, which is open on whether the check moves to the driver's TB
-    // instead. Guarded from synthesis.
     always @(posedge aclk)
         if (aresetn) begin
             assert (!(dfi_ret_valid_i && !w_iq_rd_valid))
@@ -272,4 +276,4 @@ module andesite_rd_return_ring #(
         end
 `endif
 
-endmodule : andesite_rd_return_ring
+endmodule : mc_rd_return_ring

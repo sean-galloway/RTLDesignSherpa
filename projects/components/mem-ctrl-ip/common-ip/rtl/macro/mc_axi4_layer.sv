@@ -4,8 +4,8 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: scoria_axi4_layer
-// Purpose: The scoria AXI4 host interface. Bolts the common AXI burst
+// Module: mc_axi4_layer
+// Purpose: The pumice AXI4 host interface. Bolts the common AXI burst
 //          splitters onto the front of the dumb wr/rd intakes, and holds the
 //          wr-data CAM (write buffer + snarf source) and rd-cmd CAM (read
 //          reorder buffer). Presents the host AXI4 face and exposes the
@@ -17,22 +17,17 @@
 //   external: scheduler lookup/oldest/commit(issue) ports on both CAMs,
 //             wr commit-data out (to wr_beat_sequencer), rd DFI-return in.
 //
-// Documentation: this block is still pumice's logic unchanged (see
-//                dv/tests/fub/test_scoria_pumice_logic_parity.py), so its
-//                microarchitecture note is pumice's:
-//                projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/uarch/PUMICE_AXI4_IFC_UARCH.md
-//                scoria has no docs/uarch of its own; the path this line
-//                used to give was relative and resolved to nothing here.
+// Documentation: docs/uarch/PUMICE_AXI4_LAYER_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
 
-module scoria_axi4_layer #(
+module mc_axi4_layer #(
     parameter int AXI_ID_WIDTH      = 8,
     parameter int AXI_ADDR_WIDTH    = 32,
     parameter int AXI_DATA_WIDTH    = 64,
     parameter int AXI_USER_WIDTH    = 1,
-    // NOTE scoria_core instantiates this with .DRAM_BEAT_WIDTH(DW) -- the AXI
+    // NOTE pumice_core instantiates this with .DRAM_BEAT_WIDTH(DW) -- the AXI
     // data width, NOT the DRAM beat width. The front end is deliberately
     // DFI-word granular (one AXI beat == one DFI word), so the two coincide
     // here and the name misleads. Kept only to size DRAM_BURST_BYTES below;
@@ -44,18 +39,22 @@ module scoria_axi4_layer #(
     parameter int ROW_WIDTH         = 14,
     parameter int COL_WIDTH         = 10,
     parameter int BYTE_OFFSET_WIDTH = 3,
-    // AXI beats in one DRAM burst. This is what scoria_core passes as
+    // ANDESITE BG DELTA: bank-group intake mapping (DDR4). HAS_BG=0 keeps
+    // generations 2/3 bit-identical; andesite passes 1/2.
+    parameter int BG_WIDTH = 1,
+    parameter bit HAS_BG   = 0,
+    // AXI beats in one DRAM burst. This is what pumice_core passes as
     // BURST_WORDS -- NOT the JEDEC burst length, despite having been called
     // AXI_BEATS_PER_BURST here and documented as "DRAM beats" downstream. Same identifier,
     // three different quantities across the design (JEDEC device beats in
-    // scoria_core, DRAM beats in scoria_dfi_layer, AXI beats here), which
+    // pumice_core, pumice beats in pumice_dfi_layer, AXI beats here), which
     // is how a ragged-burst check got derived against the wrong units.
     parameter int AXI_BEATS_PER_BURST = 4,
     parameter int NUM_ENTRIES     = 8,
     parameter int N_SRAM_SLOTS    = NUM_ENTRIES,
     parameter int N_SCHED_LU      = 4,
     parameter int AGE_WIDTH       = 16,
-    // Reads the controller can hold IN FLIGHT (scoria_rd_return_ring DEPTH).
+    // Reads the controller can hold IN FLIGHT (mc_rd_return_ring DEPTH).
     // Independent of NUM_ENTRIES (the scheduling window): a read's CAM entry
     // frees at issue, its ring slot at R-drain. Power of 2.
     parameter int RD_RET_DEPTH    = 32,
@@ -152,7 +151,7 @@ module scoria_axi4_layer #(
     output logic                          busy_o
 );
 
-    import scoria_pkg::*;
+    import mc_common_pkg::*;
 
     // AXI beats per DFI burst: the chop granularity. Each sub-command spans one
     // DRAM burst, so the intake sees "one AXI sub-burst == one DFI burst".
@@ -322,6 +321,8 @@ module scoria_axi4_layer #(
         .ROW_WIDTH        (ROW_WIDTH),
         .COL_WIDTH        (COL_WIDTH),
         .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH),
+        .BG_WIDTH        (BG_WIDTH),
+        .HAS_BG          (HAS_BG),
         .AXI_BEATS_PER_BURST               (AXI_BEATS_PER_BURST)
     ) u_wr_intake (
         .aclk          (aclk),
@@ -469,6 +470,8 @@ module scoria_axi4_layer #(
         .ROW_WIDTH        (ROW_WIDTH),
         .COL_WIDTH        (COL_WIDTH),
         .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH),
+        .BG_WIDTH        (BG_WIDTH),
+        .HAS_BG          (HAS_BG),
         .AXI_BEATS_PER_BURST               (AXI_BEATS_PER_BURST),
         // one order-FIFO slot per read the ring can hold in flight, plus the
         // snarf hits that never enter the ring
@@ -590,7 +593,7 @@ module scoria_axi4_layer #(
     );
 
     logic w_rdr_busy;
-    scoria_rd_return_ring #(
+    mc_rd_return_ring #(
         .DEPTH              (RD_RET_DEPTH),
         .AXI_DATA_WIDTH     (DW),
         .AXI_BEATS_PER_BURST(AXI_BEATS_PER_BURST)
@@ -619,4 +622,4 @@ module scoria_axi4_layer #(
 
     assign busy_o = w_wri_busy || w_rdi_busy || w_wrc_busy || w_rdc_busy || w_rdr_busy;
 
-endmodule : scoria_axi4_layer
+endmodule : mc_axi4_layer

@@ -7,7 +7,7 @@
 // Module: pumice_core
 // Purpose: The rearchitected pumice DDR2/LPDDR2 controller core. Wires the
 //          three layers built bottom-up this cycle:
-//            1. pumice_axi4_layer          (host AXI + wr/rd CAMs)
+//            1. mc_axi4_layer          (host AXI + wr/rd CAMs)
 //            2. pumice_scheduler_layer (bank timers + arbiter + refresh/init)
 //            3. pumice_dfi_layer         (single async CDC + DFI datapath)
 //
@@ -349,7 +349,7 @@ module pumice_core
     // ======================================================================
     // Layer 1: AXI interface + CAMs
     // ======================================================================
-    pumice_axi4_layer #(
+    mc_axi4_layer #(
         .AXI_ID_WIDTH  (IW),
         .AXI_ADDR_WIDTH(AW),
         .AXI_DATA_WIDTH(DW),

@@ -56,22 +56,17 @@ _PU = _REPO / "projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rt
 # still pending extraction (rd_return_ring, dfi_cdc) and the macro tier
 # (axi4_layer retires in Phase 2 Task 3; dfi_layer/scheduler in Tasks 5-6).
 PORTED = {
-    "fub/scoria_rd_return_ring.sv": "fub/pumice_rd_return_ring.sv",
     "fub/scoria_dfi_cdc.sv":        "fub/pumice_dfi_cdc.sv",
-    # MACRO tier. Measured 2026-10-01 while standing up the macro/top test
-    # areas: of the six macro/top modules this is the only one still pumice's
-    # logic. dfi_layer (+91 lines), scheduler_layer (+133), scoria_core
-    # (+94), scoria_top (+74) and top_geared (+19) all carry DDR3 work --
-    # write leveling, ZQ, mode-register writes, RESET# -- and need their own
-    # tests, which is what the macro/ and top/ areas are for.
-    "macro/scoria_axi4_layer.sv":     "macro/pumice_axi4_layer.sv",
+    # MACRO tier: retired 2026-10-10 in Phase 2 Task 3 -- scoria_axi4_layer
+    # and pumice_axi4_layer both moved to the single common-ip module
+    # mc_axi4_layer (the invariant is now structural). What remains above are
+    # the pairs still pending extraction (rd_return_ring, dfi_cdc; the
+    # dfi_layer/scheduler/core follow in Phase 2 Tasks 5-6).
 }
 
 # Where each one's coverage actually lives, for the failure message.
 PUMICE_TEST = {
-    "fub/scoria_rd_return_ring.sv": "test_pumice_rd_return_ring.py",
     "fub/scoria_dfi_cdc.sv":        "test_pumice_dfi_cdc.py",
-    "macro/scoria_axi4_layer.sv":     "test_pumice_axi4_layer.py",
 }
 
 # Canonicalisation: STRIP the family prefix from both sides rather than

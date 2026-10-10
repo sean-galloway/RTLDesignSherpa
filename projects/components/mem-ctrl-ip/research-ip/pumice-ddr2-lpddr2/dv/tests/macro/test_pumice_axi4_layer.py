@@ -23,8 +23,8 @@ from pumice_coverage import get_coverage_compile_args, get_coverage_env  # noqa:
 from tbclasses.pumice_axi4_layer_tb import PumiceAxi4IfcTB  # noqa: E402
 from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 
-_FILELIST = ("projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/"
-             "rtl/filelists/macro/pumice_axi4_layer.f")
+_FILELIST = ("projects/components/mem-ctrl-ip/common-ip/"
+             "rtl/filelists/macro/mc_axi4_layer.f")
 
 
 @cocotb.test(timeout_time=8, timeout_unit="ms")
@@ -103,7 +103,7 @@ async def _round(tb, N, rnd):
 @pytest.mark.parametrize("test_level", reg_level_grid())
 def test_pumice_axi4_layer(request, test_level):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "pumice_axi4_layer"
+    dut_name = "mc_axi4_layer"
     test_name = f"cocotb_test_pumice_axi4_layer_{test_level}"
 
     verilog_sources, includes = get_sources_from_filelist(

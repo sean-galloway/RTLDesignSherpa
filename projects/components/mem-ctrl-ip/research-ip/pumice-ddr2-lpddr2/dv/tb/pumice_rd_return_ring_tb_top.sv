@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: pumice_rd_return_ring_tb_top
-// Purpose: DV wrapper for pumice_rd_return_ring. The ring's alloc handshake
+// Purpose: DV wrapper for mc_rd_return_ring. The ring's alloc handshake
 //          carries no payload INTO the DUT (the DUT hands the ticket OUT), and
 //          the GAXI producer BFM must bind at least one payload field, so this
 //          wrapper adds one unused 1-bit input for the BFM to drive. Everything
@@ -44,7 +44,7 @@ module pumice_rd_return_ring_tb_top #(
     logic w_unused;
     assign w_unused = alloc_req_i;
 
-    pumice_rd_return_ring #(
+    mc_rd_return_ring #(
         .DEPTH              (DEPTH),
         .AXI_DATA_WIDTH     (AXI_DATA_WIDTH),
         .AXI_BEATS_PER_BURST(AXI_BEATS_PER_BURST)
