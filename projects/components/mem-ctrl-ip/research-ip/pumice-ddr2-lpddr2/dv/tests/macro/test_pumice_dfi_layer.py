@@ -55,14 +55,17 @@ OP_WR, OP_RD = 4, 2
 WD_DW = 1 + DFI_SW + DFI_DW            # {last,strb,data}
 RD_DW = 1 + 2 + DFI_DW                 # {last,resp,data}
 
+OP_W = 5   # family dram_op_e width (mc_common_pkg, Phase 2 extraction); was 4
+           # in pumice_pkg's retired enum. Matches the RTL CMD_DW op term.
+
 
 def pack_cmd(op, bank, row, col, ap=0):
-    v = op & 0xF
-    v |= (0 & ((1 << RKW) - 1)) << 4
-    v |= (bank & ((1 << BKW) - 1)) << (4 + RKW)
-    v |= (row & ((1 << ROW_WIDTH) - 1)) << (4 + RKW + BKW)
-    v |= (col & ((1 << COL_WIDTH) - 1)) << (4 + RKW + BKW + ROW_WIDTH)
-    v |= (ap & 1) << (4 + RKW + BKW + ROW_WIDTH + COL_WIDTH)
+    v = op & ((1 << OP_W) - 1)
+    v |= (0 & ((1 << RKW) - 1)) << OP_W
+    v |= (bank & ((1 << BKW) - 1)) << (OP_W + RKW)
+    v |= (row & ((1 << ROW_WIDTH) - 1)) << (OP_W + RKW + BKW)
+    v |= (col & ((1 << COL_WIDTH) - 1)) << (OP_W + RKW + BKW + ROW_WIDTH)
+    v |= (ap & 1) << (OP_W + RKW + BKW + ROW_WIDTH + COL_WIDTH)
     return v
 
 

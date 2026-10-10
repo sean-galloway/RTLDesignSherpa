@@ -253,7 +253,7 @@ module pumice_core
 );
 
     localparam int PTRW = $clog2(NUM_ENTRIES);
-    localparam int CMD_DW = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1;
+    localparam int CMD_DW = $bits(dram_op_e) + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1;
     localparam int WD_DW  = 1 + DFI_STRB_WIDTH + DFI_DATA_WIDTH;
     localparam int RD_DW  = 1 + 2 + DFI_DATA_WIDTH;
 

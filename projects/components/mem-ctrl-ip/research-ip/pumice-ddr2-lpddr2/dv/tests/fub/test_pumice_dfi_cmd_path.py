@@ -33,16 +33,19 @@ _FILELIST = ("projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/"
              "rtl/filelists/fub/pumice_dfi_cmd_path.f")
 
 RKW, BKW, RW, CW = 1, 3, 14, 10
+OP_W = 5                    # family dram_op_e width (mc_common_pkg, Phase 2
+                            # extraction); was 4 in pumice_pkg's retired enum.
+                            # Must match the RTL CMD_DW op term ($bits(dram_op_e)).
 
 
 def pack(op, rank, bank, row, col, ap):
     # {ap, col, row, bank, rank, op}
-    v = op & 0xF
-    v |= (rank & ((1 << RKW) - 1)) << 4
-    v |= (bank & ((1 << BKW) - 1)) << (4 + RKW)
-    v |= (row & ((1 << RW) - 1)) << (4 + RKW + BKW)
-    v |= (col & ((1 << CW) - 1)) << (4 + RKW + BKW + RW)
-    v |= (ap & 1) << (4 + RKW + BKW + RW + CW)
+    v = op & ((1 << OP_W) - 1)
+    v |= (rank & ((1 << RKW) - 1)) << OP_W
+    v |= (bank & ((1 << BKW) - 1)) << (OP_W + RKW)
+    v |= (row & ((1 << RW) - 1)) << (OP_W + RKW + BKW)
+    v |= (col & ((1 << CW) - 1)) << (OP_W + RKW + BKW + RW)
+    v |= (ap & 1) << (OP_W + RKW + BKW + RW + CW)
     return v
 
 

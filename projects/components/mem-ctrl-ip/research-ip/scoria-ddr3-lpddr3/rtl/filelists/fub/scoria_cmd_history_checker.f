@@ -11,5 +11,6 @@
 # of its closure. It was missing: this filelist declared only an incdir and the
 # module, so elaborating it alone has never worked (dram_op_e referenced before
 # declaration). Matches how the sibling fub filelists list it.
+-f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/includes/mc_common_pkg.f
 $REPO_ROOT/projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/rtl/includes/scoria_pkg.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/rtl/fub/scoria_cmd_history_checker.sv

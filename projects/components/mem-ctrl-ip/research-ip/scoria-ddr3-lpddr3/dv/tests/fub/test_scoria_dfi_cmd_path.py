@@ -46,18 +46,22 @@ OP_NOP, OP_ACT, OP_RD, OP_RDA, OP_WR, OP_WRA = 0x0, 0x1, 0x2, 0x3, 0x4, 0x5
 OP_PRE, OP_PREA, OP_REF = 0x6, 0x7, 0x8
 
 NUM_BANKS, ROW_WIDTH, COL_WIDTH, DFI_RATE = 8, 14, 10, 4
-MEMTYPE_DDR3 = 0            # memtype_e: scoria_pkg's first entry
+MEMTYPE_DDR3 = 0b001        # family encoding (mc_common_pkg, doc 01); was 0 in scoria_pkg's retired 1-bit enum
 ADDR_W = 14                 # DFI_ADDR_WIDTH
+
+OP_W = 5                    # family dram_op_e width (mc_common_pkg, Phase 2
+                            # extraction); was 4 in scoria_pkg's retired enum.
+                            # Must match the RTL CMD_DW op term ($bits(dram_op_e)).
 
 
 def pack(op, *, bank=0, row=0, col=0, rank=0, ap=0):
     """{ap, col, row, bank, rank, op} -- op in the low bits."""
-    v = op & 0xF
-    v |= (rank & 0x1) << 4
-    v |= (bank & 0x7) << 5
-    v |= (row & ((1 << ROW_WIDTH) - 1)) << 8
-    v |= (col & ((1 << COL_WIDTH) - 1)) << (8 + ROW_WIDTH)
-    v |= (ap & 0x1) << (8 + ROW_WIDTH + COL_WIDTH)
+    v = op & ((1 << OP_W) - 1)
+    v |= (rank & 0x1) << OP_W
+    v |= (bank & 0x7) << (OP_W + 1)
+    v |= (row & ((1 << ROW_WIDTH) - 1)) << (OP_W + 1 + 3)
+    v |= (col & ((1 << COL_WIDTH) - 1)) << (OP_W + 1 + 3 + ROW_WIDTH)
+    v |= (ap & 0x1) << (OP_W + 1 + 3 + ROW_WIDTH + COL_WIDTH)
     return v
 
 

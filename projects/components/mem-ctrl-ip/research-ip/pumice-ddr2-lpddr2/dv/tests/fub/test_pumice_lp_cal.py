@@ -37,7 +37,7 @@ class LpCalTB(TBBase):
         self.dut.cal_start_i.value = 0
         self.dut.cal_abort_i.value = 0
         self.dut.init_done_i.value = 0
-        self.dut.memtype_i.value = 1           # LPDDR2
+        self.dut.memtype_i.value = 0b100      # LPDDR2 (family encoding, mc_common_pkg)
         self.dut.t_mrr_i.value = t_mrr
         self.dut.t_readout_i.value = t_readout
         self.dut.cmd_grant_i.value = 0

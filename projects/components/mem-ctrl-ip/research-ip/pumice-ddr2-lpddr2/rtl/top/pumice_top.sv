@@ -195,9 +195,15 @@ module pumice_top
     );
 
     // ---- config from CSR (by-name hwif_out) ----
+    // Legacy CSR values map onto the family memtype_e (mc_common_pkg, doc 01
+    // Table 1.0): the PHY_TIMING.memtype field keeps its 1-bit 0=DDR2 /
+    // 1=LPDDR2 encoding (zero-CSR-visible-change ruling, see common-ip/docs/
+    // mc_common_pkg_knobs.md); LPDDR2 is 3'b100 in the family enum, so the
+    // raw cast would have aliased it to MEMTYPE_DDR3.
     memtype_e         w_memtype;
     page_policy_e     w_page_policy;
-    assign w_memtype     = memtype_e'(hwif_out.PHY_TIMING.memtype.value);
+    assign w_memtype     = (hwif_out.PHY_TIMING.memtype.value == 1'b0)
+                           ? MEMTYPE_DDR2 : MEMTYPE_LPDDR2;
     // REFRESH_TUNING.page_policy_or uses the SOFTWARE encoding (0=use build
     // default, 1=OPEN, 2=CLOSE, 3=HYBRID) while page_policy_e is OPEN=0/
     // CLOSE=1/HYBRID=2. The old raw cast made software-OPEN run CLOSE and

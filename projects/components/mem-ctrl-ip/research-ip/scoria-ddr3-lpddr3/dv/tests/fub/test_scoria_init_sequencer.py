@@ -41,7 +41,7 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, sim_build_path
 
-MEMTYPE_DDR3, MEMTYPE_LPDDR3 = 0, 1
+MEMTYPE_DDR3, MEMTYPE_LPDDR3 = 0b001, 0b101  # family encoding (mc_common_pkg, doc 01 Table 1.0)
 DDR3_DLL_RESET = 1 << 8          # MR0 A8, JESD79-3F 3.4.2.4
 
 

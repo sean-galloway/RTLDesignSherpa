@@ -32,8 +32,8 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, sim_build_path
 
-MEMTYPE_DDR3   = 0
-MEMTYPE_LPDDR3 = 1
+MEMTYPE_DDR3   = 0b001  # family encoding (mc_common_pkg, doc 01 Table 1.0)
+MEMTYPE_LPDDR3 = 0b101
 
 #: JESD79-3F Table: MR0[11:9] -> tWR in cycles. Transcribed from the spec, not
 #: from the RTL. 000 == 16 is the non-monotonic entry.

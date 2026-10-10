@@ -80,9 +80,12 @@ OP_SREFE = 0xD
 OP_SREFX = 0xE
 OP_DPDE  = 0xF
 
-# memtype_e
-MEMTYPE_DDR2   = 0
-MEMTYPE_LPDDR2 = 1
+# memtype_e — family encoding (mc_common_pkg, family doc 01 Table 1.0):
+# bit[2] LP axis, bits[1:0] generation. The RTL enum widened 1->3 bits in
+# the Phase 2 extraction (common-ip/docs/mc_common_pkg_knobs.md); these
+# mirrors must use the family values, not the retired 1-bit encoding.
+MEMTYPE_DDR2   = 0b000
+MEMTYPE_LPDDR2 = 0b100
 
 
 # ---------------------------------------------------------------------------

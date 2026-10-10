@@ -92,7 +92,7 @@ module scoria_dfi_cmd_path
     parameter int PHW = (DFI_RATE > 1) ? $clog2(DFI_RATE) : 1,
     // Packed command word: {ap, col, row, bank, rank, op}  (matches the
     // scheduler's cmd FIFO packing).
-    parameter int CMD_DW = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1,
+    parameter int CMD_DW = $bits(dram_op_e) + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1,
     // Sub-command COUNT width: holds the value N_SUBCMD (1..N_SUBCMD), so it
     // needs clog2(N_SUBCMD+1) bits (clog2(N) alone cannot represent N).
     parameter int SUBW_MAX = $clog2(N_SUBCMD + 1)

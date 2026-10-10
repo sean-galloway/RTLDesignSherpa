@@ -72,7 +72,8 @@ OP_NAMES = {OP_NOP: 'NOP', OP_ACT: 'ACT', OP_RD: 'RD', OP_RDA: 'RDA',
             OP_ZQCS: 'ZQCS', OP_ZQCL: 'ZQCL'}
 
 PAGE_OPEN, PAGE_CLOSE = 0, 1
-MEMTYPE_DDR3, MEMTYPE_LPDDR3 = 0, 1
+MEMTYPE_DDR3, MEMTYPE_LPDDR3 = 0b001, 0b101  # family encoding (mc_common_pkg, doc 01 Table 1.0); the RTL enum
+# widened 1->3 bits in the Phase 2 extraction (common-ip/docs/mc_common_pkg_knobs.md)
 
 
 class ScoriaMemCmdSchedulerTB(TBBase):

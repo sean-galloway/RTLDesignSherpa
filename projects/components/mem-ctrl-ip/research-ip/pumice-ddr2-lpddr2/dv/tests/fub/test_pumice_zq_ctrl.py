@@ -35,7 +35,7 @@ class ZqTB(TBBase):
                     defer_en: int = 0, overdue_max: int = 0):
         self.dut.zq_en_i.value = 0
         self.dut.init_done_i.value = 0
-        self.dut.memtype_i.value = 1           # LPDDR2
+        self.dut.memtype_i.value = 0b100      # LPDDR2 (family encoding, mc_common_pkg)
         self.dut.t_zqcs_interval_i.value = interval
         self.dut.t_zqcs_i.value = t_zqcs
         self.dut.t_zqcl_i.value = t_zqcl

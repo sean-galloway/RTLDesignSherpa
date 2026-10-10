@@ -2,6 +2,7 @@
 +incdir+$REPO_ROOT/projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/rtl/includes
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 +incdir+$REPO_ROOT/rtl/amba/includes
+-f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/includes/mc_common_pkg.f
 $REPO_ROOT/projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/rtl/includes/scoria_pkg.sv
 -f $REPO_ROOT/rtl/common/filelists/counter_bin.f
 -f $REPO_ROOT/rtl/cdc/filelists/counter_johnson.f

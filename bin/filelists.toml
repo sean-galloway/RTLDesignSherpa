@@ -182,6 +182,15 @@ rtl_roots = ["projects/components/fabric-gen-ip/apbx-xbar/rtl"]
 filelist_dirs = ["projects/components/fabric-gen-ip/apbx-xbar/rtl/filelists"]
 
 [[area]]
+name = "mc_common"
+kind = "component"
+# Family-shared memory-controller layers (mem-ctrl-ip reorg Phase 2, spec
+# docs/superpowers/specs/2026-10-09-mem-ctrl-ip-reorg-design.md). The research
+# controllers -f these filelists as they adopt each common layer.
+rtl_roots = ["projects/components/mem-ctrl-ip/common-ip/rtl"]
+filelist_dirs = ["projects/components/mem-ctrl-ip/common-ip/rtl/filelists"]
+
+[[area]]
 name = "pumice"
 kind = "component"
 rtl_roots = ["projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl"]

@@ -2,7 +2,7 @@
 
 # pumice — bugs
 
-**Next ID: BUG-024** — never recycle a number, even when its item closed.
+**Next ID: BUG-025** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,11 +12,20 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 22 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
+
+## Open
+
+- **BUG-024** — pumice_zq_ctrl random_soak loses exactly one grant at some
+  SEED draws (`total() == grants` off by one; repro: `SEED=58170` on the
+  random_soak test). PROVEN PRE-EXISTING (reproduced on pristine 0a0a216c6);
+  surfaced 2026-10-10 during Phase 2 Task 1 and exonerated by A/B. Likely a
+  grant/accept one-cycle skew in a defer/overdue window; discriminator in
+  the item.
 
 ## Closed
 

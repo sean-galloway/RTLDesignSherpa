@@ -99,7 +99,7 @@ module pumice_dfi_layer
     // BL_WORDS (legacy); set separately when the DRAM beat != device word.
     parameter int RD_EN_CYC = BL_WORDS,
     // FIFO payloads
-    parameter int CMD_DW = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1,
+    parameter int CMD_DW = $bits(dram_op_e) + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1,
     parameter int WD_DW  = 1 + DFI_STRB_WIDTH + DFI_DATA_WIDTH,   // {last,strb,data}
     parameter int RD_DW  = 1 + 2 + DFI_DATA_WIDTH                 // {last,resp,data}
 ) (

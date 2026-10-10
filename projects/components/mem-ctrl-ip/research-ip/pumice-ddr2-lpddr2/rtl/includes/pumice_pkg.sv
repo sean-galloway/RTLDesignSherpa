@@ -5,11 +5,20 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: pumice_pkg
-// Purpose: Shared types and constants for the DDR2/LPDDR2 memory controller
+// Purpose: DDR2/LPDDR2-only extensions on top of the family common package
 //
 // Documentation:
 //   projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/pumice_has/
 //   projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/pumice_mas/
+//
+// Phase 2 (2026-10-10, mem-ctrl-ip reorg): the family-shared types
+// (memtype_e, dram_op_e, bank_state_e, page_policy_e, decoded_addr_t, and
+// the op-helper functions) moved to common-ip/rtl/includes/mc_common_pkg.sv
+// per family doc 01 (common-ip/docs/01_mem_ctrl_pkg.md) and the knob
+// inventory common-ip/docs/mc_common_pkg_knobs.md. This package keeps only
+// what is pumice-specific. The legacy 1-bit PHY_TIMING.memtype CSR values
+// are preserved; the hwif->family-enum mapping lives at the cast site in
+// pumice_top.sv.
 //
 // Author: sean galloway
 // Created: 2026-06-17
@@ -18,55 +27,8 @@
 
 package pumice_pkg;
 
-    //=========================================================================
-    // Memtype Enum (build-time selection)
-    //=========================================================================
-
-    typedef enum logic [0:0] {
-        MEMTYPE_DDR2   = 1'b0,
-        MEMTYPE_LPDDR2 = 1'b1
-    } memtype_e;
-
-    //=========================================================================
-    // DRAM Command Opcodes
-    //=========================================================================
-    // 4-bit encoding shared between scheduler, cmd_encoder, init_engine,
-    // refresh_mgr, power_state, and the CAMs. See MAS §2.14 for the
-    // wire-level translation per memtype.
-
-    typedef enum logic [3:0] {
-        OP_NOP    = 4'h0,
-        OP_ACT    = 4'h1,
-        OP_RD     = 4'h2,
-        OP_RDA    = 4'h3,   // RD with auto-precharge
-        OP_WR     = 4'h4,
-        OP_WRA    = 4'h5,   // WR with auto-precharge
-        OP_PRE    = 4'h6,
-        OP_PREA   = 4'h7,   // PRE all banks
-        OP_REF    = 4'h8,   // REFab (all-bank refresh)
-        OP_REFPB  = 4'h9,   // REFpb (per-bank, LPDDR2 only)
-        OP_MRS    = 4'hA,
-        OP_ZQCS   = 4'hB,
-        OP_ZQCL   = 4'hC,
-        OP_SREFE  = 4'hD,   // Self-refresh entry
-        OP_SREFX  = 4'hE,   // Self-refresh exit
-        OP_DPDE   = 4'hF    // Deep-power-down entry (LPDDR2 only)
-    } dram_op_e;
-
-    //=========================================================================
-    // Bank-Machine State
-    //=========================================================================
-    // See HAS §3.3 / MAS §2.9.
-
-    typedef enum logic [2:0] {
-        BANK_IDLE        = 3'h0,
-        BANK_ACTIVATING  = 3'h1,
-        BANK_ACTIVE      = 3'h2,
-        BANK_RD_BUSY     = 3'h3,
-        BANK_WR_BUSY     = 3'h4,
-        BANK_PRECHARGING = 3'h5,
-        BANK_REFRESHING  = 3'h6
-    } bank_state_e;
+    import mc_common_pkg::*;
+    export mc_common_pkg::*;
 
     //=========================================================================
     // Address-Map Scheme
@@ -85,21 +47,6 @@ package pumice_pkg;
     } addr_map_scheme_e;
 
     //=========================================================================
-    // Page Policy
-    //=========================================================================
-
-    typedef enum logic [1:0] {
-        PAGE_POLICY_OPEN         = 2'h0,
-        PAGE_POLICY_CLOSE        = 2'h1,
-        // 2'h2 was PAGE_POLICY_HAPPY_HYBRID -- retired 2026-08-25. The HAPPY
-        // predictor was never wired into the rearchitected core (the arbiter
-        // treated HYBRID as OPEN), and its Happy-paper successors live in
-        // pumice_page_policy behind PAGE_POLICY_CFG.policy_mode (adapt_time /
-        // adapt_access).
-        PAGE_POLICY_RSVD         = 2'h3
-    } page_policy_e;
-
-    //=========================================================================
     // ODT Rule (multi-rank)
     //=========================================================================
     // See HAS §3.6 / MAS §2.16.
@@ -110,42 +57,5 @@ package pumice_pkg;
         ODT_RULE_JEDEC_LPDDR2 = 2'h2,
         ODT_RULE_OFF          = 2'h3    // Forced when NUM_RANKS == 1
     } odt_rule_e;
-
-    //=========================================================================
-    // Per-(rank,bank) Decoded Address Tuple
-    //=========================================================================
-    // Output of addr_mapper, consumed by the CAMs.
-
-    typedef struct packed {
-        logic [3:0] rank;     // pad to 4 bits; actual width is $clog2(NUM_RANKS)
-        logic [3:0] bank;     // pad to 4 bits; actual width is $clog2(NUM_BANKS)
-        logic [17:0] row;     // pad for up to 18-bit rows (DDR3 forward-compat)
-        logic [13:0] col;     // pad for up to 14-bit cols
-    } decoded_addr_t;
-
-    //=========================================================================
-    // Helpers
-    //=========================================================================
-
-    function automatic logic is_column_op (input dram_op_e op);
-        return (op == OP_RD)  || (op == OP_RDA)
-            || (op == OP_WR)  || (op == OP_WRA);
-    endfunction
-
-    function automatic logic is_write_op (input dram_op_e op);
-        return (op == OP_WR) || (op == OP_WRA);
-    endfunction
-
-    function automatic logic is_read_op (input dram_op_e op);
-        return (op == OP_RD) || (op == OP_RDA);
-    endfunction
-
-    function automatic logic is_refresh_op (input dram_op_e op);
-        return (op == OP_REF) || (op == OP_REFPB);
-    endfunction
-
-    function automatic logic has_auto_pre (input dram_op_e op);
-        return (op == OP_RDA) || (op == OP_WRA);
-    endfunction
 
 endpackage : pumice_pkg

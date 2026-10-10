@@ -11,5 +11,6 @@
 # of its closure. It was missing: this filelist declared only an incdir and the
 # module, so elaborating it alone has never worked (dram_op_e referenced before
 # declaration). Matches how the sibling fub filelists list it.
+-f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/includes/mc_common_pkg.f
 $REPO_ROOT/projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/rtl/includes/andesite_pkg.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/rtl/fub/andesite_cmd_history_checker.sv

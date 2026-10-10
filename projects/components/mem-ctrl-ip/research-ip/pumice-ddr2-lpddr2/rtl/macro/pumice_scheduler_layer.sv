@@ -557,7 +557,7 @@ module pumice_scheduler_layer
     // ======================================================================
     // Output command FIFO (scheduler -> DFI). Packs {op,rank,bank,row,col,ap}.
     // ======================================================================
-    localparam int CMD_W = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1;
+    localparam int CMD_W = $bits(dram_op_e) + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1;
     logic [CMD_W-1:0] w_cmd_wr_data, w_cmd_rd_data;
     assign w_cmd_wr_data = {a_cmd_mrr, a_cmd_ap, a_cmd_col, a_cmd_row, a_cmd_bank, a_cmd_rank,
                             a_cmd_op};

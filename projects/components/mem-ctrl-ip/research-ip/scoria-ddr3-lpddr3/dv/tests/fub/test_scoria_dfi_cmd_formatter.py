@@ -65,7 +65,7 @@ TRUTH = {
     "NOP":  (H, H, H, V),
 }
 
-MEMTYPE_DDR3 = 0
+MEMTYPE_DDR3 = 0b001  # family encoding (mc_common_pkg, doc 01 Table 1.0)
 DFI_RATE = int(os.environ.get("DFI_RATE_P", "4"))
 ADDR_W = 14
 
