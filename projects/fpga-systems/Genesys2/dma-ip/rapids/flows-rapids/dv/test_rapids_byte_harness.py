@@ -145,9 +145,21 @@ async def cocotb_test_observer_moncap(dut):
 
     await tb.setup_clocks_and_reset()
 
-    assert tb.io.csr_field("BUILD", "OBSERVERS") == 1, "BUILD.OBSERVERS mismatch"
-    assert tb.io.csr_field("BUILD", "MON_CAPTURE") == 1, "BUILD.MON_CAPTURE mismatch"
-    assert tb.io.csr_field("BUILD", "GEN_MON") == 0, \
+    # RapidsByteIO methods are SYNCHRONOUS (they block on UART byte I/O) and
+    # must run on the worker thread via bridge -- calling one bare from this
+    # coroutine returns garbage. All CSR access below happens inside prog().
+    def _probe_build():
+        raw = tb.io.csr_read_reg("BUILD")
+        return raw, {k: tb.io.csr_field("BUILD", k)
+                     for k in ("OBSERVERS", "MON_CAPTURE", "GEN_MON")}
+
+    build_raw, bf = await bridge(_probe_build)()
+    tb.log.info(f"BUILD raw = 0x{build_raw:08X} "
+                f"(OBSERVERS={bf['OBSERVERS']} GEN_MON={bf['GEN_MON']} "
+                f"MON_CAPTURE={bf['MON_CAPTURE']})")
+    assert bf["OBSERVERS"] == 1, "BUILD.OBSERVERS mismatch"
+    assert bf["MON_CAPTURE"] == 1, "BUILD.MON_CAPTURE mismatch"
+    assert bf["GEN_MON"] == 0, \
         "observer-only topology required (GEN_MON=0): the in-core monitor stream owns the buffer otherwise"
 
     active = list(range(tb.NUM_ACTIVE))
@@ -180,7 +192,8 @@ async def cocotb_test_observer_moncap(dut):
     # observer (s_axis ingress): both streams must be represented.
     assert 0 in protos and 1 in protos, (
         f"expected both AXI (0) and AXIS (1) observer records, got protocols {protos}")
-    shown = [f"{r.get_protocol_name()}/{r.get_packet_type_name()}/0x{r.event_code:02X}/ch{r.channel_id}"
+    shown = [f"{r.packet.get_protocol_name()}/{r.packet.get_packet_type_name()}"
+             f"/0x{r.packet.event_code:02X}/ch{r.packet.channel_id}"
              for r in records[:8]]
     tb.log.info(f"observer moncap: {n_words} words, {len(records)} records, "
                 f"protocols {protos}; first records: {shown}")

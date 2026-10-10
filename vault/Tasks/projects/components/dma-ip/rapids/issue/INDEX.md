@@ -12,22 +12,22 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 6 | done (kept for history) |
+| [closed/](closed/) | 7 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-007** — MONCAP reads nothing on observer-only rapids builds: the
-  interface observers' monbus goes to a discard responder, the capture
-  buffer sources only rapids_top's in-core monitor stream. Board A/B of the
-  TASK-003 tap swap used observer telemetry instead (exact old≡lite match);
-  per-class board readout needs the proposed gen_moncap source hookup or a
-  declared out-of-scope.
+(none)
 
 ## Closed
+
+- **ISSUE-007** — MONCAP reads nothing on observer-only rapids builds (closed
+  2026-10-09: gen_moncap captures the observers' monbus when GEN_MON=0, with
+  record-contiguous arbitration; both observer protocols board-decodable, sim
+  27 words / 9 records AXI+AXIS)
 
 - **ISSUE-005** — SCHED_CONFIG.COMPL_EN now gates the scheduler's and descriptor engine's CORE Completion packets at the group; OFF and ON states tested (closed 2026-09-29)
 

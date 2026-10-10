@@ -1,8 +1,42 @@
 # ISSUE-007: MONCAP reads nothing on observer-only rapids builds -- the interface observers' monbus never reaches the capture buffer
 
 **Priority:** P3
-**Status:** open
+**Status:** FIXED 2026-10-09 (sim-verified; board readout now structurally possible). `gen_moncap` captures the interface observers' monbus when `GEN_MON=0`, with record-contiguous two-source arbitration. The per-class packet matrix the TASK-003 board leg wanted is now board-readable on the observer-only topology.
 **Owner:** TBD
+
+## Fix (2026-10-09)
+
+`flows-rapids/rtl/rapids_byte_harness.sv`:
+
+1. The observers' EGRESS_AXIL write data was **unconnected at the harness
+   boundary** (`m_axil_wdata()` open on both `u_obs_axi` and `u_obs_axis`) --
+   the deeper reason no observer record could ever reach anything. The
+   observers' `wvalid/wdata/wready` are now module-scope signals
+   (`obs_oa_*` / `obs_ox_*`) so the capture buffer -- a sibling generate
+   block -- can store the beats.
+2. `gen_moncap` source mux: `CAP_OBS = !GEN_MON && USE_OBSERVERS`. In-core
+   monitor builds (`GEN_MON=1`) keep today's behavior exactly; observer-only
+   builds capture the observers' RAW 3-beat records instead.
+3. Record-contiguous arbitration: both observers share the one-word-wide
+   buffer, so a **grant-lock** (beats granted mod 3) keeps each record's
+   beats adjacent -- the host's fixed-stride decoder never sees an
+   interleaved record. Round-robin applies only at record boundaries; the
+   losing observer is stalled via `wready` (AXI holds), making capture
+   lossless until the documented stop-on-full point (which keeps its
+   drop contract: `wready` stays 1, the push is gated, `WRAPPED` reports).
+4. Responder model counters now tally ACCEPTED beats (`wvalid && wready`)
+   so the B model stays exact under the new backpressure; with no buffer
+   (`MON_CAPTURE=0`) or no observers, behavior is bit-identical to before.
+
+New sim: `test_rapids_byte_harness_observer_moncap`
+(`cocotb_test_observer_moncap`) -- builds `USE_OBSERVERS=1,
+OBS_ENABLE_MON_TAPS=1, MON_CAPTURE=1, GEN_MON=0`, runs a SINK
+self-check, reads the buffer back over the same CSRs the board host uses
+(MONCAP_CNT/SEL/LO/HI) and decodes with the shared `TBClasses.monbus`
+parser. Result: **27 words, 9 records, protocols [0, 1]** -- AXIS
+observer completions on ch0-3 and AXI observer completions (plus two
+Error/0x0B tap observations) all decode cleanly. Existing sink/source
+self-checks on the default build unchanged.
 
 ## Observation
 
