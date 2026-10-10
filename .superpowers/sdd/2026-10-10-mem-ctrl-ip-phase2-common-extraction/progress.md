@@ -293,3 +293,50 @@ out of scope per the brief.
 
 RESUME HERE: training-layer shell refactor (plan Task 4) — then scheduler
 merge and remaining DFI revs (scoria 3.1, andesite 4.0).
+
+PRODUCT-IP NAMING (partner, 2026-10-10 — authoritative for the future
+mem-ctrl-ip/product-ip/ area): granite = v2 = product DDR2/LPDDR2 (research
+line: pumice; DFI: mc_dfi_2p1_layer). gabbro = v3 = product DDR3/LPDDR3
+(scoria; mc_dfi_3p1_layer when extracted). diorite = v4 = product DDR4/LPDDR4
+(andesite; mc_dfi_4p0_layer). Theme: research = extrusive rocks, product =
+intrusive rocks. Common-ip stack (axi4/storage/ras/dfi_2p1/training) serves
+all three product lines + the research rocks.
+GRANITE TEST-BED ROLE (partner, 2026-10-10): granite (product v2) doubles as
+the config that runs WITHOUT storage/ras to prove the layers are truly
+optional -- and as the small-area SKU (DDR2/LPDDR2 long-tail embedded).
+Design rule banked: every optional layer must present a zero-cost bypass.
+RAS-off = genuine bypass (Task B skeleton guarantee: HAS_ECC=OFF elaborates
+to wiring). Storage-"off" = LITE config, not omission: the schedulable-entry
+store cannot be zero (scheduler argmax needs entries, even in-order needs a
+shallow store); granite runs mc_storage_layer with collapsed params
+(small NUM_ENTRIES, future policy narrowing via the POLICY_* knob), the
+layer BOUNDARY being what's droppable, not the function.
+SCHEDULER ENTRY-VIEW SEAM (partner, 2026-10-10): the scheduler's upstream
+contract = a 'schedulable-entry view' ANY producer can serve: per-entry
+valid + vector bundle ({bank,row,col,qos,age/older,boost}) + removal via
+the existing commit/issue strobes. mc_storage_layer serves N=8; a stripped
+axi4 layer can serve N=1 (intake decodes AW/AR to slot 0, pops on commit) --
+same interface at two depths, scheduler RTL unchanged, only NUM_ENTRIES and
+the producer swap (granite-minimal). Notes: older-matrix degenerates at N=1
+(cross-direction = boundary age compare, keep age vector N=1-safe); entry
+bookkeeping can collapse to 1 but the wr-DATA holding buffer cannot reach 0
+(write data must live between W handshake and DFI issue) -- granite-lite
+keeps a 1-deep wr-data buffer, just not a 'CAM layer'.
+
+Task 4: mc_training_layer shell extracted; pumice/andesite/scoria training
+layers converted to thin rock-side wrappers. Shell provides 2-slot
+fixed-priority arbitration + optional cal-data CDC. Pumice: slot 0 =
+pumice_zq_ctrl, slot 1 = pumice_lp_cal; trn_cmd_extra maps to trn_cmd_mrr.
+Andesite: slot 0 = andesite_rdlvl_ifc (MRS), slot 1 = andesite_ca_train_ifc
+(MPC); trn_cmd_row -> trn_cmd_addr, trn_cmd_extra -> trn_cmd_mpc. Scoria:
+slot 0 = scoria_zq_ctrl, slot 1 tied off; scoria_wrlvl_ifc moved into the
+wrapper. Scoria scheduler/core stripped of zq/wrlvl internals; training
+wrapper sits between scheduler and DFI layer. Scoria scheduler-layer test
+updated to drop ZQ cases (ZQ now lives in training layer). Verification:
+common lint PASS, pumice lint PASS, pumice run-all-func 215 passed, andesite
+lint PASS, andesite pytest 247 passed, scoria lint PASS, scoria pytest 227
+passed. Registry check PASS; audit PASS; links 0 broken; task-ids PASS.
+- commit <TODO>: common shell + wrappers + scoria refactor + test updates.
+
+RESUME HERE: scheduler merge (Task 5) and remaining DFI revs (scoria 3.1,
+andesite 4.0).
