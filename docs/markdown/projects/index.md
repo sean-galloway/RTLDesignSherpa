@@ -172,10 +172,10 @@ Collection of legacy and retro-computing peripherals for historical SoC designs.
 ---
 
 #### Hive
-**Location:** [`projects/components/compute-eng-ip/hive/`](../../../projects/components/compute-eng-ip/hive/)
+**Location:** [`projects/components/riscv-ip/hive-serv/`](../../../projects/components/riscv-ip/hive-serv/)
 
 **Documentation:**
-- [Specification](../../../projects/components/compute-eng-ip/hive/docs/)
+- [Specification](../../../projects/components/riscv-ip/hive-serv/docs/)
 
 ---
 

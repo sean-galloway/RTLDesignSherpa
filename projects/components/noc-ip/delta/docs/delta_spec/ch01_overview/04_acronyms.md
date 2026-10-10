@@ -54,7 +54,7 @@
 - **RAPIDS DMA**: Rapid AXI Programmable In-band Descriptor System
   - See `projects/components/dma-ip/rapids/docs/rapids_beats_has/` and `rapids_beats_mas/`
 - **HIVE Control**: VexRiscv-based control plane
-  - See `projects/components/compute-eng-ip/hive/` (if available)
+  - See `projects/components/riscv-ip/hive-serv/` (re-homed from compute-eng-ip 2026-10-10)
 
 ### Academic References
 - Dally, W. J., & Towles, B. (2004). "Principles and Practices of Interconnection Networks"

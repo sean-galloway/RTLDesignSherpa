@@ -101,7 +101,7 @@ graph TD
 | **[APB Crossbar](../../projects/components/fabric-gen-ip/apbx-xbar)** | Ready | M×N APB interconnect |
 | **[Retro Legacy](../../projects/components/retro_legacy_blocks)** | Ready | HPET, PIC, PIT, RTC, UART, GPIO, etc. |
 | **[Delta](../../projects/components/noc-ip/delta)** | Planned | Network-on-Chip mesh |
-| **[HIVE](../../projects/components/compute-eng-ip/hive)** | Planned | Distributed RISC-V control |
+| **[HIVE](../../projects/components/riscv-ip/hive-serv)** | Planned | Distributed RISC-V control |
 
 ### Verification
 - **[Common Tests](../../val/common)** - Unit tests for common modules
@@ -287,7 +287,7 @@ Collection of 9 legacy/retro peripherals with full APB interfaces:
 | Component | Status | Description |
 |-----------|--------|-------------|
 | **[Delta](../../projects/components/noc-ip/delta)** | Planned | 4×4 Network-on-Chip mesh with virtual channels |
-| **[HIVE](../../projects/components/compute-eng-ip/hive)** | Planned | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
+| **[HIVE](../../projects/components/riscv-ip/hive-serv)** | Planned | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
 | **BCH** | Planned | BCH error correction encoder/decoder (no RTL yet) |
 
 ---
@@ -441,7 +441,7 @@ rtldesignsherpa/
 │   │   ├── apbx_xbar/            # APB crossbar
 │   │   ├── retro_legacy_blocks/ # 9 legacy peripherals
 │   │   ├── delta/               # Network-on-Chip (planned)
-│   │   ├── hive/                # RISC-V control (planned)
+│   │   ├── hive-serv/           # SERV compute cluster (riscv-ip, planned)
 │   │   └── bch/                 # BCH ECC (planned)
 │   └── NexysA7/                 # FPGA projects
 │

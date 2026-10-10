@@ -222,7 +222,7 @@ When adding new projects:
 | [rapids](components/dma-ip/rapids/) | Active | [PRD](components/dma-ip/rapids/PRD.md) · [spec](components/dma-ip/rapids/docs/) · char: [report](fpga-systems/Genesys2/dma-ip/rapids_beats/docs/rapids_beats_findings.md) |
 | [bridge](components/fabric-gen-ip/bridge/) | Active | [PRD](components/fabric-gen-ip/bridge/PRD.md) |
 | [mem-ctrl-ip](components/mem-ctrl-ip/) | Active | [README](components/mem-ctrl-ip/README.md) · char: [ddr2](fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/) |
-| [hive](components/compute-eng-ip/hive/) | Retired 2026-09-27 | [PRD](components/compute-eng-ip/hive/PRD.md) · [spec](components/compute-eng-ip/hive/docs/hive_spec/) |
+| [hive-serv](components/riscv-ip/hive-serv/) | Re-homed 2026-10-10 (retired 2026-09-27, revived) | [PRD](components/riscv-ip/hive-serv/PRD.md) · [spec](components/riscv-ip/hive-serv/docs/hive_spec/) |
 | [delta](components/noc-ip/delta/) | Retired 2026-09-27 | [PRD](components/noc-ip/delta/PRD.md) · [spec](components/noc-ip/delta/docs/delta_spec/) |
 | [retro_legacy_blocks](components/retro_legacy_blocks/) | Active | [PRD](components/retro_legacy_blocks/PRD.md) |
 | [misc](components/utility-ip/misc/) | — | [README](components/utility-ip/misc/README.md) |

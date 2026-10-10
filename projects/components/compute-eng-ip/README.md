@@ -29,4 +29,4 @@ tree was regrouped into `*-ip` families.
 
 | Directory | What | Status |
 |---|---|---|
-| [`hive/`](hive/) | the Hive compute cluster (spec pages only, no RTL begun) | **retired 2026-09-27**, kept as it was; its spec cross-references the DMA and NoC families |
+| _(hive re-homed to [riscv-ip/hive-serv](../riscv-ip/hive-serv/) 2026-10-10 — a SERV-based RISC-V block belongs in the falcon suite area)_ | | |

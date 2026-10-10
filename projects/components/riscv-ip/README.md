@@ -55,6 +55,15 @@ not `kestrel`. The bare codename is how the core is referred to in prose
 | [`gyrfalcon-rv32im/`](gyrfalcon-rv32im/) | **gyrfalcon** | RV32IM | out-of-order capstone: rename, ROB, reservation stations | Planned; structure only |
 | [`garuda-rv32imf/`](garuda-rv32imf/) | **garuda** | RV32IMF | gyrfalcon's OoO plus an FPU: FP register file + rename, fcsr precise flags, non-pipelined long-latency units | Planned; structure only (penciled in; beyond the 2026-10-06 design spec, which pins four rungs) |
 
+### Adjacent: hive-serv
+
+[`hive-serv/`](hive-serv/) — the SERV-based compute cluster (1 VexRiscv control
+plane + 16 SERV monitor cores). Not a falcon-ladder rung: it *uses* RISC-V
+cores rather than teaching one, so it lives beside the ladder rather than on
+it. Re-homed from `compute-eng-ip/hive` 2026-10-10 (it was retired
+2026-09-27 as an unstarted component; the re-home revives it under the
+falcon suite). Spec pages only — no RTL yet.
+
 ## Goals per rung
 
 **kestrel — see everything.** Single-cycle RV32I: PC, register file, ALU,

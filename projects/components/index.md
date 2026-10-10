@@ -49,7 +49,7 @@ This directory contains production-ready and in-development component projects f
 | **misc** | Production | [utility-ip/misc/](utility-ip/misc/) | [README](utility-ip/misc/README.md) |
 | **ecc-ip / Reed-Solomon** | Stand-up (2026-09-29): references + draft PRD, no RTL | [ecc-ip/reed-solomon/](ecc-ip/reed-solomon/) | [family README](ecc-ip/README.md), [PRD (draft)](ecc-ip/reed-solomon/PRD.md), [References](ecc-ip/reed-solomon/References/README.md) |
 | **Delta** | Retired 2026-09-27 (no tests, spec unwritten) | [noc-ip/delta/](noc-ip/delta/) | [Specification](noc-ip/delta/docs/delta_spec/delta_index.md) |
-| **Hive** | Retired 2026-09-27 (nothing begun) | [compute-eng-ip/hive/](compute-eng-ip/hive/) | [Specification](compute-eng-ip/hive/docs/hive_spec/hive_index.md) |
+| **hive-serv (SERV compute cluster)** | Re-homed 2026-10-10 from compute-eng-ip/hive (retired 2026-09-27; revived as a riscv-ip area — 1 VexRiscv + 16 SERV cores, spec only, no RTL yet) | [riscv-ip/hive-serv/](riscv-ip/hive-serv/) | [Specification](riscv-ip/hive-serv/docs/hive_spec/hive_index.md) |
 | **amber (blocking MESI snoopy L1 cache)** | Planned — first of the [cache-ip/](cache-ip/) gemstone family; [README](cache-ip/amber-mesi-l1/README.md) + [PRD](cache-ip/amber-mesi-l1/PRD.md) scaffolded | [cache-ip/amber-mesi-l1/](cache-ip/amber-mesi-l1/) | — |
 | **jet (lockup-free MESI snoopy L1)** | Planned — non-blocking (MSHR) follow-on to amber; [README](cache-ip/jet-mesi-l1/README.md) + [PRD](cache-ip/jet-mesi-l1/PRD.md) scaffolded | [cache-ip/jet-mesi-l1/](cache-ip/jet-mesi-l1/) | — |
 
@@ -78,7 +78,7 @@ This directory contains production-ready and in-development component projects f
 
 **Other:**
 - [Delta](noc-ip/delta/) - retired NoC component, kept as it was
-- [Hive](compute-eng-ip/hive/) - retired compute-engine component, kept as it was
+- [hive-serv](riscv-ip/hive-serv/) - SERV compute cluster, re-homed from compute-eng-ip 2026-10-10 (retired 2026-09-27, revived)
 
 ---
 

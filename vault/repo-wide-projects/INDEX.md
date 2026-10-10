@@ -41,7 +41,7 @@ note — it belongs to that block and nowhere else.
 - `ecc-ip/reed-solomon` — v1.0 (2026-10-06); area exists in the repo, no context note written yet
 - [dma-ip/rapids](projects/components/dma-ip/rapids/INDEX.md) — beats rearchitecture; v1.0 (2026-10-06)
 - [dma-ip/stream](projects/components/dma-ip/stream/INDEX.md) — reference DV implementation; v1.0 (2026-10-06)
-- [hive](projects/components/compute-eng-ip/hive/INDEX.md)
+- [hive-serv](../../projects/components/riscv-ip/hive-serv/PRD.md) — re-homed from compute-eng-ip/hive 2026-10-10
 - [mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2](projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/INDEX.md) — board-validated
 - [mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3](projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/INDEX.md)
 - [andesite-ddr4-lpddr4](projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/INDEX.md)
