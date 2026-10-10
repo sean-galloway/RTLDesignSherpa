@@ -58,7 +58,7 @@ lineage, the JEDEC generation deltas.
 | PHY boundary | DFI 4.0 (ACT_n, gear-down, CA parity/`alert_n`, DBI wires); the BFM is andesite TASK-005 | Ch 4 |
 | Design point | DDR4-1600 x8, 4 bank groups x 4 banks = 16 banks (MT40A1G8-class); LPDDR4-1600 x16, 8 banks per channel; timings runtime CSRs | Ch 2.4 |
 | Book shape | One DDR4-led book, LPDDR4 per-chapter deltas, sim-only (no board — 7-series targets carry no DDR4) | Ch 2 |
-| Shared core | `mem_ctrl_pkg` design lives at family level (`mem-ctrl-ip/docs/`); this book references it | Ch 1.2, Ch 5 |
+| Shared core | `mem_ctrl_pkg` design lives at family level (`mem-ctrl-ip/common-ip/docs/`); this book references it | Ch 1.2, Ch 5 |
 | Kmap depth | Command-encoding focused, generated with `bin/kmaps` | andesite TASK-004 |
 
 : Table 0.0: Settled decisions binding on this specification

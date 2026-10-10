@@ -53,7 +53,7 @@ this index, and these are companions, not chapters.
 - **HAS** - `projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/docs/scoria_has/scoria_has_index.md` - the architecture this document takes one level down (v0.9)
 - **PRD** - `projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/PRD.md` - product requirements
 - **design requirements** - `projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/docs/design-requirements.md` - the delta analysis against JESD79-3F / JESD209-3C / DFI 3.1 that binds the HAS, and through it this book
-- **Family docs** - `projects/components/mem-ctrl-ip/docs/` - the shared-core design and family doctrine this book follows
+- **Family docs** - `projects/components/mem-ctrl-ip/common-ip/docs/` - the shared-core design and family doctrine this book follows
 - **pumice MAS** - `projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/pumice_mas/` - the book this one inherits its block mechanisms from
 - **andesite MAS** - `projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/docs/andesite_mas/` - the downstream consumer: andesite's inherited-unchanged blocks are referenced to this book's pages, not rewritten
 - **Family README** - `projects/components/mem-ctrl-ip/README.md` - family overview and per-IP status

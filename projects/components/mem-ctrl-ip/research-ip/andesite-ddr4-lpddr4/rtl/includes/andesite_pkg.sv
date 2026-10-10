@@ -11,7 +11,7 @@
 //   projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/docs/andesite_has/
 //
 // Derived from scoria_pkg (DDR3/LPDDR3). Per family doc 01
-// (projects/components/mem-ctrl-ip/docs/01_mem_ctrl_pkg.md) this package
+// (projects/components/mem-ctrl-ip/common-ip/docs/01_mem_ctrl_pkg.md) this package
 // takes the family memtype design as-is -- one LP axis bit plus a two-bit
 // generation field -- because andesite has no legacy CSR to disturb, and it
 // carries scoria's dram_op_e encoding widened one bit for OP_MPC. The

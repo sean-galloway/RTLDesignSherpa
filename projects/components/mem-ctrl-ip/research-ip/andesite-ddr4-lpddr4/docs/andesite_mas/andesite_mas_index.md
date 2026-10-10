@@ -46,7 +46,7 @@ this index, and these are companions, not chapters.
 
 - **HAS** - `projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/docs/andesite_has/andesite_has_index.md` - the architecture this document takes one level down
 - **PRD** - `projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/PRD.md` - product requirements (this tranche is docs-only; the PRD rewrite is follow-on work)
-- **Family docs** - `projects/components/mem-ctrl-ip/docs/` - the shared-core design and doctrine this book follows
+- **Family docs** - `projects/components/mem-ctrl-ip/common-ip/docs/` - the shared-core design and doctrine this book follows
 - **scoria HAS** - `projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/docs/scoria_has/` - the reuse pool; referenced for every inherited block
 - **Kmap book** - `projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/docs/kmaps/` - the generated command-encoding workbook (generator, xlsx, `generated/*.md`)
 - **Family README** - `projects/components/mem-ctrl-ip/README.md` - family overview and per-IP status
