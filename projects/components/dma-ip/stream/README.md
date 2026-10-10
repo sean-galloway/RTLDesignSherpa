@@ -305,3 +305,68 @@ Copyright (c) 2024-2025 sean galloway
 - **Parent Project:** See `projects/components/dma-ip/rapids/` for comparison
 
 **Status:** Initial design - awaiting review and feedback
+
+---
+
+## References
+
+Books and papers the stream design and its neighboring IP lines are built
+against. Print chapter/section numbers are the citation currency; converted
+markdown sources live in the local calibre library (`calibre/books/<book-slug>/`)
+for maintainers auditing a claim.
+
+### Books
+
+- **Patterson & Hennessy**, *Computer Organization and Design: The
+  Hardware/Software Interface, RISC-V Edition*, Morgan Kaufmann, 2018.
+  Datapath and pipeline canon for the falcon suite (kestrel's single-cycle
+  machine is COD §4.3/§4.4 realized; §4.6–4.9 is merlin's pipeline).
+- **Hennessy & Patterson**, *Computer Architecture: A Quantitative Approach*,
+  6th ed., Morgan Kaufmann, 2017. Quantitative backing: ILP and speculation
+  (ch3, the gyrfalcon anchor), dynamic branch prediction (§3.4), memory
+  technology and SRAM realities (ch2 §2.2 — the "no-latency SRAM is
+  fantasy" anchor, see notes below).
+- **Handy**, *The Cache Memory Book*, 2nd ed., Morgan Kaufmann, 1998.
+  Cache-policy depth COD deliberately omits: write policies, replacement
+  (true-LRU cost vs pseudo-LRU), write/line buffers, coherence protocols.
+- **Przybylski**, *Cache and Memory Hierarchy Design: A Performance-Directed
+  Approach*, Morgan Kaufmann, 1990. The analytical performance model and
+  speed/size/set-size tradeoffs behind the cache IP line's geometry choices.
+
+### Papers
+
+- **Kroft**, "Lockup-Free Instruction Fetch/Prefetch Cache Organization,"
+  ISCA 1981 — the MSHR; origin of jet-mesi-l1's nonblocking-cache
+  decisions.
+- **Jouppi**, "Architectural and Organizational Tradeoffs in the Design of
+  the MultiTitan CPU," ISCA 1989 — tag-compare-before-data-gating hit-time
+  argument (as documented in Przybylski §4.2).
+- **Binkert et al.**, "The gem5 Simulator," ACM SIGARCH Computer
+  Architecture News 39(2), 2011 — gem5 Ruby/SLICC oracles used as the
+  executable coherence reference in the cache IP line.
+- Miss-ratio rules of thumb (direct→2-way ~20%, Hill; associativity limits,
+  Agarwal) are cited secondhand via Handy §2.2.2 and Przybylski §4.2.
+
+### Specifications
+
+- **RISC-V unprivileged and privileged ISA manuals** — ISA contract for
+  the falcon suite (cited by chapter).
+- **ARM IHI0022** (AMBA AXI4 / ACE) — the house fabric's transport
+  authority; ACE shapes the cache line's snoop channels.
+- **IEEE 754-2008** — the `math_ieee754_2008_fp32_*` units' contract.
+
+### Design-reality notes
+
+1. **SRAMs with no read latency are fantasy.** A zero-latency
+   combinational memory is a *modeling choice*, not hardware: COD §4.3
+   adopts it silently ("no read control signal is needed"), and kestrel
+   adopts it *explicitly* as a documented contract (kestrel HAS ch4) so the
+   single-cycle machine stays analyzable — with the fantasy labeled as
+   such. Real SRAM macros have a 1-cycle read latency; H&P 6e ch2 §2.2
+   (*Memory Technology and Optimizations*) is the quantitative treatment.
+2. **stream's answer is `rtl/fub/stream_latency_bridge.sv`.** It bridges a
+   registered (1-cycle-latency) FIFO/SRAM output to the consumer: cycle 0
+   issues the read, cycle 1 the data arrives and pushes into a 4-deep
+   `gaxi_fifo_sync` skid buffer, which absorbs backpressure — so `valid`
+   stays aligned with `data` at full throughput without ready-leg
+   gymnastics. Formally proven at `formal/stream/stream_latency_bridge/`.
