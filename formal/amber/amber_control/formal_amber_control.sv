@@ -910,7 +910,7 @@ module amber_control_props (
     // quantify over all tag behaviors, so they need no tag store -- and BMC
     // at depth 126 pays for the tag memory's store chains unnecessarily).
     // This file proves the SAFETY properties (incl. the poison invariant,
-    // k-induction in amber_control.sby) and the cover statements.
+    // BMC depth 126 in amber_control.sby) and the cover statements.
     // =========================================================================
 
     // =========================================================================

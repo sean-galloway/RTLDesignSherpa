@@ -3,19 +3,18 @@ prove
 cover
 
 [options]
-# BMC depth 60: every safety claim spans at most one full transaction
-# generation (init 18 + install ~29 + invalidating snoop ~6 + lookup = ~54;
-# the cover task witnesses the deep scenarios by step 49). Depth 126 pays
-# for the tag model's SMT store chains multi-hour for no extra safety
-# claim -- the unbounded-arithmetic liveness bounds live in
-# amber_control_live.sby (model-free wrapper, BMC depth 126).
+# BMC depth 126: derived worst-case poison arc ~113 (init 18 + install ~29
+# + invalidating snoop ~6 + poisoned lookup, PLUS snoop detours the depth-60
+# estimate ignored -- that estimate was under-derived and is UNSOUND for the
+# poison claim) + ~11% margin. The tag model's SMT store chains make depth
+# 126 cost ~68 min with memory_map (seconds for the model-free liveness
+# proof in amber_control_live.sby). See task-13 report, safety depth split.
 prove: mode bmc
-prove: depth 60
+prove: depth 126
 cover: mode cover
-# 132 = prove depth 126 + margin: the post-reset init walk (16 sets) plus a
-# full miss composition (fairness-bounded partner phases) exceeds 80 steps,
-# leaving cp_hits/cp_miss_rsp/cp_pend_commit unwitnessed at depth 80.
-cover: depth 132
+# 80: all seven covers are witnessed by step 49 (deepest: cp_detour_drain
+# @49); 80 leaves margin without paying for the tag store chains.
+cover: depth 80
 
 # Engine: boolector, not the house-default z3. Measured on this model:
 # z3 4.15.5 incremental exhibits exponential per-step growth (0.09s/0.47s/33.6s

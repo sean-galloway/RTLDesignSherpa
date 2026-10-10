@@ -15,7 +15,7 @@ cover: depth 60
 # pattern. (Task 13 report, Toolchain findings.)
 [engines]
 prove: smtbmc boolector
-cover: smtbmc z3
+cover: smtbmc boolector
 
 [script]
 read_verilog -formal -sv amber_snoop_resp_flat.v
