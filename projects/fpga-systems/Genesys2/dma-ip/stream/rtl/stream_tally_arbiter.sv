@@ -10,9 +10,23 @@
 //   Grant is released at the transfer's W handshake (not at B), and each B
 //   response is routed back to its owner through a small in-order side
 //   queue, so a new AW is accepted while the previous B is still returning.
-//   The slave accepts multiple outstanding writes (its B is a pending-count,
-//   not a level) and W beats arrive in AW order (AXI4), so back-to-back
-//   transfers from either master are protocol-clean.
+//   The W window opens in the take cycle or later, NEVER before: both W
+//   directions (master-side wready, slave-side wvalid) are gated on
+//   (r_aw_taken || take-fires-this-cycle).  A master W skid can hold the
+//   next transfer's beat while a grant is still waiting for its AW; an
+//   early W at the slave duplicates (consumed without the master skid
+//   popping) and an early W at the master releases the grant against the
+//   wrong transfer -- both observed with the FSM-free group core's eager
+//   W stream (chain test, BUG-039 2026-10-09).  When the take and the W
+//   fire in the same cycle (both skid outputs primed) the transfer
+//   completes in that cycle and the RELEASE wins the r_aw_taken race, so
+//   the next grant starts clean -- that both-fire path is also what keeps
+//   the structural rate at 2 cycles per transfer (grant, take+W).
+//
+//   AXIL ONLY: every transfer is exactly one W beat (no awlen on these
+//   ports), so one W handshake completes the granted transfer.  An AXI4
+//   version must forward the AW length and release on the last W beat
+//   instead.
 //
 //   The valid side of the slave mux is GRANT-GATED: with no grant active the
 //   slave sees awvalid=wvalid=0.  This is load-bearing -- the tally's rec
@@ -84,31 +98,27 @@ module stream_tally_arbiter
     // (single slave ID), which is grant order, so the head always names the
     // owner of the oldest outstanding B.
     //
-    // ONE AW PER GRANT (r_aw_taken): the leaf AW skid drains an entry every
-    // cycle it is ready, and the slave's rec_awready is constant 1 -- so an
-    // ungated grant consumes EVERY queued AW while it waits for its W.  The
-    // W stream trails the AW stream (independent leaf skids), so the AWs run
-    // out before the Ws do and the leftover W beats have no AW left to
-    // trigger their grant -- a clean deadlock (board: write FIFO 96/96,
-    // zero records).  Capping AW acceptance at one per grant keeps the
-    // grant <-> transfer <-> B-queue correspondence exact.
-    //
-    // Throughput note: a both-pending grant (AW and W of a transfer in the
-    // same cycle) was tried and reverted -- the FSM legitimately runs AWs
-    // ahead of Ws into the leaf skids, and gating the grant on the W
-    // deadlocks once the AW skid fills (2 outstanding, W never pending).
-    // 2 cycles per transfer (AW cycle, W cycle) is the structural rate of
-    // this single-arbiter design: 0.5 beats/cycle = 0.167 records/cycle,
-    // above the campaign's ~0.125 offered.
+    // ONE AW PER GRANT (r_aw_taken), and the W window opens in the take
+    // cycle or later (never before): a W skid can be primed with the next
+    // transfer's beat while a grant is still waiting for its AW, and an
+    // early W in either direction breaks the grant <-> transfer pairing
+    // (the group core's W stream runs fully decoupled from AW issue, so
+    // this ordering is created on every back-to-back pair -- chain test
+    // BUG-039 2026-10-09).  w_gr_wen is the W-window: r_aw_taken (take in
+    // an earlier cycle) or w_aw_taken_fire (take THIS cycle).  When the
+    // take and the W fire together (both skid outputs primed) the 1-beat
+    // transfer completes in that cycle; the release below must then win
+    // the r_aw_taken race, so the take-fire set is suppressed on w_w_hs.
     logic       r_gr_obs, r_gr_bridge, r_busy, r_last_obs, r_aw_taken;
     logic [1:0] r_bq [0:3];   // 0 = observer, 1 = bridge
     logic [1:0] r_bq_rd, r_bq_wr;
     logic [2:0] r_bq_cnt;
-    logic       w_grant, w_w_hs, w_b_hs, w_aw_taken_fire;
+    logic       w_grant, w_w_hs, w_b_hs, w_aw_taken_fire, w_gr_wen;
 
     assign w_w_hs = t_wvalid & t_wready;
     assign w_b_hs = t_bvalid & t_bready;
     assign w_grant = !r_busy && (obs_awvalid || br_awvalid);
+    assign w_gr_wen = r_aw_taken || w_aw_taken_fire;
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
@@ -127,10 +137,14 @@ module stream_tally_arbiter
                     r_bq_wr <= r_bq_wr + 2'd1;
                 end
             end else if (w_w_hs) begin
+                // W completes the granted transfer (AXIL: one beat).  If
+                // the take fired the same cycle the transfer is complete
+                // too -- the release's aw_taken<=0 stands and the
+                // take-fire set below is suppressed on w_w_hs.
                 r_gr_bridge <= 1'b0; r_gr_obs <= 1'b0; r_busy <= 1'b0;
                 r_aw_taken  <= 1'b0;
             end
-            if (w_aw_taken_fire) begin
+            if (w_aw_taken_fire && !w_w_hs) begin
                 r_aw_taken <= 1'b1;
             end
             if (w_b_hs) begin
@@ -145,16 +159,22 @@ module stream_tally_arbiter
     )
 
     // Grant-gated slave mux (see the header: an ungated default branch
-    // phantom-consumes beats at the tally's always-ready rec port).
+    // phantom-consumes beats at the tally's always-ready rec port).  W is
+    // additionally w_gr_wen-gated: the slave must not see a W beat before
+    // the grant's AW is taken -- it would consume the beat while the
+    // master skid (its wready is also wen-gated) does not pop, and the
+    // same beat would be delivered again under the next grant.
     always_comb begin
         if (r_gr_bridge) begin
             t_awaddr  = br_awaddr;  t_awprot = br_awprot;
             t_awvalid = br_awvalid; t_wdata  = br_wdata;
-            t_wstrb   = br_wstrb;   t_wvalid = br_wvalid;
+            t_wstrb   = br_wstrb;
+            t_wvalid  = w_gr_wen ? br_wvalid : 1'b0;
         end else if (r_gr_obs) begin
             t_awaddr  = obs_awaddr;  t_awprot = obs_awprot;
             t_awvalid = obs_awvalid; t_wdata  = obs_wdata;
-            t_wstrb   = obs_wstrb;   t_wvalid = obs_wvalid;
+            t_wstrb   = obs_wstrb;
+            t_wvalid  = w_gr_wen ? obs_wvalid : 1'b0;
         end else begin
             t_awaddr  = '0;           t_awprot = 3'd0;
             t_awvalid = 1'b0;         t_wdata  = '0;
@@ -166,11 +186,11 @@ module stream_tally_arbiter
     end
 
     assign obs_awready = (r_gr_obs && !r_aw_taken) ? t_awready : 1'b0;
-    assign obs_wready  = r_gr_obs    ? t_wready  : 1'b0;
+    assign obs_wready  = (r_gr_obs &&  w_gr_wen)   ? t_wready  : 1'b0;
     assign obs_bvalid  = (r_bq[r_bq_rd] == 2'd0) ? t_bvalid : 1'b0;
     assign obs_bresp   = t_bresp;
     assign br_awready  = (r_gr_bridge && !r_aw_taken) ? t_awready : 1'b0;
-    assign br_wready   = r_gr_bridge ? t_wready  : 1'b0;
+    assign br_wready   = (r_gr_bridge &&  w_gr_wen)   ? t_wready  : 1'b0;
     assign br_bvalid   = (r_bq[r_bq_rd] == 2'd1) ? t_bvalid : 1'b0;
     assign br_bresp    = t_bresp;
 

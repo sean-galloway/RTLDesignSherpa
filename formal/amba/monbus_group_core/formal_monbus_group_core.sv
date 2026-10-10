@@ -81,17 +81,19 @@ module formal_monbus_group_core (
     wire [63:0]  s_rdata;
     wire [1:0]   s_rresp;
 
-    // Formal-only probes of the pipelined write-burst writer.
-    wire [1:0]                    f_r_wr_state;
+    // Formal-only probes of the continuous write-burst writer (epoch-based,
+    // FSM-free: the frozen epoch total caps in-flight AW coverage).
     wire [ADDR_WIDTH-1:0]         f_r_wr_addr;
-    wire [15:0]                   f_r_cyc_total;
+    wire [15:0]                   f_r_win_beats;
+    wire [16:0]                   f_r_w_unsent_beats;
     wire [16:0]                   f_r_aw_cov_beats;
-    wire [16:0]                   f_r_b_beats;
+    wire [15:0]                   f_r_epoch_total;
     wire [8:0]                    f_r_aw_subs;
     wire [8:0]                    f_r_b_subs;
     wire [2:0]                    f_r_os_count;
     wire [2:0]                    f_r_ws_count;
     wire [9:0]                    f_r_w_rem_in_sub;
+    wire [15:0]                   f_w_aw_beats;
     wire                          f_w_aw_issue;
 
     monbus_group_core #(
@@ -144,17 +146,18 @@ module formal_monbus_group_core (
         .fub_s_arvalid (s_arvalid), .fub_s_arready (s_arready),
         .fub_s_rid (s_rid), .fub_s_rdata (s_rdata), .fub_s_rresp (s_rresp),
         .fub_s_rlast (s_rlast), .fub_s_rvalid (s_rvalid), .fub_s_rready (s_rready),
-        .f_r_wr_state     (f_r_wr_state),
-        .f_r_wr_addr      (f_r_wr_addr),
-        .f_r_cyc_total    (f_r_cyc_total),
-        .f_r_aw_cov_beats (f_r_aw_cov_beats),
-        .f_r_b_beats      (f_r_b_beats),
-        .f_r_aw_subs      (f_r_aw_subs),
-        .f_r_b_subs       (f_r_b_subs),
-        .f_r_os_count     (f_r_os_count),
-        .f_r_ws_count     (f_r_ws_count),
-        .f_r_w_rem_in_sub (f_r_w_rem_in_sub),
-        .f_w_aw_issue     (f_w_aw_issue)
+        .f_r_wr_addr        (f_r_wr_addr),
+        .f_r_win_beats      (f_r_win_beats),
+        .f_r_w_unsent_beats (f_r_w_unsent_beats),
+        .f_r_aw_cov_beats   (f_r_aw_cov_beats),
+        .f_r_epoch_total    (f_r_epoch_total),
+        .f_r_aw_subs        (f_r_aw_subs),
+        .f_r_b_subs         (f_r_b_subs),
+        .f_r_os_count       (f_r_os_count),
+        .f_r_ws_count       (f_r_ws_count),
+        .f_r_w_rem_in_sub   (f_r_w_rem_in_sub),
+        .f_w_aw_beats       (f_w_aw_beats),
+        .f_w_aw_issue       (f_w_aw_issue)
     );
 
     // ---- reset / environment --------------------------------------------
@@ -191,7 +194,7 @@ module formal_monbus_group_core (
     // a well-behaved AXI slave: bvalid holds until bready, and B is only
     // returned when the writer has at least one outstanding sub-burst.
     always @(posedge clk) if (live && $past(m_bvalid) && !$past(m_bready)) assume (m_bvalid);
-    always @(posedge clk) if (live && m_bvalid) assume (r_os_count > 3'd0);
+    always @(posedge clk) if (live && m_bvalid) assume (f_r_os_count > 3'd0);
 
     // ---- reference model: routing decision --------------------------------
     wire [3:0] p_type  = monbus_packet[127:124];
@@ -316,27 +319,29 @@ module formal_monbus_group_core (
     end
 
     // ---- P3: the flush burst is a legal AXI write --------------------------
-    // The burst writer is pipelined: a drain cycle may contain several
-    // outstanding AW sub-bursts, so the old single-burst tracker is replaced
-    // by checks against the DUT's internal FSM and bookkeeping queues.
-    localparam logic [1:0] WR_IDLE = 2'd0;
-    localparam logic [1:0] WR_RUN  = 2'd1;
-
-    // Aliases for the formal probes of the pipelined writer.
-    wire        wr_run            = (f_r_wr_state == WR_RUN);
-    wire        wr_idle           = (f_r_wr_state == WR_IDLE);
-    wire [9:0]  r_w_rem           = f_r_w_rem_in_sub;
-    wire [15:0] r_cyc_total       = f_r_cyc_total;
-    wire [16:0] r_aw_cov          = f_r_aw_cov_beats;
-    wire [16:0] r_b_beats         = f_r_b_beats;
-    wire [8:0]  r_aw_subs         = f_r_aw_subs;
-    wire [8:0]  r_b_subs          = f_r_b_subs;
-    wire [2:0]  r_os_count        = f_r_os_count;
-    wire [2:0]  r_ws_count        = f_r_ws_count;
-    wire        w_aw_issue        = f_w_aw_issue;
+    // The burst writer is continuous and FSM-free: AW sub-bursts issue
+    // whenever a flush trigger, epoch room, and a free outstanding slot
+    // align.  A "cycle" of the old FSM is now an EPOCH: on the first AW of
+    // an epoch the total freezes (r_epoch_total) and covered beats
+    // (r_aw_cov_beats) may never exceed it; the epoch rolls when covered ==
+    // total and the W stream has drained.  Record-rounded epoch caps mean
+    // the burst planner never plans beats outside the window, the 4 KB
+    // page, or the FIFO.
+    wire [9:0]  r_w_rem        = f_r_w_rem_in_sub;
+    wire [15:0] r_win_beats    = f_r_win_beats;
+    wire [16:0] r_unsent       = f_r_w_unsent_beats;
+    wire [16:0] r_aw_cov       = f_r_aw_cov_beats;
+    wire [15:0] r_epoch_total  = f_r_epoch_total;
+    wire [8:0]  r_aw_subs      = f_r_aw_subs;
+    wire [8:0]  r_b_subs       = f_r_b_subs;
+    wire [2:0]  r_os_count     = f_r_os_count;
+    wire [2:0]  r_ws_count     = f_r_ws_count;
+    wire [15:0] w_aw_beats_pl  = f_w_aw_beats;
+    wire        w_aw_issue     = f_w_aw_issue;
 
     wire aw_hs = m_awvalid && m_awready;
     wire b_hs  = m_bvalid  && m_bready;
+    wire w_hs  = m_wvalid  && m_wready;
     wire aw_new = aw_hs;
     wire [ADDR_WIDTH-1:0] aw_last = m_awaddr + ({24'd0, m_awlen} << 3) + 32'd7;
 
@@ -361,35 +366,27 @@ module formal_monbus_group_core (
         ap_aw_4kb:     assert (!m_awvalid || (m_awaddr[31:12] == aw_last[31:12]));
         ap_w_strb:     assert (!m_wvalid || m_wstrb == 8'hFF);
 
-        // the three master-write channels only operate during WR_RUN
-        ap_aw_in_run:  assert (!m_awvalid || wr_run);
-        ap_w_in_run:   assert (!m_wvalid  || wr_run);
-        ap_b_in_run:   assert (!m_bready  || wr_run);
-
         // wlast matches the last beat of the currently-loaded W sub-burst
-        ap_wlast_exact: assert (!(m_wvalid && wr_run) || (m_wlast == (r_w_rem == 10'd1)));
+        ap_wlast_exact: assert (!m_wvalid || (m_wlast == (r_w_rem == 10'd1)));
 
-        // bookkeeping sanity: covered beats never exceed the cycle total, Bs
-        // only return for issued AWs, and outstanding count is exact
-        ap_aw_cov_bound: assert (r_aw_cov <= 17'(r_cyc_total));
-        ap_b_le_aw:      assert (r_b_subs <= r_aw_subs);
-        ap_os_exact:     assert (r_os_count == 3'(r_aw_subs - r_b_subs));
-        ap_ws_le_os:     assert (r_ws_count <= r_os_count);
-        ap_b_beats_bound:assert (r_b_beats <= 17'(r_cyc_total));
+        // epoch bookkeeping: covered beats never exceed the frozen total
+        // (and a zero total means nothing covered); the AW-committed-not-W-
+        // sent prefix is never larger than what the epoch covered; Bs only
+        // return for issued AWs; outstanding count is exact.
+        ap_aw_cov_bound:  assert ((r_aw_cov == 17'd0) || (r_aw_cov <= 17'(r_epoch_total)));
+        ap_unsent_bound:  assert (r_unsent <= r_aw_cov);
+        ap_b_le_aw:       assert (r_b_subs <= r_aw_subs);
+        ap_os_exact:      assert (r_os_count == 3'(r_aw_subs - r_b_subs));
+        ap_ws_le_os:      assert (r_ws_count <= r_os_count);
+
+        // the planner never plans more beats than the registered window
+        // budget holds, and the issued awlen matches the planned beat count
+        ap_aw_fits_win:   assert (!aw_hs || (17'(m_awlen) + 17'd1 <= 17'(r_win_beats)));
+        ap_aw_eq_planned: assert (!aw_hs || (17'(m_awlen) + 17'd1 == 17'(w_aw_beats_pl)));
 
         // addresses advance by 8 bytes per beat across consecutive AWs
         ap_aw_stride:  assert (!(aw_hs && last_aw_valid)
                               || (m_awaddr == last_aw_addr + ADDR_WIDTH'(({24'd0, last_aw_len} + 32'd1) << 3)));
-
-        // close condition: if last cycle the writer was in WR_RUN and every
-        // committed beat had been credited and the W side was empty, this
-        // cycle it must have returned to WR_IDLE
-        ap_close_idle: assert (!($past(wr_run)
-                                  && ($past(r_b_beats) == 17'($past(r_cyc_total)))
-                                  && ($past(r_aw_cov)  == 17'($past(r_cyc_total)))
-                                  && ($past(r_w_rem)   == 10'd0)
-                                  && ($past(r_ws_count)==  3'd0))
-                              || wr_idle);
     end
 
     // ---- covers ----------------------------------------------------------
@@ -410,5 +407,13 @@ module formal_monbus_group_core (
         cp_flush_watermark: cover (b_hs && wm_at_aw >= cfg_flush_watermark);
         cp_flush_timeout:   cover (b_hs && wm_at_aw <  cfg_flush_watermark);
         cp_ready_withheld:  cover (monbus_valid && !monbus_ready && !m_drop);
+        // continuous-writer behavior: back-to-back AWs, W streaming while the
+        // next AW issues (the combined-commit accounting path), a fully
+        // covered epoch, and a multi-record epoch total
+        cp_aw_back_to_back: cover (aw_hs && $past(aw_hs));
+        cp_aw_w_together:   cover (aw_hs && w_hs);
+        cp_epoch_full:      cover ((r_epoch_total != 16'd0)
+                                   && (r_aw_cov == 17'(r_epoch_total)));
+        cp_epoch_multi_rec: cover (r_epoch_total >= 16'd6);
     end
 endmodule

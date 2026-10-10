@@ -100,10 +100,11 @@ async def group_chain_drains(dut):
         async def _p():
             for cyc in range(20000):
                 await ReadOnly()
-                print(f"CHAIN cyc={cyc:3d} state={int(core.r_wr_state.value)} "
-                      f"total={int(core.r_cyc_total.value)} "
-                      f"awcov={int(core.r_aw_cov_beats.value)} "
-                      f"bsub={int(core.r_b_subs.value)} bbeats={int(core.r_b_beats.value)} "
+                print(f"CHAIN cyc={cyc:3d} win={int(core.r_win_beats.value)} "
+                      f"total={int(core.r_epoch_total.value)} "
+                      f"cov={int(core.r_aw_cov_beats.value)} "
+                      f"unsent={int(core.r_w_unsent_beats.value)} "
+                      f"bsub={int(core.r_b_subs.value)} "
                       f"rem={int(core.r_w_rem_in_sub.value)} "
                       f"oscnt={int(core.r_os_count.value)} "
                       f"fifocnt={int(core.write_fifo_beat_count.value)} "
@@ -111,12 +112,15 @@ async def group_chain_drains(dut):
                       f"m_awr={int(dut.u_group.m_axil_awready.value)} "
                       f"m_wv={int(dut.u_group.m_axil_wvalid.value)} "
                       f"m_wr={int(dut.u_group.m_axil_wready.value)} "
+                      f"m_wd={int(dut.u_group.m_axil_wdata.value):#x} "
                       f"m_bv={int(dut.u_group.m_axil_bvalid.value)} "
                       f"m_br={int(dut.u_group.m_axil_bready.value)} "
                       f"arb_gr={int(dut.u_arb.r_gr_obs.value)} "
+                      f"arb_taken={int(dut.u_arb.r_aw_taken.value)} "
                       f"arb_busy={int(dut.u_arb.r_busy.value)} "
                       f"t_wv={int(dut.u_arb.t_wvalid.value)} "
                       f"t_wr={int(dut.u_arb.t_wready.value)} "
+                      f"t_wd={int(dut.u_arb.t_wdata.value):#x} "
                       f"t_bv={int(dut.u_arb.t_bvalid.value)} "
                       f"t_br={int(dut.u_arb.t_bready.value)} "
                       f"pend={int(dut.u_tally.r_b_pending.value)} "
@@ -153,6 +157,59 @@ async def group_chain_drains(dut):
         exp.extend([ts & ((1 << 64) - 1), (pkt >> 64) & ((1 << 64) - 1),
                     pkt & ((1 << 64) - 1)])
     tb.log.info(f"[chain] delivered {len(beats)} beats, expected {len(exp)}")
+    assert beats == exp, (
+        f"tally beats {[hex(b) for b in beats]} != golden {[hex(b) for b in exp]}"
+        f" -- board record path loses or duplicates beats")
+
+
+@cocotb.test(timeout_time=20, timeout_unit="ms")
+async def group_chain_sustained_rate(dut):
+    """Continuous-drain rate check (amba BUG-039 forward work).
+
+    Offer one record every 8 cycles (3 beats / 8 cycles = 0.375 beats/cycle,
+    below the record path's 0.5 beats/cycle arbiter ceiling) and require the
+    chain to keep up within a wall-cycle bound.  The drain-cycle writer
+    quiesces at every flush boundary (every B credited + 5-cycle geometry
+    re-settle before the next commit), costing ~12-13 cycles per single
+    record at watermark 0 -- it falls behind and the bound trips.  A
+    continuous (FSM-free) writer streams back-to-back and passes.
+    """
+    tb = ChainTB(dut)
+    await tb.setup()
+
+    n = 60
+    offer_period = 8     # cycles per record -> 0.375 beats/cycle offered
+    cap = n * offer_period + 120
+    golden = [make_record(i) for i in range(n)]
+
+    async def _send_all():
+        for ts, pkt in golden:
+            await tb.send_record(pkt, ts)
+            await tb.wait_clocks('aclk', offer_period - 1)
+    sender = cocotb.start_soon(_send_all())
+
+    beats = []
+    cycles = 0
+    while len(beats) < n * BYTES_PER_RECORD and cycles < cap:
+        await ReadOnly()
+        bv = int(dut.u_arb.t_wvalid.value) and int(dut.u_arb.t_wready.value)
+        bd = int(dut.u_arb.t_wdata.value)
+        await RisingEdge(dut.aclk)
+        cycles += 1
+        if bv:
+            beats.append(bd)
+    await sender
+
+    assert len(beats) == n * BYTES_PER_RECORD, (
+        f"record path fell behind the offered rate: only {len(beats)}/"
+        f"{n * BYTES_PER_RECORD} beats at the tally after {cycles} cycles "
+        f"(offered one record every {offer_period} cycles, bound {cap}) -- "
+        f"the writer quiesces between flush cycles instead of streaming")
+
+    exp = []
+    for ts, pkt in golden:
+        exp.extend([ts & ((1 << 64) - 1), (pkt >> 64) & ((1 << 64) - 1),
+                    pkt & ((1 << 64) - 1)])
     assert beats == exp, (
         f"tally beats {[hex(b) for b in beats]} != golden {[hex(b) for b in exp]}"
         f" -- board record path loses or duplicates beats")
