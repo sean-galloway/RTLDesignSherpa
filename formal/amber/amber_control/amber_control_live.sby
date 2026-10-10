@@ -1,0 +1,24 @@
+[tasks]
+prove
+
+[options]
+prove: mode bmc
+prove: depth 126
+
+[engines]
+# Engine: boolector, not the house-default z3 -- see amber_control.sby and
+# the Task 13 report (Toolchain findings) for the measured rationale.
+prove: smtbmc boolector
+
+[script]
+read_verilog -formal -sv amber_control_flat.v
+read -formal -sv formal_amber_control_live.sv
+prep -top formal_amber_control_live
+memory_map
+# sv2v keeps the RTL's elaboration-time $error guards as $print cells
+delete t:$print
+
+[files]
+formal_amber_control_live.sv
+amber_control_flat.v
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

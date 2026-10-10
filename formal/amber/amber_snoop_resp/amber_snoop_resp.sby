@@ -1,0 +1,31 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 80
+cover: mode cover
+cover: depth 60
+
+# Engine: boolector, not the house-default z3. Measured on this model:
+# z3 4.15.5 incremental exhibits exponential per-step growth (0.09s/0.47s/33.6s
+# at BMC depths 4/8/16) and cannot reach depth 80 in hours; boolector passes
+# the full depth in seconds. Everything else follows the gaxi_fifo_sync house
+# pattern. (Task 13 report, Toolchain findings.)
+[engines]
+prove: smtbmc boolector
+cover: smtbmc z3
+
+[script]
+read_verilog -formal -sv amber_snoop_resp_flat.v
+read -formal -sv formal_amber_snoop_resp.sv
+expose amber_snoop_resp/fub_acvalid amber_snoop_resp/fub_acready amber_snoop_resp/fub_crvalid amber_snoop_resp/fub_crresp amber_snoop_resp/fub_crready amber_snoop_resp/fub_cdvalid amber_snoop_resp/fub_cdready amber_snoop_resp/fub_cdlast amber_snoop_resp/r_state
+prep -top formal_amber_snoop_resp
+# sv2v keeps the RTL's elaboration-time $error/$display guards as $print cells
+delete t:$print
+
+[files]
+formal_amber_snoop_resp.sv
+amber_snoop_resp_flat.v
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

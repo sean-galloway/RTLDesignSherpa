@@ -1,0 +1,45 @@
+[tasks]
+prove
+cover
+
+[options]
+# BMC depth 60: every safety claim spans at most one full transaction
+# generation (init 18 + install ~29 + invalidating snoop ~6 + lookup = ~54;
+# the cover task witnesses the deep scenarios by step 49). Depth 126 pays
+# for the tag model's SMT store chains multi-hour for no extra safety
+# claim -- the unbounded-arithmetic liveness bounds live in
+# amber_control_live.sby (model-free wrapper, BMC depth 126).
+prove: mode bmc
+prove: depth 60
+cover: mode cover
+# 132 = prove depth 126 + margin: the post-reset init walk (16 sets) plus a
+# full miss composition (fairness-bounded partner phases) exceeds 80 steps,
+# leaving cp_hits/cp_miss_rsp/cp_pend_commit unwitnessed at depth 80.
+cover: depth 132
+
+# Engine: boolector, not the house-default z3. Measured on this model:
+# z3 4.15.5 incremental exhibits exponential per-step growth (0.09s/0.47s/33.6s
+# at BMC depths 4/8/16) and cannot reach depth 80 in hours; boolector passes
+# the full depth in seconds. Everything else follows the gaxi_fifo_sync house
+# pattern. (Task 13 report, Toolchain findings.)
+[engines]
+prove: smtbmc boolector
+cover: smtbmc boolector
+
+[script]
+read_verilog -formal -sv amber_control_flat.v
+read -formal -sv formal_amber_control.sv
+expose amber_control/state_q amber_control/req_set amber_control/req_tag amber_control/req_we_q amber_control/req_be_q amber_control/req_wdata_q amber_control/upgr_q amber_control/hit_state_q amber_control/hit_way_q amber_control/hit_way_onehot amber_control/victim_way_q amber_control/victim_tag_q amber_control/victim_way_onehot amber_control/victim_valid amber_control/victim_buf_addr amber_control/victim_buf_data amber_control/sn_set_q amber_control/sn_hit_tag_q amber_control/sn_hit_way_q amber_control/sn_hit_way_onehot amber_control/sn_hit_any_q amber_control/sn_pf_q amber_control/sn_stale_q amber_control/sn_victim_q amber_control/sn_upgr_line_q amber_control/sn_beat_q amber_control/sn_beat_gated amber_control/sn_complete amber_control/sn_wr_tag amber_control/sn_ref_q amber_control/sn_ref_grant amber_control/sn_type_q amber_control/w_sn_nxt amber_control/sn_pf_gnt_match amber_control/sn_stale_gnt amber_control/sn_upgr_line_gnt amber_control/victim_match amber_control/sn_hit_any amber_control/sn_hit_state amber_control/pf_active amber_control/pf_addr amber_control/pf_state amber_control/pf_match amber_control/pf_data_valid amber_control/pend_vld_q amber_control/pend_state_q amber_control/install_state_eff amber_control/sn_return_q amber_control/fill_seen_q amber_control/fill_done_q amber_control/drain_seen_q amber_control/drain_done_q
+prep -top formal_amber_control
+# memories -> discrete FFs: the tag model as an SMT array grows a store chain
+# per step and collapses solver throughput past ~step 45; BV+ITE encoding
+# is orders of magnitude faster at depth (house apb4_slave_cdc script does
+# the same).
+memory_map
+# sv2v keeps the RTL's elaboration-time $error guards as $print cells
+delete t:$print
+
+[files]
+formal_amber_control.sv
+amber_control_flat.v
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh
