@@ -367,8 +367,31 @@ module andesite_core
     assign w_init_busy = ~init_done_o;
     assign dfi_reset_n_o = dram_reset_n_o;
 
+    // ---- AXI4 layer <-> storage layer inter-layer nets ----
+    logic                aw_push_valid, aw_push_ready;
+    logic [BKW-1:0]      aw_push_bank;  logic [ROW_WIDTH-1:0] aw_push_row;
+    logic [COL_WIDTH-1:0] aw_push_col;  logic [IW-1:0]        aw_push_id;
+    logic                aw_push_agg,   aw_push_last;
+    logic                wd_valid, wd_ready, wd_last;
+    logic [DW-1:0]       wd_data;       logic [SW-1:0]        wd_strb;
+    logic                wr_done_valid; logic [IW-1:0]        wr_done_id;
+
+    logic                snarf_probe_valid, snarf_hit, snarf_accept;
+    logic [BKW-1:0]      snarf_bank;    logic [ROW_WIDTH-1:0] snarf_row;
+    logic [COL_WIDTH-1:0] snarf_col;
+    logic [IW-1:0]       snarf_id;      logic [7:0]           snarf_len;
+    logic                snarf_rd_valid, snarf_rd_ready, snarf_rd_last;
+    logic [DW-1:0]       snarf_rd_data;
+    logic                ar_push_valid, ar_push_ready;
+    logic                rt_alloc_ready, rd_cam_ins_ready;
+    logic [$clog2(RD_RET_DEPTH)-1:0] rt_alloc_ticket, rd_iss_ticket;
+    logic                rd_iss_valid, rd_iss_ready;
+    logic [BKW-1:0]      ar_push_bank;  logic [ROW_WIDTH-1:0] ar_push_row;
+    logic [COL_WIDTH-1:0] ar_push_col;  logic [IW-1:0]        ar_push_id;
+    logic [3:0]           ar_push_qos;   logic [3:0]           aw_push_qos;
+
     // ======================================================================
-    // Layer 1: AXI interface + CAMs
+    // Layer 1: AXI4 interface (splitters + intakes + return ring)
     // ======================================================================
     mc_axi4_layer #(
         .AXI_ID_WIDTH  (IW),
@@ -440,40 +463,155 @@ module andesite_core
         .s_axi_ruser   (s_axi_ruser),
         .s_axi_rvalid  (s_axi_rvalid),
         .s_axi_rready  (s_axi_rready),
+        // storage seam (WR intake push)
+        .aw_push_valid_o    (aw_push_valid),
+        .aw_push_ready_i    (aw_push_ready),
+        .aw_push_bank_o     (aw_push_bank),
+        .aw_push_row_o      (aw_push_row),
+        .aw_push_col_o      (aw_push_col),
+        .aw_push_id_o       (aw_push_id),
+        .aw_push_qos_o      (aw_push_qos),
+        .aw_push_agg_o      (aw_push_agg),
+        .aw_push_last_o     (aw_push_last),
+        .wd_valid_o         (wd_valid),
+        .wd_ready_i         (wd_ready),
+        .wd_data_o          (wd_data),
+        .wd_strb_o          (wd_strb),
+        .wd_last_o          (wd_last),
+        .wr_done_valid_i    (wr_done_valid),
+        .wr_done_id_i       (wr_done_id),
+        // storage seam (snarf)
+        .snarf_probe_valid_o(snarf_probe_valid),
+        .snarf_probe_bank_o (snarf_bank),
+        .snarf_probe_row_o  (snarf_row),
+        .snarf_probe_col_o  (snarf_col),
+        .snarf_probe_id_o   (snarf_id),
+        .snarf_probe_len_o  (snarf_len),
+        .snarf_hit_i        (snarf_hit),
+        .snarf_accept_o     (snarf_accept),
+        .snarf_rd_valid_i   (snarf_rd_valid),
+        .snarf_rd_ready_o   (snarf_rd_ready),
+        .snarf_rd_data_i    (snarf_rd_data),
+        .snarf_rd_last_i    (snarf_rd_last),
+        // storage seam (RD intake push)
+        .ar_push_valid_o    (ar_push_valid),
+        .ar_push_ready_i    (ar_push_ready),
+        .ar_push_bank_o     (ar_push_bank),
+        .ar_push_row_o      (ar_push_row),
+        .ar_push_col_o      (ar_push_col),
+        .ar_push_id_o       (ar_push_id),
+        .ar_push_qos_o      (ar_push_qos),
+        // storage seam (return ring <-> rd CAM)
+        .rt_alloc_ready_o   (rt_alloc_ready),
+        .rt_alloc_ticket_o  (rt_alloc_ticket),
+        .rd_iss_ready_o     (rd_iss_ready),
+        .rd_iss_valid_i     (rd_iss_valid),
+        .rd_iss_ticket_i    (rd_iss_ticket),
+        .rd_cam_ins_ready_i (rd_cam_ins_ready),
+        // DFI return stream
+        .rd_dfi_ret_valid_i (w_ret_v),
+        .rd_dfi_ret_ready_o (w_ret_rdy),
+        .rd_dfi_ret_data_i  (w_ret_data),
+        .rd_dfi_ret_resp_i  (w_ret_resp),
+        .rd_dfi_ret_last_i  (w_ret_last),
+        .busy_o             ()
+    );
+
+    // ======================================================================
+    // Layer 1b: storage layer (WR/RD CAMs + snarf)
+    // ======================================================================
+    mc_storage_layer #(
+        .AXI_ID_WIDTH  (IW),
+        .AXI_DATA_WIDTH(DW),
+        .NUM_RANKS     (NUM_RANKS),
+        .NUM_BANKS     (NUM_BANKS),
+        .ROW_WIDTH     (ROW_WIDTH),
+        .COL_WIDTH     (COL_WIDTH),
+        .AXI_BEATS_PER_BURST   (BURST_WORDS),
+        .NUM_ENTRIES   (NUM_ENTRIES),
+        .N_SRAM_SLOTS  (N_SRAM_SLOTS),
+        .N_SCHED_LU    (N_LU),
+        .AGE_WIDTH     (AGE_WIDTH),
+        .RD_RET_DEPTH  (RD_RET_DEPTH)
+    ) u_storage (
+        .aclk               (aclk),
+        .aresetn            (aresetn),
+        // WR intake push
+        .aw_push_valid_i    (aw_push_valid),
+        .aw_push_ready_o    (aw_push_ready),
+        .aw_push_bank_i     (aw_push_bank),
+        .aw_push_row_i      (aw_push_row),
+        .aw_push_col_i      (aw_push_col),
+        .aw_push_id_i       (aw_push_id),
+        .aw_push_qos_i      (aw_push_qos),
+        .aw_push_agg_i      (aw_push_agg),
+        .aw_push_last_i     (aw_push_last),
+        .wd_valid_i         (wd_valid),
+        .wd_ready_o         (wd_ready),
+        .wd_data_i          (wd_data),
+        .wd_strb_i          (wd_strb),
+        .wd_last_i          (wd_last),
+        .wr_done_valid_o    (wr_done_valid),
+        .wr_done_id_o       (wr_done_id),
+        // snarf
+        .snarf_probe_valid_i(snarf_probe_valid),
+        .snarf_probe_bank_i (snarf_bank),
+        .snarf_probe_row_i  (snarf_row),
+        .snarf_probe_col_i  (snarf_col),
+        .snarf_probe_id_i   (snarf_id),
+        .snarf_probe_len_i  (snarf_len),
+        .snarf_hit_o        (snarf_hit),
+        .snarf_accept_i     (snarf_accept),
+        .snarf_rd_valid_o   (snarf_rd_valid),
+        .snarf_rd_ready_i   (snarf_rd_ready),
+        .snarf_rd_data_o    (snarf_rd_data),
+        .snarf_rd_last_o    (snarf_rd_last),
+        // RD intake push
+        .ar_push_valid_i    (ar_push_valid),
+        .ar_push_ready_o    (ar_push_ready),
+        .ar_push_bank_i     (ar_push_bank),
+        .ar_push_row_i      (ar_push_row),
+        .ar_push_col_i      (ar_push_col),
+        .ar_push_id_i       (ar_push_id),
+        .ar_push_qos_i      (ar_push_qos),
+        // return ring <-> rd CAM
+        .rt_alloc_ready_i   (rt_alloc_ready),
+        .rt_alloc_ticket_i  (rt_alloc_ticket),
+        .rd_iss_ready_i     (rd_iss_ready),
+        .rd_iss_valid_o     (rd_iss_valid),
+        .rd_iss_ticket_o    (rd_iss_ticket),
+        .rd_cam_ins_ready_o (rd_cam_ins_ready),
+        // scheduler -> CAMs
+        .sched_age_thresh_i (sched_age_thresh_i),
+        .wr_commit_valid_i  (w_wr_commit_v),
+        .wr_commit_ready_o  (w_wr_commit_rdy),
+        .wr_commit_slot_i   (w_wr_commit_slot),
+        .rd_issue_valid_i   (w_rd_issue_v),
+        .rd_issue_ready_o   (w_rd_issue_rdy),
+        .rd_issue_slot_i    (w_rd_issue_slot),
+        // scheduler vectors + commit data
         .wr_sch_valid_o     (w_wr_sch_v),
         .wr_sch_bank_o      (w_wr_sch_bank),
         .wr_sch_row_o       (w_wr_sch_row),
         .wr_sch_col_o       (w_wr_sch_col),
         .wr_sch_older_o     (w_wr_sch_older),
         .wr_sch_age_exceed_o(w_wr_sch_agex),
-        .wr_sch_head_rel_o  (w_wr_sch_hrel),
         .wr_sch_qos_o       (w_wr_sch_qos),
-        .rd_sch_qos_o       (w_rd_sch_qos),
+        .wr_sch_head_rel_o  (w_wr_sch_hrel),
+        .rd_sch_valid_o     (w_rd_sch_v),
+        .rd_sch_bank_o      (w_rd_sch_bank),
+        .rd_sch_row_o       (w_rd_sch_row),
+        .rd_sch_col_o       (w_rd_sch_col),
+        .rd_sch_older_o     (w_rd_sch_older),
         .rd_sch_age_exceed_o(w_rd_sch_agex),
+        .rd_sch_qos_o       (w_rd_sch_qos),
         .rd_sch_head_rel_o  (w_rd_sch_hrel),
-        .sched_age_thresh_i (sched_age_thresh_i),
-        .wr_commit_valid_i  (w_wr_commit_v),
-        .wr_commit_ready_o  (w_wr_commit_rdy),
-        .wr_commit_slot_i   (w_wr_commit_slot),
         .wr_cm_rd_valid_o   (w_cm_v),
         .wr_cm_rd_ready_i   (w_cm_rdy),
         .wr_cm_rd_data_o    (w_cm_data),
         .wr_cm_rd_strb_o    (w_cm_strb),
         .wr_cm_rd_last_o    (w_cm_last),
-        .rd_sch_valid_o    (w_rd_sch_v),
-        .rd_sch_bank_o     (w_rd_sch_bank),
-        .rd_sch_row_o      (w_rd_sch_row),
-        .rd_sch_col_o      (w_rd_sch_col),
-        .rd_sch_older_o    (w_rd_sch_older),
-        .rd_issue_valid_i  (w_rd_issue_v),
-        .rd_issue_ready_o  (w_rd_issue_rdy),
-        .rd_issue_slot_i   (w_rd_issue_slot),
-        .rd_dfi_ret_valid_i(w_ret_v),
-        .rd_dfi_ret_ready_o(w_ret_rdy),
-        .rd_dfi_ret_data_i (w_ret_data),
-        .rd_dfi_ret_resp_i (w_ret_resp),
-        .rd_dfi_ret_last_i (w_ret_last),
-        .busy_o            ()
+        .busy_o             ()
     );
 
     // ---- training-layer maintenance command channel nets ----
