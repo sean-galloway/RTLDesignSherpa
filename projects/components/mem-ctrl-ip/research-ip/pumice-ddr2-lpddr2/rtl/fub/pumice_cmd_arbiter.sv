@@ -700,91 +700,100 @@ module pumice_cmd_arbiter
         return v[e*COL_WIDTH +: COL_WIDTH];
     endfunction
 
-    // ---- classify each entry into column / activate / precharge -----------
+    // ---- unified rd/wr prospect pool (2N entries) ----------------------------
+    // One concatenated view over both CAMs' exported per-entry vectors:
+    // entries [N-1:0] = read CAM (dir 0), [2N-1:N] = write CAM (dir 1). The
+    // classify and population loops below run ONCE over this pool, muxing only
+    // the direction-conditioned terms by dir; the results are sliced back into
+    // the historical per-direction names so every downstream consumer
+    // (overlays, STAGE-1b argmaxes, forward guards) is textually unchanged.
+    // Bit-identical to the former split loops: every mask/pop term survives
+    // term-for-term (2026-10-10 prospect-pool refactor; the two CAMs stay
+    // split because their sinks differ — WR commits into the data-drain path,
+    // RD issues into the AR-order path).
+    localparam int POOL = 2*NUM_ENTRIES;
+    localparam int PTXW = PTRW + 1;
+    logic [POOL-1:0]           pool_valid;
+    logic [POOL*BKW-1:0]       pool_bank;
+    logic [POOL*ROW_WIDTH-1:0] pool_row;
+    logic [POOL*COL_WIDTH-1:0] pool_col;
+    assign pool_valid = {wr_sch_valid_i, rd_sch_valid_i};
+    assign pool_bank  = {wr_sch_bank_i,  rd_sch_bank_i};
+    assign pool_row   = {wr_sch_row_i,   rd_sch_row_i};
+    assign pool_col   = {wr_sch_col_i,   rd_sch_col_i};
+    function automatic logic [BKW-1:0]       f_pool_bank(input logic [PTXW-1:0] e);
+        return pool_bank[e*BKW +: BKW];
+    endfunction
+    function automatic logic [ROW_WIDTH-1:0] f_pool_row (input logic [PTXW-1:0] e);
+        return pool_row[e*ROW_WIDTH +: ROW_WIDTH];
+    endfunction
+    function automatic logic [COL_WIDTH-1:0] f_pool_col (input logic [PTXW-1:0] e);
+        return pool_col[e*COL_WIDTH +: COL_WIDTH];
+    endfunction
+
+    // ---- classify each pool entry into column / activate / precharge --------
     // Mutually exclusive per entry: an open bank is either on the right row
-    // (column) or the wrong row (precharge); a closed bank activates.
+    // (column) or the wrong row (precharge); a closed bank activates. One loop
+    // over the unified pool; only the four direction-conditioned COLUMN terms
+    // (turnaround ok, sink-FIFO ready, per-entry inflight, turnaround block)
+    // mux on dir. The act/pre masks are direction-agnostic — identical terms
+    // on both halves of the former split loops. Every term below survives
+    // term-for-term from the split version.
+    logic [POOL-1:0]        pool_col_m, pool_act_m, pool_pre_m;
     logic [NUM_ENTRIES-1:0] rd_col_m, rd_act_m, rd_pre_m;
     logic [NUM_ENTRIES-1:0] wr_col_m, wr_act_m, wr_pre_m;
+    assign rd_col_m = pool_col_m[NUM_ENTRIES-1:0];
+    assign rd_act_m = pool_act_m[NUM_ENTRIES-1:0];
+    assign rd_pre_m = pool_pre_m[NUM_ENTRIES-1:0];
+    assign wr_col_m = pool_col_m[POOL-1:NUM_ENTRIES];
+    assign wr_act_m = pool_act_m[POOL-1:NUM_ENTRIES];
+    assign wr_pre_m = pool_pre_m[POOL-1:NUM_ENTRIES];
     always_comb begin
-        rd_col_m = '0; rd_act_m = '0; rd_pre_m = '0;
-        wr_col_m = '0; wr_act_m = '0; wr_pre_m = '0;
-        for (int e = 0; e < NUM_ENTRIES; e++) begin
-            automatic logic [PTRW-1:0]      ei = PTRW'(e);
-            automatic logic [BKW-1:0]       rb = f_bank(rd_sch_bank_i, ei);
-            automatic logic [BKW-1:0]       wb = f_bank(wr_sch_bank_i, ei);
-            automatic logic                 rhit = r_bank_row_active[RK0][rb]
-                                                   && (f_row(rd_sch_row_i, ei) == r_bank_open_row[RK0][rb]);
-            automatic logic                 whit = r_bank_row_active[RK0][wb]
-                                                   && (f_row(wr_sch_row_i, ei) == r_bank_open_row[RK0][wb]);
-            // READ entry. The column (RD) commit enqueues into the rd CAM's
-            // issue-order FIFO, so it may ONLY fire when that FIFO has room
-            // (rd_issue_ready_i) — otherwise the read would issue to DRAM but
-            // the CAM would drop it (double-issue + misrouted return). ACT/PRE
-            // don't touch the CAM, so they stay free -> the arbiter does other
-            // work while the FIFO is full (no bubble).
-            if (rd_sch_valid_i[e]) begin
-                // !w_pre_col_guard: a PRE fired on this bank within the
-                // last 3 cycles — the registered row image is STALE and a
-                // column picked against it lands on the just-closed row
-                // (the RD issues, its data never returns, and the AR-order
-                // drain wedges behind it forever). PRE-only on purpose:
-                // the general w_guarded also covers RD/WR fires and would
-                // throttle back-to-back same-bank columns. Found by the
-                // parked-victim pattern in test_pumice_core_sched_order;
-                // latent since the bank-parallel refactor.
-                rd_col_m[e] = rhit && r_bank_rdwr_ready[RK0][rb] && w_tccd_fwd_ok && twtr_ok_i
-                              // The per-bank occupancy mask is the AUTO-PRECHARGE pre-fire
-                              // guard only (a column to a closing bank until r_ap_closing
-                              // engages); on OPEN rows columns stream at tCCD (issue-rate
-                              // FUB 1.0). Lifted for writes too once the write-data path was
-                              // made to LEAD the command (rate-matched commit + CMD_DELAY +
-                              // the DFI staged-token invariant, 2026-09-09).
-                              && rd_issue_ready_i && !(f_ap(rb) && w_col_inflight_bank[rb]) && !r_ap_closing[rb] && !w_rd_col_inflight_ent[e]
-                              && !w_ref_col_block[rb]
-                              && !w_rd_turn_block && !w_ap_col_guard[rb]
-                              && !w_pre_col_guard[rb] && !w_preact_bank_guard[rb];
-                // tFAW/tRRD are deliberately NOT gated here -- see the WRITE
-                // twin below for the reasoning. They are re-checked live at the
-                // STAGE-1b pre-pick (w_act_gate_live) and AGAIN at the fire
-                // stage: w_out_safe re-validates an ACT against
-                // bank_act_ready_i AND the rank-global tfaw_ok_i / trrd_ok_i
-                // (pumice BUG-021 -- the pre-pick check alone sat two registers
-                // ahead of the fire and let a second ACT slip inside tRRD).
-                rd_act_m[e] = !r_bank_row_active[RK0][rb] && !w_guarded[rb]
-                              && r_bank_act_ready[RK0][rb] && w_act_classify_gate
+        pool_col_m = '0; pool_act_m = '0; pool_pre_m = '0;
+        for (int e = 0; e < POOL; e++) begin
+            automatic logic           pdir = (e >= NUM_ENTRIES);
+            automatic int             pslot = pdir ? (e - NUM_ENTRIES) : e;
+            automatic logic [BKW-1:0] pbank = f_pool_bank(PTXW'(e));
+            automatic logic           phit = r_bank_row_active[RK0][pbank]
+                                             && (f_pool_row(PTXW'(e)) == r_bank_open_row[RK0][pbank]);
+            if (pool_valid[e]) begin
+                // COLUMN. The sink-FIFO gate is direction-specific and
+                // correctness-critical: an RD may only fire when the rd CAM's
+                // issue-order FIFO has room (rd_issue_ready_i), a WR only when
+                // the wr CAM's drain FIFO has room (wr_commit_ready_i) --
+                // otherwise the column issues to DRAM but its CAM drops it
+                // (double-issue + misrouted return for RD, stale-DRAM write
+                // for WR). ACT/PRE touch no CAM and stay free, so the arbiter
+                // keeps working while a sink is full. The pdir-conditioned
+                // turnaround terms are the tWTR (RD-after-WR) / tRTW
+                // (WR-after-RD) direction-crossing masks; the per-entry
+                // inflight term stops a slot queued anywhere in the pick
+                // pipeline being re-selected; !w_pre_col_guard covers a PRE
+                // fired on this bank within the last 3 cycles (the registered
+                // row image is stale — a column picked against it lands on the
+                // just-closed row and the AR-order drain wedges behind it
+                // forever: parked-victim pattern in test_pumice_core_sched_order).
+                pool_col_m[e] = phit && r_bank_rdwr_ready[RK0][pbank] && w_tccd_fwd_ok
+                              && (pdir ? trtw_ok_i : twtr_ok_i)
+                              && (pdir ? wr_commit_ready_i : rd_issue_ready_i)
+                              && !(f_ap(pbank) && w_col_inflight_bank[pbank]) && !r_ap_closing[pbank]
+                              && !(pdir ? w_wr_col_inflight_ent[pslot] : w_rd_col_inflight_ent[pslot])
+                              && !w_ref_col_block[pbank]
+                              && (pdir ? !w_wr_turn_block : !w_rd_turn_block)
+                              && !w_ap_col_guard[pbank] && !w_pre_col_guard[pbank]
+                              && !w_preact_bank_guard[pbank];
+                // ACTIVATE the oldest pending op's idle+ready bank
+                // (bank-parallel). tFAW/tRRD are deliberately NOT gated here:
+                // both are rank-global, and zeroing the mask on a closed window
+                // drains the whole 3-stage pick pipeline at a 3-cycle refill
+                // cost. They are re-checked live at STAGE-1b (w_act_gate_live)
+                // and again at the fire stage (w_out_safe, pumice BUG-021).
+                pool_act_m[e] = !r_bank_row_active[RK0][pbank] && !w_guarded[pbank]
+                              && r_bank_act_ready[RK0][pbank] && w_act_classify_gate
                               && !w_rfc_busy;
-                rd_pre_m[e] = r_bank_row_active[RK0][rb] && !w_guarded[rb] && !rhit
-                              && r_bank_pre_ready[RK0][rb];
-            end
-            // WRITE entry. The column (WR) commit enqueues into the wr CAM's
-            // drain FIFO, so gate it on drain-FIFO room (wr_commit_ready_i) —
-            // else the write issues to DRAM but its data never drains (stale
-            // DRAM) and the slot re-issues. ACT/PRE stay free.
-            if (wr_sch_valid_i[e]) begin
-                wr_col_m[e] = whit && r_bank_rdwr_ready[RK0][wb] && w_tccd_fwd_ok && trtw_ok_i
-                              && wr_commit_ready_i && !(f_ap(wb) && w_col_inflight_bank[wb]) && !r_ap_closing[wb] && !w_wr_col_inflight_ent[e]
-                              && !w_ref_col_block[wb]
-                              && !w_wr_turn_block && !w_ap_col_guard[wb]
-                              && !w_pre_col_guard[wb] && !w_preact_bank_guard[wb];
-                // ISSUE-002: tFAW/tRRD gate the FIRE, not the classify. Both
-                // are global (not per-bank), so gating the MASK zeroed every
-                // ACT candidate the moment tRRD closed; the 3-stage pick
-                // pipeline then drained completely and cost 3 more cycles to
-                // refill once it reopened. Under CLOSE page that is an ACT per
-                // access, so the stream ran 6 commands then stalled 5 cycles --
-                // 30.77% against a 49% command-bus ceiling. Letting candidates
-                // flow costs nothing: the classes are separate pipeline
-                // registers picked by priority at the output, so an ACT waiting
-                // on tRRD does not block a column, and w_act_gate_live re-checks
-                // both at the STAGE-1b pre-pick and at the fire stage
-                // (w_out_safe re-checks the rank-global windows live, pumice
-                // BUG-021). That re-check chain is LATER than the classify
-                // mask, which is what this reasoning needs.
-                wr_act_m[e] = !r_bank_row_active[RK0][wb] && !w_guarded[wb]
-                              && r_bank_act_ready[RK0][wb] && w_act_classify_gate
-                              && !w_rfc_busy;
-                wr_pre_m[e] = r_bank_row_active[RK0][wb] && !w_guarded[wb] && !whit
-                              && r_bank_pre_ready[RK0][wb];
+                // PRECHARGE a bank open on the wrong row.
+                pool_pre_m[e] = r_bank_row_active[RK0][pbank] && !w_guarded[pbank] && !phit
+                              && r_bank_pre_ready[RK0][pbank];
             end
         end
     end
@@ -915,10 +924,13 @@ module pumice_cmd_arbiter
     end
 
     // ---- per-entry pending population (SCHED_POLICY.row_sel / col_sel) ----
-    // pop[i] = number of SCHEDULABLE entries in the SAME CAM sharing entry
-    // i's {bank,row} (including itself). At NUM_ENTRIES=8 this is a cheap
-    // 8x8 match triangle -- the paper's "expensive population counters"
-    // degenerate to a handful of 3-bit adders at this CAM depth.
+    // pop[i] = number of SCHEDULABLE entries in the SAME CAM (direction)
+    // sharing entry i's {bank,row} (including itself). One pool loop writes
+    // both per-direction arrays; the ((j >= NUM_ENTRIES) == dir) term
+    // restricts the count to the entry's own CAM, bit-identical to the former
+    // split loops. At NUM_ENTRIES=8 this is a cheap 8x8 match triangle per
+    // direction -- the paper's "expensive population counters" degenerate to
+    // a handful of 3-bit adders at this CAM depth.
     localparam int POPW = $clog2(NUM_ENTRIES + 1);
     logic [POPW-1:0] rd_pop [NUM_ENTRIES];
     logic [POPW-1:0] wr_pop [NUM_ENTRIES];
@@ -926,15 +938,19 @@ module pumice_cmd_arbiter
         for (int i = 0; i < NUM_ENTRIES; i++) begin
             rd_pop[i] = '0;
             wr_pop[i] = '0;
-            for (int j = 0; j < NUM_ENTRIES; j++) begin
-                if (rd_sch_valid_i[j]
-                    && (f_bank(rd_sch_bank_i, PTRW'(j)) == f_bank(rd_sch_bank_i, PTRW'(i)))
-                    && (f_row(rd_sch_row_i, PTRW'(j))  == f_row(rd_sch_row_i, PTRW'(i))))
-                    rd_pop[i] = rd_pop[i] + POPW'(1);
-                if (wr_sch_valid_i[j]
-                    && (f_bank(wr_sch_bank_i, PTRW'(j)) == f_bank(wr_sch_bank_i, PTRW'(i)))
-                    && (f_row(wr_sch_row_i, PTRW'(j))  == f_row(wr_sch_row_i, PTRW'(i))))
-                    wr_pop[i] = wr_pop[i] + POPW'(1);
+        end
+        for (int e = 0; e < POOL; e++) begin
+            automatic logic           pdir = (e >= NUM_ENTRIES);
+            automatic int             pslot = pdir ? (e - NUM_ENTRIES) : e;
+            automatic logic [BKW-1:0] ppbk = f_pool_bank(PTXW'(e));
+            automatic logic [ROW_WIDTH-1:0] pprw = f_pool_row(PTXW'(e));
+            for (int j = 0; j < POOL; j++) begin
+                if (pool_valid[j] && ((j >= NUM_ENTRIES) == pdir)
+                    && (f_pool_bank(PTXW'(j)) == ppbk)
+                    && (f_pool_row (PTXW'(j)) == pprw)) begin
+                    if (pdir) wr_pop[pslot] = wr_pop[pslot] + POPW'(1);
+                    else      rd_pop[pslot] = rd_pop[pslot] + POPW'(1);
+                end
             end
         end
     end
