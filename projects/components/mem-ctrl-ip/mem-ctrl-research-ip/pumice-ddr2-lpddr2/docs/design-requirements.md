@@ -379,7 +379,7 @@ round-robin, and the JEDEC ±8 postpone/pull-in refresh scheduling. Model-only s
 that need DRAM-chip / JEDEC-command changes (out-of-order per-bank refresh, write-refresh
 parallelization, refresh pausing, subarray parallelism) are **out of scope for this
 DDR2/LPDDR2 project** and are tracked for the DDR3/DDR4 roadmap in
-[`../../../../../vault/Tasks/memory-controllers/ADVANCED_MODES_ROADMAP.md`](../../../../../../vault/Tasks/memory-controllers/ADVANCED_MODES_ROADMAP.md).
+[`../../../../../vault/Tasks/projects/components/mem-ctrl-ip/memory-controllers/ADVANCED_MODES_ROADMAP.md`](../../../../../../vault/Tasks/projects/components/mem-ctrl-ip/memory-controllers/ADVANCED_MODES_ROADMAP.md).
 
 ### Mode-select CSRs (the characterization surface)
 

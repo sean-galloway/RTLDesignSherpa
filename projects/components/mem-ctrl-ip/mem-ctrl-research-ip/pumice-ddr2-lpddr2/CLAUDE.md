@@ -3,7 +3,7 @@
 Area facts for this component. **Method lives in `vault/handbook/`** — this
 file links to it rather than restating it.
 
-Was `vault/Tasks/pumice-ddr2-lpddr2/task/open/TASK-004.md`, a "task" marked *informational;
+Was `vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/task/open/TASK-004.md`, a "task" marked *informational;
 do not close*. A work item that cannot be closed is not a work item, and a
 handover parked in the task tracker is read by nobody who is not already
 reading the tracker. Sean, 2026-09-25: *"if a task can't be closed, that means
@@ -89,5 +89,5 @@ Two consequences worth knowing before changing it:
 
 ## Work items
 
-`vault/Tasks/pumice-ddr2-lpddr2/` — task/bug/issue lanes. Bug and issue lanes are empty as
+`vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/` — task/bug/issue lanes. Bug and issue lanes are empty as
 of 2026-09-25.

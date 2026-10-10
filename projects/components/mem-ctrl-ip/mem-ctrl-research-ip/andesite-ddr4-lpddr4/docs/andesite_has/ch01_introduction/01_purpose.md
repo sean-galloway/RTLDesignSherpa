@@ -97,6 +97,6 @@ oversight, and they are out of scope the same way scoria's DDR4/v3.1 surface
 was: named, then deliberately left unimplemented.
 
 **The PRD and the RTL.** The PRD rewrite and the RTL bootstrap are follow-on
-work, tracked in the vault lane (`vault/Tasks/andesite-ddr4-lpddr4/`). This
+work, tracked in the vault lane (`vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/andesite-ddr4-lpddr4/`). This
 book is the first of three: the MAS and the kmap book follow it, each
 owner-reviewed before the next starts.

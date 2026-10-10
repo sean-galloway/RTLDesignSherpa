@@ -67,7 +67,7 @@ it, and the work ledger lives in the vault:
 | Design requirements | [docs/design-requirements.md](docs/design-requirements.md) | Binding delta analysis against JESD79-3F / JESD209-3C / DFI v3.1 |
 | Published HAS book | [docs/DDR3_LPDDR3_HAS_v0.8.pdf](docs/DDR3_LPDDR3_HAS_v0.8.pdf) | Styled PDF of the HAS |
 | CSR documentation | [regs/generated/docs/scoria_csr.md](regs/generated/docs/scoria_csr.md) | Generated from `rtl/macro/scoria_csr.rdl` |
-| Work items | [vault/Tasks/scoria-ddr3-lpddr3/](../../../../../vault/Tasks/scoria-ddr3-lpddr3/INDEX.md) | Tasks and bugs, one file per item |
+| Work items | [vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/](../../../../../vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/INDEX.md) | Tasks and bugs, one file per item |
 
 ## 3. Target Design Point
 
@@ -146,9 +146,9 @@ data-integrity property guarded off) — TASK-006.
 
 | ID | Summary | Priority |
 |---|---|---|
-| [BUG-003](../../../../../vault/Tasks/scoria-ddr3-lpddr3/bug/open/BUG-003.md) | 100 MHz design point misses by ~2 ns out-of-context (WNS −2.022 ns; 85% route, 31 logic levels across the arbiter/CAM boundary). Indicated first move: floorplan the arbiter with its CAMs; the RTL cone-break is the risky second lever | P1 for the board |
+| [BUG-003](../../../../../vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/bug/open/BUG-003.md) | 100 MHz design point misses by ~2 ns out-of-context (WNS −2.022 ns; 85% route, 31 logic levels across the arbiter/CAM boundary). Indicated first move: floorplan the arbiter with its CAMs; the RTL cone-break is the risky second lever | P1 for the board |
 
-Full ledger: [vault/Tasks/scoria-ddr3-lpddr3/](../../../../../vault/Tasks/scoria-ddr3-lpddr3/INDEX.md).
+Full ledger: [vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/](../../../../../vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/INDEX.md).
 
 ## 8. Development Status and Roadmap
 
@@ -186,4 +186,4 @@ stop being constants).
 
 - **← Back to Root:** `/PRD.md`
 - **Architecture spec:** [docs/scoria_has/scoria_has_index.md](docs/scoria_has/scoria_has_index.md)
-- **Work items:** [vault/Tasks/scoria-ddr3-lpddr3/](../../../../../vault/Tasks/scoria-ddr3-lpddr3/INDEX.md)
+- **Work items:** [vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/](../../../../../vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/INDEX.md)

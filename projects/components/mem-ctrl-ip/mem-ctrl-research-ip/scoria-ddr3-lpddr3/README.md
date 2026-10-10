@@ -42,7 +42,7 @@ from which its architecture is derived.
 - Board build flow exists (`projects/fpga-systems/Genesys2/mem-ctrl-ip/scoria/build-scoria/`,
   board top + harness, passing lint); no bitstream yet. First out-of-context
   synthesis found the design point missing 100 MHz by ~2 ns
-  ([BUG-003](../../../../../vault/Tasks/scoria-ddr3-lpddr3/bug/open/BUG-003.md), P1).
+  ([BUG-003](../../../../../vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/bug/open/BUG-003.md), P1).
 
 ## Deltas vs DDR2/LPDDR2 (pumice)
 
@@ -64,5 +64,5 @@ MODIFIED or NEW:
   analysis against JESD79-3F / JESD209-3C / DFI v3.1
 - [HAS index](docs/scoria_has/scoria_has_index.md)
 - Parent: [`../README.md`](../../README.md)
-- Work items: [`vault/Tasks/scoria-ddr3-lpddr3/`](../../../../../vault/Tasks/scoria-ddr3-lpddr3/INDEX.md)
+- Work items: [`vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/`](../../../../../vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/INDEX.md)
 - DDR2/LPDDR2 predecessor: `../pumice-ddr2-lpddr2/`

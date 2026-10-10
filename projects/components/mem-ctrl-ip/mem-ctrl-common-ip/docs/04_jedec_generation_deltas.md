@@ -48,4 +48,4 @@ the room.
 - The andesite study book on LPDDR4 (referenced, not rewritten by the
   tranche) is under `andesite-ddr4-lpddr4/docs/simplified_lpddr4/`.
 - The advanced-modes roadmap — what the generations add beyond the commodity
-  baseline — is `vault/Tasks/memory-controllers/ADVANCED_MODES_ROADMAP.md`.
+  baseline — is `vault/Tasks/projects/components/mem-ctrl-ip/memory-controllers/ADVANCED_MODES_ROADMAP.md`.

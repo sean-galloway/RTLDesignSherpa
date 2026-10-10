@@ -53,6 +53,6 @@ across the family without opening three books.
   missing `dfi_wrdata_dbi` pin, and the `dfi_init`/`dfi_ca_capture`
   mismatches are recorded in those files. The in-house BFM gap list and
   integration note are in HAS ch06; the task record is
-  `vault/Tasks/andesite-ddr4-lpddr4/task/open/TASK-005.md`.
+  `vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/andesite-ddr4-lpddr4/task/open/TASK-005.md`.
 - andesite's foundation document, `scoria-ddr3-lpddr3/docs/design-requirements.md`,
   is where the boundary was argued against the actual revisions.
