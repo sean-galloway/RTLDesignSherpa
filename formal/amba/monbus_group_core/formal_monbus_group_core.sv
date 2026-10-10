@@ -32,7 +32,13 @@ module formal_monbus_group_core (
     localparam int FIFO_DEPTH_ERR   = 4;
     localparam int FIFO_DEPTH_WRITE = 8;
     localparam int ADDR_WIDTH       = 32;
-    localparam int MAX_BURST_BEATS  = 8;
+    // AXIL-leaf burst geometry (the production group wrappers): a burst is
+    // one beat, so every record spans several sub-bursts and the writer's
+    // pipelined multi-AW path -- back-to-back AW issue, AW overlapping W
+    // (the combined-commit accounting arm), epoch roll with B in flight --
+    // is exercised.  MAX_BURST_BEATS >= a whole record would collapse each
+    // epoch to a single AW and leave those paths formally untested.
+    localparam int MAX_BURST_BEATS  = 1;
     localparam int FLUSH_TIMEOUT    = 8;    // short so the timeout-flush cover is reachable at depth 40
 
     // packet field positions (monitor_common_pkg)
@@ -192,9 +198,24 @@ module formal_monbus_group_core (
         assume ($stable(monbus_timestamp));
     end
     // a well-behaved AXI slave: bvalid holds until bready, and B is only
-    // returned when the writer has at least one outstanding sub-burst.
+    // returned when the writer has at least one outstanding sub-burst AND
+    // that sub-burst's W data has completed (AXI: BVALID waits for the
+    // burst's WLAST).  Without the W-completion half the free environment
+    // returns B for sub-bursts whose W never streamed, which lets the
+    // outstanding (B-side) queue drain while the W-side queue still holds
+    // their entries -- ap_ws_le_os is only an invariant under the AXI rule
+    // (a protocol-violating slave could otherwise push the W-side length
+    // queue past its 4-deep circular buffer).
+    wire w_hs_env   = m_wvalid && m_wready;
+    wire wlast_env  = w_hs_env && m_wlast;
+    reg  [8:0] f_w_subs_done;
+    always @(posedge clk) begin
+        if (!rst_n) f_w_subs_done <= 9'd0;
+        else if (wlast_env) f_w_subs_done <= f_w_subs_done + 9'd1;
+    end
     always @(posedge clk) if (live && $past(m_bvalid) && !$past(m_bready)) assume (m_bvalid);
-    always @(posedge clk) if (live && m_bvalid) assume (f_r_os_count > 3'd0);
+    always @(posedge clk) if (live && m_bvalid)
+        assume ((f_r_os_count > 3'd0) && (f_r_b_subs < f_w_subs_done));
 
     // ---- reference model: routing decision --------------------------------
     wire [3:0] p_type  = monbus_packet[127:124];
