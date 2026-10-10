@@ -6,8 +6,8 @@
 Seventeen FUB suites pass. Every one of them mocked its module's neighbours,
 and a mocked neighbour cannot disagree with the test author -- it answers
 exactly as they believed it would. This file instantiates the real wiring:
-arbiter + bank_timers + global_timers + refresh_ctrl + page_policy + zq_ctrl +
-init_sequencer + wrlvl_ifc + mode_register + the command FIFO.
+arbiter + bank_timers + global_timers + refresh_ctrl + page_policy +
+init_sequencer + mode_register + the command FIFO.
 
 That matters because this session's FUB findings were all about boundaries the
 unit tests had to model by hand -- the arbiter keeping its own in-flight
@@ -55,7 +55,7 @@ if _DV_DIR not in sys.path:
 
 from tbclasses.scoria_scheduler_layer_tb import (  # noqa: E402
     ScoriaMemCmdSchedulerTB, OP_ACT, OP_RD, OP_WR, OP_PRE, OP_PREA, OP_REF,
-    OP_MRS, OP_ZQCS, OP_ZQCL,
+    OP_MRS, OP_ZQCL,
 )
 from tbclasses.scoria_dram_configs import dram_config  # noqa: E402
 
@@ -170,41 +170,6 @@ async def cocotb_test_scoria_scheduler_layer(dut):
                 f"defect the bound history checker exists to catch")
             chk(tb.stat('stat_ref_o') >= 1,
                 f"stat_ref is {tb.stat('stat_ref_o')} after a refresh issued")
-
-    elif tt == "zqcs_maintenance_in_traffic":
-        # The ZQ arm, composed. The FUB test drove zq_req by hand; here the
-        # real zq_ctrl raises it on its interval, against real bank state.
-        chk(await tb.complete_init(), "init never completed")
-        before = len(tb.cmds)
-        dut.zq_enable_i.value = 1
-        dut.zq_interval_i.value = 20
-        tb.rd_entry = dict(slot=0, bank=5, row=0x77, col=0x10)
-        for _ in range(500):
-            await RisingEdge(dut.aclk)
-            if [c for c in list(tb.cmds)[before:] if c['op'] == OP_ZQCS]:
-                break
-            if tb.rd_issued and tb.rd_entry is None:
-                # keep a little traffic alive so ZQ has to contend with it
-                tb.rd_entry = dict(slot=0, bank=5, row=0x77, col=0x10)
-        new = list(tb.cmds)[before:]
-        zq = [c for c in new if c['op'] == OP_ZQCS]
-        chk(zq, f"no ZQCS in 500 cycles with zq_enable and interval 20 -- "
-                f"periodic calibration never fired. new stream: "
-                f"{' '.join(c['name'] + '@' + str(c['cycle']) for c in new)}")
-        if zq:
-            # JESD79-3F 3.10: all banks idle at the ZQCS, and no command for
-            # tZQCS after it. Both are the arbiter's structure; here they are
-            # checked against the real bank state rather than a driven vector.
-            after = [c for c in new if c['cycle'] > zq[0]['cycle']]
-            quiet = [c for c in after if c['cycle'] - zq[0]['cycle'] <= 16]
-            chk(quiet == [],
-                f"commands issued inside the tZQCS window after ZQCS@"
-                f"{zq[0]['cycle']}: "
-                f"{' '.join(c['name'] + '@' + str(c['cycle']) for c in quiet)}")
-            chk(tb.stat('zq_total_o') >= 1,
-                f"zq_total is {tb.stat('zq_total_o')} after a ZQCS issued")
-            tb.log.info(f"ZQCS@{zq[0]['cycle']}, zq_total="
-                        f"{tb.stat('zq_total_o')}")
 
     elif tt == "probe_act_spacing":
         # DISCRIMINATOR. The bound checker watches the SCHEDULER OUTPUT
@@ -365,84 +330,6 @@ async def cocotb_test_scoria_scheduler_layer(dut):
             f"TCR derate=1 produced {refs_1} REFs vs {refs_0} for derate=0, "
             f"expected >= 1.8x")
 
-    elif tt == "zqcs_defer_under_demand":
-        # Mode C: ZQCS placement policy. With placement=1 and overdue_max=0,
-        # ZQCS must defer while traffic persists, then fire once CAMs drain.
-        chk(await tb.complete_init(), "init never completed")
-        before = len(tb.cmds)
-        before_cycle = tb.cmds[-1]['cycle'] if tb.cmds else 0
-        dut.zq_enable_i.value = 1
-        dut.zq_interval_i.value = 20
-        dut.zq_placement_i.value = 1
-        dut.zq_overdue_max_i.value = 0
-        # Use both read and write entries so demand_i never drops when one side
-        # issues/commits and the CAM model clears it for a cycle.
-        tb.rd_entry = dict(slot=0, bank=3, row=0x300, col=0)
-        tb.wr_entry = dict(slot=1, bank=4, row=0x301, col=0)
-        zq_req_seen = False
-        for _ in range(100):
-            await RisingEdge(dut.aclk)
-            if int(dut.u_zq.zq_req_o.value):
-                zq_req_seen = True
-                break
-            if tb.rd_entry is None:
-                tb.rd_entry = dict(slot=0, bank=3, row=0x300, col=0)
-            if tb.wr_entry is None:
-                tb.wr_entry = dict(slot=1, bank=4, row=0x301, col=0)
-        chk(not zq_req_seen,
-            "ZQ request asserted during the first 100 cycles of continuous "
-            "demand with placement=1, overdue_max=0 -- deferral is not wired")
-        early_zq = [z for z in tb.ops_of(OP_ZQCS)
-                    if before_cycle < z['cycle'] <= before_cycle + 100]
-        chk(not early_zq,
-            f"ZQCS issued within first 100 cycles despite continuous demand: "
-            f"{' '.join(f'{z['name']}@{z['cycle']}' for z in early_zq)}")
-        # Drain CAMs: stop issuing and let the arbiter go idle. The interval
-        # already expired during the demand window, so ZQCS should arrive within
-        # the bank-idle/precharge grant margin once demand drops.
-        tb.rd_entry = None
-        tb.wr_entry = None
-        post_drain = 0
-        zq = None
-        for _ in range(80):
-            await RisingEdge(dut.aclk)
-            post_drain += 1
-            hits = [c for c in list(tb.cmds)[before:] if c['op'] == OP_ZQCS]
-            if hits:
-                zq = hits
-                break
-        chk(zq, "no ZQCS within 80 cycles after draining CAMs")
-        if zq:
-            chk(post_drain <= 60,
-                f"ZQCS after drain appeared {post_drain} cycles after traffic "
-                f"stopped, expected <= 60 (bank-idle/precharge margin = 60)")
-        # Rerun with overdue_max=8: the request must cap deferral under load.
-        # Let the interval reload naturally after the first ZQCS, then restart
-        # traffic and verify the ZQ request asserts within the overdue window.
-        before2 = len(tb.cmds)
-        dut.zq_overdue_max_i.value = 8
-        tb.rd_entry = dict(slot=0, bank=3, row=0x300, col=0)
-        tb.wr_entry = dict(slot=1, bank=4, row=0x301, col=0)
-        # Wait for the ZQ request to assert (this is the composed Mode C path;
-        # the actual ZQCS grant still needs an idle bank window).
-        req_seen2 = False
-        for cyc2 in range(120):
-            await RisingEdge(dut.aclk)
-            if int(dut.u_zq.zq_req_o.value):
-                req_seen2 = True
-                break
-            if tb.rd_entry is None:
-                tb.rd_entry = dict(slot=0, bank=3, row=0x300, col=0)
-            if tb.wr_entry is None:
-                tb.wr_entry = dict(slot=1, bank=4, row=0x301, col=0)
-        chk(req_seen2,
-            "ZQ request never asserted with overdue_max=8 despite demand")
-        chk(cyc2 <= 100,
-            f"ZQ request with overdue_max=8 asserted at cycle {cyc2}, "
-            f"expected <= ~100 (interval + overdue cap + margin)")
-        # The actual ZQCS may wait for an idle bank, but it must arrive.
-        zq2 = await tb.wait_for_ops(OP_ZQCS, since=before2, limit=200)
-        chk(zq2, "no ZQCS within 200 cycles with overdue_max=8 despite demand")
     else:
         raise ValueError(f"Unknown TEST_TYPE: {tt}")
 
@@ -460,11 +347,9 @@ async def cocotb_test_scoria_scheduler_layer(dut):
 
 _GATE = ["init_sequence_in_jedec_order", "act_then_read_with_real_timers"]
 _FUNC = _GATE + ["probe_act_spacing", "refresh_closes_banks_then_refreshes",
-                 "zqcs_maintenance_in_traffic",
                  "mixed_traffic_audited_by_the_checker",
                  "elastic_refresh_in_traffic",
-                 "tcr_doubles_rate",
-                 "zqcs_defer_under_demand"]
+                 "tcr_doubles_rate"]
 _TEST_LEVEL = (os.environ.get("REG_LEVEL") or os.environ.get("TEST_LEVEL")
                or "FUNC").upper()
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FUNC}.get(_TEST_LEVEL, _FUNC)

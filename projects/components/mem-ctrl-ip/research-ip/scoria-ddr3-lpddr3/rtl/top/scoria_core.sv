@@ -418,6 +418,10 @@ module scoria_core
     // write-leveling handshake, ctl_clk side (crosses inside scoria_dfi_layer)
     logic [NUM_CS-1:0]         w_wl_req_cs_n, w_wl_ack_cs_n, w_wl_mode_cs_n;
     logic                      w_wl_strobe, w_wl_prime_dq;
+    // scheduler -> training_layer (ZQ command path + wrlvl mode enable)
+    logic                      w_zq_req, w_zq_grant;
+    logic                      w_wrlvl_en;
+    assign wrlvl_en_o = w_wrlvl_en;
 
     // ---- AXI4 layer <-> storage layer inter-layer nets ----
     logic                aw_push_valid, aw_push_ready;
@@ -736,46 +740,18 @@ module scoria_core
         // THIS module's boundary, which is where the name changes.
         .dram_reset_n_o     (dfi_reset_n_o),
         .mr_wr_o            (mr_wr_o),
-        .wrlvl_en_o         (wrlvl_en_o),
-        .zq_enable_i        (zq_enable_i),
-        .zq_interval_i      (zq_interval_i),
+        .wrlvl_en_o         (w_wrlvl_en),
+        .zq_req_i           (w_zq_req),
+        .zq_grant_o         (w_zq_grant),
         .t_zqcs_i           (t_zqcs_i),
-        .zq_busy_o          (zq_busy_o),
-        .zq_total_o         (zq_total_o),
-        .zq_interval_cnt_o  (zq_interval_cnt_o),
-        .zq_overdue_o       (zq_overdue_o),
         // Mode A/B/C CSR fields (TASK-001)
         .ref_elastic_en_i            (ref_elastic_en_i),
         .ref_pullin_idle_streak_i    (ref_pullin_idle_streak_i),
         .ref_postpone_demand_streak_i(ref_postpone_demand_streak_i),
         .ref_tcr_en_i                (ref_tcr_en_i),
         .ref_trefi_derate_i          (ref_trefi_derate_i),
-        .zq_placement_i              (zq_placement_i),
-        .zq_overdue_max_i            (zq_overdue_max_i),
         .obs_ref_postpone_events_o   (obs_ref_postpone_events_o),
         .obs_ref_pullin_events_o     (obs_ref_pullin_events_o),
-        .wrlvl_strobe_i     (wrlvl_strobe_i),
-        .wrlvl_cs_sel_i     (wrlvl_cs_sel_i),
-        .t_wldqsen_i        (t_wldqsen_i),
-        .t_wlmrd_i          (t_wlmrd_i),
-        .t_wlmrd_max_i      (t_wlmrd_max_i),
-        .t_wlo_i            (t_wlo_i),
-        .t_wloe_i           (t_wloe_i),
-        // ctl_clk side of the leveling handshake. It goes to scoria_dfi_layer,
-        // NOT to the pins: the PHY samples on dfi_clk and the DFI layer owns
-        // the one crossing in this design.
-        .dfi_phylvl_req_cs_n_o (w_wl_req_cs_n),
-        .dfi_phylvl_ack_cs_n_i (w_wl_ack_cs_n),
-        .dfi_phy_wrlvl_cs_n_o  (w_wl_mode_cs_n),
-        .dfi_wrlvl_strobe_o    (w_wl_strobe),
-        .wrlvl_prime_dq_i      (w_wl_prime_dq),
-        .wrlvl_result_valid_o (wrlvl_result_valid_o),
-        .wrlvl_result_o     (wrlvl_result_o),
-        .wrlvl_attempts_o   (wrlvl_attempts_o),
-        .wrlvl_flips_o      (wrlvl_flips_o),
-        .wrlvl_timeout_o    (wrlvl_timeout_o),
-        .wrlvl_ever_done_o  (wrlvl_ever_done_o),
-        .wrlvl_state_o      (wrlvl_state_o),
         .mr0_i              (mr0_i),
         .mr1_i              (mr1_i),
         .mr2_i              (mr2_i),
@@ -830,6 +806,50 @@ module scoria_core
         .cmd_col_o  (w_cmd_col),
         .cmd_ap_o   (w_cmd_ap),
         .busy_o     ()
+    );
+
+    // ======================================================================
+    // Layer 2b: training wrapper (ZQ + write-leveling)
+    // ======================================================================
+    scoria_training_layer #(
+        .NUM_CS(NUM_CS),
+        .CSW   ((NUM_CS > 1) ? $clog2(NUM_CS) : 1)
+    ) u_training (
+        .mc_clk             (aclk),
+        .mc_rst_n           (aresetn),
+        .init_done_i        (init_done_o),
+        .memtype_i          (memtype_i),
+        .zq_enable_i        (zq_enable_i),
+        .zq_interval_i      (zq_interval_i),
+        .t_zqcs_i           (t_zqcs_i),
+        .zq_placement_i     (zq_placement_i),
+        .zq_overdue_max_i   (zq_overdue_max_i),
+        .zq_req_o           (w_zq_req),
+        .zq_grant_i         (w_zq_grant),
+        .zq_busy_o          (zq_busy_o),
+        .zq_total_o         (zq_total_o),
+        .zq_interval_cnt_o  (zq_interval_cnt_o),
+        .zq_overdue_o       (zq_overdue_o),
+        .wrlvl_en_i         (w_wrlvl_en),
+        .wrlvl_strobe_i     (wrlvl_strobe_i),
+        .wrlvl_cs_sel_i     (wrlvl_cs_sel_i),
+        .t_wldqsen_i        (t_wldqsen_i),
+        .t_wlmrd_i          (t_wlmrd_i),
+        .t_wlmrd_max_i      (t_wlmrd_max_i),
+        .t_wlo_i            (t_wlo_i),
+        .t_wloe_i           (t_wloe_i),
+        .dfi_phylvl_req_cs_n_o (w_wl_req_cs_n),
+        .dfi_phylvl_ack_cs_n_i (w_wl_ack_cs_n),
+        .dfi_phy_wrlvl_cs_n_o  (w_wl_mode_cs_n),
+        .dfi_wrlvl_strobe_o    (w_wl_strobe),
+        .wrlvl_prime_dq_i      (w_wl_prime_dq),
+        .wrlvl_result_valid_o  (wrlvl_result_valid_o),
+        .wrlvl_result_o        (wrlvl_result_o),
+        .wrlvl_attempts_o      (wrlvl_attempts_o),
+        .wrlvl_flips_o         (wrlvl_flips_o),
+        .wrlvl_timeout_o       (wrlvl_timeout_o),
+        .wrlvl_ever_done_o     (wrlvl_ever_done_o),
+        .wrlvl_state_o         (wrlvl_state_o)
     );
 
     // ======================================================================

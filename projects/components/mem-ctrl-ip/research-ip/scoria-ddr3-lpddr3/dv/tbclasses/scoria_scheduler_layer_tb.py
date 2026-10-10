@@ -7,8 +7,8 @@ Every scoria test before this one was a FUB test, and a FUB test mocks its
 module's neighbours. A mocked neighbour cannot disagree with you: it answers
 exactly as the test author believed it would. This testbench instantiates the
 real wiring instead -- arbiter + bank_timers + global_timers + refresh_ctrl +
-page_policy + zq_ctrl + init_sequencer + wrlvl_ifc + mode_register + the
-command FIFO -- so the seams are live for the first time.
+page_policy + init_sequencer + mode_register + the command FIFO -- so the seams
+are live for the first time.
 
 Those seams are where this session's FUB-level findings actually lived: the
 arbiter's own in-flight precharge bookkeeping disagreeing with a stale
@@ -142,14 +142,16 @@ class ScoriaMemCmdSchedulerTB(TBBase):
         d.ref_mode_i.value = 0           # REFab
         d.ref_trefi_pb_i.value = p['tREFI']
         d.ref_trfc_pb_i.value = p['tRFC']
+        # tZQCS is still a scheduler input because the arbiter enforces the
+        # post-ZQCS quiet window, even though the ZQ request now comes from the
+        # external scoria_training_layer.
+        d.t_zqcs_i.value = 16
         # ---- Mode A/B/C CSR fields (TASK-001): baseline defaults -----------
         d.ref_elastic_en_i.value = 0
         d.ref_pullin_idle_streak_i.value = 16
         d.ref_postpone_demand_streak_i.value = 1
         d.ref_tcr_en_i.value = 0
         d.ref_trefi_derate_i.value = 0
-        d.zq_placement_i.value = 0
-        d.zq_overdue_max_i.value = 0
         # ---- scheduler policy knobs: build defaults ------------------------
         d.sched_order_mode_i.value = 0   # FR-FCFS
         d.sched_row_sel_i.value = 0
@@ -183,23 +185,6 @@ class ScoriaMemCmdSchedulerTB(TBBase):
         d.mr1_i.value = 0
         d.mr2_i.value = (1 << 3)         # CWL = 1 + 5 = 6
         d.mr3_i.value = 0
-        # ---- ZQ calibration ------------------------------------------------
-        d.zq_enable_i.value = 0          # off unless a test asks
-        d.zq_interval_i.value = 0
-        d.t_zqcs_i.value = 16
-        # ---- write leveling ------------------------------------------------
-        d.wrlvl_strobe_i.value = 0
-        d.wrlvl_cs_sel_i.value = 0
-        d.wrlvl_prime_dq_i.value = 0
-        d.t_wldqsen_i.value = 4
-        d.t_wlmrd_i.value = 4
-        d.t_wlmrd_max_i.value = 0        # no timeout
-        d.t_wlo_i.value = 4
-        d.t_wloe_i.value = 4
-        # ACTIVE LOW and NOT acked by default: the PHY is only made to answer
-        # by a test that wants leveling to progress. Tying this low here would
-        # hand every test a PHY that always agrees.
-        d.dfi_phylvl_ack_cs_n_i.value = (1 << max(1, len(d.dfi_phylvl_ack_cs_n_i))) - 1
         # ---- CAM-side vectors (driven by _cam_model) -----------------------
         for pfx in ('wr', 'rd'):
             getattr(d, f'{pfx}_sch_valid_i').value = 0
