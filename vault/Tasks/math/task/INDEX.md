@@ -12,18 +12,24 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 5 | done (kept for history) |
+| [closed/](closed/) | 6 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
+(none)
+
+## Closed
+
 - **TASK-006** — systematic special-value Cartesian product grid for the bf16
-  TB family (filed from the BUG-007 escape analysis): a shared ~81-cell
-  product through each module's golden, seed-independent, so a missing
-  special-value corner cannot recur.
+  TB family (closed 2026-10-09: `bf16_special_value_product` in
+  bin/TBClasses/common/bf16_testing.py adopted by 16 TBs, 9x9 grid binary /
+  9 unary / 9x9x9 FMA; mutation-checked against the BUG-007 fix; two latent
+  golden bugs found and fixed en route — MaxTree all_zero subnormal contract,
+  GoldschmidtDiv independent flag semantics)
 
 ## Closed
 

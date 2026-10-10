@@ -24,6 +24,7 @@ import os
 import random
 import struct
 import contextlib
+import itertools
 from typing import List, Tuple, Dict, Any, Optional
 
 from cocotb.triggers import Timer
@@ -152,6 +153,69 @@ class BF16Utils:
     def make_fp32(sign: int, exp: int, mant: int) -> int:
         """Construct FP32 from fields."""
         return ((sign & 1) << 31) | ((exp & 0xFF) << 23) | (mant & 0x7FFFFF)
+
+
+# TASK-006: systematic special-value Cartesian product. BUG-007/BUG-004/BUG-006
+# each escaped because the hand-picked special-value lists below never
+# enumerated a corner the random layer hits at ~2.5e-4 per draw. The grid runs
+# EVERY special-value class pair through the module's own single-op checker --
+# deterministic, seed-independent, ~81 cells (9x9) for binary ops.
+BF16_SPECIAL_GRID: List[Tuple[str, int]] = [
+    ("+0",      0x0000),
+    ("-0",      0x8000),
+    ("+inf",    0x7F80),
+    ("-inf",    0xFF80),
+    ("qNaN",    0x7FC0),
+    ("+submin", 0x0001),
+    ("-submin", 0x8001),
+    ("+1",      0x3F80),
+    ("-1",      0xBF80),
+]
+
+# FP32 accumulator grid for BF16 FMA: each BF16 special value is expanded so
+# its bits occupy the top half of an FP32 bit pattern (sign and exponent/mant
+# fields line up). The names are kept identical to BF16_SPECIAL_GRID for
+# readable failure messages; values are 32-bit integers.
+BF16_SPECIAL_GRID_AS_FP32: List[Tuple[str, int]] = [
+    (name, ((v & 0x8000) << 16) | ((v & 0x7FFF) << 16))
+    for name, v in BF16_SPECIAL_GRID
+]
+
+
+async def bf16_special_value_product(test_cell, *grids, desc_prefix: str = "product", log=None):
+    """Enumerate the full Cartesian product of special-value grids through a
+    TB's single-op checker.
+
+    `test_cell` is an async callable taking (*values, desc) and returning
+    bool (True = pass); every test_single_* in this file has desc last with
+    remaining params defaulted, so bound methods work directly. Each grid is
+    a list of (name, value) pairs (use BF16_SPECIAL_GRID or a custom list).
+    One grid = unary sweep; two = 81 binary cells; three = 729 ternary cells
+    (FMA only). Returns a list of "<labels> failed" strings, the convention
+    the special_values_test methods already return. Never raises on a failing
+    cell -- it records and continues, so ONE run reports every broken cell.
+    """
+    failures: List[str] = []
+    total = 0
+    passed = 0
+    for combo in itertools.product(*grids):
+        names = [c[0] for c in combo]
+        values = [c[1] for c in combo]
+        desc = f"{desc_prefix}({'*'.join(names)})"
+        total += 1
+        try:
+            ok = await test_cell(*values, desc)
+        except Exception as exc:
+            ok = False
+            if log is not None:
+                log.error(f"{desc} raised {exc}")
+        if ok:
+            passed += 1
+        else:
+            failures.append(f"{'*'.join(names)} failed")
+    if log is not None:
+        log.info(f"special-value product: {passed}/{total} cells passed")
+    return failures
 
 
 class BF16MultiplierTB(TBBase):
@@ -396,6 +460,10 @@ class BF16MultiplierTB(TBBase):
         for a, b, desc in special_cases:
             if not await self.test_single_mult(a, b, desc):
                 failures.append(f"Special case failed: {desc}")
+
+        # TASK-006: systematic special-value Cartesian product (9x9 = 81 cells)
+        failures.extend(await bf16_special_value_product(
+            self.test_single_mult, BF16_SPECIAL_GRID, BF16_SPECIAL_GRID, log=self.log))
 
         self.log.info(f"Special Values Test: {self.pass_count}/{self.test_count} passed")
         return failures
@@ -721,6 +789,12 @@ class BF16FMATB(TBBase):
         for a, b, c, desc in special_cases:
             if not await self.test_single_fma(a, b, c, desc):
                 failures.append(f"Special case failed: {desc}")
+
+        # TASK-006: systematic special-value Cartesian product (9x9x9 = 729 cells)
+        failures.extend(await bf16_special_value_product(
+            self.test_single_fma,
+            BF16_SPECIAL_GRID, BF16_SPECIAL_GRID, BF16_SPECIAL_GRID_AS_FP32,
+            log=self.log))
 
         self.log.info(f"FMA Special Values Test: {self.pass_count}/{self.test_count} passed")
         return failures
@@ -1131,6 +1205,10 @@ class BF16AdderTB(TBBase):
         for a, b, desc in special_cases:
             if not await self.test_single_add(a, b, desc):
                 failures.append(f"Special case failed: {desc}")
+
+        # TASK-006: systematic special-value Cartesian product (9x9 = 81 cells)
+        failures.extend(await bf16_special_value_product(
+            self.test_single_add, BF16_SPECIAL_GRID, BF16_SPECIAL_GRID, log=self.log))
 
         self.log.info(f"Special Values Test: {self.pass_count}/{self.test_count} passed")
         return failures
@@ -1711,6 +1789,10 @@ class BF16ComparatorTB(TBBase):
             if not await self.test_single_compare(a, b, desc):
                 failures.append(f"Special case failed: {desc}")
 
+        # TASK-006: systematic special-value Cartesian product (9x9 = 81 cells)
+        failures.extend(await bf16_special_value_product(
+            self.test_single_compare, BF16_SPECIAL_GRID, BF16_SPECIAL_GRID, log=self.log))
+
         self.log.info(f"Special Values Test: {self.pass_count}/{self.test_count} passed")
         return failures
 
@@ -1975,6 +2057,10 @@ class BF16ToIntTB(TBBase):
         for bf16, desc in special_cases:
             if not await self.test_single_conversion(bf16, desc):
                 failures.append(f"Special case failed: {desc}")
+
+        # TASK-006: systematic special-value Cartesian product (9 cells, unary)
+        failures.extend(await bf16_special_value_product(
+            self.test_single_conversion, BF16_SPECIAL_GRID, log=self.log))
 
         self.log.info(f"Special Values Test: {self.pass_count}/{self.test_count} passed")
         return failures
@@ -2432,8 +2518,10 @@ class BF16MaxTreeTB(TBBase):
         Returns:
             Tuple of (max_value, max_index, all_zero)
         """
-        # Check all zero
-        all_zero = all(BF16Utils.bf16_is_zero(v) for v in values)
+        # Check all zero. The RTL treats subnormals as zero for this flag
+        # (input_is_zero[i] = (exp == 0)), so the reference must too.
+        all_zero = all(BF16Utils.bf16_is_zero(v) or BF16Utils.bf16_is_subnormal(v)
+                       for v in values)
 
         # Find max by magnitude
         max_val = values[0]
@@ -2570,6 +2658,12 @@ class BF16MaxTreeTB(TBBase):
         values[0] = 0x4000  # 2.0 (larger magnitude)
         if not await self.test_single_max(values, "mixed_signs"):
             failures.append("Mixed signs failed")
+
+        # TASK-006: systematic special-value Cartesian product (9x9 = 81 cells,
+        # each cell is a 2-element list fed to the tree)
+        failures.extend(await bf16_special_value_product(
+            lambda a, b, d: self.test_single_max([a, b], d),
+            BF16_SPECIAL_GRID, BF16_SPECIAL_GRID, log=self.log))
 
         self.log.info(f"Special Values Test: {self.pass_count}/{self.test_count} passed")
         return failures
@@ -2928,6 +3022,12 @@ class BF16DividerTB(TBBase):
         if not await self.test_single_divide(ONE, SUBNORMAL, "1/subnormal"):
             failures.append("1/subnormal failed")
 
+        # TASK-006: systematic special-value Cartesian product (9x9 = 81 cells).
+        # This is what catches BUG-007 deterministically: 0/inf and submin/inf
+        # cells would leak ow_underflow=1 if w_result_zero missed them.
+        failures.extend(await bf16_special_value_product(
+            self.test_single_divide, BF16_SPECIAL_GRID, BF16_SPECIAL_GRID, log=self.log))
+
         self.log.info(f"Special Values Test: {self.pass_count}/{self.test_count} passed")
         return failures
 
@@ -3262,6 +3362,10 @@ class BF16ReciprocalTB(TBBase):
             if not await self.test_single_reciprocal(bf16, desc):
                 failures.append(f"Special case failed: {desc}")
 
+        # TASK-006: systematic special-value Cartesian product (9 cells, unary)
+        failures.extend(await bf16_special_value_product(
+            self.test_single_reciprocal, BF16_SPECIAL_GRID, log=self.log))
+
         self.log.info(f"Special Values Test: {self.pass_count}/{self.test_count} passed")
         return failures
 
@@ -3521,6 +3625,10 @@ class BF16ScaleToInt8TB(TBBase):
         for v, s, desc in cases:
             if not await self.test_single_scale(v, s, desc):
                 failures.append(f"Special case failed: {desc}")
+
+        # TASK-006: systematic special-value Cartesian product (9x9 = 81 cells)
+        failures.extend(await bf16_special_value_product(
+            self.test_single_scale, BF16_SPECIAL_GRID, BF16_SPECIAL_GRID, log=self.log))
 
         self.log.info(f"Special Values Test: {self.pass_count}/{self.test_count} passed")
         return failures
@@ -3782,6 +3890,10 @@ class BF16Log2ScaleTB(TBBase):
         for bf16, desc in cases:
             if not await self.test_single_log2(bf16, desc):
                 failures.append(f"Special case failed: {desc}")
+
+        # TASK-006: systematic special-value Cartesian product (9 cells, unary)
+        failures.extend(await bf16_special_value_product(
+            self.test_single_log2, BF16_SPECIAL_GRID, log=self.log))
 
         self.log.info(f"Special Values Test: {self.pass_count}/{self.test_count} passed")
         return failures
@@ -4084,6 +4196,10 @@ class BF16FastReciprocalTB(TBBase):
             if not await self.test_single_reciprocal(bf16, desc, ulp_tolerance=tol):
                 failures.append(f"Special case failed: {desc}")
 
+        # TASK-006: systematic special-value Cartesian product (9 cells, unary)
+        failures.extend(await bf16_special_value_product(
+            self.test_single_reciprocal, BF16_SPECIAL_GRID, log=self.log))
+
         self.log.info(f"Special Values Test: {self.pass_count}/{self.test_count} passed")
         return failures
 
@@ -4308,27 +4424,40 @@ class BF16NewtonRaphsonRecipTB(TBBase):
 
         return passed
 
+    async def special_values_test(self) -> List[str]:
+        """Test special BF16 values."""
+        self.log.info("Starting Special Values Test")
+        failures = []
+
+        special_cases = [
+            (0x0000, "1/+0 (div by zero)"),
+            (0x8000, "1/-0 (div by zero)"),
+            (0x7F80, "1/+inf"),
+            (0xFF80, "1/-inf"),
+            (0x7FC0, "1/NaN"),
+            (0x3F80, "1/1.0"),
+            (0xBF80, "1/-1.0"),
+            (0x4000, "1/2.0"),
+            (0xC000, "1/-2.0"),
+        ]
+
+        for bf16, desc in special_cases:
+            if not await self.test_single_reciprocal(bf16, desc):
+                failures.append(f"Special case failed: {desc}")
+
+        # TASK-006: systematic special-value Cartesian product (9 cells, unary)
+        failures.extend(await bf16_special_value_product(
+            self.test_single_reciprocal, BF16_SPECIAL_GRID, log=self.log))
+
+        self.log.info(f"Special Values Test: {self.pass_count}/{self.test_count} passed")
+        return failures
+
     async def run_comprehensive_tests(self) -> None:
         """Run comprehensive test suite based on test_level."""
         self.log.info(f"Running Newton-Raphson reciprocal tests at {self.test_level} level")
         failures = []
 
-        # Special values
-        special_values = [
-            (0x0000, "positive zero"),
-            (0x8000, "negative zero"),
-            (0x7F80, "positive infinity"),
-            (0xFF80, "negative infinity"),
-            (0x7FC0, "NaN"),
-            (0x3F80, "1.0"),
-            (0xBF80, "-1.0"),
-            (0x4000, "2.0"),
-            (0x3F00, "0.5"),
-        ]
-
-        for bf16, desc in special_values:
-            if not await self.test_single_reciprocal(bf16, desc):
-                failures.append(f"Special value {desc} failed")
+        failures.extend(await self.special_values_test())
 
         # Random normal values
         count = {'simple': 20, 'basic': 50, 'medium': 200, 'full': 1000}.get(self.test_level, 50)
@@ -4426,9 +4555,14 @@ class BF16GoldschmidtDivTB(TBBase):
         sign_b = (b_bf16 >> 15) & 1
         sign_result = sign_a ^ sign_b
 
-        # NaN cases
+        # NaN / invalid cases. The RTL's flags are driven independently of the
+        # result mux: ow_div_by_zero = b_exp==0, ow_is_inf = b_exp==0 || a_is_inf,
+        # ow_is_nan = special_nan. So even when NaN wins the quotient, a zero/
+        # subnormal denominator or an infinite numerator still asserts its flag.
         if a_is_nan or b_is_nan or (a_is_zero and b_is_zero) or (a_is_inf and b_is_inf):
-            return 0x7FC0, False, False, True
+            div_by_zero = b_is_zero
+            is_inf = a_is_inf or b_is_zero
+            return 0x7FC0, div_by_zero, is_inf, True
 
         # Division by zero
         if b_is_zero:
@@ -4539,9 +4673,24 @@ class BF16GoldschmidtDivTB(TBBase):
 
         return passed
 
+    async def special_values_test(self) -> List[str]:
+        """Test special value combinations."""
+        self.log.info("Starting Special Values Test")
+        failures = []
+
+        # TASK-006: systematic special-value Cartesian product (9x9 = 81 cells)
+        failures.extend(await bf16_special_value_product(
+            self.test_single_div, BF16_SPECIAL_GRID, BF16_SPECIAL_GRID, log=self.log))
+
+        self.log.info(f"Special Values Test: {self.pass_count}/{self.test_count} passed")
+        return failures
+
     async def run_comprehensive_tests(self) -> None:
         """Run comprehensive division tests."""
         self.log.info(f"Running Goldschmidt division tests at {self.test_level} level")
+        failures = []
+
+        failures.extend(await self.special_values_test())
 
         # Division special cases
         test_cases = [
@@ -4661,21 +4810,29 @@ class BF16Log2TB(TBBase):
 
         return passed
 
+    async def special_values_test(self) -> List[str]:
+        """Test special BF16 values."""
+        self.log.info("Starting Special Values Test")
+        failures = []
+
+        # TASK-006: systematic special-value Cartesian product (9 cells, unary)
+        failures.extend(await bf16_special_value_product(
+            self.test_single_log2, BF16_SPECIAL_GRID, log=self.log))
+
+        self.log.info(f"Special Values Test: {self.pass_count}/{self.test_count} passed")
+        return failures
+
     async def run_comprehensive_tests(self) -> None:
         """Run comprehensive log2 tests."""
         self.log.info(f"Running Log2 tests at {self.test_level} level")
+        failures = []
+
+        failures.extend(await self.special_values_test())
 
         # Powers of 2 (exact results)
         for exp in range(120, 135):
             bf16 = exp << 7  # 2^(exp-127)
             await self.test_single_log2(bf16, f"2^{exp-127}")
-
-        # Special cases
-        await self.test_single_log2(0x0000, "zero")
-        await self.test_single_log2(0x7F80, "infinity")
-        await self.test_single_log2(0x7FC0, "NaN")
-        await self.test_single_log2(0x8000, "negative zero")
-        await self.test_single_log2(0xBF80, "negative 1.0")
 
         # Random positive values
         count = {'simple': 20, 'basic': 50, 'medium': 200, 'full': 1000}.get(self.test_level, 50)
@@ -4785,9 +4942,24 @@ class BF16Exp2TB(TBBase):
 
         return passed
 
+    async def special_values_test(self) -> List[str]:
+        """Test special BF16 values."""
+        self.log.info("Starting Special Values Test")
+        failures = []
+
+        # TASK-006: systematic special-value Cartesian product (9 cells, unary)
+        failures.extend(await bf16_special_value_product(
+            self.test_single_exp2, BF16_SPECIAL_GRID, log=self.log))
+
+        self.log.info(f"Special Values Test: {self.pass_count}/{self.test_count} passed")
+        return failures
+
     async def run_comprehensive_tests(self) -> None:
         """Run comprehensive exp2 tests."""
         self.log.info(f"Running Exp2 tests at {self.test_level} level")
+        failures = []
+
+        failures.extend(await self.special_values_test())
 
         # Integer exponents (exact results)
         for i in range(-10, 11):
