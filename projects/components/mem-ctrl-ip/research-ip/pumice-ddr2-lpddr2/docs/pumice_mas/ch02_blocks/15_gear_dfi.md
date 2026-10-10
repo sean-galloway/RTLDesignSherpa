@@ -23,8 +23,8 @@
 
 # DFI Layer and Host-Width Gearing (`pumice_dfi_layer` + `pumice_top_geared`)
 
-**Module:** `pumice_dfi_layer.sv` (macro) / `pumice_top_geared.sv` (top wrapper)
-**Location:** `rtl/macro/` and `rtl/top/`
+**Module:** `mc_dfi_2p1_layer.sv` (common-ip macro) / `pumice_top_geared.sv` (top wrapper)
+**Location:** `projects/components/mem-ctrl-ip/common-ip/rtl/macro/` and `rtl/top/`
 **Category:** Macro / Top wrapper
 **Status:** Implemented (single-CDC DFI datapath; formal-IP host-width gearing wrapper)
 

@@ -1,0 +1,423 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2026 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: mc_dfi_cmd_path
+// Purpose: Common DFI 2.1 command path. Pops the abstract command stream (from
+//          the CDC cmd FIFO), unpacks {op,rank,bank,row,col,ap}, and drives the
+//          multi-phase DFI command bus via the silicon-proven dfi_cmd_formatter.
+//          Emits wr_fire/rd_fire strobes (+ op) so the write serializer / read
+//          aligner can schedule their data phases relative to the command.
+//
+//          Extracted from pumice_dfi_cmd_path during Phase 2 common-layer
+//          reorg (2026-10-10). The CMD_HISTORY_EN scoreboard remains the
+//          pumice-specific pumice_cmd_history_checker for backwards
+//          compatibility; it is gated off by default.
+//
+// Runs entirely on dfi_clk (the CDC is the only crossing). One command per DFI
+// cycle; for BL8 @ nphases=4 that is full DQ bandwidth.
+//
+// SUB-DFI-WORD BURST PACKING (task #146):
+//   When one DFI word packs N_SUBCMD > 1 JEDEC bursts (the board: gear 1:4 + x16
+//   BL4 => a BL4 burst is only 2 of the fixed nphases=4 phases, so N_SUBCMD=2
+//   BL4 reads share ONE 128b DFI word), the N_SUBCMD sub-column-commands of a
+//   single scheduled column command are issued in ONE DFI cycle at command
+//   phases {base_phase, base_phase + sub_phase_stride, ...} (each sub at
+//   col + sub*sub_col_stride). The a7ddrphy de-interleaver anchors each sub's
+//   BL beats to its command phase, so all N_SUBCMD anchored runs land in the
+//   SAME DFI word -> fully packed, zero stale (the earlier over-consecutive-
+//   cycles expansion left the other phase-pair stale -> the on-board 2/4 read
+//   corruption). ONE wr_fire/rd_fire group strobe is emitted for the whole
+//   packed group, so the data path drives/captures the single DFI word once.
+//   N_SUBCMD/SUB_COL_STRIDE/SUB_PHASE_STRIDE here are the COMPILE-TIME MAX
+//   (build-for-max) that SIZE the fabric; the ACTIVE values are the runtime
+//   n_subcmd_i/sub_col_stride_i/sub_phase_stride_i inputs (from the bl+gear
+//   CSRs). At the board/default config the runtime values equal the MAX =>
+//   bit-identical. MAX==1 => legacy single-command path (one formatter, phase 0).
+//
+// Documentation: docs/uarch/PUMICE_DFI_LAYER_UARCH.md
+`timescale 1ns / 1ps
+
+`include "reset_defs.svh"
+
+module mc_dfi_cmd_path
+    import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
+#(
+    parameter int NUM_RANKS      = 1,
+    parameter int NUM_BANKS      = 8,
+    parameter int ROW_WIDTH      = 14,
+    parameter int COL_WIDTH      = 10,
+    parameter int BURST_LEN_WIDTH = 8,
+    parameter int DFI_RATE       = 4,
+    // ---- DFI-WIRE command-history scoreboard (sim only, off by default) ----
+    // The scheduler has an identical checker on ITS output. That one cannot see
+    // this defect class: it binds at `cmd_valid_o && cmd_ready_i` inside
+    // pumice_scheduler_layer, which is UPSTREAM of the CMD_DELAY shift
+    // register, the CDC FIFO and this module. Every TASK-007 defect lived
+    // downstream of it -- with the scheduler checker armed it reported ZERO
+    // tRTW violations while the board ILA showed FOUR per capture. It was
+    // correct about what it could see and blind to where the bugs were.
+    //
+    // This instance watches the command stream where it is actually consumed
+    // from the FIFO, i.e. wire order and wire SPACING, so compression between
+    // the arbiter and the pins becomes a $fatal at the exact cycle instead of
+    // an ILA capture decoded by hand.
+    parameter int CMD_HISTORY_EN = 0,
+    parameter int HIST_T_RCD     = 0,
+    parameter int HIST_T_RP      = 0,
+    parameter int HIST_T_RAS     = 0,
+    parameter int HIST_T_RFC     = 0,
+    parameter int HIST_T_WTR     = 0,
+    parameter int HIST_T_RTW     = 0,
+    // Sub-DFI-word burst packing (task #146). N_SUBCMD sub-column-commands of one
+    // scheduled column command are issued in ONE DFI cycle at command phases
+    // {base, base+SUB_PHASE_STRIDE, ...} and columns {col, col+SUB_COL_STRIDE,
+    // ...}. These are the COMPILE-TIME MAX (build-for-max); the ACTIVE values are
+    // the runtime n_subcmd_i/sub_col_stride_i/sub_phase_stride_i inputs.
+    // MAX==1 => legacy single-command path.
+    parameter int N_SUBCMD        = 1,
+    parameter int SUB_COL_STRIDE  = 1,
+    // Compile MAX DFI-phase stride between packed sub-bursts (= BL_PUMICE, the
+    // active DRAM beats per burst = the phases one BL occupies). Sizes the phase
+    // arithmetic; the ACTIVE stride is the runtime sub_phase_stride_i.
+    parameter int SUB_PHASE_STRIDE = 1,
+    parameter int DFI_ADDR_WIDTH = 14,
+    parameter int DFI_BANK_WIDTH = 3,
+    parameter int DFI_CTRL_WIDTH = 1,
+    parameter int DFI_CS_WIDTH   = NUM_RANKS,
+
+    parameter int DFI_ADDR_BUS_W = DFI_ADDR_WIDTH * DFI_RATE,
+    parameter int DFI_BANK_BUS_W = DFI_BANK_WIDTH * DFI_RATE,
+    parameter int DFI_CTRL_BUS_W = DFI_CTRL_WIDTH * DFI_RATE,
+    parameter int DFI_CS_BUS_W   = DFI_CS_WIDTH * DFI_RATE,
+    parameter int RKW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
+    parameter int BKW = $clog2(NUM_BANKS),
+    parameter int PHW = (DFI_RATE > 1) ? $clog2(DFI_RATE) : 1,
+    // Packed command word: {mrr, ap, col, row, bank, rank, op}  (matches the
+    // scheduler's cmd FIFO packing).
+    parameter int CMD_DW = $bits(dram_op_e) + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1,
+    // Sub-command COUNT width: holds the value N_SUBCMD (1..N_SUBCMD), so it
+    // needs clog2(N_SUBCMD+1) bits (clog2(N) alone cannot represent N).
+    parameter int SUBW_MAX = $clog2(N_SUBCMD + 1)
+) (
+    input  logic                       dfi_clk,
+    input  logic                       dfi_rstn,
+    input  memtype_e                   memtype_i,
+    input  logic [PHW-1:0]             rd_phase_i,
+    input  logic [PHW-1:0]             wr_phase_i,
+    // Direction-turnaround pacing (pumice BUG-017 (was PUMICE-042)), in DFI cycles. Driven from the
+
+    // ---- runtime sub-DFI-word framing (from bl+gear CSRs; <= compile MAX) ----
+    // n_subcmd_i        : active sub-column commands packed into one DFI word (>=1).
+    // sub_col_stride_i  : active device-word column stride between sub-bursts.
+    // sub_phase_stride_i: active DFI-phase stride between sub-bursts (= bl_pumice).
+    // Wrong values are BAD CONFIG, not a synth mismatch (sized for MAX above).
+    input  logic [SUBW_MAX-1:0]        n_subcmd_i,
+    input  logic [COL_WIDTH-1:0]       sub_col_stride_i,
+    input  logic [PHW-1:0]             sub_phase_stride_i,
+
+    // ---- abstract command in (from CDC cmd FIFO) ----
+    input  logic                       cmd_valid_i,
+    output logic                       cmd_ready_o,
+    input  logic [CMD_DW-1:0]          cmd_data_i,
+
+    // ---- DFI command bus (to dfi_signal_pack / PHY) ----
+    output logic [DFI_ADDR_BUS_W-1:0]  dfi_address_o,
+    output logic [DFI_BANK_BUS_W-1:0]  dfi_bank_o,
+    output logic [DFI_CTRL_BUS_W-1:0]  dfi_cas_n_o,
+    output logic [DFI_CTRL_BUS_W-1:0]  dfi_ras_n_o,
+    output logic [DFI_CTRL_BUS_W-1:0]  dfi_we_n_o,
+    output logic [DFI_CS_BUS_W-1:0]    dfi_cs_n_o,
+    output logic [DFI_CS_BUS_W-1:0]    dfi_odt_o,
+
+    // ---- fire strobes to the data paths (1-cycle, on accepted command) ----
+    output logic                       wr_fire_o,   // WR / WRA issued
+    output logic                       rd_fire_o,   // RD / RDA issued
+    input  logic                       rd_op_ready_i, // rd aligner has a free slot
+    // A complete write burst is staged on the DFI side (pumice_dfi_cdc token).
+    // A WR/WRA is held until then and wr_accept_o pops the token the cycle the
+    // command is accepted -- the mirror of rd_op_ready_i. With the controller's
+    // rate-matched commit + CMD_DELAY the hold NEVER happens (a hold stalls the
+    // in-order command stream and compresses the spacing behind it); the
+    // r_wr_held_* counters below make that an observable invariant.
+    input  logic                       wr_op_ready_i,
+    output logic                       wr_accept_o,
+    output logic [RKW-1:0]             fire_rank_o
+);
+
+    // ---- unpack the command word ----
+    logic                w_ap;
+    logic                w_mrr;
+    logic [COL_WIDTH-1:0] w_col;
+    logic [ROW_WIDTH-1:0] w_row;
+    logic [BKW-1:0]       w_bank;
+    logic [RKW-1:0]       w_rank;
+    dram_op_e             w_op;
+    assign {w_mrr, w_ap, w_col, w_row, w_bank, w_rank, w_op} = cmd_data_i;
+
+    // ---- command accept gate (NO TIMING HERE) ------------------------------
+    // ALL JEDEC delays come from the scheduler. This layer is a constant-latency
+    // conduit: it must never insert an idle cycle of its own, because the CDC
+    // command FIFO preserves ORDER but not SPACING -- so any stall here silently
+    // rewrites the interval between every command queued behind it.
+    //
+    // That is not a theoretical risk, it is the TASK-007 failure. The previous
+    // revision paced columns here (DQ occupancy + a direction-aware tRTW/tWTR
+    // hold, added for pumice BUG-017 (was PUMICE-042)). Holding a column for tRTW=20 at the head of an
+    // 8-deep in-order FIFO backed the queue up, and the ACT/PRE/REF behind it --
+    // which need no DQ bus and were correctly spaced by the arbiter -- drained
+    // back to back on release. Board ILA: REF -> ACT compressed from 15 cycles to
+    // 3, inside tRFC. The DRAM discarded the activate, the bank never opened, and
+    // 180 consecutive reads returned an undriven DQ bus. pumice BUG-017 (was PUMICE-042)'s own comment
+    // had already named FIFO compression as the mechanism; re-enforcing at the
+    // wire treated the symptom and supplied the stall that caused it.
+    //
+    // The scheduler already enforces every one of these, off the same CSRs:
+    //   tCCD       pumice_cmd_arbiter r_tccd_fwd, clamped to >= BURST_WORDS in
+    //              pumice_core (w_t_ccd_eff) so columns are never issued closer
+    //              than a burst's DQ occupancy -- exactly what the column pacer
+    //              here used to guarantee.
+    //   tRTW/tWTR  global_timers r_trtw_cnt/r_twtr_cnt -> trtw_ok_i/twtr_ok_i,
+    //              gating the arbiter's rd/wr column masks.
+    //   tRFC       pumice_cmd_arbiter r_rfc_cnt -> w_act_gate_live.
+    //   tRCD/tRP/tRAS/tRRD/tFAW   bank_timer + the arbiter's rank gates.
+    // A second copy of a timing is how two sides drift apart; there is now one.
+    logic          w_is_wr, w_is_rd;
+    assign w_is_wr  = (w_op == OP_WR) || (w_op == OP_WRA);
+    assign w_is_rd  = (w_op == OP_RD) || (w_op == OP_RDA);
+
+    logic          w_gate;
+    // The ONLY remaining holds are structural, not timing: a read may not issue
+    // if the aligner has no free tracking slot, and a write may not issue before
+    // its data is staged. Both are sized never to fire in steady state
+    // (MAX_OUTSTANDING >= RD_CAM_DEPTH; CMD_DELAY_EFF makes WR data lead the
+    // command). If either DOES fire it compresses spacing exactly as above --
+    // r_wr_held_cnt below exists to catch that, and the fix belongs upstream
+    // (do not issue the command), never in a pacer here.
+    assign w_gate   = (!w_is_rd || rd_op_ready_i) && (!w_is_wr || wr_op_ready_i);
+
+    // ---- sub-DFI-word burst packing (task #146) ----------------------------
+    // A column command that packs n_subcmd_i JEDEC bursts into one DFI word is
+    // driven as n_subcmd_i sub-column-commands issued in ONE DFI cycle, each on
+    // its own DFI phase (base + s*sub_phase_stride) at col + s*sub_col_stride.
+    // One dfi_cmd_formatter per sub places its command on its phase; the buses
+    // MERGE (cs/ctrl AND, addr/bank/odt OR) into a single multi-phase word, since
+    // each active sub owns a DISTINCT phase and inactive subs/other phases are
+    // NOP (cs_n/ctrl all-ones, addr/bank/odt zero). Non-column ops and the
+    // runtime n_subcmd_i==1 case use ONLY sub 0 on the base phase => bit-identical
+    // to the legacy single-formatter path. The whole packed group is one accepted
+    // command (one FIFO pop, one fire) — the a7ddrphy returns/launches the packed
+    // DFI word once.
+    logic [SUBW_MAX-1:0] w_n_sub;   // active count, clamped to >=1
+    assign w_n_sub = (n_subcmd_i == '0) ? SUBW_MAX'(1) : n_subcmd_i;
+
+    // Base command phase: RD on rd_phase, WR on wr_phase, everything else phase 0.
+    logic [PHW-1:0] w_base_phase;
+    always_comb begin
+        unique case (w_op)
+            OP_RD, OP_RDA: w_base_phase = rd_phase_i;
+            OP_WR, OP_WRA: w_base_phase = wr_phase_i;
+            default:       w_base_phase = '0;
+        endcase
+    end
+
+    // Per-sub placed command buses (one formatter each). Merged below.
+    logic [DFI_ADDR_BUS_W-1:0] w_sub_address [N_SUBCMD];
+    logic [DFI_BANK_BUS_W-1:0] w_sub_bank    [N_SUBCMD];
+    logic [DFI_CTRL_BUS_W-1:0] w_sub_cas_n   [N_SUBCMD];
+    logic [DFI_CTRL_BUS_W-1:0] w_sub_ras_n   [N_SUBCMD];
+    logic [DFI_CTRL_BUS_W-1:0] w_sub_we_n    [N_SUBCMD];
+    logic [DFI_CS_BUS_W-1:0]   w_sub_cs_n    [N_SUBCMD];
+    logic [DFI_CS_BUS_W-1:0]   w_sub_odt     [N_SUBCMD];
+    logic [N_SUBCMD-1:0]       w_sub_fmt_ready;
+
+    genvar gs;
+    generate
+        for (gs = 0; gs < N_SUBCMD; gs++) begin : g_sub
+            // This sub is active only when s < w_n_sub. Sub 0 is ALWAYS active
+            // (non-column ops and n_subcmd==1 use it alone on the base phase).
+            logic                sub_active;
+            logic [PHW-1:0]      sub_phase;
+            logic [COL_WIDTH-1:0] sub_col;
+            assign sub_active = cmd_valid_i && w_gate
+                              && (SUBW_MAX'(gs) < w_n_sub);
+            // Phase / column for this sub. Only column ops fan out; ACT/PRE/REF/
+            // MRS keep sub 0 on the base phase (their gs>0 subs are inactive).
+            assign sub_phase  = w_base_phase
+                              + PHW'(PHW'(gs) * sub_phase_stride_i);
+            assign sub_col    = w_col
+                              + COL_WIDTH'(COL_WIDTH'(gs) * sub_col_stride_i);
+
+            // Drive this sub's command on sub_phase via rd_phase_i/wr_phase_i.
+            // For a column op the base_phase IS rd/wr_phase, so passing sub_phase
+            // as BOTH places the command correctly regardless of RD vs WR.
+            dfi_cmd_formatter #(
+                .NUM_RANKS      (NUM_RANKS),
+                .NUM_BANKS      (NUM_BANKS),
+                .ROW_WIDTH      (ROW_WIDTH),
+                .COL_WIDTH      (COL_WIDTH),
+                .BURST_LEN_WIDTH(BURST_LEN_WIDTH),
+                .DFI_RATE       (DFI_RATE),
+                .DFI_ADDR_WIDTH (DFI_ADDR_WIDTH),
+                .DFI_BANK_WIDTH (DFI_BANK_WIDTH),
+                .DFI_CTRL_WIDTH (DFI_CTRL_WIDTH),
+                .DFI_CS_WIDTH   (DFI_CS_WIDTH)
+            ) u_fmt (
+                .mc_clk       (dfi_clk),
+                .mc_rst_n     (dfi_rstn),
+                .memtype_i    (memtype_i),
+                .cmd_valid_i  (sub_active),
+                .cmd_ready_o  (w_sub_fmt_ready[gs]),
+                .cmd_op_i     (w_op),
+                .cmd_rank_i   (w_rank),
+                .cmd_bank_i   (w_bank),
+                .cmd_row_i    (w_row),
+                .cmd_col_i    (sub_col),
+                .cmd_mrr_i    (w_mrr),
+                .cmd_len_i    ('0),
+                .rd_phase_i   (sub_phase),
+                .wr_phase_i   (sub_phase),
+                .dfi_address_o(w_sub_address[gs]),
+                .dfi_bank_o   (w_sub_bank[gs]),
+                .dfi_cas_n_o  (w_sub_cas_n[gs]),
+                .dfi_ras_n_o  (w_sub_ras_n[gs]),
+                .dfi_we_n_o   (w_sub_we_n[gs]),
+                .dfi_cs_n_o   (w_sub_cs_n[gs]),
+                .dfi_odt_o    (w_sub_odt[gs])
+            );
+        end
+    endgenerate
+
+    // Merge the per-sub placed buses into ONE multi-phase command word. Each
+    // active sub owns a distinct phase; every other phase (and every inactive
+    // sub) is NOP: cs_n/ras_n/cas_n/we_n = all-ones, addr/bank/odt = 0. So:
+    //   * cs_n / *_n : AND across subs — a 0 (selected / asserted) on a sub's
+    //     own phase wins; NOP all-ones elsewhere leaves the merge at NOP.
+    //   * addr/bank/odt : OR across subs — the placed value on a sub's phase
+    //     survives; 0 elsewhere.
+    always_comb begin
+        dfi_address_o = '0;
+        dfi_bank_o    = '0;
+        dfi_odt_o     = '0;
+        dfi_cas_n_o   = '1;
+        dfi_ras_n_o   = '1;
+        dfi_we_n_o    = '1;
+        dfi_cs_n_o    = '1;
+        for (int s = 0; s < N_SUBCMD; s++) begin
+            dfi_address_o |= w_sub_address[s];
+            dfi_bank_o    |= w_sub_bank[s];
+            dfi_odt_o     |= w_sub_odt[s];
+            dfi_cas_n_o   &= w_sub_cas_n[s];
+            dfi_ras_n_o   &= w_sub_ras_n[s];
+            dfi_we_n_o    &= w_sub_we_n[s];
+            dfi_cs_n_o    &= w_sub_cs_n[s];
+        end
+    end
+
+    // Accept the (whole packed) command this cycle: sub 0's formatter is always
+    // ready (it registers a constant 1), the pacing/backpressure gate is open.
+    logic w_fmt_ready, w_fire;
+    assign w_fmt_ready = w_sub_fmt_ready[0];
+    assign w_fire      = cmd_valid_i && w_gate && w_fmt_ready;
+
+    // Pop the FIFO once for the whole packed group (single cycle).
+    assign cmd_ready_o = w_fmt_ready && w_gate;
+    // ...and the staged-burst token with an accepted WR (same cycle).
+    assign wr_accept_o = w_fire && w_is_wr;
+
+    // ---- DFI-wire command-history scoreboard (CMD_HISTORY_EN) --------------
+    // Same module the scheduler uses, bound one layer down. w_fire is the cycle
+    // a command is accepted OUT of the CDC FIFO, so the spacing it sees is the
+    // spacing the DRAM sees (the formatter below adds a constant register
+    // delay, which shifts every command equally and cannot hide a violation).
+    generate if (CMD_HISTORY_EN != 0) begin : g_dfi_cmd_history
+        pumice_cmd_history_checker #(
+            .NUM_RANKS(NUM_RANKS),
+            .NUM_BANKS(NUM_BANKS),
+            .DEPTH    (32),
+            .T_RCD    (HIST_T_RCD),
+            .T_RP     (HIST_T_RP),
+            .T_RAS    (HIST_T_RAS),
+            .T_RFC    (HIST_T_RFC),
+            .T_WTR    (HIST_T_WTR),
+            .T_RTW    (HIST_T_RTW)
+        ) u_dfi_cmd_history (
+            .clk        (dfi_clk),
+            .rst_n      (dfi_rstn),
+            .cmd_valid_i(w_fire),
+            .cmd_op_i   (w_op),
+            .cmd_rank_i (w_rank),
+            .cmd_bank_i (w_bank)
+        );
+    end endgenerate
+
+    // ---- invariant observability: cycles a WR sat at the head without data --
+    // Read hierarchically by the DV (r_wr_held_cnt total, r_wr_held_max longest
+    // single hold). Simulation-only.
+`ifndef SYNTHESIS
+    logic [31:0] r_wr_held_cnt;
+    logic [15:0] r_wr_held_run, r_wr_held_max;
+    logic        w_wr_held;
+    assign w_wr_held = cmd_valid_i && w_is_wr && !wr_op_ready_i && w_fmt_ready;
+    `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
+        if (`RST_ASSERTED(dfi_rstn)) begin
+            r_wr_held_cnt <= '0; r_wr_held_run <= '0; r_wr_held_max <= '0;
+        end else begin
+            if (w_wr_held) begin
+                r_wr_held_cnt <= r_wr_held_cnt + 1;
+                r_wr_held_run <= r_wr_held_run + 1;
+                if (r_wr_held_run + 1 > r_wr_held_max) r_wr_held_max <= r_wr_held_run + 1;
+            end else begin
+                r_wr_held_run <= '0;
+            end
+        end
+    )
+    final $display("MC_DFI_CMD_PATH: write-staged gate held %0d cycles total, longest hold %0d",
+                   r_wr_held_cnt, r_wr_held_max);
+`endif
+
+    // Group fire strobes (registered 1 cycle to align with the formatter's
+    // registered command outputs). Emitted ONCE per column command for the whole
+    // packed group — so the write serializer / read aligner drive/capture the
+    // single DFI word exactly once even though N_SUBCMD DRAM commands were issued
+    // (on N_SUBCMD phases of the SAME cycle).
+    `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
+        if (`RST_ASSERTED(dfi_rstn)) begin
+            wr_fire_o   <= 1'b0;
+            rd_fire_o   <= 1'b0;
+            fire_rank_o <= '0;
+        end else begin
+            wr_fire_o   <= w_fire && w_is_wr;
+            rd_fire_o   <= w_fire && w_is_rd;
+            fire_rank_o <= w_rank;
+        end
+    )
+
+    // ---- ELABORATION assertion: RTL MIRROR of the DV contract ---------------
+    // This mirrors CocoTBFramework.components.dfi.dfi_timing.bl_anchored_slot_mask
+    // (the single source of truth the DV BFM + model proof use). The sub-word
+    // packing geometry MUST satisfy the same power-of-two / burst rules so the
+    // a7ddrphy de-interleaver packs all N_SUBCMD anchored runs into one DFI word:
+    //   * DFI_RATE (nphases) is a power of two.
+    //   * The compile-MAX phase stride (SUB_PHASE_STRIDE = BL_PUMICE) times
+    //     N_SUBCMD covers exactly all DFI_RATE phases (N_SUBCMD * BL_PUMICE ==
+    //     DFI_RATE): the N sub anchors {0, BL_PUMICE, 2*BL_PUMICE, ...} tile the
+    //     nphases-phase cycle with no overlap and no gap -> zero stale.
+    //   * The last sub's anchor (N_SUBCMD-1)*SUB_PHASE_STRIDE stays in range.
+    // Non-sub-word builds (N_SUBCMD==1) trivially satisfy this.
+    // synthesis translate_off
+    initial begin
+        assert ((DFI_RATE > 0) && ((DFI_RATE & (DFI_RATE - 1)) == 0))
+            else $fatal(1, "mc_dfi_cmd_path: DFI_RATE(%0d) must be power-of-two (RTL mirror of dfi_timing.bl_anchored_slot_mask nphases rule)", DFI_RATE);
+        if (N_SUBCMD > 1) begin
+            assert (N_SUBCMD * SUB_PHASE_STRIDE == DFI_RATE)
+                else $fatal(1, "mc_dfi_cmd_path: N_SUBCMD(%0d)*SUB_PHASE_STRIDE(%0d) != DFI_RATE(%0d) - sub-word anchors do not tile the DFI cycle (RTL mirror of the anchored-slot-mask contract)", N_SUBCMD, SUB_PHASE_STRIDE, DFI_RATE);
+            assert ((N_SUBCMD - 1) * SUB_PHASE_STRIDE < DFI_RATE)
+                else $fatal(1, "mc_dfi_cmd_path: last sub anchor out of range");
+        end
+    end
+    // synthesis translate_on
+
+endmodule : mc_dfi_cmd_path

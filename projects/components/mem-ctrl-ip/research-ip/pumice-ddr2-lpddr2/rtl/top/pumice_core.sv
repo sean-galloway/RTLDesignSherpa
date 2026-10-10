@@ -9,10 +9,10 @@
 //          three layers built bottom-up this cycle:
 //            1. mc_axi4_layer          (host AXI + wr/rd CAMs)
 //            2. pumice_scheduler_layer (bank timers + arbiter + refresh/init)
-//            3. pumice_dfi_layer         (single async CDC + DFI datapath)
+//            3. mc_dfi_2p1_layer       (common single async CDC + DFI datapath)
 //
 //          Host AXI + scheduler + CAMs run on aclk; the DFI phase-packer + PHY
-//          run on dfi_clk; the ONE clock crossing lives in pumice_dfi_layer's
+//          run on dfi_clk; the ONE clock crossing lives in mc_dfi_2p1_layer's
 //          CDC (async gaxi FIFOs only). Internal data unit = the DFI word
 //          (DFI_DATA_WIDTH); the host AXI data width is the DFI word too (an
 //          external 64<->128 dwidth shim is a separate edge concern).
@@ -763,7 +763,7 @@ module pumice_core
     // =======================================================================
     // Layer 3: DFI layer (single CDC + datapath)
     // =======================================================================
-    pumice_dfi_layer #(
+    mc_dfi_2p1_layer #(
         .NUM_RANKS       (NUM_RANKS),
         .NUM_BANKS       (NUM_BANKS),
         .ROW_WIDTH       (ROW_WIDTH),

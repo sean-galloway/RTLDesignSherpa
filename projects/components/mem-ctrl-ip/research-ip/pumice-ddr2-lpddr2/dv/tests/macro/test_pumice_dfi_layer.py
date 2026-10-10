@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
 """
-End-to-end runner for `pumice_dfi_layer` (two async clocks).
+End-to-end runner for `mc_dfi_2p1_layer` (two async clocks).
 
 A DFI-domain memory model on the pin side captures the write burst off
 dfi_wrdata (when dfi_wrdata_en) and returns it on dfi_rddata/valid after the
@@ -35,8 +35,8 @@ from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 from tbclasses.pumice_top_csr_tb import board_clock_periods  # noqa: E402
 _ACLK_NS, _DFI_NS = board_clock_periods()   # BOARD parity, not literals
 
-_FILELIST = ("projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/"
-             "rtl/filelists/macro/pumice_dfi_layer.f")
+_FILELIST = ("projects/components/mem-ctrl-ip/common-ip/"
+             "rtl/filelists/macro/mc_dfi_2p1_layer.f")
 
 # config
 NUM_BANKS, ROW_WIDTH, COL_WIDTH = 8, 14, 10
@@ -221,7 +221,7 @@ async def cocotb_test_pumice_dfi_layer(dut):
 @pytest.mark.parametrize("test_level", reg_level_grid())
 def test_pumice_dfi_layer(request, test_level):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "pumice_dfi_layer"
+    dut_name = "mc_dfi_2p1_layer"
     test_name = f"cocotb_test_pumice_dfi_layer_{test_level}"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
     sim_build = sim_build_path(tests_dir, test_name)

@@ -4,12 +4,17 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: pumice_dfi_layer
-// Purpose: The pumice DFI layer. Holds the single controller<->PHY crossing
-//          (pumice_dfi_cdc, async gaxi FIFOs only) and the dfi_clk-domain
-//          command path + write serializer + read aligner. Presents the
-//          controller-clock command/wrdata/rddata streams on one side and the
-//          DFI 2.1 pin bus on the other.
+// Module: mc_dfi_2p1_layer
+// Purpose: Common DFI 2.1 layer. Holds the single controller<->PHY crossing
+//          (mc_dfi_cdc, async gaxi FIFOs only) and the dfi_clk-domain command
+//          path + write serializer + read aligner. Presents the controller-clock
+//          command/wrdata/rddata streams on one side and the DFI 2.1 pin bus on
+//          the other.
+//
+//          Extracted from pumice_dfi_layer during Phase 2 common-layer reorg
+//          (2026-10-10). Authority: JEDEC DFI 2.1 specification plus the
+//          simplified study notes in
+//          projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/simplified_dfi_2_1/.
 //
 //   ctl_clk : cmd (from scheduler), wrdata (from wr CAM), rddata (to rd CAM),
 //             init_start/init_complete
@@ -24,8 +29,7 @@
 
 `include "reset_defs.svh"
 
-module pumice_dfi_layer
-    import pumice_pkg::*;
+module mc_dfi_2p1_layer
     import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int NUM_RANKS      = 1,
@@ -58,7 +62,7 @@ module pumice_dfi_layer
     // behind the short burst forever).
     parameter int RD_FIFO_DEPTH  = 32,
     parameter int N_FLOP_CROSS   = 2,
-    // Async-FIFO pointer encoding, forwarded to pumice_dfi_cdc: 0 = Gray
+    // Async-FIFO pointer encoding, forwarded to mc_dfi_cdc: 0 = Gray
     // (power-of-2 depths only), 1 = Johnson (any depth, DEPTH-bit pointers).
     // Gray by default -- Johnson is opt-in.
     parameter int USE_JOHNSON    = 0,
@@ -82,7 +86,7 @@ module pumice_dfi_layer
     // DFI words captured/driven per burst-group. Clamped to >=1 so the
     // sub-DFI-word regime (DFI_BEATS_PER_BURST/DFI_RATE < 1) frames exactly one DFI word.
     // DFI-wire command-history scoreboard (sim only, off by default). Passed
-    // straight through to pumice_dfi_cmd_path; see the note there for why a
+    // straight through to mc_dfi_cmd_path; see the note there for why a
     // second instance is needed when the scheduler already has one.
     parameter int CMD_HISTORY_EN = 0,
     parameter int HIST_T_RCD     = 0,
@@ -220,7 +224,7 @@ module pumice_dfi_layer
     // ======================================================================
     // Single CDC (async gaxi FIFOs only)
     // ======================================================================
-    pumice_dfi_cdc #(
+    mc_dfi_cdc #(
         .CMD_DW      (CMD_DW),
         .WD_DW       (WD_DW),
         .RD_DW       (RD_DW),
@@ -266,7 +270,7 @@ module pumice_dfi_layer
     // ======================================================================
     // Command path (dfi_clk): cmd FIFO -> DFI command bus + fire strobes
     // ======================================================================
-    pumice_dfi_cmd_path #(
+    mc_dfi_cmd_path #(
         .NUM_RANKS       (NUM_RANKS),
         .NUM_BANKS       (NUM_BANKS),
         .ROW_WIDTH       (ROW_WIDTH),
@@ -316,7 +320,7 @@ module pumice_dfi_layer
     // ======================================================================
     // Write serializer (dfi_clk): wrdata FIFO -> dfi_wrdata at t_phy_wrlat
     // ======================================================================
-    pumice_dfi_wr_serializer #(
+    mc_dfi_wr_serializer #(
         .DFI_DATA_WIDTH(DFI_DATA_WIDTH),
         .DFI_RATE      (DFI_RATE)
     ) u_wr (
@@ -337,7 +341,7 @@ module pumice_dfi_layer
     // ======================================================================
     // Read aligner (dfi_clk): dfi_rddata -> rddata FIFO at t_rddata_en
     // ======================================================================
-    pumice_dfi_rd_aligner #(
+    mc_dfi_rd_aligner #(
         .DFI_DATA_WIDTH (DFI_DATA_WIDTH),
         .DFI_RATE       (DFI_RATE),
         .DFI_VALID_WIDTH(DFI_VALID_WIDTH),
@@ -365,4 +369,4 @@ module pumice_dfi_layer
 
     wire unused = &{1'b0, w_fire_rank, 1'b0};
 
-endmodule : pumice_dfi_layer
+endmodule : mc_dfi_2p1_layer
