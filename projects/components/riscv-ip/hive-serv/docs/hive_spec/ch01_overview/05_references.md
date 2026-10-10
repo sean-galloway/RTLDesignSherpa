@@ -239,7 +239,7 @@
 ## 1.5.12 Code Repositories
 
 ### RTL Design Sherpa (HIVE Project Root)
-- **Location:** `projects/components/compute-eng-ip/hive/`
+- **Location:** `projects/components/riscv-ip/hive-serv/`
 - **Contents:**
   - `rtl/` - HIVE RTL source code
   - `docs/` - This specification and related documentation

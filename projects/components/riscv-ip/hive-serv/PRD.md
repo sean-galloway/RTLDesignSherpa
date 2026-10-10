@@ -57,7 +57,7 @@ The Hierarchical Intelligent Vector Environment (HIVE) is a distributed control 
 This PRD provides a high-level overview. **Detailed specifications are maintained separately:**
 
 ### Complete HIVE Specification
-**Location:** `projects/components/compute-eng-ip/hive/docs/hive_spec/`
+**Location:** `projects/components/riscv-ip/hive-serv/docs/hive_spec/`
 
 - **[Index](docs/hive_spec/hive_index.md)** - Complete specification structure
 
@@ -85,7 +85,7 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 - **[CLAUDE](CLAUDE.md)** - AI assistance guide for this subsystem
 - **Tasks** - none tracked. The vault area was deleted 2026-09-27: hive has no .sv,
   no tests and no filelists, so its 24 open items described work that had not begun.
-  They are in git history at `vault/Tasks/projects/components/compute-eng-ip/hive/`.
+  They are in git history at `vault/Tasks/projects/components/riscv-ip/hive-serv/`.
 
 ---
 
@@ -388,20 +388,20 @@ HIVE demonstrates:
 
 **Tool:** `bin/md_to_docx.py` (repo root)
 
-Use this tool to convert the linked specification index into a single all-inclusive PDF or DOCX file. The preferred entry point is the wrapper script `projects/components/compute-eng-ip/hive/docs/generate_pdf.sh`. Note: no built HIVE_Specification docx/pdf is checked in - generate it on demand.
+Use this tool to convert the linked specification index into a single all-inclusive PDF or DOCX file. The preferred entry point is the wrapper script `projects/components/riscv-ip/hive-serv/docs/generate_pdf.sh`. Note: no built HIVE_Specification docx/pdf is checked in - generate it on demand.
 
 **Basic Usage:**
 
 ```bash
 # Preferred: use the wrapper script (from the docs/ directory)
-cd projects/components/compute-eng-ip/hive/docs
+cd projects/components/riscv-ip/hive-serv/docs
 ./generate_pdf.sh --rev 0.25
 # Outputs: HIVE_Specification_v0.25.docx and HIVE_Specification_v0.25.pdf
 
 # Direct md_to_docx.py invocation (from repo root)
 python bin/md_to_docx.py \
-    projects/components/compute-eng-ip/hive/docs/hive_spec/hive_index.md \
-    -o projects/components/compute-eng-ip/hive/docs/HIVE_Specification_v0.25.docx \
+    projects/components/riscv-ip/hive-serv/docs/hive_spec/hive_index.md \
+    -o projects/components/riscv-ip/hive-serv/docs/HIVE_Specification_v0.25.docx \
     --toc \
     --title-page \
     --pdf
@@ -422,8 +422,8 @@ python bin/md_to_docx.py \
 # 1. Update version number in index file (hive_index.md)
 # 2. Generate documentation (from repo root)
 python bin/md_to_docx.py \
-    projects/components/compute-eng-ip/hive/docs/hive_spec/hive_index.md \
-    -o projects/components/compute-eng-ip/hive/docs/HIVE_Specification_v0.25.docx \
+    projects/components/riscv-ip/hive-serv/docs/hive_spec/hive_index.md \
+    -o projects/components/riscv-ip/hive-serv/docs/HIVE_Specification_v0.25.docx \
     --toc --title-page --pdf
 
 # 3. Output files created:
@@ -436,7 +436,7 @@ python bin/md_to_docx.py \
 ```bash
 # Generate debug markdown to see combined output
 python bin/md_to_docx.py \
-    projects/components/compute-eng-ip/hive/docs/hive_spec/hive_index.md \
+    projects/components/riscv-ip/hive-serv/docs/hive_spec/hive_index.md \
     -o output.docx \
     --debug-md
 
@@ -456,12 +456,12 @@ python bin/md_to_docx.py \
 
 **IMPORTANT: PDF files should be generated in the docs directory:**
 ```
-projects/components/compute-eng-ip/hive/docs/
+projects/components/riscv-ip/hive-serv/docs/
 ```
 
 **Quick Command:** Use the provided shell script:
 ```bash
-cd projects/components/compute-eng-ip/hive/docs
+cd projects/components/riscv-ip/hive-serv/docs
 ./generate_pdf.sh
 ```
 
