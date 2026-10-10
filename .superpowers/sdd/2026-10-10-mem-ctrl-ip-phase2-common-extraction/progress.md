@@ -338,5 +338,6 @@ lint PASS, andesite pytest 247 passed, scoria lint PASS, scoria pytest 227
 passed. Registry check PASS; audit PASS; links 0 broken; task-ids PASS.
 - commit <TODO>: common shell + wrappers + scoria refactor + test updates.
 
-RESUME HERE: scheduler merge (Task 5) and remaining DFI revs (scoria 3.1,
-andesite 4.0).
+RESUME HERE: Task 5 step 2 — scheduler merge design, pending inventory review
+(mc_scheduler_knobs.md). Remaining DFI revs (scoria 3.1, andesite 4.0) follow
+after scheduler merge.
