@@ -5,15 +5,17 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: andesite_training_layer
-// Purpose: Macro-tier training orchestration: owns the three training FUBs,
-//          the DFI training pins, the one-active mux, and the maintenance-class
-//          command channel into the scheduler.
+// Purpose: Andesite-specific wrapper around the common mc_training_layer shell.
+//          Owns the rock-side training FUBs (wrlvl, rdlvl, ca_train/wdq) and
+//          maps the generic 2-slot maintenance-command stream onto the
+//          scheduler's native {req,ack,op,bank,addr,mpc} port.
+//
+//          Slot 0 = read leveling (MRS-based). Slot 1 = CA/WDQ training
+//          (MPC-based). Write-leveling is a mode, not a command-channel flow,
+//          and owns the DFI training pins directly.
 //
 // Documentation:
 //   projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/docs/andesite_mas/
-//
-// Author: sean galloway
-// Created: 2026-10-05 (andesite, NEW)
 
 `timescale 1ns / 1ps
 
@@ -77,7 +79,7 @@ module andesite_training_layer
     input  logic              ca_sample_i,
     input  logic              wdq_sample_i,
 
-    // ----- maintenance-class command channel to the scheduler ---------------
+    // ----- maintenance-class training commands (from andesite_training_layer)
     output logic              trn_cmd_req_o,
     input  logic              trn_cmd_ack_i,
     output dram_op_e          trn_cmd_op_o,
@@ -139,11 +141,9 @@ module andesite_training_layer
             r_wdq_pending   <= 1'b0;
         end else begin
             r_state <= w_next_state;
-            // Capture one-shot enables whenever they pulse.
             if (rdlvl_en_i)     r_rdlvl_pending <= 1'b1;
             if (ca_train_en_i)  r_ca_pending    <= 1'b1;
             if (wdq_cal_en_i)   r_wdq_pending   <= 1'b1;
-            // Clear the pending flag when its flow actually starts.
             if (w_rdlvl_start)  r_rdlvl_pending <= 1'b0;
             if (w_ca_start) begin
                 r_ca_pending  <= 1'b0;
@@ -158,8 +158,6 @@ module andesite_training_layer
         w_ca_start    = 1'b0;
         unique case (r_state)
             ST_IDLE: begin
-                // wrlvl is a mode: it wins whenever it is asserted and no
-                // one-shot flow is currently active.
                 if (wrlvl_en_i) begin
                     w_next_state = ST_WRLVL;
                 end else if (r_rdlvl_pending) begin
@@ -197,6 +195,8 @@ module andesite_training_layer
     dram_op_e          w_rdlvl_op;
     logic [5:0]        w_ca_mpc_op;
     logic              w_ca_cmd_req;
+    logic              w_rdlvl_cmd_ack;
+    logic              w_ca_cmd_ack;
 
     andesite_wrlvl_ifc #(
         .NUM_CS(NUM_CS),
@@ -243,7 +243,7 @@ module andesite_training_layer
         .t_rdlvl_timeout_i     (t_rdlvl_timeout_i),
         .mpr_pattern_i         (mpr_pattern_i),
         .cmd_req_o             (w_rdlvl_cmd_req),
-        .cmd_ack_i             (trn_cmd_ack_i),
+        .cmd_ack_i             (w_rdlvl_cmd_ack),
         .cmd_op_o              (w_rdlvl_op),
         .cmd_bank_o            (w_rdlvl_bank),
         .cmd_addr_o            (w_rdlvl_addr),
@@ -275,8 +275,8 @@ module andesite_training_layer
         .ca_sample_i        (ca_sample_i),
         .wdq_sample_i       (wdq_sample_i),
         .cmd_req_o          (w_ca_cmd_req),
-        .cmd_ack_i          (trn_cmd_ack_i),
-        .cmd_op_o           (),                 // always OP_MPC, unused here
+        .cmd_ack_i          (w_ca_cmd_ack),
+        .cmd_op_o           (),
         .mpc_op_o           (w_ca_mpc_op),
         .result_valid_o     (ca_train_result_valid_o),
         .result_o           (ca_train_result_o),
@@ -287,18 +287,75 @@ module andesite_training_layer
         .obs_state_o        (ca_train_state_o)
     );
 
-    // Command channel mux: only the active one-shot flow drives it.
-    assign trn_cmd_req_o = (r_state == ST_RDLVL) ? w_rdlvl_cmd_req
-                         : (r_state == ST_CA)    ? w_ca_cmd_req
-                         : 1'b0;
-    assign trn_cmd_op_o  = (r_state == ST_RDLVL) ? w_rdlvl_op
-                         : (r_state == ST_CA)    ? OP_MPC
-                         : OP_NOP;
-    assign trn_cmd_bank_o = (r_state == ST_RDLVL) ? w_rdlvl_bank : 3'b0;
-    assign trn_cmd_addr_o = (r_state == ST_RDLVL) ? {2'b0, w_rdlvl_addr}
-                          : (r_state == ST_CA)    ? {12'b0, w_ca_mpc_op}
-                          : 18'b0;
-    assign trn_cmd_mpc_o  = (r_state == ST_CA) ? w_ca_mpc_op : 6'b0;
+    //=========================================================================
+    // Common-shell slot assignment.
+    // Slot 0 = rdlvl, slot 1 = ca/wdq. Both are mutually exclusive by the
+    // one-active state machine above, so the shell sees at most one slot req.
+    //=========================================================================
+    logic [1:0]  w_slot_req;
+    logic [1:0]  w_slot_grant;
+    dram_op_e [1:0] w_slot_op;
+    logic [1:0][2:0]  w_slot_bank;
+    logic [1:0][17:0] w_slot_row;
+    logic [1:0][5:0]  w_slot_extra;
+
+    always_comb begin
+        w_slot_req  = 2'b00;
+        w_slot_op   = '{default: OP_NOP};
+        w_slot_bank = '0;
+        w_slot_row  = '0;
+        w_slot_extra= '0;
+
+        if (r_state == ST_RDLVL) begin
+            w_slot_req  [0] = w_rdlvl_cmd_req;
+            w_slot_op   [0] = w_rdlvl_op;
+            w_slot_bank [0] = w_rdlvl_bank;
+            w_slot_row  [0] = {2'b0, w_rdlvl_addr};
+        end else if (r_state == ST_CA) begin
+            w_slot_req  [1] = w_ca_cmd_req;
+            w_slot_op   [1] = OP_MPC;
+            w_slot_bank [1] = 3'd0;
+            w_slot_row  [1] = {12'b0, w_ca_mpc_op};
+            w_slot_extra[1] = w_ca_mpc_op;
+        end
+    end
+
+    assign w_rdlvl_cmd_ack = w_slot_grant[0];
+    assign w_ca_cmd_ack    = w_slot_grant[1];
+
+    //=========================================================================
+    // Common training shell (cal-data CDC unused in andesite; tie off).
+    //=========================================================================
+    mc_training_layer #(
+        .NUM_SLOTS      (2),
+        .BKW            (3),
+        .ROW_WIDTH      (18),
+        .EXTRA_WIDTH    (6),
+        .CAL_DATA_WIDTH (1)
+    ) u_shell (
+        .mc_clk          (mc_clk),
+        .mc_rst_n        (mc_rst_n),
+        .slot_req_i      (w_slot_req),
+        .slot_grant_o    (w_slot_grant),
+        .slot_op_i       (w_slot_op),
+        .slot_bank_i     (w_slot_bank),
+        .slot_row_i      (w_slot_row),
+        .slot_extra_i    (w_slot_extra),
+        .trn_cmd_req_o   (trn_cmd_req_o),
+        .trn_cmd_grant_i (trn_cmd_ack_i),
+        .trn_cmd_op_o    (trn_cmd_op_o),
+        .trn_cmd_bank_o  (trn_cmd_bank_o),
+        .trn_cmd_row_o   (trn_cmd_addr_o),
+        .trn_cmd_extra_o (trn_cmd_mpc_o),
+        .dfi_clk         (dfi_clk),
+        .dfi_rstn        (dfi_rstn),
+        .cal_expect_i    (1'b0),
+        .cal_expect_o    (),
+        .cal_data_i      ('0),
+        .cal_valid_i     (1'b0),
+        .cal_data_o      (),
+        .cal_valid_o     ()
+    );
 
     //=========================================================================
     // DFI training pin mux (controller domain).
