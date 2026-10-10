@@ -328,7 +328,7 @@ all policies: request/grant, never preempt.
 | Candidate | Class | Unblock condition |
 |---|---|---|
 | RAIDR (retention-aware refresh) | research | a retention-profiling path exists (board or model) to feed per-row/bin data; Bloom-filter bin hardware is its own design |
-| ChargeCache | research | BUG-003 timing headroom — it makes the arbiter cone hotter, the opposite of what the 100 MHz closure needs now |
+| ChargeCache | research | BUG-003 timing headroom — it makes the arbiter cone hotter, and the restated 75 MHz closure has only ~1.3 ns of out-of-context margin to spend |
 | PARA / Rowhammer targeted refresh | research | after a bitstream exists, with a Rowhammer test methodology; adjacency tracking is its own design |
 | SALP | model-only | belongs to andesite (DDR4/LPDDR4) per the task's own split |
 | Self-refresh / power-down scheduling | excluded by decision | reverses the recorded 2026-09-30 HAS decision (dormant `powerdown_ctrl`/`dfi_signal_pack`); re-opened only by the owner |

@@ -39,8 +39,9 @@ bin/check_task_ids.py, which rejected a table that counted it.
   scoria has been synthesised. **CLOSED 2026-10-10** — owner: 100 MHz was never
   the target, so the premise is invalid and the bug closes under the
   "design point is restated" arm of its own Done-when. Measurements retained as
-  the design's first timing characterization; HAS/MAS restatement of the clock
-  target lands with TASK-008.
+  the design's first timing characterization (they are ~+1.3 ns of positive
+  slack against the restated 75 MHz clock); the HAS (Ch 2.4, v0.10) and MAS
+  (Table 1.5, v0.2) restatement landed 2026-10-10.
 
 - **BUG-001** — the arbiter issues two ACTs to different banks one cycle apart,
   violating tRRD, and its own final safety gate approves them. Reproduced in

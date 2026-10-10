@@ -82,5 +82,8 @@ decision on the record rather than an oversight.
 simulation, and that remains the verification boundary. The board target is
 no longer deferred — Genesys 2, K7DDRPHY, 2 x MT41J256M16 (Chapter 2.4) — a
 board build flow exists, and the first out-of-context synthesis has been run
-(scoria BUG-003, the 100 MHz timing miss, recorded in Chapter 6). Bring-up
-itself remains outside this document's scope.
+(scoria BUG-003: WNS -2.022 ns against a 10 ns constraint, which closes with
+~+1.3 ns of slack against the restated 75 MHz design point; the owner
+restated the clock 2026-10-10 — 100 MHz was never the target — and the bug
+closed on that restatement). Bring-up itself remains outside this document's
+scope.

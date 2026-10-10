@@ -41,9 +41,9 @@ parameters are chosen for, not a claim that a bitstream exists.
 | DRAM | 2 x MT41J256M16, 32-bit bus | platform: 32 DQ, 4 DQS pairs, 4 DM |
 | Geometry | 8 banks, 32768 rows, 1024 columns | LiteDRAM `MT41J256M16` |
 | Address pins | 15 address, 3 bank | platform; matches 2^15 rows and 2^3 banks |
-| System clock | 100 MHz | litex-boards default for this target |
+| System clock | 75 MHz | owner restatement 2026-10-10 — 100 MHz was never the target (scoria BUG-003, closed) |
 | Gear ratio | 1:4 | `MT41J256M16(sys_clk_freq, "1:4")` |
-| DRAM clock | 400 MHz | 4 x sys |
+| DRAM clock | 400 MHz | PHY PLL output from the 200 MHz board oscillator; not derived from sys |
 | Data rate | 800 MT/s -- **DDR3-800** | 2 x CK |
 | **Theoretical peak** | **3200 MB/s** | 800 MT/s x 32 bit / 8 |
 
@@ -118,9 +118,14 @@ implementation* rather than open questions:
 - **`tWLMRD`'s maximum**, which is scoria's to define as a timeout (Chapter 6).
   With CK at 2.5 ns a generous bound is easy to pick; the requirement is that it
   exists and reports distinctly, not that it be tight.
-- **A bitstream, and timing closure at 100 MHz.** The board build flow now
-  exists — board top, harness, passing lint — but no bitstream has been built,
-  and the first out-of-context synthesis (2026-10-01, scoria BUG-003) measured
-  the design point missing 100 MHz by ~2 ns. Floorplanning the arbiter with its
-  CAMs is the indicated first move. The result belongs to the bug, not this
-  chapter; the design point itself is unchanged.
+- **A bitstream, and timing closure at 75 MHz.** The board build flow now
+  exists — board top, harness, passing lint — but no bitstream has been built.
+  The first out-of-context synthesis (2026-10-01, scoria BUG-003) measured
+  WNS -2.022 ns reg-to-reg against a 10 ns constraint (fmax 83.2 MHz). Against
+  the restated 75 MHz design point (13.33 ns) that same measurement is
+  approximately **+1.3 ns of positive slack** — the design point is met as the
+  RTL stands. The owner restated the clock on 2026-10-10 (100 MHz was never
+  the target; BUG-003 closed on that restatement). The OOC evidence itself is
+  unchanged and belongs to the bug; what a real board build adds is
+  floorplanning, congestion, and the correctly-constrained `dfi_clk` domain —
+  a bitstream at 75 MHz remains the open item.

@@ -62,7 +62,7 @@ programmed spacing table, so the numbers below are a gate, not a hope:
 | Board / PHY | Genesys 2, K7 DDR3 PHY |
 | Devices | 2 x MT41J256M16, 32-bit DQ |
 | Grade | DDR3-800 — 400 MHz DRAM clock, 3200 MB/s peak |
-| MC clock (`aclk`) | 100 MHz (10 ns) |
+| MC clock (`aclk`) | 75 MHz (13.33 ns) — restated by the owner 2026-10-10; 100 MHz was never the target (scoria BUG-003, closed) |
 | `DFI_RATE` | 4 (the RTL default of 2 is overridden at integration) |
 | Burst | BL8 |
 | Address geometry | 8 banks, row 15 / col 10 |

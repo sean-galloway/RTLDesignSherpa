@@ -80,7 +80,7 @@ The block is intentionally small. Its job is to wait the programmed interval, as
 
 ### Interval counter
 
-`r_interval` is a 32-bit down-counter loaded from `t_zqcs_interval_i`. A 32-bit width is required: a ~128 ms interval at 100 MHz is ~12.8M cycles, which does not fit the 16-bit counter `tREFI` uses. If `t_zqcs_interval_i == 0`, the block treats the interval as disabled rather than as "as fast as possible".
+`r_interval` is a 32-bit down-counter loaded from `t_zqcs_interval_i`. A 32-bit width is required: a ~128 ms interval at 75 MHz is ~9.6M cycles, which does not fit the 16-bit counter `tREFI` uses. If `t_zqcs_interval_i == 0`, the block treats the interval as disabled rather than as "as fast as possible".
 
 At reset the counter is seeded from the input rather than zeroed. A zero reset would make the first interval zero-length and issue a calibration immediately out of reset, along with a spurious `obs_overdue_o` if demand is already up. The upstream `enable_i` is normally low out of reset and additionally gated on `init_done`, but the seed removes a latent coupling on those reset values.
 
