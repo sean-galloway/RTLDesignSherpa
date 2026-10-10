@@ -49,7 +49,7 @@ A lane does not keep a page listing its items; it keeps a **directory per
 state, and one file per item**:
 
 ```
-vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/bug/
+vault/Tasks/projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/bug/
   INDEX.md
   open/     BUG-001.md  BUG-004.md
   active/   BUG-002.md
@@ -93,7 +93,7 @@ ID from the day it is created: an empty page and a page the checker cannot
 parse look identical in a passing run, and this repo has shipped that failure
 more than once. Real items start at `-001`.
 
-    bin/check_task_ids.py --next projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/bug     # -> BUG-001
+    bin/check_task_ids.py --next projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/bug     # -> BUG-001
     bin/check_task_ids.py --area tooling/issue  # check one lane
     bin/check_task_ids.py --area RLB/hpet       # a sub-area: every lane beneath it
 
@@ -162,7 +162,7 @@ empty keep; top-level areas carry a one-line explainer.
 
 ## The AREA is the namespace — a task lives in its own component's files (Sean, 2026-09-14)
 
-**A pumice task goes in `vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/`. A converter task goes in the
+**A pumice task goes in `vault/Tasks/projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/`. A converter task goes in the
 converters area. Same for every component.** Not wherever it happened to be
 found, and not in whichever area the person filing it had open.
 
@@ -334,11 +334,11 @@ reviewed tree starts until the review is back and integrated.
 | [reed-solomon](projects/components/ecc-ip/reed-solomon/INDEX.md) | **migrated** | future R/S ECC component (intent only, no RTL yet; holds RS-001) | successor to dropped COMMON-009 |
 | hive | **retired 2026-09-27** | 1 VexRiscv + 16 SERV cores. Zero .sv, zero tests, zero filelists -- nothing had begun; its 24 open items described work not started. DELETED by decision (Sean): an unstarted component cannot hold work items. Items are in git history at `vault/Tasks/projects/components/compute-eng-ip/hive/`. | — |
 | [RLB](RLB/INDEX.md) | **migrated** | retro legacy blocks (gpio, hpet, ioapic, pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). Cross-block work at this level; per-block work in sub-areas, e.g. [RLB/hpet](RLB/hpet/INDEX.md) | TASKS.md folded in + deleted 2026-09-25 (six HPET items -> RLB/hpet/); the rtl/*/TODO files it named no longer exist |
-| [pumice-ddr2-lpddr2](projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/INDEX.md) | **migrated** | pumice DDR2/LPDDR2 controller | renamed from `pumice` 2026-09-28, then moved under `mem-ctrl-research-ip/` 2026-10-09 (mem-ctrl-ip reorg) |
-| [scoria-ddr3-lpddr3](projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/INDEX.md) | **migrated** | scoria DDR3/LPDDR3 controller (RTL verified in simulation; board bring-up in progress — see its area) | promoted out of `memory-controllers/ddr3-lpddr3` 2026-09-28, then moved under `mem-ctrl-research-ip/` 2026-10-09 |
-| [andesite-ddr4-lpddr4](projects/components/mem-ctrl-ip/mem-ctrl-research-ip/andesite-ddr4-lpddr4/INDEX.md) | **migrated** | andesite DDR4/LPDDR4 controller | promoted out of `memory-controllers/ddr4-lpddr4` 2026-09-28, then moved under `mem-ctrl-research-ip/` 2026-10-09 |
+| [pumice-ddr2-lpddr2](projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/INDEX.md) | **migrated** | pumice DDR2/LPDDR2 controller | renamed from `pumice` 2026-09-28, then moved under `research-ip/` 2026-10-09 (mem-ctrl-ip reorg) |
+| [scoria-ddr3-lpddr3](projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/INDEX.md) | **migrated** | scoria DDR3/LPDDR3 controller (RTL verified in simulation; board bring-up in progress — see its area) | promoted out of `memory-controllers/ddr3-lpddr3` 2026-09-28, then moved under `research-ip/` 2026-10-09 |
+| [andesite-ddr4-lpddr4](projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/INDEX.md) | **migrated** | andesite DDR4/LPDDR4 controller | promoted out of `memory-controllers/ddr4-lpddr4` 2026-09-28, then moved under `research-ip/` 2026-10-09 |
 | [docs-review](docs-review/INDEX.md) | **migrated** | Kimi doc review + humanization | rtl-doc-review/REVIEW_TODOS.md (off-repo) |
-| memory-controllers | **not an area 2026-09-28** | holds only [ADVANCED_MODES_ROADMAP.md](projects/components/mem-ctrl-ip/memory-controllers/ADVANCED_MODES_ROADMAP.md), which spans the whole family and so belongs to none of them. Its two sub-areas were promoted to top level and renamed to the COMPOUND IP name (the `<rock>-<protocols>` form that names the component directory): `ddr3-lpddr3` -> [scoria-ddr3-lpddr3](projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/INDEX.md), `ddr4-lpddr4` -> [andesite-ddr4-lpddr4](projects/components/mem-ctrl-ip/mem-ctrl-research-ip/andesite-ddr4-lpddr4/INDEX.md), and `pumice` -> [pumice-ddr2-lpddr2](projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/INDEX.md). Before that the three sibling IPs were named two different ways -- one top-level by codename, two nested by protocol -- so a new component area had no way to tell which was intended (tooling ISSUE-002) | both TASKS.md stubs folded in + deleted 2026-09-25 |
+| memory-controllers | **not an area 2026-09-28** | holds only [ADVANCED_MODES_ROADMAP.md](projects/components/mem-ctrl-ip/memory-controllers/ADVANCED_MODES_ROADMAP.md), which spans the whole family and so belongs to none of them. Its two sub-areas were promoted to top level and renamed to the COMPOUND IP name (the `<rock>-<protocols>` form that names the component directory): `ddr3-lpddr3` -> [scoria-ddr3-lpddr3](projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/INDEX.md), `ddr4-lpddr4` -> [andesite-ddr4-lpddr4](projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/INDEX.md), and `pumice` -> [pumice-ddr2-lpddr2](projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/INDEX.md). Before that the three sibling IPs were named two different ways -- one top-level by codename, two nested by protocol -- so a new component area had no way to tell which was intended (tooling ISSUE-002) | both TASKS.md stubs folded in + deleted 2026-09-25 |
 | nexysa7 | **retired 2026-09-27** | board-campaign bucket, DELETED by decision (Sean). Not one of its nine items was about the board: four were pumice work (ddr2-char harness, the BYTES_PER_*/DRAM_BL naming, a RISC-V SoC on pumice, moving ddr2_char_framework), one belonged to asic-trials/timing_characterization, one named the deleted `projects/NexysA7/stream_characterization`, and one described a rehome already done. Legacy NEXYS-* ids remain in [MIGRATION_MAP.md](MIGRATION_MAP.md); the items themselves are in git history at `vault/Tasks/nexysa7/`. | — |
 | formal | **no area, by decision** | formal proof backlog | All five open items in [FORMAL_TODO.md](../../formal/FORMAL_TODO.md) were STALE (verified 2026-09-25): TASK-090/091/092/093 closed in [amba](amba/INDEX.md) 2026-09-11 (renumbered on migration to amba TASK-027, BUG-021, BUG-022, BUG-023), `formal/stream/Makefile` exists since 2026-09-18. Zero open items, so no area was created. That file stays put -- eleven pages cite it and it holds measured status, not tasks |
 | [coverage](coverage/INDEX.md) | **migrated** | coverage rollout (COV-001: last 3 areas off base tests.mk) | val/COVERAGE_TODO.md (folded in + deleted 2026-08-09) |

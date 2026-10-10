@@ -1,0 +1,424 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2026 sean galloway
+
+"""
+Unit-test runner for `refresh_ctrl`. Verifies tREFI countdown,
+refresh_req assertion, grant decrement, and saturating pending counter.
+"""
+
+import os
+import sys
+import random
+import pytest
+
+import cocotb
+from cocotb.triggers import RisingEdge, Timer
+from cocotb_test.simulator import run
+
+from TBClasses.shared.utilities import get_paths, sim_build_path
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.tbbase import TBBase
+
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+
+from pumice_coverage import (  # noqa: E402
+    get_coverage_compile_args, get_coverage_env,
+)
+
+from tbclasses.trackers import RefreshTracker  # noqa: E402
+
+
+class RefTB(TBBase):
+    CLK = 10
+
+    async def setup(self, t_refi: int = 10, refresh_burst: int = 1,
+                    refpb_mode: int = 0, postpone: int = 0, pullin: int = 0):
+        self.dut.t_refi_i.value         = t_refi
+        self.dut.refresh_burst_i.value  = refresh_burst
+        self.dut.refpb_mode_i.value     = refpb_mode
+        # Credit limits. Defaulted to 0 (strict) so every existing scenario is
+        # bit-identical; postpone_headroom below is the only caller that sets
+        # them, because it is the only one that cares.
+        if hasattr(self.dut, "postpone_limit_i"):
+            self.dut.postpone_limit_i.value = postpone
+        if hasattr(self.dut, "pullin_limit_i"):
+            self.dut.pullin_limit_i.value   = pullin
+        self.dut.enable_i.value         = 0
+        self.dut.refresh_grant_i.value  = 0
+        self.dut.grant_was_pb_i.value   = 0
+        await self.start_clock('mc_clk', freq=self.CLK, units='ns')
+        self.dut.mc_rst_n.value = 0
+        await self.wait_clocks('mc_clk', 5)
+        self.dut.mc_rst_n.value = 1
+        await self.wait_clocks('mc_clk', 5)
+
+    async def enable(self):
+        self.dut.enable_i.value = 1
+
+    async def grant_one(self, was_pb: bool = None):
+        """Grant one refresh.
+
+        `was_pb` mirrors what the scheduler actually put on the wire. The
+        rotor advances ONLY on grant_was_pb_i (refresh_ctrl.sv), because it
+        mirrors the DEVICE's internal REFpb bank counter -- the command
+        itself carries no bank address (JESD209-2 6.6). Defaults to the
+        configured refpb_mode, which is what a scheduler in that mode would
+        report.
+        """
+        if was_pb is None:
+            was_pb = bool(int(self.dut.refpb_mode_i.value))
+        self.dut.grant_was_pb_i.value = 1 if was_pb else 0
+        self.dut.refresh_grant_i.value = 1
+        await RisingEdge(self.dut.mc_clk)
+        await Timer(1, units='ps')
+        self.dut.refresh_grant_i.value = 0
+        self.dut.grant_was_pb_i.value = 0
+
+    def req(self) -> bool:
+        return bool(int(self.dut.refresh_req_o.value))
+
+    def pending(self) -> int:
+        return int(self.dut.pending_refreshes_o.value)
+
+    def drain_active(self) -> bool:
+        return bool(int(self.dut.refresh_drain_active_o.value))
+
+    def refresh_bank(self) -> int:
+        return int(self.dut.refresh_bank_o.value)
+
+    def refresh_kind(self) -> int:
+        return int(self.dut.refresh_kind_o.value)
+
+
+@cocotb.test(timeout_time=10, timeout_unit="ms")
+async def cocotb_test_refresh_ctrl(dut):
+    test_type = os.environ.get("TEST_TYPE", "smoke")
+    tb = RefTB(dut)
+    # Tracker auto-dumps <sim_build>/refr.out at end of sim.
+    # The DUT lacks refresh_grant_o (that's the scheduler's output);
+    # disable that signal to suppress missing-signal warnings.
+    refr_tracker = RefreshTracker(dut, refresh_grant_signal=None)
+    cocotb.start_soon(refr_tracker.run())
+    await tb.setup(t_refi=10)
+
+    if test_type == "smoke":
+        # Before enable: no req
+        await tb.wait_clocks('mc_clk', 20)
+        assert not tb.req()
+        # Enable and wait for tREFI expiry
+        await tb.enable()
+        await tb.wait_clocks('mc_clk', 20)
+        assert tb.req(), "req should fire after tREFI expiry"
+        assert tb.pending() >= 1
+
+    elif test_type == "grant_decrements":
+        await tb.enable()
+        # Wait for first req
+        for _ in range(40):
+            await tb.wait_clocks('mc_clk', 1)
+            if tb.req():
+                break
+        assert tb.req()
+        # Grant — pending should decrement
+        await tb.grant_one()
+        await tb.wait_clocks('mc_clk', 2)
+        assert tb.pending() == 0
+        assert not tb.req()
+
+    elif test_type == "multiple_pending":
+        await tb.enable()
+        # Don't grant; let pending accumulate
+        await tb.wait_clocks('mc_clk', 50)
+        # Should have ~5 pending (50 / 11 ≈ 4-5)
+        assert tb.pending() >= 3, f"pending = {tb.pending()}"
+        assert tb.req()
+
+    elif test_type == "saturating":
+        # Very short tREFI; let pending fully saturate at 8.
+        tb.dut.t_refi_i.value = 2
+        await tb.enable()
+        await tb.wait_clocks('mc_clk', 200)
+        assert tb.pending() == 8, f"saturating: pending = {tb.pending()}"
+
+    elif test_type == "drain":
+        await tb.enable()
+        # Accumulate several pending
+        await tb.wait_clocks('mc_clk', 60)
+        initial = tb.pending()
+        assert initial >= 2
+        # Grant repeatedly; each grant decrements
+        for _ in range(initial):
+            await tb.grant_one()
+            await tb.wait_clocks('mc_clk', 1)
+        # All drained eventually
+        # (more grants may have to fire as new pending tick in)
+        # Just check pending dropped from initial
+        assert tb.pending() < initial
+
+    elif test_type == "drain_burst":
+        # D: drain mode — drain_active should be high whenever there are
+        # pending refreshes AND a burst quota is loaded. It stays high
+        # across consecutive bursts (scheduler keeps granting REF), and
+        # only drops when the full pending pool is exhausted.
+        await tb.setup(t_refi=8, refresh_burst=4)
+        await tb.enable()
+        # Accumulate exactly enough pending for one burst.
+        await tb.wait_clocks('mc_clk', 80)
+        # --- v3 term: drain_active is ALSO gated on refresh_req_o ---------
+        # `w_drain_active = quota && pending && refresh_req_o`. Checked HERE,
+        # before tREFI is parked, because the counter only reloads on expiry
+        # -- once parked at 0xFFFF, restoring a short t_refi does nothing for
+        # 65535 cycles and pending never rebuilds.
+        # Without this phase the third term is UNCOVERED: removing it from
+        # the RTL still passed 10/10 (mutation-checked 2026-08-29).
+        assert tb.pending() > 0 and tb.drain_active(), \
+            f"gate-check setup: pending={tb.pending()} drain={tb.drain_active()}"
+        tb.dut.enable_i.value = 0          # init gate off -> req must drop
+        await tb.wait_clocks('mc_clk', 3)
+        assert tb.pending() > 0, "backlog must survive the gate, not be lost"
+        assert not tb.drain_active(), \
+            "drain_active must follow refresh_req_o: refresh is gated off " \
+            "but drain is still asserted"
+        tb.dut.enable_i.value = 1          # restore for the drain-through
+        await tb.wait_clocks('mc_clk', 3)
+
+        # Stop new arrivals WITHOUT abusing enable_i. That signal is the
+        # init_sequencer's gate -- "refresh is gated off until init
+        # completes" -- not a runtime pause. v3 correctly gates
+        # refresh_req_o on it, so dropping it kills the request and, with
+        # it, drain_active (which is `quota && pending && refresh_req_o`).
+        # A controller whose refresh is gated off must NOT be telling the
+        # scheduler to keep granting.
+        #
+        # Park tREFI instead, then let the ALREADY-ARMED interval expire
+        # once: the counter only reloads on expiry, so the long value does
+        # not take effect until then, and waiting it out here keeps a
+        # stray arrival from landing mid-drain.
+        tb.dut.t_refi_i.value = 0xFFFF
+        await tb.wait_clocks('mc_clk', 12)
+        initial = tb.pending()
+        assert initial >= 4, f"expected >=4 pending, got {initial}"
+        assert tb.drain_active(), \
+            "drain should be active while quota loaded + pending>0"
+        # Grant `initial` times — drain stays high until last grant.
+        for i in range(initial - 1):
+            await tb.grant_one()
+            await tb.wait_clocks('mc_clk', 2)
+            assert tb.drain_active(), \
+                f"drain should stay high while pending>0 (i={i}, " \
+                f"pending={tb.pending()})"
+        # Final grant — pending hits 0, drain drops.
+        await tb.grant_one()
+        await tb.wait_clocks('mc_clk', 3)
+        assert not tb.drain_active(), \
+            f"drain should clear after all pending drained " \
+            f"(pending={tb.pending()})"
+
+
+    elif test_type == "refpb_rotor":
+        # D: REFpb mode — bank rotor walks 0..7 across grants.
+        await tb.setup(t_refi=5, refpb_mode=1)
+        await tb.enable()
+        await tb.wait_clocks('mc_clk', 80)  # accumulate plenty
+        assert tb.refresh_kind() == 1, "REFpb kind should be 1"
+        banks_seen = []
+        for _ in range(8):
+            # If pending hits zero, accumulate more
+            if tb.pending() == 0:
+                await tb.wait_clocks('mc_clk', 20)
+            banks_seen.append(tb.refresh_bank())
+            await tb.grant_one()
+            await tb.wait_clocks('mc_clk', 2)
+        # Expect 0,1,2,3,4,5,6,7 (in order) across 8 grants.
+        assert banks_seen == list(range(8)), \
+            f"REFpb rotor sequence wrong: {banks_seen}"
+
+    elif test_type == "refab_no_rotation":
+        # D: REFab mode — bank stays at 0 across grants.
+        await tb.setup(t_refi=5, refpb_mode=0)
+        await tb.enable()
+        await tb.wait_clocks('mc_clk', 80)
+        assert tb.refresh_kind() == 0, "REFab kind should be 0"
+        for _ in range(4):
+            if tb.pending() == 0:
+                await tb.wait_clocks('mc_clk', 20)
+            assert tb.refresh_bank() == 0, \
+                f"REFab bank should stay 0, got {tb.refresh_bank()}"
+            await tb.grant_one()
+            await tb.wait_clocks('mc_clk', 2)
+
+    elif test_type == "grant_no_reissue":
+        # REGRESSION GUARD for the strict-flop strobe re-issue pattern
+        # (see commit 66f32c7f for the canonical example in the scheduler).
+        # A producer FUB whose req_o is registered AND whose grant_i is
+        # registered downstream can spuriously fire req_o again if the
+        # internal "pending" state lags the grant strobe and the FSM
+        # picks up the slot a second time before pending drops.
+        #
+        # Test: accumulate exactly ONE pending refresh, grant once, then
+        # observe req_o + pending for many cycles. With tREFI long, no
+        # new pending should accumulate during the window. Exactly:
+        #   pending: 1 → 0 (one decrement)
+        #   req_o:   1 → 0 (and stays 0)
+        # Anything else (pending going negative, req re-asserting) is
+        # the bug pattern.
+        await tb.setup(t_refi=200)  # long so no new tREFI ticks in window
+        await tb.enable()
+        # Wait for the first pending refresh.
+        for _ in range(300):
+            await tb.wait_clocks('mc_clk', 1)
+            if tb.req():
+                break
+        assert tb.req()
+        assert tb.pending() == 1, \
+            f"expected exactly 1 pending, got {tb.pending()}"
+        # Single grant.
+        await tb.grant_one()
+        # Observe over 50 cycles. No new tREFI tick at t_refi=200 + 50 cyc.
+        req_asserts = 0
+        for _ in range(50):
+            await tb.wait_clocks('mc_clk', 1)
+            if tb.req():
+                req_asserts += 1
+            assert tb.pending() <= 1, \
+                f"pending underflowed/overflowed: {tb.pending()}"
+        assert req_asserts == 0, \
+            f"refresh_req_o re-asserted {req_asserts} times after single " \
+            f"grant — strobe re-fire race regressed"
+
+    elif test_type == "random_soak":
+        rng = random.Random(int(os.environ.get('SEED', '12345')))
+        test_level = os.environ.get("TEST_LEVEL", "FUNC").upper()
+        n_grants = {"GATE": 50, "FUNC": 300, "FULL": 1500}.get(test_level, 300)
+
+        await tb.enable()
+        grants_done  = 0
+        max_pending  = 0
+        for _ in range(n_grants):
+            tb.dut.t_refi_i.value = rng.randint(5, 30)
+            await tb.wait_clocks('mc_clk', rng.randint(3, 25))
+            max_pending = max(max_pending, tb.pending())
+            if tb.req() and rng.random() < 0.85:
+                await tb.grant_one()
+                grants_done += 1
+        assert max_pending <= 8, f"JEDEC violation: max_pending={max_pending}"
+        assert grants_done >= n_grants // 3
+
+    elif test_type == "postpone_headroom":
+        # REGRESSION GUARD (BUG-001, board 2026-09-18).
+        #
+        # The busy-side request is `r_pending > w_post_eff`. The clamp used to
+        # be 7, so with postpone programmed to its maximum the request first
+        # asserted at pending == 8 == MAX_PENDING -- the exact value at which
+        # the accumulator stops incrementing and further tREFI ticks are
+        # SILENTLY DROPPED. Asking for a refresh only once you are already at
+        # the JEDEC 8-postponed ceiling leaves no time to actually perform one:
+        # every tick spent waiting for the grant is a refresh permanently lost.
+        #
+        # Only refresh_credit programmed postpone (8), so it was the only board
+        # config exposed -- and the whole existing suite passed while the defect
+        # was live, which is why this scenario exists.
+        #
+        # INVARIANT: with NO grants, the request must assert while pending is
+        # still BELOW MAX_PENDING, i.e. there is at least one whole tREFI of
+        # lead time before refreshes start being dropped.
+        MAX_PENDING = 8
+        await tb.setup(t_refi=10, postpone=15, pullin=0)   # 15 -> clamped
+        await tb.enable()
+        # HOLD demand_i HIGH. w_idle = (r_idle_cnt >= IDLE_CONFIRM) and
+        # r_idle_cnt is zeroed by demand_i, so without this the DUT goes IDLE
+        # and takes the generous branch `(r_pending > 0) || (r_pullin < ...)`,
+        # which has headroom by construction. The defect lives ONLY on the busy
+        # branch `(r_pending > w_post_eff)`. A first draft of this scenario
+        # omitted it and PASSED against the unfixed RTL -- a blind guard.
+        dut.demand_i.value = 1
+        pend_at_req = None
+        for _ in range(400):                       # ~40 tREFI ticks at t_refi=10
+            await tb.wait_clocks('mc_clk', 1)
+            if tb.req():
+                pend_at_req = tb.pending()
+                break
+        assert pend_at_req is not None, (
+            "request never asserted with postpone at maximum -- the backlog can "
+            "never exceed the clamp, so a refresh would never be forced at all")
+        assert pend_at_req < MAX_PENDING, (
+            f"NO HEADROOM: request first asserted at pending={pend_at_req}, but "
+            f"the accumulator saturates at MAX_PENDING={MAX_PENDING}. Every "
+            f"tREFI tick from here until the grant is a dropped refresh (data "
+            f"retention hazard). The postpone clamp must leave at least one "
+            f"tick of lead time -- see POSTPONE_MAX in refresh_ctrl.sv.")
+
+    else:
+        raise ValueError(f"Unknown TEST_TYPE: {test_type}")
+
+    await tb.wait_clocks('mc_clk', 3)
+
+
+_GATE = [("smoke",), ("grant_decrements",)]
+_FUNC = _GATE + [("multiple_pending",), ("saturating",), ("drain",),
+                 ("drain_burst",), ("refpb_rotor",), ("refab_no_rotation",),
+                 ("grant_no_reissue",),  # strict-flop strobe race guard
+                 ("postpone_headroom",), # BUG-001 retention-hazard guard
+                 ("random_soak",)]
+_FULL = _FUNC
+
+# REG_LEVEL SELECTS THIS GRID. It used to read TEST_LEVEL, which held the
+# regression level only because the area conftest stamped REG_LEVEL into it --
+# and that stamp also overrode every per-cell value a wrapper exported, which is
+# tooling BUG-004 (was TOOL-016). The stamp is gone, so REG_LEVEL is read here directly. TEST_LEVEL
+# stays as a manual override for a bare `pytest` run.
+_TEST_LEVEL = (os.environ.get("REG_LEVEL") or os.environ.get("TEST_LEVEL")
+               or "FUNC").upper()
+_PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
+
+
+@pytest.mark.parametrize("test_type", [t[0] for t in _PARAMS],
+                         ids=[t[0] for t in _PARAMS])
+def test_refresh_ctrl(request, test_type):
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "refresh_ctrl"
+    test_name = f"test_refresh_ctrl_{test_type}"
+
+    filelist_path = ("projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/"
+                     "rtl/filelists/fub/refresh_ctrl.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+
+    sim_build = sim_build_path(tests_dir, test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        "DUT": dut_name,
+        "TEST_TYPE": test_type,
+        "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
+        # The simulator's depth comes from here now; no conftest stamps it.
+        "TEST_LEVEL": _TEST_LEVEL,
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
+
+    enable_waves = bool(int(os.environ.get("WAVES", "0")))
+    compile_args = ["+define+USE_ASYNC_RESET"]
+    sim_args = []
+    plus_args = []
+    if enable_waves:
+        compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+        sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
+        plus_args    += ["--trace"]
+        extra_env["VERILATOR_TRACE_FST"] = "1"
+
+    compile_args += get_coverage_compile_args()
+    extra_env.update(get_coverage_env(test_name, sim_build=sim_build))
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_refresh_ctrl",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env,
+        compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
+        waves=enable_waves, keep_files=True, timescale="1ns/1ps")

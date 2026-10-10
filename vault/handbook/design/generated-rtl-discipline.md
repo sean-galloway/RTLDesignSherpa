@@ -167,7 +167,7 @@ shape — RTL/docs/regmap under `regs/generated/`, plus the TB-facing
 ```
 # TWO invocations. --regmap-output REPLACES the default regmap, it does not
 # add a second one, so one run can only ever produce one of these files.
-P=projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2
+P=projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2
 
 # 1. regblock + docs + the regs/generated regmap
 python3 bin/peakrdl_generate.py $P/rtl/macro/pumice_csr.rdl \

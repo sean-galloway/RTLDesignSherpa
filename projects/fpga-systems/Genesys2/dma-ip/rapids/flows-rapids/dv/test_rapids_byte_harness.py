@@ -125,6 +125,68 @@ async def cocotb_test_source_selfcheck(dut):
     tb.log.info("rapids_byte_harness SOURCE self-check PASSED")
 
 
+@cocotb.test(timeout_time=120, timeout_unit="ms")
+async def cocotb_test_observer_moncap(dut):
+    """rapids ISSUE-007: on observer-only builds (USE_OBSERVERS=1, GEN_MON=0)
+    the MON_CAPTURE buffer must hold the interface observers' monbus records.
+    Runs a SINK transfer (exercises the AXI observer's wr master and the AXIS
+    observer's ingress port), then reads the buffer back over the same CSRs
+    the board host uses and decodes it with the shared monbus parser."""
+    tb = RapidsByteHarnessTB(dut)
+
+    # Plain suite runs build neither the observers nor the buffer; only the
+    # env-selected flavour (TEST_USE_OBSERVERS=1 TEST_MON_CAPTURE=1, which the
+    # pytest wrapper sets) is this test's topology. cocotb runs every test in
+    # the module per build, so a quiet skip is the right answer otherwise.
+    if int(os.environ.get('TEST_USE_OBSERVERS', '0')) != 1 or \
+       int(os.environ.get('TEST_MON_CAPTURE', '0')) != 1:
+        tb.log.info("OBSERVER-MONCAP skipped: TEST_USE_OBSERVERS=1 TEST_MON_CAPTURE=1 build only")
+        return
+
+    await tb.setup_clocks_and_reset()
+
+    assert tb.io.csr_field("BUILD", "OBSERVERS") == 1, "BUILD.OBSERVERS mismatch"
+    assert tb.io.csr_field("BUILD", "MON_CAPTURE") == 1, "BUILD.MON_CAPTURE mismatch"
+    assert tb.io.csr_field("BUILD", "GEN_MON") == 0, \
+        "observer-only topology required (GEN_MON=0): the in-core monitor stream owns the buffer otherwise"
+
+    active = list(range(tb.NUM_ACTIVE))
+    ok, stats = await tb.run_sink_selfcheck(active_channels=active, beats=tb.NUM_BEATS)
+    assert ok, f"SINK self-check failed: {stats.get('errors')}"
+
+    def prog():
+        cnt = tb.io.csr_read_reg("MONCAP_CNT")
+        n_words, wrapped = cnt & 0x7FFF_FFFF, bool(cnt >> 31)
+        words = []
+        for i in range(min(n_words, 192)):
+            tb.io.csr_write_reg("MONCAP_SEL", INDEX=i)
+            lo = tb.io.csr_read_reg("MONCAP_LO")
+            hi = tb.io.csr_read_reg("MONCAP_HI")
+            words.append((hi << 32) | lo)
+        return n_words, wrapped, words
+
+    n_words, wrapped, words = await bridge(prog)()
+    assert n_words >= 3, (
+        f"MONCAP_CNT == {n_words} words after traffic: the observers' monbus "
+        f"never reached the capture buffer (ISSUE-007)")
+    assert not wrapped, "192-word capture window wrapped on a tiny self-check: stream is faster than expected"
+
+    from TBClasses.monbus import parse_stream
+    usable = words[:len(words) - len(words) % 3]
+    records = list(parse_stream(usable, stride_bytes=24, ts_mode=1))
+    assert records, "buffer non-empty but no records decoded (record contiguity broken?)"
+    protos = sorted({r.packet.protocol for r in records})
+    # SINK traffic feeds the AXI observer (m_axi_wr completions) and the AXIS
+    # observer (s_axis ingress): both streams must be represented.
+    assert 0 in protos and 1 in protos, (
+        f"expected both AXI (0) and AXIS (1) observer records, got protocols {protos}")
+    shown = [f"{r.get_protocol_name()}/{r.get_packet_type_name()}/0x{r.event_code:02X}/ch{r.channel_id}"
+             for r in records[:8]]
+    tb.log.info(f"observer moncap: {n_words} words, {len(records)} records, "
+                f"protocols {protos}; first records: {shown}")
+    tb.log.info("rapids_byte_harness OBSERVER-MONCAP PASSED")
+
+
 # ===========================================================================
 # PYTEST WRAPPER
 # ===========================================================================
@@ -188,6 +250,10 @@ def _run_harness(testcase, test_name, *, test_level='gate', extra_env=None,
         # board; TEST_USE_OBSERVERS=1 builds them so verify-sim covers that flavour.
         'USE_OBSERVERS': int(os.environ.get('TEST_USE_OBSERVERS', '0')),
         'OBS_ENABLE_MON_TAPS': int(os.environ.get('TEST_OBS_ENABLE_MON_TAPS', '0')),
+        # Monbus capture buffer (rapids TASK-020 / ISSUE-007). Default OUT, as on
+        # the characterization bitstream; TEST_MON_CAPTURE=1 builds it.
+        'MON_CAPTURE': int(os.environ.get('TEST_MON_CAPTURE', '0')),
+        'GEN_MON': int(os.environ.get('TEST_GEN_MON', '0')),
         # 1 = byte-wise checkers (every campaign); 0 = the word-wide flavour the
         # aligned performance build uses (BUILD.WORD_CRC = 1).
         'BYTE_CRC': int(os.environ.get('TEST_BYTE_CRC', '1')),
@@ -288,6 +354,27 @@ def test_rapids_byte_harness_perf(request):
 def test_rapids_byte_harness_source(request):
     """Multi-channel SOURCE self-check (m_axi_rd -> source -> m_axis per-channel CRC)."""
     _run_harness("cocotb_test_source_selfcheck", "test_rapids_byte_harness_source")
+
+
+@pytest.mark.rapids_byte_harness
+def test_rapids_byte_harness_observer_moncap(request):
+    """rapids ISSUE-007: observer-only build (USE_OBSERVERS=1, GEN_MON=0,
+    MON_CAPTURE=1) -- the capture buffer must contain BOTH interface observers'
+    monbus records after traffic."""
+    saved = {k: os.environ.get(k) for k in
+             ('TEST_USE_OBSERVERS', 'TEST_OBS_ENABLE_MON_TAPS', 'TEST_MON_CAPTURE', 'TEST_GEN_MON')}
+    os.environ['TEST_USE_OBSERVERS'] = '1'
+    os.environ['TEST_OBS_ENABLE_MON_TAPS'] = '1'
+    os.environ['TEST_MON_CAPTURE'] = '1'
+    os.environ['TEST_GEN_MON'] = '0'
+    try:
+        _run_harness("cocotb_test_observer_moncap", "test_rapids_byte_harness_observer_moncap")
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
-PUMICE    := $(REPO_ROOT)/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2
+PUMICE    := $(REPO_ROOT)/projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2
 
 INC  := -I$(REPO_ROOT)/rtl/amba/includes -I$(PUMICE)/rtl/includes
 PKGS := $(PUMICE)/rtl/includes/pumice_pkg.sv

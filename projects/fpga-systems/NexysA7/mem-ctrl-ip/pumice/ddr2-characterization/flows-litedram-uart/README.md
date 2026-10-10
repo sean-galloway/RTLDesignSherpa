@@ -76,7 +76,7 @@ commit on the post-sdpram-fix tree (`amba 71d48b6f7`; pumice `build-perf` WNS
 `char_results/litedram_2026-10-03_matrix.csv` (14/14 integrity) against pumice
 `build-perf/reports/char_postfix_2026-10-03.csv` (84/84 integrity), full
 analysis in
-`projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/docs/char_results/FINDINGS_litedram_ab_2026-10-03.md`:
+`projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/char_results/FINDINGS_litedram_ab_2026-10-03.md`:
 pumice `open_page` now **matches LiteDRAM on every page-friendly pattern**
 (writes 569-570 both, reads 561-579 both, ld/pum 1.00-1.01x — the "reads 2x"
 gap below was the pre-ring-fix state). LiteDRAM still leads same-bank row

@@ -1,0 +1,245 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2026 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: andesite_dfi_cdc
+// Purpose: dfi_cdc
+//
+// Documentation:
+//   projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/docs/andesite_mas/
+//
+// Carried unchanged from scoria_dfi_cdc per andesite HAS ch02 (INHERITED).
+// The only differences from the scoria source are the module name, the
+// package import where one existed, and this header. Verification evidence
+// transfers with scoria's suite where one exists at this tier.
+//
+// Author: sean galloway
+// Created: 2026-10-04 (carried)
+
+`timescale 1ns / 1ps
+
+`include "reset_defs.svh"
+
+module andesite_dfi_cdc #(
+    parameter int CMD_DW       = 32,   // {ap,col,row,bg,bank,rank,op} packed
+    parameter int WD_DW        = 72,   // {data,strb,last}
+    parameter int RD_DW        = 66,   // {data,resp,last}
+    // Depths are powers of two, which is what the default Gray pointer
+    // encoding requires ("even" was stale language from fifo_async_div2).
+    parameter int CMD_DEPTH    = 8,
+    parameter int WD_DEPTH     = 16,
+    parameter int RD_DEPTH     = 16,
+    parameter int TOK_DEPTH    = 4,
+    parameter int N_FLOP_CROSS = 2,
+    // Async-FIFO pointer encoding for all five CDC FIFOs below: 0 = Gray
+    // (power-of-2 depth only), 1 = Johnson (any depth, DEPTH-bit pointers).
+    // Gray by default -- Johnson is opt-in because its pointers cost DEPTH
+    // bits in both domains and every synchronizer stage.
+    parameter int USE_JOHNSON  = 0
+) (
+    //=========================================================================
+    // Controller domain (aclk)
+    //=========================================================================
+    input  logic              ctl_clk,
+    input  logic              ctl_rstn,
+
+    // cmd  ctl -> phy
+    input  logic              cmd_valid_i,
+    output logic              cmd_ready_o,
+    input  logic [CMD_DW-1:0] cmd_data_i,
+    // wrdata ctl -> phy. wd_last_i marks the final DFI word of a burst: it is
+    // what pushes the "burst staged" token below (the payload stays opaque).
+    input  logic              wd_valid_i,
+    output logic              wd_ready_o,
+    input  logic [WD_DW-1:0]  wd_data_i,
+    input  logic              wd_last_i,
+    // init start (level) ctl -> phy
+    input  logic              init_start_i,
+    // rddata phy -> ctl
+    output logic              rd_valid_o,
+    input  logic              rd_ready_i,
+    output logic [RD_DW-1:0]  rd_data_o,
+    // init complete (level) phy -> ctl (sticky latch)
+    output logic              init_complete_o,
+
+    //=========================================================================
+    // PHY DFI domain (dfi_clk)
+    //=========================================================================
+    input  logic              dfi_clk,
+    input  logic              dfi_rstn,
+
+    // cmd out (phy)
+    output logic              pcmd_valid_o,
+    input  logic              pcmd_ready_i,
+    output logic [CMD_DW-1:0] pcmd_data_o,
+    // wrdata out (phy)
+    output logic              pwd_valid_o,
+    input  logic              pwd_ready_i,
+    output logic [WD_DW-1:0]  pwd_data_o,
+    // write-burst-staged tokens (phy): one per COMPLETE burst that has crossed
+    // into the wrdata FIFO. The command path pops one per WR it accepts, so a
+    // WR command can never reach the PHY ahead of its data (the write analog
+    // of the read aligner's op_ready backpressure). Pushed on the ctl edge that
+    // accepts the burst's LAST word, through the same N_FLOP_CROSS synchronizer
+    // as the data pointer, so never visible on dfi_clk before the data is.
+    // With the controller's rate-matched commit + CMD_DELAY this gate is an
+    // INVARIANT (never holds); the counters in scoria_dfi_cmd_path prove it.
+    output logic              pwr_staged_valid_o,
+    input  logic              pwr_staged_pop_i,
+    // init start (level) phy (sticky latch)
+    output logic              pinit_start_o,
+    // rddata in (phy)
+    input  logic              prd_valid_i,
+    output logic              prd_ready_o,
+    input  logic [RD_DW-1:0]  prd_data_i,
+    // init complete (level) phy -> crosses to ctl
+    input  logic              pinit_complete_i
+);
+
+    // ---- cmd : ctl -> phy ---------------------------------------------------
+    gaxi_fifo_async #(
+        .DATA_WIDTH  (CMD_DW),
+        .DEPTH       (CMD_DEPTH),
+        .USE_JOHNSON (USE_JOHNSON),
+        .N_FLOP_CROSS(N_FLOP_CROSS)
+    ) u_cmd_fifo (
+        .axi_wr_aclk   (ctl_clk),
+        .axi_wr_aresetn(ctl_rstn),
+        .axi_rd_aclk   (dfi_clk),
+        .axi_rd_aresetn(dfi_rstn),
+        .wr_valid      (cmd_valid_i),
+        .wr_ready      (cmd_ready_o),
+        .wr_data       (cmd_data_i),
+        .rd_ready      (pcmd_ready_i),
+        .rd_valid      (pcmd_valid_o),
+        .rd_data       (pcmd_data_o)
+    );
+
+    // ---- wrdata : ctl -> phy ------------------------------------------------
+    // The data word and (on the burst's last word) its staged token are
+    // accepted together: both FIFOs must have room, so neither can run ahead.
+    logic w_wd_data_ready, w_wtok_ready, w_wtok_push;
+    assign wd_ready_o  = w_wd_data_ready && w_wtok_ready;
+    assign w_wtok_push = wd_valid_i && wd_last_i && w_wd_data_ready;
+
+    gaxi_fifo_async #(
+        .DATA_WIDTH  (WD_DW),
+        .DEPTH       (WD_DEPTH),
+        .USE_JOHNSON (USE_JOHNSON),
+        .N_FLOP_CROSS(N_FLOP_CROSS)
+    ) u_wd_fifo (
+        .axi_wr_aclk   (ctl_clk),
+        .axi_wr_aresetn(ctl_rstn),
+        .axi_rd_aclk   (dfi_clk),
+        .axi_rd_aresetn(dfi_rstn),
+        .wr_valid      (wd_valid_i && w_wtok_ready),
+        .wr_ready      (w_wd_data_ready),
+        .wr_data       (wd_data_i),
+        .rd_ready      (pwd_ready_i),
+        .rd_valid      (pwd_valid_o),
+        .rd_data       (pwd_data_o)
+    );
+
+    // Sized WD_DEPTH: at most one token per data word can ever be staged.
+    gaxi_fifo_async #(
+        .DATA_WIDTH  (1),
+        .DEPTH       (WD_DEPTH),
+        .USE_JOHNSON (USE_JOHNSON),
+        .N_FLOP_CROSS(N_FLOP_CROSS)
+    ) u_wtok_fifo (
+        .axi_wr_aclk   (ctl_clk),
+        .axi_wr_aresetn(ctl_rstn),
+        .axi_rd_aclk   (dfi_clk),
+        .axi_rd_aresetn(dfi_rstn),
+        .wr_valid      (w_wtok_push),
+        .wr_ready      (w_wtok_ready),
+        .wr_data       (1'b1),
+        .rd_ready      (pwr_staged_pop_i),
+        .rd_valid      (pwr_staged_valid_o),
+        .rd_data       ()
+    );
+
+    // ---- rddata : phy -> ctl ------------------------------------------------
+    gaxi_fifo_async #(
+        .DATA_WIDTH  (RD_DW),
+        .DEPTH       (RD_DEPTH),
+        .USE_JOHNSON (USE_JOHNSON),
+        .N_FLOP_CROSS(N_FLOP_CROSS)
+    ) u_rd_fifo (
+        .axi_wr_aclk   (dfi_clk),
+        .axi_wr_aresetn(dfi_rstn),
+        .axi_rd_aclk   (ctl_clk),
+        .axi_rd_aresetn(ctl_rstn),
+        .wr_valid      (prd_valid_i),
+        .wr_ready      (prd_ready_o),
+        .wr_data       (prd_data_i),
+        .rd_ready      (rd_ready_i),
+        .rd_valid      (rd_valid_o),
+        .rd_data       (rd_data_o)
+    );
+
+    // ---- init_start : ctl -> phy (level -> token -> sticky latch) ----------
+    logic r_istart_d, w_istart_push;
+    `ALWAYS_FF_RST(ctl_clk, ctl_rstn,
+        if (`RST_ASSERTED(ctl_rstn)) r_istart_d <= 1'b0;
+        else                         r_istart_d <= init_start_i;
+    )
+    assign w_istart_push = init_start_i && !r_istart_d;   // rising edge
+
+    logic w_istok_valid;
+    gaxi_fifo_async #(
+        .DATA_WIDTH  (1),
+        .DEPTH       (TOK_DEPTH),
+        .USE_JOHNSON (USE_JOHNSON),
+        .N_FLOP_CROSS(N_FLOP_CROSS)
+    ) u_istart_tok (
+        .axi_wr_aclk   (ctl_clk),
+        .axi_wr_aresetn(ctl_rstn),
+        .axi_rd_aclk   (dfi_clk),
+        .axi_rd_aresetn(dfi_rstn),
+        .wr_valid      (w_istart_push),
+        .wr_ready      (),
+        .wr_data       (1'b1),
+        .rd_ready      (1'b1),
+        .rd_valid      (w_istok_valid),
+        .rd_data       ()
+    );
+    `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
+        if (`RST_ASSERTED(dfi_rstn)) pinit_start_o <= 1'b0;
+        else if (w_istok_valid)      pinit_start_o <= 1'b1;   // sticky
+    )
+
+    // ---- init_complete : phy -> ctl (level -> token -> sticky latch) -------
+    logic r_icmp_d, w_icmp_push;
+    `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
+        if (`RST_ASSERTED(dfi_rstn)) r_icmp_d <= 1'b0;
+        else                         r_icmp_d <= pinit_complete_i;
+    )
+    assign w_icmp_push = pinit_complete_i && !r_icmp_d;   // rising edge
+
+    logic w_icmptok_valid;
+    gaxi_fifo_async #(
+        .DATA_WIDTH  (1),
+        .DEPTH       (TOK_DEPTH),
+        .USE_JOHNSON (USE_JOHNSON),
+        .N_FLOP_CROSS(N_FLOP_CROSS)
+    ) u_icmp_tok (
+        .axi_wr_aclk   (dfi_clk),
+        .axi_wr_aresetn(dfi_rstn),
+        .axi_rd_aclk   (ctl_clk),
+        .axi_rd_aresetn(ctl_rstn),
+        .wr_valid      (w_icmp_push),
+        .wr_ready      (),
+        .wr_data       (1'b1),
+        .rd_ready      (1'b1),
+        .rd_valid      (w_icmptok_valid),
+        .rd_data       ()
+    );
+    `ALWAYS_FF_RST(ctl_clk, ctl_rstn,
+        if (`RST_ASSERTED(ctl_rstn)) init_complete_o <= 1'b0;
+        else if (w_icmptok_valid)    init_complete_o <= 1'b1;   // sticky
+    )
+
+endmodule : andesite_dfi_cdc

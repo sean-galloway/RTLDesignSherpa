@@ -1,0 +1,59 @@
+module: pumice_axi4_layer
+rtl_file: projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_axi4_layer.sv
+test_file: projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/dv/tests/macro/test_pumice_axi4_layer.py
+
+parameters:
+- name: AXI_ID_WIDTH
+  default: 8
+- name: AXI_ADDR_WIDTH
+  default: 32
+- name: AXI_DATA_WIDTH
+  default: 64
+- name: DRAM_BEAT_WIDTH
+  default: 64
+- name: NUM_RANKS
+  default: 1
+- name: NUM_BANKS
+  default: 8
+- name: ROW_WIDTH
+  default: 14
+- name: COL_WIDTH
+  default: 10
+- name: AXI_BEATS_PER_BURST
+  default: 4
+- name: NUM_ENTRIES
+  default: 8
+- name: N_SRAM_SLOTS
+  default: 8
+- name: RD_RET_DEPTH
+  default: 32
+
+coverage_points: []
+
+functional_scenarios:
+- id: AXI4-01
+  name: Smoke
+  description: "Write, same-id snarf, cross-id read, miss read, commit B"
+  test_function: test_pumice_axi4_layer (smoke)
+  priority: high
+  status: verified
+
+implied_coverage:
+  total_scenarios: 1
+  scenario_tracked: 1
+  implied_covered: 1
+  implied_percentage: 100.0
+
+notes: |
+  AXI4 host front-end macro. Host AW/AR bursts are chopped to DFI-burst
+  size (pumice_axi_burst_chopper: u_rd_split on the AR path at
+  pumice_axi4_layer.sv:239, u_aw_chop inside pumice_wr_splitter on the AW
+  path), fed to the dumb rd/wr intakes, with the write-data CAM (snarf
+  source) and read-cmd CAM (reorder buffer) in between. The smoke test
+  instantiates this macro directly via its own filelist with
+  AXI_BEATS_PER_BURST=4, so the burst chopper runs single-sub-command mode
+  (agg=0, last=1) — multi-burst split and ragged-tail behavior is covered
+  at unit level by pumice_wr_splitter_testplan.yaml (WSPL-02/03/04).
+  pumice_axi_burst_chopper deliberately has no standalone testplan: no
+  direct test exists, and both instantiation sites are exercised through
+  the plans above (see testplans README "No-plan rationale").

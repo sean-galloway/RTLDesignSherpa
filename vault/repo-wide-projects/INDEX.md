@@ -42,9 +42,9 @@ note — it belongs to that block and nowhere else.
 - [dma-ip/rapids](projects/components/dma-ip/rapids/INDEX.md) — beats rearchitecture; v1.0 (2026-10-06)
 - [dma-ip/stream](projects/components/dma-ip/stream/INDEX.md) — reference DV implementation; v1.0 (2026-10-06)
 - [hive](projects/components/compute-eng-ip/hive/INDEX.md)
-- [mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2](projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/INDEX.md) — board-validated
-- [mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3](projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/INDEX.md)
-- [andesite-ddr4-lpddr4](projects/components/mem-ctrl-ip/mem-ctrl-research-ip/andesite-ddr4-lpddr4/INDEX.md)
+- [mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2](projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/INDEX.md) — board-validated
+- [mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3](projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/INDEX.md)
+- [andesite-ddr4-lpddr4](projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/INDEX.md)
 - [misc](projects/components/utility-ip/misc/INDEX.md)
 - [retro_legacy_blocks](projects/components/retro_legacy_blocks/INDEX.md) — PIC, PIT, HPET, IOAPIC, SMBus, UART, RTC, GPIO, PM/ACPI; v1.0 (2026-10-06)
 

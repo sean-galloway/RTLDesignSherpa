@@ -1,0 +1,238 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2026 sean galloway
+
+"""
+End-to-end runner for `pumice_dfi_layer` (two async clocks).
+
+A DFI-domain memory model on the pin side captures the write burst off
+dfi_wrdata (when dfi_wrdata_en) and returns it on dfi_rddata/valid after the
+read window (dfi_rddata_en). Proves the whole layer + single CDC: ctl cmd ->
+DFI command bus, ctl wrdata -> dfi_wrdata (t_phy_wrlat), dfi_rddata -> ctl
+rddata, all across the async boundary.
+"""
+
+import os
+import sys
+import random
+from collections import deque
+
+import pytest
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import RisingEdge
+from cocotb_test.simulator import run
+
+from TBClasses.shared.utilities import get_paths, sim_build_path
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
+
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+from tbclasses.pumice_fub_bfm import fub_consumer, fub_producer   # noqa: E402
+from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
+
+from tbclasses.pumice_top_csr_tb import board_clock_periods  # noqa: E402
+_ACLK_NS, _DFI_NS = board_clock_periods()   # BOARD parity, not literals
+
+_FILELIST = ("projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/"
+             "rtl/filelists/macro/pumice_dfi_layer.f")
+
+# config
+NUM_BANKS, ROW_WIDTH, COL_WIDTH = 8, 14, 10
+RKW, BKW = 1, 3
+DFI_RATE, DRAM_BEAT = 2, 64
+DFI_DW = DRAM_BEAT * DFI_RATE          # 128
+DFI_SW = DFI_DW // 8
+BL = 8
+BL_WORDS = BL // DFI_RATE              # 4
+WRLAT, RDEN = 2, 2
+FULL_EN = (1 << DFI_RATE) - 1           # every DFI phase active at gear == MAX
+
+OP_WR, OP_RD = 4, 2
+
+# CDC FIFO payload packings
+WD_DW = 1 + DFI_SW + DFI_DW            # {last,strb,data}
+RD_DW = 1 + 2 + DFI_DW                 # {last,resp,data}
+
+
+def pack_cmd(op, bank, row, col, ap=0):
+    v = op & 0xF
+    v |= (0 & ((1 << RKW) - 1)) << 4
+    v |= (bank & ((1 << BKW) - 1)) << (4 + RKW)
+    v |= (row & ((1 << ROW_WIDTH) - 1)) << (4 + RKW + BKW)
+    v |= (col & ((1 << COL_WIDTH) - 1)) << (4 + RKW + BKW + ROW_WIDTH)
+    v |= (ap & 1) << (4 + RKW + BKW + ROW_WIDTH + COL_WIDTH)
+    return v
+
+
+def pack_wd(data, strb, last):
+    return (data & ((1 << DFI_DW) - 1)) | (strb << DFI_DW) | (last << (DFI_DW + DFI_SW))
+
+
+@cocotb.test(timeout_time=5, timeout_unit="ms")
+async def cocotb_test_pumice_dfi_layer(dut):
+    cocotb.start_soon(Clock(dut.ctl_clk, _ACLK_NS, units='ns').start())
+    cocotb.start_soon(Clock(dut.dfi_clk, _DFI_NS, units='ns').start())
+    dut.ctl_rstn.value = 0
+    dut.dfi_rstn.value = 0
+    # cmd/wd/rd are BFM-owned, all on ctl_clk (the controller side of the
+    # CDC -- dfi_clk is the PHY side). dfi_rddata_valid_i stays hand-driven:
+    # DFI read data has no ready, it is an unconditional strobe.
+    cmd_src = fub_producer(dut, "cmd", dut.ctl_clk, log=dut._log,
+                           valid="cmd_valid_i", ready="cmd_ready_o",
+                           fields={'data': ("cmd_data_i", len(dut.cmd_data_i))})
+    wd_src = fub_producer(dut, "wd", dut.ctl_clk, log=dut._log,
+                          valid="wd_valid_i", ready="wd_ready_o",
+                          fields={'data': ("wd_data_i", len(dut.wd_data_i))})
+    rd_sink = fub_consumer(dut, "rd", dut.ctl_clk, log=dut._log,
+                           valid="rd_valid_o", ready="rd_ready_i",
+                           fields={'data': ("rd_data_o", len(dut.rd_data_o))})
+    dut.cmd_data_i.value = 0
+    dut.wd_data_i.value = 0
+    dut.init_start_i.value = 0
+    dut.memtype_i.value = 0
+    dut.rd_phase_i.value = 0
+    dut.wr_phase_i.value = 0
+    dut.t_phy_wrlat_i.value = WRLAT
+    dut.t_rddata_en_i.value = RDEN
+    # Board-default framing: exactly what pumice_core feeds this layer at
+    # gear == MAX (gear = log2(DFI_RATE), one JEDEC burst per DFI word,
+    # column stride = BL, phase stride = PHW'(BL)). Left undriven these read
+    # 0 under Verilator, so the layer ran at gear 0 -- one phase of two -- and
+    # the any-bit enable checks below could not tell the difference.
+    dut.gear_i.value = DFI_RATE.bit_length() - 1
+    dut.n_subcmd_i.value = 1
+    dut.sub_col_stride_i.value = BL
+    dut.sub_phase_stride_i.value = BL & (DFI_RATE - 1)
+    dut.dfi_rddata_i.value = 0
+    dut.dfi_rddata_valid_i.value = 0
+    for _ in range(8):
+        await RisingEdge(dut.ctl_clk)
+    dut.ctl_rstn.value = 1
+    dut.dfi_rstn.value = 1
+    for _ in range(6):
+        await RisingEdge(dut.ctl_clk)
+
+    rng = random.Random(int(os.environ.get("SEED", "1")))
+    captured = []          # words captured off dfi_wrdata
+    rd_out = []            # words received back on the ctl rddata stream
+    bad_en = []            # (cycle kind, value) of any partially-masked enable
+
+    # ---- DFI-domain memory model (dfi_clk) ----
+    async def dfi_model():
+        rd_pending = deque()      # words queued to return
+        returning = False
+        ret = []
+        ret_i = 0
+        rd_gap = 0
+        while True:
+            await RisingEdge(dut.dfi_clk)
+            # capture writes
+            wr_en = int(dut.dfi_wrdata_en_o.value)
+            rd_en = int(dut.dfi_rddata_en_o.value)
+            for kind, en in (("wrdata_en", wr_en), ("rddata_en", rd_en)):
+                if en not in (0, FULL_EN):
+                    bad_en.append((kind, en))
+            if wr_en != 0:
+                captured.append(int(dut.dfi_wrdata_o.value))
+            # on read window, schedule the stored burst back after a few cycles
+            if rd_en != 0 and not returning and not rd_pending:
+                rd_pending.append(list(captured))    # return what we captured
+            # start returning after a small read latency
+            if rd_pending and not returning:
+                rd_gap += 1
+                if rd_gap >= 3:
+                    ret = rd_pending.popleft()
+                    returning = True
+                    ret_i = 0
+                    rd_gap = 0
+            if returning:
+                dut.dfi_rddata_i.value = ret[ret_i]
+                dut.dfi_rddata_valid_i.value = (1 << DFI_RATE) - 1
+                ret_i += 1
+                if ret_i >= len(ret):
+                    returning = False
+            else:
+                dut.dfi_rddata_valid_i.value = 0
+
+    # ---- ctl rddata sink ----
+    async def rd_sink():
+        while True:
+            await RisingEdge(dut.ctl_clk)
+            if int(dut.rd_valid_o.value) and int(dut.rd_ready_i.value):
+                rd = int(dut.rd_data_o.value)
+                rd_out.append(rd & ((1 << DFI_DW) - 1))
+
+    cocotb.start_soon(dfi_model())
+    cocotb.start_soon(rd_sink())
+
+    # ---- push write data (fill the FIFO first so the drive is bubble-free) ----
+    async def push_cmd(v):
+        """The BFM holds valid until cmd_ready_o, so the spin-on-ready the
+        hand-rolled version needed is gone with the hand driving."""
+        await cmd_src.send(cmd_src.create_packet(data=v))
+
+    # Round trips are pure repetition: the DFI model hands back whatever it has
+    # captured, so both capture lists are emptied before each round's write.
+    # BL_WORDS (the burst shape) is geometry and stays.
+    roundtrips = _profile_depth('dfi_layer_roundtrips')
+    # The wrapper reads TEST_LEVEL itself, beside its knob: bin/review/check_test_levels.py
+    # follows only TBClasses/projects imports, and this area imports tbclasses.* (a
+    # hyphenated component path cannot be a package import), so a read hidden inside
+    # pumice_levels.depth() would be invisible to the gate. Forced, not chosen (BUG-004).
+    dut._log.info("depth: TEST_LEVEL=%s dfi_layer_roundtrips=%d",
+                  os.environ.get("TEST_LEVEL", "gate"), roundtrips)
+    for rnd in range(roundtrips):
+        burst = [rng.randrange(1 << DFI_DW) for _ in range(BL_WORDS)]
+        captured.clear()
+        rd_out.clear()
+
+        # Queue-and-go so the write-data drive stays BUBBLE-FREE, which is what
+        # the comment above this loop asks for: awaiting each beat would leave a
+        # gap between them.
+        for i, w in enumerate(burst):
+            await wd_src._driver_send(wd_src.create_packet(
+                data=pack_wd(w, (1 << DFI_SW) - 1, 1 if i == BL_WORDS - 1 else 0)))
+
+        await push_cmd(pack_cmd(OP_WR, bank=3, row=0x123, col=0x40))
+        for _ in range(40):
+            await RisingEdge(dut.ctl_clk)
+        await push_cmd(pack_cmd(OP_RD, bank=3, row=0x123, col=0x40))
+
+        for _ in range(400):
+            if len(rd_out) >= BL_WORDS:
+                break
+            await RisingEdge(dut.ctl_clk)
+
+        assert not bad_en, \
+            f"DFI enables not all-phase at gear == MAX (want {FULL_EN:#x}): {bad_en[:4]}"
+        assert captured == burst, \
+            f"round {rnd}: write burst on DFI {[hex(x) for x in captured]} != {[hex(x) for x in burst]}"
+        assert rd_out[:BL_WORDS] == burst, \
+            f"round {rnd}: read burst back {[hex(x) for x in rd_out[:BL_WORDS]]} != {[hex(x) for x in burst]}"
+    dut._log.info(f"PASS: wrote {BL_WORDS} words to DFI, read them back through the CDC, "
+                  f"x{roundtrips}")
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_dfi_layer(request, test_level):
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "pumice_dfi_layer"
+    test_name = f"cocotb_test_pumice_dfi_layer_{test_level}"
+    verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
+    sim_build = sim_build_path(tests_dir, test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+    params = {"NUM_RANKS": "1", "NUM_BANKS": str(NUM_BANKS), "ROW_WIDTH": str(ROW_WIDTH),
+              "COL_WIDTH": str(COL_WIDTH), "DFI_RATE": str(DFI_RATE),
+              "DRAM_BEAT_WIDTH": str(DRAM_BEAT), "DFI_BEATS_PER_BURST": str(BL)}
+    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
+                 "COCOTB_LOG_LEVEL": "INFO",
+                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
+                 **level_env(test_level)}
+    extra_env.update(params)
+    run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module, testcase="cocotb_test_pumice_dfi_layer",
+        sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
+        compile_args=["+define+USE_ASYNC_RESET"], waves=False, keep_files=True, timescale="1ns/1ps")

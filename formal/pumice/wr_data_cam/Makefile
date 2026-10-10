@@ -10,7 +10,7 @@ SHELL     := /bin/bash
 # putting it on PATH -- fall back to it so a bare `make formal-pumice` works
 # locally. Override with SV2V=<path> if neither applies.
 SV2V      ?= $(shell command -v sv2v 2>/dev/null || echo /mnt/data/tools/sv2v)
-PUMICE    := $(REPO_ROOT)/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2
+PUMICE    := $(REPO_ROOT)/projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2
 
 INC  := -I$(REPO_ROOT)/rtl/amba/includes -I$(PUMICE)/rtl/includes
 PKGS := $(PUMICE)/rtl/includes/pumice_pkg.sv

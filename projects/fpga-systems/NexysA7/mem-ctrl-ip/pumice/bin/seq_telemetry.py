@@ -32,7 +32,7 @@ import pumice_char as pc
 
 _REPO = os.environ.get("REPO_ROOT") or os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
-_TI = os.path.join(_REPO, "projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2",
+_TI = os.path.join(_REPO, "projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2",
                    "dv/tbclasses/pumice_telemetry_invariants.py")
 
 _spec = importlib.util.spec_from_file_location("pumice_telemetry_invariants", _TI)

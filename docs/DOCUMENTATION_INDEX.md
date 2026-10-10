@@ -84,7 +84,7 @@ Specs live WITH their components, not here:
 
 - **Components:** `projects/components/<name>/docs/` - HAS/MAS spec books
   with per-project `generate_pdf.sh` (dma-ip/stream, dma-ip/rapids, bridge,
-  retro_legacy_blocks, mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2, ...)
+  retro_legacy_blocks, mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2, ...)
   Master list: [../projects/components/index.md](../projects/components/index.md)
 - **Board campaigns:** `projects/NexysA7/<campaign>/docs/` - operator guides
   and characterization reports

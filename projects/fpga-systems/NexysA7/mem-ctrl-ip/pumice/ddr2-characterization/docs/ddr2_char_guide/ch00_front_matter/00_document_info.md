@@ -7,7 +7,7 @@ simulate / program / run it, how the harness CSR is configured, and what the
 board measured (Chapter 8, added at v0.95).
 
 The memory controller under test — **pumice** — is separate IP
-(`projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2`). This guide treats
+(`projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2`). This guide treats
 it as a **black box** driven by the characterization harness; it does not
 document the controller's internals.
 

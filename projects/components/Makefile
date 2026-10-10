@@ -33,15 +33,15 @@ COMPONENTS = utility-ip/converters \
              dma-ip/stream \
              fabric-gen-ip/apbx-xbar \
              fabric-gen-ip/bridge \
-             mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2 \
-             mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3 \
+             mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2 \
+             mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3 \
              utility-ip/misc \
              ecc-ip/reed-solomon \
              retro_legacy_blocks
 
 # Components that exist but don't yet expose run-all-* test targets (for reference):
 # - noc-ip/delta, compute-eng-ip/hive       - no dv/tests Makefile (retired 2026-09-27)
-# - mem-ctrl-ip/mem-ctrl-research-ip/andesite-ddr4-lpddr4 - tests/ dir but no test Makefile
+# - mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4 - tests/ dir but no test Makefile
 #
 # scoria joined the list on 2026-09-30, when its dv/tests grew the same
 # four-line-area + dispatcher pair pumice uses. Until then its 18 FUB suites
@@ -121,7 +121,7 @@ help:
 	@echo "  make lint-retro_legacy_blocks  Lint Retro Legacy Blocks RTL"
 	@echo "  make lint-misc                 Lint misc RTL"
 	@echo "  make lint-ecc-ip/reed-solomon  Lint Reed-Solomon RTL"
-	@echo "  make lint-mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2"
+	@echo "  make lint-mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2"
 	@echo "                                 Lint pumice RTL"
 	@echo ""
 	@echo "STATUS TARGETS:"

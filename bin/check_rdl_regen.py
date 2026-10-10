@@ -53,7 +53,7 @@ STREAM_SOURCES = [
     f"{STREAM}/rtl/macro/stream_mon_regs.rdl",   # `include`d by stream_regs.rdl
 ]
 
-PUMICE = "projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2"
+PUMICE = "projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2"
 PUMICE_SOURCES = [f"{PUMICE}/rtl/macro/pumice_csr.rdl"]
 
 # DELIBERATELY NOT GATED (checked 2026-09-24) -- these .rdl files exist but

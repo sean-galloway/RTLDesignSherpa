@@ -15,12 +15,12 @@
 # macro, and verilator answered "Reference to 'memtype_e' before declaration"
 # -- which reads as a missing package rather than a misordered list.
 
-+incdir+$REPO_ROOT/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/rtl/includes
++incdir+$REPO_ROOT/projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/rtl/includes
 +incdir+$REPO_ROOT/rtl/amba/includes
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 
 # The controller closure FIRST: it carries scoria_pkg.
--f $REPO_ROOT/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3/rtl/filelists/top/scoria_top_geared.f
+-f $REPO_ROOT/projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/rtl/filelists/top/scoria_top_geared.f
 
 # The shared characterization engine.
 -f $REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/filelists/char_engine_block.f

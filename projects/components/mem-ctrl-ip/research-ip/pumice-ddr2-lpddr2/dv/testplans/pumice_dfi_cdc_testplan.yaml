@@ -1,0 +1,47 @@
+module: pumice_dfi_cdc
+rtl_file: projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_cdc.sv
+test_file: projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/dv/tests/fub/test_pumice_dfi_cdc.py
+
+parameters:
+- name: CMD_DW
+  default: 32
+- name: WD_DW
+  default: 72
+- name: RD_DW
+  default: 66
+- name: CMD_DEPTH
+  default: 8
+- name: WD_DEPTH
+  default: 16
+- name: RD_DEPTH
+  default: 16
+- name: TOK_DEPTH
+  default: 4
+- name: N_FLOP_CROSS
+  default: 2
+- name: USE_JOHNSON
+  default: 0
+
+coverage_points: []
+
+functional_scenarios:
+- id: DFICDC-01
+  name: Smoke
+  description: "cmd/wrdata/rddata CDC + init tokens lossless and in-order"
+  test_function: test_pumice_dfi_cdc (smoke)
+  priority: high
+  status: verified
+
+implied_coverage:
+  total_scenarios: 1
+  scenario_tracked: 1
+  implied_covered: 1
+  implied_percentage: 100.0
+
+notes: |
+  The single controller-to-PHY clock-domain crossing for pumice. All
+  ctl_clk <-> dfi_clk traffic (commands, write data, read data) crosses
+  through gaxi_fifo_async Gray-pointer FIFOs; init_start/init_complete
+  cross as sticky event tokens. No hand-rolled synchronizers. Item count
+  is TEST_LEVEL-scaled (dfi_cdc_items); the wrapper fixes the payload
+  widths and FIFO depths above.

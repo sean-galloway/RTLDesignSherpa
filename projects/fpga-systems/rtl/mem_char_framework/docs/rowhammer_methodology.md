@@ -218,7 +218,7 @@ row) with `double_sided=False`; the driver bounds both cases.
 
 ## Where this feeds: PARA and TASK-009
 
-The deferred per-bank-refresh PARA work (`vault/Tasks/scoria-ddr3-lpddr3/
+The deferred per-bank-refresh PARA work (`vault/Tasks/projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/
 task/deferred/TASK-009.md`) is unblocked by exactly two things: a bitstream,
 and a rowhammer test methodology. This document is the second half of that
 condition. PARA — probabilistic adjacent-row refresh — needs an

@@ -562,7 +562,7 @@ module reset_sync #(
     output logic sync_rst_n
 );
 
-    (* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *) logic [N-1:0] r_sync;
+    logic [N-1:0] r_sync;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) r_sync <= '0;                      // asserted immediately, whole chain

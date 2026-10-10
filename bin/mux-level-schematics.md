@@ -59,7 +59,7 @@ No Python packages are required. The driver script in §6 is stdlib-only.
 
 IMPLEMENTED (2026-09-09) under the component rather than the repo root, since
 the parameters and filelists are per-component:
-`projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/rtl/schematics/`.
+`projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/schematics/`.
 The layout below is the shape; substitute that path. Port it to a second
 component by copying the four scripts and pointing them at its filelists.
 

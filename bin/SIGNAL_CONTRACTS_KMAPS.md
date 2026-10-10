@@ -6,7 +6,7 @@ allowed to do, plus Karnaugh maps for the key combinational decisions.
 
 Existing instances:
 
-    projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/docs/
+    projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/
         pumice_signal_contracts.xlsx + gen_pumice_signal_contracts.py
           (pumice merged its four workbooks into this one on 2026-09-10;
            stream still uses the older per-component generator below)
@@ -136,7 +136,7 @@ not a rename; until someone does it, two implementations exist.
 
     source env_python
     python3 projects/components/<comp>/docs/gen_signal_contracts_kmaps.py
-    python3 projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/docs/gen_pumice_signal_contracts.py
+    python3 projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/gen_pumice_signal_contracts.py
 
 Nonzero exit = citation drift: the RTL moved under a quote. Fix the mirror
 and the quote together; never suppress the check.

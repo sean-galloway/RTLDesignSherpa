@@ -44,7 +44,7 @@ from TBClasses.harness.device import Device   # noqa: E402
 #: offset -- offsets churn (the DDR3 block landed at 0x0C0-0x0E4 and STALL_ZQ
 #: at 0x180 only because 0x17C was taken).
 SCORIA_REGMAP = os.path.join(
-    _REPO, "projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3",
+    _REPO, "projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3",
     "regs/generated/scoria_csr_regmap.py")
 
 #: Bridge address map. Mirrors pumice's layout so the shared harness_csr and

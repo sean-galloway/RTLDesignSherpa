@@ -20,7 +20,10 @@
 //                                same backing store, so a doorbell write is
 //                                observable by a gate read)
 //   - always-accept AXIL write responder for m_axil_mon_* (monitor egress never
-//                                stalls); s_axil_err_* quiesced.
+//                                stalls); s_axil_err_* quiesced. The interface
+//                                observers' monbus egress (USE_OBSERVERS=1) gets
+//                                the same treatment, and MON_CAPTURE=1 stores
+//                                whichever stream is live (rapids ISSUE-007).
 //
 // The cocotb TB drives s_apb_* + the control ports directly. A UART/AXIL bridge
 // + CSR + trace observer are intentionally NOT part of this stage; the harness
@@ -1276,6 +1279,17 @@ module rapids_byte_harness #(
     logic                      mon_bvalid, mon_bready;
     logic [1:0]                mon_bresp;
 
+    // ---- Interface-observer monbus egress (USE_OBSERVERS=1, gen_obs) --------
+    // W-channel of the observers' EGRESS_AXIL write masters. Driven in gen_obs,
+    // consumed by the MON_CAPTURE buffer (gen_moncap, a sibling generate) and
+    // by the always-accept egress responders. Module scope because the capture
+    // buffer must see these beats: on observer-only builds they are the only
+    // live monbus stream (rapids ISSUE-007).
+    logic                      obs_oa_wvalid, obs_oa_wready;
+    logic [63:0]               obs_oa_wdata;
+    logic                      obs_ox_wvalid, obs_ox_wready;
+    logic [63:0]               obs_ox_wdata;
+
     //=========================================================================
     // DUT: rapids_top
     //=========================================================================
@@ -2080,31 +2094,80 @@ module rapids_byte_harness #(
     // wrapping buffer would overwrite them with later traffic. WRAPPED in
     // CSR_MONCAP_CNT[31] says the window filled, so a host cannot mistake a
     // truncated capture for a complete one.
+    //
+    // Capture source (ISSUE-007): the in-core monitor egress (mon_*, rapids_top's
+    // GEN_MON cone) feeds the buffer when it exists; on observer-only builds
+    // (USE_OBSERVERS=1, GEN_MON=0) the interface observers' monbus is the only
+    // live stream, so their egress beats are stored instead. Both observers
+    // write RAW 3-beat records; a record is granted contiguously (the grant-lock
+    // counts its beats mod 3) so the host's fixed-stride decode never sees an
+    // interleaved record. Round-robin applies only at record boundaries and the
+    // loser is stalled via wready (AXI holds), so capture is lossless until the
+    // stop-on-full point, which keeps the documented drop contract (wready stays
+    // 1, the push is gated).
     //=========================================================================
     generate
     if (MON_CAPTURE) begin : gen_moncap
         localparam int MCW = $clog2(MONCAP_WORDS);
+        localparam bit CAP_OBS = !GEN_MON && USE_OBSERVERS;
         logic [63:0]    r_mc_mem [MONCAP_WORDS];
         logic [MCW:0]   r_mc_wp;
         logic           r_mc_full;
-        wire            w_mc_push = mon_wvalid && mon_wready && !r_mc_full;
+        logic [1:0]     r_mc_a_beats, r_mc_x_beats;  // beats granted of the open record
+        logic           r_mc_rr;                     // last boundary grant: 1 = AXI observer
+
+        wire a_open = (r_mc_a_beats != 2'd0);
+        wire x_open = (r_mc_x_beats != 2'd0);
+        wire sel_a  = obs_oa_wvalid
+                    && (!obs_ox_wvalid || a_open || (!x_open && !r_mc_rr));
+        wire sel_x  = !sel_a && obs_ox_wvalid;
+        wire        cap_wvalid = CAP_OBS ? (sel_a || sel_x) : mon_wvalid;
+        wire [63:0] cap_wdata  = CAP_OBS ? (sel_a ? obs_oa_wdata : obs_ox_wdata)
+                                         : mon_wdata;
+        wire        w_mc_push  = cap_wvalid && !r_mc_full;
 
         always_ff @(posedge aclk) begin
-            if (w_mc_push) r_mc_mem[r_mc_wp[MCW-1:0]] <= mon_wdata;
+            if (w_mc_push) r_mc_mem[r_mc_wp[MCW-1:0]] <= cap_wdata;
         end
 
         `ALWAYS_FF_RST(aclk, aresetn,
             if (`RST_ASSERTED(aresetn)) begin
-                r_mc_wp   <= '0;
-                r_mc_full <= 1'b0;
+                r_mc_wp      <= '0;
+                r_mc_full    <= 1'b0;
+                r_mc_a_beats <= '0;
+                r_mc_x_beats <= '0;
+                r_mc_rr      <= 1'b0;
             end else if (r_moncap_clear) begin
-                r_mc_wp   <= '0;
-                r_mc_full <= 1'b0;
+                r_mc_wp      <= '0;
+                r_mc_full    <= 1'b0;
+                r_mc_a_beats <= '0;
+                r_mc_x_beats <= '0;
+                r_mc_rr      <= 1'b0;
             end else if (w_mc_push) begin
                 r_mc_wp <= r_mc_wp + 1'b1;
                 if (r_mc_wp == (MCW+1)'(MONCAP_WORDS - 1)) r_mc_full <= 1'b1;
+                if (CAP_OBS) begin
+                    if (sel_a) r_mc_a_beats <= (r_mc_a_beats == 2'd2) ? 2'd0
+                                                          : r_mc_a_beats + 2'd1;
+                    if (sel_x) r_mc_x_beats <= (r_mc_x_beats == 2'd2) ? 2'd0
+                                                          : r_mc_x_beats + 2'd1;
+                    if      (sel_a && obs_ox_wvalid) r_mc_rr <= 1'b1;
+                    else if (sel_x && obs_oa_wvalid) r_mc_rr <= 1'b0;
+                end
             end
         )
+
+        // Egress backpressure. Observer-capture mode: the selected observer is
+        // accepted, the other stalled -- but only while the buffer is not full,
+        // so a full buffer (which never drains, stop-on-full) cannot wedge the
+        // bus. Otherwise the egress is discarded as before.
+        if (CAP_OBS) begin : gen_obs_bp
+            assign obs_oa_wready = r_mc_full || !obs_oa_wvalid || sel_a;
+            assign obs_ox_wready = r_mc_full || !obs_ox_wvalid || sel_x;
+        end else begin : gen_obs_discard
+            assign obs_oa_wready = 1'b1;
+            assign obs_ox_wready = 1'b1;
+        end
 
         assign w_moncap_cnt  = {r_mc_full, 31'(r_mc_wp)};
         assign w_moncap_word = (r_moncap_sel < 32'(MONCAP_WORDS))
@@ -2112,6 +2175,9 @@ module rapids_byte_harness #(
     end else begin : gen_no_moncap
         assign w_moncap_cnt  = 32'h0;   // 0 words, never wrapped: no buffer built
         assign w_moncap_word = 64'h0;
+        // No buffer: observer egress is discarded exactly as before.
+        assign obs_oa_wready = 1'b1;
+        assign obs_ox_wready = 1'b1;
     end
     endgenerate
 
@@ -2358,8 +2424,13 @@ module rapids_byte_harness #(
         assign obs_wr_ch_vld[0] = 1'b0;
 
         // Egress responders: aw/w accepted every cycle, one OKAY B per pair.
-        logic        oa_awvalid, oa_wvalid, oa_bvalid, oa_bready;
-        logic        ox_awvalid, ox_wvalid, ox_bvalid, ox_bready;
+        // wvalid/wdata/wready are module scope (declared with the mon_* signals):
+        // the MON_CAPTURE buffer snoops these beats and may stall wready to
+        // arbitrate the two streams (rapids ISSUE-007). The counters tally
+        // ACCEPTED beats (wvalid && wready) so the B model stays exact when
+        // the buffer stalls the loser.
+        logic        oa_awvalid, oa_bvalid, oa_bready;
+        logic        ox_awvalid, ox_bvalid, ox_bready;
         logic [15:0] r_oa_aw_cnt, r_oa_w_cnt, r_oa_b_cnt;
         logic [15:0] r_ox_aw_cnt, r_ox_w_cnt, r_ox_b_cnt;
         assign oa_bvalid = (r_oa_aw_cnt != r_oa_b_cnt) && (r_oa_w_cnt != r_oa_b_cnt);
@@ -2369,12 +2440,12 @@ module rapids_byte_harness #(
                 r_oa_aw_cnt <= '0; r_oa_w_cnt <= '0; r_oa_b_cnt <= '0;
                 r_ox_aw_cnt <= '0; r_ox_w_cnt <= '0; r_ox_b_cnt <= '0;
             end else begin
-                if (oa_awvalid)             r_oa_aw_cnt <= r_oa_aw_cnt + 16'd1;
-                if (oa_wvalid)              r_oa_w_cnt  <= r_oa_w_cnt  + 16'd1;
-                if (oa_bvalid && oa_bready) r_oa_b_cnt  <= r_oa_b_cnt  + 16'd1;
-                if (ox_awvalid)             r_ox_aw_cnt <= r_ox_aw_cnt + 16'd1;
-                if (ox_wvalid)              r_ox_w_cnt  <= r_ox_w_cnt  + 16'd1;
-                if (ox_bvalid && ox_bready) r_ox_b_cnt  <= r_ox_b_cnt  + 16'd1;
+                if (oa_awvalid)                              r_oa_aw_cnt <= r_oa_aw_cnt + 16'd1;
+                if (obs_oa_wvalid && obs_oa_wready)          r_oa_w_cnt  <= r_oa_w_cnt  + 16'd1;
+                if (oa_bvalid && oa_bready)                  r_oa_b_cnt  <= r_oa_b_cnt  + 16'd1;
+                if (ox_awvalid)                              r_ox_aw_cnt <= r_ox_aw_cnt + 16'd1;
+                if (obs_ox_wvalid && obs_ox_wready)          r_ox_w_cnt  <= r_ox_w_cnt  + 16'd1;
+                if (ox_bvalid && ox_bready)                  r_ox_b_cnt  <= r_ox_b_cnt  + 16'd1;
             end
         )
 
@@ -2483,9 +2554,9 @@ module rapids_byte_harness #(
             .m_axil_awready  (1'b1),
             .m_axil_awaddr   (),
             .m_axil_awprot   (),
-            .m_axil_wvalid   (oa_wvalid),
-            .m_axil_wready   (1'b1),
-            .m_axil_wdata    (),
+            .m_axil_wvalid   (obs_oa_wvalid),
+            .m_axil_wready   (obs_oa_wready),
+            .m_axil_wdata    (obs_oa_wdata),
             .m_axil_wstrb    (),
             .m_axil_bvalid   (oa_bvalid),
             .m_axil_bready   (oa_bready),
@@ -2555,9 +2626,9 @@ module rapids_byte_harness #(
             .m_axil_awready  (1'b1),
             .m_axil_awaddr   (),
             .m_axil_awprot   (),
-            .m_axil_wvalid   (ox_wvalid),
-            .m_axil_wready   (1'b1),
-            .m_axil_wdata    (),
+            .m_axil_wvalid   (obs_ox_wvalid),
+            .m_axil_wready   (obs_ox_wready),
+            .m_axil_wdata    (obs_ox_wdata),
             .m_axil_wstrb    (),
             .m_axil_bvalid   (ox_bvalid),
             .m_axil_bready   (ox_bready),
@@ -2578,6 +2649,10 @@ module rapids_byte_harness #(
         assign obs_axis_prdata  = '0;
         assign obs_axis_pready  = 1'b1;
         assign obs_axis_pslverr = 1'b1;
+        assign obs_oa_wvalid    = 1'b0;
+        assign obs_oa_wdata     = '0;
+        assign obs_ox_wvalid    = 1'b0;
+        assign obs_ox_wdata     = '0;
     end
     endgenerate
 
