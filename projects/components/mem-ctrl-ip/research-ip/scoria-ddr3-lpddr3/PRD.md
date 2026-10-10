@@ -146,7 +146,7 @@ data-integrity property guarded off) — TASK-006.
 
 | ID | Summary | Priority |
 |---|---|---|
-| [BUG-003](../../../../../vault/Tasks/projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/bug/open/BUG-003.md) | 100 MHz design point misses by ~2 ns out-of-context (WNS −2.022 ns; 85% route, 31 logic levels across the arbiter/CAM boundary). Indicated first move: floorplan the arbiter with its CAMs; the RTL cone-break is the risky second lever | P1 for the board |
+| [BUG-003](../../../../../vault/Tasks/projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/bug/closed/BUG-003.md) | 100 MHz design point misses by ~2 ns out-of-context (WNS −2.022 ns; 85% route, 31 logic levels across the arbiter/CAM boundary). Indicated first move: floorplan the arbiter with its CAMs; the RTL cone-break is the risky second lever | P1 for the board |
 
 Full ledger: [vault/Tasks/projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/](../../../../../vault/Tasks/projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/INDEX.md).
 

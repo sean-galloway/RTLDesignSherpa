@@ -42,7 +42,7 @@ from which its architecture is derived.
 - Board build flow exists (`projects/fpga-systems/Genesys2/mem-ctrl-ip/scoria/build-scoria/`,
   board top + harness, passing lint); no bitstream yet. First out-of-context
   synthesis found the design point missing 100 MHz by ~2 ns
-  ([BUG-003](../../../../../vault/Tasks/projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/bug/open/BUG-003.md), P1).
+  ([BUG-003](../../../../../vault/Tasks/projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/bug/closed/BUG-003.md), P1).
 
 ## Deltas vs DDR2/LPDDR2 (pumice)
 
