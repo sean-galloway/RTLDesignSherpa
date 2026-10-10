@@ -253,8 +253,8 @@ async def _bring_up(dut, page_policy=0, read_latency=0, strict_read=False):
     if os.environ.get("PUMICE_TRACKERS", "0") == "1":
         from tbclasses.trackers import wire_trackers
         wire_trackers(dut, log=dut._log, num_banks=NUM_BANKS, scope_paths={
-            "sched":   "u_core.u_sched.u_arbiter",
-            "btmr":    "u_core.u_sched.u_bank_timers",
+            "sched":   "u_core.u_sched.u_core.u_arbiter",
+            "btmr":    "u_core.u_sched.u_core.u_bank_timers",
             "refr":    "u_core.u_sched.u_refresh",
             "pgpol":   "u_core.u_sched.u_page_policy",
             "init":    "u_core.u_sched.u_init",

@@ -539,7 +539,7 @@ async def cocotb_test_timeout_pre_vs_pending_column(dut):
     # is combinational; reading it on the edge samples it before the deltas
     # settle, which is what made an earlier arbiter-side count come up exactly
     # one short (776 vs 777) and wrongly exonerate the arbiter.
-    arb = dut.u_arbiter
+    arb = dut.u_core.u_arbiter
     guards, fires, outs, pushes, suppressed = {}, [], [], [], []
     _GSIGS = ('w_pre_col_guard', 'r_preguard0', 'r_preguard1', 'r_preguard2',
               'w_preact_bank_guard', 'w_col_inflight_guard', 'w_prepick_guard',

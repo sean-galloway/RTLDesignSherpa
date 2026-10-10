@@ -223,8 +223,8 @@ async def _bringup(dut, *, mem_type="DDR2", page_policy=2, profile="backtoback",
         from tbclasses.trackers import wire_trackers, wire_axi_channels
         wire_axi_channels(dut, prefix="s_axi_", log=tb.log, clk_signal="aclk")
         wire_trackers(dut, log=tb.log, num_banks=NUM_BANKS, scope_paths={
-            "sched":   "u_top.u_core.u_sched.u_arbiter",
-            "btmr":    "u_top.u_core.u_sched.u_bank_timers",
+            "sched":   "u_top.u_core.u_sched.u_core.u_arbiter",
+            "btmr":    "u_top.u_core.u_sched.u_core.u_bank_timers",
             "refr":    "u_top.u_core.u_sched.u_refresh",
             "pgpol":   "u_top.u_core.u_sched.u_page_policy",
             "init":    "u_top.u_core.u_sched.u_init",

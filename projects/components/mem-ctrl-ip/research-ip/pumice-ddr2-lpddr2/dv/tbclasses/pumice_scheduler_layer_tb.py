@@ -291,7 +291,7 @@ class PumiceMemCmdSchedulerTB(TBBase):
         settle -- which is what once made an arbiter-side count come up exactly
         one short (776 vs 777) and wrongly exonerate the arbiter.
         """
-        arb = self.dut.u_arbiter
+        arb = self.dut.u_core.u_arbiter
         cyc = 0
         while True:
             await RisingEdge(self.dut.aclk)

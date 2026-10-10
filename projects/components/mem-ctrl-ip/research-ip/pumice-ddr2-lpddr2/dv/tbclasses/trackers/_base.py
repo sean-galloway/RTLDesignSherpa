@@ -258,8 +258,8 @@ def wire_trackers(dut, *, output_dir: Optional[str] = None,
        ``u_dfi`` (pumice_dfi_layer)):
 
            wire_trackers(dut, scope_paths={
-               "sched":   "u_core.u_sched.u_arbiter",
-               "btmr":    "u_core.u_sched.u_bank_timers",
+               "sched":   "u_core.u_sched.u_core.u_arbiter",
+               "btmr":    "u_core.u_sched.u_core.u_bank_timers",
                "refr":    "u_core.u_sched.u_refresh",
                "pgpol":   "u_core.u_sched.u_page_policy",
                "init":    "u_core.u_sched.u_init",
