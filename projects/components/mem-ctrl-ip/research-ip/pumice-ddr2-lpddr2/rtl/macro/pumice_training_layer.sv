@@ -5,14 +5,12 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: pumice_training_layer
-// Purpose: Macro-tier training orchestration for LPDDR2. Holds the ZQ
-//          calibration controller, the DQ-cal one-shot sequencer, the one-
-//          active command mux onto a single maintenance-class channel, and
-//          the mc_clk <-> dfi_clk CDC for the read-aligner calibration
-//          sideband.
+// Purpose: Pumice-specific wrapper around the common mc_training_layer shell.
+//          Owns the rock-side training FUBs (pumice_zq_ctrl, pumice_lp_cal)
+//          and maps the generic 2-slot maintenance-command stream onto the
+//          scheduler's native {req,grant,op,bank,row,mrr} port.
 //
-//          Run gating (init_done && memtype==LPDDR2) lives inside the two FUBs;
-//          this layer is a passive wiring and arbitration shell.
+//          Slot 0 = ZQ calibration (highest priority). Slot 1 = LPDDR2 DQ cal.
 //
 // Documentation:
 //   projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/uarch/PUMICE_TRAINING_LAYER_UARCH.md
@@ -79,8 +77,7 @@ module pumice_training_layer
     //=========================================================================
     // Internal nets (declared early for FUB wiring)
     //=========================================================================
-    logic        w_zq_req, w_zq_grant, w_zq_busy, w_zq_overdue;
-    logic [15:0] w_zq_total;
+    logic        w_zq_req, w_zq_grant;
     dram_op_e    w_zq_op;
     logic [2:0]  w_zq_bank;
     logic [17:0] w_zq_row;
@@ -93,11 +90,20 @@ module pumice_training_layer
     logic [DFI_DATA_WIDTH-1:0] w_lp_mrr32_data, w_lp_mrr40_data;
     logic        w_lp_mrr32_valid, w_lp_mrr40_valid;
 
+    // Common-shell slot buses (2 slots, slot 0 highest priority)
+    logic [1:0]  w_slot_req;
+    logic [1:0]  w_slot_grant;
+    dram_op_e [1:0] w_slot_op;
+    logic [1:0][2:0]  w_slot_bank;
+    logic [1:0][17:0] w_slot_row;
+    logic [1:0][0:0]  w_slot_extra;
+
+    // Synchronized calibration data returned from the DFI layer
     logic [DFI_DATA_WIDTH-1:0] w_cal_data_sync;
     logic                      w_cal_valid_sync;
 
     //=========================================================================
-    // FUB instances
+    // Rock-side training FUBs
     //=========================================================================
     pumice_zq_ctrl u_zq (
         .mc_clk            (mc_clk),
@@ -110,16 +116,16 @@ module pumice_training_layer
         .t_zqcl_i          (t_zqcl_i),
         .zq_defer_en_i     (zq_defer_en_i),
         .overdue_max_i     (zq_overdue_max_i),
-        .demand_i          (1'b0),          // unused in this FUB; layer gates below
+        .demand_i          (1'b0),
         .zq_req_o          (w_zq_req),
         .zq_grant_i        (w_zq_grant),
         .zq_op_o           (w_zq_op),
         .zq_bank_o         (w_zq_bank),
         .zq_row_o          (w_zq_row),
         .zq_is_zqcl_o      (),
-        .cal_busy_o        (w_zq_busy),
-        .obs_zqcs_total_o  (w_zq_total),
-        .obs_overdue_o     (w_zq_overdue)
+        .cal_busy_o        (zq_busy_o),
+        .obs_zqcs_total_o  (zqcs_total_o),
+        .obs_overdue_o     (zq_overdue_o)
     );
 
     pumice_lp_cal #(
@@ -152,68 +158,59 @@ module pumice_training_layer
     );
 
     //=========================================================================
-    // One-active arbitration. Priority: ZQ > lp_cal.
+    // Slot assignment: ZQ = slot 0, lp_cal = slot 1.
     // ZQ is periodic maintenance; lp_cal is a firmware-initiated one-shot.
     //=========================================================================
-    logic w_zq_select;
-    assign w_zq_select = w_zq_req;
+    assign w_slot_req  = {w_lp_req,  w_zq_req};
+    assign w_slot_op   = {OP_MRS,    w_zq_op};
+    assign w_slot_bank = {w_lp_bank, w_zq_bank};
+    assign w_slot_row  = {w_lp_row,  w_zq_row};
+    assign w_slot_extra= {1'b1,      1'b0};   // lp_cal drives MRR, ZQ does not
 
-    assign trn_cmd_req_o = w_zq_select ? w_zq_req
-                         :             w_lp_req;
-    assign trn_cmd_op_o  = w_zq_select ? w_zq_op  : OP_MRS;
-    assign trn_cmd_bank_o= w_zq_select ? w_zq_bank: w_lp_bank;
-    assign trn_cmd_row_o = w_zq_select ? w_zq_row : w_lp_row;
-    assign trn_cmd_mrr_o = ~w_zq_select;   // ZQ is MRW, lp_cal is MRR
-
-    assign w_zq_grant    = trn_cmd_grant_i && w_zq_select;
-    assign w_lp_grant    = trn_cmd_grant_i && !w_zq_select;
+    assign w_zq_grant  = w_slot_grant[0];
+    assign w_lp_grant  = w_slot_grant[1];
 
     //=========================================================================
-    // CDC: mc_clk -> dfi_clk for cal_expect.
-    // The pulse arms the read-aligner sideband. Use sync_pulse so a single
-    // mc_clk assertion produces a single dfi_clk pulse.
+    // Common training shell
     //=========================================================================
-    sync_pulse #(.SYNC_STAGES(3)) u_expect_sync (
-        .i_src_clk   (mc_clk),
-        .i_src_rst_n (mc_rst_n),
-        .i_pulse     (w_lp_expect),
-        .i_dst_clk   (dfi_clk),
-        .i_dst_rst_n (dfi_rstn),
-        .o_pulse     (cal_expect_o)
-    );
-
-    //=========================================================================
-    // CDC: dfi_clk -> mc_clk for captured calibration data.
-    // Data is held stable by the rd_aligner until the next cal_expect arms,
-    // so a multi-flop synchronizer is sufficient. Valid is a single pulse
-    // delivered by sync_pulse.
-    //=========================================================================
-    cdc_synchronizer #(.WIDTH(DFI_DATA_WIDTH), .FLOP_COUNT(3)) u_data_sync (
-        .clk      (mc_clk),
-        .rst_n    (mc_rst_n),
-        .async_in (cal_data_i),
-        .sync_out (w_cal_data_sync)
-    );
-
-    sync_pulse #(.SYNC_STAGES(3)) u_valid_sync (
-        .i_src_clk   (dfi_clk),
-        .i_src_rst_n (dfi_rstn),
-        .i_pulse     (cal_valid_i),
-        .i_dst_clk   (mc_clk),
-        .i_dst_rst_n (mc_rst_n),
-        .o_pulse     (w_cal_valid_sync)
+    mc_training_layer #(
+        .NUM_SLOTS      (2),
+        .BKW            (3),
+        .ROW_WIDTH      (18),
+        .EXTRA_WIDTH    (1),
+        .CAL_DATA_WIDTH (DFI_DATA_WIDTH)
+    ) u_shell (
+        .mc_clk          (mc_clk),
+        .mc_rst_n        (mc_rst_n),
+        .slot_req_i      (w_slot_req),
+        .slot_grant_o    (w_slot_grant),
+        .slot_op_i       (w_slot_op),
+        .slot_bank_i     (w_slot_bank),
+        .slot_row_i      (w_slot_row),
+        .slot_extra_i    (w_slot_extra),
+        .trn_cmd_req_o   (trn_cmd_req_o),
+        .trn_cmd_grant_i (trn_cmd_grant_i),
+        .trn_cmd_op_o    (trn_cmd_op_o),
+        .trn_cmd_bank_o  (trn_cmd_bank_o),
+        .trn_cmd_row_o   (trn_cmd_row_o),
+        .trn_cmd_extra_o (trn_cmd_mrr_o),
+        .dfi_clk         (dfi_clk),
+        .dfi_rstn        (dfi_rstn),
+        .cal_expect_i    (w_lp_expect),
+        .cal_expect_o    (cal_expect_o),
+        .cal_data_i      (cal_data_i),
+        .cal_valid_i     (cal_valid_i),
+        .cal_data_o      (w_cal_data_sync),
+        .cal_valid_o     (w_cal_valid_sync)
     );
 
     //=========================================================================
     // Outputs
     //=========================================================================
-    assign cal_busy_o    = w_zq_busy || w_lp_busy;
+    assign cal_busy_o    = zq_busy_o || w_lp_busy;
     assign cal_done_o    = w_lp_done;
     assign cal_err_o     = w_lp_err;
     assign mrr32_data_o  = w_lp_mrr32_data;
     assign mrr40_data_o  = w_lp_mrr40_data;
-    assign zq_busy_o     = w_zq_busy;
-    assign zq_overdue_o  = w_zq_overdue;
-    assign zqcs_total_o  = w_zq_total;
 
 endmodule : pumice_training_layer
