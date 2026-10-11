@@ -17,7 +17,7 @@ digraph mc_scheduler_layer {
     rd_arb [label="DDR Read Arbitration\nmc_scheduler_layer — mc_cmd_arbiter\nunified prospect pool (classify)"];
     maint  [label="DDR Maintenance Command Queue\nmc_scheduler_layer — mc_cmd_arbiter\ngeneric maintenance slot (REF / ZQ / training)"];
     sched  [label="DDR Command Scheduler\nmc_scheduler_layer — mc_cmd_arbiter\n(FR-FCFS pick)",
-            shape=trapezium, width=3.2, fillcolor="#BFD7EE", fontsize=11];
+            shape=invtrapezium, width=4.6, fillcolor="#BFD7EE", fontsize=11];
     tctl   [label="DDR Timing Control\nmc_scheduler_layer — mc_bank_timers + mc_global_timers\n(tRCD/tRP/tRAS/tFAW/tRRD/tCCD next-state)"];
 
     // ---- context: command output to the DFI layer ----

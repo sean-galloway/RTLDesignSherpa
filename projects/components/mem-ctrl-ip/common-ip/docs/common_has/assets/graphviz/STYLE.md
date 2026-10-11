@@ -48,15 +48,26 @@ re-enters at the bottom and leaves at the top or side on its own route.
    bar at a labeled point; nothing crosses silently.
 6. **Blocks sit ON their flow, in flow order through the ranks.** A block
    with no arrow on its flow does not belong in the diagram. Pools and
-   buffers straddle the flow they hold.
+   buffers straddle the flow they hold. Edges between blocks in the SAME
+   rank are horizontal spaghetti — if a flow needs a sideways hop, re-rank
+   the blocks instead. Mirror the reference's rank geography: side buffers
+   (merge/forward) sit one rank below their pool at the flow's edge; the
+   return path climbs back up at the diagram's edge, never through the
+   center; a sideband block (e.g. configuration registers) may sit with no
+   edge at all, its role stated in the label.
 7. **Sideband and feedback** (grants, credits, snoop probes, ring tickets,
    config) is drawn dashed, kept short, and labeled — visible, but never
    mistakable for a main flow.
 8. **Optional / shell-only blocks are dashed** and sit off the main flows,
    so "not in this build" reads instantly.
-9. **The scheduler is always the tapered trapezium** (wide edge up), always
-   central, always on the command flow. This one shape is the family's
-   signature; do not use it for anything else.
+9. **The scheduler is always the tapered trapezium (wide edge up — the
+   many prospects arrive on the wide edge, the one command leaves the
+   narrow edge),** always central, always on the command flow. This one
+   shape is the family's signature; do not use it for anything else. In
+   graphviz this is `shape=invtrapezium`: graphviz's plain `trapezium` is
+   narrow-edge-up and renders as an upside-down mux. Draw it flat and wide
+   (the reference's shallow sliver), not tall — set `width` generously and
+   keep the label short.
 
 ## Labels
 
@@ -90,6 +101,12 @@ edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
   invisible edges when the layout fights the flow geography. Downward
   return-flow edges use `dir=back` so the arrowhead still points the way
   the data goes while the rank direction stays top-down.
+- Do not draw two parallel edges between the same node pair to carry two
+  transaction classes — dot assigns their channels in an order you cannot
+  control and `splines=ortho` ignores edge labels when routing, so the
+  labels drift and mislead. Use one edge with a combined label
+  (`WR / RMW`). Same for taillabel/headlabel tricks: if a label does not
+  land exactly where you want it, change the edge structure, not the label.
 - After rendering, **read the PNG** and trace the three flows by rule 1–5
   before committing. If you can't trace a flow with a finger, the layout
   is wrong — fix the ranks, not the colors.

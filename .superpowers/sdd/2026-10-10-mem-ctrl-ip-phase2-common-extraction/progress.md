@@ -539,3 +539,45 @@ their sections when unfrozen. RECURRING TRAP: subagent 'gates pass' on
 untracked new files is meaningless — main link checker only scans indexed
 files; the pre-commit staged check is the real gate. Verify new-book links
 only after git add.
+
+## 2026-10-11 — Diagram house-style erratum (owner feedback: common HAS graphics "horrible", flipped mux, lines over boxes)
+
+Root causes found by viewing rendered PNGs against the reference webp:
+1. STYLE.md rule 9 said "wide edge up" but gave no graphviz shape name; all
+   three diagrams using it wrote `shape=trapezium` (graphviz trapezium is
+   NARROW-edge-up = the upside-down mux). Fixed: `shape=invtrapezium`, drawn
+   flat/wide like the reference sliver. STYLE.md rule 9 now names the shape
+   explicitly.
+2. common_has 01_whole_unit had rank pinning that fought the reference
+   geography (merge/fwd/reorder pinned in the pool rank -> same-rank
+   spaghetti; tctl sharing the scheduler rank via constraint=false; return
+   path climbing through foreign ranks). Rewrote the dot mirroring the
+   reference rank structure: channels -> packetizers(+cfg, edge-free per the
+   reference) -> pools -> merge/fwd+arb+-maint+rbuf(tall) -> sched+tctl ->
+   mlog -> wr_dp/rd_dp -> PHY bar. WR/RMW drawn as ONE edge with combined
+   label (dot parallel-edge channel order is not controllable; ortho ignores
+   labels when routing) - STYLE.md rendering section documents this.
+3. common_mas 03: same trapezium flip -> invtrapezium.
+4. common_mas 08: five dashed no-head edges cmd_path->{act_n..dbi} shared
+   horizontal channels through the box's mid-height (pierced-box illusion)
+   and faked a cluster border. Rewrote: single dashed sideband "command
+   surface" box off the flow (whole-unit tctl idiom), five FUBs enumerated
+   in the label.
+5. pumice 01_block_diagram: same trapezium flip -> invtrapezium (structure
+   left as-is; book under owner review).
+6. scoria 01_block_diagram: provenance-genre diagram (green/amber/red), not
+   course-style; left alone.
+7. pumice generate_{has,mas}_pdf.sh had stale REV defaults (0.9 / 0.8 vs
+   books at 1.0-draft / 0.9-draft); regenerated HAS PDF had exposed stale
+   tracked DDR2_LPDDR2_HAS_v0.9.{pdf,docx} duplicates -> defaults fixed,
+   strays deleted.
+
+STYLE.md also gained: rule 6 extended (same-rank long edges are spaghetti;
+side buffers one rank below their pool; return path climbs at the diagram
+edge; sideband block may sit edge-free with its role in the label) and the
+no-parallel-edges rendering note.
+
+All renders visually verified at full resolution after fixing (read the PNG,
+traced the three flows per rule 1-5). Gates: 0 broken links, task-tracker OK,
+filelist registry PASS. PDFs regenerated for family HAS, common MAS, pumice
+HAS (fresh diagrams embedded).

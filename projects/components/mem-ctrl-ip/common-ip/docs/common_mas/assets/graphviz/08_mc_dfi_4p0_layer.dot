@@ -1,11 +1,14 @@
 // mc_dfi_4p0_layer internal block diagram — family DDR-MC course style.
+// Geography: context row -> CDC -> pipeline row (cmd path / wr ser / rd
+// align) with the generation command surface as a single dashed sideband
+// box off the command path -> PHY bar (sink).
 digraph mc_dfi_4p0_layer {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
-           nodesep="0.30", ranksep="0.55", splines=ortho,
+           nodesep="0.35", ranksep="0.60", splines=ortho,
            label="DFI 4.0 = shared pipeline + DDR4/LPDDR4 command surface",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.07"];
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- controller-side external interfaces (white) ----
@@ -14,27 +17,19 @@ digraph mc_dfi_4p0_layer {
     rd_out  [label="Read Data Out\nmc_storage_layer — context", fillcolor="white"];
     init_in [label="Init Start In\nmc_training_layer — context", fillcolor="white"];
 
-    // ---- PHY bar (white, full width) ----
+    // ---- PHY bar (white) ----
     phy [label="DFI 4.0 PHY\n(DDR4 / LPDDR4 pin surface)", fillcolor="white",
-         rank=sink, width=6.5, fontsize=11];
+         rank=sink, width=5.5, fontsize=11];
 
     // ---- shared DFI 4.0 pipeline blocks ----
     cdc      [label="Controller/DFI Clock Crossing\nmc_dfi_cdc — FUB"];
-    cmd_path [label="DFI 4.0 Command Path\nmc_dfi_4p0_cmd_path — FUB", group="delta"];
+    cmd_path [label="DFI 4.0 Command Path\nmc_dfi_4p0_cmd_path — FUB"];
     wr_ser   [label="Write Serializer\nmc_dfi_wr_serializer — FUB"];
     rd_align [label="Read Aligner\nmc_dfi_rd_aligner — FUB"];
 
-    // ---- DFI 4.0 generation-delta features (small blocks off the command path) ----
-    act_n    [label="ACT_n surface\nandesite_dfi_cmd_formatter — FUB",
-              fontsize=9, margin="0.08,0.04", group="delta"];
-    bank_grp [label="Bank Groups (cmd_bg)\nmc_dfi_4p0_cmd_path — FUB",
-              fontsize=9, margin="0.08,0.04", group="delta"];
-    gear     [label="Gear-Down phase mask\nmc_dfi_4p0_layer — FUB\n§TBC",
-              fontsize=9, margin="0.08,0.04", group="delta", style="filled,dashed"];
-    parity   [label="CA Parity / alert_n\nmc_dfi_4p0_cmd_path / boundary wrapper — FUB\n§TBC",
-              fontsize=9, margin="0.08,0.04", group="delta", style="filled,dashed"];
-    dbi      [label="DBI (wr/rd)\nmc_dfi_wr_serializer + mc_dfi_rd_aligner — FUB",
-              fontsize=9, margin="0.08,0.04", group="delta"];
+    // ---- generation command surface: one dashed sideband box off the flow ----
+    surface [label="DFI 4.0 command surface (generation delta)\nACT_n: andesite_dfi_cmd_formatter — Bank Groups: cmd_bg\nGear-Down phase mask §TBC — CA Parity / alert_n §TBC — DBI (wr/rd)",
+             fontsize=9, style="filled,dashed"];
 
     // ---- controller-side streams into the CDC ----
     cmd_in  -> cdc [label="CMD"];
@@ -61,12 +56,9 @@ digraph mc_dfi_4p0_layer {
     wr_ser   -> phy [label="Write to DDR"];
     rd_align -> phy [dir=back, label="Read from DDR"];
 
-    // ---- generation-delta features hanging off the command path ----
-    cmd_path -> act_n    [style=dashed, arrowhead=none];
-    cmd_path -> bank_grp [style=dashed, arrowhead=none];
-    cmd_path -> gear     [style=dashed, arrowhead=none];
-    cmd_path -> parity   [style=dashed, arrowhead=none];
-    cmd_path -> dbi      [style=dashed, arrowhead=none];
+    // ---- generation command surface hangs off the command path ----
+    cmd_path:e -> surface:n [style=dashed, arrowhead=none, constraint=false,
+                             label="generation-delta features"];
 
     // ---- rank pinning ----
     { rank=same; cmd_in; wd_in; rd_out; init_in; }
@@ -74,13 +66,8 @@ digraph mc_dfi_4p0_layer {
     wd_in  -> rd_out [style=invis];
     rd_out -> init_in [style=invis];
 
-    { rank=same; cmd_path; wr_ser; rd_align; }
+    { rank=same; cmd_path; wr_ser; rd_align; surface; }
     cmd_path -> wr_ser   [style=invis];
     wr_ser   -> rd_align [style=invis];
-
-    { rank=same; act_n; bank_grp; gear; parity; dbi; }
-    act_n -> bank_grp [style=invis];
-    bank_grp -> gear  [style=invis];
-    gear -> parity    [style=invis];
-    parity -> dbi     [style=invis];
+    rd_align -> surface  [style=invis];
 }

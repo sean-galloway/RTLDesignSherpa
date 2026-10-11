@@ -31,7 +31,7 @@ digraph pumice_whole_unit {
     cmd_hist  [label="Command History Checker\npumice_scheduler_layer — pumice_cmd_history_checker\n(optional DV scoreboard)",
                style="filled,dashed"];
     sched     [label="Command Scheduler\npumice_scheduler_layer — mc_scheduler_layer core\n(FR-FCFS pick + timers)",
-               shape=trapezium, width=3.2, fillcolor="#BFD7EE", fontsize=11];
+               shape=invtrapezium, width=4.2, fillcolor="#BFD7EE", fontsize=11];
 
     // ---- training: pumice_training_layer wrapper + rock children ----
     zq_cal    [label="ZQ Calibration\npumice_training_layer — pumice_zq_ctrl\n(periodic ZQ)"];
