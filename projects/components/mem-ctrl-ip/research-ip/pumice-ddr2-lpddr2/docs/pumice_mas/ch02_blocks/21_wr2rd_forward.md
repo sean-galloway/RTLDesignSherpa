@@ -26,9 +26,9 @@
 # Write-to-Read Forward — RETIRED as a standalone block
 
 **Status:** RETIRED. There is no `wr2rd_forward.sv` in the live RTL.
-**Replaced by:** the **snarf mover inside `pumice_wr_data_cam`** (see §17,
+**Replaced by:** the **snarf mover inside `mc_wr_data_cam`** (see §17,
 the Write Data Path chapter).
-**Probe driver:** `pumice_rd_intake` (the snarf probe on the AR path).
+**Probe driver:** `mc_rd_intake` (the snarf probe on the AR path).
 
 ## Why it was retired
 
@@ -38,25 +38,25 @@ the AR path. The old `wr2rd_forward` block sat between `addr_mapper` and
 `rd_cmd_cam` and compared each AR against a `wr_cmd_cam` snapshot bus;
 that snapshot bus, the standalone comparator, and the separate `w_buf`
 storage it read from no longer exist. Forwarding is now a native operation
-of `pumice_wr_data_cam`, which already holds the pending writes and their
+of `mc_wr_data_cam`, which already holds the pending writes and their
 burst data in its SRAM.
 
 ## Where forwarding lives now
 
 Write-to-read forwarding ("snarf") is the **snarf mover** of
-`pumice_wr_data_cam`. The flow is:
+`mc_wr_data_cam`. The flow is:
 
-1. `pumice_rd_intake` presents an incoming AR's decoded key
+1. `mc_rd_intake` presents an incoming AR's decoded key
    `{bank, row, col}` plus its AXI id and `arlen` on the CAM's
    `snarf_probe_*` port.
-2. `pumice_wr_data_cam` combinationally searches its entries and asserts
+2. `mc_wr_data_cam` combinationally searches its entries and asserts
    `snarf_hit_o` for a **youngest** match, subject to the safe-case
    restrictions.
 3. On `snarf_accept_i`, the matched slot is queued into the snarf request
    FIFO and the snarf mover streams the write's SRAM beats back on
    `snarf_rd_*` (non-destructively — the write still drains to DRAM
    normally). Otherwise the read takes the DRAM miss path through
-   `pumice_rd_cmd_cam` (§18).
+   `mc_rd_cmd_cam` (§18).
 
 ## Restrictions (narrower than the old block)
 
@@ -69,7 +69,7 @@ The live snarf is limited to the safe case — a write is snarfable only if
   where the read is *required* to see the write. Cross-id reads have no
   ordering guarantee and take the DRAM path.
 - **Same burst length** (`arlen == BL-1`): every admitted write is exactly
-  `BL` beats (ragged bursts are rejected in `pumice_wr_intake`), so a short
+  `BL` beats (ragged bursts are rejected in `mc_wr_intake`), so a short
   or long read cannot snarf a full-BL write.
 
 The match must also be fill-complete (`r_fdone`); among candidates the
@@ -87,7 +87,7 @@ cross-id pair.
 
 ## Tests
 
-Covered by the `pumice_wr_data_cam` FUB test and the `pumice_axi4_layer`
+Covered by the `mc_wr_data_cam` FUB test and the `pumice_axi4_layer`
 integration tests (snarf stream, snarf-vs-DRAM-path selection, and the
 same-id / same-BL / unscheduled exclusion scenarios). See §17 for the
 detailed test plan.

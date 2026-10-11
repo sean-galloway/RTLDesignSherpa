@@ -41,7 +41,7 @@ Two properties matter for trusting the result:
 
 * The netlist is **flattened** for this view. A parameterised submodule
   instance carries a Yosys type of `$paramod\<name>\<params>`, and treating
-  that as a primitive makes its internal registers invisible — `pumice_bank_timers`
+  that as a primitive makes its internal registers invisible — `mc_bank_timers`
   reported 0 registers and 0 clocks before flattening, which is impossible for
   a timer block. Flattening removes the class of error rather than adding
   another special case.
@@ -62,27 +62,37 @@ merged registers (a bit-blasted `r_bank[2:0]` is one), not raw flop cells.
 | `addr_mapper` | 0 | 0 | 8 |
 | `dfi_cmd_formatter` | 0 | 0 | 17 |
 | `dfi_signal_pack` | 0 | 0 | 24 |
-| `global_timers` | 1 | 5 | 24 |
+| `mc_global_timers` | 1 | 5 | 24 |
 | `mode_register` | 1 | 1 | 16 |
-| `pumice_dfi_cdc` | 2 | 53 | 78 |
-| `pumice_dfi_rd_aligner` | 2 | 3 | 14 |
-| `pumice_dfi_wr_serializer` | 2 | 2 | 12 |
-| `pumice_wr_splitter` | 2 | 13 | 51 |
+| `mc_dfi_cdc` | 2 | 53 | 78 |
+| `mc_dfi_rd_aligner` | 2 | 3 | 14 |
+| `mc_dfi_wr_serializer` | 2 | 2 | 12 |
+| `mc_wr_splitter` | 2 | 13 | 51 |
 | `powerdown_ctrl` | 3 | 5 | 18 |
-| `pumice_bank_timers` | 3 | 48 | 72 |
+| `mc_bank_timers` | 3 | 48 | 72 |
 | `pumice_cmd_arbiter` | 3 | 57 | 128 |
-| `pumice_rd_cmd_cam` | 3 | 11 | 49 |
-| `pumice_rd_intake` | 3 | 24 | 75 |
+| `mc_rd_cmd_cam` | 3 | 11 | 49 |
+| `mc_rd_intake` | 3 | 24 | 75 |
 | `refresh_ctrl` | 3 | 6 | 26 |
-| `pumice_row_pred_table` | 4 | 8 | 18 |
-| `pumice_rd_return_ring` | 5 | 23 | 41 |
-| `pumice_wr_data_cam` | 5 | 60 | 120 |
+| `mc_rd_return_ring` | 5 | 23 | 41 |
+| `mc_wr_data_cam` | 5 | 60 | 120 |
 | `pumice_page_policy` | 7 | 39 | 70 |
-| `pumice_wr_intake` | 7 | 31 | 79 |
+| `mc_wr_intake` | 7 | 31 | 79 |
 
 Three blocks are purely combinational (`addr_mapper`, `dfi_cmd_formatter`,
 `dfi_signal_pack`): they transform a command in place and add no clock. The two
-deepest are the paging predictors and the write intake.
+deepest live blocks are `pumice_page_policy` and `mc_wr_intake`.
+
+### Retired blocks
+
+Two history-based paging predictors were removed from the RTL in 2026-09 (TASK-011,
+TASK-014) after measuring inert or harmful on silicon. They are kept here as a
+latency record for the pre-removal netlist only.
+
+| Block | Depth (clocks) | Registers | State nodes | Status |
+|---|---|---|---|---|
+| `pumice_row_pred_table` | 4 | 8 | 18 | **RETIRED** — removed 2026-09-27 (TASK-014) |
+| `pumice_rbl_table` | 6 | — | — | **RETIRED** — removed 2026-09-26 (TASK-011) |
 
 ## Datapath latencies worth knowing
 
@@ -130,8 +140,6 @@ The mux-level view is faithful but becomes unreadable above roughly 1200 cells,
 so the largest blocks are deliberately black-boxed rather than rendered into a
 hairball. The latency view has no such limit, because its node count is the
 number of registers rather than the number of cells.
-
-![Read return ring — one column is one clock; the read data path crosses three](../assets/schematics/pumice_rd_return_ring.latency.png)
 
 Symbols come from a custom netlistsvg skin. The shipped default aliases the
 one-hot case primitive onto the two-input mux symbol, so every `case` statement

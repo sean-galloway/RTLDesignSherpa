@@ -1,17 +1,17 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
 flowchart LR
-    subgraph DFI["pumice_dfi_layer (rd path)"]
-        rd_align["pumice_dfi_rd_aligner<br/>on rd_fire drive dfi_rddata_en_o<br/>for t_rddata_en; capture valid<br/>DFI words -> rd_valid/data/resp/last"]
-        cdc["pumice_dfi_cdc<br/>u_rd_fifo (async;<br/>data, resp, last)"]
+    subgraph DFI["mc_dfi_2p1_layer (rd path)"]
+        rd_align["mc_dfi_rd_aligner<br/>on rd_fire drive dfi_rddata_en_o<br/>for t_rddata_en; capture valid<br/>DFI words -> rd_valid/data/resp/last"]
+        cdc["mc_dfi_cdc<br/>u_rd_fifo (async;<br/>data, resp, last)"]
     end
 
-    subgraph RDCAM["pumice_rd_cmd_cam — SRAM + movers (NO slot-state FSM)"]
+    subgraph RDCAM["mc_rd_cmd_cam — SRAM + movers (NO slot-state FSM)"]
         retfill["RETURN-FILL mover<br/>r_ret_beat counter;<br/>u_issue_q FIFO-fed;<br/>dfi_ret -> SRAM[slot*BL+beat];<br/>dfi_ret_last sets r_ready + r_resp"]
         sram["rd SRAM<br/>r_sram[N_SRAM_SLOTS*BL]<br/>+ r_sram_occ"]
         drain["DRAIN mover<br/>r_dr_beat counter;<br/>oldest-first (w_dro_slot),<br/>gated on r_ready;<br/>evict slot + occ on last"]
     end
 
-    subgraph INTK["pumice_rd_intake"]
+    subgraph INTK["mc_rd_intake"]
         rd_data_fifo["rd_data_fifo<br/>(order_fifo picks<br/>SNARF vs DFI source)"]
         rout["R return -> s_axi_r*"]
     end

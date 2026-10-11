@@ -581,3 +581,29 @@ All renders visually verified at full resolution after fixing (read the PNG,
 traced the three flows per rule 1-5). Gates: 0 broken links, task-tracker OK,
 filelist registry PASS. PDFs regenerated for family HAS, common MAS, pumice
 HAS (fresh diagrams embedded).
+
+## 2026-10-11 — Dead-code removal + pumice docs rename to common names
+
+Owner asked to remove dead code causing confusion ("pumice RTL doesn't seem
+to use the common code"). Findings + actions:
+- Deleted 4 dead local FUBs superseded by common (pumice_dfi_cdc/cmd_path/
+  wr_serializer/rd_aligner, 1063 LOC, zero live instantiations), rtl/OLD
+  (bank_cmd_picker, bank_sched_core), their fub filelists, dv tests/
+  testplans/tbclass, 3 unreferenced OLD schematics. Commit 877a70c9e.
+  Verified: verilator --lint-only pumice_core.f clean (pre-existing MODDUP
+  on shared utility libs waived - separate flist hygiene nit, not caused
+  by deletion).
+- Root cause of the owner's impression: the pumice HAS/MAS books still named
+  the dead local modules everywhere (346 references across 59 files).
+  Delegated rename pass: dead pumice_* FUB names -> live common mc_* names
+  (incl. pumice_axi4_layer -> mc_axi4_layer caught by the agent); retired
+  pumice_row_pred_table / pumice_rbl_table now marked RETIRED (TASK-011/014)
+  consistent with the active-vs-retired audit; deleted 37 stale schematics
+  PNGs; gen_pumice_signal_contracts.py citation paths moved to common-ip.
+- pumice generate_{has,mas}_pdf.sh REV defaults were stale (0.9/0.8);
+  synced to 1.0-draft/0.9-draft earlier today.
+- Still-true gap (next): addr_mapper local copy is unreferenced but common
+  mc_addr_mapper is extracted-not-adopted; refresh_ctrl/page_policy
+  convergence (scoria elastic-refresh v3 as common base) pending books
+  unfreeze. MODDUP double-inclusion of shared utility libs in flist chain
+  is a pre-existing nit worth one cleanup pass.

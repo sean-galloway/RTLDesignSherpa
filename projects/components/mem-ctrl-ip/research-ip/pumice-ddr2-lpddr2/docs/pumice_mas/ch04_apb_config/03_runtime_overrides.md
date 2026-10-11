@@ -57,7 +57,7 @@ This holds for all ten enforced windows, in both timing blocks:
 | Block | Windows |
 |---|---|
 | `bank_timer` (per bank) | tRC, tRP, tRCD, tRAS, tRTP, tWR |
-| `global_timers` (per rank / global) | tRRD, tCCD, tWTR, tRTW |
+| `mc_global_timers` (per rank / global) | tRRD, tCCD, tWTR, tRTW |
 
 It is measured, not asserted: `formal/pumice/bank_timer` and
 `formal/pumice/global_timers` carry `a_*_bound_n1` properties proving the bound,

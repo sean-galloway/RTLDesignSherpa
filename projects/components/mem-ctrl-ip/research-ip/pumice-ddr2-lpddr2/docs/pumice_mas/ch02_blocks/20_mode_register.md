@@ -75,9 +75,9 @@ All outputs are strict-flop registered. Consumed by:
 
 - `pumice_cmd_arbiter` / `pumice_scheduler_layer` — use `cl_o`, `cwl_o`,
   `al_o` to time RD/WR latencies.
-- write data path (`pumice_dfi_wr_serializer` via `t_phy_wrlat`) — sized
+- write data path (`mc_dfi_wr_serializer` via `t_phy_wrlat`) — sized
   against `cwl_o` for the WR-to-wrdata window.
-- read data path (`pumice_dfi_rd_aligner` via `t_rddata_en`) — sized
+- read data path (`mc_dfi_rd_aligner` via `t_rddata_en`) — sized
   against `cl_o` for the RD-to-rddata window.
 - `dfi_cmd_formatter` — uses `bl_o` to size column commands.
 

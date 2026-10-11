@@ -23,7 +23,7 @@
 
 # Multi-Rank Programming
 
-> Per HAS §2.1 (multi-rank as differentiator), HAS §3.3 / §3.4 / §3.6 (architecture). FUB-level detail in MAS §2 (`pumice_bank_timers` per (rank,bank), `refresh_ctrl` round-robin, `dfi_cmd_formatter` CS_n / ODT).
+> Per HAS §2.1 (multi-rank as differentiator), HAS §3.3 / §3.4 / §3.6 (architecture). FUB-level detail in MAS §2 (`mc_bank_timers` per (rank,bank), `refresh_ctrl` round-robin, `dfi_cmd_formatter` CS_n / ODT).
 >
 > Note: the default board build is single-rank (`NUM_RANKS = 1`). This chapter documents the intended multi-rank programming model; the single-rank RDL declares only `*_RANK0` registers, and per-rank register generation is a follow-up (see §4.2).
 

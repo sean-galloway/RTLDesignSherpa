@@ -1,23 +1,23 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
 flowchart LR
-    subgraph INTK["pumice_wr_intake"]
+    subgraph INTK["mc_wr_intake"]
         wd_fifo["wr_data_fifo<br/>(gaxi_fifo_sync;<br/>data, strb, last)"]
     end
 
-    subgraph WRCAM["pumice_wr_data_cam — SRAM + movers (NO slot-state FSM)"]
+    subgraph WRCAM["mc_wr_data_cam — SRAM + movers (NO slot-state FSM)"]
         fill["FILL mover<br/>r_fill_beat counter;<br/>wd_valid -> SRAM[slot*BL+beat];<br/>wd_last sets r_fdone"]
         sram["wr-data SRAM<br/>r_sram / r_strb<br/>[N_SRAM_SLOTS*BL]<br/>+ r_sram_occ"]
         snarf["SNARF mover<br/>r_sn_beat counter;<br/>u_snarf_q FIFO-fed;<br/>read-your-write (only<br/>!r_sched + same-id + same-BL)"]
         drain["COMMIT-DRAIN mover<br/>r_cm_beat counter;<br/>u_drain_q FIFO-fed;<br/>evict slot + occ on last"]
     end
 
-    subgraph DFI["pumice_dfi_layer (wr path)"]
-        cdc["pumice_dfi_cdc<br/>u_wd_fifo (async;<br/>data, strb, last)"]
-        wr_ser["pumice_dfi_wr_serializer<br/>on wr_fire wait t_phy_wrlat,<br/>stream DFI word/cycle<br/>(IDLE/WAIT/DRIVE, bubble-free)"]
+    subgraph DFI["mc_dfi_2p1_layer (wr path)"]
+        cdc["mc_dfi_cdc<br/>u_wd_fifo (async;<br/>data, strb, last)"]
+        wr_ser["mc_dfi_wr_serializer<br/>on wr_fire wait t_phy_wrlat,<br/>stream DFI word/cycle<br/>(IDLE/WAIT/DRIVE, bubble-free)"]
     end
 
     dfi_pin[/"dfi_wrdata_o / _en_o / _mask_o"/]
-    rd_intk[/"snarf_rd -> pumice_rd_intake"/]
+    rd_intk[/"snarf_rd -> mc_rd_intake"/]
 
     wd_fifo -- "wd (data,strb,last)" --> fill
     fill --> sram

@@ -54,7 +54,7 @@ clock. The gear ratio (`DFI_RATE`) sets how many DRAM phases each `dfi_clk`
 cycle carries.
 
 `aclk` and `dfi_clk` are asynchronous to each other. The single crossing
-between them lives inside `pumice_dfi_layer` (see the CDC summary below).
+between them lives inside `mc_dfi_2p1_layer` (see the CDC summary below).
 
 ## Reset Signals
 
@@ -65,7 +65,7 @@ Both resets are active-low.
 Controller reset, tied to the `aclk` domain. The register block resets on
 `~aresetn` (`pumice_csr` `.rst(~aresetn)`). Resets:
 
-- Host AXI4 interface state (`pumice_axi4_layer`)
+- Host AXI4 interface state (`mc_axi4_layer`)
 - Write-data and read-command CAMs
 - Command scheduler and bank timers (`pumice_scheduler_layer`)
 - Refresh manager and init sequencer
@@ -75,7 +75,7 @@ Controller reset, tied to the `aclk` domain. The register block resets on
 
 DFI-domain reset, tied to the `dfi_clk` domain. Resets the DFI command path,
 the write serializer, the read aligner, and the DFI-side of the CDC FIFOs
-inside `pumice_dfi_layer`.
+inside `mc_dfi_2p1_layer`.
 
 > Note: `init_sequencer` names its ports `mc_clk` / `mc_rst_n` internally, but
 > the top level (`pumice_top` → `pumice_core`) ties these to `aclk` / `aresetn`.
@@ -108,15 +108,15 @@ The SoC can warm-reset the controller without losing DRAM content:
 ## Clock Domain Crossing Summary
 
 There is exactly one clock-domain crossing in the design: the `aclk` ↔
-`dfi_clk` crossing inside `pumice_dfi_layer` (`pumice_dfi_cdc.sv`). It is built
+`dfi_clk` crossing inside `mc_dfi_2p1_layer` (`mc_dfi_cdc.sv`). It is built
 from asynchronous `gaxi` FIFOs only — command, write-data, and read-data each
 get their own async FIFO, plus the `init_start` / `init_complete` handshake.
 The register `cpuif` shares the `aclk` domain, so there is no CSR-clock CDC.
 
 | Crossing              | Mechanism                                          | Latency                     |
 |-----------------------|----------------------------------------------------|-----------------------------|
-| `aclk` → `dfi_clk`    | Async `gaxi` FIFOs (cmd / wrdata) in `pumice_dfi_cdc` | FIFO + `N_FLOP_CROSS`-flop sync |
-| `dfi_clk` → `aclk`    | Async `gaxi` FIFO (rddata) in `pumice_dfi_cdc`     | FIFO + `N_FLOP_CROSS`-flop sync |
+| `aclk` → `dfi_clk`    | Async `gaxi` FIFOs (cmd / wrdata) in `mc_dfi_cdc` | FIFO + `N_FLOP_CROSS`-flop sync |
+| `dfi_clk` → `aclk`    | Async `gaxi` FIFO (rddata) in `mc_dfi_cdc`     | FIFO + `N_FLOP_CROSS`-flop sync |
 
 ## Reset and Power Considerations
 

@@ -133,7 +133,7 @@ Notable changes across both transitions:
   `pumice_axi4_layer` and `pumice_dfi_layer`.
 - **Replaced by / moved to common-ip**: the two CAMs
   (`mc_wr_data_cam` + `mc_rd_cmd_cam`, now in `mc_storage_layer`),
-  FSM-free `bank_timer` (stamped by `mc_scheduler_layer`), `global_timers`,
+  FSM-free `bank_timer` (stamped by `mc_scheduler_layer`), `mc_global_timers`,
   `dfi_cmd_formatter` (+ `dfi_signal_pack`, now in `mc_dfi_2p1_layer`), and
   the single `ADDR_MAP.bank_lsb` knob.
 - **Introduced**: the distinct `mc_storage_layer`, the common single-CDC

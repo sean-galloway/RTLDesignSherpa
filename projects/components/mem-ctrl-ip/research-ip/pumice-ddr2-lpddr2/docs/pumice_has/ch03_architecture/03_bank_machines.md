@@ -23,7 +23,7 @@
 
 # Bank Timers and Cross-Bank Timers
 
-Per-bank JEDEC timing is tracked by an **FSM-free** `bank_timer` per (rank, bank); cross-bank / bus-turnaround timing is tracked by `global_timers`. There is no multi-state bank machine in this design.
+Per-bank JEDEC timing is tracked by an **FSM-free** `bank_timer` per (rank, bank); cross-bank / bus-turnaround timing is tracked by `mc_global_timers`. There is no multi-state bank machine in this design.
 
 ## `bank_timer`
 
@@ -35,7 +35,7 @@ Because the per-command `safe_*` outputs are a purely combinational AND of the r
 
 ### Instantiation
 
-`pumice_bank_timers` (`rtl/fub/pumice_bank_timers.sv`) stamps one `bank_timer` per `(rank, bank)` pair — for the default (`NUM_RANKS=1`, `NUM_BANKS=8`) that is 8 instances. It routes the arbiter's `evt_*` event strobes to the addressed bank and fans the per-bank readiness back out to the arbiter.
+`mc_bank_timers` (`rtl/fub/mc_bank_timers.sv`) stamps one `bank_timer` per `(rank, bank)` pair — for the default (`NUM_RANKS=1`, `NUM_BANKS=8`) that is 8 instances. It routes the arbiter's `evt_*` event strobes to the addressed bank and fans the per-bank readiness back out to the arbiter.
 
 ### Timers
 
@@ -67,7 +67,7 @@ The readiness outputs are combinational off the timers (single register stage be
 - `safe_wr_o = safe_rd_o` — same condition.
 - `safe_pre_o = r_row_valid && (r_ras == 0) && (r_preblk == 0) && !r_ap_pending` — row open, tRAS and tRTP/tWR met, not auto-precharging.
 
-Open-page behavior falls out naturally: RD/WR only load `r_preblk` and (optionally) the auto-PRE bit, so column commands stream to an open row. The tCCD / tWTR / tRTW turnaround constraints are enforced globally in `global_timers` and ANDed by the arbiter, not here.
+Open-page behavior falls out naturally: RD/WR only load `r_preblk` and (optionally) the auto-PRE bit, so column commands stream to an open row. The tCCD / tWTR / tRTW turnaround constraints are enforced globally in `mc_global_timers` and ANDed by the arbiter, not here.
 
 ### Observability State
 
@@ -79,11 +79,11 @@ There is no per-bank refresh handshake. The arbiter serializes refresh: on a ref
 
 ---
 
-## `global_timers`
+## `mc_global_timers`
 
 ### Purpose
 
-Enforce the cross-bank and shared-bus turnaround constraints that a single bank cannot see locally. RTL: `rtl/fub/global_timers.sv`. Implemented once (not per bank) because these constraints are inherently global.
+Enforce the cross-bank and shared-bus turnaround constraints that a single bank cannot see locally. RTL: `common-ip/rtl/fub/mc_global_timers.sv`. Implemented once (not per bank) because these constraints are inherently global.
 
 ### Tracked Constraints
 

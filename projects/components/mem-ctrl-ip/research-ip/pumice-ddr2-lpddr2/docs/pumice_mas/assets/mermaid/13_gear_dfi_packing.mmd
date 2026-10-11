@@ -10,10 +10,10 @@ flowchart TB
         geo["1 AXI beat == 1 DFI word == DFI_RATE DRAM beats<br/>1 AXI burst (BL/DFI_RATE beats) == 1 DRAM burst (BL beats)"]
     end
 
-    subgraph DFILAYER["pumice_dfi_layer — DFI-word packing (DW -> DFI_RATE phases)"]
-        wr_ser["pumice_dfi_wr_serializer<br/>on wr_fire wait t_phy_wrlat,<br/>stream DFI word/cycle from FIFO<br/>-> dfi_wrdata_o[DFI_DATA_WIDTH],<br/>dfi_wrdata_en_o, dfi_wrdata_mask_o"]
+    subgraph DFILAYER["mc_dfi_2p1_layer — DFI-word packing (DW -> DFI_RATE phases)"]
+        wr_ser["mc_dfi_wr_serializer<br/>on wr_fire wait t_phy_wrlat,<br/>stream DFI word/cycle from FIFO<br/>-> dfi_wrdata_o[DFI_DATA_WIDTH],<br/>dfi_wrdata_en_o, dfi_wrdata_mask_o"]
         cmd_fmt["dfi_cmd_formatter / dfi_signal_pack<br/>DFI word split across DFI_RATE phases;<br/>CMD on phase 0, RD/WR on rd_phase/wr_phase"]
-        rd_align["pumice_dfi_rd_aligner<br/>on rd_fire drive dfi_rddata_en_o<br/>for t_rddata_en; capture DFI_RATE-phase<br/>valid words -> DFI word/cycle to FIFO"]
+        rd_align["mc_dfi_rd_aligner<br/>on rd_fire drive dfi_rddata_en_o<br/>for t_rddata_en; capture DFI_RATE-phase<br/>valid words -> DFI word/cycle to FIFO"]
     end
 
     dfi_bus[/"DFI v2.1 pin bus (DFI_RATE phases)"/]

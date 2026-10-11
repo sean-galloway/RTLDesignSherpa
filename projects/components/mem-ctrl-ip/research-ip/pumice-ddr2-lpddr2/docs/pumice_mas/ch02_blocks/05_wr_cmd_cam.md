@@ -23,18 +23,18 @@
 
 > **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_storage_layer`; its microarchitecture is owned by [common_mas mc_storage_layer — Storage Layer and Entry-Pool FUBs](../../../../../common-ip/docs/common_mas/ch03_storage_layer/01_mc_storage_layer.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
 
-# Write Data CAM (`pumice_wr_data_cam`)
+# Write Data CAM (`mc_wr_data_cam`)
 
-**Module:** `pumice_wr_data_cam.sv`
+**Module:** `mc_wr_data_cam.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent:** `pumice_axi4_layer`
+**Parent:** `mc_storage_layer`
 **Status:** Implemented (fill / commit-drain / snarf movers)
 
 > **Rearchitected:** the SWAG `wr_cmd_cam` was an ID-keyed metadata CAM with
 > `w_buf_ptr` / `strb_ptr` pointers into an external AXI write buffer and a
 > `b_pending` / `b_complete` window driven by `xbank_timers`. The live
-> `pumice_wr_data_cam` **owns** the write-data SRAM and is keyed on
+> `mc_wr_data_cam` **owns** the write-data SRAM and is keyed on
 > `{bank, row, col}` with a free-running age. It has three data movers over the
 > SRAM — **fill** (on insert), **snarf-stream** (read-your-write), and
 > **commit-drain** (to DFI write) — plus associative query ports. Commit
@@ -45,7 +45,7 @@
 
 ## Purpose
 
-`pumice_wr_data_cam` holds every pending write: the decoded command key
+`mc_wr_data_cam` holds every pending write: the decoded command key
 `{bank, row, col}` **and** the burst data in an SRAM slot. It presents the
 scheduler the same lookup/oldest interface as the read CAM so writes row-hit
 schedule identically, forwards data to in-flight reads (snarf), streams committed
@@ -93,14 +93,14 @@ All three selectors are gated on `r_valid && r_fdone && !r_sched`.
 
 ## Interfaces
 
-### Insert (from `pumice_wr_intake` `aw_push`)
+### Insert (from `mc_wr_intake` `aw_push`)
 
 `ins_valid_i` / `ins_ready_o` with `{bank, row, col, id}`. `ins_ready_o` is
 `w_have_free && u_fill_q.wr_ready`. On fire the slot is allocated (via the
 priority-encoded free slot), key/id/age captured, and `r_fdone` cleared. The slot
 index is pushed into the **fill FIFO** (`u_fill_q`, depth `NUM_ENTRIES`).
 
-### Fill (from `pumice_wr_intake` `wdata` pop)
+### Fill (from `mc_wr_intake` `wdata` pop)
 
 `wd_valid_i` / `wd_ready_o` with `{data, strb, last}`, written to SRAM in insert
 order. The fill engine reads its slot from the fill-FIFO head:
@@ -110,7 +110,7 @@ order. The fill engine reads its slot from the fill-FIFO head:
 - Each beat writes `r_sram` / `r_strb` at `r_ptr[head]*BL + r_fill_beat`.
 - On `wd_last_i` the entry's `r_fdone` is set and the fill FIFO popped.
 
-### Snarf lookup + stream (from `pumice_rd_intake`)
+### Snarf lookup + stream (from `mc_rd_intake`)
 
 `snarf_probe_*` returns a combinational `snarf_hit_o`. Read-your-write forwarding
 is **limited to the safe case** — the hit requires all of:
@@ -160,7 +160,7 @@ counter beyond the shared engine counters.
 
 ## Difference from the read CAM
 
-| Aspect          | Read CAM (`pumice_rd_cmd_cam`)              | Write CAM (`pumice_wr_data_cam`)                 |
+| Aspect          | Read CAM (`mc_rd_cmd_cam`)              | Write CAM (`mc_wr_data_cam`)                 |
 |-----------------|--------------------------------------------|--------------------------------------------------|
 | Data direction  | DFI return **in** → drain **out** to intake| Fill **in** from intake → commit **out** to DFI  |
 | Movers          | return-fill + drain                        | fill + snarf-stream + commit-drain               |

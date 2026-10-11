@@ -79,7 +79,7 @@
 
 ## Defined Terms
 
-**Bank Timer** — A per-bank JEDEC "safe" timing tracker (`bank_timer`). It is *not* a finite state machine: it is a set of preset/decrement countdown timers (tRCD, tRAS, tRC, tRP, precharge-block) plus a small open-row register and a single auto-precharge bit. The per-command `safe_*` outputs are combinational off the timers (one register stage). `pumice_bank_timers` stamps one instance per (rank, bank).
+**Bank Timer** — A per-bank JEDEC "safe" timing tracker (`bank_timer`). It is *not* a finite state machine: it is a set of preset/decrement countdown timers (tRCD, tRAS, tRC, tRP, precharge-block) plus a small open-row register and a single auto-precharge bit. The per-command `safe_*` outputs are combinational off the timers (one register stage). `mc_bank_timers` stamps one instance per (rank, bank).
 
 **Characterization Knob** — A build-time or runtime CSR field intentionally exposed for performance sweeping during system characterization. Page policy, refresh policy, and address map are the principal knobs in this controller.
 
@@ -99,4 +99,4 @@
 
 **Page Policy** — The strategy for when to close an open row. Static OPEN / CLOSE via `REFRESH_TUNING.page_policy_or`; the runtime idle-timeout mode (`fixed_open`) via `PAGE_POLICY_CFG.policy_mode` in `pumice_page_policy`. The per-command decision is inline in `pumice_cmd_arbiter`.
 
-**Command CAMs** — The two content-addressable buffers that hold in-flight requests between the AXI interface and the scheduler: `pumice_wr_data_cam` (write data buffer + snarf source) and `pumice_rd_cmd_cam` (read reorder buffer). Both store burst data in an SRAM with FIFO-fed / oldest-pick streaming read engines and no active-slot state latch.
+**Command CAMs** — The two content-addressable buffers that hold in-flight requests between the AXI interface and the scheduler: `mc_wr_data_cam` (write data buffer + snarf source) and `mc_rd_cmd_cam` (read reorder buffer). Both store burst data in an SRAM with FIFO-fed / oldest-pick streaming read engines and no active-slot state latch.

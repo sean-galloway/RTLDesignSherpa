@@ -1,6 +1,6 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
 flowchart LR
-    subgraph IN["Inputs (per-bank, from pumice_bank_timers fan-out)"]
+    subgraph IN["Inputs (per-bank, from mc_bank_timers fan-out)"]
         sets["set_act_i / set_rd_i /<br/>set_wr_i / set_pre_i<br/>(rank/bank-gated evt_* strobes)"]
         setap["set_ap_i<br/>(broadcast; auto-precharge bit)"]
         rowi["row_i<br/>(captured on ACT)"]

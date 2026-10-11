@@ -1,6 +1,6 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
 flowchart LR
-    subgraph WR_INTAKE["pumice_wr_intake"]
+    subgraph WR_INTAKE["mc_wr_intake"]
         slave_wr["axi4_slave_wr<br/>(AW/W/B protocol)"]
         aw_meta["aw_meta_fifo<br/>(gaxi_fifo_sync;<br/>err,id,addr)"]
         wd_fifo["wr_data_fifo<br/>(gaxi_fifo_sync;<br/>last,strb,data)"]
@@ -8,19 +8,19 @@ flowchart LR
         map_wr["addr_mapper<br/>(bank_lsb stack + hash,<br/>combinational)"]
     end
 
-    subgraph RD_INTAKE["pumice_rd_intake"]
+    subgraph RD_INTAKE["mc_rd_intake"]
         slave_rd["axi4_slave_rd<br/>(AR/R protocol)"]
         map_rd["addr_mapper<br/>(combinational)"]
         order_fifo["order_fifo<br/>(source: SNARF/DFI, id)"]
         rd_data_fifo["rd_data_fifo<br/>(resp,last,id,data)"]
     end
 
-    subgraph WR_CAM["pumice_wr_data_cam"]
+    subgraph WR_CAM["mc_wr_data_cam"]
         wr_entry["CAM entries<br/>valid,bank,row,col,id,age,<br/>ptr,pv,r_fdone,r_sched"]
         wr_sram["wr-data SRAM<br/>[N_SRAM_SLOTS*BL]<br/>+ strb + occupancy"]
     end
 
-    subgraph RD_CAM["pumice_rd_cmd_cam"]
+    subgraph RD_CAM["mc_rd_cmd_cam"]
         rd_entry["CAM entries<br/>valid,issued,ready,bank,<br/>row,col,id,resp,age,ptr,pv"]
         rd_sram["rd SRAM<br/>[N_SRAM_SLOTS*BL]<br/>+ occupancy"]
     end

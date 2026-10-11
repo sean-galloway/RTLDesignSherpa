@@ -54,7 +54,7 @@ flag rides on top of the demand-path fields. MSB first:
 `CMD_W = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1`. `dram_op_e` is not
 widened — all 16 opcodes were consumed, and MRR never enters the demand
 path. The word is a `gaxi_fifo_sync` data width; the only pack/unpack sites
-are the scheduler layer and `pumice_dfi_cmd_path`, so no external consumer
+are the scheduler layer and `mc_dfi_cmd_path`, so no external consumer
 sees the packing.
 
 The arbiter registers the flag with the decision:
@@ -86,7 +86,7 @@ was needed for ZQ.
 
 ## Contract: read-aligner calibration sideband
 
-**Source.** `rtl/fub/pumice_dfi_rd_aligner.sv` — calibration capture block;
+**Source.** `rtl/fub/mc_dfi_rd_aligner.sv` — calibration capture block;
 CDC owned by `pumice_training_layer`.
 
 | Signal          | Domain   | Direction (aligner) | Contract                                       |

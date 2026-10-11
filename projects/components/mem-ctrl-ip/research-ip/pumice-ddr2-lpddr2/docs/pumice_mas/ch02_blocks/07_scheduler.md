@@ -46,15 +46,15 @@
 
 `pumice_cmd_arbiter` picks one abstract DRAM command each cycle and pushes it into
 the scheduler → DFI command interface. It is PHY/nphases-agnostic and
-single-issue; JEDEC timing is enforced by the per-bank (`pumice_bank_timers`) and
-global (`global_timers`) readiness inputs it consumes. Open-page vs auto-precharge
+single-issue; JEDEC timing is enforced by the per-bank (`mc_bank_timers`) and
+global (`mc_global_timers`) readiness inputs it consumes. Open-page vs auto-precharge
 is decided **inline** from `page_policy_i` — there is no standalone page
 runtime page-policy engine (see [ch02/08](08_page_policy.md)).
 
 The wider `pumice_scheduler_layer` wrapper wires the arbiter to those timers,
 the refresh controller, the init sequencer + mode-register shadow, and an output
 command FIFO; the CAM sched-lookup / oldest / commit / issue ports pass through to
-`pumice_axi4_layer`.
+`mc_axi4_layer`.
 
 ## Priority (each cycle)
 
@@ -256,7 +256,7 @@ path: it is what allows the front end to be relaxed at all.
 
 ## Per-bank ACT/PRE re-issue guard
 
-Because `pumice_bank_timers` register their readiness outputs (a 2-cycle latency
+Because `mc_bank_timers` register their readiness outputs (a 2-cycle latency
 from an `evt` to `act/pre_ready` dropping), a purely combinational arbiter would
 re-issue ACT/PRE to the same bank before the timers reflect it. The arbiter keeps
 a **2-cycle per-bank guard** (`r_guard0`, `r_guard1`; `w_guarded = guard0 |
@@ -271,7 +271,7 @@ just-committed/issued slot from their lookup/oldest ports the next cycle
 (`r_sched` on the write side, `r_issued` on the read side), so the arbiter never
 re-issues the same slot. The shared-DQ-bus
 occupancy (a BL burst owns the DQ bus for `BL/DFI_RATE` dfi cycles) is a
-`dfi_clk`-domain constraint enforced **downstream** in `pumice_dfi_cmd_path`
+`dfi_clk`-domain constraint enforced **downstream** in `mc_dfi_cmd_path`
 (`COL_BURST_CYC`), not here — the CDC decouples `aclk` command issue from
 `dfi_clk` DQ timing.
 
@@ -288,7 +288,7 @@ is exactly such a stall, and it produced real tRFC and tRP violations.
 So the invariant is inverted: the data is made to lead the command, and nothing
 downstream ever has to wait. Four mechanisms, all landed 2026-09-09:
 
-1. **Rate-matched commit.** `pumice_wr_data_cam` only accepts a commit when the
+1. **Rate-matched commit.** `mc_wr_data_cam` only accepts a commit when the
    DFI write-data path has room for it, evaluated at **decision time** rather
    than after the fact (`WR_DRAIN_AHEAD`, with the occupancy counter
    registered). An earlier version predicated on the *current* occupancy and,
@@ -300,7 +300,7 @@ downstream ever has to wait. Four mechanisms, all landed 2026-09-09:
    by `+CMD_DELAY`. `CMD_DELAY = 0` selects the automatic
    `5 + 2 * BURST_WORDS`, which is the write-data lead a burst needs; a fixed 6
    was not enough at BL8.
-3. **Staged-token gate as a checked invariant.** `pumice_dfi_cmd_path` still
+3. **Staged-token gate as a checked invariant.** `mc_dfi_cmd_path` still
    holds a write command until its data is staged, but with (1) and (2) in
    place that gate should never engage. It is instrumented rather than trusted:
    the block counts the cycles it holds and the throughput tests assert the
@@ -359,8 +359,8 @@ The macro instantiates, on a single `aclk`:
 | `u_init`          | `init_sequencer`     | JEDEC MRS init; gates traffic until `init_done`   |
 | `u_mode_reg`      | `mode_register`      | MRS-updated CL/CWL/BL shadow → `cl_o/cwl_o/bl_o`  |
 | `u_refresh`       | `refresh_ctrl`       | tREFI + postpone; enabled after init              |
-| `u_bank_timers`   | `pumice_bank_timers` | per-(rank,bank) safe timers + open-row            |
-| `u_global_timers` | `global_timers`      | tFAW/tRRD (per-rank), tWTR/tRTW/tCCD (global)     |
+| `u_bank_timers`   | `mc_bank_timers` | per-(rank,bank) safe timers + open-row            |
+| `u_global_timers` | `mc_global_timers`      | tFAW/tRRD (per-rank), tWTR/tRTW/tCCD (global)     |
 | `u_arbiter`       | `pumice_cmd_arbiter` | the pick core (above)                             |
 | `u_cmd_fifo`      | `gaxi_fifo_sync`     | output command FIFO, packs `{op,rank,bank,row,col,ap}` (`CMD_W = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1`, depth `CMD_FIFO_DEPTH=8`) |
 

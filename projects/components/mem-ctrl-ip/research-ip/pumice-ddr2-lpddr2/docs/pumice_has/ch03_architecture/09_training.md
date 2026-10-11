@@ -167,7 +167,7 @@ never enters the demand path. Instead MRR rides the existing `OP_MRS` as a new
   latches the requester's `trn_cmd_mrr_i` into the command word.
 - The scheduler's output cmd FIFO word grows by one bit to
   `{mrr, ap, col, row, bank, rank, op}` (pack site `pumice_scheduler_layer.sv`,
-  unpack site `pumice_dfi_cmd_path.sv`). Demand commands simply carry `mrr = 0`.
+  unpack site `mc_dfi_cmd_path.sv`). Demand commands simply carry `mrr = 0`.
 - In `dfi_cmd_formatter`'s `OP_MRS` branch, `cmd_mrr_i` drives **CA3r**: MRW and
   MRR share the same MA/OP field packing — MA[7:0] on
   `{CA1f, CA0f, CA9r..CA4r}` — and MRR is MRW with CA3r inverted, bit-exact to
@@ -177,7 +177,7 @@ never enters the demand path. Instead MRR rides the existing `OP_MRS` as a new
   those encodings remain NOP at the formatter's default branch — LPDDR2 ZQ is
   pure MRW.
 
-On the return side, `pumice_dfi_rd_aligner` gains a calibration capture sideband
+On the return side, `mc_dfi_rd_aligner` gains a calibration capture sideband
 in the `dfi_clk` domain: a single-cycle `cal_expect_i` arms a capture register;
 the first `dfi_rddata_valid` beat is latched into `cal_data_o` (full DFI read
 width, held until the next arm) with a one-cycle `cal_valid_o` pulse, and the

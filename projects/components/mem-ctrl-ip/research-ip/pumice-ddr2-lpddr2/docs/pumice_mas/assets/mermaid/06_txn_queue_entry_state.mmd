@@ -1,6 +1,6 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
 classDiagram
-    note "txn_queue is RETIRED.\nTransaction state now lives as per-slot fields\nin the two CAMs (pumice_wr_data_cam / pumice_rd_cmd_cam).\nStreaming readers are beat-counter movers, NOT slot-state FSMs."
+    note "txn_queue is RETIRED.\nTransaction state now lives as per-slot fields\nin the two CAMs (mc_wr_data_cam / mc_rd_cmd_cam).\nStreaming readers are beat-counter movers, NOT slot-state FSMs."
 
     class pumice_wr_data_cam_entry {
         r_valid : entry occupied

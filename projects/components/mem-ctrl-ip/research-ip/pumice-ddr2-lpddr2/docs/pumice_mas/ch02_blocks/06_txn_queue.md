@@ -29,12 +29,12 @@
 > **never built as a separate block**. The scheduling-view function it was meant
 > to provide is delivered directly by the two command CAMs:
 >
-> - **Pending writes** live in [`pumice_wr_data_cam`](05_wr_cmd_cam.md) —
+> - **Pending writes** live in [`mc_wr_data_cam`](05_wr_cmd_cam.md) —
 >   `{bank, row, col}` key, free-running age, and the burst data in SRAM.
-> - **Pending reads** live in [`pumice_rd_cmd_cam`](04_rd_cmd_cam.md) —
+> - **Pending reads** live in [`mc_rd_cmd_cam`](04_rd_cmd_cam.md) —
 >   `{bank, row}` key, free-running age, per-entry return buffering.
 > - **Per-direction completion** is FIFO-based in the intakes
->   ([`pumice_wr_intake` / `pumice_rd_intake`](02_axi4_slave.md)): the write B
+>   ([`mc_wr_intake` / `mc_rd_intake`](02_axi4_slave.md)): the write B
 >   FIFO and the read order + rd-data FIFOs.
 >
 > This chapter is retained to document *where the queue's responsibilities went*

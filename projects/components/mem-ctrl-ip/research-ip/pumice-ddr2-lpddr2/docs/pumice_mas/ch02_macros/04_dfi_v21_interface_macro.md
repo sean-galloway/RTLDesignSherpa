@@ -31,7 +31,7 @@
 
 `pumice_core` consumes the common `mc_dfi_2p1_layer` directly; there is no pumice-specific DFI wrapper. The common layer translates the controller-clock command, write-data, and read-data streams into DFI v2.1 pins and holds the single controller-to-PHY clock-domain crossing.
 
-Until 2026-10-09 pumice used a local `pumice_dfi_cmd_path` / `pumice_dfi_cdc` / `pumice_dfi_wr_serializer` / `pumice_dfi_rd_aligner` stack, corresponding to the old `dfi_v21_interface_macro`; the Phase-2 extraction moved that logic into `mc_dfi_2p1_layer`.
+Until 2026-10-09 pumice used a local `mc_dfi_cmd_path` / `mc_dfi_cdc` / `mc_dfi_wr_serializer` / `mc_dfi_rd_aligner` stack, corresponding to the old `dfi_v21_interface_macro`; the Phase-2 extraction moved that logic into `mc_dfi_2p1_layer`.
 
 The common DFI 2.1 microarchitecture is documented in [Chapter 7 of the common MAS](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md); the family layer-stack and descriptor-seam architecture are defined in the [common HAS](../../../../../common-ip/docs/common_has/common_has_index.md).
 

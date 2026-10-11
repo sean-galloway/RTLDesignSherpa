@@ -27,8 +27,8 @@
 > slave face -- what's supported, what's relaxed, what's omitted, and the
 > timing / ordering / backpressure semantics the integrator can rely on.
 >
-> The interface is implemented by `pumice_axi4_layer` (section 2.1): a pair of
-> AMBA burst splitters feed the dumb `pumice_wr_intake` / `pumice_rd_intake`
+> The interface is implemented by `mc_axi4_layer` (section 2.1): a pair of
+> AMBA burst splitters feed the dumb `mc_wr_intake` / `mc_rd_intake`
 > blocks (each wrapping `axi4_slave_wr` / `axi4_slave_rd`), which push into the
 > write / read CAMs.
 
@@ -99,11 +99,11 @@ originates in the intake FIFOs and CAM fill:
 
 | Channel | Backpressure reason                                                            |
 |---------|--------------------------------------------------------------------------------|
-| AW      | AW-meta FIFO full in `pumice_wr_intake`, or `pumice_wr_data_cam` has no free slot |
+| AW      | AW-meta FIFO full in `mc_wr_intake`, or `mc_wr_data_cam` has no free slot |
 | W       | Write-data FIFO / write-data SRAM full in the write path                        |
-| AR      | `pumice_rd_cmd_cam` has no free slot                                            |
+| AR      | `mc_rd_cmd_cam` has no free slot                                            |
 | B       | Standard `bready` handshake                                                     |
-| R       | Standard `rready` handshake; the drain mover in `pumice_rd_cmd_cam` stalls until `rready` |
+| R       | Standard `rready` handshake; the drain mover in `mc_rd_cmd_cam` stalls until `rready` |
 
 Total in-flight depth per direction is set by `NUM_ENTRIES` (CAM depth) with
 `N_SRAM_SLOTS` burst-data SRAM slots per CAM.
@@ -118,7 +118,7 @@ Total in-flight depth per direction is set by `NUM_ENTRIES` (CAM depth) with
 
 ## Read-Your-Write Forwarding (snarf)
 
-`pumice_rd_intake` probes `pumice_wr_data_cam` before a read is scheduled. On a
+`mc_rd_intake` probes `mc_wr_data_cam` before a read is scheduled. On a
 hit against an unscheduled write with the same id and same burst length, the
 read is streamed straight from the write CAM's SRAM (the **snarf mover**) with
 no DRAM round-trip. On a miss the read goes through the normal DRAM path.

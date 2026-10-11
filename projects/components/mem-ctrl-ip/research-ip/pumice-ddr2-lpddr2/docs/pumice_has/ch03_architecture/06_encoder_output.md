@@ -23,7 +23,7 @@
 
 # Command Formatter and Signal Pack
 
-Two modules translate the scheduler's abstract command into DFI wire signals: `dfi_cmd_formatter` (memtype-specific encoding and phase placement) and `dfi_signal_pack` (the final registered pipeline stage). `dfi_cmd_formatter` is instantiated inside `pumice_dfi_cmd_path` in the DFI layer.
+Two modules translate the scheduler's abstract command into DFI wire signals: `dfi_cmd_formatter` (memtype-specific encoding and phase placement) and `dfi_signal_pack` (the final registered pipeline stage). `dfi_cmd_formatter` is instantiated inside `mc_dfi_cmd_path` in the DFI layer.
 
 ## `dfi_cmd_formatter`
 

@@ -58,16 +58,16 @@ from kmaps.writer import KmapWriter  # noqa: E402
 # the text that line carried when the map was written. Generation fails if
 # the RTL moved under a quote -- a stale citation reads as evidence.
 CITES = [
-    ('projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv', 88, ');'),
-    ('projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv', 96, 'logic w_ap_fire;'),
-    ('projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv', 106, "else if (r_rcd != '0)  r_rcd <= r_rcd - 1'b1;"),
-    ('projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv', 115, 'if (set_pre_i || w_ap_fire) r_rp <= t_rp_i;'),
-    ('projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv', 116, "else if (r_rp != '0)        r_rp <= r_rp - 1'b1;"),
-    ('projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv', 120, 'else if (set_wr_i)         r_preblk <= t_wr_i;'),
-    ('projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv', 133, "r_ap_pending <= 1'b0;"),
-    ('projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv', 135, 'r_ap_pending <= set_ap_i;'),
-    ('projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv', 138, ')'),
-    ('projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv', 144, "assign safe_rd_o  = r_row_valid && (r_rcd == '0) && !r_ap_pe"),
+    ('projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_bank_timer.sv', 88, ');'),
+    ('projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_bank_timer.sv', 96, 'logic w_ap_fire;'),
+    ('projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_bank_timer.sv', 106, "else if (r_rcd != '0)  r_rcd <= r_rcd - 1'b1;"),
+    ('projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_bank_timer.sv', 115, 'if (set_pre_i || w_ap_fire) r_rp <= t_rp_i;'),
+    ('projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_bank_timer.sv', 116, "else if (r_rp != '0)        r_rp <= r_rp - 1'b1;"),
+    ('projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_bank_timer.sv', 120, 'else if (set_wr_i)         r_preblk <= t_wr_i;'),
+    ('projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_bank_timer.sv', 133, "r_ap_pending <= 1'b0;"),
+    ('projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_bank_timer.sv', 135, 'r_ap_pending <= set_ap_i;'),
+    ('projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_bank_timer.sv', 138, ')'),
+    ('projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_bank_timer.sv', 144, "assign safe_rd_o  = r_row_valid && (r_rcd == '0) && !r_ap_pe"),
     ('projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv', 300, '// enforced HERE; everything upstream is advisory.'),
     ('projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv', 302, '// A rejected pick is DROPPED, never held. Holding it would '),
     ('projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv', 346, '//  - an in-flight (registered) ACT/PRE keeps ITS bank guard'),
@@ -823,18 +823,18 @@ def build_read_path_sheet(wb):
 
     _sec("TERM LIST", ("term", "defining expression", "citation"), (26, 60, 44), [
         ("fub_arvalid/arready", "AR skid-buffer head handshake",
-         "pumice_rd_intake.sv (axi4_slave_rd instance)"),
+         "mc_rd_intake.sv (axi4_slave_rd instance)"),
         ("snarf_probe_*", "address presented to the wr CAM for RAW lookup",
-         "pumice_rd_intake.sv snarf_probe_* assigns"),
+         "mc_rd_intake.sv snarf_probe_* assigns"),
         ("snarf_hit_i (w_hit)", "REGISTERED hit; belongs to whatever was probed LAST cycle",
-         "pumice_wr_data_cam.sv (r_sp_* probe registers -> snarf_hit_o)"),
+         "mc_wr_data_cam.sv (r_sp_* probe registers -> snarf_hit_o)"),
         ("r_s_valid", "AR staged for admit; its probe went out last cycle",
-         "pumice_rd_intake.sv admit stage"),
+         "mc_rd_intake.sv admit stage"),
         ("w_can_admit", "w_ord_wr_ready && (w_hit ? 1 : ar_push_ready_i)",
-         "pumice_rd_intake.sv"),
-        ("w_admit", "r_s_valid && w_can_admit", "pumice_rd_intake.sv"),
+         "mc_rd_intake.sv"),
+        ("w_admit", "r_s_valid && w_can_admit", "mc_rd_intake.sv"),
         ("RD_RET_DEPTH", "read return ring ticket count (reads in flight)",
-         "pumice_rd_return_ring.sv, pumice_top.sv parameter"),
+         "mc_rd_return_ring.sv, pumice_top.sv parameter"),
     ])
 
     _sec("INVARIANTS -- why only these terms", ("invariant", "why it holds"), (58, 78), [
@@ -1110,7 +1110,7 @@ def data_path_sheets(wb):
                         "independently. RTL STATUS 2026-09-10: IMPLEMENTED. commit_done_valid_o is "
                         "strobed from the drain head's CARRIED agg/slast tag (w_cm_fire && "
                         "w_hd_blast && (!w_hd_agg || w_hd_slast)); no per-bank outstanding flag "
-                        "exists in the write CAM at all. (pumice_wr_data_cam.sv:624-627)").font = KM_NOTE
+                        "exists in the write CAM at all. (mc_wr_data_cam.sv:624-627)").font = KM_NOTE
 
     # --- Sheet 3: read-data return -------------------------------------
     ws = wb.create_sheet("RD_RETURN")
@@ -1164,13 +1164,13 @@ def data_path_sheets(wb):
     r = _km_title(ws,
         "tag-based, recoverable read return -- fail-safe not fail-wedge",
         "RTL STATUS 2026-09-10: PARTLY ADDRESSED, hazard STANDS. "
-              "pumice_rd_return_ring now allocates a ticket per read at admit (AR order) "
+              "mc_rd_return_ring now allocates a ticket per read at admit (AR order) "
               "and drains from the ring head, which decoupled CAM occupancy from the "
               "return. But the RETURN itself is still POSITIONAL: a returning beat lands "
               "in the issue_q HEAD's slot because DRAM carries no tag back, and there is "
               "still no length check, so a short or lost burst still desyncs every later "
               "read. IDEAL unchanged: carry a read TAG end to end and length-check. "
-              "(pumice_rd_return_ring.sv:122-134)")
+              "(mc_rd_return_ring.sv:122-134)")
     cols = ["mechanism today", "failure it causes", "ideal (tagged)", "recovers?"]
     _km_hdr_row(ws, r, cols, widths=[30,30,30,10]); r += 1
     for x in [
@@ -1268,7 +1268,7 @@ def write_path_sheets(wb):
          "same-bank WR spaced by tCCD -> drain paced", "dfi wr_fire spacing"],
         ["serializer owed vs wrdata desync", "dfi_wr_serializer positional r_owed",
          "wr_fire without matching wrdata (or vice versa)", "r_owed vs wd_valid"],
-        ["wrdata CDC FIFO empty/full", "pumice_dfi_cdc wrdata FIFO",
+        ["wrdata CDC FIFO empty/full", "mc_dfi_cdc wrdata FIFO",
          "wrdata not keeping pace with wr_fire", "cdc wrdata occupancy"],
         ["B-consolidation backpressure", "commit_done agg/slast gating",
          "a split burst's B never completes -> slot not evicted", "commit_done/agg/slast"],
@@ -1429,8 +1429,8 @@ def build_arbiter_sheet(wb):
           'w_tccd_fwd_ok -- FORWARD tCCD at classify time, not the flopped tccd_ok_i',
           'pumice_cmd_arbiter.sv:420-432'),
          ('twtr_ok',
-          'twtr_ok_i -- write-to-read turnaround, from global_timers',
-          'global_timers.sv'),
+          'twtr_ok_i -- write-to-read turnaround, from mc_global_timers',
+          'mc_global_timers.sv'),
          ('dbl_issue',
           '(f_ap(rb) && w_col_inflight_bank[rb]) | w_rd_col_inflight_ent[e]',
           'pumice_cmd_arbiter.sv:361-371,383-385'),

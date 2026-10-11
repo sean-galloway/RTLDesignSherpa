@@ -41,24 +41,26 @@ pumice_top_geared (rtl/top/pumice_top_geared.sv)   -- OPTIONAL host-width wrappe
   |- pumice_top (rtl/top/pumice_top.sv)
        |- pumice_csr (regs/generated/rtl/, PeakRDL passthrough cpuif)
        |- pumice_core (rtl/top/pumice_core.sv)
-            |- pumice_axi4_layer          (rtl/macro/pumice_axi4_layer.sv)
-            |- pumice_scheduler_layer (rtl/macro/pumice_scheduler_layer.sv)
+            |- mc_axi4_layer            (common-ip/rtl/macro/mc_axi4_layer.sv)
+            |- mc_storage_layer         (common-ip/rtl/macro/mc_storage_layer.sv)
+            |- pumice_scheduler_layer   (rtl/macro/pumice_scheduler_layer.sv)
             |- pumice_training_layer    (rtl/macro/pumice_training_layer.sv, LPDDR2 cal/training)
-            |- pumice_dfi_layer         (rtl/macro/pumice_dfi_layer.sv)
+            |- mc_dfi_2p1_layer         (common-ip/rtl/macro/mc_dfi_2p1_layer.sv)
 ```
 
-`pumice_core` wires the four macros, built bottom-up:
+`pumice_core` wires the five macros, built bottom-up:
 
 | Macro (module)             | Role                                                          | Chapter |
 |----------------------------|---------------------------------------------------------------|---------|
-| `pumice_axi4_layer`          | Host AXI4 slave + burst splitters + write/read CAMs + snarf    | 2.1     |
+| `mc_axi4_layer`          | Host AXI4 slave + burst splitters + read-return ring + snarf   | 2.1     |
+| `mc_storage_layer`       | Write-data CAM + read-command CAM + scheduling window          | 2.3     |
 | `pumice_scheduler_layer` | Arbiter + per-bank/global timers + refresh + init + mode reg   | 2.2     |
 | `pumice_training_layer`  | ZQ calibration + DQ-cal (MRR) sequencer + `trn_cmd` mux + cal CDC (LPDDR2 only) | 2.5 |
-| `pumice_dfi_layer`         | Single async-FIFO CDC + DFI-clock command/write/read datapath  | 2.4     |
+| `mc_dfi_2p1_layer`         | Single async-FIFO CDC + DFI-clock command/write/read datapath  | 2.4     |
 
 The data path is **not** a standalone macro. Write and read burst buffers live
-in the CAMs inside `pumice_axi4_layer` (SRAM-backed, de-FSM'd streaming readers);
-the DFI-clock serializer / aligner live in `pumice_dfi_layer`. Section 2.3
+in the CAMs inside `mc_axi4_layer` (SRAM-backed, de-FSM'd streaming readers);
+the DFI-clock serializer / aligner live in `mc_dfi_2p1_layer`. Section 2.3
 documents this split in place of the old `data_path_macro`.
 
 Configuration (timings, DFI phases, page policy, address map) is delivered to
@@ -68,15 +70,15 @@ cpuif -- software programs every timing/phase/policy through the register bus.
 
 ## Read / Write Datapath: AXI -> split -> intake -> CAM
 
-The host AXI4 face is `pumice_axi4_layer`. Each host burst is first split at
+The host AXI4 face is `mc_axi4_layer`. Each host burst is first split at
 DRAM-burst-byte boundaries by the shared `axi_master_wr_splitter` /
 `axi_master_rd_splitter` (one DRAM burst per split command), then handed to the
 dumb 1:1 intakes:
 
-- `pumice_wr_intake` (`axi4_slave_wr` + AW-meta FIFO + wr-data FIFO + `addr_mapper`)
-  pushes `(bank, row, col, id)` plus write data into `pumice_wr_data_cam`.
-- `pumice_rd_intake` (`axi4_slave_rd` + `addr_mapper` + snarf probe) pushes
-  `(bank, row, col, id)` into `pumice_rd_cmd_cam`, and probes the write CAM for
+- `mc_wr_intake` (`axi4_slave_wr` + AW-meta FIFO + wr-data FIFO + `addr_mapper`)
+  pushes `(bank, row, col, id)` plus write data into `mc_wr_data_cam`.
+- `mc_rd_intake` (`axi4_slave_rd` + `addr_mapper` + snarf probe) pushes
+  `(bank, row, col, id)` into `mc_rd_cmd_cam`, and probes the write CAM for
   read-your-write forwarding.
 
 The salient property: there is exactly **one** stage where AXI-layer concepts
@@ -92,8 +94,8 @@ lifetimes**:
 
 | CAM                  | Key         | Data / storage                                                          | Retired on           |
 |----------------------|-------------|-------------------------------------------------------------------------|----------------------|
-| `pumice_wr_data_cam` | (bank, row) | (col, id, age, slot) + write-data SRAM; fill/commit-drain/snarf movers  | commit-done (B push) |
-| `pumice_rd_cmd_cam`  | (bank, row) | (col, id, age, slot) + read-return SRAM; return-fill/drain movers       | last drained R beat  |
+| `mc_wr_data_cam` | (bank, row) | (col, id, age, slot) + write-data SRAM; fill/commit-drain/snarf movers  | commit-done (B push) |
+| `mc_rd_cmd_cam`  | (bank, row) | (col, id, age, slot) + read-return SRAM; return-fill/drain movers       | last drained R beat  |
 
 A single unified CAM would either carry both data sets (the write CAM needs a
 write-data SRAM the read CAM does not) or force an awkward "is_write" predicate
@@ -107,9 +109,9 @@ active/slot state latch. The `r_fdone` fill-complete flag gates schedulability
 
 ### Snarf (read-your-write forwarding)
 
-`pumice_rd_intake` probes the write CAM before scheduling a read. On a hit the
+`mc_rd_intake` probes the write CAM before scheduling a read. On a hit the
 read is streamed directly from the write CAM's SRAM via the **snarf mover** in
-`pumice_wr_data_cam` -- there is no standalone `wr2rd_forward` block in the live
+`mc_wr_data_cam` -- there is no standalone `wr2rd_forward` block in the live
 path. Snarf is limited to unscheduled writes with the same id and same burst
 length.
 
@@ -121,9 +123,9 @@ length.
 there is no separate `page_predictor` in the issue path), and emits a single
 abstract DRAM command `{op, rank, bank, row, col, ap}` into an output command
 FIFO. The scheduler is single-issue, PHY/nphases-agnostic, and runs entirely on
-`aclk`. Per-bank JEDEC readiness is stamped by `pumice_bank_timers` (wrapping
+`aclk`. Per-bank JEDEC readiness is stamped by `mc_bank_timers` (wrapping
 the FSM-free `bank_timer`); cross-bank turnaround windows
-(tFAW/tRRD/tWTR/tRTW/tCCD) come from `global_timers`.
+(tFAW/tRRD/tWTR/tRTW/tCCD) come from `mc_global_timers`.
 
 ## Clocking Topology
 
@@ -134,7 +136,7 @@ Two external clocks; exactly one CDC.
 | `aclk`    | Host AXI, burst splitters, both CAMs, and the whole command scheduler   |
 | `dfi_clk` | DFI command path, write serializer, read aligner, DFI 2.1 pin bus       |
 
-The single CDC lives inside `pumice_dfi_layer` (`pumice_dfi_cdc`) and is built
+The single CDC lives inside `mc_dfi_2p1_layer` (`mc_dfi_cdc`) and is built
 from **async gaxi FIFOs only** -- the command, write-data, and read-data streams
 plus the init handshake cross there. No other clock crossing exists in the
 controller. If the SoC's AXI master is on a different clock than `aclk`, an
@@ -146,9 +148,9 @@ topology.
 The internal data unit is the **DFI word**: `DW = DRAM_BEAT_WIDTH * DFI_RATE`
 (128 by default). One AXI beat == one DFI word == `DFI_RATE` DRAM beats; one AXI
 burst (`BL/DFI_RATE` beats) == one DRAM burst (`BL` beats). The DFI command path
-in `pumice_dfi_layer` phase-packs the abstract command onto the `DFI_RATE`
+in `mc_dfi_2p1_layer` phase-packs the abstract command onto the `DFI_RATE`
 phases, placing the command and CS/ODT on `wr_phase` / `rd_phase` as programmed
-by the `DFI_PHASE` CSR; `pumice_dfi_wr_serializer` and `pumice_dfi_rd_aligner`
+by the `DFI_PHASE` CSR; `mc_dfi_wr_serializer` and `mc_dfi_rd_aligner`
 handle the DFI-word to per-phase data split. The scheduler never sees the phase
 dimension -- its issue rate is one command per `aclk`.
 

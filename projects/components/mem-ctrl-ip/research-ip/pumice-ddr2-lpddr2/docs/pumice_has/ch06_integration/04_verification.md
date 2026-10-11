@@ -33,34 +33,34 @@ Each live FUB gets its own cocotb unit test (see `dv/tests/fub/`):
 
 | Module                      | Test focus                                                             |
 |-----------------------------|------------------------------------------------------------------------|
-| `pumice_wr_intake`          | AW-meta + wr-data FIFO handshakes; backpressure; burst splitting into fixed-BL commands |
-| `pumice_rd_intake`          | AR channel handshakes; address mapping; snarf (read-your-write) probe   |
-| `pumice_wr_data_cam`        | WR CAM fill / commit-drain / snarf movers; `r_fdone` fill-complete gating |
-| `pumice_rd_cmd_cam`         | RD CAM return-fill / drain movers; oldest-first, data-ready gating       |
+| `mc_wr_intake`          | AW-meta + wr-data FIFO handshakes; backpressure; burst splitting into fixed-BL commands |
+| `mc_rd_intake`          | AR channel handshakes; address mapping; snarf (read-your-write) probe   |
+| `mc_wr_data_cam`        | WR CAM fill / commit-drain / snarf movers; `r_fdone` fill-complete gating |
+| `mc_rd_cmd_cam`         | RD CAM return-fill / drain movers; oldest-first, data-ready gating       |
 | `addr_mapper`               | Address translation across `ADDR_MAP.bank_lsb` settings (ROW_MAJOR .. interleave) and hash on/off |
 | `pumice_cmd_arbiter`        | Single-pick priority order; inline open-page decision; refresh prioritization |
-| `pumice_bank_timers` / `bank_timer` | Per-(rank,bank) preset/decrement timers; combinational safe_act/rd/wr/pre readiness |
-| `global_timers`             | tFAW / tRRD / tWTR / tRTW / tCCD against JESD79-2 / JESD209-2 truth tables |
+| `mc_bank_timers` / `bank_timer` | Per-(rank,bank) preset/decrement timers; combinational safe_act/rd/wr/pre readiness |
+| `mc_global_timers`             | tFAW / tRRD / tWTR / tRTW / tCCD against JESD79-2 / JESD209-2 truth tables |
 | `refresh_ctrl`              | tREFI counter; refresh-deferral; refresh request/ack handshake          |
 | `init_sequencer`            | Step-by-step DDR2 and LPDDR2 JEDEC MR init sequences                     |
 | `mode_register`             | CL / CWL / BL / AL decode (DDR2 and LPDDR2 MR2 RL/WL enum)               |
 | `dfi_cmd_formatter`         | Round-trip table tests against JEDEC encoding; LPDDR2 CA-bus branch      |
 | `dfi_signal_pack`           | DW-to-phase split; idle-phase handling                                  |
-| `pumice_dfi_cdc`            | The single async-FIFO clock-domain crossing; bubble-free cmd/wr/rd flow  |
-| `pumice_dfi_wr_serializer`  | CWL alignment; write-data serialization onto DFI phases                  |
-| `pumice_dfi_rd_aligner`     | CL alignment; read-data assembly; back-pressure                          |
+| `mc_dfi_cdc`            | The single async-FIFO clock-domain crossing; bubble-free cmd/wr/rd flow  |
+| `mc_dfi_wr_serializer`  | CWL alignment; write-data serialization onto DFI phases                  |
+| `mc_dfi_rd_aligner`     | CL alignment; read-data assembly; back-pressure                          |
 
 The four macro wrappers and the integration levels are exercised at Layer 2/3:
-`pumice_axi4_layer`, `pumice_scheduler_layer`, `pumice_dfi_layer`, `pumice_core`,
+`mc_axi4_layer`, `pumice_scheduler_layer`, `mc_dfi_2p1_layer`, `pumice_core`,
 and `pumice_top` (the PeakRDL `pumice_csr` register block is verified with the top).
 
 ### Layer 2: Subsystem Tests
 
 Multi-module integration tests, framed around the three macro layers (see `dv/tests/macro/`):
 
-- **AXI interface** (`pumice_axi4_layer` = wr/rd intakes + the two CAMs): full AXI transaction flow with diverse traffic, including read-your-write snarf forwarding
+- **AXI interface** (`mc_axi4_layer` = wr/rd intakes + the two CAMs): full AXI transaction flow with diverse traffic, including read-your-write snarf forwarding
 - **Command scheduler** (`pumice_scheduler_layer` = cmd arbiter + bank/global timers + refresh + init + mode register): scheduler decisions on representative queue contents, inline open-page reordering, refresh interleave
-- **DFI layer** (`pumice_dfi_layer` = single CDC + cmd path + wr serializer + rd aligner): command/data flow across the clock-domain crossing with the DFI BFM slave
+- **DFI layer** (`mc_dfi_2p1_layer` = single CDC + cmd path + wr serializer + rd aligner): command/data flow across the clock-domain crossing with the DFI BFM slave
 
 ### Layer 3: End-to-End with DFI BFM Slave
 

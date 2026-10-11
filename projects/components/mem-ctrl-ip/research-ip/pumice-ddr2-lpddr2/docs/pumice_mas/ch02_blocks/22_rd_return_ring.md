@@ -23,15 +23,15 @@
 
 > **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_axi4_layer`; its microarchitecture is owned by [common_mas mc_axi4_layer — AXI4 host interface and read-return ring](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
 
-# Read Return Ring (`pumice_rd_return_ring`)
+# Read Return Ring (`mc_rd_return_ring`)
 
-**Module:** `pumice_rd_return_ring.sv`
+**Module:** `mc_rd_return_ring.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent:** `pumice_axi4_layer`
+**Parent:** `mc_axi4_layer`
 **Status:** Implemented
 
-> **New block (2026-09-08).** Before it, `pumice_rd_cmd_cam` held a read from
+> **New block (2026-09-08).** Before it, `mc_rd_cmd_cam` held a read from
 > insert all the way to R-drain and buffered the returned data per entry. That
 > made the CAM's entry count the in-flight read limit, and Little's law then
 > bounds read bandwidth: eight entries over a ~27-cycle DRAM round trip is
@@ -69,7 +69,7 @@ FSM-free. The state is:
 | BRAM | the burst data, one slot per in-flight read |
 | fetch pointer + 2-deep skid | runs ahead of head across the synchronous-read BRAM |
 
-The prefetch skid is the same one `pumice_rd_cmd_cam` uses, under the same
+The prefetch skid is the same one `mc_rd_cmd_cam` uses, under the same
 1-cycle BRAM read-latency contract.
 
 ## Interfaces
@@ -79,7 +79,7 @@ The prefetch skid is the same one `pumice_rd_cmd_cam` uses, under the same
 | `alloc_*` | in / out | with the CAM insert, in AR order; returns `alloc_ticket_o` (= ring tail). `alloc_ready_o` is the ring-not-full backpressure that gates AR acceptance |
 | `issue_*` | in | from the CAM when the column issues: pushes the ticket into the issue-order FIFO |
 | `dfi_ret_*` | in | the in-order DFI return stream: data, last, resp |
-| `drain_*` | out | AR-order drain to `pumice_rd_intake` |
+| `drain_*` | out | AR-order drain to `mc_rd_intake` |
 | `occ_o` / `busy_o` | out | occupancy and any-in-flight, for observation |
 
 ## Sizing

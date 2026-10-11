@@ -23,7 +23,7 @@
 
 > **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_dfi_2p1_layer`; its microarchitecture is owned by [common_mas mc_dfi_2p1_layer — DFI 2.1 Command / Write / Read Pipeline](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
 
-# DFI Layer and Host-Width Gearing (`pumice_dfi_layer` + `pumice_top_geared`)
+# DFI Layer and Host-Width Gearing (`mc_dfi_2p1_layer` + `pumice_top_geared`)
 
 **Module:** `mc_dfi_2p1_layer.sv` (common-ip macro) / `pumice_top_geared.sv` (top wrapper)
 **Location:** `projects/components/mem-ctrl-ip/common-ip/rtl/macro/` and `rtl/top/`
@@ -37,7 +37,7 @@
 > the DFI-layer sub-FUBs. This chapter now covers the two live, distinct concepts
 > that carry the word "gearing" in pumice, and it keeps them separate:
 >
-> 1. **The DFI layer** (`pumice_dfi_layer`) — the single controller/PHY
+> 1. **The DFI layer** (`mc_dfi_2p1_layer`) — the single controller/PHY
 >    clock-domain crossing plus the DFI-clock command/write/read datapath. This
 >    is where the internal `DW`-wide word is split into `DFI_RATE` DRAM beats.
 > 2. **Host-width gearing** (`pumice_top_geared`) — an OPTIONAL top wrapper that
@@ -49,11 +49,11 @@
 
 ---
 
-## Concept 1 — The DFI Layer (`pumice_dfi_layer`)
+## Concept 1 — The DFI Layer (`mc_dfi_2p1_layer`)
 
 ### Purpose
 
-`pumice_dfi_layer` presents the controller-clock command/wrdata/rddata streams on
+`mc_dfi_2p1_layer` presents the controller-clock command/wrdata/rddata streams on
 one side and the DFI 2.1 pin bus on the other. It holds the **single**
 controller/PHY clock-domain crossing and the DFI-clock-side datapath. Its
 internal datapath unit is the DFI word (`dfi_wrdata` width = all `DFI_RATE`
@@ -68,16 +68,16 @@ Two clock domains:
 
 ### Internal structure (verified against the RTL)
 
-`pumice_dfi_layer` instantiates exactly four sub-FUBs:
+`mc_dfi_2p1_layer` instantiates exactly four sub-FUBs:
 
 | Sub-FUB                    | Domain    | Role                                                             |
 |----------------------------|-----------|-----------------------------------------------------------------|
-| `pumice_dfi_cdc`           | ctl↔dfi   | The **single** clock crossing — async gaxi FIFOs only (cmd, wrdata, rddata, plus init-start/complete bit crossings) |
-| `pumice_dfi_cmd_path`      | dfi_clk   | cmd FIFO → DFI command bus + `wr_fire`/`rd_fire` strobes; instantiates `dfi_cmd_formatter` (§2.14) and `dfi_signal_pack` |
-| `pumice_dfi_wr_serializer` | dfi_clk   | wrdata FIFO → `dfi_wrdata` at `t_phy_wrlat`                       |
-| `pumice_dfi_rd_aligner`    | dfi_clk   | `dfi_rddata` → rddata FIFO at `t_rddata_en`                      |
+| `mc_dfi_cdc`           | ctl↔dfi   | The **single** clock crossing — async gaxi FIFOs only (cmd, wrdata, rddata, plus init-start/complete bit crossings) |
+| `mc_dfi_cmd_path`      | dfi_clk   | cmd FIFO → DFI command bus + `wr_fire`/`rd_fire` strobes; instantiates `dfi_cmd_formatter` (§2.14) and `dfi_signal_pack` |
+| `mc_dfi_wr_serializer` | dfi_clk   | wrdata FIFO → `dfi_wrdata` at `t_phy_wrlat`                       |
+| `mc_dfi_rd_aligner`    | dfi_clk   | `dfi_rddata` → rddata FIFO at `t_rddata_en`                      |
 
-The CDC (`pumice_dfi_cdc`) is the only place the domains meet; everything
+The CDC (`mc_dfi_cdc`) is the only place the domains meet; everything
 downstream of it runs entirely in `dfi_clk`. The command path emits `wr_fire_o` /
 `rd_fire_o` strobes that time the serializer and aligner relative to the issued
 command.
@@ -208,7 +208,7 @@ bit-identical to the wide-device behavior.
 
 `dfi_cmd_formatter` places the READ command on `rd_phase` and the WRITE command on
 `wr_phase` (defaults 0; all other commands on phase 0), runtime-settable via the
-`DFI_PHASE` CSR through `pumice_dfi_layer`'s `rd_phase_i` / `wr_phase_i`. This
+`DFI_PHASE` CSR through `mc_dfi_2p1_layer`'s `rd_phase_i` / `wr_phase_i`. This
 matches a PHY that consumes a per-command rdphase/wrphase off the DFI bus. The
 LiteDRAM a7ddrphy instead takes the command on phase 0 and applies its rdphase
 internally, so on that PHY `rd_phase` stays 0 — the CSR exists for PHYs that do
@@ -218,7 +218,7 @@ not.
 
 ## Interface Summary
 
-### `pumice_dfi_layer` — controller side (`ctl_clk`)
+### `mc_dfi_2p1_layer` — controller side (`ctl_clk`)
 
 | Signal          | Direction | Description                              |
 |-----------------|-----------|------------------------------------------|
@@ -227,7 +227,7 @@ not.
 | `rd_valid_o` / `rd_ready_i` / `rd_data_o[RD_DW]` | out/in/out | Read data to the RD CAM ({last,resp,data}) |
 | `init_start_i` / `init_complete_o` | in/out | Init handshake, controller side |
 
-### `pumice_dfi_layer` — PHY side (`dfi_clk`)
+### `mc_dfi_2p1_layer` — PHY side (`dfi_clk`)
 
 DFI command bus (`dfi_address_o`, `dfi_bank_o`, `dfi_cas_n_o`, `dfi_ras_n_o`,
 `dfi_we_n_o`, `dfi_cs_n_o`, `dfi_odt_o`), write data (`dfi_wrdata_o`,

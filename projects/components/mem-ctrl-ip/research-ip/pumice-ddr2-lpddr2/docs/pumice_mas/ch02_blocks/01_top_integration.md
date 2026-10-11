@@ -66,13 +66,13 @@ pumice_core
 ├── u_ifc       : pumice_axi4_layer          (host AXI + wr/rd CAMs)          [aclk]
 ├── u_sched     : pumice_scheduler_layer (arbiter + timers + refresh/init)[aclk]
 ├── u_training  : pumice_training_layer    (ZQ + lp_cal + trn_cmd mux + CDC)[aclk→dfi_clk]
-└── u_dfi       : pumice_dfi_layer         (single async CDC + DFI datapath)[aclk→dfi_clk]
+└── u_dfi       : mc_dfi_2p1_layer         (single async CDC + DFI datapath)[aclk→dfi_clk]
 ```
 
 - Host AXI, the scheduler, and both CAMs run on **`aclk`** (`aresetn`).
 - The DFI phase-packer and PHY interface run on **`dfi_clk`** (`dfi_rstn`).
-- The datapath clock crossing is inside `pumice_dfi_layer` (async gaxi FIFOs
-  only); `pumice_dfi_layer` is instantiated with `.ctl_clk(aclk)` /
+- The datapath clock crossing is inside `mc_dfi_2p1_layer` (async gaxi FIFOs
+  only); `mc_dfi_2p1_layer` is instantiated with `.ctl_clk(aclk)` /
   `.ctl_rstn(aresetn)` on the control side and `.dfi_clk` / `.dfi_rstn` on
   the PHY side. The training layer owns a second, sideband-only crossing
   (cal_expect down / captured data up for the read-aligner calibration
@@ -87,9 +87,9 @@ edge concern — the core does not gear internally).
 
 | Instance   | Module                        | Count | Clock              | Role                                            |
 |------------|-------------------------------|-------|--------------------|-------------------------------------------------|
-| `u_ifc`    | `pumice_axi4_layer`             | 1     | `aclk`             | Host AXI4 face; wr-data CAM + rd-cmd CAM        |
+| `u_ifc`    | `mc_axi4_layer`             | 1     | `aclk`             | Host AXI4 face; wr-data CAM + rd-cmd CAM        |
 | `u_sched`  | `pumice_scheduler_layer`    | 1     | `aclk`             | Command arbiter + bank/global timers + refresh + init + mode-register shadow |
-| `u_dfi`    | `pumice_dfi_layer`            | 1     | `aclk` → `dfi_clk` | Single async CDC + DFI cmd/wr/rd datapath       |
+| `u_dfi`    | `mc_dfi_2p1_layer`            | 1     | `aclk` → `dfi_clk` | Single async CDC + DFI cmd/wr/rd datapath       |
 
 There are **no** `generate` fan-out blocks in `pumice_core`. Per-(rank, bank)
 fan-out (the bank timers) happens one level down, inside
@@ -112,8 +112,8 @@ fan-out (the bank timers) happens one level down, inside
    init sequencer and the DFI layer's PHY-init side.
 
 Note the parameter mapping at the IFC boundary: `pumice_core` passes
-`.BL(BL / DFI_RATE)` to `pumice_axi4_layer` (the IFC/CAM view of burst length is in
-DFI words), while `pumice_dfi_layer` receives the full `.BL(BL)` (DRAM beats).
+`.BL(BL / DFI_RATE)` to `mc_axi4_layer` (the IFC/CAM view of burst length is in
+DFI words), while `mc_dfi_2p1_layer` receives the full `.BL(BL)` (DRAM beats).
 
 ## `pumice_top` — CSR + by-name config
 
@@ -157,7 +157,7 @@ list.
 - No clock gating (a synthesis-script concern).
 - No reset synchronization in the top — each layer takes its own domain reset
   (`aresetn` for `aclk` logic, `dfi_rstn` for the PHY domain); the CDC inside
-  `pumice_dfi_layer` owns the cross-domain reset discipline.
+  `mc_dfi_2p1_layer` owns the cross-domain reset discipline.
 
 This intentional poverty makes the top the obvious place for the structural-only
 sanity check: every line is an instantiation, a net declaration, or a

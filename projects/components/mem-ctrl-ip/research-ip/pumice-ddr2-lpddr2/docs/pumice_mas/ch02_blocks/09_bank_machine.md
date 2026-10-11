@@ -21,9 +21,9 @@
 
 <!-- End Header -->
 
-# Bank Timer (`bank_timer` + `pumice_bank_timers`)
+# Bank Timer (`bank_timer` + `mc_bank_timers`)
 
-**Module:** `bank_timer.sv` (per-bank) / `pumice_bank_timers.sv` (aggregator)
+**Module:** `bank_timer.sv` (per-bank) / `mc_bank_timers.sv` (aggregator)
 **Location:** `rtl/fub/`
 **Category:** FUB
 **Parent macro:** `pumice_scheduler_layer`
@@ -34,7 +34,7 @@
 > and the DFI encoder. That block **no longer exists**. Per-bank JEDEC timing
 > is now enforced by `bank_timer.sv` — a set of preset/decrement countdown
 > timers with a trivial row-open register and **no state machine at all**.
-> `pumice_bank_timers.sv` stamps one `bank_timer` per (rank, bank) and fans the
+> `mc_bank_timers.sv` stamps one `bank_timer` per (rank, bank) and fans the
 > scheduler's command-event strobes to the addressed instance.
 >
 > The retirement was deliberate: the old FSM double-registered readiness (state
@@ -60,10 +60,10 @@ The scheduler (`pumice_cmd_arbiter`, the single command issuer in the design)
 drives one `set_*` strobe per issued command. Each timer reloads its config
 value on its trigger; the `safe_*` outputs therefore reflect the just-issued
 command one cycle later. The arbiter ANDs these per-bank `safe_*` signals with
-the channel-wide turnaround windows from `global_timers` (§2.10) to decide
+the channel-wide turnaround windows from `mc_global_timers` (§2.10) to decide
 which command may fire.
 
-`pumice_bank_timers` is a thin aggregator: it instantiates `NUM_RANKS ×
+`mc_bank_timers` is a thin aggregator: it instantiates `NUM_RANKS ×
 NUM_BANKS` copies of `bank_timer` and routes the arbiter's single command-event
 bus (`evt_*` + `evt_rank_i` / `evt_bank_i`) to the one addressed instance. All
 other instances see their `set_*` strobes deasserted that cycle and simply
@@ -80,7 +80,7 @@ continue counting down.
 | `ROW_WIDTH`  | 14      | Width of `open_row_o` register and the `row_i` input            |
 | `TW`         | 8       | Timer width (bits) for all five countdown timers                |
 
-### `pumice_bank_timers`
+### `mc_bank_timers`
 
 | Parameter    | Default             | Effect                                                          |
 |--------------|---------------------|-----------------------------------------------------------------|
@@ -91,7 +91,7 @@ continue counting down.
 | `BKW`        | `clog2(NUM_BANKS)`  | Bank-select width                                              |
 
 There is **no per-instance rank/bank identifier parameter**. Identity comes from
-the genvar position in `pumice_bank_timers`' nested generate loop; the arbiter
+the genvar position in `mc_bank_timers`' nested generate loop; the arbiter
 selects an instance by comparing `evt_rank_i` / `evt_bank_i` against that
 position (`w_sel`). All five timers share the same `TW`-bit width; the
 JEDEC cycle counts are supplied at runtime on the `t_*_i` ports (CSR-backed),
@@ -101,7 +101,7 @@ not fixed as parameters.
 
 ## Instantiation Pattern
 
-From `pumice_bank_timers.sv` — the nested generate that stamps the array:
+From `mc_bank_timers.sv` — the nested generate that stamps the array:
 
 ```systemverilog
 for (genvar k = 0; k < NUM_RANKS; k++) begin : g_rank
@@ -159,13 +159,13 @@ at 0).
 | `r_rp`     | tRP  (PRE → ACT)   | `set_pre_i` OR auto-PRE fire | `t_rp_i`   | `safe_act`     |
 | `r_preblk` | tRTP (RD) / tWR (WR) | `set_rd_i` / `set_wr_i` | `t_rtp_i` / `t_wr_i` | `safe_pre` |
 
-The `t_*_i` reload values are supplied by the parent (`pumice_bank_timers`
+The `t_*_i` reload values are supplied by the parent (`mc_bank_timers`
 forwards its own 8-bit `t_*_i` inputs, which are CSR-backed JEDEC timing
 fields). They are sampled live on each reload — the timer does not stage them.
 
 **Note:** the retired FSM's separate `t_cl_cnt` / `t_cwl_cnt` (column-busy
 windows) are **gone**. Column-to-column pacing (tCCD) and the read-drives-DQ /
-write-recovery windows are enforced globally in `global_timers` (tCCD/tWTR/tRTW)
+write-recovery windows are enforced globally in `mc_global_timers` (tCCD/tWTR/tRTW)
 and, for the write-recovery-before-precharge case, folded into the `r_preblk`
 timer here. There is no per-bank "RD_BUSY / WR_BUSY" occupancy state anymore.
 
@@ -211,7 +211,7 @@ flop and one AND gate.
 **Open-page behavior.** A bare RD/WR (with `set_ap_i` low) only reloads
 `r_preblk` and leaves `r_row_valid` set, so the row stays open. Successive
 column commands to the open row stream at the channel-wide tCCD rate enforced by
-`global_timers`; the bank timer imposes no additional per-column pacing.
+`mc_global_timers`; the bank timer imposes no additional per-column pacing.
 
 ---
 
@@ -264,7 +264,7 @@ and the auto-pre bit: `obs_rcd_nz_o`, `obs_preblk_nz_o`, `obs_ras_nz_o`,
 
 ---
 
-## Interface (`pumice_bank_timers`)
+## Interface (`mc_bank_timers`)
 
 ### Clocks / Reset
 
@@ -358,7 +358,7 @@ stage deep, versus the retired FSM's two (state + accepts).
   timers; `TW` is already a parameter, so this is a re-elaboration, not a rework.
 - **Per-bank vs shared tRC.** tRC is enforced per bank here. If a future family
   needs same-bank-group tRC differentiation (DDR4 bank groups), that logic would
-  land in `global_timers`, not here — `bank_timer` stays bank-local by design.
+  land in `mc_global_timers`, not here — `bank_timer` stays bank-local by design.
 - **Auto-PRE vs explicit PRE priority.** The RTL priority is ACT > explicit PRE >
   auto-PRE. If the arbiter ever issued an explicit PRE to a bank with a pending
   auto-PRE, the explicit PRE wins and `r_ap_pending` clears. The arbiter does not

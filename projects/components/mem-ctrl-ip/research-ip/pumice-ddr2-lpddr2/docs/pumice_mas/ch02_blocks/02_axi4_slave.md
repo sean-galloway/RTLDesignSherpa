@@ -26,17 +26,17 @@
 # AXI4 Slave + Intakes (`axi4_slave_wr` / `axi4_slave_rd`)
 
 **Modules:** `axi4_slave_wr` / `axi4_slave_rd` (repo AMBA IP) inside
-`pumice_wr_intake` / `pumice_rd_intake`
+`mc_wr_intake` / `mc_rd_intake`
 **Location:** intakes in `rtl/fub/`; slaves in the shared AMBA library
 **Category:** FUB (intakes)
-**Parent:** `pumice_axi4_layer`
+**Parent:** `mc_axi4_layer`
 **Status:** Implemented
 
 > **Rearchitected:** the SWAG had a single `axi4_slave_fub` that also owned
 > transaction state and an R-emit FSM. That block is retired. In the live design
 > the AXI4 protocol engine is the repo's `axi4_slave_wr` / `axi4_slave_rd` skid
-> IP, and each is wrapped by a thin **intake** FUB (`pumice_wr_intake`,
-> `pumice_rd_intake`) that is FIFO-based and FSM-free. All in-flight transaction
+> IP, and each is wrapped by a thin **intake** FUB (`mc_wr_intake`,
+> `mc_rd_intake`) that is FIFO-based and FSM-free. All in-flight transaction
 > state lives downstream in the two CAMs (see [ch02/04](04_rd_cmd_cam.md),
 > [ch02/05](05_wr_cmd_cam.md)).
 
@@ -50,18 +50,18 @@ two layers each:
 - **`axi4_slave_wr` / `axi4_slave_rd`** — the repo's standard AXI4 slave skid
   buffers. They do the channel handshakes, provide `SKID_DEPTH_*` buffering, and
   present a clean post-skid "fub" face (`fub_axi_*`).
-- **`pumice_wr_intake` / `pumice_rd_intake`** — the pumice-specific intake FUBs
+- **`mc_wr_intake` / `mc_rd_intake`** — the pumice-specific intake FUBs
   that sit on the post-skid face. They decode the burst address via
   `addr_mapper`, push a decoded command downstream to a CAM, stream write/read
   data through FIFOs, and return B/R responses.
 
-Ahead of both intakes, `pumice_axi4_layer` places the repo's
+Ahead of both intakes, `mc_axi4_layer` places the repo's
 `axi_master_wr_splitter` / `axi_master_rd_splitter` so that each burst delivered
 to an intake is **exactly one DRAM burst** (aligned to `DRAM_BURST_BYTES =
 BL * DRAM_BEAT_WIDTH/8`). The intakes therefore assume "one AXI burst == one DFI
 burst" and carry no burst-splitting logic.
 
-## `pumice_wr_intake` — structure
+## `mc_wr_intake` — structure
 
 Exactly three things plus the address decoder, per the locked µarch spec:
 
@@ -106,7 +106,7 @@ simulation `$error` fires when `RAGGED_ASSERT != 0` (a guardrail under
 `translate_off`); a companion assertion catches a B-push collision between the
 err path and a same-cycle `wr_done`.
 
-## `pumice_rd_intake` — structure
+## `mc_rd_intake` — structure
 
 Mirror of the write intake, plus the read **snarf** path:
 

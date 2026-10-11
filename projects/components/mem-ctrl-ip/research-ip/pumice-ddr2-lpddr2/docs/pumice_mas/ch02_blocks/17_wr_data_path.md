@@ -23,24 +23,24 @@
 
 > **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_storage_layer`; its microarchitecture is owned by [common_mas mc_storage_layer — Storage Layer and Entry-Pool FUBs](../../../../../common-ip/docs/common_mas/ch03_storage_layer/01_mc_storage_layer.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
 
-# Write Data Path (`pumice_wr_data_cam` + `pumice_dfi_wr_serializer`)
+# Write Data Path (`mc_wr_data_cam` + `mc_dfi_wr_serializer`)
 
-**Modules:** `pumice_wr_data_cam.sv`, `pumice_dfi_wr_serializer.sv`
+**Modules:** `mc_wr_data_cam.sv`, `mc_dfi_wr_serializer.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parents:** `pumice_axi4_layer` (CAM), `pumice_dfi_layer` (serializer)
+**Parents:** `mc_storage_layer` (CAM), `mc_dfi_2p1_layer` (serializer)
 **Status:** implemented
 
 > The old single-block `wr_beat_sequencer` / `wr_data_path_fub` no longer
 > exists. In the rearchitected controller the write data path is split
 > across two clock domains and two FUBs:
 >
-> - `pumice_wr_data_cam` (MC domain, inside `pumice_axi4_layer`) — a
+> - `mc_wr_data_cam` (MC domain, inside `mc_storage_layer`) — a
 >   write-command CAM plus a wr-data SRAM with three de-FSM'd movers.
-> - `pumice_dfi_wr_serializer` (DFI domain, inside `pumice_dfi_layer`) —
+> - `mc_dfi_wr_serializer` (DFI domain, inside `mc_dfi_2p1_layer`) —
 >   a purely mechanical DFI-word streamer that drives `dfi_wrdata`.
 >
-> The single clock-domain crossing between them is `pumice_dfi_cdc`
+> The single clock-domain crossing between them is `mc_dfi_cdc`
 > (async gaxi FIFOs). This chapter documents both halves.
 
 > Architectural context: HAS §3.7 and `_SWEEP_GROUND_TRUTH.md` §8. Both
@@ -58,21 +58,21 @@ channels, holds it while the scheduler picks a moment to commit it to
 DRAM, and — when the DFI layer is ready — streams it onto the DFI write
 bus one DFI word per cycle.
 
-`pumice_wr_data_cam` is the MC-domain staging structure. It stores each
+`mc_wr_data_cam` is the MC-domain staging structure. It stores each
 pending write's key `{bank, row, col}`, its AXI id, a free-running age,
 and the burst's beats in an SRAM slot. It exposes associative query ports
 so the `pumice_cmd_arbiter` can find row-hit writes, an oldest-entry port
 as a scheduler fallback, and a snarf (read-your-write) forwarding port for
-`pumice_rd_intake`. On commit it drains the SRAM slot into the DFI layer.
+`mc_rd_intake`. On commit it drains the SRAM slot into the DFI layer.
 
-`pumice_dfi_wr_serializer` is the DFI-domain endpoint. On a WR command
+`mc_dfi_wr_serializer` is the DFI-domain endpoint. On a WR command
 strobe (`wr_fire_i`) it waits `t_phy_wrlat` DFI cycles, then pops one
 DFI word per cycle from its write-data FIFO onto `dfi_wrdata` /
 `dfi_wrdata_en` / `dfi_wrdata_mask` until the burst's `last` word.
 
 ---
 
-## `pumice_wr_data_cam` — three movers over one SRAM
+## `mc_wr_data_cam` — three movers over one SRAM
 
 The CAM never runs a datapath state machine. It has one SRAM
 (`r_sram[N_SRAM_SLOTS*BL]`, plus a companion strobe array `r_strb`) and
@@ -134,8 +134,8 @@ already-scheduled and not-fill-complete entries where applicable):
 ## Snarf: write-to-read forwarding (was the standalone `wr2rd_forward`)
 
 There is no standalone `wr2rd_forward` FUB anymore. Write-to-read
-forwarding is the **snarf mover inside `pumice_wr_data_cam`**. When
-`pumice_rd_intake` presents an AR's decoded key on the snarf probe port,
+forwarding is the **snarf mover inside `mc_wr_data_cam`**. When
+`mc_rd_intake` presents an AR's decoded key on the snarf probe port,
 the CAM combinationally searches for a matching in-flight write. The match
 is deliberately narrow — a write is snarfable only when all three hold:
 
@@ -147,7 +147,7 @@ is deliberately narrow — a write is snarfable only when all three hold:
    a cross-id read takes the DRAM path instead.
 3. **Same burst length** — `snarf_probe_len_i == BL-1`. Every admitted
    write is exactly `BL` beats (ragged bursts are rejected upstream in
-   `pumice_wr_intake`), so this reduces to `arlen == BL-1`. A short or long
+   `mc_wr_intake`), so this reduces to `arlen == BL-1`. A short or long
    read must not snarf a full-BL write.
 
 The match must also be fill-complete (`r_fdone`). Among candidates the
@@ -171,12 +171,12 @@ pace, streaming `cm_rd_data_o` / `cm_rd_strb_o` to the DFI write path and
 popping `u_drain_q` on the last beat. On that last beat the entry is
 evicted (`r_valid`, `r_pv`, `r_fdone`, `r_sched` cleared; SRAM slot freed)
 and `commit_done_valid_o` / `commit_done_id_o` strobe, which drives the
-`pumice_wr_intake` B response. Decoupling the scheduled-mark from the
+`mc_wr_intake` B response. Decoupling the scheduled-mark from the
 drain is what allows one-command-per-clock scheduling.
 
 ---
 
-## `pumice_dfi_wr_serializer` — the DFI-domain endpoint
+## `mc_dfi_wr_serializer` — the DFI-domain endpoint
 
 This FUB is purely mechanical and lives in the DFI clock domain. Its
 internal datapath unit is the DFI word (`DFI_DATA_WIDTH`, default 128),
@@ -188,7 +188,7 @@ Interface (abridged):
 | Signal            | Dir | Description                                       |
 |-------------------|-----|---------------------------------------------------|
 | `t_phy_wrlat_i`   | in  | WR-cmd → wrdata_en delay (DFI cycles)             |
-| `wr_fire_i`       | in  | WR command strobe (from `pumice_dfi_cmd_path`)    |
+| `wr_fire_i`       | in  | WR command strobe (from `mc_dfi_cmd_path`)    |
 | `wd_valid/ready/data/strb/last` | in/out | Pre-staged write-data FIFO (DFI-word granular) |
 | `dfi_wrdata_o`    | out | `= wd_data_i` while driving                        |
 | `dfi_wrdata_en_o` | out | all-ones while driving, else 0                    |
@@ -229,9 +229,9 @@ so the drive never stalls and bursts run back-to-back with zero bubbles.
 
 ---
 
-## `pumice_wr_data_cam` interface
+## `mc_wr_data_cam` interface
 
-### Insert (from `pumice_wr_intake` aw_push)
+### Insert (from `mc_wr_intake` aw_push)
 
 | Signal        | Dir | Width          | Description                    |
 |---------------|-----|----------------|--------------------------------|
@@ -242,7 +242,7 @@ so the drive never stalls and bursts run back-to-back with zero bubbles.
 | `ins_col_i`   | in  | `COL_WIDTH`    | Decoded column                 |
 | `ins_id_i`    | in  | `IW`           | AXI id                         |
 
-### Fill data (from `pumice_wr_intake` wdata pop)
+### Fill data (from `mc_wr_intake` wdata pop)
 
 | Signal       | Dir | Width | Description                               |
 |--------------|-----|-------|-------------------------------------------|
@@ -252,7 +252,7 @@ so the drive never stalls and bursts run back-to-back with zero bubbles.
 | `wd_strb_i`  | in  | `SW`  | Byte strobes                              |
 | `wd_last_i`  | in  | 1     | Last beat (sets `r_fdone`, pops fill FIFO)|
 
-### Snarf lookup + stream (to/from `pumice_rd_intake`)
+### Snarf lookup + stream (to/from `mc_rd_intake`)
 
 | Signal              | Dir | Description                                       |
 |---------------------|-----|---------------------------------------------------|
@@ -269,7 +269,7 @@ so the drive never stalls and bursts run back-to-back with zero bubbles.
 | `sched_lu_valid_i[N]` + `sched_lu_{bank,row}_i` | in | Per-port {bank,row} queries |
 | `sched_lu_hit_o[N]` + `sched_lu_{slot,col,id,age}_o` | out | Oldest matching entry per port |
 
-### Commit / drain (to `pumice_dfi_layer` write path)
+### Commit / drain (to `mc_dfi_2p1_layer` write path)
 
 | Signal              | Dir | Description                                       |
 |---------------------|-----|---------------------------------------------------|
@@ -282,7 +282,7 @@ so the drive never stalls and bursts run back-to-back with zero bubbles.
 
 ---
 
-## `pumice_dfi_wr_serializer` parameters
+## `mc_dfi_wr_serializer` parameters
 
 | Parameter         | Default | Effect                                     |
 |-------------------|---------|--------------------------------------------|

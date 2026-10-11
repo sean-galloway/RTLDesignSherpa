@@ -33,7 +33,7 @@
 > `pumice_top_geared`. The early SWAG blocks `txn_queue`, `bank_machine`,
 > `xbank_timers`, `cmd_encoder`, `odt_ctrl`, and a standalone `page_predictor` no
 > longer exist as FUBs — they were replaced by the CAMs, the FSM-free `bank_timer`,
-> `global_timers`, `dfi_cmd_formatter`, and the arbiter's inline open-page logic.
+> `mc_global_timers`, `dfi_cmd_formatter`, and the arbiter's inline open-page logic.
 > Address mapping is now the single `ADDR_MAP.bank_lsb` knob (the 3-scheme selector is
 > retired); LPDDR2 is fully functional. See [FUB Breakdown](ch02_overview/05_fub_breakdown.md).
 
@@ -92,7 +92,7 @@
 
 - [AXI4 Interface (`mc_axi4_layer` via common-ip; pumice address mapping)](ch03_architecture/01_axi_frontend.md)
 - [Scheduler (`pumice_scheduler_layer` wrapper over common `mc_scheduler_layer`)](ch03_architecture/02_scheduler.md)
-- [Bank + Global Timers (`bank_timer`, `global_timers`)](ch03_architecture/03_bank_machines.md)
+- [Bank + Global Timers (`bank_timer`, `mc_global_timers`)](ch03_architecture/03_bank_machines.md)
 - [Refresh Controller (`refresh_ctrl`)](ch03_architecture/04_refresh.md)
 - [Init Sequencer and Power-Down (`init_sequencer`, `powerdown_ctrl`, `mode_register`)](ch03_architecture/05_init_power.md)
 - [DFI v2.1 Output Pipeline (`dfi_cmd_formatter`, `dfi_signal_pack`)](ch03_architecture/06_encoder_output.md)

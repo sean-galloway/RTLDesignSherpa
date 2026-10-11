@@ -23,9 +23,9 @@
 
 > **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_scheduler_layer`; its microarchitecture is owned by [common_mas Chapter 4 — Scheduler Layer and Pick Machinery](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
 
-# Global Timers (`global_timers`)
+# Global Timers (`mc_global_timers`)
 
-**Module:** `global_timers.sv`
+**Module:** `mc_global_timers.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
 **Parent macro:** `pumice_scheduler_layer`
@@ -34,8 +34,8 @@
 ## Purpose
 
 Controller-wide constraint trackers that span banks. Where
-`pumice_bank_timers` holds per-(rank, bank) JEDEC "safe" countdowns,
-`global_timers` holds the **windows that apply across banks** — some
+`mc_bank_timers` holds per-(rank, bank) JEDEC "safe" countdowns,
+`mc_global_timers` holds the **windows that apply across banks** — some
 per-rank (device-local limits), some truly global (shared DQ bus):
 
 | Constraint | Meaning                                              | Tracked as                                            |

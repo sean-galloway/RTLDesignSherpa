@@ -2,7 +2,7 @@
 stateDiagram-v2
     direction LR
 
-    state "pumice_wr_data_cam entry" as WR_GROUP {
+    state "mc_wr_data_cam entry" as WR_GROUP {
         [*] --> WR_INVALID
         WR_INVALID --> WR_FILLING : ins_valid captures bank/row/col/id
         WR_FILLING --> WR_FILLING : wd fill beat (r_fill_beat++)
@@ -12,7 +12,7 @@ stateDiagram-v2
         WR_FILLED --> WR_FILLED : snarf_rd read-your-write forward
     }
 
-    state "pumice_rd_cmd_cam entry" as RD_GROUP {
+    state "mc_rd_cmd_cam entry" as RD_GROUP {
         [*] --> RD_INVALID
         RD_INVALID --> RD_PENDING : ins_valid captures bank/row/col/id
         RD_PENDING --> RD_ISSUED : issue_valid sets r_issued

@@ -9,26 +9,26 @@ flowchart TB
             subgraph CORE["pumice_core (rtl/top)"]
 
                 subgraph IFC["pumice_axi4_ifc (rtl/macro)"]
-                    wr_intake["pumice_wr_intake<br/>(axi4_slave_wr +<br/>AW-meta FIFO +<br/>wr-data FIFO + addr_mapper)"]
-                    rd_intake["pumice_rd_intake<br/>(axi4_slave_rd +<br/>addr_mapper + snarf probe)"]
-                    wr_cam["pumice_wr_data_cam<br/>(WR CAM + wr-data SRAM;<br/>fill / commit-drain / snarf)"]
-                    rd_cam["pumice_rd_cmd_cam<br/>(RD CAM + rd SRAM;<br/>return-fill / drain)"]
+                    wr_intake["mc_wr_intake<br/>(axi4_slave_wr +<br/>AW-meta FIFO +<br/>wr-data FIFO + addr_mapper)"]
+                    rd_intake["mc_rd_intake<br/>(axi4_slave_rd +<br/>addr_mapper + snarf probe)"]
+                    wr_cam["mc_wr_data_cam<br/>(WR CAM + wr-data SRAM;<br/>fill / commit-drain / snarf)"]
+                    rd_cam["mc_rd_cmd_cam<br/>(RD CAM + rd SRAM;<br/>return-fill / drain)"]
                 end
 
                 subgraph SCHED["pumice_mem_cmd_scheduler (rtl/macro)"]
                     arb["pumice_cmd_arbiter<br/>(single pick core;<br/>open-page INLINE)"]
-                    bank_timers["pumice_bank_timers<br/>-> bank_timer[rank][bank]<br/>(FSM-free JEDEC timers)"]
-                    global_timers["global_timers<br/>(tFAW/tRRD per-rank,<br/>tWTR/tRTW/tCCD global)"]
+                    bank_timers["mc_bank_timers<br/>-> bank_timer[rank][bank]<br/>(FSM-free JEDEC timers)"]
+                    mc_global_timers["mc_global_timers<br/>(tFAW/tRRD per-rank,<br/>tWTR/tRTW/tCCD global)"]
                     refresh["refresh_ctrl<br/>(tREFI drain quota)"]
                     init_seq["init_sequencer<br/>(DDR2 + LPDDR2 MR init)"]
                     mode_reg["mode_register<br/>(CL/CWL/BL/AL decode)"]
                 end
 
-                subgraph DFI["pumice_dfi_layer (rtl/macro)"]
-                    dfi_cdc["pumice_dfi_cdc<br/>(SINGLE CDC;<br/>async gaxi FIFOs)"]
-                    dfi_cmd["pumice_dfi_cmd_path<br/>(+ dfi_cmd_formatter<br/>+ dfi_signal_pack)"]
-                    dfi_wr["pumice_dfi_wr_serializer"]
-                    dfi_rd["pumice_dfi_rd_aligner"]
+                subgraph DFI["mc_dfi_2p1_layer (rtl/macro)"]
+                    dfi_cdc["mc_dfi_cdc<br/>(SINGLE CDC;<br/>async gaxi FIFOs)"]
+                    dfi_cmd["mc_dfi_cmd_path<br/>(+ dfi_cmd_formatter<br/>+ dfi_signal_pack)"]
+                    dfi_wr["mc_dfi_wr_serializer"]
+                    dfi_rd["mc_dfi_rd_aligner"]
                 end
             end
         end
@@ -50,8 +50,8 @@ flowchart TB
 
     arb -- "evt_* strobes" --> bank_timers
     bank_timers -- "bank_*_ready" --> arb
-    arb -- "evt_act/rd/wr" --> global_timers
-    global_timers -- "t*_ok" --> arb
+    arb -- "evt_act/rd/wr" --> mc_global_timers
+    mc_global_timers -- "t*_ok" --> arb
     refresh <-- "req / grant" --> arb
     init_seq -- "init_cmd" --> arb
     init_seq -- "mr_seq" --> mode_reg
@@ -82,6 +82,6 @@ flowchart TB
     classDef cfg fill:#f0f0f0,stroke:#666666,stroke-width:2px
 
     class wr_intake,rd_intake,wr_cam,rd_cam ifc
-    class arb,bank_timers,global_timers,refresh,init_seq,mode_reg sched
+    class arb,bank_timers,mc_global_timers,refresh,init_seq,mode_reg sched
     class dfi_cdc,dfi_cmd,dfi_wr,dfi_rd dfi
     class csr,dwc cfg

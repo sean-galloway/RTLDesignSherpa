@@ -26,10 +26,10 @@
 > This chapter is the wire-level contract of the controller's DFI 2.1 master
 > face -- what's driven, what's tied, what's sampled, what's deferred.
 >
-> The interface is implemented by `pumice_dfi_layer` (section 2.4):
-> `pumice_dfi_cmd_path` (with `dfi_cmd_formatter` + `dfi_signal_pack`) drives the
-> command bus, `pumice_dfi_wr_serializer` drives write data,
-> `pumice_dfi_rd_aligner` captures read data, and `pumice_dfi_cdc` is the single
+> The interface is implemented by `mc_dfi_2p1_layer` (section 2.4):
+> `mc_dfi_cmd_path` (with `dfi_cmd_formatter` + `dfi_signal_pack`) drives the
+> command bus, `mc_dfi_wr_serializer` drives write data,
+> `mc_dfi_rd_aligner` captures read data, and `mc_dfi_cdc` is the single
 > clock crossing to `aclk`.
 
 ---
@@ -60,7 +60,7 @@ sub-interfaces are not driven.
 The DFI pin bus is driven in the **`dfi_clk`** domain. Unlike the classic
 "DFI is on the controller clock" model, this controller keeps the whole DFI
 datapath on a dedicated PHY clock and places the **single** controller-to-PHY
-CDC inside `pumice_dfi_layer` (`pumice_dfi_cdc`, async gaxi FIFOs only). The
+CDC inside `mc_dfi_2p1_layer` (`mc_dfi_cdc`, async gaxi FIFOs only). The
 command, write-data, and read-data streams plus the init handshake cross there;
 the internal datapath unit is the whole DFI word, so one FIFO word is one
 `dfi_clk` cycle and the path is bubble-free at rate. `a7ddrphy` handles any
@@ -73,7 +73,7 @@ further gearing to the DRAM clock.
 The command bus is `per-phase x DFI_RATE` wide. `dfi_address_o` is
 `ROW_WIDTH * DFI_RATE`, `dfi_bank_o` is `$clog2(NUM_BANKS) * DFI_RATE`, and each
 control strobe (`dfi_cas_n_o` / `dfi_ras_n_o` / `dfi_we_n_o`) is
-`1 * DFI_RATE`. `pumice_dfi_cmd_path` places the active JEDEC command on the
+`1 * DFI_RATE`. `mc_dfi_cmd_path` places the active JEDEC command on the
 `wr_phase` / `rd_phase` slot (programmed by the `DFI_PHASE` CSR) and drives
 NOP-equivalent idle on the other phases.
 
@@ -95,7 +95,7 @@ idle. See `docs/uarch/LPDDR2_CA_ENCODING.md`.
 
 ## Write-Data Sub-Interface
 
-`pumice_dfi_wr_serializer` presents `dfi_wrdata` / `dfi_wrdata_en` /
+`mc_dfi_wr_serializer` presents `dfi_wrdata` / `dfi_wrdata_en` /
 `dfi_wrdata_mask` exactly `t_phy_wrlat` `dfi_clk` cycles after the `wr_fire`
 strobe from the command path. The write burst arrives from the write CAM as
 whole DFI words `{last, strb, data}`; the serializer splits into the per-phase
@@ -107,7 +107,7 @@ the CAM is aligned to that convention.
 
 ## Read-Data Sub-Interface
 
-`pumice_dfi_rd_aligner` drives `dfi_rddata_en_o` (`DFI_RATE` wide) exactly
+`mc_dfi_rd_aligner` drives `dfi_rddata_en_o` (`DFI_RATE` wide) exactly
 `t_rddata_en` `dfi_clk` cycles after the `rd_fire` strobe, then captures
 `dfi_rddata_i` when `dfi_rddata_valid_i` asserts, packing whole DFI words
 (`{last, resp, data}`) into the read FIFO for the crossing back to `aclk`.
@@ -125,7 +125,7 @@ is correct for `a7ddrphy` (which handles read gearing internally).
 `dfi_init_start_o` and `dfi_init_complete_i` are the only status signals. The
 `init_sequencer` (in `pumice_scheduler_layer`) asserts `dfi_init_start` and
 walks the JEDEC MRS init, waiting on `dfi_init_complete` from the PHY plus the
-programmed init-timing CSRs. These cross the CDC in `pumice_dfi_cdc`.
+programmed init-timing CSRs. These cross the CDC in `mc_dfi_cdc`.
 
 ## Pin Tie-Offs
 
@@ -143,5 +143,5 @@ programmed init-timing CSRs. These cross the CDC in `pumice_dfi_cdc`.
   `NUM_RANKS * DFI_RATE` vector form; a PHY expecting a different packing needs a
   thin wrapper at the boundary.
 - **DFI 3+ migration.** When the DDR3-LPDDR3 family controller arrives, the
-  sub-interface set grows substantially. Swap `pumice_dfi_layer` and add a
+  sub-interface set grows substantially. Swap `mc_dfi_2p1_layer` and add a
   dedicated DFI section in that MAS; keep this one DDR2/LPDDR2-scoped.

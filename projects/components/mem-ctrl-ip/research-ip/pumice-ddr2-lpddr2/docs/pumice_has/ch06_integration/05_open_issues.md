@@ -33,7 +33,7 @@ AXI4 allows narrow transfers (data width less than bus width). The current plan 
 
 ### 2. AXI4 Read-Modify-Write Strobe Handling
 
-Partial writes in DDR2 / LPDDR2 use `wrdata_mask` to mask byte lanes; this is straightforward. **Confirm** that per-byte masking is wired all the way through the write path (`pumice_wr_intake` -> `pumice_wr_data_cam` -> `pumice_dfi_wr_serializer`) and that `pumice_wr_intake` doesn't widen narrow writes implicitly.
+Partial writes in DDR2 / LPDDR2 use `wrdata_mask` to mask byte lanes; this is straightforward. **Confirm** that per-byte masking is wired all the way through the write path (`mc_wr_intake` -> `mc_wr_data_cam` -> `mc_dfi_wr_serializer`) and that `mc_wr_intake` doesn't widen narrow writes implicitly.
 
 ### 3. CSR Address Space Allocation
 
@@ -68,7 +68,7 @@ Multi-register parameter changes (e.g., updating both `MR0` and a related timing
 
 ### 9. Burst Splitting at Row Boundaries
 
-AXI4 allows up to 256 beats per burst; a DRAM row contains `2^COL_WIDTH` columns. Burst splitting into fixed-BL commands happens in `pumice_wr_intake` / `pumice_rd_intake`. **Confirm** the split logic correctly tracks partial-burst completion for ID-based ordering.
+AXI4 allows up to 256 beats per burst; a DRAM row contains `2^COL_WIDTH` columns. Burst splitting into fixed-BL commands happens in `mc_wr_intake` / `mc_rd_intake`. **Confirm** the split logic correctly tracks partial-burst completion for ID-based ordering.
 
 ### 10. Multi-Rank
 

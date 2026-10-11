@@ -23,26 +23,26 @@
 
 > **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_axi4_layer`; its microarchitecture is owned by [common_mas mc_axi4_layer — AXI4 host interface and read-return ring](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
 
-# Read Data Path (`pumice_dfi_rd_aligner` + `pumice_rd_return_ring`)
+# Read Data Path (`mc_dfi_rd_aligner` + `mc_rd_return_ring`)
 
-**Modules:** `pumice_dfi_rd_aligner.sv`, `pumice_rd_return_ring.sv`, `pumice_rd_cmd_cam.sv`
+**Modules:** `mc_dfi_rd_aligner.sv`, `mc_rd_return_ring.sv`, `mc_rd_cmd_cam.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parents:** `pumice_dfi_layer` (aligner), `pumice_axi4_layer` (ring, CAM)
+**Parents:** `mc_dfi_2p1_layer` (aligner), `mc_axi4_layer` (ring), `mc_storage_layer` (CAM)
 **Status:** implemented
 
 > The old single-block `rd_cl_aligner` / `rd_data_path_fub` no longer
 > exists. In the rearchitected controller the read data path is split
 > across two clock domains and three FUBs:
 >
-> - `pumice_dfi_rd_aligner` (DFI domain, inside `pumice_dfi_layer`) —
+> - `mc_dfi_rd_aligner` (DFI domain, inside `mc_dfi_2p1_layer`) —
 >   drives `dfi_rddata_en` at the right cycle for an issued READ and
 >   captures `dfi_rddata` words into the read return FIFO.
-> - `pumice_rd_return_ring` (MC domain, inside `pumice_axi4_layer`) — the
+> - `mc_rd_return_ring` (MC domain, inside `mc_storage_layer`) — the
 >   outstanding-read reorder buffer. Returns arrive in *issue* order into
 >   the slot named by the read's ticket, and the ring drains from its head
->   in *AR* order to `pumice_rd_intake`. See §22.
-> - `pumice_rd_cmd_cam` (MC domain, inside `pumice_axi4_layer`) — the
+>   in *AR* order to `mc_rd_intake`. See §22.
+> - `mc_rd_cmd_cam` (MC domain, inside `mc_storage_layer`) — the
 >   scheduling window only. Its entry is freed the cycle the column issues.
 >
 > **Corrected 2026-09-09.** This chapter previously said the CAM was the
@@ -51,7 +51,7 @@
 > CAM for its whole round trip made the CAM depth the in-flight limit and
 > capped read bandwidth by Little's law at roughly 180 MB/s on the board (pre-ring-fix state, 2026-09; the return-ring fix took board reads to ~572 MB/s).
 >
-> The single clock-domain crossing between the domains is `pumice_dfi_cdc`
+> The single clock-domain crossing between the domains is `mc_dfi_cdc`
 > (async gaxi FIFOs). This chapter documents the aligner half and the
 > hand-off; the ring has its own chapter.
 
@@ -65,26 +65,26 @@
 ## Purpose
 
 The read data path is the miss path: reads that cannot be satisfied by a
-snarf from the write CAM (see §17) go to DRAM. `pumice_rd_cmd_cam` is the
-mirror of `pumice_wr_data_cam` — entries keyed `{bank, row, col}` with a
+snarf from the write CAM (see §17) go to DRAM. `mc_rd_cmd_cam` is the
+mirror of `mc_wr_data_cam` — entries keyed `{bank, row, col}` with a
 free-running age, an oldest port, and `N_SCHED_LU` scheduler lookups, so
 reads row-hit-schedule exactly like writes. It also acts as a **reorder
 buffer**: it accepts AR inserts in AR order, lets the scheduler issue them
 in an order it chooses (row-hit optimized), receives DRAM data in *issue*
 order, and drains it back to the host in *AR/oldest* order.
 
-`pumice_dfi_rd_aligner` is the DFI-domain endpoint. On a RD command strobe
+`mc_dfi_rd_aligner` is the DFI-domain endpoint. On a RD command strobe
 (`rd_fire_i`) it drives the `dfi_rddata_en` capture window starting
 `t_rddata_en` DFI cycles later, and pushes one DFI word per
 `dfi_rddata_valid` cycle into the read return FIFO as `{data, resp, last}`.
 
 Compared to the write CAM there is **no snarf port** here — snarf is a
 write-CAM concept (§17). Data flows *in* from the DFI return and *out* to
-`pumice_rd_intake`.
+`mc_rd_intake`.
 
 ---
 
-## `pumice_rd_cmd_cam` — reorder buffer, two movers over one SRAM
+## `mc_rd_cmd_cam` — reorder buffer, two movers over one SRAM
 
 The CAM stores each burst's return data in an SRAM (`r_sram[N_SRAM_SLOTS*BL]`)
 and runs two de-FSM'd movers, each a burst beat-counter:
@@ -137,9 +137,9 @@ captures `r_resp`, and pops `u_issue_q`.
 
 ---
 
-## `pumice_dfi_rd_aligner` — the DFI-domain endpoint
+## `mc_dfi_rd_aligner` — the DFI-domain endpoint
 
-This FUB mirrors `pumice_dfi_wr_serializer`. Its internal unit is the DFI
+This FUB mirrors `mc_dfi_wr_serializer`. Its internal unit is the DFI
 word (`= dfi_rddata` width); `BL_WORDS = BL/DFI_RATE` words per burst.
 
 It has two independent concerns:
@@ -169,7 +169,7 @@ on the last word.
 
 > v1 note: `rd_resp_o` is hardwired `RESP_OKAY` — the DFI rddata-error
 > signal is not yet wired. The aligner supports one outstanding read window
-> (single-issue, tRTW/tCCD spaced by the scheduler / `global_timers`).
+> (single-issue, tRTW/tCCD spaced by the scheduler / `mc_global_timers`).
 
 ---
 
@@ -181,9 +181,9 @@ on the last word.
 
 ---
 
-## `pumice_rd_cmd_cam` interface
+## `mc_rd_cmd_cam` interface
 
-### Insert (from `pumice_rd_intake` ar_push, AR order)
+### Insert (from `mc_rd_intake` ar_push, AR order)
 
 | Signal        | Dir | Width       | Description         |
 |---------------|-----|-------------|---------------------|
@@ -207,7 +207,7 @@ on the last word.
 | `issue_ready_o` | out | Room in the issue-order FIFO                         |
 | `issue_slot_i`  | in  | Slot issued (records issue order for return fill)    |
 
-### DFI return (from `pumice_dfi_layer` read path, issue order)
+### DFI return (from `mc_dfi_2p1_layer` read path, issue order)
 
 | Signal             | Dir | Description                                       |
 |--------------------|-----|---------------------------------------------------|
@@ -217,7 +217,7 @@ on the last word.
 | `dfi_ret_resp_i`   | in  | Return response (captured on last)                |
 | `dfi_ret_last_i`   | in  | Last beat (sets `r_ready`, pops issue FIFO)       |
 
-### Drain (to `pumice_rd_intake` R source, AR order)
+### Drain (to `mc_rd_intake` R source, AR order)
 
 | Signal             | Dir | Description                                       |
 |--------------------|-----|---------------------------------------------------|
@@ -231,7 +231,7 @@ on the last word.
 
 ---
 
-## `pumice_dfi_rd_aligner` parameters
+## `mc_dfi_rd_aligner` parameters
 
 | Parameter         | Default | Effect                                     |
 |-------------------|---------|--------------------------------------------|

@@ -26,7 +26,7 @@
 **Module:** `addr_mapper.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB (combinational; no clock)
-**Parent:** `pumice_wr_intake` / `pumice_rd_intake`
+**Parent:** `mc_wr_intake` / `mc_rd_intake`
 **Status:** Implemented
 
 > **Rearchitected:** the SWAG described a three-scheme decoder
@@ -44,7 +44,7 @@
 `addr_mapper` decodes a flat `AXI_ADDR_WIDTH`-bit address into the DRAM-layer
 `(rank, bank, row, col)` tuple. It is **pure combinational** — no clock, no flop,
 no FSM. The output is valid the same cycle as the input. One instance sits at the
-head-address decode of each intake (`pumice_wr_intake`, `pumice_rd_intake`), so
+head-address decode of each intake (`mc_wr_intake`, `mc_rd_intake`), so
 the CAMs store the decoded tuple rather than the raw AXI address.
 
 The mapper is driven entirely from the `ADDR_MAP` CSR register (see

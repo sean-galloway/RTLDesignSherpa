@@ -51,7 +51,7 @@ self-feeding register does not make the longest path infinite; nodes inside a
 loop are marked `*`.
 
     python3 gen_latency.py --module pumice_cmd_arbiter --min-flops 1
-    python3 gen_latency.py --module pumice_rd_return_ring --no-feedback
+    python3 gen_latency.py --module pumice_page_policy --no-feedback
 
 Prints a latency TABLE (input -> output, min/max flops) and emits
 `<module>.latency.png`. The table is the artifact that cannot be misread; the
@@ -67,16 +67,24 @@ This view builds its OWN Yosys JSON with `flatten` (reusing the sv2v output
 gen_schematics already made). It must: a parameterised submodule instance has
 a cell type of `$paramod\<name>\<params>`, which starts with `$` and so slips
 past any "is this a primitive" test, and an instance walked as combinational
-hides every register inside it. Unflattened, `pumice_bank_timers` reported 0
+hides every register inside it. Unflattened, `mc_bank_timers` reported 0
 registers and depth 0 -- impossible for a timer. The generator warns if any
 instance survives flattening.
 
-Whole-design profile (2026-09-09, flattened): wr_intake and page_policy 7
-clocks, rbl_table 6, rd_return_ring and wr_data_cam 5, row_pred_table 4,
-cmd_arbiter / bank_timers / rd_cmd_cam / rd_intake / refresh_ctrl / powerdown 3,
-dfi_cdc / rd_aligner / wr_serializer / wr_splitter 2, global_timers /
-mode_register 1; addr_mapper, dfi_cmd_formatter and dfi_signal_pack are purely
-combinational (0). The full table is in the MAS, ch01 "Pipeline Latency and
+Whole-design profile (2026-09-09, flattened): `mc_wr_intake` and
+`pumice_page_policy` 7 clocks, `pumice_rbl_table` 6 (retired 2026-09-26,
+TASK-011), `mc_rd_return_ring` and `mc_wr_data_cam` 5, `pumice_row_pred_table`
+4 (retired 2026-09-27, TASK-014), `pumice_cmd_arbiter` / `mc_bank_timers` /
+`mc_rd_cmd_cam` / `mc_rd_intake` / `refresh_ctrl` / `powerdown_ctrl` 3,
+`mc_dfi_cdc` / `mc_dfi_rd_aligner` / `mc_dfi_wr_serializer` / `mc_wr_splitter`
+2, `mc_global_timers` / `mode_register` 1; `addr_mapper`, `dfi_cmd_formatter`
+and `dfi_signal_pack` are purely combinational (0). The live datapath FUBs
+(`mc_wr_intake`, `mc_rd_intake`, `mc_wr_splitter`, `mc_wr_data_cam`,
+`mc_rd_cmd_cam`, `mc_rd_return_ring`, `mc_bank_timers`, `mc_global_timers`,
+`mc_dfi_cdc`, `mc_dfi_cmd_path`, `mc_dfi_wr_serializer`, `mc_dfi_rd_aligner`)
+now live in `common-ip/rtl/fub` and are consumed through the common layer
+macros (`mc_axi4_layer`, `mc_storage_layer`, `mc_scheduler_layer`,
+`mc_dfi_2p1_layer`). The full table is in the MAS, ch01 "Pipeline Latency and
 Mux-Level Schematics".
 
 ## The skin -- `make_skin.py`

@@ -23,23 +23,23 @@
 
 > **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_storage_layer`; its microarchitecture is owned by [common_mas mc_storage_layer — Storage Layer and Entry-Pool FUBs](../../../../../common-ip/docs/common_mas/ch03_storage_layer/01_mc_storage_layer.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
 
-# Read Command CAM (`pumice_rd_cmd_cam`)
+# Read Command CAM (`mc_rd_cmd_cam`)
 
-**Module:** `pumice_rd_cmd_cam.sv`
+**Module:** `mc_rd_cmd_cam.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent:** `pumice_axi4_layer`
+**Parent:** `mc_storage_layer`
 **Status:** Implemented (de-FSM'd streaming drain)
 
 > **Rearchitected:** the SWAG CAM was keyed by AXI ID and drove a `match_pending`
 > vector with per-slot beat counters and an issue FSM. The live
-> `pumice_rd_cmd_cam` is keyed by `{bank, row}` with a free-running age and
+> `mc_rd_cmd_cam` is keyed by `{bank, row}` with a free-running age and
 > exposes `N_SCHED_LU` parallel scheduler lookups plus an oldest port.
 >
 > **Corrected 2026-09-09.** This CAM is a **scheduling window only**. It no
 > longer buffers returned read data and is no longer the reorder buffer: it
 > carries the read's *ticket* (`ins_ticket_i`), hands that ticket to
-> [`pumice_rd_return_ring`](22_rd_return_ring.md) when the column issues, and
+> [`mc_rd_return_ring`](22_rd_return_ring.md) when the column issues, and
 > **frees the entry at issue**. The ring holds the read for its DRAM round trip
 > and drains in AR order.
 >
@@ -53,10 +53,10 @@
 
 ## Purpose
 
-`pumice_rd_cmd_cam` tracks every outstanding DRAM read (the MISS path — snarf
-hits never enter this CAM). It is the mirror of `pumice_wr_data_cam` on the issue
+`mc_rd_cmd_cam` tracks every outstanding DRAM read (the MISS path — snarf
+hits never enter this CAM). It is the mirror of `mc_wr_data_cam` on the issue
 side, but the data direction is opposite: data comes **in** from the DFI read
-return and drains **out** to `pumice_rd_intake`. There is no snarf port (that is
+return and drains **out** to `mc_rd_intake`. There is no snarf port (that is
 a write-CAM concept).
 
 It acts as a reorder buffer because DRAM read data returns in the order the
@@ -99,7 +99,7 @@ older. The burst data lives in a distributed-RAM array `r_sram[N_SRAM_SLOTS*BL]`
 
 ## Interfaces
 
-### Insert (from `pumice_rd_intake` `ar_push`, AR order)
+### Insert (from `mc_rd_intake` `ar_push`, AR order)
 
 `ins_valid_i` / `ins_ready_o` with `{bank, row, col, id}`. `ins_ready_o` is
 `w_have_free` (any `!r_valid[i]`). On fire the slot is allocated, `r_issued` /
@@ -136,7 +136,7 @@ engine writes each beat into the SRAM slot of the **issue-FIFO head**
 - On `dfi_ret_last_i` the entry is marked `r_ready`, `r_resp` captured, and the
   issue FIFO popped (`w_iq_rd_ready`).
 
-### Drain to `pumice_rd_intake` (AR order, oldest-first, ready-gated)
+### Drain to `mc_rd_intake` (AR order, oldest-first, ready-gated)
 
 `drain_valid_o` / `drain_ready_i` with `{data, id, resp, last}`. The draining
 slot **is** the combinational oldest-valid pick `w_dro_slot` (max `rel` among all

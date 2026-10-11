@@ -23,9 +23,9 @@
 
 > **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_scheduler_layer`; its microarchitecture is owned by [common_mas Chapter 4 — Scheduler Layer and Pick Machinery](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
 
-# Global Timers (`global_timers`)
+# Global Timers (`mc_global_timers`)
 
-**Module:** `global_timers.sv`
+**Module:** `mc_global_timers.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
 **Parent macro:** `pumice_scheduler_layer`
@@ -36,20 +36,20 @@
 >
 > - **Per-bank** timing (tRCD, tRP, tRAS, tRC, tWR/tRTP) moved into
 >   [`bank_timer`](09_bank_machine.md), stamped per (rank, bank) by
->   `pumice_bank_timers`.
+>   `mc_bank_timers`.
 > - **Cross-bank / channel-wide** turnaround (tFAW, tRRD, tWTR, tRTW, tCCD)
->   lives here in `global_timers`.
+>   lives here in `mc_global_timers`.
 >
 > The retired block's cross-rank extras (`tRTRS`, `tCS`, the `last_rd_rank` /
 > `last_cmd_rank` chains, and the wide `blocks_*[NR][NB]` broadcast) are **not**
-> in the live RTL. `global_timers` emits compact per-rank / global `*_window_ok`
+> in the live RTL. `mc_global_timers` emits compact per-rank / global `*_window_ok`
 > readiness bits that the arbiter ANDs with `bank_timer`'s `safe_*` outputs.
 
 ---
 
 ## Purpose
 
-`global_timers` holds the controller-wide DRAM constraints that span banks and
+`mc_global_timers` holds the controller-wide DRAM constraints that span banks and
 therefore cannot live inside a single bank's timer:
 
 - **tFAW** — no more than four ACT commands within a rolling `t_faw_i` window.

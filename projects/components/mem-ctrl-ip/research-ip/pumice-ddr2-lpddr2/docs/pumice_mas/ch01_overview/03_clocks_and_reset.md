@@ -32,8 +32,8 @@ separate APB CSR clock).
 
 | Clock       | Polarity | Domain members                                                                 |
 |-------------|----------|--------------------------------------------------------------------------------|
-| `aclk`      | Posedge  | `pumice_csr`, `pumice_axi4_layer` (AXI slave, burst splitters, both CAMs), `pumice_scheduler_layer` (arbiter, bank/global timers, refresh, init, mode register) |
-| `dfi_clk`   | Posedge  | `pumice_dfi_layer` command path, write serializer, read aligner; the DFI 2.1 pin bus |
+| `aclk`      | Posedge  | `pumice_csr`, `mc_axi4_layer` (AXI slave, burst splitters, both CAMs), `pumice_scheduler_layer` (arbiter, bank/global timers, refresh, init, mode register) |
+| `dfi_clk`   | Posedge  | `mc_dfi_2p1_layer` command path, write serializer, read aligner; the DFI 2.1 pin bus |
 
 `aclk` and `dfi_clk` are independent. The DFI-word datapath unit means one FIFO
 word equals one `dfi_clk` cycle, so the crossing is bubble-free at rate.
@@ -54,7 +54,7 @@ in the controller.
 ## CDC
 
 There is exactly **one datapath** clock-domain crossing in the controller, and it
-lives in `pumice_dfi_cdc` inside `pumice_dfi_layer`. It is built from **async
+lives in `mc_dfi_cdc` inside `mc_dfi_2p1_layer`. It is built from **async
 gaxi FIFOs only** (`N_FLOP_CROSS` = 2 by default). Four things cross it:
 
 | Stream               | Direction            | Payload                                  |
@@ -65,7 +65,7 @@ gaxi FIFOs only** (`N_FLOP_CROSS` = 2 by default). Four things cross it:
 | Init handshake       | both                 | `init_start` out, `init_complete` back    |
 
 There is **no** APB-to-MC CSR crossing, no quiet-point override-staging
-crossing, and no CDC in the AXI4 datapath -- `pumice_axi4_layer` runs entirely on
+crossing, and no CDC in the AXI4 datapath -- `mc_axi4_layer` runs entirely on
 `aclk`. If the SoC's AXI master is on a different clock, an external clock
 converter is required upstream. The register block also runs on `aclk`, so CSR
 writes take effect combinationally through `hwif_out.*` into the config ports of

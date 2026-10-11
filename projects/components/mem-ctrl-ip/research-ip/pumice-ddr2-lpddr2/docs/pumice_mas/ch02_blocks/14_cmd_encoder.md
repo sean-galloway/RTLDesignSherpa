@@ -26,7 +26,7 @@
 **Module:** `dfi_cmd_formatter.sv` (command decode) / `dfi_signal_pack.sv` (final DFI pipe stage)
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent macro:** `pumice_dfi_layer`
+**Parent macro:** `mc_dfi_2p1_layer`
 **Status:** Implemented (DDR2 truth table + bit-exact LPDDR2 CA-bus encoding; both memtypes functional)
 
 > **Replaces the retired command encoder.** The original `cmd_encoder_fub` (with
@@ -64,9 +64,9 @@ the formatter's command bus together with the write/read data-enable signals and
 drives reset-safe NOP values during reset. It owns `dfi_dram_clk_disable`
 (currently held 0).
 
-Both modules run in the DFI clock domain inside `pumice_dfi_layer` (see
+Both modules run in the DFI clock domain inside `mc_dfi_2p1_layer` (see
 [the DFI layer / gearing chapter](15_gear_dfi.md)); the formatter is instantiated
-via `pumice_dfi_cmd_path`.
+via `mc_dfi_cmd_path`.
 
 ---
 

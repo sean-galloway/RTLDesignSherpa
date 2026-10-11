@@ -123,7 +123,7 @@ This controller is informed by published memory-controller literature and the op
 
 These design patterns are widespread in the memory-controller literature and the open-source controllers we examined. Adopting them is the right call; they are noted here so the design rationale is transparent:
 
-- **Per-bank FSM-free JEDEC "safe" timers** (`bank_timer`, stamped per (rank,bank) by `pumice_bank_timers`) + a central cross-bank/rank timer pool (`global_timers`: tRRD / tFAW / tWTR / tRTW / tCCD) — the standard bank/global split, here without a per-bank state machine.
+- **Per-bank FSM-free JEDEC "safe" timers** (`bank_timer`, stamped per (rank,bank) by `mc_bank_timers`) + a central cross-bank/rank timer pool (`mc_global_timers`: tRRD / tFAW / tWTR / tRTW / tCCD) — the standard bank/global split, here without a per-bank state machine.
 - **FR-FCFS scheduler baseline** (Rixner et al. ISCA 2000) — the academic baseline; realized in `pumice_cmd_arbiter`.
 - **Elastic Refresh deferral** (Stuecheli et al. MICRO 2010) — postponer with deterministic back-to-back drain, in `refresh_ctrl`.
 - **Refresh arbitrated against bank readiness** — the arbiter waits for the addressed banks to be safe before issuing REF; established pattern.
