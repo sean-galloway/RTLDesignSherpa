@@ -62,7 +62,8 @@ def pytest_collection_modifyitems(config, items):
         elif 'downsize' in nid:
             item.add_marker(pytest.mark.downsize)
 
-        if 'axi4_to_axil4' in nid or 'axil4_to_axi4' in nid:
+        if ('axi4_to_axil4' in nid or 'axil4_to_axi4' in nid or
+                'axi4_to_axi3' in nid):
             item.add_marker(pytest.mark.protocol)
         elif 'dwidth' in nid:
             item.add_marker(pytest.mark.width)
