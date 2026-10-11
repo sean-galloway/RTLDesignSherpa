@@ -51,7 +51,7 @@ This chapter records scope-growth options and upgrade paths that are out of the 
 
 ## Shared L2 (`basalt`, future IP)
 
-**Future IP, recorded as a direction 2026-10-11.** The family's capstone past onyx: an inclusive, banked, MOESI-tracking shared L2 (`basalt-moesi-l2` when scoped) plugging into this port — onyx's memory-side AXI4 master points at the house memory path today; basalt inserts there, below the coherency point, so the D2 subset, the CRRESP adjudication, and the D7 snoop contract are untouched. It is the natural home for the D3 directory-lite question (L1ID sharer vectors in the L2 tag, per Chinnakonda §10.3–10.5) and the convergence point for the amber/jet array + MSHR techniques and the mem-ctrl-ip DRAM boundary. No scaffold until onyx v1 exists.
+**Future IP, recorded as a direction 2026-10-11; pencil PRD penciled the same day.** The family's capstone past onyx: a shared, banked L2 (`basalt-moesi-l2`) plugging into this port — onyx's memory-side AXI4 master points at the house memory path today; basalt inserts there, below the coherency point, so the D2 subset, the CRRESP adjudication, and the D7 snoop contract are untouched. From the protocol's view basalt is memory (no snoop port, no state against masters); the book's MOESI/sharer-vector machinery activates only if the topology question (basalt PRD D1/D2, default: memory-side) is ever re-opened. Convergence point for the amber/jet array + MSHR techniques and the mem-ctrl-ip DRAM boundary. RTL gated on onyx v1; the pencil lives at `../basalt-moesi-l2/PRD.md`.
 
 ## Status
 

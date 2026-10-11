@@ -46,6 +46,7 @@ canonical anywhere a directory names one.
 | [`amber-mesi-l1/`](amber-mesi-l1/) | **amber** | Blocking MESI snoopy L1 cache — the research baseline | `amber_*` | [README](amber-mesi-l1/README.md) · [HAS](amber-mesi-l1/docs/amber_has/amber_has_index.md) |
 | [`jet-mesi-l1/`](jet-mesi-l1/) | **jet** | Lockup-free (MSHR) MESI snoopy L1 — the non-blocking follow-on to amber | `jet_*` | [README](jet-mesi-l1/README.md) · [HAS](jet-mesi-l1/docs/jet_has/jet_has_index.md) |
 | [`onyx-ace-ccu/`](onyx-ace-ccu/) | **onyx** | Snoop-based ACE coherency unit — the coherence manager over the house AXI4 fabric | `onyx_*` | [README](onyx-ace-ccu/README.md) · [HAS](onyx-ace-ccu/docs/onyx_has/onyx_has_index.md) |
+| [`basalt-moesi-l2/`](basalt-moesi-l2/) | **basalt** | Future shared L2 — banked, below the coherency point on onyx's memory side (direction; pencil [PRD](basalt-moesi-l2/PRD.md), no RTL until onyx v1) | `basalt_*` | [README](basalt-moesi-l2/README.md) · [PRD](basalt-moesi-l2/PRD.md) |
 
 The design intent: **amber** establishes the coherence protocol, snoop
 transport, storage arrays, and observation fabric with the simplest possible
@@ -72,7 +73,7 @@ boundary; Chinnakonda ch10 is its design manual and gem5 Ruby
 `MESI_Two_Level` its golden model. The amber→jet pattern says basalt starts
 as one IP — an inclusive blocking-to-decoupled baseline; a nonblocking
 follow-on earns its own codename when scoped, not before. Recorded
-2026-10-11 as a direction, not a project: no scaffold until onyx v1 exists.
+2026-10-11; pencil PRD at [`basalt-moesi-l2/PRD.md`](basalt-moesi-l2/PRD.md) (unit breakdown + OPEN rows, penciled at owner request) — RTL gated on onyx v1.
 
 Family interface decision, 2026-10-05: **cache-ip is ACE-shaped.** onyx owns
 and defines the AC/CD/CR snoop-port contract; amber and jet stay
