@@ -421,8 +421,32 @@ filelists removed. Verification:
 - andesite gate suite: fub 55 + macro 5 + top 2 tests, all PASS
 - registry check/audit/placement/blindspots PASS; task-ids PASS; links 0 broken
 - SEED=12345, PYTHONPYPCACHEPREFIX=/tmp/pycache-dfirev
-Committed as <TODO>.
+Committed as 9955a276b.
 
 RESUME HERE: Phase-2 common-ip extraction is complete (all six layers: pkg,
 nine FUBs + storage, axi4, training, scheduler, per-revision DFI). Await the
 next partner directive / plan (product-ip naming/bring-up or a new phase).
+POST-GATE ADDENDUM (main agent): the Task 6 steps tied off new DBI/cal-capture
+ports in mc_dfi_2p1_layer.sv (shared-FUB parameterization) without re-running
+pumice's suite. Pumice full run-all re-ran POST-Task-6: PASS, SEED=12345.
+Pin closed; no RTL change needed.
+PARAM SUSTAINABILITY RULE (partner discussion, 2026-10-10): parameterize
+WIDTH, never PERSONALITY; runtime-enum strategies; generate-gate structure;
+family-boundary protocol generations. Test: (a) all param combos legal,
+(b) changes elaboration not runtime behavior, (c) DV cost linear not
+product. Refresh generation features {REFpb, Mode A/B/C, FGR, MPC, ZQCS}
+FAIL (a) -- illegal cross-products, family boundary, common core
+(mc_refresh_base: tREFI/postpone/pull-in/grant contract) is extractable
+later per two-customer rule; generation personalities stay thin children.
+Page-policy strategies PASS (runtime policy_mode enum, 2-3 strategies);
+watch item: split at ~4+ strategies.
+HAS FREQUENCY-COUPLING WARNING (partner directive, 2026-10-10): all three HAS
+books (pumice/scoria/andesite) now warn at the index level AND at each point a
+reader programs timing registers (pumice CSR map §6.3 + clocks/reset §6.1;
+scoria + andesite design point Ch 2.4 + params Ch 5): timing CSRs are aclk-
+cycle counts bound to the MC clock frequency; a frequency change invalidates
+the whole set at once; software must re-derive and reprogram before traffic
+resumes; stale values present as data corruption, not errors. Committed
+cfea7bcb0 (9 files, docs-only). This retires the "clock-freq change with
+stale cycle-counted CSRs" uncontrolled-risk documentation gap: the risk is
+now named in the specs a programmer actually reads. No RTL change.
