@@ -14,11 +14,15 @@ here once.
   a documented CSR contract)
 - `mc_storage_layer` — CAMs/SRAMs as a pipeline drop-in
 
-**Today** this directory is an intentional skeleton: `docs/` holds the
-family-level architectural documents (package conventions, family doctrine,
-DFI boundary lineage, JEDEC generation deltas) relocated from
-`mem-ctrl-ip/docs/` during Phase 1. The `rtl/` and `dv/` trees are
-placeholders until layer extraction begins.
+**Today** (post-Phase-2, 2026-10-10): the extraction has landed. `rtl/`
+holds the package (`mc_common_pkg`), eight layers (`mc_axi4_layer`,
+`mc_storage_layer`, `mc_scheduler_layer`, `mc_training_layer`,
+`mc_ras_layer`, `mc_dfi_2p1_layer`, `mc_dfi_3p1_layer`,
+`mc_dfi_4p0_layer`), and seventeen shared FUBs with filelists; pumice,
+scoria, and andesite consume them. The architecture is specified in
+[docs/common_has/](docs/common_has/common_has_index.md) and the per-block
+microarchitecture in [docs/common_mas/](docs/common_mas/common_mas_index.md)
+— read those first.
 
 Boundary rule: a block moves here only when it has **two live customers**
 at extraction time — speculative one-customer abstractions stay in the
