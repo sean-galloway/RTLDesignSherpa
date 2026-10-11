@@ -132,10 +132,11 @@ class AXI3ToAXI4WriteTB(TBBase):
             await self._orig_b_send(packet)
         self.axi4_slave.b_channel.send = _b_send_with_user
 
-        # Storage for monitoring AXI4 transactions
+        # Storage for monitoring AXI4 transactions and AXI3 B responses
         self.axi4_aw_transactions = []
         self.axi4_w_beats = []
         self.axi4_b_responses = []
+        self.axi3_b_responses = []
 
         self.log.info(f"Initialized AXI3->AXI4 Write TB: "
                      f"data_width={self.data_width}, "
@@ -221,6 +222,21 @@ class AXI3ToAXI4WriteTB(TBBase):
                     'id': int(self.dut.m_axi_bid.value),
                     'resp': int(self.dut.m_axi_bresp.value),
                     'user': int(self.dut.m_axi_buser.value),
+                })
+
+    async def axi3_b_monitor(self):
+        """Monitor AXI3 B channel handshakes (converter output side)."""
+        self.log.info("Starting AXI3 B monitor")
+
+        while True:
+            await RisingEdge(self.clk)
+
+            if (int(self.dut.s_axi3_bvalid.value) == 1 and
+                int(self.dut.s_axi3_bready.value) == 1):
+                self.axi3_b_responses.append({
+                    'id': int(self.dut.s_axi3_bid.value),
+                    'resp': int(self.dut.s_axi3_bresp.value),
+                    'user': int(self.dut.s_axi3_buser.value),
                 })
 
     # =========================================================================
@@ -517,6 +533,7 @@ class AXI3ToAXI4WriteTB(TBBase):
         expected_buser = 1
 
         initial_b = len(self.axi4_b_responses)
+        initial_axi3_b = len(self.axi3_b_responses)
 
         # Inject a non-zero BUSER pattern on the AXI4 slave side.
         self.axi4_slave.buser_override = expected_buser
@@ -540,6 +557,13 @@ class AXI3ToAXI4WriteTB(TBBase):
             self.stats['errors'] += 1
             return False
 
+        if len(self.axi3_b_responses) - initial_axi3_b != 1:
+            self.log.error(f"b_passthrough: expected 1 AXI3 B response, got "
+                          f"{len(self.axi3_b_responses) - initial_axi3_b}")
+            self.stats['bresp_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
         b = self.axi4_b_responses[initial_b]
         if b['id'] != axid:
             self.log.error(f"b_passthrough: BID mismatch got {b['id']}, expected {axid}")
@@ -553,8 +577,10 @@ class AXI3ToAXI4WriteTB(TBBase):
             self.stats['errors'] += 1
             return False
 
-        if b['user'] != expected_buser:
-            self.log.error(f"b_passthrough: BUSER mismatch got {b['user']}, expected {expected_buser}")
+        # The buser check must be on the AXI3 output side, not the AXI4 input.
+        axi3_b = self.axi3_b_responses[initial_axi3_b]
+        if axi3_b['user'] != expected_buser:
+            self.log.error(f"b_passthrough: s_axi3_buser mismatch got {axi3_b['user']}, expected {expected_buser}")
             self.stats['buser_errors'] += 1
             self.stats['errors'] += 1
             return False

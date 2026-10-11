@@ -84,6 +84,7 @@ async def axi3_to_axi4_wr_test(dut):
     aw_monitor_task = cocotb.start_soon(tb.axi4_aw_monitor())
     w_monitor_task = cocotb.start_soon(tb.axi4_w_monitor())
     b_monitor_task = cocotb.start_soon(tb.axi4_b_monitor())
+    axi3_b_monitor_task = cocotb.start_soon(tb.axi3_b_monitor())
 
     try:
         # Run appropriate test suite based on test level
@@ -135,7 +136,7 @@ async def axi3_to_axi4_wr_test(dut):
 
     finally:
         # Clean up the background monitor coroutines
-        for task in (aw_monitor_task, w_monitor_task, b_monitor_task):
+        for task in (aw_monitor_task, w_monitor_task, b_monitor_task, axi3_b_monitor_task):
             if task is not None:
                 task.cancel()
                 try:
@@ -166,6 +167,7 @@ async def axi3_to_axi4_wr_wid_mismatch_test(dut):
     aw_monitor_task = cocotb.start_soon(tb.axi4_aw_monitor())
     w_monitor_task = cocotb.start_soon(tb.axi4_w_monitor())
     b_monitor_task = cocotb.start_soon(tb.axi4_b_monitor())
+    axi3_b_monitor_task = cocotb.start_soon(tb.axi3_b_monitor())
 
     try:
         await tb.wid_mismatch_asserts()
@@ -175,7 +177,7 @@ async def axi3_to_axi4_wr_wid_mismatch_test(dut):
         assert False, "ASSERT_A3_WID_STABLE did not fire on injected WID mismatch"
 
     finally:
-        for task in (aw_monitor_task, w_monitor_task, b_monitor_task):
+        for task in (aw_monitor_task, w_monitor_task, b_monitor_task, axi3_b_monitor_task):
             if task is not None:
                 task.cancel()
                 try:
