@@ -43,4 +43,4 @@ The following items are explicitly out of scope for amber v1.0 but are recorded 
 
 ## Closing D3 and D11
 
-D3 (memory-side interface) and D11 (array construction) remain open. Closing them will produce either a revised HAS or the MAS, depending on whether the decisions stay at architecture level or move into micro-architecture. Until then, the current directions — AXI4/ACE house wrappers and `sdpram_core`-based dual-port arrays — are the working defaults and the targets for the first RTL cut.
+D3 (memory-side interface) and D11 (array construction) are decided (PRD v0.6, 2026-10-07); the array-construction implementation ruling lives in the RTL completion plan (Task 9) and the MAS errata. The shapes recorded here — AXI4/ACE house wrappers and `sdpram_core`-based dual-port arrays — are the decided architecture, not candidates.

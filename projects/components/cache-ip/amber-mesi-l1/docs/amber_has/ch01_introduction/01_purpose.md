@@ -27,7 +27,7 @@
 
 amber is a parameterized, blocking, snoopy MESI L1 data cache for the Sherpa research and teaching flow. It is deliberately the simplest correct cache: one outstanding transaction, no MSHRs, no hit-under-miss, no merge logic. That deletion makes it a clean baseline for the follow-on `jet` lockup-free cache and a tractable target for SymbiYosys proofs and cache-simulator parity.
 
-This document specifies amber's hardware architecture. It is written after the PRD decisions that fix geometry, write policy, MESI variant, replacement policy, CPU-side interface, snoop transport, observation, verification strategy, and first consumer, but while D3 (memory-side shape) and D11 (array construction) remain open. The open rows are recorded honestly with their current direction and consequences; nothing here is presented as decided that is not.
+This document specifies amber's hardware architecture. It is written after the PRD decisions that fix geometry, write policy, MESI variant, replacement policy, CPU-side interface, snoop transport, observation, verification strategy, and first consumer — and after D3 (memory-side shape) and D11 (array construction) were decided by PRD v0.6 (2026-10-07). The chapters record the decided shape and its consequences; nothing here is presented as decided that is not.
 
 ## Scope
 

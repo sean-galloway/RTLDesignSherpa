@@ -151,7 +151,7 @@ yet.
   instantiated. Both tops are compiled, and both are exercised in the DV
   matrix — `amber` against a peer + memory environment, `amber_ace`
   against an onyx environment (§5).
-- **F13 — Fill/drain engines** (D3 OPEN, direction: house wrappers). Fill =
+- **F13 — Fill/drain engines** (D3 open at sketch time; decided PRD v0.6, 2026-10-07: house wrappers). Fill =
   one AR burst, whole line. Drain = a small victim buffer (PROPOSED depth 1)
   + one AW burst. Single outstanding by construction — no reorder buffers.
 

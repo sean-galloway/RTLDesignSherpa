@@ -31,7 +31,7 @@ amber does not use a `RIG` elaboration parameter. The rig is the top you instant
 
 `amber` wraps `amber_core` with:
 
-- House `axi4_master_rd` and `axi4_master_wr` for plain AXI4 memory access (D3 direction).
+- House `axi4_master_rd` and `axi4_master_wr` for plain AXI4 memory access (D3, decided PRD v0.6 2026-10-07).
 - The `amber_snoop_resp` ACE adapter facing the peer cache.
 - No coherent-transaction issuer; memory-side misses are ordinary AR/AW bursts.
 

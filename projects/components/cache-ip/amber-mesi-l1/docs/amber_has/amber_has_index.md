@@ -23,13 +23,13 @@
 
 # amber — Blocking MESI Snoopy L1 Cache — Hardware Architecture Specification
 
-**Version:** 0.7
+**Version:** 0.8
 **Date:** 2026-10-11
-**Status:** full HAS ratifies the Pre-HAS sketch; book-informed pass folded Chinnakonda multiprocessor-cache material into coherence FSM, snoop adapter, and future hooks as candidates/hooks. PRD decisions D1, D2, D4, D5, D6, D7, D8, D9, D10 are DECIDED. D3 (memory-side shape) and D11 (array construction) remain OPEN and are recorded honestly in the chapters they shape. Rulings recorded 2026-10-11 (Sean): RACK/WACK omitted from the family ACE contract (wrapper auto-pulse deprecated, removal tracked as A5); CD-before-CR convention confirmed.
+**Status:** full HAS ratifies the Pre-HAS sketch; book-informed pass folded Chinnakonda multiprocessor-cache material into coherence FSM, snoop adapter, and future hooks as candidates/hooks. All PRD decisions D1–D11 are DECIDED (D3 and D11 decided PRD v0.6, 2026-10-07; chapter hedges closed in this revision). Rulings recorded 2026-10-11 (Sean): RACK/WACK omitted from the family ACE contract (wrapper auto-pulse deprecated, removal tracked as A5); CD-before-CR convention confirmed.
 
 **Scope:** The architecture of `amber` (pair-rig top) and `amber_ace` (onyx-rig top) from the CPU GAXI slave through the shared cache core to the fabric masters and ACE snoop responder. The [MAS](../amber_mas/amber_mas_index.md) closes the micro-architecture decisions this book defers.
 
-**How this book relates to its sources.** The [amber PRD](../../PRD.md) is the binding requirements document. This HAS carries the Pre-HAS feature sketches (F1–F18) forward, drops their "PROPOSED" hedging where the PRD has decided, and fixes the module set and interfaces as architecture. Where D3 and D11 are still open, the chapters state the current direction and the consequences; nothing is disguised as decided. The [GLOBAL_REQUIREMENTS.md](../../../../../../GLOBAL_REQUIREMENTS.md) reset-macro, array-syntax, no-bespoke-SRAM, and filelist rules apply throughout.
+**How this book relates to its sources.** The [amber PRD](../../PRD.md) is the binding requirements document. This HAS carries the Pre-HAS feature sketches (F1–F18) forward, drops their "PROPOSED" hedging where the PRD has decided, and fixes the module set and interfaces as architecture. D3 and D11 are decided (PRD v0.6, 2026-10-07); the chapters record the decided shape and its consequences. The [GLOBAL_REQUIREMENTS.md](../../../../../../GLOBAL_REQUIREMENTS.md) reset-macro, array-syntax, no-bespoke-SRAM, and filelist rules apply throughout.
 
 ---
 
