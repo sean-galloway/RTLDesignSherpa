@@ -514,3 +514,14 @@ palette explicitly discretionary, meaning lives in geometry + labels only
 (photocopy test). All 9 existing diagrams audited against the checklist and
 pass (whole-unit, axi4, dfi_2p1 personally verified; rest on agent visual
 checks + derivative skeletons).
+KINDLE-EXPORT SKILL (partner request, 2026-10-10): skill
+~/.kimi-code/skills/exporting-docbook-pdfs/SKILL.md written TDD-style —
+RED baseline agent shipped 10 STALE repo PDFs (pumice HAS v0.9 / MAS v0.8
+though books are v1.0-draft/v0.9-draft) and silently skipped the new common
+books (no PDFs exist = generate, not skip); GREEN agent with the skill
+regenerated all 4 current books, created common generate_*_pdf.sh + styles
+yamls, fixed a latent RTLDS_ROOT depth bug in the pumice scripts, and shipped
+RDS-mem-ctrl-*.pdf (155+266+92+28 pp) to ~/Downloads. Repo artifacts +
+scripts committed 65ccf323d. Rule banked: repo PDFs are stale-on-arrival
+artifacts; markdown is source of truth; never ship a repo PDF without
+checking its rev against the book's **Version:**.
