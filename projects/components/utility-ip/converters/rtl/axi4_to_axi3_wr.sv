@@ -40,6 +40,10 @@
 // Limitations:
 //   - Data widths must match (no data width conversion)
 //   - AXI4 WRAP bursts longer than 16 beats are not supported
+//   - Early-W buffer holds at most 16 beats ahead of the matching AW;
+//     additional early W is backpressured on s_axi_wready (legal AXI4)
+//   - Same-ID AXI4 AWs are serialized (one outstanding per ID); concurrent
+//     AWs with different IDs are supported
 //   - Write-only: No read path support
 //
 // Author: RTL Design Sherpa
@@ -257,9 +261,9 @@ module axi4_to_axi3_wr #(
     assign w_handshake   = s_axi_wvalid && s_axi_wready;
     assign m_w_handshake = m_axi3_wvalid && m_axi3_wready;
 
-    // Accept W beats as long as the early-W buffer has space. A well-behaved
-    // AXI4 master will not send more than the active burst length; the buffer
-    // itself bounds how far early W can run ahead of AW.
+    // Accept W beats as long as the early-W buffer has space. When the buffer
+    // is full s_axi_wready is deasserted, which is the legal AXI4 mechanism
+    // for throttling early W data.
     assign s_axi_wready = (w_buffer.size() < WBufferDepth);
 
     // Forward buffered W beats only when a chunk descriptor is available (so
@@ -271,20 +275,6 @@ module axi4_to_axi3_wr #(
     assign m_axi3_wlast = cur_desc_valid && (cur_desc_beats_remaining == 5'd1);
     assign m_axi3_wuser = w_buffer[0].user;
     assign m_axi3_wvalid = cur_desc_valid && (w_buffer.size() > 0);
-
-    // Early-W buffer overflow assertion. Fires when a W beat arrives while the
-    // buffer is already full, which means the AXI4 master sent more than one
-    // full burst ahead of the matching AW. s_axi_wready is backpressured in
-    // this condition; the assertion signals that the buffer capacity has been
-    // exceeded.
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            // No check during reset
-        end else begin
-            if (w_handshake && (w_buffer.size() >= WBufferDepth))
-                $error("ASSERT_A3_WR_WBUF_OVFL: early-W buffer overflow (depth=%0d); W beat accepted while buffer full", WBufferDepth);
-        end
-    )
 
     //==========================================================================
     // AXI3 to AXI4 Write Response Channel Merge

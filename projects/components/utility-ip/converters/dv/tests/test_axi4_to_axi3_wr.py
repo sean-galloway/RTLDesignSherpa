@@ -145,13 +145,13 @@ async def axi4_to_axi3_wr_test(dut):
 
 
 @cocotb.test(timeout_time=10, timeout_unit="ms")
-async def axi4_to_axi3_wr_overflow_test(dut):
+async def axi4_to_axi3_wr_backpressure_test(dut):
     """
-    Negative test for ASSERT_A3_WR_WBUF_OVFL.
+    Early-W backpressure test.
 
-    Drives 17 W beats before the matching AW, exceeding the 16-beat early-W
-    buffer. Verilator treats the resulting $error as fatal, so this test is
-    expected to fail and is marked xfail at the pytest layer.
+    Drives 17 W beats before the matching AW, filling the 16-beat early-W
+    buffer. The 17th beat must be held by s_axi_wready backpressure until the
+    buffered beats drain after the AW handshake.
     """
     tb = AXI4ToAXI3WriteTB(dut)
 
@@ -166,23 +166,23 @@ async def axi4_to_axi3_wr_overflow_test(dut):
     b_monitor_task = cocotb.start_soon(tb.axi3_b_monitor())
 
     try:
-        success = await tb.run_overflow_test()
+        success = await tb.run_backpressure_test()
 
         await tb.wait_clocks('aclk', 50)
 
         final_stats = tb.get_statistics()
 
         tb.log.info("=" * 80)
-        tb.log.info("FINAL OVERFLOW TEST RESULTS")
+        tb.log.info("FINAL BACKPRESSURE TEST RESULTS")
         tb.log.info("=" * 80)
         tb.log.info(f"Total errors: {final_stats['errors']}")
         tb.log.info("=" * 80)
 
         if success and final_stats['errors'] == 0:
-            tb.log.info("OVERFLOW TEST PASSED (unexpected: assertion did not fire)")
+            tb.log.info("BACKPRESSURE TEST PASSED")
         else:
-            tb.log.error("OVERFLOW TEST FAILED")
-            assert False, "Overflow test failed"
+            tb.log.error("BACKPRESSURE TEST FAILED")
+            assert False, "Backpressure test failed"
 
     finally:
         for task in (aw_monitor_task, w_monitor_task, b_monitor_task):
@@ -392,8 +392,8 @@ def test_axi4_to_axi3_wr(request, params):
 
 
 
-def test_axi4_to_axi3_wr_overflow(request):
-    """Negative test: early-W beyond 16 beats is backpressured (no overflow)."""
+def test_axi4_to_axi3_wr_backpressure(request):
+    """Early-W backpressure: 17th W beat before AW is held until buffer drains."""
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -404,7 +404,7 @@ def test_axi4_to_axi3_wr_overflow(request):
     dut_name = "axi4_to_axi3_wr"
     toplevel = dut_name
 
-    test_name_plus_params = "test_axi4_to_axi3_wr_overflow_dw32_aw32_id8_gate"
+    test_name_plus_params = "test_axi4_to_axi3_wr_backpressure_dw32_aw32_id8_gate"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
@@ -431,7 +431,7 @@ def test_axi4_to_axi3_wr_overflow(request):
         'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
         'COCOTB_TEST_TIMEOUT': '10000',
-        'COCOTB_TESTCASE': 'axi4_to_axi3_wr_overflow_test',
+        'COCOTB_TESTCASE': 'axi4_to_axi3_wr_backpressure_test',
         'SEED': os.environ.get('SEED', str(random.randint(0, 1000000))),
         'TEST_LEVEL': 'gate',
         'AXI_DATA_WIDTH': '32',
@@ -456,9 +456,9 @@ def test_axi4_to_axi3_wr_overflow(request):
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
     print(f"\n{'='*80}")
-    print(f"AXI4->AXI3 Write Converter Overflow Test")
+    print(f"AXI4->AXI3 Write Converter Early-W Backpressure Test")
     print(f"Configuration: DW=32, AW=32, ID=8")
-    print(f"Expected: simulation aborts on ASSERT_A3_WR_WBUF_OVFL")
+    print(f"Expected: 17th early-W beat is held by s_axi_wready backpressure")
     print(f"{'='*80}")
 
     try:
@@ -479,10 +479,10 @@ def test_axi4_to_axi3_wr_overflow(request):
             plus_args=['--trace'] if enable_waves else [],
         )
 
-        print("OVERFLOW TEST PASSED (unexpected: assertion did not abort)")
+        print("BACKPRESSURE TEST PASSED")
 
     except Exception as e:
-        print(f"OVERFLOW TEST FAILED AS EXPECTED: {str(e)}")
+        print(f"BACKPRESSURE TEST FAILED: {str(e)}")
         print(f"   Logs: {log_path}")
         print(f"   Waveforms: {cmd_filename}")
         raise

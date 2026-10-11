@@ -708,9 +708,9 @@ class AXI4ToAXI3WriteTB(TBBase):
         self.stats['bursts_completed'] += 1
         return True
 
-    async def early_w_overflow(self):
-        """Drive 17 W beats before AW; ASSERT_A3_WR_WBUF_OVFL must fire."""
-        self.log.info("TEST: early_w_overflow")
+    async def early_w_backpressure(self):
+        """Drive 17 W beats before AW; the 17th must be held by backpressure."""
+        self.log.info("TEST: early_w_backpressure")
         burst_len = 17
         axid = 15
         strb = (1 << self.bytes_per_beat) - 1
@@ -732,9 +732,9 @@ class AXI4ToAXI3WriteTB(TBBase):
 
         await self.wait_clocks(self.clk_name, 2)
 
-        # The 17th beat must be backpressured; the converter fires the overflow
-        # assertion. Launch it in the background so the test can observe the
-        # backpressure without blocking.
+        # The 17th beat must be backpressured while the buffer is full. Launch
+        # it in the background so the test can observe the backpressure without
+        # blocking.
         w17_task = cocotb.start_soon(self.axi4_master.w_channel.send(w_packets[16]))
 
         sent_17th = False
@@ -749,15 +749,15 @@ class AXI4ToAXI3WriteTB(TBBase):
                 break
 
         if not w17_task.done():
-            w17_task.kill()
+            w17_task.cancel()
 
         if sent_17th:
-            self.log.error("early_w_overflow: 17th W beat was accepted; buffer should have backpressured")
+            self.log.error("early_w_backpressure: 17th W beat was accepted; buffer should have backpressured")
             self.stats['early_w_errors'] += 1
             self.stats['errors'] += 1
             return False
 
-        self.log.info("early_w_overflow PASSED")
+        self.log.info("early_w_backpressure PASSED")
         return True
 
     async def lock_map(self):
@@ -1138,7 +1138,7 @@ class AXI4ToAXI3WriteTB(TBBase):
                 self.stats['errors'] += 1
                 return False
             if aw['len'] != 15:
-                self.log.error(f"long_write_len256: AWLEN mismatch AW {i} got {aw['len']}, expected {expected_len}")
+                self.log.error(f"long_write_len256: AWLEN mismatch AW {i} got {aw['len']}, expected 15")
                 self.stats['errors'] += 1
                 return False
 
@@ -1207,12 +1207,12 @@ class AXI4ToAXI3WriteTB(TBBase):
 
         return success
 
-    async def run_overflow_test(self):
-        """Run only the early-W overflow negative test."""
+    async def run_backpressure_test(self):
+        """Run only the early-W backpressure test."""
         self.log.info("=" * 80)
-        self.log.info("EARLY-W OVERFLOW NEGATIVE TEST")
+        self.log.info("EARLY-W BACKPRESSURE TEST")
         self.log.info("=" * 80)
-        return await self.early_w_overflow()
+        return await self.early_w_backpressure()
 
     async def run_medium_test(self):
         """Run medium write pass-through test suite (includes chopping/merge)"""
