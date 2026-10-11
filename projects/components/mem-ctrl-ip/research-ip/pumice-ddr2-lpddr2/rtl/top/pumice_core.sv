@@ -51,7 +51,7 @@ module pumice_core
     // DV knob: arm the scheduler's command-history scoreboard (JEDEC same-bank
     // sequencing audit, $fatal on violation). 0 = generate-off, zero cost.
     parameter int CMD_HISTORY_EN = 0,
-    // Windows for the DFI-WIRE checker (pumice_dfi_cmd_path). Separate from the
+    // Windows for the DFI-WIRE checker (common mc_dfi_cmd_path). Separate from the
     // scheduler's HIST_T_*: same numbers, but a TB may want the wire checker
     // armed while the scheduler one is not, or vice versa.
     parameter int HIST_T_RFC_CORE = 0,
@@ -275,7 +275,7 @@ module pumice_core
     localparam int CMD_DELAY_EFF = (CMD_DELAY == 0) ? (5 + 2 * BURST_WORDS) : CMD_DELAY;
     // tCCD can never be shorter than a column's DQ occupancy (BURST_WORDS DFI
     // words). This clamp is LOAD-BEARING: the DFI cmd path no longer paces
-    // columns (it must never stall -- see pumice_dfi_cmd_path), so this is the
+    // columns (it must never stall -- see common mc_dfi_cmd_path), so this is the
     // ONLY thing standing between a too-small tCCD CSR and columns issued on
     // top of the previous burst's data on the shared DQ bus.
     logic [7:0] w_t_ccd_eff;
