@@ -652,7 +652,7 @@ class AdapterGenerator:
         lines: List[str] = []
         lines.append("    // ================================================================")
         lines.append(f"    // {label} requester front end ({module}): {label} completer -> AXI4")
-        if proto in ('apb', 'apb5'):
+        if proto in ('apb', 'apb5', 'wb4'):
             lines.append("    // single-beat requester, feeding the timing wrapper below.")
         lines.append("    // ================================================================")
         lines.extend(self._apb_axi_net_decls(x))

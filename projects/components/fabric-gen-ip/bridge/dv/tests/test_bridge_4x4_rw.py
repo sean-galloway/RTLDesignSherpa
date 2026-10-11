@@ -30,6 +30,13 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 # Import generated testbench class
+# The TB class lives on a path that is not dotted-importable (a
+# directory component is not a legal Python identifier, e.g.
+# 'fpga-systems', or this component's own 'fabric-gen-ip'). Import
+# it by module name off sys.path instead -- tbclasses/ is a sibling
+# of tests/.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                os.pardir, 'tbclasses'))
 from bridge4x4_rw_tb import Bridge4x4RwTB, AxiResponseError
 from bridge_arbitration import run_arbitration
 

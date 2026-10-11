@@ -25,6 +25,13 @@ from cocotb_test.simulator import run  # noqa: F401
 
 from TBClasses.shared.utilities import get_paths
 from TBClasses.shared.test_levels import level_env, reg_level_grid
+# The TB class lives on a path that is not dotted-importable (a
+# directory component is not a legal Python identifier, e.g.
+# 'fpga-systems', or this component's own 'fabric-gen-ip'). Import
+# it by module name off sys.path instead -- tbclasses/ is a sibling
+# of tests/.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                os.pardir, 'tbclasses'))
 from bridge1x2_rd_lite_mon_tb import Bridge1x2RdLiteMonTB, AxiResponseError
 from monitor_stress_common import run_comprehensive, run_monitor_sim
 
