@@ -23,14 +23,14 @@
 
 # Arithmetic
 
-**RTL:** `rtl/math/` (174 modules)
-**Filelists:** `rtl/math/filelists/` (175) — lint the whole area with `math_all.f`
-**Tests:** `val/math/` (122)
+**RTL:** `rtl/math/` (184 modules)
+**Filelists:** `rtl/math/filelists/` (185) — lint the whole area with `math_all.f`
+**Tests:** `val/math/` (132)
 
 Everything that computes a number lives here: integer add, subtract and
 multiply, and the IEEE-754-style floating-point operators in bf16, fp16, fp32
 and the two fp8 flavours. The library was split out of `rtl/common/` because it
-had outgrown it — 174 of the repository's modules are arithmetic, and mixing
+had outgrown it — 184 of the repository's modules are arithmetic, and mixing
 them with counters and FIFOs made both harder to navigate. If a doc still says
 `rtl/common/math_*`, it's stale.
 
@@ -38,7 +38,7 @@ them with counters and FIFOs made both harder to navigate. If a doc still says
 
 ## Overview
 
-Read [the Math Library map](math_library.md) first. A flat list of 174 files
+Read [the Math Library map](math_library.md) first. A flat list of 184 files
 isn't navigable, so that page organizes the library the way you'd actually
 search it: by **operation**, and within each operation by **methodology** —
 the algorithm and the paper it comes from. Brent-Kung against Han-Carlson for

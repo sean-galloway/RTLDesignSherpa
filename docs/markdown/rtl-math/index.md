@@ -61,8 +61,15 @@ other.
 - **[math_adder_han_carlson](math_adder_han_carlson.md)** — Han-Carlson hybrid parallel prefix adder family (16/22/32/44/48/72-bit)
   - Includes: `math_adder_han_carlson_016.sv`, `math_adder_han_carlson_022.sv`, `math_adder_han_carlson_032.sv`, `math_adder_han_carlson_044.sv`, `math_adder_han_carlson_048.sv`, `math_adder_han_carlson_072.sv`
   - Building blocks: `math_prefix_cell.sv`, `math_prefix_cell_gray.sv`
+- **[math_adder_hybrid_ripple_prefix](math_adder_hybrid_ripple_prefix.md)** — hybrid adder: low-order ripple chain + single Kogge-Stone tree for the upper bits (8/16/32/64-bit)
+  - Includes: `math_adder_hybrid_ripple_prefix.sv` (parameterized core), `math_adder_hybrid_ripple_prefix_008.sv`, `math_adder_hybrid_ripple_prefix_016.sv`, `math_adder_hybrid_ripple_prefix_032.sv`, `math_adder_hybrid_ripple_prefix_064.sv`
 - **[math_addsub](math_addsub.md)** — combined adder/subtractor
   - Includes: `math_addsub_full_nbit.sv`
+
+### Division
+
+- **[math_dividers](math_dividers.md)** — integer divider family: restoring, non-restoring, and SRT radix-2 / radix-2-carry-save / radix-4 (parameterized `DATA_WIDTH`)
+  - Includes: `math_divider_restoring.sv`, `math_divider_nonrestoring.sv`, `math_divider_srt_radix2.sv`, `math_divider_srt_radix2_csa.sv`, `math_divider_srt_radix4.sv`
 
 ### Subtraction
 

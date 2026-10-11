@@ -9,6 +9,8 @@
 - [Full Adder](math_adder_full.md)
 - [Han-Carlson Parallel Prefix Adder](math_adder_han_carlson.md)
 - [Carry Lookahead Adder](math_adder_pg_chain.md)
+- [Hybrid Ripple/Prefix Adder](math_adder_hybrid_ripple_prefix.md)
+- [Integer Dividers (Restoring, Non-Restoring, SRT Family)](math_dividers.md)
 - [Ripple Carry Adder](math_adder_ripple_carry.md)
 - [Add/Subtract Unit](math_addsub.md)
 - [BF16 Adder](math_bf16_adder.md)

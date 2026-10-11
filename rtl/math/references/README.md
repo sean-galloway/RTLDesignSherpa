@@ -62,8 +62,25 @@ File naming: `<Technique>__<FirstAuthor><Year>.pdf`.
 | Brent-Kung parallel-prefix adder | `math_adder_brent_kung_{008,016,032,064}.sv`, `math_adder_brent_kung_bitwisepg.sv`, `math_adder_brent_kung_black.sv`, `math_adder_brent_kung_gray.sv`, `math_adder_brent_kung_pg.sv`, `math_adder_brent_kung_sum.sv` | R. P. Brent, H. T. Kung, "A Regular Layout for Parallel Adders," *IEEE Trans. Computers* C-31(3):260–264, Mar. 1982. DOI: [10.1109/TC.1982.1675982](https://doi.org/10.1109/TC.1982.1675982) | `BrentKungPrefixAdder__Brent1982.pdf` |
 | Han-Carlson parallel-prefix adder | `math_adder_han_carlson_{016,022,032,044,048,072}.sv` | T. Han, D. A. Carlson, "Fast Area-Efficient VLSI Adders," *Proc. 8th IEEE Symp. Computer Arithmetic (ARITH-8)*, pp. 49–56, 1987. DOI: [10.1109/ARITH.1987.6158699](https://doi.org/10.1109/ARITH.1987.6158699) | `HanCarlsonPrefixAdder__Han1987.pdf` |
 | Kogge-Stone parallel-prefix adder (and prefix operator cells) | `math_prefix_cell.sv` (black cell), `math_prefix_cell_gray.sv` (gray cell), `math_adder_pg_chain.sv` | P. M. Kogge, H. S. Stone, "A Parallel Algorithm for the Efficient Solution of a General Class of Recurrence Equations," *IEEE Trans. Computers* C-22(8):786–793, Aug. 1973. DOI: [10.1109/TC.1973.5009159](https://doi.org/10.1109/TC.1973.5009159) | `KoggeStonePrefixAdder__Kogge1973.pdf` |
+| Hybrid ripple/prefix adder (single Kogge-Stone tree serves both carry-in hypotheses via `G_i \| (P_i & c_in)`) | `math_adder_hybrid_ripple_prefix.sv`, `math_adder_hybrid_ripple_prefix_{008,016,032,064}.sv` | O. J. Bedrij, "Carry-Select Adder," *IRE Trans. Electronic Computers* EC-11(3):340–346, June 1962. DOI: [10.1109/IRETELC.1962.5407919](https://doi.org/10.1109/IRETELC.1962.5407919) — the published form of the boundary-overlap structure (one network, per-bit mux). The specific ripple-low/tree-high split is repo practice (owner, private communication from a senior ALU designer); no peer paper claiming this exact combination is known. | citation only (IRE paywalled) |
 
 : Integer adder, multiplier, and compressor references
+
+### Integer division
+
+Restoring and non-restoring division are pre-literature textbook primitives (no
+defensible single origin; Deschamps ch. 9 is the secondary treatment). The SRT
+family citations below cover the digit-recurrence algorithms, the on-the-fly
+conversion, and higher-radix selection.
+
+| Technique | Module(s) in `rtl/math` | Reference | Status |
+|-----------|--------------------------|-----------|--------|
+| SRT radix-2 digit-recurrence division (redundant quotient digits, shift-in formulation) | `math_divider_srt_radix2.sv` | J. E. Robertson, "A New Class of Digital Division Methods," *IRE Trans. Electronic Computers* EC-7(3):218–222, Sept. 1958. DOI: [10.1109/TEC.1958.5222579](https://doi.org/10.1109/TEC.1958.5222579) (the R in SRT; D. W. Sweeney's contribution was never formally published); K. D. Tocher, "Techniques of Multiplication and Division for Automatic Binary Computers," *Quart. J. Mech. Appl. Math.* 11(3):364–384, 1958. DOI: [10.1093/qjmam/11.3.364](https://doi.org/10.1093/qjmam/11.3.364). | citation only (both paywalled) |
+| SRT radix-2 with carry-save remainder (estimate-based digit selection from truncated remainder + divisor leading bits) | `math_divider_srt_radix2_csa.sv` | Same SRT lineage as above (Robertson 1958; Deschamps 9.2.4 develops the carry-save variant as Algorithm 9.6). The selection-threshold derivation used here is documented in `docs/markdown/rtl-math/math_dividers.md`. | citation only |
+| SRT radix-4 digit-recurrence division, digit set {-3..3} (2 bits/cycle, unnormalized) | `math_divider_srt_radix4.sv` | D. E. Atkins, "Higher-Radix Division Using Estimates of the Divisor and Partial Remainders," *IEEE Trans. Computers* C-17(10):925–934, Oct. 1968. DOI: [10.1109/TC.1968.226439](https://doi.org/10.1109/TC.1968.226439) — the higher-radix selection-table line; Deschamps 9.2.5 uses the same {-3..3} digit set. | citation only (IEEE paywalled) |
+| On-the-fly conversion of redundant quotient digits (Q/QM pair) | all three SRT dividers | M. D. Ercegovac, T. Lang, "On-the-Fly Conversion of Redundant into Conventional Representations," *IEEE Trans. Computers* C-36(7):895–897, July 1987. DOI: [10.1109/TC.1987.1676986](https://doi.org/10.1109/TC.1987.1676986). | citation only (IEEE paywalled) |
+
+: Integer division references
 
 ### Floating-point arithmetic core
 

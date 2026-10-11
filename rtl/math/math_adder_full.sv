@@ -16,7 +16,7 @@
 `timescale 1ns / 1ps
 
 // Simple Full Adder implemented
-module math_adder_full #(parameter int N=1) (
+module math_adder_full (
     input  logic i_a,
     input  logic i_b,
     input  logic i_c,
