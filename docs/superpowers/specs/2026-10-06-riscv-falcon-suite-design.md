@@ -17,6 +17,16 @@ convention. Rung 4 builds **two named flavors in the one directory**
 generate-gated, mirroring the amber/amber_ace one-directory-two-tops
 precedent. Knock-ons recorded in place: the top-of-ISA non-goal becomes
 RV32IMAF; gyrfalcon-A's verification gate moves to spike RV32IMA.
+**Ruled 2026-10-11 (Sean), Shen & Lipasti refinements:** (1) rung 4 adopts
+the S&L-standard memory organization — a **store buffer** drained in commit
+order with load bypassing/forwarding via associative address search
+(S&L §5.3.3) — as core OoO infrastructure in both flavors. (2)
+Misprediction recovery is **parameterized**: `RECOVERY_MODE = CKPT_RESTORE`
+(the repo-original per-branch rename checkpoint + free-list restore,
+default) and `RECOVERY_MODE = FLUSH_RESTART` (the book-canonical
+tag-invalidation/ROB-flush per S&L §5.1.4 and H&P §3.7). Both
+implementations ship; both must pass identical batteries; the
+recovery-cycle delta is a measured gyrfalcon-book result.
 
 ## Summary
 
@@ -159,7 +169,16 @@ The largest falcon, apex of the ladder: the machine hides the program order.
   ROB, rolls back rename, restores the free list. Reuses peregrine's L1s,
   predictor, trap machinery, and AXI fabric. `A_EXT` is the one
   ISA-visible elaboration parameter; the A machinery below is
-  generate-gated and absent from the baseline flavor.
+  generate-gated and absent from the baseline flavor. The load-store path
+  adds the S&L-standard **store buffer** (ruled 2026-10-11): stores retire
+  their data into a commit-drained store buffer (S&L §5.3.3
+  finished/completed portions), loads bypass or forward via an associative
+  store-buffer address search, and the buffer drains to the D$ in program
+  order at commit. Misprediction recovery is a build parameter (ruled
+  2026-10-11): `RECOVERY_MODE = CKPT_RESTORE` (default — per-branch rename
+  checkpoint + free-list restore, the repo-original) or
+  `RECOVERY_MODE = FLUSH_RESTART` (book-canonical tag-invalidation + ROB
+  flush per S&L §5.1.4 / H&P §3.7).
 - **A-extension machinery (gyrfalcon-A flavor only):** a reservation register —
   `lr.w` records the address, `sc.w` stores only while the reservation holds
   and writes success/failure to `rd`, traps and flushes clear it.
@@ -177,7 +196,13 @@ The largest falcon, apex of the ladder: the machine hides the program order.
   baseline flavor, **RV32IMA** for gyrfalcon-A — with randomized
   program streams as the primary gate; targeted formal — in-order commit
   property, deadlock/livelock freedom, recovery correctness. gyrfalcon-A
-  adds directed batteries (LR/SC success, SC failure across trap/interrupt interleave, AMO ALU coverage, aq/rl ordering checks) and two targeted formal properties: SC-failure correctness and reservation granularity. riscv-formal
+  adds directed batteries (LR/SC success, SC failure across
+  trap/interrupt interleave, AMO ALU coverage, aq/rl ordering checks) and
+  two targeted formal properties: SC-failure correctness and reservation
+  granularity. Both `RECOVERY_MODE` values must pass identical batteries
+  (functional equivalence across the parameter), and the
+  misprediction-recovery cycle cost of each mode is measured on directed
+  mispredict streams and reported in the gyrfalcon book. riscv-formal
   on an OOO core is disproportionate; optional stretch goal only.
 - **Packaging:** *Simplified RV32IMA: gyrfalcon — out-of-order execution* book;
   the gyrfalcon-A flavor carries the atomics chapter (reservations, SC
