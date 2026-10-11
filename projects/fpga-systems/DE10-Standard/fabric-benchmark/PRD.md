@@ -25,7 +25,7 @@
 
 # DE10-Standard Fabric Benchmark — PRD
 
-**Version:** 0.2 (draft) · **Date:** 2026-10-11 · **Status:** collateral-blocked
+**Version:** 0.3 (draft) · **Date:** 2026-10-11 · **Status:** collateral-blocked
 (Quartus/Platform Designer IP intake pending; bring-up unblocked when available)
 
 ## 1. Purpose
@@ -49,7 +49,9 @@ what two AXI fabrics cost and what they deliver:
 The flavors are mirror images and should tell the same story. Running both
 checks that they do: fabric and memory-controller behavior should be
 direction-symmetric, and any asymmetry the two flavors surface (arbitration,
-MC read/write turnaround, data-path differences) is itself a result.
+MC read/write turnaround, data-path differences) is itself a result. The
+scenario library in §4.1 extends the same mirror-discipline to contention,
+addressing, transients, and integrity.
 
 Two comparison axes: **size of design** and **performance**. Everything
 else — device, HPS, memory controller, stream datapath, CRC checker, SRAMs,
@@ -98,8 +100,9 @@ matched functionally or documented as a difference.
 
 ### 4.1 Workloads (performance axis)
 
-Each flavor runs the same sweep: burst length {4, 8, 16, 32, 64 beats} ×
-outstanding transactions {1, 2, 4, 8}, fixed measurement window, N = 5 runs.
+**v1 execution scope** — the headline sweep runs on W1-F1 and W1-F2: burst
+length {4, 8, 16, 32, 64 beats} × outstanding transactions {1, 2, 4, 8},
+fixed measurement window, N = 5 runs.
 
 - **W1-F1 — fill then drain (headline):** the write injector fills a fixed
   DDR3 region with PRBS data through the fabric+MC (setup phase; timed and
@@ -111,10 +114,37 @@ outstanding transactions {1, 2, 4, 8}, fixed measurement window, N = 5 runs.
   through the MC. Read direction from the slave, write direction into DRAM:
   the mirror of W1-F1's drain.
 - **W2 — SRAM ↔ SRAM across the fabric:** loopback between two stream SRAM
-  regions; removes DRAM/MC variance to expose fabric-only behavior.
-- **W3 — Contention:** `stream` + the write injector (or JTAG-AXI master)
-  concurrently active on interleaved regions; per-master share and latency
-  under contention. (v1 keeps W3 simple: two masters, fixed mix.)
+  regions; removes DRAM/MC variance to expose fabric-only behavior. This is
+  the control that attributes any W1 asymmetry (fabric vs MC).
+- **W3 — Contention pair (F3 / F3-mirror):** stream drains DRAM→CRC while
+  the injector concurrently fills a *different* DRAM region (concurrent
+  R+W through the arbiters and MC); the mirror run swaps the roles.
+  Sweep: mix {50/50, 90/10} × outstanding {2, 4}. **Story:** per-master
+  bandwidth shares should be symmetric under role-swap; asymmetry isolates
+  arbitration bias in the fabric vs read-priority scheduling in the MC.
+
+**Scenario library** — adopted with this PRD; all reuse the fixed cast and
+all carry a mirror check. Scheduling follows milestone appetite; data lands
+in `data/` under the same conventions as v1.
+
+| Scenario | Mirror partner | The story it should tell |
+| --- | --- | --- |
+| **B1 — Burst-knee curve** | both flavors | Efficiency vs burst length at fixed total bytes; the saturation knee per leg, and the same knee in both flavors |
+| **B2 — Address-stride sweep** | both flavors | Row-interleaved vs blocked vs strided access (stream's existing address generators); the fabric adds no order-sensitivity, and legs track across strides |
+| **B3 — Hot-region saturation** | — (single, but percentile tails are the check) | Latency percentiles under full saturation of one bank/region; arbitration jitter exposed by the tail |
+| **B4 — Cold vs warm transients** | idle durations {1 µs, 1 ms, 10 ms} | First-transaction latency after idle vs steady-state; pipeline/skid depth visible as the size-vs-latency trade |
+| **C1 — F2 readback verify** | F1's drain CRC | After W1-F2 writes DRAM, stream reads it back into the CRC checker — closes the integrity loop so **both** flavors end in a CRC verdict |
+| **C2 — Seed-swap sanity pair** | F1 ↔ F2 seeds | Same entropy, different data; results are data-independent |
+
+**v1.x stretch** (reuse the cast; schedule after the library): D1 — hours-long
+alternating F1/F2 soak with obs tracking BW/latency drift over time; E1 —
+unmapped-address probe (DECERR latency, PD default slave vs bridge
+subtractive slave); E2 — unaligned burst starts (both legs carry aligners;
+measure the penalty).
+
+**Deferred:** A2 — backpressure pair (slow sink, then slow source). Tells
+the sustained-backpressure story, but needs one small RTL knob (a pace
+throttle on the PRBS slave / CRC sink); revisit after v1.
 
 ### 4.2 Metrics — performance
 
@@ -125,10 +155,13 @@ read out through the same register path:
   DDR3/theoretical ceiling.
 - Latency distribution (p50 / p95 / p99) for the measured transaction
   windows, idle and under load.
-- Mirror agreement: W1-F1 vs W1-F2 bandwidth and latency at matched sweep
-  points (direction-symmetry check; divergence investigated and explained).
+- Mirror agreement: W1-F1 vs W1-F2 (and F3 vs F3-mirror) bandwidth and
+  latency at matched sweep points; divergence investigated and explained
+  (with W2 as the fabric/MC attributor).
 - Under W3: per-master bandwidth share (arbitration fairness) and latency
-  inflation.
+  inflation; role-swap symmetry.
+- Integrity: CRC verdicts at the end of every flavor run (C1 closes the
+  loop for F2).
 
 ### 4.3 Metrics — size of design
 
@@ -149,7 +182,7 @@ normalized delta table (% difference, Leg A vs Leg B).
 - Same Quartus version, device, pin/clock constraints, and SDC.
 - Same driver scripts and transaction streams both legs (scripted via
   System Console + JTAG-AXI; identical TCL, identical counts, identical
-  PRBS seeds both flavors).
+  PRBS seeds both flavors and both legs).
 - Warm-up excluded: measurements taken over a fixed steady-state window;
   the W1-F1 fill phase is timed separately from the drain measurement.
 - N = 5 runs per point; report median and spread.
@@ -173,7 +206,8 @@ normalized delta table (% difference, Leg A vs Leg B).
  └──────────────────────────────────────────────────────────────────┘
 
  Flavor 1: injector ──► DRAM ══ stream ══► CRC SRAM
- Flavor 2: PRBS slave ══ stream ══► DRAM
+ Flavor 2: PRBS slave ══ stream ══► DRAM ──(C1 readback)──► CRC SRAM
+ F3 pair:  stream drain + injector fill (roles swap in the mirror)
 ```
 
 Leg A assembles from: bridge generator config TOML → generated crossbar SV →
@@ -188,9 +222,9 @@ same addresses.
 1. `quartus/` — two compilable Quartus projects (Leg A, Leg B).
 2. `rtl/` — bridge TOML(s), wrapper tops, obs hookup notes.
 3. `scripts/` — System Console/JTAG-AXI driver TCL, report-to-CSV parsers.
-4. `data/` — measurement CSVs per leg per flavor per run date.
+4. `data/` — measurement CSVs per leg per scenario/flavor per run date.
 5. `docs/` — analysis document (standard doc flow → PDF): headline size
-   table + performance tables (both flavors) + mirror-agreement check +
+   table + performance tables (both flavors) + mirror-agreement verdicts +
    honest caveats (driver ceilings, topology differences, single-device
    scope).
 
@@ -200,10 +234,10 @@ same addresses.
 | --- | --- | --- |
 | M0 | Collateral intake: PD IP inventory, JTAG-AXI master availability in 24.1 std, HPS DDR3 config for this board, f2h/h2f/ACP widths | external download |
 | M1 | Leg B (Intel PD) bring-up: compiles, JTAG-AXI loopback, sanity counters | M0 |
-| M2 | Block selection: exact PRBS slave block from stream's inventory; injector/obs plumbing; W1-F1/W1-F2/W2 scripted on one leg | M1 |
-| M3 | Leg A (bridge) bring-up: matched-topology TOML, compiles, same driver passes both flavors | M2 |
-| M4 | Measurements: full sweep × both flavors ×5 runs, Fitter/TimeQuest parses | M3 |
-| M5 | Analysis doc + site write-up (incl. mirror-agreement verdict) | M4 |
+| M2 | Block selection: exact PRBS slave block from stream's inventory; injector/obs plumbing; W1-F1/W1-F2/W2/W3 scripted on one leg | M1 |
+| M3 | Leg A (bridge) bring-up: matched-topology TOML, compiles, same driver passes all v1 scenarios | M2 |
+| M4 | Measurements: v1 sweep (both flavors + W3) ×5 runs; scenario-library runs as appetite allows; Fitter/TimeQuest parses | M3 |
+| M5 | Analysis doc + site write-up (incl. mirror-agreement verdicts) | M4 |
 
 Note the order: Intel leg first. The PD flow is the unknown; the bridge leg
 is deterministic given a matched topology.
@@ -213,9 +247,10 @@ is deterministic given a matched topology.
 - Both legs fit and run on the DE10-Standard with the identical driver.
 - Headline tables delivered: size delta and performance delta, Leg A vs Leg
   B, at matched topology, for both flavors.
-- **Mirror agreement:** W1-F1 and W1-F2 tell the same story within
-  measurement spread at matched sweep points, or every divergence is
-  explained in the analysis.
+- **Mirror agreement:** W1-F1 and W1-F2 (and F3 vs F3-mirror) tell the same
+  story within measurement spread at matched sweep points, or every
+  divergence is explained in the analysis.
+- Every flavor run ends in a CRC verdict (C1 makes this true for F2).
 - A third party can re-run the campaign from `scripts/` + this PRD alone.
 
 ## 9. Non-goals (v1)
@@ -223,7 +258,7 @@ is deterministic given a matched topology.
 Other topologies/NoC; ACP comparisons; multi-clock/CDC comparisons; power;
 Linux userspace benchmarking (System Console + bare JTAG-AXI only); AXI5;
 write-only or read-only DRAM microbenches beyond the two flavors (extend in
-v2 if the mirror check surprises).
+v2 if the mirror check surprises); backpressure pacing (A2 deferred).
 
 ## 10. Risks
 
@@ -234,6 +269,7 @@ v2 if the mirror check surprises).
 | PD leg emits features the bridge can't match | Match functionally or document as a difference in the analysis; never let Leg A exceed Leg B's configured capability |
 | Leg A fmax below Leg B on Cyclone V (different RAM inference styles) | Report achieved fmax at the shared clock target plus a best-effort column; the comparison is primarily at-equal-clock |
 | Mirror flavors disagree (real asymmetry) | That is a finding, not a failure: localize with W2 (fabric-only) vs W1 (with MC) to attribute the asymmetry |
+| Scenario-library scope creeps past milestone appetite | Library is explicitly appetite-scheduled; v1 exit criteria only cover F1/F2/W2/W3 |
 | Quartus 24.1 std device/IP gaps for 5CSX | M0 verifies before any build work |
 
 ## 11. Open questions (resolve at M0/M2)
@@ -246,7 +282,7 @@ v2 if the mirror check surprises).
 - PD interconnect default configuration knobs worth matching (pipeline
   stages, arbitration) so Leg A's bridge config is a fair mirror.
 - M2: exact PRBS responder block from stream's `rtl/fub` inventory for the
-  Flavor-2 source slave (and the matching CRC-verification hook).
+  Flavor-2 source slave (and the matching CRC-verification hook, per C1).
 
 ## 12. References
 
