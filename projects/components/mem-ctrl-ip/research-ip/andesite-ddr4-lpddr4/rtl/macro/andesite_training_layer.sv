@@ -326,7 +326,7 @@ module andesite_training_layer
     //=========================================================================
     // Common training shell (cal-data CDC unused in andesite; tie off).
     //=========================================================================
-    mc_training_layer #(
+    mc_training_shell #(
         .NUM_SLOTS      (2),
         .BKW            (3),
         .ROW_WIDTH      (18),

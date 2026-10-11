@@ -7,29 +7,45 @@ values still open. Per common_has ch5.2 a product is a configuration of the
 common stack, not a new RTL tree — the layer selection itself is
 `rtl/filelists/top/granite.f`.
 
-Status: **configuration scaffolded 2026-10-11** — RTL top pending the
-wrapper-dissolution task (TASK-001 in this product's vault area). No values
-below are committed silicon; anything marked TBD is decided at bring-up.
+Status: **first build in progress 2026-10-11** — storage layer dissolved into
+a storage-lite `mc_xddr2_entry_store`, refresh option set reduced, and the
+real `granite_core.sv` top composed. No values below are committed silicon;
+anything marked TBD is decided at bring-up.
 
 ## Layer selection
 
 | Common layer | granite configuration |
 |---|---|
 | `mc_axi4_layer` | Lite SKU widths at instantiation (data width per board fabric — TBD). |
-| `mc_storage_layer` | **Lite** (ch5.2 v2 default): `GRANITE_SEAM_N = 1`, in-order seam; `GRANITE_ENTRY_STORE_DEPTH = 1` — the entry store shrinks toward one, never to zero. |
-| `mc_scheduler_layer` | Full pick machinery (FR-FCFS + age). Common v2 children compose per stage-3 wrapper dissolution: `mc_xddr2_init_sequencer`, `mc_xddr2_mode_register`, `mc_xddr2_refresh_ctrl`, `mc_page_policy` (+ optional `mc_cmd_history_checker`). |
+| `mc_xddr2_entry_store` | **Storage-lite seam** (ch5.2 v2 default): `GRANITE_SEAM_N = 1`, in-order seam; `GRANITE_ENTRY_STORE_DEPTH = 1` — the entry store shrinks toward one, never to zero. Replaces `mc_storage_layer`. |
+| `mc_scheduler_layer` | Full pick machinery (FR-FCFS + age). Common v2 children compose per wrapper dissolution: `mc_xddr2_init_sequencer`, `mc_xddr2_mode_register`, `mc_xddr2_refresh_ctrl` (reduced option set), `mc_page_policy`. Command history checker omitted in this SKU. |
 | `mc_training_layer` | Shell composing the common LPDDR2 clients: `mc_lpddr2_zq_ctrl`, `mc_lpddr2_dq_cal`. DDR2 has no ZQ/DQ-cal maintenance requirement. |
+| `mc_storage_layer` | **Absent** — replaced by `mc_xddr2_entry_store` above. |
 | `mc_ras_layer` | **Absent** — true bypass: no transform pair instantiated, no scrub; only the reserved CSR decode. Omission, not a parameter. |
 | `mc_dfi_2p1_layer` | Full — command / write / read pipelines + aclk↔dfi_clk CDC, encoding via `mc_xddr2_cmd_formatter`. |
 
-Never-omitted check (ch5.2): entry store present (storage lite retains
-one), write-data staging present (`GRANITE_WR_DATA_BUF_WORDS = 16`, SKU
-minimum, never zero), aclk↔dfi_clk CDC present (in the DFI layer),
-maintenance request/grant present (training layer). A product that cannot
-refresh correctly is not a smaller product, it is a broken one.
+Never-omitted check (ch5.2): entry store present (`mc_xddr2_entry_store`,
+one entry per direction), write-data staging present
+(`GRANITE_WR_DATA_BUF_WORDS = 16`, SKU minimum, never zero), aclk↔dfi_clk
+CDC present (in the DFI layer), maintenance request/grant present (training
+layer). A product that cannot refresh correctly is not a smaller product, it
+is a broken one.
 
-The v2 generation needs no bank groups, no FGR, no DBI, no CA parity —
-none appear in this SKU.
+The v2 generation needs no bank groups, no FGR, no DBI, no CA parity — none
+appear in this SKU.
+
+## Refresh option set
+
+Granite configures `mc_xddr2_refresh_ctrl` with the reduced option set:
+
+| Option | granite value | note |
+|---|---|---|
+| `HAS_POSTPONE`     | 0 | Busy-side postpone credit disabled; strict tREFI. |
+| `HAS_PULLIN`       | 0 | Idle pull-ahead credit disabled. |
+| `HAS_REFPB`        | 0 | REFab only; per-bank refresh disabled. |
+| `HAS_DRAIN_BURST`  | 0 | Drain-burst / streak counter disabled. |
+
+Pumice (research reference) keeps all options at their default 1.
 
 ## Parameters / knobs
 

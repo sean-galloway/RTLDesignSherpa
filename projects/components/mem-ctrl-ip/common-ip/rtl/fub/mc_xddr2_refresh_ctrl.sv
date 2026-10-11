@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2026 sean galloway
 //
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
 // Module: mc_xddr2_refresh_ctrl
 // Purpose: Track tREFI between mandatory refresh commands. When the
 //          interval expires, raise `refresh_req_o` to the scheduler.
@@ -39,6 +42,15 @@
 //     demand burst that follows sees a refresh-free window. 0 = never.
 //   * demand_i: scheduler-level "any read/write waiting" — the postpone
 //     gate and the pull-in idle detector both key off it.
+//
+// v4 (granite SKU): optional feature disable parameters.  A product can
+// configure a smaller refresh option set:
+//   * HAS_POSTPONE     = 0 removes the busy-side postpone credit (strict).
+//   * HAS_PULLIN       = 0 removes the idle pull-ahead credit.
+//   * HAS_REFPB        = 0 forces REFab-only (refpb_mode_i ignored).
+//   * HAS_DRAIN_BURST  = 0 removes the drain-burst/streak counter.
+// Tie-offs are structural generate blocks, not ignored inputs, so lint and
+// synthesis elide the disabled logic.
 
 `timescale 1ns / 1ps
 
@@ -48,7 +60,11 @@ module mc_xddr2_refresh_ctrl
     import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int NUM_BANKS = 8,
-    parameter int BA_W      = $clog2(NUM_BANKS)
+    parameter int BA_W      = $clog2(NUM_BANKS),
+    parameter bit HAS_POSTPONE    = 1'b1,
+    parameter bit HAS_PULLIN      = 1'b1,
+    parameter bit HAS_REFPB       = 1'b1,
+    parameter bit HAS_DRAIN_BURST = 1'b1
 )(
     input  logic        mc_clk,
     input  logic        mc_rst_n,
@@ -112,43 +128,43 @@ module mc_xddr2_refresh_ctrl
 
     // Effective interval: REFpb refreshes one bank at a time, so it ticks at
     // tREFIpb (~tREFI/8 per JESD209-2; REF_TIMING_PB.trefi_pb overrides,
-    // 0 = derive).
+    // 0 = derive).  When HAS_REFPB==0 the interval is always t_refi_i.
     logic [15:0] w_refi_eff;
-    assign w_refi_eff = !refpb_mode_i        ? t_refi_i
-                      : (trefi_pb_i != 16'd0) ? trefi_pb_i
-                                              : (t_refi_i >> 3);
+    generate
+        if (HAS_REFPB) begin : g_refpb_on
+            assign w_refi_eff = !refpb_mode_i        ? t_refi_i
+                              : (trefi_pb_i != 16'd0) ? trefi_pb_i
+                              : (t_refi_i >> 3);
+        end else begin : g_refpb_off
+            assign w_refi_eff = t_refi_i;
+            wire _unused_refpb = &{1'b0, refpb_mode_i, trefi_pb_i};
+        end
+    endgenerate
 
-    // Credit limits, clamped: postpone <= 7 so the pending accumulator
-    // (saturating at 8) can always exceed it and FORCE the refresh; pull-in
-    // <= 8 per the JEDEC +-8 window.
-    // POSTPONE_MAX is derived from MAX_PENDING, not written as a literal, so
-    // the two cannot drift apart. It must leave HEADROOM, not merely allow the
-    // accumulator to exceed it:
-    //
-    //   The busy-side request is `r_pending > w_post_eff`. With the old clamp of
-    //   7 that first asserted at pending == 8 == MAX_PENDING -- the exact value
-    //   at which `else if (pend_n < MAX_PENDING)` stops incrementing and every
-    //   further tREFI tick is SILENTLY DROPPED. The threshold to START asking
-    //   for a refresh and the threshold to BEGIN LOSING them were the same
-    //   number, so any latency between the request and the grant (finishing a
-    //   write burst, precharging banks, tRFC) cost real refreshes -- a data
-    //   retention hazard, not just a scheduling delay.
-    //
-    //   Only `refresh_credit` was exposed: it is the sole config that programs
-    //   postpone (8, clamped to 7). Every other config leaves postpone = 0
-    //   (strict), where the request asserts at pending > 0 and the headroom is
-    //   the full JEDEC window.
-    //
-    //   MAX_PENDING - 2 makes the request assert at pending == MAX_PENDING - 1,
-    //   i.e. one whole tREFI (7.8 us at this tREFI) of lead time to drain a
-    //   burst and issue the REF before the JEDEC 8-postponed ceiling. JEDEC
-    //   permits 8 postponed refreshes, so saturating AT 8 is correct; asking
-    //   only once you are already there is not.
+    // Credit limits, clamped: postpone <= MAX_PENDING-2 so the pending
+    // accumulator (saturating at 8) can always exceed it and FORCE the
+    // refresh; pull-in <= 8 per the JEDEC +-8 window.  With HAS_POSTPONE=0
+    // or HAS_PULLIN=0 the limits are tied to zero structurally.
     localparam logic [3:0] POSTPONE_MAX = MAX_PENDING - 4'd2;
     logic [3:0] w_post_eff, w_pull_eff;
-    assign w_post_eff = (postpone_limit_i > POSTPONE_MAX) ? POSTPONE_MAX
-                                                          : postpone_limit_i;
-    assign w_pull_eff = (pullin_limit_i  > 4'd8) ? 4'd8 : pullin_limit_i;
+    generate
+        if (HAS_POSTPONE) begin : g_post_on
+            assign w_post_eff = (postpone_limit_i > POSTPONE_MAX) ? POSTPONE_MAX
+                                                                  : postpone_limit_i;
+        end else begin : g_post_off
+            assign w_post_eff = 4'd0;
+            wire _unused_post = &{1'b0, postpone_limit_i};
+        end
+    endgenerate
+
+    generate
+        if (HAS_PULLIN) begin : g_pull_on
+            assign w_pull_eff = (pullin_limit_i  > 4'd8) ? 4'd8 : pullin_limit_i;
+        end else begin : g_pull_off
+            assign w_pull_eff = 4'd0;
+            wire _unused_pull = &{1'b0, pullin_limit_i};
+        end
+    endgenerate
 
     // Pull-in credit: refreshes already performed AHEAD of their tREFI tick.
     logic [3:0] r_pullin;
@@ -156,8 +172,14 @@ module mc_xddr2_refresh_ctrl
     logic w_grant_accept;   // grant against the pending backlog
     logic w_grant_early;    // grant with no backlog = a pull-in refresh
     assign w_grant_accept = refresh_grant_i && (r_pending > 4'd0);
-    assign w_grant_early  = refresh_grant_i && (r_pending == 4'd0)
-                          && (r_pullin < 4'd8);
+    generate
+        if (HAS_PULLIN) begin : g_grant_early_on
+            assign w_grant_early  = refresh_grant_i && (r_pending == 4'd0)
+                                  && (r_pullin < 4'd8);
+        end else begin : g_grant_early_off
+            assign w_grant_early = 1'b0;
+        end
+    endgenerate
 
     `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
         if (`RST_ASSERTED(mc_rst_n)) begin
@@ -182,13 +204,13 @@ module mc_xddr2_refresh_ctrl
                 automatic logic [3:0] pend_n = r_pending;
                 automatic logic [3:0] pull_n = r_pullin;
                 if (enable_i && w_refi_expired) begin
-                    if (pull_n > 4'd0)            pull_n = pull_n - 4'd1;
-                    else if (pend_n < MAX_PENDING) pend_n = pend_n + 4'd1;
+                    if (HAS_PULLIN && (pull_n > 4'd0)) pull_n = pull_n - 4'd1;
+                    else if (pend_n < MAX_PENDING)     pend_n = pend_n + 4'd1;
                     // else: saturate (data retention violation looming)
                 end
                 if (refresh_grant_i) begin
-                    if (pend_n > 4'd0)      pend_n = pend_n - 4'd1;
-                    else if (pull_n < 4'd8) pull_n = pull_n + 4'd1;
+                    if (pend_n > 4'd0)            pend_n = pend_n - 4'd1;
+                    else if (HAS_PULLIN && (pull_n < 4'd8)) pull_n = pull_n + 4'd1;
                 end
                 r_pending <= pend_n;
                 r_pullin  <= pull_n;
@@ -201,90 +223,134 @@ module mc_xddr2_refresh_ctrl
     // pending work, load min(refresh_burst_i, r_pending). Each grant
     // decrements. Drain is "active" while remaining > 0 AND pending > 0
     // (scheduler should keep granting REF back-to-back during this window).
+    // Disabled structurally when HAS_DRAIN_BURST==0.
     //=========================================================================
     logic [3:0] r_burst_remaining;
 
     // Clamp the load value to actual pending so we don't overcount.
     logic [3:0] w_drain_load;
-    assign w_drain_load = (refresh_burst_i > r_pending) ? r_pending
-                                                        : refresh_burst_i;
+    logic       w_drain_active;
 
-    // Gated on the registered request: a postponed backlog (req withheld)
-    // must not open the drain window, or the arbiter's drain preemption
-    // would defeat the postpone credit entirely.
-    logic w_drain_active;
-    assign w_drain_active = (r_burst_remaining > 4'd0) && (r_pending > 4'd0)
-                          && refresh_req_o;
+    generate
+        if (HAS_DRAIN_BURST) begin : g_drain_on
+            assign w_drain_load = (refresh_burst_i > r_pending) ? r_pending
+                                                                : refresh_burst_i;
 
-    `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
-        if (`RST_ASSERTED(mc_rst_n)) begin
-            r_burst_remaining <= 4'd0;
-        end else begin
-            if (w_grant_accept && r_burst_remaining > 4'd0) begin
-                r_burst_remaining <= r_burst_remaining - 4'd1;
-            end else if (r_burst_remaining == 4'd0 && r_pending > 4'd0) begin
-                // (Re)load quota once previous burst has been fully drained.
-                r_burst_remaining <= (w_drain_load == 4'd0)
-                                     ? 4'd1 : w_drain_load;
-            end
+            // Gated on the registered request: a postponed backlog (req withheld)
+            // must not open the drain window, or the arbiter's drain preemption
+            // would defeat the postpone credit entirely.
+            assign w_drain_active = (r_burst_remaining > 4'd0) && (r_pending > 4'd0)
+                                  && refresh_req_o;
+
+            `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
+                if (`RST_ASSERTED(mc_rst_n)) begin
+                    r_burst_remaining <= 4'd0;
+                end else begin
+                    if (w_grant_accept && r_burst_remaining > 4'd0) begin
+                        r_burst_remaining <= r_burst_remaining - 4'd1;
+                    end else if (r_burst_remaining == 4'd0 && r_pending > 4'd0) begin
+                        // (Re)load quota once previous burst has been fully drained.
+                        r_burst_remaining <= (w_drain_load == 4'd0)
+                                             ? 4'd1 : w_drain_load;
+                    end
+                end
+            end)
+        end else begin : g_drain_off
+            assign w_drain_load   = 4'd0;
+            assign w_drain_active = 1'b0;
+            `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
+                if (`RST_ASSERTED(mc_rst_n)) r_burst_remaining <= 4'd0;
+                else                         r_burst_remaining <= 4'd0;
+            end)
+            wire _unused_drain = &{1'b0, refresh_burst_i};
         end
-    end)
+    endgenerate
 
     //=========================================================================
     // REFpb bank rotor — increments on each grant when REFpb mode is
     // selected. Wraps 0..NUM_BANKS-1. In REFab mode, stays at 0.
+    // Disabled structurally when HAS_REFPB==0.
     //=========================================================================
     logic [BA_W-1:0] r_bank_rotor;
     logic [15:0]     r_grants_total;
 
-    `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
-        if (`RST_ASSERTED(mc_rst_n)) begin
-            r_bank_rotor   <= '0;
-            r_grants_total <= 16'd0;
-        end else if (w_grant_accept || w_grant_early) begin
-            r_grants_total <= r_grants_total + 16'd1;
-            // The rotor mirrors the DEVICE'S internal REFpb bank counter
-            // (JESD209-2 6.6 — the command carries no bank address). It
-            // advances exactly when a REFpb COMMAND is granted onto the
-            // wire (grant_was_pb_i) and HOLDS through REFab mode: the
-            // device's counter persists across mode changes, and clearing
-            // ours would desynchronize the mirror.
-            if (grant_was_pb_i) begin
-                if (r_bank_rotor == BA_W'(NUM_BANKS-1)) begin
-                    r_bank_rotor <= '0;
-                end else begin
-                    r_bank_rotor <= r_bank_rotor + BA_W'(1);
+    generate
+        if (HAS_REFPB) begin : g_rotor_on
+            `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
+                if (`RST_ASSERTED(mc_rst_n)) begin
+                    r_bank_rotor   <= '0;
+                    r_grants_total <= 16'd0;
+                end else if (w_grant_accept || w_grant_early) begin
+                    r_grants_total <= r_grants_total + 16'd1;
+                    // The rotor mirrors the DEVICE'S internal REFpb bank counter
+                    // (JESD209-2 6.6 — the command carries no bank address). It
+                    // advances exactly when a REFpb COMMAND is granted onto the
+                    // wire (grant_was_pb_i) and HOLDS through REFab mode: the
+                    // device's counter persists across mode changes, and clearing
+                    // ours would desynchronize the mirror.
+                    if (grant_was_pb_i) begin
+                        if (r_bank_rotor == BA_W'(NUM_BANKS-1)) begin
+                            r_bank_rotor <= '0;
+                        end else begin
+                            r_bank_rotor <= r_bank_rotor + BA_W'(1);
+                        end
+                    end
                 end
-            end
+            end)
+        end else begin : g_rotor_off
+            `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
+                if (`RST_ASSERTED(mc_rst_n)) begin
+                    r_bank_rotor   <= '0;
+                    r_grants_total <= 16'd0;
+                end else if (w_grant_accept || w_grant_early) begin
+                    r_grants_total <= r_grants_total + 16'd1;
+                    r_bank_rotor   <= '0;
+                end
+            end)
+            wire _unused_pb = &{1'b0, grant_was_pb_i};
         end
-    end)
+    endgenerate
 
+    //=========================================================================
     // Idle confirmation: demand_i is CAM occupancy and blinks off for a few
     // cycles between bursts; treating those micro-gaps as idle would release
     // postponed refreshes (and trigger pull-ins) mid-stream. Only a sustained
-    // gap counts as idle.
+    // gap counts as idle.  Only needed when postpone or pull-in is enabled.
+    //=========================================================================
     localparam logic [4:0] IDLE_CONFIRM = 5'd16;
     logic [4:0] r_idle_cnt;
-    logic w_idle;
-    assign w_idle = (r_idle_cnt >= IDLE_CONFIRM);
+    logic       w_idle;
 
-    `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
-        if (`RST_ASSERTED(mc_rst_n)) begin
-            r_idle_cnt <= '0;
-        end else if (demand_i) begin
-            r_idle_cnt <= '0;
-        end else if (!w_idle) begin
-            r_idle_cnt <= r_idle_cnt + 1'b1;
+    generate
+        if (HAS_POSTPONE || HAS_PULLIN) begin : g_idle_on
+            assign w_idle = (r_idle_cnt >= IDLE_CONFIRM);
+            `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
+                if (`RST_ASSERTED(mc_rst_n)) begin
+                    r_idle_cnt <= '0;
+                end else if (demand_i) begin
+                    r_idle_cnt <= '0;
+                end else if (!w_idle) begin
+                    r_idle_cnt <= r_idle_cnt + 1'b1;
+                end
+            end)
+        end else begin : g_idle_off
+            assign w_idle = 1'b0;
+            `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
+                if (`RST_ASSERTED(mc_rst_n)) r_idle_cnt <= '0;
+                else                         r_idle_cnt <= '0;
+            end)
+            wire _unused_demand = &{1'b0, demand_i};
         end
-    end)
+    endgenerate
 
     // Request: while demand persists the backlog must EXCEED the postpone
     // limit (0 = strict = request the moment anything is pending); once idle
     // is confirmed any backlog requests immediately, and with pull-in credit
-    // available the request runs AHEAD of the backlog entirely.
+    // available the request runs AHEAD of the backlog entirely.  When both
+    // advanced features are disabled this collapses to enable_i && pending>0.
     logic w_req;
     assign w_req = enable_i
-                 && (w_idle ? (r_pending > 4'd0) || (r_pullin < w_pull_eff)
+                 && (w_idle ? ((r_pending > 4'd0) || (HAS_PULLIN && (r_pullin < w_pull_eff)))
                             : (r_pending > w_post_eff));
 
     // Strict-flop outputs.
@@ -304,13 +370,13 @@ module mc_xddr2_refresh_ctrl
             refresh_req_o           <= w_req;
             pending_refreshes_o     <= r_pending;
             refresh_drain_active_o  <= w_drain_active;
-            refresh_kind_o          <= refpb_mode_i;
-            refresh_bank_o          <= r_bank_rotor;
+            refresh_kind_o          <= HAS_REFPB ? refpb_mode_i : 1'b0;
+            refresh_bank_o          <= HAS_REFPB ? r_bank_rotor : '0;
             obs_refi_cnt_o          <= r_refi_cnt;
-            obs_drain_remaining_o   <= r_burst_remaining;
-            obs_bank_rotor_o        <= r_bank_rotor;
+            obs_drain_remaining_o   <= HAS_DRAIN_BURST ? r_burst_remaining : 4'd0;
+            obs_bank_rotor_o        <= HAS_REFPB ? r_bank_rotor : '0;
             obs_grants_total_o      <= r_grants_total;
-            obs_pullin_credit_o     <= r_pullin;
+            obs_pullin_credit_o     <= HAS_PULLIN ? r_pullin : 4'd0;
         end
     end)
 

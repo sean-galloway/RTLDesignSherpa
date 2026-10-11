@@ -5,17 +5,17 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: mc_scheduler_layer
-// Purpose: Common scheduler-layer core for the mem-ctrl family. Wires the
+// Purpose: Common scheduler-layer macro for the mem-ctrl family. Wires the
 //          common command arbiter to the per-bank safe timers, global
-//          (bus/rank) timers, an output command FIFO, and a generic boundary
-//          for rock-specific init/refresh/maintenance/ZQ children.
-//
-//          Rock wrappers instantiate the rock-specific init_sequencer,
-//          mode_register, refresh_ctrl, page_policy, and cmd_history_checker
-//          and map them to the generic ports exposed here.
+//          (bus/rank) timers, an output command FIFO, and the v2 generation's
+//          rock-specific children (init_sequencer, mode_register, refresh_ctrl,
+//          page_policy, and optional cmd_history_checker).  A product configures
+//          which children compose via the HAS_* parameters; the default v2 set
+//          matches the pumice reference wiring.
 //
 //          - NUM_BG > 1 enables DDR4 bank-group L/S timing and carries cmd_bg_o.
 //          - HAS_ZQ == 1 exposes the ZQ calibration request/grant/t_zqcs port.
+//          - HAS_CMD_HISTORY arms the scheduler-side JEDEC sequencing scoreboard.
 //
 // Documentation: projects/components/mem-ctrl-ip/common-ip/docs/mc_scheduler_knobs.md
 `timescale 1ns / 1ps
@@ -46,12 +46,24 @@ module mc_scheduler_layer
     parameter int CMD_DELAY      = 6,
     parameter bit HAS_ZQ      = 1'b0,
     parameter int MAINT_EXTRA_WIDTH = 1,
+    // v2 children composition
+    parameter bit HAS_INIT_SEQUENCER = 1'b1,
+    parameter bit HAS_MODE_REGISTER  = 1'b1,
+    parameter bit HAS_REFRESH_CTRL   = 1'b1,
+    parameter bit HAS_PAGE_POLICY    = 1'b1,
+    parameter bit HAS_CMD_HISTORY    = 1'b0,
+    // refresh feature reduction (passed to mc_xddr2_refresh_ctrl)
+    parameter bit REF_HAS_POSTPONE    = 1'b1,
+    parameter bit REF_HAS_PULLIN      = 1'b1,
+    parameter bit REF_HAS_REFPB       = 1'b1,
+    parameter bit REF_HAS_DRAIN_BURST = 1'b1,
+
     parameter int N_LU  = NUM_BANKS,
     parameter int RKW   = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int NUM_CS = NUM_RANKS,
     parameter int CSW   = (NUM_CS > 1) ? $clog2(NUM_CS) : 1,
     parameter int BKW   = $clog2(NUM_BANKS),
-    parameter int PTRW  = $clog2(NUM_ENTRIES),
+    parameter int PTRW  = (NUM_ENTRIES > 1) ? $clog2(NUM_ENTRIES) : 1,
     parameter int IW    = AXI_ID_WIDTH,
     parameter int BGW_EFF = (NUM_BG > 1) ? $clog2(NUM_BG) : 1
 ) (
@@ -74,6 +86,12 @@ module mc_scheduler_layer
     input  logic [2:0]                page_mode_i,
     input  logic [7:0]                page_tr_init_i,
 
+    // page-policy pass-through (used when HAS_PAGE_POLICY=0)
+    input  logic                      ap_mode_en_i,
+    input  logic [NUM_BANKS-1:0]      ap_close_i,
+    input  logic                      timeout_pre_req_i,
+    input  logic [BKW-1:0]            timeout_pre_bank_i,
+
     // stall-cause attribution from the arbiter
     output logic [31:0]               stall_bp_o,
     output logic [31:0]               stall_refresh_o,
@@ -84,7 +102,7 @@ module mc_scheduler_layer
     output logic [31:0]               stall_noreq_o,
     output logic [31:0]               stall_zq_o,
 
-    // page-policy telemetry (from the wrapper's page_policy child)
+    // page-policy telemetry (from the page_policy child)
     output logic [31:0]               stat_page_hit_o,
     output logic [31:0]               stat_row_hit_o [NUM_BANKS],
     output logic [31:0]               stat_page_miss_o,
@@ -113,21 +131,57 @@ module mc_scheduler_layer
     input  logic [7:0]                t_rrd_l_i,
     input  logic [7:0]                t_rrd_s_i,
 
-    // ---- refresh (from wrapper's refresh_ctrl child) ----
+    // ---- init sequencer timing / MR CSRs ----
+    input  logic [15:0]               t_init_wait_i,
+    input  logic [15:0]               t_dll_wait_i,
+    input  logic [7:0]                t_mrd_wait_i,
+    input  logic [7:0]                t_rp_wait_i,
+    input  logic [7:0]                t_rfc_wait_i,
+    input  logic [15:0]               mr0_i,
+    input  logic [15:0]               mr1_i,
+    input  logic [15:0]               mr2_i,
+    input  logic [15:0]               mr3_i,
+    input  logic                      init_restart_i,
+
+    // init-sequencer pass-through (used when HAS_INIT_SEQUENCER=0)
+    input  logic                      init_done_i,
+    input  logic                      init_cmd_valid_i,
+    input  dram_op_e                  init_cmd_op_i,
+    input  logic [BKW-1:0]            init_cmd_bank_i,
+    input  logic [ROW_WIDTH-1:0]      init_cmd_row_i,
+
+    output logic                      dfi_init_start_o,
+    input  logic                      dfi_init_complete_i,
+    output logic                      init_done_o,
+
+    output logic [3:0]                cl_o,
+    output logic [3:0]                cwl_o,
+    output logic [3:0]                bl_o,
+
+    // ---- refresh CSRs ----
+    input  logic [15:0]               t_refi_i,
+    input  logic                      refi_reload_i,
+    input  logic [15:0]               t_rfc_i,
+    input  logic [3:0]                refresh_burst_i,
+    input  logic [3:0]                ref_postpone_i,
+    input  logic [3:0]                ref_pullin_i,
+    input  logic [1:0]                ref_mode_i,
+    input  logic [15:0]               ref_trefi_pb_i,
+    input  logic [7:0]                ref_trfc_pb_i,
+
+    // refresh pass-through (used when HAS_REFRESH_CTRL=0)
     input  logic                      refresh_req_i,
     input  logic                      refresh_drain_i,
     input  logic                      refresh_kind_i,
     input  logic [BKW-1:0]            refresh_bank_i,
     output logic                      refresh_grant_o,
-    input  logic [15:0]               t_rfc_i,
-    input  logic [7:0]                t_rfc_pb_i,
 
     // ---- ZQ calibration (from wrapper's zq source; present when HAS_ZQ=1) ----
     input  logic                      zq_req_i,
     output logic                      zq_grant_o,
     input  logic [15:0]               t_zqcs_i,
 
-    // ---- generic maintenance-class commands (from wrapper's training source) ----
+    // ---- generic maintenance-class commands (from training layer) ----
     input  logic                      maint_req_i,
     output logic                      maint_grant_o,
     input  dram_op_e                  maint_op_i,
@@ -136,19 +190,6 @@ module mc_scheduler_layer
     input  logic [COL_WIDTH-1:0]      maint_col_i,
     input  logic [MAINT_EXTRA_WIDTH-1:0] maint_extra_i,
     input  logic                      maint_busy_i,
-
-    // ---- init passthrough (from wrapper's init_sequencer child) ----
-    input  logic                      init_done_i,
-    input  logic                      init_cmd_valid_i,
-    input  dram_op_e                  init_cmd_op_i,
-    input  logic [BKW-1:0]            init_cmd_bank_i,
-    input  logic [ROW_WIDTH-1:0]      init_cmd_row_i,
-
-    // ---- runtime page-policy engine (from wrapper's page_policy child) ----
-    input  logic                      ap_mode_en_i,
-    input  logic [NUM_BANKS-1:0]      ap_close_i,
-    input  logic                      timeout_pre_req_i,
-    input  logic [BKW-1:0]            timeout_pre_bank_i,
 
     // ---- CAM per-entry vectors (external) ----
     input  logic [NUM_ENTRIES-1:0]              wr_sch_valid_i,
@@ -193,9 +234,7 @@ module mc_scheduler_layer
 
     output logic                      busy_o,
 
-    // Pre-FIFO command accept (arbiter-side).  Some rocks (andesite) need to
-    // ack their init_sequencer in the same cycle the arbiter takes the
-    // command, before the output FIFO/delay stages absorb it.
+    // Pre-FIFO command accept (arbiter-side).
     output logic                      cmd_accept_o,
     output dram_op_e                  cmd_accept_op_o
 );
@@ -224,6 +263,210 @@ module mc_scheduler_layer
     logic [BGW_EFF-1:0] a_cmd_bg;
     logic [ROW_WIDTH-1:0] a_cmd_row; logic [COL_WIDTH-1:0] a_cmd_col; logic a_cmd_ap;
     logic [MAINT_EXTRA_WIDTH-1:0] a_cmd_extra;
+
+    // ======================================================================
+    // v2 children: init / mode-register / refresh / page-policy
+    // ======================================================================
+    logic                       init_done;
+    logic                       init_cmd_valid; dram_op_e init_cmd_op;
+    logic [BKW-1:0]             init_cmd_bank; logic [ROW_WIDTH-1:0] init_cmd_row;
+    logic                       mr_seq_we; logic [4:0] mr_seq_index; logic [15:0] mr_seq_data;
+
+    logic                       refresh_req, refresh_drain, refresh_grant;
+    logic                       w_refresh_kind;
+    logic [BKW-1:0]             w_refresh_bank;
+    assign refresh_grant_o = refresh_grant;
+
+    logic                       w_pp_ap_en;
+    logic [NUM_BANKS-1:0]       w_pp_ap_close;
+    logic                       w_pp_to_req;
+    logic [BKW-1:0]             w_pp_to_bank;
+
+    logic                       w_refpb_en;
+    assign w_refpb_en = (ref_mode_i == 2'd2) && (memtype_i == MEMTYPE_LPDDR2);
+
+    generate
+        if (HAS_INIT_SEQUENCER) begin : g_init
+            mc_xddr2_init_sequencer #(
+                .NUM_BANKS(NUM_BANKS),
+                .ROW_WIDTH(ROW_WIDTH)
+            ) u_init (
+                .mc_clk             (aclk),
+                .mc_rst_n           (aresetn),
+                .memtype_i          (memtype_i),
+                .t_init_wait_i      (t_init_wait_i),
+                .t_dll_wait_i       (t_dll_wait_i),
+                .t_mrd_wait_i       (t_mrd_wait_i),
+                .t_rp_wait_i        (t_rp_wait_i),
+                .t_rfc_wait_i       (t_rfc_wait_i),
+                .mr0_i              (mr0_i),
+                .mr1_i              (mr1_i),
+                .mr2_i              (mr2_i),
+                .mr3_i              (mr3_i),
+                .init_restart_i     (init_restart_i),
+                .dfi_init_start_o   (dfi_init_start_o),
+                .dfi_init_complete_i(dfi_init_complete_i),
+                .mr_seq_we_o        (mr_seq_we),
+                .mr_seq_index_o     (mr_seq_index),
+                .mr_seq_data_o      (mr_seq_data),
+                .init_cmd_valid_o   (init_cmd_valid),
+                .init_cmd_op_o      (init_cmd_op),
+                .init_cmd_bank_o    (init_cmd_bank),
+                .init_cmd_row_o     (init_cmd_row),
+                .zqcl_req_o         (),
+                .zqcl_grant_i       (1'b0),
+                .init_busy_o        (),
+                .init_done_o        (init_done)
+            );
+        end else begin : g_no_init
+            assign dfi_init_start_o = 1'b0;
+            assign init_done        = init_done_i;
+            assign init_cmd_valid   = init_cmd_valid_i;
+            assign init_cmd_op      = init_cmd_op_i;
+            assign init_cmd_bank    = init_cmd_bank_i;
+            assign init_cmd_row     = init_cmd_row_i;
+            assign mr_seq_we        = 1'b0;
+            assign mr_seq_index     = 5'd0;
+            assign mr_seq_data      = 16'd0;
+            wire _unused_init = &{1'b0, dfi_init_complete_i, t_init_wait_i, t_dll_wait_i,
+                                  t_mrd_wait_i, t_rp_wait_i, t_rfc_wait_i,
+                                  mr0_i, mr1_i, mr2_i, mr3_i, init_restart_i};
+        end
+    endgenerate
+
+    generate
+        if (HAS_MODE_REGISTER) begin : g_mode_reg
+            mc_xddr2_mode_register #(
+                .NUM_RANKS(NUM_RANKS)
+            ) u_mode_reg (
+                .mc_clk        (aclk),
+                .mc_rst_n      (aresetn),
+                .memtype_i     (memtype_i),
+                .mr_we_i       (mr_seq_we),
+                .mr_index_i    (mr_seq_index),
+                .mr_data_i     (mr_seq_data),
+                .mr_rank_i     ('0),
+                .mr_req_o      (),
+                .mr_grant_i    (1'b0),
+                .mr_req_index_o(),
+                .mr_req_data_o (),
+                .mr_req_rank_o (),
+                .cl_o          (cl_o),
+                .cwl_o         (cwl_o),
+                .bl_o          (bl_o),
+                .al_o          (),
+                .drv_strength_o(),
+                .odt_o         ()
+            );
+        end else begin : g_no_mode_reg
+            assign cl_o  = 4'd0;
+            assign cwl_o = 4'd0;
+            assign bl_o  = 4'd0;
+        end
+    endgenerate
+
+    generate
+        if (HAS_REFRESH_CTRL) begin : g_refresh
+            mc_xddr2_refresh_ctrl #(
+                .NUM_BANKS        (NUM_BANKS),
+                .HAS_POSTPONE     (REF_HAS_POSTPONE),
+                .HAS_PULLIN       (REF_HAS_PULLIN),
+                .HAS_REFPB        (REF_HAS_REFPB),
+                .HAS_DRAIN_BURST  (REF_HAS_DRAIN_BURST)
+            ) u_refresh (
+                .mc_clk          (aclk),
+                .mc_rst_n        (aresetn),
+                .t_refi_i        (t_refi_i),
+                .trefi_pb_i      (ref_trefi_pb_i),
+                .refresh_burst_i (refresh_burst_i),
+                .refpb_mode_i    (w_refpb_en),
+                .refi_reload_i   (refi_reload_i),
+                .enable_i        (init_done),
+                .postpone_limit_i(ref_postpone_i),
+                .pullin_limit_i  (ref_pullin_i),
+                .demand_i        (|rd_sch_valid_i || |wr_sch_valid_i),
+                .refresh_req_o   (refresh_req),
+                .refresh_grant_i (refresh_grant),
+                .grant_was_pb_i  (cmd_op_o == OP_REFPB),
+                .pending_refreshes_o   (),
+                .refresh_drain_active_o(refresh_drain),
+                .refresh_kind_o        (w_refresh_kind),
+                .refresh_bank_o        (w_refresh_bank),
+                .obs_refi_cnt_o        (),
+                .obs_drain_remaining_o (),
+                .obs_bank_rotor_o      (),
+                .obs_grants_total_o    (),
+                .obs_pullin_credit_o   ()
+            );
+        end else begin : g_no_refresh
+            assign refresh_req    = refresh_req_i;
+            assign refresh_drain  = refresh_drain_i;
+            assign w_refresh_kind = refresh_kind_i;
+            assign w_refresh_bank = refresh_bank_i;
+            wire _unused_ref = &{1'b0, t_refi_i, refi_reload_i, refresh_burst_i,
+                                 ref_postpone_i, ref_pullin_i, ref_mode_i,
+                                 ref_trefi_pb_i, ref_trfc_pb_i};
+        end
+    endgenerate
+
+    generate
+        if (HAS_PAGE_POLICY) begin : g_page_policy
+            mc_page_policy #(
+                .NUM_RANKS(NUM_RANKS),
+                .NUM_BANKS(NUM_BANKS),
+                .ROW_WIDTH(ROW_WIDTH)
+            ) u_page_policy (
+                .aclk              (aclk),
+                .aresetn           (aresetn),
+                .policy_mode_i     (page_mode_i),
+                .tr_init_i         (page_tr_init_i),
+                .cmd_valid_i       (cmd_valid_o && cmd_ready_i),
+                .cmd_op_i          (cmd_op_o),
+                .cmd_bank_i        (cmd_bank_o),
+                .cmd_row_i         (cmd_row_o),
+                .bank_row_active_i (w_bank_row_active[0]),
+                .bank_open_row_i   (w_bank_open_row[0]),
+                .ap_mode_en_o      (w_pp_ap_en),
+                .ap_close_o        (w_pp_ap_close),
+                .timeout_pre_req_o (w_pp_to_req),
+                .timeout_pre_bank_o(w_pp_to_bank),
+                .stat_page_hit_o   (stat_page_hit_o),
+                .stat_row_hit_o    (stat_row_hit_o),
+                .stat_page_miss_o  (stat_page_miss_o),
+                .stat_page_empty_o (stat_page_empty_o),
+                .stat_act_o        (stat_act_o),
+                .stat_pre_o        (stat_pre_o),
+                .stat_ref_o        (stat_ref_o),
+                .demand_i          (|rd_sch_valid_i || |wr_sch_valid_i),
+                .stat_ref_busy_o   (stat_ref_busy_o)
+            );
+        end else begin : g_no_page_policy
+            assign w_pp_ap_en     = ap_mode_en_i;
+            assign w_pp_ap_close  = ap_close_i;
+            assign w_pp_to_req    = timeout_pre_req_i;
+            assign w_pp_to_bank   = timeout_pre_bank_i;
+            assign stat_page_hit_o   = '0;
+            assign stat_row_hit_o    = '{default: '0};
+            assign stat_page_miss_o  = '0;
+            assign stat_page_empty_o = '0;
+            assign stat_act_o        = '0;
+            assign stat_pre_o        = '0;
+            assign stat_ref_o        = '0;
+            assign stat_ref_busy_o   = '0;
+            wire _unused_pp = &{1'b0, page_mode_i, page_tr_init_i};
+        end
+    endgenerate
+
+    assign init_done_o = init_done;
+
+    // ======================================================================
+    // Common scheduler-layer core.
+    // ======================================================================
+    // Pumice maps its single-bit MRR training flag onto maint_extra[0].
+    logic w_maint_grant;
+    logic [0:0] w_maint_extra_in;
+    logic [0:0] w_maint_extra_out;
+    assign w_maint_extra_in[0] = (MAINT_EXTRA_WIDTH > 0) ? maint_extra_i[0] : 1'b0;
 
     // ======================================================================
     // mc_bank_timers — per-bank safe timers (open-page).
@@ -333,27 +576,27 @@ module mc_scheduler_layer
         .aclk               (aclk),
         .aresetn            (aresetn),
         .page_policy_i      (page_policy_i),
-        .ap_mode_en_i       (ap_mode_en_i),
-        .ap_close_i         (ap_close_i),
-        .timeout_pre_req_i  (timeout_pre_req_i),
-        .timeout_pre_bank_i (timeout_pre_bank_i),
-        .init_done_i        (init_done_i),
-        .init_cmd_valid_i   (init_cmd_valid_i),
-        .init_cmd_op_i      (init_cmd_op_i),
-        .init_cmd_bank_i    (init_cmd_bank_i),
-        .init_cmd_row_i     (init_cmd_row_i),
-        .refresh_req_i      (refresh_req_i),
-        .refresh_drain_i    (refresh_drain_i),
-        .refresh_grant_o    (refresh_grant_o),
-        .refresh_kind_i     (refresh_kind_i),
-        .refresh_bank_i     (refresh_bank_i),
+        .ap_mode_en_i       (w_pp_ap_en),
+        .ap_close_i         (w_pp_ap_close),
+        .timeout_pre_req_i  (w_pp_to_req),
+        .timeout_pre_bank_i (w_pp_to_bank),
+        .init_done_i        (init_done),
+        .init_cmd_valid_i   (init_cmd_valid),
+        .init_cmd_op_i      (init_cmd_op),
+        .init_cmd_bank_i    (init_cmd_bank),
+        .init_cmd_row_i     (init_cmd_row),
+        .refresh_req_i      (refresh_req),
+        .refresh_drain_i    (refresh_drain),
+        .refresh_grant_o    (refresh_grant),
+        .refresh_kind_i     (w_refresh_kind),
+        .refresh_bank_i     (w_refresh_bank),
         .t_rfc_i            (t_rfc_i),
-        .t_rfc_pb_i         (t_rfc_pb_i),
+        .t_rfc_pb_i         (ref_trfc_pb_i),
         .zq_req_i           (zq_req_i),
         .zq_grant_o         (zq_grant_o),
         .t_zqcs_i           (t_zqcs_i),
         .maint_req_i        (maint_req_i),
-        .maint_grant_o      (maint_grant_o),
+        .maint_grant_o      (w_maint_grant),
         .maint_op_i         (maint_op_i),
         .maint_bank_i       (maint_bank_i),
         .maint_row_i        (maint_row_i),
@@ -435,6 +678,15 @@ module mc_scheduler_layer
         .stall_zq_o         (stall_zq_o)
     );
 
+    assign maint_grant_o = w_maint_grant;
+    generate
+        if (MAINT_EXTRA_WIDTH > 0) begin : g_extra_out
+            assign cmd_extra_o = w_maint_extra_out;
+        end else begin : g_no_extra
+            assign cmd_extra_o = '0;
+        end
+    endgenerate
+
     // ======================================================================
     // Output command FIFO (scheduler -> DFI). Packs {ap,col,row,bg,bank,rank,extra,op}.
     // ======================================================================
@@ -481,16 +733,40 @@ module mc_scheduler_layer
                                     - (w_cmd_pop    ? TOKW'(1) : TOKW'(0));
     )
 
-    assign {cmd_ap_o, cmd_col_o, cmd_row_o, cmd_bg_o, cmd_bank_o, cmd_rank_o, cmd_extra_o, w_rd_op} = w_cmd_rd_data;
+    assign {cmd_ap_o, cmd_col_o, cmd_row_o, cmd_bg_o, cmd_bank_o, cmd_rank_o, w_maint_extra_out, w_rd_op} = w_cmd_rd_data;
     assign cmd_op_o    = w_rd_op;
 
     assign bank_row_active_o = w_bank_row_active;
     assign bank_open_row_o   = w_bank_open_row;
 
-    assign busy_o = !init_done_i || refresh_req_i || w_cmd_rd_valid
+    assign busy_o = !init_done || refresh_req || w_cmd_rd_valid
                  || (|w_bank_row_active[0]);
 
     assign cmd_accept_o    = a_cmd_valid && a_cmd_ready;
     assign cmd_accept_op_o = a_cmd_op;
+
+    // ---- optional command-history scoreboard -------------------------------
+    generate if (HAS_CMD_HISTORY && (CMD_HISTORY_EN != 0)) begin : g_cmd_history
+        mc_cmd_history_checker #(
+            .NUM_RANKS(NUM_RANKS),
+            .NUM_BANKS(NUM_BANKS),
+            .DEPTH    (32),
+            .T_RCD    (HIST_T_RCD),
+            .T_RP     (HIST_T_RP),
+            .T_RAS    (HIST_T_RAS),
+            .T_RFC    (HIST_T_RFC),
+            .T_WTR    (HIST_T_WTR),
+            .T_RTW    (HIST_T_RTW),
+            .T_RRD    (HIST_T_RRD),
+            .T_FAW    (HIST_T_FAW)
+        ) u_cmd_history (
+            .clk        (aclk),
+            .rst_n      (aresetn),
+            .cmd_valid_i(cmd_valid_o && cmd_ready_i),
+            .cmd_op_i   (cmd_op_o),
+            .cmd_rank_i (cmd_rank_o),
+            .cmd_bank_i (cmd_bank_o)
+        );
+    end endgenerate
 
 endmodule : mc_scheduler_layer

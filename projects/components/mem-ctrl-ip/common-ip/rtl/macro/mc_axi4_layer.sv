@@ -63,7 +63,7 @@ module mc_axi4_layer #(
     parameter int UW   = AXI_USER_WIDTH,
     parameter int SW   = AXI_DATA_WIDTH / 8,
     parameter int BKW  = $clog2(NUM_BANKS),
-    parameter int PTRW = $clog2(NUM_ENTRIES),
+    parameter int PTRW = (NUM_ENTRIES > 1) ? $clog2(NUM_ENTRIES) : 1,
     parameter int RKW  = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     // Split each host burst at DRAM-burst-byte boundaries -> 1 DRAM burst each.
     parameter int DRAM_BURST_BYTES = AXI_BEATS_PER_BURST * (DRAM_BEAT_WIDTH / 8)

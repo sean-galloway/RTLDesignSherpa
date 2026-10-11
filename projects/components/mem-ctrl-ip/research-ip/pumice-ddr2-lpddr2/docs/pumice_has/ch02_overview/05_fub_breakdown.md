@@ -41,7 +41,7 @@ live inside those layers; pumice does not instantiate them directly.
 
 | Common block | common_mas chapter | Pumice instantiation site |
 |---|---|---|
-| `mc_common_pkg` | [ch01 — package](../../../../../common-ip/docs/common_mas/ch01_package/01_mc_common_pkg.md) | imported in [`pumice_core.sv:30`](../../../rtl/top/pumice_core.sv) and [`pumice_scheduler_layer.sv:24`](../../../rtl/macro/pumice_scheduler_layer.sv) |
+| `mc_common_pkg` | [ch01 — package](../../../../../common-ip/docs/common_mas/ch01_package/01_mc_common_pkg.md) | imported in [`pumice_core.sv:30`](../../../rtl/top/pumice_core.sv) and the common macros that compose it |
 | `mc_axi4_layer` | [ch02 — host-side layer](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md) | [`pumice_core.sv:376`](../../../rtl/top/pumice_core.sv) (`u_ifc`) |
 | `mc_axi_burst_chopper` | [ch02 — host-side layer](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md) | inside `mc_axi4_layer` ([`pumice_core.sv:376`](../../../rtl/top/pumice_core.sv)) |
 | `mc_wr_splitter` | [ch02 — host-side layer](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md) | inside `mc_axi4_layer` ([`pumice_core.sv:376`](../../../rtl/top/pumice_core.sv)) |
@@ -52,12 +52,12 @@ live inside those layers; pumice does not instantiate them directly.
 | `mc_storage_layer` | [ch03 — entry-pool layer](../../../../../common-ip/docs/common_mas/ch03_storage_layer/01_mc_storage_layer.md) | [`pumice_core.sv:504`](../../../rtl/top/pumice_core.sv) (`u_storage`) |
 | `mc_wr_data_cam` | [ch03 — entry-pool layer](../../../../../common-ip/docs/common_mas/ch03_storage_layer/01_mc_storage_layer.md) | inside `mc_storage_layer` ([`pumice_core.sv:504`](../../../rtl/top/pumice_core.sv)) |
 | `mc_rd_cmd_cam` | [ch03 — entry-pool layer](../../../../../common-ip/docs/common_mas/ch03_storage_layer/01_mc_storage_layer.md) | inside `mc_storage_layer` ([`pumice_core.sv:504`](../../../rtl/top/pumice_core.sv)) |
-| `mc_scheduler_layer` | [ch04 — scheduler layer](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) | [`pumice_scheduler_layer.sv:315`](../../../rtl/macro/pumice_scheduler_layer.sv) (`u_core`) |
-| `mc_bank_timers` | [ch04 — scheduler layer](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) | inside `mc_scheduler_layer` ([`pumice_scheduler_layer.sv:315`](../../../rtl/macro/pumice_scheduler_layer.sv)) |
+| `mc_scheduler_layer` | [ch04 — scheduler layer](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) | [`pumice_core.sv:601`](../../../rtl/top/pumice_core.sv) (`u_sched`) |
+| `mc_bank_timers` | [ch04 — scheduler layer](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) | inside `mc_scheduler_layer` |
 | `mc_bank_timer` | [ch04 — scheduler layer](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) | inside `mc_bank_timers` inside `mc_scheduler_layer` |
-| `mc_global_timers` | [ch04 — scheduler layer](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) | inside `mc_scheduler_layer` ([`pumice_scheduler_layer.sv:315`](../../../rtl/macro/pumice_scheduler_layer.sv)) |
-| `mc_cmd_arbiter` | [ch04 — scheduler layer](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) | inside `mc_scheduler_layer` ([`pumice_scheduler_layer.sv:315`](../../../rtl/macro/pumice_scheduler_layer.sv)) |
-| `mc_training_layer` | [ch05 — training layer](../../../../../common-ip/docs/common_mas/ch05_training_layer/01_mc_training_layer.md) | [`pumice_training_layer.sv:176`](../../../rtl/macro/pumice_training_layer.sv) (`u_shell`) |
+| `mc_global_timers` | [ch04 — scheduler layer](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) | inside `mc_scheduler_layer` |
+| `mc_cmd_arbiter` | [ch04 — scheduler layer](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) | inside `mc_scheduler_layer` |
+| `mc_training_layer` | [ch05 — training layer](../../../../../common-ip/docs/common_mas/ch05_training_layer/01_mc_training_layer.md) | [`pumice_core.sv:725`](../../../rtl/top/pumice_core.sv) (`u_training`) |
 | `mc_dfi_2p1_layer` | [ch07 — DFI 2.1 layer](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md) | [`pumice_core.sv:766`](../../../rtl/top/pumice_core.sv) (`u_dfi`) |
 | `mc_dfi_cdc` | [ch07 — DFI 2.1 layer](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md) | inside `mc_dfi_2p1_layer` ([`pumice_core.sv:766`](../../../rtl/top/pumice_core.sv)) |
 | `mc_dfi_cmd_path` | [ch07 — DFI 2.1 layer](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md) | inside `mc_dfi_2p1_layer` ([`pumice_core.sv:766`](../../../rtl/top/pumice_core.sv)) |
@@ -69,20 +69,18 @@ live inside those layers; pumice does not instantiate them directly.
 ## 2. What pumice owns
 
 Pumice retains the rock-specific initialization, mode-register, refresh,
-page-policy, training, and DFI-encoding FUBs, plus thin wrappers around the
-common scheduler and training shells.
+page-policy, training, and DFI-encoding FUBs, now composed directly by the
+common `mc_scheduler_layer` and `mc_training_layer` macros in `pumice_core`.
 
 | Block | Role | Location |
 |---|---|---|
-| `mc_xddr2_init_sequencer` | DDR2/LPDDR2 JEDEC MR/init cold-boot engine. | [`common-ip/rtl/fub/mc_xddr2_init_sequencer.sv`](../../../../../common-ip/rtl/fub/mc_xddr2_init_sequencer.sv), instantiated in [`pumice_scheduler_layer.sv:193`](../../../rtl/macro/pumice_scheduler_layer.sv) |
-| `mc_xddr2_mode_register` | Per-rank MR shadow + live decode to CL/CWL/BL/AL. | [`common-ip/rtl/fub/mc_xddr2_mode_register.sv`](../../../../../common-ip/rtl/fub/mc_xddr2_mode_register.sv), instantiated in [`pumice_scheduler_layer.sv:225`](../../../rtl/macro/pumice_scheduler_layer.sv) |
-| `mc_xddr2_refresh_ctrl` | tREFI down-counter, postponer, and REFab/REFpb dispatch. | [`common-ip/rtl/fub/mc_xddr2_refresh_ctrl.sv`](../../../../../common-ip/rtl/fub/mc_xddr2_refresh_ctrl.sv), instantiated in [`pumice_scheduler_layer.sv:248`](../../../rtl/macro/pumice_scheduler_layer.sv) |
-| `mc_page_policy` | Runtime page-policy engine and command telemetry. | [`common-ip/rtl/fub/mc_page_policy.sv`](../../../../../common-ip/rtl/fub/mc_page_policy.sv), instantiated in [`pumice_scheduler_layer.sv:276`](../../../rtl/macro/pumice_scheduler_layer.sv) |
+| `mc_xddr2_init_sequencer` | DDR2/LPDDR2 JEDEC MR/init cold-boot engine. | [`common-ip/rtl/fub/mc_xddr2_init_sequencer.sv`](../../../../../common-ip/rtl/fub/mc_xddr2_init_sequencer.sv), composed inside `mc_scheduler_layer` ([`pumice_core.sv:601`](../../../rtl/top/pumice_core.sv)) |
+| `mc_xddr2_mode_register` | Per-rank MR shadow + live decode to CL/CWL/BL/AL. | [`common-ip/rtl/fub/mc_xddr2_mode_register.sv`](../../../../../common-ip/rtl/fub/mc_xddr2_mode_register.sv), composed inside `mc_scheduler_layer` |
+| `mc_xddr2_refresh_ctrl` | tREFI down-counter, postponer, and REFab/REFpb dispatch. | [`common-ip/rtl/fub/mc_xddr2_refresh_ctrl.sv`](../../../../../common-ip/rtl/fub/mc_xddr2_refresh_ctrl.sv), composed inside `mc_scheduler_layer` |
+| `mc_page_policy` | Runtime page-policy engine and command telemetry. | [`common-ip/rtl/fub/mc_page_policy.sv`](../../../../../common-ip/rtl/fub/mc_page_policy.sv), composed inside `mc_scheduler_layer` |
 | `mc_xddr2_cmd_formatter` | JEDEC command encoding into DFI v2.1 wires (DDR2 truth table / LPDDR2 CA bus, OP `0x56`/`0xAB` for ZQ). | [`common-ip/rtl/fub/mc_xddr2_cmd_formatter.sv`](../../../../../common-ip/rtl/fub/mc_xddr2_cmd_formatter.sv); instantiated inside common `mc_dfi_cmd_path`, which pumice consumes via `mc_dfi_2p1_layer`. |
-| `mc_lpddr2_zq_ctrl` (common-ip) | Periodic LPDDR2 ZQ calibration maintenance (MRW to MR10). | [`common-ip rtl/fub/mc_lpddr2_zq_ctrl.sv`](../../../../../common-ip/rtl/fub/mc_lpddr2_zq_ctrl.sv), instantiated in [`pumice_training_layer.sv:108`](../../../rtl/macro/pumice_training_layer.sv) |
-| `mc_lpddr2_dq_cal` (common-ip) | One-shot LPDDR2 DQ calibration interface (MRR MR32/MR40). | [`common-ip rtl/fub/mc_lpddr2_dq_cal.sv`](../../../../../common-ip/rtl/fub/mc_lpddr2_dq_cal.sv), instantiated in [`pumice_training_layer.sv:131`](../../../rtl/macro/pumice_training_layer.sv) |
-| `pumice_scheduler_layer` | Thin pumice wrapper around common `mc_scheduler_layer`; holds the rock init/refresh/page-policy FUBs. | [`rtl/macro/pumice_scheduler_layer.sv`](../../../rtl/macro/pumice_scheduler_layer.sv), instantiated in [`pumice_core.sv:601`](../../../rtl/top/pumice_core.sv) |
-| `pumice_training_layer` | Thin pumice wrapper around common `mc_training_layer`; holds the rock ZQ/DQ-cal FUBs. | [`rtl/macro/pumice_training_layer.sv`](../../../rtl/macro/pumice_training_layer.sv), instantiated in [`pumice_core.sv:725`](../../../rtl/top/pumice_core.sv) |
+| `mc_lpddr2_zq_ctrl` (common-ip) | Periodic LPDDR2 ZQ calibration maintenance (MRW to MR10). | [`common-ip rtl/fub/mc_lpddr2_zq_ctrl.sv`](../../../../../common-ip/rtl/fub/mc_lpddr2_zq_ctrl.sv), composed inside `mc_training_layer` ([`pumice_core.sv:725`](../../../rtl/top/pumice_core.sv)) |
+| `mc_lpddr2_dq_cal` (common-ip) | One-shot LPDDR2 DQ calibration interface (MRR MR32/MR40). | [`common-ip rtl/fub/mc_lpddr2_dq_cal.sv`](../../../../../common-ip/rtl/fub/mc_lpddr2_dq_cal.sv), composed inside `mc_training_layer` |
 
 ## 3. Retired and absorbed blocks
 
@@ -97,8 +95,8 @@ sentinel tests and filelist comments; they are not part of the current build.
 | `pumice_wr_data_cam` / `pumice_rd_cmd_cam` | Replaced by common `mc_wr_data_cam` / `mc_rd_cmd_cam` inside `mc_storage_layer` ([`pumice_core.sv:504`](../../../rtl/top/pumice_core.sv)). |
 | `pumice_bank_timers` (local) | Replaced by common `mc_bank_timers` inside `mc_scheduler_layer`. |
 | `pumice_cmd_arbiter` (behavioral core) | Replaced by common `mc_cmd_arbiter` inside `mc_scheduler_layer`. The pumice port-adapter wrapper was **removed 2026-10-11** — never instantiated in the default build (it survived only as the issue-rate test DUT); history in git. |
-| `pumice_scheduler_layer` (behavioral macro) | Now a thin wrapper around common `mc_scheduler_layer` ([`pumice_scheduler_layer.sv:315`](../../../rtl/macro/pumice_scheduler_layer.sv)). |
-| `pumice_training_layer` (behavioral macro) | Now a thin wrapper around common `mc_training_layer` ([`pumice_training_layer.sv:176`](../../../rtl/macro/pumice_training_layer.sv)). |
+| `pumice_scheduler_layer` (behavioral macro) | **Removed 2026-10-11** — its init/refresh/page-policy children are now composed directly by common `mc_scheduler_layer` ([`pumice_core.sv:601`](../../../rtl/top/pumice_core.sv)). |
+| `pumice_training_layer` (behavioral macro) | **Removed 2026-10-11** — its LPDDR2 ZQ/DQ-cal clients are now composed directly by common `mc_training_layer` ([`pumice_core.sv:725`](../../../rtl/top/pumice_core.sv)). |
 | `pumice_dfi_cdc` / `pumice_dfi_cmd_path` / `pumice_dfi_wr_serializer` / `pumice_dfi_rd_aligner` | Pumice-local DFI wrappers retired; common `mc_dfi_2p1_layer` owns the CDC and datapath ([`pumice_core.sv:766`](../../../rtl/top/pumice_core.sv)). |
 | `txn_queue` | Replaced by the two common CAMs: `mc_wr_data_cam` + `mc_rd_cmd_cam`. |
 | `bank_machine` | Replaced by FSM-free common `mc_bank_timer`, stamped by `mc_bank_timers`. |

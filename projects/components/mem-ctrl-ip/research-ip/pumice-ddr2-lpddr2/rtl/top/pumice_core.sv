@@ -335,7 +335,7 @@ module pumice_core
     logic                      w_trn_req, w_trn_grant;
     dram_op_e                  w_trn_op;
     logic [BKW-1:0]            w_trn_bank;
-    logic [17:0]               w_trn_row;
+    logic [ROW_WIDTH-1:0]      w_trn_row;
     logic                      w_trn_mrr;
     logic                      w_cal_busy;
 
@@ -598,7 +598,7 @@ module pumice_core
     // ======================================================================
     // Layer 2: command scheduler
     // ======================================================================
-    pumice_scheduler_layer #(
+    mc_scheduler_layer #(
         .NUM_RANKS     (NUM_RANKS),
         .NUM_BANKS     (NUM_BANKS),
         .ROW_WIDTH     (ROW_WIDTH),
@@ -615,13 +615,13 @@ module pumice_core
         .memtype_i          (memtype_i),
         .page_mode_i        (page_mode_i),
         .page_tr_init_i     (page_tr_init_i),
-        .stall_bp_o        (stall_bp_o),
-        .stall_refresh_o        (stall_refresh_o),
-        .stall_turnaround_o        (stall_turnaround_o),
-        .stall_tccd_o        (stall_tccd_o),
-        .stall_actlimit_o        (stall_actlimit_o),
-        .stall_banktimer_o        (stall_banktimer_o),
-        .stall_noreq_o        (stall_noreq_o),
+        .stall_bp_o         (stall_bp_o),
+        .stall_refresh_o    (stall_refresh_o),
+        .stall_turnaround_o (stall_turnaround_o),
+        .stall_tccd_o       (stall_tccd_o),
+        .stall_actlimit_o   (stall_actlimit_o),
+        .stall_banktimer_o  (stall_banktimer_o),
+        .stall_noreq_o      (stall_noreq_o),
         .stat_page_hit_o    (stat_page_hit_o),
         .stat_row_hit_o     (stat_row_hit_o),
         .stat_page_miss_o   (stat_page_miss_o),
@@ -641,6 +641,10 @@ module pumice_core
         .t_wtr_i            (t_wtr_i),
         .t_rtw_i            (t_rtw_i),
         .t_ccd_i            (w_t_ccd_eff),
+        .t_ccd_l_i          (8'd0),
+        .t_ccd_s_i          (8'd0),
+        .t_rrd_l_i          (8'd0),
+        .t_rrd_s_i          (8'd0),
         .t_refi_i           (t_refi_i),
         .refi_reload_i      (refi_reload_i),
         .t_rfc_i            (t_rfc_i),
@@ -666,64 +670,97 @@ module pumice_core
         .cl_o               (cl_o),
         .cwl_o              (cwl_o),
         .bl_o               (bl_o),
+        .refresh_grant_o    (),
+        .init_done_i        (1'b1),
+        .init_cmd_valid_i   (1'b0),
+        .init_cmd_op_i      (OP_NOP),
+        .init_cmd_bank_i    ('0),
+        .init_cmd_row_i     ('0),
+        .refresh_req_i      (1'b0),
+        .refresh_drain_i    (1'b0),
+        .refresh_kind_i     (1'b0),
+        .refresh_bank_i     ('0),
+        .ap_mode_en_i       (1'b0),
+        .ap_close_i         ('0),
+        .timeout_pre_req_i  (1'b0),
+        .timeout_pre_bank_i ('0),
         // wr CAM per-entry vectors + commit
         .wr_sch_valid_i     (w_wr_sch_v),
         .wr_sch_bank_i      (w_wr_sch_bank),
         .wr_sch_row_i       (w_wr_sch_row),
         .wr_sch_col_i       (w_wr_sch_col),
         .wr_sch_older_i     (w_wr_sch_older),
+        .wr_sch_age_exceed_i(w_wr_sch_agex),
+        .wr_sch_qos_i       (w_wr_sch_qos),
+        .wr_sch_head_rel_i  (w_wr_sch_hrel),
+        .wr_commit_ready_i  (w_wr_commit_rdy),
+        .wr_commit_valid_o  (w_wr_commit_v),
+        .wr_commit_slot_o   (w_wr_commit_slot),
+        // rd CAM per-entry vectors + issue
+        .rd_sch_valid_i     (w_rd_sch_v),
+        .rd_sch_bank_i      (w_rd_sch_bank),
+        .rd_sch_row_i       (w_rd_sch_row),
+        .rd_sch_col_i       (w_rd_sch_col),
+        .rd_sch_older_i     (w_rd_sch_older),
+        .rd_sch_age_exceed_i(w_rd_sch_agex),
+        .rd_sch_qos_i       (w_rd_sch_qos),
+        .rd_sch_head_rel_i  (w_rd_sch_hrel),
+        .rd_issue_ready_i   (w_rd_issue_rdy),
+        .rd_issue_valid_o   (w_rd_issue_v),
+        .rd_issue_slot_o    (w_rd_issue_slot),
+        // scheduling knobs
         .sched_order_mode_i (sched_order_mode_i),
         .sched_row_sel_i    (sched_row_sel_i),
         .sched_col_sel_i    (sched_col_sel_i),
         .sched_access_pref_i(sched_access_pref_i),
         .sched_wr_high_wm_i (sched_wr_high_wm_i),
-        .sched_wr_batch_max_i (sched_wr_batch_max_i),
+        .sched_wr_batch_max_i(sched_wr_batch_max_i),
         .sched_wr_low_wm_i  (sched_wr_low_wm_i),
         .sched_prio_sub_i   (sched_prio_sub_i),
         .sched_qos_en_i     (sched_qos_en_i),
-        .rd_sch_qos_i       (w_rd_sch_qos),
-        .wr_sch_qos_i       (w_wr_sch_qos),
-        .wr_sch_age_exceed_i(w_wr_sch_agex),
-        .wr_sch_head_rel_i  (w_wr_sch_hrel),
-        .rd_sch_age_exceed_i(w_rd_sch_agex),
-        .rd_sch_head_rel_i  (w_rd_sch_hrel),
-        .wr_commit_ready_i  (w_wr_commit_rdy),
-        .wr_commit_valid_o  (w_wr_commit_v),
-        .wr_commit_slot_o   (w_wr_commit_slot),
-        // rd CAM per-entry vectors + issue
-        .rd_sch_valid_i  (w_rd_sch_v),
-        .rd_sch_bank_i   (w_rd_sch_bank),
-        .rd_sch_row_i    (w_rd_sch_row),
-        .rd_sch_col_i    (w_rd_sch_col),
-        .rd_sch_older_i  (w_rd_sch_older),
-        .rd_issue_ready_i(w_rd_issue_rdy),
-        .rd_issue_valid_o(w_rd_issue_v),
-        .rd_issue_slot_o (w_rd_issue_slot),
         // command stream out
-        .cmd_valid_o(w_cmd_v),
-        .cmd_ready_i(w_cmd_rdy),
-        .cmd_op_o   (w_cmd_op),
-        .cmd_rank_o (w_cmd_rank),
-        .cmd_bank_o (w_cmd_bank),
-        .cmd_row_o  (w_cmd_row),
-        .cmd_col_o       (w_cmd_col),
-        .cmd_ap_o        (w_cmd_ap),
-        .cmd_mrr_o       (w_cmd_mrr),
-        .trn_cmd_req_i   (w_trn_req),
-        .trn_cmd_grant_o (w_trn_grant),
-        .trn_cmd_op_i    (w_trn_op),
-        .trn_cmd_bank_i  (w_trn_bank),
-        .trn_cmd_row_i   (ROW_WIDTH'(w_trn_row)),
-        .trn_cmd_mrr_i   (w_trn_mrr),
-        .cal_busy_i      (w_cal_busy),
-        .busy_o          ()
+        .cmd_valid_o        (w_cmd_v),
+        .cmd_ready_i        (w_cmd_rdy),
+        .cmd_op_o           (w_cmd_op),
+        .cmd_rank_o         (w_cmd_rank),
+        .cmd_bank_o         (w_cmd_bank),
+        .cmd_row_o          (w_cmd_row),
+        .cmd_col_o          (w_cmd_col),
+        .cmd_ap_o           (w_cmd_ap),
+        .cmd_extra_o        (w_cmd_mrr),
+        // maintenance-class command channel (from training layer)
+        .maint_req_i        (w_trn_req),
+        .maint_grant_o      (w_trn_grant),
+        .maint_op_i         (w_trn_op),
+        .maint_bank_i       (w_trn_bank),
+        .maint_row_i        (w_trn_row),
+        .maint_col_i        ('0),
+        .maint_extra_i      (w_trn_mrr),
+        .maint_busy_i       (w_cal_busy),
+        .busy_o             (),
+        // common-macro ports unused by pumice (ZQ is handled inside mc_training_layer)
+        .stall_zq_o         (),
+        .zq_req_i           (1'b0),
+        .zq_grant_o         (),
+        .t_zqcs_i           (16'd0),
+        .cmd_bg_o           (),
+        .bank_row_active_o  (),
+        .bank_open_row_o    (),
+        .cmd_accept_o       (),
+        .cmd_accept_op_o    ()
     );
 
     // =======================================================================
     // Layer 2b: training layer (ZQ periodic cal + MRR DQ cal)
     // =======================================================================
-    pumice_training_layer #(
-        .DFI_DATA_WIDTH(DFI_DATA_WIDTH)
+    mc_training_layer #(
+        .NUM_SLOTS      (2),
+        .BKW            (BKW),
+        .ROW_WIDTH      (ROW_WIDTH),
+        .EXTRA_WIDTH    (1),
+        .CAL_DATA_WIDTH (DFI_DATA_WIDTH),
+        .HAS_LP_ZQ      (1'b1),
+        .HAS_LP_DQ_CAL  (1'b1)
     ) u_training (
         .mc_clk          (aclk),
         .mc_rst_n        (aresetn),

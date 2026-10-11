@@ -45,7 +45,7 @@ module mc_cmd_arbiter
     parameter int MAINT_EXTRA_WIDTH = 1, // width of maint_extra_i; pumice maps trn_cmd_mrr, andesite maps mpc[5:0]
     parameter int RKW  = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW  = $clog2(NUM_BANKS),
-    parameter int PTRW = $clog2(NUM_ENTRIES),
+    parameter int PTRW = (NUM_ENTRIES > 1) ? $clog2(NUM_ENTRIES) : 1,
     parameter int IW   = AXI_ID_WIDTH,
     parameter int BGW_EFF = (NUM_BG > 1) ? $clog2(NUM_BG) : 1
 ) (

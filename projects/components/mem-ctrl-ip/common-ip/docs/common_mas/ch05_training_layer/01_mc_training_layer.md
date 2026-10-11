@@ -74,43 +74,64 @@ The common training layer owns the JEDEC maintenance-command sequencing and the 
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `mc_clk` | in | 1 | Controller clock. (`macro/mc_training_layer.sv:36`) |
-| `mc_rst_n` | in | 1 | Active-low reset. (`macro/mc_training_layer.sv:37`) |
+| `mc_clk` | in | 1 | Controller clock. (`macro/mc_training_layer.sv:35`) |
+| `mc_rst_n` | in | 1 | Active-low reset. (`macro/mc_training_layer.sv:36`) |
 
-### Per-slot maintenance request ports
-
-| Signal | Direction | Width | Description |
-|--------|-----------|-------|-------------|
-| `slot_req_i` | in | `NUM_SLOTS` | One-hot-ish request vector; slot 0 highest priority. (`macro/mc_training_layer.sv:40`) |
-| `slot_grant_o` | out | `NUM_SLOTS` | Grant returned to the selected slot only. (`macro/mc_training_layer.sv:41`) |
-| `slot_op_i` | in | `NUM_SLOTS` × `dram_op_e` | Opcode from each slot. (`macro/mc_training_layer.sv:42`) |
-| `slot_bank_i` | in | `NUM_SLOTS` × `BKW` | Bank from each slot. (`macro/mc_training_layer.sv:43`) |
-| `slot_row_i` | in | `NUM_SLOTS` × `ROW_WIDTH` | Row from each slot. (`macro/mc_training_layer.sv:44`) |
-| `slot_extra_i` | in | `NUM_SLOTS` × `EXTRA_WIDTH` | Side-band from each slot. (`macro/mc_training_layer.sv:45`) |
-
-### Generic maintenance command output to the scheduler
+### Runtime enable / build guard
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `trn_cmd_req_o` | out | 1 | Aggregate request (`|slot_req_i`). (`macro/mc_training_layer.sv:48,79`) |
-| `trn_cmd_grant_i` | in | 1 | Arbiter grant. (`macro/mc_training_layer.sv:49`) |
-| `trn_cmd_op_o` | out | `dram_op_e` | Opcode of the selected slot. (`macro/mc_training_layer.sv:50,80`) |
-| `trn_cmd_bank_o` | out | `BKW` | Bank of the selected slot. (`macro/mc_training_layer.sv:51,81`) |
-| `trn_cmd_row_o` | out | `ROW_WIDTH` | Row of the selected slot. (`macro/mc_training_layer.sv:52,82`) |
-| `trn_cmd_extra_o` | out | `EXTRA_WIDTH` | Side-band of the selected slot. (`macro/mc_training_layer.sv:53,83`) |
+| `init_done_i` | in | 1 | Training FUBs run only after DRAM init completes. (`macro/mc_training_layer.sv:39`) |
+| `memtype_i` | in | `memtype_e` | DRAM type (DDR2 / LPDDR2). (`macro/mc_training_layer.sv:40`) |
 
-### Calibration-data CDC
+### CSR controls
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `dfi_clk` | in | 1 | DFI/PHY clock. (`macro/mc_training_layer.sv:56`) |
-| `dfi_rstn` | in | 1 | Active-low DFI reset. (`macro/mc_training_layer.sv:57`) |
-| `cal_expect_i` | in | 1 | mc_clk-domain arm pulse from the active training child. (`macro/mc_training_layer.sv:58`) |
-| `cal_expect_o` | out | 1 | dfi_clk-domain arm pulse to the PHY/read aligner. (`macro/mc_training_layer.sv:59`) |
-| `cal_data_i` | in | `CAL_DATA_WIDTH` | dfi_clk-domain captured beat. (`macro/mc_training_layer.sv:60`) |
-| `cal_valid_i` | in | 1 | dfi_clk-domain "data landed" pulse. (`macro/mc_training_layer.sv:61`) |
-| `cal_data_o` | out | `CAL_DATA_WIDTH` | mc_clk-domain captured beat. (`macro/mc_training_layer.sv:62`) |
-| `cal_valid_o` | out | 1 | mc_clk-domain "data landed" pulse. (`macro/mc_training_layer.sv:63`) |
+| `zq_en_i` | in | 1 | Enable periodic LPDDR2 ZQ calibration. (`macro/mc_training_layer.sv:43`) |
+| `zq_defer_en_i` | in | 1 | Enable demand-deferred ZQ placement. (`macro/mc_training_layer.sv:44`) |
+| `zq_interval_i` | in | 32 | ZQCS interval in controller clocks. (`macro/mc_training_layer.sv:45`) |
+| `t_zqcs_i` | in | 16 | ZQCS command post-grant hold time. (`macro/mc_training_layer.sv:46`) |
+| `t_zqcl_i` | in | 16 | ZQCL command post-grant hold time. (`macro/mc_training_layer.sv:47`) |
+| `zq_overdue_max_i` | in | 13 | Overdue-escalation threshold to ZQCL. (`macro/mc_training_layer.sv:48`) |
+| `cal_start_i` | in | 1 | One-shot start for LPDDR2 DQ calibration. (`macro/mc_training_layer.sv:50`) |
+| `cal_abort_i` | in | 1 | Abort in-flight DQ calibration. (`macro/mc_training_layer.sv:51`) |
+| `t_mrr_i` | in | 16 | MRR command interval. (`macro/mc_training_layer.sv:52`) |
+| `t_readout_i` | in | 16 | Readout capture window. (`macro/mc_training_layer.sv:53`) |
+
+### Maintenance command channel to the scheduler
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `trn_cmd_req_o` | out | 1 | Aggregate maintenance request. (`macro/mc_training_layer.sv:56`) |
+| `trn_cmd_grant_i` | in | 1 | Arbiter grant. (`macro/mc_training_layer.sv:57`) |
+| `trn_cmd_op_o` | out | `dram_op_e` | Opcode of the selected slot. (`macro/mc_training_layer.sv:58`) |
+| `trn_cmd_bank_o` | out | `BKW` | Bank of the selected slot. (`macro/mc_training_layer.sv:59`) |
+| `trn_cmd_row_o` | out | `ROW_WIDTH` | Row of the selected slot. (`macro/mc_training_layer.sv:60`) |
+| `trn_cmd_mrr_o` | out | 1 | MRR side-band flag to the scheduler. (`macro/mc_training_layer.sv:61`) |
+
+### DFI-layer calibration sideband
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `dfi_clk` | in | 1 | DFI/PHY clock. (`macro/mc_training_layer.sv:64`) |
+| `dfi_rstn` | in | 1 | Active-low DFI reset. (`macro/mc_training_layer.sv:65`) |
+| `cal_expect_o` | out | 1 | dfi_clk-domain arm pulse to the PHY/read aligner. (`macro/mc_training_layer.sv:66`) |
+| `cal_data_i` | in | `CAL_DATA_WIDTH` | dfi_clk-domain captured beat. (`macro/mc_training_layer.sv:67`) |
+| `cal_valid_i` | in | 1 | dfi_clk-domain "data landed" pulse. (`macro/mc_training_layer.sv:68`) |
+
+### Telemetry / status
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `cal_busy_o` | out | 1 | Either training client is active. (`macro/mc_training_layer.sv:71`) |
+| `cal_done_o` | out | 1 | DQ calibration completed (sticky). (`macro/mc_training_layer.sv:72`) |
+| `cal_err_o` | out | 1 | DQ calibration error (sticky). (`macro/mc_training_layer.sv:73`) |
+| `mrr32_data_o` | out | `CAL_DATA_WIDTH` | Captured MR32 read data. (`macro/mc_training_layer.sv:74`) |
+| `mrr40_data_o` | out | `CAL_DATA_WIDTH` | Captured MR40 read data. (`macro/mc_training_layer.sv:75`) |
+| `zq_busy_o` | out | 1 | ZQ calibration is active. (`macro/mc_training_layer.sv:76`) |
+| `zq_overdue_o` | out | 1 | ZQ is overdue. (`macro/mc_training_layer.sv:77`) |
+| `zqcs_total_o` | out | 16 | Count of completed ZQCS operations. (`macro/mc_training_layer.sv:78`) |
 
 ## Rock-wrapper contract
 

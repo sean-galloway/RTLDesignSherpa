@@ -156,7 +156,7 @@ module scoria_training_layer
     //=========================================================================
     // Common training shell (generic output unused; cal-data CDC tied off).
     //=========================================================================
-    mc_training_layer #(
+    mc_training_shell #(
         .NUM_SLOTS      (2),
         .BKW            (3),
         .ROW_WIDTH      (14),
@@ -172,7 +172,7 @@ module scoria_training_layer
         .slot_row_i      (w_slot_row),
         .slot_extra_i    (w_slot_extra),
         .trn_cmd_req_o   (),
-        .trn_cmd_grant_i (1'b0),
+        .trn_cmd_grant_i (zq_grant_i),
         .trn_cmd_op_o    (),
         .trn_cmd_bank_o  (),
         .trn_cmd_row_o   (),
