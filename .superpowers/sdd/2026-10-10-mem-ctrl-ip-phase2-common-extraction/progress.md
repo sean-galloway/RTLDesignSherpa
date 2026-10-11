@@ -525,3 +525,17 @@ RDS-mem-ctrl-*.pdf (155+266+92+28 pp) to ~/Downloads. Repo artifacts +
 scripts committed 65ccf323d. Rule banked: repo PDFs are stale-on-arrival
 artifacts; markdown is source of truth; never ship a repo PDF without
 checking its rev against the book's **Version:**.
+REFERENCES STORE (standing AGENTS.md task, 2026-10-10): partner asked if MC
+uarch was missing papers; archive built per math convention at
+projects/components/mem-ctrl-ip/references/ (19ec8e7c7) — 6 verified open
+PDFs (Rixner ISCA'00, Hur/Lin MICRO'04, Ipek ISCA'08, Mutlu/Moscibroda
+MICRO'07, Stuecheli MICRO'10 elastic refresh, Tomasulo IBM JRD'67) +
+citation-only w/ DOI (Smith&Pleszkun '88, Smith '81, Jacob/Ng/Wang book,
+RAIDR + IEEE Micro '08 as related-not-matching). References sections in
+common_mas ch02/03/04 + pumice MAS 07/08/11 (follow-up commit). Attribution
+posture: designs independent; convergences generous + honest (Tomasulo and
+reorder-buffer marked conceptual). Scoria/andesite refresh chapters get
+their sections when unfrozen. RECURRING TRAP: subagent 'gates pass' on
+untracked new files is meaningless — main link checker only scans indexed
+files; the pre-commit staged check is the real gate. Verify new-book links
+only after git add.
