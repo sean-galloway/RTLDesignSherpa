@@ -1,0 +1,30 @@
+# Illegal Bridge Configuration: AXI3 master with zero ID width
+# AXI3 masters must have id_width > 0
+# bridge GitHub #97
+
+[bridge]
+name = "illegal_axi3_zero_id"
+variants = ["no"]
+description = "ILLEGAL: AXI3 master must have id_width > 0"
+
+[[bridge.masters]]
+name = "axi3_master"
+prefix = "axi3_master_axi_"
+# id_width intentionally omitted -> 0, illegal for AXI3 master
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rw"
+protocol = "axi3"
+
+[[bridge.slaves]]
+name = "axi3_slave"
+prefix = "axi3_slave_axi_"
+id_width = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rw"
+protocol = "axi3"
+base_addr = "0x00000000"
+addr_range = "0x10000000"

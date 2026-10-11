@@ -1,0 +1,31 @@
+# Illegal Bridge Configuration: AXI3 slave with CDC enabled
+# CDC is only supported on AXI4 slave ports in v1
+# bridge GitHub #97
+
+[bridge]
+name = "illegal_axi3_cdc"
+variants = ["no"]
+description = "ILLEGAL: AXI3 slave cannot use cdc = true"
+
+[[bridge.masters]]
+name = "axi3_master"
+prefix = "axi3_master_axi_"
+id_width = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rw"
+protocol = "axi3"
+
+[[bridge.slaves]]
+name = "axi3_slave"
+prefix = "axi3_slave_axi_"
+id_width = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rw"
+protocol = "axi3"
+cdc = true  # ILLEGAL! CDC not supported for AXI3
+base_addr = "0x00000000"
+addr_range = "0x10000000"

@@ -27,8 +27,11 @@ BIN_DIR = Path(__file__).resolve().parents[1]
 REPO_ROOT = BIN_DIR.parents[4]
 sys.path.insert(0, str(BIN_DIR))
 
+from bridge_pkg.config import PortSpec                   # noqa: E402
 from bridge_pkg.config_loader import load_config          # noqa: E402
-from bridge_pkg.config_validator import ValidationError   # noqa: E402
+from bridge_pkg.config_validator import (                 # noqa: E402
+    ValidationError, validate_axi3, validate_axi5,
+)
 
 
 def _fixture(name: str) -> str:
@@ -56,6 +59,42 @@ def test_illegal_apb_write_config_rejected():
         load_config(
             _fixture("test_illegal_apb_wr.toml"),
             _fixture("test_illegal_apb_wr_connectivity.csv"),
+        )
+
+
+def test_illegal_axi3_zero_id_rejected():
+    """AXI3 master with id_width=0 must not validate."""
+    with pytest.raises(ValidationError, match="id_width must be > 0"):
+        load_config(
+            _fixture("test_illegal_axi3_zero_id.toml"),
+            _fixture("test_illegal_axi3_zero_id_connectivity.csv"),
+        )
+
+
+def test_illegal_axi3_bad_width_rejected():
+    """AXI3 port with an unsupported data width must not validate."""
+    with pytest.raises(ValidationError, match="data_width"):
+        load_config(
+            _fixture("test_illegal_axi3_bad_width.toml"),
+            _fixture("test_illegal_axi3_bad_width_connectivity.csv"),
+        )
+
+
+def test_illegal_axi3_cdc_rejected():
+    """AXI3 slave with cdc = true must not validate."""
+    with pytest.raises(ValidationError, match="CDC is not supported"):
+        load_config(
+            _fixture("test_illegal_axi3_cdc.toml"),
+            _fixture("test_illegal_axi3_cdc_connectivity.csv"),
+        )
+
+
+def test_illegal_axi3_axi5_features_rejected():
+    """axi5_features on an AXI3 port must not validate."""
+    with pytest.raises(ValidationError, match="axi5_features"):
+        load_config(
+            _fixture("test_illegal_axi3_axi5_features.toml"),
+            _fixture("test_illegal_axi3_axi5_features_connectivity.csv"),
         )
 
 
@@ -725,6 +764,43 @@ def test_axi5_poison_accepted_native_both_ends(tmp_path):
     cfg = load_config(toml, conn)
     assert 'poison' in cfg.masters[0].axi5_features
     assert 'poison' in cfg.slaves[0].axi5_features
+
+
+# ---------------------------------------------------------------------
+# AXI3 ports (bridge GitHub #97)
+# ---------------------------------------------------------------------
+
+def _make_axi3_port(direction, name, **overrides):
+    defaults = dict(
+        port_name=name,
+        direction=direction,
+        protocol="axi3",
+        channels="rw",
+        prefix=f"{name}_axi_",
+        data_width=64,
+        addr_width=32,
+        id_width=4,
+    )
+    if direction == "slave":
+        defaults["base_addr"] = 0
+        defaults["addr_range"] = 0x1000
+    defaults.update(overrides)
+    return PortSpec(**defaults)
+
+
+def test_axi3_legal_port_validates_directly():
+    """A legal AXI3 master + slave must pass validate_axi3 with no raise."""
+    master = _make_axi3_port("master", "m0")
+    slave = _make_axi3_port("slave", "s0")
+    validate_axi3([master], [slave])
+
+
+def test_axi5_features_rejected_on_axi3_port():
+    """validate_axi5 still rejects axi5_features on an axi3 port."""
+    master = _make_axi3_port("master", "m0", axi5_features=["trace"])
+    slave = _make_axi3_port("slave", "s0")
+    with pytest.raises(ValidationError, match="axi5_features"):
+        validate_axi5([master], [slave])
 
 
 # ---------------------------------------------------------------------

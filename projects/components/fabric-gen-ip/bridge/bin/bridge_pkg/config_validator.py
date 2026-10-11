@@ -68,12 +68,58 @@ def validate_protocol(protocol: str, port_name: str) -> None:
     """
     # 'axil5' is an AXI5-Lite slave boundary: AXI4-Lite transfers plus the
     # optional sideband groups, converted by axi4_to_axil5_{rd,wr}.
-    valid_protocols = {'axi4', 'axi5', 'apb', 'apb5', 'axil', 'axil5', 'wb4'}
+    # 'axi3' is the AMBA3 AXI3 protocol (bridge GitHub #97).
+    valid_protocols = {'axi3', 'axi4', 'axi5', 'apb', 'apb5', 'axil', 'axil5', 'wb4'}
     if protocol not in valid_protocols:
         raise ValidationError(
             f"Invalid protocol '{protocol}' for port '{port_name}'. "
             f"Must be one of {valid_protocols}"
         )
+
+
+# ---------------------------------------------------------------------------
+# AXI3 (bridge GitHub #97)
+#
+# AMBA3 AXI3 port support: protocol="axi3" is legal on masters and
+# slaves. The fabric behind the boundary stays AXI4; the AXI3 converter
+# suite (projects/components/utility-ip/converters/rtl) will adapt the
+# narrower AXI3 signal set at generation time in later tasks. Validation
+# here only enforces configuration rules that keep the generator from
+# silently emitting broken adapters.
+# ---------------------------------------------------------------------------
+
+AXI3_VALID_DATA_WIDTHS = {32, 64, 128, 256}
+
+
+def validate_axi3(masters: List[PortSpec], slaves: List[PortSpec]) -> None:
+    """AXI3 port rules (bridge GitHub #97).
+
+    Rules:
+    1. AXI3 masters must have id_width > 0 (AXI3 has transaction IDs).
+    2. AXI3 ports only support data widths in AXI3_VALID_DATA_WIDTHS.
+    3. AXI3 ports do not support CDC in v1 (the axi4_cdc_* pair carries
+       the AXI4 signal set and has no AXI3 sibling yet).
+
+    Raises:
+        ValidationError: on any violation.
+    """
+    for port in list(masters) + list(slaves):
+        if port.protocol != 'axi3':
+            continue
+        if port.direction == 'master' and not port.id_width:
+            raise ValidationError(
+                f"AXI3 master '{port.port_name}': id_width must be > 0"
+            )
+        if port.data_width not in AXI3_VALID_DATA_WIDTHS:
+            raise ValidationError(
+                f"AXI3 port '{port.port_name}': data_width {port.data_width} "
+                f"is not supported; AXI3 widths are "
+                f"{sorted(AXI3_VALID_DATA_WIDTHS)}"
+            )
+        if getattr(port, 'cdc', False):
+            raise ValidationError(
+                f"AXI3 port '{port.port_name}': CDC is not supported (v1)"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -403,13 +449,17 @@ def validate_cdc_constraints(port: PortSpec) -> None:
     """bridge TASK-006 (was BRIDGE-017) CDC slave ports: `cdc = true` is legal on an external
     AXI4 slave port only. The crossing is axi4_cdc_{wr,rd}, which carries the
     AXI4 signal set; a master port, an AXI5 port's sideband and the shim
-    protocols would each need their own crossing, and none has one yet."""
+    protocols would each need their own crossing, and none has one yet.
+    AXI3 CDC is rejected separately by validate_axi3 (bridge GitHub #97)
+    with an AXI3-specific message."""
     if not getattr(port, 'cdc', False):
         return
     if port.direction != 'slave':
         raise ValidationError(
             f"Master '{port.port_name}': cdc = true is only legal on a slave port "
             f"(the crossing sits between the crossbar and the slave boundary)")
+    if port.protocol == 'axi3':
+        return  # validate_axi3 handles AXI3 CDC with a dedicated message
     if port.protocol != 'axi4':
         raise ValidationError(
             f"Slave '{port.port_name}': cdc = true needs protocol = \"axi4\" "
@@ -739,6 +789,11 @@ def validate_config(
 
     # Validate explicit channel specification for slaves
     validate_slave_channels_explicit(slaves)
+
+    # Validate AXI3 rules (bridge GitHub #97) before AXI5 so a config
+    # mixing AXI3 with AXI5 features is rejected with an AXI3-specific
+    # message when possible.
+    validate_axi3(masters, slaves)
 
     # Validate AXI5 scope (interop mode: sideband features only, on
     # masters (A5-1) and slaves (A5-2 slice 1) alike)
