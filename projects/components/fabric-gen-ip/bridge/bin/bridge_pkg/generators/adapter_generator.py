@@ -566,8 +566,12 @@ class AdapterGenerator:
 
     def _apb_axi_net_decls(self, prefix: str) -> List[str]:
         """`logic [W-1:0] {prefix}{sig};` for the full AXI4 channel set the
-        APB front end drives into the timing wrapper. ID is the internal
-        face width (fub_id_width), USER is the fabric's 1 bit."""
+        protocol front end (APB, WB4, or AXI3) drives into the timing
+        wrapper. ID is the internal face width (fub_id_width), USER is the
+        fabric's 1 bit. NOTE: addr width is hard-coded to 32 to match the
+        timing wrapper; parameterizing it ripples to the wrapper and the
+        APB/WB4 converters, so it stays aligned with the existing house
+        convention."""
         id_w = self.fub_id_width
         dw = self.master.data_width
         sw = dw // 8
@@ -685,15 +689,85 @@ class AdapterGenerator:
             for sig in wb4_names():
                 lines.append(f"        .s_wb_{sig}({p}{sig}),")
         elif proto == 'axi3':
-            for sig in ('arid', 'araddr', 'arlen', 'arsize', 'arburst', 'arlock',
-                        'arcache', 'arprot', 'aruser', 'arvalid', 'arready',
-                        'rid', 'rdata', 'rresp', 'rlast', 'ruser', 'rvalid', 'rready'):
-                lines.append(f"        .s_axi3_{sig}({p}{sig}),")
-            for sig in ('awid', 'awaddr', 'awlen', 'awsize', 'awburst', 'awlock',
-                        'awcache', 'awprot', 'awuser', 'awvalid', 'awready',
-                        'wid', 'wdata', 'wstrb', 'wlast', 'wuser', 'wvalid', 'wready',
-                        'bid', 'bresp', 'buser', 'bvalid', 'bready'):
-                lines.append(f"        .s_axi3_{sig}({p}{sig}),")
+            # AXI3 requester front end: connect only the channels the master
+            # actually exposes. The AXI3 converter is a full slave surface;
+            # tie unused inputs to the house constants and leave unused
+            # outputs unconnected, matching the APB/AXIL/WB4 converter
+            # tie-off pattern.
+            id_w = self.master.id_width
+            aw = self.master.addr_width
+            dw = self.master.data_width
+            sw = dw // 8
+            if self.master.channels in ('wr', 'rw'):
+                for sig in ('awid', 'awaddr', 'awlen', 'awsize', 'awburst', 'awlock',
+                            'awcache', 'awprot', 'awuser', 'awvalid'):
+                    lines.append(f"        .s_axi3_{sig}({p}{sig}),")
+                lines.append(f"        .s_axi3_awready({p}awready),")
+                for sig in ('wid', 'wdata', 'wstrb', 'wlast', 'wuser', 'wvalid'):
+                    lines.append(f"        .s_axi3_{sig}({p}{sig}),")
+                lines.append(f"        .s_axi3_wready({p}wready),")
+                lines.append(f"        .s_axi3_bid   ({p}bid),")
+                lines.append(f"        .s_axi3_bresp ({p}bresp),")
+                lines.append(f"        .s_axi3_buser ({p}buser),")
+                lines.append(f"        .s_axi3_bvalid({p}bvalid),")
+                lines.append(f"        .s_axi3_bready({p}bready),")
+            else:
+                # Write channels absent: tie inputs to 0, leave outputs open.
+                lines.append(f"        .s_axi3_awid   ({id_w}'d0),")
+                lines.append(f"        .s_axi3_awaddr ({aw}'d0),")
+                lines.append(f"        .s_axi3_awlen  (4'd0),")
+                lines.append(f"        .s_axi3_awsize (3'd0),")
+                lines.append(f"        .s_axi3_awburst(2'd0),")
+                lines.append(f"        .s_axi3_awlock (2'd0),")
+                lines.append(f"        .s_axi3_awcache(4'd0),")
+                lines.append(f"        .s_axi3_awprot (3'd0),")
+                lines.append(f"        .s_axi3_awuser (1'b0),")
+                lines.append(f"        .s_axi3_awvalid(1'b0),")
+                lines.append(f"        .s_axi3_awready(),")
+                lines.append(f"        .s_axi3_wid    ({id_w}'d0),")
+                lines.append(f"        .s_axi3_wdata  ({dw}'d0),")
+                lines.append(f"        .s_axi3_wstrb  ({sw}'d0),")
+                lines.append(f"        .s_axi3_wlast  (1'b0),")
+                lines.append(f"        .s_axi3_wuser  (1'b0),")
+                lines.append(f"        .s_axi3_wvalid (1'b0),")
+                lines.append(f"        .s_axi3_wready (),")
+                lines.append(f"        .s_axi3_bid    (),")
+                lines.append(f"        .s_axi3_bresp  (),")
+                lines.append(f"        .s_axi3_buser  (),")
+                lines.append(f"        .s_axi3_bvalid (),")
+                lines.append(f"        .s_axi3_bready (1'b0),")
+            if self.master.channels in ('rd', 'rw'):
+                for sig in ('arid', 'araddr', 'arlen', 'arsize', 'arburst', 'arlock',
+                            'arcache', 'arprot', 'aruser', 'arvalid'):
+                    lines.append(f"        .s_axi3_{sig}({p}{sig}),")
+                lines.append(f"        .s_axi3_arready({p}arready),")
+                lines.append(f"        .s_axi3_rid    ({p}rid),")
+                lines.append(f"        .s_axi3_rdata  ({p}rdata),")
+                lines.append(f"        .s_axi3_rresp  ({p}rresp),")
+                lines.append(f"        .s_axi3_rlast  ({p}rlast),")
+                lines.append(f"        .s_axi3_ruser  ({p}ruser),")
+                lines.append(f"        .s_axi3_rvalid ({p}rvalid),")
+                lines.append(f"        .s_axi3_rready ({p}rready),")
+            else:
+                # Read channels absent: tie inputs to 0, leave outputs open.
+                lines.append(f"        .s_axi3_arid   ({id_w}'d0),")
+                lines.append(f"        .s_axi3_araddr ({aw}'d0),")
+                lines.append(f"        .s_axi3_arlen  (4'd0),")
+                lines.append(f"        .s_axi3_arsize (3'd0),")
+                lines.append(f"        .s_axi3_arburst(2'd0),")
+                lines.append(f"        .s_axi3_arlock (2'd0),")
+                lines.append(f"        .s_axi3_arcache(4'd0),")
+                lines.append(f"        .s_axi3_arprot (3'd0),")
+                lines.append(f"        .s_axi3_aruser (1'b0),")
+                lines.append(f"        .s_axi3_arvalid(1'b0),")
+                lines.append(f"        .s_axi3_arready(),")
+                lines.append(f"        .s_axi3_rid    (),")
+                lines.append(f"        .s_axi3_rdata  (),")
+                lines.append(f"        .s_axi3_rresp  (),")
+                lines.append(f"        .s_axi3_rlast  (),")
+                lines.append(f"        .s_axi3_ruser  (),")
+                lines.append(f"        .s_axi3_rvalid (),")
+                lines.append(f"        .s_axi3_rready (1'b0),")
         else:
             for sig in ('PSEL', 'PENABLE', 'PREADY', 'PADDR', 'PWRITE', 'PWDATA',
                         'PSTRB', 'PPROT', 'PRDATA', 'PSLVERR'):

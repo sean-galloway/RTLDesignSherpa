@@ -807,8 +807,9 @@ def test_axi5_features_rejected_on_axi3_port():
 
 def test_axi3_master_generation_smoke(tmp_path):
     """bridge_1x2_axi3: an AXI3 master drives the fabric through
-    axi3_to_axi4. The adapter must instantiate the converter, the bridge
-    top must expose a 4-bit awlen and the AXI3 WID signal, and every
+    axi3_to_axi4, and an AXI3 slave uses axi4_to_axi3. The bridge top
+    must expose the AXI3 signal set (wid, 4-bit len, no qos/region) on
+    both sides, the filelist must pull both converters, and every
     emitted .sv must be declaration-order clean."""
     env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
     r = subprocess.run(
@@ -833,12 +834,38 @@ def test_axi3_master_generation_smoke(tmp_path):
     assert "cpu_axi_awqos" not in top_text, "AXI3 master leaked qos port"
     assert "cpu_axi_awregion" not in top_text, "AXI3 master leaked region port"
 
-    adapter = (tmp_path / "bridge_1x2_axi3" / "cpu_adapter.sv").read_text()
-    assert "axi3_to_axi4 #(" in adapter, "adapter missing axi3_to_axi4 converter"
-    assert ".s_axi3_awid(cpu_axi_awid)" in adapter, (
+    # AXI3 slave port surface on the bridge top.
+    assert "s0_axi_wid" in top_text, "AXI3 slave WID missing from top-level ports"
+    assert "output logic [3:0]  s0_axi_awlen" in top_text, (
+        "AXI3 slave awlen not 4-bit on top-level")
+    assert "output logic [3:0]  s0_axi_awqos" not in top_text, (
+        "AXI3 slave leaked qos port")
+    assert "output logic [3:0]  s0_axi_awregion" not in top_text, (
+        "AXI3 slave leaked region port")
+
+    cpu_adapter = (tmp_path / "bridge_1x2_axi3" / "cpu_adapter.sv").read_text()
+    assert "axi3_to_axi4 #(" in cpu_adapter, (
+        "adapter missing axi3_to_axi4 converter")
+    assert ".s_axi3_awid(cpu_axi_awid)" in cpu_adapter, (
         "converter slave side not bound to AXI3 master ports")
-    assert ".m_axi_awvalid(a3x_axi_awvalid)" in adapter, (
+    assert ".m_axi_awvalid(a3x_axi_awvalid)" in cpu_adapter, (
         "converter master side not bound to internal AXI4 nets")
+
+    s0_adapter = (tmp_path / "bridge_1x2_axi3" / "s0_adapter.sv").read_text()
+    assert "axi4_to_axi3 #(" in s0_adapter, (
+        "slave adapter missing axi4_to_axi3 converter")
+    assert ".m_axi3_awid" in s0_adapter and "s0_axi_awid" in s0_adapter, (
+        "converter AXI3 master side not bound to slave ports")
+    assert ".s_axi_awvalid" in s0_adapter and "xbar_s0_axi_awvalid" in s0_adapter, (
+        "converter AXI4 slave side not bound to crossbar nets")
+
+    # Filelist must include both converter families.
+    filelist = tmp_path / "filelists" / "bridge_1x2_axi3.f"
+    if not filelist.exists():
+        filelist = tmp_path / ".." / "filelists" / "bridge_1x2_axi3.f"
+    fl_text = filelist.read_text()
+    assert "axi3_to_axi4.f" in fl_text, "filelist missing axi3_to_axi4"
+    assert "axi4_to_axi3.f" in fl_text, "filelist missing axi4_to_axi3"
 
     sv_files = sorted(tmp_path.glob("bridge_1x2_axi3*/*.sv"))
     chk = subprocess.run(
@@ -848,6 +875,135 @@ def test_axi3_master_generation_smoke(tmp_path):
     )
     assert chk.returncode == 0, (
         f"declaration-order issues in generated AXI3 RTL:\n{chk.stdout}")
+
+
+def _write_axi3_channel_toml(tmp_path, master_channels=None, slave_channels=None):
+    """Write a minimal TOML + CSV pair with an optional AXI3 master and/or
+    AXI3 slave. Exactly one of master_channels/slave_channels must be set."""
+    toml = tmp_path / "b.toml"
+    conn = tmp_path / "c.csv"
+    master_lines = [
+        '[[bridge.masters]]',
+        'name = "m0"',
+        'prefix = "m0_"',
+        'addr_width = 32',
+        'data_width = 32',
+        'id_width = 4',
+    ]
+    if master_channels is not None:
+        master_lines += [
+            f'channels = "{master_channels}"',
+            'protocol = "axi3"',
+        ]
+    else:
+        master_lines += ['channels = "rw"']
+    slave_lines = [
+        '[[bridge.slaves]]',
+        'name = "s0"',
+        'prefix = "s0_"',
+        'addr_width = 32',
+        'data_width = 32',
+        'id_width = 4',
+        'base_addr = "0x0000_0000"',
+        'addr_range = "0x0001_0000"',
+    ]
+    if slave_channels is not None:
+        slave_lines += [
+            f'channels = "{slave_channels}"',
+            'protocol = "axi3"',
+        ]
+    else:
+        slave_lines += ['channels = "rw"']
+    toml.write_text("\n".join([
+        '[bridge]',
+        'name = "b"',
+        'variants = ["no"]',
+        '',
+        *master_lines,
+        '',
+        *slave_lines,
+        '',
+    ]))
+    conn.write_text("master,s0\nm0,1\n")
+    return str(toml), str(conn)
+
+
+@pytest.mark.parametrize("channels", ["wr", "rd"])
+def test_axi3_master_channel_edge_cases(tmp_path, channels):
+    """AXI3 master front end must not reference read/write signals that
+    are absent for a channel-limited master."""
+    toml, conn = _write_axi3_channel_toml(tmp_path, master_channels=channels)
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", toml, "--connectivity", conn,
+         "--name", "b", "--output-dir", str(tmp_path)],
+        cwd=str(BIN_DIR), env=env,
+        capture_output=True, text=True, timeout=300,
+    )
+    assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+
+    adapter = (tmp_path / "b" / "m0_adapter.sv").read_text()
+    assert "axi3_to_axi4 #(" in adapter
+    if channels == "wr":
+        assert ".s_axi3_arid(m0_arid)" not in adapter, (
+            "write-only AXI3 master referenced non-existent arid")
+        assert ".s_axi3_rid(m0_rid)" not in adapter, (
+            "write-only AXI3 master referenced non-existent rid")
+    else:
+        assert ".s_axi3_awid(m0_awid)" not in adapter, (
+            "read-only AXI3 master referenced non-existent awid")
+        assert ".s_axi3_wid(m0_wid)" not in adapter, (
+            "read-only AXI3 master referenced non-existent wid")
+
+    sv_files = sorted(tmp_path.glob("b*/*.sv"))
+    chk = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "bin" / "check_sv_decl_order.py"),
+         *map(str, sv_files)],
+        capture_output=True, text=True, timeout=120,
+    )
+    assert chk.returncode == 0, (
+        f"declaration-order issues for AXI3 {channels} master:\n{chk.stdout}")
+
+
+@pytest.mark.parametrize("channels", ["wr", "rd"])
+def test_axi3_slave_channel_edge_cases(tmp_path, channels):
+    """AXI3 slave converter must not reference converter_b/r nets that
+    are undeclared for a channel-limited slave."""
+    master_channels = "wr" if channels == "wr" else "rd"
+    toml, conn = _write_axi3_channel_toml(
+        tmp_path, master_channels=master_channels, slave_channels=channels)
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", toml, "--connectivity", conn,
+         "--name", "b", "--output-dir", str(tmp_path)],
+        cwd=str(BIN_DIR), env=env,
+        capture_output=True, text=True, timeout=300,
+    )
+    assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+
+    adapter = (tmp_path / "b" / "s0_adapter.sv").read_text()
+    assert "axi4_to_axi3 #(" in adapter
+    if channels == "wr":
+        assert "converter_rvalid" not in adapter, (
+            "write-only AXI3 slave referenced converter_rvalid")
+        assert "converter_rready" not in adapter, (
+            "write-only AXI3 slave referenced converter_rready")
+    else:
+        assert "converter_bvalid" not in adapter, (
+            "read-only AXI3 slave referenced converter_bvalid")
+        assert "converter_bready" not in adapter, (
+            "read-only AXI3 slave referenced converter_bready")
+
+    sv_files = sorted(tmp_path.glob("b*/*.sv"))
+    chk = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "bin" / "check_sv_decl_order.py"),
+         *map(str, sv_files)],
+        capture_output=True, text=True, timeout=120,
+    )
+    assert chk.returncode == 0, (
+        f"declaration-order issues for AXI3 {channels} slave:\n{chk.stdout}")
 
 
 # ---------------------------------------------------------------------

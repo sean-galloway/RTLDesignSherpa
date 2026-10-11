@@ -1691,8 +1691,8 @@ class SlaveAdapterGenerator:
                 f"        .s_axi_bid     (),",
                 f"        .s_axi_bresp   (),",
                 f"        .s_axi_buser   (),",
-                f"        .s_axi_bvalid  (converter_bvalid),",
-                f"        .s_axi_bready  (converter_bready),",
+                f"        .s_axi_bvalid  (),",
+                f"        .s_axi_bready  (1'b0),",
             ]
         if self.has_read:
             lines += [
@@ -1737,8 +1737,8 @@ class SlaveAdapterGenerator:
                 f"        .s_axi_rresp   (),",
                 f"        .s_axi_rlast   (),",
                 f"        .s_axi_ruser   (),",
-                f"        .s_axi_rvalid  (converter_rvalid),",
-                f"        .s_axi_rready  (converter_rready),",
+                f"        .s_axi_rvalid  (),",
+                f"        .s_axi_rready  (1'b0),",
             ]
 
         # AXI3 master side (external slave)
