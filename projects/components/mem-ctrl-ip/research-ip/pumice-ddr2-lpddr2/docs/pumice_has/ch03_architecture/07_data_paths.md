@@ -23,45 +23,36 @@
 
 # Write and Read Data Paths
 
-The data path spans two clock domains. On the controller (`aclk`) side the two CAMs in `pumice_axi4_layer` buffer burst data; on the DFI (`dfi_clk`) side the write serializer and read aligner drive/capture the DFI data bus. All four are **de-FSM'd streaming readers** — they are FIFO-fed / beat-counter datapaths with no active/slot state latch.
+The write/read data path in pumice is the common storage layer, `mc_storage_layer`, instantiated in `pumice_core` between `mc_axi4_layer` and the scheduler. It holds the write-data CAM (write buffer plus snarf source) and the read-command CAM (read scheduling window), presents the scheduler-facing bank/row/col image, and accepts the read-snoop probe from the upstream AXI4 layer. The descriptor seam it exposes to the scheduler is the same contract documented in the family architecture specification ([`common_has` chapter 2](../../../../../common-ip/docs/common_has/ch02_architecture/02_descriptor_seam.md)); the layer's internals are documented in the family microarchitecture specification ([`common_mas` chapter 3](../../../../../common-ip/docs/common_mas/ch03_storage_layer/01_mc_storage_layer.md)).
 
-## Controller-Side CAMs
+Until 2026-10-09 these CAMs lived in the pumice-local `pumice_axi4_layer` as `pumice_wr_data_cam` and `pumice_rd_cmd_cam`; they were extracted into `mc_storage_layer` during the Phase-2 common-stack campaign.
 
-### `pumice_wr_data_cam`
+## What pumice consumes from the common stack
 
-RTL: `rtl/fub/pumice_wr_data_cam.sv`. A write-command CAM plus a write-data SRAM. Entries are keyed on `{bank, row, col}` with a free-running age; the burst payload lives in an SRAM slot. Three data movers stream over the SRAM:
+`mc_storage_layer` provides:
 
-- **fill** — captures W beats into the slot on insert.
-- **commit-drain** — streams the slot to the DFI write path when the scheduler commits the entry.
-- **snarf** — forwards a slot to a matching read (read-your-write), limited to unscheduled entries with a matching id and burst length.
+- `mc_wr_data_cam` — the write-command/write-data CAM with fill, commit-drain, and snarf (read-your-write) movers;
+- `mc_rd_cmd_cam` — the read-command scheduling window;
+- read snooping (snarf) against unscheduled writes;
+- per-entry scheduling vectors (validity, bank, row, column, age, age-order matrix, QoS) across the descriptor seam.
 
-Age is compared wrap-safe as a relative age (`age_ctr - entry_age`). The snarf lookup returns the **youngest** match (latest data), the scheduler lookup returns the **oldest** match (in-order commit per row), and the `oldest` port returns the oldest valid entry for the scheduler fallback. A fill-complete flag gates schedulability and snarf so a partially-filled burst is never committed or forwarded.
+Pumice instantiates the layer with `AXI_BEATS_PER_BURST = BURST_WORDS` and wires it to the pumice-local scheduler. Legacy `oldest_*` and `sched_lu_*` CAM ports are tied off inside `mc_storage_layer`.
 
-There is no standalone `wr2rd_forward` block — write-to-read forwarding is exactly the snarf mover in this CAM.
+## What remains pumice-specific
 
-### `pumice_rd_cmd_cam`
+### Observed status registers
 
-RTL: `rtl/fub/pumice_rd_cmd_cam.sv`. The read miss path — an outstanding-read tracker acting as a **reorder buffer**. Entries are keyed `{bank, row, col}` with a free-running age and N scheduler lookups so reads row-hit-schedule like writes. Data flows the opposite direction from the write CAM: it comes **in** from the DFI read return and drains **out** to `pumice_rd_intake`. DRAM read data returns in issue order and is buffered per entry; it drains in AR (insert) order, which is what enforces per-ID read ordering.
+`pumice_top` captures storage-layer-adjacent telemetry from the scheduler and training layer into the CSR. Observable registers relevant to the data path include:
 
-The issue-side oldest/lookups pick the oldest not-yet-issued entry; the drain side releases the oldest valid entry gated on data-ready. There is no snarf port (that is a write-CAM concept).
+- `PAGE_STATS_HIT` — every column command issued (READ/WRITE, with or without AP); this is a lower-bound hit count, not a true hit count (do not derive hits as `PAGE_STATS_HIT - SCHED_STATS_ACT`; see pumice ISSUE-014);
+- `PAGE_STATS_MISS`, `PAGE_STATS_EMPTY` — page-state counters;
+- `OBS_ROW_HIT[0..7]` — per-bank row-hit counts (the only sound row-hit count; pumice BUG-020);
+- `SCHED_STATS_ACT`, `SCHED_STATS_PRE` — activate/precharge counts;
+- `REF_STATS_REF`, `REF_STATS_REF_BUSY` — refresh commands issued and refresh commands that deferred useful work (TASK-012);
+- `STALL_BP`, `STALL_REFRESH`, `STALL_TURNAROUND`, `STALL_TCCD`, `STALL_ACTLIMIT`, `STALL_BANKTIMER`, `STALL_NOREQ` — scheduler stall attribution.
 
-## DFI-Side Data Movers
+These counters are free-running and clear only on `aresetn`; software brackets a workload and reads deltas.
 
-Both movers live in the DFI layer on `dfi_clk`. Their internal unit is the **DFI word** (`DRAM_BEAT_WIDTH * DFI_RATE` wide), which already carries all `DFI_RATE` phases; `dfi_signal_pack` splits it to the pins. One FIFO pop is one DFI cycle, so both are bubble-free.
+### DFI-side data movement
 
-### `pumice_dfi_wr_serializer`
-
-RTL: `rtl/fub/pumice_dfi_wr_serializer.sv`. On a `wr_fire` from the command path it waits `t_phy_wrlat_i` DFI cycles, then streams one DFI-word per cycle from the write-data FIFO onto `dfi_wrdata` (with `dfi_wrdata_en` and `dfi_wrdata_mask`) until the burst's `last` word. Because the write CAM pre-stages the burst into the FIFO when the command is scheduled, the burst is already waiting at `wr_fire` and the drive never stalls. The DFI byte mask is the inverted AXI strobe (`mask = ~strb`; AXI `wstrb=1` = write byte, DFI `mask=1` = mask).
-
-### `pumice_dfi_rd_aligner`
-
-RTL: `rtl/fub/pumice_dfi_rd_aligner.sv`. The mirror of the write serializer. On a `rd_fire` it drives `dfi_rddata_en` for the read window starting `t_rddata_en_i` DFI cycles later, captures `dfi_rddata` whenever the PHY asserts `dfi_rddata_valid`, and pushes one DFI-word per valid cycle into the read FIFO as `{last, resp, data}`. `BL_WORDS = BL/DFI_RATE` words per burst; `last` marks the final word so the read intake can split words back into AXI R beats. v1 supports one outstanding read window (single-issue, tRTW/tCCD spaced).
-
-## Response Generation
-
-- **B response** — the write intake returns B when the write CAM signals commit-done for the transaction id, matching AXI4 posted-write semantics and decoupling B latency from DRAM-side delays.
-- **R response** — the read intake drains the read CAM onto the R channel in AR order with the correct id and `rlast`. In v1 all reads return `OKAY` (the DFI `resp` field is carried through but DDR2/LPDDR2 have no CA parity to surface).
-
-## Runtime PHY Timing
-
-The write and read timing offsets are runtime CSR knobs rather than hard-coded PHY latencies, so one build ports across PHYs: `t_phy_wrlat` (WR command to `dfi_wrdata_en`) and `t_rddata_en` (RD command to `dfi_rddata_en`), plus the `DFI_PHASE` CSR (`rd_phase` / `wr_phase`) covered in the DFI/CSR chapter.
+The controller-side CAMs are only half of the end-to-end data path. The DFI-side write serialization and read alignment are delegated to the common `mc_dfi_2p1_layer` ([`common_mas` chapter 7](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md)); the pumice-local `pumice_dfi_wr_serializer` and `pumice_dfi_rd_aligner` blocks are no longer instantiated in the active build. Pumice passes runtime PHY timing offsets (`t_phy_wrlat`, `t_rddata_en`) and DFI phase selects (`rd_phase`, `wr_phase`) from the `PHY_TIMING` and `DFI_PHASE` CSRs into that layer.

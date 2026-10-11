@@ -11,39 +11,46 @@ graph TD
     top --> csr
     top --> core
 
-    core --> ifc["pumice_axi4_ifc"]
-    core --> sched["pumice_mem_cmd_scheduler"]
-    core --> dfi["pumice_dfi_layer"]
+    core --> axi["mc_axi4_layer<br/><i>common-ip</i>"]
+    core --> stor["mc_storage_layer<br/><i>common-ip</i>"]
+    core --> sched["pumice_scheduler_layer<br/><i>thin wrapper around mc_scheduler_layer</i>"]
+    core --> trn["pumice_training_layer<br/><i>thin wrapper around mc_training_layer</i>"]
+    core --> dfi["mc_dfi_2p1_layer<br/><i>common-ip</i>"]
 
-    ifc --> wr_intake["pumice_wr_intake<br/><i>axi4_slave_wr + AW-meta FIFO + wr-data FIFO + addr_mapper</i>"]
-    ifc --> rd_intake["pumice_rd_intake<br/><i>axi4_slave_rd + addr_mapper + snarf probe</i>"]
-    ifc --> wr_data_cam["pumice_wr_data_cam<br/><i>WR CAM + wr-data SRAM; fill/commit-drain/snarf</i>"]
-    ifc --> rd_cmd_cam["pumice_rd_cmd_cam<br/><i>RD CAM + rd SRAM; return-fill/drain</i>"]
+    axi --> wr_intake["mc_wr_intake<br/><i>axi4_slave_wr + AW-meta FIFO + wr-data FIFO + mc_addr_mapper</i>"]
+    axi --> rd_intake["mc_rd_intake<br/><i>axi4_slave_rd + mc_addr_mapper + snarf probe</i>"]
 
-    sched --> cmd_arbiter["pumice_cmd_arbiter<br/><i>single pick core; open-page INLINE</i>"]
-    sched --> bank_timers["pumice_bank_timers<br/><i>stamps bank_timer per rank,bank</i>"]
-    sched --> global_timers["global_timers<br/><i>tFAW/tRRD/tWTR/tRTW/tCCD</i>"]
-    sched --> refresh_ctrl["refresh_ctrl<br/><i>tREFI accumulator + drain</i>"]
+    stor --> wr_data_cam["mc_wr_data_cam<br/><i>WR CAM + wr-data SRAM; fill/commit-drain/snarf</i>"]
+    stor --> rd_cmd_cam["mc_rd_cmd_cam<br/><i>RD CAM + rd SRAM; return-fill/drain</i>"]
+
+    sched --> sched_core["mc_scheduler_layer core<br/><i>pick machinery + bank/global timers</i>"]
     sched --> init_sequencer["init_sequencer<br/><i>DDR2 + LPDDR2 JEDEC MR init</i>"]
     sched --> mode_register["mode_register<br/><i>CL/CWL/BL/AL decode</i>"]
+    sched --> refresh_ctrl["refresh_ctrl<br/><i>tREFI accumulator + drain</i>"]
+    sched --> page_policy["pumice_page_policy<br/><i>open-page decision</i>"]
+    sched --> cmd_hist["pumice_cmd_history_checker<br/><i>optional DV scoreboard</i>"]
 
-    bank_timers --> bank_timer["bank_timer<br/><i>FSM-free per-bank safe_* timers</i>"]
+    trn --> trn_shell["mc_training_layer shell"]
+    trn --> zq_ctrl["pumice_zq_ctrl<br/><i>periodic ZQ calibration</i>"]
+    trn --> lp_cal["pumice_lp_cal<br/><i>LPDDR2 MRR DQ calibration</i>"]
 
-    dfi --> dfi_cdc["pumice_dfi_cdc<br/><i>SINGLE CDC; async gaxi FIFOs</i>"]
-    dfi --> dfi_cmd_path["pumice_dfi_cmd_path<br/><i>+ dfi_cmd_formatter + dfi_signal_pack</i>"]
-    dfi --> dfi_wr_ser["pumice_dfi_wr_serializer"]
-    dfi --> dfi_rd_align["pumice_dfi_rd_aligner"]
+    dfi --> dfi_cdc["mc_dfi_cdc<br/><i>SINGLE CDC; async gaxi FIFOs</i>"]
+    dfi --> dfi_cmd_path["mc_dfi_cmd_path<br/><i>+ dfi_cmd_formatter + dfi_signal_pack</i>"]
+    dfi --> dfi_wr_ser["mc_dfi_wr_serializer"]
+    dfi --> dfi_rd_align["mc_dfi_rd_aligner"]
 
     opt["page_predictor / powerdown_ctrl<br/><i>live but not in default build</i>"]
 
     classDef top fill:#404040,stroke:#228B22,stroke-width:2px,color:#fff
     classDef macro fill:#fef6c8,stroke:#b08000,stroke-width:2px,color:#000
+    classDef common fill:#d0e8ff,stroke:#1a5fb4,stroke-width:2px,color:#000
     classDef fub fill:#e8f4e8,stroke:#228B22,stroke-width:1px,color:#000
     classDef ip fill:#f0f0f0,stroke:#404040,stroke-width:1px,color:#000
     classDef optcls fill:#f5f5f5,stroke:#999,stroke-width:1px,stroke-dasharray:4 3,color:#333
 
     class geared,top top
-    class core,ifc,sched,dfi macro
+    class core,sched,trn macro
+    class axi,stor,dfi common
     class csr,dwc ip
-    class wr_intake,rd_intake,wr_data_cam,rd_cmd_cam,cmd_arbiter,bank_timers,bank_timer,global_timers,refresh_ctrl,init_sequencer,mode_register,dfi_cdc,dfi_cmd_path,dfi_wr_ser,dfi_rd_align fub
+    class wr_intake,rd_intake,wr_data_cam,rd_cmd_cam,sched_core,init_sequencer,mode_register,refresh_ctrl,page_policy,cmd_hist,trn_shell,zq_ctrl,lp_cal,dfi_cdc,dfi_cmd_path,dfi_wr_ser,dfi_rd_align fub
     class opt optcls

@@ -23,289 +23,96 @@
 
 # FUB Breakdown
 
-This section documents the **actual** Functional Unit Block decomposition as
-implemented in the rearchitected RTL: four integration layers under
-`pumice_core`, each built from leaf FUBs, driven by a PeakRDL CSR block in
-`pumice_top`.
+This section inventories the post-Phase-2 pumice block breakdown. Pumice is now
+a consumer of the common-ip memory-controller stack plus a small set of
+rock-specific FUBs. The family-wide architecture, ownership rules, and layer
+stack are documented in
+[common-ip HAS ch05](../../../../../common-ip/docs/common_has/ch05_lineup/01_common_ip_layout.md);
+per-block microarchitecture is in
+[common-ip MAS](../../../../../common-ip/docs/common_mas/common_mas_index.md).
+The rest of this chapter only records which common blocks pumice uses and where
+they are wired.
 
-## Component Layout
+## 1. What pumice consumes from common-ip
 
-Per the standard component layout:
+Pumice imports the family package and instantiates four common layers through
+thin wrappers where pumice-specific behavior is required. The shared leaf FUBs
+live inside those layers; pumice does not instantiate them directly.
 
-```
-pumice/
-├── docs/                      # this HAS, MAS, generated PDFs
-├── dv/                        # cocotb tests, BFM glue, tbclasses
-└── rtl/
-    ├── top/                   # pumice_top, pumice_core, pumice_top_geared
-    ├── macro/                 # the four layer macros + pumice_csr.rdl + generated/
-    ├── fub/                   # leaf FUBs (this section)
-    ├── includes/              # shared `defines, package files (pumice_pkg)
-    └── filelists/
-        ├── top/               # one .f per top
-        ├── macro/             # one .f per layer
-        └── fub/               # one .f per FUB
-```
+| Common block | common_mas chapter | Pumice instantiation site |
+|---|---|---|
+| `mc_common_pkg` | [ch01 — package](../../../../../common-ip/docs/common_mas/ch01_package/01_mc_common_pkg.md) | imported in [`pumice_core.sv:30`](../../../rtl/top/pumice_core.sv) and [`pumice_scheduler_layer.sv:24`](../../../rtl/macro/pumice_scheduler_layer.sv) |
+| `mc_axi4_layer` | [ch02 — host-side layer](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md) | [`pumice_core.sv:376`](../../../rtl/top/pumice_core.sv) (`u_ifc`) |
+| `mc_axi_burst_chopper` | [ch02 — host-side layer](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md) | inside `mc_axi4_layer` ([`pumice_core.sv:376`](../../../rtl/top/pumice_core.sv)) |
+| `mc_wr_splitter` | [ch02 — host-side layer](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md) | inside `mc_axi4_layer` ([`pumice_core.sv:376`](../../../rtl/top/pumice_core.sv)) |
+| `mc_wr_intake` | [ch02 — host-side layer](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md) | inside `mc_axi4_layer` ([`pumice_core.sv:376`](../../../rtl/top/pumice_core.sv)) |
+| `mc_rd_intake` | [ch02 — host-side layer](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md) | inside `mc_axi4_layer` ([`pumice_core.sv:376`](../../../rtl/top/pumice_core.sv)) |
+| `mc_rd_return_ring` | [ch02 — host-side layer](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md) | inside `mc_axi4_layer` ([`pumice_core.sv:376`](../../../rtl/top/pumice_core.sv)) |
+| `mc_addr_mapper` | [ch02 — host-side layer](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md) | inside `mc_wr_intake`/`mc_rd_intake` of `mc_axi4_layer` ([`pumice_core.sv:376`](../../../rtl/top/pumice_core.sv)) |
+| `mc_storage_layer` | [ch03 — entry-pool layer](../../../../../common-ip/docs/common_mas/ch03_storage_layer/01_mc_storage_layer.md) | [`pumice_core.sv:504`](../../../rtl/top/pumice_core.sv) (`u_storage`) |
+| `mc_wr_data_cam` | [ch03 — entry-pool layer](../../../../../common-ip/docs/common_mas/ch03_storage_layer/01_mc_storage_layer.md) | inside `mc_storage_layer` ([`pumice_core.sv:504`](../../../rtl/top/pumice_core.sv)) |
+| `mc_rd_cmd_cam` | [ch03 — entry-pool layer](../../../../../common-ip/docs/common_mas/ch03_storage_layer/01_mc_storage_layer.md) | inside `mc_storage_layer` ([`pumice_core.sv:504`](../../../rtl/top/pumice_core.sv)) |
+| `mc_scheduler_layer` | [ch04 — scheduler layer](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) | [`pumice_scheduler_layer.sv:315`](../../../rtl/macro/pumice_scheduler_layer.sv) (`u_core`) |
+| `mc_bank_timers` | [ch04 — scheduler layer](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) | inside `mc_scheduler_layer` ([`pumice_scheduler_layer.sv:315`](../../../rtl/macro/pumice_scheduler_layer.sv)) |
+| `mc_bank_timer` | [ch04 — scheduler layer](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) | inside `mc_bank_timers` inside `mc_scheduler_layer` |
+| `mc_global_timers` | [ch04 — scheduler layer](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) | inside `mc_scheduler_layer` ([`pumice_scheduler_layer.sv:315`](../../../rtl/macro/pumice_scheduler_layer.sv)) |
+| `mc_cmd_arbiter` | [ch04 — scheduler layer](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) | inside `mc_scheduler_layer` ([`pumice_scheduler_layer.sv:315`](../../../rtl/macro/pumice_scheduler_layer.sv)) |
+| `mc_training_layer` | [ch05 — training layer](../../../../../common-ip/docs/common_mas/ch05_training_layer/01_mc_training_layer.md) | [`pumice_training_layer.sv:176`](../../../rtl/macro/pumice_training_layer.sv) (`u_shell`) |
+| `mc_dfi_2p1_layer` | [ch07 — DFI 2.1 layer](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md) | [`pumice_core.sv:766`](../../../rtl/top/pumice_core.sv) (`u_dfi`) |
+| `mc_dfi_cdc` | [ch07 — DFI 2.1 layer](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md) | inside `mc_dfi_2p1_layer` ([`pumice_core.sv:766`](../../../rtl/top/pumice_core.sv)) |
+| `mc_dfi_cmd_path` | [ch07 — DFI 2.1 layer](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md) | inside `mc_dfi_2p1_layer` ([`pumice_core.sv:766`](../../../rtl/top/pumice_core.sv)) |
+| `mc_dfi_wr_serializer` | [ch07 — DFI 2.1 layer](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md) | inside `mc_dfi_2p1_layer` ([`pumice_core.sv:766`](../../../rtl/top/pumice_core.sv)) |
+| `mc_dfi_rd_aligner` | [ch07 — DFI 2.1 layer](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md) | inside `mc_dfi_2p1_layer` ([`pumice_core.sv:766`](../../../rtl/top/pumice_core.sv)) |
+| `mc_dfi_3p1_cmd_path` | [ch08 — DFI 3.1 layer](../../../../../common-ip/docs/common_mas/ch08_dfi_3p1_layer/01_mc_dfi_3p1_layer.md) | not used by pumice (scoria) |
+| `mc_dfi_4p0_cmd_path` | [ch09 — DFI 4.0 layer](../../../../../common-ip/docs/common_mas/ch09_dfi_4p0_layer/01_mc_dfi_4p0_layer.md) | not used by pumice (andesite) |
 
-Each FUB has one top SystemVerilog file named `<fub>.sv` with module `<fub>`,
-a filelist under `filelists/fub/`, and a cocotb testbench under `dv/tests/`.
+## 2. What pumice owns
 
-## Layer Hierarchy
+Pumice retains the rock-specific initialization, mode-register, refresh,
+page-policy, training, and DFI-encoding FUBs, plus thin wrappers around the
+common scheduler and training shells.
 
-`pumice_top` instantiates the PeakRDL `pumice_csr` block (config by name) and
-`pumice_core`, which wires the four layers:
+| Block | Role | Location |
+|---|---|---|
+| `init_sequencer` | DDR2/LPDDR2 JEDEC MR/init cold-boot engine. | [`rtl/fub/init_sequencer.sv`](../../../rtl/fub/init_sequencer.sv), instantiated in [`pumice_scheduler_layer.sv:193`](../../../rtl/macro/pumice_scheduler_layer.sv) |
+| `mode_register` | Per-rank MR shadow + live decode to CL/CWL/BL/AL. | [`rtl/fub/mode_register.sv`](../../../rtl/fub/mode_register.sv), instantiated in [`pumice_scheduler_layer.sv:225`](../../../rtl/macro/pumice_scheduler_layer.sv) |
+| `refresh_ctrl` | tREFI down-counter, postponer, and REFab/REFpb dispatch. | [`rtl/fub/refresh_ctrl.sv`](../../../rtl/fub/refresh_ctrl.sv), instantiated in [`pumice_scheduler_layer.sv:248`](../../../rtl/macro/pumice_scheduler_layer.sv) |
+| `pumice_page_policy` | Runtime page-policy engine and command telemetry. | [`rtl/fub/pumice_page_policy.sv`](../../../rtl/fub/pumice_page_policy.sv), instantiated in [`pumice_scheduler_layer.sv:276`](../../../rtl/macro/pumice_scheduler_layer.sv) |
+| `powerdown_ctrl` | Idle-detect → PDE/SR low-power state. | [`rtl/fub/powerdown_ctrl.sv`](../../../rtl/fub/powerdown_ctrl.sv); not wired in the default [`pumice_core`](../../../rtl/top/pumice_core.sv) build. |
+| `dfi_cmd_formatter` | JEDEC command encoding into DFI v2.1 wires (DDR2 truth table / LPDDR2 CA bus, OP `0x56`/`0xAB` for ZQ). | [`rtl/fub/dfi_cmd_formatter.sv`](../../../rtl/fub/dfi_cmd_formatter.sv); instantiated inside common `mc_dfi_cmd_path`, which pumice consumes via `mc_dfi_2p1_layer`. |
+| `dfi_signal_pack` | Final pipeline/register stage on the DFI bus. | [`rtl/fub/dfi_signal_pack.sv`](../../../rtl/fub/dfi_signal_pack.sv); not wired in the default [`pumice_core`](../../../rtl/top/pumice_core.sv) build. |
+| `addr_mapper` (local copy) | Flat AXI address → (rank, bank, row, col). | [`rtl/fub/addr_mapper.sv`](../../../rtl/fub/addr_mapper.sv); retained in the filelists but not instantiated in [`pumice_core`](../../../rtl/top/pumice_core.sv). The live address mapping is performed by common `mc_addr_mapper` inside `mc_axi4_layer`. |
+| `pumice_zq_ctrl` | Periodic LPDDR2 ZQ calibration maintenance (MRW to MR10). | [`rtl/fub/pumice_zq_ctrl.sv`](../../../rtl/fub/pumice_zq_ctrl.sv), instantiated in [`pumice_training_layer.sv:108`](../../../rtl/macro/pumice_training_layer.sv) |
+| `pumice_lp_cal` | One-shot LPDDR2 DQ calibration interface (MRR MR32/MR40). | [`rtl/fub/pumice_lp_cal.sv`](../../../rtl/fub/pumice_lp_cal.sv), instantiated in [`pumice_training_layer.sv:131`](../../../rtl/macro/pumice_training_layer.sv) |
+| `pumice_scheduler_layer` | Thin pumice wrapper around common `mc_scheduler_layer`; holds the rock init/refresh/page-policy FUBs. | [`rtl/macro/pumice_scheduler_layer.sv`](../../../rtl/macro/pumice_scheduler_layer.sv), instantiated in [`pumice_core.sv:601`](../../../rtl/top/pumice_core.sv) |
+| `pumice_training_layer` | Thin pumice wrapper around common `mc_training_layer`; holds the rock ZQ/DQ-cal FUBs. | [`rtl/macro/pumice_training_layer.sv`](../../../rtl/macro/pumice_training_layer.sv), instantiated in [`pumice_core.sv:725`](../../../rtl/top/pumice_core.sv) |
+| `pumice_cmd_arbiter` | Thin pumice wrapper around common `mc_cmd_arbiter`; preserved historical port list. | [`rtl/fub/pumice_cmd_arbiter.sv`](../../../rtl/fub/pumice_cmd_arbiter.sv); not instantiated in the default [`pumice_core`](../../../rtl/top/pumice_core.sv) build (the scheduler wrapper uses common `mc_scheduler_layer` instead). |
 
-```
-pumice_top                                (CSR block + core)
-└── pumice_core
-    ├── pumice_axi4_layer                        ("host AXI4 -> CAM-buffered requests")
-    │   ├── pumice_wr_intake                   AXI4 slave wr + AW-meta FIFO + wr-data FIFO
-    │   ├── pumice_rd_intake                   AXI4 slave rd + snarf probe
-    │   ├── addr_mapper                        flat AXI addr -> (rank, bank, row, col)
-    │   ├── pumice_wr_data_cam                 WR CAM + wr-data SRAM (fill/commit-drain/snarf)
-    │   └── pumice_rd_cmd_cam                  RD CAM + rd SRAM (return-fill/drain)
-    ├── pumice_scheduler_layer               ("what command to issue this cycle")
-    │   ├── pumice_cmd_arbiter                 single pick core (open-page inline)
-    │   ├── pumice_bank_timers (bank_timer)    per-(rank,bank) FSM-free JEDEC "safe" timers
-    │   ├── global_timers                      tFAW / tRRD / tWTR / tRTW / tCCD turnaround
-    │   ├── refresh_ctrl                       tREFI postponer, REFab/REFpb dispatch
-    │   ├── init_sequencer                     DDR2 + LPDDR2 JEDEC MR init
-    │   └── mode_register                      MR shadow -> live CL/CWL/BL/AL
-    ├── pumice_training_layer                ("LPDDR2 ZQ + DQ calibration; inert for DDR2")
-    │   ├── pumice_zq_ctrl                     periodic ZQCS/ZQCL as MRW(MR10) maintenance
-    │   └── pumice_lp_cal                      one-shot MRR MR32/MR40 DQ calibration
-    └── pumice_dfi_layer                       ("single datapath CDC + DFI v2.1 datapath")
-        ├── pumice_dfi_cdc                     the ONE datapath crossing (async gaxi FIFOs)
-        ├── pumice_dfi_cmd_path                unpack cmd, drive DFI via dfi_cmd_formatter
-        │       (uses dfi_cmd_formatter + dfi_signal_pack)
-        ├── pumice_dfi_wr_serializer           commit-drain WR CAM -> dfi_wrdata + mask
-        └── pumice_dfi_rd_aligner              dfi_rddata capture -> return-fill RD CAM
-```
+## 3. Retired and absorbed blocks
 
-Also present but not in the default top build: `page_predictor` and
-`powerdown_ctrl` (referenced / optional; verify against the filelists).
+The pre-Phase-2 pumice-local layer macros and their leaf FUBs have been
+replaced by common-ip equivalents. The old names may still appear in retired
+sentinel tests and filelist comments; they are not part of the current build.
 
-## FUB Inventory
+| Retired/absorbed block | Status after Phase-2 |
+|---|---|
+| `pumice_axi4_layer` | Replaced by common `mc_axi4_layer` ([`pumice_core.sv:376`](../../../rtl/top/pumice_core.sv)). |
+| `pumice_wr_intake` / `pumice_rd_intake` | Replaced by common `mc_wr_intake` / `mc_rd_intake` inside `mc_axi4_layer`. |
+| `pumice_wr_data_cam` / `pumice_rd_cmd_cam` | Replaced by common `mc_wr_data_cam` / `mc_rd_cmd_cam` inside `mc_storage_layer` ([`pumice_core.sv:504`](../../../rtl/top/pumice_core.sv)). |
+| `pumice_bank_timers` (local) | Replaced by common `mc_bank_timers` inside `mc_scheduler_layer`. |
+| `pumice_cmd_arbiter` (behavioral core) | Replaced by common `mc_cmd_arbiter` inside `mc_scheduler_layer`. The pumice-wrapper file remains but is not in the default build. |
+| `pumice_scheduler_layer` (behavioral macro) | Now a thin wrapper around common `mc_scheduler_layer` ([`pumice_scheduler_layer.sv:315`](../../../rtl/macro/pumice_scheduler_layer.sv)). |
+| `pumice_training_layer` (behavioral macro) | Now a thin wrapper around common `mc_training_layer` ([`pumice_training_layer.sv:176`](../../../rtl/macro/pumice_training_layer.sv)). |
+| `pumice_dfi_cdc` / `pumice_dfi_cmd_path` / `pumice_dfi_wr_serializer` / `pumice_dfi_rd_aligner` | Pumice-local DFI wrappers retired; common `mc_dfi_2p1_layer` owns the CDC and datapath ([`pumice_core.sv:766`](../../../rtl/top/pumice_core.sv)). |
+| `txn_queue` | Replaced by the two common CAMs: `mc_wr_data_cam` + `mc_rd_cmd_cam`. |
+| `bank_machine` | Replaced by FSM-free common `mc_bank_timer`, stamped by `mc_bank_timers`. |
+| `xbank_timers` | Replaced by common `mc_global_timers` (turnaround) + `mc_bank_timers` (per-bank). |
+| `cmd_encoder` | Replaced by common `mc_dfi_cmd_path` (which instantiates the pumice-owned `dfi_cmd_formatter`). |
+| `odt_ctrl` | ODT handling now lives inside `dfi_cmd_formatter` / `mode_register`; no standalone block. |
+| `page_predictor` (standalone) | Open-page decision is inline in common `mc_cmd_arbiter`; runtime policy is provided by pumice-owned `pumice_page_policy`. The adaptive modes retired 2026-09-27 (`pumice_page_policy`: the `adapt_time`/`adapt_access` encodings 4/5 now fall through to the build default). |
+| `wr_cmd_cam` | Replaced by common `mc_wr_data_cam`. |
+| `scheduler` | Replaced by common `mc_scheduler_layer` (via `pumice_scheduler_layer`). |
+| `gear_dfi` | Replaced by common `mc_dfi_2p1_layer`. |
+| `axi_frontend` / `axi_intake` / `*_macro`-as-architecture | Replaced by common `mc_axi4_layer`, generated `pumice_csr`, and `pumice_core`. |
 
-### `pumice_axi4_layer`
-
-#### `pumice_wr_intake`
-- **Purpose**: AXI4 slave write engine. AW/W/B handshakes with an AW-meta FIFO
-  and a wr-data FIFO; splits each host burst at DRAM-burst byte boundaries so
-  each command maps to one DRAM burst.
-- **Key params**: `AXI_DATA_WIDTH`, `AXI_ID_WIDTH`, `AXI_ADDR_WIDTH`, `BL`,
-  `NUM_ENTRIES`.
-- **Downstream**: `addr_mapper`, `pumice_wr_data_cam`.
-
-#### `pumice_rd_intake`
-- **Purpose**: AXI4 slave read engine; splits the read burst; probes the
-  write-data CAM for a read-your-write snarf hit (unscheduled, same-id,
-  same-BL) before committing the read command.
-- **Key params**: `AXI_DATA_WIDTH`, `AXI_ID_WIDTH`, `AXI_ADDR_WIDTH`, `BL`,
-  `NUM_ENTRIES`.
-
-#### `addr_mapper`
-- **Purpose**: Decode a flat AXI address into (rank, bank, row, col) using the
-  single `bank_lsb` knob: the bank field slides within the byte-offset-stripped
-  word address and the column auto-splits below (`col_lo`) and above (`col_hi`)
-  it, with the row/rank positions invariant. An optional bank XOR-hash folds
-  row bits (+ a seed) into the bank index. Combinational, single stage.
-- **Key params**: `AXI_ADDR_WIDTH`, `NUM_RANKS`, `NUM_BANKS`, `ROW_WIDTH`,
-  `COL_WIDTH`.
-- **Runtime inputs**: `bank_lsb_i`, `hash_en_i`, `hash_seed_i`
-  (`ADDR_MAP.bank_lsb` / `hash_en` / `hash_seed`).
-- **Notable**: Mirrors the Python address-mapping class in the DV repo; the
-  same decode drives RTL and BFM. There is no scheme selector.
-
-#### `pumice_wr_data_cam`
-- **Purpose**: Write-data CAM. Fills each write burst into an SRAM and records
-  the command; provides scheduler lookup / oldest / commit ports; commit-drains
-  the burst to the DFI write serializer; and is the snarf source for read
-  forwarding. An `r_fdone` fill-complete flag gates schedulability and snarf.
-  Streaming read engine is FIFO-fed / oldest-pick — no active-slot state latch.
-- **Key params**: `NUM_ENTRIES`, `N_SRAM_SLOTS`, `NUM_RANKS`, `NUM_BANKS`,
-  `ROW_WIDTH`, `BL`.
-
-#### `pumice_rd_cmd_cam`
-- **Purpose**: Read-command CAM / reorder buffer. Records read commands;
-  return-fills DRAM read beats into an SRAM; oldest-first drain engine (gated
-  on data-ready) streams beats back to `pumice_rd_intake`. No active-slot latch.
-- **Key params**: `NUM_ENTRIES`, `N_SRAM_SLOTS`, `NUM_RANKS`, `NUM_BANKS`,
-  `ROW_WIDTH`, `BL`.
-
-### `pumice_scheduler_layer`
-
-#### `pumice_cmd_arbiter`
-- **Purpose**: The single command-pick core. Picks one abstract command per
-  cycle from {ACT, RD/RDA, WR/WRA, PRE, REF, MRS, NOP} from the CAM lookups,
-  gated by the per-(rank,bank) `safe_*` from `pumice_bank_timers` and the
-  turnaround windows from `global_timers`. The open-page decision is inline.
-- **Page policy**: OPEN (row-hit reuse + explicit PRE on miss), CLOSE (auto-pre
-  on every column op via RDA/WRA), or an adaptive runtime mode
-  (`pumice_page_policy`: fixed_open; the adaptive modes retired 2026-09-27).
-  Programmed via `REFRESH_TUNING.page_policy_or`.
-- **Key params**: `NUM_ENTRIES`, `NUM_RANKS`, `NUM_BANKS`, `AGE_WIDTH`.
-- **Notable**: A combinational picker with registered feedback — always
-  macro-test it, since registered-feedback latency created double-issue hazards
-  caught only at the layer level.
-
-#### `pumice_bank_timers` (instantiates `bank_timer`)
-- **Purpose**: Stamps one `bank_timer` per (rank, bank) and fans the arbiter's
-  command-event strobes to the addressed instance. `bank_timer` is FSM-free:
-  preset/decrement countdown timers (tRCD, tRAS, tRC, tRP, precharge-block) +
-  a row-open register + a single auto-precharge bit. The per-command `safe_*`
-  outputs are combinational off the timers (one register stage), so the arbiter
-  sees the just-issued command's effect one cycle later with no multi-stage lag.
-- **Key params**: `NUM_RANKS`, `NUM_BANKS`, `ROW_WIDTH`.
-- **Runtime inputs**: `t_rcd_i`, `t_rp_i`, `t_ras_i`, `t_rc_i`, `t_wr_i`,
-  `t_rtp_i`.
-
-#### `global_timers`
-- **Purpose**: Cross-bank / cross-rank turnaround windows: tFAW (4-ACT window),
-  tRRD, tWTR, tRTW, tCCD. ANDed by the arbiter.
-- **Runtime inputs**: `t_faw_i`, `t_rrd_i`, `t_wtr_i`, `t_rtw_i`, `t_ccd_i`.
-
-#### `refresh_ctrl`
-- **Purpose**: tREFI down-counter; postponed-refresh accumulator (JEDEC max 8);
-  refresh-pending signal to the arbiter; REFab / REFpb dispatch
-  (`REFRESH_TUNING.refpb_policy_or`).
-- **Runtime inputs**: `t_refi_i`, `refresh_burst_i`.
-
-#### `init_sequencer`
-- **Purpose**: Cold-boot engine that runs the memtype-specific JEDEC MR/init
-  sequence (DDR2 and LPDDR2), driving CKE / RESET_N and MR-write strobes into
-  `mode_register`, and holds off traffic until init completes.
-- **Runtime inputs**: `t_init_wait_i`, `t_dll_wait_i`, `t_mrd_wait_i`,
-  `t_rp_wait_i`, `t_rfc_wait_i`, `memtype_i`.
-
-#### `mode_register`
-- **Purpose**: Per-rank Mode Register shadow + live decode to CL / CWL / BL / AL
-  (memtype-dependent), plus drive-strength and ODT-rule outputs consumed by the
-  DFI layer.
-- **Key params**: `NUM_RANKS`, `MAX_MR_IDX` (17; covers DDR2 MR0..3 and LPDDR2
-  MR0..16).
-
-### `pumice_training_layer`
-
-#### `pumice_zq_ctrl`
-- **Purpose**: Periodic ZQ calibration for LPDDR2 as maintenance traffic.
-  LPDDR2 has no ZQCS/ZQCL command — both are MRW to MR10 (OP `0x56`/`0xAB`) —
-  so the FUB only raises requests and holds the post-grant bus-quiet window
-  (`t_zqcs`/`t_zqcl`); the arbiter emits the MRW verbatim. Interval countdown,
-  Mode-C defer-under-demand with overdue escalation to ZQCL, `zqcs_total` /
-  `zq_overdue` telemetry.
-- **Run gating**: `zq_en && init_done && memtype == MEMTYPE_LPDDR2 && interval != 0`.
-  Inert for DDR2 (no ZQ pin).
-- **Runtime inputs**: `zq_interval_i`, `t_zqcs_i`, `t_zqcl_i`, `zq_defer_en_i`,
-  `zq_overdue_max_i` (the CAL_* CSRs).
-
-#### `pumice_lp_cal`
-- **Purpose**: One-shot DQ-calibration sequencer. On `cal_start`: wait for the
-  maintenance grant, issue MRR to MR32 (pattern A), capture the first
-  `dfi_rddata_valid` beat via the read aligner's cal sideband, wait `t_mrr`,
-  repeat for MR40 (pattern B), set sticky `cal_done`. Sticky `cal_err` on
-  `t_readout` timeout; `cal_abort` cancels. The DQ-vs-tap sweep itself lives in
-  firmware — this is the interface, not the search.
-- **Run gating**: `init_done && memtype == MEMTYPE_LPDDR2`. Inert for DDR2 (no
-  MRR).
-- **Runtime inputs**: `t_mrr_i`, `t_readout_i` (`CAL_TRAIN_TIMING`).
-- **Notable**: the layer ties the ZQ FUB's `demand_i` to `1'b0` pending a
-  scheduler demand sideband, so Mode-C deferral is implemented and FUB-tested
-  but dormant in the current integration.
-
-#### `pumice_training_layer` (the macro itself)
-- **Purpose**: Holds the two FUBs, arbitrates them one-active onto the single
-  `trn_cmd_*` maintenance channel into the scheduler's arbiter (ZQ > lp_cal),
-  and owns the `mc_clk` ↔ `dfi_clk` CDC for the calibration sideband
-  (`sync_pulse` / `cdc_synchronizer`).
-- **See**: Ch 3.9 for the full behavioral description, the MRR command path,
-  and the arbitration policy.
-
-### `pumice_dfi_layer`
-
-#### `pumice_dfi_cdc`
-- **Purpose**: The single controller-to-PHY clock crossing, built from
-  asynchronous gaxi FIFOs (command, write-data, read-data). One FIFO word is
-  one DFI cycle, so the datapaths are bubble-free.
-- **Key params**: `CMD_FIFO_DEPTH`, `WD_FIFO_DEPTH`, `RD_FIFO_DEPTH`,
-  `N_FLOP_CROSS`.
-
-#### `pumice_dfi_cmd_path` (uses `dfi_cmd_formatter` + `dfi_signal_pack`)
-- **Purpose**: DFI-domain command path. Pops the abstract command stream from
-  the CDC FIFO, unpacks {op, rank, bank, row, col, ap}, and drives the
-  multi-phase DFI command bus via `dfi_cmd_formatter`; emits wr_fire / rd_fire
-  strobes so the serializer / aligner can schedule their data phases.
-- **`dfi_cmd_formatter`**: JEDEC command encoding into DFI wires — DDR2 drives
-  cs_n / ras_n / cas_n / we_n / address / bank (including the A10 auto-precharge
-  bit and ODT rule); LPDDR2 packs the 10-bit CA-bus command (two edges) onto
-  `dfi_address`, per a `memtype` branch. Swap this when moving DFI generations.
-- **`dfi_signal_pack`**: multi-phase aggregation — widens each DFI control bus
-  to per-phase × `DFI_RATE`.
-
-#### `pumice_dfi_wr_serializer`
-- **Purpose**: On wr_fire, commit-drains the write burst from
-  `pumice_wr_data_cam`'s SRAM and drives `dfi_wrdata` / `dfi_wrdata_en` /
-  `dfi_wrdata_mask` with PHY alignment.
-- **AXI ↔ DFI mask polarity**: AXI `wstrb`=1 means write; DFI `mask`=1 means
-  do-not-write → `dfi_wrdata_mask = ~wstrb`.
-
-#### `pumice_dfi_rd_aligner`
-- **Purpose**: Drives `dfi_rddata_en` `t_rddata_en` cycles after a READ command;
-  captures `dfi_rddata` beats; return-fills them into `pumice_rd_cmd_cam`.
-  Also hosts the calibration capture sideband (`cal_expect_i` arm, first-valid
-  beat captured to `cal_data_o`, `cal_valid_o` pulse) used by the training
-  layer's MRR DQ calibration.
-- **Runtime inputs**: `t_rddata_en_i`, `t_phy_wrlat_i`, `rd_phase_i`,
-  `wr_phase_i`.
-
-## Data Width and Gearing
-
-Two distinct concepts:
-
-1. **Internal DFI geometry.** `DW = DRAM_BEAT_WIDTH * DFI_RATE` (128 default).
-   One AXI beat is one DFI word is `DFI_RATE` DRAM beats; one AXI burst is one
-   DRAM burst. The DW → per-phase split happens in `dfi_signal_pack` / the DFI
-   layer. The host AXI data width equals `DW` at `pumice_top`.
-2. **Host-width freedom.** The optional `pumice_top_geared` wrapper adds a free
-   `HOST_AXI_DATA_WIDTH` and inserts the repository's formally-verified
-   `axi4_dwidth_converter_wr` / `_rd` between a host-width slave and the fixed-DW
-   core. `HOST_AXI_DATA_WIDTH == DW` is a bit-identical generate bypass. Verified
-   host ∈ {64, 128, 256}.
-
-## What Changed vs the Earlier Architecture
-
-The controller was rearchitected from an earlier FSM-based decomposition. The
-following blocks were retired; their behavior now lives in the FUBs shown:
-
-| Retired block             | Replaced by                                                                        |
-|---------------------------|------------------------------------------------------------------------------------|
-| `txn_queue`               | the two CAMs: `pumice_wr_data_cam` + `pumice_rd_cmd_cam`                            |
-| `bank_machine`            | FSM-free `bank_timer`, stamped by `pumice_bank_timers`                              |
-| `xbank_timers`            | `global_timers` (turnaround) + `pumice_bank_timers` (per-bank)                      |
-| `cmd_encoder`             | `dfi_cmd_formatter` (+ `dfi_signal_pack`)                                           |
-| `odt_ctrl`                | ODT inside `dfi_cmd_formatter` / `mode_register` (no standalone block)              |
-| `page_predictor` (standalone) | open-page decision inline in `pumice_cmd_arbiter` (`page_predictor.sv` optional) |
-| `wr_cmd_cam`              | `pumice_wr_data_cam`                                                                |
-| `scheduler`               | `pumice_scheduler_layer` (`pumice_cmd_arbiter` + timers + refresh + init)         |
-| `gear_dfi`                | `pumice_dfi_layer`                                                                  |
-| `axi_frontend` / `axi_intake` / `*_macro`-as-architecture | `pumice_axi4_layer`, generated `pumice_csr`, `pumice_core` |
-
-The old names may still appear in retired sentinel tests; they are not part of
-the current architecture.
-
-## Integration
-
-The four layer macros are structural wiring; behavioral logic lives in the
-leaf FUBs. The principal wiring concerns:
-
-1. **Arbiter ↔ timing fan-out**: `pumice_bank_timers` exposes per-(rank,bank)
-   `safe_*` off single-stage timers; `global_timers` exposes turnaround-OK
-   signals. `pumice_cmd_arbiter` reduces these into one command per cycle.
-2. **CAM ↔ DFI-datapath coupling**: `pumice_wr_data_cam`'s commit-drain feeds
-   `pumice_dfi_wr_serializer`; `pumice_dfi_rd_aligner`'s return-fill advances
-   `pumice_rd_cmd_cam`.
-3. **The single datapath CDC**: everything up to `pumice_dfi_cdc` is on `aclk`;
-   the command path, serializer, and aligner are on `dfi_clk`. The training
-   layer's calibration sideband crosses the same boundary separately
-   (`cal_expect` down, captured MRR data up) — narrow, FIFO-less, no datapath
-   traffic.
+Verified host-width freedom via [`pumice_top_geared`](../../../rtl/top/pumice_top_geared.sv) remains {64, 128, 256}.

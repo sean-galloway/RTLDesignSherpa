@@ -23,78 +23,56 @@
 
 # Command Scheduler
 
-The command-scheduling layer is `pumice_scheduler_layer` (`rtl/macro/pumice_scheduler_layer.sv`). It is a single controller-clock (`aclk`) layer that wires together the pick core and all the timing / bring-up support blocks, and emits one abstract DRAM command stream `{op, rank, bank, row, col, ap, mrr}` into a command FIFO for the DFI layer to pack onto phases.
+The command-scheduling layer is `pumice_scheduler_layer` (`rtl/macro/pumice_scheduler_layer.sv`). It is a thin pumice wrapper around the common `mc_scheduler_layer` core. It runs on the single controller clock (`aclk`), instantiates the rock-specific bring-up and policy children, and emits one abstract DRAM command stream `{op, rank, bank, row, col, ap, mrr}` into the scheduler-to-DFI command interface.
 
-The scheduler does **not** hold the transaction queue — pending requests live in the two CAMs inside `pumice_axi4_layer`. The scheduler reads them through external lookup / oldest / commit / issue ports.
+Until 2026-10-09 this block was a pumice-local layer that contained `pumice_cmd_arbiter`, `pumice_bank_timers`, and `global_timers`; the pick machinery and timing FUBs were extracted into the common core during the Phase-2 common-IP campaign. The wrapper now holds only the DDR2/LPDDR2-specific children and the port mapping that feeds the common core.
+
+The wrapper does not hold the transaction queue. The schedulable-entry vectors (valid, bank, row, col, age, oldest, qos) and the commit/issue handshakes are external because the CAMs live in `mc_storage_layer`; `pumice_axi4_layer` presents the same descriptor seam in the pumice build. The family layer-stack and descriptor-seam contract are in the family HAS ([Layer Stack](../../../../../common-ip/docs/common_has/ch02_architecture/01_layer_stack.md), [Descriptor Seam](../../../../../common-ip/docs/common_has/ch02_architecture/02_descriptor_seam.md)). The common scheduler core is documented in the family MAS ([`mc_scheduler_layer`](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md)); this chapter only describes the pumice wrapper, its rock-specific children, and the measured history that remains pumice-owned.
 
 ## Composition
 
 `pumice_scheduler_layer` instantiates:
 
-- **`pumice_cmd_arbiter`** — the single pick core (open-page decision is inline).
-- **`pumice_bank_timers`** (per-rank/bank `bank_timer` instances) — FSM-free per-bank JEDEC "safe" timers (see `03_bank_machines.md`).
-- **`global_timers`** — cross-bank / bus turnaround (tFAW, tRRD, tWTR, tRTW, tCCD).
-- **`refresh_ctrl`** — tREFI tracking + postpone accumulator (see `04_refresh.md`).
-- **`init_sequencer`** — JEDEC MRS cold-boot init; gates traffic until done (see `05_init_power.md`).
-- **`mode_register`** — CL / CWL / BL decode shadow, updated by init MRS writes.
-- an output command FIFO (`gaxi_fifo_sync`).
+- `init_sequencer` — JEDEC MRS cold-boot init; gates traffic until done (see `05_init_power.md`).
+- `mode_register` — CL / CWL / BL decode shadow, updated by init MRS writes.
+- `refresh_ctrl` — tREFI tracking + postpone/pull-in accumulator (see `04_refresh.md`).
+- `pumice_page_policy` — runtime auto-precharge engine.
+- `pumice_cmd_history_checker` (optional, `CMD_HISTORY_EN != 0`) — command-history scoreboard for simulation.
+- `mc_scheduler_layer` — the common core that owns the pick machinery, bank/global timers, maintenance arbitration, and scheduler-to-DFI command FIFO.
 
-## `pumice_cmd_arbiter`
+The wrapper passes the timing and scheduler CSR inputs straight through to the common core and forwards the page-policy outputs (`ap_mode_en`, `ap_close`, `timeout_pre_req`, `timeout_pre_bank`) to the core's page-policy engine interface.
 
-### Purpose
+## Mapping the pumice training channel onto the generic maintenance slot
 
-Pick exactly one abstract DRAM command per cycle and push it into the scheduler-to-DFI command interface. It is PHY/nphases-agnostic and single-issue. JEDEC timing readiness is supplied by the per-bank (`pumice_bank_timers`) and global (`global_timers`) inputs; the arbiter never re-derives timing itself.
+The common core exposes one generic maintenance slot: `maint_req_i`/`maint_grant_o`, `maint_op_i`, `maint_bank_i`, `maint_row_i`, `maint_col_i`, `maint_extra_i`, `maint_busy_i`. Pumice maps its training-channel signals onto that slot:
 
-### Inputs
+| Pumice signal | Common maintenance slot |
+|---|---|
+| `trn_cmd_req_i` | `maint_req_i` |
+| `trn_cmd_grant_o` | `maint_grant_o` (via `w_maint_grant`) |
+| `trn_cmd_op_i` | `maint_op_i` |
+| `trn_cmd_bank_i` | `maint_bank_i` |
+| `trn_cmd_row_i` | `maint_row_i` |
+| `trn_cmd_mrr_i` | `maint_extra_i[0]` |
+| `cal_busy_i` | `maint_busy_i` |
 
-- Per-bank readiness from `pumice_bank_timers`: `bank_act_ready`, `bank_rdwr_ready`, `bank_pre_ready`, `bank_row_active`, `bank_open_row`.
-- Global readiness from `global_timers`: `tfaw_ok`, `trrd_ok` (per-rank), `twtr_ok`, `trtw_ok`, `tccd_ok`.
-- Per-bank scheduler lookups into both CAMs (query each bank's open row), plus the CAMs' `oldest` ports.
-- Refresh request / drain from `refresh_ctrl`; init command passthrough from `init_sequencer`.
-- Training maintenance request `trn_cmd_*` from `pumice_training_layer`, plus its post-grant bus-quiet hold `cal_busy_i` (see `09_training.md`).
+The single-bit `mrr` flag is carried in `maint_extra_i[0]` and recovered on the command output as `cmd_mrr_o = cmd_extra_o[0]`. No training logic is implemented inside the common core; the slot is a request/grant pipe that the wrapper's `pumice_training_layer` drives (see `09_training.md`).
 
-### Outputs
+## Rock-specific children and CSR surface
 
-- Command push `{op, rank, bank, row, col, ap, mrr}` with `cmd_valid` / `cmd_ready`.
-- Event strobes to the timers (`evt_act`, `evt_rd`, `evt_wr`, `evt_pre`, `evt_ap`, `evt_rank`, `evt_bank`, `evt_row`) — fired only on an accepted issue.
-- CAM side effects: write-CAM commit, read-CAM issue, refresh grant — all gated on accepted issue.
+`init_sequencer`, `mode_register`, and `refresh_ctrl` remain rock-specific because the DDR2/LPDDR2 bring-up sequence, mode-register fields, and refresh policy differ from the other family rocks. `pumice_page_policy` is the pumice runtime page-policy engine; it consumes the `page_mode_i`/`page_tr_init_i` CSRs and produces the auto-precharge controls consumed by the common core.
 
-`op` is drawn from `dram_op_e` (`OP_NOP`, `OP_ACT`, `OP_RD`, `OP_RDA`, `OP_WR`, `OP_WRA`, `OP_PRE`, `OP_PREA`, `OP_REF`, `OP_REFPB`, `OP_MRS`, ...).
+The static page-policy override `page_policy_i` (OPEN / CLOSE / HAPPY_HYBRID) is still accepted at the wrapper top level; the common core honors it when the runtime engine is disabled. The `HAPPY_HYBRID` enum encoding and the standalone `page_predictor.sv` are retired; the encoding maps to the build default. The adaptive modes `adapt_time` and `adapt_access` were RETIRED 2026-09-27, TASK-014.
 
-### Priority Function
+## Measured history preserved in the common pick machinery
 
-Evaluated combinationally each cycle (descending priority):
+Pumice does not alter the common `mc_cmd_arbiter` pick core. The following measured bug-history sentences from the merge inventory ([mc_scheduler_knobs.md](../../../../../common-ip/docs/mc_scheduler_knobs.md) §6.4) are preserved verbatim because they govern the fire-stage authority that this wrapper relies on:
 
-1. **Init in progress** (`!init_done`) — forward the `init_sequencer` command verbatim; block all normal traffic.
-2. **Refresh** (`refresh_req` or drain active) — precharge active banks one per cycle, then — only under `w_ref_safe` (all rows closed in the registered view, nothing row-affecting in flight or guarded, prior REF's tRFC recovery elapsed) — issue `REF` and assert the refresh grant. Each fired REF loads the arbiter's tRFC down-counter (`TIMINGS_RFC_REFI.tRFC`); while non-zero, ACTs and further REFs are blocked.
-3. **Training** (`trn_cmd_req` from the training layer) — only under `w_trn_safe` (every bank idle, nothing row-affecting in flight or guarded, tRFC elapsed, no grant in flight); the op passes through verbatim and `trn_cmd_grant` pulses on the fire. During the FUBs' post-grant hold (`cal_busy`), every demand class below is gated off in `w_out_safe`.
-4. **Column row-hit** — a `RD`/`WR` to an already-open row whose bank is column-ready (`bank_rdwr_ready`) and whose bus turnaround permits it (`tccd_ok` + `twtr_ok` for reads / `trtw_ok` for writes). **Reads have priority over writes**; within each, the **oldest** entry (max CAM relative age) wins the tie-break.
-5. **Fallback** — no ready row-hit: `ACT` the oldest pending op's row on an idle bank (subject to `tfaw_ok` / `trrd_ok` and the ACT/PRE guard), or `PRE` a bank that is open on the wrong row.
+- **pumice BUG-021**: dropping an ACT whose only obstacle was the rank-global tFAW/tRRD window regressed close-page throughput from the accepted 30.77% calibration to 28.57%; holding recovered to 30.14%.
+- **ISSUE-002**: moving tFAW/tRRD to the classify mask drained the 3-stage pipeline and dropped close-page throughput from 30.77% to ~18%.
 
-The fallback target is read-priority: the read CAM's `oldest` port is consulted first, then the write CAM's.
-
-### ACT/PRE Re-Issue Guard
-
-The bank timers register their readiness outputs (there is a two-cycle latency from an event to `act_ready` / `pre_ready` dropping). A stateless combinational arbiter would otherwise re-issue ACT/PRE to the same bank before the timers reflect it. The arbiter therefore keeps a two-cycle per-bank guard (`r_guard0` / `r_guard1`) that blocks a bank for two cycles after an accepted ACT, PRE **or column** to it — columns are included because a just-fired column has not yet dropped the bank's registered `pre_ready` (tRTP/tWR load), so an unguarded PRE (normal or refresh-drain) could precharge on stale readiness. Columns still self-limit against each other (both CAMs exclude a just-committed / just-issued slot from the next cycle's lookup), so the guard never gates column-vs-column. The shared-DQ-bus burst-occupancy constraint (a BL burst owns the bus for `BL/DFI_RATE` DFI cycles) is enforced downstream in the DFI command path, not here; the CDC decouples `aclk` command issue from the `dfi_clk` DQ timing.
-
-### Page Policy (Auto-Precharge)
-
-The column auto-precharge bit is set directly from `page_policy_i`:
-
-- **`OPEN`** — `ap = 0`; rows stay open. Column ops stream to an open row at tCCD rate.
-- **`CLOSE`** — `ap = 1`; every column op auto-precharges (issues `RDA` / `WRA`).
-- **Adaptive policies** — the runtime page-policy engine (`pumice_page_policy`, `PAGE_POLICY_CFG.policy_mode`): `fixed_open` idle-timeout close (the adaptive modes `adapt_time` and `adapt_access` were RETIRED 2026-09-27, TASK-014). (The former `HAPPY_HYBRID` enum encoding and `page_predictor.sv` are retired; the encoding maps to build default.)
-
-The open-page "keep the row open" decision therefore lives inline in the arbiter and the per-bank `bank_timer` (which keeps the row open on `RD`/`WR`), not in a separate predictor or lookahead unit.
-
-### Issue Rate
-
-One command issue per controller clock cycle. Multi-phase / multi-cycle placement (including LPDDR2's 2-edge CA word) happens downstream in the DFI layer, so the arbiter always sees a single issue.
-
-## Mode Register Shadow
-
-`mode_register` maintains the live CL / CWL / BL decode. Its shadow is written in lockstep by the `init_sequencer` MRS writes (`mr_seq_we` / `mr_seq_index` / `mr_seq_data`), so the controller's timing decode tracks exactly what was programmed into the DRAM during init. It exposes `cl_o` / `cwl_o` / `bl_o` to the DFI layer.
+The common MAS chapter lists the remaining fire-stage invariants (scoria BUG-001, BUG-002 / tZQCS, the one-cycle blind spot, and the parked-victim PRE guard) and their line-level RTL evidence.
 
 ## v1 Scope Notes
 
-The arbiter picks from a single rank (rank 0) in v1; write-drain watermarking, multi-rank pick, and power-down coordination are documented TODOs. The `busy_o` output aggregates "init not done", "refresh pending", "command in the FIFO", and "any bank row active".
+The common core is instantiated with `NUM_RANKS = 1` in the pumice wrapper; multi-rank pick remains a future exercise. Write-batch watermarking is now passed through the `sched_wr_high_wm_i`/`sched_wr_batch_max_i`/`sched_wr_low_wm_i` CSRs into the common core. Power-down coordination is not implemented in this wrapper; it is documented as a TODO in `05_init_power.md`.

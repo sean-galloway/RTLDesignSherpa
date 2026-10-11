@@ -23,8 +23,8 @@
 
 # DDR2 / LPDDR2 Family Controller Hardware Architecture Specification Index
 
-**Version:** 0.9
-**Date:** 2026-10-08
+**Version:** 1.0-draft
+**Date:** 2026-10-10
 **Purpose:** High-level hardware architecture specification for the unified DDR2 / LPDDR2 memory controller family
 
 > **Note (v0.4):** This revision reconciles the spec with the rearchitected RTL. The
@@ -44,6 +44,18 @@
 > `pumice_core` is therefore `pumice_axi4_layer` + `pumice_scheduler_layer` +
 > `pumice_training_layer` + `pumice_dfi_layer`; the DFI pin bus and the
 > host AXI interface are unchanged.
+
+> **Note (v1.0-draft, 2026-10-10):** the Phase-2 extraction moved the shared
+> logic to `mem-ctrl-ip/common-ip/` and pumice was re-integrated onto it.
+> `pumice_core` now instantiates `mc_axi4_layer`, `mc_storage_layer`, and
+> `mc_dfi_2p1_layer` from common-ip, with `pumice_scheduler_layer` and
+> `pumice_training_layer` as thin rock wrappers around the common cores. The
+> old `pumice_axi4_layer` and `pumice_dfi_layer` no longer exist as RTL. See
+> [What Moved to Common](ch02_overview/06_what_moved_to_common.md) and the
+> family books
+> [common_has](../../../../common-ip/docs/common_has/common_has_index.md) /
+> [common_mas](../../../../common-ip/docs/common_mas/common_mas_index.md),
+> which now own the moved blocks' microarchitecture.
 
 > **Warning:** all timing CSRs are counts of `aclk` cycles, correct only at
 > the MC clock frequency they were derived for. Change the MC clock frequency
@@ -74,17 +86,18 @@
 - [Module Hierarchy](ch02_overview/03_module_hierarchy.md)
 - [Top-Level Interfaces](ch02_overview/04_top_level_ports.md)
 - [FUB Breakdown](ch02_overview/05_fub_breakdown.md)
+- [What Moved to Common (Phase-2 extraction)](ch02_overview/06_what_moved_to_common.md)
 
 ### Chapter 3: Architecture
 
-- [AXI4 Interface (`pumice_axi4_layer`)](ch03_architecture/01_axi_frontend.md)
-- [Scheduler (closed-page; per-(rank,bank) timing query)](ch03_architecture/02_scheduler.md)
+- [AXI4 Interface (`mc_axi4_layer` via common-ip; pumice address mapping)](ch03_architecture/01_axi_frontend.md)
+- [Scheduler (`pumice_scheduler_layer` wrapper over common `mc_scheduler_layer`)](ch03_architecture/02_scheduler.md)
 - [Bank + Global Timers (`bank_timer`, `global_timers`)](ch03_architecture/03_bank_machines.md)
 - [Refresh Controller (`refresh_ctrl`)](ch03_architecture/04_refresh.md)
 - [Init Sequencer and Power-Down (`init_sequencer`, `powerdown_ctrl`, `mode_register`)](ch03_architecture/05_init_power.md)
 - [DFI v2.1 Output Pipeline (`dfi_cmd_formatter`, `dfi_signal_pack`)](ch03_architecture/06_encoder_output.md)
 - [Write / Read Data Paths (CAMs + DFI serializer/aligner)](ch03_architecture/07_data_paths.md)
-- [DFI v2.1 Layer and CSR (`pumice_dfi_layer`, `pumice_csr`)](ch03_architecture/08_dfi_csr.md)
+- [DFI v2.1 Layer and CSR (`mc_dfi_2p1_layer` via common-ip; `pumice_csr`)](ch03_architecture/08_dfi_csr.md)
 - [Training Layer (`pumice_training_layer`, `pumice_zq_ctrl`, `pumice_lp_cal`) — LPDDR2](ch03_architecture/09_training.md)
 
 ### Chapter 4: Interfaces

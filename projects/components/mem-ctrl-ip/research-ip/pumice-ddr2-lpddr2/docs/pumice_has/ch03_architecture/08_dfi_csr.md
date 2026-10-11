@@ -23,17 +23,17 @@
 
 # DFI Layer and CSR
 
-The bottom of the controller is the DFI layer (`pumice_dfi_layer`), which owns the single controller-to-PHY clock crossing, and the generated register block (`pumice_csr`), which carries all runtime configuration.
+The bottom of the controller is the DFI v2.1 layer. Until 2026-10-09 this layer was pumice-local (`pumice_dfi_layer`); it is now the common `mc_dfi_2p1_layer` consumed from `common-ip`. `pumice_top` instantiates it and wires the scheduler command stream, write-data stream, read-data return, and init tokens across the single controller-to-PHY clock-domain crossing. The family architecture and generation split are documented in the family HAS ([Layer Stack](../../../../../common-ip/docs/common_has/ch02_architecture/01_layer_stack.md), [DFI Generations](../../../../../common-ip/docs/common_has/ch03_dfi_generations/01_dfi_layers.md)). The block microarchitecture is in the family MAS ([`mc_dfi_2p1_layer`](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md)); this chapter only describes the pumice integration and the pumice-owned CSR surface.
 
-## `pumice_dfi_layer`
+## `mc_dfi_2p1_layer` in pumice
 
 ### Purpose
 
-Present the controller-clock command / write-data / read-data streams on one side and the DFI v2.1 pin bus on the other, with exactly one clock-domain crossing between them. RTL: `rtl/macro/pumice_dfi_layer.sv`. The controller runs on `ctl_clk`; the PHY-facing datapath runs on `dfi_clk`.
+Present the controller-clock command / write-data / read-data streams on one side and the DFI v2.1 pin bus on the other, with exactly one clock-domain crossing between them. RTL in the build is `common-ip/rtl/macro/mc_dfi_2p1_layer.sv`. The controller runs on `ctl_clk`; the PHY-facing datapath runs on `dfi_clk`.
 
 ### The Single CDC
 
-`pumice_dfi_cdc` (`rtl/fub/pumice_dfi_cdc.sv`) is the **only** clock-domain crossing in the whole controller. It is built from asynchronous `gaxi` FIFOs — three streams cross it:
+`mc_dfi_cdc` is the only clock-domain crossing in the whole controller. It is built from asynchronous `gaxi` FIFOs — three streams cross it:
 
 - **cmd** (`ctl_clk -> dfi_clk`): the abstract command stream from the scheduler.
 - **wrdata** (`ctl_clk -> dfi_clk`): DFI-word-granular `{last, strb, data}` drained from the write CAM.
@@ -44,11 +44,13 @@ The internal datapath unit is the DFI word (`dfi_wrdata` width, all `DFI_RATE` p
 
 ### DFI-Domain Datapath
 
-On the `dfi_clk` side the layer instantiates three mechanical stages:
+On the `dfi_clk` side the common layer instantiates three mechanical stages:
 
-- **`pumice_dfi_cmd_path`** — pops the command FIFO and drives the multi-phase DFI command bus via `dfi_cmd_formatter` (see `06_encoder_output.md`). It emits `wr_fire` / `rd_fire` strobes to time the data movers and enforces the shared-DQ-bus burst occupancy (`COL_BURST_CYC = BL/DFI_RATE`).
-- **`pumice_dfi_wr_serializer`** — drives `dfi_wrdata` at `t_phy_wrlat` (see `07_data_paths.md`).
-- **`pumice_dfi_rd_aligner`** — captures `dfi_rddata` at `t_rddata_en` (see `07_data_paths.md`).
+- `mc_dfi_cmd_path` — pops the command FIFO and drives the multi-phase DFI command bus (see `06_encoder_output.md`). It emits `wr_fire` / `rd_fire` strobes to time the data movers.
+- `mc_dfi_wr_serializer` — drives `dfi_wrdata` at `t_phy_wrlat` (see `07_data_paths.md`).
+- `mc_dfi_rd_aligner` — captures `dfi_rddata` at `t_rddata_en` (see `07_data_paths.md`).
+
+The command path performs **no JEDEC timing enforcement**; all delays come from the scheduler. This policy followed pumice BUG-017 (was `PUMICE-042`): holding columns for `tRTW`/`tWTR` in the DFI path compressed REF→ACT spacing in the in-order FIFO and caused 180 consecutive reads to return an undriven DQ bus.
 
 ### DFI Sub-Interfaces
 
@@ -56,7 +58,7 @@ The layer drives the three core DFI v2.1 sub-interfaces needed for DDR2 / LPDDR2
 
 ### Runtime PHY Knobs
 
-Rather than hard-coded PHY latencies, the layer takes runtime inputs so one build ports across PHYs: `rd_phase_i` / `wr_phase_i` (per-command DFI sub-phase placement), `t_phy_wrlat_i`, and `t_rddata_en_i`, plus `memtype_i`. These are driven from the CSR (see below).
+Rather than hard-coded PHY latencies, the layer takes runtime inputs so one build ports across PHYs: `rd_phase_i` / `wr_phase_i` (per-command DFI sub-phase placement), `t_phy_wrlat_i`, `t_rddata_en_i`, plus `memtype_i`. These are driven from the CSR (see below). The board-validated Nexys A7 tuple (2026-07-21) is `rd_phase=0`, `t_rddata_en=6`, `t_phy_wrlat=1`, plus harness `DFI_TUNING.rddata_delay=7` (see [Runtime CSR Fields](../../pumice_mas/ch04_apb_config/03_runtime_overrides.md) and the [Register Map](../../pumice_mas/ch04_apb_config/02_csr_map.md)).
 
 ---
 
@@ -64,7 +66,7 @@ Rather than hard-coded PHY latencies, the layer takes runtime inputs so one buil
 
 ### Purpose
 
-Hold all runtime configuration and observation registers. The register block is **generated by PeakRDL** from `rtl/macro/pumice_csr.rdl` (via `bin/peakrdl_generate.py`), with a **passthrough cpuif** — it is not a hand-written APB3 slave.
+Hold all runtime configuration and observation registers. The register block is **generated by PeakRDL** from [`rtl/macro/pumice_csr.rdl`](../../../rtl/macro/pumice_csr.rdl) (via `bin/peakrdl_generate.py`), with a **passthrough cpuif** — it is not a hand-written APB3 slave.
 
 ### Interface
 
@@ -86,31 +88,18 @@ Registers are `regwidth = 32` / `accesswidth = 32`. `pumice_top` connects the cp
 
 DV never uses hard-coded offsets. Configuration is programmed by field name through the generated `dv/tbclasses/pumice_regmap.py`, which stays in sync with the RDL. This is split-proof — if a register moves, the by-name access still resolves.
 
-### Address Mapping Register (`ADDR_MAP` @ 0x04C)
+### Key DFI / PHY Configuration Registers
 
-This register replaced the retired `ADDR_MAP_TUNING` (the old `scheme_or` / `synth_mask_obs` scheme selector is gone). It drives `addr_mapper` (see `01_axi_frontend.md`):
-
-| Field            | Bits    | Default | Purpose                                             |
-|------------------|---------|---------|-----------------------------------------------------|
-| `bank_lsb`       | [4:0]   | `0x0A`  | Bank field LSB in the word address (`= COL_WIDTH` -> ROW_MAJOR) |
-| `hash_en`        | [8]     | 0       | Enable bank XOR-hash `bank ^= fold(row) ^ hash_seed` |
-| `hash_seed`      | [23:16] | `0x00`  | XOR-hash seed                                        |
-
-There is no scheme mux; `bank_lsb` alone selects row-major vs interleaved placement, and `hash_en` is an orthogonal overlay.
-
-### Key Configuration Registers
-
-The RDL is authoritative; notable runtime-config registers include:
+The RDL is authoritative; the registers that drive the DFI layer and PHY integration are:
 
 | Register     | Offset | Notable fields                                                     |
 |--------------|--------|--------------------------------------------------------------------|
 | `DFI_PHASE`  | 0x060  | `rd_phase[2:0]`, `wr_phase[6:4]` — DFI sub-phase placement (default 0/0) |
 | `PHY_TIMING` | 0x064  | `t_phy_wrlat[7:0]` (reset 0; Nexys A7 tuple programs 1), `t_rddata_en[15:8]` (reset 6), `memtype[16]` (0=DDR2, 1=LPDDR2), `refresh_burst[23:20]` (1..8) |
-| `ADDR_MAP`   | 0x04C  | `bank_lsb`, `hash_en`, `hash_seed` (above)                          |
-| `INIT_TUNING` | 0x050 | `zq_retries[3:0]`, `init_timeout_ms[15:8]`                         |
-| `INIT_TIMING0` | 0x054 area | `t_init_wait` / `t_dll_wait` (JEDEC init waits, formerly hardcoded) |
+| `CAL_ZQ_TIMING` | 0x0A8 | `t_zqcs[15:0]` / `t_zqcl[31:16]` — ZQ post-grant holds consumed by the training layer (see `09_training.md`) |
+| `CAL_TRAIN_TIMING` | 0x0AC | `t_mrr[15:0]`, `t_readout[31:16]` — MRR spacing and readout timeout |
 
-`memtype` selects DDR2 vs LPDDR2 at runtime and is consumed by `init_sequencer`, `dfi_cmd_formatter`, and `mode_register`. Confirm every register and field against the RDL and the generated regmap.
+`memtype` selects DDR2 vs LPDDR2 at runtime and is consumed by `init_sequencer`, `mc_dfi_cmd_path`, and `mode_register`. Confirm every register and field against the RDL and the generated regmap. The full register map (JEDEC timing, address mapping, refresh/policy modes, calibration, and observation registers) is in the pumice MAS [Register Map](../../pumice_mas/ch04_apb_config/02_csr_map.md).
 
 ### Narrow-Device (x16) Width Granularities
 
