@@ -69,7 +69,7 @@ other.
 ### Division
 
 - **[math_dividers](math_dividers.md)** — integer divider family: restoring, non-restoring, and SRT radix-2 / radix-2-carry-save / radix-4 (parameterized `DATA_WIDTH`)
-  - Includes: `math_divider_restoring.sv`, `math_divider_nonrestoring.sv`, `math_divider_srt_radix2.sv`, `math_divider_srt_radix2_csa.sv`, `math_divider_srt_radix4.sv`
+  - Includes: `math_divider_restoring.sv`, `math_divider_nonrestoring.sv`, `math_divider_srt_radix2.sv`, `math_divider_srt_radix2_csa.sv`, `math_divider_srt_radix2_csa_structural.sv` (cell-built A/B twin), `math_divider_srt_radix4.sv`
 
 ### Subtraction
 

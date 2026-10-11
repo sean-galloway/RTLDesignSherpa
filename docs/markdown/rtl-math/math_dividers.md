@@ -42,6 +42,7 @@ complete in one cycle.
 | `math_divider_nonrestoring` | {+1,-1} | 1 | signed, final correction | sign only |
 | `math_divider_srt_radix2` | {-1,0,+1} | 1 | signed, redundant | exact `2t` vs +/-D/2 |
 | `math_divider_srt_radix2_csa` | {-1,0,+1} | 1 | **carry-save** (S,C) | estimate + threshold table |
+| `math_divider_srt_radix2_csa_structural` | {-1,0,+1} | 1 | carry-save (S,C) | estimate + threshold table (same behavior, built from `math_adder_carry_save_nbit` cells — A/B twin for the FPGA primitive-instantiation experiment) |
 | `math_divider_srt_radix4` | {-3..+3} | 2 | signed, redundant | exact `2t` vs +/-D/2, +/-3D/2, +/-5D/2 |
 
 All three SRT variants convert the redundant signed-digit quotient to
