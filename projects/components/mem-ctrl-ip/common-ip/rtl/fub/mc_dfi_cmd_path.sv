@@ -190,13 +190,13 @@ module mc_dfi_cmd_path
     // wire treated the symptom and supplied the stall that caused it.
     //
     // The scheduler already enforces every one of these, off the same CSRs:
-    //   tCCD       pumice_cmd_arbiter r_tccd_fwd, clamped to >= BURST_WORDS in
+    //   tCCD       pre-Phase-2 arbiter r_tccd_fwd, clamped to >= BURST_WORDS in
     //              pumice_core (w_t_ccd_eff) so columns are never issued closer
     //              than a burst's DQ occupancy -- exactly what the column pacer
     //              here used to guarantee.
     //   tRTW/tWTR  global_timers r_trtw_cnt/r_twtr_cnt -> trtw_ok_i/twtr_ok_i,
     //              gating the arbiter's rd/wr column masks.
-    //   tRFC       pumice_cmd_arbiter r_rfc_cnt -> w_act_gate_live.
+    //   tRFC       pre-Phase-2 arbiter r_rfc_cnt -> w_act_gate_live.
     //   tRCD/tRP/tRAS/tRRD/tFAW   bank_timer + the arbiter's rank gates.
     // A second copy of a timing is how two sides drift apart; there is now one.
     logic          w_is_wr, w_is_rd;

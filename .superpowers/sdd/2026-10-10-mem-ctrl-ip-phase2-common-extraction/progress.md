@@ -702,3 +702,13 @@ the docs tranche when books unfreeze.
   as reference model.
 - Verified: registry --check + --audit PASS, verilator lint clean pumice_core
   AND scoria_core.
+
+## 2026-10-11 (night, cont.) — cmd_arbiter deleted per owner ruling
+
+Owner call: delete pumice_cmd_arbiter entirely. Deleted wrapper + flist +
+fub tests (cmd_arbiter + arbiter_issue_rate) + testplan + 2 schematics;
+pumice_all.f cleaned; 6 historical comments in common-ip reworded ("pre-
+Phase-2 reference arbiter"); fub_breakdown row moved to retired table.
+pumice rtl/fub is now EMPTY of modules. Book prose mentions of
+pumice_cmd_arbiter (ch01/ch03/design-requirements/gen script) ride the docs
+tranche with the ownership updates. Verified: registry PASS, lint clean.

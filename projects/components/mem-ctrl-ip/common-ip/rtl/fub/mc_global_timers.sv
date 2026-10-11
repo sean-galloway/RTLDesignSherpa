@@ -109,7 +109,7 @@ module mc_global_timers
     //     t=3  a column issues here  -> tCCD honoured as 1, whatever it was
     //     t=4  the flag finally drops
     //
-    // Both consumers had to compensate. the reference arbiter (pumice_cmd_arbiter) stopped using
+    // Both consumers had to compensate. the reference arbiter (pre-Phase-2) stopped using
     // `tccd_ok_i` for gating altogether in favour of a forward counter of its
     // own, and added `!(w_fire_out && r_do_rd)` terms to the turnarounds under a
     // comment headed "ONE-CYCLE BLIND SPOT (board round 2)" -- found on a board

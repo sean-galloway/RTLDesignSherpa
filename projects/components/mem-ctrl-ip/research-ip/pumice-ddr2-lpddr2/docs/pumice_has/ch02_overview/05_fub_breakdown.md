@@ -83,7 +83,6 @@ common scheduler and training shells.
 | `mc_lpddr2_dq_cal` (common-ip) | One-shot LPDDR2 DQ calibration interface (MRR MR32/MR40). | [`common-ip rtl/fub/mc_lpddr2_dq_cal.sv`](../../../../../common-ip/rtl/fub/mc_lpddr2_dq_cal.sv), instantiated in [`pumice_training_layer.sv:131`](../../../rtl/macro/pumice_training_layer.sv) |
 | `pumice_scheduler_layer` | Thin pumice wrapper around common `mc_scheduler_layer`; holds the rock init/refresh/page-policy FUBs. | [`rtl/macro/pumice_scheduler_layer.sv`](../../../rtl/macro/pumice_scheduler_layer.sv), instantiated in [`pumice_core.sv:601`](../../../rtl/top/pumice_core.sv) |
 | `pumice_training_layer` | Thin pumice wrapper around common `mc_training_layer`; holds the rock ZQ/DQ-cal FUBs. | [`rtl/macro/pumice_training_layer.sv`](../../../rtl/macro/pumice_training_layer.sv), instantiated in [`pumice_core.sv:725`](../../../rtl/top/pumice_core.sv) |
-| `pumice_cmd_arbiter` | Thin pumice wrapper around common `mc_cmd_arbiter`; preserved historical port list. | [`rtl/fub/pumice_cmd_arbiter.sv`](../../../rtl/fub/pumice_cmd_arbiter.sv); not instantiated in the default [`pumice_core`](../../../rtl/top/pumice_core.sv) build (the scheduler wrapper uses common `mc_scheduler_layer` instead). |
 
 ## 3. Retired and absorbed blocks
 
@@ -97,7 +96,7 @@ sentinel tests and filelist comments; they are not part of the current build.
 | `pumice_wr_intake` / `pumice_rd_intake` | Replaced by common `mc_wr_intake` / `mc_rd_intake` inside `mc_axi4_layer`. |
 | `pumice_wr_data_cam` / `pumice_rd_cmd_cam` | Replaced by common `mc_wr_data_cam` / `mc_rd_cmd_cam` inside `mc_storage_layer` ([`pumice_core.sv:504`](../../../rtl/top/pumice_core.sv)). |
 | `pumice_bank_timers` (local) | Replaced by common `mc_bank_timers` inside `mc_scheduler_layer`. |
-| `pumice_cmd_arbiter` (behavioral core) | Replaced by common `mc_cmd_arbiter` inside `mc_scheduler_layer`. The pumice-wrapper file remains but is not in the default build. |
+| `pumice_cmd_arbiter` (behavioral core) | Replaced by common `mc_cmd_arbiter` inside `mc_scheduler_layer`. The pumice port-adapter wrapper was **removed 2026-10-11** — never instantiated in the default build (it survived only as the issue-rate test DUT); history in git. |
 | `pumice_scheduler_layer` (behavioral macro) | Now a thin wrapper around common `mc_scheduler_layer` ([`pumice_scheduler_layer.sv:315`](../../../rtl/macro/pumice_scheduler_layer.sv)). |
 | `pumice_training_layer` (behavioral macro) | Now a thin wrapper around common `mc_training_layer` ([`pumice_training_layer.sv:176`](../../../rtl/macro/pumice_training_layer.sv)). |
 | `pumice_dfi_cdc` / `pumice_dfi_cmd_path` / `pumice_dfi_wr_serializer` / `pumice_dfi_rd_aligner` | Pumice-local DFI wrappers retired; common `mc_dfi_2p1_layer` owns the CDC and datapath ([`pumice_core.sv:766`](../../../rtl/top/pumice_core.sv)). |

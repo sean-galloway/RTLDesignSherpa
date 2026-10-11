@@ -7,7 +7,7 @@
 // same-bank sequencing. The functional "safe signals" (pumice_bank_timers
 // readiness + the class-A/B/C hazard framework) are COARSE — they gate "may a
 // command-class issue to this bank now", and they are REGISTERED (2-cycle
-// event->ready latency, see pumice_cmd_arbiter r_guard). A combinational picker
+// event->ready latency, see the pre-Phase-2 reference arbiter r_guard). A combinational picker
 // fed by that registered readiness can therefore issue a command the coarse gate
 // has not yet accounted for — e.g. ACT a bank, then (next cycle) grant a REFab
 // while that row is still OPEN (no PRE). The coarse gate never sees it; the read
@@ -20,7 +20,7 @@
 // coarse gate misses are caught at the issuing cycle with the offending bank +
 // prior command named.
 //
-// Intended use: `bind pumice_cmd_arbiter` (or the scheduler). The history is
+// Intended use: `bind` into the scheduler (or a wrapper around it). The history is
 // plain synthesizable logic (usable as an on-silicon debug trace too); the
 // assertions are simulation-only.
 //

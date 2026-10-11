@@ -7,7 +7,7 @@
 // Module: mc_bank_timer
 // Purpose: One DRAM bank's JEDEC "safe" timing tracker. NO state machine — just
 //          a set of preset/decrement countdown timers plus a trivial row-open
-//          register. The scheduler (pumice_cmd_arbiter, the single command
+//          register. The scheduler (the single command
 //          issuer) drives one set_* strobe per issued command; each timer loads
 //          its config value on its trigger, free-runs decrement (saturate at 0),
 //          and its constraint is "safe" when the count is 0. The per-command
