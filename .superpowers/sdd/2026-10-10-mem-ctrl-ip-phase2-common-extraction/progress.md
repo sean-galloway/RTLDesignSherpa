@@ -506,3 +506,11 @@ convergence citations — FR-FCFS (Rixner et al., ISCA 2000), elastic refresh
 (scoria Mode A/B), history-based page policy (HAPPY predictor), read-write
 bypass/snarf — owner's designs are independent; attribute generously, mark
 secondhand as such.
+STYLE V2 (partner clarification, 2026-10-10): colors are a don't-care; the
+reference's value is FLOW CLARITY. STYLE.md rewritten: prime directive = the
+three flows traceable at a glance (command top-down center; write data own
+route; read data back UP own route — spatial loop closure); 9 priority rules;
+palette explicitly discretionary, meaning lives in geometry + labels only
+(photocopy test). All 9 existing diagrams audited against the checklist and
+pass (whole-unit, axi4, dfi_2p1 personally verified; rest on agent visual
+checks + derivative skeletons).
