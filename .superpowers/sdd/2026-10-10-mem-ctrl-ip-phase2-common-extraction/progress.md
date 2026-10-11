@@ -475,3 +475,12 @@ questions live per-chapter in common_mas. Swarm link discipline: pre-commit link
 gate caught 17 bad relative links the untracked-file blind spot hid from the
 main checker; all fixed before commit (rule: new-book links are only proven once
 files are git-added).
+CALIBRE FURTHER-READING CANON (partner note, 2026-10-10): repo is an
+educational site; READMEs cite books from the maintainer's calibre library
+(found at /mnt/data/github/calibre/library, 97 books). Landed in the two
+mem-ctrl-ip READMEs (c5666549c): memory hierarchy (Przybylski, Handy),
+embedded memory (Mohammad), quantitative architecture (Hennessy/Patterson),
+interconnection networks (Dally/Towles), ECC (Moon), SystemVerilog FPGA
+craft (Chu), cocotb DV (Salemi), RTL arch framing (Chipressian). Standing
+convention: README-level further-reading sections cite calibre holdings;
+per-topic book pointers can extend into docs where they serve the text.
