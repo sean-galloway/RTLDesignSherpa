@@ -37,6 +37,12 @@ PROFILE = {
         sideband_beats=3,         # AMBA5 sideband/atomic sign-off rounds
         overflow_per_master=20,   # bridge BUG-009 (was BRIDGE-011): > FIFO_DEPTH in total
         latency_samples=1,
+        # AXI3 Review-Focus supplements
+        outstanding_count=4,      # same-ID outstanding reads (ordering)
+        write_id_count=2,         # distinct write IDs (ordering)
+        wideburst_beats=8,        # beats in 32->64 width-converted burst
+        chunk_beats=32,           # >16-beat burst forcing axi4_to_axi3 chop
+        lock_repeats=1,           # locked read+write pairs
     ),
     'func': dict(
         connectivity_offsets=4,
@@ -48,6 +54,11 @@ PROFILE = {
         sideband_beats=8,
         overflow_per_master=40,
         latency_samples=3,
+        outstanding_count=4,
+        write_id_count=2,
+        wideburst_beats=12,
+        chunk_beats=32,
+        lock_repeats=2,
     ),
     'full': dict(
         connectivity_offsets=16,
@@ -59,6 +70,11 @@ PROFILE = {
         sideband_beats=24,
         overflow_per_master=64,
         latency_samples=8,
+        outstanding_count=8,
+        write_id_count=4,
+        wideburst_beats=16,
+        chunk_beats=32,
+        lock_repeats=4,
     ),
 }
 
