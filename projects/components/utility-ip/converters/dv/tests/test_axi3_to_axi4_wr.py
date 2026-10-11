@@ -113,7 +113,10 @@ async def axi3_to_axi4_wr_test(dut):
         tb.log.info(f"WLAST errors:          {final_stats['wlast_errors']}")
         tb.log.info(f"Data errors:           {final_stats['data_errors']}")
         tb.log.info(f"BRESP errors:          {final_stats['bresp_errors']}")
+        tb.log.info(f"BUSER errors:          {final_stats['buser_errors']}")
         tb.log.info(f"Backpressure errors:   {final_stats['backpressure_errors']}")
+        tb.log.info(f"Early-W errors:        {final_stats['early_w_errors']}")
+        tb.log.info(f"AW qualifier errors:   {final_stats['awqual_errors']}")
         tb.log.info(f"Total errors:          {final_stats['errors']}")
         tb.log.info("=" * 80)
 

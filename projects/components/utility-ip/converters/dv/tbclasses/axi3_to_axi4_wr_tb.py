@@ -79,7 +79,10 @@ class AXI3ToAXI4WriteTB(TBBase):
             'wlast_errors': 0,
             'data_errors': 0,
             'bresp_errors': 0,
+            'buser_errors': 0,
             'backpressure_errors': 0,
+            'early_w_errors': 0,
+            'awqual_errors': 0,
         }
 
         # Bytes per transfer
@@ -118,6 +121,16 @@ class AXI3ToAXI4WriteTB(TBBase):
         # Keep AW and W ready asserted so transactions stream through.
         self.axi4_slave.aw_channel.set_ready_policy('always')
         self.axi4_slave.w_channel.set_ready_policy('always')
+
+        # The AXI4SlaveWrite BFM does not natively drive a programmable BUSER,
+        # so wrap its B-channel send to allow tests to inject a buser pattern.
+        self.axi4_slave.buser_override = None
+        self._orig_b_send = self.axi4_slave.b_channel.send
+        async def _b_send_with_user(packet):
+            if self.axi4_slave.buser_override is not None:
+                packet.user = self.axi4_slave.buser_override
+            await self._orig_b_send(packet)
+        self.axi4_slave.b_channel.send = _b_send_with_user
 
         # Storage for monitoring AXI4 transactions
         self.axi4_aw_transactions = []
@@ -174,6 +187,9 @@ class AXI3ToAXI4WriteTB(TBBase):
                     'addr': int(self.dut.m_axi_awaddr.value),
                     'len': int(self.dut.m_axi_awlen.value),
                     'lock': int(self.dut.m_axi_awlock.value),
+                    'cache': int(self.dut.m_axi_awcache.value),
+                    'prot': int(self.dut.m_axi_awprot.value),
+                    'user': int(self.dut.m_axi_awuser.value),
                 })
                 self.stats['axi4_writes_received'] += 1
 
@@ -204,6 +220,7 @@ class AXI3ToAXI4WriteTB(TBBase):
                 self.axi4_b_responses.append({
                     'id': int(self.dut.m_axi_bid.value),
                     'resp': int(self.dut.m_axi_bresp.value),
+                    'user': int(self.dut.m_axi_buser.value),
                 })
 
     # =========================================================================
@@ -211,19 +228,25 @@ class AXI3ToAXI4WriteTB(TBBase):
     # =========================================================================
 
     async def write_with_result(self, address, data_list, axid=0, burst_type=1,
-                                size=None, lock=0):
+                                size=None, lock=0, cache=0, prot=0, user=None):
         """Issue a write and return the AXI3 master's result dict."""
         if size is None:
             size = self.bytes_per_beat.bit_length() - 1
 
-        result = await self.axi3_master.write_transaction(
-            address=address,
-            data=data_list,
-            size=size,
-            burst_type=burst_type,
-            id=axid,
-            lock=lock
-        )
+        kwargs = {
+            'address': address,
+            'data': data_list,
+            'size': size,
+            'burst_type': burst_type,
+            'id': axid,
+            'lock': lock,
+            'cache': cache,
+            'prot': prot,
+        }
+        if user is not None:
+            kwargs['user'] = user
+
+        result = await self.axi3_master.write_transaction(**kwargs)
         return result
 
     # =========================================================================
@@ -338,6 +361,7 @@ class AXI3ToAXI4WriteTB(TBBase):
                  for i in range(1)]
 
         initial_aw = len(self.axi4_aw_transactions)
+        initial_w = len(self.axi4_w_beats)
         initial_b = len(self.axi4_b_responses)
 
         # Launch the first burst.
@@ -372,9 +396,30 @@ class AXI3ToAXI4WriteTB(TBBase):
             self.stats['errors'] += 1
             return False
 
-        # Wait for the first B response; only then may the second AW proceed.
+        # Wait for the final W beat of the first burst to be accepted.
+        cycles_waited = 0
+        while len(self.axi4_w_beats) - initial_w < burst_len:
+            await RisingEdge(self.clk)
+            cycles_waited += 1
+            if cycles_waited > 5000:
+                self.log.error("single_active_backpressure: timeout waiting for WLAST")
+                self.stats['errors'] += 1
+                return False
+
+        # From WLAST acceptance until the first B response, awready must stay low.
+        if int(self.dut.s_axi3_awready.value) != 0:
+            self.log.error("single_active_backpressure: s_axi3_awready high right after WLAST")
+            self.stats['backpressure_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
         cycles_waited = 0
         while len(self.axi4_b_responses) - initial_b < 1:
+            if int(self.dut.s_axi3_awready.value) != 0:
+                self.log.error("single_active_backpressure: s_axi3_awready went high between WLAST and B")
+                self.stats['backpressure_errors'] += 1
+                self.stats['errors'] += 1
+                return False
             await RisingEdge(self.clk)
             cycles_waited += 1
             if cycles_waited > 5000:
@@ -457,22 +502,30 @@ class AXI3ToAXI4WriteTB(TBBase):
         # Stream the corrupted W burst.
         await self.axi3_master.w_channel.send_burst(w_packets)
 
-        # Wait long enough for the assertion to fire; if it does not, force failure.
+        # Wait long enough for the assertion to fire; if it does not, fail
+        # internally so the negative test cannot silently pass.
         await self.wait_clocks(self.clk_name, 20)
         self.log.error("wid_mismatch_asserts: simulation reached end without firing ASSERT_A3_WID_STABLE")
         self.stats['errors'] += 1
-        return False
+        assert False, "ASSERT_A3_WID_STABLE did not fire on injected WID mismatch"
 
     async def b_passthrough(self):
         """B channel id/resp/user are forwarded from AXI4 slave to AXI3 master."""
         self.log.info("TEST: b_passthrough")
         address = 0x1000
         axid = 11
+        expected_buser = 1
 
         initial_b = len(self.axi4_b_responses)
 
-        result = await self.write_with_result(
-            address, [0xBEEF0000 & ((1 << self.data_width) - 1)], axid=axid)
+        # Inject a non-zero BUSER pattern on the AXI4 slave side.
+        self.axi4_slave.buser_override = expected_buser
+        try:
+            result = await self.write_with_result(
+                address, [0xBEEF0000 & ((1 << self.data_width) - 1)], axid=axid)
+        finally:
+            self.axi4_slave.buser_override = None
+
         await self.wait_clocks(self.clk_name, 10)
 
         if not result.get('success', False):
@@ -500,6 +553,12 @@ class AXI3ToAXI4WriteTB(TBBase):
             self.stats['errors'] += 1
             return False
 
+        if b['user'] != expected_buser:
+            self.log.error(f"b_passthrough: BUSER mismatch got {b['user']}, expected {expected_buser}")
+            self.stats['buser_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
         if result.get('response', 0) != 0:
             self.log.error(f"b_passthrough: AXI3 result response mismatch got {result.get('response')}, expected 0")
             self.stats['bresp_errors'] += 1
@@ -507,6 +566,194 @@ class AXI3ToAXI4WriteTB(TBBase):
             return False
 
         self.log.info("b_passthrough PASSED")
+        self.stats['bursts_sent'] += 1
+        self.stats['beats_expected'] += 1
+        self.stats['bursts_completed'] += 1
+        return True
+
+    async def early_w_before_aw(self):
+        """W beats driven before AW are held and forwarded once AW is accepted."""
+        self.log.info("TEST: early_w_before_aw")
+        address = 0x800
+        burst_len = 4
+        axid = 15
+        size = self.bytes_per_beat.bit_length() - 1
+        strb = (1 << self.bytes_per_beat) - 1
+
+        data_list = [(0xE1110000 + i) & ((1 << self.data_width) - 1)
+                     for i in range(burst_len)]
+
+        initial_aw = len(self.axi4_aw_transactions)
+        initial_w = len(self.axi4_w_beats)
+
+        # Build W packets with the correct AWID.
+        w_packets = []
+        for i, data_value in enumerate(data_list):
+            w_packets.append(self.axi3_master.w_channel.create_packet(
+                id=axid,
+                data=data_value,
+                last=1 if i == burst_len - 1 else 0,
+                strb=strb
+            ))
+
+        # Launch the W burst before the AW handshake. It must be backpressured
+        # until the converter accepts the AW.
+        w_task = cocotb.start_soon(self.axi3_master.w_channel.send_burst(w_packets))
+
+        # Give the W channel a cycle to attempt transfer, then confirm backpressure.
+        await RisingEdge(self.clk)
+        if int(self.dut.s_axi3_wready.value) != 0:
+            self.log.error("early_w_before_aw: s_axi3_wready was not low before AW acceptance")
+            self.stats['early_w_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        # Now send the matching AW. The buffered W beats should be accepted.
+        aw_pkt = self.axi3_master.aw_channel.create_packet(
+            addr=address,
+            len=burst_len - 1,
+            id=axid,
+            size=size,
+            burst=1,
+            lock=0,
+            cache=0,
+            prot=0
+        )
+        await self.axi3_master.aw_channel.send(aw_pkt)
+
+        # Wait for the W burst to drain.
+        cycles_waited = 0
+        while not w_task.done():
+            await RisingEdge(self.clk)
+            cycles_waited += 1
+            if cycles_waited > 5000:
+                self.log.error("early_w_before_aw: timeout waiting for W burst to complete")
+                self.stats['early_w_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        # Wait for the B response.
+        id_queue = self.axi3_master._response_by_id[axid]
+        cycles_waited = 0
+        while len(id_queue) < 1:
+            await RisingEdge(self.clk)
+            cycles_waited += 1
+            if cycles_waited > 5000:
+                self.log.error("early_w_before_aw: timeout waiting for B response")
+                self.stats['early_w_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+        id_queue.popleft()
+        await self.wait_clocks(self.clk_name, 10)
+
+        if len(self.axi4_aw_transactions) - initial_aw != 1:
+            self.log.error(f"early_w_before_aw: expected 1 AXI4 AW, got "
+                          f"{len(self.axi4_aw_transactions) - initial_aw}")
+            self.stats['early_w_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        aw = self.axi4_aw_transactions[initial_aw]
+        if aw['id'] != axid:
+            self.log.error(f"early_w_before_aw: AWID mismatch got {aw['id']}, expected {axid}")
+            self.stats['awid_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        if len(self.axi4_w_beats) - initial_w != burst_len:
+            self.log.error(f"early_w_before_aw: expected {burst_len} AXI4 W beats, got "
+                          f"{len(self.axi4_w_beats) - initial_w}")
+            self.stats['early_w_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        for i, beat in enumerate(self.axi4_w_beats[initial_w:initial_w + burst_len]):
+            if beat['data'] != data_list[i]:
+                self.log.error(f"early_w_before_aw: WDATA mismatch beat {i} got "
+                              f"0x{beat['data']:08X}, expected 0x{data_list[i]:08X}")
+                self.stats['data_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+            expected_last = 1 if i == burst_len - 1 else 0
+            if beat['last'] != expected_last:
+                self.log.error(f"early_w_before_aw: WLAST mismatch beat {i} got {beat['last']}, "
+                              f"expected {expected_last}")
+                self.stats['wlast_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        self.log.info("early_w_before_aw PASSED")
+        self.stats['bursts_sent'] += 1
+        self.stats['beats_expected'] += burst_len
+        self.stats['bursts_completed'] += 1
+        return True
+
+    async def aw_qualifier_passthrough(self):
+        """AW cache/prot/user qualifiers are forwarded to the AXI4 master side."""
+        self.log.info("TEST: aw_qualifier_passthrough")
+        address = 0x900
+        axid = 17
+        size = self.bytes_per_beat.bit_length() - 1
+
+        expected_cache = 0b1111
+        expected_prot = 0b101
+        expected_user = 0b1
+
+        initial_aw = len(self.axi4_aw_transactions)
+
+        result = await self.write_with_result(
+            address,
+            [0xCAFE0000 & ((1 << self.data_width) - 1)],
+            axid=axid,
+            size=size,
+            cache=expected_cache,
+            prot=expected_prot,
+            user=expected_user
+        )
+        await self.wait_clocks(self.clk_name, 10)
+
+        if not result.get('success', False):
+            self.log.error(f"aw_qualifier_passthrough: AXI3 master reported failure {result}")
+            self.stats['errors'] += 1
+            return False
+
+        if len(self.axi4_aw_transactions) - initial_aw != 1:
+            self.log.error(f"aw_qualifier_passthrough: expected 1 AXI4 AW, got "
+                          f"{len(self.axi4_aw_transactions) - initial_aw}")
+            self.stats['awqual_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        aw = self.axi4_aw_transactions[initial_aw]
+        if aw['id'] != axid:
+            self.log.error(f"aw_qualifier_passthrough: AWID mismatch got {aw['id']}, expected {axid}")
+            self.stats['awqual_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        if aw['cache'] != expected_cache:
+            self.log.error(f"aw_qualifier_passthrough: AWCACHE mismatch got {aw['cache']}, "
+                          f"expected {expected_cache}")
+            self.stats['awqual_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        if aw['prot'] != expected_prot:
+            self.log.error(f"aw_qualifier_passthrough: AWPROT mismatch got {aw['prot']}, "
+                          f"expected {expected_prot}")
+            self.stats['awqual_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        if aw['user'] != expected_user:
+            self.log.error(f"aw_qualifier_passthrough: AWUSER mismatch got {aw['user']}, "
+                          f"expected {expected_user}")
+            self.stats['awqual_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        self.log.info("aw_qualifier_passthrough PASSED")
         self.stats['bursts_sent'] += 1
         self.stats['beats_expected'] += 1
         self.stats['bursts_completed'] += 1
@@ -593,6 +840,12 @@ class AXI3ToAXI4WriteTB(TBBase):
         self.log.info("=" * 80)
 
         success = await self.run_basic_test()
+
+        if not await self.early_w_before_aw():
+            success = False
+
+        if not await self.aw_qualifier_passthrough():
+            success = False
 
         if not await self.lock_map_up():
             success = False

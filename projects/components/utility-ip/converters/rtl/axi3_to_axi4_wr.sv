@@ -180,7 +180,7 @@ module axi3_to_axi4_wr #(
     assign s_axi3_bresp  = m_axi_bresp;
     assign s_axi3_buser  = m_axi_buser;
     assign s_axi3_bvalid = m_axi_bvalid && active;
-    assign m_axi_bready  = s_axi3_bready;
+    assign m_axi_bready  = s_axi3_bready && active;
 
     //==========================================================================
     // Single-Active-Write State and WID Stability Assertion
