@@ -93,12 +93,12 @@ class ArbiterMatrixWeightedTB(TBBase):
         self.dut.rst_n.value = 1
         for _ in range(2):
             await RisingEdge(self.dut.clk)
-        await Timer(1, units='ns')
+        await Timer(1, unit='ns')
 
     async def wait_clocks(self, num_clocks: int):
         for _ in range(num_clocks):
             await RisingEdge(self.dut.clk)
-        await Timer(1, units='ns')
+        await Timer(1, unit='ns')
 
     def get_time_ns_str(self):
         return f" @ {get_sim_time('ns'):.1f}ns"
