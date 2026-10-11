@@ -48,7 +48,7 @@ def sim_timer(time: "int | float", units: str = 'ps') -> Timer:
     delay in the tree is a false positive -- 100, 100.0 and float(n) all
     fail; only Decimal passes. Behaviour is identical; the cast lives here
     once instead of on every call site."""
-    return Timer(cast(Any, time), units=units)
+    return Timer(cast(Any, time), unit=units)
 from cocotb.clock import Clock
 from cocotb.utils import get_sim_time
 
@@ -726,7 +726,7 @@ class TBBase:
         with self.safe_operation(f"start_clock({clk_name})"):
             self.log.debug(f"Starting clock {clk_name} with frequency {freq} {units}")
             clk_signal = getattr(self.dut, clk_name)
-            cocotb.start_soon(Clock(clk_signal, freq, units=units).start())
+            cocotb.start_soon(Clock(clk_signal, freq, unit=units).start())
             await sim_timer(100, units='ps')
             self.mark_progress(f"Clock {clk_name} started")
 
@@ -746,7 +746,7 @@ class TBBase:
         self.mark_progress(f"Clock generator created")
 
         # Return the clock start coroutine
-        clock = Clock(clk_signal, period, units=units)
+        clock = Clock(clk_signal, period, unit=units)
         return clock.start()
 
     async def wait_clocks(self, clk_name: str, count: int = 1, delay: int = 100, units: str = 'ps'):

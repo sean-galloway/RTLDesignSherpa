@@ -146,6 +146,12 @@ module arbiter_matrix_weighted #(
     //     matrix is rotated for that client.
     //   - A weight of 0 disables the client immediately (its counter is forced
     //     to 0 and it is never eligible).
+    //     NOTE: This differs from arbiter_round_robin_weighted, which uses a
+    //     multi-cycle WEIGHT_BLOCK/DRAIN/UPDATE/STABILIZE FSM to avoid pointer
+    //     masking hazards.  In this matrix design eligibility is simply
+    //     (request && credit>0), and rotation only occurs on a grant, so an
+    //     immediate credit clear cannot corrupt an in-flight arbitration or
+    //     leave a stale pointer masked.  The deviation is intentional and safe.
     //   - Weight changes take effect at the next reload for that client.
     //
     // Fairness Guarantee:

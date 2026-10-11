@@ -46,16 +46,18 @@ def generate_test_params():
     """
     Parameter sweep based on REG_LEVEL.
 
-    REG_LEVEL=GATE: 2, 4 clients, both ACK modes
-    REG_LEVEL=FUNC: 2, 4, 5, 8 clients, no-ACK only (default)
-    REG_LEVEL=FULL: 2, 4, 5, 8 clients, both ACK modes
+    REG_LEVEL=GATE: 1, 2, 4 clients, both ACK modes
+    REG_LEVEL=FUNC: 1, 2, 4, 5, 8 clients, no-ACK only (default)
+    REG_LEVEL=FULL: 1, 2, 4, 5, 8 clients, both ACK modes
     """
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
     if reg_level == 'GATE':
-        client_counts = [2, 4]
+        client_counts = [1, 2, 4]
+    elif reg_level == 'FUNC':
+        client_counts = [1, 2, 4, 5, 8]
     else:
-        client_counts = [2, 4, 5, 8]
+        client_counts = [1, 2, 4, 5, 8]
 
     params = []
     for clients in client_counts:

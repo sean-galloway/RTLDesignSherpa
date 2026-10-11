@@ -2,8 +2,6 @@
 
 ## Module: rtl/common/arbiter_matrix_weighted.sv
 ## Test File: val/common/test_arbiter_matrix_weighted.py
-## Current Coverage: TBD (Verilator line coverage not yet measured)
-
 ## Scenarios
 
 | ID | Scenario | Description | Tested | Coverage Gap |
@@ -20,19 +18,28 @@
 | AMW-10 | Foreign-ack immunity | ACK bits from non-granted clients are ignored | YES | - |
 | AMW-11 | Same-cycle handoff | Next grant issued in the same cycle the ACK arrives | YES | - |
 | AMW-12 | Single-requester ACK | A lone requester is re-granted after each ACK | YES | - |
-| AMW-13 | Various CLIENTS (2,4,5,8) | Different client counts in no-ACK mode | YES | - |
+| AMW-13 | Various CLIENTS (1,2,4,5,8) | Different client counts in no-ACK mode | YES | - |
 | AMW-14 | ACK mode parameter sweep | WAIT_GNT_ACK=1 at REG_LEVEL=GATE and FULL | YES | - |
 | AMW-15 | Non-uniform weights per level | At least one non-uniform weight pattern per REG_LEVEL | YES | - |
+| AMW-16 | Single-client degenerate branch | CLIENTS==1 grants immediately and credits reload in both ACK and no-ACK modes | YES | - |
+| AMW-17 | Mid-credit idle | A multi-credit winner idles mid-turn; others proceed and credits persist | YES | - |
 
 ## Uncovered Lines Analysis
 
-TBD: run `COVERAGE=1 REG_LEVEL=GATE pytest val/common/test_arbiter_matrix_weighted.py -v`
-and inspect `coverage.dat` / `make coverage-report` output.
+No measured coverage data is recorded in this plan. Run:
+
+```bash
+COVERAGE=1 REG_LEVEL=GATE pytest val/common/test_arbiter_matrix_weighted.py -v
+```
+
+and inspect `coverage.dat` / `make coverage-report` output if a coverage-driven
+review is required.
 
 ## Action Items
 
-1. Collect Verilator line/toggle coverage for the new credit-counter paths, the
-   single-client degenerate branch (`CLIENTS==1`), and the ACK-mode handoff.
+1. ~~Collect Verilator line/toggle coverage for the new credit-counter paths, the
+   single-client degenerate branch (`CLIENTS==1`), and the ACK-mode handoff.~~
+   Directed tests now cover `CLIENTS==1` in both ACK and no-ACK modes.
 2. If coverage holes remain in the conditional matrix-update logic, add targeted
    directed tests or extend the weighted-sequence window.
 

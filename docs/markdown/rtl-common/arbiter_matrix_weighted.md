@@ -202,6 +202,12 @@ arbiter_matrix_weighted #(
 - Because the grant is registered, a lone requester sees a grant in the cycle after its request is asserted.
 - The weighted matrix arbiter is especially attractive for small `CLIENTS`; for very large `CLIENTS` the `O(CLIENTS²)` matrix storage and the cross-client comparison network can dominate area and timing.
 
+### Deviation from `arbiter_round_robin_weighted`
+
+The `arbiter_round_robin_weighted` module disables a client with weight 0 through a multi-cycle `WEIGHT_BLOCK → DRAIN → UPDATE → STABILIZE` FSM. That FSM exists because the round-robin pointer and request mask can create a hazard if a client is masked while a grant is already in flight.
+
+`arbiter_matrix_weighted` has no rotating pointer and no request mask. A client is eligible only when `request[i] && weight[i] > 0 && credit[i] > 0`, and the matrix only rotates on a completed grant. Therefore, forcing the credit counter to 0 when the weight becomes 0 is safe: the client simply becomes ineligible on the next cycle, and no stale pointer state can be left masked. This immediate-disable behavior is intentional and is the correct simplification for the matrix-arbiter datapath.
+
 ## Related Modules
 
 **Instantiated by:** (none yet)
@@ -226,7 +232,8 @@ arbiter_matrix_weighted #(
 - Reset restores client 0 as the highest-priority requester
 - `block_arb` pauses new grants
 - In ACK mode: hold-until-owner-ack, foreign-ack immunity, back-to-back same-cycle handoff, and single-requester re-grant
-- Parameterization across `CLIENTS = 2, 4, 5, 8` in no-ACK mode, plus ACK mode at `REG_LEVEL=GATE` and `FULL`
+- Parameterization across `CLIENTS = 1, 2, 4, 5, 8` in no-ACK mode, plus ACK mode at `REG_LEVEL=GATE` and `FULL`
+- Dedicated single-client (`CLIENTS==1`) directed tests for both ACK and no-ACK modes
 
 ```bash
 source env_python
