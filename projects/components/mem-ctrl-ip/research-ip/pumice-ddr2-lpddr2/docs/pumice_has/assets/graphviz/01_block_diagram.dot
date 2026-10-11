@@ -1,0 +1,115 @@
+// PUMICE whole-unit uarch diagram — DDR-MC course style per STYLE.md.
+// Restyled from the original mermaid block diagram; shows the PUMICE-specific
+// rock children inside the scheduler and training wrappers of the common-ip stack.
+digraph pumice_whole_unit {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.30", ranksep="0.55", splines=ortho,
+           label="PUMICE DDR2 / LPDDR2 controller — whole-unit block diagram",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.07"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- external interfaces (white) ----
+    axi_port [label="AXI4 Slave Port\n(from SoC; fixed DW)", fillcolor="white"];
+    phy      [label="DDR PHY  (DFI 2.1 master)", fillcolor="white",
+              width=6.5, fontsize=11];
+
+    // ---- host side: mc_axi4_layer ----
+    wr_intake [label="Write Request Intake\nmc_axi4_layer — mc_wr_intake,\nmc_addr_mapper, burst chopper"];
+    rd_intake [label="Read Request Intake\nmc_axi4_layer — mc_rd_intake,\nmc_addr_mapper, snarf probe"];
+
+    // ---- storage: mc_storage_layer ----
+    wr_cam [label="Write Data CAM\nmc_storage_layer — mc_wr_data_cam\n(fill / drain / snarf)"];
+    rd_cam [label="Read Command CAM\nmc_storage_layer — mc_rd_cmd_cam\n(return-fill / drain)"];
+
+    // ---- scheduler: pumice_scheduler_layer wrapper + rock children ----
+    init_seq  [label="Init Sequencer\npumice_scheduler_layer — init_sequencer\n(DDR2/LPDDR2 MR init)"];
+    mode_reg  [label="Mode Register\npumice_scheduler_layer — mode_register\n(CL / CWL / BL / AL)"];
+    refresh   [label="Refresh Controller\npumice_scheduler_layer — refresh_ctrl\n(tREFI accumulator)"];
+    page_pol  [label="Page Policy\npumice_scheduler_layer — pumice_page_policy\n(open-page decision)"];
+    cmd_hist  [label="Command History Checker\npumice_scheduler_layer — pumice_cmd_history_checker\n(optional DV scoreboard)",
+               style="filled,dashed"];
+    sched     [label="Command Scheduler\npumice_scheduler_layer — mc_scheduler_layer core\n(FR-FCFS pick + timers)",
+               shape=trapezium, width=3.2, fillcolor="#BFD7EE", fontsize=11];
+
+    // ---- training: pumice_training_layer wrapper + rock children ----
+    zq_cal    [label="ZQ Calibration\npumice_training_layer — pumice_zq_ctrl\n(periodic ZQ)"];
+    lp_cal    [label="LP DQ Calibration\npumice_training_layer — pumice_lp_cal\n(MRR DQ cal)"];
+    trn_shell [label="Training Layer Shell\npumice_training_layer — mc_training_layer shell"];
+
+    // ---- data path: mc_dfi_2p1_layer ----
+    dfi_cdc [label="DFI Clock-Domain Crossing\nmc_dfi_2p1_layer — mc_dfi_cdc\n(async gaxi FIFOs)"];
+    dfi_cmd [label="DFI Command Path\nmc_dfi_2p1_layer — mc_dfi_cmd_path\n(formatter + signal pack)"];
+    dfi_wr  [label="DFI Write Serializer\nmc_dfi_2p1_layer — mc_dfi_wr_serializer"];
+    dfi_rd  [label="DFI Read Aligner\nmc_dfi_2p1_layer — mc_dfi_rd_aligner"];
+
+    // ---- configuration ----
+    csr [label="Configuration Registers\npumice_csr  (PeakRDL)"];
+
+    // ---- host channels ----
+    axi_port -> wr_intake [label="WR transaction"];
+    axi_port -> rd_intake [label="RD transaction"];
+
+    // ---- write path ----
+    wr_intake -> wr_cam [label="WR descriptor"];
+    wr_cam -> sched [label="WR"];
+    wr_cam -> dfi_wr [style=dashed, arrowhead=none, label="commit-drain wrdata"];
+
+    // ---- read path ----
+    rd_intake -> rd_cam [label="RD descriptor"];
+    rd_cam -> sched [label="RD"];
+    dfi_rd -> rd_cam [style=dashed, arrowhead=none, label="return-fill rddata"];
+
+    // ---- scheduler rock children feeding the pick ----
+    init_seq -> sched [label="init commands"];
+    mode_reg -> sched [label="MR settings"];
+    refresh  -> sched [label="REF"];
+    page_pol -> sched [label="open/closed page"];
+    cmd_hist -> sched [label="audit", style=dashed];
+
+    // ---- training/maintenance path ----
+    zq_cal -> trn_shell;
+    lp_cal -> trn_shell;
+    trn_shell -> sched [label="maintenance"];
+
+    // ---- scheduler to DFI/PHY ----
+    sched -> dfi_cdc [label="DDR command"];
+
+    // ---- DFI layer internals ----
+    dfi_cdc -> dfi_cmd;
+    dfi_cdc -> dfi_wr [dir=both, arrowhead=none, label="write data"];
+    dfi_cdc -> dfi_rd [dir=both, arrowhead=none, label="read data"];
+
+    // ---- DFI to PHY ----
+    dfi_cmd -> phy [label="DDR command"];
+    dfi_wr  -> phy [label="Write to DDR"];
+    dfi_rd  -> phy [dir=back, label="Read from DDR"];
+
+    // ---- configuration sideband (dashed, no arrowheads, no rank constraint) ----
+    csr -> sched [style=dashed, arrowhead=none, label="config", constraint=false];
+
+    // ---- rank pinning ----
+    { rank=same; axi_port; csr; }
+    { rank=same; wr_intake; rd_intake; }
+    wr_intake -> rd_intake [style=invis];
+    { rank=same; wr_cam; rd_cam; }
+    wr_cam -> rd_cam [style=invis];
+    { rank=same; init_seq; mode_reg; refresh; page_pol; cmd_hist; }
+    init_seq -> mode_reg [style=invis];
+    mode_reg -> refresh  [style=invis];
+    refresh  -> page_pol [style=invis];
+    page_pol -> cmd_hist [style=invis];
+    { rank=same; zq_cal; lp_cal; trn_shell; }
+    zq_cal -> lp_cal    [style=invis];
+    lp_cal -> trn_shell [style=invis];
+    { rank=same; dfi_cdc; dfi_wr; dfi_rd; dfi_cmd; }
+    dfi_cdc -> dfi_wr [style=invis];
+    dfi_wr  -> dfi_rd [style=invis];
+    dfi_rd  -> dfi_cmd [style=invis];
+    { rank=sink; phy; }
+
+    // ---- vertical order between ranks ----
+    wr_cam  -> init_seq [style=invis];
+    cmd_hist -> zq_cal  [style=invis];
+}

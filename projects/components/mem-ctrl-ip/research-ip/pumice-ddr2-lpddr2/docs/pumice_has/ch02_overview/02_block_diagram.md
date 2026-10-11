@@ -54,9 +54,7 @@ the pumice-specific wrappers and children are covered in the pumice MAS
 ([scheduler macro](../../pumice_mas/ch02_macros/02_command_scheduler_macro.md),
 [training macro](../../pumice_mas/ch02_macros/05_training_layer_macro.md)).
 
-![Top-Level Block Diagram](../assets/mermaid/01_block_diagram.png)
-
-**Source:** [01_block_diagram.mmd](../assets/mermaid/01_block_diagram.mmd)
+![PUMICE DDR2 / LPDDR2 controller whole-unit block diagram](../assets/graphviz/01_block_diagram.png)
 
 ## Data Flow Summary
 
