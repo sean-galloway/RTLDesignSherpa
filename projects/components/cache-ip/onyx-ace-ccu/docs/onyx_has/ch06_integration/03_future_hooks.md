@@ -49,6 +49,10 @@ This chapter records scope-growth options and upgrade paths that are out of the 
 
 **Future IP.** onyx v1 is a single manager instance in a single shareability domain. Connecting multiple onyx instances or multiple domains is not architecture at 0.1.
 
+## Shared L2 (`basalt`, future IP)
+
+**Future IP, recorded as a direction 2026-10-11.** The family's capstone past onyx: an inclusive, banked, MOESI-tracking shared L2 (`basalt-moesi-l2` when scoped) plugging into this port — onyx's memory-side AXI4 master points at the house memory path today; basalt inserts there, below the coherency point, so the D2 subset, the CRRESP adjudication, and the D7 snoop contract are untouched. It is the natural home for the D3 directory-lite question (L1ID sharer vectors in the L2 tag, per Chinnakonda §10.3–10.5) and the convergence point for the amber/jet array + MSHR techniques and the mem-ctrl-ip DRAM boundary. No scaffold until onyx v1 exists.
+
 ## Status
 
-None of these hooks is architecture at 0.1. The N2–N7 rows must close before any of them becomes real design content.
+None of these hooks is architecture at 0.1. The N2–N7 rows must close before any of them becomes real design content. The `basalt` direction activates only after onyx v1.

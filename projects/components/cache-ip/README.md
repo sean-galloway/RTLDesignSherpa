@@ -60,6 +60,20 @@ read, and serialises same-address traffic — the third side of the research
 unclaimed as a future codename until a concrete follow-on (for example, a
 victim cache) earns it.
 
+Past onyx, the family's capstone direction is a **shared L2** — codename
+**basalt** (directory `basalt-moesi-l2` when scoped, matching the
+`<codename>-<role>` convention and encoding the MOESI-at-L2 decision): the
+inclusive, banked, MOESI-tracking last-level cache that plugs into onyx's
+memory side — onyx master → basalt front; basalt back-side → the house
+memory-controller line. It is where the family's threads converge: amber/jet's
+arrays and MSHR techniques, onyx's deferred D3 directory-lite question (the
+L1ID sharer vector finally gets a home), and the mem-ctrl-ip line's DRAM
+boundary; Chinnakonda ch10 is its design manual and gem5 Ruby
+`MESI_Two_Level` its golden model. The amber→jet pattern says basalt starts
+as one IP — an inclusive blocking-to-decoupled baseline; a nonblocking
+follow-on earns its own codename when scoped, not before. Recorded
+2026-10-11 as a direction, not a project: no scaffold until onyx v1 exists.
+
 Family interface decision, 2026-10-05: **cache-ip is ACE-shaped.** onyx owns
 and defines the AC/CD/CR snoop-port contract; amber and jet stay
 bus-agnostic internally and speak it through a thin adapter (amber D4, onyx
