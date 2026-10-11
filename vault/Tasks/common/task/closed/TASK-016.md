@@ -1,6 +1,6 @@
 # TASK-016: Implement arbiter_matrix — matrix fair arbiter for rtl/common
 
-**Status:** ACTIVE 2026-10-11
+**Status:** CLOSED 2026-10-11 (commit `6628c4b02`)
 **Priority:** P2
 
 Add a matrix (rotation-in-distributed-state) fair arbiter to the `rtl/common` arbiter family, following the conventions of `arbiter_round_robin` for ports, reset style, filelists, tests, and documentation.
@@ -16,7 +16,7 @@ Add a matrix (rotation-in-distributed-state) fair arbiter to the `rtl/common` ar
 - [x] Area master filelist: `rtl/common/filelists/common_all.f`
 - [x] Lint clean (`make -C rtl/common verible` / declaration-order check)
 - [x] Tests pass (`TEST_LEVEL=func pytest val/common/test_arbiter_matrix.py -q`)
-- [ ] Committed with explicit pathspec and task moved to closed
+- [x] Committed with explicit pathspec and task moved to closed
 
 ## Notes
 

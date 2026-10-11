@@ -13,8 +13,8 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 12 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 13 | done (kept for history) |
 | [dropped/](dropped/) | 2 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
@@ -23,10 +23,10 @@ by construction rather than by discipline.
 
 ## Active
 
-- **TASK-016** — Implement arbiter_matrix — matrix fair arbiter for rtl/common
 
 ## Closed
 
+- **TASK-016** — Implement arbiter_matrix — matrix fair arbiter for rtl/common (closed 2026-10-11, commit `6628c4b02`)
 - **TASK-011** — scrub the tests for completeness (common)
 - **TASK-001** — Improve test coverage to 95%
 - **TASK-002** — Waveform save files for all modules
