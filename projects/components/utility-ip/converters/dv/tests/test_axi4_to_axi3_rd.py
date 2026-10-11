@@ -121,6 +121,14 @@ async def axi4_to_axi3_rd_test(dut):
             assert False, f"Test failures: {', '.join(error_summary)}"
 
     finally:
+        # Clean up the background monitor coroutine
+        if monitor_task is not None:
+            monitor_task.kill()
+            try:
+                await monitor_task
+            except cocotb.result.SimCancelled:
+                pass
+
         # Final cleanup wait
         await tb.wait_clocks('aclk', 10)
 

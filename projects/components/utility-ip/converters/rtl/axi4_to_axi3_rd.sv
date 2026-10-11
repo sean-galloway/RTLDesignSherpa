@@ -111,14 +111,14 @@ module axi4_to_axi3_rd #(
 
     // Burst length assertion: AXI3 only supports up to 16 beats (ARLEN <= 15).
     // Longer AXI4 bursts require chopping (implemented in Task 3).
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             // No check during reset
         end else begin
             if (s_axi_arvalid && (s_axi_arlen > 8'd15))
                 $error("ASSERT_A3_RD_LEN16: AXI4 read burst length %0d exceeds AXI3 maximum of 16 beats", s_axi_arlen);
         end
-    end
+    )
 
     // AR channel pass-through with adaptations
     assign m_axi3_arid    = s_axi_arid;

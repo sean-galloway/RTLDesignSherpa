@@ -20,9 +20,7 @@ Tests AXI4 -> AXI3 protocol downgrade for read path with pass-through semantics:
 import os
 import sys
 import cocotb
-from cocotb.utils import get_sim_time
-from cocotb.triggers import RisingEdge, Timer
-from cocotb.clock import Clock
+from cocotb.triggers import RisingEdge
 
 # Import framework utilities (PYTHONPATH includes bin/)
 from TBClasses.shared.utilities import get_repo_root
@@ -158,12 +156,13 @@ class AXI4ToAXI3ReadTB(TBBase):
                 ar_addr = int(self.dut.m_axi3_araddr.value)
                 ar_len = int(self.dut.m_axi3_arlen.value)
                 ar_lock = int(self.dut.m_axi3_arlock.value)
+                ar_id = int(self.dut.m_axi3_arid.value)
 
                 # Store transaction for verification
-                self.axi3_transactions.append(('AR', ar_addr, ar_len, ar_lock))
+                self.axi3_transactions.append(('AR', ar_addr, ar_len, ar_lock, ar_id))
                 self.stats['axi3_reads_received'] += 1
 
-                self.log.debug(f"AXI3 AR handshake: addr=0x{ar_addr:08X}, len={ar_len}, lock={ar_lock}")
+                self.log.debug(f"AXI3 AR handshake: addr=0x{ar_addr:08X}, len={ar_len}, lock={ar_lock}, id={ar_id}")
 
     # =========================================================================
     # TEST SCENARIO METHODS
@@ -379,38 +378,91 @@ class AXI4ToAXI3ReadTB(TBBase):
     async def id_preserved(self):
         """AXI4 ARID is preserved on AXI3 ARID and returned on RID."""
         self.log.info("TEST: id_preserved")
-        address = 0x5000
-        axid = 11
 
-        read_data = await self.axi4_master.read_transaction(
-            address=address,
-            burst_len=1,
-            id=axid
-        )
+        # Issue reads on multiple distinct IDs and verify both the AXI3 ARID
+        # and the returned RID match the issued AXI4 ARID.
+        test_cases = [
+            (0x5000, 11),
+            (0x5100, 3),
+            (0x5200, 7),
+        ]
+
+        initial_count = len(self.axi3_transactions)
+
+        for address, axid in test_cases:
+            read_data = await self.axi4_master.read_transaction(
+                address=address,
+                burst_len=1,
+                id=axid
+            )
+
+            if len(read_data) != 1:
+                self.log.error(f"id_preserved: data count mismatch for id={axid} "
+                              f"got {len(read_data)}, expected 1")
+                self.stats['errors'] += 1
+                return False
 
         await self.wait_clocks(self.clk_name, 10)
 
-        # Verify we got data back in the correct ID queue
-        if axid not in self.axi4_master._response_by_id:
-            self.log.error(f"id_preserved: no response queue for id {axid}")
-            self.stats['id_errors'] += 1
+        actual_ar_count = len(self.axi3_transactions) - initial_count
+        if actual_ar_count != len(test_cases):
+            self.log.error(f"id_preserved: expected {len(test_cases)} AXI3 ARs, got {actual_ar_count}")
             self.stats['errors'] += 1
             return False
 
-        id_queue = self.axi4_master._response_by_id[axid]
-        if len(id_queue) != 0:
-            # All responses should have been consumed by read_transaction
-            pass
+        for i, (address, axid) in enumerate(test_cases):
+            txn = self.axi3_transactions[initial_count + i]
+            txn_type, txn_addr, txn_len, txn_lock, txn_id = txn
 
-        if len(read_data) != 1:
-            self.log.error(f"id_preserved: data count mismatch got {len(read_data)}, expected 1")
-            self.stats['errors'] += 1
-            return False
+            if txn_addr != address:
+                self.log.error(f"id_preserved: address mismatch for id={axid} "
+                              f"got 0x{txn_addr:08X}, expected 0x{address:08X}")
+                self.stats['errors'] += 1
+                return False
+
+            if txn_id != axid:
+                self.log.error(f"id_preserved: AXI3 ARID mismatch got {txn_id}, expected {axid}")
+                self.stats['id_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        # Verify RID for each issued ID by sending AR manually and inspecting
+        # the response packet before read_transaction consumes it.
+        for address, axid in test_cases:
+            # Clear any stale response queue entries
+            self.axi4_master._response_by_id[axid].clear()
+
+            size = self.bytes_per_beat.bit_length() - 1
+            pkt = self.axi4_master.ar_channel.create_packet(
+                addr=address, len=0, id=axid, size=size,
+                burst=1, lock=0, cache=0, prot=0, qos=0, region=0)
+            await self.axi4_master.ar_channel.send(pkt)
+
+            id_queue = self.axi4_master._response_by_id[axid]
+            cycles_waited = 0
+            while len(id_queue) < 1:
+                await RisingEdge(self.clk)
+                cycles_waited += 1
+                if cycles_waited > 5000:
+                    self.log.error(f"id_preserved: timeout waiting for RID response for id={axid}")
+                    self.stats['errors'] += 1
+                    return False
+
+            resp_pkt = id_queue[0]
+            resp_id = getattr(resp_pkt, 'id', None)
+            if resp_id != axid:
+                self.log.error(f"id_preserved: RID mismatch got {resp_id}, expected {axid}")
+                self.stats['id_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+            # Consume the response
+            id_queue.popleft()
 
         self.log.info("id_preserved PASSED")
-        self.stats['bursts_sent'] += 1
-        self.stats['beats_expected'] += 1
-        self.stats['bursts_completed'] += 1
+        self.stats['bursts_sent'] += len(test_cases) * 2
+        self.stats['beats_expected'] += len(test_cases) * 2
+        self.stats['bursts_completed'] += len(test_cases) * 2
         return True
 
     async def run_basic_test(self):
