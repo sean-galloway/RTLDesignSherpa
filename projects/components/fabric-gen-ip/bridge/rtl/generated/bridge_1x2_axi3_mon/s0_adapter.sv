@@ -651,7 +651,7 @@ module s0_adapter
         .s_axi_rid     (s0_mon_axi_rid),
         .s_axi_rdata   (s0_mon_axi_rdata),
         .s_axi_rresp   (s0_mon_axi_rresp),
-        .s_axi_rlast   (s0_mon_axi_rlast),
+        .s_axi_rlast   (converter_rlast),
         .s_axi_ruser   (s0_mon_axi_ruser),
         .s_axi_rvalid  (converter_rvalid),
         .s_axi_rready  (converter_rready),

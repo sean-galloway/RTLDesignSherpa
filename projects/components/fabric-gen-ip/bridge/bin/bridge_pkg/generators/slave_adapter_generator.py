@@ -661,6 +661,18 @@ class SlaveAdapterGenerator:
                 lines.append("    logic converter_rready;")
                 lines.append("    logic converter_rlast;")
                 lines.append("")
+            # AXI3 converter: its s_axi awready/arready are outputs that must be
+            # gated with the bridge_id FIFO not-full status before reaching the
+            # crossbar (mirror the axi4_master_* wrapper pattern). In monitored
+            # mode the wrapper already provides the gated ready, so the converter
+            # connects directly to the intermediate nets.
+            if self.slave.protocol == 'axi3' and not self.enable_monitoring:
+                if self.has_write:
+                    lines.append("    logic converter_awready;")
+                if self.has_read:
+                    lines.append("    logic converter_arready;")
+                if self.has_write or self.has_read:
+                    lines.append("")
 
         # Add FIFO/CAM internal signals if needed
         # Handle missing enable_ooo attribute (default to False for in-order)
@@ -1629,6 +1641,17 @@ class SlaveAdapterGenerator:
         dw = self.slave.data_width
         sw = dw // 8
 
+        # AXI4 slave-side (crossbar-facing) ready/rlast connections.
+        # In monitored mode the axi4_master_*_mon wrapper drives the
+        # crossbar-facing ready/rlast, so the converter connects directly to
+        # the intermediate nets. In direct mode the converter's raw ready
+        # outputs are captured as converter_*ready and then gated with the
+        # bridge_id FIFO not-full status via the existing w_sub_*ready plumbing.
+        # rlast is always captured as converter_rlast so the FIFO pop logic
+        # can observe it.
+        awready_conn = f"{shim_prefix}awready" if self.enable_monitoring else "converter_awready"
+        arready_conn = f"{shim_prefix}arready" if self.enable_monitoring else "converter_arready"
+
         lines.append("    // AXI4-to-AXI3 converter")
         lines.append(f"    axi4_to_axi3 #(")
         lines.append(f"        .AXI_ID_WIDTH   ({id_w}),")
@@ -1654,7 +1677,7 @@ class SlaveAdapterGenerator:
                 f"        .s_axi_awregion({shim_prefix}awregion),",
                 f"        .s_axi_awuser  ({shim_prefix}awuser),",
                 f"        .s_axi_awvalid ({shim_prefix}awvalid),",
-                f"        .s_axi_awready ({shim_prefix}awready),",
+                f"        .s_axi_awready ({awready_conn}),",
                 f"        .s_axi_wdata   ({shim_prefix}wdata),",
                 f"        .s_axi_wstrb   ({shim_prefix}wstrb),",
                 f"        .s_axi_wlast   ({shim_prefix}wlast),",
@@ -1708,11 +1731,11 @@ class SlaveAdapterGenerator:
                 f"        .s_axi_arregion({shim_prefix}arregion),",
                 f"        .s_axi_aruser  ({shim_prefix}aruser),",
                 f"        .s_axi_arvalid ({shim_prefix}arvalid),",
-                f"        .s_axi_arready ({shim_prefix}arready),",
+                f"        .s_axi_arready ({arready_conn}),",
                 f"        .s_axi_rid     ({shim_prefix}rid),",
                 f"        .s_axi_rdata   ({shim_prefix}rdata),",
                 f"        .s_axi_rresp   ({shim_prefix}rresp),",
-                f"        .s_axi_rlast   ({shim_prefix}rlast),",
+                f"        .s_axi_rlast   (converter_rlast),",
                 f"        .s_axi_ruser   ({shim_prefix}ruser),",
                 f"        .s_axi_rvalid  (converter_rvalid),",
                 f"        .s_axi_rready  (converter_rready),",
@@ -1840,6 +1863,16 @@ class SlaveAdapterGenerator:
         lines.append("")
 
         # Wire converter outputs back to the crossbar-facing interface.
+        # In direct (non-monitored) mode the existing bridge_id-tracking FIFO
+        # gates xbar_*ready via w_sub_*ready, so feed the converter's raw
+        # ready outputs into those nets. In monitored mode the wrapper already
+        # provides the gated ready on the intermediate nets and drives
+        # w_sub_*ready itself, so no extra assignment is needed.
+        if not self.enable_monitoring:
+            if self.has_write:
+                lines.append("    assign w_sub_awready = converter_awready;")
+            if self.has_read:
+                lines.append("    assign w_sub_arready = converter_arready;")
         if self.has_write:
             lines.append(f"    assign {shim_prefix}bvalid = converter_bvalid;")
             lines.append(f"    assign converter_bready = {shim_prefix}bready;")

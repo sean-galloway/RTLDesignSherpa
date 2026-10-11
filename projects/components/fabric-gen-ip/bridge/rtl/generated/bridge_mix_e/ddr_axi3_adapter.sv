@@ -129,6 +129,9 @@ module ddr_axi3_adapter
     logic converter_rready;
     logic converter_rlast;
 
+    logic converter_awready;
+    logic converter_arready;
+
     // FIFO tracking signals (in-order mode)
     logic cam_wr_allocate;
     logic cam_wr_deallocate;
@@ -317,7 +320,7 @@ module ddr_axi3_adapter
         .s_axi_awregion(xbar_ddr_axi3_axi_awregion),
         .s_axi_awuser  (xbar_ddr_axi3_axi_awuser),
         .s_axi_awvalid (xbar_ddr_axi3_axi_awvalid),
-        .s_axi_awready (xbar_ddr_axi3_axi_awready),
+        .s_axi_awready (converter_awready),
         .s_axi_wdata   (xbar_ddr_axi3_axi_wdata),
         .s_axi_wstrb   (xbar_ddr_axi3_axi_wstrb),
         .s_axi_wlast   (xbar_ddr_axi3_axi_wlast),
@@ -341,11 +344,11 @@ module ddr_axi3_adapter
         .s_axi_arregion(xbar_ddr_axi3_axi_arregion),
         .s_axi_aruser  (xbar_ddr_axi3_axi_aruser),
         .s_axi_arvalid (xbar_ddr_axi3_axi_arvalid),
-        .s_axi_arready (xbar_ddr_axi3_axi_arready),
+        .s_axi_arready (converter_arready),
         .s_axi_rid     (xbar_ddr_axi3_axi_rid),
         .s_axi_rdata   (xbar_ddr_axi3_axi_rdata),
         .s_axi_rresp   (xbar_ddr_axi3_axi_rresp),
-        .s_axi_rlast   (xbar_ddr_axi3_axi_rlast),
+        .s_axi_rlast   (converter_rlast),
         .s_axi_ruser   (xbar_ddr_axi3_axi_ruser),
         .s_axi_rvalid  (converter_rvalid),
         .s_axi_rready  (converter_rready),
@@ -392,6 +395,8 @@ module ddr_axi3_adapter
         .m_axi3_rready (ddr_axi3_rready)
     );
 
+    assign w_sub_awready = converter_awready;
+    assign w_sub_arready = converter_arready;
     assign xbar_ddr_axi3_axi_bvalid = converter_bvalid;
     assign converter_bready = xbar_ddr_axi3_axi_bready;
     assign xbar_ddr_axi3_axi_rvalid = converter_rvalid;
