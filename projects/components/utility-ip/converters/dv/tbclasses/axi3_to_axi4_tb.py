@@ -17,6 +17,7 @@ that the wrapper wires both sub-converters together correctly.
 
 import os
 import sys
+from collections import deque
 
 import cocotb
 from cocotb.triggers import RisingEdge
@@ -117,6 +118,10 @@ class AXI3ToAXI4TB(TBBase):
         self.axi4_r_beats = []
         self.axi4_b_beats = []
 
+        self.outstanding_reads  = deque()
+        self.outstanding_writes = deque()
+        self.pending_b_responses = deque()
+
         self.log.info(
             f"AXI3->AXI4 top TB: dw={self.data_width} aw={self.addr_width} id={self.id_width}"
         )
@@ -136,158 +141,268 @@ class AXI3ToAXI4TB(TBBase):
         self.rst_n.value = 1
 
     async def axi4_monitor(self):
-        """Record every AXI4-side handshake."""
+        """Record every AXI4-side handshake and assert protocol basics."""
         self.log.info("Starting AXI4 combined monitor")
         while True:
             await RisingEdge(self.clk)
 
             if (int(self.dut.m_axi_arvalid.value) == 1 and
                     int(self.dut.m_axi_arready.value) == 1):
+                ar_id = int(self.dut.m_axi_arid.value)
+                ar_len = int(self.dut.m_axi_arlen.value)
                 self.axi4_ar_beats.append({
-                    'id': int(self.dut.m_axi_arid.value),
+                    'id': ar_id,
                     'addr': int(self.dut.m_axi_araddr.value),
-                    'len': int(self.dut.m_axi_arlen.value),
+                    'len': ar_len,
+                })
+                self.outstanding_reads.append({
+                    'id': ar_id,
+                    'beats_remaining': ar_len + 1,
                 })
 
             if (int(self.dut.m_axi_rvalid.value) == 1 and
                     int(self.dut.m_axi_rready.value) == 1):
+                r_id = int(self.dut.m_axi_rid.value)
+                r_last = int(self.dut.m_axi_rlast.value)
                 self.axi4_r_beats.append({
-                    'id': int(self.dut.m_axi_rid.value),
+                    'id': r_id,
                     'data': int(self.dut.m_axi_rdata.value),
                     'resp': int(self.dut.m_axi_rresp.value),
-                    'last': int(self.dut.m_axi_rlast.value),
+                    'last': r_last,
                 })
+
+                if not self.outstanding_reads:
+                    self.log.error(
+                        f"R channel beat with no outstanding read (rid={r_id})"
+                    )
+                    self.stats['read_errors'] += 1
+                    self.stats['errors'] += 1
+                else:
+                    expected = self.outstanding_reads[0]
+                    if r_id != expected['id']:
+                        self.log.error(
+                            f"RID mismatch: got {r_id}, expected {expected['id']}"
+                        )
+                        self.stats['read_errors'] += 1
+                        self.stats['errors'] += 1
+                    expected_last = 1 if expected['beats_remaining'] == 1 else 0
+                    if r_last != expected_last:
+                        self.log.error(
+                            f"RLAST mismatch for id={r_id}: "
+                            f"got {r_last}, expected {expected_last} "
+                            f"(beats_remaining={expected['beats_remaining']})"
+                        )
+                        self.stats['read_errors'] += 1
+                        self.stats['errors'] += 1
+                    expected['beats_remaining'] -= 1
+                    if expected['beats_remaining'] == 0:
+                        self.outstanding_reads.popleft()
 
             if (int(self.dut.m_axi_awvalid.value) == 1 and
                     int(self.dut.m_axi_awready.value) == 1):
+                aw_id = int(self.dut.m_axi_awid.value)
+                aw_len = int(self.dut.m_axi_awlen.value)
                 self.axi4_aw_beats.append({
-                    'id': int(self.dut.m_axi_awid.value),
+                    'id': aw_id,
                     'addr': int(self.dut.m_axi_awaddr.value),
-                    'len': int(self.dut.m_axi_awlen.value),
+                    'len': aw_len,
+                })
+                self.outstanding_writes.append({
+                    'id': aw_id,
+                    'beats_remaining': aw_len + 1,
+                })
+                self.pending_b_responses.append({
+                    'id': aw_id,
                 })
 
             if (int(self.dut.m_axi_wvalid.value) == 1 and
                     int(self.dut.m_axi_wready.value) == 1):
+                w_last = int(self.dut.m_axi_wlast.value)
                 self.axi4_w_beats.append({
                     'data': int(self.dut.m_axi_wdata.value),
                     'strb': int(self.dut.m_axi_wstrb.value),
-                    'last': int(self.dut.m_axi_wlast.value),
+                    'last': w_last,
                 })
-
-            if (int(self.dut.m_axi_bvalid.value) == 1 and
-                    int(self.dut.m_axi_bready.value) == 1):
-                self.axi4_b_beats.append({
-                    'id': int(self.dut.m_axi_bid.value),
-                    'resp': int(self.dut.m_axi_bresp.value),
-                })
-
-    async def run_smoke_test(self, burst_len=8):
-        """Issue one read burst and one write burst concurrently."""
-        self.log.info("=" * 80)
-        self.log.info(f"SMOKE TEST: concurrent read + write burst (len={burst_len})")
-        self.log.info("=" * 80)
-
-        read_addr = 0x1000
-        write_addr = 0x2000
-        read_id = 5
-        write_id = 7
-        size = self.bytes_per_beat.bit_length() - 1
-
-        write_data = [
-            (0xBEEF0000 + i) & ((1 << self.data_width) - 1)
-            for i in range(burst_len)
-        ]
-
-        initial_ar = len(self.axi4_ar_beats)
-        initial_aw = len(self.axi4_aw_beats)
-        initial_w = len(self.axi4_w_beats)
-
-        read_task = cocotb.start_soon(self.axi3_rd.read_transaction(
-            address=read_addr,
-            burst_len=burst_len,
-            burst_type=1,
-            size=size,
-            id=read_id,
-        ))
-        write_task = cocotb.start_soon(self.axi3_wr.write_transaction(
-            address=write_addr,
-            data=write_data,
-            burst_type=1,
-            size=size,
-            id=write_id,
-        ))
-
-        read_result = await read_task
-        write_result = await write_task
-        await self.wait_clocks('aclk', 20)
-
-        success = True
-
-        # ---- read checks ----
-        if len(read_result) != burst_len:
-            self.log.error(f"read: expected {burst_len} beats, got {len(read_result)}")
-            self.stats['read_errors'] += 1
-            self.stats['errors'] += 1
-            success = False
-        else:
-            for i, data in enumerate(read_result):
-                expected_addr = read_addr + (i * self.bytes_per_beat)
-                expected_data = expected_addr & ((1 << self.data_width) - 1)
-                if data != expected_data:
+                if not self.outstanding_writes:
                     self.log.error(
-                        f"read: data mismatch beat {i} got 0x{data:08X}, "
-                        f"expected 0x{expected_data:08X}"
-                    )
-                    self.stats['read_errors'] += 1
-                    self.stats['errors'] += 1
-                    success = False
-
-        ar_count = len(self.axi4_ar_beats) - initial_ar
-        if ar_count != 1:
-            self.log.error(
-                f"read: expected 1 AXI4 AR, got {ar_count}"
-            )
-            self.stats['read_errors'] += 1
-            self.stats['errors'] += 1
-            success = False
-
-        # ---- write checks ----
-        if not write_result.get('success', False):
-            self.log.error(f"write: AXI3 master reported failure {write_result}")
-            self.stats['write_errors'] += 1
-            self.stats['errors'] += 1
-            success = False
-
-        aw_count = len(self.axi4_aw_beats) - initial_aw
-        if aw_count != 1:
-            self.log.error(
-                f"write: expected 1 AXI4 AW, got {aw_count}"
-            )
-            self.stats['write_errors'] += 1
-            self.stats['errors'] += 1
-            success = False
-
-        w_count = len(self.axi4_w_beats) - initial_w
-        if w_count != burst_len:
-            self.log.error(f"write: expected {burst_len} W beats, got {w_count}")
-            self.stats['write_errors'] += 1
-            self.stats['errors'] += 1
-            success = False
-        else:
-            for i, beat in enumerate(self.axi4_w_beats[initial_w:initial_w + burst_len]):
-                if beat['data'] != write_data[i]:
-                    self.log.error(
-                        f"write: WDATA mismatch beat {i} got 0x{beat['data']:08X}, "
-                        f"expected 0x{write_data[i]:08X}"
+                        "W channel beat with no outstanding write"
                     )
                     self.stats['write_errors'] += 1
                     self.stats['errors'] += 1
-                    success = False
+                else:
+                    expected = self.outstanding_writes[0]
+                    expected_last = 1 if expected['beats_remaining'] == 1 else 0
+                    if w_last != expected_last:
+                        self.log.error(
+                            f"WLAST mismatch: got {w_last}, expected {expected_last} "
+                            f"(beats_remaining={expected['beats_remaining']})"
+                        )
+                        self.stats['write_errors'] += 1
+                        self.stats['errors'] += 1
+                    expected['beats_remaining'] -= 1
+                    if expected['beats_remaining'] == 0:
+                        self.outstanding_writes.popleft()
 
-        self.stats['read_bursts'] += 1
-        self.stats['write_bursts'] += 1
-        self.stats['read_beats'] += burst_len
-        self.stats['write_beats'] += burst_len
+            if (int(self.dut.m_axi_bvalid.value) == 1 and
+                    int(self.dut.m_axi_bready.value) == 1):
+                b_id = int(self.dut.m_axi_bid.value)
+                b_resp = int(self.dut.m_axi_bresp.value)
+                self.axi4_b_beats.append({
+                    'id': b_id,
+                    'resp': b_resp,
+                })
+                if not self.pending_b_responses:
+                    self.log.error(
+                        f"B channel response with no outstanding write (bid={b_id})"
+                    )
+                    self.stats['write_errors'] += 1
+                    self.stats['errors'] += 1
+                else:
+                    expected = self.pending_b_responses.popleft()
+                    if b_id != expected['id']:
+                        self.log.error(
+                            f"BID mismatch: got {b_id}, expected {expected['id']}"
+                        )
+                        self.stats['write_errors'] += 1
+                        self.stats['errors'] += 1
+                    if b_resp != 0:
+                        self.log.error(
+                            f"BRESP mismatch for id={b_id}: got {b_resp}, expected 0"
+                        )
+                        self.stats['write_errors'] += 1
+                        self.stats['errors'] += 1
+
+    async def run_smoke_test(self, burst_len=8, bursts=1):
+        """Issue concurrent read + write bursts, optionally repeated.
+
+        Each iteration issues one read burst and one write burst concurrently,
+        using incrementing addresses and IDs to avoid collisions. burst_len is
+        capped at 16 because the AXI3 slave interface uses 4-bit ARLEN/AWLEN.
+        """
+        if burst_len > 16:
+            self.log.warning(
+                f"burst_len {burst_len} exceeds AXI3 legal maximum (16); capping at 16"
+            )
+            burst_len = 16
+
+        self.log.info("=" * 80)
+        self.log.info(
+            f"SMOKE TEST: {bursts} concurrent read+write burst(s) (len={burst_len})"
+        )
+        self.log.info("=" * 80)
+
+        size = self.bytes_per_beat.bit_length() - 1
+        success = True
+
+        for burst_idx in range(bursts):
+            read_addr = 0x1000 + (burst_idx * 0x1000)
+            write_addr = 0x2000 + (burst_idx * 0x1000)
+            read_id = 5 + burst_idx
+            write_id = 7 + burst_idx
+
+            write_data = [
+                (0xBEEF0000 + i) & ((1 << self.data_width) - 1)
+                for i in range(burst_len)
+            ]
+
+            initial_ar = len(self.axi4_ar_beats)
+            initial_aw = len(self.axi4_aw_beats)
+            initial_w = len(self.axi4_w_beats)
+
+            read_task = cocotb.start_soon(self.axi3_rd.read_transaction(
+                address=read_addr,
+                burst_len=burst_len,
+                burst_type=1,
+                size=size,
+                id=read_id,
+            ))
+            write_task = cocotb.start_soon(self.axi3_wr.write_transaction(
+                address=write_addr,
+                data=write_data,
+                burst_type=1,
+                size=size,
+                id=write_id,
+            ))
+
+            read_result = await read_task
+            write_result = await write_task
+            await self.wait_clocks('aclk', 10)
+
+            # ---- read checks ----
+            if len(read_result) != burst_len:
+                self.log.error(
+                    f"burst {burst_idx}: expected {burst_len} read beats, "
+                    f"got {len(read_result)}"
+                )
+                self.stats['read_errors'] += 1
+                self.stats['errors'] += 1
+                success = False
+            else:
+                for i, data in enumerate(read_result):
+                    expected_addr = read_addr + (i * self.bytes_per_beat)
+                    expected_data = expected_addr & ((1 << self.data_width) - 1)
+                    if data != expected_data:
+                        self.log.error(
+                            f"burst {burst_idx} read: data mismatch beat {i} "
+                            f"got 0x{data:08X}, expected 0x{expected_data:08X}"
+                        )
+                        self.stats['read_errors'] += 1
+                        self.stats['errors'] += 1
+                        success = False
+
+            ar_count = len(self.axi4_ar_beats) - initial_ar
+            if ar_count != 1:
+                self.log.error(
+                    f"burst {burst_idx}: expected 1 AXI4 AR, got {ar_count}"
+                )
+                self.stats['read_errors'] += 1
+                self.stats['errors'] += 1
+                success = False
+
+            # ---- write checks ----
+            if not write_result.get('success', False):
+                self.log.error(
+                    f"burst {burst_idx}: write reported failure {write_result}"
+                )
+                self.stats['write_errors'] += 1
+                self.stats['errors'] += 1
+                success = False
+
+            aw_count = len(self.axi4_aw_beats) - initial_aw
+            if aw_count != 1:
+                self.log.error(
+                    f"burst {burst_idx}: expected 1 AXI4 AW, got {aw_count}"
+                )
+                self.stats['write_errors'] += 1
+                self.stats['errors'] += 1
+                success = False
+
+            w_count = len(self.axi4_w_beats) - initial_w
+            if w_count != burst_len:
+                self.log.error(
+                    f"burst {burst_idx}: expected {burst_len} W beats, got {w_count}"
+                )
+                self.stats['write_errors'] += 1
+                self.stats['errors'] += 1
+                success = False
+            else:
+                for i, beat in enumerate(
+                        self.axi4_w_beats[initial_w:initial_w + burst_len]):
+                    if beat['data'] != write_data[i]:
+                        self.log.error(
+                            f"burst {burst_idx} write: WDATA mismatch beat {i} "
+                            f"got 0x{beat['data']:08X}, expected 0x{write_data[i]:08X}"
+                        )
+                        self.stats['write_errors'] += 1
+                        self.stats['errors'] += 1
+                        success = False
+
+            self.stats['read_bursts'] += 1
+            self.stats['write_bursts'] += 1
+            self.stats['read_beats'] += burst_len
+            self.stats['write_beats'] += burst_len
+
+        await self.wait_clocks('aclk', 20)
 
         if success:
             self.log.info("SMOKE TEST PASSED")

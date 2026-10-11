@@ -57,7 +57,10 @@ async def axi3_to_axi4_smoke_test(dut):
         elif test_level == 'func':
             success = await tb.run_smoke_test(burst_len=16)
         else:
-            success = await tb.run_smoke_test(burst_len=32)
+            # AXI3 ARLEN/AWLEN are 4-bit (legal 1-16 beats). Use two legal
+            # 16-beat bursts so the full cell exercises more beats than func
+            # without requesting an illegal length.
+            success = await tb.run_smoke_test(burst_len=16, bursts=2)
 
         await tb.wait_clocks('aclk', 50)
 
