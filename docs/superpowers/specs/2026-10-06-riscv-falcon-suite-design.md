@@ -10,9 +10,13 @@ rungs. Everything else is unchanged from the 2026-10-06 draft.
 extension (LR/SC + word-form AMOs) added as a uniprocessor atomicity study
 (Sean). Rung 5 (garuda) inherits it (**RV32IMAF**); directories renamed to
 `gyrfalcon-rv32ima/`, `garuda-rv32imaf/` per the `<codename>-<isa>`
-convention. Knock-ons recorded in place: the top-of-ISA non-goal becomes
-RV32IMAF; gyrfalcon's verification gate moves to spike RV32IMA. Nothing
-else changes.
+convention. Rung 4 builds **two named flavors in the one directory**
+(refined the same day, Sean): the **gyrfalcon** baseline (RV32IM,
+`A_EXT=0` — the capstone as originally pinned) and **gyrfalcon-A**
+(`A_EXT=1`, RV32IMA), the atomicity study; the A machinery is
+generate-gated, mirroring the amber/amber_ace one-directory-two-tops
+precedent. Knock-ons recorded in place: the top-of-ISA non-goal becomes
+RV32IMAF; gyrfalcon-A's verification gate moves to spike RV32IMA.
 
 ## Summary
 
@@ -138,10 +142,12 @@ The fastest falcon: speculation, traps, and the memory hierarchy.
 
 The largest falcon, apex of the ladder: the machine hides the program order.
 
-- **ISA:** RV32IMA + traps — peregrine's RV32IM **plus the A extension**
-  (added 2026-10-11, Sean): LR/SC (`lr.w`/`sc.w`, Zalrsc) and the word-form
-  AMOs (Zaamo). Every peregrine battery still carries; A adds its own
-  directed batteries.
+- **ISA:** two flavors, one core (2026-10-11, Sean). The **gyrfalcon**
+  baseline is RV32IM + traps — identical to peregrine, so every test
+  battery carries over unchanged. **gyrfalcon-A** (`A_EXT=1`) adds the A
+  extension: LR/SC (`lr.w`/`sc.w`, Zalrsc) and the word-form AMOs (Zaamo).
+  `A_EXT=0` must stay behavior-identical to the baseline for every non-A
+  program; gyrfalcon-A adds its own directed batteries.
 - **Microarchitecture (defaults chosen, parameterized where cheap):**
   dual-issue fetch/decode/dispatch; explicit rename map (32 architectural ×
   64 physical registers) + free list; ROB, 32 entries, in-order commit;
@@ -151,8 +157,10 @@ The largest falcon, apex of the ladder: the machine hides the program order.
   branch dispatch and restored on mispredict (simplest correct rollback,
   and the honest first OOO). Exceptions precise at commit; flush squashes
   ROB, rolls back rename, restores the free list. Reuses peregrine's L1s,
-  predictor, trap machinery, and AXI fabric.
-- **A-extension machinery (the atomicity study):** a reservation register —
+  predictor, trap machinery, and AXI fabric. `A_EXT` is the one
+  ISA-visible elaboration parameter; the A machinery below is
+  generate-gated and absent from the baseline flavor.
+- **A-extension machinery (gyrfalcon-A flavor only):** a reservation register —
   `lr.w` records the address, `sc.w` stores only while the reservation holds
   and writes success/failure to `rd`, traps and flushes clear it.
   Uniprocessor-first: nothing else invalidates a reservation until a
@@ -164,19 +172,23 @@ The largest falcon, apex of the ladder: the machine hides the program order.
   respectively; the honest first implementation of RVWMO ordering bits.
 - **Teaches:** register renaming and WAR/WAW elimination, the ROB as an
   undo log, out-of-order completion with in-order retirement, why rename
-  rollback is the hard part of speculation — and, with the A extension, the atomicity study: reservations, store-conditional failure, AMOs as single-instruction read-modify-writes, and why acquire/release are memory-model operations rather than cache operations.
-- **Verification:** golden-model lockstep against spike **RV32IMA** with randomized
+  rollback is the hard part of speculation — and, in the gyrfalcon-A flavor, the atomicity study: reservations, store-conditional failure, AMOs as single-instruction read-modify-writes, and why acquire/release are memory-model operations rather than cache operations.
+- **Verification:** golden-model lockstep against spike — **RV32IM** for the
+  baseline flavor, **RV32IMA** for gyrfalcon-A — with randomized
   program streams as the primary gate; targeted formal — in-order commit
-  property, deadlock/livelock freedom, recovery correctness. The A extension adds directed batteries (LR/SC success, SC failure across trap/interrupt interleave, AMO ALU coverage, aq/rl ordering checks) and two targeted formal properties: SC-failure correctness and reservation granularity. riscv-formal
+  property, deadlock/livelock freedom, recovery correctness. gyrfalcon-A
+  adds directed batteries (LR/SC success, SC failure across trap/interrupt interleave, AMO ALU coverage, aq/rl ordering checks) and two targeted formal properties: SC-failure correctness and reservation granularity. riscv-formal
   on an OOO core is disproportionate; optional stretch goal only.
-- **Packaging:** *Simplified RV32IMA: gyrfalcon — out-of-order execution* book.
+- **Packaging:** *Simplified RV32IMA: gyrfalcon — out-of-order execution* book;
+  the gyrfalcon-A flavor carries the atomics chapter (reservations, SC
+  failure, AMOs, aq/rl).
 
 ## Rung 5 — garuda (RV32IMAF delta on gyrfalcon)
 
 The mythical capstone: the king of birds takes the OoO machine into
 floating point.
 
-- **ISA:** RV32IMAF + Zicsr, identical to gyrfalcon (RV32IMA) plus the full F
+- **ISA:** RV32IMAF + Zicsr, identical to the gyrfalcon-A flavor (RV32IMA) plus the full F
   extension — FADD/FSUB/FMUL/FDIV/FSQRT, the four fused FMA forms,
   FSGNJ/N/X, FMIN/FMAX, FEQ/FLT/FLE, FCLASS, FMV.X.W/FMV.W.X,
   FCVT.W[U].S/FCVT.S.W[U], FLW/FSW, and `fcsr` (RM field plus the five

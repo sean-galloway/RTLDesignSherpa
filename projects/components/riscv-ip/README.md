@@ -52,7 +52,7 @@ not `kestrel`. The bare codename is how the core is referred to in prose
 | [`kestrel-rv32i/`](kestrel-rv32i/) | **kestrel** | RV32I | single-cycle | RTL complete; rv32ui battery 42/42 with spike lockstep; riscv-formal 42/42; doc book v0.1 published; board loader sim-verified |
 | [`merlin-rv32i/`](merlin-rv32i/) | **merlin** | RV32I | 5-stage in-order pipeline | Planned; structure only |
 | [`peregrine-rv32im/`](peregrine-rv32im/) | **peregrine** | RV32IM | advanced in-order: predictor, traps, L1 caches, AXI master | Planned; structure only |
-| [`gyrfalcon-rv32ima/`](gyrfalcon-rv32ima/) | **gyrfalcon** | RV32IMA | out-of-order capstone: rename, ROB, reservation stations + A extension (LR/SC + AMO atomics study) | Planned; structure only |
+| [`gyrfalcon-rv32ima/`](gyrfalcon-rv32ima/) | **gyrfalcon** | RV32IM baseline; gyrfalcon-A flavor RV32IMA | out-of-order capstone: rename, ROB, reservation stations; two flavors — baseline and gyrfalcon-A (`A_EXT=1`: LR/SC + AMO atomics study) | Planned; structure only |
 | [`garuda-rv32imaf/`](garuda-rv32imaf/) | **garuda** | RV32IMAF | gyrfalcon's OoO plus an FPU: FP register file + rename, fcsr precise flags, non-pipelined long-latency units | Planned; structure only (penciled in; beyond the 2026-10-06 design spec, which pins four rungs) |
 
 ### Adjacent: hive-serv
@@ -91,10 +91,11 @@ MonBus visibility. **Delivers:** speculation and recovery, precise
 exceptions, the memory hierarchy, bus protocol — and ties the whole repo
 together (memory controllers, cache IP line, AMBA fabric).
 
-**gyrfalcon — hide everything.** Out-of-order capstone: peregrine's RV32IM
-plus the A extension (added 2026-10-11) — LR/SC reservations,
-store-conditional failure, and AMOs — so every peregrine battery still
-carries. Dual-issue dispatch, explicit rename map + free list, 32-entry
+**gyrfalcon — hide everything.** Out-of-order capstone in two flavors
+(added 2026-10-11): the baseline — peregrine's RV32IM exactly — and
+gyrfalcon-A (`A_EXT=1`): LR/SC reservations, store-conditional failure,
+and AMOs, the atomicity study — so every peregrine battery still carries
+in both. Dual-issue dispatch, explicit rename map + free list, 32-entry
 ROB with in-order commit, three reservation stations, wakeup/select over
 common data buses, speculative dispatch with checkpoint-restore rename
 rollback. **Delivers:** register renaming and WAR/WAW elimination, the ROB
