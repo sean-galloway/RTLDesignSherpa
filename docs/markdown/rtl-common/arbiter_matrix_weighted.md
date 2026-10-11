@@ -25,19 +25,19 @@
 
 # Weighted Matrix Arbiter
 
-Fair, distributed-state arbitration with per-client credit counters. The matrix arbiter's strong-fairness priority state is rotated only after the current winner has consumed its full weight in grants, so a client with weight `W` can receive up to `W` consecutive grants before dropping to lowest priority.
+Weighted fairness, matrix style. Every client gets a credit counter, and the priority matrix only rotates after the current winner has burned its full weight in grants — so a client with weight `W` can string together up to `W` consecutive wins before it heads to the back of the line.
 
 ## Overview
 
-The `arbiter_matrix_weighted` module extends the matrix arbiter described in Dally & Towles, *Principles and Practices of Interconnection Networks*, chapter 17 §18.5, with the weighted-arbiter semantics discussed in §18.4.4. Priority is encoded as a `CLIENTS`×`CLIENTS` bit matrix `M`:
+This module takes the matrix arbiter from Dally & Towles, *Principles and Practices of Interconnection Networks*, chapter 17 §18.5 and bolts on the weighted-arbiter semantics from §18.4.4. Priority still lives in a `CLIENTS`×`CLIENTS` bit matrix `M`:
 
 - `M[i][j] = 1` means requester `i` currently outranks requester `j`.
 - `M[i][j] = 0` means requester `i` is outranked by requester `j`.
 - The diagonal is a don't-care.
 
-Only the `CLIENTS·(CLIENTS-1)/2` upper-triangle bits are stored; the lower triangle is derived combinationally. Unlike the unweighted matrix arbiter, the update that drops the winner to lowest priority is deferred until the winner's credit counter reaches 0.
+As in the unweighted module, only the `CLIENTS·(CLIENTS-1)/2` upper-triangle bits are stored; the lower triangle derives combinationally. The difference: the update that drops the winner to last place waits until the winner's credit counter hits 0.
 
-In this document, `N` refers to the bit width of `grant_id` (`$clog2(CLIENTS)`, guarded to 1 for `CLIENTS==1`). It is not the number of clients; the number of clients is always `CLIENTS`.
+One naming note, same as the unweighted page: `N` is the bit width of `grant_id` — `$clog2(CLIENTS)`, guarded to 1 when `CLIENTS==1`. It's not the client count. The client count is always `CLIENTS`.
 
 ## Parameters
 
@@ -75,17 +75,17 @@ In this document, `N` refers to the bit width of `grant_id` (`$clog2(CLIENTS)`, 
 
 ### Matrix Representation
 
-The stored state is the upper triangle of `M` packed into `CLIENTS*(CLIENTS-1)/2` bits. Reset initializes every upper-triangle entry to 1, which corresponds to the total priority order:
+The stored state is the upper triangle of `M`, packed into `CLIENTS*(CLIENTS-1)/2` bits. Out of reset every stored bit is 1, so power-on priority is the plain total order:
 
 ```text
 0 > 1 > 2 > ... > CLIENTS-1
 ```
 
-Requester 0 wins all ties from reset.
+Client 0 wins everything until that first grant shuffles the deck.
 
 ### Credit Counters and Weight Semantics
 
-Each client has a down-counter loaded from its `max_thresh` field. A client is eligible for arbitration only when its weight is non-zero **and** its credit counter is greater than 0.
+Each client owns a down-counter loaded from its `max_thresh` field. Eligibility is strict — weight non-zero **and** counter greater than 0:
 
 - **Grant completion** decrements the winner's counter.
   - No-ACK mode: completion is the grant cycle itself.
@@ -96,7 +96,7 @@ Each client has a down-counter loaded from its `max_thresh` field. A client is e
 
 ### Grant Logic
 
-The grant for client `i` is computed combinationally as:
+Same vote as the unweighted module, just over the eligible set:
 
 ```text
 g[i] = eligible[i] AND (for all j != i: NOT(eligible[j] AND M[j][i]))
@@ -104,56 +104,56 @@ g[i] = eligible[i] AND (for all j != i: NOT(eligible[j] AND M[j][i]))
 
 where `eligible[i] = request[i] AND block_arb==0 AND weight[i]>0 AND credit[i]>0`.
 
-Because the matrix is a tournament, exactly one client wins whenever at least one client is eligible.
+The matrix is still a tournament, so whenever at least one client is eligible, exactly one wins.
 
 ### Matrix Update
 
-When client `k` wins **and** its credit counter reaches 0 on that grant:
+When client `k` wins **and** that grant drives its counter to 0:
 
 - **Row `k` cleared**: `M[k][j] = 0` for all `j > k` — `k` loses to all higher-index clients.
 - **Column `k` set**: `M[i][k] = 1` for all `i < k` — all lower-index clients outrank `k`.
 
-Client `k` therefore drops to the lowest priority. The new order becomes:
+Client `k` drops to the lowest priority, and the new order becomes:
 
 ```text
 0 > 1 > ... > k-1 > k+1 > ... > CLIENTS-1 > k
 ```
 
-Between rotation events, the same winner keeps re-winning as long as it still has credits and keeps requesting.
+Between rotations, the same winner keeps re-winning as long as it has credits and keeps asking. That's the entire trick — the matrix holds still through a client's burst.
 
 ### Weighted Sequence Example
 
-With `CLIENTS = 3` and weights `[3, 1, 2]` and all clients continuously requesting, the grant order repeats:
+Concretely: `CLIENTS = 3`, weights `[3, 1, 2]`, everybody requesting forever. The grant order repeats:
 
 ```text
 0, 0, 0, 1, 2, 2
 ```
 
-Client 0 receives three consecutive grants, client 1 one grant, and client 2 two grants, per full weighted turn.
+Three in a row for client 0, one for client 1, two for client 2. Notice the burstiness — that's what this scheme buys you. If you'd rather see shares interleave cycle by cycle, that's the round-robin weighted module's party trick, not this one.
 
 ### No-ACK Mode (`WAIT_GNT_ACK = 0`)
 
-A one-cycle grant is issued every cycle an eligible winner exists. The matrix is updated only when the winner's credits are exhausted. Latency from a request change to the registered grant is one cycle, plus a one-cycle credit-load bubble immediately after reset.
+One-cycle grants go out every cycle an eligible winner exists, and the matrix only moves when the winner's credits run dry. Request-to-grant latency is one cycle, plus a single credit-load bubble right after reset.
 
 ### ACK Mode (`WAIT_GNT_ACK = 1`)
 
-The grant is held until the granted client asserts the corresponding bit of `grant_ack`. The matrix is updated only when the ACK exhausts the winner's credits; otherwise the same winner re-wins on the same-cycle handoff.
+The grant holds until the granted client asserts its own `grant_ack` bit, and the matrix rotates only when that ACK exhausts the winner's credits — otherwise the same winner re-wins on the same-cycle handoff. The handoff works exactly like the unweighted module: next winner computed combinationally in the ACK cycle, registered on the same edge.
 
-When the owner's `grant_ack` bit is asserted, the next waiting requester is granted in the **same clock cycle** (same-cycle ACK handoff). Only the bit of `grant_ack` belonging to the currently granted client can retire the held grant; ACK bits from other clients are ignored (foreign-ack immunity).
+Foreign-ack immunity applies here too. Only the granted client's ack bit can retire the grant; everyone else's ACKs are noise.
 
-A held grant is a completed grant only when ACK'd; an ACK handoff itself does **not** consume a credit — credits count grants, not ACKs.
+One subtlety worth spelling out: a held grant only *completes* when it's ACK'd, and the handoff itself doesn't spend a credit. Credits track completed grants, not ACK transactions.
 
 ### Block Arbitration
 
-Asserting `block_arb` masks all requests to zero. No new grants are issued while it is high; a held grant in ACK mode remains held until it is acknowledged. Grants resume from the current matrix and credit state when `block_arb` is released.
+`block_arb` squashes all requests to zero, so no new grants issue while it's high. A held ACK-mode grant stays held until its ACK shows up — that's deliberate. Release the block and arbitration resumes from the current matrix and credit state.
 
 ## Timing Characteristics
 
-This module is **sequential**: grants are registered and appear one clock cycle after the requests that produced them. The matrix update and credit reload are also registered.
+Registered outputs, same as the unweighted module: one cycle from request to grant, with the matrix and credit updates registered alongside.
 
-In ACK mode, the post-ACK matrix update and next-winner computation are performed combinationally in the cycle the ACK arrives, and the new grant is registered in the same cycle. Therefore a continuous stream of ACKs produces back-to-back grants with no idle cycle between them (provided each ACK exhausts the previous winner's credits; otherwise the same winner is re-granted).
+ACK mode pulls the update into the ACK cycle, combinationally, so a continuous ACK stream produces back-to-back grants — though if an ACK doesn't exhaust the winner's credits you'll watch the same winner re-grant instead of the priority rotating. Still no idle cycles.
 
-No synthesis frequency or area figures are quoted; none have been measured against a target device.
+Same disclaimer as the unweighted page: no measured MHz or LUT numbers yet. Nothing's been run against a target device.
 
 ---
 
@@ -195,18 +195,18 @@ arbiter_matrix_weighted #(
 
 ### Usage Notes
 
-- From reset, client 0 has the highest priority; the first grant with all clients requesting goes to client 0.
-- A weight of 0 disables a client immediately, even if it had leftover credits.
-- Weight changes are not instantaneous: they take effect when the affected client's counter next reaches 0 and reloads.
-- The matrix update is local and distributed; there is no central rotating pointer.
-- Because the grant is registered, a lone requester sees a grant in the cycle after its request is asserted.
-- The weighted matrix arbiter is especially attractive for small `CLIENTS`; for very large `CLIENTS` the `O(CLIENTS²)` matrix storage and the cross-client comparison network can dominate area and timing.
+- Out of reset, client 0 is king — the first all-requesting grant goes to client 0.
+- Weight 0 disables a client immediately, leftover credits or not. The deviation note below explains why that's safe here.
+- Weight changes aren't instant. They take effect at the client's next reload — the next time its counter reaches 0.
+- No central pointer, no mask register. Just the pairwise bits, updating locally.
+- The grant is registered, so a lone requester waits exactly one cycle after raising its request.
+- Same sizing advice as the unweighted module: great at small `CLIENTS`. As the port count climbs, the `O(CLIENTS²)` matrix and comparison web get expensive, and you'll feel it in area and timing.
 
 ### Deviation from `arbiter_round_robin_weighted`
 
-The `arbiter_round_robin_weighted` module disables a client with weight 0 through a multi-cycle `WEIGHT_BLOCK → DRAIN → UPDATE → STABILIZE` FSM. That FSM exists because the round-robin pointer and request mask can create a hazard if a client is masked while a grant is already in flight.
+So why doesn't weight-0 disable route through the multi-cycle `WEIGHT_BLOCK → DRAIN → UPDATE → STABILIZE` FSM that `arbiter_round_robin_weighted` uses? Because that FSM exists to protect the RR module's rotating pointer and request mask — mask a client mid-grant over there and you can leave stale state behind.
 
-`arbiter_matrix_weighted` has no rotating pointer and no request mask. A client is eligible only when `request[i] && weight[i] > 0 && credit[i] > 0`, and the matrix only rotates on a completed grant. Therefore, forcing the credit counter to 0 when the weight becomes 0 is safe: the client simply becomes ineligible on the next cycle, and no stale pointer state can be left masked. This immediate-disable behavior is intentional and is the correct simplification for the matrix-arbiter datapath.
+This datapath has no pointer and no mask. Eligibility is just `request[i] && weight[i] > 0 && credit[i] > 0`, and the matrix only rotates on a completed grant. So when a weight drops to 0 I force the credit counter to 0 and the client simply stops being eligible next cycle. Nothing stale, nothing to drain. The deviation is deliberate, and it's safe for exactly the reason the FSM exists on the other side.
 
 ## Related Modules
 
@@ -222,14 +222,14 @@ The `arbiter_round_robin_weighted` module disables a client with weight 0 throug
 
 ## Testing
 
-`val/common/test_arbiter_matrix_weighted.py` exercises the module. It validates:
+`val/common/test_arbiter_matrix_weighted.py` puts the module through its paces. It validates:
 
 - Documented weighted grant sequences (e.g., `CLIENTS=3`, weights `[3,1,2]` → `[0,0,0,1,2,2]`)
 - One-hot or zero grant, never granted to an unrequested or credit-ineligible client
 - Weight = 0 disables the client
 - Dynamic weight changes take effect at the next credit reload
 - Immediate service for a single requester regardless of matrix state
-- Reset restores client 0 as the highest-priority requester
+- Reset restoring client 0 as the highest-priority requester
 - `block_arb` pauses new grants
 - In ACK mode: hold-until-owner-ack, foreign-ack immunity, back-to-back same-cycle handoff, and single-requester re-grant
 - Parameterization across `CLIENTS = 1, 2, 4, 5, 8` in no-ACK mode, plus ACK mode at `REG_LEVEL=GATE` and `FULL`
@@ -240,7 +240,7 @@ source env_python
 pytest val/common/test_arbiter_matrix_weighted.py -v
 ```
 
-The testbench in `bin/TBClasses/common/arbiter_matrix_weighted_tb.py` follows the same `ArbiterMaster` / `ArbiterMonitor` methodology as the round-robin arbiter testbench:
+The testbench (`bin/TBClasses/common/arbiter_matrix_weighted_tb.py`) sticks to the same `ArbiterMaster` / `ArbiterMonitor` methodology as the round-robin testbench:
 
 - A `WeightedRoundRobinArbiterMonitor` is attached with `is_weighted=True` so it tracks `max_thresh` and runs WRR compliance checks.
 - Randomized scenario phases (grant-signals, basic-arbitration, walking-requests, block-arb, bursty-traffic, rapid-request-changes, single-client-saturation) drive stimulus through the weighted `ArbiterMaster` and assert one-hot, no-unrequested-grant, and weighted behavior through the monitor.
