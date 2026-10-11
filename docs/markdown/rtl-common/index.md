@@ -55,6 +55,7 @@ the three agree.
 
 #### Arbiters
 - **[arbiter_matrix](arbiter_matrix.md)** - Matrix (distributed-state) fair arbiter
+- **[arbiter_matrix_weighted](arbiter_matrix_weighted.md)** - Weighted matrix arbiter (grant-count shares with deferred rotation)
 - **[arbiter_round_robin_simple](arbiter_round_robin_simple.md)** - Simple round-robin arbiter with rotation
 - **[arbiter_round_robin](arbiter_round_robin.md)** - Advanced round-robin arbiter
 - **[arbiter_round_robin_weighted](arbiter_round_robin_weighted.md)** - Weighted round-robin arbiter (grant-count shares)
@@ -151,7 +152,7 @@ the wrappers are recoverable from git history if the pattern is wanted again.
 
 ### Module Count by Category
 
-**49 modules** in `rtl/common/`. Two sets have moved out, and they're counted in
+**50 modules** in `rtl/common/`. Two sets have moved out, and they're counted in
 their own books, not here:
 
 - Arithmetic (`math_*`) split out to `rtl/math/` — see [rtl-math](../rtl-math/index.md).
@@ -166,7 +167,7 @@ their own books, not here:
 | Counters | 6 |
 | Bit Ops & Search | 6 |
 | Shifters & LFSRs | 6 |
-| Arbiters | 8 |
+| Arbiters | 9 |
 | Conversion & Encoding | 5 |
 | Miscellaneous | 2 |
 | FIFOs | 2 |

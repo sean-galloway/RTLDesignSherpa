@@ -2,7 +2,7 @@
 
 # common — tasks
 
-**Next ID: TASK-017** — never recycle a number, even when its item closed.
+**Next ID: TASK-018** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -13,7 +13,7 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 13 | done (kept for history) |
 | [dropped/](dropped/) | 2 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
@@ -23,6 +23,7 @@ by construction rather than by discipline.
 
 ## Active
 
+- **TASK-017** — Implement arbiter_matrix_weighted — weighted matrix arbiter for rtl/common
 
 ## Closed
 
