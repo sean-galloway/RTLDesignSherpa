@@ -27,6 +27,10 @@
 
 Where the cycles go on the way through the bridge: address path, data path, response path, then the end-to-end best cases and the conversion costs. The headline numbers for a direct AXI4 path are measured, not estimated — the note after Table 5.7 explains how, and why an earlier version of that table was wrong.
 
+The current latency measurements are best-case and lightly-loaded figures;
+a full latency-vs-offered-load sweep to find the saturation knee is tracked
+as bridge vault TASK-014.
+
 ## Timing
 
 ### Address Path Latency
@@ -213,3 +217,8 @@ Slow peripherals: May have many wait states
 3. **Minimize contention** - Spread traffic across slaves
 4. **Use bursts** - Amortize address latency
 5. **Pipeline responses** - Don't block on slow slaves
+
+## References
+
+* Duato/Yalamanchili/Lionel, *Interconnection Networks*, Morgan Kaufmann 2003 — accepted traffic vs. applied load and latency vs. applied load are the standard evaluation plots for finding the saturation point (ch9). ([Reference archive](../../../references/README.md))
+* Dally & Towles, *Principles and Practices of Interconnection Networks*, Morgan Kaufmann 2004 — uniform-random traffic is benign; permutation and hot-spot patterns expose the allocation limits that matter for worst-case latency (ch3 §3.2-3.3). ([Reference archive](../../../references/README.md))

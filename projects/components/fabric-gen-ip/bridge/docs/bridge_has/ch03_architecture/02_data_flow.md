@@ -147,3 +147,9 @@ creates" above, and bridge BUG-008 (was BRIDGE-010).
 The sequence an earlier revision of this page offered as a worked example --
 master 0 issuing to slave 0 and slave 1 concurrently, then the fast slave
 answering first -- is exactly what `aw_gate_ok` prevents. It cannot occur.
+
+## References
+
+* Dally & Towles, *Principles and Practices of Interconnection Networks*, Morgan Kaufmann 2004 — per-slave arbiters as a separable allocator degenerated to one resource per channel (ch18 §19.3), and skid buffers as buffered flow control (ch12). ([Reference archive](../../../references/README.md))
+* Roy, *Advanced Digital System Design*, Springer 2023 — AXI's lack of a strict timing relationship between AW and W, and the use of the stored transaction ID to correlate B back to AW (§18.2.3). ([Reference archive](../../../references/README.md))
+* Duato/Yalamanchili/Lionel, *Interconnection Networks*, Morgan Kaufmann 2003 — deterministic routing preserves order only on a single path; out-of-order responses across IDs need explicit ID-keyed tables such as Bridge's CAM mode (ch3/4). ([Reference archive](../../../references/README.md))

@@ -72,6 +72,10 @@ per cycle, two masters on one port split it evenly, and paths to different
 slaves do not share anything. The write-stream row is the requester's figure,
 not the bridge's -- the contention row is the bridge's.
 
+The current performance tests measure throughput floors under uniform-style
+patterns; a full saturation study (accepted traffic vs. applied load, latency
+vs. offered load) is tracked as bridge vault TASK-014.
+
 ### Factors Affecting Throughput
 
 | Factor | Impact | Mitigation |
@@ -174,3 +178,8 @@ And protocol choice matters more than most people expect:
 - Keep high-bandwidth traffic on AXI4 paths
 - Use APB only for low-bandwidth peripherals
 - Group APB slaves to avoid impacting AXI4 traffic
+
+## References
+
+* Duato/Yalamanchili/Lionel, *Interconnection Networks*, Morgan Kaufmann 2003 — the standard network-evaluation methodology plots accepted traffic vs. applied load and latency vs. applied load, normalized to network capacity (ch9). ([Reference archive](../../../references/README.md))
+* Dally & Towles, *Principles and Practices of Interconnection Networks*, Morgan Kaufmann 2004 — uniform-random traffic is benign; permutation, hot-spot, and adversarial patterns are the stresses that reveal allocation limits (ch3 §3.2-3.3). ([Reference archive](../../../references/README.md))

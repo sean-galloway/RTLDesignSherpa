@@ -175,3 +175,10 @@ Only AR, R channels active:
 - AW, W, B channels ignored
 - No write arbitration for this master
 - Reduced signal count and logic
+
+## References
+
+* Eschemann, *The FPGA Programming Handbook*, Packt 2023 — educational secondary source for AXI4 full and AXI4-Lite channel structure and handshake rules (ch8 §8.3). ([Reference archive](../../../references/README.md))
+* Roy, *Advanced Digital System Design*, Springer 2023 — secondary source for AXI channel structure and headline protocol features (§18.2.2, §18.2.2.1). ([Reference archive](../../../references/README.md))
+* Maaref, *Architecting and Building High-Speed SoCs*, Packt 2022 — AMBA-suite context and the evolution of AXI4 features such as QoS/Region (ch3 §4.2). ([Reference archive](../../../references/README.md))
+* ARM, *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022E — the authoritative AXI4 protocol definition. ([Reference archive](../../../references/README.md))

@@ -1142,25 +1142,7 @@ The shell scripts will automatically:
 
 ---
 
-## 16. References
-
-**AXI4 Specifications:**
-- ARM IHI 0022 - AMBA AXI and ACE Protocol Specification
-- Xilinx UG1037 - Vivado AXI Reference Guide
-
-**Related Projects:**
-- **APB Crossbar** - Simple register bus crossbar (existing)
-- **Delta (AXIS Crossbar)** - Streaming data crossbar (projects/components/noc-ip/delta/)
-- **RAPIDS** - DMA engine with AXI4 masters (projects/components/dma-ip/rapids/)
-
-**Tools:**
-- Verilator - RTL linting and simulation
-- CocoTB - Python-based verification
-- Xilinx Vivado - FPGA synthesis
-
----
-
-## 17. Glossary
+## 16. Glossary
 
 - **AXI4:** Advanced eXtensible Interface version 4 (AMBA standard)
 - **Burst:** Multi-beat transaction (AWLEN/ARLEN > 0)
@@ -1176,3 +1158,15 @@ The shell scripts will automatically:
 **Next Steps:** Create performance models, then implement generator
 
 **Project Bridge - Connecting masters and slaves across the divide**
+
+---
+
+## References
+
+* Dally & Towles, *Principles and Practices of Interconnection Networks*, Morgan Kaufmann 2004 — backs the design philosophy (simple-performant, hard limits; class cost discussions and the observation that a full crossbar with buffering is costly), per-slave/channel arbitration as a degenerate separable allocator (ch18 §19.3), round-robin as a starvation-free baseline (ch17 §18.4.2), skid buffers as buffered flow control (ch12), and weighted-arbiter starvation bounds (ch17). ([Reference archive](./references/README.md))
+* Duato/Yalamanchili/Lionel, *Interconnection Networks*, Morgan Kaufmann 2003 — backs independent read/write paths that avoid head-of-line blocking (ch4), deterministic single-stage crossbar deadlock-freedom (ch3), and the need for explicit ID-keyed tables/CAMs to route out-of-order responses correctly (ch3/4 ordering material). ([Reference archive](./references/README.md))
+* Jantsch & Tenhunen (eds.), *Networks on Chip*, Kluwer 2003 — backs the QoS-plus-aging arbitration policy and its bounded starvation argument (ch13). ([Reference archive](./references/README.md))
+* Maaref, *Architecting and Building High-Speed SoCs*, Packt 2022 — backs the AMBA-suite context for read/write channel independence and the AXI ID ordering rules that Bridge's in-order FIFO simplifies (ch3 §4.2). ([Reference archive](./references/README.md))
+* Roy, *Advanced Digital System Design*, Springer 2023 — backs AXI's independent read/write channels (§18.2.2.1) and the decoupling of W from AW with B correlated through the stored transaction ID (§18.2.3). ([Reference archive](./references/README.md))
+* Eschemann, *The FPGA Programming Handbook*, Packt 2023 — backs the secondary, educational framing of AXI4 channel structure and the cost warning that a full crossbar with buffering can become expensive (ch8). ([Reference archive](./references/README.md))
+* ARM, *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022E — the AXI4 protocol authority; backs the ordering rules that permit out-of-order completion across IDs and therefore motivate the CAM-style tracking Bridge documents as future work. ([Reference archive](./references/README.md))

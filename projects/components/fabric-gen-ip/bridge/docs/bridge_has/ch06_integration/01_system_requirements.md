@@ -145,3 +145,31 @@ Slaves connecting to Bridge must:
 2. **Arbitration test** - Multi-master contention
 3. **Error handling test** - unmapped-address response: DECERR + 0xDEADBEEF, `unmapped_irq` sticky, `SUBTRACTIVE_STATUS.CLEAR` clears it (see 4.5)
 4. **Performance validation** - Meet throughput targets
+
+## Assumptions and Known Limitations
+
+### Response-Ordering Assumption
+
+Bridge routes B and R by popping a per-slave in-order FIFO of sideband
+master IDs. This is safe for single-master AXI4/AXI4-Lite/APB/Wishbone
+slaves and for internal subtractive-decoding responses because they all
+return responses in request order. It is **not** safe for a multi-master
+AXI4/AXI5 slave that reorders across different IDs: AXI4 permits
+out-of-order completion per ID, and ARM IHI 0022E §A4 describes the
+ordering rules. Such slaves require the CAM-based response-tracking mode
+that Bridge keeps in `bridge_cam.sv` but does not currently instantiate
+by default.
+
+### Buffer and CAM Depths
+
+All adapter skid depths, response-tracking FIFO depths, and CAM dimensions
+are generation-time constants. There is no runtime sizing API. A
+systematic sizing rule that relates buffer depth to credit-loop latency,
+outstanding-transaction count, and width-converter buffering is tracked
+as bridge vault TASK-016.
+
+## References
+
+* ARM, *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022E — AXI4 ordering rules allow out-of-order completion across IDs (§A4). ([Reference archive](../../../references/README.md))
+* Maaref, *Architecting and Building High-Speed SoCs*, Packt 2022 — AMBA-suite context and the AXI ID ordering rules that Bridge's FIFO mode simplifies (ch3 §4.2). ([Reference archive](../../../references/README.md))
+* Eschemann, *The FPGA Programming Handbook*, Packt 2023 — educational secondary source describing out-of-order reads as a normal AXI4 feature (ch8 §8.3). ([Reference archive](../../../references/README.md))

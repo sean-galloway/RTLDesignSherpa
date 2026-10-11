@@ -114,3 +114,8 @@ that now reports it.
 - Width converters (only if widths mismatch)
 - Protocol converters (only if protocols differ)
 - Per-slave in-order bridge_id FIFO (no CAM; OOO is not supported)
+
+## References
+
+* Jantsch & Tenhunen (eds.), *Networks on Chip*, Kluwer 2003 — the resource-network-interface (RNI) concept that Bridge's master/slave adapters map to: a protocol-dependent wrapper plus a resource-independent crossbar side (ch5 §3.4.2). ([Reference archive](../../../references/README.md))
+* Eschemann, *The FPGA Programming Handbook*, Packt 2023 — educational secondary source noting that an AXI interconnect's cost scales with active masters, buffering, and whether it is a full crossbar (ch8 §8.3). ([Reference archive](../../../references/README.md))

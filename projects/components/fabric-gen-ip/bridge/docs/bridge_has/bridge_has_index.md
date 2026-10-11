@@ -25,8 +25,8 @@
 
 ## Overview
 
-**Version:** 1.1
-**Date:** 2026-06-04
+**Version:** 1.2
+**Date:** 2026-10-11
 **Purpose:** High-level hardware architecture specification for Bridge component
 
 ---
@@ -89,5 +89,5 @@
 
 ---
 
-**Last Updated:** 2026-01-03
+**Last Updated:** 2026-10-11
 **Maintained By:** RTL Design Sherpa Project

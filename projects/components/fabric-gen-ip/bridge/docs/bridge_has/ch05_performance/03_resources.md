@@ -91,6 +91,10 @@ Block RAM and DSP usage are zero in every configuration measured: the
 per-slave bridge_id FIFOs and the CAM are LUT arrays, and there is no
 arithmetic.
 
+The current resource figures come from a small set of configurations driven
+with uniform-style traffic; a systematic resource-vs-load characterization
+across adversarial patterns is tracked as bridge vault TASK-014.
+
 ## Design Notes
 
 ### Resource Reduction
@@ -112,3 +116,8 @@ arithmetic.
 | Wider data paths | +routing | +throughput |
 
 : Table 5.14: Performance/Resource Trade-offs
+
+## References
+
+* Duato/Yalamanchili/Lionel, *Interconnection Networks*, Morgan Kaufmann 2003 — accepted traffic vs. applied load and latency vs. applied load are the standard network-evaluation plots; resource counts must be paired with those load sweeps to be meaningful (ch9). ([Reference archive](../../../references/README.md))
+* Dally & Towles, *Principles and Practices of Interconnection Networks*, Morgan Kaufmann 2004 — uniform-random traffic is benign; permutation and hot-spot patterns are the standard stresses that reveal allocation and buffer-sizing limits which in turn drive resource growth (ch3 §3.2-3.3). ([Reference archive](../../../references/README.md))

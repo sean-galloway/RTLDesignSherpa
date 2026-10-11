@@ -85,3 +85,9 @@ Delivers transactions to downstream slaves:
 - **Logic:** O(M x N) for crossbar core
 - **Routing:** O(M + N) for address/response paths
 - **Memory:** O(M x outstanding) for ID tracking
+
+## References
+
+* Dally & Towles, *Principles and Practices of Interconnection Networks*, Morgan Kaufmann 2004 — per-slave arbiters on AW and AR as the degenerate case of a separable allocator (ch18 §19.3), and skid buffers as buffered flow control (ch12). ([Reference archive](../../../references/README.md))
+* Roy, *Advanced Digital System Design*, Springer 2023 — AXI permits W to trail AW independently; the W-owner FIFO records the AW grant so the data path follows the address decision (§18.2.3). ([Reference archive](../../../references/README.md))
+* Duato/Yalamanchili/Lionel, *Interconnection Networks*, Morgan Kaufmann 2003 — deterministic routing preserves order only along a single path; safe out-of-order completion requires explicit ID-keyed tracking such as the CAM mode Bridge keeps available (ch3/4). ([Reference archive](../../../references/README.md))
