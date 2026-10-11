@@ -37,6 +37,19 @@ _AXI4_AR_PORTS = (
 )
 _AXI4_R_PORTS = ('rid', 'rdata', 'rresp', 'rlast', 'ruser', 'rvalid', 'rready')
 
+# AXI3 narrows the AXI4 set: 4-bit len, wid on W, 2-bit lock, no qos/region.
+_AXI3_AW_PORTS = (
+    'awid', 'awaddr', 'awlen', 'awsize', 'awburst',
+    'awlock', 'awcache', 'awprot', 'awuser', 'awvalid', 'awready',
+)
+_AXI3_W_PORTS = ('wdata', 'wstrb', 'wid', 'wlast', 'wuser', 'wvalid', 'wready')
+_AXI3_B_PORTS = ('bid', 'bresp', 'buser', 'bvalid', 'bready')
+_AXI3_AR_PORTS = (
+    'arid', 'araddr', 'arlen', 'arsize', 'arburst',
+    'arlock', 'arcache', 'arprot', 'aruser', 'arvalid', 'arready',
+)
+_AXI3_R_PORTS = ('rid', 'rdata', 'rresp', 'rlast', 'ruser', 'rvalid', 'rready')
+
 _APB_PORTS = (
     'PADDR', 'PSEL', 'PENABLE', 'PWRITE', 'PWDATA',
     'PSTRB', 'PPROT', 'PRDATA', 'PSLVERR', 'PREADY',
@@ -68,7 +81,7 @@ class SlaveAdapterInstance:
     def __init__(self, slave_name: str, slave_prefix: str, protocol: str,
                  has_write: bool, has_read: bool, axi5_features=None,
                  cdc: bool = False):
-        if protocol not in ('axi4', 'axi5', 'apb', 'apb5', 'axil', 'axil5', 'wb4'):
+        if protocol not in ('axi4', 'axi5', 'axi3', 'apb', 'apb5', 'axil', 'axil5', 'wb4'):
             raise ValueError(f"unsupported protocol: {protocol!r}")
         if not (has_write or has_read):
             raise ValueError("adapter must carry at least one channel")
@@ -178,6 +191,28 @@ class SlaveAdapterInstance:
             pairs = [(n, n) for n in names]
             self._sections.append((
                 f"External AXI5 interface ({self.slave_prefix}*)", pairs))
+            return
+        if self.protocol == 'axi3':
+            pairs = []
+            if self.has_write:
+                for base in _AXI3_AW_PORTS:
+                    pairs.append((f'{self.slave_prefix}{base}',
+                                  f'{self.slave_prefix}{base}'))
+                for base in _AXI3_W_PORTS:
+                    pairs.append((f'{self.slave_prefix}{base}',
+                                  f'{self.slave_prefix}{base}'))
+                for base in _AXI3_B_PORTS:
+                    pairs.append((f'{self.slave_prefix}{base}',
+                                  f'{self.slave_prefix}{base}'))
+            if self.has_read:
+                for base in _AXI3_AR_PORTS:
+                    pairs.append((f'{self.slave_prefix}{base}',
+                                  f'{self.slave_prefix}{base}'))
+                for base in _AXI3_R_PORTS:
+                    pairs.append((f'{self.slave_prefix}{base}',
+                                  f'{self.slave_prefix}{base}'))
+            self._sections.append((
+                f"External AXI3 interface ({self.slave_prefix}*)", pairs))
             return
         if self.protocol in ('apb', 'apb5'):
             sigs = list(_APB_PORTS)

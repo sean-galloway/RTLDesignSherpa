@@ -384,7 +384,7 @@ def validate_slave_id_widths(masters: List[PortSpec], slaves: List[PortSpec]) ->
     for s in slaves:
         if getattr(s, 'internal', False):
             continue
-        if s.protocol not in ('axi4', 'axi5'):
+        if s.protocol not in ('axi3', 'axi4', 'axi5'):
             continue
         if (s.id_width or 0) < need:
             raise ValidationError(

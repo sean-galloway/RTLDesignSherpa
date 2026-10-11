@@ -1,0 +1,49 @@
+# Bridge Configuration: 1x2 read-write bridge with an AXI3 master port
+# (bridge GitHub #97).
+#
+# One AXI3 master (cpu) drives a 64-bit fabric through axi3_to_axi4; one
+# AXI3 slave (s0) and one AXI4 slave (s1) terminate the traffic. The AXI3
+# slave uses axi4_to_axi3 at its boundary; the AXI4 slave uses the standard
+# axi4_master_* timing wrapper.
+#
+# The fixture exercises both master-side and slave-side AXI3 conversion in
+# one bridge and is reused by later AXI3 tasks.
+# Connectivity comes from bridge_1x2_axi3_connectivity.csv.
+
+[bridge]
+name = "bridge_1x2_axi3"
+variants = ["no", "mon"]
+description = "1 AXI3 master x (1 AXI3 + 1 AXI4) slave rw bridge (GitHub #97)"
+
+[[bridge.masters]]
+name = "cpu"
+prefix = "cpu_axi_"
+protocol = "axi3"
+id_width = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rw"
+
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_axi_"
+protocol = "axi3"
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (bridge TASK-005, was BRIDGE-016)
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rw"
+base_addr = "0x00000000"
+addr_range = "0x80000000"  # 2GB
+
+[[bridge.slaves]]
+name = "s1"
+prefix = "s1_axi_"
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (bridge TASK-005, was BRIDGE-016)
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rw"
+base_addr = "0x80000000"
+addr_range = "0x80000000"  # 2GB

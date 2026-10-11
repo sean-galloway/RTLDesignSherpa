@@ -805,6 +805,51 @@ def test_axi5_features_rejected_on_axi3_port():
         validate_axi5([master], [slave])
 
 
+def test_axi3_master_generation_smoke(tmp_path):
+    """bridge_1x2_axi3: an AXI3 master drives the fabric through
+    axi3_to_axi4. The adapter must instantiate the converter, the bridge
+    top must expose a 4-bit awlen and the AXI3 WID signal, and every
+    emitted .sv must be declaration-order clean."""
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", _fixture("bridge_1x2_axi3.toml"),
+         "--connectivity", _fixture("bridge_1x2_axi3_connectivity.csv"),
+         "--name", "bridge_1x2_axi3",
+         "--output-dir", str(tmp_path)],
+        cwd=str(BIN_DIR), env=env,
+        capture_output=True, text=True, timeout=300,
+    )
+    assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+
+    top = tmp_path / "bridge_1x2_axi3" / "bridge_1x2_axi3.sv"
+    assert top.exists(), "bridge top not emitted"
+    top_text = top.read_text()
+
+    # AXI3 master port surface on the bridge top.
+    assert "cpu_axi_wid" in top_text, "AXI3 WID missing from top-level ports"
+    assert "input  logic [3:0]  cpu_axi_awlen" in top_text, (
+        "AXI3 awlen not 4-bit on top-level")
+    assert "cpu_axi_awqos" not in top_text, "AXI3 master leaked qos port"
+    assert "cpu_axi_awregion" not in top_text, "AXI3 master leaked region port"
+
+    adapter = (tmp_path / "bridge_1x2_axi3" / "cpu_adapter.sv").read_text()
+    assert "axi3_to_axi4 #(" in adapter, "adapter missing axi3_to_axi4 converter"
+    assert ".s_axi3_awid(cpu_axi_awid)" in adapter, (
+        "converter slave side not bound to AXI3 master ports")
+    assert ".m_axi_awvalid(a3x_axi_awvalid)" in adapter, (
+        "converter master side not bound to internal AXI4 nets")
+
+    sv_files = sorted(tmp_path.glob("bridge_1x2_axi3*/*.sv"))
+    chk = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "bin" / "check_sv_decl_order.py"),
+         *map(str, sv_files)],
+        capture_output=True, text=True, timeout=120,
+    )
+    assert chk.returncode == 0, (
+        f"declaration-order issues in generated AXI3 RTL:\n{chk.stdout}")
+
+
 # ---------------------------------------------------------------------
 # AXI5-Lite slaves (protocol="axil5")
 # ---------------------------------------------------------------------

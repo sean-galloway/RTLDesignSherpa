@@ -342,6 +342,8 @@ class AdapterGenerator:
         if self.is_front_end_master:
             if self.master.protocol == 'wb4':
                 return self._generate_wb4_external_ports()
+            if self.master.protocol == 'axi3':
+                return self._generate_axi3_external_ports()
             return self._generate_apb_external_ports()
 
         lines = []
@@ -437,9 +439,11 @@ class AdapterGenerator:
         'apb':  'apb4_to_axi4',
         'apb5': 'apb5_to_axi4',
         'wb4':  'wb4_to_axi4',
+        'axi3': 'axi3_to_axi4',
     }
     APB_AXI_PREFIX = 'apbx_axi_'
     WB4_AXI_PREFIX = 'wbx_axi_'
+    AXI3_AXI_PREFIX = 'a3x_axi_'
 
     @property
     def is_front_end_master(self) -> bool:
@@ -451,7 +455,11 @@ class AdapterGenerator:
 
     @property
     def front_end_prefix(self) -> str:
-        return self.WB4_AXI_PREFIX if self.master.protocol == 'wb4' else self.APB_AXI_PREFIX
+        if self.master.protocol == 'wb4':
+            return self.WB4_AXI_PREFIX
+        if self.master.protocol == 'axi3':
+            return self.AXI3_AXI_PREFIX
+        return self.APB_AXI_PREFIX
 
     def _generate_wb4_external_ports(self) -> List[str]:
         """Wishbone B4 completer surface (the bridge is the completer): the
@@ -491,6 +499,70 @@ class AdapterGenerator:
                 f"    output logic                  {p}PBUSER,",
             ]
         return lines
+
+    @staticmethod
+    def generate_axi3_ports(master) -> List[str]:
+        """AXI3 requester surface: the bridge/adapter is the slave, so the
+        external master drives aw/ar/w and the bridge answers b/r. AXI3
+        narrows the AXI4 set to 4-bit awlen/arlen, adds wid on W, widens
+        awlock/arlock to 2 bits, and drops qos/region (bridge GitHub #97)."""
+        p = master.prefix
+        addr_w = master.addr_width
+        id_w = master.id_width
+        dw = master.data_width
+        sw = dw // 8
+        lines: List[str] = []
+        if master.channels in ('wr', 'rw'):
+            lines += [
+                f"    input  logic [{id_w-1}:0] {p}awid,",
+                f"    input  logic [{addr_w-1}:0] {p}awaddr,",
+                f"    input  logic [3:0]  {p}awlen,",
+                f"    input  logic [2:0]  {p}awsize,",
+                f"    input  logic [1:0]  {p}awburst,",
+                f"    input  logic [1:0]  {p}awlock,",
+                f"    input  logic [3:0]  {p}awcache,",
+                f"    input  logic [2:0]  {p}awprot,",
+                f"    input  logic        {p}awuser,",
+                f"    input  logic        {p}awvalid,",
+                f"    output logic        {p}awready,",
+                f"    input  logic [{dw-1}:0] {p}wdata,",
+                f"    input  logic [{sw-1}:0] {p}wstrb,",
+                f"    input  logic [{id_w-1}:0] {p}wid,",
+                f"    input  logic        {p}wlast,",
+                f"    input  logic        {p}wuser,",
+                f"    input  logic        {p}wvalid,",
+                f"    output logic        {p}wready,",
+                f"    output logic [{id_w-1}:0] {p}bid,",
+                f"    output logic [1:0]  {p}bresp,",
+                f"    output logic        {p}buser,",
+                f"    output logic        {p}bvalid,",
+                f"    input  logic        {p}bready,",
+            ]
+        if master.channels in ('rd', 'rw'):
+            lines += [
+                f"    input  logic [{id_w-1}:0] {p}arid,",
+                f"    input  logic [{addr_w-1}:0] {p}araddr,",
+                f"    input  logic [3:0]  {p}arlen,",
+                f"    input  logic [2:0]  {p}arsize,",
+                f"    input  logic [1:0]  {p}arburst,",
+                f"    input  logic [1:0]  {p}arlock,",
+                f"    input  logic [3:0]  {p}arcache,",
+                f"    input  logic [2:0]  {p}arprot,",
+                f"    input  logic        {p}aruser,",
+                f"    input  logic        {p}arvalid,",
+                f"    output logic        {p}arready,",
+                f"    output logic [{id_w-1}:0] {p}rid,",
+                f"    output logic [{dw-1}:0] {p}rdata,",
+                f"    output logic [1:0]  {p}rresp,",
+                f"    output logic        {p}rlast,",
+                f"    output logic        {p}ruser,",
+                f"    output logic        {p}rvalid,",
+                f"    input  logic        {p}rready,",
+            ]
+        return lines
+
+    def _generate_axi3_external_ports(self) -> List[str]:
+        return self.generate_axi3_ports(self.master)
 
     def _apb_axi_net_decls(self, prefix: str) -> List[str]:
         """`logic [W-1:0] {prefix}{sig};` for the full AXI4 channel set the
@@ -546,30 +618,38 @@ class AdapterGenerator:
             f"    logic        {prefix}rready;",
         ]
 
-    def _generate_apb_front_end(self) -> List[str]:
+    def _generate_front_end(self) -> List[str]:
         """Instantiate the port's protocol front end (apb4_to_axi4 /
-        apb5_to_axi4 / wb4_to_axi4) between its completer surface and the
-        AXI4 timing wrapper. Named for the family that came first; WB4
-        (bridge TASK-008, was BRIDGE-019) rides the same path.
+        apb5_to_axi4 / wb4_to_axi4 / axi3_to_axi4) between its completer
+        surface and the AXI4 timing wrapper. Named for the APB family that
+        came first; WB4 (bridge TASK-008, was BRIDGE-019) and AXI3
+        (bridge GitHub #97) ride the same path.
 
-        The converter (projects/components/utility-ip/converters) is the requester
-        half of the bridge's APB story: one APB transfer -> one single-beat
-        AXI4 transaction, both SLVERR and DECERR folded to PSLVERR. From the
-        wrapper onward the port is indistinguishable from an AXI4-Lite
-        master with awlen=0, so decode, width adaptation (the wide-slave
-        aligner included) and the response mux are untouched. USER is the
-        fabric's 1 bit: PAUSER[0]/PWUSER[0] ride awuser/wuser and come back
-        on PBUSER/PRUSER from buser/ruser."""
+        APB: one APB transfer -> one single-beat AXI4 transaction, both
+        SLVERR and DECERR folded to PSLVERR. From the wrapper onward the
+        port is indistinguishable from an AXI4-Lite master with awlen=0.
+        USER is the fabric's 1 bit: PAUSER[0]/PWUSER[0] ride awuser/wuser
+        and come back on PBUSER/PRUSER from buser/ruser.
+
+        AXI3: the converter presents a full AXI3 slave surface and produces
+        a full AXI4 master surface; the nets between converter and timing
+        wrapper are the standard AXI4 set at port width."""
         p = self.master.prefix
         x = self.front_end_prefix
         proto = self.master.protocol
         apb5 = (proto == 'apb5')
         module = self.FRONT_END_MODULES[proto]
-        label = 'Wishbone B4' if proto == 'wb4' else 'APB'
+        if proto == 'wb4':
+            label = 'Wishbone B4'
+        elif proto == 'axi3':
+            label = 'AXI3'
+        else:
+            label = 'APB'
         lines: List[str] = []
         lines.append("    // ================================================================")
         lines.append(f"    // {label} requester front end ({module}): {label} completer -> AXI4")
-        lines.append("    // single-beat requester, feeding the timing wrapper below.")
+        if proto in ('apb', 'apb5'):
+            lines.append("    // single-beat requester, feeding the timing wrapper below.")
         lines.append("    // ================================================================")
         lines.extend(self._apb_axi_net_decls(x))
         lines.append("")
@@ -577,21 +657,43 @@ class AdapterGenerator:
         if proto == 'wb4':
             lines.append(f"        .ADDR_WIDTH(32),")
             lines.append(f"        .DATA_WIDTH({self.master.data_width}),")
+        elif proto == 'axi3':
+            lines.append(f"        .AXI_ID_WIDTH({self.master.id_width}),")
+            lines.append(f"        .AXI_ADDR_WIDTH({self.master.addr_width}),")
+            lines.append(f"        .AXI_DATA_WIDTH({self.master.data_width}),")
+            lines.append(f"        .AXI_USER_WIDTH(1)")
         else:
             lines.append(f"        .APB_ADDR_WIDTH(32),")
             lines.append(f"        .APB_DATA_WIDTH({self.master.data_width}),")
         if apb5:
             for k in ('APB_AUSER_WIDTH', 'APB_WUSER_WIDTH', 'APB_RUSER_WIDTH', 'APB_BUSER_WIDTH'):
                 lines.append(f"        .{k}(1),")
-        lines.append(f"        .AXI_ID_WIDTH({self.fub_id_width}),")
-        lines.append(f"        .AXI_USER_WIDTH(1)")
-        lines.append(f"    ) u_{'wb4' if proto == 'wb4' else 'apb'}_front_end (")
+        if proto != 'axi3':
+            lines.append(f"        .AXI_ID_WIDTH({self.fub_id_width}),")
+            lines.append(f"        .AXI_USER_WIDTH(1)")
+        if proto == 'wb4':
+            instance_label = 'wb4'
+        elif proto == 'axi3':
+            instance_label = 'axi3'
+        else:
+            instance_label = 'apb'
+        lines.append(f"    ) u_{instance_label}_front_end (")
         lines.append(f"        .aclk(aclk),")
         lines.append(f"        .aresetn(aresetn),")
         if proto == 'wb4':
             from ..wb4_signals import wb4_names
             for sig in wb4_names():
                 lines.append(f"        .s_wb_{sig}({p}{sig}),")
+        elif proto == 'axi3':
+            for sig in ('arid', 'araddr', 'arlen', 'arsize', 'arburst', 'arlock',
+                        'arcache', 'arprot', 'aruser', 'arvalid', 'arready',
+                        'rid', 'rdata', 'rresp', 'rlast', 'ruser', 'rvalid', 'rready'):
+                lines.append(f"        .s_axi3_{sig}({p}{sig}),")
+            for sig in ('awid', 'awaddr', 'awlen', 'awsize', 'awburst', 'awlock',
+                        'awcache', 'awprot', 'awuser', 'awvalid', 'awready',
+                        'wid', 'wdata', 'wstrb', 'wlast', 'wuser', 'wvalid', 'wready',
+                        'bid', 'bresp', 'buser', 'bvalid', 'bready'):
+                lines.append(f"        .s_axi3_{sig}({p}{sig}),")
         else:
             for sig in ('PSEL', 'PENABLE', 'PREADY', 'PADDR', 'PWRITE', 'PWDATA',
                         'PSTRB', 'PPROT', 'PRDATA', 'PSLVERR'):
@@ -1135,10 +1237,11 @@ class AdapterGenerator:
         if signal_prefix and not signal_prefix.endswith("_"):
             signal_prefix = signal_prefix + "_"
 
-        # An APB requester port has no external AXI4 signals; the wrapper's
-        # external side connects to the AXI4 face the APB front end drives.
+        # A front-end requester port has no external AXI4 signals; the
+        # wrapper's external side connects to the AXI4 face the converter
+        # drives (APB/WB4/AXI3 front end).
         if self.is_front_end_master:
-            lines.extend(self._generate_apb_front_end())
+            lines.extend(self._generate_front_end())
             signal_prefix = self.front_end_prefix
 
         # Monitor identity: UNIT_ID=2 marks every master-side wrapper

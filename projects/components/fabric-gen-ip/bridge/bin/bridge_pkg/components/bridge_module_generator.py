@@ -1253,6 +1253,16 @@ class BridgeModuleGenerator:
                 lines[-1] = lines[-1][:-1]
             return lines
 
+        if master.protocol == 'axi3':
+            # AXI3 requester port (bridge GitHub #97): the bridge is the AXI3
+            # slave, so the external master drives request channels and the
+            # bridge answers responses. Delegates to the same emitter the
+            # adapter uses so the top-level port list stays in lockstep.
+            lines.extend(AdapterGenerator.generate_axi3_ports(master))
+            if lines and lines[-1].endswith(','):
+                lines[-1] = lines[-1][:-1]
+            return lines
+
         if master.protocol in ('axil', 'axil5'):
             # AXIL master — emit only AXIL signals (no id/len/burst/cache/
             # qos/region/user/last). Mirror of the AXIL slave port handling
@@ -1625,6 +1635,69 @@ class BridgeModuleGenerator:
 
             # Drop trailing comma so the caller can splice the slave
             # ports between other port blocks.
+            if lines and lines[-1].endswith(','):
+                lines[-1] = lines[-1][:-1]
+
+        elif slave.protocol == 'axi3':
+            # AXI3 slave ports (bridge GitHub #97): the bridge acts as an
+            # AXI3 master to the external slave. The surface is AXI4 minus
+            # qos/region, with 4-bit len, wid on W, and 2-bit lock.
+            lines.append(f"    // AXI3 Slave: {slave.name}")
+
+            connecting_masters = self._get_masters_connecting_to_slave(slave)
+            has_write = any(m.channels in ["wr", "rw"] for m in connecting_masters)
+            has_read = any(m.channels in ["rd", "rw"] for m in connecting_masters)
+
+            pfx = slave.prefix
+            addr_w = slave.addr_width
+            id_w = master_id_width
+            dw = slave.data_width
+            sw = dw // 8
+
+            if has_write:
+                lines.append(f"    output logic [{id_w-1}:0] {pfx}awid,")
+                lines.append(f"    output logic [{addr_w-1}:0] {pfx}awaddr,")
+                lines.append(f"    output logic [3:0]  {pfx}awlen,")
+                lines.append(f"    output logic [2:0]  {pfx}awsize,")
+                lines.append(f"    output logic [1:0]  {pfx}awburst,")
+                lines.append(f"    output logic [1:0]  {pfx}awlock,")
+                lines.append(f"    output logic [3:0]  {pfx}awcache,")
+                lines.append(f"    output logic [2:0]  {pfx}awprot,")
+                lines.append(f"    output logic        {pfx}awuser,")
+                lines.append(f"    output logic        {pfx}awvalid,")
+                lines.append(f"    input  logic        {pfx}awready,")
+                lines.append(f"    output logic [{dw-1}:0] {pfx}wdata,")
+                lines.append(f"    output logic [{sw-1}:0] {pfx}wstrb,")
+                lines.append(f"    output logic [{id_w-1}:0] {pfx}wid,")
+                lines.append(f"    output logic        {pfx}wlast,")
+                lines.append(f"    output logic        {pfx}wuser,")
+                lines.append(f"    output logic        {pfx}wvalid,")
+                lines.append(f"    input  logic        {pfx}wready,")
+                lines.append(f"    input  logic [{id_w-1}:0] {pfx}bid,")
+                lines.append(f"    input  logic [1:0]  {pfx}bresp,")
+                lines.append(f"    input  logic        {pfx}buser,")
+                lines.append(f"    input  logic        {pfx}bvalid,")
+                lines.append(f"    output logic        {pfx}bready,")
+            if has_read:
+                lines.append(f"    output logic [{id_w-1}:0] {pfx}arid,")
+                lines.append(f"    output logic [{addr_w-1}:0] {pfx}araddr,")
+                lines.append(f"    output logic [3:0]  {pfx}arlen,")
+                lines.append(f"    output logic [2:0]  {pfx}arsize,")
+                lines.append(f"    output logic [1:0]  {pfx}arburst,")
+                lines.append(f"    output logic [1:0]  {pfx}arlock,")
+                lines.append(f"    output logic [3:0]  {pfx}arcache,")
+                lines.append(f"    output logic [2:0]  {pfx}arprot,")
+                lines.append(f"    output logic        {pfx}aruser,")
+                lines.append(f"    output logic        {pfx}arvalid,")
+                lines.append(f"    input  logic        {pfx}arready,")
+                lines.append(f"    input  logic [{id_w-1}:0] {pfx}rid,")
+                lines.append(f"    input  logic [{dw-1}:0] {pfx}rdata,")
+                lines.append(f"    input  logic [1:0]  {pfx}rresp,")
+                lines.append(f"    input  logic        {pfx}rlast,")
+                lines.append(f"    input  logic        {pfx}ruser,")
+                lines.append(f"    input  logic        {pfx}rvalid,")
+                lines.append(f"    output logic        {pfx}rready,")
+
             if lines and lines[-1].endswith(','):
                 lines[-1] = lines[-1][:-1]
 
@@ -2007,6 +2080,29 @@ class BridgeModuleGenerator:
                     lite_surface |= {'awlock', 'arlock'}
                 if 'user' in feats:
                     lite_surface |= {'awuser', 'wuser', 'buser', 'aruser', 'ruser'}
+
+            if master.protocol == 'axi3':
+                # AXI3 requester port (bridge GitHub #97): the adapter exposes
+                # only the AXI3 surface (no qos/region, wid on W, 4-bit len,
+                # 2-bit lock). Wire the adapter's external ports to the
+                # identically-named bridge top-level ports.
+                p = signal_prefix
+                if master.channels in ('wr', 'rw'):
+                    for sig in ('awid', 'awaddr', 'awlen', 'awsize', 'awburst',
+                                'awlock', 'awcache', 'awprot', 'awuser',
+                                'awvalid', 'awready',
+                                'wdata', 'wstrb', 'wid', 'wlast', 'wuser',
+                                'wvalid', 'wready',
+                                'bid', 'bresp', 'buser', 'bvalid', 'bready'):
+                        lines.append(f"        .{p}{sig}({p}{sig}),")
+                if master.channels in ('rd', 'rw'):
+                    for sig in ('arid', 'araddr', 'arlen', 'arsize', 'arburst',
+                                'arlock', 'arcache', 'arprot', 'aruser',
+                                'arvalid', 'arready',
+                                'rid', 'rdata', 'rresp', 'rlast', 'ruser',
+                                'rvalid', 'rready'):
+                        lines.append(f"        .{p}{sig}({p}{sig}),")
+                channels = []
 
             if master.protocol in ('apb', 'apb5', 'wb4'):
                 # APB or Wishbone requester port: the adapter's external

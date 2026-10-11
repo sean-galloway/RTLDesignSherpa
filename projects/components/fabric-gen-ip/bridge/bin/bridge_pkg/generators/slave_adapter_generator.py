@@ -107,6 +107,11 @@ class SlaveAdapterGenerator:
             # slave, sideband features terminated/defaulted at the
             # wrapper.
             lines.extend(self._generate_axi4_timing_wrapper())
+        elif self.slave.protocol == 'axi3':
+            # bridge GitHub #97: axi4_to_axi3 at the boundary. The crossbar
+            # stays full AXI4; the converter narrows the external surface
+            # to AXI3 (4-bit len, wid, 2-bit lock, no qos/region).
+            lines.extend(self._generate_axi3_converter())
         elif self.slave.protocol in ('apb', 'apb5'):
             lines.extend(self._generate_apb_converter())
         elif self.slave.protocol == 'wb4':
@@ -356,6 +361,8 @@ class SlaveAdapterGenerator:
 
         if self.slave.protocol in ('axi4', 'axi5'):
             lines.extend(self._generate_axi4_external_ports())
+        elif self.slave.protocol == 'axi3':
+            lines.extend(self._generate_axi3_external_ports())
         elif self.slave.protocol in ('apb', 'apb5'):
             lines.extend(self._generate_apb_external_ports())
         elif self.slave.protocol == 'wb4':
@@ -445,6 +452,68 @@ class SlaveAdapterGenerator:
             comma = "" if idx == len(decls) - 1 else ","
             lines.append(f"    {declaration}{comma}")
 
+        return lines
+
+    def _generate_axi3_external_ports(self) -> List[str]:
+        """Generate AXI3 external slave ports. The adapter is the AXI3
+        master, so request channels are outputs and response channels are
+        inputs. AXI3 narrows awlen/arlen to 4 bits, adds wid on W, widens
+        awlock/arlock to 2 bits, and drops qos/region (bridge GitHub #97)."""
+        p = self.slave.prefix
+        addr_w = self.slave.addr_width
+        id_w = self.id_width
+        dw = self.slave.data_width
+        sw = dw // 8
+        lines: List[str] = []
+        if self.channels in ('wr', 'rw'):
+            lines += [
+                f"    output logic [{id_w-1}:0] {p}awid,",
+                f"    output logic [{addr_w-1}:0] {p}awaddr,",
+                f"    output logic [3:0]  {p}awlen,",
+                f"    output logic [2:0]  {p}awsize,",
+                f"    output logic [1:0]  {p}awburst,",
+                f"    output logic [1:0]  {p}awlock,",
+                f"    output logic [3:0]  {p}awcache,",
+                f"    output logic [2:0]  {p}awprot,",
+                f"    output logic        {p}awuser,",
+                f"    output logic        {p}awvalid,",
+                f"    input  logic        {p}awready,",
+                f"    output logic [{dw-1}:0] {p}wdata,",
+                f"    output logic [{sw-1}:0] {p}wstrb,",
+                f"    output logic [{id_w-1}:0] {p}wid,",
+                f"    output logic        {p}wlast,",
+                f"    output logic        {p}wuser,",
+                f"    output logic        {p}wvalid,",
+                f"    input  logic        {p}wready,",
+                f"    input  logic [{id_w-1}:0] {p}bid,",
+                f"    input  logic [1:0]  {p}bresp,",
+                f"    input  logic        {p}buser,",
+                f"    input  logic        {p}bvalid,",
+                f"    output logic        {p}bready,",
+            ]
+        if self.channels in ('rd', 'rw'):
+            lines += [
+                f"    output logic [{id_w-1}:0] {p}arid,",
+                f"    output logic [{addr_w-1}:0] {p}araddr,",
+                f"    output logic [3:0]  {p}arlen,",
+                f"    output logic [2:0]  {p}arsize,",
+                f"    output logic [1:0]  {p}arburst,",
+                f"    output logic [1:0]  {p}arlock,",
+                f"    output logic [3:0]  {p}arcache,",
+                f"    output logic [2:0]  {p}arprot,",
+                f"    output logic        {p}aruser,",
+                f"    output logic        {p}arvalid,",
+                f"    input  logic        {p}arready,",
+                f"    input  logic [{id_w-1}:0] {p}rid,",
+                f"    input  logic [{dw-1}:0] {p}rdata,",
+                f"    input  logic [1:0]  {p}rresp,",
+                f"    input  logic        {p}rlast,",
+                f"    input  logic        {p}ruser,",
+                f"    input  logic        {p}rvalid,",
+                f"    output logic        {p}rready,",
+            ]
+        if lines and lines[-1].endswith(','):
+            lines[-1] = lines[-1][:-1]
         return lines
 
     def _generate_apb_external_ports(self) -> List[str]:
@@ -578,9 +647,9 @@ class SlaveAdapterGenerator:
             ""
         ]
 
-        # Add protocol converter intermediate signals for APB/AXIL
+        # Add protocol converter intermediate signals for APB/AXIL/WB4/AXI3
         # These allow FIFO tracking to monitor converter output instead of crossbar input
-        if self.slave.protocol in ['apb', 'apb5', 'axil', 'axil5', 'wb4']:
+        if self.slave.protocol in ['apb', 'apb5', 'axil', 'axil5', 'wb4', 'axi3']:
             lines.append("    // Protocol converter intermediate signals")
             lines.append("    // (FIFO tracking monitors these instead of crossbar signals)")
             if self.has_write:
@@ -755,7 +824,7 @@ class SlaveAdapterGenerator:
         #         `converter_bready` off the shim's AXI4 (s_axi) side
         #         so the FIFO pops the moment the shim actually
         #         produces a response, not when external completes.
-        if self.slave.protocol in ('apb', 'apb5', 'axil', 'axil5', 'wb4'):
+        if self.slave.protocol in ('apb', 'apb5', 'axil', 'axil5', 'wb4', 'axi3'):
             label = self.slave.protocol.upper()
             pop_condition = "converter_bvalid && converter_bready"
             lines.append(f"    // Write Channel FIFO (In-Order) - {label} Protocol")
@@ -918,7 +987,7 @@ class SlaveAdapterGenerator:
         # shims with their own latency; tracking the shim's AXI4
         # (s_axi) output via converter_rvalid keeps the FIFO in
         # lockstep with the actual response.
-        if self.slave.protocol in ('apb', 'apb5', 'axil', 'axil5', 'wb4'):
+        if self.slave.protocol in ('apb', 'apb5', 'axil', 'axil5', 'wb4', 'axi3'):
             label = self.slave.protocol.upper()
             pop_condition = "converter_rvalid && converter_rready && converter_rlast"
             lines.append(f"    // Read Channel FIFO (In-Order) - {label} Protocol")
@@ -1517,6 +1586,260 @@ class SlaveAdapterGenerator:
         lines.append("    // AXI4-to-Wishbone B4 converter shim")
         lines.extend(shim.generate_lines())
         lines.append("    // Wire converter outputs back to shim's crossbar-facing interface")
+        if self.has_write:
+            lines.append(f"    assign {shim_prefix}bvalid = converter_bvalid;")
+            lines.append(f"    assign converter_bready = {shim_prefix}bready;")
+        if self.has_read:
+            lines.append(f"    assign {shim_prefix}rvalid = converter_rvalid;")
+            lines.append(f"    assign converter_rready = {shim_prefix}rready;")
+            lines.append(f"    assign {shim_prefix}rlast = converter_rlast;")
+        lines.append("")
+        return lines
+
+    def _generate_axi3_converter(self) -> List[str]:
+        """axi4_to_axi3 at the slave boundary (bridge GitHub #97).
+
+        The converter has a full AXI4 slave side (facing the crossbar)
+        and a full AXI3 master side (facing the external slave). With
+        monitoring on, axi4_master_*_mon wrappers sit between the
+        crossbar and the converter; with monitoring off the converter
+        faces the crossbar directly. Bridge-ID tracking pops on the
+        converter's AXI4 slave response side via converter_* intercepts,
+        exactly as the APB/AXIL/WB4 shims do."""
+        xbar_prefix = f"xbar_{self.slave.name}_axi_"
+        lines: List[str] = []
+
+        if self.enable_monitoring:
+            shim_prefix = f"{self.slave.name}_mon_axi_"
+            lines.append("    // ============================================================")
+            lines.append("    // axi4_master_*_mon wrapper(s) between crossbar and AXI3 converter")
+            lines.append("    // ============================================================")
+            lines.extend(self._shim_axi_intermediate_signal_decls(shim_prefix))
+            lines.append("")
+            if self.has_write:
+                lines.extend(self._generate_master_wr_wrapper(xbar_prefix, shim_prefix))
+            if self.has_read:
+                lines.extend(self._generate_master_rd_wrapper(xbar_prefix, shim_prefix))
+        else:
+            shim_prefix = xbar_prefix
+
+        p = self.slave.prefix
+        aw = self.slave.addr_width
+        id_w = self.id_width
+        dw = self.slave.data_width
+        sw = dw // 8
+
+        lines.append("    // AXI4-to-AXI3 converter")
+        lines.append(f"    axi4_to_axi3 #(")
+        lines.append(f"        .AXI_ID_WIDTH   ({id_w}),")
+        lines.append(f"        .AXI_ADDR_WIDTH ({aw}),")
+        lines.append(f"        .AXI_DATA_WIDTH ({dw}),")
+        lines.append(f"        .AXI_USER_WIDTH (1)")
+        lines.append(f"    ) u_{self.slave.name}_axi3_converter (")
+        lines.append(f"        .aclk    (aclk),")
+        lines.append(f"        .aresetn (aresetn),")
+
+        # AXI4 slave side (crossbar-facing)
+        if self.has_write:
+            lines += [
+                f"        .s_axi_awid    ({shim_prefix}awid),",
+                f"        .s_axi_awaddr  ({shim_prefix}awaddr),",
+                f"        .s_axi_awlen   ({shim_prefix}awlen),",
+                f"        .s_axi_awsize  ({shim_prefix}awsize),",
+                f"        .s_axi_awburst ({shim_prefix}awburst),",
+                f"        .s_axi_awlock  ({shim_prefix}awlock),",
+                f"        .s_axi_awcache ({shim_prefix}awcache),",
+                f"        .s_axi_awprot  ({shim_prefix}awprot),",
+                f"        .s_axi_awqos   ({shim_prefix}awqos),",
+                f"        .s_axi_awregion({shim_prefix}awregion),",
+                f"        .s_axi_awuser  ({shim_prefix}awuser),",
+                f"        .s_axi_awvalid ({shim_prefix}awvalid),",
+                f"        .s_axi_awready ({shim_prefix}awready),",
+                f"        .s_axi_wdata   ({shim_prefix}wdata),",
+                f"        .s_axi_wstrb   ({shim_prefix}wstrb),",
+                f"        .s_axi_wlast   ({shim_prefix}wlast),",
+                f"        .s_axi_wuser   ({shim_prefix}wuser),",
+                f"        .s_axi_wvalid  ({shim_prefix}wvalid),",
+                f"        .s_axi_wready  ({shim_prefix}wready),",
+                f"        .s_axi_bid     ({shim_prefix}bid),",
+                f"        .s_axi_bresp   ({shim_prefix}bresp),",
+                f"        .s_axi_buser   ({shim_prefix}buser),",
+                f"        .s_axi_bvalid  (converter_bvalid),",
+                f"        .s_axi_bready  (converter_bready),",
+            ]
+        else:
+            lines += [
+                f"        .s_axi_awid    ({id_w}'d0),",
+                f"        .s_axi_awaddr  ({aw}'d0),",
+                f"        .s_axi_awlen   (8'd0),",
+                f"        .s_axi_awsize  (3'd0),",
+                f"        .s_axi_awburst (2'd0),",
+                f"        .s_axi_awlock  (1'b0),",
+                f"        .s_axi_awcache (4'd0),",
+                f"        .s_axi_awprot  (3'd0),",
+                f"        .s_axi_awqos   (4'd0),",
+                f"        .s_axi_awregion(4'd0),",
+                f"        .s_axi_awuser  (1'b0),",
+                f"        .s_axi_awvalid (1'b0),",
+                f"        .s_axi_awready (),",
+                f"        .s_axi_wdata   ({dw}'d0),",
+                f"        .s_axi_wstrb   ({sw}'d0),",
+                f"        .s_axi_wlast   (1'b0),",
+                f"        .s_axi_wuser   (1'b0),",
+                f"        .s_axi_wvalid  (1'b0),",
+                f"        .s_axi_wready  (),",
+                f"        .s_axi_bid     (),",
+                f"        .s_axi_bresp   (),",
+                f"        .s_axi_buser   (),",
+                f"        .s_axi_bvalid  (converter_bvalid),",
+                f"        .s_axi_bready  (converter_bready),",
+            ]
+        if self.has_read:
+            lines += [
+                f"        .s_axi_arid    ({shim_prefix}arid),",
+                f"        .s_axi_araddr  ({shim_prefix}araddr),",
+                f"        .s_axi_arlen   ({shim_prefix}arlen),",
+                f"        .s_axi_arsize  ({shim_prefix}arsize),",
+                f"        .s_axi_arburst ({shim_prefix}arburst),",
+                f"        .s_axi_arlock  ({shim_prefix}arlock),",
+                f"        .s_axi_arcache ({shim_prefix}arcache),",
+                f"        .s_axi_arprot  ({shim_prefix}arprot),",
+                f"        .s_axi_arqos   ({shim_prefix}arqos),",
+                f"        .s_axi_arregion({shim_prefix}arregion),",
+                f"        .s_axi_aruser  ({shim_prefix}aruser),",
+                f"        .s_axi_arvalid ({shim_prefix}arvalid),",
+                f"        .s_axi_arready ({shim_prefix}arready),",
+                f"        .s_axi_rid     ({shim_prefix}rid),",
+                f"        .s_axi_rdata   ({shim_prefix}rdata),",
+                f"        .s_axi_rresp   ({shim_prefix}rresp),",
+                f"        .s_axi_rlast   ({shim_prefix}rlast),",
+                f"        .s_axi_ruser   ({shim_prefix}ruser),",
+                f"        .s_axi_rvalid  (converter_rvalid),",
+                f"        .s_axi_rready  (converter_rready),",
+            ]
+        else:
+            lines += [
+                f"        .s_axi_arid    ({id_w}'d0),",
+                f"        .s_axi_araddr  ({aw}'d0),",
+                f"        .s_axi_arlen   (8'd0),",
+                f"        .s_axi_arsize  (3'd0),",
+                f"        .s_axi_arburst (2'd0),",
+                f"        .s_axi_arlock  (1'b0),",
+                f"        .s_axi_arcache (4'd0),",
+                f"        .s_axi_arprot  (3'd0),",
+                f"        .s_axi_arqos   (4'd0),",
+                f"        .s_axi_arregion(4'd0),",
+                f"        .s_axi_aruser  (1'b0),",
+                f"        .s_axi_arvalid (1'b0),",
+                f"        .s_axi_arready (),",
+                f"        .s_axi_rid     (),",
+                f"        .s_axi_rdata   (),",
+                f"        .s_axi_rresp   (),",
+                f"        .s_axi_rlast   (),",
+                f"        .s_axi_ruser   (),",
+                f"        .s_axi_rvalid  (converter_rvalid),",
+                f"        .s_axi_rready  (converter_rready),",
+            ]
+
+        # AXI3 master side (external slave)
+        if self.has_write:
+            lines += [
+                f"        .m_axi3_awid   ({p}awid),",
+                f"        .m_axi3_awaddr ({p}awaddr),",
+                f"        .m_axi3_awlen  ({p}awlen),",
+                f"        .m_axi3_awsize ({p}awsize),",
+                f"        .m_axi3_awburst({p}awburst),",
+                f"        .m_axi3_awlock ({p}awlock),",
+                f"        .m_axi3_awcache({p}awcache),",
+                f"        .m_axi3_awprot ({p}awprot),",
+                f"        .m_axi3_awuser ({p}awuser),",
+                f"        .m_axi3_awvalid({p}awvalid),",
+                f"        .m_axi3_awready({p}awready),",
+                f"        .m_axi3_wid    ({p}wid),",
+                f"        .m_axi3_wdata  ({p}wdata),",
+                f"        .m_axi3_wstrb  ({p}wstrb),",
+                f"        .m_axi3_wlast  ({p}wlast),",
+                f"        .m_axi3_wuser  ({p}wuser),",
+                f"        .m_axi3_wvalid ({p}wvalid),",
+                f"        .m_axi3_wready ({p}wready),",
+                f"        .m_axi3_bid    ({p}bid),",
+                f"        .m_axi3_bresp  ({p}bresp),",
+                f"        .m_axi3_buser  ({p}buser),",
+                f"        .m_axi3_bvalid ({p}bvalid),",
+                f"        .m_axi3_bready ({p}bready),",
+            ]
+        else:
+            lines += [
+                f"        .m_axi3_awid   ({id_w}'d0),",
+                f"        .m_axi3_awaddr ({aw}'d0),",
+                f"        .m_axi3_awlen  (4'd0),",
+                f"        .m_axi3_awsize (3'd0),",
+                f"        .m_axi3_awburst(2'd0),",
+                f"        .m_axi3_awlock (2'd0),",
+                f"        .m_axi3_awcache(4'd0),",
+                f"        .m_axi3_awprot (3'd0),",
+                f"        .m_axi3_awuser (1'b0),",
+                f"        .m_axi3_awvalid(1'b0),",
+                f"        .m_axi3_awready(),",
+                f"        .m_axi3_wid    ({id_w}'d0),",
+                f"        .m_axi3_wdata  ({dw}'d0),",
+                f"        .m_axi3_wstrb  ({sw}'d0),",
+                f"        .m_axi3_wlast  (1'b0),",
+                f"        .m_axi3_wuser  (1'b0),",
+                f"        .m_axi3_wvalid (1'b0),",
+                f"        .m_axi3_wready (),",
+                f"        .m_axi3_bid    (),",
+                f"        .m_axi3_bresp  (),",
+                f"        .m_axi3_buser  (),",
+                f"        .m_axi3_bvalid (),",
+                f"        .m_axi3_bready (1'b0),",
+            ]
+        if self.has_read:
+            lines += [
+                f"        .m_axi3_arid   ({p}arid),",
+                f"        .m_axi3_araddr ({p}araddr),",
+                f"        .m_axi3_arlen  ({p}arlen),",
+                f"        .m_axi3_arsize ({p}arsize),",
+                f"        .m_axi3_arburst({p}arburst),",
+                f"        .m_axi3_arlock ({p}arlock),",
+                f"        .m_axi3_arcache({p}arcache),",
+                f"        .m_axi3_arprot ({p}arprot),",
+                f"        .m_axi3_aruser ({p}aruser),",
+                f"        .m_axi3_arvalid({p}arvalid),",
+                f"        .m_axi3_arready({p}arready),",
+                f"        .m_axi3_rid    ({p}rid),",
+                f"        .m_axi3_rdata  ({p}rdata),",
+                f"        .m_axi3_rresp  ({p}rresp),",
+                f"        .m_axi3_rlast  ({p}rlast),",
+                f"        .m_axi3_ruser  ({p}ruser),",
+                f"        .m_axi3_rvalid ({p}rvalid),",
+                f"        .m_axi3_rready ({p}rready)",
+            ]
+        else:
+            lines += [
+                f"        .m_axi3_arid   ({id_w}'d0),",
+                f"        .m_axi3_araddr ({aw}'d0),",
+                f"        .m_axi3_arlen  (4'd0),",
+                f"        .m_axi3_arsize (3'd0),",
+                f"        .m_axi3_arburst(2'd0),",
+                f"        .m_axi3_arlock (2'd0),",
+                f"        .m_axi3_arcache(4'd0),",
+                f"        .m_axi3_arprot (3'd0),",
+                f"        .m_axi3_aruser (1'b0),",
+                f"        .m_axi3_arvalid(1'b0),",
+                f"        .m_axi3_arready(),",
+                f"        .m_axi3_rid    (),",
+                f"        .m_axi3_rdata  (),",
+                f"        .m_axi3_rresp  (),",
+                f"        .m_axi3_rlast  (),",
+                f"        .m_axi3_ruser  (),",
+                f"        .m_axi3_rvalid (),",
+                f"        .m_axi3_rready (1'b0)",
+            ]
+        lines.append("    );")
+        lines.append("")
+
+        # Wire converter outputs back to the crossbar-facing interface.
         if self.has_write:
             lines.append(f"    assign {shim_prefix}bvalid = converter_bvalid;")
             lines.append(f"    assign converter_bready = {shim_prefix}bready;")

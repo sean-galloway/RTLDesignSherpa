@@ -1093,6 +1093,18 @@ def _emit_bridge_variant(
         filelist_lines.append(
             "-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/wb4_to_axi4.f")
 
+    if any(m.protocol.lower() == 'axi3' for m in config.masters):
+        filelist_lines.append("")
+        filelist_lines.append("# AXI3 requester front end (masters with protocol=axi3, bridge GitHub #97)")
+        filelist_lines.append(
+            "-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi3_to_axi4.f")
+
+    if any(s.protocol.lower() == 'axi3' for s in config.slaves):
+        filelist_lines.append("")
+        filelist_lines.append("# AXI3 completer front end (slaves with protocol=axi3, bridge GitHub #97)")
+        filelist_lines.append(
+            "-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axi3.f")
+
     # Atomic-enabled WRITE-ONLY AXI5 masters (A5-3a): the master adapter
     # inserts the axi5_atomic_filter between the boundary wrapper and the
     # fabric. An rw atomic master forwards read-return atomics natively
