@@ -357,6 +357,51 @@ Inserted per controller ruling (2026-10-08) + user directive. The eight landed F
 
 ---
 
+## Backlog (post-Task 14, book-informed)
+
+Source: [`projects/components/cache-ip/docs/amber-jet-improvement-plan.md`](../../../projects/components/cache-ip/docs/amber-jet-improvement-plan.md) items A5/A3/A2 (Chinnakonda-informed; A5 carries ruling 2026-10-11). These slot after Task 14; Task 15 ideally lands *before* Task 14's docs freeze (otherwise its errata row rides with Task 14's).
+
+### Task 15: A5 — retire the deprecated RACK/WACK auto-pulse from the onyx-facing adapter
+
+**Files:**
+- Modify: `rtl/` — the `amber_ace` top's use of `rtl/amba/ace/axi4ace_master_rd/wr` (either an elaboration parameter on the wrappers disabling the auto-pulse, or leaving the pins unconnected at the top; pick one, record why)
+- Modify: `docs/amber_mas/ch03_interfaces/03_fabric_ace.md` deprecation notes → removed/RACK-WACK-free implementation note
+
+**Spec:** ruling 2026-10-11 (Sean) recorded in `References/AMBA_ACE_Interface_Definition.md` §2.1 — the family contract omits RACK/WACK; the wrapper auto-pulse is deprecated for family use.
+
+- [ ] **Step 1:** mechanism decision (param vs unconnected) + failing gate evidence that no onyx-rig test depends on the pulses
+- [ ] **Step 2:** implement; onyx-rig gate/func suites green
+- [ ] **Step 3:** MAS wording update; `check_broken_links.py` PASS
+- [ ] **Step 4: Commit** (`amber: retire RACK/WACK auto-pulse from onyx-facing adapter (A5)`)
+
+### Task 16: A3 — clean-victim `Evict` verification + MonBus event (onyx rig)
+
+**Files:**
+- Modify: `rtl/amber_ace_issue.sv` (if the event tap is not already visible), `amber_pkg` (MonBus event code), `amber_monlite` map
+- Test: onyx-rig scenario — every clean victim, from every line state, emits `Evict`; none is silently dropped
+
+**Why:** onyx D3's directory-lite candidate keys sharer accuracy on clean `Evict` traffic; a silently-dropped clean victim becomes a false-positive snoop later.
+
+- [ ] **Step 1:** failing test enumerating clean-victim cases per state
+- [ ] **Step 2:** `AMBER_EV_*` code + tally wiring; suite green
+- [ ] **Step 3: Commit** (`amber: clean-victim Evict verified and observable (A3)`)
+
+### Task 17: A2 — formal: snoop sourcing rule on the pending-fill bypass
+
+**Files:**
+- Modify: `formal/amber/` (new sby area beside the Task 13 proofs)
+
+**Spec:** improvement plan A2 — a snoop matching a pending fill answers from fill data once the beat has arrived, answers "not present" when it has not, and is never delayed on resources unrelated to its own line. Task 13 target 1 covers the safety half (no stale data); this is the progress-bound half.
+
+- [ ] **Step 1:** wrapper + sby at the Task 13 tiny geometry; assumptions mirror the Task 13 set
+- [ ] **Step 2:** `sby -f` green; `bin/formal_status.py` gate PASS
+- [ ] **Step 3:** re-run the Task 4 unit suite (harness divergence check)
+- [ ] **Step 4: Commit** (`amber: snoop sourcing rule proven (A2)`)
+
+**Explicitly not scheduled:** A1/A4 (exclusive-monitor boundary documentation and the temporary snoop-stall hook) remain future hooks with no current consumer — the falcon line is RV32IM/RV32IMF with no A extension and hive is message-passing with no shared memory, so nothing in the current plans issues LR/SC through amber. They activate only if a shared-memory SMP direction (onyx N2, AxLock/PoS monitor) is ever taken.
+
+---
+
 ## Self-Review
 
 1. **Spec coverage:** every MAS ch02 block lands (control 3, bypass 4, victim 5, fill/drain 6, snoop_resp integration 7, frontend/monlite 8, core 9, tops 11/12); ch06 formal targets → 13; parity criterion 1 → 10; gated pair rig → 11; D11 ruling → 9; observation present-vs-absent → 8/11. No gaps.
