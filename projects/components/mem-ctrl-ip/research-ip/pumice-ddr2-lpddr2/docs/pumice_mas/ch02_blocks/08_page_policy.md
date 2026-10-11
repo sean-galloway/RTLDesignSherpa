@@ -217,3 +217,9 @@ above, costing 4.9x the activations. **The change worth making is routing the
 per-row verdict to `timeout_pre_req_o` instead of `ap_close_o`**, keeping the
 idle-gate cancellation that makes mode 3 fast while adding per-row selectivity.
 That is the only version of mode 5 that could beat `fixed_open`.
+
+## References
+
+- Hur, Lin, "Adaptive History-Based Memory Schedulers," MICRO 2004. [PDF](../../../../../references/AdaptiveHistoryBasedSchedulers__Hur2004.pdf)
+- İpek, Mutlu, Martínez, Caruana, "Self-Optimizing Memory Controllers: A Reinforcement Learning Approach," ISCA 2008. [PDF](../../../../../references/SelfOptimizingMemoryControllers__Ipek2008.pdf)
+- Smith, "A Study of Branch Prediction Strategies," ISCA 1981. [DOI](https://doi.org/10.1145/285930.285980) (saturating-counter machinery)

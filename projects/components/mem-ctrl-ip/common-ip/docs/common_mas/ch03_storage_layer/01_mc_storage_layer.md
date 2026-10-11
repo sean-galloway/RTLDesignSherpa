@@ -200,3 +200,8 @@ When `hash_en_i` is set, each bank bit is folded with row bits and the seed: `ba
 
 - When will the research rocks switch from their local `addr_mapper` to the common `mc_addr_mapper`? No `mc_addr_mapper` instantiations were found in `research-ip/*/rtl`.
 - The legacy `sched_lu_*` and `oldest_*` ports on both CAMs are tied off inside `mc_storage_layer`. Will they be removed or reconnected for a future scheduler variant?
+
+## References
+
+- Tomasulo, "An Efficient Algorithm for Exploiting Multiple Arithmetic Units," IBM JRD 1967. [PDF](../../../../references/MultipleArithmeticUnits__Tomasulo1967.pdf) (conceptual convergence: CAM scoreboard)
+- Jacob, Ng, Wang, *Memory Systems: Cache, DRAM, Disk*, Morgan Kaufmann 2007. [Publisher page](https://www.elsevier.com/books/memory-systems/jacob/978-0-12-379751-3) (wr2rd snarf/forwarding; citation-only, book)

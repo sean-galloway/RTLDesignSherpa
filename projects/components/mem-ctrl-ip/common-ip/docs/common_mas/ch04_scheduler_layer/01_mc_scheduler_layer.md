@@ -152,3 +152,9 @@ For DDR4 P1 init the wrapper must ack the `init_sequencer` in the same cycle the
 
 - The exact encodings of `page_mode_i` and `page_tr_init_i` are consumed by the wrapper's `page_policy` child, not by `mc_scheduler_layer`; this chapter treats them as opaque forwarded CSRs.
 - Multi-rank arbitration is fixed at `RK0 = 0` in `mc_cmd_arbiter.sv:194`; whether the same fire-stage authority scales to `NUM_RANKS > 1` is not exercised by the present core.
+
+## References
+
+- Rixner, Dally, Kapasi, Mattson, Owens, "Memory Access Scheduling," ISCA 2000. [PDF](../../../../references/MemoryAccessScheduling__Rixner2000.pdf)
+- Mutlu, Moscibroda, "Stall-Time Fair Memory Access Scheduling for Chip Multiprocessors," MICRO 2007. [PDF](../../../../references/StallTimeFairMemoryScheduling__Mutlu2007.pdf)
+- Tomasulo, "An Efficient Algorithm for Exploiting Multiple Arithmetic Units," IBM JRD 1967. [PDF](../../../../references/MultipleArithmeticUnits__Tomasulo1967.pdf) (conceptual convergence: schedulable-entry view)

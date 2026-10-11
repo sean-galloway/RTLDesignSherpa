@@ -372,3 +372,7 @@ Issue rate is **one command per `aclk`**. The arbiter never sees the DFI
 multi-phase dimension — the DFI layer packs phases downstream. Selection is
 oldest-first by wrap-safe CAM age; there is no QoS, no lookahead window, and no
 `SCHEDULER_MODE` OOO/INORDER synthesis switch.
+
+## References
+
+- Rixner, Dally, Kapasi, Mattson, Owens, "Memory Access Scheduling," ISCA 2000. [PDF](../../../../../references/MemoryAccessScheduling__Rixner2000.pdf)

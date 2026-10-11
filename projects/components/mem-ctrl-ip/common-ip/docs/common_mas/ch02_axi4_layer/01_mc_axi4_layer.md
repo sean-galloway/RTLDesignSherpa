@@ -197,3 +197,7 @@ The ring is sized by `RD_RET_DEPTH` (default 32). This decoupling fixed a bandwi
 ## Open questions
 - Whether `NUM_ENTRIES`, `N_SRAM_SLOTS`, `N_SCHED_LU`, and `AGE_WIDTH` are still consumed by `mc_axi4_layer` itself or are pass-through remnants from an earlier integration; they appear only in the parameter list and do not drive any local logic in the reviewed RTL (`macro/mc_axi4_layer.sv:52-55`).
 - Whether `bank_lsb_i` is allowed to place the bank boundary inside the AXI beat; the intakes mask the beat-offset bits before address mapping, but the resulting column alignment behavior for data-width converters wider than the device word is not verified here.
+
+## References
+
+- Smith, Pleszkun, "Implementation of Precise Interrupts in Pipelined Processors," IEEE Trans. Computers 1988 (orig. ISCA 1985). [DOI](https://doi.org/10.1109/12.4607) (conceptual convergence: reorder buffer)

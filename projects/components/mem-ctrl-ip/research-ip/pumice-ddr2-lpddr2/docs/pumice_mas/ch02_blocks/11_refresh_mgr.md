@@ -296,3 +296,7 @@ scope, not as current behavior:
   a single priority-based request rather than per-(rank, bank)
   `refresh_req`/`refresh_gnt` arrays. Any of the above features would likely
   reintroduce sequencing state.
+
+## References
+
+- Stuecheli, Kaseridis, Hunter, John, "Elastic Refresh: Techniques to Mitigate Refresh Penalties in High Density Memory," MICRO 2010. [PDF](../../../../../references/ElasticRefresh__Stuecheli2010.pdf) (scoria's Mode A/B elastic postpone/pull-in converges with this family-wide idea; the scoria book gets its own section when it unfreezes)
