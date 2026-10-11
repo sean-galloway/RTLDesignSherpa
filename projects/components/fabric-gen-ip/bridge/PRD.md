@@ -86,7 +86,7 @@ Features intentionally excluded for simplicity:
 - (Both of these WERE excluded once and no longer are: ID width and address
   width are per-port generation inputs. Left here as history because the
   "design differentiator" argument above still cites them.)
-- ~~No AXI4-Lite protocol variant~~ -- `axil` and `axil5` ARE supported, as slave protocols (converted at the boundary by `axi4_to_axil4_{rd,wr}` / `axi4_to_axil5_{rd,wr}`) and, since bridge TASK-004 (was BRIDGE-014), as master protocols (tied-off promotion plus the AXI5-Lite sideband surface). `apb` / `apb5` likewise work on both sides (`axi4_to_apb{4,5}_shim` at a slave, `apb{4,5}_to_axi4` at a master), and so does Wishbone B4 since bridge TASK-008 (was BRIDGE-019) (`axi4_to_wb4` / `wb4_to_axi4`).
+- ~~No AXI4-Lite protocol variant~~ -- `axil` and `axil5` ARE supported, as slave protocols (converted at the boundary by `axi4_to_axil4_{rd,wr}` / `axi4_to_axil5_{rd,wr}`) and, since bridge TASK-004 (was BRIDGE-014), as master protocols (tied-off promotion plus the AXI5-Lite sideband surface). `apb` / `apb5` likewise work on both sides (`axi4_to_apb{4,5}_shim` at a slave, `apb{4,5}_to_axi4` at a master), Wishbone B4 since bridge TASK-008 (was BRIDGE-019) (`axi4_to_wb4` / `wb4_to_axi4`), and AXI3 (`axi4_to_axi3` at a slave, `axi3_to_axi4` at a master).
 - No ACE protocol extensions (cache coherency)
 - ~~No AXI5 features~~ -- interop-mode AXI5 sideband, native sideband through the structs, atomics of every class and APB5/AXI5-Lite ports were delivered by bridge TASK-002 (was BRIDGE-002); what is NOT built is a fabric that is itself AXI5 (bridge TASK-007, was BRIDGE-018)
 - QoS, Region and REQUEST-side User (AWUSER/ARUSER/WUSER) are routed since
@@ -223,6 +223,10 @@ Bridge automates generation of AXI4 crossbar infrastructure:
       instantiated by `apb_periph_adapter.sv` in every mixed config, and
       `bridge_1x2_rw_apb5`, `bridge_1x2_rw_apb5_mon` and the four `mix_*`
       bridges ship with APB slaves.
+- [x] AXI3 converter integration -- DELIVERED. `axi4_to_axi3` and `axi3_to_axi4`
+      boundary converters are emitted for `protocol = "axi3"` slave and master
+      ports; `bridge_1x2_axi3`, `bridge_2x2_axi3_masters`, `bridge_2x2_axi3_slaves`
+      and `bridge_mix_e` ship as validation fixtures.
 
 **Performance:**
 - [ ] Latency ≤ 3 cycles for single-beat transactions. **Unverified for the
@@ -254,7 +258,7 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
    - CSV connectivity matrix (`bridge_name_connectivity.csv`)
    - Custom port prefixes (`rapids_m_axi_`, `cpu_m_axi_`, etc.)
    - Interface wrapper integration (timing isolation)
-   - Mixed protocols (AXI4 + APB + AXI4-Lite slaves)
+   - Mixed protocols (AXI4 + AXI3 + APB + AXI4-Lite slaves)
    - Channel-specific masters (wr/rd/rw)
    - Status: Phase 2 complete, Phase 3 pending
 

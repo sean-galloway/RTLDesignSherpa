@@ -75,6 +75,15 @@ Protocol conversion has five jobs:
   promotion) in front of the ordinary timing wrapper; SLVERR/DECERR -> ERR
 - B4 pipelined; `CTI`/`BTE` carried as CLASSIC/LINEAR, never acted on
 
+**AXI3 (both sides, GitHub #97)**:
+- Slave port: `axi4_to_axi3` converts the crossbar's AXI4 master face to an
+  AXI3 slave face; same data width only.
+- Master port: `axi3_to_axi4` converts the external AXI3 master face to an
+  AXI4 slave face, then the ordinary AXI4 timing wrapper takes over.
+- Long egress bursts are chopped, WID is stamped/stripped, and lock mapping
+  follows the converter's documented encoding — see "AXI3 Boundary
+  Conversion" below and the converters MAS §3.15/§3.16.
+
 ### Current Limitation: AXI4-Lite Conversion
 
 **Superseded.** This paragraph said AXIL slaves were treated as full AXI4 internally with no real conversion; the very next paragraph, and the RTL, say otherwise -- `axi4_to_axil4_{rd,wr}.sv` perform genuine burst decomposition into single-beat AXI4-Lite transactions. Kept only so the contradiction is not silently deleted. The old text read:
@@ -968,6 +977,48 @@ When `protocol = "wb4"` is specified (bridge TASK-008, was BRIDGE-019):
 
 **Modules**: `projects/components/utility-ip/converters/rtl/axi4_to_wb4.sv`,
 `wb4_to_axi4.sv` -- see the converters MAS.
+
+### AXI3 Boundary Conversion
+
+When `protocol = "axi3"` is specified, a same-width protocol converter sits at
+the boundary and the crossbar behind it stays AXI4:
+
+- **Slave boundary:** the generated adapter instantiates `axi4_to_axi3` between
+  the crossbar core and the external AXI3 slave port. Egress AXI4 bursts
+  longer than 16 beats are chopped into sequential AXI3 bursts; `WID` is
+  stamped per beat; `QoS`/`REGION` are dropped; lock is mapped as the
+  converter documents it.
+- **Master boundary:** the adapter exposes an AXI3 completer surface and
+  instantiates `axi3_to_axi4` in front of the ordinary AXI4 timing wrapper.
+  `WID` is stripped, `QoS`/`REGION` are driven to zero, and lock is mapped as
+  the converter documents it.
+
+The bridge does not add width conversion inside the protocol converter. When
+an AXI3 port's external width differs from a target slave width, the existing
+internal width-adaptation path (`dwidth_converter` or the wide-slave aligner)
+operates on the AXI4 side behind the converter.
+
+Converter-sourced obligations (for full wording see converters MAS §3.15
+*AXI4 to AXI3 Converter* and §3.16 *AXI3 to AXI4 Converter*):
+
+1. An AXI3 master must not interleave W data across IDs. `axi3_to_axi4_wr`
+   asserts `ASSERT_A3_WID_STABLE` if `WID` changes mid-burst or differs from
+   the active AWID.
+2. Egress bursts longer than 16 beats are chopped by address regeneration;
+   `INCR` and `FIXED` are supported, `WRAP` longer than 16 beats is rejected.
+3. `QoS` and `REGION` are absent on AXI3 pins.
+4. The converters are same-width only; width adaptation is the bridge's
+   internal concern.
+5. Lock mapping is exactly as the converter documents:
+   - `axi4_to_axi3`: `1'b0 → 2'b00`, `1'b1 → 2'b10`.
+   - `axi3_to_axi4`: `2'b10 → 1'b1`, all other values → `1'b0`.
+
+Validation fixtures: `bridge_1x2_axi3`, `bridge_2x2_axi3_masters`,
+`bridge_2x2_axi3_slaves`, `bridge_mix_e`.
+
+**Modules**: `projects/components/utility-ip/converters/rtl/axi4_to_axi3.sv`,
+`axi4_to_axi3_rd.sv`, `axi4_to_axi3_wr.sv`, `axi3_to_axi4.sv`,
+`axi3_to_axi4_rd.sv`, `axi3_to_axi4_wr.sv`.
 
 ### Master-Side AXI5-Lite Sideband
 

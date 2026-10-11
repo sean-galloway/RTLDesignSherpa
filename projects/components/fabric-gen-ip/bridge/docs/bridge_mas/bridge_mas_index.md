@@ -36,7 +36,7 @@ Bridge is a CSV-driven generator that produces AXI4 crossbars with automatic wid
 
 ### Key Features
 
-- **Multi-Protocol Support:** AXI4, AXI4-Lite, and APB slave conversion
+- **Multi-Protocol Support:** AXI4, AXI3, AXI4-Lite, and APB slave conversion
 - **CSV-Driven Configuration:** Human-readable port and connectivity definitions
 - **Channel-Specific Masters:** Write-only (wr), read-only (rd), or full (rw) support
 - **Automatic Width Conversion:** Upsize/downsize for data width mismatches
@@ -52,6 +52,8 @@ What happens to a transaction depends on the master/slave protocol pairing:
 | Master Protocol | Slave Protocol | Conversion |
 |---|---|---|
 | AXI4 | AXI4 | Direct or width convert |
+| AXI4 | AXI3 | `axi4_to_axi3` protocol convert; same data width |
+| AXI3 | AXI4 | `axi3_to_axi4` protocol convert; same data width |
 | AXI4 | AXI4-Lite | Protocol downgrade |
 | AXI4 | APB | Full protocol conversion |
 
@@ -195,7 +197,7 @@ Each chapter below is one source file.
 
 #### For Integration
 
-- **Protocol support:** See [Protocol Conversion](ch02_blocks/07_protocol_conversion.md) for AXI4/APB/AXI-Lite
+- **Protocol support:** See [Protocol Conversion](ch02_blocks/07_protocol_conversion.md) for AXI4/AXI3/APB/AXI-Lite
 - **Width handling:** See [Width Conversion](ch02_blocks/06_width_conversion.md) for data width mismatches
 - **ID management:** See [ID Management](ch02_blocks/05_id_management.md) for transaction tracking
 - **Error handling:** See [Error Handling](ch02_blocks/09_error_handling.md) for OOR and timeout

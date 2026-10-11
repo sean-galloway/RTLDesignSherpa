@@ -40,6 +40,7 @@ No local PDFs are archived here. The documents below are commercial books; only 
 | Eschemann, *The FPGA Programming Handbook* | Bruno & Eschemann, *The FPGA Programming Handbook*, Packt, 2023. ISBN 978-1805125594. | [WorldCat](https://search.worldcat.org/search?q=978-1805125594) | Educational secondary source for AXI channel explanations (ch8). |
 | Roy, *Advanced Digital System Design* | Roy, *Advanced Digital System Design*, Springer, 2023. ISBN 978-3-031-41084-0. | [WorldCat](https://search.worldcat.org/search?q=978-3-031-41084-0) | AXI channel/feature descriptions (ch18 §18.2.2-18.2.3). |
 | ARM, *AMBA AXI and ACE Protocol Specification* | ARM, *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022E. | [ARM documentation](https://developer.arm.com/documentation/ihi0022/latest) | The AXI4 protocol authority itself. |
+| ARM, *AMBA 3 AXI Protocol Specification* | ARM, *AMBA 3 AXI Protocol Specification*, ARM IHI 0022. | [ARM documentation](https://developer.arm.com/documentation/ihi0022/latest) | The AXI3 protocol authority; 4-bit `AxLEN`, 2-bit `AxLOCK`, write-data `WID`, absence of `QoS`/`REGION`. |
 
 ---
 

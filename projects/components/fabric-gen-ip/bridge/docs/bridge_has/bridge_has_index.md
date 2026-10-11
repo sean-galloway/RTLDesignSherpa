@@ -86,6 +86,7 @@
 - [Parameter Configuration](ch06_integration/02_parameters.md)
 - [Verification Strategy](ch06_integration/03_verification.md)
 - [Synthesis and Implementation](ch06_integration/04_synthesis.md)
+- [AXI3 Integration](ch06_integration/05_axi3_integration.md)
 
 ---
 

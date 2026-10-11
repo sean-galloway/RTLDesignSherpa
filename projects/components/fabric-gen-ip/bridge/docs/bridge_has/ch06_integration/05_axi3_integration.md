@@ -1,0 +1,91 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
+# AXI3 Integration
+
+## Boundary-Conversion Architecture
+
+The bridge crossbar is AXI4 internally. An AXI3 port is therefore converted at
+the boundary, not natively carried through the fabric:
+
+- **AXI3 slave port** (`protocol = "axi3"` on a slave): the crossbar's AXI4
+  master face drives `axi4_to_axi3`, whose AXI3 master face presents the
+  external slave pins.
+- **AXI3 master port** (`protocol = "axi3"` on a master): the external AXI3
+  master drives `axi3_to_axi4`, whose AXI4 slave face feeds the ordinary AXI4
+  master timing wrapper and the rest of the adapter.
+
+Both converters require the AXI3 data width and the paired AXI4 width to match;
+any width adaptation is the bridge's internal `dwidth_converter` or
+`axil_to_axi4_wide_align` path *behind* the protocol converter, exactly as it
+is for native AXI4 ports.
+
+## Converter-Sourced Constraints
+
+The bridge does not enforce AXI3 semantics itself — it instantiates the
+converters and relies on their contracts. The constraints below are taken from
+the converters MAS:
+
+1. **No write-data interleaving across IDs.** `axi4_to_axi3_wr` stamps every
+   AXI3 W beat with the current AWID and does not support interleaved W IDs;
+   `axi3_to_axi4_wr` accepts only one outstanding write transaction at a time
+   and asserts `ASSERT_A3_WID_STABLE` if `WID` changes mid-burst or differs
+   from the active AWID. The upstream AXI3 master must keep W beats in
+   transaction order.
+2. **Egress bursts longer than 16 beats are chopped.** `axi4_to_axi3_rd` and
+   `axi4_to_axi3_wr` split AXI4 bursts into sequential AXI3 bursts of up to 16
+   beats each; `INCR` and `FIXED` bursts are advanced/regenerated, while
+   `WRAP` bursts longer than 16 beats are deferred (assertion-rejected).
+3. **QoS and REGION are absent on AXI3 pins.** `axi4_to_axi3` drops them;
+   `axi3_to_axi4` drives them to zero.
+4. **Same-width converters only.** `AXI_DATA_WIDTH` must be identical on both
+   sides; the bridge places its existing width-adaptation logic behind the
+   converter when the external AXI3 width differs from a target slave width.
+5. **Lock mapping as documented by the converter.** The converters define the
+   encoding translation:
+   - `axi4_to_axi3`: `1'b0 → 2'b00`, `1'b1 → 2'b10`.
+   - `axi3_to_axi4`: `2'b10 → 1'b1`, all other values → `1'b0`.
+
+See converters MAS §3.15 *AXI4 to AXI3 Converter*
+([`15_axi4_to_axi3.md`](../../../../../../components/utility-ip/converters/docs/converter_mas/ch03_protocol_blocks/15_axi4_to_axi3.md))
+and §3.16 *AXI3 to AXI4 Converter*
+([`16_axi3_to_axi4.md`](../../../../../../components/utility-ip/converters/docs/converter_mas/ch03_protocol_blocks/16_axi3_to_axi4.md))
+for the full contracts.
+
+## Validation Evidence
+
+The following generated configurations exercise AXI3 on both boundaries and
+pass the bridge GATE and FUNC regression suites:
+
+- `bridge_1x2_axi3`
+- `bridge_2x2_axi3_masters`
+- `bridge_2x2_axi3_slaves`
+- `bridge_mix_e`
+
+## References
+
+* ARM, *AMBA 3 AXI Protocol Specification*, ARM IHI 0022 — the AXI3 protocol
+  authority; 4-bit `AxLEN`, 2-bit `AxLOCK`, write-data `WID`, absence of
+  `QoS`/`REGION`. ([Reference archive](../../../references/README.md))
+* ARM, *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022E — the AXI4
+  protocol authority. ([Reference archive](../../../references/README.md))

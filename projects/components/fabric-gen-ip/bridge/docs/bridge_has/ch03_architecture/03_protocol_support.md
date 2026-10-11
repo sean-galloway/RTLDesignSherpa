@@ -44,6 +44,19 @@ Simplified AXI4 for register access:
 - **No IDs:** Transaction ordering by channel
 - **Fixed width:** Typically 32 or 64 bits
 
+### AXI3
+
+Legacy AMBA AXI3 protocol support, added as a boundary conversion so the
+internal crossbar remains AXI4:
+
+- **5 channels:** AW, W, B, AR, R, with `WID` present on write data
+- **Burst length:** 1–16 beats on the boundary; longer AXI4 bursts are chopped
+  by the boundary converter
+- **Per-port data width:** Same width as the paired AXI4 side; width adaptation
+  happens inside the bridge behind the converter when necessary
+- **Lock mapping and interleaving constraints:** set by the converter, not the
+  crossbar — see HAS 6.5 AXI3 Integration
+
 ### APB (Advanced Peripheral Bus)
 
 Low-power peripheral protocol:
@@ -67,14 +80,16 @@ Low-power peripheral protocol:
 | APB / APB5 | any | Full convert | `apb{4,5}_to_axi4` front end, then as AXI4-Lite |
 | any | Wishbone B4 | Full convert | `axi4_to_wb4`: one transfer per beat, in-order termination |
 | Wishbone B4 | any | Full convert | `wb4_to_axi4` front end, then as AXI4-Lite |
+| AXI4 | AXI3 | Protocol convert | `axi4_to_axi3` slave boundary; same data width only |
+| AXI3 | AXI4 | Protocol convert | `axi3_to_axi4` master boundary; same data width only |
 
 : Table 3.3: Protocol Conversion Matrix
 
 ## Automatic Conversion Shims at Slave Boundary
 
 When a slave port's TOML entry names a protocol other than native AXI4 (e.g.,
-`protocol = "axil"` or `protocol = "apb"`), the generator emits the conversion
-shims between the crossbar core and that slave port. This happens once, at
+`protocol = "axi3"`, `protocol = "axil"` or `protocol = "apb"`), the generator
+emits the conversion shims between the crossbar core and that slave port. This happens once, at
 generation time; there is nothing to configure at runtime.
 
 **Supported Slave Protocols** -- these are the exact TOML values the generator
@@ -84,6 +99,7 @@ error, so spelling matters:
 | `protocol` | Meaning | Shim emitted at the slave boundary |
 | --- | --- | --- |
 | `axi4` | Native AXI4 | none |
+| `axi3` | AMBA AXI3 | `axi4_to_axi3` |
 | `axi5` | AXI5, interop mode | `axi5_master_{wr,rd}` boundary wrappers |
 | `axil` | AXI4-Lite | `axi4_to_axil4_{rd,wr}` |
 | `axil5` | AXI5-Lite | `axi4_to_axil5_{rd,wr}` |
@@ -108,6 +124,7 @@ and the master adapter converts to the AXI4 the crossbar speaks:
 | `protocol` | Boundary presents | Conversion in the master adapter |
 | --- | --- | --- |
 | `axi4` | AXI4 | none (timing wrapper only) |
+| `axi3` | AXI3 | `axi3_to_axi4`, then the AXI4 timing wrapper |
 | `axi5` | AXI5 (minus REGION, plus enabled features) | `axi5_slave_{wr,rd}` boundary wrappers |
 | `axil` | AXI4-Lite | AXI4 extras tied (`AxLEN=0`, INCR, `WLAST=1`, ID = placeholder); the wide-slave aligner toward wider slaves |
 | `axil5` | AXI5-Lite, full sideband | as `axil`; `exclusive` -> `AxLOCK`, `user` -> the 1-bit USER fields; every other group terminated at the top |
@@ -182,3 +199,4 @@ Only AR, R channels active:
 * Roy, *Advanced Digital System Design*, Springer 2023 — secondary source for AXI channel structure and headline protocol features (§18.2.2, §18.2.2.1). ([Reference archive](../../../references/README.md))
 * Maaref, *Architecting and Building High-Speed SoCs*, Packt 2022 — AMBA-suite context and the evolution of AXI4 features such as QoS/Region (ch3 §4.2). ([Reference archive](../../../references/README.md))
 * ARM, *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022E — the authoritative AXI4 protocol definition. ([Reference archive](../../../references/README.md))
+* ARM, *AMBA 3 AXI Protocol Specification*, ARM IHI 0022 — the AXI3 protocol authority; 4-bit `AxLEN`, 2-bit `AxLOCK`, write-data `WID`, absence of `QoS`/`REGION`. ([Reference archive](../../../references/README.md))
