@@ -13,8 +13,8 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -24,6 +24,8 @@ by construction rather than by discipline.
 
 ## Active
 
-- **TASK-001** — AXI3 converters (axi4_to_axi3 / axi3_to_axi4) — ACTIVE 2026-10-10: tracking scaffolding for GitHub issue #96
+(none)
 
 ## Closed
+
+- **TASK-001** — AXI3 converters (axi4_to_axi3 / axi3_to_axi4) — CLOSED 2026-10-11: tracking scaffolding for GitHub issue #96

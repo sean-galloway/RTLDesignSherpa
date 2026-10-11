@@ -24,8 +24,8 @@
 # Converters Micro-Architecture Specification Index
 
 **Component:** Converters (Data Width and Protocol Conversion Modules)
-**Version:** 1.0
-**Date:** 2026-01-03
+**Version:** 1.5
+**Date:** 2026-10-11
 **Purpose:** Detailed micro-architecture specification for Converters component
 
 ---
@@ -67,6 +67,8 @@ This specification covers the Converters component — the configurable data-wid
 - [APB to AXI4 (Requester)](ch03_protocol_blocks/12_apb_to_axi4.md)
 - [AXI4 to Wishbone B4](ch03_protocol_blocks/13_axi4_to_wb4.md)
 - [Wishbone B4 to AXI4](ch03_protocol_blocks/14_wb4_to_axi4.md)
+- [AXI4 to AXI3](ch03_protocol_blocks/15_axi4_to_axi3.md)
+- [AXI3 to AXI4](ch03_protocol_blocks/16_axi3_to_axi4.md)
 
 ### Chapter 4: FSM Design
 
@@ -148,6 +150,8 @@ Every diagram referenced in this book lives in two forms:
 | axil4_to_axi4 | Protocol upgrade | 100% | ~110 LUTs |
 | axi4_to_apb4_convert | Full protocol bridge | Sequential | Medium |
 | axi4_to_apb5_shim | APB5 sideband wrapper over the APB4 shim | Pass-through | Low |
+| axi4_to_axi3 | AXI4 to AXI3 protocol downgrade | 100% reads; serialized same-ID writes | ~600 LUTs (hand estimate) |
+| axi3_to_axi4 | AXI3 to AXI4 protocol upgrade | 100% reads; serialized writes | ~80 LUTs (hand estimate) |
 
 : Table 1.1: Converter Module Summary
 
@@ -181,6 +185,10 @@ Every diagram referenced in this book lives in two forms:
 
 ## Version History
 
+**Version 1.5 (2026-10-11):**
+- Added AXI4-to-AXI3 and AXI3-to-AXI4 protocol converter chapters (3.15, 3.16)
+- Added references store for converters component
+
 **Version 1.0 (2026-01-03):**
 - Initial MAS release
 - Migrated from converter_spec format
@@ -189,5 +197,5 @@ Every diagram referenced in this book lives in two forms:
 
 ---
 
-**Last Updated:** 2026-01-03
+**Last Updated:** 2026-10-11
 **Maintained By:** RTL Design Sherpa Project
