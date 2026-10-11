@@ -47,6 +47,10 @@ Read and write are split into independent modules so a user can instantiate only
 
 : Table 3.45: AXI4 to AXI3 protocol differences
 
+### Exclusive-access caveat
+
+The DE10 leg-bridge `f2h` seam is not expected to exercise AXI exclusive accesses. The converter still maps an AXI4 exclusive request (`AxLOCK = 1'b1`) to the AXI3 encoding (`2'b10`), but the upstream system does not implement exclusive-monitor semantics at this boundary. If a legacy AXI3 locked (`2'b01`) transaction arrives on a downstream return path, it is treated as a normal access.
+
 ## 3.15.3 Read Path (axi4_to_axi3_rd)
 
 ### Operation

@@ -17,7 +17,7 @@ Plan Task 11's close-out criteria.
 
 ## Resolution
 
-Closed via GitHub issue #96. Implementation span: `2f7dd0a..HEAD` (36 commits).
+Closed via GitHub issue #96. Implementation span: `2f7dd0a..3bcda2262` (21 converter commits).
 Final deliverables:
 - RTL: `axi4_to_axi3`, `axi4_to_axi3_rd`, `axi4_to_axi3_wr`, `axi3_to_axi4`, `axi3_to_axi4_rd`, `axi3_to_axi4_wr`, `axi3_loopback`
 - DV: full converters regression passed (`168 passed, 1 xfailed` at `TEST_LEVEL=func`)

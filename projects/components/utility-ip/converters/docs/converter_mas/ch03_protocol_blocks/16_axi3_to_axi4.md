@@ -23,7 +23,7 @@
 
 # 3.16 AXI3 to AXI4 Converter
 
-The **axi3_to_axi4** converter family bridges an AXI3 master to an AXI4 slave. It is the complement of the AXI4-to-AXI3 converter and is used on the same DE10 leg-bridge `f2h` seam when traffic flows from the AXI3 hard subsystem toward AXI4 fabric logic.
+The **axi3_to_axi4** converter family bridges an AXI3 master to an AXI4 slave. It is the complement of the AXI4-to-AXI3 converter and is used on the DE10 leg-bridge `h2f_axi_master` seam when traffic flows from the AXI3 hard processor subsystem toward AXI4 fabric logic.
 
 ## 3.16.1 Module Organization
 
@@ -46,6 +46,10 @@ As with the opposite direction, read and write are independent modules for selec
 | Data width | Must match | Must match | No width conversion. |
 
 : Table 3.49: AXI3 to AXI4 protocol differences
+
+### Exclusive-access caveat
+
+The DE10 leg-bridge `h2f_axi_master` seam does not support AXI exclusive accesses. The converter maps an AXI3 exclusive request (`AxLOCK = 2'b10`) to the AXI4 encoding (`AxLOCK = 1'b1`), but an AXI3 locked transaction (`AxLOCK = 2'b01`) is collapsed to normal (`AxLOCK = 1'b0`) because the HPS interface does not implement locked-transaction semantics.
 
 ## 3.16.3 Read Path (axi3_to_axi4_rd)
 

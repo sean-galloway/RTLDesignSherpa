@@ -36,6 +36,10 @@ No local PDFs are archived here. The documents below are ARM proprietary specifi
 | AMBA 3 AXI Protocol Specification | ARM, *AMBA 3 AXI Protocol Specification*, ARM IHI 0022. | [ARM documentation](https://developer.arm.com/documentation/ihi0022/latest) | Defines AXI3 protocol semantics used by `axi4_to_axi3` and `axi3_to_axi4`: 4-bit `AxLEN` (max 16 beats), 2-bit `AxLOCK`, write-data `WID`, and the absence of `QoS`/`REGION`. |
 | AMBA AXI and ACE Protocol Specification | ARM, *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022E. | [ARM documentation](https://documentation-service.arm.com/static/5f915b62f86e16515cdc3b1c) | Defines AXI4 protocol semantics used by `axi4_to_axi3` and `axi3_to_axi4`: 8-bit `AxLEN` (max 256 beats), 1-bit `AxLOCK`, no `WID`, and the `QoS`/`REGION` qualifiers. |
 
+## Lint Posture
+
+The converter area is linted under the repo's `-Wno-fatal` Verilator posture. Several `UNUSEDSIGNAL` warnings are expected and benign: `QoS`/`REGION` are dropped on the AXI4-to-AXI3 boundary, unused address/length fields remain in the `active_req`/`active_aw` descriptor structs for API symmetry, and the purely combinational `axi3_to_axi4_rd` does not use `aclk`/`aresetn`. These warnings do not indicate functional defects and are accepted rather than worked around with artificial tie-offs.
+
 ---
 
 **Maintained By:** RTL Design Sherpa Project
