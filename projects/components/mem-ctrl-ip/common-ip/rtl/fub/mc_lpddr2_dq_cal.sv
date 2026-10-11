@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: pumice_lp_cal
+// Module: mc_lpddr2_dq_cal
 // Purpose: One-shot LPDDR2 DQ-calibration sequencer. Issues MRR reads to
 //          MR32 (pattern A) and MR40 (pattern B), captures the first beat of
 //          each return, and exposes the captured data to firmware. The actual
@@ -24,8 +24,7 @@
 
 `include "reset_defs.svh"
 
-module pumice_lp_cal
-    import pumice_pkg::*;
+module mc_lpddr2_dq_cal
     import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int DFI_DATA_WIDTH = 128,
@@ -241,4 +240,4 @@ module pumice_lp_cal
     assign mrr32_valid_o = r_mrr32_valid;
     assign mrr40_valid_o = r_mrr40_valid;
 
-endmodule : pumice_lp_cal
+endmodule : mc_lpddr2_dq_cal

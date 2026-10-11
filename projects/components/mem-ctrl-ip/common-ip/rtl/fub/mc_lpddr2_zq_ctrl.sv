@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: pumice_zq_ctrl
+// Module: mc_lpddr2_zq_ctrl
 // Purpose: Periodic ZQ calibration (ZQCS/ZQCL) as maintenance traffic for
 //          LPDDR2. LPDDR2 has no dedicated ZQCS/ZQCL command; both are MRW
 //          writes to MR10 (OP = 0x56 for ZQCS, 0xAB for ZQCL). This FUB only
@@ -25,8 +25,7 @@
 
 `include "reset_defs.svh"
 
-module pumice_zq_ctrl
-    import pumice_pkg::*;
+module mc_lpddr2_zq_ctrl
     import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int MR10_INDEX = 10
@@ -196,4 +195,4 @@ module pumice_zq_ctrl
         end
     end)
 
-endmodule : pumice_zq_ctrl
+endmodule : mc_lpddr2_zq_ctrl

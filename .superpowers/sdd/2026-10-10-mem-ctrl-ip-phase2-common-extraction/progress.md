@@ -683,3 +683,22 @@ mc_lpddr2_dq_cal; scoria/andesite formatter alignment (their formatters stay
 rock-local until moved as mc_xddr3_/mc_xddr4_cmd_formatter). Book ownership
 updates (pumice HAS "what pumice owns" + common_mas ownership chapters) ride
 the docs tranche when books unfreeze.
+
+## 2026-10-11 (night) — Stage 2: LPDDR2 training clients -> common-ip
+
+- pumice_zq_ctrl -> common-ip/rtl/fub/mc_lpddr2_zq_ctrl.sv (LPDDR2 ZQ via MRW MR10)
+- pumice_lp_cal -> common-ip/rtl/fub/mc_lpddr2_dq_cal.sv (renamed lp_cal ->
+  dq_cal for clarity; MRR MR32/MR40 DQ calibration)
+- Rewired pumice_training_layer (:108, :131); vestigial pumice_pkg import
+  dropped from both (lint-proven unused, same as stage 1).
+- 2 new common fub filelists (sibling pattern, no research-ip deps); pumice
+  fub flists deleted; pumice_training_layer.f + 2 dv tests re-pointed
+  (filelist_path now rooted at common-ip, not ../../ hopping).
+- pumice rtl/fub is now EMPTY of build blocks. Remaining file:
+  pumice_cmd_arbiter.sv - NOT instantiated anywhere in RTL (verified all
+  mem-ctrl rtl; only comments + a `bind` doc reference). Kept alive solely as
+  the DUT of dv/tests/fub/test_pumice_arbiter_issue_rate.py (issue-rate
+  characterization). Owner decision pending: delete (with its test) vs keep
+  as reference model.
+- Verified: registry --check + --audit PASS, verilator lint clean pumice_core
+  AND scoria_core.

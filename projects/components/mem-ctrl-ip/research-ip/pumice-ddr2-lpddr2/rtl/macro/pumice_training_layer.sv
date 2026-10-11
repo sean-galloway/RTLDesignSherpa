@@ -6,8 +6,8 @@
 //
 // Module: pumice_training_layer
 // Purpose: Pumice-specific wrapper around the common mc_training_layer shell.
-//          Owns the rock-side training FUBs (pumice_zq_ctrl, pumice_lp_cal)
-//          and maps the generic 2-slot maintenance-command stream onto the
+//          Owns the common LPDDR2 training FUBs (mc_lpddr2_zq_ctrl,
+//          mc_lpddr2_dq_cal) and maps the generic 2-slot maintenance-command stream onto the
 //          scheduler's native {req,grant,op,bank,row,mrr} port.
 //
 //          Slot 0 = ZQ calibration (highest priority). Slot 1 = LPDDR2 DQ cal.
@@ -105,7 +105,7 @@ module pumice_training_layer
     //=========================================================================
     // Rock-side training FUBs
     //=========================================================================
-    pumice_zq_ctrl u_zq (
+    mc_lpddr2_zq_ctrl u_zq (
         .mc_clk            (mc_clk),
         .mc_rst_n          (mc_rst_n),
         .zq_en_i           (zq_en_i),
@@ -128,7 +128,7 @@ module pumice_training_layer
         .obs_overdue_o     (zq_overdue_o)
     );
 
-    pumice_lp_cal #(
+    mc_lpddr2_dq_cal #(
         .DFI_DATA_WIDTH(DFI_DATA_WIDTH)
     ) u_lp_cal (
         .mc_clk          (mc_clk),

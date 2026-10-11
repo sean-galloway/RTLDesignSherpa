@@ -309,11 +309,11 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
                          ids=[t[0] for t in _PARAMS])
 def test_pumice_lp_cal(request, test_type):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "pumice_lp_cal"
+    dut_name = "mc_lpddr2_dq_cal"
     test_name = f"test_pumice_lp_cal_{test_type}"
 
-    filelist_path = ("projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/"
-                     "rtl/filelists/fub/pumice_lp_cal.f")
+    filelist_path = ("projects/components/mem-ctrl-ip/common-ip/"
+                     "rtl/filelists/fub/mc_lpddr2_dq_cal.f")
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 
