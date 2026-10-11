@@ -879,7 +879,8 @@ def test_axi3_master_generation_smoke(tmp_path):
 
 def _write_axi3_channel_toml(tmp_path, master_channels=None, slave_channels=None):
     """Write a minimal TOML + CSV pair with an optional AXI3 master and/or
-    AXI3 slave. Exactly one of master_channels/slave_channels must be set."""
+    AXI3 slave. When supplied, a channel string makes that port AXI3 with the
+    requested channels; the omitted port remains AXI4 with channels="rw"."""
     toml = tmp_path / "b.toml"
     conn = tmp_path / "c.csv"
     master_lines = [

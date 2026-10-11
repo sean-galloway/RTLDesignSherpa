@@ -82,6 +82,16 @@ pass the bridge GATE and FUNC regression suites:
 - `bridge_2x2_axi3_slaves`
 - `bridge_mix_e`
 
+### Configuration constraints
+
+The bridge validator enforces these AXI3-specific rules at configuration time:
+
+- AXI3 port data widths must be one of {32, 64, 128, 256}.
+- CDC on an AXI3 port is rejected in this version.
+- AXI3 masters require `id_width > 0`.
+- AXI3 slave `id_width` must be at least the fabric's master-index-prefixed
+  width (the same rule that applies to AXI4 slaves).
+
 ## References
 
 * ARM, *AMBA 3 AXI Protocol Specification*, ARM IHI 0022 — the AXI3 protocol

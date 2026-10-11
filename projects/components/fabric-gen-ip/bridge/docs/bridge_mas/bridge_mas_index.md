@@ -204,5 +204,5 @@ Each chapter below is one source file.
 
 ---
 
-**Last Updated:** 2026-09-07
+**Last Updated:** 2026-10-11
 **Maintained By:** RTL Design Sherpa Project
