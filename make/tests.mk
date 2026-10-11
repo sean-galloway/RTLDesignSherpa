@@ -12,10 +12,16 @@
 #
 # Target grammar (the whole surface):
 #
-#     make run-<all|testroot>-<gate|func|full>-<serial|parallel>
+#     make run-<all|testroot>-<gate|func|full|regr>-<serial|parallel>
 #
 #   testroot is the test file with `test_` and `.py` stripped:
 #     test_grey2bin.py  ->  make run-grey2bin-func-parallel
+#
+#   regr is a meta-level: the FULL grid run TEST_COUNT times (default 10,
+#   `make TEST_COUNT=3 ...`), one fresh RDS_SEED_BASE per repetition, so
+#   random-seed-exposed bugs surface without burning the exhaustive passes
+#   more than once. A failing rep fails the target after printing the exact
+#   replay command. See bin/regr_nightly_sweep.sh for the scheduled sweep.
 #
 # Targets are DISCOVERED by globbing test_*.py, never enumerated. A new test is
 # runnable the moment it lands - there is no list to update.
@@ -95,11 +101,13 @@ _cov_env := $(if $(filter 1,$(COVERAGE)),COVERAGE=1 ,)
 TESTS := $(sort $(wildcard test_*.py))
 ROOTS := $(patsubst test_%.py,%,$(TESTS))
 
-LEVELS := gate func full
+LEVELS := gate func full regr
 
 _reg_gate := GATE
 _reg_func := FUNC
 _reg_full := FULL
+# regr is a meta-level: it loops the FULL grid over fresh seed bases (see _run_regr).
+_reg_regr := REGR
 
 # Mode and waves are OPTIONAL suffixes. Bare `run-<x>-<level>` is parallel
 # without waves - the common case types shortest:
@@ -143,6 +151,14 @@ _sfx = $(if $(filter NONE,$(1)),,-$(1))
 # $(1)=REG_LEVEL  $(2)=xdist flags  $(3)=WAVES prefix  $(4)=glob stem
 # `ls` is what expands the stem, so the empty case is caught and named rather
 # than handed to pytest as zero files (which exits 5 and reads like a pass).
+#
+# REGR (called with $(1)=REGR) is not a grid of its own: it is the FULL grid
+# repeated TEST_COUNT times under fresh seed bases, delegated to
+# make/regr_loop.sh so the shell quoting lives in one testable place. Seed
+# semantics: repo-root conftest.py derives every test's seed from
+# RDS_SEED_BASE (SEED= would pin every test to the SAME seed, which is why
+# the base varies per rep instead). A failing rep fails the target after
+# printing the exact replay command.
 _run_glob = files=$$(ls test_$(4).py 2>/dev/null); \
 	if [ -z "$$files" ]; then \
 	  echo "!! $(AREA): no test files match 'test_$(4).py'" >&2; \
@@ -153,7 +169,11 @@ _run_glob = files=$$(ls test_$(4).py 2>/dev/null); \
 	echo "=============================================================================="; \
 	echo "$(AREA): test_$(4).py -> $$n file(s)  REG_LEVEL=$(1)$(if $(2),  workers=$(JOBS),  serial)$(if $(3),  waves=on)"; \
 	echo "=============================================================================="; \
-	REG_LEVEL=$(1) $(_cov_env)$(3)$(PYTEST) $(PYTEST_OPTS) $(2) $$files
+	if [ "$(1)" = "REGR" ]; then \
+	  AREA=$(AREA) XDIST="$(strip $(2))" $(if $(3),WAVES=1 ,)TEST_CMD="$(PYTEST) $(PYTEST_OPTS)" $(RDS_ROOT)/make/regr_loop.sh $$files; \
+	else \
+	  REG_LEVEL=$(1) $(_cov_env)$(3)$(PYTEST) $(PYTEST_OPTS) $(2) $$files; \
+	fi
 
 # --- 'all' is explicit: an explicit rule always beats a pattern rule, so
 # --- run-all-* can never be captured by run-%-* (stem 'all' would glob nothing)
@@ -162,13 +182,17 @@ define _rds_all_rule
 .PHONY: run-all-$(1)$(call _sfx,$(3))$(call _sfx,$(4))
 run-all-$(1)$(call _sfx,$(3))$(call _sfx,$(4)):
 	@echo "=============================================================================="
-	@echo "$(AREA): all ($(words $(ROOTS)) tests)  REG_LEVEL=$(_reg_$(1))$(if $(filter parallel,$(2)),  workers=$$(JOBS),  serial)$(if $(filter waves,$(4)),  waves=on)"
-	@echo "=============================================================================="
-	REG_LEVEL=$(_reg_$(1)) $$(_cov_env)$(if $(filter waves,$(4)),WAVES=1 )$$(PYTEST) $$(PYTEST_OPTS) $$(_xdist_$(2)) $$(TESTS)
+	@if [ "$(1)" = "regr" ]; then \
+	  AREA=$(AREA) XDIST="$(strip $(_xdist_$(2)))" $(if $(filter waves,$(4)),WAVES=1 ,)TEST_CMD="$(PYTEST) $(PYTEST_OPTS)" $(RDS_ROOT)/make/regr_loop.sh $(TESTS); \
+	else \
+	  echo "$(AREA): all ($(words $(ROOTS)) tests)  REG_LEVEL=$(_reg_$(1))$(if $(filter parallel,$(2)),  workers=$$(JOBS),  serial)$(if $(filter waves,$(4)),  waves=on)"; \
+	  echo "=============================================================================="; \
+	  REG_LEVEL=$(_reg_$(1)) $$(_cov_env)$(if $(filter waves,$(4)),WAVES=1 )$$(PYTEST) $$(PYTEST_OPTS) $$(_xdist_$(2)) $$(TESTS); \
+	fi
 endef
 
-# --- everything else is ONE pattern rule per variant: 18 rules total, covering
-# --- every test root and every glob over them
+# --- everything else is ONE pattern rule per variant: 24 rules total, covering
+# --- every test root and every glob over them (4 levels x 2 modes x waves on/off)
 define _rds_pat_rule
 run-%-$(1)$(call _sfx,$(3))$(call _sfx,$(4)):
 	@$$(call _run_glob,$(_reg_$(1)),$$(_xdist_$(2)),$(if $(filter waves,$(4)),WAVES=1 ,),$$*)

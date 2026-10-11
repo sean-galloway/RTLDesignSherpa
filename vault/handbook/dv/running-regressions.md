@@ -404,3 +404,47 @@ ran clean from `clean-all`:
 Quote pass counts for both halves, the same as any other regression. The
 2026-10-09 re-run of the five non-routine suites under 2.1.0 is the worked
 example recorded in tooling BUG-015.
+
+## The `regr` level: full depth, many seeds
+
+`regr` is a fourth level alongside gate/func/full (`make/tests.mk`). It runs
+the FULL grid `TEST_COUNT` times (default 10, `make TEST_COUNT=3 ...`),
+one fresh `RDS_SEED_BASE` per repetition, so random-seed-exposed bugs surface
+without re-running the seed-independent exhaustive passes more than once.
+Builds are cached across reps — repetitions cost simulation time only.
+
+    make run-all-regr-parallel            # one area, 10 seeded reps of FULL
+    make TEST_COUNT=3 run-axi4-regr       # cheaper local check
+
+A failing rep fails the target and prints the exact replay command
+(`REG_LEVEL=FULL RDS_SEED_BASE=<n> pytest ...`). That replay pair is the
+bug report: file it with the failure.
+
+Seed mechanics (repo-root conftest.py): every test derives its seed from
+`RDS_SEED_BASE`, so one base replays a whole rep; `SEED=` pins every test to
+the SAME seed, which is why the level varies the base instead. The nightly
+sweep's per-rep bases are derived from epoch + rep index and printed in the
+logs.
+
+## Nightly sweep: bin/regr_nightly_sweep.sh
+
+The scheduled whole-repo `regr` sweep. Fully self-documented (`--help`);
+the short version:
+
+- runs `regr` across the val/ areas (default `common cdc math amba`),
+  one area at a time, nice-d, only inside the idle window (21:00-15:00,
+  `--force` overrides);
+- SKIPS an area that looks actively worked on — files touched under its
+  val//rtl/ trees in the last 45 min, a pytest/verilator process whose cwd
+  or cmdline touches the area, or a git lock. Skips are recorded, never
+  retried the same night, never failures;
+- resumes via reports/regr/state.txt (an interrupted sweep continues the
+  next window; delete the state file for a full sweep);
+- writes reports/regr/<date>/{area.log,REPORT.md}; if a local Ollama answers
+  on OLLAMA_HOST the report gains a plain-language digest of the failures
+  (best-effort, never load-bearing);
+- exit 1 when an area goes red, so cron mail carries the failure.
+
+Enable/disable lives in the script header (one crontab line, installed on
+amdtrp at 21:07). A red area's REPORT.md section quotes the failure lines
+and the per-rep replay bases — copy them straight into the bug you file.
