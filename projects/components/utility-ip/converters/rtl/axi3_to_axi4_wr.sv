@@ -130,7 +130,6 @@ module axi3_to_axi4_wr #(
     logic [AXI_ID_WIDTH-1:0]    active_awid;
 
     logic                       aw_handshake;
-    logic                       w_handshake;
     logic                       b_handshake;
 
     //==========================================================================
@@ -138,7 +137,6 @@ module axi3_to_axi4_wr #(
     //==========================================================================
 
     assign aw_handshake = s_axi3_awvalid && s_axi3_awready;
-    assign w_handshake  = s_axi3_wvalid  && s_axi3_wready;
     assign b_handshake  = s_axi3_bvalid  && s_axi3_bready;
 
     //==========================================================================

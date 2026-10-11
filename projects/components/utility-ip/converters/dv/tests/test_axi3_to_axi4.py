@@ -84,7 +84,7 @@ async def axi3_to_axi4_smoke_test(dut):
             monitor_task.cancel()
             try:
                 await monitor_task
-            except Exception:
+            except BaseException:
                 pass
         await tb.wait_clocks('aclk', 10)
 
@@ -125,7 +125,7 @@ async def axi3_to_axi4_early_w_test(dut):
             monitor_task.cancel()
             try:
                 await monitor_task
-            except Exception:
+            except BaseException:
                 pass
         await tb.wait_clocks('aclk', 10)
 
