@@ -240,28 +240,26 @@ source env_python
 pytest val/common/test_arbiter_matrix_weighted.py -v
 ```
 
+The testbench in `bin/TBClasses/common/arbiter_matrix_weighted_tb.py` follows the same `ArbiterMaster` / `ArbiterMonitor` methodology as the round-robin arbiter testbench:
+
+- A `WeightedRoundRobinArbiterMonitor` is attached with `is_weighted=True` so it tracks `max_thresh` and runs WRR compliance checks.
+- Randomized scenario phases (grant-signals, basic-arbitration, walking-requests, block-arb, bursty-traffic, rapid-request-changes, single-client-saturation) drive stimulus through the weighted `ArbiterMaster` and assert one-hot, no-unrequested-grant, and weighted behavior through the monitor.
+- The weighted-distribution phase resets the DUT and uses `ArbiterMaster` manual control to hold all requests continuously (with auto-ACK in ACK mode). This produces a clean saturation stimulus so the monitor's weight-compliance window sees the expected share ratio.
+- Deterministic directed supplements cover weighted sequences, zero-weight, dynamic weight changes, idle gaps, mid-credit idle, single-requester immediacy, single-client no-ACK/ACK behavior, reset-order, and ACK-mode protocol.
+- `ArbiterCompliance` protocol checking is enabled and asserted at the end of the run.
+- Directed tests shut the master down via `enter_directed_mode()` / `exit_directed_mode()` so the testbench pokes the DUT signals directly without interference.
+- Verification passes at `REG_LEVEL=GATE`, `FUNC`, and `FULL` across `CLIENTS = 1, 2, 4, 5, 8` in no-ACK mode, plus ACK mode at `GATE` and `FULL`.
+
+---
+
+## References
+
+- Dally, William J. and Towles, Brian, *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ISBN 978-0122007514, ch. 17 §18.5 (matrix arbiters). Backs the grant/update scheme and the observation that matrix arbiters are well suited to small arbiters.
+- Dally & Towles, ch. 17 §18.4.4 (weighted arbiters). Backs the credit-based weighting semantics and the trade-off between controlled long-term shares and short-term burstiness.
+
 ---
 
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**
 - **[← Back to Main Documentation Index](../index.md)**
-
----
-
-## Testbench Methodology Alignment Report
-
-`bin/TBClasses/common/arbiter_matrix_weighted_tb.py` was reworked to follow the same `ArbiterMaster` / `ArbiterMonitor` methodology used by the round-robin arbiter testbench:
-
-- A `WeightedRoundRobinArbiterMonitor` is attached with `is_weighted=True` so it tracks `max_thresh` and runs WRR compliance checks.
-- Randomized scenario phases (grant-signals, basic-arbitration, walking-requests, block-arb, bursty-traffic, rapid-request-changes, single-client-saturation) drive stimulus through the weighted `ArbiterMaster` and assert one-hot, no-unrequested-grant, and weighted behavior through the monitor.
-- The weighted-distribution phase resets the DUT and uses `ArbiterMaster` manual control to hold all requests continuously (with auto-ACK in ACK mode).  This produces a clean saturation stimulus so the monitor's weight-compliance window sees the expected share ratio.
-- Deterministic directed supplements cover weighted sequences, zero-weight, dynamic weight changes, idle gaps, mid-credit idle, single-requester immediacy, single-client no-ACK/ACK behavior, reset-order, and ACK-mode protocol.
-- `ArbiterCompliance` protocol checking is enabled and asserted at the end of the run.
-- Directed tests shut the master down via `enter_directed_mode()` / `exit_directed_mode()` so the testbench pokes the DUT signals directly without interference.
-- Verification passes at `REG_LEVEL=GATE`, `FUNC`, and `FULL` across `CLIENTS = 1, 2, 4, 5, 8` in no-ACK mode, plus ACK mode at `GATE` and `FULL`.
-
-## References
-
-- Dally, William J. and Towles, Brian, *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ISBN 978-0122007514, ch. 17 §18.5 (matrix arbiters). Backs the grant/update scheme and the observation that matrix arbiters are well suited to small arbiters.
-- Dally & Towles, ch. 17 §18.4.4 (weighted arbiters). Backs the credit-based weighting semantics and the trade-off between controlled long-term shares and short-term burstiness.
