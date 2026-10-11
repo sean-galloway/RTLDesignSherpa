@@ -26,6 +26,7 @@
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axi3.f
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axi3_rd.f
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axi3_wr.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi3_to_axi4.f
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi3_to_axi4_rd.f
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi3_to_axi4_wr.f
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axil4.f
