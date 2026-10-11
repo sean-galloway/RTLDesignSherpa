@@ -147,13 +147,17 @@ Numbered for tracking; "Action" is a concrete spec/doc edit for amber v1.0.
   D7 currently records the decision but not the book reasoning.
   *Action:* cite Handy §2.2.2 in the replacement-policy doc.
 
-- **G6 — H&P memory-hierarchy chapter is unavailable in the local conversion.**
-  The calibre tree for H&P ends inside book chapter 4 (ILP); book chapter 5
-  (the canonical quantitative MSHR/nonblocking-cache/multilevel treatment) is
-  not converted. Amber blocking decisions do not need it, but any future jet
-  MSHR citations cannot come from this tree.
-  *Action:* extend the conversion or cite Kroft's MSHR paper and H&P ch5 by
-  print section only, flagged as outside the local conversion.
+- **G6 — H&P memory-hierarchy chapter is unavailable in the local conversion. CLOSED 2026-10-11.**
+  Originally: the calibre tree for H&P (the truncated *Quantitative
+  Approach* conversion) ends inside book chapter 4 (ILP); its
+  memory-hierarchy chapter — in H&P 6e numbering **ch2** *Memory Hierarchy
+  Design* (the "ch5" used earlier was 5e numbering) — was not citable.
+  *Resolution 2026-10-11:* the complete H&P 6e conversion
+  (`computer-architecture-the-morgan-kaufmann-series/`) now holds ch2;
+  §2.3's fourth optimization is nonblocking (lockup-free) caches with the
+  MSHR treatment. Amber's blocking decisions still cite COD/Handy/
+  Przybylski — no row changes; future jet MSHR citations (J1–J4) come from
+  the complete conversion — see the riscv memo's G10.
 
 ## 5. Deliberately-divergent repo constructs (defense summary)
 
@@ -193,13 +197,15 @@ a claim.
    cited here: 5 (§5.3, §5.4, §5.8, §5.9, §5.10, §5.13 advanced material).
 
 2. **Hennessy, John L., and David A. Patterson.** *Computer Architecture: A
-   Quantitative Approach,* 6th ed. Morgan Kaufmann, 2017. Local conversion:
-   `/mnt/data/github/calibre/books/computer-architecture-a-quantitative-approach-th/`
-   — **note: the local conversion covers front matter and book chapters 1–4
-   only** (ILP and earlier). Book chapter 5, the canonical memory-hierarchy
-   treatment, is **not present** in this conversion. No amber cache decision
-   is cited from H&P because the relevant chapter is missing; this absence is
-   itself recorded in G6.
+   Quantitative Approach,* 6th ed. Morgan Kaufmann, 2017. Two local
+   conversions. (a) `/mnt/data/github/calibre/books/computer-architecture-a-quantitative-approach-th/`
+   — **truncated: front matter and book chapters 1–4 only** (ILP and
+   earlier). (b) `/mnt/data/github/calibre/books/computer-architecture-the-morgan-kaufmann-series/`
+   — **complete conversion**, including book ch2 *Memory Hierarchy Design*
+   with §2.3 *Ten Advanced Optimizations of Cache Performance*
+   (nonblocking/lockup-free caches, MSHRs) — the source for all
+   memory-hierarchy citations. No amber cache decision is cited from H&P
+   (amber cites COD/Handy/Przybylski); G6 closed 2026-10-11.
 
 3. **Handy, Jim.** *The Cache Memory Book,* 2nd ed. Morgan Kaufmann, 1998.
    Local conversion:
@@ -222,10 +228,9 @@ a claim.
 
 ---
 
-**Last Updated:** 2026-10-10
-**Maintainer note:** re-run this memo's mapping if PRD §3 gains a D12 or if
-Hennessy & Patterson's book chapter 5 is added to the local conversion
-(unblocks G6).
+**Last Updated:** 2026-10-11
+**Maintainer note:** re-run this memo's mapping if PRD §3 gains a D12. G6
+closed 2026-10-11 (complete H&P conversion in calibre).
 
 ## Navigation
 
