@@ -49,6 +49,12 @@ lineage, the JEDEC generation deltas.
 > claim whose clause can't be verified in-house is suffixed `§TBC(TASK-005)`
 > — a named task confirms or corrects it. Nothing else is asserted.
 
+> **Warning:** every timing CSR specified in this book is a count of
+> controller-clock cycles, correct only at the MC clock frequency it was
+> derived for. A frequency change invalidates the whole timing set at once;
+> software must re-derive and reprogram it before traffic resumes. Stale
+> values present as data corruption, not errors.
+
 ---
 
 ## Provenance and what is settled

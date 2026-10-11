@@ -65,6 +65,15 @@ cannot be swept, and a controller whose timings cannot be swept cannot be
 characterized — which is how a controller ends up with numbers nobody can
 explain.
 
+**Corollary — a runtime timing CSR is a count of `aclk` cycles, so its value
+is bound to the MC clock frequency.** "Runtime" does not mean
+"frequency-independent": the register holds cycles, not nanoseconds, and the
+correct count changes when the clock does. A frequency change — retargeting
+the build to a different `aclk` for timing margin, for example — invalidates
+every cycle-counted CSR at once, and software must re-derive the whole set
+from the JEDEC ns/nCK values before traffic resumes. Stale values violate
+real DRAM timings and present as data corruption, not errors.
+
 **Build-time is reserved for what cannot be runtime:** bus widths, the DFI gear
 ratio, CAM depths, bank and rank counts. The test is whether changing it changes
 the amount of hardware.

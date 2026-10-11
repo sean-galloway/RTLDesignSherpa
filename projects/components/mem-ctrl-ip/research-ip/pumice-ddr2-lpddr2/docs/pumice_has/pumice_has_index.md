@@ -45,6 +45,12 @@
 > `pumice_training_layer` + `pumice_dfi_layer`; the DFI pin bus and the
 > host AXI interface are unchanged.
 
+> **Warning:** all timing CSRs are counts of `aclk` cycles, correct only at
+> the MC clock frequency they were derived for. Change the MC clock frequency
+> and every one of them must be re-derived and reprogrammed before traffic
+> resumes — see the [CSR Register Map](ch06_integration/03_csr_map.md).
+> Stale values present as data corruption, not errors.
+
 ---
 
 ## Document Organization

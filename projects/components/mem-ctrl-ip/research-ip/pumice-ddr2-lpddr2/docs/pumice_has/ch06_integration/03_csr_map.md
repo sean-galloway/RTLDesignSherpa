@@ -72,6 +72,22 @@ oscillation.
 
 ## Timing Parameters (0x010 – 0x01F)
 
+> **Warning — every value in this section is a count of `aclk` cycles, correct
+> only at the MC clock frequency it was derived for.** The reset values below
+> are the design-point derivation (the Nexys A7 build runs `aclk` at 75 MHz;
+> §6.1). Change the MC clock frequency — a retarget to 66.67 MHz for timing
+> margin, a different board — and **every cycle-counted register in this map
+> must be re-derived from the JEDEC ns/nCK value at the new frequency and
+> reprogrammed before traffic resumes**: this Timing Parameters block, the
+> init waits (`INIT_TIMING0` / `INIT_TIMING1`), the ZQ and calibration
+> intervals (`CAL_ZQ_INTERVAL`, `CAL_ZQ_TIMING`, `CAL_TRAIN_TIMING`), and the
+> PHY round-trip latencies (`PHY_TIMING`). A stale value after a frequency
+> change violates a real DRAM timing and presents as data corruption, not as
+> an error. There is no hardware ns→cycle conversion and no frequency-change
+> protocol in this generation — reprogramming is software's job. (LiteDRAM's
+> `BUILD_CLK_HZ` reading 100 MHz on a 75 MHz engine clock is this exact
+> failure in the wild — 2026-10-03 char results.)
+
 Packed timing parameters in MC (`aclk`) cycles. All fields are `sw = rw`,
 `hw = r` and drive the core scheduler / DFI layer.
 

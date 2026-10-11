@@ -37,6 +37,15 @@ layer is on `aclk`.
 
 Typical frequency: 100 – 200 MHz on FPGA SoCs; higher on silicon.
 
+> **Warning — `aclk`'s frequency is a CSR-visible property.** Every timing
+> CSR in the register map (§6.3) is a count of `aclk` cycles. Change this
+> clock's frequency and all of them — JEDEC timings, init waits, ZQ and
+> calibration intervals, PHY round-trip latencies — must be re-derived at the
+> new frequency and reprogrammed before traffic resumes. A stale value
+> violates a real DRAM timing and presents as data corruption, not as an
+> error; there is no hardware frequency-change protocol, so reprogramming is
+> software's job.
+
 ### `dfi_clk`
 
 PHY / DFI-side clock. The DFI 2.1 command bus, write serializer, and read

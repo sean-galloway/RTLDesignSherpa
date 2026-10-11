@@ -60,6 +60,15 @@ cannot be characterized. This edition's additions — the tCCD_L/S and
 tRRD_L/S pairs above all — follow the rule absolutely: they are the feature
 DDR4 adds, and they are runtime like everything else.
 
+**Corollary — a runtime timing CSR is a count of controller-clock cycles, so
+its value is bound to the MC clock frequency.** "Runtime" does not mean
+"frequency-independent": the register holds cycles, not nanoseconds, and the
+correct count changes when the clock does. A frequency change invalidates
+every cycle-counted CSR at once — the Table 5.1 timing rows and every new
+group in Table 5.2 — and software must re-derive the whole set from the
+JESD ns/nCK values before traffic resumes. Stale values violate real DRAM
+timings and present as data corruption, not errors.
+
 **Build-time is reserved for what cannot be runtime:** bus widths, the DFI
 gear ratio, CAM depths, bank and rank counts, and the geometry below. The
 test is whether changing it changes the amount of hardware.

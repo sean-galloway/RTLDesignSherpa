@@ -71,6 +71,16 @@ values that initialise them belong to the CSR derivation (Chapter 5), cited
 to JESD79-4 / JESD209-4 — the standards live in cold storage, not the repo,
 per the house rule.
 
+**Warning — the cycle counts in that CSR derivation are only correct at the
+MC clock frequency they were derived for.** Every timing CSR is a count of
+controller-clock cycles, not nanoseconds. Change the MC clock frequency and
+the whole timing set — JEDEC timings, init and ZQ waits, training windows,
+ODT latencies — must be re-derived at the new frequency and reprogrammed
+before traffic resumes. A stale value violates a real DRAM timing and
+presents as data corruption, not as an error. This is a binding property of
+the register block being specified, not an implementation choice; no hardware
+frequency-change protocol is specified, so reprogramming is software's job.
+
 **The 1:4 ratio is the same happy accident scoria had.** pumice and scoria
 both run four DFI phases, so the inherited DFI datapath — the async-FIFO CDC,
 the per-phase pipelines — transfers at the gear it was built and verified at.

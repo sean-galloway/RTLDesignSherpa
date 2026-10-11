@@ -107,6 +107,16 @@ the operating frequency. pumice's timing derivation was corrected once for
 exactly this — a formula that matched one measured point but took the wrong
 branch elsewhere.
 
+**Warning — the cycle counts derived here are only correct at the MC clock
+frequency they were derived for.** Every timing CSR is a count of `aclk`
+cycles (the controller clock at this design point is 75 MHz / 13.33 ns,
+restated 2026-10-10, scoria BUG-003). Change the MC clock frequency and the
+whole timing set — the JEDEC table above, the init and ZQ waits, the
+write-leveling windows — must be re-derived at the new frequency and
+reprogrammed before traffic resumes. A stale value violates a real DRAM
+timing and presents as data corruption, not as an error. There is no hardware
+frequency-change protocol in this generation; reprogramming is software's job.
+
 At CK = 400 MHz (2.5 ns), the write-leveling windows of Chapter 3.3 become
 concrete: `tWLMRD` 40 nCK = 100 ns minimum, `tWLDQSEN` 25 nCK = 62.5 ns.
 

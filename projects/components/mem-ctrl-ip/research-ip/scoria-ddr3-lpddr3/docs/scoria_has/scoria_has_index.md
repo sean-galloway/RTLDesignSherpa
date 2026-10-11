@@ -44,6 +44,12 @@ this one.
 > correction is recorded in
 > the revision history rather than dropped silently. Nothing else is asserted.
 
+> **Warning:** every timing CSR is a count of `aclk` cycles, correct only at
+> the MC clock frequency it was derived for (75 MHz / 13.33 ns at this design
+> point). A frequency change invalidates the whole timing set at once;
+> software must re-derive and reprogram it before traffic resumes. Stale
+> values present as data corruption, not errors.
+
 ---
 
 ## Provenance and what is settled
