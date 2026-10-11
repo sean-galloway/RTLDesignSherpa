@@ -712,3 +712,24 @@ Phase-2 reference arbiter"); fub_breakdown row moved to retired table.
 pumice rtl/fub is now EMPTY of modules. Book prose mentions of
 pumice_cmd_arbiter (ch01/ch03/design-requirements/gen script) ride the docs
 tranche with the ownership updates. Verified: registry PASS, lint clean.
+
+## 2026-10-11 (night, final) — granite product configuration scaffolded
+
+Owner asked to scaffold the DDR2/LPDDR2 product = granite. Beyond the
+morning's README/config stub, landed the real configuration:
+- rtl/includes/granite_pkg.sv - SKU parameters (GRANITE_SEAM_N=1 lite
+  storage, ENTRY_STORE_DEPTH=1, WR_DATA_BUF_WORDS=16 SKU minimum, ACLK/DFI
+  MHz placeholders with the frequency-warning comment).
+- rtl/filelists/top/granite.f - the layer selection AS a filelist:
+  common-ip only by construction (axi4/storage/scheduler/training/dfi_2p1
+  macro flists + granite_pkg); RAS layer deliberately absent. No
+  granite_core yet - composing one today would require the pumice layer
+  wrappers, re-introducing a product->research dependency.
+- config/product_config.md filled (decisions + reasoning + open values).
+- granite area registered in bin/filelists.toml (0 modules - pkg-only,
+  like kestrel's registration precedent).
+- TASK-001 filed (vault): dissolve the now-contentless pumice wrappers
+  into the common macros (all children are common since tonight's
+  migrations), then compose granite_core, product CSR, board.
+- Verified: registry PASS; granite.f lints clean (MULTITOP waived -
+  library selection has no top yet, by design).

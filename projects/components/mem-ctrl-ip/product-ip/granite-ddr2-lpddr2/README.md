@@ -54,8 +54,14 @@ none appear in this SKU.
 ## Contents
 
 - [`config/product_config.md`](config/product_config.md) — the chosen
-  configuration (to be filled at build time; the SKU's single source of
-  truth).
+  configuration (layer selection, reasoning, open values).
+- [`rtl/includes/granite_pkg.sv`](rtl/includes/granite_pkg.sv) — the SKU
+  parameter package (lite storage N=1, SKU write-data staging, frequency
+  plan placeholders).
+- [`rtl/filelists/top/granite.f`](rtl/filelists/top/granite.f) — the
+  layer selection as a filelist: common-ip only, by construction. There is
+  deliberately no `granite_core.sv` yet — see TASK-001 (wrapper dissolution)
+  in this product's vault area.
 
 The product book, when granite is built, is short by doctrine: the
 [common architecture book](../../common-ip/docs/common_has/common_has_index.md)

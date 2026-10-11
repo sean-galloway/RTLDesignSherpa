@@ -2,7 +2,7 @@
 
 # granite-ddr2-lpddr2 — tasks
 
-**Next ID: TASK-001** — never recycle a number, even when its item closed.
+**Next ID: TASK-002** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a
 cleanup. It starts from intent, not from a failure.
@@ -13,7 +13,7 @@ state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -21,4 +21,5 @@ state by construction rather than by discipline.
 
 ## Open
 
-None yet.
+- **TASK-001** — granite first build (wrapper dissolution + product top +
+  product CSR + board): [open/TASK-001.md](open/TASK-001.md).

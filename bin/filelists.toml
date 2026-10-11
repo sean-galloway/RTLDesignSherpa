@@ -229,6 +229,21 @@ filelist_dirs = [
 ]
 
 [[area]]
+name = "granite"
+kind = "component"
+# DDR2/LPDDR2 PRODUCT (v2) - the bypass-validation testbed SKU
+# (common_has ch5.2). A product is a configuration of the common-ip stack,
+# not a new RTL tree: rtl/ holds the SKU package and the layer-selection
+# filelist (top/granite.f - common-ip filelists only, no research-ip
+# dependency by construction). Registered 2026-10-11 with granite_pkg only;
+# the top module lands after the layer wrappers dissolve into common-ip
+# (TASK-001 in the product's vault area).
+rtl_roots = ["projects/components/mem-ctrl-ip/product-ip/granite-ddr2-lpddr2/rtl"]
+filelist_dirs = [
+    "projects/components/mem-ctrl-ip/product-ip/granite-ddr2-lpddr2/rtl/filelists",
+]
+
+[[area]]
 name = "riscv-ip/kestrel-rv32i"
 kind = "component"
 # Single-cycle RV32I core (falcon-suite rung 1). Registered 2026-10-06 with
