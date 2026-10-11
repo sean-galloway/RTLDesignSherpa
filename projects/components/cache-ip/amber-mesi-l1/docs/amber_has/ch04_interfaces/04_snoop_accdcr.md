@@ -39,7 +39,11 @@ at the `fub_acvalid/fub_acready` grant and sources CD beats on
 
 ## Ordering and the family convention
 
-Per the in-repo ACE definition, CR and CD must not be asserted before the AC handshake, and responses are returned in the order of the AC addresses. amber strengthens this: CD beats complete before CR is asserted for the same transaction, giving onyx a single closed response at a time. Multiple outstanding snoops are buffered by the skid FIFOs inside the adapter; the cache core processes them one at a time because `amber_control` is a single FSM.
+Per the in-repo ACE definition, CR and CD must not be asserted before the AC handshake, and responses are returned in the order of the AC addresses. The book reinforces that ACE snoops carry no ID and the snoop channels are strictly in-order, so the adapter's CR+CD ordering obligation is absolute (Chinnakonda, §7.1, §14.18). amber strengthens this: CD beats complete before CR is asserted for the same transaction, giving onyx a single closed response at a time. Multiple outstanding snoops are buffered by the skid FIFOs inside the adapter; the cache core processes them one at a time because `amber_control` is a single FSM. The response bound is therefore one snoop at a time through the core; the adapter FIFOs absorb any back-pressure.
+
+## RACK/WACK question (open interface issue)
+
+The house `axi4ace_snoop_slave` auto-pulses `RACK`/`WACK` one cycle after the last R beat and the B handshake. The book notes that `RACK`/`WACK` can be omitted when the data-return and snoop paths are ordered to the coherence point, because the signals only exist to prevent a snoop from overtaking read/write response data inside the cluster (Chinnakonda, §7.20, §14.39). Whether amber can rely on that omission depends on the onyx side of the boundary; it is recorded as an open interface question tied to [onyx PRD row N1](../../../../onyx-ace-ccu/PRD.md).
 
 ## Bus-agnostic core boundary
 

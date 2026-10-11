@@ -57,3 +57,7 @@ contracts is exactly two facts:
   cycle after the last R beat / the B handshake — the onyx D2 subset has
   no ordering semantics that need master-controlled acknowledges, so
   amber's `amber_ace_issue` never drives them.
+
+## Outside the onyx D2 subset
+
+`WriteLineUnique`, `WriteUnique`, `WriteClean`, `WriteEvict`, and DVM/barrier transactions are outside the onyx D2 coherent-transaction subset that amber targets. The book treats these as scope-growing features: `WLU`/`WU` for non-temporal or partial-line writes (Chinnakonda, §7.3–7.4), `WriteClean`/`WriteEvict` for cache-maintenance and victim-cache traffic (Chinnakonda, §7.4), and address-based cache maintenance / DVM as a later coherent-system concern (Chinnakonda, §7.16). amber does not need them for v1.0; Table 4.2 is the supported subset.

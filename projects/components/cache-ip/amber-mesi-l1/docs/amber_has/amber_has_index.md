@@ -23,9 +23,9 @@
 
 # amber — Blocking MESI Snoopy L1 Cache — Hardware Architecture Specification
 
-**Version:** 0.5
-**Date:** 2026-10-06
-**Status:** full HAS ratifies the Pre-HAS sketch; PRD decisions D1, D2, D4, D5, D6, D7, D8, D9, D10 are DECIDED. D3 (memory-side shape) and D11 (array construction) remain OPEN and are recorded honestly in the chapters they shape.
+**Version:** 0.6
+**Date:** 2026-10-11
+**Status:** full HAS ratifies the Pre-HAS sketch; book-informed pass folded Chinnakonda multiprocessor-cache material into coherence FSM, snoop adapter, and future hooks as candidates/hooks. PRD decisions D1, D2, D4, D5, D6, D7, D8, D9, D10 are DECIDED. D3 (memory-side shape) and D11 (array construction) remain OPEN and are recorded honestly in the chapters they shape.
 
 **Scope:** The architecture of `amber` (pair-rig top) and `amber_ace` (onyx-rig top) from the CPU GAXI slave through the shared cache core to the fabric masters and ACE snoop responder. The [MAS](../amber_mas/amber_mas_index.md) closes the micro-architecture decisions this book defers.
 
@@ -108,10 +108,12 @@
 | gem5 Ruby protocols | [../../../References/gem5-ruby-protocols/README.md](../../../References/gem5-ruby-protocols/README.md) | golden-protocol source for the Python reference model and FSM oracles |
 | cache simulator | [../../../../../../bin/apps/cache_sim/README.md](../../../../../../bin/apps/cache_sim/README.md) | golden parity model for LRU/FIFO/RANDOM |
 | Global Requirements | [../../../../../../GLOBAL_REQUIREMENTS.md](../../../../../../GLOBAL_REQUIREMENTS.md) | reset macros, array syntax, no bespoke SRAM, filelist registry |
+| amber/jet improvement plan memo | [../../../docs/amber-jet-improvement-plan.md](../../../docs/amber-jet-improvement-plan.md) | Chinnakonda-informed improvement proposals for amber and jet (2026-10-11); candidates only, nothing decided |
+| Designing a Multiprocessor Cache Subsystem | external: `M. Chinnakonda` | book-informed candidates; sections cited in the chapters that use them |
 
 : Table 0.1: Related documentation
 
 ---
 
-**Last Updated:** 2026-10-06
+**Last Updated:** 2026-10-11
 **Maintained By:** amber architecture

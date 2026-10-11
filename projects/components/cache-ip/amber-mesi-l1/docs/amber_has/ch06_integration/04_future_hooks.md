@@ -35,6 +35,9 @@ The following items are explicitly out of scope for amber v1.0 but are recorded 
 | STREAM attachment | First real consumer after TB masters (D10) | The CPU-side GAXI slave is the attachment point; no adapter needed. |
 | Directory-lite snoop filter | Deferred from amber D4, reopened as onyx D3 | The ACE-shaped snoop port is the boundary; a filter can be inserted between `amber_snoop_resp` and the peer/onyx without touching `amber_core`. |
 | ACE DVM and barriers | Out of scope per onyx D8 | The snoop adapter and `amber_ace_issue` ignore these transaction types; adding them is an adapter/issuer change. |
+| Exclusive loads/stores with internal monitor | Out of scope for v1.0; needed for atomic semaphore operations | Book §6.3 describes the internal monitor, §7.9–7.10 the competing-CU livelock scenarios. Reserved as a hook: adding exclusives requires the monitor plus the temporary snoop-stall safeguard recorded in the coherence FSM. |
+| Clean-victim Evict messaging | Snoop-filter accuracy when a directory-lite filter is added (deferred from D4 to onyx D3) | Book §7.4 and §10.5: clean victims should send `Evict` so the filter can reset its occupancy bits. amber's eviction path currently issues `Evict` only on the ACE write master; this hook records that a separate clean-victim `Evict` message may be needed for filter accuracy. |
+| Multi-copy-atomic store invariant | Documented assumption for v1.0; simplifies protocol reasoning | Book §14.33: making stores multi-copy atomic (all copies invalidated before the store is visible) simplifies the design. amber assumes this invariant in its formal targets; if the assumption is ever relaxed, the coherence FSM and response ordering must be revisited. |
 
 : Table 6.1: Future hooks
 

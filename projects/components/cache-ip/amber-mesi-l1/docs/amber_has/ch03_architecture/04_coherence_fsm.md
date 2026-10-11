@@ -108,3 +108,9 @@ snoop response only after the final CD beat, and the cocotb-framework 1.2.0
 compliance checker (`check_cr_order` / `check_cd_order`) enforces exactly
 this on every gather. The convention matches the family decision recorded
 with onyx D4 and keeps the gather logic simple to verify.
+
+## Book-informed snoop behavior
+
+**Snoop-response sourcing (book-informed candidate).** When a snoop address matches a pending fill, the coherence FSM must respond from the fill if the fill data has arrived, and must respond not-present if the data has not yet arrived. The snoop is never delayed waiting for unrelated resources such as victim buffers or write buffers; making the snoop response dependent on an event that may never occur breaks forward progress and can deadlock the system (Chinnakonda, §7.7, §8.2). amber's pending-fill bypass already carries state + data-availability; this rule sharpens how the bypass is used and is recorded as a candidate for the formal target list.
+
+**Temporary snoop-stall for non-speculative stores (future hook).** Once the core holds ownership for a non-speculative store, incoming snoops may be held off only temporarily and are guaranteed to complete afterward. This is the classic store-ownership / store-exclusive safeguard: the block is permissible because the store completion is guaranteed, but the block must not be open-ended or dependent on an unpredictable event (Chinnakonda, §8.1). amber v1.0 does not implement exclusive stores, so this is recorded as a coherence-FSM hook for the future exclusive-support work; it does not change current snoop behavior.
