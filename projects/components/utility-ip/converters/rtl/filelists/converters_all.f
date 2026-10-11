@@ -7,7 +7,7 @@
 # Usage:   verilator --lint-only -f filelists/converters_all.f
 #
 # `-f` includes each module's own filelist; never hand-list sources here.
-# Verified when written: all 34 module-declaring .sv files under rtl/ are
+# Verified when written: all 35 module-declaring .sv files under rtl/ are
 # reachable from the lists below, with no orphans and no duplicate modules.
 # ==============================================================================
 
@@ -27,6 +27,7 @@
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axi3_rd.f
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axi3_wr.f
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi3_to_axi4_rd.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi3_to_axi4_wr.f
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axil4.f
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axil4_rd.f
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axil4_wr.f
