@@ -13,6 +13,7 @@
 # ==============================================================================
 
 # Arbiters
+$REPO_ROOT/rtl/common/arbiter_matrix.sv
 $REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
 $REPO_ROOT/rtl/common/arbiter_round_robin.sv
 $REPO_ROOT/rtl/common/arbiter_round_robin_simple.sv
