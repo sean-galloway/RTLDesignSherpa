@@ -66,9 +66,12 @@ memtype config and timing docs.
   layers) extracted into one parameterized source per layer — landed in the
   Phase-2 campaign (2026-10-09 → 2026-10-10). Start at
   [the architecture](common-ip/docs/common_has/common_has_index.md).
-- `product-ip/` — appears when the first controller graduates from
-  research (board-proven + timing-closed config on the common layers).
-  Intentionally absent until then.
+- [`product-ip/`](product-ip/) — the product line (granite / gabbro /
+  diorite): realistic SKUs configured from the common stack, one per
+  generation. A product is a configuration, not a new RTL tree — see
+  [common_has ch5.2](common-ip/docs/common_has/ch05_lineup/02_products_and_research.md).
+  Scaffolded 2026-10-11; nothing built yet — granite (the v2
+  bypass-validation testbed off pumice) is the candidate first build.
 
 Shared family design and doctrine — the `mem_ctrl_pkg` shared-core design,
 the family doctrine, the DFI boundary lineage, and the JEDEC generation

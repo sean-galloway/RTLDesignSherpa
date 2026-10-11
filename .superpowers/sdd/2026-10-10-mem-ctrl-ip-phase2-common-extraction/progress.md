@@ -607,3 +607,24 @@ to use the common code"). Findings + actions:
   convergence (scoria elastic-refresh v3 as common base) pending books
   unfreeze. MODDUP double-inclusion of shared utility libs in flist chain
   is a pre-existing nit worth one cleanup pass.
+
+## 2026-10-11 — product-ip scaffold (granite / gabbro / diorite)
+
+Owner asked to scaffold the product-ip areas. Per common_has ch5.2 ("a
+product is a configuration of the common stack, not a new RTL tree"):
+- product-ip/README.md: product table, ch5.2 rules (may-leave-out vs
+  never-leave-out), consume-don't-pioneer doctrine, status.
+- granite-ddr2-lpddr2/ (v2, dfi_2p1, source pumice; bypass-validation
+  testbed; storage-lite + RAS-absent + min write buffer), gabbro-ddr3-
+  lpddr3/ (v3, dfi_3p1, source scoria; consumes elastic-refresh
+  convergence), diorite-ddr4-lpddr4/ (v4, dfi_4p0, source andesite; v4
+  command surface). Each: README brief + config/product_config.md stub
+  (TBD-until-built as the SKU source of truth).
+- mem-ctrl-ip README layout bullet updated (product-ip no longer
+  "intentionally absent").
+- vault task areas created for all three (INDEX + task lanes), Next ID
+  TASK-001 each.
+- FLAGGED to owner (not fixed unilaterally): family README research table
+  lists "gabbro" as an informal future DDR6 research codename - collides
+  with the v3 product name from common_has ch5.2. Compound directory names
+  disambiguate for now; README reconciliation is the owner's call.
