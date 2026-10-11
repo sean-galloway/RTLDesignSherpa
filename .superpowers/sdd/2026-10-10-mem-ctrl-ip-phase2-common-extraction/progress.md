@@ -628,3 +628,26 @@ product is a configuration of the common stack, not a new RTL tree"):
   lists "gabbro" as an informal future DDR6 research codename - collides
   with the v3 product name from common_has ch5.2. Compound directory names
   disambiguate for now; README reconciliation is the owner's call.
+
+## 2026-10-11 (later) — fub/ hygiene batch 2 + formatter near-miss
+
+Owner asked why pumice rtl/fub still holds DFI/init/powerdown blocks. Findings:
+- dfi_signal_pack, powerdown_ctrl, addr_mapper: genuinely dead (0 refs across
+  ALL mem-ctrl rtl including common; deleted with tests/testplans/flists/
+  schematics). The common intakes carry address mapping inline; powerdown and
+  the signal pack were unwired when the common DFI layer took over.
+- NEAR-MISS: dfi_cmd_formatter looked dead under a bad relative-path grep
+  (../common-ip didn't resolve from the rock dir). It is LIVE: common
+  mc_dfi_cmd_path.sv:271 instantiates it per sub inside a generate - it is
+  the rock-shared DDR2 command encoder child ("swappable encoder" pattern;
+  scoria/andesite have their own formatter children in their trees). Restored
+  immediately; registry gate caught the break. LESSON: instantiation greps
+  must use paths that resolve; the filelist_registry gate is the real safety
+  net.
+- Stale flist refs cleaned (pumice_all.f, pumice_core.f, pumice_top.f).
+  Registry + verilator lint green.
+- Still live in pumice fub/ (the migration candidates): init_sequencer,
+  mode_register, refresh_ctrl, pumice_page_policy, pumice_cmd_history_checker
+  (children of pumice_scheduler_layer) + pumice_zq_ctrl, pumice_lp_cal
+  (children of pumice_training_layer) + pumice_cmd_arbiter (documented thin
+  wrapper). Owner wants these common - migration plan presented for GO.

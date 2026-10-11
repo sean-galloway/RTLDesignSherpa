@@ -78,10 +78,7 @@ common scheduler and training shells.
 | `mode_register` | Per-rank MR shadow + live decode to CL/CWL/BL/AL. | [`rtl/fub/mode_register.sv`](../../../rtl/fub/mode_register.sv), instantiated in [`pumice_scheduler_layer.sv:225`](../../../rtl/macro/pumice_scheduler_layer.sv) |
 | `refresh_ctrl` | tREFI down-counter, postponer, and REFab/REFpb dispatch. | [`rtl/fub/refresh_ctrl.sv`](../../../rtl/fub/refresh_ctrl.sv), instantiated in [`pumice_scheduler_layer.sv:248`](../../../rtl/macro/pumice_scheduler_layer.sv) |
 | `pumice_page_policy` | Runtime page-policy engine and command telemetry. | [`rtl/fub/pumice_page_policy.sv`](../../../rtl/fub/pumice_page_policy.sv), instantiated in [`pumice_scheduler_layer.sv:276`](../../../rtl/macro/pumice_scheduler_layer.sv) |
-| `powerdown_ctrl` | Idle-detect → PDE/SR low-power state. | [`rtl/fub/powerdown_ctrl.sv`](../../../rtl/fub/powerdown_ctrl.sv); not wired in the default [`pumice_core`](../../../rtl/top/pumice_core.sv) build. |
 | `dfi_cmd_formatter` | JEDEC command encoding into DFI v2.1 wires (DDR2 truth table / LPDDR2 CA bus, OP `0x56`/`0xAB` for ZQ). | [`rtl/fub/dfi_cmd_formatter.sv`](../../../rtl/fub/dfi_cmd_formatter.sv); instantiated inside common `mc_dfi_cmd_path`, which pumice consumes via `mc_dfi_2p1_layer`. |
-| `dfi_signal_pack` | Final pipeline/register stage on the DFI bus. | [`rtl/fub/dfi_signal_pack.sv`](../../../rtl/fub/dfi_signal_pack.sv); not wired in the default [`pumice_core`](../../../rtl/top/pumice_core.sv) build. |
-| `addr_mapper` (local copy) | Flat AXI address → (rank, bank, row, col). | [`rtl/fub/addr_mapper.sv`](../../../rtl/fub/addr_mapper.sv); retained in the filelists but not instantiated in [`pumice_core`](../../../rtl/top/pumice_core.sv). The live address mapping is performed by common `mc_addr_mapper` inside `mc_axi4_layer`. |
 | `pumice_zq_ctrl` | Periodic LPDDR2 ZQ calibration maintenance (MRW to MR10). | [`rtl/fub/pumice_zq_ctrl.sv`](../../../rtl/fub/pumice_zq_ctrl.sv), instantiated in [`pumice_training_layer.sv:108`](../../../rtl/macro/pumice_training_layer.sv) |
 | `pumice_lp_cal` | One-shot LPDDR2 DQ calibration interface (MRR MR32/MR40). | [`rtl/fub/pumice_lp_cal.sv`](../../../rtl/fub/pumice_lp_cal.sv), instantiated in [`pumice_training_layer.sv:131`](../../../rtl/macro/pumice_training_layer.sv) |
 | `pumice_scheduler_layer` | Thin pumice wrapper around common `mc_scheduler_layer`; holds the rock init/refresh/page-policy FUBs. | [`rtl/macro/pumice_scheduler_layer.sv`](../../../rtl/macro/pumice_scheduler_layer.sv), instantiated in [`pumice_core.sv:601`](../../../rtl/top/pumice_core.sv) |
@@ -114,5 +111,8 @@ sentinel tests and filelist comments; they are not part of the current build.
 | `scheduler` | Replaced by common `mc_scheduler_layer` (via `pumice_scheduler_layer`). |
 | `gear_dfi` | Replaced by common `mc_dfi_2p1_layer`. |
 | `axi_frontend` / `axi_intake` / `*_macro`-as-architecture | Replaced by common `mc_axi4_layer`, generated `pumice_csr`, and `pumice_core`. |
+| `powerdown_ctrl` | **Removed 2026-10-11** — was never wired into the default `pumice_core` build; no replacement block (low-power entry is a scheduler maintenance concern, not a standalone FUB). |
+| `dfi_signal_pack` | **Removed 2026-10-11** — final DFI register stage subsumed by common `mc_dfi_cmd_path`, which drives the bus directly. |
+| `addr_mapper` (local copy) | **Removed 2026-10-11** — the local copy was never instantiated; the common intakes carry address mapping inline. Common `mc_addr_mapper` remains extracted-but-unadopted in common-ip. |
 
 Verified host-width freedom via [`pumice_top_geared`](../../../rtl/top/pumice_top_geared.sv) remains {64, 128, 256}.
