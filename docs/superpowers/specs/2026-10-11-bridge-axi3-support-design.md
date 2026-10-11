@@ -1,7 +1,7 @@
 # Bridge AXI3 Port Support — Design Spec
 
 **Date:** 2026-10-11
-**Status:** Design dialogue 2026-10-11 approved by user, pending written-spec review
+**Status:** Design dialogue 2026-10-11 approved by user (with batch-suite validation amendment), spec reviewed
 **IP:** `projects/components/fabric-gen-ip/bridge/` (AXI4 full crossbar generator)
 **Dependencies:** AXI3 converter suite (`projects/components/utility-ip/converters/rtl`, spec `2026-10-10-axi3-converters-design.md`); RDS-DV AXI3 BFMs (`RTLDesignSherpa-DV#87`)
 **Tracking:** GitHub `sean-galloway/RTLDesignSherpa#97`
@@ -92,21 +92,47 @@ Native AXI3 structs; AXI3↔AXI3 passthrough optimization; locked/exclusive
 generation; CDC on AXI3 ports; write-interleave acceptance at the boundary;
 any change to the converter RTL itself.
 
-## 7. Verification
+## 7. Verification — bridge batch suite
 
-Bridge cocotb suite (`dv/` under the bridge IP) extended with AXI3 configs,
+The bridge validation flow is batch-driven: `bin/bridge_batch.csv` lists
+`(name, toml, connectivity.csv, output_dir, output_tb, output_test)`; each
+TOML under `bin/test_configs/` defines the masters/slaves (per-port
+`protocol`, widths, channels, address ranges) with a same-named
+`*_connectivity.csv` master×slave matrix, and the batch tool generates the
+RTL (`rtl/generated/`), TB classes (`dv/tbclasses/`), and test suite
+(`dv/tests/`). AXI3 validation enters this flow as new batch entries — the
+same pattern the AXI5 family used (`bridge_2x2_axi5` and siblings).
+
+Four new bridges, per user direction, AMBA3 on both masters and slaves
+across the set:
+
+1. **`bridge_1x2_axi3`** — 1 AXI3 master (rw) → 1 AXI3 slave + 1 AXI4
+   slave, same width. Smoke build; AXI3→AXI3 end-to-end through the
+   crossbar plus the AXI3-master/AXI4-slave composition in one fixture.
+2. **`bridge_2x2_axi3_masters`** — 2 AXI3 masters (one width-mismatched to
+   the 64-bit fabric, e.g. 32-bit port) → 2 AXI4 slaves. Ingress focus;
+   exercises internal width adaptation behind the converter and AXI3
+   arbitration through the crossbar.
+3. **`bridge_2x2_axi3_slaves`** — AXI4 master + AXI-Lite master → 2 AXI3
+   slaves. Egress focus; the AXIL→AXI3 path crosses two protocol
+   boundaries in one hop.
+4. **`bridge_mix_e`** — extends the hetero family (`bridge_mix_a`-`d`):
+   AXI3 + AXI4 + APB masters × AXI3 + AXI4 + APB slaves, with contention
+   between converter-fronted and native ports under one arbiter.
+
+Each entry gets: TOML + connectivity CSV under `bin/test_configs/`, a batch
+row in `bin/bridge_batch.csv`, generated RTL passing
+`bin/check_sv_decl_order.py` + `make verible`, and a generated cocotb test
 driven by the RDS-DV AXI3 BFMs (`PYTHONPATH=/mnt/data/github/RTLDesignSherpa-DV-dev/src`
-locally; CI BFM availability flagged to the plan):
+locally; CI BFM availability flagged to the plan). Test content follows
+the generated-suite conventions the batch tool already emits for AXI5/APB
+front ends; no hand-written AXI3-only test is required for v1 beyond what
+the generator produces.
 
-1. AXI3 master × AXI4 slave, same width.
-2. AXI4 master × AXI3 slave, same width.
-3. AXI3 master × AXI3 slave.
-4. AXI3 mixed into an existing APB/AXIL config (protocol heterogeneity).
-5. Width-mismatched AXI3 port (rides internal dwidth adaptation).
-
-Gates on every generated config: `bin/check_sv_decl_order.py` +
-`make verible`. Negative tests: validator rejects id_width=0, width outside
-{32,64,128,256}, axi5_features-on-axi3, CDC-on-axi3.
+Negative validation tests (new `test_configs/test_illegal_*.toml`, same
+pattern as `test_illegal_apb_wr.toml`): validator rejects AXI3 master with
+`id_width = 0`, AXI3 port width outside {32,64,128,256},
+`axi5_features` on an AXI3 port, CDC enabled on an AXI3 port.
 
 ## 8. Docs
 
@@ -128,5 +154,12 @@ Gates on every generated config: `bin/check_sv_decl_order.py` +
 | `bin/bridge_pkg/generators/adapter_generator.py` | AXI3 front end + `axi3_to_axi4` instance |
 | `bin/bridge_pkg/generators/slave_adapter_generator.py` | AXI3 converter path |
 | `bin/bridge_generator.py` | conditional converter filelist includes |
-| `dv/` (bridge) | AXI3 test configs + tests |
+| `bin/bridge_batch.csv` | 4 new AXI3 bridge rows |
+| `bin/test_configs/bridge_1x2_axi3.{toml,csv}` | smoke: AXI3 master × (AXI3 + AXI4) slaves |
+| `bin/test_configs/bridge_2x2_axi3_masters.{toml,csv}` | ingress: 2 AXI3 masters, one width-mismatched |
+| `bin/test_configs/bridge_2x2_axi3_slaves.{toml,csv}` | egress: AXI4+AXIL masters × 2 AXI3 slaves |
+| `bin/test_configs/bridge_mix_e.{toml,csv}` | hetero: AXI3+AXI4+APB × AXI3+AXI4+APB |
+| `bin/test_configs/test_illegal_axi3_*.toml` | negative validation fixtures |
+| `dv/` (bridge, generated) | AXI3 TB classes + tests via the batch tool |
 | `PRD.md`, `docs/bridge_has/`, `docs/bridge_mas/`, `references/README.md` | protocol rows, constraints, citation |
+
