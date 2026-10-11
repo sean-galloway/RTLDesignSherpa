@@ -12,6 +12,10 @@ own adapter convention). This document is the
 in-repo definition of the **ACE-shaped port contract** referenced by
 [amber D4](../amber-mesi-l1/PRD.md) and [onyx D7](../onyx-ace-ccu/PRD.md)
 (family decision 2026-10-05: cache-ip is ACE-shaped).
+Rulings recorded 2026-10-11 (Sean): RACK/WACK are omitted from the family
+contract because the D7 port guarantees ordered data-return and snoop paths;
+CD-before-CR on the snoop response remains the family convention, confirmed
+against the spec's per-channel ordering rule.
 
 **Normative reference:** Arm, *AMBA AXI and ACE Protocol Specification*,
 IHI 0022 (ACE chapters). Available from Arm without charge (direct PDF in
@@ -55,9 +59,11 @@ Full ACE master interfaces also carry two acknowledge handshakes outside
 the five channels: **RACK** (read acknowledge — master pulses after the last
 read data beat of each transaction) and **WACK** (write acknowledge —
 master pulses after the write response). ACE-Lite excludes both (IHI 0022H
-§D11.1). Our D2 subset needs no ordering semantics from them; the family
-convention is to auto-pulse them promptly at the adapter and record that
-choice in the module docs.
+§D11.1). Ruling 2026-10-11 (Sean): the family contract omits RACK/WACK; per
+Chinnakonda §7.20/§14.39 they are unnecessary when data-return and snoop
+paths are ordered to the coherency point, which the D7 port contract
+guarantees; the house master wrappers still carry auto-pulsed RACK/WACK
+pins, deprecated for family use (removal: amber A5).
 
 ### 2.2 Manager → cache, cache → manager (snoop side, per cache)
 
@@ -84,6 +90,10 @@ READY on VALID). Ordering rules that matter (IHI 0022H §D3.8–§D3.9, §D5.2,
   completes a transaction's CD beats before asserting its CR, so onyx's
   gather sees one fully-closed response at a time. This is stricter than
   ACE requires and simpler to verify; it is our contract, not the spec's.
+  Confirmed by ruling 2026-10-11 (Sean) after the book yielded no guidance
+  — the spec permits either order (per-channel ordering only, verified
+  against IHI 0022H §D3.8–D3.9, §D6.2 on 2026-10-05); the family
+  convention stands.
 - **Snoop vs. local access arbitration.** A snoop reads the tag array and
   may evict/change a line's state, so it must arbitrate with the cache's own
   CPU-side tag port. This arbitration point is the classic cache-side cost
@@ -153,7 +163,8 @@ serialization (onyx D5).
 
 Transport for this contract exists in `rtl/amba/ace/` (added 2026-10-05):
 `axi4ace_master_rd/wr` and `axi4ace_slave_rd/wr` (front-side movers with
-`ARSNOOP`/`AWSNOOP`, auto-pulsed `RACK`/`WACK` on the masters), the
+`ARSNOOP`/`AWSNOOP`; auto-pulsed `RACK`/`WACK` on the house master
+wrappers is deprecated per ruling 2026-10-11), the
 `axi4ace_snoop_slave` / `axi4ace_snoop_master` AC/CR/CD movers, and
 `rtl/amba/monitor/axi4ace_snoop_monitor_lite` for snoop-side observation.
 

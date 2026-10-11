@@ -26,9 +26,9 @@
 | Field | Value |
 |-------|-------|
 | Title | amber — Blocking MESI Snoopy L1 Cache — Hardware Architecture Specification |
-| Version | 0.6 |
+| Version | 0.7 |
 | Date | 2026-10-11 |
-| Status | HAS ratifies the Pre-HAS sketch; book-informed pass folded Chinnakonda multiprocessor-cache material into coherence FSM, snoop adapter, and future hooks as candidates/hooks. PRD decisions D1, D2, D4, D5, D6, D7, D8, D9, D10 are DECIDED. D3 (memory-side shape) and D11 (array construction) remain OPEN and are recorded in the chapters they shape. |
+| Status | HAS ratifies the Pre-HAS sketch; book-informed pass folded Chinnakonda multiprocessor-cache material into coherence FSM, snoop adapter, and future hooks as candidates/hooks. PRD decisions D1, D2, D4, D5, D6, D7, D8, D9, D10 are DECIDED. D3 (memory-side shape) and D11 (array construction) remain OPEN and are recorded in the chapters they shape. Rulings recorded 2026-10-11 (Sean): RACK/WACK omitted from the family ACE contract (wrapper auto-pulse deprecated, removal tracked as A5); CD-before-CR convention confirmed. |
 | Scope | `amber` and `amber_ace` tops, the shared `amber_core`, interfaces, parameters, and integration rules for the pair rig and the onyx rig. |
 | Not in scope | Lockup-free miss handling (jet), directory-based coherence, L2/L3, ECC, TLBs, multi-port CPU issue, ACE DVM and barrier semantics. |
 
@@ -67,6 +67,7 @@
 |---------|------|--------|
 | 0.5 | 2026-10-06 | Full HAS. Ratifies Pre-HAS F1–F18 against PRD v0.5 decisions, fixes the two-top structure, the module set, the interface pin contracts, the parameter sketch, the verification strategy, and the open D3/D11 questions. |
 | 0.6 | 2026-10-11 | Book-informed pass: Chinnakonda multiprocessor-cache material folded into coherence FSM, snoop adapter, and future hooks as candidates/hooks; nothing newly decided. |
+| 0.7 | 2026-10-11 | Owner rulings recorded: RACK/WACK omitted from the family ACE contract (wrapper auto-pulse deprecated, removal tracked as A5); CD-before-CR convention confirmed. |
 
 : Table 0.3: Revision history
 

@@ -26,9 +26,9 @@
 | Field | Value |
 |---|---|
 | Title | onyx — Snoop-Based ACE Coherency Unit — Hardware Architecture Specification |
-| Version | 0.1 |
+| Version | 0.2 |
 | Date | 2026-10-11 |
-| Status | 0.1 skeleton: context, decided contracts, and the invariant landscape are real; chapters shaped by open D/N rows are stubs that say so and point at those rows. |
+| Status | 0.2: owner rulings recorded — RACK/WACK omitted from the contract (N1 decided); CD-before-CR confirmed as the family convention (invariant 6 decided). Otherwise the same skeleton: decided contracts and invariant landscape are real; chapters shaped by remaining open D/N rows are stubs. |
 | Scope | `onyx` as the coherence manager between the family's ACE-shaped caches and the house AXI4 memory path; N cache-side ACE slave ports, one memory-side AXI4 master, one inter-cache snoop fanout, MonBus observation. |
 | Not in scope | Cache storage inside onyx, directory-based coherence except as the D3 snoop-filter candidate, DVM and full barrier semantics, multi-CCU/multi-domain systems, stash/dealloc, CPU or upstream-master port beyond ACE-Lite IO. |
 
@@ -78,6 +78,7 @@
 | Version | Date | Change |
 |---|---|---|
 | 0.1 | 2026-10-11 | Skeleton: purpose, system context, decided D7 interface contract, invariant landscape, and stubs for every chapter shaped by an open D/N row. |
+| 0.2 | 2026-10-11 | Owner rulings recorded: RACK/WACK omitted from the contract (N1 decided); CD-before-CR confirmed as the family convention. |
 
 : Table 0.3: Revision history
 

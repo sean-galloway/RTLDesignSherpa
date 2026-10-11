@@ -34,7 +34,7 @@ This document is the Micro-Architecture Specification (MAS) for `amber`, a param
 | Source | Title | Version |
 |--------|-------|---------|
 | RTL Design Sherpa | amber Product Requirements Document | 0.5 |
-| RTL Design Sherpa | amber Hardware Architecture Specification | 0.5 |
+| RTL Design Sherpa | amber Hardware Architecture Specification | 0.7 |
 | RTL Design Sherpa | amber Pre-HAS sketch | 1.0 |
 | ARM | AMBA AXI and ACE Protocol Specification | IHI0022H |
 | gem5 | Ruby `MESI_Two_Level` protocol extract | commit f5c5a6e |
@@ -91,7 +91,7 @@ Single register held by `amber_control` while a fill is outstanding, allowing sn
 
 **RACK / WACK**
 
-ACE read/write acknowledge pulses. In amber's adapters they are auto-pulsed one cycle after the last read beat / B handshake.
+ACE read/write acknowledge pulses. In amber's adapters they are auto-pulsed one cycle after the last read beat / B handshake. Ruling 2026-10-11 (Sean): the family ACE contract omits RACK/WACK; the auto-pulse is deprecated for family use and its removal is tracked as amber A5.
 
 **SDPRAM**
 
@@ -108,9 +108,10 @@ Simple dual-port RAM. The house `sdpram_core` primitive is the only allowed tag/
 | Rev | Date | Author | Notes |
 |-----|------|--------|-------|
 | 0.5 | 2026-10-06 | seang | Initial amber MAS: index, ch01–ch06, styles, title, and pre-RTL kmap workbook. No RTL yet; all micro-architecture proposals are contracts for the landing implementation. |
+| 0.6 | 2026-10-11 | seang | Owner rulings recorded: RACK/WACK omitted from the family ACE contract (auto-pulse deprecated, removal tracked as A5). |
 
 : amber MAS Document Revision History
 
 ---
 
-**Last Updated:** 2026-10-06
+**Last Updated:** 2026-10-11

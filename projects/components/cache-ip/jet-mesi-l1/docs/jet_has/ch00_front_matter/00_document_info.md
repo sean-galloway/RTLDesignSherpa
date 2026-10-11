@@ -26,9 +26,9 @@
 | Field | Value |
 |-------|-------|
 | Title | jet — Lockup-Free MESI Snoopy L1 Cache — Hardware Architecture Specification |
-| Version | 0.1 |
+| Version | 0.2 |
 | Date | 2026-10-11 |
-| Status | 0.1 skeleton: purpose, context, and the decision landscape are real content; chapters shaped by open J-rows are stubs that say so. |
+| Status | 0.2: owner rulings inherited from amber/onyx recorded — RACK/WACK omitted from the contract; CD-before-CR confirmed as the family convention. Otherwise the same skeleton: purpose, context, and the decision landscape are real content; chapters shaped by open J-rows are stubs. |
 | Scope | `jet` and `jet_ace` tops, the inherited `amber_core`, the MSHR delta, interfaces, parameters, and integration rules for the pair rig and the onyx rig. |
 | Not in scope | Speculative prefetching, adaptive replacement, QoS policies, multi-banked parallelism beyond MSHRs, directory-based coherence, L2/L3, ECC, TLBs, multi-port CPU issue, ACE DVM and barrier semantics. |
 
@@ -69,6 +69,7 @@
 | Version | Date | Change |
 |---------|------|--------|
 | 0.1 | 2026-10-11 | Skeleton HAS. States purpose, context, and the open decision landscape for J1–J7. Records amber inheritance for interfaces, parameters, clock/reset, and observation. |
+| 0.2 | 2026-10-11 | Owner rulings inherited from amber/onyx recorded: RACK/WACK omitted from the contract; CD-before-CR confirmed as the family convention. |
 
 : Table 0.3: Revision history
 

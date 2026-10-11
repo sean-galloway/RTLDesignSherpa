@@ -46,17 +46,27 @@ The in-repo [AMBA ACE Interface Definition](../../../../References/AMBA_ACE_Inte
 
 ## Open questions
 
-### RACK/WACK (N1)
+### RACK/WACK (N1 decided 2026-10-11)
 
-The ACE definition doc records the family convention: RACK/WACK are auto-pulsed promptly at the adapter, even though the D2 subset needs no ordering semantics from them. The PRD N1 row cites Chinnakonda §7.20 and §14.39 to argue that RACK/WACK can be omitted if the data and snoop paths are ordered and not buffered past the coherency point. At 0.1 this is an open question: the definition doc's auto-pulse convention is the current contract, and the book's omission claim is recorded as the candidate rationale for changing it later. The contract decision is N1.
+Ruling 2026-10-11 (Sean): RACK/WACK are omitted from the onyx↔cache
+contract. Chinnakonda §7.20 and §14.39 say they are not required when
+data-return and snoop paths are ordered to the coherency point, and the
+D7 port contract guarantees that ordering. The house `axi4ace_master_rd/wr`
+wrappers still auto-pulse RACK/WACK; that behavior is deprecated for family
+contract use and its removal is tracked as amber RTL follow-up A5. See
+[onyx PRD row N1](../../../PRD.md) and the
+[AMBA ACE Interface Definition](../../../../References/AMBA_ACE_Interface_Definition.md).
 
-### CD/CR ordering tension
+### CD/CR ordering (decided 2026-10-11)
 
-The AMBA ACE spec permits CR before CD and requires only per-channel ordering. The in-repo definition doc records a **family convention** decided with onyx D4: the cache-side adapter completes a transaction's CD beats before asserting its CR, so onyx's gather sees one fully-closed response at a time. This is stricter than ACE requires and is **our contract, not the spec's**.
-
-The PRD's proposed invariant #6 states the opposite ordering: **CR before CD, CD-before-CDLAST, in-order CR/CD**. This is the natural ACE order (response indicates whether data will follow) and is simpler to verify against the spec.
-
-At 0.1 the HAS records both conventions and does not pick one. The choice affects the gather state machine and the compliance checker, and must be resolved before RTL.
+Ruling 2026-10-11 (Sean): the family convention is **CD before CR**
+— a transaction's CD beats complete before its CR is asserted — and it
+is the binding contract. The AMBA ACE spec requires only per-channel
+ordering (CR in AC order, CD in AC order), so it permits either order;
+the book yielded no guidance on CD-vs-CR ordering. The in-repo
+[AMBA ACE Interface Definition](../../../../References/AMBA_ACE_Interface_Definition.md)
+records the convention and the ruling. The PRD's invariant #6 is
+DECIDED with the CD-before-CR wording.
 
 ## What is fixed
 
@@ -64,9 +74,9 @@ At 0.1 the HAS records both conventions and does not pick one. The choice affect
 - The cache-side ports are ACE slave-side: AR/R/AW/W/B plus AC/CD/CR.
 - The D2 subset is the working transaction set.
 - The in-repo AMBA ACE Interface Definition is the normative contract.
+- RACK/WACK are omitted from the onyx↔cache contract (N1 decided).
+- CD-before-CR is the binding snoop-response ordering (invariant 6 decided).
 
 ## What is open
 
-- RACK/WACK handling (N1).
-- CD/CR ordering convention (family convention vs natural ACE order).
 - Whether the decoder grows with D2 to include barriers, DVM, or WLU/WU.

@@ -25,7 +25,7 @@
 
 ## Decision status
 
-D10 is open but its direction is fixed in PRD v0.4. This chapter records the verification landscape as real content at 0.1 because the success criteria fix the proof obligations and the BFM family direction is concrete.
+D10 is open but its direction is fixed in PRD v0.5. This chapter records the verification landscape as real content at 0.2 because the success criteria fix the proof obligations and the BFM family direction is concrete.
 
 ## Success criteria as verification exit criteria
 
@@ -49,8 +49,8 @@ PRD D10 specifies a layered extension of the RDS-DV `axi4` BFM family:
 2. **Signal-map patterns.** New `axi4ace_*` protocol patterns (framework-shipped vs user-loadable is a decision to make in RDS-DV).
 3. **Transaction/packet layer.** The six D2 transaction types as an enum; `CRRESP` as a bitfield (`DataTransfer`, `Error`, `PassDirty`, `IsShared`, `WasUnique`).
 4. **Four BFM classes:**
-   - `AXI4ACEMasterRead` — subclass of the axi4 master-read BFM; drives coherent reads, with snoop type on commands; drives `RACK` when playing master against an onyx-port DUT.
-   - `AXI4ACEMasterWrite` — subclass of the axi4 master-write BFM; drives coherent writes; drives `WACK` when playing master against an onyx-port DUT.
+   - `AXI4ACEMasterRead` — subclass of the axi4 master-read BFM; drives coherent reads, with snoop type on commands; does not model `RACK` because the contract omits it.
+   - `AXI4ACEMasterWrite` — subclass of the axi4 master-write BFM; drives coherent writes; does not model `WACK` because the contract omits it.
    - `AXI4ACESnoopSlave` — receives AC, drives CR/CD in issue order; programmable cache-state behavior producing the correct CRRESP; the golden-model hook that replays gem5 traces through `amber`.
    - `AXI4ACESnoopMaster` — drives AC, gathers CR/CD in order; drives onyx's fanout in DV.
 5. **Compliance checker.** In-order CR/CD, no snoop to the requesting master, CD-before-CDLAST, CRRESP validity per snoop type.

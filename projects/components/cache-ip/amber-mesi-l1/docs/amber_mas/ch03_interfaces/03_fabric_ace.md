@@ -23,7 +23,7 @@
 
 # Fabric ACE Master Timing
 
-The `amber_ace` onyx-rig top uses the house `axi4ace_master_rd` and `axi4ace_master_wr` wrappers. The timing is identical to the AXI4 case except for the `ARSNOOP`/`AWSNOOP` fields and the auto-pulsed `RACK`/`WACK` outputs.
+The `amber_ace` onyx-rig top uses the house `axi4ace_master_rd` and `axi4ace_master_wr` wrappers. The timing is identical to the AXI4 case except for the `ARSNOOP`/`AWSNOOP` fields and the auto-pulsed `RACK`/`WACK` outputs (deprecated per ruling 2026-10-11 (Sean); removal tracked as amber A5).
 
 ## Read Transactions
 
@@ -32,7 +32,7 @@ The `amber_ace` onyx-rig top uses the house `axi4ace_master_rd` and `axi4ace_mas
 | read miss, shared intent | `ReadShared` | `ReadShared` encoding |
 | read miss, exclusive intent | `ReadUnique` | `ReadUnique` encoding |
 
-`RACK` is auto-pulsed one cycle after `RLAST` is accepted. `amber_ace_issue` supplies `fub_axi_arsnoop`; `amber_fill` supplies address, length, size, and burst.
+`RACK` is auto-pulsed one cycle after `RLAST` is accepted (deprecated per ruling 2026-10-11 (Sean); removal tracked as amber A5). `amber_ace_issue` supplies `fub_axi_arsnoop`; `amber_fill` supplies address, length, size, and burst.
 
 ## Write Transactions
 
@@ -43,7 +43,7 @@ The `amber_ace` onyx-rig top uses the house `axi4ace_master_rd` and `axi4ace_mas
 | dirty eviction | `WriteBack` | `WriteBack` encoding |
 | clean eviction | `Evict` | `Evict` encoding |
 
-`WACK` is auto-pulsed one cycle after the B handshake. `CleanUnique`, `MakeUnique`, and `Evict` are AW-only transactions with no W data. `WriteBack` is an AW+W burst with the dirty victim data.
+`WACK` is auto-pulsed one cycle after the B handshake (deprecated per ruling 2026-10-11 (Sean); removal tracked as amber A5). `CleanUnique`, `MakeUnique`, and `Evict` are AW-only transactions with no W data. `WriteBack` is an AW+W burst with the dirty victim data.
 
 ## Timing Example: ReadShared Fill
 
@@ -73,4 +73,4 @@ wack  :  0   0   0   0   0   0   1   <- auto-pulsed
 
 ---
 
-**Last Updated:** 2026-10-06
+**Last Updated:** 2026-10-11

@@ -41,9 +41,16 @@ at the `fub_acvalid/fub_acready` grant and sources CD beats on
 
 Per the in-repo ACE definition, CR and CD must not be asserted before the AC handshake, and responses are returned in the order of the AC addresses. The book reinforces that ACE snoops carry no ID and the snoop channels are strictly in-order, so the adapter's CR+CD ordering obligation is absolute (Chinnakonda, §7.1, §14.18). amber strengthens this: CD beats complete before CR is asserted for the same transaction, giving onyx a single closed response at a time. Multiple outstanding snoops are buffered by the skid FIFOs inside the adapter; the cache core processes them one at a time because `amber_control` is a single FSM. The response bound is therefore one snoop at a time through the core; the adapter FIFOs absorb any back-pressure.
 
-## RACK/WACK question (open interface issue)
+## RACK/WACK (resolved 2026-10-11)
 
-The house `axi4ace_snoop_slave` auto-pulses `RACK`/`WACK` one cycle after the last R beat and the B handshake. The book notes that `RACK`/`WACK` can be omitted when the data-return and snoop paths are ordered to the coherence point, because the signals only exist to prevent a snoop from overtaking read/write response data inside the cluster (Chinnakonda, §7.20, §14.39). Whether amber can rely on that omission depends on the onyx side of the boundary; it is recorded as an open interface question tied to [onyx PRD row N1](../../../../onyx-ace-ccu/PRD.md).
+Ruling 2026-10-11 (Sean): the family ACE contract omits RACK/WACK. The
+D7 port guarantees ordered data-return and snoop paths to the coherency
+point, which is the condition Chinnakonda §7.20/§14.39 gives for omitting
+them. The house `axi4ace_master_rd/wr` and `axi4ace_snoop_slave` wrappers
+still auto-pulse RACK/WACK; that behavior is deprecated for family contract
+use, and its removal is tracked as amber RTL follow-up A5. Amber's existing
+CD-before-CR, in-order snoop processing already provides the ordering the
+signals were meant to protect.
 
 ## Bus-agnostic core boundary
 

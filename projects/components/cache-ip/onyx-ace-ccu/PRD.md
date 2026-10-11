@@ -23,12 +23,12 @@
 
 # onyx — Product Requirements (DRAFT)
 
-**Version:** 0.4 (draft, 2026-10-11)
+**Version:** 0.5 (draft, 2026-10-11)
 **Status:** decisions pending — this page records the questions and the
 candidates, not answers. A decision becomes DECIDED when it records a name
 and a date, the way the reed-solomon PRD does it. Until then every row
-below is OPEN. **v0.4 adds only candidate analysis, recommendations, and
-PROPOSED invariants; nothing new is DECIDED.**
+below is OPEN. **v0.5 records two owner rulings (N1 and invariant 6);
+all other D/N rows and invariants remain OPEN/PROPOSED.**
 v0.2: D7 decided 2026-10-05 (Sean) — onyx owns the ACE-shaped AC/CD/CR
 snoop port; amber/jet adapt to it behind a thin adapter. Decided together
 with [amber D4](../amber-mesi-l1/PRD.md), so the gate between the two is
@@ -41,6 +41,10 @@ build order); the row stays OPEN. RDS-DV implementation filed as
 v0.4: Chinnakonda book analysis folded in 2026-10-11 — Ch. 6/7/8/10/11/13/14
 mined for candidate invariants, liveness scenarios, and scope-growth options.
 Book is cited in References; all new material is candidate/recommended/PROPOSED.
+v0.5: Ruling 2026-10-11 (Sean) — N1 decided (RACK/WACK omitted from the
+onyx↔cache contract) and invariant 6 decided (CD-before-CR is the binding
+family convention). See also the updated
+[AMBA ACE Interface Definition](../References/AMBA_ACE_Interface_Definition.md).
 
 ## 1. Purpose
 
@@ -98,9 +102,9 @@ stall the measured paths), filelists registry, and GLOBAL_REQUIREMENTS.
 | D7 | Cache-side interface ownership | **DECIDED 2026-10-05 (Sean): onyx defines and owns an AC/CD/CR-shaped snoop port; amber/jet stay bus-agnostic internally and add a thin adapter to it.** Chosen over caches natively growing ACE ports — the cache cores stay unpinned from ACE except at the adapter, so onyx (or a real ACE interconnect, e.g. culsans' `ace_ccu_top`) can supersede the custom bus without touching cache RTL. | the amber D4 ↔ onyx contract, who changes when ACE supersedes the custom bus |
 | D8 | Domain / barrier rules | OPEN: single shareability domain, barriers ignored (recommended non-goal, recorded here so it is a decision and not an accident) vs minimal barrier ordering vs full DVM<br><br>**Book input:** §6.4–6.5 and §14.33 recommend making stores always multi-copy atomic even though Arm does not require it; this is the book's justification for terminating barriers in the processor and ignoring them at the manager. Single shareability domain / barriers ignored remains recommended. | scope honesty, later upgrade path |
 | D9 | Observation | OPEN (direction: amber D8 pattern): `*_monlite` taps for coherent-txn start, snoop fanout per transaction, response gather completion, memory-read elision hit/miss, serialization stalls, and WB/Evict drains; tallied by `monbus_tally_axil`<br><br>**Book input:** §8.2/§8.3/§10.6 treat independent snoop paths and fairness as first-class observables; §10.8 gives outstanding-access sizing math that shapes the counters listed above. | perf counters, board capture, DV scoreboard |
-| D10 | Verification strategy | OPEN (direction: Pattern-B cocotb gate/func/full. **ACE BFM — an extension of the `axi4` BFM family in RDS-DV, layered the way that family is built** (analysis from inspecting `CocoTBFramework/components/axi4/`): (1) field configs — an `AXI4ACEFieldConfigHelper` adds `ARSNOOP[3:0]` / `AWSNOOP[2:0]` to the AR/AW field configs; (2) signal-map patterns — new `axi4ace_*` protocol patterns (decide there: framework-shipped vs. user-loadable, the signal_mapping_helper question); (3) transaction/packet layer — the six D2 transaction types as an enum, CRRESP as a bitfield (DataTransfer/Error/PassDirty/IsShared/WasUnique); (4) four BFM classes — `AXI4ACEMasterRead` / `AXI4ACEMasterWrite` as subclasses (snoop type on commands; the BFM **drives RACK/WACK** when playing master against an onyx-port DUT, since the RTL auto-pulse in `axi4ace_master_rd/wr` only covers DUT-as-master), `AXI4ACESnoopSlave` (new, no base: receives AC, drives CR/CD in **issue order** — snoops carry no ID — with programmable cache-state behavior producing the correct CRRESP; this is the golden-model hook that replays gem5 traces through amber), `AXI4ACESnoopMaster` (new: drives AC, gathers CR/CD in order — drives onyx's fanout in DV); (5) compliance checker — in-order CR/CD, no snoop to the requesting master, CD-before-CDLAST, CRRESP validity per snoop type; (6) main-repo TB classes under `bin/TBClasses/axi4ace/` per consumer. **Build order:** snoop-slave BFM first (amber's pair rig needs it), snoop-master BFM lands with onyx; ships as an RDS-DV framework release the way the irq BFM did. Python golden model derived from the gem5 Ruby `MESI_Two_Level` spec in `../References/gem5-ruby-protocols/`; the ACE subset contract is the in-repo [definition doc](../References/AMBA_ACE_Interface_Definition.md); SymbiYosys proofs of same-address serialisation and no-deadlock under fair arbitration; culsans behaviours as informal cross-checks, not oracles)<br><br>**Book input:** §7.6–7.10, §8.1–8.3, §10.9 give concrete liveness scenarios: WLU-vs-WB valid/ready deadlock when SI buffers are full (§7.6.1/§7.7.1); CU livelock on RU-then-downgrade (§7.8, §10.9); store-exclusive semaphore livelock and POS-monitor recipe (§7.9–7.10); starvation from fixed priority → timeout fairness (§8.3). These become the named proof obligations under Success criterion 3. | DV structure, formal areas, CI time |
+| D10 | Verification strategy | OPEN (direction: Pattern-B cocotb gate/func/full. **ACE BFM — an extension of the `axi4` BFM family in RDS-DV, layered the way that family is built** (analysis from inspecting `CocoTBFramework/components/axi4/`): (1) field configs — an `AXI4ACEFieldConfigHelper` adds `ARSNOOP[3:0]` / `AWSNOOP[2:0]` to the AR/AW field configs; (2) signal-map patterns — new `axi4ace_*` protocol patterns (decide there: framework-shipped vs. user-loadable, the signal_mapping_helper question); (3) transaction/packet layer — the six D2 transaction types as an enum, CRRESP as a bitfield (DataTransfer/Error/PassDirty/IsShared/WasUnique); (4) four BFM classes — `AXI4ACEMasterRead` / `AXI4ACEMasterWrite` as subclasses (snoop type on commands; onyx-port BFMs do not model RACK/WACK because the contract omits them), `AXI4ACESnoopSlave` (new, no base: receives AC, drives CR/CD in **issue order** — snoops carry no ID — with programmable cache-state behavior producing the correct CRRESP; this is the golden-model hook that replays gem5 traces through amber), `AXI4ACESnoopMaster` (new: drives AC, gathers CR/CD in order — drives onyx's fanout in DV); (5) compliance checker — in-order CR/CD, no snoop to the requesting master, CD-before-CDLAST, CRRESP validity per snoop type; (6) main-repo TB classes under `bin/TBClasses/axi4ace/` per consumer. **Build order:** snoop-slave BFM first (amber's pair rig needs it), snoop-master BFM lands with onyx; ships as an RDS-DV framework release the way the irq BFM did. Python golden model derived from the gem5 Ruby `MESI_Two_Level` spec in `../References/gem5-ruby-protocols/`; the ACE subset contract is the in-repo [definition doc](../References/AMBA_ACE_Interface_Definition.md); SymbiYosys proofs of same-address serialisation and no-deadlock under fair arbitration; culsans behaviours as informal cross-checks, not oracles)<br><br>**Book input:** §7.6–7.10, §8.1–8.3, §10.9 give concrete liveness scenarios: WLU-vs-WB valid/ready deadlock when SI buffers are full (§7.6.1/§7.7.1); CU livelock on RU-then-downgrade (§7.8, §10.9); store-exclusive semaphore livelock and POS-monitor recipe (§7.9–7.10); starvation from fixed priority → timeout fairness (§8.3). These become the named proof obligations under Success criterion 3. | DV structure, formal areas, CI time |
 | D11 | Master count & profile | OPEN: N coherent cache masters 2–4 as an elaboration parameter (culsans uses 2–4 CVA6) vs fixed 2 for the research rig; line size / profile locked to amber's geometry vs independently parameterised<br><br>**Book input:** §10.1 states banks should be ≥ master count (4 CPUs → at least 4 banks). Supports keeping N=2–4 as an elaboration parameter and sizing internal resources accordingly. | array dimensions, DV matrix, the measured system's realism |
-| N1 | RACK/WACK omission-by-contract | OPEN: onyx owns the snoop-port shape (D7), so it can define data/snoop-path ordering inside its domain and omit RACK/WACK from the onyx↔cache contract. Book §7.20 and §14.39 say RACK/WACK are not required if data and snoop paths are ordered and not buffered past the coherency point. This conflicts with the current family convention in the [ACE definition doc](../References/AMBA_ACE_Interface_Definition.md), which auto-pulses RACK/WACK at the adapter; the definition doc wins as the current contract, and the book's claim is recorded here as the candidate rationale for omission. | adapter logic, snoop/data ordering assumptions |
+| N1 | RACK/WACK omission-by-contract | **DECIDED 2026-10-11 (Sean): follow the book — RACK/WACK are omitted from the onyx↔cache contract.** The binding condition is that data-return and snoop paths are ordered to the coherency point, which the D7 port contract guarantees. The house `axi4ace_master_rd/wr` wrappers still auto-pulse RACK/WACK; that behavior is deprecated for family contract use, and its removal is tracked as amber RTL follow-up A5. | adapter logic, snoop/data ordering assumptions |
 | N2 | AxLock / PoS monitor for cross-master exclusives | OPEN: arm a POS monitor on AxLock for exclusive transactions: one master receives EXOKAY, competing CUs receive OKAY (fail), and invalidation snoops are withheld from the winning master until its store completes. Book §7.9–7.10 and §14.36 describe this as the livelock-reduction recipe for store exclusives. Out of the initial D2 subset; recorded as a candidate upgrade. | exclusive-transaction handling, POS monitor logic |
 | N3 | Snoop-response sourcing from in-flight fills | OPEN: a snoop matching an in-flight fill must respond not-present if no data beat has arrived, and may forward from the fill buffer only after the last data beat has arrived; the response must never depend on an unrelated event. Book §7.7, §8.2, §10.6. Elevates the D4 book input to a proposed invariant. | snoop responder, fill-buffer comparators, formal progress proof |
 | N4 | CD-path independence | OPEN: never share the snoop-data return path (CD) with WDATA; reserve credit/capacity for the WB/Ev/WC/WE family so snoop responses cannot be blocked by ordinary writes. Book §10.6 and §14.11–14.13 emphasize an independent snoop path as the deadlock-avoidance bedrock. (ACE permits CDDATA to be combined with WDATA; the book argues against it.) | snoop data channel, write-buffer allocation, credit logic |
@@ -111,7 +115,7 @@ stall the measured paths), filelists registry, and GLOBAL_REQUIREMENTS.
 ## 4. Design invariants (proposed)
 
 The following bedrock liveness rules are mined from Chinnakonda Ch. 7/8/10/14.
-Each is **PROPOSED** pending an owner ruling; none is DECIDED in v0.4.
+Each is **PROPOSED** pending an owner ruling except where marked **DECIDED**.
 
 1. **Snoop forward progress (PROPOSED).** A snoop may wait only on (a) a
    same-address outstanding WB/Ev/WC/WE, or (b) a guaranteed-to-complete
@@ -131,9 +135,11 @@ Each is **PROPOSED** pending an owner ruling; none is DECIDED in v0.4.
    only after all ownership invalidations have been performed everywhere;
    this is the book's recommended simplification that makes barriers-ignored
    at the manager defensible.
-6. **CR before CD, CD-before-CDLAST, in-order CR/CD (PROPOSED).** A snoop
-   response indicates whether data will follow; data beats are in order and
-   CDLAST marks the final beat; CR and CD keep the issue order of the ACs.
+6. **CD before CR, CD-before-CDLAST, in-order CR/CD (DECIDED 2026-10-11
+   (Sean)).** A snoop transaction's CD beats complete before its CR is
+   asserted; CR responses are returned in AC order; CD data is returned in
+   AC order; CDLAST marks the final beat. This is the family contract,
+   stricter than the spec's per-channel ordering rule.
 7. **No snoop to the requesting master (PROPOSED).** Already a D10 compliance
    checker rule; restated here as a design invariant.
 

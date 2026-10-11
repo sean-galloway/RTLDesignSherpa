@@ -26,6 +26,12 @@
 **Version:** 0.1 (2026-10-11)
 **Status:** Proposal plan informed by Murali Chinnakonda, *Designing a Multiprocessor Cache Subsystem*. Nothing here is decided; a decision is DECIDED only when it records a name and a date.
 
+**Owner rulings (2026-10-11).** RACK/WACK are omitted from the family ACE
+contract (the D7 port guarantees ordered data-return and snoop paths to the
+coherency point). CD-before-CR remains the binding family convention on the
+snoop response; the ACE spec only requires per-channel ordering. Items A5
+and A6 below are updated in place to reflect these rulings.
+
 ---
 
 ## 1. Method
@@ -97,17 +103,17 @@ Each item below states the book anchor, the current repo state (with a relative 
 | **Priority** | P2 |
 | **Feeds** | [HAS ch03 coherence FSM](../amber-mesi-l1/docs/amber_has/ch03_architecture/04_coherence_fsm.md); jet [PRD J6](../jet-mesi-l1/PRD.md) |
 
-### A5 — `RACK`/`WACK` handling in the amber ACE adapter
+### A5 — Remove/retire the `RACK`/`WACK` auto-pulse from the amber onyx-facing adapter
 
 | Field | Value |
 |---|---|
-| **Area** | ACE master acknowledge signals |
+| **Area** | ACE master acknowledge signals / adapter cleanup |
 | **Book citation** | Chinnakonda §7.20, §14.39 |
-| **Current repo state** | The [fabric ACE chapter](../amber-mesi-l1/docs/amber_has/ch04_interfaces/03_fabric_ace.md) states that `m_axi_rack`/`m_axi_wack` are "auto-pulsed inside the adapters one cycle after the last R beat / the B handshake" and that `amber_ace_issue` never drives them because the [onyx D2](../onyx-ace-ccu/PRD.md) subset has no ordering semantics that need master-controlled acknowledges. |
-| **Proposal** | Evaluate making `RACK`/`WACK` optional via an elaboration parameter. The book argues they can be omitted if data return and snoops take the same ordered path to the coherency point. Because amber's snoop adapter already enforces CD-before-CR and processes snoops one at a time, the onyx-rig may be able to omit the auto-pulse and reduce snoop latency. Default should remain auto-pulse until a compliance test proves omission is safe. Document the condition explicitly. |
+| **Current repo state** | Ruling 2026-10-11 (Sean): the family ACE contract omits RACK/WACK. The generic house `axi4ace_master_rd/wr` wrappers still auto-pulse the pins, and the onyx-facing amber adapter path still instantiates those wrappers. |
+| **Proposal** | Remove/retire the wrapper auto-pulse from the onyx-facing amber adapter path per the contract. Keep the pins on the generic house wrappers so non-family consumers are unaffected. Update the MAS/HAS timing chapters and the alignment memo to record that the auto-pulse is deprecated and removed for family use. |
 | **Effort** | S |
 | **Priority** | P2 |
-| **Feeds** | [HAS ch04/03](../amber-mesi-l1/docs/amber_has/ch04_interfaces/03_fabric_ace.md); [onyx D7](../onyx-ace-ccu/PRD.md) contract |
+| **Feeds** | [HAS ch04/03](../amber-mesi-l1/docs/amber_has/ch04_interfaces/03_fabric_ace.md); [onyx D7](../onyx-ace-ccu/PRD.md) contract; [AMBA ACE Interface Definition](../References/AMBA_ACE_Interface_Definition.md) |
 
 ### A6 — CD/CR in-order, no-ID snoop response obligations
 
@@ -263,7 +269,7 @@ This sequencing assumes amber's "Task 14" verification freeze is the point at wh
 These items change the formal surface, the onyx-facing contract, or the consistency assumptions and should land before the freeze:
 
 - **A2** — pending-fill snoop sourcing rule (adds a SymbiYosys deadlock target).
-- **A5** — optional `RACK`/`WACK` omission evaluation (may change adapter timing).
+- **A5** — remove/retire the wrapper auto-pulse from the onyx-facing amber adapter path (RACK/WACK already omitted from the contract).
 - **A6** — CD/CR in-order contract made explicit (affects onyx D4 gather logic).
 - **A7** — multi-copy-atomic invariant documented (pair-rig assumption).
 

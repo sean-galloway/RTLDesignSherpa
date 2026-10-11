@@ -89,7 +89,7 @@ Plain AXI4 masters driven by `amber_fill` and `amber_drain`. Signal names and wi
 
 ## `amber_ace` — Onyx-Rig Top
 
-`amber_ace` has the same CPU GAXI slave, snoop responder, and MonBus ports as `amber`. The memory-side masters are full ACE masters with `ARSNOOP` / `AWSNOOP` fields and auto-pulsed `RACK` / `WACK` outputs. `amber_ace_issue` maps cache-side events to ACE transactions; see Chapter 2.8.
+`amber_ace` has the same CPU GAXI slave, snoop responder, and MonBus ports as `amber`. The memory-side masters are full ACE masters with `ARSNOOP` / `AWSNOOP` fields and auto-pulsed `RACK` / `WACK` outputs (deprecated per ruling 2026-10-11 (Sean); removal tracked as amber A5). `amber_ace_issue` maps cache-side events to ACE transactions; see Chapter 2.8.
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
@@ -108,4 +108,4 @@ All geometry, policy, and bus-width choices are elaboration parameters. See Chap
 
 ---
 
-**Last Updated:** 2026-10-06
+**Last Updated:** 2026-10-11

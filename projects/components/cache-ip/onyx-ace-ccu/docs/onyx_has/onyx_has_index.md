@@ -23,9 +23,9 @@
 
 # onyx — Snoop-Based ACE Coherency Unit — Hardware Architecture Specification
 
-**Version:** 0.1
+**Version:** 0.2
 **Date:** 2026-10-11
-**Status:** 0.1 skeleton: context, decided contracts, and the invariant landscape are real content; chapters shaped by the open D/N rows (D1–D6, D8–D11, N1–N7) are explicit stubs that say so and point at the open rows.
+**Status:** 0.2: owner rulings recorded — RACK/WACK omitted from the contract (N1 decided); CD-before-CR confirmed as the family convention (invariant 6 decided). Otherwise the same skeleton: context, decided contracts, and the invariant landscape are real content; chapters shaped by the remaining open D/N rows are explicit stubs.
 
 **Scope:** The architecture of `onyx` as the snoop-based ACE coherency manager for the `cache-ip/` family. This book records the port contracts that are decided (D7), the design-invariant landscape proposed by the PRD, and the open decisions that must close before the manager architecture can be fixed. It does not invent answers for the open rows.
 

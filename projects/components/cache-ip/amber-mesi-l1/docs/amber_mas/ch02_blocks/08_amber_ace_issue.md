@@ -67,7 +67,7 @@
 
 ### To axi4ace_master_rd / axi4ace_master_wr
 
-`amber_ace_issue` drives the `fub_axi_*` ports of the ACE master wrappers. It supplies `arsnoop`/`awsnoop` and the standard AXI address/data fields. The wrappers auto-pulse `RACK`/`WACK`.
+`amber_ace_issue` drives the `fub_axi_*` ports of the ACE master wrappers. It supplies `arsnoop`/`awsnoop` and the standard AXI address/data fields. The wrappers auto-pulse `RACK`/`WACK` (deprecated per ruling 2026-10-11 (Sean); removal tracked as amber A5).
 
 ---
 
@@ -86,4 +86,4 @@
 
 ---
 
-**Last Updated:** 2026-10-06
+**Last Updated:** 2026-10-11

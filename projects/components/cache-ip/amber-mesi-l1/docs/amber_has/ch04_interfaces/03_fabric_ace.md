@@ -25,7 +25,7 @@
 
 ## Onyx-rig fabric
 
-`amber_ace` uses the existing `rtl/amba/ace/axi4ace_master_rd` and `axi4ace_master_wr` modules toward `onyx`. These are full ACE masters with `ARSNOOP[3:0]` and `AWSNOOP[2:0]` transaction-type fields and auto-pulsed `RACK`/`WACK` outputs.
+`amber_ace` uses the existing `rtl/amba/ace/axi4ace_master_rd` and `axi4ace_master_wr` modules toward `onyx`. These are full ACE masters with `ARSNOOP[3:0]` and `AWSNOOP[2:0]` transaction-type fields and auto-pulsed `RACK`/`WACK` outputs (deprecated per ruling 2026-10-11 (Sean); removal tracked as amber A5).
 
 ## `amber_ace_issue`
 
@@ -54,9 +54,10 @@ contracts is exactly two facts:
 - the `fub_axi_arsnoop[3:0]` / `fub_axi_awsnoop[2:0]` fields carry the
   Table 4.2 transaction encodings above (the standard ACE snoop values);
 - `m_axi_rack` / `m_axi_wack` are **auto-pulsed inside the adapters** one
-  cycle after the last R beat / the B handshake — the onyx D2 subset has
-  no ordering semantics that need master-controlled acknowledges, so
-  amber's `amber_ace_issue` never drives them.
+  cycle after the last R beat / the B handshake. The family contract
+  omits RACK/WACK (ruling 2026-10-11 (Sean)); the auto-pulse is retained
+  in the generic house wrappers but is deprecated for onyx-rig use, with
+  removal tracked as amber A5.
 
 ## Outside the onyx D2 subset
 

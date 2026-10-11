@@ -23,13 +23,13 @@
 
 # jet — Lockup-Free MESI Snoopy L1 Cache — Hardware Architecture Specification
 
-**Version:** 0.1
+**Version:** 0.2
 **Date:** 2026-10-11
-**Status:** 0.1 skeleton: purpose, context, and the decision landscape are real content; chapters shaped by the open J-rows (J1–J7) are explicit stubs that say so and point at the open rows.
+**Status:** 0.2: owner rulings inherited from amber/onyx recorded — RACK/WACK omitted from the contract; CD-before-CR confirmed as the family convention. Otherwise the same skeleton: purpose, context, and the decision landscape are real content; chapters shaped by the open J-rows are explicit stubs.
 
 **Scope:** The architecture of `jet` (pair-rig top) and `jet_ace` (onyx-rig top) as a lockup-free upgrade of `amber`. This book records what is inherited unchanged from amber, the research question jet exists to answer, and the open decisions that must close before the architecture can be fixed. It does not invent answers for J1–J7.
 
-**How this book relates to its sources.** The [jet PRD](../../PRD.md) is the binding requirements document. The [amber HAS](../../../amber-mesi-l1/docs/amber_has/amber_has_index.md) is the inherited architecture: amber's core, interfaces, parameters, and integration rules apply unless a J-row explicitly overrides them. The open J-rows are jet's deltas; this 0.1 HAS records their decision landscape, not their answers. The [GLOBAL_REQUIREMENTS.md](../../../../../../GLOBAL_REQUIREMENTS.md) reset-macro, array-syntax, no-bespoke-SRAM, and filelist rules apply throughout.
+**How this book relates to its sources.** The [jet PRD](../../PRD.md) is the binding requirements document. The [amber HAS](../../../amber-mesi-l1/docs/amber_has/amber_has_index.md) is the inherited architecture: amber's core, interfaces, parameters, and integration rules apply unless a J-row explicitly overrides them. The open J-rows are jet's deltas; this 0.2 HAS records their decision landscape, not their answers. The [GLOBAL_REQUIREMENTS.md](../../../../../../GLOBAL_REQUIREMENTS.md) reset-macro, array-syntax, no-bespoke-SRAM, and filelist rules apply throughout.
 
 ---
 

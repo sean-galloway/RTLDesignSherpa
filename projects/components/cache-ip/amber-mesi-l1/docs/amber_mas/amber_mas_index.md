@@ -23,8 +23,8 @@
 
 # amber MAS Index
 
-**Version:** 0.5
-**Date:** 2026-10-06
+**Version:** 0.6
+**Date:** 2026-10-11
 **Purpose:** Micro-architecture specification for the amber blocking MESI snoopy L1 cache
 
 **Scope:** Cycle-level behavior, per-module micro-architecture, and the pre-RTL signal-contract / kmap workbook for `amber` (pair-rig top) and `amber_ace` (onyx-rig top). The binding architecture lives in the [amber HAS](../amber_has/amber_has_index.md); this book closes the implementation decisions the HAS deferred.

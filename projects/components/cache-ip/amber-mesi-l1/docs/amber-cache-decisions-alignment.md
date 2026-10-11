@@ -103,7 +103,7 @@ with WriteBack at 3 bits") and in the RTL header of
 | Snoopy coherence / write-invalidate / MESI states | COD §5.10/§5.13 and Handy §4.2/§4.3.1 cover the protocol family (see D4/D6 rows). | **aligned** at the protocol level |
 | ACE channel names, ARSNOOP/AWSNOOP encodings, CleanUnique/MakeUnique/Evict transactions | None of the five books discusses the ARM AXI/ACE coherence transport or its snoop-field encodings. Handy's closest material is Futurebus+ §4.3.2, which is a different open bus. | **no-guidance** — the CleanUnique=0x6 ruling is repo-local and is disclosed for onyx reconciliation; cite the generic snooping literature for the protocol semantics, not for ACE wire values |
 | Combinational event→transaction map, AW-only transactions swallowed on B | No book discusses this micro-architectural mapping; COD §5.13 treats bus transactions as atomic and abstracts the issue stage. | **no-guidance** — amber's `ace_issue` is a repo-specific adapter needed because the core's engines generate plain AXI4 AR/AW and the ACE rig needs snoop fields |
-| Auto-pulsed `RACK`/`WACK` inside the house ACE wrappers | Not covered by any book; ACE-specific. | **no-guidance** |
+| Auto-pulsed `RACK`/`WACK` inside the house ACE wrappers | Chinnakonda §7.20, §14.39: RACK/WACK are omittable when data-return and snoop paths are ordered to the coherency point. Ruling 2026-10-11 (Sean): omitted from the family contract; wrapper auto-pulse deprecated, removal tracked as amber A5. | **ruled 2026-10-11** |
 
 ### 3.3 CleanUnique ruling — divergence note
 

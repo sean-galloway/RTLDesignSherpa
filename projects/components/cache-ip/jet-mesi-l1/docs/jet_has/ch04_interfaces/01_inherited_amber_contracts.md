@@ -30,6 +30,14 @@ jet inherits the following interface contracts unchanged from the [amber HAS](..
 - **Fabric-side ACE masters.** The onyx-rig coherent transaction issuer is the same as amber ch04 `03_fabric_ace.md`. `ReadShared`, `ReadUnique`, `CleanUnique`, `MakeUnique`, `WriteBack`, and `Evict` still issue from the same pin contract.
 - **ACE-shaped snoop port (AC/CD/CR).** The snoop responder contract is the same as amber ch04 `04_snoop_accdcr.md` and is defined by onyx D7. The data/response channels use the same no-ID in-order CR/CD obligations.
 
+## Owner rulings inherited from amber/onyx
+
+Ruling 2026-10-11 (Sean): the inherited ACE contract omits RACK/WACK
+(the D7 port guarantees ordered data-return and snoop paths to the
+coherency point, which is the condition Chinnakonda §7.20/§14.39 gives
+for omitting them). The CD-before-CR snoop-response ordering remains the
+binding family convention; the ACE spec only requires per-channel ordering.
+
 ## Jet-specific stress
 
 The contracts themselves do not change, but the internal concurrency does. With multiple outstanding misses:
