@@ -23,7 +23,7 @@ HAS_INDEX="pumice_has/pumice_has_index.md"
 
 # md_to_docx.py lives in the RTLDesignSherpa repo, not this directory.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RTLDS_ROOT="${RTLDS_ROOT:-$(cd "${SCRIPT_DIR}/../../../../.." && pwd)}"
+RTLDS_ROOT="${RTLDS_ROOT:-$(cd "${SCRIPT_DIR}/../../../../../.." && pwd)}"
 MD2DOCX="${RTLDS_ROOT}/bin/md_to_docx.py"
 
 if [[ ! -f "${MD2DOCX}" ]]; then
