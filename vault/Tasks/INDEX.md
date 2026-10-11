@@ -326,6 +326,7 @@ reviewed tree starts until the review is back and integrated.
 | [common](common/INDEX.md) | **migrated** | rtl/common building blocks | — |
 | [math](math/INDEX.md) | **native** | rtl/math arithmetic library (MATH-001: bf16 rounding decision) | — (new 2026-07-29) |
 | [cdc](cdc/INDEX.md) | **native** | rtl/cdc clock-domain crossing (gray/binary converters, async FIFOs, pointer synchronisers) | — (new 2026-09-04) |
+| [utility-ip/converters](utility-ip/converters/INDEX.md) | **native** | AXI3 protocol converters (axi4_to_axi3 / axi3_to_axi4) | — (new 2026-10-10) |
 | [misc](projects/components/utility-ip/misc/INDEX.md) | **native** | shared odds and ends: AXI4 interface observers, tally/slvmon register blocks, dma_address_gen | — (new 2026-09-04) |
 | [stream](projects/components/dma-ip/stream/INDEX.md) | **started** | dma-ip/stream DMA (nested to mirror repo path) | TASK-056 migrated from TODO_RFC_StageE; [TASKS.md](../../projects/components/dma-ip/stream/TASKS.md) (v1.0 complete) still to fold in |
 | [rapids](projects/components/dma-ip/rapids/INDEX.md) | **started** | dma-ip/rapids DMA (beats, nested to mirror repo) | TASK-057 regmap hygiene (ported from STREAM); [TASKS.md](../../projects/components/dma-ip/rapids/TASKS.md) still to fold in; rapids_beats_mas/TODO.md deleted 2026-09-28 (every figure DONE, history in TASK-010) |
