@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
 """
-Unit-test runner for `mode_register`. Verifies MR storage + live
+Unit-test runner for `mc_xddr2_mode_register`. Verifies MR storage + live
 decode of CL/CWL/BL/AL.
 """
 
@@ -190,11 +190,11 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
                          ids=[f"{t[0]}-nr{t[1]}" for t in _PARAMS])
 def test_mode_register(request, test_type, num_ranks):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "mode_register"
+    dut_name = "mc_xddr2_mode_register"
     test_name = f"test_mode_register_{test_type}_nr{num_ranks}"
 
-    filelist_path = ("projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/"
-                     "rtl/filelists/fub/mode_register.f")
+    filelist_path = ("projects/components/mem-ctrl-ip/common-ip/"
+                     "rtl/filelists/fub/mc_xddr2_mode_register.f")
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 

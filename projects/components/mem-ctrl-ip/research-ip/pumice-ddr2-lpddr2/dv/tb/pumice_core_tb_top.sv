@@ -279,7 +279,7 @@ module pumice_core_tb_top
     // e.g. a REFab granted while a bank row is still OPEN (ACT with no PRE), the
     // registered-feedback refresh-collision hazard. Sequencing checks only;
     // pair with the DFI-read data check for de-interleave/skew defects.
-    pumice_cmd_history_checker #(
+    mc_cmd_history_checker #(
         .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS), .DEPTH(32),
         // JEDEC same-bank windows (match the tb _cfg timings): catches a column
         // op issued too soon after ACT (tRCD) etc. — e.g. a refresh-disturbed

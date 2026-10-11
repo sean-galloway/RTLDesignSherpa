@@ -6,8 +6,8 @@
 //
 // Module: pumice_scheduler_layer
 // Purpose: Thin pumice wrapper around the common mc_scheduler_layer core.
-//          Instantiates the rock-specific init_sequencer, mode_register,
-//          refresh_ctrl, page_policy, and command-history checker, and maps
+//          Instantiates the common mc_xddr2_init_sequencer / mc_xddr2_mode_register,
+//          mc_xddr2_refresh_ctrl, mc_page_policy, mc_cmd_history_checker, and maps
 //          the pumice training channel onto the generic maintenance slot.
 //
 //          PHY/nphases-agnostic; single-issue; single controller clock (aclk).
@@ -190,7 +190,7 @@ module pumice_scheduler_layer
     // ======================================================================
     // Rock-specific children.
     // ======================================================================
-    init_sequencer #(
+    mc_xddr2_init_sequencer #(
         .NUM_BANKS(NUM_BANKS),
         .ROW_WIDTH(ROW_WIDTH)
     ) u_init (
@@ -222,7 +222,7 @@ module pumice_scheduler_layer
         .init_done_o        (init_done)
     );
 
-    mode_register #(
+    mc_xddr2_mode_register #(
         .NUM_RANKS(NUM_RANKS)
     ) u_mode_reg (
         .mc_clk        (aclk),
@@ -245,7 +245,7 @@ module pumice_scheduler_layer
         .odt_o         ()
     );
 
-    refresh_ctrl #(
+    mc_xddr2_refresh_ctrl #(
         .NUM_BANKS(NUM_BANKS)
     ) u_refresh (
         .mc_clk          (aclk),
@@ -273,7 +273,7 @@ module pumice_scheduler_layer
         .obs_pullin_credit_o   ()
     );
 
-    pumice_page_policy #(
+    mc_page_policy #(
         .NUM_RANKS(NUM_RANKS),
         .NUM_BANKS(NUM_BANKS),
         .ROW_WIDTH(ROW_WIDTH)
@@ -443,7 +443,7 @@ module pumice_scheduler_layer
 
     // ---- optional command-history scoreboard -------------------------------
     generate if (CMD_HISTORY_EN != 0) begin : g_cmd_history
-        pumice_cmd_history_checker #(
+        mc_cmd_history_checker #(
             .NUM_RANKS(NUM_RANKS),
             .NUM_BANKS(NUM_BANKS),
             .DEPTH    (32),

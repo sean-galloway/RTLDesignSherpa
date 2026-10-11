@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2026 sean galloway
 //
-// Module: refresh_ctrl
+// Module: mc_xddr2_refresh_ctrl
 // Purpose: Track tREFI between mandatory refresh commands. When the
 //          interval expires, raise `refresh_req_o` to the scheduler.
 //          The scheduler arbitrates and pulses `refresh_grant_i` once
@@ -44,8 +44,7 @@
 
 `include "reset_defs.svh"
 
-module refresh_ctrl
-    import pumice_pkg::*;
+module mc_xddr2_refresh_ctrl
     import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int NUM_BANKS = 8,
@@ -315,4 +314,4 @@ module refresh_ctrl
         end
     end)
 
-endmodule : refresh_ctrl
+endmodule : mc_xddr2_refresh_ctrl

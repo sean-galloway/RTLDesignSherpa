@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2026 sean galloway
 //
-// Module: init_sequencer
+// Module: mc_xddr2_init_sequencer
 // Purpose: Post-reset DRAM bring-up sequencer — full JEDEC DDR2 init.
 //
 //          DDR2 sequence (mirrors LiteDRAM's get_ddr2_phy_init_sequence,
@@ -54,8 +54,7 @@
 
 `include "reset_defs.svh"
 
-module init_sequencer
-    import pumice_pkg::*;
+module mc_xddr2_init_sequencer
     import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int ROW_WIDTH = 14,
@@ -405,4 +404,4 @@ module init_sequencer
 
     wire _unused = &{1'b0, zqcl_grant_i};
 
-endmodule : init_sequencer
+endmodule : mc_xddr2_init_sequencer

@@ -1,5 +1,5 @@
-module: refresh_ctrl
-rtl_file: projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/refresh_ctrl.sv
+module: mc_xddr2_refresh_ctrl
+rtl_file: projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_xddr2_refresh_ctrl.sv
 test_file: projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/dv/tests/fub/test_refresh_ctrl.py
 
 parameters:

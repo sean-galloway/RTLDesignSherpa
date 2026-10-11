@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
-// pumice_page_policy — runtime page-policy engine + page/command telemetry.
+// mc_page_policy — runtime page-policy engine + page/command telemetry.
 //
 // TASK-001 Axis 2. Watches the arbiter's ISSUED command stream (the same
 // valid&&ready stream the cmd-history checker audits) plus the registered
@@ -40,8 +40,7 @@
 
 `include "reset_defs.svh"
 
-module pumice_page_policy
-    import pumice_pkg::*;
+module mc_page_policy
     import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int NUM_RANKS = 1,
@@ -301,4 +300,4 @@ module pumice_page_policy
         end
     end)
 
-endmodule : pumice_page_policy
+endmodule : mc_page_policy

@@ -5,7 +5,7 @@
 # Created: 2026-06-20
 
 """
-Unit-test runner for `dfi_cmd_formatter`.
+Unit-test runner for `mc_xddr2_cmd_formatter`.
 
 Scenarios (all scoreboarded via DfiCmdFormatterTB.drive_and_check):
   all_ops          drive each DDR2 op, verify phase-0 + phase-1..N-1 NOP
@@ -227,13 +227,13 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
                          ids=[f"{t[0]}-r{t[1]}-nr{t[2]}" for t in _PARAMS])
 def test_dfi_cmd_formatter(request, test_type, dfi_rate, num_ranks):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "dfi_cmd_formatter"
+    dut_name = "mc_xddr2_cmd_formatter"
 
     test_name = f"test_dfi_cmd_formatter_{test_type}_r{dfi_rate}_nr{num_ranks}"
 
     filelist_path = (
-        "projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/"
-        "rtl/filelists/fub/dfi_cmd_formatter.f"
+        "projects/components/mem-ctrl-ip/common-ip/"
+        "rtl/filelists/fub/mc_xddr2_cmd_formatter.f"
     )
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path

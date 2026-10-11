@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2026 sean galloway
 //
-// Module: dfi_cmd_formatter
+// Module: mc_xddr2_cmd_formatter
 // Purpose: Translate the scheduler's chosen `dram_op_e` plus
 //          (rank, bank, row, col) into the DFI v2.1 control bus signals
 //          per JEDEC truth table for DDR2, and the bit-exact JESD209-2F
@@ -45,8 +45,7 @@
 
 `include "reset_defs.svh"
 
-module dfi_cmd_formatter
-    import pumice_pkg::*;
+module mc_xddr2_cmd_formatter
     import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int NUM_RANKS       = 1,
@@ -414,4 +413,4 @@ module dfi_cmd_formatter
 
     wire unused_v1 = |{ cmd_len_i };
 
-endmodule : dfi_cmd_formatter
+endmodule : mc_xddr2_cmd_formatter

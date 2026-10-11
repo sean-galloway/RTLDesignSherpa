@@ -651,3 +651,35 @@ Owner asked why pumice rtl/fub still holds DFI/init/powerdown blocks. Findings:
   (children of pumice_scheduler_layer) + pumice_zq_ctrl, pumice_lp_cal
   (children of pumice_training_layer) + pumice_cmd_arbiter (documented thin
   wrapper). Owner wants these common - migration plan presented for GO.
+
+## 2026-10-11 (evening) — Owner naming convention + stage-1 migration to common-ip
+
+Owner convention (answers "files common between research and product
+bases"): mc_xddr2_* = applies to BOTH DDR2+LPDDR2; mc_ddr2_* / mc_lpddr2_*
+= single-tech; pattern follows for other generations. Plain mc_* stays for
+tech-agnostic blocks. DFI generation stays in the layer names
+(mc_dfi_2p1/3p1/4p0_layer).
+
+Stage 1 (committed): six pumice blocks git-mv'd to common-ip/rtl/fub with
+renames + rewiring (behavior-preserving):
+- init_sequencer -> mc_xddr2_init_sequencer; mode_register ->
+  mc_xddr2_mode_register; refresh_ctrl -> mc_xddr2_refresh_ctrl
+- pumice_page_policy -> mc_page_policy (tech-agnostic)
+- pumice_cmd_history_checker -> mc_cmd_history_checker (tech-agnostic)
+- dfi_cmd_formatter -> mc_xddr2_cmd_formatter (was ALREADY the common
+  mc_dfi_cmd_path's rock-shared child at :271; the convention extends it:
+  scoria's formatter -> mc_xddr3_*, andesite's -> mc_xddr4_* when they move)
+Instantiation sites: pumice_scheduler_layer x5, mc_dfi_cmd_path x2
+(:271 formatter, :351 history checker - second site found by agent).
+Filelists: 6 new common fub flists; pumice_all/core/top + scheduler flists
+updated; old pumice fub flists deleted. DV: 4 tests + 4 testplans re-pointed
+(no tests existed for page_policy/history); pumice_core_tb_top.sv:282
+history-checker instance re-pointed (found by agent, fixed by main).
+Verified: registry PASS (mc_common 32 modules), verilator lint pumice_core
+AND scoria_core clean (0 warnings), repo gates green.
+
+Stage 2 (queued): pumice_zq_ctrl -> mc_lpddr2_zq_ctrl; pumice_lp_cal ->
+mc_lpddr2_dq_cal; scoria/andesite formatter alignment (their formatters stay
+rock-local until moved as mc_xddr3_/mc_xddr4_cmd_formatter). Book ownership
+updates (pumice HAS "what pumice owns" + common_mas ownership chapters) ride
+the docs tranche when books unfreeze.

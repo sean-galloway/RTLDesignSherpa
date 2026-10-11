@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2026 sean galloway
 //
-// pumice_cmd_history_checker — FINE-GRAINED per-bank command-history scoreboard.
+// mc_cmd_history_checker — FINE-GRAINED per-bank command-history scoreboard.
 //
 // Purpose: audit the arbiter's issued abstract-command stream against JEDEC
 // same-bank sequencing. The functional "safe signals" (pumice_bank_timers
@@ -32,8 +32,7 @@
 
 `include "reset_defs.svh"
 
-module pumice_cmd_history_checker
-    import pumice_pkg::*;
+module mc_cmd_history_checker
     import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int NUM_RANKS = 1,
@@ -309,4 +308,4 @@ module pumice_cmd_history_checker
     end
 `endif
 
-endmodule : pumice_cmd_history_checker
+endmodule : mc_cmd_history_checker

@@ -1,5 +1,5 @@
-module: dfi_cmd_formatter
-rtl_file: projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/dfi_cmd_formatter.sv
+module: mc_xddr2_cmd_formatter
+rtl_file: projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_xddr2_cmd_formatter.sv
 test_file: projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/dv/tests/fub/test_dfi_cmd_formatter.py
 
 coverage_points: []

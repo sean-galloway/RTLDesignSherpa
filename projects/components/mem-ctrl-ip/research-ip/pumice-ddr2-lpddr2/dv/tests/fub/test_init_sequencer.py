@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
 """
-Unit-test runner for `init_sequencer`. Walks the JEDEC DDR2 init FSM from
+Unit-test runner for `mc_xddr2_init_sequencer`. Walks the JEDEC DDR2 init FSM from
 RESET through DONE, verifies dfi_init_start_o asserts, and verifies the full
 mode-register write sequence:
 
@@ -458,11 +458,11 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
                          ids=[t[0] for t in _PARAMS])
 def test_init_sequencer(request, test_type):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "init_sequencer"
+    dut_name = "mc_xddr2_init_sequencer"
     test_name = f"test_init_sequencer_{test_type}"
 
-    filelist_path = ("projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/"
-                     "rtl/filelists/fub/init_sequencer.f")
+    filelist_path = ("projects/components/mem-ctrl-ip/common-ip/"
+                     "rtl/filelists/fub/mc_xddr2_init_sequencer.f")
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 

@@ -1,5 +1,5 @@
-module: mode_register
-rtl_file: projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/mode_register.sv
+module: mc_xddr2_mode_register
+rtl_file: projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_xddr2_mode_register.sv
 test_file: projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/dv/tests/fub/test_mode_register.py
 
 parameters:

@@ -268,7 +268,7 @@ module mc_dfi_cmd_path
             // Drive this sub's command on sub_phase via rd_phase_i/wr_phase_i.
             // For a column op the base_phase IS rd/wr_phase, so passing sub_phase
             // as BOTH places the command correctly regardless of RD vs WR.
-            dfi_cmd_formatter #(
+            mc_xddr2_cmd_formatter #(
                 .NUM_RANKS      (NUM_RANKS),
                 .NUM_BANKS      (NUM_BANKS),
                 .ROW_WIDTH      (ROW_WIDTH),
@@ -348,7 +348,7 @@ module mc_dfi_cmd_path
     // spacing the DRAM sees (the formatter below adds a constant register
     // delay, which shifts every command equally and cannot hide a violation).
     generate if (CMD_HISTORY_EN != 0) begin : g_dfi_cmd_history
-        pumice_cmd_history_checker #(
+        mc_cmd_history_checker #(
             .NUM_RANKS(NUM_RANKS),
             .NUM_BANKS(NUM_BANKS),
             .DEPTH    (32),

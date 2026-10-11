@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2026 sean galloway
 //
-// Module: mode_register
+// Module: mc_xddr2_mode_register
 // Purpose: Per-rank Mode Register shadow + live decode of MR-derived
 //          timing values for use by the rest of the controller.
 //
@@ -31,8 +31,7 @@
 
 `include "reset_defs.svh"
 
-module mode_register
-    import pumice_pkg::*;
+module mc_xddr2_mode_register
     import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int NUM_RANKS  = 1,
@@ -202,4 +201,4 @@ module mode_register
     wire unused_v1 = |{ mr_grant_i, w_mr0[15:7], w_mr1[15:7],
                         w_mr2[15:8] };
 
-endmodule : mode_register
+endmodule : mc_xddr2_mode_register
