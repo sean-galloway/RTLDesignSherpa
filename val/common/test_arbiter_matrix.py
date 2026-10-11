@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# SPDX-FileCopyrightText: 2024-2025 sean galloway
+# SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
@@ -47,9 +47,9 @@ def generate_test_params():
     """
     Parameter sweep based on REG_LEVEL.
 
-    REG_LEVEL=GATE: 2, 4
-    REG_LEVEL=FUNC: 2, 4, 5, 8 (default)
-    REG_LEVEL=FULL: 2, 4, 5, 8 with extra seeds
+    REG_LEVEL=GATE: 2, 4 clients, both ACK modes
+    REG_LEVEL=FUNC: 2, 4, 5, 8 clients, no-ACK only (default)
+    REG_LEVEL=FULL: 2, 4, 5, 8 clients, both ACK modes
     """
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
@@ -60,7 +60,11 @@ def generate_test_params():
 
     params = []
     for clients in client_counts:
-        params.append((clients, 0))  # no-ACK mode is the required path
+        if reg_level == 'FUNC':
+            params.append((clients, 0))  # no-ACK mode only for quick regression
+        else:
+            params.append((clients, 0))  # no-ACK mode
+            params.append((clients, 1))  # ACK mode
     return params
 
 

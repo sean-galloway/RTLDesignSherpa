@@ -29,13 +29,15 @@ Fair, distributed-state arbitration using a priority matrix. Each requester carr
 
 ## Overview
 
-The `arbiter_matrix` module implements the matrix arbiter described in Dally & Towles, *Principles and Practices of Interconnection Networks*, chapter 17 §18.5. Priority is encoded as an N×N bit matrix `M`:
+The `arbiter_matrix` module implements the matrix arbiter described in Dally & Towles, *Principles and Practices of Interconnection Networks*, chapter 17 §18.5. Priority is encoded as a `CLIENTS`×`CLIENTS` bit matrix `M`:
 
 - `M[i][j] = 1` means requester `i` currently outranks requester `j`.
 - `M[i][j] = 0` means requester `i` is outranked by requester `j`.
 - The diagonal is a don't-care.
 
-Because `M[j][i] = ~M[i][j]`, only the `N(N-1)/2` upper-triangle bits are stored; the lower triangle is derived combinationally. On each grant, the winner's row is cleared and its column is set, dropping that winner to the lowest priority. The result is strong fairness: any persistently requesting client is served within `N` consecutive grants.
+Because `M[j][i] = ~M[i][j]`, only the `CLIENTS·(CLIENTS-1)/2` upper-triangle bits are stored; the lower triangle is derived combinationally. On each grant, the winner's row is cleared and its column is set, dropping that winner to the lowest priority. The result is strong fairness: any persistently requesting client is served within `CLIENTS` consecutive grants.
+
+In this document, `N` refers to the bit width of `grant_id` (`$clog2(CLIENTS)`, guarded to 1 for `CLIENTS==1`). It is not the number of clients; the number of clients is always `CLIENTS`.
 
 ## Parameters
 
@@ -43,7 +45,7 @@ Because `M[j][i] = ~M[i][j]`, only the `N(N-1)/2` upper-triangle bits are stored
 |-----------|------|---------|-------------|
 | CLIENTS | int | 4 | Number of requesting clients (must be ≥ 1) |
 | WAIT_GNT_ACK | int | 0 | When 1, holds the grant until the winner acknowledges it |
-| N | int | $clog2(CLIENTS) (guarded) | Internal parameter for `grant_id` width |
+| N | int | $clog2(CLIENTS) (guarded) | **Derived** bit width of `grant_id`; do not override |
 
 ## Ports
 
@@ -63,7 +65,7 @@ Because `M[j][i] = ~M[i][j]`, only the `N(N-1)/2` upper-triangle bits are stored
 |------|-------|-------------|
 | grant_valid | 1 | High when a valid grant is being issued |
 | grant | CLIENTS | One-hot grant vector (exactly one bit set when `grant_valid=1`) |
-| grant_id | N | Binary-encoded ID of the granted client |
+| grant_id | `N` (`$clog2(CLIENTS)`, guarded) | Binary-encoded ID of the granted client |
 | last_grant | CLIENTS | Previous cycle's grant (for debugging/history) |
 
 ## Functional Description
@@ -109,13 +111,17 @@ A one-cycle grant is issued every cycle a winner exists, and the matrix is updat
 
 The grant is held until the granted client asserts the corresponding bit of `grant_ack`. The matrix is updated only when the ACK arrives, so the priority state does not advance while a transaction is in flight.
 
+When the owner's `grant_ack` bit is asserted, the matrix is updated for the retiring winner and the next waiting requester is granted in the **same clock cycle** (same-cycle ACK handoff). This means that with all clients continuously requesting, grants advance every cycle once each ACK is provided. Only the bit of `grant_ack` belonging to the currently granted client can retire the held grant; ACK bits from other clients are ignored (foreign-ack immunity).
+
 ### Block Arbitration
 
 Asserting `block_arb` masks all requests to zero. No grants are issued while it is high; grants resume from the current matrix state when it is released.
 
 ## Timing Characteristics
 
-This module is **sequential**: grants are registered and appear one clock cycle after the requests that produced them. The matrix update is also registered, so the next winner is computed from the updated matrix on the following cycle.
+This module is **sequential**: grants are registered and appear one clock cycle after the requests that produced them. The matrix update is also registered, so in no-ACK mode the next winner is computed from the updated matrix on the following cycle.
+
+In ACK mode, the post-ACK matrix update and next-winner computation are performed combinationally in the cycle the ACK arrives, and the new grant is registered in the same cycle. Therefore a continuous stream of ACKs produces back-to-back grants with no idle cycle between them.
 
 No synthesis frequency or area figures are quoted; none have been measured against a target device.
 
@@ -149,7 +155,7 @@ arbiter_matrix #(
 - From reset, client 0 has the highest priority; the first grant with all clients requesting goes to client 0.
 - The matrix update is local and distributed: there is no central rotating pointer or mask register, only the pairwise priority bits.
 - Because the grant is registered, a lone requester sees a grant in the cycle after its request is asserted.
-- The matrix arbiter is especially attractive for small `N`; for very large `N` the `O(N²)` matrix storage and the cross-client comparison network can dominate area and timing.
+- The matrix arbiter is especially attractive for small `CLIENTS`; for very large `CLIENTS` the `O(CLIENTS²)` matrix storage and the cross-client comparison network can dominate area and timing.
 
 ## Related Modules
 
@@ -167,11 +173,12 @@ arbiter_matrix #(
 `val/common/test_arbiter_matrix.py` exercises the module. It validates:
 
 - One-hot or zero grant, never granted to an unrequested client
-- Strong fairness over `4N` consecutive grants with all clients requesting
+- Strong fairness over `4·CLIENTS` consecutive grants with all clients requesting
 - Correct rotation from cold start and after partial-request idle gaps
 - Immediate service for a single requester regardless of matrix state
 - Reset restoring client 0 as the highest-priority requester
-- Parameterization across `CLIENTS = 2, 4, 5, 8`
+- In ACK mode: hold-until-owner-ack, foreign-ack immunity, back-to-back same-cycle handoff, and single-requester re-grant
+- Parameterization across `CLIENTS = 2, 4, 5, 8` in no-ACK mode, plus ACK mode at `REG_LEVEL=GATE` and `FULL`
 
 ```bash
 source env_python

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# SPDX-FileCopyrightText: 2024-2025 sean galloway
+# SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
@@ -24,6 +24,9 @@ stimulus rather than relying on a randomized BFM:
   3. Fairness survives cold start and mid-stream idle gaps.
   4. A single requester is granted in the next cycle regardless of matrix state.
   5. Reset restores the documented initial order (client 0 wins first).
+  6. In ACK mode, the grant is held until the winner acknowledges it, foreign
+     ACK bits are ignored, and the next requester is granted in the same cycle
+     when an ACK retires the current grant.
 """
 
 import os
@@ -317,22 +320,209 @@ class ArbiterMatrixTB(TBBase):
         self.log.info("block_arb test PASSED")
         return True
 
+    # -------------------------------------------------------------------------
+    # ACK-mode directed tests
+    # -------------------------------------------------------------------------
+    async def _wait_for_grant(self, timeout=20):
+        """Wait until grant_valid is high and return (gv, gnt, gid)."""
+        for _ in range(timeout):
+            gv, gnt, gid = self.read_grant()
+            if gv:
+                return gv, gnt, gid
+            await self.wait_clocks(1)
+        raise AssertionError(f"No grant appeared within {timeout} cycles")
+
+    async def _drive_ack(self, ack_vec: int, cycles: int = 1):
+        """Drive grant_ack to ack_vec for the specified number of cycles."""
+        if self.CLIENTS > 1:
+            self.dut.grant_ack.value = ack_vec
+        await self.wait_clocks(cycles)
+        if self.CLIENTS > 1:
+            self.dut.grant_ack.value = 0
+
+    async def test_ack_hold_until_owner_ack(self):
+        """In ACK mode the grant is held until the winner acknowledges it."""
+        if self.WAIT_GNT_ACK != 1:
+            self.log.info("ACK hold test skipped in no-ACK mode")
+            return True
+
+        self.log.info(f"=== ACK hold-until-owner-ack test ==={self.get_time_ns_str()}")
+
+        await self.reset_dut()
+        self.dut.request.value = (1 << self.CLIENTS) - 1
+        await self.wait_clocks(1)
+
+        _, gnt, gid = await self._wait_for_grant()
+        first_winner = gid
+        self.log.info(f"first grant to client {first_winner}")
+
+        # Withhold ACK for several cycles; the grant must remain unchanged.
+        self.dut.grant_ack.value = 0
+        for _ in range(5):
+            await self.wait_clocks(1)
+            gv, held_gnt, held_gid = self.read_grant()
+            assert gv == 1, "grant_valid dropped while waiting for ACK"
+            assert held_gid == first_winner, (
+                f"grant changed from {first_winner} to {held_gid} before ACK"
+            )
+            assert held_gnt == gnt, (
+                f"grant vector changed from 0x{gnt:x} to 0x{held_gnt:x} before ACK"
+            )
+
+        # Assert the owner's ACK; the next cycle should show a new grant if
+        # another client is requesting.
+        await self._drive_ack(1 << first_winner, 1)
+        await self.wait_clocks(1)
+        gv, next_gnt, next_gid = self.read_grant()
+        if self.CLIENTS > 1:
+            assert gv == 1, "no next grant after owner ACK with pending requests"
+            assert next_gid != first_winner, (
+                f"grant did not rotate after ACK (still {next_gid})"
+            )
+            assert (next_gnt & ((1 << self.CLIENTS) - 1)) != 0, "next grant is zero"
+
+        self.log.info("ACK hold-until-owner-ack test PASSED")
+        return True
+
+    async def test_ack_foreign_ack_immunity(self):
+        """Only the currently granted client's ACK bit retires the held grant."""
+        if self.WAIT_GNT_ACK != 1:
+            self.log.info("foreign-ACK immunity test skipped in no-ACK mode")
+            return True
+        if self.CLIENTS < 2:
+            self.log.info("foreign-ACK immunity test skipped for single client")
+            return True
+
+        self.log.info(f"=== ACK foreign-ack immunity test ==={self.get_time_ns_str()}")
+
+        await self.reset_dut()
+        self.dut.request.value = (1 << self.CLIENTS) - 1
+        await self.wait_clocks(1)
+
+        _, _, first_gid = await self._wait_for_grant()
+        foreign = (first_gid + 1) % self.CLIENTS
+        self.log.info(f"first grant to client {first_gid}; foreign client {foreign}")
+
+        # Assert a foreign ACK bit; the held grant must not change.
+        self.dut.grant_ack.value = 1 << foreign
+        for _ in range(5):
+            await self.wait_clocks(1)
+            gv, _, gid = self.read_grant()
+            assert gv == 1, "grant_valid dropped after foreign ACK"
+            assert gid == first_gid, (
+                f"foreign ACK changed grant from {first_gid} to {gid}"
+            )
+
+        # Clear foreign ACK and assert the owner's ACK to retire the grant.
+        await self._drive_ack(1 << first_gid, 1)
+        await self.wait_clocks(1)
+        gv, _, gid = self.read_grant()
+        assert gv == 1, "no next grant after owner ACK"
+        assert gid != first_gid, "grant did not rotate after owner ACK"
+
+        self.log.info("ACK foreign-ack immunity test PASSED")
+        return True
+
+    async def test_ack_back_to_back_handoff(self):
+        """ACK-mode grants hand off in consecutive cycles with no bubble."""
+        if self.WAIT_GNT_ACK != 1:
+            self.log.info("back-to-back handoff test skipped in no-ACK mode")
+            return True
+        if self.CLIENTS < 2:
+            self.log.info("back-to-back handoff test skipped for single client")
+            return True
+
+        self.log.info(f"=== ACK back-to-back handoff test ==={self.get_time_ns_str()}")
+
+        await self.reset_dut()
+        self.dut.request.value = (1 << self.CLIENTS) - 1
+        await self.wait_clocks(1)
+
+        # Expected cold-start rotation: 0, 1, 2, ..., CLIENTS-1, 0, ...
+        expected = list(range(self.CLIENTS)) + list(range(self.CLIENTS))
+        observed = []
+
+        # Capture the first grant, then ACK each winner immediately and record
+        # the next grant on the following cycle.
+        _, _, gid = await self._wait_for_grant()
+        observed.append(gid)
+        for _ in range(2 * self.CLIENTS - 1):
+            await self._drive_ack(1 << gid, 1)
+            await self.wait_clocks(1)
+            gv, _, gid = self.read_grant()
+            assert gv == 1, "grant_valid dropped during back-to-back handoff"
+            observed.append(gid)
+
+        assert observed == expected, (
+            f"back-to-back rotation {observed} != expected {expected}"
+        )
+        self.log.info(f"back-to-back rotation: {observed}")
+
+        self.log.info("ACK back-to-back handoff test PASSED")
+        return True
+
+    async def test_ack_single_requester(self):
+        """A lone requester in ACK mode is re-granted after each ACK."""
+        if self.WAIT_GNT_ACK != 1:
+            self.log.info("single-requester ACK test skipped in no-ACK mode")
+            return True
+
+        self.log.info(f"=== ACK single-requester test ==={self.get_time_ns_str()}")
+
+        for client in range(self.CLIENTS):
+            await self.reset_dut()
+            self.dut.request.value = 1 << client
+            await self.wait_clocks(1)
+
+            for rep in range(3):
+                gv, gnt, gid = await self._wait_for_grant()
+                assert gid == client, (
+                    f"client {client} rep {rep}: grant_id={gid}"
+                )
+                assert gnt == (1 << client), (
+                    f"client {client} rep {rep}: grant=0x{gnt:x}"
+                )
+                # ACK the lone requester and watch the grant reissue.
+                await self._drive_ack(1 << client, 1)
+                await self.wait_clocks(1)
+
+        self.log.info("ACK single-requester test PASSED")
+        return True
+
     async def run_all_tests(self):
         """Run the matrix arbiter test suite."""
         results = []
 
-        results.append(("one-hot/request-match",
-                        await self.test_one_hot_and_request_match()))
-        results.append(("strong-fairness-continuous",
-                        await self.test_strong_fairness_continuous()))
-        results.append(("fairness-cold-start-and-gaps",
-                        await self.test_fairness_cold_start_and_gaps()))
-        results.append(("single-requester-immediate",
-                        await self.test_single_requester_immediate()))
-        results.append(("reset-order",
-                        await self.test_reset_order()))
-        results.append(("block-arb",
-                        await self.test_block_arb()))
+        if self.WAIT_GNT_ACK == 0:
+            # No-ACK mode: run the full suite.  ACK-mode directed tests skip
+            # themselves when not in ACK mode.
+            results.append(("one-hot/request-match",
+                            await self.test_one_hot_and_request_match()))
+            results.append(("strong-fairness-continuous",
+                            await self.test_strong_fairness_continuous()))
+            results.append(("fairness-cold-start-and-gaps",
+                            await self.test_fairness_cold_start_and_gaps()))
+            results.append(("single-requester-immediate",
+                            await self.test_single_requester_immediate()))
+            results.append(("reset-order",
+                            await self.test_reset_order()))
+            results.append(("block-arb",
+                            await self.test_block_arb()))
+        else:
+            # ACK mode: the original tests are not designed for held grants.
+            # Run only reset-order (which is mode-agnostic) plus the directed
+            # ACK tests.
+            results.append(("reset-order",
+                            await self.test_reset_order()))
+
+        results.append(("ack-hold-until-owner-ack",
+                        await self.test_ack_hold_until_owner_ack()))
+        results.append(("ack-foreign-ack-immunity",
+                        await self.test_ack_foreign_ack_immunity()))
+        results.append(("ack-back-to-back-handoff",
+                        await self.test_ack_back_to_back_handoff()))
+        results.append(("ack-single-requester",
+                        await self.test_ack_single_requester()))
 
         self.log.info("=" * 60)
         self.log.info("ArbiterMatrix test summary:")
