@@ -179,7 +179,9 @@ def test_consumer_config_sweep_found_the_board_configs():
     # The sweep above is only a gate if it actually reaches the board
     # areas; an empty glob would pass forever.
     rels = {r[0] for r in _consumer_configs()}
-    assert any("Genesys2/stream" in r for r in rels), sorted(rels)
+    # Post board-matrix reorg the Genesys2 area is grouped by IP area:
+    # stream lives under Genesys2/dma-ip/stream (see projects/fpga-systems).
+    assert any("Genesys2/dma-ip/stream" in r for r in rels), sorted(rels)
     assert any("NexysA7" in r for r in rels), sorted(rels)
 
 
