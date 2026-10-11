@@ -27,6 +27,8 @@
 
 > Architectural context is in the family HAS ([common_has](../../common_has/common_has_index.md)); this chapter documents the block microarchitecture only.
 
+![mc_dfi_2p1_layer internal block diagram](../assets/graphviz/06_mc_dfi_2p1_layer.png)
+
 ## Purpose
 
 `mc_dfi_2p1_layer` is the common DFI 2.1 PHY-facing layer. It presents controller-clock command, write-data, and read-data streams on one side and the DFI 2.1 pin bus on the other, and owns the single controller-to-PHY clock-domain crossing plus the DFI-clock command path, write serializer, and read aligner (`macro/mc_dfi_2p1_layer.sv:8-12`, `macro/mc_dfi_2p1_layer.sv:32`). Its datapath unit is the **DFI word**; one FIFO word equals one DFI cycle, so the path is bubble-free at rate (`macro/mc_dfi_2p1_layer.sv:24-25`).

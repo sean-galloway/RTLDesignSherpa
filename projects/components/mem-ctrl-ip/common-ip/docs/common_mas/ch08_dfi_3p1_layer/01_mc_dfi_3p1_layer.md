@@ -31,6 +31,8 @@
 
 `mc_dfi_3p1_layer` holds the single `ctl_clk`/`dfi_clk` crossing in the controller and presents the controller-clock command/write-data/read-data streams on one side and the DFI 3.1 pin bus on the other (`macro/mc_dfi_3p1_layer.sv:8-12`). It is a constant-latency conduit: all JEDEC spacing is enforced upstream in the scheduler, and this layer must not stall the in-order command stream (`fub/mc_dfi_3p1_cmd_path.sv:160-184`).
 
+![mc_dfi_3p1_layer internal block diagram](../assets/graphviz/07_mc_dfi_3p1_layer.png)
+
 ## What is inherited unchanged from the 2.1 pipeline
 
 The internal datapath unit is one DFI word; one FIFO word equals one DFI cycle, so the crossing is bubble-free (`macro/mc_dfi_3p1_layer.sv:19-20`). The 2.1 and 3.1 layers share these child instances and behaviours:

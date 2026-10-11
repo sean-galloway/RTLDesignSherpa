@@ -1,0 +1,108 @@
+// Family whole-unit uarch diagram — the DDR-MC course style per STYLE.md.
+// Reference vocabulary mapped onto the common-ip stack:
+//   packetizers  = mc_axi4_layer intakes + burst chopper/splitter
+//   pools/buffer = mc_storage_layer CAMs (wr_data_cam / rd_cmd_cam)
+//   merge/forward= coalescing merge + wr2rd snarf forward
+//   maintenance  = mc_training_layer clients (ZQ / DQ-cal) via the scheduler's
+//                  generic maintenance slot
+//   scheduler    = mc_scheduler_layer (prospect pool -> mc_cmd_arbiter)
+//   timing ctl   = mc_bank_timers + mc_global_timers
+//   data path ctl= mc_dfi_2p1_layer wr_serializer / rd_aligner
+//   reorder buf  = mc_rd_return_ring (read return path — its own contract)
+digraph whole_unit {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.30", ranksep="0.55", splines=ortho,
+           label="mem-ctrl-ip whole unit — the family stack in the classic DDR-MC course diagram form",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.07"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- external interfaces (white) ----
+    axi_wr [label="AXI Write Channel", fillcolor="white"];
+    axi_rd [label="AXI Read Channel",  fillcolor="white"];
+    phy    [label="DDR PHY  (DFI 2.1 / 3.1 / 4.0 — one revision per product)", fillcolor="white",
+            rank=sink, width=6.5, fontsize=11];
+
+    // ---- host side: mc_axi4_layer ----
+    wr_pkt [label="Write Request Packetizer\nmc_axi4_layer — mc_wr_intake,\nmc_axi_burst_chopper, mc_wr_splitter"];
+    rd_pkt [label="Read Request Packetizer\nmc_axi4_layer — mc_rd_intake"];
+
+    // ---- storage: mc_storage_layer ----
+    wr_pool [label="DDR Write Command Pool\n+ Write Data Buffer\nmc_storage_layer — mc_wr_data_cam"];
+    rd_pool [label="DDR Read Command Pool\nmc_storage_layer — mc_rd_cmd_cam"];
+    merge_b [label="Merge Buffer\nfinal write coalescing\n(mc_axi4_layer)"];
+    fwd_b   [label="Forward Buffer\nread-snoop wr2rd forward\n(mc_wr_data_cam snarf)"];
+
+    // ---- maintenance: mc_training_layer ----
+    maint [label="DDR Maintenance Command Queue\nmc_training_layer — ZQ cal, DQ cal,\nwrite-leveling interface"];
+
+    // ---- scheduler: mc_scheduler_layer ----
+    wr_arb [label="DDR Write Arbitration\nunified prospect pool (classify)"];
+    rd_arb [label="DDR Read Arbitration\nunified prospect pool (classify)"];
+    sched  [label="DDR Command Scheduler\nmc_scheduler_layer — mc_cmd_arbiter (FR-FCFS pick)",
+            shape=trapezium, width=3.2, fillcolor="#BFD7EE", fontsize=11];
+    tctl   [label="DDR Timing Control\nmc_bank_timers + mc_global_timers\n(tRCD/tRP/tRAS/tFAW/tRRD/... next-state)"];
+
+    // ---- data path: mc_dfi_NpM_layer ----
+    wr_dp [label="Write Data Path Control\nmc_dfi_2p1_layer — mc_dfi_wr_serializer"];
+    rd_dp [label="Read Data Path Control\nmc_dfi_2p1_layer — mc_dfi_rd_aligner"];
+    mlog  [label="Merge Logic\nmc_rd_return_ring reorder\n(AXI ID order)"];
+
+    // ---- return path: mc_axi4_layer ----
+    rbuf  [label="Read Data Reorder Buffer\nmc_axi4_layer — mc_rd_return_ring"];
+
+    cfg [label="Configuration Registers\npumice_csr / scoria_csr / andesite_csr (PeakRDL)"];
+    cfg -> tctl [style=dashed, arrowhead=none];
+
+    // ---- host channels ----
+    axi_wr -> wr_pkt [dir=both, arrowhead=normal];
+    axi_rd -> rd_pkt [dir=both, arrowhead=normal];
+
+    // ---- write flow ----
+    wr_pkt -> wr_pool;
+    wr_pool -> wr_arb;
+    wr_pool -> merge_b [arrowhead=none];
+    wr_pool -> fwd_b   [arrowhead=none];
+    wr_arb -> sched [label="WR"];
+    wr_arb -> sched [label="RMW", style=invis];   // keeps WR/RMW/RD sibling edges
+    merge_b -> wr_dp;
+    fwd_b   -> wr_dp;
+    wr_dp -> phy [label="Write to DDR"];
+
+    // ---- read flow ----
+    rd_pkt -> rd_pool;
+    rd_pool -> rd_arb;
+    rd_arb -> sched [label="RD"];
+    rd_pool -> rbuf [style=dashed, arrowhead=none, label="ticket at insert"];
+    rd_dp -> phy [dir=back, label="Read from DDR"];
+    rd_dp -> mlog;
+    mlog -> rbuf;
+    rbuf -> axi_rd;
+
+    // ---- maintenance + timing into the pick ----
+    maint -> sched;
+    tctl -> sched [constraint=false];
+
+    // ---- scheduler to PHY ----
+    sched -> phy [label="DDR Command"];
+
+    // ---- rank pinning (mirrors the reference layout) ----
+    { rank=same; axi_wr; cfg; axi_rd; }
+    { rank=same; wr_pkt; rd_pkt; }
+    { rank=same; merge_b; fwd_b; wr_pool; maint; rd_pool; rbuf; }
+    merge_b -> fwd_b   [style=invis];
+    fwd_b   -> wr_pool [style=invis];
+    wr_pool -> maint   [style=invis];
+    maint   -> rd_pool [style=invis];
+    rd_pool -> rbuf    [style=invis];
+    { rank=same; wr_arb; rd_arb; }
+    wr_arb -> rd_arb [style=invis];
+    { rank=same; sched; tctl; }
+    sched -> tctl [style=invis];
+    sched -> wr_dp [style=invis];
+    sched -> rd_dp [style=invis];
+    { rank=same; wr_dp; mlog; rd_dp; }
+    wr_dp -> mlog [style=invis];
+    mlog -> rd_dp [style=invis];
+}

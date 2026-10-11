@@ -25,6 +25,8 @@
 
 This chapter documents the common `mc_scheduler_layer` and its pick core `mc_cmd_arbiter`. The surrounding layer-stack and descriptor-seam architecture are defined in the [Hardware Architecture Specification (HAS)](../../common_has/common_has_index.md); this chapter does not restate them.
 
+![mc_scheduler_layer internal block diagram](../assets/graphviz/03_mc_scheduler_layer.png)
+
 ## 1. Top-level parameters
 
 All parameters are declared at `macro/mc_scheduler_layer.sv:27-56`.

@@ -27,6 +27,8 @@
 
 The storage layer holds the family’s schedulable-entry pools: the write-data CAM (write buffer + snarf source) and the read-command CAM (read scheduling window). It presents the scheduler-facing bank/row/col image and accepts the read-snoop probe from the upstream AXI4 layer. Within the eight-layer family stack it is the N=8 full provider of the descriptor seam; the stack architecture is documented in [common_has](../../common_has/common_has_index.md).
 
+![mc_storage_layer internal block diagram](../assets/graphviz/02_mc_storage_layer.png)
+
 ## `mc_storage_layer` parameters
 
 | Parameter | Default | Description |

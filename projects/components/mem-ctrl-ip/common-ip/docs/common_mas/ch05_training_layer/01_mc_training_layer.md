@@ -30,6 +30,8 @@
 
 The layer-stack role of this block — where it sits between the scheduler and the PHY calibration sideband — is defined in the family architecture book ([common_has](../../common_has/common_has_index.md)). This chapter describes only the shell implementation and the contract it imposes on rock wrappers.
 
+![mc_training_layer block diagram](../assets/graphviz/04_mc_training_layer.png)
+
 ## What the shell provides
 
 `mc_training_layer` is a dependency-inverted shell. It does not instantiate training algorithms; it exposes a fixed-priority maintenance-slot bus, a single generic `trn_cmd` output, and the `mc_clk`/`dfi_clk` clock crossings that calibration sideband data must use. The actual training children (ZQ controllers, DQ calibrators, future CA-train or write-leveling sequencers) are instantiated rock-side and wired into the slot ports (`macro/mc_training_layer.sv:8-13`).

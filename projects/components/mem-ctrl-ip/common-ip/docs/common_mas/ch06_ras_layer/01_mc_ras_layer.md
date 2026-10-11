@@ -27,6 +27,8 @@
 
 The layer is not yet instantiated into any research controller ([`mc_ras_layer_knobs.md`](../../mc_ras_layer_knobs.md)).
 
+![mc_ras_layer](../assets/graphviz/05_mc_ras_layer.png)
+
 ## Fixed decisions
 
 - **Module boundary.** Two AXI-like streaming seams, one in each direction, plus a four-signal CSR surface and a `busy_o` indicator (`macro/mc_ras_layer.sv:27-69`).

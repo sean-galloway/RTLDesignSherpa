@@ -25,21 +25,12 @@
 
 This chapter is the vision, written down. It was set out by the partner in
 the Phase-2 campaign and it drives every block in common-ip. The layers
-below are listed in command-flow order.
+below are listed in command-flow order. The whole unit, drawn in the
+family's diagram house style
+([STYLE.md](../assets/graphviz/STYLE.md) — the classic DDR-MC course form the
+owner fixed as the reference):
 
-```mermaid
-flowchart lr
-    HOST["Host AXI4 + APB"] --> AXI["mc_axi4_layer<br/>AXI slaves, shallow FIFOs,<br/>final coalescing"]
-    AXI --> STOR["mc_storage_layer<br/>CAMs, rd snooping,<br/>bank image"]
-    STOR --> SCH["mc_scheduler_layer<br/>pick machinery over the<br/>schedulable-entry view"]
-    AXI -. "same descriptor shape, N=1" .-> SCH
-    RAS["mc_ras_layer (optional)<br/>ECC detect/correct,<br/>scrub"] -. transform pair .-> STOR
-    SCH --> TRN["mc_training_layer<br/>maintenance client:<br/>ZQ / DQ cal / WRLVL"]
-    SCH --> DFI["mc_dfi_NpM_layer<br/>2p1 / 3p1 / 4p0<br/>command + data pipeline"]
-    DFI --> PHY["PHY"]
-    DFI -. read data .-> RRT["mc_rd_return_ring<br/>(return path — its own contract)"]
-    RRT --> AXI
-```
+![The mem-ctrl-ip whole unit — AXI channels at top, the layer stack in the middle, DDR PHY bar at the bottom](../assets/graphviz/01_whole_unit.png)
 
 ## The layer contract
 

@@ -28,6 +28,8 @@
 
 `mc_axi4_layer` is the host-facing AXI4 slave boundary of the common memory-controller stack. It transforms host AXI4 read and write bursts into DFI-burst-sized descriptors that cross into `mc_storage_layer`, sources read-your-write snarf data from the write-data CAM, and presents the final AXI4 read-data and write-response channels to the host (`macro/mc_axi4_layer.sv:8-12`). It is the N=1 provider of the descriptor seam in lite builds (see [`common_has` chapter 2](../../common_has/common_has_index.md)).
 
+![mc_axi4_layer block diagram](../assets/graphviz/01_mc_axi4_layer.png)
+
 ## Child-instance map
 | Instance | Module | Parameter bindings in this layer | Role |
 |----------|--------|----------------------------------|------|

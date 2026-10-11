@@ -25,6 +25,10 @@
 
 `mc_dfi_4p0_layer` is the common DFI 4.0 boundary block extracted from `andesite_dfi_layer` during the Phase 2 common-layer reorganization (`mc_dfi_4p0_layer.sv:20`). It holds the single controller-clock to DFI-clock crossing and the `dfi_clk`-domain datapath that turns the family streams into the DFI 4.0 pin surface.
 
+![mc_dfi_4p0_layer internal block diagram](../assets/graphviz/08_mc_dfi_4p0_layer.png)
+
+*DFI 4.0 = shared pipeline + DDR4/LPDDR4 command surface*
+
 ## Inherited shared pipeline
 
 The layer instantiates four shared FUBs (`mc_dfi_4p0_layer.sv:14-18`): `mc_dfi_cdc` for the async command/write/read/init-token crossings (`mc_dfi_4p0_layer.sv:220-259`), `mc_dfi_4p0_cmd_path` for the widened scheduler word to DFI 4.0 pins (`mc_dfi_4p0_layer.sv:266-297`), `mc_dfi_wr_serializer` with `HAS_DBI=1` (`mc_dfi_4p0_layer.sv:302-321`), and `mc_dfi_rd_aligner` with `HAS_DBI=1` (`mc_dfi_4p0_layer.sv:326-354`). Training pins live on rock-specific `mc_training_layer` wrappers, not here (`mc_dfi_4p0_layer.sv:25`).

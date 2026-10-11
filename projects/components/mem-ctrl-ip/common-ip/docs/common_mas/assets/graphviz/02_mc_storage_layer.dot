@@ -1,0 +1,44 @@
+// mc_storage_layer internal block diagram — family DDR-MC course style.
+digraph storage_layer {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.30", ranksep="0.55", splines=ortho,
+           label="mc_storage_layer — storage layer and entry-pool FUBs",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.07"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- neighbor-layer context (white) ----
+    axi4 [label="from mc_axi4_layer\nmc_axi4_layer — context", fillcolor="white", width=3.2];
+    sched [label="to mc_scheduler_layer\nmc_scheduler_layer — context", fillcolor="white", width=3.2];
+
+    // ---- storage-layer functional blocks ----
+    wr_pool [label="DDR Write Command Pool\n+ Write Data Buffer\nmc_storage_layer — mc_wr_data_cam"];
+    rd_pool [label="DDR Read Command Pool\nmc_storage_layer — mc_rd_cmd_cam\n(ring ticket at insert)"];
+    mapper [label="Address Mapper\nmc_storage_layer — mc_addr_mapper\n(extracted, rock adoption scheduled)",
+            style="filled,dashed"];
+    fwd [label="Forward Buffer\nwr2rd snarf forward\nmc_storage_layer — mc_wr_data_cam"];
+
+    // ---- descriptor/snoop intake ----
+    axi4 -> wr_pool [label="descriptors + snoop"];
+    axi4 -> rd_pool [label="descriptors"];
+    axi4 -> mapper [label="descriptors"];
+    mapper -> wr_pool [label="descriptors"];
+    mapper -> rd_pool [label="descriptors"];
+
+    // ---- wr2rd snarf forward path ----
+    wr_pool -> fwd [label="WR"];
+    fwd -> axi4 [label="RD"];
+
+    // ---- scheduler-facing per-entry view ----
+    wr_pool -> sched [label="schedulable-entry view"];
+    rd_pool -> sched [label="schedulable-entry view"];
+
+    // ---- rank pinning ----
+    { rank=same; axi4; }
+    { rank=same; wr_pool; fwd; mapper; rd_pool; }
+    { rank=same; sched; }
+    wr_pool -> fwd    [style=invis];
+    fwd    -> mapper  [style=invis];
+    mapper -> rd_pool [style=invis];
+}
