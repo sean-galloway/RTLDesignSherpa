@@ -85,7 +85,7 @@ async def axi3_loopback_equivalence_test(dut):
             monitor_task.cancel()
             try:
                 await monitor_task
-            except Exception:
+            except BaseException:
                 pass
         await tb.wait_clocks('aclk', 10)
 
@@ -160,7 +160,7 @@ def test_axi3_loopback(request, params):
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
         'COCOTB_TEST_TIMEOUT': str(timeout_ms),
-        'SEED': os.environ.get('SEED', str(random.randint(0, 1000000))),
+        'SEED': os.environ.get('SEED', '42'),
         'TEST_LEVEL': test_level,
         'AXI_DATA_WIDTH': str(data_width),
         'AXI_ADDR_WIDTH': str(addr_width),

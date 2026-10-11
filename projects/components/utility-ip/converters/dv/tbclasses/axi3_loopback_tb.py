@@ -18,13 +18,14 @@ converter pair.  The write side serializes because axi3_to_axi4_wr enforces a
 single-active-write contract; the read side pipelines.
 """
 
+import asyncio
 import os
 import random
 import sys
 from collections import deque
 
 import cocotb
-from cocotb.triggers import RisingEdge
+from cocotb.triggers import Lock, RisingEdge
 
 from TBClasses.shared.utilities import get_repo_root
 from TBClasses.shared.tbbase import TBBase
@@ -68,6 +69,13 @@ class AXI3LoopbackTB(TBBase):
             'read_beats': 0,
             'write_beats': 0,
         }
+
+        # Sent-record map for far-side identity checks: (txn_id, base_addr) -> [(data, strb), ...]
+        self.sent_records = {}
+
+        # Serializes write-and-check sequences so far-side beat slices stay
+        # unambiguous even when multiple Python tasks issue writes concurrently.
+        self.write_check_lock = Lock(name="write_check_lock")
 
         # AXI4 masters drive the near (slave) side of the chain
         self.axi4_rd_master = AXI4MasterRead(
@@ -360,7 +368,7 @@ class AXI3LoopbackTB(TBBase):
                 if (strb >> b) & 1:
                     merged |= ((wdata >> (b * 8)) & 0xFF) << (b * 8)
                 else:
-                    merged |= (prior >> (b * 8)) & 0xFF << (b * 8)
+                    merged |= ((prior >> (b * 8)) & 0xFF) << (b * 8)
             expected.append(merged & self.data_mask)
         return expected
 
@@ -377,25 +385,62 @@ class AXI3LoopbackTB(TBBase):
 
         expected = self._expected_readback(base_addr, write_data, strb)
 
-        write_result = await self.axi4_wr_master.write_transaction(
-            address=base_addr,
-            data=write_data,
-            burst_type=1,
-            size=size,
-            id=txn_id,
-            strb=strb,
-        )
+        async with self.write_check_lock:
+            self.sent_records[(txn_id, base_addr)] = [
+                (d & self.data_mask, strb) for d in write_data
+            ]
+            initial_w_count = len(self.far_w_beats)
 
-        if not write_result.get('success', False):
-            self.log.error(
-                f"write id={txn_id} @0x{base_addr:08X} failed: {write_result}"
+            write_result = await self.axi4_wr_master.write_transaction(
+                address=base_addr,
+                data=write_data,
+                burst_type=1,
+                size=size,
+                id=txn_id,
+                strb=strb,
             )
-            self.stats['write_errors'] += 1
-            self.stats['errors'] += 1
-            return False
 
-        self.stats['write_bursts'] += 1
-        self.stats['write_beats'] += burst_len
+            if not write_result.get('success', False):
+                self.log.error(
+                    f"write id={txn_id} @0x{base_addr:08X} failed: {write_result}"
+                )
+                self.stats['write_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+            self.stats['write_bursts'] += 1
+            self.stats['write_beats'] += burst_len
+
+            # Wait for the far-side W beats to arrive, with a small timeout.
+            timeout_cycles = 0
+            while len(self.far_w_beats) - initial_w_count < burst_len:
+                await self.wait_clocks('aclk', 1)
+                timeout_cycles += 1
+                if timeout_cycles > 1000:
+                    self.log.error(
+                        f"write id={txn_id} @0x{base_addr:08X}: far-side W beats missing "
+                        f"(got {len(self.far_w_beats) - initial_w_count}, expected {burst_len})"
+                    )
+                    self.stats['write_errors'] += 1
+                    self.stats['errors'] += 1
+                    return False
+
+            # Compare far-side W beats against the sent record.
+            w_slice = self.far_w_beats[initial_w_count:initial_w_count + burst_len]
+            for i, (sent_data, sent_strb) in enumerate(self.sent_records[(txn_id, base_addr)]):
+                got = w_slice[i]
+                if got['data'] != sent_data or got['strb'] != sent_strb:
+                    self.log.error(
+                        f"far-side W beat {i} id={txn_id} "
+                        f"@0x{base_addr + i * self.bytes_per_beat:08X}: "
+                        f"got data=0x{got['data']:0{self.bytes_per_beat * 2}X} "
+                        f"strb=0x{got['strb']:02X}, "
+                        f"expected data=0x{sent_data:0{self.bytes_per_beat * 2}X} "
+                        f"strb=0x{sent_strb:02X}"
+                    )
+                    self.stats['write_errors'] += 1
+                    self.stats['errors'] += 1
+                    return False
 
         read_data = await self.axi4_rd_master.read_transaction(
             address=base_addr,
@@ -533,45 +578,61 @@ class AXI3LoopbackTB(TBBase):
             'ready_delay': ([(0, 0), (1, 3)], [7, 3]),
         })
 
-        self.axi4_rd_master.ar_channel.set_randomizer(stall_profile)
-        self.axi4_wr_master.aw_channel.set_randomizer(stall_profile)
-        self.axi4_wr_master.w_channel.set_randomizer(stall_profile)
-        self.axi4_rd_slave.r_channel.set_randomizer(stall_profile)
-        self.axi4_wr_slave.b_channel.set_randomizer(stall_profile)
+        # Channels that drive valid (master side or slave response side).
+        master_valid_channels = [
+            self.axi4_rd_master.ar_channel,
+            self.axi4_wr_master.aw_channel,
+            self.axi4_wr_master.w_channel,
+            self.axi4_rd_slave.r_channel,
+            self.axi4_wr_slave.b_channel,
+        ]
+        # Channels that drive ready (far-side slave receiving channels).
+        slave_ready_channels = [
+            self.axi4_rd_slave.ar_channel,
+            self.axi4_wr_slave.aw_channel,
+            self.axi4_wr_slave.w_channel,
+        ]
 
-        # Restore "valid_first" so randomizers actually take effect (the default).
-        for ch in (self.axi4_rd_slave.r_channel, self.axi4_wr_slave.b_channel):
+        # Save original randomizers and slave ready policies so they can be restored.
+        original_randomizers = {ch: ch.randomizer for ch in master_valid_channels + slave_ready_channels}
+        original_ready_policies = {ch: ch.ready_policy for ch in slave_ready_channels}
+
+        # Apply the stall profile to every channel.
+        for ch in master_valid_channels + slave_ready_channels:
+            ch.set_randomizer(stall_profile)
+
+        # Switch slave-ready channels to valid_first so the ready_delay field
+        # of the stall profile actually gates acceptance.
+        for ch in slave_ready_channels:
             ch.set_ready_policy('valid_first')
 
-        success = True
-        base = 0x1000
-        spacing = 0x300
-        read_offset = 0x400
-        for trial in range(4):
-            blen = rng.choice([1, 2, 8, 16, 17, 32])
-            write_addr = base + (trial * spacing)
-            read_addr = write_addr + read_offset
-            txn_id = trial + 1
+        try:
+            success = True
+            base = 0x1000
+            spacing = 0x300
+            read_offset = 0x400
+            for trial in range(4):
+                blen = rng.choice([1, 2, 8, 16, 17, 32])
+                write_addr = base + (trial * spacing)
+                read_addr = write_addr + read_offset
+                txn_id = trial + 1
 
-            write_data = [
-                (0xB000_0000 + (trial << 20) + (i * 0x0202_0202)) & self.data_mask
-                for i in range(blen)
-            ]
-            strb = rng.randint(1, (1 << self.strb_width) - 1)
+                write_data = [
+                    (0xB000_0000 + (trial << 20) + (i * 0x0202_0202)) & self.data_mask
+                    for i in range(blen)
+                ]
+                strb = rng.randint(1, (1 << self.strb_width) - 1)
 
-            if not await self._write_and_readback(write_addr, write_data, txn_id, strb):
-                success = False
-            if not await self._read_identity(read_addr, blen, txn_id + 0x10):
-                success = False
-
-        # Restore always-ready policy for later scenarios.
-        self.axi4_rd_master.ar_channel.set_randomizer(None)
-        self.axi4_wr_master.aw_channel.set_randomizer(None)
-        self.axi4_wr_master.w_channel.set_randomizer(None)
-        self.axi4_rd_slave.r_channel.set_randomizer(None)
-        self.axi4_wr_slave.b_channel.set_randomizer(None)
-        self.axi4_rd_slave.r_channel.set_ready_policy('always')
-        self.axi4_wr_slave.b_channel.set_ready_policy('always')
+                if not await self._write_and_readback(write_addr, write_data, txn_id, strb):
+                    success = False
+                if not await self._read_identity(read_addr, blen, txn_id + 0x10):
+                    success = False
+        finally:
+            # Restore original randomizers and ready policies for later scenarios.
+            for ch, orig in original_randomizers.items():
+                ch.set_randomizer(orig)
+            for ch, orig in original_ready_policies.items():
+                ch.set_ready_policy(orig)
 
         return success
 
@@ -588,9 +649,14 @@ class AXI3LoopbackTB(TBBase):
 
         rng = random.Random(int(os.environ.get('SEED', '42')) + 2)
         base = 0x1000
-        id_spacing = 0x800
-        intra_spacing = 0x800
-        read_offset = 0x400
+        id_spacing = 0x200
+        # Each transaction-index block must span the full ID range so no
+        # (id, txn_index) pair aliases to the same address as another pair.
+        intra_spacing = len(ids) * id_spacing
+        # Reads must land in a separate region from all writes because the
+        # write/read tasks run concurrently and read_identity expects the
+        # address-as-data pattern.
+        read_offset = 0x1000
 
         # Build a list of descriptors; keep per-ID and per-transaction addresses apart.
         descriptors = []
