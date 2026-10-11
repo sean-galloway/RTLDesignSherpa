@@ -2,7 +2,7 @@
 
 # tooling — tasks
 
-**Next ID: TASK-030** — never recycle a number, even when its item closed.
+**Next ID: TASK-031** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 29 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
-None.
+- **TASK-030** — generate_*_pdf.sh REPO_ROOT depth bug: sweep apbx-xbar (2) and timing_characterization (4) scripts; bridge pair fixed 2026-10-11
 
 
 

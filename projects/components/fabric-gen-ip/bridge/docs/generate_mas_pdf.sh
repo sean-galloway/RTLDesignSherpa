@@ -19,9 +19,9 @@ REV="1.1"
 ASSETS="bridge_mas/assets"
 MAS_INDEX="bridge_mas/bridge_mas_index.md"
 
-# Detect repository root (go up from docs/ to project root)
+# Detect repository root (go up from docs/ to repo root: docs -> bridge -> fabric-gen-ip -> components -> projects -> root)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../../.." && pwd)"
 
 # ------------------------------------------------------------
 # Parse command line arguments

@@ -2,7 +2,7 @@
 
 # bridge — tasks
 
-**Next ID: TASK-014** — never recycle a number, even when its item closed.
+**Next ID: TASK-017** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 9 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
@@ -20,7 +20,9 @@ by construction rather than by discipline.
 
 ## Open
 
-
+- **TASK-014** — Perf methodology: saturation curves + permutation/hot-spot traffic (from 2026-10-11 lit review)
+- **TASK-015** — Evaluate matrix arbiters vs round-robin for small port counts (from 2026-10-11 lit review)
+- **TASK-016** — Buffer/CAM depth sizing rule vs pipeline + converter latency (from 2026-10-11 lit review)
 
 ## Dropped
 
