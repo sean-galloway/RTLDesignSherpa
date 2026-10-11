@@ -21,73 +21,60 @@
 
 <!-- End Header -->
 
-# `pumice_axi4_layer` (AXI4 front-end macro)
+# AXI front-end macro — `mc_axi4_layer` instantiation
 
-**Module:** `pumice_axi4_layer.sv`
-**Location:** `rtl/macro/`
-**Category:** Layer-1 macro (the AXI front-end of `pumice_core`)
-**FUBs bundled:** burst splitters + 2 intakes + 2 CAMs
+**Module:** `mc_axi4_layer` (common IP)  
+**Location:** `projects/components/mem-ctrl-ip/common-ip/rtl/macro/mc_axi4_layer.sv`  
+**Category:** Layer-1 macro in `pumice_core`  
+**Instance:** `u_ifc` (`rtl/top/pumice_core.sv:376-499`)  
+**Child FUBs:** `mc_wr_splitter`, `mc_axi_burst_chopper`, `mc_wr_intake`, `mc_rd_intake`, `mc_rd_return_ring`
 
 ## Purpose
 
-"Host AXI4 to CAM-cached DRAM requests." The first of the three core layers.
-It bolts the shared AXI burst splitters onto dumb 1:1 intakes, holds the
-write-data CAM (write buffer + snarf source) and the read-command CAM (read
-reorder buffer), presents the host AXI4 face, and exposes the scheduler
-lookup/oldest/commit/issue ports and the DFI wr-commit-data / rd-return ports
-outward to the other two layers.
+"Host AXI4 to storage-layer descriptors and the read-return ring." `pumice_core` instantiates the common `mc_axi4_layer` on `aclk` as the SoC-facing AXI4 slave boundary. It splits host bursts into DFI-word-sized sub-commands, pushes write and read descriptors to `mc_storage_layer`, sources read-your-write snarf data from the write-data CAM, and forwards the DFI read-return stream to the read path.
 
-```
-host AXI4 -> [wr/rd splitter] -> pumice_wr_intake -> pumice_wr_data_cam
-                              -> pumice_rd_intake -> pumice_rd_cmd_cam
-```
+Until 2026-10-09 the pumice MAS described a pumice-local `pumice_axi4_layer` macro (`rtl/macro/pumice_axi4_layer.sv`) that bundled the splitters, intakes, write-data CAM, and read-command CAM; Phase-2 extracted the shared logic into the common `mc_axi4_layer` and `mc_storage_layer`, and the pumice-local module no longer exists.
 
-Runs entirely on `aclk`. This replaces the old `axi_frontend_macro`
-(`axi_intake` / `addr_mapper` / `wr_cmd_cam` / `rd_cmd_cam` / `wr2rd_forward`) --
-those names are retired.
+## Parameter map in `pumice_core`
 
-## FUBs
+| Parameter | Bound value in `pumice_core` | Notes |
+|-----------|------------------------------|-------|
+| `AXI_ID_WIDTH` | `IW` | `IW = AXI_ID_WIDTH` (`pumice_core.sv:97`) |
+| `AXI_ADDR_WIDTH` | `AW` | `AW = AXI_ADDR_WIDTH` (`pumice_core.sv:98`) |
+| `AXI_DATA_WIDTH` | `DW` | `DW = DFI_DATA_WIDTH` (`pumice_core.sv:95`); one AXI beat == one DFI word |
+| `AXI_USER_WIDTH` | `UW` | `UW = 1` (`pumice_core.sv:99`) |
+| `DRAM_BEAT_WIDTH` | `DW` | Intentionally set to the AXI/DFI word width, not the physical DRAM beat width (`pumice_core.sv:385`) |
+| `NUM_RANKS` | `NUM_RANKS` | Passed through from core |
+| `NUM_BANKS` | `NUM_BANKS` | Passed through from core |
+| `ROW_WIDTH` | `ROW_WIDTH` | Passed through from core |
+| `COL_WIDTH` | `COL_WIDTH` | Passed through from core |
+| `BYTE_OFFSET_WIDTH` | `BYTE_OFFSET_WIDTH` | Passed to the common address mapper |
+| `AXI_BEATS_PER_BURST` | `BURST_WORDS` | DFI words per burst group (`pumice_core.sv:391`); sub-DFI-word expansion is handled downstream |
+| `NUM_ENTRIES` | `NUM_ENTRIES` | Scheduler/storage entry count |
+| `N_SRAM_SLOTS` | `N_SRAM_SLOTS` | `= NUM_ENTRIES` by default |
+| `RD_RET_DEPTH` | `RD_RET_DEPTH` | In-flight read count (return-ring depth) |
+| `N_SCHED_LU` | `N_LU` | `N_LU = NUM_BANKS` (`pumice_core.sv:103`) |
+| `AGE_WIDTH` | `AGE_WIDTH` | Free-running age width |
 
-| FUB                    | Role                                                                                              |
-|------------------------|---------------------------------------------------------------------------------------------------|
-| `axi_master_wr_splitter` / `axi_master_rd_splitter` | Shared AMBA IP; split each host burst at DRAM-burst-byte boundaries (`ALIGN_MASK = BL*(DRAM_BEAT_WIDTH/8) - 1`), one DRAM burst per split command |
-| `pumice_wr_intake`     | `axi4_slave_wr` + AW-meta FIFO + wr-data FIFO + `addr_mapper`; emits `(bank,row,col,id)` push plus a wr-data stream; consumes commit-done for B response |
-| `pumice_rd_intake`     | `axi4_slave_rd` + `addr_mapper` + snarf probe; emits `(bank,row,col,id)` push; probes the write CAM and, on a snarf hit, streams the R response from the write CAM SRAM; otherwise consumes the drained DFI return |
-| `pumice_wr_data_cam`   | Write CAM keyed on (bank,row) + write-data SRAM; fill / commit-drain / snarf movers; oldest + N_SCHED_LU lookup + commit ports; commit-data out to the DFI write path |
-| `pumice_rd_cmd_cam`    | Read CAM keyed on (bank,row) + read-return SRAM; return-fill / drain movers; oldest + N_SCHED_LU lookup + issue ports; DFI-return in, drain out to the rd intake |
+## External boundaries
 
-Address decode (`addr_mapper`) is driven by `bank_lsb_i` / `hash_en_i` /
-`hash_seed_i` (the `ADDR_MAP` CSR); there is no scheme selector. See section 4
-of this MAS for the address-map field semantics.
+- **Upstream:** the host AXI4 slave port (`s_axi_*`), the only SoC-facing interface.
+- **To `mc_storage_layer` (`u_storage`):** the storage seam — `aw_push_*` + `wd_*` for writes, `snarf_probe_*` / `snarf_rd_*` for read-your-write, `ar_push_*` for reads, and the return-ring ticket ports (`rt_alloc_*`, `rd_iss_*`, `rd_cam_ins_ready_*`).
+- **From `mc_dfi_2p1_layer` (`u_dfi`):** the read-return stream `rd_dfi_ret_*` (`valid/ready/data/resp/last`).
+- **Status:** `busy_o` is left unconnected in `pumice_core` (`pumice_core.sv:498`).
 
-## External Boundaries
+## Pumice-specific integration notes
 
-- **Upstream:** the host AXI4 slave port (SoC-facing).
-- **To `pumice_scheduler_layer`:** for each CAM, the `oldest_*` snapshot,
-  the `N_SCHED_LU` parallel `sched_lu_*` lookup ports (`valid/bank/row` in,
-  `hit/slot/col/id/age` out), and the write `commit` / read `issue` handshakes.
-  The scheduler drives these on `aclk`.
-- **To `pumice_dfi_layer`:** write commit-data out (`wr_cm_rd_*`:
-  `valid/ready/data/strb/last`) to the DFI write serializer; read DFI return in
-  (`rd_dfi_ret_*`: `valid/ready/data/resp/last`) from the DFI read aligner.
-- **Internal:** the read intake's snarf probe hits `pumice_wr_data_cam`
-  directly (`snarf_probe_*` -> `snarf_hit`/`snarf_rd_*`); the write CAM's
-  `commit_done_*` retires the AW-meta FIFO entry in `pumice_wr_intake` to emit
-  the B response.
+**Gearing wrapper.** The AXI4 layer is built for the compile-time maximum DFI word width and does not know `gear_i` or `bl_i` directly. It frames one AXI beat per DFI word and passes `AXI_BEATS_PER_BURST = BURST_WORDS`. Runtime sub-DFI-word burst packing (`N_SUBCMD > 1`) is expanded later in `mc_dfi_2p1_layer` (`pumice_core.sv:766-836`).
 
-The `busy_o` output is the OR of the four sub-block busy flags.
+**Observed buses.** The signals observed at this layer are the host AXI4 channels, the `mc_storage_layer` storage-seam nets, and the `rd_dfi_ret_*` stream from the DFI layer. No pumice-local CAM or datapath buses exist here anymore.
 
-## De-FSM'd CAMs
+**Backpressure thresholds.** Write and read acceptance is gated by `mc_storage_layer` ready signals, not by local FIFOs. Read allocation is additionally gated by the return ring (`ar_push_ready_o = rd_cam_ins_ready_o && rt_alloc_ready_i` inside `mc_storage_layer`; see the common layer documentation). The DFI-side read-return FIFO is sized in `mc_dfi_2p1_layer` as `RD_RET_DEPTH * BURST_WORDS` entries (`pumice_core.sv:784`).
 
-Both CAMs store burst data in an SRAM and read it back with a streaming engine
-that is FIFO-fed / oldest-pick beat-counter driven -- there is no active/slot
-state machine. The `r_fdone` fill-complete flag gates when a slot is
-schedulable (and, on the write side, snarfable). The write CAM's snarf mover is
-the sole read-your-write forwarding path; there is no separate forwarder.
+## Common-layer reference
+
+For the common layer architecture, child-instance map, burst-chop/split semantics, read-return-ring ordering contract, and complete port list, see [common_mas chapter 2: `mc_axi4_layer`](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md).
 
 ## Tests
 
-FUB-level unit tests exist for each intake and each CAM
-(`dv/tests/fub/`), and a wrapper-level test drives `pumice_axi4_layer` through the
-AXI4 BFMs (`AXI4MasterWrite`/`AXI4MasterRead` + `AXI4Sequence`). Drive AXI
-traffic through the BFMs -- never hand-poke `s_axi_*`.
+Wrapper-level tests drive `pumice_core` through the AXI4 BFMs (`AXI4MasterWrite` / `AXI4MasterRead` + `AXI4Sequence`). The underlying `mc_axi4_layer` FUBs are covered by the common unit tests referenced in the common_mas chapter.

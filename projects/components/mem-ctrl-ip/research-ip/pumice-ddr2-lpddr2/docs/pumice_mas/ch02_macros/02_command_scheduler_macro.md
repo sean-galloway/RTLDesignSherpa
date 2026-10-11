@@ -25,78 +25,71 @@
 
 **Module:** `pumice_scheduler_layer.sv`
 **Location:** `rtl/macro/`
-**Category:** Layer-2 macro (the decision layer of `pumice_core`)
-**FUBs bundled:** arbiter + bank/global timers + refresh + init + mode reg + cmd FIFO
+**Category:** Layer-2 wrapper around the common `mc_scheduler_layer`
 
 ## Purpose
 
-"What command should we issue this cycle?" -- the decision-making layer. It
-wires the command arbiter to the per-bank safe timers, the global (bus/rank)
-turnaround timers, the refresh controller, the init sequencer plus mode-register
-shadow, and an output command FIFO. It emits a single abstract DRAM command
-stream `{mrr, ap, col, row, bank, rank, op}` for the DFI layer to phase-pack.
+The `pumice_scheduler_layer` header comment describes it verbatim:
 
-The scheduler is **single-issue**, **PHY / nphases-agnostic**, and runs on a
-single controller clock (`aclk`). The CAM sched-lookup / oldest / commit / issue
-ports are **external** -- the CAMs live in `pumice_axi4_layer`. This replaces the
-old `command_scheduler_macro` (`scheduler` / `xbank_timers` / `page_predictor` /
-`powerdown_ctrl` etc.); those names are retired.
+> Thin pumice wrapper around the common mc_scheduler_layer core. Instantiates the rock-specific init_sequencer, mode_register, refresh_ctrl, page_policy, and command-history checker, and maps the pumice training channel onto the generic maintenance slot.
 
-## FUBs
+This macro is no longer the owner of the pick machinery, bank/global timers, refresh controller, init sequencer, mode-register shadow, or output command FIFO. Until 2026-10-09 it was a pumice-local layer that bundled exactly those functions; the Phase-2 extraction moved that logic into the common `mc_scheduler_layer` in `projects/components/mem-ctrl-ip/common-ip/rtl/macro/`. What remains in pumice is the thin wrapper that supplies rock-specific children, adapts the pumice training channel to the common maintenance slot, and ties off unused common features.
 
-| FUB                   | Role                                                                                                    |
-|-----------------------|---------------------------------------------------------------------------------------------------------|
-| `pumice_cmd_arbiter`  | The single pick core. Picks one command per cycle from the CAM lookups + oldest snapshots under page policy; open-page decision is **inline** here (no separate predictor). Drives the write `commit` / read `issue` handshakes and the per-command `evt_*` strobes; emits the abstract command. |
-| `pumice_bank_timers`  | Stamps a `bank_timer` per (rank,bank) and fans the `evt_*` strobes; produces `bank_act/rdwr/pre_ready`, `bank_row_active`, `bank_open_row`. |
-| `bank_timer`          | FSM-free per-bank JEDEC safe timers (tRCD/tRP/tRAS/tRC/tWR/tRTP) + a row-open register + a single auto-precharge bit. Combinational readiness off the countdown timers. |
-| `global_timers`       | Cross-bank/rank turnaround windows: tFAW + tRRD per rank, tWTR/tRTW/tCCD global. Produces `_ok` window flags. |
-| `refresh_ctrl`        | tREFI down-counter + 8-deep postpone; `refresh_req`/`refresh_drain` to the arbiter, `refresh_grant` back. Enabled after init. |
-| `init_sequencer`      | DDR2 + LPDDR2 JEDEC MRS init microprogram. Drives `dfi_init_start_o`, emits init commands into the arbiter, and writes the MR shadow. Gates traffic until `init_done`. |
-| `mode_register`       | MR shadow updated by the init MRS writes; decodes CL / CWL / BL (and AL / drive-strength / ODT). Supplies `cl_o`/`cwl_o`/`bl_o` to the DFI layer. |
-| `gaxi_fifo_sync`      | Output command FIFO (`CMD_FIFO_DEPTH`), packs `{mrr, ap, col, row, bank, rank, op}` (`CMD_W` bits) into the abstract command stream to the DFI layer. The `mrr` bit (added with the training layer) marks a maintenance MRR; demand-class commands always carry 0. |
+The common scheduler microarchitecture is documented in [Chapter 4 of the common MAS](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md); the family layer-stack and descriptor-seam architecture are defined in the [common HAS](../../../../../common-ip/docs/common_has/common_has_index.md).
 
-## FSM-Free Bank Timing
+## What the wrapper adds
 
-`bank_timer` is deliberately **stateless-in-the-control-sense**: preset /
-decrement countdown timers (rcd/ras/rc/rp/preblk), a row-open register, and one
-auto-precharge bit -- no multi-state bank machine. The per-command
-`safe_act/rd/wr/pre` outputs are combinational off the timers with a single
-register stage, so the arbiter reads readiness with one cycle of latency. This
-replaced the old double-registered 3-state bank FSM (retired `bank_machine`),
-which caused refresh-vs-ACT and column-vs-PRE hazards. `pumice_bank_timers`
-stamps the timer per (rank,bank).
+### Rock-specific children
 
-## External Boundaries
+| Instance | Module | Key parameters | Role |
+|---|---|---|---|
+| `u_init` | `init_sequencer` | `NUM_BANKS`, `ROW_WIDTH` | DDR2 + LPDDR2 JEDEC MRS init microprogram. Drives `dfi_init_start_o`, emits init commands into the common core, and writes the MR shadow. Gates traffic until `init_done_o`. |
+| `u_mode_reg` | `mode_register` | `NUM_RANKS` | MR shadow updated by init writes; decodes `cl_o` / `cwl_o` / `bl_o` for the DFI layer. |
+| `u_refresh` | `refresh_ctrl` | `NUM_BANKS` | `tREFI` down-counter, postpone/pull-in, and per-bank refresh-kind selection (enabled only after init). |
+| `u_page_policy` | `pumice_page_policy` | `NUM_RANKS`, `NUM_BANKS`, `ROW_WIDTH` | Runtime page-policy engine producing `ap_mode_en_o`, `ap_close_o`, `timeout_pre_req_o`, and `timeout_pre_bank_o`. |
+| `u_cmd_history` | `pumice_cmd_history_checker` | `NUM_RANKS`, `NUM_BANKS`, timing windows | Optional JEDEC same-bank sequencing audit, generated only when `CMD_HISTORY_EN != 0`. |
 
-- **CAM sched ports (to `pumice_axi4_layer`):** for each of write and read, the
-  `N_LU = NUM_BANKS` lookup buses (`lu_valid/bank/row` out; `hit/slot/col/id/age`
-  in), the `oldest_*` snapshot in, and the write `commit_*` / read `issue_*`
-  handshake out.
-- **Command stream out (to `pumice_dfi_layer`):**
-  `cmd_valid/ready` + `{mrr, ap, col, row, bank, rank, op}`.
-- **Maintenance channel in (from `pumice_training_layer`):** `trn_cmd_req` +
-  payload + `trn_cmd_grant` back — ZQ/MRR calibration traffic, priority
-  init > refresh > trn > demand; see
-  [ch02/25](05_training_layer_macro.md) and
-  [ch04/05](../ch04_apb_config/05_training_interface_contracts.md).
+### Maintenance-slot mapping
+
+The pumice training layer presents one maintenance request at a time on `{trn_cmd_req_i, trn_cmd_op_i, trn_cmd_bank_i, trn_cmd_row_i, trn_cmd_mrr_i}` plus a `cal_busy_i` gate. The wrapper maps this onto the common `mc_scheduler_layer` generic maintenance slot:
+
+- `maint_req_i`      ← `trn_cmd_req_i`
+- `maint_op_i`       ← `trn_cmd_op_i`
+- `maint_bank_i`     ← `trn_cmd_bank_i`
+- `maint_row_i`      ← `trn_cmd_row_i`
+- `maint_col_i`      ← `'0`
+- `maint_extra_i[0]` ← `trn_cmd_mrr_i`
+- `maint_busy_i`     ← `cal_busy_i`
+
+The common core returns `maint_grant_o`; the wrapper forwards it as `trn_cmd_grant_o` and recovers the MRR flag as `cmd_mrr_o = cmd_extra_o[0]`. The common arbiter priority inside `mc_scheduler_layer` is init > refresh > maintenance > demand; see the [pumice training-layer chapter](05_training_layer_macro.md) and the [training interface contracts](../ch04_apb_config/05_training_interface_contracts.md).
+
+### Tie-offs and constants
+
+Because pumice is a DDR2/LPDDR2 single-rank rock, several common features are disabled or tied off:
+
+- `NUM_BG = 1`; `t_ccd_l_i`, `t_ccd_s_i`, `t_rrd_l_i`, `t_rrd_s_i` are tied to `8'd0`; `cmd_bg_o` is left open.
+- `HAS_ZQ = 1'b0`: `zq_req_i` is tied to `1'b0`, `t_zqcs_i` to `16'd0`, and `stall_zq_o` is left open. (ZQ calibration is handled by the pumice training layer, not the scheduler.)
+- `MAINT_EXTRA_WIDTH = 1`: the single-bit MRR flag is the only maintenance extra payload.
+- Page/policy telemetry is computed by `pumice_page_policy`, so the wrapper ties off the common core's `stat_*` outputs.
+- `mode_register` unused rank/ODT/drive-strength outputs and the init sequencer's `zqcl_req_o`/`init_busy_o` are left open with their grant inputs tied low.
+
+## External boundaries
+
+- **CAM sched ports (to `pumice_axi4_layer`):** per-direction `N_LU = NUM_BANKS` lookup buses, `oldest_*` snapshots, and write `commit_*` / read `issue_*` handshakes.
+- **Command stream out (to `mc_dfi_2p1_layer`):** `cmd_valid/ready` + `{mrr, ap, col, row, bank, rank, op}`.
+- **Maintenance channel in (from `pumice_training_layer`):** `trn_cmd_req` + payload + `trn_cmd_grant` back.
 - **Mode-register shadow out:** `cl_o` / `cwl_o` / `bl_o` to the DFI layer.
-- **Init handshake:** `dfi_init_start_o` out and `dfi_init_complete_i` in
-  (routed to/from the PHY via the DFI layer); `init_done_o` status out.
-- **Config in:** the JEDEC timings (tRCD/tRP/tRAS/tRC/tWR/tRTP/tFAW/tRRD/tWTR/
-  tRTW/tCCD/tREFI), `refresh_burst`, the init waits
-  (`t_init_wait`/`t_dll_wait`/`t_mrd_wait`/`t_rp_wait`/`t_rfc_wait`),
-  `page_policy_i`, and `memtype_i` -- all delivered from the CSR by name.
+- **Init handshake:** `dfi_init_start_o` out and `dfi_init_complete_i` in (routed through the DFI layer); `init_done_o` status out.
+- **Config in:** JEDEC timings, refresh/programming parameters, `page_policy_i`, `page_mode_i`, `page_tr_init_i`, and scheduler knobs — all delivered from the CSR by name.
 
-`busy_o` asserts while not init-done, on a pending refresh, while a command is
-buffered in the FIFO, or while any bank row is active.
+`busy_o` is generated by the common core and asserts while not init-done, on a pending refresh, while a command is buffered in the FIFO, or while any bank row is active.
+
+## Pumice integration details that stay
+
+- **Single controller clock:** the wrapper and the common core run on `aclk`; the only controller-to-PHY crossing is inside `mc_dfi_2p1_layer`.
+- **External CAMs:** the CAM sched-lookup / oldest / commit / issue ports remain external; the CAMs live in `pumice_axi4_layer`.
+- **Training priority and gating:** demand commands are blocked while `cal_busy_i` is asserted and the training request obeys the init > refresh > training > demand priority cone.
 
 ## Tests
 
-The scheduler has a macro-level test that exercises the arbiter against the two
-real CAMs -- combinational pickers must be macro-tested, since registered
-feedback latency can hide double-issue hazards that a FUB-only test misses. Each
-constituent FUB also has its own unit test in `dv/tests/fub/`. The training
-channel adds `cocotb_test_training_priority_and_gate` to
-`dv/tests/macro/test_pumice_scheduler_layer.py` (training priority vs
-refresh/demand, all-banks-idle gating, demand blocked during `cal_busy`,
-fire==valid invariant).
+The common `mc_scheduler_layer` owns the macro-level tests for the pick machinery, bank/global timers, and command FIFO; see the [common MAS](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md). The pumice wrapper is covered by integration tests that exercise the training-channel mapping, init-sequencer handshake, and maintenance-slot priority against the common core.

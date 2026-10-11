@@ -26,8 +26,10 @@
 **Module:** `pumice_training_layer.sv`
 **Location:** `rtl/macro/`
 **Category:** Layer-4 macro (maintenance traffic for LPDDR2)
-**FUBs bundled:** `pumice_zq_ctrl` + `pumice_lp_cal` + one-active `trn_cmd` mux + mc_clk/dfi_clk CDC
+**FUBs bundled:** `pumice_zq_ctrl` + `pumice_lp_cal`, wired into the common `mc_training_layer` shell (the shell provides the one-active `trn_cmd` mux and the mc_clk/dfi_clk CDC)
 **Status:** implemented and FUB-tested (ZQ ctrl, lp_cal); sim-verified against `pumice_scheduler_layer` training priority/gate
+
+> The common training shell is documented in [common_mas chapter 5: `mc_training_layer`](../../../../../common-ip/docs/common_mas/ch05_training_layer/01_mc_training_layer.md).
 
 ## Purpose
 

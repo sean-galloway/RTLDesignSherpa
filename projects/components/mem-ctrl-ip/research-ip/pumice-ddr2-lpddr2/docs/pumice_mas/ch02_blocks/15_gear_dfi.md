@@ -21,6 +21,8 @@
 
 <!-- End Header -->
 
+> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_dfi_2p1_layer`; its microarchitecture is owned by [common_mas mc_dfi_2p1_layer — DFI 2.1 Command / Write / Read Pipeline](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
+
 # DFI Layer and Host-Width Gearing (`pumice_dfi_layer` + `pumice_top_geared`)
 
 **Module:** `mc_dfi_2p1_layer.sv` (common-ip macro) / `pumice_top_geared.sv` (top wrapper)

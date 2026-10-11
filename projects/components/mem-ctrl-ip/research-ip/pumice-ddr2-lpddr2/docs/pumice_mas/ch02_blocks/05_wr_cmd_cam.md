@@ -21,6 +21,8 @@
 
 <!-- End Header -->
 
+> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_storage_layer`; its microarchitecture is owned by [common_mas mc_storage_layer — Storage Layer and Entry-Pool FUBs](../../../../../common-ip/docs/common_mas/ch03_storage_layer/01_mc_storage_layer.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
+
 # Write Data CAM (`pumice_wr_data_cam`)
 
 **Module:** `pumice_wr_data_cam.sv`

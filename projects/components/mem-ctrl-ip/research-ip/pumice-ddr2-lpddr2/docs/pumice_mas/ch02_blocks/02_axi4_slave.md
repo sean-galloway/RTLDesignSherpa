@@ -21,6 +21,8 @@
 
 <!-- End Header -->
 
+> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_axi4_layer`; its microarchitecture is owned by [common_mas mc_axi4_layer — AXI4 host interface and read-return ring](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
+
 # AXI4 Slave + Intakes (`axi4_slave_wr` / `axi4_slave_rd`)
 
 **Modules:** `axi4_slave_wr` / `axi4_slave_rd` (repo AMBA IP) inside

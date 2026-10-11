@@ -23,9 +23,19 @@
 
 # DDR2 / LPDDR2 Family Controller Micro-Architecture Specification Index
 
-**Version:** 0.8
-**Date:** 2026-10-08
+**Version:** 0.9-draft
+**Date:** 2026-10-10
 **Purpose:** Implementation-level micro-architecture specification for the unified DDR2 / LPDDR2 memory controller family
+
+> **Note (v0.9-draft, 2026-10-10):** Phase-2 extraction. pumice_core now
+> instantiates the common-ip blocks `mc_axi4_layer`, `mc_storage_layer`, and
+> `mc_dfi_2p1_layer`; `pumice_scheduler_layer` and `pumice_training_layer`
+> are thin rock wrappers around the common cores. Macro chapters describe
+> the pumice integration and point at the owning common chapters; block
+> chapters for moved FUBs carry a "lives in common-ip now" banner. The
+> per-block microarchitecture of every moved block is owned by
+> [common_mas](../../../../common-ip/docs/common_mas/common_mas_index.md);
+> this book keeps pumice's provenance and measured history.
 
 > **Note (v0.8):** LPDDR2 calibration and training landed in the RTL. New
 > fourth layer `pumice_training_layer` (`pumice_zq_ctrl` + `pumice_lp_cal`)
@@ -67,36 +77,36 @@
 
 **Integration (Macros — pure structural):**
 - [Top-Level Integration (`pumice_core`)](ch02_blocks/01_top_integration.md)
-- [AXI4 Interface (`pumice_axi4_layer`)](ch02_macros/01_axi_frontend_macro.md)
-- [Command Scheduler (`pumice_scheduler_layer`)](ch02_macros/02_command_scheduler_macro.md)
-- [Data Path (CAMs + DFI layer)](ch02_macros/03_data_path_macro.md)
-- [DFI v2.1 Layer (`pumice_dfi_layer`)](ch02_macros/04_dfi_v21_interface_macro.md)
+- [AXI4 Interface (`mc_axi4_layer` via common-ip)](ch02_macros/01_axi_frontend_macro.md)
+- [Command Scheduler (`pumice_scheduler_layer` wrapper over common `mc_scheduler_layer`)](ch02_macros/02_command_scheduler_macro.md)
+- [Data Path (`mc_storage_layer` CAMs + DFI layer)](ch02_macros/03_data_path_macro.md)
+- [DFI v2.1 Layer (`mc_dfi_2p1_layer` via common-ip)](ch02_macros/04_dfi_v21_interface_macro.md)
 
-**AXI4 Interface FUBs (`pumice_axi4_layer`):**
-- [AXI4 Intakes (`pumice_wr_intake`, `pumice_rd_intake`)](ch02_blocks/02_axi4_slave.md)
-- [Address Mapper (`addr_mapper`, bank_lsb)](ch02_blocks/03_addr_mapper.md)
-- [Read Command CAM (`pumice_rd_cmd_cam`)](ch02_blocks/04_rd_cmd_cam.md)
-- [Read Return Ring](ch02_blocks/22_rd_return_ring.md)
-- [Write Data CAM (`pumice_wr_data_cam`)](ch02_blocks/05_wr_cmd_cam.md)
-- [Write-to-Read Forward (snarf in `pumice_wr_data_cam`)](ch02_blocks/21_wr2rd_forward.md)
+**AXI4 Interface FUBs (`mc_axi4_layer` via common-ip — banners point to the owning common_mas chapters):**
+- [AXI4 Intakes (`mc_wr_intake`, `mc_rd_intake`)](ch02_blocks/02_axi4_slave.md)
+- [Address Mapper (`addr_mapper`, bank_lsb) — pumice-local](ch02_blocks/03_addr_mapper.md)
+- [Read Command CAM (`mc_rd_cmd_cam`)](ch02_blocks/04_rd_cmd_cam.md)
+- [Read Return Ring (`mc_rd_return_ring`)](ch02_blocks/22_rd_return_ring.md)
+- [Write Data CAM (`mc_wr_data_cam`)](ch02_blocks/05_wr_cmd_cam.md)
+- [Write-to-Read Forward (snarf in `mc_wr_data_cam`)](ch02_blocks/21_wr2rd_forward.md)
 
-**Scheduling FUBs (`pumice_scheduler_layer`):**
-- [Command Arbiter (`pumice_cmd_arbiter`)](ch02_blocks/07_scheduler.md) — CLOSE/OPEN/HAPPY_HYBRID
+**Scheduling FUBs (wrapper children + common core):**
+- [Command Arbiter (`pumice_cmd_arbiter` wrapper around `mc_cmd_arbiter`)](ch02_blocks/07_scheduler.md) — CLOSE/OPEN/HAPPY_HYBRID
 - [Page-policy engine (`pumice_page_policy`)](ch02_blocks/08_page_policy.md)
-- [Cross-bank Turnaround Timers (`global_timers`)](ch02_blocks/10_xbank_timers.md)
-- [Global Timers (`global_timers`)](ch02_blocks/19_global_timers.md)
+- [Cross-bank Turnaround Timers (`mc_global_timers`)](ch02_blocks/10_xbank_timers.md)
+- [Global Timers (`mc_global_timers`)](ch02_blocks/19_global_timers.md)
 - [Refresh Controller (`refresh_ctrl`)](ch02_blocks/11_refresh_mgr.md)
 - [Init Sequencer (`init_sequencer`)](ch02_blocks/12_init_engine.md)
 - [Power-Down Controller (`powerdown_ctrl`)](ch02_blocks/13_power_state.md)
 - [Mode Register (`mode_register`)](ch02_blocks/20_mode_register.md)
 
-**Data Path FUBs (in CAMs + DFI layer):**
-- [Write Data Path (`pumice_wr_data_cam` + `pumice_dfi_wr_serializer`)](ch02_blocks/17_wr_data_path.md)
-- [Read Data Path (`pumice_dfi_rd_aligner` + `pumice_rd_return_ring`)](ch02_blocks/18_rd_data_path.md)
+**Data Path FUBs (CAMs + DFI layer — common-owned):**
+- [Write Data Path (`mc_wr_data_cam` + `mc_dfi_wr_serializer`)](ch02_blocks/17_wr_data_path.md)
+- [Read Data Path (`mc_dfi_rd_aligner` + `mc_rd_return_ring`)](ch02_blocks/18_rd_data_path.md)
 
-**DFI v2.1 FUBs (`pumice_dfi_layer`):**
-- [DFI Command Formatter (`dfi_cmd_formatter`)](ch02_blocks/14_cmd_encoder.md)
-- [DFI Layer / Gearing (`pumice_dfi_layer`)](ch02_blocks/15_gear_dfi.md)
+**DFI v2.1 FUBs (`mc_dfi_2p1_layer` via common-ip):**
+- [DFI Command Formatter (`dfi_cmd_formatter`) — pumice-local](ch02_blocks/14_cmd_encoder.md)
+- [DFI Layer / Gearing (`mc_dfi_2p1_layer`)](ch02_blocks/15_gear_dfi.md)
 
 **Training layer (LPDDR2 calibration / training):**
 - [Training Layer (`pumice_training_layer`)](ch02_macros/05_training_layer_macro.md)

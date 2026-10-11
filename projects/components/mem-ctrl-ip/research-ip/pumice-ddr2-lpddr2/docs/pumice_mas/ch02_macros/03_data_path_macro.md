@@ -21,70 +21,64 @@
 
 <!-- End Header -->
 
-# Data Path (no standalone macro)
+# Data path macro — `mc_storage_layer` instantiation
 
-**Category:** Distributed across `pumice_axi4_layer` and `pumice_dfi_layer`
-**Status:** the old `data_path_macro` (`wr_beat_sequencer` + `rd_cl_aligner`) is
-retired -- there is no `data_path_macro.sv` in the live tree.
+**Module:** `mc_storage_layer` (common IP)  
+**Location:** `projects/components/mem-ctrl-ip/common-ip/rtl/macro/mc_storage_layer.sv`  
+**Category:** Layer-1b macro in `pumice_core`  
+**Instance:** `u_storage` (`rtl/top/pumice_core.sv:504-596`)  
+**Child FUBs:** `mc_wr_data_cam`, `mc_rd_cmd_cam`, `mc_addr_mapper`
 
 ## Purpose
 
-"Move bytes between the host AXI buffers and the DFI data lanes." In the
-rearchitected core this is **not a separate macro**. The data path is split
-across two of the three core layers:
+"Schedulable entry pools and data buffers for writes and reads." `pumice_core` instantiates the common `mc_storage_layer` on `aclk` between `u_ifc` (`mc_axi4_layer`) and `u_sched` (`pumice_scheduler_layer`). It holds the write-data CAM / write buffer and the read-command scheduling window, exposes the per-entry scheduler vectors, and streams committed write data toward the DFI layer.
 
-- The **burst buffers** live in the two CAMs inside `pumice_axi4_layer`
-  (section 2.1). Write data is buffered in `pumice_wr_data_cam`'s SRAM; read
-  return data is buffered in `pumice_rd_cmd_cam`'s SRAM. Both use de-FSM'd
-  streaming read engines rather than a beat-sequencer FSM.
-- The **DFI-clock serialize / align** stages live in `pumice_dfi_layer`
-  (section 2.4): `pumice_dfi_wr_serializer` presents write data on
-  `dfi_wrdata` at `t_phy_wrlat`, and `pumice_dfi_rd_aligner` captures
-  `dfi_rddata` at `t_rddata_en` and reassembles DFI words.
+Until 2026-10-09 the write-data and read-command CAMs lived inside the pumice-local `pumice_axi4_layer` and were documented as part of the AXI front-end macro; Phase-2 moved them into the common `mc_storage_layer`, and the old `data_path_macro` (`wr_beat_sequencer` + `rd_cl_aligner`) is retired.
 
-The controller-to-PHY data crossing is carried as whole DFI words through the
-single CDC in `pumice_dfi_layer` (section 1.3), so there is no separate
-data-path clock boundary to describe.
+## Parameter map in `pumice_core`
 
-## Write Path (host -> DRAM)
+| Parameter | Bound value in `pumice_core` | Notes |
+|-----------|------------------------------|-------|
+| `AXI_ID_WIDTH` | `IW` | `IW = AXI_ID_WIDTH` (`pumice_core.sv:97`) |
+| `AXI_DATA_WIDTH` | `DW` | `DW = DFI_DATA_WIDTH` (`pumice_core.sv:95`) |
+| `NUM_RANKS` | `NUM_RANKS` | Passed through from core |
+| `NUM_BANKS` | `NUM_BANKS` | Passed through from core |
+| `ROW_WIDTH` | `ROW_WIDTH` | Passed through from core |
+| `COL_WIDTH` | `COL_WIDTH` | Passed through from core |
+| `AXI_BEATS_PER_BURST` | `BURST_WORDS` | DFI words per burst group (`pumice_core.sv:511`) |
+| `NUM_ENTRIES` | `NUM_ENTRIES` | CAM / scheduling-window depth |
+| `N_SRAM_SLOTS` | `N_SRAM_SLOTS` | Write-data SRAM slots |
+| `N_SCHED_LU` | `N_LU` | `N_LU = NUM_BANKS` (`pumice_core.sv:103`) |
+| `AGE_WIDTH` | `AGE_WIDTH` | Age-counter width |
+| `RD_RET_DEPTH` | `RD_RET_DEPTH` | Return-ring depth / ticket space |
 
-1. `pumice_wr_intake` streams W beats (DFI-word granular `{data, strb, last}`)
-   into `pumice_wr_data_cam`'s SRAM; `r_fdone` marks the burst fully filled.
-2. When the scheduler commits the write slot, the CAM's **commit-drain mover**
-   streams the burst out on the `wr_cm_rd_*` port (`data/strb/last`) into the
-   DFI layer's write FIFO.
-3. `pumice_dfi_wr_serializer` (on `dfi_clk`) drives `dfi_wrdata` /
-   `dfi_wrdata_en` / `dfi_wrdata_mask` at `t_phy_wrlat` after the WR fire strobe
-   from the command path. AXI `wstrb = 1` (write this byte) maps to the DFI mask
-   as-carried by the CAM strobe payload.
+## External boundaries
 
-The write CAM's SRAM is also the **snarf source** (read-your-write forwarding):
-`pumice_rd_intake` probes it and, on a hit, streams the R response straight from
-the write SRAM without a DRAM round-trip.
+- **From `mc_axi4_layer` (`u_ifc`):** the storage seam — `aw_push_*` + `wd_*` for writes, `snarf_probe_*` for read-your-write probes, `ar_push_*` for reads, and the return-ring ticket handshake (`rt_alloc_*`, `rd_iss_*`, `rd_cam_ins_ready_*`).
+- **To `pumice_scheduler_layer` (`u_sched`):** per-entry scheduling vectors (`wr_sch_*`, `rd_sch_*`), plus the write `commit` and read `issue` handshakes.
+- **To `mc_dfi_2p1_layer` (`u_dfi`):** committed write-data stream `wr_cm_rd_*` (`valid/ready/data/strb/last`).
+- **Status:** `busy_o` is left unconnected in `pumice_core` (`pumice_core.sv:595`).
 
-## Read Path (DRAM -> host)
+## Pumice-specific integration notes
 
-1. When the scheduler issues the read slot, `pumice_dfi_rd_aligner` (on
-   `dfi_clk`) drives `dfi_rddata_en` at `t_rddata_en` after the RD fire strobe,
-   captures `dfi_rddata` when `dfi_rddata_valid` asserts, and packs whole DFI
-   words (`{data, resp, last}`) into the read FIFO.
-2. The FIFO crosses to `aclk` (the single CDC) and lands as the `dfi_ret_*`
-   stream into `pumice_rd_cmd_cam`'s **return-fill mover**, which writes the
-   read SRAM.
-3. The CAM's **drain mover** streams the buffered burst out oldest-first,
-   gated on data-ready, back through `pumice_rd_intake` to the AXI R channel.
+**Gearing wrapper.** The storage layer operates on whole DFI words. `AXI_BEATS_PER_BURST` is bound to `BURST_WORDS`, so one AXI burst maps to one buffered CAM entry. Runtime sub-DFI-word packing (`N_SUBCMD > 1`) and the PHY serialization timing are handled in `mc_dfi_2p1_layer`; the CAMs see only the `BURST_WORDS` framing.
 
-## Why No Beat-Sequencer FSM
+**Observed buses.** The buses visible at this layer are the storage-seam nets from `mc_axi4_layer`, the scheduler vectors / commit/issue ports, and the `wr_cm_rd_*` commit-data stream to the DFI layer. Returned read data enters through `mc_axi4_layer`'s `rd_dfi_ret_*` port, not directly through the storage layer.
 
-The old `wr_beat_sequencer` / `rd_cl_aligner` FUBs carried an active/slot state
-latch and per-beat control FSM. The live CAMs replace that with FIFO-fed /
-oldest-pick beat counters and a `r_fdone` fill flag -- fewer control-path
-hazards and a cleaner streaming shape. The only genuinely PHY-timed logic
-(`t_phy_wrlat` / `t_rddata_en` alignment) is the small serializer / aligner pair
-in the DFI layer.
+**Backpressure thresholds.** Write commit data is staged so that it reaches the PHY before its command. The effective command-release delay is computed in `pumice_core` as
+
+```systemverilog
+localparam int CMD_DELAY_EFF = (CMD_DELAY == 0) ? (5 + 2 * BURST_WORDS) : CMD_DELAY;
+```
+
+Measured: BL8/4-word bursts held up to 6 cycles at `CMD_DELAY=6 -> 13`; BL4 x16 (1 word) needs 7 (`pumice_core.sv:273-275`). The DFI write-data FIFO is sized to 32 entries (`WD_FIFO_DEPTH = 32`, `pumice_core.sv:788`) to absorb that staging without stalling the CAM drain. The read-return FIFO is sized to `RD_RET_DEPTH * BURST_WORDS` entries (`pumice_core.sv:784`). Inside the common write-data CAM, `WR_DRAIN_AHEAD = 2` bounds how far the command stream can run ahead of the data drain; the common_mas chapter records that the old FIFO-room gate allowed a command to run ~20 `aclk` ahead and produced a measured 29373-cycle DFI hold.
+
+`tCCD` is clamped to at least `BURST_WORDS` in `pumice_core` (`w_t_ccd_eff = (t_ccd_i < 8'(BURST_WORDS)) ? 8'(BURST_WORDS) : t_ccd_i`; `pumice_core.sv:281-282`) because the DFI command path no longer paces columns.
+
+## Common-layer reference
+
+For the common storage-layer architecture, CAM internals, address-mapper behavior, scheduling-vector layout, and complete port list, see [common_mas chapter 3: `mc_storage_layer`](../../../../../common-ip/docs/common_mas/ch03_storage_layer/01_mc_storage_layer.md).
 
 ## Tests
 
-Covered by the CAM FUB tests and the DFI-layer FUB tests
-(`pumice_dfi_wr_serializer`, `pumice_dfi_rd_aligner`) in `dv/tests/fub/`, plus
-the `pumice_axi4_layer` wrapper test for the end-to-end buffered data flow.
+The common CAM FUB tests and the `mc_dfi_2p1_layer` FUB tests cover the datapath building blocks; `pumice_core` wrapper-level tests exercise the end-to-end buffered write and read data flow through the common layers.
