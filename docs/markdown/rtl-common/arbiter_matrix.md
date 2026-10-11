@@ -194,6 +194,17 @@ pytest val/common/test_arbiter_matrix.py -v
 
 ---
 
+## Testbench Methodology Alignment Report
+
+`bin/TBClasses/common/arbiter_matrix_tb.py` was reworked to follow the same `ArbiterMaster` / `ArbiterMonitor` methodology used by the round-robin arbiter testbench:
+
+- A `RoundRobinArbiterMonitor` is attached because the observable rotation of the matrix arbiter is equivalent to round-robin.
+- Randomized scenario phases (grant-signals, basic-arbitration, walking-requests, block-arb, bursty-traffic, rapid-request-changes, single-client-saturation, fairness) drive stimulus through `ArbiterMaster` and assert one-hot, no-unrequested-grant, and rotation behavior through the monitor.
+- Deterministic directed supplements are retained for corner cases the randomized master/monitor cannot express cleanly: one-hot/request-match, strong-fairness-continuous, fairness-cold-start-and-gaps, single-requester-immediate, and reset-order.  ACK-mode equivalents are exercised separately (hold-until-owner-ack, foreign-ack immunity, back-to-back handoff, single-requester).
+- `ArbiterCompliance` protocol checking is enabled and asserted at the end of the run.
+- Directed tests shut the master down via `enter_directed_mode()` / `exit_directed_mode()` so the testbench pokes the DUT signals directly without interference.
+- Verification passes at `REG_LEVEL=GATE`, `FUNC`, and `FULL` across `CLIENTS = 2, 4, 5, 8` (no-ACK), plus ACK mode at `GATE` and `FULL`.
+
 ## References
 
 - Dally, William J. and Towles, Brian, *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ISBN 978-0122007514, ch. 17 §18.5 (matrix arbiters). Backs the grant/update scheme and the observation that matrix arbiters are well suited to small arbiters.
