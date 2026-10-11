@@ -25,26 +25,35 @@
 
 # DE10-Standard Fabric Benchmark — PRD
 
-**Version:** 0.1 (draft) · **Date:** 2026-10-11 · **Status:** collateral-blocked
+**Version:** 0.2 (draft) · **Date:** 2026-10-11 · **Status:** collateral-blocked
 (Quartus/Platform Designer IP intake pending; bring-up unblocked when available)
 
 ## 1. Purpose
 
-Measure, on one piece of silicon and one traffic pattern, what two AXI
-fabrics cost and what they deliver:
+Measure, on one piece of silicon and one mirrored pair of traffic patterns,
+what two AXI fabrics cost and what they deliver:
 
 - **Leg A — bridge:** the RTL Design Sherpa bridge generator's crossbar
   (AXI3 ports, delivered under sean-galloway/RTLDesignSherpa#97).
 - **Leg B — Intel fabric:** the Platform Designer (Qsys) AXI interconnect.
 
-**The workload (both legs, bit-identical):** `stream` pulls data from main
-memory through the Intel hard memory controller and writes it into the
-CRC-checker SRAM block; the obs blocks measure bandwidth and latency on the
-datapath. Then the fabric is swapped and everything is measured again.
+**The workload — two mirror-image flavors (both legs, bit-identical):**
 
-Two comparison axes: **size of design** and **performance**. Everything else
-— device, HPS, memory controller, stream datapath, CRC checker, SRAMs, obs
-blocks, driver, clocks — is held constant.
+- **Flavor 1 — fill, then drain:** the write injector fills main memory
+  with pseudo-random data (through the fabric and the hard MC). `stream`
+  then moves it all from main memory across the fabric into the
+  CRC-checker SRAM.
+- **Flavor 2 — mirror image:** `stream` reads data from a pseudo-random
+  data slave and writes it all to main memory across the fabric.
+
+The flavors are mirror images and should tell the same story. Running both
+checks that they do: fabric and memory-controller behavior should be
+direction-symmetric, and any asymmetry the two flavors surface (arbitration,
+MC read/write turnaround, data-path differences) is itself a result.
+
+Two comparison axes: **size of design** and **performance**. Everything
+else — device, HPS, memory controller, stream datapath, CRC checker, SRAMs,
+obs blocks, injector, PRBS slave, driver, clocks — is held constant.
 
 ## 2. Background
 
@@ -68,10 +77,12 @@ support (#96/#97) exist.
 | Toolchain | Quartus Prime 24.1 Standard (`/home/seang/intelFPGA_lite/24.1std`) |
 | HPS + hard memory controller | Intel DDR3 MC via HPS; identical HPS config both legs |
 | Clock plan | One fabric clock domain (single clock, same frequency both legs) |
-| Masters | `stream` (moves MC→CRC data) + JTAG-AXI master (driver/diagnostics); any second master identical across legs |
-| Slaves | CRC-checker block with its SRAM (stream's), obs register file |
+| Write injector | PRBS payload fill master (repo `axi4_master_wr_injector` family), same config both legs; AXI3 adaptation per leg identical |
+| Pseudo-random data slave | PRBS responder slave (stream test-slave family; exact block chosen at M2) |
+| Movers | `stream` (the measured mover in both flavors); JTAG-AXI master as driver/diagnostics; any second master identical across legs |
+| Slaves | CRC-checker block with its SRAM (stream's), PRBS slave, obs register file |
 | obs blocks | Identical observer/monitor RTL on the datapath, same probe points both legs |
-| Traffic | Identical driver scripts, transaction counts, burst sequences |
+| Traffic | Identical driver scripts, transaction counts, burst sequences, PRBS seeds |
 
 | The one variable | Leg A | Leg B |
 | --- | --- | --- |
@@ -87,25 +98,35 @@ matched functionally or documented as a difference.
 
 ### 4.1 Workloads (performance axis)
 
-- **W1 — MC → CRC checker (headline):** `stream` copies a fixed data image
-  from DDR3 (through the hard MC) across the fabric into the CRC-checker
-  SRAM, continuously for a fixed measurement window. Sweep burst length
-  {4, 8, 16, 32, 64 beats} × outstanding transactions {1, 2, 4, 8}.
+Each flavor runs the same sweep: burst length {4, 8, 16, 32, 64 beats} ×
+outstanding transactions {1, 2, 4, 8}, fixed measurement window, N = 5 runs.
+
+- **W1-F1 — fill then drain (headline):** the write injector fills a fixed
+  DDR3 region with PRBS data through the fabric+MC (setup phase; timed and
+  reported separately — it is the write-direction datapoint), then `stream`
+  copies the whole region from DRAM across the fabric into the CRC-checker
+  SRAM (the headline read-direction measurement).
+- **W1-F2 — mirror image:** `stream` reads the full working set from the
+  PRBS data slave across the fabric and writes it to a fixed DDR3 region
+  through the MC. Read direction from the slave, write direction into DRAM:
+  the mirror of W1-F1's drain.
 - **W2 — SRAM ↔ SRAM across the fabric:** loopback between two stream SRAM
   regions; removes DRAM/MC variance to expose fabric-only behavior.
-- **W3 — Contention:** `stream` + JTAG-AXI master (or a synthetic second
-  master) concurrently hammering interleaved regions; per-master share and
-  latency under contention. (v1 keeps W3 simple: two masters, fixed mix.)
+- **W3 — Contention:** `stream` + the write injector (or JTAG-AXI master)
+  concurrently active on interleaved regions; per-master share and latency
+  under contention. (v1 keeps W3 simple: two masters, fixed mix.)
 
 ### 4.2 Metrics — performance
 
 Measured by the **obs blocks** (identical RTL and probe points both legs),
 read out through the same register path:
 
-- Sustained bandwidth (MB/s) per W1/W2 sweep point; efficiency vs the
+- Sustained bandwidth (MB/s) per sweep point, per flavor; efficiency vs the
   DDR3/theoretical ceiling.
 - Latency distribution (p50 / p95 / p99) for the measured transaction
   windows, idle and under load.
+- Mirror agreement: W1-F1 vs W1-F2 bandwidth and latency at matched sweep
+  points (direction-symmetry check; divergence investigated and explained).
 - Under W3: per-master bandwidth share (arbitration fairness) and latency
   inflation.
 
@@ -127,8 +148,10 @@ normalized delta table (% difference, Leg A vs Leg B).
 
 - Same Quartus version, device, pin/clock constraints, and SDC.
 - Same driver scripts and transaction streams both legs (scripted via
-  System Console + JTAG-AXI; identical TCL, identical counts).
-- Warm-up excluded: measurements taken over a fixed steady-state window.
+  System Console + JTAG-AXI; identical TCL, identical counts, identical
+  PRBS seeds both flavors).
+- Warm-up excluded: measurements taken over a fixed steady-state window;
+  the W1-F1 fill phase is timed separately from the drain measurement.
 - N = 5 runs per point; report median and spread.
 - No hand-tuning a leg's constraints to win; constraint files are shared.
 
@@ -136,35 +159,40 @@ normalized delta table (% difference, Leg A vs Leg B).
 
 ```
                  DE10-Standard (Cyclone V 5CSX)
- ┌──────────────────────────────────────────────────────────────┐
- │  HPS (ARM) + Intel hard DDR3 MC                              │
- │        │ AXI3 master(s)                                     │
- │        ▼                                                    │
- │  ┌───────────┐   AXI3   ┌───────────────────────────────┐   │
- │  │  FABRIC   │◄────────►│ stream: MC → CRC checker SRAM │   │
- │  │  A: bridge│          │ obs blocks (BW/latency taps)  │   │
- │  │  B: PD    │          │ CRC checker block + SRAM      │   │
- │  └───────────┘          └───────────────────────────────┘   │
- │        ▲                                                    │
- │  JTAG-AXI master (System Console driver)                    │
- └──────────────────────────────────────────────────────────────┘
+ ┌──────────────────────────────────────────────────────────────────┐
+ │  HPS (ARM) + Intel hard DDR3 MC                                  │
+ │        ▲                                    │ AXI3               │
+ │        │ AXI3                              │  masters            │
+ │  ┌─────┴───────────┐   AXI3   ┌───────────────────────────────┐  │
+ │  │     FABRIC      │◄────────►│ stream: mover both flavors    │  │
+ │  │  A: bridge      │          │ write injector (PRBS fill)    │  │
+ │  │  B: PD          │          │ PRBS data slave (mirror src)  │  │
+ │  └─────────────────┘          │ CRC checker block + SRAM      │  │
+ │        ▲                        │ obs blocks (BW/latency taps)  │  │
+ │  JTAG-AXI master (System Console driver)                        │  │
+ └──────────────────────────────────────────────────────────────────┘
+
+ Flavor 1: injector ──► DRAM ══ stream ══► CRC SRAM
+ Flavor 2: PRBS slave ══ stream ══► DRAM
 ```
 
 Leg A assembles from: bridge generator config TOML → generated crossbar SV →
 thin wrapper top; obs probes instantiated at the same net names as Leg B.
-Leg B assembles from Platform Designer; the same `stream`/obs/CRC RTL is
-wired in as PD components or exported-conduit hookups. The obs register file
-is reachable from the JTAG-AXI master on both legs at the same addresses.
+Leg B assembles from Platform Designer; the same `stream`/obs/CRC/injector/
+PRBS-slave RTL is wired in as PD components or exported-conduit hookups. The
+obs register file is reachable from the JTAG-AXI master on both legs at the
+same addresses.
 
 ## 6. Deliverables
 
 1. `quartus/` — two compilable Quartus projects (Leg A, Leg B).
 2. `rtl/` — bridge TOML(s), wrapper tops, obs hookup notes.
 3. `scripts/` — System Console/JTAG-AXI driver TCL, report-to-CSV parsers.
-4. `data/` — measurement CSVs per leg per date.
+4. `data/` — measurement CSVs per leg per flavor per run date.
 5. `docs/` — analysis document (standard doc flow → PDF): headline size
-   table + performance tables + honest caveats (driver ceilings, topology
-   differences, single-device scope).
+   table + performance tables (both flavors) + mirror-agreement check +
+   honest caveats (driver ceilings, topology differences, single-device
+   scope).
 
 ## 7. Milestones
 
@@ -172,10 +200,10 @@ is reachable from the JTAG-AXI master on both legs at the same addresses.
 | --- | --- | --- |
 | M0 | Collateral intake: PD IP inventory, JTAG-AXI master availability in 24.1 std, HPS DDR3 config for this board, f2h/h2f/ACP widths | external download |
 | M1 | Leg B (Intel PD) bring-up: compiles, JTAG-AXI loopback, sanity counters | M0 |
-| M2 | Driver + obs plumbing: W1/W2 scripted, counters read on both legs | M1 |
-| M3 | Leg A (bridge) bring-up: matched-topology TOML, compiles, same driver passes | M2 |
-| M4 | Measurements: W1/W2/W3 sweeps ×5 runs, Fitter/TimeQuest parses | M3 |
-| M5 | Analysis doc + site write-up | M4 |
+| M2 | Block selection: exact PRBS slave block from stream's inventory; injector/obs plumbing; W1-F1/W1-F2/W2 scripted on one leg | M1 |
+| M3 | Leg A (bridge) bring-up: matched-topology TOML, compiles, same driver passes both flavors | M2 |
+| M4 | Measurements: full sweep × both flavors ×5 runs, Fitter/TimeQuest parses | M3 |
+| M5 | Analysis doc + site write-up (incl. mirror-agreement verdict) | M4 |
 
 Note the order: Intel leg first. The PD flow is the unknown; the bridge leg
 is deterministic given a matched topology.
@@ -184,14 +212,18 @@ is deterministic given a matched topology.
 
 - Both legs fit and run on the DE10-Standard with the identical driver.
 - Headline tables delivered: size delta and performance delta, Leg A vs Leg
-  B, at matched topology.
+  B, at matched topology, for both flavors.
+- **Mirror agreement:** W1-F1 and W1-F2 tell the same story within
+  measurement spread at matched sweep points, or every divergence is
+  explained in the analysis.
 - A third party can re-run the campaign from `scripts/` + this PRD alone.
 
 ## 9. Non-goals (v1)
 
 Other topologies/NoC; ACP comparisons; multi-clock/CDC comparisons; power;
 Linux userspace benchmarking (System Console + bare JTAG-AXI only); AXI5;
-write-path DRAM benchmarks (reads dominate W1 as specified — extend later).
+write-only or read-only DRAM microbenches beyond the two flavors (extend in
+v2 if the mirror check surprises).
 
 ## 10. Risks
 
@@ -201,9 +233,10 @@ write-path DRAM benchmarks (reads dominate W1 as specified — extend later).
 | HPS boot complexity (MC needs HPS configuration) | Use the vendor reference boot flow from the collateral; bare-metal preloader if Linux is overkill |
 | PD leg emits features the bridge can't match | Match functionally or document as a difference in the analysis; never let Leg A exceed Leg B's configured capability |
 | Leg A fmax below Leg B on Cyclone V (different RAM inference styles) | Report achieved fmax at the shared clock target plus a best-effort column; the comparison is primarily at-equal-clock |
+| Mirror flavors disagree (real asymmetry) | That is a finding, not a failure: localize with W2 (fabric-only) vs W1 (with MC) to attribute the asymmetry |
 | Quartus 24.1 std device/IP gaps for 5CSX | M0 verifies before any build work |
 
-## 11. Open questions (resolve at M0)
+## 11. Open questions (resolve at M0/M2)
 
 - Exact HPS DDR3 part/timing config shipped with the board collateral.
 - f2h_axi_slave / h2f_axi_master / ACP data widths on the DE10-Standard
@@ -212,6 +245,8 @@ write-path DRAM benchmarks (reads dominate W1 as specified — extend later).
 - Whether System Console scripting in 24.1 std needs any license feature.
 - PD interconnect default configuration knobs worth matching (pipeline
   stages, arbitration) so Leg A's bridge config is a fair mirror.
+- M2: exact PRBS responder block from stream's `rtl/fub` inventory for the
+  Flavor-2 source slave (and the matching CRC-verification hook).
 
 ## 12. References
 

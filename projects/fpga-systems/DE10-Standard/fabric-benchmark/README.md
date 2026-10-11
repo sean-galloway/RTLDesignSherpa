@@ -27,8 +27,10 @@
 
 Apples-to-apples comparison of two AXI fabrics on identical silicon,
 endpoints, and traffic: the **bridge-generated crossbar** vs the **Intel
-Platform Designer (Qsys) interconnect**. One variable — the fabric —
-measured on two axes: size of design and delivered performance.
+Platform Designer (Qsys) interconnect**. Two mirror-image flavors — injector
+fills DRAM then `stream` drains it to the CRC checker; `stream` reads a PRBS
+slave and writes DRAM — with obs blocks measuring bandwidth and latency on
+both. Two axes: size of design and delivered performance.
 
 - **PRD:** [PRD.md](PRD.md) — what we benchmark, how, and what ships.
 - **Status:** PRD drafted; collateral-blocked (Quartus/PD IP intake pending).
