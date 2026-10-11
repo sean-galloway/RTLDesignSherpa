@@ -450,3 +450,28 @@ resumes; stale values present as data corruption, not errors. Committed
 cfea7bcb0 (9 files, docs-only). This retires the "clock-freq change with
 stale cycle-counted CSRs" uncontrolled-risk documentation gap: the risk is
 now named in the specs a programmer actually reads. No RTL change.
+COMMON BOOKS + PUMICE REBASE (partner directive, 2026-10-10): overarching HAS
+with the partner's vision + per-block MAS for every common block, then pumice
+HAS/MAS rebased on the common stack. Approved scope: two book dirs w/ chapters;
+MAS covers layers+FUBs+pkg; pumice gets revised chapters + a what-moved-to-common
+chapter (not a rewrite). Landed: common_has v0.1 (9 files: layer stack, descriptor
+seam w/ 3 invariants, DFI generation naming, doctrines 6-11, lineup + products
+granite/gabbro/diorite) = 31c9dcaa5 w/ common_mas v0.1 (11 files: pkg, 8 layers,
+FUBs in owning chapters) + INDEX/README. pumice_has v1.0-draft = 386c79c7b
+(incl. new ch02.6 what-moved-to-common, regenerated mermaid assets).
+pumice_mas v0.9-draft = 216d54eb8 (macro chapters = integration+pointers; moved
+block chapters bannered). Rulings recorded IN the books: descriptor seam contract
+(N-entry vectors, commit/issue removal, invariants: un-coalesced snoop view,
+oldest-age inheritance, advisory snapshot/epoch boundary; return path separate,
+"never let the perfect get in the way of the good"); lite config = NUM_ENTRIES~1
+in-order (entry store can't be zero; wr-data buffer can't reach zero; RAS-off =
+true bypass); DFI revision = family boundary not parameter; doctrines 6-11
+(cycle counts/frequency, width-not-personality, safety=structure, RAS as-needed,
+return path, two-customer). Deferred minors: scoria_core.sv:234 stale wrlvl
+comment (wiring at :866-947 is operative); scoria_mas ch02_blocks/03_dfi_layer.md
+documents removed scoria_dfi_layer; mc_addr_mapper unadopted by rocks; pumice
+dfi_signal_pack/powerdown_cmd_arbiter not in default pumice_core build. Open
+questions live per-chapter in common_mas. Swarm link discipline: pre-commit link
+gate caught 17 bad relative links the untracked-file blind spot hid from the
+main checker; all fixed before commit (rule: new-book links are only proven once
+files are git-added).
