@@ -13,15 +13,16 @@
 """
 AXI4 to AXI3 Read Converter Test Runner - READ-ONLY
 
-Test runner for AXI4->AXI3 READ protocol downgrade converter with pass-through semantics.
+Test runner for AXI4->AXI3 READ protocol downgrade converter with pass-through
+and burst chopping semantics.
 Imports testbench class from projects/components/utility-ip/converters/dv/tbclasses/axi4_to_axi3_rd_tb.py
 
 Test Levels:
 - gate: Quick smoke test (single beat, len16, fixed, lock, id)
-- func: Same as gate for this pass-through core
-- full: Same as gate for this pass-through core
+- func: Pass-through plus burst chopping, response merging, and multi-ID concurrency
+- full: Same as func for this core
 
-Tests ONLY the read path with pass-through. For write path, see test_axi4_to_axi3_wr.py.
+Tests ONLY the read path. For write path, see test_axi4_to_axi3_wr.py.
 """
 
 import os
@@ -74,8 +75,9 @@ async def axi4_to_axi3_rd_test(dut):
     # Start clocks and reset
     await tb.setup_clocks_and_reset()
 
-    # Start background transaction monitor (BFM handles protocol automatically)
+    # Start background transaction monitors (BFM handles protocol automatically)
     monitor_task = cocotb.start_soon(tb.axi3_transaction_monitor())
+    r_monitor_task = cocotb.start_soon(tb.r_channel_monitor())
 
     try:
         # Run appropriate test suite based on test level
@@ -121,11 +123,19 @@ async def axi4_to_axi3_rd_test(dut):
             assert False, f"Test failures: {', '.join(error_summary)}"
 
     finally:
-        # Clean up the background monitor coroutine
-        if monitor_task is not None:
-            monitor_task.kill()
+        # Clean up the background monitor coroutines
+        for task in (monitor_task, r_monitor_task):
+            if task is not None:
+                task.kill()
+                try:
+                    await task
+                except cocotb.result.SimCancelled:
+                    pass
+
+        if tb.cycle_counter_task is not None:
+            tb.cycle_counter_task.kill()
             try:
-                await monitor_task
+                await tb.cycle_counter_task
             except cocotb.result.SimCancelled:
                 pass
 

@@ -10,17 +10,22 @@
 """
 Testbench for axi4_to_axi3_rd converter - READ-ONLY
 
-Tests AXI4 -> AXI3 protocol downgrade for read path with pass-through semantics:
+Tests AXI4 -> AXI3 protocol downgrade for read path with pass-through semantics
+and burst chopping:
 - Single-beat and burst read pass-through
 - AXI4 ARLOCK -> AXI3 ARLOCK mapping
 - ID preservation
 - Data/response identity
+- Burst chopping for AXI4 bursts longer than 16 beats
+- Worst-response merging across chunks
+- Per-ID merge state isolation
 """
 
 import os
 import sys
 import cocotb
 from cocotb.triggers import RisingEdge
+from cocotb.utils import get_sim_time
 
 # Import framework utilities (PYTHONPATH includes bin/)
 from TBClasses.shared.utilities import get_repo_root
@@ -37,15 +42,20 @@ class AXI4ToAXI3ReadTB(TBBase):
     """
     Testbench for axi4_to_axi3_rd converter.
 
-    Tests protocol downgrade from AXI4 -> AXI3 for read path with pass-through.
+    Tests protocol downgrade from AXI4 -> AXI3 for read path with pass-through
+    and burst chopping.
 
     Key Validations:
     - Single-beat read pass-through
-    - 16-beat burst pass-through (no chopping)
-    - FIXED burst pass-through
+    - 16-beat INCR burst pass-through (no chopping)
+    - FIXED burst pass-through and long FIXED burst repeat-address chopping
     - ARLOCK mapping (AXI4 1-bit -> AXI3 2-bit)
     - ID preservation
     - Data/response identity
+    - Bursts longer than 16 beats are chopped into <=16-beat AXI3 bursts
+    - Worst-rank response merge across chunks (DECERR > SLVERR > OKAY/EXOKAY)
+    - Per-ID merge state never crosses between IDs
+    - Back-to-back AR chunk handshakes can occur while R beats stream
     """
 
     def __init__(self, dut):
@@ -72,10 +82,13 @@ class AXI4ToAXI3ReadTB(TBBase):
             'lock_errors': 0,
             'id_errors': 0,
             'data_errors': 0,
+            'chop_errors': 0,
+            'merge_errors': 0,
         }
 
         # Bytes per transfer
         self.bytes_per_beat = self.data_width // 8
+        self.axi3_max_beats = 16
 
         # Initialize AXI4 master (drives slave side of converter)
         self.axi4_master = AXI4MasterRead(
@@ -101,9 +114,19 @@ class AXI4ToAXI3ReadTB(TBBase):
             multi_sig=True,
             response_delay=1
         )
+        # Keep AR ready asserted so chunk handshakes can stream back-to-back.
+        self.axi3_slave.ar_channel.set_ready_policy('always')
 
         # Storage for monitoring AXI3 transactions
         self.axi3_transactions = []
+        # Extended AR capture with burst/size for chopping verification
+        self.axi3_ar_details = []
+        self.axi3_ar_handshake_cycles = []
+        self.first_r_beat_cycle = None
+
+        # Free-running cycle counter (started after reset)
+        self.cycle_count = 0
+        self.cycle_counter_task = None
 
         self.log.info(f"Initialized AXI4->AXI3 Read TB: "
                      f"data_width={self.data_width}, "
@@ -125,6 +148,9 @@ class AXI4ToAXI3ReadTB(TBBase):
         await self.deassert_reset()
         await self.wait_clocks(self.clk_name, 5)
 
+        # Start free-running cycle counter after reset
+        self.cycle_counter_task = cocotb.start_soon(self._cycle_counter())
+
         self.log.info("Reset sequence complete")
 
     async def assert_reset(self):
@@ -136,6 +162,16 @@ class AXI4ToAXI3ReadTB(TBBase):
         """Deassert reset signal (active-low)"""
         self.rst_n.value = 1
         self.log.debug("Reset deasserted")
+
+    # =========================================================================
+    # CYCLE COUNTER
+    # =========================================================================
+
+    async def _cycle_counter(self):
+        """Free-running cycle counter used for pipeline timing checks."""
+        while True:
+            await RisingEdge(self.clk)
+            self.cycle_count += 1
 
     # =========================================================================
     # AXI3 MASTER SIDE MONITOR
@@ -157,12 +193,87 @@ class AXI4ToAXI3ReadTB(TBBase):
                 ar_len = int(self.dut.m_axi3_arlen.value)
                 ar_lock = int(self.dut.m_axi3_arlock.value)
                 ar_id = int(self.dut.m_axi3_arid.value)
+                ar_burst = int(self.dut.m_axi3_arburst.value)
+                ar_size = int(self.dut.m_axi3_arsize.value)
 
-                # Store transaction for verification
+                # Store transaction for verification (legacy tuple preserved)
                 self.axi3_transactions.append(('AR', ar_addr, ar_len, ar_lock, ar_id))
+                # Extended detail for chopping checks
+                self.axi3_ar_details.append({
+                    'addr': ar_addr,
+                    'len': ar_len,
+                    'lock': ar_lock,
+                    'id': ar_id,
+                    'burst': ar_burst,
+                    'size': ar_size,
+                    'cycle': self.cycle_count,
+                })
+                self.axi3_ar_handshake_cycles.append(self.cycle_count)
                 self.stats['axi3_reads_received'] += 1
 
                 self.log.debug(f"AXI3 AR handshake: addr=0x{ar_addr:08X}, len={ar_len}, lock={ar_lock}, id={ar_id}")
+
+    async def r_channel_monitor(self):
+        """Record the first slave R beat cycle for pipeline checks."""
+        while True:
+            await RisingEdge(self.clk)
+            if (int(self.dut.s_axi_rvalid.value) == 1 and
+                int(self.dut.s_axi_rready.value) == 1 and
+                self.first_r_beat_cycle is None):
+                self.first_r_beat_cycle = self.cycle_count
+
+    # =========================================================================
+    # LOW-LEVEL READ HELPERS
+    # =========================================================================
+
+    async def read_with_responses(self, address, burst_len, axid=0, burst_type=1, size=None):
+        """
+        Issue a read and return a list of (data, resp, last) tuples.
+
+        Unlike read_transaction(), this does not raise on non-OKAY responses,
+        so merge tests can inspect per-beat RRESP.
+        """
+        if size is None:
+            size = self.bytes_per_beat.bit_length() - 1
+
+        pkt = self.axi4_master.ar_channel.create_packet(
+            addr=address,
+            len=burst_len - 1,
+            id=axid,
+            size=size,
+            burst=burst_type,
+            lock=0,
+            cache=0,
+            prot=0,
+            qos=0,
+            region=0
+        )
+        await self.axi4_master.ar_channel.send(pkt)
+
+        id_queue = self.axi4_master._response_by_id[axid]
+        cycles_waited = 0
+        while len(id_queue) < burst_len:
+            await RisingEdge(self.clk)
+            cycles_waited += 1
+            if cycles_waited > 5000:
+                raise TimeoutError(f"read_with_responses timeout waiting for {burst_len} beats")
+
+        responses = []
+        for _ in range(burst_len):
+            packet = id_queue.popleft()
+            data = getattr(packet, 'data', 0)
+            resp = getattr(packet, 'resp', 0)
+            last = getattr(packet, 'last', 0)
+            responses.append((data, resp, last))
+        return responses
+
+    def set_resp_override(self, override_fn):
+        """Install a response override on the AXI3 slave BFM."""
+        self.axi3_slave.resp_override = override_fn
+
+    def clear_resp_override(self):
+        """Remove the AXI3 slave response override."""
+        self.axi3_slave.resp_override = None
 
     # =========================================================================
     # TEST SCENARIO METHODS
@@ -465,6 +576,442 @@ class AXI4ToAXI3ReadTB(TBBase):
         self.stats['bursts_completed'] += len(test_cases) * 2
         return True
 
+    # -------------------------------------------------------------------------
+    # Chopping tests
+    # -------------------------------------------------------------------------
+
+    async def incr_burst_len17(self):
+        """17-beat INCR burst is chopped into len15 + len0 AXI3 bursts."""
+        self.log.info("TEST: incr_burst_len17")
+        address = 0x6000
+        burst_len = 17
+        axid = 1
+        size = self.bytes_per_beat.bit_length() - 1
+        addr_step = 16 << size
+
+        initial_count = len(self.axi3_transactions)
+
+        read_data = await self.axi4_master.read_transaction(
+            address=address,
+            burst_len=burst_len,
+            burst_type=1,
+            size=size,
+            id=axid
+        )
+
+        await self.wait_clocks(self.clk_name, 20)
+
+        actual_ar_count = len(self.axi3_transactions) - initial_count
+        if actual_ar_count != 2:
+            self.log.error(f"incr_burst_len17: expected 2 AXI3 ARs, got {actual_ar_count}")
+            self.stats['chop_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        chunk0 = self.axi3_ar_details[initial_count]
+        chunk1 = self.axi3_ar_details[initial_count + 1]
+
+        if chunk0['len'] != 15 or chunk0['addr'] != address:
+            self.log.error(f"incr_burst_len17: chunk0 mismatch len={chunk0['len']} addr=0x{chunk0['addr']:08X}")
+            self.stats['chop_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        if chunk1['len'] != 0 or chunk1['addr'] != address + addr_step:
+            self.log.error(f"incr_burst_len17: chunk1 mismatch len={chunk1['len']} addr=0x{chunk1['addr']:08X}")
+            self.stats['chop_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        if len(read_data) != burst_len:
+            self.log.error(f"incr_burst_len17: data count mismatch got {len(read_data)}, expected {burst_len}")
+            self.stats['errors'] += 1
+            return False
+
+        for i, data in enumerate(read_data):
+            expected_addr = address + (i * self.bytes_per_beat)
+            expected_data = expected_addr & ((1 << self.data_width) - 1)
+            if data != expected_data:
+                self.log.error(f"incr_burst_len17: data mismatch beat {i} got 0x{data:08X}, "
+                              f"expected 0x{expected_data:08X}")
+                self.stats['data_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        self.log.info("incr_burst_len17 PASSED")
+        self.stats['bursts_sent'] += 1
+        self.stats['beats_expected'] += burst_len
+        self.stats['bursts_completed'] += 1
+        return True
+
+    async def incr_burst_len64(self):
+        """64-beat INCR burst is chopped into four 16-beat AXI3 bursts."""
+        self.log.info("TEST: incr_burst_len64")
+        address = 0x7000
+        burst_len = 64
+        axid = 2
+        size = self.bytes_per_beat.bit_length() - 1
+        addr_step = 16 << size
+
+        initial_count = len(self.axi3_transactions)
+
+        read_data = await self.axi4_master.read_transaction(
+            address=address,
+            burst_len=burst_len,
+            burst_type=1,
+            size=size,
+            id=axid
+        )
+
+        await self.wait_clocks(self.clk_name, 30)
+
+        actual_ar_count = len(self.axi3_transactions) - initial_count
+        if actual_ar_count != 4:
+            self.log.error(f"incr_burst_len64: expected 4 AXI3 ARs, got {actual_ar_count}")
+            self.stats['chop_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        for i in range(4):
+            chunk = self.axi3_ar_details[initial_count + i]
+            expected_addr = address + (i * addr_step)
+            if chunk['len'] != 15 or chunk['addr'] != expected_addr:
+                self.log.error(f"incr_burst_len64: chunk {i} mismatch len={chunk['len']} "
+                              f"addr=0x{chunk['addr']:08X}, expected 0x{expected_addr:08X}")
+                self.stats['chop_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        if len(read_data) != burst_len:
+            self.log.error(f"incr_burst_len64: data count mismatch got {len(read_data)}, expected {burst_len}")
+            self.stats['errors'] += 1
+            return False
+
+        for i, data in enumerate(read_data):
+            expected_addr = address + (i * self.bytes_per_beat)
+            expected_data = expected_addr & ((1 << self.data_width) - 1)
+            if data != expected_data:
+                self.log.error(f"incr_burst_len64: data mismatch beat {i} got 0x{data:08X}, "
+                              f"expected 0x{expected_data:08X}")
+                self.stats['data_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        self.log.info("incr_burst_len64 PASSED")
+        self.stats['bursts_sent'] += 1
+        self.stats['beats_expected'] += burst_len
+        self.stats['bursts_completed'] += 1
+        return True
+
+    async def fixed_burst_long(self):
+        """Long FIXED burst repeats the same address on every chunk."""
+        self.log.info("TEST: fixed_burst_long")
+        address = 0x8000
+        burst_len = 33
+        axid = 4
+        size = self.bytes_per_beat.bit_length() - 1
+
+        initial_count = len(self.axi3_transactions)
+
+        read_data = await self.axi4_master.read_transaction(
+            address=address,
+            burst_len=burst_len,
+            burst_type=0,
+            size=size,
+            id=axid
+        )
+
+        await self.wait_clocks(self.clk_name, 20)
+
+        actual_ar_count = len(self.axi3_transactions) - initial_count
+        if actual_ar_count != 3:
+            self.log.error(f"fixed_burst_long: expected 3 AXI3 ARs, got {actual_ar_count}")
+            self.stats['chop_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        for i in range(3):
+            chunk = self.axi3_ar_details[initial_count + i]
+            expected_len = 15 if i < 2 else 0
+            if chunk['addr'] != address or chunk['len'] != expected_len:
+                self.log.error(f"fixed_burst_long: chunk {i} mismatch len={chunk['len']} "
+                              f"addr=0x{chunk['addr']:08X}, expected 0x{address:08X}")
+                self.stats['chop_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        if len(read_data) != burst_len:
+            self.log.error(f"fixed_burst_long: data count mismatch got {len(read_data)}, expected {burst_len}")
+            self.stats['errors'] += 1
+            return False
+
+        # The BFM returns address + beat_offset within each chunk even for FIXED,
+        # so the merged data repeats the first-chunk pattern across chunks.
+        for i, data in enumerate(read_data):
+            beat_in_chunk = i % self.axi3_max_beats
+            expected_addr = address + (beat_in_chunk * self.bytes_per_beat)
+            expected_data = expected_addr & ((1 << self.data_width) - 1)
+            if data != expected_data:
+                self.log.error(f"fixed_burst_long: data mismatch beat {i} got 0x{data:08X}, "
+                              f"expected 0x{expected_data:08X}")
+                self.stats['data_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        self.log.info("fixed_burst_long PASSED")
+        self.stats['bursts_sent'] += 1
+        self.stats['beats_expected'] += burst_len
+        self.stats['bursts_completed'] += 1
+        return True
+
+    async def chop_pipelined(self):
+        """
+        Back-to-back chopped ARs handshaking while R beats stream.
+
+        Verifies that chunk n+1's AR handshake occurs before chunk n's R beats
+        have finished returning.
+        """
+        self.log.info("TEST: chop_pipelined")
+        address = 0x9000
+        burst_len = 33
+        axid = 6
+        size = self.bytes_per_beat.bit_length() - 1
+        expected_chunks = 3
+
+        # Snapshot before issuing
+        initial_ar_count = len(self.axi3_ar_handshake_cycles)
+        self.first_r_beat_cycle = None
+
+        # Start the read in the background so we can observe progress
+        read_task = cocotb.start_soon(self.read_with_responses(address, burst_len, axid=axid, burst_type=1, size=size))
+
+        # Wait until all expected AR handshakes have occurred
+        cycles_waited = 0
+        while len(self.axi3_ar_handshake_cycles) - initial_ar_count < expected_chunks:
+            await RisingEdge(self.clk)
+            cycles_waited += 1
+            if cycles_waited > 5000:
+                self.log.error("chop_pipelined: timeout waiting for AR handshakes")
+                self.stats['chop_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        ar_cycles = self.axi3_ar_handshake_cycles[initial_ar_count:initial_ar_count + expected_chunks]
+        self.log.info(f"chop_pipelined: AR handshake cycles: {ar_cycles}")
+
+        # Wait for read to complete and verify the ARs issued before any R beat
+        responses = await read_task
+        if self.first_r_beat_cycle is None:
+            self.log.error("chop_pipelined: no R beat observed")
+            self.stats['chop_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        # The critical pipelining check: all chunk ARs must have handshaked
+        # before the first R beat returns, proving chunk issuance does not wait
+        # for R completion.
+        if self.first_r_beat_cycle <= ar_cycles[-1]:
+            self.log.error(f"chop_pipelined: first R beat at cycle {self.first_r_beat_cycle} "
+                          f"before/together with last AR handshake at cycle {ar_cycles[-1]}")
+            self.stats['chop_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        if len(responses) != burst_len:
+            self.log.error(f"chop_pipelined: response count mismatch got {len(responses)}, expected {burst_len}")
+            self.stats['errors'] += 1
+            return False
+
+        self.log.info("chop_pipelined PASSED")
+        self.stats['bursts_sent'] += 1
+        self.stats['beats_expected'] += burst_len
+        self.stats['bursts_completed'] += 1
+        return True
+
+    # -------------------------------------------------------------------------
+    # Response-merge tests
+    # -------------------------------------------------------------------------
+
+    async def resp_merge_slverr_middle(self):
+        """SLVERR on a middle chunk propagates to the final R beat."""
+        self.log.info("TEST: resp_merge_slverr_middle")
+        address = 0xA000
+        burst_len = 33
+        axid = 10
+        size = self.bytes_per_beat.bit_length() - 1
+
+        # Three chunks: chunk0 [0xA000,0xA03F], chunk1 [0xA040,0xA07F], chunk2 [0xA080,0xA080]
+        chunk1_start = address + (16 << size)
+        chunk1_end = chunk1_start + (16 << size)
+
+        def override(addr):
+            if chunk1_start <= addr < chunk1_end:
+                return 2  # SLVERR
+            return None
+
+        self.set_resp_override(override)
+
+        try:
+            responses = await self.read_with_responses(address, burst_len, axid=axid, burst_type=1, size=size)
+        finally:
+            self.clear_resp_override()
+
+        if len(responses) != burst_len:
+            self.log.error(f"resp_merge_slverr_middle: response count mismatch got {len(responses)}, expected {burst_len}")
+            self.stats['merge_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        # Only the final beat may assert RLAST; non-final chunk boundaries have
+        # RLAST suppressed by the converter.
+        last_high_beats = [i for i, (_, _, last) in enumerate(responses) if last]
+        if len(last_high_beats) != 1 or last_high_beats[0] != burst_len - 1:
+            self.log.error(f"resp_merge_slverr_middle: RLAST only on final beat expected, "
+                          f"got last-high beats {last_high_beats}")
+            self.stats['merge_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        # The final beat must carry the merged worst response (SLVERR).
+        final_data, final_resp, final_last = responses[-1]
+        if final_resp != 2:
+            self.log.error(f"resp_merge_slverr_middle: final resp={final_resp}, expected 2 (SLVERR)")
+            self.stats['merge_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        self.log.info("resp_merge_slverr_middle PASSED")
+        self.stats['bursts_sent'] += 1
+        self.stats['beats_expected'] += burst_len
+        self.stats['bursts_completed'] += 1
+        return True
+
+    async def resp_merge_decerr_wins(self):
+        """DECERR on a middle chunk wins over SLVERR on the final chunk."""
+        self.log.info("TEST: resp_merge_decerr_wins")
+        address = 0xB000
+        burst_len = 33
+        axid = 11
+        size = self.bytes_per_beat.bit_length() - 1
+
+        chunk1_start = address + (16 << size)
+        chunk1_end = chunk1_start + (16 << size)
+        chunk2_start = chunk1_end
+        chunk2_end = chunk2_start + (1 << size)
+
+        def override(addr):
+            if chunk1_start <= addr < chunk1_end:
+                return 3  # DECERR
+            if chunk2_start <= addr < chunk2_end:
+                return 2  # SLVERR
+            return None
+
+        self.set_resp_override(override)
+
+        try:
+            responses = await self.read_with_responses(address, burst_len, axid=axid, burst_type=1, size=size)
+        finally:
+            self.clear_resp_override()
+
+        if len(responses) != burst_len:
+            self.log.error(f"resp_merge_decerr_wins: response count mismatch got {len(responses)}, expected {burst_len}")
+            self.stats['merge_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        last_high_beats = [i for i, (_, _, last) in enumerate(responses) if last]
+        if len(last_high_beats) != 1 or last_high_beats[0] != burst_len - 1:
+            self.log.error(f"resp_merge_decerr_wins: RLAST only on final beat expected, "
+                          f"got last-high beats {last_high_beats}")
+            self.stats['merge_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        final_data, final_resp, final_last = responses[-1]
+        if final_resp != 3:
+            self.log.error(f"resp_merge_decerr_wins: final resp={final_resp}, expected 3 (DECERR)")
+            self.stats['merge_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        self.log.info("resp_merge_decerr_wins PASSED")
+        self.stats['bursts_sent'] += 1
+        self.stats['beats_expected'] += burst_len
+        self.stats['bursts_completed'] += 1
+        return True
+
+    # -------------------------------------------------------------------------
+    # Multi-ID concurrency test
+    # -------------------------------------------------------------------------
+
+    async def multi_id_outstanding(self):
+        """Two IDs chopped concurrently; per-ID data/response must not cross."""
+        self.log.info("TEST: multi_id_outstanding")
+        address0 = 0xC000
+        address1 = 0xD000
+        burst_len = 33
+        id0 = 12
+        id1 = 13
+        size = self.bytes_per_beat.bit_length() - 1
+
+        initial_count = len(self.axi3_transactions)
+
+        # Launch both reads concurrently
+        task0 = cocotb.start_soon(self.read_with_responses(address0, burst_len, axid=id0, burst_type=1, size=size))
+        task1 = cocotb.start_soon(self.read_with_responses(address1, burst_len, axid=id1, burst_type=1, size=size))
+
+        responses0 = await task0
+        responses1 = await task1
+
+        await self.wait_clocks(self.clk_name, 10)
+
+        actual_ar_count = len(self.axi3_transactions) - initial_count
+        if actual_ar_count != 6:
+            self.log.error(f"multi_id_outstanding: expected 6 AXI3 ARs, got {actual_ar_count}")
+            self.stats['chop_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        # Verify each ID got its own address sequence
+        for i, (data, resp, last) in enumerate(responses0):
+            expected_addr = address0 + (i * self.bytes_per_beat)
+            expected_data = expected_addr & ((1 << self.data_width) - 1)
+            if data != expected_data:
+                self.log.error(f"multi_id_outstanding: id0 data mismatch beat {i} got 0x{data:08X}, "
+                              f"expected 0x{expected_data:08X}")
+                self.stats['merge_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        for i, (data, resp, last) in enumerate(responses1):
+            expected_addr = address1 + (i * self.bytes_per_beat)
+            expected_data = expected_addr & ((1 << self.data_width) - 1)
+            if data != expected_data:
+                self.log.error(f"multi_id_outstanding: id1 data mismatch beat {i} got 0x{data:08X}, "
+                              f"expected 0x{expected_data:08X}")
+                self.stats['merge_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        # Per-ID ARID check
+        for i in range(6):
+            detail = self.axi3_ar_details[initial_count + i]
+            if detail['id'] not in (id0, id1):
+                self.log.error(f"multi_id_outstanding: unexpected ARID {detail['id']}")
+                self.stats['id_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        self.log.info("multi_id_outstanding PASSED")
+        self.stats['bursts_sent'] += 2
+        self.stats['beats_expected'] += burst_len * 2
+        self.stats['bursts_completed'] += 2
+        return True
+
+    # =========================================================================
+    # TEST SUITE RUNNERS
+    # =========================================================================
+
     async def run_basic_test(self):
         """Run basic read pass-through test suite"""
         self.log.info("=" * 80)
@@ -491,9 +1038,9 @@ class AXI4ToAXI3ReadTB(TBBase):
         return success
 
     async def run_medium_test(self):
-        """Run medium read pass-through test suite"""
+        """Run medium read pass-through + chopping test suite"""
         self.log.info("=" * 80)
-        self.log.info("MEDIUM READ PASS-THROUGH TEST SUITE")
+        self.log.info("MEDIUM READ CHOPPING TEST SUITE")
         self.log.info("=" * 80)
 
         success = True
@@ -501,17 +1048,38 @@ class AXI4ToAXI3ReadTB(TBBase):
         if not await self.run_basic_test():
             success = False
 
+        if not await self.incr_burst_len17():
+            success = False
+
+        if not await self.incr_burst_len64():
+            success = False
+
+        if not await self.fixed_burst_long():
+            success = False
+
+        if not await self.chop_pipelined():
+            success = False
+
+        if not await self.resp_merge_slverr_middle():
+            success = False
+
+        if not await self.resp_merge_decerr_wins():
+            success = False
+
+        if not await self.multi_id_outstanding():
+            success = False
+
         return success
 
     async def run_full_test(self):
-        """Run full read pass-through test suite"""
+        """Run full read pass-through + chopping test suite"""
         self.log.info("=" * 80)
-        self.log.info("FULL READ PASS-THROUGH TEST SUITE")
+        self.log.info("FULL READ CHOPPING TEST SUITE")
         self.log.info("=" * 80)
 
         success = True
 
-        if not await self.run_basic_test():
+        if not await self.run_medium_test():
             success = False
 
         return success
