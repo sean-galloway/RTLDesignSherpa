@@ -118,9 +118,19 @@ class AXI3ToAXI4TB(TBBase):
         self.axi4_r_beats = []
         self.axi4_b_beats = []
 
-        self.outstanding_reads  = deque()
-        self.outstanding_writes = deque()
-        self.pending_b_responses = deque()
+        # Per-ID outstanding transaction tracking (AXI4 permits out-of-order
+        # responses across IDs). Each entry holds beats_remaining for reads/writes
+        # or is a placeholder for pending B responses.
+        self.outstanding_reads  = {}
+        self.outstanding_writes = {}
+        self.pending_b_responses = {}
+
+        # AXI4 W has no ID, so W beats that arrive before their AW cannot be
+        # associated with a specific transaction until AW arrives. The converter
+        # enforces a single-active-write contract, so a single shared early-W
+        # counter is sufficient for this smoke test.
+        self.early_w_count = 0
+        self.early_w_last_seen = False
 
         self.log.info(
             f"AXI3->AXI4 top TB: dw={self.data_width} aw={self.addr_width} id={self.id_width}"
@@ -141,7 +151,13 @@ class AXI3ToAXI4TB(TBBase):
         self.rst_n.value = 1
 
     async def axi4_monitor(self):
-        """Record every AXI4-side handshake and assert protocol basics."""
+        """Record every AXI4-side handshake and assert protocol basics.
+
+        Tracks outstanding reads/writes by ID so out-of-order responses across
+        different IDs are handled correctly. Buffers early W beats (legal when W
+        is driven before AW under the converter's single-active-write contract)
+        and associates them with the next AW.
+        """
         self.log.info("Starting AXI4 combined monitor")
         while True:
             await RisingEdge(self.clk)
@@ -155,8 +171,7 @@ class AXI3ToAXI4TB(TBBase):
                     'addr': int(self.dut.m_axi_araddr.value),
                     'len': ar_len,
                 })
-                self.outstanding_reads.append({
-                    'id': ar_id,
+                self._ensure_id_queue(self.outstanding_reads, ar_id).append({
                     'beats_remaining': ar_len + 1,
                 })
 
@@ -171,20 +186,15 @@ class AXI3ToAXI4TB(TBBase):
                     'last': r_last,
                 })
 
-                if not self.outstanding_reads:
+                if (r_id not in self.outstanding_reads or
+                        not self.outstanding_reads[r_id]):
                     self.log.error(
                         f"R channel beat with no outstanding read (rid={r_id})"
                     )
                     self.stats['read_errors'] += 1
                     self.stats['errors'] += 1
                 else:
-                    expected = self.outstanding_reads[0]
-                    if r_id != expected['id']:
-                        self.log.error(
-                            f"RID mismatch: got {r_id}, expected {expected['id']}"
-                        )
-                        self.stats['read_errors'] += 1
-                        self.stats['errors'] += 1
+                    expected = self.outstanding_reads[r_id][0]
                     expected_last = 1 if expected['beats_remaining'] == 1 else 0
                     if r_last != expected_last:
                         self.log.error(
@@ -196,7 +206,7 @@ class AXI3ToAXI4TB(TBBase):
                         self.stats['errors'] += 1
                     expected['beats_remaining'] -= 1
                     if expected['beats_remaining'] == 0:
-                        self.outstanding_reads.popleft()
+                        self.outstanding_reads[r_id].popleft()
 
             if (int(self.dut.m_axi_awvalid.value) == 1 and
                     int(self.dut.m_axi_awready.value) == 1):
@@ -207,13 +217,34 @@ class AXI3ToAXI4TB(TBBase):
                     'addr': int(self.dut.m_axi_awaddr.value),
                     'len': aw_len,
                 })
-                self.outstanding_writes.append({
-                    'id': aw_id,
-                    'beats_remaining': aw_len + 1,
+
+                # Account for any W beats that arrived before this AW. Under the
+                # single-active-write contract there is at most one early-W run,
+                # so it unambiguously belongs to this AW.
+                total_beats = aw_len + 1 - self.early_w_count
+                if total_beats < 0:
+                    self.log.error(
+                        f"AW for id={aw_id}: more early W beats ({self.early_w_count}) "
+                        f"than burst length ({aw_len + 1})"
+                    )
+                    self.stats['write_errors'] += 1
+                    self.stats['errors'] += 1
+                    total_beats = 0
+                if self.early_w_last_seen and self.early_w_count != aw_len + 1:
+                    self.log.error(
+                        f"AW for id={aw_id}: early WLAST seen but early beat count "
+                        f"({self.early_w_count}) != burst length ({aw_len + 1})"
+                    )
+                    self.stats['write_errors'] += 1
+                    self.stats['errors'] += 1
+
+                self._ensure_id_queue(self.outstanding_writes, aw_id).append({
+                    'beats_remaining': total_beats,
                 })
-                self.pending_b_responses.append({
-                    'id': aw_id,
-                })
+                self._ensure_id_queue(self.pending_b_responses, aw_id).append({})
+
+                self.early_w_count = 0
+                self.early_w_last_seen = False
 
             if (int(self.dut.m_axi_wvalid.value) == 1 and
                     int(self.dut.m_axi_wready.value) == 1):
@@ -223,25 +254,35 @@ class AXI3ToAXI4TB(TBBase):
                     'strb': int(self.dut.m_axi_wstrb.value),
                     'last': w_last,
                 })
-                if not self.outstanding_writes:
-                    self.log.error(
-                        "W channel beat with no outstanding write"
-                    )
-                    self.stats['write_errors'] += 1
-                    self.stats['errors'] += 1
+
+                # Find any active write to check WLAST against. In this smoke test
+                # the converter allows only one active write, so any entry works.
+                active_write = None
+                for q in self.outstanding_writes.values():
+                    if q:
+                        active_write = q[0]
+                        break
+
+                if active_write is None:
+                    # W before AW: buffer the beat until AW arrives.
+                    self.early_w_count += 1
+                    if w_last:
+                        self.early_w_last_seen = True
                 else:
-                    expected = self.outstanding_writes[0]
-                    expected_last = 1 if expected['beats_remaining'] == 1 else 0
+                    expected_last = 1 if active_write['beats_remaining'] == 1 else 0
                     if w_last != expected_last:
                         self.log.error(
                             f"WLAST mismatch: got {w_last}, expected {expected_last} "
-                            f"(beats_remaining={expected['beats_remaining']})"
+                            f"(beats_remaining={active_write['beats_remaining']})"
                         )
                         self.stats['write_errors'] += 1
                         self.stats['errors'] += 1
-                    expected['beats_remaining'] -= 1
-                    if expected['beats_remaining'] == 0:
-                        self.outstanding_writes.popleft()
+                    active_write['beats_remaining'] -= 1
+                    if active_write['beats_remaining'] == 0:
+                        for q in self.outstanding_writes.values():
+                            if q and q[0] is active_write:
+                                q.popleft()
+                                break
 
             if (int(self.dut.m_axi_bvalid.value) == 1 and
                     int(self.dut.m_axi_bready.value) == 1):
@@ -251,26 +292,27 @@ class AXI3ToAXI4TB(TBBase):
                     'id': b_id,
                     'resp': b_resp,
                 })
-                if not self.pending_b_responses:
+                if (b_id not in self.pending_b_responses or
+                        not self.pending_b_responses[b_id]):
                     self.log.error(
                         f"B channel response with no outstanding write (bid={b_id})"
                     )
                     self.stats['write_errors'] += 1
                     self.stats['errors'] += 1
                 else:
-                    expected = self.pending_b_responses.popleft()
-                    if b_id != expected['id']:
-                        self.log.error(
-                            f"BID mismatch: got {b_id}, expected {expected['id']}"
-                        )
-                        self.stats['write_errors'] += 1
-                        self.stats['errors'] += 1
+                    expected = self.pending_b_responses[b_id].popleft()
                     if b_resp != 0:
                         self.log.error(
                             f"BRESP mismatch for id={b_id}: got {b_resp}, expected 0"
                         )
                         self.stats['write_errors'] += 1
                         self.stats['errors'] += 1
+
+    def _ensure_id_queue(self, container, id_value):
+        """Return a deque for id_value in container, creating it if needed."""
+        if id_value not in container:
+            container[id_value] = deque()
+        return container[id_value]
 
     async def run_smoke_test(self, burst_len=8, bursts=1):
         """Issue concurrent read + write bursts, optionally repeated.
