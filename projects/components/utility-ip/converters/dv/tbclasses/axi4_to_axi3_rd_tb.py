@@ -228,10 +228,10 @@ class AXI4ToAXI3ReadTB(TBBase):
 
     async def read_with_responses(self, address, burst_len, axid=0, burst_type=1, size=None):
         """
-        Issue a read and return a list of (data, resp, last) tuples.
+        Issue a read and return a list of (data, resp, last, rid) tuples.
 
         Unlike read_transaction(), this does not raise on non-OKAY responses,
-        so merge tests can inspect per-beat RRESP.
+        so merge tests can inspect per-beat RRESP and RID.
         """
         if size is None:
             size = self.bytes_per_beat.bit_length() - 1
@@ -250,6 +250,8 @@ class AXI4ToAXI3ReadTB(TBBase):
         )
         await self.axi4_master.ar_channel.send(pkt)
 
+        # Private member access: test-only introspection of AXI4MasterRead's
+        # per-ID response deque. No public accessor exists in this framework version.
         id_queue = self.axi4_master._response_by_id[axid]
         cycles_waited = 0
         while len(id_queue) < burst_len:
@@ -264,7 +266,8 @@ class AXI4ToAXI3ReadTB(TBBase):
             data = getattr(packet, 'data', 0)
             resp = getattr(packet, 'resp', 0)
             last = getattr(packet, 'last', 0)
-            responses.append((data, resp, last))
+            rid = getattr(packet, 'id', 0)
+            responses.append((data, resp, last, rid))
         return responses
 
     def set_resp_override(self, override_fn):
@@ -540,7 +543,9 @@ class AXI4ToAXI3ReadTB(TBBase):
         # Verify RID for each issued ID by sending AR manually and inspecting
         # the response packet before read_transaction consumes it.
         for address, axid in test_cases:
-            # Clear any stale response queue entries
+            # Clear any stale response queue entries.
+            # Private member access: test-only introspection of AXI4MasterRead's
+            # per-ID response deque. No public accessor exists in this version.
             self.axi4_master._response_by_id[axid].clear()
 
             size = self.bytes_per_beat.bit_length() - 1
@@ -549,6 +554,7 @@ class AXI4ToAXI3ReadTB(TBBase):
                 burst=1, lock=0, cache=0, prot=0, qos=0, region=0)
             await self.axi4_master.ar_channel.send(pkt)
 
+            # Private member access: see comment above.
             id_queue = self.axi4_master._response_by_id[axid]
             cycles_waited = 0
             while len(id_queue) < 1:
@@ -698,6 +704,65 @@ class AXI4ToAXI3ReadTB(TBBase):
                 return False
 
         self.log.info("incr_burst_len64 PASSED")
+        self.stats['bursts_sent'] += 1
+        self.stats['beats_expected'] += burst_len
+        self.stats['bursts_completed'] += 1
+        return True
+
+    async def incr_burst_len256(self):
+        """256-beat INCR burst (max legal AXI4) is chopped into sixteen 16-beat chunks."""
+        self.log.info("TEST: incr_burst_len256")
+        address = 0xE000
+        burst_len = 256
+        axid = 14
+        size = self.bytes_per_beat.bit_length() - 1
+        addr_step = 16 << size
+
+        initial_count = len(self.axi3_transactions)
+
+        read_data = await self.axi4_master.read_transaction(
+            address=address,
+            burst_len=burst_len,
+            burst_type=1,
+            size=size,
+            id=axid
+        )
+
+        await self.wait_clocks(self.clk_name, 30)
+
+        actual_ar_count = len(self.axi3_transactions) - initial_count
+        if actual_ar_count != 16:
+            self.log.error(f"incr_burst_len256: expected 16 AXI3 ARs, got {actual_ar_count}")
+            self.stats['chop_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        for i in range(16):
+            chunk = self.axi3_ar_details[initial_count + i]
+            expected_addr = address + (i * addr_step)
+            if chunk['len'] != 15 or chunk['addr'] != expected_addr:
+                self.log.error(f"incr_burst_len256: chunk {i} mismatch len={chunk['len']} "
+                              f"addr=0x{chunk['addr']:08X}, expected 0x{expected_addr:08X}")
+                self.stats['chop_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        if len(read_data) != burst_len:
+            self.log.error(f"incr_burst_len256: data count mismatch got {len(read_data)}, expected {burst_len}")
+            self.stats['errors'] += 1
+            return False
+
+        for i, data in enumerate(read_data):
+            expected_addr = address + (i * self.bytes_per_beat)
+            expected_data = expected_addr & ((1 << self.data_width) - 1)
+            if data != expected_data:
+                self.log.error(f"incr_burst_len256: data mismatch beat {i} got 0x{data:08X}, "
+                              f"expected 0x{expected_data:08X}")
+                self.stats['data_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        self.log.info("incr_burst_len256 PASSED")
         self.stats['bursts_sent'] += 1
         self.stats['beats_expected'] += burst_len
         self.stats['bursts_completed'] += 1
@@ -864,7 +929,7 @@ class AXI4ToAXI3ReadTB(TBBase):
 
         # Only the final beat may assert RLAST; non-final chunk boundaries have
         # RLAST suppressed by the converter.
-        last_high_beats = [i for i, (_, _, last) in enumerate(responses) if last]
+        last_high_beats = [i for i, (_, _, last, _) in enumerate(responses) if last]
         if len(last_high_beats) != 1 or last_high_beats[0] != burst_len - 1:
             self.log.error(f"resp_merge_slverr_middle: RLAST only on final beat expected, "
                           f"got last-high beats {last_high_beats}")
@@ -872,8 +937,19 @@ class AXI4ToAXI3ReadTB(TBBase):
             self.stats['errors'] += 1
             return False
 
+        # Per-beat RRESP passthrough: every non-final beat must match the slave's
+        # forced response for that beat's address.
+        for i, (data, resp, last, rid) in enumerate(responses[:-1]):
+            beat_addr = address + (i * self.bytes_per_beat)
+            expected_resp = 2 if chunk1_start <= beat_addr < chunk1_end else 0
+            if resp != expected_resp:
+                self.log.error(f"resp_merge_slverr_middle: beat {i} resp={resp}, expected {expected_resp}")
+                self.stats['merge_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
         # The final beat must carry the merged worst response (SLVERR).
-        final_data, final_resp, final_last = responses[-1]
+        final_data, final_resp, final_last, final_rid = responses[-1]
         if final_resp != 2:
             self.log.error(f"resp_merge_slverr_middle: final resp={final_resp}, expected 2 (SLVERR)")
             self.stats['merge_errors'] += 1
@@ -919,7 +995,7 @@ class AXI4ToAXI3ReadTB(TBBase):
             self.stats['errors'] += 1
             return False
 
-        last_high_beats = [i for i, (_, _, last) in enumerate(responses) if last]
+        last_high_beats = [i for i, (_, _, last, _) in enumerate(responses) if last]
         if len(last_high_beats) != 1 or last_high_beats[0] != burst_len - 1:
             self.log.error(f"resp_merge_decerr_wins: RLAST only on final beat expected, "
                           f"got last-high beats {last_high_beats}")
@@ -927,7 +1003,7 @@ class AXI4ToAXI3ReadTB(TBBase):
             self.stats['errors'] += 1
             return False
 
-        final_data, final_resp, final_last = responses[-1]
+        final_data, final_resp, final_last, final_rid = responses[-1]
         if final_resp != 3:
             self.log.error(f"resp_merge_decerr_wins: final resp={final_resp}, expected 3 (DECERR)")
             self.stats['merge_errors'] += 1
@@ -945,7 +1021,7 @@ class AXI4ToAXI3ReadTB(TBBase):
     # -------------------------------------------------------------------------
 
     async def multi_id_outstanding(self):
-        """Two IDs chopped concurrently; per-ID data/response must not cross."""
+        """Two IDs chopped concurrently; per-ID data/response/RLAST must not cross."""
         self.log.info("TEST: multi_id_outstanding")
         address0 = 0xC000
         address1 = 0xD000
@@ -956,12 +1032,24 @@ class AXI4ToAXI3ReadTB(TBBase):
 
         initial_count = len(self.axi3_transactions)
 
-        # Launch both reads concurrently
-        task0 = cocotb.start_soon(self.read_with_responses(address0, burst_len, axid=id0, burst_type=1, size=size))
-        task1 = cocotb.start_soon(self.read_with_responses(address1, burst_len, axid=id1, burst_type=1, size=size))
+        # Force SLVERR on every beat of id0's transaction; id1 must stay OKAY
+        # to prove per-ID response isolation.
+        def override(addr):
+            if address0 <= addr < address0 + (burst_len * self.bytes_per_beat):
+                return 2  # SLVERR
+            return None
 
-        responses0 = await task0
-        responses1 = await task1
+        self.set_resp_override(override)
+
+        try:
+            # Launch both reads concurrently
+            task0 = cocotb.start_soon(self.read_with_responses(address0, burst_len, axid=id0, burst_type=1, size=size))
+            task1 = cocotb.start_soon(self.read_with_responses(address1, burst_len, axid=id1, burst_type=1, size=size))
+
+            responses0 = await task0
+            responses1 = await task1
+        finally:
+            self.clear_resp_override()
 
         await self.wait_clocks(self.clk_name, 10)
 
@@ -972,8 +1060,8 @@ class AXI4ToAXI3ReadTB(TBBase):
             self.stats['errors'] += 1
             return False
 
-        # Verify each ID got its own address sequence
-        for i, (data, resp, last) in enumerate(responses0):
+        # Verify each ID got its own data sequence and isolated RID/RLAST/RRESP.
+        for i, (data, resp, last, rid) in enumerate(responses0):
             expected_addr = address0 + (i * self.bytes_per_beat)
             expected_data = expected_addr & ((1 << self.data_width) - 1)
             if data != expected_data:
@@ -982,13 +1070,45 @@ class AXI4ToAXI3ReadTB(TBBase):
                 self.stats['merge_errors'] += 1
                 self.stats['errors'] += 1
                 return False
+            if rid != id0:
+                self.log.error(f"multi_id_outstanding: id0 RID mismatch beat {i} got {rid}, expected {id0}")
+                self.stats['id_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+            is_final = (i == burst_len - 1)
+            if last != (1 if is_final else 0):
+                self.log.error(f"multi_id_outstanding: id0 RLAST mismatch beat {i} got {last}, expected {1 if is_final else 0}")
+                self.stats['merge_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+            if resp != 2:
+                self.log.error(f"multi_id_outstanding: id0 RRESP mismatch beat {i} got {resp}, expected SLVERR")
+                self.stats['merge_errors'] += 1
+                self.stats['errors'] += 1
+                return False
 
-        for i, (data, resp, last) in enumerate(responses1):
+        for i, (data, resp, last, rid) in enumerate(responses1):
             expected_addr = address1 + (i * self.bytes_per_beat)
             expected_data = expected_addr & ((1 << self.data_width) - 1)
             if data != expected_data:
                 self.log.error(f"multi_id_outstanding: id1 data mismatch beat {i} got 0x{data:08X}, "
                               f"expected 0x{expected_data:08X}")
+                self.stats['merge_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+            if rid != id1:
+                self.log.error(f"multi_id_outstanding: id1 RID mismatch beat {i} got {rid}, expected {id1}")
+                self.stats['id_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+            is_final = (i == burst_len - 1)
+            if last != (1 if is_final else 0):
+                self.log.error(f"multi_id_outstanding: id1 RLAST mismatch beat {i} got {last}, expected {1 if is_final else 0}")
+                self.stats['merge_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+            if resp != 0:
+                self.log.error(f"multi_id_outstanding: id1 RRESP mismatch beat {i} got {resp}, expected OKAY")
                 self.stats['merge_errors'] += 1
                 self.stats['errors'] += 1
                 return False
@@ -1052,6 +1172,9 @@ class AXI4ToAXI3ReadTB(TBBase):
             success = False
 
         if not await self.incr_burst_len64():
+            success = False
+
+        if not await self.incr_burst_len256():
             success = False
 
         if not await self.fixed_burst_long():

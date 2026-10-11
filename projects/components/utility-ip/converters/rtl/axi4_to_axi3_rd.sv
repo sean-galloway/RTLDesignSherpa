@@ -140,7 +140,8 @@ module axi4_to_axi3_rd #(
     // Active request being chunked out to the AXI3 master
     ar_req_t active_req;
     logic    active_valid;
-    logic [7:0]                active_remaining;
+    // Max AXI4 burst is 256 beats (arlen=255), so remaining beats needs 9 bits.
+    logic [8:0]                active_remaining;
     logic [AXI_ADDR_WIDTH-1:0] active_addr;
     logic [7:0]                active_chunks_total;
     logic [7:0]                active_chunks_issued;
@@ -183,7 +184,7 @@ module axi4_to_axi3_rd #(
     // Master AR Channel Chunk Issuance
     //==========================================================================
 
-    assign chunk_beats = (active_remaining > 8'(Axi3MaxBeats)) ?
+    assign chunk_beats = (active_remaining > 9'(Axi3MaxBeats)) ?
                          5'(Axi3MaxBeats) : 5'(active_remaining);
 
     assign m_axi3_arid    = active_valid ? active_req.id    : '0;
@@ -262,7 +263,7 @@ module axi4_to_axi3_rd #(
                 ar_req_t popped;
                 popped = ar_queue.pop_front();
                 active_req          <= popped;
-                active_remaining    <= popped.len + 8'd1;
+                active_remaining    <= 9'(popped.len) + 9'd1;
                 active_addr         <= popped.addr;
                 active_chunks_total <= 8'(((( {1'b0, popped.len} + 9'd1) + 9'd15) >> 4));
                 active_chunks_issued <= '0;
@@ -277,14 +278,14 @@ module axi4_to_axi3_rd #(
                     merge_worst[active_req.id]       <= 2'b00;
                 end
 
-                active_remaining <= active_remaining - 8'(chunk_beats);
+                active_remaining <= active_remaining - 9'(chunk_beats);
                 if (active_req.burst == 2'b01) begin // INCR
                     active_addr <= active_addr +
                                    (AXI_ADDR_WIDTH'(chunk_beats) << active_req.size);
                 end
                 active_chunks_issued <= active_chunks_issued + 8'd1;
 
-                if (active_remaining <= 8'(Axi3MaxBeats)) begin
+                if (active_remaining <= 9'(Axi3MaxBeats)) begin
                     active_valid <= 1'b0;
                 end
             end

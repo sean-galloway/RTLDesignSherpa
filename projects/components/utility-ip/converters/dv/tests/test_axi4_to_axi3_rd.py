@@ -25,6 +25,7 @@ Test Levels:
 Tests ONLY the read path. For write path, see test_axi4_to_axi3_wr.py.
 """
 
+import asyncio
 import os
 import random
 import sys
@@ -47,10 +48,14 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def axi4_to_axi3_rd_test(dut):
     """
-    AXI4 to AXI3 Read Converter test - READ-ONLY with pass-through.
+    AXI4 to AXI3 Read Converter test - READ-ONLY with pass-through, burst
+    chopping, and worst-response merging.
 
     Tests read path (AR, R channels) with:
     - Pass-through for single-beat and burst reads
+    - Burst chopping for AXI4 bursts longer than 16 beats
+    - Worst-rank response merging across chunks
+    - Per-ID merge state isolation under concurrent bursts
     - ARLOCK mapping
     - ID preservation
 
@@ -126,17 +131,17 @@ async def axi4_to_axi3_rd_test(dut):
         # Clean up the background monitor coroutines
         for task in (monitor_task, r_monitor_task):
             if task is not None:
-                task.kill()
+                task.cancel()
                 try:
                     await task
-                except cocotb.result.SimCancelled:
+                except asyncio.CancelledError:
                     pass
 
         if tb.cycle_counter_task is not None:
-            tb.cycle_counter_task.kill()
+            tb.cycle_counter_task.cancel()
             try:
                 await tb.cycle_counter_task
-            except cocotb.result.SimCancelled:
+            except asyncio.CancelledError:
                 pass
 
         # Final cleanup wait
@@ -189,11 +194,15 @@ def generate_test_params():
 def test_axi4_to_axi3_rd(request, params):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """
-    AXI4 to AXI3 Read Converter test with pass-through validation.
+    AXI4 to AXI3 Read Converter test with pass-through, burst chopping, and
+    worst-response merge validation.
 
     Features:
     - Protocol downgrade (AXI4 -> AXI3)
     - Pass-through (single-beat and burst reads)
+    - Burst chopping for AXI4 bursts longer than 16 beats
+    - Worst-rank response merging across chunks
+    - Per-ID merge state isolation
     - ARLOCK mapping
     - ID preservation
     """
@@ -203,7 +212,7 @@ def test_axi4_to_axi3_rd(request, params):
         'rtl_amba_includes': 'rtl/amba/includes'
     })
 
-    dut_name = "axi4_to_axi3_rd"  # Read-only pass-through converter
+    dut_name = "axi4_to_axi3_rd"  # Read-only converter with burst chopping
     toplevel = dut_name
 
     # Extract test parameters
@@ -294,7 +303,7 @@ def test_axi4_to_axi3_rd(request, params):
     print(f"AXI4->AXI3 Read Converter Test: {test_level.upper()}")
     print(f"Configuration: DW={data_width}, AW={addr_width}, ID={id_width}")
     print(f"Expected Duration: {timeout_ms/1000:.1f}s")
-    print(f"Features: Pass-through, ARLOCK mapping, ID preservation")
+    print(f"Features: Pass-through, burst chopping, response merge, ARLOCK mapping, ID preservation")
     print(f"{'='*80}")
 
     try:
