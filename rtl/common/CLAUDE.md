@@ -69,6 +69,16 @@ per-protocol: `bin/TBClasses/axi_monitor/`, `apb4_monitor/`, `axi_splitter/`,
 How a TB is composed, and what gate/func/full actually cost in this area:
 `vault/handbook/dv/tb-structure.md`.
 
+Arbiter TBs are an explicit exception to plain queue-checking: stimulus goes
+through `CocoTBFramework.components.shared.arbiter_master.ArbiterMaster` and
+checking through the shared arbiter monitor (`ArbiterMonitor` /
+`RoundRobinArbiterMonitor` / `WeightedRoundRobinArbiterMonitor` by variant)
+plus `arbiter_compliance`, exactly as `arbiter_round_robin_tb.py` does.
+Directed corner tests (ACK handoff, foreign-ack immunity, weight-change
+boundaries) may supplement the master/monitor flow but never replace it.
+This is an owner-mandated convention (2026-10-11); `arbiter_matrix_tb.py`
+and `arbiter_matrix_weighted_tb.py` follow it.
+
 ---
 
 ### Rule #1: ALWAYS Search First, Create Last
