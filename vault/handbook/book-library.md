@@ -56,13 +56,15 @@ calibre but have no Markdown tree, so they appear only at the end of
 holds instead of the Kindle file; the text is the same but figures are page
 renders and the odd page number survives inside code listings. Check the
 edition in the title: a PDF may be an older edition than the Kindle copy.
-`source-ocr` marks a tree read by tesseract from page screenshots of the
-Kindle app, the route for books whose DRM cannot be removed. Prose is
-reliable, headings and chapters are recovered from line size and spacing, and
-code listings are rebuilt by shape, so expect curly quotes inside code, the odd
-misread glyph, and stray lines of screenshot text. Figures are crops of the
-page image. Quote such a book with that in mind and prefer a `source-pdf` or
-Kindle-derived tree for the same title when one exists.
+`source-ocr` marks a tree read from page screenshots of the Kindle app, the
+route for books whose DRM cannot be removed. Marker (a layout model plus OCR,
+run on a GPU) recovers headings, paragraphs, fenced listings and cropped
+figures from the page images, so the structure is close to a Kindle-derived
+tree; expect the odd misread glyph, a stray line of screenshot text, and
+equations as images. The older tesseract fallback (no GPU) keeps the prose but
+guesses headings from line size, so its chapter boundaries are rougher. Quote
+such a book with that in mind and prefer a `source-pdf` or Kindle-derived tree
+for the same title when one exists.
 
 ## Citing
 
