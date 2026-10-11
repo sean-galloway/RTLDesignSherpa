@@ -1,0 +1,4 @@
+master\slave,ddr_axi3,sram_axi4,apb_periph
+cpu_axi3,1,1,1
+dma_axi4,1,1,1
+host_apb,0,0,1

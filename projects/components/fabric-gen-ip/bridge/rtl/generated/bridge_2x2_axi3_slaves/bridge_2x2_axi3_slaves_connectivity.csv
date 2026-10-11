@@ -1,0 +1,3 @@
+master\slave,ddr_axi3,sram_axi3
+cpu_axi4,1,1
+host_axil,1,1

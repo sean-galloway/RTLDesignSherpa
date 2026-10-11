@@ -1,0 +1,55 @@
+# Bridge Configuration: 2x2 read/write bridge with two AXI3 slave ports.
+#
+# One 64-bit AXI4 master and one 32-bit AXI-Lite master feed a 64-bit
+# fabric; both slaves terminate through axi4_to_axi3. The AXIL master
+# exercises narrow->wide alignment into the AXI3 slaves.
+# Connectivity comes from bridge_2x2_axi3_slaves_connectivity.csv.
+
+[bridge]
+name = "bridge_2x2_axi3_slaves"
+variants = ["no"]
+description = "(AXI4 + AXI-Lite) masters x 2 AXI3 64b slaves rw bridge (GitHub #97)"
+
+[[bridge.masters]]
+name = "cpu_axi4"
+prefix = "cpu_axi4_"
+protocol = "axi4"
+id_width = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rw"
+
+[[bridge.masters]]
+name = "host_axil"
+prefix = "host_axil_"
+protocol = "axil"
+id_width = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[[bridge.slaves]]
+name = "ddr_axi3"
+prefix = "ddr_axi3_"
+protocol = "axi3"
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit(s) (bridge TASK-005, was BRIDGE-016)
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rw"
+base_addr = "0x00000000"
+addr_range = "0x80000000"  # 2GB
+
+[[bridge.slaves]]
+name = "sram_axi3"
+prefix = "sram_axi3_"
+protocol = "axi3"
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit(s) (bridge TASK-005, was BRIDGE-016)
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rw"
+base_addr = "0x80000000"
+addr_range = "0x80000000"  # 2GB

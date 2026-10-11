@@ -1,0 +1,87 @@
+#============================================================================
+# bridge_mix_e — mixed-protocol hetero bridge extending bridge_mix_a..d.
+#
+# 3 masters (1 AXI3 + 1 AXI4 + 1 APB) → 3 slaves (1 AXI3 + 1 AXI4 + 1 APB).
+# Exercises AXI3 master/slave conversion alongside AXI4 and APB traffic in
+# one fabric (GitHub #97).
+# Connectivity comes from bridge_mix_e_connectivity.csv.
+#============================================================================
+
+[bridge]
+name = "bridge_mix_e"
+variants = ["no"]
+description = "mixed AXI3 + AXI4 + APB masters -> AXI3 + AXI4 + APB slaves (GitHub #97)"
+
+[bridge.clock]
+name = "aclk"
+frequency_mhz = 100
+
+# ---------------------------------------------------------------- masters ---
+
+[[bridge.masters]]
+name      = "cpu_axi3"
+prefix    = "cpu_axi3_"
+protocol  = "axi3"
+channels  = "rw"
+id_width  = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+
+[[bridge.masters]]
+name      = "dma_axi4"
+prefix    = "dma_axi4_"
+protocol  = "axi4"
+channels  = "rw"
+id_width  = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+
+[[bridge.masters]]
+name      = "host_apb"
+prefix    = "host_apb_"
+protocol  = "apb"
+channels  = "rw"
+id_width  = 0
+addr_width = 32
+data_width = 32
+user_width = 0
+
+# ---------------------------------------------------------------- slaves ----
+
+[[bridge.slaves]]
+name      = "ddr_axi3"
+prefix    = "ddr_axi3_"
+protocol  = "axi3"
+channels  = "rw"
+id_width  = 6  # {master index, master id}: 4-bit ID + 2 prefix bit(s) (bridge TASK-005, was BRIDGE-016)
+addr_width = 32
+data_width = 64
+user_width = 1
+base_addr  = "0x00000000"
+addr_range = "0x40000000"  # 1 GB
+
+[[bridge.slaves]]
+name      = "sram_axi4"
+prefix    = "sram_axi4_"
+protocol  = "axi4"
+channels  = "rw"
+id_width  = 6  # {master index, master id}: 4-bit ID + 2 prefix bit(s) (bridge TASK-005, was BRIDGE-016)
+addr_width = 32
+data_width = 64
+user_width = 1
+base_addr  = "0x40000000"
+addr_range = "0x00010000"  # 64 KB
+
+[[bridge.slaves]]
+name      = "apb_periph"
+prefix    = "apb_periph_"
+protocol  = "apb"
+channels  = "rw"
+id_width  = 0
+addr_width = 32
+data_width = 32
+user_width = 0
+base_addr  = "0x40010000"
+addr_range = "0x00010000"  # 64 KB
