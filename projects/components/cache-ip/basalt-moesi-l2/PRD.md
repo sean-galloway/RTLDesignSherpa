@@ -67,6 +67,38 @@ below are chosen to survive scoping.
 | Directory (optional) | `basalt_dir` | L1ID sharer vector in the tag (book §10.4) — **elaboration parameter, default off**; useful only if the topology question (D1) ever moves it beside the snoop path. |
 | Top | `basalt_top` | Standalone-testable top with BFM masters (culsans-style decoupling) long before onyx exists. |
 
+## Tiering note: why these are fubs, and what would graduate
+
+Everything in the table above is a **sub-block (fub) of the one basalt IP**,
+not a standalone IP — that is a deliberate choice, not an accident of
+penciling. The repo has three tiers, and basalt follows the amber precedent
+(fill/drain/victim/replacement are amber's own fubs, not IPs):
+
+1. **House IP** (`rtl/amba/`, `rtl/common/` — `axi4_master_rd/wr`,
+   `gaxi_fifo_sync`, `sdpram_core`): owned by no component, instantiated by
+   everyone. Graduation rule: two or more *unrelated* components must need
+   it. Nothing in the basalt list graduates — the generic movers it reuses
+   already exist at this tier.
+2. **Component IP** (amber, jet, onyx): a full product with its own
+   PRD/HAS/RTL/DV and a research question. A *function* graduates to this
+   tier only when it becomes a research artifact itself. The recorded case:
+   the **nonblocking follow-on** (the "jet of L2s" — MSHRs, hit-under-miss,
+   decoupled victims at L2 scale) earns its own codename at scoping time;
+   that is the "another whole IP for a major function" the family plans for,
+   and it is a rung, not a function.
+3. **Fubs inside an IP**: the units above. The family's measured-delta
+   philosophy depends on functions staying inside the product whose context
+   defines them — an MSHR-as-shared-IP between jet and basalt would blur
+   exactly the diffs the family exists to measure.
+
+**The one candidate that could stand alone.** `basalt_dir` (the L1ID
+sharer-vector directory) is the only penciled unit with a second customer:
+onyx's deferred D3 directory-lite question. A standalone snoop-filter IP
+could serve onyx without any L2. It is deliberately *not* penciled as an IP
+now — it would re-open onyx's scope before onyx v1 exists, and there is
+nothing to measure a filter against until onyx's broadcast baseline is real.
+If a directory IP ever makes sense, it makes sense after that baseline.
+
 ## 3. Decision rows (all OPEN)
 
 | # | Decision | Candidates | What it drives |
