@@ -3,7 +3,7 @@
 **Date:** 2026-10-07
 **Status:** Approved approach (Approach A), pending written-spec review
 **IP:** `projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2`
-**Spec basis:** JESD209-2F (in-repo at `reference/ddr_lpddr_specs/JESD209-2F.pdf`)
+**Spec basis:** JEDEC JESD209-2F (LPDDR2 SDRAM Standard, Nov 2009; not redistributed in this repo — bibliographic index at `reference/README.md`, obtain from JEDEC)
 
 ## 1. Goal
 
@@ -194,7 +194,7 @@ DDR2-mode tests must stay green (training FUBs inert in DDR2).
 
 | Risk | Mitigation |
 |---|---|
-| JESD bit-level detail wrong (CA word, timing) | Spec facts extracted verbatim from in-repo JESD209-2F PDF (§5.12, §5.12.2, §5.13.3); formatter test encodes the same table |
+| JESD bit-level detail wrong (CA word, timing) | Spec facts extracted from JESD209-2F §5.12, §5.12.2, §5.13.3 (see `reference/README.md` for obtain path); formatter test encodes the same table |
 | Cmd FIFO +1 bit breaks a width assumption | FIFO word is a `gaxi_fifo_sync` data width; no external consumers of the packing outside scheduler/dfi_cmd_path |
 | MRR capture races a (forbidden) read return | Arbiter grant contract forbids outstanding reads; aligner sideband only fires when armed |
 | Multi-rank ZQ overlap (shared ZQ resistor) | Pumice board targets are single-rank; rank loop left as a documented `generate` hook in `pumice_zq_ctrl` |

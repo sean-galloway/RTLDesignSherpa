@@ -44,7 +44,7 @@ packs in the app today.
   — per-technology markdown with concrete values (e.g. DDR4 refresh table: tREFI1 7.8 µs,
   tRFC 160/260/350/450 ns by density; 2x/4x pairs). Working source for transcription; pack
   citations stay JEDEC-style per house rules (see §4.3).
-- Repo JEDEC PDFs (`reference/ddr_lpddr_specs/`) cover only DDR2/LPDDR2 — insufficient
+- Repo JEDEC coverage (JESD79-2F/JESD209-2F; bibliographic index at `reference/README.md`, PDFs no longer in-repo) covers only DDR2/LPDDR2 — insufficient
   alone; the MemorySpecs tree covers all 11.
 
 ## 3. Goals / success criteria
