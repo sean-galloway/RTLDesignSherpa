@@ -1,43 +1,95 @@
 # Diagram house style — memory-controller uarch diagrams
 
 Every overall-uarch and per-layer diagram in the mem-ctrl-ip books follows
-the same visual language, fixed by the reference the owner chose
+this style, fixed by the reference the owner chose
 (`design-a-ddr-memory-controller-i-top-level-diagram.webp`): the classic
-DDR-MC course diagram — white canvas, light-blue functional blocks, a
-tapered scheduler, a full-width PHY bar, and elbowed black arrows.
+DDR-MC course diagram.
 
-## Recipe (graphviz `dot`)
+**What the owner values in the reference is not the palette — it is how
+clearly the data and command flows read.** Color is a don't-care; flow
+clarity is the contract. The rules below are ordered by that priority.
+
+## Prime directive: the three flows must be traceable at a glance
+
+A reader who knows nothing about the block must be able to answer, from
+the drawing alone:
+
+1. *Where does a command come from, and how does it reach the DRAM?*
+2. *Where does write data enter, and by what route does it leave?*
+3. *Where does read data come back, and how does it get home?*
+
+### The three flows and their geography
+
+| Flow | Direction | Geography |
+|---|---|---|
+| **Command** | strictly top-down | the center column: channels → packetizers/intakes → pools → arbitration → scheduler → PHY. Commands never share an arrow with data. |
+| **Write data** | top-down, own route | enters with the write channel, leaves through its own path to the PHY (in the reference: down the left side, via the merge/forward buffers and write data path control) |
+| **Read data** | **back up**, own route | returns from the PHY on a separate route (in the reference: up the right side, through read data path control, merge logic, reorder buffer, home to the AXI read channel). The spatial loop — down the middle, up the side — is the point. |
+
+On per-layer diagrams the same discipline applies at layer scale: request
+traffic enters at the top, leaves at the bottom; returned/response traffic
+re-enters at the bottom and leaves at the top or side on its own route.
+
+## Rules that make the flows read (in priority order)
+
+1. **One column per flow; flows never share an arrow.** If an arrow
+   carries both a command and its data, the diagram is wrong — split it.
+2. **Top-down is request direction; return data goes back up on its own
+   route.** Never route returned data downward alongside requests.
+3. **Right angles only** (`splines=ortho`); parallel flows may share trunk
+   routes; crossings are minimized and always at right angles.
+4. **Arrow labels name the transaction class at decision points and at
+   every boundary crossing** — WR / RMW / RD / REF going in; "Write to
+   DDR" / "Read from DDR" / "DDR Command" at the PHY. Never bare signal
+   names. A label answers "what is this arrow carrying?" not "what is this
+   wire called?".
+5. **One boundary bar per diagram** — the PHY at whole-unit scale, the
+   layer edge at layer scale. Everything leaving the drawn unit crosses the
+   bar at a labeled point; nothing crosses silently.
+6. **Blocks sit ON their flow, in flow order through the ranks.** A block
+   with no arrow on its flow does not belong in the diagram. Pools and
+   buffers straddle the flow they hold.
+7. **Sideband and feedback** (grants, credits, snoop probes, ring tickets,
+   config) is drawn dashed, kept short, and labeled — visible, but never
+   mistakable for a main flow.
+8. **Optional / shell-only blocks are dashed** and sit off the main flows,
+   so "not in this build" reads instantly.
+9. **The scheduler is always the tapered trapezium** (wide edge up), always
+   central, always on the command flow. This one shape is the family's
+   signature; do not use it for anything else.
+
+## Labels
+
+Every block label: reference-style name on line 1, owning RTL
+(`module — FUB`) below it. Every label answers "what does it do?" before
+"what is it called?".
+
+## Palette — discretionary
+
+The default vocabulary is white external-interface boxes and `#D6E4F0`
+functional blocks on a white canvas, but **color never carries meaning**.
+Meaning lives in geometry (flow routes, the trapezium, the bar) and in
+labels. Swapping the palette must never change what the diagram says; a
+black-and-white photocopy must still pass every rule above.
+
+## Rendering
+
+- graphviz `dot`, `rankdir=TB`, `splines=ortho`, Helvetica, `bgcolor=white`:
 
 ```dot
 graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
        nodesep="0.35", ranksep="0.60", splines=ortho];
-node  [fontname="Helvetica", fontsize="10", shape=box, style=filled,
+node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
        fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
 edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 ```
 
-## Vocabulary — what each shape means
-
-| Element | Graphviz | Meaning |
-|---|---|---|
-| Functional block | `shape=box`, `fillcolor="#D6E4F0"` | RTL logic (a FUB or a group of FUBs) |
-| External interface | `shape=box`, `fillcolor="white"` | Host channels, APB, the PHY — things outside the controller |
-| The scheduler | `shape=invtrapezium`, wide | the pick — always drawn as the tapered shape, always central |
-| Timing control | `shape=box`, blue, beside the scheduler | bank/global timers feeding the pick |
-| PHY | wide white bar, `rank=sink` | the DFI boundary at the bottom |
-| Optional/absent block | `style="filled,dashed"` | a layer a given build may omit (e.g. RAS) |
-
-## Rules
-
-1. Command flow runs top to bottom; the PHY bar is the last rank.
-2. Arrow labels name the transaction class (WR / RD / RMW / ACT / REF /
-   "DDR Command" / "Write to DDR" / "Read from DDR"), not signal names.
-3. Every block label carries the reference-style name on line 1 and the
-   owning RTL (`module — FUB`) on the following lines.
-4. No clusters, no colors beyond the blue/white vocabulary above (the
-   inherited/modified/new coloring is scoria-book specific; family diagrams
-   don't use it).
-5. Render with `regenerate_all_graphviz.sh` (PNG at 150 dpi, PNG8
-   palette-encoded); markdown references the `.png`, never the `.mmd`/`.dot`.
-6. `splines=ortho` everywhere; use invisible edges (`style=invis`) to pin
-   ranks when the layout fights the reference shape.
+- Render with `regenerate_all_graphviz.sh` (PNG at 150 dpi, PNG8
+  palette-encoded); markdown references the `.png`.
+- Pin ranks with `{ rank=same; ... }` and order within a rank with
+  invisible edges when the layout fights the flow geography. Downward
+  return-flow edges use `dir=back` so the arrowhead still points the way
+  the data goes while the rank direction stays top-down.
+- After rendering, **read the PNG** and trace the three flows by rule 1–5
+  before committing. If you can't trace a flow with a finger, the layout
+  is wrong — fix the ranks, not the colors.
