@@ -33,6 +33,7 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 from CocoTBFramework.components.axi4.axi4_interfaces import AXI4MasterWrite
 from CocoTBFramework.components.axi3.axi3_interfaces import AXI3SlaveWrite
+from CocoTBFramework.components.shared.memory_model import MemoryModel
 
 
 class AXI4ToAXI3WriteTB(TBBase):
@@ -202,7 +203,7 @@ class AXI4ToAXI3WriteTB(TBBase):
     # =========================================================================
 
     async def write_with_result(self, address, data_list, axid=0, burst_type=1,
-                                size=None):
+                                size=None, lock=0):
         """Issue a write and return the AXI4 master's result dict."""
         if size is None:
             size = self.bytes_per_beat.bit_length() - 1
@@ -212,16 +213,25 @@ class AXI4ToAXI3WriteTB(TBBase):
             data=data_list,
             size=size,
             burst_type=burst_type,
-            id=axid
+            id=axid,
+            lock=lock
         )
         return result
+
+    def set_resp_override(self, override_fn):
+        """Install a response override on the AXI3 slave BFM."""
+        self.axi3_slave.resp_override = override_fn
+
+    def clear_resp_override(self):
+        """Remove the AXI3 slave response override."""
+        self.axi3_slave.resp_override = None
 
     # =========================================================================
     # TEST SCENARIO METHODS
     # =========================================================================
 
     async def single_write(self):
-        """Single-beat write pass-through with WID == AWID."""
+        """Single-beat write pass-through with WID == AWID and B forwarded."""
         self.log.info("TEST: single_write")
         address = 0x1000
         axid = 7
@@ -229,6 +239,7 @@ class AXI4ToAXI3WriteTB(TBBase):
 
         initial_aw = len(self.axi3_aw_transactions)
         initial_w = len(self.axi3_w_beats)
+        initial_b = len(self.axi3_b_responses)
 
         result = await self.write_with_result(address, [data], axid=axid)
         await self.wait_clocks(self.clk_name, 10)
@@ -274,6 +285,27 @@ class AXI4ToAXI3WriteTB(TBBase):
             self.log.error(f"single_write: WDATA mismatch got 0x{beat['data']:08X}, "
                           f"expected 0x{data:08X}")
             self.stats['data_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        # B response pass-through checks
+        if len(self.axi3_b_responses) - initial_b != 1:
+            self.log.error(f"single_write: expected 1 AXI3 B response, got "
+                          f"{len(self.axi3_b_responses) - initial_b}")
+            self.stats['bresp_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        b_resp = self.axi3_b_responses[initial_b]
+        if b_resp['id'] != axid:
+            self.log.error(f"single_write: BID mismatch got {b_resp['id']}, expected {axid}")
+            self.stats['bresp_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        if result.get('response', 0) != 0:
+            self.log.error(f"single_write: BRESP mismatch got {result.get('response')}, expected 0")
+            self.stats['bresp_errors'] += 1
             self.stats['errors'] += 1
             return False
 
@@ -376,6 +408,7 @@ class AXI4ToAXI3WriteTB(TBBase):
 
         initial_aw = len(self.axi3_aw_transactions)
         initial_w = len(self.axi3_w_beats)
+        initial_b = len(self.axi3_b_responses)
 
         # Launch both writes concurrently; AXI4 master serializes W order.
         task0 = cocotb.start_soon(self.write_with_result(
@@ -426,6 +459,22 @@ class AXI4ToAXI3WriteTB(TBBase):
                 self.stats['wid_errors'] += 1
                 self.stats['errors'] += 1
                 return False
+
+        # B responses must arrive with the owning AWID.
+        if len(self.axi3_b_responses) - initial_b != 2:
+            self.log.error(f"multi_outstanding_writes: expected 2 AXI3 B responses, got "
+                          f"{len(self.axi3_b_responses) - initial_b}")
+            self.stats['bresp_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        b_ids = {self.axi3_b_responses[initial_b]['id'],
+                 self.axi3_b_responses[initial_b + 1]['id']}
+        if b_ids != {id0, id1}:
+            self.log.error(f"multi_outstanding_writes: BID set {b_ids} expected {{{id0}, {id1}}}")
+            self.stats['bresp_errors'] += 1
+            self.stats['errors'] += 1
+            return False
 
         self.log.info("multi_outstanding_writes PASSED")
         self.stats['bursts_sent'] += 2
@@ -541,6 +590,237 @@ class AXI4ToAXI3WriteTB(TBBase):
         self.stats['bursts_completed'] += 1
         return True
 
+    async def early_w_data_16(self):
+        """Fill the 16-beat early-W buffer before AW handshake."""
+        self.log.info("TEST: early_w_data_16")
+        address = 0x6000
+        burst_len = 16
+        axid = 13
+        size = self.bytes_per_beat.bit_length() - 1
+        strb = (1 << self.bytes_per_beat) - 1
+
+        data_list = [(0xF0F00000 + i) & ((1 << self.data_width) - 1)
+                     for i in range(burst_len)]
+
+        initial_aw = len(self.axi3_aw_transactions)
+        initial_w = len(self.axi3_w_beats)
+
+        w_packets = []
+        for i, data_value in enumerate(data_list):
+            w_packets.append(self.axi4_master.w_channel.create_packet(
+                data=data_value,
+                last=1 if i == burst_len - 1 else 0,
+                strb=strb
+            ))
+
+        for pkt in w_packets:
+            await self.axi4_master.w_channel.send(pkt)
+
+        await self.wait_clocks(self.clk_name, 5)
+
+        aw_pkt = self.axi4_master.aw_channel.create_packet(
+            addr=address,
+            len=burst_len - 1,
+            id=axid,
+            size=size,
+            burst=1,
+            lock=0,
+            cache=0,
+            prot=0,
+            qos=0,
+            region=0
+        )
+        await self.axi4_master.aw_channel.send(aw_pkt)
+
+        id_queue = self.axi4_master._response_by_id[axid]
+        cycles_waited = 0
+        while len(id_queue) < 1:
+            await RisingEdge(self.clk)
+            cycles_waited += 1
+            if cycles_waited > 5000:
+                self.log.error("early_w_data_16: timeout waiting for B response")
+                self.stats['errors'] += 1
+                return False
+
+        id_queue.popleft()
+        await self.wait_clocks(self.clk_name, 10)
+
+        if len(self.axi3_aw_transactions) - initial_aw != 1:
+            self.log.error(f"early_w_data_16: expected 1 AXI3 AW, got "
+                          f"{len(self.axi3_aw_transactions) - initial_aw}")
+            self.stats['errors'] += 1
+            return False
+
+        aw = self.axi3_aw_transactions[initial_aw]
+        if aw['id'] != axid:
+            self.log.error(f"early_w_data_16: AWID mismatch got {aw['id']}, expected {axid}")
+            self.stats['awid_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        if len(self.axi3_w_beats) - initial_w != burst_len:
+            self.log.error(f"early_w_data_16: expected {burst_len} AXI3 W beats, got "
+                          f"{len(self.axi3_w_beats) - initial_w}")
+            self.stats['early_w_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        for i, beat in enumerate(self.axi3_w_beats[initial_w:initial_w + burst_len]):
+            if beat['id'] != axid:
+                self.log.error(f"early_w_data_16: WID mismatch beat {i} got {beat['id']}, "
+                              f"expected {axid}")
+                self.stats['wid_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+            expected_last = 1 if i == burst_len - 1 else 0
+            if beat['last'] != expected_last:
+                self.log.error(f"early_w_data_16: WLAST mismatch beat {i} got {beat['last']}, "
+                              f"expected {expected_last}")
+                self.stats['wlast_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+            if beat['data'] != data_list[i]:
+                self.log.error(f"early_w_data_16: WDATA mismatch beat {i} got "
+                              f"0x{beat['data']:08X}, expected 0x{data_list[i]:08X}")
+                self.stats['data_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        self.log.info("early_w_data_16 PASSED")
+        self.stats['bursts_sent'] += 1
+        self.stats['beats_expected'] += burst_len
+        self.stats['bursts_completed'] += 1
+        return True
+
+    async def early_w_overflow(self):
+        """Drive 17 W beats before AW; ASSERT_A3_WR_WBUF_OVFL must fire."""
+        self.log.info("TEST: early_w_overflow")
+        burst_len = 17
+        axid = 15
+        strb = (1 << self.bytes_per_beat) - 1
+
+        data_list = [(0x0BAD0000 + i) & ((1 << self.data_width) - 1)
+                     for i in range(burst_len)]
+
+        w_packets = []
+        for i, data_value in enumerate(data_list):
+            w_packets.append(self.axi4_master.w_channel.create_packet(
+                data=data_value,
+                last=1 if i == burst_len - 1 else 0,
+                strb=strb
+            ))
+
+        # Send the first 16 beats (fills buffer).
+        for pkt in w_packets[:16]:
+            await self.axi4_master.w_channel.send(pkt)
+
+        await self.wait_clocks(self.clk_name, 2)
+
+        # The 17th beat must be backpressured; the converter fires the overflow
+        # assertion. Launch it in the background so the test can observe the
+        # backpressure without blocking.
+        w17_task = cocotb.start_soon(self.axi4_master.w_channel.send(w_packets[16]))
+
+        sent_17th = False
+        cycles_waited = 0
+        while not sent_17th:
+            await RisingEdge(self.clk)
+            cycles_waited += 1
+            if (int(self.dut.s_axi_wready.value) == 1 and
+                int(self.dut.s_axi_wvalid.value) == 1):
+                sent_17th = True
+            if cycles_waited > 50:
+                break
+
+        if not w17_task.done():
+            w17_task.kill()
+
+        if sent_17th:
+            self.log.error("early_w_overflow: 17th W beat was accepted; buffer should have backpressured")
+            self.stats['early_w_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        self.log.info("early_w_overflow PASSED")
+        return True
+
+    async def lock_map(self):
+        """AXI4 awlock=1 maps to AXI3 awlock=2'b10 (exclusive)."""
+        self.log.info("TEST: lock_map")
+        address = 0x7000
+        axid = 17
+
+        initial_aw = len(self.axi3_aw_transactions)
+
+        result = await self.write_with_result(address, [0xE10C0000 & ((1 << self.data_width) - 1)],
+                                              axid=axid, lock=1)
+        await self.wait_clocks(self.clk_name, 10)
+
+        if not result.get('success', False):
+            self.log.error(f"lock_map: AXI4 master reported failure {result}")
+            self.stats['errors'] += 1
+            return False
+
+        if len(self.axi3_aw_transactions) - initial_aw != 1:
+            self.log.error(f"lock_map: expected 1 AXI3 AW, got "
+                          f"{len(self.axi3_aw_transactions) - initial_aw}")
+            self.stats['errors'] += 1
+            return False
+
+        aw = self.axi3_aw_transactions[initial_aw]
+        if aw['lock'] != 2:
+            self.log.error(f"lock_map: AWLOCK mismatch got {aw['lock']}, expected 2 (2'b10)")
+            self.stats['errors'] += 1
+            return False
+
+        self.log.info("lock_map PASSED")
+        self.stats['bursts_sent'] += 1
+        self.stats['beats_expected'] += 1
+        self.stats['bursts_completed'] += 1
+        return True
+
+    async def bresp_passthrough(self):
+        """SLVERR from the AXI3 slave must arrive on s_axi_bresp."""
+        self.log.info("TEST: bresp_passthrough")
+        address = 0x8000
+        axid = 19
+
+        # Force SLVERR by writing outside the AXI3 slave's memory model range.
+        saved_memory_model = self.axi3_slave.memory_model
+        saved_base_addr = self.axi3_slave.base_addr
+        self.axi3_slave.memory_model = MemoryModel(num_lines=1, bytes_per_line=4, log=self.log)
+        self.axi3_slave.base_addr = 0
+
+        try:
+            result = await self.write_with_result(address, [0xBADBEE00 & ((1 << self.data_width) - 1)],
+                                                  axid=axid)
+        finally:
+            self.axi3_slave.memory_model = saved_memory_model
+            self.axi3_slave.base_addr = saved_base_addr
+
+        await self.wait_clocks(self.clk_name, 10)
+
+        # The AXI4 master reports the error in the result dict.
+        if result.get('success', True):
+            self.log.error(f"bresp_passthrough: write succeeded but SLVERR was expected")
+            self.stats['bresp_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        if result.get('response', 0) != 2:
+            self.log.error(f"bresp_passthrough: BRESP mismatch got {result.get('response')}, expected 2 (SLVERR)")
+            self.stats['bresp_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        self.log.info("bresp_passthrough PASSED")
+        self.stats['bursts_sent'] += 1
+        self.stats['beats_expected'] += 1
+        self.stats['bursts_completed'] += 1
+        return True
+
     # =========================================================================
     # TEST SUITE RUNNERS
     # =========================================================================
@@ -565,7 +845,23 @@ class AXI4ToAXI3WriteTB(TBBase):
         if not await self.early_w_data():
             success = False
 
+        if not await self.early_w_data_16():
+            success = False
+
+        if not await self.lock_map():
+            success = False
+
+        if not await self.bresp_passthrough():
+            success = False
+
         return success
+
+    async def run_overflow_test(self):
+        """Run only the early-W overflow negative test."""
+        self.log.info("=" * 80)
+        self.log.info("EARLY-W OVERFLOW NEGATIVE TEST")
+        self.log.info("=" * 80)
+        return await self.early_w_overflow()
 
     async def run_medium_test(self):
         """Run medium write pass-through test suite"""

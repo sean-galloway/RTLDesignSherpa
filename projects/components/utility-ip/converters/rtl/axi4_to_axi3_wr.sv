@@ -159,7 +159,6 @@ module axi4_to_axi3_wr #(
     aw_req_t aw_queue[$:AwQueueDepth-1];
     aw_req_t active_aw;
     logic    active_valid;
-    logic [4:0] w_forwarded;
 
     // W buffering
     w_beat_t w_buffer[$:WBufferDepth-1];
@@ -232,13 +231,15 @@ module axi4_to_axi3_wr #(
 
     // Early-W buffer overflow assertion. Fires when a W beat arrives while the
     // buffer is already full, which means the AXI4 master sent more than one
-    // full burst ahead of the matching AW.
+    // full burst ahead of the matching AW. s_axi_wready is backpressured in
+    // this condition; the assertion signals that the buffer capacity has been
+    // exceeded.
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             // No check during reset
         end else begin
             if (s_axi_wvalid && (w_buffer.size() >= WBufferDepth))
-                $error("ASSERT_A3_WR_WBUF_OVFL: W beat dropped; early-W buffer overflow (depth=%0d)", WBufferDepth);
+                $error("ASSERT_A3_WR_WBUF_OVFL: early-W buffer capacity exceeded (depth=%0d); W channel backpressured", WBufferDepth);
         end
     )
 
@@ -252,7 +253,6 @@ module axi4_to_axi3_wr #(
             w_buffer.delete();
             active_valid <= 1'b0;
             active_aw    <= '0;
-            w_forwarded  <= '0;
         end else begin
             // Accept a new slave AW into the queue.
             if (s_axi_awvalid && s_axi_awready) begin
@@ -284,7 +284,6 @@ module axi4_to_axi3_wr #(
                 w_beat_t fwd;
                 fwd = w_buffer[0];
                 w_buffer.pop_front();
-                w_forwarded <= w_forwarded + 1'b1;
                 if (fwd.last) begin
                     active_valid <= 1'b0;
                 end
@@ -294,7 +293,6 @@ module axi4_to_axi3_wr #(
             if (!active_valid && (aw_queue.size() > 0)) begin
                 active_aw    <= aw_queue.pop_front();
                 active_valid <= 1'b1;
-                w_forwarded  <= '0;
             end
         end
     )

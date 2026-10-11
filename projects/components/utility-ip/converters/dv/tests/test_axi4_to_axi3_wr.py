@@ -144,6 +144,58 @@ async def axi4_to_axi3_wr_test(dut):
         await tb.wait_clocks('aclk', 10)
 
 
+@cocotb.test(timeout_time=10, timeout_unit="ms")
+async def axi4_to_axi3_wr_overflow_test(dut):
+    """
+    Negative test for ASSERT_A3_WR_WBUF_OVFL.
+
+    Drives 17 W beats before the matching AW, exceeding the 16-beat early-W
+    buffer. Verilator treats the resulting $error as fatal, so this test is
+    expected to fail and is marked xfail at the pytest layer.
+    """
+    tb = AXI4ToAXI3WriteTB(dut)
+
+    seed = int(os.environ.get('SEED', '42'))
+    random.seed(seed)
+    tb.log.info(f"Using seed: {seed}")
+
+    await tb.setup_clocks_and_reset()
+
+    aw_monitor_task = cocotb.start_soon(tb.axi3_aw_monitor())
+    w_monitor_task = cocotb.start_soon(tb.axi3_w_monitor())
+    b_monitor_task = cocotb.start_soon(tb.axi3_b_monitor())
+
+    try:
+        success = await tb.run_overflow_test()
+
+        await tb.wait_clocks('aclk', 50)
+
+        final_stats = tb.get_statistics()
+
+        tb.log.info("=" * 80)
+        tb.log.info("FINAL OVERFLOW TEST RESULTS")
+        tb.log.info("=" * 80)
+        tb.log.info(f"Total errors: {final_stats['errors']}")
+        tb.log.info("=" * 80)
+
+        if success and final_stats['errors'] == 0:
+            tb.log.info("OVERFLOW TEST PASSED (unexpected: assertion did not fire)")
+        else:
+            tb.log.error("OVERFLOW TEST FAILED")
+            assert False, "Overflow test failed"
+
+    finally:
+        for task in (aw_monitor_task, w_monitor_task, b_monitor_task):
+            if task is not None:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
+        await tb.wait_clocks('aclk', 10)
+
+
 def generate_test_params():
     """
     Generate test parameters for different configurations.
@@ -188,7 +240,6 @@ def generate_test_params():
 
 @pytest.mark.parametrize("params", generate_test_params())
 def test_axi4_to_axi3_wr(request, params):
-    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """
     AXI4 to AXI3 Write Converter test with pass-through and WID stamping
     validation.
@@ -202,6 +253,7 @@ def test_axi4_to_axi3_wr(request, params):
     - Multi-outstanding writes across IDs
     - Early W data buffering
     """
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     # Get directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_converters': 'projects/components/utility-ip/converters/rtl',
@@ -258,6 +310,7 @@ def test_axi4_to_axi3_wr(request, params):
         'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
         'COCOTB_TEST_TIMEOUT': str(timeout_ms),
+        'COCOTB_TESTCASE': 'axi4_to_axi3_wr_test',
         'SEED': os.environ.get('SEED', str(random.randint(0, 1000000))),
         'TEST_LEVEL': test_level,
         'AXI_DATA_WIDTH': str(data_width),
@@ -335,4 +388,102 @@ def test_axi4_to_axi3_wr(request, params):
         elif "assertion" in str(e).lower():
             print(f"   Check AW/W/B channel mapping in waveforms")
 
+        raise
+
+
+
+@pytest.mark.xfail(strict=True, reason="ASSERT_A3_WR_WBUF_OVFL fires and Verilator aborts on $error")
+def test_axi4_to_axi3_wr_overflow(request):
+    """Negative test: early-W beyond 16 beats triggers the overflow assertion."""
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_converters': 'projects/components/utility-ip/converters/rtl',
+        'rtl_amba_includes': 'rtl/amba/includes'
+    })
+
+    dut_name = "axi4_to_axi3_wr"
+    toplevel = dut_name
+
+    test_name_plus_params = "test_axi4_to_axi3_wr_overflow_dw32_aw32_id8_gate"
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/utility-ip/converters/rtl/filelists/axi4_to_axi3_wr.f'
+    )
+
+    rtl_parameters = {
+        'AXI_ID_WIDTH': '8',
+        'AXI_ADDR_WIDTH': '32',
+        'AXI_DATA_WIDTH': '32',
+        'AXI_USER_WIDTH': '1',
+    }
+
+    extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'DEBUG',
+        'COCOTB_RESULTS_FILE': results_path,
+        'COCOTB_TEST_TIMEOUT': '10000',
+        'COCOTB_TESTCASE': 'axi4_to_axi3_wr_overflow_test',
+        'SEED': os.environ.get('SEED', str(random.randint(0, 1000000))),
+        'TEST_LEVEL': 'gate',
+        'AXI_DATA_WIDTH': '32',
+        'AXI_ADDR_WIDTH': '32',
+        'AXI_ID_WIDTH': '8',
+    }
+
+    compile_args = [
+        "--trace",
+        "--trace-structs",
+        "--trace-depth", "99",
+    ]
+    sim_args = [
+        "--trace",
+        "--trace-structs",
+        "--trace-depth", "99",
+    ]
+
+    if bool(int(os.environ.get('WAVES', '0'))):
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
+
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    print(f"\n{'='*80}")
+    print(f"AXI4->AXI3 Write Converter Overflow Test")
+    print(f"Configuration: DW=32, AW=32, ID=8")
+    print(f"Expected: simulation aborts on ASSERT_A3_WR_WBUF_OVFL")
+    print(f"{'='*80}")
+
+    try:
+        run(
+            python_search=[tests_dir, repo_root],
+            verilog_sources=verilog_sources,
+            includes=includes,
+            toplevel=toplevel,
+            module=module,
+            parameters=rtl_parameters,
+            simulator='verilator',
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=enable_waves,
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plus_args=['--trace'] if enable_waves else [],
+        )
+
+        print("OVERFLOW TEST PASSED (unexpected: assertion did not abort)")
+
+    except Exception as e:
+        print(f"OVERFLOW TEST FAILED AS EXPECTED: {str(e)}")
+        print(f"   Logs: {log_path}")
+        print(f"   Waveforms: {cmd_filename}")
         raise
