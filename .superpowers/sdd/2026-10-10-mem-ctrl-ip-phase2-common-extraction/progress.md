@@ -484,3 +484,25 @@ interconnection networks (Dally/Towles), ECC (Moon), SystemVerilog FPGA
 craft (Chu), cocotb DV (Salemi), RTL arch framing (Chipressian). Standing
 convention: README-level further-reading sections cite calibre holdings;
 per-topic book pointers can extend into docs where they serve the text.
+DIAGRAM HOUSE STYLE (partner directive, 2026-10-10): the owner's reference
+(design-a-ddr-memory-controller-i-top-level-diagram.webp, classic DDR-MC course
+diagram) is THE house style for all uarch diagrams. Written down in
+common_has/assets/graphviz/STYLE.md: white canvas; #D6E4F0 blue functional
+blocks; white external-interface boxes; scheduler = shape=trapezium (wide edge
+UP); PHY = full-width white bar rank=sink; splines=ortho; arrow labels =
+transaction classes (WR/RD/REF/DDR Command), never signal names; every block
+label = reference name line 1 + owning RTL (module — FUB) below; dashed =
+optional/shell-only. Rendered dot->png 150dpi PNG8 via regenerate_all_graphviz.sh
+(scoria convention). Landed: whole-unit diagram (common_has ch02) + per-layer
+diagrams in every common_mas chapter (axi4/storage/scheduler/training/ras/
+dfi_2p1/dfi_3p1/dfi_4p0) = 05aa65dfd; pumice whole-unit restyle, old mermaid
+block diagram deleted (module-hierarchy mermaid kept — tree, not uarch) =
+8ac8ee5c7. Reference vocabulary mapped: packetizers=mc_axi4_layer intakes,
+pools/buffer=mc_storage_layer CAMs, merge/forward=coalescing+snarf, maintenance
+queue=mc_training_layer clients, timing control=bank/global timers, data path
+controls=dfi wr_serializer/rd_aligner, reorder buffer=mc_rd_return_ring.
+NEXT DOCS TRANCHE (standing AGENTS.md task): mem-ctrl-ip references store +
+convergence citations — FR-FCFS (Rixner et al., ISCA 2000), elastic refresh
+(scoria Mode A/B), history-based page policy (HAPPY predictor), read-write
+bypass/snarf — owner's designs are independent; attribute generously, mark
+secondhand as such.
