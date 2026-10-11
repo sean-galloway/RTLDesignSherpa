@@ -52,6 +52,7 @@ This directory contains production-ready and in-development component projects f
 | **hive-serv (SERV compute cluster)** | Re-homed 2026-10-10 from compute-eng-ip/hive (retired 2026-09-27; revived as a riscv-ip area — 1 VexRiscv + 16 SERV cores, spec only, no RTL yet) | [riscv-ip/hive-serv/](riscv-ip/hive-serv/) | [Specification](riscv-ip/hive-serv/docs/hive_spec/hive_index.md) |
 | **amber (blocking MESI snoopy L1 cache)** | Planned — first of the [cache-ip/](cache-ip/) gemstone family; [README](cache-ip/amber-mesi-l1/README.md) + [PRD](cache-ip/amber-mesi-l1/PRD.md) scaffolded | [cache-ip/amber-mesi-l1/](cache-ip/amber-mesi-l1/) | — |
 | **jet (lockup-free MESI snoopy L1)** | Planned — non-blocking (MSHR) follow-on to amber; [README](cache-ip/jet-mesi-l1/README.md) + [PRD](cache-ip/jet-mesi-l1/PRD.md) scaffolded | [cache-ip/jet-mesi-l1/](cache-ip/jet-mesi-l1/) | — |
+| **dfx-ip (house debug port)** | Scaffold 2026-10-11 — HAS started (config poke plane + riscv override plane); jtag-tap / jtag-axil-agent / riscv-debug dirs; no RTL | [dfx-ip/](dfx-ip/) | [HAS index](dfx-ip/docs/dfx_has/dfx_has_index.md) |
 
 ---
 
@@ -75,6 +76,9 @@ This directory contains production-ready and in-development component projects f
 
 **Error correction:**
 - [ecc-ip](ecc-ip/) - error-correction IP family: [Reed-Solomon](ecc-ip/reed-solomon/) stood up 2026-09-29 (references, draft PRD)
+
+**Debug and test:**
+- [dfx-ip](dfx-ip/) - house debug port: JTAG transport (jtag-tap), config poke agent (jtag-axil-agent), riscv override plane (riscv-debug); HAS scaffolded 2026-10-11
 
 **Other:**
 - [Delta](noc-ip/delta/) - retired NoC component, kept as it was
