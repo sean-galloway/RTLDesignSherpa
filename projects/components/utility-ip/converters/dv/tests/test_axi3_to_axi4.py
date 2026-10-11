@@ -89,6 +89,47 @@ async def axi3_to_axi4_smoke_test(dut):
         await tb.wait_clocks('aclk', 10)
 
 
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def axi3_to_axi4_early_w_test(dut):
+    """Drive a full W burst before AW; verifies converter buffering path."""
+    tb = AXI3ToAXI4TB(dut)
+
+    seed = int(os.environ.get('SEED', '42'))
+    random.seed(seed)
+    tb.log.info(f"Using seed: {seed}")
+
+    await tb.setup_clocks_and_reset()
+    monitor_task = cocotb.start_soon(tb.axi4_monitor())
+
+    try:
+        # Use the maximum legal AXI3 burst length to fully exercise the early-W
+        # buffer and the monitor's all-W-before-AW cleanup path.
+        success = await tb.early_w_before_aw(burst_len=16)
+        await tb.wait_clocks('aclk', 50)
+
+        final_stats = tb.get_statistics()
+        tb.log.info("=" * 80)
+        tb.log.info("FINAL EARLY-W TEST RESULTS")
+        tb.log.info("=" * 80)
+        tb.log.info(f"Write bursts:  {final_stats['write_bursts']}")
+        tb.log.info(f"Write errors:  {final_stats['write_errors']}")
+        tb.log.info(f"Total errors:  {final_stats['errors']}")
+        tb.log.info("=" * 80)
+
+        assert success and final_stats['errors'] == 0, (
+            f"Early-W test failed: success={success}, errors={final_stats['errors']}"
+        )
+
+    finally:
+        if monitor_task is not None:
+            monitor_task.cancel()
+            try:
+                await monitor_task
+            except Exception:
+                pass
+        await tb.wait_clocks('aclk', 10)
+
+
 def generate_test_params():
     """Smoke-test configurations, filtered by REG_LEVEL."""
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()

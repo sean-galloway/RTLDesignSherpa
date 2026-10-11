@@ -238,9 +238,15 @@ class AXI3ToAXI4TB(TBBase):
                     self.stats['write_errors'] += 1
                     self.stats['errors'] += 1
 
-                self._ensure_id_queue(self.outstanding_writes, aw_id).append({
-                    'beats_remaining': total_beats,
-                })
+                # Only create an outstanding write entry if there are post-AW W
+                # beats remaining. When every W beat arrived early, total_beats
+                # is 0; appending a zero-entry would leak because cleanup only
+                # poplefts after decrementing 1->0. Keep pending_b_responses so
+                # the B response is still checked.
+                if total_beats > 0:
+                    self._ensure_id_queue(self.outstanding_writes, aw_id).append({
+                        'beats_remaining': total_beats,
+                    })
                 self._ensure_id_queue(self.pending_b_responses, aw_id).append({})
 
                 self.early_w_count = 0
@@ -450,6 +456,144 @@ class AXI3ToAXI4TB(TBBase):
             self.log.info("SMOKE TEST PASSED")
         else:
             self.log.error("SMOKE TEST FAILED")
+
+        return success
+
+    async def early_w_before_aw(self, burst_len=8):
+        """Send a full W burst before its AW; verify forwarding and B response."""
+        self.log.info("=" * 80)
+        self.log.info(f"EARLY-W TEST: full W burst before AW (len={burst_len})")
+        self.log.info("=" * 80)
+
+        address = 0x800
+        axid = 15
+        size = self.bytes_per_beat.bit_length() - 1
+        strb = (1 << self.bytes_per_beat) - 1
+
+        data_list = [
+            (0xE1110000 + i) & ((1 << self.data_width) - 1)
+            for i in range(burst_len)
+        ]
+
+        initial_aw = len(self.axi4_aw_beats)
+        initial_w = len(self.axi4_w_beats)
+
+        # Build W packets with the correct AWID.
+        w_packets = []
+        for i, data_value in enumerate(data_list):
+            w_packets.append(self.axi3_wr.w_channel.create_packet(
+                id=axid,
+                data=data_value,
+                last=1 if i == burst_len - 1 else 0,
+                strb=strb
+            ))
+
+        # Launch the W burst before the AW handshake.
+        w_task = cocotb.start_soon(self.axi3_wr.w_channel.send_burst(w_packets))
+
+        # Give the W channel a cycle to attempt transfer, then confirm backpressure.
+        await RisingEdge(self.clk)
+        if int(self.dut.s_axi3_wready.value) != 0:
+            self.log.error("early_w_before_aw: s_axi3_wready was not low before AW")
+            self.stats['write_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        # Now send the matching AW. The buffered W beats should be accepted.
+        aw_pkt = self.axi3_wr.aw_channel.create_packet(
+            addr=address,
+            len=burst_len - 1,
+            id=axid,
+            size=size,
+            burst=1,
+            lock=0,
+            cache=0,
+            prot=0
+        )
+        await self.axi3_wr.aw_channel.send(aw_pkt)
+
+        # Wait for the W burst to drain.
+        cycles_waited = 0
+        while not w_task.done():
+            await RisingEdge(self.clk)
+            cycles_waited += 1
+            if cycles_waited > 5000:
+                self.log.error("early_w_before_aw: timeout waiting for W burst")
+                self.stats['write_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        # Wait for the B response.
+        id_queue = self.axi3_wr._response_by_id[axid]
+        cycles_waited = 0
+        while len(id_queue) < 1:
+            await RisingEdge(self.clk)
+            cycles_waited += 1
+            if cycles_waited > 5000:
+                self.log.error("early_w_before_aw: timeout waiting for B response")
+                self.stats['write_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+        id_queue.popleft()
+        await self.wait_clocks('aclk', 10)
+
+        success = True
+
+        if len(self.axi4_aw_beats) - initial_aw != 1:
+            self.log.error(
+                f"early_w_before_aw: expected 1 AXI4 AW, got "
+                f"{len(self.axi4_aw_beats) - initial_aw}"
+            )
+            self.stats['write_errors'] += 1
+            self.stats['errors'] += 1
+            success = False
+
+        aw = self.axi4_aw_beats[initial_aw]
+        if aw['id'] != axid:
+            self.log.error(
+                f"early_w_before_aw: AWID mismatch got {aw['id']}, expected {axid}"
+            )
+            self.stats['write_errors'] += 1
+            self.stats['errors'] += 1
+            success = False
+
+        if len(self.axi4_w_beats) - initial_w != burst_len:
+            self.log.error(
+                f"early_w_before_aw: expected {burst_len} AXI4 W beats, got "
+                f"{len(self.axi4_w_beats) - initial_w}"
+            )
+            self.stats['write_errors'] += 1
+            self.stats['errors'] += 1
+            success = False
+        else:
+            for i, beat in enumerate(
+                    self.axi4_w_beats[initial_w:initial_w + burst_len]):
+                if beat['data'] != data_list[i]:
+                    self.log.error(
+                        f"early_w_before_aw: WDATA mismatch beat {i} got "
+                        f"0x{beat['data']:08X}, expected 0x{data_list[i]:08X}"
+                    )
+                    self.stats['write_errors'] += 1
+                    self.stats['errors'] += 1
+                    success = False
+
+                expected_last = 1 if i == burst_len - 1 else 0
+                if beat['last'] != expected_last:
+                    self.log.error(
+                        f"early_w_before_aw: WLAST mismatch beat {i} got {beat['last']}, "
+                        f"expected {expected_last}"
+                    )
+                    self.stats['write_errors'] += 1
+                    self.stats['errors'] += 1
+                    success = False
+
+        self.stats['write_bursts'] += 1
+        self.stats['write_beats'] += burst_len
+
+        if success:
+            self.log.info("EARLY-W TEST PASSED")
+        else:
+            self.log.error("EARLY-W TEST FAILED")
 
         return success
 
