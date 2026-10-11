@@ -27,30 +27,25 @@ Point-in-time roll-up of every leaf component under `projects/components/`,
 grouped by status: **IP** (active development) first, **NS** (not started)
 next, **Done** (qualified) at the bottom.
 
-**Evidence cut: 2026-10-11.** Status derives from open GitHub issues, open
-vault tasks, README/PRD status lines, doc maturity, and commit recency — not
-from intent. Update this file at milestones; it drifts by design.
+**Evidence cut: 2026-10-11.** Update this file at milestones; it drifts by
+design.
 
 | Level | Meaning |
 | --- | --- |
-| **IP** | Active development: open issues/tasks, or README/PRD says draft/active, or landing commits within ~2 weeks |
+| **IP** | Active development toward qualification: README/PRD says draft/active, RTL is still landing, or the qualification campaign itself is in progress |
 | **NS** | Scaffold only: README/PRD/spec with no RTL, or `.gitkeep` shells |
-| **Done** | Qualified: RTL + DV + docs present, no open issues or vault tasks, board validation or README completion statement |
+| **Done** | Qualified: RTL + DV + docs present, board validation or owner-confirmed 1.0. **Open issue-tracked follow-ups do not demote a Done component** — post-1.0 work is the normal steady state, not "in progress" (owner rule, 2026-10-11) |
 
 ## IP — active development
 
 | Component | Evidence | Notes |
 | --- | --- | --- |
-| cache-ip/amber-mesi-l1 | PRD v0.6 draft (D3/D11 decided 2026-10-07); active RTL commits through 2026-10-10; no open issues/tasks | HAS v1.0 + MAS present; PRD still labels itself draft |
-| dma-ip/rapids | PRD "Active Development — Validation in Progress"; daily commits through 2026-10-10; active known_issues note | Byte-granular product RTL active; `*_beats` retained as Genesys-2 stepping stone |
-| dma-ip/stream | README "Nearly Complete — 95% Done" / "Final Integration Pending"; fix commit 2026-10-10; no open issues/tasks | Owner previously listed it at 1.0; README disagrees — see note 2 |
-| fabric-gen-ip/bridge | Open GH #98 (converter AxLOCK), #99 (TB BFM template + test debt); vault TASK-014/015/016; AXI3 landed 2026-10-11 | Reached 1.0 + AXI3; open follow-ups keep it active — see note 3 |
-| mem-ctrl-ip/common-ip | Phase-2 extraction landed 2026-10-10; 8 shared layers + 17 FUBs; absorbing wrapper dissolution | common HAS/MAS present |
+| cache-ip/amber-mesi-l1 | PRD v0.6 draft (D3/D11 decided 2026-10-07); active RTL commits through 2026-10-10 | HAS v1.0 + MAS present; qualification not yet run |
+| mem-ctrl-ip/common-ip | Phase-2 extraction landed 2026-10-10; 8 shared layers + 17 FUBs; absorbing wrapper dissolution | common HAS/MAS present; mid-extraction |
 | mem-ctrl-ip/product-ip/granite-ddr2-lpddr2 | Scaffold README "not built"; vault TASK-001 (wrapper dissolution + product top) | pkg + filelist + config only |
-| mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2 | README "implemented and characterized"; vault BUG-024 + TASK-042; board-validated Nexys A7 | HAS/MAS v0.5; LPDDR2 runtime ZQ pending |
-| mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3 | README "verified in simulation; board work in progress"; vault TASK-006/007/008 | HAS v0.8; 221 tests passing, 9 formal blocks |
+| mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2 | README "implemented and characterized"; vault BUG-024 + TASK-042 open | Board-validated Nexys A7; LPDDR2 runtime ZQ pending |
+| mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3 | README "verified in simulation; board work in progress"; vault TASK-006/007/008 open | HAS v0.8; 221 tests passing, 9 formal blocks; board campaign is the qualifier |
 | noc-ip/delta | README "[PASS] Active Development"; generated RTL exists; DV suite TODO | PRD + perf models present; CocoTB suite not built |
-| utility-ip/converters | Open GH #98 (AXI3 AxLOCK encoding swap); README "Production Ready" v1.2 | Converter MAS v1.9; functional AXI3-path bug keeps it active |
 
 ## NS — not started / scaffold only
 
@@ -76,31 +71,29 @@ from intent. Update this file at milestones; it drifts by design.
 
 | Component | Evidence | Notes |
 | --- | --- | --- |
-| ecc-ip/bch | RTL + dv + docs landed; Genesys-2 board validation complete; no open issues/tasks | Owner-confirmed 1.0; README doc revs still say v0.1 — see note 1 |
-| ecc-ip/reed-solomon | Encoder/decoder cores + GF layer in rtl/; Genesys-2 board validation complete; no open issues/tasks | Owner-confirmed 1.0; README has stale "no RTL yet" line — see note 1 |
+| dma-ip/rapids | Owner-confirmed Done 2026-10-11; byte-granular RTL + DV landed | PRD still says "validation in progress" — see note 1 |
+| dma-ip/stream | Owner-confirmed Done 2026-10-11; README "95%"; HAS/MAS present; Genesys-2 campaign complete | README "final integration pending" — see note 1 |
+| ecc-ip/bch | Owner-confirmed 1.0; Genesys-2 board validation complete | README doc revs still say v0.1 — see note 1 |
+| ecc-ip/reed-solomon | Owner-confirmed 1.0; Genesys-2 board validation complete | README has stale "no RTL yet" line — see note 1 |
 | fabric-gen-ip/apbx-xbar | README/PRD "Production Ready" v1.0; formal harnesses; 9/9 tests, >750 transactions | apbx HAS/MAS |
-| retro_legacy_blocks | README "Version: 1.0", 10 shipped address windows; no open issues/tasks | RLB TOP MAS v1.0 + per-block MAS |
+| fabric-gen-ip/bridge | Owner-confirmed Done 2026-10-11; 1.0 + AXI3 support; HAS/MAS v1.9 | Follow-ups #98/#99 + TASK-014/015/016 tracked as issues — see note 2 |
+| retro_legacy_blocks | README "Version: 1.0", 10 shipped address windows | RLB TOP MAS v1.0 + per-block MAS |
 | riscv-ip/kestrel-rv32i | rv32ui battery 42/42 spike lockstep; riscv-formal 42/42; doc book v0.1 | KESTREL HAS/MAS v0.1 |
-| utility-ip/misc | README "Five complete utility modules" v1.2; no open issues/tasks | Includes the error injector |
+| utility-ip/converters | README "Production Ready" v1.2; converter MAS v1.9; AXI3 suite landed | AxLOCK fix tracked as #98 — see note 2 |
+| utility-ip/misc | README "Five complete utility modules" v1.2 | Includes the error injector |
 
-## Notes and flagged reconciliations
+## Notes
 
-1. **bch / reed-solomon** — classified Done on owner confirmation (1.0)
-   plus completed Genesys-2 board validation and zero open work. Their
-   READMEs lag reality: bch still labels PRD/HAS/MAS as v0.1 and RS
-   carries a stale "no RTL yet" line. A README/doc-rev pass would remove
-   the confusion; the rows flip back to IP if any of that surfaces open
-   work.
-2. **stream / rapids** — previously named at 1.0 by the owner, but their
-   own README/PRD say "95%, final integration pending" and "validation in
-   progress", and stream took a fix commit yesterday. Left at IP until
-   the owner's label and the components' self-reports agree; flip either
-   way once they do.
-3. **bridge** — reached 1.0 and took AXI3 support on 2026-10-11; kept at
-   IP purely for the open, actively-tracked follow-ups (#98, #99,
-   TASK-014/015/016). Post-1.0 issue-tracked evolution is the agreed
-   model, so this row flips to Done when the follow-ups close.
-4. **rapids-beats** — no longer a separate tree; retained inside rapids as
+1. **README lag** — bch, reed-solomon, stream, and rapids are owner-confirmed
+   Done, but their READMEs/PRDs still self-report draft/pending ("v0.1 doc
+   revs", "no RTL yet", "95%, final integration pending", "validation in
+   progress"). A README status pass on those four would bring the
+   self-reports in line with the matrix.
+2. **Post-1.0 follow-ups** — bridge (#98, #99, TASK-014/015/016) and
+   converters (#98) carry open, issue-tracked follow-ups. Per the owner
+   rule, tracked follow-ups on a qualified component do not demote its
+   status; the issues are the tracking system working as intended.
+3. **rapids-beats** — no longer a separate tree; retained inside rapids as
    the Genesys-2 stepping-stone configuration.
 
 ## Adjacent areas (not component leaves)
