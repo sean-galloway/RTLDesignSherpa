@@ -27,3 +27,21 @@ microarchitecture in [docs/common_mas/](docs/common_mas/common_mas_index.md)
 Boundary rule: a block moves here only when it has **two live customers**
 at extraction time — speculative one-customer abstractions stay in the
 research controllers.
+
+## Further reading
+
+The maintainer's calibre library holds the books this architecture is built
+against; the subset closest to the common layers:
+
+- *Cache and Memory Hierarchy Design* — Steven A. Przybylski (Morgan
+  Kaufmann). What the schedulable-entry view and the pick machinery are for.
+- *Principles and Practices of Interconnection Networks* — Dally & Towles.
+  Ordering and flow control — the descriptor seam's return path is its own
+  chapter in here in spirit.
+- *Error Correction Coding* — Todd K. Moon. The theory the `mc_ras_layer`
+  transform pair will draw on when its first feature lands.
+- *Computer Architecture: A Quantitative Approach* — Hennessy & Patterson.
+  The source of the measured-number-beside-the-claim habit the family's
+  books follow.
+- *Python for RTL Verification* — Ray Salemi. The cocotb discipline the
+  shared DV collateral follows.

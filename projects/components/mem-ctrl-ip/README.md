@@ -62,10 +62,10 @@ memtype config and timing docs.
 - [`research-ip/`](research-ip/) — the proving-ground
   controllers above, one directory each, as-is.
 - [`common-ip/`](common-ip/) — what the three controllers
-  currently duplicate (AXI front-end, DFI layers, scheduler/training/storage
-  layers) extracted into one parameterized source per layer. Today a skeleton:
-  `docs/` plus placeholder `rtl/`/`dv/`; extraction is Phase 2 of
-  [the reorg spec](../../../docs/superpowers/specs/2026-10-09-mem-ctrl-ip-reorg-design.md).
+  used to duplicate (AXI front-end, DFI layers, scheduler/training/storage
+  layers) extracted into one parameterized source per layer — landed in the
+  Phase-2 campaign (2026-10-09 → 2026-10-10). Start at
+  [the architecture](common-ip/docs/common_has/common_has_index.md).
 - `product-ip/` — appears when the first controller graduates from
   research (board-proven + timing-closed config on the common layers).
   Intentionally absent until then.
@@ -82,3 +82,36 @@ mode roadmap is `vault/Tasks/projects/components/mem-ctrl-ip/memory-controllers/
 
 See [`../dma-ip/stream/README.md`](../dma-ip/stream/README.md) for the per-component
 layout convention this directory follows.
+
+## Further reading
+
+This is an educational project, and the maintainer's calibre library holds
+the books these controllers are built against. The closest companions, by
+subject:
+
+- *Cache and Memory Hierarchy Design* — Steven A. Przybylski (Morgan
+  Kaufmann). The performance-directed treatment of what a memory controller
+  is ultimately for.
+- *The Cache Memory Book, 2nd ed.* — Jim Handy. The plain-language tour of
+  SRAM/DRAM device behavior behind the JEDEC timings.
+- *Embedded Memory Design for Multi-Core and Systems on Chip* — Baker
+  Mohammad. On-chip memory integration, closest to the storage-layer
+  questions this family keeps.
+- *Computer Architecture: A Quantitative Approach* — Hennessy & Patterson.
+  The quantitative habit this repo's "carry the measured number beside the
+  claim" doctrine comes from.
+- *Digital Design and Computer Architecture, RISC-V Edition* — Harris &
+  Harris. The first-principles digital-design baseline the learning ladder
+  starts from.
+- *Error Correction Coding* — Todd K. Moon. The coding theory behind the
+  `mc_ras_layer` transform pair, when that layer grows its first feature.
+- *Principles and Practices of Interconnection Networks* — Dally & Towles.
+  Ordering, flow control, and return-path thinking for any on-chip data
+  movement — the read-return ring included.
+- *FPGA Prototyping by SystemVerilog Examples* — Pong P. Chu. The
+  FPGA-first SystemVerilog craft the boards here are built with.
+- *Python for RTL Verification* — Ray Salemi. The cocotb discipline this
+  repo's DV flow follows.
+- *Crack the Hardware Interview — from RTL Designers' Perspective* —
+  Chipressian. Architecture/micro-architecture framing a reader can hold
+  this family's books up against.
