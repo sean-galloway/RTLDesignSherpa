@@ -177,19 +177,28 @@ does not allocate per-rank PASR/temperature registers beyond rank 0.
 | 23:16 | `txn_queue_high_water`      | 0     | Backpressure-assertion threshold for the txn queue.                          |
 | 27:24 | `lookahead_max_obs`         | —     | (R only, `hw = w`) Echo of build-time `LOOKAHEAD_DEPTH_MAX`.                  |
 
-### `PAGE_PRED_TUNING` (0x044, R/W)
+### `PAGE_PRED_TUNING` (0x044) — RETIRED
+
+**Retired 2026-09-27 with the HAPPY predictor** (pumice TASK-011: the
+history-based modes measured inert or harmful on silicon). The address is a
+hole in the current RDL, as is 0x120 (`OBS_PAGE_PRED_ACCURACY`). Earlier
+revisions documented `warmup_cycles` / `hysteresis` here; neither field
+exists in the generated register block anymore. The page-policy telemetry
+(`PAGE_STATS_*`, `OBS_ROW_HIT`) is unaffected.
+
+Former contents for history:
 
 | Bits  | Field              | Reset | Description                              |
 |-------|--------------------|-------|------------------------------------------|
-| 15:0  | `warmup_cycles`    | 1024  | Warmup cycles before predictor is trusted |
-| 23:16 | `hysteresis`       | 2     | Saturating-counter hysteresis            |
+| 15:0  | `warmup_cycles`    | 1024  | Warmup cycles before predictor is trusted (retired) |
+| 23:16 | `hysteresis`       | 2     | Saturating-counter hysteresis (retired)  |
 
 ### `REFRESH_TUNING` (0x048, R/W)
 
 | Bits  | Field                       | Reset | Description                                                                |
 |-------|-----------------------------|-------|----------------------------------------------------------------------------|
 | 1:0   | `refpb_policy_or`           | 0     | 00 = build-time; 01 = RR; 10 = OLDEST_FIRST; 11 = DARP.                    |
-| 3:2   | `page_policy_or`            | 0     | 00 = build-time; 01 = OPEN; 10 = CLOSE; 11 = HAPPY_HYBRID.                 |
+| 3:2   | `page_policy_or`            | 0     | 00 = build-time; 01 = OPEN; 10 = CLOSE; 11 = HAPPY_HYBRID encoding (**retired — the RTL maps it to OPEN**, pumice TASK-011). |
 | 7:4   | `refresh_defer_active`      | 1     | Active refresh deferral count (1..`REFRESH_DEFER_MAX`). 1 = no batching.   |
 | 31:16 | `zqcs_freq_hz`              | 1     | Periodic ZQCS interval in Hz. 0 disables periodic ZQCS.                    |
 

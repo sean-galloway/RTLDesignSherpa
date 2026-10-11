@@ -220,6 +220,14 @@ That is the only version of mode 5 that could beat `fixed_open`.
 
 ## References
 
-- Hur, Lin, "Adaptive History-Based Memory Schedulers," MICRO 2004. [PDF](../../../../../references/AdaptiveHistoryBasedSchedulers__Hur2004.pdf)
-- İpek, Mutlu, Martínez, Caruana, "Self-Optimizing Memory Controllers: A Reinforcement Learning Approach," ISCA 2008. [PDF](../../../../../references/SelfOptimizingMemoryControllers__Ipek2008.pdf)
-- Smith, "A Study of Branch Prediction Strategies," ISCA 1981. [DOI](https://doi.org/10.1145/285930.285980) (saturating-counter machinery)
+Design ancestry of the page-policy line — **the history-based machinery these
+papers converge with was retired 2026-09-26/27** (adapt_time/adapt_access
+modes, the row-prediction table, HAPPY; measured inert or harmful on silicon,
+pumice TASK-011). The active engine is history-free: static_open /
+static_close / fixed_open (idle-timeout close). These citations are kept so
+the retired path's origin stays attributed and a future retry starts from
+the literature.
+
+- Hur, Lin, "Adaptive History-Based Memory Schedulers," MICRO 2004. [PDF](../../../../../references/AdaptiveHistoryBasedSchedulers__Hur2004.pdf) — converged with the retired history-based modes
+- İpek, Mutlu, Martínez, Caruana, "Self-Optimizing Memory Controllers: A Reinforcement Learning Approach," ISCA 2008. [PDF](../../../../../references/SelfOptimizingMemoryControllers__Ipek2008.pdf) — design ancestry of the adaptive-policy knobs
+- Smith, "A Study of Branch Prediction Strategies," ISCA 1981. [DOI](https://doi.org/10.1145/285930.285980) — the saturating-counter machinery behind the retired predictor counters
