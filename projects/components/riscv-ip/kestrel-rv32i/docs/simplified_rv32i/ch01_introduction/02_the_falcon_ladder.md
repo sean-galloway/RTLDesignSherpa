@@ -12,7 +12,7 @@ the cores: the smallest falcon is the simplest machine.
 | 1 | kestrel-rv32i | RV32I | Single-cycle; the whole machine in one clock |
 | 2 | merlin-rv32i | RV32I | Five-stage in-order pipeline (IF/ID/EX/MEM/WB) |
 | 3 | peregrine-rv32im | RV32IM | Advanced in-order: branch prediction, traps, L1 caches, AXI master |
-| 4 | gyrfalcon-rv32im | RV32IM | Out-of-order: rename, reorder buffer, reservation stations |
+| 4 | gyrfalcon-rv32ima | RV32IMA | Out-of-order: rename, reorder buffer, reservation stations |
 
 : The falcon ladder
 

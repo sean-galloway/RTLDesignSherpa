@@ -398,7 +398,7 @@ Source: [`projects/components/cache-ip/docs/amber-jet-improvement-plan.md`](../.
 - [ ] **Step 3:** re-run the Task 4 unit suite (harness divergence check)
 - [ ] **Step 4: Commit** (`amber: snoop sourcing rule proven (A2)`)
 
-**Explicitly not scheduled:** A1/A4 (exclusive-monitor boundary documentation and the temporary snoop-stall hook) remain future hooks with no current consumer — the falcon line is RV32IM/RV32IMF with no A extension and hive is message-passing with no shared memory, so nothing in the current plans issues LR/SC through amber. They activate only if a shared-memory SMP direction (onyx N2, AxLock/PoS monitor) is ever taken.
+**Explicitly not scheduled:** A1/A4 (exclusive-monitor boundary documentation and the temporary snoop-stall hook) remain future hooks. Consumer update 2026-10-11: gyrfalcon extends to RV32IMA (falcon suite design spec amendment) — a gyrfalcon-A core on a coherent onyx rig would issue LR/SC through amber, activating onyx N2 (AxLock/PoS monitor) plus these hooks. Until such a rig is designed they stay unscheduled.
 
 ---
 

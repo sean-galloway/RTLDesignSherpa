@@ -3,9 +3,16 @@
 **Date:** 2026-10-06
 **Status:** Draft for review
 **Path:** `projects/components/riscv-ip/`
-**Amended 2026-10-08:** rung 5 (garuda-rv32imf) penciled in beyond the
+**Amended 2026-10-08:** rung 5 (garuda-rv32imaf) penciled in beyond the
 original four-rung scope, at the same depth as the other unimplemented
 rungs. Everything else is unchanged from the 2026-10-06 draft.
+**Amended 2026-10-11:** rung 4 (gyrfalcon) extends to **RV32IMA** — the A
+extension (LR/SC + word-form AMOs) added as a uniprocessor atomicity study
+(Sean). Rung 5 (garuda) inherits it (**RV32IMAF**); directories renamed to
+`gyrfalcon-rv32ima/`, `garuda-rv32imaf/` per the `<codename>-<isa>`
+convention. Knock-ons recorded in place: the top-of-ISA non-goal becomes
+RV32IMAF; gyrfalcon's verification gate moves to spike RV32IMA. Nothing
+else changes.
 
 ## Summary
 
@@ -26,7 +33,7 @@ not the cheapest to produce.
   verification framework, the formal/ culture.
 - **Non-goal:** performance. No rung chases benchmarks; clocks/area are
   reported for curiosity, not optimized.
-- **Non-goal:** Linux-capability. The ISA tops out at RV32IMF + machine-mode
+- **Non-goal:** Linux-capability. The ISA tops out at RV32IMAF + machine-mode
   traps; no MMU, no supervisor mode, no compressed instructions, no D
   extension (single-precision F only, rung 5), no Zfh.
 
@@ -42,8 +49,8 @@ one past the largest falcon.
 | 1 | **kestrel-rv32i** | RV32I | single-cycle |
 | 2 | **merlin-rv32i** | RV32I | 5-stage in-order pipeline |
 | 3 | **peregrine-rv32im** | RV32IM | advanced in-order: predictor, traps, L1 caches, AXI master |
-| 4 | **gyrfalcon-rv32im** | RV32IM | out-of-order capstone: rename, ROB, reservation stations |
-| 5 | **garuda-rv32imf** | RV32IMF | gyrfalcon's OoO + FPU: FP rename, fcsr precise flags, non-pipelined long-latency FPU units |
+| 4 | **gyrfalcon-rv32ima** | RV32IMA | out-of-order capstone: rename, ROB, reservation stations; A extension (LR/SC + AMO) |
+| 5 | **garuda-rv32imaf** | RV32IMAF | gyrfalcon's OoO + FPU: FP rename, fcsr precise flags, non-pipelined long-latency FPU units |
 
 (Echo noted: SpaceX also flew Kestrel/Merlin engines. These are bird names
 first; the suite's theme is falconry/ornithology.)
@@ -56,8 +63,8 @@ projects/components/riscv-ip/
 ├── kestrel-rv32i/           rtl/ docs/ dv/
 ├── merlin-rv32i/            rtl/ docs/ dv/
 ├── peregrine-rv32im/        rtl/ docs/ dv/
-├── gyrfalcon-rv32im/        rtl/ docs/ dv/
-├── garuda-rv32imf/          rtl/ docs/ dv/
+├── gyrfalcon-rv32ima/       rtl/ docs/ dv/
+├── garuda-rv32imaf/         rtl/ docs/ dv/
 ├── references/              common primary sources (the RISC-V ISA manuals)
 └── docs/                    suite-level: ISA quick reference, naming rationale
 ```
@@ -131,8 +138,10 @@ The fastest falcon: speculation, traps, and the memory hierarchy.
 
 The largest falcon, apex of the ladder: the machine hides the program order.
 
-- **ISA:** RV32IM + traps, identical to peregrine so every test battery
-  carries over.
+- **ISA:** RV32IMA + traps — peregrine's RV32IM **plus the A extension**
+  (added 2026-10-11, Sean): LR/SC (`lr.w`/`sc.w`, Zalrsc) and the word-form
+  AMOs (Zaamo). Every peregrine battery still carries; A adds its own
+  directed batteries.
 - **Microarchitecture (defaults chosen, parameterized where cheap):**
   dual-issue fetch/decode/dispatch; explicit rename map (32 architectural ×
   64 physical registers) + free list; ROB, 32 entries, in-order commit;
@@ -143,21 +152,31 @@ The largest falcon, apex of the ladder: the machine hides the program order.
   and the honest first OOO). Exceptions precise at commit; flush squashes
   ROB, rolls back rename, restores the free list. Reuses peregrine's L1s,
   predictor, trap machinery, and AXI fabric.
+- **A-extension machinery (the atomicity study):** a reservation register —
+  `lr.w` records the address, `sc.w` stores only while the reservation holds
+  and writes success/failure to `rd`, traps and flushes clear it.
+  Uniprocessor-first: nothing else invalidates a reservation until a
+  coherent rig exists — and that hook is explicit: a snoop touching the
+  reserved line must clear it, which is the onyx N2 (AxLock/PoS monitor)
+  activation. AMOs execute as memory-pipe read-modify-writes. `aq`/`rl`
+  bits are honored against the memory model — acquire orders younger
+  accesses, release orders older ones, enforced at execute and commit
+  respectively; the honest first implementation of RVWMO ordering bits.
 - **Teaches:** register renaming and WAR/WAW elimination, the ROB as an
   undo log, out-of-order completion with in-order retirement, why rename
-  rollback is the hard part of speculation.
-- **Verification:** golden-model lockstep against spike with randomized
+  rollback is the hard part of speculation — and, with the A extension, the atomicity study: reservations, store-conditional failure, AMOs as single-instruction read-modify-writes, and why acquire/release are memory-model operations rather than cache operations.
+- **Verification:** golden-model lockstep against spike **RV32IMA** with randomized
   program streams as the primary gate; targeted formal — in-order commit
-  property, deadlock/livelock freedom, recovery correctness. riscv-formal
+  property, deadlock/livelock freedom, recovery correctness. The A extension adds directed batteries (LR/SC success, SC failure across trap/interrupt interleave, AMO ALU coverage, aq/rl ordering checks) and two targeted formal properties: SC-failure correctness and reservation granularity. riscv-formal
   on an OOO core is disproportionate; optional stretch goal only.
-- **Packaging:** *Simplified RV32IM: gyrfalcon — out-of-order execution* book.
+- **Packaging:** *Simplified RV32IMA: gyrfalcon — out-of-order execution* book.
 
-## Rung 5 — garuda (RV32IMF delta on gyrfalcon)
+## Rung 5 — garuda (RV32IMAF delta on gyrfalcon)
 
 The mythical capstone: the king of birds takes the OoO machine into
 floating point.
 
-- **ISA:** RV32IMF + Zicsr, identical to gyrfalcon plus the full F
+- **ISA:** RV32IMAF + Zicsr, identical to gyrfalcon (RV32IMA) plus the full F
   extension — FADD/FSUB/FMUL/FDIV/FSQRT, the four fused FMA forms,
   FSGNJ/N/X, FMIN/FMAX, FEQ/FLT/FLE, FCLASS, FMV.X.W/FMV.W.X,
   FCVT.W[U].S/FCVT.S.W[U], FLW/FSW, and `fcsr` (RM field plus the five
@@ -180,13 +199,13 @@ floating point.
   accrued flags, the F ISA delta end to end — and what it means to
   consume a verified arithmetic library instead of building one.
 - **Verification:** `rv32ui` + `rv32um` + `rv32uf` batteries; spike
-  lockstep (spike RV32IMF) with randomized program streams as the
+  lockstep (spike RV32IMAF) with randomized program streams as the
   primary gate; FPU integration TBs reuse the exact-integer oracles
   already proven in `val/math/` for every unit. Targeted formal —
   in-order commit extended over FP state, fcsr flag-merge correctness.
   riscv-formal's F-extension support is limited; unit-level formal on
   the math blocks (family `formal/common/math_*` pattern) compensates.
-- **Packaging:** *Simplified RV32IMF: garuda — floating point* book.
+- **Packaging:** *Simplified RV32IMAF: garuda — floating point* book.
 
 ## Suite-wide packaging
 
