@@ -110,6 +110,20 @@ class AXI4ToAXI3WriteTB(TBBase):
             response_delay=1
         )
 
+        # The AXI3SlaveWrite BFM does not natively support per-burst B response
+        # override, so initialize the attribute and wrap its B-channel send to
+        # allow tests to inject errors.
+        self.axi3_slave.resp_override = None
+        self._orig_b_send = self.axi3_slave.b_channel.send
+        async def _b_send_with_override(packet):
+            txn_id = getattr(packet, 'id', 0)
+            if self.axi3_slave.resp_override is not None:
+                forced = self.axi3_slave.resp_override(txn_id)
+                if forced is not None:
+                    packet.resp = forced
+            await self._orig_b_send(packet)
+        self.axi3_slave.b_channel.send = _b_send_with_override
+
         # Storage for monitoring AXI3 transactions
         self.axi3_aw_transactions = []
         self.axi3_w_beats = []
@@ -821,6 +835,343 @@ class AXI4ToAXI3WriteTB(TBBase):
         self.stats['bursts_completed'] += 1
         return True
 
+    async def incr_write_len32(self):
+        """32-beat INCR burst is chopped into two 16-beat AXI3 bursts."""
+        self.log.info("TEST: incr_write_len32")
+        address = 0xA000
+        burst_len = 32
+        axid = 21
+        size = self.bytes_per_beat.bit_length() - 1
+
+        data_list = [(0xA5000000 + i) & ((1 << self.data_width) - 1)
+                     for i in range(burst_len)]
+
+        initial_aw = len(self.axi3_aw_transactions)
+        initial_w = len(self.axi3_w_beats)
+
+        result = await self.write_with_result(
+            address, data_list, axid=axid, burst_type=1, size=size)
+        await self.wait_clocks(self.clk_name, 20)
+
+        if not result.get('success', False):
+            self.log.error(f"incr_write_len32: AXI4 master reported failure {result}")
+            self.stats['errors'] += 1
+            return False
+
+        aw_count = len(self.axi3_aw_transactions) - initial_aw
+        if aw_count != 2:
+            self.log.error(f"incr_write_len32: expected 2 AXI3 AWs, got {aw_count}")
+            self.stats['errors'] += 1
+            return False
+
+        aw0 = self.axi3_aw_transactions[initial_aw]
+        aw1 = self.axi3_aw_transactions[initial_aw + 1]
+        for aw, expected_len in [(aw0, 15), (aw1, 15)]:
+            if aw['id'] != axid:
+                self.log.error(f"incr_write_len32: AWID mismatch got {aw['id']}, expected {axid}")
+                self.stats['awid_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+            if aw['len'] != expected_len:
+                self.log.error(f"incr_write_len32: AWLEN mismatch got {aw['len']}, expected {expected_len}")
+                self.stats['errors'] += 1
+                return False
+
+        w_count = len(self.axi3_w_beats) - initial_w
+        if w_count != burst_len:
+            self.log.error(f"incr_write_len32: expected {burst_len} W beats, got {w_count}")
+            self.stats['errors'] += 1
+            return False
+
+        for i, beat in enumerate(self.axi3_w_beats[initial_w:initial_w + burst_len]):
+            if beat['id'] != axid:
+                self.log.error(f"incr_write_len32: WID mismatch beat {i} got {beat['id']}, expected {axid}")
+                self.stats['wid_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+            expected_last = 1 if (i == 15 or i == 31) else 0
+            if beat['last'] != expected_last:
+                self.log.error(f"incr_write_len32: WLAST mismatch beat {i} got {beat['last']}, expected {expected_last}")
+                self.stats['wlast_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+            if beat['data'] != data_list[i]:
+                self.log.error(f"incr_write_len32: WDATA mismatch beat {i}")
+                self.stats['data_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        self.log.info("incr_write_len32 PASSED")
+        self.stats['bursts_sent'] += 1
+        self.stats['beats_expected'] += burst_len
+        self.stats['bursts_completed'] += 1
+        return True
+
+    async def b_absorb(self):
+        """A chopped AW produces per-chunk Bs; only one s_axi B is forwarded."""
+        self.log.info("TEST: b_absorb")
+        address = 0xB000
+        burst_len = 32
+        axid = 23
+        size = self.bytes_per_beat.bit_length() - 1
+
+        data_list = [(0xB0000000 + i) & ((1 << self.data_width) - 1)
+                     for i in range(burst_len)]
+
+        initial_b = len(self.axi3_b_responses)
+
+        result = await self.write_with_result(
+            address, data_list, axid=axid, burst_type=1, size=size)
+        await self.wait_clocks(self.clk_name, 20)
+
+        if not result.get('success', False):
+            self.log.error(f"b_absorb: AXI4 master reported failure {result}")
+            self.stats['errors'] += 1
+            return False
+
+        chunk_b_count = len(self.axi3_b_responses) - initial_b
+        if chunk_b_count != 2:
+            self.log.error(f"b_absorb: expected 2 AXI3 B responses, got {chunk_b_count}")
+            self.stats['bresp_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        if result.get('response', 0) != 0:
+            self.log.error(f"b_absorb: expected OKAY final response, got {result.get('response')}")
+            self.stats['bresp_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        self.log.info("b_absorb PASSED")
+        self.stats['bursts_sent'] += 1
+        self.stats['beats_expected'] += burst_len
+        self.stats['bursts_completed'] += 1
+        return True
+
+    async def b_merge_decerr_first(self):
+        """First chunk returns DECERR, rest OKAY; final B is DECERR."""
+        self.log.info("TEST: b_merge_decerr_first")
+        address = 0xC000
+        burst_len = 32
+        axid = 25
+        size = self.bytes_per_beat.bit_length() - 1
+
+        data_list = [(0xC0000000 + i) & ((1 << self.data_width) - 1)
+                     for i in range(burst_len)]
+
+        call_count = 0
+        def override_fn(txn_id):
+            nonlocal call_count
+            if txn_id != axid:
+                return None
+            call_count += 1
+            return 3 if call_count == 1 else 0
+
+        self.set_resp_override(override_fn)
+        try:
+            initial_b = len(self.axi3_b_responses)
+            result = await self.write_with_result(
+                address, data_list, axid=axid, burst_type=1, size=size)
+            await self.wait_clocks(self.clk_name, 20)
+
+            chunk_b_count = len(self.axi3_b_responses) - initial_b
+            if chunk_b_count != 2:
+                self.log.error(f"b_merge_decerr_first: expected 2 AXI3 B responses, got {chunk_b_count}")
+                self.stats['bresp_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+            if result.get('response', 0) != 3:
+                self.log.error(f"b_merge_decerr_first: expected DECERR final response, got {result.get('response')}")
+                self.stats['bresp_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+        finally:
+            self.clear_resp_override()
+
+        self.log.info("b_merge_decerr_first PASSED")
+        self.stats['bursts_sent'] += 1
+        self.stats['beats_expected'] += burst_len
+        self.stats['bursts_completed'] += 1
+        return True
+
+    async def chop_early_w(self):
+        """Chopped 33-beat burst with W beats arriving before the AW handshake."""
+        self.log.info("TEST: chop_early_w")
+        address = 0xD000
+        burst_len = 33
+        axid = 27
+        size = self.bytes_per_beat.bit_length() - 1
+        strb = (1 << self.bytes_per_beat) - 1
+
+        data_list = [(0xD0000000 + i) & ((1 << self.data_width) - 1)
+                     for i in range(burst_len)]
+
+        initial_aw = len(self.axi3_aw_transactions)
+        initial_w = len(self.axi3_w_beats)
+
+        w_packets = []
+        for i, data_value in enumerate(data_list):
+            w_packets.append(self.axi4_master.w_channel.create_packet(
+                data=data_value,
+                last=1 if i == burst_len - 1 else 0,
+                strb=strb
+            ))
+
+        # Drive a few W beats before the matching AW.
+        for pkt in w_packets[:5]:
+            await self.axi4_master.w_channel.send(pkt)
+        await self.wait_clocks(self.clk_name, 5)
+
+        aw_pkt = self.axi4_master.aw_channel.create_packet(
+            addr=address,
+            len=burst_len - 1,
+            id=axid,
+            size=size,
+            burst=1,
+            lock=0,
+            cache=0,
+            prot=0,
+            qos=0,
+            region=0
+        )
+        await self.axi4_master.aw_channel.send(aw_pkt)
+
+        for pkt in w_packets[5:]:
+            await self.axi4_master.w_channel.send(pkt)
+
+        id_queue = self.axi4_master._response_by_id[axid]
+        cycles_waited = 0
+        while len(id_queue) < 1:
+            await RisingEdge(self.clk)
+            cycles_waited += 1
+            if cycles_waited > 5000:
+                self.log.error("chop_early_w: timeout waiting for B response")
+                self.stats['errors'] += 1
+                return False
+        id_queue.popleft()
+        await self.wait_clocks(self.clk_name, 10)
+
+        aw_count = len(self.axi3_aw_transactions) - initial_aw
+        if aw_count != 3:
+            self.log.error(f"chop_early_w: expected 3 AXI3 AWs, got {aw_count}")
+            self.stats['errors'] += 1
+            return False
+
+        expected_awlens = [15, 15, 0]
+        for idx, expected_len in enumerate(expected_awlens):
+            aw = self.axi3_aw_transactions[initial_aw + idx]
+            if aw['id'] != axid:
+                self.log.error(f"chop_early_w: AWID mismatch AW {idx}")
+                self.stats['awid_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+            if aw['len'] != expected_len:
+                self.log.error(f"chop_early_w: AWLEN mismatch AW {idx} got {aw['len']}, expected {expected_len}")
+                self.stats['errors'] += 1
+                return False
+
+        w_count = len(self.axi3_w_beats) - initial_w
+        if w_count != burst_len:
+            self.log.error(f"chop_early_w: expected {burst_len} W beats, got {w_count}")
+            self.stats['errors'] += 1
+            return False
+
+        for i, beat in enumerate(self.axi3_w_beats[initial_w:initial_w + burst_len]):
+            if beat['id'] != axid:
+                self.log.error(f"chop_early_w: WID mismatch beat {i}")
+                self.stats['wid_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+            expected_last = 1 if (i == 15 or i == 31 or i == 32) else 0
+            if beat['last'] != expected_last:
+                self.log.error(f"chop_early_w: WLAST mismatch beat {i} got {beat['last']}, expected {expected_last}")
+                self.stats['wlast_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+            if beat['data'] != data_list[i]:
+                self.log.error(f"chop_early_w: WDATA mismatch beat {i}")
+                self.stats['data_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        self.log.info("chop_early_w PASSED")
+        self.stats['bursts_sent'] += 1
+        self.stats['beats_expected'] += burst_len
+        self.stats['bursts_completed'] += 1
+        return True
+
+    async def long_write_len256(self):
+        """256-beat INCR burst exercises 9-bit remaining-beat tracking."""
+        self.log.info("TEST: long_write_len256")
+        address = 0xE000
+        burst_len = 256
+        axid = 29
+        size = self.bytes_per_beat.bit_length() - 1
+
+        data_list = [(0xE0000000 + i) & ((1 << self.data_width) - 1)
+                     for i in range(burst_len)]
+
+        initial_aw = len(self.axi3_aw_transactions)
+        initial_w = len(self.axi3_w_beats)
+
+        result = await self.write_with_result(
+            address, data_list, axid=axid, burst_type=1, size=size)
+        await self.wait_clocks(self.clk_name, 30)
+
+        if not result.get('success', False):
+            self.log.error(f"long_write_len256: AXI4 master reported failure {result}")
+            self.stats['errors'] += 1
+            return False
+
+        aw_count = len(self.axi3_aw_transactions) - initial_aw
+        if aw_count != 16:
+            self.log.error(f"long_write_len256: expected 16 AXI3 AWs, got {aw_count}")
+            self.stats['errors'] += 1
+            return False
+
+        for i in range(aw_count):
+            aw = self.axi3_aw_transactions[initial_aw + i]
+            if aw['id'] != axid:
+                self.log.error(f"long_write_len256: AWID mismatch AW {i}")
+                self.stats['awid_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+            if aw['len'] != 15:
+                self.log.error(f"long_write_len256: AWLEN mismatch AW {i} got {aw['len']}, expected {expected_len}")
+                self.stats['errors'] += 1
+                return False
+
+        w_count = len(self.axi3_w_beats) - initial_w
+        if w_count != burst_len:
+            self.log.error(f"long_write_len256: expected {burst_len} W beats, got {w_count}")
+            self.stats['errors'] += 1
+            return False
+
+        for i, beat in enumerate(self.axi3_w_beats[initial_w:initial_w + burst_len]):
+            if beat['id'] != axid:
+                self.log.error(f"long_write_len256: WID mismatch beat {i}")
+                self.stats['wid_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+            expected_last = 1 if (i % 16 == 15) else 0
+            if beat['last'] != expected_last:
+                self.log.error(f"long_write_len256: WLAST mismatch beat {i} got {beat['last']}, expected {expected_last}")
+                self.stats['wlast_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+            if beat['data'] != data_list[i]:
+                self.log.error(f"long_write_len256: WDATA mismatch beat {i}")
+                self.stats['data_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        self.log.info("long_write_len256 PASSED")
+        self.stats['bursts_sent'] += 1
+        self.stats['beats_expected'] += burst_len
+        self.stats['bursts_completed'] += 1
+        return True
+
     # =========================================================================
     # TEST SUITE RUNNERS
     # =========================================================================
@@ -864,7 +1215,7 @@ class AXI4ToAXI3WriteTB(TBBase):
         return await self.early_w_overflow()
 
     async def run_medium_test(self):
-        """Run medium write pass-through test suite"""
+        """Run medium write pass-through test suite (includes chopping/merge)"""
         self.log.info("=" * 80)
         self.log.info("MEDIUM WRITE PASS-THROUGH TEST SUITE")
         self.log.info("=" * 80)
@@ -872,6 +1223,21 @@ class AXI4ToAXI3WriteTB(TBBase):
         success = True
 
         if not await self.run_basic_test():
+            success = False
+
+        if not await self.incr_write_len32():
+            success = False
+
+        if not await self.b_absorb():
+            success = False
+
+        if not await self.b_merge_decerr_first():
+            success = False
+
+        if not await self.chop_early_w():
+            success = False
+
+        if not await self.long_write_len256():
             success = False
 
         return success

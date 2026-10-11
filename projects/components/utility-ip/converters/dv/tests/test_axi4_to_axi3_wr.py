@@ -392,9 +392,8 @@ def test_axi4_to_axi3_wr(request, params):
 
 
 
-@pytest.mark.xfail(strict=True, reason="ASSERT_A3_WR_WBUF_OVFL fires and Verilator aborts on $error")
 def test_axi4_to_axi3_wr_overflow(request):
-    """Negative test: early-W beyond 16 beats triggers the overflow assertion."""
+    """Negative test: early-W beyond 16 beats is backpressured (no overflow)."""
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
