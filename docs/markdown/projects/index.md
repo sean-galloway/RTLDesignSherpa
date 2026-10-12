@@ -23,7 +23,7 @@
 
 # RTL Design Sherpa - Component Projects Index
 
-**Last Updated:** 2026-01-04
+**Last Updated:** 2026-10-12
 
 ---
 
@@ -107,13 +107,17 @@ Parametric MxN APB interconnect connecting multiple masters to multiple slaves w
 ---
 
 #### Bridge Components
-**Status:** Ready
+**Status:** Ready (Done 2026-10-11)
 **Location:** [`projects/components/fabric-gen-ip/bridge/`](../../../projects/components/fabric-gen-ip/bridge/)
 
-Protocol bridge components for bus conversion.
+Generated protocol-bridge family covering eight flavors: AXI3, AXI4, AXI5,
+AXI4-Lite, AXI5-Lite, APB, APB5, and Wishbone-4 — with RDL-generated
+configuration registers.
 
 **Documentation:**
-- [Specification](../../../projects/components/fabric-gen-ip/bridge/docs/)
+- [HAS](../../../projects/components/fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md)
+- [MAS](../../../projects/components/fabric-gen-ip/bridge/docs/bridge_mas/bridge_mas_index.md)
+- [GAS](../../../projects/components/fabric-gen-ip/bridge/docs/bridge_gas/bridge_gas_index.md)
 
 ---
 
@@ -136,6 +140,125 @@ Protocol conversion bridges for interfacing different communication standards.
 
 ---
 
+### Memory Controllers
+
+#### pumice — DDR2 / LPDDR2 Controller
+**Status:** Ready (at rest — board-validated bring-up on Nexys A7)
+**Location:** [`projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/`](../../../projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/)
+
+**Documentation:**
+- [Specification](../../../projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/pumice_mas/pumice_mas_index.md)
+
+---
+
+#### scoria — DDR3 / LPDDR3 Controller
+**Status:** In progress (simulation-verified — 221 tests, 9 formal blocks; board bring-up ongoing)
+**Location:** [`projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/`](../../../projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/)
+
+---
+
+#### andesite — DDR4 / LPDDR4 Controller
+**Status:** Planned (directory baseline, structure only)
+**Location:** [`projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/`](../../../projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/)
+
+---
+
+#### granite / gabbro / diorite — product tops
+**Status:** Planned (scaffolds 2026-10-11 — production-shaped tops wrapping the research rocks)
+**Location:** [`projects/components/mem-ctrl-ip/product-ip/`](../../../projects/components/mem-ctrl-ip/product-ip/)
+
+---
+
+### Error Correction (ECC)
+
+#### Reed-Solomon
+**Status:** Ready — 1.0, hardware-loopback-validated (Nexys A7 + Genesys 2)
+**Location:** [`projects/components/ecc-ip/reed-solomon/`](../../../projects/components/ecc-ip/reed-solomon/)
+
+RS(n,k) over GF(2^m) with riBM or Euclidean solver and optional AXIS/AXI4 adapters.
+
+**Documentation:**
+- [Family README](../../../projects/components/ecc-ip/README.md)
+- [PRD](../../../projects/components/ecc-ip/reed-solomon/PRD.md)
+
+---
+
+#### BCH
+**Status:** Ready — 1.0, Genesys-2 board-validated
+**Location:** [`projects/components/ecc-ip/bch/`](../../../projects/components/ecc-ip/bch/)
+
+Binary BCH encoder/decoder importing the reed-solomon GF(2^m) layer (`gf_pkg`, riBM array).
+
+---
+
+### RISC-V Falcon Suite
+
+#### kestrel — RV32I single-cycle core
+**Status:** Ready — rv32ui battery 42/42 spike lockstep, riscv-formal 42/42; doc book v0.1
+**Location:** [`projects/components/riscv-ip/kestrel-rv32i/`](../../../projects/components/riscv-ip/kestrel-rv32i/)
+
+**Documentation:**
+- [Suite README](../../../projects/components/riscv-ip/README.md)
+- [Design spec](../../../docs/superpowers/specs/2026-10-06-riscv-falcon-suite-design.md)
+
+---
+
+#### merlin / peregrine / gyrfalcon / garuda — the ladder
+**Status:** Planned (structure only)
+**Location:** [`projects/components/riscv-ip/`](../../../projects/components/riscv-ip/)
+
+Educational ladder ascending in microarchitectural complexity: merlin
+(5-stage pipeline, RV32I), peregrine (advanced in-order RV32IM), gyrfalcon
+(OoO capstone with a baseline and an `A`-extension atomics flavor), garuda
+(gyrfalcon + FPU, RV32IMAF — one past the largest falcon).
+
+---
+
+#### Hive
+**Status:** Planned (spec only; re-homed from compute-eng-ip 2026-10-10)
+**Location:** [`projects/components/riscv-ip/hive-serv/`](../../../projects/components/riscv-ip/hive-serv/)
+
+SERV-based compute cluster — 1 VexRiscv control plane + 16 SERV monitor cores.
+
+**Documentation:**
+- [Specification](../../../projects/components/riscv-ip/hive-serv/docs/)
+
+---
+
+### Cache Coherence (gemstone family)
+
+#### amber — blocking MESI snoopy L1
+**Status:** In progress — HAS/MAS v1.0, RTL landing
+**Location:** [`projects/components/cache-ip/amber-mesi-l1/`](../../../projects/components/cache-ip/amber-mesi-l1/)
+
+First of the gemstone family; MonBus-instrumented research cache with ACE snoop transport.
+
+---
+
+#### jet / basalt / onyx
+**Status:** Planned
+**Location:** [`projects/components/cache-ip/`](../../../projects/components/cache-ip/)
+
+jet — lockup-free (MSHR) MESI L1 follow-on; basalt — MOESI L2 (gated behind
+onyx v1); onyx — the ACE coherence manager (CCU) that turns a pile of
+coherent caches into a system.
+
+---
+
+### Debug / DFX
+
+#### dfx-ip — house debug port
+**Status:** Scaffold (2026-10-11) — no RTL
+**Location:** [`projects/components/dfx-ip/`](../../../projects/components/dfx-ip/)
+
+JTAG transport (jtag-tap), config poke agent (jtag-axil-agent), and the
+RISC-V override plane (riscv-debug).
+
+**Documentation:**
+- [HAS index](../../../projects/components/dfx-ip/docs/dfx_has/dfx_has_index.md)
+
+---
+
 ### Retro Legacy Blocks
 
 #### Retro Legacy Peripheral Collection
@@ -146,6 +269,8 @@ Collection of legacy and retro-computing peripherals for historical SoC designs.
 
 **Included Blocks:**
 - **HPET** - High Precision Event Timer (APB interface)
+- **GPIO** - General Purpose I/O with interrupts
+- **UART 16550** - Full 16550-compatible UART
 - **8259 PIC** - Programmable Interrupt Controller
 - **8254 PIT** - Programmable Interval Timer
 - **RTC** - Real-Time Clock
@@ -158,26 +283,6 @@ Collection of legacy and retro-computing peripherals for historical SoC designs.
 - [HPET Specification](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md)
 - [Requirements](../../../projects/components/retro_legacy_blocks/PRD.md)
 - [AI Guide](../../../projects/components/retro_legacy_blocks/CLAUDE.md)
-
----
-
-### Other Components
-
-#### Delta
-**Location:** [`projects/components/fabric-gen-ip/delta/`](../../../projects/components/fabric-gen-ip/delta/)
-
-**Documentation:**
-- [PRD](../../../projects/components/fabric-gen-ip/delta/PRD.md)
-- [AI Guide](../../../projects/components/fabric-gen-ip/delta/CLAUDE.md)
-- [NoC draft spec (unimplemented design)](../../../projects/components/noc-ip/delta_spec/)
-
----
-
-#### Hive
-**Location:** [`projects/components/riscv-ip/hive-serv/`](../../../projects/components/riscv-ip/hive-serv/)
-
-**Documentation:**
-- [Specification](../../../projects/components/riscv-ip/hive-serv/docs/)
 
 ---
 
@@ -299,4 +404,4 @@ projects/components/{name}/
 ---
 
 **Maintained By:** RTL Design Sherpa Project
-**Last Review:** 2026-01-04
+**Last Review:** 2026-10-12

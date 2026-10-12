@@ -95,13 +95,24 @@ graph TD
 | Component | Status | Description |
 |-----------|--------|-------------|
 | **[STREAM](../../projects/components/dma-ip/stream)** | Ready | Tutorial DMA engine with scatter-gather |
-| **[RAPIDS](../../projects/components/dma-ip/rapids)** | In Progress | Advanced DMA with network interfaces |
-| **[Bridge](../../projects/components/fabric-gen-ip/bridge)** | Ready | AXI protocol bridges and converters |
-| **[Converters](../../projects/components/utility-ip/converters)** | Ready | UART-to-AXI4-Lite, protocol conversion |
+| **[RAPIDS](../../projects/components/dma-ip/rapids)** | Ready | Advanced DMA with network interfaces (qualified 2026-10-11) |
+| **[Bridge](../../projects/components/fabric-gen-ip/bridge)** | Ready | Generated AMBA 3/4/5 + Wishbone-4 protocol bridges, RDL registers |
+| **[Delta](../../projects/components/fabric-gen-ip/delta)** | In progress | AXI-Stream crossbar generator (all AXIS4/5 flavors) |
 | **[APB Crossbar](../../projects/components/fabric-gen-ip/apbx-xbar)** | Ready | M×N APB interconnect |
+| **[pumice](../../projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2)** | Ready (at rest) | DDR2/LPDDR2 controller, board-validated on Nexys A7 |
+| **[scoria](../../projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3)** | In progress | DDR3/LPDDR3 controller, simulation-verified, board campaign ongoing |
+| **[andesite](../../projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4)** | Planned | DDR4/LPDDR4 controller (directory baseline) |
+| **[granite / gabbro / diorite](../../projects/components/mem-ctrl-ip/product-ip)** | Planned | Production-shaped controller tops wrapping the research rocks |
+| **[Reed-Solomon](../../projects/components/ecc-ip/reed-solomon)** | Ready | RS(n,k) over GF(2^m); 1.0, loopback-validated |
+| **[BCH](../../projects/components/ecc-ip/bch)** | Ready | Binary BCH codec; 1.0, Genesys-2 board-validated |
+| **[kestrel](../../projects/components/riscv-ip/kestrel-rv32i)** | Ready | RV32I single-cycle core (rv32ui + riscv-formal 42/42) |
+| **[falcon suite rungs](../../projects/components/riscv-ip)** | Planned | merlin / peregrine / gyrfalcon / garuda RISC-V ladder |
+| **[HIVE](../../projects/components/riscv-ip/hive-serv)** | Planned | Distributed RISC-V control (VexRiscv + 16 SERV cores) |
+| **[amber](../../projects/components/cache-ip/amber-mesi-l1)** | In progress | Blocking MESI snoopy L1 (gemstone family) |
+| **[cache-ip rungs](../../projects/components/cache-ip)** | Planned | jet (MSHR L1) · basalt (MOESI L2) · onyx (ACE CCU) |
+| **[dfx-ip](../../projects/components/dfx-ip)** | Planned | House debug port: jtag-tap, jtag-axil-agent, riscv-debug |
 | **[Retro Legacy](../../projects/components/retro_legacy_blocks)** | Ready | HPET, PIC, PIT, RTC, UART, GPIO, etc. |
-| **[Delta](../../projects/components/fabric-gen-ip/delta)** | In progress | AXI-Stream crossbar generator |
-| **[HIVE](../../projects/components/riscv-ip/hive-serv)** | Planned | Distributed RISC-V control |
+| **[Converters](../../projects/components/utility-ip/converters)** | Ready | UART-to-AXI4-Lite, protocol conversion |
 
 ### Verification
 - **[Common Tests](../../val/common)** - Unit tests for common modules
@@ -245,22 +256,60 @@ Clock Domain A (Fast)    Clock Domain B (Slow)
 
 **Location:** [`projects/components/`](../../projects/components) | **Documentation:** [Component Index](projects/index.md)
 
-Build complete, production-ready peripherals for FPGA deployment (**10+ components**):
+Build complete, production-ready peripherals for FPGA deployment (**25+ components**):
 
 #### DMA Engines
 
 | Component | Status | Description |
 |-----------|--------|-------------|
 | **[STREAM](../../projects/components/dma-ip/stream)** | Ready | Tutorial DMA with 8 channels, scatter-gather, APB config |
-| **[RAPIDS](../../projects/components/dma-ip/rapids)** | In Progress | Advanced DMA with alignment fixup, network TX/RX, credit flow |
+| **[RAPIDS](../../projects/components/dma-ip/rapids)** | Ready | Advanced DMA with alignment fixup, network TX/RX, credit flow (qualified 2026-10-11) |
 
 #### Interconnect and Bridges
 
 | Component | Status | Description |
 |-----------|--------|-------------|
 | **[APB Crossbar](../../projects/components/fabric-gen-ip/apbx-xbar)** | Ready | Parametric M×N APB interconnect with round-robin arbitration |
-| **[Bridge](../../projects/components/fabric-gen-ip/bridge)** | Ready | AXI4 protocol bridges, width converters, CDC |
+| **[Bridge](../../projects/components/fabric-gen-ip/bridge)** | Ready | Generated AMBA 3/4/5 + Wishbone-4 protocol bridges, width converters, CDC |
+| **[Delta](../../projects/components/fabric-gen-ip/delta)** | In progress | AXI-Stream crossbar generator — Python-generated flat M×N crossbars in all AXIS4/5 flavors |
 | **[Converters](../../projects/components/utility-ip/converters)** | Ready | UART-to-AXI4-Lite, protocol conversion bridges |
+
+#### Memory Controllers
+
+| Component | Status | Description |
+|-----------|--------|-------------|
+| **[pumice](../../projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2)** | Ready (at rest) | DDR2/LPDDR2 controller, board-validated on Nexys A7 |
+| **[scoria](../../projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3)** | In progress | DDR3/LPDDR3 controller, simulation-verified; board bring-up ongoing |
+| **[andesite](../../projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4)** | Planned | DDR4/LPDDR4 directory baseline (structure only) |
+| **[product tops](../../projects/components/mem-ctrl-ip/product-ip)** (granite / gabbro / diorite) | Planned | Production-shaped tops wrapping the research rocks (scaffolds) |
+
+#### Error Correction (ECC)
+
+| Component | Status | Description |
+|-----------|--------|-------------|
+| **[Reed-Solomon](../../projects/components/ecc-ip/reed-solomon)** | Ready | RS(n,k) over GF(2^m); riBM/Euclidean solvers, AXIS/AXI4 adapters; 1.0, hardware-loopback-validated |
+| **[BCH](../../projects/components/ecc-ip/bch)** | Ready | Binary BCH encoder/decoder on the shared GF(2^m) layer; 1.0, Genesys-2 board-validated |
+
+#### RISC-V Falcon Suite
+
+| Component | Status | Description |
+|-----------|--------|-------------|
+| **[kestrel](../../projects/components/riscv-ip/kestrel-rv32i)** | Ready | RV32I single-cycle core — rv32ui 42/42 spike lockstep, riscv-formal 42/42 |
+| **[merlin / peregrine / gyrfalcon / garuda](../../projects/components/riscv-ip)** | Planned | The ladder: 5-stage → advanced in-order → OoO capstone (+A atomics) → OoO + FPU |
+| **[HIVE](../../projects/components/riscv-ip/hive-serv)** | Planned | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
+
+#### Cache Coherence (gemstone family)
+
+| Component | Status | Description |
+|-----------|--------|-------------|
+| **[amber](../../projects/components/cache-ip/amber-mesi-l1)** | In progress | Blocking MESI snoopy L1 (HAS/MAS v1.0; RTL landing) |
+| **[jet / basalt / onyx](../../projects/components/cache-ip)** | Planned | Lockup-free MESI L1 (MSHR) · MOESI L2 · ACE coherence manager (CCU) |
+
+#### Debug / DFX
+
+| Component | Status | Description |
+|-----------|--------|-------------|
+| **[dfx-ip](../../projects/components/dfx-ip)** | Planned (scaffold) | House debug port: jtag-tap transport, jtag-axil-agent config poke, riscv-debug override plane |
 
 #### Retro Legacy Blocks
 
@@ -281,14 +330,6 @@ Collection of 9 legacy/retro peripherals with full APB interfaces:
 | **IOAPIC** | I/O Advanced PIC |
 
 **Documentation:** [PRD](../../projects/components/retro_legacy_blocks/PRD.md)
-
-#### Future Components
-
-| Component | Status | Description |
-|-----------|--------|-------------|
-| **[Delta](../../projects/components/fabric-gen-ip/delta)** | In progress | AXI-Stream crossbar generator — Python-generated flat M×N crossbars (AMBA stream interconnect family) |
-| **[HIVE](../../projects/components/riscv-ip/hive-serv)** | Planned | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
-| **BCH** | Planned | BCH error correction encoder/decoder (no RTL yet) |
 
 ---
 
@@ -417,37 +458,42 @@ pytest projects/components/retro_legacy_blocks/dv/tests/hpet/ -v
 
 ```
 rtldesignsherpa/
-├── rtl/                          # RTL source code (350+ modules)
-│   ├── common/                   # 224 building blocks (counters, math, FP, etc.)
-│   ├── amba/                     # 138 AMBA protocol modules
-│   │   ├── apb/                 # APB protocol
-│   │   ├── axi4/                # AXI4 full protocol
-│   │   ├── axil4/               # AXI4-Lite
-│   │   ├── axis/                # AXI4-Stream
+├── rtl/                          # RTL source code (~390 modules)
+│   ├── common/                   # ~57 building blocks (counters, FIFOs, arbiters, etc.)
+│   ├── math/                     # ~170 arithmetic modules (integer + FP)
+│   ├── cdc/                      # Clock-domain-crossing library
+│   ├── amba/                     # ~160 AMBA protocol modules
+│   │   ├── apb4/ apb5/          # APB protocol generations
+│   │   ├── axil4/ axil5/        # AXI4-Lite / AXI5-Lite
+│   │   ├── axi4/ axi5/          # AXI full + AMBA5
+│   │   ├── axis4/ axis5/        # AXI-Stream
 │   │   ├── ace/                 # AXI Coherency Extensions
-│   │   ├── axi5/                # AMBA5 components
-│   │   ├── apb5/                # APB5 protocol
+│   │   ├── wb4/                 # Wishbone-4
 │   │   ├── gaxi/                # Generic AXI infrastructure
-│   │   └── shared/              # Shared utilities (CDC, monitors)
-│   ├── integ_common/            # Common integration examples
-│   └── integ_amba/              # AMBA integration examples
+│   │   ├── monitor/             # Transaction monitors + MonBus groups
+│   │   └── shared/              # Shared observation utilities
 │
-├── projects/                     # Component projects (10+)
+├── projects/                     # Component projects (25+)
 │   ├── components/
-│   │   ├── stream/              # STREAM DMA engine
-│   │   ├── rapids/              # RAPIDS DMA engine
-│   │   ├── bridge/              # Protocol bridges
-│   │   ├── converters/          # UART-to-AXI4-Lite, etc.
-│   │   ├── apbx_xbar/            # APB crossbar
+│   │   ├── dma-ip/              # STREAM / RAPIDS DMA engines (Done)
+│   │   ├── fabric-gen-ip/       # Bridge, APB crossbar, Delta AXIS-xbar generator
+│   │   ├── mem-ctrl-ip/         # research rocks (pumice/scoria/andesite) + product tops
+│   │   ├── ecc-ip/              # Reed-Solomon + BCH (1.0, board-validated)
+│   │   ├── riscv-ip/            # falcon suite (kestrel Done) + hive-serv
+│   │   ├── cache-ip/            # gemstone coherence family (amber in progress)
+│   │   ├── dfx-ip/              # debug-port scaffolds (jtag-tap / jtag-axil-agent / riscv-debug)
+│   │   ├── noc-ip/              # future NoC draft spec (delta_spec; no RTL)
+│   │   ├── compute-eng-ip/      # retired (empty — hive re-homed to riscv-ip 2026-10-10)
 │   │   ├── retro_legacy_blocks/ # 9 legacy peripherals
-│   │   ├── delta/               # Network-on-Chip (planned)
-│   │   ├── hive-serv/           # SERV compute cluster (riscv-ip, planned)
-│   │   └── bch/                 # BCH ECC (planned)
-│   └── NexysA7/                 # FPGA projects
+│   │   └── utility-ip/          # Converters, misc
+│   ├── fpga-systems/            # Board harnesses (Nexys A7, Genesys 2) + boards/
+│   └── asic-trials/             # timing_characterization
 │
 ├── val/                          # Validation/Test suites
 │   ├── common/                  # Common module tests
 │   └── amba/                    # AMBA protocol tests
+│
+├── formal/                       # Formal verification (SymbiYosys proof areas)
 │
 ├── bin/                          # Tools and automation
 │   ├── CocoTBFramework/         # Testbench infrastructure (200+ files)
@@ -467,7 +513,7 @@ rtldesignsherpa/
 │   └── DOCUMENTATION_INDEX.md   # Master doc index
 │
 ├── CLAUDE.md                     # Repository AI guide
-└── README.md → docs/markdown/overview.md  # This file (symlink)
+└── README.md                     # Repo-root landing page (component lists kept in sync with this overview)
 ```
 
 ---
@@ -659,8 +705,8 @@ pytest val/{subsystem}/test_my_module.py -v
 ### Module Counts
 
 - **224 Common Modules** - Counters, FIFOs, arbiters, math, floating-point
-- **138 AMBA Modules** - APB, AXI4, AXI4-Lite, AXI-Stream, ACE, AMBA5
-- **10+ Production Components** - DMA engines, bridges, legacy peripherals
+- **~160 AMBA Modules** - APB, AXI4/5, AXI-Lite, AXI-Stream, ACE, Wishbone-4
+- **25+ Production Components** - DMA engines, interconnect generators, ECC, memory controllers, RISC-V cores, caches
 - **350+ Total RTL Modules** - Complete verification infrastructure
 
 ### Synthesis Results
@@ -717,16 +763,19 @@ We welcome contributions at all levels:
 ## Roadmap
 
 ### Current Focus
-- **STREAM DMA** - Tutorial DMA engine complete
-- **Bridge components** - AXI4 width converters, CDC bridges complete
+- **STREAM / RAPIDS DMA** - both qualified Done 2026-10-11 (RAPIDS beats characterized on Genesys 2)
+- **Bridge / APB crossbar** - Done; AMBA 3/4/5 + WB4 bridge generator, M×N APB xbar
+- **ECC codecs** - Reed-Solomon + BCH 1.0, loopback-validated on Nexys A7 and Genesys 2
 - **Retro Legacy Blocks** - 9 peripherals with MAS documentation
-- **RAPIDS DMA** - Advanced DMA in progress
+- **kestrel RV32I core** - Done (rv32ui 42/42 spike lockstep, riscv-formal 42/42)
 - **Floating-Point** - FP32 FMA, additional converters
 
 ### Near-Term
-- Delta Network-on-Chip mesh implementation
-- HIVE distributed RISC-V control
-- BCH error correction codec
+- **Delta** AXI-Stream crossbar generator - DV suite in progress (the NoC mesh draft is archived at noc-ip/delta_spec, unimplemented)
+- **cache-ip gemstone family** - amber RTL qualification, then jet / onyx / basalt
+- **scoria DDR3/LPDDR3** - board bring-up campaign
+- **HIVE** distributed RISC-V control
+- **dfx-ip** debug-port specs (jtag-tap, jtag-axil-agent, riscv-debug)
 - NexysA7 FPGA integration examples
 
 ### Long-Term

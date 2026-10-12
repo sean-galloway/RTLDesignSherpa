@@ -56,20 +56,22 @@ tracker. Nothing here is a second copy of either.
 | Component | Entry point |
 |---|---|
 | apbx-xbar (generated APB crossbars) | [fabric-gen-ip/apbx-xbar/README.md](fabric-gen-ip/apbx-xbar/README.md) |
-| bridge (generated AXI4/AXI5/APB/WB4 crossbar bridges) | [fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md](fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md), [fabric-gen-ip/bridge/CLAUDE.md](fabric-gen-ip/bridge/CLAUDE.md) |
+| bridge (generated AMBA 3/4/5 + Wishbone-4 protocol bridges, RDL registers) | [fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md](fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md), [fabric-gen-ip/bridge/CLAUDE.md](fabric-gen-ip/bridge/CLAUDE.md) |
+| delta (AXI-Stream crossbar generator, all AXIS4/5 flavors; re-homed from noc-ip 2026-10-12 — its NoC draft spec stayed at noc-ip/delta_spec) | [fabric-gen-ip/delta/README.md](fabric-gen-ip/delta/README.md) |
 | converters (width and protocol converters) | [utility-ip/converters/README.md](utility-ip/converters/README.md) |
 | dma-ip/stream (tutorial scatter-gather DMA) | [dma-ip/stream/README.md](dma-ip/stream/README.md) |
 | dma-ip/rapids (DMA with network integration) | [dma-ip/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md](dma-ip/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md), [dma-ip/rapids/CLAUDE.md](dma-ip/rapids/CLAUDE.md) |
-| mem-ctrl-ip (pumice DDR2/LPDDR2; DDR3 and DDR4 placeholders) | [mem-ctrl-ip/README.md](mem-ctrl-ip/README.md) |
-| misc (ROM/RAM wrappers and utilities) | [utility-ip/misc/README.md](utility-ip/misc/README.md) |
-| ecc-ip (error-correction IP family; reed-solomon stood up 2026-09-29, references + draft PRD, no RTL yet) | [ecc-ip/README.md](ecc-ip/README.md), [ecc-ip/reed-solomon/README.md](ecc-ip/reed-solomon/README.md) |
+| mem-ctrl-ip (research rocks: pumice board-validated, scoria sim-verified, andesite planned; product tops granite/gabbro/diorite scaffolded) | [mem-ctrl-ip/README.md](mem-ctrl-ip/README.md) |
+| ecc-ip (reed-solomon + bch, both 1.0 and board-validated) | [ecc-ip/README.md](ecc-ip/README.md), [ecc-ip/reed-solomon/README.md](ecc-ip/reed-solomon/README.md), [ecc-ip/bch/README.md](ecc-ip/bch/README.md) |
+| riscv-ip (falcon suite: kestrel Done — rv32ui/riscv-formal 42/42; merlin/peregrine/gyrfalcon/garuda planned; hive-serv spec) | [riscv-ip/README.md](riscv-ip/README.md) |
+| cache-ip (gemstone family: amber in progress with RTL landing; jet/basalt/onyx planned) | [cache-ip/amber-mesi-l1/README.md](cache-ip/amber-mesi-l1/README.md) |
+| dfx-ip (house debug port: jtag-tap, jtag-axil-agent, riscv-debug scaffolds) | [dfx-ip/docs/dfx_has/dfx_has_index.md](dfx-ip/docs/dfx_has/dfx_has_index.md) |
 | retro_legacy_blocks (HPET, 8259, 8254, RTC, SMBus, PM/ACPI, IOAPIC, GPIO, UART) | [retro_legacy_blocks/README.md](retro_legacy_blocks/README.md) |
-| fabric-gen-ip/delta | AXI-Stream crossbar generator, active; re-homed from noc-ip 2026-10-12 (its aspirational NoC draft spec stayed behind at noc-ip/delta_spec) |
+| misc (ROM/RAM wrappers and utilities) | [utility-ip/misc/README.md](utility-ip/misc/README.md) |
 | compute-eng-ip/hive | retired 2026-09-27; re-homed to riscv-ip/hive-serv 2026-10-10 (SERV-based, belongs in the falcon suite area) |
 
 ---
 
-**Last Review:** 2026-09-28 (tooling TASK-004: 1,061-line guide reduced to this
-link page; the component narratives it duplicated live in each component's
-spec, and its status claims dated 2025-10-24 were replaced by index.md and the
-tracker)
+**Last Review:** 2026-10-12 (component table re-synced with
+[component-status-matrix.md](../component-status-matrix.md); earlier review
+2026-09-28 per tooling TASK-004)

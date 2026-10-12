@@ -11,9 +11,10 @@ Projects are organized by IP area (board targets live inside each harness):
 ```
 projects/
 ├── components/        # Reusable RTL components / IP (see components/README.md)
-│   ├── fabric-gen-ip/  dma-ip/  ecc-ip/  mem-ctrl-ip/
-│   ├── noc-ip/  compute-eng-ip/  cache-ip/
-│   ├── utility-ip/  retro_legacy_blocks/
+│   ├── dma-ip/  fabric-gen-ip/  ecc-ip/  mem-ctrl-ip/
+│   ├── riscv-ip/  cache-ip/  dfx-ip/
+│   ├── noc-ip/  utility-ip/  (compute-eng-ip retired, empty)
+│   ├── retro_legacy_blocks/
 │   └── ...
 ├── fpga-systems/      # Board harnesses: <board>/<ip-area>/<ip>
 │   ├── NexysA7/misc-ip/cdc_counter_display/   # CDC teaching demo
@@ -218,12 +219,18 @@ When adding new projects:
 |-----------|--------|------|
 | [converters](components/utility-ip/converters/) | Production Ready | [README](components/utility-ip/converters/README.md) |
 | [apbx_xbar](components/fabric-gen-ip/apbx-xbar/) | Production Ready | [PRD](components/fabric-gen-ip/apbx-xbar/PRD.md) |
-| [stream](components/dma-ip/stream/) | Active | [PRD](components/dma-ip/stream/PRD.md) |
-| [rapids](components/dma-ip/rapids/) | Active | [PRD](components/dma-ip/rapids/PRD.md) · [spec](components/dma-ip/rapids/docs/) · char: [report](fpga-systems/Genesys2/dma-ip/rapids_beats/docs/rapids_beats_findings.md) |
-| [bridge](components/fabric-gen-ip/bridge/) | Active | [PRD](components/fabric-gen-ip/bridge/PRD.md) |
-| [mem-ctrl-ip](components/mem-ctrl-ip/) | Active | [README](components/mem-ctrl-ip/README.md) · char: [ddr2](fpga-systems/NexysA7/mem-ctrl-ip-ddr2/ddr2-characterization/) |
-| [hive-serv](components/riscv-ip/hive-serv/) | Re-homed 2026-10-10 (retired 2026-09-27, revived) | [PRD](components/riscv-ip/hive-serv/PRD.md) · [spec](components/riscv-ip/hive-serv/docs/hive_spec/) |
+| [stream](components/dma-ip/stream/) | Done (2026-10-11) | [PRD](components/dma-ip/stream/PRD.md) |
+| [rapids](components/dma-ip/rapids/) | Done (2026-10-11) | [PRD](components/dma-ip/rapids/PRD.md) · [spec](components/dma-ip/rapids/docs/) · char: [report](fpga-systems/Genesys2/dma-ip/rapids_beats/docs/rapids_beats_findings.md) |
+| [bridge](components/fabric-gen-ip/bridge/) | Done (2026-10-11) | [PRD](components/fabric-gen-ip/bridge/PRD.md) · [HAS](components/fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md) |
 | [delta](components/fabric-gen-ip/delta/) | Active | [PRD](components/fabric-gen-ip/delta/PRD.md) · [NoC draft spec](components/noc-ip/delta_spec/) |
+| [mem-ctrl-ip](components/mem-ctrl-ip/) | Active | [README](components/mem-ctrl-ip/README.md) · char: [ddr2](fpga-systems/NexysA7/mem-ctrl-ip-ddr2/ddr2-characterization/) |
+| [ecc-ip reed-solomon](components/ecc-ip/reed-solomon/) | Done — 1.0 | [README](components/ecc-ip/reed-solomon/README.md) |
+| [ecc-ip bch](components/ecc-ip/bch/) | Done — 1.0 | [README](components/ecc-ip/bch/README.md) |
+| [riscv-ip kestrel](components/riscv-ip/kestrel-rv32i/) | Done | [docs](components/riscv-ip/kestrel-rv32i/docs/) |
+| [riscv-ip falcon suite](components/riscv-ip/) | Planned | [README](components/riscv-ip/README.md) |
+| [hive-serv](components/riscv-ip/hive-serv/) | Re-homed 2026-10-10 (retired 2026-09-27, revived) | [PRD](components/riscv-ip/hive-serv/PRD.md) · [spec](components/riscv-ip/hive-serv/docs/hive_spec/) |
+| [cache-ip amber](components/cache-ip/amber-mesi-l1/) | In progress | [README](components/cache-ip/amber-mesi-l1/README.md) · [PRD](components/cache-ip/amber-mesi-l1/PRD.md) |
+| [dfx-ip](components/dfx-ip/) | Scaffold | [HAS](components/dfx-ip/docs/dfx_has/dfx_has_index.md) |
 | [retro_legacy_blocks](components/retro_legacy_blocks/) | Active | [PRD](components/retro_legacy_blocks/PRD.md) |
 | [misc](components/utility-ip/misc/) | — | [README](components/utility-ip/misc/README.md) |
 
@@ -234,5 +241,5 @@ When adding new projects:
 
 ---
 
-**Last Updated:** 2026-07-04
+**Last Updated:** 2026-10-12
 **Maintainer:** RTL Design Sherpa Project
