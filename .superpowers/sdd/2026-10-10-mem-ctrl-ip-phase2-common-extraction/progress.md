@@ -762,3 +762,26 @@ TASK-001 -> active (steps 1-2 done; CSR baseline + board remain).
 Book updates the agent made (common_mas ch05 training + pumice fub
 breakdown) align books with the new composition; remaining docs-tranche
 items unchanged.
+
+## 2026-10-11 (evening) — FPGA board lab rename: mem-ctrl-ip/pumice -> mem-ctrl-ip-ddr2
+
+Owner ruling (after agreeing the area is the DDR2 generation board lab, not
+pumice-specific): projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ is now
+projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/ (commit e23cb66b9). ~160
+files repointed (registry toml + filelist_registry.py DDR2_CHAR_FRAMEWORK_ROOT
++ env_python + pumice/scoria build scripts + dv + docs + vault tasks +
+handbook). Vault knowledge-note mirror renamed to match. Registry
+check+audit PASS; links 0 broken.
+
+LESSONS (two near-misses, both caught by gates/verification):
+1. Blind sed of 'mem-ctrl-ip/pumice' corrupted 40 files holding the OLD
+   pre-reorg shorthand path 'mem-ctrl-ip/pumice-ddr2-lpddr2' (no research-ip/)
+   into 'mem-ctrl-ip-ddr2-ddr2-lpddr2' - my post-sed grep only checked the
+   pattern, not the corruption. Repaired to the canonical research-ip path.
+2. First commit accidentally swept ~240k lines of OTHER campaigns' staged
+   artifacts (.superpowers sdd dirs, bridge task deletion). Caught by my own
+   post-commit git-show review; reset --soft, unstaged foreign paths,
+   re-committed clean at 297 files / 374 insertions.
+Also: relative links in a moved tree need depth fixes (dropped level);
+check_broken_links resolves FILE-RELATIVE ONLY + disk existence, and the
+vault repo-wide INDEX resolves through the knowledge-note MIRROR tree.
