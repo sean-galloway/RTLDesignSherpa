@@ -74,7 +74,36 @@ must be copied to `fpga/bitstream/ddr2_char.bit` before `make program`, else
 the OLD bit is flashed (this cost one full debug cycle — the 04:16 "fixed"
 program was the 21:31 stale bit). Verify `ls -la fpga/bitstream/` timestamps.
 
-## Working hypothesis for the open defect
+## Whole-harness sim repro (2026-10-12, harness testing per owner)
+
+Built `granite_char_uart_uart_tb_top` (clone of the pumice whole-harness UART
+TB) + filelist + `test_granite_char_uart.py::test_granite_uart_smoke` in
+`ddr2_char_framework/dv/`. Drives the REAL uart_axil_bridge + REAL char
+engines + DFISlavePHY at the exact A7 geometry (rate2 / 32b beat / x16 / BL4),
+host program byte-identical to the board's.
+
+- **REPRODUCES the wedge**: `wr=False, rd=False` (engines never finish), same
+  as silicon. The BFM-based `granite_top_geared` smoke passes at the identical
+  geometry — the real engines' AXI flavor is required to fail.
+- **A/B control**: pumice whole-harness smoke PASSES at the same geometry
+  (`test_ddr2_char_uart_smoke_rate2_beat32_x16`, added in the same session).
+  The defect is granite-seam-specific, not geometry-specific.
+- Wedge mechanics observed (per-cycle window recorder): engine GO lands
+  (APB write 0x400/0x1 observed at the macro's chargen port); the injector
+  latches the correct program (txn=4, blen=4) and drives AW x4 + held WVALID;
+  the controller accepts ~1 AW (AWREADY 0->1->0), W beats enter the W skid,
+  then AWREADY stays 0, the store never sets r_wr_valid, **zero DFI commands
+  ever**, and the run ends fully drained/idle with the engine in S_DONE
+  awaiting B's. No ragged-burst $error (splitter output is clean). No harness
+  watchdog reset. The AWs/W vanish between the axi-slave skid and the store.
+- The intake push path is comb-simple (meta FIFO rd_valid -> aw_push ->
+  pop on store ready), so the vanish needs cycle-level visibility: next step
+  is a VCD parse of the failing window (FST compiled but dump didn't land —
+  finish the waves plumbing) or an ILA on silicon at
+  u_axi4_plane/u_wr_intake (u_slave_wr skid, u_aw_meta_fifo, aw_push_*) +
+  u_entry_store — the owner pre-authorized ILA for this.
+
+## Working hypothesis for the open defect (updated)
 
 blen>=2 (split) sub-bursts at the 1-deep entry store: sub-entries neither
 issue to the DFI nor produce their sub-B, yet the store frees itself. The

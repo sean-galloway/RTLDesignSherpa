@@ -751,6 +751,14 @@ def test_ddr2_char_uart_pagehit_rate4_x16(request):
 def test_ddr2_char_uart_smoke_rate2_beat32(request):
     _run(request, "cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32)
 
+def test_ddr2_char_uart_smoke_rate2_beat32_x16(request):
+    """A7-exact geometry A/B for the granite bring-up: rate2 / 32b beat /
+    x16 device / BL4 — the shape that wedges granite on silicon. If pumice
+    passes here, the delta is granite's entry-store seam; if pumice fails
+    the same way, the shared write path at this geometry is the defect."""
+    _run(request, "cocotb_test_uart_smoke", dfi_rate=2, dram_beat_width=32,
+         dram_device_width=16)
+
 
 def test_ddr2_char_uart_multichunk_rate2_beat32(request):
     _run(request, "cocotb_test_uart_multichunk", dfi_rate=2, dram_beat_width=32)
