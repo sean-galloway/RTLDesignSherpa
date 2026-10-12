@@ -159,34 +159,52 @@ module amber_traffic_gen
     assign cpu_rsp_rd_ready = (r_fsm == FSM_WAIT_RSP);
 
     // ------------------------------------------------------------------
-    // AXIL write handling
+    // AXIL write handling: accept AW and W independently per AXI4-Lite spec.
     // ------------------------------------------------------------------
     logic        r_bvalid;
+    logic        r_aw_done;
+    logic        r_w_done;
+    logic [31:0] r_awaddr;
+    logic [31:0] r_wdata;
+    logic [3:0]  r_wstrb;
 
-    assign s_axil_awready = ~r_bvalid;
-    assign s_axil_wready  = ~r_bvalid;
+    assign s_axil_awready = ~r_bvalid & ~r_aw_done;
+    assign s_axil_wready  = ~r_bvalid & ~r_w_done;
     assign s_axil_bvalid  = r_bvalid;
     assign s_axil_bresp   = 2'b00;
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_bvalid      <= 1'b0;
+            r_aw_done     <= 1'b0;
+            r_w_done      <= 1'b0;
             r_ctrl        <= '0;
             r_seed        <= '0;
             r_addr_base   <= '0;
             r_addr_mask   <= '0;
             r_trans_count <= '0;
         end else begin
-            if (s_axil_awvalid && s_axil_awready && s_axil_wvalid && s_axil_wready) begin
-                r_bvalid <= 1'b1;
+            if (s_axil_awvalid && s_axil_awready) begin
+                r_aw_done <= 1'b1;
+                r_awaddr  <= s_axil_awaddr;
+            end
+            if (s_axil_wvalid && s_axil_wready) begin
+                r_w_done <= 1'b1;
+                r_wdata  <= s_axil_wdata;
+                r_wstrb  <= s_axil_wstrb;
+            end
+            if (r_aw_done && r_w_done && ~r_bvalid) begin
+                r_bvalid  <= 1'b1;
+                r_aw_done <= 1'b0;
+                r_w_done  <= 1'b0;
                 for (int b = 0; b < 4; b++) begin
-                    if (s_axil_wstrb[b]) begin
-                        case (s_axil_awaddr[5:2])
-                            CSR_CTRL:        r_ctrl[8*b +: 8]        <= s_axil_wdata[8*b +: 8];
-                            CSR_SEED:        r_seed[8*b +: 8]        <= s_axil_wdata[8*b +: 8];
-                            CSR_ADDR_BASE:   r_addr_base[8*b +: 8]   <= s_axil_wdata[8*b +: 8];
-                            CSR_ADDR_MASK:   r_addr_mask[8*b +: 8]   <= s_axil_wdata[8*b +: 8];
-                            CSR_TRANS_COUNT: r_trans_count[8*b +: 8] <= s_axil_wdata[8*b +: 8];
+                    if (r_wstrb[b]) begin
+                        case (r_awaddr[5:2])
+                            CSR_CTRL:        r_ctrl[8*b +: 8]        <= r_wdata[8*b +: 8];
+                            CSR_SEED:        r_seed[8*b +: 8]        <= r_wdata[8*b +: 8];
+                            CSR_ADDR_BASE:   r_addr_base[8*b +: 8]   <= r_wdata[8*b +: 8];
+                            CSR_ADDR_MASK:   r_addr_mask[8*b +: 8]   <= r_wdata[8*b +: 8];
+                            CSR_TRANS_COUNT: r_trans_count[8*b +: 8] <= r_wdata[8*b +: 8];
                             default: ;
                         endcase
                     end
@@ -266,10 +284,10 @@ module amber_traffic_gen
         end else begin
             case (r_fsm)
                 FSM_IDLE: begin
-                    r_done <= 1'b0;
                     if (r_ctrl[0]) begin
                         r_fsm       <= FSM_ISSUE;
                         r_busy      <= 1'b1;
+                        r_done      <= 1'b0;
                         r_lfsr      <= r_seed;
                         r_acc_count <= '0;
                         r_rsp_count <= '0;

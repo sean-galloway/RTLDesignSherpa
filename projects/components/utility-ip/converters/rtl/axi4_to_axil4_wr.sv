@@ -261,15 +261,17 @@ module axi4_to_axil4_wr #(
     // For single beats (awlen==0): Pass through directly for efficiency
     // One AXI write burst in flight at a time: set on AW acceptance, cleared
     // when its B is handed to the master. awready is low while set, so the
-    // set and clear cannot collide.
+    // set and clear cannot collide. Guard the set against simultaneous clear:
+    // a combinational AXIL response can return B in the same cycle as AW
+    // acceptance, and priority to set would leave outstanding stuck high.
     logic r_wr_outstanding;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_wr_outstanding <= 1'b0;
-        end else if (s_axi_awvalid && s_axi_awready) begin
-            r_wr_outstanding <= 1'b1;
         end else if (s_axi_bvalid && s_axi_bready) begin
             r_wr_outstanding <= 1'b0;
+        end else if (s_axi_awvalid && s_axi_awready) begin
+            r_wr_outstanding <= 1'b1;
         end
     )
 

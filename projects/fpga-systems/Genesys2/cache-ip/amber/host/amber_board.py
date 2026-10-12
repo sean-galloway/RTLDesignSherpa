@@ -84,9 +84,19 @@ class AmberBoard:
         self.ser.close()
 
     def _cmd(self, cmd: str) -> str:
-        """Send a command and return the response line."""
+        """Send a command and return the response line.
+
+        Tolerates stray boot/programming bytes (NULs, dots) that the
+        freshly-configured board emits on the UART before the bridge's
+        first response: skip lines with no alphanumeric payload.
+        """
         self.ser.write((cmd + "\n").encode())
-        resp = self.ser.readline().decode().strip()
+        for _ in range(4):
+            resp = self.ser.readline().decode(errors="replace").strip().strip("\x00").lstrip(".")
+            if resp:
+                break
+        else:
+            raise RuntimeError(f"no response to command: {cmd}")
         if resp == "ERR":
             raise RuntimeError(f"bridge ERR for command: {cmd}")
         return resp

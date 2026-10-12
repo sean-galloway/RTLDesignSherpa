@@ -216,15 +216,18 @@ module axi4_to_axil4_rd #(
     // AXI4-Lite AR channel assignment
     // One AXI read burst may be in flight at a time: set on AR acceptance,
     // cleared when its final beat is handed to the master. arready is low
-    // while this is set, so the set and clear cannot collide.
+    // while this is set, so the set and clear cannot collide. Guard the set
+    // against simultaneous clear: an AXIL slave that responds combinationally
+    // can accept AR and return R in the same cycle, and priority to set would
+    // leave outstanding stuck high forever.
     logic r_rd_outstanding;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_rd_outstanding <= 1'b0;
-        end else if (s_axi_arvalid && s_axi_arready) begin
-            r_rd_outstanding <= 1'b1;
         end else if (s_axi_rvalid && s_axi_rready && s_axi_rlast) begin
             r_rd_outstanding <= 1'b0;
+        end else if (s_axi_arvalid && s_axi_arready) begin
+            r_rd_outstanding <= 1'b1;
         end
     )
 

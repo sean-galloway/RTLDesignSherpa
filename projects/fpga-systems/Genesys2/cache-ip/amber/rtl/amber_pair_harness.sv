@@ -32,14 +32,43 @@ module amber_pair_harness
     parameter int AXI_USER_WIDTH = 1,
     parameter int MEM_DEPTH      = 131072,   // 512 KB / (BUS_WIDTH/8)
 
-    parameter int MON_N_PROFILE  = 32
+    parameter int MON_N_PROFILE  = 32,
+
+    // When 1, expose the bridge's AXIL host interface directly on the
+    // port list and bypass the uart_axil_bridge. This lets cocotb/house
+    // BFMs drive the generated bridge without bit-banging UART.
+    parameter bit USE_DIRECT_HOST = 1'b0
 ) (
     input  logic aclk,
     input  logic aresetn,
 
-    // UART host interface
+    // UART host interface (used when USE_DIRECT_HOST=0)
     input  logic i_uart_rx,
     output logic o_uart_tx,
+
+    // Direct AXIL4-Lite host interface (used when USE_DIRECT_HOST=1)
+    // Connects to the generated bridge_amber_axil host_adapter instead
+    // of the uart_axil_bridge. Signal names mirror the internal nets.
+    input  logic [31:0] host_axi_awaddr,
+    input  logic [2:0]  host_axi_awprot,
+    input  logic        host_axi_awvalid,
+    output logic        host_axi_awready,
+    input  logic [31:0] host_axi_wdata,
+    input  logic [3:0]  host_axi_wstrb,
+    input  logic        host_axi_wvalid,
+    output logic        host_axi_wready,
+    output logic [1:0]  host_axi_bresp,
+    output logic        host_axi_bvalid,
+    input  logic        host_axi_bready,
+
+    input  logic [31:0] host_axi_araddr,
+    input  logic [2:0]  host_axi_arprot,
+    input  logic        host_axi_arvalid,
+    output logic        host_axi_arready,
+    output logic [31:0] host_axi_rdata,
+    output logic [1:0]  host_axi_rresp,
+    output logic        host_axi_rvalid,
+    input  logic        host_axi_rready,
 
     // Top-level status
     output logic o_done,
@@ -68,35 +97,65 @@ module amber_pair_harness
     logic [1:0]  uart_rresp;
     logic        uart_rvalid, uart_rready;
 
-    uart_axil_bridge #(
-        .AXIL_ADDR_WIDTH (32),
-        .AXIL_DATA_WIDTH (32),
-        .CLKS_PER_BIT    (CLKS_PER_BIT)
-    ) u_uart (
-        .aclk     (aclk),
-        .aresetn  (aresetn),
-        .i_uart_rx(i_uart_rx),
-        .o_uart_tx(o_uart_tx),
-        .m_axil_awaddr (uart_awaddr),
-        .m_axil_awprot (uart_awprot),
-        .m_axil_awvalid(uart_awvalid),
-        .m_axil_awready(uart_awready),
-        .m_axil_wdata  (uart_wdata),
-        .m_axil_wstrb  (uart_wstrb),
-        .m_axil_wvalid (uart_wvalid),
-        .m_axil_wready (uart_wready),
-        .m_axil_bresp  (uart_bresp),
-        .m_axil_bvalid (uart_bvalid),
-        .m_axil_bready (uart_bready),
-        .m_axil_araddr (uart_araddr),
-        .m_axil_arprot (uart_arprot),
-        .m_axil_arvalid(uart_arvalid),
-        .m_axil_arready(uart_arready),
-        .m_axil_rdata  (uart_rdata),
-        .m_axil_rresp  (uart_rresp),
-        .m_axil_rvalid (uart_rvalid),
-        .m_axil_rready (uart_rready)
-    );
+    generate
+        if (USE_DIRECT_HOST) begin : gen_direct_host
+            // Bypass the UART bridge and expose the AXIL host interface
+            // directly to the port list for cocotb/house BFM control.
+            assign uart_awaddr  = host_axi_awaddr;
+            assign uart_awprot  = host_axi_awprot;
+            assign uart_awvalid = host_axi_awvalid;
+            assign host_axi_awready = uart_awready;
+
+            assign uart_wdata   = host_axi_wdata;
+            assign uart_wstrb   = host_axi_wstrb;
+            assign uart_wvalid  = host_axi_wvalid;
+            assign host_axi_wready = uart_wready;
+
+            assign host_axi_bresp  = uart_bresp;
+            assign host_axi_bvalid = uart_bvalid;
+            assign uart_bready     = host_axi_bready;
+
+            assign uart_araddr  = host_axi_araddr;
+            assign uart_arprot  = host_axi_arprot;
+            assign uart_arvalid = host_axi_arvalid;
+            assign host_axi_arready = uart_arready;
+
+            assign host_axi_rdata  = uart_rdata;
+            assign host_axi_rresp  = uart_rresp;
+            assign host_axi_rvalid = uart_rvalid;
+            assign uart_rready     = host_axi_rready;
+        end else begin : gen_uart_bridge
+            uart_axil_bridge #(
+                .AXIL_ADDR_WIDTH (32),
+                .AXIL_DATA_WIDTH (32),
+                .CLKS_PER_BIT    (CLKS_PER_BIT)
+            ) u_uart (
+                .aclk     (aclk),
+                .aresetn  (aresetn),
+                .i_uart_rx(i_uart_rx),
+                .o_uart_tx(o_uart_tx),
+                .m_axil_awaddr (uart_awaddr),
+                .m_axil_awprot (uart_awprot),
+                .m_axil_awvalid(uart_awvalid),
+                .m_axil_awready(uart_awready),
+                .m_axil_wdata  (uart_wdata),
+                .m_axil_wstrb  (uart_wstrb),
+                .m_axil_wvalid (uart_wvalid),
+                .m_axil_wready (uart_wready),
+                .m_axil_bresp  (uart_bresp),
+                .m_axil_bvalid (uart_bvalid),
+                .m_axil_bready (uart_bready),
+                .m_axil_araddr (uart_araddr),
+                .m_axil_arprot (uart_arprot),
+                .m_axil_arvalid(uart_arvalid),
+                .m_axil_arready(uart_arready),
+                .m_axil_rdata  (uart_rdata),
+                .m_axil_rresp  (uart_rresp),
+                .m_axil_rvalid (uart_rvalid),
+                .m_axil_rready (uart_rready)
+            );
+        end
+    endgenerate
 
     // ------------------------------------------------------------------
     // Generated bridge (1 host master -> 6 slaves)
@@ -1244,23 +1303,42 @@ module amber_harness_csr (
     logic [31:0] r_ctrl;
     assign o_ctrl = r_ctrl;
 
-    // Write path
-    logic r_bvalid;
-    assign s_axil_awready = ~r_bvalid;
-    assign s_axil_wready  = ~r_bvalid;
+    // Write path: accept AW and W independently per AXI4-Lite spec.
+    logic        r_bvalid;
+    logic        r_aw_done;
+    logic        r_w_done;
+    logic [31:0] r_awaddr;
+    logic [31:0] r_wdata;
+    logic [3:0]  r_wstrb;
+
+    assign s_axil_awready = ~r_bvalid & ~r_aw_done;
+    assign s_axil_wready  = ~r_bvalid & ~r_w_done;
     assign s_axil_bvalid  = r_bvalid;
     assign s_axil_bresp   = 2'b00;
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_bvalid <= 1'b0;
-            r_ctrl   <= '0;
+            r_bvalid  <= 1'b0;
+            r_aw_done <= 1'b0;
+            r_w_done  <= 1'b0;
+            r_ctrl    <= '0;
         end else begin
-            if (s_axil_awvalid && s_axil_awready && s_axil_wvalid && s_axil_wready) begin
-                r_bvalid <= 1'b1;
+            if (s_axil_awvalid && s_axil_awready) begin
+                r_aw_done <= 1'b1;
+                r_awaddr  <= s_axil_awaddr;
+            end
+            if (s_axil_wvalid && s_axil_wready) begin
+                r_w_done <= 1'b1;
+                r_wdata  <= s_axil_wdata;
+                r_wstrb  <= s_axil_wstrb;
+            end
+            if (r_aw_done && r_w_done && ~r_bvalid) begin
+                r_bvalid  <= 1'b1;
+                r_aw_done <= 1'b0;
+                r_w_done  <= 1'b0;
                 for (int b = 0; b < 4; b++) begin
-                    if (s_axil_wstrb[b] && (s_axil_awaddr[5:2] == HCSR_CTRL)) begin
-                        r_ctrl[8*b +: 8] <= s_axil_wdata[8*b +: 8];
+                    if (r_wstrb[b] && (r_awaddr[5:2] == HCSR_CTRL)) begin
+                        r_ctrl[8*b +: 8] <= r_wdata[8*b +: 8];
                     end
                 end
             end else if (s_axil_bvalid && s_axil_bready) begin
@@ -1269,8 +1347,9 @@ module amber_harness_csr (
         end
     )
 
-    // Read path
-    logic r_ar_done;
+    // Read path: capture AR address so the mux stays stable after handshake.
+    logic        r_ar_done;
+    logic [31:0] r_araddr;
     logic [31:0] r_rdata;
     assign s_axil_arready = ~r_ar_done;
     assign s_axil_rvalid  = r_ar_done;
@@ -1278,7 +1357,7 @@ module amber_harness_csr (
     assign s_axil_rdata   = r_rdata;
 
     always_comb begin
-        case (s_axil_araddr[5:2])
+        case (r_araddr[5:2])
             HCSR_CTRL:       r_rdata = r_ctrl;
             HCSR_STATUS:     r_rdata = i_status;
             HCSR_CYCLE_LO:   r_rdata = i_cycle_lo;
@@ -1291,9 +1370,11 @@ module amber_harness_csr (
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_ar_done <= 1'b0;
+            r_araddr  <= '0;
         end else begin
             if (s_axil_arvalid && s_axil_arready) begin
                 r_ar_done <= 1'b1;
+                r_araddr  <= s_axil_araddr;
             end else if (s_axil_rvalid && s_axil_rready) begin
                 r_ar_done <= 1'b0;
             end
