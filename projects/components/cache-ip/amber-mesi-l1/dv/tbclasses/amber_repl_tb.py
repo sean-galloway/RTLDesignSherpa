@@ -1,5 +1,5 @@
 """
-amber_repl testbench
+l1_repl testbench
 
 Replacement-policy engine: true LRU (default), FIFO, RANDOM (LFSR), and
 tree-PLRU. Direct pin-level stimulus -- the DUT has no bus interface, so no
@@ -11,7 +11,7 @@ MAS ch02_blocks/04 contract:
   LRU      rank array, 0 = most recent; victim has rank WAYS-1
   FIFO     per-set ring of way indices; victim = head, install writes the
            victim slot and advances (install way == victim way, the
-           amber_control guarantee -- MAS invariant)
+           l1_control guarantee -- MAS invariant)
   RANDOM   32-bit Fibonacci LFSR, taps (32,22,2,1), sample-then-advance on
            every repl_req
   TREE_PLRU binary tree of WAYS-1 bits per set, heap-indexed nodes, bits
@@ -19,7 +19,7 @@ MAS ch02_blocks/04 contract:
 
 Every cycle drives at most one of repl_hit / repl_update (mutually
 exclusive per MAS). Install operations use the victim way just sampled --
-that is what amber_control does on a fill.
+that is what l1_control does on a fill.
 
 Author: RTL Design Sherpa
 Created: 2026-10-06
@@ -129,7 +129,7 @@ class TreePlruModel:
 
 
 class AmberReplTB(TBBase):
-    """Drives amber_repl and scores the victim way against a policy model."""
+    """Drives l1_repl and scores the victim way against a policy model."""
 
     OP_COUNTS = {'gate': 200, 'func': 4000, 'full': 40000}
     MODELS = {'lru': LruModel, 'fifo': FifoModel,
@@ -257,7 +257,7 @@ class AmberReplTB(TBBase):
                 await self._op(set_idx, do_hit=True, op_idx=-1)
 
         n_ops = self.OP_COUNTS[self.TEST_LEVEL]
-        self.log.info(f"amber_repl: {n_ops} policy ops at {self.TEST_LEVEL}")
+        self.log.info(f"l1_repl: {n_ops} policy ops at {self.TEST_LEVEL}")
         for i in range(n_ops):
             if random.random() < 0.2:
                 await self._idle()

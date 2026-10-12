@@ -1,19 +1,19 @@
 # SPDX-License-Identifier: MIT
-# Formal verification Makefile for amber_snoop_resp
+# Formal verification Makefile for l1_snoop_resp
 # Workflow: sv2v flattens the REAL RTL -> sby reads plain Verilog (plain prep).
 #
-# Closure: amber_pkg + gaxi_skid_buffer + axi4ace_snoop_slave (the transport)
-# + amber_snoop_resp. The proof is about the shipped responder including its
+# Closure: l1_pkg + gaxi_skid_buffer + axi4ace_snoop_slave (the transport)
+# + l1_snoop_resp. The proof is about the shipped responder including its
 # skid-buffered ACE transport, not a fork.
 # Regenerate the flat file whenever the RTL changes.
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
 INC  := -I$(REPO_ROOT)/rtl/amba/includes
-PKGS := $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/includes/amber_pkg.sv
+PKGS := $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/includes/l1_pkg.sv
 SRCS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/rtl/amba/ace/axi4ace_snoop_slave.sv \
-        $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/fub/amber_snoop_resp.sv
+        $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/fub/l1_snoop_resp.sv
 TMPDIR := /tmp/formal_amber_snoop_resp
 
 .PHONY: prove cover all clean
@@ -34,7 +34,7 @@ amber_snoop_resp_flat.v: $(PKGS) $(SRCS)
 	# modules (without this the properties would be silently dropped).
 	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) $(addprefix $(TMPDIR)/,$(notdir $(SRCS))) | python3 ../specialize_params.py - $@ \
 	    --param ADDR_WIDTH=32 --param DATA_WIDTH=64 --param LINE_BYTES=64 \
-	    --module amber_snoop_resp
+	    --module l1_snoop_resp
 	@rm -rf $(TMPDIR)
 
 clean:
@@ -62,5 +62,5 @@ check-flat: .check_flat_tmp
 	@for f in $(SRCS); do cp $$f $(TMPDIR)/; done
 	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) $(addprefix $(TMPDIR)/,$(notdir $(SRCS))) | python3 ../specialize_params.py - $@ \
 	    --param ADDR_WIDTH=32 --param DATA_WIDTH=64 --param LINE_BYTES=64 \
-	    --module amber_snoop_resp
+	    --module l1_snoop_resp
 	@rm -rf $(TMPDIR)

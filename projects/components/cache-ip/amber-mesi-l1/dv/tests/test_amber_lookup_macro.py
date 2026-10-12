@@ -3,7 +3,7 @@ amber_lookup_macro test runner
 
 Macro composition suite 1 (Task 9.5): the lookup dataplane group --
 control + tag_array + data_array + repl -- pinned in isolation between the
-unit suites and amber_core. The DUT is the test wrapper
+unit suites and l1_core. The DUT is the test wrapper
 amber_lookup_macro_test (the group's landed FUBs composed exactly like the
 control harness: pure wiring + the array write-port / port-B muxes), with
 fill/drain/victim/snoop partner timing stubbed at the boundary (D-12).
@@ -77,8 +77,8 @@ def _run_cell(request, sets, ways, test_level):
     # dataplane), dedup'ing the shared package include order-preserving.
     verilog_sources = []
     includes = []
-    for fl in ('amber_control', 'amber_tag_array',
-               'amber_data_array', 'amber_repl'):
+    for fl in ('l1_control', 'l1_tag_array',
+               'l1_data_array', 'l1_repl'):
         srcs, incs = get_sources_from_filelist(
             repo_root=repo_root,
             filelist_path=f'{FILELIST_DIR}/{fl}.f')

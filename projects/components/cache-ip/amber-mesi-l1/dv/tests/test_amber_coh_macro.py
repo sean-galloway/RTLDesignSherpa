@@ -5,14 +5,14 @@ Macro composition suite 4 (Task 9.5): the coherence/snoop loop group --
 control + snoop_resp + pending_fill_bypass + victim -- the promoted Task 7
 ad-hoc composition (amber_snoop_resp_th + real_control_loop) as a named
 macro regression cell. The DUT is the test wrapper amber_coh_macro_test:
-REAL amber_control (with the pending_fill_bypass / victim leaves) + landed
-tag/data/repl arrays + REAL amber_snoop_resp on the house
+REAL l1_control (with the pending_fill_bypass / victim leaves) + landed
+tag/data/repl arrays + REAL l1_snoop_resp on the house
 axi4ace_snoop_slave transport; fill/drain partner timing stubbed (D-12).
 Snoops enter at the ACE boundary only; the ctrl_* snoop handshake is
 internal to the wrapper and observed through taps.
 
 The Task 7 found-and-fixed pins travel here: EWriteHitPromotes (HIT_WR
-E->M promotion one-hot, amber_control.sv:944) and the cross-set way+tag
+E->M promotion one-hot, l1_control.sv:944) and the cross-set way+tag
 collision stale-grant checks (sn_stale_gnt set-narrowing, :531-535) via
 the real_control_loop stale-victim discrimination.
 
@@ -84,8 +84,8 @@ def _run_cell(request, sets, ways, test_level):
     # order-preserving -- the same set the promoted Task 7 suite uses.
     verilog_sources = []
     includes = []
-    for fl in ('amber_snoop_resp', 'amber_control',
-               'amber_tag_array', 'amber_data_array', 'amber_repl'):
+    for fl in ('l1_snoop_resp', 'l1_control',
+               'l1_tag_array', 'l1_data_array', 'l1_repl'):
         srcs, incs = get_sources_from_filelist(
             repo_root=repo_root,
             filelist_path=f'{FILELIST_DIR}/{fl}.f')

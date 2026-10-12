@@ -83,12 +83,12 @@ from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_core_tb impor
     _parse_packet,
 )
 
-# ctrl_state_t codes (amber_pkg)
+# ctrl_state_t codes (l1_pkg)
 ST_IDLE, ST_INIT, ST_LOOKUP, ST_HIT_RD, ST_HIT_WR, ST_MISS_VICTIM, \
     ST_MISS_DRAIN, ST_MISS_FILL, ST_FILL_WRITE, ST_REPLAY, ST_SNOOP, \
     ST_ERROR = range(0xC)
 
-# MonBus event codes (amber_pkg.amber_event_t)
+# MonBus event codes (l1_pkg.amber_event_t)
 EV_HIT, EV_MISS, EV_SNOOP, EV_EVICT, EV_TRANSITION, \
     EV_FILL_START, EV_FILL_END, EV_DRAIN_START, EV_DRAIN_END, \
     EV_DROPPED = range(0xA)
@@ -98,7 +98,7 @@ EV_NAMES = {EV_HIT: 'HIT', EV_MISS: 'MISS', EV_SNOOP: 'SNOOP',
             EV_DRAIN_START: 'DRAIN_START', EV_DRAIN_END: 'DRAIN_END',
             EV_DROPPED: 'DROPPED'}
 
-# amber_ace_req_t encodings (amber_pkg)
+# amber_ace_req_t encodings (l1_pkg)
 ACE_READ_SHARED, ACE_READ_UNIQUE, ACE_CLEAN_UNIQUE = 0, 1, 2
 ACE_WRITE_BACK = 4
 
@@ -506,7 +506,7 @@ class AmberPairRigTB(TBBase):
                         and int(getattr(d, f'mon{c}_ready').value):
                     raw = int(getattr(d, f'mon{c}_packet').value)
                     p = _parse_packet(raw)
-                    if p['unit_id'] == 1:   # amber_monlite stream only
+                    if p['unit_id'] == 1:   # l1_monlite stream only
                         self.caches[c].pkt_counts[p['event_code']] += 1
                         self._mon_pkts[c].append((self.cyc, p))
                         if p['event_code'] == EV_DROPPED:

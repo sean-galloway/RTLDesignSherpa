@@ -6,8 +6,8 @@
 //
 // Module: amber_frontend_th
 // Purpose:
-//   Test harness for the amber_cpu_frontend bring-up (Task 8). The DUT
-//   closure is amber_cpu_frontend + REAL amber_control + the landed
+//   Test harness for the l1_cpu_frontend bring-up (Task 8). The DUT
+//   closure is l1_cpu_frontend + REAL l1_control + the landed
 //   tag/data/repl arrays: CPU requests enter through the GAXI
 //   cpu_req_wr_*/cpu_rsp_rd_* pins (house GAXI BFM drives them), the
 //   frontend translates to the control req_valid/ctrl_rsp_* contract, and
@@ -27,7 +27,7 @@
 // Module: amber_frontend_th
 //==============================================================================
 // Description:
-//   Harness closure for amber_cpu_frontend unit bring-up. amber_core (a
+//   Harness closure for l1_cpu_frontend unit bring-up. l1_core (a
 //   later task) is the shipping integrator; this harness wires the frontend
 //   to the real control + arrays so the GAXI handshake, the request
 //   latch/replay visibility, and the D-6 response staging are scored
@@ -41,17 +41,17 @@
 //   GAXI request and the response staging FIFO's read side.
 //
 //------------------------------------------------------------------------------
-// Parameters: same geometry contract as the arrays (amber_pkg defaults).
+// Parameters: same geometry contract as the arrays (l1_pkg defaults).
 //------------------------------------------------------------------------------
 //
 // Notes:
 //   - No resets or registers here beyond the DUTs: pure wiring + muxes.
-//   - The response staging FIFO lives inside amber_cpu_frontend (D-6).
+//   - The response staging FIFO lives inside l1_cpu_frontend (D-6).
 //
 //==============================================================================
 
 module amber_frontend_th
-    import amber_pkg::*;
+    import l1_pkg::*;
 #(
     parameter int ADDR_WIDTH = AMBER_ADDR_WIDTH,
     parameter int SETS       = AMBER_SETS,
@@ -105,7 +105,7 @@ module amber_frontend_th
     input  logic                       fill_beat_valid,
     input  logic [BEAT_INDEX_WIDTH-1:0] fill_beat_idx,
 
-    // snoop responder core-facing handshake (amber_snoop_resp timing model)
+    // snoop responder core-facing handshake (l1_snoop_resp timing model)
     input  logic                      snoop_req,
     input  logic [2:0]                snoop_type,
     input  logic [ADDR_WIDTH-1:0]     snoop_addr,
@@ -161,7 +161,7 @@ module amber_frontend_th
     logic [STRB_W-1:0]         fe_req_be;
     logic [BUS_WIDTH-1:0]      fe_req_wdata;
 
-    amber_cpu_frontend #(
+    l1_cpu_frontend #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
         .WAYS       (WAYS),
@@ -214,7 +214,7 @@ module amber_frontend_th
     logic [WAY_INDEX_WIDTH-1:0]            ctrl_repl_hit_way;
     logic                                  ctrl_snoop_safe_nc;
 
-    amber_control #(
+    l1_control #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
         .WAYS       (WAYS),
@@ -289,7 +289,7 @@ module amber_frontend_th
 
     assign tag_b_set_muxed = ctrl_tag_b_req ? ctrl_tag_b_set : tag_b_set;
 
-    amber_tag_array #(
+    l1_tag_array #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
         .WAYS       (WAYS),
@@ -335,7 +335,7 @@ module amber_frontend_th
         end
     end
 
-    amber_data_array #(
+    l1_data_array #(
         .SETS       (SETS),
         .WAYS       (WAYS),
         .LINE_BYTES (LINE_BYTES),
@@ -355,7 +355,7 @@ module amber_frontend_th
         .wr_be         (data_wr_be)
     );
 
-    amber_repl #(
+    l1_repl #(
         .SETS  (SETS),
         .WAYS  (WAYS)
     ) u_repl (

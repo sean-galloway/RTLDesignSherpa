@@ -1,10 +1,10 @@
 """
-amber_snoop_resp test runner
+l1_snoop_resp test runner
 
 ACE snoop responder across the geometry grid (proposed 64-bit bus / 64 B
 lines and a narrow 32-bit bus / 32 B lines, both 8 fill beats), closed loop
 with the real control (Task 7): the DUT is the harness amber_snoop_resp_th
-(REAL amber_control + landed tag/data/repl arrays + REAL amber_snoop_resp on
+(REAL l1_control + landed tag/data/repl arrays + REAL l1_snoop_resp on
 the house axi4ace_snoop_slave transport). The AXI4ACESnoopMaster drives the
 ACE pins; the TB keeps random CPU traffic flowing on the second port.
 
@@ -47,7 +47,7 @@ GEOMS = [
 ]
 
 DUT_TOP = 'amber_snoop_resp_th'
-TEST_PREFIX = 'amber_snoop_resp'
+TEST_PREFIX = 'l1_snoop_resp'
 
 
 @cocotb.test(timeout_time=600, timeout_unit="ms")
@@ -57,7 +57,7 @@ async def cocotb_test_amber_snoop_resp(dut):
     ok = await tb.run()
     report = tb.get_test_report()
     tb.log.info(f"Test report: {report}")
-    assert ok, f"amber_snoop_resp: {report['mismatches']} mismatches in {report['checks']} checks"
+    assert ok, f"l1_snoop_resp: {report['mismatches']} mismatches in {report['checks']} checks"
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
@@ -72,8 +72,8 @@ def test_amber_snoop_resp(request, addr_width, data_width, line_bytes, test_leve
     # order-preserving.
     verilog_sources = []
     includes = []
-    for fl in ('amber_snoop_resp', 'amber_control',
-               'amber_tag_array', 'amber_data_array', 'amber_repl'):
+    for fl in ('l1_snoop_resp', 'l1_control',
+               'l1_tag_array', 'l1_data_array', 'l1_repl'):
         srcs, incs = get_sources_from_filelist(
             repo_root=repo_root,
             filelist_path=f'{FILELIST_DIR}/{fl}.f')

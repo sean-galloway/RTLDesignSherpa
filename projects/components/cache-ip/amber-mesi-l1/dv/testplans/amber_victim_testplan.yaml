@@ -1,13 +1,13 @@
-# Testplan for amber_victim (depth-1 victim buffer, MAS ch02_blocks/05).
-# The leaf is integrated inside amber_control (loaded by the
+# Testplan for l1_victim (depth-1 victim buffer, MAS ch02_blocks/05).
+# The leaf is integrated inside l1_control (loaded by the
 # gather-complete strobe in CTRL_MISS_VICTIM, cleared on the drain-done
-# pulse) and is exercised through the amber_control suite; Task 13 proves
+# pulse) and is exercised through the l1_control suite; Task 13 proves
 # it standalone (formal). The integration scenarios below name where each
 # contract point is pinned.
 
-module: amber_victim
+module: l1_victim
 rtl_files:
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_victim.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_victim.sv
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_control.py
 
@@ -31,7 +31,7 @@ parameters:
 
 scenarios:
   - name: VictimLoadAndClear
-    level: func (via amber_control)
+    level: func (via l1_control)
     what: >
       victim_load arms {addr, data, valid} from the staged payload in
       CTRL_MISS_VICTIM (DECISION D-5 gather-complete strobe); victim_clear
@@ -44,7 +44,7 @@ scenarios:
       pattern as pf_clear); recorded for Task 14.
     status: covered
   - name: VictimLoadWhileBusyNever
-    level: all (via amber_control)
+    level: all (via l1_control)
     what: >
       Review Focus 2, depth-1 safety: the buffer is NEVER loaded while
       busy. The DUT-side guarantee is structural -- the blocking pipeline
@@ -59,7 +59,7 @@ scenarios:
       valid (TB defense-in-depth, mirroring BypassNeverAnswersInvalid).
     status: covered
   - name: VictimSnoopBypass
-    level: func (via amber_control)
+    level: func (via l1_control)
     what: >
       Review Focus 3: a snoop for the victim line while the drain is
       outstanding is answered at the M reference (SINK_WB_ACK; gem5
@@ -80,7 +80,7 @@ scenarios:
       window cycle-exactly and the match is combinational on valid.
     status: covered
   - name: VictimGatherSnoopPriority
-    level: func (via amber_control)
+    level: func (via l1_control)
     what: >
       Review Focus 9: the multi-cycle victim gather on data-array port A
       never grants a snoop mid-beat. SnoopPriorityDuringGather holds a
@@ -91,7 +91,7 @@ scenarios:
       (safe-boundary grant policy, control-side).
     status: covered
   - name: VictimDirtyOnly
-    level: func (via amber_control)
+    level: func (via l1_control)
     what: >
       Clean victims never touch the buffer: the valid window model of the
       EVERY-CYCLE invariant stays empty across every clean-victim
@@ -108,7 +108,7 @@ gaps:
     values, the load-while-busy ignore path driven deliberately) is
     deferred to Task 13, which proves the leaf standalone per the DECISION
     D-2 pattern; the register is fully exercised in integration by the
-    amber_control suite above. The load-while-busy ignore path is not
+    l1_control suite above. The load-while-busy ignore path is not
     stimulus-reachable in integration (the invariant proves the request
     never arises), so it lands in the Task 13 proof contract.
   - >

@@ -5,14 +5,14 @@
 # https://github.com/seangalloway/RTLDesignSherpa
 #
 # Module: AmberFrontendTB
-# Purpose: Testbench for the amber_cpu_frontend GAXI slave (Task 8, MAS
+# Purpose: Testbench for the l1_cpu_frontend GAXI slave (Task 8, MAS
 # ch02_blocks/09 + ch03_interfaces/01)
 
 """
-amber_cpu_frontend testbench
+l1_cpu_frontend testbench
 
 CPU-facing GAXI slave bring-up (Task 8): the DUT closure is the harness
-amber_frontend_th -- REAL amber_cpu_frontend + REAL amber_control + the
+amber_frontend_th -- REAL l1_cpu_frontend + REAL l1_control + the
 landed tag/data/repl arrays. CPU requests enter through the GAXI
 cpu_req_wr_* channel (house GAXIMaster BFM drives it, packed
 {addr, we, be, wdata} per MAS ch02/09) and responses are collected on the
@@ -22,7 +22,7 @@ the memory-side beats, drain is a fixed latency, the snoop responder
 contract is modeled on the snoop_req/ctrl_crresp/cdvalid pins).
 
 What this suite pins (the frontend's own contract; control behavior is
-proven by the amber_control suite):
+proven by the l1_control suite):
   * request latch/replay visibility: exactly one control-side req_valid
     pulse per accepted GAXI request, fields stable from accept to
     response; cpu_req_wr_ready only while control is in CTRL_IDLE with
@@ -33,7 +33,7 @@ proven by the amber_control suite):
     request order (blocking pipeline)
   * data integrity through the closure: read responses return the
     memory-side line content (fill snapshot + write merges); write
-    responses echo the request payload (amber_control rsp contract)
+    responses echo the request payload (l1_control rsp contract)
   * the snoop-priority detour is invisible at the GAXI boundary: one
     request, one response, correct data
   * a miss (fill + replay) looks like a single GAXI transaction
@@ -66,7 +66,7 @@ from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
 from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
 
 
-# ctrl_state_t codes (amber_pkg) -- kept textual for log messages
+# ctrl_state_t codes (l1_pkg) -- kept textual for log messages
 ST_IDLE, ST_INIT, ST_LOOKUP, ST_HIT_RD, ST_HIT_WR, ST_MISS_VICTIM, \
     ST_MISS_DRAIN, ST_MISS_FILL, ST_FILL_WRITE, ST_REPLAY, ST_SNOOP, \
     ST_ERROR = range(0xC)
@@ -79,7 +79,7 @@ STATE_NAMES = {
     ST_ERROR: 'ERROR',
 }
 
-# amber_ace_req_t encodings (amber_pkg): fill request classes
+# amber_ace_req_t encodings (l1_pkg): fill request classes
 ACE_READ_SHARED, ACE_READ_UNIQUE, ACE_CLEAN_UNIQUE = 0, 1, 2
 
 # partner stub timing knobs (handshake timing only, D-12)
@@ -88,7 +88,7 @@ DRAIN_LATENCY = None         # set per-geometry: FILL_BEATS + 2
 
 
 class AmberFrontendTB(TBBase):
-    """Scores amber_cpu_frontend's GAXI contract through the real closure."""
+    """Scores l1_cpu_frontend's GAXI contract through the real closure."""
 
     FULL_TXN = {'gate': 0, 'func': 0, 'full': 2500}
     RSP_TIMEOUT_CYCLES = 1000
@@ -373,7 +373,7 @@ class AmberFrontendTB(TBBase):
                 self.stub_victim_way = int(self.dut.repl_victim_way.value)
 
     async def _fill_stub(self):
-        """amber_fill timing model: on fill_start, deliver FILL_BEATS beats
+        """l1_fill timing model: on fill_start, deliver FILL_BEATS beats
         into the data array (read-data classes only -- CLEAN_UNIQUE carries
         no data), strobing each beat index to control, then fill_done after
         FILL_DONE_DELAY cycles."""
@@ -409,7 +409,7 @@ class AmberFrontendTB(TBBase):
             d.fill_done.value = 0
 
     async def _drain_stub(self):
-        """amber_drain timing model: drain_start -> fixed-latency burst ->
+        """l1_drain timing model: drain_start -> fixed-latency burst ->
         drain_done pulse."""
         d = self.dut
         while True:
@@ -482,7 +482,7 @@ class AmberFrontendTB(TBBase):
         return accept_cyc, rsp_cyc, rsp_data
 
     async def _snoop(self, snoop_type, addr, label=''):
-        """Model the amber_snoop_resp core-facing contract: req held until
+        """Model the l1_snoop_resp core-facing contract: req held until
         ready; CD beats consumed (cd_ready_in is tied 1)."""
         d = self.dut
         await self._negedge_settled()

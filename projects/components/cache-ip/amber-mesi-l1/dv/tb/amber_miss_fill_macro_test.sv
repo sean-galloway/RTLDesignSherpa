@@ -7,8 +7,8 @@
 // Module: amber_miss_fill_macro_test
 // Purpose:
 //   Macro composition suite 2 (Task 9.5): the MISS/FILL PATH interaction
-//   group -- amber_control (with the pending_fill_bypass leaf) + the REAL
-//   amber_fill engine -- pinned in isolation. The fill engine closes with
+//   group -- l1_control (with the pending_fill_bypass leaf) + the REAL
+//   l1_fill engine -- pinned in isolation. The fill engine closes with
 //   its house axi4_master_rd transport (DECISION D3, the fill/drain unit
 //   rig's closure) and the wrapper exposes the transport's m_axi AR/R
 //   memory side at the top for the cocotb TB's AXI4 slave responder.
@@ -29,7 +29,7 @@
 //==============================================================================
 // Description:
 //   Test-only wrapper (approved `_test` suffix) for the miss/fill macro
-//   cell. amber_core (landed, Task 9) is the shipping integrator; this
+//   cell. l1_core (landed, Task 9) is the shipping integrator; this
 //   wrapper puts the REAL fill orchestration in the loop while the rest
 //   of the partner set stays stubbed, so the cross-block pins this group
 //   owns run against the engine instead of a timing model:
@@ -50,7 +50,7 @@
 //   the landed core idiom verbatim: fill beats install into the victim way
 //   at {fill set, beat idx}, with the install way tapped READ-ONLY from
 //   u_control.victim_way_q -- the same sanctioned hierarchical reference
-//   amber_core documents (the wrapper never LHS-assigns DUT internals).
+//   l1_core documents (the wrapper never LHS-assigns DUT internals).
 //
 //   Pure wiring + the landed muxes; the only registers belong to the
 //   DUTs. The scoreboard observes the muxed array write ports, the repl
@@ -69,7 +69,7 @@
 //==============================================================================
 
 module amber_miss_fill_macro_test
-    import amber_pkg::*;
+    import l1_pkg::*;
 #(
     parameter int ADDR_WIDTH = AMBER_ADDR_WIDTH,
     parameter int SETS       = AMBER_SETS,
@@ -100,7 +100,7 @@ module amber_miss_fill_macro_test
     output logic [BUS_WIDTH-1:0]      ctrl_rsp_data,
 
     // snoop responder core-facing handshake (stubbed at this boundary;
-    // the TB drives the amber_snoop_resp core-facing contract per D-12)
+    // the TB drives the l1_snoop_resp core-facing contract per D-12)
     input  logic                      snoop_req,
     input  logic [2:0]                snoop_type,
     input  logic [ADDR_WIDTH-1:0]     snoop_addr,
@@ -219,7 +219,7 @@ module amber_miss_fill_macro_test
     // data array (beat payload, muxed against control's CPU merge)
     logic [BUS_WIDTH-1:0]                  fill_beat_data;
 
-    amber_control #(
+    l1_control #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
         .WAYS       (WAYS),
@@ -289,7 +289,7 @@ module amber_miss_fill_macro_test
     );
 
     // ------------------------------------------------------------------
-    // The REAL fill path: amber_fill -> axi4_master_rd -> m_axi AR/R.
+    // The REAL fill path: l1_fill -> axi4_master_rd -> m_axi AR/R.
     // ------------------------------------------------------------------
     logic [7:0]          fill_arid;
     logic [ADDR_WIDTH-1:0] fill_araddr;
@@ -312,7 +312,7 @@ module amber_miss_fill_macro_test
     logic                fill_rvalid;
     logic                fill_rready;
 
-    amber_fill #(
+    l1_fill #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
         .LINE_BYTES (LINE_BYTES),
@@ -409,7 +409,7 @@ module amber_miss_fill_macro_test
 
     assign tag_b_set_muxed = ctrl_tag_b_req ? ctrl_tag_b_set : tag_b_set;
 
-    amber_tag_array #(
+    l1_tag_array #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
         .WAYS       (WAYS),
@@ -433,7 +433,7 @@ module amber_miss_fill_macro_test
     // Data-array write-port mux: control (CPU merge) wins over fill beats.
     // The fill beats install into the victim way at {fill set, beat idx};
     // the install way exists only inside the control context, tapped
-    // READ-ONLY from u_control.victim_way_q (the landed amber_core idiom;
+    // READ-ONLY from u_control.victim_way_q (the landed l1_core idiom;
     // repl_victim_way is NOT a substitute -- the RANDOM policy advances at
     // the MISS_VICTIM request and is unstable across the boundary).
     // ------------------------------------------------------------------
@@ -462,7 +462,7 @@ module amber_miss_fill_macro_test
         end
     end
 
-    amber_data_array #(
+    l1_data_array #(
         .SETS       (SETS),
         .WAYS       (WAYS),
         .LINE_BYTES (LINE_BYTES),
@@ -482,7 +482,7 @@ module amber_miss_fill_macro_test
         .wr_be         (data_wr_be)
     );
 
-    amber_repl #(
+    l1_repl #(
         .SETS  (SETS),
         .WAYS  (WAYS)
     ) u_repl (

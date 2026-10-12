@@ -1,5 +1,5 @@
 """
-amber_control testbench
+l1_control testbench
 
 Blocking-pipeline control FUB bring-up (Task 3: CPU path), extended with
 snoop-during-fill service (Task 4): the pending-fill bypass (MAS ch02/02)
@@ -8,7 +8,7 @@ gem5-derived oracle (dv/golden/amber_fsm_oracle.py). The harness
 (dv/tb/amber_control_th.sv) wires the DUT to the landed tag/data/repl arrays;
 this TB models the partner handshakes (frontend/fill/drain/victim/snoop)
 timing-only per D-12 -- never protocol. The snoop driver models the
-amber_snoop_resp core-facing contract: req held until ready, CRRESP sampled
+l1_snoop_resp core-facing contract: req held until ready, CRRESP sampled
 at the grant cycle, CD beats consumed on cdvalid && cdready.
 
 Golden models carried here (independent copies, kmap-TB rule: no shared code
@@ -18,7 +18,7 @@ with the DUT):
                              by CPU writes (D-4 merge on the replayed hit)
   per-line MESI state        self.line_state -- advanced with oracle.step()
   (set, way) -> line tag     self.tags -- eviction accounting
-  true-LRU policy            LruModel -- reset + update parity with amber_repl
+  true-LRU policy            LruModel -- reset + update parity with l1_repl
 
 Snoop classes (Task 4 brief):
   SnoopPendingFillBypass       pre-RLAST snoop for the pending line:
@@ -42,8 +42,8 @@ Directed pins:
   SnoopStaleVictimMidFill      snoop for the already-drained victim during
                                the fill: no-transfer (WB completed, M_I x
                                WB_Ack -> I, .sm:1315)
-  VictimBufferHandshake        the depth-1 leaf (amber_victim inside
-                               amber_control, observed hierarchically):
+  VictimBufferHandshake        the depth-1 leaf (l1_victim inside
+                               l1_control, observed hierarchically):
                                valid sets the cycle after the victim_load
                                strobe, busy/empty polarity, addr/data held
                                stable while valid, clear at drain_done
@@ -98,7 +98,7 @@ from projects.components.cache_ip.amber_mesi_l1.dv.golden.amber_fsm_oracle impor
 
 
 # ---------------------------------------------------------------------------
-# ctrl_state_t codes (amber_pkg) -- kept textual for log messages
+# ctrl_state_t codes (l1_pkg) -- kept textual for log messages
 # ---------------------------------------------------------------------------
 ST_IDLE, ST_INIT, ST_LOOKUP, ST_HIT_RD, ST_HIT_WR, ST_MISS_VICTIM, \
     ST_MISS_DRAIN, ST_MISS_FILL, ST_FILL_WRITE, ST_REPLAY, ST_SNOOP, \
@@ -115,7 +115,7 @@ STATE_NAMES = {
 # pkg cache_state_t encodings
 STATE_CODE = {'I': 0x0, 'S': 0x1, 'E': 0x2, 'M': 0x3}
 
-# amber_ace_req_t encodings (amber_pkg): fill request classes
+# amber_ace_req_t encodings (l1_pkg): fill request classes
 ACE_READ_SHARED, ACE_READ_UNIQUE, ACE_CLEAN_UNIQUE = 0, 1, 2
 
 # partner stub timing knobs (handshake timing only, D-12)
@@ -129,13 +129,13 @@ ORACLE_REQ_TO_ACE = {
     'CLEAN_UNIQUE': ACE_CLEAN_UNIQUE,
 }
 
-# CRRESP bit positions (IHI0022 order, amber_pkg localparams)
+# CRRESP bit positions (IHI0022 order, l1_pkg localparams)
 CRRESP_DT = 0
 
 
 class LruModel:
     """Rank array parity model: 0 = MRU, WAYS-1 = victim; hits and installs
-    both update (matches amber_repl LRU reset + update semantics)."""
+    both update (matches l1_repl LRU reset + update semantics)."""
 
     def __init__(self, sets, ways):
         self.sets, self.ways = sets, ways
@@ -157,7 +157,7 @@ class LruModel:
 
 
 class AmberControlTB(TBBase):
-    """Scores amber_control's observable behavior against the oracle."""
+    """Scores l1_control's observable behavior against the oracle."""
 
     FULL_TXN = {'gate': 0, 'func': 0, 'full': 10_000}
     RSP_TIMEOUT_CYCLES = 500
@@ -449,8 +449,8 @@ class AmberControlTB(TBBase):
     async def _victim_invariant(self):
         """VictimLoadWhileBusyNever (Review Focus 2): asserted EVERY cycle.
 
-        Tracks the depth-1 victim buffer (amber_victim, instantiated inside
-        amber_control as u_victim) from the hierarchical taps and scores,
+        Tracks the depth-1 victim buffer (l1_victim, instantiated inside
+        l1_control as u_victim) from the hierarchical taps and scores,
         each observable cycle:
           - victim_busy == victim_valid, victim_empty == !victim_valid;
           - valid matches the tap-event model: sets the cycle AFTER a
@@ -501,7 +501,7 @@ class AmberControlTB(TBBase):
                 self.stub_victim_way = int(self.dut.repl_victim_way.value)
 
     async def _fill_stub(self):
-        """amber_fill timing model: on fill_start, deliver FILL_BEATS beats
+        """l1_fill timing model: on fill_start, deliver FILL_BEATS beats
         into the data array (read-data class only -- CLEAN_UNIQUE carries no
         data), strobing each beat index to control (pf_data_valid update,
         MAS ch02/06), then fill_done after FILL_DONE_DELAY cycles. Drives
@@ -539,7 +539,7 @@ class AmberControlTB(TBBase):
             d.fill_done.value = 0
 
     async def _drain_stub(self):
-        """amber_drain timing model: drain_start -> fixed-latency burst ->
+        """l1_drain timing model: drain_start -> fixed-latency burst ->
         drain_done pulse. Protocol (the writeback itself) is scoreboard."""
         d = self.dut
         while True:
@@ -667,7 +667,7 @@ class AmberControlTB(TBBase):
                 self.slot_state[(p['set'], way)] = dec
 
     # ------------------------------------------------------------------
-    # snoop driver: models the amber_snoop_resp core-facing contract
+    # snoop driver: models the l1_snoop_resp core-facing contract
     # ------------------------------------------------------------------
     async def _snoop(self, line, snoop, label, exp_ref=None, exp_crresp=None,
                      exp_line=None, cd_hold=0, exp_tag_write=None,
@@ -1733,7 +1733,7 @@ class AmberControlTB(TBBase):
 
     async def _victim_buffer_handshake(self):
         # VictimBufferHandshake: cycle-exact leaf observation. The buffer
-        # (amber_victim inside amber_control, tapped hierarchically) sets
+        # (l1_victim inside l1_control, tapped hierarchically) sets
         # valid the cycle after the victim_load strobe, holds addr/data
         # stable through the drain window, and clears at drain_done. The
         # EVERY-CYCLE invariant owns the exhaustive claim; this directed

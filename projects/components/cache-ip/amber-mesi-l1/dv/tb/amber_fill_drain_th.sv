@@ -6,9 +6,9 @@
 //
 // Module: amber_fill_drain_th
 // Purpose:
-//   Test harness for the amber_fill / amber_drain unit bring-up (Task 6).
-//   Closes each engine with its house AXI4 master wrapper -- amber_fill ->
-//   axi4_master_rd, amber_drain -> axi4_master_wr -- and exposes the
+//   Test harness for the l1_fill / l1_drain unit bring-up (Task 6).
+//   Closes each engine with its house AXI4 master wrapper -- l1_fill ->
+//   axi4_master_rd, l1_drain -> axi4_master_wr -- and exposes the
 //   wrappers' m_axi memory sides at the top so the cocotb TB can attach the
 //   house AXI4 slave responders (create_axi4_slave_rd/wr) with a shared
 //   memory model. Pure wiring; no registers, no logic.
@@ -25,7 +25,7 @@
 // Module: amber_fill_drain_th
 //==============================================================================
 // Description:
-//   amber_core (a later task) is the shipping integrator; this harness puts
+//   l1_core (a later task) is the shipping integrator; this harness puts
 //   each sequencing engine in front of its real transport wrapper so the
 //   unit tests score the fub_axi_* contract the engines actually drive
 //   (DECISION D3): the wrapper skids (AR/R on the read side, AW/W/B on the
@@ -33,7 +33,7 @@
 //   the m_axi pins while the MAS ch03/02 waveform is checked at the
 //   wrapper's fub pins (hierarchically tapped by the TB).
 //
-//   The drain-side victim payload pins model amber_control's staged payload
+//   The drain-side victim payload pins model l1_control's staged payload
 //   outputs (ctrl_victim_addr_in / ctrl_victim_data_in), which hold stable
 //   for the whole drain window by construction; the TB drives them like the
 //   control FSM would.
@@ -50,7 +50,7 @@
 //==============================================================================
 
 module amber_fill_drain_th
-    import amber_pkg::*;
+    import l1_pkg::*;
 #(
     parameter int ADDR_WIDTH = AMBER_ADDR_WIDTH,
     parameter int SETS       = AMBER_SETS,
@@ -65,7 +65,7 @@ module amber_fill_drain_th
     input  logic clk,
     input  logic rst_n,
 
-    // amber_control-facing fill handshake (the landed binding port group)
+    // l1_control-facing fill handshake (the landed binding port group)
     input  logic                        fill_start,
     input  logic [ADDR_WIDTH-1:0]       fill_addr,
     input  logic [2:0]                  fill_req_class,
@@ -75,7 +75,7 @@ module amber_fill_drain_th
     output logic [BEAT_INDEX_WIDTH-1:0] fill_beat_idx,
     output logic                        fill_last,
 
-    // amber_control-facing drain handshake + staged victim payload
+    // l1_control-facing drain handshake + staged victim payload
     input  logic                    drain_start,
     input  logic [ADDR_WIDTH-1:0]   victim_addr,
     input  logic [LINE_WIDTH-1:0]   victim_data,
@@ -145,7 +145,7 @@ module amber_fill_drain_th
     end
 
     // ------------------------------------------------------------------
-    // Fill path: amber_fill -> axi4_master_rd
+    // Fill path: l1_fill -> axi4_master_rd
     // ------------------------------------------------------------------
     logic [7:0]          fill_arid;
     logic [ADDR_WIDTH-1:0] fill_araddr;
@@ -168,7 +168,7 @@ module amber_fill_drain_th
     logic                fill_rvalid;
     logic                fill_rready;
 
-    amber_fill #(
+    l1_fill #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
         .LINE_BYTES (LINE_BYTES),
@@ -258,7 +258,7 @@ module amber_fill_drain_th
     );
 
     // ------------------------------------------------------------------
-    // Drain path: amber_drain -> axi4_master_wr
+    // Drain path: l1_drain -> axi4_master_wr
     // ------------------------------------------------------------------
     logic [7:0]            drain_awid;
     logic [ADDR_WIDTH-1:0] drain_awaddr;
@@ -285,7 +285,7 @@ module amber_fill_drain_th
     logic                  drain_bvalid;
     logic                  drain_bready;
 
-    amber_drain #(
+    l1_drain #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
         .LINE_BYTES (LINE_BYTES),

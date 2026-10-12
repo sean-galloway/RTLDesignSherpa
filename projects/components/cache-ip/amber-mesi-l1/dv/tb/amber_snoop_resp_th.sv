@@ -6,9 +6,9 @@
 //
 // Module: amber_snoop_resp_th
 // Purpose:
-//   Closed-loop test harness for the amber_snoop_resp integration (Task 7):
-//   the REAL amber_control (FSM + snoop service) + the landed tag/data/repl
-//   arrays + the REAL amber_snoop_resp (house axi4ace_snoop_slave transport +
+//   Closed-loop test harness for the l1_snoop_resp integration (Task 7):
+//   the REAL l1_control (FSM + snoop service) + the landed tag/data/repl
+//   arrays + the REAL l1_snoop_resp (house axi4ace_snoop_slave transport +
 //   SR FSM) wired together, with the ACE snoop pins and the partner-stub
 //   pins (frontend/fill/drain) exposed at the top for the cocotb TB. The
 //   ctrl_* snoop handshake is INTERNAL to this harness (snoop_resp <->
@@ -32,13 +32,13 @@
 // Module: amber_snoop_resp_th
 //==============================================================================
 // Description:
-//   Integration closure for the snoop responder bring-up. amber_core (a
+//   Integration closure for the snoop responder bring-up. l1_core (a
 //   later task) is the shipping integrator; this harness exists so the ACE
 //   responder can be scored against the real control + real arrays with
 //   random CPU traffic flowing on port A while snoops land on the ACE pins.
 //
-//   Clock/reset naming follows amber_control (clk/rst_n); the harness joins
-//   them to amber_snoop_resp's aclk/aresetn. Everything here is combinationally
+//   Clock/reset naming follows l1_control (clk/rst_n); the harness joins
+//   them to l1_snoop_resp's aclk/aresetn. Everything here is combinationally
 //   wired -- the only registers belong to the DUTs.
 //
 //   Binding contract (landed RTL, binding over MAS ch02 spelling):
@@ -62,7 +62,7 @@
 //==============================================================================
 
 module amber_snoop_resp_th
-    import amber_pkg::*;
+    import l1_pkg::*;
 #(
     parameter int ADDR_WIDTH = AMBER_ADDR_WIDTH,
     parameter int DATA_WIDTH = AMBER_BUS_WIDTH,
@@ -230,7 +230,7 @@ module amber_snoop_resp_th
     assign ctrl_cdvalid = ctrl_cdvalid_int;
     
 
-    amber_control #(
+    l1_control #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
         .WAYS       (WAYS),
@@ -301,10 +301,10 @@ module amber_snoop_resp_th
 
     // ------------------------------------------------------------------
     // The ACE snoop responder: transport + SR FSM + ACSNOOP translation.
-    // Its core-facing handshake is wired straight to amber_control; the
+    // Its core-facing handshake is wired straight to l1_control; the
     // taps above observe the same wires.
     // ------------------------------------------------------------------
-    amber_snoop_resp #(
+    l1_snoop_resp #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .DATA_WIDTH (DATA_WIDTH),
         .LINE_BYTES (LINE_BYTES)
@@ -355,7 +355,7 @@ module amber_snoop_resp_th
 
     assign tag_b_set_muxed = ctrl_tag_b_req ? ctrl_tag_b_set : tag_b_set;
 
-    amber_tag_array #(
+    l1_tag_array #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
         .WAYS       (WAYS),
@@ -403,7 +403,7 @@ module amber_snoop_resp_th
         end
     end
 
-    amber_data_array #(
+    l1_data_array #(
         .SETS       (SETS),
         .WAYS       (WAYS),
         .LINE_BYTES (LINE_BYTES),
@@ -423,7 +423,7 @@ module amber_snoop_resp_th
         .wr_be         (data_wr_be)
     );
 
-    amber_repl #(
+    l1_repl #(
         .SETS  (SETS),
         .WAYS  (WAYS)
     ) u_repl (

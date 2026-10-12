@@ -21,7 +21,7 @@
 `timescale 1ns / 1ps
 
 module amber_ace_issue_th
-    import amber_pkg::*;
+    import l1_pkg::*;
 #(
     parameter int ADDR_WIDTH     = AMBER_ADDR_WIDTH,
     parameter int BUS_WIDTH      = AMBER_BUS_WIDTH,
@@ -47,7 +47,7 @@ module amber_ace_issue_th
     input  logic [7:0]                  ace_wr_len,
 
     // ------------------------------------------------------------------
-    // engine side: amber_fill AR / amber_drain AW / amber_drain B
+    // engine side: l1_fill AR / l1_drain AW / l1_drain B
     // ------------------------------------------------------------------
     input  logic [IW-1:0]               eng_arid,
     input  logic [ADDR_WIDTH-1:0]       eng_araddr,

@@ -1,5 +1,5 @@
 """
-amber_data_array test runner
+l1_data_array test runner
 
 Per-way line-data store across the geometry grid: the proposed default
 (128 sets / 4 ways / 64 B lines / 64-bit bus) and a narrow configuration
@@ -43,7 +43,7 @@ async def cocotb_test_amber_data_array(dut):
     ok = await tb.run()
     report = tb.get_test_report()
     tb.log.info(f"Test report: {report}")
-    assert ok, f"amber_data_array: {report['mismatches']} mismatches in {report['checks']} checks"
+    assert ok, f"l1_data_array: {report['mismatches']} mismatches in {report['checks']} checks"
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
@@ -53,9 +53,9 @@ def test_amber_data_array(request, sets, ways, line_bytes, bus_width, test_level
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_amber': 'projects/components/cache-ip/amber-mesi-l1/rtl/fub',
     })
-    dut_name = "amber_data_array"
+    dut_name = "l1_data_array"
     verilog_sources, includes = get_sources_from_filelist(
-        repo_root=repo_root, filelist_path=f'{FILELIST_DIR}/amber_data_array.f')
+        repo_root=repo_root, filelist_path=f'{FILELIST_DIR}/l1_data_array.f')
 
     test_name_plus_params = f"test_{dut_name}_s{TBBase.format_dec(sets, 3)}w{ways}b{bus_width}_{test_level}"
     os.makedirs(log_dir, exist_ok=True)   # clean-all removes logs/

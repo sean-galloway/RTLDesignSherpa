@@ -20,7 +20,7 @@ cover: smtbmc boolector
 [script]
 read_verilog -formal -sv amber_snoop_resp_flat.v
 read -formal -sv formal_amber_snoop_resp.sv
-expose amber_snoop_resp/fub_acvalid amber_snoop_resp/fub_acready amber_snoop_resp/fub_crvalid amber_snoop_resp/fub_crresp amber_snoop_resp/fub_crready amber_snoop_resp/fub_cdvalid amber_snoop_resp/fub_cdready amber_snoop_resp/fub_cdlast amber_snoop_resp/r_state
+expose l1_snoop_resp/fub_acvalid l1_snoop_resp/fub_acready l1_snoop_resp/fub_crvalid l1_snoop_resp/fub_crresp l1_snoop_resp/fub_crready l1_snoop_resp/fub_cdvalid l1_snoop_resp/fub_cdready l1_snoop_resp/fub_cdlast l1_snoop_resp/r_state
 prep -top formal_amber_snoop_resp
 # sv2v keeps the RTL's elaboration-time $error/$display guards as $print cells
 delete t:$print

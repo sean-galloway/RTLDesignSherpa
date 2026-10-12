@@ -1,13 +1,13 @@
-# Testplan for amber_monlite (drop-and-count MonBus observer, DECISION D8 /
+# Testplan for l1_monlite (drop-and-count MonBus observer, DECISION D8 /
 # MAS ch04). The module is exercised through the amber_monlite_th closure
-# (amber_frontend_th = REAL amber_cpu_frontend + REAL amber_control +
-# landed arrays, plus amber_monlite tapped at the MAS ch04 emit points).
+# (amber_frontend_th = REAL l1_cpu_frontend + REAL l1_control +
+# landed arrays, plus l1_monlite tapped at the MAS ch04 emit points).
 # Run: dv/tests/test_amber_monlite.py. A second grid dimension, mon_mode,
 # selects USE_MONITOR=1 (tap) or the USE_MONITOR=0 tie-off (notap).
 
-module: amber_monlite
+module: l1_monlite
 rtl_files:
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_monlite.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_monlite.sv
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_monlite.py
 
@@ -119,12 +119,12 @@ gaps:
     D14 carry-forward (plan-mandated traceability): illegal-ACSOOP
     stimulus and mid-transaction reset are not covered here. Illegal
     ACSNOOP: not applicable at this level -- the observer taps the
-    compact 3-bit snoop type after amber_snoop_resp's ACSNOOP
+    compact 3-bit snoop type after l1_snoop_resp's ACSNOOP
     translation, so the 4-bit reserved encodings never reach these
     taps; the reserved-encoding safe-default contract is pinned in the
-    amber_control / amber_oracle suites and end-to-end in
+    l1_control / amber_oracle suites and end-to-end in
     test_amber_snoop_resp (which owns the translation table).
-    Mid-transaction reset: recorded-not-implemented at the amber_control
+    Mid-transaction reset: recorded-not-implemented at the l1_control
     level (carried to Task 9/14); the observer is reset-transparent
     (queue pointers and drop counter reset, taps re-synced at the
     INIT-walk entry strobe) and adds no reset-observable state of its
@@ -135,24 +135,24 @@ gaps:
     classification (fill_req_class at the harness top) is the ACE
     request class, not the cache_sim {compulsory, capacity, conflict}
     computation -- mapping one to the other without the model would
-    fabricate data. The tap_miss_class port exists for amber_core
+    fabricate data. The tap_miss_class port exists for l1_core
     (Task 9), where the model can supply the class; both harness and TB
     tie UNKNOWN consistently, so the field is pinned as-wired.
   - >
     Snoops are issued at quiescence (between CPU transactions). The
     mid-transaction compositions (pending-fill bypass, victim-buffer
-    bypass, gather-window snoops) are proven by the amber_control and
-    amber_snoop_resp suites; the observer's taps for those windows
+    bypass, gather-window snoops) are proven by the l1_control and
+    l1_snoop_resp suites; the observer's taps for those windows
     (post-fill state, victim buffer match) are the same signals scored
     there, and the deferred-MISS / latched-context mechanism is
     transaction-local, so quiescence coverage is the honest unit
-    boundary. A mid-fill snoop variant is recorded for the amber_core
+    boundary. A mid-fill snoop variant is recorded for the l1_core
     integration suite (Task 9+).
   - >
     monbus_tally_axil host-tally integration is a system-level check
     (AXI-Lite register walk): this suite scores the packet stream
     directly, which is what the tally agent consumes; the hookup lands
-    with amber_core where the arbitered monbus exists. The packet format
+    with l1_core where the arbitered monbus exists. The packet format
     scored here is the house monitor_common_pkg layout the tally parses.
   - >
     The E-state TRANSITION (write-hit promotion E->M, cause HIT_WR) is not

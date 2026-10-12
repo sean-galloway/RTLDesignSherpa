@@ -1,15 +1,15 @@
 """
-amber_tag_array testbench
+l1_tag_array testbench
 
 Per-way tag+state store. The DUT has a clock but NO reset port (GLOBAL_REQUIREMENTS
-1.4: SRAM carries no reset); line validity after reset is amber_control's job
+1.4: SRAM carries no reset); line validity after reset is l1_control's job
 (MAS ch02_blocks/03: init walk writes STATE_I to every way). The TB performs
 that same init walk so every modeled location has a deterministic golden value,
 then checks both combinational lookup ports against a dictionary model.
 
 Geometry arrives via environment (set by the pytest wrapper from the
 parametrized grid); widths are recomputed here with the same formulas as
-amber_pkg so a parameter mismatch between wrapper and TB cannot pass silently.
+l1_pkg so a parameter mismatch between wrapper and TB cannot pass silently.
 
 Author: RTL Design Sherpa
 Created: 2026-10-06
@@ -24,7 +24,7 @@ from TBClasses.shared.tbbase import TBBase
 
 
 class AmberTagArrayTB(TBBase):
-    """Drives amber_tag_array and scores both lookup ports against a model."""
+    """Drives l1_tag_array and scores both lookup ports against a model."""
 
     OP_COUNTS = {'gate': 16, 'func': 2048, 'full': 4096}
 
@@ -75,7 +75,7 @@ class AmberTagArrayTB(TBBase):
         self.model[(set_idx, way)] = tag_state
 
     async def init_walk(self):
-        """Write STATE_I everywhere -- the amber_control post-reset init
+        """Write STATE_I everywhere -- the l1_control post-reset init
         sequence, performed here so unwritten locations cannot leak X's."""
         for way in range(self.WAYS):
             for set_idx in range(self.SETS):

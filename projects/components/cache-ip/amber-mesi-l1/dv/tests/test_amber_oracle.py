@@ -12,12 +12,12 @@ Two halves, one file:
    ``dv/golden/gem5_mapping_notes.md``). Reserved/illegal encodings and
    unreachable cells must raise ``AmberOracleError``.
 
-2. cocotb, pkg-pin: drives the landed ``amber_snoop_kmap`` leaf (the module
-   wrapper over the ``amber_pkg`` Table 3.0 decode functions, compiled via
-   ``amber_snoop_kmap.f`` -> ``amber_pkg.f``) and scores the SystemVerilog
+2. cocotb, pkg-pin: drives the landed ``l1_snoop_kmap`` leaf (the module
+   wrapper over the ``l1_pkg`` Table 3.0 decode functions, compiled via
+   ``l1_snoop_kmap.f`` -> ``l1_pkg.f``) and scores the SystemVerilog
    decode against the ORACLE itself, so oracle CRRESP / next-state ==
-   amber_pkg.amber_snoop_crresp / amber_snoop_next_state is pinned from day
-   one. The TB class follows the amber_snoop_kmap unit suite conventions.
+   l1_pkg.amber_snoop_crresp / amber_snoop_next_state is pinned from day
+   one. The TB class follows the l1_snoop_kmap unit suite conventions.
 
 Oracle states: the four stable MESI states I/S/E/M plus the six gem5 TBE
 transients IS/IM/SM/IS_I/M_I/SINK_WB_ACK (DECISION D-11: they collapse onto
@@ -54,7 +54,7 @@ FILELIST_DIR = 'projects/components/cache-ip/common-ip/rtl/filelists'
 
 # ---------------------------------------------------------------------------
 # CRRESP wire-order constants ({WU[4],IS[3],PD[2],Err[1],DT[0]}), the same
-# packing the amber_pkg functions return. HAS Table 3.0 rows.
+# packing the l1_pkg functions return. HAS Table 3.0 rows.
 # ---------------------------------------------------------------------------
 CR_NONE = 0b00000
 CR_M_RS = 0b01101   # DT+PD+IS: dirty out, downgrade, shared
@@ -529,7 +529,7 @@ def test_oracle_pending_composition():
 
 
 # ---------------------------------------------------------------------------
-# cocotb half: oracle vs the landed pkg decode (amber_snoop_kmap)
+# cocotb half: oracle vs the landed pkg decode (l1_snoop_kmap)
 # ---------------------------------------------------------------------------
 @cocotb.test(timeout_time=600, timeout_unit="ms")
 async def cocotb_test_amber_oracle_pkg_pin(dut):
@@ -547,9 +547,9 @@ def test_amber_oracle_pkg_pin(request, test_level):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_amber': 'projects/components/cache-ip/amber-mesi-l1/rtl/fub',
     })
-    dut_name = "amber_snoop_kmap"
+    dut_name = "l1_snoop_kmap"
     verilog_sources, includes = get_sources_from_filelist(
-        repo_root=repo_root, filelist_path=f'{FILELIST_DIR}/amber_snoop_kmap.f')
+        repo_root=repo_root, filelist_path=f'{FILELIST_DIR}/l1_snoop_kmap.f')
 
     test_name_plus_params = f"test_amber_oracle_pkg_pin_{test_level}"
     os.makedirs(log_dir, exist_ok=True)   # clean-all removes logs/

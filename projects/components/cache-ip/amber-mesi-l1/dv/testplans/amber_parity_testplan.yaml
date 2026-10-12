@@ -1,5 +1,5 @@
 # Testplan for amber_parity (cache_sim trace-replay parity grid, Task 10,
-# PRD success criterion 1).  amber_core (Task 9) replays committed
+# PRD success criterion 1).  l1_core (Task 9) replays committed
 # cache_sim traces and hit/miss/miss-class counts are compared EXACTLY
 # against the cache_sim JS golden model (bin/apps/cache_sim/js/model.js,
 # driven by dv/golden/cache_sim_harness.py):
@@ -12,7 +12,7 @@
 # write-allocate accesses and cannot change the counts).  LRU/FIFO get
 # exact NATIVE parity against the shipped model bytes.  RANDOM (mulberry32
 # in the app, a per-set 32-bit Fibonacci LFSR taps 32/22/2/1 seeded
-# 32'h0000_ACE1 in amber_repl) cannot parity natively, so RANDOM cells run
+# 32'h0000_ACE1 in l1_repl) cannot parity natively, so RANDOM cells run
 # the recorded extension dv/golden/cache_sim_lfsr_extension.js -- anchored
 # textual patches applied to a COMPILED COPY of the model, never an in-place
 # app edit.  The extension also upgrades RANDOM parity to per-miss
@@ -26,7 +26,7 @@
 
 module: amber_parity
 rtl_files:
-  - projects/components/cache-ip/common-ip/rtl/top/amber_core.sv
+  - projects/components/cache-ip/common-ip/rtl/top/l1_core.sv
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_parity.py
 
@@ -34,7 +34,7 @@ parameters:
   - name: SETS / WAYS / LINE_BYTES / BUS_WIDTH
     default: 128 / 4 / 64 / 64
     description: >
-      geometry per amber_pkg.  Grid: pkg default (128/4/64/64) and the tiny
+      geometry per l1_pkg.  Grid: pkg default (128/4/64/64) and the tiny
       formal config (16/2/64/64).
     status: covered
   - name: REPL_POLICY
@@ -70,7 +70,7 @@ scenarios:
     level: gate
     status: covered
     description: >
-      Smoke cell: seq_1k replayed through amber_core at both geometries,
+      Smoke cell: seq_1k replayed through l1_core at both geometries,
       all three policies, exact count parity vs cache_sim.  Streaming
       send_burst replay; per-access DUT outcome (miss == pass through
       MISS_VICTIM) locked per-access against a faithful Python port of

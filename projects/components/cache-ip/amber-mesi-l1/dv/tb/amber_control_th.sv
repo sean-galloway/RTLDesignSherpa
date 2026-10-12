@@ -6,7 +6,7 @@
 //
 // Module: amber_control_th
 // Purpose:
-//   Test harness for the amber_control bring-up (Task 3, snoop service
+//   Test harness for the l1_control bring-up (Task 3, snoop service
 //   Task 4). Wires the DUT to the landed tag/data/repl arrays and exposes
 //   the partner-stub handshake pins (fill/drain/victim/frontend/snoop) at
 //   the top so the cocotb TB can model partner timing per D-12. Pure wiring
@@ -27,7 +27,7 @@
 // Module: amber_control_th
 //==============================================================================
 // Description:
-//   Harness closure for amber_control unit bring-up. amber_core (a later
+//   Harness closure for l1_control unit bring-up. l1_core (a later
 //   task) is the shipping integrator; this harness exists so control can be
 //   scored against the Task 2 oracle with the real arrays in the loop before
 //   the partner FUBs land.
@@ -37,26 +37,26 @@
 //   scoreboard observes the muxed port plus both enables, so every array
 //   write is attributable.
 //
-//   Tag-array port B is shared: amber_control drives it while a snoop is
+//   Tag-array port B is shared: l1_control drives it while a snoop is
 //   being serviced (ctrl_tag_b_req, high in the grant cycle and throughout
 //   CTRL_SNOOP); the rest of the time the TB's init-walk readback backdoor
 //   owns it. Data-array port B is control-exclusive (the TB never backdoors
 //   it): the snoop CD datapath reads hit/fill beats through it.
 //
 //------------------------------------------------------------------------------
-// Parameters: same geometry contract as the arrays (amber_pkg defaults).
+// Parameters: same geometry contract as the arrays (l1_pkg defaults).
 //------------------------------------------------------------------------------
 //
 // Notes:
 //   - No resets or registers here: this is pure wiring.
-//   - The snoop responder handshake pins model the amber_snoop_resp
+//   - The snoop responder handshake pins model the l1_snoop_resp
 //     core-facing contract (D-12): req held until ready; CRRESP latched at
 //     the handshake; CD beats on cdvalid && cdready.
 //
 //==============================================================================
 
 module amber_control_th
-    import amber_pkg::*;
+    import l1_pkg::*;
 #(
     parameter int ADDR_WIDTH = AMBER_ADDR_WIDTH,
     parameter int SETS       = AMBER_SETS,
@@ -108,7 +108,7 @@ module amber_control_th
     input  logic                       fill_beat_valid,
     input  logic [BEAT_INDEX_WIDTH-1:0] fill_beat_idx,
 
-    // snoop responder core-facing handshake (amber_snoop_resp timing model)
+    // snoop responder core-facing handshake (l1_snoop_resp timing model)
     input  logic                      snoop_req,
     input  logic [2:0]                snoop_type,
     input  logic [ADDR_WIDTH-1:0]     snoop_addr,
@@ -170,7 +170,7 @@ module amber_control_th
     logic [WAY_INDEX_WIDTH-1:0]            ctrl_repl_hit_way;
     logic                                  ctrl_snoop_safe_nc;
 
-    amber_control #(
+    l1_control #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
         .WAYS       (WAYS),
@@ -245,7 +245,7 @@ module amber_control_th
 
     assign tag_b_set_muxed = ctrl_tag_b_req ? ctrl_tag_b_set : tag_b_set;
 
-    amber_tag_array #(
+    l1_tag_array #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
         .WAYS       (WAYS),
@@ -291,7 +291,7 @@ module amber_control_th
         end
     end
 
-    amber_data_array #(
+    l1_data_array #(
         .SETS       (SETS),
         .WAYS       (WAYS),
         .LINE_BYTES (LINE_BYTES),
@@ -311,7 +311,7 @@ module amber_control_th
         .wr_be         (data_wr_be)
     );
 
-    amber_repl #(
+    l1_repl #(
         .SETS  (SETS),
         .WAYS  (WAYS)
     ) u_repl (

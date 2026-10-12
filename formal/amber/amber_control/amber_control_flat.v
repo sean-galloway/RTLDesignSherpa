@@ -1,4 +1,4 @@
-module amber_pending_fill_bypass (
+module l1_pending_fill_bypass (
 	clk,
 	rst_n,
 	pf_load,
@@ -15,14 +15,14 @@ module amber_pending_fill_bypass (
 	pf_beat_valid,
 	pf_clear
 );
-	localparam signed [31:0] amber_pkg_AMBER_ADDR_WIDTH = 32;
-	parameter signed [31:0] ADDR_WIDTH = amber_pkg_AMBER_ADDR_WIDTH;
-	localparam signed [31:0] amber_pkg_AMBER_SETS = 128;
-	parameter signed [31:0] SETS = amber_pkg_AMBER_SETS;
-	localparam signed [31:0] amber_pkg_AMBER_LINE_BYTES = 64;
-	parameter signed [31:0] LINE_BYTES = amber_pkg_AMBER_LINE_BYTES;
-	localparam signed [31:0] amber_pkg_AMBER_BUS_WIDTH = 64;
-	parameter signed [31:0] BUS_WIDTH = amber_pkg_AMBER_BUS_WIDTH;
+	localparam signed [31:0] l1_pkg_AMBER_ADDR_WIDTH = 32;
+	parameter signed [31:0] ADDR_WIDTH = l1_pkg_AMBER_ADDR_WIDTH;
+	localparam signed [31:0] l1_pkg_AMBER_SETS = 128;
+	parameter signed [31:0] SETS = l1_pkg_AMBER_SETS;
+	localparam signed [31:0] l1_pkg_AMBER_LINE_BYTES = 64;
+	parameter signed [31:0] LINE_BYTES = l1_pkg_AMBER_LINE_BYTES;
+	localparam signed [31:0] l1_pkg_AMBER_BUS_WIDTH = 64;
+	parameter signed [31:0] BUS_WIDTH = l1_pkg_AMBER_BUS_WIDTH;
 	localparam signed [31:0] SET_INDEX_WIDTH = $clog2(SETS);
 	localparam signed [31:0] LINE_OFFSET_WIDTH = $clog2(LINE_BYTES);
 	localparam signed [31:0] STRB_W = BUS_WIDTH / 8;
@@ -46,13 +46,13 @@ module amber_pending_fill_bypass (
 	input wire pf_clear;
 	initial begin
 		if ((SETS & (SETS - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/amber_pending_fill_bypass.sv:125:13 - amber_pending_fill_bypass.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_pending_fill_bypass: SETS must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_pending_fill_bypass.sv:125:13 - l1_pending_fill_bypass.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_pending_fill_bypass: SETS must be a power of two");
 		if ((LINE_BYTES & (LINE_BYTES - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/amber_pending_fill_bypass.sv:127:13 - amber_pending_fill_bypass.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_pending_fill_bypass: LINE_BYTES must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_pending_fill_bypass.sv:127:13 - l1_pending_fill_bypass.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_pending_fill_bypass: LINE_BYTES must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/amber_pending_fill_bypass.sv:129:13 - amber_pending_fill_bypass.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_pending_fill_bypass: LINE_BYTES / BUS_WIDTH*8 must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_pending_fill_bypass.sv:129:13 - l1_pending_fill_bypass.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_pending_fill_bypass: LINE_BYTES / BUS_WIDTH*8 must be a power of two");
 		if ((BUS_WIDTH % 8) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/amber_pending_fill_bypass.sv:131:13 - amber_pending_fill_bypass.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_pending_fill_bypass: BUS_WIDTH must be a multiple of 8");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_pending_fill_bypass.sv:131:13 - l1_pending_fill_bypass.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_pending_fill_bypass: BUS_WIDTH must be a multiple of 8");
 	end
 	reg pf_active_q;
 	reg [LINE_ADDR_WIDTH - 1:0] pf_addr_q;
@@ -86,7 +86,7 @@ module amber_pending_fill_bypass (
 		else if (pf_beat_set)
 			pf_data_valid_q[sv2v_cast_32(pf_beat_idx)] <= 1'b1;
 endmodule
-module amber_victim (
+module l1_victim (
 	clk,
 	rst_n,
 	victim_load,
@@ -99,14 +99,14 @@ module amber_victim (
 	victim_addr,
 	victim_data
 );
-	localparam signed [31:0] amber_pkg_AMBER_ADDR_WIDTH = 32;
-	parameter signed [31:0] ADDR_WIDTH = amber_pkg_AMBER_ADDR_WIDTH;
-	localparam signed [31:0] amber_pkg_AMBER_SETS = 128;
-	parameter signed [31:0] SETS = amber_pkg_AMBER_SETS;
-	localparam signed [31:0] amber_pkg_AMBER_LINE_BYTES = 64;
-	parameter signed [31:0] LINE_BYTES = amber_pkg_AMBER_LINE_BYTES;
-	localparam signed [31:0] amber_pkg_AMBER_BUS_WIDTH = 64;
-	parameter signed [31:0] BUS_WIDTH = amber_pkg_AMBER_BUS_WIDTH;
+	localparam signed [31:0] l1_pkg_AMBER_ADDR_WIDTH = 32;
+	parameter signed [31:0] ADDR_WIDTH = l1_pkg_AMBER_ADDR_WIDTH;
+	localparam signed [31:0] l1_pkg_AMBER_SETS = 128;
+	parameter signed [31:0] SETS = l1_pkg_AMBER_SETS;
+	localparam signed [31:0] l1_pkg_AMBER_LINE_BYTES = 64;
+	parameter signed [31:0] LINE_BYTES = l1_pkg_AMBER_LINE_BYTES;
+	localparam signed [31:0] l1_pkg_AMBER_BUS_WIDTH = 64;
+	parameter signed [31:0] BUS_WIDTH = l1_pkg_AMBER_BUS_WIDTH;
 	localparam signed [31:0] LINE_OFFSET_WIDTH = $clog2(LINE_BYTES);
 	localparam signed [31:0] STRB_W = BUS_WIDTH / 8;
 	localparam signed [31:0] FILL_BEATS = LINE_BYTES / STRB_W;
@@ -124,13 +124,13 @@ module amber_victim (
 	output wire [LINE_WIDTH - 1:0] victim_data;
 	initial begin
 		if ((SETS & (SETS - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/amber_victim.sv:124:13 - amber_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_victim: SETS must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_victim.sv:124:13 - l1_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_victim: SETS must be a power of two");
 		if ((LINE_BYTES & (LINE_BYTES - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/amber_victim.sv:126:13 - amber_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_victim: LINE_BYTES must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_victim.sv:126:13 - l1_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_victim: LINE_BYTES must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/amber_victim.sv:128:13 - amber_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_victim: LINE_BYTES / BUS_WIDTH*8 must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_victim.sv:128:13 - l1_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_victim: LINE_BYTES / BUS_WIDTH*8 must be a power of two");
 		if ((BUS_WIDTH % 8) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/amber_victim.sv:130:13 - amber_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_victim: BUS_WIDTH must be a multiple of 8");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_victim.sv:130:13 - l1_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_victim: BUS_WIDTH must be a multiple of 8");
 	end
 	reg victim_valid_q;
 	reg [ADDR_WIDTH - 1:0] victim_addr_q;
@@ -154,7 +154,7 @@ module amber_victim (
 			victim_data_q <= victim_data_in;
 		end
 endmodule
-module amber_control (
+module l1_control (
 	clk,
 	rst_n,
 	req_valid,
@@ -217,11 +217,11 @@ module amber_control (
 	ctrl_state
 );
 	reg _sv2v_0;
-	localparam signed [31:0] amber_pkg_AMBER_ADDR_WIDTH = 32;
-	localparam signed [31:0] amber_pkg_AMBER_SETS = 128;
-	localparam signed [31:0] amber_pkg_AMBER_WAYS = 4;
-	localparam signed [31:0] amber_pkg_AMBER_LINE_BYTES = 64;
-	localparam signed [31:0] amber_pkg_AMBER_BUS_WIDTH = 64;
+	localparam signed [31:0] l1_pkg_AMBER_ADDR_WIDTH = 32;
+	localparam signed [31:0] l1_pkg_AMBER_SETS = 128;
+	localparam signed [31:0] l1_pkg_AMBER_WAYS = 4;
+	localparam signed [31:0] l1_pkg_AMBER_LINE_BYTES = 64;
+	localparam signed [31:0] l1_pkg_AMBER_BUS_WIDTH = 64;
 	localparam signed [31:0] SET_INDEX_WIDTH = $clog2(16);
 	localparam signed [31:0] LINE_OFFSET_WIDTH = $clog2(64);
 	localparam signed [31:0] TAG_WIDTH = (32 - SET_INDEX_WIDTH) - LINE_OFFSET_WIDTH;
@@ -284,7 +284,7 @@ module amber_control (
 	output wire ctrl_snoop_safe;
 	input wire [2:0] ctrl_snoop_type;
 	input wire [32 - 1:0] ctrl_snoop_addr;
-	localparam signed [31:0] amber_pkg_AMBER_CRRESP_WIDTH = 5;
+	localparam signed [31:0] l1_pkg_AMBER_CRRESP_WIDTH = 5;
 	output reg [4:0] ctrl_crresp;
 	output reg [64 - 1:0] ctrl_cddata;
 	output reg ctrl_cdlast;
@@ -295,15 +295,15 @@ module amber_control (
 	output reg [3:0] ctrl_state;
 	initial begin
 		if ((16 & (16 - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/amber_control.sv:243:13 - amber_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_control: 16 must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:243:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 16 must be a power of two");
 		if ((64 & (64 - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/amber_control.sv:245:13 - amber_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_control: 64 must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:245:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/amber_control.sv:247:13 - amber_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_control: 64 / 64*8 must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:247:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 / 64*8 must be a power of two");
 		if ((64 % 8) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/amber_control.sv:249:13 - amber_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_control: 64 must be a multiple of 8");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:249:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a multiple of 8");
 		if (2 < 2)
-			$display("Error [%0t] /tmp/formal_amber_control/amber_control.sv:251:13 - amber_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_control: 2 must be >= 2");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:251:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 2 must be >= 2");
 	end
 	localparam signed [31:0] CTRL_BITS = 12;
 	localparam [11:0] OH_IDLE = 12'b000000000001;
@@ -428,7 +428,7 @@ module amber_control (
 	assign install_state_eff = (pend_vld_q ? pend_state_q : install_state);
 	assign pf_load = ((state_q == OH_MISS_FILL) && !upgr_q) && !pf_active;
 	assign pf_clear = state_q == OH_FILL_WRITE;
-	amber_pending_fill_bypass #(
+	l1_pending_fill_bypass #(
 		.ADDR_WIDTH(32),
 		.SETS(16),
 		.LINE_BYTES(64),
@@ -455,7 +455,7 @@ module amber_control (
 	wire victim_valid;
 	wire [32 - 1:0] victim_buf_addr;
 	wire [(64 * 8) - 1:0] victim_buf_data;
-	amber_victim #(
+	l1_victim #(
 		.ADDR_WIDTH(32),
 		.SETS(16),
 		.LINE_BYTES(64),
@@ -534,7 +534,7 @@ module amber_control (
 	assign kmap_start_fill = !kmap_victim_dirty && !bypass_match;
 	assign kmap_replay_now = bypass_match;
 	wire [4:0] sn_crresp_grant;
-	function automatic [4:0] amber_pkg_amber_snoop_crresp;
+	function automatic [4:0] l1_pkg_amber_snoop_crresp;
 		input reg [2:0] state;
 		input reg [2:0] snoop;
 		reg dt;
@@ -588,12 +588,12 @@ module amber_control (
 				default:
 					;
 			endcase
-			amber_pkg_amber_snoop_crresp = {wu, is, pd, 1'b0, dt};
+			l1_pkg_amber_snoop_crresp = {wu, is, pd, 1'b0, dt};
 		end
 	endfunction
-	assign sn_crresp_grant = amber_pkg_amber_snoop_crresp(sn_ref_grant, ctrl_snoop_type);
+	assign sn_crresp_grant = l1_pkg_amber_snoop_crresp(sn_ref_grant, ctrl_snoop_type);
 	wire [2:0] w_sn_nxt;
-	function automatic [2:0] amber_pkg_amber_snoop_next_state;
+	function automatic [2:0] l1_pkg_amber_snoop_next_state;
 		input reg [2:0] state;
 		input reg [2:0] snoop;
 		reg [2:0] nxt;
@@ -618,10 +618,10 @@ module amber_control (
 					endcase
 				default: nxt = 3'b000;
 			endcase
-			amber_pkg_amber_snoop_next_state = nxt;
+			l1_pkg_amber_snoop_next_state = nxt;
 		end
 	endfunction
-	assign w_sn_nxt = amber_pkg_amber_snoop_next_state(sn_ref_q, sn_type_q);
+	assign w_sn_nxt = l1_pkg_amber_snoop_next_state(sn_ref_q, sn_type_q);
 	wire sn_wr_tag;
 	assign sn_wr_tag = ((((sn_hit_any_q && !sn_pf_q) && !sn_stale_q) && !sn_victim_q) && !sn_upgr_line_q) && (w_sn_nxt != sn_hit_state_q);
 	wire sn_beat_gated;
@@ -704,7 +704,7 @@ module amber_control (
 			default: state_d = OH_ERROR;
 		endcase
 	end
-	localparam signed [31:0] amber_pkg_AMBER_CRRESP_DT = 0;
+	localparam signed [31:0] l1_pkg_AMBER_CRRESP_DT = 0;
 	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			state_q <= OH_INIT;
@@ -767,7 +767,7 @@ module amber_control (
 				sn_stale_q <= sn_stale_gnt;
 				sn_victim_q <= victim_match;
 				sn_upgr_line_q <= sn_upgr_line_gnt;
-				sn_dt_q <= sn_crresp_grant[amber_pkg_AMBER_CRRESP_DT];
+				sn_dt_q <= sn_crresp_grant[l1_pkg_AMBER_CRRESP_DT];
 				sn_ref_q <= sn_ref_grant;
 			end
 			else if (state_q == OH_SNOOP) begin
@@ -871,7 +871,7 @@ module amber_control (
 		ctrl_fill_start = 1'b0;
 		ctrl_fill_addr = req_line_base;
 		ctrl_drain_start = 1'b0;
-		ctrl_crresp = amber_pkg_amber_snoop_crresp((state_q == 12'b010000000000 ? sn_ref_q : sn_ref_grant), (state_q == 12'b010000000000 ? sn_type_q : ctrl_snoop_type));
+		ctrl_crresp = l1_pkg_amber_snoop_crresp((state_q == 12'b010000000000 ? sn_ref_q : sn_ref_grant), (state_q == 12'b010000000000 ? sn_type_q : ctrl_snoop_type));
 		ctrl_cddata = (sn_victim_q ? victim_buf_data[sv2v_cast_32(sn_beat_q) * 64+:64] : ctrl_data_b_rdata);
 		ctrl_cdlast = 1'b0;
 		ctrl_cdvalid = 1'b0;

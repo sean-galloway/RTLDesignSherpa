@@ -7,11 +7,11 @@
 // Module: amber_coh_macro_test
 // Purpose:
 //   Macro composition suite 4 (Task 9.5): the COHERENCE/SNOOP LOOP
-//   interaction group -- amber_control + amber_snoop_resp (with the
+//   interaction group -- l1_control + l1_snoop_resp (with the
 //   pending_fill_bypass / victim leaves in the loop) -- the promoted
 //   Task 7 ad-hoc composition (amber_snoop_resp_th + real_control_loop)
-//   as a named macro regression cell. REAL amber_control (FSM + snoop
-//   service) + the landed tag/data/repl arrays + REAL amber_snoop_resp
+//   as a named macro regression cell. REAL l1_control (FSM + snoop
+//   service) + the landed tag/data/repl arrays + REAL l1_snoop_resp
 //   (house axi4ace_snoop_slave transport + SR FSM), fill/drain partner
 //   timing stubbed (D-12). The ctrl_* snoop handshake is INTERNAL to
 //   this wrapper (snoop_resp <-> control); the TB observes it through
@@ -39,7 +39,7 @@
 //   when the FSM is quiescent -- a TB discipline). The suite pins the
 //   cross-block scenarios the group owns: PassDirty forwarding,
 //   snoop-vs-gather interleave, CR-after-CDLAST, zero-gap AC, plus the
-//   two Task-7 found-and-fixed amber_control pins that travel with the
+//   two Task-7 found-and-fixed l1_control pins that travel with the
 //   promotion (HIT_WR E->M promotion one-hot, sn_stale_gnt
 //   set-narrowing -- see dv/testplans/amber_coh_macro_testplan.yaml).
 //
@@ -50,9 +50,9 @@
 //   beat; CR is presented by the adapter only after CDLAST (IHI0022 +
 //   onyx-D4).
 //
-//   amber_core (landed, Task 9) is the shipping integrator; this wrapper
+//   l1_core (landed, Task 9) is the shipping integrator; this wrapper
 //   keeps the group's cross-block interaction suite runnable in
-//   isolation on the bring-up ladder (unit -> macro -> amber_core) and
+//   isolation on the bring-up ladder (unit -> macro -> l1_core) and
 //   hands its pinned scenarios to the Task 11 pair rig.
 //
 //------------------------------------------------------------------------------
@@ -74,7 +74,7 @@
 //==============================================================================
 
 module amber_coh_macro_test
-    import amber_pkg::*;
+    import l1_pkg::*;
 #(
     parameter int ADDR_WIDTH = AMBER_ADDR_WIDTH,
     parameter int DATA_WIDTH = AMBER_BUS_WIDTH,
@@ -241,7 +241,7 @@ module amber_coh_macro_test
     assign ctrl_cdlast = ctrl_cdlast_int;
     assign ctrl_cdvalid = ctrl_cdvalid_int;
 
-    amber_control #(
+    l1_control #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
         .WAYS       (WAYS),
@@ -312,10 +312,10 @@ module amber_coh_macro_test
 
     // ------------------------------------------------------------------
     // The ACE snoop responder: transport + SR FSM + ACSNOOP translation.
-    // Its core-facing handshake is wired straight to amber_control; the
+    // Its core-facing handshake is wired straight to l1_control; the
     // taps above observe the same wires.
     // ------------------------------------------------------------------
-    amber_snoop_resp #(
+    l1_snoop_resp #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .DATA_WIDTH (DATA_WIDTH),
         .LINE_BYTES (LINE_BYTES)
@@ -366,7 +366,7 @@ module amber_coh_macro_test
 
     assign tag_b_set_muxed = ctrl_tag_b_req ? ctrl_tag_b_set : tag_b_set;
 
-    amber_tag_array #(
+    l1_tag_array #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
         .WAYS       (WAYS),
@@ -414,7 +414,7 @@ module amber_coh_macro_test
         end
     end
 
-    amber_data_array #(
+    l1_data_array #(
         .SETS       (SETS),
         .WAYS       (WAYS),
         .LINE_BYTES (LINE_BYTES),
@@ -434,7 +434,7 @@ module amber_coh_macro_test
         .wr_be         (data_wr_be)
     );
 
-    amber_repl #(
+    l1_repl #(
         .SETS  (SETS),
         .WAYS  (WAYS)
     ) u_repl (

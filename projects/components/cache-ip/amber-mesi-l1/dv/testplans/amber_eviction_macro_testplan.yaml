@@ -1,8 +1,8 @@
 # Testplan for amber_eviction_macro (macro composition suite 3:
 # eviction/writeback). Maps the group's cross-block scenarios to the
 # BFM-driven DV. DUT: the test wrapper amber_eviction_macro_test (Task
-# 9.5): REAL amber_control (with the victim depth-1 leaf) + landed
-# tag/data/repl arrays + REAL amber_drain on its house axi4_master_wr
+# 9.5): REAL l1_control (with the victim depth-1 leaf) + landed
+# tag/data/repl arrays + REAL l1_drain on its house axi4_master_wr
 # transport; the TB closes the wrapper's m_axi AW/W/B pins with the
 # house AXI4 write responder + a shared MemoryModel. Fill stays a timing
 # stub (D-12, the control suite's fill model); snoops enter on the
@@ -11,12 +11,12 @@
 module: amber_eviction_macro
 rtl_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tb/amber_eviction_macro_test.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_control.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_victim.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_drain.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_tag_array.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_data_array.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_repl.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_victim.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_drain.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_tag_array.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_data_array.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_repl.sv
   - rtl/amba/axi/axi4_master_wr.sv   # transport (cross-area, -f'd)
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_eviction_macro.py
@@ -33,7 +33,7 @@ test_files:
 
 parameters:
   - name: SETS / WAYS
-    default: 128 / 4 (amber_pkg)
+    default: 128 / 4 (l1_pkg)
     description: the macro grid runs the tiny formal config (16 / 2) and
       the pkg default
   - name: LINE_BYTES / BUS_WIDTH
@@ -101,7 +101,7 @@ coverage_points:
   - line: 1
     type: module
     content: "amber_eviction_macro_test: control + victim leaf + real
-      amber_drain + axi4_master_wr"
+      l1_drain + axi4_master_wr"
     covered: true
   - line: 1
     type: group_interaction

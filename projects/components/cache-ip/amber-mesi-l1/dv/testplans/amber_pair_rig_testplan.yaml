@@ -4,9 +4,9 @@
 # Run: dv/tests/test_amber_pair_rig.py.
 #
 # DUT: dv/tb/amber_pair_rig_tb.sv (the rig harness; `_tb` TH idiom). It
-# instantiates two amber_top DUTs (u_amber0/u_amber1 -- each amber_core +
+# instantiates two amber_top DUTs (u_amber0/u_amber1 -- each l1_core +
 # axi4_master_rd_monlite/axi4_master_wr_monlite transports + the D-7
-# monbus_arbiter merging {amber_monlite, rd_monlite, wr_monlite} onto one
+# monbus_arbiter merging {l1_monlite, rd_monlite, wr_monlite} onto one
 # MonBus port pair), the amber_pair_fabric, and one sdpram_slave_axi4_axi4
 # shared memory. mon_time is sourced at rig level by a free-running counter
 # inside the TH (documented choice; MAS ch04/05 rig-level sourcing). CPU GAXI
@@ -47,7 +47,7 @@ parameters:
   - name: SETS / WAYS / LINE_BYTES / BUS_WIDTH
     default: 128 / 4 / 64 / 64
     description: >
-      geometry per amber_pkg (HAS Table 5.0). Grid: tiny formal config
+      geometry per l1_pkg (HAS Table 5.0). Grid: tiny formal config
       (16/2/64/64) + pkg default (128/4/64/64).
     status: covered
   - name: REPL_POLICY
@@ -58,7 +58,7 @@ parameters:
   - name: USE_MONITOR
     default: 1
     description: >
-      0 ties all three MonBus observers (amber_monlite + rd/wr monlites) off.
+      0 ties all three MonBus observers (l1_monlite + rd/wr monlites) off.
       A USE_MONITOR=0 cell per geometry re-runs the whole suite asserting
       functional equivalence + observer silence (scenario g).
     status: covered

@@ -1,9 +1,9 @@
-# Testplan for amber_data_array (per-way line-data store, byte enables)
+# Testplan for l1_data_array (per-way line-data store, byte enables)
 # Maps functional scenarios to the Pattern-B grid DV.
 
-module: amber_data_array
+module: l1_data_array
 rtl_files:
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_data_array.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_data_array.sv
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_data_array.py
 

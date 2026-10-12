@@ -1,24 +1,24 @@
-# Testplan for amber_control (blocking pipeline FSM, CPU path)
+# Testplan for l1_control (blocking pipeline FSM, CPU path)
 # Maps functional scenarios to the oracle-lockstep DV.
 
-module: amber_control
+module: l1_control
 rtl_files:
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_control.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv
   - projects/components/cache-ip/amber-mesi-l1/dv/tb/amber_control_th.sv
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_control.py
 
 # Contract: MAS ch02_blocks/01. One-hot FSM (pkg ctrl_state_t), unique case,
 # illegal/multi-hot -> sticky CTRL_ERROR (reset-cleared). Tag/data port A
-# driven per the landed array contracts; amber_repl req/hit/update per its
+# driven per the landed array contracts; l1_repl req/hit/update per its
 # landed contract. Snoop service (Task 4): CTRL_SNOOP grants at safe
 # boundaries only (IDLE / MISS_FILL with the bypass armed or an upgrade /
 # MISS_DRAIN), answers on tag-array port B (CRRESP combinational at the
-# grant cycle per the amber_snoop_resp contract), serves CD beats from the
+# grant cycle per the l1_snoop_resp contract), serves CD beats from the
 # data array (pending-fill bypass hits read the fill way, gated per-beat by
 # pf_data_valid), and applies downgrades on port A inside the service.
 # Victim buffer (Task 5): the dirty victim line is gathered over FILL_BEATS
-# data-array port-A read cycles into the depth-1 leaf amber_victim (DECISION
+# data-array port-A read cycles into the depth-1 leaf l1_victim (DECISION
 # D-5: victim_load is the gather-complete strobe); a snoop for the victim
 # line while the drain is outstanding is answered at M with CD sourced from
 # the buffer (MAS ch02/05 bypass), and the buffer is never loaded while
@@ -256,14 +256,14 @@ scenarios:
       applied (the victim retires at drain_done regardless), the drain
       and fill proceed in order, and a refetch returns the drained
       payload end to end. Task 5 reroutes the CD source from the data
-      array to the amber_victim buffer (the content is identical while
+      array to the l1_victim buffer (the content is identical while
       the drain is outstanding; the source discrimination is pinned by
       SnoopHitsVictimBypass).
     status: covered
   - name: VictimBufferHandshake
     level: func
     what: >
-      Cycle-exact leaf observation (amber_victim inside amber_control,
+      Cycle-exact leaf observation (l1_victim inside l1_control,
       tapped hierarchically): valid sets the cycle after the victim_load
       strobe (DECISION D-5 gather-complete pulse), busy/empty polarity,
       the staged {addr, data} held stable through the drain window, clear
@@ -343,7 +343,7 @@ scenarios:
       cleanly (the IllegalStateError scenario re-runs the walk after a
       reset and recovers), but a reset landing inside a live partner
       handshake (fill/drain in flight) is a TOP-LEVEL reset-strategy
-      property -- the stubs, amber_core, and the ACE transport must
+      property -- the stubs, l1_core, and the ACE transport must
       define/survive it together. Owned by Task 9/14 (integration/reset
       strategy); recorded here honestly instead of being faked at the
       unit level.

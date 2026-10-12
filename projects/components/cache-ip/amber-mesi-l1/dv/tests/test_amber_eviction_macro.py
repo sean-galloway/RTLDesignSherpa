@@ -2,7 +2,7 @@
 amber_eviction_macro test runner
 
 Macro composition suite 3 (Task 9.5): the eviction/writeback group --
-control + victim + drain -- with the REAL amber_drain engine and its house
+control + victim + drain -- with the REAL l1_drain engine and its house
 axi4_master_wr transport in the loop, the memory side closed by the house
 AXI4 slave responder on the wrapper's m_axi AW/W/B pins. Fill/snoop stay
 timing stubs at the boundary (D-12).
@@ -78,8 +78,8 @@ def _run_cell(request, sets, ways, test_level):
     # the shared package include order-preserving.
     verilog_sources = []
     includes = []
-    for fl in ('amber_control', 'amber_tag_array',
-               'amber_data_array', 'amber_repl', 'amber_drain'):
+    for fl in ('l1_control', 'l1_tag_array',
+               'l1_data_array', 'l1_repl', 'l1_drain'):
         srcs, incs = get_sources_from_filelist(
             repo_root=repo_root,
             filelist_path=f'{FILELIST_DIR}/{fl}.f')

@@ -1,15 +1,15 @@
 """
-amber_core testbench
+l1_core testbench
 
 First end-to-end amber top integration (Task 9, MAS ch01 hierarchy):
-amber_core composes all nine landed FUBs -- amber_cpu_frontend, amber_control
-(with the pending_fill_bypass / victim leaves), amber_tag_array,
-amber_data_array, amber_repl, amber_fill, amber_drain, amber_snoop_resp,
-amber_monlite -- with no stubs and no harness: the DUT boundary IS the
+l1_core composes all nine landed FUBs -- l1_cpu_frontend, l1_control
+(with the pending_fill_bypass / victim leaves), l1_tag_array,
+l1_data_array, l1_repl, l1_fill, l1_drain, l1_snoop_resp,
+l1_monlite -- with no stubs and no harness: the DUT boundary IS the
 core's external shape (CPU GAXI slave, fub_axi_* rd/wr master sides, ACE
 snoop responder, MonBus, coh_req sideband). The memory side is closed with
 the house CocoTBFramework AXI4 slave responders on the raw fub_axi_* pins
-(shared MemoryModel -- the amber_core deliberately does not contain the
+(shared MemoryModel -- the l1_core deliberately does not contain the
 axi4_master_rd/wr transports; the amber_top rig wraps them later), the ACE
 snoop port with the house snoop master, and the CPU side with the house
 GAXI BFM pair.
@@ -96,7 +96,7 @@ from projects.components.cache_ip.amber_mesi_l1.dv.golden.amber_fsm_oracle impor
 )
 
 
-# ctrl_state_t codes (amber_pkg) -- kept textual for log messages
+# ctrl_state_t codes (l1_pkg) -- kept textual for log messages
 ST_IDLE, ST_INIT, ST_LOOKUP, ST_HIT_RD, ST_HIT_WR, ST_MISS_VICTIM, \
     ST_MISS_DRAIN, ST_MISS_FILL, ST_FILL_WRITE, ST_REPLAY, ST_SNOOP, \
     ST_ERROR = range(0xC)
@@ -109,7 +109,7 @@ STATE_NAMES = {
     ST_ERROR: 'ERROR',
 }
 
-# MonBus event codes (amber_pkg.amber_event_t)
+# MonBus event codes (l1_pkg.amber_event_t)
 EV_HIT, EV_MISS, EV_SNOOP, EV_EVICT, EV_TRANSITION, \
     EV_FILL_START, EV_FILL_END, EV_DRAIN_START, EV_DRAIN_END, \
     EV_DROPPED = range(0xA)
@@ -119,7 +119,7 @@ EV_NAMES = {EV_HIT: 'HIT', EV_MISS: 'MISS', EV_SNOOP: 'SNOOP',
             EV_DRAIN_START: 'DRAIN_START', EV_DRAIN_END: 'DRAIN_END',
             EV_DROPPED: 'DROPPED'}
 
-# amber_ace_req_t encodings (amber_pkg): coherence sideband types
+# amber_ace_req_t encodings (l1_pkg): coherence sideband types
 ACE_READ_SHARED, ACE_READ_UNIQUE, ACE_CLEAN_UNIQUE = 0, 1, 2
 ACE_WRITE_BACK = 4
 
@@ -138,13 +138,13 @@ NAME_BY_CODE = {code: name for name, code in SNOOP_CODES.items()}
 # amber_repl_t encodings this TB models
 REPL_LRU, REPL_FIFO = 0, 2
 
-# CRRESP bit 0 = DataTransfer (amber_pkg localparam)
+# CRRESP bit 0 = DataTransfer (l1_pkg localparam)
 CRRESP_DT = 0
 
 
 class LruModel:
     """Rank array parity model: 0 = MRU, WAYS-1 = victim; hits and installs
-    both update (matches amber_repl LRU reset + update semantics)."""
+    both update (matches l1_repl LRU reset + update semantics)."""
 
     def __init__(self, sets, ways):
         self.sets, self.ways = sets, ways
@@ -170,7 +170,7 @@ class LruModel:
 
 class FifoModel:
     """Ring parity model: victim = ring head; an install overwrites the
-    head slot and advances (amber_repl FIFO semantics; hits never reorder;
+    head slot and advances (l1_repl FIFO semantics; hits never reorder;
     exact because fills install into the victim way)."""
 
     def __init__(self, sets, ways):
@@ -186,7 +186,7 @@ class FifoModel:
         self.head[s] = (self.head[s] + 1) % self.ways
 
     def hit(self, s, way):
-        pass   # hits do not reorder a FIFO (amber_repl FIFO semantics)
+        pass   # hits do not reorder a FIFO (l1_repl FIFO semantics)
 
 
 def _parse_packet(pkt):
@@ -202,7 +202,7 @@ def _parse_packet(pkt):
 
 
 class AmberCoreTB(TBBase):
-    """Scores the amber_core integration against the oracle + content models."""
+    """Scores the l1_core integration against the oracle + content models."""
 
     FULL_TXN = {'gate': 0, 'func': 400, 'full': 5000}
     RSP_TIMEOUT_CYCLES = 3000
@@ -224,7 +224,7 @@ class AmberCoreTB(TBBase):
         return self.dut
 
     # responder timing profiles (house FlexRandomizer shapes; same set as
-    # the amber_fill/amber_drain unit suite)
+    # the l1_fill/l1_drain unit suite)
     PROFILES = {
         'fast':   {'ready': ([(0, 0)], [1.0]),
                    'resp':  ([(0, 0)], [1.0])},
@@ -1083,7 +1083,7 @@ class AmberCoreTB(TBBase):
             cand = [random.randrange(self.SPAN)]
             # a pending-line snoop only makes sense on a true miss (an
             # upgrade window is a single cycle -- that kill corner is owned
-            # by the amber_control suite)
+            # by the l1_control suite)
             pre = self._cur_state(txn['line'])
             hint = oracle_step(pre, 'CPU_WR' if we else 'CPU_RD')
             if hint.result == 'MISS' and hint.req != 'CLEAN_UNIQUE':

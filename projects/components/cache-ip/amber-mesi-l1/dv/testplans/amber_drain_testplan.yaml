@@ -1,4 +1,4 @@
-# Testplan for amber_drain (AXI4 write-master sequencing engine, MAS
+# Testplan for l1_drain (AXI4 write-master sequencing engine, MAS
 # ch02_blocks/06 + ch03_interfaces/02). The engine drives the fub_axi_*
 # upstream side of the house axi4_master_wr wrapper (DECISION D3); the unit
 # TB closes the loop with the house CocoTBFramework AXI4 slave responder on
@@ -8,16 +8,16 @@
 # absorb responder backpressure. RTL addition over the MAS ch02/06 interface
 # table (which still shows the pre-D3 drain_beat_* W-channel pins): the
 # victim {addr, data} arrives as engine inputs (victim_addr/victim_data),
-# wired at integration to amber_control's staged payload outputs
+# wired at integration to l1_control's staged payload outputs
 # (ctrl_victim_addr_in/ctrl_victim_data_in), which hold stable for the whole
 # drain window by construction (registered at the gather, untouched until
 # the next miss's CTRL_MISS_VICTIM, unreachable while this drain is
 # outstanding). drain_start is the qualifier -- the buffer holds a dirty
 # victim exactly when the control launches a drain.
 
-module: amber_drain
+module: l1_drain
 rtl_files:
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_drain.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_drain.sv
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_fill_drain.py
 
@@ -34,7 +34,7 @@ test_files:
 parameters:
   - name: ADDR_WIDTH / SETS / LINE_BYTES / BUS_WIDTH
     default: 32 / 128 / 64 / 64
-    description: geometry per amber_pkg defaults; the grid also runs the
+    description: geometry per l1_pkg defaults; the grid also runs the
       tiny 16-set config (identical FILL_BEATS=8 both cells, house convention)
 
 scenarios:

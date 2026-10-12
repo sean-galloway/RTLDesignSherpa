@@ -43,8 +43,12 @@
 ### [PASS] Working Code Generator (697 lines)
 - `bin/delta_generator.py` - Python RTL generator
 - Produces parameterized SystemVerilog
-- Supports flat crossbar and tree topology
-- **Tested and working** (example RTL generated)
+- Flat crossbar topology (tree retired 2026-10-12)
+- Optional TSTRB byte qualifiers + AMBA 5 TWAKEUP/TPARITY sidebands
+  (`--strb-width N`, `--amba5`; default off = base 7-signal set,
+  byte-identical to earlier output) — port-matches `rtl/amba/axis4` + `axis5`;
+  see `rtl_test/delta_axis_flat_2x4_strb_amba5.sv`
+- **Tested and working** (example RTL generated + verilator-linted)
 
 ### [PASS] Performance Modeling (487 lines)
 - `bin/delta_performance_model.py` - Analytical + simulation models

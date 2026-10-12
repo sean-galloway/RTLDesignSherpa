@@ -1,5 +1,5 @@
 """
-amber_repl test runner
+l1_repl test runner
 
 Replacement-policy engine across the policy enum (LRU default, FIFO,
 RANDOM, TREE_PLRU) and the geometry grid (proposed 128/4, tiny formal 16/2,
@@ -28,7 +28,7 @@ from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_repl_tb impor
 
 FILELIST_DIR = 'projects/components/cache-ip/common-ip/rtl/filelists'
 
-# (policy_name, policy_int): ints are the amber_repl_t encodings in amber_pkg
+# (policy_name, policy_int): ints are the amber_repl_t encodings in l1_pkg
 POLICIES = [
     ('lru', 0),
     ('tree_plru', 1),
@@ -51,7 +51,7 @@ async def cocotb_test_amber_repl(dut):
     ok = await tb.run()
     report = tb.get_test_report()
     tb.log.info(f"Test report: {report}")
-    assert ok, f"amber_repl: {report['mismatches']} mismatches in {report['checks']} checks"
+    assert ok, f"l1_repl: {report['mismatches']} mismatches in {report['checks']} checks"
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
@@ -62,9 +62,9 @@ def test_amber_repl(request, policy_name, policy_int, sets, ways, test_level):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_amber': 'projects/components/cache-ip/amber-mesi-l1/rtl/fub',
     })
-    dut_name = "amber_repl"
+    dut_name = "l1_repl"
     verilog_sources, includes = get_sources_from_filelist(
-        repo_root=repo_root, filelist_path=f'{FILELIST_DIR}/amber_repl.f')
+        repo_root=repo_root, filelist_path=f'{FILELIST_DIR}/l1_repl.f')
 
     test_name_plus_params = (f"test_{dut_name}_{policy_name}"
                              f"_s{TBBase.format_dec(sets, 3)}w{ways}_{test_level}")

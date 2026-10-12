@@ -1,13 +1,13 @@
 """
 amber_ace_top testbench
 
-Task 12: the onyx-rig top on ACE masters. One amber_ace_top (amber_core +
+Task 12: the onyx-rig top on ACE masters. One amber_ace_top (l1_core +
 amber_ace_issue + the axi4ace_master_rd/wr_monlite transports + the D-7
 monbus_arbiter) against a Python model of the onyx D2 manager: the ACE
 master pins (AR+ARSNOOP/R, AW+AWSNOOP/W/B, auto-pulsed RACK/WACK) are
 closed by hand-rolled GAXI responders over the shared MemoryModel; the ACE
 snoop responder port is driven by the house snoop master; the CPU side by
-the house GAXI BFM pair. What this suite pins ON TOP of the amber_core
+the house GAXI BFM pair. What this suite pins ON TOP of the l1_core
 integration contract (the model machinery is inherited from AmberCoreTB):
 
   * Table 2.8.1 row-by-row on the master pins: a read miss drives AR with
@@ -84,7 +84,7 @@ AWSNOOP_LEGAL = {AWSNOOP_CLEAN_UNIQUE, AWSNOOP_MAKE_UNIQUE,
                  AWSNOOP_WRITE_BACK, AWSNOOP_EVICT}
 ARSNOOP_LEGAL = {ARSNOOP_READ_SHARED, ARSNOOP_READ_UNIQUE}
 
-# amber_ace_req_t (amber_pkg) on the coh_req sideband
+# amber_ace_req_t (l1_pkg) on the coh_req sideband
 ACE_READ_SHARED, ACE_READ_UNIQUE, ACE_CLEAN_UNIQUE, ACE_MAKE_UNIQUE, \
     ACE_WRITE_BACK, ACE_EVICT = range(6)
 
@@ -375,6 +375,9 @@ class AmberAceTopTB(AmberCoreTB):
                 we = (packed >> (self.BUS_WIDTH + self.STRB_W)) & 1
                 addr = (packed >> (self.BUS_WIDTH + self.STRB_W + 1)) \
                     & ((1 << self.ADDR_WIDTH) - 1)
+                self.n_accept += 1
+                self.last_accept = (self.cyc, {
+                    'addr': addr, 'we': we, 'be': be, 'wdata': wdata})
                 self.events.append((self.cyc, 'accept',
                                     {'addr': addr, 'we': we, 'be': be,
                                      'wdata': wdata}))
@@ -391,7 +394,7 @@ class AmberAceTopTB(AmberCoreTB):
 
             if int(d.mon_valid.value) and int(d.mon_ready.value):
                 p = _parse_packet(int(d.mon_packet.value))
-                if p['unit_id'] == 1:   # amber_monlite stream only (the
+                if p['unit_id'] == 1:   # l1_monlite stream only (the
                     self.pkt_counts[p['event_code']] += 1   # rd/wr monlite
                     if p['event_code'] == EV_DROPPED:       # packets share
                         self._drop_reports += 1             # the bus)

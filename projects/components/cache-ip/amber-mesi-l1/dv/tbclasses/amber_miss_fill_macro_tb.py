@@ -2,8 +2,8 @@
 amber_miss_fill_macro testbench -- macro suite 2: the miss/fill path group
 
 Task 9.5 macro composition: the DUT is the wrapper
-amber_miss_fill_macro_test -- REAL amber_control (with the
-pending_fill_bypass leaf) + landed tag/data/repl arrays + REAL amber_fill
+amber_miss_fill_macro_test -- REAL l1_control (with the
+pending_fill_bypass leaf) + landed tag/data/repl arrays + REAL l1_fill
 on its house axi4_master_rd transport, memory side closed by the house
 AXI4 slave responder on the wrapper's m_axi AR/R pins. Drain/victim stay
 timing stubs (D-12); snoops enter on the control-facing pins.

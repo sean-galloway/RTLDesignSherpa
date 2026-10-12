@@ -1,17 +1,17 @@
-# Testplan for amber_snoop_resp (ACE snoop responder)
+# Testplan for l1_snoop_resp (ACE snoop responder)
 # Maps functional scenarios to the BFM-driven DV. DUT: the closed-loop
-# harness amber_snoop_resp_th (Task 7): REAL amber_control + landed
-# tag/data/repl arrays + REAL amber_snoop_resp on the house
+# harness amber_snoop_resp_th (Task 7): REAL l1_control + landed
+# tag/data/repl arrays + REAL l1_snoop_resp on the house
 # axi4ace_snoop_slave transport.
 
-module: amber_snoop_resp
+module: l1_snoop_resp
 rtl_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tb/amber_snoop_resp_th.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_snoop_resp.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_control.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_tag_array.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_data_array.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_repl.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_snoop_resp.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_tag_array.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_data_array.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_repl.sv
   - rtl/amba/ace/axi4ace_snoop_slave.sv   # transport (cross-area, -f'd)
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_snoop_resp.py
@@ -33,7 +33,7 @@ parameters:
     default: 64 / 64
     description: CD beat width / line size; grid also runs 32 / 32
   - name: SETS / WAYS
-    default: 128 / 4 (amber_pkg)
+    default: 128 / 4 (l1_pkg)
     description: control/array geometry (the control suite owns the
       SETS/WAYS variation axis)
 
@@ -47,7 +47,7 @@ scenarios:
     status: covered
   - name: EWriteHitPromotes
     level: gate
-    what: Task 7 found-and-fixed pin -- the landed amber_control drove
+    what: Task 7 found-and-fixed pin -- the landed l1_control drove
       HIT_WR's E->M promotion with an all-zeros way one-hot (silent drop;
       E never occurs without a backdoor so the control suite could not
       see it). Backdoor-seed E, CPU write hit, verify the tag array
@@ -146,13 +146,13 @@ coverage_points:
     covered: true
   - line: 218
     type: always_comb
-    content: "amber_control OH_HIT_WR promotion one-hot (E -> M)"
+    content: "l1_control OH_HIT_WR promotion one-hot (E -> M)"
     covered: true
     note: "found all-zeros (silent drop) by the Task 7 closed loop;
       fixed + pinned by EWriteHitPromotes"
   - line: 233
     type: assign
-    content: "amber_control sn_stale_gnt set-exact match"
+    content: "l1_control sn_stale_gnt set-exact match"
     covered: true
     note: "found missing set term (cross-set way+tag collision
       false-stale) by the real_control_loop; fixed"

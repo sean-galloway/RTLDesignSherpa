@@ -7,8 +7,8 @@
 // Module: amber_eviction_macro_test
 // Purpose:
 //   Macro composition suite 3 (Task 9.5): the EVICTION/WRITEBACK
-//   interaction group -- amber_control (with the victim depth-1 leaf) +
-//   the REAL amber_drain engine -- pinned in isolation. The drain engine
+//   interaction group -- l1_control (with the victim depth-1 leaf) +
+//   the REAL l1_drain engine -- pinned in isolation. The drain engine
 //   closes with its house axi4_master_wr transport (DECISION D3, the
 //   fill/drain unit rig's closure) and the wrapper exposes the
 //   transport's m_axi AW/W/B memory side at the top for the cocotb TB's
@@ -29,7 +29,7 @@
 //==============================================================================
 // Description:
 //   Test-only wrapper (approved `_test` suffix) for the eviction/writeback
-//   macro cell. amber_core (landed, Task 9) is the shipping integrator;
+//   macro cell. l1_core (landed, Task 9) is the shipping integrator;
 //   this wrapper puts the REAL drain path in the loop while the fill
 //   partner stays stubbed, so the cross-block pins this group owns run
 //   against the engine instead of a fixed-latency model:
@@ -40,7 +40,7 @@
 //     * drain ordering with real B-response latency: drain_done cannot
 //       fire until the B channel returns (the stub could assert done at
 //       any fixed latency);
-//     * victim-buffer pressure: the depth-1 leaf (inside amber_control)
+//     * victim-buffer pressure: the depth-1 leaf (inside l1_control)
 //       holds the line for the whole real drain window; the mid-drain
 //       snoop bypass reads the staged buffer while the engine is still
 //       waiting on B;
@@ -50,7 +50,7 @@
 //   Data-array write-port arbitration (control's CPU merge wins over the
 //   fill stub's received beats, deterministic priority, never simultaneous
 //   by construction) is the landed harness idiom, unchanged. The victim
-//   payload crosses the wrapper boundary on wires the way amber_core wires
+//   payload crosses the wrapper boundary on wires the way l1_core wires
 //   them; the wrapper never LHS-assigns DUT internals (the leaf internals
 //   the scoreboard wants are read-only hierarchical taps, the sanctioned
 //   pattern, used TB-side only).
@@ -72,7 +72,7 @@
 //==============================================================================
 
 module amber_eviction_macro_test
-    import amber_pkg::*;
+    import l1_pkg::*;
 #(
     parameter int ADDR_WIDTH = AMBER_ADDR_WIDTH,
     parameter int SETS       = AMBER_SETS,
@@ -103,7 +103,7 @@ module amber_eviction_macro_test
     output logic [BUS_WIDTH-1:0]      ctrl_rsp_data,
 
     // snoop responder core-facing handshake (stubbed at this boundary;
-    // the TB drives the amber_snoop_resp core-facing contract per D-12)
+    // the TB drives the l1_snoop_resp core-facing contract per D-12)
     input  logic                      snoop_req,
     input  logic [2:0]                snoop_type,
     input  logic [ADDR_WIDTH-1:0]     snoop_addr,
@@ -231,7 +231,7 @@ module amber_eviction_macro_test
     logic [WAY_INDEX_WIDTH-1:0]            ctrl_repl_hit_way;
     logic                                  ctrl_snoop_safe_nc;
 
-    amber_control #(
+    l1_control #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
         .WAYS       (WAYS),
@@ -301,7 +301,7 @@ module amber_eviction_macro_test
     );
 
     // ------------------------------------------------------------------
-    // The REAL drain path: control's staged victim payload -> amber_drain
+    // The REAL drain path: control's staged victim payload -> l1_drain
     // -> axi4_master_wr -> m_axi AW/W/B.
     // ------------------------------------------------------------------
     logic [7:0]            drain_awid;
@@ -329,7 +329,7 @@ module amber_eviction_macro_test
     logic                  drain_bvalid;
     logic                  drain_bready;
 
-    amber_drain #(
+    l1_drain #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
         .LINE_BYTES (LINE_BYTES),
@@ -434,7 +434,7 @@ module amber_eviction_macro_test
 
     assign tag_b_set_muxed = ctrl_tag_b_req ? ctrl_tag_b_set : tag_b_set;
 
-    amber_tag_array #(
+    l1_tag_array #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
         .WAYS       (WAYS),
@@ -483,7 +483,7 @@ module amber_eviction_macro_test
         end
     end
 
-    amber_data_array #(
+    l1_data_array #(
         .SETS       (SETS),
         .WAYS       (WAYS),
         .LINE_BYTES (LINE_BYTES),
@@ -503,7 +503,7 @@ module amber_eviction_macro_test
         .wr_be         (data_wr_be)
     );
 
-    amber_repl #(
+    l1_repl #(
         .SETS  (SETS),
         .WAYS  (WAYS)
     ) u_repl (

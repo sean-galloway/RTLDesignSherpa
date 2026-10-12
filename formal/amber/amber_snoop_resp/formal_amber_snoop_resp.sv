@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
-// Formal wrapper for amber_snoop_resp (yosys-compatible)
-// Run with: sby amber_snoop_resp.sby
+// Formal wrapper for l1_snoop_resp (yosys-compatible)
+// Run with: sby l1_snoop_resp.sby
 //
 // Task 13 proof (MAS ch02_blocks/07): AC/CR/CD ordering -- CR only after
 // CDLAST, exactly one closed response per AC -- over the real responder
@@ -12,7 +12,7 @@
 // Structure: the wrapper top instantiates the DUT with free inputs; all
 // properties and environment assumptions live in amber_snoop_resp_props,
 // instantiated at the top and fed by the DUT's ports plus the SR FSM state
-// and the FUB-side handshake wires, which amber_snoop_resp.sby exposes as
+// and the FUB-side handshake wires, which l1_snoop_resp.sby exposes as
 // DUT output ports (yosys has no hierarchical references and no working
 // bind in this build; expose over a parameter-specialized flat is the
 // mechanism -- see the Task 13 report, Toolchain findings).
@@ -21,17 +21,17 @@
 //   - reset protocol: house pattern.
 //   - AXI AC: acvalid is held until acready.
 //   - fair control grant: in SR_LOOKUP ctrl_snoop_ready is forced within 2
-//     cycles (amber_control only delays it to safe boundaries).
+//     cycles (l1_control only delays it to safe boundaries).
 //   - fair control data: in SR_DATA ctrl_cdvalid is forced within 2 cycles,
 //     and ctrl_cdlast marks exactly the 8th beat of the DATA phase (the
-//     amber_control CD contract: FILL_BEATS=8 beats, cdlast on the last).
+//     l1_control CD contract: FILL_BEATS=8 beats, cdlast on the last).
 //   - fair manager: crready / cdready each forced within 2 cycles of the
 //     corresponding valid.
 //   - ctrl_crresp is free (any response content; the sequencing must be
 //     right for ALL of it). m_axi_acaddr / m_axi_acprot / ctrl_cddata are
 //     tied off: no property claims those payload values.
 //
-// Abstraction: the ACE manager and amber_control are environment (free
+// Abstraction: the ACE manager and l1_control are environment (free
 // inputs); the transport + SR FSM are the DUT. No memories inside.
 
 module formal_amber_snoop_resp (
@@ -46,7 +46,7 @@ module formal_amber_snoop_resp (
     input  logic        m_axi_crready,
     input  logic        m_axi_cdready,
 
-    // control side (amber_control model, free with fair assumptions)
+    // control side (l1_control model, free with fair assumptions)
     input  logic        ctrl_snoop_ready,
     input  logic [4:0]  ctrl_crresp,
     input  logic [63:0] ctrl_cddata,
@@ -84,7 +84,7 @@ module formal_amber_snoop_resp (
     // Instantiated without parameter overrides: the committed flat is
     // pre-specialized (geometry pinned, parameters stripped) by
     // specialize_params so yosys bind fires on the DUT scope.
-    amber_snoop_resp dut (
+    l1_snoop_resp dut (
         .aclk           (aclk),
         .aresetn        (aresetn),
         .m_axi_acaddr   (32'd0), // tied: no property claims the address value (only handshake timing)
@@ -126,7 +126,7 @@ module formal_amber_snoop_resp (
     );
 
     // ------------------------------------------------------------------
-    // Internal observability: amber_snoop_resp.sby exposes the SR FSM
+    // Internal observability: l1_snoop_resp.sby exposes the SR FSM
     // state and the FUB-side handshake wires as DUT output ports (yosys
     // has no hierarchical references and bind never fires -- see the
     // Task 13 report); they are observed here and handed to the props.
@@ -161,7 +161,7 @@ module formal_amber_snoop_resp (
 endmodule
 
 // ===========================================================================
-// Property module: bound into amber_snoop_resp (ports resolve in DUT scope)
+// Property module: bound into l1_snoop_resp (ports resolve in DUT scope)
 // ===========================================================================
 module amber_snoop_resp_props (
     input  logic        aclk,
@@ -191,7 +191,7 @@ module amber_snoop_resp_props (
 
     localparam FILL_BEATS = 8;
 
-    // SR FSM encodings (amber_snoop_resp sr_state_t)
+    // SR FSM encodings (l1_snoop_resp sr_state_t)
     localparam [1:0] SR_IDLE   = 2'd0;
     localparam [1:0] SR_LOOKUP = 2'd1;
     localparam [1:0] SR_DATA   = 2'd2;

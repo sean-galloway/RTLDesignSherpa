@@ -1,15 +1,15 @@
-# Testplan for amber_tag_array (per-way tag+state store)
+# Testplan for l1_tag_array (per-way tag+state store)
 # Maps functional scenarios to the Pattern-B grid DV.
 
-module: amber_tag_array
+module: l1_tag_array
 rtl_files:
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_tag_array.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_tag_array.sv
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_tag_array.py
 
 # Contract: MAS ch02_blocks/03. Storage word {tag, state[2:0]}; one sync
 # write port (one-hot way); two COMBINATIONAL lookup ports (A = CPU/fill,
-# B = snoop); no reset port — validity is amber_control's init walk.
+# B = snoop); no reset port — validity is l1_control's init walk.
 # Read-before-write-edge / read-after-write-edge timing is part of the
 # contract (the hit path and the snoop path both consume the same cycle).
 
@@ -58,9 +58,9 @@ scenarios:
     status: covered
   - name: init_walk_equivalence
     level: all
-    what: The TB performs the amber_control post-reset init walk (STATE_I
+    what: The TB performs the l1_control post-reset init walk (STATE_I
       everywhere) before scoring, so unwritten locations cannot leak X —
-      this stands in for the control-side init sequence until amber_control
+      this stands in for the control-side init sequence until l1_control
       lands.
     status: covered
 
@@ -83,4 +83,4 @@ gaps:
     as the tag array) is still only incidentally sampled — port the
     directed phase over.
   - Multi-bit wr_way_onehot is a contract violation by definition; not
-    tested (would be an assertion in amber_control, not here).
+    tested (would be an assertion in l1_control, not here).

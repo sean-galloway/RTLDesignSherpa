@@ -1,5 +1,5 @@
 """
-amber_snoop_kmap testbench
+l1_snoop_kmap testbench
 
 Combinational decode of {line_state, snoop_type} -> {crresp, next_state}
 per the amber HAS Table 3.0 MESI snoop matrix. The DUT has no clock and no
@@ -24,16 +24,16 @@ from TBClasses.shared.tbbase import TBBase
 
 
 class AmberSnoopKmapTB(TBBase):
-    """Scores amber_snoop_kmap against the HAS Table 3.0 truth table."""
+    """Scores l1_snoop_kmap against the HAS Table 3.0 truth table."""
 
-    # cache_state_t encodings (amber_pkg): 3-bit, MESI now + MOESI headroom
+    # cache_state_t encodings (l1_pkg): 3-bit, MESI now + MOESI headroom
     STATE_I = 0b000
     STATE_S = 0b001
     STATE_E = 0b010
     STATE_M = 0b011
     STATE_O = 0b100          # reserved in v1.0 (MOESI headroom, D6)
 
-    # amber_snoop_t encodings (amber_pkg): the six IHI0022 AC snoop types.
+    # amber_snoop_t encodings (l1_pkg): the six IHI0022 AC snoop types.
     # CleanUnique / MakeUnique are master transactions, not snoops, and never
     # appear here (HAS Table 3.0 note).
     SNOOP_READ_SHARED   = 0b000
@@ -137,7 +137,7 @@ class AmberSnoopKmapTB(TBBase):
         else:  # full: exhaustive over the whole 3-bit x 3-bit space
             cells = [(s, n) for s in range(8) for n in range(8)]
 
-        self.log.info(f"amber_snoop_kmap: {len(cells)} cells at {level}")
+        self.log.info(f"l1_snoop_kmap: {len(cells)} cells at {level}")
         for s, n in cells:
             await self._check_cell(s, n)
         return self.mismatches == 0

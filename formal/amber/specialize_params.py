@@ -23,7 +23,7 @@ flat would silently differ from the RTL.
 
 Usage:
   specialize_params.py IN OUT --param SETS=16 --param WAYS=2 \
-      --module amber_control
+      --module l1_control
 """
 from __future__ import annotations
 
@@ -99,7 +99,7 @@ def main() -> int:
         # substitute within this section only; '.'-prefixed names (named
         # overrides for still-parameterized submodules) are preserved.
         # A parameter may be legitimately unreferenced in the body (e.g.
-        # LINE_BYTES in amber_snoop_resp); the check below still guards
+        # LINE_BYTES in l1_snoop_resp); the check below still guards
         # genuinely unresolved bare uses.
         for pname in decls:
             chunk = re.sub(rf"(?<![\w.]){re.escape(pname)}\b", params[pname],

@@ -1,8 +1,8 @@
 """
-amber_core test runner
+l1_core test runner
 
-First end-to-end cache top (Task 9): the shipping amber_core composes all
-nine landed FUBs with no stubs. The DUT is amber_core itself (no test
+First end-to-end cache top (Task 9): the shipping l1_core composes all
+nine landed FUBs with no stubs. The DUT is l1_core itself (no test
 harness -- the core's external shape IS the boundary: CPU GAXI slave,
 fub_axi_* rd/wr master sides, ACE snoop port, MonBus, coh_req sideband).
 The TB closes the memory side with the house AXI4 slave responders on the
@@ -38,8 +38,8 @@ sys.path.insert(0, repo_root)
 from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_core_tb import AmberCoreTB
 
 FILELIST_DIR = 'projects/components/cache-ip/common-ip/rtl/filelists'
-DUT_TOP = 'amber_core'
-TEST_PREFIX = 'amber_core'
+DUT_TOP = 'l1_core'
+TEST_PREFIX = 'l1_core'
 
 # (sets, ways, line_bytes, bus_width, repl_policy): amber_repl_t encodings
 GEOMS = [
@@ -57,17 +57,17 @@ async def cocotb_test_amber_core(dut):
     ok = await tb.run()
     report = tb.get_test_report()
     tb.log.info(f"Test report: {report}")
-    assert ok, f"amber_core: {report['mismatches']} mismatches in {report['checks']} checks"
+    assert ok, f"l1_core: {report['mismatches']} mismatches in {report['checks']} checks"
 
 
 def _run_cell(request, sets, ways, line_bytes, bus_width, repl_policy, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({})
-    # amber_core.f closes the whole core: the nine landed FUBs plus their
+    # l1_core.f closes the whole core: the nine landed FUBs plus their
     # house deps (reset macros, monitor pkgs, gaxi_fifo_sync). No harness.
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path=f'{FILELIST_DIR}/amber_core.f')
+        filelist_path=f'{FILELIST_DIR}/l1_core.f')
 
     pol = REPL_NAMES[repl_policy]
     test_name_plus_params = (
@@ -131,7 +131,7 @@ def _generate_cells():
                 def _cell(request):
                     _run_cell(request, s, w, lb, bw, rp, lvl)
                 _cell.__name__ = n
-                _cell.__doc__ = (f"amber_core {n}: end-to-end top vs oracle "
+                _cell.__doc__ = (f"l1_core {n}: end-to-end top vs oracle "
                                  f"(geometry s{s}/w{w}/l{lb}/b{bw} pol={pol}, "
                                  f"level {lvl})")
                 return _cell

@@ -7,8 +7,8 @@
 // Module: amber_lookup_macro_test
 // Purpose:
 //   Macro composition suite 1 (Task 9.5): the LOOKUP DATAPLANE interaction
-//   group -- amber_control + amber_tag_array + amber_data_array + amber_repl
-//   -- pinned in isolation between the unit suites and amber_core. The group
+//   group -- l1_control + l1_tag_array + l1_data_array + l1_repl
+//   -- pinned in isolation between the unit suites and l1_core. The group
 //   carries no fill/drain/victim/snoop FUBs, so those partner handshakes stay
 //   timing stubs at the boundary (D-12) exactly like the control bring-up
 //   harness; the composition (arrays + repl closing control's dataplane) is
@@ -31,7 +31,7 @@
 //==============================================================================
 // Description:
 //   Test-only wrapper (approved `_test` suffix) for the lookup dataplane
-//   macro cell. amber_core (landed, Task 9) is the shipping integrator; this
+//   macro cell. l1_core (landed, Task 9) is the shipping integrator; this
 //   wrapper exists so the control<->array<->repl interactions (hit/miss
 //   decode, multi-way compare, write-hit promotion, victim-way selection,
 //   init-walk interaction) run as a named regression composition with a real
@@ -40,7 +40,7 @@
 //   Structurally this mirrors dv/tb/amber_control_th.sv -- that harness
 //   already closes exactly this group for the control unit suite; the macro
 //   suite pins the same wiring as a stable, documented cell on the bring-up
-//   ladder (unit -> macro -> amber_core) and carries the lookup-focused
+//   ladder (unit -> macro -> l1_core) and carries the lookup-focused
 //   scenario list (see dv/testplans/amber_lookup_macro_testplan.yaml). The
 //   fill/drain/victim/snoop pins remain boundary stubs driven by the TB with
 //   timing-only semantics (D-12); the data-array write mux and the port-B
@@ -53,7 +53,7 @@
 //   sanctioned pattern as the landed suites).
 //
 //------------------------------------------------------------------------------
-// Parameters: same geometry contract as the arrays (amber_pkg defaults).
+// Parameters: same geometry contract as the arrays (l1_pkg defaults).
 //------------------------------------------------------------------------------
 //
 // Notes:
@@ -64,7 +64,7 @@
 //==============================================================================
 
 module amber_lookup_macro_test
-    import amber_pkg::*;
+    import l1_pkg::*;
 #(
     parameter int ADDR_WIDTH = AMBER_ADDR_WIDTH,
     parameter int SETS       = AMBER_SETS,
@@ -180,7 +180,7 @@ module amber_lookup_macro_test
     logic [WAY_INDEX_WIDTH-1:0]            ctrl_repl_hit_way;
     logic                                  ctrl_snoop_safe_nc;
 
-    amber_control #(
+    l1_control #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
         .WAYS       (WAYS),
@@ -255,7 +255,7 @@ module amber_lookup_macro_test
 
     assign tag_b_set_muxed = ctrl_tag_b_req ? ctrl_tag_b_set : tag_b_set;
 
-    amber_tag_array #(
+    l1_tag_array #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
         .WAYS       (WAYS),
@@ -301,7 +301,7 @@ module amber_lookup_macro_test
         end
     end
 
-    amber_data_array #(
+    l1_data_array #(
         .SETS       (SETS),
         .WAYS       (WAYS),
         .LINE_BYTES (LINE_BYTES),
@@ -321,7 +321,7 @@ module amber_lookup_macro_test
         .wr_be         (data_wr_be)
     );
 
-    amber_repl #(
+    l1_repl #(
         .SETS  (SETS),
         .WAYS  (WAYS)
     ) u_repl (

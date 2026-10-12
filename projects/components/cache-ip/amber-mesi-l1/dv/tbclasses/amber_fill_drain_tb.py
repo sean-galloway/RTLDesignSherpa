@@ -1,5 +1,5 @@
 """
-amber_fill / amber_drain testbench
+l1_fill / l1_drain testbench
 
 AXI4 master-side sequencing engines (Task 6, MAS ch02_blocks/06 +
 ch03_interfaces/02) against the house axi4_master_rd / axi4_master_wr
@@ -7,8 +7,8 @@ wrappers, with the house CocoTBFramework AXI4 slave responders
 (create_axi4_slave_rd/wr + a shared MemoryModel) closing the loop at the
 wrappers' m_axi pins. DECISION D3: the engines drive the wrappers' fub_axi_*
 upstream side; the wrapper skids are in the loop, never re-implemented.
-DECISION D-6: amber_fill stages R beats in a gaxi_fifo_sync (DEPTH=4);
-amber_drain forwards the latched victim beats directly (AW/W/B skids inside
+DECISION D-6: l1_fill stages R beats in a gaxi_fifo_sync (DEPTH=4);
+l1_drain forwards the latched victim beats directly (AW/W/B skids inside
 the wrapper absorb). The MAS ch03/02 waveform is scored at the wrapper's
 fub pins (hierarchical taps, the same sanctioned pattern as the control
 suite's u_victim taps); the protocol-visible contract is scored at m_axi.
@@ -43,7 +43,7 @@ from CocoTBFramework.components.axi4.axi4_factories import (
     create_axi4_slave_wr,
 )
 
-# amber_pkg ace_req_t encodings
+# l1_pkg ace_req_t encodings
 ACE_READ_SHARED, ACE_READ_UNIQUE, ACE_CLEAN_UNIQUE = 0, 1, 2
 ACE_NAMES = {ACE_READ_SHARED: 'READ_SHARED', ACE_READ_UNIQUE: 'READ_UNIQUE',
              ACE_CLEAN_UNIQUE: 'CLEAN_UNIQUE'}
@@ -54,7 +54,7 @@ BRESP_OKAY = 0b00
 
 
 class AmberFillDrainTB(TBBase):
-    """Scores amber_fill / amber_drain against the MAS ch03/02 contract."""
+    """Scores l1_fill / l1_drain against the MAS ch03/02 contract."""
 
     FULL_TXN = {'gate': 0, 'func': 0, 'full': 100}
     TIMEOUT_CYCLES = 2000

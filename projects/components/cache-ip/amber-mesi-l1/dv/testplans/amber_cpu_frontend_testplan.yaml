@@ -1,18 +1,18 @@
-# Testplan for amber_cpu_frontend (CPU-facing GAXI slave, MAS ch02_blocks/09
+# Testplan for l1_cpu_frontend (CPU-facing GAXI slave, MAS ch02_blocks/09
 # + ch03_interfaces/01). The module is exercised through the
-# amber_frontend_th closure (REAL frontend + REAL amber_control + landed
+# amber_frontend_th closure (REAL frontend + REAL l1_control + landed
 # tag/data/repl arrays); the house GAXIMaster/GAXISlave BFMs drive and
 # consume the GAXI channels. Run: dv/tests/test_amber_frontend.py.
 
-module: amber_cpu_frontend
+module: l1_cpu_frontend
 rtl_files:
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_cpu_frontend.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_cpu_frontend.sv
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_frontend.py
 
 # Contract: MAS ch02_blocks/09. CPU_REQ_W = ADDR_WIDTH + 1 + BUS_WIDTH/8 +
 # BUS_WIDTH, packed {addr, we, be, wdata} (addr at the MSBs); CPU_RSP_W =
-# BUS_WIDTH ({rdata}). cpu_req_wr_ready only while amber_control is in
+# BUS_WIDTH ({rdata}). cpu_req_wr_ready only while l1_control is in
 # CTRL_IDLE with response-staging FIFO room; the accepted request is
 # presented to control as a single-cycle req_valid pulse with the fields
 # held from accept to response; the response is staged in a gaxi_fifo_sync
@@ -115,22 +115,22 @@ gaps:
     D14 carry-forward (plan-mandated traceability): illegal-ACSOOP
     stimulus and mid-transaction reset are not covered here. Illegal
     ACSNOOP: not applicable at this level -- the frontend never sees
-    ACE snoop encodings (they enter downstream at amber_snoop_resp's
+    ACE snoop encodings (they enter downstream at l1_snoop_resp's
     translation table, and the harness models the responder contract
     with the compact 3-bit type); the reserved-encoding safe-default
-    contract is pinned in the amber_control / amber_oracle suites
+    contract is pinned in the l1_control / amber_oracle suites
     (pkg decode contraction, snoop codes 6/7) and lands end-to-end in
     test_amber_snoop_resp. Mid-transaction reset: the frontend holds no
     transaction context beyond the D-6 staging FIFO (reset through
     rst_n only), and the behavior is control-defined -- pinned as
-    recorded-not-implemented in the amber_control suite and carried to
-    Task 9/14 (amber_core integration / MAS errata); the INIT-walk
+    recorded-not-implemented in the l1_control suite and carried to
+    Task 9/14 (l1_core integration / MAS errata); the INIT-walk
     restart side (this module's only reset-observable) is pinned by
     InitReady.
   - >
     The mid-transaction snoop compositions (pending-fill bypass service,
     victim-buffer bypass, snoop during the victim gather) are proven by
-    the amber_control and amber_snoop_resp suites; this suite keeps
+    the l1_control and l1_snoop_resp suites; this suite keeps
     snoops at quiescence except for the single SnoopDetour overlap case
     (a fixed-point snoop granted at IDLE, the only boundary the blocking
     contract makes visible to the frontend).

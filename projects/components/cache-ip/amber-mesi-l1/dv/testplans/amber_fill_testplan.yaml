@@ -1,21 +1,21 @@
-# Testplan for amber_fill (AXI4 read-master sequencing engine, MAS ch02_blocks/06
+# Testplan for l1_fill (AXI4 read-master sequencing engine, MAS ch02_blocks/06
 # + ch03_interfaces/02). The engine drives the fub_axi_* upstream side of the
 # house axi4_master_rd wrapper (DECISION D3); the unit TB closes the loop with
 # the house CocoTBFramework AXI4 slave responder on the wrapper's m_axi side
 # (create_axi4_slave_rd + shared MemoryModel). Binding port names are the
-# landed amber_control group (fill_start/fill_addr/fill_req_class out,
+# landed l1_control group (fill_start/fill_addr/fill_req_class out,
 # fill_done/fill_beat_valid/fill_beat_idx in; fill_beat_data/fill_last go to
 # the data array/bypass at integration, observed here at the harness pins).
 
-module: amber_fill
+module: l1_fill
 rtl_files:
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_fill.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_fill.sv
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_fill_drain.py
 
 # Contract: MAS ch02_blocks/06 + ch03_interfaces/02. ARLEN = FILL_BEATS-1,
 # ARSIZE = log2(BUS_WIDTH/8), ARBURST = INCR, ARADDR = fill_addr (line-aligned
-# byte address from amber_control). fill_done pulses exactly one cycle after
+# byte address from l1_control). fill_done pulses exactly one cycle after
 # the fub-side RLAST acceptance. R beats stage in a gaxi_fifo_sync DEPTH=4
 # (DECISION D-6: snoop-imposed port-A stalls can pause data-array writes
 # without dropping fub_axi_rready; the beat-output side has no backpressure
@@ -30,7 +30,7 @@ test_files:
 parameters:
   - name: ADDR_WIDTH / SETS / LINE_BYTES / BUS_WIDTH
     default: 32 / 128 / 64 / 64
-    description: geometry per amber_pkg defaults; the grid also runs the
+    description: geometry per l1_pkg defaults; the grid also runs the
       tiny 16-set config (identical FILL_BEATS=8 both cells, house convention)
 
 scenarios:

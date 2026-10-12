@@ -1,17 +1,17 @@
 # SPDX-License-Identifier: MIT
-# Formal verification Makefile for amber_pending_fill_bypass
+# Formal verification Makefile for l1_pending_fill_bypass
 # Workflow: sv2v flattens the REAL RTL -> sby reads plain Verilog (plain prep).
 #
 # Geometry: the tiny formal configuration SETS=16 / LINE_BYTES=64 / BUS_WIDTH=64
-# (amber_pkg defaults are 128/64/64; the wrapper pins the formal geometry the
+# (l1_pkg defaults are 128/64/64; the wrapper pins the formal geometry the
 # same way the amber DV grid does).
 # Regenerate the flat file whenever the RTL changes.
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
 INC  := -I$(REPO_ROOT)/rtl/amba/includes
-PKGS := $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/includes/amber_pkg.sv
-SRCS := $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/fub/amber_pending_fill_bypass.sv
+PKGS := $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/includes/l1_pkg.sv
+SRCS := $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/fub/l1_pending_fill_bypass.sv
 TMPDIR := /tmp/formal_amber_pending_fill_bypass
 
 .PHONY: prove cover all clean

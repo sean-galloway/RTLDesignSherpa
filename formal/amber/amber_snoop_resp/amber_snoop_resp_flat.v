@@ -226,7 +226,7 @@ module axi4ace_snoop_slave (
 	assign m_axi_cdvalid = int_skid_cdvalid;
 	assign int_skid_cdready = m_axi_cdready;
 endmodule
-module amber_snoop_resp (
+module l1_snoop_resp (
 	aclk,
 	aresetn,
 	m_axi_acaddr,
@@ -253,9 +253,9 @@ module amber_snoop_resp (
 	ctrl_cdready
 );
 	reg _sv2v_0;
-	localparam signed [31:0] amber_pkg_AMBER_ADDR_WIDTH = 32;
-	localparam signed [31:0] amber_pkg_AMBER_BUS_WIDTH = 64;
-	localparam signed [31:0] amber_pkg_AMBER_LINE_BYTES = 64;
+	localparam signed [31:0] l1_pkg_AMBER_ADDR_WIDTH = 32;
+	localparam signed [31:0] l1_pkg_AMBER_BUS_WIDTH = 64;
+	localparam signed [31:0] l1_pkg_AMBER_LINE_BYTES = 64;
 	input wire aclk;
 	input wire aresetn;
 	input wire [32 - 1:0] m_axi_acaddr;
@@ -354,7 +354,7 @@ module amber_snoop_resp (
 	assign fub_cdlast = ctrl_cdlast;
 	assign fub_cdvalid = (r_state == 2'd2) && ctrl_cdvalid;
 	assign ctrl_cdready = (r_state == 2'd2) && fub_cdready;
-	localparam signed [31:0] amber_pkg_AMBER_CRRESP_DT = 0;
+	localparam signed [31:0] l1_pkg_AMBER_CRRESP_DT = 0;
 	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			r_state <= 2'd0;
@@ -370,12 +370,12 @@ module amber_snoop_resp (
 						r_snoop_addr <= fub_acaddr;
 						r_snoop_type <= w_snoop_type;
 						r_crresp <= ctrl_crresp;
-						r_state <= (ctrl_crresp[amber_pkg_AMBER_CRRESP_DT] ? 2'd2 : 2'd3);
+						r_state <= (ctrl_crresp[l1_pkg_AMBER_CRRESP_DT] ? 2'd2 : 2'd3);
 					end
 				2'd1:
 					if (ctrl_snoop_req && ctrl_snoop_ready) begin
 						r_crresp <= ctrl_crresp;
-						r_state <= (ctrl_crresp[amber_pkg_AMBER_CRRESP_DT] ? 2'd2 : 2'd3);
+						r_state <= (ctrl_crresp[l1_pkg_AMBER_CRRESP_DT] ? 2'd2 : 2'd3);
 					end
 				2'd2:
 					if ((fub_cdvalid && fub_cdready) && fub_cdlast)

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
-// Formal wrapper for amber_victim (yosys-compatible)
-// Run with: sby amber_victim.sby
+// Formal wrapper for l1_victim (yosys-compatible)
+// Run with: sby l1_victim.sby
 //
 // Task 13 proof (MAS ch02_blocks/05, standalone leaf at the tiny geometry
 // LINE_BYTES=64 / BUS_WIDTH=64 -> a 512-bit victim line).
@@ -35,7 +35,7 @@ module formal_amber_victim (
     logic [ADDR_WIDTH-1:0]     victim_addr;
     logic [LINE_WIDTH-1:0]     victim_data;
 
-    amber_victim #(
+    l1_victim #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (16),
         .LINE_BYTES (64),

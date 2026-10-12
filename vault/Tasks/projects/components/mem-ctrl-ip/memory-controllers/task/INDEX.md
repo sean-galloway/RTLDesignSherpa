@@ -1,14 +1,21 @@
 # memory-controllers — task lane
 
-**Next ID: MC-002** — never recycle a number.
+**Next ID: MC-003** — never recycle a number.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
+
+## Open
+
+- **MC-002** — GTKWave debug views for every mem-ctrl fub/macro + top
+  wr/rd DFI paths: one validated `.gtkw` per tested common-ip fub/macro in
+  its tests area, and per-core top views for the write path to DFI and the
+  read path to/from DFI (pumice/scoria/andesite/granite).
 
 ## Closed
 

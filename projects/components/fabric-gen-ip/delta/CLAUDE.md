@@ -59,6 +59,11 @@ comes up without qualification, this crossbar generator is what is meant.
   **combinational**; the **grant** is the registered stage.
 - **Backpressure:** `TREADY` from the granted slave is steered back to the
   granted master only.
+- **Optional flavors (2026-10-12, default off, default output byte-identical):**
+  `TSTRB` (`--strb-width`) byte qualifiers, and AMBA 5 `TWAKEUP`/`TPARITY`
+  (`--amba5`, `--parity-width` default DATA_WIDTH/8) so generated crossbars
+  port-match `rtl/amba/axis4/*` and `rtl/amba/axis5/*`. TWAKEUP is TDEST-decoded
+  (OR per slave) and may assert before TVALID, per the AMBA 5 hint semantics.
 - **Optional:** packet counters.
 
 Parameters on the generated module: `DATA_WIDTH`, `DEST_WIDTH`, `ID_WIDTH`,
@@ -75,6 +80,7 @@ Parameters on the generated module: `DATA_WIDTH`, `DEST_WIDTH`, `ID_WIDTH`,
 | `bin/complete_tree_generator.py` | Retired tree-topology prototype (kept for history) |
 | `rtl/delta_axis_flat_4x16.sv` | Reference generated crossbar (checked in) |
 | `rtl_test/*.sv` | Generated variants (2×4, 3×8, 2×16, 4×16) |
+| `rtl_test/delta_axis_flat_2x4_strb_amba5.sv` | Rich-flavor example (TSTRB + TWAKEUP/TPARITY) |
 | `rtl/filelists/*.f` | Filelists (`$REPO_ROOT`-relative) |
 | `README.md` / `PRD.md` / `QUICK_START.md` | Product docs (PRD REQ-GEN-002 is flat-only since 2026-10-12) |
 | `delta_index.md` | Crossbar doc index |
@@ -105,6 +111,10 @@ Parameters on the generated module: `DATA_WIDTH`, `DEST_WIDTH`, `ID_WIDTH`,
 # Generate a fresh crossbar
 python3 bin/delta_generator.py --topology flat --masters 4 --slaves 16 \
     --data-width 64 --output-dir rtl/
+
+# Rich flavor: TSTRB + AMBA 5 sidebands (matches rtl/amba/axis4 + axis5)
+python3 bin/delta_generator.py --topology flat --masters 2 --slaves 4 \
+    --data-width 32 --strb-width 4 --amba5 --output-dir rtl_test/
 
 # Performance comparison (historical flat/tree data retained)
 python3 bin/delta_performance_model.py --topology compare

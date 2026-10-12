@@ -5,16 +5,16 @@
 # https://github.com/seang-galloway/RTLDesignSherpa
 #
 # Module: AmberMonliteTB
-# Purpose: Testbench for the amber_monlite drop-and-count MonBus observer
+# Purpose: Testbench for the l1_monlite drop-and-count MonBus observer
 # (Task 8, MAS ch04)
 
 """
-amber_monlite testbench
+l1_monlite testbench
 
 Drop-and-count MonBus observer bring-up (Task 8, DECISION D8 / MAS ch04):
 the DUT closure is the harness amber_monlite_th -- the amber_frontend_th
-closure (REAL amber_cpu_frontend + REAL amber_control + landed arrays)
-plus amber_monlite tapped at the MAS ch04 emit points. The observer drives
+closure (REAL l1_cpu_frontend + REAL l1_control + landed arrays)
+plus l1_monlite tapped at the MAS ch04 emit points. The observer drives
 nothing in the closure; its only outputs are the monbus handshake pins.
 
 What this suite pins:
@@ -92,7 +92,7 @@ PKT_TYPE_PERF = 0x4
 PKT_TYPE_ERROR = 0x0
 PROTOCOL_CORE = 0x4
 AGENT_ID = 0x00A0          # designer-allocated for amber (module default)
-UNIT_ID = 0x01             # amber_monlite sub-unit
+UNIT_ID = 0x01             # l1_monlite sub-unit
 
 EV_HIT, EV_MISS, EV_SNOOP, EV_EVICT, EV_TRANSITION, \
     EV_FILL_START, EV_FILL_END, EV_DRAIN_START, EV_DRAIN_END, \
@@ -108,11 +108,11 @@ STATE_CODE = {'I': 0x0, 'S': 0x1, 'E': 0x2, 'M': 0x3}
 CODE_STATE = {v: k for k, v in STATE_CODE.items()}
 SNOOP_NAME = {v: k for k, v in SNOOP_CODES.items()}
 
-# candidate priority index -> MonBus event code (amber_monlite c_code)
+# candidate priority index -> MonBus event code (l1_monlite c_code)
 CAND_EV = [EV_EVICT, EV_SNOOP, EV_HIT, EV_HIT, EV_MISS, EV_FILL_START,
            EV_DRAIN_START, EV_FILL_END, EV_DRAIN_END, EV_TRANSITION]
 
-# TRANSITION cause codes (amber_monlite header contract)
+# TRANSITION cause codes (l1_monlite header contract)
 CAUSE_HIT_WR = 1
 CAUSE_FILL = 2
 CAUSE_SNOOP = 4
@@ -120,7 +120,7 @@ CAUSE_SNOOP = 4
 
 class LruModel:
     """Rank array parity model: 0 = MRU, WAYS-1 = victim; hits and installs
-    both update (matches amber_repl LRU reset + update semantics)."""
+    both update (matches l1_repl LRU reset + update semantics)."""
 
     def __init__(self, sets, ways):
         self.sets, self.ways = sets, ways

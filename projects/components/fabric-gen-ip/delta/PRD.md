@@ -143,6 +143,8 @@ Tree depth: log2(N) stages
 - **Verification:** Verilator lint clean, synthesis clean
 
 **REQ-GEN-002:** Generator shall support flat crossbar topology (tree topology retired 2026-10-12 — see QUICK_START.md)
+**REQ-GEN-003:** Generator shall support optional TSTRB byte qualifiers (`--strb-width N`; default 0 = base signal set) so generated crossbars port-match `rtl/amba/axis4/*` (added 2026-10-12).
+**REQ-GEN-004:** Generator shall support optional AMBA 5 sidebands (`--amba5`): TWAKEUP steering — TDEST-decoded OR per slave, valid before TVALID — and TPARITY (`--parity-width`, default DATA_WIDTH/8), matching `rtl/amba/axis5/*` (added 2026-10-12). Both options default off; default output is byte-identical to pre-2026-10-12 generations.
 - **Flat:** Single crossbar module
 - **Tree:** Hierarchical node composition
 - **Both:** ~~Generate both variants with `--topology both`~~ (retired 2026-10-12; flat only)

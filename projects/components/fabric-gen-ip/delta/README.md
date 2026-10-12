@@ -37,6 +37,7 @@
 -  Python code generation (similar to APB crossbar automation)
 -  Performance modeling (analytical + simulation)
 -  Flat crossbar topology (tree generation retired — see QUICK_START.md)
+-  Optional TSTRB byte qualifiers + AMBA 5 sidebands (TWAKEUP, TPARITY) to port-match `rtl/amba/axis4` and `rtl/amba/axis5` (default off; see `rtl_test/delta_axis_flat_2x4_strb_amba5.sv`)
 -  Complete specifications and documentation
 - [PASS] Educational focus with rigor
 

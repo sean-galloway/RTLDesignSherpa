@@ -1,17 +1,17 @@
 # Testplan for amber_lookup_macro (macro composition suite 1: lookup
 # dataplane). Maps the group's cross-block scenarios to the BFM-driven DV.
-# DUT: the test wrapper amber_lookup_macro_test (Task 9.5): amber_control
-# + landed amber_tag_array / amber_data_array / amber_repl; fill/drain/
+# DUT: the test wrapper amber_lookup_macro_test (Task 9.5): l1_control
+# + landed l1_tag_array / l1_data_array / l1_repl; fill/drain/
 # victim/snoop partners are timing stubs at the boundary (D-12) -- the
 # group carries no fill/drain/victim/snoop FUBs.
 
 module: amber_lookup_macro
 rtl_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tb/amber_lookup_macro_test.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_control.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_tag_array.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_data_array.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_repl.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_tag_array.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_data_array.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_repl.sv
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_lookup_macro.py
 
@@ -24,7 +24,7 @@ test_files:
 
 parameters:
   - name: SETS / WAYS
-    default: 128 / 4 (amber_pkg)
+    default: 128 / 4 (l1_pkg)
     description: the macro grid runs the tiny formal config (16 / 2) and
       the pkg default; the control suite owns the wider SETS/WAYS axis
   - name: LINE_BYTES / BUS_WIDTH
@@ -80,7 +80,7 @@ coverage_points:
     covered: true
     note: "structurally the amber_control_th composition, pinned as the
       named macro cell on the bring-up ladder (unit -> macro ->
-      amber_core); T11's pair rig inherits these scenarios"
+      l1_core); T11's pair rig inherits these scenarios"
   - line: 1
     type: group_interaction
     content: "control <-> tag_array multi-way compare + hit-way decode"

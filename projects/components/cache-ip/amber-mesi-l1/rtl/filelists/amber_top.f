@@ -6,10 +6,10 @@
 # itself; foreign sources only via their own filelists.
 
 # Shared amber package
--f $CACHE_COMMON_ROOT/rtl/filelists/amber_pkg.f
+-f $CACHE_COMMON_ROOT/rtl/filelists/l1_pkg.f
 
 # The core closure (nine landed FUBs + their house deps)
--f $CACHE_COMMON_ROOT/rtl/filelists/amber_core.f
+-f $CACHE_COMMON_ROOT/rtl/filelists/l1_core.f
 
 # AXI4 read/write master monitors (complete closures)
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_monlite.f

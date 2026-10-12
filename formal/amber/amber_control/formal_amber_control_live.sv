@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
-// Formal liveness wrapper for amber_control (yosys-compatible)
+// Formal liveness wrapper for l1_control (yosys-compatible)
 // Run with: sby amber_control_live.sby
 //
 // Task 13 proof (2): no deadlock/livelock under fair arbitration.
@@ -67,7 +67,7 @@ module formal_amber_control_live (
     logic        ctrl_cdvalid;
     logic [3:0]  ctrl_state;
 
-    amber_control dut (
+    l1_control dut (
         .clk                     (clk),
         .rst_n                   (rst_n),
         .req_valid               (req_valid),

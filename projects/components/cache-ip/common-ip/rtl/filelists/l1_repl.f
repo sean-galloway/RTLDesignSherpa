@@ -1,0 +1,12 @@
+# Filelist for l1_repl
+# Location: projects/components/cache-ip/common-ip/rtl/filelists/l1_repl.f
+#
+# Replacement-policy engine. Flops with reset, so the reset macro header
+# comes first, then the package, then the module.
+
+# reset_defs.svh -- ALWAYS_FF_RST/RST_ASSERTED macros.
+-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
+
+-f $CACHE_COMMON_ROOT/rtl/filelists/l1_pkg.f
+
+$CACHE_COMMON_ROOT/rtl/fub/l1_repl.sv

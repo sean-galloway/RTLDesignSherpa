@@ -1,5 +1,5 @@
 """
-amber_snoop_kmap test runner
+l1_snoop_kmap test runner
 
 Combinational {state, snoop} -> {CRRESP, next_state} decode against an
 independent copy of the amber HAS Table 3.0 truth table. Exhaustive at func
@@ -36,7 +36,7 @@ async def cocotb_test_amber_snoop_kmap(dut):
     ok = await tb.run()
     report = tb.get_test_report()
     tb.log.info(f"Test report: {report}")
-    assert ok, f"amber_snoop_kmap: {report['mismatches']} mismatches in {report['checks']} checks"
+    assert ok, f"l1_snoop_kmap: {report['mismatches']} mismatches in {report['checks']} checks"
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
@@ -45,9 +45,9 @@ def test_amber_snoop_kmap(request, test_level):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_amber': 'projects/components/cache-ip/amber-mesi-l1/rtl/fub',
     })
-    dut_name = "amber_snoop_kmap"
+    dut_name = "l1_snoop_kmap"
     verilog_sources, includes = get_sources_from_filelist(
-        repo_root=repo_root, filelist_path=f'{FILELIST_DIR}/amber_snoop_kmap.f')
+        repo_root=repo_root, filelist_path=f'{FILELIST_DIR}/l1_snoop_kmap.f')
 
     test_name_plus_params = f"test_{dut_name}_{test_level}"
     os.makedirs(log_dir, exist_ok=True)   # clean-all removes logs/

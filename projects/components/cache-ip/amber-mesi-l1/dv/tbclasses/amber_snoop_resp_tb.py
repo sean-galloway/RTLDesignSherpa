@@ -1,9 +1,9 @@
 """
-amber_snoop_resp testbench -- ACE-level closed loop with the real control
+l1_snoop_resp testbench -- ACE-level closed loop with the real control
 
 Task 7 integration: the DUT is the harness amber_snoop_resp_th (REAL
-amber_control + landed amber_tag_array/amber_data_array/amber_repl + REAL
-amber_snoop_resp on the house axi4ace_snoop_slave transport). The
+l1_control + landed l1_tag_array/l1_data_array/l1_repl + REAL
+l1_snoop_resp on the house axi4ace_snoop_slave transport). The
 cocotb-framework AXI4ACESnoopMaster drives the m_axi_* ACE pins; a frontend
 stub and fill/drain timing stubs (D-12: timing only, never protocol) keep
 random CPU traffic flowing on port A while snoops land on the ACE pins -- both
@@ -568,7 +568,7 @@ class AmberSnoopRespTB(AmberControlTB):
     # ------------------------------------------------------------------
     async def _e_write_hit_promotes(self):
         """EWriteHitPromotes: the Task 7 closed loop found the landed
-        amber_control driving HIT_WR's E->M promotion with an all-zeros
+        l1_control driving HIT_WR's E->M promotion with an all-zeros
         way one-hot (a silent drop -- E never occurs without a backdoor,
         so the control suite could not see it). Pin: backdoor-seed E,
         CPU write hit, then verify the tag array actually holds M (readback)

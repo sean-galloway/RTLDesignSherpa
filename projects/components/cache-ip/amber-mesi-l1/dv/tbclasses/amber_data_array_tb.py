@@ -1,5 +1,5 @@
 """
-amber_data_array testbench
+l1_data_array testbench
 
 Per-way line-data store with byte-write enables. The DUT has a clock but NO
 reset port (GLOBAL_REQUIREMENTS 1.4); the TB zero-fills every location first
@@ -22,7 +22,7 @@ from TBClasses.shared.tbbase import TBBase
 
 
 class AmberDataArrayTB(TBBase):
-    """Drives amber_data_array and scores both read ports against a model."""
+    """Drives l1_data_array and scores both read ports against a model."""
 
     OP_COUNTS = {'gate': 16, 'func': 2048, 'full': 4096}
 

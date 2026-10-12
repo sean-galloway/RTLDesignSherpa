@@ -1,8 +1,8 @@
 """
 amber_fsm_oracle pkg-pin testbench
 
-Drives the landed amber_snoop_kmap leaf (the module-boundary wrapper over the
-amber_pkg Table 3.0 decode functions) with every {state, snoop} cell the
+Drives the landed l1_snoop_kmap leaf (the module-boundary wrapper over the
+l1_pkg Table 3.0 decode functions) with every {state, snoop} cell the
 gem5-derived oracle produces a CRRESP for, and scores the DUT against the
 ORACLE -- not against a table copy -- so the simulation is a direct
 pkg<->oracle consistency pin. Reserved encodings (Owned / RSV5-7 line states,
@@ -10,7 +10,7 @@ snoop codes 6/7) are checked against the contracted safe default, and the
 oracle is asserted to refuse them.
 
 The DUT is combinational: each check drives the inputs, waits a delta, and
-compares, exactly like the amber_snoop_kmap TB this class is modeled on.
+compares, exactly like the l1_snoop_kmap TB this class is modeled on.
 
 Author: RTL Design Sherpa
 Created: 2026-10-07
@@ -29,15 +29,15 @@ from projects.components.cache_ip.amber_mesi_l1.dv.golden.amber_fsm_oracle impor
 
 
 class AmberOracleTB(TBBase):
-    """Scores amber_snoop_kmap against the gem5-derived FSM oracle."""
+    """Scores l1_snoop_kmap against the gem5-derived FSM oracle."""
 
-    # cache_state_t encodings (amber_pkg): 3-bit, MESI now + MOESI headroom
+    # cache_state_t encodings (l1_pkg): 3-bit, MESI now + MOESI headroom
     STATE_I = 0b000
     STATE_S = 0b001
     STATE_E = 0b010
     STATE_M = 0b011
 
-    # amber_snoop_t encodings (amber_pkg): the six IHI0022 AC snoop types
+    # amber_snoop_t encodings (l1_pkg): the six IHI0022 AC snoop types
     SNOOP_READ_SHARED   = 0b000
     SNOOP_READ_ONCE     = 0b001
     SNOOP_READ_UNIQUE   = 0b010
@@ -71,7 +71,7 @@ class AmberOracleTB(TBBase):
         self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.checks = 0
         self.mismatches = 0
-        self.log.info("AmberOracleTB: oracle<->pkg pin via amber_snoop_kmap")
+        self.log.info("AmberOracleTB: oracle<->pkg pin via l1_snoop_kmap")
 
     # -- the three mandatory methods; the DUT is purely combinational --------
     async def setup_clocks_and_reset(self):

@@ -2,7 +2,7 @@
 # Location: projects/components/cache-ip/amber-mesi-l1/rtl/filelists/amber_ace_top.f
 #
 # ACE rig top: the onyx-rig cache top on the house ACE masters --
-# amber_core + amber_ace_issue (the Table 2.8.1 map) + the
+# l1_core + amber_ace_issue (the Table 2.8.1 map) + the
 # axi4ace_master_rd/wr_monlite transports (D3 measured paths, ACE snoop
 # fields + auto-pulsed RACK/WACK) + the D-7 monbus_arbiter. No coh_req
 # sideband to the top level (the fabric is not in this rig; the launch
@@ -10,10 +10,10 @@
 # sources only via their own filelists.
 
 # Shared amber package
--f $CACHE_COMMON_ROOT/rtl/filelists/amber_pkg.f
+-f $CACHE_COMMON_ROOT/rtl/filelists/l1_pkg.f
 
 # The core closure (nine landed FUBs + their house deps)
--f $CACHE_COMMON_ROOT/rtl/filelists/amber_core.f
+-f $CACHE_COMMON_ROOT/rtl/filelists/l1_core.f
 
 # The Table 2.8.1 event->transaction map (own RTL; pkg-only closure)
 -f $AMBER_ROOT/rtl/filelists/amber_ace_issue.f

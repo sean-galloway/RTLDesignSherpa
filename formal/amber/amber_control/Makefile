@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: MIT
-# Formal verification Makefile for amber_control
+# Formal verification Makefile for l1_control
 # Workflow: sv2v flattens the REAL RTL -> sby reads plain Verilog (plain prep).
 #
-# Closure: amber_pkg + amber_pending_fill_bypass + amber_victim (the two leaf
-# sub-blocks control instantiates) + amber_control. The tag/data/repl arrays
+# Closure: l1_pkg + l1_pending_fill_bypass + l1_victim (the two leaf
+# sub-blocks control instantiates) + l1_control. The tag/data/repl arrays
 # stay outside: the wrapper models the tag store abstractly and frees the
 # rest (see formal_amber_control.sv).
 # Geometry: the tiny formal configuration SETS=16 / WAYS=2 / 64B / 64b.
@@ -12,10 +12,10 @@
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
 INC  := -I$(REPO_ROOT)/rtl/amba/includes
-PKGS := $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/includes/amber_pkg.sv
-SRCS := $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/fub/amber_pending_fill_bypass.sv \
-        $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/fub/amber_victim.sv \
-        $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/fub/amber_control.sv
+PKGS := $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/includes/l1_pkg.sv
+SRCS := $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/fub/l1_pending_fill_bypass.sv \
+        $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/fub/l1_victim.sv \
+        $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv
 TMPDIR := /tmp/formal_amber_control
 
 .PHONY: prove prove-live cover all clean
@@ -44,7 +44,7 @@ amber_control_flat.v: $(PKGS) $(SRCS)
 	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) $(addprefix $(TMPDIR)/,$(notdir $(SRCS))) | python3 ../specialize_params.py - $@ \
 	    --param ADDR_WIDTH=32 --param SETS=16 --param WAYS=2 \
 	    --param LINE_BYTES=64 --param BUS_WIDTH=64 \
-	    --module amber_control
+	    --module l1_control
 	@rm -rf $(TMPDIR)
 
 clean:
@@ -73,5 +73,5 @@ check-flat: .check_flat_tmp
 	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) $(addprefix $(TMPDIR)/,$(notdir $(SRCS))) | python3 ../specialize_params.py - $@ \
 	    --param ADDR_WIDTH=32 --param SETS=16 --param WAYS=2 \
 	    --param LINE_BYTES=64 --param BUS_WIDTH=64 \
-	    --module amber_control
+	    --module l1_control
 	@rm -rf $(TMPDIR)

@@ -1,4 +1,4 @@
-module amber_pending_fill_bypass (
+module l1_pending_fill_bypass (
 	clk,
 	rst_n,
 	pf_load,
@@ -15,14 +15,14 @@ module amber_pending_fill_bypass (
 	pf_beat_valid,
 	pf_clear
 );
-	localparam signed [31:0] amber_pkg_AMBER_ADDR_WIDTH = 32;
-	parameter signed [31:0] ADDR_WIDTH = amber_pkg_AMBER_ADDR_WIDTH;
-	localparam signed [31:0] amber_pkg_AMBER_SETS = 128;
-	parameter signed [31:0] SETS = amber_pkg_AMBER_SETS;
-	localparam signed [31:0] amber_pkg_AMBER_LINE_BYTES = 64;
-	parameter signed [31:0] LINE_BYTES = amber_pkg_AMBER_LINE_BYTES;
-	localparam signed [31:0] amber_pkg_AMBER_BUS_WIDTH = 64;
-	parameter signed [31:0] BUS_WIDTH = amber_pkg_AMBER_BUS_WIDTH;
+	localparam signed [31:0] l1_pkg_AMBER_ADDR_WIDTH = 32;
+	parameter signed [31:0] ADDR_WIDTH = l1_pkg_AMBER_ADDR_WIDTH;
+	localparam signed [31:0] l1_pkg_AMBER_SETS = 128;
+	parameter signed [31:0] SETS = l1_pkg_AMBER_SETS;
+	localparam signed [31:0] l1_pkg_AMBER_LINE_BYTES = 64;
+	parameter signed [31:0] LINE_BYTES = l1_pkg_AMBER_LINE_BYTES;
+	localparam signed [31:0] l1_pkg_AMBER_BUS_WIDTH = 64;
+	parameter signed [31:0] BUS_WIDTH = l1_pkg_AMBER_BUS_WIDTH;
 	localparam signed [31:0] SET_INDEX_WIDTH = $clog2(SETS);
 	localparam signed [31:0] LINE_OFFSET_WIDTH = $clog2(LINE_BYTES);
 	localparam signed [31:0] STRB_W = BUS_WIDTH / 8;
@@ -46,13 +46,13 @@ module amber_pending_fill_bypass (
 	input wire pf_clear;
 	initial begin
 		if ((SETS & (SETS - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_pending_fill_bypass/amber_pending_fill_bypass.sv:125:13 - amber_pending_fill_bypass.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_pending_fill_bypass: SETS must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_pending_fill_bypass/l1_pending_fill_bypass.sv:125:13 - l1_pending_fill_bypass.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_pending_fill_bypass: SETS must be a power of two");
 		if ((LINE_BYTES & (LINE_BYTES - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_pending_fill_bypass/amber_pending_fill_bypass.sv:127:13 - amber_pending_fill_bypass.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_pending_fill_bypass: LINE_BYTES must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_pending_fill_bypass/l1_pending_fill_bypass.sv:127:13 - l1_pending_fill_bypass.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_pending_fill_bypass: LINE_BYTES must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_pending_fill_bypass/amber_pending_fill_bypass.sv:129:13 - amber_pending_fill_bypass.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_pending_fill_bypass: LINE_BYTES / BUS_WIDTH*8 must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_pending_fill_bypass/l1_pending_fill_bypass.sv:129:13 - l1_pending_fill_bypass.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_pending_fill_bypass: LINE_BYTES / BUS_WIDTH*8 must be a power of two");
 		if ((BUS_WIDTH % 8) != 0)
-			$display("Error [%0t] /tmp/formal_amber_pending_fill_bypass/amber_pending_fill_bypass.sv:131:13 - amber_pending_fill_bypass.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_pending_fill_bypass: BUS_WIDTH must be a multiple of 8");
+			$display("Error [%0t] /tmp/formal_amber_pending_fill_bypass/l1_pending_fill_bypass.sv:131:13 - l1_pending_fill_bypass.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_pending_fill_bypass: BUS_WIDTH must be a multiple of 8");
 	end
 	reg pf_active_q;
 	reg [LINE_ADDR_WIDTH - 1:0] pf_addr_q;

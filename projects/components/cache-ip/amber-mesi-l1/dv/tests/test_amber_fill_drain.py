@@ -1,12 +1,12 @@
 """
-amber_fill / amber_drain test runner
+l1_fill / l1_drain test runner
 
 AXI4 master-side sequencing engines (Task 6) in front of the house
 axi4_master_rd / axi4_master_wr wrappers, with the house AXI4 slave BFM
 responders closing the memory side (dv/tbclasses/amber_fill_drain_tb.py).
 The DUT is the test harness amber_fill_drain_th (pure wiring: fill engine +
 read wrapper + drain engine + write wrapper); RTL names on the control side
-are the landed amber_control binding group (fill_start/fill_addr/
+are the landed l1_control binding group (fill_start/fill_addr/
 fill_req_class/fill_done/fill_beat_valid/fill_beat_data/fill_beat_idx/
 fill_last; drain_start/victim_addr/victim_data/drain_done).
 
@@ -60,7 +60,7 @@ async def cocotb_test_amber_fill_drain(dut):
     ok = await tb.run()
     report = tb.get_test_report()
     tb.log.info(f"Test report: {report}")
-    assert ok, f"amber_fill/drain: {report['mismatches']} mismatches in {report['checks']} checks"
+    assert ok, f"l1_fill/drain: {report['mismatches']} mismatches in {report['checks']} checks"
 
 
 def _run_cell(request, sets, ways, test_level):
@@ -72,7 +72,7 @@ def _run_cell(request, sets, ways, test_level):
     # package include and its axi4 master wrapper closure), dedup'ing
     # order-preserving.
     verilog_sources = []
-    for fl in ('amber_fill', 'amber_drain'):
+    for fl in ('l1_fill', 'l1_drain'):
         srcs, includes = get_sources_from_filelist(
             repo_root=repo_root,
             filelist_path=f'{FILELIST_DIR}/{fl}.f')
@@ -134,7 +134,7 @@ def _generate_cells():
                 def _cell(request):
                     _run_cell(request, s, w, lvl)
                 _cell.__name__ = n
-                _cell.__doc__ = (f"amber_fill/drain {n}: AXI4 sequencing "
+                _cell.__doc__ = (f"l1_fill/drain {n}: AXI4 sequencing "
                                  f"engines on the house master wrappers "
                                  f"(geometry s{s}/w{w}, level {lvl})")
                 return _cell

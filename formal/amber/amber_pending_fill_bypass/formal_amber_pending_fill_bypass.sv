@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
-// Formal wrapper for amber_pending_fill_bypass (yosys-compatible)
-// Run with: sby amber_pending_fill_bypass.sby
+// Formal wrapper for l1_pending_fill_bypass (yosys-compatible)
+// Run with: sby l1_pending_fill_bypass.sby
 //
 // Task 13 proof (MAS ch02_blocks/02, standalone leaf at the tiny geometry
 // SETS=16 / LINE_BYTES=64 / BUS_WIDTH=64 -> FILL_BEATS=8, LINE_ADDR_WIDTH=26).
 //
-// Assumption inventory (smallest sound choices; the amber_control integration
-// is discharged in the amber_control proof):
+// Assumption inventory (smallest sound choices; the l1_control integration
+// is discharged in the l1_control proof):
 //   - reset protocol: house pattern (initially in reset, release after 2
 //     cycles, never re-asserts).
-//   - A1 (environment contract from amber_control): pf_load never arms an
+//   - A1 (environment contract from l1_control): pf_load never arms an
 //     Invalid install state -- control only loads READ_SHARED->S / else->M.
 //     The leaf itself is state-agnostic; this mirrors its only in-system use.
 // Everything else (pf_clear/pf_beat timing, addresses, indices) is free.
@@ -50,7 +50,7 @@ module formal_amber_pending_fill_bypass (
     logic [FILL_BEATS-1:0]       pf_data_valid;
     logic                        pf_beat_valid;
 
-    amber_pending_fill_bypass #(
+    l1_pending_fill_bypass #(
         .ADDR_WIDTH (32),
         .SETS       (SETS),
         .LINE_BYTES (LINE_BYTES),

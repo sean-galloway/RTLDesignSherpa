@@ -1,16 +1,16 @@
-# Testplan for amber_repl (replacement-policy engine)
+# Testplan for l1_repl (replacement-policy engine)
 # Maps functional scenarios to the Pattern-B grid DV. Four policies, one
 # elaborated per build; every cell runs an independent Python golden model.
 
-module: amber_repl
+module: l1_repl
 rtl_files:
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_repl.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_repl.sv
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_repl.py
 
 # Contract: MAS ch02_blocks/04. repl_hit / repl_update mutually exclusive.
 # FIFO update is exact under the install-into-victim-way invariant
-# (amber_control guarantee). random requires power-of-two WAYS; tree_plru
+# (l1_control guarantee). random requires power-of-two WAYS; tree_plru
 # requires power-of-two WAYS. Policy state is control state: resettable.
 
 parameters:

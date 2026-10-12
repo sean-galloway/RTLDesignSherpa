@@ -1,6 +1,6 @@
 # Testplan for the amber ACE rig (Task 12): `amber_ace_issue` +
 # `amber_ace_top` -- the onyx-rig top on ACE masters. One amber_ace_top
-# (amber_core + amber_ace_issue + the axi4ace_master_rd/wr_monlite
+# (l1_core + amber_ace_issue + the axi4ace_master_rd/wr_monlite
 # transports + the D-7 monbus_arbiter) against a Python onyx-D2 manager
 # model on the ACE master pins.
 # Run: dv/tests/test_amber_ace_top.py.
@@ -39,7 +39,7 @@
 #   D_B-state output; a stray AW-only credit would otherwise misretire the
 #   next WriteBack). RACK/WACK auto-pulse one cycle after the last R beat /
 #   the B handshake (house wrapper behavior).
-#   Rig-level note: amber_control maps whole-line write misses to
+#   Rig-level note: l1_control maps whole-line write misses to
 #   ReadUnique+merge (not MakeUnique) and drops clean victims silently (no
 #   Evict), so the MakeUnique/Evict rows are proven on the unit wrapper;
 #   the rig asserts they are never issued.
@@ -55,7 +55,7 @@ parameters:
   - name: SETS / WAYS / LINE_BYTES / BUS_WIDTH
     default: 128 / 4 / 64 / 64
     description: >
-      geometry per amber_pkg (HAS Table 5.0). Grid: tiny formal config
+      geometry per l1_pkg (HAS Table 5.0). Grid: tiny formal config
       (16/2/64/64) + pkg default (128/4/64/64).
     status: covered
   - name: REPL_POLICY
@@ -66,7 +66,7 @@ parameters:
   - name: USE_MONITOR
     default: 1
     description: >
-      0 ties all three MonBus observers (amber_monlite + the two ace
+      0 ties all three MonBus observers (l1_monlite + the two ace
       monlites) off. A USE_MONITOR=0 cell per geometry re-runs the gate
       suite asserting functional equivalence + observer silence.
 

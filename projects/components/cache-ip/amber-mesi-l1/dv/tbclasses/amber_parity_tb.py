@@ -2,7 +2,7 @@
 amber parity testbench (cache_sim trace-replay parity, Task 10)
 
 Replays a committed cache_sim trace (word addresses, dv/traces/) through
-amber_core and pins hit/miss/miss-class counts EXACTLY against the cache_sim
+l1_core and pins hit/miss/miss-class counts EXACTLY against the cache_sim
 JS golden model -- PRD success criterion 1:
 
   per run: hits / misses / compulsory / capacity / conflict, amber vs
@@ -78,7 +78,7 @@ class ModelJsCache:
     recency order matches this model's up to a consistent way renaming, so
     per-access hit/miss parity holds exactly.  For RANDOM, policy is the
     recorded LFSR extension (draw on EVERY miss, no empty-way preference),
-    which is way-for-way the amber_repl LFSR, so per-access victim-way
+    which is way-for-way the l1_repl LFSR, so per-access victim-way
     parity holds exactly too.
     """
 
@@ -93,7 +93,7 @@ class ModelJsCache:
         self.lru = [[] for _ in range(sets)]
         self.fifo = [[] for _ in range(sets)]
         # per-set LFSR for the recorded RANDOM extension; every set starts
-        # at REPL_SEED exactly like amber_repl
+        # at REPL_SEED exactly like l1_repl
         self.lfsr = [LfsrRng() for _ in range(sets)] if policy == 'RANDOM' \
             else None
 

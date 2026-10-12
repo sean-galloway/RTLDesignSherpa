@@ -1,8 +1,8 @@
 # Testplan for amber_miss_fill_macro (macro composition suite 2: miss/fill
 # path). Maps the group's cross-block scenarios to the BFM-driven DV.
 # DUT: the test wrapper amber_miss_fill_macro_test (Task 9.5): REAL
-# amber_control (with the pending_fill_bypass leaf) + landed
-# tag/data/repl arrays + REAL amber_fill on its house axi4_master_rd
+# l1_control (with the pending_fill_bypass leaf) + landed
+# tag/data/repl arrays + REAL l1_fill on its house axi4_master_rd
 # transport; the TB closes the wrapper's m_axi AR/R pins with the house
 # AXI4 read responder + a shared MemoryModel. Drain/victim stay timing
 # stubs (D-12); snoops enter on the control-facing pins.
@@ -10,12 +10,12 @@
 module: amber_miss_fill_macro
 rtl_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tb/amber_miss_fill_macro_test.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_control.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_pending_fill_bypass.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_fill.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_tag_array.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_data_array.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_repl.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_pending_fill_bypass.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_fill.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_tag_array.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_data_array.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_repl.sv
   - rtl/amba/axi/axi4_master_rd.sv   # transport (cross-area, -f'd)
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_miss_fill_macro.py
@@ -31,7 +31,7 @@ test_files:
 
 parameters:
   - name: SETS / WAYS
-    default: 128 / 4 (amber_pkg)
+    default: 128 / 4 (l1_pkg)
     description: the macro grid runs the tiny formal config (16 / 2) and
       the pkg default
   - name: LINE_BYTES / BUS_WIDTH
@@ -127,7 +127,7 @@ coverage_points:
   - line: 1
     type: module
     content: "amber_miss_fill_macro_test: control + pfb leaf + real
-      amber_fill + axi4_master_rd"
+      l1_fill + axi4_master_rd"
     covered: true
   - line: 1
     type: group_interaction

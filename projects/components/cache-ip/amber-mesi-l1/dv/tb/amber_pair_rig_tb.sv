@@ -49,7 +49,7 @@
 //   suites' hierarchical taps).
 //
 //------------------------------------------------------------------------------
-// Parameters: geometry per amber_pkg (both caches + fabric + memory share
+// Parameters: geometry per l1_pkg (both caches + fabric + memory share
 //   it); MEM_DEPTH sizes the sdpram to the TB working set.
 //------------------------------------------------------------------------------
 //
@@ -62,7 +62,7 @@
 //==============================================================================
 
 module amber_pair_rig_tb
-    import amber_pkg::*;
+    import l1_pkg::*;
 #(
     parameter int ADDR_WIDTH     = AMBER_ADDR_WIDTH,
     parameter int SETS           = AMBER_SETS,

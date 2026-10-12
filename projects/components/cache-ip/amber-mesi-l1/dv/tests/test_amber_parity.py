@@ -3,7 +3,7 @@ amber cache_sim trace-replay parity grid -- test runner (Task 10, PRD
 success criterion 1)
 
 Grid: {traces} x {LRU, FIFO, RANDOM} x {128/4/64/64, 16/2/64/64}.  Per cell
-the trace is replayed through amber_core (dv/tbclasses/amber_parity_tb.py)
+the trace is replayed through l1_core (dv/tbclasses/amber_parity_tb.py)
 and hits/misses/compulsory/capacity/conflict are compared EXACTLY against
 the cache_sim JS golden model (bin/apps/cache_sim/js/model.js via
 dv/golden/cache_sim_harness.py):
@@ -11,7 +11,7 @@ dv/golden/cache_sim_harness.py):
   * LRU / FIFO run the shipped model bytes natively (exact parity)
   * RANDOM runs the recorded LFSR extension (dv/golden/
     cache_sim_lfsr_extension.js, applied to a compiled copy) replaying the
-    amber_repl LFSR polynomial/seed -- mulberry32 cannot parity natively
+    l1_repl LFSR polynomial/seed -- mulberry32 cannot parity natively
     (DECISION D-9)
 
 Levels: gate replays the smoke trace only (seq_1k); func is the full grid.
@@ -64,7 +64,7 @@ from projects.components.cache_ip.amber_mesi_l1.dv.golden import (
 
 
 FILELIST_DIR = 'projects/components/cache-ip/common-ip/rtl/filelists'
-DUT_TOP = 'amber_core'
+DUT_TOP = 'l1_core'
 TEST_PREFIX = 'amber_parity'
 TRACES_DIR = os.path.join(repo_root,
                           'projects/components/cache-ip/amber-mesi-l1/dv/traces')
@@ -107,7 +107,7 @@ def _run_cell(request, trace, repl_policy, pol_name, sets, ways, line_bytes,
     module, repo_root_, tests_dir, log_dir, rtl_dict = get_paths({})
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root_,
-        filelist_path=f'{FILELIST_DIR}/amber_core.f')
+        filelist_path=f'{FILELIST_DIR}/l1_core.f')
 
     test_name_plus_params = (
         f"test_{TEST_PREFIX}_{trace}_{pol_name}"
@@ -258,7 +258,7 @@ def test_amber_parity_golden_runner(case):
 
 
 def test_amber_parity_lfsr_extension_pin():
-    """The recorded extension must bit-match the amber_repl LFSR: victim-way
+    """The recorded extension must bit-match the l1_repl LFSR: victim-way
     sequence equals the Python reference for several associativities, the
     LFSR draws on EVERY miss (fills included, no empty-way preference), and
     native mulberry32 provably differs (the extension is doing real work).

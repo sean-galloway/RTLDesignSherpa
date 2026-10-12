@@ -85,7 +85,7 @@
 //   interleaved); one write burst in flight at a time (B routed by owner).
 //
 //------------------------------------------------------------------------------
-// Parameters: geometry per amber_pkg (the fabric moves lines; SETS/WAYS are
+// Parameters: geometry per l1_pkg (the fabric moves lines; SETS/WAYS are
 //   package context only).
 //------------------------------------------------------------------------------
 //
@@ -99,7 +99,7 @@
 // Related Modules:
 //   - Instantiated by: the Task 11 pair rig (amber_pair_rig_tb)
 //   - Consumes: two amber_top memory sides + D-8 sidebands + ACE responders
-//   - Package: amber_pkg (ACE request classes)
+//   - Package: l1_pkg (ACE request classes)
 //
 //------------------------------------------------------------------------------
 // Test:
@@ -110,7 +110,7 @@
 //==============================================================================
 
 module amber_pair_fabric
-    import amber_pkg::*;
+    import l1_pkg::*;
 #(
     parameter int ADDR_WIDTH     = AMBER_ADDR_WIDTH,
     parameter int SETS           = AMBER_SETS,
@@ -355,7 +355,7 @@ module amber_pair_fabric
     localparam logic [3:0] ST_LOOKUP      = 4'h2;
     localparam logic [3:0] ST_HIT_RD      = 4'h3;
     localparam logic [3:0] ST_HIT_WR      = 4'h4;
-    localparam logic [3:0] ST_INIT        = 4'h1;   // amber_pkg ctrl_state_t
+    localparam logic [3:0] ST_INIT        = 4'h1;   // l1_pkg ctrl_state_t
     localparam logic [3:0] ST_MISS_VICTIM = 4'h5;
     localparam logic [3:0] ST_MISS_DRAIN  = 4'h6;
     localparam logic [3:0] ST_MISS_FILL   = 4'h7;

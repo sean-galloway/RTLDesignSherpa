@@ -1,10 +1,10 @@
 """
-amber_cpu_frontend test runner
+l1_cpu_frontend test runner
 
 CPU-facing GAXI slave across the geometry grid (64-bit bus / 64 B lines
 and 32-bit bus / 32 B lines), closed loop with the real control: the DUT
-is the harness amber_frontend_th (REAL amber_cpu_frontend + REAL
-amber_control + landed tag/data/repl arrays). The house GAXIMaster drives
+is the harness amber_frontend_th (REAL l1_cpu_frontend + REAL
+l1_control + landed tag/data/repl arrays). The house GAXIMaster drives
 the packed {addr, we, be, wdata} request channel; the house GAXISlave
 collects responses with policy-controlled backpressure.
 
@@ -55,7 +55,7 @@ async def cocotb_test_amber_frontend(dut):
     ok = await tb.run()
     report = tb.get_test_report()
     tb.log.info(f"Test report: {report}")
-    assert ok, f"amber_cpu_frontend: {report['mismatches']} mismatches in {report['checks']} checks"
+    assert ok, f"l1_cpu_frontend: {report['mismatches']} mismatches in {report['checks']} checks"
 
 
 def _run_cell(request, addr_width, data_width, line_bytes, test_level):
@@ -68,8 +68,8 @@ def _run_cell(request, addr_width, data_width, line_bytes, test_level):
     # order-preserving.
     verilog_sources = []
     includes = []
-    for fl in ('amber_frontend', 'amber_control',
-               'amber_tag_array', 'amber_data_array', 'amber_repl'):
+    for fl in ('l1_frontend', 'l1_control',
+               'l1_tag_array', 'l1_data_array', 'l1_repl'):
         srcs, incs = get_sources_from_filelist(
             repo_root=repo_root,
             filelist_path=f'{FILELIST_DIR}/{fl}.f')

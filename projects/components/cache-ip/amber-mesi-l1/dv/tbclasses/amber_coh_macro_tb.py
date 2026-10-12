@@ -2,22 +2,22 @@
 
 Task 9.5 macro composition: the PROMOTED Task 7 ad-hoc composition as a
 named macro regression cell. The DUT is the wrapper amber_coh_macro_test
-(REAL amber_control with the pending_fill_bypass / victim leaves +
-landed tag/data/repl arrays + REAL amber_snoop_resp on the house
+(REAL l1_control with the pending_fill_bypass / victim leaves +
+landed tag/data/repl arrays + REAL l1_snoop_resp on the house
 axi4ace_snoop_slave transport; fill/drain timing stubs per D-12) -- the
 amber_snoop_resp_th wiring carried verbatim, so this class extends
 AmberSnoopRespTB rather than rebuilding the suite:
 
   gate  -- table30_directed (one transaction per reachable HAS Table 3.0
            cell) + EWriteHitPromotes, the Task-7 found-and-fixed pin
-           (HIT_WR E->M promotion one-hot, amber_control.sv:944)
+           (HIT_WR E->M promotion one-hot, l1_control.sv:944)
   func  -- pool soak + zero-gap AC pairs (pipelining_zero_gap) +
            reset_recovery + SnoopVictimLineDuringGather +
            real_control_loop (randomized snoops against an amber
            simultaneously serving random CPU traffic: pending-fill
            bypass reference, staged-buffer service, stale-entry rule
            with the cross-set way+tag collision discrimination -- the
-           sn_stale_gnt set-narrowing pin, amber_control.sv:531-535)
+           sn_stale_gnt set-narrowing pin, l1_control.sv:531-535)
   full  -- deeper soak/loop at sign-off scale (6000 snoops / 1200 loop
            transactions), the T7 pins must stay green
 

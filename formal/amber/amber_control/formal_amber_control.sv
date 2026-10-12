@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
-// Formal wrapper for amber_control (yosys-compatible)
-// Run with: sby amber_control.sby
+// Formal wrapper for l1_control (yosys-compatible)
+// Run with: sby l1_control.sby
 //
 // Task 13 proofs (MAS ch06) at the tiny geometry SETS=16 / WAYS=2 /
 // LINE_BYTES=64 / BUS_WIDTH=64:
@@ -19,10 +19,10 @@
 //
 // Structure: the wrapper top holds the abstract tag-array model (a 16x2
 // store, reset to Invalid, applying every port-A write -- an exact model of
-// amber_tag_array at this geometry) and the no-stale-data poison check on
+// l1_tag_array at this geometry) and the no-stale-data poison check on
 // that model. The remaining properties and all environment assumptions live
 // in amber_control_props, instantiated at the top and fed by the DUT's
-// ports plus 52 internal signals that amber_control.sby exposes as DUT
+// ports plus 52 internal signals that l1_control.sby exposes as DUT
 // output ports (yosys has no hierarchical references and no working bind in
 // this build; expose over a parameter-specialized flat is the mechanism --
 // see the Task 13 report, Toolchain findings). req_wdata and the port-B
@@ -41,7 +41,7 @@ module formal_amber_control (
     input  logic [7:0]  req_be,
     input  logic [63:0] req_wdata,
 
-    // snoop responder (free environment; amber_snoop_resp contract)
+    // snoop responder (free environment; l1_snoop_resp contract)
     input  logic        snoop_req,
     input  logic [2:0]  snoop_type,
     input  logic [31:0] snoop_addr,
@@ -125,7 +125,7 @@ module formal_amber_control (
     end
 
     // ------------------------------------------------------------------
-    // Abstract tag-array model (exact model of amber_tag_array at 16x2):
+    // Abstract tag-array model (exact model of l1_tag_array at 16x2):
     // reset to Invalid (matches the DUT init walk's net effect; the walk
     // writes {0, I} everywhere, so applying it is a no-op on the model),
     // every port-A write applied. Read combinationally on both ports.
@@ -213,7 +213,7 @@ module formal_amber_control (
     // is pre-specialized to the tiny formal geometry by specialize_params
     // (which also strips the parameter declarations so yosys bind fires).
     // ------------------------------------------------------------------
-    amber_control dut (
+    l1_control dut (
         .clk                     (clk),
         .rst_n                   (rst_n),
         .req_valid               (req_valid),
@@ -329,7 +329,7 @@ module formal_amber_control (
 
     // ------------------------------------------------------------------
     // Internal observability. The DUT flat is parameter-specialized (see
-    // the Makefile) and amber_control.sby exposes the internal signals
+    // the Makefile) and l1_control.sby exposes the internal signals
     // below as DUT output ports; yosys has no hierarchical references and
     // its bind statement never fires on any target (verified in Task 13),
     // so expose + a plain property-module instantiation is the mechanism.
@@ -477,7 +477,7 @@ module formal_amber_control (
 endmodule
 
 // ===========================================================================
-// Property module: bound into amber_control (ports resolve in DUT scope)
+// Property module: bound into l1_control (ports resolve in DUT scope)
 // ===========================================================================
 //
 // Assumption inventory (environment obligations; each recorded):
@@ -586,7 +586,7 @@ module amber_control_props (
     localparam TAGSW      = 25;
     localparam FILL_BEATS = 8;
 
-    // ctrl_state_t encodings (amber_pkg)
+    // ctrl_state_t encodings (l1_pkg)
     localparam [3:0] CS_IDLE        = 4'd0;
     localparam [3:0] CS_LOOKUP      = 4'd2;
     localparam [3:0] CS_HIT_RD      = 4'd3;
@@ -599,7 +599,7 @@ module amber_control_props (
     localparam [3:0] CS_SNOOP       = 4'd10;
     localparam [3:0] CS_ERROR       = 4'd11;
 
-    // cache_state_t encodings (amber_pkg)
+    // cache_state_t encodings (l1_pkg)
     localparam [2:0] ST_I = 3'b000;
     localparam [2:0] ST_S = 3'b001;
     localparam [2:0] ST_E = 3'b010;
@@ -608,10 +608,10 @@ module amber_control_props (
     localparam [11:0] OH_MISS_DRAIN = 12'b0000_0100_0000;
 
     // ------------------------------------------------------------------
-    // Independent spec copy of the HAS Table 3.0 CRRESP decode. amber_pkg
+    // Independent spec copy of the HAS Table 3.0 CRRESP decode. l1_pkg
     // is the RTL authority; this copy is the formal cross-check: a wiring
     // change to the pkg function fails ap_grant_crresp. Verified cell for
-    // cell against amber_pkg.amber_snoop_crresp (IHI0022 bit order
+    // cell against l1_pkg.amber_snoop_crresp (IHI0022 bit order
     // {WU[4], IS[3], PD[2], Err[1], DT[0]}).
     // ------------------------------------------------------------------
     function [4:0] exp_crresp;
@@ -910,7 +910,7 @@ module amber_control_props (
     // quantify over all tag behaviors, so they need no tag store -- and BMC
     // at depth 126 pays for the tag memory's store chains unnecessarily).
     // This file proves the SAFETY properties (incl. the poison invariant,
-    // BMC depth 126 in amber_control.sby) and the cover statements.
+    // BMC depth 126 in l1_control.sby) and the cover statements.
     // =========================================================================
 
     // =========================================================================

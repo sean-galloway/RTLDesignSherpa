@@ -1,8 +1,8 @@
 # Testplan for amber_coh_macro (macro composition suite 4: coherence /
 # snoop loop). This is the PROMOTED Task 7 ad-hoc composition as a named
 # macro regression cell: DUT the test wrapper amber_coh_macro_test
-# (Task 9.5) -- REAL amber_control (with the pending_fill_bypass /
-# victim leaves) + landed tag/data/repl arrays + REAL amber_snoop_resp
+# (Task 9.5) -- REAL l1_control (with the pending_fill_bypass /
+# victim leaves) + landed tag/data/repl arrays + REAL l1_snoop_resp
 # on the house axi4ace_snoop_slave transport; fill/drain partner timing
 # stubbed (D-12). Snoops enter at the ACE boundary only; the ctrl_*
 # snoop handshake is internal to the wrapper and observed through taps.
@@ -10,13 +10,13 @@
 module: amber_coh_macro
 rtl_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tb/amber_coh_macro_test.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_snoop_resp.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_control.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_pending_fill_bypass.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_victim.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_tag_array.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_data_array.sv
-  - projects/components/cache-ip/common-ip/rtl/fub/amber_repl.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_snoop_resp.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_pending_fill_bypass.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_victim.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_tag_array.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_data_array.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_repl.sv
   - rtl/amba/ace/axi4ace_snoop_slave.sv   # transport (cross-area, -f'd)
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_coh_macro.py
@@ -32,7 +32,7 @@ test_files:
 
 parameters:
   - name: SETS / WAYS
-    default: 128 / 4 (amber_pkg)
+    default: 128 / 4 (l1_pkg)
     description: the macro grid runs the tiny formal config (16 / 2) and
       the pkg default (the Task 7 suite ran the responder bus/line grid
       at a fixed 128/4)
@@ -50,7 +50,7 @@ scenarios:
     level: gate
     what: >
       TASK-7 FOUND-AND-FIXED PIN, travels with this promotion:
-      HIT_WR's E->M promotion one-hot (amber_control.sv:944, found as an
+      HIT_WR's E->M promotion one-hot (l1_control.sv:944, found as an
       all-zeros way one-hot silent drop). Backdoor-seed E, CPU write
       hit, tag-array readback proves M, a snoop decodes at M with the
       merged data.
@@ -98,7 +98,7 @@ scenarios:
       downgrade/re-upgrade), dirty victim (staged-buffer service through
       the drain window), clean victim (STALE-ENTRY rule with the
       cross-set way+tag collision discrimination -- the sn_stale_gnt
-      SET-NARROWING PIN, amber_control.sv:531-535, found by this loop),
+      SET-NARROWING PIN, l1_control.sv:531-535, found by this loop),
       and other installed lines. Post-commit pends applied by the
       concurrent-aware slice scorer, mirroring pend_vld_q.
     status: covered
@@ -111,14 +111,14 @@ scenarios:
 coverage_points:
   - line: 944
     type: always_comb
-    content: "amber_control OH_HIT_WR promotion one-hot (E -> M)"
+    content: "l1_control OH_HIT_WR promotion one-hot (E -> M)"
     covered: true
     note: "found all-zeros (silent drop) by the Task 7 closed loop;
       fixed + pinned by EWriteHitPromotes; green at every level and
       geometry of this macro"
   - line: 531
     type: always_comb
-    content: "amber_control sn_stale_gnt set-exact match"
+    content: "l1_control sn_stale_gnt set-exact match"
     covered: true
     note: "found missing set term (cross-set way+tag collision
       false-stale) by the real_control_loop; fixed; the stale-victim

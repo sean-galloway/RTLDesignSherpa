@@ -8,7 +8,7 @@
 // Purpose:
 //   Combinational cache-event -> ACE-transaction map per MAS ch02/08
 //   Table 2.8.1 (the onyx D2 coherent subset), sitting between
-//   amber_control / amber_fill / amber_drain and the house
+//   l1_control / l1_fill / l1_drain and the house
 //   axi4ace_master_rd / axi4ace_master_wr transports. It lives only in the
 //   amber_ace rig (the pair-rig amber_top does not instantiate it).
 //
@@ -37,7 +37,7 @@
 //   AW (drain + upgrades): two producers share the wrapper AW channel,
 //   never concurrently (the blocking control FSM visits MISS_DRAIN and
 //   the upgrade's MISS_FILL in separate transactions):
-//     * amber_drain's WriteBack AW passes through with
+//     * l1_drain's WriteBack AW passes through with
 //       fub_axi_awsnoop = WriteBack (drain only ever launches for dirty
 //       victims -- the control never drains a clean line).
 //     * CleanUnique / MakeUnique / Evict are AW-only transactions the
@@ -70,7 +70,7 @@
 //------------------------------------------------------------------------------
 // Parameters:
 //------------------------------------------------------------------------------
-//   ADDR_WIDTH / BUS_WIDTH: geometry per amber_pkg (HAS Table 5.0).
+//   ADDR_WIDTH / BUS_WIDTH: geometry per l1_pkg (HAS Table 5.0).
 //   AXI_ID_WIDTH / AXI_USER_WIDTH: fub_axi id/user field widths.
 //   AWONLY_ID: AWID tag for self-originated AW-only transactions; must
 //     differ from the engines' ID (0).
@@ -88,9 +88,9 @@
 //------------------------------------------------------------------------------
 // Related Modules:
 //   - Instantiated by: amber_ace_top (Task 12)
-//   - Sits between: amber_fill / amber_drain (via amber_core pins) and
+//   - Sits between: l1_fill / l1_drain (via l1_core pins) and
 //     axi4ace_master_rd / axi4ace_master_wr
-//   - Package: amber_pkg (amber_ace_req_t)
+//   - Package: l1_pkg (amber_ace_req_t)
 //
 //------------------------------------------------------------------------------
 // Test:
@@ -101,7 +101,7 @@
 //==============================================================================
 
 module amber_ace_issue
-    import amber_pkg::*;
+    import l1_pkg::*;
 #(
     parameter int ADDR_WIDTH     = AMBER_ADDR_WIDTH,
     parameter int BUS_WIDTH      = AMBER_BUS_WIDTH,
@@ -117,7 +117,7 @@ module amber_ace_issue
 
     // ------------------------------------------------------------------
     // Cache-event inputs (MAS ch02/08 Table 2.8.1; one pulse per
-    // coherence launch, from amber_control via the rig top)
+    // coherence launch, from l1_control via the rig top)
     // ------------------------------------------------------------------
     input  logic                  ace_rd_req,
     input  logic [2:0]            ace_rd_type,
@@ -129,7 +129,7 @@ module amber_ace_issue
     input  logic [7:0]            ace_wr_len,
 
     // ------------------------------------------------------------------
-    // Engine side: amber_fill AR
+    // Engine side: l1_fill AR
     // ------------------------------------------------------------------
     input  logic [IW-1:0]         eng_arid,
     input  logic [ADDR_WIDTH-1:0] eng_araddr,
@@ -146,7 +146,7 @@ module amber_ace_issue
     output logic                  eng_arready,
 
     // ------------------------------------------------------------------
-    // Engine side: amber_drain AW + B
+    // Engine side: l1_drain AW + B
     // ------------------------------------------------------------------
     input  logic [IW-1:0]         eng_awid,
     input  logic [ADDR_WIDTH-1:0] eng_awaddr,

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Formal verification Makefile for amber_victim
+# Formal verification Makefile for l1_victim
 # Workflow: sv2v flattens the REAL RTL -> sby reads plain Verilog (plain prep).
 #
 # Geometry: the tiny formal configuration SETS=16 / LINE_BYTES=64 / BUS_WIDTH=64
@@ -10,8 +10,8 @@
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
 INC  := -I$(REPO_ROOT)/rtl/amba/includes
-PKGS := $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/includes/amber_pkg.sv
-SRCS := $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/fub/amber_victim.sv
+PKGS := $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/includes/l1_pkg.sv
+SRCS := $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/fub/l1_victim.sv
 TMPDIR := /tmp/formal_amber_victim
 
 .PHONY: prove cover all clean

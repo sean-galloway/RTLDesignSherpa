@@ -1,5 +1,5 @@
 """
-amber_control test runner
+l1_control test runner
 
 Blocking-pipeline control FSM vs the Task 2 gem5-derived oracle, at two
 geometries: the tiny formal configuration (16 sets / 2 ways) and the
@@ -48,7 +48,7 @@ GEOMS = [
 ]
 
 DUT_TOP = 'amber_control_th'
-TEST_PREFIX = 'amber_control'
+TEST_PREFIX = 'l1_control'
 
 
 @cocotb.test(timeout_time=600, timeout_unit="ms")
@@ -58,7 +58,7 @@ async def cocotb_test_amber_control(dut):
     ok = await tb.run()
     report = tb.get_test_report()
     tb.log.info(f"Test report: {report}")
-    assert ok, f"amber_control: {report['mismatches']} mismatches in {report['checks']} checks"
+    assert ok, f"l1_control: {report['mismatches']} mismatches in {report['checks']} checks"
 
 
 def _run_cell(request, sets, ways, test_level):
@@ -69,8 +69,8 @@ def _run_cell(request, sets, ways, test_level):
     # Merge the closure filelists (control + the landed arrays/repl it
     # drives), dedup'ing the shared package include order-preserving.
     verilog_sources = []
-    for fl in ('amber_control', 'amber_tag_array',
-               'amber_data_array', 'amber_repl'):
+    for fl in ('l1_control', 'l1_tag_array',
+               'l1_data_array', 'l1_repl'):
         srcs, includes = get_sources_from_filelist(
             repo_root=repo_root,
             filelist_path=f'{FILELIST_DIR}/{fl}.f')
@@ -131,7 +131,7 @@ def _generate_cells():
                 def _cell(request):
                     _run_cell(request, s, w, lvl)
                 _cell.__name__ = n
-                _cell.__doc__ = (f"amber_control {n}: blocking pipeline FSM "
+                _cell.__doc__ = (f"l1_control {n}: blocking pipeline FSM "
                                  f"vs oracle (geometry s{s}/w{w}, level {lvl})")
                 return _cell
 

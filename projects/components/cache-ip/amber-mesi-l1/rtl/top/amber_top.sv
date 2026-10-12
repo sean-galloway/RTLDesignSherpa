@@ -6,12 +6,12 @@
 //
 // Module: amber_top
 // Purpose:
-//   The pair-rig cache top (MAS ch01 hierarchy): amber_core wrapped with
+//   The pair-rig cache top (MAS ch01 hierarchy): l1_core wrapped with
 //   the house AXI4 transports it deliberately does not contain (DECISION
 //   D3) -- axi4_master_rd_monlite / axi4_master_wr_monlite -- so the
 //   m_axi_* memory side is the monlite-wrapped (measured) path, never the
 //   raw _mon. A house monbus_arbiter (DECISION D-7) merges the three
-//   observer streams {amber_monlite, rd_monlite, wr_monlite} onto the one
+//   observer streams {l1_monlite, rd_monlite, wr_monlite} onto the one
 //   MonBus port pair. Plus the D-8 coherence sideband from the core.
 //
 // Documentation: projects/components/cache-ip/amber-mesi-l1/docs/amber_mas/ch01_overview/02_port_list.md
@@ -36,13 +36,13 @@
 //   ctrl_state status observability the rig fabric's safe-peer wait
 //   consumes.
 //
-//   MonBus merge (D-7): client 0 = amber_monlite (the cache-event observer
+//   MonBus merge (D-7): client 0 = l1_monlite (the cache-event observer
 //   inside the core), client 1 = rd_monlite (AR/R observation), client 2 =
 //   wr_monlite (AW/W/B observation). UNIT_IDs 8'h01/02/03 distinguish the
 //   streams in the merged packets.
 //
 //------------------------------------------------------------------------------
-// Parameters: geometry per amber_pkg (HAS Table 5.0); REPL_POLICY per
+// Parameters: geometry per l1_pkg (HAS Table 5.0); REPL_POLICY per
 //   amber_repl_t; USE_MONITOR ties all three observers off (house idiom,
 //   present-vs-absent equivalence).
 //------------------------------------------------------------------------------
@@ -56,8 +56,8 @@
 //------------------------------------------------------------------------------
 // Related Modules:
 //   - Instantiated by: the Task 11 pair rig (two of them), Task 12's ACE rig
-//   - Instantiated: amber_core; axi4_master_rd/wr_monlite; monbus_arbiter
-//   - Package: amber_pkg; monitor_common_pkg
+//   - Instantiated: l1_core; axi4_master_rd/wr_monlite; monbus_arbiter
+//   - Package: l1_pkg; monitor_common_pkg
 //
 //------------------------------------------------------------------------------
 // Test:
@@ -68,7 +68,7 @@
 //==============================================================================
 
 module amber_top
-    import amber_pkg::*;
+    import l1_pkg::*;
 #(
     parameter int ADDR_WIDTH     = AMBER_ADDR_WIDTH,
     parameter int SETS           = AMBER_SETS,
@@ -256,7 +256,7 @@ module amber_top
     logic [63:0] core_mon_timestamp;
     logic [7:0]  core_mon_dropped_unused;
 
-    amber_core #(
+    l1_core #(
         .ADDR_WIDTH     (ADDR_WIDTH),
         .SETS           (SETS),
         .WAYS           (WAYS),
@@ -532,7 +532,7 @@ module amber_top
     );
 
     // ------------------------------------------------------------------
-    // D-7 MonBus arbiter: {amber_monlite, rd_monlite, wr_monlite} -> the
+    // D-7 MonBus arbiter: {l1_monlite, rd_monlite, wr_monlite} -> the
     // one MonBus port pair
     // ------------------------------------------------------------------
     logic                    arb_vld [3];

@@ -2,8 +2,8 @@
 amber_eviction_macro testbench -- macro suite 3: eviction/writeback group
 
 Task 9.5 macro composition: the DUT is the wrapper
-amber_eviction_macro_test -- REAL amber_control (with the victim depth-1
-leaf) + landed tag/data/repl arrays + REAL amber_drain on its house
+amber_eviction_macro_test -- REAL l1_control (with the victim depth-1
+leaf) + landed tag/data/repl arrays + REAL l1_drain on its house
 axi4_master_wr transport, memory side closed by the house AXI4 slave
 responder on the wrapper's m_axi AW/W/B pins. Fill stays a timing stub
 (D-12, the control suite's fill model); snoops enter on the

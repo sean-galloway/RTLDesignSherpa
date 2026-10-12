@@ -49,6 +49,9 @@ class DeltaConfig:
     dest_width: int         # TDEST width (calculated)
     id_width: int           # TID width (calculated)
     user_width: int = 1     # TUSER width
+    strb_width: int = 0     # TSTRB width in bits; 0 = no TSTRB ports
+    amba5: bool = False     # Emit AMBA 5 sidebands (TWAKEUP, TPARITY)
+    parity_width: int = 0   # TPARITY width; 0 under amba5 defaults to DATA_WIDTH/8
     registered_outputs: bool = True  # Add output registers
     arbiter_type: str = "round_robin"  # "round_robin" or "fixed_priority"
     add_performance_counters: bool = True  # Add optional performance monitoring
@@ -71,13 +74,23 @@ class DeltaFlatCrossbar(Module):
         # Initialize Module base class
         Module.__init__(self, module_name=self.module_str)
 
+        # Optional flavor columns (rtl/amba/axis4 + axis5 parity with these)
+        self.strb_on = config.strb_width > 0
+        self.amba5_on = config.amba5
+        self.parity_w = (config.parity_width or (config.data_width // 8)) if config.amba5 else 0
+
         # Define parameters
         param_str = f'''
             parameter int DATA_WIDTH = {config.data_width},
             parameter int DEST_WIDTH = {config.dest_width},
             parameter int ID_WIDTH   = {config.id_width},
             parameter int USER_WIDTH = {config.user_width},
-            parameter int NUM_MASTERS = {config.num_masters},
+        '''
+        if self.strb_on:
+            param_str += f'parameter int STRB_WIDTH = {config.strb_width},\n'
+        if self.amba5_on:
+            param_str += f'parameter int PW_WIDTH = {self.parity_w},\n'
+        param_str += f'''parameter int NUM_MASTERS = {config.num_masters},
             parameter int NUM_SLAVES  = {config.num_slaves}
         '''
         self.params.add_param_string(param_str)
@@ -88,14 +101,28 @@ class DeltaFlatCrossbar(Module):
             input  logic aresetn,
 
             input  logic [DATA_WIDTH-1:0]  s_axis_tdata  [NUM_MASTERS],
+        '''
+        if self.strb_on:
+            port_str += 'input  logic [STRB_WIDTH-1:0]  s_axis_tstrb  [NUM_MASTERS],\n'
+        port_str += '''
             input  logic                   s_axis_tvalid [NUM_MASTERS],
             output logic                   s_axis_tready [NUM_MASTERS],
             input  logic                   s_axis_tlast  [NUM_MASTERS],
             input  logic [DEST_WIDTH-1:0]  s_axis_tdest  [NUM_MASTERS],
             input  logic [ID_WIDTH-1:0]    s_axis_tid    [NUM_MASTERS],
             input  logic [USER_WIDTH-1:0]  s_axis_tuser  [NUM_MASTERS],
-
+        '''
+        if self.amba5_on:
+            port_str += '''
+            input  logic                   s_axis_twakeup [NUM_MASTERS],
+            input  logic [PW_WIDTH-1:0]    s_axis_tparity [NUM_MASTERS],
+            '''
+        port_str += '''
             output logic [DATA_WIDTH-1:0]  m_axis_tdata  [NUM_SLAVES],
+        '''
+        if self.strb_on:
+            port_str += 'output logic [STRB_WIDTH-1:0]  m_axis_tstrb  [NUM_SLAVES],\n'
+        port_str += '''
             output logic                   m_axis_tvalid [NUM_SLAVES],
             input  logic                   m_axis_tready [NUM_SLAVES],
             output logic                   m_axis_tlast  [NUM_SLAVES],
@@ -103,6 +130,11 @@ class DeltaFlatCrossbar(Module):
             output logic [ID_WIDTH-1:0]    m_axis_tid    [NUM_SLAVES],
             output logic [USER_WIDTH-1:0]  m_axis_tuser  [NUM_SLAVES]
         '''
+        if self.amba5_on:
+            port_str += ''',
+            output logic                   m_axis_twakeup [NUM_SLAVES],
+            output logic [PW_WIDTH-1:0]    m_axis_tparity [NUM_SLAVES]
+            '''
         self.ports.add_port_string(port_str)
 
     def generate_header_comment(self):
@@ -128,6 +160,10 @@ class DeltaFlatCrossbar(Module):
         self.comment("Features:")
         self.comment("  - Per-slave round-robin arbitration")
         self.comment("  - Packet atomicity (locked grant until TLAST)")
+        if self.strb_on:
+            self.comment(f"  - Optional TSTRB byte qualifiers (STRB_WIDTH={self.cfg.strb_width})")
+        if self.amba5_on:
+            self.comment(f"  - AMBA 5 sidebands (TWAKEUP steering + TPARITY, PW_WIDTH={self.parity_w})")
         self.comment("  - Registered outputs for timing closure")
         self.comment("  - Full AXI-Stream compliance")
         self.comment("")
@@ -241,6 +277,10 @@ class DeltaFlatCrossbar(Module):
         self.instruction("            m_axis_tdest[s]  = '0;")
         self.instruction("            m_axis_tid[s]    = '0;")
         self.instruction("            m_axis_tuser[s]  = '0;")
+        if self.strb_on:
+            self.instruction("            m_axis_tstrb[s]  = '0;")
+        if self.amba5_on:
+            self.instruction("            m_axis_tparity[s] = '0;")
         self.instruction("")
         self.instruction("            // Multiplex granted master to this slave")
         self.instruction("            for (int m = 0; m < NUM_MASTERS; m++) begin")
@@ -251,6 +291,10 @@ class DeltaFlatCrossbar(Module):
         self.instruction("                    m_axis_tdest[s]  = s_axis_tdest[m];")
         self.instruction("                    m_axis_tid[s]    = s_axis_tid[m];")
         self.instruction("                    m_axis_tuser[s]  = s_axis_tuser[m];")
+        if self.strb_on:
+            self.instruction("                    m_axis_tstrb[s]  = s_axis_tstrb[m];")
+        if self.amba5_on:
+            self.instruction("                    m_axis_tparity[s] = s_axis_tparity[m];")
         self.instruction("                end")
         self.instruction("            end")
         self.instruction("        end")
@@ -281,6 +325,32 @@ class DeltaFlatCrossbar(Module):
         self.instruction("        end")
         self.instruction("    end")
         self.instruction("endgenerate")
+        self.instruction("")
+
+    def generate_wakeup_logic(self):
+        """Generate AMBA 5 TWAKEUP steering (only when amba5 enabled)"""
+        if not self.amba5_on:
+            return
+
+        self.comment("==========================================================================")
+        self.comment("AMBA 5 Wakeup (TWAKEUP) Steering")
+        self.comment("==========================================================================")
+        self.comment("TWAKEUP is a hint that may precede TVALID (a master wakes a slave before")
+        self.comment("presenting data), so it is decoded from TDEST directly - no grant needed.")
+        self.comment("Per slave: OR of twakeup from every master whose TDEST selects this slave.")
+        self.comment("==========================================================================")
+        self.instruction("")
+
+        self.instruction("always_comb begin")
+        self.instruction("    for (int s = 0; s < NUM_SLAVES; s++) begin")
+        self.instruction("        m_axis_twakeup[s] = 1'b0;")
+        self.instruction("        for (int m = 0; m < NUM_MASTERS; m++) begin")
+        self.instruction("            if (s_axis_twakeup[m] && (s_axis_tdest[m] == s[$clog2(NUM_SLAVES)-1:0])) begin")
+        self.instruction("                m_axis_twakeup[s] = 1'b1;")
+        self.instruction("            end")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("end")
         self.instruction("")
 
     def generate_performance_counters(self):
@@ -359,6 +429,7 @@ class DeltaFlatCrossbar(Module):
         self.generate_arbiter_logic()
         self.generate_crossbar_mux()
         self.generate_backpressure_logic()
+        self.generate_wakeup_logic()
         self.generate_performance_counters()
         self.generate_assertions()
 
@@ -470,11 +541,22 @@ def main():
     parser.add_argument("--slaves", type=int, required=True)
     parser.add_argument("--data-width", type=int, default=64)
     parser.add_argument("--user-width", type=int, default=1)
+    parser.add_argument("--strb-width", type=int, default=0,
+                        help="TSTRB width in bits; 0 (default) omits TSTRB ports")
+    parser.add_argument("--amba5", action="store_true",
+                        help="Emit AMBA 5 sidebands: TWAKEUP steering + TPARITY (PW_WIDTH defaults to DATA_WIDTH/8)")
+    parser.add_argument("--parity-width", type=int, default=0,
+                        help="TPARITY width override (requires --amba5; default DATA_WIDTH/8)")
     parser.add_argument("--output-dir", type=str, default="../rtl")
     parser.add_argument("--nodes", action="store_true")
     parser.add_argument("--no-counters", action="store_true")
 
     args = parser.parse_args()
+
+    if args.parity_width and not args.amba5:
+        parser.error("--parity-width requires --amba5")
+    if args.strb_width < 0:
+        parser.error("--strb-width must be >= 0")
 
     dest_width, id_width = calculate_widths(args.masters, args.slaves)
 
@@ -486,6 +568,9 @@ def main():
         dest_width=dest_width,
         id_width=id_width,
         user_width=args.user_width,
+        strb_width=args.strb_width,
+        amba5=args.amba5,
+        parity_width=args.parity_width,
         add_performance_counters=not args.no_counters
     )
 

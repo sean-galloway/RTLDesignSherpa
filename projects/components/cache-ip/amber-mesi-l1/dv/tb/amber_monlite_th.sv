@@ -6,14 +6,14 @@
 //
 // Module: amber_monlite_th
 // Purpose:
-//   Test harness for amber_monlite (Task 8, MAS ch04): the amber_frontend_th
-//   closure (REAL amber_cpu_frontend + REAL amber_control + landed arrays)
-//   plus amber_monlite tapped per the MAS ch04 emit points. The observer
+//   Test harness for l1_monlite (Task 8, MAS ch04): the amber_frontend_th
+//   closure (REAL l1_cpu_frontend + REAL l1_control + landed arrays)
+//   plus l1_monlite tapped per the MAS ch04 emit points. The observer
 //   drives nothing in the closure -- its only outputs are the monbus
 //   handshake pins. Taps that correspond to harness-visible wires come from
 //   the closure top; payload taps of control-internal registers use
 //   read-only hierarchical references (simulation-only, harness-local --
-//   amber_core owns the real wiring in integration).
+//   l1_core owns the real wiring in integration).
 //
 // Documentation: projects/components/cache-ip/amber-mesi-l1/docs/amber_mas/ch04_monbus_observation/01_event_map.md
 // Subsystem: amber
@@ -27,7 +27,7 @@
 // Module: amber_monlite_th
 //==============================================================================
 // Description:
-//   amber_frontend_th u_core carries the whole closure; amber_monlite
+//   amber_frontend_th u_core carries the whole closure; l1_monlite
 //   u_monlite observes it. USE_MONITOR=0 ties the observer off (the
 //   present-vs-absent "absent" configuration, house gen_no_monitor idiom).
 //
@@ -35,7 +35,7 @@
 //     - state / strobes / fill / drain / victim / tag-write taps come from
 //       the closure's own pins (ctrl_state, victim_load, victim_addr,
 //       fill_start/fill_addr, drain_start/drain_done, tag_wr_*, snoop
-//       handshake, repl_victim_way) -- the same signals amber_core will
+//       handshake, repl_victim_way) -- the same signals l1_core will
 //       wire at integration.
 //     - payload taps of control-internal registers (the latched request
 //       context, hit resolution, snoop resolution) are read hierarchically
@@ -53,7 +53,7 @@
 //==============================================================================
 
 module amber_monlite_th
-    import amber_pkg::*;
+    import l1_pkg::*;
 #(
     parameter int ADDR_WIDTH  = AMBER_ADDR_WIDTH,
     parameter int SETS        = AMBER_SETS,
@@ -260,7 +260,7 @@ module amber_monlite_th
         endcase
     end
 
-    amber_monlite #(
+    l1_monlite #(
         .ADDR_WIDTH  (ADDR_WIDTH),
         .SETS        (SETS),
         .WAYS        (WAYS),

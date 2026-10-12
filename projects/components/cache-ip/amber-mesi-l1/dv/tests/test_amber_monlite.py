@@ -1,10 +1,10 @@
 """
-amber_monlite test runner
+l1_monlite test runner
 
 Drop-and-count MonBus observer across the geometry grid (64-bit bus /
 64 B lines and 32-bit bus / 32 B lines): the DUT is the harness
-amber_monlite_th (the amber_frontend_th closure -- REAL amber_cpu_frontend
-+ REAL amber_control + landed arrays -- plus amber_monlite tapped at the
+amber_monlite_th (the amber_frontend_th closure -- REAL l1_cpu_frontend
++ REAL l1_control + landed arrays -- plus l1_monlite tapped at the
 MAS ch04 emit points). The observer drives nothing in the closure; its
 only outputs are the monbus handshake pins, consumed by direct pin
 observation (the house MonbusSlave BFM family is the reference consumer;
@@ -56,7 +56,7 @@ GEOMS = [
 MON_MODES = ['tap', 'notap']
 
 DUT_TOP = 'amber_monlite_th'
-TEST_PREFIX = 'amber_monlite'
+TEST_PREFIX = 'l1_monlite'
 
 
 @cocotb.test(timeout_time=600, timeout_unit="ms")
@@ -66,7 +66,7 @@ async def cocotb_test_amber_monlite(dut):
     ok = await tb.run()
     report = tb.get_test_report()
     tb.log.info(f"Test report: {report}")
-    assert ok, f"amber_monlite: {report['mismatches']} mismatches in {report['checks']} checks"
+    assert ok, f"l1_monlite: {report['mismatches']} mismatches in {report['checks']} checks"
 
 
 def _run_cell(request, addr_width, data_width, line_bytes, test_level, mon_mode):
@@ -78,8 +78,8 @@ def _run_cell(request, addr_width, data_width, line_bytes, test_level, mon_mode)
     # landed arrays/repl), dedup'ing the shared packages order-preserving.
     verilog_sources = []
     includes = []
-    for fl in ('amber_monlite', 'amber_frontend', 'amber_control',
-               'amber_tag_array', 'amber_data_array', 'amber_repl'):
+    for fl in ('l1_monlite', 'l1_frontend', 'l1_control',
+               'l1_tag_array', 'l1_data_array', 'l1_repl'):
         srcs, incs = get_sources_from_filelist(
             repo_root=repo_root,
             filelist_path=f'{FILELIST_DIR}/{fl}.f')

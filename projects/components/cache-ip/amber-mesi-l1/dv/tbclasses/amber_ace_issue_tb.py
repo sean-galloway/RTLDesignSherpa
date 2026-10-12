@@ -34,7 +34,7 @@ AWSNOOP_MAKE_UNIQUE = 0x4
 AWSNOOP_WRITE_BACK = 0x3
 AWSNOOP_EVICT = 0x5
 
-# amber_ace_req_t (amber_pkg)
+# amber_ace_req_t (l1_pkg)
 ACE_READ_SHARED, ACE_READ_UNIQUE, ACE_CLEAN_UNIQUE, ACE_MAKE_UNIQUE, \
     ACE_WRITE_BACK, ACE_EVICT = range(6)
 

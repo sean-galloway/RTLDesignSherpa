@@ -808,3 +808,20 @@ ttyUSB3; ttyUSB1 = a DIFFERENT bench board, Genesys 2 demo — do not confuse).
   18k (51%) + bridge 3.1k + debug RAMs 2.5k; growth vs Sep-17 baseline is
   the shared mem_char_framework (10 commits incl rowhammer generators),
   not the controller or tonight's refactor.
+
+## 2026-10-12 — granite A7 bring-up session 2
+
+- WR-phase wedge localized (not reads, not ring tickets — first hypothesis
+  exonerated with evidence).
+- Root cause #1 found + fixed + committed (3d690ab3f): mc_xddr2_entry_store
+  fdone race — early next-sub-burst W beats consumed fdone; wd_ready now
+  gated by !r_wr_fdone. Reproduced pre-fix in a new granite_top_geared
+  cocotb smoke at the true x16/NE8 geometry (prior sims never split a host
+  burst); post-fix green at all geometry/depth combos incl. multi-outstanding.
+- Board with fixed bit: blen=1 engine passes fully; blen>=2 (split bursts)
+  still wedge with zero DFI commands, store recovers (crc_valid, no host B).
+  Second defect precisely characterized; next diagnostic = whole-harness
+  granite UART sim (real engines). Trap documented: make bitstream does not
+  stage the .bit — must cp from impl_1/ (stale-bit false negative cost one
+  cycle).
+- Test hardening committed (0c80e6481); FINDINGS + TASK-001 updated.
