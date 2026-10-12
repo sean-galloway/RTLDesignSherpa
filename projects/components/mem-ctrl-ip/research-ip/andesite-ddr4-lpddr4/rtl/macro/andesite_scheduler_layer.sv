@@ -114,6 +114,7 @@ module andesite_scheduler_layer
     input  logic [15:0]               t_dll_wait_i,
     input  logic [7:0]                t_mrd_wait_i,
     input  logic [7:0]                t_rp_wait_i,
+    input  logic [7:0]                t_rfc_wait_i,
     input  logic [15:0]               t_cke_wait_i,
     input  logic [15:0]               t_mod_wait_i,
     input  logic [15:0]               t_zqinit_wait_i,

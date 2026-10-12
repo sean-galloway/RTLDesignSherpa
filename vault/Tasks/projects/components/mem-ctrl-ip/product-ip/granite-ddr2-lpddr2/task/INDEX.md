@@ -13,13 +13,15 @@ state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [open/](open/) | 0 | accepted, not started |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
-## Open
+## Active
 
-- **TASK-001** — granite first build (wrapper dissolution + product top +
-  product CSR + board): [open/TASK-001.md](open/TASK-001.md).
+- **TASK-001** — granite first build: steps 1-2 done (wrappers dissolved
+  into common macros; `granite_core` built — no storage layer,
+  `mc_xddr2_entry_store` seam, reduced refresh options). Remaining: product
+  CSR baseline, board + frequency plan. [active/TASK-001.md](active/TASK-001.md).

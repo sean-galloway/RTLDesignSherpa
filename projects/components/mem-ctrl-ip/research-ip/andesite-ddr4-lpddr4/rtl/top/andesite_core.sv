@@ -148,7 +148,7 @@ module andesite_core
     input  logic [7:0]                 ref_trfc_pb_i,
     // init timing
     input  logic [15:0]                t_init_wait_i, t_dll_wait_i,
-    input  logic [7:0]                 t_mrd_wait_i, t_rp_wait_i,
+    input  logic [7:0]                 t_mrd_wait_i, t_rp_wait_i, t_rfc_wait_i,
     input  logic [15:0]                t_cke_wait_i,
     input  logic [15:0]                t_mod_wait_i,
     input  logic [15:0]                t_zqinit_wait_i,
@@ -694,6 +694,7 @@ module andesite_core
         .t_dll_wait_i       (t_dll_wait_i),
         .t_mrd_wait_i       (t_mrd_wait_i),
         .t_rp_wait_i        (t_rp_wait_i),
+        .t_rfc_wait_i       (t_rfc_wait_i),
         .t_cke_wait_i       (t_cke_wait_i),
         .t_mod_wait_i       (t_mod_wait_i),
         .t_zqinit_wait_i    (t_zqinit_wait_i),

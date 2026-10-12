@@ -462,11 +462,13 @@ module mc_scheduler_layer
     // ======================================================================
     // Common scheduler-layer core.
     // ======================================================================
-    // Pumice maps its single-bit MRR training flag onto maint_extra[0].
+    // Pumice maps its single-bit MRR training flag onto maint_extra[0];
+    // wider MAINT_EXTRA_WIDTH (andesite v4) passes through full width.
+    localparam int MEW = (MAINT_EXTRA_WIDTH > 0) ? MAINT_EXTRA_WIDTH : 1;
     logic w_maint_grant;
-    logic [0:0] w_maint_extra_in;
-    logic [0:0] w_maint_extra_out;
-    assign w_maint_extra_in[0] = (MAINT_EXTRA_WIDTH > 0) ? maint_extra_i[0] : 1'b0;
+    logic [MEW-1:0] w_maint_extra_in;
+    logic [MEW-1:0] w_maint_extra_out;
+    assign w_maint_extra_in = (MAINT_EXTRA_WIDTH > 0) ? MEW'(maint_extra_i) : '0;
 
     // ======================================================================
     // mc_bank_timers — per-bank safe timers (open-page).

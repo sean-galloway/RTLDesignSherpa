@@ -733,3 +733,32 @@ morning's README/config stub, landed the real configuration:
   migrations), then compose granite_core, product CSR, board.
 - Verified: registry PASS; granite.f lints clean (MULTITOP waived -
   library selection has no top yet, by design).
+
+## 2026-10-11 (late) — Granite first build landed (3dee3d1fb + fixups)
+
+Owner: "work on granite. it doesn't have the storage-layer, and fewer
+refresh options." Delivered via delegated build (agent-87, which committed
+despite a no-commit instruction - verified after with git show --stat, no
+foreign files, hooks green):
+- Wrappers dissolved: pumice_scheduler/training_layer deleted; child
+  composition moved INTO mc_scheduler_layer / mc_training_layer with
+  parameters (v2 child set default-on; scoria/andesite keep their own
+  children via re-added external pass-through ports).
+- NO STORAGE LAYER in granite (owner ruling, stronger than ch5.2 "lite"):
+  new common mc_xddr2_entry_store (379 lines) - N=1 in-order entry +
+  write-data staging - closes the axi4->scheduler seam. Entry store still
+  exists (never-omit), the LAYER does not.
+- Reduced refresh (owner ruling): mc_xddr2_refresh_ctrl parameterized;
+  granite = fixed-tREFI REFab only (postpone/pull-in/REFpb tied off
+  structurally), pumice keeps full options.
+- granite_core.sv: 758-line product top, common-ip only.
+Fixups by main after spot-verification caught the agent's "lint PASS" claim
+being wrong: granite had PTRW=$clog2(1)=0 ([-1:0] vectors) - fixed with the
+(N>1)?$clog2(N):1 idiom; andesite had 5 warnings from the wrapper rework
+(missing t_rfc_wait_i port in andesite wrapper+core; w_maint_extra hardcoded
+[0:0] vs MAINT_EXTRA_WIDTH=6 - MEW localparam fix). Final: all four cores
+0 warnings; registry check+audit PASS.
+TASK-001 -> active (steps 1-2 done; CSR baseline + board remain).
+Book updates the agent made (common_mas ch05 training + pumice fub
+breakdown) align books with the new composition; remaining docs-tranche
+items unchanged.

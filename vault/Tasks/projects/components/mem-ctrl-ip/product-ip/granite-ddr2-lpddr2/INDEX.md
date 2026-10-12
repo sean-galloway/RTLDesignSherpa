@@ -20,6 +20,7 @@ construction.
 
 ## Open shortlist
 
-- **TASK-001** — granite first build: dissolve the pumice layer wrappers
-  into the common-ip macros, then compose the product top from common-ip
-  only. Details: [task/open/TASK-001.md](task/open/TASK-001.md).
+None — TASK-001 (granite first build) is **active**: wrappers dissolved into
+the common macros and `granite_core` built (no storage layer,
+`mc_xddr2_entry_store` seam, reduced refresh options). Remaining: product
+CSR baseline + board. Details: [task/active/TASK-001.md](task/active/TASK-001.md).
