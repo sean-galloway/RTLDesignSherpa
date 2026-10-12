@@ -27,7 +27,7 @@
 
 This controller provides a single parameterized RTL implementation supporting both DDR2 and LPDDR2 memory devices via DFI v2.1. Primary design goals:
 
-1. **Unified engine, one command formatter with a memtype branch.** DDR2 and LPDDR2 differ only at the wire-encoding layer (ras/cas/we vs the 10-bit CA bus, both in `dfi_cmd_formatter`) and in the init MR sequence; the command arbiter, bank/global timers, refresh policy, init sequencer, address mapper, and AXI interface are shared between both targets. Memtype is a runtime CSR selection (`PHY_TIMING.memtype`).
+1. **Unified engine, one command formatter with a memtype branch.** DDR2 and LPDDR2 differ only at the wire-encoding plane (ras/cas/we vs the 10-bit CA bus, both in `dfi_cmd_formatter`) and in the init MR sequence; the command arbiter, bank/global timers, refresh policy, init sequencer, address mapper, and AXI interface are shared between both targets. Memtype is a runtime CSR selection (`PHY_TIMING.memtype`).
 2. **Embedded / mobile / mid-range SoC targets.** Not optimized for high-end server DRAM (DDR5, RDIMM, multi-rank). Optimized for power efficiency and area economy.
 3. **Characterization-first parameterization.** Algorithmic choices with research-backed alternatives are exposed as build-time parameters so the design can be swept on real workloads before defaults are locked.
 4. **Verification-friendly.** Mirrors the data structures and conventions of the DDR2 / LPDDR2 DFI BFM in the DV repository so the same address mapping, timing parameters, and command encodings can drive both RTL and simulation.

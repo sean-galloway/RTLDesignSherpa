@@ -30,7 +30,7 @@ family covers. This directory is where a controller *graduates* from the
 
 ## What a product is
 
-A product is a **configuration of the common stack** — layers selected,
+A product is a **configuration of the common stack** — planes selected,
 knobs set, rock children chosen — **not a new RTL tree**
 ([common_has ch5.2](../common-ip/docs/common_has/ch05_lineup/02_products_and_research.md)).
 The RTL a product builds with lives in `common-ip/rtl/`; what lives here is
@@ -40,11 +40,11 @@ short product book: the common architecture book + the chosen configuration
 
 ## The products
 
-| Product | Directory | Generation | Memory | DFI layer | Source rock (research-ip) | Role |
+| Product | Directory | Generation | Memory | DFI plane | Source rock (research-ip) | Role |
 |---|---|---|---|---|---|---|
-| **granite** | [`granite-ddr2-lpddr2/`](granite-ddr2-lpddr2/) | v2 | DDR2 / LPDDR2 | `mc_dfi_2p1_layer` | pumice (board-validated) | **Bypass-validation testbed** — cheapest full proof the common core runs with optional layers at minimum / absent; candidate first build |
-| **gabbro** | [`gabbro-ddr3-lpddr3/`](gabbro-ddr3-lpddr3/) | v3 | DDR3 / LPDDR3 | `mc_dfi_3p1_layer` | scoria (sim-verified) | Mid line; consumes scoria's elastic-refresh convergence |
-| **diorite** | [`diorite-ddr4-lpddr4/`](diorite-ddr4-lpddr4/) | v4 | DDR4 / LPDDR4 | `mc_dfi_4p0_layer` | andesite (planned) | Top line; carries the v4 command surface (bank groups, gear-down, CA parity, DBI) |
+| **granite** | [`granite-ddr2-lpddr2/`](granite-ddr2-lpddr2/) | v2 | DDR2 / LPDDR2 | `mc_dfi_2p1_plane` | pumice (board-validated) | **Bypass-validation testbed** — cheapest full proof the common core runs with optional planes at minimum / absent; candidate first build |
+| **gabbro** | [`gabbro-ddr3-lpddr3/`](gabbro-ddr3-lpddr3/) | v3 | DDR3 / LPDDR3 | `mc_dfi_3p1_plane` | scoria (sim-verified) | Mid line; consumes scoria's elastic-refresh convergence |
+| **diorite** | [`diorite-ddr4-lpddr4/`](diorite-ddr4-lpddr4/) | v4 | DDR4 / LPDDR4 | `mc_dfi_4p0_plane` | andesite (planned) | Top line; carries the v4 command surface (bank groups, gear-down, CA parity, DBI) |
 
 The naming is igneous, ordered, and owned by the common architecture book.
 Note: the family README's research table also lists "gabbro" as an informal
@@ -57,10 +57,10 @@ future research rock), and the README will be reconciled.
 What a product **may** leave out (granite / v2 shown — each generation's
 list is in the product's own brief):
 
-- Storage layer in its **lite configuration** — the stripped, N=1 in-order
+- Storage plane in its **lite configuration** — the stripped, N=1 in-order
   seam. "Off" is not literal: the entry store can shrink toward one entry,
   never to zero.
-- **RAS layer absent** — a true bypass: no transform pair, no scrub.
+- **RAS plane absent** — a true bypass: no transform pair, no scrub.
 - Write-data buffer at the **SKU minimum** (staging can shrink, never to
   zero).
 
@@ -78,9 +78,9 @@ be produced to explain it.
 
 Each product directory holds:
 
-- `README.md` — the product brief: generation scope, DFI layer, source
+- `README.md` — the product brief: generation scope, DFI plane, source
   rock, allowed omissions, board target, status.
-- `config/product_config.md` — the chosen configuration: layer selection,
+- `config/product_config.md` — the chosen configuration: plane selection,
   parameters/knobs, CSR baseline, board. Filled when the product is built;
   the single source of truth for "what makes this SKU this SKU".
 
@@ -91,6 +91,6 @@ above.
 
 **Scaffold only (2026-10-11).** No product is built. First build
 (granite, per the bypass-testbed role) is gated on: the source rock's
-board-proven configuration, the common layers timing-closed at the
+board-proven configuration, the common planes timing-closed at the
 product's target frequency, and the product config filled in `granite-
 ddr2-lpddr2/config/`.

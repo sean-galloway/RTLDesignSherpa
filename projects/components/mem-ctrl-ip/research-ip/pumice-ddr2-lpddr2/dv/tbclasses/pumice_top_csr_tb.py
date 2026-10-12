@@ -76,7 +76,7 @@ from CocoTBFramework.components.shared.memory_model import MemoryModel
 # THE TABLE MOVED. It used to live here, which meant the macro-level scheduler
 # TB could not reach it and carried its own invented numbers instead
 # (`t_rcd=3 t_rp=3 t_ras=5 t_rc=8` at 100 MHz -- a set matching no part at no
-# clock). Both layers now import the same 12 named points; see
+# clock). Both planes now import the same 12 named points; see
 # tbclasses/pumice_dram_configs.py for the table and the reasoning behind each
 # point. Re-exported here because four test files import board_clock_periods
 # from this module.
@@ -285,7 +285,7 @@ class PumiceTopCsrTB:
         addr = int(self._REGMAP[register]["address"], 16)
         return await self._cpuif_read(addr)
 
-    # Counters the layer-2b telemetry invariants use (pumice TASK-015). Read by
+    # Counters the plane-2b telemetry invariants use (pumice TASK-015). Read by
     # NAME -- offsets churn every respin.
     TELEMETRY_COUNTERS = (
         "PAGE_STATS_HIT", "PAGE_STATS_MISS", "PAGE_STATS_EMPTY",
@@ -294,7 +294,7 @@ class PumiceTopCsrTB:
     ) + tuple(f"OBS_ROW_HIT{_b}_ROW_HIT" for _b in range(8))
 
     async def read_telemetry(self) -> dict:
-        """Every exported counter the layer-2b invariants use, keyed by name.
+        """Every exported counter the plane-2b invariants use, keyed by name.
 
         These clear only on aresetn and free-run otherwise, so a caller wanting
         a per-scenario figure must subtract two reads and mask the 32-bit wrap

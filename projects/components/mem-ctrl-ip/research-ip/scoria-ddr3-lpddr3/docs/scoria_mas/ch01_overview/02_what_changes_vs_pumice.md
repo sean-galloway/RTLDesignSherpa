@@ -31,9 +31,9 @@ drift in any of them is a defect.
 | Block | Marking | Cause | MAS page |
 |---|---|---|---|
 | `scoria_top` / `scoria_top_geared` / `scoria_core` | INHERITED | structure unchanged | 2.1-2.3 |
-| `scoria_axi4_layer` | INHERITED | the AXI4 host side is untouched by this generation | 2.1 |
-| `scoria_scheduler_layer` | MODIFIED | must admit ZQ maintenance demand alongside refresh | 2.2 |
-| `scoria_dfi_layer` | MODIFIED | DFI v3.1 control surface (per-data-phase CS, write-leveling handshake) | 2.3 |
+| `scoria_axi4_plane` | INHERITED | the AXI4 host side is untouched by this generation | 2.1 |
+| `scoria_scheduler_plane` | MODIFIED | must admit ZQ maintenance demand alongside refresh | 2.2 |
+| `scoria_dfi_plane` | MODIFIED | DFI v3.1 control surface (per-data-phase CS, write-leveling handshake) | 2.3 |
 | `scoria_init_sequencer` | MODIFIED | `RESET#` is a pin; MR order is MR2-MR3-MR1-MR0; ZQCL closes init | 2.18 |
 | `scoria_mode_register` | MODIFIED | MR0-MR3 replaces MR0-MR2 plus EMRS3 | 2.19 |
 | `scoria_dfi_cmd_formatter` | MODIFIED | new encodings: `ZQCL`, `ZQCS`, `PREA` | 2.22 |
@@ -41,7 +41,7 @@ drift in any of them is a defect.
 | `scoria_zq_ctrl` | **NEW** | periodic `ZQCS` is maintenance traffic; carries the CSR-selectable placement policy (TASK-001 Mode C) | 2.17 |
 | `scoria_wrlvl_ifc` | **NEW** | DDR3 adds write leveling; the interface, not the search | 2.20 |
 | `scoria_powerdown_ctrl` | INHERITED (dormant) | mechanism unchanged: CKE + `SRE`/`SRX`; not instantiated, by decision | 2.26 |
-| `scoria_dfi_signal_pack` | INHERITED (dormant) | every signal it packs is unchanged for DDR3; its v3.1 new channels are driven at the layer above | 2.26 |
+| `scoria_dfi_signal_pack` | INHERITED (dormant) | every signal it packs is unchanged for DDR3; its v3.1 new channels are driven at the plane above | 2.26 |
 | everything else (20 FUBs: CAMs, intakes, timers, arbiter, splitter, chopper, mappers, CDC, serdes, aligner, cmd_path) | INHERITED | no functional change; see the inventory table for the full list | 2.4-2.15, 2.21, 2.23-2.25 |
 
 : Table 1.3: The marking set, copied from the HAS
@@ -53,8 +53,8 @@ signal level. Three additions are worth calling out on this page because they
 are easy to miss inside the chapter pages.
 
 **The MC-001 rename.** The macro tier no longer uses pumice's naming:
-`scoria_axi4_ifc` is now `scoria_axi4_layer` and `scoria_mem_cmd_scheduler`
-is now `scoria_scheduler_layer` (trunk commit `3eee953d2`, the scoria half of
+`scoria_axi4_ifc` is now `scoria_axi4_plane` and `scoria_mem_cmd_scheduler`
+is now `scoria_scheduler_plane` (trunk commit `3eee953d2`, the scoria half of
 the family-wide MC-001 convention). Older family documents — including parts
 of andesite's MAS — still cite the old names; the mapping is one-to-one and
 nothing else about the blocks changed in the rename.
@@ -79,7 +79,7 @@ four-gap table that stands between today and that wake-up.
 
 ## One paragraph per changed or new block
 
-**Scheduler layer (MODIFIED).** The change is one extra maintenance source at
+**Scheduler plane (MODIFIED).** The change is one extra maintenance source at
 the arbiter: ZQ requests and waits on the same request/grant terms refresh
 always had (family doctrine 2 — request and wait, never preempt). Everything
 else about the macro is pumice's scheduler with DDR3's timings. Page 2.2.

@@ -215,7 +215,7 @@ module pumice_core_tb_top
         // no runtime MR retune in this TB, init_restart tied off.
         .mr0_i(16'h0433), .mr1_i(16'h0000), .mr2_i(16'h0000), .mr3_i(16'h0000),
         .init_restart_i(1'b0),
-        // Training layer (ZQ + DQ cal) tied off: this TB scores the datapath
+        // Training plane (ZQ + DQ cal) tied off: this TB scores the datapath
         // and paging sweep, not calibration. Enables 0 make both FUBs inert;
         // outputs left open by name on purpose.
         .zq_en_i(1'b0), .zq_defer_en_i(1'b0), .zq_interval_i(32'h0),

@@ -130,7 +130,7 @@ All host AXI ports carry the `s_axi_` prefix.
 
 The DFI v2.1 sub-interfaces present on this controller are limited to **command**, **write-data**, **read-data**, and the **init handshake**. Training, frequency-change, low-power, update, and CRC sub-interfaces are not driven — see §2.1 Out of Scope.
 
-The DFI ports are flat, per-phase-packed buses (the `DFI_RATE` phases are concatenated into one vector) rather than SystemVerilog arrays. All DFI ports carry the `_o` (output) or `_i` (input) suffix. Command formatting runs on `dfi_clk`, past the single CDC in `mc_dfi_2p1_layer`.
+The DFI ports are flat, per-phase-packed buses (the `DFI_RATE` phases are concatenated into one vector) rather than SystemVerilog arrays. All DFI ports carry the `_o` (output) or `_i` (input) suffix. Command formatting runs on `dfi_clk`, past the single CDC in `mc_dfi_2p1_plane`.
 
 ### DFI Command Bus
 
@@ -188,7 +188,7 @@ Configuration is driven by name from a PeakRDL-generated register block (`pumice
 
 ## 4. Clocks, Resets, and Status
 
-The design has two clock domains — the controller/AXI domain (`aclk`) and the DFI/PHY domain (`dfi_clk`) — with the single crossing inside `mc_dfi_2p1_layer`.
+The design has two clock domains — the controller/AXI domain (`aclk`) and the DFI/PHY domain (`dfi_clk`) — with the single crossing inside `mc_dfi_2p1_plane`.
 
 | Signal          | Direction | Width  | Description                                          |
 |-----------------|-----------|--------|-----------------------------------------------------|

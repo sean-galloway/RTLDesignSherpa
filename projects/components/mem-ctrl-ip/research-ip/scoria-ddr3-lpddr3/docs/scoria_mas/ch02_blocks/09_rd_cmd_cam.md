@@ -26,7 +26,7 @@
 **Module:** `scoria_rd_cmd_cam.sv`
 **Location:** `rtl/fub/`
 **Category:** scheduling window
-**Parent:** `scoria_axi4_layer`
+**Parent:** `scoria_axi4_plane`
 **Status:** complete and sim-verified; formal suite `formal/scoria/rd_cmd_cam/scoria_rd_cmd_cam.sby`
 
 ---
@@ -141,7 +141,7 @@ The ticket is the return-ring slot allocated when the read was admitted. It stay
 
 ### Ticket carried from insert to issue
 
-`scoria_axi4_layer` allocates a return-ring ticket at the same time it inserts a CAM entry. The ticket is presented on `ins_ticket_i` and latched into `r_ticket[slot]`. On a valid issue fire (`w_issue_fire`), the ticket is driven onto `iss_ticket_o` with `iss_valid_o` high. The issue-ready handshake comes from the return ring's issue-order FIFO, so the CAM cannot issue faster than the ring can accept tickets.
+`scoria_axi4_plane` allocates a return-ring ticket at the same time it inserts a CAM entry. The ticket is presented on `ins_ticket_i` and latched into `r_ticket[slot]`. On a valid issue fire (`w_issue_fire`), the ticket is driven onto `iss_ticket_o` with `iss_valid_o` high. The issue-ready handshake comes from the return ring's issue-order FIFO, so the CAM cannot issue faster than the ring can accept tickets.
 
 ### Age-order matrix
 
@@ -169,7 +169,7 @@ The flag is one cycle stale, which is acceptable because the age-threshold order
 
 ### Unused ports tied off in scoria
 
-The generic `sched_lu_*` lookup ports and the `oldest_*` fallback port are not used by `scoria_cmd_arbiter`. The scheduler reads the flat per-entry vectors directly so it can activate banks in parallel without a lookup round-trip. In `scoria_axi4_layer` the lookup inputs are tied to zero and the outputs are left unconnected.
+The generic `sched_lu_*` lookup ports and the `oldest_*` fallback port are not used by `scoria_cmd_arbiter`. The scheduler reads the flat per-entry vectors directly so it can activate banks in parallel without a lookup round-trip. In `scoria_axi4_plane` the lookup inputs are tied to zero and the outputs are left unconnected.
 
 ## FSM policy
 

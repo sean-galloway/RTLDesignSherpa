@@ -33,7 +33,7 @@ passthrough `cpuif` clocked by `aclk` — there is no separate management clock.
 Controller clock. All host-AXI4 logic, the scheduler, the bank timers, the
 write/read CAMs, and the register block (`pumice_csr`) run on `aclk`. The
 controller-side of the command / write-data / read-data streams into the DFI
-layer is on `aclk`.
+plane is on `aclk`.
 
 Typical frequency: 100 – 200 MHz on FPGA SoCs; higher on silicon.
 
@@ -54,7 +54,7 @@ clock. The gear ratio (`DFI_RATE`) sets how many DRAM phases each `dfi_clk`
 cycle carries.
 
 `aclk` and `dfi_clk` are asynchronous to each other. The single crossing
-between them lives inside `mc_dfi_2p1_layer` (see the CDC summary below).
+between them lives inside `mc_dfi_2p1_plane` (see the CDC summary below).
 
 ## Reset Signals
 
@@ -65,9 +65,9 @@ Both resets are active-low.
 Controller reset, tied to the `aclk` domain. The register block resets on
 `~aresetn` (`pumice_csr` `.rst(~aresetn)`). Resets:
 
-- Host AXI4 interface state (`mc_axi4_layer`)
+- Host AXI4 interface state (`mc_axi4_plane`)
 - Write-data and read-command CAMs
-- Command scheduler and bank timers (`pumice_scheduler_layer`)
+- Command scheduler and bank timers (`pumice_scheduler_plane`)
 - Refresh manager and init sequencer
 - Register block (`pumice_csr`) and observation state
 
@@ -75,7 +75,7 @@ Controller reset, tied to the `aclk` domain. The register block resets on
 
 DFI-domain reset, tied to the `dfi_clk` domain. Resets the DFI command path,
 the write serializer, the read aligner, and the DFI-side of the CDC FIFOs
-inside `mc_dfi_2p1_layer`.
+inside `mc_dfi_2p1_plane`.
 
 > Note: `init_sequencer` names its ports `mc_clk` / `mc_rst_n` internally, but
 > the top level (`pumice_top` → `pumice_core`) ties these to `aclk` / `aresetn`.
@@ -108,7 +108,7 @@ The SoC can warm-reset the controller without losing DRAM content:
 ## Clock Domain Crossing Summary
 
 There is exactly one clock-domain crossing in the design: the `aclk` ↔
-`dfi_clk` crossing inside `mc_dfi_2p1_layer` (`mc_dfi_cdc.sv`). It is built
+`dfi_clk` crossing inside `mc_dfi_2p1_plane` (`mc_dfi_cdc.sv`). It is built
 from asynchronous `gaxi` FIFOs only — command, write-data, and read-data each
 get their own async FIFO, plus the `init_start` / `init_complete` handshake.
 The register `cpuif` shares the `aclk` domain, so there is no CSR-clock CDC.

@@ -21,7 +21,7 @@
 //          DFI v2.1.1 and v3.1 for a DDR3-class controller. v3.1's additions
 //          that scoria DOES use (the per-CS leveling handshake, the split
 //          low-power requests, dfi_init) are separate channels driven at the
-//          dfi_layer above this stage, not through this pipeline. v3.1's
+//          dfi_plane above this stage, not through this pipeline. v3.1's
 //          other additions (ACT_n, bank groups, chip ID, CA parity, DBI, CA
 //          training) are DDR4-era and unimplemented.
 //

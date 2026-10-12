@@ -1,0 +1,65 @@
+// DFI 2.1 PHY-facing plane internal block diagram - mc_dfi_2p1_plane.
+// Follows the DDR-MC course style per common_has/assets/graphviz/STYLE.md.
+digraph mc_dfi_2p1_plane {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.30", ranksep="0.55", splines=ortho,
+           label="mc_dfi_2p1_plane - DFI 2.1 command, write, and read pipeline",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.07"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- controller-side context (white) ----
+    cmd_in [label="DDR Command in\n(from scheduler)", fillcolor="white"];
+    wd_in  [label="Write data in\n(from storage)", fillcolor="white"];
+    rd_out [label="Read data out\n(to mc_rd_return_ring)", fillcolor="white", width=2.4];
+
+    // ---- PHY timing knobs (blue, CSR-programmed) ----
+    timing [label="PHY Timing Knobs\nt_phy_wrlat / t_rddata_en\nCSR-programmed"];
+
+    // ---- core plane blocks (blue) ----
+    cdc [label="Controller<->PHY CDC\naclk <-> dfi_clk\nmc_dfi_cdc - FUB",
+         width=2.0, height=1.6];
+    cmd [label="DFI Command Path\nmc_dfi_cmd_path - FUB",
+         width=2.0, height=0.9];
+    wr  [label="Write Serializer\nmc_dfi_wr_serializer - FUB",
+         width=2.0, height=0.9];
+    rd  [label="Read Aligner\nmc_dfi_rd_aligner - FUB",
+         width=2.0, height=0.9];
+
+    // ---- external PHY bar (white, last rank) ----
+    phy [label="DDR PHY  (DFI 2.1 pin bus, dfi_clk domain)", fillcolor="white",
+         rank=sink, width=6.5, fontsize=11];
+
+    // ---- controller-side inputs into the single CDC ----
+    cmd_in -> cdc [label="DDR Command"];
+    wd_in  -> cdc [label="WR data"];
+
+    // ---- CDC to dfi_clk command/write/read blocks ----
+    cdc -> cmd [label="command descriptor"];
+    cdc -> wr  [label="WR data"];
+    rd  -> cdc [label="RD data"];
+    cdc -> rd_out;
+
+    // ---- PHY timing knobs feed serializer and aligner ----
+    timing -> wr [style=dashed, constraint=false];
+    timing -> rd [style=dashed, constraint=false];
+
+    // ---- DFI 2.1 blocks -> PHY ----
+    cmd -> phy [label="DDR Command"];
+    wr  -> phy [label="Write to DDR"];
+    rd  -> phy [dir=back, label="Read from DDR"];
+
+    // ---- rank pinning ----
+    { rank=same; cmd_in; timing; wd_in; }
+    cmd_in -> timing -> wd_in [style=invis];
+    { rank=same; cdc; rd_out; }
+    { rank=same; cmd; wr; rd; }
+    cmd -> wr -> rd [style=invis];
+    { rank=sink; phy; }
+
+    // invisible edges to keep the CDC centered above cmd/wr/rd
+    cdc -> cmd [style=invis];
+    cdc -> wr  [style=invis];
+    cdc -> rd  [style=invis];
+}

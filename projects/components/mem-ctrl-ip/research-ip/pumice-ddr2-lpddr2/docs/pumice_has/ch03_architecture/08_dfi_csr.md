@@ -21,15 +21,15 @@
 
 <!-- End Header -->
 
-# DFI Layer and CSR
+# DFI Plane and CSR
 
-The bottom of the controller is the DFI v2.1 layer. Until 2026-10-09 this layer was pumice-local (`pumice_dfi_layer`); it is now the common `mc_dfi_2p1_layer` consumed from `common-ip`. `pumice_top` instantiates it and wires the scheduler command stream, write-data stream, read-data return, and init tokens across the single controller-to-PHY clock-domain crossing. The family architecture and generation split are documented in the family HAS ([Layer Stack](../../../../../common-ip/docs/common_has/ch02_architecture/01_layer_stack.md), [DFI Generations](../../../../../common-ip/docs/common_has/ch03_dfi_generations/01_dfi_layers.md)). The block microarchitecture is in the family MAS ([`mc_dfi_2p1_layer`](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md)); this chapter only describes the pumice integration and the pumice-owned CSR surface.
+The bottom of the controller is the DFI v2.1 plane. Until 2026-10-09 this plane was pumice-local (`pumice_dfi_plane`); it is now the common `mc_dfi_2p1_plane` consumed from `common-ip`. `pumice_top` instantiates it and wires the scheduler command stream, write-data stream, read-data return, and init tokens across the single controller-to-PHY clock-domain crossing. The family architecture and generation split are documented in the family HAS ([Plane Stack](../../../../../common-ip/docs/common_has/ch02_architecture/01_plane_stack.md), [DFI Generations](../../../../../common-ip/docs/common_has/ch03_dfi_generations/01_dfi_planes.md)). The block microarchitecture is in the family MAS ([`mc_dfi_2p1_plane`](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_plane/01_mc_dfi_2p1_plane.md)); this chapter only describes the pumice integration and the pumice-owned CSR surface.
 
-## `mc_dfi_2p1_layer` in pumice
+## `mc_dfi_2p1_plane` in pumice
 
 ### Purpose
 
-Present the controller-clock command / write-data / read-data streams on one side and the DFI v2.1 pin bus on the other, with exactly one clock-domain crossing between them. RTL in the build is `common-ip/rtl/macro/mc_dfi_2p1_layer.sv`. The controller runs on `ctl_clk`; the PHY-facing datapath runs on `dfi_clk`.
+Present the controller-clock command / write-data / read-data streams on one side and the DFI v2.1 pin bus on the other, with exactly one clock-domain crossing between them. RTL in the build is `common-ip/rtl/macro/mc_dfi_2p1_plane.sv`. The controller runs on `ctl_clk`; the PHY-facing datapath runs on `dfi_clk`.
 
 ### The Single CDC
 
@@ -44,7 +44,7 @@ The internal datapath unit is the DFI word (`dfi_wrdata` width, all `DFI_RATE` p
 
 ### DFI-Domain Datapath
 
-On the `dfi_clk` side the common layer instantiates three mechanical stages:
+On the `dfi_clk` side the common plane instantiates three mechanical stages:
 
 - `mc_dfi_cmd_path` — pops the command FIFO and drives the multi-phase DFI command bus (see `06_encoder_output.md`). It emits `wr_fire` / `rd_fire` strobes to time the data movers.
 - `mc_dfi_wr_serializer` — drives `dfi_wrdata` at `t_phy_wrlat` (see `07_data_paths.md`).
@@ -54,11 +54,11 @@ The command path performs **no JEDEC timing enforcement**; all delays come from 
 
 ### DFI Sub-Interfaces
 
-The layer drives the three core DFI v2.1 sub-interfaces needed for DDR2 / LPDDR2 operation: the command bus, the write-data interface (`wrdata` / `wrdata_en` / `wrdata_mask`), and the read-data interface (`rddata_en` / `rddata` / `rddata_valid`), plus the DFI init handshake. Update / training / low-power / status sub-interfaces beyond `init_complete` are not driven; the controller manages power via CKE directly.
+The plane drives the three core DFI v2.1 sub-interfaces needed for DDR2 / LPDDR2 operation: the command bus, the write-data interface (`wrdata` / `wrdata_en` / `wrdata_mask`), and the read-data interface (`rddata_en` / `rddata` / `rddata_valid`), plus the DFI init handshake. Update / training / low-power / status sub-interfaces beyond `init_complete` are not driven; the controller manages power via CKE directly.
 
 ### Runtime PHY Knobs
 
-Rather than hard-coded PHY latencies, the layer takes runtime inputs so one build ports across PHYs: `rd_phase_i` / `wr_phase_i` (per-command DFI sub-phase placement), `t_phy_wrlat_i`, `t_rddata_en_i`, plus `memtype_i`. These are driven from the CSR (see below). The board-validated Nexys A7 tuple (2026-07-21) is `rd_phase=0`, `t_rddata_en=6`, `t_phy_wrlat=1`, plus harness `DFI_TUNING.rddata_delay=7` (see [Runtime CSR Fields](../../pumice_mas/ch04_apb_config/03_runtime_overrides.md) and the [Register Map](../../pumice_mas/ch04_apb_config/02_csr_map.md)).
+Rather than hard-coded PHY latencies, the plane takes runtime inputs so one build ports across PHYs: `rd_phase_i` / `wr_phase_i` (per-command DFI sub-phase placement), `t_phy_wrlat_i`, `t_rddata_en_i`, plus `memtype_i`. These are driven from the CSR (see below). The board-validated Nexys A7 tuple (2026-07-21) is `rd_phase=0`, `t_rddata_en=6`, `t_phy_wrlat=1`, plus harness `DFI_TUNING.rddata_delay=7` (see [Runtime CSR Fields](../../pumice_mas/ch04_apb_config/03_runtime_overrides.md) and the [Register Map](../../pumice_mas/ch04_apb_config/02_csr_map.md)).
 
 ---
 
@@ -90,13 +90,13 @@ DV never uses hard-coded offsets. Configuration is programmed by field name thro
 
 ### Key DFI / PHY Configuration Registers
 
-The RDL is authoritative; the registers that drive the DFI layer and PHY integration are:
+The RDL is authoritative; the registers that drive the DFI plane and PHY integration are:
 
 | Register     | Offset | Notable fields                                                     |
 |--------------|--------|--------------------------------------------------------------------|
 | `DFI_PHASE`  | 0x060  | `rd_phase[2:0]`, `wr_phase[6:4]` — DFI sub-phase placement (default 0/0) |
 | `PHY_TIMING` | 0x064  | `t_phy_wrlat[7:0]` (reset 0; Nexys A7 tuple programs 1), `t_rddata_en[15:8]` (reset 6), `memtype[16]` (0=DDR2, 1=LPDDR2), `refresh_burst[23:20]` (1..8) |
-| `CAL_ZQ_TIMING` | 0x0A8 | `t_zqcs[15:0]` / `t_zqcl[31:16]` — ZQ post-grant holds consumed by the training layer (see `09_training.md`) |
+| `CAL_ZQ_TIMING` | 0x0A8 | `t_zqcs[15:0]` / `t_zqcl[31:16]` — ZQ post-grant holds consumed by the training plane (see `09_training.md`) |
 | `CAL_TRAIN_TIMING` | 0x0AC | `t_mrr[15:0]`, `t_readout[31:16]` — MRR spacing and readout timeout |
 
 `memtype` selects DDR2 vs LPDDR2 at runtime and is consumed by `init_sequencer`, `mc_dfi_cmd_path`, and `mode_register`. Confirm every register and field against the RDL and the generated regmap. The full register map (JEDEC timing, address mapping, refresh/policy modes, calibration, and observation registers) is in the pumice MAS [Register Map](../../pumice_mas/ch04_apb_config/02_csr_map.md).

@@ -21,11 +21,11 @@
 
 <!-- End Header -->
 
-> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_dfi_2p1_layer`; its microarchitecture is owned by [common_mas mc_dfi_2p1_layer — DFI 2.1 Command / Write / Read Pipeline](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
+> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_dfi_2p1_plane`; its microarchitecture is owned by [common_mas mc_dfi_2p1_plane — DFI 2.1 Command / Write / Read Pipeline](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_plane/01_mc_dfi_2p1_plane.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
 
-# DFI Layer and Host-Width Gearing (`mc_dfi_2p1_layer` + `pumice_top_geared`)
+# DFI Plane and Host-Width Gearing (`mc_dfi_2p1_plane` + `pumice_top_geared`)
 
-**Module:** `mc_dfi_2p1_layer.sv` (common-ip macro) / `pumice_top_geared.sv` (top wrapper)
+**Module:** `mc_dfi_2p1_plane.sv` (common-ip macro) / `pumice_top_geared.sv` (top wrapper)
 **Location:** `projects/components/mem-ctrl-ip/common-ip/rtl/macro/` and `rtl/top/`
 **Category:** Macro / Top wrapper
 **Status:** Implemented (single-CDC DFI datapath; formal-IP host-width gearing wrapper)
@@ -34,10 +34,10 @@
 > phase-packing FUB (`gear_dfi_fub` / `dfi_signal_pack`) that spread a single MC
 > command and burst-of-`N` data beats into per-phase DFI slots. That
 > phase-packing role is real but small — it lives inside `dfi_signal_pack` and
-> the DFI-layer sub-FUBs. This chapter now covers the two live, distinct concepts
+> the DFI-plane sub-FUBs. This chapter now covers the two live, distinct concepts
 > that carry the word "gearing" in pumice, and it keeps them separate:
 >
-> 1. **The DFI layer** (`mc_dfi_2p1_layer`) — the single controller/PHY
+> 1. **The DFI plane** (`mc_dfi_2p1_plane`) — the single controller/PHY
 >    clock-domain crossing plus the DFI-clock command/write/read datapath. This
 >    is where the internal `DW`-wide word is split into `DFI_RATE` DRAM beats.
 > 2. **Host-width gearing** (`pumice_top_geared`) — an OPTIONAL top wrapper that
@@ -49,11 +49,11 @@
 
 ---
 
-## Concept 1 — The DFI Layer (`mc_dfi_2p1_layer`)
+## Concept 1 — The DFI Plane (`mc_dfi_2p1_plane`)
 
 ### Purpose
 
-`mc_dfi_2p1_layer` presents the controller-clock command/wrdata/rddata streams on
+`mc_dfi_2p1_plane` presents the controller-clock command/wrdata/rddata streams on
 one side and the DFI 2.1 pin bus on the other. It holds the **single**
 controller/PHY clock-domain crossing and the DFI-clock-side datapath. Its
 internal datapath unit is the DFI word (`dfi_wrdata` width = all `DFI_RATE`
@@ -68,7 +68,7 @@ Two clock domains:
 
 ### Internal structure (verified against the RTL)
 
-`mc_dfi_2p1_layer` instantiates exactly four sub-FUBs:
+`mc_dfi_2p1_plane` instantiates exactly four sub-FUBs:
 
 | Sub-FUB                    | Domain    | Role                                                             |
 |----------------------------|-----------|-----------------------------------------------------------------|
@@ -136,7 +136,7 @@ stabilized controller datapath.
 
 > **The old coupling is gone.** Do not describe the retired "AXI_DATA_WIDTH ==
 > DRAM_BEAT_WIDTH" constraint. Internal geometry is `DW = DRAM_BEAT_WIDTH *
-> DFI_RATE`; the DW→phase split happens inside the DFI layer / `dfi_signal_pack`,
+> DFI_RATE`; the DW→phase split happens inside the DFI plane / `dfi_signal_pack`,
 > and the host AXI width is decoupled from it by this wrapper.
 
 ### GEAR-1 bypass (bit-identical)
@@ -179,7 +179,7 @@ Verified for host widths in {64, 128, 256}. Full scope in
 
 ## Narrow-Device (x16) Support — the Two Width Granularities
 
-A distinction that is separate from both concepts above but which the DFI layer
+A distinction that is separate from both concepts above but which the DFI plane
 must respect: the **pumice DRAM beat** (`DRAM_BEAT_WIDTH`, one DFI phase's data)
 is not necessarily the **physical DRAM device word** (`DRAM_DEVICE_WIDTH`, the DQ
 width — e.g. 16 for an x16 device). When a beat is wider than the device (a
@@ -208,7 +208,7 @@ bit-identical to the wide-device behavior.
 
 `dfi_cmd_formatter` places the READ command on `rd_phase` and the WRITE command on
 `wr_phase` (defaults 0; all other commands on phase 0), runtime-settable via the
-`DFI_PHASE` CSR through `mc_dfi_2p1_layer`'s `rd_phase_i` / `wr_phase_i`. This
+`DFI_PHASE` CSR through `mc_dfi_2p1_plane`'s `rd_phase_i` / `wr_phase_i`. This
 matches a PHY that consumes a per-command rdphase/wrphase off the DFI bus. The
 LiteDRAM a7ddrphy instead takes the command on phase 0 and applies its rdphase
 internally, so on that PHY `rd_phase` stays 0 — the CSR exists for PHYs that do
@@ -218,7 +218,7 @@ not.
 
 ## Interface Summary
 
-### `mc_dfi_2p1_layer` — controller side (`ctl_clk`)
+### `mc_dfi_2p1_plane` — controller side (`ctl_clk`)
 
 | Signal          | Direction | Description                              |
 |-----------------|-----------|------------------------------------------|
@@ -227,7 +227,7 @@ not.
 | `rd_valid_o` / `rd_ready_i` / `rd_data_o[RD_DW]` | out/in/out | Read data to the RD CAM ({last,resp,data}) |
 | `init_start_i` / `init_complete_o` | in/out | Init handshake, controller side |
 
-### `mc_dfi_2p1_layer` — PHY side (`dfi_clk`)
+### `mc_dfi_2p1_plane` — PHY side (`dfi_clk`)
 
 DFI command bus (`dfi_address_o`, `dfi_bank_o`, `dfi_cas_n_o`, `dfi_ras_n_o`,
 `dfi_we_n_o`, `dfi_cs_n_o`, `dfi_odt_o`), write data (`dfi_wrdata_o`,
@@ -267,7 +267,7 @@ wires either directly (`g_direct`) or via the two converters (`g_conv`) to
   a word). Emitting multiple commands per DFI cycle is a scheduler-side feature;
   the bus widths are already in place.
 - **`dfi_dram_clk_disable` / power-down.** `dfi_signal_pack` holds clk-disable at
-  0; wiring the power-state machine through the DFI layer is future work.
+  0; wiring the power-state machine through the DFI plane is future work.
 - **Higher gear ratios.** `DFI_RATE = 4` (and DDR3+ higher ratios) scale the DFI
   geometry linearly; validate the CDC FIFO depths and serializer/aligner timing
   when the family controller targets them.

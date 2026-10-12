@@ -118,5 +118,5 @@ notes: |
   Known issue (out of scope for the test plan):
     Fresh AXI reads (no preceding write to the same address) hang in
     the data path between rd_cl_aligner and AXI R-channel. The
-    scheduler S_DONE race fix (commit 66f32c7f) was the first layer;
+    scheduler S_DONE race fix (commit 66f32c7f) was the first plane;
     a second issue remains downstream of the scheduler.

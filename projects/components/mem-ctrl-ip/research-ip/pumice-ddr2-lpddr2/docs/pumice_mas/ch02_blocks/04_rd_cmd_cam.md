@@ -21,14 +21,14 @@
 
 <!-- End Header -->
 
-> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_storage_layer`; its microarchitecture is owned by [common_mas mc_storage_layer — Storage Layer and Entry-Pool FUBs](../../../../../common-ip/docs/common_mas/ch03_storage_layer/01_mc_storage_layer.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
+> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_storage_plane`; its microarchitecture is owned by [common_mas mc_storage_plane — Storage Plane and Entry-Pool FUBs](../../../../../common-ip/docs/common_mas/ch03_storage_plane/01_mc_storage_plane.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
 
 # Read Command CAM (`mc_rd_cmd_cam`)
 
 **Module:** `mc_rd_cmd_cam.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent:** `mc_storage_layer`
+**Parent:** `mc_storage_plane`
 **Status:** Implemented (de-FSM'd streaming drain)
 
 > **Rearchitected:** the SWAG CAM was keyed by AXI ID and drove a `match_pending`

@@ -5,13 +5,13 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: mc_dfi_cdc
-// Purpose: THE single clock-domain crossing of the DFI 2.1 layer. All traffic
+// Purpose: THE single clock-domain crossing of the DFI 2.1 plane. All traffic
 //          between the controller domain (ctl_clk: AXI IFC + scheduler + CAMs)
 //          and the PHY DFI domain (dfi_clk: phase-packer + PHY) crosses here,
 //          and ONLY through gaxi_fifo_async (Gray-pointer) FIFOs — no
 //          hand-rolled synchronizers, no open-loop bit crossings.
 //
-//          Extracted from pumice_dfi_cdc during Phase 2 common-layer reorg
+//          Extracted from pumice_dfi_cdc during Phase 2 common-plane reorg
 //          (2026-10-10).
 //
 //   ctl -> phy : cmd, wrdata, init_start(token)
@@ -22,7 +22,7 @@
 // sticky latch. init is monotonic (once); leveling re-runs are future work.
 // Payloads are opaque buses — the DFI top packs/unpacks {op,...}/{data,...}.
 //
-// Documentation: docs/uarch/PUMICE_DFI_LAYER_UARCH.md
+// Documentation: docs/uarch/PUMICE_DFI_PLANE_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"

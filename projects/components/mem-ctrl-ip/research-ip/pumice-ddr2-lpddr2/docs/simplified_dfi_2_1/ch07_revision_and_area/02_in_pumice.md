@@ -1,8 +1,8 @@
 # DFI 2.1 in the Pumice DDR2/LPDDR2 Controller
 
 This book is a simplified study guide for the DFI 2.1 interface used by the
-pumice DDR2/LPDDR2 memory controller. The controller's DFI layer is implemented
-in `rtl/macro/pumice_dfi_layer.sv` and documented in the project's microarchitecture
+pumice DDR2/LPDDR2 memory controller. The controller's DFI plane is implemented
+in `rtl/macro/pumice_dfi_plane.sv` and documented in the project's microarchitecture
 and interface specifications.
 
 ## Sub-interface support
@@ -24,7 +24,7 @@ and interface specifications.
 
 Unlike the classic model where DFI sits on the controller clock, pumice places
 the DFI datapath on a dedicated `dfi_clk` and puts the single controller-to-PHY
-crossing inside `pumice_dfi_layer`. The crossing uses `gaxi_fifo_async`
+crossing inside `pumice_dfi_plane`. The crossing uses `gaxi_fifo_async`
 instances for command, write data, read data, and init event tokens. There are
 no standalone synchronizers.
 
@@ -47,10 +47,10 @@ async FIFO back to the controller clock domain.
 
 ## Known gaps and future work
 
-The first pumice DFI layer intentionally omits update handshaking, training
+The first pumice DFI plane intentionally omits update handshaking, training
 control, low-power coordination, and frequency change. These could be added in
 a later revision without changing the command/write/read datapath. A future
 DDR3/LPDDR3 controller would need a larger DFI sub-interface set and would
-likely replace the DFI layer rather than extend this one.
+likely replace the DFI plane rather than extend this one.
 
-**Source:** `docs/uarch/PUMICE_DFI_LAYER_UARCH.md`, `docs/pumice_mas/ch03_interfaces/02_dfi_v21_interface_spec.md`, `docs/uarch/LPDDR2_CA_ENCODING.md`
+**Source:** `docs/uarch/PUMICE_DFI_PLANE_UARCH.md`, `docs/pumice_mas/ch03_interfaces/02_dfi_v21_interface_spec.md`, `docs/uarch/LPDDR2_CA_ENCODING.md`

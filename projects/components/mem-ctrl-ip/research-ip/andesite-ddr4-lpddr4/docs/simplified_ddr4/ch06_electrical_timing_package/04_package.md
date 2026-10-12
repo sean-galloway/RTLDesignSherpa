@@ -25,7 +25,7 @@ full ballout grids (spec sec 2 has them).
 - SSTL-class 1.2 V signaling; VREFCA at the receiver; the CA bus is the
   heavily loaded net and is where CAL mode and CA parity spend their
   effort.
-- DQ integrity is now multi-layered: on-die termination per MR, DBI for
+- DQ integrity is now multi-planeed: on-die termination per MR, DBI for
   power/DC balance, write CRC on the data, and CA parity on the command
   path - see the data-path and test chapters.
 

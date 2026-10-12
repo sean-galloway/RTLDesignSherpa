@@ -52,8 +52,8 @@ _PU = _REPO / "projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rt
 # rd_intake, wr_intake, bank_timers and the DFI CDC were REMOVED from this
 # table — those blocks now live ONCE in common-ip as mc_* modules that both
 # rocks instantiate, so the invariant this test guarded (scoria's copy ==
-# pumice's copy) is enforced by construction. The DFI layer itself was
-# extracted to mc_dfi_3p1_layer (Task 6). This table is intentionally empty
+# pumice's copy) is enforced by construction. The DFI plane itself was
+# extracted to mc_dfi_3p1_plane (Task 6). This table is intentionally empty
 # until another porting relationship appears.
 PORTED = {
 }

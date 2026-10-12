@@ -21,9 +21,9 @@
 
 <!-- End Header -->
 
-# Scheduler and Command Arbiter (`andesite_scheduler_layer` + `andesite_cmd_arbiter`)
+# Scheduler and Command Arbiter (`andesite_scheduler_plane` + `andesite_cmd_arbiter`)
 
-**Module:** `andesite_scheduler_layer.sv`, `andesite_cmd_arbiter.sv`
+**Module:** `andesite_scheduler_plane.sv`, `andesite_cmd_arbiter.sv`
 **Location:** `rtl/macro/` (scheduler), `rtl/fub/` (arbiter)
 **Category:** scheduling / arbitration
 **Parent:** `andesite_core`
@@ -125,7 +125,7 @@ register never carried latency shadows.
 | `rtt_nom_o` / `rtt_wr_o` / `rtt_park_o` | out | 3 | ODT policy images (the `odt_ctrl` observability contract) |
 | `rd_dbi_en_o` / `wr_dbi_en_o` | out | 1 | MR5 read/write DBI enables (the DFI datapath consumers) |
 | `mpr_page_o` / `fgr_factor_o` / `ca_parity_lat_o` / `lpddr4_odt_o` | out | 2 / 2 / 2 / 3 | MR3 MPR page, FGR factor, CA-parity latency, LPDDR4 ODT image |
-| `wrlvl_en_o` | out | 1 | MR1[7] — write-leveling mode authority (to the training layer) |
+| `wrlvl_en_o` | out | 1 | MR1[7] — write-leveling mode authority (to the training plane) |
 
 Init commands (MRS / ZQCL) reach the DRAM through the ordinary command
 stream: the P1 `cmd_req`/`cmd_ack` handshake is honored by the arbiter's
@@ -173,7 +173,7 @@ The carried RTL keeps scoria's channel shape: two request/grant pairs into the a
 |---|---|---|
 | `refresh_ctrl` | `refresh_req_i`/`refresh_grant_o` | issue `REF` or LPDDR4 per-bank refresh |
 | `zq_ctrl` | `zq_req_i`/`zq_grant_o` | issue `ZQCS`, `ZQCL`, or LPDDR4 MPC ZQ calibration |
-| `andesite_training_layer` | `trn_cmd_req_i`/`trn_cmd_grant_o` | issue training `MRS` or `MPC`; request-and-wait, all-banks-idle two-step shape like refresh |
+| `andesite_training_plane` | `trn_cmd_req_i`/`trn_cmd_grant_o` | issue training `MRS` or `MPC`; request-and-wait, all-banks-idle two-step shape like refresh |
 | `odt_ctrl` | lands with Ch 2.8 | issue the ODT turnaround command or NOP-with-ODT |
 
 The rule is inherited from scoria: request and wait, never preempt. A maintenance source raises its `req` and holds it until `grant` arrives. It cannot yank the bus away from an in-flight host command.

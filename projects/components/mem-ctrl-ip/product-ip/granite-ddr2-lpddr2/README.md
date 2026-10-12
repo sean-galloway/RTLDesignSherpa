@@ -25,23 +25,23 @@
 
 The v2 product SKU and the family's **bypass-validation testbed**: the
 cheapest full proof that the common core runs correctly with its optional
-layers at minimum and absent, before gabbro/diorite spend area on features
+planes at minimum and absent, before gabbro/diorite spend area on features
 the v2 generation will never see
 ([common_has ch5.2](../../common-ip/docs/common_has/ch05_lineup/02_products_and_research.md)).
 
 | | |
 |---|---|
 | Generation | v2 (DDR2 / LPDDR2, one engine + swappable encoder) |
-| DFI layer | `mc_dfi_2p1_layer` |
+| DFI plane | `mc_dfi_2p1_plane` |
 | Source rock | [`pumice-ddr2-lpddr2`](../../research-ip/pumice-ddr2-lpddr2/) — board-validated (Nexys A7 DDR2) |
 | Board target | Nexys A7-class product board — TBD |
 | Status | **Scaffold (2026-10-11)** — not built |
 
 ## Configuration intent (ch5.2 defaults for v2)
 
-- **Storage layer, lite configuration** — N=1 in-order seam; the entry
+- **Storage plane, lite configuration** — N=1 in-order seam; the entry
   store shrinks toward one entry, never to zero.
-- **RAS layer absent** — true bypass: no transform pair instantiated, no
+- **RAS plane absent** — true bypass: no transform pair instantiated, no
   scrub; only the reserved CSR decode.
 - **Write-data buffer at SKU minimum** — sized by the product burst
   profile, not the research characterization sweep.
@@ -54,12 +54,12 @@ none appear in this SKU.
 ## Contents
 
 - [`config/product_config.md`](config/product_config.md) — the chosen
-  configuration (layer selection, reasoning, open values).
+  configuration (plane selection, reasoning, open values).
 - [`rtl/includes/granite_pkg.sv`](rtl/includes/granite_pkg.sv) — the SKU
   parameter package (lite storage N=1, SKU write-data staging, frequency
   plan placeholders).
 - [`rtl/filelists/top/granite.f`](rtl/filelists/top/granite.f) — the
-  layer selection as a filelist: common-ip only, by construction. There is
+  plane selection as a filelist: common-ip only, by construction. There is
   deliberately no `granite_core.sv` yet — see TASK-001 (wrapper dissolution)
   in this product's vault area.
 

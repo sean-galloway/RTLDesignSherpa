@@ -6,13 +6,13 @@
 //
 // Module: scoria_core
 // Purpose: The rearchitected pumice DDR3/LPDDR3 controller core. Wires the
-//          three layers built bottom-up this cycle:
-//            1. mc_axi4_layer          (host AXI + wr/rd CAMs)
-//            2. scoria_scheduler_layer (bank timers + arbiter + refresh/init)
-//            3. mc_dfi_3p1_layer         (single async CDC + DFI 3.1 datapath)
+//          three planes built bottom-up this cycle:
+//            1. mc_axi4_plane          (host AXI + wr/rd CAMs)
+//            2. scoria_scheduler_plane (bank timers + arbiter + refresh/init)
+//            3. mc_dfi_3p1_plane         (single async CDC + DFI 3.1 datapath)
 //
 //          Host AXI + scheduler + CAMs run on aclk; the DFI phase-packer + PHY
-//          run on dfi_clk; the ONE clock crossing lives in mc_dfi_3p1_layer's
+//          run on dfi_clk; the ONE clock crossing lives in mc_dfi_3p1_plane's
 //          CDC (async gaxi FIFOs only). Internal data unit = the DFI word
 //          (DFI_DATA_WIDTH); the host AXI data width is the DFI word too (an
 //          external 64<->128 dwidth shim is a separate edge concern).
@@ -20,7 +20,7 @@
 //          Config (timings / phases / policy) is delivered on ports here; a
 //          by-name CSR register block is a clean-rebuild follow-up.
 //
-// Documentation: docs/uarch/PUMICE_DFI_LAYER_UARCH.md (+ the IFC / scheduler specs)
+// Documentation: docs/uarch/PUMICE_DFI_PLANE_UARCH.md (+ the IFC / scheduler specs)
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
@@ -33,7 +33,7 @@ module scoria_core
     parameter int AXI_ADDR_WIDTH = 32,
     parameter int NUM_RANKS      = 1,
     // One CS_n per rank. Its own parameter because the DFI v3.1 leveling
-    // handshake is per-CS rather than per-rank; see scoria_scheduler_layer.
+    // handshake is per-CS rather than per-rank; see scoria_scheduler_plane.
     parameter int NUM_CS         = NUM_RANKS,
     parameter int NUM_BANKS      = 8,
     parameter int ROW_WIDTH      = 14,
@@ -79,7 +79,7 @@ module scoria_core
     //   * burst <  one DFI word (the board: gear 1:4 + x16 BL4):
     //       one DFI word holds N_SUBCMD = DFI_RATE/BL_PUMICE JEDEC bursts, so
     //       BURST_WORDS clamps to 1 (the DFI word IS the transfer unit) and the
-    //       DFI layer issues N_SUBCMD consecutive-column DRAM commands per word.
+    //       DFI plane issues N_SUBCMD consecutive-column DRAM commands per word.
     // Both quantities are derived from the compile params (build-for-max sizes
     // every bus); N_SUBCMD>1 is a normal config, not a special case. Legacy
     // (N_SUBCMD==1) is bit-identical: BURST_WORDS==BL_PUMICE/DFI_RATE as before.
@@ -100,7 +100,7 @@ module scoria_core
     //
     // This is NOT BURST_WORDS. BURST_WORDS counts DRAM_BEAT_WIDTH-wide beats
     // (BL_PUMICE/DFI_RATE), so it HALVES when a narrow device sits behind a
-    // wider beat -- and the DFI layer's RD_EN_CYC defaulted to it, which told
+    // wider beat -- and the DFI plane's RD_EN_CYC defaulted to it, which told
     // the PHY to sample DQ for one DFI cycle of a two-cycle burst and lost the
     // second half of every read. The two agree only when
     // DRAM_BEAT_WIDTH == DRAM_DEVICE_WIDTH, which is the Genesys 2 point and
@@ -231,7 +231,7 @@ module scoria_core
 
     // ----- write leveling (DDR3). The DFI v3.1 leveling handshake is per-CS
     //       and leaves the controller unaltered -- it does not go through
-    //       mc_dfi_3p1_layer, because there is no gearing to do on it: the
+    //       mc_dfi_3p1_plane, because there is no gearing to do on it: the
     //       request/ack pair is a slow control handshake, not phase data. -----
     input  logic                       wrlvl_strobe_i,
     input  logic [3:0]                 wrlvl_cs_sel_i,
@@ -415,15 +415,15 @@ module scoria_core
 
     // ---- init handshake scheduler <-> DFI (ctl side) ----
     logic                      w_init_start, w_init_complete;
-    // write-leveling handshake, ctl_clk side (crosses inside scoria_dfi_layer)
+    // write-leveling handshake, ctl_clk side (crosses inside scoria_dfi_plane)
     logic [NUM_CS-1:0]         w_wl_req_cs_n, w_wl_ack_cs_n, w_wl_mode_cs_n;
     logic                      w_wl_strobe, w_wl_prime_dq;
-    // scheduler -> training_layer (ZQ command path + wrlvl mode enable)
+    // scheduler -> training_plane (ZQ command path + wrlvl mode enable)
     logic                      w_zq_req, w_zq_grant;
     logic                      w_wrlvl_en;
     assign wrlvl_en_o = w_wrlvl_en;
 
-    // ---- AXI4 layer <-> storage layer inter-layer nets ----
+    // ---- AXI4 plane <-> storage plane inter-plane nets ----
     logic                aw_push_valid, aw_push_ready;
     logic [BKW-1:0]      aw_push_bank;  logic [ROW_WIDTH-1:0] aw_push_row;
     logic [COL_WIDTH-1:0] aw_push_col;  logic [IW-1:0]        aw_push_id;
@@ -447,9 +447,9 @@ module scoria_core
     logic [3:0]           ar_push_qos;   logic [3:0]           aw_push_qos;
 
     // ======================================================================
-    // Layer 1: AXI4 interface (splitters + intakes + return ring)
+    // Plane 1: AXI4 interface (splitters + intakes + return ring)
     // ======================================================================
-    mc_axi4_layer #(
+    mc_axi4_plane #(
         .AXI_ID_WIDTH  (IW),
         .AXI_ADDR_WIDTH(AW),
         .AXI_DATA_WIDTH(DW),
@@ -457,7 +457,7 @@ module scoria_core
         // Intake/CAM stay DFI-word granular (one AXI beat == one DFI word):
         // DRAM_BEAT_WIDTH(DW) => GEAR==1, and DRAM_BL == BURST_WORDS (DFI words per
         // burst-group). N_SUBCMD>1 (sub-DFI-word burst) is expanded downstream
-        // in the DFI layer, so the front end frames exactly one DFI word/beat.
+        // in the DFI plane, so the front end frames exactly one DFI word/beat.
         .DRAM_BEAT_WIDTH  (DW),
         .NUM_RANKS        (NUM_RANKS),
         .NUM_BANKS        (NUM_BANKS),
@@ -470,7 +470,7 @@ module scoria_core
         .RD_RET_DEPTH     (RD_RET_DEPTH),
         .N_SCHED_LU       (N_LU),
         .AGE_WIDTH        (AGE_WIDTH)
-    ) u_axi_layer (
+    ) u_axi_plane (
         .aclk          (aclk),
         .aresetn       (aresetn),
         .bank_lsb_i    (bank_lsb_i),
@@ -575,9 +575,9 @@ module scoria_core
     );
 
     // ======================================================================
-    // Layer 1b: storage layer (WR/RD CAMs + snarf)
+    // Plane 1b: storage plane (WR/RD CAMs + snarf)
     // ======================================================================
-    mc_storage_layer #(
+    mc_storage_plane #(
         .AXI_ID_WIDTH  (IW),
         .AXI_DATA_WIDTH(DW),
         .NUM_RANKS     (NUM_RANKS),
@@ -590,7 +590,7 @@ module scoria_core
         .N_SCHED_LU    (N_LU),
         .AGE_WIDTH     (AGE_WIDTH),
         .RD_RET_DEPTH  (RD_RET_DEPTH)
-    ) u_store_layer (
+    ) u_store_plane (
         .aclk               (aclk),
         .aresetn            (aresetn),
         // WR intake push
@@ -672,9 +672,9 @@ module scoria_core
     );
 
     // ======================================================================
-    // Layer 2: command scheduler
+    // Plane 2: command scheduler
     // ======================================================================
-    scoria_scheduler_layer #(
+    scoria_scheduler_plane #(
         .NUM_RANKS     (NUM_RANKS),
         .NUM_CS        (NUM_CS),
         .NUM_BANKS     (NUM_BANKS),
@@ -685,7 +685,7 @@ module scoria_core
         .AGE_WIDTH     (AGE_WIDTH),
         .CMD_HISTORY_EN(CMD_HISTORY_EN),
         .CMD_DELAY     (CMD_DELAY_EFF)
-    ) u_sched_layer (
+    ) u_sched_plane (
         .aclk               (aclk),
         .aresetn            (aresetn),
         .page_policy_i      (page_policy_i),
@@ -809,12 +809,12 @@ module scoria_core
     );
 
     // ======================================================================
-    // Layer 2b: training wrapper (ZQ + write-leveling)
+    // Plane 2b: training wrapper (ZQ + write-leveling)
     // ======================================================================
-    scoria_training_layer #(
+    scoria_training_plane #(
         .NUM_CS(NUM_CS),
         .CSW   ((NUM_CS > 1) ? $clog2(NUM_CS) : 1)
-    ) u_train_layer (
+    ) u_train_plane (
         .mc_clk             (aclk),
         .mc_rst_n           (aresetn),
         .init_done_i        (init_done_o),
@@ -853,7 +853,7 @@ module scoria_core
     );
 
     // ======================================================================
-    // Layer 3: DFI layer (single CDC + datapath)
+    // Plane 3: DFI plane (single CDC + datapath)
     // ======================================================================
     // DFI v3.1 data-phase chip selects. One rank, so rank 0 is the only legal
     // selection and these are constant -- driven by the controller rather than
@@ -863,7 +863,7 @@ module scoria_core
     assign dfi_wrdata_cs_n_o = '0;
     assign dfi_rddata_cs_n_o = '0;
 
-    mc_dfi_3p1_layer #(
+    mc_dfi_3p1_plane #(
         .NUM_RANKS       (NUM_RANKS),
         .NUM_CS          (NUM_CS),
         .NUM_BANKS       (NUM_BANKS),
@@ -877,7 +877,7 @@ module scoria_core
         .SUB_PHASE_STRIDE(SUB_PHASE_STRIDE),
         .SUBW_MAX        (SUBW_MAX),
         .BURST_WORDS     (BURST_WORDS),
-        // TASK-004: set EXPLICITLY. The layer's default was BL_WORDS, and a
+        // TASK-004: set EXPLICITLY. The plane's default was BL_WORDS, and a
         // parameter nobody sets is how that went unnoticed.
         .RD_EN_CYC       (RD_EN_CYC_CORE),
         // The read return has NO backpressure at the PHY (rddata_valid cannot
@@ -894,7 +894,7 @@ module scoria_core
         .HIST_T_RFC      (HIST_T_RFC_CORE),
         .HIST_T_RTW      (HIST_T_RTW_CORE),
         .HIST_T_WTR      (HIST_T_WTR_CORE)
-    ) u_dfi_layer (
+    ) u_dfi_plane (
         .ctl_clk            (aclk),
         .ctl_rstn           (aresetn),
         .cmd_valid_i        (w_cmd_v),

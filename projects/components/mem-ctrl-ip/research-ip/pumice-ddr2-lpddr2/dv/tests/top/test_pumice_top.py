@@ -153,7 +153,7 @@ async def _apply_config_vector(tb):
 
 
 async def _config_cell_epilogue(tb):
-    """Layer-2b invariants over the cell's window. No-op outside the sweep.
+    """Plane-2b invariants over the cell's window. No-op outside the sweep.
 
     The golden data check is the cell's primary oracle; this is the second one,
     and it is the reason a sweep can FAIL rather than merely run.
@@ -204,7 +204,7 @@ async def _bringup(dut, *, mem_type="DDR2", page_policy=2, profile="backtoback",
     tb.init_axi_masters()
     tb.set_axi_timing_profile(profile)
 
-    # TASK-015 layer 1. When the config sweep selects a cell, overwrite the mode
+    # TASK-015 plane 1. When the config sweep selects a cell, overwrite the mode
     # selectors with that covering-array vector and pin the read gap. Placed
     # AFTER init_axi_masters + set_axi_timing_profile on purpose: the gap lives
     # on the R-channel randomizer the profile installs, so setting it earlier
@@ -250,7 +250,7 @@ async def _dq_collision_monitor(dut, stop, hits):
     This is the pumice BUG-014 (was PUMICE-037) mechanism, and the reason it never showed up in
     simulation before: DFI carries wrdata and rddata on SEPARATE buses, so the
     overlap is perfectly legal AT THE DFI BOUNDARY and only becomes destructive
-    on the PHY's shared DQ pins, one layer below anything a DFI-level model
+    on the PHY's shared DQ pins, one plane below anything a DFI-level model
     represents. The board ILA (reports/ila_pumice037_wrdata_into_read.csv)
     caught 49 such cycles, with 80% of corrupted beats landing within 12 cycles
     of one and 51% of them reading back all-ones -- an undriven bus.
@@ -542,7 +542,7 @@ async def cocotb_test_pumice_top(dut):
     # software-OPEN and the happy test 2 = software-CLOSE. Corrected to intent.
     if test_type in ("open_page_workload", "open_page_lpddr2",
                      "adapt_time_workload"):
-        page_policy = 1        # OPEN (adapt_time layers its mode on top)
+        page_policy = 1        # OPEN (adapt_time planes its mode on top)
     else:
         page_policy = 2        # CLOSE
 
@@ -1187,7 +1187,7 @@ async def cocotb_test_patho(dut):
 
 @cocotb.test(timeout_time=900, timeout_unit="ms")
 async def cocotb_test_config_soak(dut):
-    """TASK-015 layer 3: seeded random config soak.
+    """TASK-015 plane 3: seeded random config soak.
 
     The covering array reaches every 2-way interaction and, by construction,
     nothing deeper. This reaches 3-way and beyond eventually and promises
@@ -1214,7 +1214,7 @@ async def cocotb_test_config_soak(dut):
 
     tb = await _bringup(dut, profile="backtoback")
     bpw = DW // 8
-    tb.log.info(f"TASK-015 layer 3: seed={seed} rounds={rounds} level={_LEVEL}")
+    tb.log.info(f"TASK-015 plane 3: seed={seed} rounds={rounds} level={_LEVEL}")
 
     for rnd in range(rounds):
         vec = ca.random_vector(rng)
@@ -1276,7 +1276,7 @@ async def cocotb_test_config_soak(dut):
 
 @cocotb.test(timeout_time=600, timeout_unit="ms")
 async def cocotb_test_config_cell(dut):
-    """One cell of the TASK-015 layer-1 covering array.
+    """One cell of the TASK-015 plane-1 covering array.
 
     CFG_INDEX picks the config vector, CFG_GAP the read-gap hazard axis, CFG_DIR
     the traffic direction. `_bringup` programs the vector (see
@@ -1284,7 +1284,7 @@ async def cocotb_test_config_cell(dut):
     DUT configured somewhere in the 15-selector space.
 
     TWO ORACLES, because a sweep with none cannot fail: golden data through the
-    DFI slave's MemoryModel, and the layer-2b telemetry invariants in the
+    DFI slave's MemoryModel, and the plane-2b telemetry invariants in the
     epilogue.
     """
     direction = os.environ.get("CFG_DIR", "sequential")
@@ -1377,7 +1377,7 @@ async def cocotb_test_config_cell(dut):
 async def cocotb_test_row_hit_counters(dut):
     """pumice BUG-020 regression: OBS_ROW_HIT[8] must actually count.
 
-    The layer-2b invariants alone CANNOT catch a dead counter here. At the
+    The plane-2b invariants alone CANNOT catch a dead counter here. At the
     shipping default (policy_mode=3, tr_init=2) the background close retires a
     row almost immediately, so real hits are ~0 -- and both per-bank rules are
     bounds that zero satisfies. That is how 35 undriven OBS_* registers survived
@@ -1446,11 +1446,11 @@ async def cocotb_test_row_hit_counters(dut):
 
 @cocotb.test(timeout_time=180, timeout_unit="ms")
 async def cocotb_test_telemetry_invariants(dut):
-    """TASK-015 layer 2b: the exported counters must be arithmetically consistent.
+    """TASK-015 plane 2b: the exported counters must be arithmetically consistent.
 
     Nothing in sim read these counters before this test -- the telemetry was
     exported and only the board host ever looked at it, so a counter could be
-    wired to the wrong event and every sim run would still pass. With layer 2a
+    wired to the wrong event and every sim run would still pass. With plane 2a
     dropped (no assertions in RTL) these relations are the oracle a config sweep
     needs in order to be able to FAIL rather than merely run.
 
@@ -1544,7 +1544,7 @@ async def cocotb_test_telemetry_invariants(dut):
     # Mask the 32-bit wrap rather than letting a delta go negative.
     delta = {k: (after[k] - before[k]) & 0xFFFFFFFF for k in after}
 
-    tb.log.info("TASK-015 layer 2b -- telemetry window:")
+    tb.log.info("TASK-015 plane 2b -- telemetry window:")
     for k in sorted(delta):
         tb.log.info(f"    {k:<26} {delta[k]}")
     hits = delta["PAGE_STATS_HIT"] - delta["SCHED_STATS_ACT"]
@@ -1564,7 +1564,7 @@ async def cocotb_test_telemetry_invariants(dut):
     # that the rule list shrank.
     assert armed == len(ti.RULES) >= 5, (
         f"{armed} of {len(ti.RULES)} rules armed -- a rule was added without "
-        f"counters, or the rule set shrank below the five that layer 2b ships")
+        f"counters, or the rule set shrank below the five that plane 2b ships")
     tb.log.info(f"PASS telemetry invariants: {armed}/{len(ti.RULES)} rules armed "
                 f"and clean over {delta['PAGE_STATS_HIT']} column ops, "
                 f"{delta['SCHED_STATS_ACT']} activations, {hits} row hits")
@@ -1893,7 +1893,7 @@ def test_pumice_top_nr2(request):
 
 
 def _sweep_cells():
-    """The layer-1 cells for this REG_LEVEL. Imported from the sweep module so
+    """The plane-1 cells for this REG_LEVEL. Imported from the sweep module so
     the array and the cell list have exactly one definition."""
     sys.path.insert(0, _DV_DIR) if _DV_DIR not in sys.path else None
     import importlib.util as _ilu
@@ -1906,13 +1906,13 @@ def _sweep_cells():
 
 
 def test_pumice_top_config_soak(request):
-    """TASK-015 layer 3: seeded random config soak. Nightly, never a gate."""
+    """TASK-015 plane 3: seeded random config soak. Nightly, never a gate."""
     _run(request, "cocotb_test_config_soak")
 
 
 @pytest.mark.parametrize("idx,gap,direction", _sweep_cells())
 def test_pumice_top_config_cell(request, idx, gap, direction):
-    """TASK-015 layer 1: one covering-array config x gap x direction.
+    """TASK-015 plane 1: one covering-array config x gap x direction.
 
     FULL is 39 vectors x 4 gaps x 2 directions = 312 cells, which is a nightly
     run at -n 16 and not a gate. GATE and FUNC take a strided subset.
@@ -1928,7 +1928,7 @@ def test_pumice_top_row_hit_counters(request):
 
 
 def test_pumice_top_telemetry_invariants(request):
-    """TASK-015 layer 2b: arithmetic consistency of the exported counters."""
+    """TASK-015 plane 2b: arithmetic consistency of the exported counters."""
     _run(request, "cocotb_test_telemetry_invariants")
 
 

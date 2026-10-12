@@ -28,8 +28,8 @@
 This book is the architecture contract for the mem-ctrl-ip family. It exists
 so that a person can answer, from one document:
 
-1. What the layers are, what each one owns, and how they fit together.
-2. What the interface between the layers is — the seam — and which properties
+1. What the planes are, what each one owns, and how they fit together.
+2. What the interface between the planes is — the seam — and which properties
    of it are invariant.
 3. Which rules (doctrines) every block and every rock follows without
    re-litigating them.
@@ -51,7 +51,7 @@ Three research controllers exist — pumice (DDR2/LPDDR2), scoria
 own copy of the same logic: the AXI intakes, the CAMs, the timers, the
 arbiter, the DFI pipeline. The Phase-2 campaign (2026-10-09 → 2026-10-10)
 extracted what had two live customers into common-ip: one package
-(`mc_common_pkg`), eight layers, seventeen FUBs. The premise of this book is
+(`mc_common_pkg`), eight planes, seventeen FUBs. The premise of this book is
 that the extraction is not a code-dedup exercise — it is an architecture.
 The blocks in common-ip are the family; the rocks are instantiations.
 
@@ -73,20 +73,20 @@ The family runs two lines off the same common core:
   timing on real boards. They are where features land first and where
   measured numbers come from.
 - **Product** — granite (v2: DDR2/LPDDR2), gabbro (v3: DDR3), diorite (v4:
-  DDR4/LPDDR4). Realistic, area-conscious SKUs built from the same layers.
+  DDR4/LPDDR4). Realistic, area-conscious SKUs built from the same planes.
   Product naming and the product line's reason to exist are Chapter 5.2.
 
 granite doubles as the **bypass-validation testbed**: because the v2
-generation needs no storage-layer reordering and no RAS features, a granite
-build with the storage layer in its lite configuration and the RAS layer
+generation needs no storage-plane reordering and no RAS features, a granite
+build with the storage plane in its lite configuration and the RAS plane
 bypassed is the cheapest full proof that the common core works without its
-optional layers (Ch 5.2).
+optional planes (Ch 5.2).
 
 ## What this book binds
 
-- The layer stack and the name and role of every layer (Ch 2).
+- The plane stack and the name and role of every plane (Ch 2).
 - The descriptor seam and its invariants (Ch 2.2).
-- The DFI layer naming — `dfi_2p1_layer`, `dfi_3p1_layer`, `dfi_4p0_layer`
+- The DFI plane naming — `dfi_2p1_plane`, `dfi_3p1_plane`, `dfi_4p0_plane`
   (Ch 3).
 - Doctrines added by the campaign (Ch 4). The original five doctrines in
   [02_family_doctrine.md](../../02_family_doctrine.md) remain in force; this

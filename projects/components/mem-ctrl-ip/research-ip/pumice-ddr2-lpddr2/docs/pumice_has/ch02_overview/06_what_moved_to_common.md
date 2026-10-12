@@ -28,7 +28,7 @@ pumice (DDR2/LPDDR2), scoria (DDR3/LPDDR3), andesite (DDR4/LPDDR4) — was
 extracted into `mem-ctrl-ip/common-ip/`, and pumice was re-integrated onto it
 the same weekend. This chapter records what moved, what stayed, and where
 each is documented now. The family architecture the extraction implements —
-the layer stack and the descriptor seam — is owned by the family HAS
+the plane stack and the descriptor seam — is owned by the family HAS
 ([common_has](../../../../../common-ip/docs/common_has/common_has_index.md));
 this chapter is pumice's delta against it, and it is the only place in this
 book that tells the move story.
@@ -39,10 +39,10 @@ pumice_core instantiates four common blocks directly:
 
 | Common block | Role in pumice | Microarchitecture |
 |---|---|---|
-| `mc_axi4_layer` | AXI4 slave intakes, burst chop/split, coalescing, read-return ring | [common_mas ch02](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md) |
-| `mc_storage_layer` | rd/wr CAMs, read snooping, bank image | [common_mas ch03](../../../../../common-ip/docs/common_mas/ch03_storage_layer/01_mc_storage_layer.md) |
-| `mc_scheduler_layer` | pick machinery, timers, generic maintenance slot (inside the `pumice_scheduler_layer` wrapper) | [common_mas ch04](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) |
-| `mc_dfi_2p1_layer` | DFI 2.1 command/data pipeline + the single aclk↔dfi_clk CDC | [common_mas ch07](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md) |
+| `mc_axi4_plane` | AXI4 slave intakes, burst chop/split, coalescing, read-return ring | [common_mas ch02](../../../../../common-ip/docs/common_mas/ch02_axi4_plane/01_mc_axi4_plane.md) |
+| `mc_storage_plane` | rd/wr CAMs, read snooping, bank image | [common_mas ch03](../../../../../common-ip/docs/common_mas/ch03_storage_plane/01_mc_storage_plane.md) |
+| `mc_scheduler_plane` | pick machinery, timers, generic maintenance slot (inside the `pumice_scheduler_plane` wrapper) | [common_mas ch04](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md) |
+| `mc_dfi_2p1_plane` | DFI 2.1 command/data pipeline + the single aclk↔dfi_clk CDC | [common_mas ch07](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_plane/01_mc_dfi_2p1_plane.md) |
 
 The package is the family's `mc_common_pkg`; `pumice_pkg` remains and
 re-exports it (the shipping-CSR widening argument for not migrating the
@@ -57,8 +57,8 @@ power-down controller, the DFI command formatter/signal pack, ZQ calibration
 `addr_mapper` (the common `mc_addr_mapper` is extracted but pumice has not
 switched to it; adoption is scheduled with the scoria/andesite wrapper
 thinning). Two thin wrappers hold the rock-specific wiring:
-`pumice_scheduler_layer` (rock scheduler children + training-channel mapping
-onto the common maintenance slot) and `pumice_training_layer` (ZQ + DQ cal
+`pumice_scheduler_plane` (rock scheduler children + training-channel mapping
+onto the common maintenance slot) and `pumice_training_plane` (ZQ + DQ cal
 behind the common training shell).
 
 ## What this book does with the moved blocks

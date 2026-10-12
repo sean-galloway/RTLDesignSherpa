@@ -197,7 +197,7 @@ async def cocotb_test_scoria_dfi_cmd_path(dut):
         # The accepted cycles must be CONSECUTIVE from the first.
         cyc = [t['cyc'] for t in trace if t['took']]
         chk(cyc == list(range(cyc[0], cyc[0] + len(words))) if cyc else False,
-            f"commands were accepted on cycles {cyc} -- a gap means this layer "
+            f"commands were accepted on cycles {cyc} -- a gap means this plane "
             f"inserted an idle cycle of its own, which rewrites the spacing of "
             f"every command queued behind it (TASK-007: REF to ACT compressed "
             f"15 cycles to 3 on the board)")
@@ -225,7 +225,7 @@ async def cocotb_test_scoria_dfi_cmd_path(dut):
         await Timer(1, 'ns')
         chk(int(dut.cmd_ready_o.value) == 1,
             "an ACT was held by rd_op_ready -- the hold is read-specific, and "
-            "generalising it makes this layer a pacer again")
+            "generalising it makes this plane a pacer again")
         # Release and the read flows.
         tb.present(pack(OP_RD, bank=1, col=4))
         dut.rd_op_ready_i.value = 1
@@ -361,7 +361,7 @@ async def cocotb_test_scoria_dfi_cmd_path(dut):
         chk(took == n, f"{took} of {n} commands accepted")
         cyc = [t['cyc'] for t in trace if t['took']]
         chk(cyc == list(range(cyc[0], cyc[0] + n)) if cyc else False,
-            "the accepted cycles are not consecutive -- this layer paced "
+            "the accepted cycles are not consecutive -- this plane paced "
             "something")
         # The wire lags the accept by one cycle (strict-flop formatter), so
         # count the DRIVEN cycles rather than pairing them with the accepts.

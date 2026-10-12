@@ -26,7 +26,7 @@
 **Module:** `scoria_dfi_wr_serializer.sv`
 **Location:** `rtl/fub/`
 **Category:** DFI write datapath
-**Parent:** `scoria_dfi_layer`
+**Parent:** `scoria_dfi_plane`
 **Status:** implemented
 
 ## Purpose

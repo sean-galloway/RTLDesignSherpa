@@ -69,14 +69,14 @@ the spec from these links.
 - [Document Information](ch00_front_matter/00_document_info.md)
 
 ### Chapter 1: Overview
-- [Block Inventory](ch01_overview/01_block_inventory.md) — the full tree, three tiers, with layer assignments
+- [Block Inventory](ch01_overview/01_block_inventory.md) — the full tree, three tiers, with plane assignments
 - [What Changes vs pumice](ch01_overview/02_what_changes_vs_pumice.md) — the marking set, and what the MAS adds to it
 - [Clocks, Reset, and Gearing](ch01_overview/03_clocks_reset_gearing.md) — the two controller domains and the width wrapper
 
 ### Chapter 2: Functional Blocks
-- [AXI4 Layer](ch02_blocks/01_axi4_layer.md) — the host-side macro: splitter, intakes, CAMs, return ring
-- [Scheduler Layer](ch02_blocks/02_scheduler_layer.md) — the command macro: arbiter, timers, refresh, ZQ, init
-- [DFI Layer](ch02_blocks/03_dfi_layer.md) — the PHY-side macro: command path, serdes, aligner, CDC
+- [AXI4 Plane](ch02_blocks/01_axi4_plane.md) — the host-side macro: splitter, intakes, CAMs, return ring
+- [Scheduler Plane](ch02_blocks/02_scheduler_plane.md) — the command macro: arbiter, timers, refresh, ZQ, init
+- [DFI Plane](ch02_blocks/03_dfi_plane.md) — the PHY-side macro: command path, serdes, aligner, CDC
 - [AXI Burst Chopper](ch02_blocks/04_axi_burst_chopper.md) — FSM-free address-channel splitter
 - [Write Splitter](ch02_blocks/05_wr_splitter.md) — WLAST reframing and zero-strobe padding
 - [Write Intake](ch02_blocks/06_wr_intake.md) — skid buffers, decoded push, ragged-burst reject

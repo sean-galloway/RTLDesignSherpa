@@ -59,7 +59,7 @@ in `assets/mermaid/`. The Mermaid source files (`.mmd`) are linked alongside
 each rendered image so the diagrams can be edited and re-rendered.
 
 - **Rectangular boxes with sharp corners** denote RTL modules.
-- **Subgraph rectangles** group modules by functional layer.
+- **Subgraph rectangles** group modules by functional plane.
 - **Solid arrows** show primary data or control flow.
 - **Dashed arrows** show configuration or observation paths (typically
   from the CSR slave to other modules).

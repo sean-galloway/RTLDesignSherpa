@@ -26,7 +26,7 @@
 **Module:** `andesite_dfi_cmd_formatter.sv`
 **Location:** `rtl/fub/` (planned)
 **Category:** FUB
-**Parent:** `dfi_cmd_path` / `dfi_layer`
+**Parent:** `dfi_cmd_path` / `dfi_plane`
 **Status:** specified — no RTL exists (HAS v0.1 posture)
 
 ---

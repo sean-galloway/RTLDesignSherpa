@@ -3,7 +3,7 @@
 ## What DFI is
 
 The DDR PHY Interface (DFI) is a digital boundary between a DDR memory
-controller (MC) and the physical layer (PHY) that drives the actual DRAM
+controller (MC) and the physical plane (PHY) that drives the actual DRAM
 pins. The MC thinks in commands, addresses, banks and bursts; the PHY turns
 those abstract transactions into edge-aligned clocks, strobes and data on
 the DRAM bus. DFI exists so that controller architects and PHY architects

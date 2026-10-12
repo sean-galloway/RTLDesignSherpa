@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
 
-"""AXI-to-DFI testbench for `andesite_core`, through the real DFI 4.0 layer.
+"""AXI-to-DFI testbench for `andesite_core`, through the real DFI 4.0 plane.
 
-Mirrors `scoria_core_tb` for the andesite four-layer stack: AXI4 host traffic
-in, the real DFI layer and DFI 4.0 command path out, and a DFI slave PHY with
+Mirrors `scoria_core_tb` for the andesite four-plane stack: AXI4 host traffic
+in, the real DFI plane and DFI 4.0 command path out, and a DFI slave PHY with
 a backing memory on the far side.
 """
 

@@ -22,7 +22,7 @@
 | MRS | Mode register set |
 | MPR | Multi-purpose register (DDR4) |
 | ODT | On-die termination |
-| PHY | Physical layer (the DRAM interface block) |
+| PHY | Physical plane (the DRAM interface block) |
 | PRE | Precharge command |
 | RD | Read command |
 | REF | Refresh command |

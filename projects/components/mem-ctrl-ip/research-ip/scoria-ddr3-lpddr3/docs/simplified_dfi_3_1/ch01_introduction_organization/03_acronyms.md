@@ -17,7 +17,7 @@
 | MRW | Mode register write |
 | NOP | No operation command |
 | ODT | On-die termination |
-| PHY | Physical layer that drives DRAM pins |
+| PHY | Physical plane that drives DRAM pins |
 | PRE | DRAM Precharge command |
 | RD | DRAM Read command |
 | REF | DRAM Refresh command |

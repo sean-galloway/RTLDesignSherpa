@@ -23,16 +23,16 @@
 
 # Training: LPDDR2 ZQ and DQ Calibration
 
-The training layer is `pumice_training_layer` (`rtl/macro/pumice_training_layer.sv`),
-the fourth layer of the core, instantiated in `pumice_core` between the scheduler
-layer and the DFI layer ("Layer 2b" in the RTL). It holds the two calibration FUBs —
+The training plane is `pumice_training_plane` (`rtl/macro/pumice_training_plane.sv`),
+the fourth plane of the core, instantiated in `pumice_core` between the scheduler
+plane and the DFI plane ("Plane 2b" in the RTL). It holds the two calibration FUBs —
 `pumice_zq_ctrl` (periodic ZQ calibration) and `pumice_lp_cal` (one-shot DQ
 calibration via mode-register reads) — muxes both onto a single maintenance command
 channel into the scheduler's arbiter, and owns the `mc_clk` ↔ `dfi_clk` clock
 crossing for the read-aligner calibration sideband.
 
 Both FUBs run only when `init_done` is set and `memtype == MEMTYPE_LPDDR2`; DDR2
-has no ZQ pin and no MRR mechanism, so the entire layer is inert for DDR2 builds.
+has no ZQ pin and no MRR mechanism, so the entire plane is inert for DDR2 builds.
 That is an elaboration-free inertness — same RTL, gates low — so the existing DDR2
 test suites run unchanged beside it.
 
@@ -49,17 +49,17 @@ capture, compare) lives in board firmware driving the PHY primitives directly. T
 core exposes `cal_start` and the captured MRR data; it deliberately contains **no**
 PHY-primitive logic and gained **no** new top-level ports for training.
 
-LPDDR2's JEDEC menu is also smaller than DDR3/LPDDR4's, and the layer does not
+LPDDR2's JEDEC menu is also smaller than DDR3/LPDDR4's, and the plane does not
 invent the missing entries. Write leveling, read leveling, DLL calibration and CA
 training do not exist in LPDDR2 — verified against the JESD209-2F mode-register map
 (MR41–47 are "Do Not Use", MR48–62 are reserved; CA training is an LPDDR4 MPC
-mechanism owned by andesite's training layer). What LPDDR2 actually offers is two
+mechanism owned by andesite's training plane). What LPDDR2 actually offers is two
 mechanisms, both implemented here: ZQ calibration through MR10 writes, and DQ
 calibration through MRR reads of MR32/MR40.
 
-## `pumice_training_layer`: arbitration and CDC
+## `pumice_training_plane`: arbitration and CDC
 
-The layer is a passive wiring and arbitration shell; run gating lives inside the
+The plane is a passive wiring and arbitration shell; run gating lives inside the
 two FUBs.
 
 | Responsibility | Detail |
@@ -69,11 +69,11 @@ two FUBs.
 | Calibration sideband CDC | `cal_expect` crosses `mc_clk` → `dfi_clk` as a `sync_pulse` (one mc_clk assertion produces exactly one dfi_clk pulse); the captured beat crosses back through a `cdc_synchronizer` (data held stable by the aligner until the next arm) with a `sync_pulse` for the valid strobe |
 | Status aggregation | `cal_busy_o = zq_busy \|\| lp_busy`; `cal_done` / `cal_err` come from lp_cal; `zq_busy` / `zq_overdue` / `zqcs_total` from ZQ |
 
-: Table 3.0: `pumice_training_layer` responsibilities
+: Table 3.0: `pumice_training_plane` responsibilities
 
-`pumice_core` wires the layer exactly as andesite wires its training layer: the
-`trn_cmd_*` channel nets into the scheduler layer's new maintenance client ports,
-and `cal_expect_o` / `cal_data_i` / `cal_valid_i` net into the DFI layer's read
+`pumice_core` wires the plane exactly as andesite wires its training plane: the
+`trn_cmd_*` channel nets into the scheduler plane's new maintenance client ports,
+and `cal_expect_o` / `cal_data_i` / `cal_valid_i` net into the DFI plane's read
 aligner. `pumice_top` connects the CSR side (`CAL_CTRL` fields, timing registers)
 and harvests status back into `CAL_STATUS` and the `CAL_MRR32/40_DATA` slices.
 
@@ -107,8 +107,8 @@ field, the same packing init MRW uses). The four-state FSM:
    until the window expires. Only then does the interval reload.
 
 Two integration facts worth recording. First, the FUB's `demand_i` port exists
-for the Mode-C policy but is **tied to `1'b0` in the committed layer** — the
-scheduler's demand sideband is not wired through the training layer yet, so in
+for the Mode-C policy but is **tied to `1'b0` in the committed plane** — the
+scheduler's demand sideband is not wired through the training plane yet, so in
 the current integration expiry requests immediately (ZQCS, never deferred), and
 `zq_overdue` can never assert — both the deferral entry condition and the
 request-state overdue set read `demand_i`. The deferral policy is implemented
@@ -140,7 +140,7 @@ The eight-state FSM, started by a `cal_start` pulse (a self-clearing CSR write):
    satisfies the JEDEC MRR spacings: RD→MRR ≥ BL/2, WR→MRR ≥ WL+1+BL/2+tWTR).
 2. Issue MRR to **MR32** — `OP_MRS` with the MRR flag set, row
    `{MR32_index[5:0], OP=8'h00}` — and pulse `cal_expect` for one cycle, arming
-   the DFI-layer read aligner.
+   the DFI-plane read aligner.
 3. Capture the first `dfi_rddata_valid` beat (MRR data lands
    `RL·tCK + tDQSCK + tDQSQ` after the command; BL=4, only beat 0 carries the MR
    data on DQ[7:0], with x16 devices mirroring the pattern on DQ[8]). A
@@ -166,7 +166,7 @@ never enters the demand path. Instead MRR rides the existing `OP_MRS` as a new
 - The arbiter passes the granted maintenance op **verbatim** (no re-encoding) and
   latches the requester's `trn_cmd_mrr_i` into the command word.
 - The scheduler's output cmd FIFO word grows by one bit to
-  `{mrr, ap, col, row, bank, rank, op}` (pack site `pumice_scheduler_layer.sv`,
+  `{mrr, ap, col, row, bank, rank, op}` (pack site `pumice_scheduler_plane.sv`,
   unpack site `mc_dfi_cmd_path.sv`). Demand commands simply carry `mrr = 0`.
 - In `dfi_cmd_formatter`'s `OP_MRS` branch, `cmd_mrr_i` drives **CA3r**: MRW and
   MRR share the same MA/OP field packing — MA[7:0] on
@@ -211,7 +211,7 @@ would have reopened the same divergence.
 
 ## CSR summary
 
-The layer is controlled and observed through seven registers in the 0x0A0 block
+The plane is controlled and observed through seven registers in the 0x0A0 block
 of `pumice_csr` (field definitions and resets: `rtl/macro/pumice_csr.rdl`):
 
 | Address | Register | Access | Contents |
@@ -224,7 +224,7 @@ of `pumice_csr` (field definitions and resets: `rtl/macro/pumice_csr.rdl`):
 | 0x0E0 +4× | `CAL_MRR40_DATA[0..3]` | ro | Captured MR40 beat 0, four 32-bit slices |
 | 0x0F0 | `CAL_STATUS` | ro | `zq_busy[0]`, `cal_busy[1]`, `cal_done[2]` (sticky), `cal_err[3]` (sticky), `zq_overdue[4]`, `zqcs_total[31:16]` |
 
-: Table 3.1: Training-layer CSR summary
+: Table 3.1: Training-plane CSR summary
 
 The data arrays start at 0x0B0 and 0x0E0 because the retired 0x0C0–0x0DC hole is
 never reused (pumice doctrine) — 0x0E0 clears it. `cal_done` / `cal_err` are
@@ -239,7 +239,7 @@ sticky and clear only on soft reset.
   against JESD209-2F §5.12; `test_pumice_dfi_rd_aligner.py::test_pumice_dfi_rd_aligner_cal_capture`
   checks the sideband capture with zero reads outstanding and no interference
   with normal returns.
-- **Macro**: `test_pumice_scheduler_layer.py` (training priority vs refresh /
+- **Macro**: `test_pumice_scheduler_plane.py` (training priority vs refresh /
   demand, all-banks-idle gating, demand blocked during `cal_busy`, the
   fire==valid invariant). The command-stream checker allows MRR and MRW-MR10 in
   its stream rules.

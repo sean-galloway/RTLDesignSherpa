@@ -1,14 +1,14 @@
 # ==============================================================================
-# mc_all - master filelist for the mem-ctrl family common layers
+# mc_all - master filelist for the mem-ctrl family common planes
 # ==============================================================================
 #
 # Purpose: the compile closure for everything common-ip owns. Research
 #          controllers (research-ip/<rock>/) -f the per-block lists (or this
-#          master) as they adopt each layer in the Phase 2 extraction
+#          master) as they adopt each plane in the Phase 2 extraction
 #          (docs/superpowers/plans/2026-10-10-mem-ctrl-ip-phase2-common-extraction.md).
 # Usage:   verilator --lint-only -f filelists/mc_all.f
 #
-# Written 2026-10-10 with the package (Task 1); per-layer lists join as the
+# Written 2026-10-10 with the package (Task 1); per-plane lists join as the
 # extraction lands (Tasks 2-6).
 
 # --- Family package (must compile first) ---
@@ -23,11 +23,11 @@
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_wr_data_cam.f
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_wr_intake.f
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_wr_splitter.f
-# --- Macro layers ---
--f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/macro/mc_axi4_layer.f
--f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/macro/mc_storage_layer.f
--f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/macro/mc_dfi_2p1_layer.f
--f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/macro/mc_dfi_3p1_layer.f
--f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/macro/mc_dfi_4p0_layer.f
--f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/macro/mc_ras_layer.f
--f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/macro/mc_training_layer.f
+# --- Macro planes ---
+-f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/macro/mc_axi4_plane.f
+-f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/macro/mc_storage_plane.f
+-f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/macro/mc_dfi_2p1_plane.f
+-f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/macro/mc_dfi_3p1_plane.f
+-f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/macro/mc_dfi_4p0_plane.f
+-f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/macro/mc_ras_plane.f
+-f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/macro/mc_training_plane.f

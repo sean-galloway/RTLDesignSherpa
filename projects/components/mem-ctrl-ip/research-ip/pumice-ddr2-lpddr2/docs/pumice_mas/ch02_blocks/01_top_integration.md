@@ -31,7 +31,7 @@
 > **Note:** the early SWAG used a five-`*_macro` hierarchy
 > (`pumice_core_macro`, `axi_frontend_macro`, `command_scheduler_macro`,
 > `data_path_macro`, `dfi_v21_interface_macro`). That naming is retired. The
-> live controller is a four-layer stack instantiated by `pumice_core`, wrapped
+> live controller is a four-plane stack instantiated by `pumice_core`, wrapped
 > by `pumice_top` (which adds the PeakRDL CSR block) and optionally by
 > `pumice_top_geared` (which adds a host-width AXI dwidth shim).
 
@@ -40,9 +40,9 @@
 ## Purpose
 
 The controller top is structural wiring only — every behavioral statement lives
-in a FUB or a layer macro. Two files make up the top:
+in a FUB or a plane macro. Two files make up the top:
 
-- **`pumice_core`** — wires the four functional layers on their two clocks and
+- **`pumice_core`** — wires the four functional planes on their two clocks and
   exposes host AXI4 plus the DFI 2.1 pin bus. Config arrives on ports.
 - **`pumice_top`** — instantiates `pumice_core` plus the PeakRDL-generated
   `pumice_csr` register block, and drives every core config port **by name** from
@@ -55,47 +55,47 @@ An optional third file, `pumice_top_geared`, wraps `pumice_top` with a free
 slave and the fixed-`DW` core. `HOST == DW` is a generate bypass (bit-identical).
 See [`docs/AXI_DRAM_GEARING_SCOPE.md`](../../AXI_DRAM_GEARING_SCOPE.md).
 
-## `pumice_core` — the four layers
+## `pumice_core` — the four planes
 
-`pumice_core` instantiates exactly four layer modules and the nets between
+`pumice_core` instantiates exactly four plane modules and the nets between
 them. There is no FSM, no CSR decode, and no arithmetic beyond the packed-bus
 `assign` for the command word.
 
 ```
 pumice_core
-├── u_axi_layer       : pumice_axi4_layer          (host AXI + wr/rd CAMs)          [aclk]
-├── u_sched_layer     : pumice_scheduler_layer (arbiter + timers + refresh/init)[aclk]
-├── u_train_layer  : pumice_training_layer    (ZQ + lp_cal + trn_cmd mux + CDC)[aclk→dfi_clk]
-└── u_dfi_layer       : mc_dfi_2p1_layer         (single async CDC + DFI datapath)[aclk→dfi_clk]
+├── u_axi_plane       : pumice_axi4_plane          (host AXI + wr/rd CAMs)          [aclk]
+├── u_sched_plane     : pumice_scheduler_plane (arbiter + timers + refresh/init)[aclk]
+├── u_train_plane  : pumice_training_plane    (ZQ + lp_cal + trn_cmd mux + CDC)[aclk→dfi_clk]
+└── u_dfi_plane       : mc_dfi_2p1_plane         (single async CDC + DFI datapath)[aclk→dfi_clk]
 ```
 
 - Host AXI, the scheduler, and both CAMs run on **`aclk`** (`aresetn`).
 - The DFI phase-packer and PHY interface run on **`dfi_clk`** (`dfi_rstn`).
-- The datapath clock crossing is inside `mc_dfi_2p1_layer` (async gaxi FIFOs
-  only); `mc_dfi_2p1_layer` is instantiated with `.ctl_clk(aclk)` /
+- The datapath clock crossing is inside `mc_dfi_2p1_plane` (async gaxi FIFOs
+  only); `mc_dfi_2p1_plane` is instantiated with `.ctl_clk(aclk)` /
   `.ctl_rstn(aresetn)` on the control side and `.dfi_clk` / `.dfi_rstn` on
-  the PHY side. The training layer owns a second, sideband-only crossing
+  the PHY side. The training plane owns a second, sideband-only crossing
   (cal_expect down / captured data up for the read-aligner calibration
-  capture) — see [ch02/25](../ch02_macros/05_training_layer_macro.md).
+  capture) — see [ch02/25](../ch02_macros/05_training_plane_macro.md).
 
 The internal data unit is the **DFI word** (`DFI_DATA_WIDTH = DRAM_BEAT_WIDTH *
 DFI_RATE`, default 128). The host AXI data width equals the DFI word; a host that
 runs a different AXI width uses the external `pumice_top_geared` shim (a separate
 edge concern — the core does not gear internally).
 
-### Layer instantiation inventory (`pumice_core`)
+### Plane instantiation inventory (`pumice_core`)
 
 | Instance   | Module                        | Count | Clock              | Role                                            |
 |------------|-------------------------------|-------|--------------------|-------------------------------------------------|
-| `u_axi_layer`    | `mc_axi4_layer`             | 1     | `aclk`             | Host AXI4 face; wr-data CAM + rd-cmd CAM        |
-| `u_sched_layer`  | `pumice_scheduler_layer`    | 1     | `aclk`             | Command arbiter + bank/global timers + refresh + init + mode-register shadow |
-| `u_dfi_layer`    | `mc_dfi_2p1_layer`            | 1     | `aclk` → `dfi_clk` | Single async CDC + DFI cmd/wr/rd datapath       |
+| `u_axi_plane`    | `mc_axi4_plane`             | 1     | `aclk`             | Host AXI4 face; wr-data CAM + rd-cmd CAM        |
+| `u_sched_plane`  | `pumice_scheduler_plane`    | 1     | `aclk`             | Command arbiter + bank/global timers + refresh + init + mode-register shadow |
+| `u_dfi_plane`    | `mc_dfi_2p1_plane`            | 1     | `aclk` → `dfi_clk` | Single async CDC + DFI cmd/wr/rd datapath       |
 
 There are **no** `generate` fan-out blocks in `pumice_core`. Per-(rank, bank)
 fan-out (the bank timers) happens one level down, inside
-`pumice_scheduler_layer`.
+`pumice_scheduler_plane`.
 
-### Inter-layer nets
+### Inter-plane nets
 
 `pumice_core` declares and wires four net groups:
 
@@ -109,11 +109,11 @@ fan-out (the bank timers) happens one level down, inside
    `{op, rank, bank, row, col, ap}`, flattened into `w_cmd_data` (width
    `CMD_DW = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1`) by a single `assign`.
 4. **Init handshake** — `w_init_start` / `w_init_complete` between the scheduler's
-   init sequencer and the DFI layer's PHY-init side.
+   init sequencer and the DFI plane's PHY-init side.
 
 Note the parameter mapping at the IFC boundary: `pumice_core` passes
-`.BL(BL / DFI_RATE)` to `mc_axi4_layer` (the IFC/CAM view of burst length is in
-DFI words), while `mc_dfi_2p1_layer` receives the full `.BL(BL)` (DRAM beats).
+`.BL(BL / DFI_RATE)` to `mc_axi4_plane` (the IFC/CAM view of burst length is in
+DFI words), while `mc_dfi_2p1_plane` receives the full `.BL(BL)` (DRAM beats).
 
 ## `pumice_top` — CSR + by-name config
 
@@ -155,9 +155,9 @@ list.
 - No CSR field expansion in `pumice_core` (that is `pumice_csr`'s job; the top
   only reads decoded `hwif_out` fields).
 - No clock gating (a synthesis-script concern).
-- No reset synchronization in the top — each layer takes its own domain reset
+- No reset synchronization in the top — each plane takes its own domain reset
   (`aresetn` for `aclk` logic, `dfi_rstn` for the PHY domain); the CDC inside
-  `mc_dfi_2p1_layer` owns the cross-domain reset discipline.
+  `mc_dfi_2p1_plane` owns the cross-domain reset discipline.
 
 This intentional poverty makes the top the obvious place for the structural-only
 sanity check: every line is an instantiation, a net declaration, or a

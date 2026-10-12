@@ -1,15 +1,15 @@
-# PHY Calibration CSR Contract — mc_training_layer ↔ PHY mechanism boundary
+# PHY Calibration CSR Contract — mc_training_plane ↔ PHY mechanism boundary
 
 **Status:** v1.0 as-built (Phase 2, Task 4, 2026-10-10)
 **Authority:** spec §3.4 — common owns the training CONTROL PLANE; the delay
 tap / bitslip / phase MECHANISM stays PHY-vendor-specific behind this
 documented contract. A PHY satisfies the contract by implementing the CSR
-surface below (or a documented superset); the training layer and all board
+surface below (or a documented superset); the training plane and all board
 firmware speak only this contract.
 
 ## Why a contract
 
-The training layer sequences JEDEC training flows (write leveling, DQ
+The training plane sequences JEDEC training flows (write leveling, DQ
 calibration, read alignment, CA training hand-off) and aggregates telemetry.
 The mechanisms it drives — per-bit delay lines, bitslip, DQS phase, command
 delay — are FPGA-vendor primitives (Xilinx IDELAY/ODELAY/bitslip today;

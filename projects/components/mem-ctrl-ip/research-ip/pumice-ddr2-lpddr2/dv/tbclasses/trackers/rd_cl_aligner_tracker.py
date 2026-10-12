@@ -5,7 +5,7 @@
 Passive tracker for the DFI read aligner (`pumice_dfi_rd_aligner`).
 
 RETARGETED 2026-08-27: the FUB was renamed `rd_cl_aligner` ->
-`pumice_dfi_rd_aligner` in the DFI-layer rearchitecture (scope
+`pumice_dfi_rd_aligner` in the DFI-plane rearchitecture (scope
 `u_dfi.u_rd`). The op-admission / EN / CAPTURE taps carried over; the
 `rd_inject_*` emit stream is now the plain `rd_valid_o/ready_i/last_o`
 handshake into the read CDC FIFO, and the per-beat `rd_beat_we_o` strobe

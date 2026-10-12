@@ -1,0 +1,61 @@
+// mc_ras_plane uarch diagram — per-plane view, house style from STYLE.md.
+digraph mc_ras_plane {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.30", ranksep="0.55", splines=ortho,
+           label="mc_ras_plane — transform pair only — doctrine 9: features discussed as needed",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize="10", shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.07"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- external interfaces (white) ----
+    wr_host [label="Host Write Data", fillcolor="white"];
+    wr_down [label="Downstream Write Data\n(storage / DFI)", fillcolor="white"];
+    rd_down [label="Downstream Read Return\n(storage / DFI)", fillcolor="white"];
+    rd_host [label="Host Read Return", fillcolor="white"];
+
+    // ---- plane boundary ----
+    subgraph cluster_ras {
+        label="mc_ras_plane\n(macro/mc_ras_plane.sv — RAS transform)\noptional; not instantiated today";
+        labelloc=b;
+        labeljust=c;
+        style="dashed,filled";
+        color="#2E75B6";
+        penwidth=3;
+        fillcolor="white";
+        fontname="Helvetica";
+        fontsize=10;
+
+        ecc_insert [label="ECC Insert\nwrite-data forward seam"];
+        ecc_check  [label="ECC Check + Correct\nread-return backward seam"];
+        csr        [label="Reserved CSR Surface\nmacro/mc_ras_plane.sv —\ncsr_ecc_en / csr_ecc_mode / csr_ecc_stat"];
+    }
+
+    // ---- future maintenance client (off to the side) ----
+    scrub [label="scrub\nfuture maintenance client\n(not decided)",
+           style="filled,dashed", fillcolor="#E0E0E0"];
+
+    // ---- write-data forward seam (top) ----
+    { rank=same; wr_host; ecc_insert; wr_down; }
+    wr_host -> ecc_insert -> wr_down [label="WR data"];
+
+    // ---- read-return backward seam (bottom) ----
+    { rank=same; rd_host; ecc_check; rd_down; }
+    rd_host -> ecc_check -> rd_down [style=invis];
+    rd_host -> ecc_check -> rd_down [dir=back, label="RD return"];
+
+    // ---- CSR surface to transform pair ----
+    csr -> ecc_insert [style=dashed, arrowhead=none, label="csr_ecc_en / mode"];
+    csr -> ecc_check  [style=dashed, arrowhead=none, label="csr_ecc_stat"];
+
+    // ---- future scrub connection ----
+    scrub -> ecc_check [style=dashed, label="scrub RD"];
+
+    // ---- rank / order hints ----
+    { rank=same; csr; scrub; }
+    csr -> scrub [style=invis];
+    wr_host -> csr [style=invis];
+    wr_down -> scrub [style=invis];
+    csr -> rd_host [style=invis];
+    csr -> rd_down [style=invis];
+}

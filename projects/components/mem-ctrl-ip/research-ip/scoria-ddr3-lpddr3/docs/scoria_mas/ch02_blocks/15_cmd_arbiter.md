@@ -26,14 +26,14 @@
 **Module:** `scoria_cmd_arbiter.sv`
 **Location:** `rtl/fub/`
 **Category:** scheduling / arbitration
-**Parent:** `scoria_scheduler_layer`
+**Parent:** `scoria_scheduler_plane`
 **Status:** complete and formal-proven (`formal/scoria/cmd_arbiter/scoria_cmd_arbiter.sby`; the `nofix` task runs with `BUG001=0` to prove the rank-global fire-stage re-check matters)
 
 ---
 
 ## Purpose
 
-The single-issue pick core of the scheduler layer. Each cycle it reads the read and write CAMs as flat per-entry vectors, classifies every entry as column, activate, or precharge, applies the runtime scheduling policy, enforces JEDEC timing through the bank/global timer readiness inputs, and pushes one abstract DRAM command into the scheduler-to-DFI FIFO. `andesite_cmd_arbiter` inherits this mechanism and adds bank-group long/short spacing.
+The single-issue pick core of the scheduler plane. Each cycle it reads the read and write CAMs as flat per-entry vectors, classifies every entry as column, activate, or precharge, applies the runtime scheduling policy, enforces JEDEC timing through the bank/global timer readiness inputs, and pushes one abstract DRAM command into the scheduler-to-DFI FIFO. `andesite_cmd_arbiter` inherits this mechanism and adds bank-group long/short spacing.
 
 ## Parameters
 

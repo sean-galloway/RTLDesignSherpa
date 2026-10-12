@@ -26,7 +26,7 @@
 **Module:** `scoria_zq_ctrl.sv`
 **Location:** `rtl/fub/`
 **Category:** maintenance / ZQ calibration
-**Parent:** `scoria_scheduler_layer`
+**Parent:** `scoria_scheduler_plane`
 **Status:** complete and sim-verified; DDR3-only at the current design point because the scheduler gates `w_zq_run` on `memtype_i == MEMTYPE_DDR3`
 
 ---
@@ -122,7 +122,7 @@ One grant per calibration. The interval reload happens at the end of `ZQ_HOLD`, 
 ## Notes
 
 - **ZQCS never preempts:** The block raises `zq_req_o` and waits. This matches LiteDRAM's behavior and is consistent with the family doctrine that maintenance is request-and-wait traffic.
-- **DDR3-only today:** `scoria_scheduler_layer` computes `w_zq_run = zq_enable_i && init_done && (memtype_i == MEMTYPE_DDR3)`. For LPDDR3, ZQ calibration is handled differently and this block is not exercised.
+- **DDR3-only today:** `scoria_scheduler_plane` computes `w_zq_run = zq_enable_i && init_done && (memtype_i == MEMTYPE_DDR3)`. For LPDDR3, ZQ calibration is handled differently and this block is not exercised.
 - **Traffic blocking is the arbiter's job:** Do not rely on `ZQ_HOLD` to space commands. The arbiter's `w_zq_busy` term and final safety gate prevent any new command from issuing inside the `tZQCS` window; that is where BUG-002 was caught and fixed.
 - **Placement policy trap:** `placement_i == 2` is reserved. If programmed, the block falls out of the defined policy and behavior is unspecified. Firmware should keep it at 0 or 1.
 - **Overdue semantics trap:** `obs_overdue_o` is set intentionally in `ZQ_DEFER` and incidentally in `ZQ_REQ` while demand is present. A high value is not by itself an error; it is a starvation indicator that should be bounded by `overdue_max_i`.

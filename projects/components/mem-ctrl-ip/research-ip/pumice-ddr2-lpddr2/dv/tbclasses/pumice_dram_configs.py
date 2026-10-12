@@ -18,7 +18,7 @@ keys were briefly numbered (`config1_board`, `config2_perf1`, ...) and are now
 named for what they are, which is the same argument one level down: a key that
 does not say CL and BL sends you back to the table to find out.
 
-BOTH LAYERS IMPORT THIS. The macro scheduler TB and the top-level TB read the
+BOTH PLANES IMPORT THIS. The macro scheduler TB and the top-level TB read the
 same table; before this existed the macro TB carried invented numbers
 (`t_rcd=3 t_rp=3 t_ras=5 t_rc=8` at 100 MHz -- a set matching no part at no
 clock) and the top TB carried its own constants, which is how this suite ran the
@@ -41,7 +41,7 @@ import os
 import sys
 
 _HOST_DIR = ("/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/NexysA7/"
-             "mem-ctrl-ip/pumice/build-perf/host")
+             "mem-ctrl-ip-ddr2/build-perf/host")
 if _HOST_DIR not in sys.path:
     sys.path.insert(0, _HOST_DIR)
 

@@ -77,7 +77,7 @@ If you are programming a part from its datasheet, write the JEDEC value. Do not
 subtract one to "correct" for this -- the CSR would then stop reading as the
 part's timing, which is worse than the cycle it saves.
 
-CL/CWL/BL are **not** driven from the timing CSRs at the core boundary — they are decoded from the mode-register shadow inside the scheduler layer (`mode_register.sv`) as the init sequencer programs MR0..MR3 (see §5.1). The `TIMINGS_CL_CWL_WR.CL`/`.CWL` fields are informational in this build.
+CL/CWL/BL are **not** driven from the timing CSRs at the core boundary — they are decoded from the mode-register shadow inside the scheduler plane (`mode_register.sv`) as the init sequencer programs MR0..MR3 (see §5.1). The `TIMINGS_CL_CWL_WR.CL`/`.CWL` fields are informational in this build.
 
 ## Commit Semantics
 

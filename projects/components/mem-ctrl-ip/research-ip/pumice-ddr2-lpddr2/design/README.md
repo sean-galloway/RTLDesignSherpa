@@ -70,7 +70,7 @@ Root-cause (full evidence in the analysis; key file:line below):
   `pumice_dfi_rd_aligner.sv:112-136`) — one short/dropped burst desyncs every
   later read with no recovery.
 - Reads and writes share **one in-order DFI command FIFO**
-  (`pumice_scheduler_layer.sv:505-519`); a stalled RD at its head
+  (`pumice_scheduler_plane.sv:505-519`); a stalled RD at its head
   **head-of-line-blocks the queued WRs** (`pumice_dfi_cmd_path.sv:130-148`), the
   write drain stalls (`pumice_wr_data_cam.sv:486-504`), and `commit_done`/B
   never fire (`:583-585`). **That is why the write engine wedges "first"** — it's
@@ -317,7 +317,7 @@ Then w_col_inflight_bank deletes safely and columns pipeline at tCCD (1/cycle
 aggregate across banks) -> the path to 500+. This is a focused arbiter+timers
 change (the signal-contract workbook's FORWARD_STATE sheet, waves 07/08), timing-critical, board-validated.
 
-### FUB-by-FUB scrub (2026-09-08): the write-path bug peeled to 3 layers
+### FUB-by-FUB scrub (2026-09-08): the write-path bug peeled to 3 planes
 
 Disciplined per-FUB verification against the waves (baby steps):
 
@@ -328,9 +328,9 @@ Disciplined per-FUB verification against the waves (baby steps):
   tccd_paced tests). The serializer streams; not the wedge in isolation.
 
 That isolates the divergence to the ARBITER (wave 07/08). Waveform-driven (not
-theory) root cause of the reverted deadlock, peeled in layers as each fix landed:
+theory) root cause of the reverted deadlock, peeled in planes as each fix landed:
 
-  LAYER 1 (collision): the column FIRE (w_fire_out, pumice_cmd_arbiter.sv:247)
+  PLANE 1 (collision): the column FIRE (w_fire_out, pumice_cmd_arbiter.sv:247)
     gates on cmd_ready_i but NOT tCCD; tccd_ok_i is checked only at CLASSIFY and
     RELOADS ON FIRE, so a column is classified ~3 pipe-cycles before it fires and
     a 2nd same-bank column classifies against the stale (still-ok) tCCD -> both
@@ -338,24 +338,24 @@ theory) root cause of the reverted deadlock, peeled in layers as each fix landed
     UNINITIALIZED memory). The occupancy mask (w_col_inflight_bank) was hiding
     this by blocking the whole bank for the pipeline depth (-> the ~33% cap).
 
-  FIX (landed, verified core_dfi past layers 1-2): FORWARD tCCD. Add t_ccd_i to
+  FIX (landed, verified core_dfi past planes 1-2): FORWARD tCCD. Add t_ccd_i to
     the arbiter (wired from the scheduler); a column PICK (w_sel_*_col_f) reloads
     r_tccd_fwd = t_ccd_i-1; the column masks gate on w_tccd_fwd_ok (==0) INSTEAD
     of !w_col_inflight_bank. Columns now classify/fire exactly tCCD apart with
     the pipeline full; ACT/PRE to other banks fill the tCCD-off cycles. This
     removed the collision AND the hang (core_dfi ran to completion, 25s).
 
-  LAYER 3 (remaining): with forward-tCCD, core_dfi now fails a DATA mismatch --
+  PLANE 3 (remaining): with forward-tCCD, core_dfi now fails a DATA mismatch --
     a burst's beat 0 lands but beats 1-3 are 0 (the tail is lost), NOT a WAW/
     stale error. The column pacing is right; the burst's DATA drive is truncated.
     Next diagnosis: the serializer/CDC wrdata path under the new fire cadence
     (dfi_wr_serializer r_owed / wr_fire vs the burst length in the wrdata CDC).
     The 4-edit forward-tCCD change (port + counter + 2 masks + 1 wire) is the
-    confirmed layer-1/2 fix; layer 3 is the last write-path FUB to scrub.
+    confirmed plane-1/2 fix; plane 3 is the last write-path FUB to scrub.
 
-### FUB scrub layer 3+4 (2026-09-08): the COMPLETE arbiter fix -- core_dfi PASSES
+### FUB scrub plane 3+4 (2026-09-08): the COMPLETE arbiter fix -- core_dfi PASSES
 
-The truncation (layer 3) was NOT the serializer/CDC. Root cause (t_ccd_i=1 in the
+The truncation (plane 3) was NOT the serializer/CDC. Root cause (t_ccd_i=1 in the
 core test made the forward-tCCD a no-op there): with the occupancy mask gone,
 NOTHING stopped the SAME entry being re-picked before its sch_valid self-clears
 (1-cycle window) -> DOUBLE-COMMIT -> the cam drains the burst truncated. The
@@ -369,7 +369,7 @@ w_tccd_fwd_ok (forward-tCCD, reload on column pick) AND !w_*_col_inflight_ent
 correct, no collision/hang/truncation), and 11/13 core tests pass (waw, b2b,
 sched_order, fixed_open, close all green).
 
-ONE remaining regression (layer 4): test_pumice_core_refresh_collide -- a read
+ONE remaining regression (plane 4): test_pumice_core_refresh_collide -- a read
 returns ALL-ZERO within 64 cyc of a refresh. Passes on baseline. Cause: the
 faster read issue puts MORE reads in-flight in the DFI (~50-cyc round trip) than
 the refresh-drain waits for, so a read races the refresh PRE and lands on a
@@ -385,7 +385,7 @@ NEXT: add read-outstanding tracking (wave 08) that the refresh-drain (refresh_ct
 -> arbiter drain handshake) waits on before PRE-ing, then re-run refresh_collide +
 refresh_credit + the full core suite, then board-validate write AND read BW.
 
-### CORRECTION (2026-09-08, later): layer-4 theory DISPROVEN; occupancy mask is load-bearing for refresh
+### CORRECTION (2026-09-08, later): plane-4 theory DISPROVEN; occupancy mask is load-bearing for refresh
 
 The "read races the refresh PRE / read-outstanding" theory above was WRONG.
 Disproven by data, not argument: three separate arbiter changes -- (a) a
@@ -588,10 +588,10 @@ the same class of fixed-latency-vs-pipelined-cadence hazard, and w_col_inflight_
 (the occupancy mask) is the blunt throttle that keeps both aligned.
 
 CONCLUSION: removing the mask for same-bank throughput (wave-07) requires
-DFI-layer data-alignment hardening on BOTH paths -- the write-burst-staged
+DFI-plane data-alignment hardening on BOTH paths -- the write-burst-staged
 backpressure prototype (this turn) for writes, and an equivalent read-return
 alignment/backpressure for reads -- not a single localized fix. This is a real
-DFI-layer project, distinct from refresh (which is correct) and the arbiter.
+DFI-plane project, distinct from refresh (which is correct) and the arbiter.
 HEAD stays the correct baseline (12/13, refresh + reads/writes all correct with
 the mask in place). NEXT: design the read-return alignment (rd_aligner capture
 gated to the actual return, mirroring the write token), validate both paths on
@@ -631,7 +631,7 @@ FIRST write fires three times (`WR addr=0x400 open_row=0x5`, then twice more
 `open_row=closed` 4 and 8 cycles later) -- the per-entry re-pick double-issue --
 and every odd write times out waiting for B. So "odd writes / odd reads are
 zero" was the per-entry double-issue and the AP stale-image hazard, seen from
-two different fix states. Nothing in the DFI layer is implicated.
+two different fix states. Nothing in the DFI plane is implicated.
 
 FIX (run B, both column masks): keep the occupancy mask ONLY when the bank's
 column would auto-precharge, and wire the per-entry mask:
@@ -654,7 +654,7 @@ column classified with f_ap=0 can follow an in-flight column that outputs as
 xDA. Carrying the AP decision with the pick (decide at classify, emit what was
 decided) closes it; not needed for static OPEN/CLOSE.
 
-Forward-tCCD (layer 1) is NOT part of this fix: the core tests run t_ccd_i=1 and
+Forward-tCCD (plane 1) is NOT part of this fix: the core tests run t_ccd_i=1 and
 the board's BL4 @ DFI_RATE=2 makes one column per aclk the legal rate, so the
 DFI cmd_path's exact COL_BURST_CYC pacing is the real DQ-occupancy guard.
 
@@ -690,8 +690,8 @@ Checked against the reference that reaches ~85% on this board
 capture counter are the same construct, and `pumice_dfi_wr_serializer` drives
 at a fixed t_phy_wrlat. Both were already verified cadence-agnostic by their
 FUB tests. The "alignment issue" in the log above was the arbiter's closed-bank
-column (CORRECTION 5), never the DFI layer. The dfi_layer block is CLOSED as
-not needed; the wave-01/02/10 cadences are what the layer already does.
+column (CORRECTION 5), never the DFI plane. The dfi_plane block is CLOSED as
+not needed; the wave-01/02/10 cadences are what the plane already does.
 
 ### TIMING AUDIT (2026-09-08): the board runs every JEDEC timing at the RDL reset
 
@@ -858,7 +858,7 @@ Sean: "Rate match the write." Three pieces, each a few lines:
      behind the one being fetched, so its data trails the command by a fixed
      pipeline latency, never by a queue. Occupancy is a registered counter
      (the FIFO's combinational `count` made a Verilator UNOPTFLAT loop).
-  2. `pumice_scheduler_layer`: every command leaves the cmd FIFO exactly
+  2. `pumice_scheduler_plane`: every command leaves the cmd FIFO exactly
      `CMD_DELAY` (6) cycles after it entered -- a token shift register + a
      matured-token counter gate the FIFO head. Spacing preserved exactly, and
      a WR's data reaches the DFI before the command does. CMD_FIFO_DEPTH 16.
@@ -897,7 +897,7 @@ Four more things the core suite then forced, each found from a measurement:
      could not cover a burst every 4 -- W back-pressure 222 cycles in the
      write ceiling. The B strobe rides the skid tag, so nothing needs the
      entry after fetch.
-  7. Forward tCCD (the prior session's layer-1 fix) REPLACES the flopped
+  7. Forward tCCD (the prior session's plane-1 fix) REPLACES the flopped
      global `tccd_ok_i` on the column masks: reload on column SELECTION,
      `<= 1` so the period is exactly tCCD, plus a same-cycle-selection term
      for tCCD > 1. Stacked with the fire-reloaded gate the period was tCCD+4
@@ -1191,7 +1191,7 @@ and 49.2 cycles latency in every configuration that streams, unchanged by
 burst length (bl4 290.8 / bl8 291.7 / bl16 291.7), access pattern, paging mode
 or scheduling mode. Identical numbers at bl16 rule out any
 transaction-concurrency or Little's-law bound -- more bytes per transaction
-would have moved it. So it is a per-cycle rate below the transaction layer.
+would have moved it. So it is a per-cycle rate below the transaction plane.
 48.7% of peak against a write path at 95.7% points at a return path moving one
 AXI beat every other cycle. Tracked as pumice BUG-011 (was PUMICE-025), which says to rule out the
 harness's read CRC engine FIRST (it is the generator, not the controller) and

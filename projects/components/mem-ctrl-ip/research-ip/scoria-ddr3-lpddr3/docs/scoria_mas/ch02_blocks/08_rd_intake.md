@@ -26,7 +26,7 @@
 **Module:** `scoria_rd_intake.sv`
 **Location:** `rtl/fub/`
 **Category:** AXI4 host interface
-**Parent:** `scoria_axi4_layer`
+**Parent:** `scoria_axi4_plane`
 **Status:** complete and sim-verified
 
 ---
@@ -57,7 +57,7 @@ The read intake converts post-split AXI4 read requests into either a snarf hit a
 
 : Table 2.8.1: Read intake parameters
 
-`scoria_axi4_layer` overrides `ORDER_FIFO_DEPTH` to `RD_RET_DEPTH + 8` so the FIFO can hold one slot for every in-flight read plus the snarf hits that never enter the return ring.
+`scoria_axi4_plane` overrides `ORDER_FIFO_DEPTH` to `RD_RET_DEPTH + 8` so the FIFO can hold one slot for every in-flight read plus the snarf hits that never enter the return ring.
 
 ## Interface
 

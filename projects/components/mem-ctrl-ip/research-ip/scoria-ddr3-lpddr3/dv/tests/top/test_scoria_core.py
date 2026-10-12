@@ -104,14 +104,14 @@ async def cocotb_test_scoria_core(dut):
         chk(got == data,
             f"round trip at 0x{addr:X}: wrote 0x{data:032X}, read "
             f"0x{got:032X}. The datapath is AXI -> intake -> CAM -> scheduler "
-            f"-> DFI layer -> PHY model -> memory and back; a mismatch here "
+            f"-> DFI plane -> PHY model -> memory and back; a mismatch here "
             f"does not say which stage, which is what the FUB suites are for.")
         # A pass has to prove it did work. The controller's own counters are
         # brought out by the wrapper, so the test can require that DRAM
         # commands actually issued -- otherwise a datapath that returned the
         # right bytes without touching the DRAM (or a BFM that answered from
         # thin air) reads exactly like success, and this file's whole claim is
-        # that the traffic went through the real DFI layer.
+        # that the traffic went through the real DFI plane.
         acts, cols = tb.stat('stat_act_o'), tb.stat('stat_page_hit_o')
         tb.log.info(f"counters after one round trip: ACT={acts} "
                     f"columns={cols} PRE={tb.stat('stat_pre_o')} "

@@ -32,8 +32,8 @@ common-ip/
 │   ├── includes/mc_common_pkg.sv      the family package: memtype enum,
 │   │                                  shared types, opcode encodings
 │   ├── fub/                           the seventeen shared FUBs
-│   ├── macro/                         the eight layers
-│   └── filelists/                     .f files: one per FUB/layer + mc_common_all.f
+│   ├── macro/                         the eight planes
+│   └── filelists/                     .f files: one per FUB/plane + mc_common_all.f
 ├── dv/                                shared verification collateral (grows per campaign)
 └── docs/                              family docs (this book, doctrine, lineage,
                                        knobs inventories, per-block MAS)
@@ -46,26 +46,26 @@ bit + two-bit generation field; design owned by
 [01_mem_ctrl_pkg.md](../../01_mem_ctrl_pkg.md)), shared timing-struct
 inventory, shared opcodes.
 
-**Layers (macro/).**
+**Planes (macro/).**
 
-| Layer | State | Customers |
+| Plane | State | Customers |
 |---|---|---|
-| `mc_axi4_layer` | landed | pumice (measured); scoria/andesite scheduled |
-| `mc_storage_layer` | landed | pumice; scoria/andesite scheduled |
-| `mc_scheduler_layer` | landed (merged from three rock schedulers, −3,465 lines) | all three rocks adopt via thin wrappers |
-| `mc_training_layer` | shell + rock wrappers | pumice carries ZQ/DQ cal behind it |
-| `mc_ras_layer` | skeleton per doctrine 9 — instantiated nowhere | none yet; that is honest |
-| `mc_dfi_2p1_layer` | landed | pumice (measured on Nexys A7) |
-| `mc_dfi_3p1_layer` | landed | scoria |
-| `mc_dfi_4p0_layer` | landed | andesite |
+| `mc_axi4_plane` | landed | pumice (measured); scoria/andesite scheduled |
+| `mc_storage_plane` | landed | pumice; scoria/andesite scheduled |
+| `mc_scheduler_plane` | landed (merged from three rock schedulers, −3,465 lines) | all three rocks adopt via thin wrappers |
+| `mc_training_plane` | shell + rock wrappers | pumice carries ZQ/DQ cal behind it |
+| `mc_ras_plane` | skeleton per doctrine 9 — instantiated nowhere | none yet; that is honest |
+| `mc_dfi_2p1_plane` | landed | pumice (measured on Nexys A7) |
+| `mc_dfi_3p1_plane` | landed | scoria |
+| `mc_dfi_4p0_plane` | landed | andesite |
 
 **Shared FUBs (fub/).** `mc_addr_mapper`, `mc_axi_burst_chopper`,
 `mc_bank_timer`, `mc_bank_timers`, `mc_cmd_arbiter`, `mc_dfi_cdc`,
 `mc_dfi_cmd_path`, `mc_dfi_wr_serializer`, `mc_dfi_rd_aligner`,
 `mc_dfi_3p1_cmd_path`, `mc_dfi_4p0_cmd_path`, `mc_global_timers`,
 `mc_rd_cmd_cam`, `mc_rd_intake`, `mc_rd_return_ring`, `mc_wr_data_cam`,
-`mc_wr_intake`, `mc_wr_splitter`. Each is owned by a layer and documented in
-that layer's [common_mas](../../common_mas/common_mas_index.md) chapter; the
+`mc_wr_intake`, `mc_wr_splitter`. Each is owned by a plane and documented in
+that plane's [common_mas](../../common_mas/common_mas_index.md) chapter; the
 knobs inventories (`mc_*_knobs.md` beside this book) record the parameter
 surface per block.
 
@@ -80,7 +80,7 @@ leaves only by obsolescence of all its customers.
 
 | Doc | Owns |
 |---|---|
-| this book (`common_has/`) | the layer-stack architecture, the seam, DFI naming, new doctrines |
+| this book (`common_has/`) | the plane-stack architecture, the seam, DFI naming, new doctrines |
 | [common_mas/](../../common_mas/common_mas_index.md) | per-block microarchitecture of every block above |
 | [01_mem_ctrl_pkg.md](../../01_mem_ctrl_pkg.md) | the shared package design |
 | [02_family_doctrine.md](../../02_family_doctrine.md) | the original five doctrines |

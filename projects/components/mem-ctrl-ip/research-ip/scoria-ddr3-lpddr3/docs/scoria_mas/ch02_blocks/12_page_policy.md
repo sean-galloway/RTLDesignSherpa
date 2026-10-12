@@ -26,7 +26,7 @@
 **Module:** `scoria_page_policy.sv`
 **Location:** `rtl/fub/`
 **Category:** scheduling policy / telemetry
-**Parent:** `scoria_scheduler_layer`
+**Parent:** `scoria_scheduler_plane`
 **Status:** complete, sim-verified
 
 ---

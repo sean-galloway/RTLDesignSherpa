@@ -6,9 +6,9 @@ knob vs. what stays rock-side.
 
 Files compared:
 
-- `projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_scheduler_layer.sv`
-- `projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/rtl/macro/scoria_scheduler_layer.sv`
-- `projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/rtl/macro/andesite_scheduler_layer.sv`
+- `projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_scheduler_plane.sv`
+- `projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/rtl/macro/scoria_scheduler_plane.sv`
+- `projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/rtl/macro/andesite_scheduler_plane.sv`
 - `projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv`
 - `projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/rtl/fub/scoria_cmd_arbiter.sv`
 - `projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/rtl/fub/andesite_cmd_arbiter.sv`
@@ -19,10 +19,10 @@ Files compared:
 
 | file set | pumice lines | scoria lines | andesite lines | p↔s diff -w | s↔a diff -w | p↔a diff -w |
 |---|---|---|---|---|---|---|
-| scheduler layer (`*_scheduler_layer.sv`) | 662 | 692 | 882 | 176 | 556 | 592 |
+| scheduler plane (`*_scheduler_plane.sv`) | 662 | 692 | 882 | 176 | 556 | 592 |
 | command arbiter (`*_cmd_arbiter.sv`) | 1684 | 1755 | 1809 | 609 | 176 | 705 |
 
-The scheduler-layer deltas are dominated by port-list and child-instance
+The scheduler-plane deltas are dominated by port-list and child-instance
 wiring changes. The arbiter deltas are dominated by (a) the unified prospect-pool
 refactor that only pumice has received, and (b) generation-specific maintenance
 requesters (ZQ calibration, training MRS/MPC) and DDR4 bank-group L/S admission.
@@ -37,38 +37,38 @@ requesters (ZQ calibration, training MRS/MPC) and DDR4 bank-group L/S admission.
 | **D** | Behavioral / protocol differences: control structures that are not merely numeric parameters — maintenance requester type, init-sequencer protocol, output packing, fire-stage policy, pool structure. | Common core uses `generate`/`localparam` branches, or the behavior stays rock-side in a thin wrapper. |
 | **E** | Silicon bug-history / design-rationale comments: `BUG-*`, `ISSUE-*`, measured regression numbers, timing arguments. | Carry verbatim into the common core; do not let cosmetic edits erase them. |
 
-## 3. Scheduler-layer divergences
+## 3. Scheduler-plane divergences
 
 ### 3.1 pumice ↔ scoria
 
 | bucket | evidence (`file:line`) | what diverges | resolution hint |
 |---|---|---|---|
-| A | `pumice_scheduler_layer.sv:7` / `scoria_scheduler_layer.sv:7`; `p:23-24` / `s:23-24`; `p:16,18,54,141,169,220,225,260,282,286,422,424,432,467,640,662` / `s:16,18,55,141,169,237,242,282,304,312,320,456,458,466,501,670,692` | Module name, package import, rock-prefixed comments, doc paths, CAM-source comments. | Rename to `mc_scheduler_layer`; strip rock prefixes. |
-| B | `scoria_scheduler_layer.sv:55-59` (added); `pumice_scheduler_layer.sv:54` (absent) | `NUM_CS` / `CSW` parameters for DDR3 chip-select tracking. | Add `NUM_CS`/`CSW` parameters; pumice ties `NUM_CS = NUM_RANKS`. |
-| C | `scoria_scheduler_layer.sv:90` | `stall_zq_o` output added for ZQCS telemetry. | Add output; pumice drives 0 or observes unused. |
-| C | `scoria_scheduler_layer.sv:130-151` | DDR3 init timing (`t_xpr_wait_i`, `t_zqinit_wait_i`, `dram_reset_n_o`, `mr_wr_o`, `wrlvl_en_o`) + ZQ calibration request/grant/t_zqcs + Mode A/B/C refresh CSR fields. | Union port set; pumice ties off DDR3/ZQ/Mode-ABC inputs. |
-| C | `pumice_scheduler_layer.sv:175-184` | Pumice training command channel (`trn_cmd_req_i`, `trn_cmd_grant_o`, `trn_cmd_op_i`, `trn_cmd_bank_i`, `trn_cmd_row_i`, `trn_cmd_mrr_i`, `cal_busy_i`) + `cmd_mrr_o` removed in scoria. | Union ports; scoria/andesite tie off the pumice-style training ports if unused. |
-| D | `pumice_scheduler_layer.sv:294` / `scoria_scheduler_layer.sv:322` | `w_refpb_en` compares `MEMTYPE_LPDDR2` vs `MEMTYPE_LPDDR3`. | Use family memtype enum; generate on `MEMTYPE_LPDDR2 \|\| MEMTYPE_LPDDR3` or per-rock parameter. |
-| D | `scoria_scheduler_layer.sv:336-341`, `s:356-358` | Mode A/B/C refresh CSRs wired into `scoria_refresh_ctrl` and new observability outputs `obs_ref_postpone_events_o` / `obs_ref_pullin_events_o`. | Add `HAS_REFRESH_POLICY` generate branch or parameter bundle; pumice ties off. |
-| D | `pumice_scheduler_layer.sv:576-578,625-626` / `scoria_scheduler_layer.sv:599-600,655` | Output command FIFO width and packing: pumice carries `{cmd_mrr, cmd_ap, ...}`; scoria drops `cmd_mrr`. | Output descriptor includes an `extra` bit with rock-defined meaning (pumice=MRR, scoria/andesite=unused or ZQ marker). |
+| A | `pumice_scheduler_plane.sv:7` / `scoria_scheduler_plane.sv:7`; `p:23-24` / `s:23-24`; `p:16,18,54,141,169,220,225,260,282,286,422,424,432,467,640,662` / `s:16,18,55,141,169,237,242,282,304,312,320,456,458,466,501,670,692` | Module name, package import, rock-prefixed comments, doc paths, CAM-source comments. | Rename to `mc_scheduler_plane`; strip rock prefixes. |
+| B | `scoria_scheduler_plane.sv:55-59` (added); `pumice_scheduler_plane.sv:54` (absent) | `NUM_CS` / `CSW` parameters for DDR3 chip-select tracking. | Add `NUM_CS`/`CSW` parameters; pumice ties `NUM_CS = NUM_RANKS`. |
+| C | `scoria_scheduler_plane.sv:90` | `stall_zq_o` output added for ZQCS telemetry. | Add output; pumice drives 0 or observes unused. |
+| C | `scoria_scheduler_plane.sv:130-151` | DDR3 init timing (`t_xpr_wait_i`, `t_zqinit_wait_i`, `dram_reset_n_o`, `mr_wr_o`, `wrlvl_en_o`) + ZQ calibration request/grant/t_zqcs + Mode A/B/C refresh CSR fields. | Union port set; pumice ties off DDR3/ZQ/Mode-ABC inputs. |
+| C | `pumice_scheduler_plane.sv:175-184` | Pumice training command channel (`trn_cmd_req_i`, `trn_cmd_grant_o`, `trn_cmd_op_i`, `trn_cmd_bank_i`, `trn_cmd_row_i`, `trn_cmd_mrr_i`, `cal_busy_i`) + `cmd_mrr_o` removed in scoria. | Union ports; scoria/andesite tie off the pumice-style training ports if unused. |
+| D | `pumice_scheduler_plane.sv:294` / `scoria_scheduler_plane.sv:322` | `w_refpb_en` compares `MEMTYPE_LPDDR2` vs `MEMTYPE_LPDDR3`. | Use family memtype enum; generate on `MEMTYPE_LPDDR2 \|\| MEMTYPE_LPDDR3` or per-rock parameter. |
+| D | `scoria_scheduler_plane.sv:336-341`, `s:356-358` | Mode A/B/C refresh CSRs wired into `scoria_refresh_ctrl` and new observability outputs `obs_ref_postpone_events_o` / `obs_ref_pullin_events_o`. | Add `HAS_REFRESH_POLICY` generate branch or parameter bundle; pumice ties off. |
+| D | `pumice_scheduler_plane.sv:576-578,625-626` / `scoria_scheduler_plane.sv:599-600,655` | Output command FIFO width and packing: pumice carries `{cmd_mrr, cmd_ap, ...}`; scoria drops `cmd_mrr`. | Output descriptor includes an `extra` bit with rock-defined meaning (pumice=MRR, scoria/andesite=unused or ZQ marker). |
 
 ### 3.2 scoria ↔ andesite
 
 | bucket | evidence (`file:line`) | what diverges | resolution hint |
 |---|---|---|---|
-| A | `scoria_scheduler_layer.sv:7-18` / `andesite_scheduler_layer.sv:7-21`; `s:23-24` / `a:26-27`; `s:141,218,260,282,286,312,320,456,458,466,501,670,692` / `a:141,218,391,401,428,438,634,636,644,679,857,882` | Module/package names, header provenance, doc paths, child-instance names, CAM-source comments. | Common rename; rock headers move to wrappers. |
-| B | `andesite_scheduler_layer.sv:44-47`, `a:431-434`, `a:249` | `NUM_BG`, `BGW_EFF_M`, and `cmd_bg_o` width added for DDR4 bank groups. | Parameter `NUM_BG` (default 1) + derived `BGW_EFF`; `cmd_bg_o` width derived from `NUM_BG`. |
-| C | `andesite_scheduler_layer.sv:119-123` | L/S pair CSR inputs: `t_ccd_l_i`, `t_ccd_s_i`, `t_rrd_l_i`, `t_rrd_s_i`. | Union inputs; pumice/scoria tie to 0; common `mc_global_timers` already supports them. |
-| C | `andesite_scheduler_layer.sv:129-135` | FGR inputs: `fgr_factor_i`, `t_rfc_2x_i`, `t_rfc_4x_i`; `t_rfc_i` becomes the 1x density value. | Add FGR port bundle; pumice/scoria tie `fgr_factor_i = 0` and `t_rfc_2x/4x = t_rfc_i`. |
-| C | `andesite_scheduler_layer.sv:142-185` | P1 init sequencer pin set: `t_cke_wait_i`, `t_mod_wait_i`, `dram_reset_n_o`, `cke_o`, `wrlvl_en_o`; removes `t_xpr_wait_i` and DFI init handshake. | Init sequencer stays rock-specific; common core exposes a generic init-command stream. |
-| C | `andesite_scheduler_layer.sv:186-?` (zq block), `a:95-104` | Andesite internal ZQ config + `zq_enable_i`, `zq_interval_i`, overdue/placement CSRs, LPDDR4 MPC `t_zq_i`/`zq_mpc_opcode_i`. | ZQ controller can be internal child or wrapper port; common core sees only `zq_req_i`/`zq_grant_o`/`t_zqcs_i`. |
-| C | `andesite_scheduler_layer.sv:154-161` | Andesite maintenance-class training channel (`trn_cmd_req_i`, `trn_cmd_ack_o`, `trn_cmd_op_i`, `trn_cmd_bank_i[2:0]`, `trn_cmd_addr_i[17:0]`, `trn_cmd_mpc_i`). | Union training port; scoria ties off, pumice maps its narrower `trn_cmd_row/mrr` to the wide `addr` field. |
-| C | `andesite_scheduler_layer.sv:195-216` | Andesite replaces scoria CL/CWL/BL shadow outputs with DDR4 policy outputs (`rtt_nom_o`, `rtt_wr_o`, `rtt_park_o`, `rd_dbi_en_o`, `wr_dbi_en_o`, `mpr_page_o`, `fgr_factor_o`, `ca_parity_lat_o`, `lpddr4_odt_o`, `wrlvl_en_o`, `init_err_o`, `zq_cal_start_o`, ...). | Mode-register shadow is rock-specific; common scheduler passes through MR data or keeps a generic policy vector. |
-| D | `andesite_scheduler_layer.sv:485-528` | Andesite instantiates `andesite_zq_ctrl` inside the scheduler; scoria receives ZQ from the training layer. | Decide whether ZQ is a child of the scheduler or an external maintenance client. Both feed the same arbiter `zq_req_i`/`grant_o` contract. |
-| D | `andesite_scheduler_layer.sv:577-625` | `mc_global_timers` instantiated with `HAS_LS_PAIRS=1`, group wires (`w_evt_bg`, `w_pick_group`) and L/S readiness loop. | Reuse common `mc_global_timers` with `HAS_LS_PAIRS` and `NUM_BG` parameters (already extracted in Task 2). |
-| D | `andesite_scheduler_layer.sv:452-464`, `a:679`, `a:729-731` | `andesite_refresh_ctrl` FGR selection drives `w_refresh_trfc`; `andesite_cmd_arbiter` gets `NUM_BG`, `tccd_l_ok_i`, `trrd_l_ok_i`, `pick_group_o`. | Add `HAS_FGR` and `NUM_BG` parameters; refresh child rock-selectable. |
-| D | `andesite_scheduler_layer.sv:341-387` | Andesite P1 init sequencer interface is incompatible with scoria DDR3 init sequencer. | Keep init sequencer rock-specific; common core consumes generic init-cmd valid/op/bank/row. |
-| D | `andesite_scheduler_layer.sv:793-795`, `a:875-878` | Output FIFO packing and history checker add `cmd_bg_o`. | Descriptor includes optional `bg` field; width derived from `NUM_BG`. |
+| A | `scoria_scheduler_plane.sv:7-18` / `andesite_scheduler_plane.sv:7-21`; `s:23-24` / `a:26-27`; `s:141,218,260,282,286,312,320,456,458,466,501,670,692` / `a:141,218,391,401,428,438,634,636,644,679,857,882` | Module/package names, header provenance, doc paths, child-instance names, CAM-source comments. | Common rename; rock headers move to wrappers. |
+| B | `andesite_scheduler_plane.sv:44-47`, `a:431-434`, `a:249` | `NUM_BG`, `BGW_EFF_M`, and `cmd_bg_o` width added for DDR4 bank groups. | Parameter `NUM_BG` (default 1) + derived `BGW_EFF`; `cmd_bg_o` width derived from `NUM_BG`. |
+| C | `andesite_scheduler_plane.sv:119-123` | L/S pair CSR inputs: `t_ccd_l_i`, `t_ccd_s_i`, `t_rrd_l_i`, `t_rrd_s_i`. | Union inputs; pumice/scoria tie to 0; common `mc_global_timers` already supports them. |
+| C | `andesite_scheduler_plane.sv:129-135` | FGR inputs: `fgr_factor_i`, `t_rfc_2x_i`, `t_rfc_4x_i`; `t_rfc_i` becomes the 1x density value. | Add FGR port bundle; pumice/scoria tie `fgr_factor_i = 0` and `t_rfc_2x/4x = t_rfc_i`. |
+| C | `andesite_scheduler_plane.sv:142-185` | P1 init sequencer pin set: `t_cke_wait_i`, `t_mod_wait_i`, `dram_reset_n_o`, `cke_o`, `wrlvl_en_o`; removes `t_xpr_wait_i` and DFI init handshake. | Init sequencer stays rock-specific; common core exposes a generic init-command stream. |
+| C | `andesite_scheduler_plane.sv:186-?` (zq block), `a:95-104` | Andesite internal ZQ config + `zq_enable_i`, `zq_interval_i`, overdue/placement CSRs, LPDDR4 MPC `t_zq_i`/`zq_mpc_opcode_i`. | ZQ controller can be internal child or wrapper port; common core sees only `zq_req_i`/`zq_grant_o`/`t_zqcs_i`. |
+| C | `andesite_scheduler_plane.sv:154-161` | Andesite maintenance-class training channel (`trn_cmd_req_i`, `trn_cmd_ack_o`, `trn_cmd_op_i`, `trn_cmd_bank_i[2:0]`, `trn_cmd_addr_i[17:0]`, `trn_cmd_mpc_i`). | Union training port; scoria ties off, pumice maps its narrower `trn_cmd_row/mrr` to the wide `addr` field. |
+| C | `andesite_scheduler_plane.sv:195-216` | Andesite replaces scoria CL/CWL/BL shadow outputs with DDR4 policy outputs (`rtt_nom_o`, `rtt_wr_o`, `rtt_park_o`, `rd_dbi_en_o`, `wr_dbi_en_o`, `mpr_page_o`, `fgr_factor_o`, `ca_parity_lat_o`, `lpddr4_odt_o`, `wrlvl_en_o`, `init_err_o`, `zq_cal_start_o`, ...). | Mode-register shadow is rock-specific; common scheduler passes through MR data or keeps a generic policy vector. |
+| D | `andesite_scheduler_plane.sv:485-528` | Andesite instantiates `andesite_zq_ctrl` inside the scheduler; scoria receives ZQ from the training plane. | Decide whether ZQ is a child of the scheduler or an external maintenance client. Both feed the same arbiter `zq_req_i`/`grant_o` contract. |
+| D | `andesite_scheduler_plane.sv:577-625` | `mc_global_timers` instantiated with `HAS_LS_PAIRS=1`, group wires (`w_evt_bg`, `w_pick_group`) and L/S readiness loop. | Reuse common `mc_global_timers` with `HAS_LS_PAIRS` and `NUM_BG` parameters (already extracted in Task 2). |
+| D | `andesite_scheduler_plane.sv:452-464`, `a:679`, `a:729-731` | `andesite_refresh_ctrl` FGR selection drives `w_refresh_trfc`; `andesite_cmd_arbiter` gets `NUM_BG`, `tccd_l_ok_i`, `trrd_l_ok_i`, `pick_group_o`. | Add `HAS_FGR` and `NUM_BG` parameters; refresh child rock-selectable. |
+| D | `andesite_scheduler_plane.sv:341-387` | Andesite P1 init sequencer interface is incompatible with scoria DDR3 init sequencer. | Keep init sequencer rock-specific; common core consumes generic init-cmd valid/op/bank/row. |
+| D | `andesite_scheduler_plane.sv:793-795`, `a:875-878` | Output FIFO packing and history checker add `cmd_bg_o`. | Descriptor includes optional `bg` field; width derived from `NUM_BG`. |
 
 ### 3.3 pumice ↔ andesite
 
@@ -134,7 +134,7 @@ support, adds bank-group L/S admission, and reshapes training to MRS/MPC via
 3. **DDR3 ZQ / Mode A/B/C / `NUM_CS`.** These are pure parameter / port-union
    additions. Pumice ties them off; scoria uses them.
 
-The pumice-vs-scoria scheduler-layer port differences are therefore almost
+The pumice-vs-scoria scheduler-plane port differences are therefore almost
 entirely **C-class** union ports plus a few **B-class** parameters. The only
 **D-class** work is the generic maintenance slot and the pool adoption.
 
@@ -153,7 +153,7 @@ that they should not be `generate`-spaghetti inside the core:
 - **P1 init sequencer** — the interface is fundamentally different from the
   pumice/scoria init sequencer. Keep `mc_init_sequencer` rock-specific (or a
   family of init children) and feed the common core a generic init-cmd stream.
-- **ZQ controller placement** — scoria receives ZQ from the training layer;
+- **ZQ controller placement** — scoria receives ZQ from the training plane;
   andesite embeds `andesite_zq_ctrl`. Either make ZQ a child of the common core
   behind `HAS_INTERNAL_ZQ`, or require every rock to source ZQ externally. The
   external contract is the same, so external sourcing is the simpler wrapper
@@ -169,7 +169,7 @@ sequencer, the internal ZQ controller, and the DDR4 mode-register shadow.
 
 ### 6.3 Upstream port width / presence differences
 
-The upstream boundary of `mc_scheduler_core` (the layer that instantiates the
+The upstream boundary of `mc_scheduler_core` (the plane that instantiates the
 arbiter and timers) should be the union of the three rock port lists. The
 significant differences are:
 
@@ -200,7 +200,7 @@ authority arguments. They must survive the merge intact:
 | **ISSUE-002** — tFAW/tRRD must gate the fire, not the classify mask, or close-page throughput drops from 30.77% to ~18%. | `scoria_cmd_arbiter.sv:386-403`, `pumice_cmd_arbiter.sv:704-735` (pool comment references it) | Performance/correctness rationale for where the rank-global check lives. |
 | **Parked-victim pattern** — PRE on a bank within 3 cycles leaves a stale row image; column picked against it wedges the AR-order drain. | `pumice_cmd_arbiter.sv:704-735` / `scoria_cmd_arbiter.sv:739-822` | Justifies `!w_pre_col_guard` in the column mask. |
 | **tZQCS / refresh interaction** — `w_ref_safe` carries `!w_rfc_busy`; refresh is kept out of the ZQ window by cone priority, not by a symmetric term; do not "tidy" it. | `scoria_cmd_arbiter.sv:1786-1809` | Timing-critical design note; 75 MHz margin reference. |
-| **P1 init accept/ack gating** — held init request would re-pick into the registered pick every cycle, producing MRS twins; gate must be combinational on the current accept. | `andesite_scheduler_layer.sv:260-302` | Functional bug prevented by the wrapper wiring; keep if the common core supports P1 init. |
+| **P1 init accept/ack gating** — held init request would re-pick into the registered pick every cycle, producing MRS twins; gate must be combinational on the current accept. | `andesite_scheduler_plane.sv:260-302` | Functional bug prevented by the wrapper wiring; keep if the common core supports P1 init. |
 
 Do not rewrite or abbreviate these comments during the mechanical rename pass.
 The common-core merge should treat them as invariant documentation.

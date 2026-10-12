@@ -9,7 +9,7 @@
 //          Preserves the historical scoria port list (ZQ arm included) and
 //          ties off the generic maintenance slot that scoria does not use.
 //
-// Documentation: docs/uarch/SCORIA_SCHEDULER_LAYER_UARCH.md
+// Documentation: docs/uarch/SCORIA_SCHEDULER_PLANE_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"

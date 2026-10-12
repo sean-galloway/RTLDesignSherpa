@@ -11,11 +11,11 @@ graph TD
     top --> csr
     top --> core
 
-    core --> axi["mc_axi4_layer<br/><i>common-ip</i>"]
-    core --> stor["mc_storage_layer<br/><i>common-ip</i>"]
-    core --> sched["pumice_scheduler_layer<br/><i>thin wrapper around mc_scheduler_layer</i>"]
-    core --> trn["pumice_training_layer<br/><i>thin wrapper around mc_training_layer</i>"]
-    core --> dfi["mc_dfi_2p1_layer<br/><i>common-ip</i>"]
+    core --> axi["mc_axi4_plane<br/><i>common-ip</i>"]
+    core --> stor["mc_storage_plane<br/><i>common-ip</i>"]
+    core --> sched["pumice_scheduler_plane<br/><i>thin wrapper around mc_scheduler_plane</i>"]
+    core --> trn["pumice_training_plane<br/><i>thin wrapper around mc_training_plane</i>"]
+    core --> dfi["mc_dfi_2p1_plane<br/><i>common-ip</i>"]
 
     axi --> wr_intake["mc_wr_intake<br/><i>axi4_slave_wr + AW-meta FIFO + wr-data FIFO + mc_addr_mapper</i>"]
     axi --> rd_intake["mc_rd_intake<br/><i>axi4_slave_rd + mc_addr_mapper + snarf probe</i>"]
@@ -23,14 +23,14 @@ graph TD
     stor --> wr_data_cam["mc_wr_data_cam<br/><i>WR CAM + wr-data SRAM; fill/commit-drain/snarf</i>"]
     stor --> rd_cmd_cam["mc_rd_cmd_cam<br/><i>RD CAM + rd SRAM; return-fill/drain</i>"]
 
-    sched --> sched_core["mc_scheduler_layer core<br/><i>pick machinery + bank/global timers</i>"]
+    sched --> sched_core["mc_scheduler_plane core<br/><i>pick machinery + bank/global timers</i>"]
     sched --> init_sequencer["init_sequencer<br/><i>DDR2 + LPDDR2 JEDEC MR init</i>"]
     sched --> mode_register["mode_register<br/><i>CL/CWL/BL/AL decode</i>"]
     sched --> refresh_ctrl["refresh_ctrl<br/><i>tREFI accumulator + drain</i>"]
     sched --> page_policy["pumice_page_policy<br/><i>open-page decision</i>"]
     sched --> cmd_hist["pumice_cmd_history_checker<br/><i>optional DV scoreboard</i>"]
 
-    trn --> trn_shell["mc_training_layer shell"]
+    trn --> trn_shell["mc_training_plane shell"]
     trn --> zq_ctrl["pumice_zq_ctrl<br/><i>periodic ZQ calibration</i>"]
     trn --> lp_cal["pumice_lp_cal<br/><i>LPDDR2 MRR DQ calibration</i>"]
 

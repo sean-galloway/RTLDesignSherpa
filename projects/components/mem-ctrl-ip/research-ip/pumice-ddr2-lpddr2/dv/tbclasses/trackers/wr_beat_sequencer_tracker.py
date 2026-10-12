@@ -5,7 +5,7 @@
 Passive tracker for the DFI write serializer (`pumice_dfi_wr_serializer`).
 
 RETARGETED 2026-08-27: the FUB was renamed `wr_beat_sequencer` ->
-`pumice_dfi_wr_serializer` in the DFI-layer rearchitecture (scope
+`pumice_dfi_wr_serializer` in the DFI-plane rearchitecture (scope
 `u_dfi.u_wr`). Op admission is now the `wr_fire_i` strobe and the beat
 pull is the `wd_valid_i/wd_ready_o` handshake; the old B-completion tap
 moved to the write CAM (see CamTracker `camwr DONE`).

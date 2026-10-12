@@ -74,7 +74,7 @@ reset by `~aresetn`. It is **not** on a separate management clock in this
 generation — there is no independent `apb_pclk`. Config fields (`hwif_out.*`,
 `hw = r`) are read combinationally by `pumice_top` and fanned out to the core;
 the single clock-domain crossing to the PHY side (`dfi_clk`) lives inside
-`mc_dfi_2p1_layer` (async gaxi FIFOs), not in the register block. Observation
+`mc_dfi_2p1_plane` (async gaxi FIFOs), not in the register block. Observation
 fields (`hwif_in.*`, `hw = w`) are written from the core clock domain.
 
 ## Register Map

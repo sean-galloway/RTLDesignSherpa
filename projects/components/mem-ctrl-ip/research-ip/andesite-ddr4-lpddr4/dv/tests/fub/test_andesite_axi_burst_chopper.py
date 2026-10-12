@@ -19,7 +19,7 @@ model. The house rule about always using the BFMs is about full interfaces --
 where hand-poking valid/ready reinvents a protocol that is already implemented
 and debugged.
 
-The checks come in two layers. The model in `expected_subs` is the HEADER'S
+The checks come in two planes. The model in `expected_subs` is the HEADER'S
 contract restated -- at most CHUNK beats per sub, addresses stepping by
 AXI_BURST_BYTES, agg/last as documented -- and on top of it sit invariants that
 need no model at all: the real beats across the subs must add up to the host's

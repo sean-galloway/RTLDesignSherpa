@@ -12,9 +12,9 @@
 //          entry vectors.  Write data is staged in a small parameterised FIFO
 //          so the DFI write path never runs dry.
 //
-//          The AXI4 layer pushes descriptors (aw_push / ar_push) and write-data
+//          The AXI4 plane pushes descriptors (aw_push / ar_push) and write-data
 //          beats; the scheduler commits issues and the entry store drains write
-//          data to the DFI layer.  Read tickets are passed through to the AXI4
+//          data to the DFI plane.  Read tickets are passed through to the AXI4
 //          return ring at issue time.
 
 `timescale 1ns / 1ps
@@ -47,7 +47,7 @@ module mc_xddr2_entry_store
     input  logic                     aresetn,
 
     //=========================================================================
-    // WR descriptor push from mc_axi4_layer
+    // WR descriptor push from mc_axi4_plane
     //=========================================================================
     input  logic                aw_push_valid_i,
     output logic                aw_push_ready_o,
@@ -60,7 +60,7 @@ module mc_xddr2_entry_store
     input  logic                aw_push_last_i,
 
     //=========================================================================
-    // WR data from mc_axi4_layer -> staging FIFO
+    // WR data from mc_axi4_plane -> staging FIFO
     //=========================================================================
     input  logic                wd_valid_i,
     output logic                wd_ready_o,
@@ -69,13 +69,13 @@ module mc_xddr2_entry_store
     input  logic                wd_last_i,
 
     //=========================================================================
-    // WR done back to mc_axi4_layer (B response trigger)
+    // WR done back to mc_axi4_plane (B response trigger)
     //=========================================================================
     output logic                wr_done_valid_o,
     output logic [IW-1:0]       wr_done_id_o,
 
     //=========================================================================
-    // RD snarf probe from mc_axi4_layer (storage-lite: hit tied off)
+    // RD snarf probe from mc_axi4_plane (storage-lite: hit tied off)
     //=========================================================================
     input  logic                snarf_probe_valid_i,
     input  logic [BKW-1:0]      snarf_probe_bank_i,
@@ -91,7 +91,7 @@ module mc_xddr2_entry_store
     output logic                snarf_rd_last_o,
 
     //=========================================================================
-    // RD descriptor push from mc_axi4_layer
+    // RD descriptor push from mc_axi4_plane
     //=========================================================================
     input  logic                ar_push_valid_i,
     output logic                ar_push_ready_o,
@@ -102,7 +102,7 @@ module mc_xddr2_entry_store
     input  logic [3:0]          ar_push_qos_i,
 
     //=========================================================================
-    // Return-ring allocation/issue handshake with mc_axi4_layer
+    // Return-ring allocation/issue handshake with mc_axi4_plane
     //=========================================================================
     input  logic                rt_alloc_ready_i,
     input  logic [RTW-1:0]      rt_alloc_ticket_i,
@@ -144,7 +144,7 @@ module mc_xddr2_entry_store
     output logic [15:0]                         rd_sch_head_rel_o,
 
     //=========================================================================
-    // WR commit data to DFI layer
+    // WR commit data to DFI plane
     //=========================================================================
     output logic                wr_cm_rd_valid_o,
     input  logic                wr_cm_rd_ready_i,

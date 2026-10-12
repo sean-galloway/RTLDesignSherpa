@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""Telemetry invariants over pumice's exported counters (TASK-015 layer 2b).
+"""Telemetry invariants over pumice's exported counters (TASK-015 plane 2b).
 
 An oracle that needs no performance model. Every relation here is pure
 arithmetic on counters the design already exports, holds for EVERY legal
 configuration, and is checkable in sim AND on the board from the same code --
 which is the point: a config sweep that only proves "it ran" cannot fail, and
-with layer 2a dropped (Sean, 2026-09-27: no assertions in RTL) this is the only
+with plane 2a dropped (Sean, 2026-09-27: no assertions in RTL) this is the only
 oracle the sweep gets.
 
     counters = {"PAGE_STATS_HIT": ..., "SCHED_STATS_ACT": ..., ...}
@@ -127,7 +127,7 @@ RULES: tuple = (
                    f"+ {NUM_BANKS} banks = {c['SCHED_STATS_ACT'] + NUM_BANKS}"),
         "a bank cannot be closed more times than it was opened, PLUS the banks "
         "that were already open when the window began. This shipped as the "
-        "stricter `PRE <= ACT` and layer 3's random soak disproved it: a window "
+        "stricter `PRE <= ACT` and plane 3's random soak disproved it: a window "
         "starting with banks left open by the previous round measured PRE=43 "
         "against ACT=42, on correct hardware. Refresh does the same thing -- it "
         "issues PREA to close rows opened before the window. At most NUM_BANKS "
@@ -146,7 +146,7 @@ RULES: tuple = (
 )
 
 # Relations that need a signal the CSR surface does not carry. Kept here so the
-# list of what layer 2b does NOT cover is written down rather than implied.
+# list of what plane 2b does NOT cover is written down rather than implied.
 SIM_ONLY_INVARIANTS = {
     "ring_occupancy_le_depth":
         "read-return ring occupancy <= RD_RET_DEPTH at all times. Not a counter: "

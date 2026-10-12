@@ -26,7 +26,7 @@
 **Module:** `scoria_refresh_ctrl.sv`
 **Location:** `rtl/fub/`
 **Category:** maintenance / refresh
-**Parent:** `scoria_scheduler_layer`
+**Parent:** `scoria_scheduler_plane`
 **Status:** complete and sim-verified; formal-retention proof green in `formal/scoria/refresh_ctrl`
 
 ---

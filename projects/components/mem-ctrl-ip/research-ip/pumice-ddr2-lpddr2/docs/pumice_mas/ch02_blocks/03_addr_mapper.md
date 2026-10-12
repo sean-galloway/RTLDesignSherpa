@@ -41,7 +41,7 @@
 
 ## Purpose
 
-`addr_mapper` decodes a flat `AXI_ADDR_WIDTH`-bit address into the DRAM-layer
+`addr_mapper` decodes a flat `AXI_ADDR_WIDTH`-bit address into the DRAM-plane
 `(rank, bank, row, col)` tuple. It is **pure combinational** — no clock, no flop,
 no FSM. The output is valid the same cycle as the input. One instance sits at the
 head-address decode of each intake (`mc_wr_intake`, `mc_rd_intake`), so

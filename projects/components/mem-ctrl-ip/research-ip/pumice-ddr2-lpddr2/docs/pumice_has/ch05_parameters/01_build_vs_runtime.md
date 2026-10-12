@@ -23,11 +23,11 @@
 
 # Build-Time vs. Runtime Configuration
 
-This controller distinguishes between **build-time parameters** that set the silicon footprint and **runtime CSR registers** that select behavior within that footprint. The two layers serve different purposes and should not be confused. This chapter applies the principle to every configurable knob in the design.
+This controller distinguishes between **build-time parameters** that set the silicon footprint and **runtime CSR registers** that select behavior within that footprint. The two planes serve different purposes and should not be confused. This chapter applies the principle to every configurable knob in the design.
 
 ## Principle
 
-| Layer | What it controls | Frozen at | Cost of changing |
+| Plane | What it controls | Frozen at | Cost of changing |
 |---|---|---|---|
 | **Build-time parameter** | Synthesized silicon footprint: signal widths, table depths, queue sizes, instantiation counts, encoder selection, MAX bounds of runtime values | Elaboration time | Full RTL rebuild + place-and-route + tape-out (silicon) or bitstream rebuild (FPGA) |
 | **Runtime CSR register** | Behavior selection *within* the synthesized footprint: policy choices, threshold values, on/off toggles, active counts up to the build-time MAX | Programmable any time the configuration quiet point is reached (typically during init or under SoC orchestration) | A single APB write |

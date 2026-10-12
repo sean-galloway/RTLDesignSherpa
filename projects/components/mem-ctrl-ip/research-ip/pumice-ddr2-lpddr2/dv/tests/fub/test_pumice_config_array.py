@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""Unit tests for the pairwise covering array (pumice TASK-015 layer 1).
+"""Unit tests for the pairwise covering array (pumice TASK-015 plane 1).
 
-Pure Python, no DUT. The array is the thing the whole layer-1 sweep rests on --
+Pure Python, no DUT. The array is the thing the whole plane-1 sweep rests on --
 if it does not actually cover the pairs, the coverage NUMBER is a lie and the
 sweep is just 384 arbitrary cells. So the properties are tested, including that
 the coverage checker itself can fail.
@@ -115,7 +115,7 @@ def test_describe_reports_the_number_the_task_asks_for():
 
 
 # --------------------------------------------------------------------------
-# Layer 3: seeded random vectors
+# Plane 3: seeded random vectors
 # --------------------------------------------------------------------------
 def test_random_vectors_are_legal():
     for v in ca.random_vectors(200, seed=7):
@@ -136,7 +136,7 @@ def test_different_seeds_explore_different_vectors():
 
 
 def test_random_eventually_reaches_beyond_the_covering_array():
-    """The point of layer 3: 3-way combinations pairwise cannot promise.
+    """The point of plane 3: 3-way combinations pairwise cannot promise.
 
     Not an assertion about defects -- just that the random stream produces
     triples the 39-vector array does not contain, which is the only reason to

@@ -744,7 +744,7 @@ when DFI_RATE &lt; the field width.</p>
 <p>t_phy_wrlat: WRITE command -&gt; dfi_wrdata_en. t_rddata_en:
 RD command -&gt; dfi_rddata_en window.
 t_phy_wrlat resets to 1 because BOTH board host paths program 1,
-and the old reset of 0 agreed with neither (TASK-015 layer 0).
+and the old reset of 0 agreed with neither (TASK-015 plane 0).
 t_rddata_en resets to 6 -- what <code>init</code> programs
 (pumice_master.SimpleTest: the ILA-validated tuple wrlat=1,
 rden=6, rddata_delay=7). pumice_char.ControllerConfig programs 1

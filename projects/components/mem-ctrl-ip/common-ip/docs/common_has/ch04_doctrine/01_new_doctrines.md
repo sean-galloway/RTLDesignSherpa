@@ -75,15 +75,15 @@ question is asked once, at design time, not per pull request.
 
 ## 9. RAS features are discussed as needed — never enumerated ahead
 
-The RAS layer (`mc_ras_layer`) is defined as a transform pair (ECC
+The RAS plane (`mc_ras_plane`) is defined as a transform pair (ECC
 insert/check) plus scrub-as-maintenance-client, with `HAS_ECC` ∈
 {OFF, DETECT, CORRECT} and a reserved CSR surface. Beyond that, RAS features
 are added only when a customer needs them, at which point the partner
 decides. The skeleton is deliberately *not* a menu.
 
-**Reason.** "Possible more features in the ras layer are controlled by
-params. we will discuss as needed." (partner, 2026-10-10.) A layer whose
-feature list is speculative is a layer nobody can validate; the transform
+**Reason.** "Possible more features in the ras plane are controlled by
+params. we will discuss as needed." (partner, 2026-10-10.) A plane whose
+feature list is speculative is a plane nobody can validate; the transform
 pair is the only RAS structure with two customers today.
 
 ## 10. The return path is its own contract — and perfect is the enemy of good

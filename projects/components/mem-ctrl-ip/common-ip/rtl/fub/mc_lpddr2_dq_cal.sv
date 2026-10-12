@@ -15,7 +15,7 @@
 //          DDR2 has no MRR, so the FUB is inert for DDR2 builds.
 //
 // Documentation:
-//   projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/uarch/PUMICE_TRAINING_LAYER_UARCH.md
+//   projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/uarch/PUMICE_TRAINING_PLANE_UARCH.md
 //
 // Author: sean galloway
 // Created: 2026-10-07
@@ -53,7 +53,7 @@ module mc_lpddr2_dq_cal
     output logic                      cmd_mrr_o,      // formatter MRR select
 
     // ----- calibration capture handshake (mc_clk domain) --------------------
-    // cal_expect_o arms the DFI-layer read-aligner sideband.
+    // cal_expect_o arms the DFI-plane read-aligner sideband.
     // cal_data_i / cal_data_valid_i carry the synchronized-up captured beat.
     output logic                      cal_expect_o,
     input  logic [DFI_DATA_WIDTH-1:0] cal_data_i,

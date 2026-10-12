@@ -26,7 +26,7 @@
 **Module:** `scoria_dfi_cmd_path.sv`
 **Location:** `rtl/fub/`
 **Category:** DFI datapath
-**Parent:** `scoria_dfi_layer`
+**Parent:** `scoria_dfi_plane`
 **Status:** implemented (TASK-007)
 
 ## Purpose

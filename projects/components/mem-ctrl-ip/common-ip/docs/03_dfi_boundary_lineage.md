@@ -40,8 +40,8 @@ across the family without opening three books.
 
 ## Pointers until then
 
-- pumice drives DFI 2.1: the DFI layer is
-  `pumice-ddr2-lpddr2/rtl/macro/pumice_dfi_layer.sv`.
+- pumice drives DFI 2.1: the DFI plane is
+  `pumice-ddr2-lpddr2/rtl/macro/pumice_dfi_plane.sv`.
 - scoria's ch04 is the 3.1 reference, including the v2.1.1 delta it inherited:
   `scoria-ddr3-lpddr3/docs/scoria_has/ch04_interfaces/01_dfi_v31.md`.
 - andesite's ch04 (`andesite-ddr4-lpddr4/docs/andesite_has/ch04_interfaces/`)

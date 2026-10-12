@@ -89,7 +89,7 @@ oscillation.
 > failure in the wild — 2026-10-03 char results.)
 
 Packed timing parameters in MC (`aclk`) cycles. All fields are `sw = rw`,
-`hw = r` and drive the core scheduler / DFI layer.
+`hw = r` and drive the core scheduler / DFI plane.
 
 ### `TIMINGS_RC_RCD_RP_RAS` (0x010, R/W)
 
@@ -311,7 +311,7 @@ rewrites whatever a read clears.
 ## Calibration / Training (0x0A0 – 0x0FF)
 
 LPDDR2 ZQ calibration and MRR DQ calibration, driven and harvested by
-`pumice_training_layer` (Ch 3.9). Both FUBs are inert for DDR2 builds, so every
+`pumice_training_plane` (Ch 3.9). Both FUBs are inert for DDR2 builds, so every
 register in this block reads its reset (or holds zero) when `memtype == DDR2`.
 
 ### `CAL_CTRL` (0x0A0, R/W)

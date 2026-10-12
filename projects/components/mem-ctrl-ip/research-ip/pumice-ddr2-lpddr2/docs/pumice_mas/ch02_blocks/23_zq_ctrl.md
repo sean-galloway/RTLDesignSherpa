@@ -26,7 +26,7 @@
 **Module:** `pumice_zq_ctrl.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent macro:** `pumice_training_layer`
+**Parent macro:** `pumice_training_plane`
 **Status:** implemented and FUB-tested (LPDDR2); inert for DDR2 builds — no ZQ pin
 
 > This FUB never emits a DRAM command. It raises a request, and on grant the
@@ -93,7 +93,7 @@ ZQ_DEFER — interval expired but demand is high, holding off (Mode C)
 
 ## Interface
 
-### Run gating and configuration (from `CAL_*` CSRs via the training layer)
+### Run gating and configuration (from `CAL_*` CSRs via the training plane)
 
 | Signal              | Direction | Width | Description                                           |
 |---------------------|-----------|-------|-------------------------------------------------------|
@@ -107,7 +107,7 @@ ZQ_DEFER — interval expired but demand is high, holding off (Mode C)
 | `t_zqcl_i`          | in        | 16    | post-grant hold, ZQCL                                   |
 | `zq_defer_en_i`     | in        | 1     | Mode-C deferral under sustained demand                  |
 | `overdue_max_i`     | in        | 13    | max deferral cycles; 0 = no cap                         |
-| `demand_i`          | in        | 1     | scheduler has read/write work (tied 0 in the layer today — see Notes) |
+| `demand_i`          | in        | 1     | scheduler has read/write work (tied 0 in the plane today — see Notes) |
 
 ### Arbiter handshake and telemetry
 
@@ -131,7 +131,7 @@ grant-to-next-request spacing is `t_zqcs_interval_i + hold` cycles.
 interval at the MC frequency.
 
 Traffic blocking is the arbiter's job, not this FUB's: `cal_busy_o` from
-the training layer folds into the arbiter's `w_out_safe` term, which blocks
+the training plane folds into the arbiter's `w_out_safe` term, which blocks
 every demand-class fire during the hold window. That keeps the BUG-003
 discipline intact — `w_fire_out == cmd_valid_o && cmd_ready_i` holds by
 construction, and the new gate never touches the pick cone.
@@ -152,7 +152,7 @@ overdue expiry selects ZQCL, `zq_row_o` MRW packing (`MR10` + `0x56`/`0xAB`),
 
 - **ZQ never preempts.** It raises `zq_req_o` and waits, matching the
   family doctrine that maintenance is request-and-wait traffic.
-- **`demand_i` is tied off in the layer today.** The training layer grounds
+- **`demand_i` is tied off in the plane today.** The training plane grounds
   `demand_i` (`1'b0`), so the `ZQ_DEFER` entry condition (`zq_defer_en_i &&
   demand_i` at interval expiry) can never fire: expiry goes straight to
   `ZQ_REQ`, the ZQCL escalation path is unreachable, and `obs_overdue_o`
@@ -165,7 +165,7 @@ overdue expiry selects ZQCL, `zq_row_o` MRW packing (`MR10` + `0x56`/`0xAB`),
 
 ## Open Questions / Future Work
 
-- **Demand wiring.** `demand_i` grounded in `pumice_training_layer`; feed it
+- **Demand wiring.** `demand_i` grounded in `pumice_training_plane`; feed it
   from the scheduler's demand indicator to make Mode-C placement live.
 - **Multi-rank.** Single-rank today; the rank loop for a shared ZQ resistor
   is a documented `generate` hook.

@@ -26,7 +26,7 @@
 > This chapter is the wire-level contract of the controller's DFI 2.1 master
 > face -- what's driven, what's tied, what's sampled, what's deferred.
 >
-> The interface is implemented by `mc_dfi_2p1_layer` (section 2.4):
+> The interface is implemented by `mc_dfi_2p1_plane` (section 2.4):
 > `mc_dfi_cmd_path` (with `dfi_cmd_formatter` + `dfi_signal_pack`) drives the
 > command bus, `mc_dfi_wr_serializer` drives write data,
 > `mc_dfi_rd_aligner` captures read data, and `mc_dfi_cdc` is the single
@@ -60,7 +60,7 @@ sub-interfaces are not driven.
 The DFI pin bus is driven in the **`dfi_clk`** domain. Unlike the classic
 "DFI is on the controller clock" model, this controller keeps the whole DFI
 datapath on a dedicated PHY clock and places the **single** controller-to-PHY
-CDC inside `mc_dfi_2p1_layer` (`mc_dfi_cdc`, async gaxi FIFOs only). The
+CDC inside `mc_dfi_2p1_plane` (`mc_dfi_cdc`, async gaxi FIFOs only). The
 command, write-data, and read-data streams plus the init handshake cross there;
 the internal datapath unit is the whole DFI word, so one FIFO word is one
 `dfi_clk` cycle and the path is bubble-free at rate. `a7ddrphy` handles any
@@ -123,7 +123,7 @@ is correct for `a7ddrphy` (which handles read gearing internally).
 ## Status / Init Sub-Interface
 
 `dfi_init_start_o` and `dfi_init_complete_i` are the only status signals. The
-`init_sequencer` (in `pumice_scheduler_layer`) asserts `dfi_init_start` and
+`init_sequencer` (in `pumice_scheduler_plane`) asserts `dfi_init_start` and
 walks the JEDEC MRS init, waiting on `dfi_init_complete` from the PHY plus the
 programmed init-timing CSRs. These cross the CDC in `mc_dfi_cdc`.
 
@@ -143,5 +143,5 @@ programmed init-timing CSRs. These cross the CDC in `mc_dfi_cdc`.
   `NUM_RANKS * DFI_RATE` vector form; a PHY expecting a different packing needs a
   thin wrapper at the boundary.
 - **DFI 3+ migration.** When the DDR3-LPDDR3 family controller arrives, the
-  sub-interface set grows substantially. Swap `mc_dfi_2p1_layer` and add a
+  sub-interface set grows substantially. Swap `mc_dfi_2p1_plane` and add a
   dedicated DFI section in that MAS; keep this one DDR2/LPDDR2-scoped.

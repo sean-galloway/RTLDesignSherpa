@@ -56,8 +56,8 @@ the description does not mention the flop. Copy the module.
 | `scoria_wrlvl_ifc` | **NEW** | DDR3 adds write leveling | 3.3 |
 | `refresh_ctrl` | MODIFIED (v0.9) | the `REFpb` mechanism is inherited unchanged, but TASK-001 Modes A/B add elastic pull-in/postpone streaks and the TCR tREFI derate behind CSRs; JEDEC ±8 ceiling untouched | 3.4 |
 | `powerdown_ctrl` | INHERITED | mechanism unchanged: CKE + `SRE`/`SRX`. The DFI low-power channel is unused on this PHY family | below |
-| `dfi_signal_pack` | INHERITED | every signal it packs is identical in v2.1.1 and v3.1 for DDR3; v3.1's new channels are driven at the layer above | Ch 4.1 |
-| `scoria_scheduler_layer` | MODIFIED | must admit ZQ demand alongside refresh | 3.2 |
+| `dfi_signal_pack` | INHERITED | every signal it packs is identical in v2.1.1 and v3.1 for DDR3; v3.1's new channels are driven at the plane above | Ch 4.1 |
+| `scoria_scheduler_plane` | MODIFIED | must admit ZQ demand alongside refresh | 3.2 |
 | `scoria_csr` | MODIFIED | new timing registers and leveling telemetry; TASK-001 mode-select fields and `REF_STATS` telemetry | Ch 5 |
 
 : Table 3.1: Every change, with its cause
@@ -116,7 +116,7 @@ What stands in the way is four gaps, not one wire:
 | Level | State today |
 |---|---|
 | `powerdown_ctrl` / `dfi_signal_pack` | not instantiated |
-| `scoria_top` / `scoria_dfi_layer` | no `dfi_cke` or `dfi_dram_clk_disable` port at all |
+| `scoria_top` / `scoria_dfi_plane` | no `dfi_cke` or `dfi_dram_clk_disable` port at all |
 | `scoria_dfi_cmd_formatter` | `OP_SREFE` / `OP_SREFX` / `OP_DPDE` fall to the `default:` arm and are driven as NOP |
 | `scoria_cmd_arbiter` | never picks any of those three ops |
 

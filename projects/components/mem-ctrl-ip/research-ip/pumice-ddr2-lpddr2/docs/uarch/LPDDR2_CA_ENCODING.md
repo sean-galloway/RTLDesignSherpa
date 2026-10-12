@@ -139,7 +139,7 @@ MRR, so the controller drives OP[7:0]=0.
 | f    | MA6 | MA7 |  0  |  0  |  0  |  0  |  0  |  0  |  0  |  0  |
 
 The formatter selects MRW vs MRR through the `cmd_mrr_i` sideband: `cmd_mrr_i=0`
-⇒ MRW (CA3r=L), `cmd_mrr_i=1` ⇒ MRR (CA3r=H). The training layer drives MRR for
+⇒ MRW (CA3r=L), `cmd_mrr_i=1` ⇒ MRR (CA3r=H). The training plane drives MRR for
 `pumice_lp_cal` (MR32 pattern A, MR40 pattern B) and MRW for `pumice_zq_ctrl`
 (MR10 ZQCS/ZQCL).
 
@@ -175,7 +175,7 @@ Auto-precharge: `AP = CA0f`.
    self-times reads off `dfi_rddata_en`.
 3. **Power-down / self-refresh** entry/exit ride CKE+CS sequences, not CA opcodes
    (Table 61) — handled by `powerdown_ctrl` / the init sequencer, not this formatter.
-4. **MRR** (mode-register read) is used by the training layer for LPDDR2 DQ
+4. **MRR** (mode-register read) is used by the training plane for LPDDR2 DQ
    calibration: MR32 returns pattern A, MR40 returns pattern B. The formatter
    encodes it by inverting CA3r relative to MRW under control of `cmd_mrr_i`.
 5. **Endianness of the flat word** is fixed by §1 (CA0 = LSB of each half). Both the

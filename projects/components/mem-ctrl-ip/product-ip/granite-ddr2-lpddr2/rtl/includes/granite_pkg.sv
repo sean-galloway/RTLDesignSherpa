@@ -16,7 +16,7 @@
 package granite_pkg;
 
     // ------------------------------------------------------------------
-    // Storage layer, lite configuration (ch5.2 v2 default)
+    // Storage plane, lite configuration (ch5.2 v2 default)
     // N=1 in-order seam: the scheduler's pick machinery still argmaxes over
     // schedulable-entry vectors, so the entry store shrinks toward one and
     // never reaches zero.
@@ -32,7 +32,7 @@ package granite_pkg;
     parameter int GRANITE_WR_DATA_BUF_WORDS = 16;
 
     // ------------------------------------------------------------------
-    // RAS layer: ABSENT in this SKU (true bypass, reserved CSR decode
+    // RAS plane: ABSENT in this SKU (true bypass, reserved CSR decode
     // only). Expressed as omission - no transform pair is instantiated -
     // not as a parameter.
     // ------------------------------------------------------------------
@@ -47,6 +47,6 @@ package granite_pkg;
 
     // Training clients: the LPDDR2 set lives in common-ip
     // (mc_lpddr2_zq_ctrl, mc_lpddr2_dq_cal) and is composed by
-    // mc_training_layer. DDR2 has no ZQ/DQ-cal maintenance requirement.
+    // mc_training_plane. DDR2 has no ZQ/DQ-cal maintenance requirement.
 
 endpackage : granite_pkg

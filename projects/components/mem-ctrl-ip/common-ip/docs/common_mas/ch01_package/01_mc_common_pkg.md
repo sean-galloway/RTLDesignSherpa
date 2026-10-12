@@ -23,11 +23,11 @@
 
 # Chapter 1: `mc_common_pkg` — the family package
 
-`mc_common_pkg` is the single source of family-shared types for the memory-controller research IPs (pumice DDR2/LPDDR2, scoria DDR3/LPDDR3, andesite DDR4/LPDDR4). The package was extracted on 2026-10-10 during the Phase 2 common-IP reorganization (`includes/mc_common_pkg.sv:17-18`). Its encodings are the family encodings; the design authority is family doc 01 ([01_mem_ctrl_pkg.md](../../01_mem_ctrl_pkg.md)). The layer-stack context is in the family HAS ([common_has_index.md](../../common_has/common_has_index.md)); this chapter documents only the package contents and the rock-side boundary.
+`mc_common_pkg` is the single source of family-shared types for the memory-controller research IPs (pumice DDR2/LPDDR2, scoria DDR3/LPDDR3, andesite DDR4/LPDDR4). The package was extracted on 2026-10-10 during the Phase 2 common-IP reorganization (`includes/mc_common_pkg.sv:17-18`). Its encodings are the family encodings; the design authority is family doc 01 ([01_mem_ctrl_pkg.md](../../01_mem_ctrl_pkg.md)). The plane-stack context is in the family HAS ([common_has_index.md](../../common_has/common_has_index.md)); this chapter documents only the package contents and the rock-side boundary.
 
 ## 1.1 Package role
 
-`mc_common_pkg` holds the types that were previously duplicated, near-identically, across `pumice_pkg`, `scoria_pkg`, and `andesite_pkg` (`includes/mc_common_pkg.sv:19-23`). It is imported directly by every common layer and shared FUB in `common-ip/rtl/` (for example, `macro/mc_axi4_layer.sv:178`, `macro/mc_scheduler_layer.sv:26`, `fub/mc_cmd_arbiter.sv:34`, `fub/mc_addr_mapper.sv:55`). The package contains no parameters, no build-time knobs, and no CSR definitions; it is a pure type-and-function package meant to be imported with `::*` at module scope.
+`mc_common_pkg` holds the types that were previously duplicated, near-identically, across `pumice_pkg`, `scoria_pkg`, and `andesite_pkg` (`includes/mc_common_pkg.sv:19-23`). It is imported directly by every common plane and shared FUB in `common-ip/rtl/` (for example, `macro/mc_axi4_plane.sv:178`, `macro/mc_scheduler_plane.sv:26`, `fub/mc_cmd_arbiter.sv:34`, `fub/mc_addr_mapper.sv:55`). The package contains no parameters, no build-time knobs, and no CSR definitions; it is a pure type-and-function package meant to be imported with `::*` at module scope.
 
 ## 1.2 `memtype_e`
 
@@ -47,7 +47,7 @@ The reserved codes (`3'b011` and `3'b111`) are illegal and must decode as an err
 
 ## 1.3 Shared type inventory
 
-The package exports the following enums, struct, and helper functions. Every item is used by at least one common layer or FUB.
+The package exports the following enums, struct, and helper functions. Every item is used by at least one common plane or FUB.
 
 | Symbol | Kind | File:line | Notes |
 |---|---|---|---|
@@ -124,6 +124,6 @@ The migration that created `mc_common_pkg` is the Phase 2 migration deferred in 
 
 ## 1.7 Open question: do the rocks import `mc_common_pkg` directly?
 
-No. As of the Phase 2 extraction, common layers and FUBs import `mc_common_pkg::*` directly, but rock RTL still imports its own rock package (`pumice_pkg::*`, `scoria_pkg::*`, or `andesite_pkg::*`). Each rock package in turn `import`s and `export`s `mc_common_pkg::*` (`research-ip/scoria-ddr3-lpddr3/rtl/includes/scoria_pkg.sv:31-32`, `research-ip/andesite-ddr4-lpddr4/rtl/includes/andesite_pkg.sv:32-33`, `research-ip/pumice-ddr2-lpddr2/rtl/includes/pumice_pkg.sv:30-31`). Therefore `mc_common_pkg` exports every family-shared symbol the rocks need, but the rocks do not source it directly. `pumice_pkg` additionally exports pumice-only symbols (`addr_map_scheme_e`, `odt_rule_e`) that the common package does not and should not carry.
+No. As of the Phase 2 extraction, common planes and FUBs import `mc_common_pkg::*` directly, but rock RTL still imports its own rock package (`pumice_pkg::*`, `scoria_pkg::*`, or `andesite_pkg::*`). Each rock package in turn `import`s and `export`s `mc_common_pkg::*` (`research-ip/scoria-ddr3-lpddr3/rtl/includes/scoria_pkg.sv:31-32`, `research-ip/andesite-ddr4-lpddr4/rtl/includes/andesite_pkg.sv:32-33`, `research-ip/pumice-ddr2-lpddr2/rtl/includes/pumice_pkg.sv:30-31`). Therefore `mc_common_pkg` exports every family-shared symbol the rocks need, but the rocks do not source it directly. `pumice_pkg` additionally exports pumice-only symbols (`addr_map_scheme_e`, `odt_rule_e`) that the common package does not and should not carry.
 
 This is a stable, intentional shim: it leaves rock `import` statements untouched while making the common package the single source of family-shared encodings.

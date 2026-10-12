@@ -5,10 +5,10 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: pumice_axi4_storage_wrapper
-// Purpose: Test wrapper that re-assembles mc_axi4_layer + mc_storage_layer
-//          so the legacy test_pumice_axi4_layer.py can exercise the split
+// Purpose: Test wrapper that re-assembles mc_axi4_plane + mc_storage_plane
+//          so the legacy test_pumice_axi4_plane.py can exercise the split
 //          stack with no TB changes. Bit-identical to the pre-extraction
-//          monolithic mc_axi4_layer.
+//          monolithic mc_axi4_plane.
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
@@ -50,7 +50,7 @@ module pumice_axi4_storage_wrapper #(
     input  logic                     hash_en_i,
     input  logic [7:0]               hash_seed_i,
 
-    // Host AXI4 (same as mc_axi4_layer)
+    // Host AXI4 (same as mc_axi4_plane)
     input  logic [IW-1:0]  s_axi_awid,   input logic [AW-1:0] s_axi_awaddr,
     input  logic [7:0]     s_axi_awlen,  input logic [2:0]    s_axi_awsize,
     input  logic [1:0]     s_axi_awburst,input logic          s_axi_awlock,
@@ -76,7 +76,7 @@ module pumice_axi4_storage_wrapper #(
     output logic [UW-1:0]  s_axi_ruser,  output logic          s_axi_rvalid,
     input  logic           s_axi_rready,
 
-    // Scheduler + DFI-return ports (same as legacy mc_axi4_layer)
+    // Scheduler + DFI-return ports (same as legacy mc_axi4_plane)
     output logic [NUM_ENTRIES-1:0]              wr_sch_valid_o,
     output logic [NUM_ENTRIES*BKW-1:0]          wr_sch_bank_o,
     output logic [NUM_ENTRIES*ROW_WIDTH-1:0]    wr_sch_row_o,
@@ -115,7 +115,7 @@ module pumice_axi4_storage_wrapper #(
     output logic                          busy_o
 );
 
-    // Inter-layer nets
+    // Inter-plane nets
     logic                aw_push_valid, aw_push_ready;
     logic [BKW-1:0]      aw_push_bank;  logic [ROW_WIDTH-1:0] aw_push_row;
     logic [COL_WIDTH-1:0] aw_push_col;  logic [IW-1:0]        aw_push_id;
@@ -140,7 +140,7 @@ module pumice_axi4_storage_wrapper #(
 
     logic w_axi_busy, w_storage_busy;
 
-    mc_axi4_layer #(
+    mc_axi4_plane #(
         .AXI_ID_WIDTH  (IW),
         .AXI_ADDR_WIDTH(AW),
         .AXI_DATA_WIDTH(DW),
@@ -259,7 +259,7 @@ module pumice_axi4_storage_wrapper #(
         .busy_o             (w_axi_busy)
     );
 
-    mc_storage_layer #(
+    mc_storage_plane #(
         .AXI_ID_WIDTH  (IW),
         .AXI_DATA_WIDTH(DW),
         .NUM_RANKS     (NUM_RANKS),

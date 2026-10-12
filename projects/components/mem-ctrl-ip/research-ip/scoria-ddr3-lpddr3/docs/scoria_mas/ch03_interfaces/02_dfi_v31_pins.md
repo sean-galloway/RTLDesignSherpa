@@ -23,7 +23,7 @@
 
 # DFI v3.1 Pin-Level Table
 
-This page pins every DFI signal that appears on `scoria_top`. The widths below are expressed in the design-point parameters (`ROW_WIDTH = 14`, `NUM_BANKS = 8`, `NUM_RANKS = 1`, `DRAM_BEAT_WIDTH = 64`, `DFI_RATE = 2`) and therefore evaluate to the default values shown in parentheses. The DFI-layer internals are in [DFI Layer](../ch02_blocks/03_dfi_layer.md); command encoding is in [DFI Command Formatter](../ch02_blocks/22_dfi_cmd_formatter.md); write leveling is in [Write Leveling Interface](../ch02_blocks/20_wrlvl_ifc.md).
+This page pins every DFI signal that appears on `scoria_top`. The widths below are expressed in the design-point parameters (`ROW_WIDTH = 14`, `NUM_BANKS = 8`, `NUM_RANKS = 1`, `DRAM_BEAT_WIDTH = 64`, `DFI_RATE = 2`) and therefore evaluate to the default values shown in parentheses. The DFI-plane internals are in [DFI Plane](../ch02_blocks/03_dfi_plane.md); command encoding is in [DFI Command Formatter](../ch02_blocks/22_dfi_cmd_formatter.md); write leveling is in [Write Leveling Interface](../ch02_blocks/20_wrlvl_ifc.md).
 
 The "Version" column marks whether a signal is part of the v2.1.1 base surface or added by v3.1. Scoria targets v3.1 (HAS decision D1), so the v3.1-added signals are required at the boundary even when this PHY family does not consume them.
 
@@ -120,7 +120,7 @@ At `NUM_RANKS = 1` both buses are driven constant `'0`; the only legal value is 
 
 : Table 3.2.6: Write-leveling handshake
 
-This PHY family does not implement the DFI leveling handshake, so on the Genesys 2 build these pins are unused; write leveling there is the PHY's own. They exist for a PHY that exposes the v3.1 interface. The crossing from controller clock to `dfi_clk` lives in [DFI Layer](../ch02_blocks/03_dfi_layer.md); the protocol state machine is in [Write Leveling Interface](../ch02_blocks/20_wrlvl_ifc.md). The `dfi_wrlvl_strobe_o` pulse is generated only in the `WL_READY` state.
+This PHY family does not implement the DFI leveling handshake, so on the Genesys 2 build these pins are unused; write leveling there is the PHY's own. They exist for a PHY that exposes the v3.1 interface. The crossing from controller clock to `dfi_clk` lives in [DFI Plane](../ch02_blocks/03_dfi_plane.md); the protocol state machine is in [Write Leveling Interface](../ch02_blocks/20_wrlvl_ifc.md). The `dfi_wrlvl_strobe_o` pulse is generated only in the `WL_READY` state.
 
 ## Signals not pinned out
 
@@ -137,4 +137,4 @@ The absence of the low-power handshake means the HAS's never-wedge timeout behav
 
 ## References
 
-The DFI v3.1 specification delta is argued in the HAS Chapter 4. The RTL port list is `rtl/top/scoria_top.sv`; the DFI-layer internal surface is `rtl/macro/scoria_dfi_layer.sv`.
+The DFI v3.1 specification delta is argued in the HAS Chapter 4. The RTL port list is `rtl/top/scoria_top.sv`; the DFI-plane internal surface is `rtl/macro/scoria_dfi_plane.sv`.

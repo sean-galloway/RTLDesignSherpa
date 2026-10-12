@@ -24,7 +24,7 @@ flowchart TB
                     mode_reg["mode_register<br/>(CL/CWL/BL/AL decode)"]
                 end
 
-                subgraph DFI["mc_dfi_2p1_layer (rtl/macro)"]
+                subgraph DFI["mc_dfi_2p1_plane (rtl/macro)"]
                     dfi_cdc["mc_dfi_cdc<br/>(SINGLE CDC;<br/>async gaxi FIFOs)"]
                     dfi_cmd["mc_dfi_cmd_path<br/>(+ dfi_cmd_formatter<br/>+ dfi_signal_pack)"]
                     dfi_wr["mc_dfi_wr_serializer"]

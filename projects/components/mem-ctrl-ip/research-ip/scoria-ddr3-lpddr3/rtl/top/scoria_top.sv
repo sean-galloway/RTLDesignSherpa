@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: scoria_top
-// Purpose: The rearchitected pumice controller top: scoria_core (3 layers) +
+// Purpose: The rearchitected pumice controller top: scoria_core (3 planes) +
 //          the PeakRDL-generated scoria_csr register block. Config is driven
 //          BY-NAME from the CSR (hwif_out.*) — no config ports — so software
 //          programs timings/phases/policy via the register bus. Presents the

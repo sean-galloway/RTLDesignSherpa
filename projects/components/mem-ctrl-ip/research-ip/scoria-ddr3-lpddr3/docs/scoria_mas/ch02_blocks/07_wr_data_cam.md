@@ -26,7 +26,7 @@
 **Module:** `scoria_wr_data_cam.sv`
 **Location:** `rtl/fub/`
 **Category:** write scheduling window + data SRAM
-**Parent:** `scoria_axi4_layer`
+**Parent:** `scoria_axi4_plane`
 **Status:** complete and sim-verified
 
 ---

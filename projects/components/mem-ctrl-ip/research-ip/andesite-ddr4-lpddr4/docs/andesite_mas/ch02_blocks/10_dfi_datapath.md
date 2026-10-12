@@ -21,9 +21,9 @@
 
 <!-- End Header -->
 
-# DFI Datapath (`andesite_dfi_cmd_path`, `andesite_dfi_rd_aligner`, `andesite_dfi_wr_serializer`, `andesite_dfi_layer`)
+# DFI Datapath (`andesite_dfi_cmd_path`, `andesite_dfi_rd_aligner`, `andesite_dfi_wr_serializer`, `andesite_dfi_plane`)
 
-**Module:** `andesite_dfi_cmd_path`, `andesite_dfi_rd_aligner`, `andesite_dfi_wr_serializer`, `andesite_dfi_layer`
+**Module:** `andesite_dfi_cmd_path`, `andesite_dfi_rd_aligner`, `andesite_dfi_wr_serializer`, `andesite_dfi_plane`
 **Location:** `projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/rtl/`
 **Category:** DFI 4.0 boundary / datapath
 **Parent:** `andesite_top` / PHY interface
@@ -32,8 +32,8 @@
 ## Purpose
 
 This page covers four modules because the DFI 4.0 delta touches them as one
-layer. The command path widens for DDR4's extra pins; the read aligner and
-write serializer grow DBI handling; and the DFI layer presents the new
+plane. The command path widens for DDR4's extra pins; the read aligner and
+write serializer grow DBI handling; and the DFI plane presents the new
 control surface. The CDC (`dfi_cdc`) and `dfi_signal_pack` stay inherited and
 dormant per the HAS, so they don't get their own MAS page.
 
@@ -71,7 +71,7 @@ that page owns the table so this one doesn't duplicate it.
 | Command pins (`dfi_act_n*`, `dfi_bg*`, `dfi_parity_in*`, etc.) | `dfi_cmd_path` / `dfi_cmd_formatter` | `§TBC(TASK-005)` |
 | Read data + DBI | `dfi_rd_aligner` | `§TBC(TASK-005)` |
 | Write data + DBI | `dfi_wr_serializer` | `§TBC(TASK-005)` |
-| Training handshakes | Owned by `andesite_training_layer`, not routed here | `§TBC(TASK-005)` |
+| Training handshakes | Owned by `andesite_training_plane`, not routed here | `§TBC(TASK-005)` |
 
 : Table 2.10.2: DFI datapath signal groups
 
@@ -98,7 +98,7 @@ wider container through.
 The read aligner presents `dfi_rddata_dbi` alongside the read data. DBI is
 enabled per-byte from the MR5 read-DBI image: when enabled, the DRAM inverts
 bytes whose DBI bit is set at send time, and the receiver (PHY/controller)
-restores them. The aligner reports the inversion mask to the upper layers
+restores them. The aligner reports the inversion mask to the upper planes
 aligned to the same beat as the data. Read DBI is MR5-programmed and
 independent of write DBI.
 
@@ -127,9 +127,9 @@ per-byte behavior:
      byte_out[n] = dfi_wrdata[n]
 ```
 
-### `dfi_layer`: the 4.0 control surface
+### `dfi_plane`: the 4.0 control surface
 
-`andesite_dfi_layer` is a structural assembly in `rtl/macro/`:
+`andesite_dfi_plane` is a structural assembly in `rtl/macro/`:
 
 ```text
 andesite_dfi_cdc        : ctl_clk <-> dfi_clk async FIFOs (cmd, wrdata, rddata)
@@ -140,13 +140,13 @@ andesite_dfi_rd_aligner    : capture dfi_rddata and push into the read CDC FIFO
 
 `andesite_dfi_signal_pack` stays dormant per the HAS and is not instantiated.
 Training pins (write-leveling, read-leveling, CA/WDQ training) live on
-`andesite_training_layer`, which owns the DFI training pins and their PHY
+`andesite_training_plane`, which owns the DFI training pins and their PHY
 clock-domain crossing — they are deliberately not carried through the DFI
-datapath layer.
+datapath plane.
 
 The command word is the widened scheduler container
 `{ap,col,row,bg,bank,rank,op}`; the CDC command FIFO width is parameterized so
-the layer passes the full word without narrowing.
+the plane passes the full word without narrowing.
 
 The single-rank design point drives the DFI v3.1 CS-qualified data lanes
 `dfi_wrdata_cs_o` and `dfi_rddata_cs_o` to constant zero, matching scoria's
@@ -157,7 +157,7 @@ P1 init sequencer. The P1 formatter's own `dfi_cke` output is a DDR4
 placeholder and is intentionally not forwarded.
 
 `dfi_init_start_o` is the CDC's registered copy of `init_busy_i`. There is no
-`dfi_error` / `dfi_error_info` at this layer: scoria never had them here, and
+`dfi_error` / `dfi_error_info` at this plane: scoria never had them here, and
 they are not added in andesite (the MAS claim is reconciled here).
 
 ### LPDDR4 delta
@@ -171,9 +171,9 @@ parameter the datapath doesn't care about — per-channel state lives in
 
 ## FSM policy
 
-There are no FSMs in this layer. `dfi_cmd_path`, `dfi_rd_aligner`, and
+There are no FSMs in this plane. `dfi_cmd_path`, `dfi_rd_aligner`, and
 `dfi_wr_serializer` are registered pipelines and muxing, inherited shape. The
-DBI enable qualification is combinational on the MR5 image. `dfi_layer` itself
+DBI enable qualification is combinational on the MR5 image. `dfi_plane` itself
 is a routing and registration shell; the only "state" is the CDC FIFOs in the
 inherited `dfi_cdc`, and those keep scoria's elastic-buffer policy.
 
@@ -183,7 +183,7 @@ inherited `dfi_cdc`, and those keep scoria's elastic-buffer policy.
   stage, matching scoria's verified shape.
 - The read aligner and write serializer add no FSM latency beyond the
   inherited pipeline; DBI inversion is combinational on the MR5 image.
-- Gear-down entry timing is owned by `init_sequencer`; `dfi_layer` only
+- Gear-down entry timing is owned by `init_sequencer`; `dfi_plane` only
   presents the handshake pins, per DFI 4.0 `§TBC(TASK-005)`.
 - All DFI 4.0 clause references are suffixed `§TBC(TASK-005)` because the
   specification is acquired and studied under andesite TASK-005.

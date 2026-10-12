@@ -498,7 +498,7 @@ module mc_wr_data_cam #(
     // The arbiter's commit marks a slot scheduled (1 cycle, excluded from
     // sched_lu/oldest immediately => 1 cmd/clock) and enqueues it here. The
     // drain read-engine works through scheduled slots at its own pace, streaming
-    // cm_rd to the DFI layer and evicting on last. Decouples marking from drain.
+    // cm_rd to the DFI plane and evicting on last. Decouples marking from drain.
     logic            w_dq_wr_valid, w_dq_wr_ready, w_dq_rd_valid, w_dq_rd_ready;
     logic [PTRW-1:0] w_dq_rd_slot;
 

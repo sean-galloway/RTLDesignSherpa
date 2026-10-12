@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
 """
-End-to-end smoke for `pumice_core` (the new 3-layer controller).
+End-to-end smoke for `pumice_core` (the new 3-plane controller).
 
 Two async clocks. A DFI-domain memory model on the pins: drives dfi_init_complete
 after dfi_init_start (so the scheduler's init finishes), captures the write burst

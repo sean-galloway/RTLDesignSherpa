@@ -62,8 +62,8 @@ memtype config and timing docs.
 - [`research-ip/`](research-ip/) — the proving-ground
   controllers above, one directory each, as-is.
 - [`common-ip/`](common-ip/) — what the three controllers
-  used to duplicate (AXI front-end, DFI layers, scheduler/training/storage
-  layers) extracted into one parameterized source per layer — landed in the
+  used to duplicate (AXI front-end, DFI planes, scheduler/training/storage
+  planes) extracted into one parameterized source per plane — landed in the
   Phase-2 campaign (2026-10-09 → 2026-10-10). Start at
   [the architecture](common-ip/docs/common_has/common_has_index.md).
 - [`product-ip/`](product-ip/) — the product line (granite / gabbro /
@@ -98,7 +98,7 @@ subject:
 - *The Cache Memory Book, 2nd ed.* — Jim Handy. The plain-language tour of
   SRAM/DRAM device behavior behind the JEDEC timings.
 - *Embedded Memory Design for Multi-Core and Systems on Chip* — Baker
-  Mohammad. On-chip memory integration, closest to the storage-layer
+  Mohammad. On-chip memory integration, closest to the storage-plane
   questions this family keeps.
 - *Computer Architecture: A Quantitative Approach* — Hennessy & Patterson.
   The quantitative habit this repo's "carry the measured number beside the
@@ -107,7 +107,7 @@ subject:
   Harris. The first-principles digital-design baseline the learning ladder
   starts from.
 - *Error Correction Coding* — Todd K. Moon. The coding theory behind the
-  `mc_ras_layer` transform pair, when that layer grows its first feature.
+  `mc_ras_plane` transform pair, when that plane grows its first feature.
 - *Principles and Practices of Interconnection Networks* — Dally & Towles.
   Ordering, flow control, and return-path thinking for any on-chip data
   movement — the read-return ring included.

@@ -26,7 +26,7 @@
 **Version:** 0.1
 **Date:** 2026-10-10
 **Status:** v0.1. One chapter per common block. The architecture these blocks
-implement — the layer stack, the descriptor seam, the doctrines — is the
+implement — the plane stack, the descriptor seam, the doctrines — is the
 family HAS ([common_has](../common_has/common_has_index.md)); this book is
 the per-block microarchitecture and never restates the architecture. Where
 the two disagree, the HAS wins and this book is the defect.
@@ -52,34 +52,34 @@ the two disagree, the HAS wins and this book is the defect.
 
 - [`mc_common_pkg` — types, memtype enum, shared opcodes](ch01_package/01_mc_common_pkg.md)
 
-### Chapter 2: `mc_axi4_layer` and the Host-Side FUBs
+### Chapter 2: `mc_axi4_plane` and the Host-Side FUBs
 
-- [`mc_axi4_layer` — AXI slaves, intakes, coalescing, return ring](ch02_axi4_layer/01_mc_axi4_layer.md)
+- [`mc_axi4_plane` — AXI slaves, intakes, coalescing, return ring](ch02_axi4_plane/01_mc_axi4_plane.md)
 
-### Chapter 3: `mc_storage_layer` and the Entry-Pool FUBs
+### Chapter 3: `mc_storage_plane` and the Entry-Pool FUBs
 
-- [`mc_storage_layer` — CAMs, read snooping, bank image](ch03_storage_layer/01_mc_storage_layer.md)
+- [`mc_storage_plane` — CAMs, read snooping, bank image](ch03_storage_plane/01_mc_storage_plane.md)
 
-### Chapter 4: `mc_scheduler_layer` and the Pick Machinery
+### Chapter 4: `mc_scheduler_plane` and the Pick Machinery
 
-- [`mc_scheduler_layer` — schedulable-entry view, timers, arbiter](ch04_scheduler_layer/01_mc_scheduler_layer.md)
+- [`mc_scheduler_plane` — schedulable-entry view, timers, arbiter](ch04_scheduler_plane/01_mc_scheduler_plane.md)
 
-### Chapter 5: `mc_training_layer`
+### Chapter 5: `mc_training_plane`
 
-- [`mc_training_layer` — shell, maintenance slot, rock wrappers](ch05_training_layer/01_mc_training_layer.md)
+- [`mc_training_plane` — shell, maintenance slot, rock wrappers](ch05_training_plane/01_mc_training_plane.md)
 
-### Chapter 6: `mc_ras_layer`
+### Chapter 6: `mc_ras_plane`
 
-- [`mc_ras_layer` — skeleton, transform pair, reserved CSR surface](ch06_ras_layer/01_mc_ras_layer.md)
+- [`mc_ras_plane` — skeleton, transform pair, reserved CSR surface](ch06_ras_plane/01_mc_ras_plane.md)
 
-### Chapter 7: `mc_dfi_2p1_layer` and the Shared DFI Pipeline
+### Chapter 7: `mc_dfi_2p1_plane` and the Shared DFI Pipeline
 
-- [`mc_dfi_2p1_layer` — DFI 2.1 command/data pipeline + CDC](ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md)
+- [`mc_dfi_2p1_plane` — DFI 2.1 command/data pipeline + CDC](ch07_dfi_2p1_plane/01_mc_dfi_2p1_plane.md)
 
-### Chapter 8: `mc_dfi_3p1_layer`
+### Chapter 8: `mc_dfi_3p1_plane`
 
-- [`mc_dfi_3p1_layer` — the 3.1 generation delta](ch08_dfi_3p1_layer/01_mc_dfi_3p1_layer.md)
+- [`mc_dfi_3p1_plane` — the 3.1 generation delta](ch08_dfi_3p1_plane/01_mc_dfi_3p1_plane.md)
 
-### Chapter 9: `mc_dfi_4p0_layer`
+### Chapter 9: `mc_dfi_4p0_plane`
 
-- [`mc_dfi_4p0_layer` — the 4.0 generation delta](ch09_dfi_4p0_layer/01_mc_dfi_4p0_layer.md)
+- [`mc_dfi_4p0_plane` — the 4.0 generation delta](ch09_dfi_4p0_plane/01_mc_dfi_4p0_plane.md)

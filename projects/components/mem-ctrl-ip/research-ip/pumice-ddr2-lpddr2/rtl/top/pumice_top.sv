@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: pumice_top
-// Purpose: The rearchitected pumice controller top: pumice_core (3 layers) +
+// Purpose: The rearchitected pumice controller top: pumice_core (3 planes) +
 //          the PeakRDL-generated pumice_csr register block. Config is driven
 //          BY-NAME from the CSR (hwif_out.*) — no config ports — so software
 //          programs timings/phases/policy via the register bus. Presents the
@@ -122,7 +122,7 @@ module pumice_top
     logic [31:0] w_stat_row_hit [NUM_BANKS];   // per-bank row hits (BUG-020)
     logic [31:0] w_stat_act, w_stat_pre, w_stat_ref;
     logic [31:0] w_stat_ref_busy;   // TASK-012: REFs with work pending
-    // training layer status
+    // training plane status
     logic [DFI_DATA_WIDTH-1:0] w_mrr32_data, w_mrr40_data;
     logic                      w_cal_busy, w_cal_done, w_cal_err;
     logic                      w_zq_busy, w_zq_overdue;
@@ -153,7 +153,7 @@ module pumice_top
         hwif_in.SCHED_STATS_PRE.VAL.next   = w_stat_pre;
         hwif_in.REF_STATS_REF.VAL.next     = w_stat_ref;
         hwif_in.REF_STATS_REF_BUSY.VAL.next = w_stat_ref_busy;
-        // Training layer status (LPDDR2 calibration)
+        // Training plane status (LPDDR2 calibration)
         for (int b = 0; b < (DFI_DATA_WIDTH / 32); b++) begin
             hwif_in.CAL_MRR32_DATA[b].VAL.VAL.next = w_mrr32_data[b*32 +: 32];
             hwif_in.CAL_MRR40_DATA[b].VAL.VAL.next = w_mrr40_data[b*32 +: 32];

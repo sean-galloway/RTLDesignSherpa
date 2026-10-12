@@ -492,7 +492,7 @@ pulse CTRL.init_force_restart.</p>
 - Base Offset: 0x40
 - Size: 0x4
 
-<p>RETIRED 2026-09-09. lookahead_active / force_inorder / age_max_runtime / txn_queue_high_water / lookahead_max_obs belonged to the pre-rearchitecture scheduler; nothing has consumed them since the CAM+arbiter scheduler (pumice_scheduler_layer) landed, so a write here was a silent no-op. Scheduling is SCHED_POLICY (order_mode selects in_order / age_threshold; FR-FCFS is the default and reorders across the whole CAM, so there is no lookahead window to size). The address is kept so the map does not shift.</p>
+<p>RETIRED 2026-09-09. lookahead_active / force_inorder / age_max_runtime / txn_queue_high_water / lookahead_max_obs belonged to the pre-rearchitecture scheduler; nothing has consumed them since the CAM+arbiter scheduler (pumice_scheduler_plane) landed, so a write here was a silent no-op. Scheduling is SCHED_POLICY (order_mode selects in_order / age_threshold; FR-FCFS is the default and reorders across the whole CAM, so there is no lookahead window to size). The address is kept so the map does not shift.</p>
 
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
@@ -743,7 +743,7 @@ when DFI_RATE &lt; the field width.</p>
 <p>t_phy_wrlat: WRITE command -&gt; dfi_wrdata_en. t_rddata_en:
 RD command -&gt; dfi_rddata_en window.
 t_phy_wrlat resets to 1 because BOTH board host paths program 1,
-and the old reset of 0 agreed with neither (TASK-015 layer 0).
+and the old reset of 0 agreed with neither (TASK-015 plane 0).
 t_rddata_en resets to 6 -- what <code>init</code> programs
 (pumice_master.SimpleTest: the ILA-validated tuple wrlat=1,
 rden=6, rddata_delay=7). pumice_char.ControllerConfig programs 1
@@ -1663,7 +1663,7 @@ timeout precharge before its column command issues, and reopened
 - Base Offset: 0xF0
 - Size: 0x4
 
-<p>Training layer telemetry; sticky done/err, cleared by soft reset</p>
+<p>Training plane telemetry; sticky done/err, cleared by soft reset</p>
 
 | Bits|Identifier|Access|Reset|Name|
 |-----|----------|------|-----|----|

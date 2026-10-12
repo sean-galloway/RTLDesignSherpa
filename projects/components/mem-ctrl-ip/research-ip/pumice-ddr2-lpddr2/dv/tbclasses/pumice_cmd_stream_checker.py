@@ -16,7 +16,7 @@ verdict when the rules it names never evaluated.
 WHY IT IS NOT IN THE TEST. Three reasons, in order of how much they cost when
 ignored: it is the piece that ports to DDR3/LPDDR3 unchanged (it consumes derived
 cycle counts and never asks which family produced them); it is shared by the
-scheduler layer and the top layer, which must agree about what legal means; and
+scheduler plane and the top plane, which must agree about what legal means; and
 an oracle written inline next to one stimulus grows to fit that stimulus. The
 version this replaces tracked only open-vs-closed per bank -- so a read to a bank
 open on the WRONG ROW, which is just as illegal and is what a stale row image

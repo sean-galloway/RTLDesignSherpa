@@ -23,7 +23,7 @@
 
 # AXI4 Slave and APB CSR at Pin Level
 
-The host-side boundary of `scoria_top` is the family-standard AXI4 slave plus the PeakRDL register cpuif. Both are inherited from pumice unchanged at the protocol level; the widths below are the scoria design point. The AXI4-layer logic is described block-by-block in [AXI4 Layer](../ch02_blocks/01_axi4_layer.md); this page names the pins that cross the top-level shell.
+The host-side boundary of `scoria_top` is the family-standard AXI4 slave plus the PeakRDL register cpuif. Both are inherited from pumice unchanged at the protocol level; the widths below are the scoria design point. The AXI4-plane logic is described block-by-block in [AXI4 Plane](../ch02_blocks/01_axi4_plane.md); this page names the pins that cross the top-level shell.
 
 ## Clocks and resets
 
@@ -39,7 +39,7 @@ The host-side boundary of `scoria_top` is the family-standard AXI4 slave plus th
 
 ## AXI4 slave signals
 
-The design-point widths are `AXI_ID_WIDTH = 8`, `AXI_ADDR_WIDTH = 32`, and `AXI_DATA_WIDTH = 64`. `DW = DRAM_BEAT_WIDTH * DFI_RATE` sizes the data buses and equals 64 at the default build; `SW = DW / 8` is 8. The AXI4-layer details are in [AXI4 Layer](../ch02_blocks/01_axi4_layer.md).
+The design-point widths are `AXI_ID_WIDTH = 8`, `AXI_ADDR_WIDTH = 32`, and `AXI_DATA_WIDTH = 64`. `DW = DRAM_BEAT_WIDTH * DFI_RATE` sizes the data buses and equals 64 at the default build; `SW = DW / 8` is 8. The AXI4-plane details are in [AXI4 Plane](../ch02_blocks/01_axi4_plane.md).
 
 | Group | Pin | Dir | Width |
 |---|---|---|---|

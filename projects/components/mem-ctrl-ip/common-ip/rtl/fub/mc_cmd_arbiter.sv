@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: mc_cmd_arbiter
-// Purpose: Common command arbiter for the mem-ctrl family scheduler layer.
+// Purpose: Common command arbiter for the mem-ctrl family scheduler plane.
 //          Parameterized superset of the pumice/scoria/andesite schedulers.
 //          Each cycle it picks ONE abstract DRAM command and pushes it into the
 //          scheduler->DFI command interface. PHY/nphases-agnostic; single-issue.
@@ -1290,7 +1290,7 @@ module mc_cmd_arbiter
     // command had been issued. The controller's model and the DRAM diverged,
     // silently, in the one direction that matters.
     //
-    // Measured at the macro level (test_pumice_scheduler_layer.py,
+    // Measured at the macro level (test_pumice_scheduler_plane.py,
     // cocotb_test_timeout_pre_vs_pending_column) under the BOARD config, open
     // page + background timeout PRE, TR=2: 465 pushes, 9 with w_out_safe==0, all
     // 9 column RDs to a bank whose row the timeout PRE had just closed, and

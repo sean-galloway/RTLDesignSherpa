@@ -12,7 +12,7 @@
 //          wr_fire/rd_fire strobes (+ op) so the write serializer / read
 //          aligner can schedule their data phases relative to the command.
 //
-//          Extracted from scoria_dfi_cmd_path during Phase 2 common-layer
+//          Extracted from scoria_dfi_cmd_path during Phase 2 common-plane
 //          reorg (2026-10-10). The CMD_HISTORY_EN scoreboard remains the
 //          scoria-specific scoria_cmd_history_checker for backwards
 //          compatibility; it is gated off by default.
@@ -38,7 +38,7 @@
 //   CSRs). At the board/default config the runtime values equal the MAX =>
 //   bit-identical. MAX==1 => legacy single-command path (one formatter, phase 0).
 //
-// Documentation: docs/uarch/PUMICE_DFI_LAYER_UARCH.md
+// Documentation: docs/uarch/PUMICE_DFI_PLANE_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
@@ -55,7 +55,7 @@ module mc_dfi_3p1_cmd_path
     // ---- DFI-WIRE command-history scoreboard (sim only, off by default) ----
     // The scheduler has an identical checker on ITS output. That one cannot see
     // this defect class: it binds at `cmd_valid_o && cmd_ready_i` inside
-    // scoria_scheduler_layer (now the consumer's scheduler), which is UPSTREAM
+    // scoria_scheduler_plane (now the consumer's scheduler), which is UPSTREAM
     // register, the CDC FIFO and this module. Every TASK-007 defect lived
     // downstream of it -- with the scheduler checker armed it reported ZERO
     // tRTW violations while the board ILA showed FOUR per capture. It was
@@ -158,7 +158,7 @@ module mc_dfi_3p1_cmd_path
     assign {w_ap, w_col, w_row, w_bank, w_rank, w_op} = cmd_data_i;
 
     // ---- command accept gate (NO TIMING HERE) ------------------------------
-    // ALL JEDEC delays come from the scheduler. This layer is a constant-latency
+    // ALL JEDEC delays come from the scheduler. This plane is a constant-latency
     // conduit: it must never insert an idle cycle of its own, because the CDC
     // command FIFO preserves ORDER but not SPACING -- so any stall here silently
     // rewrites the interval between every command queued behind it.
@@ -326,7 +326,7 @@ module mc_dfi_3p1_cmd_path
     assign wr_accept_o = w_fire && w_is_wr;
 
     // ---- DFI-wire command-history scoreboard (CMD_HISTORY_EN) --------------
-    // Same module the scheduler uses, bound one layer down. w_fire is the cycle
+    // Same module the scheduler uses, bound one plane down. w_fire is the cycle
     // a command is accepted OUT of the CDC FIFO, so the spacing it sees is the
     // spacing the DRAM sees (the formatter below adds a constant register
     // delay, which shifts every command equally and cannot hide a violation).

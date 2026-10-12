@@ -26,7 +26,7 @@
 **Module:** `pumice_cmd_arbiter.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB (the pick core)
-**Parent:** `pumice_scheduler_layer`
+**Parent:** `pumice_scheduler_plane`
 **Status:** Implemented (single-issue, single-rank v1)
 
 > **Rearchitected:** the SWAG `scheduler.sv` was a multi-mask priority-encoder
@@ -36,7 +36,7 @@
 > **combinational, single-issue, FSM-free** priority picker that reads the CAM
 > lookup/oldest ports and the per-bank / global readiness inputs and emits ONE
 > abstract DRAM command per cycle. It is instantiated inside
-> `pumice_scheduler_layer` alongside the timers, refresh, init, and
+> `pumice_scheduler_plane` alongside the timers, refresh, init, and
 > mode-register (see [ch02/19](19_global_timers.md), [ch02/09](09_bank_machine.md),
 > [ch02/11](11_refresh_mgr.md), [ch02/12](12_init_engine.md)).
 
@@ -51,10 +51,10 @@ global (`mc_global_timers`) readiness inputs it consumes. Open-page vs auto-prec
 is decided **inline** from `page_policy_i` — there is no standalone page
 runtime page-policy engine (see [ch02/08](08_page_policy.md)).
 
-The wider `pumice_scheduler_layer` wrapper wires the arbiter to those timers,
+The wider `pumice_scheduler_plane` wrapper wires the arbiter to those timers,
 the refresh controller, the init sequencer + mode-register shadow, and an output
 command FIFO; the CAM sched-lookup / oldest / commit / issue ports pass through to
-`mc_axi4_layer`.
+`mc_axi4_plane`.
 
 ## Priority (each cycle)
 
@@ -350,7 +350,7 @@ rank 0 (`RK0`) — v1 is a single-rank pick.
 - Unused CAM buses (`wr_lu_id_i`, `rd_lu_id_i`, `*_oldest_slot_i`) are absorbed by
   an explicit `unused` sink.
 
-## `pumice_scheduler_layer` wrapper
+## `pumice_scheduler_plane` wrapper
 
 The macro instantiates, on a single `aclk`:
 
@@ -365,11 +365,11 @@ The macro instantiates, on a single `aclk`:
 | `u_cmd_fifo`      | `gaxi_fifo_sync`     | output command FIFO, packs `{op,rank,bank,row,col,ap}` (`CMD_W = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1`, depth `CMD_FIFO_DEPTH=8`) |
 
 The arbiter pushes into `u_cmd_fifo`; the FIFO read side is the macro's
-`cmd_*_o` command stream to the DFI layer. `busy_o` is
+`cmd_*_o` command stream to the DFI plane. `busy_o` is
 `!init_done || refresh_req || cmd-fifo-non-empty || any-bank-active`.
 
 Issue rate is **one command per `aclk`**. The arbiter never sees the DFI
-multi-phase dimension — the DFI layer packs phases downstream. Selection is
+multi-phase dimension — the DFI plane packs phases downstream. Selection is
 oldest-first by wrap-safe CAM age; there is no QoS, no lookahead window, and no
 `SCHEDULER_MODE` OOO/INORDER synthesis switch.
 

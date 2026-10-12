@@ -63,7 +63,7 @@ is still a defined mode (v3.1 §3.2.4, §3.3.4).
 
 **Note:** a naive signal-name diff reports `dfi_address_p2`, `dfi_cs_n_p3` and
 their siblings as *removed in v3.1*. They are not removed; the notation was
-generalised. pumice's DFI layer runs at `DFI_RATE = 4` with per-phase signals
+generalised. pumice's DFI plane runs at `DFI_RATE = 4` with per-phase signals
 and that design point is unaffected. This is recorded because the diff is
 misleading in exactly the direction that would cause a needless rewrite.
 
@@ -91,7 +91,7 @@ The bulk of v3.1's growth is DDR4/LPDDR4-era and is **out of scope**:
 DFI v3.1, and this analysis supports it, but the honest summary is that v3.1's
 *gain* for a DDR3/LPDDR3 controller is the leveling rework plus the low-power
 split and `dfi_init` — everything else new is DDR4. Building to v2.1.1 and
-adding write leveling by hand would reuse pumice's DFI layer more directly.
+adding write leveling by hand would reuse pumice's DFI plane more directly.
 Recommendation: **stay with v3.1**, because the leveling interface is the part
 scoria needs and the per-CS scheme is also what the later DDR4 controller will
 want; paying it once here is cheaper than paying it twice.
@@ -161,7 +161,7 @@ point.
 ### 3.1 Inherited unchanged
 
 The AXI4 front end (1:1 intakes, write-data and read-reorder CAMs, in-order
-commit), the FSM-free split/aggregate, the scheduler layer (FR-FCFS arbitration,
+commit), the FSM-free split/aggregate, the scheduler plane (FR-FCFS arbitration,
 open-page bank timers, the command stream into a FIFO), the read return ring,
 the DFI datapath shape (one async-FIFO CDC, bubble-free, unit = a DFI word),
 and the PeakRDL CSR discipline.
@@ -290,7 +290,7 @@ is name-based through the generated regmap, not offset-based.
 
 `REF_CTRL.elastic_en` (reset 0 = today). The existing JEDEC ±8 postpone/pull-in
 credits in `scoria_refresh_ctrl` (`REF_CTRL.postpone_limit`, `pullin_limit`) are
-the hard ceiling; Mode A adds a demand-aware layer on top of those credits without
+the hard ceiling; Mode A adds a demand-aware plane on top of those credits without
 changing the credit arithmetic.
 
 - **Pull-in** fires only after demand has been idle for `pullin_idle_streak` MC

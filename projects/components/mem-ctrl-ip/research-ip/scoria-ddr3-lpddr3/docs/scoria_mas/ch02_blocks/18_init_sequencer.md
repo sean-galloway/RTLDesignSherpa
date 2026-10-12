@@ -26,7 +26,7 @@
 **Module:** `scoria_init_sequencer.sv`
 **Location:** `rtl/fub/`
 **Category:** control / initialization
-**Parent:** `scoria_scheduler_layer`
+**Parent:** `scoria_scheduler_plane`
 **Status:** landed and sim-verified
 
 ## Purpose
@@ -101,7 +101,7 @@ All timing values are runtime CSRs, not parameters. That is the family rule: a t
 | `init_cmd_row_o` | out | `ROW_WIDTH` | MR data for MRS; `{MA[5:0], OP[7:0]}` for LPDDR3 MRW |
 | `zqcl_req_o` | out | 1 | tied low; `ZQCL` is issued through the command stream |
 | `zqcl_grant_i` | in | 1 | unused; tied off at source |
-| `init_busy_o` | out | 1 | high while init is in progress (tied off in scheduler layer) |
+| `init_busy_o` | out | 1 | high while init is in progress (tied off in scheduler plane) |
 | `init_done_o` | out | 1 | high when FSM reaches `S_DONE` |
 
 : Table 2.18.5: Command request, legacy handshake, and status outputs
@@ -173,7 +173,7 @@ Every wait state counts from a CSR-loaded value captured on entry, so a CSR writ
 
 ## Notes
 
-- **`zqcl_req_o` and `init_busy_o` are intentionally tied off** in the scheduler layer. `ZQCL` is issued through the ordinary command stream, and the scheduler derives init occupancy from the command stream rather than from `init_busy_o`.
+- **`zqcl_req_o` and `init_busy_o` are intentionally tied off** in the scheduler plane. `ZQCL` is issued through the ordinary command stream, and the scheduler derives init occupancy from the command stream rather than from `init_busy_o`.
 - **Re-initialization:** A rising edge on `init_restart_i` forces the FSM back to `S_RESET` and replays the MRS chain with the current CSR MR values. `init_done_o` falls immediately so the scheduler stops admitting host commands.
 - **Ordering checks** — for example, that MR2 precedes MR0 — are assertions in DV, not in RTL. The FSM encodes the order, and DV proves the FSM never strays.
 - **`t_rp_wait_i` and `t_rfc_wait_i`** are accepted for compatibility with the broader timing CSR set but are unused during DDR3 or LPDDR3 initialization.

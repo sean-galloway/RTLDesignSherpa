@@ -39,10 +39,10 @@ markings sum to that number.
 | `andesite_top` | `scoria_top` | INHERITED (structure) |
 | `andesite_top_geared` | `scoria_top_geared` | INHERITED — the host/DRAM width-gearing wrapper |
 | `andesite_core` | `scoria_core` | INHERITED |
-| `andesite_axi4_layer` | `scoria_axi4_ifc` | INHERITED |
-| `andesite_scheduler_layer` | `scoria_mem_cmd_scheduler` | MODIFIED — bank-group-aware L/S admission, on top of scoria's ZQ maintenance admission |
-| `andesite_training_layer` | — | NEW — holds the three training FUBs, owns the DFI training pins + one-active mux, and issues MRS/MPC on the scheduler's maintenance training channel |
-| `andesite_dfi_layer` | `scoria_dfi_layer` | IMPLEMENTED — DFI 4.0 control surface, DBI wires (TASK-016 t6) |
+| `andesite_axi4_plane` | `scoria_axi4_ifc` | INHERITED |
+| `andesite_scheduler_plane` | `scoria_mem_cmd_scheduler` | MODIFIED — bank-group-aware L/S admission, on top of scoria's ZQ maintenance admission |
+| `andesite_training_plane` | — | NEW — holds the three training FUBs, owns the DFI training pins + one-active mux, and issues MRS/MPC on the scheduler's maintenance training channel |
+| `andesite_dfi_plane` | `scoria_dfi_plane` | IMPLEMENTED — DFI 4.0 control surface, DBI wires (TASK-016 t6) |
 
 : Table 2.1: Top and macro tier
 

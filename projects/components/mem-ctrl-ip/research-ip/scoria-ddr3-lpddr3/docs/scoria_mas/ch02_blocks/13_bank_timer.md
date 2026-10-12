@@ -26,7 +26,7 @@
 **Module:** `scoria_bank_timer.sv`, `scoria_bank_timers.sv`
 **Location:** `rtl/fub/`
 **Category:** JEDEC timing
-**Parent:** `scoria_scheduler_layer`
+**Parent:** `scoria_scheduler_plane`
 **Status:** complete, sim-verified
 
 ---

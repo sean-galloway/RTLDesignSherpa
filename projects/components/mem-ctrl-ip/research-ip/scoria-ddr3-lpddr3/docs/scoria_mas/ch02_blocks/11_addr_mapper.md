@@ -26,7 +26,7 @@
 **Module:** `scoria_addr_mapper.sv`
 **Location:** `rtl/fub/`
 **Category:** address decode
-**Parent:** `scoria_axi4_layer` (instantiated by the intakes)
+**Parent:** `scoria_axi4_plane` (instantiated by the intakes)
 **Status:** complete, sim-verified, formal-proven
 
 ---
@@ -35,7 +35,7 @@
 
 `scoria_addr_mapper` turns a flat AXI byte address into the `{rank, bank, row, col}` tuple the scheduling CAMs store. It is pure combinational: one cycle of barrel-shift and mask logic, with no state. The mapping is controlled at runtime by a single CSR knob, `bank_lsb_i`, which decides where the bank field sits in the byte-offset-stripped word address. That one knob generates every common mapping scheme, so there is no scheme mux.
 
-The block is instantiated once on the write path and once on the read path, inside `scoria_axi4_layer`.
+The block is instantiated once on the write path and once on the read path, inside `scoria_axi4_plane`.
 
 ## Parameters
 

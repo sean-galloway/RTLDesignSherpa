@@ -81,7 +81,7 @@ The register map is a SystemRDL source, `rtl/macro/pumice_csr.rdl`. It is compil
 | 0x0AC        | `CAL_TRAIN_TIMING`   | MRR spacing (`t_mrr`) and readout timeout (`t_readout`)   |
 | 0x0B0..0x0BC | `CAL_MRR32_DATA[4]`  | Captured MRR-MR32 beat 0, 32-bit slices (RO)              |
 | 0x0E0..0x0EC | `CAL_MRR40_DATA[4]`  | Captured MRR-MR40 beat 0, 32-bit slices (RO)              |
-| 0x0F0        | `CAL_STATUS`         | Training-layer telemetry (busy / done / err / overdue / count) |
+| 0x0F0        | `CAL_STATUS`         | Training-plane telemetry (busy / done / err / overdue / count) |
 | 0x0C0..0x0DC, 0x100..0x1E0 | *(retired holes)* | 27 `OBS_*` registers removed 2026-09-28 — see BUG-020 |
 | 0xFF0  | `ID`                      | Module ID (version / memtype / n_phases / 0xD2)           |
 | 0xFF4  | `BUILD`                   | Build hash                                                |
@@ -379,8 +379,8 @@ REFpb intervals (MC cycles). All-bank tREFI/tRFCab stay in TIMINGS_RFC_REFI.
 
 ### LPDDR2 Calibration / Training registers (0x0A0–0x0F0)
 
-> **Added to this chapter at rev 0.8** with the training layer
-> (`pumice_training_layer`: `pumice_zq_ctrl` + `pumice_lp_cal`). The window
+> **Added to this chapter at rev 0.8** with the training plane
+> (`pumice_training_plane`: `pumice_zq_ctrl` + `pumice_lp_cal`). The window
 > sits in the free range between `OBS_ROW_HIT` (0x080–0x09F) and the retired
 > 0x0C0 hole; retired holes are never reused (pumice doctrine). Field names,
 > widths, and reset values below are transcribed from `rtl/macro/pumice_csr.rdl`

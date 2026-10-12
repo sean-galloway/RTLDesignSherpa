@@ -49,10 +49,10 @@ PROFILE = {
         wr_data_cam_wave10_rounds=1,  # test_pumice_wr_data_cam: repeats of the WAVE10 pipelined drain
         wr_splitter_bursts=1,         # test_pumice_wr_splitter: host bursts per single/split scenario
         # macro
-        axi4_ifc_rounds=1,            # test_pumice_axi4_layer: write/snarf/miss/commit rounds
+        axi4_ifc_rounds=1,            # test_pumice_axi4_plane: write/snarf/miss/commit rounds
         cmd_checker_legal_cols=1,     # test_pumice_cmd_stream_checker: columns in the legal open-page stream
-        dfi_layer_roundtrips=1,       # test_pumice_dfi_layer: write-then-read round trips through the CDC
-        sched_refresh_reads=40,       # test_pumice_scheduler_layer phase 5: reads under refresh pressure
+        dfi_plane_roundtrips=1,       # test_pumice_dfi_plane: write-then-read round trips through the CDC
+        sched_refresh_reads=40,       # test_pumice_scheduler_plane phase 5: reads under refresh pressure
         sched_mixed_pairs=15,         #   ... phase 6: concurrent wr+rd pairs
         sched_timeout_reps=2,         #   ... timeout_pre_vs_pending_column: reps per inter-read gap
         # phy (pure python)
@@ -70,7 +70,7 @@ PROFILE = {
         rd_aligner_paced_reads=3, wr_serializer_paced_writes=3,
         rd_cmd_cam_fill_rounds=1, rd_return_ring_wrap_mult=3,
         wr_data_cam_wave10_rounds=1, wr_splitter_bursts=1,
-        axi4_ifc_rounds=1, cmd_checker_legal_cols=2, dfi_layer_roundtrips=1,
+        axi4_ifc_rounds=1, cmd_checker_legal_cols=2, dfi_plane_roundtrips=1,
         sched_refresh_reads=40, sched_mixed_pairs=30, sched_timeout_reps=3,
         phy_bl4_txns=8, phy_gear_pairs=8, phy_rdwin_offset_span=3, phy_wordcheck_clean_beats=2,
         core_roundtrips=1, top_geared_bursts=4,
@@ -81,7 +81,7 @@ PROFILE = {
         rd_aligner_paced_reads=6, wr_serializer_paced_writes=6,
         rd_cmd_cam_fill_rounds=3, rd_return_ring_wrap_mult=6,
         wr_data_cam_wave10_rounds=3, wr_splitter_bursts=3,
-        axi4_ifc_rounds=3, cmd_checker_legal_cols=6, dfi_layer_roundtrips=3,
+        axi4_ifc_rounds=3, cmd_checker_legal_cols=6, dfi_plane_roundtrips=3,
         sched_refresh_reads=120, sched_mixed_pairs=90, sched_timeout_reps=8,
         phy_bl4_txns=24, phy_gear_pairs=24, phy_rdwin_offset_span=8, phy_wordcheck_clean_beats=6,
         core_roundtrips=3, top_geared_bursts=12,

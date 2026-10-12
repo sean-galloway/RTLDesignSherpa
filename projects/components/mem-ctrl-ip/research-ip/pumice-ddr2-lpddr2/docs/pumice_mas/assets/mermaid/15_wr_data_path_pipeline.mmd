@@ -11,7 +11,7 @@ flowchart LR
         drain["COMMIT-DRAIN mover<br/>r_cm_beat counter;<br/>u_drain_q FIFO-fed;<br/>evict slot + occ on last"]
     end
 
-    subgraph DFI["mc_dfi_2p1_layer (wr path)"]
+    subgraph DFI["mc_dfi_2p1_plane (wr path)"]
         cdc["mc_dfi_cdc<br/>u_wd_fifo (async;<br/>data, strb, last)"]
         wr_ser["mc_dfi_wr_serializer<br/>on wr_fire wait t_phy_wrlat,<br/>stream DFI word/cycle<br/>(IDLE/WAIT/DRIVE, bubble-free)"]
     end

@@ -6,7 +6,7 @@
 """Minimal helpers that flip Verilator line/toggle coverage on.
 
 Port of `stream_coverage.coverage_mixin.get_coverage_compile_args` /
-`get_coverage_env`. The functional/protocol-coverage layer is captured
+`get_coverage_env`. The functional/protocol-coverage plane is captured
 by the YAML testplans under `dv/testplans/` plus their rollup scripts
 (`bin/aggregate_coverage.py`, `bin/update_testplan_coverage.py`) — all
 this module needs to do is make sure Verilator emits the per-test

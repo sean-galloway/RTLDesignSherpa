@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_storage_layer`; its microarchitecture is owned by [common_mas mc_storage_layer — Storage Layer and Entry-Pool FUBs](../../../../../common-ip/docs/common_mas/ch03_storage_layer/01_mc_storage_layer.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
+> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_storage_plane`; its microarchitecture is owned by [common_mas mc_storage_plane — Storage Plane and Entry-Pool FUBs](../../../../../common-ip/docs/common_mas/ch03_storage_plane/01_mc_storage_plane.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
 
 # Write-to-Read Forward — RETIRED as a standalone block
 
@@ -32,7 +32,7 @@ the Write Data Path chapter).
 
 ## Why it was retired
 
-The rearchitected AXI4 interface (`pumice_axi4_layer`) folded write-to-read
+The rearchitected AXI4 interface (`pumice_axi4_plane`) folded write-to-read
 forwarding into the write CAM rather than keeping it as a separate FUB on
 the AR path. The old `wr2rd_forward` block sat between `addr_mapper` and
 `rd_cmd_cam` and compared each AR against a `wr_cmd_cam` snapshot bus;
@@ -87,7 +87,7 @@ cross-id pair.
 
 ## Tests
 
-Covered by the `mc_wr_data_cam` FUB test and the `pumice_axi4_layer`
+Covered by the `mc_wr_data_cam` FUB test and the `pumice_axi4_plane`
 integration tests (snarf stream, snarf-vs-DRAM-path selection, and the
 same-id / same-BL / unscheduled exclusion scenarios). See §17 for the
 detailed test plan.

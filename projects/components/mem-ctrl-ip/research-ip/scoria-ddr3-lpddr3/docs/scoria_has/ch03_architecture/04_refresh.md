@@ -31,7 +31,7 @@ corrected it to INHERITED, because **pumice already implements it**, for
 LPDDR2, and the mechanism LPDDR3 specifies is the same one. v0.9 corrects it
 once more, to MODIFIED: the inherited mechanism described below is unchanged,
 but TASK-001's Modes A and B — demand-aware elastic refresh and
-temperature-compensated refresh — are a named, bounded change layered on top
+temperature-compensated refresh — are a named, bounded change planeed on top
 of it. They are scheduling policy only; the JEDEC ±8 credit ceiling is
 untouched. The modes are specified at the end of this chapter.
 

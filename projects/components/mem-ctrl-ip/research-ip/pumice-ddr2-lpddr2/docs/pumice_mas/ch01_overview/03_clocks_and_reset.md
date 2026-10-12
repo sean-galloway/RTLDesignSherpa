@@ -32,8 +32,8 @@ separate APB CSR clock).
 
 | Clock       | Polarity | Domain members                                                                 |
 |-------------|----------|--------------------------------------------------------------------------------|
-| `aclk`      | Posedge  | `pumice_csr`, `mc_axi4_layer` (AXI slave, burst splitters, both CAMs), `pumice_scheduler_layer` (arbiter, bank/global timers, refresh, init, mode register) |
-| `dfi_clk`   | Posedge  | `mc_dfi_2p1_layer` command path, write serializer, read aligner; the DFI 2.1 pin bus |
+| `aclk`      | Posedge  | `pumice_csr`, `mc_axi4_plane` (AXI slave, burst splitters, both CAMs), `pumice_scheduler_plane` (arbiter, bank/global timers, refresh, init, mode register) |
+| `dfi_clk`   | Posedge  | `mc_dfi_2p1_plane` command path, write serializer, read aligner; the DFI 2.1 pin bus |
 
 `aclk` and `dfi_clk` are independent. The DFI-word datapath unit means one FIFO
 word equals one `dfi_clk` cycle, so the crossing is bubble-free at rate.
@@ -54,7 +54,7 @@ in the controller.
 ## CDC
 
 There is exactly **one datapath** clock-domain crossing in the controller, and it
-lives in `mc_dfi_cdc` inside `mc_dfi_2p1_layer`. It is built from **async
+lives in `mc_dfi_cdc` inside `mc_dfi_2p1_plane`. It is built from **async
 gaxi FIFOs only** (`N_FLOP_CROSS` = 2 by default). Four things cross it:
 
 | Stream               | Direction            | Payload                                  |
@@ -65,7 +65,7 @@ gaxi FIFOs only** (`N_FLOP_CROSS` = 2 by default). Four things cross it:
 | Init handshake       | both                 | `init_start` out, `init_complete` back    |
 
 There is **no** APB-to-MC CSR crossing, no quiet-point override-staging
-crossing, and no CDC in the AXI4 datapath -- `mc_axi4_layer` runs entirely on
+crossing, and no CDC in the AXI4 datapath -- `mc_axi4_plane` runs entirely on
 `aclk`. If the SoC's AXI master is on a different clock, an external clock
 converter is required upstream. The register block also runs on `aclk`, so CSR
 writes take effect combinationally through `hwif_out.*` into the config ports of
@@ -73,9 +73,9 @@ writes take effect combinationally through `hwif_out.*` into the config ports of
 programmed while the controller is idle (before `init_start`, or at a quiet
 point) since they feed the timers and phase-packers directly.
 
-Sideband note: the training layer owns a second, non-datapath crossing for the
+Sideband note: the training plane owns a second, non-datapath crossing for the
 read-aligner calibration capture (`cal_expect` down, captured beat up) — see
-[ch02/25](../ch02_macros/05_training_layer_macro.md). It touches no AXI or DRAM
+[ch02/25](../ch02_macros/05_training_plane_macro.md). It touches no AXI or DRAM
 data stream.
 
 ## Reset / Init Sequence
@@ -88,13 +88,13 @@ On power-on:
    software programs the timing, DFI-phase, page-policy, and address-map fields
    by name (never by hardcoded offset -- see `dv/tbclasses/pumice_regmap.py`).
    The controller idles with `init_done_o = 0`; AXI traffic is held off.
-3. The `init_sequencer` (inside `pumice_scheduler_layer`) drives
+3. The `init_sequencer` (inside `pumice_scheduler_plane`) drives
    `dfi_init_start_o` and walks the per-memtype JEDEC MRS init sequence,
    emitting init commands into the same arbiter path as normal traffic and
    waiting on the programmed init timings (`t_init_wait`, `t_dll_wait`,
    `t_mrd_wait`, `t_rp_wait`, `t_rfc_wait`) plus `dfi_init_complete_i` from the
    PHY. The `mode_register` shadow captures the MRS writes and exposes
-   CL/CWL/BL to the DFI layer.
+   CL/CWL/BL to the DFI plane.
 4. On completion the sequencer asserts `init_done_o`; the controller begins
    honoring host AXI traffic and the refresh controller is enabled.
 

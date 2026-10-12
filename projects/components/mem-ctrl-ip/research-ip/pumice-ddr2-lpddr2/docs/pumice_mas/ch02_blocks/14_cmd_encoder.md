@@ -26,7 +26,7 @@
 **Module:** `dfi_cmd_formatter.sv` (command decode) / `dfi_signal_pack.sv` (final DFI pipe stage)
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent macro:** `mc_dfi_2p1_layer`
+**Parent macro:** `mc_dfi_2p1_plane`
 **Status:** Implemented (DDR2 truth table + bit-exact LPDDR2 CA-bus encoding; both memtypes functional)
 
 > **Replaces the retired command encoder.** The original `cmd_encoder_fub` (with
@@ -64,8 +64,8 @@ the formatter's command bus together with the write/read data-enable signals and
 drives reset-safe NOP values during reset. It owns `dfi_dram_clk_disable`
 (currently held 0).
 
-Both modules run in the DFI clock domain inside `mc_dfi_2p1_layer` (see
-[the DFI layer / gearing chapter](15_gear_dfi.md)); the formatter is instantiated
+Both modules run in the DFI clock domain inside `mc_dfi_2p1_plane` (see
+[the DFI plane / gearing chapter](15_gear_dfi.md)); the formatter is instantiated
 via `mc_dfi_cmd_path`.
 
 ---
@@ -79,7 +79,7 @@ via `mc_dfi_cmd_path`.
 | `ROW_WIDTH`        | 14      | Row operand width (also carries DDR2 MR data and LPDDR2 MRW field) |
 | `COL_WIDTH`        | 10      | Column operand width                                           |
 | `BURST_LEN_WIDTH`  | 8       | `cmd_len_i` width (currently unused — tied into `unused_v1`)     |
-| `DFI_RATE`         | 2       | Phases per DFI-layer word; sets the multi-phase bus widths       |
+| `DFI_RATE`         | 2       | Phases per DFI-plane word; sets the multi-phase bus widths       |
 | `DFI_ADDR_WIDTH`   | 14      | Per-phase address width; the LPDDR2 CA word needs `DFI_ADDR_BUS_W >= 20` |
 | `DFI_BANK_WIDTH`   | 3       | Per-phase bank width                                           |
 | `DFI_CTRL_WIDTH`   | 1       | Per-phase width of each ras/cas/we strobe                      |
@@ -94,7 +94,7 @@ so one bitstream can serve either family.
 
 ## Command Interface and Runtime Phase Placement
 
-The formatter takes a valid/ready command handshake from the DFI-layer command
+The formatter takes a valid/ready command handshake from the DFI-plane command
 FIFO:
 
 | Signal          | Width           | Description                                     |

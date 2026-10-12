@@ -26,7 +26,7 @@
 **Version:** 0.1
 **Date:** 2026-10-10
 **Status:** v0.1, the vision edition. This book is the family-level HAS: the
-layer-stack architecture the partner set out during the Phase-2 common-IP
+plane-stack architecture the partner set out during the Phase-2 common-IP
 campaign, written down as the binding contract the rocks and the products are
 built against. The per-block microarchitecture lives in
 [common_mas](../common_mas/common_mas_index.md); this book owns the shape of
@@ -60,14 +60,14 @@ the whole and the rules no single block owns.
 
 - [Purpose, Scope, and the Two Lines](ch01_introduction/01_purpose.md)
 
-### Chapter 2: The Layer Stack
+### Chapter 2: The Plane Stack
 
-- [The Architecture: axi4 → storage → scheduler → (ras) → training → dfi](ch02_architecture/01_layer_stack.md)
+- [The Architecture: axi4 → storage → scheduler → (ras) → training → dfi](ch02_architecture/01_plane_stack.md)
 - [The Descriptor Seam](ch02_architecture/02_descriptor_seam.md)
 
 ### Chapter 3: The DFI Generations
 
-- [Why `dfi_2p1_layer` / `dfi_3p1_layer` / `dfi_4p0_layer` Are Separate Blocks](ch03_dfi_generations/01_dfi_layers.md)
+- [Why `dfi_2p1_plane` / `dfi_3p1_plane` / `dfi_4p0_plane` Are Separate Blocks](ch03_dfi_generations/01_dfi_planes.md)
 
 ### Chapter 4: Doctrines Added by the Common-IP Campaign
 

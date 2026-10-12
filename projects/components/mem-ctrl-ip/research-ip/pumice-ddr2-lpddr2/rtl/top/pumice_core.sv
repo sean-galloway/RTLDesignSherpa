@@ -6,13 +6,13 @@
 //
 // Module: pumice_core
 // Purpose: The rearchitected pumice DDR2/LPDDR2 controller core. Wires the
-//          three layers built bottom-up this cycle:
-//            1. mc_axi4_layer          (host AXI + wr/rd CAMs)
-//            2. pumice_scheduler_layer (bank timers + arbiter + refresh/init)
-//            3. mc_dfi_2p1_layer       (common single async CDC + DFI datapath)
+//          three planes built bottom-up this cycle:
+//            1. mc_axi4_plane          (host AXI + wr/rd CAMs)
+//            2. pumice_scheduler_plane (bank timers + arbiter + refresh/init)
+//            3. mc_dfi_2p1_plane       (common single async CDC + DFI datapath)
 //
 //          Host AXI + scheduler + CAMs run on aclk; the DFI phase-packer + PHY
-//          run on dfi_clk; the ONE clock crossing lives in mc_dfi_2p1_layer's
+//          run on dfi_clk; the ONE clock crossing lives in mc_dfi_2p1_plane's
 //          CDC (async gaxi FIFOs only). Internal data unit = the DFI word
 //          (DFI_DATA_WIDTH); the host AXI data width is the DFI word too (an
 //          external 64<->128 dwidth shim is a separate edge concern).
@@ -20,7 +20,7 @@
 //          Config (timings / phases / policy) is delivered on ports here; a
 //          by-name CSR register block is a clean-rebuild follow-up.
 //
-// Documentation: docs/uarch/PUMICE_DFI_LAYER_UARCH.md (+ the IFC / scheduler specs)
+// Documentation: docs/uarch/PUMICE_DFI_PLANE_UARCH.md (+ the IFC / scheduler specs)
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
@@ -76,7 +76,7 @@ module pumice_core
     //   * burst <  one DFI word (the board: gear 1:4 + x16 BL4):
     //       one DFI word holds N_SUBCMD = DFI_RATE/BL_PUMICE JEDEC bursts, so
     //       BURST_WORDS clamps to 1 (the DFI word IS the transfer unit) and the
-    //       DFI layer issues N_SUBCMD consecutive-column DRAM commands per word.
+    //       DFI plane issues N_SUBCMD consecutive-column DRAM commands per word.
     // Both quantities are derived from the compile params (build-for-max sizes
     // every bus); N_SUBCMD>1 is a normal config, not a special case. Legacy
     // (N_SUBCMD==1) is bit-identical: BURST_WORDS==BL_PUMICE/DFI_RATE as before.
@@ -189,7 +189,7 @@ module pumice_core
     output logic [3:0]                 cl_o, cwl_o, bl_o,
     output logic                       init_done_o,
 
-    // ---- training layer controls / status (CSR) ----
+    // ---- training plane controls / status (CSR) ----
     input  logic                       zq_en_i,
     input  logic                       zq_defer_en_i,
     input  logic [31:0]                zq_interval_i,
@@ -331,7 +331,7 @@ module pumice_core
     logic [CMD_DW-1:0]         w_cmd_data;
     assign w_cmd_data = {w_cmd_mrr, w_cmd_ap, w_cmd_col, w_cmd_row, w_cmd_bank, w_cmd_rank, w_cmd_op};
 
-    // ---- scheduler <-> training layer ----
+    // ---- scheduler <-> training plane ----
     logic                      w_trn_req, w_trn_grant;
     dram_op_e                  w_trn_op;
     logic [BKW-1:0]            w_trn_bank;
@@ -339,7 +339,7 @@ module pumice_core
     logic                      w_trn_mrr;
     logic                      w_cal_busy;
 
-    // ---- DFI layer <-> training layer calibration sideband ----
+    // ---- DFI plane <-> training plane calibration sideband ----
     logic                      w_cal_expect;
     logic [DFI_DATA_WIDTH-1:0] w_cal_data;
     logic                      w_cal_valid;
@@ -347,7 +347,7 @@ module pumice_core
     // ---- init handshake scheduler <-> DFI (ctl side) ----
     logic                      w_init_start, w_init_complete;
 
-    // ---- AXI4 layer <-> storage layer inter-layer nets ----
+    // ---- AXI4 plane <-> storage plane inter-plane nets ----
     logic                aw_push_valid, aw_push_ready;
     logic [BKW-1:0]      aw_push_bank;  logic [ROW_WIDTH-1:0] aw_push_row;
     logic [COL_WIDTH-1:0] aw_push_col;  logic [IW-1:0]        aw_push_id;
@@ -371,9 +371,9 @@ module pumice_core
     logic [3:0]           ar_push_qos;   logic [3:0]           aw_push_qos;
 
     // ======================================================================
-    // Layer 1: AXI4 interface (splitters + intakes + return ring)
+    // Plane 1: AXI4 interface (splitters + intakes + return ring)
     // ======================================================================
-    mc_axi4_layer #(
+    mc_axi4_plane #(
         .AXI_ID_WIDTH  (IW),
         .AXI_ADDR_WIDTH(AW),
         .AXI_DATA_WIDTH(DW),
@@ -381,7 +381,7 @@ module pumice_core
         // Intake/CAM stay DFI-word granular (one AXI beat == one DFI word):
         // DRAM_BEAT_WIDTH(DW) => GEAR==1, and DRAM_BL == BURST_WORDS (DFI words per
         // burst-group). N_SUBCMD>1 (sub-DFI-word burst) is expanded downstream
-        // in the DFI layer, so the front end frames exactly one DFI word/beat.
+        // in the DFI plane, so the front end frames exactly one DFI word/beat.
         .DRAM_BEAT_WIDTH  (DW),
         .NUM_RANKS        (NUM_RANKS),
         .NUM_BANKS        (NUM_BANKS),
@@ -394,7 +394,7 @@ module pumice_core
         .RD_RET_DEPTH     (RD_RET_DEPTH),
         .N_SCHED_LU       (N_LU),
         .AGE_WIDTH        (AGE_WIDTH)
-    ) u_axi_layer (
+    ) u_axi_plane (
         .aclk          (aclk),
         .aresetn       (aresetn),
         .bank_lsb_i    (bank_lsb_i),
@@ -499,9 +499,9 @@ module pumice_core
     );
 
     // ======================================================================
-    // Layer 1b: storage layer (WR/RD CAMs + snarf)
+    // Plane 1b: storage plane (WR/RD CAMs + snarf)
     // ======================================================================
-    mc_storage_layer #(
+    mc_storage_plane #(
         .AXI_ID_WIDTH  (IW),
         .AXI_DATA_WIDTH(DW),
         .NUM_RANKS     (NUM_RANKS),
@@ -514,7 +514,7 @@ module pumice_core
         .N_SCHED_LU    (N_LU),
         .AGE_WIDTH     (AGE_WIDTH),
         .RD_RET_DEPTH  (RD_RET_DEPTH)
-    ) u_store_layer (
+    ) u_store_plane (
         .aclk               (aclk),
         .aresetn            (aresetn),
         // WR intake push
@@ -596,9 +596,9 @@ module pumice_core
     );
 
     // ======================================================================
-    // Layer 2: command scheduler
+    // Plane 2: command scheduler
     // ======================================================================
-    mc_scheduler_layer #(
+    mc_scheduler_plane #(
         .NUM_RANKS     (NUM_RANKS),
         .NUM_BANKS     (NUM_BANKS),
         .ROW_WIDTH     (ROW_WIDTH),
@@ -608,7 +608,7 @@ module pumice_core
         .AGE_WIDTH     (AGE_WIDTH),
         .CMD_HISTORY_EN(CMD_HISTORY_EN),
         .CMD_DELAY     (CMD_DELAY_EFF)
-    ) u_sched_layer (
+    ) u_sched_plane (
         .aclk               (aclk),
         .aresetn            (aresetn),
         .page_policy_i      (page_policy_i),
@@ -728,7 +728,7 @@ module pumice_core
         .cmd_col_o          (w_cmd_col),
         .cmd_ap_o           (w_cmd_ap),
         .cmd_extra_o        (w_cmd_mrr),
-        // maintenance-class command channel (from training layer)
+        // maintenance-class command channel (from training plane)
         .maint_req_i        (w_trn_req),
         .maint_grant_o      (w_trn_grant),
         .maint_op_i         (w_trn_op),
@@ -738,7 +738,7 @@ module pumice_core
         .maint_extra_i      (w_trn_mrr),
         .maint_busy_i       (w_cal_busy),
         .busy_o             (),
-        // common-macro ports unused by pumice (ZQ is handled inside mc_training_layer)
+        // common-macro ports unused by pumice (ZQ is handled inside mc_training_plane)
         .stall_zq_o         (),
         .zq_req_i           (1'b0),
         .zq_grant_o         (),
@@ -751,9 +751,9 @@ module pumice_core
     );
 
     // =======================================================================
-    // Layer 2b: training layer (ZQ periodic cal + MRR DQ cal)
+    // Plane 2b: training plane (ZQ periodic cal + MRR DQ cal)
     // =======================================================================
-    mc_training_layer #(
+    mc_training_plane #(
         .NUM_SLOTS      (2),
         .BKW            (BKW),
         .ROW_WIDTH      (ROW_WIDTH),
@@ -761,7 +761,7 @@ module pumice_core
         .CAL_DATA_WIDTH (DFI_DATA_WIDTH),
         .HAS_LP_ZQ      (1'b1),
         .HAS_LP_DQ_CAL  (1'b1)
-    ) u_train_layer (
+    ) u_train_plane (
         .mc_clk          (aclk),
         .mc_rst_n        (aresetn),
         .init_done_i     (init_done_o),
@@ -798,9 +798,9 @@ module pumice_core
     );
 
     // =======================================================================
-    // Layer 3: DFI layer (single CDC + datapath)
+    // Plane 3: DFI plane (single CDC + datapath)
     // =======================================================================
-    mc_dfi_2p1_layer #(
+    mc_dfi_2p1_plane #(
         .NUM_RANKS       (NUM_RANKS),
         .NUM_BANKS       (NUM_BANKS),
         .ROW_WIDTH       (ROW_WIDTH),
@@ -827,7 +827,7 @@ module pumice_core
         .HIST_T_RFC      (HIST_T_RFC_CORE),
         .HIST_T_RTW      (HIST_T_RTW_CORE),
         .HIST_T_WTR      (HIST_T_WTR_CORE)
-    ) u_dfi_layer (
+    ) u_dfi_plane (
         .ctl_clk            (aclk),
         .ctl_rstn           (aresetn),
         .cmd_valid_i        (w_cmd_v),

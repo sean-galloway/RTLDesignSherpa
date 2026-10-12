@@ -28,8 +28,8 @@
 **Purpose:** Implementation-level micro-architecture specification for the unified DDR2 / LPDDR2 memory controller family
 
 > **Note (v0.9-draft, 2026-10-10):** Phase-2 extraction. pumice_core now
-> instantiates the common-ip blocks `mc_axi4_layer`, `mc_storage_layer`, and
-> `mc_dfi_2p1_layer`; `pumice_scheduler_layer` and `pumice_training_layer`
+> instantiates the common-ip blocks `mc_axi4_plane`, `mc_storage_plane`, and
+> `mc_dfi_2p1_plane`; `pumice_scheduler_plane` and `pumice_training_plane`
 > are thin rock wrappers around the common cores. Macro chapters describe
 > the pumice integration and point at the owning common chapters; block
 > chapters for moved FUBs carry a "lives in common-ip now" banner. The
@@ -38,7 +38,7 @@
 > this book keeps pumice's provenance and measured history.
 
 > **Note (v0.8):** LPDDR2 calibration and training landed in the RTL. New
-> fourth layer `pumice_training_layer` (`pumice_zq_ctrl` + `pumice_lp_cal`)
+> fourth plane `pumice_training_plane` (`pumice_zq_ctrl` + `pumice_lp_cal`)
 > drives the scheduler's new `trn_cmd` maintenance channel (arbiter priority
 > init > refresh > trn > demand); MRR rides the command FIFO as a 1-bit flag
 > (`{mrr, ap, col, row, bank, rank, op}`), the formatter emits the MRR CA
@@ -46,9 +46,9 @@
 > 0x0A0–0x0F0 (`CAL_*`) document it — see ch02 and ch04.
 
 > **Note (v0.3):** Reconciled with the rearchitected RTL. The controller is a
-> three-layer core — `pumice_axi4_layer` (intakes + wr_data_cam + rd_cmd_cam),
-> `pumice_scheduler_layer` (arbiter + FSM-free bank_timer + global_timers +
-> refresh + init + mode_register), `pumice_dfi_layer` (single async-FIFO CDC +
+> three-plane core — `pumice_axi4_plane` (intakes + wr_data_cam + rd_cmd_cam),
+> `pumice_scheduler_plane` (arbiter + FSM-free bank_timer + global_timers +
+> refresh + init + mode_register), `pumice_dfi_plane` (single async-FIFO CDC +
 > cmd_path/wr_serializer/rd_aligner) — under `pumice_core`, plus optional
 > `pumice_top_geared`. Chapters for SWAG-era blocks that no longer exist
 > (`txn_queue`, `bank_machine`, `xbank_timers`, `cmd_encoder`, `odt_ctrl`,
@@ -77,12 +77,12 @@
 
 **Integration (Macros — pure structural):**
 - [Top-Level Integration (`pumice_core`)](ch02_blocks/01_top_integration.md)
-- [AXI4 Interface (`mc_axi4_layer` via common-ip)](ch02_macros/01_axi_frontend_macro.md)
-- [Command Scheduler (`pumice_scheduler_layer` wrapper over common `mc_scheduler_layer`)](ch02_macros/02_command_scheduler_macro.md)
-- [Data Path (`mc_storage_layer` CAMs + DFI layer)](ch02_macros/03_data_path_macro.md)
-- [DFI v2.1 Layer (`mc_dfi_2p1_layer` via common-ip)](ch02_macros/04_dfi_v21_interface_macro.md)
+- [AXI4 Interface (`mc_axi4_plane` via common-ip)](ch02_macros/01_axi_frontend_macro.md)
+- [Command Scheduler (`pumice_scheduler_plane` wrapper over common `mc_scheduler_plane`)](ch02_macros/02_command_scheduler_macro.md)
+- [Data Path (`mc_storage_plane` CAMs + DFI plane)](ch02_macros/03_data_path_macro.md)
+- [DFI v2.1 Plane (`mc_dfi_2p1_plane` via common-ip)](ch02_macros/04_dfi_v21_interface_macro.md)
 
-**AXI4 Interface FUBs (`mc_axi4_layer` via common-ip — banners point to the owning common_mas chapters):**
+**AXI4 Interface FUBs (`mc_axi4_plane` via common-ip — banners point to the owning common_mas chapters):**
 - [AXI4 Intakes (`mc_wr_intake`, `mc_rd_intake`)](ch02_blocks/02_axi4_slave.md)
 - [Address Mapper (`addr_mapper`, bank_lsb) — pumice-local](ch02_blocks/03_addr_mapper.md)
 - [Read Command CAM (`mc_rd_cmd_cam`)](ch02_blocks/04_rd_cmd_cam.md)
@@ -100,16 +100,16 @@
 - [Power-Down Controller (`powerdown_ctrl`)](ch02_blocks/13_power_state.md)
 - [Mode Register (`mode_register`)](ch02_blocks/20_mode_register.md)
 
-**Data Path FUBs (CAMs + DFI layer — common-owned):**
+**Data Path FUBs (CAMs + DFI plane — common-owned):**
 - [Write Data Path (`mc_wr_data_cam` + `mc_dfi_wr_serializer`)](ch02_blocks/17_wr_data_path.md)
 - [Read Data Path (`mc_dfi_rd_aligner` + `mc_rd_return_ring`)](ch02_blocks/18_rd_data_path.md)
 
-**DFI v2.1 FUBs (`mc_dfi_2p1_layer` via common-ip):**
+**DFI v2.1 FUBs (`mc_dfi_2p1_plane` via common-ip):**
 - [DFI Command Formatter (`dfi_cmd_formatter`) — pumice-local](ch02_blocks/14_cmd_encoder.md)
-- [DFI Layer / Gearing (`mc_dfi_2p1_layer`)](ch02_blocks/15_gear_dfi.md)
+- [DFI Plane / Gearing (`mc_dfi_2p1_plane`)](ch02_blocks/15_gear_dfi.md)
 
-**Training layer (LPDDR2 calibration / training):**
-- [Training Layer (`pumice_training_layer`)](ch02_macros/05_training_layer_macro.md)
+**Training plane (LPDDR2 calibration / training):**
+- [Training Plane (`pumice_training_plane`)](ch02_macros/05_training_plane_macro.md)
 - [ZQ Calibration Controller (`pumice_zq_ctrl`)](ch02_blocks/23_zq_ctrl.md)
 - [DQ-Calibration Sequencer (`pumice_lp_cal`)](ch02_blocks/24_lp_cal.md)
 
@@ -129,7 +129,7 @@
 - [Register Map](ch04_apb_config/02_csr_map.md)
 - [Runtime Overrides and Quiet Points](ch04_apb_config/03_runtime_overrides.md)
 - [Family-Wide Config-Bit Applicability](ch04_apb_config/04_family_config_bits.md)
-- [Training-Layer Interface Contracts](ch04_apb_config/05_training_interface_contracts.md)
+- [Training-Plane Interface Contracts](ch04_apb_config/05_training_interface_contracts.md)
 
 ### Chapter 5: Programming
 

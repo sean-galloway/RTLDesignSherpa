@@ -12,7 +12,7 @@
 //          with those registered pins. Structural holds only (aligner readiness,
 //          staged write data); every JEDEC spacing lives in the scheduler.
 //
-//          Extracted from andesite_dfi_cmd_path during Phase 2 common-layer
+//          Extracted from andesite_dfi_cmd_path during Phase 2 common-plane
 //          reorg (2026-10-10).
 //
 // Carried shape: mc_dfi_3p1_cmd_path's registered pipeline, its read/write
@@ -22,7 +22,7 @@
 // phases). The container widens the 3.1 word by bg[1:0] between row and
 // bank: {ap,col,row,bg,bank,rank,op}.
 //
-// Documentation: docs/uarch/PUMICE_DFI_LAYER_UARCH.md
+// Documentation: docs/uarch/PUMICE_DFI_PLANE_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
@@ -41,7 +41,7 @@ module mc_dfi_4p0_cmd_path
     // Optional issued-command-history scoreboard (audit-only). Carried as a
     // parameter for parity with the scoria shape; the DFI-boundary audit is
     // not instantiated here in v1 -- the macro's armed checker already
-    // audits the stream, and adding the boundary copy back is a layer-task
+    // audits the stream, and adding the boundary copy back is a plane-task
     // decision, not this block's.
     parameter int CMD_HISTORY_EN = 0,
     // Derived widths live in the parameter list (not body localparams) because

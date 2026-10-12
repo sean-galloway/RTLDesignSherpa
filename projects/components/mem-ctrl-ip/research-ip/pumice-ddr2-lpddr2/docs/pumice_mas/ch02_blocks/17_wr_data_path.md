@@ -21,23 +21,23 @@
 
 <!-- End Header -->
 
-> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_storage_layer`; its microarchitecture is owned by [common_mas mc_storage_layer — Storage Layer and Entry-Pool FUBs](../../../../../common-ip/docs/common_mas/ch03_storage_layer/01_mc_storage_layer.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
+> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_storage_plane`; its microarchitecture is owned by [common_mas mc_storage_plane — Storage Plane and Entry-Pool FUBs](../../../../../common-ip/docs/common_mas/ch03_storage_plane/01_mc_storage_plane.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
 
 # Write Data Path (`mc_wr_data_cam` + `mc_dfi_wr_serializer`)
 
 **Modules:** `mc_wr_data_cam.sv`, `mc_dfi_wr_serializer.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parents:** `mc_storage_layer` (CAM), `mc_dfi_2p1_layer` (serializer)
+**Parents:** `mc_storage_plane` (CAM), `mc_dfi_2p1_plane` (serializer)
 **Status:** implemented
 
 > The old single-block `wr_beat_sequencer` / `wr_data_path_fub` no longer
 > exists. In the rearchitected controller the write data path is split
 > across two clock domains and two FUBs:
 >
-> - `mc_wr_data_cam` (MC domain, inside `mc_storage_layer`) — a
+> - `mc_wr_data_cam` (MC domain, inside `mc_storage_plane`) — a
 >   write-command CAM plus a wr-data SRAM with three de-FSM'd movers.
-> - `mc_dfi_wr_serializer` (DFI domain, inside `mc_dfi_2p1_layer`) —
+> - `mc_dfi_wr_serializer` (DFI domain, inside `mc_dfi_2p1_plane`) —
 >   a purely mechanical DFI-word streamer that drives `dfi_wrdata`.
 >
 > The single clock-domain crossing between them is `mc_dfi_cdc`
@@ -55,7 +55,7 @@
 
 The write data path stages the AXI write burst that arrives on the AW/W
 channels, holds it while the scheduler picks a moment to commit it to
-DRAM, and — when the DFI layer is ready — streams it onto the DFI write
+DRAM, and — when the DFI plane is ready — streams it onto the DFI write
 bus one DFI word per cycle.
 
 `mc_wr_data_cam` is the MC-domain staging structure. It stores each
@@ -63,7 +63,7 @@ pending write's key `{bank, row, col}`, its AXI id, a free-running age,
 and the burst's beats in an SRAM slot. It exposes associative query ports
 so the `pumice_cmd_arbiter` can find row-hit writes, an oldest-entry port
 as a scheduler fallback, and a snarf (read-your-write) forwarding port for
-`mc_rd_intake`. On commit it drains the SRAM slot into the DFI layer.
+`mc_rd_intake`. On commit it drains the SRAM slot into the DFI plane.
 
 `mc_dfi_wr_serializer` is the DFI-domain endpoint. On a WR command
 strobe (`wr_fire_i`) it waits `t_phy_wrlat` DFI cycles, then pops one
@@ -269,7 +269,7 @@ so the drive never stalls and bursts run back-to-back with zero bubbles.
 | `sched_lu_valid_i[N]` + `sched_lu_{bank,row}_i` | in | Per-port {bank,row} queries |
 | `sched_lu_hit_o[N]` + `sched_lu_{slot,col,id,age}_o` | out | Oldest matching entry per port |
 
-### Commit / drain (to `mc_dfi_2p1_layer` write path)
+### Commit / drain (to `mc_dfi_2p1_plane` write path)
 
 | Signal              | Dir | Description                                       |
 |---------------------|-----|---------------------------------------------------|

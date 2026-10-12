@@ -4,31 +4,31 @@ The chosen configuration for the granite SKU (DDR2/LPDDR2, v2) — the single
 source of truth for "what makes this SKU this SKU". Structural choices live
 in `rtl/includes/granite_pkg.sv`; this file records the reasoning and the
 values still open. Per common_has ch5.2 a product is a configuration of the
-common stack, not a new RTL tree — the layer selection itself is
+common stack, not a new RTL tree — the plane selection itself is
 `rtl/filelists/top/granite.f`.
 
-Status: **first build in progress 2026-10-11** — storage layer dissolved into
+Status: **first build in progress 2026-10-11** — storage plane dissolved into
 a storage-lite `mc_xddr2_entry_store`, refresh option set reduced, and the
 real `granite_core.sv` top composed. No values below are committed silicon;
 anything marked TBD is decided at bring-up.
 
-## Layer selection
+## Plane selection
 
-| Common layer | granite configuration |
+| Common plane | granite configuration |
 |---|---|
-| `mc_axi4_layer` | Lite SKU widths at instantiation (data width per board fabric — TBD). |
-| `mc_xddr2_entry_store` | **Storage-lite seam** (ch5.2 v2 default): `GRANITE_SEAM_N = 1`, in-order seam; `GRANITE_ENTRY_STORE_DEPTH = 1` — the entry store shrinks toward one, never to zero. Replaces `mc_storage_layer`. |
-| `mc_scheduler_layer` | Full pick machinery (FR-FCFS + age). Common v2 children compose per wrapper dissolution: `mc_xddr2_init_sequencer`, `mc_xddr2_mode_register`, `mc_xddr2_refresh_ctrl` (reduced option set), `mc_page_policy`. Command history checker omitted in this SKU. |
-| `mc_training_layer` | Shell composing the common LPDDR2 clients: `mc_lpddr2_zq_ctrl`, `mc_lpddr2_dq_cal`. DDR2 has no ZQ/DQ-cal maintenance requirement. |
-| `mc_storage_layer` | **Absent** — replaced by `mc_xddr2_entry_store` above. |
-| `mc_ras_layer` | **Absent** — true bypass: no transform pair instantiated, no scrub; only the reserved CSR decode. Omission, not a parameter. |
-| `mc_dfi_2p1_layer` | Full — command / write / read pipelines + aclk↔dfi_clk CDC, encoding via `mc_xddr2_cmd_formatter`. |
+| `mc_axi4_plane` | Lite SKU widths at instantiation (data width per board fabric — TBD). |
+| `mc_xddr2_entry_store` | **Storage-lite seam** (ch5.2 v2 default): `GRANITE_SEAM_N = 1`, in-order seam; `GRANITE_ENTRY_STORE_DEPTH = 1` — the entry store shrinks toward one, never to zero. Replaces `mc_storage_plane`. |
+| `mc_scheduler_plane` | Full pick machinery (FR-FCFS + age). Common v2 children compose per wrapper dissolution: `mc_xddr2_init_sequencer`, `mc_xddr2_mode_register`, `mc_xddr2_refresh_ctrl` (reduced option set), `mc_page_policy`. Command history checker omitted in this SKU. |
+| `mc_training_plane` | Shell composing the common LPDDR2 clients: `mc_lpddr2_zq_ctrl`, `mc_lpddr2_dq_cal`. DDR2 has no ZQ/DQ-cal maintenance requirement. |
+| `mc_storage_plane` | **Absent** — replaced by `mc_xddr2_entry_store` above. |
+| `mc_ras_plane` | **Absent** — true bypass: no transform pair instantiated, no scrub; only the reserved CSR decode. Omission, not a parameter. |
+| `mc_dfi_2p1_plane` | Full — command / write / read pipelines + aclk↔dfi_clk CDC, encoding via `mc_xddr2_cmd_formatter`. |
 
 Never-omitted check (ch5.2): entry store present (`mc_xddr2_entry_store`,
 one entry per direction), write-data staging present
 (`GRANITE_WR_DATA_BUF_WORDS = 16`, SKU minimum, never zero), aclk↔dfi_clk
-CDC present (in the DFI layer), maintenance request/grant present (training
-layer). A product that cannot refresh correctly is not a smaller product, it
+CDC present (in the DFI plane), maintenance request/grant present (training
+plane). A product that cannot refresh correctly is not a smaller product, it
 is a broken one.
 
 The v2 generation needs no bank groups, no FGR, no DBI, no CA parity — none

@@ -118,7 +118,7 @@ The block owns `dfi_dram_clk_disable`. That signal is the reason it is retained:
 | Level | State today |
 |---|---|
 | `powerdown_ctrl` / `dfi_signal_pack` | not instantiated |
-| `scoria_top` / `scoria_dfi_layer` | no `dfi_cke` or `dfi_dram_clk_disable` port |
+| `scoria_top` / `scoria_dfi_plane` | no `dfi_cke` or `dfi_dram_clk_disable` port |
 | `scoria_dfi_cmd_formatter` | `OP_SREFE` / `OP_SREFX` / `OP_DPDE` fall to the `default:` arm and are driven as NOP |
 | `scoria_cmd_arbiter` | never picks any of those three ops |
 

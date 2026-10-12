@@ -5,14 +5,14 @@
 //   maintenance + reorder buffer -> scheduler trapezium (+timing ctl) ->
 //   merge logic -> data path controls -> PHY bar.
 // Vocabulary mapped onto the common-ip stack:
-//   packetizers  = mc_axi4_layer intakes + burst chopper/splitter
-//   pools/buffer = mc_storage_layer CAMs (wr_data_cam / rd_cmd_cam)
+//   packetizers  = mc_axi4_plane intakes + burst chopper/splitter
+//   pools/buffer = mc_storage_plane CAMs (wr_data_cam / rd_cmd_cam)
 //   merge/forward= coalescing merge + wr2rd snarf forward
-//   maintenance  = mc_training_layer clients (ZQ / DQ-cal) via the scheduler's
+//   maintenance  = mc_training_plane clients (ZQ / DQ-cal) via the scheduler's
 //                  generic maintenance slot
-//   scheduler    = mc_scheduler_layer (prospect pool -> mc_cmd_arbiter)
+//   scheduler    = mc_scheduler_plane (prospect pool -> mc_cmd_arbiter)
 //   timing ctl   = mc_bank_timers + mc_global_timers
-//   data path ctl= mc_dfi_NpM_layer wr_serializer / rd_aligner
+//   data path ctl= mc_dfi_NpM_plane wr_serializer / rd_aligner
 //   reorder buf  = mc_rd_return_ring (read return path - its own contract)
 digraph whole_unit {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
@@ -29,36 +29,36 @@ digraph whole_unit {
     phy    [label="DDR PHY  (DFI 2.1 / 3.1 / 4.0 - one revision per product)",
             fillcolor="white", rank=sink, width=8.0, fontsize=11];
 
-    // ---- host side: mc_axi4_layer ----
-    wr_pkt [label="Write Request Packetizer\nmc_axi4_layer - mc_wr_intake,\nmc_axi_burst_chopper, mc_wr_splitter"];
-    rd_pkt [label="Read Request Packetizer\nmc_axi4_layer - mc_rd_intake"];
-    cfg    [label="Configuration Registers\npumice_csr / scoria_csr / andesite_csr (PeakRDL)\nsideband config to all layers"];
+    // ---- host side: mc_axi4_plane ----
+    wr_pkt [label="Write Request Packetizer\nmc_axi4_plane - mc_wr_intake,\nmc_axi_burst_chopper, mc_wr_splitter"];
+    rd_pkt [label="Read Request Packetizer\nmc_axi4_plane - mc_rd_intake"];
+    cfg    [label="Configuration Registers\npumice_csr / scoria_csr / andesite_csr (PeakRDL)\nsideband config to all planes"];
 
-    // ---- storage: mc_storage_layer ----
-    wr_pool [label="DDR Write Command Pool\n+ Write Data Buffer\nmc_storage_layer - mc_wr_data_cam"];
-    rd_pool [label="DDR Read Command Pool\nmc_storage_layer - mc_rd_cmd_cam"];
-    merge_b [label="Merge Buffer\nfinal write coalescing\n(mc_axi4_layer)"];
+    // ---- storage: mc_storage_plane ----
+    wr_pool [label="DDR Write Command Pool\n+ Write Data Buffer\nmc_storage_plane - mc_wr_data_cam"];
+    rd_pool [label="DDR Read Command Pool\nmc_storage_plane - mc_rd_cmd_cam"];
+    merge_b [label="Merge Buffer\nfinal write coalescing\n(mc_axi4_plane)"];
     fwd_b   [label="Forward Buffer\nread-snoop wr2rd forward\n(mc_wr_data_cam snarf)"];
 
-    // ---- maintenance: mc_training_layer ----
-    maint [label="DDR Maintenance Command Queue\nmc_training_layer - ZQ cal, DQ cal,\nwrite-leveling interface"];
+    // ---- maintenance: mc_training_plane ----
+    maint [label="DDR Maintenance Command Queue\nmc_training_plane - ZQ cal, DQ cal,\nwrite-leveling interface"];
 
-    // ---- scheduler: mc_scheduler_layer ----
+    // ---- scheduler: mc_scheduler_plane ----
     wr_arb [label="DDR Write Arbitration\nunified prospect pool (classify)"];
     rd_arb [label="DDR Read Arbitration\nunified prospect pool (classify)"];
-    sched  [label="DDR Command Scheduler\nmc_scheduler_layer - mc_cmd_arbiter (FR-FCFS pick)",
+    sched  [label="DDR Command Scheduler\nmc_scheduler_plane - mc_cmd_arbiter (FR-FCFS pick)",
             shape=invtrapezium, width=5.2, fillcolor="#BFD7EE", fontsize=11];
     tctl   [label="DDR Timing Control\nmc_bank_timers + mc_global_timers\n(tRCD/tRP/tRAS/tFAW/tRRD/... next-state)"];
 
-    // ---- return merge: mc_axi4_layer side of the return path ----
+    // ---- return merge: mc_axi4_plane side of the return path ----
     mlog [label="Merge Logic\nmc_rd_return_ring reorder\n(AXI ID order)"];
 
-    // ---- the DFI layer as ONE container: command + write + read + CDC ----
-    dfi [label="mc_dfi_2p1_layer (DFI 2.1 data path)\nmc_dfi_cmd_path + mc_dfi_wr_serializer + mc_dfi_rd_aligner + CDC\nwrite data in at the left, read data out at the right, command through the center",
+    // ---- the DFI plane as ONE container: command + write + read + CDC ----
+    dfi [label="mc_dfi_2p1_plane (DFI 2.1 data path)\nmc_dfi_cmd_path + mc_dfi_wr_serializer + mc_dfi_rd_aligner + CDC\nwrite data in at the left, read data out at the right, command through the center",
          width=10.5, height=1.7, fontsize=10];
 
-    // ---- return path: mc_axi4_layer ----
-    rbuf [label="Read Data\nReorder Buffer\nmc_axi4_layer -\nmc_rd_return_ring",
+    // ---- return path: mc_axi4_plane ----
+    rbuf [label="Read Data\nReorder Buffer\nmc_axi4_plane -\nmc_rd_return_ring",
           height=1.6];
 
     // ---- host channels ----
@@ -87,7 +87,7 @@ digraph whole_unit {
     maint -> sched [label="REF / ZQ"];
     tctl -> sched [xlabel="timer window"];
 
-    // ---- scheduler into the DFI layer ----
+    // ---- scheduler into the DFI plane ----
     sched -> dfi [penwidth=1.8];
 
     // ---- three PHY crossings via invisible port scaffolding (distinct node

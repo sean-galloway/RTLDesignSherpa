@@ -37,7 +37,7 @@
 
 | Version | Date | Change |
 |---|---|---|
-| 0.1 | 2026-10-10 | First edition. The Phase-2 common-IP campaign (2026-10-09 → 2026-10-10) extracted the shared package, eight layers, and seventeen FUBs into common-ip; this book records the architecture those blocks implement — the partner's layered-stack vision — as the family's binding contract. Doctrines added by the campaign are Chapter 4; the original five doctrines remain in [02_family_doctrine.md](../../02_family_doctrine.md) and are not restated. |
+| 0.1 | 2026-10-10 | First edition. The Phase-2 common-IP campaign (2026-10-09 → 2026-10-10) extracted the shared package, eight planes, and seventeen FUBs into common-ip; this book records the architecture those blocks implement — the partner's planeed-stack vision — as the family's binding contract. Doctrines added by the campaign are Chapter 4; the original five doctrines remain in [02_family_doctrine.md](../../02_family_doctrine.md) and are not restated. |
 
 ## Related documents
 

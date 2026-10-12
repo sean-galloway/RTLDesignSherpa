@@ -11,7 +11,7 @@
 //          it and push one DFI-word/cycle into the read CDC FIFO
 //          {last, resp, data}.
 //
-//          Extracted from pumice_dfi_rd_aligner during Phase 2 common-layer
+//          Extracted from pumice_dfi_rd_aligner during Phase 2 common-plane
 //          reorg (2026-10-10). Extended with HAS_CAL_CAPTURE (2.1 uses the
 //          calibration sideband, 3.1/4.0 do not) and HAS_DBI (4.0 only).
 //
@@ -30,7 +30,7 @@
 //            BL_WORDS = DFI words captured + pushed per read.
 //          These are equal only when the pumice DRAM beat == the device word.
 //
-// Documentation: docs/uarch/PUMICE_DFI_LAYER_UARCH.md
+// Documentation: docs/uarch/PUMICE_DFI_PLANE_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
@@ -45,9 +45,9 @@ module mc_dfi_rd_aligner #(
     parameter int MAX_OUTSTANDING = 8,          // outstanding-read tracking depth (exposed)
     parameter int RDEN_W          = 8,
     parameter int DFI_STRB_WIDTH  = DFI_DATA_WIDTH / 8,
-    // Calibration capture sideband. The 2.1 layer uses it; 3.1/4.0 layers do not.
+    // Calibration capture sideband. The 2.1 plane uses it; 3.1/4.0 planes do not.
     parameter int HAS_CAL_CAPTURE = 1,
-    // Read DBI (DFI 4.0). The 2.1/3.1 layers do not use DBI.
+    // Read DBI (DFI 4.0). The 2.1/3.1 planes do not use DBI.
     parameter int HAS_DBI         = 0
 ) (
     input  logic                        dfi_clk,

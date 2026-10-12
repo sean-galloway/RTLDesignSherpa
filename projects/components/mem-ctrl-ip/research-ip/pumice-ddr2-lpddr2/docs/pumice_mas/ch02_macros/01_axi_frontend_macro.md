@@ -21,19 +21,19 @@
 
 <!-- End Header -->
 
-# AXI front-end macro — `mc_axi4_layer` instantiation
+# AXI front-end macro — `mc_axi4_plane` instantiation
 
-**Module:** `mc_axi4_layer` (common IP)  
-**Location:** `projects/components/mem-ctrl-ip/common-ip/rtl/macro/mc_axi4_layer.sv`  
-**Category:** Layer-1 macro in `pumice_core`  
-**Instance:** `u_axi_layer` (`rtl/top/pumice_core.sv:376-499`)  
+**Module:** `mc_axi4_plane` (common IP)  
+**Location:** `projects/components/mem-ctrl-ip/common-ip/rtl/macro/mc_axi4_plane.sv`  
+**Category:** Plane-1 macro in `pumice_core`  
+**Instance:** `u_axi_plane` (`rtl/top/pumice_core.sv:376-499`)  
 **Child FUBs:** `mc_wr_splitter`, `mc_axi_burst_chopper`, `mc_wr_intake`, `mc_rd_intake`, `mc_rd_return_ring`
 
 ## Purpose
 
-"Host AXI4 to storage-layer descriptors and the read-return ring." `pumice_core` instantiates the common `mc_axi4_layer` on `aclk` as the SoC-facing AXI4 slave boundary. It splits host bursts into DFI-word-sized sub-commands, pushes write and read descriptors to `mc_storage_layer`, sources read-your-write snarf data from the write-data CAM, and forwards the DFI read-return stream to the read path.
+"Host AXI4 to storage-plane descriptors and the read-return ring." `pumice_core` instantiates the common `mc_axi4_plane` on `aclk` as the SoC-facing AXI4 slave boundary. It splits host bursts into DFI-word-sized sub-commands, pushes write and read descriptors to `mc_storage_plane`, sources read-your-write snarf data from the write-data CAM, and forwards the DFI read-return stream to the read path.
 
-Until 2026-10-09 the pumice MAS described a pumice-local `pumice_axi4_layer` macro (`rtl/macro/pumice_axi4_layer.sv`) that bundled the splitters, intakes, write-data CAM, and read-command CAM; Phase-2 extracted the shared logic into the common `mc_axi4_layer` and `mc_storage_layer`, and the pumice-local module no longer exists.
+Until 2026-10-09 the pumice MAS described a pumice-local `pumice_axi4_plane` macro (`rtl/macro/pumice_axi4_plane.sv`) that bundled the splitters, intakes, write-data CAM, and read-command CAM; Phase-2 extracted the shared logic into the common `mc_axi4_plane` and `mc_storage_plane`, and the pumice-local module no longer exists.
 
 ## Parameter map in `pumice_core`
 
@@ -59,22 +59,22 @@ Until 2026-10-09 the pumice MAS described a pumice-local `pumice_axi4_layer` mac
 ## External boundaries
 
 - **Upstream:** the host AXI4 slave port (`s_axi_*`), the only SoC-facing interface.
-- **To `mc_storage_layer` (`u_store_layer`):** the storage seam — `aw_push_*` + `wd_*` for writes, `snarf_probe_*` / `snarf_rd_*` for read-your-write, `ar_push_*` for reads, and the return-ring ticket ports (`rt_alloc_*`, `rd_iss_*`, `rd_cam_ins_ready_*`).
-- **From `mc_dfi_2p1_layer` (`u_dfi_layer`):** the read-return stream `rd_dfi_ret_*` (`valid/ready/data/resp/last`).
+- **To `mc_storage_plane` (`u_store_plane`):** the storage seam — `aw_push_*` + `wd_*` for writes, `snarf_probe_*` / `snarf_rd_*` for read-your-write, `ar_push_*` for reads, and the return-ring ticket ports (`rt_alloc_*`, `rd_iss_*`, `rd_cam_ins_ready_*`).
+- **From `mc_dfi_2p1_plane` (`u_dfi_plane`):** the read-return stream `rd_dfi_ret_*` (`valid/ready/data/resp/last`).
 - **Status:** `busy_o` is left unconnected in `pumice_core` (`pumice_core.sv:498`).
 
 ## Pumice-specific integration notes
 
-**Gearing wrapper.** The AXI4 layer is built for the compile-time maximum DFI word width and does not know `gear_i` or `bl_i` directly. It frames one AXI beat per DFI word and passes `AXI_BEATS_PER_BURST = BURST_WORDS`. Runtime sub-DFI-word burst packing (`N_SUBCMD > 1`) is expanded later in `mc_dfi_2p1_layer` (`pumice_core.sv:766-836`).
+**Gearing wrapper.** The AXI4 plane is built for the compile-time maximum DFI word width and does not know `gear_i` or `bl_i` directly. It frames one AXI beat per DFI word and passes `AXI_BEATS_PER_BURST = BURST_WORDS`. Runtime sub-DFI-word burst packing (`N_SUBCMD > 1`) is expanded later in `mc_dfi_2p1_plane` (`pumice_core.sv:766-836`).
 
-**Observed buses.** The signals observed at this layer are the host AXI4 channels, the `mc_storage_layer` storage-seam nets, and the `rd_dfi_ret_*` stream from the DFI layer. No pumice-local CAM or datapath buses exist here anymore.
+**Observed buses.** The signals observed at this plane are the host AXI4 channels, the `mc_storage_plane` storage-seam nets, and the `rd_dfi_ret_*` stream from the DFI plane. No pumice-local CAM or datapath buses exist here anymore.
 
-**Backpressure thresholds.** Write and read acceptance is gated by `mc_storage_layer` ready signals, not by local FIFOs. Read allocation is additionally gated by the return ring (`ar_push_ready_o = rd_cam_ins_ready_o && rt_alloc_ready_i` inside `mc_storage_layer`; see the common layer documentation). The DFI-side read-return FIFO is sized in `mc_dfi_2p1_layer` as `RD_RET_DEPTH * BURST_WORDS` entries (`pumice_core.sv:784`).
+**Backpressure thresholds.** Write and read acceptance is gated by `mc_storage_plane` ready signals, not by local FIFOs. Read allocation is additionally gated by the return ring (`ar_push_ready_o = rd_cam_ins_ready_o && rt_alloc_ready_i` inside `mc_storage_plane`; see the common plane documentation). The DFI-side read-return FIFO is sized in `mc_dfi_2p1_plane` as `RD_RET_DEPTH * BURST_WORDS` entries (`pumice_core.sv:784`).
 
-## Common-layer reference
+## Common-plane reference
 
-For the common layer architecture, child-instance map, burst-chop/split semantics, read-return-ring ordering contract, and complete port list, see [common_mas chapter 2: `mc_axi4_layer`](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md).
+For the common plane architecture, child-instance map, burst-chop/split semantics, read-return-ring ordering contract, and complete port list, see [common_mas chapter 2: `mc_axi4_plane`](../../../../../common-ip/docs/common_mas/ch02_axi4_plane/01_mc_axi4_plane.md).
 
 ## Tests
 
-Wrapper-level tests drive `pumice_core` through the AXI4 BFMs (`AXI4MasterWrite` / `AXI4MasterRead` + `AXI4Sequence`). The underlying `mc_axi4_layer` FUBs are covered by the common unit tests referenced in the common_mas chapter.
+Wrapper-level tests drive `pumice_core` through the AXI4 BFMs (`AXI4MasterWrite` / `AXI4MasterRead` + `AXI4Sequence`). The underlying `mc_axi4_plane` FUBs are covered by the common unit tests referenced in the common_mas chapter.

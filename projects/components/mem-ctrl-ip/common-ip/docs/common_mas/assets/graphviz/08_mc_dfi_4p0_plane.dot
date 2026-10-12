@@ -1,0 +1,73 @@
+// mc_dfi_4p0_plane internal block diagram — family DDR-MC course style.
+// Geography: context row -> CDC -> pipeline row (cmd path / wr ser / rd
+// align) with the generation command surface as a single dashed sideband
+// box off the command path -> PHY bar (sink).
+digraph mc_dfi_4p0_plane {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho,
+           label="DFI 4.0 = shared pipeline + DDR4/LPDDR4 command surface",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- controller-side external interfaces (white) ----
+    cmd_in  [label="Command In\nmc_scheduler_plane — context", fillcolor="white"];
+    wd_in   [label="Write Data In\nmc_storage_plane — context", fillcolor="white"];
+    rd_out  [label="Read Data Out\nmc_storage_plane — context", fillcolor="white"];
+    init_in [label="Init Start In\nmc_training_plane — context", fillcolor="white"];
+
+    // ---- PHY bar (white) ----
+    phy [label="DFI 4.0 PHY\n(DDR4 / LPDDR4 pin surface)", fillcolor="white",
+         rank=sink, width=5.5, fontsize=11];
+
+    // ---- shared DFI 4.0 pipeline blocks ----
+    cdc      [label="Controller/DFI Clock Crossing\nmc_dfi_cdc — FUB"];
+    cmd_path [label="DFI 4.0 Command Path\nmc_dfi_4p0_cmd_path — FUB"];
+    wr_ser   [label="Write Serializer\nmc_dfi_wr_serializer — FUB"];
+    rd_align [label="Read Aligner\nmc_dfi_rd_aligner — FUB"];
+
+    // ---- generation command surface: one dashed sideband box off the flow ----
+    surface [label="DFI 4.0 command surface (generation delta)\nACT_n: andesite_dfi_cmd_formatter — Bank Groups: cmd_bg\nGear-Down phase mask §TBC — CA Parity / alert_n §TBC — DBI (wr/rd)",
+             fontsize=9, style="filled,dashed"];
+
+    // ---- controller-side streams into the CDC ----
+    cmd_in  -> cdc [label="CMD"];
+    wd_in   -> cdc [label="WR"];
+    init_in -> cdc [label="init token"];
+
+    // ---- CDC into the dfi_clk pipeline ----
+    cdc -> cmd_path [label="CMD"];
+    cdc -> wr_ser   [label="WR"];
+
+    // ---- command path drives the data-path FUBs ----
+    cmd_path -> wr_ser   [label="WR"];
+    cmd_path -> rd_align [label="RD"];
+
+    // ---- read return through the CDC ----
+    rd_align -> cdc [label="RD"];
+    cdc -> rd_out   [label="RD"];
+
+    // ---- init token continues to the PHY ----
+    cdc -> phy [label="init token"];
+
+    // ---- PHY-facing command / write / read ----
+    cmd_path -> phy [label="DDR Command"];
+    wr_ser   -> phy [label="Write to DDR"];
+    rd_align -> phy [dir=back, label="Read from DDR"];
+
+    // ---- generation command surface hangs off the command path ----
+    cmd_path:e -> surface:n [style=dashed, arrowhead=none, constraint=false,
+                             label="generation-delta features"];
+
+    // ---- rank pinning ----
+    { rank=same; cmd_in; wd_in; rd_out; init_in; }
+    cmd_in -> wd_in  [style=invis];
+    wd_in  -> rd_out [style=invis];
+    rd_out -> init_in [style=invis];
+
+    { rank=same; cmd_path; wr_ser; rd_align; surface; }
+    cmd_path -> wr_ser   [style=invis];
+    wr_ser   -> rd_align [style=invis];
+    rd_align -> surface  [style=invis];
+}

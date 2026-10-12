@@ -6,16 +6,16 @@ not yet decided stays `TBD` rather than guessing.
 
 Status: **scaffold** (2026-10-11) — no values committed yet.
 
-## Layer selection
+## Plane selection
 
-| Common layer | Configuration for gabbro |
+| Common plane | Configuration for gabbro |
 |---|---|
-| `mc_axi4_layer` | TBD |
-| `mc_storage_layer` | Full (v3 benefits from reordering; no lite default) |
-| `mc_scheduler_layer` | TBD; refresh base = scoria-proven **elastic refresh (v3)** once converged into the common layer |
-| `mc_training_layer` | DDR3/LPDDR3 client set — TBD |
-| `mc_ras_layer` | Per SKU need — ECC candidate, doctrine-9 gated (params select the feature set; no area for unused features) |
-| `mc_dfi_3p1_layer` | Full — 2p1 pipeline + v3.1 generation surface (command dfi_3p1, leveling handshake) |
+| `mc_axi4_plane` | TBD |
+| `mc_storage_plane` | Full (v3 benefits from reordering; no lite default) |
+| `mc_scheduler_plane` | TBD; refresh base = scoria-proven **elastic refresh (v3)** once converged into the common plane |
+| `mc_training_plane` | DDR3/LPDDR3 client set — TBD |
+| `mc_ras_plane` | Per SKU need — ECC candidate, doctrine-9 gated (params select the feature set; no area for unused features) |
+| `mc_dfi_3p1_plane` | Full — 2p1 pipeline + v3.1 generation surface (command dfi_3p1, leveling handshake) |
 
 Never-omitted check (ch5.2): entry store, write-data staging, CDC,
 maintenance request/grant — all present in the full configuration above.

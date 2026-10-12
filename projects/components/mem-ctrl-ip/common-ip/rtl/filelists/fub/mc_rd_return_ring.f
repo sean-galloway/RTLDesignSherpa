@@ -1,5 +1,5 @@
 # Filelist for mc_rd_return_ring (common-ip; extracted from pumice Phase 2 Task 3)
-# In-flight read return path (the layer's RD_RET_DEPTH consumer).
+# In-flight read return path (the plane's RD_RET_DEPTH consumer).
 +incdir+$REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/includes
 +incdir+$REPO_ROOT/rtl/amba/includes
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh

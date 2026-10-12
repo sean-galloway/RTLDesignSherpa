@@ -27,7 +27,7 @@
 > slave face -- what's supported, what's relaxed, what's omitted, and the
 > timing / ordering / backpressure semantics the integrator can rely on.
 >
-> The interface is implemented by `mc_axi4_layer` (section 2.1): a pair of
+> The interface is implemented by `mc_axi4_plane` (section 2.1): a pair of
 > AMBA burst splitters feed the dumb `mc_wr_intake` / `mc_rd_intake`
 > blocks (each wrapping `axi4_slave_wr` / `axi4_slave_rd`), which push into the
 > write / read CAMs.
@@ -77,7 +77,7 @@ maps onto the fixed DRAM burst length.
 - INCR burst type (mandatory)
 - Arbitrary INCR burst length (split into DRAM-burst commands as above)
 - ID-carried requests; per-ID in-order completion (AXI4 mandate)
-- Cross-ID reordering at the DRAM layer, with AXI response ordering honored at
+- Cross-ID reordering at the DRAM plane, with AXI response ordering honored at
   the response side (per HAS 3.1)
 - `awqos`/`arqos`/`awregion`/`arregion` carried through the splitters (observed,
   not yet used for scheduler priority)
@@ -112,7 +112,7 @@ Total in-flight depth per direction is set by `NUM_ENTRIES` (CAM depth) with
 
 1. **Per-ID in-order** -- always enforced. Two accesses with the same ID
    complete in issue order.
-2. **Cross-ID** -- reordering is allowed at the DRAM layer (the scheduler picks
+2. **Cross-ID** -- reordering is allowed at the DRAM plane (the scheduler picks
    by bank/row/age), but the CAMs drain and the intakes emit responses so that
    the AXI-visible ordering rules hold.
 

@@ -21,14 +21,14 @@
 
 <!-- End Header -->
 
-> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_scheduler_layer`; its microarchitecture is owned by [common_mas Chapter 4 — Scheduler Layer and Pick Machinery](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
+> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_scheduler_plane`; its microarchitecture is owned by [common_mas Chapter 4 — Scheduler Plane and Pick Machinery](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
 
 # Global Timers (`mc_global_timers`)
 
 **Module:** `mc_global_timers.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent macro:** `pumice_scheduler_layer`
+**Parent macro:** `pumice_scheduler_plane`
 **Status:** implemented (v2 H)
 
 ## Purpose

@@ -37,9 +37,9 @@ it or this document to be corrected.
 | `scoria_top` | `pumice_top` | INHERITED (structure) |
 | `scoria_top_geared` | `pumice_top_geared` | INHERITED — the host/DRAM width-gearing wrapper |
 | `scoria_core` | `pumice_core` | INHERITED |
-| `scoria_axi4_layer` | `pumice_axi4_ifc` | INHERITED |
-| `scoria_scheduler_layer` | `pumice_mem_cmd_scheduler` | MODIFIED — must admit ZQ maintenance demand |
-| `scoria_dfi_layer` | `pumice_dfi_layer` | MODIFIED — v3.1 control surface |
+| `scoria_axi4_plane` | `pumice_axi4_ifc` | INHERITED |
+| `scoria_scheduler_plane` | `pumice_mem_cmd_scheduler` | MODIFIED — must admit ZQ maintenance demand |
+| `scoria_dfi_plane` | `pumice_dfi_plane` | MODIFIED — v3.1 control surface |
 
 : Table 2.1: Top and macro tier
 

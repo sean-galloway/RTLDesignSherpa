@@ -82,9 +82,9 @@ and `dfi_signal_pack` are purely combinational (0). The live datapath FUBs
 (`mc_wr_intake`, `mc_rd_intake`, `mc_wr_splitter`, `mc_wr_data_cam`,
 `mc_rd_cmd_cam`, `mc_rd_return_ring`, `mc_bank_timers`, `mc_global_timers`,
 `mc_dfi_cdc`, `mc_dfi_cmd_path`, `mc_dfi_wr_serializer`, `mc_dfi_rd_aligner`)
-now live in `common-ip/rtl/fub` and are consumed through the common layer
-macros (`mc_axi4_layer`, `mc_storage_layer`, `mc_scheduler_layer`,
-`mc_dfi_2p1_layer`). The full table is in the MAS, ch01 "Pipeline Latency and
+now live in `common-ip/rtl/fub` and are consumed through the common plane
+macros (`mc_axi4_plane`, `mc_storage_plane`, `mc_scheduler_plane`,
+`mc_dfi_2p1_plane`). The full table is in the MAS, ch01 "Pipeline Latency and
 Mux-Level Schematics".
 
 ## The skin -- `make_skin.py`

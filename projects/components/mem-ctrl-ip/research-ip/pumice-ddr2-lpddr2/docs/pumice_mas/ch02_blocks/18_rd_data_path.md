@@ -21,28 +21,28 @@
 
 <!-- End Header -->
 
-> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_axi4_layer`; its microarchitecture is owned by [common_mas mc_axi4_layer — AXI4 host interface and read-return ring](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
+> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_axi4_plane`; its microarchitecture is owned by [common_mas mc_axi4_plane — AXI4 host interface and read-return ring](../../../../../common-ip/docs/common_mas/ch02_axi4_plane/01_mc_axi4_plane.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
 
 # Read Data Path (`mc_dfi_rd_aligner` + `mc_rd_return_ring`)
 
 **Modules:** `mc_dfi_rd_aligner.sv`, `mc_rd_return_ring.sv`, `mc_rd_cmd_cam.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parents:** `mc_dfi_2p1_layer` (aligner), `mc_axi4_layer` (ring), `mc_storage_layer` (CAM)
+**Parents:** `mc_dfi_2p1_plane` (aligner), `mc_axi4_plane` (ring), `mc_storage_plane` (CAM)
 **Status:** implemented
 
 > The old single-block `rd_cl_aligner` / `rd_data_path_fub` no longer
 > exists. In the rearchitected controller the read data path is split
 > across two clock domains and three FUBs:
 >
-> - `mc_dfi_rd_aligner` (DFI domain, inside `mc_dfi_2p1_layer`) —
+> - `mc_dfi_rd_aligner` (DFI domain, inside `mc_dfi_2p1_plane`) —
 >   drives `dfi_rddata_en` at the right cycle for an issued READ and
 >   captures `dfi_rddata` words into the read return FIFO.
-> - `mc_rd_return_ring` (MC domain, inside `mc_storage_layer`) — the
+> - `mc_rd_return_ring` (MC domain, inside `mc_storage_plane`) — the
 >   outstanding-read reorder buffer. Returns arrive in *issue* order into
 >   the slot named by the read's ticket, and the ring drains from its head
 >   in *AR* order to `mc_rd_intake`. See §22.
-> - `mc_rd_cmd_cam` (MC domain, inside `mc_storage_layer`) — the
+> - `mc_rd_cmd_cam` (MC domain, inside `mc_storage_plane`) — the
 >   scheduling window only. Its entry is freed the cycle the column issues.
 >
 > **Corrected 2026-09-09.** This chapter previously said the CAM was the
@@ -207,7 +207,7 @@ on the last word.
 | `issue_ready_o` | out | Room in the issue-order FIFO                         |
 | `issue_slot_i`  | in  | Slot issued (records issue order for return fill)    |
 
-### DFI return (from `mc_dfi_2p1_layer` read path, issue order)
+### DFI return (from `mc_dfi_2p1_plane` read path, issue order)
 
 | Signal             | Dir | Description                                       |
 |--------------------|-----|---------------------------------------------------|

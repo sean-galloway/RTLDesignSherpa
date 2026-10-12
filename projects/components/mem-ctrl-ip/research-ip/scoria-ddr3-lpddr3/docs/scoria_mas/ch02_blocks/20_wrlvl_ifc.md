@@ -26,7 +26,7 @@
 **Module:** `scoria_wrlvl_ifc.sv`
 **Location:** `rtl/fub/`
 **Category:** training control / PHY handshake
-**Parent:** `scoria_scheduler_layer`
+**Parent:** `scoria_scheduler_plane`
 **Status:** landed and sim-verified
 
 ## Purpose

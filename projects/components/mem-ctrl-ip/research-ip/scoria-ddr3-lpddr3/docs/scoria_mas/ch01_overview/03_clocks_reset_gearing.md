@@ -38,7 +38,7 @@ single block.
 Every crossing between them goes through `scoria_dfi_cdc` (page 2.25): five
 `gaxi_fifo_async` instances for commands, write data, read data, and the
 init/leveling event tokens. There are no hand-rolled synchronizers anywhere
-else in the design, and the DFI layer is deliberately never allowed to stall
+else in the design, and the DFI plane is deliberately never allowed to stall
 — all JEDEC spacing is enforced on the controller side, upstream of the FIFOs.
 
 The init handshake crosses as rising-edge tokens and latches sticky on the
@@ -48,7 +48,7 @@ far side: `dfi_init_start_o` (controller → PHY) and `dfi_init_complete_i`
 
 Both resets are active-low and asynchronous-assert, synchronous-deassert in
 the usual family style; each side of the CDC has its own reset
-(`ctl_rstn`/`dfi_rstn` derive from them inside the DFI layer).
+(`ctl_rstn`/`dfi_rstn` derive from them inside the DFI plane).
 
 ## The target design point
 

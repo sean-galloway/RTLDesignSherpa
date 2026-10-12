@@ -30,16 +30,16 @@ controllers that prove the generations out.
 
 ## The product names
 
-| Product | Generation | Memory | DFI layer |
+| Product | Generation | Memory | DFI plane |
 |---|---|---|---|
-| **granite** | v2 | DDR2 / LPDDR2 | `mc_dfi_2p1_layer` |
-| **gabbro** | v3 | DDR3 / LPDDR3 | `mc_dfi_3p1_layer` |
-| **diorite** | v4 | DDR4 / LPDDR4 | `mc_dfi_4p0_layer` |
+| **granite** | v2 | DDR2 / LPDDR2 | `mc_dfi_2p1_plane` |
+| **gabbro** | v3 | DDR3 / LPDDR3 | `mc_dfi_3p1_plane` |
+| **diorite** | v4 | DDR4 / LPDDR4 | `mc_dfi_4p0_plane` |
 
 The naming is igneous, ordered, and owned here: future generations extend the
 list (basalt is reserved informally for the v5/DDR5 generation per the
 memtype encoding's 2'b11 code). A product is a configuration of the common
-stack — layers selected, knobs set, rock children chosen — not a new RTL
+stack — planes selected, knobs set, rock children chosen — not a new RTL
 tree.
 
 ## What a product may leave out — and what it may not
@@ -47,13 +47,13 @@ tree.
 The v2 generation needs no bank groups, no FGR, no DBI, no CA parity. A
 granite build correspondingly runs:
 
-- **Storage layer in its lite configuration.** "Off" is not literal: the
+- **Storage plane in its lite configuration.** "Off" is not literal: the
   scheduler's pick machinery argmaxes over schedulable-entry vectors, and
-  something must hold those entries. Lite means the stripped AXI-layer
+  something must hold those entries. Lite means the stripped AXI-plane
   configuration serving N=1, in-order — the seam vectors with one entry
   behind them (Ch 2.2). The entry store can shrink toward one; it cannot
   reach zero.
-- **RAS layer absent.** Unlike storage, this is a true bypass: no transform
+- **RAS plane absent.** Unlike storage, this is a true bypass: no transform
   pair instantiated, no CSR surface beyond the reserved decode, scrub
   absent. Doctrine 9 governs what may later appear here.
 - **The write-data buffer at its minimum.** It cannot reach zero — write
@@ -67,7 +67,7 @@ staging, the aclk↔dfi_clk CDC, and the maintenance request/grant path
 product, it is a broken one).
 
 granite is therefore the **bypass-validation testbed**: the cheapest full
-proof that the common core runs correctly with its optional layers at
+proof that the common core runs correctly with its optional planes at
 minimum and absent, before gabbro/diorite spend area on features the v2
 generation will never see.
 

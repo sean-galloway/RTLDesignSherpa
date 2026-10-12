@@ -26,7 +26,7 @@
 **Module:** `pumice_lp_cal.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent macro:** `pumice_training_layer`
+**Parent macro:** `pumice_training_plane`
 **Status:** implemented and FUB-tested (LPDDR2); inert for DDR2 builds — no MRR
 
 > The DQ-vs-tap sweep lives outside the core, on purpose. This FUB is the
@@ -51,7 +51,7 @@ the working window. The FSM here just runs the sequence:
    no REF recovery, and a drained write path — the JESD209-2F MRR spacing
    rules RD→MRR ≥ BL/2, WR→MRR ≥ WL+1+BL/2+tWTR come along for free).
 2. Issue MRR to MR32: `OP_MRS` + `cmd_mrr_o = 1`, row `{4'd0, MA=32, OP=0}`.
-   Pulse `cal_expect_o` for one cycle to arm the DFI-layer read aligner.
+   Pulse `cal_expect_o` for one cycle to arm the DFI-plane read aligner.
 3. Capture the first `dfi_rddata_valid` beat (MRR data lands
    `RL·tCK + tDQSCK + tDQSQ` after the command; BL=4, but only beat 0
    carries the MR data).
@@ -113,7 +113,7 @@ fresh.
 | `t_mrr_i`        | in        | 16    | MRR-to-MRR spacing, MC cycles (`CAL_TRAIN_TIMING.t_mrr`, reset 2) |
 | `t_readout_i`    | in        | 16    | MRR issue → data timeout (`CAL_TRAIN_TIMING.t_readout`) |
 
-### Maintenance command channel (to the training-layer mux, then the arbiter)
+### Maintenance command channel (to the training-plane mux, then the arbiter)
 
 | Signal          | Direction | Width | Description                                           |
 |-----------------|-----------|-------|-------------------------------------------------------|
@@ -124,7 +124,7 @@ fresh.
 | `cmd_row_o`     | out       | 18    | `{4'd0, MA[5:0], 8'd0}` — OP field = 0 for MRR          |
 | `cmd_mrr_o`     | out       | 1     | formatter MRR select; 1 whenever this FUB drives        |
 
-### Calibration capture handshake (mc_clk domain, synchronized by the layer)
+### Calibration capture handshake (mc_clk domain, synchronized by the plane)
 
 | Signal             | Direction | Width            | Description                                      |
 |--------------------|-----------|------------------|--------------------------------------------------|

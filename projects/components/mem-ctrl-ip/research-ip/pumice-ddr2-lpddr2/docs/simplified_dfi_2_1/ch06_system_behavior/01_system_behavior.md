@@ -115,6 +115,6 @@ The pumice DDR2/LPDDR2 controller does not implement the frequency change
 protocol. Its `dfi_init_start` is used only during initialization, and the DFI
 clock ratio is fixed by the PHY integration. A controller that needs runtime
 frequency scaling would need to add the acknowledged-frequency-change state
-machine to the DFI layer.
+machine to the DFI plane.
 
 **Source:** DFI Specification v2.1.1 sections 3.4, 3.5, 3.7, 4.5, 4.8, 4.11; `docs/pumice_mas/ch03_interfaces/02_dfi_v21_interface_spec.md`

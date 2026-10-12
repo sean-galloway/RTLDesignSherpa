@@ -1,0 +1,43 @@
+// mc_axi4_plane internal block diagram — DDR-MC course style per STYLE.md.
+digraph mc_axi4_plane {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.30", ranksep="0.55", splines=ortho,
+           label="mc_axi4_plane — AXI4 host interface and read-return ring",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.07"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- external host interfaces (white) ----
+    axi_wr [label="AXI Write Channel", fillcolor="white"];
+    axi_rd [label="AXI Read Channel", fillcolor="white"];
+
+    // ---- mc_axi4_plane functional blocks ----
+    wr_pkt [label="Write Request Packetizer\nmc_axi4_plane — mc_wr_intake,\nmc_axi_burst_chopper, mc_wr_splitter"];
+    rd_pkt [label="Read Request Packetizer\nmc_axi4_plane — mc_rd_intake"];
+    merge_b [label="Merge Buffer\nfinal write coalescing\n(mc_axi4_plane)"];
+    rbuf [label="Read Data Reorder Buffer\n+ Merge Logic\nmc_axi4_plane — mc_rd_return_ring\n(AXI ID order)"];
+
+    // ---- downstream context (white) ----
+    storage [label="mc_storage_plane\n(write command / data pool context)", fillcolor="white"];
+
+    // ---- host channels ----
+    axi_wr -> wr_pkt [dir=both, arrowhead=normal, label="WR"];
+    axi_rd -> rd_pkt [dir=both, arrowhead=normal, label="RD"];
+
+    // ---- write flow ----
+    wr_pkt -> merge_b;
+    merge_b -> storage [label="descriptors"];
+
+    // ---- read flow ----
+    rd_pkt -> storage [xlabel="descriptors"];
+    rd_pkt -> storage [xlabel="snoop probe"];
+    storage -> rbuf [label="RD"];
+    rbuf -> axi_rd [label="RD"];
+
+    // ---- rank pinning ----
+    { rank=same; axi_wr; axi_rd; }
+    { rank=same; wr_pkt; rd_pkt; }
+    { rank=same; merge_b; rbuf; }
+    merge_b -> rbuf [style=invis];
+}

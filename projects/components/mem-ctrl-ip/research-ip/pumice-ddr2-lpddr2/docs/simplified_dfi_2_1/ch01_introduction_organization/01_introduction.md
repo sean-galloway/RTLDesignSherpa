@@ -17,7 +17,7 @@ left to the implementation.
 
 ## Why the MC/PHY split exists
 
-A modern memory subsystem usually has three layers: the controller (scheduling,
+A modern memory subsystem usually has three planes: the controller (scheduling,
 bank state, refresh), the PHY (clock generation, pads, delay lines, serializers),
 and the DRAM devices. The controller wants a stable programming model; the PHY
 wants freedom to choose pad timing, delay lines, and clocking. DFI sits between

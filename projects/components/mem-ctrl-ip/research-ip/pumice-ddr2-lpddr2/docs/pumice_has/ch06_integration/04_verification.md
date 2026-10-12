@@ -23,11 +23,11 @@
 
 # Verification Strategy
 
-A layered verification approach with the existing DFI BFM as the primary reference.
+A planeed verification approach with the existing DFI BFM as the primary reference.
 
-## Layered Approach
+## Planeed Approach
 
-### Layer 1: Module-Level Unit Tests
+### Plane 1: Module-Level Unit Tests
 
 Each live FUB gets its own cocotb unit test (see `dv/tests/fub/`):
 
@@ -50,19 +50,19 @@ Each live FUB gets its own cocotb unit test (see `dv/tests/fub/`):
 | `mc_dfi_wr_serializer`  | CWL alignment; write-data serialization onto DFI phases                  |
 | `mc_dfi_rd_aligner`     | CL alignment; read-data assembly; back-pressure                          |
 
-The four macro wrappers and the integration levels are exercised at Layer 2/3:
-`mc_axi4_layer`, `pumice_scheduler_layer`, `mc_dfi_2p1_layer`, `pumice_core`,
+The four macro wrappers and the integration levels are exercised at Plane 2/3:
+`mc_axi4_plane`, `pumice_scheduler_plane`, `mc_dfi_2p1_plane`, `pumice_core`,
 and `pumice_top` (the PeakRDL `pumice_csr` register block is verified with the top).
 
-### Layer 2: Subsystem Tests
+### Plane 2: Subsystem Tests
 
-Multi-module integration tests, framed around the three macro layers (see `dv/tests/macro/`):
+Multi-module integration tests, framed around the three macro planes (see `dv/tests/macro/`):
 
-- **AXI interface** (`mc_axi4_layer` = wr/rd intakes + the two CAMs): full AXI transaction flow with diverse traffic, including read-your-write snarf forwarding
-- **Command scheduler** (`pumice_scheduler_layer` = cmd arbiter + bank/global timers + refresh + init + mode register): scheduler decisions on representative queue contents, inline open-page reordering, refresh interleave
-- **DFI layer** (`mc_dfi_2p1_layer` = single CDC + cmd path + wr serializer + rd aligner): command/data flow across the clock-domain crossing with the DFI BFM slave
+- **AXI interface** (`mc_axi4_plane` = wr/rd intakes + the two CAMs): full AXI transaction flow with diverse traffic, including read-your-write snarf forwarding
+- **Command scheduler** (`pumice_scheduler_plane` = cmd arbiter + bank/global timers + refresh + init + mode register): scheduler decisions on representative queue contents, inline open-page reordering, refresh interleave
+- **DFI plane** (`mc_dfi_2p1_plane` = single CDC + cmd path + wr serializer + rd aligner): command/data flow across the clock-domain crossing with the DFI BFM slave
 
-### Layer 3: End-to-End with DFI BFM Slave
+### Plane 3: End-to-End with DFI BFM Slave
 
 The full controller drives the DFI BFM slave through our existing co-sim harness (`tests/sim/dfi/test_litedram/...` patterns in the DV repo).
 
@@ -70,7 +70,7 @@ The full controller drives the DFI BFM slave through our existing co-sim harness
 - DFI BFM slave captures the controller's command stream
 - Assertions check: command sequencing matches AXI, timing constraints are honored, data integrity round-trips through the slave's MemoryModel
 
-### Layer 4: External-Reference Cross-Validation
+### Plane 4: External-Reference Cross-Validation
 
 For DDR2: cross-validate against LiteDRAM's DDR2 model.
 
@@ -130,7 +130,7 @@ The centralized FR-FCFS scheduler proposed in §1 (Differentiating Features) is 
 
 - **Timing-critical path scales with `TXN_QUEUE_DEPTH`.** Scanning the full queue every cycle for the best candidate is a comparator pyramid: priority resolves over (ready-flag, row-hit-flag, age) for every entry simultaneously. At `TXN_QUEUE_DEPTH = 16` this is well within an embedded-SoC clock budget; at 32 it stays comfortable; at 64 it becomes the critical path on the controller side. The characterization sweep should report scheduler combinational depth at synthesis time alongside the performance numbers — the right `TXN_QUEUE_DEPTH` is the largest value that doesn't push the scheduler off the clock budget.
 - **Area cost is super-linear in queue depth.** Each queue entry needs its full metadata replicated (bank, row, col, ID, age, row-hit cache). At depth 16, ~2K gates; at depth 64, ~10K gates — comparable to the rest of the scheduler combined. The HAPPY predictor's gate cost is a separate line item.
-- **Verification cost is significantly higher than FIFO.** OoO issue means assertions like "request N landed at cycle X" can't be used. The DV plan relies on protocol-level scoreboarding: the BFM master records arrival order per ID, the BFM slave records issue order, and the scoreboard verifies the AXI4 per-ID ordering invariant is preserved. Within-ID ordering violations are a higher-severity bug than performance regressions and should be caught at Layer 1 unit tests, not deferred to integration.
+- **Verification cost is significantly higher than FIFO.** OoO issue means assertions like "request N landed at cycle X" can't be used. The DV plan relies on protocol-level scoreboarding: the BFM master records arrival order per ID, the BFM slave records issue order, and the scoreboard verifies the AXI4 per-ID ordering invariant is preserved. Within-ID ordering violations are a higher-severity bug than performance regressions and should be caught at Plane 1 unit tests, not deferred to integration.
 - **Fairness tail matters under adversarial workloads.** With `AGE_MAX` as the only anti-starvation cap, pathological patterns can drive 99th-percentile latency well above mean. The `random-narrow` and `multi-master` workloads in the benchmark suite intentionally exercise this; the `mobile-mixed` workload simulates the common case. The recommended default for `AGE_MAX` should be picked based on tail-latency targets, not throughput targets.
 
 These concerns are unique to the OoO scheduler design choice — a simpler per-bank FIFO controller (the typical open-source pattern) would not face them, at the cost of leaving row-hit reordering performance on the table.

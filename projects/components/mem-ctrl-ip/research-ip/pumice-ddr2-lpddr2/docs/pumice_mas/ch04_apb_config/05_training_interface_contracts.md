@@ -21,13 +21,13 @@
 
 <!-- End Header -->
 
-# Training-Layer Interface Contracts
+# Training-Plane Interface Contracts
 
 > Wire-level contracts for the interfaces the LPDDR2 calibration/training
-> layer added at rev 0.8. Block behavior lives in
+> plane added at rev 0.8. Block behavior lives in
 > [ch02/23](../ch02_blocks/23_zq_ctrl.md),
 > [ch02/24](../ch02_blocks/24_lp_cal.md), and
-> [ch02/25](../ch02_macros/05_training_layer_macro.md); the registers are in
+> [ch02/25](../ch02_macros/05_training_plane_macro.md); the registers are in
 > [§4.2](02_csr_map.md). Every row below is transcribed from committed RTL —
 > the file:line citations are the contract.
 
@@ -35,7 +35,7 @@
 
 ## Contract: scheduler command FIFO word (MRR flag)
 
-**Source.** `rtl/macro/pumice_scheduler_layer.sv` — pack at the `w_cmd_wr_data`
+**Source.** `rtl/macro/pumice_scheduler_plane.sv` — pack at the `w_cmd_wr_data`
 assign, unpack at `w_cmd_rd_data`.
 
 The arbiter-to-DFI command FIFO word grew one bit for training: the MRR
@@ -54,7 +54,7 @@ flag rides on top of the demand-path fields. MSB first:
 `CMD_W = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1`. `dram_op_e` is not
 widened — all 16 opcodes were consumed, and MRR never enters the demand
 path. The word is a `gaxi_fifo_sync` data width; the only pack/unpack sites
-are the scheduler layer and `mc_dfi_cmd_path`, so no external consumer
+are the scheduler plane and `mc_dfi_cmd_path`, so no external consumer
 sees the packing.
 
 The arbiter registers the flag with the decision:
@@ -87,7 +87,7 @@ was needed for ZQ.
 ## Contract: read-aligner calibration sideband
 
 **Source.** `rtl/fub/mc_dfi_rd_aligner.sv` — calibration capture block;
-CDC owned by `pumice_training_layer`.
+CDC owned by `pumice_training_plane`.
 
 | Signal          | Domain   | Direction (aligner) | Contract                                       |
 |-----------------|----------|---------------------|------------------------------------------------|
@@ -107,9 +107,9 @@ a returning demand read. Crossing into mc_clk for `pumice_lp_cal` is a
 ## Contract: `trn_cmd` maintenance arbitration
 
 **Source.** `rtl/fub/pumice_cmd_arbiter.sv` — priority pick, `w_trn_safe`,
-grant output; channel driven by `pumice_training_layer`.
+grant output; channel driven by `pumice_training_plane`.
 
-The training layer is one more maintenance client on the arbiter, in
+The training plane is one more maintenance client on the arbiter, in
 priority order:
 
 ```text
@@ -121,11 +121,11 @@ rows:
 
 | # | Term | Contract |
 |---|------|----------|
-| 1 | Request payload | `trn_cmd_req_i/op_i/bank_i/row_i/mrr_i` from the training-layer mux; the granted op passes **verbatim** onto the command output — the arbiter never re-encodes maintenance commands |
+| 1 | Request payload | `trn_cmd_req_i/op_i/bank_i/row_i/mrr_i` from the training-plane mux; the granted op passes **verbatim** onto the command output — the arbiter never re-encodes maintenance commands |
 | 2 | Grant safety (`w_trn_safe`) | all banks idle (`!w_any_active`), no ACT/PRE in flight (`!w_inflight_preact`), both guard windows clear (`r_guard0/1 == 0`), no REF recovery (`!w_rfc_busy`), no in-flight write data (satisfied by the scheduler draining the write path before `trn_cmd_req_i` asserts) |
 | 3 | Priority | training picks only when init is done and no refresh request/drain is pending; it never preempts either, and demand never preempts it |
 | 4 | Grant return | `trn_cmd_grant_o = w_fire_out && r_do_trn` — the grant is the fired command, so grant and issue cannot diverge |
-| 5 | Post-grant hold | `cal_busy` from the training layer folds into `w_out_safe`; all demand-class fires are blocked during the ZQ/lp_cal bus-quiet window |
+| 5 | Post-grant hold | `cal_busy` from the training plane folds into `w_out_safe`; all demand-class fires are blocked during the ZQ/lp_cal bus-quiet window |
 
 Row 5 is the BUG-003 discipline applied again: the new gate lives in
 `w_out_safe`, never in the pick cone, so `w_fire_out == cmd_valid_o &&

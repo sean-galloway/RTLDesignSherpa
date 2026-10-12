@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""pumice CSR reset-parity manifest (TASK-015 layer 0).
+"""pumice CSR reset-parity manifest (TASK-015 plane 0).
 
 Gated by `bin/check_csr_reset_parity.py`. Every `sw=rw` field in
 `pumice_csr.rdl` appears here exactly once, under exactly one of:
@@ -39,9 +39,9 @@ RDL = "../rtl/macro/pumice_csr.rdl"
 CLOCK = {
     "hz": 75000000,
     "env": "PUMICE_MC_CLK_HZ",
-    "declared_by": "projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/build-perf/host/pumice_char.py",
+    "declared_by": "projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/build-perf/host/pumice_char.py",
     "note": "board_ddr2_300 in dv/tbclasses/pumice_dram_configs.py carries the "
-            "same 75 MHz; that table is what the sim layers run.",
+            "same 75 MHz; that table is what the sim planes run.",
 }
 
 _MATRIX = "projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/dv/tests/macro/test_pumice_sched_matrix.py"

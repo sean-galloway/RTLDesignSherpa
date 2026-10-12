@@ -16,7 +16,7 @@
 //          DDR2 has no ZQ pin, so the FUB is inert for DDR2 builds.
 //
 // Documentation:
-//   projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/uarch/PUMICE_TRAINING_LAYER_UARCH.md
+//   projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/uarch/PUMICE_TRAINING_PLANE_UARCH.md
 //
 // Author: sean galloway
 // Created: 2026-10-07

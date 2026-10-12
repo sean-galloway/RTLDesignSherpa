@@ -15,34 +15,34 @@ digraph pumice_whole_unit {
     phy      [label="DDR PHY  (DFI 2.1 master)", fillcolor="white",
               width=6.5, fontsize=11];
 
-    // ---- host side: mc_axi4_layer ----
-    wr_intake [label="Write Request Intake\nmc_axi4_layer — mc_wr_intake,\nmc_addr_mapper, burst chopper"];
-    rd_intake [label="Read Request Intake\nmc_axi4_layer — mc_rd_intake,\nmc_addr_mapper, snarf probe"];
+    // ---- host side: mc_axi4_plane ----
+    wr_intake [label="Write Request Intake\nmc_axi4_plane — mc_wr_intake,\nmc_addr_mapper, burst chopper"];
+    rd_intake [label="Read Request Intake\nmc_axi4_plane — mc_rd_intake,\nmc_addr_mapper, snarf probe"];
 
-    // ---- storage: mc_storage_layer ----
-    wr_cam [label="Write Data CAM\nmc_storage_layer — mc_wr_data_cam\n(fill / drain / snarf)"];
-    rd_cam [label="Read Command CAM\nmc_storage_layer — mc_rd_cmd_cam\n(return-fill / drain)"];
+    // ---- storage: mc_storage_plane ----
+    wr_cam [label="Write Data CAM\nmc_storage_plane — mc_wr_data_cam\n(fill / drain / snarf)"];
+    rd_cam [label="Read Command CAM\nmc_storage_plane — mc_rd_cmd_cam\n(return-fill / drain)"];
 
-    // ---- scheduler: pumice_scheduler_layer wrapper + rock children ----
-    init_seq  [label="Init Sequencer\npumice_scheduler_layer — init_sequencer\n(DDR2/LPDDR2 MR init)"];
-    mode_reg  [label="Mode Register\npumice_scheduler_layer — mode_register\n(CL / CWL / BL / AL)"];
-    refresh   [label="Refresh Controller\npumice_scheduler_layer — refresh_ctrl\n(tREFI accumulator)"];
-    page_pol  [label="Page Policy\npumice_scheduler_layer — pumice_page_policy\n(open-page decision)"];
-    cmd_hist  [label="Command History Checker\npumice_scheduler_layer — pumice_cmd_history_checker\n(optional DV scoreboard)",
+    // ---- scheduler: pumice_scheduler_plane wrapper + rock children ----
+    init_seq  [label="Init Sequencer\npumice_scheduler_plane — init_sequencer\n(DDR2/LPDDR2 MR init)"];
+    mode_reg  [label="Mode Register\npumice_scheduler_plane — mode_register\n(CL / CWL / BL / AL)"];
+    refresh   [label="Refresh Controller\npumice_scheduler_plane — refresh_ctrl\n(tREFI accumulator)"];
+    page_pol  [label="Page Policy\npumice_scheduler_plane — pumice_page_policy\n(open-page decision)"];
+    cmd_hist  [label="Command History Checker\npumice_scheduler_plane — pumice_cmd_history_checker\n(optional DV scoreboard)",
                style="filled,dashed"];
-    sched     [label="Command Scheduler\npumice_scheduler_layer — mc_scheduler_layer core\n(FR-FCFS pick + timers)",
+    sched     [label="Command Scheduler\npumice_scheduler_plane — mc_scheduler_plane core\n(FR-FCFS pick + timers)",
                shape=invtrapezium, width=4.2, fillcolor="#BFD7EE", fontsize=11];
 
-    // ---- training: pumice_training_layer wrapper + rock children ----
-    zq_cal    [label="ZQ Calibration\npumice_training_layer — pumice_zq_ctrl\n(periodic ZQ)"];
-    lp_cal    [label="LP DQ Calibration\npumice_training_layer — pumice_lp_cal\n(MRR DQ cal)"];
-    trn_shell [label="Training Layer Shell\npumice_training_layer — mc_training_layer shell"];
+    // ---- training: pumice_training_plane wrapper + rock children ----
+    zq_cal    [label="ZQ Calibration\npumice_training_plane — pumice_zq_ctrl\n(periodic ZQ)"];
+    lp_cal    [label="LP DQ Calibration\npumice_training_plane — pumice_lp_cal\n(MRR DQ cal)"];
+    trn_shell [label="Training Plane Shell\npumice_training_plane — mc_training_plane shell"];
 
-    // ---- data path: mc_dfi_2p1_layer ----
-    dfi_cdc [label="DFI Clock-Domain Crossing\nmc_dfi_2p1_layer — mc_dfi_cdc\n(async gaxi FIFOs)"];
-    dfi_cmd [label="DFI Command Path\nmc_dfi_2p1_layer — mc_dfi_cmd_path\n(formatter + signal pack)"];
-    dfi_wr  [label="DFI Write Serializer\nmc_dfi_2p1_layer — mc_dfi_wr_serializer"];
-    dfi_rd  [label="DFI Read Aligner\nmc_dfi_2p1_layer — mc_dfi_rd_aligner"];
+    // ---- data path: mc_dfi_2p1_plane ----
+    dfi_cdc [label="DFI Clock-Domain Crossing\nmc_dfi_2p1_plane — mc_dfi_cdc\n(async gaxi FIFOs)"];
+    dfi_cmd [label="DFI Command Path\nmc_dfi_2p1_plane — mc_dfi_cmd_path\n(formatter + signal pack)"];
+    dfi_wr  [label="DFI Write Serializer\nmc_dfi_2p1_plane — mc_dfi_wr_serializer"];
+    dfi_rd  [label="DFI Read Aligner\nmc_dfi_2p1_plane — mc_dfi_rd_aligner"];
 
     // ---- configuration ----
     csr [label="Configuration Registers\npumice_csr  (PeakRDL)"];
@@ -76,7 +76,7 @@ digraph pumice_whole_unit {
     // ---- scheduler to DFI/PHY ----
     sched -> dfi_cdc [label="DDR command"];
 
-    // ---- DFI layer internals ----
+    // ---- DFI plane internals ----
     dfi_cdc -> dfi_cmd;
     dfi_cdc -> dfi_wr [dir=both, arrowhead=none, label="write data"];
     dfi_cdc -> dfi_rd [dir=both, arrowhead=none, label="read data"];

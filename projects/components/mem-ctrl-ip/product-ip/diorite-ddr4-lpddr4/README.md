@@ -29,17 +29,17 @@ The v4 product SKU, built from the common stack proven on
 | | |
 |---|---|
 | Generation | v4 (DDR4 / LPDDR4 unified) |
-| DFI layer | `mc_dfi_4p0_layer` |
+| DFI plane | `mc_dfi_4p0_plane` |
 | Source rock | [`andesite-ddr4-lpddr4`](../../research-ip/andesite-ddr4-lpddr4/) — planned; structure and books first |
 | Board target | Owner Kintex-7 board (planned) — TBD |
 | Status | **Scaffold (2026-10-11)** — not built; the research rock it consumes is itself not built |
 
 ## Configuration intent
 
-- Full storage layer; RAS layer present per SKU need.
-- Carries the v4 generation command surface on the DFI 4.0 layer: bank
+- Full storage plane; RAS plane present per SKU need.
+- Carries the v4 generation command surface on the DFI 4.0 plane: bank
   groups (`cmd_bg`), gear-down phase mask, CA parity / `alert_n`, DBI —
-  see the `mc_dfi_4p0_layer` chapter of the
+  see the `mc_dfi_4p0_plane` chapter of the
   [common MAS](../../common-ip/docs/common_mas/common_mas_index.md) for the
   current feature state (gear-down and CA parity are §TBC there).
 

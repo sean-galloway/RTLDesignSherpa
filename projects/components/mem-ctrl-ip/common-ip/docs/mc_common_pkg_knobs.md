@@ -38,8 +38,8 @@ Decision: rocks keep the 1-bit CSR field and legacy values for Phase 2; each
 rock maps legacy→family at the single hwif cast point
 (`memtype_e'(hwif_out...)` in `<rock>_top.sv`, one site per rock) via a
 per-rock mapping constant. The family `memtype_e` is used everywhere else
-(build params, common layers). CSR widening is recorded here as a deliberate,
-named deferral (doc 01 anticipates it; it is not required for layer
+(build params, common planes). CSR widening is recorded here as a deliberate,
+named deferral (doc 01 anticipates it; it is not required for plane
 extraction, and the plan's zero-behavior-change constraint binds).
 
 Cost if wrong: a later CSR-widening task re-touches the one cast site per

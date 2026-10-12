@@ -98,7 +98,7 @@ the CA bus. The controller picks. Consequences:
    refresh, write-refresh parallelisation and the rest of the DARP family
    surveyed in andesite TASK-001. This book implements the commodity
    round-robin and leaves the survey's schemes where they are; the
-   scheduling-policy layering that scoria's TASK-001 built (CSR-select,
+   scheduling-policy planeing that scoria's TASK-001 built (CSR-select,
    reset-off, telemetry-instrumented) is exactly the hook they'd hang on.
 
 ## Requirements

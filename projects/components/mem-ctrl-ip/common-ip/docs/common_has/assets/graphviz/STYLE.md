@@ -1,6 +1,6 @@
 # Diagram house style — memory-controller uarch diagrams
 
-Every overall-uarch and per-layer diagram in the mem-ctrl-ip books follows
+Every overall-uarch and per-plane diagram in the mem-ctrl-ip books follows
 this style, fixed by the reference the owner chose
 (`design-a-ddr-memory-controller-i-top-level-diagram.webp`): the classic
 DDR-MC course diagram.
@@ -26,7 +26,7 @@ the drawing alone:
 | **Write data** | top-down, own route | enters with the write channel, leaves through its own path to the PHY (in the reference: down the left side, via the merge/forward buffers and write data path control) |
 | **Read data** | **back up**, own route | returns from the PHY on a separate route (in the reference: up the right side, through read data path control, merge logic, reorder buffer, home to the AXI read channel). The spatial loop — down the middle, up the side — is the point. |
 
-On per-layer diagrams the same discipline applies at layer scale: request
+On per-plane diagrams the same discipline applies at plane scale: request
 traffic enters at the top, leaves at the bottom; returned/response traffic
 re-enters at the bottom and leaves at the top or side on its own route.
 
@@ -44,7 +44,7 @@ re-enters at the bottom and leaves at the top or side on its own route.
    names. A label answers "what is this arrow carrying?" not "what is this
    wire called?".
 5. **One boundary bar per diagram** — the PHY at whole-unit scale, the
-   layer edge at layer scale. Everything leaving the drawn unit crosses the
+   plane edge at plane scale. Everything leaving the drawn unit crosses the
    bar at a labeled point; nothing crosses silently.
 6. **Blocks sit ON their flow, in flow order through the ranks.** A block
    with no arrow on its flow does not belong in the diagram. Pools and

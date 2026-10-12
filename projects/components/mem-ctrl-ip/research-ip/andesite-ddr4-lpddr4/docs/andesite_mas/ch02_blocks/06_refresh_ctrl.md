@@ -111,7 +111,7 @@ The credit-window bookkeeping scales with the density accounting, but the ±8 ce
 
 LPDDR4 changes who names the bank. For LPDDR2/3, `REFpb` carried no bank address and scoria's rotor mirrored the device's fixed counter. JESD209-4 lets the controller put the bank on the CA bus, so the rotor is replaced by explicit bank scheduling.
 
-This edition implements a round-robin default. The policy layer that scoria's TASK-001 built — CSR-select, reset-off, telemetry-instrumented — is exactly where occupancy-aware schemes from andesite TASK-001's DARP survey would hang. Round-robin is the commodity choice; advanced schemes are left as future policy hooks.
+This edition implements a round-robin default. The policy plane that scoria's TASK-001 built — CSR-select, reset-off, telemetry-instrumented — is exactly where occupancy-aware schemes from andesite TASK-001's DARP survey would hang. Round-robin is the commodity choice; advanced schemes are left as future policy hooks.
 
 The scheduling policy hook picks the next bank. On the carried block the hook is internal: a round-robin rotor advances the per-bank pointer and drives `refresh_bank_o` (observable on `obs_bank_rotor_o`), with no bank-busy input — the busy-masked, occupancy-aware variants are the future policy this page leaves hooked, not a port the inherited engine has. Future policies can replace the hook without touching the refresh engine.
 

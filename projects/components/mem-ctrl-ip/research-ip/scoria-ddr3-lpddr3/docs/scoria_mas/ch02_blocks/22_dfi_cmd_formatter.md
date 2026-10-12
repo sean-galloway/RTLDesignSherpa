@@ -26,7 +26,7 @@
 **Module:** `scoria_dfi_cmd_formatter.sv`
 **Location:** `rtl/fub/`
 **Category:** DFI command encoding
-**Parent:** `scoria_dfi_layer`
+**Parent:** `scoria_dfi_plane`
 **Status:** implemented
 
 ## Purpose

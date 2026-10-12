@@ -1,7 +1,7 @@
 # Simplified DFI 2.1
 
 **Source:** DFI Specification v2.1.1 (Denali Software, 17 June 2010) (paraphrased; section numbers cited per chapter)
-**Edition:** Simplified for the pumice DDR2/LPDDR2 memory controller (its DFI layer is `rtl/macro/pumice_dfi_layer.sv`). Derived from the Memory Notes condensed study notes.
+**Edition:** Simplified for the pumice DDR2/LPDDR2 memory controller (its DFI plane is `rtl/macro/pumice_dfi_plane.sv`). Derived from the Memory Notes condensed study notes.
 **Version:** 0.1
 **Last Updated:** 2026-10-04
 **Status:** Draft. Personal study notes.

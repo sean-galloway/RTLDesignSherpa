@@ -1,9 +1,9 @@
-"""The scheduler layer across every legal operating point and paging mode.
+"""The scheduler plane across every legal operating point and paging mode.
 
 WHY THIS TEST EXISTS. pumice BUG-003 -- a pick the arbiter's own final safety
-gate had rejected being pushed to the DRAM anyway -- was found at this layer in
+gate had rejected being pushed to the DRAM anyway -- was found at this plane in
 under a minute, after weeks of chasing it through the DFI model and the board.
-The layer is cheap (no AXI front end, no CAMs, no DFI, no PHY), fully
+The plane is cheap (no AXI front end, no CAMs, no DFI, no PHY), fully
 observable, and it is where the command stream is DECIDED. Sean's question, and
 the reason for this file: *"are there another 50 bugs laying dormant in the rtl
 right now??? How do I tell????"* -- you tell by running the configurations that
@@ -68,7 +68,7 @@ for _p in (_TESTS_DIR, _DV_DIR):
         sys.path.insert(0, _p)
 
 from pumice_coverage import get_coverage_compile_args, get_coverage_env  # noqa: E402
-from tbclasses.pumice_scheduler_layer_tb import (                      # noqa: E402
+from tbclasses.pumice_scheduler_plane_tb import (                      # noqa: E402
     PumiceMemCmdSchedulerTB, OP_ACT, OP_RD, OP_WR, OP_PRE, OP_REF,
 )
 from tbclasses.pumice_dram_configs import (                              # noqa: E402
@@ -77,7 +77,7 @@ from tbclasses.pumice_dram_configs import (                              # noqa:
 from tbclasses.pumice_cmd_stream_checker import assert_clean             # noqa: E402
 
 _FILELIST = ("projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/"
-             "rtl/filelists/macro/pumice_scheduler_layer.f")
+             "rtl/filelists/macro/pumice_scheduler_plane.f")
 
 # Paging modes, by the name the RTL and the CSR use for each.
 #   0 build_default  1 static_open  2 static_close(AP)  3 fixed_open
@@ -351,7 +351,7 @@ async def cocotb_test_sched_config_matrix(dut):
 
     # THE RUN MUST PROVE ITS DEPTH, not just that it ran. Sean, on reading that
     # 12 configs and 504 arms had completed in 37 seconds: *"I would expect 12
-    # configurations at the scheduler_layer to run for 36 minutes or more. 37
+    # configurations at the scheduler_plane to run for 36 minutes or more. 37
     # seconds sounds way too fast."* He was right -- the patterns were 16-32
     # requests each, so the sweep was a smoke test with a sweep's arm count. A
     # wall-clock and cycle count printed beside the verdict is what makes that
@@ -403,7 +403,7 @@ def _matrix_configs():
 @pytest.mark.parametrize("test_level", reg_level_grid())
 def test_pumice_sched_matrix(request, config, test_level):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "pumice_scheduler_layer"
+    dut_name = "pumice_scheduler_plane"
     test_name = f"sched_matrix_{config}_{test_level}"
 
     _model, ctrl, meta = dram_config(config)

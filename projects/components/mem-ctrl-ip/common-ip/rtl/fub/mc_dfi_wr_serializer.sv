@@ -10,7 +10,7 @@
 //          cycle from the write-data FIFO onto dfi_wrdata (+ en + mask) until
 //          the burst's `last` word. One pop = one DFI cycle = ZERO bubbles.
 //
-//          Extracted from pumice_dfi_wr_serializer during Phase 2 common-layer
+//          Extracted from pumice_dfi_wr_serializer during Phase 2 common-plane
 //          reorg (2026-10-10).
 //
 //          The internal datapath unit IS the DFI word (dfi_wrdata width): it
@@ -21,7 +21,7 @@
 //
 //          AXI wstrb=1 (write byte) -> DFI mask=1 means MASK. mask = ~strb.
 //
-// Documentation: docs/uarch/PUMICE_DFI_LAYER_UARCH.md
+// Documentation: docs/uarch/PUMICE_DFI_PLANE_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"

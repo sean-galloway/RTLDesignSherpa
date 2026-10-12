@@ -237,7 +237,7 @@ async def cocotb_test_scoria_dfi_rd_aligner(dut):
         # A build with EN_CYC < BL_WORDS therefore DROPS words silently: the
         # stream goes short and every later beat shifts.
         #
-        # Reachable? RD_EN_CYC exists in mc_dfi_3p1_layer precisely for the
+        # Reachable? RD_EN_CYC exists in mc_dfi_3p1_plane precisely for the
         # narrow-device case ("set separately when the DRAM beat != device
         # word") and NO instantiation ever sets it -- it defaults to BL_WORDS
         # everywhere, while scoria_top computes the true DQ occupancy

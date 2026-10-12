@@ -21,14 +21,14 @@
 
 <!-- End Header -->
 
-> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_scheduler_layer`; its microarchitecture is owned by [common_mas Chapter 4 — Scheduler Layer and Pick Machinery](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
+> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_scheduler_plane`; its microarchitecture is owned by [common_mas Chapter 4 — Scheduler Plane and Pick Machinery](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
 
 # Global Timers (`mc_global_timers`)
 
 **Module:** `mc_global_timers.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent macro:** `pumice_scheduler_layer`
+**Parent macro:** `pumice_scheduler_plane`
 **Status:** Implemented (per-rank tFAW/tRRD; global tWTR/tRTW/tCCD; strict-flop outputs)
 
 > **Replaces the retired cross-bank timer block.** The original `xbank_timers`
@@ -138,7 +138,7 @@ for (int unsigned i = 0; i < 4; i++)
 The "pick smallest count" load policy is equivalent to "replace the oldest
 entry," which is the correct rolling-window behavior. It avoids a timestamp FIFO
 (which would need a subtractor at check time); the check is a 4-way
-compare-to-zero, one LUT layer.
+compare-to-zero, one LUT plane.
 
 ### tRRD — `r_trrd_cnt[NUM_RANKS]`
 
@@ -319,7 +319,7 @@ cycle T:   r_trrd_cnt[r] <- t_rrd_i; picked tFAW slot <- t_faw_i
 cycle T+1: trrd_window_ok_o[r] = 0 (registered); another ACT to rank r blocked
 ```
 
-The window-ok comparators are one LUT layer (compare-to-zero) feeding the output
+The window-ok comparators are one LUT plane (compare-to-zero) feeding the output
 flop, so the path is short. The arbiter combines these with the per-bank
 `safe_*` bits; the aggregate eligibility AND is the arbiter's own critical path
 (§2.7), not this module's.

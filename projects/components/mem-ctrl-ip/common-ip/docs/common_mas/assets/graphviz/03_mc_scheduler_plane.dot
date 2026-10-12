@@ -1,0 +1,44 @@
+// mc_scheduler_plane internal block diagram — DDR-MC course style per STYLE.md.
+digraph mc_scheduler_plane {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.30", ranksep="0.55", splines=ortho,
+           label="mc_scheduler_plane — scheduler plane view",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.07"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- context: neighbouring plane feeding schedulable entries ----
+    sch_in [label="Schedulable-entry view in\nmc_storage_plane — mc_wr_data_cam, mc_rd_cmd_cam",
+            fillcolor="white"];
+
+    // ---- scheduler plane functional blocks ----
+    wr_arb [label="DDR Write Arbitration\nmc_scheduler_plane — mc_cmd_arbiter\nunified prospect pool (classify)"];
+    rd_arb [label="DDR Read Arbitration\nmc_scheduler_plane — mc_cmd_arbiter\nunified prospect pool (classify)"];
+    maint  [label="DDR Maintenance Command Queue\nmc_scheduler_plane — mc_cmd_arbiter\ngeneric maintenance slot (REF / ZQ / training)"];
+    sched  [label="DDR Command Scheduler\nmc_scheduler_plane — mc_cmd_arbiter\n(FR-FCFS pick)",
+            shape=invtrapezium, width=4.6, fillcolor="#BFD7EE", fontsize=11];
+    tctl   [label="DDR Timing Control\nmc_scheduler_plane — mc_bank_timers + mc_global_timers\n(tRCD/tRP/tRAS/tFAW/tRRD/tCCD next-state)"];
+
+    // ---- context: command output to the DFI plane ----
+    cmd_out [label="DDR Command out\nmc_dfi_2p1_plane — DFI command descriptor",
+             fillcolor="white", width=4.0];
+
+    // ---- top-down flow ----
+    sch_in -> wr_arb;
+    sch_in -> rd_arb;
+    wr_arb -> sched [label="WR"];
+    rd_arb -> sched [label="RD"];
+    maint  -> sched [label="REF"];
+    tctl   -> sched [label="timer window"];
+    sched  -> cmd_out [label="DDR Command", penwidth=1.8];
+
+    // ---- rank pinning ----
+    { rank=same; sch_in; }
+    { rank=same; wr_arb; rd_arb; maint; }
+    wr_arb -> rd_arb [style=invis];
+    rd_arb -> maint  [style=invis];
+    { rank=same; sched; tctl; }
+    sched -> tctl [style=invis];
+    { rank=same; cmd_out; }
+}

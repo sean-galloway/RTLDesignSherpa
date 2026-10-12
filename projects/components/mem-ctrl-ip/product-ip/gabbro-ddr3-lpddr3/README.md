@@ -29,19 +29,19 @@ The v3 product SKU, built from the common stack proven on
 | | |
 |---|---|
 | Generation | v3 (DDR3 / LPDDR3 unified) |
-| DFI layer | `mc_dfi_3p1_layer` |
+| DFI plane | `mc_dfi_3p1_plane` |
 | Source rock | [`scoria-ddr3-lpddr3`](../../research-ip/scoria-ddr3-lpddr3/) — RTL complete, sim-verified |
 | Board target | Owner Kintex-7 board (planned, shared with the LPDDR2/3/4 bring-up plan) — TBD |
 | Status | **Scaffold (2026-10-11)** — not built |
 
 ## Configuration intent
 
-- Full storage layer (the v3 generation benefits from reordering; no lite
+- Full storage plane (the v3 generation benefits from reordering; no lite
   configuration by default).
-- RAS layer present per SKU need (ECC is the doctrine-9-gated candidate).
+- RAS plane present per SKU need (ECC is the doctrine-9-gated candidate).
 - Refresh: scoria's **elastic refresh (v3)** — postpone/pull-in with ±8
   credits — is the intended refresh base; its convergence into the common
-  scheduler layer is an open common-ip item this product consumes.
+  scheduler plane is an open common-ip item this product consumes.
 
 ## Contents
 

@@ -26,7 +26,7 @@
 **Module:** `scoria_wr_splitter.sv`
 **Location:** `rtl/fub/`
 **Category:** AXI write request reframer
-**Parent:** `scoria_axi4_layer`
+**Parent:** `scoria_axi4_plane`
 **Status:** complete and sim-verified
 
 ---

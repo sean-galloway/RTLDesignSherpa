@@ -1,5 +1,5 @@
 flowchart TB
-    HOST_AXI["andesite_axi4_layer<br/>INHERITED"] --> HOST_CHOP["axi_burst_chopper<br/>INHERITED"]
+    HOST_AXI["andesite_axi4_plane<br/>INHERITED"] --> HOST_CHOP["axi_burst_chopper<br/>INHERITED"]
     HOST_CHOP --> HOST_RIN["rd_intake<br/>INHERITED"]
     HOST_CHOP --> HOST_WIN["wr_intake<br/>INHERITED"]
     HOST_WIN --> HOST_WSPLIT["wr_splitter<br/>INHERITED"]
@@ -8,7 +8,7 @@ flowchart TB
 
     subgraph SCHED["Scheduler"]
         direction TB
-        SCHED_CORE["scheduler_layer<br/>MODIFIED — maintenance + L/S admission"]
+        SCHED_CORE["scheduler_plane<br/>MODIFIED — maintenance + L/S admission"]
         SCHED_ARB["cmd_arbiter<br/>MODIFIED — tCCD_L/S aware"]
         SCHED_PP["page_policy<br/>INHERITED"]
         SCHED_RDCAM["rd_cmd_cam<br/>INHERITED"]
@@ -44,7 +44,7 @@ flowchart TB
     INIT_SEQ --> SCHED
     INIT_MR --> INIT_SEQ
 
-    subgraph DFI["DFI v4.0 layer"]
+    subgraph DFI["DFI v4.0 plane"]
         direction TB
         DFI_PATH["dfi_cmd_path<br/>MODIFIED — ACT_n, BG, parity wires"]
         DFI_FMT["dfi_cmd_formatter<br/>MODIFIED — NEW submodule: LPDDR4 CA path"]

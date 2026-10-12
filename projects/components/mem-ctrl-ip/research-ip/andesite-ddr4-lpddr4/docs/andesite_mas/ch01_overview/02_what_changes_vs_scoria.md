@@ -34,7 +34,7 @@ consistency gate diffs them mechanically.
 | `scoria_core` | INHERITED | core assembly unchanged |
 | `scoria_axi4_ifc` | INHERITED | the AXI4 host side is untouched by this generation |
 | `scoria_mem_cmd_scheduler` | MODIFIED | L/S admission alongside scoria's ZQ maintenance admission |
-| `scoria_dfi_layer` | MODIFIED | DFI 4.0 control surface and DBI wires |
+| `scoria_dfi_plane` | MODIFIED | DFI 4.0 control surface and DBI wires |
 | `scoria_addr_mapper` | MODIFIED | bank-group decode: BG0/BG1 between chip select, bank and row |
 | `scoria_cmd_arbiter` | MODIFIED | L/S-aware issue on the same-group / cross-group split |
 | `scoria_global_timers` | MODIFIED | tCCD_L/S and tRRD_L/S as first-class counters |
@@ -103,6 +103,6 @@ MR/MPC path, windows, four-state telemetry, no search loops anywhere.
 Mechanism detail: Ch 2.9.
 
 **DFI datapath (MODIFIED).** `dfi_cmd_path` widens for ACT_n/BG/parity; the
-aligner and serializer pass DBI through; the layer presents the 4.0 control
+aligner and serializer pass DBI through; the plane presents the 4.0 control
 surface. The CDC and the pack stage are inherited (the latter dormant).
 Mechanism detail: Ch 2.10.

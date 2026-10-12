@@ -26,7 +26,7 @@
 **Module:** `refresh_ctrl.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent macro:** `pumice_scheduler_layer`
+**Parent macro:** `pumice_scheduler_plane`
 **Status:** Implemented — FSM-free tREFI/pending/drain accumulator with a REFab/REFpb selector and REFpb bank rotor.
 
 > Refresh **recovery** (tRFC) is not this block's job: the arbiter

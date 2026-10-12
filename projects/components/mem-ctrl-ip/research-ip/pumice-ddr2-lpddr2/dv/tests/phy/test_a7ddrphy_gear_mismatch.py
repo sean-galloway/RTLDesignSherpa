@@ -155,7 +155,7 @@ def test_gear4_matches_phy_reads_every_command_exact(monkeypatch, test_level):
     for p in range(NPAIRS):
         A, B = _dws(2 * p), _dws(2 * p + 1)
         window = _pack_two_reads(A, B)
-        # One gear-4 read gathers the full 128b window = {B, A}; the split layer
+        # One gear-4 read gathers the full 128b window = {B, A}; the split plane
         # hands A to command A and B to command B (both device-word-exact).
         full = _gather_gear4(window)
         assert full == _golden128(A, B)

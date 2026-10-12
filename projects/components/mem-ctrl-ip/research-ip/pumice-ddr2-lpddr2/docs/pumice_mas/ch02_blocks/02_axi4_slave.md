@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_axi4_layer`; its microarchitecture is owned by [common_mas mc_axi4_layer — AXI4 host interface and read-return ring](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
+> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_axi4_plane`; its microarchitecture is owned by [common_mas mc_axi4_plane — AXI4 host interface and read-return ring](../../../../../common-ip/docs/common_mas/ch02_axi4_plane/01_mc_axi4_plane.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
 
 # AXI4 Slave + Intakes (`axi4_slave_wr` / `axi4_slave_rd`)
 
@@ -29,7 +29,7 @@
 `mc_wr_intake` / `mc_rd_intake`
 **Location:** intakes in `rtl/fub/`; slaves in the shared AMBA library
 **Category:** FUB (intakes)
-**Parent:** `mc_axi4_layer`
+**Parent:** `mc_axi4_plane`
 **Status:** Implemented
 
 > **Rearchitected:** the SWAG had a single `axi4_slave_fub` that also owned
@@ -45,7 +45,7 @@
 ## Purpose
 
 The host-facing AXI4 protocol handling is split by direction and factored into
-two layers each:
+two planes each:
 
 - **`axi4_slave_wr` / `axi4_slave_rd`** — the repo's standard AXI4 slave skid
   buffers. They do the channel handshakes, provide `SKID_DEPTH_*` buffering, and
@@ -55,7 +55,7 @@ two layers each:
   `addr_mapper`, push a decoded command downstream to a CAM, stream write/read
   data through FIFOs, and return B/R responses.
 
-Ahead of both intakes, `mc_axi4_layer` places the repo's
+Ahead of both intakes, `mc_axi4_plane` places the repo's
 `axi_master_wr_splitter` / `axi_master_rd_splitter` so that each burst delivered
 to an intake is **exactly one DRAM burst** (aligned to `DRAM_BURST_BYTES =
 BL * DRAM_BEAT_WIDTH/8`). The intakes therefore assume "one AXI burst == one DFI
@@ -159,7 +159,7 @@ Both intakes present a full AXI4 write (AW/W/B) or read (AR/R) slave face plus:
 ## Notes
 
 - There is **no** AXI ID side table, no `w_buf`/`b_fifo` in the SWAG sense, and no
-  R-emit FSM. Per-ID metadata that must survive into the DRAM layer is carried in
+  R-emit FSM. Per-ID metadata that must survive into the DRAM plane is carried in
   the CAM entries; everything else is dropped at the intake.
 - Outstanding-count limits are structural: writes are bounded by the wr-data CAM
   depth (`NUM_ENTRIES`), reads by the rd-cmd CAM depth plus the order FIFO depth.

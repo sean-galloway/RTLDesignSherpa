@@ -26,7 +26,7 @@
 **Module:** `scoria_dfi_cdc.sv`
 **Location:** `rtl/fub/`
 **Category:** clock-domain crossing
-**Parent:** `scoria_dfi_layer`
+**Parent:** `scoria_dfi_plane`
 **Status:** implemented and formally proven (`formal/scoria/scoria_dfi_cdc.sby`)
 
 ## Purpose

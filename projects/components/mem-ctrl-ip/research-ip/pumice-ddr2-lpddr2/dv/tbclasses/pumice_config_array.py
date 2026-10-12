@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""Pairwise covering array over pumice's runtime mode selectors (TASK-015 layer 1).
+"""Pairwise covering array over pumice's runtime mode selectors (TASK-015 plane 1).
 
 BUG-003 was a two-way interaction: `policy_mode=3` crossed with `rd_gap>=8`.
 Single-field coverage reported it GREEN, because `policy_mode` had been
@@ -23,7 +23,7 @@ run, not a gate.
 WHAT PAIRWISE DOES NOT BUY, stated because a coverage number invites over-reading:
 it finds interactions between TWO selectors. BUG-003 was one. A defect needing
 three specific settings at once is NOT guaranteed to appear, and that gap is
-exactly what layer 3's seeded random soak exists to chip at. "105 of 105 pairs"
+exactly what plane 3's seeded random soak exists to chip at. "105 of 105 pairs"
 means every pair was tried, not that the design is correct.
 """
 from __future__ import annotations
@@ -200,9 +200,9 @@ def describe(vectors: Sequence[Dict]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Layer 3: seeded random config vectors.
+# Plane 3: seeded random config vectors.
 #
-# Pairwise (layer 1) covers every 2-way interaction BY CONSTRUCTION and covers
+# Pairwise (plane 1) covers every 2-way interaction BY CONSTRUCTION and covers
 # nothing deeper by construction either. A defect needing three specific
 # settings at once is invisible to it. Random vectors reach those eventually and
 # prove nothing in particular -- which is the trade, and why this runs nightly

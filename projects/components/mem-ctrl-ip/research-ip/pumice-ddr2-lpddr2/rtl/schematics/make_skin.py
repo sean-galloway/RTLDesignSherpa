@@ -190,16 +190,16 @@ def main():
     shutil.copy(src, SKIN / "default.svg")          # pristine, for diffing
     s = src.read_text()
 
-    # 1. layout: more room between layers, left-to-right, bundle fanout
+    # 1. layout: more room between planes, left-to-right, bundle fanout
     s = s.replace(
-        '''      org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers="35"
+        '''      org.eclipse.elk.planeed.spacing.nodeNodeBetweenPlanes="35"
       org.eclipse.elk.spacing.nodeNode= "35"
-      org.eclipse.elk.layered.layering.strategy= "LONGEST_PATH"''',
-        '''      org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers="60"
+      org.eclipse.elk.planeed.planeing.strategy= "LONGEST_PATH"''',
+        '''      org.eclipse.elk.planeed.spacing.nodeNodeBetweenPlanes="60"
       org.eclipse.elk.spacing.nodeNode= "45"
       org.eclipse.elk.direction= "RIGHT"
-      org.eclipse.elk.layered.mergeEdges= "true"
-      org.eclipse.elk.layered.layering.strategy= "LONGEST_PATH"''')
+      org.eclipse.elk.planeed.mergeEdges= "true"
+      org.eclipse.elk.planeed.planeing.strategy= "LONGEST_PATH"''')
 
     # 2. $pmux must NOT share the 2:1 mux symbol
     s = s.replace('''  <g s:type="mux" transform="translate(50, 50)" s:width="20" s:height="40">

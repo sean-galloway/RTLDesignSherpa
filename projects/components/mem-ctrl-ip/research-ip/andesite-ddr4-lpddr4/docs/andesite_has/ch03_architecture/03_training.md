@@ -113,7 +113,7 @@ hardware to use it.
 ## What training costs the surrounding blocks
 
 The training interfaces touch a handful of other blocks, and the touches are
-bounded. The new `andesite_training_layer` macro holds the three training
+bounded. The new `andesite_training_plane` macro holds the three training
 FUBs, owns the DFI training pins and the one-active mux, and issues MRS/MPC
 commands on a dedicated maintenance training channel (`trn_cmd_*`) into the
 scheduler. The `init_sequencer` gains training-entry states after ZQ

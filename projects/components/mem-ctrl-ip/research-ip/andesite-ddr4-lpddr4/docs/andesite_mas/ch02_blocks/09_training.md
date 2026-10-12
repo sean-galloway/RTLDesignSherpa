@@ -26,7 +26,7 @@
 **Module:** `andesite_wrlvl_ifc` (MODIFIED, carried and landed), `andesite_rdlvl_ifc` (NEW, landed), `andesite_ca_train_ifc` (NEW, landed)
 **Location:** `projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/rtl/fub/`
 **Category:** training control / PHY handshake
-**Parent:** `andesite_training_layer` / `andesite_top`
+**Parent:** `andesite_training_plane` / `andesite_top`
 **Status:** all three landed; the tables below name the landed port lists
 
 ## Purpose
@@ -255,7 +255,7 @@ MPC respectively.
   firmware can decide.
 - `ca_train_ifc` is LPDDR4-only in practice, but the structure is generic;
   the MPC issuer is reused with `zq_ctrl`.
-- The three FUBs instantiate in `andesite_training_layer`, which owns the DFI
+- The three FUBs instantiate in `andesite_training_plane`, which owns the DFI
   training pins, the one-active mux, and the maintenance-class command channel
   (`trn_cmd_*`) into the scheduler. `init_sequencer` adds training-entry states
   after ZQ, `mode_register` carries MR3 MPR fields and LPDDR4 training MRs, and

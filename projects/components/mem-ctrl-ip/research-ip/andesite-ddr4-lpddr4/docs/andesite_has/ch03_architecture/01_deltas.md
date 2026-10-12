@@ -74,7 +74,7 @@ global timers take the long/short pairs on as first-class counters. All four
 timings are runtime CSRs. LPDDR4 has no bank groups — its pair collapses to
 L = S, which the arbiter must degenerate to gracefully, not special-case.
 **Blocks:** `addr_mapper`, `cmd_arbiter`, `global_timers`,
-`scheduler_layer` — all MODIFIED (Ch 3.1).
+`scheduler_plane` — all MODIFIED (Ch 3.1).
 
 **2 — Command encoding.** DDR4 makes ACT a five-pin command: `ACT_n` plus
 RAS/CAS/WE, and carries BG0/BG1 on the address pins during activate. The
@@ -109,7 +109,7 @@ loop anywhere** (D2 precedent). **Blocks:** `wrlvl_ifc` MODIFIED; `rdlvl_ifc`,
 **7 — Datapath.** DFI 4.0's `dfi_dbi_*` wires pass Data Bus Inversion through
 the read and write paths. Write CRC is excluded from this edition with a
 named unblock condition below. **Blocks:** `dfi_rd_aligner`,
-`dfi_wr_serializer`, `dfi_layer` — MODIFIED (Ch 3.5, 4.1).
+`dfi_wr_serializer`, `dfi_plane` — MODIFIED (Ch 3.5, 4.1).
 
 **8 — CA parity and gear-down.** DDR4 CA parity adds a counting/checking
 obligation and the `alert_n` return path; gear-down halves the CA rate after
@@ -145,7 +145,7 @@ wrong and both get fixed.
 | `scoria_core` | INHERITED | core assembly unchanged | Ch 2.3 |
 | `scoria_axi4_ifc` | INHERITED | the AXI4 host side is untouched by this generation | Ch 2.3, 4.2 |
 | `scoria_mem_cmd_scheduler` | MODIFIED | L/S admission alongside scoria's ZQ maintenance admission | 3.1 |
-| `scoria_dfi_layer` | MODIFIED | DFI 4.0 control surface and DBI wires | 4.1 |
+| `scoria_dfi_plane` | MODIFIED | DFI 4.0 control surface and DBI wires | 4.1 |
 | `scoria_addr_mapper` | MODIFIED | bank-group decode | 3.1 |
 | `scoria_cmd_arbiter` | MODIFIED | L/S-aware issue | 3.1 |
 | `scoria_global_timers` | MODIFIED | the long/short pairs | 3.1 |

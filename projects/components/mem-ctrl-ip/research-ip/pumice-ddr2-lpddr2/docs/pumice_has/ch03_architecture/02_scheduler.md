@@ -23,22 +23,22 @@
 
 # Command Scheduler
 
-The command-scheduling layer is `pumice_scheduler_layer` (`rtl/macro/pumice_scheduler_layer.sv`). It is a thin pumice wrapper around the common `mc_scheduler_layer` core. It runs on the single controller clock (`aclk`), instantiates the rock-specific bring-up and policy children, and emits one abstract DRAM command stream `{op, rank, bank, row, col, ap, mrr}` into the scheduler-to-DFI command interface.
+The command-scheduling plane is `pumice_scheduler_plane` (`rtl/macro/pumice_scheduler_plane.sv`). It is a thin pumice wrapper around the common `mc_scheduler_plane` core. It runs on the single controller clock (`aclk`), instantiates the rock-specific bring-up and policy children, and emits one abstract DRAM command stream `{op, rank, bank, row, col, ap, mrr}` into the scheduler-to-DFI command interface.
 
-Until 2026-10-09 this block was a pumice-local layer that contained `pumice_cmd_arbiter`, `pumice_bank_timers`, and `global_timers`; the pick machinery and timing FUBs were extracted into the common core during the Phase-2 common-IP campaign. The wrapper now holds only the DDR2/LPDDR2-specific children and the port mapping that feeds the common core.
+Until 2026-10-09 this block was a pumice-local plane that contained `pumice_cmd_arbiter`, `pumice_bank_timers`, and `global_timers`; the pick machinery and timing FUBs were extracted into the common core during the Phase-2 common-IP campaign. The wrapper now holds only the DDR2/LPDDR2-specific children and the port mapping that feeds the common core.
 
-The wrapper does not hold the transaction queue. The schedulable-entry vectors (valid, bank, row, col, age, oldest, qos) and the commit/issue handshakes are external because the CAMs live in `mc_storage_layer`; `mc_axi4_layer` presents the same descriptor seam in the pumice build. The family layer-stack and descriptor-seam contract are in the family HAS ([Layer Stack](../../../../../common-ip/docs/common_has/ch02_architecture/01_layer_stack.md), [Descriptor Seam](../../../../../common-ip/docs/common_has/ch02_architecture/02_descriptor_seam.md)). The common scheduler core is documented in the family MAS ([`mc_scheduler_layer`](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md)); this chapter only describes the pumice wrapper, its rock-specific children, and the measured history that remains pumice-owned.
+The wrapper does not hold the transaction queue. The schedulable-entry vectors (valid, bank, row, col, age, oldest, qos) and the commit/issue handshakes are external because the CAMs live in `mc_storage_plane`; `mc_axi4_plane` presents the same descriptor seam in the pumice build. The family plane-stack and descriptor-seam contract are in the family HAS ([Plane Stack](../../../../../common-ip/docs/common_has/ch02_architecture/01_plane_stack.md), [Descriptor Seam](../../../../../common-ip/docs/common_has/ch02_architecture/02_descriptor_seam.md)). The common scheduler core is documented in the family MAS ([`mc_scheduler_plane`](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md)); this chapter only describes the pumice wrapper, its rock-specific children, and the measured history that remains pumice-owned.
 
 ## Composition
 
-`pumice_scheduler_layer` instantiates:
+`pumice_scheduler_plane` instantiates:
 
 - `init_sequencer` — JEDEC MRS cold-boot init; gates traffic until done (see `05_init_power.md`).
 - `mode_register` — CL / CWL / BL decode shadow, updated by init MRS writes.
 - `refresh_ctrl` — tREFI tracking + postpone/pull-in accumulator (see `04_refresh.md`).
 - `pumice_page_policy` — runtime auto-precharge engine.
 - `pumice_cmd_history_checker` (optional, `CMD_HISTORY_EN != 0`) — command-history scoreboard for simulation.
-- `mc_scheduler_layer` — the common core that owns the pick machinery, bank/global timers, maintenance arbitration, and scheduler-to-DFI command FIFO.
+- `mc_scheduler_plane` — the common core that owns the pick machinery, bank/global timers, maintenance arbitration, and scheduler-to-DFI command FIFO.
 
 The wrapper passes the timing and scheduler CSR inputs straight through to the common core and forwards the page-policy outputs (`ap_mode_en`, `ap_close`, `timeout_pre_req`, `timeout_pre_bank`) to the core's page-policy engine interface.
 
@@ -56,7 +56,7 @@ The common core exposes one generic maintenance slot: `maint_req_i`/`maint_grant
 | `trn_cmd_mrr_i` | `maint_extra_i[0]` |
 | `cal_busy_i` | `maint_busy_i` |
 
-The single-bit `mrr` flag is carried in `maint_extra_i[0]` and recovered on the command output as `cmd_mrr_o = cmd_extra_o[0]`. No training logic is implemented inside the common core; the slot is a request/grant pipe that the wrapper's `pumice_training_layer` drives (see `09_training.md`).
+The single-bit `mrr` flag is carried in `maint_extra_i[0]` and recovered on the command output as `cmd_mrr_o = cmd_extra_o[0]`. No training logic is implemented inside the common core; the slot is a request/grant pipe that the wrapper's `pumice_training_plane` drives (see `09_training.md`).
 
 ## Rock-specific children and CSR surface
 

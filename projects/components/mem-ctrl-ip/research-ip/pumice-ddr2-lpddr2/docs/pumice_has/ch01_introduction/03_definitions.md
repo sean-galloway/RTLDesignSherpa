@@ -59,7 +59,7 @@
 | ODT     | On-Die Termination                                     |
 | OOO     | Out-of-Order                                           |
 | PASR    | Partial Array Self-Refresh (LPDDR2 feature)            |
-| PHY     | Physical Layer (DRAM electrical interface)             |
+| PHY     | Physical Plane (DRAM electrical interface)             |
 | PRE     | Precharge command                                      |
 | PREA    | Precharge All Banks                                    |
 | RD      | Read column command                                    |
@@ -89,7 +89,7 @@
 
 **FR-FCFS** — First-Ready, First-Come-First-Served. The baseline DRAM scheduling policy: ready commands beat unready, row-hits beat row-misses, older entries beat younger on ties. Established by Rixner et al. (ISCA 2000).
 
-**Gearing (two senses)** — (1) The internal DFI-rate split: one AXI/DFI word is spread across `DFI_RATE` DRAM beats and packed to per-phase buses in `dfi_signal_pack` / the DFI layer. (2) Host-width gearing: `pumice_top_geared` inserts formally-verified AXI data-width converters so the host AXI data width can differ from the core width.
+**Gearing (two senses)** — (1) The internal DFI-rate split: one AXI/DFI word is spread across `DFI_RATE` DRAM beats and packed to per-phase buses in `dfi_signal_pack` / the DFI plane. (2) Host-width gearing: `pumice_top_geared` inserts formally-verified AXI data-width converters so the host AXI data width can differ from the core width.
 
 **Init Sequencer** — `init_sequencer`: the cold-boot engine that issues the memtype-specific JEDEC MR/init sequence, driving MR loads and commands and holding off traffic until init completes.
 

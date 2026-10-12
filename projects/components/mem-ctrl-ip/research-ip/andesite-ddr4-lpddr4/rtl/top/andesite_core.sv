@@ -6,15 +6,15 @@
 //
 // Module: andesite_core
 // Purpose: The andesite DDR4/LPDDR4 controller core. Wires the four macro
-//          layers built bottom-up this cycle:
-//            1. mc_axi4_layer      (host AXI + wr/rd CAMs)
-//            2. andesite_scheduler_layer (bank timers + arbiter + refresh/init)
-//            3. andesite_training_layer  (DFI training pins + maintenance cmds)
-//            4. mc_dfi_4p0_layer       (async CDC + DFI 4.0 datapath)
+//          planes built bottom-up this cycle:
+//            1. mc_axi4_plane      (host AXI + wr/rd CAMs)
+//            2. andesite_scheduler_plane (bank timers + arbiter + refresh/init)
+//            3. andesite_training_plane  (DFI training pins + maintenance cmds)
+//            4. mc_dfi_4p0_plane       (async CDC + DFI 4.0 datapath)
 //
 //          Host AXI + scheduler + CAMs run on aclk; the DFI phase-packer + PHY
-//          run on dfi_clk; the clock crossings live in mc_dfi_4p0_layer's
-//          CDC and andesite_training_layer's training-pin synchronizers.
+//          run on dfi_clk; the clock crossings live in mc_dfi_4p0_plane's
+//          CDC and andesite_training_plane's training-pin synchronizers.
 //          Internal data unit = the DFI word (DFI_DATA_WIDTH); the host AXI
 //          data width is the DFI word too (an external dwidth shim is a
 //          separate edge concern).
@@ -22,7 +22,7 @@
 //          Config (timings / phases / policy) is delivered on ports here; a
 //          by-name CSR register block is a clean-rebuild follow-up.
 //
-// Documentation: docs/uarch/ANDESITE_DFI_LAYER_UARCH.md (+ the HAS / scheduler specs)
+// Documentation: docs/uarch/ANDESITE_DFI_PLANE_UARCH.md (+ the HAS / scheduler specs)
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
@@ -367,7 +367,7 @@ module andesite_core
     assign w_init_busy = ~init_done_o;
     assign dfi_reset_n_o = dram_reset_n_o;
 
-    // ---- AXI4 layer <-> storage layer inter-layer nets ----
+    // ---- AXI4 plane <-> storage plane inter-plane nets ----
     logic                aw_push_valid, aw_push_ready;
     logic [BKW-1:0]      aw_push_bank;  logic [ROW_WIDTH-1:0] aw_push_row;
     logic [COL_WIDTH-1:0] aw_push_col;  logic [IW-1:0]        aw_push_id;
@@ -391,9 +391,9 @@ module andesite_core
     logic [3:0]           ar_push_qos;   logic [3:0]           aw_push_qos;
 
     // ======================================================================
-    // Layer 1: AXI4 interface (splitters + intakes + return ring)
+    // Plane 1: AXI4 interface (splitters + intakes + return ring)
     // ======================================================================
-    mc_axi4_layer #(
+    mc_axi4_plane #(
         .AXI_ID_WIDTH  (IW),
         .AXI_ADDR_WIDTH(AW),
         .AXI_DATA_WIDTH(DW),
@@ -413,7 +413,7 @@ module andesite_core
         .RD_RET_DEPTH     (RD_RET_DEPTH),
         .N_SCHED_LU       (N_LU),
         .AGE_WIDTH        (AGE_WIDTH)
-    ) u_axi_layer (
+    ) u_axi_plane (
         .aclk          (aclk),
         .aresetn       (aresetn),
         .bank_lsb_i    (bank_lsb_i),
@@ -518,9 +518,9 @@ module andesite_core
     );
 
     // ======================================================================
-    // Layer 1b: storage layer (WR/RD CAMs + snarf)
+    // Plane 1b: storage plane (WR/RD CAMs + snarf)
     // ======================================================================
-    mc_storage_layer #(
+    mc_storage_plane #(
         .AXI_ID_WIDTH  (IW),
         .AXI_DATA_WIDTH(DW),
         .NUM_RANKS     (NUM_RANKS),
@@ -533,7 +533,7 @@ module andesite_core
         .N_SCHED_LU    (N_LU),
         .AGE_WIDTH     (AGE_WIDTH),
         .RD_RET_DEPTH  (RD_RET_DEPTH)
-    ) u_store_layer (
+    ) u_store_plane (
         .aclk               (aclk),
         .aresetn            (aresetn),
         // WR intake push
@@ -614,7 +614,7 @@ module andesite_core
         .busy_o             ()
     );
 
-    // ---- training-layer maintenance command channel nets ----
+    // ---- training-plane maintenance command channel nets ----
     logic              w_trn_cmd_req, w_trn_cmd_ack;
     dram_op_e          w_trn_cmd_op;
     logic [2:0]        w_trn_cmd_bank;
@@ -622,9 +622,9 @@ module andesite_core
     logic [5:0]        w_trn_cmd_mpc;
 
     // ======================================================================
-    // Layer 2: command scheduler
+    // Plane 2: command scheduler
     // ======================================================================
-    andesite_scheduler_layer #(
+    andesite_scheduler_plane #(
         .NUM_RANKS     (NUM_RANKS),
         .NUM_CS        (NUM_CS),
         .NUM_BANKS     (NUM_BANKS),
@@ -640,7 +640,7 @@ module andesite_core
         .HIST_T_WTR    (HIST_T_WTR_CORE),
         .CMD_DELAY     (CMD_DELAY_EFF),
         .N_LU          (N_LU)
-    ) u_sched_layer (
+    ) u_sched_plane (
         .aclk               (aclk),
         .aresetn            (aresetn),
         .page_policy_i      (page_policy_i),
@@ -782,7 +782,7 @@ module andesite_core
         .cmd_row_o  (w_cmd_row),
         .cmd_col_o  (w_cmd_col),
         .cmd_ap_o   (w_cmd_ap),
-        // maintenance training command channel (from training layer)
+        // maintenance training command channel (from training plane)
         .trn_cmd_req_i      (w_trn_cmd_req),
         .trn_cmd_ack_o      (w_trn_cmd_ack),
         .trn_cmd_op_i       (w_trn_cmd_op),
@@ -793,11 +793,11 @@ module andesite_core
 );
 
     // ======================================================================
-    // Layer 3: training layer
+    // Plane 3: training plane
     // ======================================================================
-    andesite_training_layer #(
+    andesite_training_plane #(
         .NUM_CS(NUM_CS)
-    ) u_train_layer (
+    ) u_train_plane (
         .mc_clk             (aclk),
         .mc_rst_n           (aresetn),
         .wrlvl_en_i         (w_wrlvl_en),
@@ -878,9 +878,9 @@ module andesite_core
     assign parity_enable_o = w_parity_enable;
 
     // ======================================================================
-    // Layer 4: DFI layer (async CDC + datapath)
+    // Plane 4: DFI plane (async CDC + datapath)
     // ======================================================================
-    mc_dfi_4p0_layer #(
+    mc_dfi_4p0_plane #(
         .NUM_RANKS       (NUM_RANKS),
         .NUM_BANKS       (NUM_BANKS),
         .NUM_BG          (NUM_BG),
@@ -895,7 +895,7 @@ module andesite_core
         .RD_MAX_OUTSTANDING(RD_RET_DEPTH),
         .RD_FIFO_DEPTH   (RD_RET_DEPTH * BURST_WORDS),
         .WD_FIFO_DEPTH   (32)
-    ) u_dfi_layer (
+    ) u_dfi_plane (
         .ctl_clk            (aclk),
         .ctl_rstn           (aresetn),
         .cmd_valid_i        (w_cmd_v),

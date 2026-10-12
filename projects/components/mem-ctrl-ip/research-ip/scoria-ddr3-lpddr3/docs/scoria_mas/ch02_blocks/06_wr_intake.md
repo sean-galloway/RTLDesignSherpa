@@ -26,7 +26,7 @@
 **Module:** `scoria_wr_intake.sv`
 **Location:** `rtl/fub/`
 **Category:** AXI4 write intake
-**Parent:** `scoria_axi4_layer`
+**Parent:** `scoria_axi4_plane`
 **Status:** complete and sim-verified
 
 ---

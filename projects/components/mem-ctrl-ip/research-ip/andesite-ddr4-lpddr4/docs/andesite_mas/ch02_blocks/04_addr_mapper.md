@@ -26,7 +26,7 @@
 **Module:** `andesite_addr_mapper.sv`
 **Location:** `rtl/fub/` (planned)
 **Category:** FUB
-**Parent:** `scheduler_layer` / `cmd_arbiter`
+**Parent:** `scheduler_plane` / `cmd_arbiter`
 **Status:** carried from scoria and landed — the tables below name the landed port lists
 
 ---

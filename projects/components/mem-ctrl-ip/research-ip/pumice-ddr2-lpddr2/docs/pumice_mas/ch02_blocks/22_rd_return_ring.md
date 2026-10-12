@@ -21,14 +21,14 @@
 
 <!-- End Header -->
 
-> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_axi4_layer`; its microarchitecture is owned by [common_mas mc_axi4_layer — AXI4 host interface and read-return ring](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
+> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_axi4_plane`; its microarchitecture is owned by [common_mas mc_axi4_plane — AXI4 host interface and read-return ring](../../../../../common-ip/docs/common_mas/ch02_axi4_plane/01_mc_axi4_plane.md). This chapter keeps the pumice provenance and measured history; for current interfaces and parameters, read the common chapter.
 
 # Read Return Ring (`mc_rd_return_ring`)
 
 **Module:** `mc_rd_return_ring.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent:** `mc_axi4_layer`
+**Parent:** `mc_axi4_plane`
 **Status:** Implemented
 
 > **New block (2026-09-08).** Before it, `mc_rd_cmd_cam` held a read from
@@ -86,7 +86,7 @@ The prefetch skid is the same one `mc_rd_cmd_cam` uses, under the same
 
 `RD_RET_DEPTH` (default 32) is the in-flight read count and therefore the read
 bandwidth ceiling: sustaining 8 B/cycle across a 27-cycle round trip needs 32
-in flight. It is plumbed from `pumice_core` and sizes the DFI layer's read
+in flight. It is plumbed from `pumice_core` and sizes the DFI plane's read
 FIFO alongside it (`RD_FIFO_DEPTH = RD_RET_DEPTH * BURST_WORDS`). Raising the
 CAM depth without raising this does nothing for read bandwidth; that is the
 whole point of the split.

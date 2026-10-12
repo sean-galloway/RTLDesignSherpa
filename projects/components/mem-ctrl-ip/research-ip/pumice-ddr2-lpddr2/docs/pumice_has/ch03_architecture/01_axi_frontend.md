@@ -23,26 +23,26 @@
 
 # AXI4 Frontend
 
-The AXI4 frontend is the host-facing boundary of the pumice controller. In `pumice_core` it is instantiated as `mc_axi4_layer` from the common memory-controller stack, the first layer on the controller clock (`aclk`). It terminates the host AXI4 channels, chops and splits host bursts into DFI-burst-sized descriptors, and hands those descriptors across the descriptor seam to `mc_storage_layer`. The descriptor seam contract is documented in the family architecture specification ([`common_has` chapter 2](../../../../../common-ip/docs/common_has/ch02_architecture/02_descriptor_seam.md)); the layer's internals are documented in the family microarchitecture specification ([`common_mas` chapter 2](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md)).
+The AXI4 frontend is the host-facing boundary of the pumice controller. In `pumice_core` it is instantiated as `mc_axi4_plane` from the common memory-controller stack, the first plane on the controller clock (`aclk`). It terminates the host AXI4 channels, chops and splits host bursts into DFI-burst-sized descriptors, and hands those descriptors across the descriptor seam to `mc_storage_plane`. The descriptor seam contract is documented in the family architecture specification ([`common_has` chapter 2](../../../../../common-ip/docs/common_has/ch02_architecture/02_descriptor_seam.md)); the plane's internals are documented in the family microarchitecture specification ([`common_mas` chapter 2](../../../../../common-ip/docs/common_mas/ch02_axi4_plane/01_mc_axi4_plane.md)).
 
-Until 2026-10-09 this functionality lived in the pumice-local `pumice_axi4_layer` (`rtl/macro/pumice_axi4_layer.sv`), which was removed during the Phase-2 common-stack extraction.
+Until 2026-10-09 this functionality lived in the pumice-local `pumice_axi4_plane` (`rtl/macro/pumice_axi4_plane.sv`), which was removed during the Phase-2 common-stack extraction.
 
 ## What pumice consumes from the common stack
 
-`mc_axi4_layer` provides:
+`mc_axi4_plane` provides:
 
 - host AXI4 slave termination and burst chop/split (`mc_wr_splitter`, `mc_axi_burst_chopper`);
-- write and read intakes (`mc_wr_intake`, `mc_rd_intake`) that push decoded descriptors into the storage layer;
+- write and read intakes (`mc_wr_intake`, `mc_rd_intake`) that push decoded descriptors into the storage plane;
 - the read-return ring (`mc_rd_return_ring`) that decouples in-flight read count from CAM depth and enforces AXI per-ID ordering;
 - the snarf probe path that lets reads hit unscheduled writes in the write-data CAM.
 
-Pumice instantiates this layer with `DRAM_BEAT_WIDTH = DW` (the DFI word width) and `AXI_BEATS_PER_BURST = BURST_WORDS`, so one AXI beat equals one DFI word and the front end remains DFI-word granular. Sub-DFI-word burst expansion is handled downstream in `mc_dfi_2p1_layer`.
+Pumice instantiates this plane with `DRAM_BEAT_WIDTH = DW` (the DFI word width) and `AXI_BEATS_PER_BURST = BURST_WORDS`, so one AXI beat equals one DFI word and the front end remains DFI-word granular. Sub-DFI-word burst expansion is handled downstream in `mc_dfi_2p1_plane`.
 
 ## What remains pumice-specific
 
 ### Address mapping (`addr_mapper`)
 
-The flat-AXI-address to `{rank, bank, row, col}` decode is still performed by the pumice-local `addr_mapper` (`rtl/fub/addr_mapper.sv`). `mc_axi4_layer` accepts the decoded coordinates on its descriptor seam; it does not perform address mapping itself. The mapping knobs are runtime CSRs in the `ADDR_MAP` register:
+The flat-AXI-address to `{rank, bank, row, col}` decode is still performed by the pumice-local `addr_mapper` (`rtl/fub/addr_mapper.sv`). `mc_axi4_plane` accepts the decoded coordinates on its descriptor seam; it does not perform address mapping itself. The mapping knobs are runtime CSRs in the `ADDR_MAP` register:
 
 | Field | Width | Role |
 |-------|-------|------|
@@ -94,4 +94,4 @@ The mid-slice index is clamped so it never runs past `ROW_WIDTH`.
 - `STATUS.init_done` — initialization complete;
 - `ADDR_MAP.bank_lsb`, `ADDR_MAP.hash_en`, `ADDR_MAP.hash_seed` — address-map controls.
 
-The per-bank/page statistics, stall counters, and training-layer status are produced by downstream layers and are described in the data-paths, scheduler, and training chapters.
+The per-bank/page statistics, stall counters, and training-plane status are produced by downstream planes and are described in the data-paths, scheduler, and training chapters.

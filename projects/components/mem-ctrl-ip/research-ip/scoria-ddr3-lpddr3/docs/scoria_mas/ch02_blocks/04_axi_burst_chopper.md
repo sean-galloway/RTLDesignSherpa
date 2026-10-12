@@ -26,7 +26,7 @@
 **Module:** `scoria_axi_burst_chopper.sv`
 **Location:** `rtl/fub/`
 **Category:** address-channel burst chopper
-**Parent:** `scoria_axi4_layer`
+**Parent:** `scoria_axi4_plane`
 **Status:** complete and sim-verified
 
 ---

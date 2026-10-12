@@ -49,7 +49,7 @@ Each timer loads on its event, counts down, and saturates at 0:
 | `r_rp`       | tRP       | explicit PRE or auto-PRE fire | `safe_act` |
 | `r_preblk`   | tRTP (RD) / tWR (WR) | RD / WR    | `safe_pre` only   |
 
-The timer config inputs (`t_rcd_i`, `t_rp_i`, `t_ras_i`, `t_rc_i`, `t_wr_i`, `t_rtp_i`) are controller-cycle, command-relative values supplied by the scheduler layer from CSRs.
+The timer config inputs (`t_rcd_i`, `t_rp_i`, `t_ras_i`, `t_rc_i`, `t_wr_i`, `t_rtp_i`) are controller-cycle, command-relative values supplied by the scheduler plane from CSRs.
 
 ### Row State (minimal — not an FSM)
 

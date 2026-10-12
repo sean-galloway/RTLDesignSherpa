@@ -34,7 +34,7 @@
 | Init failure                   | `init_sequencer` timeout / ZQ retries exhausted | `STATUS.init_error = 1`; `STATUS.init_step_dbg` shows where |
 | DFI rddata-valid timeout       | RD issued, no rddata in the expected window | `SLVERR` on the AXI R (bring-up: check DFI phase / `t_rddata_en`) |
 | AXI burst boundary violation   | Per §3.1 (one AXI burst == one DRAM burst) | `SLVERR` on B/R                                   |
-| ZQ calibration failure (silicon) | DFI signal-integrity, caught at PHY layer | Not this controller                              |
+| ZQ calibration failure (silicon) | DFI signal-integrity, caught at PHY plane | Not this controller                              |
 | Multi-bit DRAM error           | Out of scope (no inline ECC)              | Would need ECC sideband                            |
 
 Note: `STATUS` is currently a declared RO register whose `hwif_in` is tied off in `pumice_top` (see §4.1). `init_done` is exposed directly as the top-level `init_done_o` port. There is no dedicated IRQ port list wired in this build; software polls `STATUS`/`init_done_o`. A queue-overflow / refresh-miss IRQ is a possible follow-up.

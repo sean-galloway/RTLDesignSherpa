@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""Pairwise config covering array x hazard axes (pumice TASK-015 layer 1).
+"""Pairwise config covering array x hazard axes (pumice TASK-015 plane 1).
 
 The question this exists to answer is Sean's: *"Are there another 50 bugs laying
 dormant in the rtl right now??? How do I tell????"*
@@ -25,8 +25,8 @@ GATE and FUNC run a subset, and `test_pumice_config_sweep_coverage` reports the
 coverage NUMBER without needing any simulation at all.
 
 THE ORACLE IS NOT "IT RAN". Each cell checks golden data integrity through the
-DFI slave's MemoryModel AND the layer-2b telemetry invariants. A sweep with no
-oracle cannot fail, and with layer 2a dropped (no assertions in RTL) these are
+DFI slave's MemoryModel AND the plane-2b telemetry invariants. A sweep with no
+oracle cannot fail, and with plane 2a dropped (no assertions in RTL) these are
 the two that remain.
 """
 from __future__ import annotations
@@ -124,7 +124,7 @@ def test_pumice_config_sweep_coverage():
         c, t = ca.pair_coverage(at_gap)
         assert (c, t) == (105, 105), f"gap {gap}: only {c} of {t} pairs"
 
-    print(f"\nTASK-015 layer 1: {len(vectors)} config vectors, "
+    print(f"\nTASK-015 plane 1: {len(vectors)} config vectors, "
           f"{cov} of {tot} mode-selector pairs at each of {len(GAPS)} gaps, "
           f"{len(cells)} cells at FULL")
 

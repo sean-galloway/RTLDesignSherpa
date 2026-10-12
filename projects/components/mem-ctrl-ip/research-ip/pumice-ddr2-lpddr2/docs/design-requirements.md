@@ -53,7 +53,7 @@ style preference. Many are enforced by elaboration asserts or by DV gates.
   `reset_defs.svh` — never hand-roll `always_ff @(posedge clk or negedge rst_n)`.
   Never mix positive/negative reset. SRAM modules have **no** reset port.
 - **Clocks:** `aclk` for the AXI/controller domain, `dfi_clk` for the PHY domain.
-  Exactly **one** clock crossing (the DFI-layer async FIFOs); no other CDC.
+  Exactly **one** clock crossing (the DFI-plane async FIFOs); no other CDC.
 - **Naming:** ports `i_*`/`o_*` (or the AXI/DFI standard names); registers `r_*`;
   wires `w_*`; parameters/localparams `UPPER_CASE`; derived params documented.
 - **Array syntax** `logic [W-1:0] mem [DEPTH]` — never `[0:DEPTH-1]`.
@@ -147,8 +147,8 @@ style preference. Many are enforced by elaboration asserts or by DV gates.
   maximum (widest gear × config range) — you cannot resize wires at runtime.
   Runtime registers select the *active* subset. This is the same pattern for
   gear phases and burst length. The modivation for this is to simplify characterization across many modes. With one bitstream program, one can run the full characterization suite.
-- **Layering:** `pumice_axi4_layer` (host AXI + CAMs) → `pumice_scheduler_layer`
-  (bank timers + arbiter + refresh/init) → `pumice_dfi_layer` (single async CDC +
+- **Planeing:** `pumice_axi4_plane` (host AXI + CAMs) → `pumice_scheduler_plane`
+  (bank timers + arbiter + refresh/init) → `pumice_dfi_plane` (single async CDC +
   DFI datapath). Internal data unit throughout is the **DFI word**.
 - **Address/timing config by name** through the PeakRDL register block; the
   address map has one knob (`ADDR_MAP.bank_lsb`), not a scheme mux.
@@ -234,11 +234,11 @@ safe to change freely only when idle.
 
 ## Scheduling & DRAM Management (FR-FCFS, paging, refresh)
 
-The command-scheduling layer is `pumice_scheduler_layer` — one `aclk` layer that
+The command-scheduling plane is `pumice_scheduler_plane` — one `aclk` plane that
 wires a single pick core to the timing/bring-up blocks and emits one abstract DRAM
-command `{op, rank, bank, row, col, ap}` per cycle into a FIFO for the DFI layer to
+command `{op, rank, bank, row, col, ap}` per cycle into a FIFO for the DFI plane to
 pack onto phases. It does **not** hold the transaction queue — pending requests
-live in the two CAMs inside `pumice_axi4_layer`; the scheduler reads them through
+live in the two CAMs inside `pumice_axi4_plane`; the scheduler reads them through
 external lookup / `oldest` / commit / issue ports.
 
 **Composition:** `pumice_cmd_arbiter` (the single pick core), `pumice_bank_timers`
@@ -269,7 +269,7 @@ function is evaluated combinationally each cycle, descending:
 So FR-FCFS here = **row-hit-ready commands first (reduce ACT/PRE overhead), oldest-
 wins within a ready class, reads ahead of writes.** One issue per `aclk` cycle;
 multi-phase/multi-cycle placement (incl. LPDDR2's 2-edge CA word) is downstream in
-the DFI layer, so the arbiter always sees a single issue.
+the DFI plane, so the arbiter always sees a single issue.
 
 **ACT/PRE re-issue guard.** The bank timers register their readiness (two-cycle
 event→`act_ready`/`pre_ready` latency), so a stateless arbiter would re-issue
@@ -546,6 +546,6 @@ at a time, each with its own red→green model test and OFF-by-default:
 | One AXI burst == one DRAM burst at DW   | `pumice_wr_intake` ragged-burst assert                        |
 | `CHUNK_BEATS` power-of-two              | `pumice_axi_burst_chopper` assert                             |
 | `DFI_RATE == nphases` (gear lockstep)   | design rule + `gear_ratio` CSR set to PHY nphases             |
-| gear=MAX bit-identical                  | by construction (phase mask all-ones at gear = log2(DFI_RATE)); every core/top TB runs at gear = MAX and `test_pumice_dfi_layer` fails on a masked phase |
+| gear=MAX bit-identical                  | by construction (phase mask all-ones at gear = log2(DFI_RATE)); every core/top TB runs at gear = MAX and `test_pumice_dfi_plane` fails on a masked phase |
 | No hardcoded offsets                    | config reached by name via generated `*_regmap.py`            |
 | Config not param (gear, BL, timings)    | runtime CSRs; a wrong value is bad programming, not a rebuild |

@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
 
-"""AXI-to-DFI testbench for `scoria_core`, through the real DFI layer.
+"""AXI-to-DFI testbench for `scoria_core`, through the real DFI plane.
 
 The macro tier proved the scheduler composes. This proves the DATAPATH does:
-AXI4 host traffic in, the real DFI layer and command path out, and a DFI slave
+AXI4 host traffic in, the real DFI plane and command path out, and a DFI slave
 PHY with a backing memory on the far side. It is the boundary the HAS names --
 "verification is against the DV repository's DFI bus functional model, in
 cocotb. No board is required to verify scoria."

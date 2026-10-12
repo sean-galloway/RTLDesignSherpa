@@ -50,7 +50,7 @@ module mc_training_shell
     output logic [ROW_WIDTH-1:0]      trn_cmd_row_o,
     output logic [EXTRA_WIDTH-1:0]    trn_cmd_extra_o,
 
-    // ----- DFI-layer calibration sideband (dfi_clk domain) --------------------
+    // ----- DFI-plane calibration sideband (dfi_clk domain) --------------------
     input  logic                      dfi_clk,
     input  logic                      dfi_rstn,
     input  logic                      cal_expect_i,

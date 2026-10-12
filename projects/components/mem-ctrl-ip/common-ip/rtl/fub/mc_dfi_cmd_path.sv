@@ -12,7 +12,7 @@
 //          strobes (+ op) so the write serializer / read aligner can schedule
 //          their data phases relative to the command.
 //
-//          Extracted from pumice_dfi_cmd_path during Phase 2 common-layer
+//          Extracted from pumice_dfi_cmd_path during Phase 2 common-plane
 //          reorg (2026-10-10). Extended with HAS_MRR for scoria DFI 3.1 reuse.
 //          The CMD_HISTORY_EN scoreboard remains the pumice-specific
 //          pumice_cmd_history_checker for backwards compatibility; it is gated
@@ -39,7 +39,7 @@
 //   CSRs). At the board/default config the runtime values equal the MAX =>
 //   bit-identical. MAX==1 => legacy single-command path (one formatter, phase 0).
 //
-// Documentation: docs/uarch/PUMICE_DFI_LAYER_UARCH.md
+// Documentation: docs/uarch/PUMICE_DFI_PLANE_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
@@ -56,7 +56,7 @@ module mc_dfi_cmd_path
     // ---- DFI-WIRE command-history scoreboard (sim only, off by default) ----
     // The scheduler has an identical checker on ITS output. That one cannot see
     // this defect class: it binds at `cmd_valid_o && cmd_ready_i` inside
-    // pumice_scheduler_layer, which is UPSTREAM of the CMD_DELAY shift
+    // pumice_scheduler_plane, which is UPSTREAM of the CMD_DELAY shift
     // register, the CDC FIFO and this module. Every TASK-007 defect lived
     // downstream of it -- with the scheduler checker armed it reported ZERO
     // tRTW violations while the board ILA showed FOUR per capture. It was
@@ -73,8 +73,8 @@ module mc_dfi_cmd_path
     parameter int HIST_T_RFC     = 0,
     parameter int HIST_T_WTR     = 0,
     parameter int HIST_T_RTW     = 0,
-    // Command-word MRR bit. pumice (2.1 layer) carries {mrr, ap, col, row, bank,
-    // rank, op}; scoria (3.1 layer) carries {ap, col, row, bank, rank, op}.
+    // Command-word MRR bit. pumice (2.1 plane) carries {mrr, ap, col, row, bank,
+    // rank, op}; scoria (3.1 plane) carries {ap, col, row, bank, rank, op}.
     // HAS_MRR=1 preserves the 2.1 default; HAS_MRR=0 drops the bit from CMD_DW
     // and ties the formatter's cmd_mrr_i to 0.
     parameter int HAS_MRR        = 1,
@@ -173,7 +173,7 @@ module mc_dfi_cmd_path
     endgenerate
 
     // ---- command accept gate (NO TIMING HERE) ------------------------------
-    // ALL JEDEC delays come from the scheduler. This layer is a constant-latency
+    // ALL JEDEC delays come from the scheduler. This plane is a constant-latency
     // conduit: it must never insert an idle cycle of its own, because the CDC
     // command FIFO preserves ORDER but not SPACING -- so any stall here silently
     // rewrites the interval between every command queued behind it.
@@ -343,7 +343,7 @@ module mc_dfi_cmd_path
     assign wr_accept_o = w_fire && w_is_wr;
 
     // ---- DFI-wire command-history scoreboard (CMD_HISTORY_EN) --------------
-    // Same module the scheduler uses, bound one layer down. w_fire is the cycle
+    // Same module the scheduler uses, bound one plane down. w_fire is the cycle
     // a command is accepted OUT of the CDC FIFO, so the spacing it sees is the
     // spacing the DRAM sees (the formatter below adds a constant register
     // delay, which shifts every command equally and cannot hide a violation).

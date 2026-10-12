@@ -26,7 +26,7 @@
 **Module:** `scoria_rd_return_ring.sv`
 **Location:** `rtl/fub/`
 **Category:** in-flight read data buffer
-**Parent:** `scoria_axi4_layer`
+**Parent:** `scoria_axi4_plane`
 **Status:** complete and sim-verified; formal suite `formal/scoria/rd_return_ring/scoria_rd_return_ring.sby`
 
 ---
@@ -132,7 +132,7 @@ This keeps the occupancy count tied to actual data consumption rather than to fe
 
 ### Occupancy output
 
-`occ_o` reports the current allocated-but-not-freed count. In `scoria_axi4_layer` this output is left unconnected; it exists for observability and for the formal proof assumptions.
+`occ_o` reports the current allocated-but-not-freed count. In `scoria_axi4_plane` this output is left unconnected; it exists for observability and for the formal proof assumptions.
 
 ### DEPTH bounds in-flight reads
 

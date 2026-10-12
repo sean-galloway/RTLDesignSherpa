@@ -25,7 +25,7 @@
 **Module:** `scoria_mode_register.sv`
 **Location:** `rtl/fub/`
 **Category:** register / decode
-**Parent:** `scoria_scheduler_layer`
+**Parent:** `scoria_scheduler_plane`
 **Status:** landed and sim-verified
 
 ## Purpose
@@ -79,9 +79,9 @@ The block is INHERITED from pumice with DDR3-specific additions: shadow sizing w
 | `cl_o` | out | 4 | CAS read latency |
 | `cwl_o` | out | 4 | CAS write latency |
 | `bl_o` | out | 4 | burst length |
-| `al_o` | out | 4 | additive latency (tied off in scheduler layer for scoria v1) |
-| `drv_strength_o` | out | 2 | output drive strength (tied off in scheduler layer) |
-| `odt_o` | out | 2 | ODT rule (tied off in scheduler layer) |
+| `al_o` | out | 4 | additive latency (tied off in scheduler plane for scoria v1) |
+| `drv_strength_o` | out | 2 | output drive strength (tied off in scheduler plane) |
+| `odt_o` | out | 2 | ODT rule (tied off in scheduler plane) |
 | `wr_o` | out | 5 | write recovery, DDR3 MR0[11:9] |
 | `wrlvl_en_o` | out | 1 | DRAM is in write-leveling mode (DDR3 MR1[7]) |
 
@@ -126,6 +126,6 @@ All decoded outputs are registered on `mc_clk`. A shadow write in cycle N is vis
 
 ## Notes
 
-- **`al_o`, `drv_strength_o`, `odt_o`, and `mr_req_o` are tied off in the scheduler layer** in scoria v1. The ports exist for family compatibility and future multi-rank or ODT-policy work.
+- **`al_o`, `drv_strength_o`, `odt_o`, and `mr_req_o` are tied off in the scheduler plane** in scoria v1. The ports exist for family compatibility and future multi-rank or ODT-policy work.
 - **LPDDR3 BL16 clips to BL8** because `bl_o` is 4-bit. Widening `bl_o` and updating downstream consumers is recorded as a v3 task.
 - **Reserved MR0 encodings** return obviously wrong values rather than plausible-looking defaults, so a mis-programmed MR is visible immediately.

@@ -7,12 +7,12 @@
 // Module: granite_core
 // Purpose: Granite (DDR2/LPDDR2 v2 product) controller core.  Composes the
 //          common-ip stack per config/product_config.md:
-//            1. mc_axi4_layer          (host AXI; intakes + return ring)
+//            1. mc_axi4_plane          (host AXI; intakes + return ring)
 //            2. mc_xddr2_entry_store   (storage-lite N=1 in-order seam)
-//            3. mc_scheduler_layer     (pick machinery + common v2 children)
-//            4. mc_training_layer      (LPDDR2 ZQ + DQ cal)
-//            5. mc_dfi_2p1_layer       (common single async CDC + DFI datapath)
-//          No mc_storage_layer, no mc_ras_layer.  CSR/timer ports are simple
+//            3. mc_scheduler_plane     (pick machinery + common v2 children)
+//            4. mc_training_plane      (LPDDR2 ZQ + DQ cal)
+//            5. mc_dfi_2p1_plane       (common single async CDC + DFI datapath)
+//          No mc_storage_plane, no mc_ras_plane.  CSR/timer ports are simple
 //          inputs for now; a product CSR block is a later task.
 //
 // Documentation: product-ip/granite-ddr2-lpddr2/config/product_config.md
@@ -111,7 +111,7 @@ module granite_core
     output logic [3:0]                 cl_o, cwl_o, bl_o,
     output logic                       init_done_o,
 
-    // ---- training layer controls / status ----
+    // ---- training plane controls / status ----
     input  logic                       zq_en_i,
     input  logic                       zq_defer_en_i,
     input  logic [31:0]                zq_interval_i,
@@ -237,7 +237,7 @@ module granite_core
     logic [CMD_DW-1:0]         w_cmd_data;
     assign w_cmd_data = {w_cmd_mrr, w_cmd_ap, w_cmd_col, w_cmd_row, w_cmd_bank, w_cmd_rank, w_cmd_op};
 
-    // ---- scheduler <-> training layer ----
+    // ---- scheduler <-> training plane ----
     logic                      w_trn_req, w_trn_grant;
     dram_op_e                  w_trn_op;
     logic [BKW-1:0]            w_trn_bank;
@@ -245,7 +245,7 @@ module granite_core
     logic                      w_trn_mrr;
     logic                      w_cal_busy;
 
-    // ---- DFI layer <-> training layer calibration sideband ----
+    // ---- DFI plane <-> training plane calibration sideband ----
     logic                      w_cal_expect;
     logic [DFI_DATA_WIDTH-1:0] w_cal_data;
     logic                      w_cal_valid;
@@ -253,7 +253,7 @@ module granite_core
     // ---- init handshake scheduler <-> DFI ----
     logic                      w_init_start, w_init_complete;
 
-    // ---- AXI4 layer <-> entry store inter-layer nets ----
+    // ---- AXI4 plane <-> entry store inter-plane nets ----
     logic                aw_push_valid, aw_push_ready;
     logic [BKW-1:0]      aw_push_bank;  logic [ROW_WIDTH-1:0] aw_push_row;
     logic [COL_WIDTH-1:0] aw_push_col;  logic [IW-1:0]        aw_push_id;
@@ -278,9 +278,9 @@ module granite_core
     logic [3:0]          ar_push_qos;   logic [3:0]           aw_push_qos;
 
     // ======================================================================
-    // Layer 1: AXI4 interface
+    // Plane 1: AXI4 interface
     // ======================================================================
-    mc_axi4_layer #(
+    mc_axi4_plane #(
         .AXI_ID_WIDTH  (IW),
         .AXI_ADDR_WIDTH(AW),
         .AXI_DATA_WIDTH(DW),
@@ -297,7 +297,7 @@ module granite_core
         .RD_RET_DEPTH     (RD_RET_DEPTH),
         .N_SCHED_LU       (N_LU),
         .AGE_WIDTH        (AGE_WIDTH)
-    ) u_axi_layer (
+    ) u_axi_plane (
         .aclk          (aclk),
         .aresetn       (aresetn),
         .bank_lsb_i    (bank_lsb_i),
@@ -397,7 +397,7 @@ module granite_core
     );
 
     // ======================================================================
-    // Layer 1b: storage-lite entry store (N=1 in-order seam)
+    // Plane 1b: storage-lite entry store (N=1 in-order seam)
     // ======================================================================
     mc_xddr2_entry_store #(
         .NUM_ENTRIES        (NUM_ENTRIES),
@@ -486,9 +486,9 @@ module granite_core
     );
 
     // ======================================================================
-    // Layer 2: command scheduler
+    // Plane 2: command scheduler
     // ======================================================================
-    mc_scheduler_layer #(
+    mc_scheduler_plane #(
         .NUM_RANKS     (NUM_RANKS),
         .NUM_BANKS     (NUM_BANKS),
         .ROW_WIDTH     (ROW_WIDTH),
@@ -504,7 +504,7 @@ module granite_core
         .REF_HAS_PULLIN  (1'b0),
         .REF_HAS_REFPB   (1'b0),
         .REF_HAS_DRAIN_BURST(1'b0)
-    ) u_sched_layer (
+    ) u_sched_plane (
         .aclk               (aclk),
         .aresetn            (aresetn),
         .page_policy_i      (page_policy_i),
@@ -641,9 +641,9 @@ module granite_core
     );
 
     // ======================================================================
-    // Layer 2b: training layer (LPDDR2 ZQ + DQ cal)
+    // Plane 2b: training plane (LPDDR2 ZQ + DQ cal)
     // ======================================================================
-    mc_training_layer #(
+    mc_training_plane #(
         .NUM_SLOTS      (2),
         .BKW            (BKW),
         .ROW_WIDTH      (ROW_WIDTH),
@@ -651,7 +651,7 @@ module granite_core
         .CAL_DATA_WIDTH (DFI_DATA_WIDTH),
         .HAS_LP_ZQ      (1'b1),
         .HAS_LP_DQ_CAL  (1'b1)
-    ) u_train_layer (
+    ) u_train_plane (
         .mc_clk          (aclk),
         .mc_rst_n        (aresetn),
         .init_done_i     (init_done_o),
@@ -688,9 +688,9 @@ module granite_core
     );
 
     // ======================================================================
-    // Layer 3: DFI layer
+    // Plane 3: DFI plane
     // ======================================================================
-    mc_dfi_2p1_layer #(
+    mc_dfi_2p1_plane #(
         .NUM_RANKS       (NUM_RANKS),
         .NUM_BANKS       (NUM_BANKS),
         .ROW_WIDTH       (ROW_WIDTH),
@@ -710,7 +710,7 @@ module granite_core
         .HIST_T_RFC      (0),
         .HIST_T_RTW      (0),
         .HIST_T_WTR      (0)
-    ) u_dfi_layer (
+    ) u_dfi_plane (
         .ctl_clk            (aclk),
         .ctl_rstn           (aresetn),
         .cmd_valid_i        (w_cmd_v),

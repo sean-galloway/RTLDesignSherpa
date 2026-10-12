@@ -26,7 +26,7 @@
 **Module:** `scoria_dfi_rd_aligner.sv`
 **Location:** `rtl/fub/`
 **Category:** DFI read datapath
-**Parent:** `scoria_dfi_layer`
+**Parent:** `scoria_dfi_plane`
 **Status:** implemented
 
 ## Purpose

@@ -1,6 +1,6 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
 flowchart LR
-    subgraph DFI["mc_dfi_2p1_layer (rd path)"]
+    subgraph DFI["mc_dfi_2p1_plane (rd path)"]
         rd_align["mc_dfi_rd_aligner<br/>on rd_fire drive dfi_rddata_en_o<br/>for t_rddata_en; capture valid<br/>DFI words -> rd_valid/data/resp/last"]
         cdc["mc_dfi_cdc<br/>u_rd_fifo (async;<br/>data, resp, last)"]
     end
