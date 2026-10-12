@@ -109,7 +109,7 @@ def test_rs_axi4_loop(request, symbol_width, prim_poly, t, n, spb, kes, erasure,
 
     compile_args = ["--trace-fst", "--trace-structs", "--trace-depth", "99"] if enable_waves else []
     sim_args = ["--trace-fst", "--trace-structs"] if enable_waves else []
-    plusargs = ["+trace"] if enable_waves else []
+    plusargs = ["--trace"] if enable_waves else []
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, name)
     print(f"\n{'='*60}\nRunning {name}\nLog: {log_path}\n{'='*60}")
     try:
@@ -117,7 +117,7 @@ def test_rs_axi4_loop(request, symbol_width, prim_poly, t, n, spb, kes, erasure,
             toplevel=dut_name, module=module, testcase="cocotb_test_rs_axi4_loop",
             parameters=rtl_parameters, sim_build=sim_build, extra_env=extra_env,
             waves=enable_waves, keep_files=True, compile_args=compile_args,
-            sim_args=sim_args, plusargs=plusargs)
+            simulation_args=sim_args, plus_args=plusargs)
         print(f"PASS {name}")
     except Exception as e:
         print(f"FAIL {name}: {e}\nLog: {log_path}\nView: {cmd_filename}")

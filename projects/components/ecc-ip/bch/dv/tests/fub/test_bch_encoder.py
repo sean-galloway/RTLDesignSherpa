@@ -80,7 +80,7 @@ def test_bch_encoder_core(request, field_dim, prim_poly, t_bits, n_bits, first_r
 
     compile_args = ["--trace-fst", "--trace-structs", "--trace-depth", "99"] if enable_waves else []
     sim_args = ["--trace-fst", "--trace-structs"] if enable_waves else []
-    plusargs = ["+trace"] if enable_waves else []
+    plusargs = ["--trace"] if enable_waves else []
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
     print(f"\n{'='*60}\nRunning {test_name_plus_params}\nLog: {log_path}\n{'='*60}")
@@ -98,8 +98,8 @@ def test_bch_encoder_core(request, field_dim, prim_poly, t_bits, n_bits, first_r
             waves=enable_waves,
             keep_files=True,
             compile_args=compile_args,
-            sim_args=sim_args,
-            plusargs=plusargs,
+            simulation_args=sim_args,
+            plus_args=plusargs,
         )
         print(f"PASS {test_name_plus_params}")
     except Exception as e:
