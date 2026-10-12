@@ -1,0 +1,15 @@
+# a7ddrphy calibration CSR map (32-bit bus; byte_off = word*4)
+# word  byte_off  name                  bits  kind
+#    0  0x0000    rst0                    1   storage
+#    1  0x0004    dly_sel0                2   storage
+#    2  0x0008    half_sys8x_taps0        5   storage
+#    3  0x000c    wlevel_en0              1   storage
+#    4  0x0010    wlevel_strobe           1   strobe
+#    5  0x0014    rdly_dq_rst             1   strobe
+#    6  0x0018    rdly_dq_inc             1   strobe
+#    7  0x001c    rdly_dq_bitslip_rst     1   strobe
+#    8  0x0020    rdly_dq_bitslip         1   strobe
+#    9  0x0024    wdly_dq_bitslip_rst     1   strobe
+#   10  0x0028    wdly_dq_bitslip         1   strobe
+#   11  0x002c    rdphase0                2   storage
+#   12  0x0030    wrphase0                2   storage
