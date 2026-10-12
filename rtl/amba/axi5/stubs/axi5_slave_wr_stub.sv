@@ -48,11 +48,11 @@ module axi5_slave_wr_stub
     // AW channel: ID + ADDR + LEN + SIZE + BURST + LOCK + CACHE + PROT + QOS + USER + AXI5 signals
     parameter int AWSize   = IW + AW + 8 + 3 + 2 + 1 + 4 + 3 + 4 + UW +
                              AXI_ATOP_WIDTH + AXI_NSAID_WIDTH + 1 + AXI_MPAM_WIDTH +
-                             AXI_MECID_WIDTH + 1 + AXI_TAGOP_WIDTH + TW,
+                             AXI_MECID_WIDTH + 1 + AXI_TAGOP_WIDTH,
     // W channel: DATA + STRB + LAST + USER + AXI5 signals
     parameter int WSize    = DW + SW + 1 + UW + 1 + TW + NUM_TAGS,
     // B channel: ID + RESP + USER + AXI5 signals
-    parameter int BSize    = IW + 2 + UW + 1 + TW + 1
+    parameter int BSize    = IW + 2 + UW + 1 + 1 + 2
 )
 (
     // Global Clock and Reset
@@ -71,6 +71,7 @@ module axi5_slave_wr_stub
     input  logic [3:0]                 s_axi_awqos,
     input  logic [UW-1:0]              s_axi_awuser,
     input  logic                       s_axi_awvalid,
+    input  logic                       s_axi_awakeup,
     output logic                       s_axi_awready,
 
     // AXI5 AW signals
@@ -79,9 +80,8 @@ module axi5_slave_wr_stub
     input  logic                       s_axi_awtrace,
     input  logic [AXI_MPAM_WIDTH-1:0]  s_axi_awmpam,
     input  logic [AXI_MECID_WIDTH-1:0] s_axi_awmecid,
-    input  logic                       s_axi_awunique,
+    input  logic                       s_axi_awidunq,
     input  logic [AXI_TAGOP_WIDTH-1:0] s_axi_awtagop,
-    input  logic [TW-1:0]              s_axi_awtag,
 
     // Slave Write data channel (W)
     input  logic [DW-1:0]              s_axi_wdata,
@@ -105,12 +105,13 @@ module axi5_slave_wr_stub
 
     // AXI5 B signals
     output logic                       s_axi_btrace,
-    output logic [TW-1:0]              s_axi_btag,
-    output logic                       s_axi_btagmatch,
+    output logic                       s_axi_bidunq,
+    output logic [1:0]                 s_axi_btagmatch,
 
     // Stub Outputs/Inputs
     // AW interface
     output logic                       fub_axi_awvalid,
+    output logic                       fub_axi_awakeup,
     input  logic                       fub_axi_awready,
     output logic [AWSize-1:0]          fub_axi_aw_pkt,
 
@@ -136,7 +137,7 @@ module axi5_slave_wr_stub
         .wr_data                ({s_axi_awid, s_axi_awaddr, s_axi_awlen, s_axi_awsize, s_axi_awburst,
                                   s_axi_awlock, s_axi_awcache, s_axi_awprot, s_axi_awqos, s_axi_awuser,
                                   s_axi_awatop, s_axi_awnsaid, s_axi_awtrace, s_axi_awmpam,
-                                  s_axi_awmecid, s_axi_awunique, s_axi_awtagop, s_axi_awtag}),
+                                  s_axi_awmecid, s_axi_awidunq, s_axi_awtagop}),
         .rd_valid               (fub_axi_awvalid),
         .rd_ready               (fub_axi_awready),
         .rd_data                (fub_axi_aw_pkt),
@@ -175,11 +176,16 @@ module axi5_slave_wr_stub
         .rd_valid               (s_axi_bvalid),
         .rd_ready               (s_axi_bready),
         .rd_data                ({s_axi_bid, s_axi_bresp, s_axi_buser,
-                                  s_axi_btrace, s_axi_btag, s_axi_btagmatch}),
+                                  s_axi_btrace, s_axi_bidunq, s_axi_btagmatch}),
         /* verilator lint_off PINCONNECTEMPTY */
         .count                  (),
         .rd_count               ()
         /* verilator lint_on PINCONNECTEMPTY */
     );
+
+    // AWAKEUP (IHI 0022L A14.1.1): the upstream wake request OR'ed with the
+    // skid buffers' registered valids, so it stays asserted while a request
+    // waits on its READY. One AWAKEUP covers both request channels.
+    assign fub_axi_awakeup = s_axi_awakeup || fub_axi_awvalid || fub_axi_wvalid;
 
 endmodule : axi5_slave_wr_stub

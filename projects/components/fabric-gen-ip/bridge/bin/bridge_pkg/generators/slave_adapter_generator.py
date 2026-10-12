@@ -346,7 +346,38 @@ class SlaveAdapterGenerator:
             lines.append("    output logic [BRIDGE_ID_WIDTH-1:0] rid_bridge_id,")
             lines.append("    output logic                       rid_valid,")
 
+        if self.has_wakeup:
+            lines.append("")
+            lines.append("    // OR of the connected masters' AWAKEUP requests (A14.1.1)")
+            lines.append("    input  logic                       wakeup_req,")
+
         return lines
+
+    @property
+    def has_wakeup(self) -> bool:
+        """This AXI5 slave port drives AWAKEUP (IHI 0022L A14.1.1)."""
+        from bridge_pkg.sideband import port_features
+        return 'wakeup' in port_features(self.slave)
+
+    def _wakeup_lines(self) -> List[str]:
+        """The port's one AWAKEUP is the OR of the wr and rd wrappers'
+        copies. Each copy is wakeup_req (the connected masters' requests,
+        so the slave can wake before the request reaches it) OR'd with
+        that wrapper's own held-request flops, which keep AWAKEUP high
+        while AxVALID waits on AxREADY -- the A14.1.1 rule. An OR of
+        glitch-free terms is glitch-free, as A14.1 requires."""
+        if not self.has_wakeup:
+            return []
+        terms = []
+        if self.has_write:
+            terms.append("w_awakeup_wr")
+        if self.has_read:
+            terms.append("w_awakeup_rd")
+        return [
+            "    // AWAKEUP: one signal for both request channels (A14.1.1)",
+            f"    assign {self.slave.prefix}awakeup = {' | '.join(terms)};",
+            "",
+        ]
 
     def _generate_external_interface_ports(self) -> List[str]:
         """
@@ -437,7 +468,8 @@ class SlaveAdapterGenerator:
             # external slave; b/r-side extras are inputs from it.
             if is_axi5:
                 for name, width, req_dir in axi5_exposed_ext_signals(
-                        channel.value, self.slave.axi5_features, self.slave.data_width):
+                        channel.value, self.slave.axi5_features, self.slave.data_width,
+                        port_channels=self.channels):
                     dir_str = 'output' if req_dir else 'input'
                     sig_name = f"{prefix}{name}"
                     if width > 1:
@@ -537,13 +569,14 @@ class SlaveAdapterGenerator:
         lines.append(f"    input  logic [{data_width-1}:0] {prefix}PRDATA,")
         lines.append(f"    input  logic                  {prefix}PSLVERR,")
         if self.slave.protocol == 'apb5':
-            # APB5 sideband additions (A5-3c) -- requester-driven user
-            # signals out, completer-driven wakeup/user signals in.
+            # APB5 sideband additions (A5-3c) -- requester-driven user and
+            # wake-up signals out (PWAKEUP is a Requester output, IHI 0024E
+            # 3.7.2 / GitHub #102 item 7), completer-driven user signals in.
             # Widths follow the axi4_to_apb5_shim defaults (1 bit).
             lines.append(f"    input  logic                  {prefix}PREADY,")
             lines.append(f"    output logic                  {prefix}PAUSER,")
             lines.append(f"    output logic                  {prefix}PWUSER,")
-            lines.append(f"    input  logic                  {prefix}PWAKEUP,")
+            lines.append(f"    output logic                  {prefix}PWAKEUP,")
             lines.append(f"    input  logic                  {prefix}PRUSER,")
             lines.append(f"    input  logic                  {prefix}PBUSER")
         else:
@@ -622,7 +655,7 @@ class SlaveAdapterGenerator:
     def _generate_axil5_sideband_ports(self) -> List[str]:
         """AXI5-Lite sideband port declarations, from the shared table."""
         from ..axil5_sideband import (sideband_ports, field_width,
-                                      AXIL5_USER_WIDTH, AXIL5_LOOP_WIDTH)
+                                      AXIL5_USER_WIDTH)
 
         entries = sideband_ports(self.channels)
         if not entries:
@@ -630,8 +663,9 @@ class SlaveAdapterGenerator:
 
         out = ["    // AXI5-Lite sideband"]
         for index, (base, width_key, direction) in enumerate(entries):
+            # The ID on an AXI5-Lite slave port is the fabric ID (ID_WIDTH).
             width = field_width(width_key, self.slave.data_width,
-                                AXIL5_USER_WIDTH, AXIL5_LOOP_WIDTH)
+                                AXIL5_USER_WIDTH, self.id_width)
             kind = "output logic" if direction == 'out' else "input  logic"
             span = "" if width == 1 else f"[{width-1}:0] "
             sep = "" if index == len(entries) - 1 else ","
@@ -705,6 +739,14 @@ class SlaveAdapterGenerator:
             lines.append("    logic [ID_WIDTH-1:0] cam_rd_allocate_tag;")
             lines.append("    logic [BRIDGE_ID_WIDTH-1:0] cam_rd_allocate_data;")
             lines.append("    logic [ID_WIDTH-1:0] cam_rd_deallocate_tag;")
+            lines.append("")
+
+        if self.has_wakeup:
+            lines.append("    // Per-wrapper AWAKEUP copies, OR'd onto the port")
+            if self.has_write:
+                lines.append("    logic w_awakeup_wr;")
+            if self.has_read:
+                lines.append("    logic w_awakeup_rd;")
             lines.append("")
 
         return lines
@@ -1125,6 +1167,7 @@ class SlaveAdapterGenerator:
         if self.is_cdc:
             lines.extend(self._generate_cdc_stage(ext_prefix, slave_prefix))
 
+        lines.extend(self._wakeup_lines())
         return lines
 
     def _generate_cdc_stage(self, in_prefix: str, out_prefix: str) -> List[str]:
@@ -1265,9 +1308,12 @@ class SlaveAdapterGenerator:
                             if self.rr_atomic else
                             f"{crossbar_prefix}awvalid && !wr_trk_full"),
                 'awready': "w_sub_awready",
+                **({'awakeup': 'wakeup_req'} if self.has_wakeup else {}),
             },
         )
-        wrapper.connect_external(connector_prefix=slave_prefix)
+        wrapper.connect_external(
+            connector_prefix=slave_prefix,
+            overrides=({'awakeup': 'w_awakeup_wr'} if self.has_wakeup else None))
         wrapper.add_status()
         if self.enable_monitoring:
             wrapper.connect_monbus(
@@ -1320,9 +1366,12 @@ class SlaveAdapterGenerator:
             overrides={
                 'arvalid': f"{crossbar_prefix}arvalid && !rd_trk_full",
                 'arready': "w_sub_arready",
+                **({'awakeup': 'wakeup_req'} if self.has_wakeup else {}),
             },
         )
-        wrapper.connect_external(connector_prefix=slave_prefix)
+        wrapper.connect_external(
+            connector_prefix=slave_prefix,
+            overrides=({'awakeup': 'w_awakeup_rd'} if self.has_wakeup else None))
         wrapper.add_status()
         if self.enable_monitoring:
             wrapper.connect_monbus(

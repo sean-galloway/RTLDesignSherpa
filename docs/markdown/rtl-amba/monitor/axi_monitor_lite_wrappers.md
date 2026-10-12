@@ -91,7 +91,7 @@ port and drives nothing.
 
 ### The eight ACE wrappers (2026-10-05)
 
-The ACE family adds AXI Coherency Extensions to the AXI4 movers (`ARSNOOP[3:0]`, `AWSNOOP[2:0]`, auto-pulsed `RACK`/`WACK` on the masters) and adds three snoop channels (AC/CR/CD) for cache-to-CCU traffic. Front-side ACE wrappers reuse [`axi_monitor_lite`](axi_monitor_lite.md) exactly as the AXI4 wrappers do. Snoop-side wrappers use the new [`axi4ace_snoop_monitor_lite`](axi4ace_snoop_monitor_lite.md) because snoop channels have no transaction ID: CR and CDLAST are attributed to the oldest outstanding AC.
+The ACE family adds AXI Coherency Extensions to the AXI4 movers (`AxSNOOP`, `AxDOMAIN[1:0]`, `AxBAR[1:0]`, the 4-bit `RRESP`, auto-pulsed `RACK`/`WACK` on the masters and forwarded `RACK`/`WACK` on the slaves) and adds three snoop channels (AC/CR/CD) for cache-to-CCU traffic. Front-side ACE wrappers reuse [`axi_monitor_lite`](axi_monitor_lite.md) exactly as the AXI4 wrappers do; the read wrappers hand the monitor `RRESP[1:0]` only, so IsShared and PassDirty (`RRESP[3:2]`) never count as an error response. Snoop-side wrappers use the new [`axi4ace_snoop_monitor_lite`](axi4ace_snoop_monitor_lite.md) because snoop channels have no transaction ID: CR and CDLAST are attributed to the oldest outstanding AC.
 
 | Family | Role | Channel | Lite wrapper | Wraps | Monitor core | Tapped port |
 |---|---|---|---|---|---|---|

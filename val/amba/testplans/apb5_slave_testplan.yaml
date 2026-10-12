@@ -41,7 +41,7 @@ coverage_points:
   tracked_by: functional_scenario
 - line: 183-191
   type: wakeup_logic
-  content: PWAKEUP signal handling
+  content: PWAKEUP input (Requester-driven)
   tracked_by: functional_scenario
   covers_lines:
   - 184-189
@@ -257,91 +257,80 @@ functional_scenarios:
   priority: medium
   status: verified
 - id: APB5-S-20
-  name: PWAKEUP assert
-  description: 'Backend asserts wakeup_request, verify s_apb_PWAKEUP
-
-    is driven to master.
+  name: PWAKEUP input check
+  description: 's_apb_PWAKEUP is a Requester input (IHI 0024E 3.7.2); with ENABLE_PARITY=1 a wrong PWAKEUPCHK raises parity_error_ctrl at any time out of reset.
 
     '
-  test_function: test_apb5_slave_wakeup
+  test_function: cocotb_test_apb5_slave_parity
   test_file: val/amba/test_apb5_slave.py
   covers_lines:
-  - 184-189
-  - 191
+  - 199-201
   priority: high
   status: verified
 - id: APB5-S-21
-  name: PWAKEUP deassert
-  description: 'Backend deasserts wakeup_request, verify s_apb_PWAKEUP
-
-    clears correctly.
+  name: PWAKEUP not required
+  description: 'The slave does not wait for PWAKEUP before PREADY: transfers complete with s_apb_PWAKEUP held LOW.
 
     '
-  test_function: test_apb5_slave_wakeup
+  test_function: cocotb_test_apb5_slave_basic
   test_file: val/amba/test_apb5_slave.py
   covers_lines:
-  - 184-189
-  - 191
+  - 199-201
   priority: high
   status: verified
 - id: APB5-S-30
   name: Write data parity
-  description: 'ENABLE_PARITY=1: Verify PWDATAPARITY checking.
-
-    Inject correct/incorrect parity.
+  description: 'ENABLE_PARITY=1: PWDATACHK / PSTRBCHK / PWUSERCHK checked (odd parity, IHI 0024E 5.3) while PSEL & PWRITE; inject correct and incorrect values.
 
     '
-  test_function: test_apb5_slave_parity
+  test_function: cocotb_test_apb5_slave_parity
   test_file: val/amba/test_apb5_slave.py
   covers_lines:
-  - 196-203
+  - 230-411
   priority: high
   status: verified
 - id: APB5-S-31
   name: Read data parity
-  description: 'ENABLE_PARITY=1: Verify PRDATAPARITY generation.
+  description: 'ENABLE_PARITY=1: PRDATACHK / PRUSERCHK generated as odd parity, one bit per byte, valid on read completions; PREADYCHK, PSLVERRCHK, PBUSERCHK likewise. PWAKEUPCHK is checked (Requester-driven).
 
     '
-  test_function: test_apb5_slave_parity
+  test_function: cocotb_test_apb5_slave_parity
   test_file: val/amba/test_apb5_slave.py
   covers_lines:
-  - 216-218
+  - 230-411
   priority: high
   status: verified
 - id: APB5-S-32
   name: Address parity
-  description: 'ENABLE_PARITY=1: Verify PADDRPARITY checking.
+  description: 'ENABLE_PARITY=1: PADDRCHK checked per 8 address bits while PSEL; PSELCHK checked at all times out of reset.
 
     '
-  test_function: test_apb5_slave_parity
+  test_function: cocotb_test_apb5_slave_parity
   test_file: val/amba/test_apb5_slave.py
   covers_lines:
-  - 206-213
+  - 230-411
   priority: high
   status: verified
 - id: APB5-S-33
   name: Control parity
-  description: 'ENABLE_PARITY=1: Verify PCTRLPARITY checking.
+  description: 'ENABLE_PARITY=1: PCTRLCHK (PPROT, PWRITE) and PENABLECHK checked while PSEL.
 
     '
-  test_function: test_apb5_slave_parity
+  test_function: cocotb_test_apb5_slave_parity
   test_file: val/amba/test_apb5_slave.py
   covers_lines:
-  - 206-213
+  - 230-411
   priority: high
   status: verified
 - id: APB5-S-34
   name: Parity error
-  description: 'Inject parity error, verify parity_error_wdata or
-
-    parity_error_ctrl flags asserted.
+  description: 'Corrupt each requester *CHK in turn; exactly the matching flag (parity_error_wdata or parity_error_ctrl) asserts, and PWDATACHK is ignored on reads.
 
     '
-  test_function: test_apb5_slave_parity_error
+  test_function: cocotb_test_apb5_slave_parity
   test_file: val/amba/test_apb5_slave.py
   covers_lines:
-  - 202-203
-  - 211-213
+  - 230-411
   priority: high
   status: verified
 parameter_coverage:
@@ -423,9 +412,9 @@ notes: 'APB5 slave extends APB4 with AMBA5 user signals and wake-up.
 
   APB5 Wake-up (APB5-S-20, APB5-S-21):
 
-  - PWAKEUP signal from slave to master
+  - PWAKEUP is a slave INPUT from the Requester (IHI 0024E 3.7.2)
 
-  - Registered in wakeup_request -> s_apb_PWAKEUP path
+  - Checked by PWAKEUPCHK; a clock-gate wake term in the _cg wrappers
 
 
   APB5 Parity (APB5-S-30 to APB5-S-34):

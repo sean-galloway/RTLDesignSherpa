@@ -30,7 +30,9 @@
 // and passed through by name; the monitor section is the same lite tap
 // wiring the _mon wrapper carries. Sean, 2026-10-05: "make monlite versions
 // of the various axi wrappers". This is the ACE front-side variant: AR gains
-// ARSNOOP and the master interface gains the auto-pulsed RACK handshake.
+// ARSNOOP, ARDOMAIN and ARBAR, RRESP is the 4-bit ACE response, and the
+// master interface gains the auto-pulsed RACK handshake. The monitor is
+// handed RRESP[1:0] only: IsShared/PassDirty are coherence state, not errors.
 // ============================================================================
 `timescale 1ns / 1ps
 
@@ -62,8 +64,8 @@ module axi4ace_master_rd_monlite
     parameter int DW       = AXI_DATA_WIDTH,
     parameter int IW       = AXI_ID_WIDTH,
     parameter int UW       = AXI_USER_WIDTH,
-    parameter int ARSize   = IW+AW+8+3+2+1+4+3+4+4+UW+4,
-    parameter int RSize    = IW+DW+2+1+UW
+    parameter int ARSize   = IW+AW+8+3+2+1+4+3+4+4+UW+4+2+2,
+    parameter int RSize    = IW+DW+4+1+UW
 ) (
 
     // Global Clock and Reset
@@ -84,13 +86,15 @@ module axi4ace_master_rd_monlite
     input  logic [3:0]                 fub_axi_arregion,
     input  logic [UW-1:0]              fub_axi_aruser,
     input  logic [3:0]                 fub_axi_arsnoop,
+    input  logic [1:0]                 fub_axi_ardomain,
+    input  logic [1:0]                 fub_axi_arbar,
     input  logic                       fub_axi_arvalid,
     output logic                       fub_axi_arready,
 
     // Read data channel (R)
     output logic [IW-1:0]              fub_axi_rid,
     output logic [DW-1:0]              fub_axi_rdata,
-    output logic [1:0]                 fub_axi_rresp,
+    output logic [3:0]                 fub_axi_rresp,
     output logic                       fub_axi_rlast,
     output logic [UW-1:0]              fub_axi_ruser,
     output logic                       fub_axi_rvalid,
@@ -110,13 +114,15 @@ module axi4ace_master_rd_monlite
     output logic [3:0]                 m_axi_arregion,
     output logic [UW-1:0]              m_axi_aruser,
     output logic [3:0]                 m_axi_arsnoop,
+    output logic [1:0]                 m_axi_ardomain,
+    output logic [1:0]                 m_axi_arbar,
     output logic                       m_axi_arvalid,
     input  logic                       m_axi_arready,
 
     // Read data channel (R)
     input  logic [IW-1:0]              m_axi_rid,
     input  logic [DW-1:0]              m_axi_rdata,
-    input  logic [1:0]                 m_axi_rresp,
+    input  logic [3:0]                 m_axi_rresp,
     input  logic                       m_axi_rlast,
     input  logic [UW-1:0]              m_axi_ruser,
     input  logic                       m_axi_rvalid,
@@ -190,6 +196,8 @@ module axi4ace_master_rd_monlite
         .fub_axi_arregion            (fub_axi_arregion),
         .fub_axi_aruser              (fub_axi_aruser),
         .fub_axi_arsnoop             (fub_axi_arsnoop),
+        .fub_axi_ardomain            (fub_axi_ardomain),
+        .fub_axi_arbar               (fub_axi_arbar),
         .fub_axi_arvalid             (fub_axi_arvalid),
         .fub_axi_arready             (fub_axi_arready),
         .fub_axi_rid                 (fub_axi_rid),
@@ -211,6 +219,8 @@ module axi4ace_master_rd_monlite
         .m_axi_arregion              (m_axi_arregion),
         .m_axi_aruser                (m_axi_aruser),
         .m_axi_arsnoop               (m_axi_arsnoop),
+        .m_axi_ardomain              (m_axi_ardomain),
+        .m_axi_arbar                 (m_axi_arbar),
         .m_axi_arvalid               (m_axi_arvalid),
         .m_axi_arready               (m_axi_arready),
         .m_axi_rid                   (m_axi_rid),
@@ -266,11 +276,11 @@ module axi4ace_master_rd_monlite
         .cmd_ready (m_axi_arready),
         .data_id (m_axi_rid),
         .data_last (m_axi_rlast),
-        .data_resp (m_axi_rresp),
+        .data_resp (m_axi_rresp[1:0]),   // OKAY/EXOKAY/SLVERR/DECERR; [3:2] are coherence state, not an error
         .data_valid (w_mon_data_valid),
         .data_ready (m_axi_rready),
         .resp_id (m_axi_rid),
-        .resp_code (m_axi_rresp),
+        .resp_code (m_axi_rresp[1:0]),   // OKAY/EXOKAY/SLVERR/DECERR; [3:2] are coherence state, not an error
         .resp_valid (w_mon_resp_valid),
         .resp_ready (m_axi_rready),
         .cfg_freq_sel (cfg_freq_sel),

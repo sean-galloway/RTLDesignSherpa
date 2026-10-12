@@ -61,4 +61,4 @@ The generated file begins with a block comment documenting the configuration:
 | Slave-side outputs | `m_axis_<signal>[NUM_SLAVES]` |
 | Slave-side inputs | `m_axis_tready[NUM_SLAVES]` |
 
-Optional signals (`tstrb`, `twakeup`, `tparity`) are declared only when enabled.
+Optional signals (`tstrb`, `twakeup`, the `t*chk` check signals and the `s_/m_parity_error` flags) are declared only when enabled. With `--amba5` the header also gains derived check-width parameters (`TDATACHK_W = DATA_WIDTH / 8` and so on), and the module instantiates `rtl/common/dataint_parity`.

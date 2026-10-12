@@ -33,8 +33,7 @@ These are fixed in the emitted module name and structure.
 | `data_width` | `TDATA` width; sets `DATA_WIDTH`. |
 | `user_width` | `TUSER` width; sets `USER_WIDTH`. |
 | `strb_width` | If > 0, adds `TSTRB` ports and sets `STRB_WIDTH`; otherwise omits them. |
-| `amba5` | Adds `TWAKEUP` and `TPARITY` ports; sets `PW_WIDTH`. |
-| `parity_width` | Explicit `TPARITY` width when `amba5=True`; defaults to `DATA_WIDTH/8`. |
+| `amba5` | Adds `TWAKEUP`, the IHI 0051B ch. 5 check signals and the `s_/m_parity_error` flags; adds the derived check-width parameters. |
 | `registered_outputs` | Reserved for future output-register insertion; currently affects header comments. |
 | `arbiter_type` | Reserved for future arbiter selection; currently only round-robin is emitted. |
 | `add_performance_counters` | Adds 32-bit packet counters per master and slave. |
@@ -54,7 +53,7 @@ module delta_axis_flat_2x4 #(
 ) (
 ```
 
-When `strb_width > 0`, `STRB_WIDTH` is added. When `amba5=True`, `PW_WIDTH` is added.
+When `strb_width > 0`, `STRB_WIDTH` is added. When `amba5=True`, `TDATACHK_W`, `TIDCHK_W`, `TDESTCHK_W` and `TUSERCHK_W` are added, plus `TSTRBCHK_W` with TSTRB. Each defaults to an expression of its payload width, so leave them at their defaults.
 
 | Parameter | Typical use |
 |-----------|-------------|

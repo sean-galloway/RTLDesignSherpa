@@ -48,7 +48,7 @@ The data path from the granted master to the selected slave is combinational. Th
 Two command-line options add sidebands without changing the default output:
 
 - `--strb-width N` adds `TSTRB` byte qualifiers (port-matches `rtl/amba/axis4`).
-- `--amba5 [--parity-width M]` adds `TWAKEUP` and `TPARITY` (port-matches `rtl/amba/axis5`).
+- `--amba5` adds `TWAKEUP` and the IHI 0051B chapter 5 odd-parity check signals (`TDATACHK` ... `TWAKEUPCHK`), with sticky per-port error flags. The ports match `rtl/amba/axis5`.
 
 When neither option is used, the generated module is byte-identical to pre-2026-10-12 output.
 

@@ -283,6 +283,9 @@ class AdapterGenerator:
         if self.master.channels in ["rd", "rw"]:
             lines.append("    output logic [NUM_SLAVES-1:0] slave_select_ar,")
             lines.append("    output logic [BRIDGE_ID_WIDTH-1:0] bridge_id_ar,")
+        if self.has_wakeup:
+            lines.append("    // AWAKEUP toward wake-capable AXI5 slave ports (A14.1.1)")
+            lines.append("    output logic wakeup_req,")
 
         # Width-specific outputs via structs
         lines.append("")
@@ -415,7 +418,8 @@ class AdapterGenerator:
             # inputs; b/r-side extras are adapter outputs.
             if is_axi5:
                 for name, width, ext_in in axi5_exposed_ext_signals(
-                        channel.value, self.master.axi5_features, self.master.data_width):
+                        channel.value, self.master.axi5_features, self.master.data_width,
+                        port_channels=self.master.channels):
                     dir_str = 'input' if ext_in else 'output'
                     sig_name = f"{axi5_prefix}{name}"
                     if width > 1:
@@ -1067,6 +1071,127 @@ class AdapterGenerator:
             lines.append("")
         return lines
 
+    # --- GitHub #102 item 5: BIDUNQ/RIDUNQ and AWAKEUP at the boundary ----
+    @property
+    def has_idunq(self) -> bool:
+        """This AXI5 master port carries the unique-ID indicators."""
+        from bridge_pkg.sideband import port_features
+        return 'unique' in port_features(self.master)
+
+    @property
+    def has_wakeup(self) -> bool:
+        """This AXI5 master port carries AWAKEUP (A14.1.1)."""
+        from bridge_pkg.sideband import port_features
+        return 'wakeup' in port_features(self.master)
+
+    @property
+    def wr_fub_prefix(self) -> str:
+        """Net prefix on the wr wrapper's fub face: pref_axi_ when the
+        atomic filter sits between it and the fabric, else fub_axi_."""
+        return ('pref_axi_' if ('atomic' in self.sb_own and not self.rr_atomic)
+                else 'fub_axi_')
+
+    def _boundary_wire_decls(self) -> List[str]:
+        """Nets the boundary drives or consumes that are not struct
+        sideband: the regenerated BIDUNQ/RIDUNQ and the per-wrapper
+        AWAKEUP copies."""
+        lines = []
+        wr = self.master.channels in ("wr", "rw")
+        rd = self.master.channels in ("rd", "rw")
+        if self.has_idunq:
+            if wr:
+                lines.append(f"    logic         {self.wr_fub_prefix}bidunq;  // regenerated (A5.2)")
+            if rd:
+                lines.append("    logic         fub_axi_ridunq;  // regenerated (A5.2)")
+        if self.has_wakeup:
+            if wr:
+                lines.append("    logic         w_awakeup_wr;    // wr wrapper's AWAKEUP copy")
+            if rd:
+                lines.append("    logic         w_awakeup_rd;    // rd wrapper's AWAKEUP copy")
+        if lines:
+            lines.insert(0, "    // AXI5 boundary-generated signals (GitHub #102 item 5)")
+            lines.append("")
+        return lines
+
+    def _idunq_echo_lines(self) -> List[str]:
+        """Regenerate BIDUNQ/RIDUNQ from the request indicator (A5.2).
+
+        A5.2 makes the response indicator a function of the request:
+        BIDUNQ == AWIDUNQ, RIDUNQ == ARIDUNQ, and an atomic's RIDUNQ ==
+        its AWIDUNQ. The request indicator is droppable sideband (it does
+        not survive an AXI4 slave, a dwidth converter, the subtractive
+        DECERR slave or the atomic filter's local response), so the
+        slave's copy cannot be forwarded. Instead the boundary remembers
+        the indicator PER ID: A5.2 forbids an AxIDUNQ=1 request while any
+        same-ID request is outstanding and any request reusing the ID of
+        an outstanding AxIDUNQ=1 one, so every outstanding transaction of
+        one ID carries the same indicator and a per-ID bit is exact under
+        any response order. Atomic IDs are unique across both directions
+        (A6.4), so a read-return atomic may write the read table too."""
+        if not self.has_idunq:
+            return []
+        idw = self.fub_id_width
+        lines = [
+            "",
+            "    // ================================================================",
+            "    // BIDUNQ / RIDUNQ regenerated per ID (IHI 0022L A5.2)",
+            "    // ================================================================",
+            f"    localparam int IDUNQ_IDS = 1 << {idw};",
+        ]
+        if self.master.channels in ("wr", "rw"):
+            p = self.wr_fub_prefix
+            lines += [
+                "    logic [IDUNQ_IDS-1:0] r_awidunq_by_id;",
+                "    `ALWAYS_FF_RST(aclk, aresetn,",
+                "        if (`RST_ASSERTED(aresetn)) begin",
+                "            r_awidunq_by_id <= '0;",
+                f"        end else if ({p}awvalid && {p}awready) begin",
+                f"            r_awidunq_by_id[{p}awid] <= {p}awidunq;",
+                "        end",
+                "    )",
+                f"    assign {p}bidunq = r_awidunq_by_id[{p}bid];",
+            ]
+        if self.master.channels in ("rd", "rw"):
+            lines += [
+                "    logic [IDUNQ_IDS-1:0] r_aridunq_by_id;",
+                "    `ALWAYS_FF_RST(aclk, aresetn,",
+                "        if (`RST_ASSERTED(aresetn)) begin",
+                "            r_aridunq_by_id <= '0;",
+                "        end else begin",
+                "            if (fub_axi_arvalid && fub_axi_arready)",
+                "                r_aridunq_by_id[fub_axi_arid] <= fub_axi_aridunq;",
+            ]
+            if self.rr_atomic:
+                lines += [
+                    "            // A read-return atomic's R carries the AW ID and AWIDUNQ.",
+                    "            if (fub_axi_awvalid && fub_axi_awready && fub_axi_awatop[5])",
+                    "                r_aridunq_by_id[fub_axi_awid] <= fub_axi_awidunq;",
+                ]
+            lines += [
+                "        end",
+                "    )",
+                "    assign fub_axi_ridunq = r_aridunq_by_id[fub_axi_rid];",
+            ]
+        lines.append("")
+        return lines
+
+    def _wakeup_out_lines(self) -> List[str]:
+        """One AWAKEUP covers both request channels (A14.1.1): OR the two
+        wrappers' copies. Each copy is the external AWAKEUP OR'd with the
+        wrapper's own held-request flops, so the OR stays glitch-free."""
+        if not self.has_wakeup:
+            return []
+        terms = []
+        if self.master.channels in ("wr", "rw"):
+            terms.append("w_awakeup_wr")
+        if self.master.channels in ("rd", "rw"):
+            terms.append("w_awakeup_rd")
+        return [
+            "    // AWAKEUP toward the wake-capable slave ports (A14.1.1)",
+            f"    assign wakeup_req = {' | '.join(terms)};",
+            "",
+        ]
+
     def _generate_atomic_filter(self) -> List[str]:
         """axi5_atomic_filter between the wr wrapper (pref_axi_*) and
         the fabric-facing fub_axi_* namespace (A5-3a). Handshakes and
@@ -1075,7 +1200,14 @@ class AdapterGenerator:
         assert fub_axi_awvalid, so stale pass-through payload is inert.
         btrace passes through untouched: a local DECERR response
         carries whatever the mux holds, which the AXI atomic ID rule
-        keeps a compliant master from pairing with a traced write."""
+        keeps a compliant master from pairing with a traced write.
+
+        Only write-only ports carry the filter (an rw port forwards
+        read-return atomics natively, see rr_atomic), so its R channel
+        has no upstream to merge into: the local R beats are drained and
+        discarded and the downstream R input is idle. BIDUNQ, when the
+        port has it, is regenerated on the pref side of the filter
+        (_idunq_echo_lines), so a local DECERR carries the right bit."""
         lines = []
         lines.append("    // ================================================================")
         lines.append("    // axi5_atomic_filter: DECERR read-return atomics locally;")
@@ -1100,6 +1232,7 @@ class AdapterGenerator:
         lines.append("        .s_awready(pref_axi_awready),")
         lines.append("        .s_awid(pref_axi_awid),")
         lines.append("        .s_awatop(pref_axi_awatop),")
+        lines.append("        .s_awlen(pref_axi_awlen),")
         lines.append("        .s_wvalid(pref_axi_wvalid),")
         lines.append("        .s_wready(pref_axi_wready),")
         lines.append("        .s_wlast(pref_axi_wlast),")
@@ -1107,6 +1240,17 @@ class AdapterGenerator:
         lines.append("        .s_bready(pref_axi_bready),")
         lines.append("        .s_bid(pref_axi_bid),")
         lines.append("        .s_bresp(pref_axi_bresp),")
+        lines.append("        // R: a write-only port has no read data channel, so the read")
+        lines.append("        // transfers the filter owes a swallowed load-class atomic")
+        lines.append("        // (A6.4.8) have nowhere to go. They are accepted and discarded")
+        lines.append("        // (s_rready=1) so the filter's read-return queue drains and never")
+        lines.append("        // stalls AW; the atomic completes with DECERR on B only. A manager")
+        lines.append("        // must not issue load-class atomics on a write-only port (HAS 4.4).")
+        lines.append("        .s_rvalid(),")
+        lines.append("        .s_rready(1'b1),")
+        lines.append("        .s_rid(),")
+        lines.append("        .s_rresp(),")
+        lines.append("        .s_rlast(),")
         lines.append("        .m_awvalid(fub_axi_awvalid),")
         lines.append("        .m_awready(fub_axi_awready),")
         lines.append("        .m_wvalid(fub_axi_wvalid),")
@@ -1114,7 +1258,13 @@ class AdapterGenerator:
         lines.append("        .m_bvalid(fub_axi_bvalid),")
         lines.append("        .m_bready(fub_axi_bready),")
         lines.append("        .m_bid(fub_axi_bid),")
-        lines.append("        .m_bresp(fub_axi_bresp)")
+        lines.append("        .m_bresp(fub_axi_bresp),")
+        lines.append("        // No downstream R on a write-only port.")
+        lines.append("        .m_rvalid(1'b0),")
+        lines.append("        .m_rready(),")
+        lines.append("        .m_rid('0),")
+        lines.append("        .m_rresp(2'b00),")
+        lines.append("        .m_rlast(1'b0)")
         lines.append("    );")
         lines.append("")
         return lines
@@ -1242,6 +1392,7 @@ class AdapterGenerator:
 
         # AXI5 native-sideband fub wires (A5-2 slice 2)
         lines.extend(self._sb_wire_decls())
+        lines.extend(self._boundary_wire_decls())
 
         # bridge TASK-005 (was BRIDGE-016): fabric-facing IDs carry this master's index on top.
         if self.id_prefix_width:
@@ -1369,10 +1520,10 @@ class AdapterGenerator:
             # sits between pref and fub (A5-3a — read-return atomics
             # must not reach a fabric that cannot route their R data).
             wrapper.connect_external(connector_prefix=signal_prefix)
-            wr_fub_prefix = ('pref_axi_'
-                             if ('atomic' in self.sb_own and not self.rr_atomic)
-                             else 'fub_axi_')
-            wrapper.connect_bridge_internal(connector_prefix=wr_fub_prefix)
+            wr_fub_prefix = self.wr_fub_prefix
+            wrapper.connect_bridge_internal(
+                connector_prefix=wr_fub_prefix,
+                overrides=({'awakeup': 'w_awakeup_wr'} if self.has_wakeup else None))
             wrapper.add_status(busy_connector='wrapper_wr_busy')
             if self.enable_monitoring:
                 wrapper.connect_monbus(
@@ -1415,7 +1566,9 @@ class AdapterGenerator:
             )
             wrapper.connect_clocks_and_resets()
             wrapper.connect_external(connector_prefix=signal_prefix)
-            wrapper.connect_bridge_internal(connector_prefix='fub_axi_')
+            wrapper.connect_bridge_internal(
+                connector_prefix='fub_axi_',
+                overrides=({'awakeup': 'w_awakeup_rd'} if self.has_wakeup else None))
             wrapper.add_status(busy_connector='wrapper_rd_busy')
             if self.enable_monitoring:
                 wrapper.connect_monbus(
@@ -1433,6 +1586,8 @@ class AdapterGenerator:
             lines.append("    // ================================================================")
             lines.extend(wrapper.generate_lines())
 
+        lines.extend(self._idunq_echo_lines())
+        lines.extend(self._wakeup_out_lines())
         return lines
 
     def _generate_address_decode(self) -> List[str]:

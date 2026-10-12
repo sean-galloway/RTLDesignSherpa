@@ -33,8 +33,8 @@ module axi4ace_slave_rd
     parameter int SW       = AXI_WSTRB_WIDTH,
     /* verilator lint_on UNUSEDPARAM */
     parameter int UW       = AXI_USER_WIDTH,
-    parameter int ARSize   = IW+AW+8+3+2+1+4+3+4+4+UW+4,
-    parameter int RSize    = IW+DW+2+1+UW
+    parameter int ARSize   = IW+AW+8+3+2+1+4+3+4+4+UW+4+2+2,
+    parameter int RSize    = IW+DW+4+1+UW
 )
 (
     // Global Clock and Reset
@@ -55,17 +55,23 @@ module axi4ace_slave_rd
     input  logic [3:0]                   s_axi_arregion,
     input  logic [UW-1:0]                s_axi_aruser,
     input  logic [3:0]                   s_axi_arsnoop,
+    input  logic [1:0]                   s_axi_ardomain,
+    input  logic [1:0]                   s_axi_arbar,
     input  logic                         s_axi_arvalid,
     output logic                         s_axi_arready,
 
     // Read data channel (R)
     output logic [IW-1:0]                s_axi_rid,
     output logic [DW-1:0]                s_axi_rdata,
-    output logic [1:0]                   s_axi_rresp,
+    output logic [3:0]                   s_axi_rresp,      // [3]=IsShared [2]=PassDirty (IHI 0022H D2.1.3)
     output logic                         s_axi_rlast,
     output logic [UW-1:0]                s_axi_ruser,
     output logic                         s_axi_rvalid,
     input  logic                         s_axi_rready,
+
+    // ACE read acknowledge (IHI 0022H D2.3.1): driven by the manager after
+    // it accepts each RLAST beat, passed through to the backend
+    input  logic                         s_axi_rack,
 
     // Master AXI Interface (Output Side to memory or backend)
     // Read address channel (AR)
@@ -81,17 +87,22 @@ module axi4ace_slave_rd
     output logic [3:0]                   fub_axi_arregion,
     output logic [UW-1:0]                fub_axi_aruser,
     output logic [3:0]                   fub_axi_arsnoop,
+    output logic [1:0]                   fub_axi_ardomain,
+    output logic [1:0]                   fub_axi_arbar,
     output logic                         fub_axi_arvalid,
     input  logic                         fub_axi_arready,
 
     // Read data channel (R)
     input  logic [IW-1:0]                fub_axi_rid,
     input  logic [DW-1:0]                fub_axi_rdata,
-    input  logic [1:0]                   fub_axi_rresp,
+    input  logic [3:0]                   fub_axi_rresp,      // [3]=IsShared [2]=PassDirty (IHI 0022H D2.1.3)
     input  logic                         fub_axi_rlast,
     input  logic [UW-1:0]                fub_axi_ruser,
     input  logic                         fub_axi_rvalid,
     output logic                         fub_axi_rready,
+
+    // ACE read acknowledge, forwarded from s_axi_rack
+    output logic                         fub_axi_rack,
 
     // Status outputs for clock gating
     output logic                         busy
@@ -125,7 +136,8 @@ module axi4ace_slave_rd
         .wr_ready               (s_axi_arready),
         .wr_data                ({s_axi_arid, s_axi_araddr, s_axi_arlen, s_axi_arsize,
                                     s_axi_arburst, s_axi_arlock, s_axi_arcache, s_axi_arprot,
-                                    s_axi_arqos, s_axi_arregion, s_axi_aruser, s_axi_arsnoop}),
+                                    s_axi_arqos, s_axi_arregion, s_axi_aruser, s_axi_arsnoop,
+                                    s_axi_ardomain, s_axi_arbar}),
         .rd_valid               (int_skid_arvalid),
         .rd_ready               (int_skid_arready),
         .rd_count               (int_ar_count),
@@ -138,7 +150,8 @@ module axi4ace_slave_rd
     // Unpack AR signals from SKID buffer
     assign {fub_axi_arid, fub_axi_araddr, fub_axi_arlen, fub_axi_arsize, fub_axi_arburst,
             fub_axi_arlock, fub_axi_arcache, fub_axi_arprot, fub_axi_arqos,
-            fub_axi_arregion, fub_axi_aruser, fub_axi_arsnoop} = int_ar_pkt;
+            fub_axi_arregion, fub_axi_aruser, fub_axi_arsnoop,
+            fub_axi_ardomain, fub_axi_arbar} = int_ar_pkt;
     assign fub_axi_arvalid = int_skid_arvalid;
     assign int_skid_arready = fub_axi_arready;
 
@@ -163,5 +176,10 @@ module axi4ace_slave_rd
 
     assign s_axi_rvalid = int_skid_rvalid;
     assign int_skid_rready = s_axi_rready;
+
+    // RACK has no payload and no handshake of its own: a wire. The manager
+    // only raises it after the RLAST beat leaves this skid, so the backend
+    // always sees it after it handed that beat over.
+    assign fub_axi_rack = s_axi_rack;
 
 endmodule : axi4ace_slave_rd

@@ -65,8 +65,8 @@ module axi4ace_slave_rd_monlite
     parameter int IW       = AXI_ID_WIDTH,
     parameter int SW       = AXI_WSTRB_WIDTH,
     parameter int UW       = AXI_USER_WIDTH,
-    parameter int ARSize   = IW+AW+8+3+2+1+4+3+4+4+UW+4,
-    parameter int RSize    = IW+DW+2+1+UW
+    parameter int ARSize   = IW+AW+8+3+2+1+4+3+4+4+UW+4+2+2,
+    parameter int RSize    = IW+DW+4+1+UW
 ) (
 
     // Global Clock and Reset
@@ -87,17 +87,20 @@ module axi4ace_slave_rd_monlite
     input  logic [3:0]                   s_axi_arregion,
     input  logic [UW-1:0]                s_axi_aruser,
     input  logic [3:0]                   s_axi_arsnoop,
+    input  logic [1:0]                   s_axi_ardomain,
+    input  logic [1:0]                   s_axi_arbar,
     input  logic                         s_axi_arvalid,
     output logic                         s_axi_arready,
 
     // Read data channel (R)
     output logic [IW-1:0]                s_axi_rid,
     output logic [DW-1:0]                s_axi_rdata,
-    output logic [1:0]                   s_axi_rresp,
+    output logic [3:0]                   s_axi_rresp,
     output logic                         s_axi_rlast,
     output logic [UW-1:0]                s_axi_ruser,
     output logic                         s_axi_rvalid,
     input  logic                         s_axi_rready,
+    input  logic                         s_axi_rack,
 
     // Master AXI Interface (Output Side to memory or backend)
     // Read address channel (AR)
@@ -113,17 +116,20 @@ module axi4ace_slave_rd_monlite
     output logic [3:0]                   fub_axi_arregion,
     output logic [UW-1:0]                fub_axi_aruser,
     output logic [3:0]                   fub_axi_arsnoop,
+    output logic [1:0]                   fub_axi_ardomain,
+    output logic [1:0]                   fub_axi_arbar,
     output logic                         fub_axi_arvalid,
     input  logic                         fub_axi_arready,
 
     // Read data channel (R)
     input  logic [IW-1:0]                fub_axi_rid,
     input  logic [DW-1:0]                fub_axi_rdata,
-    input  logic [1:0]                   fub_axi_rresp,
+    input  logic [3:0]                   fub_axi_rresp,
     input  logic                         fub_axi_rlast,
     input  logic [UW-1:0]                fub_axi_ruser,
     input  logic                         fub_axi_rvalid,
     output logic                         fub_axi_rready,
+    output logic                         fub_axi_rack,
 
     // Status outputs for clock gating
     output logic                         busy,
@@ -192,6 +198,8 @@ module axi4ace_slave_rd_monlite
         .s_axi_arregion              (s_axi_arregion),
         .s_axi_aruser                (s_axi_aruser),
         .s_axi_arsnoop               (s_axi_arsnoop),
+        .s_axi_ardomain              (s_axi_ardomain),
+        .s_axi_arbar                 (s_axi_arbar),
         .s_axi_arvalid               (s_axi_arvalid),
         .s_axi_arready               (s_axi_arready),
         .s_axi_rid                   (s_axi_rid),
@@ -201,6 +209,7 @@ module axi4ace_slave_rd_monlite
         .s_axi_ruser                 (s_axi_ruser),
         .s_axi_rvalid                (s_axi_rvalid),
         .s_axi_rready                (s_axi_rready),
+        .s_axi_rack                  (s_axi_rack),
         .fub_axi_arid                (fub_axi_arid),
         .fub_axi_araddr              (fub_axi_araddr),
         .fub_axi_arlen               (fub_axi_arlen),
@@ -213,6 +222,8 @@ module axi4ace_slave_rd_monlite
         .fub_axi_arregion            (fub_axi_arregion),
         .fub_axi_aruser              (fub_axi_aruser),
         .fub_axi_arsnoop             (fub_axi_arsnoop),
+        .fub_axi_ardomain            (fub_axi_ardomain),
+        .fub_axi_arbar               (fub_axi_arbar),
         .fub_axi_arvalid             (fub_axi_arvalid),
         .fub_axi_arready             (fub_axi_arready),
         .fub_axi_rid                 (fub_axi_rid),
@@ -222,6 +233,7 @@ module axi4ace_slave_rd_monlite
         .fub_axi_ruser               (fub_axi_ruser),
         .fub_axi_rvalid              (fub_axi_rvalid),
         .fub_axi_rready              (fub_axi_rready),
+        .fub_axi_rack                (fub_axi_rack),
         .busy                        (busy)
     );
 
@@ -267,11 +279,11 @@ module axi4ace_slave_rd_monlite
         .cmd_ready (s_axi_arready),
         .data_id (s_axi_rid),
         .data_last (s_axi_rlast),
-        .data_resp (s_axi_rresp),
+        .data_resp (s_axi_rresp[1:0]),   // OKAY/EXOKAY/SLVERR/DECERR; [3:2] are coherence state, not an error
         .data_valid (w_mon_data_valid),
         .data_ready (s_axi_rready),
         .resp_id (s_axi_rid),
-        .resp_code (s_axi_rresp),
+        .resp_code (s_axi_rresp[1:0]),   // OKAY/EXOKAY/SLVERR/DECERR; [3:2] are coherence state, not an error
         .resp_valid (w_mon_resp_valid),
         .resp_ready (s_axi_rready),
         .cfg_freq_sel (cfg_freq_sel),

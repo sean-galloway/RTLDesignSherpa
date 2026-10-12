@@ -83,7 +83,7 @@ class AXIS5MasterCGTB(AXIS5MasterTB):
             packet.last = 1
 
             if self.ENABLE_PARITY:
-                packet.parity = packet.calculate_parity()
+                packet.fill_check_fields()
 
             success = await self.fub_master.send_packet(packet)
             assert success, f"Failed to send packet {i}"
@@ -109,7 +109,7 @@ class AXIS5MasterCGTB(AXIS5MasterTB):
             packet.last = 1
 
             if self.ENABLE_PARITY:
-                packet.parity = packet.calculate_parity()
+                packet.fill_check_fields()
 
             success = await self.fub_master.send_packet(packet)
             assert success, f"Failed to send packet {i} after clock ungating"

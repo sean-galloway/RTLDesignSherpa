@@ -22,12 +22,17 @@
 // exposes (axil5_sideband.AXIL5_USER_WIDTH), so an APB5 requester's user
 // bit can be observed at an AXI5-Lite completer.
 //
-// PWAKEUP is requester-driven (AMBA APB5, IHI 0024E): it is an input here,
-// accepted and terminated -- there is nothing on the AXI side for it to
-// become. apb5_slave's own PWAKEUP output (its wake-up REQUEST to the
-// requester) is left unconnected with wakeup_request tied low. Parity is
-// not part of this surface: apb5_slave is instantiated with ENABLE_PARITY=0
-// and its parity pins are tied off, matching axi4_to_apb5_shim.
+// PWAKEUP is requester-driven (IHI 0024E 3.7.2, Table 3-7): it is an input
+// here and is passed to apb5_slave's s_apb_PWAKEUP input. Nothing on the
+// AXI side carries it, so it goes no further.
+//
+// Interface parity is not part of this surface (Check_Type = False): the
+// *CHK signals are conditional on Check_Type (IHI 0024E Table B-2) and so
+// are absent from this module's ports. apb5_slave is built with
+// ENABLE_PARITY=0, which leaves its check inputs unchecked and drives its
+// check outputs LOW; the check inputs, PWAKEUPCHK included, are tied LOW
+// (the same constant apb5_master drives on its check outputs when parity
+// is off) and the check outputs are left open.
 
 module apb5_to_axi4 #(
     parameter int APB_ADDR_WIDTH  = 32,
@@ -143,9 +148,6 @@ module apb5_to_axi4 #(
     assign w_rsp_pruser = RUW'(w_rsp_ruser);
     assign w_rsp_pbuser = BUW'(w_rsp_buser);
 
-    // Requester-driven wake-up: nothing on the AXI side to carry it.
-    wire unused_pwakeup = &{1'b0, s_apb_PWAKEUP};
-
     apb5_slave #(
         .ADDR_WIDTH    (AW),
         .DATA_WIDTH    (DW),
@@ -172,18 +174,24 @@ module apb5_to_axi4 #(
         .s_apb_PWUSER       (s_apb_PWUSER),
         .s_apb_PRDATA       (s_apb_PRDATA),
         .s_apb_PSLVERR      (s_apb_PSLVERR),
-        /* verilator lint_off PINCONNECTEMPTY */
-        .s_apb_PWAKEUP      (),
-        /* verilator lint_on PINCONNECTEMPTY */
+        .s_apb_PWAKEUP      (s_apb_PWAKEUP),
         .s_apb_PRUSER       (s_apb_PRUSER),
         .s_apb_PBUSER       (s_apb_PBUSER),
-        .s_apb_PWDATAPARITY ('0),
-        .s_apb_PADDRPARITY  (1'b0),
-        .s_apb_PCTRLPARITY  (1'b0),
+        .s_apb_PADDRCHK     ('0),
+        .s_apb_PCTRLCHK     (1'b0),
+        .s_apb_PSELCHK      (1'b0),
+        .s_apb_PENABLECHK   (1'b0),
+        .s_apb_PWDATACHK    ('0),
+        .s_apb_PSTRBCHK     (1'b0),
+        .s_apb_PAUSERCHK    ('0),
+        .s_apb_PWUSERCHK    ('0),
+        .s_apb_PWAKEUPCHK   (1'b0),
         /* verilator lint_off PINCONNECTEMPTY */
-        .s_apb_PRDATAPARITY (),
-        .s_apb_PREADYPARITY (),
-        .s_apb_PSLVERRPARITY(),
+        .s_apb_PRDATACHK    (),
+        .s_apb_PREADYCHK    (),
+        .s_apb_PSLVERRCHK   (),
+        .s_apb_PRUSERCHK    (),
+        .s_apb_PBUSERCHK    (),
         /* verilator lint_on PINCONNECTEMPTY */
         .cmd_valid          (w_cmd_valid),
         .cmd_ready          (w_cmd_ready),
@@ -200,7 +208,6 @@ module apb5_to_axi4 #(
         .rsp_pslverr        (w_rsp_pslverr),
         .rsp_pruser         (w_rsp_pruser),
         .rsp_pbuser         (w_rsp_pbuser),
-        .wakeup_request     (1'b0),
         /* verilator lint_off PINCONNECTEMPTY */
         .parity_error_wdata (),
         .parity_error_ctrl  ()

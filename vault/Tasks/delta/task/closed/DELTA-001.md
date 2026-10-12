@@ -42,3 +42,16 @@ framework generator today emits none of those (and its per-file header lines
 are inconsistent, e.g. the 4x16 file's mangled Documentation path). A
 regenerate-with-current-generator pass (or a framework header/macro upgrade)
 is its own decision — do not silently regenerate the checked-in artifacts.
+
+## Superseded in part by GitHub #102 (2026-10-12)
+
+The `TPARITY` option described above is gone. IHI 0051B ch. 5 defines
+per-signal check signals, not a single parity bus, and the rtl/amba axis5
+modules were corrected to them under GitHub sean-galloway/RTLDesignSherpa#102.
+`--amba5` now emits `TWAKEUP` plus the spec check signals
+(`t{data,strb,last,id,dest,user}chk`, `tvalidchk`, `treadychk`,
+`twakeupchk`, odd parity, one bit per 8 bits via `rtl/common/dataint_parity`)
+and per-port sticky `*_parity_error` flags. `--parity-width` and the
+"`--parity-width` without `--amba5`" guard were removed; `--amba5` now
+requires a whole-byte `--data-width`. The "known drift" in the checked-in
+non-amba5 RTL above is unchanged and still its own decision.

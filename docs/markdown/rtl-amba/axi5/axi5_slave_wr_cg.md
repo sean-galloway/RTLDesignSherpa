@@ -40,7 +40,7 @@ The AXI5 Slave Write with Clock Gating module wraps the standard `axi5_slave_wr`
 - Carries the full AXI5 write signal set listed below, unmodified, across the SKID buffers
 - **Integrated clock gating** for dynamic power reduction
 - Configurable idle count before gating
-- All AXI5 extensions supported (ATOMIC, NSAID, TRACE, MPAM, MECID, UNIQUE, MTE, POISON)
+- All AXI5 extensions supported (ATOMIC, NSAID, TRACE, MPAM, MECID, IDUNQ, MTE, POISON, WAKEUP)
 - Transparent gating - no protocol changes
 - Gating status outputs for system monitoring
 - SKID buffering for AW, W, and B channels
@@ -112,9 +112,10 @@ flowchart TB
 | ENABLE_TRACE | bit | 1 | Enable trace signals |
 | ENABLE_MPAM | bit | 1 | Enable memory partitioning |
 | ENABLE_MECID | bit | 1 | Enable memory encryption |
-| ENABLE_UNIQUE | bit | 1 | Enable unique ID indicator |
+| ENABLE_UNIQUE | bit | 1 | Enable the unique ID indicator (AxIDUNQ, and BIDUNQ/RIDUNQ on the responses) |
 | ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
+| ENABLE_WAKEUP | bit | 1 | Enable AWAKEUP (IHI 0022L §A14.1.1); 0 ties the output low |
 | CG_IDLE_COUNT_WIDTH | int | 4 | Clock gating idle counter width |
 
 ### Derived Parameters
@@ -125,7 +126,7 @@ These are computed inside the module from the parameters above. Do not override 
 |-----------|------------|-------------|
 | SW | AXI_WSTRB_WIDTH | Write strobe width, one bit per data byte |
 | NUM_TAGS | max(AXI_DATA_WIDTH / 128, 1) | MTE tags carried per beat (one tag per 16 bytes) |
-| TW | AXI_TAG_WIDTH * NUM_TAGS | Total width of the `awtag` / `wtag` / `btag` fields |
+| TW | AXI_TAG_WIDTH * NUM_TAGS | Total width of the `wtag` field |
 | AWSize | Sum of the enabled AW fields | AW SKID buffer payload width |
 | WSize | Sum of the enabled W fields | W SKID buffer payload width |
 | BSize | Sum of the enabled B fields | B SKID buffer payload width |
@@ -180,7 +181,7 @@ Same as `axi5_slave_wr` - see [AXI5 Slave Write](axi5_slave_wr.md) for complete 
 ### Clock Gating Behavior
 
 **Activity Detection:**
-- **user_valid:** Asserted when slave interface has activity (awvalid, wvalid, bvalid, or internal busy -- peer VALID, post-fix)
+- **user_valid:** Asserted when slave interface has activity (AWAKEUP, awvalid, wvalid, bvalid, or internal busy -- peer VALID, post-fix)
 - **axi_valid:** Asserted when FUB interface has activity (awvalid, wvalid, bvalid)
 
 **Gating State Machine:**
@@ -387,10 +388,10 @@ pytest val/amba/test_axi5_slave_wr_cg.py -v
 
 ## References
 
-- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A2.3.1 "Valid-Ready signals", §A2.3.2 "Dependencies between channel handshake signals" and §A2.5 "Pipelining and register stages" (the transport this module buffers per channel), and the AXI5 signals it carries unchanged: §A6.4 "Atomic transactions" (AWATOP), §A16.1 "Data protection using Poison" (WPOISON), §A12.2 "Memory Tagging Extension (MTE)" (AWTAGOP, WTAG, WTAGUPDATE, BTAGMATCH), §A5.2 "Unique ID indicator", §A12.3 "Trace signals", §A10.1 "Non-secure Access Identifiers (NSAID)", §A12.1 "Memory System Resource Partitioning and Monitoring (MPAM)" and §A4.6 "Memory Encryption Contexts" (AWMECID). The specification defines BTAGMATCH as 2 bits and has no BTAG signal, and names the Unique ID indicator AWIDUNQ; see the Notes in the archive README for how this module's ports differ.
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A2.3.1 "Valid-Ready signals", §A2.3.2 "Dependencies between channel handshake signals" and §A2.5 "Pipelining and register stages" (the transport this module buffers per channel), and the AXI5 signals it carries unchanged: §A6.4 "Atomic transactions" (AWATOP), §A16.1 "Data protection using Poison" (WPOISON), §A12.2 "Memory Tagging Extension (MTE)" (AWTAGOP, WTAG, WTAGUPDATE, BTAGMATCH), §A5.2 "Unique ID indicator", §A12.3 "Trace signals", §A10.1 "Non-secure Access Identifiers (NSAID)", §A12.1 "Memory System Resource Partitioning and Monitoring (MPAM)" and §A4.6 "Memory Encryption Contexts" (AWMECID). The ports follow the specification's names and widths (GitHub #102): BTAGMATCH is 2 bits with the Table A12.14 encodings, there is no BTAG or AWTAG, the Unique ID indicator is AWIDUNQ with BIDUNQ on the response, and AWAKEUP follows §A14.1.1 "AWAKEUP rules and recommendations".
 - Benini, L., De Micheli, G. "Automatic Synthesis of Low-Power Gated-Clock Finite-State Machines." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 15(6), June 1996. DOI: [10.1109/43.503933](https://doi.org/10.1109/43.503933) -- the latch-based clock-gating cell (`icg`, via `amba_clock_gate_ctrl` and `clock_gate_ctrl`) that gates this wrapper's clock.
 - Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Trans. VLSI Systems*, 8(3), June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) -- fixed-timeout shutdown: gate after `cfg_cg_idle_count` idle cycles, wake on activity.
-- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A14.1.1 "AWAKEUP rules and recommendations" in Issue L (§E1.7 "Wake-up Signaling" in Issue H) defines AWAKEUP, which lets a manager restart a gated interface before VALID. This wrapper does not use it: it wakes on the flopped OR of the VALIDs and holds READY low while gated.
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A14.1.1 "AWAKEUP rules and recommendations" in Issue L (§E1.7 "Wake-up Signaling" in Issue H) defines AWAKEUP, which lets a manager restart a gated interface before VALID. This wrapper counts AWAKEUP as an activity term (behind `ENABLE_WAKEUP`), so a manager that raises it a cycle ahead of VALID, as §A14.1.1 recommends, finds the clock running and its first request is accepted on the cycle it is presented; a manager that never drives it still wakes the block through the flopped OR of the VALIDs, with READY held low while gated (GitHub #102).
 - Indexed in `rtl/amba/references/README.md` (local PDF, archived under `rtl/common/references/`: `LatchBasedClockGating__Benini1996.pdf`, `DynamicPowerManagementTimeout__Benini2000.pdf`)
 
 ---

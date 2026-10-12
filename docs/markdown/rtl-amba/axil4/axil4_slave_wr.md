@@ -52,7 +52,7 @@ Key features:
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `AXIL_ADDR_WIDTH` | int | 32 | Address bus width |
-| `AXIL_DATA_WIDTH` | int | 32 | Data bus width (32 or 64) |
+| `AXIL_DATA_WIDTH` | int | 32 | Data bus width: 32 or 64 only (IHI 0022H §B1.1.2); checked at elaboration |
 | `SKID_DEPTH_AW` | int | 2 | AW channel skid buffer depth, in entries |
 | `SKID_DEPTH_W` | int | 2 | W channel skid buffer depth, in entries |
 | `SKID_DEPTH_B` | int | 2 | B channel skid buffer depth, in entries |
@@ -66,6 +66,8 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 |---|---|
 | `AWSize` | `AW+3` |
 | `WSize` | `DW+(DW/8)` |
+
+**Data width is checked at elaboration.** `AXIL_DATA_WIDTH` must be 32 or 64 (IHI 0022H §B1.1.2); any other value stops the build in the module's `param_check` block, the elaboration-time guard form described in `vault/handbook/design/no-assertions-in-rtl.md`. `val/amba/test_axil_param_guard.py` checks it.
 
 ---
 
@@ -247,7 +249,7 @@ pytest val/amba/test_axil4_slave_wr.py -v
 
 ## References
 
-- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h) -- Part B ch. B1 "AMBA AXI4-Lite": §B1.1 (one beat per transaction at full bus width), §B1.1.3 write strobes, §B1.1.4 no IDs so every transaction is in order; AxPROT in §A4.7. §A3.2.1 "Handshake process" and §A3.3.1 "Dependencies between channel handshake signals" govern the AW, W and B channels; §A1.2.3 "Register slices" permits the per-channel skid stage. Issue H is the last issue that defines AXI4-Lite.
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h) -- Part B ch. B1 "AMBA AXI4-Lite": §B1.1 (one beat per transaction at full bus width), §B1.1.2 data bus width 32 or 64 (enforced by the `param_check` guard), §B1.1.3 write strobes, §B1.1.4 no IDs so every transaction is in order; AxPROT in §A4.7. §A3.2.1 "Handshake process" and §A3.3.1 "Dependencies between channel handshake signals" govern the AW, W and B channels; §A1.2.3 "Register slices" permits the per-channel skid stage. Issue H is the last issue that defines AXI4-Lite.
 - Cortadella, J., Kishinevsky, M., Grundmann, B. "Synthesis of Synchronous Elastic Architectures." *Proc. 43rd Design Automation Conf. (DAC '06)*, pp. 657-662, 2006. DOI: [10.1145/1146909.1147077](https://doi.org/10.1145/1146909.1147077) -- the elastic buffer; its Property 3.1 (capacity C >= 2 for full throughput) is the depth-2 floor of each channel's `gaxi_skid_buffer`.
 - Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) -- relay stations: storage on a back-pressured channel adds latency without changing function.
 - Chipressian. *Crack the Hardware Interview -- from RTL Designers' Perspective: Architecture and Micro-architecture Design*, ch. 2 "Handshake Protocols", Q8 valid-ready protocol and Q9 valid-ready slices -- textbook treatment of register slices (secondary source).

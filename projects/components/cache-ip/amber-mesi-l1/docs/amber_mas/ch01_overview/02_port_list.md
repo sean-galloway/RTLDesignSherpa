@@ -89,13 +89,18 @@ Plain AXI4 masters driven by `amber_fill` and `amber_drain`. Signal names and wi
 
 ## `amber_ace` — Onyx-Rig Top
 
-`amber_ace` has the same CPU GAXI slave, snoop responder, and MonBus ports as `amber`. The memory-side masters are full ACE masters with `ARSNOOP` / `AWSNOOP` fields and auto-pulsed `RACK` / `WACK` outputs (deprecated per ruling 2026-10-11 (Sean); removal tracked as amber A5). `amber_ace_issue` maps cache-side events to ACE transactions; see Chapter 2.8.
+`amber_ace` has the same CPU GAXI slave, snoop responder, and MonBus ports as `amber`. The memory-side masters are full ACE masters with `ARSNOOP` / `AWSNOOP`, `ARDOMAIN` / `AWDOMAIN` and `ARBAR` / `AWBAR` fields, the 4-bit ACE `RRESP` (IHI 0022H §D2.1), and auto-pulsed `RACK` / `WACK` outputs (deprecated per ruling 2026-10-11 (Sean); removal tracked as amber A5). `amber_ace_issue` maps cache-side events to ACE transactions; see Chapter 2.8.
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `m_axi_arsnoop` | output | 4 | ACE read transaction type |
+| `m_axi_ardomain` | output | 2 | Shareability domain; tied to `0b10` Outer Shareable |
+| `m_axi_arbar` | output | 2 | Barrier type; tied to `0b00`, normal access (amber issues no barriers) |
+| `m_axi_rresp` | input | 4 | `[1:0]` AXI response, `[2]` PassDirty, `[3]` IsShared; the core consumes `[1:0]` only (Chapter 3.3) |
 | `m_axi_rack` | output | 1 | ACE read acknowledge (auto-pulsed) |
 | `m_axi_awsnoop` | output | 3 | ACE write transaction type |
+| `m_axi_awdomain` | output | 2 | Shareability domain; tied to `0b10` Outer Shareable |
+| `m_axi_awbar` | output | 2 | Barrier type; tied to `0b00`, normal access |
 | `m_axi_wack` | output | 1 | ACE write acknowledge (auto-pulsed) |
 
 All other AXI/ACE master signals mirror `amber` but connect to `axi4ace_master_rd` / `axi4ace_master_wr` instead of the plain AXI4 wrappers.

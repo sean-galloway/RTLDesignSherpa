@@ -2,7 +2,8 @@
 # Location: rtl/amba/filelists/axil5_opt_slave.f
 #
 # TEST COLLATERAL. axil5_opt_slave exists so the AXI5-Lite BFMs have a DUT
-# whose ports actually carry USER/TRACE/LOOP/MPAM/MECID/NSAID/POISON/LOCK;
+# whose ports actually carry the AXI5-Lite optional groups (ID, USER, TRACE,
+# POISON);
 # do not instantiate it in a design.
 #
 # Self-contained: behavioural memory, no skid buffers, no common/ blocks. The

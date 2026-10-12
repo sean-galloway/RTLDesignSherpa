@@ -47,6 +47,6 @@ The `bin/delta_performance_model.py` script provides empirical resource estimate
 | `--no-counters` | Removes `pkt_count_master` and `pkt_count_slave` arrays. |
 | Smaller `NUM_MASTERS`/`NUM_SLAVES` | Linear reduction in control logic. |
 | Smaller `DATA_WIDTH` | Linear reduction in data mux area. |
-| Disable richness options | Removes `TSTRB`/`TPARITY` muxing and `TWAKEUP` decode logic. |
+| Disable richness options | Removes `TSTRB` muxing, and with `--amba5` off removes the `TWAKEUP` decode, the check-signal mux and the per-port `dataint_parity` checkers. |
 
 : Table 5.5: Area Optimization Options

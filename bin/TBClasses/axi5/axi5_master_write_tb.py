@@ -306,7 +306,7 @@ class AXI5MasterWriteTB(TBBase):
 
     async def single_write_test(self, addr, data, awid=None,
                                 atop=None, nsaid=None, trace=None, mpam=None,
-                                mecid=None, unique=None, tagop=None, tag=None,
+                                mecid=None, idunq=None, tagop=None, tag=None,
                                 poison=None):
         """
         Perform a single AXI5 write transaction with optional AXI5 features.
@@ -320,7 +320,7 @@ class AXI5MasterWriteTB(TBBase):
             trace: Trace signal (AXI5)
             mpam: Memory Partitioning and Monitoring (AXI5)
             mecid: Memory Encryption Context ID (AXI5)
-            unique: Unique access (AXI5)
+            idunq: Unique ID indicator, AxIDUNQ (AXI5, IHI 0022L A5.2)
             tagop: Tag operation (AXI5 MTE)
             tag: Memory tag value (AXI5 MTE)
             poison: Poison indicator (AXI5)
@@ -385,12 +385,13 @@ class AXI5MasterWriteTB(TBBase):
                 write_kwargs['mpam'] = mpam
             if mecid is not None:
                 write_kwargs['mecid'] = mecid
-            if unique is not None:
-                write_kwargs['unique'] = unique
+            if idunq is not None:
+                write_kwargs['idunq'] = idunq
             if tagop is not None:
                 write_kwargs['tagop'] = tagop
             if tag is not None:
-                write_kwargs['tag'] = tag
+                # Tags ride WTAG; AXI5 has no AWTAG (IHI 0022L Table A12.9).
+                write_kwargs['wtag'] = tag
             if poison is not None:
                 write_kwargs['poison'] = poison
 
@@ -591,7 +592,7 @@ class AXI5MasterWriteTB(TBBase):
             success, info = await self.single_write_test(
                 addr, data,
                 atop=atop_type,
-                unique=1  # Atomic requires unique
+                idunq=1  # atomics are unique-in-flight (A6.4.4)
             )
             if success:
                 success_count += 1

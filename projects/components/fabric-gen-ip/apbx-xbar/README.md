@@ -59,9 +59,12 @@ contributes `'0`, and an APB4 slave is never driven with nonzero sideband.
 Both gates are compile-time constants, so synthesis prunes any pairing that
 cannot occur, and an all-APB4 build is bit-identical to the pre-APB5 crossbar.
 
-One exception in the mixed variant: `PWAKEUP` is dropped. Its boundary IP
-leaves `rsp_pwakeup` unconnected and ties `wakeup_request` to '0, so an
-APB5 slave asserting PWAKEUP is never seen at the APB5 master.
+`PWAKEUP` is not sideband in this sense. It is a Requester output (AMBA APB
+IHI 0024E section 3.7.2). It is an input on an APB5 master port and an
+output on an APB5 slave port. Each APB5 slave port drives the OR of its
+boundary IP's own pending/in-flight wake and every APB5 master's `PWAKEUP`, so
+even an APB4 master's transfer arrives with `PWAKEUP` high. See the GAS
+chapter *Mixed APB4/APB5 and Parity*.
 
 ## Available Modules
 
@@ -286,9 +289,12 @@ if M < 1 or M > 16:  # Change 16 to desired max
   `enable_parity` CHECKS parity at the boundary and REGENERATES it on
   the far side; the cmd/rsp fabric between the two is outside the
   protected domain, which is why each port exposes its own
-  `parity_error_*` output. (There is no `PSELPARITY` signal in this
-  library — the APB5 parity pins are `paddrparity`, `pwdataparity`,
-  `pctrlparity`, `prdataparity`, `preadyparity`, `pslverrparity`.)
+  `parity_error_*` output. The pins are the IHI 0024E chapter 5 check
+  signals, with odd parity and one bit per 8: `PADDRCHK`, `PCTRLCHK`,
+  `PSELCHK`, `PENABLECHK`, `PWDATACHK`, `PSTRBCHK`, `PAUSERCHK`, `PWUSERCHK`,
+  `PWAKEUPCHK`, `PRDATACHK`, `PREADYCHK`, `PSLVERRCHK`, `PRUSERCHK` and
+  `PBUSERCHK`. No shipped variant enables them;
+  `test_apbx_xbar_parity.py` generates one that does and checks it.
 - **Formal proof of version gating (RESTORED 2026-08-29).** The four
   all-APB4 harnesses (`apbx_xbar_{1to1,2to1,1to4,2to4}`) are joined by
   `formal/apbx_xbar/apbx_xbar_2to2_mixed/`, which proves the mixed
@@ -303,11 +309,13 @@ if M < 1 or M > 16:  # Change 16 to desired max
 
   What is proven is the part structure does not give for free: the
   fabric never injects sideband at the APB5 slave on the APB4 master's
-  behalf, never fabricates completer sideband no APB5 slave produced,
-  and drops `PWAKEUP` unconditionally (a documented limitation, now a
-  failing proof the day someone wires it up). Eight cover statements
-  show sideband really does flow both ways, so none of it passes
-  vacuously.
+  behalf, and never fabricates completer sideband no APB5 slave produced.
+  On `PWAKEUP`, it proves three things: the APB5 master's wake always
+  reaches the APB5 slave, the slave is never selected without `PWAKEUP`,
+  and the wake is not fabricated from reset. This replaced
+  `ap_pwakeup_dropped`, which pinned the old, reversed direction (issue
+  #102 item 7). Ten cover statements show that sideband and wake really
+  flow, so none of it passes vacuously.
 
 ---
 

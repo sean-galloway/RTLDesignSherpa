@@ -22,6 +22,13 @@ module formal_apb5_slave_stub (
     localparam int WUW = 2;
     localparam int RUW = 2;
     localparam int BUW = 2;
+    // Parity check-signal widths (IHI 0024E Table 5-1)
+    localparam int ACW  = (AW + 7) / 8;
+    localparam int DCW  = DW / 8;
+    localparam int AUCW = (AUW + 7) / 8;
+    localparam int WUCW = (WUW + 7) / 8;
+    localparam int RUCW = (RUW + 7) / 8;
+    localparam int BUCW = (BUW + 7) / 8;
     localparam int CPW = AW + DW + SW + PW + AUW + WUW + 1;
     localparam int RPW = DW + RUW + BUW + 1;
 
@@ -34,23 +41,30 @@ module formal_apb5_slave_stub (
     (* anyseq *) reg [PW-1:0]     s_apb_PPROT;
     (* anyseq *) reg [AUW-1:0]    s_apb_PAUSER;
     (* anyseq *) reg [WUW-1:0]    s_apb_PWUSER;
-    (* anyseq *) reg [SW-1:0]     s_apb_PWDATAPARITY;
-    (* anyseq *) reg              s_apb_PADDRPARITY;
-    (* anyseq *) reg              s_apb_PCTRLPARITY;
+    (* anyseq *) reg [ACW-1:0]    s_apb_PADDRCHK;
+    (* anyseq *) reg              s_apb_PCTRLCHK;
+    (* anyseq *) reg              s_apb_PSELCHK;
+    (* anyseq *) reg              s_apb_PENABLECHK;
+    (* anyseq *) reg [DCW-1:0]    s_apb_PWDATACHK;
+    (* anyseq *) reg              s_apb_PSTRBCHK;
+    (* anyseq *) reg [AUCW-1:0]   s_apb_PAUSERCHK;
+    (* anyseq *) reg [WUCW-1:0]   s_apb_PWUSERCHK;
     (* anyseq *) reg              cmd_ready;
     (* anyseq *) reg              rsp_valid;
     (* anyseq *) reg [RPW-1:0]    rsp_data;
-    (* anyseq *) reg              wakeup_request;
 
     wire [DW-1:0]     s_apb_PRDATA;
     wire              s_apb_PSLVERR;
     wire              s_apb_PREADY;
-    wire              s_apb_PWAKEUP;
+    (* anyseq *) reg              s_apb_PWAKEUP;      // Requester-driven (IHI 0024E 3.7.2)
     wire [RUW-1:0]    s_apb_PRUSER;
     wire [BUW-1:0]    s_apb_PBUSER;
-    wire [SW-1:0]     s_apb_PRDATAPARITY;
-    wire              s_apb_PREADYPARITY;
-    wire              s_apb_PSLVERRPARITY;
+    wire [DCW-1:0]   s_apb_PRDATACHK;
+    wire             s_apb_PREADYCHK;
+    wire             s_apb_PSLVERRCHK;
+    (* anyseq *) reg             s_apb_PWAKEUPCHK;
+    wire [RUCW-1:0]  s_apb_PRUSERCHK;
+    wire [BUCW-1:0]  s_apb_PBUSERCHK;
     wire              cmd_valid;
     wire [CPW-1:0]    cmd_data;
     wire              rsp_ready;
@@ -85,19 +99,26 @@ module formal_apb5_slave_stub (
         .s_apb_PWAKEUP    (s_apb_PWAKEUP),
         .s_apb_PRUSER     (s_apb_PRUSER),
         .s_apb_PBUSER     (s_apb_PBUSER),
-        .s_apb_PWDATAPARITY (s_apb_PWDATAPARITY),
-        .s_apb_PADDRPARITY  (s_apb_PADDRPARITY),
-        .s_apb_PCTRLPARITY  (s_apb_PCTRLPARITY),
-        .s_apb_PRDATAPARITY (s_apb_PRDATAPARITY),
-        .s_apb_PREADYPARITY (s_apb_PREADYPARITY),
-        .s_apb_PSLVERRPARITY(s_apb_PSLVERRPARITY),
+        .s_apb_PADDRCHK      (s_apb_PADDRCHK),
+        .s_apb_PCTRLCHK      (s_apb_PCTRLCHK),
+        .s_apb_PSELCHK       (s_apb_PSELCHK),
+        .s_apb_PENABLECHK    (s_apb_PENABLECHK),
+        .s_apb_PWDATACHK     (s_apb_PWDATACHK),
+        .s_apb_PSTRBCHK      (s_apb_PSTRBCHK),
+        .s_apb_PAUSERCHK     (s_apb_PAUSERCHK),
+        .s_apb_PWUSERCHK     (s_apb_PWUSERCHK),
+        .s_apb_PRDATACHK     (s_apb_PRDATACHK),
+        .s_apb_PREADYCHK     (s_apb_PREADYCHK),
+        .s_apb_PSLVERRCHK    (s_apb_PSLVERRCHK),
+        .s_apb_PWAKEUPCHK    (s_apb_PWAKEUPCHK),
+        .s_apb_PRUSERCHK     (s_apb_PRUSERCHK),
+        .s_apb_PBUSERCHK     (s_apb_PBUSERCHK),
         .cmd_valid        (cmd_valid),
         .cmd_ready        (cmd_ready),
         .cmd_data         (cmd_data),
         .rsp_valid        (rsp_valid),
         .rsp_ready        (rsp_ready),
         .rsp_data         (rsp_data),
-        .wakeup_request   (wakeup_request),
         .parity_error_wdata(parity_error_wdata),
         .parity_error_ctrl (parity_error_ctrl)
     );

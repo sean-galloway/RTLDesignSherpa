@@ -13,6 +13,15 @@
 #     (6'b110001) are swallowed by the master adapter's axi5_atomic_filter:
 #     no slave AW handshake, and the master's B response is DECERR (2'b11)
 #     with the right ID. Compare was untested until 2026-09-09.
+#   - GitHub #102 item 2: the filter now owes R beats for a swallowed
+#     load-class atomic (IHI 0022L A6.4.8). This port is write-only, so the
+#     generator drains them inside the filter (s_rready=1); a burst of more
+#     load-class atomics than the filter's queue depth (8) must all complete
+#     and leave the port usable -- with the read-return queue undrained the
+#     ninth AW stalls forever;
+#   - GitHub #102 item 5: BIDUNQ equals the request's AWIDUNQ on every B,
+#     including the filter's local DECERRs (regenerated on the wrapper side
+#     of the filter).
 
 import os
 import sys
@@ -89,8 +98,9 @@ async def cocotb_test_bridge_1x2_wr_axi5a_atomics(dut):
         wr = tb.master_wr[0]
 
         # 1. Plain write (atop=0) forwards.
-        r = await wr.write_transaction(base + 0x100, tag | 1, size=2)
+        r = await wr.write_transaction(base + 0x100, tag | 1, size=2, idunq=1)
         assert r.get('success') and r.get('response') == 0, f"plain write: {r}"
+        assert r.get('idunq', 0) == 1, f"plain write: BIDUNQ={r.get('idunq')} for AWIDUNQ=1"
 
         # 2. AtomicStore forwards with the atop value intact. It is a
         # store-class ADD, and the slave BFM performs it as one (since A5-3b;
@@ -106,7 +116,10 @@ async def cocotb_test_bridge_1x2_wr_axi5a_atomics(dut):
         # expected outcome here, and anything else is a failure.
         for atop, off, idx in ((ATOP_LOAD, 0x300, 3), (ATOP_SWAP, 0x400, 4),
                                (ATOP_COMPARE, 0x600, 6)):
-            r = await wr.atomic_operation(base + off, tag | idx, atop, size=2)
+            r = await wr.atomic_operation(base + off, tag | idx, atop, size=2,
+                                          idunq=(idx & 1))
+            assert r.get('idunq', -1) == (idx & 1), (
+                f"local DECERR for atop {atop:#08b}: BIDUNQ={r.get('idunq')} for AWIDUNQ={idx & 1}")
             assert r.get('response') == 3, (
                 f"read-return atomic {atop:#08b} answered resp={r.get('response')} "
                 f"({r}); the boundary filter should answer DECERR")
@@ -120,18 +133,33 @@ async def cocotb_test_bridge_1x2_wr_axi5a_atomics(dut):
                    (base + 0x500, tag | 5)]
         swallowed += [base + 0x300, base + 0x400, base + 0x600]
 
+    # #102 item 2: more swallowed load-class atomics than the filter's
+    # read-return queue holds (DEPTH 8). Each owes R beats the write-only
+    # port cannot carry; they must be drained, or the ninth AW never lands.
+    burst = 12
+    for k in range(burst):
+        atop = (ATOP_LOAD, ATOP_SWAP, ATOP_COMPARE)[k % 3]
+        r = await wr.atomic_operation(0x0000_8000 + 0x10 * k, 0xC0DE_0000 | k, atop,
+                                      size=2, id=k % 16, idunq=(k & 1))
+        assert r.get('response') == 3, f"load-class atomic {k}: resp={r.get('response')} ({r})"
+        assert r.get('idunq', -1) == (k & 1), f"load-class atomic {k}: BIDUNQ={r.get('idunq')}"
+    r = await wr.write_transaction(0x0000_8400, 0xFEED_0001, size=2)
+    assert r.get('success') and r.get('response') == 0, f"plain write after {burst} swallows: {r}"
+    landed.append((0x0000_8400, 0xFEED_0001))
+    tb.log.info(f"  {burst} back-to-back load-class atomics DECERRed and drained; port still usable")
+
     await ClockCycles(tb.clock, 50)
 
     # Slave saw exactly the three forwarded AWs per round, with atop intact.
-    assert sampler.ddr_aw_atop == [0, ATOP_STORE, 0] * rounds, (
+    assert sampler.ddr_aw_atop == [0, ATOP_STORE, 0] * rounds + [0], (
         f"forwarded atop stream wrong: {[bin(x) for x in sampler.ddr_aw_atop]}")
 
     # Six B responses per round: writes 1/2/6 OKAY, 3/4/5 DECERR.
     resps = [r for _i, r in sampler.master_b]
-    assert len(resps) == 6 * rounds, f"expected {6 * rounds} B responses, saw {sampler.master_b}"
-    assert resps.count(3) == 3 * rounds, (
-        f"expected exactly {3 * rounds} DECERRs (read-return atomics): {sampler.master_b}")
-    assert resps.count(0) == 3 * rounds, (
+    assert len(resps) == 6 * rounds + burst + 1, f"expected {6 * rounds + burst + 1} B responses, saw {sampler.master_b}"
+    assert resps.count(3) == 3 * rounds + burst, (
+        f"expected exactly {3 * rounds + burst} DECERRs (read-return atomics): {sampler.master_b}")
+    assert resps.count(0) == 3 * rounds + 1, (
         f"expected {3 * rounds} OKAYs (plain + store-class): {sampler.master_b}")
 
     # Forwarded writes actually landed in the slave memory.

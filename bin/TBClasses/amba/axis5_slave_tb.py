@@ -11,9 +11,10 @@
 import os
 from cocotb.triggers import Timer, RisingEdge
 from TBClasses.shared.tbbase import TBBase
+from TBClasses.axis5.axis5_chk_mixin import AXIS5ChkMixin
 
 
-class AXIS5SlaveBasicTB(TBBase):
+class AXIS5SlaveBasicTB(AXIS5ChkMixin, TBBase):
     """Basic AXIS5 slave testbench for RTL verification."""
 
     def __init__(self, dut):
@@ -57,8 +58,13 @@ class AXIS5SlaveBasicTB(TBBase):
         await self.assert_reset()
         await self.deassert_reset()
 
-    async def drive_axis_packet(self, data, last=1, id=0, dest=0, user=0, wakeup=0, strb=None):
+    async def drive_axis_packet(self, data, last=1, id=0, dest=0, user=0, wakeup=0, strb=None,
+                         corrupt=None):
         """Drive a packet through the AXIS slave interface."""
+        # Fit sideband values to the pin (a removed field is a 1-bit tie)
+        id &= (1 << max(self.ID_WIDTH, 1)) - 1
+        dest &= (1 << max(self.DEST_WIDTH, 1)) - 1
+        user &= (1 << max(self.USER_WIDTH, 1)) - 1
         # Wait for ready
         while not int(self.dut.s_axis_tready.value):
             await RisingEdge(self.dut.aclk)
@@ -78,6 +84,14 @@ class AXIS5SlaveBasicTB(TBBase):
         if hasattr(self.dut, 's_axis_twakeup'):
             self.dut.s_axis_twakeup.value = wakeup
 
+        # IHI 0051B ch. 5 payload check signals (odd parity); `corrupt` maps a
+        # field to an XOR mask for error injection
+        if self.ENABLE_PARITY:
+            strb_v = strb if strb else (1 << self.STRB_WIDTH) - 1
+            self.drive_payload_chk('s_axis_', {'data': data, 'strb': strb_v, 'last': last,
+                                              'id': id, 'dest': dest, 'user': user},
+                                   corrupt)
+
         await RisingEdge(self.dut.aclk)
         self.dut.s_axis_tvalid.value = 0
 
@@ -90,3 +104,65 @@ class AXIS5SlaveBasicTB(TBBase):
             if int(self.dut.fub_axis_tvalid.value) and int(self.dut.fub_axis_tready.value):
                 return True
         return False
+
+    # ------------------------------------------------------------------
+    # IHI 0051B ch. 5 interface parity (ENABLE_PARITY=1)
+    # ------------------------------------------------------------------
+
+    async def run_chk_test(self, num_beats=24):
+        """
+        Directed check-signal test for the s_axis side.
+
+        1. Odd-parity beats with TVALIDCHK/TWAKEUPCHK driven correctly never
+           set parity_error; TREADYCHK = ~TREADY every cycle; the payload
+           checks arrive at fub_axis still odd.
+        2. A corrupted TSTRBCHK sets parity_error.
+        3. A TVALIDCHK equal to TVALID sets parity_error.
+        """
+        import random
+        d = self.dut
+        rng = random.Random(int(os.environ.get('SEED', '1')))
+        vmirror = self.start_chk_mirror(d.aclk, 's_axis_', 'valid')
+        self.start_chk_mirror(d.aclk, 's_axis_', 'wakeup')
+        # TVALIDCHK/TWAKEUPCHK are checked from reset release (Check Enable =
+        # ARESETn): their drivers run first, then reset.
+        await self.assert_reset()
+        await self.deassert_reset()
+        d.fub_axis_tready.value = 1
+        await self.wait_clocks('aclk', 2)
+
+        checked = 0
+        for i in range(num_beats):
+            await self.drive_axis_packet(
+                data=rng.getrandbits(self.DATA_WIDTH), last=rng.getrandbits(1),
+                id=rng.getrandbits(max(self.ID_WIDTH, 1)),
+                dest=rng.getrandbits(max(self.DEST_WIDTH, 1)),
+                user=rng.getrandbits(max(self.USER_WIDTH, 1)),
+                wakeup=rng.getrandbits(1) if self.ENABLE_WAKEUP else 0)
+            for _ in range(4):
+                await RisingEdge(d.aclk)
+                ctrl = self.ctrl_chk_mismatches('s_axis_', ('ready',))
+                assert not ctrl, f"TREADYCHK wrong: {ctrl}"
+                if int(d.fub_axis_tvalid.value) and int(d.fub_axis_tready.value):
+                    bad = self.payload_chk_mismatches('fub_axis_')
+                    assert not bad, f"beat {i}: {bad}"
+                    checked += 1
+        assert checked >= num_beats, f"only {checked}/{num_beats} beats checked"
+        assert int(d.parity_error.value) == 0, "parity_error set on correct odd-parity traffic"
+        self.log.info(f"{checked} beats: every check odd, parity_error clear")
+
+        # Injection 1: one bad TSTRBCHK bit
+        await self.drive_axis_packet(data=0xA5A5A5A5, last=1, corrupt={'strb': 0x1})
+        await self.wait_clocks('aclk', 3)
+        assert int(d.parity_error.value) == 1, "corrupted TSTRBCHK not detected"
+
+        # Injection 2: TVALIDCHK == TVALID while idle (reset first: sticky)
+        await self.assert_reset()
+        await self.deassert_reset()
+        await self.wait_clocks('aclk', 3)
+        assert int(d.parity_error.value) == 0
+        vmirror.cancel()
+        d.s_axis_tvalidchk.value = int(d.s_axis_tvalid.value)
+        await self.wait_clocks('aclk', 3)
+        assert int(d.parity_error.value) == 1, "bad TVALIDCHK not detected"
+        self.log.info("Injected TSTRBCHK and TVALIDCHK errors both detected")

@@ -33,7 +33,7 @@
 
 The AXI5 Master Read with Monitor module combines the standard `axi5_master_rd` core with an integrated `axi_monitor_filtered` for comprehensive transaction monitoring and error detection. You get real-time visibility into AXI5 read operations, with configurable packet filtering so the monitor bus only carries what you actually care about.
 
-**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking or `RTAGMATCH` generation, no chunk reassembly, no poison generation, and no atomic read-modify-write -- `AWATOP` is transported, not executed. The monitor observes handshakes, responses and timing; it performs no protocol checking of handshake stability, ID width, burst length or address alignment. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking, no chunk reassembly, no poison generation, and no atomic read-modify-write -- `AWATOP` is transported, not executed. The monitor observes handshakes, responses and timing; it performs no protocol checking of handshake stability, ID width, burst length or address alignment. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
 
 ### Key Features
 
@@ -42,13 +42,13 @@ The AXI5 Master Read with Monitor module combines the standard `axi5_master_rd` 
 - **ARTRACE:** Trace signal for debug and performance monitoring
 - **ARMPAM:** Memory Partitioning and Monitoring (PartID + PMG)
 - **ARMECID:** Memory Encryption Context ID for secure memory
-- **ARUNIQUE:** Unique ID indicator for cache operations
+- **ARIDUNQ / RIDUNQ:** Unique ID indicator on the request and on every read data beat (IHI 0022L §A5.2)
 - **ARCHUNKEN:** Read data chunking enable for partial data transfers
 - **ARTAGOP:** Memory tag operation (MTE - Memory Tagging Extension)
 - **RTRACE:** Read data trace signal
 - **RPOISON:** Data poison indicator for corrupted data detection
 - **RCHUNKV/RCHUNKNUM/RCHUNKSTRB:** Chunking control signals
-- **RTAG/RTAGMATCH:** Memory tags and tag match response (MTE)
+- **RTAG:** Memory tags returned with read data (MTE)
 - **Integrated AXI monitor** with 2-Level Filtering: packet-type drop masks + per-event masks (err_select is reserved -- no routing)
 - **Error detection:** Protocol violations, SLVERR, DECERR
 - **Timeout monitoring:** Stuck transactions, stalled channels
@@ -81,10 +81,11 @@ The AXI5 Master Read with Monitor module combines the standard `axi5_master_rd` 
 | ENABLE_TRACE | bit | 1 | Enable trace signals |
 | ENABLE_MPAM | bit | 1 | Enable memory partitioning |
 | ENABLE_MECID | bit | 1 | Enable memory encryption context |
-| ENABLE_UNIQUE | bit | 1 | Enable unique ID indicator |
+| ENABLE_UNIQUE | bit | 1 | Enable the unique ID indicator (AxIDUNQ, and BIDUNQ/RIDUNQ on the responses) |
 | ENABLE_CHUNKING | bit | 1 | Enable data chunking |
 | ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
+| ENABLE_WAKEUP | bit | 1 | Enable AWAKEUP (IHI 0022L §A14.1.1); 0 ties the output low |
 | UNIT_ID | int | 1 | Monitor unit identifier |
 | AGENT_ID | int | 10 | Monitor agent identifier |
 | MAX_TRANSACTIONS | int | 16 | Transaction table size |
@@ -577,12 +578,13 @@ axi5_master_rd_mon #(
     .fub_axi_arqos         (fub_axi_arqos),
     .fub_axi_aruser        (fub_axi_aruser),
     .fub_axi_arvalid       (fub_axi_arvalid),
+    .fub_axi_awakeup       (fub_axi_awakeup),
     .fub_axi_arready       (fub_axi_arready),
     .fub_axi_arnsaid       (fub_axi_arnsaid),
     .fub_axi_artrace       (fub_axi_artrace),
     .fub_axi_armpam        (fub_axi_armpam),
     .fub_axi_armecid       (fub_axi_armecid),
-    .fub_axi_arunique      (fub_axi_arunique),
+    .fub_axi_aridunq      (fub_axi_aridunq),
     .fub_axi_archunken     (fub_axi_archunken),
     .fub_axi_artagop       (fub_axi_artagop),
     .fub_axi_rid           (fub_axi_rid),
@@ -593,12 +595,12 @@ axi5_master_rd_mon #(
     .fub_axi_rvalid        (fub_axi_rvalid),
     .fub_axi_rready        (fub_axi_rready),
     .fub_axi_rtrace        (fub_axi_rtrace),
+    .fub_axi_ridunq        (fub_axi_ridunq),
     .fub_axi_rpoison       (fub_axi_rpoison),
     .fub_axi_rchunkv       (fub_axi_rchunkv),
     .fub_axi_rchunknum     (fub_axi_rchunknum),
     .fub_axi_rchunkstrb    (fub_axi_rchunkstrb),
     .fub_axi_rtag          (fub_axi_rtag),
-    .fub_axi_rtagmatch     (fub_axi_rtagmatch),
     .m_axi_arid            (m_axi_arid),
     .m_axi_araddr          (m_axi_araddr),
     .m_axi_arlen           (m_axi_arlen),
@@ -610,12 +612,13 @@ axi5_master_rd_mon #(
     .m_axi_arqos           (m_axi_arqos),
     .m_axi_aruser          (m_axi_aruser),
     .m_axi_arvalid         (m_axi_arvalid),
+    .m_axi_awakeup         (m_axi_awakeup),
     .m_axi_arready         (m_axi_arready),
     .m_axi_arnsaid         (m_axi_arnsaid),
     .m_axi_artrace         (m_axi_artrace),
     .m_axi_armpam          (m_axi_armpam),
     .m_axi_armecid         (m_axi_armecid),
-    .m_axi_arunique        (m_axi_arunique),
+    .m_axi_aridunq        (m_axi_aridunq),
     .m_axi_archunken       (m_axi_archunken),
     .m_axi_artagop         (m_axi_artagop),
     .m_axi_rid             (m_axi_rid),
@@ -626,12 +629,12 @@ axi5_master_rd_mon #(
     .m_axi_rvalid          (m_axi_rvalid),
     .m_axi_rready          (m_axi_rready),
     .m_axi_rtrace          (m_axi_rtrace),
+    .m_axi_ridunq          (m_axi_ridunq),
     .m_axi_rpoison         (m_axi_rpoison),
     .m_axi_rchunkv         (m_axi_rchunkv),
     .m_axi_rchunknum       (m_axi_rchunknum),
     .m_axi_rchunkstrb      (m_axi_rchunkstrb),
     .m_axi_rtag            (m_axi_rtag),
-    .m_axi_rtagmatch       (m_axi_rtagmatch),
     .cfg_monitor_enable    (cfg_monitor_enable),
     .cfg_error_enable      (cfg_error_enable),
     .cfg_timeout_enable    (cfg_timeout_enable),

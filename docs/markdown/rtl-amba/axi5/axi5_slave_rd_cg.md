@@ -33,14 +33,14 @@
 
 The AXI5 Slave Read with Clock Gating module wraps the standard `axi5_slave_rd` module with integrated clock gating for power optimization. When the module sits idle, the internal clock gates itself off.
 
-**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking or `RTAGMATCH` generation, no chunk reassembly, no poison generation, and no outstanding-transaction tracking. Those behaviors belong to the endpoints on either side. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking, no chunk reassembly, no poison generation, and no outstanding-transaction tracking. Those behaviors belong to the endpoints on either side. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
 
 ### Key Features
 
 - Carries the full AXI5 read signal set listed below, unmodified, across the SKID buffers
 - **Integrated clock gating** for dynamic power reduction
 - Configurable idle count before gating
-- All AXI5 extensions supported (NSAID, TRACE, MPAM, MECID, UNIQUE, CHUNKING, MTE, POISON)
+- All AXI5 extensions supported (NSAID, TRACE, MPAM, MECID, IDUNQ, CHUNKING, MTE, POISON, WAKEUP)
 - Transparent gating - no protocol changes
 - Gating status outputs for system monitoring
 - SKID buffering for AR and R channels
@@ -105,10 +105,11 @@ flowchart TB
 | ENABLE_TRACE | bit | 1 | Enable trace signals |
 | ENABLE_MPAM | bit | 1 | Enable memory partitioning |
 | ENABLE_MECID | bit | 1 | Enable memory encryption |
-| ENABLE_UNIQUE | bit | 1 | Enable unique ID indicator |
+| ENABLE_UNIQUE | bit | 1 | Enable the unique ID indicator (AxIDUNQ, and BIDUNQ/RIDUNQ on the responses) |
 | ENABLE_CHUNKING | bit | 1 | Enable data chunking |
 | ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
+| ENABLE_WAKEUP | bit | 1 | Enable AWAKEUP (IHI 0022L §A14.1.1); 0 ties the output low |
 | CG_IDLE_COUNT_WIDTH | int | 4 | Clock gating idle counter width |
 
 ### Derived Parameters
@@ -176,7 +177,7 @@ Same as `axi5_slave_rd` - see [AXI5 Slave Read](axi5_slave_rd.md) for complete p
 ### Clock Gating Behavior
 
 **Activity Detection:**
-- **user_valid:** Asserted when slave interface has activity (arvalid, rvalid, or internal busy -- peer VALID, post-fix)
+- **user_valid:** Asserted when slave interface has activity (AWAKEUP, arvalid, rvalid, or internal busy -- peer VALID, post-fix)
 - **axi_valid:** Asserted when FUB interface has activity (arvalid, rvalid)
 
 **Gating State Machine:**
@@ -386,10 +387,10 @@ pytest val/amba/test_axi5_slave_rd_cg.py -v
 
 ## References
 
-- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A2.3.1 "Valid-Ready signals", §A2.3.2 "Dependencies between channel handshake signals" and §A2.5 "Pipelining and register stages" (the transport this module buffers per channel), and the AXI5 signals it carries unchanged: §A5.6.2 "Read data chunking" (ARCHUNKEN, RCHUNKV/NUM/STRB), §A16.1 "Data protection using Poison" (RPOISON), §A12.2 "Memory Tagging Extension (MTE)" (ARTAGOP, RTAG), §A5.2 "Unique ID indicator", §A12.3 "Trace signals", §A10.1 "Non-secure Access Identifiers (NSAID)", §A12.1 "Memory System Resource Partitioning and Monitoring (MPAM)" and §A4.6 "Memory Encryption Contexts" (ARMECID). The specification defines no RTAGMATCH signal and names the Unique ID indicator ARIDUNQ; see the Notes in the archive README for how this module's ports differ.
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A2.3.1 "Valid-Ready signals", §A2.3.2 "Dependencies between channel handshake signals" and §A2.5 "Pipelining and register stages" (the transport this module buffers per channel), and the AXI5 signals it carries unchanged: §A5.6.2 "Read data chunking" (ARCHUNKEN, RCHUNKV/NUM/STRB), §A16.1 "Data protection using Poison" (RPOISON), §A12.2 "Memory Tagging Extension (MTE)" (ARTAGOP, RTAG), §A5.2 "Unique ID indicator", §A12.3 "Trace signals", §A10.1 "Non-secure Access Identifiers (NSAID)", §A12.1 "Memory System Resource Partitioning and Monitoring (MPAM)" and §A4.6 "Memory Encryption Contexts" (ARMECID). The ports follow the specification's names (GitHub #102): there is no RTAGMATCH, the Unique ID indicator is ARIDUNQ with RIDUNQ on every read data beat, and AWAKEUP follows §A14.1.1 "AWAKEUP rules and recommendations".
 - Benini, L., De Micheli, G. "Automatic Synthesis of Low-Power Gated-Clock Finite-State Machines." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 15(6), June 1996. DOI: [10.1109/43.503933](https://doi.org/10.1109/43.503933) -- the latch-based clock-gating cell (`icg`, via `amba_clock_gate_ctrl` and `clock_gate_ctrl`) that gates this wrapper's clock.
 - Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Trans. VLSI Systems*, 8(3), June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) -- fixed-timeout shutdown: gate after `cfg_cg_idle_count` idle cycles, wake on activity.
-- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A14.1.1 "AWAKEUP rules and recommendations" in Issue L (§E1.7 "Wake-up Signaling" in Issue H) defines AWAKEUP, which lets a manager restart a gated interface before VALID. This wrapper does not use it: it wakes on the flopped OR of the VALIDs and holds READY low while gated.
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A14.1.1 "AWAKEUP rules and recommendations" in Issue L (§E1.7 "Wake-up Signaling" in Issue H) defines AWAKEUP, which lets a manager restart a gated interface before VALID. This wrapper counts AWAKEUP as an activity term (behind `ENABLE_WAKEUP`), so a manager that raises it a cycle ahead of VALID, as §A14.1.1 recommends, finds the clock running and its first request is accepted on the cycle it is presented; a manager that never drives it still wakes the block through the flopped OR of the VALIDs, with READY held low while gated (GitHub #102).
 - Indexed in `rtl/amba/references/README.md` (local PDF, archived under `rtl/common/references/`: `LatchBasedClockGating__Benini1996.pdf`, `DynamicPowerManagementTimeout__Benini2000.pdf`)
 
 ---

@@ -49,14 +49,16 @@ def generate_sdpram_axi4_axil_params():
     """REG_LEVEL -> (test_level, data_width, mem_depth) rows.
 
     GATE: 1 row (quick smoke).
-    FUNC/FULL: 3 rows -- gate/func at DATA_WIDTH=64, full at DATA_WIDTH=256.
+    FUNC/FULL: 3 rows -- gate/func at DATA_WIDTH=64, full at DATA_WIDTH=32.
+    DATA_WIDTH is shared with the AXI4-Lite side, which allows only 32 or 64
+    bits (IHI 0022H B1.1.2; the axil4 width guard rejects 256, #102).
     mem_depth is held >=64 across all rows: phase_axi4_write_burst /
     phase_axi4_read_burst use fixed word offsets up to index 40.
     """
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     if reg_level == 'GATE':
         return [('gate', 64, 64)]
-    return [('gate', 64, 64), ('func', 64, 64), ('full', 256, 64)]
+    return [('gate', 64, 64), ('func', 64, 64), ('full', 32, 64)]
 
 
 @pytest.mark.parametrize("test_level,data_width,mem_depth", generate_sdpram_axi4_axil_params())

@@ -55,8 +55,8 @@ from CocoTBFramework.components.axil5.axil5_interfaces import (
 {% endif %}
 {% if masters | selectattr('protocol', 'equalto', 'axil5') | list %}
 # AXI5-Lite requester ports are driven by the AXIL5 BFMs: AXIL4 transaction
-# logic plus the optional sideband groups, so they bind to the awuser/
-# awlock/awtrace/... ports the bridge exposes on an axil5 master.
+# logic plus the ID and optional sideband groups, so they bind to the awid/
+# awuser/awtrace/... ports the bridge exposes on an axil5 master.
 from CocoTBFramework.components.axil5.axil5_interfaces import (
     AXIL5MasterRead, AXIL5MasterWrite,
 )
@@ -507,7 +507,7 @@ class {{ tb_class_name }}(TBBase):
             addr_width={{ master.addr_width }},
             multi_sig=True,
 {% if is_axil5 %}
-{{ axil5_bfm_features(master) }}
+{{ axil5_bfm_features(master, master.id_width) }}
 {% endif %}
         )
 {% endif %}
@@ -520,7 +520,7 @@ class {{ tb_class_name }}(TBBase):
             addr_width={{ master.addr_width }},
             multi_sig=True,
 {% if is_axil5 %}
-{{ axil5_bfm_features(master) }}
+{{ axil5_bfm_features(master, master.id_width) }}
 {% endif %}
         )
 {% endif %}
@@ -602,8 +602,9 @@ class {{ tb_class_name }}(TBBase):
         # it with the slave-specific pattern via direct memory writes.
         preset = self._build_preset({{ loop.index0 }}, {{ '0x%08x' % slave.addr_range }}, {{ slave.data_width }})
 {% if slave.protocol.lower() == 'apb5' %}
-        # APB5 port: the APB5 BFM binds PAUSER/PWUSER/PRUSER/PBUSER (and
-        # PWAKEUP) at the port's user width. Driven by the APB4 BFM until
+        # APB5 port: the APB5 BFM binds PAUSER/PWUSER/PRUSER/PBUSER at the
+        # port's user width and OBSERVES PWAKEUP, which the bridge drives as
+        # the requester (IHI 0024E 3.7.2). Driven by the APB4 BFM until
         # 2026-09-09, which left those pins unbound.
         self.slave_apb[{{ loop.index0 }}] = APB5Slave(
             entity=self.dut,
@@ -692,7 +693,7 @@ class {{ tb_class_name }}(TBBase):
             memory_model=self.slave_memory[{{ loop.index0 }}],
             base_addr={{ '0x%08x' % slave.base_addr }},
 {% if slave.protocol.lower() == 'axil5' %}
-{{ axil5_bfm_features(slave) }}
+{{ axil5_bfm_features(slave, slave_id_width) }}
 {% endif %}
         )
 {% endif %}
@@ -707,7 +708,7 @@ class {{ tb_class_name }}(TBBase):
             memory_model=self.slave_memory[{{ loop.index0 }}],
             base_addr={{ '0x%08x' % slave.base_addr }},
 {% if slave.protocol.lower() == 'axil5' %}
-{{ axil5_bfm_features(slave) }}
+{{ axil5_bfm_features(slave, slave_id_width) }}
 {% endif %}
         )
 {% endif %}

@@ -1306,14 +1306,13 @@ class BridgeModuleGenerator:
 
             if master.protocol == 'axil5':
                 from ..axil5_sideband import (sideband_ports, field_width,
-                                              AXIL5_USER_WIDTH,
-                                              AXIL5_LOOP_WIDTH)
+                                              AXIL5_USER_WIDTH)
                 entries = sideband_ports(master.channels)
                 if entries:
-                    lines.append("    // AXI5-Lite sideband (requester-driven in, completer-driven out)")
+                    lines.append("    // AXI5-Lite ID + sideband (requester-driven in, completer-driven out)")
                 for base, width_key, direction in entries:
                     width = field_width(width_key, data_w,
-                                        AXIL5_USER_WIDTH, AXIL5_LOOP_WIDTH)
+                                        AXIL5_USER_WIDTH, master.id_width)
                     kind = "input  logic" if direction == 'out' else "output logic"
                     span = "" if width == 1 else f"[{width-1}:0] "
                     lines.append(f"    {kind} {span}{pfx}{base},")
@@ -1379,7 +1378,8 @@ class BridgeModuleGenerator:
             # AdapterGenerator._generate_external_ports.
             if is_axi5:
                 for name, width, ext_in in axi5_exposed_ext_signals(
-                        channel.value, master.axi5_features, master.data_width):
+                        channel.value, master.axi5_features, master.data_width,
+                        port_channels=master.channels):
                     dir_str = 'input' if ext_in else 'output'
                     sig_name = f"{axi5_prefix}{name}"
                     if width > 1:
@@ -1559,13 +1559,14 @@ class BridgeModuleGenerator:
                 lines.append(f"    {declaration},")
 
             if slave.protocol == 'apb5':
-                # APB5 sideband (A5-3c): requester-driven user signals
-                # out, completer-driven wakeup/user in (1-bit defaults,
-                # matching axi4_to_apb5_shim).
+                # APB5 sideband (A5-3c): requester-driven user and wake-up
+                # signals out (PWAKEUP: IHI 0024E 3.7.2, GitHub #102 item 7),
+                # completer-driven user in (1-bit defaults, matching
+                # axi4_to_apb5_shim).
                 p = slave.prefix
                 lines.append(f"    output logic {p}PAUSER,")
                 lines.append(f"    output logic {p}PWUSER,")
-                lines.append(f"    input  logic {p}PWAKEUP,")
+                lines.append(f"    output logic {p}PWAKEUP,")
                 lines.append(f"    input  logic {p}PRUSER,")
                 lines.append(f"    input  logic {p}PBUSER,")
 
@@ -1619,16 +1620,18 @@ class BridgeModuleGenerator:
 
             if slave.protocol == 'axil5':
                 from ..axil5_sideband import (sideband_ports, field_width,
-                                              AXIL5_USER_WIDTH,
-                                              AXIL5_LOOP_WIDTH)
+                                              AXIL5_USER_WIDTH)
+                from bridge_pkg.width_utils import xbar_id_width
                 channels = ('rw' if (has_write and has_read)
                             else 'wr' if has_write else 'rd')
                 entries = sideband_ports(channels)
                 if entries:
-                    lines.append("    // AXI5-Lite sideband")
+                    lines.append("    // AXI5-Lite ID + sideband")
                 for base, width_key, direction in entries:
+                    # The slave-side ID is the fabric ID: {master index, id}.
                     width = field_width(width_key, data_w,
-                                        AXIL5_USER_WIDTH, AXIL5_LOOP_WIDTH)
+                                        AXIL5_USER_WIDTH,
+                                        xbar_id_width(self.masters))
                     kind = "output logic" if direction == 'out' else "input  logic"
                     span = "" if width == 1 else f"[{width-1}:0] "
                     lines.append(f"    {kind} {span}{pfx}{base},")
@@ -1760,7 +1763,9 @@ class BridgeModuleGenerator:
                 # SlaveAdapterGenerator._generate_axi4_external_ports.
                 if is_axi5:
                     for name, width, req_dir in axi5_exposed_ext_signals(
-                            channel.value, slave.axi5_features, slave.data_width):
+                            channel.value, slave.axi5_features, slave.data_width,
+                            port_channels=('rw' if (has_write and has_read)
+                                           else ('wr' if has_write else 'rd'))):
                         dir_str = 'output' if req_dir else 'input'
                         sig_name = f"{axi5_prefix}{name}"
                         if width > 1:
@@ -1797,6 +1802,8 @@ class BridgeModuleGenerator:
             if master.channels in ["rd", "rw"]:
                 lines.append(f"    logic [NUM_SLAVES-1:0] {master.name}_slave_select_ar;")
                 lines.append(f"    logic [BRIDGE_ID_WIDTH-1:0] {master.name}_bridge_id_ar;")
+            if self._has_wakeup(master):
+                lines.append(f"    logic {master.name}_wakeup_req;  // AWAKEUP (A14.1.1)")
 
             # Width-specific signals for each unique width
             for width in slave_widths:
@@ -2068,16 +2075,18 @@ class BridgeModuleGenerator:
                 'aruser':   "1'b0",
             }
 
-            # AXI5-Lite master (bridge TASK-004, was BRIDGE-014): the enabled forwardable groups
-            # join the Lite surface and reach the adapter's AXI4 face
-            # (awlock/arlock for 'exclusive'; aw/w/b/ar/r user for 'user').
-            # The rest of the sideband is exposed but has no AXI4 home:
-            # inputs are consumed, outputs driven to 0, after the instance.
+            # AXI5-Lite master (bridge TASK-004, was BRIDGE-014): the ID
+            # (AWID/BID, ARID/RID -- required on an AXI5-Lite Subordinate,
+            # IHI 0022L B2.1.5, GitHub #102 item 3) and the enabled
+            # forwardable group (aw/w/b/ar/r user for 'user') join the Lite
+            # surface and reach the adapter's AXI4 face. The rest of the
+            # sideband is exposed but has no AXI4 home: inputs are consumed,
+            # outputs driven to 0, after the instance.
             lite_surface = set(axil_surface)
             if master.protocol == 'axil5':
+                from ..axil5_sideband import ID_BASES
                 feats = set(master.axi5_features or [])
-                if 'exclusive' in feats:
-                    lite_surface |= {'awlock', 'arlock'}
+                lite_surface |= set(ID_BASES)
                 if 'user' in feats:
                     lite_surface |= {'awuser', 'wuser', 'buser', 'aruser', 'ruser'}
 
@@ -2159,7 +2168,8 @@ class BridgeModuleGenerator:
                 # (enabled features only).
                 if master.protocol == 'axi5':
                     for name, _width, _ext_in in axi5_exposed_ext_signals(
-                            channel.value, master.axi5_features):
+                            channel.value, master.axi5_features,
+                            port_channels=master.channels):
                         sig_name = f"{signal_prefix}{name}"
                         lines.append(f"        .{sig_name}({sig_name}),")
 
@@ -2171,6 +2181,8 @@ class BridgeModuleGenerator:
             if master.channels in ["rd", "rw"]:
                 lines.append(f"        .slave_select_ar({master.name}_slave_select_ar),")
                 lines.append(f"        .bridge_id_ar({master.name}_bridge_id_ar),")
+            if self._has_wakeup(master):
+                lines.append(f"        .wakeup_req({master.name}_wakeup_req),")
 
             # Connect ALL width paths
             slave_widths = self._get_connected_slave_widths(master)
@@ -2232,8 +2244,9 @@ class BridgeModuleGenerator:
 
     def _axil5_master_sideband_tieoffs(self, master, lite_surface) -> List[str]:
         """Terminate the AXI5-Lite sideband groups an axil5 MASTER port
-        exposes but whose values have no AXI4 home (trace/loop/mpam/mecid/
-        nsaid/poison always; lock and user when their feature is off).
+        exposes but whose values have no AXI4 home (trace/poison always;
+        user when its feature is off). The ID is never terminated: it is on
+        the Lite surface and reaches the adapter's AXI4 face.
 
         Requester-driven signals are bridge inputs: consumed by a reduction
         into an `_unused` wire, so Verilator's -Wall build stays clean and
@@ -2428,6 +2441,12 @@ class BridgeModuleGenerator:
 
         return lines
 
+    @staticmethod
+    def _has_wakeup(port) -> bool:
+        """AXI5 port with the 'wakeup' feature (AWAKEUP, A14.1.1)."""
+        from bridge_pkg.sideband import port_features
+        return 'wakeup' in port_features(port)
+
     def _generate_slave_adapter_instantiations(self, monitored: List[MonitoredWrapper] = None) -> List[str]:
         """Generate slave-adapter instantiations for ALL slaves via the
         typed SlaveAdapterInstance component.
@@ -2481,6 +2500,13 @@ class BridgeModuleGenerator:
             inst.connect_xbar_interface()
             inst.connect_external_interface()
             inst.connect_bridge_id_tracking()
+            # AWAKEUP (A14.1.1): a wake-capable AXI5 slave port is woken by
+            # any connected master that carries AWAKEUP. The bridge cannot
+            # know which slave a request will decode to before it arrives,
+            # so every connected wake-capable master's request reaches it.
+            wake_srcs = [f"{m.name}_wakeup_req" for m in connecting_masters
+                         if self._has_wakeup(m)]
+            inst.connect_wakeup(" | ".join(wake_srcs) if wake_srcs else "1'b0")
             # Wire the AXI4 slave adapter's monbus+cfg ports if this
             # slave participates in monitor aggregation.
             slave_wrappers = [w for w in monitored

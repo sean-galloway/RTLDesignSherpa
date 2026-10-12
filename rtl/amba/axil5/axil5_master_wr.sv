@@ -7,17 +7,28 @@
 // Module: axil5_master_wr
 // Purpose: AXI5-Lite write master transport
 //
-// AXI5-Lite transport. Structurally this is axil4_master_wr with the AXI5-Lite optional
-// signal groups added. Each group is gated by its own ENABLE_* parameter and
-// contributes to the packed SKID payload only when enabled, so a build with
-// every group disabled has the same payload width and the same behaviour as
-// the AXI4-Lite module of the same name -- which is the property
-// val/amba/test_axil5_master_rd.py relies on.
+// AXI5-Lite transport (IHI 0022 Issue L, B2.1.5 and Table B2.2).
+// Structurally this is axil4_master_wr plus the AXI5-Lite transaction ID and the
+// optional signal groups the spec allows on AXI5-Lite: USER, TRACE and
+// POISON. Each group is gated by its own ENABLE_* parameter and contributes
+// to the packed SKID payload only when enabled.
 //
-// It transports; it does not interpret. MPAM, MECID, NSAID, LOOP and TRACE
-// are carried end to end unmodified. POISON is carried, never generated and
-// never checked. LOCK is carried with no exclusive-access monitor behind it.
-// Those behaviours belong to the endpoints on either side.
+// The ID (AWID/BID, ARID/RID; ID_WIDTH bits) is optional on this Manager-side
+// interface (Table B2.2, code YS). With ID_WIDTH = 0 the m_axil_ ID outputs
+// are driven 0 and the ID inputs are ignored, and a build with ID_WIDTH = 0
+// and every group disabled has the same payload width and the same behaviour
+// as the AXI4-Lite module of the same name -- which is the property
+// val/amba/test_axil5_axil4_equivalence.py relies on.
+//
+// AxLOCK, AxMPAM, AxMECID, AxNSAID and xLOOP are NOT carried: Table B2.2 marks
+// them "not present" on AXI5-Lite, and exclusive accesses are not supported
+// (B2.1.5). They were carried until issue #102.
+//
+// It transports; it does not interpret. The ID is carried in both directions
+// like every other field, so a response leaves with the ID the Subordinate
+// behind this module gave it -- reflecting AxID onto BID/RID is that
+// Subordinate's job (A5.1.1). TRACE and USER are carried end to end
+// unmodified. POISON is carried, never generated and never checked.
 //
 // A disabled group's output is driven to zero rather than left dangling, so
 // an integrator who disables a group downstream of one that enables it sees a
@@ -37,23 +48,19 @@ module axil5_master_wr
     parameter int AXIL_ADDR_WIDTH    = 32,
     parameter int AXIL_DATA_WIDTH    = 32,
 
-    // AXI5-Lite optional signal widths
+    // AXI5-Lite ID and optional signal widths
+    // AWID/BID and ARID/RID width (IHI 0022L Table A5.2: 0..32).
+    // This is a Manager-side interface, where Table B2.2 makes the ID
+    // optional (code YS): 0 means no ID -- the m_axil_ ID outputs are
+    // driven 0 (the "tied LOW" of A5.1.1) and the ID inputs are ignored.
+    parameter int ID_WIDTH           = 4,
     parameter int USER_WIDTH         = 4,
-    parameter int LOOP_WIDTH         = 3,
-    parameter int MPAM_WIDTH         = 11,
-    parameter int MECID_WIDTH        = 16,
-    parameter int NSAID_WIDTH        = 4,
 
     // AXI5-Lite optional signal groups. All default ON; set a group to 0 and
     // its signals leave the SKID payload entirely.
     parameter bit ENABLE_USER        = 1,
     parameter bit ENABLE_TRACE       = 1,
-    parameter bit ENABLE_LOOP        = 1,
-    parameter bit ENABLE_MPAM        = 1,
-    parameter bit ENABLE_MECID       = 1,
-    parameter bit ENABLE_NSAID       = 1,
     parameter bit ENABLE_POISON      = 1,
-    parameter bit ENABLE_LOCK        = 1,
 
     // Skid buffer depths
     parameter int SKID_DEPTH_AW    = 2,
@@ -64,31 +71,23 @@ module axil5_master_wr
     parameter int AW       = AXIL_ADDR_WIDTH,
     parameter int DW       = AXIL_DATA_WIDTH,
     parameter int SW       = DW / 8,
+    // ID port width: ID_WIDTH, or a 1-bit placeholder when ID_WIDTH = 0
+    parameter int IW       = (ID_WIDTH > 0) ? ID_WIDTH : 1,
     parameter int UW       = USER_WIDTH,
-    parameter int LW       = LOOP_WIDTH,
-    parameter int MW       = MPAM_WIDTH,
-    parameter int EW       = MECID_WIDTH,
-    parameter int NW       = NSAID_WIDTH,
     // One poison bit per 64-bit granule, matching axil5_opt_slave
     parameter int PW       = (DW / 64) > 0 ? (DW / 64) : 1,
 
-    parameter int AWSize = AW + 3 +
-                             (ENABLE_LOCK ? 1 : 0) +
+    parameter int AWSize = AW + 3 + ID_WIDTH +
                              (ENABLE_USER ? UW : 0) +
-                             (ENABLE_TRACE ? 1 : 0) +
-                             (ENABLE_LOOP ? LW : 0) +
-                             (ENABLE_MPAM ? MW : 0) +
-                             (ENABLE_MECID ? EW : 0) +
-                             (ENABLE_NSAID ? NW : 0),
+                             (ENABLE_TRACE ? 1 : 0),
 
     parameter int WSize  = DW + SW +
                              (ENABLE_USER ? UW : 0) +
                              (ENABLE_POISON ? PW : 0),
 
-    parameter int BSize  = 2 +
+    parameter int BSize  = 2 + ID_WIDTH +
                              (ENABLE_USER ? UW : 0) +
-                             (ENABLE_TRACE ? 1 : 0) +
-                             (ENABLE_LOOP ? LW : 0)
+                             (ENABLE_TRACE ? 1 : 0)
 )
 (
     // Global Clock and Reset
@@ -96,26 +95,18 @@ module axil5_master_wr
     input  logic                       aresetn,
 
     // AW channel: fub_ -> m_axil_
+    input  logic [IW-1:0]           fub_awid,
     input  logic [AW-1:0]           fub_awaddr,
     input  logic [2:0]              fub_awprot,
-    input  logic                    fub_awlock,
     input  logic [UW-1:0]           fub_awuser,
     input  logic                    fub_awtrace,
-    input  logic [LW-1:0]           fub_awloop,
-    input  logic [MW-1:0]           fub_awmpam,
-    input  logic [EW-1:0]           fub_awmecid,
-    input  logic [NW-1:0]           fub_awnsaid,
     input  logic                    fub_awvalid,
     output logic                    fub_awready,
+    output logic [IW-1:0]           m_axil_awid,
     output logic [AW-1:0]           m_axil_awaddr,
     output logic [2:0]              m_axil_awprot,
-    output logic                    m_axil_awlock,
     output logic [UW-1:0]           m_axil_awuser,
     output logic                    m_axil_awtrace,
-    output logic [LW-1:0]           m_axil_awloop,
-    output logic [MW-1:0]           m_axil_awmpam,
-    output logic [EW-1:0]           m_axil_awmecid,
-    output logic [NW-1:0]           m_axil_awnsaid,
     output logic                    m_axil_awvalid,
     input  logic                    m_axil_awready,
 
@@ -134,22 +125,45 @@ module axil5_master_wr
     input  logic                    m_axil_wready,
 
     // B channel: m_axil_ -> fub_
+    input  logic [IW-1:0]           m_axil_bid,
     input  logic [1:0]              m_axil_bresp,
     input  logic [UW-1:0]           m_axil_buser,
     input  logic                    m_axil_btrace,
-    input  logic [LW-1:0]           m_axil_bloop,
     input  logic                    m_axil_bvalid,
     output logic                    m_axil_bready,
+    output logic [IW-1:0]           fub_bid,
     output logic [1:0]              fub_bresp,
     output logic [UW-1:0]           fub_buser,
     output logic                    fub_btrace,
-    output logic [LW-1:0]           fub_bloop,
     output logic                    fub_bvalid,
     input  logic                    fub_bready,
 
     // Status output for clock gating
     output logic                       busy
 );
+
+    // ---------------------------------------------------------------------
+    // Elaboration-time parameter guard (the one sanctioned in-RTL check; see
+    // vault/handbook/design/no-assertions-in-rtl.md). Checks nothing at run
+    // time.
+    //   AXIL_DATA_WIDTH: AXI5-Lite takes any AXI DATA_WIDTH -- 8, 16, 32, 64,
+    //     128, 256, 512 or 1024 (IHI 0022L Table A3.19; Table B2.4 adds no
+    //     AXI5-Lite constraint, unlike AXI4-Lite's 32/64 of IHI 0022H B1.1.2).
+    //   ID_WIDTH: 0..32 (Table A5.2). Manager-side: 0 = no ID is legal (Table B2.2, YS).
+    // ---------------------------------------------------------------------
+`ifndef SYNTHESIS
+    initial begin : param_check
+        if (!(AXIL_DATA_WIDTH == 8   || AXIL_DATA_WIDTH == 16  ||
+              AXIL_DATA_WIDTH == 32  || AXIL_DATA_WIDTH == 64  ||
+              AXIL_DATA_WIDTH == 128 || AXIL_DATA_WIDTH == 256 ||
+              AXIL_DATA_WIDTH == 512 || AXIL_DATA_WIDTH == 1024))
+            $fatal(1, "axil5_master_wr: AXIL_DATA_WIDTH=%0d is not a legal AXI5-Lite data width (8..1024, power of 2; IHI 0022L A3.2)",
+                   AXIL_DATA_WIDTH);
+        if (ID_WIDTH < 0 || ID_WIDTH > 32)
+            $fatal(1, "axil5_master_wr: ID_WIDTH=%0d out of range 0..32 (IHI 0022L Table A5.2)",
+                   ID_WIDTH);
+    end
+`endif
 
     // ---------------------------------------------------------------------
     // AW channel
@@ -159,14 +173,14 @@ module axil5_master_wr
 
     always_comb begin
         automatic int idx = 0;
+        if (ID_WIDTH > 0) begin
+            w_aw_wr_data[idx +: IW] = fub_awid;
+            idx += IW;
+        end
         w_aw_wr_data[idx +: AW] = fub_awaddr;
         idx += AW;
         w_aw_wr_data[idx +: 3] = fub_awprot;
         idx += 3;
-        if (ENABLE_LOCK) begin
-            w_aw_wr_data[idx +: 1] = fub_awlock;
-            idx += 1;
-        end
         if (ENABLE_USER) begin
             w_aw_wr_data[idx +: UW] = fub_awuser;
             idx += UW;
@@ -174,22 +188,6 @@ module axil5_master_wr
         if (ENABLE_TRACE) begin
             w_aw_wr_data[idx +: 1] = fub_awtrace;
             idx += 1;
-        end
-        if (ENABLE_LOOP) begin
-            w_aw_wr_data[idx +: LW] = fub_awloop;
-            idx += LW;
-        end
-        if (ENABLE_MPAM) begin
-            w_aw_wr_data[idx +: MW] = fub_awmpam;
-            idx += MW;
-        end
-        if (ENABLE_MECID) begin
-            w_aw_wr_data[idx +: EW] = fub_awmecid;
-            idx += EW;
-        end
-        if (ENABLE_NSAID) begin
-            w_aw_wr_data[idx +: NW] = fub_awnsaid;
-            idx += NW;
         end
     end
 
@@ -213,16 +211,16 @@ module axil5_master_wr
 
     always_comb begin
         automatic int idx = 0;
+        if (ID_WIDTH > 0) begin
+            m_axil_awid = w_aw_rd_data[idx +: IW];
+            idx += IW;
+        end else begin
+            m_axil_awid = '0;
+        end
         m_axil_awaddr = w_aw_rd_data[idx +: AW];
         idx += AW;
         m_axil_awprot = w_aw_rd_data[idx +: 3];
         idx += 3;
-        if (ENABLE_LOCK) begin
-            m_axil_awlock = w_aw_rd_data[idx +: 1];
-            idx += 1;
-        end else begin
-            m_axil_awlock = 1'b0;
-        end
         if (ENABLE_USER) begin
             m_axil_awuser = w_aw_rd_data[idx +: UW];
             idx += UW;
@@ -234,30 +232,6 @@ module axil5_master_wr
             idx += 1;
         end else begin
             m_axil_awtrace = 1'b0;
-        end
-        if (ENABLE_LOOP) begin
-            m_axil_awloop = w_aw_rd_data[idx +: LW];
-            idx += LW;
-        end else begin
-            m_axil_awloop = '0;
-        end
-        if (ENABLE_MPAM) begin
-            m_axil_awmpam = w_aw_rd_data[idx +: MW];
-            idx += MW;
-        end else begin
-            m_axil_awmpam = '0;
-        end
-        if (ENABLE_MECID) begin
-            m_axil_awmecid = w_aw_rd_data[idx +: EW];
-            idx += EW;
-        end else begin
-            m_axil_awmecid = '0;
-        end
-        if (ENABLE_NSAID) begin
-            m_axil_awnsaid = w_aw_rd_data[idx +: NW];
-            idx += NW;
-        end else begin
-            m_axil_awnsaid = '0;
         end
     end
 
@@ -329,6 +303,10 @@ module axil5_master_wr
 
     always_comb begin
         automatic int idx = 0;
+        if (ID_WIDTH > 0) begin
+            w_b_wr_data[idx +: IW] = m_axil_bid;
+            idx += IW;
+        end
         w_b_wr_data[idx +: 2] = m_axil_bresp;
         idx += 2;
         if (ENABLE_USER) begin
@@ -338,10 +316,6 @@ module axil5_master_wr
         if (ENABLE_TRACE) begin
             w_b_wr_data[idx +: 1] = m_axil_btrace;
             idx += 1;
-        end
-        if (ENABLE_LOOP) begin
-            w_b_wr_data[idx +: LW] = m_axil_bloop;
-            idx += LW;
         end
     end
 
@@ -365,6 +339,12 @@ module axil5_master_wr
 
     always_comb begin
         automatic int idx = 0;
+        if (ID_WIDTH > 0) begin
+            fub_bid = w_b_rd_data[idx +: IW];
+            idx += IW;
+        end else begin
+            fub_bid = '0;
+        end
         fub_bresp = w_b_rd_data[idx +: 2];
         idx += 2;
         if (ENABLE_USER) begin
@@ -378,12 +358,6 @@ module axil5_master_wr
             idx += 1;
         end else begin
             fub_btrace = 1'b0;
-        end
-        if (ENABLE_LOOP) begin
-            fub_bloop = w_b_rd_data[idx +: LW];
-            idx += LW;
-        end else begin
-            fub_bloop = '0;
         end
     end
 

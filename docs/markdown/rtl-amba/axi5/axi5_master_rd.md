@@ -33,7 +33,7 @@
 
 The AXI5 Master Read module is the master-side AR/R channel transport block. It carries a full AXI5 read signal set — including the AXI5 sideband extensions — between a FUB (Functional Unit Block) interface and an external AXI5 master interface, with a configurable SKID buffer on each channel for timing closure and flow control.
 
-**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking or `RTAGMATCH` generation, no chunk reassembly, no poison generation, and no outstanding-transaction tracking. Those behaviors belong to the endpoints on either side. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking, no chunk reassembly, no poison generation, and no outstanding-transaction tracking. Those behaviors belong to the endpoints on either side. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
 
 ### Key Features
 
@@ -42,13 +42,13 @@ The AXI5 Master Read module is the master-side AR/R channel transport block. It 
 - **ARTRACE:** Trace signal for debug and performance monitoring
 - **ARMPAM:** Memory Partitioning and Monitoring (PartID + PMG)
 - **ARMECID:** Memory Encryption Context ID for secure memory
-- **ARUNIQUE:** Unique ID indicator for cache operations
+- **ARIDUNQ / RIDUNQ:** Unique ID indicator on the request and on every read data beat (IHI 0022L §A5.2)
 - **ARCHUNKEN:** Read data chunking enable for partial data transfers
 - **ARTAGOP:** Memory tag operation (MTE - Memory Tagging Extension)
 - **RTRACE:** Read data trace signal
 - **RPOISON:** Data poison indicator for corrupted data detection
 - **RCHUNKV/RCHUNKNUM/RCHUNKSTRB:** Chunking control signals
-- **RTAG/RTAGMATCH:** Memory tags and tag match response (MTE)
+- **RTAG:** Memory tags returned with read data (MTE)
 - Configurable SKID buffer depths for AR and R channels
 - Busy signal for power management and clock gating
 - ARREGION not implemented (see *Design Notes*)
@@ -76,10 +76,11 @@ The AXI5 Master Read module is the master-side AR/R channel transport block. It 
 | ENABLE_TRACE | bit | 1 | Enable trace signals |
 | ENABLE_MPAM | bit | 1 | Enable memory partitioning |
 | ENABLE_MECID | bit | 1 | Enable memory encryption context |
-| ENABLE_UNIQUE | bit | 1 | Enable unique ID indicator |
+| ENABLE_UNIQUE | bit | 1 | Enable the unique ID indicator (AxIDUNQ, and BIDUNQ/RIDUNQ on the responses) |
 | ENABLE_CHUNKING | bit | 1 | Enable data chunking |
 | ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
+| ENABLE_WAKEUP | bit | 1 | Enable AWAKEUP (IHI 0022L §A14.1.1); 0 ties the output low |
 
 ### Derived Parameters
 
@@ -123,6 +124,7 @@ These are computed inside the module from the parameters above. Do not override 
 | fub_axi_arqos | 4 | Input | Quality of Service |
 | fub_axi_aruser | UW | Input | User-defined signal |
 | fub_axi_arvalid | 1 | Input | Read address valid |
+| fub_axi_awakeup | 1 | Input | Wake-up request, AWAKEUP (IHI 0022L §A14.1.1; `ENABLE_WAKEUP`) |
 | fub_axi_arready | 1 | Output | Read address ready |
 
 #### AXI5 AR Extensions
@@ -133,7 +135,7 @@ These are computed inside the module from the parameters above. Do not override 
 | fub_axi_artrace | 1 | Input | Trace signal |
 | fub_axi_armpam | AXI_MPAM_WIDTH | Input | Memory partitioning/monitoring |
 | fub_axi_armecid | AXI_MECID_WIDTH | Input | Memory encryption context ID |
-| fub_axi_arunique | 1 | Input | Unique ID indicator |
+| fub_axi_aridunq | 1 | Input | Unique ID indicator, ARIDUNQ (IHI 0022L §A5.2; `ENABLE_UNIQUE`) |
 | fub_axi_archunken | 1 | Input | Chunking enable |
 | fub_axi_artagop | AXI_TAGOP_WIDTH | Input | Tag operation (MTE) |
 
@@ -154,12 +156,12 @@ These are computed inside the module from the parameters above. Do not override 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
 | fub_axi_rtrace | 1 | Output | Trace signal |
+| fub_axi_ridunq | 1 | Output | Unique ID indicator on every read data beat, RIDUNQ (IHI 0022L §A5.2; `ENABLE_UNIQUE`) |
 | fub_axi_rpoison | 1 | Output | Data poison indicator |
 | fub_axi_rchunkv | 1 | Output | Chunk valid |
 | fub_axi_rchunknum | AXI_CHUNKNUM_WIDTH | Output | Chunk number |
 | fub_axi_rchunkstrb | CHUNK_STRB_WIDTH | Output | Chunk strobe (128-bit granules) |
 | fub_axi_rtag | TW | Output | Memory tags (NUM_TAGS × TAG_WIDTH) |
-| fub_axi_rtagmatch | 1 | Output | Tag match response |
 
 ### Master AXI5 Interface (Output Side)
 
@@ -201,8 +203,8 @@ flowchart LR
 
     subgraph AXI["AXI5 Master"]
         direction TB
-        m_ar["AR Channel<br/>NSAID/TRACE/MPAM<br/>MECID/UNIQUE<br/>CHUNKEN/TAGOP"]
-        m_r["R Channel<br/>TRACE/POISON<br/>CHUNK/TAG"]
+        m_ar["AR Channel<br/>NSAID/TRACE/MPAM<br/>MECID/IDUNQ<br/>CHUNKEN/TAGOP"]
+        m_r["R Channel<br/>TRACE/POISON<br/>CHUNK/IDUNQ/TAG"]
     end
 
     fub_ar --> ar_pack
@@ -226,9 +228,9 @@ flowchart LR
 - **ARMPAM:** Supports memory bandwidth partitioning and QoS
 
 **Advanced Features:**
-- **ARUNIQUE:** Indicates unique cache line access (no sharing)
+- **ARIDUNQ / RIDUNQ:** Unique ID indicator on the request and on every read data beat (IHI 0022L §A5.2)
 - **ARCHUNKEN:** Enables partial data transfer (chunking)
-- **ARTAGOP/RTAG/RTAGMATCH:** Memory Tagging Extension for security
+- **ARTAGOP/RTAG:** Memory Tagging Extension for security
 
 **Data Integrity:**
 - **RPOISON:** Flags corrupted or invalid data
@@ -247,7 +249,7 @@ if (ENABLE_NSAID)    → pack ARNSAID
 if (ENABLE_TRACE)    → pack ARTRACE
 if (ENABLE_MPAM)     → pack ARMPAM
 if (ENABLE_MECID)    → pack ARMECID
-if (ENABLE_UNIQUE)   → pack ARUNIQUE
+if (ENABLE_UNIQUE)   → pack ARIDUNQ
 if (ENABLE_CHUNKING) → pack ARCHUNKEN
 if (ENABLE_MTE)      → pack ARTAGOP
 
@@ -255,7 +257,7 @@ if (ENABLE_MTE)      → pack ARTAGOP
 if (ENABLE_TRACE)    → unpack RTRACE
 if (ENABLE_POISON)   → unpack RPOISON
 if (ENABLE_CHUNKING) → unpack RCHUNKV/RCHUNKNUM/RCHUNKSTRB
-if (ENABLE_MTE)      → unpack RTAG/RTAGMATCH
+if (ENABLE_MTE)      → unpack RTAG
 ```
 
 Disabled signals default to 0.
@@ -297,7 +299,6 @@ Disabled signals default to 0.
 >
 > - ARTAGOP encoding
 > - RTAG delivery with data
-> - RTAGMATCH response
 
 ---
 
@@ -337,6 +338,7 @@ axi5_master_rd #(
     .fub_axi_arqos      (fub_arqos),
     .fub_axi_aruser     (fub_aruser),
     .fub_axi_arvalid    (fub_arvalid),
+    .fub_axi_awakeup    (fub_awakeup),
     .fub_axi_arready    (fub_arready),
 
     // AXI5 AR extensions
@@ -344,7 +346,7 @@ axi5_master_rd #(
     .fub_axi_artrace    (fub_artrace),
     .fub_axi_armpam     (fub_armpam),
     .fub_axi_armecid    (fub_armecid),
-    .fub_axi_arunique   (fub_arunique),
+    .fub_axi_aridunq   (fub_aridunq),
     .fub_axi_archunken  (fub_archunken),
     .fub_axi_artagop    (fub_artagop),
 
@@ -359,12 +361,12 @@ axi5_master_rd #(
 
     // AXI5 R extensions
     .fub_axi_rtrace     (fub_rtrace),
+    .fub_axi_ridunq     (fub_ridunq),
     .fub_axi_rpoison    (fub_rpoison),
     .fub_axi_rchunkv    (fub_rchunkv),
     .fub_axi_rchunknum  (fub_rchunknum),
     .fub_axi_rchunkstrb (fub_rchunkstrb),
     .fub_axi_rtag       (fub_rtag),
-    .fub_axi_rtagmatch  (fub_rtagmatch),
 
     // Master interface (output side)
     .m_axi_arid         (m_axi_arid),
@@ -389,9 +391,9 @@ axi5_master_rd #(
 | Trace support | None | TRACE signals |
 | Memory partitioning | None | MPAM |
 | Encryption context | None | MECID |
-| Unique access | None | UNIQUE |
+| Unique ID indicator | None | ARIDUNQ / RIDUNQ |
 | Data chunking | None | CHUNKING |
-| Memory tagging | None | MTE (TAG/TAGOP) |
+| Memory tagging | None | MTE (TAGOP, RTAG) |
 | Poison indication | None | POISON |
 | Region field | ARREGION (optional) | ARREGION retained by the spec; no port on this module |
 
@@ -400,7 +402,6 @@ axi5_master_rd #(
 When `ENABLE_MTE=1`:
 - **ARTAGOP:** Specifies tag operation (Match/Insert/Fetch)
 - **RTAG:** Delivers memory tags (1 tag per 16 bytes of data)
-- **RTAGMATCH:** Indicates tag match result
 - **NUM_TAGS:** Calculated as (DATA_WIDTH / 128), minimum 1
 
 Example for 128-bit data bus:
@@ -423,7 +424,7 @@ Disable unused features to reduce area:
 .ENABLE_TRACE    (0),  // No trace capability
 .ENABLE_MPAM     (0),  // No memory partitioning
 .ENABLE_MECID    (0),  // No encryption
-.ENABLE_UNIQUE   (0),  // No unique access
+.ENABLE_UNIQUE   (0),  // No unique-ID indicator
 .ENABLE_CHUNKING (0),  // No chunking
 .ENABLE_MTE      (0),  // No memory tagging
 .ENABLE_POISON   (0)   // No poison detection
@@ -452,7 +453,7 @@ pytest val/amba/test_axi5_master_rd.py -v
 
 ## References
 
-- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) — §A2.3.1 "Valid-Ready signals", §A2.3.2 "Dependencies between channel handshake signals" and §A2.5 "Pipelining and register stages" (the transport this module buffers per channel), and the AXI5 signals it carries unchanged: §A5.6.2 "Read data chunking" (ARCHUNKEN, RCHUNKV/NUM/STRB), §A16.1 "Data protection using Poison" (RPOISON), §A12.2 "Memory Tagging Extension (MTE)" (ARTAGOP, RTAG), §A5.2 "Unique ID indicator", §A12.3 "Trace signals", §A10.1 "Non-secure Access Identifiers (NSAID)", §A12.1 "Memory System Resource Partitioning and Monitoring (MPAM)" and §A4.6 "Memory Encryption Contexts" (ARMECID). The specification defines no RTAGMATCH signal and names the Unique ID indicator ARIDUNQ; see the Notes in the archive README for how this module's ports differ.
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) — §A2.3.1 "Valid-Ready signals", §A2.3.2 "Dependencies between channel handshake signals" and §A2.5 "Pipelining and register stages" (the transport this module buffers per channel), and the AXI5 signals it carries unchanged: §A5.6.2 "Read data chunking" (ARCHUNKEN, RCHUNKV/NUM/STRB), §A16.1 "Data protection using Poison" (RPOISON), §A12.2 "Memory Tagging Extension (MTE)" (ARTAGOP, RTAG), §A5.2 "Unique ID indicator", §A12.3 "Trace signals", §A10.1 "Non-secure Access Identifiers (NSAID)", §A12.1 "Memory System Resource Partitioning and Monitoring (MPAM)" and §A4.6 "Memory Encryption Contexts" (ARMECID). The ports follow the specification's names (GitHub #102): there is no RTAGMATCH, the Unique ID indicator is ARIDUNQ with RIDUNQ on every read data beat, and AWAKEUP follows §A14.1.1 "AWAKEUP rules and recommendations".
 - Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, Mar. 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h/) — the same AMBA 5 features as first numbered: ch. C1 "AMBA AXI5", §E1.11 "Read data chunking", §E1.15 "Memory tagging", §E2.1 "Poison", §E1.13 "Unique ID indicator". MECID is not in Issue H.
 - Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) — relay stations: a channel can be pipelined by any number of back-pressured stages without changing its behavior, which is why a skid buffer per channel is transparent to both ends.
 - Cortadella, J., Kishinevsky, M., Grundmann, B. "Synthesis of Synchronous Elastic Architectures." *Proc. 43rd Design Automation Conference (DAC '06)*, July 2006, pp. 657-662. DOI: [10.1145/1146909.1147077](https://doi.org/10.1145/1146909.1147077) — the elastic buffer with valid/stop back-pressure, the structure a skid buffer implements.

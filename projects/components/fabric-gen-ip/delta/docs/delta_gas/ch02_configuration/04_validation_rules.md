@@ -31,7 +31,7 @@ The generator validates CLI arguments through `argparse` and additional checks i
 | `--topology` must be `flat`, `tree`, or `both`. | Enforced by `choices`. |
 | `--masters` and `--slaves` are required integers. | Enforced by `required=True`. |
 | `--strb-width` must be >= 0. | Custom check; negative values raise an error. |
-| `--parity-width` requires `--amba5`. | Custom check; parity width without AMBA 5 raises an error. |
+| `--amba5` requires `--data-width % 8 == 0`. | Custom check; `TDATACHK` is one bit per `TDATA` byte (IHI 0051B Table 5-1). |
 
 ## Internal checks
 

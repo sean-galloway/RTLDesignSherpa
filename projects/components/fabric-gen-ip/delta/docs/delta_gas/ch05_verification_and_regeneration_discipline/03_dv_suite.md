@@ -34,7 +34,7 @@ A complete Delta DV suite should cover:
 | Multi-master contention | Two masters target the same slave; arbitration is fair and packet-atomic. |
 | Backpressure | Assert `m_axis_tready` low; `s_axis_tready` follows correctly. |
 | TLAST handling | Grants release only after `TLAST`. |
-| AMBA 5 sidebands | `TWAKEUP` steers by `TDEST`; `TPARITY` passes through with `TDATA`. |
+| AMBA 5 sidebands | `TWAKEUP` steers by `TDEST`. Payload `*CHK` is carried with `TDATA`. `TVALIDCHK`/`TWAKEUPCHK`/`TREADYCHK` are the inversions of their signals. A bad check sets the right sticky flag. |
 | Out-of-range TDEST | Formal assertion fires; simulation drops the request. |
 | Performance counters | Counters increment on `valid && ready && tlast`. |
 
@@ -42,8 +42,10 @@ A complete Delta DV suite should cover:
 
 ```bash
 cd projects/components/fabric-gen-ip/delta/dv/tests
-make clean-all && make run-all-gate
+make clean-all && make run-all-func-parallel
 ```
+
+Today the suite is one file, `test_delta_axis_flat_2x4_strb_amba5.py`, covering the AMBA 5 row above against `rtl_test/delta_axis_flat_2x4_strb_amba5.sv`. It has three tests at gate, func and full. The other rows are still open for the base flavor.
 
 After a generator change, this must pass with zero failures before the regenerated RTL is committed.
 

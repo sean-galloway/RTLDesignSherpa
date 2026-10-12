@@ -167,10 +167,14 @@ class SlaveAdapterInstance:
                 axi5_exposed_ext_signals,
             )
 
+            port_channels = ('rw' if (self.has_write and self.has_read)
+                             else ('wr' if self.has_write else 'rd'))
+
             def _extras(channel_key):
                 return [f'{self.slave_prefix}{name}'
                         for name, _w, _d in axi5_exposed_ext_signals(
-                            channel_key, self.axi5_features)]
+                            channel_key, self.axi5_features,
+                            port_channels=port_channels)]
 
             pairs: List[tuple] = []
             names: List[str] = []
@@ -325,6 +329,16 @@ class SlaveAdapterInstance:
                 ('rid_valid', f'{self.slave_name}_axi_rid_valid'),
             ])
         self._sections.append(("Bridge ID tracking", pairs))
+
+    def connect_wakeup(self, wakeup_expr: str) -> None:
+        """Bind the adapter's wakeup_req input (AXI5 slave with the
+        'wakeup' feature only): the OR of the connected masters' AWAKEUP
+        requests, or 1'b0 when none of them carries AWAKEUP -- the slave
+        wrapper then derives AWAKEUP from its own held requests, the
+        A14.1.1 fallback for a Manager without AWAKEUP."""
+        if self.protocol == 'axi5' and 'wakeup' in self.axi5_features:
+            self._sections.append(("AWAKEUP request (A14.1.1)",
+                                   [('wakeup_req', wakeup_expr)]))
 
     # --- formatting ----------------------------------------------------
 

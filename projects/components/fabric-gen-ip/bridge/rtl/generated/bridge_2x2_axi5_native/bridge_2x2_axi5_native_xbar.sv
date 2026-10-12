@@ -73,27 +73,24 @@ module bridge_2x2_axi5_native_xbar
     // AXI5 native sideband (A5-2 slice 2)
     output logic [3:0]  ddr_axi_awnsaid,
     output logic         ddr_axi_awtrace,
-    output logic         ddr_axi_awunique,
+    output logic         ddr_axi_awidunq,
     output logic [1:0]  ddr_axi_awtagop,
-    output logic [3:0]  ddr_axi_awtag,
     output logic         ddr_axi_wpoison,
     output logic [3:0]  ddr_axi_wtag,
     output logic         ddr_axi_wtagupdate,
     output logic [3:0]  ddr_axi_arnsaid,
     output logic         ddr_axi_artrace,
-    output logic         ddr_axi_arunique,
+    output logic         ddr_axi_aridunq,
     output logic         ddr_axi_archunken,
     output logic [1:0]  ddr_axi_artagop,
     input  logic         ddr_axi_btrace,
-    input  logic [3:0]  ddr_axi_btag,
-    input  logic         ddr_axi_btagmatch,
+    input  logic [1:0]  ddr_axi_btagmatch,
     input  logic         ddr_axi_rtrace,
     input  logic         ddr_axi_rpoison,
     input  logic         ddr_axi_rchunkv,
     input  logic [3:0]  ddr_axi_rchunknum,
     input  logic         ddr_axi_rchunkstrb,
     input  logic [3:0]  ddr_axi_rtag,
-    input  logic         ddr_axi_rtagmatch,
 
     output  logic [4:0]  ddr_axi_awid,
     output  logic [31:0]  ddr_axi_awaddr,
@@ -156,27 +153,24 @@ module bridge_2x2_axi5_native_xbar
     // AXI5 native sideband (A5-2 slice 2)
     output logic [3:0]  sram_axi_awnsaid,
     output logic         sram_axi_awtrace,
-    output logic         sram_axi_awunique,
+    output logic         sram_axi_awidunq,
     output logic [1:0]  sram_axi_awtagop,
-    output logic [3:0]  sram_axi_awtag,
     output logic         sram_axi_wpoison,
     output logic [3:0]  sram_axi_wtag,
     output logic         sram_axi_wtagupdate,
     output logic [3:0]  sram_axi_arnsaid,
     output logic         sram_axi_artrace,
-    output logic         sram_axi_arunique,
+    output logic         sram_axi_aridunq,
     output logic         sram_axi_archunken,
     output logic [1:0]  sram_axi_artagop,
     input  logic         sram_axi_btrace,
-    input  logic [3:0]  sram_axi_btag,
-    input  logic         sram_axi_btagmatch,
+    input  logic [1:0]  sram_axi_btagmatch,
     input  logic         sram_axi_rtrace,
     input  logic         sram_axi_rpoison,
     input  logic         sram_axi_rchunkv,
     input  logic [3:0]  sram_axi_rchunknum,
     input  logic         sram_axi_rchunkstrb,
     input  logic [3:0]  sram_axi_rtag,
-    input  logic         sram_axi_rtagmatch,
 
     output  logic [4:0]  sram_axi_awid,
     output  logic [31:0]  sram_axi_awaddr,
@@ -370,12 +364,10 @@ module bridge_2x2_axi5_native_xbar
         (dma_128b_aw_gnt_ddr ? dma_128b_aw.nsaid : '0);
     assign ddr_axi_awtrace = (cpu_128b_aw_gnt_ddr ? cpu_128b_aw.trace : '0) |
         (dma_128b_aw_gnt_ddr ? dma_128b_aw.trace : '0);
-    assign ddr_axi_awunique = (cpu_128b_aw_gnt_ddr ? cpu_128b_aw.uniq : '0) |
-        (dma_128b_aw_gnt_ddr ? dma_128b_aw.uniq : '0);
+    assign ddr_axi_awidunq = (cpu_128b_aw_gnt_ddr ? cpu_128b_aw.idunq : '0) |
+        (dma_128b_aw_gnt_ddr ? dma_128b_aw.idunq : '0);
     assign ddr_axi_awtagop = (cpu_128b_aw_gnt_ddr ? cpu_128b_aw.tagop : '0) |
         (dma_128b_aw_gnt_ddr ? dma_128b_aw.tagop : '0);
-    assign ddr_axi_awtag = (cpu_128b_aw_gnt_ddr ? cpu_128b_aw.tag : '0) |
-        (dma_128b_aw_gnt_ddr ? dma_128b_aw.tag : '0);
     assign ddr_axi_awvalid = cpu_128b_aw_gnt_ddr || dma_128b_aw_gnt_ddr;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
@@ -479,8 +471,8 @@ module bridge_2x2_axi5_native_xbar
         (dma_128b_ar_gnt_ddr ? dma_128b_ar.nsaid : '0);
     assign ddr_axi_artrace = (cpu_128b_ar_gnt_ddr ? cpu_128b_ar.trace : '0) |
         (dma_128b_ar_gnt_ddr ? dma_128b_ar.trace : '0);
-    assign ddr_axi_arunique = (cpu_128b_ar_gnt_ddr ? cpu_128b_ar.uniq : '0) |
-        (dma_128b_ar_gnt_ddr ? dma_128b_ar.uniq : '0);
+    assign ddr_axi_aridunq = (cpu_128b_ar_gnt_ddr ? cpu_128b_ar.idunq : '0) |
+        (dma_128b_ar_gnt_ddr ? dma_128b_ar.idunq : '0);
     assign ddr_axi_archunken = (cpu_128b_ar_gnt_ddr ? cpu_128b_ar.chunken : '0) |
         (dma_128b_ar_gnt_ddr ? dma_128b_ar.chunken : '0);
     assign ddr_axi_artagop = (cpu_128b_ar_gnt_ddr ? cpu_128b_ar.tagop : '0) |
@@ -562,12 +554,10 @@ module bridge_2x2_axi5_native_xbar
         (dma_128b_aw_gnt_sram ? dma_128b_aw.nsaid : '0);
     assign sram_axi_awtrace = (cpu_128b_aw_gnt_sram ? cpu_128b_aw.trace : '0) |
         (dma_128b_aw_gnt_sram ? dma_128b_aw.trace : '0);
-    assign sram_axi_awunique = (cpu_128b_aw_gnt_sram ? cpu_128b_aw.uniq : '0) |
-        (dma_128b_aw_gnt_sram ? dma_128b_aw.uniq : '0);
+    assign sram_axi_awidunq = (cpu_128b_aw_gnt_sram ? cpu_128b_aw.idunq : '0) |
+        (dma_128b_aw_gnt_sram ? dma_128b_aw.idunq : '0);
     assign sram_axi_awtagop = (cpu_128b_aw_gnt_sram ? cpu_128b_aw.tagop : '0) |
         (dma_128b_aw_gnt_sram ? dma_128b_aw.tagop : '0);
-    assign sram_axi_awtag = (cpu_128b_aw_gnt_sram ? cpu_128b_aw.tag : '0) |
-        (dma_128b_aw_gnt_sram ? dma_128b_aw.tag : '0);
     assign sram_axi_awvalid = cpu_128b_aw_gnt_sram || dma_128b_aw_gnt_sram;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
@@ -671,8 +661,8 @@ module bridge_2x2_axi5_native_xbar
         (dma_128b_ar_gnt_sram ? dma_128b_ar.nsaid : '0);
     assign sram_axi_artrace = (cpu_128b_ar_gnt_sram ? cpu_128b_ar.trace : '0) |
         (dma_128b_ar_gnt_sram ? dma_128b_ar.trace : '0);
-    assign sram_axi_arunique = (cpu_128b_ar_gnt_sram ? cpu_128b_ar.uniq : '0) |
-        (dma_128b_ar_gnt_sram ? dma_128b_ar.uniq : '0);
+    assign sram_axi_aridunq = (cpu_128b_ar_gnt_sram ? cpu_128b_ar.idunq : '0) |
+        (dma_128b_ar_gnt_sram ? dma_128b_ar.idunq : '0);
     assign sram_axi_archunken = (cpu_128b_ar_gnt_sram ? cpu_128b_ar.chunken : '0) |
         (dma_128b_ar_gnt_sram ? dma_128b_ar.chunken : '0);
     assign sram_axi_artagop = (cpu_128b_ar_gnt_sram ? cpu_128b_ar.tagop : '0) |
@@ -948,10 +938,6 @@ module bridge_2x2_axi5_native_xbar
         ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_btrace : '0) |
         ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_btrace : '0);
 
-    assign cpu_128b_b.tag = 
-        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_btag : '0) |
-        ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_btag : '0);
-
     assign cpu_128b_b.tagmatch = 
         ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_btagmatch : '0) |
         ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_btagmatch : '0);
@@ -1027,10 +1013,6 @@ module bridge_2x2_axi5_native_xbar
         ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rtag : '0) |
         ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rtag : '0);
 
-    assign cpu_128b_r.tagmatch = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rtagmatch : '0) |
-        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rtagmatch : '0);
-
 
     // Master: dma, Width path: 128b
     assign dma_128b_awready = 
@@ -1066,10 +1048,6 @@ module bridge_2x2_axi5_native_xbar
     assign dma_128b_b.trace = 
         ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_btrace : '0) |
         ((sram_axi_bid_bridge_id == 1) && sram_axi_bid_valid ? sram_axi_btrace : '0);
-
-    assign dma_128b_b.tag = 
-        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_btag : '0) |
-        ((sram_axi_bid_bridge_id == 1) && sram_axi_bid_valid ? sram_axi_btag : '0);
 
     assign dma_128b_b.tagmatch = 
         ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_btagmatch : '0) |
@@ -1145,10 +1123,6 @@ module bridge_2x2_axi5_native_xbar
     assign dma_128b_r.tag = 
         ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rtag : '0) |
         ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid ? sram_axi_rtag : '0);
-
-    assign dma_128b_r.tagmatch = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rtagmatch : '0) |
-        ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid ? sram_axi_rtagmatch : '0);
 
 
 endmodule : bridge_2x2_axi5_native_xbar

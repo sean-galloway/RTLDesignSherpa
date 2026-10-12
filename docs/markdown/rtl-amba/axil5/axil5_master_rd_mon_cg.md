@@ -33,13 +33,14 @@
 
 The AXIL5 Master Read Monitor, Clock-Gated provides a buffered AXI5-Lite read interface for master devices.
 
-AXI5-Lite is AXI4-Lite plus optional signal groups. It changes no channel's handshake, ordering or response semantics, so this module is structurally `axil4_master_rd_mon_cg` with those groups threaded through the packed SKID payload.
+AXI5-Lite is AXI4-Lite plus the transaction ID and a few optional signal groups. It changes no channel's handshake, ordering or response semantics, so this module is structurally `axil4_master_rd_mon_cg` with the ID and those groups threaded through the packed SKID payload.
 
 - AXI5-Lite read path (AR and R channels)
 - Single-beat transactions: AXI-Lite has no burst support
 - Configurable skid buffers on every channel for timing closure
-- Eight optional signal groups, each independently enabled
-- Bit-identical to the AXI4-Lite module of the same name with all groups disabled
+- Elaboration fails on an illegal `AXIL_DATA_WIDTH` or `ID_WIDTH`
+- Transaction ID (`AWID`/`BID`, `ARID`/`RID`; `ID_WIDTH`) plus three optional signal groups (USER, TRACE, POISON), each independently enabled
+- Bit-identical to the AXI4-Lite module of the same name with `ID_WIDTH=0` and all groups disabled
 - Integrated transaction monitor emitting monbus packets
 - Monitor plus clock gating; ready signals held low while gated
 
@@ -54,7 +55,7 @@ AXI5-Lite is AXI4-Lite plus optional signal groups. It changes no channel's hand
 | `SKID_DEPTH_AR` | int | `2` |  |
 | `SKID_DEPTH_R` | int | `4` |  |
 | `AXIL_ADDR_WIDTH` | int | `32` |  |
-| `AXIL_DATA_WIDTH` | int | `32` |  |
+| `AXIL_DATA_WIDTH` | int | `32` | Any AXI data width, 8..1024 and a power of two (IHI 0022L Table A3.19; Table B2.4 adds no AXI5-Lite limit). Checked at elaboration. |
 | `USE_MONITOR` | bit | `1'b1` | 0 = omit monitor in inner mon; outputs tied |
 | `N_ADDR_RANGES` | int | `0` | 0 = address-range checker disabled |
 | `ADDR_FILTER_ENABLE` | bit | `1'b0` | 0 = address filter inert |
@@ -73,26 +74,15 @@ AXI5-Lite is AXI4-Lite plus optional signal groups. It changes no channel's hand
 | `ENABLE_PERF_LOGIC` | bit | `1'b1` |  |
 | `ENABLE_DEBUG_LOGIC` | bit | `1'b0` |  |
 | `CG_IDLE_COUNT_WIDTH` | int | `4` | Width of the idle countdown |
+| `ID_WIDTH` | int | `4` | AWID/BID and ARID/RID width, 0..32; 0 = no ID (Manager side, Table B2.2 code YS). IHI 0022L Table A5.2. |
 | `USER_WIDTH` | int | `4` |  |
-| `LOOP_WIDTH` | int | `3` |  |
-| `MPAM_WIDTH` | int | `11` |  |
-| `MECID_WIDTH` | int | `16` |  |
-| `NSAID_WIDTH` | int | `4` |  |
 | `ENABLE_USER` | bit | `1` |  |
 | `ENABLE_TRACE` | bit | `1` |  |
-| `ENABLE_LOOP` | bit | `1` |  |
-| `ENABLE_MPAM` | bit | `1` |  |
-| `ENABLE_MECID` | bit | `1` |  |
-| `ENABLE_NSAID` | bit | `1` |  |
 | `ENABLE_POISON` | bit | `1` |  |
-| `ENABLE_LOCK` | bit | `1` |  |
 | `AW` | int | `AXIL_ADDR_WIDTH` |  |
 | `DW` | int | `AXIL_DATA_WIDTH` |  |
+| `IW` | int | `(ID_WIDTH > 0) ? ID_WIDTH : 1` | ID port width; a 1-bit placeholder when `ID_WIDTH = 0` |
 | `UW` | int | `USER_WIDTH` |  |
-| `LW` | int | `LOOP_WIDTH` |  |
-| `MW` | int | `MPAM_WIDTH` |  |
-| `EW` | int | `MECID_WIDTH` |  |
-| `NW` | int | `NSAID_WIDTH` |  |
 | `PW` | int | `(DW / 64) > 0 ? (DW / 64) : 1` |  |
 | `AGENT_ID` |  | `16'h000A` | Agent identifier emitted in the `agent_id` field of every monitor packet. Pairs with `UNIT_ID` to identify the packet source. (16-bit Agent ID for monitor packets) |
 | `UNIT_ID` |  | `8'h01` | Unit identifier emitted in the `unit_id` field of every monitor packet. Give each monitored interface a distinct value or the packets cannot be told apart at the collector. (8-bit Unit ID for monitor packets) |
@@ -110,41 +100,33 @@ Your logic drives the `fub_axil_*` side; the `m_axil_*` side faces the bus. The 
 | `aclk` | Input | 1 |  |
 | `aresetn` | Input | 1 |  |
 | `cam_clear` | Input | 1 | sync clear of the monitor trans CAM |
+| `fub_axil_arid` | Input | `[IW-1:0]` |  |
 | `fub_axil_araddr` | Input | `[AW-1:0]` |  |
 | `fub_axil_arprot` | Input | `[2:0]` |  |
-| `fub_axil_arlock` | Input | 1 |  |
 | `fub_axil_aruser` | Input | `[UW-1:0]` |  |
 | `fub_axil_artrace` | Input | 1 |  |
-| `fub_axil_arloop` | Input | `[LW-1:0]` |  |
-| `fub_axil_armpam` | Input | `[MW-1:0]` |  |
-| `fub_axil_armecid` | Input | `[EW-1:0]` |  |
-| `fub_axil_arnsaid` | Input | `[NW-1:0]` |  |
 | `fub_axil_arvalid` | Input | 1 |  |
 | `fub_axil_arready` | Output | 1 |  |
+| `fub_axil_rid` | Output | `[IW-1:0]` |  |
 | `fub_axil_rdata` | Output | `[DW-1:0]` |  |
 | `fub_axil_rresp` | Output | `[1:0]` |  |
 | `fub_axil_ruser` | Output | `[UW-1:0]` |  |
 | `fub_axil_rtrace` | Output | 1 |  |
-| `fub_axil_rloop` | Output | `[LW-1:0]` |  |
 | `fub_axil_rpoison` | Output | `[PW-1:0]` |  |
 | `fub_axil_rvalid` | Output | 1 |  |
 | `fub_axil_rready` | Input | 1 |  |
+| `m_axil_arid` | Output | `[IW-1:0]` |  |
 | `m_axil_araddr` | Output | `[AW-1:0]` |  |
 | `m_axil_arprot` | Output | `[2:0]` |  |
-| `m_axil_arlock` | Output | 1 |  |
 | `m_axil_aruser` | Output | `[UW-1:0]` |  |
 | `m_axil_artrace` | Output | 1 |  |
-| `m_axil_arloop` | Output | `[LW-1:0]` |  |
-| `m_axil_armpam` | Output | `[MW-1:0]` |  |
-| `m_axil_armecid` | Output | `[EW-1:0]` |  |
-| `m_axil_arnsaid` | Output | `[NW-1:0]` |  |
 | `m_axil_arvalid` | Output | 1 |  |
 | `m_axil_arready` | Input | 1 |  |
+| `m_axil_rid` | Input | `[IW-1:0]` |  |
 | `m_axil_rdata` | Input | `[DW-1:0]` |  |
 | `m_axil_rresp` | Input | `[1:0]` |  |
 | `m_axil_ruser` | Input | `[UW-1:0]` |  |
 | `m_axil_rtrace` | Input | 1 |  |
-| `m_axil_rloop` | Input | `[LW-1:0]` |  |
 | `m_axil_rpoison` | Input | `[PW-1:0]` |  |
 | `m_axil_rvalid` | Input | 1 |  |
 | `m_axil_rready` | Output | 1 |  |
@@ -209,40 +191,40 @@ Your logic drives the `fub_axil_*` side; the `m_axil_*` side faces the bus. The 
 
 ### Optional signal groups
 
-Eight groups, each gated by its own `ENABLE_*` parameter. A group contributes to the packed SKID payload only when enabled.
+The ID plus three optional groups -- the ones IHI 0022L Table B2.2 allows on AXI5-Lite. The ID has no enable (it is sized by `ID_WIDTH`); each group is gated by its own `ENABLE_*` parameter and contributes to the packed SKID payload only when enabled.
 
 | Group | Parameter | Signals on this module | Width |
 |---|---|---|---|
+| ID | `ID_WIDTH` (no enable) | `AxID`, `BID`, `RID` | `ID_WIDTH` (0..32; >= 1 on slave-side modules) |
 | USER | `ENABLE_USER` | `AxUSER`, `WUSER`, `BUSER`, `RUSER` | `USER_WIDTH` |
 | TRACE | `ENABLE_TRACE` | `AxTRACE`, `BTRACE`, `RTRACE` | 1 |
-| LOOP | `ENABLE_LOOP` | `AxLOOP`, `BLOOP`, `RLOOP` | `LOOP_WIDTH` |
-| MPAM | `ENABLE_MPAM` | `AxMPAM` | `MPAM_WIDTH` |
-| MECID | `ENABLE_MECID` | `AxMECID` | `MECID_WIDTH` |
-| NSAID | `ENABLE_NSAID` | `AxNSAID` | `NSAID_WIDTH` |
 | POISON | `ENABLE_POISON` | `WPOISON`, `RPOISON` | one bit per 64 data bits |
-| LOCK | `ENABLE_LOCK` | `AxLOCK` | 1 |
 
 (Only the channels this module carries are present; a read module has no W or B channel, so it has no WPOISON or BUSER.)
 
-### With every group disabled, this IS the AXI4-Lite module
+### With no ID and every group disabled, this IS the AXI4-Lite module
 
-The packed payload width of a fully-disabled build equals its AXI4-Lite counterpart's, channel for channel:
+The packed payload width of a no-ID, fully-disabled build equals its AXI4-Lite counterpart's, channel for channel:
 
-| Payload | AXI4-Lite | AXI5-Lite, groups off | AXI5-Lite, groups on |
+| Payload | AXI4-Lite | AXI5-Lite, `ID_WIDTH=0`, groups off | AXI5-Lite defaults (`ID_WIDTH=4`, groups on) |
 |---|---|---|---|
-| `ARSize` | 35 | 35 | 75 |
-| `RSize` | 34 | 34 | 43 |
-| `AWSize` | 35 | 35 | 75 |
+| `ARSize` | 35 | 35 | 44 |
+| `RSize` | 34 | 34 | 44 |
+| `AWSize` | 35 | 35 | 44 |
 | `WSize` | 36 | 36 | 41 |
-| `BSize` | 2 | 2 | 10 |
+| `BSize` | 2 | 2 | 11 |
 
-(at `AXIL_ADDR_WIDTH = AXIL_DATA_WIDTH = 32` and the default group widths.)
+(at `AXIL_ADDR_WIDTH = AXIL_DATA_WIDTH = 32` and the default widths. `ID_WIDTH = 0` is legal only on the Manager-side `axil5_master_*` modules; a Subordinate must carry the ID, so the `axil5_slave_*` modules require `ID_WIDTH >= 1` and their minimum payload is the AXI4-Lite one plus the ID on AR/R or AW/B.)
 
-That equivalence is what `val/amba/test_axil5_master_rd.py` relies on when it drives AXI4-Lite RTL with AXI5-Lite BFMs: with no groups enabled an AXI5-Lite interface *is* an AXI4-Lite interface, so the same testbench binds to either.
+That equivalence is what `val/amba/test_axil5_axil4_equivalence.py` pins: it runs the same AXI5-Lite BFMs, built with no ID and no groups, against both `axil4_master_rd` and `axil5_master_rd` elaborated with `ID_WIDTH=0` and every `ENABLE_*` = 0.
 
 ### It transports; it does not interpret
 
-MPAM, MECID, NSAID, LOOP and TRACE are carried end to end unmodified. POISON is carried -- never generated, never checked. LOCK is carried with no exclusive-access monitor behind it. Those behaviours belong to the endpoints on either side, and nothing in this module implements them.
+The ID is carried in both directions like every other field: AxID crosses with the request, and BID/RID cross back with the response unchanged. Reflecting AxID onto BID/RID is the Subordinate's job (IHI 0022L A5.1.1); this module only guarantees that whatever ID it is given leaves on the other side. With `ID_WIDTH = 0` (Manager-side modules only) the ID outputs are driven 0 -- the "tied LOW" of A5.1.1 -- and the ID inputs are ignored.
+
+TRACE and USER are carried end to end unmodified. POISON is carried -- never generated, never checked. Those behaviours belong to the endpoints on either side, and nothing in this module implements them.
+
+AxLOCK, AxMPAM, AxMECID, AxNSAID and xLOOP are not carried. Table B2.2 of IHI 0022L marks them "not present" on AXI5-Lite and B2.1.5 states exclusive accesses are not supported; earlier versions of this module carried them behind `ENABLE_*` parameters (removed by issue #102).
 
 A disabled group's output is driven to zero rather than left dangling, so an integrator who disables a group downstream of one that enables it sees a defined value instead of X.
 
@@ -252,7 +234,7 @@ A disabled group's output is driven to zero rather than left dangling, so an int
 
 Four things worth knowing before you trust what comes out of the monitor:
 
-**The monitor does not observe the optional groups.** `axi_monitor_filtered` has no ports for MPAM, MECID, NSAID, TRACE, LOOP or POISON, so it sees exactly what it sees on AXI4-Lite: handshakes, addresses, responses and timing. It does not check MPAM/MECID/NSAID consistency and does not validate POISON.
+**The monitor does not observe the ID or the optional groups.** The wrapper ties `axi_monitor_filtered`'s ID inputs to zero and it has no ports for TRACE, USER or POISON, so it sees exactly what it sees on AXI4-Lite: handshakes, addresses, responses and timing, tracked in issue order. A Subordinate that reorders responses across IDs (permitted on AXI5-Lite, IHI 0022L B2.1.5) is mis-attributed by it. It does not validate POISON.
 
 **`ACLK_MHZ` is not decoration.** It builds the microsecond tick LUT in `counter_freq_invariant`. Leave it at the 100 MHz default on a 90 MHz part and every microsecond-denominated timeout is wrong, silently.
 
@@ -322,19 +304,11 @@ axil5_master_rd_mon_cg #(
     .ENABLE_PERF_LOGIC   (1'b1),
     .ENABLE_DEBUG_LOGIC  (1'b0),
     .CG_IDLE_COUNT_WIDTH (4),
+    .ID_WIDTH            (4),
     .USER_WIDTH          (4),
-    .LOOP_WIDTH          (3),
-    .MPAM_WIDTH          (11),
-    .MECID_WIDTH         (16),
-    .NSAID_WIDTH         (4),
     .ENABLE_USER         (1),
     .ENABLE_TRACE        (1),
-    .ENABLE_LOOP         (1),
-    .ENABLE_MPAM         (1),
-    .ENABLE_MECID        (1),
-    .ENABLE_NSAID        (1),
-    .ENABLE_POISON       (1),
-    .ENABLE_LOCK         (1)
+    .ENABLE_POISON       (1)
 ) u_axil5_master_rd_mon_cg (
     // clock/reset
     .aclk                (aclk),
@@ -343,11 +317,11 @@ axil5_master_rd_mon_cg #(
     .cam_clear           (cam_clear),
     // ... `fub_axil_araddr`, `fub_axil_arprot`, `fub_axil_arlock`, +32 more
     // m_axil_ar
-    .m_axil_araddr       (m_axil_araddr),
-    // ... `m_axil_arprot`, `m_axil_arlock`, `m_axil_aruser`, +7 more
+    .m_axil_arid         (m_axil_arid),
+    // ... `m_axil_araddr`, `m_axil_arprot`, `m_axil_aruser`, +3 more
     // m_axil_r
-    .m_axil_rdata        (m_axil_rdata),
-    // ... `m_axil_rresp`, `m_axil_ruser`, `m_axil_rtrace`, +4 more
+    .m_axil_rid          (m_axil_rid),
+    // ... `m_axil_rdata`, `m_axil_rresp`, `m_axil_ruser`, +4 more
     // configuration
     .cfg_monitor_enable  (cfg_monitor_enable),
     // ... `cfg_error_enable`, `cfg_timeout_enable`, `cfg_perf_enable`, +30 more
@@ -374,18 +348,20 @@ axil5_master_rd_mon_cg #(
 
 ## Testing
 
-`val/amba/test_axil5_master_rd_mon_cg.py` drives this module with the AXI5-Lite BFMs and **every optional group enabled** -- `TBClasses/axil5` sets the group widths in `COMPONENT_KWARGS` to mirror the RTL defaults. A BFM configured differently from its DUT is a bind failure, which is the loud version of the mistake.
+`val/amba/test_axil5_master_rd_mon_cg.py` drives this module with the AXI5-Lite BFMs and **the ID and every optional group enabled** -- `TBClasses/axil5` sets the group widths in `COMPONENT_KWARGS` to mirror the RTL defaults. A BFM configured differently from its DUT is a bind failure, which is the loud version of the mistake.
+
+Every transaction the Manager-side BFM issues carries a rotating non-zero ID and must come back with the same BID/RID (`bin/TBClasses/axil5/axil5_id_check.py`); the inherited AXI4-Lite phases alone would only ever send ID 0, which a module that dropped the ID would pass.
 
 The testbench class is the AXI4-Lite one with the component factories swapped, so every phase, check and randomizer sweep has a single definition, and a fix to the AXI4-Lite flow reaches this module automatically.
 
 ## References
 
-- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/l](https://developer.arm.com/documentation/ihi0022/l) -- §B2.1.5 "AXI5-Lite" and Table B2.2 signal matrix; carried groups per §A12.5 User defined signaling, §A12.3 Trace signals, §A12.4 User Loopback signaling, §A12.1 MPAM, §A4.6 Memory Encryption Contexts, §A10.1 NSAID, §A16.1 Poison; handshake on the AR and R channels per §A2.3.1/§A2.3.2; register stages per §A2.5. Table B2.2 marks AxLOCK, AxMPAM, AxMECID, AxNSAID and AxLOOP not present on AXI5-Lite and AxID mandatory on a Subordinate: this module carries the former as `ENABLE_*` extensions and has no ID ports (in-order subset).
-- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h) -- Part C ch. C2 "AMBA AXI5-Lite", §C2.2 comparison with AXI4-Lite and §C2.5/§C2.6 upgrading an AXI4-Lite master/slave: the every-group-disabled build is the AXI4-Lite-equivalent port.
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/l](https://developer.arm.com/documentation/ihi0022/l) -- §B2.1.5 "AXI5-Lite" and Table B2.2 signal matrix; carried groups per §A12.5 User defined signaling, §A12.3 Trace signals, §A5.1.1 transaction ID signals, §A16.1 Poison; handshake on the AR and R channels per §A2.3.1/§A2.3.2; register stages per §A2.5. Table B2.2 marks AxLOCK, AxMPAM, AxMECID, AxNSAID and xLOOP not present on AXI5-Lite and AxID/BID/RID mandatory on a Subordinate (YS): this module carries the ID (`ID_WIDTH`) and none of the not-present signals (issue #102). Data width per Table A3.19 (any AXI DATA_WIDTH; Table B2.4 adds no AXI5-Lite constraint).
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h) -- Part C ch. C2 "AMBA AXI5-Lite", §C2.2 comparison with AXI4-Lite and §C2.5/§C2.6 upgrading an AXI4-Lite master/slave: the `ID_WIDTH=0`, every-group-disabled Manager-side build is the AXI4-Lite-equivalent port.
 - Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Trans. VLSI Systems*, 8(3), June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) -- fixed-timeout shutdown: gate after `cfg_cg_idle_count` idle cycles, wake on any VALID.
 - Benini, L., De Micheli, G. "Automatic Synthesis of Low-Power Gated-Clock Finite-State Machines." *IEEE Trans. CAD*, 15(6), June 1996. DOI: [10.1109/43.503933](https://doi.org/10.1109/43.503933) -- the latch-based glitch-free clock gate under `clock_gate_ctrl`.
 - READY held LOW while gated is legal: a receiver may keep READY LOW until it chooses to accept (IHI 0022H §A3.2.1; IHI 0022L §A2.3.1). No paper (standard technique).
-- The monitor itself (`axi_monitor_filtered`) is referenced in the [monitor pages](../monitor/axi_monitor_base.md); on a Lite port it sees single-beat transactions with a fixed ID of 0 (IHI 0022H §B1.1.4).
+- The monitor itself (`axi_monitor_filtered`) is referenced in the [monitor pages](../monitor/axi_monitor_base.md); on this port it sees single-beat transactions with its ID inputs tied to 0, as on AXI4-Lite (IHI 0022H §B1.1.4); the AXI5-Lite ID is carried by the transport but not fed to the monitor.
 - Roy, S. *Advanced Digital System Design*, Springer, 2024, ch. 15 "Low-Power Digital System Design", §15.5.5 "Logic Level Power Down" -- textbook treatment of disabling the clock to idle units (secondary source).
 - Indexed in `rtl/amba/references/README.md`; the clock-gating papers are archived in `rtl/common/references/` (local PDF: `DynamicPowerManagementTimeout__Benini2000.pdf`, `LatchBasedClockGating__Benini1996.pdf`)
 

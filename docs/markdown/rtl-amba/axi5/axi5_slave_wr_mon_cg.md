@@ -33,14 +33,14 @@
 
 Same slave, same monitor — plus a clock gate. This module wraps `axi5_slave_wr_mon` with automatic clock gating logic, so you keep the integrated transaction monitoring and claw back dynamic power whenever the bus goes quiet.
 
-**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking or `RTAGMATCH` generation, no chunk reassembly, no poison generation, and no atomic read-modify-write -- `AWATOP` is transported, not executed. The monitor observes handshakes, responses and timing; it performs no protocol checking of handshake stability, ID width, burst length or address alignment. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking, no chunk reassembly, no poison generation, and no atomic read-modify-write -- `AWATOP` is transported, not executed. The monitor observes handshakes, responses and timing; it performs no protocol checking of handshake stability, ID width, burst length or address alignment. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
 
 ### Key Features
 
 - Full AMBA AXI5 slave write protocol compliance
 - **Integrated filtered monitoring** — real-time transaction visibility
 - **Integrated clock gating** for dynamic power reduction
-- All AXI5 extensions supported (ATOMIC, NSAID, TRACE, MPAM, MECID, UNIQUE, MTE, POISON)
+- All AXI5 extensions supported (ATOMIC, NSAID, TRACE, MPAM, MECID, IDUNQ, MTE, POISON, WAKEUP)
 - Configurable idle count before gating
 - Transaction tracking with error detection
 - Performance metrics and filtering
@@ -125,9 +125,10 @@ flowchart TB
 | ENABLE_TRACE | bit | 1 | Enable trace signals |
 | ENABLE_MPAM | bit | 1 | Enable memory partitioning |
 | ENABLE_MECID | bit | 1 | Enable memory encryption |
-| ENABLE_UNIQUE | bit | 1 | Enable unique ID indicator |
+| ENABLE_UNIQUE | bit | 1 | Enable the unique ID indicator (AxIDUNQ, and BIDUNQ/RIDUNQ on the responses) |
 | ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
+| ENABLE_WAKEUP | bit | 1 | Enable AWAKEUP (IHI 0022L §A14.1.1); 0 ties the output low |
 | UNIT_ID | int | 1 | Monitoring unit identifier |
 | AGENT_ID | int | 13 | Agent identifier |
 | MAX_TRANSACTIONS | int | 16 | Transaction table size |
@@ -239,7 +240,7 @@ Identical to `axi5_slave_wr_mon` — see [AXI5 Slave Write Monitor](axi5_slave_w
 ### Clock Gating Behavior
 
 **Activity Detection:**
-- **user_valid:** Asserted when slave interface has activity (awvalid, wvalid, bvalid, internal busy, a monitor packet pending on the monitor bus, or monitor CAM entries still live — peer VALID, never peer READY)
+- **user_valid:** Asserted when slave interface has activity (AWAKEUP, awvalid, wvalid, bvalid, internal busy, a monitor packet pending on the monitor bus, or monitor CAM entries still live — peer VALID, never peer READY)
 - **axi_valid:** Asserted when FUB interface has activity (awvalid, wvalid, bvalid)
 
 **Key Points:**
@@ -327,15 +328,15 @@ axi5_slave_wr_mon_cg #(
     .s_axi_awqos           (s_axi_awqos),
     .s_axi_awuser          (s_axi_awuser),
     .s_axi_awvalid         (s_axi_awvalid),
+    .s_axi_awakeup         (s_axi_awakeup),
     .s_axi_awready         (s_axi_awready),
     .s_axi_awatop          (s_axi_awatop),
     .s_axi_awnsaid         (s_axi_awnsaid),
     .s_axi_awtrace         (s_axi_awtrace),
     .s_axi_awmpam          (s_axi_awmpam),
     .s_axi_awmecid         (s_axi_awmecid),
-    .s_axi_awunique        (s_axi_awunique),
+    .s_axi_awidunq        (s_axi_awidunq),
     .s_axi_awtagop         (s_axi_awtagop),
-    .s_axi_awtag           (s_axi_awtag),
     .s_axi_wdata           (s_axi_wdata),
     .s_axi_wstrb           (s_axi_wstrb),
     .s_axi_wlast           (s_axi_wlast),
@@ -351,7 +352,7 @@ axi5_slave_wr_mon_cg #(
     .s_axi_bvalid          (s_axi_bvalid),
     .s_axi_bready          (s_axi_bready),
     .s_axi_btrace          (s_axi_btrace),
-    .s_axi_btag            (s_axi_btag),
+    .s_axi_bidunq          (s_axi_bidunq),
     .s_axi_btagmatch       (s_axi_btagmatch),
     .fub_axi_awid          (fub_axi_awid),
     .fub_axi_awaddr        (fub_axi_awaddr),
@@ -364,15 +365,15 @@ axi5_slave_wr_mon_cg #(
     .fub_axi_awqos         (fub_axi_awqos),
     .fub_axi_awuser        (fub_axi_awuser),
     .fub_axi_awvalid       (fub_axi_awvalid),
+    .fub_axi_awakeup       (fub_axi_awakeup),
     .fub_axi_awready       (fub_axi_awready),
     .fub_axi_awatop        (fub_axi_awatop),
     .fub_axi_awnsaid       (fub_axi_awnsaid),
     .fub_axi_awtrace       (fub_axi_awtrace),
     .fub_axi_awmpam        (fub_axi_awmpam),
     .fub_axi_awmecid       (fub_axi_awmecid),
-    .fub_axi_awunique      (fub_axi_awunique),
+    .fub_axi_awidunq      (fub_axi_awidunq),
     .fub_axi_awtagop       (fub_axi_awtagop),
-    .fub_axi_awtag         (fub_axi_awtag),
     .fub_axi_wdata         (fub_axi_wdata),
     .fub_axi_wstrb         (fub_axi_wstrb),
     .fub_axi_wlast         (fub_axi_wlast),
@@ -388,7 +389,7 @@ axi5_slave_wr_mon_cg #(
     .fub_axi_bvalid        (fub_axi_bvalid),
     .fub_axi_bready        (fub_axi_bready),
     .fub_axi_btrace        (fub_axi_btrace),
-    .fub_axi_btag          (fub_axi_btag),
+    .fub_axi_bidunq        (fub_axi_bidunq),
     .fub_axi_btagmatch     (fub_axi_btagmatch),
     .cfg_monitor_enable    (cfg_monitor_enable),
     .cfg_error_enable      (cfg_error_enable),
@@ -581,7 +582,7 @@ pytest val/amba/test_axi5_slave_wr_mon_cg.py -v
 - Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A3.3.1 "Write response" and §A3.3.2 "Read response" (the SLVERR/DECERR codes the monitor reports), §A5.1 "Transaction identifiers" and §A5.3 "Request ordering" (per-ID tracking of outstanding transactions), §A2.3.2 "Dependencies between channel handshake signals" (the orderings a monitor timeout watches); the AXI5 payload is carried as on the base module.
 - Benini, L., De Micheli, G. "Automatic Synthesis of Low-Power Gated-Clock Finite-State Machines." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 15(6), June 1996. DOI: [10.1109/43.503933](https://doi.org/10.1109/43.503933) -- the latch-based clock-gating cell (`icg`, via `amba_clock_gate_ctrl` and `clock_gate_ctrl`) that gates this wrapper's clock.
 - Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Trans. VLSI Systems*, 8(3), June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) -- fixed-timeout shutdown: gate after `cfg_cg_idle_count` idle cycles, wake on activity.
-- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A14.1.1 "AWAKEUP rules and recommendations" in Issue L (§E1.7 "Wake-up Signaling" in Issue H) defines AWAKEUP, which lets a manager restart a gated interface before VALID. This wrapper does not use it: it wakes on the flopped OR of the VALIDs and holds READY low while gated.
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A14.1.1 "AWAKEUP rules and recommendations" in Issue L (§E1.7 "Wake-up Signaling" in Issue H) defines AWAKEUP, which lets a manager restart a gated interface before VALID. This wrapper counts AWAKEUP as an activity term (behind `ENABLE_WAKEUP`), so a manager that raises it a cycle ahead of VALID, as §A14.1.1 recommends, finds the clock running and its first request is accepted on the cycle it is presented; a manager that never drives it still wakes the block through the flopped OR of the VALIDs, with READY held low while gated (GitHub #102).
 - The monitor's own techniques are cited on the [AXI Monitor Base](../monitor/axi_monitor_base.md) page and in the monitor family of the archive.
 - Indexed in `rtl/amba/references/README.md` (local PDF, archived under `rtl/common/references/`: `LatchBasedClockGating__Benini1996.pdf`, `DynamicPowerManagementTimeout__Benini2000.pdf`)
 

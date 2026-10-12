@@ -97,27 +97,19 @@ module cfg_adapter
     input  logic                  cfg_axil_rvalid,
     output logic                  cfg_axil_rready,
     // AXI5-Lite sideband
-    output logic cfg_axil_awlock,
+    output logic [3:0] cfg_axil_awid,
     output logic cfg_axil_awuser,
-    output logic cfg_axil_awloop,
-    output logic [10:0] cfg_axil_awmpam,
-    output logic [15:0] cfg_axil_awmecid,
-    output logic [3:0] cfg_axil_awnsaid,
     output logic cfg_axil_awtrace,
     output logic cfg_axil_wuser,
     output logic cfg_axil_wpoison,
+    input  logic [3:0] cfg_axil_bid,
     input  logic cfg_axil_buser,
-    input  logic cfg_axil_bloop,
     input  logic cfg_axil_btrace,
-    output logic cfg_axil_arlock,
+    output logic [3:0] cfg_axil_arid,
     output logic cfg_axil_aruser,
-    output logic cfg_axil_arloop,
-    output logic [10:0] cfg_axil_armpam,
-    output logic [15:0] cfg_axil_armecid,
-    output logic [3:0] cfg_axil_arnsaid,
     output logic cfg_axil_artrace,
+    input  logic [3:0] cfg_axil_rid,
     input  logic cfg_axil_ruser,
-    input  logic cfg_axil_rloop,
     input  logic cfg_axil_rtrace,
     input  logic cfg_axil_rpoison
 );
@@ -308,13 +300,8 @@ module cfg_adapter
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1),
-        .ENABLE_LOCK(1),
         .ENABLE_USER(1),
-        .USER_WIDTH(1),
-        .LOOP_WIDTH(1),
-        .MPAM_WIDTH(11),
-        .MECID_WIDTH(16),
-        .NSAID_WIDTH(4)
+        .USER_WIDTH(1)
     ) u_cfg_axil_converter_wr (
         // Clocks and resets
         .aclk(aclk),
@@ -360,17 +347,13 @@ module cfg_adapter
         .m_axil_bready(cfg_axil_bready),
 
         // AXI5-Lite write sideband (to external slave)
-        .m_axil_awlock(cfg_axil_awlock),
+        .m_axil_awid(cfg_axil_awid),
         .m_axil_awuser(cfg_axil_awuser),
-        .m_axil_awloop(cfg_axil_awloop),
-        .m_axil_awmpam(cfg_axil_awmpam),
-        .m_axil_awmecid(cfg_axil_awmecid),
-        .m_axil_awnsaid(cfg_axil_awnsaid),
         .m_axil_awtrace(cfg_axil_awtrace),
         .m_axil_wuser(cfg_axil_wuser),
         .m_axil_wpoison(cfg_axil_wpoison),
+        .m_axil_bid(cfg_axil_bid),
         .m_axil_buser(cfg_axil_buser),
-        .m_axil_bloop(cfg_axil_bloop),
         .m_axil_btrace(cfg_axil_btrace)
     );
 
@@ -379,13 +362,8 @@ module cfg_adapter
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1),
-        .ENABLE_LOCK(1),
         .ENABLE_USER(1),
-        .USER_WIDTH(1),
-        .LOOP_WIDTH(1),
-        .MPAM_WIDTH(11),
-        .MECID_WIDTH(16),
-        .NSAID_WIDTH(4)
+        .USER_WIDTH(1)
     ) u_cfg_axil_converter_rd (
         // Clocks and resets
         .aclk(aclk),
@@ -424,15 +402,11 @@ module cfg_adapter
         .m_axil_rready(cfg_axil_rready),
 
         // AXI5-Lite read sideband (to external slave)
-        .m_axil_arlock(cfg_axil_arlock),
+        .m_axil_arid(cfg_axil_arid),
         .m_axil_aruser(cfg_axil_aruser),
-        .m_axil_arloop(cfg_axil_arloop),
-        .m_axil_armpam(cfg_axil_armpam),
-        .m_axil_armecid(cfg_axil_armecid),
-        .m_axil_arnsaid(cfg_axil_arnsaid),
         .m_axil_artrace(cfg_axil_artrace),
+        .m_axil_rid(cfg_axil_rid),
         .m_axil_ruser(cfg_axil_ruser),
-        .m_axil_rloop(cfg_axil_rloop),
         .m_axil_rtrace(cfg_axil_rtrace),
         .m_axil_rpoison(cfg_axil_rpoison)
     );

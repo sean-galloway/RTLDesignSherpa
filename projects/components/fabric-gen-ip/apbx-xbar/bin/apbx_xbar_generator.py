@@ -40,6 +40,41 @@ import sys
 from pathlib import Path
 
 
+def _wake_forward(s, m5, enable_parity):
+    """PWAKEUP toward APB5 completer port s (IHI 0024E 3.7.2, Table 3-7).
+
+    PWAKEUP is a Requester output, so on this port the crossbar is the
+    Requester and must drive it. Two sources are OR'd:
+
+      - the boundary apb5_master's own registered PWAKEUP, high whenever a
+        command is pending or a transfer is in flight to this completer --
+        so a completer that waits for PWAKEUP before PREADY (permitted by
+        3.7.2) can never deadlock, whatever the source requester's version
+        (an APB4 requester has no PWAKEUP at all);
+      - every APB5 requester's PWAKEUP input. Every requester can address
+        every completer (one uniform address map), so "any requester that
+        can address this completer" is all of them. The address is not
+        known before PSEL, and 3.7.2 recommends PWAKEUP lead PSEL, so the
+        wake cannot be routed by decode without losing that lead.
+
+    3.7.2 requires PWAKEUP to be glitch-free and names "a glitch-free OR
+    tree" as a valid construction; both terms are flop outputs or
+    Requester PWAKEUPs that are themselves required to be glitch-free.
+    PWAKEUPCHK (Table 5-1, odd parity on one bit) is the inversion of the
+    OR, recomputed here because the IP's own check covers only its term.
+    """
+    terms = [f"w_s{s}_ip_pwakeup"] + [f"m{m}_apb_PWAKEUP" for m, v in enumerate(m5) if v]
+    code = f"    // PWAKEUP to APB5 completer {s} (IHI 0024E 3.7.2): the boundary IP's\n"
+    code += f"    // pending/in-flight wake OR'd with every APB5 requester's PWAKEUP.\n"
+    code += f"    // A glitch-free OR tree of flop outputs and glitch-free inputs.\n"
+    code += f"    assign s{s}_apb_PWAKEUP = {' | '.join(terms)};\n"
+    if enable_parity:
+        code += f"    // PWAKEUPCHK: odd parity over one bit is the inversion (Table 5-1)\n"
+        code += f"    assign s{s}_apb_PWAKEUPCHK = ~s{s}_apb_PWAKEUP;\n"
+    code += "\n"
+    return code
+
+
 def generate_apbx_xbar(num_masters, num_slaves, base_addr=0x10000000,
                       addr_width=32, data_width=32, output_file=None, slave_size=0x1000,
                       master_versions=None, slave_versions=None, name_suffix="",
@@ -56,8 +91,10 @@ def generate_apbx_xbar(num_masters, num_slaves, base_addr=0x10000000,
         output_file: Output filename (default apbx_xbar_MtoN.sv)
         slave_size: Address space per slave (default 0x1000 = 4KB)
                     Common values: 0x1000 (4KB), 0x10000 (64KB)
-        enable_parity: Carry APB5 parity on APB5 ports (APBX-003).
-                    A generated variant CHECKS parity at the
+        enable_parity: Carry APB5 interface parity on APB5 ports (APBX-003),
+                    the IHI 0024E chapter 5 *CHK signals: odd parity,
+                    one check bit per 8 bits of the covered signal
+                    (Table 5-1). A generated variant CHECKS parity at the
                     boundary and REGENERATES it on the far side -- the
                     boundary IP deconstructs the transfer into cmd/rsp
                     and the parity bits do not cross that interface.
@@ -181,18 +218,29 @@ module {module_name} #(
             code += f"    // APB5 sideband (master {m} is apb5)\n"
             code += f"    input  logic                  m{m}_apb_PAUSER,\n"
             code += f"    input  logic                  m{m}_apb_PWUSER,\n"
-            code += f"    output logic                  m{m}_apb_PWAKEUP,\n"
+            code += f"    // PWAKEUP is Requester-driven (IHI 0024E 3.7.2, Table 3-7):\n"
+            code += f"    // an input here, forwarded to every APB5 completer port.\n"
+            code += f"    input  logic                  m{m}_apb_PWAKEUP,\n"
             code += f"    output logic                  m{m}_apb_PRUSER,\n"
             code += f"    output logic                  m{m}_apb_PBUSER"
             if enable_parity:
                 code += ",\n"
-                code += f"    // APB5 parity (checked here, regenerated on the far side)\n"
-                code += f"    input  logic [STRB_WIDTH-1:0] m{m}_apb_PWDATAPARITY,\n"
-                code += f"    input  logic                  m{m}_apb_PADDRPARITY,\n"
-                code += f"    input  logic                  m{m}_apb_PCTRLPARITY,\n"
-                code += f"    output logic [STRB_WIDTH-1:0] m{m}_apb_PRDATAPARITY,\n"
-                code += f"    output logic                  m{m}_apb_PREADYPARITY,\n"
-                code += f"    output logic                  m{m}_apb_PSLVERRPARITY,\n"
+                code += f"    // APB5 parity, IHI 0024E ch. 5 (odd; checked here,\n"
+                code += f"    // regenerated on the far side)\n"
+                code += f"    input  logic [(ADDR_WIDTH+7)/8-1:0] m{m}_apb_PADDRCHK,\n"
+                code += f"    input  logic                  m{m}_apb_PCTRLCHK,\n"
+                code += f"    input  logic                  m{m}_apb_PSELCHK,\n"
+                code += f"    input  logic                  m{m}_apb_PENABLECHK,\n"
+                code += f"    input  logic [STRB_WIDTH-1:0] m{m}_apb_PWDATACHK,\n"
+                code += f"    input  logic                  m{m}_apb_PSTRBCHK,\n"
+                code += f"    input  logic                  m{m}_apb_PAUSERCHK,\n"
+                code += f"    input  logic                  m{m}_apb_PWUSERCHK,\n"
+                code += f"    input  logic                  m{m}_apb_PWAKEUPCHK,\n"
+                code += f"    output logic [STRB_WIDTH-1:0] m{m}_apb_PRDATACHK,\n"
+                code += f"    output logic                  m{m}_apb_PREADYCHK,\n"
+                code += f"    output logic                  m{m}_apb_PSLVERRCHK,\n"
+                code += f"    output logic                  m{m}_apb_PRUSERCHK,\n"
+                code += f"    output logic                  m{m}_apb_PBUSERCHK,\n"
                 code += f"    // Per-port fault report. Deliberately NOT folded into\n"
                 code += f"    // PSLVERR: that would make a fabric fault look like the\n"
                 code += f"    // slave's own error response, which is the distinction\n"
@@ -219,18 +267,29 @@ module {module_name} #(
             code += f"    // APB5 sideband (slave {s} is apb5)\n"
             code += f"    output logic                  s{s}_apb_PAUSER,\n"
             code += f"    output logic                  s{s}_apb_PWUSER,\n"
-            code += f"    input  logic                  s{s}_apb_PWAKEUP,\n"
+            code += f"    // PWAKEUP driven toward the completer: the boundary IP's own\n"
+            code += f"    // wake OR'd with every APB5 requester's PWAKEUP (3.7.2).\n"
+            code += f"    output logic                  s{s}_apb_PWAKEUP,\n"
             code += f"    input  logic                  s{s}_apb_PRUSER,\n"
             code += f"    input  logic                  s{s}_apb_PBUSER"
             if enable_parity:
                 code += ",\n"
-                code += f"    // APB5 parity (regenerated here from the cmd/rsp path)\n"
-                code += f"    output logic [STRB_WIDTH-1:0] s{s}_apb_PWDATAPARITY,\n"
-                code += f"    output logic                  s{s}_apb_PADDRPARITY,\n"
-                code += f"    output logic                  s{s}_apb_PCTRLPARITY,\n"
-                code += f"    input  logic [STRB_WIDTH-1:0] s{s}_apb_PRDATAPARITY,\n"
-                code += f"    input  logic                  s{s}_apb_PREADYPARITY,\n"
-                code += f"    input  logic                  s{s}_apb_PSLVERRPARITY,\n"
+                code += f"    // APB5 parity, IHI 0024E ch. 5 (odd; regenerated here\n"
+                code += f"    // from the cmd/rsp path, completer responses checked)\n"
+                code += f"    output logic [(ADDR_WIDTH+7)/8-1:0] s{s}_apb_PADDRCHK,\n"
+                code += f"    output logic                  s{s}_apb_PCTRLCHK,\n"
+                code += f"    output logic                  s{s}_apb_PSELCHK,\n"
+                code += f"    output logic                  s{s}_apb_PENABLECHK,\n"
+                code += f"    output logic [STRB_WIDTH-1:0] s{s}_apb_PWDATACHK,\n"
+                code += f"    output logic                  s{s}_apb_PSTRBCHK,\n"
+                code += f"    output logic                  s{s}_apb_PAUSERCHK,\n"
+                code += f"    output logic                  s{s}_apb_PWUSERCHK,\n"
+                code += f"    output logic                  s{s}_apb_PWAKEUPCHK,\n"
+                code += f"    input  logic [STRB_WIDTH-1:0] s{s}_apb_PRDATACHK,\n"
+                code += f"    input  logic                  s{s}_apb_PREADYCHK,\n"
+                code += f"    input  logic                  s{s}_apb_PSLVERRCHK,\n"
+                code += f"    input  logic                  s{s}_apb_PRUSERCHK,\n"
+                code += f"    input  logic                  s{s}_apb_PBUSERCHK,\n"
                 code += f"    output logic                  s{s}_parity_error_rdata,\n"
                 code += f"    output logic                  s{s}_parity_error_ctrl"
         code += ",\n\n" if s < N-1 else "\n"
@@ -320,6 +379,7 @@ module {module_name} #(
             code += f"    logic                  s{s}_cmd_pwuser;\n"
             code += f"    logic                  s{s}_rsp_pruser;\n"
             code += f"    logic                  s{s}_rsp_pbuser;\n"
+            code += f"    logic                  w_s{s}_ip_pwakeup;  // boundary apb5_master's own PWAKEUP\n"
     code += "\n"
 
     # Instantiate apb4_slave / apb5_slave modules for each master
@@ -380,26 +440,40 @@ module {module_name} #(
             code += f"        .rsp_pbuser     (m{m}_rsp_pbuser),\n"
             if enable_parity:
                 code += f"        // parity checked here; regenerated on the far side\n"
-                code += f"        .s_apb_PWDATAPARITY (m{m}_apb_PWDATAPARITY),\n"
-                code += f"        .s_apb_PADDRPARITY  (m{m}_apb_PADDRPARITY),\n"
-                code += f"        .s_apb_PCTRLPARITY  (m{m}_apb_PCTRLPARITY),\n"
-                code += f"        .s_apb_PRDATAPARITY (m{m}_apb_PRDATAPARITY),\n"
-                code += f"        .s_apb_PREADYPARITY (m{m}_apb_PREADYPARITY),\n"
-                code += f"        .s_apb_PSLVERRPARITY(m{m}_apb_PSLVERRPARITY),\n"
+                code += f"        .s_apb_PADDRCHK     (m{m}_apb_PADDRCHK),\n"
+                code += f"        .s_apb_PCTRLCHK     (m{m}_apb_PCTRLCHK),\n"
+                code += f"        .s_apb_PSELCHK      (m{m}_apb_PSELCHK),\n"
+                code += f"        .s_apb_PENABLECHK   (m{m}_apb_PENABLECHK),\n"
+                code += f"        .s_apb_PWDATACHK    (m{m}_apb_PWDATACHK),\n"
+                code += f"        .s_apb_PSTRBCHK     (m{m}_apb_PSTRBCHK),\n"
+                code += f"        .s_apb_PAUSERCHK    (m{m}_apb_PAUSERCHK),\n"
+                code += f"        .s_apb_PWUSERCHK    (m{m}_apb_PWUSERCHK),\n"
+                code += f"        .s_apb_PWAKEUPCHK   (m{m}_apb_PWAKEUPCHK),\n"
+                code += f"        .s_apb_PRDATACHK    (m{m}_apb_PRDATACHK),\n"
+                code += f"        .s_apb_PREADYCHK    (m{m}_apb_PREADYCHK),\n"
+                code += f"        .s_apb_PSLVERRCHK   (m{m}_apb_PSLVERRCHK),\n"
+                code += f"        .s_apb_PRUSERCHK    (m{m}_apb_PRUSERCHK),\n"
+                code += f"        .s_apb_PBUSERCHK    (m{m}_apb_PBUSERCHK),\n"
                 code += f"        .parity_error_wdata (m{m}_parity_error_wdata),\n"
-                code += f"        .parity_error_ctrl  (m{m}_parity_error_ctrl),\n"
+                code += f"        .parity_error_ctrl  (m{m}_parity_error_ctrl)\n"
             else:
                 code += f"        // parity feature unused (ENABLE_PARITY=0)\n"
-                code += f"        .s_apb_PWDATAPARITY ('0),\n"
-                code += f"        .s_apb_PADDRPARITY  ('0),\n"
-                code += f"        .s_apb_PCTRLPARITY  ('0),\n"
-                code += f"        .s_apb_PRDATAPARITY (),\n"
-                code += f"        .s_apb_PREADYPARITY (),\n"
-                code += f"        .s_apb_PSLVERRPARITY(),\n"
+                code += f"        .s_apb_PADDRCHK     ('0),\n"
+                code += f"        .s_apb_PCTRLCHK     (1'b0),\n"
+                code += f"        .s_apb_PSELCHK      (1'b0),\n"
+                code += f"        .s_apb_PENABLECHK   (1'b0),\n"
+                code += f"        .s_apb_PWDATACHK    ('0),\n"
+                code += f"        .s_apb_PSTRBCHK     (1'b0),\n"
+                code += f"        .s_apb_PAUSERCHK    ('0),\n"
+                code += f"        .s_apb_PWUSERCHK    ('0),\n"
+                code += f"        .s_apb_PWAKEUPCHK   (1'b0),\n"
+                code += f"        .s_apb_PRDATACHK    (),\n"
+                code += f"        .s_apb_PREADYCHK    (),\n"
+                code += f"        .s_apb_PSLVERRCHK   (),\n"
+                code += f"        .s_apb_PRUSERCHK    (),\n"
+                code += f"        .s_apb_PBUSERCHK    (),\n"
                 code += f"        .parity_error_wdata (),\n"
-                code += f"        .parity_error_ctrl  (),\n"
-            code += f"        // wakeup handled inside the boundary IP\n"
-            code += f"        .wakeup_request     ('0)\n"
+                code += f"        .parity_error_ctrl  ()\n"
         else:
             code += f"        .rsp_pslverr    (m{m}_rsp_pslverr)\n"
         code += f"    );\n\n"
@@ -781,40 +855,56 @@ module {module_name} #(
             code += f"        .rsp_pslverr    (s{s}_rsp_pslverr),\n"
             code += f"        .m_apb_PAUSER   (s{s}_apb_PAUSER),\n"
             code += f"        .m_apb_PWUSER   (s{s}_apb_PWUSER),\n"
-            code += f"        .m_apb_PWAKEUP  (s{s}_apb_PWAKEUP),\n"
+            code += f"        .m_apb_PWAKEUP  (w_s{s}_ip_pwakeup),\n"
             code += f"        .m_apb_PRUSER   (s{s}_apb_PRUSER),\n"
             code += f"        .m_apb_PBUSER   (s{s}_apb_PBUSER),\n"
             code += f"        .cmd_pauser     (s{s}_cmd_pauser),\n"
             code += f"        .cmd_pwuser     (s{s}_cmd_pwuser),\n"
-            # rsp_pwakeup is regenerated by the master-side apb5_slave's
-            # own wakeup logic; the completer's PWAKEUP terminates here.
-            code += f"        .rsp_pwakeup    (),\n"
             code += f"        .rsp_pruser     (s{s}_rsp_pruser),\n"
             code += f"        .rsp_pbuser     (s{s}_rsp_pbuser),\n"
             if enable_parity:
-                code += f"        // parity regenerated here from the cmd/rsp path\n"
-                code += f"        .m_apb_PWDATAPARITY (s{s}_apb_PWDATAPARITY),\n"
-                code += f"        .m_apb_PADDRPARITY  (s{s}_apb_PADDRPARITY),\n"
-                code += f"        .m_apb_PCTRLPARITY  (s{s}_apb_PCTRLPARITY),\n"
-                code += f"        .m_apb_PRDATAPARITY (s{s}_apb_PRDATAPARITY),\n"
-                code += f"        .m_apb_PREADYPARITY (s{s}_apb_PREADYPARITY),\n"
-                code += f"        .m_apb_PSLVERRPARITY(s{s}_apb_PSLVERRPARITY),\n"
+                code += f"        // parity regenerated here from the cmd/rsp path. The\n"
+                code += f"        // IP's PWAKEUPCHK covers only its own wake term, so the\n"
+                code += f"        // port's PWAKEUPCHK is recomputed below over the OR.\n"
+                code += f"        .m_apb_PADDRCHK     (s{s}_apb_PADDRCHK),\n"
+                code += f"        .m_apb_PCTRLCHK     (s{s}_apb_PCTRLCHK),\n"
+                code += f"        .m_apb_PSELCHK      (s{s}_apb_PSELCHK),\n"
+                code += f"        .m_apb_PENABLECHK   (s{s}_apb_PENABLECHK),\n"
+                code += f"        .m_apb_PWDATACHK    (s{s}_apb_PWDATACHK),\n"
+                code += f"        .m_apb_PSTRBCHK     (s{s}_apb_PSTRBCHK),\n"
+                code += f"        .m_apb_PAUSERCHK    (s{s}_apb_PAUSERCHK),\n"
+                code += f"        .m_apb_PWUSERCHK    (s{s}_apb_PWUSERCHK),\n"
+                code += f"        .m_apb_PWAKEUPCHK   (),\n"
+                code += f"        .m_apb_PRDATACHK    (s{s}_apb_PRDATACHK),\n"
+                code += f"        .m_apb_PREADYCHK    (s{s}_apb_PREADYCHK),\n"
+                code += f"        .m_apb_PSLVERRCHK   (s{s}_apb_PSLVERRCHK),\n"
+                code += f"        .m_apb_PRUSERCHK    (s{s}_apb_PRUSERCHK),\n"
+                code += f"        .m_apb_PBUSERCHK    (s{s}_apb_PBUSERCHK),\n"
                 code += f"        .parity_error_rdata (s{s}_parity_error_rdata),\n"
-                code += f"        .parity_error_ctrl  (s{s}_parity_error_ctrl),\n"
+                code += f"        .parity_error_ctrl  (s{s}_parity_error_ctrl)\n"
             else:
                 code += f"        // parity feature unused (ENABLE_PARITY=0)\n"
-                code += f"        .m_apb_PWDATAPARITY (),\n"
-                code += f"        .m_apb_PADDRPARITY  (),\n"
-                code += f"        .m_apb_PCTRLPARITY  (),\n"
-                code += f"        .m_apb_PRDATAPARITY ('0),\n"
-                code += f"        .m_apb_PREADYPARITY ('0),\n"
-                code += f"        .m_apb_PSLVERRPARITY('0),\n"
+                code += f"        .m_apb_PADDRCHK     (),\n"
+                code += f"        .m_apb_PCTRLCHK     (),\n"
+                code += f"        .m_apb_PSELCHK      (),\n"
+                code += f"        .m_apb_PENABLECHK   (),\n"
+                code += f"        .m_apb_PWDATACHK    (),\n"
+                code += f"        .m_apb_PSTRBCHK     (),\n"
+                code += f"        .m_apb_PAUSERCHK    (),\n"
+                code += f"        .m_apb_PWUSERCHK    (),\n"
+                code += f"        .m_apb_PWAKEUPCHK   (),\n"
+                code += f"        .m_apb_PRDATACHK    ('0),\n"
+                code += f"        .m_apb_PREADYCHK    (1'b0),\n"
+                code += f"        .m_apb_PSLVERRCHK   (1'b0),\n"
+                code += f"        .m_apb_PRUSERCHK    ('0),\n"
+                code += f"        .m_apb_PBUSERCHK    ('0),\n"
                 code += f"        .parity_error_rdata (),\n"
-                code += f"        .parity_error_ctrl  (),\n"
-            code += f"        .wakeup_pending     ()\n"
+                code += f"        .parity_error_ctrl  ()\n"
         else:
             code += f"        .rsp_pslverr    (s{s}_rsp_pslverr)\n"
         code += f"    );\n\n"
+        if s5[s]:
+            code += _wake_forward(s, m5, enable_parity)
 
     code += f"endmodule : {module_name}\n"
 

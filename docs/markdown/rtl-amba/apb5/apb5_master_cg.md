@@ -110,7 +110,7 @@ total is needed, count `cg_gating` in the integrating logic on the
 ungated `pclk`.
 
 All ports of [apb5_master](apb5_master.md) -- including the parity signals,
-`parity_error_rdata`, `parity_error_ctrl` and `wakeup_pending` -- are present
+`m_apb_PWAKEUP`, `parity_error_rdata` and `parity_error_ctrl` -- are present
 unchanged and pass straight through to the wrapped core.
 
 ### APB5 Master Interface
@@ -129,7 +129,7 @@ unchanged and pass straight through to the wrapped core.
 | m_apb_PRDATA | DW | Input | Read data from slave |
 | m_apb_PSLVERR | 1 | Input | Slave error response |
 | m_apb_PREADY | 1 | Input | Slave ready |
-| m_apb_PWAKEUP | 1 | Input | Wake-up signal from slave |
+| m_apb_PWAKEUP | 1 | Output | Requester wake-up (IHI 0024E §3.7.2), driven by the wrapped master |
 | m_apb_PRUSER | RUW | Input | User-defined read data attributes |
 | m_apb_PBUSER | BUW | Input | User-defined response attributes |
 
@@ -137,12 +137,20 @@ unchanged and pass straight through to the wrapped core.
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
-| m_apb_PWDATAPARITY | SW | Output | Write data parity (per byte) |
-| m_apb_PADDRPARITY | 1 | Output | Address parity |
-| m_apb_PCTRLPARITY | 1 | Output | Control signals parity |
-| m_apb_PRDATAPARITY | SW | Input | Read data parity from slave |
-| m_apb_PREADYPARITY | 1 | Input | PREADY parity from slave |
-| m_apb_PSLVERRPARITY | 1 | Input | PSLVERR parity from slave |
+| m_apb_PADDRCHK | ceil(ADDR_WIDTH/8) | Output | Odd parity over PADDR, one bit per 8 bits |
+| m_apb_PCTRLCHK | 1 | Output | Odd parity over PPROT and PWRITE (PNSE not carried) |
+| m_apb_PSELCHK | 1 | Output | Odd parity over PSEL (the spec's PSELxCHK) |
+| m_apb_PENABLECHK | 1 | Output | Odd parity over PENABLE |
+| m_apb_PWDATACHK | DATA_WIDTH/8 | Output | Odd parity over PWDATA, one bit per byte lane |
+| m_apb_PSTRBCHK | 1 | Output | Odd parity over all of PSTRB |
+| m_apb_PAUSERCHK | ceil(AUSER_WIDTH/8) | Output | Odd parity over PAUSER, one bit per 8 bits |
+| m_apb_PWUSERCHK | ceil(WUSER_WIDTH/8) | Output | Odd parity over PWUSER, one bit per 8 bits |
+| m_apb_PRDATACHK | DATA_WIDTH/8 | Input | Odd parity over PRDATA, one bit per byte lane |
+| m_apb_PREADYCHK | 1 | Input | Odd parity over PREADY |
+| m_apb_PSLVERRCHK | 1 | Input | Odd parity over PSLVERR |
+| m_apb_PWAKEUPCHK | 1 | Output | Odd parity over PWAKEUP |
+| m_apb_PRUSERCHK | ceil(RUSER_WIDTH/8) | Input | Odd parity over PRUSER, one bit per 8 bits |
+| m_apb_PBUSERCHK | ceil(BUSER_WIDTH/8) | Input | Odd parity over PBUSER, one bit per 8 bits |
 
 ### Command Interface
 
@@ -166,7 +174,6 @@ unchanged and pass straight through to the wrapped core.
 | rsp_ready | 1 | Input | Response ready |
 | rsp_prdata | DW | Output | Response read data |
 | rsp_pslverr | 1 | Output | Response error status |
-| rsp_pwakeup | 1 | Output | Response wake-up indicator |
 | rsp_pruser | RUW | Output | Response read user attributes |
 | rsp_pbuser | BUW | Output | Response user attributes |
 
@@ -174,9 +181,8 @@ unchanged and pass straight through to the wrapped core.
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
-| parity_error_rdata | 1 | Output | Read-data parity mismatch (tied to 0 when ENABLE_PARITY=0) |
-| parity_error_ctrl | 1 | Output | PREADY/PSLVERR parity mismatch (tied to 0 when ENABLE_PARITY=0) |
-| wakeup_pending | 1 | Output | Sticky flag: PWAKEUP was seen and no transaction has started since |
+| parity_error_rdata | 1 | Output | PRDATACHK or PRUSERCHK mismatch on a read completion (tied to 0 when ENABLE_PARITY=0) |
+| parity_error_ctrl | 1 | Output | PREADYCHK, PSLVERRCHK or PBUSERCHK mismatch (tied to 0 when ENABLE_PARITY=0) |
 
 ---
 
@@ -240,6 +246,10 @@ The wrapper keeps the clock running whenever any of the following is high:
 ```
 cmd_valid || rsp_valid || m_apb_PSEL || m_apb_PENABLE || m_apb_PWAKEUP
 ```
+
+`m_apb_PWAKEUP` is this master's own Requester wake-up output (IHI 0024E
+§3.7.2). It covers a command still queued in the command skid after the fub
+handshake, which no other term sees. None of the terms is a peer READY.
 
 That term is registered into `r_wakeup` on the ungated `pclk`, and
 `amba_clock_gate_ctrl` registers it once more before it reaches the gating

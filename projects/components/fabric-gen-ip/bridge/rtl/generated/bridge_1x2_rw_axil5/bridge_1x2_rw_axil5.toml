@@ -5,11 +5,12 @@
 # boundary -- the same last-mile pattern as "axil" and "apb5", with the
 # AXI5-Lite sideband added.
 #
-# axi5_features names which optional groups are LIVE. Only "user" and
-# "exclusive" can be: they have an AXI4 source to forward. The remaining
-# AXI5-Lite sideband is exposed on the boundary and tied to zero, because
-# a port whose shape changes with a config knob cannot be wired to a fixed
-# external slave.
+# axi5_features names which optional groups are LIVE. Only "user" can be:
+# it has an AXI4 source to forward. TRACE and POISON are exposed on the
+# boundary and tied to zero, because a port whose shape changes with a config
+# knob cannot be wired to a fixed external slave. AXI5-Lite has no AxLOCK,
+# so there is no "exclusive" (IHI 0022L B2.1.5, GitHub #102 item 3); it does
+# have AWID/BID/ARID/RID, carried at the fabric ID width.
 #
 # Connectivity comes from bridge_1x2_rw_axil5_connectivity.csv.
 
@@ -45,10 +46,10 @@ name = "cfg"
 prefix = "cfg_axil_"
 protocol = "axil5"
 channels = "rw"
-id_width = 0            # AXI5-Lite has no transaction IDs
+id_width = 0            # unused: the port's AWID/ARID width is the fabric ID width
 addr_width = 32
 data_width = 32
 user_width = 1
-axi5_features = ["user", "exclusive"]
+axi5_features = ["user"]
 base_addr = "0x80000000"
 addr_range = "0x80000000"

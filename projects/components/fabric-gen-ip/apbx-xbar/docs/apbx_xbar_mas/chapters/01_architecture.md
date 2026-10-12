@@ -187,6 +187,12 @@ Parity is carried only between two APB5 ports. A **mixed pairing ignores
 parity entirely**, gated by the same `MST_APB5`/`SLV_APB5` masks as the
 rest of the APB5 sideband — there is no separate policy knob.
 
+The parity pins are the AMBA APB (IHI 0024E) chapter 5 `*CHK` signals:
+`PADDRCHK`, `PCTRLCHK`, `PSELCHK`, `PENABLECHK`, `PWDATACHK`, `PSTRBCHK`,
+`PAUSERCHK`, `PWUSERCHK`, `PWAKEUPCHK`, `PRDATACHK`, `PREADYCHK`,
+`PSLVERRCHK`, `PRUSERCHK` and `PBUSERCHK`. Parity is odd, with one check bit
+per 8 bits of the covered signal (Table 5-1).
+
 On an APB5→APB5 path the fabric **checks and regenerates**, and its
 architecture leaves no alternative. The boundary IP deconstructs each
 transfer into cmd/rsp, and the parity bits do not cross that interface:
@@ -218,6 +224,33 @@ gate — a mixed pairing carries no parity at all here, so there is no
 parity property left to state. The generated variants are instantiated
 with `ENABLE_PARITY=0`, and the APB4-port never-sees-parity question the
 thin core answered does not arise when the port has no parity pins.
+Parity itself is covered in simulation by `test_apbx_xbar_parity.py`, which
+generates an all-APB5 2x2 variant with `enable_parity=True`.
+
+---
+
+## APB5 PWAKEUP Across the Fabric
+
+`PWAKEUP` is a Requester output (IHI 0024E section 3.7.2, Table 3-7). It is
+an input on an APB5 master port. On an APB5 slave port, where the fabric is
+the Requester, it is an output driven by:
+
+```
+s<j>_apb_PWAKEUP = <apb5_master boundary IP's registered wake>
+                 | m<i>_apb_PWAKEUP  (every APB5 master)
+```
+
+The boundary term is high while a command for that slave is pending or a
+transfer is in flight. It covers APB4 masters, which have no `PWAKEUP`, and
+it satisfies the 3.7.2 rule that `PWAKEUP` stays high until PREADY once it
+is high with PSEL. The master terms forward a requester's wake ahead of its
+PSEL. That forwarding is not routed by decode, because every master can reach
+every slave and the address is not known before PSEL. The OR is unregistered,
+and 3.7.2 names a glitch-free OR tree as a valid construction. The slave's
+side carries no wake back to any master. `formal/apbx_xbar/apbx_xbar_2to2_mixed/`
+proves the forwarding (`ap_pwakeup_forwarded`), the wake under every PSEL
+(`ap_pwakeup_covers_psel`) and the quiet reset state
+(`ap_pwakeup_not_fabricated`).
 
 ---
 

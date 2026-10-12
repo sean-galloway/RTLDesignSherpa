@@ -84,6 +84,20 @@ AWSNOOP_LEGAL = {AWSNOOP_CLEAN_UNIQUE, AWSNOOP_MAKE_UNIQUE,
                  AWSNOOP_WRITE_BACK, AWSNOOP_EVICT}
 ARSNOOP_LEGAL = {ARSNOOP_READ_SHARED, ARSNOOP_READ_UNIQUE}
 
+# amber_ace_top ties AxDOMAIN to Outer Shareable and AxBAR to "normal access,
+# respecting barriers" on both address channels (IHI 0022H D2.1.1-2, Table
+# D3-2 / D3-5; rationale in the RTL beside the ACE_DOMAIN localparam)
+ACE_DOMAIN_OUTER = 0b10
+ACE_BAR_NORMAL = 0b00
+
+# RRESP[3:2] = {IsShared, PassDirty} the manager model returns (Table D3-15).
+# ReadShared alternates IsShared with PassDirty LOW -- the only ReadShared
+# answers a MESI requester can honour (amber installs S for both). ReadUnique
+# alternates PassDirty with IsShared LOW (IsShared must be LOW, D3.2.1);
+# amber installs M, which carries dirty responsibility either way.
+RRESP_IS_SHARED = 0b1000
+RRESP_PASS_DIRTY = 0b0100
+
 # amber_ace_req_t (l1_pkg) on the coh_req sideband
 ACE_READ_SHARED, ACE_READ_UNIQUE, ACE_CLEAN_UNIQUE, ACE_MAKE_UNIQUE, \
     ACE_WRITE_BACK, ACE_EVICT = range(6)
@@ -125,6 +139,7 @@ class AmberAceTopTB(AmberCoreTB):
         self.w_log = []           # [{'beats': [...]}] per completed burst
         self.b_count = 0
         self.rack_count = 0
+        self.rresp_upper_sent = set()   # (snoop, RRESP[3:2]) pairs returned
         self.wack_count = 0
         self._open_wbs = []       # WriteBack AWs awaiting their W burst
         self._w_bursts_pending = []  # completed W bursts awaiting their AW
@@ -259,21 +274,35 @@ class AmberAceTopTB(AmberCoreTB):
         rid = int(f.get('id', 0))
         self.ar_log.append({'cyc': self.cyc, 'addr': addr,
                             'len': length, 'snoop': snoop})
+        self._score("AR: ARDOMAIN is Outer Shareable",
+                    int(f.get('domain', -1)), ACE_DOMAIN_OUTER)
+        self._score("AR: ARBAR is a normal access", int(f.get('bar', -1)),
+                    ACE_BAR_NORMAL)
         self._score("AR: line-aligned address", addr & (self.LINE_BYTES - 1),
                     0)
         self._score("AR: whole-line burst", length, self.FILL_BEATS)
         self._score("AR: snoop is a D2 read type", snoop in ARSNOOP_LEGAL,
                     True)
-        cocotb.start_soon(self._serve_read(rid, addr, length))
+        cocotb.start_soon(self._serve_read(rid, addr, length, snoop))
 
-    async def _serve_read(self, rid, addr, length):
+    def _coherence_resp(self, snoop):
+        """RRESP for this read: OKAY plus a legal {IsShared, PassDirty}
+        pair, alternating per read so both values of the bit reach amber."""
+        flip = len(self.ar_log) & 1
+        if snoop == ARSNOOP_READ_UNIQUE:
+            return RRESP_PASS_DIRTY if flip else 0
+        return RRESP_IS_SHARED if flip else 0
+
+    async def _serve_read(self, rid, addr, length, snoop):
+        resp = self._coherence_resp(snoop)
+        self.rresp_upper_sent.add((snoop, resp >> 2))
         packets = []
         for i in range(length):
             data = self.memory_model.read(addr + i * self.STRB_W,
                                           self.STRB_W)
             packets.append(self.r_master.create_packet(
                 id=rid, data=int.from_bytes(bytes(data), 'little'),
-                resp=0, last=1 if i == length - 1 else 0, user=0))
+                resp=resp, last=1 if i == length - 1 else 0, user=0))
         await self.r_master.send_burst(packets)
 
     def _on_aw_accept(self, packet):
@@ -289,6 +318,10 @@ class AmberAceTopTB(AmberCoreTB):
         self._score("AW: whole-line burst", length, self.FILL_BEATS)
         self._score("AW: snoop is a D2 write type", snoop in AWSNOOP_LEGAL,
                     True)
+        self._score("AW: AWDOMAIN is Outer Shareable",
+                    int(f.get('domain', -1)), ACE_DOMAIN_OUTER)
+        self._score("AW: AWBAR is a normal access", int(f.get('bar', -1)),
+                    ACE_BAR_NORMAL)
         if snoop == AWSNOOP_WRITE_BACK:
             # the W burst may already be complete (the transport's AW and
             # W skids are independent and the engine enters D_W the cycle
@@ -509,6 +542,18 @@ class AmberAceTopTB(AmberCoreTB):
         self._score("pins: one WACK per B", self.wack_count, self.b_count)
         # one RACK per AR burst
         self._score("pins: one RACK per AR", self.rack_count, len(self.ar_log))
+        # RRESP[3:2] coverage: with two or more reads of a class, the
+        # manager model returned both values of its coherence bit, and amber
+        # (whose install state ignores RRESP[3:2]) kept every scoreboard
+        # check above green across them
+        if len(rs_ars) >= 2:
+            self._score("pins: ReadShared answered with IsShared 0 and 1",
+                        {(ARSNOOP_READ_SHARED, 0b00), (ARSNOOP_READ_SHARED, 0b10)}
+                        <= self.rresp_upper_sent, True)
+        if len(ru_ars) >= 2:
+            self._score("pins: ReadUnique answered with PassDirty 0 and 1",
+                        {(ARSNOOP_READ_UNIQUE, 0b00), (ARSNOOP_READ_UNIQUE, 0b01)}
+                        <= self.rresp_upper_sent, True)
         # W bursts pair only with WriteBack AWs
         self._score("pins: one W burst per WriteBack",
                     len(self.w_log), len(wb_aws))

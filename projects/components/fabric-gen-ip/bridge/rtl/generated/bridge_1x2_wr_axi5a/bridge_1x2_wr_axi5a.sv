@@ -36,6 +36,7 @@ module bridge_1x2_wr_axi5a
     input  logic         cpu_wr_axi_awvalid,
     output  logic         cpu_wr_axi_awready,
     input  logic         cpu_wr_axi_awtrace,
+    input  logic         cpu_wr_axi_awidunq,
     input  logic [5:0]  cpu_wr_axi_awatop,
 
     input  logic [31:0]  cpu_wr_axi_wdata,
@@ -51,6 +52,7 @@ module bridge_1x2_wr_axi5a
     output  logic         cpu_wr_axi_bvalid,
     input  logic         cpu_wr_axi_bready,
     output  logic         cpu_wr_axi_btrace,
+    output  logic         cpu_wr_axi_bidunq,
 
     // Slave 0: ddr_wr
     // AXI5 Slave: ddr_wr
@@ -337,6 +339,7 @@ module bridge_1x2_wr_axi5a
         .cpu_wr_axi_awvalid(cpu_wr_axi_awvalid),
         .cpu_wr_axi_awready(cpu_wr_axi_awready),
         .cpu_wr_axi_awtrace(cpu_wr_axi_awtrace),
+        .cpu_wr_axi_awidunq(cpu_wr_axi_awidunq),
         .cpu_wr_axi_awatop(cpu_wr_axi_awatop),
         .cpu_wr_axi_wdata(cpu_wr_axi_wdata),
         .cpu_wr_axi_wstrb(cpu_wr_axi_wstrb),
@@ -350,6 +353,7 @@ module bridge_1x2_wr_axi5a
         .cpu_wr_axi_bvalid(cpu_wr_axi_bvalid),
         .cpu_wr_axi_bready(cpu_wr_axi_bready),
         .cpu_wr_axi_btrace(cpu_wr_axi_btrace),
+        .cpu_wr_axi_bidunq(cpu_wr_axi_bidunq),
 
         // Decode outputs
         .slave_select_aw(cpu_wr_slave_select_aw),

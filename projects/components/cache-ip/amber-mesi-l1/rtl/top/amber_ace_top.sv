@@ -111,7 +111,8 @@ module amber_ace_top
 
     // ------------------------------------------------------------------
     // ACE memory masters via the monlite-wrapped transports (DECISION
-    // D3; MAS ch01/02 signal names + ARSNOOP/AWSNOOP/RACK/WACK)
+    // D3; MAS ch01/02 signal names + ARSNOOP/AWSNOOP, ARDOMAIN/AWDOMAIN,
+    // ARBAR/AWBAR, the 4-bit ACE RRESP, RACK/WACK)
     // ------------------------------------------------------------------
     output logic [IW-1:0]               m_axi_arid,
     output logic [ADDR_WIDTH-1:0]       m_axi_araddr,
@@ -125,11 +126,13 @@ module amber_ace_top
     output logic [3:0]                  m_axi_arregion,
     output logic [UW-1:0]               m_axi_aruser,
     output logic [3:0]                  m_axi_arsnoop,
+    output logic [1:0]                  m_axi_ardomain,
+    output logic [1:0]                  m_axi_arbar,
     output logic                        m_axi_arvalid,
     input  logic                        m_axi_arready,
     input  logic [IW-1:0]               m_axi_rid,
     input  logic [BUS_WIDTH-1:0]        m_axi_rdata,
-    input  logic [1:0]                  m_axi_rresp,
+    input  logic [3:0]                  m_axi_rresp,   // [3]=IsShared [2]=PassDirty
     input  logic                        m_axi_rlast,
     input  logic [UW-1:0]               m_axi_ruser,
     input  logic                        m_axi_rvalid,
@@ -148,6 +151,8 @@ module amber_ace_top
     output logic [3:0]                  m_axi_awregion,
     output logic [UW-1:0]               m_axi_awuser,
     output logic [2:0]                  m_axi_awsnoop,
+    output logic [1:0]                  m_axi_awdomain,
+    output logic [1:0]                  m_axi_awbar,
     output logic                        m_axi_awvalid,
     input  logic                        m_axi_awready,
     output logic [BUS_WIDTH-1:0]        m_axi_wdata,
@@ -234,7 +239,7 @@ module amber_ace_top
     logic [UW-1:0]        fub_aruser;
     logic                 fub_arvalid, fub_arready;
     logic [BUS_WIDTH-1:0] fub_rdata;
-    logic [1:0]           fub_rresp;
+    logic [3:0]           fub_rresp;    // ACE RRESP from the transport; the core takes [1:0]
     logic                 fub_rlast;
     logic [UW-1:0]        fub_ruser;
     logic                 fub_rvalid, fub_rready;
@@ -342,7 +347,7 @@ module amber_ace_top
         .fub_axi_arready   (fub_arready),
         .fub_axi_rid       (fub_rid),
         .fub_axi_rdata     (fub_rdata),
-        .fub_axi_rresp     (fub_rresp),
+        .fub_axi_rresp     (fub_rresp[1:0]),
         .fub_axi_rlast     (fub_rlast),
         .fub_axi_ruser     (fub_ruser),
         .fub_axi_rvalid    (fub_rvalid),
@@ -498,6 +503,36 @@ module amber_ace_top
     );
 
     // ------------------------------------------------------------------
+    // ACE shareability domain and barrier fields (IHI 0022H D2.1.1-2,
+    // D3.1.1-2). Every transaction amber issues is coherent (Table 4.2:
+    // ReadShared / ReadUnique / CleanUnique / MakeUnique / WriteBack /
+    // Evict), and the onyx rig has a single shareability domain, so both
+    // address channels carry Outer Shareable -- a domain Tables D3-7 / D3-8
+    // permit for every one of those types (Inner Shareable is deprecated
+    // from ACE5 on). amber issues no barrier transactions (onyx D8), so
+    // AxBAR is 0b00, normal access respecting barriers.
+    //
+    // RRESP[3:2] (IsShared, PassDirty) is carried to fub_rresp and observed
+    // by the read transport's monitor, but the core does not consume it: the
+    // install state comes from the request class (l1_control: ReadShared ->
+    // S, ReadUnique -> M). S is a legal outcome for every IsShared value, and
+    // M already carries dirty responsibility, so the only response amber
+    // cannot honour is PassDirty=1 on a ReadShared: it would install a
+    // clean S and drop the write-back. amber therefore needs its manager
+    // to keep PassDirty LOW on ReadShared (onyx HAS ch04/02 plans to write
+    // memory itself when the requester does not absorb dirty data, but no
+    // port contract states it yet; IHI 0022H gives a MESI cache
+    // ReadNotSharedDirty for exactly this). Open item, not a silent tie.
+    // ------------------------------------------------------------------
+    localparam logic [1:0] ACE_DOMAIN = 2'b10;   // Outer Shareable
+    localparam logic [1:0] ACE_BAR    = 2'b00;   // normal access, respecting barriers
+
+    /* verilator lint_off UNUSEDSIGNAL */
+    logic unused_rresp_coherence;
+    assign unused_rresp_coherence = &{1'b0, fub_rresp[3:2]};
+    /* verilator lint_on UNUSEDSIGNAL */
+
+    // ------------------------------------------------------------------
     // Read transport: ace_issue AR -> m_axi AR, observed
     // ------------------------------------------------------------------
     logic        rd_mon_valid;
@@ -528,6 +563,8 @@ module amber_ace_top
         .fub_axi_arregion        (iss_arregion),
         .fub_axi_aruser          (iss_aruser),
         .fub_axi_arsnoop         (iss_arsnoop),
+        .fub_axi_ardomain        (ACE_DOMAIN),
+        .fub_axi_arbar           (ACE_BAR),
         .fub_axi_arvalid         (iss_arvalid),
         .fub_axi_arready         (iss_arready),
         .fub_axi_rid             (fub_rid),
@@ -549,6 +586,8 @@ module amber_ace_top
         .m_axi_arregion          (m_axi_arregion),
         .m_axi_aruser            (m_axi_aruser),
         .m_axi_arsnoop           (m_axi_arsnoop),
+        .m_axi_ardomain          (m_axi_ardomain),
+        .m_axi_arbar             (m_axi_arbar),
         .m_axi_arvalid           (m_axi_arvalid),
         .m_axi_arready           (m_axi_arready),
         .m_axi_rid               (m_axi_rid),
@@ -620,6 +659,8 @@ module amber_ace_top
         .fub_axi_awregion        (iss_awregion),
         .fub_axi_awuser          (iss_awuser),
         .fub_axi_awsnoop         (iss_awsnoop),
+        .fub_axi_awdomain        (ACE_DOMAIN),
+        .fub_axi_awbar           (ACE_BAR),
         .fub_axi_awvalid         (iss_awvalid),
         .fub_axi_awready         (iss_awready),
         .fub_axi_wdata           (fub_wdata),
@@ -645,6 +686,8 @@ module amber_ace_top
         .m_axi_awregion          (m_axi_awregion),
         .m_axi_awuser            (m_axi_awuser),
         .m_axi_awsnoop           (m_axi_awsnoop),
+        .m_axi_awdomain          (m_axi_awdomain),
+        .m_axi_awbar             (m_axi_awbar),
         .m_axi_awvalid           (m_axi_awvalid),
         .m_axi_awready           (m_axi_awready),
         .m_axi_wdata             (m_axi_wdata),

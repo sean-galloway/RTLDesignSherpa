@@ -9,18 +9,19 @@
 #
 # Subsystem: tests
 
-"""AXI5-Lite optional signal groups: USER, TRACE, LOOP, MPAM, MECID, NSAID,
-POISON and exclusive access.
+"""AXI5-Lite ID and optional signal groups: AWID/BID, ARID/RID, USER, TRACE
+and POISON (IHI 0022 Issue L Table B2.2, AXI5-Lite column).
 
-Runs the AXIL5 master BFMs with every optional group enabled against
+Runs the AXIL5 master BFMs with the ID and every optional group enabled against
 ``axil5_opt_slave``, a DUT built for this purpose whose ports actually carry
-those signals. Before it existed the groups were declaration-only: the
+those signals. LOCK/MPAM/MECID/NSAID/LOOP used to be exercised here too; the
+spec marks them not present on AXI5-Lite, so they were removed with the RTL
+(issue #102 item 3). Before it existed the groups were declaration-only: the
 framework unit tests compared field configs, and the other AXIL5 sim test
 drives an AXI4-Lite DUT with every group switched OFF. Nothing put an optional
-value on a wire and read it back, and two defects were hiding behind that --
-the transaction methods had no way to SET an optional field (so a bound field
-was driven as 0 forever), and EXOKAY was treated as an error (so exclusive
-access could never succeed).
+value on a wire and read it back, and a defect was hiding behind that -- the
+transaction methods had no way to SET an optional field, so a bound field was
+driven as 0 forever.
 
 See ``bin/TBClasses/axil5/axil5_opt_slave_tb.py`` for what each group's check
 proves.
@@ -34,10 +35,7 @@ import pytest
 from cocotb_test.simulator import run
 
 from TBClasses.axil5.axil5_opt_slave_tb import (
-    LOOP_WIDTH,
-    MECID_WIDTH,
-    MPAM_WIDTH,
-    NSAID_WIDTH,
+    ID_WIDTH,
     USER_WIDTH,
     AXIL5OptSlaveTB,
 )
@@ -48,7 +46,8 @@ from TBClasses.shared.utilities import get_paths, sim_build_path
 
 @cocotb.test(timeout_time=10, timeout_unit="ms")
 async def axil5_opt_signals_test(dut):
-    """Drive every AXI5-Lite optional group and verify echo, capture, poison."""
+    """Drive the AXI5-Lite ID and optional groups; verify reflection, echo,
+    capture and poison."""
     tb = AXIL5OptSlaveTB(dut, aclk=dut.aclk, aresetn=dut.aresetn)
 
     seed = int(os.environ.get('SEED', '0'))
@@ -64,7 +63,7 @@ async def axil5_opt_signals_test(dut):
 
     failures = await tb.run_all(count=count)
     assert not failures, (
-        f"{len(failures)} AXI5-Lite optional-signal failure(s):\n  "
+        f"{len(failures)} AXI5-Lite ID/optional-signal failure(s):\n  "
         + "\n  ".join(failures)
     )
 
@@ -72,39 +71,37 @@ async def axil5_opt_signals_test(dut):
 def generate_axil5_opt_params():
     """Widths to sweep.
 
-    Both legal AXI-Lite data widths (32 and 64) are covered, which exercises
-    the address/data paths at each. Note what that does NOT prove: POISON is
-    one bit per 64 data bits with a floor of one, so at 32 AND at 64 the width
-    is 1. No legal AXI-Lite bus distinguishes the derivation from a hardcoded
-    1 -- AXI-Lite does not allow 128-bit data. The derivation exists so the
-    RTL and the field config apply the same rule, not because a Lite bus can
-    ever show the difference; the multi-bit case belongs to full AXI5.
+    POISON is one bit per 64 data bits with a floor of one, so at 32 and 64
+    the width is 1 and cannot distinguish the derivation from a hardcoded 1.
+    AXI5-Lite, unlike AXI4-Lite, does not restrict DATA_WIDTH (IHI 0022L
+    Table B2.4 leaves it unconstrained), so the 128-bit case -- two poison
+    bits -- is legal here and is what checks the derivation.
     """
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     if reg_level == 'GATE':
         return [(32, 32, 'gate', 'all_on')]
     if reg_level == 'FUNC':
         return [(32, 32, 'gate', 'all_on'), (32, 64, 'func', 'all_on'),
+                (32, 128, 'func', 'all_on'),
                 (32, 32, 'gate', 'all_off'), (32, 64, 'func', 'sideband_off')]
     return [(32, 32, 'gate', 'all_on'), (32, 64, 'func', 'all_on'),
             (64, 32, 'func', 'all_on'), (64, 64, 'full', 'all_on'),
             (32, 32, 'gate', 'all_off'), (64, 64, 'func', 'all_off'),
-            (32, 64, 'func', 'sideband_off'), (64, 32, 'func', 'qualifiers_off'),
-            (32, 32, 'func', 'user_only'), (64, 64, 'full', 'poison_off')]
+            (32, 64, 'func', 'sideband_off'), (64, 32, 'func', 'poison_off'),
+            (32, 32, 'func', 'user_only'), (64, 64, 'full', 'poison_off'),
+            (32, 128, 'func', 'all_on')]
 
 
 # Which optional groups each named configuration turns ON. Every group is
 # driven by the BFM regardless -- the ports exist either way -- so what these
 # select is what the RTL is ELABORATED with, and therefore what it is allowed
 # to return. all_on was the only configuration ever exercised before.
+GROUPS = ('USER', 'TRACE', 'POISON')
 GROUP_SETS = {
     'all_on':         {},                    # every ENABLE_* defaults to 1
-    'all_off':        {g: 0 for g in ('USER', 'TRACE', 'LOOP', 'MPAM',
-                                      'MECID', 'NSAID', 'POISON', 'LOCK')},
-    'sideband_off':   {'USER': 0, 'TRACE': 0, 'LOOP': 0},
-    'qualifiers_off': {'MPAM': 0, 'MECID': 0, 'NSAID': 0},
-    'user_only':      {'TRACE': 0, 'LOOP': 0, 'MPAM': 0, 'MECID': 0,
-                       'NSAID': 0, 'POISON': 0, 'LOCK': 0},
+    'all_off':        {g: 0 for g in GROUPS},
+    'sideband_off':   {'USER': 0, 'TRACE': 0},
+    'user_only':      {'TRACE': 0, 'POISON': 0},
     'poison_off':     {'POISON': 0},
 }
 
@@ -123,7 +120,7 @@ def test_axil5_opt_signals(request, addr_width, data_width, test_level,
     dut_name = "axil5_opt_slave"
 
     aw_str = TBBase.format_dec(addr_width, 2)
-    dw_str = TBBase.format_dec(data_width, 2)
+    dw_str = TBBase.format_dec(data_width, 3)
     reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
     test_name_plus_params = (f"test_{worker_id}_{dut_name}_a{aw_str}_d{dw_str}"
                              f"_{groups}_{test_level}_{reg_level}")
@@ -148,11 +145,8 @@ def test_axil5_opt_signals(request, addr_width, data_width, test_level,
         'AXIL_ADDR_WIDTH': str(addr_width),
         'AXIL_DATA_WIDTH': str(data_width),
         'MEM_DEPTH':       str(256),
+        'ID_WIDTH':        str(ID_WIDTH),
         'USER_WIDTH':      str(USER_WIDTH),
-        'LOOP_WIDTH':      str(LOOP_WIDTH),
-        'MPAM_WIDTH':      str(MPAM_WIDTH),
-        'MECID_WIDTH':     str(MECID_WIDTH),
-        'NSAID_WIDTH':     str(NSAID_WIDTH),
     }
     # Disabled groups are passed explicitly; the rest keep their RTL default
     # of 1. These are NOT derived parameters -- they are the knob under test.
@@ -169,8 +163,7 @@ def test_axil5_opt_signals(request, addr_width, data_width, test_level,
         'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'DUT': dut_name,
     }
-    for grp in ('USER', 'TRACE', 'LOOP', 'MPAM', 'MECID', 'NSAID', 'POISON',
-                'LOCK'):
+    for grp in GROUPS:
         extra_env[f'TEST_ENABLE_{grp}'] = str(GROUP_SETS[groups].get(grp, 1))
 
     compile_args = [

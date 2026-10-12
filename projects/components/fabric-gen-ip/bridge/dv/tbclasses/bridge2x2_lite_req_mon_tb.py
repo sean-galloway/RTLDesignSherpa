@@ -52,8 +52,8 @@ from CocoTBFramework.components.axil5.axil5_interfaces import (
     AXIL5SlaveRead, AXIL5SlaveWrite,
 )
 # AXI5-Lite requester ports are driven by the AXIL5 BFMs: AXIL4 transaction
-# logic plus the optional sideband groups, so they bind to the awuser/
-# awlock/awtrace/... ports the bridge exposes on an axil5 master.
+# logic plus the ID and optional sideband groups, so they bind to the awid/
+# awuser/awtrace/... ports the bridge exposes on an axil5 master.
 from CocoTBFramework.components.axil5.axil5_interfaces import (
     AXIL5MasterRead, AXIL5MasterWrite,
 )
@@ -439,14 +439,10 @@ class Bridge2x2LiteReqMonTB(TBBase):
             data_width=32,
             addr_width=32,
             multi_sig=True,
+            id_width=1,
             user_width=1,
             trace=True,
-            loop_width=1,
-            mpam_width=11,
-            mecid_width=16,
-            nsaid_width=4,
             poison=True,
-            exclusive=True,
         )
         self.master_wr[1] = AXIL5MasterWrite(
             self.dut, self.clock,
@@ -455,14 +451,10 @@ class Bridge2x2LiteReqMonTB(TBBase):
             data_width=32,
             addr_width=32,
             multi_sig=True,
+            id_width=1,
             user_width=1,
             trace=True,
-            loop_width=1,
-            mpam_width=11,
-            mecid_width=16,
-            nsaid_width=4,
             poison=True,
-            exclusive=True,
         )
 
     # ----------------------------------------------------------------------
@@ -537,14 +529,10 @@ class Bridge2x2LiteReqMonTB(TBBase):
             multi_sig=True,
             memory_model=self.slave_memory[1],
             base_addr=0x40000000,
+            id_width=2,
             user_width=1,
             trace=True,
-            loop_width=1,
-            mpam_width=11,
-            mecid_width=16,
-            nsaid_width=4,
             poison=True,
-            exclusive=True,
         )
         self.slave_wr[1] = AXIL5SlaveWrite(
             self.dut, self.clock,
@@ -555,14 +543,10 @@ class Bridge2x2LiteReqMonTB(TBBase):
             multi_sig=True,
             memory_model=self.slave_memory[1],
             base_addr=0x40000000,
+            id_width=2,
             user_width=1,
             trace=True,
-            loop_width=1,
-            mpam_width=11,
-            mecid_width=16,
-            nsaid_width=4,
             poison=True,
-            exclusive=True,
         )
 
     # ----------------------------------------------------------------------

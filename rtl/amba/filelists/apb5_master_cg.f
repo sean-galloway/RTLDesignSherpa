@@ -11,6 +11,8 @@
 -f $REPO_ROOT/rtl/common/filelists/counter_load_clear.f
 -f $REPO_ROOT/rtl/common/filelists/fifo_control.f
 -f $REPO_ROOT/rtl/common/filelists/clock_gate_ctrl.f
+# APB5 *CHK generation/checking (IHI 0024E ch. 5)
+-f $REPO_ROOT/rtl/common/filelists/dataint_parity.f
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/shared/amba_clock_gate_ctrl.sv

@@ -18,7 +18,6 @@ axi4_to_axil5.AXI_ID_WIDTH[31:0]
 axi4_to_axil5.AXI_ADDR_WIDTH[31:0]
 axi4_to_axil5.AXI_DATA_WIDTH[31:0]
 axi4_to_axil5.AXI_USER_WIDTH[31:0]
-axi4_to_axil5.ENABLE_LOCK
 axi4_to_axil5.ENABLE_USER
 axi4_to_axil5.USER_WIDTH[31:0]
 @28
@@ -82,14 +81,10 @@ axi4_to_axil5.s_axi_bresp[1:0]
 @28
 axi4_to_axil5.m_axil_arvalid
 axi4_to_axil5.m_axil_arready
-axi4_to_axil5.m_axil_arlock
 @22
+axi4_to_axil5.m_axil_arid[7:0]
 axi4_to_axil5.m_axil_araddr[31:0]
 axi4_to_axil5.m_axil_aruser[3:0]
-axi4_to_axil5.m_axil_arloop[2:0]
-axi4_to_axil5.m_axil_armpam[10:0]
-axi4_to_axil5.m_axil_armecid[15:0]
-axi4_to_axil5.m_axil_arnsaid[3:0]
 axi4_to_axil5.m_axil_artrace
 @200
 -out-axil5-r
@@ -97,24 +92,20 @@ axi4_to_axil5.m_axil_artrace
 axi4_to_axil5.m_axil_rvalid
 axi4_to_axil5.m_axil_rready
 @22
+axi4_to_axil5.m_axil_rid[7:0]
 axi4_to_axil5.m_axil_rdata[31:0]
 axi4_to_axil5.m_axil_rresp[1:0]
 axi4_to_axil5.m_axil_ruser[3:0]
-axi4_to_axil5.m_axil_rloop[2:0]
 axi4_to_axil5.m_axil_rpoison
 @200
 -out-axil5-aw
 @28
 axi4_to_axil5.m_axil_awvalid
 axi4_to_axil5.m_axil_awready
-axi4_to_axil5.m_axil_awlock
 @22
+axi4_to_axil5.m_axil_awid[7:0]
 axi4_to_axil5.m_axil_awaddr[31:0]
 axi4_to_axil5.m_axil_awuser[3:0]
-axi4_to_axil5.m_axil_awloop[2:0]
-axi4_to_axil5.m_axil_awmpam[10:0]
-axi4_to_axil5.m_axil_awmecid[15:0]
-axi4_to_axil5.m_axil_awnsaid[3:0]
 axi4_to_axil5.m_axil_awtrace
 @200
 -out-axil5-w
@@ -132,9 +123,9 @@ axi4_to_axil5.m_axil_wpoison
 axi4_to_axil5.m_axil_bvalid
 axi4_to_axil5.m_axil_bready
 @22
+axi4_to_axil5.m_axil_bid[7:0]
 axi4_to_axil5.m_axil_bresp[1:0]
 axi4_to_axil5.m_axil_buser[3:0]
-axi4_to_axil5.m_axil_bloop[2:0]
 axi4_to_axil5.m_axil_btrace
 @200
 -internals
@@ -145,10 +136,7 @@ axi4_to_axil5.u_rd_converter.r_held_aruser[3:0]
 axi4_to_axil5.u_rd_converter.w_aruser_sel[3:0]
 axi4_to_axil5.u_wr_converter.r_held_awuser[3:0]
 axi4_to_axil5.u_wr_converter.w_awuser_sel[3:0]
-@28
-axi4_to_axil5.u_rd_converter.r_held_arlock
-axi4_to_axil5.u_rd_converter.w_arlock_sel
-axi4_to_axil5.u_wr_converter.r_held_awlock
-axi4_to_axil5.u_wr_converter.w_awlock_sel
+axi4_to_axil5.u_rd_converter.r_held_arid[7:0]
+axi4_to_axil5.u_wr_converter.r_held_awid[7:0]
 [pattern_trace] 1
 [pattern_trace] 0

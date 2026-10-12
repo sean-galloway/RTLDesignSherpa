@@ -13,7 +13,8 @@ SV2V      ?= sv2v
 
 INC := -I$(REPO_ROOT)/rtl/amba/includes
 
-DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
+DEPS := $(REPO_ROOT)/rtl/common/dataint_parity.sv \
+        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/rtl/amba/apb5/apb5_master.sv
 DUT  := $(REPO_ROOT)/rtl/amba/apb5/apb5_master_stub.sv
 

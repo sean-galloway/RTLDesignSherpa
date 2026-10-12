@@ -62,7 +62,7 @@ The AXIL read side has no burst or ID fields, so the wrapper supplies the missin
 |-----------|------|---------|-------------|
 | AXI_ID_WIDTH | int | 8 | AXI4 write-side transaction-ID width |
 | ADDR_WIDTH | int | 32 | Byte-address width (both sides) |
-| DATA_WIDTH | int | 256 | Data-bus / BRAM word width (bits) |
+| DATA_WIDTH | int | 64 | Data-bus / BRAM word width (bits). Shared with the AXI4-Lite side, so 32 or 64 only (IHI 0022H §B1.1.2; elaboration fails otherwise). |
 | USER_WIDTH | int | 1 | AXI4 write-side USER width (carried by leaf, not preserved through BRAM) |
 | MEM_DEPTH | int | 2048 | BRAM depth in words |
 | SKID_DEPTH_AW | int | 2 | Write-address skid depth |
@@ -201,7 +201,7 @@ device and the parameters you elaborate with; run your own build.
 sdpram_slave_axi4_axil #(
     .AXI_ID_WIDTH (8),
     .ADDR_WIDTH   (32),
-    .DATA_WIDTH   (256),
+    .DATA_WIDTH   (64),
     .MEM_DEPTH    (2048)
 ) u_mem (
     .aclk    (aclk),

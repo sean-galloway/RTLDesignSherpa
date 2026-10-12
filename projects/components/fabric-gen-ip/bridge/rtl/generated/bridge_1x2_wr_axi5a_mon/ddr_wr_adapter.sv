@@ -222,6 +222,7 @@ module ddr_wr_adapter
         .ENABLE_UNIQUE(1'b0),
         .ENABLE_MTE(1'b0),
         .ENABLE_POISON(1'b0),
+        .ENABLE_WAKEUP(1'b0),
         .UNIT_ID(1),
         .AGENT_ID(1),
         .USE_MONITOR(USE_MONITOR_WR)
@@ -247,9 +248,9 @@ module ddr_wr_adapter
         .fub_axi_awtrace(xbar_ddr_wr_axi_awtrace),
         .fub_axi_awmpam('0),
         .fub_axi_awmecid('0),
-        .fub_axi_awunique('0),
+        .fub_axi_awidunq('0),
         .fub_axi_awtagop('0),
-        .fub_axi_awtag('0),
+        .fub_axi_awakeup('0),
         .fub_axi_wdata(xbar_ddr_wr_axi_wdata),
         .fub_axi_wstrb(xbar_ddr_wr_axi_wstrb),
         .fub_axi_wlast(xbar_ddr_wr_axi_wlast),
@@ -265,7 +266,7 @@ module ddr_wr_adapter
         .fub_axi_bvalid(xbar_ddr_wr_axi_bvalid),
         .fub_axi_bready(xbar_ddr_wr_axi_bready),
         .fub_axi_btrace(xbar_ddr_wr_axi_btrace),
-        .fub_axi_btag(),
+        .fub_axi_bidunq(),
         .fub_axi_btagmatch(),
 
         // External side (m_axi)
@@ -286,9 +287,9 @@ module ddr_wr_adapter
         .m_axi_awtrace(ddr_wr_axi_awtrace),
         .m_axi_awmpam(),
         .m_axi_awmecid(),
-        .m_axi_awunique(),
+        .m_axi_awidunq(),
         .m_axi_awtagop(),
-        .m_axi_awtag(),
+        .m_axi_awakeup(),
         .m_axi_wdata(ddr_wr_axi_wdata),
         .m_axi_wstrb(ddr_wr_axi_wstrb),
         .m_axi_wlast(ddr_wr_axi_wlast),
@@ -304,7 +305,7 @@ module ddr_wr_adapter
         .m_axi_bvalid(ddr_wr_axi_bvalid),
         .m_axi_bready(ddr_wr_axi_bready),
         .m_axi_btrace(ddr_wr_axi_btrace),
-        .m_axi_btag('0),
+        .m_axi_bidunq('0),
         .m_axi_btagmatch('0),
 
         // Status (empty connector = unconnected tie-off)

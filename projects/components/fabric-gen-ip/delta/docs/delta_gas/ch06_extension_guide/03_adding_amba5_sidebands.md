@@ -22,18 +22,19 @@
 
 # Adding AMBA 5 Sidebands
 
-The current AMBA 5 support covers `TWAKEUP` and `TPARITY`. To add more AMBA 5 sidebands:
+The current AMBA 5 support covers `TWAKEUP` and the full IHI 0051B chapter 5 check-signal set (`TDATACHK`, `TSTRBCHK`, `TLASTCHK`, `TIDCHK`, `TDESTCHK`, `TUSERCHK`, `TVALIDCHK`, `TREADYCHK`, `TWAKEUPCHK`). To add more AMBA 5 sidebands:
 
 1. Add the new signal to `DeltaConfig` (e.g., a width field).
 2. In `DeltaFlatCrossbar.__init__`, add the new port declarations when `amba5` is enabled.
 3. Add routing logic in a new `generate_*_logic()` method.
 4. Call the new method from `verilog()`.
-5. Update the DV suite to exercise the new sideband.
+5. If the new signal is covered by a check signal (a new payload field gets a `*CHK` per Table 5-1), add it to `_payload_chk_fields()`. That one list drives the ports, the carry mux, the ingress checkers and the error OR.
+6. Update the DV suite (`dv/tests/test_delta_axis_flat_2x4_strb_amba5.py` and its harness) to exercise the new sideband.
 
 ## TWAKEUP design note
 
-`TWAKEUP` is a hint, not a data beat. It is routed by `TDEST` without arbitration because it may precede `TVALID`. If a future sideband requires grant-based routing, follow the `TPARITY` pattern in `generate_crossbar_mux()`.
+`TWAKEUP` is a hint, not a data beat. It is routed by `TDEST` without arbitration because it may precede `TVALID`. If a future sideband requires grant-based routing, follow the payload check-bit pattern in `generate_crossbar_mux()`.
 
-## TPARITY design note
+## Check-signal design note
 
-The generator routes `TPARITY` with the same grant as `TDATA`. It does not check parity inside the crossbar. If end-to-end protection is required, add parity generation/checking at the endpoints or extend the crossbar to compute parity on every hop.
+The payload check bits ride the same grant as `TDATA` and are carried, not regenerated, so a beat corrupted upstream still fails downstream. The crossbar also checks them on ingress (enabled by `TVALID`). It generates the single-bit checks for the signals it drives (`TVALIDCHK` and `TWAKEUPCHK` on slave ports, `TREADYCHK` on master ports) and checks the ones it receives. Every bit is one `rtl/common/dataint_parity` instance, odd parity, `CHUNKS=1`. A new check must follow the same rule: odd parity, one bit per 8 bits, top bit covers the remainder (IHI 0051B section 5.3).

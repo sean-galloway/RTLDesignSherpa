@@ -59,17 +59,17 @@
 
 ## Tertiary: AMBA 5-Aware Streaming Interconnect
 
-**Scenario:** A low-power subsystem needs wakeup hints and parity sidebands.
+**Scenario:** A low-power subsystem needs wakeup hints and AXI5-Stream interface parity protection.
 
 **Configuration:**
 
 - Masters and slaves that implement AMBA 5 AXI-Stream
-- `--amba5` enabled, optionally with `--parity-width`
+- `--amba5` enabled
 
 **Benefits:**
 
 - `TWAKEUP` lets a master wake a target slave before presenting data.
-- `TPARITY` carries a user-defined parity sideband across the fabric.
+- The IHI 0051B chapter 5 check signals (`TDATACHK` and the rest, odd parity) are carried across the fabric and checked at each crossbar port. A sticky per-port flag reports a fault.
 - Generated ports port-match the `rtl/amba/axis5/*` interface conventions.
 
 ## Educational Demonstration

@@ -30,7 +30,8 @@
 // and passed through by name; the monitor section is the same lite tap
 // wiring the _mon wrapper carries. Sean, 2026-10-05: "make monlite versions
 // of the various axi wrappers". This is the ACE front-side variant: AW gains
-// AWSNOOP and the master interface gains the auto-pulsed WACK handshake.
+// AWSNOOP, AWDOMAIN and AWBAR, and the master interface gains the
+// auto-pulsed WACK handshake.
 // ============================================================================
 `timescale 1ns / 1ps
 
@@ -65,7 +66,7 @@ module axi4ace_master_wr_monlite
     parameter int IW       = AXI_ID_WIDTH,
     parameter int SW       = AXI_WSTRB_WIDTH,
     parameter int UW       = AXI_USER_WIDTH,
-    parameter int AWSize   = IW+AW+8+3+2+1+4+3+4+4+UW+3,
+    parameter int AWSize   = IW+AW+8+3+2+1+4+3+4+4+UW+3+2+2,
     parameter int WSize    = DW+SW+1+UW,
     parameter int BSize    = IW+2+UW
 ) (
@@ -88,6 +89,8 @@ module axi4ace_master_wr_monlite
     input  logic [3:0]                 fub_axi_awregion,
     input  logic [UW-1:0]              fub_axi_awuser,
     input  logic [2:0]                 fub_axi_awsnoop,
+    input  logic [1:0]                 fub_axi_awdomain,
+    input  logic [1:0]                 fub_axi_awbar,
     input  logic                       fub_axi_awvalid,
     output logic                       fub_axi_awready,
 
@@ -120,6 +123,8 @@ module axi4ace_master_wr_monlite
     output logic [3:0]                 m_axi_awregion,
     output logic [UW-1:0]              m_axi_awuser,
     output logic [2:0]                 m_axi_awsnoop,
+    output logic [1:0]                 m_axi_awdomain,
+    output logic [1:0]                 m_axi_awbar,
     output logic                       m_axi_awvalid,
     input  logic                       m_axi_awready,
 
@@ -210,6 +215,8 @@ module axi4ace_master_wr_monlite
         .fub_axi_awregion            (fub_axi_awregion),
         .fub_axi_awuser              (fub_axi_awuser),
         .fub_axi_awsnoop             (fub_axi_awsnoop),
+        .fub_axi_awdomain            (fub_axi_awdomain),
+        .fub_axi_awbar               (fub_axi_awbar),
         .fub_axi_awvalid             (fub_axi_awvalid),
         .fub_axi_awready             (fub_axi_awready),
         .fub_axi_wdata               (fub_axi_wdata),
@@ -235,6 +242,8 @@ module axi4ace_master_wr_monlite
         .m_axi_awregion              (m_axi_awregion),
         .m_axi_awuser                (m_axi_awuser),
         .m_axi_awsnoop               (m_axi_awsnoop),
+        .m_axi_awdomain              (m_axi_awdomain),
+        .m_axi_awbar                 (m_axi_awbar),
         .m_axi_awvalid               (m_axi_awvalid),
         .m_axi_awready               (m_axi_awready),
         .m_axi_wdata                 (m_axi_wdata),

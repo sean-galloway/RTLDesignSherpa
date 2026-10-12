@@ -11,9 +11,10 @@
 import os
 from cocotb.triggers import Timer, RisingEdge
 from TBClasses.shared.tbbase import TBBase
+from TBClasses.axis5.axis5_chk_mixin import AXIS5ChkMixin
 
 
-class AXIS5SlaveCGBasicTB(TBBase):
+class AXIS5SlaveCGBasicTB(AXIS5ChkMixin, TBBase):
     """Basic AXIS5 slave clock-gated testbench."""
 
     def __init__(self, dut):
@@ -23,6 +24,8 @@ class AXIS5SlaveCGBasicTB(TBBase):
         self.ENABLE_WAKEUP = self.convert_to_int(os.environ.get('TEST_ENABLE_WAKEUP', '1')) == 1
         self.ENABLE_PARITY = self.convert_to_int(os.environ.get('TEST_ENABLE_PARITY', '0')) == 1
         self.STRB_WIDTH = self.DATA_WIDTH // 8
+        # The runner does not override these: the RTL defaults
+        self.ID_WIDTH, self.DEST_WIDTH, self.USER_WIDTH = 8, 4, 1
 
         self.log.info("="*60)
         self.log.info(" AXIS5 Slave CG Testbench Configuration")
@@ -54,3 +57,57 @@ class AXIS5SlaveCGBasicTB(TBBase):
         self.dut.cfg_cg_enable.value = 1 if enable else 0
         await RisingEdge(self.dut.aclk)
         self.log.info(f"Clock gating {'enabled' if enable else 'disabled'}")
+
+    # ------------------------------------------------------------------
+    # IHI 0051B ch. 5 interface parity (ENABLE_PARITY=1)
+    # ------------------------------------------------------------------
+
+    async def run_chk_test(self):
+        """
+        Check signals through the clock-gated slave. The gated core holds its
+        READY register high while the clock is stopped; the wrapper masks
+        s_axis_tready to 0, so TREADYCHK must follow the MASKED ready (1).
+        Then odd-parity beats wake it, arrive at fub_axis5 still odd, and a
+        corrupted TDATACHK sets parity_error.
+        """
+        d = self.dut
+        self.start_chk_mirror(d.aclk, 's_axis_', 'valid')
+        self.start_chk_mirror(d.aclk, 's_axis_', 'wakeup')
+        d.s_axis_tvalid.value = 0
+        d.s_axis_twakeup.value = 0
+        d.fub_axis5_tready.value = 1
+        d.cfg_cg_idle_count.value = 4
+        d.cfg_cg_enable.value = 1
+        await self.assert_reset()
+        await self.deassert_reset()
+
+        for _ in range(60):
+            await RisingEdge(d.aclk)
+            if int(d.cg_gating.value):
+                break
+        assert int(d.cg_gating.value) == 1, "clock never gated"
+        await RisingEdge(d.aclk)
+        assert int(d.s_axis_tready.value) == 0, "tready not masked while gated"
+        bad = self.ctrl_chk_mismatches('s_axis_', ('ready',))
+        assert not bad, f"TREADYCHK does not cover the masked tready: {bad}"
+
+        beats = [dict(data=0x80000001, strb=0xF, last=0, id=0x7E, dest=0x1, user=1),
+                 dict(data=0x0000FFFF, strb=0x1, last=1, id=0x03, dest=0x8, user=0)]
+        seen = 0
+        for b in beats:
+            assert await self.drive_beat(d.aclk, 's_axis_', b), "s_axis beat not accepted"
+            for _ in range(4):
+                await RisingEdge(d.aclk)
+                bad = self.ctrl_chk_mismatches('s_axis_', ('ready',))
+                assert not bad, bad
+                if int(d.fub_axis5_tvalid.value) and int(d.fub_axis5_tready.value):
+                    bad = self.payload_chk_mismatches('fub_axis5_')
+                    assert not bad, bad
+                    seen += 1
+        assert seen == len(beats), f"saw {seen}/{len(beats)} beats on fub_axis5"
+        assert int(d.parity_error.value) == 0, "parity_error set on correct traffic"
+
+        assert await self.drive_beat(d.aclk, 's_axis_', beats[0], corrupt={'data': 0x4})
+        await self.wait_clocks('aclk', 4)
+        assert int(d.parity_error.value) == 1, "corrupted TDATACHK not detected"
+        self.log.info("slave_cg: TREADYCHK follows the masked ready; TDATACHK error detected")

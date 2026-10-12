@@ -32,6 +32,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.apb5_slave_tb import APB5SlaveBasicTB
+from TBClasses.amba.apb5_parity import run_completer_parity_test
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
@@ -132,22 +133,71 @@ async def cocotb_test_apb5_slave_basic(dut):
     tb.log.info("=== APB5 Slave Basic Test PASSED ===")
 
 
+@cocotb.test(timeout_time=400, timeout_unit="us")
+async def cocotb_test_apb5_slave_parity(dut):
+    """IHI 0024E ch. 5 interface parity, completer side (issue #102 item 1).
+
+    Odd parity, spec *CHK names, Table 5-1 coverage sets, one check bit per
+    byte and the Check Enable terms -- see run_completer_parity_test. The
+    pre-#102 RTL generated EVEN PRDATA parity, so the first read fails.
+    """
+    tb = APB5SlaveBasicTB(dut)
+    if os.environ.get('TEST_ENABLE_PARITY', '0') != '1':
+        tb.log.info("ENABLE_PARITY=0: parity test not applicable")
+        return
+    rng = random.Random(int(os.environ.get('SEED', '1')))
+    dut.cmd_ready.value = 0
+    dut.rsp_valid.value = 0
+    dut.rsp_prdata.value = 0
+    dut.rsp_pslverr.value = 0
+    dut.rsp_pruser.value = 0
+    dut.rsp_pbuser.value = 0
+    dut.s_apb_PWAKEUP.value = 0
+    await tb.setup_clocks_and_reset()
+
+    async def backend():
+        dut.cmd_ready.value = 1
+        while True:
+            await RisingEdge(dut.pclk)
+            if int(dut.cmd_valid.value) and int(dut.cmd_ready.value):
+                dut.rsp_valid.value = 1
+                dut.rsp_prdata.value = rng.getrandbits(tb.DATA_WIDTH)
+                dut.rsp_pslverr.value = rng.getrandbits(1)
+                dut.rsp_pruser.value = rng.getrandbits(tb.RUSER_WIDTH)
+                dut.rsp_pbuser.value = rng.getrandbits(tb.BUSER_WIDTH)
+                await RisingEdge(dut.pclk)
+                while not int(dut.rsp_ready.value):
+                    await RisingEdge(dut.pclk)
+                dut.rsp_valid.value = 0
+
+    cocotb.start_soon(backend())
+    await run_completer_parity_test(
+        dut, tb.log,
+        (tb.ADDR_WIDTH, tb.DATA_WIDTH, tb.AUSER_WIDTH, tb.WUSER_WIDTH,
+         tb.RUSER_WIDTH, tb.BUSER_WIDTH),
+        seed=rng.getrandbits(32))
+
+
 def generate_apb5_slave_params():
     """Generate test parameters for APB5 slave."""
     return [
-        # addr_width, data_width, auser_width, wuser_width, ruser_width, buser_width
-        (12, 32, 4, 4, 4, 4),
-        (16, 32, 8, 8, 8, 8),
-        (12, 64, 4, 4, 4, 4),
+        # addr_width, data_width, auser_width, wuser_width, ruser_width, buser_width, enable_parity
+        (12, 32, 4, 4, 4, 4, 0),
+        (16, 32, 8, 8, 8, 8, 0),
+        (12, 64, 4, 4, 4, 4, 0),
+        # Parity: short top bytes on PADDR and the user signals exercise the
+        # per-byte granularity and the partial-byte rule.
+        (12, 32, 4, 4, 4, 4, 1),
+        (20, 64, 12, 9, 13, 16, 1),
     ]
 
 
 @pytest.mark.parametrize(
-    "addr_width, data_width, auser_width, wuser_width, ruser_width, buser_width",
+    "addr_width, data_width, auser_width, wuser_width, ruser_width, buser_width, enable_parity",
     generate_apb5_slave_params()
 )
 def test_apb5_slave(request, addr_width, data_width, auser_width, wuser_width,
-                    ruser_width, buser_width):
+                    ruser_width, buser_width, enable_parity):
     """APB5 slave test runner."""
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
 
@@ -168,7 +218,9 @@ def test_apb5_slave(request, addr_width, data_width, auser_width, wuser_width,
     aw_str = TBBase.format_dec(addr_width, 2)
     dw_str = TBBase.format_dec(data_width, 2)
     au_str = TBBase.format_dec(auser_width, 1)
-    test_name_plus_params = f"test_{worker_id}_apb5_slave_aw{aw_str}_dw{dw_str}_au{au_str}"
+    pr_str = 'pr' if enable_parity else 'np'
+    test_name_plus_params = (f"test_{worker_id}_apb5_slave_aw{aw_str}_dw{dw_str}_au{au_str}"
+                             f"_wu{wuser_width}_ru{ruser_width}_bu{buser_width}_{pr_str}")
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
 
@@ -187,6 +239,7 @@ def test_apb5_slave(request, addr_width, data_width, auser_width, wuser_width,
         'WUSER_WIDTH': str(wuser_width),
         'RUSER_WIDTH': str(ruser_width),
         'BUSER_WIDTH': str(buser_width),
+        'ENABLE_PARITY': str(enable_parity),
     }
 
     # Environment variables
@@ -204,6 +257,7 @@ def test_apb5_slave(request, addr_width, data_width, auser_width, wuser_width,
         'TEST_WUSER_WIDTH': str(wuser_width),
         'TEST_RUSER_WIDTH': str(ruser_width),
         'TEST_BUSER_WIDTH': str(buser_width),
+        'TEST_ENABLE_PARITY': str(enable_parity),
     }
 
     compile_args = [
@@ -219,23 +273,27 @@ def test_apb5_slave(request, addr_width, data_width, auser_width, wuser_width,
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
+    testcases = ["cocotb_test_apb5_slave_basic"]
+    if enable_parity:
+        testcases.append("cocotb_test_apb5_slave_parity")
     try:
-        run(
-            python_search=[tests_dir],
-            verilog_sources=verilog_sources,
-            includes=includes,
-            toplevel=toplevel,
-            module=module,
-            parameters=rtl_parameters,
-            sim_build=sim_build,
-            extra_env=extra_env,
-            waves=enable_waves,
-            plus_args=(['--trace'] if enable_waves else []),
-            keep_files=True,
-            compile_args=compile_args,
-            testcase="cocotb_test_apb5_slave_basic",
-            simulator="verilator",
-        )
+        for testcase in testcases:
+            run(
+                python_search=[tests_dir],
+                verilog_sources=verilog_sources,
+                includes=includes,
+                toplevel=toplevel,
+                module=module,
+                parameters=rtl_parameters,
+                sim_build=sim_build,
+                extra_env=extra_env,
+                waves=enable_waves,
+                plus_args=(['--trace'] if enable_waves else []),
+                keep_files=True,
+                compile_args=compile_args,
+                testcase=testcase,
+                simulator="verilator",
+            )
     except Exception as e:
         print(f"Test failed: {str(e)}")
         print(f"Logs preserved at: {log_path}")

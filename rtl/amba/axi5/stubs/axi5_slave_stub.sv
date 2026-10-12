@@ -52,16 +52,16 @@ module axi5_slave_stub
     // Write channel sizes
     parameter int AWSize   = IW + AW + 8 + 3 + 2 + 1 + 4 + 3 + 4 + UW +
                              AXI_ATOP_WIDTH + AXI_NSAID_WIDTH + 1 + AXI_MPAM_WIDTH +
-                             AXI_MECID_WIDTH + 1 + AXI_TAGOP_WIDTH + TW,
+                             AXI_MECID_WIDTH + 1 + AXI_TAGOP_WIDTH,
     parameter int WSize    = DW + SW + 1 + UW + 1 + TW + NUM_TAGS,
-    parameter int BSize    = IW + 2 + UW + 1 + TW + 1,
+    parameter int BSize    = IW + 2 + UW + 1 + 1 + 2,
 
     // Read channel sizes
     parameter int ARSize   = IW + AW + 8 + 3 + 2 + 1 + 4 + 3 + 4 + UW +
                              AXI_NSAID_WIDTH + 1 + AXI_MPAM_WIDTH + AXI_MECID_WIDTH +
                              1 + 1 + AXI_TAGOP_WIDTH,
     parameter int RSize    = IW + DW + 2 + 1 + UW + 1 + 1 + 1 + AXI_CHUNKNUM_WIDTH +
-                             CHUNK_STRB_WIDTH + TW + 1
+                             CHUNK_STRB_WIDTH + 1 + TW
 )
 (
     // Global Clock and Reset
@@ -80,15 +80,15 @@ module axi5_slave_stub
     input  logic [3:0]                 s_axi_awqos,
     input  logic [UW-1:0]              s_axi_awuser,
     input  logic                       s_axi_awvalid,
+    input  logic                       s_axi_awakeup,
     output logic                       s_axi_awready,
     input  logic [AXI_ATOP_WIDTH-1:0]  s_axi_awatop,
     input  logic [AXI_NSAID_WIDTH-1:0] s_axi_awnsaid,
     input  logic                       s_axi_awtrace,
     input  logic [AXI_MPAM_WIDTH-1:0]  s_axi_awmpam,
     input  logic [AXI_MECID_WIDTH-1:0] s_axi_awmecid,
-    input  logic                       s_axi_awunique,
+    input  logic                       s_axi_awidunq,
     input  logic [AXI_TAGOP_WIDTH-1:0] s_axi_awtagop,
-    input  logic [TW-1:0]              s_axi_awtag,
 
     // Slave Write data channel (W)
     input  logic [DW-1:0]              s_axi_wdata,
@@ -108,8 +108,8 @@ module axi5_slave_stub
     output logic                       s_axi_bvalid,
     input  logic                       s_axi_bready,
     output logic                       s_axi_btrace,
-    output logic [TW-1:0]              s_axi_btag,
-    output logic                       s_axi_btagmatch,
+    output logic                       s_axi_bidunq,
+    output logic [1:0]                 s_axi_btagmatch,
 
     // Slave Read address channel (AR)
     input  logic [IW-1:0]              s_axi_arid,
@@ -128,7 +128,7 @@ module axi5_slave_stub
     input  logic                       s_axi_artrace,
     input  logic [AXI_MPAM_WIDTH-1:0]  s_axi_armpam,
     input  logic [AXI_MECID_WIDTH-1:0] s_axi_armecid,
-    input  logic                       s_axi_arunique,
+    input  logic                       s_axi_aridunq,
     input  logic                       s_axi_archunken,
     input  logic [AXI_TAGOP_WIDTH-1:0] s_axi_artagop,
 
@@ -141,15 +141,16 @@ module axi5_slave_stub
     output logic                       s_axi_rvalid,
     input  logic                       s_axi_rready,
     output logic                       s_axi_rtrace,
+    output logic                       s_axi_ridunq,
     output logic                       s_axi_rpoison,
     output logic                       s_axi_rchunkv,
     output logic [AXI_CHUNKNUM_WIDTH-1:0] s_axi_rchunknum,
     output logic [CHUNK_STRB_WIDTH-1:0] s_axi_rchunkstrb,
     output logic [TW-1:0]              s_axi_rtag,
-    output logic                       s_axi_rtagmatch,
 
     // Stub Write Interfaces
     output logic                       fub_axi_awvalid,
+    output logic                       fub_axi_awakeup,
     input  logic                       fub_axi_awready,
     output logic [AWSize-1:0]          fub_axi_aw_pkt,
 
@@ -172,6 +173,11 @@ module axi5_slave_stub
     output logic [2:0]                 fub_axi_r_count,
     input  logic [RSize-1:0]           fub_axi_r_pkt
 );
+
+    // One AWAKEUP per interface (IHI 0022L A14.1.1): the OR of the halves.
+    logic w_wr_awakeup;
+    logic w_rd_awakeup;
+    assign fub_axi_awakeup = w_wr_awakeup || w_rd_awakeup;
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Instantiate Write Stub
@@ -204,15 +210,15 @@ module axi5_slave_stub
         .s_axi_awqos       (s_axi_awqos),
         .s_axi_awuser      (s_axi_awuser),
         .s_axi_awvalid     (s_axi_awvalid),
+        .s_axi_awakeup    (s_axi_awakeup),
         .s_axi_awready     (s_axi_awready),
         .s_axi_awatop      (s_axi_awatop),
         .s_axi_awnsaid     (s_axi_awnsaid),
         .s_axi_awtrace     (s_axi_awtrace),
         .s_axi_awmpam      (s_axi_awmpam),
         .s_axi_awmecid     (s_axi_awmecid),
-        .s_axi_awunique    (s_axi_awunique),
+        .s_axi_awidunq    (s_axi_awidunq),
         .s_axi_awtagop     (s_axi_awtagop),
-        .s_axi_awtag       (s_axi_awtag),
         .s_axi_wdata       (s_axi_wdata),
         .s_axi_wstrb       (s_axi_wstrb),
         .s_axi_wlast       (s_axi_wlast),
@@ -228,9 +234,10 @@ module axi5_slave_stub
         .s_axi_bvalid      (s_axi_bvalid),
         .s_axi_bready      (s_axi_bready),
         .s_axi_btrace      (s_axi_btrace),
-        .s_axi_btag        (s_axi_btag),
+        .s_axi_bidunq     (s_axi_bidunq),
         .s_axi_btagmatch   (s_axi_btagmatch),
         .fub_axi_awvalid   (fub_axi_awvalid),
+        .fub_axi_awakeup    (w_wr_awakeup),
         .fub_axi_awready   (fub_axi_awready),
         .fub_axi_aw_pkt    (fub_axi_aw_pkt),
         .fub_axi_wvalid    (fub_axi_wvalid),
@@ -272,12 +279,13 @@ module axi5_slave_stub
         .s_axi_arqos       (s_axi_arqos),
         .s_axi_aruser      (s_axi_aruser),
         .s_axi_arvalid     (s_axi_arvalid),
+        .s_axi_awakeup    (s_axi_awakeup),
         .s_axi_arready     (s_axi_arready),
         .s_axi_arnsaid     (s_axi_arnsaid),
         .s_axi_artrace     (s_axi_artrace),
         .s_axi_armpam      (s_axi_armpam),
         .s_axi_armecid     (s_axi_armecid),
-        .s_axi_arunique    (s_axi_arunique),
+        .s_axi_aridunq    (s_axi_aridunq),
         .s_axi_archunken   (s_axi_archunken),
         .s_axi_artagop     (s_axi_artagop),
         .s_axi_rid         (s_axi_rid),
@@ -288,13 +296,14 @@ module axi5_slave_stub
         .s_axi_rvalid      (s_axi_rvalid),
         .s_axi_rready      (s_axi_rready),
         .s_axi_rtrace      (s_axi_rtrace),
+        .s_axi_ridunq     (s_axi_ridunq),
         .s_axi_rpoison     (s_axi_rpoison),
         .s_axi_rchunkv     (s_axi_rchunkv),
         .s_axi_rchunknum   (s_axi_rchunknum),
         .s_axi_rchunkstrb  (s_axi_rchunkstrb),
         .s_axi_rtag        (s_axi_rtag),
-        .s_axi_rtagmatch   (s_axi_rtagmatch),
         .fub_axi_arvalid   (fub_axi_arvalid),
+        .fub_axi_awakeup    (w_rd_awakeup),
         .fub_axi_arready   (fub_axi_arready),
         .fub_axi_ar_pkt    (fub_axi_ar_pkt),
         .fub_axi_rvalid    (fub_axi_rvalid),

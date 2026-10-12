@@ -159,9 +159,9 @@ def test_axi4ace_master_rd_monlite(
 
     # Core calculated sizes (must match the wrapper's ARSize/RSize defaults).
     ar_size = (
-        id_width + addr_width + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + user_width + 4
+        id_width + addr_width + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + user_width + 4 + 2 + 2  # + arsnoop, ardomain, arbar
     )
-    r_size = id_width + data_width + 2 + 1 + user_width
+    r_size = id_width + data_width + 4 + 1 + user_width  # ACE RRESP is 4 bits
 
     rtl_parameters = {
         'AXI_ID_WIDTH': str(id_width),

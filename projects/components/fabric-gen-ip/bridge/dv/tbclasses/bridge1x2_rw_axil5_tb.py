@@ -515,14 +515,10 @@ class Bridge1x2RwAxil5TB(TBBase):
             multi_sig=True,
             memory_model=self.slave_memory[1],
             base_addr=0x80000000,
+            id_width=4,
             user_width=1,
             trace=True,
-            loop_width=1,
-            mpam_width=11,
-            mecid_width=16,
-            nsaid_width=4,
             poison=True,
-            exclusive=True,
         )
         self.slave_wr[1] = AXIL5SlaveWrite(
             self.dut, self.clock,
@@ -533,14 +529,10 @@ class Bridge1x2RwAxil5TB(TBBase):
             multi_sig=True,
             memory_model=self.slave_memory[1],
             base_addr=0x80000000,
+            id_width=4,
             user_width=1,
             trace=True,
-            loop_width=1,
-            mpam_width=11,
-            mecid_width=16,
-            nsaid_width=4,
             poison=True,
-            exclusive=True,
         )
 
     # ----------------------------------------------------------------------

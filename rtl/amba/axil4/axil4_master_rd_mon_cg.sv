@@ -193,6 +193,19 @@ module axil4_master_rd_mon_cg
     output logic [31:0]                perf_burst_count
 );
 
+    // ---------------------------------------------------------------------
+    // Elaboration-time parameter guard (the one sanctioned in-RTL check; see
+    // vault/handbook/design/no-assertions-in-rtl.md). Checks nothing at run
+    // time. AXI4-Lite data width must be 32 or 64 bits (IHI 0022H B1.1.2).
+    // ---------------------------------------------------------------------
+`ifndef SYNTHESIS
+    initial begin : param_check
+        if (!(AXIL_DATA_WIDTH == 32 || AXIL_DATA_WIDTH == 64))
+            $fatal(1, "axil4_master_rd_mon_cg: AXIL_DATA_WIDTH=%0d is not a legal AXI4-Lite data width (32 or 64; IHI 0022H B1.1.2)",
+                   AXIL_DATA_WIDTH);
+    end
+`endif
+
     // -------------------------------------------------------------------------
     // Clock gating
     // -------------------------------------------------------------------------

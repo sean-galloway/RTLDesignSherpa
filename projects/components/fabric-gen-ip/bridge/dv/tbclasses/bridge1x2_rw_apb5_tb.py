@@ -488,8 +488,9 @@ class Bridge1x2RwApb5TB(TBBase):
         # APB slave — APBSlave manages its own internal memory; pre-seed
         # it with the slave-specific pattern via direct memory writes.
         preset = self._build_preset(1, 0x00010000, 32)
-        # APB5 port: the APB5 BFM binds PAUSER/PWUSER/PRUSER/PBUSER (and
-        # PWAKEUP) at the port's user width. Driven by the APB4 BFM until
+        # APB5 port: the APB5 BFM binds PAUSER/PWUSER/PRUSER/PBUSER at the
+        # port's user width and OBSERVES PWAKEUP, which the bridge drives as
+        # the requester (IHI 0024E 3.7.2). Driven by the APB4 BFM until
         # 2026-09-09, which left those pins unbound.
         self.slave_apb[1] = APB5Slave(
             entity=self.dut,

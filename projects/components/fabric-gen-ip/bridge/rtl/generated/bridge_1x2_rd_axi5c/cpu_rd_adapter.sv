@@ -119,7 +119,8 @@ module cpu_rd_adapter
         .ENABLE_UNIQUE(1'b0),
         .ENABLE_CHUNKING(1'b1),
         .ENABLE_MTE(1'b0),
-        .ENABLE_POISON(1'b0)
+        .ENABLE_POISON(1'b0),
+        .ENABLE_WAKEUP(1'b0)
     ) u_timing_wrapper_rd (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -141,9 +142,10 @@ module cpu_rd_adapter
         .s_axi_artrace(cpu_rd_axi_artrace),
         .s_axi_armpam('0),
         .s_axi_armecid('0),
-        .s_axi_arunique('0),
+        .s_axi_aridunq('0),
         .s_axi_archunken(cpu_rd_axi_archunken),
         .s_axi_artagop('0),
+        .s_axi_awakeup('0),
         .s_axi_rid(cpu_rd_axi_rid),
         .s_axi_rdata(cpu_rd_axi_rdata),
         .s_axi_rresp(cpu_rd_axi_rresp),
@@ -152,12 +154,12 @@ module cpu_rd_adapter
         .s_axi_rvalid(cpu_rd_axi_rvalid),
         .s_axi_rready(cpu_rd_axi_rready),
         .s_axi_rtrace(cpu_rd_axi_rtrace),
+        .s_axi_ridunq(),
         .s_axi_rpoison(),
         .s_axi_rchunkv(cpu_rd_axi_rchunkv),
         .s_axi_rchunknum(cpu_rd_axi_rchunknum),
         .s_axi_rchunkstrb(cpu_rd_axi_rchunkstrb),
         .s_axi_rtag(),
-        .s_axi_rtagmatch(),
 
         // Bridge-internal side (fub_axi)
         .fub_axi_arid(fub_axi_arid),
@@ -176,9 +178,10 @@ module cpu_rd_adapter
         .fub_axi_artrace(fub_axi_artrace),
         .fub_axi_armpam(),
         .fub_axi_armecid(),
-        .fub_axi_arunique(),
+        .fub_axi_aridunq(),
         .fub_axi_archunken(fub_axi_archunken),
         .fub_axi_artagop(),
+        .fub_axi_awakeup(),
         .fub_axi_rid(fub_axi_rid),
         .fub_axi_rdata(fub_axi_rdata),
         .fub_axi_rresp(fub_axi_rresp),
@@ -187,12 +190,12 @@ module cpu_rd_adapter
         .fub_axi_rvalid(fub_axi_rvalid),
         .fub_axi_rready(fub_axi_rready),
         .fub_axi_rtrace(fub_axi_rtrace),
+        .fub_axi_ridunq('0),
         .fub_axi_rpoison('0),
         .fub_axi_rchunkv(fub_axi_rchunkv),
         .fub_axi_rchunknum(fub_axi_rchunknum),
         .fub_axi_rchunkstrb(fub_axi_rchunkstrb),
         .fub_axi_rtag('0),
-        .fub_axi_rtagmatch('0),
 
         // Status (empty connector = unconnected tie-off)
         .busy(wrapper_rd_busy)

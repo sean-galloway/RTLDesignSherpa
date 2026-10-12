@@ -12,14 +12,26 @@
 //
 //   - AWATOP[5] == 0 (non-atomic and AtomicStore): AW/W/B pass through.
 //   - AWATOP[5] == 1 (read-return classes): the AW is accepted upstream
-//     but NOT forwarded, its W burst is consumed and discarded, and a
-//     local DECERR B response is returned with the AW's ID.
+//     but NOT forwarded, its W burst is consumed and discarded, a local
+//     DECERR B response is returned with the AW's ID, AND the read data
+//     transfers the atomic owes are returned on R: each DECERR, RID = AWID,
+//     RLAST on the final one. IHI 0022L A6.4.8: "A Subordinate must send the
+//     correct number of read data transfers, even if the write response is
+//     DECERR or SLVERR" -- a compliant manager waits for them, so a B-only
+//     answer hangs it (GitHub #102 item 2). A6.4.7 sets the count:
+//     AWLEN+1 for AtomicLoad/AtomicSwap; for AtomicCompare half of that when
+//     AWLEN+1 > 1, else 1 -- which is AWLEN>>1 beats-minus-one in both cases.
 //
-// The filter handles handshakes, ATOP, ID, and WLAST only; address/data
-// payload buses route around it (connect them straight through — the
-// downstream side must qualify payload with m_awvalid/m_wvalid as usual).
-// The B payload is an output MUX: downstream responses take priority,
-// local DECERRs drain when the downstream B channel is idle.
+// The filter handles handshakes, ATOP, ID, AWLEN, WLAST and RLAST only;
+// address/data payload buses route around it (connect them straight through
+// -- the downstream side must qualify payload with m_awvalid/m_wvalid as
+// usual). RDATA, RUSER and the AXI5 R sidebands also route around: on a
+// local error beat they carry whatever the downstream R bus holds, which a
+// DECERR makes don't-care.
+// The B and R payloads are output MUXes: downstream responses take priority,
+// local DECERRs drain when the downstream channel is idle. R never
+// interleaves the two sources inside a burst: once a burst's first beat is
+// accepted, its source is held until RLAST.
 //
 // Constraints (documented, asserted where cheap):
 //   - W beats are stalled until their AW has been accepted (s_wready is
@@ -45,6 +57,7 @@ module axi5_atomic_filter #(
     output logic          s_awready,
     input  logic [IW-1:0] s_awid,
     input  logic [AXI_ATOP_WIDTH-1:0] s_awatop,
+    input  logic [7:0]    s_awlen,     // R beat count of a swallowed atomic (A6.4.7)
     input  logic          s_wvalid,
     output logic          s_wready,
     input  logic          s_wlast,
@@ -52,6 +65,13 @@ module axi5_atomic_filter #(
     input  logic          s_bready,
     output logic [IW-1:0] s_bid,
     output logic [1:0]    s_bresp,
+    // Read data channel: downstream R merged with the local read-return
+    // beats of swallowed atomics (RDATA/RUSER route around the filter).
+    output logic          s_rvalid,
+    input  logic          s_rready,
+    output logic [IW-1:0] s_rid,
+    output logic [1:0]    s_rresp,
+    output logic          s_rlast,
 
     // Downstream (toward the fabric)
     output logic          m_awvalid,
@@ -61,11 +81,23 @@ module axi5_atomic_filter #(
     input  logic          m_bvalid,
     output logic          m_bready,
     input  logic [IW-1:0] m_bid,
-    input  logic [1:0]    m_bresp
+    input  logic [1:0]    m_bresp,
+    input  logic          m_rvalid,
+    output logic          m_rready,
+    input  logic [IW-1:0] m_rid,
+    input  logic [1:0]    m_rresp,
+    input  logic          m_rlast
 );
 
     // AWATOP[5] set => the atomic returns data on R: swallow it here.
     wire w_swallow = s_awatop[AXI_ATOP_WIDTH-1];
+
+    // Read data transfers owed, minus one (A6.4.7). AtomicCompare (110001)
+    // returns half the write length when that is more than one transfer:
+    // (AWLEN+1)/2 - 1 == AWLEN>>1 for odd AWLEN, and AWLEN>>1 == 0 for the
+    // single-transfer case, so one shift covers both. Load/Swap return AWLEN+1.
+    localparam logic [AXI_ATOP_WIDTH-1:0] ATOP_COMPARE = AXI_ATOP_WIDTH'(6'b110001);
+    wire [7:0] w_r_beats_m1 = (s_awatop == ATOP_COMPARE) ? (s_awlen >> 1) : s_awlen;
 
     // -----------------------------------------------------------------
     // Route queue: one entry per accepted AW, popped at its WLAST beat.
@@ -99,12 +131,31 @@ module axi5_atomic_filter #(
     wire [IW-1:0]         w_resp_head  = r_resp_mem[r_resp_rptr[DEPTH_LG2-1:0]];
 
     // -----------------------------------------------------------------
-    // AW path. Forwarded AWs need m_awready; swallowed AWs need queue
-    // space only. Both need route-queue space.
+    // Read-return queue: one entry per swallowed AW (ID + beats-minus-one);
+    // drains as local DECERR R beats. Pushed at AW accept and visible at
+    // once: A6.4.7 lets a Subordinate send all read data before accepting
+    // any write data, and the Manager must be able to take it.
+    // -----------------------------------------------------------------
+    logic [IW-1:0]        r_rq_id_mem  [DEPTH];
+    logic [7:0]           r_rq_len_mem [DEPTH];
+    logic [DEPTH_LG2:0]   r_rq_wptr, r_rq_rptr;
+    logic [7:0]           r_rq_beat;          // beats of the head entry sent
+    wire                  w_rq_empty = (r_rq_wptr == r_rq_rptr);
+    wire                  w_rq_full  =
+        (r_rq_wptr[DEPTH_LG2-1:0] == r_rq_rptr[DEPTH_LG2-1:0]) &&
+        (r_rq_wptr[DEPTH_LG2]     != r_rq_rptr[DEPTH_LG2]);
+    wire [IW-1:0]         w_rq_head_id  = r_rq_id_mem[r_rq_rptr[DEPTH_LG2-1:0]];
+    wire [7:0]            w_rq_head_len = r_rq_len_mem[r_rq_rptr[DEPTH_LG2-1:0]];
+    wire                  w_local_rvalid = !w_rq_empty;
+    wire                  w_local_rlast  = (r_rq_beat == w_rq_head_len);
+
+    // -----------------------------------------------------------------
+    // AW path. Forwarded AWs need m_awready; swallowed AWs need space in
+    // both local response queues. Both need route-queue space.
     // -----------------------------------------------------------------
     assign m_awvalid = s_awvalid && !w_swallow && !w_route_full;
     assign s_awready = !w_route_full &&
-                       (w_swallow ? !w_resp_full : m_awready);
+                       (w_swallow ? (!w_resp_full && !w_rq_full) : m_awready);
 
     wire w_aw_hs = s_awvalid && s_awready;
 
@@ -175,6 +226,45 @@ module axi5_atomic_filter #(
     // every later swallowed atomic shifted behind a stale head.
     wire w_local_b_hs = s_bvalid && s_bready && !w_sel_ds;
 
+    // -----------------------------------------------------------------
+    // R path. Same shape as B -- downstream first, local beats when the
+    // downstream R channel is idle, source latched while a beat is held --
+    // plus a BURST hold: once a burst's first beat is accepted the source
+    // stays put until RLAST, so local and downstream bursts never interleave
+    // on s_r* (a consumer that does not expect cross-ID interleaving sees
+    // none). A held downstream burst whose next beat is late simply leaves
+    // s_rvalid low; it cannot strand anything, because the downstream must
+    // finish the burst it started.
+    // -----------------------------------------------------------------
+    logic r_r_sel_ds;    // the presented / in-progress burst is downstream's
+    logic r_r_held;      // beat held under backpressure, or burst open
+
+    wire w_r_sel_ds = r_r_held ? r_r_sel_ds : m_rvalid;
+
+    assign s_rvalid = w_r_sel_ds ? m_rvalid : w_local_rvalid;
+    assign s_rid    = w_r_sel_ds ? m_rid    : w_rq_head_id;
+    assign s_rresp  = w_r_sel_ds ? m_rresp  : 2'b11;  // DECERR
+    assign s_rlast  = w_r_sel_ds ? m_rlast  : w_local_rlast;
+    assign m_rready = s_rready && w_r_sel_ds;
+
+    wire w_r_hs       = s_rvalid && s_rready;
+    wire w_local_r_hs = w_r_hs && !w_r_sel_ds;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_r_held   <= 1'b0;
+            r_r_sel_ds <= 1'b0;
+        end else begin
+            if (w_r_hs) begin
+                r_r_held   <= !s_rlast;      // open burst keeps its source
+                r_r_sel_ds <= w_r_sel_ds;
+            end else if (s_rvalid) begin
+                r_r_held   <= 1'b1;          // beat presented, not accepted
+                r_r_sel_ds <= w_r_sel_ds;
+            end
+        end
+    )
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_route_wptr <= '0;
@@ -182,6 +272,9 @@ module axi5_atomic_filter #(
             r_resp_wptr  <= '0;
             r_resp_cptr  <= '0;
             r_resp_rptr  <= '0;
+            r_rq_wptr    <= '0;
+            r_rq_rptr    <= '0;
+            r_rq_beat    <= '0;
         end else begin
             if (w_aw_hs) begin
                 r_route_mem[r_route_wptr[DEPTH_LG2-1:0]] <= w_swallow;
@@ -189,6 +282,9 @@ module axi5_atomic_filter #(
                 if (w_swallow) begin
                     r_resp_mem[r_resp_wptr[DEPTH_LG2-1:0]] <= s_awid;
                     r_resp_wptr <= r_resp_wptr + 1'b1;
+                    r_rq_id_mem[r_rq_wptr[DEPTH_LG2-1:0]]  <= s_awid;
+                    r_rq_len_mem[r_rq_wptr[DEPTH_LG2-1:0]] <= w_r_beats_m1;
+                    r_rq_wptr <= r_rq_wptr + 1'b1;
                 end
             end
             if (w_w_hs_last) begin
@@ -200,6 +296,14 @@ module axi5_atomic_filter #(
             end
             if (w_local_b_hs)
                 r_resp_rptr <= r_resp_rptr + 1'b1;
+            if (w_local_r_hs) begin
+                if (w_local_rlast) begin
+                    r_rq_rptr <= r_rq_rptr + 1'b1;
+                    r_rq_beat <= '0;
+                end else begin
+                    r_rq_beat <= r_rq_beat + 8'd1;
+                end
+            end
         end
     )
 

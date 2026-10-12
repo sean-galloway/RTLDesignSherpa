@@ -49,10 +49,18 @@
 own sources (`rtl/amba/ace/axi4ace_master_rd.sv`,
 `rtl/amba/ace/axi4ace_master_wr.sv`) and the AMBA documentation index —
 this HAS does not duplicate them. What amber adds on top of those
-contracts is exactly two facts:
+contracts is exactly four facts:
 
 - the `fub_axi_arsnoop[3:0]` / `fub_axi_awsnoop[2:0]` fields carry the
   Table 4.2 transaction encodings above (the standard ACE snoop values);
+- `ARDOMAIN` / `AWDOMAIN` are tied to Outer Shareable (`0b10`) and
+  `ARBAR` / `AWBAR` to `0b00` (normal access): every amber transaction is
+  coherent, the rig has one shareability domain, and amber issues no
+  barriers (onyx D8);
+- `RRESP[3:2]` (IsShared, PassDirty) is carried and monitored but not
+  consumed: install state follows the request class (`ReadShared` -> S,
+  `ReadUnique` -> M), so amber relies on its manager never answering a
+  `ReadShared` with PassDirty set (MAS Chapter 3.3);
 - `m_axi_rack` / `m_axi_wack` are **auto-pulsed inside the adapters** one
   cycle after the last R beat / the B handshake. The family contract
   omits RACK/WACK (ruling 2026-10-11 (Sean)); the auto-pulse is retained

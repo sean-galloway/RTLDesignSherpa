@@ -129,7 +129,8 @@ module cpu_wr_adapter
         .ENABLE_MECID(1'b0),
         .ENABLE_UNIQUE(1'b0),
         .ENABLE_MTE(1'b0),
-        .ENABLE_POISON(1'b1)
+        .ENABLE_POISON(1'b1),
+        .ENABLE_WAKEUP(1'b0)
     ) u_timing_wrapper_wr (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -152,9 +153,9 @@ module cpu_wr_adapter
         .s_axi_awtrace(cpu_wr_axi_awtrace),
         .s_axi_awmpam('0),
         .s_axi_awmecid('0),
-        .s_axi_awunique('0),
+        .s_axi_awidunq('0),
         .s_axi_awtagop('0),
-        .s_axi_awtag('0),
+        .s_axi_awakeup('0),
         .s_axi_wdata(cpu_wr_axi_wdata),
         .s_axi_wstrb(cpu_wr_axi_wstrb),
         .s_axi_wlast(cpu_wr_axi_wlast),
@@ -170,7 +171,7 @@ module cpu_wr_adapter
         .s_axi_bvalid(cpu_wr_axi_bvalid),
         .s_axi_bready(cpu_wr_axi_bready),
         .s_axi_btrace(cpu_wr_axi_btrace),
-        .s_axi_btag(),
+        .s_axi_bidunq(),
         .s_axi_btagmatch(),
 
         // Bridge-internal side (fub_axi)
@@ -191,9 +192,9 @@ module cpu_wr_adapter
         .fub_axi_awtrace(fub_axi_awtrace),
         .fub_axi_awmpam(),
         .fub_axi_awmecid(),
-        .fub_axi_awunique(),
+        .fub_axi_awidunq(),
         .fub_axi_awtagop(),
-        .fub_axi_awtag(),
+        .fub_axi_awakeup(),
         .fub_axi_wdata(fub_axi_wdata),
         .fub_axi_wstrb(fub_axi_wstrb),
         .fub_axi_wlast(fub_axi_wlast),
@@ -209,7 +210,7 @@ module cpu_wr_adapter
         .fub_axi_bvalid(fub_axi_bvalid),
         .fub_axi_bready(fub_axi_bready),
         .fub_axi_btrace(fub_axi_btrace),
-        .fub_axi_btag('0),
+        .fub_axi_bidunq('0),
         .fub_axi_btagmatch('0),
 
         // Status (empty connector = unconnected tie-off)

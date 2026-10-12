@@ -39,7 +39,7 @@ The APB5 Slave CDC module provides clock domain crossing between an APB5 bus clo
 - Asynchronous FIFO-based clock domain crossing (Gray pointers by default;
   Johnson available via `USE_JOHNSON`, and opt-in by design)
 - All APB5 user signals (PAUSER, PWUSER, PRUSER, PBUSER)
-- Wake-up request crossing via a dedicated level synchronizer
+- PWAKEUP is a `pclk`-domain input from the Requester (IHI 0024E §3.7.2)
 - Single `DEPTH` parameter sizes both directions
 - Metastability protection with 2-flop pointer synchronizers
 
@@ -116,13 +116,15 @@ optional parity signals.
 ### Backend Interface
 
 Same command/response interface as [apb5_slave](apb5_slave.md) - operates in the
-`aclk` domain. `wakeup_request` is also an `aclk`-domain input.
+`aclk` domain. There is no backend `wakeup_request` input: PWAKEUP is a
+Requester signal (IHI 0024E §3.7.2) and arrives on the `pclk`-side APB port.
 
 `parity_error_wdata` and `parity_error_ctrl` are **not** `aclk`-domain signals,
 despite sitting next to these ports. `apb5_slave` drives them combinationally
-from the APB inputs (`s_apb_PSEL && s_apb_PENABLE ? ... : 1'b0`), so they are
-`pclk`-domain (gated-`pclk` in the CG variant) pulses valid only during the APB
-access phase. They cross no synchronizer. Sample them in `pclk`, or synchronize
+from the APB inputs, qualified by each check's IHI 0024E Table 5-1 Check Enable
+term (`PSEL`, `PSEL & PWRITE`, or reset deasserted for `PSELCHK`; see
+[apb5_slave](apb5_slave.md#parity-implementation)), so they are `pclk`-domain
+(gated-`pclk` in the CG variant) and they cross no synchronizer. Sample them in `pclk`, or synchronize
 them yourself before using them in `aclk`.
 
 ---
@@ -184,11 +186,9 @@ synchronizer (`N_FLOP_CROSS(2)`) on each pointer crossing. The command FIFO is
 written in `pclk` and read in `aclk`; the response FIFO is written in `aclk` and
 read in `pclk`.
 
-The `wakeup_request` input is the one signal that does not go through a FIFO: it
-crosses from `aclk` into `pclk` through a `cdc_synchronizer` before reaching the
-wrapped `apb5_slave`. Because it is a level, not a pulse, this is safe — but it
-means `wakeup_request` must be held asserted long enough to be sampled in the
-`pclk` domain (at least two `pclk` periods).
+Every crossing goes through one of the two FIFOs. (The old `wakeup_request`
+level synchronizer is gone with that port: PWAKEUP is a Requester output and
+enters on the `pclk` side, so it needs no crossing here.)
 
 ### CDC FIFO Pointer Encoding
 
@@ -323,11 +323,8 @@ apb5_slave_cdc #(
 
     // Backend interface (aclk domain)
     .cmd_valid      (backend_cmd_valid),
-    .cmd_ready      (backend_cmd_ready),
+    .cmd_ready      (backend_cmd_ready)
     // ... other backend signals
-
-    // Wake-up request (aclk domain, synchronized internally to pclk)
-    .wakeup_request (backend_wakeup)
 );
 ```
 
@@ -369,7 +366,7 @@ pytest val/amba/test_apb5_slave_cdc.py -v
 
 - Arm. *AMBA APB Protocol Specification*, ARM IHI 0024E, Feb. 2023 (APB5 first published in Issue D, Apr. 2021). [developer.arm.com/documentation/ihi0024/e](https://developer.arm.com/documentation/ihi0024/e/) — ch. 3 "Transfers", ch. 4 "Operating States", §3.7 "Wake-up signaling" and §3.8 "User signaling": the protocol of the wrapped APB5 block. Citation only.
 - Cummings, C.E. "Simulation and Synthesis Techniques for Asynchronous FIFO Design." *SNUG San Jose*, 2002 — the Gray-pointer async FIFO (`gaxi_fifo_async`) that carries the command and response across the two clocks.
-- Ginosar, R. "Metastability and Synchronizers: A Tutorial." *IEEE Design & Test of Computers*, 28(5), Sept./Oct. 2011. DOI: [10.1109/MDT.2011.113](https://doi.org/10.1109/MDT.2011.113) — synchronizer depth versus MTBF for the pointer crossings and the `cdc_synchronizer` on `PWAKEUP`.
+- Ginosar, R. "Metastability and Synchronizers: A Tutorial." *IEEE Design & Test of Computers*, 28(5), Sept./Oct. 2011. DOI: [10.1109/MDT.2011.113](https://doi.org/10.1109/MDT.2011.113) — synchronizer depth versus MTBF for the pointer crossings.
 - Deschamps, J.-P., Sutter, G.D., Cantó, E. *Guide to FPGA Implementation of Arithmetic Functions*, Springer (LNEE 149), 2012, ch. 5 "Electronic Aspects of Digital Design", §5.3.5.3 "Asynchronous FIFO" — textbook treatment (secondary source).
 - Indexed in `rtl/amba/references/README.md` (local PDF: `rtl/cdc/references/AsyncFifoGrayPointers__Cummings2002.pdf`, `rtl/cdc/references/MetastabilitySynchronizers__Ginosar2011.pdf`)
 

@@ -19,6 +19,7 @@ cleanup. It starts from intent, not from a failure.
 - **DELTA-002** — delta HAS + MAS books authored from scratch (v1.0, house naming + house-style diagrams; 2026-10-12)
 
 - **DELTA-001** — axis flavor richness: optional TSTRB + AMBA 5
-  TWAKEUP/TPARITY generator options (default off; default output byte-identical);
+  TWAKEUP/TPARITY generator options (default off; default output byte-identical;
+  TPARITY later replaced by the IHI 0051B check signals under GitHub #102);
   rich example `rtl_test/delta_axis_flat_2x4_strb_amba5.sv` lints clean
   (closed 2026-10-12)

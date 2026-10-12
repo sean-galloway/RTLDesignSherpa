@@ -18,7 +18,7 @@ AXIS5 Master Testbench
 
 Testbench for testing axis5_master.sv module using the CocoTB framework's
 AXIS5 components. The axis5_master is a skid buffer that converts FUB-side
-signals to standard AXIS5 master interface with TWAKEUP and TPARITY support.
+signals to standard AXIS5 master interface with TWAKEUP and IHI 0051B ch. 5 check-signal (T*CHK) support.
 
 Architecture:
     fub_axis5_* (input) -> [axis5_master] -> m_axis5_* (output)
@@ -53,7 +53,7 @@ class AXIS5MasterTB(TBBase):
     AXIS5 Master testbench for testing axis5_master.sv RTL module.
 
     Tests the skid buffer functionality that converts FUB-side AXIS5
-    signals to standard AXIS5 master interface with TWAKEUP and TPARITY.
+    signals to standard AXIS5 master interface with TWAKEUP and the T*CHK check signals.
     """
 
     def __init__(self, dut, aclk=None, aresetn=None):
@@ -289,7 +289,7 @@ class AXIS5MasterTB(TBBase):
         self.log.info("Wakeup test completed successfully")
 
     async def run_parity_test(self, num_packets=10):
-        """Test TPARITY signal behavior."""
+        """Test the T*CHK check signals (odd parity)."""
         if not self.ENABLE_PARITY:
             self.log.info("Parity not enabled, skipping parity test")
             return
@@ -306,7 +306,7 @@ class AXIS5MasterTB(TBBase):
             )
             packet.data = 0x60000000 + i
             packet.last = 1
-            packet.parity = packet.calculate_parity()
+            packet.fill_check_fields()
 
             success = await self.fub_master.send_packet(packet)
             assert success, f"Failed to send packet {i} with parity"
@@ -340,9 +340,9 @@ class AXIS5MasterTB(TBBase):
             )
             packet.data = 0x70000000 + i
             packet.last = 1
-            # Inject bad parity (invert correct parity)
-            correct_parity = packet.calculate_parity()
-            packet.parity = ~correct_parity & ((1 << self.STRB_WIDTH) - 1)
+            # Inject bad TDATACHK (invert every bit of the correct value)
+            packet.fill_check_fields()
+            packet.parity = ~packet.calculate_parity() & ((1 << self.STRB_WIDTH) - 1)
 
             success = await self.fub_master.send_packet(packet)
             assert success, f"Failed to send packet {i} with bad parity"
@@ -377,7 +377,7 @@ class AXIS5MasterTB(TBBase):
                 packet.id = frame_id
 
                 if self.ENABLE_PARITY:
-                    packet.parity = packet.calculate_parity()
+                    packet.fill_check_fields()
 
                 success = await self.fub_master.send_packet(packet)
                 assert success, f"Failed to send beat {beat} of frame {frame_id}"
@@ -409,7 +409,7 @@ class AXIS5MasterTB(TBBase):
             packet.last = 1
 
             if self.ENABLE_PARITY:
-                packet.parity = packet.calculate_parity()
+                packet.fill_check_fields()
 
             success = await self.fub_master.send_packet(packet)
             assert success, f"Failed to send packet {i} under backpressure"

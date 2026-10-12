@@ -130,10 +130,7 @@ module lite5_adapter
 
     // ================================================================
     // Internal signals after wrapper (timing isolation)
-    // Note: 1-bit ID placeholder. This port is AXI4-Lite and
-    // has no external ID; the width matches the crossbar's struct
-    // field so every connection to it is width-exact. The value is
-    // tied to zero end to end.
+    // Note: ID width matches external (1-bit)
     // ================================================================
     logic [0:0]   fub_axi_awid;
     logic [31:0]  fub_axi_awaddr;

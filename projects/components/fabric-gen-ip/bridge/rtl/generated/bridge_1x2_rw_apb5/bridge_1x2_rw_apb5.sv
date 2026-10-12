@@ -137,7 +137,7 @@ module bridge_1x2_rw_apb5
     input  logic         periph5_PSLVERR,
     output logic periph5_PAUSER,
     output logic periph5_PWUSER,
-    input  logic periph5_PWAKEUP,
+    output logic periph5_PWAKEUP,
     input  logic periph5_PRUSER,
     input  logic periph5_PBUSER,
     // Unmapped-address status (subtractive slave).

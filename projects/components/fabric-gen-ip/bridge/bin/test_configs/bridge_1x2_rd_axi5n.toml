@@ -7,6 +7,8 @@
 #   cpu_rd (AXI5) -> struct fields -> xbar -> sram_rd (AXI5)  [native]
 #   cpu_rd (AXI5) -> ddr_rd (AXI4)                    [drops, warning]
 # rtrace returns natively from sram_rd; reads from ddr_rd see rtrace=0.
+# 'wakeup' (GitHub #102 item 5) on both AXI5 ports: a read-only port carries
+# the single AWAKEUP too (it covers both request channels, A14.1.1).
 # Connectivity comes from bridge_1x2_rd_axi5n_connectivity.csv.
 
 [bridge]
@@ -23,7 +25,7 @@ data_width = 32
 user_width = 1
 channels = "rd"
 protocol = "axi5"
-axi5_features = ["nsaid", "trace", "unique"]
+axi5_features = ["nsaid", "trace", "unique", "wakeup"]
 
 [[bridge.slaves]]
 name = "ddr_rd"  # stays AXI4: the sideband drop path
@@ -45,6 +47,6 @@ data_width = 32
 user_width = 1
 channels = "rd"
 protocol = "axi5"
-axi5_features = ["nsaid", "trace", "unique"]
+axi5_features = ["nsaid", "trace", "unique", "wakeup"]
 base_addr = "0x80000000"
 addr_range = "0x80000000"

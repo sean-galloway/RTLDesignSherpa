@@ -32,7 +32,7 @@ package bridge_1x2_rd_axi5w_pkg;
         logic         user;    // User signal
         logic [3:0]  nsaid;   // AXI5 sideband (nsaid)
         logic         trace;   // AXI5 sideband (trace)
-        logic         uniq;    // AXI5 sideband (unique)
+        logic         idunq;   // AXI5 sideband (unique)
     } axi4_aw_t;
 
     // AXI4 Read Address Channel (width-independent)
@@ -50,7 +50,7 @@ package bridge_1x2_rd_axi5w_pkg;
         logic         user;    // User signal
         logic [3:0]  nsaid;   // AXI5 sideband (nsaid)
         logic         trace;   // AXI5 sideband (trace)
-        logic         uniq;    // AXI5 sideband (unique)
+        logic         idunq;   // AXI5 sideband (unique)
     } axi4_ar_t;
 
     // AXI4 Write Data Channel - 32-bit data width

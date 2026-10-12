@@ -12,7 +12,8 @@
 //
 // AXIS5 Extensions:
 // - TWAKEUP: Wake-up signaling for power management
-// - TPARITY: Optional parity for TDATA integrity
+// - Interface parity (IHI 0051B ch. 5): the *CHK check signals, ODD parity,
+//   one check bit per 8 bits, when ENABLE_PARITY (see axis5_master)
 // - Clock gating for power savings
 //
 // Author: sean galloway
@@ -39,12 +40,16 @@ module axis5_master_cg
     parameter int DESTW    = AXIS_DEST_WIDTH,
     parameter int UW       = AXIS_USER_WIDTH,
     parameter int SW       = DW / 8,
-    parameter int PW       = SW,
     parameter int ICW      = CG_IDLE_COUNT_WIDTH,
     parameter int IW_WIDTH = (IW > 0) ? IW : 1,
     parameter int DESTW_WIDTH = (DESTW > 0) ? DESTW : 1,
     parameter int UW_WIDTH = (UW > 0) ? UW : 1,
-    parameter int PW_WIDTH = ENABLE_PARITY ? PW : 1
+    // Check-signal widths, IHI 0051B Table 5-1
+    parameter int TDATACHK_W = SW,                     // TDATA_WIDTH/8
+    parameter int TSTRBCHK_W = (SW + 7) / 8,           // ceil(TDATA_WIDTH/64)
+    parameter int TIDCHK_W   = (IW_WIDTH + 7) / 8,     // ceil(TID_WIDTH/8)
+    parameter int TDESTCHK_W = (DESTW_WIDTH + 7) / 8,  // ceil(TDEST_WIDTH/8)
+    parameter int TUSERCHK_W = (UW_WIDTH + 7) / 8      // ceil(TUSER_WIDTH/8)
 )
 (
     // Global Clock and Reset
@@ -65,7 +70,12 @@ module axis5_master_cg
     input  logic                       fub_axis5_tvalid,
     output logic                       fub_axis5_tready,
     input  logic                       fub_axis5_twakeup,
-    input  logic [PW_WIDTH-1:0]        fub_axis5_tparity,
+    input  logic [TDATACHK_W-1:0]      fub_axis5_tdatachk,
+    input  logic [TSTRBCHK_W-1:0]      fub_axis5_tstrbchk,
+    input  logic                       fub_axis5_tlastchk,
+    input  logic [TIDCHK_W-1:0]        fub_axis5_tidchk,
+    input  logic [TDESTCHK_W-1:0]      fub_axis5_tdestchk,
+    input  logic [TUSERCHK_W-1:0]      fub_axis5_tuserchk,
 
     // Master AXI5-Stream Interface (Output Side)
     output logic [DW-1:0]              m_axis5_tdata,
@@ -77,7 +87,15 @@ module axis5_master_cg
     output logic                       m_axis5_tvalid,
     input  logic                       m_axis5_tready,
     output logic                       m_axis5_twakeup,
-    output logic [PW_WIDTH-1:0]        m_axis5_tparity,
+    output logic [TDATACHK_W-1:0]      m_axis5_tdatachk,
+    output logic [TSTRBCHK_W-1:0]      m_axis5_tstrbchk,
+    output logic                       m_axis5_tlastchk,
+    output logic [TIDCHK_W-1:0]        m_axis5_tidchk,
+    output logic [TDESTCHK_W-1:0]      m_axis5_tdestchk,
+    output logic [TUSERCHK_W-1:0]      m_axis5_tuserchk,
+    output logic                       m_axis5_tvalidchk,
+    input  logic                       m_axis5_treadychk,
+    output logic                       m_axis5_twakeupchk,
 
     // Status outputs
     output logic                       busy,
@@ -155,7 +173,12 @@ module axis5_master_cg
         .fub_axis_tvalid   (fub_axis5_tvalid),
         .fub_axis_tready   (int_fub_axis5_tready),
         .fub_axis_twakeup  (fub_axis5_twakeup),
-        .fub_axis_tparity  (fub_axis5_tparity),
+        .fub_axis_tdatachk (fub_axis5_tdatachk),
+        .fub_axis_tstrbchk (fub_axis5_tstrbchk),
+        .fub_axis_tlastchk (fub_axis5_tlastchk),
+        .fub_axis_tidchk   (fub_axis5_tidchk),
+        .fub_axis_tdestchk (fub_axis5_tdestchk),
+        .fub_axis_tuserchk (fub_axis5_tuserchk),
 
         .m_axis_tdata      (m_axis5_tdata),
         .m_axis_tstrb      (m_axis5_tstrb),
@@ -166,7 +189,15 @@ module axis5_master_cg
         .m_axis_tvalid     (m_axis5_tvalid),
         .m_axis_tready     (m_axis5_tready),
         .m_axis_twakeup    (m_axis5_twakeup),
-        .m_axis_tparity    (m_axis5_tparity),
+        .m_axis_tdatachk   (m_axis5_tdatachk),
+        .m_axis_tstrbchk   (m_axis5_tstrbchk),
+        .m_axis_tlastchk   (m_axis5_tlastchk),
+        .m_axis_tidchk     (m_axis5_tidchk),
+        .m_axis_tdestchk   (m_axis5_tdestchk),
+        .m_axis_tuserchk   (m_axis5_tuserchk),
+        .m_axis_tvalidchk  (m_axis5_tvalidchk),
+        .m_axis_treadychk  (m_axis5_treadychk),
+        .m_axis_twakeupchk (m_axis5_twakeupchk),
 
         .busy              (core_busy),
         .parity_error      (parity_error)

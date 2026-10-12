@@ -5,13 +5,16 @@
 # HAND-WRITTEN (not generated): bridge TASK-002 (was BRIDGE-002) A5-2 slice 2 sign-off test.
 #
 # Asserts sideband VALUES end-to-end through the fabric structs. The AXI5
-# master BFM drives ar{nsaid,trace,unique} per transaction (no pin poking
+# master BFM drives ar{nsaid,trace,idunq} per transaction (no pin poking
 # since 2026-09-09) and the AXI5 slave BFM on sram_rd echoes trace on R:
 #   - reads to sram_rd (AXI5, native path): the slave-side boundary must
 #     present the SAME values at the AR handshake, and rtrace=1 comes back.
 #   - reads to ddr_rd (AXI4, drop path): that slave contributes nothing to
 #     the R mux, and rtrace=1 still comes back -- the adapter echoes the
 #     request's trace at the port (bridge BUG-010, was BRIDGE-012).
+#   - RIDUNQ equals ARIDUNQ on both paths (IHI 0022L A5.2, GitHub #102 item
+#     5): the AXI4 slave never sees ARIDUNQ, the master boundary regenerates
+#     RIDUNQ per ID.
 # Structural: the AXI4 slave port must not have sideband pins at all, which
 # is where the drop is proved.
 
@@ -57,7 +60,7 @@ class SidebandSampler:
                 self.sram_ar_samples.append({
                     'nsaid': int(self.dut.sram_rd_axi_arnsaid.value),
                     'trace': int(self.dut.sram_rd_axi_artrace.value),
-                    'unique': int(self.dut.sram_rd_axi_arunique.value),
+                    'idunq': int(self.dut.sram_rd_axi_aridunq.value),
                 })
             if (int(self.dut.cpu_rd_axi_rvalid.value)
                     and int(self.dut.cpu_rd_axi_rready.value)):
@@ -72,15 +75,18 @@ async def cocotb_test_bridge_1x2_rd_axi5n_sideband(dut):
 
     # Structural: the AXI4 slave has no sideband surface.
     for pin in ('ddr_rd_axi_arnsaid', 'ddr_rd_axi_artrace',
-                'ddr_rd_axi_arunique', 'ddr_rd_axi_rtrace'):
+                'ddr_rd_axi_aridunq', 'ddr_rd_axi_rtrace', 'ddr_rd_axi_awakeup'):
         assert not hasattr(dut, pin), f"AXI4 slave grew sideband pin {pin}"
 
     await tb.setup_clocks_and_reset()
 
     async def read(slave_idx, addr):
-        """One AXI5 BFM read carrying the distinctive sideband; returns (data, rtrace)."""
+        """One AXI5 BFM read carrying the distinctive sideband; returns (data, rtrace).
+        Also checks RIDUNQ == ARIDUNQ (A5.2) on the response."""
         resp = await tb.master_rd[0].read_transaction(
-            addr, size=2, nsaid=ARNSAID, trace=1, unique=1)
+            addr, size=2, nsaid=ARNSAID, trace=1, idunq=1)
+        assert resp[0].get('idunq', 0) == 1, (
+            f"RIDUNQ={resp[0].get('idunq')} for ARIDUNQ=1 @0x{addr:08x} (A5.2)")
         return resp[0]['data'], resp[0].get('trace', 0)
 
     sampler = SidebandSampler(dut, tb.clock)
@@ -114,7 +120,7 @@ async def cocotb_test_bridge_1x2_rd_axi5n_sideband(dut):
     assert len(sampler.sram_ar_samples) >= n, (
         f"expected >={n} sram AR handshakes, saw {len(sampler.sram_ar_samples)}")
     for i, s in enumerate(sampler.sram_ar_samples):
-        assert s == {'nsaid': ARNSAID, 'trace': 1, 'unique': 1}, (
+        assert s == {'nsaid': ARNSAID, 'trace': 1, 'idunq': 1}, (
             f"sram AR sideband sample {i} corrupted: {s}")
     assert sampler.master_r_samples, "no master R beats sampled"
     assert all(v == RTRACE_DRIVE for v in sampler.master_r_samples), (
@@ -122,7 +128,7 @@ async def cocotb_test_bridge_1x2_rd_axi5n_sideband(dut):
     assert all(v == RTRACE_DRIVE for v in r_native), (
         f"rtrace lost on native path (BFM response): {r_native}")
     tb.log.info(f"  native path OK: {len(sampler.sram_ar_samples)} AR "
-                f"handshakes carried nsaid=0x{ARNSAID:x}/trace/unique; "
+                f"handshakes carried nsaid=0x{ARNSAID:x}/trace/idunq; "
                 f"{len(sampler.master_r_samples)} R beats returned rtrace=1")
 
     # --- Drop path: reads into the AXI4 slave --------------------------

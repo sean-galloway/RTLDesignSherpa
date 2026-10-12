@@ -385,9 +385,9 @@ def test_axi5_write_master(request, stub, id_width, addr_width, data_width, user
     # Calculate packet sizes for AXI5
     aw_size = (id_width + addr_width + 8 + 3 + 2 + 1 + 4 + 3 + 4 + user_width +
                atop_width + nsaid_width + 1 + mpam_width + mecid_width + 1 +
-               tagop_width + (tag_width * num_tags))
+               tagop_width)  # no AWTAG (IHI 0022L Table A12.9)
     w_size = data_width + wstrb_width + 1 + user_width + 1 + (tag_width * num_tags) + num_tags
-    b_size = id_width + 2 + user_width + 1 + (tag_width * num_tags) + 1
+    b_size = id_width + 2 + user_width + 1 + 1 + 2  # trace, bidunq, btagmatch[1:0]
 
     rtl_parameters = {
         'SKID_DEPTH_AW': str(aw_depth),

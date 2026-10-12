@@ -64,9 +64,11 @@ Protocol conversion has five jobs:
   accepted and terminated
 
 **AXI5-Lite (Master-Side, bridge TASK-004 (was BRIDGE-014))**:
-- The AXI4-Lite path plus the AXI5-Lite sideband on the boundary
-- `exclusive` -> `AxLOCK` and `user` -> the 1-bit USER fields ride the
-  fabric; every other group is terminated at the bridge top
+- The AXI4-Lite path plus the AXI5-Lite ID and optional signals on the boundary
+- `awid`/`arid` -> the AXI4 ID (returned on `bid`/`rid`) and `user` -> the
+  1-bit USER fields ride the fabric; TRACE and POISON are terminated at the
+  bridge top. AXI5-Lite has no LOCK, LOOP, MPAM, MECID or NSAID (IHI 0022L
+  B2.1.5, GitHub #102 item 3)
 
 **Wishbone B4 (both sides, bridge TASK-008 (was BRIDGE-019))**:
 - Slave port: `axi4_to_wb4` (the AXI4-Lite decomposers + `axil4_to_wb4`),
@@ -1025,11 +1027,11 @@ Validation fixtures: `bridge_1x2_axi3`, `bridge_2x2_axi3_masters`,
 ### Master-Side AXI5-Lite Sideband
 
 When `protocol = "axil5"` is specified on a **master** (bridge TASK-004, was BRIDGE-014), the
-bridge top exposes the AXI4-Lite set plus every AXI5-Lite sideband group
+bridge top exposes the AXI4-Lite set plus the AXI5-Lite ID and every optional group
 (from `bridge_pkg/axil5_sideband.py`, the one table the slave side also
 reads, with the directions flipped for a requester). The enabled forwardable
-groups join the Lite surface and are wired into the adapter's AXI4 face
-(`exclusive` -> `awlock`/`arlock`, `user` -> `aw/w/ar user`); the rest is
+groups and the ID join the Lite surface and are wired into the adapter's AXI4
+face (`awid`/`bid`/`arid`/`rid` always, `user` -> `aw/w/ar user`); the rest is
 terminated at the top -- requester-driven inputs consumed by a reduction into
 an `_unused_<master>_axil5_sb` wire, completer-driven outputs driven `'0`.
 Response-side USER (`buser`/`ruser`) is connected but reads 0, because the

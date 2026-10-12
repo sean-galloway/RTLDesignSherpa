@@ -30,7 +30,7 @@
 
 ## Overview
 
-The ACE subsystem is the AMBA AXI Coherency Extensions transport layer for the `cache-ip` family (amber/jet caches, onyx CCU). ACE extends AXI4 with coherent transaction-type fields on the address channels (`ARSNOOP[3:0]`, `AWSNOOP[2:0]`) and three additional snoop channels (AC/CR/CD) so that a coherency manager can broadcast snoops to peer caches and gather their responses.
+The ACE subsystem is the AMBA AXI Coherency Extensions transport layer for the `cache-ip` family (amber/jet caches, onyx CCU). ACE extends AXI4 with coherent transaction-type, shareability-domain and barrier fields on the address channels (`ARSNOOP[3:0]`/`AWSNOOP[2:0]`, `ARDOMAIN[1:0]`/`AWDOMAIN[1:0]`, `ARBAR[1:0]`/`AWBAR[1:0]`), a 4-bit `RRESP` on read data, and three additional snoop channels (AC/CR/CD) so that a coherency manager can broadcast snoops to peer caches and gather their responses.
 
 These modules are **channel movers with skid buffers**, not protocol controllers. They carry the ACE-shaped port contract defined in `projects/components/cache-ip/References/AMBA_ACE_Interface_Definition.md`: the onyx D2 subset supports ReadShared, ReadUnique, CleanUnique, MakeUnique, WriteBack, and Evict; full ACE/ACE-Lite conformance is intentionally not claimed.
 
@@ -44,8 +44,8 @@ These modules are **channel movers with skid buffers**, not protocol controllers
 
 ### Key Features
 
-- **AXI4 + ACE payloads:** Full AXI4 address/data channels plus `ARSNOOP`/`AWSNOOP`
-- **Auto-pulsed acknowledges:** Master read/write movers generate `RACK`/`WACK` one cycle after the transaction completes (no ordering semantics in the current subset)
+- **AXI4 + ACE payloads:** Full AXI4 address/data channels plus `AxSNOOP`, `AxDOMAIN`, `AxBAR` and the 4-bit ACE `RRESP` (IHI 0022H §D2.1). The optional `AWUNIQUE` (WriteEvict only) is not carried
+- **Acknowledges:** Master read/write movers generate `RACK`/`WACK` one cycle after the transaction completes (no ordering semantics in the current subset); the slave movers take the manager's `RACK`/`WACK` and forward it to the backend
 - **Snoop transport:** AC in, CR/CD out (cache side) or AC out, CR/CD in (CCU side)
 - **Lite monitoring:** Front-side wrappers use `axi_monitor_lite`; snoop-side wrappers use `axi4ace_snoop_monitor_lite`
 - **Skid-buffer elasticity:** Per-channel configurable depth, same `gaxi_skid_buffer` infrastructure as the rest of the AMBA library
@@ -56,10 +56,10 @@ These modules are **channel movers with skid buffers**, not protocol controllers
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **axi4ace_master_rd** | ACE read master with `ARSNOOP[3:0]` and auto-pulsed `RACK` | [axi4ace_master_rd.md](axi4ace_master_rd.md) | Documented |
-| **axi4ace_master_wr** | ACE write master with `AWSNOOP[2:0]` and auto-pulsed `WACK` | [axi4ace_master_wr.md](axi4ace_master_wr.md) | Documented |
-| **axi4ace_slave_rd** | ACE read slave with `ARSNOOP[3:0]` pass-through | [axi4ace_slave_rd.md](axi4ace_slave_rd.md) | Documented |
-| **axi4ace_slave_wr** | ACE write slave with `AWSNOOP[2:0]` pass-through | [axi4ace_slave_wr.md](axi4ace_slave_wr.md) | Documented |
+| **axi4ace_master_rd** | ACE read master with `ARSNOOP`/`ARDOMAIN`/`ARBAR`, 4-bit `RRESP` and auto-pulsed `RACK` | [axi4ace_master_rd.md](axi4ace_master_rd.md) | Documented |
+| **axi4ace_master_wr** | ACE write master with `AWSNOOP`/`AWDOMAIN`/`AWBAR` and auto-pulsed `WACK` | [axi4ace_master_wr.md](axi4ace_master_wr.md) | Documented |
+| **axi4ace_slave_rd** | ACE read slave: `ARSNOOP`/`ARDOMAIN`/`ARBAR` and 4-bit `RRESP` pass-through, `RACK` forwarded | [axi4ace_slave_rd.md](axi4ace_slave_rd.md) | Documented |
+| **axi4ace_slave_wr** | ACE write slave: `AWSNOOP`/`AWDOMAIN`/`AWBAR` pass-through, `WACK` forwarded | [axi4ace_slave_wr.md](axi4ace_slave_wr.md) | Documented |
 
 #### Snoop-Side Movers
 
@@ -89,21 +89,28 @@ The front-side `_monlite` wrappers use the same `axi_monitor_lite` taps as the A
 
 ### ACE adds to AXI4
 
-On the front side, every address channel gains a transaction-type field:
+On the front side, ACE adds these signals to the AXI4 channels (IHI 0022H §D2.1, Tables D2-1 to D2-3):
 
 | Channel | Field | Width | Meaning |
 |---------|-------|-------|---------|
-| AR | `ARSNOOP` | 4 | Read-side coherent transaction type |
-| AW | `AWSNOOP` | 3 | Write-side coherent transaction type |
+| AR | `ARSNOOP` | 4 | Read-side transaction type |
+| AR | `ARDOMAIN` | 2 | Shareability domain: 00 Non-shareable, 01 Inner, 10 Outer, 11 System (Table D3-2) |
+| AR | `ARBAR` | 2 | Barrier: 00 normal, 01 memory barrier, 10 normal ignoring barriers, 11 synchronization barrier (Table D3-5) |
+| AW | `AWSNOOP` | 3 | Write-side transaction type |
+| AW | `AWDOMAIN` | 2 | Shareability domain, as `ARDOMAIN` |
+| AW | `AWBAR` | 2 | Barrier, as `ARBAR` |
+| R | `RRESP[3:2]` | 2 | `RRESP` is 4 bits: `[2]` PassDirty, `[3]` IsShared (Table D3-14) |
 
-Data and response channels are unchanged AXI4. Masters additionally drive:
+W and B are unchanged AXI4. The movers carry every field without decoding it; whether a given `AxSNOOP`/`AxDOMAIN`/`AxBAR` combination is legal (Tables D3-7 and D3-8) is the issuing manager's responsibility. `AWUNIQUE`, required only by a component that supports WriteEvict, is not carried. The front-side monitors see `RRESP[1:0]` only, so IsShared and PassDirty are never counted as errors.
 
-| Signal | Direction | Meaning |
-|--------|-----------|---------|
-| `RACK` | Output | One-cycle pulse after the last read data beat |
-| `WACK` | Output | One-cycle pulse after the write response |
+The manager additionally drives the acknowledges (§D2.3):
 
-The current subset gives these acknowledges no ordering semantics; they are auto-pulsed promptly by the master movers and recorded as such.
+| Signal | Master movers | Slave movers | Meaning |
+|--------|---------------|--------------|---------|
+| `RACK` | Output, auto-pulsed | `s_axi_rack` in, forwarded to `fub_axi_rack` | One-cycle pulse after the last read data beat |
+| `WACK` | Output, auto-pulsed | `s_axi_wack` in, forwarded to `fub_axi_wack` | One-cycle pulse after the write response |
+
+The current subset gives these acknowledges no ordering semantics; the master movers auto-pulse them promptly and the slave movers forward them as wires.
 
 ### Snoop channels
 
@@ -279,7 +286,7 @@ The front-side ACE wrappers reuse `axi_monitor_lite`, which tracks AXI transacti
 
 ---
 
-**Last Updated:** 2026-10-05
+**Last Updated:** 2026-10-12
 
 ---
 

@@ -366,7 +366,7 @@ def test_axi5_slave_rd(request, stub, id_width, addr_width, data_width, user_wid
     ar_size = (id_width + addr_width + 8 + 3 + 2 + 1 + 4 + 3 + 4 + user_width +
                nsaid_width + 1 + mpam_width + mecid_width + 1 + 1 + tagop_width)
     r_size = (id_width + data_width + 2 + 1 + user_width + 1 + 1 + 1 + chunknum_width +
-              chunk_strb_width + (tag_width * num_tags) + 1)
+              chunk_strb_width + 1 + (tag_width * num_tags))  # ridunq + rtag
 
     rtl_parameters = {
         'SKID_DEPTH_AR': str(ar_depth),

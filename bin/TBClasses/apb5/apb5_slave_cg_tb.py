@@ -107,17 +107,17 @@ class APB5SlaveCGTB(APB5SlaveTB):
         self.log.info("Clock gating test completed successfully")
 
     async def run_wakeup_with_clock_gating_test(self):
-        """Test wakeup_request interaction with clock gating."""
+        """Test the Requester's PWAKEUP (a slave input) waking the clock gate."""
         self.log.info("Starting wakeup with clock gating test")
 
         # Enable clock gating
         await self.enable_clock_gating(True)
 
-        # Request wakeup if signal exists
-        if hasattr(self.dut, 'wakeup_request'):
-            self.dut.wakeup_request.value = 1
+        # Requester wake (PWAKEUP is a slave input, IHI 0024E 3.7.2)
+        if hasattr(self.dut, 's_apb_PWAKEUP'):
+            self.dut.s_apb_PWAKEUP.value = 1
             await self.wait_clocks(self.pclk_name, 5)
-            self.dut.wakeup_request.value = 0
+            self.dut.s_apb_PWAKEUP.value = 0
 
         # Disable clock gating to allow transaction
         await self.enable_clock_gating(False)

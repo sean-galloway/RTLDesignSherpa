@@ -104,7 +104,7 @@ QoS / trace events.
 ### APB5 Extended Event Codes
 
 Three new categories on top of the APB4 baseline: wake-up signaling
-(PWAKEUP), parity (PPARITY / PRDATAPARITY / PREADYPARITY / PSLVERRPARITY),
+(PWAKEUP), interface parity (the IHI 0024E ch. 5 `*CHK` signals, e.g. PWDATACHK / PRDATACHK / PREADYCHK / PSLVERRCHK),
 and user signals (PUSER / PSUSER).
 
 ### `apb5_wakeup_code_t`
@@ -128,10 +128,10 @@ and user signals (PUSER / PSUSER).
 
 | Value | Name | Description |
 |---|---|---|
-| 8'h0      | `APB5_PARITY_PWDATA_ERROR`   | PWDATA parity error (PPARITY) |
-| 8'h1      | `APB5_PARITY_PRDATA_ERROR`   | PRDATA parity error (PRDATAPARITY) |
-| 8'h2      | `APB5_PARITY_PREADY_ERROR`   | PREADY parity error (PREADYPARITY) |
-| 8'h3      | `APB5_PARITY_PSLVERR_ERROR`  | PSLVERR parity error (PSLVERRPARITY) |
+| 8'h0      | `APB5_PARITY_PWDATA_ERROR`   | PWDATA check error (PWDATACHK) |
+| 8'h1      | `APB5_PARITY_PRDATA_ERROR`   | PRDATA check error (PRDATACHK) |
+| 8'h2      | `APB5_PARITY_PREADY_ERROR`   | PREADY check error (PREADYCHK) |
+| 8'h3      | `APB5_PARITY_PSLVERR_ERROR`  | PSLVERR check error (PSLVERRCHK) |
 | 8'h4      | `APB5_PARITY_CORRECTED`      | Parity error corrected |
 | 8'h5      | `APB5_PARITY_UNCORRECTED`    | Parity error uncorrectable |
 | 8'h6      | `APB5_PARITY_CHECK_DISABLED` | Parity checking disabled |
@@ -154,7 +154,7 @@ and user signals (PUSER / PSUSER).
 ### AXIS5 Extended Event Codes
 
 Three new categories on top of the AXIS4 baseline: wake-up (TWAKEUP),
-parity (TPARITY), and CRC (TCRC_ERROR).
+interface parity (the IHI 0051B ch. 5 `*CHK` check signals), and CRC (TCRC_ERROR).
 
 ### `axis5_wakeup_code_t`
 
@@ -177,7 +177,7 @@ parity (TPARITY), and CRC (TCRC_ERROR).
 
 | Value | Name | Description |
 |---|---|---|
-| 8'h0      | `AXIS5_PARITY_TDATA_ERROR`    | TDATA parity error (TPARITY) |
+| 8'h0      | `AXIS5_PARITY_TDATA_ERROR`    | Check-signal odd-parity error (TDATACHK etc., IHI 0051B ch. 5) |
 | 8'h1      | `AXIS5_PARITY_CORRECTED`      | Parity error corrected |
 | 8'h2      | `AXIS5_PARITY_UNCORRECTED`    | Parity error uncorrectable |
 | 8'h3      | `AXIS5_PARITY_CHECK_DISABLED` | Parity checking disabled |

@@ -51,11 +51,14 @@ AXI5_FEATURE_ENABLE_PARAM = {
     'chunking': 'ENABLE_CHUNKING',
     'mte':      'ENABLE_MTE',
     'poison':   'ENABLE_POISON',
+    'wakeup':   'ENABLE_WAKEUP',
 }
 _AXI5_WR_FEATURE_ORDER = (
-    'atomic', 'nsaid', 'trace', 'mpam', 'mecid', 'unique', 'mte', 'poison')
+    'atomic', 'nsaid', 'trace', 'mpam', 'mecid', 'unique', 'mte', 'poison',
+    'wakeup')
 _AXI5_RD_FEATURE_ORDER = (
-    'nsaid', 'trace', 'mpam', 'mecid', 'unique', 'chunking', 'mte', 'poison')
+    'nsaid', 'trace', 'mpam', 'mecid', 'unique', 'chunking', 'mte', 'poison',
+    'wakeup')
 
 # wr-channel extras, grouped to match the SV declaration order.
 _AXI5_WR_REQ1_EXTRAS = (            # AW-side (after awready)
@@ -64,9 +67,11 @@ _AXI5_WR_REQ1_EXTRAS = (            # AW-side (after awready)
     ('awtrace',  'trace',  True),
     ('awmpam',   'mpam',   True),
     ('awmecid',  'mecid',  True),
-    ('awunique', 'unique', True),
+    ('awidunq',  'unique', True),
     ('awtagop',  'mte',    True),
-    ('awtag',    'mte',    True),
+    # AWAKEUP (IHI 0022L A14.1.1): one Manager output covering BOTH request
+    # channels, so both the wr and the rd wrapper carry a copy.
+    ('awakeup',  'wakeup', True),
 )
 _AXI5_WR_REQ2_EXTRAS = (            # W-side (after wready)
     ('wpoison',    'poison', True),
@@ -74,9 +79,9 @@ _AXI5_WR_REQ2_EXTRAS = (            # W-side (after wready)
     ('wtagupdate', 'mte',    True),
 )
 _AXI5_WR_RESP_EXTRAS = (            # B-side (after bready)
-    ('btrace',    'trace', False),
-    ('btag',      'mte',   False),
-    ('btagmatch', 'mte',   False),
+    ('btrace',    'trace',  False),
+    ('bidunq',    'unique', False),
+    ('btagmatch', 'mte',    False),
 )
 
 # rd-channel extras.
@@ -85,18 +90,19 @@ _AXI5_RD_REQ1_EXTRAS = (            # AR-side (after arready)
     ('artrace',   'trace',    True),
     ('armpam',    'mpam',     True),
     ('armecid',   'mecid',    True),
-    ('arunique',  'unique',   True),
+    ('aridunq',   'unique',   True),
     ('archunken', 'chunking', True),
     ('artagop',   'mte',      True),
+    ('awakeup',   'wakeup',   True),
 )
 _AXI5_RD_RESP_EXTRAS = (            # R-side (after rready)
     ('rtrace',     'trace',    False),
+    ('ridunq',     'unique',   False),
     ('rpoison',    'poison',   False),
     ('rchunkv',    'chunking', False),
     ('rchunknum',  'chunking', False),
     ('rchunkstrb', 'chunking', False),
     ('rtag',       'mte',      False),
-    ('rtagmatch',  'mte',      False),
 )
 
 # External-surface declarations for the interop sideband feature set,
@@ -121,10 +127,10 @@ AXI5_SIDEBAND_EXT_SIGNALS = {
         ('awtrace',  1,  'trace',  True),
         ('awmpam',   11, 'mpam',   True),
         ('awmecid',  16, 'mecid',  True),
-        ('awunique', 1,  'unique', True),
+        ('awidunq',  1,  'unique', True),
         ('awatop',   6,  'atomic', True),
         ('awtagop',  2,  'mte',    True),
-        ('awtag',    WIDTH_TAGS, 'mte', True),
+        ('awakeup',  1,  'wakeup', True),
     ),
     'w': (
         ('wpoison',    1,           'poison', True),
@@ -132,44 +138,58 @@ AXI5_SIDEBAND_EXT_SIGNALS = {
         ('wtagupdate', WIDTH_NTAGS, 'mte',    True),
     ),
     'b': (
-        ('btrace',    1,          'trace', False),
-        ('btag',      WIDTH_TAGS, 'mte',   False),
-        ('btagmatch', 1,          'mte',   False),
+        ('btrace',    1, 'trace',  False),
+        ('bidunq',    1, 'unique', False),
+        ('btagmatch', 2, 'mte',    False),   # BTAGMATCH[1:0] (A12.2)
     ),
     'ar': (
         ('arnsaid',   4,  'nsaid',    True),
         ('artrace',   1,  'trace',    True),
         ('armpam',    11, 'mpam',     True),
         ('armecid',   16, 'mecid',    True),
-        ('arunique',  1,  'unique',   True),
+        ('aridunq',   1,  'unique',   True),
         ('archunken', 1,  'chunking', True),
         ('artagop',   2,  'mte',      True),
+        # The same single AWAKEUP; listed here so a read-only port has it.
+        # axi5_exposed_ext_signals drops this copy on a port that also
+        # carries AW, so an rw port declares it once.
+        ('awakeup',   1,  'wakeup',   True),
     ),
     'r': (
         ('rtrace',     1,               'trace',    False),
+        ('ridunq',     1,               'unique',   False),
         ('rpoison',    1,               'poison',   False),
         ('rchunkv',    1,               'chunking', False),
         ('rchunknum',  4,               'chunking', False),
         ('rchunkstrb', WIDTH_CHUNKSTRB, 'chunking', False),
         ('rtag',       WIDTH_TAGS,      'mte',      False),
-        ('rtagmatch',  1,               'mte',      False),
     ),
 }
 
 
-def axi5_exposed_ext_signals(channel_key: str, features, dw: int = None) -> List[tuple]:
+def axi5_exposed_ext_signals(channel_key: str, features, dw: int = None,
+                             port_channels: str = None) -> List[tuple]:
     """The (name, width, req_direction) triples an AXI5 port with
     `features` enabled exposes on AXI channel `channel_key`
     ('aw'/'w'/'b'/'ar'/'r'), in declaration order. req_direction=True
     signals flow master->slave (bridge-top INPUT on an AXI5 master
     port, bridge-top OUTPUT on an AXI5 slave port). Pass the port's data
     width as `dw` to resolve the data-scaled widths (MTE tags, chunk
-    strobes); callers that only want names may omit it."""
+    strobes); callers that only want names may omit it.
+
+    `port_channels` is the port's 'rw' / 'wr' / 'rd'. AWAKEUP is one
+    signal for both request channels (A14.1.1) and is listed under both
+    'aw' and 'ar'; the 'ar' copy is dropped when the port also carries AW,
+    so an rw port declares it once. Every caller passes it -- a caller that
+    did not would declare AWAKEUP twice and fail elaboration loudly."""
     feats = set(features or ())
+    skip = set()
+    if channel_key == 'ar' and port_channels in ('rw', 'wr'):
+        skip.add('awakeup')
     return [(name, _sb_field_width(width, dw) if dw is not None else width, ext_in)
             for name, width, feat, ext_in
             in AXI5_SIDEBAND_EXT_SIGNALS[channel_key]
-            if feat in feats]
+            if feat in feats and name not in skip]
 
 
 class Axi4TimingWrapper:
@@ -489,12 +509,18 @@ class Axi4TimingWrapper:
             pairs,
         ))
 
-    def connect_external(self, connector_prefix: str) -> None:
+    def connect_external(self, connector_prefix: str,
+                         overrides: Optional[dict] = None) -> None:
         """Wire the external (m_axi_* or s_axi_*) side to the bridge's
         top-level port with `connector_prefix` (e.g. 'ddr_s_axi_' for
-        a slave or 'cpu_rd_axi_' for a master)."""
+        a slave or 'cpu_rd_axi_' for a master). `overrides` maps a base
+        port name to a connector -- the slave adapter uses it to give the
+        wr and rd wrappers' m_axi_awakeup outputs separate nets, which it
+        ORs into the port's single AWAKEUP."""
         prefix = self._external_prefix
         defaults = self._external_default_connectors(connector_prefix)
+        if overrides:
+            defaults.update(overrides)
         pairs = self._build_section_pairs(prefix, connector_prefix, defaults)
         self._sections.append((
             f"External side ({prefix.rstrip('_')})",
@@ -703,6 +729,21 @@ class Axi4TimingWrapper:
 
     # --- internals -----------------------------------------------------
 
+    # Fub-side AXI5 ports that are not fabric-struct sideband but that the
+    # enclosing adapter still binds when the feature is enabled (instead of
+    # the terminate-to-default every other non-native extra gets):
+    #   side='slave' (master adapter, axi5_slave_*):
+    #     awakeup  -- fub OUTPUT; forwarded toward wake-capable slave ports.
+    #     bidunq / ridunq -- fub INPUTS; regenerated at the boundary from
+    #       the accepted request's AxIDUNQ (A5.2), see sideband.py.
+    #   side='master' (slave adapter, axi5_master_*):
+    #     awakeup  -- fub INPUT; the OR of the connected masters' wake
+    #       requests (A14.1.1). The slave's BIDUNQ/RIDUNQ are not consumed.
+    BOUNDARY_BOUND_BASES = {
+        'slave': frozenset({'awakeup', 'bidunq', 'ridunq'}),
+        'master': frozenset({'awakeup'}),
+    }
+
     def _fub_default_connectors(self, connector_prefix: str) -> dict:
         """Defaults for the bridge-internal (fub_axi_*) connectors.
         On the master-adapter side (axi4_slave_*) we drop the qos/
@@ -737,11 +778,16 @@ class Axi4TimingWrapper:
         #     are fub OUTPUTS (leave open).
         from bridge_pkg.sideband import SIDEBAND_FIELDS
         native_bases = {base for _ch, _f, _w, _feat, base in SIDEBAND_FIELDS}
+        boundary_bases = self.BOUNDARY_BOUND_BASES[self.side]
         for name, feat, req_dir in self._all_axi5_extras():
             if (self.native_sideband and feat in self.axi5_features
                     and name in native_bases):
                 # A5-2 slice 2: fall through to connector_prefix+base so
                 # the adapter's fub_axi_<base> sideband wires bind here.
+                continue
+            if feat in self.axi5_features and name in boundary_bases:
+                # Not struct sideband, but the enclosing adapter drives or
+                # consumes it at the boundary (see BOUNDARY_BOUND_BASES).
                 continue
             fub_is_input = req_dir if self.side == 'master' else not req_dir
             d[name] = "'0" if fub_is_input else ""

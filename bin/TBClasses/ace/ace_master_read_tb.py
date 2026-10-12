@@ -37,12 +37,15 @@ from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.gaxi.gaxi_monitor import GAXIMonitor
 
 # ACE specific imports
-from CocoTBFramework.components.ace.ace_factories import create_axi4ace_master_rd
+from CocoTBFramework.components.ace.ace_factories import create_axi4ace_master_rd, create_axi4ace_slave_rd
 from CocoTBFramework.components.ace.ace_field_configs import AXI4ACEFieldConfigHelper
 from CocoTBFramework.components.ace.ace_transaction import ACETransactionType
+from TBClasses.ace.ace_signal_checks import (
+    AR_DOMAIN_BAR_CASES, domain_bar_sweep, rresp_coherence_sweep,
+)
 
 # AXI4 responder and compliance checker
-from CocoTBFramework.components.axi4.axi4_factories import create_axi4_slave_rd, print_compliance_reports_from_components
+from CocoTBFramework.components.axi4.axi4_factories import print_compliance_reports_from_components
 from CocoTBFramework.components.axi4.axi4_compliance_checker import AXI4ComplianceChecker
 
 
@@ -136,9 +139,12 @@ class AXI4ACEMasterReadTB(TBBase):
             self.log.error(f"Failed to create ACE master components: {e}")
             raise
 
-        # Create AXI4 slave responder on the DUT master interface side
+        # ACE read responder on the DUT master interface side. It is an AXI4
+        # responder with the 4-bit ACE RRESP; coherence_pair (RRESP[3:2] =
+        # {IsShared, PassDirty}) is 0 except inside ace_signal_fields_test.
+        self.coherence_pair = 0
         try:
-            self.slave_components = create_axi4_slave_rd(
+            self.slave_components = create_axi4ace_slave_rd(
                 dut=dut,
                 clock=self.aclk,
                 prefix='m_axi_',
@@ -148,7 +154,8 @@ class AXI4ACEMasterReadTB(TBBase):
                 data_width=self.TEST_DATA_WIDTH,
                 user_width=self.TEST_USER_WIDTH,
                 memory_model=self.memory_model,
-                multi_sig=True
+                multi_sig=True,
+                coherence_resp=lambda _addr: self.coherence_pair
             )
 
             # Access individual components
@@ -716,6 +723,41 @@ class AXI4ACEMasterReadTB(TBBase):
 
         self.log.info("RACK pulse check passed")
         return True
+
+    async def ace_signal_fields_test(self):
+        """ARDOMAIN/ARBAR reach m_axi_ unchanged and RRESP[3:2] reaches fub_axi_.
+
+        IHI 0022H D2.1.1 (ARDOMAIN[1:0], ARBAR[1:0]) and D2.1.3 / Table D3-14
+        (RRESP[3:2] = IsShared, PassDirty, constant across a burst).
+        """
+        self.log.info("=== ACE ARDOMAIN/ARBAR + RRESP[3:2] test ===")
+        base_addr = 0x1000
+        arsize = self._calculate_arsize()
+
+        async def issue(index, snoop, domain, bar):
+            await self.ace_master.read_transaction(
+                address=base_addr + 0x40 * index, burst_len=1, id=index & self.MAX_ID,
+                size=arsize, burst_type=1, snoop_type=snoop, domain=domain, bar=bar)
+
+        errors = await domain_bar_sweep(
+            AR_DOMAIN_BAR_CASES, issue, self._drain_output_ar_packets, self.log)
+
+        burst_len = 4
+
+        def set_pair(pair):
+            self.coherence_pair = pair
+
+        async def read(pair):
+            await self.ace_master.read_transaction(
+                address=base_addr, burst_len=burst_len, id=pair & self.MAX_ID,
+                size=arsize, burst_type=1, snoop_type=ACETransactionType.READ_SHARED)
+            self._drain_output_ar_packets()
+            return self.ace_master.last_rresp
+
+        errors += await rresp_coherence_sweep(set_pair, read, burst_len, self.log)
+        for err in errors:
+            self.log.error(err)
+        return not errors
 
     async def wait_for_quiescence(self, idle_cycles=10):
         """Wait until the DUT reports no activity and busy goes low."""

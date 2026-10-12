@@ -12,7 +12,8 @@
 //
 // AXIS5 Extensions:
 // - TWAKEUP: Wake-up signaling for power management
-// - TPARITY: Optional parity for TDATA integrity
+// - Interface parity (IHI 0051B ch. 5): the *CHK check signals, ODD parity,
+//   one check bit per 8 bits, when ENABLE_PARITY (see axis5_slave)
 // - Clock gating for power savings
 //
 // Author: sean galloway
@@ -39,12 +40,16 @@ module axis5_slave_cg
     parameter int DESTW    = AXIS_DEST_WIDTH,
     parameter int UW       = AXIS_USER_WIDTH,
     parameter int SW       = DW / 8,
-    parameter int PW       = SW,
     parameter int ICW      = CG_IDLE_COUNT_WIDTH,
     parameter int IW_WIDTH = (IW > 0) ? IW : 1,
     parameter int DESTW_WIDTH = (DESTW > 0) ? DESTW : 1,
     parameter int UW_WIDTH = (UW > 0) ? UW : 1,
-    parameter int PW_WIDTH = ENABLE_PARITY ? PW : 1
+    // Check-signal widths, IHI 0051B Table 5-1
+    parameter int TDATACHK_W = SW,                     // TDATA_WIDTH/8
+    parameter int TSTRBCHK_W = (SW + 7) / 8,           // ceil(TDATA_WIDTH/64)
+    parameter int TIDCHK_W   = (IW_WIDTH + 7) / 8,     // ceil(TID_WIDTH/8)
+    parameter int TDESTCHK_W = (DESTW_WIDTH + 7) / 8,  // ceil(TDEST_WIDTH/8)
+    parameter int TUSERCHK_W = (UW_WIDTH + 7) / 8      // ceil(TUSER_WIDTH/8)
 )
 (
     // Global Clock and Reset
@@ -65,7 +70,15 @@ module axis5_slave_cg
     input  logic                       s_axis_tvalid,
     output logic                       s_axis_tready,
     input  logic                       s_axis_twakeup,
-    input  logic [PW_WIDTH-1:0]        s_axis_tparity,
+    input  logic [TDATACHK_W-1:0]      s_axis_tdatachk,
+    input  logic [TSTRBCHK_W-1:0]      s_axis_tstrbchk,
+    input  logic                       s_axis_tlastchk,
+    input  logic [TIDCHK_W-1:0]        s_axis_tidchk,
+    input  logic [TDESTCHK_W-1:0]      s_axis_tdestchk,
+    input  logic [TUSERCHK_W-1:0]      s_axis_tuserchk,
+    input  logic                       s_axis_tvalidchk,
+    output logic                       s_axis_treadychk,
+    input  logic                       s_axis_twakeupchk,
 
     // Master AXI5-Stream Interface (Output Side to backend/FUB)
     output logic [DW-1:0]              fub_axis5_tdata,
@@ -77,7 +90,12 @@ module axis5_slave_cg
     output logic                       fub_axis5_tvalid,
     input  logic                       fub_axis5_tready,
     output logic                       fub_axis5_twakeup,
-    output logic [PW_WIDTH-1:0]        fub_axis5_tparity,
+    output logic [TDATACHK_W-1:0]      fub_axis5_tdatachk,
+    output logic [TSTRBCHK_W-1:0]      fub_axis5_tstrbchk,
+    output logic                       fub_axis5_tlastchk,
+    output logic [TIDCHK_W-1:0]        fub_axis5_tidchk,
+    output logic [TDESTCHK_W-1:0]      fub_axis5_tdestchk,
+    output logic [TUSERCHK_W-1:0]      fub_axis5_tuserchk,
 
     // Status outputs
     output logic                       busy,
@@ -133,6 +151,28 @@ module axis5_slave_cg
     // guard this; these two did not (TASK-076).
     assign s_axis_tready = cg_gating ? 1'b0 : int_s_axis_tready;
 
+    // TREADYCHK must cover the tready the transmitter actually sees -- the
+    // MASKED one above -- so it is generated here, not taken from the core
+    // (IHI 0051B Table 5-1: odd parity of a single bit, i.e. ~TREADY).
+    generate
+        if (ENABLE_PARITY) begin : g_treadychk
+            logic w_treadychk_err_unused;
+            dataint_parity #(.CHUNKS(1), .WIDTH(1)) u_treadychk (
+                .data_in     (s_axis_tready),
+                .parity_in   (1'b0),
+                .parity_type (1'b0),          // odd
+                .parity      (s_axis_treadychk),
+                .parity_err  (w_treadychk_err_unused)
+            );
+            /* verilator lint_off UNUSEDSIGNAL */
+            logic unused_treadychk;
+            assign unused_treadychk = w_treadychk_err_unused;
+            /* verilator lint_on UNUSEDSIGNAL */
+        end else begin : g_no_treadychk
+            assign s_axis_treadychk = 1'b0;
+        end
+    endgenerate
+
     axis5_slave #(
         .SKID_DEPTH       (SKID_DEPTH),
         .AXIS_DATA_WIDTH  (AXIS_DATA_WIDTH),
@@ -154,7 +194,17 @@ module axis5_slave_cg
         .s_axis_tvalid     (s_axis_tvalid),
         .s_axis_tready     (int_s_axis_tready),
         .s_axis_twakeup    (s_axis_twakeup),
-        .s_axis_tparity    (s_axis_tparity),
+        .s_axis_tdatachk   (s_axis_tdatachk),
+        .s_axis_tstrbchk   (s_axis_tstrbchk),
+        .s_axis_tlastchk   (s_axis_tlastchk),
+        .s_axis_tidchk     (s_axis_tidchk),
+        .s_axis_tdestchk   (s_axis_tdestchk),
+        .s_axis_tuserchk   (s_axis_tuserchk),
+        .s_axis_tvalidchk  (s_axis_tvalidchk),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .s_axis_treadychk  (),   // regenerated below from the MASKED tready
+        /* verilator lint_on PINCONNECTEMPTY */
+        .s_axis_twakeupchk (s_axis_twakeupchk),
 
         .fub_axis_tdata    (fub_axis5_tdata),
         .fub_axis_tstrb    (fub_axis5_tstrb),
@@ -165,7 +215,12 @@ module axis5_slave_cg
         .fub_axis_tvalid   (fub_axis5_tvalid),
         .fub_axis_tready   (fub_axis5_tready),
         .fub_axis_twakeup  (fub_axis5_twakeup),
-        .fub_axis_tparity  (fub_axis5_tparity),
+        .fub_axis_tdatachk (fub_axis5_tdatachk),
+        .fub_axis_tstrbchk (fub_axis5_tstrbchk),
+        .fub_axis_tlastchk (fub_axis5_tlastchk),
+        .fub_axis_tidchk   (fub_axis5_tidchk),
+        .fub_axis_tdestchk (fub_axis5_tdestchk),
+        .fub_axis_tuserchk (fub_axis5_tuserchk),
 
         .busy              (core_busy),
         .parity_error      (parity_error)

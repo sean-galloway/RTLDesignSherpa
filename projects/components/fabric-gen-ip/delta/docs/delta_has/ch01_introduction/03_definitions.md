@@ -28,13 +28,13 @@
 | Acronym | Definition |
 |---------|------------|
 | AXIS | AXI4-Stream (ARM AMBA streaming protocol) |
-| AMBA5 | ARM AMBA 5 protocol extensions, including TWAKEUP and TPARITY |
+| AMBA5 | ARM AMBA 5 protocol extensions, including TWAKEUP and the T*CHK interface check signals |
 | TDEST | Transaction destination (slave ID in AXI4-Stream) |
 | TID | Transaction ID (master identifier in AXI4-Stream) |
 | TUSER | User-defined sideband in AXI4-Stream |
 | TSTRB | Byte strobe / byte qualifier in AXI4-Stream |
 | TWAKEUP | AMBA 5 wakeup hint signal |
-| TPARITY | AMBA 5 parity signal |
+| T*CHK | AXI5-Stream interface check signals (`TDATACHK`, `TVALIDCHK`, ...), odd parity, IHI 0051B chapter 5 |
 | RR | Round-robin arbitration |
 | LUT | Look-up table (FPGA logic resource) |
 | FF | Flip-flop (FPGA register resource) |
@@ -45,7 +45,7 @@
 : The default generated crossbar with the seven-signal set: `tdata`, `tvalid`, `tready`, `tlast`, `tdest`, `tid`, `tuser`.
 
 **Rich flavor**
-: A generated crossbar with optional additional signals enabled: `tstrb` and/or AMBA 5 `twakeup`/`tparity`.
+: A generated crossbar with optional additional signals enabled: `tstrb` and/or AMBA 5 `twakeup` with the `t*chk` check signals.
 
 **Packet atomicity**
 : The property that once a master is granted access to a slave, it retains that grant until the current packet's `TLAST` beat has been transferred. No other master may interleave beats on that slave during the packet.

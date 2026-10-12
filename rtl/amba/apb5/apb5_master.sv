@@ -10,8 +10,10 @@
 // APB5 Extensions:
 // - PAUSER: User-defined request attributes
 // - PWUSER: User-defined write data attributes
-// - PWAKEUP: Wake-up signal handling (input from slave)
-// - Optional parity support for data integrity
+// - PWAKEUP: Requester wake-up OUTPUT (IHI 0024E 3.7.2, Table 3-7), registered
+//   and asserted while a request is pending or a transfer is in flight
+// - Optional interface parity protection (IHI 0024E ch. 5: *CHK signals,
+//   odd parity, one check bit per 8 payload bits)
 //
 // Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
@@ -46,7 +48,14 @@ module apb5_master #(
     parameter int BUW = BUSER_WIDTH,
     // Computed widths
     parameter int CPW = AW + DW + SW + PW + AUW + WUW + 1,  // Command packet width
-    parameter int RPW = DW + RUW + BUW + 2                   // Response packet width (data + user + wakeup + error)
+    parameter int RPW = DW + RUW + BUW + 1,                  // Response packet width (data + user + error)
+    // Parity check-signal widths (IHI 0024E Table 5-1): one bit per 8 bits
+    parameter int ACW  = (AW + 7) / 8,                       // PADDRCHK
+    parameter int DCW  = DW / 8,                             // PWDATACHK / PRDATACHK
+    parameter int AUCW = (AUW + 7) / 8,                      // PAUSERCHK
+    parameter int WUCW = (WUW + 7) / 8,                      // PWUSERCHK
+    parameter int RUCW = (RUW + 7) / 8,                      // PRUSERCHK
+    parameter int BUCW = (BUW + 7) / 8                       // PBUSERCHK
 ) (
     // Clock and Reset
     input  logic              pclk,
@@ -65,17 +74,26 @@ module apb5_master #(
     input  logic [DW-1:0]     m_apb_PRDATA,
     input  logic              m_apb_PSLVERR,
     input  logic              m_apb_PREADY,
-    input  logic              m_apb_PWAKEUP,
+    output logic              m_apb_PWAKEUP,        // Requester-driven (Table 3-7)
     input  logic [RUW-1:0]    m_apb_PRUSER,
     input  logic [BUW-1:0]    m_apb_PBUSER,
 
-    // Optional parity signals (active when ENABLE_PARITY=1)
-    output logic [SW-1:0]     m_apb_PWDATAPARITY,
-    output logic              m_apb_PADDRPARITY,
-    output logic              m_apb_PCTRLPARITY,
-    input  logic [SW-1:0]     m_apb_PRDATAPARITY,
-    input  logic              m_apb_PREADYPARITY,
-    input  logic              m_apb_PSLVERRPARITY,
+    // Interface parity check signals, IHI 0024E ch. 5 (ENABLE_PARITY=1).
+    // Odd parity; tied LOW and unchecked when ENABLE_PARITY=0.
+    output logic [ACW-1:0]    m_apb_PADDRCHK,
+    output logic              m_apb_PCTRLCHK,       // PPROT, PWRITE
+    output logic              m_apb_PSELCHK,        // PSELxCHK
+    output logic              m_apb_PENABLECHK,
+    output logic [DCW-1:0]    m_apb_PWDATACHK,
+    output logic              m_apb_PSTRBCHK,
+    output logic [AUCW-1:0]   m_apb_PAUSERCHK,
+    output logic [WUCW-1:0]   m_apb_PWUSERCHK,
+    input  logic [DCW-1:0]    m_apb_PRDATACHK,
+    input  logic              m_apb_PREADYCHK,
+    input  logic              m_apb_PSLVERRCHK,
+    output logic              m_apb_PWAKEUPCHK,
+    input  logic [RUCW-1:0]   m_apb_PRUSERCHK,
+    input  logic [BUCW-1:0]   m_apb_PBUSERCHK,
 
     // Command Packet interface
     input  logic              cmd_valid,
@@ -93,16 +111,15 @@ module apb5_master #(
     input  logic              rsp_ready,
     output logic [DW-1:0]     rsp_prdata,
     output logic              rsp_pslverr,
-    output logic              rsp_pwakeup,
     output logic [RUW-1:0]    rsp_pruser,
     output logic [BUW-1:0]    rsp_pbuser,
 
-    // Parity error flags (active when ENABLE_PARITY=1)
+    // Parity error flags (active when ENABLE_PARITY=1; combinational,
+    // asserted while a check's Table 5-1 Check Enable term holds)
+    //   parity_error_rdata: PRDATACHK, PRUSERCHK
+    //   parity_error_ctrl : PREADYCHK, PSLVERRCHK, PBUSERCHK
     output logic              parity_error_rdata,
-    output logic              parity_error_ctrl,
-
-    // Wake-up status
-    output logic              wakeup_pending
+    output logic              parity_error_ctrl
 );
 
     // Command FIFO signals
@@ -156,7 +173,7 @@ module apb5_master #(
     logic [RPW-1:0]      r_rsp_data_out;
 
     // Pack response data for the FIFO
-    assign r_rsp_data_in = {m_apb_PSLVERR, m_apb_PWAKEUP, m_apb_PRDATA, m_apb_PRUSER, m_apb_PBUSER};
+    assign r_rsp_data_in = {m_apb_PSLVERR, m_apb_PRDATA, m_apb_PRUSER, m_apb_PBUSER};
 
     // Response FIFO instance
     gaxi_skid_buffer #(
@@ -178,7 +195,7 @@ module apb5_master #(
     );
 
     // Unpack response data
-    assign {rsp_pslverr, rsp_pwakeup, rsp_prdata, rsp_pruser, rsp_pbuser} = r_rsp_data_out;
+    assign {rsp_pslverr, rsp_prdata, rsp_pruser, rsp_pbuser} = r_rsp_data_out;
 
     // APB5 FSM
     typedef enum logic [2:0] {
@@ -197,57 +214,240 @@ module apb5_master #(
         end
     )
 
-    // Wake-up tracking
-    logic r_wakeup_pending;
+    // PWAKEUP (IHI 0024E 3.7.2). The Requester drives it; the rules are:
+    //   - glitch-free, so it comes straight from a flop;
+    //   - recommended HIGH at least one cycle before PSEL: a command at the
+    //     fub port (cmd_valid) raises it on the next edge, while the command
+    //     is still passing through the command skid, so it leads PSEL by one
+    //     cycle on a launch from IDLE;
+    //   - must stay HIGH until PREADY once it and PSEL are high together: the
+    //     FSM is out of IDLE for the whole transfer, including the PREADY
+    //     cycle (the flop samples the previous cycle's state);
+    //   - recommended LOW when no further transfers are required: every term
+    //     is a pending request or an in-flight transfer, nothing else. A
+    //     Completer may wait for PWAKEUP before PREADY, so a pending request
+    //     must never leave it low.
+    // The terms are Requester-side pending work only -- never the peer's
+    // PREADY ([[clock-gating-activity-terms]]).
+    logic r_pwakeup;
 
     `ALWAYS_FF_RST(pclk, presetn,
         if (`RST_ASSERTED(presetn)) begin
-            r_wakeup_pending <= 1'b0;
+            r_pwakeup <= 1'b0;
         end else begin
-            if (m_apb_PWAKEUP) begin
-                r_wakeup_pending <= 1'b1;
-            end else if (r_apb_state != IDLE) begin
-                // Clear wakeup pending when we start a transaction
-                r_wakeup_pending <= 1'b0;
-            end
+            r_pwakeup <= cmd_valid || r_cmd_valid || (r_apb_state != IDLE);
         end
     )
 
-    assign wakeup_pending = r_wakeup_pending;
+    assign m_apb_PWAKEUP = r_pwakeup;
 
-    // Parity generation (when enabled)
+    // ------------------------------------------------------------------
+    // Interface parity protection, AMBA APB IHI 0024E chapter 5.
+    //   - ODD parity (5.3): payload plus check bit hold an odd number of 1s,
+    //     so dataint_parity runs with parity_type = 0.
+    //   - Multi-bit check signals carry one bit per 8 payload bits; bit [n]
+    //     covers payload[8n+7:8n] and a short top byte is checked over the
+    //     bits that exist. dataint_parity splits WIDTH/CHUNKS with the
+    //     remainder in the LAST chunk, which is not that layout, so it is
+    //     instantiated once per spec byte (CHUNKS = 1).
+    //   - Single-bit critical controls (PSEL, PENABLE, PREADY, PSLVERR,
+    //     PWAKEUP) check as the inversion of the signal (WIDTH = 1).
+    //   - PCTRLCHK covers PPROT and PWRITE (PNSE is not carried, so LOW);
+    //     PSTRBCHK is one bit over all of PSTRB (Table 5-1).
+    //   - Error flags are combinational and only assert while the check's
+    //     Check Enable term from Table 5-1 is true.
+    // ------------------------------------------------------------------
     generate
         if (ENABLE_PARITY) begin : gen_parity
-            // Write data parity (odd parity per byte)
-            for (genvar i = 0; i < SW; i++) begin : gen_wdata_parity
-                assign m_apb_PWDATAPARITY[i] = ^r_cmd_pwdata[i*8 +: 8];
+            // Requester-driven checks
+            for (genvar n = 0; n < ACW; n++) begin : gen_paddrchk
+                localparam int LO = n * 8;
+                localparam int PB = ((AW - LO) < 8) ? (AW - LO) : 8;
+                dataint_parity #(.CHUNKS(1), .WIDTH(PB)) u_paddrchk (
+                    .data_in     (m_apb_PADDR[LO +: PB]),
+                    .parity_in   (1'b0),
+                    .parity_type (1'b0),           // odd
+                    .parity      (m_apb_PADDRCHK[n]),
+                    /* verilator lint_off PINCONNECTEMPTY */
+                    .parity_err  ()
+                    /* verilator lint_on PINCONNECTEMPTY */
+                );
             end
-
-            // Address parity
-            assign m_apb_PADDRPARITY = ^r_cmd_paddr;
-
-            // Control parity (pwrite, pstrb, pprot)
-            assign m_apb_PCTRLPARITY = ^{r_cmd_pwrite, r_cmd_pstrb, r_cmd_pprot};
-
-            // Read data parity check
-            logic [SW-1:0] w_expected_rdata_parity;
-            for (genvar i = 0; i < SW; i++) begin : gen_rdata_parity_check
-                assign w_expected_rdata_parity[i] = ^m_apb_PRDATA[i*8 +: 8];
+            for (genvar n = 0; n < DCW; n++) begin : gen_pwdatachk
+                localparam int LO = n * 8;
+                localparam int PB = ((DW - LO) < 8) ? (DW - LO) : 8;
+                dataint_parity #(.CHUNKS(1), .WIDTH(PB)) u_pwdatachk (
+                    .data_in     (m_apb_PWDATA[LO +: PB]),
+                    .parity_in   (1'b0),
+                    .parity_type (1'b0),           // odd
+                    .parity      (m_apb_PWDATACHK[n]),
+                    /* verilator lint_off PINCONNECTEMPTY */
+                    .parity_err  ()
+                    /* verilator lint_on PINCONNECTEMPTY */
+                );
             end
+            for (genvar n = 0; n < AUCW; n++) begin : gen_pauserchk
+                localparam int LO = n * 8;
+                localparam int PB = ((AUW - LO) < 8) ? (AUW - LO) : 8;
+                dataint_parity #(.CHUNKS(1), .WIDTH(PB)) u_pauserchk (
+                    .data_in     (m_apb_PAUSER[LO +: PB]),
+                    .parity_in   (1'b0),
+                    .parity_type (1'b0),           // odd
+                    .parity      (m_apb_PAUSERCHK[n]),
+                    /* verilator lint_off PINCONNECTEMPTY */
+                    .parity_err  ()
+                    /* verilator lint_on PINCONNECTEMPTY */
+                );
+            end
+            for (genvar n = 0; n < WUCW; n++) begin : gen_pwuserchk
+                localparam int LO = n * 8;
+                localparam int PB = ((WUW - LO) < 8) ? (WUW - LO) : 8;
+                dataint_parity #(.CHUNKS(1), .WIDTH(PB)) u_pwuserchk (
+                    .data_in     (m_apb_PWUSER[LO +: PB]),
+                    .parity_in   (1'b0),
+                    .parity_type (1'b0),           // odd
+                    .parity      (m_apb_PWUSERCHK[n]),
+                    /* verilator lint_off PINCONNECTEMPTY */
+                    .parity_err  ()
+                    /* verilator lint_on PINCONNECTEMPTY */
+                );
+            end
+            dataint_parity #(.CHUNKS(1), .WIDTH(PW + 1)) u_pctrlchk (
+                .data_in     ({m_apb_PWRITE, m_apb_PPROT}),
+                .parity_in   (1'b0),
+                .parity_type (1'b0),               // odd
+                .parity      (m_apb_PCTRLCHK),
+                /* verilator lint_off PINCONNECTEMPTY */
+                .parity_err  ()
+                /* verilator lint_on PINCONNECTEMPTY */
+            );
+            dataint_parity #(.CHUNKS(1), .WIDTH(SW)) u_pstrbchk (
+                .data_in     (m_apb_PSTRB),
+                .parity_in   (1'b0),
+                .parity_type (1'b0),               // odd
+                .parity      (m_apb_PSTRBCHK),
+                /* verilator lint_off PINCONNECTEMPTY */
+                .parity_err  ()
+                /* verilator lint_on PINCONNECTEMPTY */
+            );
+            dataint_parity #(.CHUNKS(1), .WIDTH(1)) u_pselchk (
+                .data_in     (m_apb_PSEL),
+                .parity_in   (1'b0),
+                .parity_type (1'b0),               // odd
+                .parity      (m_apb_PSELCHK),
+                /* verilator lint_off PINCONNECTEMPTY */
+                .parity_err  ()
+                /* verilator lint_on PINCONNECTEMPTY */
+            );
+            dataint_parity #(.CHUNKS(1), .WIDTH(1)) u_pwakeupchk (
+                .data_in     (m_apb_PWAKEUP),
+                .parity_in   (1'b0),
+                .parity_type (1'b0),               // odd
+                .parity      (m_apb_PWAKEUPCHK),
+                /* verilator lint_off PINCONNECTEMPTY */
+                .parity_err  ()
+                /* verilator lint_on PINCONNECTEMPTY */
+            );
+            dataint_parity #(.CHUNKS(1), .WIDTH(1)) u_penablechk (
+                .data_in     (m_apb_PENABLE),
+                .parity_in   (1'b0),
+                .parity_type (1'b0),               // odd
+                .parity      (m_apb_PENABLECHK),
+                /* verilator lint_off PINCONNECTEMPTY */
+                .parity_err  ()
+                /* verilator lint_on PINCONNECTEMPTY */
+            );
 
-            assign parity_error_rdata = (m_apb_PREADY && m_apb_PSEL && m_apb_PENABLE) ?
-                                        (w_expected_rdata_parity != m_apb_PRDATAPARITY) : 1'b0;
+            // Completer-driven checks
+            logic [DCW-1:0] w_prdatachk_err;
+            for (genvar n = 0; n < DCW; n++) begin : gen_prdatachk
+                localparam int LO = n * 8;
+                localparam int PB = ((DW - LO) < 8) ? (DW - LO) : 8;
+                dataint_parity #(.CHUNKS(1), .WIDTH(PB)) u_prdatachk (
+                    .data_in     (m_apb_PRDATA[LO +: PB]),
+                    .parity_in   (m_apb_PRDATACHK[n]),
+                    .parity_type (1'b0),           // odd
+                    /* verilator lint_off PINCONNECTEMPTY */
+                    .parity      (),
+                    /* verilator lint_on PINCONNECTEMPTY */
+                    .parity_err  (w_prdatachk_err[n])
+                );
+            end
+            logic [RUCW-1:0] w_pruserchk_err;
+            for (genvar n = 0; n < RUCW; n++) begin : gen_pruserchk
+                localparam int LO = n * 8;
+                localparam int PB = ((RUW - LO) < 8) ? (RUW - LO) : 8;
+                dataint_parity #(.CHUNKS(1), .WIDTH(PB)) u_pruserchk (
+                    .data_in     (m_apb_PRUSER[LO +: PB]),
+                    .parity_in   (m_apb_PRUSERCHK[n]),
+                    .parity_type (1'b0),           // odd
+                    /* verilator lint_off PINCONNECTEMPTY */
+                    .parity      (),
+                    /* verilator lint_on PINCONNECTEMPTY */
+                    .parity_err  (w_pruserchk_err[n])
+                );
+            end
+            logic [BUCW-1:0] w_pbuserchk_err;
+            for (genvar n = 0; n < BUCW; n++) begin : gen_pbuserchk
+                localparam int LO = n * 8;
+                localparam int PB = ((BUW - LO) < 8) ? (BUW - LO) : 8;
+                dataint_parity #(.CHUNKS(1), .WIDTH(PB)) u_pbuserchk (
+                    .data_in     (m_apb_PBUSER[LO +: PB]),
+                    .parity_in   (m_apb_PBUSERCHK[n]),
+                    .parity_type (1'b0),           // odd
+                    /* verilator lint_off PINCONNECTEMPTY */
+                    .parity      (),
+                    /* verilator lint_on PINCONNECTEMPTY */
+                    .parity_err  (w_pbuserchk_err[n])
+                );
+            end
+            logic w_preadychk_err;
+            dataint_parity #(.CHUNKS(1), .WIDTH(1)) u_preadychk (
+                .data_in     (m_apb_PREADY),
+                .parity_in   (m_apb_PREADYCHK),
+                .parity_type (1'b0),               // odd
+                /* verilator lint_off PINCONNECTEMPTY */
+                .parity      (),
+                /* verilator lint_on PINCONNECTEMPTY */
+                .parity_err  (w_preadychk_err)
+            );
+            logic w_pslverrchk_err;
+            dataint_parity #(.CHUNKS(1), .WIDTH(1)) u_pslverrchk (
+                .data_in     (m_apb_PSLVERR),
+                .parity_in   (m_apb_PSLVERRCHK),
+                .parity_type (1'b0),               // odd
+                /* verilator lint_off PINCONNECTEMPTY */
+                .parity      (),
+                /* verilator lint_on PINCONNECTEMPTY */
+                .parity_err  (w_pslverrchk_err)
+            );
 
-            // Control parity check (PREADY, PSLVERR)
-            assign parity_error_ctrl = (m_apb_PREADY && m_apb_PSEL && m_apb_PENABLE) ?
-                                       ((^m_apb_PREADY != m_apb_PREADYPARITY) ||
-                                        (^m_apb_PSLVERR != m_apb_PSLVERRPARITY)) : 1'b0;
+            // Check Enable terms (Table 5-1)
+            logic w_en_ready;    // PSEL & PENABLE
+            logic w_en_rsp;      // PSEL & PENABLE & PREADY
+            logic w_en_rdata;    // PSEL & PENABLE & PREADY & !PWRITE
+            assign w_en_ready = m_apb_PSEL && m_apb_PENABLE;
+            assign w_en_rsp   = w_en_ready && m_apb_PREADY;
+            assign w_en_rdata = w_en_rsp && !m_apb_PWRITE;
+
+            // PRDATACHK, PRUSERCHK
+            assign parity_error_rdata = w_en_rdata &&
+                                        ((|w_prdatachk_err) || (|w_pruserchk_err));
+            // PREADYCHK, PSLVERRCHK, PBUSERCHK
+            assign parity_error_ctrl  = (w_en_ready && w_preadychk_err) ||
+                                        (w_en_rsp   && (w_pslverrchk_err || (|w_pbuserchk_err)));
         end else begin : gen_no_parity
-            assign m_apb_PWDATAPARITY = '0;
-            assign m_apb_PADDRPARITY = 1'b0;
-            assign m_apb_PCTRLPARITY = 1'b0;
+            assign m_apb_PADDRCHK     = '0;
+            assign m_apb_PWDATACHK    = '0;
+            assign m_apb_PAUSERCHK    = '0;
+            assign m_apb_PWUSERCHK    = '0;
+            assign m_apb_PCTRLCHK     = 1'b0;
+            assign m_apb_PSTRBCHK     = 1'b0;
+            assign m_apb_PSELCHK      = 1'b0;
+            assign m_apb_PENABLECHK   = 1'b0;
+            assign m_apb_PWAKEUPCHK   = 1'b0;
             assign parity_error_rdata = 1'b0;
-            assign parity_error_ctrl = 1'b0;
+            assign parity_error_ctrl  = 1'b0;
         end
     endgenerate
 

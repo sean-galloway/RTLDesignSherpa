@@ -33,7 +33,7 @@
 
 The AXIS5 subsystem gives you AXI5-Stream master and slave endpoints, plus clock-gated variants of each, for high-throughput streaming data applications.
 
-AXI5-Stream extends AXI4-Stream primarily with wake-up signalling (TWAKEUP) for low-power operation. These modules implement the AXI4-Stream handshake and signal set, add TWAKEUP on top, and offer an optional per-byte data parity sideband (TPARITY). That parity signal is an RTL Design Sherpa extension, not an ARM signal — keep that in mind before you wire these endpoints to someone else's IP.
+AXI5-Stream extends AXI4-Stream primarily with wake-up signalling (TWAKEUP) for low-power operation. These modules implement the AXI4-Stream handshake and signal set, add TWAKEUP on top, and offer the optional interface parity protection of IHI 0051B ch. 5: the `*CHK` check signals, odd parity, one check bit per 8 bits.
 
 ---
 
@@ -52,12 +52,12 @@ Read this table before you integrate with third-party AXI-Stream IP. It's the au
 | TUSER | Implemented | Width `AXIS_USER_WIDTH` (default 1, set 0 to remove) |
 | TVALID / TREADY | Implemented | Standard handshake |
 | TWAKEUP | Implemented, optional | Gated by `ENABLE_WAKEUP` (default 1) |
-| TPARITY | Implemented, optional | **Not an ARM signal** - RTL Design Sherpa extension, gated by `ENABLE_PARITY` (default 0) |
+| TDATACHK, TSTRBCHK, TLASTCHK, TIDCHK, TDESTCHK, TUSERCHK, TVALIDCHK, TREADYCHK, TWAKEUPCHK | Implemented, optional | IHI 0051B ch. 5 check signals (Check_Type = Odd_Parity_Byte_All), gated by `ENABLE_PARITY` (default 0). TKEEPCHK is absent because TKEEP is |
 
 **Deviations from the ARM AXI-Stream signal set:**
 
 - **No TKEEP.** These modules carry TSTRB only. Null bytes (the TKEEP=0 encoding) cannot be expressed. A stream that needs null-byte signalling has to carry that information in TUSER or use a different endpoint.
-- **TPARITY is proprietary.** It occupies no ARM-defined signal name and will not connect to third-party AXI5-Stream IP. Leave `ENABLE_PARITY=0` (the default) for interoperable designs.
+- **Interface parity follows the spec.** Odd parity (§5.3), one check bit per 8 bits with the top bit covering any short remainder, Table 5-1 names and widths. Until issue #102 these modules carried a single even-parity `TPARITY` port over TDATA only; that port is gone.
 - **No TPOISON and no chunking (TCHUNKEN) support.** Neither signal is present in the RTL.
 - **TID default width is 8 bits.** `AXIS_ID_WIDTH` is a free parameter, so wider IDs are configurable, but nothing in these modules requires or defaults to a wider ID.
 
@@ -71,7 +71,7 @@ This table compares the two generations *as implemented here*, not the full ARM 
 |---------|-----------------------------------|-----------------------------------|
 | Basic protocol | TVALID/TREADY handshake | TVALID/TREADY handshake |
 | Wake-up | Not present | TWAKEUP, gated by `ENABLE_WAKEUP` |
-| Data parity | Not present | TPARITY sideband plus sticky `parity_error`, gated by `ENABLE_PARITY` (proprietary extension) |
+| Interface parity | Not present | IHI 0051B ch. 5 `*CHK` check signals plus sticky `parity_error`, gated by `ENABLE_PARITY` |
 | Side-band signals | TID, TDEST, TUSER | TID, TDEST, TUSER (same, parameterized widths) |
 | Byte qualification | TSTRB only | TSTRB only |
 | Clock gating | Available (`_cg` variants) | Available (`_cg` variants) |
@@ -124,7 +124,7 @@ the documentation calls it out instead.
 
 ### AXI5 and Extension Features
 - **Wake-up Signaling:** TWAKEUP for low-power state exit
-- **Optional Data Parity:** TPARITY, one bit per byte, with a sticky `parity_error` flag (proprietary extension)
+- **Optional Interface Parity:** the IHI 0051B ch. 5 check signals (odd parity, one bit per 8 bits), computed with `rtl/common/dataint_parity`, with a sticky `parity_error` flag
 - **Parameterized Side-band Widths:** TID, TDEST, and TUSER widths are set per instance
 
 ### Power Management
@@ -166,7 +166,12 @@ axis5_master #(
     .fub_axis_tvalid    (fub_tvalid),
     .fub_axis_tready    (fub_tready),
     .fub_axis_twakeup   (fub_twakeup),
-    .fub_axis_tparity   ('0),            // Unused when ENABLE_PARITY=0
+    .fub_axis_tdatachk  ('0),            // check signals: unused when ENABLE_PARITY=0
+    .fub_axis_tstrbchk  ('0),
+    .fub_axis_tlastchk  ('0),
+    .fub_axis_tidchk    ('0),
+    .fub_axis_tdestchk  ('0),
+    .fub_axis_tuserchk  ('0),
 
     // AXI5-Stream master interface
     .m_axis_tdata       (m_tdata),
@@ -178,7 +183,15 @@ axis5_master #(
     .m_axis_tvalid      (m_tvalid),
     .m_axis_tready      (m_tready),
     .m_axis_twakeup     (m_twakeup),
-    .m_axis_tparity     (),              // Unused when ENABLE_PARITY=0
+    .m_axis_tdatachk    (),            // check signals: unused when ENABLE_PARITY=0
+    .m_axis_tstrbchk    (),
+    .m_axis_tlastchk    (),
+    .m_axis_tidchk      (),
+    .m_axis_tdestchk    (),
+    .m_axis_tuserchk    (),
+    .m_axis_tvalidchk   (),
+    .m_axis_treadychk   (1'b0),
+    .m_axis_twakeupchk  (),
 
     // Status
     .busy               (m_busy),
@@ -211,7 +224,15 @@ axis5_slave #(
     .s_axis_tvalid      (s_tvalid),
     .s_axis_tready      (s_tready),
     .s_axis_twakeup     (s_twakeup),
-    .s_axis_tparity     ('0),            // Unused when ENABLE_PARITY=0
+    .s_axis_tdatachk    ('0),            // check signals: unused when ENABLE_PARITY=0
+    .s_axis_tstrbchk    ('0),
+    .s_axis_tlastchk    ('0),
+    .s_axis_tidchk      ('0),
+    .s_axis_tdestchk    ('0),
+    .s_axis_tuserchk    ('0),
+    .s_axis_tvalidchk   (1'b0),
+    .s_axis_treadychk   (),
+    .s_axis_twakeupchk  (1'b0),
 
     // FUB streaming interface (to internal logic)
     .fub_axis_tdata     (fub_tdata),
@@ -223,7 +244,12 @@ axis5_slave #(
     .fub_axis_tvalid    (fub_tvalid),
     .fub_axis_tready    (fub_tready),
     .fub_axis_twakeup   (fub_twakeup),
-    .fub_axis_tparity   (),              // Unused when ENABLE_PARITY=0
+    .fub_axis_tdatachk  (),            // check signals: unused when ENABLE_PARITY=0
+    .fub_axis_tstrbchk  (),
+    .fub_axis_tlastchk  (),
+    .fub_axis_tidchk    (),
+    .fub_axis_tdestchk  (),
+    .fub_axis_tuserchk  (),
 
     // Status
     .busy               (s_busy),
@@ -293,7 +319,8 @@ pytest val/amba/test_axis5_slave.py -v
 | TDEST | Master to Slave | Destination routing information |
 | TUSER | Master to Slave | User-defined sideband data |
 | TWAKEUP | Master to Slave | Wake-up signal (AXI5) |
-| TPARITY | Master to Slave | Per-byte data parity (proprietary extension, optional) |
+| TDATACHK ... TUSERCHK, TVALIDCHK, TWAKEUPCHK | Master to Slave | IHI 0051B ch. 5 check signals (optional, `ENABLE_PARITY`) |
+| TREADYCHK | Slave to Master | Check signal for TREADY (optional, `ENABLE_PARITY`) |
 | TVALID | Master to Slave | Data valid indicator |
 | TREADY | Slave to Master | Ready to accept data |
 
@@ -337,7 +364,7 @@ FUB stands for Functional Unit Block: the design-internal logic on the far side 
 AXIS5 modules keep the AXI4-Stream data path intact:
 - Core protocol unchanged (TVALID/TREADY handshake)
 - TWAKEUP can be tied to 0 for always-awake operation, or removed entirely with `ENABLE_WAKEUP=0`
-- TPARITY is off by default (`ENABLE_PARITY=0`) and adds no ports of consequence when disabled
+- The check signals are off by default (`ENABLE_PARITY=0`): the `*chk` ports remain but outputs are tied 0 and inputs ignored
 - TUSER width can match AXI4-Stream configurations
 
 Neither generation implements TKEEP, so a design already using the AXIS4 modules will not gain or lose byte-qualification capability by moving to AXIS5.
@@ -396,7 +423,7 @@ Treat the figures below as design targets, not measured silicon or post-route re
 ## References
 
 ### Specifications
-- Arm. *AMBA AXI-Stream Protocol Specification*, ARM IHI 0051B, Apr. 2021 (defines AXI4-Stream and AXI5-Stream). [developer.arm.com/documentation/ihi0051/b](https://developer.arm.com/documentation/ihi0051/b/) -- §2.2 "Handshake signaling", §2.3 "Wake-up signaling" (`TWAKEUP`), ch. 5 "Interface parity protection" (odd parity on `TDATACHK`, §5.3). This RTL computes even parity (`^tdata`) on a port named `TPARITY`, so it interoperates with this library but not with a spec-conforming checker. Citation only.
+- Arm. *AMBA AXI-Stream Protocol Specification*, ARM IHI 0051B, Apr. 2021 (defines AXI4-Stream and AXI5-Stream). [developer.arm.com/documentation/ihi0051/b](https://developer.arm.com/documentation/ihi0051/b/) -- §2.2 "Handshake signaling", §2.3 "Wake-up signaling" (`TWAKEUP`), ch. 5 "Interface parity protection" (§5.3 odd parity and 8-bit granularity, Table 5-1 check signals), implemented as specified when `ENABLE_PARITY=1` (issue #102). Citation only.
 - Arm. *AMBA 4 AXI4-Stream Protocol Specification*, Version 1.0, ARM IHI 0051A, Mar. 2010. [developer.arm.com/documentation/ihi0051/a](https://developer.arm.com/documentation/ihi0051/a/) -- the AXI4-Stream base (ch. 2 "Interface Signals"). Citation only.
 
 ### Papers and textbooks

@@ -30,8 +30,8 @@ module axi4ace_master_rd
     parameter int DW       = AXI_DATA_WIDTH,
     parameter int IW       = AXI_ID_WIDTH,
     parameter int UW       = AXI_USER_WIDTH,
-    parameter int ARSize   = IW+AW+8+3+2+1+4+3+4+4+UW+4,
-    parameter int RSize    = IW+DW+2+1+UW
+    parameter int ARSize   = IW+AW+8+3+2+1+4+3+4+4+UW+4+2+2,
+    parameter int RSize    = IW+DW+4+1+UW
 )
 (
     // Global Clock and Reset
@@ -52,13 +52,15 @@ module axi4ace_master_rd
     input  logic [3:0]                 fub_axi_arregion,
     input  logic [UW-1:0]              fub_axi_aruser,
     input  logic [3:0]                 fub_axi_arsnoop,
+    input  logic [1:0]                 fub_axi_ardomain,
+    input  logic [1:0]                 fub_axi_arbar,
     input  logic                       fub_axi_arvalid,
     output logic                       fub_axi_arready,
 
     // Read data channel (R)
     output logic [IW-1:0]              fub_axi_rid,
     output logic [DW-1:0]              fub_axi_rdata,
-    output logic [1:0]                 fub_axi_rresp,
+    output logic [3:0]                 fub_axi_rresp,       // [3]=IsShared [2]=PassDirty (IHI 0022H D2.1.3)
     output logic                       fub_axi_rlast,
     output logic [UW-1:0]              fub_axi_ruser,
     output logic                       fub_axi_rvalid,
@@ -78,13 +80,15 @@ module axi4ace_master_rd
     output logic [3:0]                 m_axi_arregion,
     output logic [UW-1:0]              m_axi_aruser,
     output logic [3:0]                 m_axi_arsnoop,
+    output logic [1:0]                 m_axi_ardomain,
+    output logic [1:0]                 m_axi_arbar,
     output logic                       m_axi_arvalid,
     input  logic                       m_axi_arready,
 
     // Read data channel (R)
     input  logic [IW-1:0]              m_axi_rid,
     input  logic [DW-1:0]              m_axi_rdata,
-    input  logic [1:0]                 m_axi_rresp,
+    input  logic [3:0]                 m_axi_rresp,       // [3]=IsShared [2]=PassDirty (IHI 0022H D2.1.3)
     input  logic                       m_axi_rlast,
     input  logic [UW-1:0]              m_axi_ruser,
     input  logic                       m_axi_rvalid,
@@ -135,7 +139,8 @@ module axi4ace_master_rd
         .wr_ready               (fub_axi_arready),
         .wr_data                ({fub_axi_arid, fub_axi_araddr, fub_axi_arlen, fub_axi_arsize,
                                     fub_axi_arburst, fub_axi_arlock, fub_axi_arcache, fub_axi_arprot,
-                                    fub_axi_arqos, fub_axi_arregion, fub_axi_aruser, fub_axi_arsnoop}),
+                                    fub_axi_arqos, fub_axi_arregion, fub_axi_aruser, fub_axi_arsnoop,
+                                    fub_axi_ardomain, fub_axi_arbar}),
         .rd_valid               (int_skid_arvalid),
         .rd_ready               (int_skid_arready),
         .rd_count               (int_ar_count),
@@ -148,7 +153,8 @@ module axi4ace_master_rd
     // Unpack AR signals from SKID buffer
     assign {m_axi_arid, m_axi_araddr, m_axi_arlen, m_axi_arsize, m_axi_arburst,
             m_axi_arlock, m_axi_arcache, m_axi_arprot, m_axi_arqos,
-            m_axi_arregion, m_axi_aruser, m_axi_arsnoop} = int_ar_pkt;
+            m_axi_arregion, m_axi_aruser, m_axi_arsnoop,
+            m_axi_ardomain, m_axi_arbar} = int_ar_pkt;
     assign m_axi_arvalid = int_skid_arvalid;
     assign int_skid_arready = m_axi_arready;
 

@@ -38,7 +38,7 @@ The APB5 Slave Stub provides a simplified packed-data interface for responding t
 - Packed command/response packet interface
 - Complete APB5 slave FSM implementation
 - All APB5 extensions (PAUSER, PWUSER, PRUSER, PBUSER)
-- PWAKEUP signal generation to master
+- PWAKEUP input from the Requester (IHI 0024E §3.7.2), checked by PWAKEUPCHK
 - Optional parity support with error detection
 - Skid buffers for command and response paths
 
@@ -77,7 +77,7 @@ With all defaults this gives `CMD_PACKET_WIDTH = 80` and
 `RESP_PACKET_WIDTH = 41`.
 
 Unlike [apb5_master_stub](apb5_master_stub.md), the slave stub packets carry no
-`first`/`last` markers and no `pwakeup` bit, so the two stubs' packet widths are
+`first`/`last` markers, so the two stubs' packet widths are
 not interchangeable.
 
 ### Derived Parameters (do not override)
@@ -122,7 +122,7 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | s_apb_PRDATA | DATA_WIDTH | Output | Read data to master |
 | s_apb_PSLVERR | 1 | Output | Slave error response |
 | s_apb_PREADY | 1 | Output | Slave ready |
-| s_apb_PWAKEUP | 1 | Output | Wake-up to master |
+| s_apb_PWAKEUP | 1 | Input | Requester wake-up (IHI 0024E §3.7.2); not waited on before PREADY |
 | s_apb_PRUSER | RUSER_WIDTH | Output | User read attributes |
 | s_apb_PBUSER | BUSER_WIDTH | Output | User response attributes |
 
@@ -133,12 +133,20 @@ identical to [apb5_slave](apb5_slave.md#parity-implementation).
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
-| s_apb_PWDATAPARITY | STRB_WIDTH | Input | Write data parity from master |
-| s_apb_PADDRPARITY | 1 | Input | Address parity from master |
-| s_apb_PCTRLPARITY | 1 | Input | Control signals parity from master |
-| s_apb_PRDATAPARITY | STRB_WIDTH | Output | Read data parity to master |
-| s_apb_PREADYPARITY | 1 | Output | PREADY parity to master |
-| s_apb_PSLVERRPARITY | 1 | Output | PSLVERR parity to master |
+| s_apb_PADDRCHK | ceil(ADDR_WIDTH/8) | Input | Odd parity over PADDR, one bit per 8 bits |
+| s_apb_PCTRLCHK | 1 | Input | Odd parity over PPROT and PWRITE (PNSE not carried) |
+| s_apb_PSELCHK | 1 | Input | Odd parity over PSEL (the spec's PSELxCHK) |
+| s_apb_PENABLECHK | 1 | Input | Odd parity over PENABLE |
+| s_apb_PWDATACHK | DATA_WIDTH/8 | Input | Odd parity over PWDATA, one bit per byte lane |
+| s_apb_PSTRBCHK | 1 | Input | Odd parity over all of PSTRB |
+| s_apb_PAUSERCHK | ceil(AUSER_WIDTH/8) | Input | Odd parity over PAUSER, one bit per 8 bits |
+| s_apb_PWUSERCHK | ceil(WUSER_WIDTH/8) | Input | Odd parity over PWUSER, one bit per 8 bits |
+| s_apb_PRDATACHK | DATA_WIDTH/8 | Output | Odd parity over PRDATA, one bit per byte lane |
+| s_apb_PREADYCHK | 1 | Output | Odd parity over PREADY |
+| s_apb_PSLVERRCHK | 1 | Output | Odd parity over PSLVERR |
+| s_apb_PWAKEUPCHK | 1 | Input | Odd parity over PWAKEUP |
+| s_apb_PRUSERCHK | ceil(RUSER_WIDTH/8) | Output | Odd parity over PRUSER, one bit per 8 bits |
+| s_apb_PBUSERCHK | ceil(BUSER_WIDTH/8) | Output | Odd parity over PBUSER, one bit per 8 bits |
 
 ### Command Packet Interface
 
@@ -160,9 +168,8 @@ identical to [apb5_slave](apb5_slave.md#parity-implementation).
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
-| wakeup_request | 1 | Input | Assert PWAKEUP to master |
-| parity_error_wdata | 1 | Output | Write data parity error |
-| parity_error_ctrl | 1 | Output | Control signal parity error |
+| parity_error_wdata | 1 | Output | PWDATACHK, PSTRBCHK or PWUSERCHK mismatch |
+| parity_error_ctrl | 1 | Output | PADDRCHK, PCTRLCHK, PSELCHK, PENABLECHK, PAUSERCHK or PWAKEUPCHK mismatch |
 
 ---
 
@@ -329,7 +336,7 @@ apb5_slave_stub #(
     .s_apb_PRDATA   (s_apb_prdata),
     .s_apb_PSLVERR  (s_apb_pslverr),
     .s_apb_PREADY   (s_apb_pready),
-    .s_apb_PWAKEUP  (s_apb_pwakeup),
+    .s_apb_PWAKEUP  (s_apb_pwakeup),   // input: from the Requester
     .s_apb_PRUSER   (s_apb_pruser),
     .s_apb_PBUSER   (s_apb_pbuser),
 
@@ -343,16 +350,21 @@ apb5_slave_stub #(
     .rsp_ready      (be_rsp_ready),
     .rsp_data       (be_rsp_data),
 
-    // Wake-up control
-    .wakeup_request (be_wakeup),
-
     // Parity interface (unused here because ENABLE_PARITY=0)
-    .s_apb_PWDATAPARITY  ('0),
-    .s_apb_PADDRPARITY   (1'b0),
-    .s_apb_PCTRLPARITY   (1'b0),
-    .s_apb_PRDATAPARITY  (),
-    .s_apb_PREADYPARITY  (),
-    .s_apb_PSLVERRPARITY (),
+    .s_apb_PADDRCHK      ('0),
+    .s_apb_PCTRLCHK      (1'b0),
+    .s_apb_PSELCHK       (1'b0),
+    .s_apb_PENABLECHK    (1'b0),
+    .s_apb_PWDATACHK     ('0),
+    .s_apb_PSTRBCHK      (1'b0),
+    .s_apb_PAUSERCHK     ('0),
+    .s_apb_PWUSERCHK     ('0),
+    .s_apb_PRDATACHK     (),
+    .s_apb_PREADYCHK     (),
+    .s_apb_PSLVERRCHK    (),
+    .s_apb_PWAKEUPCHK    (1'b0),
+    .s_apb_PRUSERCHK     (),
+    .s_apb_PBUSERCHK     (),
     .parity_error_wdata  (),
     .parity_error_ctrl   ()
 );
@@ -388,23 +400,26 @@ The stub uses skid buffers on both command and response paths:
 
 ### Parity Implementation
 
-When `ENABLE_PARITY=1`:
-- **Checking:** parity verified on incoming PWDATA (one bit per byte lane),
-  PADDR (one bit for the whole address) and {PWRITE, PSTRB, PPROT} (one bit for
-  the whole control group)
-- **Generation:** parity generated for outgoing PRDATA (one bit per byte lane),
-  PREADY and PSLVERR
-- Each parity bit is the XOR reduction of the covered signals, an even-parity
-  encoding
-- `parity_error_wdata` and `parity_error_ctrl` are combinational and qualified
-  by `s_apb_PSEL && s_apb_PENABLE`; both are hard-tied to 0 when
-  `ENABLE_PARITY=0`
+The stub carries its own copy of the `apb5_slave` parity logic, with identical
+behaviour; the full rules and the per-signal Check Enable terms are in
+[apb5_slave](apb5_slave.md#parity-implementation). In short, when
+`ENABLE_PARITY=1`:
+- **Odd parity** (IHI 0024E §5.3) on spec-named `*CHK` signals, one check bit
+  per 8 payload bits, computed by per-byte `dataint_parity` instances.
+- **Checked:** `PADDRCHK`, `PCTRLCHK` (PPROT, PWRITE), `PSELCHK`, `PENABLECHK`,
+  `PWDATACHK`, `PSTRBCHK`, `PAUSERCHK`, `PWUSERCHK`, `PWAKEUPCHK`.
+- **Generated:** `PRDATACHK`, `PREADYCHK`, `PSLVERRCHK`, `PRUSERCHK`,
+  `PBUSERCHK`.
+- `parity_error_wdata` (write-data group, while `PSEL & PWRITE`) and
+  `parity_error_ctrl` (address/control group while `PSEL`, `PSELCHK` and
+  `PWAKEUPCHK` at any time out of reset) are combinational and hard-tied to 0 when
+  `ENABLE_PARITY=0`.
 
 ### Wake-up Handling
 
-The `wakeup_request` input is registered before driving `s_apb_PWAKEUP`:
-- Provides clean synchronization
-- Single-cycle delay from request to PWAKEUP assertion
+`s_apb_PWAKEUP` is an input from the Requester (IHI 0024E §3.7.2, Table 3-7).
+The stub does not wait for it before PREADY and uses it only for the
+`PWAKEUPCHK` check; there is no backend `wakeup_request` port.
 
 ---
 
@@ -417,7 +432,7 @@ The `wakeup_request` input is registered before driving `s_apb_PWAKEUP`:
 
 ## Testing
 
-`val/amba/test_apb5_slave_stub.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+`val/amba/test_apb5_slave_stub.py` exercises this module. It collects 4 parameter cases at the default `REG_LEVEL`; the two `ENABLE_PARITY=1` cases also run `cocotb_test_apb5_slave_stub_parity`, a directed IHI 0024E ch. 5 check.
 
 ```bash
 source env_python
@@ -426,7 +441,7 @@ pytest val/amba/test_apb5_slave_stub.py -v
 
 ## References
 
-- Arm. *AMBA APB Protocol Specification*, ARM IHI 0024E, Feb. 2023 (APB5 first published in Issue D, Apr. 2021). [developer.arm.com/documentation/ihi0024/e](https://developer.arm.com/documentation/ihi0024/e/) -- ch. 3 "Transfers", ch. 4 "Operating States", §3.7 "Wake-up signaling" and §3.8 "User signaling": the protocol of the wrapped APB5 block. Citation only.
+- Arm. *AMBA APB Protocol Specification*, ARM IHI 0024E, Feb. 2023 (APB5 first published in Issue D, Apr. 2021). [developer.arm.com/documentation/ihi0024/e](https://developer.arm.com/documentation/ihi0024/e/) -- ch. 3 "Transfers", ch. 4 "Operating States", §3.7 "Wake-up signaling" and §3.8 "User signaling": the protocol of the wrapped APB5 block; ch. 5 "Interface parity protection" (§5.3, Table 5-1) for the `*CHK` signals. Citation only.
 - Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) -- the valid/ready channel discipline behind the `gaxi_skid_buffer` queues: a buffered stage may stall or add latency without changing what the endpoints compute.
 - Indexed in `rtl/amba/references/README.md` (local PDF: `LatencyInsensitiveDesign__Carloni2001.pdf`)
 

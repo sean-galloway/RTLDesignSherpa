@@ -191,6 +191,12 @@ async def axi4ace_read_master_test(dut):
 
     tb.log.info("RACK auto-pulse check passed")
 
+    # Test 6b: ACE address/response fields (issue #102 item 4)
+    tb.log.info("=== Scenario AXI4ACE-MR-12: ARDOMAIN/ARBAR passthrough, RRESP[3:2] return ===")
+    if not await tb.ace_signal_fields_test():
+        raise RuntimeError("ACE ARDOMAIN/ARBAR/RRESP[3:2] check failed")
+    tb.log.info("ACE ARDOMAIN/ARBAR/RRESP[3:2] check passed")
+
     # Test 7: Address pattern validation
     tb.log.info("=== Scenario AXI4ACE-MR-14: Address pattern validation ===")
     tb.log.info("=== Test 7: Address Pattern Validation ===")
@@ -380,8 +386,8 @@ def test_axi4ace_read_master(request, id_width, addr_width, data_width, user_wid
 
     # RTL parameters
     # axi4ace_master_rd does not declare AXI_WSTRB_WIDTH/SW; omit them.
-    ar_size = id_width + addr_width + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + user_width + 4  # +4 for arsnoop
-    r_size = id_width + data_width + 2 + 1 + user_width
+    ar_size = id_width + addr_width + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + user_width + 4 + 2 + 2  # + arsnoop[3:0], ardomain[1:0], arbar[1:0]
+    r_size = id_width + data_width + 4 + 1 + user_width  # ACE RRESP is 4 bits
 
     rtl_parameters = {
         'SKID_DEPTH_AR': str(ar_depth),

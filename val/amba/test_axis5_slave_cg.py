@@ -66,6 +66,18 @@ async def cocotb_test_axis5_slave_cg_basic(dut):
     tb.log.info("=== AXIS5 Slave CG Basic Test PASSED ===")
 
 
+@cocotb.test(timeout_time=100, timeout_unit="us")
+async def cocotb_test_axis5_slave_cg_chk(dut):
+    """IHI 0051B ch. 5: odd-parity check signals through the clock-gated slave."""
+    tb = AXIS5SlaveCGBasicTB(dut)
+    if not tb.ENABLE_PARITY:
+        tb.log.info("ENABLE_PARITY=0: no check signals, nothing to test")
+        return
+    await tb.start_clock('aclk', 10, 'ns')
+    await tb.run_chk_test()
+    tb.log.info("=== AXIS5 Slave CG check-signal test PASSED ===")
+
+
 def generate_axis5_slave_cg_params():
     """Generate test parameters for AXIS5 slave clock-gated."""
     return [
@@ -163,7 +175,7 @@ def test_axis5_slave_cg(request, skid_depth, data_width, enable_wakeup, enable_p
             plus_args=(['--trace'] if enable_waves else []),
             keep_files=True,
             compile_args=compile_args,
-            testcase="cocotb_test_axis5_slave_cg_basic",
+            testcase=None,   # both cocotb tests in this module: _basic and _chk
             simulator="verilator",
         )
     except Exception as e:

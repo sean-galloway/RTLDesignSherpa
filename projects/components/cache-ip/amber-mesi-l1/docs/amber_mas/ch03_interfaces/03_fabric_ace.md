@@ -23,7 +23,13 @@
 
 # Fabric ACE Master Timing
 
-The `amber_ace` onyx-rig top uses the house `axi4ace_master_rd` and `axi4ace_master_wr` wrappers. The timing is identical to the AXI4 case except for the `ARSNOOP`/`AWSNOOP` fields and the auto-pulsed `RACK`/`WACK` outputs (deprecated per ruling 2026-10-11 (Sean); removal tracked as amber A5).
+The `amber_ace` onyx-rig top uses the house `axi4ace_master_rd` and `axi4ace_master_wr` wrappers. The timing is identical to the AXI4 case except for the `ARSNOOP`/`AWSNOOP` fields, the constant `AxDOMAIN`/`AxBAR` fields, the 4-bit `RRESP`, and the auto-pulsed `RACK`/`WACK` outputs (deprecated per ruling 2026-10-11 (Sean); removal tracked as amber A5).
+
+## Domain, Barrier and Read-Response Fields
+
+Every amber transaction is coherent and the onyx rig has one shareability domain, so `amber_ace_top` drives `ARDOMAIN` and `AWDOMAIN` to `0b10` (Outer Shareable), an encoding IHI 0022H Tables D3-7 and D3-8 permit for every Table 4.2 transaction type. Inner Shareable would also be legal on ACE, but ACE5 deprecates it. amber issues no barrier transactions (onyx D8), so `ARBAR` and `AWBAR` are `0b00`, a normal access that respects barriers.
+
+`RRESP` is 4 bits on an ACE read (IHI 0022H §D2.1.3, Table D3-14). `RRESP[1:0]` reaches the fill engine as before. `RRESP[3:2]` (IsShared, PassDirty) travels through the read transport and its monitor, but the core does not use it. The install state comes from the request class: `ReadShared` installs S and `ReadUnique` installs M. S is legal for either IsShared value, and M already owns the dirty data, so neither class depends on IsShared. The one response amber cannot honour is `PassDirty = 1` on a `ReadShared`, because it would install a clean S and lose the write-back. amber therefore relies on its manager keeping PassDirty low on `ReadShared`. IHI 0022H gives a MESI cache `ReadNotSharedDirty` for this case. The item is open: no port contract states the rule yet.
 
 ## Read Transactions
 

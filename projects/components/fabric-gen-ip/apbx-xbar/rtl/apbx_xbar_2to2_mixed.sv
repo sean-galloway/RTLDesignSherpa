@@ -61,7 +61,9 @@ module apbx_xbar_2to2_mixed #(
     // APB5 sideband (master 1 is apb5)
     input  logic                  m1_apb_PAUSER,
     input  logic                  m1_apb_PWUSER,
-    output logic                  m1_apb_PWAKEUP,
+    // PWAKEUP is Requester-driven (IHI 0024E 3.7.2, Table 3-7):
+    // an input here, forwarded to every APB5 completer port.
+    input  logic                  m1_apb_PWAKEUP,
     output logic                  m1_apb_PRUSER,
     output logic                  m1_apb_PBUSER,
 
@@ -79,7 +81,9 @@ module apbx_xbar_2to2_mixed #(
     // APB5 sideband (slave 0 is apb5)
     output logic                  s0_apb_PAUSER,
     output logic                  s0_apb_PWUSER,
-    input  logic                  s0_apb_PWAKEUP,
+    // PWAKEUP driven toward the completer: the boundary IP's own
+    // wake OR'd with every APB5 requester's PWAKEUP (3.7.2).
+    output logic                  s0_apb_PWAKEUP,
     input  logic                  s0_apb_PRUSER,
     input  logic                  s0_apb_PBUSER,
 
@@ -142,6 +146,7 @@ module apbx_xbar_2to2_mixed #(
     logic                  s0_cmd_pwuser;
     logic                  s0_rsp_pruser;
     logic                  s0_rsp_pbuser;
+    logic                  w_s0_ip_pwakeup;  // boundary apb5_master's own PWAKEUP
 
     // APB Slave 0 - converts master 0 APB4 to cmd/rsp
     apb4_slave #(
@@ -219,16 +224,22 @@ module apbx_xbar_2to2_mixed #(
         .rsp_pruser     (m1_rsp_pruser),
         .rsp_pbuser     (m1_rsp_pbuser),
         // parity feature unused (ENABLE_PARITY=0)
-        .s_apb_PWDATAPARITY ('0),
-        .s_apb_PADDRPARITY  ('0),
-        .s_apb_PCTRLPARITY  ('0),
-        .s_apb_PRDATAPARITY (),
-        .s_apb_PREADYPARITY (),
-        .s_apb_PSLVERRPARITY(),
+        .s_apb_PADDRCHK     ('0),
+        .s_apb_PCTRLCHK     (1'b0),
+        .s_apb_PSELCHK      (1'b0),
+        .s_apb_PENABLECHK   (1'b0),
+        .s_apb_PWDATACHK    ('0),
+        .s_apb_PSTRBCHK     (1'b0),
+        .s_apb_PAUSERCHK    ('0),
+        .s_apb_PWUSERCHK    ('0),
+        .s_apb_PWAKEUPCHK   (1'b0),
+        .s_apb_PRDATACHK    (),
+        .s_apb_PREADYCHK    (),
+        .s_apb_PSLVERRCHK   (),
+        .s_apb_PRUSERCHK    (),
+        .s_apb_PBUSERCHK    (),
         .parity_error_wdata (),
-        .parity_error_ctrl  (),
-        // wakeup handled inside the boundary IP
-        .wakeup_request     ('0)
+        .parity_error_ctrl  ()
     );
 
     // Address decode for each master. The slave index comes from the
@@ -570,25 +581,36 @@ module apbx_xbar_2to2_mixed #(
         .rsp_pslverr    (s0_rsp_pslverr),
         .m_apb_PAUSER   (s0_apb_PAUSER),
         .m_apb_PWUSER   (s0_apb_PWUSER),
-        .m_apb_PWAKEUP  (s0_apb_PWAKEUP),
+        .m_apb_PWAKEUP  (w_s0_ip_pwakeup),
         .m_apb_PRUSER   (s0_apb_PRUSER),
         .m_apb_PBUSER   (s0_apb_PBUSER),
         .cmd_pauser     (s0_cmd_pauser),
         .cmd_pwuser     (s0_cmd_pwuser),
-        .rsp_pwakeup    (),
         .rsp_pruser     (s0_rsp_pruser),
         .rsp_pbuser     (s0_rsp_pbuser),
         // parity feature unused (ENABLE_PARITY=0)
-        .m_apb_PWDATAPARITY (),
-        .m_apb_PADDRPARITY  (),
-        .m_apb_PCTRLPARITY  (),
-        .m_apb_PRDATAPARITY ('0),
-        .m_apb_PREADYPARITY ('0),
-        .m_apb_PSLVERRPARITY('0),
+        .m_apb_PADDRCHK     (),
+        .m_apb_PCTRLCHK     (),
+        .m_apb_PSELCHK      (),
+        .m_apb_PENABLECHK   (),
+        .m_apb_PWDATACHK    (),
+        .m_apb_PSTRBCHK     (),
+        .m_apb_PAUSERCHK    (),
+        .m_apb_PWUSERCHK    (),
+        .m_apb_PWAKEUPCHK   (),
+        .m_apb_PRDATACHK    ('0),
+        .m_apb_PREADYCHK    (1'b0),
+        .m_apb_PSLVERRCHK   (1'b0),
+        .m_apb_PRUSERCHK    ('0),
+        .m_apb_PBUSERCHK    ('0),
         .parity_error_rdata (),
-        .parity_error_ctrl  (),
-        .wakeup_pending     ()
+        .parity_error_ctrl  ()
     );
+
+    // PWAKEUP to APB5 completer 0 (IHI 0024E 3.7.2): the boundary IP's
+    // pending/in-flight wake OR'd with every APB5 requester's PWAKEUP.
+    // A glitch-free OR tree of flop outputs and glitch-free inputs.
+    assign s0_apb_PWAKEUP = w_s0_ip_pwakeup | m1_apb_PWAKEUP;
 
     // APB Master 1 - converts cmd/rsp to slave 1 APB4
     apb4_master #(

@@ -162,7 +162,7 @@ take per-port lists rather than scalars:
 | `master_versions` | list | None | Per-master APB version (`4`/`5`); None ⇒ all APB4 |
 | `slave_versions` | list | None | Per-slave APB version (`4`/`5`); None ⇒ all APB4 |
 | `name_suffix` | str | `""` | Appended to the generated module name |
-| `enable_parity` | bool | False | Carry APB5 parity on APB5 ports |
+| `enable_parity` | bool | False | Carry APB5 parity (IHI 0024E ch. 5 `*CHK` signals, odd) on APB5 ports |
 
 : Python API Arguments
 

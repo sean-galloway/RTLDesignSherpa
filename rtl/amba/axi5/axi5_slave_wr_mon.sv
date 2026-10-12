@@ -42,6 +42,7 @@ module axi5_slave_wr_mon
     parameter bit ENABLE_UNIQUE     = 1,
     parameter bit ENABLE_MTE        = 1,
     parameter bit ENABLE_POISON     = 1,
+    parameter bit ENABLE_WAKEUP     = 1,      // AWAKEUP (A14.1.1)
 
     // aclk frequency in MHz -- picks the counter_freq_invariant LUT entry that
     // yields a ~1 us tick, which is the unit monitor timeouts are expressed in.
@@ -117,15 +118,15 @@ module axi5_slave_wr_mon
     input  logic [3:0]                  s_axi_awqos,
     input  logic [UW-1:0]               s_axi_awuser,
     input  logic                        s_axi_awvalid,
+    input  logic                        s_axi_awakeup,      // AWAKEUP (A14.1.1)
     output logic                        s_axi_awready,
     input  logic [AXI_ATOP_WIDTH-1:0]   s_axi_awatop,
     input  logic [AXI_NSAID_WIDTH-1:0]  s_axi_awnsaid,
     input  logic                        s_axi_awtrace,
     input  logic [AXI_MPAM_WIDTH-1:0]   s_axi_awmpam,
     input  logic [AXI_MECID_WIDTH-1:0]  s_axi_awmecid,
-    input  logic                        s_axi_awunique,
+    input  logic                        s_axi_awidunq,
     input  logic [AXI_TAGOP_WIDTH-1:0]  s_axi_awtagop,
-    input  logic [TW-1:0]               s_axi_awtag,
 
     input  logic [DW-1:0]               s_axi_wdata,
     input  logic [SW-1:0]               s_axi_wstrb,
@@ -143,8 +144,8 @@ module axi5_slave_wr_mon
     output logic                        s_axi_bvalid,
     input  logic                        s_axi_bready,
     output logic                        s_axi_btrace,
-    output logic [TW-1:0]               s_axi_btag,
-    output logic                        s_axi_btagmatch,
+    output logic                        s_axi_bidunq,       // BIDUNQ (A5.2)
+    output logic [1:0]                  s_axi_btagmatch,
 
     // FUB interface (all AXI5 AW, W, B channel signals)
     output logic [IW-1:0]              fub_axi_awid,
@@ -158,15 +159,15 @@ module axi5_slave_wr_mon
     output logic [3:0]                 fub_axi_awqos,
     output logic [UW-1:0]              fub_axi_awuser,
     output logic                       fub_axi_awvalid,
+    output logic                       fub_axi_awakeup,      // AWAKEUP (A14.1.1)
     input  logic                       fub_axi_awready,
     output logic [AXI_ATOP_WIDTH-1:0]  fub_axi_awatop,
     output logic [AXI_NSAID_WIDTH-1:0] fub_axi_awnsaid,
     output logic                       fub_axi_awtrace,
     output logic [AXI_MPAM_WIDTH-1:0]  fub_axi_awmpam,
     output logic [AXI_MECID_WIDTH-1:0] fub_axi_awmecid,
-    output logic                       fub_axi_awunique,
+    output logic                       fub_axi_awidunq,
     output logic [AXI_TAGOP_WIDTH-1:0] fub_axi_awtagop,
-    output logic [TW-1:0]              fub_axi_awtag,
 
     output logic [DW-1:0]              fub_axi_wdata,
     output logic [SW-1:0]              fub_axi_wstrb,
@@ -184,8 +185,8 @@ module axi5_slave_wr_mon
     input  logic                       fub_axi_bvalid,
     output logic                       fub_axi_bready,
     input  logic                       fub_axi_btrace,
-    input  logic [TW-1:0]              fub_axi_btag,
-    input  logic                       fub_axi_btagmatch,
+    input  logic                       fub_axi_bidunq,       // BIDUNQ (A5.2)
+    input  logic [1:0]                 fub_axi_btagmatch,
 
     // Monitor configuration
     input  logic                       cfg_monitor_enable,
@@ -306,35 +307,35 @@ module axi5_slave_wr_mon
         .ENABLE_ATOMIC(ENABLE_ATOMIC), .ENABLE_NSAID(ENABLE_NSAID),
         .ENABLE_TRACE(ENABLE_TRACE), .ENABLE_MPAM(ENABLE_MPAM),
         .ENABLE_MECID(ENABLE_MECID), .ENABLE_UNIQUE(ENABLE_UNIQUE),
-        .ENABLE_MTE(ENABLE_MTE), .ENABLE_POISON(ENABLE_POISON)
+        .ENABLE_MTE(ENABLE_MTE), .ENABLE_POISON(ENABLE_POISON), .ENABLE_WAKEUP(ENABLE_WAKEUP)
     ) axi5_slave_wr_inst (
         .aclk(aclk), .aresetn(aresetn),
         .s_axi_awid(s_axi_awid), .s_axi_awaddr(s_axi_awaddr), .s_axi_awlen(s_axi_awlen),
         .s_axi_awsize(s_axi_awsize), .s_axi_awburst(s_axi_awburst), .s_axi_awlock(s_axi_awlock),
         .s_axi_awcache(s_axi_awcache), .s_axi_awprot(s_axi_awprot), .s_axi_awqos(s_axi_awqos),
-        .s_axi_awuser(s_axi_awuser), .s_axi_awvalid(w_gated_awvalid), .s_axi_awready(w_core_s_axi_awready),  // gated below
+        .s_axi_awuser(s_axi_awuser), .s_axi_awvalid(w_gated_awvalid), .s_axi_awakeup(s_axi_awakeup), .s_axi_awready(w_core_s_axi_awready),  // gated below
         .s_axi_awatop(s_axi_awatop), .s_axi_awnsaid(s_axi_awnsaid), .s_axi_awtrace(s_axi_awtrace),
-        .s_axi_awmpam(s_axi_awmpam), .s_axi_awmecid(s_axi_awmecid), .s_axi_awunique(s_axi_awunique),
-        .s_axi_awtagop(s_axi_awtagop), .s_axi_awtag(s_axi_awtag),
+        .s_axi_awmpam(s_axi_awmpam), .s_axi_awmecid(s_axi_awmecid), .s_axi_awidunq(s_axi_awidunq),
+        .s_axi_awtagop(s_axi_awtagop),
         .s_axi_wdata(s_axi_wdata), .s_axi_wstrb(s_axi_wstrb), .s_axi_wlast(s_axi_wlast),
         .s_axi_wuser(s_axi_wuser), .s_axi_wvalid(s_axi_wvalid), .s_axi_wready(s_axi_wready),
         .s_axi_wpoison(s_axi_wpoison), .s_axi_wtag(s_axi_wtag), .s_axi_wtagupdate(s_axi_wtagupdate),
         .s_axi_bid(s_axi_bid), .s_axi_bresp(s_axi_bresp), .s_axi_buser(s_axi_buser),
-        .s_axi_bvalid(s_axi_bvalid), .s_axi_bready(s_axi_bready), .s_axi_btrace(s_axi_btrace),
-        .s_axi_btag(s_axi_btag), .s_axi_btagmatch(s_axi_btagmatch),
+        .s_axi_bvalid(s_axi_bvalid), .s_axi_bready(s_axi_bready), .s_axi_btrace(s_axi_btrace), .s_axi_bidunq(s_axi_bidunq),
+        .s_axi_btagmatch(s_axi_btagmatch),
         .fub_axi_awid(fub_axi_awid), .fub_axi_awaddr(fub_axi_awaddr), .fub_axi_awlen(fub_axi_awlen),
         .fub_axi_awsize(fub_axi_awsize), .fub_axi_awburst(fub_axi_awburst), .fub_axi_awlock(fub_axi_awlock),
         .fub_axi_awcache(fub_axi_awcache), .fub_axi_awprot(fub_axi_awprot), .fub_axi_awqos(fub_axi_awqos),
-        .fub_axi_awuser(fub_axi_awuser), .fub_axi_awvalid(fub_axi_awvalid), .fub_axi_awready(fub_axi_awready),
+        .fub_axi_awuser(fub_axi_awuser), .fub_axi_awvalid(fub_axi_awvalid), .fub_axi_awakeup(fub_axi_awakeup), .fub_axi_awready(fub_axi_awready),
         .fub_axi_awatop(fub_axi_awatop), .fub_axi_awnsaid(fub_axi_awnsaid), .fub_axi_awtrace(fub_axi_awtrace),
-        .fub_axi_awmpam(fub_axi_awmpam), .fub_axi_awmecid(fub_axi_awmecid), .fub_axi_awunique(fub_axi_awunique),
-        .fub_axi_awtagop(fub_axi_awtagop), .fub_axi_awtag(fub_axi_awtag),
+        .fub_axi_awmpam(fub_axi_awmpam), .fub_axi_awmecid(fub_axi_awmecid), .fub_axi_awidunq(fub_axi_awidunq),
+        .fub_axi_awtagop(fub_axi_awtagop),
         .fub_axi_wdata(fub_axi_wdata), .fub_axi_wstrb(fub_axi_wstrb), .fub_axi_wlast(fub_axi_wlast),
         .fub_axi_wuser(fub_axi_wuser), .fub_axi_wvalid(fub_axi_wvalid), .fub_axi_wready(fub_axi_wready),
         .fub_axi_wpoison(fub_axi_wpoison), .fub_axi_wtag(fub_axi_wtag), .fub_axi_wtagupdate(fub_axi_wtagupdate),
         .fub_axi_bid(fub_axi_bid), .fub_axi_bresp(fub_axi_bresp), .fub_axi_buser(fub_axi_buser),
-        .fub_axi_bvalid(fub_axi_bvalid), .fub_axi_bready(fub_axi_bready), .fub_axi_btrace(fub_axi_btrace),
-        .fub_axi_btag(fub_axi_btag), .fub_axi_btagmatch(fub_axi_btagmatch),
+        .fub_axi_bvalid(fub_axi_bvalid), .fub_axi_bready(fub_axi_bready), .fub_axi_btrace(fub_axi_btrace), .fub_axi_bidunq(fub_axi_bidunq),
+        .fub_axi_btagmatch(fub_axi_btagmatch),
         .busy(busy)
     );
 

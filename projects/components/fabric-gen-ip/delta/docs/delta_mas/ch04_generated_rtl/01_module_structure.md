@@ -57,7 +57,7 @@ module delta_axis_flat_4x16 #(
 
 When `--strb-width` is used, `STRB_WIDTH` is added to the parameter list and `s_axis_tstrb`/`m_axis_tstrb` are added to the ports.
 
-When `--amba5` is used, `PW_WIDTH` is added to the parameter list and `s_axis_twakeup`/`s_axis_tparity`/`m_axis_twakeup`/`m_axis_tparity` are added to the ports.
+When `--amba5` is used, the check-width parameters `TDATACHK_W`, `TIDCHK_W`, `TDESTCHK_W` and `TUSERCHK_W` are added, plus `TSTRBCHK_W` with `--strb-width`. Each is derived from its payload width. The ports gain `s_/m_axis_twakeup`, the nine IHI 0051B check signals per side (`*_axis_tdatachk` ... `*_axis_twakeupchk`), and the sticky `s_parity_error[NUM_MASTERS]` / `m_parity_error[NUM_SLAVES]`. The module then instantiates `rtl/common/dataint_parity`, so its filelist must `-f` include `rtl/common/filelists/dataint_parity.f`.
 
 ## Internal Organization
 
@@ -69,8 +69,9 @@ Inside the module, the generator emits sections in this order:
 4. Crossbar data mux.
 5. TREADY steering.
 6. TWAKEUP steering (if enabled).
-7. Performance counters (unless disabled).
-8. Assertions (under `ifdef FORMAL`).
+7. Interface check signals (if `--amba5`).
+8. Performance counters (unless disabled).
+9. Assertions (under `ifdef FORMAL`).
 
 ## Filelist
 

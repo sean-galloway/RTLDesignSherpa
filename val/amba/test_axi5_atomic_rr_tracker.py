@@ -232,7 +232,9 @@ def test_axi5_atomic_rr_tracker(request, test_level):
         includes=includes,
         toplevel=dut_name,
         module=module,
-        testcase="rr_tracker_directed_test,rr_tracker_random_test",
+        # No testcase= filter: both cocotb tests are wanted. The comma list
+        # this used to pass ran ZERO tests under cocotb 2.x (the repo conftest
+        # anchors testcase= as one exact name) and still reported PASS.
         parameters={'AXI_ID_WIDTH': ID_W, 'DATA_WIDTH': DATA_W, 'DEPTH': DEPTH},
         sim_build=sim_build,
         waves=False,

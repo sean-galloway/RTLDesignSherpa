@@ -43,6 +43,7 @@ module axi5_master_rd_cg
     parameter bit ENABLE_CHUNKING   = 1,
     parameter bit ENABLE_MTE        = 1,
     parameter bit ENABLE_POISON     = 1,
+    parameter bit ENABLE_WAKEUP     = 1,      // AWAKEUP (A14.1.1)
 
     // Short params
     parameter int AW       = AXI_ADDR_WIDTH,
@@ -79,6 +80,7 @@ module axi5_master_rd_cg
     input  logic [3:0]                 fub_axi_arqos,
     input  logic [UW-1:0]              fub_axi_aruser,
     input  logic                       fub_axi_arvalid,
+    input  logic                       fub_axi_awakeup,      // AWAKEUP (A14.1.1)
     output logic                       fub_axi_arready,
 
     // AXI5 AR signals
@@ -86,7 +88,7 @@ module axi5_master_rd_cg
     input  logic                       fub_axi_artrace,
     input  logic [AXI_MPAM_WIDTH-1:0]  fub_axi_armpam,
     input  logic [AXI_MECID_WIDTH-1:0] fub_axi_armecid,
-    input  logic                       fub_axi_arunique,
+    input  logic                       fub_axi_aridunq,
     input  logic                       fub_axi_archunken,
     input  logic [AXI_TAGOP_WIDTH-1:0] fub_axi_artagop,
 
@@ -101,12 +103,12 @@ module axi5_master_rd_cg
 
     // AXI5 R signals
     output logic                       fub_axi_rtrace,
+    output logic                       fub_axi_ridunq,       // RIDUNQ (A5.2)
     output logic                       fub_axi_rpoison,
     output logic                       fub_axi_rchunkv,
     output logic [AXI_CHUNKNUM_WIDTH-1:0] fub_axi_rchunknum,
     output logic [CHUNK_STRB_WIDTH-1:0] fub_axi_rchunkstrb,
     output logic [TW-1:0]              fub_axi_rtag,
-    output logic                       fub_axi_rtagmatch,
 
     // Master AXI5 Interface (Output Side)
     output logic [IW-1:0]              m_axi_arid,
@@ -120,6 +122,7 @@ module axi5_master_rd_cg
     output logic [3:0]                 m_axi_arqos,
     output logic [UW-1:0]              m_axi_aruser,
     output logic                       m_axi_arvalid,
+    output logic                       m_axi_awakeup,      // AWAKEUP (A14.1.1)
     input  logic                       m_axi_arready,
 
     // AXI5 AR signals
@@ -127,7 +130,7 @@ module axi5_master_rd_cg
     output logic                       m_axi_artrace,
     output logic [AXI_MPAM_WIDTH-1:0]  m_axi_armpam,
     output logic [AXI_MECID_WIDTH-1:0] m_axi_armecid,
-    output logic                       m_axi_arunique,
+    output logic                       m_axi_aridunq,
     output logic                       m_axi_archunken,
     output logic [AXI_TAGOP_WIDTH-1:0] m_axi_artagop,
 
@@ -142,12 +145,12 @@ module axi5_master_rd_cg
 
     // AXI5 R signals
     input  logic                       m_axi_rtrace,
+    input  logic                       m_axi_ridunq,       // RIDUNQ (A5.2)
     input  logic                       m_axi_rpoison,
     input  logic                       m_axi_rchunkv,
     input  logic [AXI_CHUNKNUM_WIDTH-1:0] m_axi_rchunknum,
     input  logic [CHUNK_STRB_WIDTH-1:0] m_axi_rchunkstrb,
     input  logic [TW-1:0]              m_axi_rtag,
-    input  logic                       m_axi_rtagmatch,
 
     // Clock gating status
     output logic                       cg_gating,
@@ -170,7 +173,12 @@ module axi5_master_rd_cg
     // Peer VALID, never peer READY, in the activity term (a consumer
     // parking ready high while idle would pin the block awake and defeat
     // gating entirely -- the mon_cg siblings' explicit rule; round_20 B/C).
-    assign user_valid = fub_axi_arvalid || fub_axi_rvalid || int_busy;
+    // AWAKEUP (IHI 0022L A14.1.1) is the manager's request to bring the
+    // interface up BEFORE its VALID: counting it as activity restarts the
+    // clock ahead of the request, so the first AxVALID after idle meets
+    // READY instead of waiting on the wake latency. It is a peer request,
+    // not a peer READY, so it cannot pin the block awake while idle.
+    assign user_valid = (ENABLE_WAKEUP && fub_axi_awakeup) || fub_axi_arvalid || fub_axi_rvalid || int_busy;
 
     // OR all AXI-side valid signals
     assign axi_valid = m_axi_arvalid || m_axi_rvalid;
@@ -216,7 +224,7 @@ module axi5_master_rd_cg
         .ENABLE_UNIQUE       (ENABLE_UNIQUE),
         .ENABLE_CHUNKING     (ENABLE_CHUNKING),
         .ENABLE_MTE          (ENABLE_MTE),
-        .ENABLE_POISON       (ENABLE_POISON)
+        .ENABLE_POISON       (ENABLE_POISON), .ENABLE_WAKEUP(ENABLE_WAKEUP)
     ) i_axi5_master_rd (
         .aclk                (gated_aclk),
         .aresetn             (aresetn),
@@ -232,13 +240,13 @@ module axi5_master_rd_cg
         .fub_axi_arprot      (fub_axi_arprot),
         .fub_axi_arqos       (fub_axi_arqos),
         .fub_axi_aruser      (fub_axi_aruser),
-        .fub_axi_arvalid     (fub_axi_arvalid),
+        .fub_axi_arvalid     (fub_axi_arvalid), .fub_axi_awakeup(fub_axi_awakeup),
         .fub_axi_arready     (int_arready),
         .fub_axi_arnsaid     (fub_axi_arnsaid),
         .fub_axi_artrace     (fub_axi_artrace),
         .fub_axi_armpam      (fub_axi_armpam),
         .fub_axi_armecid     (fub_axi_armecid),
-        .fub_axi_arunique    (fub_axi_arunique),
+        .fub_axi_aridunq    (fub_axi_aridunq),
         .fub_axi_archunken   (fub_axi_archunken),
         .fub_axi_artagop     (fub_axi_artagop),
 
@@ -249,13 +257,12 @@ module axi5_master_rd_cg
         .fub_axi_ruser       (fub_axi_ruser),
         .fub_axi_rvalid      (fub_axi_rvalid),
         .fub_axi_rready      (fub_axi_rready),
-        .fub_axi_rtrace      (fub_axi_rtrace),
+        .fub_axi_rtrace      (fub_axi_rtrace), .fub_axi_ridunq(fub_axi_ridunq),
         .fub_axi_rpoison     (fub_axi_rpoison),
         .fub_axi_rchunkv     (fub_axi_rchunkv),
         .fub_axi_rchunknum   (fub_axi_rchunknum),
         .fub_axi_rchunkstrb  (fub_axi_rchunkstrb),
         .fub_axi_rtag        (fub_axi_rtag),
-        .fub_axi_rtagmatch   (fub_axi_rtagmatch),
 
         // Master AXI5 Interface
         .m_axi_arid          (m_axi_arid),
@@ -268,13 +275,13 @@ module axi5_master_rd_cg
         .m_axi_arprot        (m_axi_arprot),
         .m_axi_arqos         (m_axi_arqos),
         .m_axi_aruser        (m_axi_aruser),
-        .m_axi_arvalid       (m_axi_arvalid),
+        .m_axi_arvalid       (m_axi_arvalid), .m_axi_awakeup(m_axi_awakeup),
         .m_axi_arready       (m_axi_arready),
         .m_axi_arnsaid       (m_axi_arnsaid),
         .m_axi_artrace       (m_axi_artrace),
         .m_axi_armpam        (m_axi_armpam),
         .m_axi_armecid       (m_axi_armecid),
-        .m_axi_arunique      (m_axi_arunique),
+        .m_axi_aridunq      (m_axi_aridunq),
         .m_axi_archunken     (m_axi_archunken),
         .m_axi_artagop       (m_axi_artagop),
 
@@ -285,13 +292,12 @@ module axi5_master_rd_cg
         .m_axi_ruser         (m_axi_ruser),
         .m_axi_rvalid        (m_axi_rvalid),
         .m_axi_rready        (int_rready),
-        .m_axi_rtrace        (m_axi_rtrace),
+        .m_axi_rtrace        (m_axi_rtrace), .m_axi_ridunq(m_axi_ridunq),
         .m_axi_rpoison       (m_axi_rpoison),
         .m_axi_rchunkv       (m_axi_rchunkv),
         .m_axi_rchunknum     (m_axi_rchunknum),
         .m_axi_rchunkstrb    (m_axi_rchunkstrb),
         .m_axi_rtag          (m_axi_rtag),
-        .m_axi_rtagmatch     (m_axi_rtagmatch),
 
         .busy                (int_busy)
     );

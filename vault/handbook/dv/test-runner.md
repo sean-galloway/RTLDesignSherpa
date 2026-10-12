@@ -249,6 +249,21 @@ from ~5 minutes to ~70 seconds.
 every `run()` in it names its `testcase`. A pass that appears or disappears
 with the number of tests in the module is this, not a flake.
 
+**`testcase=` takes ONE exact name, never a list or a pattern.** The root
+`conftest.py` anchors the value to `\b<name>$` (the cocotb 2.x
+`COCOTB_TEST_FILTER` patch), so `testcase="a,b"` or a regex matches **zero**
+tests. cocotb prints "No tests left after filtering", the build exits 0, and
+pytest reports PASSED for a runner that executed nothing. Run one `run()` per
+cocotb test, or `testcase=None` to run every test in the module, then confirm
+the real count in the results XML.
+
+*Case (#102, 2026-10-12):* the APB5, AXI5-Stream and AXI5 fixes each found
+the trap independently: `test_apb5_master.py`, `test_axi5_atomic_filter.py`
+and `test_axi5_atomic_rr_tracker.py` had been green while running nothing,
+and `projects/components/fabric-gen-ip/bridge/dv/tests/test_bridge_cam.py`
+carried the same comma list. A pass whose results XML has no `<testcase>`
+element is this trap.
+
 ## A test file must not import another test file; a helper must not name the module
 
 Two more shapes of the same discovery rule, both met on 2026-09-09 while the

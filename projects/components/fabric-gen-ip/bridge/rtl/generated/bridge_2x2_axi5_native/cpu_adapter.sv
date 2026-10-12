@@ -38,9 +38,8 @@ module cpu_adapter
     output  logic         cpu_axi_awready,
     input  logic [3:0]  cpu_axi_awnsaid,
     input  logic         cpu_axi_awtrace,
-    input  logic         cpu_axi_awunique,
+    input  logic         cpu_axi_awidunq,
     input  logic [1:0]  cpu_axi_awtagop,
-    input  logic [3:0]  cpu_axi_awtag,
 
     input  logic [127:0]  cpu_axi_wdata,
     input  logic [15:0]  cpu_axi_wstrb,
@@ -58,8 +57,8 @@ module cpu_adapter
     output  logic         cpu_axi_bvalid,
     input  logic         cpu_axi_bready,
     output  logic         cpu_axi_btrace,
-    output  logic [3:0]  cpu_axi_btag,
-    output  logic         cpu_axi_btagmatch,
+    output  logic         cpu_axi_bidunq,
+    output  logic [1:0]  cpu_axi_btagmatch,
 
     input  logic [3:0]  cpu_axi_arid,
     input  logic [31:0]  cpu_axi_araddr,
@@ -75,7 +74,7 @@ module cpu_adapter
     output  logic         cpu_axi_arready,
     input  logic [3:0]  cpu_axi_arnsaid,
     input  logic         cpu_axi_artrace,
-    input  logic         cpu_axi_arunique,
+    input  logic         cpu_axi_aridunq,
     input  logic         cpu_axi_archunken,
     input  logic [1:0]  cpu_axi_artagop,
 
@@ -87,12 +86,12 @@ module cpu_adapter
     output  logic         cpu_axi_rvalid,
     input  logic         cpu_axi_rready,
     output  logic         cpu_axi_rtrace,
+    output  logic         cpu_axi_ridunq,
     output  logic         cpu_axi_rpoison,
     output  logic         cpu_axi_rchunkv,
     output  logic [3:0]  cpu_axi_rchunknum,
     output  logic         cpu_axi_rchunkstrb,
     output  logic [3:0]  cpu_axi_rtag,
-    output  logic         cpu_axi_rtagmatch,
 
     // Address decode outputs (full width one-hot)
     output logic [NUM_SLAVES-1:0] slave_select_aw,
@@ -184,18 +183,16 @@ module cpu_adapter
     // AXI5 native sideband (A5-2 slice 2)
     logic [3:0]  fub_axi_awnsaid;  // AXI5 sideband (nsaid)
     logic         fub_axi_awtrace;  // AXI5 sideband (trace)
-    logic         fub_axi_awunique;  // AXI5 sideband (unique)
+    logic         fub_axi_awidunq;  // AXI5 sideband (unique)
     logic [1:0]  fub_axi_awtagop;  // AXI5 sideband (mte)
-    logic [3:0]  fub_axi_awtag;  // AXI5 sideband (mte)
     logic         fub_axi_wpoison;  // AXI5 sideband (poison)
     logic [3:0]  fub_axi_wtag;  // AXI5 sideband (mte)
     logic         fub_axi_wtagupdate;  // AXI5 sideband (mte)
     logic         fub_axi_btrace;  // AXI5 sideband (trace)
-    logic [3:0]  fub_axi_btag;  // AXI5 sideband (mte)
-    logic         fub_axi_btagmatch;  // AXI5 sideband (mte)
+    logic [1:0]  fub_axi_btagmatch;  // AXI5 sideband (mte)
     logic [3:0]  fub_axi_arnsaid;  // AXI5 sideband (nsaid)
     logic         fub_axi_artrace;  // AXI5 sideband (trace)
-    logic         fub_axi_arunique;  // AXI5 sideband (unique)
+    logic         fub_axi_aridunq;  // AXI5 sideband (unique)
     logic         fub_axi_archunken;  // AXI5 sideband (chunking)
     logic [1:0]  fub_axi_artagop;  // AXI5 sideband (mte)
     logic         fub_axi_rtrace;  // AXI5 sideband (trace)
@@ -204,7 +201,10 @@ module cpu_adapter
     logic [3:0]  fub_axi_rchunknum;  // AXI5 sideband (chunking)
     logic         fub_axi_rchunkstrb;  // AXI5 sideband (chunking)
     logic [3:0]  fub_axi_rtag;  // AXI5 sideband (mte)
-    logic         fub_axi_rtagmatch;  // AXI5 sideband (mte)
+
+    // AXI5 boundary-generated signals (GitHub #102 item 5)
+    logic         fub_axi_bidunq;  // regenerated (A5.2)
+    logic         fub_axi_ridunq;  // regenerated (A5.2)
 
     // Master-unique fabric IDs: {BRIDGE_ID, id} (bridge TASK-005, was BRIDGE-016). Responses
     // return with the prefix; the response muxes select the low bits.
@@ -231,7 +231,8 @@ module cpu_adapter
         .ENABLE_MECID(1'b0),
         .ENABLE_UNIQUE(1'b1),
         .ENABLE_MTE(1'b1),
-        .ENABLE_POISON(1'b1)
+        .ENABLE_POISON(1'b1),
+        .ENABLE_WAKEUP(1'b0)
     ) u_timing_wrapper_wr (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -254,9 +255,9 @@ module cpu_adapter
         .s_axi_awtrace(cpu_axi_awtrace),
         .s_axi_awmpam('0),
         .s_axi_awmecid('0),
-        .s_axi_awunique(cpu_axi_awunique),
+        .s_axi_awidunq(cpu_axi_awidunq),
         .s_axi_awtagop(cpu_axi_awtagop),
-        .s_axi_awtag(cpu_axi_awtag),
+        .s_axi_awakeup('0),
         .s_axi_wdata(cpu_axi_wdata),
         .s_axi_wstrb(cpu_axi_wstrb),
         .s_axi_wlast(cpu_axi_wlast),
@@ -272,7 +273,7 @@ module cpu_adapter
         .s_axi_bvalid(cpu_axi_bvalid),
         .s_axi_bready(cpu_axi_bready),
         .s_axi_btrace(cpu_axi_btrace),
-        .s_axi_btag(cpu_axi_btag),
+        .s_axi_bidunq(cpu_axi_bidunq),
         .s_axi_btagmatch(cpu_axi_btagmatch),
 
         // Bridge-internal side (fub_axi)
@@ -293,9 +294,9 @@ module cpu_adapter
         .fub_axi_awtrace(fub_axi_awtrace),
         .fub_axi_awmpam(),
         .fub_axi_awmecid(),
-        .fub_axi_awunique(fub_axi_awunique),
+        .fub_axi_awidunq(fub_axi_awidunq),
         .fub_axi_awtagop(fub_axi_awtagop),
-        .fub_axi_awtag(fub_axi_awtag),
+        .fub_axi_awakeup(),
         .fub_axi_wdata(fub_axi_wdata),
         .fub_axi_wstrb(fub_axi_wstrb),
         .fub_axi_wlast(fub_axi_wlast),
@@ -311,7 +312,7 @@ module cpu_adapter
         .fub_axi_bvalid(fub_axi_bvalid),
         .fub_axi_bready(fub_axi_bready),
         .fub_axi_btrace(fub_axi_btrace),
-        .fub_axi_btag(fub_axi_btag),
+        .fub_axi_bidunq(fub_axi_bidunq),
         .fub_axi_btagmatch(fub_axi_btagmatch),
 
         // Status (empty connector = unconnected tie-off)
@@ -335,7 +336,8 @@ module cpu_adapter
         .ENABLE_UNIQUE(1'b1),
         .ENABLE_CHUNKING(1'b1),
         .ENABLE_MTE(1'b1),
-        .ENABLE_POISON(1'b1)
+        .ENABLE_POISON(1'b1),
+        .ENABLE_WAKEUP(1'b0)
     ) u_timing_wrapper_rd (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -357,9 +359,10 @@ module cpu_adapter
         .s_axi_artrace(cpu_axi_artrace),
         .s_axi_armpam('0),
         .s_axi_armecid('0),
-        .s_axi_arunique(cpu_axi_arunique),
+        .s_axi_aridunq(cpu_axi_aridunq),
         .s_axi_archunken(cpu_axi_archunken),
         .s_axi_artagop(cpu_axi_artagop),
+        .s_axi_awakeup('0),
         .s_axi_rid(cpu_axi_rid),
         .s_axi_rdata(cpu_axi_rdata),
         .s_axi_rresp(cpu_axi_rresp),
@@ -368,12 +371,12 @@ module cpu_adapter
         .s_axi_rvalid(cpu_axi_rvalid),
         .s_axi_rready(cpu_axi_rready),
         .s_axi_rtrace(cpu_axi_rtrace),
+        .s_axi_ridunq(cpu_axi_ridunq),
         .s_axi_rpoison(cpu_axi_rpoison),
         .s_axi_rchunkv(cpu_axi_rchunkv),
         .s_axi_rchunknum(cpu_axi_rchunknum),
         .s_axi_rchunkstrb(cpu_axi_rchunkstrb),
         .s_axi_rtag(cpu_axi_rtag),
-        .s_axi_rtagmatch(cpu_axi_rtagmatch),
 
         // Bridge-internal side (fub_axi)
         .fub_axi_arid(fub_axi_arid),
@@ -392,9 +395,10 @@ module cpu_adapter
         .fub_axi_artrace(fub_axi_artrace),
         .fub_axi_armpam(),
         .fub_axi_armecid(),
-        .fub_axi_arunique(fub_axi_arunique),
+        .fub_axi_aridunq(fub_axi_aridunq),
         .fub_axi_archunken(fub_axi_archunken),
         .fub_axi_artagop(fub_axi_artagop),
+        .fub_axi_awakeup(),
         .fub_axi_rid(fub_axi_rid),
         .fub_axi_rdata(fub_axi_rdata),
         .fub_axi_rresp(fub_axi_rresp),
@@ -403,16 +407,41 @@ module cpu_adapter
         .fub_axi_rvalid(fub_axi_rvalid),
         .fub_axi_rready(fub_axi_rready),
         .fub_axi_rtrace(fub_axi_rtrace),
+        .fub_axi_ridunq(fub_axi_ridunq),
         .fub_axi_rpoison(fub_axi_rpoison),
         .fub_axi_rchunkv(fub_axi_rchunkv),
         .fub_axi_rchunknum(fub_axi_rchunknum),
         .fub_axi_rchunkstrb(fub_axi_rchunkstrb),
         .fub_axi_rtag(fub_axi_rtag),
-        .fub_axi_rtagmatch(fub_axi_rtagmatch),
 
         // Status (empty connector = unconnected tie-off)
         .busy(wrapper_rd_busy)
     );
+
+
+    // ================================================================
+    // BIDUNQ / RIDUNQ regenerated per ID (IHI 0022L A5.2)
+    // ================================================================
+    localparam int IDUNQ_IDS = 1 << 4;
+    logic [IDUNQ_IDS-1:0] r_awidunq_by_id;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_awidunq_by_id <= '0;
+        end else if (fub_axi_awvalid && fub_axi_awready) begin
+            r_awidunq_by_id[fub_axi_awid] <= fub_axi_awidunq;
+        end
+    )
+    assign fub_axi_bidunq = r_awidunq_by_id[fub_axi_bid];
+    logic [IDUNQ_IDS-1:0] r_aridunq_by_id;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_aridunq_by_id <= '0;
+        end else begin
+            if (fub_axi_arvalid && fub_axi_arready)
+                r_aridunq_by_id[fub_axi_arid] <= fub_axi_aridunq;
+        end
+    )
+    assign fub_axi_ridunq = r_aridunq_by_id[fub_axi_rid];
 
     logic [NUM_SLAVES-1:0] b_slave_select;
     logic [NUM_SLAVES-1:0] w_slave_select;
@@ -503,9 +532,8 @@ module cpu_adapter
     assign cpu_128b_aw.user   = fub_axi_awuser;
     assign cpu_128b_aw.nsaid = fub_axi_awnsaid;  // AXI5 sideband
     assign cpu_128b_aw.trace = fub_axi_awtrace;  // AXI5 sideband
-    assign cpu_128b_aw.uniq = fub_axi_awunique;  // AXI5 sideband
+    assign cpu_128b_aw.idunq = fub_axi_awidunq;  // AXI5 sideband
     assign cpu_128b_aw.tagop = fub_axi_awtagop;  // AXI5 sideband
-    assign cpu_128b_aw.tag = fub_axi_awtag;  // AXI5 sideband
     assign cpu_128b_awvalid   = fub_axi_awvalid && aw_path_active_128b;
     // awready routed via MUX
 
@@ -539,7 +567,7 @@ module cpu_adapter
     assign cpu_128b_ar.user   = fub_axi_aruser;
     assign cpu_128b_ar.nsaid = fub_axi_arnsaid;  // AXI5 sideband
     assign cpu_128b_ar.trace = fub_axi_artrace;  // AXI5 sideband
-    assign cpu_128b_ar.uniq = fub_axi_arunique;  // AXI5 sideband
+    assign cpu_128b_ar.idunq = fub_axi_aridunq;  // AXI5 sideband
     assign cpu_128b_ar.chunken = fub_axi_archunken;  // AXI5 sideband
     assign cpu_128b_ar.tagop = fub_axi_artagop;  // AXI5 sideband
     assign cpu_128b_arvalid   = fub_axi_arvalid && ar_path_active_128b;
@@ -785,7 +813,6 @@ module cpu_adapter
         fub_axi_bresp = 2'b00;
         fub_axi_bvalid = 1'b0;
         b_slave_trace = '0;  // AXI5 sideband (trace)
-        fub_axi_btag = '0;  // AXI5 sideband (mte)
         fub_axi_btagmatch = '0;  // AXI5 sideband (mte)
 
         case (b_slave_select)
@@ -794,7 +821,6 @@ module cpu_adapter
                 fub_axi_bresp = cpu_128b_b.resp;
                 fub_axi_bvalid = cpu_128b_bvalid;
                 b_slave_trace = cpu_128b_b.trace;
-                fub_axi_btag = cpu_128b_b.tag;
                 fub_axi_btagmatch = cpu_128b_b.tagmatch;
             end
             3'b010: begin  // Slave 1 (128b)
@@ -802,7 +828,6 @@ module cpu_adapter
                 fub_axi_bresp = cpu_128b_b.resp;
                 fub_axi_bvalid = cpu_128b_bvalid;
                 b_slave_trace = cpu_128b_b.trace;
-                fub_axi_btag = cpu_128b_b.tag;
                 fub_axi_btagmatch = cpu_128b_b.tagmatch;
             end
             3'b100: begin  // Slave 2 (128b)
@@ -810,7 +835,6 @@ module cpu_adapter
                 fub_axi_bresp = cpu_128b_b.resp;
                 fub_axi_bvalid = cpu_128b_bvalid;
                 b_slave_trace = cpu_128b_b.trace;
-                fub_axi_btag = cpu_128b_b.tag;
                 fub_axi_btagmatch = cpu_128b_b.tagmatch;
             end
             default: begin
@@ -875,7 +899,6 @@ module cpu_adapter
         fub_axi_rchunknum = '0;  // AXI5 sideband (chunking)
         fub_axi_rchunkstrb = '0;  // AXI5 sideband (chunking)
         fub_axi_rtag = '0;  // AXI5 sideband (mte)
-        fub_axi_rtagmatch = '0;  // AXI5 sideband (mte)
 
         case (r_slave_select)
             3'b001: begin  // Slave 0 (128b)
@@ -890,7 +913,6 @@ module cpu_adapter
                 fub_axi_rchunknum = cpu_128b_r.chunknum;
                 fub_axi_rchunkstrb = cpu_128b_r.chunkstrb;
                 fub_axi_rtag = cpu_128b_r.tag;
-                fub_axi_rtagmatch = cpu_128b_r.tagmatch;
             end
             3'b010: begin  // Slave 1 (128b)
                 fub_axi_rid = cpu_128b_r.id[3:0];
@@ -904,7 +926,6 @@ module cpu_adapter
                 fub_axi_rchunknum = cpu_128b_r.chunknum;
                 fub_axi_rchunkstrb = cpu_128b_r.chunkstrb;
                 fub_axi_rtag = cpu_128b_r.tag;
-                fub_axi_rtagmatch = cpu_128b_r.tagmatch;
             end
             3'b100: begin  // Slave 2 (128b)
                 fub_axi_rid = cpu_128b_r.id[3:0];
@@ -918,7 +939,6 @@ module cpu_adapter
                 fub_axi_rchunknum = cpu_128b_r.chunknum;
                 fub_axi_rchunkstrb = cpu_128b_r.chunkstrb;
                 fub_axi_rtag = cpu_128b_r.tag;
-                fub_axi_rtagmatch = cpu_128b_r.tagmatch;
             end
             default: begin
                 // No slave selected - hold defaults

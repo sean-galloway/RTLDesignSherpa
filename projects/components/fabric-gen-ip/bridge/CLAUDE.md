@@ -672,7 +672,8 @@ axi5_features = ["trace", "atomic"]  # nsaid/trace/mpam/mecid/unique/chunking ar
                                      # droppable sideband; poison/atomic/mte are
                                      # connectivity-gated (every connected path
                                      # must be AXI5 + feature + width-matched);
-                                     # mte and chunking need 128-bit ports
+                                     # mte and chunking need 128-bit ports;
+                                     # wakeup = AWAKEUP (not path sideband)
 
 [[bridge.slaves]]
 protocol = "apb5"   # APB4 rules apply (rw-only, 32-bit); adds the APB5 pins
@@ -682,7 +683,10 @@ Sideband passes natively on width-matched AXI5<->AXI5 paths and terminates
 with a generation-time warning elsewhere. Read-return atomics forward
 natively on rw master ports (per-ID return tracker at the slave adapter);
 on write-only ports the boundary's `axi5_atomic_filter` answers them with
-DECERR. AXI5-Lite and APB5 are legal as MASTER protocols too (front-end
+DECERR on B only (its owed R beats are drained inside the filter -- a write-only
+port has no R channel; managers must not issue load-class atomics there).
+BIDUNQ/RIDUNQ are regenerated per ID at the master boundary, never routed.
+AXI5-Lite and APB5 are legal as MASTER protocols too (front-end
 converters). Details: `docs/bridge_has/ch04_interfaces/04_axi5_apb5_interfaces.md`
 and `docs/bridge_mas/ch02_blocks/10_amba5_boundary.md`.
 

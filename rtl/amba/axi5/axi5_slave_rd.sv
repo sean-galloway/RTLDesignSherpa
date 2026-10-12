@@ -12,7 +12,7 @@
 // - ARTRACE: Trace signal for debug
 // - ARMPAM: Memory Partitioning and Monitoring
 // - ARMECID: Memory Encryption Context ID
-// - ARUNIQUE: Unique ID indicator
+// - ARIDUNQ: Unique ID indicator (A5.2)
 // - ARCHUNKEN: Read data chunking enable
 // - ARTAGOP: Memory tag operation (MTE)
 // - RTRACE: Read data trace signal
@@ -21,7 +21,8 @@
 // - RCHUNKNUM: Read chunk number
 // - RCHUNKSTRB: Read chunk strobe
 // - RTAG: Memory tags (MTE)
-// - RTAGMATCH: Tag match response
+// - RIDUNQ: Unique ID indicator on read data (A5.2)
+// - AWAKEUP: Wake-up request (A14.1.1), behind ENABLE_WAKEUP
 //
 // Removed from AXI4:
 // - ARREGION: Optional in AXI5 (NOT deprecated); simply omitted on this module -- decode or route by address
@@ -62,6 +63,7 @@ module axi5_slave_rd
     parameter bit ENABLE_CHUNKING   = 1,
     parameter bit ENABLE_MTE        = 1,
     parameter bit ENABLE_POISON     = 1,
+    parameter bit ENABLE_WAKEUP     = 1,      // AWAKEUP (A14.1.1)
 
     // Short params
     parameter int AW       = AXI_ADDR_WIDTH,
@@ -87,7 +89,8 @@ module axi5_slave_rd
                              (ENABLE_TRACE ? 1 : 0) +
                              (ENABLE_POISON ? 1 : 0) +
                              (ENABLE_CHUNKING ? (1 + AXI_CHUNKNUM_WIDTH + CHUNK_STRB_WIDTH) : 0) +
-                             (ENABLE_MTE ? (TW + 1) : 0)
+                             (ENABLE_UNIQUE ? 1 : 0) +
+                             (ENABLE_MTE ? TW : 0)
 )
 (
     // Global Clock and Reset
@@ -110,6 +113,7 @@ module axi5_slave_rd
     input  logic [3:0]                   s_axi_arqos,
     input  logic [UW-1:0]                s_axi_aruser,
     input  logic                         s_axi_arvalid,
+    input  logic                         s_axi_awakeup,      // AWAKEUP (A14.1.1)
     output logic                         s_axi_arready,
 
     // AXI5 AR signals
@@ -117,7 +121,7 @@ module axi5_slave_rd
     input  logic                         s_axi_artrace,
     input  logic [AXI_MPAM_WIDTH-1:0]    s_axi_armpam,
     input  logic [AXI_MECID_WIDTH-1:0]   s_axi_armecid,
-    input  logic                         s_axi_arunique,
+    input  logic                         s_axi_aridunq,
     input  logic                         s_axi_archunken,
     input  logic [AXI_TAGOP_WIDTH-1:0]   s_axi_artagop,
 
@@ -132,12 +136,12 @@ module axi5_slave_rd
 
     // AXI5 R signals
     output logic                         s_axi_rtrace,
+    output logic                         s_axi_ridunq,       // RIDUNQ (A5.2)
     output logic                         s_axi_rpoison,
     output logic                         s_axi_rchunkv,
     output logic [AXI_CHUNKNUM_WIDTH-1:0] s_axi_rchunknum,
     output logic [CHUNK_STRB_WIDTH-1:0]  s_axi_rchunkstrb,
     output logic [TW-1:0]                s_axi_rtag,
-    output logic                         s_axi_rtagmatch,
 
     // =========================================================================
     // FUB Interface (Output Side to memory or backend)
@@ -155,6 +159,7 @@ module axi5_slave_rd
     output logic [3:0]                   fub_axi_arqos,
     output logic [UW-1:0]                fub_axi_aruser,
     output logic                         fub_axi_arvalid,
+    output logic                         fub_axi_awakeup,      // AWAKEUP (A14.1.1)
     input  logic                         fub_axi_arready,
 
     // AXI5 AR signals
@@ -162,7 +167,7 @@ module axi5_slave_rd
     output logic                         fub_axi_artrace,
     output logic [AXI_MPAM_WIDTH-1:0]    fub_axi_armpam,
     output logic [AXI_MECID_WIDTH-1:0]   fub_axi_armecid,
-    output logic                         fub_axi_arunique,
+    output logic                         fub_axi_aridunq,
     output logic                         fub_axi_archunken,
     output logic [AXI_TAGOP_WIDTH-1:0]   fub_axi_artagop,
 
@@ -177,12 +182,12 @@ module axi5_slave_rd
 
     // AXI5 R signals
     input  logic                         fub_axi_rtrace,
+    input  logic                         fub_axi_ridunq,       // RIDUNQ (A5.2)
     input  logic                         fub_axi_rpoison,
     input  logic                         fub_axi_rchunkv,
     input  logic [AXI_CHUNKNUM_WIDTH-1:0] fub_axi_rchunknum,
     input  logic [CHUNK_STRB_WIDTH-1:0]  fub_axi_rchunkstrb,
     input  logic [TW-1:0]                fub_axi_rtag,
-    input  logic                         fub_axi_rtagmatch,
 
     // Status outputs for clock gating
     output logic                         busy
@@ -213,6 +218,22 @@ module axi5_slave_rd
 
     assign busy = (int_ar_count > 0) || (int_r_count > 0) ||
                   s_axi_arvalid || fub_axi_rvalid;
+
+    // =========================================================================
+    // AWAKEUP (IHI 0022L A14.1.1)
+    // =========================================================================
+    // The downstream side sees the upstream wake request OR'ed with every
+    // request this module has accepted but not yet handed on. That keeps
+    // AWAKEUP asserted while an AR waits on its READY downstream, as
+    // A14.1.1 requires, even after the upstream has let its own AWAKEUP fall
+    // (the upstream handshake completed into the skid buffer). The skid
+    // rd_valid terms are flops, so this is a glitch-free OR of one input and
+    // registers -- the spec's condition for sampling AWAKEUP asynchronously.
+    // One AWAKEUP covers both request channels; where a read and a write
+    // half form one interface, OR the two halves' outputs.
+    // ENABLE_WAKEUP = 0: the signal is absent and the output ties low.
+
+    assign fub_axi_awakeup = ENABLE_WAKEUP ? (s_axi_awakeup || int_skid_arvalid) : 1'b0;
 
     // =========================================================================
     // AR Channel Packing
@@ -259,7 +280,7 @@ module axi5_slave_rd
             idx += AXI_MECID_WIDTH;
         end
         if (ENABLE_UNIQUE) begin
-            w_ar_wr_data[idx +: 1] = s_axi_arunique;
+            w_ar_wr_data[idx +: 1] = s_axi_aridunq;
             idx += 1;
         end
         if (ENABLE_CHUNKING) begin
@@ -325,10 +346,10 @@ module axi5_slave_rd
         end
 
         if (ENABLE_UNIQUE) begin
-            fub_axi_arunique = w_ar_rd_data[idx +: 1];
+            fub_axi_aridunq = w_ar_rd_data[idx +: 1];
             idx += 1;
         end else begin
-            fub_axi_arunique = '0;
+            fub_axi_aridunq = '0;
         end
 
         if (ENABLE_CHUNKING) begin
@@ -380,11 +401,13 @@ module axi5_slave_rd
             w_r_wr_data[idx +: CHUNK_STRB_WIDTH] = fub_axi_rchunkstrb;
             idx += CHUNK_STRB_WIDTH;
         end
+        if (ENABLE_UNIQUE) begin
+            w_r_wr_data[idx +: 1] = fub_axi_ridunq;
+            idx += 1;
+        end
         if (ENABLE_MTE) begin
             w_r_wr_data[idx +: TW] = fub_axi_rtag;
             idx += TW;
-            w_r_wr_data[idx +: 1] = fub_axi_rtagmatch;
-            idx += 1;
         end
     end
 
@@ -429,14 +452,18 @@ module axi5_slave_rd
             s_axi_rchunkstrb = '0;
         end
 
+        if (ENABLE_UNIQUE) begin
+            s_axi_ridunq = w_r_rd_data[idx +: 1];
+            idx += 1;
+        end else begin
+            s_axi_ridunq = '0;
+        end
+
         if (ENABLE_MTE) begin
             s_axi_rtag = w_r_rd_data[idx +: TW];
             idx += TW;
-            s_axi_rtagmatch = w_r_rd_data[idx +: 1];
-            idx += 1;
         end else begin
             s_axi_rtag = '0;
-            s_axi_rtagmatch = '0;
         end
     end
 

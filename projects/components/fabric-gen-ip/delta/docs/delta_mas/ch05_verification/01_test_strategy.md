@@ -24,7 +24,7 @@
 
 ## Current Status
 
-As of 2026-10-12, **Delta has no `dv/` test suite**. The RTL is lint-clean and the generator output matches checked-in reference files, but a cocotb-based verification environment is the known TODO.
+As of 2026-10-12, Delta has one cocotb suite, `dv/tests/test_delta_axis_flat_2x4_strb_amba5.py`. It runs against the checked-in `--amba5` example through a flattening harness (`dv/tb/`), with RDS-DV AXIS5 BFMs (`enable_parity=True`) on all six ports and the TB class in `dv/tbclasses/delta_axis_amba5_tb.py`. Three tests run at gate, func and full: routing with every check signal verified (random VALID gaps and READY stalls at func and full), TWAKEUP steering, and check-error injection on every flag. The base flavor still has no simulation suite. The plan below remains the target for it.
 
 ## Recommended Test Plan
 
@@ -60,7 +60,7 @@ When a testbench is created, it should cover the following areas.
 ### 6. Rich Flavor
 
 - With `--strb-width`, verify `TSTRB` pass-through.
-- With `--amba5`, verify `TWAKEUP` OR-per-slave and `TPARITY` pass-through.
+- With `--amba5`, verify `TWAKEUP` OR-per-slave, the odd-parity check signals (payload `*CHK` carried, `TVALIDCHK`/`TWAKEUPCHK`/`TREADYCHK` generated or checked) and the sticky `*_parity_error` flags. The existing suite already covers this.
 
 ### 7. Formal Assertions
 
@@ -69,7 +69,7 @@ When a testbench is created, it should cover the following areas.
 
 ## Lint and Generation Checks
 
-Until a testbench exists, the verification consists of:
+For the base flavor, which has no testbench yet, verification consists of:
 
 ```bash
 python3 bin/delta_generator.py --topology flat --masters 4 --slaves 16 \

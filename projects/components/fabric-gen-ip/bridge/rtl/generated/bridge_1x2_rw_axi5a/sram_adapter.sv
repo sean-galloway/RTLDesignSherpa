@@ -335,7 +335,8 @@ module sram_adapter
         .ENABLE_MECID(1'b0),
         .ENABLE_UNIQUE(1'b0),
         .ENABLE_MTE(1'b0),
-        .ENABLE_POISON(1'b0)
+        .ENABLE_POISON(1'b0),
+        .ENABLE_WAKEUP(1'b0)
     ) u_master_wr (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -358,9 +359,9 @@ module sram_adapter
         .fub_axi_awtrace('0),
         .fub_axi_awmpam('0),
         .fub_axi_awmecid('0),
-        .fub_axi_awunique('0),
+        .fub_axi_awidunq('0),
         .fub_axi_awtagop('0),
-        .fub_axi_awtag('0),
+        .fub_axi_awakeup('0),
         .fub_axi_wdata(xbar_sram_axi_wdata),
         .fub_axi_wstrb(xbar_sram_axi_wstrb),
         .fub_axi_wlast(xbar_sram_axi_wlast),
@@ -376,7 +377,7 @@ module sram_adapter
         .fub_axi_bvalid(xbar_sram_axi_bvalid),
         .fub_axi_bready(xbar_sram_axi_bready),
         .fub_axi_btrace(),
-        .fub_axi_btag(),
+        .fub_axi_bidunq(),
         .fub_axi_btagmatch(),
 
         // External side (m_axi)
@@ -397,9 +398,9 @@ module sram_adapter
         .m_axi_awtrace(),
         .m_axi_awmpam(),
         .m_axi_awmecid(),
-        .m_axi_awunique(),
+        .m_axi_awidunq(),
         .m_axi_awtagop(),
-        .m_axi_awtag(),
+        .m_axi_awakeup(),
         .m_axi_wdata(sram_axi_wdata),
         .m_axi_wstrb(sram_axi_wstrb),
         .m_axi_wlast(sram_axi_wlast),
@@ -415,7 +416,7 @@ module sram_adapter
         .m_axi_bvalid(sram_axi_bvalid),
         .m_axi_bready(sram_axi_bready),
         .m_axi_btrace('0),
-        .m_axi_btag('0),
+        .m_axi_bidunq('0),
         .m_axi_btagmatch('0),
 
         // Status (empty connector = unconnected tie-off)
@@ -437,7 +438,8 @@ module sram_adapter
         .ENABLE_UNIQUE(1'b0),
         .ENABLE_CHUNKING(1'b0),
         .ENABLE_MTE(1'b0),
-        .ENABLE_POISON(1'b0)
+        .ENABLE_POISON(1'b0),
+        .ENABLE_WAKEUP(1'b0)
     ) u_master_rd (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -459,9 +461,10 @@ module sram_adapter
         .fub_axi_artrace('0),
         .fub_axi_armpam('0),
         .fub_axi_armecid('0),
-        .fub_axi_arunique('0),
+        .fub_axi_aridunq('0),
         .fub_axi_archunken('0),
         .fub_axi_artagop('0),
+        .fub_axi_awakeup('0),
         .fub_axi_rid(xbar_sram_axi_rid),
         .fub_axi_rdata(xbar_sram_axi_rdata),
         .fub_axi_rresp(xbar_sram_axi_rresp),
@@ -470,12 +473,12 @@ module sram_adapter
         .fub_axi_rvalid(xbar_sram_axi_rvalid),
         .fub_axi_rready(xbar_sram_axi_rready),
         .fub_axi_rtrace(),
+        .fub_axi_ridunq(),
         .fub_axi_rpoison(),
         .fub_axi_rchunkv(),
         .fub_axi_rchunknum(),
         .fub_axi_rchunkstrb(),
         .fub_axi_rtag(),
-        .fub_axi_rtagmatch(),
 
         // External side (m_axi)
         .m_axi_arid(sram_axi_arid),
@@ -494,9 +497,10 @@ module sram_adapter
         .m_axi_artrace(),
         .m_axi_armpam(),
         .m_axi_armecid(),
-        .m_axi_arunique(),
+        .m_axi_aridunq(),
         .m_axi_archunken(),
         .m_axi_artagop(),
+        .m_axi_awakeup(),
         .m_axi_rid(sram_axi_rid),
         .m_axi_rdata(sram_axi_rdata),
         .m_axi_rresp(sram_axi_rresp),
@@ -505,12 +509,12 @@ module sram_adapter
         .m_axi_rvalid(sram_axi_rvalid),
         .m_axi_rready(sram_axi_rready),
         .m_axi_rtrace('0),
+        .m_axi_ridunq('0),
         .m_axi_rpoison('0),
         .m_axi_rchunkv('0),
         .m_axi_rchunknum('0),
         .m_axi_rchunkstrb('0),
         .m_axi_rtag('0),
-        .m_axi_rtagmatch('0),
 
         // Status (empty connector = unconnected tie-off)
         .busy()

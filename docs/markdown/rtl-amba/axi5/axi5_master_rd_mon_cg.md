@@ -33,12 +33,12 @@
 
 The AXI5 Master Read with Monitor and Clock Gating module combines `axi5_master_rd_mon` (AXI5 master with integrated monitoring) with intelligent clock gating for power optimization. This is the everything variant: comprehensive transaction monitoring, error detection, and automatic power management in one instantiation.
 
-**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking or `RTAGMATCH` generation, no chunk reassembly, no poison generation, and no atomic read-modify-write -- `AWATOP` is transported, not executed. The monitor observes handshakes, responses and timing; it performs no protocol checking of handshake stability, ID width, burst length or address alignment. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking, no chunk reassembly, no poison generation, and no atomic read-modify-write -- `AWATOP` is transported, not executed. The monitor observes handshakes, responses and timing; it performs no protocol checking of handshake stability, ID width, burst length or address alignment. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
 
 ### Key Features
 
 - Carries the full AXI5 signal set unmodified -- transport, not semantics; see Scope above
-- **All AXI5 extensions:** NSAID, TRACE, MPAM, MECID, UNIQUE, CHUNKING, MTE, POISON
+- **All AXI5 extensions:** NSAID, TRACE, MPAM, MECID, IDUNQ, CHUNKING, MTE, POISON, WAKEUP
 - **Integrated AXI monitor** with 2-Level Filtering: packet-type drop masks + per-event masks (err_select is reserved -- no routing)
 - **Error detection:** SLVERR, DECERR, orphaned read data
   (protocol-violation events are write-monitor only)
@@ -76,10 +76,11 @@ The AXI5 Master Read with Monitor and Clock Gating module combines `axi5_master_
 | ENABLE_TRACE | bit | 1 | Enable trace signals |
 | ENABLE_MPAM | bit | 1 | Enable memory partitioning |
 | ENABLE_MECID | bit | 1 | Enable memory encryption context |
-| ENABLE_UNIQUE | bit | 1 | Enable unique ID indicator |
+| ENABLE_UNIQUE | bit | 1 | Enable the unique ID indicator (AxIDUNQ, and BIDUNQ/RIDUNQ on the responses) |
 | ENABLE_CHUNKING | bit | 1 | Enable data chunking |
 | ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
+| ENABLE_WAKEUP | bit | 1 | Enable AWAKEUP (IHI 0022L §A14.1.1); 0 ties the output low |
 | UNIT_ID | int | 1 | Monitor unit identifier |
 | AGENT_ID | int | 10 | Monitor agent identifier |
 | MAX_TRANSACTIONS | int | 16 | Transaction table size |
@@ -262,7 +263,7 @@ This module provides the best of both worlds:
 The clock gating logic considers monitor activity:
 
 ```systemverilog
-user_valid = fub_axi_arvalid || fub_axi_rvalid || int_busy ||
+user_valid = (ENABLE_WAKEUP && fub_axi_awakeup) || fub_axi_arvalid || fub_axi_rvalid || int_busy ||
              w_monbus_valid || (|active_transactions);  // peer VALID, never peer READY
 axi_valid = m_axi_arvalid || m_axi_rvalid;
 
@@ -382,12 +383,13 @@ axi5_master_rd_mon_cg #(
     .fub_axi_arqos         (fub_axi_arqos),
     .fub_axi_aruser        (fub_axi_aruser),
     .fub_axi_arvalid       (fub_axi_arvalid),
+    .fub_axi_awakeup       (fub_axi_awakeup),
     .fub_axi_arready       (fub_axi_arready),
     .fub_axi_arnsaid       (fub_axi_arnsaid),
     .fub_axi_artrace       (fub_axi_artrace),
     .fub_axi_armpam        (fub_axi_armpam),
     .fub_axi_armecid       (fub_axi_armecid),
-    .fub_axi_arunique      (fub_axi_arunique),
+    .fub_axi_aridunq      (fub_axi_aridunq),
     .fub_axi_archunken     (fub_axi_archunken),
     .fub_axi_artagop       (fub_axi_artagop),
     .fub_axi_rid           (fub_axi_rid),
@@ -398,12 +400,12 @@ axi5_master_rd_mon_cg #(
     .fub_axi_rvalid        (fub_axi_rvalid),
     .fub_axi_rready        (fub_axi_rready),
     .fub_axi_rtrace        (fub_axi_rtrace),
+    .fub_axi_ridunq        (fub_axi_ridunq),
     .fub_axi_rpoison       (fub_axi_rpoison),
     .fub_axi_rchunkv       (fub_axi_rchunkv),
     .fub_axi_rchunknum     (fub_axi_rchunknum),
     .fub_axi_rchunkstrb    (fub_axi_rchunkstrb),
     .fub_axi_rtag          (fub_axi_rtag),
-    .fub_axi_rtagmatch     (fub_axi_rtagmatch),
     .m_axi_arid            (m_axi_arid),
     .m_axi_araddr          (m_axi_araddr),
     .m_axi_arlen           (m_axi_arlen),
@@ -415,12 +417,13 @@ axi5_master_rd_mon_cg #(
     .m_axi_arqos           (m_axi_arqos),
     .m_axi_aruser          (m_axi_aruser),
     .m_axi_arvalid         (m_axi_arvalid),
+    .m_axi_awakeup         (m_axi_awakeup),
     .m_axi_arready         (m_axi_arready),
     .m_axi_arnsaid         (m_axi_arnsaid),
     .m_axi_artrace         (m_axi_artrace),
     .m_axi_armpam          (m_axi_armpam),
     .m_axi_armecid         (m_axi_armecid),
-    .m_axi_arunique        (m_axi_arunique),
+    .m_axi_aridunq        (m_axi_aridunq),
     .m_axi_archunken       (m_axi_archunken),
     .m_axi_artagop         (m_axi_artagop),
     .m_axi_rid             (m_axi_rid),
@@ -431,12 +434,12 @@ axi5_master_rd_mon_cg #(
     .m_axi_rvalid          (m_axi_rvalid),
     .m_axi_rready          (m_axi_rready),
     .m_axi_rtrace          (m_axi_rtrace),
+    .m_axi_ridunq          (m_axi_ridunq),
     .m_axi_rpoison         (m_axi_rpoison),
     .m_axi_rchunkv         (m_axi_rchunkv),
     .m_axi_rchunknum       (m_axi_rchunknum),
     .m_axi_rchunkstrb      (m_axi_rchunkstrb),
     .m_axi_rtag            (m_axi_rtag),
-    .m_axi_rtagmatch       (m_axi_rtagmatch),
     .cfg_monitor_enable    (cfg_monitor_enable),
     .cfg_error_enable      (cfg_error_enable),
     .cfg_timeout_enable    (cfg_timeout_enable),
@@ -593,7 +596,7 @@ pytest val/amba/test_axi5_master_rd_mon_cg.py -v
 - Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A3.3.1 "Write response" and §A3.3.2 "Read response" (the SLVERR/DECERR codes the monitor reports), §A5.1 "Transaction identifiers" and §A5.3 "Request ordering" (per-ID tracking of outstanding transactions), §A2.3.2 "Dependencies between channel handshake signals" (the orderings a monitor timeout watches); the AXI5 payload is carried as on the base module.
 - Benini, L., De Micheli, G. "Automatic Synthesis of Low-Power Gated-Clock Finite-State Machines." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 15(6), June 1996. DOI: [10.1109/43.503933](https://doi.org/10.1109/43.503933) -- the latch-based clock-gating cell (`icg`, via `amba_clock_gate_ctrl` and `clock_gate_ctrl`) that gates this wrapper's clock.
 - Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Trans. VLSI Systems*, 8(3), June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) -- fixed-timeout shutdown: gate after `cfg_cg_idle_count` idle cycles, wake on activity.
-- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A14.1.1 "AWAKEUP rules and recommendations" in Issue L (§E1.7 "Wake-up Signaling" in Issue H) defines AWAKEUP, which lets a manager restart a gated interface before VALID. This wrapper does not use it: it wakes on the flopped OR of the VALIDs and holds READY low while gated.
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A14.1.1 "AWAKEUP rules and recommendations" in Issue L (§E1.7 "Wake-up Signaling" in Issue H) defines AWAKEUP, which lets a manager restart a gated interface before VALID. This wrapper counts AWAKEUP as an activity term (behind `ENABLE_WAKEUP`), so a manager that raises it a cycle ahead of VALID, as §A14.1.1 recommends, finds the clock running and its first request is accepted on the cycle it is presented; a manager that never drives it still wakes the block through the flopped OR of the VALIDs, with READY held low while gated (GitHub #102).
 - The monitor's own techniques are cited on the [AXI Monitor Base](../monitor/axi_monitor_base.md) page and in the monitor family of the archive.
 - Indexed in `rtl/amba/references/README.md` (local PDF, archived under `rtl/common/references/`: `LatchBasedClockGating__Benini1996.pdf`, `DynamicPowerManagementTimeout__Benini2000.pdf`)
 

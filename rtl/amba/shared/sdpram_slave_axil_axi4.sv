@@ -18,7 +18,9 @@
 module sdpram_slave_axil_axi4 #(
     parameter int    AXI_ID_WIDTH = 8,
     parameter int    ADDR_WIDTH   = 32,
-    parameter int    DATA_WIDTH   = 256,
+    // DATA_WIDTH is shared by both sides; the AXI4-Lite side allows only 32 or
+    // 64 bits (IHI 0022H B1.1.2, enforced by the axil4 width guard, #102).
+    parameter int    DATA_WIDTH   = 64,
     parameter int    USER_WIDTH   = 1,
     parameter int    MEM_DEPTH    = 2048,
     parameter int    SKID_DEPTH_AW = 2,

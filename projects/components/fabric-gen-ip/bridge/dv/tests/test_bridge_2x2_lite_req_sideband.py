@@ -5,15 +5,18 @@
 # HAND-WRITTEN (not generated): bridge TASK-004 (was BRIDGE-014) sign-off for LITE REQUESTER ports.
 #
 # bridge_2x2_lite_req has an AXI4-Lite master and an AXI5-Lite master (with
-# the two forwardable groups, 'user' and 'exclusive') in front of a 64-bit
+# the forwardable group 'user', and a 1-bit AWID/ARID) in front of a 64-bit
 # AXI4 memory and an AXI5-Lite register block. The generated tests already
 # prove the data round trip; what they cannot see is the sideband and the
 # lane placement, which is what a Lite requester port has to get right:
 #
-#   - the AXI5-Lite master's AWUSER/WUSER/ARUSER and AWLOCK/ARLOCK reach the
-#     AXI5-Lite slave (its own 'user' feature forwards them) -- and the AXI4-
-#     Lite master's traffic arrives there with user=0 and lock=0, because it
-#     has nothing to say;
+#   - the AXI5-Lite master's AWUSER/WUSER/ARUSER reach the AXI5-Lite slave
+#     (its own 'user' feature forwards them) -- and the AXI4-Lite master's
+#     traffic arrives there with user=0, because it has nothing to say;
+#   - the AXI5-Lite master's AWID/ARID reach the slave inside the fabric ID
+#     ({master index, id}) and come back unchanged on BID/RID (IHI 0022L
+#     B2.1.5: the ID is required on an AXI5-Lite Subordinate, GitHub #102
+#     item 3 -- there is no AxLOCK on AXI5-Lite any more);
 #   - the sideband groups with no AXI4 home are terminated, not floating:
 #     the completer-driven ones read 0 at the requester after traffic, and
 #     the requester-driven ones can be driven to anything without effect;
@@ -50,7 +53,11 @@ MEM_BASE = 0x0000_0000
 
 # Completer-driven AXI5-Lite sideband the bridge terminates at the requester
 # (no AXI4 source): must read 0, never X, once traffic has flowed.
-TIED_AT_MASTER = ('bloop', 'btrace', 'rloop', 'rtrace', 'rpoison')
+TIED_AT_MASTER = ('btrace', 'rtrace', 'rpoison')
+
+# Fabric ID seen at a slave: {master index, master id}. The widest master ID
+# here is lite5's 1 bit, so the master index sits at bit 1.
+LITE5_FABRIC_ID_BASE = LITE5 << 1
 
 COUNTS = {'gate': 4, 'func': 12, 'full': 32}
 
@@ -70,10 +77,11 @@ def _record(store, key):
 
 
 @cocotb.test(timeout_time=4000, timeout_unit="ms")
-async def cocotb_test_bridge_2x2_lite_req_user_lock(dut):
-    """USER and LOCK from the AXI5-Lite requester reach the AXI5-Lite
-    completer; the AXI4-Lite requester's traffic arrives with both at 0;
-    the terminated groups read 0 at the requester."""
+async def cocotb_test_bridge_2x2_lite_req_user_id(dut):
+    """USER from the AXI5-Lite requester reaches the AXI5-Lite completer,
+    its AWID/ARID ride the fabric ID and return on BID/RID; the AXI4-Lite
+    requester's traffic arrives with user 0; the terminated groups read 0 at
+    the requester."""
     tb = Bridge2x2LiteReqTB(dut)
     await tb.setup_clocks_and_reset()
     n = COUNTS[tb.level]
@@ -91,12 +99,15 @@ async def cocotb_test_bridge_2x2_lite_req_user_lock(dut):
     for i in range(n):
         addr = REGS_BASE + 0x100 + 4 * i
         user = i & 1
-        lock = (i >> 1) & 1
+        txid = (i >> 1) & 1
         data = 0x5A5A_0000 | i
 
         # AXI5-Lite requester, driving the forwardable groups.
         del seen[:]
-        await tb.master_wr[LITE5].single_write(addr, data, awuser=user, wuser=user, awlock=lock)
+        await tb.master_wr[LITE5].single_write(addr, data, awuser=user, wuser=user, awid=txid)
+        bid = int(getattr(tb.master_wr[LITE5].last_b_packet, 'id', -1))
+        if bid != txid:
+            failures.append(f"round {i}: lite5 BID={bid} for AWID={txid}")
         aw = [p for k, p in seen if k == 'aw']
         w = [p for k, p in seen if k == 'w']
         if len(aw) != 1 or len(w) != 1:
@@ -104,8 +115,9 @@ async def cocotb_test_bridge_2x2_lite_req_user_lock(dut):
         else:
             if int(aw[0].fields.get('user', 0)) != user:
                 failures.append(f"round {i}: regs saw awuser={aw[0].fields.get('user')} from lite5, drove {user}")
-            if int(aw[0].fields.get('lock', 0)) != lock:
-                failures.append(f"round {i}: regs saw awlock={aw[0].fields.get('lock')} from lite5, drove {lock}")
+            if int(aw[0].fields.get('id', -1)) != (LITE5_FABRIC_ID_BASE | txid):
+                failures.append(f"round {i}: regs saw awid={aw[0].fields.get('id')} from lite5, "
+                                f"expected fabric id {LITE5_FABRIC_ID_BASE | txid}")
             if int(w[0].fields.get('user', 0)) != user:
                 failures.append(f"round {i}: regs saw wuser={w[0].fields.get('user')} from lite5, drove {user}")
         got = tb.slave_mem_read(REGS, addr, byte_count=4)
@@ -113,15 +125,19 @@ async def cocotb_test_bridge_2x2_lite_req_user_lock(dut):
             failures.append(f"round {i}: regs holds 0x{got:08X} after lite5 wrote 0x{data:08X}")
 
         del seen[:]
-        rdata = await tb.master_rd[LITE5].single_read(addr, aruser=user, arlock=lock)
+        rdata = await tb.master_rd[LITE5].single_read(addr, aruser=user, arid=txid)
+        rid = int(getattr(tb.master_rd[LITE5].last_r_packet, 'id', -1))
+        if rid != txid:
+            failures.append(f"round {i}: lite5 RID={rid} for ARID={txid}")
         ar = [p for k, p in seen if k == 'ar']
         if len(ar) != 1:
             failures.append(f"round {i}: AXI5-Lite read produced {len(ar)} AR at regs")
         else:
             if int(ar[0].fields.get('user', 0)) != user:
                 failures.append(f"round {i}: regs saw aruser={ar[0].fields.get('user')} from lite5, drove {user}")
-            if int(ar[0].fields.get('lock', 0)) != lock:
-                failures.append(f"round {i}: regs saw arlock={ar[0].fields.get('lock')} from lite5, drove {lock}")
+            if int(ar[0].fields.get('id', -1)) != (LITE5_FABRIC_ID_BASE | txid):
+                failures.append(f"round {i}: regs saw arid={ar[0].fields.get('id')} from lite5, "
+                                f"expected fabric id {LITE5_FABRIC_ID_BASE | txid}")
         if rdata != data:
             failures.append(f"round {i}: lite5 read back 0x{rdata:08X}, expected 0x{data:08X}")
 
@@ -136,9 +152,9 @@ async def cocotb_test_bridge_2x2_lite_req_user_lock(dut):
             failures.append(f"round {i}: AXI4-Lite traffic produced {len(aw)} AW / {len(ar)} AR at regs")
         else:
             for pkt, label in ((aw[0], 'aw'), (ar[0], 'ar')):
-                if int(pkt.fields.get('user', 0)) != 0 or int(pkt.fields.get('lock', 0)) != 0:
+                if int(pkt.fields.get('user', 0)) != 0:
                     failures.append(f"round {i}: regs saw {label}user={pkt.fields.get('user')} "
-                                    f"{label}lock={pkt.fields.get('lock')} from the AXI4-Lite master")
+                                    f"from the AXI4-Lite master")
         if rdata4 != data4:
             failures.append(f"round {i}: lite4 read back 0x{rdata4:08X}, expected 0x{data4:08X}")
 
@@ -150,7 +166,7 @@ async def cocotb_test_bridge_2x2_lite_req_user_lock(dut):
                                 f"and must be driven to 0")
 
     assert not failures, f"{len(failures)} sideband failure(s):\n  " + "\n  ".join(failures[:20])
-    tb.log.info(f"bridge TASK-004 (was BRIDGE-014) lite sideband PASSED: {n} rounds, user/lock forwarded, "
+    tb.log.info(f"bridge TASK-004 (was BRIDGE-014) lite sideband PASSED: {n} rounds, user forwarded, ID round-tripped, "
                 f"{len(TIED_AT_MASTER)} terminated groups at 0")
 
 
@@ -307,8 +323,8 @@ def _run(request, test_level, testcase):
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
-def test_bridge_2x2_lite_req_user_lock(request, test_level):
-    _run(request, test_level, "user_lock")
+def test_bridge_2x2_lite_req_user_id(request, test_level):
+    _run(request, test_level, "user_id")
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())

@@ -176,7 +176,8 @@ module sram_rd_adapter
         .ENABLE_UNIQUE(1'b0),
         .ENABLE_CHUNKING(1'b1),
         .ENABLE_MTE(1'b0),
-        .ENABLE_POISON(1'b0)
+        .ENABLE_POISON(1'b0),
+        .ENABLE_WAKEUP(1'b0)
     ) u_master_rd (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -198,9 +199,10 @@ module sram_rd_adapter
         .fub_axi_artrace(xbar_sram_rd_axi_artrace),
         .fub_axi_armpam('0),
         .fub_axi_armecid('0),
-        .fub_axi_arunique('0),
+        .fub_axi_aridunq('0),
         .fub_axi_archunken(xbar_sram_rd_axi_archunken),
         .fub_axi_artagop('0),
+        .fub_axi_awakeup('0),
         .fub_axi_rid(xbar_sram_rd_axi_rid),
         .fub_axi_rdata(xbar_sram_rd_axi_rdata),
         .fub_axi_rresp(xbar_sram_rd_axi_rresp),
@@ -209,12 +211,12 @@ module sram_rd_adapter
         .fub_axi_rvalid(xbar_sram_rd_axi_rvalid),
         .fub_axi_rready(xbar_sram_rd_axi_rready),
         .fub_axi_rtrace(xbar_sram_rd_axi_rtrace),
+        .fub_axi_ridunq(),
         .fub_axi_rpoison(),
         .fub_axi_rchunkv(xbar_sram_rd_axi_rchunkv),
         .fub_axi_rchunknum(xbar_sram_rd_axi_rchunknum),
         .fub_axi_rchunkstrb(xbar_sram_rd_axi_rchunkstrb),
         .fub_axi_rtag(),
-        .fub_axi_rtagmatch(),
 
         // External side (m_axi)
         .m_axi_arid(sram_rd_axi_arid),
@@ -233,9 +235,10 @@ module sram_rd_adapter
         .m_axi_artrace(sram_rd_axi_artrace),
         .m_axi_armpam(),
         .m_axi_armecid(),
-        .m_axi_arunique(),
+        .m_axi_aridunq(),
         .m_axi_archunken(sram_rd_axi_archunken),
         .m_axi_artagop(),
+        .m_axi_awakeup(),
         .m_axi_rid(sram_rd_axi_rid),
         .m_axi_rdata(sram_rd_axi_rdata),
         .m_axi_rresp(sram_rd_axi_rresp),
@@ -244,12 +247,12 @@ module sram_rd_adapter
         .m_axi_rvalid(sram_rd_axi_rvalid),
         .m_axi_rready(sram_rd_axi_rready),
         .m_axi_rtrace(sram_rd_axi_rtrace),
+        .m_axi_ridunq('0),
         .m_axi_rpoison('0),
         .m_axi_rchunkv(sram_rd_axi_rchunkv),
         .m_axi_rchunknum(sram_rd_axi_rchunknum),
         .m_axi_rchunkstrb(sram_rd_axi_rchunkstrb),
         .m_axi_rtag('0),
-        .m_axi_rtagmatch('0),
 
         // Status (empty connector = unconnected tie-off)
         .busy()

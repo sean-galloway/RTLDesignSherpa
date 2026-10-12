@@ -33,7 +33,7 @@
 
 The AXI5 Master Read with Clock Gating module wraps the standard `axi5_master_rd` core with intelligent clock gating for power optimization. When no AXI activity is detected for a configurable number of idle cycles, the clock gates off automatically — no software involvement, no protocol changes.
 
-**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking or `RTAGMATCH` generation, no chunk reassembly, no poison generation, and no outstanding-transaction tracking. Those behaviors belong to the endpoints on either side. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking, no chunk reassembly, no poison generation, and no outstanding-transaction tracking. Those behaviors belong to the endpoints on either side. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
 
 ### Key Features
 
@@ -42,13 +42,13 @@ The AXI5 Master Read with Clock Gating module wraps the standard `axi5_master_rd
 - **ARTRACE:** Trace signal for debug and performance monitoring
 - **ARMPAM:** Memory Partitioning and Monitoring (PartID + PMG)
 - **ARMECID:** Memory Encryption Context ID for secure memory
-- **ARUNIQUE:** Unique ID indicator for cache operations
+- **ARIDUNQ / RIDUNQ:** Unique ID indicator on the request and on every read data beat (IHI 0022L §A5.2)
 - **ARCHUNKEN:** Read data chunking enable for partial data transfers
 - **ARTAGOP:** Memory tag operation (MTE - Memory Tagging Extension)
 - **RTRACE:** Read data trace signal
 - **RPOISON:** Data poison indicator for corrupted data detection
 - **RCHUNKV/RCHUNKNUM/RCHUNKSTRB:** Chunking control signals
-- **RTAG/RTAGMATCH:** Memory tags and tag match response (MTE)
+- **RTAG:** Memory tags returned with read data (MTE)
 - **Automatic clock gating** based on activity detection
 - **Configurable idle count** before clock gating activates
 - **Power savings** during idle periods
@@ -79,10 +79,11 @@ The AXI5 Master Read with Clock Gating module wraps the standard `axi5_master_rd
 | ENABLE_TRACE | bit | 1 | Enable trace signals |
 | ENABLE_MPAM | bit | 1 | Enable memory partitioning |
 | ENABLE_MECID | bit | 1 | Enable memory encryption context |
-| ENABLE_UNIQUE | bit | 1 | Enable unique ID indicator |
+| ENABLE_UNIQUE | bit | 1 | Enable the unique ID indicator (AxIDUNQ, and BIDUNQ/RIDUNQ on the responses) |
 | ENABLE_CHUNKING | bit | 1 | Enable data chunking |
 | ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
+| ENABLE_WAKEUP | bit | 1 | Enable AWAKEUP (IHI 0022L §A14.1.1); 0 ties the output low |
 | CG_IDLE_COUNT_WIDTH | int | 4 | Width of idle counter (max 2^N-1 cycles) |
 
 ### Derived Parameters
@@ -134,6 +135,7 @@ These are computed inside the module from the parameters above. Do not override 
 | fub_axi_arqos | 4 | Input | Quality of Service |
 | fub_axi_aruser | UW | Input | User-defined signal |
 | fub_axi_arvalid | 1 | Input | Read address valid |
+| fub_axi_awakeup | 1 | Input | Wake-up request, AWAKEUP (IHI 0022L §A14.1.1; `ENABLE_WAKEUP`) |
 | fub_axi_arready | 1 | Output | Read address ready (forced 0 when gating) |
 
 #### AXI5 AR Extensions
@@ -144,7 +146,7 @@ These are computed inside the module from the parameters above. Do not override 
 | fub_axi_artrace | 1 | Input | Trace signal |
 | fub_axi_armpam | AXI_MPAM_WIDTH | Input | Memory partitioning/monitoring |
 | fub_axi_armecid | AXI_MECID_WIDTH | Input | Memory encryption context ID |
-| fub_axi_arunique | 1 | Input | Unique ID indicator |
+| fub_axi_aridunq | 1 | Input | Unique ID indicator, ARIDUNQ (IHI 0022L §A5.2; `ENABLE_UNIQUE`) |
 | fub_axi_archunken | 1 | Input | Chunking enable |
 | fub_axi_artagop | AXI_TAGOP_WIDTH | Input | Tag operation (MTE) |
 
@@ -165,12 +167,12 @@ These are computed inside the module from the parameters above. Do not override 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
 | fub_axi_rtrace | 1 | Output | Trace signal |
+| fub_axi_ridunq | 1 | Output | Unique ID indicator on every read data beat, RIDUNQ (IHI 0022L §A5.2; `ENABLE_UNIQUE`) |
 | fub_axi_rpoison | 1 | Output | Data poison indicator |
 | fub_axi_rchunkv | 1 | Output | Chunk valid |
 | fub_axi_rchunknum | AXI_CHUNKNUM_WIDTH | Output | Chunk number |
 | fub_axi_rchunkstrb | CHUNK_STRB_WIDTH | Output | Chunk strobe (128-bit granules) |
 | fub_axi_rtag | TW | Output | Memory tags (NUM_TAGS × TAG_WIDTH) |
-| fub_axi_rtagmatch | 1 | Output | Tag match response |
 
 ### Master AXI5 Interface (Output Side)
 
@@ -213,8 +215,8 @@ flowchart LR
 
     subgraph AXI["AXI5 Master"]
         direction TB
-        m_ar["AR Channel<br/>NSAID/TRACE/MPAM<br/>MECID/UNIQUE<br/>CHUNKEN/TAGOP"]
-        m_r["R Channel<br/>TRACE/POISON<br/>CHUNK/TAG"]
+        m_ar["AR Channel<br/>NSAID/TRACE/MPAM<br/>MECID/IDUNQ<br/>CHUNKEN/TAGOP"]
+        m_r["R Channel<br/>TRACE/POISON<br/>CHUNK/IDUNQ/TAG"]
     end
 
     fub_ar --> activity
@@ -241,7 +243,7 @@ The clock gating controller monitors activity on both user and AXI sides:
 
 **User-side activity detection:**
 ```systemverilog
-user_valid = fub_axi_arvalid || fub_axi_rvalid || int_busy  // peer VALID (post-fix)
+user_valid = (ENABLE_WAKEUP && fub_axi_awakeup) || fub_axi_arvalid || fub_axi_rvalid || int_busy  // peer VALID (post-fix)
 ```
 
 **AXI-side activity detection:**
@@ -377,6 +379,7 @@ axi5_master_rd_cg #(
     .fub_axi_arqos      (fub_arqos),
     .fub_axi_aruser     (fub_aruser),
     .fub_axi_arvalid    (fub_arvalid),
+    .fub_axi_awakeup    (fub_awakeup),
     .fub_axi_arready    (fub_arready),
 
     // AXI5 AR extensions
@@ -384,7 +387,7 @@ axi5_master_rd_cg #(
     .fub_axi_artrace    (fub_artrace),
     .fub_axi_armpam     (fub_armpam),
     .fub_axi_armecid    (fub_armecid),
-    .fub_axi_arunique   (fub_arunique),
+    .fub_axi_aridunq   (fub_aridunq),
     .fub_axi_archunken  (fub_archunken),
     .fub_axi_artagop    (fub_artagop),
 
@@ -399,12 +402,12 @@ axi5_master_rd_cg #(
 
     // AXI5 R extensions
     .fub_axi_rtrace     (fub_rtrace),
+    .fub_axi_ridunq     (fub_ridunq),
     .fub_axi_rpoison    (fub_rpoison),
     .fub_axi_rchunkv    (fub_rchunkv),
     .fub_axi_rchunknum  (fub_rchunknum),
     .fub_axi_rchunkstrb (fub_rchunkstrb),
     .fub_axi_rtag       (fub_rtag),
-    .fub_axi_rtagmatch  (fub_rtagmatch),
 
     // Master interface (output side)
     .m_axi_arid         (m_axi_arid),
@@ -513,10 +516,10 @@ pytest val/amba/test_axi5_master_rd_cg.py -v
 
 ## References
 
-- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A2.3.1 "Valid-Ready signals", §A2.3.2 "Dependencies between channel handshake signals" and §A2.5 "Pipelining and register stages" (the transport this module buffers per channel), and the AXI5 signals it carries unchanged: §A5.6.2 "Read data chunking" (ARCHUNKEN, RCHUNKV/NUM/STRB), §A16.1 "Data protection using Poison" (RPOISON), §A12.2 "Memory Tagging Extension (MTE)" (ARTAGOP, RTAG), §A5.2 "Unique ID indicator", §A12.3 "Trace signals", §A10.1 "Non-secure Access Identifiers (NSAID)", §A12.1 "Memory System Resource Partitioning and Monitoring (MPAM)" and §A4.6 "Memory Encryption Contexts" (ARMECID). The specification defines no RTAGMATCH signal and names the Unique ID indicator ARIDUNQ; see the Notes in the archive README for how this module's ports differ.
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A2.3.1 "Valid-Ready signals", §A2.3.2 "Dependencies between channel handshake signals" and §A2.5 "Pipelining and register stages" (the transport this module buffers per channel), and the AXI5 signals it carries unchanged: §A5.6.2 "Read data chunking" (ARCHUNKEN, RCHUNKV/NUM/STRB), §A16.1 "Data protection using Poison" (RPOISON), §A12.2 "Memory Tagging Extension (MTE)" (ARTAGOP, RTAG), §A5.2 "Unique ID indicator", §A12.3 "Trace signals", §A10.1 "Non-secure Access Identifiers (NSAID)", §A12.1 "Memory System Resource Partitioning and Monitoring (MPAM)" and §A4.6 "Memory Encryption Contexts" (ARMECID). The ports follow the specification's names (GitHub #102): there is no RTAGMATCH, the Unique ID indicator is ARIDUNQ with RIDUNQ on every read data beat, and AWAKEUP follows §A14.1.1 "AWAKEUP rules and recommendations".
 - Benini, L., De Micheli, G. "Automatic Synthesis of Low-Power Gated-Clock Finite-State Machines." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 15(6), June 1996. DOI: [10.1109/43.503933](https://doi.org/10.1109/43.503933) -- the latch-based clock-gating cell (`icg`, via `amba_clock_gate_ctrl` and `clock_gate_ctrl`) that gates this wrapper's clock.
 - Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Trans. VLSI Systems*, 8(3), June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) -- fixed-timeout shutdown: gate after `cfg_cg_idle_count` idle cycles, wake on activity.
-- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A14.1.1 "AWAKEUP rules and recommendations" in Issue L (§E1.7 "Wake-up Signaling" in Issue H) defines AWAKEUP, which lets a manager restart a gated interface before VALID. This wrapper does not use it: it wakes on the flopped OR of the VALIDs and holds READY low while gated.
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A14.1.1 "AWAKEUP rules and recommendations" in Issue L (§E1.7 "Wake-up Signaling" in Issue H) defines AWAKEUP, which lets a manager restart a gated interface before VALID. This wrapper counts AWAKEUP as an activity term (behind `ENABLE_WAKEUP`), so a manager that raises it a cycle ahead of VALID, as §A14.1.1 recommends, finds the clock running and its first request is accepted on the cycle it is presented; a manager that never drives it still wakes the block through the flopped OR of the VALIDs, with READY held low while gated (GitHub #102).
 - Indexed in `rtl/amba/references/README.md` (local PDF, archived under `rtl/common/references/`: `LatchBasedClockGating__Benini1996.pdf`, `DynamicPowerManagementTimeout__Benini2000.pdf`)
 
 ---

@@ -47,6 +47,7 @@ module bridge_1x2_rw_axi5a_mon
     input  logic         cpu_axi_awvalid,
     output  logic         cpu_axi_awready,
     input  logic         cpu_axi_awtrace,
+    input  logic         cpu_axi_awidunq,
     input  logic [5:0]  cpu_axi_awatop,
 
     input  logic [31:0]  cpu_axi_wdata,
@@ -62,6 +63,7 @@ module bridge_1x2_rw_axi5a_mon
     output  logic         cpu_axi_bvalid,
     input  logic         cpu_axi_bready,
     output  logic         cpu_axi_btrace,
+    output  logic         cpu_axi_bidunq,
 
     input  logic [3:0]  cpu_axi_arid,
     input  logic [31:0]  cpu_axi_araddr,
@@ -76,6 +78,7 @@ module bridge_1x2_rw_axi5a_mon
     input  logic         cpu_axi_arvalid,
     output  logic         cpu_axi_arready,
     input  logic         cpu_axi_artrace,
+    input  logic         cpu_axi_aridunq,
 
     output  logic [3:0]  cpu_axi_rid,
     output  logic [31:0]  cpu_axi_rdata,
@@ -85,6 +88,7 @@ module bridge_1x2_rw_axi5a_mon
     output  logic         cpu_axi_rvalid,
     input  logic         cpu_axi_rready,
     output  logic         cpu_axi_rtrace,
+    output  logic         cpu_axi_ridunq,
 
     // Slave 0: ddr
     // AXI5 Slave: ddr
@@ -752,6 +756,7 @@ module bridge_1x2_rw_axi5a_mon
         .cpu_axi_awvalid(cpu_axi_awvalid),
         .cpu_axi_awready(cpu_axi_awready),
         .cpu_axi_awtrace(cpu_axi_awtrace),
+        .cpu_axi_awidunq(cpu_axi_awidunq),
         .cpu_axi_awatop(cpu_axi_awatop),
         .cpu_axi_wdata(cpu_axi_wdata),
         .cpu_axi_wstrb(cpu_axi_wstrb),
@@ -765,6 +770,7 @@ module bridge_1x2_rw_axi5a_mon
         .cpu_axi_bvalid(cpu_axi_bvalid),
         .cpu_axi_bready(cpu_axi_bready),
         .cpu_axi_btrace(cpu_axi_btrace),
+        .cpu_axi_bidunq(cpu_axi_bidunq),
         .cpu_axi_arid(cpu_axi_arid),
         .cpu_axi_araddr(cpu_axi_araddr),
         .cpu_axi_arlen(cpu_axi_arlen),
@@ -778,6 +784,7 @@ module bridge_1x2_rw_axi5a_mon
         .cpu_axi_arvalid(cpu_axi_arvalid),
         .cpu_axi_arready(cpu_axi_arready),
         .cpu_axi_artrace(cpu_axi_artrace),
+        .cpu_axi_aridunq(cpu_axi_aridunq),
         .cpu_axi_rid(cpu_axi_rid),
         .cpu_axi_rdata(cpu_axi_rdata),
         .cpu_axi_rresp(cpu_axi_rresp),
@@ -786,6 +793,7 @@ module bridge_1x2_rw_axi5a_mon
         .cpu_axi_rvalid(cpu_axi_rvalid),
         .cpu_axi_rready(cpu_axi_rready),
         .cpu_axi_rtrace(cpu_axi_rtrace),
+        .cpu_axi_ridunq(cpu_axi_ridunq),
 
         // Decode outputs
         .slave_select_aw(cpu_slave_select_aw),

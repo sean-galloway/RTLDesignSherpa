@@ -16,23 +16,29 @@
 // ---------------------------------------------------------------------------
 // TEST COLLATERAL, NOT A LIBRARY BLOCK.
 //
-// This exists so the AXI5-Lite BFMs have something to drive. Their optional
-// signal groups (USER, TRACE, LOOP, MPAM, MECID, NSAID, POISON, exclusive)
-// were declaration-only: the framework unit tests compare field configs, and
+// This exists so the AXI5-Lite BFMs have something to drive. Their transaction
+// ID and optional signal groups (ID, USER, TRACE, POISON) were
+// declaration-only: the framework unit tests compare field configs, and
 // no DUT in the repo carried the ports, so nothing ever proved a BFM puts
 // those values on a wire. A BFM-only test would only assert the BFM against
 // its own beliefs.
 //
 // It is deliberately NOT in rtl/amba/axil5/ proper. It is not a reusable
-// AXI5-Lite slave: the memory is a plain array, there is no error decoding,
-// and the exclusive-access support is a response code rather than a monitor.
-// Do not instantiate it in a design.
+// AXI5-Lite slave: the memory is a plain array and there is no error
+// decoding. Do not instantiate it in a design.
+//
+// Signal set per IHI 0022 Issue L Table B2.2 (AXI5-Lite column): AWID/BID and
+// ARID/RID are present (YS: mandatory on a Subordinate, which this is); USER,
+// TRACE and POISON are optional (O). AxLOCK, AxMPAM, AxMECID, AxNSAID and
+// xLOOP are NOT present (N) on AXI5-Lite, and exclusive accesses are not
+// supported (B2.1.5), so this model has none of them and never answers EXOKAY.
 //
 // What it implements, and why each part is checkable:
 //
-//   LOOP   AWLOOP -> BLOOP and ARLOOP -> RLOOP, returned unmodified. This is
-//          the spec behaviour (a completer echoes loopback IDs on the matching
-//          response), so a test can write a known value and require it back.
+//   ID     AWID -> BID and ARID -> RID, returned unmodified. This is the spec
+//          behaviour (A5.1.1: the Manager requires BID and RID to be reflected
+//          from AWID and ARID), so a test can send a known ID and require it
+//          back.
 //   TRACE  AWTRACE -> BTRACE, ARTRACE -> RTRACE, propagated with the
 //          transaction. Same shape of check.
 //   USER   AWUSER -> BUSER and ARUSER -> RUSER. User signals are by definition
@@ -40,11 +46,8 @@
 //          because it makes the value observable.
 //   POISON WPOISON is stored alongside the data and returned as RPOISON on a
 //          read of the same address, so poison survives a round trip.
-//   LOCK   An exclusive access (AxLOCK=1) answers EXOKAY instead of OKAY.
-//          That is the one qualifier whose effect is visible in a field the
-//          BFM already checks, which is why it is worth carrying.
 //
-// The remaining address qualifiers -- PROT, MPAM, MECID, NSAID -- have no
+// PROT (and WUSER, which has no response to ride back on) have no
 // architectural side effect a Lite slave can express, so they are captured
 // into `o_last_*` observation ports instead. A testbench samples those to
 // prove the BFM actually drove the value, which is the whole question. They
@@ -55,11 +58,9 @@
 //   AXIL_ADDR_WIDTH  Address width. Range 12..64, default 32.
 //   AXIL_DATA_WIDTH  Data width, power of 2. Range 32..512, default 32.
 //   MEM_DEPTH        Words of storage, power of 2. Default 256.
+//   ID_WIDTH         AWID/BID and ARID/RID width, 1..32 (a Subordinate must
+//                    carry the ID, so 0 is not offered). Default 4.
 //   USER_WIDTH       AxUSER/xUSER width. >=1.
-//   LOOP_WIDTH       AxLOOP/xLOOP width. >=1.
-//   MPAM_WIDTH       AxMPAM width. >=1.
-//   MECID_WIDTH      AxMECID width. >=1.
-//   NSAID_WIDTH      AxNSAID width. >=1.
 //
 // Notes:
 //   - POISON_WIDTH is derived, not a parameter: AXI defines one poison bit per
@@ -79,11 +80,8 @@ module axil5_opt_slave
     parameter int AXIL_ADDR_WIDTH = 32,
     parameter int AXIL_DATA_WIDTH = 32,
     parameter int MEM_DEPTH       = 256,
+    parameter int ID_WIDTH        = 4,
     parameter int USER_WIDTH      = 4,
-    parameter int LOOP_WIDTH      = 3,
-    parameter int MPAM_WIDTH      = 11,
-    parameter int MECID_WIDTH     = 16,
-    parameter int NSAID_WIDTH     = 4,
 
     // Optional-group enables, same names and defaults as the production
     // AXI5-Lite modules. A disabled group is not carried in the payload
@@ -92,12 +90,7 @@ module axil5_opt_slave
     // exercising all-groups-on.
     parameter bit ENABLE_USER     = 1,
     parameter bit ENABLE_TRACE    = 1,
-    parameter bit ENABLE_LOOP     = 1,
-    parameter bit ENABLE_MPAM     = 1,
-    parameter bit ENABLE_MECID    = 1,
-    parameter bit ENABLE_NSAID    = 1,
     parameter bit ENABLE_POISON   = 1,
-    parameter bit ENABLE_LOCK     = 1,
 
     // Derived. Do not override.
     parameter int AW           = AXIL_ADDR_WIDTH,
@@ -113,15 +106,11 @@ module axil5_opt_slave
     input  logic                     aresetn,
 
     // ---- Write address channel (AW) ------------------------------------
+    input  logic [ID_WIDTH-1:0]      s_axil_awid,
     input  logic [AW-1:0]            s_axil_awaddr,
     input  logic [2:0]               s_axil_awprot,
-    input  logic                     s_axil_awlock,
     input  logic [USER_WIDTH-1:0]    s_axil_awuser,
     input  logic                     s_axil_awtrace,
-    input  logic [LOOP_WIDTH-1:0]    s_axil_awloop,
-    input  logic [MPAM_WIDTH-1:0]    s_axil_awmpam,
-    input  logic [MECID_WIDTH-1:0]   s_axil_awmecid,
-    input  logic [NSAID_WIDTH-1:0]   s_axil_awnsaid,
     input  logic                     s_axil_awvalid,
     output logic                     s_axil_awready,
 
@@ -134,32 +123,28 @@ module axil5_opt_slave
     output logic                     s_axil_wready,
 
     // ---- Write response channel (B) ------------------------------------
+    output logic [ID_WIDTH-1:0]      s_axil_bid,
     output logic [1:0]               s_axil_bresp,
     output logic [USER_WIDTH-1:0]    s_axil_buser,
     output logic                     s_axil_btrace,
-    output logic [LOOP_WIDTH-1:0]    s_axil_bloop,
     output logic                     s_axil_bvalid,
     input  logic                     s_axil_bready,
 
     // ---- Read address channel (AR) -------------------------------------
+    input  logic [ID_WIDTH-1:0]      s_axil_arid,
     input  logic [AW-1:0]            s_axil_araddr,
     input  logic [2:0]               s_axil_arprot,
-    input  logic                     s_axil_arlock,
     input  logic [USER_WIDTH-1:0]    s_axil_aruser,
     input  logic                     s_axil_artrace,
-    input  logic [LOOP_WIDTH-1:0]    s_axil_arloop,
-    input  logic [MPAM_WIDTH-1:0]    s_axil_armpam,
-    input  logic [MECID_WIDTH-1:0]   s_axil_armecid,
-    input  logic [NSAID_WIDTH-1:0]   s_axil_arnsaid,
     input  logic                     s_axil_arvalid,
     output logic                     s_axil_arready,
 
     // ---- Read data channel (R) -----------------------------------------
+    output logic [ID_WIDTH-1:0]      s_axil_rid,
     output logic [DW-1:0]            s_axil_rdata,
     output logic [1:0]               s_axil_rresp,
     output logic [USER_WIDTH-1:0]    s_axil_ruser,
     output logic                     s_axil_rtrace,
-    output logic [LOOP_WIDTH-1:0]    s_axil_rloop,
     output logic [POISON_WIDTH-1:0]  s_axil_rpoison,
     output logic                     s_axil_rvalid,
     input  logic                     s_axil_rready,
@@ -169,18 +154,11 @@ module axil5_opt_slave
     // BFM drove the value; there is nothing in a Lite response for them to
     // come back in.
     output logic [2:0]               o_last_aw_prot,
-    output logic [MPAM_WIDTH-1:0]    o_last_aw_mpam,
-    output logic [MECID_WIDTH-1:0]   o_last_aw_mecid,
-    output logic [NSAID_WIDTH-1:0]   o_last_aw_nsaid,
     output logic [USER_WIDTH-1:0]    o_last_w_user,
-    output logic [2:0]               o_last_ar_prot,
-    output logic [MPAM_WIDTH-1:0]    o_last_ar_mpam,
-    output logic [MECID_WIDTH-1:0]   o_last_ar_mecid,
-    output logic [NSAID_WIDTH-1:0]   o_last_ar_nsaid
+    output logic [2:0]               o_last_ar_prot
 );
 
     localparam logic [1:0] RESP_OKAY   = 2'b00;
-    localparam logic [1:0] RESP_EXOKAY = 2'b01;
 
     // ---- Storage --------------------------------------------------------
     // Plain arrays: this is test collateral, so a behavioural memory is the
@@ -191,10 +169,9 @@ module axil5_opt_slave
     // ---- AW holding register -------------------------------------------
     logic                    r_aw_full;
     logic [IDX_W-1:0]        r_aw_idx;
-    logic                    r_aw_lock;
+    logic [ID_WIDTH-1:0]     r_aw_id;
     logic [USER_WIDTH-1:0]   r_aw_user;
     logic                    r_aw_trace;
-    logic [LOOP_WIDTH-1:0]   r_aw_loop;
 
     // ---- W holding register ---------------------------------------------
     logic                    r_w_full;
@@ -204,17 +181,17 @@ module axil5_opt_slave
 
     // ---- B / R response registers ---------------------------------------
     logic                    r_b_valid;
+    logic [ID_WIDTH-1:0]     r_b_id;
     logic [1:0]              r_b_resp;
     logic [USER_WIDTH-1:0]   r_b_user;
     logic                    r_b_trace;
-    logic [LOOP_WIDTH-1:0]   r_b_loop;
 
     logic                    r_r_valid;
     logic [DW-1:0]           r_r_data;
+    logic [ID_WIDTH-1:0]     r_r_id;
     logic [1:0]              r_r_resp;
     logic [USER_WIDTH-1:0]   r_r_user;
     logic                    r_r_trace;
-    logic [LOOP_WIDTH-1:0]   r_r_loop;
     logic [POISON_WIDTH-1:0] r_r_poison;
 
     // ---- Handshakes ------------------------------------------------------
@@ -252,18 +229,16 @@ module axil5_opt_slave
         if (`RST_ASSERTED(aresetn)) begin
             r_aw_full  <= 1'b0;
             r_aw_idx   <= '0;
-            r_aw_lock  <= 1'b0;
+            r_aw_id    <= '0;
             r_aw_user  <= '0;
             r_aw_trace <= 1'b0;
-            r_aw_loop  <= '0;
         end else begin
             if (w_aw_fire) begin
                 r_aw_full  <= 1'b1;
                 r_aw_idx   <= s_axil_awaddr[ADDR_LSB +: IDX_W];
-                r_aw_lock  <= s_axil_awlock;
+                r_aw_id    <= s_axil_awid;
                 r_aw_user  <= s_axil_awuser;
                 r_aw_trace <= s_axil_awtrace;
-                r_aw_loop  <= s_axil_awloop;
             end else if (w_wr_commit) begin
                 r_aw_full  <= 1'b0;
             end
@@ -295,22 +270,22 @@ module axil5_opt_slave
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_b_valid <= 1'b0;
+            r_b_id    <= '0;
             r_b_resp  <= RESP_OKAY;
             r_b_user  <= '0;
             r_b_trace <= 1'b0;
-            r_b_loop  <= '0;
         end else begin
             if (w_wr_commit) begin
                 r_mem[r_aw_idx]    <= w_wr_data;
                 r_poison[r_aw_idx] <= r_w_poison;
 
                 r_b_valid <= 1'b1;
-                // Exclusive access answers EXOKAY; a normal write answers OKAY.
-                r_b_resp  <= (ENABLE_LOCK && r_aw_lock) ? RESP_EXOKAY : RESP_OKAY;
-                // Echo the transaction's sideband back on its response.
+                // No exclusive access on AXI5-Lite: every write answers OKAY.
+                r_b_resp  <= RESP_OKAY;
+                // Reflect the ID; echo the transaction's sideband.
+                r_b_id    <= r_aw_id;
                 r_b_user  <= r_aw_user;
                 r_b_trace <= r_aw_trace;
-                r_b_loop  <= r_aw_loop;
             end else if (w_b_fire) begin
                 r_b_valid <= 1'b0;
             end
@@ -322,38 +297,37 @@ module axil5_opt_slave
         if (`RST_ASSERTED(aresetn)) begin
             r_r_valid  <= 1'b0;
             r_r_data   <= '0;
+            r_r_id     <= '0;
             r_r_resp   <= RESP_OKAY;
             r_r_user   <= '0;
             r_r_trace  <= 1'b0;
-            r_r_loop   <= '0;
             r_r_poison <= '0;
         end else begin
             if (w_ar_fire) begin
                 r_r_valid  <= 1'b1;
                 r_r_data   <= r_mem[w_ar_idx];
                 r_r_poison <= r_poison[w_ar_idx];
-                r_r_resp   <= (ENABLE_LOCK && s_axil_arlock)
-                              ? RESP_EXOKAY : RESP_OKAY;
+                r_r_resp   <= RESP_OKAY;
+                r_r_id     <= s_axil_arid;
                 r_r_user   <= s_axil_aruser;
                 r_r_trace  <= s_axil_artrace;
-                r_r_loop   <= s_axil_arloop;
             end else if (w_r_fire) begin
                 r_r_valid  <= 1'b0;
             end
         end
     )
 
+    assign s_axil_bid     = r_b_id;
     assign s_axil_bresp   = r_b_resp;
     assign s_axil_buser = ENABLE_USER ? r_b_user : '0;
     assign s_axil_btrace = ENABLE_TRACE ? r_b_trace : 1'b0;
-    assign s_axil_bloop = ENABLE_LOOP ? r_b_loop : '0;
     assign s_axil_bvalid  = r_b_valid;
 
+    assign s_axil_rid     = r_r_id;
     assign s_axil_rdata   = r_r_data;
     assign s_axil_rresp   = r_r_resp;
     assign s_axil_ruser = ENABLE_USER ? r_r_user : '0;
     assign s_axil_rtrace = ENABLE_TRACE ? r_r_trace : 1'b0;
-    assign s_axil_rloop = ENABLE_LOOP ? r_r_loop : '0;
     assign s_axil_rpoison = ENABLE_POISON ? r_r_poison : '0;
     assign s_axil_rvalid  = r_r_valid;
 
@@ -363,32 +337,20 @@ module axil5_opt_slave
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             o_last_aw_prot  <= '0;
-            o_last_aw_mpam  <= '0;
-            o_last_aw_mecid <= '0;
-            o_last_aw_nsaid <= '0;
             o_last_w_user   <= '0;
             o_last_ar_prot  <= '0;
-            o_last_ar_mpam  <= '0;
-            o_last_ar_mecid <= '0;
-            o_last_ar_nsaid <= '0;
         end else begin
             // A disabled group is not carried, so its tap stays at zero --
             // the same thing a caller sees from the production modules, whose
             // payload simply has no field for it.
             if (w_aw_fire) begin
                 o_last_aw_prot  <= s_axil_awprot;
-                o_last_aw_mpam  <= ENABLE_MPAM  ? s_axil_awmpam  : '0;
-                o_last_aw_mecid <= ENABLE_MECID ? s_axil_awmecid : '0;
-                o_last_aw_nsaid <= ENABLE_NSAID ? s_axil_awnsaid : '0;
             end
             if (w_w_fire) begin
                 o_last_w_user   <= ENABLE_USER ? s_axil_wuser : '0;
             end
             if (w_ar_fire) begin
                 o_last_ar_prot  <= s_axil_arprot;
-                o_last_ar_mpam  <= ENABLE_MPAM  ? s_axil_armpam  : '0;
-                o_last_ar_mecid <= ENABLE_MECID ? s_axil_armecid : '0;
-                o_last_ar_nsaid <= ENABLE_NSAID ? s_axil_arnsaid : '0;
             end
         end
     )

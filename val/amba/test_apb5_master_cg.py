@@ -27,6 +27,7 @@ from cocotb.triggers import Timer, RisingEdge
 from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
+from TBClasses.amba.apb5_wakeup import check_requester_pwakeup
 from TBClasses.amba.apb5_master_cg_tb import APB5MasterCGBasicTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
@@ -72,6 +73,32 @@ async def cocotb_test_apb5_master_cg_basic(dut):
     await tb.wait_clocks('pclk', 10)
 
     tb.log.info("=== APB5 Master CG Basic Test PASSED ===")
+
+
+@cocotb.test(timeout_time=200, timeout_unit="us")
+async def cocotb_test_apb5_master_cg_pwakeup(dut):
+    """PWAKEUP is a Requester OUTPUT (IHI 0024E 3.7.2, Table 3-7; issue #102
+    item 7). The master must raise it at least a cycle before PSEL, hold it
+    through PREADY, and drop it once nothing is pending. The pre-fix RTL
+    had PWAKEUP as a master INPUT, so it never drove it and this fails."""
+    tb = APB5MasterCGBasicTB(dut)
+    await tb.setup_clocks_and_reset()
+    dut.cfg_cg_enable.value = 1
+    dut.cfg_cg_idle_count.value = 4
+    dut.rsp_ready.value = 1
+
+    async def drive_command(i):
+        while not int(dut.cmd_ready.value):
+            await RisingEdge(dut.pclk)
+        dut.cmd_valid.value = 1
+        dut.cmd_pwrite.value = i & 1
+        dut.cmd_paddr.value = (0x40 + 4 * i) & 0xFF
+        dut.cmd_pwdata.value = 0x1000 + i
+        dut.cmd_pstrb.value = 0xF
+        await RisingEdge(dut.pclk)
+        dut.cmd_valid.value = 0
+
+    await check_requester_pwakeup(dut, tb.log, drive_command)
 
 
 def generate_apb5_master_cg_params():
@@ -158,23 +185,27 @@ def test_apb5_master_cg(request, addr_width, data_width, auser_width, enable_par
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
+    # One run() per cocotb test: a comma-joined testcase string selects
+    # nothing under the conftest exact-name anchor (BUG-015 patch).
+    testcases = ["cocotb_test_apb5_master_cg_basic", "cocotb_test_apb5_master_cg_pwakeup"]
     try:
-        run(
-            python_search=[tests_dir],
-            verilog_sources=verilog_sources,
-            includes=includes,
-            toplevel=toplevel,
-            module=module,
-            parameters=rtl_parameters,
-            sim_build=sim_build,
-            extra_env=extra_env,
-            waves=enable_waves,
-            plus_args=(['--trace'] if enable_waves else []),
-            keep_files=True,
-            compile_args=compile_args,
-            testcase="cocotb_test_apb5_master_cg_basic",
-            simulator="verilator",
-        )
+        for testcase in testcases:
+            run(
+                python_search=[tests_dir],
+                verilog_sources=verilog_sources,
+                includes=includes,
+                toplevel=toplevel,
+                module=module,
+                parameters=rtl_parameters,
+                sim_build=sim_build,
+                extra_env=extra_env,
+                waves=enable_waves,
+                plus_args=(['--trace'] if enable_waves else []),
+                keep_files=True,
+                compile_args=compile_args,
+                testcase=testcase,
+                simulator="verilator",
+            )
     except Exception as e:
         print(f"Test failed: {str(e)}")
         print(f"Logs preserved at: {log_path}")

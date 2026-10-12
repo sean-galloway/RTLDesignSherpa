@@ -62,7 +62,7 @@ module bridge_1x2_rd_axi5s_xbar
 
     // AXI5 native sideband (A5-2 slice 2)
     output logic         sram_rd_axi_artrace,
-    output logic         sram_rd_axi_arunique,
+    output logic         sram_rd_axi_aridunq,
     input  logic         sram_rd_axi_rtrace,
 
     output  logic [3:0]  sram_rd_axi_arid,
@@ -174,7 +174,7 @@ module bridge_1x2_rd_axi5s_xbar
     assign sram_rd_axi_arregion = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.region : '0;
     assign sram_rd_axi_aruser   = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.user : '0;
     assign sram_rd_axi_artrace  = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.trace : '0;  // AXI5 sideband
-    assign sram_rd_axi_arunique  = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.uniq : '0;  // AXI5 sideband
+    assign sram_rd_axi_aridunq  = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.idunq : '0;  // AXI5 sideband
     assign sram_rd_axi_arvalid  = cpu_rd_32b_ar_to_sram_rd && cpu_rd_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays

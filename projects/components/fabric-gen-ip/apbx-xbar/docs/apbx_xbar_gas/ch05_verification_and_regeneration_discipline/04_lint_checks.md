@@ -29,7 +29,7 @@ The generated RTL must pass the project's lint flow. The most common lint concer
 - `slave_addr_bits` is `ceil(log2(num_slaves))` and is at least 1.
 - `slave_offset_bits` is `log2(slave_size)` and is used to slice the offset.
 - The `BASE_ADDR` parameter is `ADDR_WIDTH` bits.
-- APB5 sideband signals are 1-bit logic; parity vectors are `STRB_WIDTH` or 1 bit as appropriate.
+- APB5 sideband signals are 1-bit logic. Check vectors are `(ADDR_WIDTH+7)/8` bits for `PADDRCHK`, `STRB_WIDTH` bits for `PWDATACHK`/`PRDATACHK`, and 1 bit for every other `*CHK` signal.
 
 ## Unused signal checks
 

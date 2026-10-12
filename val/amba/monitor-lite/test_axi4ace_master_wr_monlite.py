@@ -161,7 +161,7 @@ def test_axi4ace_master_wr_monlite(
             raise FileNotFoundError(f"RTL source not found: {src}")
 
     aw_size = (
-        id_width + addr_width + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + user_width + 3
+        id_width + addr_width + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + user_width + 3 + 2 + 2  # + awsnoop, awdomain, awbar
     )
     w_size = data_width + wstrb_width + 1 + user_width
     b_size = id_width + 2 + user_width

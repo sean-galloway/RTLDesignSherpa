@@ -39,8 +39,8 @@ The APB5 Master module implements a complete AMBA APB5 master interface with all
 - PAUSER: User-defined request attributes
 - PWUSER: User-defined write data attributes
 - PRUSER/PBUSER: User-defined response attributes from slave
-- PWAKEUP: Wake-up signal handling from slave
-- Optional parity support for data integrity
+- PWAKEUP: Requester wake-up output (IHI 0024E §3.7.2), with PWAKEUPCHK
+- Optional IHI 0024E ch. 5 interface parity (`*CHK` signals, odd parity)
 - Command and response FIFO buffering
 - Configurable FIFO depths
 
@@ -114,7 +114,7 @@ and 42 respectively.
 | m_apb_PRDATA | DATA_WIDTH | Input | Read data from slave |
 | m_apb_PSLVERR | 1 | Input | Slave error response |
 | m_apb_PREADY | 1 | Input | Slave ready |
-| m_apb_PWAKEUP | 1 | Input | Wake-up signal from slave |
+| m_apb_PWAKEUP | 1 | Output | Requester wake-up (IHI 0024E §3.7.2): HIGH while a request is pending or a transfer is in flight |
 | m_apb_PRUSER | RUSER_WIDTH | Input | User-defined read data attributes |
 | m_apb_PBUSER | BUSER_WIDTH | Input | User-defined response attributes |
 
@@ -122,12 +122,20 @@ and 42 respectively.
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
-| m_apb_PWDATAPARITY | STRB_WIDTH | Output | Write data parity (per byte) |
-| m_apb_PADDRPARITY | 1 | Output | Address parity |
-| m_apb_PCTRLPARITY | 1 | Output | Control signals parity |
-| m_apb_PRDATAPARITY | STRB_WIDTH | Input | Read data parity from slave |
-| m_apb_PREADYPARITY | 1 | Input | PREADY parity from slave |
-| m_apb_PSLVERRPARITY | 1 | Input | PSLVERR parity from slave |
+| m_apb_PADDRCHK | ceil(ADDR_WIDTH/8) | Output | Odd parity over PADDR, one bit per 8 bits |
+| m_apb_PCTRLCHK | 1 | Output | Odd parity over PPROT and PWRITE (PNSE not carried) |
+| m_apb_PSELCHK | 1 | Output | Odd parity over PSEL (the spec's PSELxCHK) |
+| m_apb_PENABLECHK | 1 | Output | Odd parity over PENABLE |
+| m_apb_PWDATACHK | DATA_WIDTH/8 | Output | Odd parity over PWDATA, one bit per byte lane |
+| m_apb_PSTRBCHK | 1 | Output | Odd parity over all of PSTRB |
+| m_apb_PAUSERCHK | ceil(AUSER_WIDTH/8) | Output | Odd parity over PAUSER, one bit per 8 bits |
+| m_apb_PWUSERCHK | ceil(WUSER_WIDTH/8) | Output | Odd parity over PWUSER, one bit per 8 bits |
+| m_apb_PRDATACHK | DATA_WIDTH/8 | Input | Odd parity over PRDATA, one bit per byte lane |
+| m_apb_PREADYCHK | 1 | Input | Odd parity over PREADY |
+| m_apb_PSLVERRCHK | 1 | Input | Odd parity over PSLVERR |
+| m_apb_PWAKEUPCHK | 1 | Output | Odd parity over PWAKEUP |
+| m_apb_PRUSERCHK | ceil(RUSER_WIDTH/8) | Input | Odd parity over PRUSER, one bit per 8 bits |
+| m_apb_PBUSERCHK | ceil(BUSER_WIDTH/8) | Input | Odd parity over PBUSER, one bit per 8 bits |
 
 ### Command Interface
 
@@ -151,7 +159,6 @@ and 42 respectively.
 | rsp_ready | 1 | Input | Response ready |
 | rsp_prdata | DATA_WIDTH | Output | Response read data |
 | rsp_pslverr | 1 | Output | Response error status |
-| rsp_pwakeup | 1 | Output | Response wake-up indicator |
 | rsp_pruser | RUSER_WIDTH | Output | Response read user attributes |
 | rsp_pbuser | BUSER_WIDTH | Output | Response user attributes |
 
@@ -159,9 +166,8 @@ and 42 respectively.
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
-| parity_error_rdata | 1 | Output | Read-data parity mismatch (tied to 0 when ENABLE_PARITY=0) |
-| parity_error_ctrl | 1 | Output | PREADY/PSLVERR parity mismatch (tied to 0 when ENABLE_PARITY=0) |
-| wakeup_pending | 1 | Output | Sticky flag: PWAKEUP was seen and no transaction has started since |
+| parity_error_rdata | 1 | Output | PRDATACHK or PRUSERCHK mismatch on a read completion (tied to 0 when ENABLE_PARITY=0) |
+| parity_error_ctrl | 1 | Output | PREADYCHK, PSLVERRCHK or PBUSERCHK mismatch (tied to 0 when ENABLE_PARITY=0) |
 
 ---
 
@@ -228,7 +234,7 @@ flowchart LR
     prdata --> rf
     pslverr --> rf
     pready --> FSM
-    pwakeup --> rf
+    FSM --> pwakeup
     pruser --> rf
     pbuser --> rf
 
@@ -267,18 +273,25 @@ stateDiagram-v2
 - **PRUSER**: Returns user-defined attributes with read data
 - **PBUSER**: Returns user-defined attributes with the response
 
-**Wake-up Support:**
-- **PWAKEUP**: Slave can assert to indicate wake-up events
-- Captured in response packet (`rsp_pwakeup`) for software handling
-- Also latched into `wakeup_pending`, which sets on any PWAKEUP pulse and
-  clears once the FSM leaves IDLE to start a transaction
+**Wake-up Support (IHI 0024E §3.7.2):**
+- **PWAKEUP is a Requester output.** The master drives `m_apb_PWAKEUP` from a
+  flop (glitch-free), HIGH while a command is pending (`cmd_valid` at the fub
+  port or a command queued in the command skid) or a transfer is in flight.
+- A command arriving on an idle bus raises PWAKEUP on the next edge, one cycle
+  before PSEL, as §3.7.2 recommends.
+- Once PWAKEUP and PSEL are HIGH together, PWAKEUP stays HIGH through the PREADY
+  cycle, as §3.7.2 requires; it drops once nothing further is pending.
+- A Completer may wait for PWAKEUP before PREADY, so a pending request never
+  leaves it low. The terms are this side's pending work only, never the peer's
+  PREADY.
 
 **Parity Protection:**
-- Optional parity on data, address, and control signals
-- Enables detection of single-bit transmission errors
+- Optional IHI 0024E chapter 5 interface parity: `*CHK` signals, odd parity,
+  one check bit per 8 payload bits
+- Detects a single-bit error in any covered byte or control signal
 
 See [Parity Implementation](#parity-implementation) for the exact coverage of
-each parity bit.
+each check signal.
 
 ---
 
@@ -326,9 +339,9 @@ each parity bit.
 > exercises:
 >
 > - PCLK
-> - Transaction signals
-> - PWAKEUP assertion
-> - Response capture
+> - cmd_valid on an idle bus
+> - PWAKEUP rising one cycle before PSEL
+> - PWAKEUP held through the PREADY cycle, then dropped when idle
 
 ---
 
@@ -362,7 +375,7 @@ apb5_master #(
     .m_apb_PRDATA   (m_apb_prdata),
     .m_apb_PSLVERR  (m_apb_pslverr),
     .m_apb_PREADY   (m_apb_pready),
-    .m_apb_PWAKEUP  (m_apb_pwakeup),
+    .m_apb_PWAKEUP  (m_apb_pwakeup),   // output: Requester wake-up
     .m_apb_PRUSER   (m_apb_pruser),
     .m_apb_PBUSER   (m_apb_pbuser),
 
@@ -382,22 +395,26 @@ apb5_master #(
     .rsp_ready      (rsp_ready),
     .rsp_prdata     (rsp_rdata),
     .rsp_pslverr    (rsp_error),
-    .rsp_pwakeup    (rsp_wakeup),
     .rsp_pruser     (rsp_ruser),
     .rsp_pbuser     (rsp_buser),
 
     // Parity interface (unused here because ENABLE_PARITY=0)
-    .m_apb_PWDATAPARITY  (),
-    .m_apb_PADDRPARITY   (),
-    .m_apb_PCTRLPARITY   (),
-    .m_apb_PRDATAPARITY  ('0),
-    .m_apb_PREADYPARITY  (1'b0),
-    .m_apb_PSLVERRPARITY (1'b0),
+    .m_apb_PADDRCHK      (),
+    .m_apb_PCTRLCHK      (),
+    .m_apb_PSELCHK       (),
+    .m_apb_PENABLECHK    (),
+    .m_apb_PWDATACHK     (),
+    .m_apb_PSTRBCHK      (),
+    .m_apb_PAUSERCHK     (),
+    .m_apb_PWUSERCHK     (),
+    .m_apb_PRDATACHK     ('0),
+    .m_apb_PREADYCHK     (1'b0),
+    .m_apb_PSLVERRCHK    (1'b0),
+    .m_apb_PWAKEUPCHK    (),
+    .m_apb_PRUSERCHK     ('0),
+    .m_apb_PBUSERCHK     ('0),
     .parity_error_rdata  (),
-    .parity_error_ctrl   (),
-
-    // Status
-    .wakeup_pending (apb_wakeup_pending)
+    .parity_error_ctrl   ()
 );
 ```
 
@@ -410,7 +427,7 @@ apb5_master #(
 | Feature | APB4 | APB5 | Implemented here |
 |---------|------|------|------------------|
 | User signals | None | PAUSER, PWUSER, PRUSER, PBUSER | Yes |
-| Wake-up | None | PWAKEUP | Yes (slave to master) |
+| Wake-up | None | PWAKEUP | Yes (master output, §3.7.2) |
 | Parity | None | Optional signal parity | Yes (`ENABLE_PARITY`) |
 | Non-secure extension | None | PNSE | No -- no port |
 | Exclusive access | None | PEXCL, PEXOKAY | No -- no ports |
@@ -424,31 +441,56 @@ apb5_master #(
 
 ### Parity Implementation
 
-When `ENABLE_PARITY=1` the master generates parity on its outgoing signals and
-checks parity on the signals returned by the slave. Coverage differs per signal
-group, which determines what a single parity bit can detect:
+When `ENABLE_PARITY=1` the master drives the requester check signals
+(`PADDRCHK` to `PWUSERCHK` below) and checks the completer ones. With
+`ENABLE_PARITY=0` the outputs are tied LOW and the inputs are ignored.
 
-| Parity signal | Covers | Granularity |
-|---------------|--------|-------------|
-| m_apb_PWDATAPARITY[i] | PWDATA byte lane `i` | One bit per byte (STRB_WIDTH bits total) |
-| m_apb_PADDRPARITY | Whole PADDR | One bit for the entire address |
-| m_apb_PCTRLPARITY | {PWRITE, PSTRB, PPROT} concatenated | One bit for the whole control group |
-| m_apb_PRDATAPARITY[i] | PRDATA byte lane `i` (checked) | One bit per byte |
-| m_apb_PREADYPARITY | PREADY (checked) | One bit |
-| m_apb_PSLVERRPARITY | PSLVERR (checked) | One bit |
+Parity follows AMBA APB IHI 0024E chapter 5 (§5.3, Table 5-1):
 
-Each parity bit is the XOR reduction of the covered signals, so it is 1 when the
-covered field contains an odd number of ones (an even-parity encoding: field plus
-parity bit always has an even number of ones). Per-byte data parity detects one
-bit error in each byte independently; the single address and control bits detect
-only an odd number of errors across the whole group.
+- **Odd parity.** A payload slice plus its check bit always hold an odd number
+  of ones. On a single-bit critical control the check bit is therefore the
+  inversion of the signal.
+- **One check bit per 8 payload bits.** Bit `[n]` of a multi-bit check signal
+  covers payload bits `[8n+7:8n]`; when the payload is not a whole number of
+  bytes, the top check bit covers the bits that remain. `PADDRCHK` on a 12-bit
+  address is therefore 2 bits: `[7:0]` and `[11:8]`.
+- **Coverage sets.** `PCTRLCHK` covers `PPROT` and `PWRITE` (and `PNSE`, which
+  this module does not carry, so it counts as LOW). `PSTRB` has its own single
+  `PSTRBCHK`.
+- Each check bit is computed by an `rtl/common/dataint_parity` instance with
+  `CHUNKS = 1` and `parity_type = 0` (odd), one instance per spec byte, so the
+  spec's short final byte comes out at any width.
 
-Checking is purely combinational and qualified by the bus state:
-`parity_error_rdata` and `parity_error_ctrl` are only asserted while
-`m_apb_PREADY && m_apb_PSEL && m_apb_PENABLE`, and read 0 otherwise. Downstream
-error handling is system-specific -- the master does not itself abort or retry a
-transfer on a parity mismatch. Parity adds combinational logic but no pipeline
-stages, so it costs no additional latency.
+| Check signal | Covers | Width | Check Enable (Table 5-1) |
+|--------------|--------|-------|--------------------------|
+| PADDRCHK | PADDR | ceil(ADDR_WIDTH/8) | PSEL |
+| PCTRLCHK | PPROT, PWRITE | 1 | PSEL |
+| PSELCHK | PSEL (spec PSELxCHK) | 1 | PRESETn |
+| PENABLECHK | PENABLE | 1 | PSEL |
+| PWDATACHK | PWDATA | DATA_WIDTH/8 | PSEL & PWRITE |
+| PSTRBCHK | PSTRB | 1 | PSEL & PWRITE |
+| PAUSERCHK | PAUSER | ceil(AUSER_WIDTH/8) | PSEL |
+| PWUSERCHK | PWUSER | ceil(WUSER_WIDTH/8) | PSEL & PWRITE |
+| PRDATACHK | PRDATA | DATA_WIDTH/8 | PSEL & PENABLE & PREADY & !PWRITE |
+| PREADYCHK | PREADY | 1 | PSEL & PENABLE |
+| PSLVERRCHK | PSLVERR | 1 | PSEL & PENABLE & PREADY |
+| PWAKEUPCHK | PWAKEUP | 1 | PRESETn |
+| PRUSERCHK | PRUSER | ceil(RUSER_WIDTH/8) | PSEL & PENABLE & PREADY & !PWRITE |
+| PBUSERCHK | PBUSER | ceil(BUSER_WIDTH/8) | PSEL & PENABLE & PREADY |
+
+`PWAKEUPCHK` travels with `PWAKEUP`: both are Requester outputs (IHI 0024E
+§3.7.2, Table 3-7), generated by the master and checked by the slave.
+
+The error flags are combinational and assert only while the failing check's
+Check Enable term holds:
+
+- `parity_error_rdata`: `PRDATACHK` or `PRUSERCHK` wrong on a read completion.
+- `parity_error_ctrl`: `PREADYCHK`, `PSLVERRCHK` or `PBUSERCHK` wrong.
+- `PWAKEUPCHK` is generated here, so the master does not check it.
+
+The master reports a mismatch but does not abort or retry the transfer; the
+spec leaves that policy to the system (§5.4). Parity adds combinational logic
+but no pipeline stages, so it costs no latency.
 
 ---
 
@@ -463,7 +505,7 @@ stages, so it costs no additional latency.
 
 ## Testing
 
-`val/amba/test_apb5_master.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+`val/amba/test_apb5_master.py` exercises this module. It collects 5 parameter cases at the default `REG_LEVEL`; the two `ENABLE_PARITY=1` cases also run `cocotb_test_apb5_master_parity`, a directed IHI 0024E ch. 5 check (generated `*CHK` values, flag-per-check error injection, Check Enable gating). The `formal/amba/apb5_master` proof checks the same parity rules with `ENABLE_PARITY=1`.
 
 ```bash
 source env_python
@@ -472,7 +514,7 @@ pytest val/amba/test_apb5_master.py -v
 
 ## References
 
-- Arm. *AMBA APB Protocol Specification*, ARM IHI 0024E, Feb. 2023 (APB5 first published in Issue D, Apr. 2021). [developer.arm.com/documentation/ihi0024/e](https://developer.arm.com/documentation/ihi0024/e/) -- §3.7 "Wake-up signaling" (`PWAKEUP`), §3.8 "User signaling" (`PAUSER`/`PWUSER`/`PRUSER`/`PBUSER`), ch. 5 "Interface parity protection" (`ENABLE_PARITY`); transfers and operating states (ch. 3-4) are as in APB4. The spec requires odd parity on `*CHK` signals (§5.3); this RTL generates even parity (`^data`) on `*PARITY` ports and folds `PSTRB` into the control parity, so it interoperates with this library but not with a spec-conforming checker. Citation only.
+- Arm. *AMBA APB Protocol Specification*, ARM IHI 0024E, Feb. 2023 (APB5 first published in Issue D, Apr. 2021). [developer.arm.com/documentation/ihi0024/e](https://developer.arm.com/documentation/ihi0024/e/) -- §3.7 "Wake-up signaling" (`PWAKEUP`), §3.8 "User signaling" (`PAUSER`/`PWUSER`/`PRUSER`/`PBUSER`), ch. 5 "Interface parity protection" (`ENABLE_PARITY`); transfers and operating states (ch. 3-4) are as in APB4. The `*CHK` signals follow §5.3 and Table 5-1: odd parity, one check bit per 8 payload bits, `PCTRLCHK` over `PPROT`/`PWRITE` and a separate `PSTRBCHK` (issue #102 item 1). Citation only.
 - Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) -- the valid/ready channel discipline behind the `gaxi_skid_buffer` queues: a buffered stage may stall or add latency without changing what the endpoints compute.
 - Maaref, M. *Architecting and Building High-Speed SoCs*, Packt, 2022, ch. 3 "Basic and Advanced On-Chip Busses and Interconnects", section "ARM AMBA interconnect protocols suite" (APB bus protocol overview) -- textbook treatment (secondary source).
 - Chipressian. *Crack the Hardware Interview - from RTL Designers' Perspective*, Part 2 ch. 2 "Handshake Protocols" (valid-ready protocol and valid-ready slices) -- textbook treatment of the skid buffer (secondary source).

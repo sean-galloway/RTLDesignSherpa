@@ -28,6 +28,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.apb5_slave_stub_tb import APB5SlaveStubBasicTB
+from TBClasses.amba.apb5_parity import run_completer_parity_test
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
@@ -62,11 +63,51 @@ async def cocotb_test_apb5_slave_stub_basic(dut):
     dut.rsp_data.value = 0
 
     # Wake-up control
-    dut.wakeup_request.value = 0
+    dut.s_apb_PWAKEUP.value = 0
 
     await tb.wait_clocks('pclk', 10)
 
     tb.log.info("=== APB5 Slave Stub Basic Test PASSED ===")
+
+
+@cocotb.test(timeout_time=400, timeout_unit="us")
+async def cocotb_test_apb5_slave_stub_parity(dut):
+    """IHI 0024E ch. 5 interface parity on the stub's own parity logic
+    (issue #102 item 1); see run_completer_parity_test. The pre-#102 RTL
+    generated EVEN PRDATA parity, so the first read fails."""
+    tb = APB5SlaveStubBasicTB(dut)
+    if not tb.ENABLE_PARITY:
+        tb.log.info("ENABLE_PARITY=0: parity test not applicable")
+        return
+    rng = random.Random(int(os.environ.get('SEED', '1')))
+    uw = tb.AUSER_WIDTH            # the runner ties every user width to AUSER_WIDTH
+    dw = tb.DATA_WIDTH
+    dut.cmd_ready.value = 0
+    dut.rsp_valid.value = 0
+    dut.rsp_data.value = 0
+    dut.s_apb_PWAKEUP.value = 0
+    await tb.setup_clocks_and_reset()
+
+    async def backend():
+        dut.cmd_ready.value = 1
+        while True:
+            await RisingEdge(dut.pclk)
+            if int(dut.cmd_valid.value) and int(dut.cmd_ready.value):
+                # rsp_data = {pslverr, prdata, pruser, pbuser}
+                pkt = rng.getrandbits(1)
+                pkt = (pkt << dw) | rng.getrandbits(dw)
+                pkt = (pkt << uw) | rng.getrandbits(uw)
+                pkt = (pkt << uw) | rng.getrandbits(uw)
+                dut.rsp_valid.value = 1
+                dut.rsp_data.value = pkt
+                await RisingEdge(dut.pclk)
+                while not int(dut.rsp_ready.value):
+                    await RisingEdge(dut.pclk)
+                dut.rsp_valid.value = 0
+
+    cocotb.start_soon(backend())
+    await run_completer_parity_test(
+        dut, tb.log, (tb.ADDR_WIDTH, dw, uw, uw, uw, uw), seed=rng.getrandbits(32))
 
 
 def generate_apb5_slave_stub_params():
@@ -75,6 +116,7 @@ def generate_apb5_slave_stub_params():
         (12, 32, 4, 0),  # Basic
         (16, 32, 8, 0),  # 16-bit address
         (12, 64, 4, 1),  # With parity
+        (20, 32, 12, 1), # Parity, short top byte on PADDR and the user signals
     ]
 
 
@@ -152,23 +194,27 @@ def test_apb5_slave_stub(request, addr_width, data_width, auser_width, enable_pa
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
+    testcases = ["cocotb_test_apb5_slave_stub_basic"]
+    if enable_parity:
+        testcases.append("cocotb_test_apb5_slave_stub_parity")
     try:
-        run(
-            python_search=[tests_dir],
-            verilog_sources=verilog_sources,
-            includes=includes,
-            toplevel=toplevel,
-            module=module,
-            parameters=rtl_parameters,
-            sim_build=sim_build,
-            extra_env=extra_env,
-            waves=enable_waves,
-            plus_args=(['--trace'] if enable_waves else []),
-            keep_files=True,
-            compile_args=compile_args,
-            testcase="cocotb_test_apb5_slave_stub_basic",
-            simulator="verilator",
-        )
+        for testcase in testcases:
+            run(
+                python_search=[tests_dir],
+                verilog_sources=verilog_sources,
+                includes=includes,
+                toplevel=toplevel,
+                module=module,
+                parameters=rtl_parameters,
+                sim_build=sim_build,
+                extra_env=extra_env,
+                waves=enable_waves,
+                plus_args=(['--trace'] if enable_waves else []),
+                keep_files=True,
+                compile_args=compile_args,
+                testcase=testcase,
+                simulator="verilator",
+            )
     except Exception as e:
         print(f"Test failed: {str(e)}")
         print(f"Logs preserved at: {log_path}")

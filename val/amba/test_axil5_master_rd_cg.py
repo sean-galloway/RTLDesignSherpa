@@ -21,11 +21,11 @@ AXI5-Lite optional groups enabled, so every phase, check and randomizer
 sweep here is the AXI4-Lite flow running against AXI5-Lite RTL.
 
 What differs is the DUT and what rides with it. The AXI5-Lite modules default
-every ENABLE_* to 1, so this exercises AxUSER/AxTRACE/AxLOOP/AxMPAM/AxMECID/
-AxNSAID/AxLOCK and W/R POISON on real transport RTL -- which nothing did
-before: the only AXI5-Lite DUT was a behavioural test slave, and
-test_axil5_master_rd.py drives AXI4-Lite RTL by design, to pin the
-groups-off equivalence.
+to ID_WIDTH=4 and every ENABLE_* to 1, so this exercises AWID/BID and
+ARID/RID, AxUSER/xUSER, AxTRACE/xTRACE and W/R POISON on real transport RTL.
+Every transaction carries a rotating non-zero ID that must come back on its
+response (bin/TBClasses/axil5/axil5_id_check.py). The groups-off, no-ID
+equivalence against AXI4-Lite is test_axil5_axil4_equivalence.py.
 AXIL5 Master Read Clock Gated Test Runner
 
 Test runner for the axil5_master_rd_cg module using the CocoTB framework.
@@ -48,10 +48,10 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.amba.amba_cg_ctrl import AxiClockGateCtrl
 
 # Import the base testbench (we'll extend it for CG testing)
-from TBClasses.axil5.axil5_master_read_tb import AXIL5MasterReadTB
+from TBClasses.axil5.axil5_master_read_tb import AXIL5MasterReadGroupsTB
 
 
-class AXIL5MasterReadCGTB(AXIL5MasterReadTB):
+class AXIL5MasterReadCGTB(AXIL5MasterReadGroupsTB):
     """
     Clock-gated AXIL5 Master Read testbench.
     Extends the base master read testbench with clock gating capabilities.

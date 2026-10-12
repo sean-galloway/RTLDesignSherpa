@@ -144,8 +144,12 @@ class AxisMonitorLiteTB(TBBase):
             if hasattr(d, name): getattr(d, name).value = 1
         for name in ('cfg_cg_enable', 'cfg_cg_idle_count'):
             if hasattr(d, name): getattr(d, name).value = 0
-        # AXIS5 endpoints carry TWAKEUP/TPARITY the BFMs do not drive
-        for name in (self.master_prefix + 'twakeup', self.master_prefix + 'tparity'):
+        # AXIS5 endpoints carry TWAKEUP and the IHI 0051B ch. 5 check inputs
+        # the AXIS BFMs do not drive (the runs leave ENABLE_PARITY=0)
+        chk_inputs = [self.master_prefix + 't' + f + 'chk'
+                      for f in ('data', 'strb', 'last', 'id', 'dest', 'user', 'valid', 'wakeup')]
+        chk_inputs.append(self.slave_prefix + 'treadychk')
+        for name in [self.master_prefix + 'twakeup'] + chk_inputs:
             if hasattr(d, name): getattr(d, name).value = 0
         d.cfg_error_enable.value = 1
         d.cfg_timeout_enable.value = 1

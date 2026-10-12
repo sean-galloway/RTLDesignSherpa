@@ -51,7 +51,8 @@ for (int m = 0; m < NUM_MASTERS; m++)
         m_axis_tdest[s]  = s_axis_tdest[m];
         m_axis_tid[s]    = s_axis_tid[m];
         m_axis_tuser[s]  = s_axis_tuser[m];
-        // TSTRB and TPARITY included when enabled
+        // TSTRB included when enabled; with --amba5 the payload check
+        // bits (TDATACHK..TUSERCHK) ride the same grant, carried unchanged
     end
 ```
 

@@ -215,6 +215,24 @@ def build_fabric_ace_contract(wb):
          "selects coherent transaction type.",
          "one AR per fill; address aligned",
          f"{HAS_INTERFACES}/03_fabric_ace.md"),
+        ("AR/AW", "m_axi_ardomain[1:0] / m_axi_awdomain[1:0]", "2", "out",
+         "amber_ace_top", "Tied 0b10 Outer Shareable: every amber transaction "
+         "is coherent and the rig has one shareability domain (IHI 0022H "
+         "Tables D3-7 / D3-8).",
+         "constant 0b10 on every AR and AW",
+         f"{HAS_INTERFACES}/03_fabric_ace.md"),
+        ("AR/AW", "m_axi_arbar[1:0] / m_axi_awbar[1:0]", "2", "out",
+         "amber_ace_top", "Tied 0b00, normal access respecting barriers; "
+         "amber issues no barrier transactions (onyx D8).",
+         "constant 0b00 on every AR and AW",
+         f"{HAS_INTERFACES}/03_fabric_ace.md"),
+        ("R", "m_axi_rresp[3:0]", "4", "in", "manager (onyx)",
+         "[1:0] AXI response to the fill engine; [3:2] IsShared/PassDirty "
+         "carried and monitored but not consumed (install state follows the "
+         "request class).",
+         "PassDirty LOW on every ReadShared response (amber cannot absorb "
+         "dirty data into S)",
+         f"{HAS_INTERFACES}/03_fabric_ace.md"),
         ("R", "m_axi_rack", "1", "out", "axi4ace_master_rd",
          "ACE read acknowledge, auto-pulsed one cycle after RLAST handshake.",
          "exactly one rack per read transaction",

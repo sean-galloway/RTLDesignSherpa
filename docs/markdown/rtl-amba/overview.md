@@ -403,7 +403,8 @@ axis5_master #(
     .fub_axis_tvalid (src_tvalid),
     .fub_axis_tready (src_tready),
     .fub_axis_twakeup(src_twakeup),
-    .fub_axis_tparity(src_tparity),
+    // The IHI 0051B ch. 5 check signals (fub_axis_t*chk / m_axis_t*chk) are
+    // left unconnected here: ENABLE_PARITY defaults to 0.
     // Stream side. There is no TKEEP: byte qualification is TSTRB.
     .m_axis_tdata    (tdata),
     .m_axis_tstrb    (tstrb),
@@ -632,7 +633,7 @@ module stream_processor (
         .m_axis5_tlast      (stage1_tlast),
         .m_axis5_tvalid     (stage1_tvalid),
         .m_axis5_tready     (stage1_tready)
-        // tid, tdest, tuser, twakeup and tparity elided
+        // tid, tdest, tuser, twakeup and the t*chk check signals elided
     );
 
     // Processing pipeline (your logic, on the same expanded signals)

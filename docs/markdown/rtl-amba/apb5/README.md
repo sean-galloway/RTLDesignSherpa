@@ -153,7 +153,7 @@ and the bus signals are prefixed `m_apb_` on masters and `s_apb_` on slaves
 | PWDATA | Master to Slave | Write data |
 | PSTRB | Master to Slave | Byte lane strobes |
 | PPROT | Master to Slave | Protection attributes |
-| PWAKEUP | Slave to Master | Wake-up signal (APB5) -- see note below |
+| PWAKEUP | Master to Slave | Wake-up signal (APB5) -- see note below |
 | PAUSER | Master to Slave | Address phase user signal (APB5) |
 | PWUSER | Master to Slave | Write data user signal (APB5) |
 | PRDATA | Slave to Master | Read data |
@@ -161,27 +161,42 @@ and the bus signals are prefixed `m_apb_` on masters and `s_apb_` on slaves
 | PRUSER | Slave to Master | Read data user signal (APB5) |
 | PBUSER | Slave to Master | Write response user signal (APB5) |
 
-**PWAKEUP direction note:** this suite implements PWAKEUP as a slave-to-master
-signal used by a peripheral to request that the master (and its power domain)
-stay awake. `apb5_slave` drives `s_apb_PWAKEUP` from its `wakeup_request` input
-and `apb5_master` consumes `m_apb_PWAKEUP` as an input, capturing it in the
-response packet (`rsp_pwakeup`) and in the `wakeup_pending` status output.
+**PWAKEUP direction note:** PWAKEUP is a Requester output (IHI 0024E §3.7.2,
+Table 3-7). `apb5_master` drives `m_apb_PWAKEUP` from a flop, HIGH while a
+command is pending or a transfer is in flight, raised a cycle ahead of PSEL
+from an idle bus and held through PREADY. `apb5_slave` takes `s_apb_PWAKEUP` as
+an input, and the slave `_cg` wrappers count it as clock-gate activity so the
+gate opens before PSEL arrives. (Before issue #102 item 7 the direction was
+reversed: slave-driven from a `wakeup_request` port, and captured by the master
+into `rsp_pwakeup`/`wakeup_pending`. Those three ports are gone.)
 
 **PNSE, PEXCL and PEXOKAY are not implemented** and do not appear on any module
 port list.
 
 ### Optional Parity Signals
 
-Present on all masters and slaves; meaningful only when `ENABLE_PARITY=1`.
+Present on all masters and slaves; meaningful only when `ENABLE_PARITY=1`. Names,
+coverage and widths follow IHI 0024E chapter 5 (Table 5-1): odd parity, one
+check bit per 8 payload bits, single-bit controls checked by inversion. See
+[apb5_master](apb5_master.md#parity-implementation) for the Check Enable terms.
+`PWAKEUPCHK` travels with `PWAKEUP`, master to slave.
 
 | Signal | Width | Direction | Description |
 |--------|-------|-----------|-------------|
-| PWDATAPARITY | STRB_WIDTH | Master to Slave | One parity bit per write-data byte lane |
-| PADDRPARITY | 1 | Master to Slave | Single parity bit over the whole address |
-| PCTRLPARITY | 1 | Master to Slave | Single parity bit over {PWRITE, PSTRB, PPROT} |
-| PRDATAPARITY | STRB_WIDTH | Slave to Master | One parity bit per read-data byte lane |
-| PREADYPARITY | 1 | Slave to Master | Parity bit for PREADY |
-| PSLVERRPARITY | 1 | Slave to Master | Parity bit for PSLVERR |
+| PADDRCHK | ceil(ADDR_WIDTH/8) | Master to Slave | Odd parity over PADDR, one bit per 8 bits |
+| PCTRLCHK | 1 | Master to Slave | Odd parity over PPROT and PWRITE (PNSE not carried) |
+| PSELCHK | 1 | Master to Slave | Odd parity over PSEL (the spec's PSELxCHK) |
+| PENABLECHK | 1 | Master to Slave | Odd parity over PENABLE |
+| PWDATACHK | DATA_WIDTH/8 | Master to Slave | Odd parity over PWDATA, one bit per byte lane |
+| PSTRBCHK | 1 | Master to Slave | Odd parity over all of PSTRB |
+| PAUSERCHK | ceil(AUSER_WIDTH/8) | Master to Slave | Odd parity over PAUSER, one bit per 8 bits |
+| PWUSERCHK | ceil(WUSER_WIDTH/8) | Master to Slave | Odd parity over PWUSER, one bit per 8 bits |
+| PRDATACHK | DATA_WIDTH/8 | Slave to Master | Odd parity over PRDATA, one bit per byte lane |
+| PREADYCHK | 1 | Slave to Master | Odd parity over PREADY |
+| PSLVERRCHK | 1 | Slave to Master | Odd parity over PSLVERR |
+| PWAKEUPCHK | 1 | Master to Slave | Odd parity over PWAKEUP |
+| PRUSERCHK | ceil(RUSER_WIDTH/8) | Slave to Master | Odd parity over PRUSER, one bit per 8 bits |
+| PBUSERCHK | ceil(BUSER_WIDTH/8) | Slave to Master | Odd parity over PBUSER, one bit per 8 bits |
 
 ---
 
@@ -215,7 +230,6 @@ apb5_master #(
     .rsp_ready      (rsp_ready),
     .rsp_prdata     (rsp_prdata),
     .rsp_pslverr    (rsp_pslverr),
-    .rsp_pwakeup    (rsp_pwakeup),
     .rsp_pruser     (rsp_pruser),
     .rsp_pbuser     (rsp_pbuser),
 
@@ -232,22 +246,27 @@ apb5_master #(
     .m_apb_PWUSER   (pwuser),
     .m_apb_PRDATA   (prdata),
     .m_apb_PSLVERR  (pslverr),
-    .m_apb_PWAKEUP  (pwakeup),      // input: driven by the slave
+    .m_apb_PWAKEUP  (pwakeup),      // output: Requester wake-up
     .m_apb_PRUSER   (pruser),
     .m_apb_PBUSER   (pbuser),
 
     // Parity (tie off / leave open when ENABLE_PARITY=0)
-    .m_apb_PWDATAPARITY  (),
-    .m_apb_PADDRPARITY   (),
-    .m_apb_PCTRLPARITY   (),
-    .m_apb_PRDATAPARITY  ('0),
-    .m_apb_PREADYPARITY  (1'b0),
-    .m_apb_PSLVERRPARITY (1'b0),
+    .m_apb_PADDRCHK      (),
+    .m_apb_PCTRLCHK      (),
+    .m_apb_PSELCHK       (),
+    .m_apb_PENABLECHK    (),
+    .m_apb_PWDATACHK     (),
+    .m_apb_PSTRBCHK      (),
+    .m_apb_PAUSERCHK     (),
+    .m_apb_PWUSERCHK     (),
+    .m_apb_PRDATACHK     ('0),
+    .m_apb_PREADYCHK     (1'b0),
+    .m_apb_PSLVERRCHK    (1'b0),
+    .m_apb_PWAKEUPCHK    (),
+    .m_apb_PRUSERCHK     ('0),
+    .m_apb_PBUSERCHK     ('0),
     .parity_error_rdata  (),
-    .parity_error_ctrl   (),
-
-    // Status
-    .wakeup_pending (wakeup_pending)
+    .parity_error_ctrl   ()
 );
 ```
 
@@ -275,7 +294,7 @@ apb5_slave #(
     .s_apb_PWUSER   (pwuser),
     .s_apb_PRDATA   (prdata),
     .s_apb_PSLVERR  (pslverr),
-    .s_apb_PWAKEUP  (pwakeup),      // output: driven to the master
+    .s_apb_PWAKEUP  (pwakeup),      // input: from the master
     .s_apb_PRUSER   (pruser),
     .s_apb_PBUSER   (pbuser),
 
@@ -298,16 +317,22 @@ apb5_slave #(
     .rsp_pruser     (rsp_pruser),
     .rsp_pbuser     (rsp_pbuser),
 
-    // Wake-up request from the backend (drives s_apb_PWAKEUP)
-    .wakeup_request (wakeup_request),
 
     // Parity (tie off / leave open when ENABLE_PARITY=0)
-    .s_apb_PWDATAPARITY  ('0),
-    .s_apb_PADDRPARITY   (1'b0),
-    .s_apb_PCTRLPARITY   (1'b0),
-    .s_apb_PRDATAPARITY  (),
-    .s_apb_PREADYPARITY  (),
-    .s_apb_PSLVERRPARITY (),
+    .s_apb_PADDRCHK      ('0),
+    .s_apb_PCTRLCHK      (1'b0),
+    .s_apb_PSELCHK       (1'b0),
+    .s_apb_PENABLECHK    (1'b0),
+    .s_apb_PWDATACHK     ('0),
+    .s_apb_PSTRBCHK      (1'b0),
+    .s_apb_PAUSERCHK     ('0),
+    .s_apb_PWUSERCHK     ('0),
+    .s_apb_PRDATACHK     (),
+    .s_apb_PREADYCHK     (),
+    .s_apb_PSLVERRCHK    (),
+    .s_apb_PWAKEUPCHK    (1'b0),
+    .s_apb_PRUSERCHK     (),
+    .s_apb_PBUSERCHK     (),
     .parity_error_wdata  (),
     .parity_error_ctrl   ()
 );
@@ -335,7 +360,6 @@ All APB5 modules use a command/response interface pattern for backend integratio
 - `rsp_prdata` - Read data
 - `rsp_pslverr` - Error flag
 - `rsp_pruser`, `rsp_pbuser` - APB5 user attributes
-- `rsp_pwakeup` - Captured PWAKEUP state (master only)
 
 ### Migration from APB4
 
@@ -343,8 +367,8 @@ APB5 modules are backward compatible with APB4 systems:
 - Connect APB5 signals to APB4 equivalents
 - Tie unused APB5 inputs (PWAKEUP, user signals, parity) to default values and
   leave the corresponding outputs unconnected
-- On a master, tie `m_apb_PWAKEUP` to 0 for always-awake operation
-- On a slave, tie `wakeup_request` to 0 so `s_apb_PWAKEUP` stays low
+- On a master, leave `m_apb_PWAKEUP` unconnected if nothing consumes it
+- On a slave, tie `s_apb_PWAKEUP` to 0 when the Requester has no PWAKEUP
 - Leave `ENABLE_PARITY=0` (the default), which forces all generated parity
   outputs and both `parity_error_*` flags to 0
 
@@ -379,7 +403,7 @@ pytest val/amba/test_apb5_monitor.py -v
 ## References
 
 ### Specifications
-- Arm. *AMBA APB Protocol Specification*, ARM IHI 0024E, Feb. 2023 (APB5 first published in Issue D, Apr. 2021). [developer.arm.com/documentation/ihi0024/e](https://developer.arm.com/documentation/ihi0024/e/) -- §3.7 "Wake-up signaling", §3.8 "User signaling", ch. 5 "Interface parity protection" (Issue D numbers the first two §3.6/§3.7). The spec requires odd parity on `*CHK` signals; this family generates even parity on `*PARITY` ports, so check signals interoperate only within this library. Citation only.
+- Arm. *AMBA APB Protocol Specification*, ARM IHI 0024E, Feb. 2023 (APB5 first published in Issue D, Apr. 2021). [developer.arm.com/documentation/ihi0024/e](https://developer.arm.com/documentation/ihi0024/e/) -- §3.7 "Wake-up signaling", §3.8 "User signaling", ch. 5 "Interface parity protection" (Issue D numbers the first two §3.6/§3.7). The `*CHK` signals follow ch. 5: odd parity, Table 5-1 names, coverage sets and one check bit per 8 payload bits (issue #102 item 1). Citation only.
 - Arm. *AMBA APB Protocol Specification*, Version 2.0, ARM IHI 0024C, Apr. 2010. [developer.arm.com/documentation/ihi0024/c](https://developer.arm.com/documentation/ihi0024/c/) -- the APB4 base protocol (ch. 3 "Transfers", ch. 4 "Operating States"). Citation only.
 
 ### Papers and textbooks

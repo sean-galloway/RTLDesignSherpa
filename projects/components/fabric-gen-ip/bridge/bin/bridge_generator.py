@@ -85,7 +85,7 @@ def _narrow_cfg_axil_addr(top_sv, regblock_sv) -> None:
         text = text.replace(old, new)
     top_sv.write_text(text)
 
-def _axil5_bfm_features(slave) -> str:
+def _axil5_bfm_features(port, id_width: int) -> str:
     """Render the AXIL5 BFM feature kwargs for a generated testbench.
 
     EVERY group is enabled, not just the ones in the port's axi5_features.
@@ -93,20 +93,16 @@ def _axil5_bfm_features(slave) -> str:
     regardless of which groups are live, so a BFM told a group is absent
     would fail to bind a signal that is right there on the DUT. Which groups
     carry real values is the converter's business, not the BFM's.
+
+    `id_width` is the port's AWID/BID/ARID/RID width (IHI 0022L B2.1.5): the
+    master's id_width on a master port, the fabric ID width on a slave port.
     """
-    from bridge_pkg.axil5_sideband import (
-        AXIL5_USER_WIDTH, AXIL5_LOOP_WIDTH, MPAM_WIDTH, MECID_WIDTH,
-        NSAID_WIDTH,
-    )
+    from bridge_pkg.axil5_sideband import AXIL5_USER_WIDTH
     kwargs = [
+        f"id_width={id_width}",
         f"user_width={AXIL5_USER_WIDTH}",
         "trace=True",
-        f"loop_width={AXIL5_LOOP_WIDTH}",
-        f"mpam_width={MPAM_WIDTH}",
-        f"mecid_width={MECID_WIDTH}",
-        f"nsaid_width={NSAID_WIDTH}",
         "poison=True",
-        "exclusive=True",
     ]
     return "\n".join(f"            {k}," for k in kwargs)
 

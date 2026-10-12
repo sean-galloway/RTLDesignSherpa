@@ -33,13 +33,13 @@
 
 The AXI5 Slave Read Monitor module combines the `axi5_slave_rd` interface with integrated transaction monitoring. You get real-time visibility into slave read operations, with configurable packet filtering and error detection built in rather than bolted on.
 
-**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking or `RTAGMATCH` generation, no chunk reassembly, no poison generation, and no atomic read-modify-write -- `AWATOP` is transported, not executed. The monitor observes handshakes, responses and timing; it performs no protocol checking of handshake stability, ID width, burst length or address alignment. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking, no chunk reassembly, no poison generation, and no atomic read-modify-write -- `AWATOP` is transported, not executed. The monitor observes handshakes, responses and timing; it performs no protocol checking of handshake stability, ID width, burst length or address alignment. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
 
 ### Key Features
 
 - Full AMBA AXI5 slave read protocol compliance
 - **Integrated filtered monitoring** - no external monitor needed
-- All AXI5 extensions supported (NSAID, TRACE, MPAM, MECID, UNIQUE, CHUNKING, MTE, POISON)
+- All AXI5 extensions supported (NSAID, TRACE, MPAM, MECID, IDUNQ, CHUNKING, MTE, POISON, WAKEUP)
 - Transaction tracking with configurable table size
 - Error detection (SLVERR, timeout, orphan transactions)
 - Performance metrics (latency, throughput)
@@ -115,10 +115,11 @@ flowchart TB
 | ENABLE_TRACE | bit | 1 | Enable trace signals |
 | ENABLE_MPAM | bit | 1 | Enable memory partitioning |
 | ENABLE_MECID | bit | 1 | Enable memory encryption |
-| ENABLE_UNIQUE | bit | 1 | Enable unique ID indicator |
+| ENABLE_UNIQUE | bit | 1 | Enable the unique ID indicator (AxIDUNQ, and BIDUNQ/RIDUNQ on the responses) |
 | ENABLE_CHUNKING | bit | 1 | Enable data chunking |
 | ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
+| ENABLE_WAKEUP | bit | 1 | Enable AWAKEUP (IHI 0022L §A14.1.1); 0 ties the output low |
 | UNIT_ID | int | 1 | Monitoring unit identifier |
 | AGENT_ID | int | 12 | Agent identifier |
 | MAX_TRANSACTIONS | int | 16 | Transaction table size |
@@ -479,12 +480,13 @@ axi5_slave_rd_mon #(
     .s_axi_arqos           (s_axi_arqos),
     .s_axi_aruser          (s_axi_aruser),
     .s_axi_arvalid         (s_axi_arvalid),
+    .s_axi_awakeup         (s_axi_awakeup),
     .s_axi_arready         (s_axi_arready),
     .s_axi_arnsaid         (s_axi_arnsaid),
     .s_axi_artrace         (s_axi_artrace),
     .s_axi_armpam          (s_axi_armpam),
     .s_axi_armecid         (s_axi_armecid),
-    .s_axi_arunique        (s_axi_arunique),
+    .s_axi_aridunq        (s_axi_aridunq),
     .s_axi_archunken       (s_axi_archunken),
     .s_axi_artagop         (s_axi_artagop),
     .s_axi_rid             (s_axi_rid),
@@ -495,12 +497,12 @@ axi5_slave_rd_mon #(
     .s_axi_rvalid          (s_axi_rvalid),
     .s_axi_rready          (s_axi_rready),
     .s_axi_rtrace          (s_axi_rtrace),
+    .s_axi_ridunq          (s_axi_ridunq),
     .s_axi_rpoison         (s_axi_rpoison),
     .s_axi_rchunkv         (s_axi_rchunkv),
     .s_axi_rchunknum       (s_axi_rchunknum),
     .s_axi_rchunkstrb      (s_axi_rchunkstrb),
     .s_axi_rtag            (s_axi_rtag),
-    .s_axi_rtagmatch       (s_axi_rtagmatch),
     .fub_axi_arid          (fub_axi_arid),
     .fub_axi_araddr        (fub_axi_araddr),
     .fub_axi_arlen         (fub_axi_arlen),
@@ -512,12 +514,13 @@ axi5_slave_rd_mon #(
     .fub_axi_arqos         (fub_axi_arqos),
     .fub_axi_aruser        (fub_axi_aruser),
     .fub_axi_arvalid       (fub_axi_arvalid),
+    .fub_axi_awakeup       (fub_axi_awakeup),
     .fub_axi_arready       (fub_axi_arready),
     .fub_axi_arnsaid       (fub_axi_arnsaid),
     .fub_axi_artrace       (fub_axi_artrace),
     .fub_axi_armpam        (fub_axi_armpam),
     .fub_axi_armecid       (fub_axi_armecid),
-    .fub_axi_arunique      (fub_axi_arunique),
+    .fub_axi_aridunq      (fub_axi_aridunq),
     .fub_axi_archunken     (fub_axi_archunken),
     .fub_axi_artagop       (fub_axi_artagop),
     .fub_axi_rid           (fub_axi_rid),
@@ -528,12 +531,12 @@ axi5_slave_rd_mon #(
     .fub_axi_rvalid        (fub_axi_rvalid),
     .fub_axi_rready        (fub_axi_rready),
     .fub_axi_rtrace        (fub_axi_rtrace),
+    .fub_axi_ridunq        (fub_axi_ridunq),
     .fub_axi_rpoison       (fub_axi_rpoison),
     .fub_axi_rchunkv       (fub_axi_rchunkv),
     .fub_axi_rchunknum     (fub_axi_rchunknum),
     .fub_axi_rchunkstrb    (fub_axi_rchunkstrb),
     .fub_axi_rtag          (fub_axi_rtag),
-    .fub_axi_rtagmatch     (fub_axi_rtagmatch),
     .cfg_monitor_enable    (cfg_monitor_enable),
     .cfg_error_enable      (cfg_error_enable),
     .cfg_timeout_enable    (cfg_timeout_enable),

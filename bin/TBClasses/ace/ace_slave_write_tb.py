@@ -38,6 +38,9 @@ from CocoTBFramework.components.gaxi.gaxi_monitor import GAXIMonitor
 from CocoTBFramework.components.ace.ace_factories import create_axi4ace_master_wr
 from CocoTBFramework.components.ace.ace_field_configs import AXI4ACEFieldConfigHelper
 from CocoTBFramework.components.ace.ace_transaction import ACETransactionType
+from TBClasses.ace.ace_signal_checks import (
+    AW_DOMAIN_BAR_CASES, AckPassthroughProbe, domain_bar_sweep,
+)
 from CocoTBFramework.components.axi4.axi4_factories import (
     create_axi4_slave_wr,
     print_compliance_reports_from_components,
@@ -679,6 +682,39 @@ class AXI4ACESlaveWriteTB(TBBase):
                     )
 
         self.log.info("AWSNOOP matrix test PASSED")
+
+    async def ace_signal_fields_test(self) -> bool:
+        """AWDOMAIN/AWBAR reach fub_axi_ unchanged (IHI 0022H D2.1.2) and the
+        manager's s_axi_wack is forwarded to fub_axi_wack once per write
+        (D2.3.2). The s_axi_wack pulses come from the RDS-DV ACE master BFM,
+        which drives one a cycle after each B handshake."""
+        self.log.info("=== ACE AWDOMAIN/AWBAR + WACK test ===")
+        base_addr = 0x6000
+        # the previous test's last WACK pulse lands a cycle after its
+        # handshake: let it pass so the probe counts only this test's traffic
+        await self.wait_clocks(self.aclk_name, 5)
+        probe = AckPassthroughProbe(self.aclk, self.dut.s_axi_wack, self.dut.fub_axi_wack)
+        probe_task = cocotb.start_soon(probe.run())
+
+        async def issue(index, snoop, domain, bar):
+            result = await self.test_master.write_transaction(
+                base_addr + 0x40 * index, 0xA5A50000 + index, id=index & self.MAX_ID,
+                snoop_type=snoop, domain=domain, bar=bar)
+            if not result.get('success', False):
+                raise RuntimeError(f"domain/bar case {index}: write failed: {result}")
+
+        errors = await domain_bar_sweep(
+            AW_DOMAIN_BAR_CASES, issue, self.aw_monitor.get_completed_packets, self.log)
+        await self.wait_clocks(self.aclk_name, 5)   # let the last WACK pulse land
+        probe.stop()
+        await probe_task   # the probe loop exits on its next clock edge
+        errors += probe.check(len(AW_DOMAIN_BAR_CASES), "WACK")
+        if not errors:
+            self.log.info(f"  WACK forwarded s_axi -> fub_axi: {probe.dst_pulses} pulses "
+                          f"for {len(AW_DOMAIN_BAR_CASES)} writes")
+        for err in errors:
+            self.log.error(err)
+        return not errors
 
     async def check_busy(self) -> None:
         """Assert that the DUT busy output is low after quiescence."""

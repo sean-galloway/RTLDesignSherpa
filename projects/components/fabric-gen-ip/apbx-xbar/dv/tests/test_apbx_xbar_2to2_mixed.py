@@ -11,13 +11,20 @@
 #     transfers from APB4 master0 present '0 there.
 #   - APB4 slave1 has no sideband pins at all (structural).
 #   - PRUSER/PBUSER driven at slave0 return to master1 only.
+#   - cocotb_test_pwakeup_forward (issue #102 item 7): PWAKEUP is a
+#     Requester output (IHI 0024E 3.7.2, Table 3-7). The crossbar takes it
+#     IN on APB5 requester port m1 and DRIVES it on APB5 completer port s0:
+#     m1's wake is forwarded, and any transfer reaching s0 -- including one
+#     from APB4 m0, which has no PWAKEUP -- holds s0's PWAKEUP high from
+#     before PSEL through PREADY, so a completer that waits for PWAKEUP
+#     cannot deadlock.
 
 import os
 
 import cocotb
 import pytest
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, ClockCycles
+from cocotb.triggers import RisingEdge, ClockCycles, Timer
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, get_wave_config, sim_build_path
@@ -36,7 +43,6 @@ async def _completer(dut, s, rdata, apb5=False):
     getattr(dut, f"s{s}_apb_PRDATA").value = rdata
     getattr(dut, f"s{s}_apb_PSLVERR").value = 0
     if apb5:
-        getattr(dut, f"s{s}_apb_PWAKEUP").value = 0
         getattr(dut, f"s{s}_apb_PRUSER").value = 1
         getattr(dut, f"s{s}_apb_PBUSER").value = 1
     log = getattr(dut, f"_s{s}_log")
@@ -112,6 +118,7 @@ async def apbx_2to2_mixed_test(dut):
         getattr(dut, f"m{m}_apb_PENABLE").value = 0
     dut.m1_apb_PAUSER.value = 0
     dut.m1_apb_PWUSER.value = 0
+    dut.m1_apb_PWAKEUP.value = 0
 
     dut._s0_log, dut._s1_log = [], []
     cocotb.start_soon(_completer(dut, 0, 0xC0DE0000, apb5=True))
@@ -179,8 +186,121 @@ async def apbx_2to2_mixed_test(dut):
         dut._log.info("apbx_xbar_2to2_mixed: decode misses PSLVERR'd, fabric alive")
 
 
-@pytest.mark.parametrize("test_level", reg_level_grid())
-def test_apbx_xbar_2to2_mixed(request, test_level):
+async def _s0_wake_monitor(dut, events):
+    """Record every s0 cycle where PSEL is high without PWAKEUP, and every
+    PSEL rising edge not led by PWAKEUP on the previous cycle."""
+    prev_psel, prev_wake = 0, 0
+    while True:
+        await RisingEdge(dut.pclk)
+        if not int(dut.presetn.value):
+            prev_psel, prev_wake = 0, 0
+            continue
+        psel = int(dut.s0_apb_PSEL.value)
+        wake = int(dut.s0_apb_PWAKEUP.value)
+        if psel:
+            events['psel_cycles'] += 1
+            if not wake:
+                events['psel_without_wake'] += 1
+            if not prev_psel:
+                events['psel_rises'] += 1
+                if not prev_wake:
+                    events['psel_rise_unled'] += 1
+        prev_psel, prev_wake = psel, wake
+
+
+async def _settle():
+    await Timer(1, units="ns")
+
+
+@cocotb.test(timeout_time=20, timeout_unit="ms")
+async def cocotb_test_pwakeup_forward(dut):
+    cocotb.start_soon(Clock(dut.pclk, 10, units="ns").start())
+
+    # Structural: APB5 requester port takes PWAKEUP, APB4 ports have none.
+    assert hasattr(dut, "m1_apb_PWAKEUP") and hasattr(dut, "s0_apb_PWAKEUP")
+    assert not hasattr(dut, "m0_apb_PWAKEUP"), "APB4 requester grew PWAKEUP"
+
+    for m in range(2):
+        getattr(dut, f"m{m}_apb_PSEL").value = 0
+        getattr(dut, f"m{m}_apb_PENABLE").value = 0
+    dut.m1_apb_PAUSER.value = 0
+    dut.m1_apb_PWUSER.value = 0
+    dut.m1_apb_PWAKEUP.value = 0
+    dut._s0_log, dut._s1_log = [], []
+    cocotb.start_soon(_completer(dut, 0, 0xC0DE0000, apb5=True))
+    cocotb.start_soon(_completer(dut, 1, 0xC0DE1111, apb5=False))
+    events = dict(psel_cycles=0, psel_without_wake=0, psel_rises=0,
+                  psel_rise_unled=0)
+    cocotb.start_soon(_s0_wake_monitor(dut, events))
+
+    dut.presetn.value = 0
+    await ClockCycles(dut.pclk, 5)
+    dut.presetn.value = 1
+    await ClockCycles(dut.pclk, 5)
+
+    # 1. Quiescent: no requester wake and no traffic -> completer wake LOW
+    #    (3.7.2: recommended deasserted when no transfers are required).
+    for _ in range(5):
+        await RisingEdge(dut.pclk)
+        assert int(dut.s0_apb_PWAKEUP.value) == 0, "s0 PWAKEUP high while idle"
+
+    # 2. Requester wake is forwarded to the APB5 completer, with no transfer.
+    #    The forward is combinational (a glitch-free OR tree, 3.7.2), so it
+    #    is visible within the same cycle.
+    dut.m1_apb_PWAKEUP.value = 1
+    await _settle()
+    assert int(dut.s0_apb_PWAKEUP.value) == 1, \
+        "m1 PWAKEUP not forwarded to s0 PWAKEUP"
+    await ClockCycles(dut.pclk, 3)
+    assert int(dut.s0_apb_PWAKEUP.value) == 1, "forwarded wake did not hold"
+    dut.m1_apb_PWAKEUP.value = 0
+    await _settle()
+    assert int(dut.s0_apb_PWAKEUP.value) == 0, \
+        "s0 PWAKEUP stuck high after m1 PWAKEUP dropped with nothing pending"
+
+    # 3. APB4 m0 -> APB5 s0 with no requester wake anywhere: the crossbar's
+    #    own wake must cover the transfer (the completer may wait for it).
+    n_rises = events['psel_rises']
+    got = await _xfer(dut, 0, S0_BASE + 0x70, write=1, wdata=0x0000CAFE)
+    assert got['pslverr'] == 0
+    assert events['psel_rises'] == n_rises + 1, "m0 transfer never reached s0"
+
+    # 4. APB5 m1 -> APB5 s0 with PWAKEUP raised ahead of PSEL (3.7.2
+    #    recommendation) and held until PREADY.
+    dut.m1_apb_PWAKEUP.value = 1
+    await RisingEdge(dut.pclk)
+    got = await _xfer(dut, 1, S0_BASE + 0x74, write=0, apb5_sideband=(0, 0))
+    assert got['prdata'] == 0xC0DE0000
+    dut.m1_apb_PWAKEUP.value = 0
+    await ClockCycles(dut.pclk, 4)
+    assert int(dut.s0_apb_PWAKEUP.value) == 0, \
+        "s0 PWAKEUP stuck high after the transfer completed"
+
+    # 5. Traffic to the APB4 completer s1 does not need s0 awake, and m0
+    #    has no PWAKEUP: s0's wake must stay low throughout.
+    seen_high = 0
+    async def _watch():
+        nonlocal seen_high
+        while True:
+            await RisingEdge(dut.pclk)
+            seen_high |= int(dut.s0_apb_PWAKEUP.value)
+    w = cocotb.start_soon(_watch())
+    got = await _xfer(dut, 0, S1_BASE + 0x80, write=0)
+    assert got['prdata'] == 0xC0DE1111
+    w.kill()
+    assert seen_high == 0, "s0 PWAKEUP raised by APB4 traffic to s1"
+
+    assert events['psel_without_wake'] == 0, (
+        f"s0 PSEL high without PWAKEUP on {events['psel_without_wake']} of "
+        f"{events['psel_cycles']} cycles -- a completer waiting for PWAKEUP "
+        f"would deadlock")
+    assert events['psel_rise_unled'] == 0, (
+        f"{events['psel_rise_unled']} of {events['psel_rises']} s0 PSEL rises "
+        f"were not led by PWAKEUP on the previous cycle")
+    dut._log.info(f"apbx_xbar_2to2_mixed PWAKEUP forward OK: {events}")
+
+
+def _run_2to2_mixed(test_level, testcase, tag):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_xbar': 'projects/components/fabric-gen-ip/apbx-xbar/rtl',
     })
@@ -193,7 +313,7 @@ def test_apbx_xbar_2to2_mixed(request, test_level):
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    sim_build_name = f"test_{dut_name}_{test_level}{worker_suffix}"
+    sim_build_name = f"test_{dut_name}{tag}_{test_level}{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
     results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
@@ -212,7 +332,7 @@ def test_apbx_xbar_2to2_mixed(request, test_level):
         includes=includes,
         toplevel=dut_name,
         module=module,
-        testcase="apbx_2to2_mixed_test",
+        testcase=testcase,
         sim_build=sim_build,
         waves=False,
         extra_args=extra_args,
@@ -225,3 +345,13 @@ def test_apbx_xbar_2to2_mixed(request, test_level):
             **waves['extra_env'],
         },
     )
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_apbx_xbar_2to2_mixed(request, test_level):
+    _run_2to2_mixed(test_level, "apbx_2to2_mixed_test", "")
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_apbx_xbar_2to2_mixed_pwakeup(request, test_level):
+    _run_2to2_mixed(test_level, "cocotb_test_pwakeup_forward", "_pwakeup")

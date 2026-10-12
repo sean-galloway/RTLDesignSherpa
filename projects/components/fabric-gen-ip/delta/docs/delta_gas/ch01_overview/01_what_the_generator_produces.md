@@ -40,9 +40,10 @@ The generated `delta_axis_flat_<M>x<N>` module contains:
 
 1. **Request decode** — `TDEST` is decoded directly into a slave request matrix.
 2. **Per-slave arbitration** — round-robin with packet atomicity (grant held until `TLAST`).
-3. **Crossbar mux** — routes `TDATA`, `TVALID`, `TLAST`, `TDEST`, `TID`, `TUSER`, and optional `TSTRB`/`TPARITY`.
-4. **Backpressure logic** — `s_axis_tready` driven from `m_axis_tready` of the granted slave.
-5. **Optional performance counters** — packet counts per master and per slave.
-6. **Optional assertions** — one-hot grant and TDEST-range checks under `FORMAL`.
+3. **Crossbar mux** — routes `TDATA`, `TVALID`, `TLAST`, `TDEST`, `TID`, `TUSER`, optional `TSTRB`, and with `--amba5` the payload check bits.
+4. **Optional AMBA 5 logic** — `TWAKEUP` steering, plus the IHI 0051B ch. 5 check signals: payload checks on ingress, control checks generated or checked, and sticky per-port error flags. Built from `rtl/common/dataint_parity`.
+5. **Backpressure logic** — `s_axis_tready` driven from `m_axis_tready` of the granted slave.
+6. **Optional performance counters** — packet counts per master and per slave.
+7. **Optional assertions** — one-hot grant and TDEST-range checks under `FORMAL`.
 
 Tree generation is currently a scaffold; the flat crossbar is the production-ready artifact.

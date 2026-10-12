@@ -33,7 +33,7 @@
 
 The AXI5 Master Write with Monitor module wraps the standard `axi5_master_wr` core with an integrated `axi_monitor_filtered`, so every write transaction crossing the core is also visible to the monitor in real time. You get write transaction monitoring, error detection, and configurable packet filtering in one block — no external monitor to wire up.
 
-**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking or `RTAGMATCH` generation, no chunk reassembly, no poison generation, and no atomic read-modify-write -- `AWATOP` is transported, not executed. The monitor observes handshakes, responses and timing; it performs no protocol checking of handshake stability, ID width, burst length or address alignment. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking, no chunk reassembly, no poison generation, and no atomic read-modify-write -- `AWATOP` is transported, not executed. The monitor observes handshakes, responses and timing; it performs no protocol checking of handshake stability, ID width, burst length or address alignment. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
 
 ### Key Features
 
@@ -43,12 +43,11 @@ The AXI5 Master Write with Monitor module wraps the standard `axi5_master_wr` co
 - **AWTRACE:** Trace signal for debug and performance monitoring
 - **AWMPAM:** Memory Partitioning and Monitoring (PartID + PMG)
 - **AWMECID:** Memory Encryption Context ID for secure memory
-- **AWUNIQUE:** Unique ID indicator for cache operations
+- **AWIDUNQ / BIDUNQ:** Unique ID indicator on the request and its write response (IHI 0022L §A5.2)
 - **AWTAGOP:** Memory tag operation (MTE - Memory Tagging Extension)
-- **AWTAG:** Memory tags on address channel
 - **WPOISON:** Write data poison indicator for corrupted data detection
 - **WTAG/WTAGUPDATE:** Memory tags and tag update control (MTE)
-- **BTRACE/BTAG/BTAGMATCH:** Response trace and tag signals
+- **BTRACE / BIDUNQ / BTAGMATCH[1:0]:** Response trace, unique-ID indicator and the 2-bit tag match result
 - **Integrated AXI monitor** with 2-Level Filtering: packet-type drop masks + per-event masks (err_select is reserved -- no routing)
 - **Error detection:** Protocol violations, SLVERR, DECERR
 - **Timeout monitoring:** Stuck transactions, stalled channels
@@ -146,9 +145,10 @@ Transport sizing first, then the monitor knobs. The defaults are sane; `MAX_TRAN
 | ENABLE_TRACE | bit | 1 | Enable trace signals |
 | ENABLE_MPAM | bit | 1 | Enable memory partitioning |
 | ENABLE_MECID | bit | 1 | Enable memory encryption context |
-| ENABLE_UNIQUE | bit | 1 | Enable unique ID indicator |
+| ENABLE_UNIQUE | bit | 1 | Enable the unique ID indicator (AxIDUNQ, and BIDUNQ/RIDUNQ on the responses) |
 | ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
+| ENABLE_WAKEUP | bit | 1 | Enable AWAKEUP (IHI 0022L §A14.1.1); 0 ties the output low |
 | **UNIT_ID** | int | 1 | Monitor unit identifier |
 | **AGENT_ID** | int | 11 | Monitor agent identifier (default 11 for write) |
 | **MAX_TRANSACTIONS** | int | 16 | Transaction table size |
@@ -463,7 +463,6 @@ When `USE_MONITOR = 0` all perfmon outputs are tied to 0. With `USE_MONITOR = 1`
 >
 > - AWATOP encoding (atomic type)
 > - AW/W channels
-> - B response with BTAG
 > - Monitor packets for atomic sequence
 
 ### Write Timeout Detection
@@ -510,15 +509,15 @@ axi5_master_wr_mon #(
     .fub_axi_awqos         (fub_axi_awqos),
     .fub_axi_awuser        (fub_axi_awuser),
     .fub_axi_awvalid       (fub_axi_awvalid),
+    .fub_axi_awakeup       (fub_axi_awakeup),
     .fub_axi_awready       (fub_axi_awready),
     .fub_axi_awatop        (fub_axi_awatop),
     .fub_axi_awnsaid       (fub_axi_awnsaid),
     .fub_axi_awtrace       (fub_axi_awtrace),
     .fub_axi_awmpam        (fub_axi_awmpam),
     .fub_axi_awmecid       (fub_axi_awmecid),
-    .fub_axi_awunique      (fub_axi_awunique),
+    .fub_axi_awidunq      (fub_axi_awidunq),
     .fub_axi_awtagop       (fub_axi_awtagop),
-    .fub_axi_awtag         (fub_axi_awtag),
     .fub_axi_wdata         (fub_axi_wdata),
     .fub_axi_wstrb         (fub_axi_wstrb),
     .fub_axi_wlast         (fub_axi_wlast),
@@ -534,7 +533,7 @@ axi5_master_wr_mon #(
     .fub_axi_bvalid        (fub_axi_bvalid),
     .fub_axi_bready        (fub_axi_bready),
     .fub_axi_btrace        (fub_axi_btrace),
-    .fub_axi_btag          (fub_axi_btag),
+    .fub_axi_bidunq        (fub_axi_bidunq),
     .fub_axi_btagmatch     (fub_axi_btagmatch),
     .m_axi_awid            (m_axi_awid),
     .m_axi_awaddr          (m_axi_awaddr),
@@ -547,15 +546,15 @@ axi5_master_wr_mon #(
     .m_axi_awqos           (m_axi_awqos),
     .m_axi_awuser          (m_axi_awuser),
     .m_axi_awvalid         (m_axi_awvalid),
+    .m_axi_awakeup         (m_axi_awakeup),
     .m_axi_awready         (m_axi_awready),
     .m_axi_awatop          (m_axi_awatop),
     .m_axi_awnsaid         (m_axi_awnsaid),
     .m_axi_awtrace         (m_axi_awtrace),
     .m_axi_awmpam          (m_axi_awmpam),
     .m_axi_awmecid         (m_axi_awmecid),
-    .m_axi_awunique        (m_axi_awunique),
+    .m_axi_awidunq        (m_axi_awidunq),
     .m_axi_awtagop         (m_axi_awtagop),
-    .m_axi_awtag           (m_axi_awtag),
     .m_axi_wdata           (m_axi_wdata),
     .m_axi_wstrb           (m_axi_wstrb),
     .m_axi_wlast           (m_axi_wlast),
@@ -571,7 +570,7 @@ axi5_master_wr_mon #(
     .m_axi_bvalid          (m_axi_bvalid),
     .m_axi_bready          (m_axi_bready),
     .m_axi_btrace          (m_axi_btrace),
-    .m_axi_btag            (m_axi_btag),
+    .m_axi_bidunq          (m_axi_bidunq),
     .m_axi_btagmatch       (m_axi_btagmatch),
     .cfg_monitor_enable    (cfg_monitor_enable),
     .cfg_error_enable      (cfg_error_enable),

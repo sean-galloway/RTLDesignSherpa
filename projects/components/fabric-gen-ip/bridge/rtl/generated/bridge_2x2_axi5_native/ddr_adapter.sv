@@ -65,27 +65,24 @@ module ddr_adapter
     // AXI5 native sideband (A5-2 slice 2)
     input  logic [3:0]  xbar_ddr_axi_awnsaid,
     input  logic         xbar_ddr_axi_awtrace,
-    input  logic         xbar_ddr_axi_awunique,
+    input  logic         xbar_ddr_axi_awidunq,
     input  logic [1:0]  xbar_ddr_axi_awtagop,
-    input  logic [3:0]  xbar_ddr_axi_awtag,
     input  logic         xbar_ddr_axi_wpoison,
     input  logic [3:0]  xbar_ddr_axi_wtag,
     input  logic         xbar_ddr_axi_wtagupdate,
     input  logic [3:0]  xbar_ddr_axi_arnsaid,
     input  logic         xbar_ddr_axi_artrace,
-    input  logic         xbar_ddr_axi_arunique,
+    input  logic         xbar_ddr_axi_aridunq,
     input  logic         xbar_ddr_axi_archunken,
     input  logic [1:0]  xbar_ddr_axi_artagop,
     output logic         xbar_ddr_axi_btrace,
-    output logic [3:0]  xbar_ddr_axi_btag,
-    output logic         xbar_ddr_axi_btagmatch,
+    output logic [1:0]  xbar_ddr_axi_btagmatch,
     output logic         xbar_ddr_axi_rtrace,
     output logic         xbar_ddr_axi_rpoison,
     output logic         xbar_ddr_axi_rchunkv,
     output logic [3:0]  xbar_ddr_axi_rchunknum,
     output logic         xbar_ddr_axi_rchunkstrb,
     output logic [3:0]  xbar_ddr_axi_rtag,
-    output logic         xbar_ddr_axi_rtagmatch,
 
     // Bridge ID tracking signals
     input  logic [BRIDGE_ID_WIDTH-1:0] xbar_bridge_id_aw,
@@ -111,9 +108,8 @@ module ddr_adapter
     input  logic         ddr_axi_awready,
     output  logic [3:0]  ddr_axi_awnsaid,
     output  logic         ddr_axi_awtrace,
-    output  logic         ddr_axi_awunique,
+    output  logic         ddr_axi_awidunq,
     output  logic [1:0]  ddr_axi_awtagop,
-    output  logic [3:0]  ddr_axi_awtag,
     output  logic [127:0]  ddr_axi_wdata,
     output  logic [15:0]  ddr_axi_wstrb,
     output  logic         ddr_axi_wlast,
@@ -129,8 +125,8 @@ module ddr_adapter
     input  logic         ddr_axi_bvalid,
     output  logic         ddr_axi_bready,
     input  logic         ddr_axi_btrace,
-    input  logic [3:0]  ddr_axi_btag,
-    input  logic         ddr_axi_btagmatch,
+    input  logic         ddr_axi_bidunq,
+    input  logic [1:0]  ddr_axi_btagmatch,
     output  logic [4:0]  ddr_axi_arid,
     output  logic [31:0]  ddr_axi_araddr,
     output  logic [7:0]  ddr_axi_arlen,
@@ -145,7 +141,7 @@ module ddr_adapter
     input  logic         ddr_axi_arready,
     output  logic [3:0]  ddr_axi_arnsaid,
     output  logic         ddr_axi_artrace,
-    output  logic         ddr_axi_arunique,
+    output  logic         ddr_axi_aridunq,
     output  logic         ddr_axi_archunken,
     output  logic [1:0]  ddr_axi_artagop,
     input  logic [4:0]  ddr_axi_rid,
@@ -156,12 +152,12 @@ module ddr_adapter
     input  logic         ddr_axi_rvalid,
     output  logic         ddr_axi_rready,
     input  logic         ddr_axi_rtrace,
+    input  logic         ddr_axi_ridunq,
     input  logic         ddr_axi_rpoison,
     input  logic         ddr_axi_rchunkv,
     input  logic [3:0]  ddr_axi_rchunknum,
     input  logic         ddr_axi_rchunkstrb,
-    input  logic [3:0]  ddr_axi_rtag,
-    input  logic         ddr_axi_rtagmatch
+    input  logic [3:0]  ddr_axi_rtag
 );
 
     // ================================================================
@@ -272,7 +268,8 @@ module ddr_adapter
         .ENABLE_MECID(1'b0),
         .ENABLE_UNIQUE(1'b1),
         .ENABLE_MTE(1'b1),
-        .ENABLE_POISON(1'b1)
+        .ENABLE_POISON(1'b1),
+        .ENABLE_WAKEUP(1'b0)
     ) u_master_wr (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -295,9 +292,9 @@ module ddr_adapter
         .fub_axi_awtrace(xbar_ddr_axi_awtrace),
         .fub_axi_awmpam('0),
         .fub_axi_awmecid('0),
-        .fub_axi_awunique(xbar_ddr_axi_awunique),
+        .fub_axi_awidunq(xbar_ddr_axi_awidunq),
         .fub_axi_awtagop(xbar_ddr_axi_awtagop),
-        .fub_axi_awtag(xbar_ddr_axi_awtag),
+        .fub_axi_awakeup('0),
         .fub_axi_wdata(xbar_ddr_axi_wdata),
         .fub_axi_wstrb(xbar_ddr_axi_wstrb),
         .fub_axi_wlast(xbar_ddr_axi_wlast),
@@ -313,7 +310,7 @@ module ddr_adapter
         .fub_axi_bvalid(xbar_ddr_axi_bvalid),
         .fub_axi_bready(xbar_ddr_axi_bready),
         .fub_axi_btrace(xbar_ddr_axi_btrace),
-        .fub_axi_btag(xbar_ddr_axi_btag),
+        .fub_axi_bidunq(),
         .fub_axi_btagmatch(xbar_ddr_axi_btagmatch),
 
         // External side (m_axi)
@@ -334,9 +331,9 @@ module ddr_adapter
         .m_axi_awtrace(ddr_axi_awtrace),
         .m_axi_awmpam(),
         .m_axi_awmecid(),
-        .m_axi_awunique(ddr_axi_awunique),
+        .m_axi_awidunq(ddr_axi_awidunq),
         .m_axi_awtagop(ddr_axi_awtagop),
-        .m_axi_awtag(ddr_axi_awtag),
+        .m_axi_awakeup(),
         .m_axi_wdata(ddr_axi_wdata),
         .m_axi_wstrb(ddr_axi_wstrb),
         .m_axi_wlast(ddr_axi_wlast),
@@ -352,7 +349,7 @@ module ddr_adapter
         .m_axi_bvalid(ddr_axi_bvalid),
         .m_axi_bready(ddr_axi_bready),
         .m_axi_btrace(ddr_axi_btrace),
-        .m_axi_btag(ddr_axi_btag),
+        .m_axi_bidunq(ddr_axi_bidunq),
         .m_axi_btagmatch(ddr_axi_btagmatch),
 
         // Status (empty connector = unconnected tie-off)
@@ -374,7 +371,8 @@ module ddr_adapter
         .ENABLE_UNIQUE(1'b1),
         .ENABLE_CHUNKING(1'b1),
         .ENABLE_MTE(1'b1),
-        .ENABLE_POISON(1'b1)
+        .ENABLE_POISON(1'b1),
+        .ENABLE_WAKEUP(1'b0)
     ) u_master_rd (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -396,9 +394,10 @@ module ddr_adapter
         .fub_axi_artrace(xbar_ddr_axi_artrace),
         .fub_axi_armpam('0),
         .fub_axi_armecid('0),
-        .fub_axi_arunique(xbar_ddr_axi_arunique),
+        .fub_axi_aridunq(xbar_ddr_axi_aridunq),
         .fub_axi_archunken(xbar_ddr_axi_archunken),
         .fub_axi_artagop(xbar_ddr_axi_artagop),
+        .fub_axi_awakeup('0),
         .fub_axi_rid(xbar_ddr_axi_rid),
         .fub_axi_rdata(xbar_ddr_axi_rdata),
         .fub_axi_rresp(xbar_ddr_axi_rresp),
@@ -407,12 +406,12 @@ module ddr_adapter
         .fub_axi_rvalid(xbar_ddr_axi_rvalid),
         .fub_axi_rready(xbar_ddr_axi_rready),
         .fub_axi_rtrace(xbar_ddr_axi_rtrace),
+        .fub_axi_ridunq(),
         .fub_axi_rpoison(xbar_ddr_axi_rpoison),
         .fub_axi_rchunkv(xbar_ddr_axi_rchunkv),
         .fub_axi_rchunknum(xbar_ddr_axi_rchunknum),
         .fub_axi_rchunkstrb(xbar_ddr_axi_rchunkstrb),
         .fub_axi_rtag(xbar_ddr_axi_rtag),
-        .fub_axi_rtagmatch(xbar_ddr_axi_rtagmatch),
 
         // External side (m_axi)
         .m_axi_arid(ddr_axi_arid),
@@ -431,9 +430,10 @@ module ddr_adapter
         .m_axi_artrace(ddr_axi_artrace),
         .m_axi_armpam(),
         .m_axi_armecid(),
-        .m_axi_arunique(ddr_axi_arunique),
+        .m_axi_aridunq(ddr_axi_aridunq),
         .m_axi_archunken(ddr_axi_archunken),
         .m_axi_artagop(ddr_axi_artagop),
+        .m_axi_awakeup(),
         .m_axi_rid(ddr_axi_rid),
         .m_axi_rdata(ddr_axi_rdata),
         .m_axi_rresp(ddr_axi_rresp),
@@ -442,12 +442,12 @@ module ddr_adapter
         .m_axi_rvalid(ddr_axi_rvalid),
         .m_axi_rready(ddr_axi_rready),
         .m_axi_rtrace(ddr_axi_rtrace),
+        .m_axi_ridunq(ddr_axi_ridunq),
         .m_axi_rpoison(ddr_axi_rpoison),
         .m_axi_rchunkv(ddr_axi_rchunkv),
         .m_axi_rchunknum(ddr_axi_rchunknum),
         .m_axi_rchunkstrb(ddr_axi_rchunkstrb),
         .m_axi_rtag(ddr_axi_rtag),
-        .m_axi_rtagmatch(ddr_axi_rtagmatch),
 
         // Status (empty connector = unconnected tie-off)
         .busy()

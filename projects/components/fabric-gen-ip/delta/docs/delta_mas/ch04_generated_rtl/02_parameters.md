@@ -26,14 +26,14 @@
 
 | Parameter | Generated From | Logic Implication |
 |-----------|----------------|-------------------|
-| `DATA_WIDTH` | `--data-width` | Width of all `TDATA` and `TPARITY` default calculations. |
+| `DATA_WIDTH` | `--data-width` | Width of `TDATA`; with `--amba5` it also sets `TDATACHK_W = DATA_WIDTH/8`. |
 | `DEST_WIDTH` | `clog2(NUM_SLAVES)` | Width of `TDEST`; determines request decode comparison width. |
 | `ID_WIDTH` | `clog2(NUM_MASTERS)` | Width of `TID`; pass-through only. |
 | `USER_WIDTH` | `--user-width` | Width of `TUSER`; pass-through only. |
 | `NUM_MASTERS` | `--masters` | Size of `s_axis_*` arrays and grant/request matrix columns. |
 | `NUM_SLAVES` | `--slaves` | Size of `m_axis_*` arrays and grant/request matrix rows. |
 | `STRB_WIDTH` | `--strb-width` | Width of `TSTRB`; adds mux ports when > 0. |
-| `PW_WIDTH` | `--parity-width` or `DATA_WIDTH/8` | Width of `TPARITY`; adds mux ports when `--amba5` is set. |
+| `TDATACHK_W`, `TSTRBCHK_W`, `TIDCHK_W`, `TDESTCHK_W`, `TUSERCHK_W` | derived in the header from the payload widths (IHI 0051B Table 5-1) | Check-signal widths with `--amba5`. Each sizes one carried `*CHK` mux field and one bank of `dataint_parity` checkers per master. `TSTRBCHK_W` appears only with `--strb-width`. |
 
 : Table 4.1: Parameter-to-Logic Mapping
 
@@ -51,8 +51,8 @@ A single master or slave still gets a 1-bit width to avoid zero-width signals.
 ## Parameter Interaction
 
 - `STRB_WIDTH == 0` omits `TSTRB` entirely.
-- `PW_WIDTH` is meaningful only when `--amba5` is set; otherwise `TPARITY` and `TWAKEUP` ports are not generated.
-- `--parity-width` without `--amba5` is rejected by the CLI parser.
+- The check-width parameters exist only when `--amba5` is set. Without it, no `TWAKEUP` or `*CHK` ports are generated.
+- `--amba5` with a `--data-width` that is not a multiple of 8 is rejected by the CLI parser. The old `--parity-width` option has been removed, because the spec fixes the check widths.
 
 ## RTL Constants
 

@@ -35,8 +35,9 @@
 It emits a single self-contained SystemVerilog module per configuration — a
 flat M×N stream crossbar routing `s_axis_*` masters to `m_axis_*` slaves.
 
-**Status:** Active development. RTL generates and simulates; there is **no
-`dv/` test suite yet** (the CocoTB suite is the known TODO). Re-homed from
+**Status:** Active development. RTL generates and simulates. `dv/tests/`
+covers the `--amba5` example only (routing, TWAKEUP, check signals); the base
+flavor still has no simulation suite. Re-homed from
 `noc-ip/delta` on 2026-10-12 — the move did not change any behavior.
 
 **Your Role:** Help users generate, parameterize, and validate AXIS crossbars;
@@ -60,10 +61,15 @@ comes up without qualification, this crossbar generator is what is meant.
 - **Backpressure:** `TREADY` from the granted slave is steered back to the
   granted master only.
 - **Optional flavors (2026-10-12, default off, default output byte-identical):**
-  `TSTRB` (`--strb-width`) byte qualifiers, and AMBA 5 `TWAKEUP`/`TPARITY`
-  (`--amba5`, `--parity-width` default DATA_WIDTH/8) so generated crossbars
-  port-match `rtl/amba/axis4/*` and `rtl/amba/axis5/*`. TWAKEUP is TDEST-decoded
-  (OR per slave) and may assert before TVALID, per the AMBA 5 hint semantics.
+  `TSTRB` (`--strb-width`) byte qualifiers, and AMBA 5 (`--amba5`): `TWAKEUP`
+  plus the IHI 0051B ch. 5 check signals `TDATACHK` ... `TWAKEUPCHK` (odd
+  parity, spec widths, no width option), so generated crossbars port-match
+  `rtl/amba/axis4/*` and `rtl/amba/axis5/*`. TWAKEUP is TDEST-decoded (OR per
+  slave) and may assert before TVALID. Payload checks are carried through the
+  mux and checked on ingress; control checks are generated or checked per
+  port; sticky `s_/m_parity_error` per port. An `--amba5` module instantiates
+  `rtl/common/dataint_parity` -- its filelist must `-f` include
+  `rtl/common/filelists/dataint_parity.f`.
 - **Optional:** packet counters.
 
 Parameters on the generated module: `DATA_WIDTH`, `DEST_WIDTH`, `ID_WIDTH`,
@@ -80,7 +86,8 @@ Parameters on the generated module: `DATA_WIDTH`, `DEST_WIDTH`, `ID_WIDTH`,
 | `bin/complete_tree_generator.py` | Retired tree-topology prototype (kept for history) |
 | `rtl/delta_axis_flat_4x16.sv` | Reference generated crossbar (checked in) |
 | `rtl_test/*.sv` | Generated variants (2×4, 3×8, 2×16, 4×16) |
-| `rtl_test/delta_axis_flat_2x4_strb_amba5.sv` | Rich-flavor example (TSTRB + TWAKEUP/TPARITY) |
+| `rtl_test/delta_axis_flat_2x4_strb_amba5.sv` | Rich-flavor example (TSTRB + TWAKEUP + T*CHK check signals); filelist `rtl_test/filelists/delta_axis_flat_2x4_strb_amba5.f` |
+| `dv/tests/`, `dv/tbclasses/`, `dv/tb/` | cocotb suite for the `--amba5` example (AXIS5 BFMs via a flattening harness) |
 | `rtl/filelists/*.f` | Filelists (`$REPO_ROOT`-relative) |
 | `README.md` / `PRD.md` / `QUICK_START.md` | Product docs (PRD REQ-GEN-002 is flat-only since 2026-10-12) |
 | `delta_index.md` | Crossbar doc index |
@@ -112,9 +119,16 @@ Parameters on the generated module: `DATA_WIDTH`, `DEST_WIDTH`, `ID_WIDTH`,
 python3 bin/delta_generator.py --topology flat --masters 4 --slaves 16 \
     --data-width 64 --output-dir rtl/
 
-# Rich flavor: TSTRB + AMBA 5 sidebands (matches rtl/amba/axis4 + axis5)
+# Rich flavor: TSTRB + AMBA 5 sidebands (matches rtl/amba/axis4 + axis5).
+# The generator names the file by shape (delta_axis_flat_2x4.sv), so emit to a
+# scratch dir and copy -- writing straight into rtl_test/ overwrites the PLAIN
+# 2x4 example. The flavored name carries the options.
 python3 bin/delta_generator.py --topology flat --masters 2 --slaves 4 \
-    --data-width 32 --strb-width 4 --amba5 --output-dir rtl_test/
+    --data-width 32 --strb-width 4 --amba5 --output-dir /tmp/delta_amba5/
+cp /tmp/delta_amba5/delta_axis_flat_2x4.sv rtl_test/delta_axis_flat_2x4_strb_amba5.sv
+
+# Its DV suite (AXIS5 BFMs, odd-parity checks on every port)
+cd dv/tests && make clean-all && make run-all-func-parallel
 
 # Performance comparison (historical flat/tree data retained)
 python3 bin/delta_performance_model.py --topology compare

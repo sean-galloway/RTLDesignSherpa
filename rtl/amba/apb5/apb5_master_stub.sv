@@ -10,8 +10,9 @@
 // APB5 Extensions:
 // - PAUSER: User-defined request attributes
 // - PWUSER: User-defined write data attributes
-// - PWAKEUP: Wake-up signal handling (input from slave)
-// - Optional parity support for data integrity
+// - PWAKEUP: Requester wake-up OUTPUT (IHI 0024E 3.7.2), driven by apb5_master
+// - Optional interface parity protection (IHI 0024E ch. 5: *CHK signals,
+//   odd parity, one check bit per 8 payload bits)
 //
 // Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
@@ -36,8 +37,8 @@ module apb5_master_stub #(
     // Command packet: addr, data, strb, prot, pwrite, pauser, pwuser, first, last
     parameter int CMD_PACKET_WIDTH  = ADDR_WIDTH + DATA_WIDTH + STRB_WIDTH + PROT_WIDTH +
                                       AUSER_WIDTH + WUSER_WIDTH + 1 + 1 + 1,
-    // Response packet: data, ruser, buser, wakeup, pslverr, first, last
-    parameter int RESP_PACKET_WIDTH = DATA_WIDTH + RUSER_WIDTH + BUSER_WIDTH + 1 + 1 + 1 + 1,
+    // Response packet: data, ruser, buser, pslverr, first, last
+    parameter int RESP_PACKET_WIDTH = DATA_WIDTH + RUSER_WIDTH + BUSER_WIDTH + 1 + 1 + 1,
     // Short Parameters
     parameter int DW  = DATA_WIDTH,
     parameter int AW  = ADDR_WIDTH,
@@ -48,7 +49,14 @@ module apb5_master_stub #(
     parameter int RUW = RUSER_WIDTH,
     parameter int BUW = BUSER_WIDTH,
     parameter int CPW = CMD_PACKET_WIDTH,
-    parameter int RPW = RESP_PACKET_WIDTH
+    parameter int RPW = RESP_PACKET_WIDTH,
+    // Parity check-signal widths (IHI 0024E Table 5-1): one bit per 8 bits
+    parameter int ACW  = (AW + 7) / 8,                     // PADDRCHK
+    parameter int DCW  = DW / 8,                           // PWDATACHK / PRDATACHK
+    parameter int AUCW = (AUW + 7) / 8,                    // PAUSERCHK
+    parameter int WUCW = (WUW + 7) / 8,                    // PWUSERCHK
+    parameter int RUCW = (RUW + 7) / 8,                    // PRUSERCHK
+    parameter int BUCW = (BUW + 7) / 8                     // PBUSERCHK
 ) (
     // Clock and Reset
     input  logic                         pclk,
@@ -67,17 +75,26 @@ module apb5_master_stub #(
     input  logic [DW-1:0]                m_apb_PRDATA,
     input  logic                         m_apb_PSLVERR,
     input  logic                         m_apb_PREADY,
-    input  logic                         m_apb_PWAKEUP,
+    output logic                         m_apb_PWAKEUP,
     input  logic [RUW-1:0]               m_apb_PRUSER,
     input  logic [BUW-1:0]               m_apb_PBUSER,
 
-    // Optional parity signals (active when ENABLE_PARITY=1)
-    output logic [SW-1:0]                m_apb_PWDATAPARITY,
-    output logic                         m_apb_PADDRPARITY,
-    output logic                         m_apb_PCTRLPARITY,
-    input  logic [SW-1:0]                m_apb_PRDATAPARITY,
-    input  logic                         m_apb_PREADYPARITY,
-    input  logic                         m_apb_PSLVERRPARITY,
+    // Interface parity check signals, IHI 0024E ch. 5 (ENABLE_PARITY=1).
+    // Odd parity; passed straight through to the wrapped core.
+    output logic [ACW-1:0]     m_apb_PADDRCHK,
+    output logic               m_apb_PCTRLCHK,       // PPROT, PWRITE
+    output logic               m_apb_PSELCHK,        // PSELxCHK
+    output logic               m_apb_PENABLECHK,
+    output logic [DCW-1:0]     m_apb_PWDATACHK,
+    output logic               m_apb_PSTRBCHK,
+    output logic [AUCW-1:0]    m_apb_PAUSERCHK,
+    output logic [WUCW-1:0]    m_apb_PWUSERCHK,
+    input  logic [DCW-1:0]     m_apb_PRDATACHK,
+    input  logic               m_apb_PREADYCHK,
+    input  logic               m_apb_PSLVERRCHK,
+    output logic               m_apb_PWAKEUPCHK,
+    input  logic [RUCW-1:0]    m_apb_PRUSERCHK,
+    input  logic [BUCW-1:0]    m_apb_PBUSERCHK,
 
     // Command Packet (packed)
     input  logic                         cmd_valid,
@@ -91,10 +108,7 @@ module apb5_master_stub #(
 
     // Parity error flags (active when ENABLE_PARITY=1)
     output logic                         parity_error_rdata,
-    output logic                         parity_error_ctrl,
-
-    // Wake-up status
-    output logic                         wakeup_pending
+    output logic                         parity_error_ctrl
 );
 
     // Unpack command packet
@@ -114,12 +128,11 @@ module apb5_master_stub #(
     // Response signals from apb5_master
     logic [DW-1:0]       rsp_prdata;
     logic                rsp_pslverr;
-    logic                rsp_pwakeup;
     logic [RUW-1:0]      rsp_pruser;
     logic [BUW-1:0]      rsp_pbuser;
 
     // Pack response packet (include first/last from command)
-    assign rsp_data = {cmd_last, cmd_first, rsp_pslverr, rsp_pwakeup, rsp_prdata,
+    assign rsp_data = {cmd_last, cmd_first, rsp_pslverr, rsp_prdata,
                        rsp_pruser, rsp_pbuser};
 
     // Instantiate fully-tested apb5_master
@@ -155,12 +168,20 @@ module apb5_master_stub #(
         .m_apb_PRUSER       (m_apb_PRUSER),
         .m_apb_PBUSER       (m_apb_PBUSER),
         // Parity signals
-        .m_apb_PWDATAPARITY (m_apb_PWDATAPARITY),
-        .m_apb_PADDRPARITY  (m_apb_PADDRPARITY),
-        .m_apb_PCTRLPARITY  (m_apb_PCTRLPARITY),
-        .m_apb_PRDATAPARITY (m_apb_PRDATAPARITY),
-        .m_apb_PREADYPARITY (m_apb_PREADYPARITY),
-        .m_apb_PSLVERRPARITY(m_apb_PSLVERRPARITY),
+        .m_apb_PADDRCHK      (m_apb_PADDRCHK),
+        .m_apb_PCTRLCHK      (m_apb_PCTRLCHK),
+        .m_apb_PSELCHK       (m_apb_PSELCHK),
+        .m_apb_PENABLECHK    (m_apb_PENABLECHK),
+        .m_apb_PWDATACHK     (m_apb_PWDATACHK),
+        .m_apb_PSTRBCHK      (m_apb_PSTRBCHK),
+        .m_apb_PAUSERCHK     (m_apb_PAUSERCHK),
+        .m_apb_PWUSERCHK     (m_apb_PWUSERCHK),
+        .m_apb_PRDATACHK     (m_apb_PRDATACHK),
+        .m_apb_PREADYCHK     (m_apb_PREADYCHK),
+        .m_apb_PSLVERRCHK    (m_apb_PSLVERRCHK),
+        .m_apb_PWAKEUPCHK    (m_apb_PWAKEUPCHK),
+        .m_apb_PRUSERCHK     (m_apb_PRUSERCHK),
+        .m_apb_PBUSERCHK     (m_apb_PBUSERCHK),
         // Command interface (unpacked)
         .cmd_valid          (cmd_valid),
         .cmd_ready          (cmd_ready),
@@ -176,14 +197,11 @@ module apb5_master_stub #(
         .rsp_ready          (rsp_ready),
         .rsp_prdata         (rsp_prdata),
         .rsp_pslverr        (rsp_pslverr),
-        .rsp_pwakeup        (rsp_pwakeup),
         .rsp_pruser         (rsp_pruser),
         .rsp_pbuser         (rsp_pbuser),
         // Parity error flags
         .parity_error_rdata (parity_error_rdata),
-        .parity_error_ctrl  (parity_error_ctrl),
-        // Wake-up status
-        .wakeup_pending     (wakeup_pending)
+        .parity_error_ctrl  (parity_error_ctrl)
     );
 
 endmodule : apb5_master_stub

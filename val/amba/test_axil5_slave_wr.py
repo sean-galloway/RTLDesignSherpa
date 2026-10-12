@@ -21,11 +21,11 @@ AXI5-Lite optional groups enabled, so every phase, check and randomizer
 sweep here is the AXI4-Lite flow running against AXI5-Lite RTL.
 
 What differs is the DUT and what rides with it. The AXI5-Lite modules default
-every ENABLE_* to 1, so this exercises AxUSER/AxTRACE/AxLOOP/AxMPAM/AxMECID/
-AxNSAID/AxLOCK and W/R POISON on real transport RTL -- which nothing did
-before: the only AXI5-Lite DUT was a behavioural test slave, and
-test_axil5_master_rd.py drives AXI4-Lite RTL by design, to pin the
-groups-off equivalence.
+to ID_WIDTH=4 and every ENABLE_* to 1, so this exercises AWID/BID and
+ARID/RID, AxUSER/xUSER, AxTRACE/xTRACE and W/R POISON on real transport RTL.
+Every transaction carries a rotating non-zero ID that must come back on its
+response (bin/TBClasses/axil5/axil5_id_check.py). The groups-off, no-ID
+equivalence against AXI4-Lite is test_axil5_axil4_equivalence.py.
 AXIL5 Slave Write Test Runner
 
 Test runner for the AXIL5 slave write module using the CocoTB framework.

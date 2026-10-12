@@ -182,6 +182,7 @@ class AXI4ACEMonitorTB:
             await self._test_burst_transactions(test_level)
 
         await self._test_error_detection()
+        await self._test_ace_signal_fields()
 
         if test_level in ['medium', 'full']:
             await self._test_sustained_traffic(test_level)
@@ -375,6 +376,30 @@ class AXI4ACEMonitorTB:
             f"dropped_count: {dropped}, refused_count: {refused}"
         )
         self.log.info("TEST 4 PASSED (monitoring verified)")
+
+    async def _test_ace_signal_fields(self):
+        """The wrapper carries the ACE fields its core gained for issue #102
+        item 4 (AxDOMAIN, AxBAR, RRESP[3:2], and RACK/WACK on the slave side),
+        and the monitor does not mistake IsShared/PassDirty for an error: it
+        sees only RRESP[1:0] (IHI 0022H Table D3-14).
+        """
+        self.log.info("\n" + "=" * 80)
+        self.log.info("TEST: ACE address/response fields through the monlite wrapper")
+        self.log.info("=" * 80)
+        self.base_tb.set_timing_profile('normal')
+        packets_before = len(self.mon_slave.received_packets)
+
+        if not await self.base_tb.ace_signal_fields_test():
+            raise RuntimeError("ACE field passthrough failed through the monlite wrapper")
+
+        await self.base_tb.wait_clocks('aclk', 50)
+        new_packets = self.mon_slave.received_packets[packets_before:]
+        n_err = self._count_error_packets(new_packets)
+        if n_err:
+            raise RuntimeError(
+                f"monitor emitted {n_err} error packets for OKAY traffic carrying "
+                f"IsShared/PassDirty or barrier/domain fields")
+        self.log.info(f"ACE field test PASSED ({len(new_packets)} monitor packets, 0 errors)")
 
     async def _test_sustained_traffic(self, test_level: str):
         """Higher-volume traffic must keep producing packets."""

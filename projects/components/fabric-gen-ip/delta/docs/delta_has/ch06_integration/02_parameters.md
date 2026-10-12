@@ -33,7 +33,11 @@
 | `NUM_MASTERS` | CLI `--masters` | Number of master interfaces. |
 | `NUM_SLAVES` | CLI `--slaves` | Number of slave interfaces. |
 | `STRB_WIDTH` | CLI `--strb-width` | Width of `TSTRB` (only when `--strb-width` is used). |
-| `PW_WIDTH` | `DATA_WIDTH/8` (or `--parity-width`) | Width of `TPARITY` (only when `--amba5` is used). |
+| `TDATACHK_W` | `DATA_WIDTH / 8` | Width of `TDATACHK` (only with `--amba5`). |
+| `TSTRBCHK_W` | `(STRB_WIDTH + 7) / 8` | Width of `TSTRBCHK` (only with `--amba5` and `--strb-width`). |
+| `TIDCHK_W` | `(ID_WIDTH + 7) / 8` | Width of `TIDCHK` (only with `--amba5`). |
+| `TDESTCHK_W` | `(DEST_WIDTH + 7) / 8` | Width of `TDESTCHK` (only with `--amba5`). |
+| `TUSERCHK_W` | `(USER_WIDTH + 7) / 8` | Width of `TUSERCHK` (only with `--amba5`). |
 
 : Table 6.1: Generated Module Parameters
 
@@ -47,8 +51,7 @@
 | `--data-width` | 8-1024 | 64 | `TDATA` width in bits. |
 | `--user-width` | 1-32 | 1 | `TUSER` width in bits. |
 | `--strb-width` | ≥ 0 | 0 | `TSTRB` width; 0 omits `TSTRB`. |
-| `--amba5` | flag | off | Emit AMBA 5 `TWAKEUP` and `TPARITY`. |
-| `--parity-width` | ≥ 0 | 0 | Override `TPARITY` width (requires `--amba5`). |
+| `--amba5` | flag | off | Emit AMBA 5 `TWAKEUP`, the IHI 0051B ch. 5 check signals and the per-port `*_parity_error` flags. Requires `--data-width` to be a multiple of 8. |
 | `--no-counters` | flag | off | Disable packet counters. |
 | `--output-dir` | path | `../rtl` | Output directory for generated SystemVerilog. |
 
@@ -69,8 +72,11 @@ python3 bin/delta_generator.py \
 ```bash
 python3 bin/delta_generator.py \
     --topology flat --masters 2 --slaves 4 --data-width 32 \
-    --strb-width 4 --amba5 --output-dir rtl_test/
+    --strb-width 4 --amba5 --output-dir /tmp/delta_amba5/
+cp /tmp/delta_amba5/delta_axis_flat_2x4.sv rtl_test/delta_axis_flat_2x4_strb_amba5.sv
 ```
+
+The generator names its output by shape. Writing straight into `rtl_test/` would overwrite the plain `delta_axis_flat_2x4.sv`. The compile closure is `rtl_test/filelists/delta_axis_flat_2x4_strb_amba5.f`, which `-f` includes `rtl/common/filelists/dataint_parity.f`.
 
 ### Base flavor without counters
 

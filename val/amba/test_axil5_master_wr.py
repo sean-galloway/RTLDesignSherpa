@@ -21,11 +21,11 @@ AXI5-Lite optional groups enabled, so every phase, check and randomizer
 sweep here is the AXI4-Lite flow running against AXI5-Lite RTL.
 
 What differs is the DUT and what rides with it. The AXI5-Lite modules default
-every ENABLE_* to 1, so this exercises AxUSER/AxTRACE/AxLOOP/AxMPAM/AxMECID/
-AxNSAID/AxLOCK and W/R POISON on real transport RTL -- which nothing did
-before: the only AXI5-Lite DUT was a behavioural test slave, and
-test_axil5_master_rd.py drives AXI4-Lite RTL by design, to pin the
-groups-off equivalence.
+to ID_WIDTH=4 and every ENABLE_* to 1, so this exercises AWID/BID and
+ARID/RID, AxUSER/xUSER, AxTRACE/xTRACE and W/R POISON on real transport RTL.
+Every transaction carries a rotating non-zero ID that must come back on its
+response (bin/TBClasses/axil5/axil5_id_check.py). The groups-off, no-ID
+equivalence against AXI4-Lite is test_axil5_axil4_equivalence.py.
 AXIL5 Write Master Test Runner
 
 Test runner for the AXIL5 write master using the CocoTB framework.
@@ -388,8 +388,8 @@ def test_axil5_write_master(request, addr_width, data_width, aw_depth, w_depth, 
         # The DERIVED parameters (AW, DW, AWSize, WSize, BSize) are NOT
         # overridden. The AXI4-Lite runner this was ported from passes them,
         # which is harmless there because the values it computes match what
-        # the RTL derives. On AXI5-Lite they do not: BSize is 2 + USER + TRACE
-        # + LOOP = 10 with the groups on, and forcing it to the AXI4-Lite 2
+        # the RTL derives. On AXI5-Lite they do not: BSize is 2 + ID + USER +
+        # TRACE = 11 with the defaults, and forcing it to the AXI4-Lite 2
         # made every optional-group field a part-select past the end of a
         # 2-bit vector ("Extracting 4 bits from only 2 bit number").
         # Let the RTL derive them -- that is what a derived parameter is.
@@ -535,8 +535,8 @@ def test_axil5_write_master(request, addr_width, data_width, aw_depth, w_depth, 
         # The DERIVED parameters (AW, DW, AWSize, WSize, BSize) are NOT
         # overridden. The AXI4-Lite runner this was ported from passes them,
         # which is harmless there because the values it computes match what
-        # the RTL derives. On AXI5-Lite they do not: BSize is 2 + USER + TRACE
-        # + LOOP = 10 with the groups on, and forcing it to the AXI4-Lite 2
+        # the RTL derives. On AXI5-Lite they do not: BSize is 2 + ID + USER +
+        # TRACE = 11 with the defaults, and forcing it to the AXI4-Lite 2
         # made every optional-group field a part-select past the end of a
         # 2-bit vector ("Extracting 4 bits from only 2 bit number").
         # Let the RTL derive them -- that is what a derived parameter is.

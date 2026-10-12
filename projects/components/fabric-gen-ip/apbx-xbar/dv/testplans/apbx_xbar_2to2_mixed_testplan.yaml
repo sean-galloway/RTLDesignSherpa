@@ -179,6 +179,21 @@ functional_scenarios:
     priority: high
     status: verified
 
+  # ---- wake (issue #102 item 7) ----
+  - id: APB-MIX-09
+    name: "PWAKEUP forwarded requester -> completer"
+    description: >
+      PWAKEUP is a Requester output (IHI 0024E 3.7.2, Table 3-7): an input on
+      APB5 master m1, an output on APB5 slave s0. s0_PWAKEUP is low while idle;
+      m1_PWAKEUP reaches s0 combinationally and drops with it; an APB4 m0
+      transfer to s0 (no requester wake anywhere) still sees PWAKEUP on every
+      PSEL cycle and one cycle before PSEL rises; traffic to APB4 s1 never
+      raises s0's wake. Fails on the pre-#102 crossbar ("m1 PWAKEUP not
+      forwarded to s0 PWAKEUP").
+    test_function: "cocotb_test_pwakeup_forward"
+    priority: high
+    status: verified
+
 parameter_coverage:
   - ADDR_WIDTH: 32
     DATA_WIDTH: 32
@@ -195,7 +210,9 @@ formal_coverage:
     - arbiter grants one-hot per slave
     - "gate, no injection: the APB4 master cannot cause sideband at the APB5 slave"
     - "gate, no fabrication: completer sideband can only come from the APB5 slave"
-    - "PWAKEUP is dropped unconditionally (a documented limitation, proven)"
+    - "PWAKEUP forwarded: m1's wake always reaches s0 (ap_pwakeup_forwarded)"
+    - "s0 never selected without PWAKEUP (ap_pwakeup_covers_psel)"
+    - "s0 PWAKEUP not fabricated from reset (ap_pwakeup_not_fabricated)"
   does_not_prove:
     - >
       "an APB4 port never sees sideband" -- vacuous here, since those ports have
@@ -214,10 +231,10 @@ notes: |
   CONTRIBUTION. Both gates are compile-time constants, so synthesis prunes any
   pairing that cannot occur.
 
-  Known behaviour, not a defect: PWAKEUP is dropped. The boundary IP leaves
-  rsp_pwakeup unconnected and ties wakeup_request to '0, so an APB5 slave
-  asserting PWAKEUP is never seen at the APB5 master. Proven, so wiring it up
-  later fails a proof rather than changing behaviour silently.
+  PWAKEUP (IHI 0024E 3.7.2) is Requester-driven: s0_PWAKEUP = the boundary
+  apb5_master's own pending/in-flight wake | m1_PWAKEUP, a glitch-free OR
+  tree. The completer's side has no PWAKEUP to return. (Before issue #102
+  item 7 the direction was reversed and the pin was dropped.)
 
   Address Map:
     Slave 0: [BASE_ADDR + 0x00000, BASE_ADDR + 0x0FFFF]

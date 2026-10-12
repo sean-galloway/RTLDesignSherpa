@@ -100,10 +100,10 @@ package monitor_amba5_pkg;
 
     // APB5 Parity Error Events (new in APB5)
     typedef enum logic [7:0] {
-        APB5_PARITY_PWDATA_ERROR     = 8'h0,  // PWDATA parity error (PPARITY)
-        APB5_PARITY_PRDATA_ERROR     = 8'h1,  // PRDATA parity error (PRDATAPARITY)
-        APB5_PARITY_PREADY_ERROR     = 8'h2,  // PREADY parity error (PREADYPARITY)
-        APB5_PARITY_PSLVERR_ERROR    = 8'h3,  // PSLVERR parity error (PSLVERRPARITY)
+        APB5_PARITY_PWDATA_ERROR     = 8'h0,  // PWDATA check error (PWDATACHK)
+        APB5_PARITY_PRDATA_ERROR     = 8'h1,  // PRDATA check error (PRDATACHK)
+        APB5_PARITY_PREADY_ERROR     = 8'h2,  // PREADY check error (PREADYCHK)
+        APB5_PARITY_PSLVERR_ERROR    = 8'h3,  // PSLVERR check error (PSLVERRCHK)
         APB5_PARITY_CORRECTED        = 8'h4,  // Parity error corrected
         APB5_PARITY_UNCORRECTED      = 8'h5,  // Parity error uncorrectable
         APB5_PARITY_CHECK_DISABLED   = 8'h6,  // Parity checking disabled
@@ -164,7 +164,7 @@ package monitor_amba5_pkg;
 
     // AXIS5 Parity Events (new in AXIS5)
     typedef enum logic [7:0] {
-        AXIS5_PARITY_TDATA_ERROR     = 8'h0,  // TDATA parity error (TPARITY)
+        AXIS5_PARITY_TDATA_ERROR     = 8'h0,  // *CHK odd-parity error (TDATACHK etc., IHI 0051B ch. 5)
         AXIS5_PARITY_CORRECTED       = 8'h1,  // Parity error corrected
         AXIS5_PARITY_UNCORRECTED     = 8'h2,  // Parity error uncorrectable
         AXIS5_PARITY_CHECK_DISABLED  = 8'h3,  // Parity checking disabled

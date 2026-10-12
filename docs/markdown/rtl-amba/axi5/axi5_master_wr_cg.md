@@ -43,12 +43,11 @@ The AXI5 Master Write with Clock Gating module wraps the standard `axi5_master_w
 - **AWTRACE:** Trace signal for debug and performance monitoring
 - **AWMPAM:** Memory Partitioning and Monitoring (PartID + PMG)
 - **AWMECID:** Memory Encryption Context ID for secure memory
-- **AWUNIQUE:** Unique ID indicator for cache operations
+- **AWIDUNQ / BIDUNQ:** Unique ID indicator on the request and its write response (IHI 0022L §A5.2)
 - **AWTAGOP:** Memory tag operation (MTE - Memory Tagging Extension)
-- **AWTAG:** Memory tags on address channel
 - **WPOISON:** Write data poison indicator for corrupted data detection
 - **WTAG/WTAGUPDATE:** Memory tags and tag update control (MTE)
-- **BTRACE/BTAG/BTAGMATCH:** Response trace and tag signals
+- **BTRACE / BIDUNQ / BTAGMATCH[1:0]:** Response trace, unique-ID indicator and the 2-bit tag match result
 - **Automatic clock gating** based on activity detection
 - **Configurable idle count** before clock gating activates
 - **Power savings** during idle periods
@@ -81,9 +80,10 @@ The AXI5 Master Write with Clock Gating module wraps the standard `axi5_master_w
 | ENABLE_TRACE | bit | 1 | Enable trace signals |
 | ENABLE_MPAM | bit | 1 | Enable memory partitioning |
 | ENABLE_MECID | bit | 1 | Enable memory encryption context |
-| ENABLE_UNIQUE | bit | 1 | Enable unique ID indicator |
+| ENABLE_UNIQUE | bit | 1 | Enable the unique ID indicator (AxIDUNQ, and BIDUNQ/RIDUNQ on the responses) |
 | ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
+| ENABLE_WAKEUP | bit | 1 | Enable AWAKEUP (IHI 0022L §A14.1.1); 0 ties the output low |
 | CG_IDLE_COUNT_WIDTH | int | 4 | Width of idle counter (max 2^N-1 cycles) |
 
 ### Derived Parameters
@@ -94,7 +94,7 @@ These are computed inside the module from the parameters above. Do not override 
 |-----------|------------|-------------|
 | SW | AXI_WSTRB_WIDTH | Write strobe width, one bit per data byte |
 | NUM_TAGS | max(AXI_DATA_WIDTH / 128, 1) | MTE tags carried per beat (one tag per 16 bytes) |
-| TW | AXI_TAG_WIDTH * NUM_TAGS | Total width of the `awtag` / `wtag` / `btag` fields |
+| TW | AXI_TAG_WIDTH * NUM_TAGS | Total width of the `wtag` field |
 | AWSize | Sum of the enabled AW fields | AW SKID buffer payload width |
 | WSize | Sum of the enabled W fields | W SKID buffer payload width |
 | BSize | Sum of the enabled B fields | B SKID buffer payload width |
@@ -134,6 +134,7 @@ These are computed inside the module from the parameters above. Do not override 
 | fub_axi_awqos | 4 | Input | Quality of Service |
 | fub_axi_awuser | UW | Input | User-defined signal |
 | fub_axi_awvalid | 1 | Input | Write address valid |
+| fub_axi_awakeup | 1 | Input | Wake-up request, AWAKEUP (IHI 0022L §A14.1.1; `ENABLE_WAKEUP`) |
 | fub_axi_awready | 1 | Output | Write address ready (forced 0 when gating) |
 
 #### AXI5 AW Extensions
@@ -145,9 +146,8 @@ These are computed inside the module from the parameters above. Do not override 
 | fub_axi_awtrace | 1 | Input | Trace signal |
 | fub_axi_awmpam | AXI_MPAM_WIDTH | Input | Memory partitioning/monitoring |
 | fub_axi_awmecid | AXI_MECID_WIDTH | Input | Memory encryption context ID |
-| fub_axi_awunique | 1 | Input | Unique ID indicator |
+| fub_axi_awidunq | 1 | Input | Unique ID indicator, AWIDUNQ (IHI 0022L §A5.2; `ENABLE_UNIQUE`) |
 | fub_axi_awtagop | AXI_TAGOP_WIDTH | Input | Tag operation (MTE) |
-| fub_axi_awtag | TW | Input | Memory tags on address channel |
 
 #### W Channel
 
@@ -183,8 +183,8 @@ These are computed inside the module from the parameters above. Do not override 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
 | fub_axi_btrace | 1 | Output | Trace signal |
-| fub_axi_btag | TW | Output | Memory tags in response |
-| fub_axi_btagmatch | 1 | Output | Tag match result |
+| fub_axi_bidunq | 1 | Output | Unique ID indicator on the write response, BIDUNQ (IHI 0022L §A5.2; `ENABLE_UNIQUE`) |
+| fub_axi_btagmatch | 2 | Output | Tag match result, IHI 0022L Table A12.14 (00 None, 01 Separate, 10 Fail, 11 Pass) |
 
 ### Master AXI5 Interface (Output Side)
 
@@ -229,9 +229,9 @@ flowchart LR
 
     subgraph AXI["AXI5 Master"]
         direction TB
-        m_aw["AW Channel<br/>ATOP/NSAID/TRACE<br/>MPAM/MECID<br/>UNIQUE/TAGOP/TAG"]
+        m_aw["AW Channel<br/>ATOP/NSAID/TRACE<br/>MPAM/MECID<br/>IDUNQ/TAGOP"]
         m_w["W Channel<br/>POISON/TAG<br/>TAGUPDATE"]
-        m_b["B Channel<br/>TRACE/TAG<br/>TAGMATCH"]
+        m_b["B Channel<br/>TRACE/IDUNQ<br/>TAGMATCH[1:0]"]
     end
 
     fub_aw --> activity
@@ -262,7 +262,7 @@ The clock gating controller monitors activity on both user and AXI sides for all
 
 **User-side activity detection:**
 ```systemverilog
-user_valid = fub_axi_awvalid || fub_axi_wvalid || fub_axi_bvalid || int_busy  // peer VALID (post-fix)
+user_valid = (ENABLE_WAKEUP && fub_axi_awakeup) || fub_axi_awvalid || fub_axi_wvalid || fub_axi_bvalid || int_busy  // peer VALID (post-fix)
 ```
 
 **AXI-side activity detection:**
@@ -311,11 +311,9 @@ The module does not execute the atomic operation. See [AXI5 Master Write](axi5_m
 **Memory Tagging on Write (MTE):**
 When `ENABLE_MTE=1`:
 - **AWTAGOP:** Specifies tag operation for write address
-- **AWTAG:** Memory tags sent with address
 - **WTAG:** Memory tags sent with each data beat
 - **WTAGUPDATE:** Controls which tags to update (per 16 bytes)
-- **BTAG:** Memory tags returned in response
-- **BTAGMATCH:** Tag match result
+- **BTAGMATCH[1:0]:** Tag match result, Table A12.14 (00 None, 01 Separate, 10 Fail, 11 Pass)
 
 **Write Poison (WPOISON):**
 When `ENABLE_POISON=1`:
@@ -351,7 +349,6 @@ Same as read variant - see [AXI5 Master Read CG](axi5_master_rd_cg.md).
 >
 > - AWATOP encoding
 > - Atomic write sequence
-> - BTAG response
 > - Clock gating after completion
 
 ---
@@ -397,6 +394,7 @@ axi5_master_wr_cg #(
     .fub_axi_awqos      (fub_awqos),
     .fub_axi_awuser     (fub_awuser),
     .fub_axi_awvalid    (fub_awvalid),
+    .fub_axi_awakeup    (fub_awakeup),
     .fub_axi_awready    (fub_awready),
 
     // AXI5 AW extensions
@@ -405,9 +403,8 @@ axi5_master_wr_cg #(
     .fub_axi_awtrace    (fub_awtrace),
     .fub_axi_awmpam     (fub_awmpam),
     .fub_axi_awmecid    (fub_awmecid),
-    .fub_axi_awunique   (fub_awunique),
+    .fub_axi_awidunq   (fub_awidunq),
     .fub_axi_awtagop    (fub_awtagop),
-    .fub_axi_awtag      (fub_awtag),
 
     // W channel
     .fub_axi_wdata      (fub_wdata),
@@ -431,7 +428,7 @@ axi5_master_wr_cg #(
 
     // AXI5 B extensions
     .fub_axi_btrace     (fub_btrace),
-    .fub_axi_btag       (fub_btag),
+    .fub_axi_bidunq     (fub_bidunq),
     .fub_axi_btagmatch  (fub_btagmatch),
 
     // Master interface (output side)
@@ -513,10 +510,10 @@ pytest val/amba/test_axi5_master_wr_cg.py -v
 
 ## References
 
-- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A2.3.1 "Valid-Ready signals", §A2.3.2 "Dependencies between channel handshake signals" and §A2.5 "Pipelining and register stages" (the transport this module buffers per channel), and the AXI5 signals it carries unchanged: §A6.4 "Atomic transactions" (AWATOP), §A16.1 "Data protection using Poison" (WPOISON), §A12.2 "Memory Tagging Extension (MTE)" (AWTAGOP, WTAG, WTAGUPDATE, BTAGMATCH), §A5.2 "Unique ID indicator", §A12.3 "Trace signals", §A10.1 "Non-secure Access Identifiers (NSAID)", §A12.1 "Memory System Resource Partitioning and Monitoring (MPAM)" and §A4.6 "Memory Encryption Contexts" (AWMECID). The specification defines BTAGMATCH as 2 bits and has no BTAG signal, and names the Unique ID indicator AWIDUNQ; see the Notes in the archive README for how this module's ports differ.
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A2.3.1 "Valid-Ready signals", §A2.3.2 "Dependencies between channel handshake signals" and §A2.5 "Pipelining and register stages" (the transport this module buffers per channel), and the AXI5 signals it carries unchanged: §A6.4 "Atomic transactions" (AWATOP), §A16.1 "Data protection using Poison" (WPOISON), §A12.2 "Memory Tagging Extension (MTE)" (AWTAGOP, WTAG, WTAGUPDATE, BTAGMATCH), §A5.2 "Unique ID indicator", §A12.3 "Trace signals", §A10.1 "Non-secure Access Identifiers (NSAID)", §A12.1 "Memory System Resource Partitioning and Monitoring (MPAM)" and §A4.6 "Memory Encryption Contexts" (AWMECID). The ports follow the specification's names and widths (GitHub #102): BTAGMATCH is 2 bits with the Table A12.14 encodings, there is no BTAG or AWTAG, the Unique ID indicator is AWIDUNQ with BIDUNQ on the response, and AWAKEUP follows §A14.1.1 "AWAKEUP rules and recommendations".
 - Benini, L., De Micheli, G. "Automatic Synthesis of Low-Power Gated-Clock Finite-State Machines." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 15(6), June 1996. DOI: [10.1109/43.503933](https://doi.org/10.1109/43.503933) -- the latch-based clock-gating cell (`icg`, via `amba_clock_gate_ctrl` and `clock_gate_ctrl`) that gates this wrapper's clock.
 - Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Trans. VLSI Systems*, 8(3), June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) -- fixed-timeout shutdown: gate after `cfg_cg_idle_count` idle cycles, wake on activity.
-- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A14.1.1 "AWAKEUP rules and recommendations" in Issue L (§E1.7 "Wake-up Signaling" in Issue H) defines AWAKEUP, which lets a manager restart a gated interface before VALID. This wrapper does not use it: it wakes on the flopped OR of the VALIDs and holds READY low while gated.
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A14.1.1 "AWAKEUP rules and recommendations" in Issue L (§E1.7 "Wake-up Signaling" in Issue H) defines AWAKEUP, which lets a manager restart a gated interface before VALID. This wrapper counts AWAKEUP as an activity term (behind `ENABLE_WAKEUP`), so a manager that raises it a cycle ahead of VALID, as §A14.1.1 recommends, finds the clock running and its first request is accepted on the cycle it is presented; a manager that never drives it still wakes the block through the flopped OR of the VALIDs, with READY held low while gated (GitHub #102).
 - Indexed in `rtl/amba/references/README.md` (local PDF, archived under `rtl/common/references/`: `LatchBasedClockGating__Benini1996.pdf`, `DynamicPowerManagementTimeout__Benini2000.pdf`)
 
 ---

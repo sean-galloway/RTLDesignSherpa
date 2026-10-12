@@ -7,7 +7,7 @@
 # Since 2026-09-09 every generated TB drives an AXI5 port with the AXI5 BFM
 # and arms an AXI5ComplianceChecker on it, so this test no longer needs its
 # own subclass; it is the read-side sign-off that drives sideband VALUES
-# through the BFM (trace/unique per transaction -- this fixture's master
+# through the BFM (trace/idunq per transaction -- this fixture's master
 # enables exactly those two; it has no arnsaid pin) into both AXI4
 # slaves and requires the checker's verdict to be clean.
 
@@ -61,8 +61,12 @@ async def cocotb_test_bridge_1x2_rd_axi5_bfm5(dut):
             addr = base + off
             expected = tb.slave_mem_read(slave_idx, addr, master_idx=0)
             resp = await tb.master_rd[0].read_transaction(
-                addr, size=2, id=i % 8, trace=1, unique=(i & 1))
+                addr, size=2, id=i % 8, trace=1, idunq=(i & 1))
             actual = resp[0]['data']
+            # A5.2: RIDUNQ == ARIDUNQ. Both slaves are AXI4 and never see
+            # ARIDUNQ; the master boundary regenerates it (#102 item 5).
+            assert resp[0].get('idunq', -1) == (i & 1), (
+                f"RIDUNQ={resp[0].get('idunq')} for ARIDUNQ={i & 1} (slave {slave_idx})")
             assert resp[0].get('trace', 0) == 1, (
                 f"rtrace not echoed for slave {slave_idx}: got {resp[0].get('trace')}. "
                 f"Both slaves here are AXI4 and contribute no trace of their own; the "

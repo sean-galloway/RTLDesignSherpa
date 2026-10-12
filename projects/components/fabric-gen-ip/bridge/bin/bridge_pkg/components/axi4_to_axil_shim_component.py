@@ -67,7 +67,6 @@ class Axi4ToAxilShim:
         axi_user_width: int = 1,
         protocol: str = 'axil4',
         axi5_features=None,
-        loop_width: int = 1,
     ):
         assert has_write or has_read, "shim must carry at least one channel"
         if protocol not in ('axil4', 'axil5'):
@@ -80,7 +79,6 @@ class Axi4ToAxilShim:
         # is the only address-channel group with an AXI4 source, so widening
         # it here would only pad zeros.
         self.user_width = axi_user_width
-        self.loop_width = loop_width
         self.instance_base = instance_base
         self.id_width = id_width
         self.addr_width = addr_width
@@ -292,16 +290,13 @@ class Axi4ToAxilShim:
 
     def _axil5_param_suffix(self) -> str:
         """ENABLE_* and sideband widths, appended to the base parameter list."""
-        from ..axil5_sideband import (enable_params, MPAM_WIDTH, MECID_WIDTH,
-                                      NSAID_WIDTH)
+        from ..axil5_sideband import enable_params
         parts = [f"parameter bit {name} = {value}"
                  for name, value in enable_params(self.axi5_features)]
+        # AXI_ID_WIDTH (in the base list) is also the AXI5-Lite AWID/BID and
+        # ARID/RID width: the converter carries the AXI4 ID across.
         parts += [
             f"parameter int USER_WIDTH  = {self.user_width}",
-            f"parameter int LOOP_WIDTH  = {self.loop_width}",
-            f"parameter int MPAM_WIDTH  = {MPAM_WIDTH}",
-            f"parameter int MECID_WIDTH = {MECID_WIDTH}",
-            f"parameter int NSAID_WIDTH = {NSAID_WIDTH}",
         ]
         return ", " + ", ".join(parts)
 

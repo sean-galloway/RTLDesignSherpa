@@ -239,7 +239,7 @@ async def axi5_write_slave_test(dut):
                 nsaid=random.randint(0, 15),
                 mpam=random.randint(0, 2047),
                 mecid=random.randint(0, 65535),
-                unique=random.choice([0, 1])
+                idunq=random.choice([0, 1])
             )
             if not success:
                 tb.log.warning(f"Security feature test {i} failed")
@@ -403,9 +403,9 @@ def test_axi5_slave_wr(request, stub, id_width, addr_width, data_width, user_wid
 
     # Calculate packet sizes for AXI5
     aw_size = (id_width + addr_width + 8 + 3 + 2 + 1 + 4 + 3 + 4 + user_width +
-               atop_width + nsaid_width + 1 + mpam_width + mecid_width + 1 + tagop_width + tw)
+               atop_width + nsaid_width + 1 + mpam_width + mecid_width + 1 + tagop_width)  # no AWTAG
     w_size = data_width + wstrb_width + 1 + user_width + 1 + tw + num_tags
-    b_size = id_width + 2 + user_width + 1 + tw + 1
+    b_size = id_width + 2 + user_width + 1 + 1 + 2  # trace, bidunq, btagmatch[1:0]
 
     rtl_parameters = {
         'SKID_DEPTH_AW': str(aw_depth),

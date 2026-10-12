@@ -58,23 +58,18 @@ module axil5_slave_rd_monlite_cg
     parameter int AXIL_ADDR_WIDTH    = 32,
     parameter int AXIL_DATA_WIDTH    = 32,
 
-    // AXI5-Lite optional signal widths
+    // AXI5-Lite ID and optional signal widths
+    // AWID/BID and ARID/RID width (IHI 0022L Table A5.2: 0..32).
+    // This is a Subordinate-side interface, where Table B2.2 makes the ID
+    // mandatory (code YS), so the legal range here is 1..32.
+    parameter int ID_WIDTH           = 4,
     parameter int USER_WIDTH         = 4,
-    parameter int LOOP_WIDTH         = 3,
-    parameter int MPAM_WIDTH         = 11,
-    parameter int MECID_WIDTH        = 16,
-    parameter int NSAID_WIDTH        = 4,
 
     // AXI5-Lite optional signal groups. All default ON; set a group to 0 and
     // its signals leave the SKID payload entirely.
     parameter bit ENABLE_USER        = 1,
     parameter bit ENABLE_TRACE       = 1,
-    parameter bit ENABLE_LOOP        = 1,
-    parameter bit ENABLE_MPAM        = 1,
-    parameter bit ENABLE_MECID       = 1,
-    parameter bit ENABLE_NSAID       = 1,
     parameter bit ENABLE_POISON      = 1,
-    parameter bit ENABLE_LOCK        = 1,
 
     // Skid buffer depths
     parameter int SKID_DEPTH_AR    = 2,
@@ -83,27 +78,19 @@ module axil5_slave_rd_monlite_cg
     // Derived parameters
     parameter int AW       = AXIL_ADDR_WIDTH,
     parameter int DW       = AXIL_DATA_WIDTH,
+    // ID port width: ID_WIDTH, or a 1-bit placeholder when ID_WIDTH = 0
+    parameter int IW       = (ID_WIDTH > 0) ? ID_WIDTH : 1,
     parameter int UW       = USER_WIDTH,
-    parameter int LW       = LOOP_WIDTH,
-    parameter int MW       = MPAM_WIDTH,
-    parameter int EW       = MECID_WIDTH,
-    parameter int NW       = NSAID_WIDTH,
     // One poison bit per 64-bit granule, matching axil5_opt_slave
     parameter int PW       = (DW / 64) > 0 ? (DW / 64) : 1,
 
-    parameter int ARSize = AW + 3 +
-                             (ENABLE_LOCK ? 1 : 0) +
+    parameter int ARSize = AW + 3 + ID_WIDTH +
                              (ENABLE_USER ? UW : 0) +
-                             (ENABLE_TRACE ? 1 : 0) +
-                             (ENABLE_LOOP ? LW : 0) +
-                             (ENABLE_MPAM ? MW : 0) +
-                             (ENABLE_MECID ? EW : 0) +
-                             (ENABLE_NSAID ? NW : 0),
+                             (ENABLE_TRACE ? 1 : 0),
 
-    parameter int RSize  = DW + 2 +
+    parameter int RSize  = DW + 2 + ID_WIDTH +
                              (ENABLE_USER ? UW : 0) +
                              (ENABLE_TRACE ? 1 : 0) +
-                             (ENABLE_LOOP ? LW : 0) +
                              (ENABLE_POISON ? PW : 0)
 ) (
 
@@ -113,43 +100,35 @@ module axil5_slave_rd_monlite_cg
     input  logic                       aresetn,
 
     // AR channel: s_axil_ -> fub_
+    input  logic [IW-1:0]           s_axil_arid,
     input  logic [AW-1:0]           s_axil_araddr,
     input  logic [2:0]              s_axil_arprot,
-    input  logic                    s_axil_arlock,
     input  logic [UW-1:0]           s_axil_aruser,
     input  logic                    s_axil_artrace,
-    input  logic [LW-1:0]           s_axil_arloop,
-    input  logic [MW-1:0]           s_axil_armpam,
-    input  logic [EW-1:0]           s_axil_armecid,
-    input  logic [NW-1:0]           s_axil_arnsaid,
     input  logic                    s_axil_arvalid,
     output logic                    s_axil_arready,
+    output logic [IW-1:0]           fub_axil_arid,
     output logic [AW-1:0]           fub_axil_araddr,
     output logic [2:0]              fub_axil_arprot,
-    output logic                    fub_axil_arlock,
     output logic [UW-1:0]           fub_axil_aruser,
     output logic                    fub_axil_artrace,
-    output logic [LW-1:0]           fub_axil_arloop,
-    output logic [MW-1:0]           fub_axil_armpam,
-    output logic [EW-1:0]           fub_axil_armecid,
-    output logic [NW-1:0]           fub_axil_arnsaid,
     output logic                    fub_axil_arvalid,
     input  logic                    fub_axil_arready,
 
     // R channel: fub_ -> s_axil_
+    input  logic [IW-1:0]           fub_axil_rid,
     input  logic [DW-1:0]           fub_axil_rdata,
     input  logic [1:0]              fub_axil_rresp,
     input  logic [UW-1:0]           fub_axil_ruser,
     input  logic                    fub_axil_rtrace,
-    input  logic [LW-1:0]           fub_axil_rloop,
     input  logic [PW-1:0]           fub_axil_rpoison,
     input  logic                    fub_axil_rvalid,
     output logic                    fub_axil_rready,
+    output logic [IW-1:0]           s_axil_rid,
     output logic [DW-1:0]           s_axil_rdata,
     output logic [1:0]              s_axil_rresp,
     output logic [UW-1:0]           s_axil_ruser,
     output logic                    s_axil_rtrace,
-    output logic [LW-1:0]           s_axil_rloop,
     output logic [PW-1:0]           s_axil_rpoison,
     output logic                    s_axil_rvalid,
     input  logic                    s_axil_rready,
@@ -192,6 +171,29 @@ module axil5_slave_rd_monlite_cg
     output logic                                  cg_gating,           // gated clock is stopped
     output logic                                  cg_idle              // no activity observed
 );
+
+    // ---------------------------------------------------------------------
+    // Elaboration-time parameter guard (the one sanctioned in-RTL check; see
+    // vault/handbook/design/no-assertions-in-rtl.md). Checks nothing at run
+    // time.
+    //   AXIL_DATA_WIDTH: AXI5-Lite takes any AXI DATA_WIDTH -- 8, 16, 32, 64,
+    //     128, 256, 512 or 1024 (IHI 0022L Table A3.19; Table B2.4 adds no
+    //     AXI5-Lite constraint, unlike AXI4-Lite's 32/64 of IHI 0022H B1.1.2).
+    //   ID_WIDTH: 1..32 (Table A5.2). Subordinate-side: the ID is mandatory (Table B2.2, YS).
+    // ---------------------------------------------------------------------
+`ifndef SYNTHESIS
+    initial begin : param_check
+        if (!(AXIL_DATA_WIDTH == 8   || AXIL_DATA_WIDTH == 16  ||
+              AXIL_DATA_WIDTH == 32  || AXIL_DATA_WIDTH == 64  ||
+              AXIL_DATA_WIDTH == 128 || AXIL_DATA_WIDTH == 256 ||
+              AXIL_DATA_WIDTH == 512 || AXIL_DATA_WIDTH == 1024))
+            $fatal(1, "axil5_slave_rd_monlite_cg: AXIL_DATA_WIDTH=%0d is not a legal AXI5-Lite data width (8..1024, power of 2; IHI 0022L A3.2)",
+                   AXIL_DATA_WIDTH);
+        if (ID_WIDTH < 1 || ID_WIDTH > 32)
+            $fatal(1, "axil5_slave_rd_monlite_cg: ID_WIDTH=%0d out of range 1..32 (IHI 0022L Table A5.2; a Subordinate must carry the ID)",
+                   ID_WIDTH);
+    end
+`endif
 
     // ------------------------------------------------------------------------
     // Clock gating (the axil5_slave_rd_mon_cg logic, verbatim)
@@ -239,69 +241,49 @@ module axil5_slave_rd_monlite_cg
         .CFI_MAX_FREQ_MHZ            (CFI_MAX_FREQ_MHZ),
         .AXIL_ADDR_WIDTH             (AXIL_ADDR_WIDTH),
         .AXIL_DATA_WIDTH             (AXIL_DATA_WIDTH),
+        .ID_WIDTH                    (ID_WIDTH),
         .USER_WIDTH                  (USER_WIDTH),
-        .LOOP_WIDTH                  (LOOP_WIDTH),
-        .MPAM_WIDTH                  (MPAM_WIDTH),
-        .MECID_WIDTH                 (MECID_WIDTH),
-        .NSAID_WIDTH                 (NSAID_WIDTH),
         .ENABLE_USER                 (ENABLE_USER),
         .ENABLE_TRACE                (ENABLE_TRACE),
-        .ENABLE_LOOP                 (ENABLE_LOOP),
-        .ENABLE_MPAM                 (ENABLE_MPAM),
-        .ENABLE_MECID                (ENABLE_MECID),
-        .ENABLE_NSAID                (ENABLE_NSAID),
         .ENABLE_POISON               (ENABLE_POISON),
-        .ENABLE_LOCK                 (ENABLE_LOCK),
         .SKID_DEPTH_AR               (SKID_DEPTH_AR),
         .SKID_DEPTH_R                (SKID_DEPTH_R),
         .AW                          (AW),
         .DW                          (DW),
         .UW                          (UW),
-        .LW                          (LW),
-        .MW                          (MW),
-        .EW                          (EW),
-        .NW                          (NW),
         .PW                          (PW),
         .ARSize                      (ARSize),
         .RSize                       (RSize)
     ) u_monlite (
         .aclk                        (gated_aclk),
         .aresetn                     (aresetn),
+        .s_axil_arid                 (s_axil_arid),
         .s_axil_araddr               (s_axil_araddr),
         .s_axil_arprot               (s_axil_arprot),
-        .s_axil_arlock               (s_axil_arlock),
         .s_axil_aruser               (s_axil_aruser),
         .s_axil_artrace              (s_axil_artrace),
-        .s_axil_arloop               (s_axil_arloop),
-        .s_axil_armpam               (s_axil_armpam),
-        .s_axil_armecid              (s_axil_armecid),
-        .s_axil_arnsaid              (s_axil_arnsaid),
         .s_axil_arvalid              (s_axil_arvalid),
         .s_axil_arready              (int_arready),
+        .fub_axil_arid               (fub_axil_arid),
         .fub_axil_araddr             (fub_axil_araddr),
         .fub_axil_arprot             (fub_axil_arprot),
-        .fub_axil_arlock             (fub_axil_arlock),
         .fub_axil_aruser             (fub_axil_aruser),
         .fub_axil_artrace            (fub_axil_artrace),
-        .fub_axil_arloop             (fub_axil_arloop),
-        .fub_axil_armpam             (fub_axil_armpam),
-        .fub_axil_armecid            (fub_axil_armecid),
-        .fub_axil_arnsaid            (fub_axil_arnsaid),
         .fub_axil_arvalid            (fub_axil_arvalid),
         .fub_axil_arready            (fub_axil_arready),
+        .fub_axil_rid                 (fub_axil_rid),
         .fub_axil_rdata              (fub_axil_rdata),
         .fub_axil_rresp              (fub_axil_rresp),
         .fub_axil_ruser              (fub_axil_ruser),
         .fub_axil_rtrace             (fub_axil_rtrace),
-        .fub_axil_rloop              (fub_axil_rloop),
         .fub_axil_rpoison            (fub_axil_rpoison),
         .fub_axil_rvalid             (fub_axil_rvalid),
         .fub_axil_rready             (int_rready),
+        .s_axil_rid                   (s_axil_rid),
         .s_axil_rdata                (s_axil_rdata),
         .s_axil_rresp                (s_axil_rresp),
         .s_axil_ruser                (s_axil_ruser),
         .s_axil_rtrace               (s_axil_rtrace),
-        .s_axil_rloop                (s_axil_rloop),
         .s_axil_rpoison              (s_axil_rpoison),
         .s_axil_rvalid               (s_axil_rvalid),
         .s_axil_rready               (s_axil_rready),

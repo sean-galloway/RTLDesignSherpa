@@ -52,7 +52,9 @@ def generate_sdpram_axil_axil_params():
     """REG_LEVEL -> (test_level, data_width, mem_depth) rows.
 
     GATE: 1 row (quick smoke).
-    FUNC/FULL: 3 rows -- gate/func at DATA_WIDTH=64, full at DATA_WIDTH=256.
+    FUNC/FULL: 3 rows -- gate/func at DATA_WIDTH=64, full at DATA_WIDTH=32.
+    AXI4-Lite allows only 32 or 64 bits (IHI 0022H B1.1.2; the axil4 width
+    guard rejects 256, #102).
     mem_depth is held >=64 across all rows (see write-burst offsets in the
     other two wrapper tests -- this wrapper has no burst phase, but the
     depth is kept consistent for direct comparison across the family).
@@ -65,7 +67,7 @@ def generate_sdpram_axil_axil_params():
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     if reg_level == 'GATE':
         return [('gate', 64, 64, 1)]
-    return [('gate', 64, 64, 1), ('func', 64, 64, 1), ('full', 256, 64, 1),
+    return [('gate', 64, 64, 1), ('func', 64, 64, 1), ('full', 32, 64, 1),
             # the previously-unbuilt branch
             ('func', 64, 64, 0)]
 

@@ -60,15 +60,40 @@ RTL stays byte-identical — the zero-drift invariant.
   terminating enabled features' fub ports (fall-through to the
   connector prefix).
 
-The struct field for AWUNIQUE/ARUNIQUE is named `uniq` (`unique` is an SV
-keyword).
+The struct field for AWIDUNQ/ARIDUNQ is named `idunq` (IHI 0022L A5.2; the
+library called the indicator `awunique`/`arunique` until GitHub #102 item 5,
+but AWUNIQUE is an unrelated ACE signal). `BIDUNQ`/`RIDUNQ` are deliberately
+**not** struct fields: the master adapter regenerates them from a per-ID bit
+table (`r_awidunq_by_id` / `r_aridunq_by_id`, written at the AW/AR handshake
+on the wrapper's fub face, and for a read-return atomic at its AW), read by
+`BID`/`RID` (`AdapterGenerator._idunq_echo_lines`). A5.2 makes the response
+indicator a function of the request and forbids mixing indicators among
+outstanding same-ID transactions, so the table is exact under any response
+order, and it is right on every path the request indicator was dropped on.
+The slave adapter leaves the slave's `BIDUNQ`/`RIDUNQ` unconnected.
+
+### AWAKEUP (A14.1.1)
+
+`wakeup` is a port feature but not struct sideband. Both boundary wrappers
+of a port carry an `awakeup` pin (one signal covers both request channels).
+On a master port both `axi5_slave_{wr,rd}` take the top-level `AWAKEUP`; their
+fub-side copies (the input OR'd with requests held in that wrapper's skid
+buffers) are OR'd into the adapter output `wakeup_req`. The top ORs the
+`wakeup_req` of every connected wake-capable master into each wake-capable
+slave adapter's `wakeup_req` input (`1'b0` when none), which feeds both
+`axi5_master_{wr,rd}` fub `awakeup` pins; each wrapper ORs in its own held
+requests and the slave adapter ORs the two `m_axi_awakeup` copies onto the
+port. Every term is a flop or a top-level input, so the tree is glitch-free.
+The bridge never waits for a master's `AWAKEUP`.
 
 ### Data-scaled fields: Memory Tagging and chunking (bridge TASK-007, was BRIDGE-018)
 
 The last two wrapper features, `mte` and `chunking`, joined the table on
 2026-09-13 and closed the native-AXI5 gap. Their fields are the only ones
 whose width follows the data bus: a tag bus is 4 bits per 16 bytes
-(`aw/w/b/rtag`), `wtagupdate` and `rchunkstrb` one bit per 16 bytes /
+(`wtag`, `rtag`; IHI 0022L A12.2 has no `AWTAG` or `BTAG`, and the library's
+`awtag`/`btag`/`rtagmatch` went with GitHub #102 item 5), `wtagupdate` and
+`rchunkstrb` one bit per 16 bytes /
 128-bit chunk. `sideband.py` carries them as symbolic widths
 (`WIDTH_TAGS`, `WIDTH_NTAGS`, `WIDTH_CHUNKSTRB`) and resolves them with
 `field_width(width, data_width)`:
@@ -81,8 +106,8 @@ whose width follows the data bus: a tag bus is 4 bits per 16 bytes
 - slave ports and adapter pins are sized for that port's own width.
 
 The fabric carries these fields and never interprets them: tags are
-payload routed with their beat, `btagmatch` returns through the B mux by
-bridge id like `bresp`, and a chunked burst's R beats are routed by ID and
+payload routed with their beat, the 2-bit `btagmatch` (Table A12.14) returns
+through the B mux by bridge id like `bresp`, and a chunked burst's R beats are routed by ID and
 released on `RLAST` whatever order the completer sends the chunks in. Both
 features require a port of 128 bits or more (`validate_axi5_wide_features`).
 
@@ -111,9 +136,24 @@ graph LR
 ```
 
 Handshakes (AW/W/B) and the B payload (`bid`/`bresp`) go **through** the
-filter; all other payload gets `pref → fub` pass-through assigns. Store-
+filter, and `awlen` is connected so the filter can count the read data it
+owes; all other payload gets `pref → fub` pass-through assigns. Store-
 class ATOP and plain writes forward; read-return classes are swallowed
-(W burst consumed) and answered with a local DECERR B. See the module doc:
+(W burst consumed) and answered with a local DECERR B.
+
+Since GitHub #102 item 2 the filter also returns the read data transfers a
+swallowed atomic owes (IHI 0022L A6.4.8: AWLEN+1 for Load/Swap, half that
+for Compare, each DECERR, RLAST on the last), merged into its `s_r*` output
+with downstream priority and no burst interleave. On the bridge's write-only
+port there is no R channel upstream to merge into and no downstream R, so the
+generator ties the filter's `s_rready` high and leaves `s_rvalid/s_rid/
+s_rresp/s_rlast` open (the beats are accepted and discarded), and ties
+`m_rvalid`/`m_rid`/`m_rresp`/`m_rlast` low. Draining matters: an undrained
+read-return queue fills after `2**DEPTH_LG2` (8) swallowed atomics and then
+stalls AW for good. The atomic completes with DECERR on B only; HAS 4.4
+states the resulting rule -- managers must not issue load-class atomics on a
+write-only port. When the port has `unique`, `BIDUNQ` is regenerated on the
+`pref` side, so the local DECERR carries its own `AWIDUNQ`. See the module doc:
 `docs/markdown/rtl-amba/axi5/axi5_atomic_filter.md`. The filter exists
 because a port with no read path has nowhere to deliver the R beat those
 classes answer with. A port that has one gets the next section instead.
@@ -191,9 +231,12 @@ to before this change.
 `protocol = "apb5"` reuses the entire APB4 path with two deltas: the
 slave adapter instantiates `axi4_to_apb5_shim` (a sideband wrapper over
 the APB4 shim — see the converters MAS), and the external surface adds
-`PAUSER/PWUSER` out (driven `'0`) and `PWAKEUP/PRUSER/PBUSER` in
-(terminated). The generated TB drives the port with the APB4 BFM: APB5
-keeps the APB4 transfer protocol.
+`PAUSER/PWUSER` out (driven `'0`), `PWAKEUP` out and `PRUSER/PBUSER` in
+(terminated). `PWAKEUP` is a requester output (IHI 0024E 3.7.2; it was an
+input until GitHub #102 item 7): the shim drives it from a flop of `PSEL`, so it
+is glitch-free and held through the PREADY cycle. The generated TB drives the
+port with the APB5 BFM, which observes `PWAKEUP`: APB5 keeps the APB4
+transfer protocol.
 
 ## Lite and APB Requesters (bridge TASK-004, was BRIDGE-014)
 
@@ -202,10 +245,12 @@ beyond the AXI4-Lite master path that already existed:
 
 - **`axil5` master.** The AXI4-Lite promotion (AXI4 extras tied at the
   top, `axi4_slave_*` wrappers, the wide-slave aligner toward wider slaves)
-  plus the whole AXI5-Lite sideband on the boundary, directions flipped for
-  a requester. `exclusive` and `user` -- the two groups with an AXI4
-  destination -- join the Lite surface and reach the adapter's AXI4 face;
-  the rest is terminated at the top. `validate_axil5_features` applies to
+  plus the AXI5-Lite ID and optional signals on the boundary, directions
+  flipped for a requester. The ID (`awid`/`bid`/`arid`/`rid`) and `user`
+  -- the one optional group with an AXI4 destination -- join the Lite
+  surface and reach the adapter's AXI4 face; TRACE and POISON are
+  terminated at the top. AXI5-Lite has no LOCK, LOOP, MPAM, MECID or NSAID
+  (IHI 0022L B2.1.5, GitHub #102 item 3). `validate_axil5_features` applies to
   masters and slaves alike, so a config cannot name a group the design
   drops.
 - **`apb` / `apb5` master.** The bridge is the APB completer.
@@ -217,7 +262,8 @@ beyond the AXI4-Lite master path that already existed:
   ride the fabric USER bit (visible at an `axil5` slave with `user`).
   `PWAKEUP` is requester-driven and terminated.
 
-Validator rules: Lite masters `id_width = 0`; APB masters `addr_width = 32`
+Validator rules: AXI4-Lite masters `id_width = 0`, AXI5-Lite masters
+`id_width >= 1`; APB masters `addr_width = 32`
 (a requester addresses the whole fabric, unlike an APB slave port's window
 offset). The generated TB drives `axil5` masters with the AXIL5 BFMs and
 `apb`/`apb5` masters with `APBMaster`/`APB5Master`; `master_read`/
@@ -240,7 +286,17 @@ the honest code.
   -- 32b AXI5 master into a 64b AXI4 slave; data round-trips, trace returns 0.
 - Atomics, filtered: `dv/tests/test_bridge_1x2_wr_axi5a_atomics.py` (store
   forwards; load, swap AND compare answered DECERR by the filter, via
-  `atomic_operation`) and `val/amba/test_axi5_atomic_filter.py`.
+  `atomic_operation`; a burst of 12 load-class atomics -- more than the
+  filter's 8-deep read-return queue -- all complete and the port stays
+  usable; BIDUNQ follows AWIDUNQ on the local DECERRs) and
+  `val/amba/test_axi5_atomic_filter.py`.
+- Unique-ID indicators: `test_bridge_2x2_axi5_sideband_arb.py`,
+  `test_bridge_1x2_rd_axi5{n,w}_sideband.py`, `test_bridge_1x2_rd_axi5_bfm5.py`
+  (BIDUNQ/RIDUNQ follow the request on native, AXI4, converter paths) and
+  `test_bridge_1x2_rw_axi5a_atomics.py` (an atomic's RIDUNQ and BIDUNQ).
+- AWAKEUP: `dv/tests/test_bridge_2x2_axi5_wakeup.py` (forwarding ahead of
+  any request, held on every request cycle including traffic from a master
+  without AWAKEUP, low when idle).
 - Atomics, read-return: `dv/tests/test_bridge_1x2_rw_axi5a_atomics.py` --
   load ADD/SET/UMAX, swap, compare (match and mismatch) on both slaves,
   each checked three ways (R data is the pre-op value, memory holds the

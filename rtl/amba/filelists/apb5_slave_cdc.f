@@ -14,6 +14,8 @@ $REPO_ROOT/rtl/amba/includes/fifo_defs.svh
 -f $REPO_ROOT/rtl/common/filelists/counter_load_clear.f
 
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_synchronizer.f
+# APB5 *CHK generation/checking (IHI 0024E ch. 5)
+-f $REPO_ROOT/rtl/common/filelists/dataint_parity.f
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 -f $REPO_ROOT/rtl/cdc/filelists/gaxi_fifo_async.f

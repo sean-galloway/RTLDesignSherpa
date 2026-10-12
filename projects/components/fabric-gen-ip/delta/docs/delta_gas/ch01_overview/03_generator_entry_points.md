@@ -53,7 +53,6 @@ cfg = DeltaConfig(
     user_width=1,
     strb_width=0,
     amba5=False,
-    parity_width=0,
     registered_outputs=True,
     arbiter_type="round_robin",
     add_performance_counters=True,

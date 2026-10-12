@@ -31,6 +31,7 @@ package bridge_1x2_wr_axi5a_pkg;
         logic [3:0]   region;  // Region identifier
         logic         user;    // User signal
         logic         trace;   // AXI5 sideband (trace)
+        logic         idunq;   // AXI5 sideband (unique)
         logic [5:0]  atop;    // AXI5 sideband (atomic)
     } axi4_aw_t;
 
@@ -48,6 +49,7 @@ package bridge_1x2_wr_axi5a_pkg;
         logic [3:0]   region;  // Region identifier
         logic         user;    // User signal
         logic         trace;   // AXI5 sideband (trace)
+        logic         idunq;   // AXI5 sideband (unique)
     } axi4_ar_t;
 
     // AXI4 Write Data Channel - 32-bit data width

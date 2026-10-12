@@ -18,7 +18,7 @@ AXIS5 Slave Testbench
 
 Testbench for testing axis5_slave.sv module using the CocoTB framework's
 AXIS5 components. The axis5_slave is a skid buffer that converts standard
-AXIS5 slave interface to FUB-side signals with TWAKEUP and TPARITY support.
+AXIS5 slave interface to FUB-side signals with TWAKEUP and IHI 0051B ch. 5 check-signal (T*CHK) support.
 
 Architecture:
     s_axis5_* (input) -> [axis5_slave] -> fub_axis5_* (output)
@@ -53,7 +53,7 @@ class AXIS5SlaveTB(TBBase):
     AXIS5 Slave testbench for testing axis5_slave.sv RTL module.
 
     Tests the skid buffer functionality that converts standard AXIS5
-    slave interface to FUB-side signals with TWAKEUP and TPARITY.
+    slave interface to FUB-side signals with TWAKEUP and the T*CHK check signals.
     """
 
     def __init__(self, dut, aclk=None, aresetn=None):
@@ -236,7 +236,7 @@ class AXIS5SlaveTB(TBBase):
             packet.dest = i % (2**self.TEST_DEST_WIDTH) if self.TEST_DEST_WIDTH > 0 else 0
 
             if self.ENABLE_PARITY:
-                packet.parity = packet.calculate_parity()
+                packet.fill_check_fields()
 
             success = await self.axis_master.send_packet(packet)
             assert success, f"Failed to send packet {i}"
@@ -284,7 +284,7 @@ class AXIS5SlaveTB(TBBase):
         self.log.info("Wakeup test completed successfully")
 
     async def run_parity_test(self, num_packets=10):
-        """Test TPARITY signal verification."""
+        """Test T*CHK check-signal verification (odd parity)."""
         if not self.ENABLE_PARITY:
             self.log.info("Parity not enabled, skipping parity test")
             return
@@ -300,7 +300,7 @@ class AXIS5SlaveTB(TBBase):
             )
             packet.data = 0x60000000 + i
             packet.last = 1
-            packet.parity = packet.calculate_parity()
+            packet.fill_check_fields()
 
             success = await self.axis_master.send_packet(packet)
             assert success, f"Failed to send packet {i} with parity"
@@ -333,7 +333,7 @@ class AXIS5SlaveTB(TBBase):
                 packet.id = frame_id
 
                 if self.ENABLE_PARITY:
-                    packet.parity = packet.calculate_parity()
+                    packet.fill_check_fields()
 
                 success = await self.axis_master.send_packet(packet)
                 assert success, f"Failed to send beat {beat} of frame {frame_id}"
@@ -365,7 +365,7 @@ class AXIS5SlaveTB(TBBase):
             packet.last = 1
 
             if self.ENABLE_PARITY:
-                packet.parity = packet.calculate_parity()
+                packet.fill_check_fields()
 
             success = await self.axis_master.send_packet(packet)
             assert success, f"Failed to send packet {i} under backpressure"
@@ -397,7 +397,7 @@ class AXIS5SlaveTB(TBBase):
             packet.last = 1
 
             if self.ENABLE_PARITY:
-                packet.parity = packet.calculate_parity()
+                packet.fill_check_fields()
 
             success = await self.axis_master.send_packet(packet)
             assert success, f"Failed to send packet {i} in burst"
@@ -415,7 +415,7 @@ class AXIS5SlaveTB(TBBase):
             packet.last = 1
 
             if self.ENABLE_PARITY:
-                packet.parity = packet.calculate_parity()
+                packet.fill_check_fields()
 
             success = await self.axis_master.send_packet(packet)
             assert success, f"Failed to send packet {i} after burst"

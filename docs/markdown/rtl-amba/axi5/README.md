@@ -47,7 +47,7 @@ These modules are **channel-transport blocks**: they carry a full AXI5 signal se
 
 **What the RTL does not do:**
 
-- It does not *execute* AXI5 semantics. `AWATOP` is transported, but no atomic read-modify-write is performed; `AxTAGOP`/`RTAG`/`WTAG` are transported, but no tag checking or `RTAGMATCH` generation is performed; chunk fields are transported, but no chunk reassembly is performed. Those behaviors belong to the endpoint (memory controller, interconnect, or FUB logic) on either side.
+- It does not *execute* AXI5 semantics. `AWATOP` is transported, but no atomic read-modify-write is performed; `AxTAGOP`/`RTAG`/`WTAG` are transported, but no tag checking is performed; chunk fields are transported, but no chunk reassembly is performed. Those behaviors belong to the endpoint (memory controller, interconnect, or FUB logic) on either side.
 - It does not track or limit outstanding transactions. Depth is bounded by the endpoints, not by these modules.
 
 Consult the per-module pages for the exact signal set each module carries.
@@ -62,17 +62,19 @@ Consult the per-module pages for the exact signal set each module carries.
 | Trace | ARTRACE / AWTRACE / RTRACE / BTRACE | Transported (`ENABLE_TRACE`) |
 | Memory partitioning and monitoring (MPAM) | ARMPAM / AWMPAM | Transported (`ENABLE_MPAM`) |
 | Memory encryption context | ARMECID / AWMECID | Transported (`ENABLE_MECID`) |
-| Unique access indicator | ARUNIQUE / AWUNIQUE | Transported (`ENABLE_UNIQUE`) |
+| Unique ID indicator | ARIDUNQ / AWIDUNQ / RIDUNQ / BIDUNQ | Transported (`ENABLE_UNIQUE`) |
 | Read data chunking | ARCHUNKEN / RCHUNKV / RCHUNKNUM / RCHUNKSTRB | Transported (`ENABLE_CHUNKING`, read path only) |
-| Memory Tagging Extension (MTE) | ARTAGOP / AWTAGOP / AWTAG / WTAG / WTAGUPDATE / RTAG / BTAG / RTAGMATCH / BTAGMATCH | Transported (`ENABLE_MTE`) |
+| Memory Tagging Extension (MTE) | ARTAGOP / AWTAGOP / WTAG / WTAGUPDATE / RTAG / BTAGMATCH[1:0] | Transported (`ENABLE_MTE`) |
 | Data poison | RPOISON / WPOISON | Transported (`ENABLE_POISON`) |
 | Atomic transactions | AWATOP | Signal transported (`ENABLE_ATOMIC`); atomic execution is the endpoint's responsibility |
+| Interface wake-up | AWAKEUP | Transported (`ENABLE_WAKEUP`) and held while an accepted request waits on its READY (§A14.1.1); a `_cg` wrapper counts it as activity, so the clock is running when the first request after idle arrives |
 
 ## AXI5 Features Not Implemented
 
 | AXI5 feature | Signals | Notes |
 |--------------|---------|-------|
 | Loopback signalling | ARLOOP / AWLOOP | No ports; not carried |
+| Separate MTE completion response | BCOMP | No port. A Match write must therefore be answered with a single combined response (BTAGMATCH 0b10/0b11, §A12.2); BTAGMATCH 0b01 "Separate" is carried through but has no BCOMP partner here |
 | QoS acceptance | ARQOSACCEPT / AWQOSACCEPT | No ports; not carried |
 | Untranslated transactions (SMMU) | AxMMUSID / AxMMUSSID / AxMMUSSIDV / AxMMUATST / AxMMUFLOW | No ports; not carried |
 | Cache stash and CMO transactions | AWSTASHNID / AWSTASHLPID, CMO opcodes | Not implemented |
@@ -86,7 +88,7 @@ Consult the per-module pages for the exact signal set each module carries.
 |---------|------|------|
 | Outstanding transactions | No architectural limit; bounded by implementation | Unchanged; no architectural limit |
 | Atomic transactions | Not supported | AWATOP: AtomicStore, AtomicLoad, AtomicSwap, AtomicCompare |
-| Memory tagging | Not supported | MTE: AxTAGOP, AxTAG, WTAGUPDATE, RTAG/BTAG, xTAGMATCH |
+| Memory tagging | Not supported | MTE: AxTAGOP, WTAG/RTAG, WTAGUPDATE, BTAGMATCH |
 | Security identification | ARPROT/AWPROT[1] non-secure bit | AxPROT retained, plus AxNSAID for finer-grained security domains |
 | QoS | ARQOS/AWQOS | AxQOS retained, plus optional AxQOSACCEPT |
 | Memory partitioning | Not supported | MPAM (PartID + PMG) |
@@ -145,7 +147,7 @@ Consult the per-module pages for the exact signal set each module carries.
 - **Atomic transactions:** AWATOP transported for AtomicStore, AtomicLoad, AtomicSwap, and AtomicCompare
 
 ### Advanced Features
-- **Memory Tagging (MTE):** AxTAGOP, AxTAG, WTAGUPDATE, RTAG/BTAG, xTAGMATCH
+- **Memory Tagging (MTE):** AxTAGOP, WTAG/RTAG, WTAGUPDATE, BTAGMATCH
 - **Memory partitioning:** MPAM (PartID + PMG) and MECID encryption context
 - **Poison support:** RPOISON/WPOISON for error propagation
 - **Chunking:** ARCHUNKEN and the RCHUNK* response fields on the read path
@@ -186,17 +188,18 @@ AXI5 maintains the five-channel architecture from AXI4:
 | ARTRACE / AWTRACE | AR / AW | Request trace marker |
 | ARMPAM / AWMPAM | AR / AW | Memory partitioning and monitoring (PartID + PMG) |
 | ARMECID / AWMECID | AR / AW | Memory encryption context identifier |
-| ARUNIQUE / AWUNIQUE | AR / AW | Unique access indicator |
+| ARIDUNQ / AWIDUNQ | AR / AW | Unique ID indicator (IHI 0022L §A5.2) |
+| RIDUNQ / BIDUNQ | R / B | Unique ID indicator on the response, behind the same `ENABLE_UNIQUE` |
 | ARCHUNKEN | AR | Read data chunking enable |
 | ARTAGOP / AWTAGOP | AR / AW | MTE tag operation |
-| AWTAG | AW | MTE address tags |
 | WPOISON | W | Write data poisoned indicator |
 | WTAG / WTAGUPDATE | W | MTE write data tags and update mask |
 | RPOISON | R | Read data poisoned indicator |
 | RTRACE / BTRACE | R / B | Response trace marker |
 | RCHUNKV / RCHUNKNUM / RCHUNKSTRB | R | Read chunk valid, number, and strobe |
-| RTAG / BTAG | R / B | MTE response tags |
-| RTAGMATCH / BTAGMATCH | R / B | MTE tag match result |
+| RTAG | R | MTE read data tags |
+| BTAGMATCH[1:0] | B | MTE tag match result (Table A12.14) |
+| AWAKEUP | AR / AW side | Wake-up request (§A14.1.1), behind `ENABLE_WAKEUP`; in a `_cg` wrapper it also wakes the gated clock |
 
 Signals absent from this list (ARLOOP/AWLOOP, ARQOSACCEPT/AWQOSACCEPT, ARREGION/AWREGION, the SMMU `AxMMU*` group, and stash/CMO encodings) have no ports on these modules. See *AXI5 Features Not Implemented* above.
 
@@ -241,6 +244,7 @@ axi5_master_rd #(
     .fub_axi_arqos      (fub_arqos),
     .fub_axi_aruser     (fub_aruser),
     .fub_axi_arvalid    (fub_arvalid),
+    .fub_axi_awakeup    (fub_awakeup),
     .fub_axi_arready    (fub_arready),
 
     .fub_axi_rid        (fub_rid),
@@ -284,6 +288,7 @@ axi5_master_wr #(
     .fub_axi_awqos      (fub_awqos),
     .fub_axi_awuser     (fub_awuser),
     .fub_axi_awvalid    (fub_awvalid),
+    .fub_axi_awakeup    (fub_awakeup),
     .fub_axi_awready    (fub_awready),
 
     .fub_axi_wdata      (fub_wdata),
@@ -397,6 +402,14 @@ pytest val/amba/test_axi5_master_wr.py -v
 pytest val/amba/test_axi5_slave_rd.py -v
 pytest val/amba/test_axi5_slave_wr.py -v
 ```
+
+`val/amba/test_axi5_spec_signals.py` checks the signal set itself, pin by
+pin, on every wrapper: no AWTAG, BTAG or RTAGMATCH; a 2-bit BTAGMATCH carried
+with all four Table A12.14 codes; AWIDUNQ/ARIDUNQ forward and BIDUNQ/RIDUNQ
+back; AWAKEUP passed through and held while an accepted request waits on its
+READY; and, on each `_cg` wrapper, AWAKEUP alone waking the gated clock so the
+next request is accepted on its first cycle. The feature-OFF builds check that
+every one of those outputs ties to 0.
 
 ---
 

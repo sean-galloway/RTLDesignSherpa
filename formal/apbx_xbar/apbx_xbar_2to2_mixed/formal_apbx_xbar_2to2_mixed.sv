@@ -56,12 +56,12 @@ module formal_apbx_xbar_2to2_mixed #(
     input logic [2:0]            m1_apb_PPROT,
     input logic                  m1_apb_PAUSER,
     input logic                  m1_apb_PWUSER,
+    input logic                  m1_apb_PWAKEUP,   // Requester output (IHI 0024E 3.7.2)
 
     // s0 is APB5, s1 is APB4.
     input logic [DW-1:0]         s0_apb_PRDATA,  s1_apb_PRDATA,
     input logic                  s0_apb_PSLVERR, s1_apb_PSLVERR,
     input logic                  s0_apb_PREADY,  s1_apb_PREADY,
-    input logic                  s0_apb_PWAKEUP,
     input logic                  s0_apb_PRUSER,
     input logic                  s0_apb_PBUSER
 );
@@ -69,7 +69,7 @@ module formal_apbx_xbar_2to2_mixed #(
     logic [DW-1:0] m0_apb_PRDATA, m1_apb_PRDATA;
     logic          m0_apb_PSLVERR, m1_apb_PSLVERR;
     logic          m0_apb_PREADY,  m1_apb_PREADY;
-    logic          m1_apb_PWAKEUP, m1_apb_PRUSER, m1_apb_PBUSER;
+    logic          m1_apb_PRUSER, m1_apb_PBUSER;
 
     logic          s0_apb_PSEL, s1_apb_PSEL;
     logic          s0_apb_PENABLE, s1_apb_PENABLE;
@@ -79,6 +79,7 @@ module formal_apbx_xbar_2to2_mixed #(
     logic [SW-1:0] s0_apb_PSTRB, s1_apb_PSTRB;
     logic [2:0]    s0_apb_PPROT, s1_apb_PPROT;
     logic          s0_apb_PAUSER, s0_apb_PWUSER;
+    logic          s0_apb_PWAKEUP;   // driven by the crossbar toward the completer
 
     apbx_xbar_2to2_mixed #(
         .ADDR_WIDTH(AW), .DATA_WIDTH(DW),
@@ -255,17 +256,42 @@ module formal_apbx_xbar_2to2_mixed #(
     end
 
     // -------------------------------------------------------------------------
-    // Property 7: PWAKEUP is dropped, unconditionally.
+    // Property 7: PWAKEUP is forwarded requester -> completer (IHI 0024E
+    // 3.7.2, Table 3-7; issue #102 item 7).
     //
-    // This proves a documented LIMITATION rather than a guarantee. The mixed
-    // variant's boundary IP leaves rsp_pwakeup unconnected and ties
-    // wakeup_request to '0, so an APB5 slave asserting PWAKEUP is never seen at
-    // the APB5 master. The books say so; this makes it checkable, and makes the
-    // day someone wires it up a failing proof rather than a silent change.
+    // This replaces ap_pwakeup_dropped, which proved a limitation of the OLD
+    // direction: the boundary IP drove PWAKEUP from the completer side and the
+    // crossbar dropped it. PWAKEUP is a Requester output, so the crossbar now
+    // takes it IN on APB5 requester m1 and DRIVES it on APB5 completer s0 as
+    //   s0_PWAKEUP = (boundary apb5_master's own pending/in-flight wake)
+    //              | m1_PWAKEUP
+    // 7a: m1's wake always reaches s0 (no requester wake is lost).
+    // 7b: s0 is never selected without PWAKEUP. 3.7.2 lets a Completer wait
+    //     for PWAKEUP before PREADY; a PSEL without it could deadlock. This is
+    //     the property that matters for APB4 m0, which has no PWAKEUP at all.
+    //     Because PSEL stays high through PREADY, 7b also gives "PWAKEUP
+    //     remains asserted until PREADY" (3.7.2) for every s0 transfer.
+    // 7c: from reset, with no requester wake ever and no requester ever
+    //     selecting, s0's wake is LOW -- it is not fabricated (3.7.2:
+    //     recommended deasserted when no transfers are required).
     // -------------------------------------------------------------------------
+    logic any_ever_selected, m1_ever_woke;
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            any_ever_selected <= 1'b0;
+            m1_ever_woke      <= 1'b0;
+        end else begin
+            if (m0_apb_PSEL || m1_apb_PSEL) any_ever_selected <= 1'b1;
+            if (m1_apb_PWAKEUP)             m1_ever_woke      <= 1'b1;
+        end
+    end
+
     always @(posedge clk) begin
         if (rst_n) begin
-            ap_pwakeup_dropped: assert (m1_apb_PWAKEUP == 1'b0);
+            ap_pwakeup_forwarded: assert (!m1_apb_PWAKEUP || s0_apb_PWAKEUP);
+            ap_pwakeup_covers_psel: assert (!s0_apb_PSEL || s0_apb_PWAKEUP);
+            if (!any_ever_selected && !m1_ever_woke && !m1_apb_PWAKEUP)
+                ap_pwakeup_not_fabricated: assert (!s0_apb_PWAKEUP);
         end
     end
 
@@ -289,6 +315,12 @@ module formal_apbx_xbar_2to2_mixed #(
             cp_m0_to_s0:       cover (dut.s0_arb_grant[0]);
             // The APB5 master really does reach the APB4 slave.
             cp_m1_to_s1:       cover (dut.s1_arb_grant[1]);
+            // Property 7 is about states that occur: the APB4 master's
+            // transfer reaches s0 with no requester wake anywhere, so the
+            // crossbar's own wake is what holds s0 awake...
+            cp_wake_from_m0:   cover (s0_apb_PSEL && dut.s0_arb_grant[0] && !m1_apb_PWAKEUP);
+            // ...and a requester wake reaches s0 with nothing in flight.
+            cp_wake_fwd_idle:  cover (s0_apb_PWAKEUP && !dut.w_s0_ip_pwakeup);
         end
     end
 

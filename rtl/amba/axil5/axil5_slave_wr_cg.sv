@@ -37,22 +37,17 @@ module axil5_slave_wr_cg
     parameter int AXIL_ADDR_WIDTH    = 32,
     parameter int AXIL_DATA_WIDTH    = 32,
 
-    // AXI5-Lite optional signal widths
+    // AXI5-Lite ID and optional signal widths
+    // AWID/BID and ARID/RID width (IHI 0022L Table A5.2: 0..32).
+    // This is a Subordinate-side interface, where Table B2.2 makes the ID
+    // mandatory (code YS), so the legal range here is 1..32.
+    parameter int ID_WIDTH           = 4,
     parameter int USER_WIDTH         = 4,
-    parameter int LOOP_WIDTH         = 3,
-    parameter int MPAM_WIDTH         = 11,
-    parameter int MECID_WIDTH        = 16,
-    parameter int NSAID_WIDTH        = 4,
 
     // AXI5-Lite optional signal groups
     parameter bit ENABLE_USER        = 1,
     parameter bit ENABLE_TRACE       = 1,
-    parameter bit ENABLE_LOOP        = 1,
-    parameter bit ENABLE_MPAM        = 1,
-    parameter bit ENABLE_MECID       = 1,
-    parameter bit ENABLE_NSAID       = 1,
     parameter bit ENABLE_POISON      = 1,
-    parameter bit ENABLE_LOCK        = 1,
 
     // Skid buffer depths
     parameter int SKID_DEPTH_AW    = 2,
@@ -66,11 +61,9 @@ module axil5_slave_wr_cg
     parameter int AW       = AXIL_ADDR_WIDTH,
     parameter int DW       = AXIL_DATA_WIDTH,
     parameter int SW       = DW / 8,
+    // ID port width: ID_WIDTH, or a 1-bit placeholder when ID_WIDTH = 0
+    parameter int IW       = (ID_WIDTH > 0) ? ID_WIDTH : 1,
     parameter int UW       = USER_WIDTH,
-    parameter int LW       = LOOP_WIDTH,
-    parameter int MW       = MPAM_WIDTH,
-    parameter int EW       = MECID_WIDTH,
-    parameter int NW       = NSAID_WIDTH,
     parameter int PW       = (DW / 64) > 0 ? (DW / 64) : 1
 )
 (
@@ -83,26 +76,18 @@ module axil5_slave_wr_cg
     input  logic [CG_IDLE_COUNT_WIDTH-1:0] cfg_cg_idle_count,
 
     // AW channel
+    input  logic [IW-1:0]           s_axil_awid,
     input  logic [AW-1:0]           s_axil_awaddr,
     input  logic [2:0]              s_axil_awprot,
-    input  logic                    s_axil_awlock,
     input  logic [UW-1:0]           s_axil_awuser,
     input  logic                    s_axil_awtrace,
-    input  logic [LW-1:0]           s_axil_awloop,
-    input  logic [MW-1:0]           s_axil_awmpam,
-    input  logic [EW-1:0]           s_axil_awmecid,
-    input  logic [NW-1:0]           s_axil_awnsaid,
     input  logic                    s_axil_awvalid,
     output logic                    s_axil_awready,
+    output logic [IW-1:0]           fub_awid,
     output logic [AW-1:0]           fub_awaddr,
     output logic [2:0]              fub_awprot,
-    output logic                    fub_awlock,
     output logic [UW-1:0]           fub_awuser,
     output logic                    fub_awtrace,
-    output logic [LW-1:0]           fub_awloop,
-    output logic [MW-1:0]           fub_awmpam,
-    output logic [EW-1:0]           fub_awmecid,
-    output logic [NW-1:0]           fub_awnsaid,
     output logic                    fub_awvalid,
     input  logic                    fub_awready,
 
@@ -121,16 +106,16 @@ module axil5_slave_wr_cg
     input  logic                    fub_wready,
 
     // B channel
+    input  logic [IW-1:0]           fub_bid,
     input  logic [1:0]              fub_bresp,
     input  logic [UW-1:0]           fub_buser,
     input  logic                    fub_btrace,
-    input  logic [LW-1:0]           fub_bloop,
     input  logic                    fub_bvalid,
     output logic                    fub_bready,
+    output logic [IW-1:0]           s_axil_bid,
     output logic [1:0]              s_axil_bresp,
     output logic [UW-1:0]           s_axil_buser,
     output logic                    s_axil_btrace,
-    output logic [LW-1:0]           s_axil_bloop,
     output logic                    s_axil_bvalid,
     input  logic                    s_axil_bready,
 
@@ -138,6 +123,29 @@ module axil5_slave_wr_cg
     output logic                       cg_gating,         // Active gating indicator
     output logic                       cg_idle            // All buffers empty indicator
 );
+
+    // ---------------------------------------------------------------------
+    // Elaboration-time parameter guard (the one sanctioned in-RTL check; see
+    // vault/handbook/design/no-assertions-in-rtl.md). Checks nothing at run
+    // time.
+    //   AXIL_DATA_WIDTH: AXI5-Lite takes any AXI DATA_WIDTH -- 8, 16, 32, 64,
+    //     128, 256, 512 or 1024 (IHI 0022L Table A3.19; Table B2.4 adds no
+    //     AXI5-Lite constraint, unlike AXI4-Lite's 32/64 of IHI 0022H B1.1.2).
+    //   ID_WIDTH: 1..32 (Table A5.2). Subordinate-side: the ID is mandatory (Table B2.2, YS).
+    // ---------------------------------------------------------------------
+`ifndef SYNTHESIS
+    initial begin : param_check
+        if (!(AXIL_DATA_WIDTH == 8   || AXIL_DATA_WIDTH == 16  ||
+              AXIL_DATA_WIDTH == 32  || AXIL_DATA_WIDTH == 64  ||
+              AXIL_DATA_WIDTH == 128 || AXIL_DATA_WIDTH == 256 ||
+              AXIL_DATA_WIDTH == 512 || AXIL_DATA_WIDTH == 1024))
+            $fatal(1, "axil5_slave_wr_cg: AXIL_DATA_WIDTH=%0d is not a legal AXI5-Lite data width (8..1024, power of 2; IHI 0022L A3.2)",
+                   AXIL_DATA_WIDTH);
+        if (ID_WIDTH < 1 || ID_WIDTH > 32)
+            $fatal(1, "axil5_slave_wr_cg: ID_WIDTH=%0d out of range 1..32 (IHI 0022L Table A5.2; a Subordinate must carry the ID)",
+                   ID_WIDTH);
+    end
+`endif
 
     logic gated_aclk;
     logic user_valid;
@@ -177,19 +185,11 @@ module axil5_slave_wr_cg
     axil5_slave_wr #(
         .AXIL_ADDR_WIDTH    (AXIL_ADDR_WIDTH),
         .AXIL_DATA_WIDTH    (AXIL_DATA_WIDTH),
+        .ID_WIDTH           (ID_WIDTH),
         .USER_WIDTH         (USER_WIDTH),
-        .LOOP_WIDTH         (LOOP_WIDTH),
-        .MPAM_WIDTH         (MPAM_WIDTH),
-        .MECID_WIDTH        (MECID_WIDTH),
-        .NSAID_WIDTH        (NSAID_WIDTH),
         .ENABLE_USER        (ENABLE_USER),
         .ENABLE_TRACE       (ENABLE_TRACE),
-        .ENABLE_LOOP        (ENABLE_LOOP),
-        .ENABLE_MPAM        (ENABLE_MPAM),
-        .ENABLE_MECID       (ENABLE_MECID),
-        .ENABLE_NSAID       (ENABLE_NSAID),
         .ENABLE_POISON      (ENABLE_POISON),
-        .ENABLE_LOCK        (ENABLE_LOCK),
         .SKID_DEPTH_AW      (SKID_DEPTH_AW),
         .SKID_DEPTH_W       (SKID_DEPTH_W),
         .SKID_DEPTH_B       (SKID_DEPTH_B)
@@ -197,26 +197,18 @@ module axil5_slave_wr_cg
         .aclk                   (gated_aclk),      // gated
         .aresetn                (aresetn),
 
+        .s_axil_awid            (s_axil_awid),
         .s_axil_awaddr          (s_axil_awaddr),
         .s_axil_awprot          (s_axil_awprot),
-        .s_axil_awlock          (s_axil_awlock),
         .s_axil_awuser          (s_axil_awuser),
         .s_axil_awtrace         (s_axil_awtrace),
-        .s_axil_awloop          (s_axil_awloop),
-        .s_axil_awmpam          (s_axil_awmpam),
-        .s_axil_awmecid         (s_axil_awmecid),
-        .s_axil_awnsaid         (s_axil_awnsaid),
         .s_axil_awvalid         (s_axil_awvalid),
         .s_axil_awready         (int_awready),      // gated on the way out
+        .fub_awid               (fub_awid),
         .fub_awaddr             (fub_awaddr),
         .fub_awprot             (fub_awprot),
-        .fub_awlock             (fub_awlock),
         .fub_awuser             (fub_awuser),
         .fub_awtrace            (fub_awtrace),
-        .fub_awloop             (fub_awloop),
-        .fub_awmpam             (fub_awmpam),
-        .fub_awmecid            (fub_awmecid),
-        .fub_awnsaid            (fub_awnsaid),
         .fub_awvalid            (fub_awvalid),
         .fub_awready            (fub_awready),
 
@@ -233,16 +225,16 @@ module axil5_slave_wr_cg
         .fub_wvalid             (fub_wvalid),
         .fub_wready             (fub_wready),
 
+        .fub_bid                (fub_bid),
         .fub_bresp              (fub_bresp),
         .fub_buser              (fub_buser),
         .fub_btrace             (fub_btrace),
-        .fub_bloop              (fub_bloop),
         .fub_bvalid             (fub_bvalid),
         .fub_bready             (int_bready),      // gated on the way out
+        .s_axil_bid             (s_axil_bid),
         .s_axil_bresp           (s_axil_bresp),
         .s_axil_buser           (s_axil_buser),
         .s_axil_btrace          (s_axil_btrace),
-        .s_axil_bloop           (s_axil_bloop),
         .s_axil_bvalid          (s_axil_bvalid),
         .s_axil_bready          (s_axil_bready),
         .busy                   (int_busy)

@@ -1,3 +1,31 @@
+module dataint_parity (
+	data_in,
+	parity_in,
+	parity_type,
+	parity,
+	parity_err
+);
+	parameter signed [31:0] CHUNKS = 4;
+	parameter signed [31:0] WIDTH = 32;
+	input wire [WIDTH - 1:0] data_in;
+	input wire [CHUNKS - 1:0] parity_in;
+	input wire parity_type;
+	output wire [CHUNKS - 1:0] parity;
+	output wire [CHUNKS - 1:0] parity_err;
+	localparam signed [31:0] ChunkSize = WIDTH / CHUNKS;
+	localparam signed [31:0] ExtraBits = WIDTH % CHUNKS;
+	genvar _gv_i_1;
+	generate
+		for (_gv_i_1 = 0; _gv_i_1 < CHUNKS; _gv_i_1 = _gv_i_1 + 1) begin : gen_parity
+			localparam i = _gv_i_1;
+			localparam signed [31:0] LowerBound = i * ChunkSize;
+			localparam signed [31:0] UpperBound = (i < (CHUNKS - 1) ? ((i + 1) * ChunkSize) - 1 : WIDTH - 1);
+			wire calculated_parity = (parity_type ? ^data_in[UpperBound:LowerBound] : ~^data_in[UpperBound:LowerBound]);
+			assign parity[i] = calculated_parity;
+			assign parity_err[i] = calculated_parity != parity_in[i];
+		end
+	endgenerate
+endmodule
 module gaxi_skid_buffer (
 	axi_aclk,
 	axi_aresetn,
@@ -31,7 +59,7 @@ module gaxi_skid_buffer (
 	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
 		if ((DEPTH < 2) || (DEPTH > 8)) begin : gen_depth_guard
-			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:101:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
+			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:101:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
 		end
 	endgenerate
 	genvar _gv_gi_1;
@@ -110,12 +138,20 @@ module apb5_master (
 	m_apb_PWAKEUP,
 	m_apb_PRUSER,
 	m_apb_PBUSER,
-	m_apb_PWDATAPARITY,
-	m_apb_PADDRPARITY,
-	m_apb_PCTRLPARITY,
-	m_apb_PRDATAPARITY,
-	m_apb_PREADYPARITY,
-	m_apb_PSLVERRPARITY,
+	m_apb_PADDRCHK,
+	m_apb_PCTRLCHK,
+	m_apb_PSELCHK,
+	m_apb_PENABLECHK,
+	m_apb_PWDATACHK,
+	m_apb_PSTRBCHK,
+	m_apb_PAUSERCHK,
+	m_apb_PWUSERCHK,
+	m_apb_PRDATACHK,
+	m_apb_PREADYCHK,
+	m_apb_PSLVERRCHK,
+	m_apb_PWAKEUPCHK,
+	m_apb_PRUSERCHK,
+	m_apb_PBUSERCHK,
 	cmd_valid,
 	cmd_ready,
 	cmd_pwrite,
@@ -129,12 +165,10 @@ module apb5_master (
 	rsp_ready,
 	rsp_prdata,
 	rsp_pslverr,
-	rsp_pwakeup,
 	rsp_pruser,
 	rsp_pbuser,
 	parity_error_rdata,
-	parity_error_ctrl,
-	wakeup_pending
+	parity_error_ctrl
 );
 	reg _sv2v_0;
 	parameter signed [31:0] ADDR_WIDTH = 32;
@@ -157,7 +191,13 @@ module apb5_master (
 	parameter signed [31:0] RUW = RUSER_WIDTH;
 	parameter signed [31:0] BUW = BUSER_WIDTH;
 	parameter signed [31:0] CPW = (((((AW + DW) + SW) + PW) + AUW) + WUW) + 1;
-	parameter signed [31:0] RPW = ((DW + RUW) + BUW) + 2;
+	parameter signed [31:0] RPW = ((DW + RUW) + BUW) + 1;
+	parameter signed [31:0] ACW = (AW + 7) / 8;
+	parameter signed [31:0] DCW = DW / 8;
+	parameter signed [31:0] AUCW = (AUW + 7) / 8;
+	parameter signed [31:0] WUCW = (WUW + 7) / 8;
+	parameter signed [31:0] RUCW = (RUW + 7) / 8;
+	parameter signed [31:0] BUCW = (BUW + 7) / 8;
 	input wire pclk;
 	input wire presetn;
 	output reg m_apb_PSEL;
@@ -172,15 +212,23 @@ module apb5_master (
 	input wire [DW - 1:0] m_apb_PRDATA;
 	input wire m_apb_PSLVERR;
 	input wire m_apb_PREADY;
-	input wire m_apb_PWAKEUP;
+	output wire m_apb_PWAKEUP;
 	input wire [RUW - 1:0] m_apb_PRUSER;
 	input wire [BUW - 1:0] m_apb_PBUSER;
-	output wire [SW - 1:0] m_apb_PWDATAPARITY;
-	output wire m_apb_PADDRPARITY;
-	output wire m_apb_PCTRLPARITY;
-	input wire [SW - 1:0] m_apb_PRDATAPARITY;
-	input wire m_apb_PREADYPARITY;
-	input wire m_apb_PSLVERRPARITY;
+	output wire [ACW - 1:0] m_apb_PADDRCHK;
+	output wire m_apb_PCTRLCHK;
+	output wire m_apb_PSELCHK;
+	output wire m_apb_PENABLECHK;
+	output wire [DCW - 1:0] m_apb_PWDATACHK;
+	output wire m_apb_PSTRBCHK;
+	output wire [AUCW - 1:0] m_apb_PAUSERCHK;
+	output wire [WUCW - 1:0] m_apb_PWUSERCHK;
+	input wire [DCW - 1:0] m_apb_PRDATACHK;
+	input wire m_apb_PREADYCHK;
+	input wire m_apb_PSLVERRCHK;
+	output wire m_apb_PWAKEUPCHK;
+	input wire [RUCW - 1:0] m_apb_PRUSERCHK;
+	input wire [BUCW - 1:0] m_apb_PBUSERCHK;
 	input wire cmd_valid;
 	output wire cmd_ready;
 	input wire cmd_pwrite;
@@ -194,12 +242,10 @@ module apb5_master (
 	input wire rsp_ready;
 	output wire [DW - 1:0] rsp_prdata;
 	output wire rsp_pslverr;
-	output wire rsp_pwakeup;
 	output wire [RUW - 1:0] rsp_pruser;
 	output wire [BUW - 1:0] rsp_pbuser;
 	output wire parity_error_rdata;
 	output wire parity_error_ctrl;
-	output wire wakeup_pending;
 	wire r_cmd_valid;
 	reg w_cmd_ready;
 	wire [CPW - 1:0] r_cmd_data_in;
@@ -234,7 +280,7 @@ module apb5_master (
 	wire [3:0] w_rsp_count;
 	wire [RPW - 1:0] r_rsp_data_in;
 	wire [RPW - 1:0] r_rsp_data_out;
-	assign r_rsp_data_in = {m_apb_PSLVERR, m_apb_PWAKEUP, m_apb_PRDATA, m_apb_PRUSER, m_apb_PBUSER};
+	assign r_rsp_data_in = {m_apb_PSLVERR, m_apb_PRDATA, m_apb_PRUSER, m_apb_PBUSER};
 	gaxi_skid_buffer #(
 		.DATA_WIDTH(RPW),
 		.DEPTH(RSP_DEPTH)
@@ -250,7 +296,7 @@ module apb5_master (
 		.rd_data(r_rsp_data_out),
 		.rd_count()
 	);
-	assign {rsp_pslverr, rsp_pwakeup, rsp_prdata, rsp_pruser, rsp_pbuser} = r_rsp_data_out;
+	assign {rsp_pslverr, rsp_prdata, rsp_pruser, rsp_pbuser} = r_rsp_data_out;
 	reg [2:0] r_apb_state;
 	reg [2:0] w_apb_next_state;
 	always @(posedge pclk or negedge presetn)
@@ -258,37 +304,221 @@ module apb5_master (
 			r_apb_state <= 3'b001;
 		else
 			r_apb_state <= w_apb_next_state;
-	reg r_wakeup_pending;
+	reg r_pwakeup;
 	always @(posedge pclk or negedge presetn)
 		if (!presetn)
-			r_wakeup_pending <= 1'b0;
-		else if (m_apb_PWAKEUP)
-			r_wakeup_pending <= 1'b1;
-		else if (r_apb_state != 3'b001)
-			r_wakeup_pending <= 1'b0;
-	assign wakeup_pending = r_wakeup_pending;
+			r_pwakeup <= 1'b0;
+		else
+			r_pwakeup <= (cmd_valid || r_cmd_valid) || (r_apb_state != 3'b001);
+	assign m_apb_PWAKEUP = r_pwakeup;
 	generate
 		if (ENABLE_PARITY) begin : gen_parity
-			genvar _gv_i_1;
-			for (_gv_i_1 = 0; _gv_i_1 < SW; _gv_i_1 = _gv_i_1 + 1) begin : gen_wdata_parity
-				localparam i = _gv_i_1;
-				assign m_apb_PWDATAPARITY[i] = ^r_cmd_pwdata[i * 8+:8];
+			genvar _gv_n_1;
+			for (_gv_n_1 = 0; _gv_n_1 < ACW; _gv_n_1 = _gv_n_1 + 1) begin : gen_paddrchk
+				localparam n = _gv_n_1;
+				localparam signed [31:0] LO = n * 8;
+				localparam signed [31:0] PB = ((AW - LO) < 8 ? AW - LO : 8);
+				dataint_parity #(
+					.CHUNKS(1),
+					.WIDTH(PB)
+				) u_paddrchk(
+					.data_in(m_apb_PADDR[LO+:PB]),
+					.parity_in(1'b0),
+					.parity_type(1'b0),
+					.parity(m_apb_PADDRCHK[n]),
+					.parity_err()
+				);
 			end
-			assign m_apb_PADDRPARITY = ^r_cmd_paddr;
-			assign m_apb_PCTRLPARITY = ^{r_cmd_pwrite, r_cmd_pstrb, r_cmd_pprot};
-			wire [SW - 1:0] w_expected_rdata_parity;
-			genvar _gv_i_2;
-			for (_gv_i_2 = 0; _gv_i_2 < SW; _gv_i_2 = _gv_i_2 + 1) begin : gen_rdata_parity_check
-				localparam i = _gv_i_2;
-				assign w_expected_rdata_parity[i] = ^m_apb_PRDATA[i * 8+:8];
+			genvar _gv_n_2;
+			for (_gv_n_2 = 0; _gv_n_2 < DCW; _gv_n_2 = _gv_n_2 + 1) begin : gen_pwdatachk
+				localparam n = _gv_n_2;
+				localparam signed [31:0] LO = n * 8;
+				localparam signed [31:0] PB = ((DW - LO) < 8 ? DW - LO : 8);
+				dataint_parity #(
+					.CHUNKS(1),
+					.WIDTH(PB)
+				) u_pwdatachk(
+					.data_in(m_apb_PWDATA[LO+:PB]),
+					.parity_in(1'b0),
+					.parity_type(1'b0),
+					.parity(m_apb_PWDATACHK[n]),
+					.parity_err()
+				);
 			end
-			assign parity_error_rdata = ((m_apb_PREADY && m_apb_PSEL) && m_apb_PENABLE ? w_expected_rdata_parity != m_apb_PRDATAPARITY : 1'b0);
-			assign parity_error_ctrl = ((m_apb_PREADY && m_apb_PSEL) && m_apb_PENABLE ? (^m_apb_PREADY != m_apb_PREADYPARITY) || (^m_apb_PSLVERR != m_apb_PSLVERRPARITY) : 1'b0);
+			genvar _gv_n_3;
+			for (_gv_n_3 = 0; _gv_n_3 < AUCW; _gv_n_3 = _gv_n_3 + 1) begin : gen_pauserchk
+				localparam n = _gv_n_3;
+				localparam signed [31:0] LO = n * 8;
+				localparam signed [31:0] PB = ((AUW - LO) < 8 ? AUW - LO : 8);
+				dataint_parity #(
+					.CHUNKS(1),
+					.WIDTH(PB)
+				) u_pauserchk(
+					.data_in(m_apb_PAUSER[LO+:PB]),
+					.parity_in(1'b0),
+					.parity_type(1'b0),
+					.parity(m_apb_PAUSERCHK[n]),
+					.parity_err()
+				);
+			end
+			genvar _gv_n_4;
+			for (_gv_n_4 = 0; _gv_n_4 < WUCW; _gv_n_4 = _gv_n_4 + 1) begin : gen_pwuserchk
+				localparam n = _gv_n_4;
+				localparam signed [31:0] LO = n * 8;
+				localparam signed [31:0] PB = ((WUW - LO) < 8 ? WUW - LO : 8);
+				dataint_parity #(
+					.CHUNKS(1),
+					.WIDTH(PB)
+				) u_pwuserchk(
+					.data_in(m_apb_PWUSER[LO+:PB]),
+					.parity_in(1'b0),
+					.parity_type(1'b0),
+					.parity(m_apb_PWUSERCHK[n]),
+					.parity_err()
+				);
+			end
+			dataint_parity #(
+				.CHUNKS(1),
+				.WIDTH(PW + 1)
+			) u_pctrlchk(
+				.data_in({m_apb_PWRITE, m_apb_PPROT}),
+				.parity_in(1'b0),
+				.parity_type(1'b0),
+				.parity(m_apb_PCTRLCHK),
+				.parity_err()
+			);
+			dataint_parity #(
+				.CHUNKS(1),
+				.WIDTH(SW)
+			) u_pstrbchk(
+				.data_in(m_apb_PSTRB),
+				.parity_in(1'b0),
+				.parity_type(1'b0),
+				.parity(m_apb_PSTRBCHK),
+				.parity_err()
+			);
+			dataint_parity #(
+				.CHUNKS(1),
+				.WIDTH(1)
+			) u_pselchk(
+				.data_in(m_apb_PSEL),
+				.parity_in(1'b0),
+				.parity_type(1'b0),
+				.parity(m_apb_PSELCHK),
+				.parity_err()
+			);
+			dataint_parity #(
+				.CHUNKS(1),
+				.WIDTH(1)
+			) u_pwakeupchk(
+				.data_in(m_apb_PWAKEUP),
+				.parity_in(1'b0),
+				.parity_type(1'b0),
+				.parity(m_apb_PWAKEUPCHK),
+				.parity_err()
+			);
+			dataint_parity #(
+				.CHUNKS(1),
+				.WIDTH(1)
+			) u_penablechk(
+				.data_in(m_apb_PENABLE),
+				.parity_in(1'b0),
+				.parity_type(1'b0),
+				.parity(m_apb_PENABLECHK),
+				.parity_err()
+			);
+			wire [DCW - 1:0] w_prdatachk_err;
+			genvar _gv_n_5;
+			for (_gv_n_5 = 0; _gv_n_5 < DCW; _gv_n_5 = _gv_n_5 + 1) begin : gen_prdatachk
+				localparam n = _gv_n_5;
+				localparam signed [31:0] LO = n * 8;
+				localparam signed [31:0] PB = ((DW - LO) < 8 ? DW - LO : 8);
+				dataint_parity #(
+					.CHUNKS(1),
+					.WIDTH(PB)
+				) u_prdatachk(
+					.data_in(m_apb_PRDATA[LO+:PB]),
+					.parity_in(m_apb_PRDATACHK[n]),
+					.parity_type(1'b0),
+					.parity(),
+					.parity_err(w_prdatachk_err[n])
+				);
+			end
+			wire [RUCW - 1:0] w_pruserchk_err;
+			genvar _gv_n_6;
+			for (_gv_n_6 = 0; _gv_n_6 < RUCW; _gv_n_6 = _gv_n_6 + 1) begin : gen_pruserchk
+				localparam n = _gv_n_6;
+				localparam signed [31:0] LO = n * 8;
+				localparam signed [31:0] PB = ((RUW - LO) < 8 ? RUW - LO : 8);
+				dataint_parity #(
+					.CHUNKS(1),
+					.WIDTH(PB)
+				) u_pruserchk(
+					.data_in(m_apb_PRUSER[LO+:PB]),
+					.parity_in(m_apb_PRUSERCHK[n]),
+					.parity_type(1'b0),
+					.parity(),
+					.parity_err(w_pruserchk_err[n])
+				);
+			end
+			wire [BUCW - 1:0] w_pbuserchk_err;
+			genvar _gv_n_7;
+			for (_gv_n_7 = 0; _gv_n_7 < BUCW; _gv_n_7 = _gv_n_7 + 1) begin : gen_pbuserchk
+				localparam n = _gv_n_7;
+				localparam signed [31:0] LO = n * 8;
+				localparam signed [31:0] PB = ((BUW - LO) < 8 ? BUW - LO : 8);
+				dataint_parity #(
+					.CHUNKS(1),
+					.WIDTH(PB)
+				) u_pbuserchk(
+					.data_in(m_apb_PBUSER[LO+:PB]),
+					.parity_in(m_apb_PBUSERCHK[n]),
+					.parity_type(1'b0),
+					.parity(),
+					.parity_err(w_pbuserchk_err[n])
+				);
+			end
+			wire w_preadychk_err;
+			dataint_parity #(
+				.CHUNKS(1),
+				.WIDTH(1)
+			) u_preadychk(
+				.data_in(m_apb_PREADY),
+				.parity_in(m_apb_PREADYCHK),
+				.parity_type(1'b0),
+				.parity(),
+				.parity_err(w_preadychk_err)
+			);
+			wire w_pslverrchk_err;
+			dataint_parity #(
+				.CHUNKS(1),
+				.WIDTH(1)
+			) u_pslverrchk(
+				.data_in(m_apb_PSLVERR),
+				.parity_in(m_apb_PSLVERRCHK),
+				.parity_type(1'b0),
+				.parity(),
+				.parity_err(w_pslverrchk_err)
+			);
+			wire w_en_ready;
+			wire w_en_rsp;
+			wire w_en_rdata;
+			assign w_en_ready = m_apb_PSEL && m_apb_PENABLE;
+			assign w_en_rsp = w_en_ready && m_apb_PREADY;
+			assign w_en_rdata = w_en_rsp && !m_apb_PWRITE;
+			assign parity_error_rdata = w_en_rdata && (|w_prdatachk_err || |w_pruserchk_err);
+			assign parity_error_ctrl = (w_en_ready && w_preadychk_err) || (w_en_rsp && (w_pslverrchk_err || |w_pbuserchk_err));
 		end
 		else begin : gen_no_parity
-			assign m_apb_PWDATAPARITY = 1'sb0;
-			assign m_apb_PADDRPARITY = 1'b0;
-			assign m_apb_PCTRLPARITY = 1'b0;
+			assign m_apb_PADDRCHK = 1'sb0;
+			assign m_apb_PWDATACHK = 1'sb0;
+			assign m_apb_PAUSERCHK = 1'sb0;
+			assign m_apb_PWUSERCHK = 1'sb0;
+			assign m_apb_PCTRLCHK = 1'b0;
+			assign m_apb_PSTRBCHK = 1'b0;
+			assign m_apb_PSELCHK = 1'b0;
+			assign m_apb_PENABLECHK = 1'b0;
+			assign m_apb_PWAKEUPCHK = 1'b0;
 			assign parity_error_rdata = 1'b0;
 			assign parity_error_ctrl = 1'b0;
 		end
@@ -355,12 +585,20 @@ module apb5_master_stub (
 	m_apb_PWAKEUP,
 	m_apb_PRUSER,
 	m_apb_PBUSER,
-	m_apb_PWDATAPARITY,
-	m_apb_PADDRPARITY,
-	m_apb_PCTRLPARITY,
-	m_apb_PRDATAPARITY,
-	m_apb_PREADYPARITY,
-	m_apb_PSLVERRPARITY,
+	m_apb_PADDRCHK,
+	m_apb_PCTRLCHK,
+	m_apb_PSELCHK,
+	m_apb_PENABLECHK,
+	m_apb_PWDATACHK,
+	m_apb_PSTRBCHK,
+	m_apb_PAUSERCHK,
+	m_apb_PWUSERCHK,
+	m_apb_PRDATACHK,
+	m_apb_PREADYCHK,
+	m_apb_PSLVERRCHK,
+	m_apb_PWAKEUPCHK,
+	m_apb_PRUSERCHK,
+	m_apb_PBUSERCHK,
 	cmd_valid,
 	cmd_ready,
 	cmd_data,
@@ -368,8 +606,7 @@ module apb5_master_stub (
 	rsp_ready,
 	rsp_data,
 	parity_error_rdata,
-	parity_error_ctrl,
-	wakeup_pending
+	parity_error_ctrl
 );
 	parameter signed [31:0] CMD_DEPTH = 6;
 	parameter signed [31:0] RSP_DEPTH = 6;
@@ -383,7 +620,7 @@ module apb5_master_stub (
 	parameter [0:0] ENABLE_PARITY = 0;
 	parameter signed [31:0] STRB_WIDTH = DATA_WIDTH / 8;
 	parameter signed [31:0] CMD_PACKET_WIDTH = (((((ADDR_WIDTH + DATA_WIDTH) + STRB_WIDTH) + PROT_WIDTH) + AUSER_WIDTH) + WUSER_WIDTH) + 3;
-	parameter signed [31:0] RESP_PACKET_WIDTH = ((DATA_WIDTH + RUSER_WIDTH) + BUSER_WIDTH) + 4;
+	parameter signed [31:0] RESP_PACKET_WIDTH = ((DATA_WIDTH + RUSER_WIDTH) + BUSER_WIDTH) + 3;
 	parameter signed [31:0] DW = DATA_WIDTH;
 	parameter signed [31:0] AW = ADDR_WIDTH;
 	parameter signed [31:0] SW = STRB_WIDTH;
@@ -394,6 +631,12 @@ module apb5_master_stub (
 	parameter signed [31:0] BUW = BUSER_WIDTH;
 	parameter signed [31:0] CPW = CMD_PACKET_WIDTH;
 	parameter signed [31:0] RPW = RESP_PACKET_WIDTH;
+	parameter signed [31:0] ACW = (AW + 7) / 8;
+	parameter signed [31:0] DCW = DW / 8;
+	parameter signed [31:0] AUCW = (AUW + 7) / 8;
+	parameter signed [31:0] WUCW = (WUW + 7) / 8;
+	parameter signed [31:0] RUCW = (RUW + 7) / 8;
+	parameter signed [31:0] BUCW = (BUW + 7) / 8;
 	input wire pclk;
 	input wire presetn;
 	output wire m_apb_PSEL;
@@ -408,15 +651,23 @@ module apb5_master_stub (
 	input wire [DW - 1:0] m_apb_PRDATA;
 	input wire m_apb_PSLVERR;
 	input wire m_apb_PREADY;
-	input wire m_apb_PWAKEUP;
+	output wire m_apb_PWAKEUP;
 	input wire [RUW - 1:0] m_apb_PRUSER;
 	input wire [BUW - 1:0] m_apb_PBUSER;
-	output wire [SW - 1:0] m_apb_PWDATAPARITY;
-	output wire m_apb_PADDRPARITY;
-	output wire m_apb_PCTRLPARITY;
-	input wire [SW - 1:0] m_apb_PRDATAPARITY;
-	input wire m_apb_PREADYPARITY;
-	input wire m_apb_PSLVERRPARITY;
+	output wire [ACW - 1:0] m_apb_PADDRCHK;
+	output wire m_apb_PCTRLCHK;
+	output wire m_apb_PSELCHK;
+	output wire m_apb_PENABLECHK;
+	output wire [DCW - 1:0] m_apb_PWDATACHK;
+	output wire m_apb_PSTRBCHK;
+	output wire [AUCW - 1:0] m_apb_PAUSERCHK;
+	output wire [WUCW - 1:0] m_apb_PWUSERCHK;
+	input wire [DCW - 1:0] m_apb_PRDATACHK;
+	input wire m_apb_PREADYCHK;
+	input wire m_apb_PSLVERRCHK;
+	output wire m_apb_PWAKEUPCHK;
+	input wire [RUCW - 1:0] m_apb_PRUSERCHK;
+	input wire [BUCW - 1:0] m_apb_PBUSERCHK;
 	input wire cmd_valid;
 	output wire cmd_ready;
 	input wire [CPW - 1:0] cmd_data;
@@ -425,7 +676,6 @@ module apb5_master_stub (
 	output wire [RPW - 1:0] rsp_data;
 	output wire parity_error_rdata;
 	output wire parity_error_ctrl;
-	output wire wakeup_pending;
 	wire [DW - 1:0] cmd_pwdata;
 	wire [AW - 1:0] cmd_paddr;
 	wire [SW - 1:0] cmd_pstrb;
@@ -438,10 +688,9 @@ module apb5_master_stub (
 	assign {cmd_last, cmd_first, cmd_pwrite, cmd_pprot, cmd_pstrb, cmd_paddr, cmd_pwdata, cmd_pauser, cmd_pwuser} = cmd_data;
 	wire [DW - 1:0] rsp_prdata;
 	wire rsp_pslverr;
-	wire rsp_pwakeup;
 	wire [RUW - 1:0] rsp_pruser;
 	wire [BUW - 1:0] rsp_pbuser;
-	assign rsp_data = {cmd_last, cmd_first, rsp_pslverr, rsp_pwakeup, rsp_prdata, rsp_pruser, rsp_pbuser};
+	assign rsp_data = {cmd_last, cmd_first, rsp_pslverr, rsp_prdata, rsp_pruser, rsp_pbuser};
 	apb5_master #(
 		.ADDR_WIDTH(ADDR_WIDTH),
 		.DATA_WIDTH(DATA_WIDTH),
@@ -472,12 +721,20 @@ module apb5_master_stub (
 		.m_apb_PWAKEUP(m_apb_PWAKEUP),
 		.m_apb_PRUSER(m_apb_PRUSER),
 		.m_apb_PBUSER(m_apb_PBUSER),
-		.m_apb_PWDATAPARITY(m_apb_PWDATAPARITY),
-		.m_apb_PADDRPARITY(m_apb_PADDRPARITY),
-		.m_apb_PCTRLPARITY(m_apb_PCTRLPARITY),
-		.m_apb_PRDATAPARITY(m_apb_PRDATAPARITY),
-		.m_apb_PREADYPARITY(m_apb_PREADYPARITY),
-		.m_apb_PSLVERRPARITY(m_apb_PSLVERRPARITY),
+		.m_apb_PADDRCHK(m_apb_PADDRCHK),
+		.m_apb_PCTRLCHK(m_apb_PCTRLCHK),
+		.m_apb_PSELCHK(m_apb_PSELCHK),
+		.m_apb_PENABLECHK(m_apb_PENABLECHK),
+		.m_apb_PWDATACHK(m_apb_PWDATACHK),
+		.m_apb_PSTRBCHK(m_apb_PSTRBCHK),
+		.m_apb_PAUSERCHK(m_apb_PAUSERCHK),
+		.m_apb_PWUSERCHK(m_apb_PWUSERCHK),
+		.m_apb_PRDATACHK(m_apb_PRDATACHK),
+		.m_apb_PREADYCHK(m_apb_PREADYCHK),
+		.m_apb_PSLVERRCHK(m_apb_PSLVERRCHK),
+		.m_apb_PWAKEUPCHK(m_apb_PWAKEUPCHK),
+		.m_apb_PRUSERCHK(m_apb_PRUSERCHK),
+		.m_apb_PBUSERCHK(m_apb_PBUSERCHK),
 		.cmd_valid(cmd_valid),
 		.cmd_ready(cmd_ready),
 		.cmd_pwrite(cmd_pwrite),
@@ -491,11 +748,9 @@ module apb5_master_stub (
 		.rsp_ready(rsp_ready),
 		.rsp_prdata(rsp_prdata),
 		.rsp_pslverr(rsp_pslverr),
-		.rsp_pwakeup(rsp_pwakeup),
 		.rsp_pruser(rsp_pruser),
 		.rsp_pbuser(rsp_pbuser),
 		.parity_error_rdata(parity_error_rdata),
-		.parity_error_ctrl(parity_error_ctrl),
-		.wakeup_pending(wakeup_pending)
+		.parity_error_ctrl(parity_error_ctrl)
 	);
 endmodule

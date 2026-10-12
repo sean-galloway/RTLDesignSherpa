@@ -91,13 +91,21 @@ dropped:
 
 : Table 3.37: APB5 USER mapping
 
-`PWAKEUP` is requester-driven (AMBA APB5, IHI 0024E) and is an **input**
-here, accepted and terminated -- there is nothing on the AXI side for it to
-become. `apb5_slave`'s own `PWAKEUP` output (its wake-up *request* toward
-the requester) is left unconnected with `wakeup_request` tied low. Parity is
-not part of this surface: `apb5_slave` is instantiated with
-`ENABLE_PARITY=0` and its parity pins tied off, matching
-[`axi4_to_apb5_shim`](06_axi4_to_apb5.md).
+`PWAKEUP` is requester-driven (IHI 0024E section 3.7.2, Table 3-7) and is an
+**input** here. It is passed to `apb5_slave`'s `s_apb_PWAKEUP` input, which
+is also an input since issue #102; there is nothing on the AXI side for it
+to become, so it goes no further.
+
+Interface parity is not part of this surface. The `*CHK` check signals are
+conditional on the Check_Type property (IHI 0024E Table B-2), and this
+converter is a Check_Type = False completer, so none of them appear on its
+ports. Inside, `apb5_slave` is built with `ENABLE_PARITY=0`, which leaves its
+check inputs unchecked and drives its check outputs LOW. Every check input --
+`PADDRCHK`, `PCTRLCHK`, `PSELCHK`, `PENABLECHK`, `PWDATACHK`, `PSTRBCHK`,
+`PAUSERCHK`, `PWUSERCHK` and `PWAKEUPCHK` -- is tied LOW, the same constant
+`apb5_master` drives on its check outputs with parity off, and the check
+outputs (`PRDATACHK`, `PREADYCHK`, `PSLVERRCHK`, `PRUSERCHK`, `PBUSERCHK`)
+are left open.
 
 Inside the bridge the AXI USER width is 1, so one bit of `PAUSER` reaches
 the fabric -- the same width the AXI5-Lite slave side exposes, which is how

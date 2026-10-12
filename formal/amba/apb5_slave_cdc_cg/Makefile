@@ -15,7 +15,8 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes
 
 # icg.sv deliberately ABSENT: the harness supplies a clock-enable model
 # of the cell, because a derived clock is not provable in this flow.
-DEPS := $(REPO_ROOT)/rtl/common/clock_gate_ctrl.sv \
+DEPS := $(REPO_ROOT)/rtl/common/dataint_parity.sv \
+        $(REPO_ROOT)/rtl/common/clock_gate_ctrl.sv \
         $(REPO_ROOT)/rtl/amba/shared/amba_clock_gate_ctrl.sv \
         $(REPO_ROOT)/rtl/cdc/glitch_free_n_dff_arn.sv \
         $(REPO_ROOT)/rtl/cdc/cdc_synchronizer.sv \

@@ -31,7 +31,7 @@ module axi4ace_slave_wr
     parameter int IW       = AXI_ID_WIDTH,
     parameter int SW       = AXI_WSTRB_WIDTH,
     parameter int UW       = AXI_USER_WIDTH,
-    parameter int AWSize   = IW+AW+8+3+2+1+4+3+4+4+UW+3,
+    parameter int AWSize   = IW+AW+8+3+2+1+4+3+4+4+UW+3+2+2,
     parameter int WSize    = DW+SW+1+UW,
     parameter int BSize    = IW+2+UW
 )
@@ -54,6 +54,8 @@ module axi4ace_slave_wr
     input  logic [3:0]                  s_axi_awregion,
     input  logic [UW-1:0]               s_axi_awuser,
     input  logic [2:0]                  s_axi_awsnoop,
+    input  logic [1:0]                  s_axi_awdomain,
+    input  logic [1:0]                  s_axi_awbar,
     input  logic                        s_axi_awvalid,
     output logic                        s_axi_awready,
 
@@ -72,6 +74,10 @@ module axi4ace_slave_wr
     output logic                        s_axi_bvalid,
     input  logic                        s_axi_bready,
 
+    // ACE write acknowledge (IHI 0022H D2.3.2): driven by the manager after
+    // it accepts each B response, passed through to the backend
+    input  logic                        s_axi_wack,
+
     // Master AXI Interface (Output Side to memory or backend)
     // Write address channel (AW)
     output logic [IW-1:0]              fub_axi_awid,
@@ -86,6 +92,8 @@ module axi4ace_slave_wr
     output logic [3:0]                 fub_axi_awregion,
     output logic [UW-1:0]              fub_axi_awuser,
     output logic [2:0]                 fub_axi_awsnoop,
+    output logic [1:0]                 fub_axi_awdomain,
+    output logic [1:0]                 fub_axi_awbar,
     output logic                       fub_axi_awvalid,
     input  logic                       fub_axi_awready,
 
@@ -103,6 +111,9 @@ module axi4ace_slave_wr
     input  logic [UW-1:0]              fub_axi_buser,
     input  logic                       fub_axi_bvalid,
     output logic                       fub_axi_bready,
+
+    // ACE write acknowledge, forwarded from s_axi_wack
+    output logic                       fub_axi_wack,
 
     // Status outputs for clock gating
     output logic                       busy
@@ -141,7 +152,8 @@ module axi4ace_slave_wr
         .wr_ready               (s_axi_awready),
         .wr_data                ({s_axi_awid, s_axi_awaddr, s_axi_awlen, s_axi_awsize,
                                     s_axi_awburst, s_axi_awlock, s_axi_awcache, s_axi_awprot,
-                                    s_axi_awqos, s_axi_awregion, s_axi_awuser, s_axi_awsnoop}),
+                                    s_axi_awqos, s_axi_awregion, s_axi_awuser, s_axi_awsnoop,
+                                    s_axi_awdomain, s_axi_awbar}),
         .rd_valid               (int_skid_awvalid),
         .rd_ready               (int_skid_awready),
         .rd_count               (int_aw_count),
@@ -154,7 +166,8 @@ module axi4ace_slave_wr
     // Unpack AW signals from SKID buffer
     assign {fub_axi_awid, fub_axi_awaddr, fub_axi_awlen, fub_axi_awsize, fub_axi_awburst,
             fub_axi_awlock, fub_axi_awcache, fub_axi_awprot, fub_axi_awqos,
-            fub_axi_awregion, fub_axi_awuser, fub_axi_awsnoop} = int_aw_pkt;
+            fub_axi_awregion, fub_axi_awuser, fub_axi_awsnoop,
+            fub_axi_awdomain, fub_axi_awbar} = int_aw_pkt;
     assign fub_axi_awvalid = int_skid_awvalid;
     assign int_skid_awready = fub_axi_awready;
 
@@ -203,5 +216,10 @@ module axi4ace_slave_wr
 
     assign s_axi_bvalid = int_skid_bvalid;
     assign int_skid_bready = s_axi_bready;
+
+    // WACK has no payload and no handshake of its own: a wire. The manager
+    // only raises it after the B response leaves this skid, so the backend
+    // always sees it after it handed that response over.
+    assign fub_axi_wack = s_axi_wack;
 
 endmodule : axi4ace_slave_wr

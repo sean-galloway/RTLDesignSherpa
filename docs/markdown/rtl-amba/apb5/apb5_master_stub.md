@@ -38,8 +38,8 @@ The APB5 Master Stub provides a simplified packed-data interface for driving APB
 - Packed command/response packet interface
 - Wraps fully-tested `apb5_master` internally
 - All APB5 extensions (PAUSER, PWUSER, PRUSER, PBUSER)
-- PWAKEUP signal handling from slave
-- Optional parity support
+- PWAKEUP Requester wake-up output (IHI 0024E §3.7.2)
+- Optional IHI 0024E ch. 5 interface parity (`*CHK` signals, odd parity)
 - First/last markers for transaction tracking
 
 ---
@@ -70,13 +70,15 @@ CMD_PACKET_WIDTH  = ADDR_WIDTH + DATA_WIDTH + STRB_WIDTH + PROT_WIDTH
                   + AUSER_WIDTH + WUSER_WIDTH + 1 + 1 + 1
                     // the three single bits are pwrite, first, last
 
-RESP_PACKET_WIDTH = DATA_WIDTH + RUSER_WIDTH + BUSER_WIDTH + 1 + 1 + 1 + 1
-                    // the four single bits are pslverr, pwakeup, first, last
+RESP_PACKET_WIDTH = DATA_WIDTH + RUSER_WIDTH + BUSER_WIDTH + 1 + 1 + 1
+                    // the three single bits are pslverr, first, last
 ```
 
 With all defaults (32-bit address and data, 4-bit strobe, 3-bit protection,
 4-bit user fields) this gives `CMD_PACKET_WIDTH = 82` and
-`RESP_PACKET_WIDTH = 44`.
+`RESP_PACKET_WIDTH = 43`. (Before issue #102 item 7 the packet also carried
+a `pwakeup` bit captured from a slave-driven PWAKEUP; PWAKEUP is now a
+master output, so that bit is gone and the packet is one bit narrower.)
 
 ### Derived Parameters (do not override)
 
@@ -115,7 +117,7 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | m_apb_PRDATA | DATA_WIDTH | Input | Read data from slave |
 | m_apb_PSLVERR | 1 | Input | Slave error response |
 | m_apb_PREADY | 1 | Input | Slave ready |
-| m_apb_PWAKEUP | 1 | Input | Wake-up from slave |
+| m_apb_PWAKEUP | 1 | Output | Requester wake-up (IHI 0024E §3.7.2) |
 | m_apb_PRUSER | RUSER_WIDTH | Input | User read attributes |
 | m_apb_PBUSER | BUSER_WIDTH | Input | User response attributes |
 
@@ -126,12 +128,20 @@ identical to [apb5_master](apb5_master.md#parity-implementation).
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
-| m_apb_PWDATAPARITY | STRB_WIDTH | Output | Write data parity (per byte) |
-| m_apb_PADDRPARITY | 1 | Output | Address parity |
-| m_apb_PCTRLPARITY | 1 | Output | Control signals parity |
-| m_apb_PRDATAPARITY | STRB_WIDTH | Input | Read data parity from slave |
-| m_apb_PREADYPARITY | 1 | Input | PREADY parity from slave |
-| m_apb_PSLVERRPARITY | 1 | Input | PSLVERR parity from slave |
+| m_apb_PADDRCHK | ceil(ADDR_WIDTH/8) | Output | Odd parity over PADDR, one bit per 8 bits |
+| m_apb_PCTRLCHK | 1 | Output | Odd parity over PPROT and PWRITE (PNSE not carried) |
+| m_apb_PSELCHK | 1 | Output | Odd parity over PSEL (the spec's PSELxCHK) |
+| m_apb_PENABLECHK | 1 | Output | Odd parity over PENABLE |
+| m_apb_PWDATACHK | DATA_WIDTH/8 | Output | Odd parity over PWDATA, one bit per byte lane |
+| m_apb_PSTRBCHK | 1 | Output | Odd parity over all of PSTRB |
+| m_apb_PAUSERCHK | ceil(AUSER_WIDTH/8) | Output | Odd parity over PAUSER, one bit per 8 bits |
+| m_apb_PWUSERCHK | ceil(WUSER_WIDTH/8) | Output | Odd parity over PWUSER, one bit per 8 bits |
+| m_apb_PRDATACHK | DATA_WIDTH/8 | Input | Odd parity over PRDATA, one bit per byte lane |
+| m_apb_PREADYCHK | 1 | Input | Odd parity over PREADY |
+| m_apb_PSLVERRCHK | 1 | Input | Odd parity over PSLVERR |
+| m_apb_PWAKEUPCHK | 1 | Output | Odd parity over PWAKEUP |
+| m_apb_PRUSERCHK | ceil(RUSER_WIDTH/8) | Input | Odd parity over PRUSER, one bit per 8 bits |
+| m_apb_PBUSERCHK | ceil(BUSER_WIDTH/8) | Input | Odd parity over PBUSER, one bit per 8 bits |
 
 ### Command Packet Interface
 
@@ -153,9 +163,8 @@ identical to [apb5_master](apb5_master.md#parity-implementation).
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
-| parity_error_rdata | 1 | Output | Read data parity error |
-| parity_error_ctrl | 1 | Output | Control signal parity error |
-| wakeup_pending | 1 | Output | Wake-up signal active |
+| parity_error_rdata | 1 | Output | PRDATACHK or PRUSERCHK mismatch on a read completion |
+| parity_error_ctrl | 1 | Output | PREADYCHK, PSLVERRCHK or PBUSERCHK mismatch |
 
 ---
 
@@ -219,7 +228,6 @@ flowchart LR
         last["last<br/>(1b)"]
         first["first<br/>(1b)"]
         pslverr["pslverr<br/>(1b)"]
-        pwakeup["pwakeup<br/>(1b)"]
         prdata["prdata<br/>(DW)"]
         pruser["pruser<br/>(RUW)"]
         pbuser["pbuser<br/>(BUW)"]
@@ -228,7 +236,7 @@ flowchart LR
 
 **Bit Positions:**
 ```
-rsp_data = {last, first, pslverr, pwakeup, prdata, pruser, pbuser}
+rsp_data = {last, first, pslverr, prdata, pruser, pbuser}
 ```
 
 ### Transaction Flow
@@ -305,7 +313,7 @@ apb5_master_stub #(
     .m_apb_PRDATA   (m_apb_prdata),
     .m_apb_PSLVERR  (m_apb_pslverr),
     .m_apb_PREADY   (m_apb_pready),
-    .m_apb_PWAKEUP  (m_apb_pwakeup),
+    .m_apb_PWAKEUP  (m_apb_pwakeup),   // output: Requester wake-up
     .m_apb_PRUSER   (m_apb_pruser),
     .m_apb_PBUSER   (m_apb_pbuser),
 
@@ -321,8 +329,7 @@ apb5_master_stub #(
 
     // Status
     .parity_error_rdata (),
-    .parity_error_ctrl  (),
-    .wakeup_pending (apb_wakeup)
+    .parity_error_ctrl  ()
 );
 
 // Build command packet.

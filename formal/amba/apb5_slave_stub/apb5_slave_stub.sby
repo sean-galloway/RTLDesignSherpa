@@ -13,12 +13,14 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
+read -formal -sv -Iincludes dataint_parity.sv
 read -formal -sv -Iincludes gaxi_skid_buffer.sv
 read -formal -sv -Iincludes apb5_slave_stub.sv
 read -formal -sv -Iincludes formal_apb5_slave_stub.sv
 prep -top formal_apb5_slave_stub
 
 [files]
+dataint_parity.sv ../../../rtl/common/dataint_parity.sv
 gaxi_skid_buffer.sv ../../../rtl/amba/gaxi/gaxi_skid_buffer.sv
 apb5_slave_stub.sv ../../../rtl/amba/apb5/apb5_slave_stub.sv
 formal_apb5_slave_stub.sv

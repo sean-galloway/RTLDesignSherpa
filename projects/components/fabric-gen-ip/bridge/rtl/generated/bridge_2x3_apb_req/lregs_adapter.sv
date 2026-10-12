@@ -97,27 +97,19 @@ module lregs_adapter
     input  logic                  lregs_axil_rvalid,
     output logic                  lregs_axil_rready,
     // AXI5-Lite sideband
-    output logic lregs_axil_awlock,
+    output logic [1:0] lregs_axil_awid,
     output logic lregs_axil_awuser,
-    output logic lregs_axil_awloop,
-    output logic [10:0] lregs_axil_awmpam,
-    output logic [15:0] lregs_axil_awmecid,
-    output logic [3:0] lregs_axil_awnsaid,
     output logic lregs_axil_awtrace,
     output logic lregs_axil_wuser,
     output logic lregs_axil_wpoison,
+    input  logic [1:0] lregs_axil_bid,
     input  logic lregs_axil_buser,
-    input  logic lregs_axil_bloop,
     input  logic lregs_axil_btrace,
-    output logic lregs_axil_arlock,
+    output logic [1:0] lregs_axil_arid,
     output logic lregs_axil_aruser,
-    output logic lregs_axil_arloop,
-    output logic [10:0] lregs_axil_armpam,
-    output logic [15:0] lregs_axil_armecid,
-    output logic [3:0] lregs_axil_arnsaid,
     output logic lregs_axil_artrace,
+    input  logic [1:0] lregs_axil_rid,
     input  logic lregs_axil_ruser,
-    input  logic lregs_axil_rloop,
     input  logic lregs_axil_rtrace,
     input  logic lregs_axil_rpoison
 );
@@ -308,13 +300,8 @@ module lregs_adapter
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1),
-        .ENABLE_LOCK(0),
         .ENABLE_USER(1),
-        .USER_WIDTH(1),
-        .LOOP_WIDTH(1),
-        .MPAM_WIDTH(11),
-        .MECID_WIDTH(16),
-        .NSAID_WIDTH(4)
+        .USER_WIDTH(1)
     ) u_lregs_axil_converter_wr (
         // Clocks and resets
         .aclk(aclk),
@@ -360,17 +347,13 @@ module lregs_adapter
         .m_axil_bready(lregs_axil_bready),
 
         // AXI5-Lite write sideband (to external slave)
-        .m_axil_awlock(lregs_axil_awlock),
+        .m_axil_awid(lregs_axil_awid),
         .m_axil_awuser(lregs_axil_awuser),
-        .m_axil_awloop(lregs_axil_awloop),
-        .m_axil_awmpam(lregs_axil_awmpam),
-        .m_axil_awmecid(lregs_axil_awmecid),
-        .m_axil_awnsaid(lregs_axil_awnsaid),
         .m_axil_awtrace(lregs_axil_awtrace),
         .m_axil_wuser(lregs_axil_wuser),
         .m_axil_wpoison(lregs_axil_wpoison),
+        .m_axil_bid(lregs_axil_bid),
         .m_axil_buser(lregs_axil_buser),
-        .m_axil_bloop(lregs_axil_bloop),
         .m_axil_btrace(lregs_axil_btrace)
     );
 
@@ -379,13 +362,8 @@ module lregs_adapter
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1),
-        .ENABLE_LOCK(0),
         .ENABLE_USER(1),
-        .USER_WIDTH(1),
-        .LOOP_WIDTH(1),
-        .MPAM_WIDTH(11),
-        .MECID_WIDTH(16),
-        .NSAID_WIDTH(4)
+        .USER_WIDTH(1)
     ) u_lregs_axil_converter_rd (
         // Clocks and resets
         .aclk(aclk),
@@ -424,15 +402,11 @@ module lregs_adapter
         .m_axil_rready(lregs_axil_rready),
 
         // AXI5-Lite read sideband (to external slave)
-        .m_axil_arlock(lregs_axil_arlock),
+        .m_axil_arid(lregs_axil_arid),
         .m_axil_aruser(lregs_axil_aruser),
-        .m_axil_arloop(lregs_axil_arloop),
-        .m_axil_armpam(lregs_axil_armpam),
-        .m_axil_armecid(lregs_axil_armecid),
-        .m_axil_arnsaid(lregs_axil_arnsaid),
         .m_axil_artrace(lregs_axil_artrace),
+        .m_axil_rid(lregs_axil_rid),
         .m_axil_ruser(lregs_axil_ruser),
-        .m_axil_rloop(lregs_axil_rloop),
         .m_axil_rtrace(lregs_axil_rtrace),
         .m_axil_rpoison(lregs_axil_rpoison)
     );

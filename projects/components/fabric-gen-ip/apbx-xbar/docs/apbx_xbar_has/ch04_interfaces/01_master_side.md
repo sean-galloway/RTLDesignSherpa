@@ -59,7 +59,7 @@ the version gate; there is no mask to set.
 | `m<i>_apb_PWUSER` | 1 | Input | Write-data user attributes; likewise |
 | `m<i>_apb_PRUSER` | 1 | Output | Completer read-data user attributes, from an APB5 slave |
 | `m<i>_apb_PBUSER` | 1 | Output | Completer response user attributes, from an APB5 slave |
-| `m<i>_apb_PWAKEUP` | 1 | Output | Tied `'0` -- see below |
+| `m<i>_apb_PWAKEUP` | 1 | Input | Requester wake; forwarded to every APB5 slave port -- see below |
 
 : APB5 Master Sideband Signals
 
@@ -67,11 +67,16 @@ Reading from an APB4 slave returns `'0` on `PRUSER`/`PBUSER` rather than a
 stale or fabricated value, and that is proven, not just tested
 (`formal/apbx_xbar/apbx_xbar_2to2_mixed/`, `ap_gate_no_fab_*`).
 
-**`PWAKEUP` is always `'0`.** The boundary IP leaves `rsp_pwakeup`
-unconnected and ties `wakeup_request` to `'0`, so an APB5 slave asserting
-PWAKEUP is never seen here. This is a known limitation rather than a
-guarantee, and it is asserted formally (`ap_pwakeup_dropped`) so that
-wiring it up later fails a proof instead of changing behaviour silently.
+**`PWAKEUP` is an input here.** AMBA APB (IHI 0024E section 3.7.2,
+Table 3-7) defines `PWAKEUP` as a Requester output, and the external master
+is the Requester on this port. The crossbar ORs it into `PWAKEUP` on every
+APB5 slave port, without registering it, so a wake raised a cycle ahead of
+PSEL reaches the completer a cycle ahead of PSEL. An APB4 master has no
+`PWAKEUP`. Its transfers to an APB5 slave are still covered by the crossbar's
+own wake, as described in [Slave Side](02_slave_side.md). The forwarding is
+proven (`ap_pwakeup_forwarded` in `formal/apbx_xbar/apbx_xbar_2to2_mixed/`).
+Earlier crossbars drove this pin as an output tied to `'0`, under the old
+reversed direction. That was corrected in issue #102 item 7.
 
 **The user-signal widths are fixed at 1 bit, not parameterised.** This table
 previously named `AUSER_WIDTH`/`WUSER_WIDTH`/`RUSER_WIDTH`/`BUSER_WIDTH` as
@@ -82,7 +87,13 @@ shim. Widening a user field means regenerating the crossbar, not overriding a
 parameter.
 
 Parity pins are absent entirely: every shipped variant is generated with
-parity off, and a mixed pairing carries no parity in any case.
+parity off. A variant generated with `enable_parity=True` adds the IHI 0024E
+chapter 5 check signals on each APB5 port. Inputs are `PADDRCHK`, `PCTRLCHK`,
+`PSELCHK`, `PENABLECHK`, `PWDATACHK`, `PSTRBCHK`, `PAUSERCHK`, `PWUSERCHK` and
+`PWAKEUPCHK`. Outputs are `PRDATACHK`, `PREADYCHK`, `PSLVERRCHK`, `PRUSERCHK`
+and `PBUSERCHK`. All are odd parity, plus `m<i>_parity_error_wdata` and
+`m<i>_parity_error_ctrl`. See the GAS chapter *Mixed APB4/APB5 and Parity* for
+the widths.
 
 ## Signal Descriptions
 

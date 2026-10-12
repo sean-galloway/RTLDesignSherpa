@@ -5,7 +5,7 @@
 # HAND-WRITTEN (not generated): AXI5 sideband ACROSS A WIDTH CONVERTER.
 #
 # bridge_1x2_rd_axi5w: a 32b AXI5 master reads a 64b AXI4 slave (upsize
-# converter; nsaid/trace/unique terminate with a generation-time warning)
+# converter; nsaid/trace/idunq terminate with a generation-time warning)
 # and a 32b AXI5 slave (native). Until this fixture the droppable-sideband-
 # across-a-converter path was a warning nobody simulated. The AXI5 BFM
 # drives the sideband per transaction:
@@ -15,7 +15,7 @@
 #     trace=1: sideband cannot traverse the dwidth converter, but the adapter
 #     echoes the request's trace at the port (bridge BUG-010, was BRIDGE-012), so the master's
 #     promise survives a path that cannot carry the bit at all;
-#   - reads into the AXI5 slave show the driven nsaid/trace/unique at its AR
+#   - reads into the AXI5 slave show the driven nsaid/trace/idunq at its AR
 #     handshake and echo trace=1 on R;
 #   - the AXI5 compliance checker on the master port reports zero violations.
 # Depth (TEST_LEVEL): sideband_beats reads per slave.
@@ -53,14 +53,14 @@ class ArSampler:
             if int(d.sram_rd_axi_arvalid.value) and int(d.sram_rd_axi_arready.value):
                 self.ar.append({'nsaid': int(d.sram_rd_axi_arnsaid.value),
                                 'trace': int(d.sram_rd_axi_artrace.value),
-                                'unique': int(d.sram_rd_axi_arunique.value)})
+                                'idunq': int(d.sram_rd_axi_aridunq.value)})
 
 
 @cocotb.test(timeout_time=4000, timeout_unit="ms")
 async def cocotb_test_bridge_1x2_rd_axi5w_sideband(dut):
     """AXI5 sideband into a width-converted AXI4 slave (drops) and a native AXI5 slave."""
     tb = Bridge1x2RdAxi5wTB(dut)
-    for pin in ('ddr_rd_axi_arnsaid', 'ddr_rd_axi_artrace', 'ddr_rd_axi_arunique', 'ddr_rd_axi_rtrace'):
+    for pin in ('ddr_rd_axi_arnsaid', 'ddr_rd_axi_artrace', 'ddr_rd_axi_aridunq', 'ddr_rd_axi_rtrace'):
         assert not hasattr(dut, pin), f"64b AXI4 slave grew a sideband pin: {pin}"
     await tb.setup_clocks_and_reset()
     sampler = ArSampler(dut, tb.clock)
@@ -84,7 +84,11 @@ async def cocotb_test_bridge_1x2_rd_axi5w_sideband(dut):
     for off in offsets(0):
         addr = DDR_BASE + off
         expected = tb.slave_mem_read(0, addr, master_idx=0)
-        resp = await tb.master_rd[0].read_transaction(addr, size=2, nsaid=ARNSAID, trace=1, unique=1)
+        resp = await tb.master_rd[0].read_transaction(addr, size=2, nsaid=ARNSAID, trace=1, idunq=1)
+        # #102 item 5: ARIDUNQ cannot cross the converter either, but A5.2
+        # requires RIDUNQ == ARIDUNQ -- the master boundary regenerates it.
+        assert resp[0].get('idunq', 0) == 1, (
+            f"RIDUNQ={resp[0].get('idunq')} across the converter for ARIDUNQ=1")
         assert resp[0]['data'] == expected, (
             f"converter path read @0x{addr:08x}: 0x{resp[0]['data']:08x} != 0x{expected:08x}")
         assert resp[0].get('trace', 0) == 1, (
@@ -93,7 +97,8 @@ async def cocotb_test_bridge_1x2_rd_axi5w_sideband(dut):
             f"echoes the request's at the port)")
     # And the echo must FOLLOW the request: an untraced read comes back untraced.
     addr = DDR_BASE + offsets(0)[0]
-    resp = await tb.master_rd[0].read_transaction(addr, size=2, nsaid=ARNSAID, trace=0, unique=1)
+    resp = await tb.master_rd[0].read_transaction(addr, size=2, nsaid=ARNSAID, trace=0, idunq=0)
+    assert resp[0].get('idunq', 1) == 0, f"RIDUNQ={resp[0].get('idunq')} for ARIDUNQ=0"
     assert resp[0].get('trace', 1) == 0, (
         f"rtrace={resp[0].get('trace')} for an UNTRACED read -- the echo must follow "
         f"the request, not assert unconditionally")
@@ -104,15 +109,16 @@ async def cocotb_test_bridge_1x2_rd_axi5w_sideband(dut):
     for off in offsets(1):
         addr = SRAM_BASE + off
         expected = tb.slave_mem_read(1, addr, master_idx=0)
-        resp = await tb.master_rd[0].read_transaction(addr, size=2, nsaid=ARNSAID, trace=1, unique=1)
+        resp = await tb.master_rd[0].read_transaction(addr, size=2, nsaid=ARNSAID, trace=1, idunq=1)
         assert resp[0]['data'] == expected
+        assert resp[0].get('idunq', 0) == 1, f"RIDUNQ not 1 from the AXI5 slave path: {resp[0]}"
         assert resp[0].get('trace', 0) == 1, f"rtrace not echoed from the AXI5 slave: {resp[0]}"
     await ClockCycles(tb.clock, 10)
     seen = sampler.ar[before:]
     assert len(seen) >= n, f"expected >= {n} sram AR handshakes, saw {len(seen)}"
     for i, s in enumerate(seen):
-        assert s == {'nsaid': ARNSAID, 'trace': 1, 'unique': 1}, f"sram AR sideband sample {i}: {s}"
-    tb.log.info(f"  native path OK: {len(seen)} AR handshakes carried nsaid/trace/unique, rtrace echoed")
+        assert s == {'nsaid': ARNSAID, 'trace': 1, 'idunq': 1}, f"sram AR sideband sample {i}: {s}"
+    tb.log.info(f"  native path OK: {len(seen)} AR handshakes carried nsaid/trace/idunq, rtrace echoed")
 
     tb.assert_compliance()
     tb.log.info("=" * 80)

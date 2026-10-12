@@ -28,7 +28,7 @@
 
 ## Overview
 
-APB5 changes less than the version bump suggests. The transfer protocol is pure APB4 — PSEL/PENABLE phases, PREADY, PSLVERR, all unchanged — and everything new lives in the sideband: requester-driven user signals on one side, completer-driven wakeup/user signals on the other. So this block is a thin **pin-superset wrapper** over [`axi4_to_apb4_shim`](04_axi4_to_apb4.md). The entire protocol engine — CDC, cmd/rsp FIFOs, burst decomposition, response assembly — is the APB4 shim instantiated unchanged, with all 58 ports and 18 parameters forwarded 1:1.
+APB5 changes less than the version bump suggests. The transfer protocol is pure APB4 — PSEL/PENABLE phases, PREADY, PSLVERR, all unchanged — and everything new lives in the sideband: requester-driven user and wake-up signals on one side, completer-driven user signals on the other. So this block is a thin **pin-superset wrapper** over [`axi4_to_apb4_shim`](04_axi4_to_apb4.md). The entire protocol engine — CDC, cmd/rsp FIFOs, burst decomposition, response assembly — is the APB4 shim instantiated unchanged, with all 58 ports and 18 parameters forwarded 1:1.
 
 The APB5 additions on the requester surface:
 
@@ -36,11 +36,13 @@ The APB5 additions on the requester surface:
 | --- | --- | --- |
 | `m_apb_PAUSER[APB_AUSER_WIDTH-1:0]` | out | tied `'0` — nothing upstream sources it (AXI USER bits do not map onto APB user semantics) |
 | `m_apb_PWUSER[APB_WUSER_WIDTH-1:0]` | out | tied `'0` |
-| `m_apb_PWAKEUP` | in | accepted and terminated |
+| `m_apb_PWAKEUP` | out | registered copy of `m_apb_PSEL` -- see below |
 | `m_apb_PRUSER[APB_RUSER_WIDTH-1:0]` | in | accepted and terminated |
 | `m_apb_PBUSER[APB_BUSER_WIDTH-1:0]` | in | accepted and terminated |
 
-One thing to get right before you wire this up. User-signal widths default to 1 here, but `rtl/amba/apb5/apb5_slave.sv` defaults its own to 4, so the two do NOT line up out of the box — set `APB_{A,W,R,B}USER_WIDTH` to match whatever completer you attach. The signal set is otherwise pin-for-pin with that slave, including the repo's convention that PWAKEUP rides completer→requester.
+One thing to get right before you wire this up. User-signal widths default to 1 here, but `rtl/amba/apb5/apb5_slave.sv` defaults its own to 4, so the two do NOT line up out of the box — set `APB_{A,W,R,B}USER_WIDTH` to match whatever completer you attach. The signal set is otherwise pin-for-pin with that slave.
+
+PWAKEUP is a requester output (IHI 0024E 3.7.2, Table 3-7). This shim used to take it as an input, following an old repo convention that had the direction backwards (GitHub #102 item 7). It is now a flop of `m_apb_PSEL`: glitch-free because it comes straight from a register, high from the cycle after the Setup phase, and held through the Access phase up to and including the PREADY cycle, so the 3.7.2 rule that PWAKEUP stays asserted until PREADY holds, and a Completer that waits for PWAKEUP before driving PREADY always gets it. It falls when no transfer is in progress. 3.7.2 permits PWAKEUP before, during or after PSEL. The recommended one-cycle lead over PSEL is not available, because the command queue that would predict the next transfer sits inside the wrapped APB4 shim, whose port list every APB4 consumer shares. No check signals are carried (Check_Type = False), so there is no PWAKEUPCHK.
 
 ## Parameters
 
@@ -59,7 +61,7 @@ One parameter is inert, and I'd rather call it out here than watch someone wire 
 
 ## Design Notes
 
-Deriving the wrapper from the APB4 shim's actual port surface — rather than reimplementing the conversion — means the APB4 engine's fixes and its dependency closure are inherited automatically. The closure filelist simply `-f`'s the APB4 shim's. When a future consumer needs real PAUSER/PWUSER sourcing or PWAKEUP-gated clocking, those grow here without touching the conversion core.
+Deriving the wrapper from the APB4 shim's actual port surface — rather than reimplementing the conversion — means the APB4 engine's fixes and its dependency closure are inherited automatically. The closure filelist simply `-f`'s the APB4 shim's. When a future consumer needs real PAUSER/PWUSER sourcing or a PWAKEUP that leads PSEL, those grow here without touching the conversion core.
 
 ## Related Modules
 

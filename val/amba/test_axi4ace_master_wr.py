@@ -127,6 +127,11 @@ async def axi4ace_write_master_test(dut):
         tb.log.info("=== Test 3: AWSNOOP Matrix ===")
         await tb.awsnoop_matrix_test()
 
+        # ACE address fields (issue #102 item 4)
+        tb.log.info("=== ACE AWDOMAIN/AWBAR passthrough ===")
+        if not await tb.ace_signal_fields_test():
+            raise Exception("ACE AWDOMAIN/AWBAR passthrough check failed")
+
         # =================================================================
         # Test 4: Single writes with different timing profiles
         # =================================================================
@@ -419,7 +424,7 @@ def test_axi4ace_write_master(id_width, addr_width, data_width, user_width,
     )
 
     wstrb_width = data_width // 8
-    aw_size = id_width + addr_width + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + user_width + 3
+    aw_size = id_width + addr_width + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + user_width + 3 + 2 + 2  # + awsnoop, awdomain, awbar
     w_size = data_width + wstrb_width + 1 + user_width
     b_size = id_width + 2 + user_width
 

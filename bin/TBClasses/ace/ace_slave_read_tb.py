@@ -27,6 +27,7 @@ There is no RACK/WACK pin on this slave.
 import os
 import random
 
+import cocotb
 from cocotb.triggers import RisingEdge
 
 # Framework imports
@@ -36,12 +37,15 @@ from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.gaxi.gaxi_monitor import GAXIMonitor
 
 # ACE specific imports
-from CocoTBFramework.components.ace.ace_factories import create_axi4ace_master_rd
+from CocoTBFramework.components.ace.ace_factories import create_axi4ace_master_rd, create_axi4ace_slave_rd
 from CocoTBFramework.components.ace.ace_field_configs import AXI4ACEFieldConfigHelper
 from CocoTBFramework.components.ace.ace_transaction import ACETransactionType
+from TBClasses.ace.ace_signal_checks import (
+    AR_DOMAIN_BAR_CASES, AckPassthroughProbe, domain_bar_sweep, rresp_coherence_sweep,
+)
 
 # AXI4 responder and compliance checker
-from CocoTBFramework.components.axi4.axi4_factories import create_axi4_slave_rd, print_compliance_reports_from_components
+from CocoTBFramework.components.axi4.axi4_factories import print_compliance_reports_from_components
 from CocoTBFramework.components.axi4.axi4_compliance_checker import AXI4ComplianceChecker
 
 
@@ -139,9 +143,12 @@ class AXI4ACESlaveReadTB(TBBase):
             self.log.error(f"Failed to create test master components: {e}")
             raise
 
-        # Create AXI4 slave responder on the DUT output side
+        # ACE read responder on the DUT output side: an AXI4 responder with the
+        # 4-bit ACE RRESP; coherence_pair (RRESP[3:2] = {IsShared, PassDirty})
+        # is 0 except inside ace_signal_fields_test.
+        self.coherence_pair = 0
         try:
-            self.slave_components = create_axi4_slave_rd(
+            self.slave_components = create_axi4ace_slave_rd(
                 dut=dut,
                 clock=self.aclk,
                 prefix='fub_axi_',
@@ -151,7 +158,8 @@ class AXI4ACESlaveReadTB(TBBase):
                 data_width=self.TEST_DATA_WIDTH,
                 user_width=self.TEST_USER_WIDTH,
                 memory_model=self.memory_model,
-                multi_sig=True
+                multi_sig=True,
+                coherence_resp=lambda _addr: self.coherence_pair
             )
 
             self.ar_slave = self.slave_components['AR']
@@ -680,6 +688,59 @@ class AXI4ACESlaveReadTB(TBBase):
         except Exception as e:
             self.log.error(f"Outstanding transaction test failed: {str(e)}")
             return False, {'error': str(e)}
+
+    async def ace_signal_fields_test(self):
+        """ARDOMAIN/ARBAR reach fub_axi_, RRESP[3:2] reaches s_axi_, and the
+        manager's s_axi_rack is forwarded to fub_axi_rack once per read.
+
+        IHI 0022H D2.1.1 (ARDOMAIN[1:0], ARBAR[1:0]), D2.1.3 / Table D3-14
+        (RRESP[3:2] = IsShared, PassDirty) and D2.3.1 (RACK). The s_axi_rack
+        pulses come from the RDS-DV ACE master BFM, which drives one a cycle
+        after each RLAST handshake.
+        """
+        self.log.info("=== ACE ARDOMAIN/ARBAR + RRESP[3:2] + RACK test ===")
+        base_addr = 0x1000
+        arsize = self._calculate_arsize()
+        # the previous test's last RACK pulse lands a cycle after its
+        # handshake: let it pass so the probe counts only this test's traffic
+        await self.wait_clocks(self.aclk_name, 5)
+        probe = AckPassthroughProbe(self.aclk, self.dut.s_axi_rack, self.dut.fub_axi_rack)
+        probe_task = cocotb.start_soon(probe.run())
+        n_reads = 0
+
+        async def issue(index, snoop, domain, bar):
+            await self.test_master.read_transaction(
+                address=base_addr + 0x40 * index, burst_len=1, id=index & self.MAX_ID,
+                size=arsize, burst_type=1, snoop_type=snoop, domain=domain, bar=bar)
+
+        errors = await domain_bar_sweep(
+            AR_DOMAIN_BAR_CASES, issue, self._drain_output_ar_packets, self.log)
+        n_reads += len(AR_DOMAIN_BAR_CASES)
+
+        burst_len = 4
+
+        def set_pair(pair):
+            self.coherence_pair = pair
+
+        async def read(pair):
+            await self.test_master.read_transaction(
+                address=base_addr, burst_len=burst_len, id=pair & self.MAX_ID,
+                size=arsize, burst_type=1, snoop_type=ACETransactionType.READ_SHARED)
+            self._drain_output_ar_packets()
+            return self.test_master.last_rresp
+
+        errors += await rresp_coherence_sweep(set_pair, read, burst_len, self.log)
+        n_reads += 4
+
+        await self.wait_clocks(self.aclk_name, 5)   # let the last RACK pulse land
+        probe.stop()
+        await probe_task   # the probe loop exits on its next clock edge
+        errors += probe.check(n_reads, "RACK")
+        if not errors:
+            self.log.info(f"  RACK forwarded s_axi -> fub_axi: {probe.dst_pulses} pulses for {n_reads} reads")
+        for err in errors:
+            self.log.error(err)
+        return not errors
 
     async def wait_for_quiescence(self, idle_cycles=10):
         """Wait until the DUT reports no activity and busy goes low."""

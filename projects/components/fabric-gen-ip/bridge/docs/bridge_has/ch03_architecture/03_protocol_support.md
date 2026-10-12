@@ -76,7 +76,7 @@ Low-power peripheral protocol:
 | AXI4-Lite | AXI4 | Upgrade | Single-beat pass-through |
 | AXI4-Lite | AXI4-Lite | Direct | Width conversion if needed |
 | AXI4-Lite | APB | Convert | Simplified conversion |
-| AXI5-Lite | any | Upgrade | As AXI4-Lite; `user`/`exclusive` ride the fabric, other sideband terminates at the boundary |
+| AXI5-Lite | any | Upgrade | As AXI4-Lite plus the AXI5-Lite ID; `user` rides the fabric, TRACE/POISON terminate at the boundary (no LOCK/LOOP/MPAM/MECID/NSAID on AXI5-Lite, IHI 0022L B2.1.5) |
 | APB / APB5 | any | Full convert | `apb{4,5}_to_axi4` front end, then as AXI4-Lite |
 | any | Wishbone B4 | Full convert | `axi4_to_wb4`: one transfer per beat, in-order termination |
 | Wishbone B4 | any | Full convert | `wb4_to_axi4` front end, then as AXI4-Lite |
@@ -127,19 +127,22 @@ and the master adapter converts to the AXI4 the crossbar speaks:
 | `axi3` | AXI3 | `axi3_to_axi4`, then the AXI4 timing wrapper |
 | `axi5` | AXI5 (minus REGION, plus enabled features) | `axi5_slave_{wr,rd}` boundary wrappers |
 | `axil` | AXI4-Lite | AXI4 extras tied (`AxLEN=0`, INCR, `WLAST=1`, ID = placeholder); the wide-slave aligner toward wider slaves |
-| `axil5` | AXI5-Lite, full sideband | as `axil`; `exclusive` -> `AxLOCK`, `user` -> the 1-bit USER fields; every other group terminated at the top |
+| `axil5` | AXI5-Lite: ID + optional signals | as `axil`, but `awid`/`arid` -> the AXI4 ID and `bid`/`rid` back; `user` -> the 1-bit USER fields; TRACE/POISON terminated at the top |
 | `apb` | APB4 completer | `apb4_to_axi4`, then the AXI4 timing wrapper |
-| `apb5` | APB5 completer (+ `PAUSER/PWUSER/PWAKEUP` in, `PRUSER/PBUSER` out) | `apb5_to_axi4` (`PAUSER[0]`/`PWUSER[0]` -> USER), then the AXI4 timing wrapper |
+| `apb5` | APB5 completer (+ `PAUSER/PWUSER/PWAKEUP` in -- all requester-driven, IHI 0024E 3.7.2 -- `PRUSER/PBUSER` out) | `apb5_to_axi4` (`PAUSER[0]`/`PWUSER[0]` -> USER), then the AXI4 timing wrapper |
 | `wb4` | Wishbone B4 completer (pipelined) | `wb4_to_axi4`, then the AXI4 timing wrapper; SLVERR/DECERR terminate ERR |
 
 : Table 3.5: Master-port protocol values
 
-Rules the validator enforces on these ports: Lite masters have `id_width = 0`
-(no ID pins exist; the fabric ID is the master index, bridge TASK-005 (was BRIDGE-016)), APB and
+Rules the validator enforces on these ports: AXI4-Lite masters have `id_width = 0`
+(no ID pins exist; the fabric ID is the master index, bridge TASK-005 (was BRIDGE-016)),
+AXI5-Lite masters `id_width >= 1` (AWID/ARID are required on an AXI5-Lite
+Subordinate, IHI 0022L B2.1.5, GitHub #102 item 3), APB and
 Wishbone masters have `addr_width = 32` (the requester addresses the whole fabric --
 an APB *slave* port's `PADDR` is a window offset, a master's is not), and
-`axi5_features` on an `axil5` master may name only `user` and `exclusive`,
-the two groups with an AXI4 destination.
+`axi5_features` on an `axil5` port may name only `user`, the one group with
+an AXI4 destination (`exclusive`, `loop`, `mpam`, `mecid` and `nsaid` are
+rejected as not existing on AXI5-Lite).
 
 ## AXI4 to APB Conversion
 

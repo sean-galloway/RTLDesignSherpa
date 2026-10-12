@@ -18,7 +18,7 @@ AXIS5 Testbench Classes
 
 Testbench classes for AXI5-Stream protocol modules with AMBA5 extensions.
 Includes both regular and clock-gated variants.
-Follows the same patterns as AXIS4 testbenches but with TWAKEUP and TPARITY support.
+Follows the same patterns as AXIS4 testbenches but with TWAKEUP and IHI 0051B ch. 5 check-signal (T*CHK) support.
 """
 
 from .axis5_master_tb import AXIS5MasterTB

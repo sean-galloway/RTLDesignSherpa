@@ -68,7 +68,7 @@ async def cocotb_test_apb5_slave_cdc_basic(dut):
         dut.rsp_pbuser.value = 0
 
     # Wake-up control
-    dut.wakeup_request.value = 0
+    dut.s_apb_PWAKEUP.value = 0
 
     tb.log.info("=== Test: CDC Basic Operation ===")
 

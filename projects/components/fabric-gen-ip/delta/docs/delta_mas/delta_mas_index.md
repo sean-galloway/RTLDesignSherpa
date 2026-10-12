@@ -40,7 +40,7 @@ Delta is a Python generator that emits a single self-contained SystemVerilog mod
 - **TDEST-based routing:** No address map; the destination slave is taken directly from `s_axis_tdest`.
 - **Packet-atomic round-robin arbitration:** A granted master holds the slave until `TLAST`.
 - **Combinational data mux:** The grant is the registered stage; payload passes through combinatorially.
-- **Optional richness:** `TSTRB` byte qualifiers and AMBA 5 `TWAKEUP`/`TPARITY` sidebands (default off).
+- **Optional richness:** `TSTRB` byte qualifiers, and AMBA 5 `TWAKEUP` with the IHI 0051B ch. 5 odd-parity check signals (`TDATACHK` ... `TWAKEUPCHK`), checked at every port with sticky error flags (default off).
 - **Optional counters:** Per-master and per-slave packet counters (disable with `--no-counters`).
 - **Formal assertions:** `ifdef FORMAL` checks for one-hot grants and in-range TDEST.
 
@@ -69,6 +69,7 @@ Delta is a Python generator that emits a single self-contained SystemVerilog mod
 - [Crossbar Multiplexer](ch02_blocks/03_crossbar_mux.md)
 - [TREADY Steering](ch02_blocks/04_backpressure.md)
 - [TWAKEUP Steering (AMBA5)](ch02_blocks/05_wakeup.md)
+- [Interface Check Signals (AMBA5)](ch02_blocks/08_interface_check.md)
 - [Packet Counters](ch02_blocks/06_counters.md)
 - [Assertions](ch02_blocks/07_assertions.md)
 

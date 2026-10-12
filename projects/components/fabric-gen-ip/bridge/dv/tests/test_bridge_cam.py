@@ -163,7 +163,12 @@ def test_bridge_cam(request, test_level):
         includes=includes,
         toplevel=dut_name,
         module=module,
-        testcase="cam_same_cycle_alloc_dealloc_test,cam_random_test",
+        # testcase=None runs EVERY @cocotb.test in this module (both of them).
+        # A comma-joined list is not a list to cocotb 2.x: the repo conftest
+        # anchors testcase= as one exact name (r"\b<name>$"), so
+        # "a,b" matched no test, zero tests ran, and the wrapper reported a
+        # false green.
+        testcase=None,
         parameters={'TAG_WIDTH': TAG_W, 'DATA_WIDTH': DATA_W, 'DEPTH': DEPTH,
                     'ALLOW_DUPLICATES': 1, 'PIPELINE_EVICT': 0},
         sim_build=sim_build,

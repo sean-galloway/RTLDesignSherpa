@@ -141,8 +141,15 @@ def validate_axi3(masters: List[PortSpec], slaves: List[PortSpec]) -> None:
 # 'chunking' (bridge TASK-007, was BRIDGE-018) is droppable because ARCHUNKEN is permission,
 # not demand: a slave that cannot chunk answers with ordered data and
 # RCHUNKV low, which is exactly what the requester must be able to accept.
+# 'unique' (AWIDUNQ/ARIDUNQ, A5.2) is droppable because the response
+# indicators BIDUNQ/RIDUNQ are regenerated at the master boundary from the
+# request (AdapterGenerator._idunq_echo_lines) -- a slave that never saw the
+# request indicator cannot make the master port wrong.
+# 'wakeup' (AWAKEUP, A14.1.1) is not fabric sideband at all: a master port
+# accepts it (the bridge never waits for it), a slave port drives it from
+# the connected masters' requests OR its own held requests.
 AXI5_ALLOWED_FEATURES = ('nsaid', 'trace', 'mpam', 'mecid', 'unique',
-                         'chunking')
+                         'chunking', 'wakeup')
 
 # Features that exist in the axi5 wrappers but are NOT deliverable on this
 # fabric. Empty since bridge TASK-007 (was BRIDGE-018) closed the native-AXI5 gap (mte and
@@ -227,26 +234,30 @@ def validate_axi5(masters: List[PortSpec], slaves: List[PortSpec]) -> None:
             )
 
 
-# AXI5-Lite features that actually do something on an AXI4 fabric. Only these
-# two have an AXI4 source to forward, so only these two are gates in
-# axi4_to_axil5_{rd,wr}. The rest of the AXI5-Lite sideband is exposed on the
-# boundary and tied to zero either way -- naming one in axi5_features would
-# suggest it does something, so it is rejected rather than quietly ignored.
-AXIL5_FORWARDABLE_FEATURES = ('user', 'exclusive')
+# AXI5-Lite features that actually do something on an AXI4 fabric. Only USER
+# has an AXI4 source to forward, so only it is a gate in axi4_to_axil5_{rd,wr}.
+# TRACE and POISON are exposed on the boundary and tied to zero either way --
+# naming one in axi5_features would suggest it does something, so it is
+# rejected rather than quietly ignored.
+AXIL5_FORWARDABLE_FEATURES = ('user',)
 
 # Named separately from the unknown-name case so the message can say WHY: a
-# reader who asked for mpam on an AXI4 fabric has a design question, not a
+# reader who asked for trace on an AXI4 fabric has a design question, not a
 # typo.
-AXIL5_TIED_FEATURES = ('trace', 'loop', 'mpam', 'mecid', 'nsaid', 'poison')
+AXIL5_TIED_FEATURES = ('trace', 'poison')
+
+# Groups AXI5-Lite does not have at all (IHI 0022L B2.1.5, GitHub #102
+# item 3): AxLOCK/exclusive access, AxMPAM, AxMECID, AxNSAID, xLOOP.
+AXIL5_ABSENT_FEATURES = ('exclusive', 'loop', 'mpam', 'mecid', 'nsaid')
 
 
 def validate_axil5_features(ports: List[PortSpec]) -> None:
     """Only the forwardable groups may be named on an axil5 port.
 
-    Masters and slaves alike (bridge TASK-004, was BRIDGE-014): on a master port the same two
-    groups are the only ones with an AXI4 destination -- 'exclusive' rides
-    awlock/arlock and 'user' the 1-bit USER fields; the rest is exposed on
-    the boundary and terminated at the bridge top."""
+    Masters and slaves alike (bridge TASK-004, was BRIDGE-014): on a master port the same
+    group is the only one with an AXI4 destination -- 'user' rides the 1-bit
+    USER fields; the rest is exposed on the boundary and terminated at the
+    bridge top."""
     for port in ports:
         if port.protocol != 'axil5':
             continue
@@ -260,6 +271,12 @@ def validate_axil5_features(ports: List[PortSpec]) -> None:
             seen.add(f)
             if f in AXIL5_FORWARDABLE_FEATURES:
                 continue
+            if f in AXIL5_ABSENT_FEATURES:
+                raise ValidationError(
+                    f"AXI5-Lite {kind} '{port.port_name}': feature '{f}' does "
+                    f"not exist on AXI5-Lite (IHI 0022L B2.1.5: no AxLOCK/"
+                    f"exclusive access, AxMPAM, AxMECID, AxNSAID or xLOOP). "
+                    f"Forwardable: {list(AXIL5_FORWARDABLE_FEATURES)}")
             if f in AXIL5_TIED_FEATURES:
                 where = ("the converter ties it to zero" if kind == 'slave'
                          else "the bridge top terminates it")
@@ -403,7 +420,8 @@ def warn_axi5_dropped_sideband(masters: List[PortSpec],
     propagate on some connected path (other end not axi5 / feature
     missing / width mismatch). Dropping is legal for these features —
     the warning just makes the termination visible in the build log."""
-    droppable = set(AXI5_ALLOWED_FEATURES)
+    # 'wakeup' is not path sideband: it is never 'dropped' on a path.
+    droppable = set(AXI5_ALLOWED_FEATURES) - {'wakeup'}
     for m, s in _axi5_connected_pairs(masters, slaves, connectivity):
         m_feats = (set(getattr(m, 'axi5_features', None) or [])
                    if m.protocol == 'axi5' else set())
@@ -657,16 +675,26 @@ def validate_required_fields(port: PortSpec) -> None:
                 f"Got id_width={port.id_width}"
             )
 
-    # Lite requesters carry no ID: the adapter's internal face uses a
+    # AXI4-Lite requesters carry no ID: the adapter's internal face uses a
     # placeholder sized by the bridge (fub_id_width) and the fabric prepends
     # the master index. A non-zero id_width here would size ports that do
     # not exist on the boundary.
-    if port.direction == 'master' and port.protocol in ('axil', 'axil5'):
+    if port.direction == 'master' and port.protocol == 'axil':
         if port.id_width:
             raise ValidationError(
-                f"AXI-Lite master '{port.port_name}' must have id_width=0 "
-                f"(AXI4-Lite/AXI5-Lite have no transaction IDs). "
+                f"AXI4-Lite master '{port.port_name}' must have id_width=0 "
+                f"(AXI4-Lite has no transaction IDs). "
                 f"Got id_width={port.id_width}"
+            )
+    # AXI5-Lite DOES carry AWID/BID and ARID/RID -- required on a Subordinate
+    # (IHI 0022L B2.1.5, GitHub #102 item 3) -- and the bridge is the
+    # Subordinate on a master port, so the port needs a real ID width.
+    if port.direction == 'master' and port.protocol == 'axil5':
+        if port.id_width <= 0:
+            raise ValidationError(
+                f"AXI5-Lite master '{port.port_name}' must have id_width > 0 "
+                f"(AWID/BID/ARID/RID are required on an AXI5-Lite "
+                f"Subordinate, IHI 0022L B2.1.5). Got id_width={port.id_width}"
             )
 
     # An APB requester supplies the full fabric address: PADDR is the

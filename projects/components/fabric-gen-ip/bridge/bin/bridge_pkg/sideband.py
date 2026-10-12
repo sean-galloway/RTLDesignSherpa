@@ -11,8 +11,18 @@
 # every generator must iterate it the same way so struct layout, pack
 # sites, xbar routing, and extraction all agree.
 #
-# Struct field naming: the AWUNIQUE/ARUNIQUE bit is named `uniq` because
-# `unique` is a SystemVerilog keyword.
+# Signal names follow IHI 0022L (GitHub #102 items 2/5): the unique-ID
+# indicator is AWIDUNQ/ARIDUNQ (A5.2; AWUNIQUE is an unrelated ACE signal),
+# MTE carries AWTAGOP/WTAG/WTAGUPDATE/BTAGMATCH[1:0]/ARTAGOP/RTAG (A12.2 --
+# there is no AWTAG, BTAG or RTAGMATCH), and the struct field is `idunq`.
+#
+# BIDUNQ/RIDUNQ are deliberately NOT struct fields. A5.2 makes them a pure
+# function of the request (BIDUNQ == AWIDUNQ, RIDUNQ == ARIDUNQ, and RIDUNQ
+# == AWIDUNQ for an atomic's read data), so the master boundary regenerates
+# them from the request it accepted (AdapterGenerator._idunq_echo_lines).
+# Riding the slave's copy back would be wrong on every path the request
+# indicator was dropped on (AXI4 slave, dwidth converter, subtractive DECERR,
+# the atomic filter's local response), and right only where it is redundant.
 #
 # Slice-2 policy (see vault bridge TASK-002 (was BRIDGE-002) design note):
 #   - Struct fields are the UNION of features on any AXI5 port. Bridges
@@ -45,21 +55,19 @@ SIDEBAND_FIELDS: Tuple[Tuple[str, str, object, str, str], ...] = (
     ('aw', 'trace',     1,               'trace',    'awtrace'),
     ('aw', 'mpam',      11,              'mpam',     'awmpam'),
     ('aw', 'mecid',     16,              'mecid',    'awmecid'),
-    ('aw', 'uniq',      1,               'unique',   'awunique'),
+    ('aw', 'idunq',     1,               'unique',   'awidunq'),
     ('aw', 'atop',      6,               'atomic',   'awatop'),
     ('aw', 'tagop',     2,               'mte',      'awtagop'),
-    ('aw', 'tag',       WIDTH_TAGS,      'mte',      'awtag'),
     ('w',  'poison',    1,               'poison',   'wpoison'),
     ('w',  'tag',       WIDTH_TAGS,      'mte',      'wtag'),
     ('w',  'tagupdate', WIDTH_NTAGS,     'mte',      'wtagupdate'),
     ('b',  'trace',     1,               'trace',    'btrace'),
-    ('b',  'tag',       WIDTH_TAGS,      'mte',      'btag'),
-    ('b',  'tagmatch',  1,               'mte',      'btagmatch'),
+    ('b',  'tagmatch',  2,               'mte',      'btagmatch'),
     ('ar', 'nsaid',     4,               'nsaid',    'arnsaid'),
     ('ar', 'trace',     1,               'trace',    'artrace'),
     ('ar', 'mpam',      11,              'mpam',     'armpam'),
     ('ar', 'mecid',     16,              'mecid',    'armecid'),
-    ('ar', 'uniq',      1,               'unique',   'arunique'),
+    ('ar', 'idunq',     1,               'unique',   'aridunq'),
     ('ar', 'chunken',   1,               'chunking', 'archunken'),
     ('ar', 'tagop',     2,               'mte',      'artagop'),
     ('r',  'trace',     1,               'trace',    'rtrace'),
@@ -68,7 +76,6 @@ SIDEBAND_FIELDS: Tuple[Tuple[str, str, object, str, str], ...] = (
     ('r',  'chunknum',  4,               'chunking', 'rchunknum'),
     ('r',  'chunkstrb', WIDTH_CHUNKSTRB, 'chunking', 'rchunkstrb'),
     ('r',  'tag',       WIDTH_TAGS,      'mte',      'rtag'),
-    ('r',  'tagmatch',  1,               'mte',      'rtagmatch'),
 )
 
 # The data width a feature needs: tags are per 16 bytes and chunks are

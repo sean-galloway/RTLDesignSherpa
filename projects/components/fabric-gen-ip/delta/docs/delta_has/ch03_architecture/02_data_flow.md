@@ -35,7 +35,7 @@
 1. While a grant is active, the crossbar mux selects the granted master's payload.
 2. `m_axis_tdata[s]`, `m_axis_tlast[s]`, `m_axis_tdest[s]`, `m_axis_tid[s]`, and `m_axis_tuser[s]` are driven from the granted master.
 3. If `TSTRB` is enabled, `m_axis_tstrb[s]` is also forwarded.
-4. If `TPARITY` is enabled, `m_axis_tparity[s]` is forwarded.
+4. If `--amba5` is enabled, the payload check bits (`m_axis_tdatachk[s]` through `m_axis_tuserchk[s]`) are forwarded with the beat. They were already checked at the master port, where a failure sets `s_parity_error[m]`.
 
 ## Backpressure Flow
 

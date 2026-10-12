@@ -60,20 +60,38 @@ variant is crosswise: the APB5 port is `m1` on the master side and `s0` here.
 | `s<j>_apb_PWUSER` | 1 | Output | Write-data user attributes, likewise |
 | `s<j>_apb_PRUSER` | 1 | Input | Read-data user attributes returned by the slave |
 | `s<j>_apb_PBUSER` | 1 | Input | Response user attributes returned by the slave |
-| `s<j>_apb_PWAKEUP` | 1 | Input | Driven by the slave, and dropped -- see below |
+| `s<j>_apb_PWAKEUP` | 1 | Output | Crossbar wake toward the slave -- see below |
 
 : APB5 Slave Sideband Signals
 
 Widths are fixed at 1 bit. The generator hardcodes `AUSER_WIDTH(1)` ..
 `BUSER_WIDTH(1)` on the boundary shim and exposes no parameter for them.
 
-`s<j>_apb_PWAKEUP` is accepted at the pin and goes nowhere. The boundary IP
-leaves `rsp_pwakeup` unconnected and ties `wakeup_request` to `'0`, so an APB5
-slave asserting PWAKEUP is never observed by any master. That is a known
-limitation rather than a guarantee, and it is asserted formally
-(`ap_pwakeup_dropped`) so that wiring it up later fails a proof instead of
-changing behaviour silently -- the same contract described from the master's
-side in [Master Side](01_master_side.md).
+`s<j>_apb_PWAKEUP` is driven by the crossbar. On this interface the crossbar
+is the Requester, and `PWAKEUP` is a Requester output (IHI 0024E section
+3.7.2, Table 3-7). It is the OR of two terms:
+
+- The boundary `apb5_master` IP's own registered wake. It is high while a
+  command for this slave is pending or a transfer is in flight, it leads PSEL
+  by a cycle, and it holds through PREADY. This term covers transfers from APB4
+  masters, which have no `PWAKEUP`. 3.7.2 lets a slave wait for `PWAKEUP`
+  before PREADY, so a PSEL without it could deadlock.
+- Every APB5 master's `m<i>_apb_PWAKEUP`. All masters can address all slaves,
+  so the wake goes to every APB5 slave port, not to the decoded one. The
+  address is not known until PSEL, and 3.7.2 recommends the wake lead PSEL.
+
+3.7.2 names a glitch-free OR tree as a valid construction. Three properties
+are proven in `formal/apbx_xbar/apbx_xbar_2to2_mixed/`:
+
+- `ap_pwakeup_forwarded`: a master's wake always reaches the slave.
+- `ap_pwakeup_covers_psel`: the slave is never selected without `PWAKEUP`.
+- `ap_pwakeup_not_fabricated`: from reset, with no master wake and no traffic,
+  the wake stays low.
+
+The slave's own wake is not forwarded to any master. Earlier crossbars took
+this pin as an input and dropped it, under the old reversed direction. That
+was corrected in issue #102 item 7. With parity on, the port's `PWAKEUPCHK`
+is `~s<j>_apb_PWAKEUP`, computed over the OR.
 
 Reading from an APB4 slave returns `'0` on `PRUSER`/`PBUSER` rather than a
 stale or fabricated value, proven by `ap_gate_no_fab_*` in

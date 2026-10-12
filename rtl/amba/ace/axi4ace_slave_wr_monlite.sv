@@ -65,7 +65,7 @@ module axi4ace_slave_wr_monlite
     parameter int IW       = AXI_ID_WIDTH,
     parameter int SW       = AXI_WSTRB_WIDTH,
     parameter int UW       = AXI_USER_WIDTH,
-    parameter int AWSize   = IW+AW+8+3+2+1+4+3+4+4+UW+3,
+    parameter int AWSize   = IW+AW+8+3+2+1+4+3+4+4+UW+3+2+2,
     parameter int WSize    = DW+SW+1+UW,
     parameter int BSize    = IW+2+UW
 ) (
@@ -88,6 +88,8 @@ module axi4ace_slave_wr_monlite
     input  logic [3:0]                  s_axi_awregion,
     input  logic [UW-1:0]               s_axi_awuser,
     input  logic [2:0]                  s_axi_awsnoop,
+    input  logic [1:0]                  s_axi_awdomain,
+    input  logic [1:0]                  s_axi_awbar,
     input  logic                        s_axi_awvalid,
     output logic                        s_axi_awready,
 
@@ -105,6 +107,7 @@ module axi4ace_slave_wr_monlite
     output logic [UW-1:0]               s_axi_buser,
     output logic                        s_axi_bvalid,
     input  logic                        s_axi_bready,
+    input  logic                        s_axi_wack,
 
     // Master AXI Interface (Output Side to memory or backend)
     // Write address channel (AW)
@@ -120,6 +123,8 @@ module axi4ace_slave_wr_monlite
     output logic [3:0]                 fub_axi_awregion,
     output logic [UW-1:0]              fub_axi_awuser,
     output logic [2:0]                 fub_axi_awsnoop,
+    output logic [1:0]                 fub_axi_awdomain,
+    output logic [1:0]                 fub_axi_awbar,
     output logic                       fub_axi_awvalid,
     input  logic                       fub_axi_awready,
 
@@ -137,6 +142,7 @@ module axi4ace_slave_wr_monlite
     input  logic [UW-1:0]              fub_axi_buser,
     input  logic                       fub_axi_bvalid,
     output logic                       fub_axi_bready,
+    output logic                       fub_axi_wack,
 
     // Status outputs for clock gating
     output logic                       busy,
@@ -207,6 +213,8 @@ module axi4ace_slave_wr_monlite
         .s_axi_awregion              (s_axi_awregion),
         .s_axi_awuser                (s_axi_awuser),
         .s_axi_awsnoop               (s_axi_awsnoop),
+        .s_axi_awdomain              (s_axi_awdomain),
+        .s_axi_awbar                 (s_axi_awbar),
         .s_axi_awvalid               (s_axi_awvalid),
         .s_axi_awready               (s_axi_awready),
         .s_axi_wdata                 (s_axi_wdata),
@@ -220,6 +228,7 @@ module axi4ace_slave_wr_monlite
         .s_axi_buser                 (s_axi_buser),
         .s_axi_bvalid                (s_axi_bvalid),
         .s_axi_bready                (s_axi_bready),
+        .s_axi_wack                  (s_axi_wack),
         .fub_axi_awid                (fub_axi_awid),
         .fub_axi_awaddr              (fub_axi_awaddr),
         .fub_axi_awlen               (fub_axi_awlen),
@@ -232,6 +241,8 @@ module axi4ace_slave_wr_monlite
         .fub_axi_awregion            (fub_axi_awregion),
         .fub_axi_awuser              (fub_axi_awuser),
         .fub_axi_awsnoop             (fub_axi_awsnoop),
+        .fub_axi_awdomain            (fub_axi_awdomain),
+        .fub_axi_awbar               (fub_axi_awbar),
         .fub_axi_awvalid             (fub_axi_awvalid),
         .fub_axi_awready             (fub_axi_awready),
         .fub_axi_wdata               (fub_axi_wdata),
@@ -245,6 +256,7 @@ module axi4ace_slave_wr_monlite
         .fub_axi_buser               (fub_axi_buser),
         .fub_axi_bvalid              (fub_axi_bvalid),
         .fub_axi_bready              (fub_axi_bready),
+        .fub_axi_wack                (fub_axi_wack),
         .busy                        (busy)
     );
 

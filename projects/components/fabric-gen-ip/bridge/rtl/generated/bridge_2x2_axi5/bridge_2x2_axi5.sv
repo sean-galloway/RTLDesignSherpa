@@ -37,7 +37,8 @@ module bridge_2x2_axi5
     output  logic         cpu_axi_awready,
     input  logic [3:0]  cpu_axi_awnsaid,
     input  logic         cpu_axi_awtrace,
-    input  logic         cpu_axi_awunique,
+    input  logic         cpu_axi_awidunq,
+    input  logic         cpu_axi_awakeup,
 
     input  logic [31:0]  cpu_axi_wdata,
     input  logic [3:0]  cpu_axi_wstrb,
@@ -52,6 +53,7 @@ module bridge_2x2_axi5
     output  logic         cpu_axi_bvalid,
     input  logic         cpu_axi_bready,
     output  logic         cpu_axi_btrace,
+    output  logic         cpu_axi_bidunq,
 
     input  logic [3:0]  cpu_axi_arid,
     input  logic [31:0]  cpu_axi_araddr,
@@ -67,7 +69,7 @@ module bridge_2x2_axi5
     output  logic         cpu_axi_arready,
     input  logic [3:0]  cpu_axi_arnsaid,
     input  logic         cpu_axi_artrace,
-    input  logic         cpu_axi_arunique,
+    input  logic         cpu_axi_aridunq,
 
     output  logic [3:0]  cpu_axi_rid,
     output  logic [31:0]  cpu_axi_rdata,
@@ -77,6 +79,7 @@ module bridge_2x2_axi5
     output  logic         cpu_axi_rvalid,
     input  logic         cpu_axi_rready,
     output  logic         cpu_axi_rtrace,
+    output  logic         cpu_axi_ridunq,
 
     // Master 1: dma (rw)
     // Master: dma (axi5, rw)
@@ -94,7 +97,7 @@ module bridge_2x2_axi5
     output  logic         dma_axi_awready,
     input  logic [3:0]  dma_axi_awnsaid,
     input  logic         dma_axi_awtrace,
-    input  logic         dma_axi_awunique,
+    input  logic         dma_axi_awidunq,
 
     input  logic [31:0]  dma_axi_wdata,
     input  logic [3:0]  dma_axi_wstrb,
@@ -109,6 +112,7 @@ module bridge_2x2_axi5
     output  logic         dma_axi_bvalid,
     input  logic         dma_axi_bready,
     output  logic         dma_axi_btrace,
+    output  logic         dma_axi_bidunq,
 
     input  logic [3:0]  dma_axi_arid,
     input  logic [31:0]  dma_axi_araddr,
@@ -124,7 +128,7 @@ module bridge_2x2_axi5
     output  logic         dma_axi_arready,
     input  logic [3:0]  dma_axi_arnsaid,
     input  logic         dma_axi_artrace,
-    input  logic         dma_axi_arunique,
+    input  logic         dma_axi_aridunq,
 
     output  logic [3:0]  dma_axi_rid,
     output  logic [31:0]  dma_axi_rdata,
@@ -134,6 +138,7 @@ module bridge_2x2_axi5
     output  logic         dma_axi_rvalid,
     input  logic         dma_axi_rready,
     output  logic         dma_axi_rtrace,
+    output  logic         dma_axi_ridunq,
 
     // Slave 0: ddr
     // AXI4 Slave: ddr
@@ -202,7 +207,8 @@ module bridge_2x2_axi5
     input  logic         sram_axi_awready,
     output  logic [3:0]  sram_axi_awnsaid,
     output  logic         sram_axi_awtrace,
-    output  logic         sram_axi_awunique,
+    output  logic         sram_axi_awidunq,
+    output  logic         sram_axi_awakeup,
 
     output  logic [31:0]  sram_axi_wdata,
     output  logic [3:0]  sram_axi_wstrb,
@@ -217,6 +223,7 @@ module bridge_2x2_axi5
     input  logic         sram_axi_bvalid,
     output  logic         sram_axi_bready,
     input  logic         sram_axi_btrace,
+    input  logic         sram_axi_bidunq,
 
     output  logic [4:0]  sram_axi_arid,
     output  logic [31:0]  sram_axi_araddr,
@@ -232,7 +239,7 @@ module bridge_2x2_axi5
     input  logic         sram_axi_arready,
     output  logic [3:0]  sram_axi_arnsaid,
     output  logic         sram_axi_artrace,
-    output  logic         sram_axi_arunique,
+    output  logic         sram_axi_aridunq,
 
     input  logic [4:0]  sram_axi_rid,
     input  logic [31:0]  sram_axi_rdata,
@@ -242,6 +249,7 @@ module bridge_2x2_axi5
     input  logic         sram_axi_rvalid,
     output  logic         sram_axi_rready,
     input  logic         sram_axi_rtrace,
+    input  logic         sram_axi_ridunq,
     // Unmapped-address status (subtractive slave).
     // unmapped_irq is STICKY: it latches on the first
     // unmapped access and holds until unmapped_clear,
@@ -262,6 +270,7 @@ module bridge_2x2_axi5
     logic [BRIDGE_ID_WIDTH-1:0] cpu_bridge_id_aw;
     logic [NUM_SLAVES-1:0] cpu_slave_select_ar;
     logic [BRIDGE_ID_WIDTH-1:0] cpu_bridge_id_ar;
+    logic cpu_wakeup_req;  // AWAKEUP (A14.1.1)
     // 32b path
     axi4_aw_t     cpu_32b_aw;
     logic         cpu_32b_awvalid;
@@ -401,11 +410,11 @@ module bridge_2x2_axi5
     logic                      xbar_sram_axi_rready;
     logic [3:0]               xbar_sram_axi_awnsaid;  // AXI5 sideband (nsaid)
     logic                       xbar_sram_axi_awtrace;  // AXI5 sideband (trace)
-    logic                       xbar_sram_axi_awunique;  // AXI5 sideband (unique)
+    logic                       xbar_sram_axi_awidunq;  // AXI5 sideband (unique)
     logic                       xbar_sram_axi_btrace;  // AXI5 sideband (trace)
     logic [3:0]               xbar_sram_axi_arnsaid;  // AXI5 sideband (nsaid)
     logic                       xbar_sram_axi_artrace;  // AXI5 sideband (trace)
-    logic                       xbar_sram_axi_arunique;  // AXI5 sideband (unique)
+    logic                       xbar_sram_axi_aridunq;  // AXI5 sideband (unique)
     logic                       xbar_sram_axi_rtrace;  // AXI5 sideband (trace)
     logic [BRIDGE_ID_WIDTH-1:0] sram_axi_bridge_id_aw;
     logic [BRIDGE_ID_WIDTH-1:0] sram_axi_bid_bridge_id;
@@ -592,7 +601,8 @@ module bridge_2x2_axi5
         .cpu_axi_awready(cpu_axi_awready),
         .cpu_axi_awnsaid(cpu_axi_awnsaid),
         .cpu_axi_awtrace(cpu_axi_awtrace),
-        .cpu_axi_awunique(cpu_axi_awunique),
+        .cpu_axi_awidunq(cpu_axi_awidunq),
+        .cpu_axi_awakeup(cpu_axi_awakeup),
         .cpu_axi_wdata(cpu_axi_wdata),
         .cpu_axi_wstrb(cpu_axi_wstrb),
         .cpu_axi_wlast(cpu_axi_wlast),
@@ -605,6 +615,7 @@ module bridge_2x2_axi5
         .cpu_axi_bvalid(cpu_axi_bvalid),
         .cpu_axi_bready(cpu_axi_bready),
         .cpu_axi_btrace(cpu_axi_btrace),
+        .cpu_axi_bidunq(cpu_axi_bidunq),
         .cpu_axi_arid(cpu_axi_arid),
         .cpu_axi_araddr(cpu_axi_araddr),
         .cpu_axi_arlen(cpu_axi_arlen),
@@ -619,7 +630,7 @@ module bridge_2x2_axi5
         .cpu_axi_arready(cpu_axi_arready),
         .cpu_axi_arnsaid(cpu_axi_arnsaid),
         .cpu_axi_artrace(cpu_axi_artrace),
-        .cpu_axi_arunique(cpu_axi_arunique),
+        .cpu_axi_aridunq(cpu_axi_aridunq),
         .cpu_axi_rid(cpu_axi_rid),
         .cpu_axi_rdata(cpu_axi_rdata),
         .cpu_axi_rresp(cpu_axi_rresp),
@@ -628,12 +639,14 @@ module bridge_2x2_axi5
         .cpu_axi_rvalid(cpu_axi_rvalid),
         .cpu_axi_rready(cpu_axi_rready),
         .cpu_axi_rtrace(cpu_axi_rtrace),
+        .cpu_axi_ridunq(cpu_axi_ridunq),
 
         // Decode outputs
         .slave_select_aw(cpu_slave_select_aw),
         .bridge_id_aw(cpu_bridge_id_aw),
         .slave_select_ar(cpu_slave_select_ar),
         .bridge_id_ar(cpu_bridge_id_ar),
+        .wakeup_req(cpu_wakeup_req),
 
         // 32b path
         .cpu_32b_aw(cpu_32b_aw),
@@ -675,7 +688,7 @@ module bridge_2x2_axi5
         .dma_axi_awready(dma_axi_awready),
         .dma_axi_awnsaid(dma_axi_awnsaid),
         .dma_axi_awtrace(dma_axi_awtrace),
-        .dma_axi_awunique(dma_axi_awunique),
+        .dma_axi_awidunq(dma_axi_awidunq),
         .dma_axi_wdata(dma_axi_wdata),
         .dma_axi_wstrb(dma_axi_wstrb),
         .dma_axi_wlast(dma_axi_wlast),
@@ -688,6 +701,7 @@ module bridge_2x2_axi5
         .dma_axi_bvalid(dma_axi_bvalid),
         .dma_axi_bready(dma_axi_bready),
         .dma_axi_btrace(dma_axi_btrace),
+        .dma_axi_bidunq(dma_axi_bidunq),
         .dma_axi_arid(dma_axi_arid),
         .dma_axi_araddr(dma_axi_araddr),
         .dma_axi_arlen(dma_axi_arlen),
@@ -702,7 +716,7 @@ module bridge_2x2_axi5
         .dma_axi_arready(dma_axi_arready),
         .dma_axi_arnsaid(dma_axi_arnsaid),
         .dma_axi_artrace(dma_axi_artrace),
-        .dma_axi_arunique(dma_axi_arunique),
+        .dma_axi_aridunq(dma_axi_aridunq),
         .dma_axi_rid(dma_axi_rid),
         .dma_axi_rdata(dma_axi_rdata),
         .dma_axi_rresp(dma_axi_rresp),
@@ -711,6 +725,7 @@ module bridge_2x2_axi5
         .dma_axi_rvalid(dma_axi_rvalid),
         .dma_axi_rready(dma_axi_rready),
         .dma_axi_rtrace(dma_axi_rtrace),
+        .dma_axi_ridunq(dma_axi_ridunq),
 
         // Decode outputs
         .slave_select_aw(dma_slave_select_aw),
@@ -887,11 +902,11 @@ module bridge_2x2_axi5
         .sram_axi_rready(xbar_sram_axi_rready),
         .sram_axi_awnsaid(xbar_sram_axi_awnsaid),
         .sram_axi_awtrace(xbar_sram_axi_awtrace),
-        .sram_axi_awunique(xbar_sram_axi_awunique),
+        .sram_axi_awidunq(xbar_sram_axi_awidunq),
         .sram_axi_btrace(xbar_sram_axi_btrace),
         .sram_axi_arnsaid(xbar_sram_axi_arnsaid),
         .sram_axi_artrace(xbar_sram_axi_artrace),
-        .sram_axi_arunique(xbar_sram_axi_arunique),
+        .sram_axi_aridunq(xbar_sram_axi_aridunq),
         .sram_axi_rtrace(xbar_sram_axi_rtrace),
         .sram_axi_bridge_id_aw(sram_axi_bridge_id_aw),
         .sram_axi_bid_bridge_id(sram_axi_bid_bridge_id),
@@ -1120,11 +1135,11 @@ module bridge_2x2_axi5
         .xbar_sram_axi_rready(xbar_sram_axi_rready),
         .xbar_sram_axi_awnsaid(xbar_sram_axi_awnsaid),
         .xbar_sram_axi_awtrace(xbar_sram_axi_awtrace),
-        .xbar_sram_axi_awunique(xbar_sram_axi_awunique),
+        .xbar_sram_axi_awidunq(xbar_sram_axi_awidunq),
         .xbar_sram_axi_btrace(xbar_sram_axi_btrace),
         .xbar_sram_axi_arnsaid(xbar_sram_axi_arnsaid),
         .xbar_sram_axi_artrace(xbar_sram_axi_artrace),
-        .xbar_sram_axi_arunique(xbar_sram_axi_arunique),
+        .xbar_sram_axi_aridunq(xbar_sram_axi_aridunq),
         .xbar_sram_axi_rtrace(xbar_sram_axi_rtrace),
 
         // External AXI5 interface (sram_axi_*)
@@ -1142,7 +1157,8 @@ module bridge_2x2_axi5
         .sram_axi_awready(sram_axi_awready),
         .sram_axi_awnsaid(sram_axi_awnsaid),
         .sram_axi_awtrace(sram_axi_awtrace),
-        .sram_axi_awunique(sram_axi_awunique),
+        .sram_axi_awidunq(sram_axi_awidunq),
+        .sram_axi_awakeup(sram_axi_awakeup),
         .sram_axi_wdata(sram_axi_wdata),
         .sram_axi_wstrb(sram_axi_wstrb),
         .sram_axi_wlast(sram_axi_wlast),
@@ -1155,6 +1171,7 @@ module bridge_2x2_axi5
         .sram_axi_bvalid(sram_axi_bvalid),
         .sram_axi_bready(sram_axi_bready),
         .sram_axi_btrace(sram_axi_btrace),
+        .sram_axi_bidunq(sram_axi_bidunq),
         .sram_axi_arid(sram_axi_arid),
         .sram_axi_araddr(sram_axi_araddr),
         .sram_axi_arlen(sram_axi_arlen),
@@ -1169,7 +1186,7 @@ module bridge_2x2_axi5
         .sram_axi_arready(sram_axi_arready),
         .sram_axi_arnsaid(sram_axi_arnsaid),
         .sram_axi_artrace(sram_axi_artrace),
-        .sram_axi_arunique(sram_axi_arunique),
+        .sram_axi_aridunq(sram_axi_aridunq),
         .sram_axi_rid(sram_axi_rid),
         .sram_axi_rdata(sram_axi_rdata),
         .sram_axi_rresp(sram_axi_rresp),
@@ -1178,6 +1195,7 @@ module bridge_2x2_axi5
         .sram_axi_rvalid(sram_axi_rvalid),
         .sram_axi_rready(sram_axi_rready),
         .sram_axi_rtrace(sram_axi_rtrace),
+        .sram_axi_ridunq(sram_axi_ridunq),
 
         // Bridge ID tracking
         .xbar_bridge_id_aw(sram_axi_bridge_id_aw),
@@ -1185,7 +1203,10 @@ module bridge_2x2_axi5
         .bid_valid(sram_axi_bid_valid),
         .xbar_bridge_id_ar(sram_axi_bridge_id_ar),
         .rid_bridge_id(sram_axi_rid_bridge_id),
-        .rid_valid(sram_axi_rid_valid)
+        .rid_valid(sram_axi_rid_valid),
+
+        // AWAKEUP request (A14.1.1)
+        .wakeup_req(cpu_wakeup_req)
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)

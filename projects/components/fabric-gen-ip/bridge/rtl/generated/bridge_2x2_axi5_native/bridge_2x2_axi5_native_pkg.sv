@@ -32,9 +32,8 @@ package bridge_2x2_axi5_native_pkg;
         logic         user;    // User signal
         logic [3:0]  nsaid;   // AXI5 sideband (nsaid)
         logic         trace;   // AXI5 sideband (trace)
-        logic         uniq;    // AXI5 sideband (unique)
+        logic         idunq;   // AXI5 sideband (unique)
         logic [1:0]  tagop;   // AXI5 sideband (mte)
-        logic [3:0]  tag;     // AXI5 sideband (mte)
     } axi4_aw_t;
 
     // AXI4 Read Address Channel (width-independent)
@@ -52,7 +51,7 @@ package bridge_2x2_axi5_native_pkg;
         logic         user;    // User signal
         logic [3:0]  nsaid;   // AXI5 sideband (nsaid)
         logic         trace;   // AXI5 sideband (trace)
-        logic         uniq;    // AXI5 sideband (unique)
+        logic         idunq;   // AXI5 sideband (unique)
         logic         chunken; // AXI5 sideband (chunking)
         logic [1:0]  tagop;   // AXI5 sideband (mte)
     } axi4_ar_t;
@@ -74,8 +73,7 @@ package bridge_2x2_axi5_native_pkg;
         logic [1:0]   resp;    // Write response
         logic         user;    // User signal
         logic         trace;   // AXI5 sideband (trace)
-        logic [3:0]  tag;     // AXI5 sideband (mte)
-        logic         tagmatch; // AXI5 sideband (mte)
+        logic [1:0]  tagmatch; // AXI5 sideband (mte)
     } axi4_b_t;
 
     // AXI4 Read Data Channel - 128-bit data width
@@ -91,7 +89,6 @@ package bridge_2x2_axi5_native_pkg;
         logic [3:0]  chunknum; // AXI5 sideband (chunking)
         logic         chunkstrb; // AXI5 sideband (chunking)
         logic [3:0]  tag;     // AXI5 sideband (mte)
-        logic         tagmatch; // AXI5 sideband (mte)
     } axi4_r_128b_t;
 
 endpackage : bridge_2x2_axi5_native_pkg

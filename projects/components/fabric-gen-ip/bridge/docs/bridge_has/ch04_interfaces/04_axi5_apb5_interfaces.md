@@ -54,8 +54,8 @@ channels = "rw"                        # APB rules unchanged (rw-only, 32-bit)
 [[bridge.masters]]
 name = "lite5"
 protocol = "axil5"                     # AXI5-Lite requester (bridge TASK-004, was BRIDGE-014)
-id_width = 0                           # Lite has no ID pins
-axi5_features = ["user", "exclusive"]  # the two groups with an AXI4 destination
+id_width = 1                           # AWID/ARID: required on an AXI5-Lite Subordinate
+axi5_features = ["user"]               # the one group with an AXI4 destination
 
 [[bridge.masters]]
 name = "apb5m"
@@ -80,10 +80,11 @@ off internally.
 | `trace` | `aw/artrace`, `btrace`, `rtrace` | Droppable sideband |
 | `mpam` | `aw/armpam[10:0]` | Droppable sideband |
 | `mecid` | `aw/armecid[15:0]` | Droppable sideband |
-| `unique` | `aw/arunique` | Droppable sideband |
+| `unique` | `aw/aridunq` in; `bidunq`, `ridunq` out (IHI 0022L A5.2) | Droppable sideband; the response indicators are regenerated at the master port (below) |
+| `wakeup` | `awakeup` (one signal for both request channels, present on rd-only, wr-only and rw ports alike) | Not path sideband; see "AWAKEUP" below |
 | `poison` | `wpoison`, `rpoison` | **Connectivity-gated** |
 | `atomic` | `awatop[5:0]` | **Connectivity-gated**; read-return classes native on rw ports, DECERR on write-only ports |
-| `mte` | `aw/artagop[1:0]`, `awtag`, `wtag`, `wtagupdate`, `btag`, `btagmatch`, `rtag`, `rtagmatch` (tag buses are 4 bits per 16 bytes of data, `wtagupdate` one bit per 16 bytes) | **Connectivity-gated**; 128-bit ports or wider (bridge TASK-007, was BRIDGE-018) |
+| `mte` | `aw/artagop[1:0]`, `wtag`, `wtagupdate`, `btagmatch[1:0]`, `rtag` (tag buses are 4 bits per 16 bytes of data, `wtagupdate` one bit per 16 bytes; IHI 0022L A12.2 has no `AWTAG`, `BTAG` or `RTAGMATCH`, and `BTAGMATCH` encodes Table A12.14: `00` none, `01` separate, `10` fail, `11` pass) | **Connectivity-gated**; 128-bit ports or wider (bridge TASK-007, was BRIDGE-018) |
 | `chunking` | `archunken`, `rchunkv`, `rchunknum[3:0]`, `rchunkstrb` (one bit per 128 bits of data) | Droppable sideband; 128-bit ports or wider (bridge TASK-007, was BRIDGE-018) |
 
 ### APB5 Slave Surface
@@ -93,8 +94,19 @@ mirroring `rtl/amba/apb5/apb5_slave.sv` pin-for-pin:
 
 | Direction | Signals |
 |---|---|
-| Requester → completer | APB4 set + `PAUSER`, `PWUSER` (driven `'0` — nothing upstream sources them) |
-| Completer → requester | APB4 set + `PWAKEUP`, `PRUSER`, `PBUSER` (accepted and terminated) |
+| Requester → completer | APB4 set + `PAUSER`, `PWUSER` (driven `'0` — nothing upstream sources them) + `PWAKEUP` (below) |
+| Completer → requester | APB4 set + `PRUSER`, `PBUSER` (accepted and terminated) |
+
+`PWAKEUP` is a **requester output** (IHI 0024E 3.7.2, Table 3-7). The bridge
+port used to take it as an input, following a library convention that had the
+direction backwards (GitHub #102 item 7). `axi4_to_apb5_shim` now drives it from
+a flop of `PSEL`: glitch-free, high from the cycle after the Setup phase and
+held through the PREADY cycle, so a completer that waits for `PWAKEUP` before
+`PREADY` always receives it, and low when no transfer is in progress. 3.7.2
+permits assertion during or after `PSEL`; the recommended one-cycle lead is not
+available because the command queue that would predict a transfer is inside
+the shared APB4 conversion core. No `*CHK` check signals are exposed (the port
+is `Check_Type = False`).
 
 The transfer protocol is unchanged from APB4, so the `axi4_to_apb5_shim`
 is a sideband wrapper over the APB4 conversion core; APB constraints
@@ -102,17 +114,20 @@ is a sideband wrapper over the APB4 conversion core; APB constraints
 
 ### AXI5-Lite Master Surface
 
-An `axil5` master port (bridge TASK-004, was BRIDGE-014) exposes the AXI4-Lite requester set plus
-the **whole** AXI5-Lite sideband, every group whether or not it is enabled --
+An `axil5` master port (bridge TASK-004, was BRIDGE-014) exposes the AXI4-Lite requester set, the
+AXI5-Lite ID (`awid`/`arid` in, `bid`/`rid` out, `id_width` bits -- required on
+an AXI5-Lite Subordinate, IHI 0022L B2.1.5, so `id_width` must be at least 1),
+and the **whole** AXI5-Lite optional set, every group whether or not it is enabled --
 the same rule as the slave surface, so the boundary keeps one shape. The
 directions flip relative to the slave table: requester-driven groups are
 bridge inputs, completer-driven groups bridge outputs.
 
 | Group | Signals | Behaviour |
 |---|---|---|
-| **FORWARDED** (when enabled) | `awlock`/`arlock` (`exclusive`); `awuser`, `wuser`, `aruser` (`user`) | reach the adapter's AXI4 face and ride the fabric to the slave |
-| **TERMINATED inputs** | `aw/arloop`, `aw/armpam`, `aw/armecid`, `aw/arnsaid`, `aw/artrace`, `wpoison`; `awlock`/`awuser`/... when their feature is off | consumed at the bridge top (a reduction into an `_unused` wire), never floating |
-| **TERMINATED outputs** | `bloop`, `btrace`, `rloop`, `rtrace`, `rpoison`; `buser`/`ruser` when `user` is off | driven `'0` |
+| **ID** | `awid`, `arid` in; `bid`, `rid` out | reach the adapter's AXI4 face, ride the fabric inside `{master index, id}` and come back unchanged |
+| **FORWARDED** (when enabled) | `awuser`, `wuser`, `aruser` (`user`) | reach the adapter's AXI4 face and ride the fabric to the slave |
+| **TERMINATED inputs** | `aw/artrace`, `wpoison`; `awuser`/... when `user` is off | consumed at the bridge top (a reduction into an `_unused` wire), never floating |
+| **TERMINATED outputs** | `btrace`, `rtrace`, `rpoison`; `buser`/`ruser` when `user` is off | driven `'0` |
 | **Response USER** | `buser`, `ruser` with `user` on | connected, but read 0: the master adapters tie response-side USER (see the PRD) |
 
 : AXI5-Lite sideband groups at an `axil5` master boundary
@@ -124,8 +139,9 @@ with the requester-driven signals as inputs and `PREADY/PRDATA/PSLVERR` as
 outputs, plus `PAUSER`, `PWUSER`, `PWAKEUP` in and `PRUSER`, `PBUSER` out,
 one bit each (the fabric USER width). `PAUSER[0]`/`PWUSER[0]` become
 `awuser`/`aruser`/`wuser` on the fabric -- observable at an `axil5` slave
-with `user` enabled. `PWAKEUP` is requester-driven and is accepted and
-terminated. Behind the surface sits `apb5_to_axi4`
+with `user` enabled. `PWAKEUP` is requester-driven (an input here, since
+the bridge is the completer) and is accepted and terminated: the bridge never
+waits for it. Behind the surface sits `apb5_to_axi4`
 (`apb4_to_axi4` for `protocol = "apb"`), then the same AXI4 timing wrapper
 an AXI4 master port gets; from there the port is an AXI4-Lite-shaped
 single-beat requester and takes the wide-slave aligner toward wider slaves.
@@ -135,15 +151,19 @@ into APB's one error bit).
 ### AXI5-Lite Slave Surface
 
 An `axil5` slave gets `axi4_to_axil5_{rd,wr}` at the boundary: the AXI4-Lite
-conversion core plus the AXI5-Lite sideband. Because the master side is AXI4,
-the sideband splits three ways, and which group a signal falls in is the whole
-story of what an AXI4 front end can and cannot express.
+conversion core plus the AXI5-Lite ID and optional signals. The signal set is
+IHI 0022L B2.1.5 / Table B2.2: AXI5-Lite has **no** AxLOCK (no exclusive
+access), AxMPAM, AxMECID, AxNSAID or xLOOP -- the bridge carried all five until
+GitHub #102 item 3 -- and it **does** carry AWID/BID and ARID/RID. Because the
+master side is AXI4, the rest splits three ways, and which group a signal
+falls in is the whole story of what an AXI4 front end can and cannot express.
 
 | Group | Signals | Behaviour |
 |---|---|---|
-| **FORWARDED** | `awlock`, `awuser`, `wuser`, `arlock`, `aruser` (request); `buser`, `ruser` (response) | AXI4 has an equivalent, passed straight through and returned to the master. |
-| **TIED** | `awloop`, `awmecid`, `awmpam`, `awnsaid`, `awtrace`, `wpoison` (and the AR equivalents) | AXI5 additions with no AXI4 source. The port exists and is driven to `'0` — never left floating. There is deliberately no `ENABLE_` knob: there is nothing it could switch between. |
-| **TERMINATED** | `bloop`, `btrace` (and the R equivalents) | Completer-driven, with nothing on the AXI4 side to return them to. Accepted and dropped. |
+| **ID** | `awid`, `arid` (request); `bid`, `rid` (response) | The fabric ID (`{master index, id}`, the crossbar ID width), carried across the converter and returned unchanged. |
+| **FORWARDED** | `awuser`, `wuser`, `aruser` (request); `buser`, `ruser` (response) | AXI4 has an equivalent, passed straight through and returned to the master. AXI4 `AxLOCK` has nowhere to go: an exclusive access completes as a normal one with OKAY. |
+| **TIED** | `awtrace`, `wpoison`, `artrace` | AXI5-Lite optional signals with no AXI4 source. The port exists and is driven to `'0` — never left floating. There is deliberately no `ENABLE_` knob: there is nothing it could switch between. |
+| **TERMINATED** | `btrace`, `rtrace`, `rpoison` | Completer-driven, with nothing on the AXI4 side to return them to. Accepted and dropped. |
 
 : AXI5-Lite sideband groups at an `axil5` slave boundary
 
@@ -191,15 +211,57 @@ port. Read-return classes (AtomicLoad `10xxxx`, AtomicSwap/Compare
 - On a **write-only** master port there is nowhere to deliver the R beat,
   so the boundary's `axi5_atomic_filter` answers those classes locally
   with **DECERR** -- no slave-side AW handshake, no memory side effect.
+  IHI 0022L A6.4.8 also requires the read data transfers to be sent even
+  when the write response is an error; the filter generates them
+  (GitHub #102 item 2), but a write-only port has no R channel to carry
+  them, so the bridge accepts and **discards** them inside the filter
+  (its `s_rready` is tied high, which also keeps its read-return queue from
+  filling and stalling AW). The atomic therefore completes with DECERR on
+  **B only**. A manager that issues a load-class atomic on a write-only
+  port is outside the spec -- such a port has no read data channel to
+  receive the result -- and **must not** issue them; the DECERR exists so a
+  stray one cannot hang the port. To use load-class atomics, declare the
+  port `rw`.
+
+**Unique-ID indicators are regenerated, not routed back.** IHI 0022L A5.2
+makes `BIDUNQ` equal the request's `AWIDUNQ`, `RIDUNQ` equal `ARIDUNQ`, and an
+atomic's `RIDUNQ` equal its `AWIDUNQ`. The request indicator is droppable
+sideband: an AXI4 slave, a dwidth converter, the subtractive DECERR slave and
+the atomic filter's local response never see it. So the response indicators
+do not ride the fabric; each AXI5 master port with `unique` keeps one bit per
+ID, written at every AW (and AR, and read-return atomic AW) handshake and read
+by `BID`/`RID`. A5.2 forbids an `AxIDUNQ=1` request while any same-ID request
+is outstanding, and any request reusing an outstanding `AxIDUNQ=1` ID, so every
+outstanding transaction of one ID carries the same indicator and the per-ID bit
+is exact under any response order. On a write-only atomic port the table sits
+on the wrapper side of the filter, so a local DECERR carries the right bit.
+
+**AWAKEUP** (IHI 0022L A14.1.1, feature `wakeup`). A master port accepts
+`AWAKEUP` and does not wait for it -- the bridge is always clocked, and a
+Subordinate is permitted, not required, to wait. A wake-capable AXI5 slave
+port drives `AWAKEUP` as the OR of (a) every connected wake-capable master's
+request -- the master's `AWAKEUP` OR'd with requests held in its boundary
+wrapper -- so the slave can wake before a request reaches it, which is the
+A14.1.1 recommendation; the bridge cannot know which slave a request decodes
+to before it arrives, so every connected wake-capable slave sees it; and (b)
+the slave wrapper's own held requests, so `AWAKEUP` is high on every cycle the
+port presents `AWVALID`, `WVALID` or `ARVALID` and stays high until the
+handshake, as A14.1.1 requires -- including traffic from a master without
+`AWAKEUP` (A14.1.1's "derive from AxVALID" fallback). Every term is a flop or
+a top-level `AWAKEUP` input, so the OR is glitch-free (A14.1). It falls when
+nothing is requested. The read and write halves of a port each produce a copy
+and the port ORs them: `AWAKEUP` is one signal for both request channels.
 
 **The tied group is the honest limit of an AXI4 front end.** MPAM partition
 IDs, MECID encryption contexts and NSAID security IDs are properties of the
 *originating* master; a bridge whose masters speak AXI4 has nowhere to learn
-them, so it drives zeros rather than inventing values. If a design needs real
-MPAM or MECID at the slave, the master port has to be `axi5`, not `axi4`.
+them, so an `axi5` slave reached from an `axi4` master sees zeros rather than
+invented values. If a design needs real MPAM or MECID at the slave, the master
+port has to be `axi5`, not `axi4`. (AXI5-Lite has no MPAM, MECID or NSAID at
+all.)
 
 **Sideband is held for the whole burst, not just the address beat.** AXI4
-presents `AWUSER`/`AWLOCK` once, with AW; AXI5-Lite needs them stable across
+presents `AWID`/`AWUSER` once, with AW; AXI5-Lite needs them stable across
 every beat that follows. The shims capture on the address handshake and hold:
 
 ```systemverilog
@@ -218,7 +280,7 @@ B's `AWUSER`.
 |---|---|---|---|---|
 | axi4 | native | base subset | via shim | via shim, sideband TIED to `'0` |
 | axi5 | sideband drops (warning) | **native sideband** when width-matched | sideband drops (warning) | forwarded where AXI4-expressible |
-| axil / axil5 | single-beat AXI4 | single-beat AXI4 | via shim | `user`/`exclusive` forwarded end to end (axil5 master); rest tied |
+| axil / axil5 | single-beat AXI4 | single-beat AXI4 | via shim | ID and `user` forwarded end to end (axil5 master); rest tied |
 | apb / apb5 | single-beat AXI4 | single-beat AXI4 | via shim (APB in, APB out) | `PAUSER[0]` visible as `awuser` (apb5 master) |
 
 Connectivity-gated features tighten the axi5→axi5 cell: they *require* it.

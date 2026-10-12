@@ -277,7 +277,8 @@ def test_parse_csv_value_decimal_not_hex():
     assert parse_csv_value("hello", "name") == "hello"
 
 
-def _write_min_toml(tmp_path, slave_extra="", master_extra="", data_width=32):
+def _write_min_toml(tmp_path, slave_extra="", master_extra="", data_width=32,
+                    master_channels="rd"):
     toml = tmp_path / "b.toml"
     conn = tmp_path / "c.csv"
     toml.write_text(f"""
@@ -291,7 +292,7 @@ prefix = "m0_"
 addr_width = 32
 data_width = {data_width}
 id_width = 4
-channels = "rd"
+channels = "{master_channels}"
 {master_extra}
 
 [[bridge.slaves]]
@@ -483,8 +484,10 @@ def test_axi5_generation_smoke(tmp_path):
 
     # Enabled sideband features exposed on the external surface.
     assert "cpu_rd_axi_artrace" in text
-    assert "cpu_rd_axi_arunique" in text
+    assert "cpu_rd_axi_aridunq" in text   # AxIDUNQ (IHI 0022L A5.2), #102 item 5
+    assert "cpu_rd_axi_ridunq" in text    # RIDUNQ, regenerated at the boundary
     assert "cpu_rd_axi_rtrace" in text
+    assert "unique" not in text.replace("ENABLE_UNIQUE", "")
     # Disabled features are NOT exposed; AXI5 has no REGION.
     assert "arnsaid" not in text
     assert "armpam" not in text
@@ -607,7 +610,8 @@ def test_axi5_slave_generation_smoke(tmp_path):
     # Enabled sideband features exposed on the axi5 slave port, with
     # slave-port directions (bridge is the master here).
     assert "output  logic         sram_rd_axi_artrace" in text
-    assert "output  logic         sram_rd_axi_arunique" in text
+    assert "output  logic         sram_rd_axi_aridunq" in text
+    assert "input  logic         sram_rd_axi_ridunq" in text
     assert "input  logic         sram_rd_axi_rtrace" in text
     # Disabled features are NOT exposed; AXI5 has no REGION.
     assert "arnsaid" not in text
@@ -1078,15 +1082,29 @@ def test_axil5_forwardable_features_accepted(tmp_path):
     toml, conn = _write_min_toml(
         tmp_path,
         slave_extra=('channels = "rd"\nprotocol = "axil5"\n'
-                     'axi5_features = ["user", "exclusive"]'),
+                     'axi5_features = ["user"]'),
     )
     cfg = load_config(toml, conn)
     assert cfg.slaves[0].protocol == "axil5"
-    assert cfg.slaves[0].axi5_features == ["user", "exclusive"]
+    assert cfg.slaves[0].axi5_features == ["user"]
 
 
-@pytest.mark.parametrize("feat", ["trace", "loop", "mpam", "mecid",
-                                  "nsaid", "poison"])
+@pytest.mark.parametrize("feat", ["exclusive", "loop", "mpam", "mecid",
+                                  "nsaid"])
+def test_axil5_absent_features_rejected(tmp_path, feat):
+    """GitHub #102 item 3: AXI5-Lite has no AxLOCK (no exclusive access),
+    AxMPAM, AxMECID, AxNSAID or xLOOP (IHI 0022L B2.1.5). Naming one is a
+    spec error, reported as such."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra=(f'channels = "rd"\nprotocol = "axil5"\n'
+                     f'axi5_features = ["{feat}"]'),
+    )
+    with pytest.raises(ValidationError, match="does not exist on AXI5-Lite"):
+        load_config(toml, conn)
+
+
+@pytest.mark.parametrize("feat", ["trace", "poison"])
 def test_axil5_tied_features_rejected(tmp_path, feat):
     """A tied group named in axi5_features would read as a request that
     changes something. It cannot: axi4_to_axil5_* drives those to zero
@@ -1135,27 +1153,29 @@ def test_axil5_generation_smoke(tmp_path):
 
     top = (tmp_path / "bridge_1x2_rw_axil5" / "bridge_1x2_rw_axil5.sv").read_text()
 
-    # Request-side sideband: outputs toward the external AXI5-Lite slave.
-    for base in ("awlock", "awuser", "awloop", "awmpam", "awmecid",
-                 "awnsaid", "awtrace", "wuser", "wpoison",
-                 "arlock", "aruser", "arloop", "armpam", "armecid",
-                 "arnsaid", "artrace"):
-        assert f"output logic" in top and f"cfg_axil_{base}" in top, base
+    # Request-side ID + sideband: outputs toward the external AXI5-Lite slave.
+    for base in ("awid", "awuser", "awtrace", "wuser", "wpoison",
+                 "arid", "aruser", "artrace"):
+        assert f"cfg_axil_{base}" in top, base
 
-    # Response-side sideband: inputs from it.
-    for base in ("buser", "bloop", "btrace", "ruser", "rloop", "rtrace",
+    # Response-side ID + sideband: inputs from it.
+    for base in ("bid", "buser", "btrace", "rid", "ruser", "rtrace",
                  "rpoison"):
         assert f"cfg_axil_{base}" in top, base
 
+    # GitHub #102 item 3: the groups AXI5-Lite does not have are gone.
+    for gone in ("awlock", "arlock", "awloop", "bloop", "arloop", "rloop",
+                 "awmpam", "armpam", "awmecid", "armecid", "awnsaid",
+                 "arnsaid"):
+        assert f"cfg_axil_{gone}" not in top, gone
+
+    # The ID is the fabric ID width ({master index, id}; one master, 4 bits).
+    assert "output logic [3:0] cfg_axil_awid" in top
+    assert "input  logic [3:0] cfg_axil_rid" in top
+
     # The AXI4 sibling keeps its own surface; no sideband leaked onto it.
     assert "ddr_axi_awid" in top
-    assert "ddr_axi_awmpam" not in top
-
-    # Widths come from the shared table, not from a retyped literal.
-    from bridge_pkg.axil5_sideband import MPAM_WIDTH, MECID_WIDTH, NSAID_WIDTH
-    assert f"[{MPAM_WIDTH-1}:0] cfg_axil_awmpam" in top
-    assert f"[{MECID_WIDTH-1}:0] cfg_axil_awmecid" in top
-    assert f"[{NSAID_WIDTH-1}:0] cfg_axil_arnsaid" in top
+    assert "ddr_axi_awtrace" not in top
 
     adapter = (tmp_path / "bridge_1x2_rw_axil5" / "cfg_adapter.sv").read_text()
     assert "axi4_to_axil5_wr" in adapter
@@ -1164,11 +1184,11 @@ def test_axil5_generation_smoke(tmp_path):
     assert "axi4_to_axil4_wr #(" not in adapter
     assert "axi4_to_axil4_rd #(" not in adapter
 
-    # Only the two gating parameters exist on the converter -- the tied
-    # groups deliberately have none (see axil5_sideband.FEATURE_TO_ENABLE).
+    # Only the one gating parameter exists on the converter -- the tied
+    # groups deliberately have none (see axil5_sideband.FEATURE_TO_ENABLE),
+    # and ENABLE_LOCK went with AxLOCK (#102 item 3).
     assert ".ENABLE_USER(1)" in adapter
-    assert ".ENABLE_LOCK(1)" in adapter
-    for absent in ("ENABLE_TRACE", "ENABLE_LOOP", "ENABLE_MPAM",
+    for absent in ("ENABLE_LOCK", "ENABLE_TRACE", "ENABLE_LOOP", "ENABLE_MPAM",
                    "ENABLE_MECID", "ENABLE_NSAID", "ENABLE_POISON"):
         assert absent not in adapter, f"{absent} is a parameter that does not exist"
 
@@ -1456,6 +1476,97 @@ def test_axi5_wr_atomic_keeps_filter(tmp_path):
     assert "axi5_atomic_rr_tracker.f" not in text
 
 
+def test_axi5_wr_atomic_filter_r_channel_drained(tmp_path):
+    """GitHub #102 item 2: the filter now owes R beats for a swallowed
+    load-class atomic and needs AWLEN to count them. A write-only port has
+    no R path upstream, so the beats are accepted and discarded
+    (s_rready=1) -- otherwise the read-return queue fills after DEPTH
+    atomics and stalls AW -- and the downstream R input is idle."""
+    out = _generate(tmp_path, "bridge_1x2_wr_axi5a")
+    cpu = (out / "cpu_wr_adapter.sv").read_text()
+    for conn in (".s_awlen(pref_axi_awlen)", ".s_rready(1'b1)", ".s_rvalid()",
+                 ".m_rvalid(1'b0)", ".m_rready()", ".m_rlast(1'b0)"):
+        assert conn in cpu, conn
+    # 'unique' on this master: BIDUNQ regenerated on the PRE-filter side, so
+    # a local DECERR carries its own AWIDUNQ.
+    assert "r_awidunq_by_id[pref_axi_awid] <= pref_axi_awidunq" in cpu
+    assert "assign pref_axi_bidunq = r_awidunq_by_id[pref_axi_bid];" in cpu
+
+
+def test_axi5_idunq_regenerated_at_master_boundary(tmp_path):
+    """GitHub #102 item 5: BIDUNQ/RIDUNQ are a function of the request
+    (A5.2), regenerated per ID at the master boundary rather than ridden
+    back from a slave that may never have seen AxIDUNQ (the AXI4 ddr path
+    here). They are not struct fields; AWIDUNQ/ARIDUNQ are."""
+    out = _generate(tmp_path, "bridge_2x2_axi5")
+    pkg = (out / "bridge_2x2_axi5_pkg.sv").read_text()
+    assert "idunq;" in pkg and "uniq;" not in pkg
+    cpu = (out / "cpu_adapter.sv").read_text()
+    assert "r_awidunq_by_id[fub_axi_awid] <= fub_axi_awidunq" in cpu
+    assert "assign fub_axi_bidunq = r_awidunq_by_id[fub_axi_bid];" in cpu
+    assert "r_aridunq_by_id[fub_axi_arid] <= fub_axi_aridunq" in cpu
+    assert "assign fub_axi_ridunq = r_aridunq_by_id[fub_axi_rid];" in cpu
+    top = (out / "bridge_2x2_axi5.sv").read_text()
+    for port in ("cpu_axi_awidunq", "cpu_axi_bidunq", "cpu_axi_aridunq", "cpu_axi_ridunq",
+                 "sram_axi_awidunq", "sram_axi_bidunq"):
+        assert re.search(rf"\b{port}\b", top), port
+    assert "awunique" not in top and "arunique" not in top
+
+
+def test_axi5_rr_atomic_ridunq_follows_awidunq(tmp_path):
+    """A read-return atomic's R carries the AW ID, and A5.2 ties its RIDUNQ
+    to AWIDUNQ: on an rw atomic+unique port the read table learns from the
+    atomic AW too."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra=('channels = "rw"\nprotocol = "axi5"\n'
+                     'axi5_features = ["atomic", "unique"]'),
+        master_extra=('protocol = "axi5"\n'
+                      'axi5_features = ["atomic", "unique"]'),
+        master_channels="rw",
+    )
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", toml, "--connectivity", conn,
+         "--name", "b", "--output-dir", str(tmp_path / "o")],
+        cwd=str(BIN_DIR), env=env, capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+    adapters = [p for p in (tmp_path / "o" / "b").glob("*_adapter.sv")
+                if "u_timing_wrapper_wr" in p.read_text()]
+    assert adapters
+    cpu = adapters[0].read_text()
+    assert ("fub_axi_awvalid && fub_axi_awready && fub_axi_awatop[5]" in cpu
+            and "r_aridunq_by_id[fub_axi_awid] <= fub_axi_awidunq" in cpu)
+
+
+def test_axi5_wakeup_ports_and_forwarding(tmp_path):
+    """GitHub #102 item 5 / IHI 0022L A14.1.1: AWAKEUP is ONE signal for
+    both request channels -- declared once on an rw port, present on a
+    read-only port. A master port's wake request reaches every connected
+    wake-capable slave port; a slave port ORs its wr and rd wrapper copies."""
+    out = _generate(tmp_path, "bridge_2x2_axi5")
+    top = (out / "bridge_2x2_axi5.sv").read_text()
+    assert len(re.findall(r"input\s+logic\s+cpu_axi_awakeup\b", top)) == 1
+    assert len(re.findall(r"output\s+logic\s+sram_axi_awakeup\b", top)) == 1
+    assert "dma_axi_awakeup" not in top        # dma does not carry the feature
+    assert "ddr_axi_awakeup" not in top        # AXI4 slave
+    assert ".wakeup_req(cpu_wakeup_req)" in top
+    sram = (out / "sram_adapter.sv").read_text()
+    assert "assign sram_axi_awakeup = w_awakeup_wr | w_awakeup_rd;" in sram
+    assert ".fub_axi_awakeup(wakeup_req)" in sram
+    assert ".ENABLE_WAKEUP(1'b1)" in sram
+    cpu = (out / "cpu_adapter.sv").read_text()
+    assert "assign wakeup_req = w_awakeup_wr | w_awakeup_rd;" in cpu
+    assert ".s_axi_awakeup(cpu_axi_awakeup)" in cpu
+    assert ".ENABLE_WAKEUP(1'b0)" in (out / "dma_adapter.sv").read_text()
+
+    rd = _generate(tmp_path / "rd", "bridge_1x2_rd_axi5n")
+    rtop = (rd / "bridge_1x2_rd_axi5n.sv").read_text()
+    assert re.search(r"input\s+logic\s+cpu_rd_axi_awakeup\b", rtop)
+    assert re.search(r"output\s+logic\s+sram_rd_axi_awakeup\b", rtop)
+
+
 # ---------------------------------------------------------------------
 # Lite and APB REQUESTER ports (bridge TASK-004, was BRIDGE-014)
 # ---------------------------------------------------------------------
@@ -1536,7 +1647,7 @@ protocol = "axi3"
         load_config(toml, conn)
 
 
-@pytest.mark.parametrize("feat", ["trace", "loop", "mpam", "mecid", "nsaid", "poison"])
+@pytest.mark.parametrize("feat", ["trace", "poison"])
 def test_axil5_master_tied_feature_rejected(tmp_path, feat):
     """On a master port the tied groups have no AXI4 DESTINATION: the bridge
     top terminates them whether or not they are named. Rejected, same as
@@ -1544,7 +1655,7 @@ def test_axil5_master_tied_feature_rejected(tmp_path, feat):
     toml, conn = _write_req_toml(tmp_path, f"""
 addr_width = 32
 data_width = 32
-id_width = 0
+id_width = 1
 channels = "rw"
 protocol = "axil5"
 axi5_features = ["{feat}"]
@@ -1557,14 +1668,30 @@ def test_axil5_master_forwardable_features_accepted(tmp_path):
     toml, conn = _write_req_toml(tmp_path, """
 addr_width = 32
 data_width = 32
-id_width = 0
+id_width = 1
 channels = "rw"
 protocol = "axil5"
-axi5_features = ["user", "exclusive"]
+axi5_features = ["user"]
 """)
     cfg = load_config(toml, conn)
     assert cfg.masters[0].protocol == "axil5"
-    assert cfg.masters[0].axi5_features == ["user", "exclusive"]
+    assert cfg.masters[0].axi5_features == ["user"]
+
+
+def test_axil5_master_needs_an_id(tmp_path):
+    """GitHub #102 item 3: AWID/BID and ARID/RID are required on an AXI5-Lite
+    Subordinate (IHI 0022L B2.1.5), and the bridge is the Subordinate on a
+    master port -- so id_width 0 is rejected there (it stays the rule for
+    AXI4-Lite masters, which have no ID)."""
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 32
+data_width = 32
+id_width = 0
+channels = "rw"
+protocol = "axil5"
+""")
+    with pytest.raises(ValidationError, match="must have id_width > 0"):
+        load_config(toml, conn)
 
 
 def _generate_fixture(tmp_path, name):
@@ -1587,41 +1714,47 @@ def _generate_fixture(tmp_path, name):
 def test_lite_req_generation_smoke(tmp_path):
     """bridge_2x2_lite_req: an AXI4-Lite and an AXI5-Lite REQUESTER.
 
-    The AXI5-Lite master exposes the full sideband with master-port
-    directions (requester-driven groups are bridge INPUTS), the enabled
-    forwardable groups reach its adapter, and every other group is
-    terminated at the top -- inputs consumed, outputs driven to 0. Both
-    Lite masters take the wide-slave aligner toward the 64-bit memory, and
-    neither has an ID on the boundary."""
+    The AXI5-Lite master exposes its ID and the full sideband with
+    master-port directions (requester-driven groups are bridge INPUTS), the
+    ID and the enabled forwardable group reach its adapter, and every other
+    group is terminated at the top -- inputs consumed, outputs driven to 0.
+    Both Lite masters take the wide-slave aligner toward the 64-bit memory;
+    only the AXI5-Lite one has an ID on the boundary (#102 item 3)."""
     gen, filelist = _generate_fixture(tmp_path, "bridge_2x2_lite_req")
     top = (gen / "bridge_2x2_lite_req.sv").read_text()
 
     # Requester-driven sideband: INPUTS on a master port (the slave-port
     # table says 'out' for these; the direction flips).
-    for base in ("awlock", "awuser", "awloop", "awtrace", "wuser", "wpoison",
-                 "arlock", "aruser", "armpam", "arnsaid"):
+    for base in ("awid", "awuser", "awtrace", "wuser", "wpoison",
+                 "arid", "aruser", "artrace"):
         assert re.search(rf"input\s+logic[^\n]*lite5_axil_{base},", top), base
-    for base in ("buser", "bloop", "btrace", "ruser", "rloop", "rtrace", "rpoison"):
+    for base in ("bid", "buser", "btrace", "rid", "ruser", "rtrace", "rpoison"):
         assert re.search(rf"output logic[^\n]*lite5_axil_{base},", top), base
-    from bridge_pkg.axil5_sideband import MPAM_WIDTH, MECID_WIDTH
-    assert f"[{MPAM_WIDTH-1}:0] lite5_axil_awmpam" in top
-    assert f"[{MECID_WIDTH-1}:0] lite5_axil_armecid" in top
 
-    # Forwardable groups ('user', 'exclusive') are wired into the adapter.
-    for base in ("awlock", "awuser", "wuser", "buser", "arlock", "aruser", "ruser"):
+    # The ID and the forwardable group ('user') are wired into the adapter.
+    for base in ("awid", "bid", "arid", "rid",
+                 "awuser", "wuser", "buser", "aruser", "ruser"):
         assert f".lite5_axil_{base}(lite5_axil_{base})" in top, base
     # Everything else is terminated at the top, not left floating.
-    for base in ("bloop", "btrace", "rloop", "rtrace", "rpoison"):
+    for base in ("btrace", "rtrace", "rpoison"):
         assert f"assign lite5_axil_{base} = '0;" in top, base
     assert "_unused_lite5_axil5_sb" in top
-    for base in ("awloop", "awmpam", "awmecid", "awnsaid", "awtrace", "wpoison"):
+    for base in ("awtrace", "wpoison", "artrace"):
         assert re.search(rf"_unused_lite5_axil5_sb[^\n]*lite5_axil_{base}", top), base
 
-    # No ID PORT on either Lite boundary, and no sideband port on the
-    # AXI4-Lite one. (The names do appear inside the top, as the tied-off
-    # connections to the adapter's AXI4 face -- `.lite4_axil_awid(1'h0)` --
-    # which is exactly the point: the boundary has no such pin.)
-    for name in ("lite4_axil_awid", "lite5_axil_awid", "lite4_axil_awuser",
+    # GitHub #102 item 3: the groups AXI5-Lite does not have are gone from the
+    # boundary. (awlock/arlock still appear as the adapter's AXI4-face pins,
+    # tied `.lite5_axil_awlock(1'b0)` -- there is no such port.)
+    for gone in ("awlock", "arlock", "awloop", "bloop", "awmpam", "armecid",
+                 "arnsaid"):
+        assert not re.search(rf"(input|output)\s+logic[^\n]*\blite5_axil_{gone}\b", top), gone
+    assert ".lite5_axil_awlock(1'b0)" in top
+
+    # No ID PORT on the AXI4-Lite boundary, and no sideband port on it.
+    # (The names do appear inside the top, as the tied-off connections to
+    # the adapter's AXI4 face -- `.lite4_axil_awid(1'h0)` -- which is
+    # exactly the point: the boundary has no such pin.)
+    for name in ("lite4_axil_awid", "lite4_axil_awuser",
                  "lite4_axil_awlock", "lite4_axil_awlen"):
         assert not re.search(rf"(input|output)\s+logic[^\n]*\b{name}\b", top), name
 
@@ -1938,6 +2071,8 @@ def test_axi5_native_generation_smoke(tmp_path):
     for field in ("tagop;", "tag;", "tagupdate;", "tagmatch;", "chunken;", "chunkv;", "chunknum;", "chunkstrb;"):
         assert field in pkg, field
     assert "logic [3:0]  tag;" in pkg and "logic [3:0]  chunknum;" in pkg
+    # BTAGMATCH is 2 bits (IHI 0022L A12.2, GitHub #102 item 5).
+    assert "logic [1:0]  tagmatch;" in pkg
     assert "logic         tagupdate;" in pkg and "logic         chunkstrb;" in pkg
     xbar = (gen / "bridge_2x2_axi5_native_xbar.sv").read_text()
     for sig in ("ddr_axi_awtagop", "ddr_axi_wtag", "ddr_axi_wtagupdate", "ddr_axi_archunken",
@@ -1945,13 +2080,20 @@ def test_axi5_native_generation_smoke(tmp_path):
         assert sig in xbar, sig
     assert "cpu_128b_r.chunkv" in xbar and "dma_128b_b.tagmatch" in xbar
     cpu = (gen / "cpu_adapter.sv").read_text()
-    for w in ("fub_axi_awtagop", "fub_axi_wtag", "fub_axi_btag", "fub_axi_archunken", "fub_axi_rchunknum"):
+    for w in ("fub_axi_awtagop", "fub_axi_wtag", "fub_axi_btagmatch", "fub_axi_archunken",
+              "fub_axi_rchunknum", "fub_axi_rtag"):
         assert w in cpu, w
+    # Not in the spec (A12.2): no AWTAG, BTAG or RTAGMATCH anywhere.
+    for gone in ("awtag;", "awtag)", "_awtag,", "btag)", "_btag,", "rtagmatch"):
+        assert gone not in cpu, gone
     assert "ENABLE_MTE(1'b1" in cpu and "ENABLE_CHUNKING(1'b1" in cpu   # wrapper parameter overrides
     top = (gen / "bridge_2x2_axi5_native.sv").read_text()
-    for port in ("cpu_axi_awtag", "cpu_axi_wtagupdate", "cpu_axi_btagmatch", "cpu_axi_archunken",
-                 "cpu_axi_rchunkstrb", "ddr_axi_awtag", "ddr_axi_rtag", "sram_axi_rchunknum"):
+    for port in ("cpu_axi_awtagop", "cpu_axi_wtagupdate", "cpu_axi_btagmatch", "cpu_axi_archunken",
+                 "cpu_axi_rchunkstrb", "ddr_axi_wtag", "ddr_axi_rtag", "sram_axi_rchunknum"):
         assert re.search(rf"\b{port}\b", top), port
+    assert re.search(r"output\s+logic \[1:0\]\s+cpu_axi_btagmatch", top)
+    for gone in ("cpu_axi_awtag", "cpu_axi_btag", "cpu_axi_rtagmatch", "ddr_axi_awtag"):
+        assert not re.search(rf"\b{gone}\b", top), gone
 
 
 def test_axi5_native_tag_widths_follow_data_width(tmp_path):

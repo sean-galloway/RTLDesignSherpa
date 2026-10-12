@@ -44,7 +44,8 @@
 - `bin/delta_generator.py` - Python RTL generator
 - Produces parameterized SystemVerilog
 - Flat crossbar topology (tree retired 2026-10-12)
-- Optional TSTRB byte qualifiers + AMBA 5 TWAKEUP/TPARITY sidebands
+- Optional TSTRB byte qualifiers + AMBA 5 TWAKEUP and the IHI 0051B ch. 5
+  check signals (TDATACHK ... TWAKEUPCHK, odd parity)
   (`--strb-width N`, `--amba5`; default off = base 7-signal set,
   byte-identical to earlier output) — port-matches `rtl/amba/axis4` + `axis5`;
   see `rtl_test/delta_axis_flat_2x4_strb_amba5.sv`

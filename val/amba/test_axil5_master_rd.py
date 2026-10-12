@@ -11,13 +11,15 @@
 
 """AXI5-Lite read-master test runner.
 
-Drives `axil5_master_rd` itself with EVERY optional signal group enabled.
+Drives `axil5_master_rd` itself with the ID and EVERY optional signal group
+enabled.
 
-The all-groups-off equivalence against `axil4_master_rd` lives in
+The no-ID, all-groups-off equivalence against `axil4_master_rd` lives in
 `test_axil5_axil4_equivalence.py`. That run cannot exercise the packing,
 because the SKID payload widths are conditional sums
-(`ARSize = AW + 3 + (ENABLE_LOCK ? 1 : 0) + (ENABLE_USER ? UW : 0) + ...`)
-and every optional term is zero there. This runner is what makes a wrong
+(`ARSize = AW + 3 + ID_WIDTH + (ENABLE_USER ? UW : 0) + ...`)
+and every optional term is zero there. Every read here also carries a
+rotating non-zero ARID that must come back as RID. This runner is what makes a wrong
 slice fail.
 
 This is the functional half of AXIL5's coverage. The framework's
@@ -304,8 +306,7 @@ def test_axil5_read_master(request, addr_width, data_width, ar_depth, r_depth, t
         'AXIL_ADDR_WIDTH': str(addr_width),
         'AXIL_DATA_WIDTH': str(data_width),
         # The DERIVED parameters (AW, DW, ARSize, RSize) are NOT overridden.
-        # ARSize here is AW + 3 + LOCK + USER + TRACE + LOOP + MPAM + MECID
-        # + NSAID, not the AXI4-Lite 35. Forcing it part-selects past the end
+        # ARSize here is AW + 3 + ID + USER + TRACE, not the AXI4-Lite 35. Forcing it part-selects past the end
         # of the vector -- the exact failure this module went untested behind.
     }
 
@@ -442,8 +443,7 @@ def test_axil5_read_master(request, addr_width, data_width, ar_depth, r_depth, t
         'AXIL_ADDR_WIDTH': str(addr_width),
         'AXIL_DATA_WIDTH': str(data_width),
         # The DERIVED parameters (AW, DW, ARSize, RSize) are NOT overridden.
-        # ARSize here is AW + 3 + LOCK + USER + TRACE + LOOP + MPAM + MECID
-        # + NSAID, not the AXI4-Lite 35. Forcing it part-selects past the end
+        # ARSize here is AW + 3 + ID + USER + TRACE, not the AXI4-Lite 35. Forcing it part-selects past the end
         # of the vector -- the exact failure this module went untested behind.
     }
 

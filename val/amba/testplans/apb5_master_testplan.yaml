@@ -47,7 +47,7 @@ coverage_points:
   tracked_by: functional_scenario
 - line: 202-217
   type: wakeup_tracking
-  content: PWAKEUP tracking logic
+  content: PWAKEUP generation (Requester output)
   tracked_by: functional_scenario
   covers_lines:
   - 204-215
@@ -196,19 +196,14 @@ functional_scenarios:
   priority: high
   status: verified
 - id: APB5-M-09
-  name: PWAKEUP receive
-  description: 'Slave asserts m_apb_PWAKEUP. Verify wakeup_pending flag
-
-    set and rsp_pwakeup captured in response.
+  name: PWAKEUP drive
+  description: 'm_apb_PWAKEUP is a Requester output (IHI 0024E 3.7.2): HIGH at least one cycle before PSEL from an idle bus, held through PREADY, LOW once nothing is pending.
 
     '
-  test_function: test_apb5_master_wakeup
+  test_function: cocotb_test_apb5_master_pwakeup
   test_file: val/amba/test_apb5_master.py
   covers_lines:
-  - 158
-  - 182
-  - 204-215
-  - 217
+  - 232-242
   priority: high
   status: verified
 - id: APB5-M-10
@@ -255,65 +250,57 @@ functional_scenarios:
   status: verified
 - id: APB5-M-20
   name: Write data parity
-  description: 'ENABLE_PARITY=1: Verify m_apb_PWDATAPARITY generation
-
-    (odd parity per byte).
+  description: 'ENABLE_PARITY=1: m_apb_PWDATACHK / PSTRBCHK / PWUSERCHK are odd parity (IHI 0024E 5.3), one bit per PWDATA byte, while PSEL & PWRITE.
 
     '
-  test_function: test_apb5_master_parity
+  test_function: cocotb_test_apb5_master_parity
   test_file: val/amba/test_apb5_master.py
   covers_lines:
-  - 223-225
+  - 255-436
   priority: high
   status: verified
 - id: APB5-M-21
   name: Address parity
-  description: 'ENABLE_PARITY=1: Verify m_apb_PADDRPARITY generation.
+  description: 'ENABLE_PARITY=1: m_apb_PADDRCHK is odd parity, one bit per 8 address bits (short top byte included), while PSEL; PSELCHK/PENABLECHK are the inversions.
 
     '
-  test_function: test_apb5_master_parity
+  test_function: cocotb_test_apb5_master_parity
   test_file: val/amba/test_apb5_master.py
   covers_lines:
-  - 228
+  - 255-436
   priority: high
   status: verified
 - id: APB5-M-22
   name: Control parity
-  description: 'ENABLE_PARITY=1: Verify m_apb_PCTRLPARITY generation
-
-    for PWRITE, PSTRB, PPROT.
+  description: 'ENABLE_PARITY=1: m_apb_PCTRLCHK is odd parity over PPROT and PWRITE only (PSTRB has its own PSTRBCHK), while PSEL.
 
     '
-  test_function: test_apb5_master_parity
+  test_function: cocotb_test_apb5_master_parity
   test_file: val/amba/test_apb5_master.py
   covers_lines:
-  - 231
+  - 255-436
   priority: high
   status: verified
 - id: APB5-M-23
   name: Read data parity check
-  description: 'ENABLE_PARITY=1: Verify parity_error_rdata flag when
-
-    m_apb_PRDATAPARITY doesn''t match computed parity.
+  description: 'ENABLE_PARITY=1: parity_error_rdata asserts for a wrong PRDATACHK (any byte lane) or PRUSERCHK on a read completion, and not on a write.
 
     '
-  test_function: test_apb5_master_parity_error
+  test_function: cocotb_test_apb5_master_parity
   test_file: val/amba/test_apb5_master.py
   covers_lines:
-  - 234-240
+  - 255-436
   priority: high
   status: verified
 - id: APB5-M-24
   name: Control parity check
-  description: 'ENABLE_PARITY=1: Verify parity_error_ctrl flag when
-
-    PREADY/PSLVERR parity incorrect.
+  description: 'ENABLE_PARITY=1: parity_error_ctrl asserts for a wrong PREADYCHK, PSLVERRCHK or PBUSERCHK, and only for that check; PWAKEUPCHK is generated (odd) by the master.
 
     '
-  test_function: test_apb5_master_parity_error
+  test_function: cocotb_test_apb5_master_parity
   test_file: val/amba/test_apb5_master.py
   covers_lines:
-  - 243-245
+  - 255-436
   priority: high
   status: verified
 parameter_coverage:
@@ -405,11 +392,9 @@ notes: 'APB5 master extends APB4 with AMBA5 user signals and wake-up handling.
 
   APB5 Wake-up (APB5-M-09):
 
-  - PWAKEUP input from slave
+  - PWAKEUP is a master OUTPUT (IHI 0024E 3.7.2), registered
 
-  - Tracked in wakeup_pending flag
-
-  - Captured in response interface (rsp_pwakeup)
+  - HIGH on a pending command or an in-flight transfer, ahead of PSEL
 
 
   Burst operation (APB5-M-10, APB5-M-11):
@@ -432,7 +417,8 @@ notes: 'APB5 master extends APB4 with AMBA5 user signals and wake-up handling.
 
   - Optional when ENABLE_PARITY=1
 
-  - Generation: PWDATAPARITY, PADDRPARITY, PCTRLPARITY
+  - Generation (IHI 0024E ch. 5, odd): PADDRCHK, PCTRLCHK, PSELCHK, PENABLECHK,
+    PWDATACHK, PSTRBCHK, PAUSERCHK, PWUSERCHK
 
   - Checking: parity_error_rdata, parity_error_ctrl flags
 

@@ -27,6 +27,7 @@ from cocotb.triggers import Timer, RisingEdge
 from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
+from TBClasses.amba.apb5_wakeup import check_completer_cg_wakes_on_pwakeup
 from TBClasses.amba.apb5_slave_cg_tb import APB5SlaveCGBasicTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
@@ -71,7 +72,7 @@ async def cocotb_test_apb5_slave_cg_basic(dut):
         dut.rsp_pbuser.value = 0
 
     # Wake-up control
-    dut.wakeup_request.value = 0
+    dut.s_apb_PWAKEUP.value = 0
 
     # Test clock gating enable/disable
     tb.log.info("=== Test: Clock Gating Control ===")
@@ -89,6 +90,24 @@ async def cocotb_test_apb5_slave_cg_basic(dut):
     await tb.wait_clocks('pclk', 10)
 
     tb.log.info("=== APB5 Slave CG Basic Test PASSED ===")
+
+
+@cocotb.test(timeout_time=200, timeout_unit="us")
+async def cocotb_test_apb5_slave_cg_pwakeup_wake(dut):
+    """PWAKEUP is a Requester output and a clock-controller input (IHI
+    0024E 3.7.1/3.7.2; issue #102 item 7): with gating closed, PWAKEUP alone
+    -- no PSEL -- must open the gate and hold it open. The pre-fix RTL had
+    s_apb_PWAKEUP as a slave OUTPUT, so it could not wake on it."""
+    tb = APB5SlaveCGBasicTB(dut)
+    for name in ('s_apb_PSEL', 's_apb_PENABLE', 's_apb_PADDR', 's_apb_PWRITE',
+                 's_apb_PWDATA', 's_apb_PSTRB', 's_apb_PPROT', 's_apb_PAUSER',
+                 's_apb_PWUSER', 's_apb_PWAKEUP', 'cmd_ready', 'rsp_valid',
+                 'rsp_prdata', 'rsp_pslverr', 'rsp_pruser', 'rsp_pbuser',
+                 'cfg_cg_enable'):
+        getattr(dut, name).value = 0
+    dut.cfg_cg_idle_count.value = 4
+    await tb.setup_clocks_and_reset()
+    await check_completer_cg_wakes_on_pwakeup(dut, tb.log)
 
 
 def generate_apb5_slave_cg_params():
@@ -175,23 +194,27 @@ def test_apb5_slave_cg(request, addr_width, data_width, auser_width, enable_pari
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
+    # One run() per cocotb test: a comma-joined testcase string selects
+    # nothing under the conftest exact-name anchor (BUG-015 patch).
+    testcases = ["cocotb_test_apb5_slave_cg_basic", "cocotb_test_apb5_slave_cg_pwakeup_wake"]
     try:
-        run(
-            python_search=[tests_dir],
-            verilog_sources=verilog_sources,
-            includes=includes,
-            toplevel=toplevel,
-            module=module,
-            parameters=rtl_parameters,
-            sim_build=sim_build,
-            extra_env=extra_env,
-            waves=enable_waves,
-            plus_args=(['--trace'] if enable_waves else []),
-            keep_files=True,
-            compile_args=compile_args,
-            testcase="cocotb_test_apb5_slave_cg_basic",
-            simulator="verilator",
-        )
+        for testcase in testcases:
+            run(
+                python_search=[tests_dir],
+                verilog_sources=verilog_sources,
+                includes=includes,
+                toplevel=toplevel,
+                module=module,
+                parameters=rtl_parameters,
+                sim_build=sim_build,
+                extra_env=extra_env,
+                waves=enable_waves,
+                plus_args=(['--trace'] if enable_waves else []),
+                keep_files=True,
+                compile_args=compile_args,
+                testcase=testcase,
+                simulator="verilator",
+            )
     except Exception as e:
         print(f"Test failed: {str(e)}")
         print(f"Logs preserved at: {log_path}")

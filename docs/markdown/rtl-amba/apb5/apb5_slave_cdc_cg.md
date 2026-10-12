@@ -39,8 +39,8 @@ The APB5 Slave CDC + Clock-Gated module combines clock domain crossing with cloc
 - Asynchronous clock domain crossing (APB to backend)
 - Clock gating for power reduction during idle
 - All APB5 user signals (PAUSER, PWUSER, PRUSER, PBUSER)
-- PWAKEUP signal handling across domains
-- Optional parity support for data integrity
+- Wakes the `pclk` clock gate on the Requester's PWAKEUP (IHI 0024E §3.7.2)
+- Optional IHI 0024E ch. 5 interface parity (`*CHK` signals, odd parity)
 - Automatic wake-up on transaction activity
 
 ---
@@ -118,8 +118,8 @@ Same command/response interface as [apb5_slave_cdc](apb5_slave_cdc.md) - operate
 |------|-------|-----------|-------------|
 | `cg_gating` | 1 | Output | Indicates clock is currently gated |
 | `cg_idle` | 1 | Output | Activity terms quiet (registered `~wakeup`). |
-| `parity_error_wdata` | 1 | Output | Write data parity error detected |
-| `parity_error_ctrl` | 1 | Output | Control signal parity error |
+| `parity_error_wdata` | 1 | Output | PWDATACHK, PSTRBCHK or PWUSERCHK mismatch (gated-`pclk` domain) |
+| `parity_error_ctrl` | 1 | Output | PADDRCHK, PCTRLCHK, PSELCHK, PENABLECHK or PAUSERCHK mismatch (gated-`pclk` domain) |
 
 ---
 
@@ -162,6 +162,7 @@ flowchart TB
 ```mermaid
 flowchart TD
     subgraph PCLK_TRIG["Wake-up Triggers (pclk domain)"]
+        pwakeup["PWAKEUP<br/>(from Requester)"]
         psel["PSEL"]
         penable["PENABLE"]
     end
@@ -169,7 +170,6 @@ flowchart TD
     subgraph ACLK_TRIG["Wake-up Triggers (aclk domain)"]
         cmd_valid["cmd_valid"]
         rsp_valid["rsp_valid"]
-        wakeup_req["wakeup_request"]
     end
 
     subgraph CG["Clock Gate Control (pclk domain)"]
@@ -178,11 +178,11 @@ flowchart TD
         gate["amba_clock_gate_ctrl<br/>(+1 flop, then ICG)"]
     end
 
+    pwakeup --> wakeup
     psel --> wakeup
     penable --> wakeup
     cmd_valid --> sync
     rsp_valid --> sync
-    wakeup_req --> sync
     sync --> wakeup
 
     wakeup -->|user_valid| gate
@@ -250,11 +250,8 @@ apb5_slave_cdc_cg #(
     // ... other command signals
 
     .rsp_valid          (backend_rsp_valid),
-    .rsp_ready          (backend_rsp_ready),
+    .rsp_ready          (backend_rsp_ready)
     // ... other response signals
-
-    // Wake-up control (aclk domain)
-    .wakeup_request     (backend_wakeup)
 );
 ```
 
@@ -266,11 +263,11 @@ apb5_slave_cdc_cg #(
 
 Wake-up is **registered, not combinational**. Activity is registered once (AXI4,
 AXI5, AXI4-Lite, AXI4-Stream, APB) or twice (APB5, AXI5-Stream) before reaching
-the ICG enable, which is combinational. A pclk-domain trigger (PSEL or PENABLE)
+the ICG enable, which is combinational. A pclk-domain trigger (PWAKEUP, PSEL or PENABLE)
 passes through this wrapper's `r_wakeup` and then through the flop inside
 `amba_clock_gate_ctrl`, so APB5 is a two-stage family and the first usable gated
 `pclk` rising edge arrives **3 ungated `pclk` cycles** after the trigger. An
-aclk-domain trigger (`cmd_valid`, `rsp_valid`, `wakeup_request`) first crosses a
+aclk-domain trigger (`cmd_valid`, `rsp_valid`) first crosses a
 2-flop synchronizer into `pclk`, adding about two more `pclk` cycles.
 
 | Configuration | Power Savings | Wake-up Latency from PSEL |

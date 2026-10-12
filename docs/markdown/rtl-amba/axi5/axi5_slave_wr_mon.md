@@ -33,13 +33,13 @@
 
 Most designs don't want a separate monitor bolted onto the bus — you want the slave to tell you what it's seeing. That's what this module does. It takes the `axi5_slave_wr` interface and builds the transaction monitor directly into the wrapper, giving you real-time visibility into slave write operations with configurable packet filtering and error detection. No external monitor block, no extra wiring beyond the monitor bus itself.
 
-**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking or `RTAGMATCH` generation, no chunk reassembly, no poison generation, and no atomic read-modify-write -- `AWATOP` is transported, not executed. The monitor observes handshakes, responses and timing; it performs no protocol checking of handshake stability, ID width, burst length or address alignment. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking, no chunk reassembly, no poison generation, and no atomic read-modify-write -- `AWATOP` is transported, not executed. The monitor observes handshakes, responses and timing; it performs no protocol checking of handshake stability, ID width, burst length or address alignment. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
 
 ### Key Features
 
 - Full AMBA AXI5 slave write protocol compliance
 - **Integrated filtered monitoring** — no external monitor needed
-- All AXI5 extensions supported (ATOMIC, NSAID, TRACE, MPAM, MECID, UNIQUE, MTE, POISON)
+- All AXI5 extensions supported (ATOMIC, NSAID, TRACE, MPAM, MECID, IDUNQ, MTE, POISON, WAKEUP)
 - Transaction tracking with configurable table size
 - Error detection (SLVERR, timeout, orphan transactions — poison is NOT observable by the monitor)
 - Performance metrics (latency, throughput)
@@ -122,9 +122,10 @@ flowchart TB
 | ENABLE_TRACE | bit | 1 | Enable trace signals |
 | ENABLE_MPAM | bit | 1 | Enable memory partitioning |
 | ENABLE_MECID | bit | 1 | Enable memory encryption |
-| ENABLE_UNIQUE | bit | 1 | Enable unique ID indicator |
+| ENABLE_UNIQUE | bit | 1 | Enable the unique ID indicator (AxIDUNQ, and BIDUNQ/RIDUNQ on the responses) |
 | ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
+| ENABLE_WAKEUP | bit | 1 | Enable AWAKEUP (IHI 0022L §A14.1.1); 0 ties the output low |
 | UNIT_ID | int | 1 | Monitoring unit identifier |
 | AGENT_ID | int | 13 | Agent identifier |
 | MAX_TRANSACTIONS | int | 16 | Transaction table size |
@@ -483,15 +484,15 @@ axi5_slave_wr_mon #(
     .s_axi_awqos           (s_axi_awqos),
     .s_axi_awuser          (s_axi_awuser),
     .s_axi_awvalid         (s_axi_awvalid),
+    .s_axi_awakeup         (s_axi_awakeup),
     .s_axi_awready         (s_axi_awready),
     .s_axi_awatop          (s_axi_awatop),
     .s_axi_awnsaid         (s_axi_awnsaid),
     .s_axi_awtrace         (s_axi_awtrace),
     .s_axi_awmpam          (s_axi_awmpam),
     .s_axi_awmecid         (s_axi_awmecid),
-    .s_axi_awunique        (s_axi_awunique),
+    .s_axi_awidunq        (s_axi_awidunq),
     .s_axi_awtagop         (s_axi_awtagop),
-    .s_axi_awtag           (s_axi_awtag),
     .s_axi_wdata           (s_axi_wdata),
     .s_axi_wstrb           (s_axi_wstrb),
     .s_axi_wlast           (s_axi_wlast),
@@ -507,7 +508,7 @@ axi5_slave_wr_mon #(
     .s_axi_bvalid          (s_axi_bvalid),
     .s_axi_bready          (s_axi_bready),
     .s_axi_btrace          (s_axi_btrace),
-    .s_axi_btag            (s_axi_btag),
+    .s_axi_bidunq          (s_axi_bidunq),
     .s_axi_btagmatch       (s_axi_btagmatch),
     .fub_axi_awid          (fub_axi_awid),
     .fub_axi_awaddr        (fub_axi_awaddr),
@@ -520,15 +521,15 @@ axi5_slave_wr_mon #(
     .fub_axi_awqos         (fub_axi_awqos),
     .fub_axi_awuser        (fub_axi_awuser),
     .fub_axi_awvalid       (fub_axi_awvalid),
+    .fub_axi_awakeup       (fub_axi_awakeup),
     .fub_axi_awready       (fub_axi_awready),
     .fub_axi_awatop        (fub_axi_awatop),
     .fub_axi_awnsaid       (fub_axi_awnsaid),
     .fub_axi_awtrace       (fub_axi_awtrace),
     .fub_axi_awmpam        (fub_axi_awmpam),
     .fub_axi_awmecid       (fub_axi_awmecid),
-    .fub_axi_awunique      (fub_axi_awunique),
+    .fub_axi_awidunq      (fub_axi_awidunq),
     .fub_axi_awtagop       (fub_axi_awtagop),
-    .fub_axi_awtag         (fub_axi_awtag),
     .fub_axi_wdata         (fub_axi_wdata),
     .fub_axi_wstrb         (fub_axi_wstrb),
     .fub_axi_wlast         (fub_axi_wlast),
@@ -544,7 +545,7 @@ axi5_slave_wr_mon #(
     .fub_axi_bvalid        (fub_axi_bvalid),
     .fub_axi_bready        (fub_axi_bready),
     .fub_axi_btrace        (fub_axi_btrace),
-    .fub_axi_btag          (fub_axi_btag),
+    .fub_axi_bidunq        (fub_axi_bidunq),
     .fub_axi_btagmatch     (fub_axi_btagmatch),
     .cfg_monitor_enable    (cfg_monitor_enable),
     .cfg_error_enable      (cfg_error_enable),

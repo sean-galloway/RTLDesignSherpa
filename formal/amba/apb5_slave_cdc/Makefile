@@ -13,7 +13,8 @@ SV2V      ?= sv2v
 
 INC := -I$(REPO_ROOT)/rtl/amba/includes
 
-DEPS := $(REPO_ROOT)/rtl/cdc/glitch_free_n_dff_arn.sv \
+DEPS := $(REPO_ROOT)/rtl/common/dataint_parity.sv \
+        $(REPO_ROOT)/rtl/cdc/glitch_free_n_dff_arn.sv \
         $(REPO_ROOT)/rtl/cdc/cdc_synchronizer.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/rtl/amba/apb5/apb5_slave.sv \

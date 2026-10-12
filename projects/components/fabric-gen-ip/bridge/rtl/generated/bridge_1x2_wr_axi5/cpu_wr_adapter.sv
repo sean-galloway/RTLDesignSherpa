@@ -34,7 +34,7 @@ module cpu_wr_adapter
     input  logic         cpu_wr_axi_awvalid,
     output  logic         cpu_wr_axi_awready,
     input  logic         cpu_wr_axi_awtrace,
-    input  logic         cpu_wr_axi_awunique,
+    input  logic         cpu_wr_axi_awidunq,
 
     input  logic [31:0]  cpu_wr_axi_wdata,
     input  logic [3:0]  cpu_wr_axi_wstrb,
@@ -49,6 +49,7 @@ module cpu_wr_adapter
     output  logic         cpu_wr_axi_bvalid,
     input  logic         cpu_wr_axi_bready,
     output  logic         cpu_wr_axi_btrace,
+    output  logic         cpu_wr_axi_bidunq,
 
     // Address decode outputs (full width one-hot)
     output logic [NUM_SLAVES-1:0] slave_select_aw,
@@ -108,8 +109,11 @@ module cpu_wr_adapter
 
     // AXI5 native sideband (A5-2 slice 2)
     logic         fub_axi_awtrace;  // AXI5 sideband (trace)
-    logic         fub_axi_awunique;  // AXI5 sideband (unique)
+    logic         fub_axi_awidunq;  // AXI5 sideband (unique)
     logic         fub_axi_btrace;  // AXI5 sideband (trace)
+
+    // AXI5 boundary-generated signals (GitHub #102 item 5)
+    logic         fub_axi_bidunq;  // regenerated (A5.2)
 
     // ================================================================
     // Timing isolation wrapper (axi5_slave_wr)
@@ -129,7 +133,8 @@ module cpu_wr_adapter
         .ENABLE_MECID(1'b0),
         .ENABLE_UNIQUE(1'b1),
         .ENABLE_MTE(1'b0),
-        .ENABLE_POISON(1'b0)
+        .ENABLE_POISON(1'b0),
+        .ENABLE_WAKEUP(1'b0)
     ) u_timing_wrapper_wr (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -152,9 +157,9 @@ module cpu_wr_adapter
         .s_axi_awtrace(cpu_wr_axi_awtrace),
         .s_axi_awmpam('0),
         .s_axi_awmecid('0),
-        .s_axi_awunique(cpu_wr_axi_awunique),
+        .s_axi_awidunq(cpu_wr_axi_awidunq),
         .s_axi_awtagop('0),
-        .s_axi_awtag('0),
+        .s_axi_awakeup('0),
         .s_axi_wdata(cpu_wr_axi_wdata),
         .s_axi_wstrb(cpu_wr_axi_wstrb),
         .s_axi_wlast(cpu_wr_axi_wlast),
@@ -170,7 +175,7 @@ module cpu_wr_adapter
         .s_axi_bvalid(cpu_wr_axi_bvalid),
         .s_axi_bready(cpu_wr_axi_bready),
         .s_axi_btrace(cpu_wr_axi_btrace),
-        .s_axi_btag(),
+        .s_axi_bidunq(cpu_wr_axi_bidunq),
         .s_axi_btagmatch(),
 
         // Bridge-internal side (fub_axi)
@@ -191,9 +196,9 @@ module cpu_wr_adapter
         .fub_axi_awtrace(fub_axi_awtrace),
         .fub_axi_awmpam(),
         .fub_axi_awmecid(),
-        .fub_axi_awunique(fub_axi_awunique),
+        .fub_axi_awidunq(fub_axi_awidunq),
         .fub_axi_awtagop(),
-        .fub_axi_awtag(),
+        .fub_axi_awakeup(),
         .fub_axi_wdata(fub_axi_wdata),
         .fub_axi_wstrb(fub_axi_wstrb),
         .fub_axi_wlast(fub_axi_wlast),
@@ -209,12 +214,27 @@ module cpu_wr_adapter
         .fub_axi_bvalid(fub_axi_bvalid),
         .fub_axi_bready(fub_axi_bready),
         .fub_axi_btrace(fub_axi_btrace),
-        .fub_axi_btag('0),
+        .fub_axi_bidunq(fub_axi_bidunq),
         .fub_axi_btagmatch('0),
 
         // Status (empty connector = unconnected tie-off)
         .busy(wrapper_wr_busy)
     );
+
+
+    // ================================================================
+    // BIDUNQ / RIDUNQ regenerated per ID (IHI 0022L A5.2)
+    // ================================================================
+    localparam int IDUNQ_IDS = 1 << 4;
+    logic [IDUNQ_IDS-1:0] r_awidunq_by_id;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_awidunq_by_id <= '0;
+        end else if (fub_axi_awvalid && fub_axi_awready) begin
+            r_awidunq_by_id[fub_axi_awid] <= fub_axi_awidunq;
+        end
+    )
+    assign fub_axi_bidunq = r_awidunq_by_id[fub_axi_bid];
 
     logic [NUM_SLAVES-1:0] b_slave_select;
     logic [NUM_SLAVES-1:0] w_slave_select;
@@ -275,7 +295,7 @@ module cpu_wr_adapter
     assign cpu_wr_32b_aw.region = 4'b0;  // AXI5 has no REGION
     assign cpu_wr_32b_aw.user   = fub_axi_awuser;
     assign cpu_wr_32b_aw.trace = fub_axi_awtrace;  // AXI5 sideband
-    assign cpu_wr_32b_aw.uniq = fub_axi_awunique;  // AXI5 sideband
+    assign cpu_wr_32b_aw.idunq = fub_axi_awidunq;  // AXI5 sideband
     assign cpu_wr_32b_awvalid   = fub_axi_awvalid && aw_path_active_32b;
     // awready routed via MUX
 

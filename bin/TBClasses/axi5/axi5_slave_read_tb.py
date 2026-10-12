@@ -326,7 +326,7 @@ class AXI5SlaveReadTB(TBBase):
 
     async def single_read_test(self, addr, expected_data=None, arid=None,
                                nsaid=None, trace=None, mpam=None, mecid=None,
-                               unique=None, chunken=None, tagop=None):
+                               idunq=None, chunken=None, tagop=None):
         """
         Perform a single AXI5 read transaction with optional AXI5 features.
 
@@ -338,7 +338,7 @@ class AXI5SlaveReadTB(TBBase):
             trace: Trace signal (AXI5)
             mpam: Memory Partitioning and Monitoring (AXI5)
             mecid: Memory Encryption Context ID (AXI5)
-            unique: Unique access (AXI5)
+            idunq: Unique ID indicator, AxIDUNQ (AXI5, IHI 0022L A5.2)
             chunken: Chunked transfer enable (AXI5)
             tagop: Tag operation (AXI5 MTE)
 
@@ -399,8 +399,8 @@ class AXI5SlaveReadTB(TBBase):
                 read_kwargs['mpam'] = mpam
             if mecid is not None:
                 read_kwargs['mecid'] = mecid
-            if unique is not None:
-                read_kwargs['unique'] = unique
+            if idunq is not None:
+                read_kwargs['idunq'] = idunq
             if chunken is not None:
                 read_kwargs['chunken'] = chunken
             if tagop is not None:

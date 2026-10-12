@@ -157,7 +157,7 @@ def prefix_delegations(text):
     axi5_master_wr says "Same port list as FUB interface but with `m_axi_*`
     prefix and reversed directions" instead of repeating forty rows with one
     word changed. Only the handful of names appearing nowhere else literally
-    (m_axi_awtagop, m_axi_awunique, m_axi_btagmatch, m_axi_wtagupdate) were
+    (m_axi_awtagop, m_axi_awidunq, m_axi_btagmatch, m_axi_wtagupdate) were
     reported as gaps, which made the report look like a documentation defect
     when it is a documentation style.
 

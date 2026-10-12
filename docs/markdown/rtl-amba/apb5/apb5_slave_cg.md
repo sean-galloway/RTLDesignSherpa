@@ -37,7 +37,7 @@ Clock-gated variant of the APB5 Slave module. Wraps the base `apb5_slave` with c
 
 - All APB5 Slave features (see [apb5_slave](apb5_slave.md))
 - Automatic clock gating during idle periods
-- Registered wake-up on PSEL assertion, through a glitch-free ICG cell
+- Registered wake-up on the Requester's PWAKEUP (ahead of PSEL) or on PSEL, through a glitch-free ICG cell
 - Configurable idle threshold
 - Gating status output
 
@@ -109,7 +109,7 @@ total is needed, count `cg_gating` in the integrating logic on the
 ungated `pclk`.
 
 All ports of [apb5_slave](apb5_slave.md) -- including the parity signals,
-`wakeup_request`, `parity_error_wdata` and `parity_error_ctrl` -- are present
+`s_apb_PWAKEUP`, `parity_error_wdata` and `parity_error_ctrl` -- are present
 unchanged and pass straight through to the wrapped core.
 
 ### APB5 Slave Interface
@@ -128,7 +128,7 @@ unchanged and pass straight through to the wrapped core.
 | s_apb_PWUSER | WUW | Input | User-defined write data attributes |
 | s_apb_PRDATA | DW | Output | Read data to master |
 | s_apb_PSLVERR | 1 | Output | Slave error response |
-| s_apb_PWAKEUP | 1 | Output | Wake-up signal to master |
+| s_apb_PWAKEUP | 1 | Input | Requester wake-up (IHI 0024E §3.7.2): a clock-gate wake term in this wrapper |
 | s_apb_PRUSER | RUW | Output | User-defined read data attributes |
 | s_apb_PBUSER | BUW | Output | User-defined response attributes |
 
@@ -136,12 +136,20 @@ unchanged and pass straight through to the wrapped core.
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
-| s_apb_PWDATAPARITY | SW | Input | Write data parity from master |
-| s_apb_PADDRPARITY | 1 | Input | Address parity from master |
-| s_apb_PCTRLPARITY | 1 | Input | Control signals parity from master |
-| s_apb_PRDATAPARITY | SW | Output | Read data parity to master |
-| s_apb_PREADYPARITY | 1 | Output | PREADY parity to master |
-| s_apb_PSLVERRPARITY | 1 | Output | PSLVERR parity to master |
+| s_apb_PADDRCHK | ceil(ADDR_WIDTH/8) | Input | Odd parity over PADDR, one bit per 8 bits |
+| s_apb_PCTRLCHK | 1 | Input | Odd parity over PPROT and PWRITE (PNSE not carried) |
+| s_apb_PSELCHK | 1 | Input | Odd parity over PSEL (the spec's PSELxCHK) |
+| s_apb_PENABLECHK | 1 | Input | Odd parity over PENABLE |
+| s_apb_PWDATACHK | DATA_WIDTH/8 | Input | Odd parity over PWDATA, one bit per byte lane |
+| s_apb_PSTRBCHK | 1 | Input | Odd parity over all of PSTRB |
+| s_apb_PAUSERCHK | ceil(AUSER_WIDTH/8) | Input | Odd parity over PAUSER, one bit per 8 bits |
+| s_apb_PWUSERCHK | ceil(WUSER_WIDTH/8) | Input | Odd parity over PWUSER, one bit per 8 bits |
+| s_apb_PRDATACHK | DATA_WIDTH/8 | Output | Odd parity over PRDATA, one bit per byte lane |
+| s_apb_PREADYCHK | 1 | Output | Odd parity over PREADY |
+| s_apb_PSLVERRCHK | 1 | Output | Odd parity over PSLVERR |
+| s_apb_PWAKEUPCHK | 1 | Input | Odd parity over PWAKEUP |
+| s_apb_PRUSERCHK | ceil(RUSER_WIDTH/8) | Output | Odd parity over PRUSER, one bit per 8 bits |
+| s_apb_PBUSERCHK | ceil(BUSER_WIDTH/8) | Output | Odd parity over PBUSER, one bit per 8 bits |
 
 ### Command Interface (to backend)
 
@@ -168,18 +176,12 @@ unchanged and pass straight through to the wrapped core.
 | rsp_pruser | RUW | Input | Response read user |
 | rsp_pbuser | BUW | Input | Response user |
 
-### Wake-up Control
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| wakeup_request | 1 | Input | Wake-up request from backend; registered onto `s_apb_PWAKEUP` |
-
 ### Status Outputs
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
-| parity_error_wdata | 1 | Output | Write-data parity mismatch (tied to 0 when ENABLE_PARITY=0) |
-| parity_error_ctrl | 1 | Output | Address or control parity mismatch (tied to 0 when ENABLE_PARITY=0) |
+| parity_error_wdata | 1 | Output | PWDATACHK, PSTRBCHK or PWUSERCHK mismatch (tied to 0 when ENABLE_PARITY=0) |
+| parity_error_ctrl | 1 | Output | PADDRCHK, PCTRLCHK, PSELCHK, PENABLECHK, PAUSERCHK or PWAKEUPCHK mismatch (tied to 0 when ENABLE_PARITY=0) |
 
 ---
 
@@ -219,8 +221,14 @@ flowchart TB
 The wrapper keeps the clock running whenever any of the following is high:
 
 ```
-s_apb_PSEL || s_apb_PENABLE || cmd_valid || rsp_valid || wakeup_request
+s_apb_PWAKEUP || s_apb_PSEL || s_apb_PENABLE || cmd_valid || rsp_valid
 ```
+
+`s_apb_PWAKEUP` is the Requester's wake-up (IHI 0024E §3.7.2), which the spec
+intends to be routed to a clock controller. A Requester that raises it a cycle
+or more ahead of PSEL (as §3.7.2 recommends, and as `apb5_master` does) gets
+the clock restarted before the setup phase arrives. The term is this side's
+pending work and the Requester's wake request only -- never a peer READY.
 
 That term is registered into `r_wakeup` on the ungated `pclk`, and
 `amba_clock_gate_ctrl` registers it once more before it reaches the gating

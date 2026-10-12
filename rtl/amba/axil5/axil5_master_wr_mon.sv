@@ -31,20 +31,22 @@
  *
  * Key Simplifications vs AXI4:
  * - No burst support (all transactions are single-beat)
- * - Fixed ID=0 (no ID reordering)
+ * - Monitor ID tied to 0 (transactions tracked in issue order)
  * - Reduced MAX_TRANSACTIONS (typically 4-8 vs 16-32)
- * - No AWID, AWLEN, AWSIZE, AWBURST, BID signals
+ * - No AWLEN, AWSIZE, AWBURST, BID signals
  *
  * AXI5-Lite variant. Derived from the AXI4-Lite wrapper of the same name: the
- * monitor plumbing is identical, because axi_monitor_filtered has no ports for
- * MPAM, MECID, NSAID, TRACE, LOOP or POISON and never observes them. What this
- * wrapper adds is the optional-signal pass-through to the inner transport
- * module, each group gated by its own ENABLE_* parameter.
+ * monitor plumbing is identical. What this wrapper adds is the AXI5-Lite
+ * transaction ID (ID_WIDTH) and the optional-signal pass-through (USER, TRACE,
+ * POISON, each behind its own ENABLE_* parameter) to the inner transport
+ * module. AxLOCK, AxMPAM, AxMECID, AxNSAID and xLOOP are not present on
+ * AXI5-Lite (IHI 0022L Table B2.2) and are not carried.
  *
- * The monitor therefore sees exactly what it sees on AXI4-Lite: handshakes,
- * addresses, responses and timing. It does not check MPAM/MECID/NSAID
- * consistency, does not validate POISON, and has no exclusive-access monitor
- * behind LOCK.
+ * The monitor sees exactly what it sees on AXI4-Lite: handshakes, addresses,
+ * responses and timing. Its ID ports stay tied to 0, so it tracks
+ * transactions in issue order and does not observe AxID/xID; a Subordinate
+ * that reorders responses across IDs (permitted on AXI5-Lite, B2.1.5) would
+ * be mis-attributed by it. It does not validate POISON.
  *
  * Port names match the AXI4-Lite wrapper exactly, including the `_axil_`
  * infix, so the AXIL5 BFMs -- which are the AXIL4 BFMs with the component
@@ -112,32 +114,26 @@ module axil5_master_wr_mon
     parameter bit ENABLE_PERF_LOGIC      = 1'b1,
     parameter bit ENABLE_DEBUG_LOGIC     = 1'b0,
 
-    // AXI5-Lite optional signal widths
+    // AXI5-Lite ID and optional signal widths
+    // AWID/BID and ARID/RID width (IHI 0022L Table A5.2: 0..32).
+    // This is a Manager-side interface, where Table B2.2 makes the ID
+    // optional (code YS): 0 means no ID -- the m_axil_ ID outputs are
+    // driven 0 (the "tied LOW" of A5.1.1) and the ID inputs are ignored.
+    parameter int ID_WIDTH           = 4,
     parameter int USER_WIDTH         = 4,
-    parameter int LOOP_WIDTH         = 3,
-    parameter int MPAM_WIDTH         = 11,
-    parameter int MECID_WIDTH        = 16,
-    parameter int NSAID_WIDTH        = 4,
 
     // AXI5-Lite optional signal groups. Passed straight through to the inner
     // transport module; the monitor never sees these signals.
     parameter bit ENABLE_USER        = 1,
     parameter bit ENABLE_TRACE       = 1,
-    parameter bit ENABLE_LOOP        = 1,
-    parameter bit ENABLE_MPAM        = 1,
-    parameter bit ENABLE_MECID       = 1,
-    parameter bit ENABLE_NSAID       = 1,
     parameter bit ENABLE_POISON      = 1,
-    parameter bit ENABLE_LOCK        = 1,
 
     // Short params
     parameter int AW       = AXIL_ADDR_WIDTH,
     parameter int DW       = AXIL_DATA_WIDTH,
+    // ID port width: ID_WIDTH, or a 1-bit placeholder when ID_WIDTH = 0
+    parameter int IW       = (ID_WIDTH > 0) ? ID_WIDTH : 1,
     parameter int UW       = USER_WIDTH,
-    parameter int LW       = LOOP_WIDTH,
-    parameter int MW       = MPAM_WIDTH,
-    parameter int EW       = MECID_WIDTH,
-    parameter int NW       = NSAID_WIDTH,
     parameter int PW       = (DW / 64) > 0 ? (DW / 64) : 1
 )
 (
@@ -148,15 +144,11 @@ module axil5_master_wr_mon
 
     // Slave AXIL Interface (Input Side)
     // Write address channel (AW)
+    input  logic [IW-1:0]              fub_axil_awid,
     input  logic [AW-1:0]              fub_axil_awaddr,
     input  logic [2:0]                 fub_axil_awprot,
-    input  logic                    fub_axil_awlock,
     input  logic [UW-1:0]           fub_axil_awuser,
     input  logic                    fub_axil_awtrace,
-    input  logic [LW-1:0]           fub_axil_awloop,
-    input  logic [MW-1:0]           fub_axil_awmpam,
-    input  logic [EW-1:0]           fub_axil_awmecid,
-    input  logic [NW-1:0]           fub_axil_awnsaid,
     input  logic                       fub_axil_awvalid,
     output logic                       fub_axil_awready,
 
@@ -169,24 +161,20 @@ module axil5_master_wr_mon
     output logic                       fub_axil_wready,
 
     // Write response channel (B)
+    output logic [IW-1:0]              fub_axil_bid,
     output logic [1:0]                 fub_axil_bresp,
     output logic [UW-1:0]           fub_axil_buser,
     output logic                    fub_axil_btrace,
-    output logic [LW-1:0]           fub_axil_bloop,
     output logic                       fub_axil_bvalid,
     input  logic                       fub_axil_bready,
 
     // Master AXIL Interface (Output Side)
     // Write address channel (AW)
+    output logic [IW-1:0]              m_axil_awid,
     output logic [AW-1:0]              m_axil_awaddr,
     output logic [2:0]                 m_axil_awprot,
-    output logic                    m_axil_awlock,
     output logic [UW-1:0]           m_axil_awuser,
     output logic                    m_axil_awtrace,
-    output logic [LW-1:0]           m_axil_awloop,
-    output logic [MW-1:0]           m_axil_awmpam,
-    output logic [EW-1:0]           m_axil_awmecid,
-    output logic [NW-1:0]           m_axil_awnsaid,
     output logic                       m_axil_awvalid,
     input  logic                       m_axil_awready,
 
@@ -199,10 +187,10 @@ module axil5_master_wr_mon
     input  logic                       m_axil_wready,
 
     // Write response channel (B)
+    input  logic [IW-1:0]              m_axil_bid,
     input  logic [1:0]                 m_axil_bresp,
     input  logic [UW-1:0]           m_axil_buser,
     input  logic                    m_axil_btrace,
-    input  logic [LW-1:0]           m_axil_bloop,
     input  logic                       m_axil_bvalid,
     output logic                       m_axil_bready,
 
@@ -292,6 +280,29 @@ module axil5_master_wr_mon
     output logic [31:0]                perf_burst_count
 );
 
+    // ---------------------------------------------------------------------
+    // Elaboration-time parameter guard (the one sanctioned in-RTL check; see
+    // vault/handbook/design/no-assertions-in-rtl.md). Checks nothing at run
+    // time.
+    //   AXIL_DATA_WIDTH: AXI5-Lite takes any AXI DATA_WIDTH -- 8, 16, 32, 64,
+    //     128, 256, 512 or 1024 (IHI 0022L Table A3.19; Table B2.4 adds no
+    //     AXI5-Lite constraint, unlike AXI4-Lite's 32/64 of IHI 0022H B1.1.2).
+    //   ID_WIDTH: 0..32 (Table A5.2). Manager-side: 0 = no ID is legal (Table B2.2, YS).
+    // ---------------------------------------------------------------------
+`ifndef SYNTHESIS
+    initial begin : param_check
+        if (!(AXIL_DATA_WIDTH == 8   || AXIL_DATA_WIDTH == 16  ||
+              AXIL_DATA_WIDTH == 32  || AXIL_DATA_WIDTH == 64  ||
+              AXIL_DATA_WIDTH == 128 || AXIL_DATA_WIDTH == 256 ||
+              AXIL_DATA_WIDTH == 512 || AXIL_DATA_WIDTH == 1024))
+            $fatal(1, "axil5_master_wr_mon: AXIL_DATA_WIDTH=%0d is not a legal AXI5-Lite data width (8..1024, power of 2; IHI 0022L A3.2)",
+                   AXIL_DATA_WIDTH);
+        if (ID_WIDTH < 0 || ID_WIDTH > 32)
+            $fatal(1, "axil5_master_wr_mon: ID_WIDTH=%0d out of range 0..32 (IHI 0022L Table A5.2)",
+                   ID_WIDTH);
+    end
+`endif
+
     // -------------------------------------------------------------------------
     // Monitor backpressure plumbing (see axi4_master_rd_mon for full rationale)
     // -------------------------------------------------------------------------
@@ -322,33 +333,21 @@ module axil5_master_wr_mon
         .SKID_DEPTH_B            (SKID_DEPTH_B),
         .AXIL_ADDR_WIDTH         (AXIL_ADDR_WIDTH),
         .AXIL_DATA_WIDTH         (AXIL_DATA_WIDTH),
+        .ID_WIDTH           (ID_WIDTH),
         .USER_WIDTH         (USER_WIDTH),
-        .LOOP_WIDTH         (LOOP_WIDTH),
-        .MPAM_WIDTH         (MPAM_WIDTH),
-        .MECID_WIDTH        (MECID_WIDTH),
-        .NSAID_WIDTH        (NSAID_WIDTH),
         .ENABLE_USER        (ENABLE_USER),
         .ENABLE_TRACE       (ENABLE_TRACE),
-        .ENABLE_LOOP        (ENABLE_LOOP),
-        .ENABLE_MPAM        (ENABLE_MPAM),
-        .ENABLE_MECID       (ENABLE_MECID),
-        .ENABLE_NSAID       (ENABLE_NSAID),
-        .ENABLE_POISON      (ENABLE_POISON),
-        .ENABLE_LOCK        (ENABLE_LOCK)
+        .ENABLE_POISON      (ENABLE_POISON)
     ) axil5_master_wr_inst (
         .aclk                    (aclk),
         .aresetn                 (aresetn),
 
         // Slave AXIL Interface (Input Side)
+        .fub_awid                (fub_axil_awid),
         .fub_awaddr              (fub_axil_awaddr),
         .fub_awprot              (fub_axil_awprot),
-        .fub_awlock             (fub_axil_awlock),
         .fub_awuser             (fub_axil_awuser),
         .fub_awtrace            (fub_axil_awtrace),
-        .fub_awloop             (fub_axil_awloop),
-        .fub_awmpam             (fub_axil_awmpam),
-        .fub_awmecid            (fub_axil_awmecid),
-        .fub_awnsaid            (fub_axil_awnsaid),
         .fub_awvalid             (w_gated_awvalid),
         .fub_awready             (w_core_fub_axil_awready),  // gated below
 
@@ -359,23 +358,19 @@ module axil5_master_wr_mon
         .fub_wvalid              (fub_axil_wvalid),
         .fub_wready              (fub_axil_wready),
 
+        .fub_bid                 (fub_axil_bid),
         .fub_bresp               (fub_axil_bresp),
         .fub_buser              (fub_axil_buser),
         .fub_btrace             (fub_axil_btrace),
-        .fub_bloop              (fub_axil_bloop),
         .fub_bvalid              (fub_axil_bvalid),
         .fub_bready              (fub_axil_bready),
 
         // Master AXIL Interface (Output Side)
+        .m_axil_awid             (m_axil_awid),
         .m_axil_awaddr           (m_axil_awaddr),
         .m_axil_awprot           (m_axil_awprot),
-        .m_axil_awlock          (m_axil_awlock),
         .m_axil_awuser          (m_axil_awuser),
         .m_axil_awtrace         (m_axil_awtrace),
-        .m_axil_awloop          (m_axil_awloop),
-        .m_axil_awmpam          (m_axil_awmpam),
-        .m_axil_awmecid         (m_axil_awmecid),
-        .m_axil_awnsaid         (m_axil_awnsaid),
         .m_axil_awvalid          (m_axil_awvalid),
         .m_axil_awready          (m_axil_awready),
 
@@ -386,10 +381,10 @@ module axil5_master_wr_mon
         .m_axil_wvalid           (m_axil_wvalid),
         .m_axil_wready           (m_axil_wready),
 
+        .m_axil_bid              (m_axil_bid),
         .m_axil_bresp            (m_axil_bresp),
         .m_axil_buser           (m_axil_buser),
         .m_axil_btrace          (m_axil_btrace),
-        .m_axil_bloop           (m_axil_bloop),
         .m_axil_bvalid           (m_axil_bvalid),
         .m_axil_bready           (m_axil_bready),
 
@@ -540,7 +535,7 @@ module axil5_master_wr_mon
             .cfg_addr_range_low      (cfg_addr_range_low),
             .cfg_addr_range_high     (cfg_addr_range_high),
 
-            // AXI-Lite has no transaction IDs, so the runtime ID filter is
+            // The monitor ID ports are tied to 0 (see header), so the runtime ID filter is
 
             // meaningless here and is tied off rather than exposed.
 

@@ -55,7 +55,11 @@ The same width and sideband parameter rules apply.
 
 ## Parity tie-offs
 
-When parity is disabled on an APB5 port, the parity input pins are tied to zero and the output/error pins are left unconnected. This lets the same `apb5_slave`/`apb5_master` modules be reused with or without parity without conditional module selection.
+When parity is disabled on an APB5 port, the `*CHK` input pins are tied to zero and the `*CHK` output and `parity_error_*` pins are left unconnected. This lets the same `apb5_slave`/`apb5_master` modules be reused with or without parity without conditional module selection.
+
+## PWAKEUP wiring
+
+An APB5 master port's `PWAKEUP` input goes to the `apb5_slave` boundary IP, which uses it only for the `PWAKEUPCHK` check. Each `apb5_master` boundary IP drives its own registered wake onto an internal net, `w_s<s>_ip_pwakeup`. The generator then emits `assign s<s>_apb_PWAKEUP = w_s<s>_ip_pwakeup | m<i>_apb_PWAKEUP ...`, with one term for every APB5 master. With parity on, it also emits `assign s<s>_apb_PWAKEUPCHK = ~s<s>_apb_PWAKEUP`. The IP's own `m_apb_PWAKEUPCHK` is left unconnected, because it covers only the IP's term.
 
 ## 1×1 passthrough
 

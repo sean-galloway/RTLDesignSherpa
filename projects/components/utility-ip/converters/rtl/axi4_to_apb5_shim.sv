@@ -6,10 +6,29 @@
 // protocol engine is identical (APB5 keeps the APB4 transfer protocol),
 // and the APB5 additions are pure sideband on this surface --
 // requester-driven PAUSER/PWUSER (tied to '0: nothing upstream sources
-// them; the AXI user bits do not map onto APB user semantics) and
-// completer-driven PWAKEUP/PRUSER/PBUSER (accepted and terminated).
-// The port convention mirrors rtl/amba/apb5/apb5_slave.sv exactly, so
-// this requester drops onto that completer pin-for-pin.
+// them; the AXI user bits do not map onto APB user semantics), the
+// requester-driven PWAKEUP (below), and completer-driven PRUSER/PBUSER
+// (accepted and terminated). The port convention mirrors
+// rtl/amba/apb5/apb5_slave.sv exactly, so this requester drops onto that
+// completer pin-for-pin.
+//
+// PWAKEUP is a REQUESTER output (IHI 0024E 3.7.2, Table 3-7; GitHub #102
+// item 7 -- this shim used to take it as an input). It is a flop of PSEL:
+//   - glitch-free: straight from a register, as 3.7.2 requires (PSEL itself
+//     is decoded from the APB master's state and is not used directly);
+//   - asserted from the cycle after the Setup phase and held, because PSEL
+//     stays high, through the Access phase up to and including the PREADY
+//     cycle -- the "must remain asserted until PREADY" rule, and a
+//     Completer that waits for PWAKEUP before PREADY always gets it, so the
+//     interface cannot deadlock;
+//   - low when no transfer is in progress (3.7.2 recommendation).
+// 3.7.2 permits PWAKEUP before, during or after PSEL. The recommended
+// one-cycle lead over PSEL is not available here: the command queue that
+// would predict the next transfer is inside the wrapped axi4_to_apb4_shim,
+// whose port list is shared by every APB4 consumer. No check signals are
+// carried (Check_Type = False), so there is no PWAKEUPCHK.
+
+`include "reset_defs.svh"
 
 module axi4_to_apb5_shim #(
     parameter int DEPTH_AW = 2,
@@ -116,7 +135,7 @@ module axi4_to_apb5_shim #(
     // APB5 sideband additions (requester surface)
     output logic [APB_AUSER_WIDTH-1:0]    m_apb_PAUSER,
     output logic [APB_WUSER_WIDTH-1:0]    m_apb_PWUSER,
-    input  logic                          m_apb_PWAKEUP,
+    output logic                          m_apb_PWAKEUP,
     input  logic [APB_RUSER_WIDTH-1:0]    m_apb_PRUSER,
     input  logic [APB_BUSER_WIDTH-1:0]    m_apb_PBUSER
 );
@@ -126,8 +145,18 @@ module axi4_to_apb5_shim #(
     assign m_apb_PWUSER = '0;
 
     // Completer-driven APB5 sideband is accepted and terminated:
-    wire unused_apb5_sideband = &{1'b0, m_apb_PWAKEUP, m_apb_PRUSER,
-                                  m_apb_PBUSER};
+    wire unused_apb5_sideband = &{1'b0, m_apb_PRUSER, m_apb_PBUSER};
+
+    // Requester wake-up (IHI 0024E 3.7.2): registered copy of PSEL.
+    logic r_pwakeup;
+    `ALWAYS_FF_RST(pclk, presetn,
+        if (`RST_ASSERTED(presetn)) begin
+            r_pwakeup <= 1'b0;
+        end else begin
+            r_pwakeup <= m_apb_PSEL;
+        end
+    )
+    assign m_apb_PWAKEUP = r_pwakeup;
 
     axi4_to_apb4_shim #(
         .DEPTH_AW(DEPTH_AW),

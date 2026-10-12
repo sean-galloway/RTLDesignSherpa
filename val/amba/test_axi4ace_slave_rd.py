@@ -170,6 +170,16 @@ async def axi4ace_slave_read_test(dut):
         tb.log.info("ACE snoop-type matrix test passed")
         tests_passed += 1
 
+        # Test 4b: ACE address/response fields + RACK (issue #102 item 4)
+        tb.log.info("=== Test 4b: ARDOMAIN/ARBAR passthrough, RRESP[3:2] return, RACK forward ===")
+        total_tests += 1
+        if not await tb.ace_signal_fields_test():
+            error_msg = "ACE ARDOMAIN/ARBAR/RRESP[3:2]/RACK check failed"
+            tb.log.error(error_msg)
+            raise Exception(error_msg)
+        tb.log.info("ACE ARDOMAIN/ARBAR/RRESP[3:2]/RACK check passed")
+        tests_passed += 1
+
         # Test 5: Mixed timing profiles (full test level only)
         if test_level == 'full':
             for profile in timing_profiles:
@@ -422,8 +432,8 @@ def test_axi4ace_slave_read(request, id_width, addr_width, data_width, user_widt
 
     # RTL parameters
     wstrb_width = data_width // 8
-    ar_size = id_width + addr_width + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + user_width + 4  # +4 for arsnoop
-    r_size = id_width + data_width + 2 + 1 + user_width
+    ar_size = id_width + addr_width + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + user_width + 4 + 2 + 2  # + arsnoop[3:0], ardomain[1:0], arbar[1:0]
+    r_size = id_width + data_width + 4 + 1 + user_width  # ACE RRESP is 4 bits
 
     rtl_parameters = {
         'SKID_DEPTH_AR': str(ar_depth),

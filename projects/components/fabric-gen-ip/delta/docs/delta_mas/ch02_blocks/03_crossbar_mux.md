@@ -67,11 +67,11 @@ The mux forwards the following signals from the granted master to the selected s
 - `TID`
 - `TUSER`
 - `TSTRB` (when enabled)
-- `TPARITY` (when enabled)
+- The payload check bits `TDATACHK`, `TSTRBCHK`, `TLASTCHK`, `TIDCHK`, `TDESTCHK`, `TUSERCHK` (with `--amba5`). They are carried unchanged, not regenerated. See Interface Check Signals (AMBA5).
 
 ## Default Values
 
-When no grant is active for a slave, the mux drives all outputs to zero and `m_axis_tvalid[s]` to low. This is a safe idle state.
+When no grant is active for a slave, the mux drives all outputs to zero and `m_axis_tvalid[s]` to low. This is a safe idle state. With `--amba5`, the payload check outputs idle at all ones instead, which is the odd parity of the all-zero idle payload.
 
 ## Timing
 

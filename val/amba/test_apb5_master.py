@@ -26,11 +26,14 @@ import random
 
 import pytest
 import cocotb
-from cocotb.triggers import Timer, RisingEdge
+from cocotb.triggers import Timer, RisingEdge, FallingEdge
+from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
+from TBClasses.amba.apb5_wakeup import check_requester_pwakeup
 from TBClasses.amba.apb5_master_tb import APB5MasterBasicTB
+from TBClasses.amba.apb5_parity import APB5Parity
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
@@ -160,22 +163,157 @@ async def cocotb_test_apb5_master_rsp_backpressure(dut):
         f"a full response skid, so the slave re-executed the transfer.")
 
 
+@cocotb.test(timeout_time=400, timeout_unit="us")
+async def cocotb_test_apb5_master_parity(dut):
+    """IHI 0024E ch. 5 interface parity, requester side (issue #102 item 1).
+
+    Checks every cycle that each requester *CHK the master drives is ODD
+    parity over the spec's coverage set at the spec's granularity (one bit
+    per byte on PADDR/PWDATA/PAUSER/PWUSER, PCTRLCHK over PPROT+PWRITE,
+    PSTRBCHK over PSTRB, inversion on PSEL/PENABLE) while its Check Enable
+    term holds. Then corrupts each completer *CHK in turn and requires the
+    matching error flag -- and only that one -- to fire. The pre-#102 RTL
+    computed EVEN parity, so the first transfer fails the requester check.
+    """
+    tb = APB5MasterBasicTB(dut)
+    if os.environ.get('TEST_ENABLE_PARITY', '0') != '1':
+        tb.log.info("ENABLE_PARITY=0: parity test not applicable")
+        return
+    par = APB5Parity(dut, 'm_apb_', tb.ADDR_WIDTH, tb.DATA_WIDTH,
+                     auser_width=tb.AUSER_WIDTH, wuser_width=tb.WUSER_WIDTH,
+                     ruser_width=tb.RUSER_WIDTH, buser_width=tb.BUSER_WIDTH)
+    rng = random.Random(int(os.environ.get('SEED', '1')))
+    dw_mask = (1 << tb.DATA_WIDTH) - 1
+
+    await tb.setup_clocks_and_reset()
+    dut.m_apb_PREADY.value = 1
+    dut.m_apb_PRDATA.value = 0
+    dut.m_apb_PSLVERR.value = 0
+    dut.m_apb_PRUSER.value = 0
+    dut.m_apb_PBUSER.value = 0
+    par.start_driver(APB5Parity.COMPLETER, dut.pclk)
+
+    req_errors = []      # (time, [names]) requester checks the DUT got wrong
+    flag_hits = set()    # error flags seen during the current window
+    checked = {'cycles': 0}
+
+    async def watch():
+        while True:
+            await FallingEdge(dut.pclk)
+            bad = par.mismatches(APB5Parity.REQUESTER)
+            if bad:
+                req_errors.append((get_sim_time('ns'), bad))
+            if int(dut.m_apb_PSEL.value):
+                checked['cycles'] += 1
+            if int(dut.parity_error_rdata.value):
+                flag_hits.add('rdata')
+            if int(dut.parity_error_ctrl.value):
+                flag_hits.add('ctrl')
+
+    cocotb.start_soon(watch())
+
+    async def one_xfer(pwrite):
+        dut.m_apb_PRDATA.value = rng.getrandbits(tb.DATA_WIDTH) & dw_mask
+        dut.m_apb_PRUSER.value = rng.getrandbits(tb.RUSER_WIDTH)
+        dut.m_apb_PBUSER.value = rng.getrandbits(tb.BUSER_WIDTH)
+        dut.m_apb_PSLVERR.value = rng.getrandbits(1)
+        dut.cmd_pprot.value = rng.getrandbits(3)
+        await tb.drive_command(
+            pwrite=pwrite,
+            paddr=rng.getrandbits(tb.ADDR_WIDTH),
+            pwdata=rng.getrandbits(tb.DATA_WIDTH),
+            pstrb=rng.getrandbits(tb.DATA_WIDTH // 8),
+            pauser=rng.getrandbits(tb.AUSER_WIDTH),
+            pwuser=rng.getrandbits(tb.WUSER_WIDTH))
+        assert await tb.wait_for_transaction(), "transfer timeout"
+        await tb.wait_clocks('pclk', 2)
+
+    # Phase 1: clean traffic. Requester checks must be correct; no flag.
+    for i in range(40):
+        await one_xfer(i % 2)
+    assert checked['cycles'] > 0, "no PSEL cycles observed -- check is vacuous"
+    assert not req_errors, (
+        f"{len(req_errors)} cycle(s) with a wrong requester check bit "
+        f"(odd parity, IHI 0024E 5.3); first: {req_errors[0]}")
+    assert not flag_hits, f"error flag(s) {flag_hits} raised on clean traffic"
+
+    # Phase 2: corrupt one completer check at a time.
+    sw = tb.DATA_WIDTH // 8
+    injections = [
+        ('PRDATACHK',  1 << (sw - 1), 0, 'rdata'),   # top byte lane
+        ('PRDATACHK',  1,             0, 'rdata'),   # bottom byte lane
+        ('PRUSERCHK',  1,             0, 'rdata'),
+        ('PREADYCHK',  1,             1, 'ctrl'),
+        ('PSLVERRCHK', 1,             1, 'ctrl'),
+        ('PBUSERCHK',  1,             1, 'ctrl'),
+    ]
+    for name, mask, pwrite, flag in injections:
+        await tb.wait_clocks('pclk', 2)
+        flag_hits.clear()
+        par.corrupt = {name: mask}
+        await one_xfer(pwrite)
+        par.corrupt = {}
+        await tb.wait_clocks('pclk', 2)
+        assert flag_hits == {flag}, (
+            f"corrupting {name} (mask {mask:#x}) raised {flag_hits or 'nothing'}, "
+            f"expected only parity_error_{flag}")
+
+    # A wrong PRDATACHK on a WRITE is outside its Check Enable term
+    # (PSEL & PENABLE & PREADY & !PWRITE) and must not be flagged.
+    flag_hits.clear()
+    par.corrupt = {'PRDATACHK': 1}
+    await one_xfer(1)
+    par.corrupt = {}
+    await tb.wait_clocks('pclk', 2)
+    assert not flag_hits, f"PRDATACHK flagged on a write: {flag_hits}"
+
+    tb.log.info(f"=== APB5 master parity PASSED ({checked['cycles']} PSEL cycles) ===")
+
+
+@cocotb.test(timeout_time=200, timeout_unit="us")
+async def cocotb_test_apb5_master_pwakeup(dut):
+    """PWAKEUP is a Requester OUTPUT (IHI 0024E 3.7.2, Table 3-7; issue #102
+    item 7). The master must raise it at least a cycle before PSEL, hold it
+    through PREADY, and drop it once nothing is pending. The pre-fix RTL
+    had PWAKEUP as a master INPUT, so it never drove it and this fails."""
+    tb = APB5MasterBasicTB(dut)
+    await tb.setup_clocks_and_reset()
+    dut.rsp_ready.value = 1
+
+    async def drive_command(i):
+        while not int(dut.cmd_ready.value):
+            await RisingEdge(dut.pclk)
+        dut.cmd_valid.value = 1
+        dut.cmd_pwrite.value = i & 1
+        dut.cmd_paddr.value = (0x40 + 4 * i) & 0xFF
+        dut.cmd_pwdata.value = 0x1000 + i
+        dut.cmd_pstrb.value = 0xF
+        await RisingEdge(dut.pclk)
+        dut.cmd_valid.value = 0
+
+    await check_requester_pwakeup(dut, tb.log, drive_command)
+
+
 def generate_apb5_master_params():
     """Generate test parameters for APB5 master."""
     return [
-        # addr_width, data_width, auser_width, wuser_width, ruser_width, buser_width
-        (12, 32, 4, 4, 4, 4),
-        (16, 32, 8, 8, 8, 8),
-        (12, 64, 4, 4, 4, 4),
+        # addr_width, data_width, auser_width, wuser_width, ruser_width, buser_width, enable_parity
+        (12, 32, 4, 4, 4, 4, 0),
+        (16, 32, 8, 8, 8, 8, 0),
+        (12, 64, 4, 4, 4, 4, 0),
+        # Parity: AW=12 and the user widths leave a short top byte, so the
+        # per-byte granularity and the partial-byte rule are both exercised.
+        (12, 32, 4, 4, 4, 4, 1),
+        (20, 64, 12, 9, 13, 16, 1),
     ]
 
 
 @pytest.mark.parametrize(
-    "addr_width, data_width, auser_width, wuser_width, ruser_width, buser_width",
+    "addr_width, data_width, auser_width, wuser_width, ruser_width, buser_width, enable_parity",
     generate_apb5_master_params()
 )
 def test_apb5_master(request, addr_width, data_width, auser_width, wuser_width,
-                     ruser_width, buser_width):
+                     ruser_width, buser_width, enable_parity):
     """APB5 master test runner."""
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
 
@@ -196,7 +334,9 @@ def test_apb5_master(request, addr_width, data_width, auser_width, wuser_width,
     aw_str = TBBase.format_dec(addr_width, 2)
     dw_str = TBBase.format_dec(data_width, 2)
     au_str = TBBase.format_dec(auser_width, 1)
-    test_name_plus_params = f"test_{worker_id}_apb5_master_aw{aw_str}_dw{dw_str}_au{au_str}"
+    pr_str = 'pr' if enable_parity else 'np'
+    test_name_plus_params = (f"test_{worker_id}_apb5_master_aw{aw_str}_dw{dw_str}_au{au_str}"
+                             f"_wu{wuser_width}_ru{ruser_width}_bu{buser_width}_{pr_str}")
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
 
@@ -215,6 +355,7 @@ def test_apb5_master(request, addr_width, data_width, auser_width, wuser_width,
         'WUSER_WIDTH': str(wuser_width),
         'RUSER_WIDTH': str(ruser_width),
         'BUSER_WIDTH': str(buser_width),
+        'ENABLE_PARITY': str(enable_parity),
     }
 
     # Environment variables
@@ -232,6 +373,7 @@ def test_apb5_master(request, addr_width, data_width, auser_width, wuser_width,
         'TEST_WUSER_WIDTH': str(wuser_width),
         'TEST_RUSER_WIDTH': str(ruser_width),
         'TEST_BUSER_WIDTH': str(buser_width),
+        'TEST_ENABLE_PARITY': str(enable_parity),
     }
 
     compile_args = [
@@ -247,23 +389,32 @@ def test_apb5_master(request, addr_width, data_width, auser_width, wuser_width,
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
+    # One run() per cocotb test. A comma-joined testcase string selects
+    # NOTHING under the conftest exact-name anchor (BUG-015 patch), and an
+    # empty selection reports PASS -- this file ran zero tests that way.
+    testcases = ["cocotb_test_apb5_master_basic",
+                 "cocotb_test_apb5_master_rsp_backpressure",
+                 "cocotb_test_apb5_master_pwakeup"]
+    if enable_parity:
+        testcases.append("cocotb_test_apb5_master_parity")
     try:
-        run(
-            python_search=[tests_dir],
-            verilog_sources=verilog_sources,
-            includes=includes,
-            toplevel=toplevel,
-            module=module,
-            parameters=rtl_parameters,
-            sim_build=sim_build,
-            extra_env=extra_env,
-            waves=enable_waves,
-            plus_args=(['--trace'] if enable_waves else []),
-            keep_files=True,
-            compile_args=compile_args,
-            testcase="cocotb_test_apb5_master_basic,cocotb_test_apb5_master_rsp_backpressure",
-            simulator="verilator",
-        )
+        for testcase in testcases:
+            run(
+                python_search=[tests_dir],
+                verilog_sources=verilog_sources,
+                includes=includes,
+                toplevel=toplevel,
+                module=module,
+                parameters=rtl_parameters,
+                sim_build=sim_build,
+                extra_env=extra_env,
+                waves=enable_waves,
+                plus_args=(['--trace'] if enable_waves else []),
+                keep_files=True,
+                compile_args=compile_args,
+                testcase=testcase,
+                simulator="verilator",
+            )
     except Exception as e:
         print(f"Test failed: {str(e)}")
         print(f"Logs preserved at: {log_path}")

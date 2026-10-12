@@ -43,6 +43,7 @@ module axi5_slave_rd_mon_cg
     parameter bit ENABLE_CHUNKING   = 1,
     parameter bit ENABLE_MTE        = 1,
     parameter bit ENABLE_POISON     = 1,
+    parameter bit ENABLE_WAKEUP     = 1,      // AWAKEUP (A14.1.1)
 
     parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor in inner mon; outputs tied
     parameter int N_ADDR_RANGES     = 0,         // 0 = address-range checker disabled
@@ -111,12 +112,13 @@ module axi5_slave_rd_mon_cg
     input  logic [3:0]                   s_axi_arqos,
     input  logic [UW-1:0]                s_axi_aruser,
     input  logic                         s_axi_arvalid,
+    input  logic                         s_axi_awakeup,      // AWAKEUP (A14.1.1)
     output logic                         s_axi_arready,
     input  logic [AXI_NSAID_WIDTH-1:0]   s_axi_arnsaid,
     input  logic                         s_axi_artrace,
     input  logic [AXI_MPAM_WIDTH-1:0]    s_axi_armpam,
     input  logic [AXI_MECID_WIDTH-1:0]   s_axi_armecid,
-    input  logic                         s_axi_arunique,
+    input  logic                         s_axi_aridunq,
     input  logic                         s_axi_archunken,
     input  logic [AXI_TAGOP_WIDTH-1:0]   s_axi_artagop,
 
@@ -128,12 +130,12 @@ module axi5_slave_rd_mon_cg
     output logic                         s_axi_rvalid,
     input  logic                         s_axi_rready,
     output logic                         s_axi_rtrace,
+    output logic                         s_axi_ridunq,       // RIDUNQ (A5.2)
     output logic                         s_axi_rpoison,
     output logic                         s_axi_rchunkv,
     output logic [AXI_CHUNKNUM_WIDTH-1:0] s_axi_rchunknum,
     output logic [CHUNK_STRB_WIDTH-1:0]  s_axi_rchunkstrb,
     output logic [TW-1:0]                s_axi_rtag,
-    output logic                         s_axi_rtagmatch,
 
     // FUB Interface (Output Side)
     output logic [IW-1:0]                fub_axi_arid,
@@ -147,12 +149,13 @@ module axi5_slave_rd_mon_cg
     output logic [3:0]                   fub_axi_arqos,
     output logic [UW-1:0]                fub_axi_aruser,
     output logic                         fub_axi_arvalid,
+    output logic                         fub_axi_awakeup,      // AWAKEUP (A14.1.1)
     input  logic                         fub_axi_arready,
     output logic [AXI_NSAID_WIDTH-1:0]   fub_axi_arnsaid,
     output logic                         fub_axi_artrace,
     output logic [AXI_MPAM_WIDTH-1:0]    fub_axi_armpam,
     output logic [AXI_MECID_WIDTH-1:0]   fub_axi_armecid,
-    output logic                         fub_axi_arunique,
+    output logic                         fub_axi_aridunq,
     output logic                         fub_axi_archunken,
     output logic [AXI_TAGOP_WIDTH-1:0]   fub_axi_artagop,
 
@@ -164,12 +167,12 @@ module axi5_slave_rd_mon_cg
     input  logic                         fub_axi_rvalid,
     output logic                         fub_axi_rready,
     input  logic                         fub_axi_rtrace,
+    input  logic                         fub_axi_ridunq,       // RIDUNQ (A5.2)
     input  logic                         fub_axi_rpoison,
     input  logic                         fub_axi_rchunkv,
     input  logic [AXI_CHUNKNUM_WIDTH-1:0] fub_axi_rchunknum,
     input  logic [CHUNK_STRB_WIDTH-1:0]  fub_axi_rchunkstrb,
     input  logic [TW-1:0]                fub_axi_rtag,
-    input  logic                         fub_axi_rtagmatch,
 
     // Monitor configuration
     input  logic                       cfg_monitor_enable,
@@ -269,7 +272,17 @@ module axi5_slave_rd_mon_cg
     logic w_monbus_valid;
     logic int_arready, int_rready, int_busy;
 
-    assign user_valid = s_axi_arvalid || s_axi_rvalid || int_busy ||
+    // AWAKEUP (IHI 0022L A14.1.1) is the manager's request to bring the
+
+    // interface up BEFORE its VALID: counting it as activity restarts the
+
+    // clock ahead of the request, so the first AxVALID after idle meets
+
+    // READY instead of waiting on the wake latency. It is a peer request,
+
+    // not a peer READY, so it cannot pin the block awake while idle.
+
+    assign user_valid = (ENABLE_WAKEUP && s_axi_awakeup) || s_axi_arvalid || s_axi_rvalid || int_busy ||
                         w_monbus_valid || (|active_transactions);
     assign axi_valid  = fub_axi_arvalid || fub_axi_rvalid;
 
@@ -300,7 +313,7 @@ module axi5_slave_rd_mon_cg
         .ENABLE_NSAID(ENABLE_NSAID), .ENABLE_TRACE(ENABLE_TRACE),
         .ENABLE_MPAM(ENABLE_MPAM), .ENABLE_MECID(ENABLE_MECID),
         .ENABLE_UNIQUE(ENABLE_UNIQUE), .ENABLE_CHUNKING(ENABLE_CHUNKING),
-        .ENABLE_MTE(ENABLE_MTE), .ENABLE_POISON(ENABLE_POISON),
+        .ENABLE_MTE(ENABLE_MTE), .ENABLE_POISON(ENABLE_POISON), .ENABLE_WAKEUP(ENABLE_WAKEUP),
         .USE_MONITOR(USE_MONITOR),
         .UNIT_ID(UNIT_ID), .AGENT_ID(AGENT_ID), .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
         .ENABLE_FILTERING(ENABLE_FILTERING), .ADD_PIPELINE_STAGE(ADD_PIPELINE_STAGE),
@@ -329,35 +342,35 @@ module axi5_slave_rd_mon_cg
         .s_axi_arburst(s_axi_arburst), .s_axi_arlock(s_axi_arlock),
         .s_axi_arcache(s_axi_arcache), .s_axi_arprot(s_axi_arprot),
         .s_axi_arqos(s_axi_arqos), .s_axi_aruser(s_axi_aruser),
-        .s_axi_arvalid(s_axi_arvalid), .s_axi_arready(int_arready),
+        .s_axi_arvalid(s_axi_arvalid), .s_axi_awakeup(s_axi_awakeup), .s_axi_arready(int_arready),
         .s_axi_arnsaid(s_axi_arnsaid), .s_axi_artrace(s_axi_artrace),
         .s_axi_armpam(s_axi_armpam), .s_axi_armecid(s_axi_armecid),
-        .s_axi_arunique(s_axi_arunique), .s_axi_archunken(s_axi_archunken),
+        .s_axi_aridunq(s_axi_aridunq), .s_axi_archunken(s_axi_archunken),
         .s_axi_artagop(s_axi_artagop),
         .s_axi_rid(s_axi_rid), .s_axi_rdata(s_axi_rdata),
         .s_axi_rresp(s_axi_rresp), .s_axi_rlast(s_axi_rlast),
         .s_axi_ruser(s_axi_ruser), .s_axi_rvalid(s_axi_rvalid),
-        .s_axi_rready(s_axi_rready), .s_axi_rtrace(s_axi_rtrace),
+        .s_axi_rready(s_axi_rready), .s_axi_rtrace(s_axi_rtrace), .s_axi_ridunq(s_axi_ridunq),
         .s_axi_rpoison(s_axi_rpoison), .s_axi_rchunkv(s_axi_rchunkv),
         .s_axi_rchunknum(s_axi_rchunknum), .s_axi_rchunkstrb(s_axi_rchunkstrb),
-        .s_axi_rtag(s_axi_rtag), .s_axi_rtagmatch(s_axi_rtagmatch),
+        .s_axi_rtag(s_axi_rtag),
         .fub_axi_arid(fub_axi_arid), .fub_axi_araddr(fub_axi_araddr),
         .fub_axi_arlen(fub_axi_arlen), .fub_axi_arsize(fub_axi_arsize),
         .fub_axi_arburst(fub_axi_arburst), .fub_axi_arlock(fub_axi_arlock),
         .fub_axi_arcache(fub_axi_arcache), .fub_axi_arprot(fub_axi_arprot),
         .fub_axi_arqos(fub_axi_arqos), .fub_axi_aruser(fub_axi_aruser),
-        .fub_axi_arvalid(fub_axi_arvalid), .fub_axi_arready(fub_axi_arready),
+        .fub_axi_arvalid(fub_axi_arvalid), .fub_axi_awakeup(fub_axi_awakeup), .fub_axi_arready(fub_axi_arready),
         .fub_axi_arnsaid(fub_axi_arnsaid), .fub_axi_artrace(fub_axi_artrace),
         .fub_axi_armpam(fub_axi_armpam), .fub_axi_armecid(fub_axi_armecid),
-        .fub_axi_arunique(fub_axi_arunique), .fub_axi_archunken(fub_axi_archunken),
+        .fub_axi_aridunq(fub_axi_aridunq), .fub_axi_archunken(fub_axi_archunken),
         .fub_axi_artagop(fub_axi_artagop),
         .fub_axi_rid(fub_axi_rid), .fub_axi_rdata(fub_axi_rdata),
         .fub_axi_rresp(fub_axi_rresp), .fub_axi_rlast(fub_axi_rlast),
         .fub_axi_ruser(fub_axi_ruser), .fub_axi_rvalid(fub_axi_rvalid),
-        .fub_axi_rready(int_rready), .fub_axi_rtrace(fub_axi_rtrace),
+        .fub_axi_rready(int_rready), .fub_axi_rtrace(fub_axi_rtrace), .fub_axi_ridunq(fub_axi_ridunq),
         .fub_axi_rpoison(fub_axi_rpoison), .fub_axi_rchunkv(fub_axi_rchunkv),
         .fub_axi_rchunknum(fub_axi_rchunknum), .fub_axi_rchunkstrb(fub_axi_rchunkstrb),
-        .fub_axi_rtag(fub_axi_rtag), .fub_axi_rtagmatch(fub_axi_rtagmatch),
+        .fub_axi_rtag(fub_axi_rtag),
         .cfg_monitor_enable(cfg_monitor_enable), .cfg_error_enable(cfg_error_enable),
         .cfg_timeout_enable(cfg_timeout_enable), .cfg_perf_enable(cfg_perf_enable),
         .cfg_compl_enable(cfg_compl_enable), .cfg_threshold_enable(cfg_threshold_enable),

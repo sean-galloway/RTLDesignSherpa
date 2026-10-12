@@ -30,7 +30,7 @@
 
 ## Overview
 
-Sixteen modules mirroring the AXI4-Lite family one for one, with the AXI5-Lite optional signal groups threaded through. Same channel set, same handshakes, same single-beat semantics -- what AXI5-Lite adds is sideband.
+Sixteen modules mirroring the AXI4-Lite family one for one, with the AXI5-Lite transaction ID and optional signal groups threaded through. Same channel set, same handshakes, same single-beat semantics -- what AXI5-Lite adds is the ID and sideband (IHI 0022 Issue L, B2.1.5 and Table B2.2).
 
 If you came here looking for a full AXI5-Lite protocol stack, read the next section before you instantiate anything.
 
@@ -40,9 +40,9 @@ If you came here looking for a full AXI5-Lite protocol stack, read the next sect
 
 These modules **transport** AXI5-Lite signals. They do not execute AXI5-Lite semantics:
 
-- MPAM, MECID, NSAID, LOOP and TRACE are carried end to end unmodified. Nothing here interprets a partition ID or an encryption context.
+- The ID (AWID/BID, ARID/RID) is carried in both directions; reflecting AxID onto BID/RID is the Subordinate's job (A5.1.1), and responses to different IDs may be reordered by it (B2.1.5).
+- USER and TRACE are carried end to end unmodified.
 - POISON is carried. It is never generated and never checked.
-- LOCK is carried with no exclusive-access monitor behind it. A completer returning EXOKAY is not validated against anything.
 
 Those behaviours belong to the endpoints on either side. Read this before treating the family as a full AXI5-Lite protocol stack -- it is not one.
 
@@ -52,40 +52,44 @@ AXI4-Lite vs AXI5-Lite, as this library implements them:
 |---|---|---|
 | Channels | AW, W, B, AR, R | same |
 | Burst support | none | none |
-| Transaction ID | none | none |
+| Data width | 32 or 64 (IHI 0022H B1.1.2) | any AXI width, 8..1024 (L Table A3.19; Table B2.4 adds no Lite limit) |
+| Transaction ID | none | `AWID`/`BID`, `ARID`/`RID`, `ID_WIDTH` bits (L Table A5.2: 0..32). Optional on a Manager, mandatory on a Subordinate (Table B2.2, YS), so `ID_WIDTH` may be 0 on the `axil5_master_*` modules and must be >= 1 on the `axil5_slave_*` ones |
 | User sideband | not present | `AxUSER`/`WUSER`/`BUSER`/`RUSER`, gated by `ENABLE_USER` |
 | Trace | not present | `AxTRACE`/`BTRACE`/`RTRACE`, gated by `ENABLE_TRACE` |
-| Loopback ID | not present | `AxLOOP`/`BLOOP`/`RLOOP`, gated by `ENABLE_LOOP` |
-| MPAM / MECID / NSAID | not present | on the address channels, each independently gated |
-| Poison | not present | `WPOISON`/`RPOISON`, one bit per 64 data bits |
-| Exclusive access | not present | `AxLOCK`, gated by `ENABLE_LOCK` |
+| Poison | not present | `WPOISON`/`RPOISON`, one bit per 64 data bits, gated by `ENABLE_POISON` |
+| Exclusive access | not present | not present either (B2.1.5); no `AxLOCK` |
+| MPAM / MECID / NSAID / Loopback | not present | not present either (Table B2.2 "N") |
 
-**With every group disabled the two are the same interface.** The packed payload widths match channel for channel, which is what lets one testbench bind to either family.
+Both data width and `ID_WIDTH` are checked at elaboration by every module's `param_check` block; an illegal value stops the build.
+
+**With no ID and every group disabled the two are the same interface.** On the Manager-side modules (`ID_WIDTH = 0`, every `ENABLE_*` = 0) the packed payload widths match channel for channel, which is what lets one testbench bind to either family -- `val/amba/test_axil5_axil4_equivalence.py` pins it.
+
+AxLOCK, AxMPAM, AxMECID, AxNSAID and xLOOP were carried behind `ENABLE_*` parameters until issue #102; Table B2.2 marks them not present on AXI5-Lite, so they were removed, and the ID the table requires was added.
 
 ---
 
 ## Usage Example
 
-Two configurations of the same module -- every group off, and the security qualifiers on:
+Two configurations -- a Manager-side module configured down to AXI4-Lite, and a Subordinate-side module with its ID and sideband:
 
 ```systemverilog
-// AXI4-Lite-equivalent: every group off, payload widths identical to axil4
+// AXI4-Lite-equivalent Manager side: no ID, every group off --
+// payload widths identical to axil4_master_rd
 axil5_master_rd #(
     .AXIL_ADDR_WIDTH (32),
     .AXIL_DATA_WIDTH (32),
-    .ENABLE_USER (0), .ENABLE_TRACE (0), .ENABLE_LOOP  (0), .ENABLE_MPAM (0),
-    .ENABLE_MECID(0), .ENABLE_NSAID(0), .ENABLE_POISON(0), .ENABLE_LOCK (0)
+    .ID_WIDTH        (0),
+    .ENABLE_USER (0), .ENABLE_TRACE (0), .ENABLE_POISON (0)
 ) u_plain ( /* ... */ );
 
-// With the security qualifiers, which is what AXI5-Lite is usually for
-axil5_master_rd #(
+// Subordinate side with IDs (mandatory here) and the trace/user sideband
+axil5_slave_rd #(
     .AXIL_ADDR_WIDTH (32),
-    .AXIL_DATA_WIDTH (32),
-    .NSAID_WIDTH (4), .MPAM_WIDTH (11), .MECID_WIDTH (16),
-    .ENABLE_NSAID(1), .ENABLE_MPAM(1), .ENABLE_MECID(1),
-    .ENABLE_USER (0), .ENABLE_TRACE(0), .ENABLE_LOOP (0),
-    .ENABLE_POISON(0), .ENABLE_LOCK(0)
-) u_secure ( /* ... */ );
+    .AXIL_DATA_WIDTH (64),
+    .ID_WIDTH        (6),
+    .USER_WIDTH      (8),
+    .ENABLE_USER (1), .ENABLE_TRACE (1), .ENABLE_POISON (1)
+) u_sub ( /* ... */ );
 ```
 
 ---
@@ -94,8 +98,7 @@ axil5_master_rd #(
 
 Known limitations:
 
-- No protocol checking of the optional groups. The monitored variants observe handshakes, addresses, responses and timing; `axi_monitor_filtered` has no ports for MPAM, MECID, NSAID, TRACE, LOOP or POISON.
-- No exclusive-access monitor. `AxLOCK` is transported; nothing tracks exclusive state or validates EXOKAY.
+- No protocol checking of the ID or the optional groups. The monitored variants observe handshakes, addresses, responses and timing; their monitor ID inputs are tied to 0 (transactions tracked in issue order), and `axi_monitor_filtered` has no ports for USER, TRACE or POISON. A Subordinate that reorders responses across IDs is mis-attributed by the monitor.
 - No poison generation or checking.
 - Timing diagrams are not yet drawn for this family.
 
@@ -153,8 +156,8 @@ Also here: `test_axil5_opt_signals.py` drives `axil5_opt_slave`, a behavioural s
 
 ## References
 
-- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/l](https://developer.arm.com/documentation/ihi0022/l) -- §B2.1.5 "AXI5-Lite" and Table B2.2 signal matrix; carried groups per §A12.5 User defined signaling, §A12.3 Trace signals, §A12.4 User Loopback signaling, §A12.1 MPAM, §A4.6 Memory Encryption Contexts, §A10.1 NSAID, §A16.1 Poison; handshake on the AR/R and AW/W/B channels per §A2.3.1/§A2.3.2; register stages per §A2.5. Table B2.2 marks AxLOCK, AxMPAM, AxMECID, AxNSAID and AxLOOP not present on AXI5-Lite and AxID mandatory on a Subordinate: this module carries the former as `ENABLE_*` extensions and has no ID ports (in-order subset).
-- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h) -- Part C ch. C2 "AMBA AXI5-Lite", §C2.2 comparison with AXI4-Lite and §C2.5/§C2.6 upgrading an AXI4-Lite master/slave: the every-group-disabled build is the AXI4-Lite-equivalent port.
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/l](https://developer.arm.com/documentation/ihi0022/l) -- §B2.1.5 "AXI5-Lite" and Table B2.2 signal matrix; carried groups per §A12.5 User defined signaling, §A12.3 Trace signals, §A5.1.1 transaction ID signals, §A16.1 Poison; handshake on the AR/R and AW/W/B channels per §A2.3.1/§A2.3.2; register stages per §A2.5. Table B2.2 marks AxLOCK, AxMPAM, AxMECID, AxNSAID and xLOOP not present on AXI5-Lite and AxID/BID/RID mandatory on a Subordinate (YS): the family carries the ID (`ID_WIDTH`) and none of the not-present signals (issue #102). Data width per Table A3.19, ID width per Table A5.2.
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h) -- Part C ch. C2 "AMBA AXI5-Lite", §C2.2 comparison with AXI4-Lite and §C2.5/§C2.6 upgrading an AXI4-Lite master/slave: the `ID_WIDTH=0`, every-group-disabled Manager-side build is the AXI4-Lite-equivalent port.
 - Cortadella, J., Kishinevsky, M., Grundmann, B. "Synthesis of Synchronous Elastic Architectures." *Proc. 43rd Design Automation Conf. (DAC '06)*, pp. 657-662, 2006. DOI: [10.1145/1146909.1147077](https://doi.org/10.1145/1146909.1147077) -- the elastic buffer; its Property 3.1 (capacity C >= 2 for full throughput) is the depth-2 floor of each channel's `gaxi_skid_buffer`.
 - Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) -- relay stations: storage on a back-pressured channel adds latency without changing function.
 - Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Trans. VLSI Systems*, 8(3), June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) -- fixed-timeout shutdown: gate after `cfg_cg_idle_count` idle cycles, wake on any VALID.

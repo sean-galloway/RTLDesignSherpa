@@ -148,6 +148,7 @@ projects/components/fabric-gen-ip/apbx-xbar/
 │       ├── test_apbx_xbar_2to4.py
 │       ├── test_apbx_xbar_2to2_mixed.py
 │       ├── test_apbx_xbar_timing.py     published latency/cadence figures
+│       ├── test_apbx_xbar_parity.py     generates a parity-on all-APB5 2x2 (APB5 *CHK, PWAKEUP)
 │       └── GTKW/                Waveform configs
 ├── PRD.md                       Complete specification
 ├── CLAUDE.md                    This file
@@ -353,11 +354,15 @@ make run-apbx_xbar_2to4-gate-waves
 - **test_apbx_xbar_1to4**: 200+ transactions (address decode)
 - **test_apbx_xbar_2to4**: 350+ transactions (full stress)
 - **test_apbx_xbar_2to2_mixed**: 8 directed — all four APB4/APB5 pairings,
-  sideband gating, decode miss, structural pin check
+  sideband gating, decode miss, structural pin check; plus
+  `_pwakeup`: PWAKEUP forwarded requester -> completer (IHI 0024E 3.7.2)
+- **test_apbx_xbar_parity**: no shipped variant enables parity, so this
+  generates one into its sim_build and checks odd `*CHK` parity (IHI 0024E
+  ch. 5), error injection, and PWAKEUP forwarding
 - **test_apbx_xbar_timing**: both variant classes — asserts the published
   latency, cadence and per-path breakdown so the numbers cannot drift
 
-**All tests passing (9/9)** — and `2to2_mixed` additionally has a formal
+**All tests passing (22/22 at func, 2026-10-12)** — and `2to2_mixed` additionally has a formal
 harness at `formal/apbx_xbar/apbx_xbar_2to2_mixed/`.
 
 **See:** `PRD.md` Section 10

@@ -25,6 +25,13 @@ module formal_apb5_master_cg (
     localparam int WUW = 2;
     localparam int RUW = 2;
     localparam int BUW = 2;
+    // Parity check-signal widths (IHI 0024E Table 5-1)
+    localparam int ACW  = (AW + 7) / 8;
+    localparam int DCW  = DW / 8;
+    localparam int AUCW = (AUW + 7) / 8;
+    localparam int WUCW = (WUW + 7) / 8;
+    localparam int RUCW = (RUW + 7) / 8;
+    localparam int BUCW = (BUW + 7) / 8;
     localparam int ICW = 3;
 
     (* anyseq *) reg             cfg_cg_enable;
@@ -41,18 +48,20 @@ module formal_apb5_master_cg (
     (* anyseq *) reg [DW-1:0]    m_apb_PRDATA;
     (* anyseq *) reg             m_apb_PSLVERR;
     (* anyseq *) reg             m_apb_PREADY;
-    (* anyseq *) reg             m_apb_PWAKEUP;
+    wire             m_apb_PWAKEUP;        // Requester output (IHI 0024E 3.7.2)
     (* anyseq *) reg [RUW-1:0]   m_apb_PRUSER;
     (* anyseq *) reg [BUW-1:0]   m_apb_PBUSER;
-    (* anyseq *) reg [SW-1:0]    m_apb_PRDATAPARITY;
-    (* anyseq *) reg             m_apb_PREADYPARITY;
-    (* anyseq *) reg             m_apb_PSLVERRPARITY;
+    (* anyseq *) reg [DCW-1:0]    m_apb_PRDATACHK;
+    (* anyseq *) reg              m_apb_PREADYCHK;
+    (* anyseq *) reg              m_apb_PSLVERRCHK;
+    wire              m_apb_PWAKEUPCHK;
+    (* anyseq *) reg [RUCW-1:0]   m_apb_PRUSERCHK;
+    (* anyseq *) reg [BUCW-1:0]   m_apb_PBUSERCHK;
 
     wire             cmd_ready;
     wire             rsp_valid;
     wire [DW-1:0]    rsp_prdata;
     wire             rsp_pslverr;
-    wire             rsp_pwakeup;
     wire [RUW-1:0]   rsp_pruser;
     wire [BUW-1:0]   rsp_pbuser;
     wire             m_apb_PSEL, m_apb_PENABLE, m_apb_PWRITE;
@@ -62,9 +71,15 @@ module formal_apb5_master_cg (
     wire [PW-1:0]    m_apb_PPROT;
     wire [AUW-1:0]   m_apb_PAUSER;
     wire [WUW-1:0]   m_apb_PWUSER;
-    wire [SW-1:0]    m_apb_PWDATAPARITY;
-    wire             m_apb_PADDRPARITY, m_apb_PCTRLPARITY;
-    wire             parity_error_rdata, parity_error_ctrl, wakeup_pending;
+    wire [ACW-1:0]   m_apb_PADDRCHK;
+    wire             m_apb_PCTRLCHK;
+    wire             m_apb_PSELCHK;
+    wire             m_apb_PENABLECHK;
+    wire [DCW-1:0]   m_apb_PWDATACHK;
+    wire             m_apb_PSTRBCHK;
+    wire [AUCW-1:0]  m_apb_PAUSERCHK;
+    wire [WUCW-1:0]  m_apb_PWUSERCHK;
+    wire             parity_error_rdata, parity_error_ctrl;
     wire             cg_gating;
 
     apb5_master_cg #(
@@ -99,12 +114,20 @@ module formal_apb5_master_cg (
         .m_apb_PWAKEUP     (m_apb_PWAKEUP),
         .m_apb_PRUSER      (m_apb_PRUSER),
         .m_apb_PBUSER      (m_apb_PBUSER),
-        .m_apb_PWDATAPARITY (m_apb_PWDATAPARITY),
-        .m_apb_PADDRPARITY  (m_apb_PADDRPARITY),
-        .m_apb_PCTRLPARITY  (m_apb_PCTRLPARITY),
-        .m_apb_PRDATAPARITY (m_apb_PRDATAPARITY),
-        .m_apb_PREADYPARITY (m_apb_PREADYPARITY),
-        .m_apb_PSLVERRPARITY(m_apb_PSLVERRPARITY),
+        .m_apb_PADDRCHK      (m_apb_PADDRCHK),
+        .m_apb_PCTRLCHK      (m_apb_PCTRLCHK),
+        .m_apb_PSELCHK       (m_apb_PSELCHK),
+        .m_apb_PENABLECHK    (m_apb_PENABLECHK),
+        .m_apb_PWDATACHK     (m_apb_PWDATACHK),
+        .m_apb_PSTRBCHK      (m_apb_PSTRBCHK),
+        .m_apb_PAUSERCHK     (m_apb_PAUSERCHK),
+        .m_apb_PWUSERCHK     (m_apb_PWUSERCHK),
+        .m_apb_PRDATACHK     (m_apb_PRDATACHK),
+        .m_apb_PREADYCHK     (m_apb_PREADYCHK),
+        .m_apb_PSLVERRCHK    (m_apb_PSLVERRCHK),
+        .m_apb_PWAKEUPCHK    (m_apb_PWAKEUPCHK),
+        .m_apb_PRUSERCHK     (m_apb_PRUSERCHK),
+        .m_apb_PBUSERCHK     (m_apb_PBUSERCHK),
         .cmd_valid         (cmd_valid),
         .cmd_ready         (cmd_ready),
         .cmd_pwrite        (cmd_pwrite),
@@ -118,12 +141,10 @@ module formal_apb5_master_cg (
         .rsp_ready         (rsp_ready),
         .rsp_prdata        (rsp_prdata),
         .rsp_pslverr       (rsp_pslverr),
-        .rsp_pwakeup       (rsp_pwakeup),
         .rsp_pruser        (rsp_pruser),
         .rsp_pbuser        (rsp_pbuser),
         .parity_error_rdata(parity_error_rdata),
         .parity_error_ctrl (parity_error_ctrl),
-        .wakeup_pending    (wakeup_pending),
         .cg_gating  (cg_gating)
     );
 

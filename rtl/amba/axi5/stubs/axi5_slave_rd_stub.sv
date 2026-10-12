@@ -51,7 +51,7 @@ module axi5_slave_rd_stub
                              1 + 1 + AXI_TAGOP_WIDTH,
     // R channel: ID + DATA + RESP + LAST + USER + AXI5 signals
     parameter int RSize    = IW + DW + 2 + 1 + UW + 1 + 1 + 1 + AXI_CHUNKNUM_WIDTH +
-                             CHUNK_STRB_WIDTH + TW + 1
+                             CHUNK_STRB_WIDTH + 1 + TW
 )
 (
     // Global Clock and Reset
@@ -70,6 +70,7 @@ module axi5_slave_rd_stub
     input  logic [3:0]                 s_axi_arqos,
     input  logic [UW-1:0]              s_axi_aruser,
     input  logic                       s_axi_arvalid,
+    input  logic                       s_axi_awakeup,
     output logic                       s_axi_arready,
 
     // AXI5 AR signals
@@ -77,7 +78,7 @@ module axi5_slave_rd_stub
     input  logic                       s_axi_artrace,
     input  logic [AXI_MPAM_WIDTH-1:0]  s_axi_armpam,
     input  logic [AXI_MECID_WIDTH-1:0] s_axi_armecid,
-    input  logic                       s_axi_arunique,
+    input  logic                       s_axi_aridunq,
     input  logic                       s_axi_archunken,
     input  logic [AXI_TAGOP_WIDTH-1:0] s_axi_artagop,
 
@@ -92,16 +93,17 @@ module axi5_slave_rd_stub
 
     // AXI5 R signals
     output logic                       s_axi_rtrace,
+    output logic                       s_axi_ridunq,
     output logic                       s_axi_rpoison,
     output logic                       s_axi_rchunkv,
     output logic [AXI_CHUNKNUM_WIDTH-1:0] s_axi_rchunknum,
     output logic [CHUNK_STRB_WIDTH-1:0] s_axi_rchunkstrb,
     output logic [TW-1:0]              s_axi_rtag,
-    output logic                       s_axi_rtagmatch,
 
     // Stub Outputs/Inputs
     // AR interface
     output logic                       fub_axi_arvalid,
+    output logic                       fub_axi_awakeup,
     input  logic                       fub_axi_arready,
     output logic [ARSize-1:0]          fub_axi_ar_pkt,
 
@@ -122,7 +124,7 @@ module axi5_slave_rd_stub
         .wr_data                ({s_axi_arid, s_axi_araddr, s_axi_arlen, s_axi_arsize, s_axi_arburst,
                                   s_axi_arlock, s_axi_arcache, s_axi_arprot, s_axi_arqos, s_axi_aruser,
                                   s_axi_arnsaid, s_axi_artrace, s_axi_armpam, s_axi_armecid,
-                                  s_axi_arunique, s_axi_archunken, s_axi_artagop}),
+                                  s_axi_aridunq, s_axi_archunken, s_axi_artagop}),
         .rd_valid               (fub_axi_arvalid),
         .rd_ready               (fub_axi_arready),
         .rd_data                (fub_axi_ar_pkt),
@@ -144,11 +146,16 @@ module axi5_slave_rd_stub
         .rd_ready               (s_axi_rready),
         .rd_data                ({s_axi_rid, s_axi_rdata, s_axi_rresp, s_axi_rlast, s_axi_ruser,
                                   s_axi_rtrace, s_axi_rpoison, s_axi_rchunkv, s_axi_rchunknum,
-                                  s_axi_rchunkstrb, s_axi_rtag, s_axi_rtagmatch}),
+                                  s_axi_rchunkstrb, s_axi_ridunq, s_axi_rtag}),
         /* verilator lint_off PINCONNECTEMPTY */
         .count                  (),
         .rd_count               ()
         /* verilator lint_on PINCONNECTEMPTY */
     );
+
+    // AWAKEUP (IHI 0022L A14.1.1): the upstream wake request OR'ed with the
+    // skid buffers' registered valids, so it stays asserted while a request
+    // waits on its READY. One AWAKEUP covers both request channels.
+    assign fub_axi_awakeup = s_axi_awakeup || fub_axi_arvalid;
 
 endmodule : axi5_slave_rd_stub

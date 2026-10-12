@@ -23,11 +23,11 @@
 
 # axi4ace_master_wr
 
-An AXI4 + ACE write master module that buffers AW, W, and B channels while carrying the ACE `AWSNOOP[2:0]` transaction-type field and auto-pulsing the `WACK` acknowledge.
+An AXI4 + ACE write master module that buffers AW, W, and B channels while carrying the ACE `AWSNOOP[2:0]`, `AWDOMAIN[1:0]` and `AWBAR[1:0]` address fields and auto-pulsing the `WACK` acknowledge.
 
 ## Overview
 
-The `axi4ace_master_wr` module is the ACE extension of `axi4_master_wr`. It provides skid-buffer elasticity for the AW, W, and B channels, adds `AWSNOOP[2:0]` to the write address payload, and generates a one-cycle `WACK` pulse after the write response handshake. It is a transport module and does not interpret snoop encodings.
+The `axi4ace_master_wr` module is the ACE extension of `axi4_master_wr`. It provides skid-buffer elasticity for the AW, W, and B channels, adds `AWSNOOP[2:0]`, `AWDOMAIN[1:0]` and `AWBAR[1:0]` to the write address payload, and generates a one-cycle `WACK` pulse after the write response handshake. It is a transport module and does not interpret snoop encodings.
 
 ## Parameters
 
@@ -46,7 +46,7 @@ The `axi4ace_master_wr` module is the ACE extension of `axi4_master_wr`. It prov
 | IW | int | AXI_ID_WIDTH | Short alias for ID width |
 | SW | int | AXI_WSTRB_WIDTH | Short alias for strobe width |
 | UW | int | AXI_USER_WIDTH | Short alias for user width |
-| AWSize | int | IW+AW+8+3+2+1+4+3+4+4+UW+3 | Packed AW skid payload width |
+| AWSize | int | IW+AW+8+3+2+1+4+3+4+4+UW+3+2+2 | Packed AW skid payload width |
 | WSize | int | DW+SW+1+UW | Packed W skid payload width |
 | BSize | int | IW+2+UW | Packed B skid payload width |
 
@@ -59,20 +59,23 @@ module axi4ace_master_wr #(
     parameter int SKID_DEPTH_AW     = 2,
     parameter int SKID_DEPTH_W      = 4,
     parameter int SKID_DEPTH_B      = 2,
+
     parameter int AXI_ID_WIDTH      = 8,
     parameter int AXI_ADDR_WIDTH    = 32,
     parameter int AXI_DATA_WIDTH    = 32,
     parameter int AXI_USER_WIDTH    = 1,
     parameter int AXI_WSTRB_WIDTH   = AXI_DATA_WIDTH / 8,
+    // Short and calculated params
     parameter int AW       = AXI_ADDR_WIDTH,
     parameter int DW       = AXI_DATA_WIDTH,
     parameter int IW       = AXI_ID_WIDTH,
     parameter int SW       = AXI_WSTRB_WIDTH,
     parameter int UW       = AXI_USER_WIDTH,
-    parameter int AWSize   = IW+AW+8+3+2+1+4+3+4+4+UW+3,
+    parameter int AWSize   = IW+AW+8+3+2+1+4+3+4+4+UW+3+2+2,
     parameter int WSize    = DW+SW+1+UW,
     parameter int BSize    = IW+2+UW
-) (
+)
+(
     // Global Clock and Reset
     input  logic                       aclk,
     input  logic                       aresetn,
@@ -91,6 +94,8 @@ module axi4ace_master_wr #(
     input  logic [3:0]                 fub_axi_awregion,
     input  logic [UW-1:0]              fub_axi_awuser,
     input  logic [2:0]                 fub_axi_awsnoop,
+    input  logic [1:0]                 fub_axi_awdomain,
+    input  logic [1:0]                 fub_axi_awbar,
     input  logic                       fub_axi_awvalid,
     output logic                       fub_axi_awready,
 
@@ -123,6 +128,8 @@ module axi4ace_master_wr #(
     output logic [3:0]                 m_axi_awregion,
     output logic [UW-1:0]              m_axi_awuser,
     output logic [2:0]                 m_axi_awsnoop,
+    output logic [1:0]                 m_axi_awdomain,
+    output logic [1:0]                 m_axi_awbar,
     output logic                       m_axi_awvalid,
     input  logic                       m_axi_awready,
 
@@ -173,6 +180,8 @@ module axi4ace_master_wr #(
 | fub_axi_awregion | 4 | Input | Region identifier |
 | fub_axi_awuser | AXI_USER_WIDTH | Input | User-defined signals |
 | fub_axi_awsnoop | 3 | Input | ACE write transaction type |
+| fub_axi_awdomain | 2 | Input | ACE shareability domain (AWDOMAIN): 00 Non-shareable, 01 Inner, 10 Outer, 11 System |
+| fub_axi_awbar | 2 | Input | ACE barrier type (AWBAR): 00 normal, 01 memory barrier, 10 normal ignoring barriers, 11 synchronization barrier |
 | fub_axi_awvalid | 1 | Input | Write address valid |
 | fub_axi_awready | 1 | Output | Write address ready |
 
@@ -212,6 +221,8 @@ module axi4ace_master_wr #(
 | m_axi_awregion | 4 | Output | Region identifier |
 | m_axi_awuser | AXI_USER_WIDTH | Output | User-defined signals |
 | m_axi_awsnoop | 3 | Output | ACE write transaction type |
+| m_axi_awdomain | 2 | Output | ACE shareability domain (AWDOMAIN): 00 Non-shareable, 01 Inner, 10 Outer, 11 System |
+| m_axi_awbar | 2 | Output | ACE barrier type (AWBAR): 00 normal, 01 memory barrier, 10 normal ignoring barriers, 11 synchronization barrier |
 | m_axi_awvalid | 1 | Output | Write address valid |
 | m_axi_awready | 1 | Input | Write address ready |
 
@@ -276,7 +287,8 @@ assign busy = (int_aw_count > 0) || (int_w_count > 0) || (int_b_count > 0) ||
 
 ## ACE Notes
 
-- `AWSNOOP[2:0]` is a straight payload pass-through; the module does not decode the encoding
+- `AWSNOOP[2:0]`, `AWDOMAIN[1:0]` and `AWBAR[1:0]` are straight payload pass-throughs; the module does not decode them or check that the combination is one Table D3-8 permits
+- `AWUNIQUE` is not carried; it is needed only by a component that supports WriteEvict (IHI 0022H Table D2-2)
 - `WACK` is generated locally; do not drive `m_axi_wack` from outside
 - IDs (`AWID`/`BID`) are carried end-to-end; the module performs no ID matching
 - Write data beats are not reordered; they pass through the W skid buffer in order
@@ -290,7 +302,7 @@ assign busy = (int_aw_count > 0) || (int_w_count > 0) || (int_b_count > 0) ||
 
 ## References
 
-- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022H.c, Jan. 2021, Part D "AMBA ACE and ACE-Lite Protocol Specification". [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h/) -- §D2.1 "Changes to existing AXI channels" (`AWSNOOP`), §D3.4 write response channel signaling, §D3.5 "Write Acknowledge signaling" (`WACK`). The base valid/ready handshake is Part A §A3.2. Citation only.
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022H.c, Jan. 2021, Part D "AMBA ACE and ACE-Lite Protocol Specification". [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h/) -- §D2.1 "Changes to existing AXI channels" (`AWSNOOP`, `AWDOMAIN`, `AWBAR`), §D3.1 Tables D3-2, D3-5 and D3-8 (domain and barrier encodings and their permitted combinations), §D3.4 write response channel signaling, §D3.5 "Write Acknowledge signaling" (`WACK`). The optional `AWUNIQUE` (required only by a component that supports WriteEvict, Table D2-2) is not carried. The base valid/ready handshake is Part A §A3.2. Citation only.
 - Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) -- the valid/ready channel discipline behind the `gaxi_skid_buffer` queues: a buffered stage may stall or add latency without changing what the endpoints compute.
 - Maaref, M. *Architecting and Building High-Speed SoCs*, Packt, 2022, ch. 3 "Basic and Advanced On-Chip Busses and Interconnects", sections "ARM AMBA interconnect protocols suite" (ACE) and "Data sharing and coherency challenges" -- textbook treatment (secondary source).
 - Indexed in `rtl/amba/references/README.md` (local PDF: `LatencyInsensitiveDesign__Carloni2001.pdf`)

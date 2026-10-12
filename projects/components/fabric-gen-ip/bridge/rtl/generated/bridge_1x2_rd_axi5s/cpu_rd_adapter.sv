@@ -208,7 +208,7 @@ module cpu_rd_adapter
     assign cpu_rd_32b_ar.region = fub_axi_arregion;
     assign cpu_rd_32b_ar.user   = fub_axi_aruser;
     assign cpu_rd_32b_ar.trace = '0;  // AXI5 sideband (not on this master)
-    assign cpu_rd_32b_ar.uniq = '0;  // AXI5 sideband (not on this master)
+    assign cpu_rd_32b_ar.idunq = '0;  // AXI5 sideband (not on this master)
     assign cpu_rd_32b_arvalid   = fub_axi_arvalid && ar_path_active_32b;
     // arready routed via MUX
 

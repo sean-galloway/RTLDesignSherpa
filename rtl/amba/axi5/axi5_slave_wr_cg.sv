@@ -44,6 +44,7 @@ module axi5_slave_wr_cg
     parameter bit ENABLE_UNIQUE     = 1,
     parameter bit ENABLE_MTE        = 1,
     parameter bit ENABLE_POISON     = 1,
+    parameter bit ENABLE_WAKEUP     = 1,      // AWAKEUP (A14.1.1)
 
     // Short params
     parameter int AW       = AXI_ADDR_WIDTH,
@@ -79,6 +80,7 @@ module axi5_slave_wr_cg
     input  logic [3:0]                  s_axi_awqos,
     input  logic [UW-1:0]               s_axi_awuser,
     input  logic                        s_axi_awvalid,
+    input  logic                        s_axi_awakeup,      // AWAKEUP (A14.1.1)
     output logic                        s_axi_awready,
 
     // AXI5 AW signals
@@ -87,9 +89,8 @@ module axi5_slave_wr_cg
     input  logic                        s_axi_awtrace,
     input  logic [AXI_MPAM_WIDTH-1:0]   s_axi_awmpam,
     input  logic [AXI_MECID_WIDTH-1:0]  s_axi_awmecid,
-    input  logic                        s_axi_awunique,
+    input  logic                        s_axi_awidunq,
     input  logic [AXI_TAGOP_WIDTH-1:0]  s_axi_awtagop,
-    input  logic [TW-1:0]               s_axi_awtag,
 
     // Write data channel (W)
     input  logic [DW-1:0]               s_axi_wdata,
@@ -113,8 +114,8 @@ module axi5_slave_wr_cg
 
     // AXI5 B signals
     output logic                        s_axi_btrace,
-    output logic [TW-1:0]               s_axi_btag,
-    output logic                        s_axi_btagmatch,
+    output logic                        s_axi_bidunq,       // BIDUNQ (A5.2)
+    output logic [1:0]                  s_axi_btagmatch,
 
     // FUB Interface (Output Side)
     output logic [IW-1:0]              fub_axi_awid,
@@ -128,6 +129,7 @@ module axi5_slave_wr_cg
     output logic [3:0]                 fub_axi_awqos,
     output logic [UW-1:0]              fub_axi_awuser,
     output logic                       fub_axi_awvalid,
+    output logic                       fub_axi_awakeup,      // AWAKEUP (A14.1.1)
     input  logic                       fub_axi_awready,
 
     // AXI5 AW signals
@@ -136,9 +138,8 @@ module axi5_slave_wr_cg
     output logic                       fub_axi_awtrace,
     output logic [AXI_MPAM_WIDTH-1:0]  fub_axi_awmpam,
     output logic [AXI_MECID_WIDTH-1:0] fub_axi_awmecid,
-    output logic                       fub_axi_awunique,
+    output logic                       fub_axi_awidunq,
     output logic [AXI_TAGOP_WIDTH-1:0] fub_axi_awtagop,
-    output logic [TW-1:0]              fub_axi_awtag,
 
     // Write data channel (W)
     output logic [DW-1:0]              fub_axi_wdata,
@@ -162,8 +163,8 @@ module axi5_slave_wr_cg
 
     // AXI5 B signals
     input  logic                       fub_axi_btrace,
-    input  logic [TW-1:0]              fub_axi_btag,
-    input  logic                       fub_axi_btagmatch,
+    input  logic                       fub_axi_bidunq,       // BIDUNQ (A5.2)
+    input  logic [1:0]                 fub_axi_btagmatch,
 
     // Clock gating status
     output logic                       cg_gating,
@@ -186,7 +187,12 @@ module axi5_slave_wr_cg
     // Peer VALID, never peer READY, in the activity term (a consumer
     // parking ready high while idle would pin the block awake and defeat
     // gating entirely -- the mon_cg siblings' explicit rule; round_20 B/C).
-    assign user_valid = s_axi_awvalid || s_axi_wvalid || s_axi_bvalid || int_busy;
+    // AWAKEUP (IHI 0022L A14.1.1) is the manager's request to bring the
+    // interface up BEFORE its VALID: counting it as activity restarts the
+    // clock ahead of the request, so the first AxVALID after idle meets
+    // READY instead of waiting on the wake latency. It is a peer request,
+    // not a peer READY, so it cannot pin the block awake while idle.
+    assign user_valid = (ENABLE_WAKEUP && s_axi_awakeup) || s_axi_awvalid || s_axi_wvalid || s_axi_bvalid || int_busy;
     assign axi_valid = fub_axi_awvalid || fub_axi_wvalid || fub_axi_bvalid;
 
     assign s_axi_awready = cg_gating ? 1'b0 : int_awready;
@@ -229,7 +235,7 @@ module axi5_slave_wr_cg
         .ENABLE_MECID        (ENABLE_MECID),
         .ENABLE_UNIQUE       (ENABLE_UNIQUE),
         .ENABLE_MTE          (ENABLE_MTE),
-        .ENABLE_POISON       (ENABLE_POISON)
+        .ENABLE_POISON       (ENABLE_POISON), .ENABLE_WAKEUP(ENABLE_WAKEUP)
     ) i_axi5_slave_wr (
         .aclk                (gated_aclk),
         .aresetn             (aresetn),
@@ -244,16 +250,15 @@ module axi5_slave_wr_cg
         .s_axi_awprot        (s_axi_awprot),
         .s_axi_awqos         (s_axi_awqos),
         .s_axi_awuser        (s_axi_awuser),
-        .s_axi_awvalid       (s_axi_awvalid),
+        .s_axi_awvalid       (s_axi_awvalid), .s_axi_awakeup(s_axi_awakeup),
         .s_axi_awready       (int_awready),
         .s_axi_awatop        (s_axi_awatop),
         .s_axi_awnsaid       (s_axi_awnsaid),
         .s_axi_awtrace       (s_axi_awtrace),
         .s_axi_awmpam        (s_axi_awmpam),
         .s_axi_awmecid       (s_axi_awmecid),
-        .s_axi_awunique      (s_axi_awunique),
+        .s_axi_awidunq      (s_axi_awidunq),
         .s_axi_awtagop       (s_axi_awtagop),
-        .s_axi_awtag         (s_axi_awtag),
 
         .s_axi_wdata         (s_axi_wdata),
         .s_axi_wstrb         (s_axi_wstrb),
@@ -270,8 +275,7 @@ module axi5_slave_wr_cg
         .s_axi_buser         (s_axi_buser),
         .s_axi_bvalid        (s_axi_bvalid),
         .s_axi_bready        (s_axi_bready),
-        .s_axi_btrace        (s_axi_btrace),
-        .s_axi_btag          (s_axi_btag),
+        .s_axi_btrace        (s_axi_btrace), .s_axi_bidunq(s_axi_bidunq),
         .s_axi_btagmatch     (s_axi_btagmatch),
 
         .fub_axi_awid        (fub_axi_awid),
@@ -284,16 +288,15 @@ module axi5_slave_wr_cg
         .fub_axi_awprot      (fub_axi_awprot),
         .fub_axi_awqos       (fub_axi_awqos),
         .fub_axi_awuser      (fub_axi_awuser),
-        .fub_axi_awvalid     (fub_axi_awvalid),
+        .fub_axi_awvalid     (fub_axi_awvalid), .fub_axi_awakeup(fub_axi_awakeup),
         .fub_axi_awready     (fub_axi_awready),
         .fub_axi_awatop      (fub_axi_awatop),
         .fub_axi_awnsaid     (fub_axi_awnsaid),
         .fub_axi_awtrace     (fub_axi_awtrace),
         .fub_axi_awmpam      (fub_axi_awmpam),
         .fub_axi_awmecid     (fub_axi_awmecid),
-        .fub_axi_awunique    (fub_axi_awunique),
+        .fub_axi_awidunq    (fub_axi_awidunq),
         .fub_axi_awtagop     (fub_axi_awtagop),
-        .fub_axi_awtag       (fub_axi_awtag),
 
         .fub_axi_wdata       (fub_axi_wdata),
         .fub_axi_wstrb       (fub_axi_wstrb),
@@ -310,8 +313,7 @@ module axi5_slave_wr_cg
         .fub_axi_buser       (fub_axi_buser),
         .fub_axi_bvalid      (fub_axi_bvalid),
         .fub_axi_bready      (int_bready),
-        .fub_axi_btrace      (fub_axi_btrace),
-        .fub_axi_btag        (fub_axi_btag),
+        .fub_axi_btrace      (fub_axi_btrace), .fub_axi_bidunq(fub_axi_bidunq),
         .fub_axi_btagmatch   (fub_axi_btagmatch),
 
         .busy                (int_busy)

@@ -5,31 +5,53 @@ parameter int  DEST_WIDTH = 2,
 parameter int  ID_WIDTH = 1,
 parameter int  USER_WIDTH = 1,
 parameter int  STRB_WIDTH = 4,
-parameter int  PW_WIDTH = 4,
+parameter int  TDATACHK_W = DATA_WIDTH / 8,
+parameter int  TSTRBCHK_W = (STRB_WIDTH + 7)/ 8,
+parameter int  TIDCHK_W = (ID_WIDTH + 7)/ 8,
+parameter int  TDESTCHK_W = (DEST_WIDTH + 7)/ 8,
+parameter int  TUSERCHK_W = (USER_WIDTH + 7)/ 8,
 parameter int  NUM_MASTERS = 2,
 parameter int  NUM_SLAVES = 4 )(
     input  logic                  aclk,
     input  logic                  aresetn,
-    input  logic [DATA_WIDTH-1:0] s_axis_tdata   [NUM_MASTERS],
-    input  logic [STRB_WIDTH-1:0] s_axis_tstrb   [NUM_MASTERS],
-    input  logic                  s_axis_tvalid  [NUM_MASTERS],
-    output logic                  s_axis_tready  [NUM_MASTERS],
-    input  logic                  s_axis_tlast   [NUM_MASTERS],
-    input  logic [DEST_WIDTH-1:0] s_axis_tdest   [NUM_MASTERS],
-    input  logic [ID_WIDTH-1:0]   s_axis_tid     [NUM_MASTERS],
-    input  logic [USER_WIDTH-1:0] s_axis_tuser   [NUM_MASTERS],
-    input  logic                  s_axis_twakeup [NUM_MASTERS],
-    input  logic [PW_WIDTH-1:0]   s_axis_tparity [NUM_MASTERS],
-    output logic [DATA_WIDTH-1:0] m_axis_tdata   [NUM_SLAVES],
-    output logic [STRB_WIDTH-1:0] m_axis_tstrb   [NUM_SLAVES],
-    output logic                  m_axis_tvalid  [NUM_SLAVES],
-    input  logic                  m_axis_tready  [NUM_SLAVES],
-    output logic                  m_axis_tlast   [NUM_SLAVES],
-    output logic [DEST_WIDTH-1:0] m_axis_tdest   [NUM_SLAVES],
-    output logic [ID_WIDTH-1:0]   m_axis_tid     [NUM_SLAVES],
-    output logic [USER_WIDTH-1:0] m_axis_tuser   [NUM_SLAVES],
-    output logic                  m_axis_twakeup [NUM_SLAVES],
-    output logic [PW_WIDTH-1:0]   m_axis_tparity [NUM_SLAVES]
+    input  logic [DATA_WIDTH-1:0] s_axis_tdata      [NUM_MASTERS],
+    input  logic [STRB_WIDTH-1:0] s_axis_tstrb      [NUM_MASTERS],
+    input  logic                  s_axis_tvalid     [NUM_MASTERS],
+    output logic                  s_axis_tready     [NUM_MASTERS],
+    input  logic                  s_axis_tlast      [NUM_MASTERS],
+    input  logic [DEST_WIDTH-1:0] s_axis_tdest      [NUM_MASTERS],
+    input  logic [ID_WIDTH-1:0]   s_axis_tid        [NUM_MASTERS],
+    input  logic [USER_WIDTH-1:0] s_axis_tuser      [NUM_MASTERS],
+    input  logic                  s_axis_twakeup    [NUM_MASTERS],
+    input  logic [TDATACHK_W-1:0] s_axis_tdatachk   [NUM_MASTERS],
+    input  logic [TSTRBCHK_W-1:0] s_axis_tstrbchk   [NUM_MASTERS],
+    input  logic                  s_axis_tlastchk   [NUM_MASTERS],
+    input  logic [TIDCHK_W-1:0]   s_axis_tidchk     [NUM_MASTERS],
+    input  logic [TDESTCHK_W-1:0] s_axis_tdestchk   [NUM_MASTERS],
+    input  logic [TUSERCHK_W-1:0] s_axis_tuserchk   [NUM_MASTERS],
+    input  logic                  s_axis_tvalidchk  [NUM_MASTERS],
+    output logic                  s_axis_treadychk  [NUM_MASTERS],
+    input  logic                  s_axis_twakeupchk [NUM_MASTERS],
+    output logic                  s_parity_error    [NUM_MASTERS],
+    output logic [DATA_WIDTH-1:0] m_axis_tdata      [NUM_SLAVES],
+    output logic [STRB_WIDTH-1:0] m_axis_tstrb      [NUM_SLAVES],
+    output logic                  m_axis_tvalid     [NUM_SLAVES],
+    input  logic                  m_axis_tready     [NUM_SLAVES],
+    output logic                  m_axis_tlast      [NUM_SLAVES],
+    output logic [DEST_WIDTH-1:0] m_axis_tdest      [NUM_SLAVES],
+    output logic [ID_WIDTH-1:0]   m_axis_tid        [NUM_SLAVES],
+    output logic [USER_WIDTH-1:0] m_axis_tuser      [NUM_SLAVES],
+    output logic                  m_axis_twakeup    [NUM_SLAVES],
+    output logic [TDATACHK_W-1:0] m_axis_tdatachk   [NUM_SLAVES],
+    output logic [TSTRBCHK_W-1:0] m_axis_tstrbchk   [NUM_SLAVES],
+    output logic                  m_axis_tlastchk   [NUM_SLAVES],
+    output logic [TIDCHK_W-1:0]   m_axis_tidchk     [NUM_SLAVES],
+    output logic [TDESTCHK_W-1:0] m_axis_tdestchk   [NUM_SLAVES],
+    output logic [TUSERCHK_W-1:0] m_axis_tuserchk   [NUM_SLAVES],
+    output logic                  m_axis_tvalidchk  [NUM_SLAVES],
+    input  logic                  m_axis_treadychk  [NUM_SLAVES],
+    output logic                  m_axis_twakeupchk [NUM_SLAVES],
+    output logic                  m_parity_error    [NUM_SLAVES]
 );
 
 // ==============================================================================
@@ -54,7 +76,10 @@ parameter int  NUM_SLAVES = 4 )(
 //   - Per-slave round-robin arbitration
 //   - Packet atomicity (locked grant until TLAST)
 //   - Optional TSTRB byte qualifiers (STRB_WIDTH=4)
-//   - AMBA 5 sidebands (TWAKEUP steering + TPARITY, PW_WIDTH=4)
+//   - AMBA 5 TWAKEUP steering + interface check signals (IHI 0051B ch. 5,
+//     Odd_Parity_Byte_All): payload *CHK carried with the beat, checked on
+//     ingress; TVALIDCHK/TREADYCHK/TWAKEUPCHK generated or checked per port;
+//     sticky s_parity_error/m_parity_error per port
 //   - Registered outputs for timing closure
 //   - Full AXI-Stream compliance
 // 
@@ -155,7 +180,12 @@ generate
             m_axis_tid[s]    = '0;
             m_axis_tuser[s]  = '0;
             m_axis_tstrb[s]  = '0;
-            m_axis_tparity[s] = '0;
+            m_axis_tdatachk[s] = '1;
+            m_axis_tstrbchk[s] = '1;
+            m_axis_tlastchk[s] = 1'b1;
+            m_axis_tidchk[s] = '1;
+            m_axis_tdestchk[s] = '1;
+            m_axis_tuserchk[s] = '1;
 
             // Multiplex granted master to this slave
             for (int m = 0; m < NUM_MASTERS; m++) begin
@@ -167,7 +197,12 @@ generate
                     m_axis_tid[s]    = s_axis_tid[m];
                     m_axis_tuser[s]  = s_axis_tuser[m];
                     m_axis_tstrb[s]  = s_axis_tstrb[m];
-                    m_axis_tparity[s] = s_axis_tparity[m];
+                    m_axis_tdatachk[s] = s_axis_tdatachk[m];
+                    m_axis_tstrbchk[s] = s_axis_tstrbchk[m];
+                    m_axis_tlastchk[s] = s_axis_tlastchk[m];
+                    m_axis_tidchk[s] = s_axis_tidchk[m];
+                    m_axis_tdestchk[s] = s_axis_tdestchk[m];
+                    m_axis_tuserchk[s] = s_axis_tuserchk[m];
                 end
             end
         end
@@ -213,6 +248,168 @@ always_comb begin
         end
     end
 end
+
+// ==========================================================================
+// AMBA 5 Interface Check Signals (IHI 0051B ch. 5, Odd_Parity_Byte_All)
+// ==========================================================================
+// ODD parity: a check bit plus the bits it covers hold an odd number of
+// ones. Check bit [n] covers bits [8n+7:8n]; the top bit covers a short
+// remainder. Payload *CHK is checked on ingress (enabled by TVALID) and
+// carried through the mux; TVALIDCHK/TWAKEUPCHK/TREADYCHK are generated
+// by whichever side drives the signal and checked by the other.
+// ==========================================================================
+
+generate
+    for (genvar m = 0; m < NUM_MASTERS; m++) begin : gen_s_chk
+        logic [TDATACHK_W-1:0] w_tdatachk_exp, w_tdatachk_err;
+        logic [TSTRBCHK_W-1:0] w_tstrbchk_exp, w_tstrbchk_err;
+        logic w_tlastchk_exp, w_tlastchk_err;
+        logic [TIDCHK_W-1:0] w_tidchk_exp, w_tidchk_err;
+        logic [TDESTCHK_W-1:0] w_tdestchk_exp, w_tdestchk_err;
+        logic [TUSERCHK_W-1:0] w_tuserchk_exp, w_tuserchk_err;
+        logic w_tvalidchk_err, w_twakeupchk_err;
+        logic w_tvalidchk_exp, w_twakeupchk_exp, w_treadychk_err;
+        logic w_payload_err;
+
+        for (genvar g = 0; g < TDATACHK_W; g++) begin : g_tdatachk
+            localparam int LO = 8 * g;
+            localparam int PIECE_W = (DATA_WIDTH - LO < 8) ? (DATA_WIDTH - LO) : 8;
+            dataint_parity #(.CHUNKS(1), .WIDTH(PIECE_W)) u_par (
+                .data_in     (s_axis_tdata[m][LO +: PIECE_W]),
+                .parity_in   (s_axis_tdatachk[m][g]),
+                .parity_type (1'b0),
+                .parity      (w_tdatachk_exp[g]),
+                .parity_err  (w_tdatachk_err[g])
+            );
+        end
+        for (genvar g = 0; g < TSTRBCHK_W; g++) begin : g_tstrbchk
+            localparam int LO = 8 * g;
+            localparam int PIECE_W = (STRB_WIDTH - LO < 8) ? (STRB_WIDTH - LO) : 8;
+            dataint_parity #(.CHUNKS(1), .WIDTH(PIECE_W)) u_par (
+                .data_in     (s_axis_tstrb[m][LO +: PIECE_W]),
+                .parity_in   (s_axis_tstrbchk[m][g]),
+                .parity_type (1'b0),
+                .parity      (w_tstrbchk_exp[g]),
+                .parity_err  (w_tstrbchk_err[g])
+            );
+        end
+        dataint_parity #(.CHUNKS(1), .WIDTH(1)) u_tlastchk (
+            .data_in     (s_axis_tlast[m]),
+            .parity_in   (s_axis_tlastchk[m]),
+            .parity_type (1'b0),
+            .parity      (w_tlastchk_exp),
+            .parity_err  (w_tlastchk_err)
+        );
+        for (genvar g = 0; g < TIDCHK_W; g++) begin : g_tidchk
+            localparam int LO = 8 * g;
+            localparam int PIECE_W = (ID_WIDTH - LO < 8) ? (ID_WIDTH - LO) : 8;
+            dataint_parity #(.CHUNKS(1), .WIDTH(PIECE_W)) u_par (
+                .data_in     (s_axis_tid[m][LO +: PIECE_W]),
+                .parity_in   (s_axis_tidchk[m][g]),
+                .parity_type (1'b0),
+                .parity      (w_tidchk_exp[g]),
+                .parity_err  (w_tidchk_err[g])
+            );
+        end
+        for (genvar g = 0; g < TDESTCHK_W; g++) begin : g_tdestchk
+            localparam int LO = 8 * g;
+            localparam int PIECE_W = (DEST_WIDTH - LO < 8) ? (DEST_WIDTH - LO) : 8;
+            dataint_parity #(.CHUNKS(1), .WIDTH(PIECE_W)) u_par (
+                .data_in     (s_axis_tdest[m][LO +: PIECE_W]),
+                .parity_in   (s_axis_tdestchk[m][g]),
+                .parity_type (1'b0),
+                .parity      (w_tdestchk_exp[g]),
+                .parity_err  (w_tdestchk_err[g])
+            );
+        end
+        for (genvar g = 0; g < TUSERCHK_W; g++) begin : g_tuserchk
+            localparam int LO = 8 * g;
+            localparam int PIECE_W = (USER_WIDTH - LO < 8) ? (USER_WIDTH - LO) : 8;
+            dataint_parity #(.CHUNKS(1), .WIDTH(PIECE_W)) u_par (
+                .data_in     (s_axis_tuser[m][LO +: PIECE_W]),
+                .parity_in   (s_axis_tuserchk[m][g]),
+                .parity_type (1'b0),
+                .parity      (w_tuserchk_exp[g]),
+                .parity_err  (w_tuserchk_err[g])
+            );
+        end
+
+        dataint_parity #(.CHUNKS(1), .WIDTH(1)) u_tvalidchk (
+            .data_in     (s_axis_tvalid[m]),
+            .parity_in   (s_axis_tvalidchk[m]),
+            .parity_type (1'b0),
+            .parity      (w_tvalidchk_exp),
+            .parity_err  (w_tvalidchk_err)
+        );
+        dataint_parity #(.CHUNKS(1), .WIDTH(1)) u_twakeupchk (
+            .data_in     (s_axis_twakeup[m]),
+            .parity_in   (s_axis_twakeupchk[m]),
+            .parity_type (1'b0),
+            .parity      (w_twakeupchk_exp),
+            .parity_err  (w_twakeupchk_err)
+        );
+        dataint_parity #(.CHUNKS(1), .WIDTH(1)) u_treadychk (
+            .data_in     (s_axis_tready[m]),
+            .parity_in   (1'b0),
+            .parity_type (1'b0),
+            .parity      (s_axis_treadychk[m]),
+            .parity_err  (w_treadychk_err)
+        );
+
+        assign w_payload_err = s_axis_tvalid[m] && ((|w_tdatachk_err) || (|w_tstrbchk_err) || w_tlastchk_err || (|w_tidchk_err) || (|w_tdestchk_err) || (|w_tuserchk_err));
+
+        always_ff @(posedge aclk or negedge aresetn) begin
+            if (!aresetn)
+                s_parity_error[m] <= 1'b0;
+            else if (w_payload_err || w_tvalidchk_err || w_twakeupchk_err)
+                s_parity_error[m] <= 1'b1;
+        end
+
+        /* verilator lint_off UNUSEDSIGNAL */
+        logic unused_s_chk;
+        assign unused_s_chk = ^{w_tdatachk_exp, w_tstrbchk_exp, w_tlastchk_exp, w_tidchk_exp, w_tdestchk_exp, w_tuserchk_exp, w_tvalidchk_exp, w_twakeupchk_exp, w_treadychk_err};
+        /* verilator lint_on UNUSEDSIGNAL */
+    end
+
+    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_m_chk
+        logic w_treadychk_exp, w_treadychk_err;
+        logic w_tvalidchk_err, w_twakeupchk_err;
+
+        dataint_parity #(.CHUNKS(1), .WIDTH(1)) u_tvalidchk (
+            .data_in     (m_axis_tvalid[s]),
+            .parity_in   (1'b0),
+            .parity_type (1'b0),
+            .parity      (m_axis_tvalidchk[s]),
+            .parity_err  (w_tvalidchk_err)
+        );
+        dataint_parity #(.CHUNKS(1), .WIDTH(1)) u_twakeupchk (
+            .data_in     (m_axis_twakeup[s]),
+            .parity_in   (1'b0),
+            .parity_type (1'b0),
+            .parity      (m_axis_twakeupchk[s]),
+            .parity_err  (w_twakeupchk_err)
+        );
+        dataint_parity #(.CHUNKS(1), .WIDTH(1)) u_treadychk (
+            .data_in     (m_axis_tready[s]),
+            .parity_in   (m_axis_treadychk[s]),
+            .parity_type (1'b0),
+            .parity      (w_treadychk_exp),
+            .parity_err  (w_treadychk_err)
+        );
+
+        always_ff @(posedge aclk or negedge aresetn) begin
+            if (!aresetn)
+                m_parity_error[s] <= 1'b0;
+            else if (w_treadychk_err)
+                m_parity_error[s] <= 1'b1;
+        end
+
+        /* verilator lint_off UNUSEDSIGNAL */
+        logic unused_m_chk;
+        assign unused_m_chk = ^{w_treadychk_exp, w_tvalidchk_err, w_twakeupchk_err};
+        /* verilator lint_on UNUSEDSIGNAL */
+    end
+endgenerate
 
 // ==========================================================================
 // Performance Counters (Optional)

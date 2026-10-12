@@ -43,14 +43,13 @@ The AXI5 Master Write module is the master-side AW/W/B channel transport block. 
 - **AWTRACE:** Trace signal for debug and performance monitoring
 - **AWMPAM:** Memory Partitioning and Monitoring (PartID + PMG)
 - **AWMECID:** Memory Encryption Context ID for secure memory
-- **AWUNIQUE:** Unique ID indicator for cache operations
+- **AWIDUNQ / BIDUNQ:** Unique ID indicator on the request and its write response (IHI 0022L §A5.2)
 - **AWTAGOP:** Memory tag operation (MTE - Memory Tagging Extension)
-- **AWTAG:** Memory tags for address
 - **WPOISON:** Write data poison indicator for error injection
 - **WTAG:** Write data memory tags (MTE)
 - **WTAGUPDATE:** Tag update mask for selective tag writing
 - **BTRACE:** Response trace signal
-- **BTAG/BTAGMATCH:** Response memory tags and tag match
+- **BTAGMATCH[1:0]:** Tag match result, Table A12.14 (00 None, 01 Separate, 10 Fail, 11 Pass)
 - Configurable SKID buffer depths for AW, W, and B channels
 - Busy signal for power management and clock gating
 - AWREGION not implemented (see *Design Notes*)
@@ -80,9 +79,10 @@ The AXI5 Master Write module is the master-side AW/W/B channel transport block. 
 | ENABLE_TRACE | bit | 1 | Enable trace signals |
 | ENABLE_MPAM | bit | 1 | Enable memory partitioning |
 | ENABLE_MECID | bit | 1 | Enable memory encryption context |
-| ENABLE_UNIQUE | bit | 1 | Enable unique ID indicator |
+| ENABLE_UNIQUE | bit | 1 | Enable the unique ID indicator (AxIDUNQ, and BIDUNQ/RIDUNQ on the responses) |
 | ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
+| ENABLE_WAKEUP | bit | 1 | Enable AWAKEUP (IHI 0022L §A14.1.1); 0 ties the output low |
 
 ### Derived Parameters
 
@@ -92,7 +92,7 @@ These are computed inside the module from the parameters above. Do not override 
 |-----------|------------|-------------|
 | SW | AXI_WSTRB_WIDTH | Write strobe width, one bit per data byte |
 | NUM_TAGS | max(AXI_DATA_WIDTH / 128, 1) | MTE tags carried per beat (one tag per 16 bytes) |
-| TW | AXI_TAG_WIDTH * NUM_TAGS | Total width of the `awtag` / `wtag` / `btag` fields |
+| TW | AXI_TAG_WIDTH * NUM_TAGS | Total width of the `wtag` field |
 | AWSize | Sum of the enabled AW fields | AW SKID buffer payload width |
 | WSize | Sum of the enabled W fields | W SKID buffer payload width |
 | BSize | Sum of the enabled B fields | B SKID buffer payload width |
@@ -125,6 +125,7 @@ These are computed inside the module from the parameters above. Do not override 
 | fub_axi_awqos | 4 | Input | Quality of Service |
 | fub_axi_awuser | UW | Input | User-defined signal |
 | fub_axi_awvalid | 1 | Input | Write address valid |
+| fub_axi_awakeup | 1 | Input | Wake-up request, AWAKEUP (IHI 0022L §A14.1.1; `ENABLE_WAKEUP`) |
 | fub_axi_awready | 1 | Output | Write address ready |
 
 #### AXI5 AW Extensions
@@ -136,9 +137,8 @@ These are computed inside the module from the parameters above. Do not override 
 | fub_axi_awtrace | 1 | Input | Trace signal |
 | fub_axi_awmpam | AXI_MPAM_WIDTH | Input | Memory partitioning/monitoring |
 | fub_axi_awmecid | AXI_MECID_WIDTH | Input | Memory encryption context ID |
-| fub_axi_awunique | 1 | Input | Unique ID indicator |
+| fub_axi_awidunq | 1 | Input | Unique ID indicator, AWIDUNQ (IHI 0022L §A5.2; `ENABLE_UNIQUE`) |
 | fub_axi_awtagop | AXI_TAGOP_WIDTH | Input | Tag operation (MTE) |
-| fub_axi_awtag | TW | Input | Address memory tags |
 
 #### W Channel
 
@@ -174,8 +174,8 @@ These are computed inside the module from the parameters above. Do not override 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
 | fub_axi_btrace | 1 | Output | Response trace |
-| fub_axi_btag | TW | Output | Response tags |
-| fub_axi_btagmatch | 1 | Output | Tag match response |
+| fub_axi_bidunq | 1 | Output | Unique ID indicator on the write response, BIDUNQ (IHI 0022L §A5.2; `ENABLE_UNIQUE`) |
+| fub_axi_btagmatch | 2 | Output | Tag match result, IHI 0022L Table A12.14 (00 None, 01 Separate, 10 Fail, 11 Pass) |
 
 ### Master AXI5 Interface (Output Side)
 
@@ -211,9 +211,9 @@ flowchart LR
 
     subgraph PACK["Signal Packing"]
         direction TB
-        aw_pack["AW Packer<br/>ATOP/NSAID/TRACE<br/>MPAM/MECID<br/>UNIQUE/TAGOP"]
+        aw_pack["AW Packer<br/>ATOP/NSAID/TRACE<br/>MPAM/MECID<br/>IDUNQ/TAGOP"]
         w_pack["W Packer<br/>POISON/TAG<br/>TAGUPDATE"]
-        b_unpack["B Unpacker<br/>TRACE/TAG<br/>TAGMATCH"]
+        b_unpack["B Unpacker<br/>TRACE/IDUNQ<br/>TAGMATCH[1:0]"]
     end
 
     subgraph AXI["AXI5 Master"]
@@ -251,13 +251,13 @@ flowchart LR
 - **AWMPAM:** Supports memory bandwidth partitioning and QoS
 
 **Advanced Features:**
-- **AWUNIQUE:** Indicates unique cache line access (no sharing)
-- **AWTAGOP/AWTAG/WTAG:** Memory Tagging Extension for security
+- **AWIDUNQ / BIDUNQ:** Unique ID indicator on the request and its write response (IHI 0022L §A5.2)
+- **AWTAGOP/WTAG:** Memory Tagging Extension for security
 - **WTAGUPDATE:** Selective tag update mask
 
 **Data Integrity:**
 - **WPOISON:** Indicates corrupted or test data
-- **BTRACE/BTAG/BTAGMATCH:** Response with trace and tag information
+- **BTRACE / BIDUNQ / BTAGMATCH[1:0]:** Response trace, unique-ID indicator and the 2-bit tag match result
 
 **Not implemented:**
 - **AWREGION:** No port on this module. AxREGION is not deprecated by AXI5; it remains a valid optional signal and is simply omitted here. Decode or route by address instead, or use `axi4_master_wr`
@@ -324,7 +324,7 @@ Set `ENABLE_ATOMIC = 0` to drop `AWATOP` from the AW SKID payload when atomics a
 > - WPOISON, WTAG (AXI5 extensions)
 > - BID, BRESP
 > - BVALID, BREADY
-> - BTRACE, BTAG (AXI5 extensions)
+> - BTRACE, BIDUNQ, BTAGMATCH (AXI5 extensions)
 
 ### Atomic Operation
 
@@ -385,6 +385,7 @@ axi5_master_wr #(
     .fub_axi_awqos      (fub_awqos),
     .fub_axi_awuser     (fub_awuser),
     .fub_axi_awvalid    (fub_awvalid),
+    .fub_axi_awakeup    (fub_awakeup),
     .fub_axi_awready    (fub_awready),
 
     // AXI5 AW extensions
@@ -393,9 +394,8 @@ axi5_master_wr #(
     .fub_axi_awtrace    (fub_awtrace),
     .fub_axi_awmpam     (fub_awmpam),
     .fub_axi_awmecid    (fub_awmecid),
-    .fub_axi_awunique   (fub_awunique),
+    .fub_axi_awidunq   (fub_awidunq),
     .fub_axi_awtagop    (fub_awtagop),
-    .fub_axi_awtag      (fub_awtag),
 
     // W channel
     .fub_axi_wdata      (fub_wdata),
@@ -419,7 +419,7 @@ axi5_master_wr #(
 
     // AXI5 B extensions
     .fub_axi_btrace     (fub_btrace),
-    .fub_axi_btag       (fub_btag),
+    .fub_axi_bidunq     (fub_bidunq),
     .fub_axi_btagmatch  (fub_btagmatch),
 
     // Master interface (output side)
@@ -454,10 +454,9 @@ Common atomic operations:
 
 When `ENABLE_MTE=1`:
 - **AWTAGOP:** Specifies tag operation for address tags
-- **AWTAG:** Provides address-level memory tags
 - **WTAG:** Provides data-level memory tags (1 tag per 16 bytes)
 - **WTAGUPDATE:** Mask for selective tag updates
-- **BTAG/BTAGMATCH:** Response includes tag information
+- **BTAGMATCH[1:0]:** Tag match result, Table A12.14 (00 None, 01 Separate, 10 Fail, 11 Pass)
 
 ### Poison Support
 
@@ -474,7 +473,7 @@ Disable unused features to reduce area:
 .ENABLE_TRACE    (0),  // No trace capability
 .ENABLE_MPAM     (0),  // No memory partitioning
 .ENABLE_MECID    (0),  // No encryption
-.ENABLE_UNIQUE   (0),  // No unique access
+.ENABLE_UNIQUE   (0),  // No unique-ID indicator
 .ENABLE_MTE      (0),  // No memory tagging
 .ENABLE_POISON   (0)   // No poison indication
 ```
@@ -502,7 +501,7 @@ pytest val/amba/test_axi5_master_wr.py -v
 
 ## References
 
-- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) — §A2.3.1 "Valid-Ready signals", §A2.3.2 "Dependencies between channel handshake signals" and §A2.5 "Pipelining and register stages" (the transport this module buffers per channel), and the AXI5 signals it carries unchanged: §A6.4 "Atomic transactions" (AWATOP), §A16.1 "Data protection using Poison" (WPOISON), §A12.2 "Memory Tagging Extension (MTE)" (AWTAGOP, WTAG, WTAGUPDATE, BTAGMATCH), §A5.2 "Unique ID indicator", §A12.3 "Trace signals", §A10.1 "Non-secure Access Identifiers (NSAID)", §A12.1 "Memory System Resource Partitioning and Monitoring (MPAM)" and §A4.6 "Memory Encryption Contexts" (AWMECID). The specification defines BTAGMATCH as 2 bits and has no BTAG signal, and names the Unique ID indicator AWIDUNQ; see the Notes in the archive README for how this module's ports differ.
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) — §A2.3.1 "Valid-Ready signals", §A2.3.2 "Dependencies between channel handshake signals" and §A2.5 "Pipelining and register stages" (the transport this module buffers per channel), and the AXI5 signals it carries unchanged: §A6.4 "Atomic transactions" (AWATOP), §A16.1 "Data protection using Poison" (WPOISON), §A12.2 "Memory Tagging Extension (MTE)" (AWTAGOP, WTAG, WTAGUPDATE, BTAGMATCH), §A5.2 "Unique ID indicator", §A12.3 "Trace signals", §A10.1 "Non-secure Access Identifiers (NSAID)", §A12.1 "Memory System Resource Partitioning and Monitoring (MPAM)" and §A4.6 "Memory Encryption Contexts" (AWMECID). The ports follow the specification's names and widths (GitHub #102): BTAGMATCH is 2 bits with the Table A12.14 encodings, there is no BTAG or AWTAG, the Unique ID indicator is AWIDUNQ with BIDUNQ on the response, and AWAKEUP follows §A14.1.1 "AWAKEUP rules and recommendations".
 - Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, Mar. 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h/) — the same AMBA 5 features as first numbered: ch. C1 "AMBA AXI5", §E1.1 "Atomic transactions", §E1.15 "Memory tagging", §E2.1 "Poison", §E1.13 "Unique ID indicator". MECID is not in Issue H.
 - Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) — relay stations: a channel can be pipelined by any number of back-pressured stages without changing its behavior, which is why a skid buffer per channel is transparent to both ends.
 - Cortadella, J., Kishinevsky, M., Grundmann, B. "Synthesis of Synchronous Elastic Architectures." *Proc. 43rd Design Automation Conference (DAC '06)*, July 2006, pp. 657-662. DOI: [10.1145/1146909.1147077](https://doi.org/10.1145/1146909.1147077) — the elastic buffer with valid/stop back-pressure, the structure a skid buffer implements.

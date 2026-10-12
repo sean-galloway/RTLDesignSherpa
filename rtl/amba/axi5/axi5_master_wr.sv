@@ -13,15 +13,15 @@
 // - AWTRACE: Trace signal for debug
 // - AWMPAM: Memory Partitioning and Monitoring
 // - AWMECID: Memory Encryption Context ID
-// - AWUNIQUE: Unique ID indicator
+// - AWIDUNQ: Unique ID indicator (A5.2; AWUNIQUE is an unrelated ACE signal)
 // - AWTAGOP: Memory tag operation (MTE)
-// - AWTAG: Memory tags for address
 // - WPOISON: Write data poison indicator
 // - WTAG: Write data memory tags
 // - WTAGUPDATE: Tag update mask
 // - BTRACE: Response trace signal
-// - BTAG: Response memory tags
-// - BTAGMATCH: Tag match response
+// - BTAGMATCH[1:0]: Tag match result (IHI 0022L Table A12.14)
+// - BIDUNQ: Unique ID indicator on the response (A5.2)
+// - AWAKEUP: Wake-up request (A14.1.1), behind ENABLE_WAKEUP
 //
 // Removed from AXI4:
 // - AWREGION: Optional in AXI5 (NOT deprecated); simply omitted on this module -- decode or route by address
@@ -63,6 +63,7 @@ module axi5_master_wr
     parameter bit ENABLE_UNIQUE     = 1,
     parameter bit ENABLE_MTE        = 1,      // Memory Tagging Extension
     parameter bit ENABLE_POISON     = 1,
+    parameter bit ENABLE_WAKEUP     = 1,      // AWAKEUP (A14.1.1)
 
     // Short and calculated params
     parameter int AW       = AXI_ADDR_WIDTH,
@@ -77,7 +78,7 @@ module axi5_master_wr
 
     // AW channel packet size calculation
     // Base: ID + ADDR + LEN + SIZE + BURST + LOCK + CACHE + PROT + QOS + USER
-    // AXI5: + ATOP + NSAID + TRACE + MPAM + MECID + UNIQUE + TAGOP + TAG
+    // AXI5: + ATOP + NSAID + TRACE + MPAM + MECID + IDUNQ + TAGOP
     parameter int AWSize   = IW + AW + 8 + 3 + 2 + 1 + 4 + 3 + 4 + UW +
                              (ENABLE_ATOMIC ? AXI_ATOP_WIDTH : 0) +
                              (ENABLE_NSAID ? AXI_NSAID_WIDTH : 0) +
@@ -85,7 +86,7 @@ module axi5_master_wr
                              (ENABLE_MPAM ? AXI_MPAM_WIDTH : 0) +
                              (ENABLE_MECID ? AXI_MECID_WIDTH : 0) +
                              (ENABLE_UNIQUE ? 1 : 0) +
-                             (ENABLE_MTE ? (AXI_TAGOP_WIDTH + TW) : 0),
+                             (ENABLE_MTE ? AXI_TAGOP_WIDTH : 0),
 
     // W channel packet size calculation
     // Base: DATA + STRB + LAST + USER
@@ -96,10 +97,11 @@ module axi5_master_wr
 
     // B channel packet size calculation
     // Base: ID + RESP + USER
-    // AXI5: + TRACE + TAG + TAGMATCH
+    // AXI5: + TRACE + IDUNQ + TAGMATCH[1:0]
     parameter int BSize    = IW + 2 + UW +
                              (ENABLE_TRACE ? 1 : 0) +
-                             (ENABLE_MTE ? (TW + 1) : 0)
+                             (ENABLE_UNIQUE ? 1 : 0) +
+                             (ENABLE_MTE ? 2 : 0)
 )
 (
     // Global Clock and Reset
@@ -122,6 +124,7 @@ module axi5_master_wr
     input  logic [3:0]                 fub_axi_awqos,
     input  logic [UW-1:0]              fub_axi_awuser,
     input  logic                       fub_axi_awvalid,
+    input  logic                       fub_axi_awakeup,      // AWAKEUP (A14.1.1)
     output logic                       fub_axi_awready,
 
     // AXI5 AW channel signals
@@ -130,9 +133,8 @@ module axi5_master_wr
     input  logic                       fub_axi_awtrace,    // Trace signal
     input  logic [AXI_MPAM_WIDTH-1:0]  fub_axi_awmpam,     // Memory partitioning
     input  logic [AXI_MECID_WIDTH-1:0] fub_axi_awmecid,    // Memory encryption context
-    input  logic                       fub_axi_awunique,   // Unique ID indicator
+    input  logic                       fub_axi_awidunq,   // Unique ID indicator
     input  logic [AXI_TAGOP_WIDTH-1:0] fub_axi_awtagop,    // Tag operation (MTE)
-    input  logic [TW-1:0]              fub_axi_awtag,      // Address memory tags
 
     // Write data channel (W)
     input  logic [DW-1:0]              fub_axi_wdata,
@@ -156,8 +158,8 @@ module axi5_master_wr
 
     // AXI5 B channel signals
     output logic                       fub_axi_btrace,     // Response trace
-    output logic [TW-1:0]              fub_axi_btag,       // Response tags
-    output logic                       fub_axi_btagmatch,  // Tag match response
+    output logic                       fub_axi_bidunq,       // BIDUNQ (A5.2)
+    output logic [1:0]                 fub_axi_btagmatch,  // Tag match response
 
     // =========================================================================
     // Master AXI5 Interface (Output Side)
@@ -175,6 +177,7 @@ module axi5_master_wr
     output logic [3:0]                 m_axi_awqos,
     output logic [UW-1:0]              m_axi_awuser,
     output logic                       m_axi_awvalid,
+    output logic                       m_axi_awakeup,      // AWAKEUP (A14.1.1)
     input  logic                       m_axi_awready,
 
     // AXI5 AW channel signals
@@ -183,9 +186,8 @@ module axi5_master_wr
     output logic                       m_axi_awtrace,
     output logic [AXI_MPAM_WIDTH-1:0]  m_axi_awmpam,
     output logic [AXI_MECID_WIDTH-1:0] m_axi_awmecid,
-    output logic                       m_axi_awunique,
+    output logic                       m_axi_awidunq,
     output logic [AXI_TAGOP_WIDTH-1:0] m_axi_awtagop,
-    output logic [TW-1:0]              m_axi_awtag,
 
     // Write data channel (W)
     output logic [DW-1:0]              m_axi_wdata,
@@ -209,8 +211,8 @@ module axi5_master_wr
 
     // AXI5 B channel signals
     input  logic                       m_axi_btrace,
-    input  logic [TW-1:0]              m_axi_btag,
-    input  logic                       m_axi_btagmatch,
+    input  logic                       m_axi_bidunq,       // BIDUNQ (A5.2)
+    input  logic [1:0]                 m_axi_btagmatch,
 
     // Status outputs for clock gating
     output logic                       busy
@@ -250,6 +252,22 @@ module axi5_master_wr
 
     assign busy = (int_aw_count > 0) || (int_w_count > 0) || (int_b_count > 0) ||
                   fub_axi_awvalid || fub_axi_wvalid || m_axi_bvalid;
+
+    // =========================================================================
+    // AWAKEUP (IHI 0022L A14.1.1)
+    // =========================================================================
+    // The downstream side sees the upstream wake request OR'ed with every
+    // request this module has accepted but not yet handed on. That keeps
+    // AWAKEUP asserted while an AW (or a W beat) waits on its READY downstream, as
+    // A14.1.1 requires, even after the upstream has let its own AWAKEUP fall
+    // (the upstream handshake completed into the skid buffer). The skid
+    // rd_valid terms are flops, so this is a glitch-free OR of one input and
+    // registers -- the spec's condition for sampling AWAKEUP asynchronously.
+    // One AWAKEUP covers both request channels; where a read and a write
+    // half form one interface, OR the two halves' outputs.
+    // ENABLE_WAKEUP = 0: the signal is absent and the output ties low.
+
+    assign m_axi_awakeup = ENABLE_WAKEUP ? (fub_axi_awakeup || int_skid_awvalid || int_skid_wvalid) : 1'b0;
 
     // =========================================================================
     // AW Channel Packing
@@ -302,14 +320,12 @@ module axi5_master_wr
             idx += AXI_MECID_WIDTH;
         end
         if (ENABLE_UNIQUE) begin
-            w_aw_wr_data[idx +: 1] = fub_axi_awunique;
+            w_aw_wr_data[idx +: 1] = fub_axi_awidunq;
             idx += 1;
         end
         if (ENABLE_MTE) begin
             w_aw_wr_data[idx +: AXI_TAGOP_WIDTH] = fub_axi_awtagop;
             idx += AXI_TAGOP_WIDTH;
-            w_aw_wr_data[idx +: TW] = fub_axi_awtag;
-            idx += TW;
         end
     end
 
@@ -375,20 +391,17 @@ module axi5_master_wr
         end
 
         if (ENABLE_UNIQUE) begin
-            m_axi_awunique = w_aw_rd_data[idx +: 1];
+            m_axi_awidunq = w_aw_rd_data[idx +: 1];
             idx += 1;
         end else begin
-            m_axi_awunique = '0;
+            m_axi_awidunq = '0;
         end
 
         if (ENABLE_MTE) begin
             m_axi_awtagop = w_aw_rd_data[idx +: AXI_TAGOP_WIDTH];
             idx += AXI_TAGOP_WIDTH;
-            m_axi_awtag = w_aw_rd_data[idx +: TW];
-            idx += TW;
         end else begin
             m_axi_awtagop = '0;
-            m_axi_awtag = '0;
         end
     end
 
@@ -474,11 +487,13 @@ module axi5_master_wr
             w_b_wr_data[idx +: 1] = m_axi_btrace;
             idx += 1;
         end
-        if (ENABLE_MTE) begin
-            w_b_wr_data[idx +: TW] = m_axi_btag;
-            idx += TW;
-            w_b_wr_data[idx +: 1] = m_axi_btagmatch;
+        if (ENABLE_UNIQUE) begin
+            w_b_wr_data[idx +: 1] = m_axi_bidunq;
             idx += 1;
+        end
+        if (ENABLE_MTE) begin
+            w_b_wr_data[idx +: 2] = m_axi_btagmatch;
+            idx += 2;
         end
     end
 
@@ -501,13 +516,19 @@ module axi5_master_wr
             fub_axi_btrace = '0;
         end
 
-        if (ENABLE_MTE) begin
-            fub_axi_btag = w_b_rd_data[idx +: TW];
-            idx += TW;
-            fub_axi_btagmatch = w_b_rd_data[idx +: 1];
+        if (ENABLE_UNIQUE) begin
+            fub_axi_bidunq = w_b_rd_data[idx +: 1];
             idx += 1;
         end else begin
-            fub_axi_btag = '0;
+            fub_axi_bidunq = '0;
+        end
+
+        // BTAGMATCH[1:0], IHI 0022L Table A12.14: 00 None, 01 Separate,
+        // 10 Fail, 11 Pass. Carried through unchanged.
+        if (ENABLE_MTE) begin
+            fub_axi_btagmatch = w_b_rd_data[idx +: 2];
+            idx += 2;
+        end else begin
             fub_axi_btagmatch = '0;
         end
     end

@@ -316,7 +316,7 @@ class AXI5SlaveWriteTB(TBBase):
 
     async def single_write_test(self, addr, data, awid=None,
                                 atop=None, nsaid=None, trace=None, mpam=None,
-                                mecid=None, unique=None, tagop=None, tag=None,
+                                mecid=None, idunq=None, tagop=None, tag=None,
                                 poison=None):
         """
         Perform a single AXI5 write transaction with optional AXI5 features.
@@ -330,7 +330,7 @@ class AXI5SlaveWriteTB(TBBase):
             trace: Trace signal (AXI5)
             mpam: Memory Partitioning and Monitoring (AXI5)
             mecid: Memory Encryption Context ID (AXI5)
-            unique: Unique access (AXI5)
+            idunq: Unique ID indicator, AxIDUNQ (AXI5, IHI 0022L A5.2)
             tagop: Tag operation (AXI5 MTE)
             tag: Memory tag value (AXI5 MTE)
             poison: Poison indicator (AXI5)
@@ -395,12 +395,13 @@ class AXI5SlaveWriteTB(TBBase):
                 write_kwargs['mpam'] = mpam
             if mecid is not None:
                 write_kwargs['mecid'] = mecid
-            if unique is not None:
-                write_kwargs['unique'] = unique
+            if idunq is not None:
+                write_kwargs['idunq'] = idunq
             if tagop is not None:
                 write_kwargs['tagop'] = tagop
             if tag is not None:
-                write_kwargs['tag'] = tag
+                # Tags ride WTAG; AXI5 has no AWTAG (IHI 0022L Table A12.9).
+                write_kwargs['wtag'] = tag
             if poison is not None:
                 write_kwargs['poison'] = poison
 

@@ -1,12 +1,13 @@
 # Bridge Configuration: two LITE requesters into an AXI4 fabric (bridge TASK-004, was BRIDGE-014).
 #
-# Masters are an AXI4-Lite port and an AXI5-Lite port -- neither carries a
-# transaction ID, so the fabric ID is entirely the master index (bridge TASK-005, was BRIDGE-016)
-# and the slaves see 2-bit IDs from a bridge whose masters have none. The
-# AXI5-Lite master enables the two forwardable groups: 'user' rides the
-# fabric's 1-bit USER fields and 'exclusive' rides awlock/arlock, both to the
-# AXI5-Lite slave (which forwards them on its own two features). Everything else
-# in its sideband is exposed and terminated at the bridge top.
+# Masters are an AXI4-Lite port and an AXI5-Lite port. The AXI4-Lite one has
+# no transaction ID; the AXI5-Lite one carries a 1-bit AWID/ARID (required on
+# an AXI5-Lite Subordinate, IHI 0022L B2.1.5, GitHub #102 item 3), so the
+# fabric ID is {master index, 1-bit id} (bridge TASK-005, was BRIDGE-016) and
+# the slaves see 2-bit IDs. The AXI5-Lite master enables the one forwardable
+# group, 'user', which rides the fabric's 1-bit USER fields to the AXI5-Lite
+# slave. ('exclusive' went with AxLOCK: AXI5-Lite has no exclusive access.)
+# TRACE and POISON are exposed and terminated at the bridge top.
 #
 # The 64-bit AXI4 slave makes both Lite masters take the wide-slave aligner
 # (a narrow single-beat write must land in the right byte lanes of the wide
@@ -31,13 +32,13 @@ protocol = "axil"
 [[bridge.masters]]
 name = "lite5"
 prefix = "lite5_axil_"
-id_width = 0
+id_width = 1  # AXI5-Lite AWID/ARID (B2.1.5)
 addr_width = 32
 data_width = 32
 user_width = 1
 channels = "rw"
 protocol = "axil5"
-axi5_features = ["user", "exclusive"]
+axi5_features = ["user"]
 
 [[bridge.slaves]]
 name = "mem"
@@ -60,6 +61,6 @@ data_width = 32
 user_width = 1
 channels = "rw"
 protocol = "axil5"
-axi5_features = ["user", "exclusive"]  # forwards the master's user AND lock; a group the slave does not enable is gated to 0 at its shim
+axi5_features = ["user"]  # forwards the master's user; a group the slave does not enable is gated to 0 at its shim
 base_addr = "0x40000000"
 addr_range = "0x00010000"

@@ -158,9 +158,9 @@ def test_axi4ace_slave_rd_monlite(
             raise FileNotFoundError(f"RTL source not found: {src}")
 
     ar_size = (
-        id_width + addr_width + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + user_width + 4
+        id_width + addr_width + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + user_width + 4 + 2 + 2  # + arsnoop, ardomain, arbar
     )
-    r_size = id_width + data_width + 2 + 1 + user_width
+    r_size = id_width + data_width + 4 + 1 + user_width  # ACE RRESP is 4 bits
     wstrb_width = data_width // 8
 
     rtl_parameters = {

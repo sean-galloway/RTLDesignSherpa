@@ -10,8 +10,9 @@
 // APB5 Extensions:
 // - PAUSER: User-defined request attributes
 // - PWUSER: User-defined write data attributes
-// - PWAKEUP: Wake-up signal handling (input from slave)
-// - Optional parity support for data integrity
+// - PWAKEUP: Requester wake-up OUTPUT (IHI 0024E 3.7.2), driven by apb5_master
+// - Optional interface parity protection (IHI 0024E ch. 5: *CHK signals,
+//   odd parity, one check bit per 8 payload bits)
 // - Clock gating for power reduction during idle
 //
 // Documentation: docs/markdown/rtl-amba/index.md
@@ -48,7 +49,14 @@ module apb5_master_cg #(
     parameter int BUW = BUSER_WIDTH,
     parameter int ICW = CG_IDLE_COUNT_WIDTH,
     parameter int CPW = AW + DW + SW + PW + AUW + WUW + 1,
-    parameter int RPW = DW + RUW + BUW + 2
+    parameter int RPW = DW + RUW + BUW + 2,
+    // Parity check-signal widths (IHI 0024E Table 5-1): one bit per 8 bits
+    parameter int ACW  = (AW + 7) / 8,                     // PADDRCHK
+    parameter int DCW  = DW / 8,                           // PWDATACHK / PRDATACHK
+    parameter int AUCW = (AUW + 7) / 8,                    // PAUSERCHK
+    parameter int WUCW = (WUW + 7) / 8,                    // PWUSERCHK
+    parameter int RUCW = (RUW + 7) / 8,                    // PRUSERCHK
+    parameter int BUCW = (BUW + 7) / 8                     // PBUSERCHK
 ) (
     // Clock and Reset
     input  logic              pclk,
@@ -71,17 +79,26 @@ module apb5_master_cg #(
     input  logic [DW-1:0]     m_apb_PRDATA,
     input  logic              m_apb_PSLVERR,
     input  logic              m_apb_PREADY,
-    input  logic              m_apb_PWAKEUP,
+    output logic              m_apb_PWAKEUP,
     input  logic [RUW-1:0]    m_apb_PRUSER,
     input  logic [BUW-1:0]    m_apb_PBUSER,
 
-    // Optional parity signals (active when ENABLE_PARITY=1)
-    output logic [SW-1:0]     m_apb_PWDATAPARITY,
-    output logic              m_apb_PADDRPARITY,
-    output logic              m_apb_PCTRLPARITY,
-    input  logic [SW-1:0]     m_apb_PRDATAPARITY,
-    input  logic              m_apb_PREADYPARITY,
-    input  logic              m_apb_PSLVERRPARITY,
+    // Interface parity check signals, IHI 0024E ch. 5 (ENABLE_PARITY=1).
+    // Odd parity; passed straight through to the wrapped core.
+    output logic [ACW-1:0]     m_apb_PADDRCHK,
+    output logic               m_apb_PCTRLCHK,       // PPROT, PWRITE
+    output logic               m_apb_PSELCHK,        // PSELxCHK
+    output logic               m_apb_PENABLECHK,
+    output logic [DCW-1:0]     m_apb_PWDATACHK,
+    output logic               m_apb_PSTRBCHK,
+    output logic [AUCW-1:0]    m_apb_PAUSERCHK,
+    output logic [WUCW-1:0]    m_apb_PWUSERCHK,
+    input  logic [DCW-1:0]     m_apb_PRDATACHK,
+    input  logic               m_apb_PREADYCHK,
+    input  logic               m_apb_PSLVERRCHK,
+    output logic               m_apb_PWAKEUPCHK,
+    input  logic [RUCW-1:0]    m_apb_PRUSERCHK,
+    input  logic [BUCW-1:0]    m_apb_PBUSERCHK,
 
     // Command Packet interface
     input  logic              cmd_valid,
@@ -99,16 +116,12 @@ module apb5_master_cg #(
     input  logic              rsp_ready,
     output logic [DW-1:0]     rsp_prdata,
     output logic              rsp_pslverr,
-    output logic              rsp_pwakeup,
     output logic [RUW-1:0]    rsp_pruser,
     output logic [BUW-1:0]    rsp_pbuser,
 
     // Parity error flags (active when ENABLE_PARITY=1)
     output logic              parity_error_rdata,
     output logic              parity_error_ctrl,
-
-    // Wake-up status
-    output logic              wakeup_pending,
 
     // Clock gating indicator
     output logic              cg_gating,
@@ -124,9 +137,11 @@ module apb5_master_cg #(
         if (`RST_ASSERTED(presetn))
             r_wakeup <= 1'b1;
         else
-            // Wake up when there's a command, a response pending,
-            // when the master is in the middle of a transaction,
-            // or when the slave requests wakeup
+            // Wake on a command at the fub port, a response pending,
+            // a transaction in flight, or this master's own PWAKEUP (a
+            // command still queued in the command skid). All are pending
+            // work on this side -- never the peer's PREADY
+            // ([[clock-gating-activity-terms]]).
             r_wakeup <= cmd_valid || rsp_valid || m_apb_PSEL || m_apb_PENABLE || m_apb_PWAKEUP;
     )
 
@@ -181,12 +196,20 @@ module apb5_master_cg #(
         .m_apb_PRUSER      (m_apb_PRUSER),
         .m_apb_PBUSER      (m_apb_PBUSER),
         // Parity signals
-        .m_apb_PWDATAPARITY  (m_apb_PWDATAPARITY),
-        .m_apb_PADDRPARITY   (m_apb_PADDRPARITY),
-        .m_apb_PCTRLPARITY   (m_apb_PCTRLPARITY),
-        .m_apb_PRDATAPARITY  (m_apb_PRDATAPARITY),
-        .m_apb_PREADYPARITY  (m_apb_PREADYPARITY),
-        .m_apb_PSLVERRPARITY (m_apb_PSLVERRPARITY),
+        .m_apb_PADDRCHK      (m_apb_PADDRCHK),
+        .m_apb_PCTRLCHK      (m_apb_PCTRLCHK),
+        .m_apb_PSELCHK       (m_apb_PSELCHK),
+        .m_apb_PENABLECHK    (m_apb_PENABLECHK),
+        .m_apb_PWDATACHK     (m_apb_PWDATACHK),
+        .m_apb_PSTRBCHK      (m_apb_PSTRBCHK),
+        .m_apb_PAUSERCHK     (m_apb_PAUSERCHK),
+        .m_apb_PWUSERCHK     (m_apb_PWUSERCHK),
+        .m_apb_PRDATACHK     (m_apb_PRDATACHK),
+        .m_apb_PREADYCHK     (m_apb_PREADYCHK),
+        .m_apb_PSLVERRCHK    (m_apb_PSLVERRCHK),
+        .m_apb_PWAKEUPCHK    (m_apb_PWAKEUPCHK),
+        .m_apb_PRUSERCHK     (m_apb_PRUSERCHK),
+        .m_apb_PBUSERCHK     (m_apb_PBUSERCHK),
         // Command interface
         .cmd_valid         (cmd_valid),
         .cmd_ready         (cmd_ready),
@@ -202,14 +225,11 @@ module apb5_master_cg #(
         .rsp_ready         (rsp_ready),
         .rsp_prdata        (rsp_prdata),
         .rsp_pslverr       (rsp_pslverr),
-        .rsp_pwakeup       (rsp_pwakeup),
         .rsp_pruser        (rsp_pruser),
         .rsp_pbuser        (rsp_pbuser),
         // Parity error flags
         .parity_error_rdata(parity_error_rdata),
-        .parity_error_ctrl (parity_error_ctrl),
-        // Wake-up status
-        .wakeup_pending    (wakeup_pending)
+        .parity_error_ctrl (parity_error_ctrl)
     );
 
 endmodule : apb5_master_cg

@@ -76,6 +76,7 @@ module axi5_master_wr_monlite
     parameter bit ENABLE_UNIQUE     = 1,
     parameter bit ENABLE_MTE        = 1,      // Memory Tagging Extension
     parameter bit ENABLE_POISON     = 1,
+    parameter bit ENABLE_WAKEUP     = 1,      // AWAKEUP (A14.1.1)
 
     // Short and calculated params
     parameter int AW       = AXI_ADDR_WIDTH,
@@ -90,7 +91,7 @@ module axi5_master_wr_monlite
 
     // AW channel packet size calculation
     // Base: ID + ADDR + LEN + SIZE + BURST + LOCK + CACHE + PROT + QOS + USER
-    // AXI5: + ATOP + NSAID + TRACE + MPAM + MECID + UNIQUE + TAGOP + TAG
+    // AXI5: + ATOP + NSAID + TRACE + MPAM + MECID + IDUNQ + TAGOP
     parameter int AWSize   = IW + AW + 8 + 3 + 2 + 1 + 4 + 3 + 4 + UW +
                              (ENABLE_ATOMIC ? AXI_ATOP_WIDTH : 0) +
                              (ENABLE_NSAID ? AXI_NSAID_WIDTH : 0) +
@@ -98,7 +99,7 @@ module axi5_master_wr_monlite
                              (ENABLE_MPAM ? AXI_MPAM_WIDTH : 0) +
                              (ENABLE_MECID ? AXI_MECID_WIDTH : 0) +
                              (ENABLE_UNIQUE ? 1 : 0) +
-                             (ENABLE_MTE ? (AXI_TAGOP_WIDTH + TW) : 0),
+                             (ENABLE_MTE ? AXI_TAGOP_WIDTH : 0),
 
     // W channel packet size calculation
     // Base: DATA + STRB + LAST + USER
@@ -109,10 +110,11 @@ module axi5_master_wr_monlite
 
     // B channel packet size calculation
     // Base: ID + RESP + USER
-    // AXI5: + TRACE + TAG + TAGMATCH
+    // AXI5: + TRACE + IDUNQ + TAGMATCH[1:0]
     parameter int BSize    = IW + 2 + UW +
                              (ENABLE_TRACE ? 1 : 0) +
-                             (ENABLE_MTE ? (TW + 1) : 0)
+                             (ENABLE_UNIQUE ? 1 : 0) +
+                             (ENABLE_MTE ? 2 : 0)
 ) (
 
     // Global Clock and Reset
@@ -135,6 +137,7 @@ module axi5_master_wr_monlite
     input  logic [3:0]                 fub_axi_awqos,
     input  logic [UW-1:0]              fub_axi_awuser,
     input  logic                       fub_axi_awvalid,
+    input  logic                       fub_axi_awakeup,      // AWAKEUP (A14.1.1)
     output logic                       fub_axi_awready,
 
     // AXI5 AW channel signals
@@ -143,9 +146,8 @@ module axi5_master_wr_monlite
     input  logic                       fub_axi_awtrace,    // Trace signal
     input  logic [AXI_MPAM_WIDTH-1:0]  fub_axi_awmpam,     // Memory partitioning
     input  logic [AXI_MECID_WIDTH-1:0] fub_axi_awmecid,    // Memory encryption context
-    input  logic                       fub_axi_awunique,   // Unique ID indicator
+    input  logic                       fub_axi_awidunq,   // Unique ID indicator
     input  logic [AXI_TAGOP_WIDTH-1:0] fub_axi_awtagop,    // Tag operation (MTE)
-    input  logic [TW-1:0]              fub_axi_awtag,      // Address memory tags
 
     // Write data channel (W)
     input  logic [DW-1:0]              fub_axi_wdata,
@@ -169,8 +171,8 @@ module axi5_master_wr_monlite
 
     // AXI5 B channel signals
     output logic                       fub_axi_btrace,     // Response trace
-    output logic [TW-1:0]              fub_axi_btag,       // Response tags
-    output logic                       fub_axi_btagmatch,  // Tag match response
+    output logic                       fub_axi_bidunq,       // BIDUNQ (A5.2)
+    output logic [1:0]                 fub_axi_btagmatch,  // Tag match response
 
     // =========================================================================
     // Master AXI5 Interface (Output Side)
@@ -188,6 +190,7 @@ module axi5_master_wr_monlite
     output logic [3:0]                 m_axi_awqos,
     output logic [UW-1:0]              m_axi_awuser,
     output logic                       m_axi_awvalid,
+    output logic                       m_axi_awakeup,      // AWAKEUP (A14.1.1)
     input  logic                       m_axi_awready,
 
     // AXI5 AW channel signals
@@ -196,9 +199,8 @@ module axi5_master_wr_monlite
     output logic                       m_axi_awtrace,
     output logic [AXI_MPAM_WIDTH-1:0]  m_axi_awmpam,
     output logic [AXI_MECID_WIDTH-1:0] m_axi_awmecid,
-    output logic                       m_axi_awunique,
+    output logic                       m_axi_awidunq,
     output logic [AXI_TAGOP_WIDTH-1:0] m_axi_awtagop,
-    output logic [TW-1:0]              m_axi_awtag,
 
     // Write data channel (W)
     output logic [DW-1:0]              m_axi_wdata,
@@ -222,8 +224,8 @@ module axi5_master_wr_monlite
 
     // AXI5 B channel signals
     input  logic                       m_axi_btrace,
-    input  logic [TW-1:0]              m_axi_btag,
-    input  logic                       m_axi_btagmatch,
+    input  logic                       m_axi_bidunq,       // BIDUNQ (A5.2)
+    input  logic [1:0]                 m_axi_btagmatch,
 
     // Status outputs for clock gating
     output logic                       busy,
@@ -284,7 +286,7 @@ module axi5_master_wr_monlite
         .ENABLE_MECID                (ENABLE_MECID),
         .ENABLE_UNIQUE               (ENABLE_UNIQUE),
         .ENABLE_MTE                  (ENABLE_MTE),
-        .ENABLE_POISON               (ENABLE_POISON),
+        .ENABLE_POISON               (ENABLE_POISON), .ENABLE_WAKEUP(ENABLE_WAKEUP),
         .AW                          (AW),
         .DW                          (DW),
         .IW                          (IW),
@@ -308,16 +310,15 @@ module axi5_master_wr_monlite
         .fub_axi_awprot              (fub_axi_awprot),
         .fub_axi_awqos               (fub_axi_awqos),
         .fub_axi_awuser              (fub_axi_awuser),
-        .fub_axi_awvalid             (fub_axi_awvalid),
+        .fub_axi_awvalid             (fub_axi_awvalid), .fub_axi_awakeup(fub_axi_awakeup),
         .fub_axi_awready             (fub_axi_awready),
         .fub_axi_awatop              (fub_axi_awatop),
         .fub_axi_awnsaid             (fub_axi_awnsaid),
         .fub_axi_awtrace             (fub_axi_awtrace),
         .fub_axi_awmpam              (fub_axi_awmpam),
         .fub_axi_awmecid             (fub_axi_awmecid),
-        .fub_axi_awunique            (fub_axi_awunique),
+        .fub_axi_awidunq            (fub_axi_awidunq),
         .fub_axi_awtagop             (fub_axi_awtagop),
-        .fub_axi_awtag               (fub_axi_awtag),
         .fub_axi_wdata               (fub_axi_wdata),
         .fub_axi_wstrb               (fub_axi_wstrb),
         .fub_axi_wlast               (fub_axi_wlast),
@@ -332,8 +333,7 @@ module axi5_master_wr_monlite
         .fub_axi_buser               (fub_axi_buser),
         .fub_axi_bvalid              (fub_axi_bvalid),
         .fub_axi_bready              (fub_axi_bready),
-        .fub_axi_btrace              (fub_axi_btrace),
-        .fub_axi_btag                (fub_axi_btag),
+        .fub_axi_btrace              (fub_axi_btrace), .fub_axi_bidunq(fub_axi_bidunq),
         .fub_axi_btagmatch           (fub_axi_btagmatch),
         .m_axi_awid                  (m_axi_awid),
         .m_axi_awaddr                (m_axi_awaddr),
@@ -345,16 +345,15 @@ module axi5_master_wr_monlite
         .m_axi_awprot                (m_axi_awprot),
         .m_axi_awqos                 (m_axi_awqos),
         .m_axi_awuser                (m_axi_awuser),
-        .m_axi_awvalid               (m_axi_awvalid),
+        .m_axi_awvalid               (m_axi_awvalid), .m_axi_awakeup(m_axi_awakeup),
         .m_axi_awready               (m_axi_awready),
         .m_axi_awatop                (m_axi_awatop),
         .m_axi_awnsaid               (m_axi_awnsaid),
         .m_axi_awtrace               (m_axi_awtrace),
         .m_axi_awmpam                (m_axi_awmpam),
         .m_axi_awmecid               (m_axi_awmecid),
-        .m_axi_awunique              (m_axi_awunique),
+        .m_axi_awidunq              (m_axi_awidunq),
         .m_axi_awtagop               (m_axi_awtagop),
-        .m_axi_awtag                 (m_axi_awtag),
         .m_axi_wdata                 (m_axi_wdata),
         .m_axi_wstrb                 (m_axi_wstrb),
         .m_axi_wlast                 (m_axi_wlast),
@@ -369,8 +368,7 @@ module axi5_master_wr_monlite
         .m_axi_buser                 (m_axi_buser),
         .m_axi_bvalid                (m_axi_bvalid),
         .m_axi_bready                (m_axi_bready),
-        .m_axi_btrace                (m_axi_btrace),
-        .m_axi_btag                  (m_axi_btag),
+        .m_axi_btrace                (m_axi_btrace), .m_axi_bidunq(m_axi_bidunq),
         .m_axi_btagmatch             (m_axi_btagmatch),
         .busy                        (busy)
     );

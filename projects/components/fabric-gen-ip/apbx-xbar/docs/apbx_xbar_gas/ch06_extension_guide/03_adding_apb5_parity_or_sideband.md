@@ -35,10 +35,10 @@ The generator hard-codes 1-bit user signals (`AUSER_WIDTH=1`, `WUSER_WIDTH=1`, e
 
 ## Changing parity behavior
 
-The parity signals themselves are generated inside the boundary modules. The crossbar only routes them. To change parity width or algorithm:
+The check signals are the AMBA APB (IHI 0024E) chapter 5 `*CHK` set. They use odd parity, with one bit per 8 bits of the covered signal. The boundary modules check them on entry and generate them on exit, and the crossbar only routes them. The one exception is a completer port's `PWAKEUPCHK`, which the crossbar computes as `~PWAKEUP` over its own wake OR (see *Mixed APB4/APB5 and Parity*). To change parity width or algorithm:
 
 1. Modify `apb5_slave` and `apb5_master` to support the new scheme.
 2. Update the crossbar generator's parity vector widths and tie-offs accordingly.
-3. Add a new test that injects parity errors and checks the `parity_error_*` outputs.
+3. Extend `dv/tests/test_apbx_xbar_parity.py`, which generates a parity-enabled variant, checks every check output for odd parity, and injects check-bit errors against the `parity_error_*` outputs.
 
 Remember that parity is checked and regenerated at each boundary. It never crosses the cmd/rsp fabric.

@@ -54,5 +54,5 @@ end
 ## Integration Notes
 
 - `TWAKEUP` is only emitted when `--amba5` is specified.
-- The default parity width is `DATA_WIDTH / 8`; override with `--parity-width`.
+- `--amba5` also emits `TWAKEUPCHK`. The crossbar generates `m_axis_twakeupchk[s]` from this OR and checks `s_axis_twakeupchk[m]`. See Interface Check Signals (AMBA5).
 - `TWAKEUP` does not affect arbitration timing.

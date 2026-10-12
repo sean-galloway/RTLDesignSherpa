@@ -16,9 +16,11 @@
 #     the W beats carry the issuing master's tags (cpu tags 0..7, dma tags
 #     8..15, so a swap is visible); the slave's tag store holds the exact
 #     tag per 16-byte granule afterwards -- the tags crossed the fabric;
-#   - Transfer reads: RTAG per beat equals the stored tag, RTAGMATCH set;
-#   - Match writes: matching tags return BTAGMATCH=1, one wrong tag returns
-#     0 -- the result crossed back through the B mux to the right master;
+#   - Transfer reads: RTAG per beat equals the stored tag (there is no
+#     RTAGMATCH in IHI 0022L A12.2 -- GitHub #102 item 5);
+#   - Match writes: matching tags return BTAGMATCH=0b11 (Pass), one wrong
+#     tag returns 0b10 (Fail) -- the 2-bit result (Table A12.14) crossed back
+#     through the B mux to the right master;
 #   - Update writes: WTAGUPDATE low leaves the store alone, high changes it;
 #   - Chunked reads: with ARCHUNKEN every R beat has RCHUNKV set and
 #     RCHUNKNUM naming the beat; without it RCHUNKV is low; data is right
@@ -84,7 +86,7 @@ class DdrPortSampler:
         while True:
             await RisingEdge(self.clock)
             if int(d.ddr_axi_awvalid.value) and int(d.ddr_axi_awready.value):
-                self.aw.append((int(d.ddr_axi_awtagop.value), int(d.ddr_axi_awtag.value)))
+                self.aw.append((int(d.ddr_axi_awtagop.value), None))   # no AWTAG (A12.2)
             if int(d.ddr_axi_wvalid.value) and int(d.ddr_axi_wready.value):
                 self.w.append((int(d.ddr_axi_wtag.value), int(d.ddr_axi_wtagupdate.value)))
             if int(d.ddr_axi_arvalid.value) and int(d.ddr_axi_arready.value):
@@ -130,7 +132,7 @@ async def cocotb_test_bridge_2x2_axi5_native_mte_chunk(dut):
     async def _tw(m, i):
         r = await tb.master_wr[m].write_transaction(
             _region(m, i), data[(m, i)], size=SIZE, id=(m << 3) | (i % 8),
-            tagop=TAGOP_TRANSFER, tag=0, wtag=_tags(m, i), tagupdate=1)
+            tagop=TAGOP_TRANSFER, wtag=_tags(m, i), tagupdate=1)
         results[(m, i)] = r
 
     await _run_all(tb, [_tw(m, i) for m in (CPU, DMA) for i in range(n)], 2 * n, "transfer writes")
@@ -165,7 +167,6 @@ async def cocotb_test_bridge_2x2_axi5_native_mte_chunk(dut):
         assert [b['data'] for b in beats] == data[(m, i)], f"read data mismatch for {(m, i)}"
         assert [b['tag'] for b in beats] == _tags(m, i), (
             f"master {m} burst {i}: RTAG {[b['tag'] for b in beats]} != written {_tags(m, i)}")
-        assert all(b['tagmatch'] == 1 for b in beats), f"RTAGMATCH not set on a Transfer read {(m, i)}"
     tb.log.info(f"phase 2: {2 * n} Transfer reads returned every tag")
 
     # ---- phase 3: Match writes -- right tags pass, one wrong tag fails
@@ -177,13 +178,13 @@ async def cocotb_test_bridge_2x2_axi5_native_mte_chunk(dut):
             tags[1] ^= 0x4
         r = await tb.master_wr[m].write_transaction(
             _region(m, i), data[(m, i)], size=SIZE, id=(m << 3) | (i % 8),
-            tagop=TAGOP_MATCH, tag=0, wtag=tags, tagupdate=0)
+            tagop=TAGOP_MATCH, wtag=tags, tagupdate=0)
         match[(m, i)] = (wrong, r)
 
     await _run_all(tb, [_tm(m, i, wrong=(i % 2 == 1)) for m in (CPU, DMA) for i in range(n)], 2 * n, "match writes")
     for (m, i), (wrong, r) in match.items():
         assert r.get('success'), f"match write {(m, i)} failed: {r}"
-        assert r.get('tagmatch') == (0 if wrong else 1), (
+        assert r.get('tagmatch') == (0b10 if wrong else 0b11), (
             f"master {m} burst {i}: BTAGMATCH={r.get('tagmatch')} for a {'mismatching' if wrong else 'matching'} Match")
     tb.log.info(f"phase 3: {2 * n} Match writes, BTAGMATCH right for every one")
 
@@ -193,7 +194,7 @@ async def cocotb_test_bridge_2x2_axi5_native_mte_chunk(dut):
     async def _tu(m, i, update):
         r = await tb.master_wr[m].write_transaction(
             _region(m, i), data[(m, i)], size=SIZE, id=(m << 3) | (i % 8),
-            tagop=TAGOP_UPDATE, tag=0, wtag=[(t ^ 0x3) for t in _tags(m, i)], tagupdate=update)
+            tagop=TAGOP_UPDATE, wtag=[(t ^ 0x3) for t in _tags(m, i)], tagupdate=update)
         upd[(m, i)] = r
 
     await _run_all(tb, [_tu(m, i, update=(1 if i % 2 == 0 else 0)) for m in (CPU, DMA) for i in range(n)], 2 * n, "update writes")

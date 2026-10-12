@@ -144,7 +144,7 @@ Tree depth: log2(N) stages
 
 **REQ-GEN-002:** Generator shall support flat crossbar topology (tree topology retired 2026-10-12 — see QUICK_START.md)
 **REQ-GEN-003:** Generator shall support optional TSTRB byte qualifiers (`--strb-width N`; default 0 = base signal set) so generated crossbars port-match `rtl/amba/axis4/*` (added 2026-10-12).
-**REQ-GEN-004:** Generator shall support optional AMBA 5 sidebands (`--amba5`): TWAKEUP steering — TDEST-decoded OR per slave, valid before TVALID — and TPARITY (`--parity-width`, default DATA_WIDTH/8), matching `rtl/amba/axis5/*` (added 2026-10-12). Both options default off; default output is byte-identical to pre-2026-10-12 generations.
+**REQ-GEN-004:** Generator shall support optional AMBA 5 sidebands (`--amba5`): TWAKEUP steering — TDEST-decoded OR per slave, valid before TVALID — and the AXI5-Stream interface check signals of IHI 0051B ch. 5 (TDATACHK, TSTRBCHK, TLASTCHK, TIDCHK, TDESTCHK, TUSERCHK, TVALIDCHK, TREADYCHK, TWAKEUPCHK; odd parity, spec widths). Payload checks are carried and checked on ingress, control checks are generated or checked per port, and each port has a sticky `*_parity_error`. This matches `rtl/amba/axis5/*` (added 2026-10-12; TPARITY/`--parity-width` replaced by the spec check signals for issue #102). Both options default off; default output is byte-identical to pre-2026-10-12 generations.
 - **Flat:** Single crossbar module
 - **Tree:** Hierarchical node composition
 - **Both:** ~~Generate both variants with `--topology both`~~ (retired 2026-10-12; flat only)

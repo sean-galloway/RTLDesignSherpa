@@ -48,11 +48,11 @@ module axi5_master_wr_stub
     // AW channel: ID + ADDR + LEN + SIZE + BURST + LOCK + CACHE + PROT + QOS + USER + AXI5 signals
     parameter int AWSize   = IW + AW + 8 + 3 + 2 + 1 + 4 + 3 + 4 + UW +
                              AXI_ATOP_WIDTH + AXI_NSAID_WIDTH + 1 + AXI_MPAM_WIDTH +
-                             AXI_MECID_WIDTH + 1 + AXI_TAGOP_WIDTH + TW,
+                             AXI_MECID_WIDTH + 1 + AXI_TAGOP_WIDTH,
     // W channel: DATA + STRB + LAST + USER + AXI5 signals
     parameter int WSize    = DW + SW + 1 + UW + 1 + TW + NUM_TAGS,
     // B channel: ID + RESP + USER + AXI5 signals
-    parameter int BSize    = IW + 2 + UW + 1 + TW + 1
+    parameter int BSize    = IW + 2 + UW + 1 + 1 + 2
 )
 (
     // Global Clock and Reset
@@ -71,6 +71,7 @@ module axi5_master_wr_stub
     output logic [3:0]                 m_axi_awqos,
     output logic [UW-1:0]              m_axi_awuser,
     output logic                       m_axi_awvalid,
+    output logic                       m_axi_awakeup,
     input  logic                       m_axi_awready,
 
     // AXI5 AW signals
@@ -79,9 +80,8 @@ module axi5_master_wr_stub
     output logic                       m_axi_awtrace,
     output logic [AXI_MPAM_WIDTH-1:0]  m_axi_awmpam,
     output logic [AXI_MECID_WIDTH-1:0] m_axi_awmecid,
-    output logic                       m_axi_awunique,
+    output logic                       m_axi_awidunq,
     output logic [AXI_TAGOP_WIDTH-1:0] m_axi_awtagop,
-    output logic [TW-1:0]              m_axi_awtag,
 
     // Write data channel (W)
     output logic [DW-1:0]              m_axi_wdata,
@@ -105,12 +105,13 @@ module axi5_master_wr_stub
 
     // AXI5 B signals
     input  logic                       m_axi_btrace,
-    input  logic [TW-1:0]              m_axi_btag,
-    input  logic                       m_axi_btagmatch,
+    input  logic                       m_axi_bidunq,
+    input  logic [1:0]                 m_axi_btagmatch,
 
     // Stub Outputs/Inputs
     // AW interface
     input  logic                       fub_axi_awvalid,
+    input  logic                       fub_axi_awakeup,
     output logic                       fub_axi_awready,
     output logic [3:0]                 fub_axi_aw_count,
     input  logic [AWSize-1:0]          fub_axi_aw_pkt,
@@ -139,7 +140,7 @@ module axi5_master_wr_stub
         .rd_data                ({m_axi_awid, m_axi_awaddr, m_axi_awlen, m_axi_awsize, m_axi_awburst,
                                   m_axi_awlock, m_axi_awcache, m_axi_awprot, m_axi_awqos, m_axi_awuser,
                                   m_axi_awatop, m_axi_awnsaid, m_axi_awtrace, m_axi_awmpam,
-                                  m_axi_awmecid, m_axi_awunique, m_axi_awtagop, m_axi_awtag}),
+                                  m_axi_awmecid, m_axi_awidunq, m_axi_awtagop}),
         /* verilator lint_off PINCONNECTEMPTY */
         .count                  (),
         .rd_count               ()
@@ -172,7 +173,7 @@ module axi5_master_wr_stub
         .wr_valid               (m_axi_bvalid),
         .wr_ready               (m_axi_bready),
         .wr_data                ({m_axi_bid, m_axi_bresp, m_axi_buser,
-                                  m_axi_btrace, m_axi_btag, m_axi_btagmatch}),
+                                  m_axi_btrace, m_axi_bidunq, m_axi_btagmatch}),
         .rd_valid               (fub_axi_bvalid),
         .rd_ready               (fub_axi_bready),
         .rd_data                (fub_axi_b_pkt),
@@ -181,5 +182,10 @@ module axi5_master_wr_stub
         .rd_count               ()
         /* verilator lint_on PINCONNECTEMPTY */
     );
+
+    // AWAKEUP (IHI 0022L A14.1.1): the upstream wake request OR'ed with the
+    // skid buffers' registered valids, so it stays asserted while a request
+    // waits on its READY. One AWAKEUP covers both request channels.
+    assign m_axi_awakeup = fub_axi_awakeup || m_axi_awvalid || m_axi_wvalid;
 
 endmodule : axi5_master_wr_stub

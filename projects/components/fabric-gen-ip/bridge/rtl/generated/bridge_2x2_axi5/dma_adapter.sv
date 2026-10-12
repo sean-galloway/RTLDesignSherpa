@@ -38,7 +38,7 @@ module dma_adapter
     output  logic         dma_axi_awready,
     input  logic [3:0]  dma_axi_awnsaid,
     input  logic         dma_axi_awtrace,
-    input  logic         dma_axi_awunique,
+    input  logic         dma_axi_awidunq,
 
     input  logic [31:0]  dma_axi_wdata,
     input  logic [3:0]  dma_axi_wstrb,
@@ -53,6 +53,7 @@ module dma_adapter
     output  logic         dma_axi_bvalid,
     input  logic         dma_axi_bready,
     output  logic         dma_axi_btrace,
+    output  logic         dma_axi_bidunq,
 
     input  logic [3:0]  dma_axi_arid,
     input  logic [31:0]  dma_axi_araddr,
@@ -68,7 +69,7 @@ module dma_adapter
     output  logic         dma_axi_arready,
     input  logic [3:0]  dma_axi_arnsaid,
     input  logic         dma_axi_artrace,
-    input  logic         dma_axi_arunique,
+    input  logic         dma_axi_aridunq,
 
     output  logic [3:0]  dma_axi_rid,
     output  logic [31:0]  dma_axi_rdata,
@@ -78,6 +79,7 @@ module dma_adapter
     output  logic         dma_axi_rvalid,
     input  logic         dma_axi_rready,
     output  logic         dma_axi_rtrace,
+    output  logic         dma_axi_ridunq,
 
     // Address decode outputs (full width one-hot)
     output logic [NUM_SLAVES-1:0] slave_select_aw,
@@ -169,12 +171,16 @@ module dma_adapter
     // AXI5 native sideband (A5-2 slice 2)
     logic [3:0]  fub_axi_awnsaid;  // AXI5 sideband (nsaid)
     logic         fub_axi_awtrace;  // AXI5 sideband (trace)
-    logic         fub_axi_awunique;  // AXI5 sideband (unique)
+    logic         fub_axi_awidunq;  // AXI5 sideband (unique)
     logic         fub_axi_btrace;  // AXI5 sideband (trace)
     logic [3:0]  fub_axi_arnsaid;  // AXI5 sideband (nsaid)
     logic         fub_axi_artrace;  // AXI5 sideband (trace)
-    logic         fub_axi_arunique;  // AXI5 sideband (unique)
+    logic         fub_axi_aridunq;  // AXI5 sideband (unique)
     logic         fub_axi_rtrace;  // AXI5 sideband (trace)
+
+    // AXI5 boundary-generated signals (GitHub #102 item 5)
+    logic         fub_axi_bidunq;  // regenerated (A5.2)
+    logic         fub_axi_ridunq;  // regenerated (A5.2)
 
     // Master-unique fabric IDs: {BRIDGE_ID, id} (bridge TASK-005, was BRIDGE-016). Responses
     // return with the prefix; the response muxes select the low bits.
@@ -201,7 +207,8 @@ module dma_adapter
         .ENABLE_MECID(1'b0),
         .ENABLE_UNIQUE(1'b1),
         .ENABLE_MTE(1'b0),
-        .ENABLE_POISON(1'b0)
+        .ENABLE_POISON(1'b0),
+        .ENABLE_WAKEUP(1'b0)
     ) u_timing_wrapper_wr (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -224,9 +231,9 @@ module dma_adapter
         .s_axi_awtrace(dma_axi_awtrace),
         .s_axi_awmpam('0),
         .s_axi_awmecid('0),
-        .s_axi_awunique(dma_axi_awunique),
+        .s_axi_awidunq(dma_axi_awidunq),
         .s_axi_awtagop('0),
-        .s_axi_awtag('0),
+        .s_axi_awakeup('0),
         .s_axi_wdata(dma_axi_wdata),
         .s_axi_wstrb(dma_axi_wstrb),
         .s_axi_wlast(dma_axi_wlast),
@@ -242,7 +249,7 @@ module dma_adapter
         .s_axi_bvalid(dma_axi_bvalid),
         .s_axi_bready(dma_axi_bready),
         .s_axi_btrace(dma_axi_btrace),
-        .s_axi_btag(),
+        .s_axi_bidunq(dma_axi_bidunq),
         .s_axi_btagmatch(),
 
         // Bridge-internal side (fub_axi)
@@ -263,9 +270,9 @@ module dma_adapter
         .fub_axi_awtrace(fub_axi_awtrace),
         .fub_axi_awmpam(),
         .fub_axi_awmecid(),
-        .fub_axi_awunique(fub_axi_awunique),
+        .fub_axi_awidunq(fub_axi_awidunq),
         .fub_axi_awtagop(),
-        .fub_axi_awtag(),
+        .fub_axi_awakeup(),
         .fub_axi_wdata(fub_axi_wdata),
         .fub_axi_wstrb(fub_axi_wstrb),
         .fub_axi_wlast(fub_axi_wlast),
@@ -281,7 +288,7 @@ module dma_adapter
         .fub_axi_bvalid(fub_axi_bvalid),
         .fub_axi_bready(fub_axi_bready),
         .fub_axi_btrace(fub_axi_btrace),
-        .fub_axi_btag('0),
+        .fub_axi_bidunq(fub_axi_bidunq),
         .fub_axi_btagmatch('0),
 
         // Status (empty connector = unconnected tie-off)
@@ -305,7 +312,8 @@ module dma_adapter
         .ENABLE_UNIQUE(1'b1),
         .ENABLE_CHUNKING(1'b0),
         .ENABLE_MTE(1'b0),
-        .ENABLE_POISON(1'b0)
+        .ENABLE_POISON(1'b0),
+        .ENABLE_WAKEUP(1'b0)
     ) u_timing_wrapper_rd (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -327,9 +335,10 @@ module dma_adapter
         .s_axi_artrace(dma_axi_artrace),
         .s_axi_armpam('0),
         .s_axi_armecid('0),
-        .s_axi_arunique(dma_axi_arunique),
+        .s_axi_aridunq(dma_axi_aridunq),
         .s_axi_archunken('0),
         .s_axi_artagop('0),
+        .s_axi_awakeup('0),
         .s_axi_rid(dma_axi_rid),
         .s_axi_rdata(dma_axi_rdata),
         .s_axi_rresp(dma_axi_rresp),
@@ -338,12 +347,12 @@ module dma_adapter
         .s_axi_rvalid(dma_axi_rvalid),
         .s_axi_rready(dma_axi_rready),
         .s_axi_rtrace(dma_axi_rtrace),
+        .s_axi_ridunq(dma_axi_ridunq),
         .s_axi_rpoison(),
         .s_axi_rchunkv(),
         .s_axi_rchunknum(),
         .s_axi_rchunkstrb(),
         .s_axi_rtag(),
-        .s_axi_rtagmatch(),
 
         // Bridge-internal side (fub_axi)
         .fub_axi_arid(fub_axi_arid),
@@ -362,9 +371,10 @@ module dma_adapter
         .fub_axi_artrace(fub_axi_artrace),
         .fub_axi_armpam(),
         .fub_axi_armecid(),
-        .fub_axi_arunique(fub_axi_arunique),
+        .fub_axi_aridunq(fub_axi_aridunq),
         .fub_axi_archunken(),
         .fub_axi_artagop(),
+        .fub_axi_awakeup(),
         .fub_axi_rid(fub_axi_rid),
         .fub_axi_rdata(fub_axi_rdata),
         .fub_axi_rresp(fub_axi_rresp),
@@ -373,16 +383,41 @@ module dma_adapter
         .fub_axi_rvalid(fub_axi_rvalid),
         .fub_axi_rready(fub_axi_rready),
         .fub_axi_rtrace(fub_axi_rtrace),
+        .fub_axi_ridunq(fub_axi_ridunq),
         .fub_axi_rpoison('0),
         .fub_axi_rchunkv('0),
         .fub_axi_rchunknum('0),
         .fub_axi_rchunkstrb('0),
         .fub_axi_rtag('0),
-        .fub_axi_rtagmatch('0),
 
         // Status (empty connector = unconnected tie-off)
         .busy(wrapper_rd_busy)
     );
+
+
+    // ================================================================
+    // BIDUNQ / RIDUNQ regenerated per ID (IHI 0022L A5.2)
+    // ================================================================
+    localparam int IDUNQ_IDS = 1 << 4;
+    logic [IDUNQ_IDS-1:0] r_awidunq_by_id;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_awidunq_by_id <= '0;
+        end else if (fub_axi_awvalid && fub_axi_awready) begin
+            r_awidunq_by_id[fub_axi_awid] <= fub_axi_awidunq;
+        end
+    )
+    assign fub_axi_bidunq = r_awidunq_by_id[fub_axi_bid];
+    logic [IDUNQ_IDS-1:0] r_aridunq_by_id;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_aridunq_by_id <= '0;
+        end else begin
+            if (fub_axi_arvalid && fub_axi_arready)
+                r_aridunq_by_id[fub_axi_arid] <= fub_axi_aridunq;
+        end
+    )
+    assign fub_axi_ridunq = r_aridunq_by_id[fub_axi_rid];
 
     logic [NUM_SLAVES-1:0] b_slave_select;
     logic [NUM_SLAVES-1:0] w_slave_select;
@@ -473,7 +508,7 @@ module dma_adapter
     assign dma_32b_aw.user   = fub_axi_awuser;
     assign dma_32b_aw.nsaid = fub_axi_awnsaid;  // AXI5 sideband
     assign dma_32b_aw.trace = fub_axi_awtrace;  // AXI5 sideband
-    assign dma_32b_aw.uniq = fub_axi_awunique;  // AXI5 sideband
+    assign dma_32b_aw.idunq = fub_axi_awidunq;  // AXI5 sideband
     assign dma_32b_awvalid   = fub_axi_awvalid && aw_path_active_32b;
     // awready routed via MUX
 
@@ -504,7 +539,7 @@ module dma_adapter
     assign dma_32b_ar.user   = fub_axi_aruser;
     assign dma_32b_ar.nsaid = fub_axi_arnsaid;  // AXI5 sideband
     assign dma_32b_ar.trace = fub_axi_artrace;  // AXI5 sideband
-    assign dma_32b_ar.uniq = fub_axi_arunique;  // AXI5 sideband
+    assign dma_32b_ar.idunq = fub_axi_aridunq;  // AXI5 sideband
     assign dma_32b_arvalid   = fub_axi_arvalid && ar_path_active_32b;
     // arready routed via MUX
 

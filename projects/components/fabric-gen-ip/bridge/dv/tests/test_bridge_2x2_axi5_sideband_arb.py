@@ -5,7 +5,7 @@
 # HAND-WRITTEN (not generated): AXI5 sideband THROUGH THE ARBITER.
 #
 # bridge_2x2_axi5 is the first multi-master AXI5 fixture. Both masters are
-# AXI5 with nsaid/trace/unique; the AXI5 BFMs drive the sideband per
+# AXI5 with nsaid/trace/unique (AxIDUNQ); the AXI5 BFMs drive the sideband per
 # transaction (no pin poking), both masters hit the AXI5 slave concurrently,
 # and the slave-side AW/AR sideband is sampled at every handshake:
 #   - every sampled NSAID belongs to the master that issued it (cpu 0xA,
@@ -14,6 +14,9 @@
 #     a foreign NSAID or a miscount;
 #   - trace echoes back on every B and R from the AXI5 slave (the AXI5 slave
 #     BFM returns trace=aw/ar trace), and returns 0 from the AXI4 slave;
+#   - BIDUNQ/RIDUNQ equal the request's AWIDUNQ/ARIDUNQ on every response
+#     (IHI 0022L A5.2, GitHub #102 item 5) -- including from the AXI4 slave,
+#     which never sees AxIDUNQ: the master boundary regenerates them;
 #   - every write reads back, per master, and the AXI5 compliance checkers
 #     on both master ports report zero violations.
 # Depth (TEST_LEVEL): arb_per_master transactions per master and phase.
@@ -53,10 +56,10 @@ class SramSidebandSampler:
             await RisingEdge(self.clock)
             if int(d.sram_axi_awvalid.value) and int(d.sram_axi_awready.value):
                 self.aw.append((int(d.sram_axi_awnsaid.value), int(d.sram_axi_awtrace.value),
-                                int(d.sram_axi_awunique.value)))
+                                int(d.sram_axi_awidunq.value)))
             if int(d.sram_axi_arvalid.value) and int(d.sram_axi_arready.value):
                 self.ar.append((int(d.sram_axi_arnsaid.value), int(d.sram_axi_artrace.value),
-                                int(d.sram_axi_arunique.value)))
+                                int(d.sram_axi_aridunq.value)))
 
 
 @cocotb.test(timeout_time=8000, timeout_unit="ms")
@@ -87,8 +90,9 @@ async def cocotb_test_bridge_2x2_axi5_sideband_arb(dut):
     async def _w(m, addr, data, i):
         r = await tb.master_wr[m].write_transaction(
             addr, data, size=2, id=(m << 3) | (i % 8),
-            nsaid=NSAID[m], trace=1, unique=1)
+            nsaid=NSAID[m], trace=1, idunq=1)
         assert r.get('success'), f"master {m} write @0x{addr:08x} failed: {r}"
+        assert r.get('idunq', 0) == 1, f"master {m}: BIDUNQ={r.get('idunq')} for AWIDUNQ=1"
         b_trace[m].append(r.get('trace', 0))
         done.append(m)
 
@@ -109,7 +113,7 @@ async def cocotb_test_bridge_2x2_axi5_sideband_arb(dut):
             f"master {m}: issued {n} AWs with nsaid={NSAID[m]:#x}, slave saw "
             f"{aw_nsaid.count(NSAID[m])} (all: {aw_nsaid})")
         assert all(t == 1 for t in b_trace[m]), f"master {m}: btrace not echoed: {b_trace[m]}"
-    assert all(x[1] == 1 and x[2] == 1 for x in sampler.aw), f"trace/unique lost on AW: {sampler.aw}"
+    assert all(x[1] == 1 and x[2] == 1 for x in sampler.aw), f"trace/idunq lost on AW: {sampler.aw}"
     tb.log.info(f"  AW: {len(sampler.aw)} handshakes, nsaid counts "
                 f"cpu={aw_nsaid.count(NSAID[0])} dma={aw_nsaid.count(NSAID[1])}, btrace echoed")
 
@@ -119,7 +123,8 @@ async def cocotb_test_bridge_2x2_axi5_sideband_arb(dut):
 
     async def _r(m, addr, expect, i):
         resp = await tb.master_rd[m].read_transaction(
-            addr, size=2, id=(m << 3) | (i % 8), nsaid=NSAID[m], trace=1, unique=1)
+            addr, size=2, id=(m << 3) | (i % 8), nsaid=NSAID[m], trace=1, idunq=1)
+        assert resp[0].get('idunq', 0) == 1, f"master {m}: RIDUNQ={resp[0].get('idunq')} for ARIDUNQ=1"
         assert resp[0]['data'] == expect, (
             f"master {m} read @0x{addr:08x}: 0x{resp[0]['data']:08x} != 0x{expect:08x}")
         r_trace[m].append(resp[0].get('trace', 0))
@@ -149,19 +154,29 @@ async def cocotb_test_bridge_2x2_axi5_sideband_arb(dut):
     for m in (0, 1):
         addr = DDR_BASE + 0x2000 + m * 0x100
         r = await tb.master_wr[m].write_transaction(addr, 0xD0B0_0000 | m, size=2, id=m,
-                                                    nsaid=NSAID[m], trace=1, unique=1)
+                                                    nsaid=NSAID[m], trace=1, idunq=1)
         assert r.get('success'), f"master {m}: drop-path write failed: {r}"
         assert r.get('trace', 0) == 1, (
             f"master {m}: btrace not echoed on the AXI4 slave path, got {r.get('trace')}")
-        resp = await tb.master_rd[m].read_transaction(addr, size=2, id=m, nsaid=NSAID[m], trace=1)
+        # #102 item 5: the AXI4 slave never saw AWIDUNQ, yet A5.2 requires
+        # BIDUNQ == AWIDUNQ. Before the boundary regenerated it this was 0.
+        assert r.get('idunq', 0) == 1, (
+            f"master {m}: BIDUNQ={r.get('idunq')} on the AXI4 slave path for AWIDUNQ=1")
+        resp = await tb.master_rd[m].read_transaction(addr, size=2, id=m, nsaid=NSAID[m], trace=1,
+                                                      idunq=1)
+        assert resp[0].get('idunq', 0) == 1, (
+            f"master {m}: RIDUNQ={resp[0].get('idunq')} on the AXI4 slave path for ARIDUNQ=1")
         assert resp[0]['data'] == (0xD0B0_0000 | m), "drop-path data corrupted"
         assert resp[0].get('trace', 0) == 1, (
             f"master {m}: rtrace not echoed on the AXI4 slave path, got {resp[0].get('trace')}")
         r0 = await tb.master_wr[m].write_transaction(addr + 0x40, 0xD0B0_1000 | m, size=2,
-                                                     id=m, nsaid=NSAID[m], trace=0)
+                                                     id=m, nsaid=NSAID[m], trace=0, idunq=0)
         assert r0.get('success') and r0.get('trace', 1) == 0, (
             f"master {m}: btrace={r0.get('trace')} for an UNTRACED request -- the echo "
             f"must follow the request, not assert unconditionally")
+        assert r0.get('idunq', 1) == 0, (
+            f"master {m}: BIDUNQ={r0.get('idunq')} for AWIDUNQ=0 -- same ID, so the "
+            f"per-ID record must have followed the new request")
     tb.log.info("  drop path: AXI4 slave answers with the echoed trace, data intact, "
                 "and an untraced request still returns trace=0")
 

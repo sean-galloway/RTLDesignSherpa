@@ -23,7 +23,7 @@ data_width = 32
 user_width = 1
 channels = "rw"
 protocol = "axi5"
-axi5_features = ["trace", "atomic"]
+axi5_features = ["trace", "atomic", "unique"]  # unique: #102 item 5 RIDUNQ of an atomic
 
 [[bridge.slaves]]
 name = "ddr"

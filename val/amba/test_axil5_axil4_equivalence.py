@@ -4,18 +4,36 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: test_axil5_master_rd
-# Purpose: AXI5-Lite BFMs driving the AXI4-Lite read-master RTL
+# Module: test_axil5_axil4_equivalence
+# Purpose: AXI5-Lite with no ID and no optional groups == AXI4-Lite
 #
 # Subsystem: tests
 
 """AXI5-Lite / AXI4-Lite equivalence runner (read master).
 
-Runs the AXIL4 read-master traffic with AXI5-Lite BFMs against the SAME
-`axil4_master_rd` RTL, filelist and parameters. With no optional signal groups
-enabled an AXI5-Lite interface IS an AXI4-Lite interface, so this must pass
-exactly as the AXIL4 runner does -- and if it ever stops passing, AXIL5 has
-drifted away from the protocol it claims to extend.
+The claim under test: an AXI5-Lite Manager interface with no ID and no
+optional signal groups has exactly the AXI4-Lite signal set and behaviour.
+IHI 0022 Issue L permits that configuration -- AxID is optional on a Manager
+(Table B2.2, code YS; ID_R_WIDTH = 0 is legal, Table A5.2) and USER, TRACE
+and POISON are optional (code O). The groups AXI5-Lite does NOT have (AxLOCK,
+AxMPAM, AxMECID, AxNSAID, xLOOP) were removed by issue #102, so "every group
+off" is no longer hiding signals the spec excludes.
+
+Two DUTs run the identical AXIL4 read-master traffic with AXI5-Lite BFMs
+configured with no ID and no groups:
+
+* ``axil4_master_rd`` -- the AXI4-Lite RTL. If this stops passing, the AXIL5
+  BFMs have drifted away from the protocol they claim to extend.
+* ``axil5_master_rd`` elaborated with ``ID_WIDTH=0`` and every ENABLE_* = 0 --
+  the AXI5-Lite RTL configured down. Its SKID payload is then exactly the
+  AXI4-Lite one; the only ports beyond AXI4-Lite's are the 1-bit ID
+  placeholders, whose outputs the RTL drives 0 and whose inputs it ignores
+  (the BFM, built without an ID, leaves them undriven). If this stops
+  passing, the AXI5-Lite RTL is no longer AXI4-Lite at its minimum
+  configuration.
+
+The ID and the groups themselves are covered by test_axil5_master_rd.py and
+test_axil5_opt_signals.py; this runner deliberately leaves them off.
 
 This is the functional half of AXIL5's coverage. The framework's
 `tests/unit/test_axil5_extends_axil4.py` compares field configs and class
@@ -220,11 +238,21 @@ async def axil5_read_master_test(dut):
         raise RuntimeError(f"Test failed with {success_rate:.1f}% success rate")
 
 
+#: The AXI5-Lite RTL configured to its AXI4-Lite-equivalent minimum.
+AXIL5_MIN_CONFIG = {
+    'ID_WIDTH': '0',
+    'ENABLE_USER': '0',
+    'ENABLE_TRACE': '0',
+    'ENABLE_POISON': '0',
+}
+
+
 def generate_axil5_params():
     """
-    Generate AXIL4 parameter combinations based on REG_LEVEL.
+    Generate AXIL4 parameter combinations based on REG_LEVEL, each run on both
+    DUTs (axil4_master_rd and the minimum-config axil5_master_rd).
 
-    Parameter tuple: (addr_width, data_width, ar_depth, r_depth, test_level)
+    Parameter tuple: (dut_name, addr_width, data_width, ar_depth, r_depth, test_level)
 
     REG_LEVEL values:
         GATE: 1 test - Quick smoke test
@@ -245,12 +273,13 @@ def generate_axil5_params():
         configs = [(32, 32, 4, 4), (32, 32, 4, 8), (64, 64, 4, 4), (32, 64, 2, 4), (64, 32, 8, 4), (64, 64, 8, 8)]
         params = [(aw, dw, ar, r, level) for (aw, dw, ar, r) in configs for level in test_levels]
 
-    return params
+    return [(dut,) + p for dut in ('axil4_master_rd', 'axil5_master_rd')
+            for p in params]
 
 
-@pytest.mark.parametrize("addr_width, data_width, ar_depth, r_depth, test_level",
+@pytest.mark.parametrize("dut_name, addr_width, data_width, ar_depth, r_depth, test_level",
                         generate_axil5_params())
-def test_axil5_read_master(request, addr_width, data_width, ar_depth, r_depth, test_level):
+def test_axil5_read_master(request, dut_name, addr_width, data_width, ar_depth, r_depth, test_level):
     """Test AXIL4 read master with different parameter combinations"""
 
     # Get worker ID for parallel execution isolation
@@ -259,11 +288,9 @@ def test_axil5_read_master(request, addr_width, data_width, ar_depth, r_depth, t
     # Get paths and setup
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_axil4': 'rtl/amba/axil4/',
+        'rtl_axil5': 'rtl/amba/axil5/',
         'rtl_gaxi': 'rtl/amba/gaxi',
      'rtl_amba_includes': 'rtl/amba/includes'})
-
-    # AXIL4 module details (no stub versions)
-    dut_name = "axil4_master_rd"
     
     # Create descriptive test name
     aw_str = TBBase.format_dec(addr_width, 2)
@@ -272,7 +299,7 @@ def test_axil5_read_master(request, addr_width, data_width, ar_depth, r_depth, t
     rd_str = TBBase.format_dec(r_depth, 1)
 
     reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
-    test_name_plus_params = f"test_{worker_id}_axil5_{dut_name}_a{aw_str}_d{dw_str}_ard{ard_str}_rd{rd_str}_{test_level}_{reg_level}"
+    test_name_plus_params = f"test_{worker_id}_equiv_{dut_name}_a{aw_str}_d{dw_str}_ard{ard_str}_rd{rd_str}_{test_level}_{reg_level}"
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
@@ -284,7 +311,7 @@ def test_axil5_read_master(request, addr_width, data_width, ar_depth, r_depth, t
     # Verilog sources - include dependencies for gaxi_skid_buffer
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        module='axil4_master_rd')
+        module=dut_name)
 
     # Check that files exist
     for src in verilog_sources:
@@ -310,149 +337,8 @@ def test_axil5_read_master(request, addr_width, data_width, ar_depth, r_depth, t
         # they did in test_axil5_master_wr. Overriding a derived parameter can
         # only ever match or break; it can never help.
     }
-
-    # Calculate timeout based on complexity
-    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
-    complexity_factor = (data_width + addr_width) / 100.0
-    timeout_ms = int(5000 * timeout_multipliers.get(test_level, 1) * max(1.0, complexity_factor))
-
-    # Environment variables
-    extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
-        'VERILATOR_TRACE': '1',
-        'DUT': dut_name,
-        'LOG_PATH': log_path,
-        'COCOTB_LOG_LEVEL': 'INFO',
-        'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': test_level,
-        'COCOTB_TEST_TIMEOUT': str(timeout_ms),
-
-        # AXIL4 test parameters
-        'TEST_ADDR_WIDTH': str(addr_width),
-        'TEST_DATA_WIDTH': str(data_width),
-        'TEST_CLK_PERIOD': '10',  # 10ns = 100MHz
-        'TIMEOUT_CYCLES': '2000',
-
-        # Buffer depth parameters
-        'TEST_AR_DEPTH': str(ar_depth),
-        'TEST_R_DEPTH': str(r_depth),
-        'AXIL4_COMPLIANCE_CHECK': '1',
-    }
-
-    # Simulation settings
-    includes=includes
-    # VCD waveform generation support via WAVES environment variable
-    # Trace compilation always enabled (minimal overhead)
-    # Set WAVES=1 to enable VCD dumping for debugging
-    compile_args = [
-        "--trace",
-        
-        "--trace-depth", "99",
-        "-Wall", "-Wno-SYNCASYNCNET",
-        "-Wno-UNUSED",
-        "-Wno-DECLFILENAME",
-        "-Wno-PINMISSING",  # Allow unconnected pins
-    ]
-
-    # Add coverage compile args if COVERAGE=1
-    compile_args.extend([])
-
-    sim_args = ["--trace", "--trace-depth", "99"]
-    plus_args = ["--trace"]
-
-    # Create command file for viewing results
-    cmd_filename = create_view_cmd(os.path.dirname(log_path), log_path, sim_build,
-                                    module, test_name_plus_params)
-
-    print(f"\n{'='*80}")
-    print(f"Running {test_level.upper()} AXIL4 Read Master test: {dut_name}")
-    print(f"AXIL4 Config: ADDR={addr_width}, DATA={data_width}")
-    print(f"Buffer Depths: AR={ar_depth}, R={r_depth}")
-    print(f"Expected duration: {timeout_ms/1000:.1f}s")
-    print(f"{'='*80}")
-
-    try:
-        run(
-            python_search=[tests_dir],
-            verilog_sources=verilog_sources,
-            includes=includes,
-            toplevel=dut_name,
-            module=module,
-            parameters=rtl_parameters,
-            sim_build=sim_build,
-            extra_env=extra_env,
-            waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
-            keep_files=True,
-            compile_args=compile_args,
-            sim_args=sim_args,
-            plus_args=plus_args,
-        )
-        print(f"{test_level.upper()} AXIL4 Read Master test PASSED")
-    except Exception as e:
-        print(f"{test_level.upper()} AXIL4 Read Master test FAILED: {str(e)}")
-        print(f"Logs preserved at: {log_path}")
-        print(f"To view the waveforms run: {cmd_filename}")
-        raise
-
-    # Get worker ID for parallel execution isolation
-    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
-
-    """Test AXIL4 read master with different parameter combinations"""
-
-    # Get paths and setup
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_axil4': 'rtl/amba/axil4/',
-        'rtl_gaxi': 'rtl/amba/gaxi',
-     'rtl_amba_includes': 'rtl/amba/includes'})
-
-    # AXIL4 module details (no stub versions)
-    dut_name = "axil4_master_rd"
-    
-    # Create descriptive test name
-    aw_str = TBBase.format_dec(addr_width, 2)
-    dw_str = TBBase.format_dec(data_width, 2)
-    ard_str = TBBase.format_dec(ar_depth, 1)
-    rd_str = TBBase.format_dec(r_depth, 1)
-
-    test_name_plus_params = f"test_{worker_id}_axil5_{dut_name}_a{aw_str}_d{dw_str}_ard{ard_str}_rd{rd_str}_{test_level}"
-
-    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
-    sim_build = sim_build_path(tests_dir, test_name_plus_params)
-    enable_waves = bool(int(os.environ.get('WAVES', '0')))
-    os.makedirs(sim_build, exist_ok=True)
-    os.makedirs(log_dir, exist_ok=True)
-    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-
-    # Verilog sources - include dependencies for gaxi_skid_buffer
-    verilog_sources, includes = get_sources_from_filelist(
-        repo_root=repo_root,
-        module='axil4_master_rd')
-
-    # Check that files exist
-    for src in verilog_sources:
-        if not os.path.exists(src):
-            raise FileNotFoundError(f"RTL source not found: {src}")
-
-    # RTL parameters (simplified for AXIL4)
-    ar_size = addr_width + 3  # ARADDR + ARPROT
-    r_size = data_width + 2   # RDATA + RRESP
-
-    rtl_parameters = {
-        'SKID_DEPTH_AR': str(ar_depth),
-        'SKID_DEPTH_R': str(r_depth),
-        'AXIL_ADDR_WIDTH': str(addr_width),
-        'AXIL_DATA_WIDTH': str(data_width),
-        # The DERIVED parameters (AW, DW, ARSize, RSize) are NOT overridden.
-        # They match what the RTL derives for THIS test, because this one
-        # drives axil4_master_rd deliberately -- so the overrides were
-        # correct by coincidence rather than by construction. Repoint this at
-        # axil5_master_rd with the optional groups on and the same overrides
-        # would force ARSize to the AXI4-Lite value and every group field
-        # would part-select past the end of the vector, which is exactly what
-        # they did in test_axil5_master_wr. Overriding a derived parameter can
-        # only ever match or break; it can never help.
-    }
+    if dut_name == 'axil5_master_rd':
+        rtl_parameters.update(AXIL5_MIN_CONFIG)
 
     # Calculate timeout based on complexity
     timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}

@@ -36,8 +36,7 @@ python3 delta_generator.py --masters 2 --slaves 4 --data-width 64 --output-dir .
 | `--data-width` | 64 | `TDATA` width in bits. |
 | `--user-width` | 1 | `TUSER` width. |
 | `--strb-width` | 0 | `TSTRB` width; 0 omits `TSTRB` ports. |
-| `--amba5` | False | Emit AMBA 5 `TWAKEUP` and `TPARITY` sidebands. |
-| `--parity-width` | 0 | Override `TPARITY` width (requires `--amba5`; default is `DATA_WIDTH/8`). |
+| `--amba5` | False | Emit AMBA 5 `TWAKEUP`, the IHI 0051B ch. 5 odd-parity check signals and the per-port `*_parity_error` flags. Widths are fixed by the spec; requires a whole-byte `--data-width`. |
 | `--output-dir` | `../rtl` | Destination directory. |
 | `--nodes` | False | Also emit the `delta_split_1to2` primitive. |
 | `--no-counters` | False | Disable the optional performance counters. |
@@ -67,7 +66,6 @@ cfg = DeltaConfig(
     user_width=1,
     strb_width=8,
     amba5=True,
-    parity_width=8,
     registered_outputs=True,
     arbiter_type="round_robin",
     add_performance_counters=True,

@@ -31,17 +31,17 @@
 
 ## Overview
 
-The AXIS5 Slave CG (Clock Gated) wraps the standard AXIS5 slave with the AMBA clock gate controller, giving you an AXI5-Stream slave interface that gates its own clock during idle periods. Full AXIS5 functionality survives the wrapping — wake-up signaling, optional parity, the skid buffer, all of it.
+The AXIS5 Slave CG (Clock Gated) wraps the standard AXIS5 slave with the AMBA clock gate controller, giving you an AXI5-Stream slave interface that gates its own clock during idle periods. Full AXIS5 functionality survives the wrapping — wake-up signaling, the optional IHI 0051B ch. 5 check signals, the skid buffer, all of it.
 
 ### Key Features
 
 - Same AXI5-Stream data path as `axis5_slave` (see its [signal coverage note](axis5_slave.md#key-features); TKEEP and TPOISON are not implemented)
 - Automatic clock gating during idle periods for power savings
 - TWAKEUP: Wake-up signaling integration with clock gate control
-- TPARITY: Optional parity protection, 1 bit per byte, with error detection (proprietary extension)
+- Interface parity (IHI 0051B ch. 5): the T*CHK check signals, odd parity, one bit per 8 bits, gated by `ENABLE_PARITY` (see [AXIS5 Slave](axis5_slave.md#interface-parity-enable_parity1))
 - Configurable idle count threshold for gating activation
 - Internal skid buffer for backpressure handling
-- Parity error detection on input side
+- Check-signal error detection on the input side (sticky `parity_error`)
 - Clock gating status output
 
 ### Power Management Features
@@ -65,10 +65,10 @@ The AXIS5 Slave CG (Clock Gated) wraps the standard AXIS5 slave with the AMBA cl
 | AXIS_DEST_WIDTH | int | 4 | AXIS TDEST signal width (0 to disable) |
 | AXIS_USER_WIDTH | int | 1 | AXIS TUSER signal width (0 to disable) |
 | ENABLE_WAKEUP | bit | 1 | Enable TWAKEUP signal (1=enabled) |
-| ENABLE_PARITY | bit | 0 | Enable TPARITY signal (1=enabled) |
+| ENABLE_PARITY | bit | 0 | Enable the IHI 0051B ch. 5 check signals (1 = Check_Type Odd_Parity_Byte_All, 0 = False) |
 | CG_IDLE_COUNT_WIDTH | int | 4 | Clock gate idle counter width |
 
-**Note on `ENABLE_WAKEUP`:** the default is 1, so TWAKEUP ports exist and are carried through the buffer unless you explicitly set `ENABLE_WAKEUP=0`. Set it to 0 for an AXI4-Stream-compatible port list with no wake-up sideband and slightly less area. `ENABLE_PARITY` defaults to 0 because TPARITY is a proprietary extension.
+**Note on `ENABLE_WAKEUP`:** the default is 1, so TWAKEUP ports exist and are carried through the buffer unless you explicitly set `ENABLE_WAKEUP=0`. Set it to 0 for an AXI4-Stream-compatible port list with no wake-up sideband and slightly less area. `ENABLE_PARITY` defaults to 0, the spec's `Check_Type = False`: the `*chk` ports are still present but outputs are tied 0 and inputs are ignored.
 
 ### Derived Values (do not override)
 
@@ -81,10 +81,11 @@ These are declared in the parameter list so they can be used in port widths, but
 | DESTW | AXIS_DEST_WIDTH | DEST width short name |
 | UW | AXIS_USER_WIDTH | USER width short name |
 | SW | DW/8 | Strobe width in bytes |
-| PW | SW | Parity width - 1 bit per byte |
 | ICW | CG_IDLE_COUNT_WIDTH | Idle count width short name |
 | IW_WIDTH / DESTW_WIDTH / UW_WIDTH | max(width, 1) | Zero-width avoidance for disabled sidebands |
-| PW_WIDTH | ENABLE_PARITY ? PW : 1 | TPARITY port width |
+| TDATACHK_W | SW | TDATACHK width, TDATA_WIDTH/8 (Table 5-1) |
+| TSTRBCHK_W | ceil(SW/8) | TSTRBCHK width, ceil(TDATA_WIDTH/64) |
+| TIDCHK_W / TDESTCHK_W / TUSERCHK_W | ceil(width/8) | TIDCHK / TDESTCHK / TUSERCHK widths |
 
 ---
 
@@ -117,7 +118,15 @@ These are declared in the parameter list so they can be used in port widths, but
 | s_axis_tvalid | 1 | Input | Transfer valid from upstream |
 | s_axis_tready | 1 | Output | Transfer ready (skid buffer not full) |
 | s_axis_twakeup | 1 | Input | Wake-up signal (prevents clock gating) |
-| s_axis_tparity | PW_WIDTH | Input | Data parity per byte (AXIS5 extension) |
+| s_axis_tdatachk | TDATACHK_W | Input | TDATACHK (odd parity, 1 bit per byte) |
+| s_axis_tstrbchk | TSTRBCHK_W | Input | TSTRBCHK |
+| s_axis_tlastchk | 1 | Input | TLASTCHK |
+| s_axis_tidchk | TIDCHK_W | Input | TIDCHK |
+| s_axis_tdestchk | TDESTCHK_W | Input | TDESTCHK |
+| s_axis_tuserchk | TUSERCHK_W | Input | TUSERCHK |
+| s_axis_tvalidchk | 1 | Input | TVALIDCHK, checked every cycle out of reset (while the clock runs) |
+| s_axis_treadychk | 1 | Output | TREADYCHK = ~s_axis_tready -- generated in this wrapper from the MASKED ready, so it reads 1 while gated |
+| s_axis_twakeupchk | 1 | Input | TWAKEUPCHK, checked when ENABLE_WAKEUP=1 |
 
 ### FUB AXIS5 Interface (Output Side to Backend)
 
@@ -132,14 +141,19 @@ These are declared in the parameter list so they can be used in port widths, but
 | fub_axis5_tvalid | 1 | Output | Transfer valid to backend |
 | fub_axis5_tready | 1 | Input | Transfer ready from backend |
 | fub_axis5_twakeup | 1 | Output | Wake-up signal |
-| fub_axis5_tparity | PW_WIDTH | Output | Data parity per byte (AXIS5 extension) |
+| fub_axis5_tdatachk | TDATACHK_W | Output | TDATACHK (odd parity, 1 bit per byte) |
+| fub_axis5_tstrbchk | TSTRBCHK_W | Output | TSTRBCHK |
+| fub_axis5_tlastchk | 1 | Output | TLASTCHK |
+| fub_axis5_tidchk | TIDCHK_W | Output | TIDCHK |
+| fub_axis5_tdestchk | TDESTCHK_W | Output | TDESTCHK |
+| fub_axis5_tuserchk | TUSERCHK_W | Output | TUSERCHK |
 
 ### Status Outputs
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
 | busy | 1 | Output | Module busy (data in buffer or input valid) |
-| parity_error | 1 | Output | Parity error detected on input (sticky flag) |
+| parity_error | 1 | Output | Sticky check-signal error on the input side (see [AXIS5 Slave](axis5_slave.md#interface-parity-enable_parity1)) |
 | cg_gating | 1 | Output | Clock gating active status (1=gated, 0=running) |
 | `cg_idle` | Out | 1 | Activity terms quiet (registered `~wakeup`). |
 
@@ -253,13 +267,13 @@ Because reset removal is asynchronous, apply the usual practice of releasing `ar
 - Wake-up on new transfers costs 2 register stages; the first usable gated-clock edge arrives 3 `aclk` cycles after activity (see Wake-up and Gating Latency)
 - No protocol impact (transparent to upstream/backend)
 
-### Parity Error Detection
+### Check-signal Error Detection
 
 When `ENABLE_PARITY=1`:
-- Parity checked on **input side** (`s_axis_tdata` vs `s_axis_tparity`)
-- Early error detection at receive interface
+- The payload checks (`s_axis_t*chk`) and TVALIDCHK/TWAKEUPCHK are checked on the **input side** by the wrapped `axis5_slave`
 - `parity_error` flag is sticky (latches until reset)
-- No transfer can slip past the check while gated: `s_axis_tready` is driven on `gated_clk`, so no transfer is accepted until the clock has resumed
+- No transfer can slip past the check while gated: `s_axis_tready` is masked to 0 while gated, so no transfer is accepted until the clock has resumed
+- **TREADYCHK covers the masked ready.** The core's READY register holds its last value when the clock stops, which is why the wrapper masks `s_axis_tready`; the core's own TREADYCHK would then disagree with the pin. The wrapper therefore leaves the core's `s_axis_treadychk` unconnected and regenerates it from the masked `s_axis_tready` (one `dataint_parity`, odd), so the pair is consistent in every cycle, gated or not
 
 ### Idle Count Configuration
 
@@ -354,7 +368,15 @@ axis5_slave_cg #(
     .s_axis_tvalid          (s_axis_tvalid),
     .s_axis_tready          (s_axis_tready),
     .s_axis_twakeup         (s_axis_twakeup),
-    .s_axis_tparity         (8'h00),
+    .s_axis_tdatachk         ('0),
+    .s_axis_tstrbchk         ('0),
+    .s_axis_tlastchk         (1'b0),
+    .s_axis_tidchk           ('0),
+    .s_axis_tdestchk         ('0),
+    .s_axis_tuserchk         ('0),
+    .s_axis_tvalidchk       (1'b0),
+    .s_axis_treadychk       (),
+    .s_axis_twakeupchk      (1'b0),
 
     // FUB interface (to backend)
     .fub_axis5_tdata        (fub_tdata),
@@ -366,7 +388,12 @@ axis5_slave_cg #(
     .fub_axis5_tvalid       (fub_tvalid),
     .fub_axis5_tready       (fub_tready),
     .fub_axis5_twakeup      (fub_twakeup),
-    .fub_axis5_tparity      (),
+    .fub_axis5_tdatachk      (),
+    .fub_axis5_tstrbchk      (),
+    .fub_axis5_tlastchk      (),
+    .fub_axis5_tidchk        (),
+    .fub_axis5_tdestchk      (),
+    .fub_axis5_tuserchk      (),
 
     // Status
     .busy                   (axis_busy),
@@ -382,7 +409,7 @@ axis5_slave_cg #(
 axis5_slave_cg #(
     .AXIS_DATA_WIDTH        (32),
     .ENABLE_WAKEUP          (1),
-    .ENABLE_PARITY          (1),  // Enable parity checking
+    .ENABLE_PARITY          (1),  // IHI 0051B ch. 5 check signals
     .CG_IDLE_COUNT_WIDTH    (4)
 ) u_rx_slave_cg (
     .aclk                   (sys_clk),
@@ -392,7 +419,7 @@ axis5_slave_cg #(
     .cfg_cg_enable            (cfg_cg_enable),
     .cfg_cg_idle_count        (cfg_cg_threshold),
 
-    // Slave interface with parity
+    // Slave interface with its check signals
     .s_axis_tdata           (rx_tdata),
     .s_axis_tstrb           (rx_tstrb),
     .s_axis_tlast           (rx_tlast),
@@ -402,7 +429,15 @@ axis5_slave_cg #(
     .s_axis_tvalid          (rx_tvalid),
     .s_axis_tready          (rx_tready),
     .s_axis_twakeup         (rx_twakeup),
-    .s_axis_tparity         (rx_tparity),  // 4 bits for 32-bit data
+    .s_axis_tdatachk         (rx_tdatachk),
+    .s_axis_tstrbchk         (rx_tstrbchk),
+    .s_axis_tlastchk         (rx_tlastchk),
+    .s_axis_tidchk           (rx_tidchk),
+    .s_axis_tdestchk         (rx_tdestchk),
+    .s_axis_tuserchk         (rx_tuserchk),
+    .s_axis_tvalidchk       (rx_tvalidchk),
+    .s_axis_treadychk       (rx_treadychk),
+    .s_axis_twakeupchk      (rx_twakeupchk),
 
     // FUB interface
     .fub_axis5_tdata        (proc_tdata),
@@ -414,7 +449,12 @@ axis5_slave_cg #(
     .fub_axis5_tvalid       (proc_tvalid),
     .fub_axis5_tready       (proc_tready),
     .fub_axis5_twakeup      (proc_twakeup),
-    .fub_axis5_tparity      (proc_tparity),
+    .fub_axis5_tdatachk      (proc_tdatachk),
+    .fub_axis5_tstrbchk      (proc_tstrbchk),
+    .fub_axis5_tlastchk      (proc_tlastchk),
+    .fub_axis5_tidchk        (proc_tidchk),
+    .fub_axis5_tdestchk      (proc_tdestchk),
+    .fub_axis5_tuserchk      (proc_tuserchk),
 
     // Status monitoring
     .busy                   (rx_busy),
@@ -475,7 +515,15 @@ axis5_slave_cg #(
     .s_axis_tvalid          (phy_rx_tvalid),
     .s_axis_tready          (phy_rx_tready),
     .s_axis_twakeup         (phy_rx_twakeup),
-    .s_axis_tparity         (phy_rx_tparity),
+    .s_axis_tdatachk         (phy_rx_tdatachk),
+    .s_axis_tstrbchk         (phy_rx_tstrbchk),
+    .s_axis_tlastchk         (phy_rx_tlastchk),
+    .s_axis_tidchk           (phy_rx_tidchk),
+    .s_axis_tdestchk         (phy_rx_tdestchk),
+    .s_axis_tuserchk         (phy_rx_tuserchk),
+    .s_axis_tvalidchk       (phy_rx_tvalidchk),
+    .s_axis_treadychk       (phy_rx_treadychk),
+    .s_axis_twakeupchk      (phy_rx_twakeupchk),
 
     // To packet processor
     .fub_axis5_tdata        (pkt_proc_tdata),
@@ -487,7 +535,12 @@ axis5_slave_cg #(
     .fub_axis5_tvalid       (pkt_proc_tvalid),
     .fub_axis5_tready       (pkt_proc_tready),
     .fub_axis5_twakeup      (pkt_proc_twakeup),
-    .fub_axis5_tparity      (pkt_proc_tparity),
+    .fub_axis5_tdatachk      (pkt_proc_tdatachk),
+    .fub_axis5_tstrbchk      (pkt_proc_tstrbchk),
+    .fub_axis5_tlastchk      (pkt_proc_tlastchk),
+    .fub_axis5_tidchk        (pkt_proc_tidchk),
+    .fub_axis5_tdestchk      (pkt_proc_tdestchk),
+    .fub_axis5_tuserchk      (pkt_proc_tuserchk),
 
     // Status for system monitoring
     .busy                   (rx_busy),
@@ -544,8 +597,8 @@ Each clock gate transition has overhead:
 ### Parity Error Handling with Clock Gating
 
 Parity errors detected on input side:
-- The comparison is combinational on `s_axis_tdata` and `s_axis_tparity`, so it is evaluated before data enters the skid buffer
-- The `parity_error` register is clocked by `gated_clk` and captures on an accepted transfer (`s_axis_tvalid && s_axis_tready`). No error can be missed while gated, because `s_axis_tready` is itself driven on `gated_clk` and stays low until the clock resumes, and `s_axis_tvalid` wakes the clock first
+- The comparison is combinational on `s_axis_t*` and `s_axis_t*chk`, so it is evaluated before data enters the skid buffer
+- The `parity_error` register is clocked by `gated_clk` and captures on any `s_axis_tvalid` cycle with a bad payload check (Check Enable = TVALID), or any cycle with a bad TVALIDCHK/TWAKEUPCHK. While the clock is stopped nothing is sampled, but no transfer can be accepted either: `s_axis_tready` is masked low until the clock resumes, and `s_axis_tvalid` wakes the clock first
 - Once set, the flag holds through subsequent gating; a stopped clock cannot clear a register
 
 **Important:** the `parity_error` flag requires reset to clear — plan for error recovery.
@@ -586,7 +639,7 @@ pytest val/amba/test_axis5_slave_cg.py -v
 
 ## References
 
-- Arm. *AMBA AXI-Stream Protocol Specification*, ARM IHI 0051B, Apr. 2021 (defines AXI4-Stream and AXI5-Stream). [developer.arm.com/documentation/ihi0051/b](https://developer.arm.com/documentation/ihi0051/b/) -- ch. 2 "Interface Signals" including §2.3 "Wake-up signaling" (`TWAKEUP`): the protocol of the wrapped AXI5-Stream block. Citation only.
+- Arm. *AMBA AXI-Stream Protocol Specification*, ARM IHI 0051B, Apr. 2021 (defines AXI4-Stream and AXI5-Stream). [developer.arm.com/documentation/ihi0051/b](https://developer.arm.com/documentation/ihi0051/b/) -- ch. 2 "Interface Signals" including §2.3 "Wake-up signaling" (`TWAKEUP`), and ch. 5 "Interface parity protection" (§5.3 odd parity, Table 5-1 check signals), implemented by the wrapped block when `ENABLE_PARITY=1` (issue #102): the protocol of the wrapped AXI5-Stream block. Citation only.
 - Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Trans. VLSI Systems*, 8(3), June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) -- the fixed-timeout policy `amba_clock_gate_ctrl` implements: gate after `cfg_cg_idle_count` idle cycles, wake on activity.
 - Benini, L., De Micheli, G. "Automatic Synthesis of Low-Power Gated-Clock Finite-State Machines." *IEEE Trans. CAD*, 15(6), June 1996. DOI: [10.1109/43.503933](https://doi.org/10.1109/43.503933) -- the latch-based gated clock (`icg`) at the bottom of the gating chain.
 - Roy, S. *Advanced Digital System Design*, Springer, ch. 15 "Low-Power Digital System Design", §15.5.5 "Logic Level Power Down" -- textbook treatment of clock gating (secondary source).

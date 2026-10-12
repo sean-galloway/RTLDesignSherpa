@@ -195,7 +195,7 @@ def test_axi5_master_rd_mon(id_width, addr_width, data_width, user_width, max_tr
             verilog_sources=verilog_sources,
             includes=includes + [rtl_dict['rtl_common'], sim_build],
             toplevel=dut_name,
-            module="test_axi5_master_rd_mon",
+            module=module,  # this file; it named the val/amba _mon module and failed to import
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,

@@ -34,7 +34,7 @@ module cpu_rd_adapter
     output  logic         cpu_rd_axi_arready,
     input  logic [3:0]  cpu_rd_axi_arnsaid,
     input  logic         cpu_rd_axi_artrace,
-    input  logic         cpu_rd_axi_arunique,
+    input  logic         cpu_rd_axi_aridunq,
 
     output  logic [3:0]  cpu_rd_axi_rid,
     output  logic [31:0]  cpu_rd_axi_rdata,
@@ -44,6 +44,7 @@ module cpu_rd_adapter
     output  logic         cpu_rd_axi_rvalid,
     input  logic         cpu_rd_axi_rready,
     output  logic         cpu_rd_axi_rtrace,
+    output  logic         cpu_rd_axi_ridunq,
 
     // Address decode outputs (full width one-hot)
     output logic [NUM_SLAVES-1:0] slave_select_ar,
@@ -103,8 +104,11 @@ module cpu_rd_adapter
     // AXI5 native sideband (A5-2 slice 2)
     logic [3:0]  fub_axi_arnsaid;  // AXI5 sideband (nsaid)
     logic         fub_axi_artrace;  // AXI5 sideband (trace)
-    logic         fub_axi_arunique;  // AXI5 sideband (unique)
+    logic         fub_axi_aridunq;  // AXI5 sideband (unique)
     logic         fub_axi_rtrace;  // AXI5 sideband (trace)
+
+    // AXI5 boundary-generated signals (GitHub #102 item 5)
+    logic         fub_axi_ridunq;  // regenerated (A5.2)
 
     // ================================================================
     // Timing isolation wrapper (axi5_slave_rd)
@@ -123,7 +127,8 @@ module cpu_rd_adapter
         .ENABLE_UNIQUE(1'b1),
         .ENABLE_CHUNKING(1'b0),
         .ENABLE_MTE(1'b0),
-        .ENABLE_POISON(1'b0)
+        .ENABLE_POISON(1'b0),
+        .ENABLE_WAKEUP(1'b0)
     ) u_timing_wrapper_rd (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -145,9 +150,10 @@ module cpu_rd_adapter
         .s_axi_artrace(cpu_rd_axi_artrace),
         .s_axi_armpam('0),
         .s_axi_armecid('0),
-        .s_axi_arunique(cpu_rd_axi_arunique),
+        .s_axi_aridunq(cpu_rd_axi_aridunq),
         .s_axi_archunken('0),
         .s_axi_artagop('0),
+        .s_axi_awakeup('0),
         .s_axi_rid(cpu_rd_axi_rid),
         .s_axi_rdata(cpu_rd_axi_rdata),
         .s_axi_rresp(cpu_rd_axi_rresp),
@@ -156,12 +162,12 @@ module cpu_rd_adapter
         .s_axi_rvalid(cpu_rd_axi_rvalid),
         .s_axi_rready(cpu_rd_axi_rready),
         .s_axi_rtrace(cpu_rd_axi_rtrace),
+        .s_axi_ridunq(cpu_rd_axi_ridunq),
         .s_axi_rpoison(),
         .s_axi_rchunkv(),
         .s_axi_rchunknum(),
         .s_axi_rchunkstrb(),
         .s_axi_rtag(),
-        .s_axi_rtagmatch(),
 
         // Bridge-internal side (fub_axi)
         .fub_axi_arid(fub_axi_arid),
@@ -180,9 +186,10 @@ module cpu_rd_adapter
         .fub_axi_artrace(fub_axi_artrace),
         .fub_axi_armpam(),
         .fub_axi_armecid(),
-        .fub_axi_arunique(fub_axi_arunique),
+        .fub_axi_aridunq(fub_axi_aridunq),
         .fub_axi_archunken(),
         .fub_axi_artagop(),
+        .fub_axi_awakeup(),
         .fub_axi_rid(fub_axi_rid),
         .fub_axi_rdata(fub_axi_rdata),
         .fub_axi_rresp(fub_axi_rresp),
@@ -191,16 +198,32 @@ module cpu_rd_adapter
         .fub_axi_rvalid(fub_axi_rvalid),
         .fub_axi_rready(fub_axi_rready),
         .fub_axi_rtrace(fub_axi_rtrace),
+        .fub_axi_ridunq(fub_axi_ridunq),
         .fub_axi_rpoison('0),
         .fub_axi_rchunkv('0),
         .fub_axi_rchunknum('0),
         .fub_axi_rchunkstrb('0),
         .fub_axi_rtag('0),
-        .fub_axi_rtagmatch('0),
 
         // Status (empty connector = unconnected tie-off)
         .busy(wrapper_rd_busy)
     );
+
+
+    // ================================================================
+    // BIDUNQ / RIDUNQ regenerated per ID (IHI 0022L A5.2)
+    // ================================================================
+    localparam int IDUNQ_IDS = 1 << 4;
+    logic [IDUNQ_IDS-1:0] r_aridunq_by_id;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_aridunq_by_id <= '0;
+        end else begin
+            if (fub_axi_arvalid && fub_axi_arready)
+                r_aridunq_by_id[fub_axi_arid] <= fub_axi_aridunq;
+        end
+    )
+    assign fub_axi_ridunq = r_aridunq_by_id[fub_axi_rid];
 
     logic [NUM_SLAVES-1:0] r_slave_select;
 
@@ -263,7 +286,7 @@ module cpu_rd_adapter
     assign cpu_rd_32b_ar.user   = fub_axi_aruser;
     assign cpu_rd_32b_ar.nsaid = fub_axi_arnsaid;  // AXI5 sideband
     assign cpu_rd_32b_ar.trace = fub_axi_artrace;  // AXI5 sideband
-    assign cpu_rd_32b_ar.uniq = fub_axi_arunique;  // AXI5 sideband
+    assign cpu_rd_32b_ar.idunq = fub_axi_aridunq;  // AXI5 sideband
     assign cpu_rd_32b_arvalid   = fub_axi_arvalid && ar_path_active_32b;
     // arready routed via MUX
 
@@ -286,7 +309,7 @@ module cpu_rd_adapter
 
     assign cpu_rd_64b_ar.nsaid = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign cpu_rd_64b_ar.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign cpu_rd_64b_ar.uniq = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign cpu_rd_64b_ar.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
 
     axi4_dwidth_converter_rd #(
         .S_AXI_DATA_WIDTH(32),

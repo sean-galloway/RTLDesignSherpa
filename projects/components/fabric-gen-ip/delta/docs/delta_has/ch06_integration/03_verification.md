@@ -24,7 +24,13 @@
 
 ## Current Status
 
-As of 2026-10-12, **there is no `dv/` test suite for Delta**. The generator output is verified by linting (Verilator) and by visual/code review. A cocotb-based testbench is the known TODO.
+As of 2026-10-12, Delta has one cocotb suite in `dv/tests/`. It covers the `--amba5` flavor through the checked-in example `rtl_test/delta_axis_flat_2x4_strb_amba5.sv` (2x4, 32-bit, `TSTRB`), using a thin flattening harness (`dv/tb/delta_axis_flat_2x4_strb_amba5_th.sv`) and RDS-DV AXIS5 BFMs on every port:
+
+- **routing:** every master sends to every slave at once. Each slave must receive exactly its beats, every beat must pass the slave BFM's odd-parity check, the crossbar-driven `TVALIDCHK`/`TWAKEUPCHK`/`TREADYCHK` must equal the inversion of their signals on every cycle, and no error flag may set. At func and full the BFMs add random VALID gaps and READY stalls.
+- **wakeup:** `TWAKEUP` with no `TVALID` reaches only the `TDEST` slave, with `TWAKEUPCHK` inverted.
+- **chk_errors:** a bad `TDATACHK`, a bad `TVALIDCHK` and a bad `TREADYCHK` each set the right sticky flag and no other. Reset clears it.
+
+Run it with `make clean-all && make run-all-func-parallel` in `dv/tests/`. The base flavor (`rtl/delta_axis_flat_4x16.sv` and the plain `rtl_test/` shapes) still has no simulation suite. It is verified by lint and review only.
 
 ## Generator Verification
 
@@ -46,14 +52,14 @@ cd rtl && make verilator
 
 ## Planned RTL Verification
 
-When a cocotb testbench is added, the recommended coverage includes:
+Still to add:
 
 - All master-to-slave routing combinations.
 - Concurrent traffic to the same slave (round-robin fairness).
 - Concurrent traffic to different slaves (no crosstalk).
 - Backpressure stress tests.
 - Packet atomicity verification (no interleaving before `TLAST`).
-- Rich-flavor tests (`TSTRB`, `TWAKEUP`, `TPARITY`).
+- Base-flavor equivalents of the `--amba5` suite (the AMBA 5 check signals are covered today).
 - Reset behavior.
 
 ## Formal Properties

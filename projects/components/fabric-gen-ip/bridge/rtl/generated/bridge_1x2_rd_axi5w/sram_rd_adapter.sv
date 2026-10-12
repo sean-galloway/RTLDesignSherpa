@@ -41,7 +41,7 @@ module sram_rd_adapter
     // AXI5 native sideband (A5-2 slice 2)
     input  logic [3:0]  xbar_sram_rd_axi_arnsaid,
     input  logic         xbar_sram_rd_axi_artrace,
-    input  logic         xbar_sram_rd_axi_arunique,
+    input  logic         xbar_sram_rd_axi_aridunq,
     output logic         xbar_sram_rd_axi_rtrace,
 
     // Bridge ID tracking signals
@@ -64,7 +64,7 @@ module sram_rd_adapter
     input  logic         sram_rd_axi_arready,
     output  logic [3:0]  sram_rd_axi_arnsaid,
     output  logic         sram_rd_axi_artrace,
-    output  logic         sram_rd_axi_arunique,
+    output  logic         sram_rd_axi_aridunq,
     input  logic [3:0]  sram_rd_axi_rid,
     input  logic [31:0]  sram_rd_axi_rdata,
     input  logic [1:0]  sram_rd_axi_rresp,
@@ -72,7 +72,8 @@ module sram_rd_adapter
     input  logic         sram_rd_axi_ruser,
     input  logic         sram_rd_axi_rvalid,
     output  logic         sram_rd_axi_rready,
-    input  logic         sram_rd_axi_rtrace
+    input  logic         sram_rd_axi_rtrace,
+    input  logic         sram_rd_axi_ridunq
 );
 
     // ================================================================
@@ -172,7 +173,8 @@ module sram_rd_adapter
         .ENABLE_UNIQUE(1'b1),
         .ENABLE_CHUNKING(1'b0),
         .ENABLE_MTE(1'b0),
-        .ENABLE_POISON(1'b0)
+        .ENABLE_POISON(1'b0),
+        .ENABLE_WAKEUP(1'b0)
     ) u_master_rd (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -194,9 +196,10 @@ module sram_rd_adapter
         .fub_axi_artrace(xbar_sram_rd_axi_artrace),
         .fub_axi_armpam('0),
         .fub_axi_armecid('0),
-        .fub_axi_arunique(xbar_sram_rd_axi_arunique),
+        .fub_axi_aridunq(xbar_sram_rd_axi_aridunq),
         .fub_axi_archunken('0),
         .fub_axi_artagop('0),
+        .fub_axi_awakeup('0),
         .fub_axi_rid(xbar_sram_rd_axi_rid),
         .fub_axi_rdata(xbar_sram_rd_axi_rdata),
         .fub_axi_rresp(xbar_sram_rd_axi_rresp),
@@ -205,12 +208,12 @@ module sram_rd_adapter
         .fub_axi_rvalid(xbar_sram_rd_axi_rvalid),
         .fub_axi_rready(xbar_sram_rd_axi_rready),
         .fub_axi_rtrace(xbar_sram_rd_axi_rtrace),
+        .fub_axi_ridunq(),
         .fub_axi_rpoison(),
         .fub_axi_rchunkv(),
         .fub_axi_rchunknum(),
         .fub_axi_rchunkstrb(),
         .fub_axi_rtag(),
-        .fub_axi_rtagmatch(),
 
         // External side (m_axi)
         .m_axi_arid(sram_rd_axi_arid),
@@ -229,9 +232,10 @@ module sram_rd_adapter
         .m_axi_artrace(sram_rd_axi_artrace),
         .m_axi_armpam(),
         .m_axi_armecid(),
-        .m_axi_arunique(sram_rd_axi_arunique),
+        .m_axi_aridunq(sram_rd_axi_aridunq),
         .m_axi_archunken(),
         .m_axi_artagop(),
+        .m_axi_awakeup(),
         .m_axi_rid(sram_rd_axi_rid),
         .m_axi_rdata(sram_rd_axi_rdata),
         .m_axi_rresp(sram_rd_axi_rresp),
@@ -240,12 +244,12 @@ module sram_rd_adapter
         .m_axi_rvalid(sram_rd_axi_rvalid),
         .m_axi_rready(sram_rd_axi_rready),
         .m_axi_rtrace(sram_rd_axi_rtrace),
+        .m_axi_ridunq(sram_rd_axi_ridunq),
         .m_axi_rpoison('0),
         .m_axi_rchunkv('0),
         .m_axi_rchunknum('0),
         .m_axi_rchunkstrb('0),
         .m_axi_rtag('0),
-        .m_axi_rtagmatch('0),
 
         // Status (empty connector = unconnected tie-off)
         .busy()

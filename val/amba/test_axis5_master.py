@@ -18,7 +18,7 @@ AXIS5 Master Test Runner
 
 Tests AXIS5 master functionality with AMBA5 extensions:
 - TWAKEUP: Wake-up signaling
-- TPARITY: Data parity protection
+- Interface parity (IHI 0051B ch. 5): T*CHK check signals, odd parity
 """
 import os
 import random
@@ -76,6 +76,18 @@ async def cocotb_test_axis5_master_basic(dut):
     tb.log.info("=== AXIS5 Master Basic Test PASSED ===")
 
 
+@cocotb.test(timeout_time=200, timeout_unit="us")
+async def cocotb_test_axis5_master_chk(dut):
+    """IHI 0051B ch. 5: odd-parity T*CHK signals, generation, checking, injection."""
+    tb = AXIS5MasterBasicTB(dut)
+    if not tb.ENABLE_PARITY:
+        tb.log.info("ENABLE_PARITY=0: no check signals, nothing to test")
+        return
+    await tb.setup_clocks_and_reset()
+    await tb.run_chk_test()
+    tb.log.info("=== AXIS5 Master check-signal test PASSED ===")
+
+
 def generate_axis5_master_params():
     """Generate test parameters for AXIS5 master."""
     return [
@@ -83,6 +95,8 @@ def generate_axis5_master_params():
         (4, 32, 8, 4, 1, 1, 0),  # Basic with wakeup
         (4, 64, 8, 4, 1, 1, 0),  # 64-bit data
         (8, 32, 8, 4, 1, 1, 1),  # With parity
+        (4, 72, 11, 4, 20, 1, 1),  # Parity, partial last piece on TSTRB/TID/TUSER
+        (4, 32, 0, 0, 0, 0, 1),  # Parity, TID/TDEST/TUSER/TWAKEUP absent
     ]
 
 
@@ -180,7 +194,7 @@ def test_axis5_master(request, skid_depth, data_width, id_width, dest_width, use
             plus_args=(['--trace'] if enable_waves else []),
             keep_files=True,
             compile_args=compile_args,
-            testcase="cocotb_test_axis5_master_basic",
+            testcase=None,   # both cocotb tests in this module: _basic and _chk
             simulator="verilator",
         )
     except Exception as e:

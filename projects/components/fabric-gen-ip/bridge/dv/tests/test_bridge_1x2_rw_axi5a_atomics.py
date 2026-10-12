@@ -104,6 +104,17 @@ async def _atomic_round(tb, wr, rd, slave_idx, base, expect):
         f"AtomicLoad ADD must return the ORIGINAL value 0x10 on R: {r}")
     assert mem() == 0x15, f"memory after AtomicLoad ADD: {mem():#x}"
 
+    # GitHub #102 item 5 / IHI 0022L A5.2: an atomic's RIDUNQ (and BIDUNQ)
+    # equal its AWIDUNQ. The ddr slave does not carry 'unique', so AWIDUNQ
+    # never reaches it; the master boundary regenerates both per ID.
+    for k, uq in enumerate((1, 0, 1)):
+        r = await wr.atomic_operation(addr, 0, ATOP_LOAD_ADD, read_channel=rd, size=2,
+                                      id=9 + k, idunq=uq)
+        assert r.get('idunq', -1) == uq, f"atomic BIDUNQ={r.get('idunq')} for AWIDUNQ={uq}: {r}"
+        assert r['read_return'].get('idunq', -1) == uq, (
+            f"atomic RIDUNQ={r['read_return'].get('idunq')} for AWIDUNQ={uq}: {r['read_return']}")
+    assert mem() == 0x15, f"memory after AtomicLoad ADD of 0: {mem():#x}"
+
     # AtomicStore ADD: B only, no R return, memory still updated.
     r = await wr.atomic_operation(addr, 3, ATOP_STORE_ADD, read_channel=rd, size=2, id=3)
     assert r.get('response') == 0 and 'read_data' not in r, f"AtomicStore: {r}"
@@ -227,7 +238,7 @@ async def cocotb_test_bridge_1x2_rw_axi5a_atomics(dut):
     for r in range(rounds):
         for slave_idx, base in ((0, 0x0000_0000 + r * 0x1000), (1, 0x8000_0000 + r * 0x1000)):
             await _atomic_round(tb, wr, rd, slave_idx, base, expect)
-            rr_issued += 6      # load add, load set, load umax, swap, compare x2
+            rr_issued += 9      # load add x4 (incl. the 3 RIDUNQ checks), load set, load umax, swap, compare x2
 
     n = max(2, rounds)
     await _concurrency_phase(tb, wr, rd, 0x0000_0000 + rounds * 0x1000,

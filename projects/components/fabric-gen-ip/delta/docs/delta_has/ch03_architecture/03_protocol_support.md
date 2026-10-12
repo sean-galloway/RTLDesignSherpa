@@ -42,12 +42,13 @@ The `--strb-width N` option adds `TSTRB` to every master and slave interface. `T
 
 ## Optional AMBA 5 Sidebands
 
-The `--amba5` option adds two AMBA 5 signals:
+The `--amba5` option adds:
 
-- `TWAKEUP` — wakeup hint, decoded from `TDEST` and ORed per slave.
-- `TPARITY` — parity sideband, treated as pass-through like `TUSER`.
+- `TWAKEUP`: a wakeup hint, decoded from `TDEST` and ORed per slave.
+- The AXI5-Stream interface-protection signals of IHI 0051B chapter 5 (`Check_Type = Odd_Parity_Byte_All`): `TDATACHK`, `TSTRBCHK` (with `TSTRB`), `TLASTCHK`, `TIDCHK`, `TDESTCHK`, `TUSERCHK`, `TVALIDCHK`, `TREADYCHK` and `TWAKEUPCHK`, all odd parity. The spec fixes the widths at one check bit per 8 bits.
+- Sticky `s_parity_error` / `m_parity_error` flags per port.
 
-The parity width defaults to `DATA_WIDTH / 8` and can be overridden with `--parity-width M`. The generated ports port-match the `rtl/amba/axis5/*` conventions.
+The crossbar checks the payload check bits on ingress and carries them to the granted slave unchanged. It generates the control check bits for the signals it drives and checks the ones it receives. The generated ports match the `rtl/amba/axis5/*` modules. See Chapter 4, AXI-Stream Rich Interface, for the full table.
 
 ## What Delta Does Not Support
 
@@ -71,6 +72,6 @@ For memory-mapped fabrics, use the sibling `bridge` or `apbx-xbar` components.
 | TID/TUSER pass-through | Yes | Yes | Unmodified |
 | TSTRB | No | Yes | `--strb-width N` |
 | TWAKEUP | No | Yes | `--amba5` |
-| TPARITY | No | Yes | `--amba5 [--parity-width M]` |
+| T*CHK interface parity (IHI 0051B ch. 5, odd) | No | Yes | `--amba5` |
 
 : Table 3.2: Protocol Support Matrix

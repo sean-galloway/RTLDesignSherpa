@@ -46,18 +46,20 @@ module axis5_slave_monlite
     parameter int      AXIS_DEST_WIDTH      = 4,
     parameter int      AXIS_USER_WIDTH      = 1,
     parameter bit      ENABLE_WAKEUP        = 1,  // Enable TWAKEUP signal
-    parameter bit      ENABLE_PARITY        = 0,  // Enable TPARITY signal
+    parameter bit      ENABLE_PARITY        = 0,  // Enable the *CHK check signals (IHI 0051B ch. 5)
     parameter int      DW                   = AXIS_DATA_WIDTH,
     parameter int      IW                   = AXIS_ID_WIDTH,
     parameter int      DESTW                = AXIS_DEST_WIDTH,
     parameter int      UW                   = AXIS_USER_WIDTH,
     parameter int      SW                   = DW / 8,
-    parameter int      PW                   = SW,  // Parity width (1 bit per byte)
     parameter int      IW_WIDTH             = (IW > 0) ? IW : 1,
     parameter int      DESTW_WIDTH          = (DESTW > 0) ? DESTW : 1,
     parameter int      UW_WIDTH             = (UW > 0) ? UW : 1,
-    parameter int      PW_WIDTH             = ENABLE_PARITY ? PW : 1,  // Total size includes: tdata+tstrb+tlast+tid+tdest+tuser+twakeup+tparity
-    parameter int      TSize                = DW + SW + 1 + IW_WIDTH + DESTW_WIDTH + UW_WIDTH + (ENABLE_WAKEUP ? 1 : 0) + (ENABLE_PARITY ? PW : 0)
+    parameter int      TDATACHK_W           = SW,                     // IHI 0051B Table 5-1
+    parameter int      TSTRBCHK_W           = (SW + 7) / 8,
+    parameter int      TIDCHK_W             = (IW_WIDTH + 7) / 8,
+    parameter int      TDESTCHK_W           = (DESTW_WIDTH + 7) / 8,
+    parameter int      TUSERCHK_W           = (UW_WIDTH + 7) / 8
 ) (
     input  logic                      aclk,
     input  logic                      aresetn,
@@ -70,7 +72,15 @@ module axis5_slave_monlite
     input  logic                      s_axis_tvalid,
     output logic                      s_axis_tready,
     input  logic                      s_axis_twakeup,
-    input  logic [PW_WIDTH-1:0]       s_axis_tparity,
+    input  logic [TDATACHK_W-1:0]      s_axis_tdatachk,
+    input  logic [TSTRBCHK_W-1:0]      s_axis_tstrbchk,
+    input  logic                       s_axis_tlastchk,
+    input  logic [TIDCHK_W-1:0]        s_axis_tidchk,
+    input  logic [TDESTCHK_W-1:0]      s_axis_tdestchk,
+    input  logic [TUSERCHK_W-1:0]      s_axis_tuserchk,
+    input  logic                       s_axis_tvalidchk,
+    output logic                       s_axis_treadychk,
+    input  logic                       s_axis_twakeupchk,
     output logic [DW-1:0]             fub_axis_tdata,
     output logic [SW-1:0]             fub_axis_tstrb,
     output logic                      fub_axis_tlast,
@@ -80,7 +90,12 @@ module axis5_slave_monlite
     output logic                      fub_axis_tvalid,
     input  logic                      fub_axis_tready,
     output logic                      fub_axis_twakeup,
-    output logic [PW_WIDTH-1:0]       fub_axis_tparity,
+    output logic [TDATACHK_W-1:0]      fub_axis_tdatachk,
+    output logic [TSTRBCHK_W-1:0]      fub_axis_tstrbchk,
+    output logic                       fub_axis_tlastchk,
+    output logic [TIDCHK_W-1:0]        fub_axis_tidchk,
+    output logic [TDESTCHK_W-1:0]      fub_axis_tdestchk,
+    output logic [TUSERCHK_W-1:0]      fub_axis_tuserchk,
     output logic                      busy,
     output logic                      parity_error,  // Parity error detected
     // ---- Monitor control (the lite's own set: nothing here it cannot honour) ----
@@ -125,12 +140,14 @@ module axis5_slave_monlite
         .DESTW                 (DESTW),
         .UW                    (UW),
         .SW                    (SW),
-        .PW                    (PW),
         .IW_WIDTH              (IW_WIDTH),
         .DESTW_WIDTH           (DESTW_WIDTH),
         .UW_WIDTH              (UW_WIDTH),
-        .PW_WIDTH              (PW_WIDTH),
-        .TSize                 (TSize)
+        .TDATACHK_W            (TDATACHK_W),
+        .TSTRBCHK_W            (TSTRBCHK_W),
+        .TIDCHK_W              (TIDCHK_W),
+        .TDESTCHK_W            (TDESTCHK_W),
+        .TUSERCHK_W            (TUSERCHK_W)
     ) u_core (
         .aclk                  (aclk),
         .aresetn               (aresetn),
@@ -143,7 +160,15 @@ module axis5_slave_monlite
         .s_axis_tvalid         (s_axis_tvalid),
         .s_axis_tready         (s_axis_tready),
         .s_axis_twakeup        (s_axis_twakeup),
-        .s_axis_tparity        (s_axis_tparity),
+        .s_axis_tdatachk       (s_axis_tdatachk),
+        .s_axis_tstrbchk       (s_axis_tstrbchk),
+        .s_axis_tlastchk       (s_axis_tlastchk),
+        .s_axis_tidchk         (s_axis_tidchk),
+        .s_axis_tdestchk       (s_axis_tdestchk),
+        .s_axis_tuserchk       (s_axis_tuserchk),
+        .s_axis_tvalidchk      (s_axis_tvalidchk),
+        .s_axis_treadychk      (s_axis_treadychk),
+        .s_axis_twakeupchk     (s_axis_twakeupchk),
         .fub_axis_tdata        (fub_axis_tdata),
         .fub_axis_tstrb        (fub_axis_tstrb),
         .fub_axis_tlast        (fub_axis_tlast),
@@ -153,7 +178,12 @@ module axis5_slave_monlite
         .fub_axis_tvalid       (fub_axis_tvalid),
         .fub_axis_tready       (fub_axis_tready),
         .fub_axis_twakeup      (fub_axis_twakeup),
-        .fub_axis_tparity      (fub_axis_tparity),
+        .fub_axis_tdatachk     (fub_axis_tdatachk),
+        .fub_axis_tstrbchk     (fub_axis_tstrbchk),
+        .fub_axis_tlastchk     (fub_axis_tlastchk),
+        .fub_axis_tidchk       (fub_axis_tidchk),
+        .fub_axis_tdestchk     (fub_axis_tdestchk),
+        .fub_axis_tuserchk     (fub_axis_tuserchk),
         .busy                  (busy),
         .parity_error          (parity_error)
     );

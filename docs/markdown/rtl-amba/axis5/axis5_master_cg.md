@@ -31,17 +31,17 @@
 
 ## Overview
 
-The AXIS5 Master CG (Clock Gated) wraps the standard AXIS5 master with the AMBA clock gate controller, giving you an AXI5-Stream master interface that gates its own clock during idle periods. Full AXIS5 functionality survives the wrapping — wake-up signaling, optional parity, the skid buffer, all of it.
+The AXIS5 Master CG (Clock Gated) wraps the standard AXIS5 master with the AMBA clock gate controller, giving you an AXI5-Stream master interface that gates its own clock during idle periods. Full AXIS5 functionality survives the wrapping — wake-up signaling, the optional IHI 0051B ch. 5 check signals, the skid buffer, all of it.
 
 ### Key Features
 
 - Same AXI5-Stream data path as `axis5_master` (see its [signal coverage note](axis5_master.md#key-features); TKEEP and TPOISON are not implemented)
 - Automatic clock gating during idle periods for power savings
 - TWAKEUP: Wake-up signaling integration with clock gate control
-- TPARITY: Optional parity protection, 1 bit per byte (proprietary extension)
+- Interface parity (IHI 0051B ch. 5): the T*CHK check signals, odd parity, one bit per 8 bits, gated by `ENABLE_PARITY` (see [AXIS5 Master](axis5_master.md#interface-parity-enable_parity1))
 - Configurable idle count threshold for gating activation
 - Internal skid buffer for backpressure handling
-- Parity error detection and reporting
+- Check-signal error detection (sticky `parity_error`)
 - Clock gating status output
 
 ### Power Management Features
@@ -65,10 +65,10 @@ The AXIS5 Master CG (Clock Gated) wraps the standard AXIS5 master with the AMBA 
 | AXIS_DEST_WIDTH | int | 4 | AXIS TDEST signal width (0 to disable) |
 | AXIS_USER_WIDTH | int | 1 | AXIS TUSER signal width (0 to disable) |
 | ENABLE_WAKEUP | bit | 1 | Enable TWAKEUP signal (1=enabled) |
-| ENABLE_PARITY | bit | 0 | Enable TPARITY signal (1=enabled) |
+| ENABLE_PARITY | bit | 0 | Enable the IHI 0051B ch. 5 check signals (1 = Check_Type Odd_Parity_Byte_All, 0 = False) |
 | CG_IDLE_COUNT_WIDTH | int | 4 | Clock gate idle counter width |
 
-**Note on `ENABLE_WAKEUP`:** the default is 1, so TWAKEUP ports exist and are carried through the buffer unless you explicitly set `ENABLE_WAKEUP=0`. Set it to 0 for an AXI4-Stream-compatible port list with no wake-up sideband and slightly less area. `ENABLE_PARITY` defaults to 0 because TPARITY is a proprietary extension.
+**Note on `ENABLE_WAKEUP`:** the default is 1, so TWAKEUP ports exist and are carried through the buffer unless you explicitly set `ENABLE_WAKEUP=0`. Set it to 0 for an AXI4-Stream-compatible port list with no wake-up sideband and slightly less area. `ENABLE_PARITY` defaults to 0, the spec's `Check_Type = False`: the `*chk` ports are still present but outputs are tied 0 and inputs are ignored.
 
 ### Derived Values (do not override)
 
@@ -81,10 +81,11 @@ These are declared in the parameter list so they can be used in port widths, but
 | DESTW | AXIS_DEST_WIDTH | DEST width short name |
 | UW | AXIS_USER_WIDTH | USER width short name |
 | SW | DW/8 | Strobe width in bytes |
-| PW | SW | Parity width - 1 bit per byte |
 | ICW | CG_IDLE_COUNT_WIDTH | Idle count width short name |
 | IW_WIDTH / DESTW_WIDTH / UW_WIDTH | max(width, 1) | Zero-width avoidance for disabled sidebands |
-| PW_WIDTH | ENABLE_PARITY ? PW : 1 | TPARITY port width |
+| TDATACHK_W | SW | TDATACHK width, TDATA_WIDTH/8 (Table 5-1) |
+| TSTRBCHK_W | ceil(SW/8) | TSTRBCHK width, ceil(TDATA_WIDTH/64) |
+| TIDCHK_W / TDESTCHK_W / TUSERCHK_W | ceil(width/8) | TIDCHK / TDESTCHK / TUSERCHK widths |
 
 ---
 
@@ -117,7 +118,12 @@ These are declared in the parameter list so they can be used in port widths, but
 | fub_axis5_tvalid | 1 | Input | Transfer valid |
 | fub_axis5_tready | 1 | Output | Transfer ready (skid buffer not full) |
 | fub_axis5_twakeup | 1 | Input | Wake-up signal (prevents clock gating) |
-| fub_axis5_tparity | PW_WIDTH | Input | Data parity per byte (AXIS5 extension) |
+| fub_axis5_tdatachk | TDATACHK_W | Input | TDATACHK (odd parity, 1 bit per byte) |
+| fub_axis5_tstrbchk | TSTRBCHK_W | Input | TSTRBCHK |
+| fub_axis5_tlastchk | 1 | Input | TLASTCHK |
+| fub_axis5_tidchk | TIDCHK_W | Input | TIDCHK |
+| fub_axis5_tdestchk | TDESTCHK_W | Input | TDESTCHK |
+| fub_axis5_tuserchk | TUSERCHK_W | Input | TUSERCHK |
 
 ### Master AXIS5 Interface (Output Side)
 
@@ -132,14 +138,22 @@ These are declared in the parameter list so they can be used in port widths, but
 | m_axis5_tvalid | 1 | Output | Transfer valid |
 | m_axis5_tready | 1 | Input | Transfer ready from downstream |
 | m_axis5_twakeup | 1 | Output | Wake-up signal |
-| m_axis5_tparity | PW_WIDTH | Output | Data parity per byte (AXIS5 extension) |
+| m_axis5_tdatachk | TDATACHK_W | Output | TDATACHK (odd parity, 1 bit per byte) |
+| m_axis5_tstrbchk | TSTRBCHK_W | Output | TSTRBCHK |
+| m_axis5_tlastchk | 1 | Output | TLASTCHK |
+| m_axis5_tidchk | TIDCHK_W | Output | TIDCHK |
+| m_axis5_tdestchk | TDESTCHK_W | Output | TDESTCHK |
+| m_axis5_tuserchk | TUSERCHK_W | Output | TUSERCHK |
+| m_axis5_tvalidchk | 1 | Output | TVALIDCHK = ~m_axis5_tvalid |
+| m_axis5_treadychk | 1 | Input | TREADYCHK from the receiver, checked every cycle out of reset |
+| m_axis5_twakeupchk | 1 | Output | TWAKEUPCHK = ~m_axis5_twakeup |
 
 ### Status Outputs
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
 | busy | 1 | Output | Module busy (data in buffer or input valid) |
-| parity_error | 1 | Output | Parity error detected (sticky flag) |
+| parity_error | 1 | Output | Sticky check-signal error (see [AXIS5 Master](axis5_master.md#interface-parity-enable_parity1)) |
 | cg_gating | 1 | Output | Clock gating active status (1=gated, 0=running) |
 | `cg_idle` | Out | 1 | Activity terms quiet (registered `~wakeup`). |
 
@@ -349,7 +363,12 @@ axis5_master_cg #(
     .fub_axis5_tvalid       (fub_tvalid),
     .fub_axis5_tready       (fub_tready),
     .fub_axis5_twakeup      (fub_twakeup),
-    .fub_axis5_tparity      (8'h00),
+    .fub_axis5_tdatachk      ('0),
+    .fub_axis5_tstrbchk      ('0),
+    .fub_axis5_tlastchk      (1'b0),
+    .fub_axis5_tidchk        ('0),
+    .fub_axis5_tdestchk      ('0),
+    .fub_axis5_tuserchk      ('0),
 
     // Master AXIS5 interface (to downstream)
     .m_axis5_tdata          (m_axis_tdata),
@@ -361,7 +380,15 @@ axis5_master_cg #(
     .m_axis5_tvalid         (m_axis_tvalid),
     .m_axis5_tready         (m_axis_tready),
     .m_axis5_twakeup        (m_axis_twakeup),
-    .m_axis5_tparity        (),
+    .m_axis5_tdatachk        (),
+    .m_axis5_tstrbchk        (),
+    .m_axis5_tlastchk        (),
+    .m_axis5_tidchk          (),
+    .m_axis5_tdestchk        (),
+    .m_axis5_tuserchk        (),
+    .m_axis5_tvalidchk      (),
+    .m_axis5_treadychk      (1'b0),
+    .m_axis5_twakeupchk     (),
 
     // Status
     .busy                   (axis_busy),
@@ -527,7 +554,7 @@ pytest val/amba/test_axis5_master_cg.py -v
 
 ## References
 
-- Arm. *AMBA AXI-Stream Protocol Specification*, ARM IHI 0051B, Apr. 2021 (defines AXI4-Stream and AXI5-Stream). [developer.arm.com/documentation/ihi0051/b](https://developer.arm.com/documentation/ihi0051/b/) -- ch. 2 "Interface Signals" including §2.3 "Wake-up signaling" (`TWAKEUP`): the protocol of the wrapped AXI5-Stream block. Citation only.
+- Arm. *AMBA AXI-Stream Protocol Specification*, ARM IHI 0051B, Apr. 2021 (defines AXI4-Stream and AXI5-Stream). [developer.arm.com/documentation/ihi0051/b](https://developer.arm.com/documentation/ihi0051/b/) -- ch. 2 "Interface Signals" including §2.3 "Wake-up signaling" (`TWAKEUP`), and ch. 5 "Interface parity protection" (§5.3 odd parity, Table 5-1 check signals), implemented by the wrapped block when `ENABLE_PARITY=1` (issue #102): the protocol of the wrapped AXI5-Stream block. Citation only.
 - Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Trans. VLSI Systems*, 8(3), June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) -- the fixed-timeout policy `amba_clock_gate_ctrl` implements: gate after `cfg_cg_idle_count` idle cycles, wake on activity.
 - Benini, L., De Micheli, G. "Automatic Synthesis of Low-Power Gated-Clock Finite-State Machines." *IEEE Trans. CAD*, 15(6), June 1996. DOI: [10.1109/43.503933](https://doi.org/10.1109/43.503933) -- the latch-based gated clock (`icg`) at the bottom of the gating chain.
 - Roy, S. *Advanced Digital System Design*, Springer, ch. 15 "Low-Power Digital System Design", §15.5.5 "Logic Level Power Down" -- textbook treatment of clock gating (secondary source).

@@ -6,6 +6,11 @@
 # rides the fabric structs; the master adapter's axi5_atomic_filter
 # DECERRs read-return classes (AtomicLoad/Swap/Compare) locally and
 # forwards AtomicStore + plain writes natively.
+# 'unique' on the master only (GitHub #102 item 5): BIDUNQ is regenerated on
+# the wrapper side of the filter, so even a locally-DECERRed atomic answers
+# with its own AWIDUNQ. The write-only port has no R channel, so a load-class
+# atomic completes with DECERR on B only and its owed R beats are discarded
+# inside the filter (HAS 4.4) -- managers must not issue them here.
 # Connectivity comes from bridge_1x2_wr_axi5a_connectivity.csv.
 
 [bridge]
@@ -22,7 +27,7 @@ data_width = 32
 user_width = 1
 channels = "wr"
 protocol = "axi5"
-axi5_features = ["trace", "atomic"]
+axi5_features = ["trace", "atomic", "unique"]
 
 [[bridge.slaves]]
 name = "ddr_wr"

@@ -12,8 +12,9 @@
 // - PWUSER: User-defined write data attributes (from master)
 // - PRUSER: User-defined read data attributes (to master)
 // - PBUSER: User-defined response attributes (to master)
-// - PWAKEUP: Wake-up signal (to master)
-// - Optional parity support for data integrity
+// - PWAKEUP: Requester wake-up INPUT (IHI 0024E 3.7.2, Table 3-7)
+// - Optional interface parity protection (IHI 0024E ch. 5: *CHK signals,
+//   odd parity, one check bit per 8 payload bits)
 // - CDC handshake for crossing clock domains
 //
 // Documentation: docs/markdown/rtl-amba/index.md
@@ -60,7 +61,14 @@ module apb5_slave_cdc #(
     parameter int RUW = RUSER_WIDTH,
     parameter int BUW = BUSER_WIDTH,
     parameter int CPW = AW + DW + SW + PW + AUW + WUW + 1,
-    parameter int RPW = DW + RUW + BUW + 1
+    parameter int RPW = DW + RUW + BUW + 1,
+    // Parity check-signal widths (IHI 0024E Table 5-1): one bit per 8 bits
+    parameter int ACW  = (AW + 7) / 8,                     // PADDRCHK
+    parameter int DCW  = DW / 8,                           // PWDATACHK / PRDATACHK
+    parameter int AUCW = (AUW + 7) / 8,                    // PAUSERCHK
+    parameter int WUCW = (WUW + 7) / 8,                    // PWUSERCHK
+    parameter int RUCW = (RUW + 7) / 8,                    // PRUSERCHK
+    parameter int BUCW = (BUW + 7) / 8                     // PBUSERCHK
 ) (
     // APB Clock Domain
     input  logic              pclk,
@@ -83,17 +91,26 @@ module apb5_slave_cdc #(
     input  logic [WUW-1:0]    s_apb_PWUSER,
     output logic [DW-1:0]     s_apb_PRDATA,
     output logic              s_apb_PSLVERR,
-    output logic              s_apb_PWAKEUP,
+    input  logic              s_apb_PWAKEUP,
     output logic [RUW-1:0]    s_apb_PRUSER,
     output logic [BUW-1:0]    s_apb_PBUSER,
 
-    // Optional parity signals (active when ENABLE_PARITY=1)
-    input  logic [SW-1:0]     s_apb_PWDATAPARITY,
-    input  logic              s_apb_PADDRPARITY,
-    input  logic              s_apb_PCTRLPARITY,
-    output logic [SW-1:0]     s_apb_PRDATAPARITY,
-    output logic              s_apb_PREADYPARITY,
-    output logic              s_apb_PSLVERRPARITY,
+    // Interface parity check signals, IHI 0024E ch. 5 (ENABLE_PARITY=1).
+    // Odd parity; passed straight through to the wrapped core.
+    input  logic [ACW-1:0]     s_apb_PADDRCHK,
+    input  logic               s_apb_PCTRLCHK,       // PPROT, PWRITE
+    input  logic               s_apb_PSELCHK,        // PSELxCHK
+    input  logic               s_apb_PENABLECHK,
+    input  logic [DCW-1:0]     s_apb_PWDATACHK,
+    input  logic               s_apb_PSTRBCHK,
+    input  logic [AUCW-1:0]    s_apb_PAUSERCHK,
+    input  logic [WUCW-1:0]    s_apb_PWUSERCHK,
+    output logic [DCW-1:0]     s_apb_PRDATACHK,
+    output logic               s_apb_PREADYCHK,
+    output logic               s_apb_PSLVERRCHK,
+    input  logic               s_apb_PWAKEUPCHK,
+    output logic [RUCW-1:0]    s_apb_PRUSERCHK,
+    output logic [BUCW-1:0]    s_apb_PBUSERCHK,
 
     // Command Interface (aclk domain)
     output logic              cmd_valid,
@@ -114,8 +131,6 @@ module apb5_slave_cdc #(
     input  logic [RUW-1:0]    rsp_pruser,
     input  logic [BUW-1:0]    rsp_pbuser,
 
-    // Wake-up control (aclk domain)
-    input  logic              wakeup_request,
 
     // Parity error flags (pclk domain -- NOT aclk. apb5_slave drives these
     // combinationally from PSEL/PENABLE, so they are valid only during the APB
@@ -141,19 +156,6 @@ module apb5_slave_cdc #(
     logic              w_rsp_pslverr;
     logic [RUW-1:0]    w_rsp_pruser;
     logic [BUW-1:0]    w_rsp_pbuser;
-
-    // Wakeup CDC (from aclk to pclk domain)
-    logic              w_wakeup_request_sync;
-
-    // Synchronize wakeup request to pclk domain
-    cdc_synchronizer #(
-        .WIDTH(1)
-    ) u_wakeup_sync (
-        .clk       (pclk),
-        .rst_n     (presetn),
-        .async_in  (wakeup_request),
-        .sync_out  (w_wakeup_request_sync)
-    );
 
     // Instantiate APB5 slave (pclk domain)
     apb5_slave #(
@@ -190,12 +192,20 @@ module apb5_slave_cdc #(
         .s_apb_PBUSER      (s_apb_PBUSER),
 
         // Parity signals
-        .s_apb_PWDATAPARITY  (s_apb_PWDATAPARITY),
-        .s_apb_PADDRPARITY   (s_apb_PADDRPARITY),
-        .s_apb_PCTRLPARITY   (s_apb_PCTRLPARITY),
-        .s_apb_PRDATAPARITY  (s_apb_PRDATAPARITY),
-        .s_apb_PREADYPARITY  (s_apb_PREADYPARITY),
-        .s_apb_PSLVERRPARITY (s_apb_PSLVERRPARITY),
+        .s_apb_PADDRCHK      (s_apb_PADDRCHK),
+        .s_apb_PCTRLCHK      (s_apb_PCTRLCHK),
+        .s_apb_PSELCHK       (s_apb_PSELCHK),
+        .s_apb_PENABLECHK    (s_apb_PENABLECHK),
+        .s_apb_PWDATACHK     (s_apb_PWDATACHK),
+        .s_apb_PSTRBCHK      (s_apb_PSTRBCHK),
+        .s_apb_PAUSERCHK     (s_apb_PAUSERCHK),
+        .s_apb_PWUSERCHK     (s_apb_PWUSERCHK),
+        .s_apb_PRDATACHK     (s_apb_PRDATACHK),
+        .s_apb_PREADYCHK     (s_apb_PREADYCHK),
+        .s_apb_PSLVERRCHK    (s_apb_PSLVERRCHK),
+        .s_apb_PWAKEUPCHK    (s_apb_PWAKEUPCHK),
+        .s_apb_PRUSERCHK     (s_apb_PRUSERCHK),
+        .s_apb_PBUSERCHK     (s_apb_PBUSERCHK),
 
         // Command Interface (to CDC)
         .cmd_valid         (w_cmd_valid),
@@ -215,9 +225,6 @@ module apb5_slave_cdc #(
         .rsp_pslverr       (w_rsp_pslverr),
         .rsp_pruser        (w_rsp_pruser),
         .rsp_pbuser        (w_rsp_pbuser),
-
-        // Wake-up control (synchronized from aclk)
-        .wakeup_request    (w_wakeup_request_sync),
 
         // Parity error flags (passed through)
         .parity_error_wdata(parity_error_wdata),

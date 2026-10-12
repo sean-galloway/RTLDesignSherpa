@@ -36,7 +36,7 @@ module bridge_1x2_rd_axi5
     input  logic         cpu_rd_axi_arvalid,
     output  logic         cpu_rd_axi_arready,
     input  logic         cpu_rd_axi_artrace,
-    input  logic         cpu_rd_axi_arunique,
+    input  logic         cpu_rd_axi_aridunq,
 
     output  logic [3:0]  cpu_rd_axi_rid,
     output  logic [31:0]  cpu_rd_axi_rdata,
@@ -46,6 +46,7 @@ module bridge_1x2_rd_axi5
     output  logic         cpu_rd_axi_rvalid,
     input  logic         cpu_rd_axi_rready,
     output  logic         cpu_rd_axi_rtrace,
+    output  logic         cpu_rd_axi_ridunq,
 
     // Slave 0: ddr_rd
     // AXI4 Slave: ddr_rd
@@ -297,7 +298,7 @@ module bridge_1x2_rd_axi5
         .cpu_rd_axi_arvalid(cpu_rd_axi_arvalid),
         .cpu_rd_axi_arready(cpu_rd_axi_arready),
         .cpu_rd_axi_artrace(cpu_rd_axi_artrace),
-        .cpu_rd_axi_arunique(cpu_rd_axi_arunique),
+        .cpu_rd_axi_aridunq(cpu_rd_axi_aridunq),
         .cpu_rd_axi_rid(cpu_rd_axi_rid),
         .cpu_rd_axi_rdata(cpu_rd_axi_rdata),
         .cpu_rd_axi_rresp(cpu_rd_axi_rresp),
@@ -306,6 +307,7 @@ module bridge_1x2_rd_axi5
         .cpu_rd_axi_rvalid(cpu_rd_axi_rvalid),
         .cpu_rd_axi_rready(cpu_rd_axi_rready),
         .cpu_rd_axi_rtrace(cpu_rd_axi_rtrace),
+        .cpu_rd_axi_ridunq(cpu_rd_axi_ridunq),
 
         // Decode outputs
         .slave_select_ar(cpu_rd_slave_select_ar),

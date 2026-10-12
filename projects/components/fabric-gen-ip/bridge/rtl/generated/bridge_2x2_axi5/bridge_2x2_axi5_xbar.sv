@@ -131,10 +131,10 @@ module bridge_2x2_axi5_xbar
     // AXI5 native sideband (A5-2 slice 2)
     output logic [3:0]  sram_axi_awnsaid,
     output logic         sram_axi_awtrace,
-    output logic         sram_axi_awunique,
+    output logic         sram_axi_awidunq,
     output logic [3:0]  sram_axi_arnsaid,
     output logic         sram_axi_artrace,
-    output logic         sram_axi_arunique,
+    output logic         sram_axi_aridunq,
     input  logic         sram_axi_btrace,
     input  logic         sram_axi_rtrace,
 
@@ -496,8 +496,8 @@ module bridge_2x2_axi5_xbar
         (dma_32b_aw_gnt_sram ? dma_32b_aw.nsaid : '0);
     assign sram_axi_awtrace = (cpu_32b_aw_gnt_sram ? cpu_32b_aw.trace : '0) |
         (dma_32b_aw_gnt_sram ? dma_32b_aw.trace : '0);
-    assign sram_axi_awunique = (cpu_32b_aw_gnt_sram ? cpu_32b_aw.uniq : '0) |
-        (dma_32b_aw_gnt_sram ? dma_32b_aw.uniq : '0);
+    assign sram_axi_awidunq = (cpu_32b_aw_gnt_sram ? cpu_32b_aw.idunq : '0) |
+        (dma_32b_aw_gnt_sram ? dma_32b_aw.idunq : '0);
     assign sram_axi_awvalid = cpu_32b_aw_gnt_sram || dma_32b_aw_gnt_sram;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
@@ -595,8 +595,8 @@ module bridge_2x2_axi5_xbar
         (dma_32b_ar_gnt_sram ? dma_32b_ar.nsaid : '0);
     assign sram_axi_artrace = (cpu_32b_ar_gnt_sram ? cpu_32b_ar.trace : '0) |
         (dma_32b_ar_gnt_sram ? dma_32b_ar.trace : '0);
-    assign sram_axi_arunique = (cpu_32b_ar_gnt_sram ? cpu_32b_ar.uniq : '0) |
-        (dma_32b_ar_gnt_sram ? dma_32b_ar.uniq : '0);
+    assign sram_axi_aridunq = (cpu_32b_ar_gnt_sram ? cpu_32b_ar.idunq : '0) |
+        (dma_32b_ar_gnt_sram ? dma_32b_ar.idunq : '0);
     assign sram_axi_arvalid = cpu_32b_ar_gnt_sram || dma_32b_ar_gnt_sram;
 
     // Rready (slave → owning master, by rid_bridge_id)

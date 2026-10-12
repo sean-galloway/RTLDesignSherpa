@@ -35,7 +35,8 @@ from typing import Tuple
 from pathlib import Path
 
 # Import the framework
-sys.path.insert(0, str(Path(__file__).resolve().parents[4] / 'bin'))
+# parents[5] = repo root (bin/ -> delta/ -> fabric-gen-ip/ -> components/ -> projects/ -> root)
+sys.path.insert(0, str(Path(__file__).resolve().parents[5] / 'bin'))
 from rtl_generators.verilog.module import Module
 
 
@@ -50,8 +51,7 @@ class DeltaConfig:
     id_width: int           # TID width (calculated)
     user_width: int = 1     # TUSER width
     strb_width: int = 0     # TSTRB width in bits; 0 = no TSTRB ports
-    amba5: bool = False     # Emit AMBA 5 sidebands (TWAKEUP, TPARITY)
-    parity_width: int = 0   # TPARITY width; 0 under amba5 defaults to DATA_WIDTH/8
+    amba5: bool = False     # Emit AMBA 5 sidebands: TWAKEUP + IHI 0051B ch. 5 *CHK signals
     registered_outputs: bool = True  # Add output registers
     arbiter_type: str = "round_robin"  # "round_robin" or "fixed_priority"
     add_performance_counters: bool = True  # Add optional performance monitoring
@@ -77,7 +77,6 @@ class DeltaFlatCrossbar(Module):
         # Optional flavor columns (rtl/amba/axis4 + axis5 parity with these)
         self.strb_on = config.strb_width > 0
         self.amba5_on = config.amba5
-        self.parity_w = (config.parity_width or (config.data_width // 8)) if config.amba5 else 0
 
         # Define parameters
         param_str = f'''
@@ -89,7 +88,15 @@ class DeltaFlatCrossbar(Module):
         if self.strb_on:
             param_str += f'parameter int STRB_WIDTH = {config.strb_width},\n'
         if self.amba5_on:
-            param_str += f'parameter int PW_WIDTH = {self.parity_w},\n'
+            # Check-signal widths, IHI 0051B Table 5-1 (one bit per byte,
+            # top bit covers a short remainder). Derived, so overriding a
+            # payload width at instantiation keeps the check ports in step.
+            param_str += 'parameter int TDATACHK_W = DATA_WIDTH / 8,\n'
+            if self.strb_on:
+                param_str += 'parameter int TSTRBCHK_W = (STRB_WIDTH + 7) / 8,\n'
+            param_str += 'parameter int TIDCHK_W = (ID_WIDTH + 7) / 8,\n'
+            param_str += 'parameter int TDESTCHK_W = (DEST_WIDTH + 7) / 8,\n'
+            param_str += 'parameter int TUSERCHK_W = (USER_WIDTH + 7) / 8,\n'
         param_str += f'''parameter int NUM_MASTERS = {config.num_masters},
             parameter int NUM_SLAVES  = {config.num_slaves}
         '''
@@ -113,10 +120,7 @@ class DeltaFlatCrossbar(Module):
             input  logic [USER_WIDTH-1:0]  s_axis_tuser  [NUM_MASTERS],
         '''
         if self.amba5_on:
-            port_str += '''
-            input  logic                   s_axis_twakeup [NUM_MASTERS],
-            input  logic [PW_WIDTH-1:0]    s_axis_tparity [NUM_MASTERS],
-            '''
+            port_str += self._chk_port_string('s', 'NUM_MASTERS') + ',\n'
         port_str += '''
             output logic [DATA_WIDTH-1:0]  m_axis_tdata  [NUM_SLAVES],
         '''
@@ -131,11 +135,44 @@ class DeltaFlatCrossbar(Module):
             output logic [USER_WIDTH-1:0]  m_axis_tuser  [NUM_SLAVES]
         '''
         if self.amba5_on:
-            port_str += ''',
-            output logic                   m_axis_twakeup [NUM_SLAVES],
-            output logic [PW_WIDTH-1:0]    m_axis_tparity [NUM_SLAVES]
-            '''
+            port_str += ',\n' + self._chk_port_string('m', 'NUM_SLAVES')
         self.ports.add_port_string(port_str)
+
+    def _payload_chk_fields(self):
+        """Payload check fields as (signal, check-width param, payload width param).
+
+        IHI 0051B Table 5-1. These are carried end to end with the beat.
+        TSTRBCHK exists only when TSTRB does (section 5.3: an absent signal's
+        check is omitted).
+        """
+        fields = [('tdata', 'TDATACHK_W', 'DATA_WIDTH')]
+        if self.strb_on:
+            fields.append(('tstrb', 'TSTRBCHK_W', 'STRB_WIDTH'))
+        fields += [('tlast', None, None),
+                   ('tid', 'TIDCHK_W', 'ID_WIDTH'),
+                   ('tdest', 'TDESTCHK_W', 'DEST_WIDTH'),
+                   ('tuser', 'TUSERCHK_W', 'USER_WIDTH')]
+        return fields
+
+    def _chk_port_string(self, side: str, count: str) -> str:
+        """AMBA 5 ports for one side: TWAKEUP, the *CHK set, the sticky error.
+
+        side 's' is the receiver side (masters drive into the crossbar), side
+        'm' the transmitter side. Payload checks and TVALIDCHK/TWAKEUPCHK
+        travel with the transmitter; TREADYCHK travels the other way.
+        """
+        rx = side == 's'
+        fwd = 'input ' if rx else 'output'
+        rev = 'output' if rx else 'input '
+        lines = [f'{fwd} logic {side}_axis_twakeup [{count}]']
+        for sig, chk_w, _ in self._payload_chk_fields():
+            packed = f'[{chk_w}-1:0] ' if chk_w else ''
+            lines.append(f'{fwd} logic {packed}{side}_axis_{sig}chk [{count}]')
+        lines.append(f'{fwd} logic {side}_axis_tvalidchk [{count}]')
+        lines.append(f'{rev} logic {side}_axis_treadychk [{count}]')
+        lines.append(f'{fwd} logic {side}_axis_twakeupchk [{count}]')
+        lines.append(f'output logic {side}_parity_error [{count}]')
+        return ',\n'.join(lines)
 
     def generate_header_comment(self):
         """Generate Delta-specific header comment"""
@@ -163,7 +200,10 @@ class DeltaFlatCrossbar(Module):
         if self.strb_on:
             self.comment(f"  - Optional TSTRB byte qualifiers (STRB_WIDTH={self.cfg.strb_width})")
         if self.amba5_on:
-            self.comment(f"  - AMBA 5 sidebands (TWAKEUP steering + TPARITY, PW_WIDTH={self.parity_w})")
+            self.comment("  - AMBA 5 TWAKEUP steering + interface check signals (IHI 0051B ch. 5,")
+            self.comment("    Odd_Parity_Byte_All): payload *CHK carried with the beat, checked on")
+            self.comment("    ingress; TVALIDCHK/TREADYCHK/TWAKEUPCHK generated or checked per port;")
+            self.comment("    sticky s_parity_error/m_parity_error per port")
         self.comment("  - Registered outputs for timing closure")
         self.comment("  - Full AXI-Stream compliance")
         self.comment("")
@@ -280,7 +320,11 @@ class DeltaFlatCrossbar(Module):
         if self.strb_on:
             self.instruction("            m_axis_tstrb[s]  = '0;")
         if self.amba5_on:
-            self.instruction("            m_axis_tparity[s] = '0;")
+            # Idle check bits are all ones: the odd parity of the all-zero
+            # payload defaults above (only meaningful while TVALID is high).
+            for sig, chk_w, _ in self._payload_chk_fields():
+                self.instruction(f"            m_axis_{sig}chk[s] = '1;" if chk_w else
+                                 f"            m_axis_{sig}chk[s] = 1'b1;")
         self.instruction("")
         self.instruction("            // Multiplex granted master to this slave")
         self.instruction("            for (int m = 0; m < NUM_MASTERS; m++) begin")
@@ -294,7 +338,8 @@ class DeltaFlatCrossbar(Module):
         if self.strb_on:
             self.instruction("                    m_axis_tstrb[s]  = s_axis_tstrb[m];")
         if self.amba5_on:
-            self.instruction("                    m_axis_tparity[s] = s_axis_tparity[m];")
+            for sig, _, _ in self._payload_chk_fields():
+                self.instruction(f"                    m_axis_{sig}chk[s] = s_axis_{sig}chk[m];")
         self.instruction("                end")
         self.instruction("            end")
         self.instruction("        end")
@@ -351,6 +396,138 @@ class DeltaFlatCrossbar(Module):
         self.instruction("        end")
         self.instruction("    end")
         self.instruction("end")
+        self.instruction("")
+
+    def _emit_byte_checks(self, idx: str, sig: str, chk_w: str, pay_w: str):
+        """One dataint_parity (odd, CHUNKS=1) per check bit of a payload field.
+
+        Check bit [g] covers bits [8g+7:8g]; the top bit covers what is left
+        when the field is not a whole number of bytes (IHI 0051B section 5.3).
+        """
+        side = 's_axis'
+        if chk_w is None:
+            self.instruction(f"        dataint_parity #(.CHUNKS(1), .WIDTH(1)) u_{sig}chk (")
+            self.instruction(f"            .data_in     ({side}_{sig}[{idx}]),")
+            self.instruction(f"            .parity_in   ({side}_{sig}chk[{idx}]),")
+            self.instruction("            .parity_type (1'b0),")
+            self.instruction(f"            .parity      (w_{sig}chk_exp),")
+            self.instruction(f"            .parity_err  (w_{sig}chk_err)")
+            self.instruction("        );")
+            return
+        self.instruction(f"        for (genvar g = 0; g < {chk_w}; g++) begin : g_{sig}chk")
+        self.instruction("            localparam int LO = 8 * g;")
+        self.instruction(f"            localparam int PIECE_W = ({pay_w} - LO < 8) ? ({pay_w} - LO) : 8;")
+        self.instruction("            dataint_parity #(.CHUNKS(1), .WIDTH(PIECE_W)) u_par (")
+        self.instruction(f"                .data_in     ({side}_{sig}[{idx}][LO +: PIECE_W]),")
+        self.instruction(f"                .parity_in   ({side}_{sig}chk[{idx}][g]),")
+        self.instruction("                .parity_type (1'b0),")
+        self.instruction(f"                .parity      (w_{sig}chk_exp[g]),")
+        self.instruction(f"                .parity_err  (w_{sig}chk_err[g])")
+        self.instruction("            );")
+        self.instruction("        end")
+
+    def _emit_ctrl_chk(self, inst: str, data: str, chk_in: str, parity: str, err: str):
+        """Single-bit critical control: the check bit is the inversion (5.3)."""
+        self.instruction(f"        dataint_parity #(.CHUNKS(1), .WIDTH(1)) {inst} (")
+        self.instruction(f"            .data_in     ({data}),")
+        self.instruction(f"            .parity_in   ({chk_in}),")
+        self.instruction("            .parity_type (1'b0),")
+        self.instruction(f"            .parity      ({parity}),")
+        self.instruction(f"            .parity_err  ({err})")
+        self.instruction("        );")
+
+    def _emit_sticky(self, flag: str, idx: str, cond: str):
+        self.instruction("        always_ff @(posedge aclk or negedge aresetn) begin")
+        self.instruction("            if (!aresetn)")
+        self.instruction(f"                {flag}[{idx}] <= 1'b0;")
+        self.instruction(f"            else if ({cond})")
+        self.instruction(f"                {flag}[{idx}] <= 1'b1;")
+        self.instruction("        end")
+
+    def generate_check_logic(self):
+        """AMBA 5 interface check signals (only when amba5 enabled).
+
+        IHI 0051B ch. 5, Check_Type = Odd_Parity_Byte_All: a check bit plus
+        the bits it covers always hold an odd number of ones. Every check
+        bit is computed or checked by rtl/common dataint_parity.
+
+        Master (s_*) ports, where the crossbar is the receiver:
+          - payload *CHK checked against the payload while TVALID is high,
+            then carried to the granted slave port unchanged;
+          - TVALIDCHK / TWAKEUPCHK checked every cycle out of reset;
+          - TREADYCHK generated from the TREADY the crossbar drives.
+        Slave (m_*) ports, where the crossbar is the transmitter:
+          - TVALIDCHK / TWAKEUPCHK generated from what the crossbar drives;
+          - TREADYCHK checked every cycle out of reset.
+        Any mismatch sets that port's sticky {s,m}_parity_error.
+        """
+        if not self.amba5_on:
+            return
+
+        fields = self._payload_chk_fields()
+        self.comment("==========================================================================")
+        self.comment("AMBA 5 Interface Check Signals (IHI 0051B ch. 5, Odd_Parity_Byte_All)")
+        self.comment("==========================================================================")
+        self.comment("ODD parity: a check bit plus the bits it covers hold an odd number of")
+        self.comment("ones. Check bit [n] covers bits [8n+7:8n]; the top bit covers a short")
+        self.comment("remainder. Payload *CHK is checked on ingress (enabled by TVALID) and")
+        self.comment("carried through the mux; TVALIDCHK/TWAKEUPCHK/TREADYCHK are generated")
+        self.comment("by whichever side drives the signal and checked by the other.")
+        self.comment("==========================================================================")
+        self.instruction("")
+
+        self.instruction("generate")
+        self.instruction("    for (genvar m = 0; m < NUM_MASTERS; m++) begin : gen_s_chk")
+        for sig, chk_w, _ in fields:
+            packed = f"[{chk_w}-1:0] " if chk_w else ""
+            self.instruction(f"        logic {packed}w_{sig}chk_exp, w_{sig}chk_err;")
+        self.instruction("        logic w_tvalidchk_err, w_twakeupchk_err;")
+        self.instruction("        logic w_tvalidchk_exp, w_twakeupchk_exp, w_treadychk_err;")
+        self.instruction("        logic w_payload_err;")
+        self.instruction("")
+        for sig, chk_w, pay_w in fields:
+            self._emit_byte_checks('m', sig, chk_w, pay_w)
+        self.instruction("")
+        self._emit_ctrl_chk("u_tvalidchk", "s_axis_tvalid[m]", "s_axis_tvalidchk[m]",
+                            "w_tvalidchk_exp", "w_tvalidchk_err")
+        self._emit_ctrl_chk("u_twakeupchk", "s_axis_twakeup[m]", "s_axis_twakeupchk[m]",
+                            "w_twakeupchk_exp", "w_twakeupchk_err")
+        self._emit_ctrl_chk("u_treadychk", "s_axis_tready[m]", "1'b0",
+                            "s_axis_treadychk[m]", "w_treadychk_err")
+        self.instruction("")
+        err_terms = " || ".join(
+            f"(|w_{sig}chk_err)" if chk_w else f"w_{sig}chk_err" for sig, chk_w, _ in fields)
+        self.instruction(f"        assign w_payload_err = s_axis_tvalid[m] && ({err_terms});")
+        self.instruction("")
+        self._emit_sticky("s_parity_error", "m",
+                          "w_payload_err || w_tvalidchk_err || w_twakeupchk_err")
+        self.instruction("")
+        self.instruction("        /* verilator lint_off UNUSEDSIGNAL */")
+        exp_terms = ", ".join(f"w_{sig}chk_exp" for sig, _, _ in fields)
+        self.instruction("        logic unused_s_chk;")
+        self.instruction(f"        assign unused_s_chk = ^{{{exp_terms}, w_tvalidchk_exp, w_twakeupchk_exp, w_treadychk_err}};")
+        self.instruction("        /* verilator lint_on UNUSEDSIGNAL */")
+        self.instruction("    end")
+        self.instruction("")
+        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_m_chk")
+        self.instruction("        logic w_treadychk_exp, w_treadychk_err;")
+        self.instruction("        logic w_tvalidchk_err, w_twakeupchk_err;")
+        self.instruction("")
+        self._emit_ctrl_chk("u_tvalidchk", "m_axis_tvalid[s]", "1'b0",
+                            "m_axis_tvalidchk[s]", "w_tvalidchk_err")
+        self._emit_ctrl_chk("u_twakeupchk", "m_axis_twakeup[s]", "1'b0",
+                            "m_axis_twakeupchk[s]", "w_twakeupchk_err")
+        self._emit_ctrl_chk("u_treadychk", "m_axis_tready[s]", "m_axis_treadychk[s]",
+                            "w_treadychk_exp", "w_treadychk_err")
+        self.instruction("")
+        self._emit_sticky("m_parity_error", "s", "w_treadychk_err")
+        self.instruction("")
+        self.instruction("        /* verilator lint_off UNUSEDSIGNAL */")
+        self.instruction("        logic unused_m_chk;")
+        self.instruction("        assign unused_m_chk = ^{w_treadychk_exp, w_tvalidchk_err, w_twakeupchk_err};")
+        self.instruction("        /* verilator lint_on UNUSEDSIGNAL */")
+        self.instruction("    end")
+        self.instruction("endgenerate")
         self.instruction("")
 
     def generate_performance_counters(self):
@@ -430,6 +607,7 @@ class DeltaFlatCrossbar(Module):
         self.generate_crossbar_mux()
         self.generate_backpressure_logic()
         self.generate_wakeup_logic()
+        self.generate_check_logic()
         self.generate_performance_counters()
         self.generate_assertions()
 
@@ -544,17 +722,19 @@ def main():
     parser.add_argument("--strb-width", type=int, default=0,
                         help="TSTRB width in bits; 0 (default) omits TSTRB ports")
     parser.add_argument("--amba5", action="store_true",
-                        help="Emit AMBA 5 sidebands: TWAKEUP steering + TPARITY (PW_WIDTH defaults to DATA_WIDTH/8)")
-    parser.add_argument("--parity-width", type=int, default=0,
-                        help="TPARITY width override (requires --amba5; default DATA_WIDTH/8)")
+                        help="Emit AMBA 5 sidebands: TWAKEUP steering + the IHI 0051B ch. 5 "
+                             "check signals (TDATACHK, TSTRBCHK, TLASTCHK, TIDCHK, TDESTCHK, "
+                             "TUSERCHK, TVALIDCHK, TREADYCHK, TWAKEUPCHK; odd parity). "
+                             "Requires a whole-byte --data-width.")
     parser.add_argument("--output-dir", type=str, default="../rtl")
     parser.add_argument("--nodes", action="store_true")
     parser.add_argument("--no-counters", action="store_true")
 
     args = parser.parse_args()
 
-    if args.parity_width and not args.amba5:
-        parser.error("--parity-width requires --amba5")
+    if args.amba5 and args.data_width % 8:
+        parser.error("--amba5 requires --data-width to be a whole number of bytes "
+                     "(TDATACHK is one bit per TDATA byte, IHI 0051B Table 5-1)")
     if args.strb_width < 0:
         parser.error("--strb-width must be >= 0")
 
@@ -570,7 +750,6 @@ def main():
         user_width=args.user_width,
         strb_width=args.strb_width,
         amba5=args.amba5,
-        parity_width=args.parity_width,
         add_performance_counters=not args.no_counters
     )
 

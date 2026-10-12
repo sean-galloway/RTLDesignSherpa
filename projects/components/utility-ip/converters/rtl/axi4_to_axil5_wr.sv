@@ -11,32 +11,41 @@
 // Thin wrapper over axi4_to_axil4_wr, which is the workhorse: AXI5-Lite
 // keeps the AXI4-Lite transfer protocol unchanged, so burst decomposition,
 // response folding and the skid buffers are all inherited untouched. What
-// AXI5-Lite adds on this surface is pure sideband, and this module is only
-// about where each of those signals comes from.
+// AXI5-Lite adds on this surface is the transaction ID and a few optional
+// signals, and this module is only about where each of those gets its value.
 //
-// Three groups, and the distinction matters because two of them carry real
-// data and one cannot:
+// Signal set is IHI 0022L B2.1.5 / Table B2.2. AxLOCK, AxMPAM, AxMECID,
+// AxNSAID and xLOOP are NOT present on AXI5-Lite and exclusive access is not
+// supported, so this module has none of them (they were carried until issue
+// #102). AXI4 AWLOCK has nowhere to go and is dropped: an exclusive write
+// arriving here completes as a normal write with OKAY, which is what a
+// Subordinate without exclusive support returns (IHI 0022H A7.2.3, A7.2.5).
+//
+//   ID -- AWID and BID (IHI 0022L A5.1.1):
+//     m_axil_awid  <- the AXI4 AWID of the burst the beat belongs to
+//     s_axi_bid    <- m_axil_bid of the burst's final AXI5-Lite response
+//   The core holds ONE AXI4 burst in flight per direction (s_axi_awready
+//   stays low until that burst's B has been handed back), so every B on the
+//   AXI5-Lite side belongs to the one burst in flight and carries its AWID.
+//   The Subordinate cannot reorder across IDs because there is never a
+//   second ID outstanding. An AXI4 master using different AWIDs therefore
+//   gets each write's B under its own BID, in issue order, which AXI4
+//   allows (any order is legal across IDs).
 //
 //   FORWARDED -- AXI4 has an equivalent and it is passed straight through:
-//     awlock, awuser, wuser  (request side)
-//     buser                  (response side, returned to the AXI4 master)
+//     awuser, wuser  (request side)
+//     buser          (response side, returned to the AXI4 master)
 //
-//   TIED -- AXI5 introduced these and AXI4 has no source for them. The port
-//   exists (an AXI5-Lite boundary whose shape changes with a config knob
-//   cannot be wired to a fixed slave) and is driven to '0 rather than left
-//   floating. There is deliberately no ENABLE_ for this group: nothing it
-//   could switch between.
-//     awloop, awmecid, awmpam, awnsaid, awtrace, wpoison
+//   TIED -- AXI5-Lite optional signals with no AXI4 source. The port exists
+//   (an AXI5-Lite boundary whose shape changes with a config knob cannot be
+//   wired to a fixed slave) and is driven to '0 rather than left floating.
+//   There is deliberately no ENABLE_ for this group: nothing it could switch
+//   between.
+//     awtrace, wpoison
 //
 //   TERMINATED -- completer-driven, with nothing on the AXI4 side to return
 //   them to:
-//     bloop, btrace
-//
-// The tied group is the honest limit of an AXI4 front end: MPAM partition
-// IDs, MECID encryption contexts and NSAID security IDs are properties the
-// AXI4 master never supplied, so inventing them here would be worse than
-// zeroing them. A design that needs them driven should use an AXI5 master
-// port and carry them end to end.
+//     btrace
 //
 // The port convention mirrors rtl/amba/axil5/axil5_slave_wr.sv, so this
 // master drops onto that slave pin-for-pin.
@@ -44,28 +53,23 @@
 `include "reset_defs.svh"
 
 module axi4_to_axil5_wr #(
+    // AXI_ID_WIDTH is also the AXI5-Lite AWID/BID width: the AXI4 ID is
+    // carried across unchanged (IHI 0022L Table A5.2 allows 1..32 here).
     parameter int AXI_ID_WIDTH      = 8,
     parameter int AXI_ADDR_WIDTH    = 32,
     parameter int AXI_DATA_WIDTH    = 32,
     parameter int AXI_USER_WIDTH    = 1,
 
-    // AXI5-Lite feature enables. Each gates one sideband group; all
-    // default off so an axil5 port with no features is bit-identical to
-    // axil4 plus the forwarded signals.
-    // Only LOCK and USER get an ENABLE_ knob, because only they have an AXI4
-    // source to gate. TRACE / LOOP / MPAM / MECID / NSAID / POISON are tied
-    // to zero unconditionally -- an ENABLE_ for those would be a parameter
-    // that cannot change the design's behaviour, which is worse than no
-    // parameter: a reader sets it and believes something happened. The
-    // widths stay, because they set the port shape.
-    parameter bit ENABLE_LOCK       = 1'b0,
+    // Only USER gets an ENABLE_ knob, because only it has an AXI4 source to
+    // gate. TRACE / POISON are tied to zero unconditionally -- an ENABLE_ for
+    // those would be a parameter that cannot change the design's behaviour,
+    // which is worse than no parameter: a reader sets it and believes
+    // something happened. The width stays, because it sets the port shape.
+    // Default off, so with no USER the port behaves as axi4_to_axil4 plus
+    // the ID.
     parameter bit ENABLE_USER       = 1'b0,
 
     parameter int USER_WIDTH        = 1,
-    parameter int LOOP_WIDTH        = 1,
-    parameter int MPAM_WIDTH        = 11,
-    parameter int MECID_WIDTH       = 16,
-    parameter int NSAID_WIDTH       = 4,
 
     localparam int STRB_WIDTH = AXI_DATA_WIDTH / 8,
     // One poison bit per 64-bit granule, matching rtl/amba/axil5
@@ -108,6 +112,7 @@ module axi4_to_axil5_wr #(
     //==========================================================================
     // Master AXI5-Lite Write Interface (output)
     //==========================================================================
+    output logic [AXI_ID_WIDTH-1:0]     m_axil_awid,
     output logic [AXI_ADDR_WIDTH-1:0]   m_axil_awaddr,
     output logic [2:0]                  m_axil_awprot,
     output logic                        m_axil_awvalid,
@@ -118,63 +123,57 @@ module axi4_to_axil5_wr #(
     output logic                        m_axil_wvalid,
     input  logic                        m_axil_wready,
 
+    input  logic [AXI_ID_WIDTH-1:0]     m_axil_bid,
     input  logic [1:0]                  m_axil_bresp,
     input  logic                        m_axil_bvalid,
     output logic                        m_axil_bready,
 
-    // ---- AXI5-Lite sideband -------------------------------------------
-    output logic                        m_axil_awlock,
+    // ---- AXI5-Lite optional signals -------------------------------------
     output logic [USER_WIDTH-1:0]       m_axil_awuser,
-    output logic [LOOP_WIDTH-1:0]       m_axil_awloop,
-    output logic [MPAM_WIDTH-1:0]       m_axil_awmpam,
-    output logic [MECID_WIDTH-1:0]      m_axil_awmecid,
-    output logic [NSAID_WIDTH-1:0]      m_axil_awnsaid,
     output logic                        m_axil_awtrace,
 
     output logic [USER_WIDTH-1:0]       m_axil_wuser,
     output logic [POISON_WIDTH-1:0]     m_axil_wpoison,
 
     input  logic [USER_WIDTH-1:0]       m_axil_buser,
-    input  logic [LOOP_WIDTH-1:0]       m_axil_bloop,
     input  logic                        m_axil_btrace
 );
 
     //==========================================================================
-    // FORWARDED: AXI4 has these, so they carry real values.
+    // FORWARDED / ID: AXI4 has these, so they carry real values.
     //==========================================================================
-    // The AW sideband has to be HELD, not passed through. The core
+    // The AW ID and sideband have to be HELD, not passed through. The core
     // decomposes a burst: the AXI4 AW handshakes once, the AXI5-Lite AW
     // handshakes once per beat over the following cycles, and the core
     // drops s_axi_awready as soon as it accepts, so the master is free to
     // present the NEXT transaction's AW signals while beats 2..N are still
     // going out. A combinational passthrough would stamp those later beats
-    // with the wrong USER and LOCK.
+    // with the wrong ID and USER.
     //
     // The core has the identical problem with the address and solves it
     // with `r_aw_active ? r_aw_addr : s_axi_awaddr`. r_aw_active is
     // registered, so it is still 0 during the accept cycle itself and 1 for
     // every beat after -- which is exactly what w_aw_accept selects here.
-    // Mirroring the core's mux keeps the sideband aligned with the address
-    // it belongs to, beat for beat.
+    // Mirroring the core's mux keeps the ID and sideband aligned with the
+    // address they belong to, beat for beat.
     wire w_aw_accept = s_axi_awvalid && s_axi_awready;
 
-    logic                      r_held_awlock;
+    logic [AXI_ID_WIDTH-1:0]   r_held_awid;
     logic [AXI_USER_WIDTH-1:0] r_held_awuser;
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_held_awlock <= 1'b0;
+            r_held_awid   <= '0;
             r_held_awuser <= '0;
         end else if (w_aw_accept) begin
-            r_held_awlock <= s_axi_awlock;
+            r_held_awid   <= s_axi_awid;
             r_held_awuser <= s_axi_awuser;
         end
     )
 
-    wire                      w_awlock_sel = w_aw_accept ? s_axi_awlock : r_held_awlock;
     wire [AXI_USER_WIDTH-1:0] w_awuser_sel = w_aw_accept ? s_axi_awuser : r_held_awuser;
 
-    assign m_axil_awlock = ENABLE_LOCK ? w_awlock_sel : 1'b0;
+    assign m_axil_awid = w_aw_accept ? s_axi_awid : r_held_awid;
 
     // W beats are 1:1 with the AXI4 side (the core assigns m_axil_wdata
     // straight from s_axi_wdata), so WUSER needs no hold -- only AW does.
@@ -191,29 +190,34 @@ module axi4_to_axil5_wr #(
         end
     end
 
+    // BID is the ID the Subordinate returned (A5.1.1). The core raises
+    // s_axi_bvalid only together with m_axil_bvalid, so m_axil_bid is valid
+    // whenever s_axi_bid is sampled; with one burst in flight it always
+    // equals that burst's AWID -- see the header.
+    assign s_axi_bid = m_axil_bid;
+
     //==========================================================================
-    // TIED: AXI5 additions with no AXI4 source. Driven, never floating.
+    // TIED: AXI5-Lite optional signals with no AXI4 source. Driven, never
+    // floating.
     //==========================================================================
-    assign m_axil_awloop   = '0;
-    assign m_axil_awmpam   = '0;
-    assign m_axil_awmecid  = '0;
-    assign m_axil_awnsaid  = '0;
     assign m_axil_awtrace  = 1'b0;
     assign m_axil_wpoison  = '0;
 
     //==========================================================================
     // TERMINATED: completer-driven, nothing on the AXI4 side to receive
     // them. buser is the exception -- AXI4 has BUSER, so it is returned.
+    // AWLOCK has no AXI5-Lite equivalent (B2.1.5) and is dropped.
     //==========================================================================
-    // The core drives its own BUSER, which this module overrides from the
-    // AXI5-Lite response. Connected to a named net rather than left open: an
-    // empty port connection reads as PINCONNECTEMPTY, and a lint gate that
+    // The core drives its own BID and BUSER, which this module overrides from
+    // the AXI5-Lite response. Connected to named nets rather than left open:
+    // an empty port connection reads as PINCONNECTEMPTY, and a lint gate that
     // has to be told to ignore a category stops catching the accidents in it.
+    logic [AXI_ID_WIDTH-1:0]   w_core_bid_unused;
     logic [AXI_USER_WIDTH-1:0] w_core_buser_unused;
 
     /* verilator lint_off UNUSED */
-    wire _unused_axil5_sideband = &{1'b0, m_axil_bloop, m_axil_btrace,
-                                    w_core_buser_unused};
+    wire _unused_axil5_sideband = &{1'b0, m_axil_btrace,
+                                    w_core_bid_unused, w_core_buser_unused};
     /* verilator lint_on UNUSED */
 
     //==========================================================================
@@ -254,7 +258,8 @@ module axi4_to_axil5_wr #(
         .s_axi_wvalid   (s_axi_wvalid),
         .s_axi_wready   (s_axi_wready),
 
-        .s_axi_bid      (s_axi_bid),
+        /* bid is driven above from the AXI5-Lite response */
+        .s_axi_bid      (w_core_bid_unused),
         .s_axi_bresp    (s_axi_bresp),
         /* buser is driven above from the AXI5-Lite response */
         .s_axi_buser    (w_core_buser_unused),

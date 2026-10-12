@@ -34,6 +34,7 @@ module cpu_wr_adapter
     input  logic         cpu_wr_axi_awvalid,
     output  logic         cpu_wr_axi_awready,
     input  logic         cpu_wr_axi_awtrace,
+    input  logic         cpu_wr_axi_awidunq,
     input  logic [5:0]  cpu_wr_axi_awatop,
 
     input  logic [31:0]  cpu_wr_axi_wdata,
@@ -49,6 +50,7 @@ module cpu_wr_adapter
     output  logic         cpu_wr_axi_bvalid,
     input  logic         cpu_wr_axi_bready,
     output  logic         cpu_wr_axi_btrace,
+    output  logic         cpu_wr_axi_bidunq,
 
     // Address decode outputs (full width one-hot)
     output logic [NUM_SLAVES-1:0] slave_select_aw,
@@ -108,8 +110,12 @@ module cpu_wr_adapter
 
     // AXI5 native sideband (A5-2 slice 2)
     logic         fub_axi_awtrace;  // AXI5 sideband (trace)
+    logic         fub_axi_awidunq;  // AXI5 sideband (unique)
     logic [5:0]  fub_axi_awatop;  // AXI5 sideband (atomic)
     logic         fub_axi_btrace;  // AXI5 sideband (trace)
+
+    // AXI5 boundary-generated signals (GitHub #102 item 5)
+    logic         pref_axi_bidunq;  // regenerated (A5.2)
 
     // Pre-filter wr signals (axi5_atomic_filter upstream side)
     logic [3:0]   pref_axi_awid;
@@ -135,6 +141,7 @@ module cpu_wr_adapter
     logic         pref_axi_bvalid;
     logic         pref_axi_bready;
     logic         pref_axi_awtrace;
+    logic         pref_axi_awidunq;
     logic [5:0]  pref_axi_awatop;
     logic         pref_axi_btrace;
 
@@ -154,9 +161,10 @@ module cpu_wr_adapter
         .ENABLE_TRACE(1'b1),
         .ENABLE_MPAM(1'b0),
         .ENABLE_MECID(1'b0),
-        .ENABLE_UNIQUE(1'b0),
+        .ENABLE_UNIQUE(1'b1),
         .ENABLE_MTE(1'b0),
-        .ENABLE_POISON(1'b0)
+        .ENABLE_POISON(1'b0),
+        .ENABLE_WAKEUP(1'b0)
     ) u_timing_wrapper_wr (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -179,9 +187,9 @@ module cpu_wr_adapter
         .s_axi_awtrace(cpu_wr_axi_awtrace),
         .s_axi_awmpam('0),
         .s_axi_awmecid('0),
-        .s_axi_awunique('0),
+        .s_axi_awidunq(cpu_wr_axi_awidunq),
         .s_axi_awtagop('0),
-        .s_axi_awtag('0),
+        .s_axi_awakeup('0),
         .s_axi_wdata(cpu_wr_axi_wdata),
         .s_axi_wstrb(cpu_wr_axi_wstrb),
         .s_axi_wlast(cpu_wr_axi_wlast),
@@ -197,7 +205,7 @@ module cpu_wr_adapter
         .s_axi_bvalid(cpu_wr_axi_bvalid),
         .s_axi_bready(cpu_wr_axi_bready),
         .s_axi_btrace(cpu_wr_axi_btrace),
-        .s_axi_btag(),
+        .s_axi_bidunq(cpu_wr_axi_bidunq),
         .s_axi_btagmatch(),
 
         // Bridge-internal side (fub_axi)
@@ -218,9 +226,9 @@ module cpu_wr_adapter
         .fub_axi_awtrace(pref_axi_awtrace),
         .fub_axi_awmpam(),
         .fub_axi_awmecid(),
-        .fub_axi_awunique(),
+        .fub_axi_awidunq(pref_axi_awidunq),
         .fub_axi_awtagop(),
-        .fub_axi_awtag(),
+        .fub_axi_awakeup(),
         .fub_axi_wdata(pref_axi_wdata),
         .fub_axi_wstrb(pref_axi_wstrb),
         .fub_axi_wlast(pref_axi_wlast),
@@ -236,7 +244,7 @@ module cpu_wr_adapter
         .fub_axi_bvalid(pref_axi_bvalid),
         .fub_axi_bready(pref_axi_bready),
         .fub_axi_btrace(pref_axi_btrace),
-        .fub_axi_btag('0),
+        .fub_axi_bidunq(pref_axi_bidunq),
         .fub_axi_btagmatch('0),
 
         // Status (empty connector = unconnected tie-off)
@@ -262,6 +270,7 @@ module cpu_wr_adapter
     assign fub_axi_wlast = pref_axi_wlast;
     assign fub_axi_wuser = pref_axi_wuser;
     assign fub_axi_awtrace = pref_axi_awtrace;
+    assign fub_axi_awidunq = pref_axi_awidunq;
     assign fub_axi_awatop = pref_axi_awatop;
     assign pref_axi_btrace = fub_axi_btrace;
 
@@ -274,6 +283,7 @@ module cpu_wr_adapter
         .s_awready(pref_axi_awready),
         .s_awid(pref_axi_awid),
         .s_awatop(pref_axi_awatop),
+        .s_awlen(pref_axi_awlen),
         .s_wvalid(pref_axi_wvalid),
         .s_wready(pref_axi_wready),
         .s_wlast(pref_axi_wlast),
@@ -281,6 +291,17 @@ module cpu_wr_adapter
         .s_bready(pref_axi_bready),
         .s_bid(pref_axi_bid),
         .s_bresp(pref_axi_bresp),
+        // R: a write-only port has no read data channel, so the read
+        // transfers the filter owes a swallowed load-class atomic
+        // (A6.4.8) have nowhere to go. They are accepted and discarded
+        // (s_rready=1) so the filter's read-return queue drains and never
+        // stalls AW; the atomic completes with DECERR on B only. A manager
+        // must not issue load-class atomics on a write-only port (HAS 4.4).
+        .s_rvalid(),
+        .s_rready(1'b1),
+        .s_rid(),
+        .s_rresp(),
+        .s_rlast(),
         .m_awvalid(fub_axi_awvalid),
         .m_awready(fub_axi_awready),
         .m_wvalid(fub_axi_wvalid),
@@ -288,8 +309,29 @@ module cpu_wr_adapter
         .m_bvalid(fub_axi_bvalid),
         .m_bready(fub_axi_bready),
         .m_bid(fub_axi_bid),
-        .m_bresp(fub_axi_bresp)
+        .m_bresp(fub_axi_bresp),
+        // No downstream R on a write-only port.
+        .m_rvalid(1'b0),
+        .m_rready(),
+        .m_rid('0),
+        .m_rresp(2'b00),
+        .m_rlast(1'b0)
     );
+
+
+    // ================================================================
+    // BIDUNQ / RIDUNQ regenerated per ID (IHI 0022L A5.2)
+    // ================================================================
+    localparam int IDUNQ_IDS = 1 << 4;
+    logic [IDUNQ_IDS-1:0] r_awidunq_by_id;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_awidunq_by_id <= '0;
+        end else if (pref_axi_awvalid && pref_axi_awready) begin
+            r_awidunq_by_id[pref_axi_awid] <= pref_axi_awidunq;
+        end
+    )
+    assign pref_axi_bidunq = r_awidunq_by_id[pref_axi_bid];
 
     logic [NUM_SLAVES-1:0] b_slave_select;
     logic [NUM_SLAVES-1:0] w_slave_select;
@@ -350,6 +392,7 @@ module cpu_wr_adapter
     assign cpu_wr_32b_aw.region = 4'b0;  // AXI5 has no REGION
     assign cpu_wr_32b_aw.user   = fub_axi_awuser;
     assign cpu_wr_32b_aw.trace = fub_axi_awtrace;  // AXI5 sideband
+    assign cpu_wr_32b_aw.idunq = fub_axi_awidunq;  // AXI5 sideband
     assign cpu_wr_32b_aw.atop = fub_axi_awatop;  // AXI5 sideband
     assign cpu_wr_32b_awvalid   = fub_axi_awvalid && aw_path_active_32b;
     // awready routed via MUX

@@ -61,7 +61,7 @@ Sometimes you just need a lightweight memory shared between two AXIL agents — 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | ADDR_WIDTH | int | 32 | Byte-address width (both sides) |
-| DATA_WIDTH | int | 64 | Data-bus / BRAM word width (bits) |
+| DATA_WIDTH | int | 64 | Data-bus / BRAM word width (bits). 32 or 64 only: AXI4-Lite data width (IHI 0022H §B1.1.2; elaboration fails otherwise). |
 | MEM_DEPTH | int | 1024 | BRAM depth in words |
 | SKID_DEPTH_AW | int | 2 | Write-address skid depth |
 | SKID_DEPTH_W | int | 2 | Write-data skid depth |
