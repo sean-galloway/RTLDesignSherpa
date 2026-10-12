@@ -21,7 +21,7 @@ spec wins).
   default and the styles-yaml subtitle must match. After the task, no
   stale current-rev references may remain (grep to confirm).
 - Artifact naming: `DDR2_LPDDR2_{HAS,MAS}_vX.Y.{pdf,docx}` in
-  `projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/docs/` (the dir
+  `projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/` (the dir
   holding `generate_has_pdf.sh` / `generate_mas_pdf.sh`). Artifact
   retirement follows the scoria/andesite precedent: only the newest
   artifact set is kept — remove the superseded `v0.4`–`v0.6` pdf/docx
@@ -45,7 +45,7 @@ spec wins).
 Bring the pumice Hardware Architecture Specification to rev 0.9 so the
 book matches the committed LPDDR2 training RTL.
 
-Paths (all under `projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/docs/`):
+Paths (all under `projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/`):
 book dir `pumice_has/`, build script `generate_has_pdf.sh`, styles yaml,
 output artifacts in the docs dir root.
 

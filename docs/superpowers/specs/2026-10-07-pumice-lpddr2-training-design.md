@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-07
 **Status:** Approved approach (Approach A), pending written-spec review
-**IP:** `projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2`
+**IP:** `projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2`
 **Spec basis:** JEDEC JESD209-2F (LPDDR2 SDRAM Standard, Nov 2009; not redistributed in this repo — bibliographic index at `reference/README.md`, obtain from JEDEC)
 
 ## 1. Goal

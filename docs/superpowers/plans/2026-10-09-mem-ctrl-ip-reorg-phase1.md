@@ -14,7 +14,7 @@
 
 - **Zero RTL content changes.** Not one byte inside any `.sv` file's logic may change; path rewrites in comments/docs/filelists only. (Spec §5: "No RTL behavior changes in Phase 1.")
 - **Old→new path mapping, verbatim:**
-  - `projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2` → `projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2`
+  - `projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2` → `projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2`
   - `projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3` → `projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3`
   - `projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4` → `projects/components/mem-ctrl-ip/mem-ctrl-research-ip/andesite-ddr4-lpddr4`
   - `projects/components/mem-ctrl-ip/docs/` → `projects/components/mem-ctrl-ip/mem-ctrl-common-ip/docs/`
@@ -184,7 +184,7 @@ New content describes the three-area layout (research/common/product per spec §
 - [ ] **Step 5: Move the vault/repo-wide-projects mirror**
 
 ```bash
-git mv vault/repo-wide-projects/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2 vault/repo-wide-projects/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2
+git mv vault/repo-wide-projects/projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2 vault/repo-wide-projects/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2
 git mv vault/repo-wide-projects/projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3 vault/repo-wide-projects/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3
 git mv vault/repo-wide-projects/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4 vault/repo-wide-projects/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/andesite-ddr4-lpddr4
 ```

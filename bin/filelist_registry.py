@@ -142,7 +142,7 @@ ROOT_VARS = {
     # collateral consolidated into the Genesys 2 flow, which is where every
     # consumer of this variable now lives.
     "STREAM_CHAR_FRAMEWORK_ROOT": "projects/fpga-systems/Genesys2/dma-ip/stream",
-    "DDR2_CHAR_FRAMEWORK_ROOT": "projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2_char_framework",
+    "DDR2_CHAR_FRAMEWORK_ROOT": "projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/ddr2_char_framework",
     "TIMING_CHAR_ROOT": "projects/asic-trials/timing_characterization",
 }
 

@@ -345,7 +345,7 @@ Inserted per controller ruling (2026-10-08) + user directive. The eight landed F
 ### Task 14: Coverage wiring + docs version bumps
 
 **Files:**
-- Modify: `docs/` — PRD v0.6→**v1.0** (status: RTL landed), MAS v0.5→**v1.0** (ch02 chapters flip to "RTL landed" status; errata: ch01↔ch03 sdpram_core wording, ch02 `ctrl_snoop_*`→`ctrl_*` names, ch02 single-cycle `victim_load`→gather+final-strobe, ch02 FSM table += `CTRL_INIT`, ch01/02 port list += coherence sideband, dv/tests/fub/→flat `dv/tests/` paths), HAS v0.5→**v1.0**; regenerate `AMBER_MAS_v1.0.{pdf,docx}`, `AMBER_HAS_v1.0.{pdf,docx}` via `docs/generate_{mas,has}_pdf.sh`
+- Modify: `docs/` — PRD v0.6→**v1.0** (status: RTL landed), MAS v0.6→**v1.0** (ch02 chapters flip to "RTL landed" status; errata: ch01↔ch03 sdpram_core wording, ch02 `ctrl_snoop_*`→`ctrl_*` names, ch02 single-cycle `victim_load`→gather+final-strobe, ch02 FSM table += `CTRL_INIT`, ch01/02 port list += coherence sideband, dv/tests/fub/→flat `dv/tests/` paths), HAS v0.8→**v1.0** (plus 2026-10-11 errata rows: RACK/WACK omission ruling, CD-before-CR confirmation, D3/D11 closure — already landed in v0.7/v0.8); regenerate `AMBER_MAS_v1.0.{pdf,docx}`, `AMBER_HAS_v1.0.{pdf,docx}` via `docs/generate_{mas,has}_pdf.sh`
 - Modify: `docs/amber_mas/ch05_verification/{01_kmap_verdicts,02_rtl_diff}.md` (control/miss-path/MonBus sheets verdicts: IDENTICAL / RTL-REDUNDANT with rationale / RTL-DIFFERS)
 - Test: the gates themselves
 

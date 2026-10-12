@@ -395,7 +395,7 @@ ran clean from `clean-all`:
    | stream build-mon | `make -C projects/fpga-systems/Genesys2/dma-ip/stream/build-mon clean-all sim` |
    | rapids byte harness | `make -C projects/fpga-systems/Genesys2/dma-ip/rapids/flows-rapids clean-all sim` |
    | rapids char harness | `make -C projects/fpga-systems/Genesys2/dma-ip/rapids_beats/flows-rapids-beats clean-all sim` |
-   | pumice ddr2 char | `make -C projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2_char_framework/dv/tests clean run-func-parallel` |
+   | pumice ddr2 char | `make -C projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/ddr2_char_framework/dv/tests clean run-func-parallel` |
    | cdc demo UART | `make -C projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display/build-demo <sim target>` |
 
    If the grep finds a directory not in the table, that IS the finding: add
