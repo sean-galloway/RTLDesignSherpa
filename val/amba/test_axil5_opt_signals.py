@@ -166,11 +166,15 @@ def test_axil5_opt_signals(request, addr_width, data_width, test_level,
     for grp in GROUPS:
         extra_env[f'TEST_ENABLE_{grp}'] = str(GROUP_SETS[groups].get(grp, 1))
 
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+
     compile_args = [
         "-Wall", "-Wno-DECLFILENAME", "-Wno-UNUSED",
         "-Wno-WIDTHTRUNC", "-Wno-WIDTHEXPAND",
         "-DUSE_ASYNC_RESET",
     ]
+    if enable_waves:
+        compile_args.extend(["--trace-fst", "--trace-structs"])
 
     run(
         python_search=[tests_dir],
@@ -182,7 +186,8 @@ def test_axil5_opt_signals(request, addr_width, data_width, test_level,
         parameters=rtl_parameters,
         sim_build=sim_build,
         extra_env=extra_env,
-        waves=False,
+        waves=enable_waves,
+        plus_args=(['--trace'] if enable_waves else []),
         keep_files=True,
         compile_args=compile_args,
     )

@@ -270,21 +270,14 @@ def test_cdc_open_loop(request, params):
         'EXPECT_TOTAL_LOSS'   : str(params.get('expect_total_loss', 0)),
     }
 
-    compile_args = [
-        "--trace",
+    trace_args = [
         "--trace-depth", "99",
         "--trace-max-array", "1024",
         "--trace-underscore",
         "--trace-threads", "1",
-    ]
+    ] if enable_waves else []
 
-    sim_args = [
-        "--trace",
-        "--trace-depth", "99",
-        "--trace-max-array", "1024",
-        "--trace-underscore",
-        "--trace-threads", "1",
-    ]
+    compile_args = trace_args
 
     plus_args = [
         f"+src_period={src_period}",
@@ -292,7 +285,7 @@ def test_cdc_open_loop(request, params):
         f"+auto_stretch={auto_stretch}",
         f"+stretch_eff={stretch_eff}",
         f"+test_level={test_level}",
-    ]
+    ] + (['--trace'] if enable_waves else [])
 
     cmd_filename = create_view_cmd(
         log_dir, log_path, sim_build, module, test_name_plus_params
@@ -321,7 +314,6 @@ def test_cdc_open_loop(request, params):
             waves=enable_waves,
             keep_files=True,
             compile_args=compile_args,
-            sim_args=sim_args,
             plus_args=plus_args,
         )
         print(f"PASSED  cdc_open_loop {mode} {test_level} "

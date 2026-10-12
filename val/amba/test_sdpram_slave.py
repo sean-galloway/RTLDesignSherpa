@@ -627,6 +627,8 @@ def test_sdpram_slave(request, wr_protocol, rd_protocol, data_width, mem_depth):
         "AXI_ID_WIDTH": 4,
     }
 
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+
     run(
         python_search=[str(here)],
         verilog_sources=verilog_sources,
@@ -639,7 +641,11 @@ def test_sdpram_slave(request, wr_protocol, rd_protocol, data_width, mem_depth):
         extra_env=extra_env,
         simulator=os.environ.get("SIM", "verilator"),
         keep_files=True,
+        waves=enable_waves,
+        plus_args=(['--trace'] if enable_waves else []),
         compile_args=[
+            "--trace-fst",
+            "--trace-structs",
             "-Wno-WIDTHEXPAND",
             "-Wno-WIDTHTRUNC",
             "-Wno-TIMESCALEMOD",

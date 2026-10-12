@@ -209,6 +209,7 @@ def test_axi4_subtractive_slave(request, id_width, addr_width, data_width):
         sim_build=sim_build,
         extra_env=extra_env,
         waves=bool(int(os.environ.get('WAVES', '0'))),
+        plus_args=(['--trace'] if bool(int(os.environ.get('WAVES', '0'))) else []),
         keep_files=True,
         compile_args=["-Wall", "-Wno-DECLFILENAME", "-Wno-UNUSEDPARAM",
                       "-Wno-UNUSEDSIGNAL"],

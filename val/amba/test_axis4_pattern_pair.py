@@ -131,6 +131,7 @@ def test_axis4_pattern_pair(request, num_ch, dw, lfsr_w):
             simulator="verilator",
             extra_env=extra_env,
             waves=enable_waves,
+            plus_args=(['--trace'] if enable_waves else []),
             keep_files=True,
             compile_args=compile_args,
         )

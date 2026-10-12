@@ -445,6 +445,7 @@ def test_monbus_axil4_axi4_group(request, s_axil_data_width):
             extra_env=extra_env,
             parameters=parameters,
             waves=enable_waves,
+            plus_args=['--trace'] if enable_waves else [],
             keep_files=True,
             compile_args=compile_args,
         )

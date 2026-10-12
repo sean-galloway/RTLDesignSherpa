@@ -34,6 +34,7 @@ def generate_test_params():
 
 @pytest.mark.parametrize("data_width, id_width, dest_width, test_level", generate_test_params())
 def test_axis4_slave_monlite_cg(request, data_width, id_width, dest_width, test_level):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_amba': 'rtl/amba', 'rtl_amba_includes': 'rtl/amba/includes',
     })
@@ -64,10 +65,10 @@ def test_axis4_slave_monlite_cg(request, data_width, id_width, dest_width, test_
         run(
             python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
             toplevel=dut_name, module=module, parameters=rtl_parameters, simulator='verilator',
-            sim_build=sim_build, extra_env=extra_env, waves=False, keep_files=True,
+            sim_build=sim_build, extra_env=extra_env, waves=enable_waves, keep_files=True,
             compile_args=['--trace-fst', '--trace-structs', '-Wno-fatal'],
             sim_args=['--trace-fst', '--trace-structs'],
-            plus_args=[],
+            plus_args=(['--trace'] if enable_waves else []),
         )
     except Exception as e:
         print(f"Test failed: {e}\nLogs: {log_path}\nView: {cmd_filename}")

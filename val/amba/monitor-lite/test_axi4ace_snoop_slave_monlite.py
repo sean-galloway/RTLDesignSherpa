@@ -243,6 +243,7 @@ def test_axi4ace_snoop_slave_monlite(
             sim_build=sim_build,
             extra_env=extra_env,
             waves=enable_waves,
+            plus_args=(['--trace'] if enable_waves else []),
             keep_files=True,
             compile_args=compile_args,
         )

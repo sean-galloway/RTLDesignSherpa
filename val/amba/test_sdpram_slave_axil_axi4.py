@@ -101,6 +101,7 @@ def test_sdpram_slave_axil_axi4(request, test_level, data_width, mem_depth):
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, tag)
 
     try:
+        enable_waves = bool(int(os.environ.get('WAVES', '0')))
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
@@ -112,6 +113,8 @@ def test_sdpram_slave_axil_axi4(request, test_level, data_width, mem_depth):
             sim_build=sim_build,
             extra_env=extra_env,
             simulator=os.environ.get("SIM", "verilator"),
+            waves=enable_waves,
+            plus_args=(['--trace'] if enable_waves else []),
             keep_files=True,
             compile_args=[
                 "-Wno-WIDTHEXPAND",

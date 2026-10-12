@@ -101,6 +101,7 @@ def test_monbus_cam_pipe(request):
             includes=includes + [rtl_dict['rtl_shared'], sim_build],
             toplevel=dut_name, module=module, sim_build=sim_build,
             extra_env=extra_env, waves=bool(int(os.environ.get('WAVES', '0'))),
+            plus_args=['--trace'] if int(os.environ.get('WAVES', '0')) else [],
             keep_files=True, compile_args=compile_args)
     except Exception as e:
         print(f"Test failed: {e}\nLogs: {log_path}\nWaveforms: {cmd_filename}")

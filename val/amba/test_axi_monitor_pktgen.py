@@ -636,6 +636,7 @@ def _run_pktgen(request, testcase, n_slots=N_SLOTS):
         sim_build=sim_build,
         compile_args=compile_args,
         waves=bool(int(os.environ.get('WAVES', '0'))),
+        plus_args=(['--trace'] if bool(int(os.environ.get('WAVES', '0'))) else []),
         keep_files=True,
     )
 
@@ -1089,7 +1090,8 @@ def _run_lite(request, testcase, extra=None, n_slots=4):
         includes=includes + [sim_build],
         toplevel=dut_name, module="test_axi_monitor_pktgen", testcase=testcase,
         parameters=rtl_parameters, extra_env=extra_env, sim_build=sim_build,
-        compile_args=compile_args, waves=bool(int(os.environ.get('WAVES', '0'))), keep_files=True,
+        compile_args=compile_args, waves=bool(int(os.environ.get('WAVES', '0'))),
+        plus_args=(['--trace'] if bool(int(os.environ.get('WAVES', '0'))) else []), keep_files=True,
     )
 
 

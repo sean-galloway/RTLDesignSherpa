@@ -362,6 +362,7 @@ def test_axi_perf_latency_hist(request, is_read, num_channels):
         sim_build=sim_build,
         extra_env=extra_env,
         waves=bool(int(os.environ.get('WAVES', '0'))),
+        plus_args=(['--trace'] if bool(int(os.environ.get('WAVES', '0'))) else []),
         compile_args=['-Wno-TIMESCALEMOD', '-Wno-WIDTHEXPAND', '-Wno-WIDTHTRUNC'],
     )
 

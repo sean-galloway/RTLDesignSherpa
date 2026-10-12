@@ -221,6 +221,8 @@ def test_axi_monitor_addr_check(request, n_ranges):
             'COCOTB_LOG_LEVEL': 'INFO',
             'SEED': os.environ.get('SEED', '12345'),
         },
+        waves=bool(int(os.environ.get('WAVES', '0'))),
+        plus_args=(['--trace'] if bool(int(os.environ.get('WAVES', '0'))) else []),
         keep_files=True,
         compile_args=[
             "-Wall", "-Wno-SYNCASYNCNET", "-Wno-UNUSED", "-Wno-DECLFILENAME",

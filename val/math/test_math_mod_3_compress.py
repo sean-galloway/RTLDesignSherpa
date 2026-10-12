@@ -51,6 +51,7 @@ def test_math_mod_3_compress(request, test_level):
     # This wrapper passed no compile args at all, so it could never collect
     # coverage even once COVERAGE=1 was honoured elsewhere.
     extra_args = get_coverage_compile_args()
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
 
     run(
         python_search=[tests_dir],
@@ -66,4 +67,6 @@ def test_math_mod_3_compress(request, test_level):
         sim_build=sim_build_path(tests_dir, f"{dut_name}_{test_level}"),
         extra_env={'TEST_LEVEL': test_level},
         timescale="1ns/1ps",
+        waves=enable_waves,
+        plus_args=(['--trace'] if enable_waves else []),
     )

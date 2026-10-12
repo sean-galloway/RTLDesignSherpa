@@ -111,6 +111,8 @@ def test_sdpram_slave_axi4_axil(request, test_level, data_width, mem_depth):
             parameters=parameters,
             sim_build=sim_build,
             extra_env=extra_env,
+            waves=bool(int(os.environ.get('WAVES', '0'))),
+            plus_args=['--trace'] if int(os.environ.get('WAVES', '0')) else [],
             simulator=os.environ.get("SIM", "verilator"),
             keep_files=True,
             compile_args=[

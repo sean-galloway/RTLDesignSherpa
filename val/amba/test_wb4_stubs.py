@@ -247,6 +247,7 @@ def _run(request, dut_name, testcase, hints):
                    'COCOTB_RESULTS_FILE': os.path.join(log_dir, f'results_{name}.xml'),
                    'SEED': os.environ.get('SEED', str(random.randint(0, 100000)))},
         waves=enable_waves, keep_files=True,
+        plus_args=(['--trace'] if enable_waves else []),
         compile_args=["-Wno-DECLFILENAME", "-Wno-UNUSEDPARAM"])
 
 

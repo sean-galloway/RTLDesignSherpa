@@ -495,6 +495,7 @@ def test_monbus_pkt_tally(request, addr_bits, count_width, num_latch, n_profile)
         sim_build=sim_build,
         extra_env=extra_env,
         waves=enable_waves,
+        plus_args=['--trace'] if enable_waves else [],
         keep_files=True,
         compile_args=compile_args,
     )
