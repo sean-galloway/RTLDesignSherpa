@@ -177,6 +177,7 @@ def test_ioapic_deliv_merge(request, test_level, description):
         sim_build=sim_build,
         extra_env=extra_env,
         waves=bool(int(os.environ.get('WAVES', '0'))),
+        plus_args=['--trace'] if int(os.environ.get('WAVES', '0')) else [],
         keep_files=True,
         compile_args=compile_args,
     )
