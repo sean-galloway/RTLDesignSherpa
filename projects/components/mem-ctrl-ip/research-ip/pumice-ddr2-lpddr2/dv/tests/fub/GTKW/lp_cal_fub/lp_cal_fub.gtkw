@@ -1,0 +1,116 @@
+[*]
+[*] GTKWave save file for lp_cal_fub unit tests
+[*] Edit [dumpfile] to point at the scenario you want to view.
+[*] Default points at the dump built with: make run-pumice_lp_cal-gate-serial-waves
+[dumpfile] "../../local_sim_build/test_pumice_lp_cal_smoke/dump.fst"
+[savefile] "lp_cal_fub.gtkw"
+[timestart] 0
+[size] 3456 1863
+[pos] -1 -1
+*-17.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 
+[treeopen] mc_lpddr2_dq_cal.
+[sst_width] 503
+[signals_width] 568
+[sst_expanded] 1
+[sst_vpaned_height] 983
+
+@200
+-CLOCK/RESET
+@28
+mc_lpddr2_dq_cal.mc_clk
+@28
+mc_lpddr2_dq_cal.mc_rst_n
+
+@200
+-CONTROL
+@28
+mc_lpddr2_dq_cal.init_done_i
+@28
+mc_lpddr2_dq_cal.cal_start_i
+@28
+mc_lpddr2_dq_cal.cal_abort_i
+@28
+mc_lpddr2_dq_cal.cal_busy_o
+@28
+mc_lpddr2_dq_cal.cal_done_o
+@28
+mc_lpddr2_dq_cal.cal_err_o
+
+@200
+-CAL DATA
+@28
+mc_lpddr2_dq_cal.cal_data_valid_i
+@22
+mc_lpddr2_dq_cal.cal_data_i
+@22
+mc_lpddr2_dq_cal.cal_expect_o
+
+@200
+-MRR RESULT
+@28
+mc_lpddr2_dq_cal.mrr32_valid_o
+@22
+mc_lpddr2_dq_cal.mrr32_data_o
+@28
+mc_lpddr2_dq_cal.mrr40_valid_o
+@22
+mc_lpddr2_dq_cal.mrr40_data_o
+
+@200
+-CMD REQ
+@28
+mc_lpddr2_dq_cal.cmd_req_o
+@28
+mc_lpddr2_dq_cal.cmd_grant_i
+@22
+mc_lpddr2_dq_cal.cmd_op_o
+@22
+mc_lpddr2_dq_cal.cmd_bank_o
+@22
+mc_lpddr2_dq_cal.cmd_row_o
+@28
+mc_lpddr2_dq_cal.cmd_mrr_o
+
+@200
+-STATE
+@22
+mc_lpddr2_dq_cal.r_state
+@22
+mc_lpddr2_dq_cal.r_timer
+@22
+mc_lpddr2_dq_cal.r_timeout
+@28
+mc_lpddr2_dq_cal.r_done
+@28
+mc_lpddr2_dq_cal.r_err
+
+@200
+-HANDSHAKES
+@28
+mc_lpddr2_dq_cal.r_mrr32_valid
+@28
+mc_lpddr2_dq_cal.r_mrr40_valid
+
+@200
+-BUSES/STATE
+@22
+mc_lpddr2_dq_cal.r_mrr32_data
+@22
+mc_lpddr2_dq_cal.r_mrr40_data
+
+@200
+-OTHER
+@28
+mc_lpddr2_dq_cal.DFI_DATA_WIDTH
+@28
+mc_lpddr2_dq_cal.MR32_INDEX
+@28
+mc_lpddr2_dq_cal.MR40_INDEX
+@28
+mc_lpddr2_dq_cal.memtype_i
+@28
+mc_lpddr2_dq_cal.t_mrr_i
+@28
+mc_lpddr2_dq_cal.t_readout_i
+@28
+mc_lpddr2_dq_cal.w_run

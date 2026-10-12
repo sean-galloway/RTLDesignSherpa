@@ -1,0 +1,102 @@
+[*]
+[*] GTKWave save file for pumice_core planes_axi_to_dfi
+[*] Edit [dumpfile] to point at the scenario you want to view.
+[*] Default points at the dump built with: WAVES=1 python3 -m pytest test_pumice_core.py -x -q
+[dumpfile] "../../local_sim_build/cocotb_test_pumice_core_gate/dump.fst"
+[savefile] "planes_axi_to_dfi.gtkw"
+[timestart] 0
+[size] 3456 1863
+[pos] -1 -1
+*-17.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 
+[treeopen] pumice_core.
+[sst_width] 503
+[signals_width] 568
+[sst_expanded] 1
+[sst_vpaned_height] 983
+
+@200
+-AXI PLANE
+@28
+pumice_core.u_axi_plane.aw_push_valid_o
+@28
+pumice_core.u_axi_plane.ar_push_valid_o
+@28
+pumice_core.u_axi_plane.drain_valid
+@28
+pumice_core.u_axi_plane.busy_o
+
+@200
+-STORE PLANE SEAM
+@28
+pumice_core.u_store_plane.aw_push_valid_i
+@28
+pumice_core.u_store_plane.ar_push_valid_i
+@28
+pumice_core.u_store_plane.rd_iss_valid_o
+@28
+pumice_core.u_store_plane.snarf_hit_o
+@28
+pumice_core.u_store_plane.busy_o
+
+@200
+-SCHED VECTORS
+@22
+pumice_core.w_wr_sch_v
+@22
+pumice_core.w_rd_sch_v
+
+@200
+-SCHED PLANE
+@28
+pumice_core.u_sched_plane.cmd_valid_o
+@28
+pumice_core.u_sched_plane.cmd_ready_i
+@22
+pumice_core.u_sched_plane.cmd_op_o
+@28
+pumice_core.u_sched_plane.busy_o
+
+@200
+-TRAIN PLANE
+@28
+pumice_core.u_train_plane.cal_busy_o
+@28
+pumice_core.u_train_plane.cal_start_i
+@28
+pumice_core.u_train_plane.cal_done_o
+@28
+pumice_core.w_trn_req
+@28
+pumice_core.w_trn_grant
+
+@200
+-DFI PLANE
+@28
+pumice_core.u_dfi_plane.cmd_valid_i
+@28
+pumice_core.u_dfi_plane.cmd_ready_o
+@28
+pumice_core.u_dfi_plane.dfi_wrdata_en_o
+@28
+pumice_core.u_dfi_plane.dfi_rddata_en_o
+@28
+pumice_core.u_dfi_plane.init_complete_o
+
+@200
+-DFI PINS
+@22
+pumice_core.dfi_address_o
+@22
+pumice_core.dfi_bank_o
+@28
+pumice_core.dfi_ras_n_o
+@28
+pumice_core.dfi_cas_n_o
+@28
+pumice_core.dfi_we_n_o
+@28
+pumice_core.dfi_cs_n_o
+@28
+pumice_core.dfi_wrdata_en_o
+@28
+pumice_core.dfi_rddata_en_o

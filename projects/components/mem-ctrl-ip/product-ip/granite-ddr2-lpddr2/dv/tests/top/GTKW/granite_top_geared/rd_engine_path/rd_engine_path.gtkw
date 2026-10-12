@@ -1,0 +1,84 @@
+[*]
+[*] GTKWave save file for granite_top_geared rd_engine_path
+[*] Edit [dumpfile] to point at the scenario you want to view.
+[*] Default points at the dump built with: WAVES=1 python3 -m pytest test_granite_top_geared.py -x -q
+[dumpfile] "../../../local_sim_build/cocotb_test_granite_top_geared_gate/dump.fst"
+[savefile] "rd_engine_path.gtkw"
+[timestart] 0
+[size] 3456 1863
+[pos] -1 -1
+*-17.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 
+[treeopen] granite_top_geared.
+[sst_width] 503
+[signals_width] 568
+[sst_expanded] 1
+[sst_vpaned_height] 983
+
+@200
+-HOST AR
+@28
+granite_top_geared.s_axi_arvalid
+@28
+granite_top_geared.s_axi_arready
+@22
+granite_top_geared.s_axi_araddr
+@22
+granite_top_geared.s_axi_arlen
+@22
+granite_top_geared.s_axi_arid
+
+@200
+-CORE AXI AR
+@28
+granite_top_geared.u_core.u_axi_plane.ar_push_valid_o
+@28
+granite_top_geared.u_core.u_axi_plane.ar_push_ready_i
+@22
+granite_top_geared.u_core.u_axi_plane.ar_push_bank_o
+@22
+granite_top_geared.u_core.u_axi_plane.ar_push_row_o
+@22
+granite_top_geared.u_core.u_axi_plane.ar_push_col_o
+@22
+granite_top_geared.u_core.u_axi_plane.ar_push_id_o
+
+@200
+-CORE AXI RING
+@28
+granite_top_geared.u_core.u_axi_plane.rt_alloc_ready_o
+@22
+granite_top_geared.u_core.u_axi_plane.rt_alloc_ticket_o
+@28
+granite_top_geared.u_core.u_axi_plane.rd_iss_valid_i
+@28
+granite_top_geared.u_core.u_axi_plane.rd_iss_ready_o
+@28
+granite_top_geared.u_core.u_axi_plane.drain_valid
+@28
+granite_top_geared.u_core.u_axi_plane.drain_ready
+
+@200
+-CORE ENTRY RD
+@28
+granite_top_geared.u_core.u_entry_store.r_rd_valid
+@28
+granite_top_geared.u_core.u_entry_store.r_rd_issued
+@28
+granite_top_geared.u_core.u_entry_store.rd_iss_valid_o
+
+@200
+-RET -> HOST R
+@28
+granite_top_geared.u_core.w_ret_v
+@28
+granite_top_geared.u_core.w_ret_rdy
+@28
+granite_top_geared.s_axi_rvalid
+@28
+granite_top_geared.s_axi_rready
+@22
+granite_top_geared.s_axi_rdata
+@28
+granite_top_geared.s_axi_rlast
+@22
+granite_top_geared.s_axi_rid

@@ -1,0 +1,157 @@
+[*]
+[*] GTKWave save file for dfi_cmd_formatter_fub unit tests
+[*] Edit [dumpfile] to point at the scenario you want to view.
+[*] Default points at the dump built with: make run-dfi_cmd_formatter-gate-serial-waves
+[dumpfile] "../../local_sim_build/test_dfi_cmd_formatter_all_ops_r2_nr1/dump.fst"
+[savefile] "dfi_cmd_formatter_fub.gtkw"
+[timestart] 0
+[size] 3456 1863
+[pos] -1 -1
+*-17.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 
+[treeopen] mc_xddr2_cmd_formatter.
+[sst_width] 503
+[signals_width] 568
+[sst_expanded] 1
+[sst_vpaned_height] 983
+
+@200
+-CLOCK/RESET
+@28
+mc_xddr2_cmd_formatter.mc_clk
+@28
+mc_xddr2_cmd_formatter.mc_rst_n
+
+@200
+-CONFIG
+@22
+mc_xddr2_cmd_formatter.memtype_i
+@28
+mc_xddr2_cmd_formatter.rd_phase_i
+@28
+mc_xddr2_cmd_formatter.wr_phase_i
+
+@200
+-CMD IN
+@28
+mc_xddr2_cmd_formatter.cmd_valid_i
+@28
+mc_xddr2_cmd_formatter.cmd_ready_o
+@22
+mc_xddr2_cmd_formatter.cmd_op_i
+@22
+mc_xddr2_cmd_formatter.cmd_bank_i
+@22
+mc_xddr2_cmd_formatter.cmd_row_i
+@22
+mc_xddr2_cmd_formatter.cmd_col_i
+@22
+mc_xddr2_cmd_formatter.cmd_rank_i
+@22
+mc_xddr2_cmd_formatter.cmd_len_i
+@28
+mc_xddr2_cmd_formatter.cmd_mrr_i
+
+@200
+-DFI OUT
+@22
+mc_xddr2_cmd_formatter.dfi_address_o
+@22
+mc_xddr2_cmd_formatter.dfi_bank_o
+@28
+mc_xddr2_cmd_formatter.dfi_ras_n_o
+@28
+mc_xddr2_cmd_formatter.dfi_cas_n_o
+@28
+mc_xddr2_cmd_formatter.dfi_we_n_o
+@28
+mc_xddr2_cmd_formatter.dfi_cs_n_o
+@28
+mc_xddr2_cmd_formatter.dfi_odt_o
+
+@200
+-BUSES/STATE
+@22
+mc_xddr2_cmd_formatter.w_dfi_bank
+@22
+mc_xddr2_cmd_formatter.w_p0_addr
+@22
+mc_xddr2_cmd_formatter.w_p0_bank
+
+@200
+-OTHER
+@28
+mc_xddr2_cmd_formatter.BKW
+@28
+mc_xddr2_cmd_formatter.BURST_LEN_WIDTH
+@28
+mc_xddr2_cmd_formatter.COL_WIDTH
+@28
+mc_xddr2_cmd_formatter.DFI_ADDR_BUS_W
+@28
+mc_xddr2_cmd_formatter.DFI_ADDR_WIDTH
+@28
+mc_xddr2_cmd_formatter.DFI_BANK_BUS_W
+@28
+mc_xddr2_cmd_formatter.DFI_BANK_WIDTH
+@28
+mc_xddr2_cmd_formatter.DFI_CS_BUS_W
+@28
+mc_xddr2_cmd_formatter.DFI_CS_WIDTH
+@28
+mc_xddr2_cmd_formatter.DFI_CTRL_BUS_W
+@28
+mc_xddr2_cmd_formatter.DFI_CTRL_WIDTH
+@28
+mc_xddr2_cmd_formatter.DFI_RATE
+@28
+mc_xddr2_cmd_formatter.NUM_BANKS
+@28
+mc_xddr2_cmd_formatter.NUM_RANKS
+@28
+mc_xddr2_cmd_formatter.PHW
+@28
+mc_xddr2_cmd_formatter.RKW
+@28
+mc_xddr2_cmd_formatter.ROW_WIDTH
+@28
+mc_xddr2_cmd_formatter.w_active_rank_mask
+@28
+mc_xddr2_cmd_formatter.w_ca_ap
+@28
+mc_xddr2_cmd_formatter.w_ca_f
+@28
+mc_xddr2_cmd_formatter.w_ca_r
+@28
+mc_xddr2_cmd_formatter.w_cmd_phase
+@28
+mc_xddr2_cmd_formatter.w_col12
+@28
+mc_xddr2_cmd_formatter.w_dfi_address
+@28
+mc_xddr2_cmd_formatter.w_dfi_cas_n
+@28
+mc_xddr2_cmd_formatter.w_dfi_cs_n
+@28
+mc_xddr2_cmd_formatter.w_dfi_odt
+@28
+mc_xddr2_cmd_formatter.w_dfi_ras_n
+@28
+mc_xddr2_cmd_formatter.w_dfi_we_n
+@28
+mc_xddr2_cmd_formatter.w_lpddr2_ca
+@28
+mc_xddr2_cmd_formatter.w_mr_ma
+@28
+mc_xddr2_cmd_formatter.w_mr_op
+@28
+mc_xddr2_cmd_formatter.w_p0_cas_n
+@28
+mc_xddr2_cmd_formatter.w_p0_cs_n
+@28
+mc_xddr2_cmd_formatter.w_p0_odt
+@28
+mc_xddr2_cmd_formatter.w_p0_ras_n
+@28
+mc_xddr2_cmd_formatter.w_p0_we_n
+@28
+mc_xddr2_cmd_formatter.w_row15

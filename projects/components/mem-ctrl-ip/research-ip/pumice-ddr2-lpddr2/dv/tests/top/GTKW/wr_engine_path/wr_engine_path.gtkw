@@ -1,0 +1,117 @@
+[*]
+[*] GTKWave save file for pumice_core wr_engine_path
+[*] Edit [dumpfile] to point at the scenario you want to view.
+[*] Default points at the dump built with: WAVES=1 python3 -m pytest test_pumice_core.py -x -q
+[dumpfile] "../../local_sim_build/cocotb_test_pumice_core_gate/dump.fst"
+[savefile] "wr_engine_path.gtkw"
+[timestart] 0
+[size] 3456 1863
+[pos] -1 -1
+*-17.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 
+[treeopen] pumice_core.
+[sst_width] 503
+[signals_width] 568
+[sst_expanded] 1
+[sst_vpaned_height] 983
+
+@200
+-HOST AW
+@28
+pumice_core.s_axi_awvalid
+@28
+pumice_core.s_axi_awready
+@22
+pumice_core.s_axi_awaddr
+@22
+pumice_core.s_axi_awlen
+@22
+pumice_core.s_axi_awid
+
+@200
+-HOST W
+@28
+pumice_core.s_axi_wvalid
+@28
+pumice_core.s_axi_wready
+@22
+pumice_core.s_axi_wdata
+@28
+pumice_core.s_axi_wlast
+
+@200
+-HOST B
+@28
+pumice_core.s_axi_bvalid
+@28
+pumice_core.s_axi_bready
+@22
+pumice_core.s_axi_bid
+@22
+pumice_core.s_axi_bresp
+
+@200
+-AXI PLANE AW
+@28
+pumice_core.u_axi_plane.aw_push_valid_o
+@28
+pumice_core.u_axi_plane.aw_push_ready_i
+@22
+pumice_core.u_axi_plane.aw_push_bank_o
+@22
+pumice_core.u_axi_plane.aw_push_row_o
+@22
+pumice_core.u_axi_plane.aw_push_col_o
+@22
+pumice_core.u_axi_plane.aw_push_id_o
+@28
+pumice_core.u_axi_plane.aw_push_last_o
+
+@200
+-AXI PLANE W
+@28
+pumice_core.u_axi_plane.wd_valid_o
+@28
+pumice_core.u_axi_plane.wd_ready_i
+@22
+pumice_core.u_axi_plane.wd_data_o
+@28
+pumice_core.u_axi_plane.wd_last_o
+
+@200
+-STORE PLANE
+@28
+pumice_core.u_store_plane.aw_push_valid_i
+@28
+pumice_core.u_store_plane.aw_push_ready_o
+@28
+pumice_core.u_store_plane.ar_push_valid_i
+@28
+pumice_core.u_store_plane.ar_push_ready_o
+@28
+pumice_core.u_store_plane.snarf_hit_o
+@28
+pumice_core.u_store_plane.snarf_accept_i
+@28
+pumice_core.u_store_plane.rd_iss_valid_o
+
+@200
+-WR COMMIT -> CMD
+@28
+pumice_core.w_wr_commit_v
+@28
+pumice_core.w_wr_commit_rdy
+@28
+pumice_core.w_cmd_v
+@28
+pumice_core.w_cmd_rdy
+@22
+pumice_core.w_cmd_op
+
+@200
+-DFI WR
+@28
+pumice_core.u_dfi_plane.dfi_wrdata_en_o
+@22
+pumice_core.u_dfi_plane.dfi_wrdata_o
+@22
+pumice_core.u_dfi_plane.dfi_wrdata_mask_o
