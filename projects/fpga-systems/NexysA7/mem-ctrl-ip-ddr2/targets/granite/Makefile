@@ -12,7 +12,7 @@ export CONVERTERS_ROOT ?= $(RDS_ROOT)/projects/components/utility-ip/converters
 FLOW      := ddr2_char
 TOP       := granite_char_top
 FILELIST  := $(SELF_DIR)/rtl/filelists/granite_char_harness.f
-SEQ_DIR   := $(SELF_DIR)/../bin
+SEQ_DIR   := $(SELF_DIR)/../../bin
 
 # The whole-harness sim still lives with the framework; dv/ here is scaffold.
 SIM_TESTS ?= $(REPO_ROOT)/projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/ddr2_char_framework/dv/tests/test_ddr2_char_uart.py
