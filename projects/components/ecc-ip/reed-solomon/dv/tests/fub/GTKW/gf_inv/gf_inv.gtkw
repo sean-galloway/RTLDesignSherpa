@@ -1,0 +1,34 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/local_sim_build/test_gf_inv_m04_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/GTKW/gf_inv/gf_inv.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 1000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] gf_inv.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@24
+gf_inv.SYMBOL_WIDTH[31:0]
+gf_inv.PRIM_POLY[31:0]
+@200
+-ports
+@22
+gf_inv.i_a[3:0]
+gf_inv.ow_inv[3:0]
+@28
+gf_inv.ow_zero
+@200
+-internals
+@22
+gf_inv.w_log[3:0]
+gf_inv.w_neg_log[3:0]
+gf_inv.LOG[63:0]
+gf_inv.ANTILOG[59:0]
+[pattern_trace] 1
+[pattern_trace] 0

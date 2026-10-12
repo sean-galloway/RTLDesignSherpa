@@ -1,0 +1,109 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/bch/dv/tests/fub/local_sim_build/test_bch_axi4_loop_m06_n0063_t02_b01_s08_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/bch/dv/tests/fub/GTKW/bch_encoder_axi4/bch_encoder_axi4.gtkw"
+[treeopen] bch_axi4_loop_tb_top.
+[treeopen] bch_axi4_loop_tb_top.u_enc.
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 3210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 357
+[signals_width] 500
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@24
+bch_axi4_loop_tb_top.u_enc.FIELD_DIM[31:0]
+bch_axi4_loop_tb_top.u_enc.T_BITS[31:0]
+bch_axi4_loop_tb_top.u_enc.N_BITS[31:0]
+@22
+bch_axi4_loop_tb_top.u_enc.DATA_WIDTH[31:0]
+bch_axi4_loop_tb_top.u_enc.K_BITS[31:0]
+@28
+bch_axi4_loop_tb_top.u_enc.aclk
+bch_axi4_loop_tb_top.u_enc.aresetn
+@200
+-job
+@28
+bch_axi4_loop_tb_top.u_enc.cfg_start
+bch_axi4_loop_tb_top.u_enc.cfg_done
+bch_axi4_loop_tb_top.u_enc.resp_err
+bch_axi4_loop_tb_top.u_enc.frame_err
+@22
+bch_axi4_loop_tb_top.u_enc.cfg_src_addr[31:0]
+bch_axi4_loop_tb_top.u_enc.cfg_dst_addr[31:0]
+bch_axi4_loop_tb_top.u_enc.cfg_blocks[15:0]
+bch_axi4_loop_tb_top.u_enc.cfg_burst_len[7:0]
+bch_axi4_loop_tb_top.u_enc.cfg_axi_id[3:0]
+@200
+-axi-read-master
+@28
+bch_axi4_loop_tb_top.u_enc.m_axi_arvalid
+bch_axi4_loop_tb_top.u_enc.m_axi_arready
+@22
+bch_axi4_loop_tb_top.u_enc.m_axi_araddr[31:0]
+bch_axi4_loop_tb_top.u_enc.m_axi_arlen[7:0]
+@28
+bch_axi4_loop_tb_top.u_enc.m_axi_rvalid
+bch_axi4_loop_tb_top.u_enc.m_axi_rready
+@22
+bch_axi4_loop_tb_top.u_enc.m_axi_rdata[7:0]
+@28
+bch_axi4_loop_tb_top.u_enc.m_axi_rlast
+@200
+-axi-write-master
+@28
+bch_axi4_loop_tb_top.u_enc.m_axi_awvalid
+bch_axi4_loop_tb_top.u_enc.m_axi_awready
+@22
+bch_axi4_loop_tb_top.u_enc.m_axi_awaddr[31:0]
+bch_axi4_loop_tb_top.u_enc.m_axi_awlen[7:0]
+@28
+bch_axi4_loop_tb_top.u_enc.m_axi_wvalid
+bch_axi4_loop_tb_top.u_enc.m_axi_wready
+@22
+bch_axi4_loop_tb_top.u_enc.m_axi_wdata[7:0]
+@28
+bch_axi4_loop_tb_top.u_enc.m_axi_wlast
+bch_axi4_loop_tb_top.u_enc.m_axi_bvalid
+bch_axi4_loop_tb_top.u_enc.m_axi_bready
+@200
+-core-streams
+@28
+bch_axi4_loop_tb_top.u_enc.rd_valid
+bch_axi4_loop_tb_top.u_enc.rd_ready
+@22
+bch_axi4_loop_tb_top.u_enc.rd_data[7:0]
+@28
+bch_axi4_loop_tb_top.u_enc.rd_last
+bch_axi4_loop_tb_top.u_enc.enc_valid
+bch_axi4_loop_tb_top.u_enc.enc_ready
+bch_axi4_loop_tb_top.u_enc.enc_last
+@22
+bch_axi4_loop_tb_top.u_enc.enc_data[7:0]
+bch_axi4_loop_tb_top.u_enc.enc_keep[7:0]
+@28
+bch_axi4_loop_tb_top.u_enc.pk_valid
+bch_axi4_loop_tb_top.u_enc.pk_ready
+bch_axi4_loop_tb_top.u_enc.pk_last
+@22
+bch_axi4_loop_tb_top.u_enc.pk_data[7:0]
+@200
+-core-lfsr
+@22
+bch_axi4_loop_tb_top.u_enc.u_core.r_lfsr[71:0]
+bch_axi4_loop_tb_top.u_enc.u_core.w_lfsr_next[71:0]
+@28
+bch_axi4_loop_tb_top.u_enc.u_core.r_drain
+@22
+bch_axi4_loop_tb_top.u_enc.u_core.r_bit_count[6:0]
+bch_axi4_loop_tb_top.u_enc.u_core.r_parity_count[6:0]
+bch_axi4_loop_tb_top.u_enc.u_core.w_par_beat_len[3:0]
+bch_axi4_loop_tb_top.u_enc.u_core.w_parity_bits[7:0]
+@28
+bch_axi4_loop_tb_top.u_enc.u_core.w_beat_is_parity
+bch_axi4_loop_tb_top.u_enc.u_core.w_enc_out_last
+[pattern_trace] 1
+[pattern_trace] 0

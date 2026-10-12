@@ -1,0 +1,148 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/bch/dv/tests/fub/local_sim_build/test_bch_decoder_core_m06_n0063_t01_s08_r1_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/bch/dv/tests/fub/GTKW/bch_decoder_core/bch_decoder_core.gtkw"
+[treeopen] bch_decoder_core.
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 3210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 357
+[signals_width] 500
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@24
+bch_decoder_core.FIELD_DIM[31:0]
+bch_decoder_core.T_BITS[31:0]
+bch_decoder_core.N_BITS[31:0]
+@22
+bch_decoder_core.BITS_PER_BEAT[31:0]
+bch_decoder_core.K_BITS[31:0]
+@28
+bch_decoder_core.aclk
+bch_decoder_core.aresetn
+@200
+-in-stream
+@28
+bch_decoder_core.in_valid
+bch_decoder_core.in_ready
+@22
+bch_decoder_core.in_data[7:0]
+bch_decoder_core.in_keep[7:0]
+@28
+bch_decoder_core.in_last
+@200
+-out-stream
+@28
+bch_decoder_core.out_valid
+bch_decoder_core.out_ready
+@22
+bch_decoder_core.out_data[7:0]
+bch_decoder_core.out_keep[7:0]
+@28
+bch_decoder_core.out_last
+@200
+-status
+@28
+bch_decoder_core.out_status_ok
+bch_decoder_core.out_status_uncorrectable
+bch_decoder_core.out_status_frame_err
+@22
+bch_decoder_core.out_status_corrected[0:0]
+@200
+-fsm
+@22
+bch_decoder_core.r_state[2:0]
+@28
+bch_decoder_core.w_in_fire
+bch_decoder_core.w_frame_err_event
+bch_decoder_core.w_over_n_now
+bch_decoder_core.w_synd_result_valid
+bch_decoder_core.w_verdict_correctable
+@200
+-buffer
+@22
+bch_decoder_core.r_rx_bit_count[6:0]
+bch_decoder_core.r_rx_beat_count[3:0]
+bch_decoder_core.r_rx_beats_total[3:0]
+bch_decoder_core.r_release_idx[3:0]
+bch_decoder_core.r_release_beats[3:0]
+bch_decoder_core.r_buf[0][7:0]
+bch_decoder_core.r_buf_keep[0][7:0]
+bch_decoder_core.r_flip[0][7:0]
+@28
+bch_decoder_core.r_release_apply
+@200
+-syndrome
+@28
+bch_decoder_core.u_synd.in_valid
+bch_decoder_core.u_synd.in_ready
+@22
+bch_decoder_core.u_synd.in_data[7:0]
+bch_decoder_core.u_synd.in_keep[7:0]
+@28
+bch_decoder_core.u_synd.w_in_fire
+bch_decoder_core.u_synd.w_syndrome_done
+@22
+bch_decoder_core.u_synd.r_bit_count[6:0]
+bch_decoder_core.u_synd.out_syndromes[5:0]
+@28
+bch_decoder_core.u_synd.out_no_error
+bch_decoder_core.u_synd.out_valid
+bch_decoder_core.u_synd.out_ready
+@200
+-kes
+@28
+bch_decoder_core.u_kes.in_valid
+bch_decoder_core.u_kes.in_ready
+@22
+bch_decoder_core.u_kes.in_syndromes[5:0]
+bch_decoder_core.u_kes.out_lambda[11:0]
+bch_decoder_core.u_kes.out_lambda_degree[0:0]
+@28
+bch_decoder_core.u_kes.out_more_than_t
+bch_decoder_core.u_kes.out_valid
+bch_decoder_core.u_kes.out_ready
+@22
+bch_decoder_core.u_kes.u_ribm.o_lambda[17:0]
+bch_decoder_core.u_kes.u_ribm.o_deg[1:0]
+@28
+bch_decoder_core.u_kes.u_ribm.o_done
+bch_decoder_core.u_kes.u_ribm.o_busy
+@200
+-chien
+@28
+bch_decoder_core.u_chien.in_valid
+bch_decoder_core.u_chien.in_ready
+@22
+bch_decoder_core.u_chien.in_lambda[11:0]
+@28
+bch_decoder_core.u_chien.out_valid
+bch_decoder_core.u_chien.out_ready
+@22
+bch_decoder_core.u_chien.out_flip_en[7:0]
+bch_decoder_core.u_chien.out_root_count[0:0]
+@28
+bch_decoder_core.u_chien.out_last
+@22
+bch_decoder_core.u_chien.r_position[6:0]
+bch_decoder_core.u_chien.r_root_count[0:0]
+bch_decoder_core.u_chien.r_c[0][5:0]
+bch_decoder_core.u_chien.r_c[1][5:0]
+@200
+-recheck
+@28
+bch_decoder_core.g_rechk.u_rechk.in_valid
+bch_decoder_core.g_rechk.u_rechk.in_ready
+@22
+bch_decoder_core.g_rechk.u_rechk.in_data[7:0]
+bch_decoder_core.g_rechk.u_rechk.in_keep[7:0]
+@28
+bch_decoder_core.g_rechk.u_rechk.in_last
+bch_decoder_core.g_rechk.u_rechk.out_no_error
+bch_decoder_core.g_rechk.u_rechk.out_valid
+bch_decoder_core.g_rechk.u_rechk.out_ready
+[pattern_trace] 1
+[pattern_trace] 0

@@ -1,0 +1,137 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/bch/dv/tests/fub/local_sim_build/test_bch_axi4_loop_m06_n0063_t02_b01_s08_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/bch/dv/tests/fub/GTKW/bch_decoder_axi4/bch_decoder_axi4.gtkw"
+[treeopen] bch_axi4_loop_tb_top.
+[treeopen] bch_axi4_loop_tb_top.u_dec.
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 3210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 357
+[signals_width] 500
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@24
+bch_axi4_loop_tb_top.u_dec.FIELD_DIM[31:0]
+bch_axi4_loop_tb_top.u_dec.T_BITS[31:0]
+bch_axi4_loop_tb_top.u_dec.N_BITS[31:0]
+@22
+bch_axi4_loop_tb_top.u_dec.DATA_WIDTH[31:0]
+bch_axi4_loop_tb_top.u_dec.K_BITS[31:0]
+@28
+bch_axi4_loop_tb_top.u_dec.aclk
+bch_axi4_loop_tb_top.u_dec.aresetn
+@200
+-job
+@28
+bch_axi4_loop_tb_top.u_dec.cfg_start
+bch_axi4_loop_tb_top.u_dec.cfg_done
+bch_axi4_loop_tb_top.u_dec.resp_err
+@22
+bch_axi4_loop_tb_top.u_dec.cfg_src_addr[31:0]
+bch_axi4_loop_tb_top.u_dec.cfg_dst_addr[31:0]
+bch_axi4_loop_tb_top.u_dec.cfg_blocks[15:0]
+bch_axi4_loop_tb_top.u_dec.cfg_burst_len[7:0]
+bch_axi4_loop_tb_top.u_dec.cfg_axi_id[3:0]
+@200
+-block-verdict
+@28
+bch_axi4_loop_tb_top.u_dec.out_status_ok
+bch_axi4_loop_tb_top.u_dec.out_status_uncorrectable
+bch_axi4_loop_tb_top.u_dec.out_status_frame_err
+@22
+bch_axi4_loop_tb_top.u_dec.out_status_corrected[1:0]
+bch_axi4_loop_tb_top.u_dec.stat_blocks_ok[31:0]
+bch_axi4_loop_tb_top.u_dec.stat_blocks_corrected[31:0]
+bch_axi4_loop_tb_top.u_dec.stat_blocks_uncorrectable[31:0]
+bch_axi4_loop_tb_top.u_dec.stat_blocks_frame_err[31:0]
+bch_axi4_loop_tb_top.u_dec.stat_bits_corrected[31:0]
+@200
+-axi-read-master
+@28
+bch_axi4_loop_tb_top.u_dec.m_axi_arvalid
+bch_axi4_loop_tb_top.u_dec.m_axi_arready
+@22
+bch_axi4_loop_tb_top.u_dec.m_axi_araddr[31:0]
+bch_axi4_loop_tb_top.u_dec.m_axi_arlen[7:0]
+@28
+bch_axi4_loop_tb_top.u_dec.m_axi_rvalid
+bch_axi4_loop_tb_top.u_dec.m_axi_rready
+@22
+bch_axi4_loop_tb_top.u_dec.m_axi_rdata[7:0]
+@28
+bch_axi4_loop_tb_top.u_dec.m_axi_rlast
+@200
+-axi-write-master
+@28
+bch_axi4_loop_tb_top.u_dec.m_axi_awvalid
+bch_axi4_loop_tb_top.u_dec.m_axi_awready
+@22
+bch_axi4_loop_tb_top.u_dec.m_axi_awaddr[31:0]
+bch_axi4_loop_tb_top.u_dec.m_axi_awlen[7:0]
+@28
+bch_axi4_loop_tb_top.u_dec.m_axi_wvalid
+bch_axi4_loop_tb_top.u_dec.m_axi_wready
+@22
+bch_axi4_loop_tb_top.u_dec.m_axi_wdata[7:0]
+@28
+bch_axi4_loop_tb_top.u_dec.m_axi_wlast
+bch_axi4_loop_tb_top.u_dec.m_axi_bvalid
+bch_axi4_loop_tb_top.u_dec.m_axi_bready
+@200
+-core-streams
+@28
+bch_axi4_loop_tb_top.u_dec.rd_valid
+bch_axi4_loop_tb_top.u_dec.rd_ready
+@22
+bch_axi4_loop_tb_top.u_dec.rd_data[7:0]
+@28
+bch_axi4_loop_tb_top.u_dec.rd_last
+bch_axi4_loop_tb_top.u_dec.dec_valid
+bch_axi4_loop_tb_top.u_dec.dec_ready
+bch_axi4_loop_tb_top.u_dec.dec_last
+@22
+bch_axi4_loop_tb_top.u_dec.dec_data[7:0]
+bch_axi4_loop_tb_top.u_dec.dec_keep[7:0]
+@28
+bch_axi4_loop_tb_top.u_dec.w_verdict
+@200
+-core-fsm
+@22
+bch_axi4_loop_tb_top.u_dec.u_core.r_state[2:0]
+@28
+bch_axi4_loop_tb_top.u_dec.u_core.w_in_fire
+bch_axi4_loop_tb_top.u_dec.u_core.w_synd_result_valid
+bch_axi4_loop_tb_top.u_dec.u_core.w_verdict_correctable
+@22
+bch_axi4_loop_tb_top.u_dec.u_core.r_rx_bit_count[6:0]
+bch_axi4_loop_tb_top.u_dec.u_core.r_release_idx[3:0]
+bch_axi4_loop_tb_top.u_dec.u_core.r_release_beats[3:0]
+@200
+-core-stages
+@28
+bch_axi4_loop_tb_top.u_dec.u_core.u_synd.out_valid
+bch_axi4_loop_tb_top.u_dec.u_core.u_synd.out_ready
+@22
+bch_axi4_loop_tb_top.u_dec.u_core.u_synd.out_syndromes[11:0]
+@28
+bch_axi4_loop_tb_top.u_dec.u_core.u_synd.out_no_error
+bch_axi4_loop_tb_top.u_dec.u_core.u_kes.out_valid
+bch_axi4_loop_tb_top.u_dec.u_core.u_kes.out_ready
+@22
+bch_axi4_loop_tb_top.u_dec.u_core.u_kes.out_lambda[23:0]
+bch_axi4_loop_tb_top.u_dec.u_core.u_kes.out_lambda_degree[1:0]
+@28
+bch_axi4_loop_tb_top.u_dec.u_core.u_kes.out_more_than_t
+bch_axi4_loop_tb_top.u_dec.u_core.u_chien.out_valid
+bch_axi4_loop_tb_top.u_dec.u_core.u_chien.out_ready
+@22
+bch_axi4_loop_tb_top.u_dec.u_core.u_chien.out_flip_en[7:0]
+bch_axi4_loop_tb_top.u_dec.u_core.u_chien.out_root_count[1:0]
+@28
+bch_axi4_loop_tb_top.u_dec.u_core.u_chien.out_last
+[pattern_trace] 1
+[pattern_trace] 0

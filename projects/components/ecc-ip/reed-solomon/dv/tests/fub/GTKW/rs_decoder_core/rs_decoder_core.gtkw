@@ -1,0 +1,151 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/local_sim_build/test_rs_decoder_core_m04_n015_t02_ribm_s3_e0_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/GTKW/rs_decoder_core/rs_decoder_core.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 3210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] rs_decoder_core.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@22
+rs_decoder_core.SYMBOL_WIDTH[31:0]
+rs_decoder_core.PRIM_POLY[31:0]
+rs_decoder_core.T_SYMBOLS[31:0]
+rs_decoder_core.N_SYMBOLS[31:0]
+rs_decoder_core.DATA_WIDTH[31:0]
+rs_decoder_core.K_SYMBOLS[31:0]
+rs_decoder_core.SYMBOLS_PER_BEAT[31:0]
+@28
+rs_decoder_core.aclk
+rs_decoder_core.aresetn
+@200
+-input
+@28
+rs_decoder_core.in_valid
+rs_decoder_core.in_ready
+@22
+rs_decoder_core.in_data[11:0]
+rs_decoder_core.in_keep[2:0]
+@28
+rs_decoder_core.in_last
+@22
+rs_decoder_core.in_erasure[2:0]
+@200
+-output
+@28
+rs_decoder_core.out_valid
+rs_decoder_core.out_ready
+rs_decoder_core.out_last
+@22
+rs_decoder_core.out_data[11:0]
+rs_decoder_core.out_keep[2:0]
+@28
+rs_decoder_core.out_status_ok
+rs_decoder_core.out_status_uncorrectable
+rs_decoder_core.out_status_frame_err
+@22
+rs_decoder_core.out_status_corrected[1:0]
+@200
+-stage-a-receive
+@28
+rs_decoder_core.w_in_fire
+rs_decoder_core.w_block_end
+rs_decoder_core.w_frame_err
+rs_decoder_core.r_first
+@22
+rs_decoder_core.r_rx_count[5:0]
+rs_decoder_core.r_rx_beats[4:0]
+rs_decoder_core.w_synd_next[15:0]
+@28
+rs_decoder_core.w_all_zero_next
+@200
+-syndrome
+@28
+rs_decoder_core.u_synd.i_step
+rs_decoder_core.u_synd.i_first
+@22
+rs_decoder_core.u_synd.i_data[11:0]
+rs_decoder_core.u_synd.i_count[1:0]
+rs_decoder_core.u_synd.ow_synd_next[15:0]
+@28
+rs_decoder_core.u_synd.ow_all_zero_next
+@200
+-stage-b-solve
+@28
+rs_decoder_core.w_dab_wr_valid
+rs_decoder_core.w_dab_wr_ready
+@22
+rs_decoder_core.w_b_len[5:0]
+@28
+rs_decoder_core.w_b_frame_err
+rs_decoder_core.w_b_all_zero
+@22
+rs_decoder_core.w_b_synd[15:0]
+@28
+rs_decoder_core.w_kes_start
+rs_decoder_core.w_kes_done
+rs_decoder_core.w_kes_busy
+@22
+rs_decoder_core.w_kes_deg[2:0]
+@28
+rs_decoder_core.w_kes_deg_err
+@22
+rs_decoder_core.w_kes_lambda[19:0]
+rs_decoder_core.w_kes_omega[7:0]
+@200
+-kes
+@28
+rs_decoder_core.g_kes_ribm.u_kes.i_start
+rs_decoder_core.g_kes_ribm.u_kes.o_done
+rs_decoder_core.g_kes_ribm.u_kes.o_busy
+@22
+rs_decoder_core.g_kes_ribm.u_kes.i_synd[15:0]
+rs_decoder_core.g_kes_ribm.u_kes.o_deg[2:0]
+rs_decoder_core.g_kes_ribm.u_kes.o_lambda[19:0]
+rs_decoder_core.g_kes_ribm.u_kes.o_omega[7:0]
+@28
+rs_decoder_core.g_kes_ribm.u_kes.o_deg_err
+@22
+rs_decoder_core.g_kes_ribm.u_kes.r_gamma[3:0]
+rs_decoder_core.g_kes_ribm.u_kes.w_delta[3:0]
+@200
+-stage-c-walk
+@28
+rs_decoder_core.w_c_load
+rs_decoder_core.w_c_step
+rs_decoder_core.w_c_last_beat
+@22
+rs_decoder_core.w_chien_root[2:0]
+rs_decoder_core.w_chien_odd[11:0]
+rs_decoder_core.w_forney_val[11:0]
+rs_decoder_core.w_forney_den_zero[2:0]
+rs_decoder_core.w_c_hit[2:0]
+rs_decoder_core.w_c_hits[1:0]
+@200
+-chien
+@28
+rs_decoder_core.u_chien.i_load
+rs_decoder_core.u_chien.i_step
+@22
+rs_decoder_core.u_chien.i_lambda[11:0]
+rs_decoder_core.u_chien.o_root[2:0]
+rs_decoder_core.u_chien.o_odd_sum[11:0]
+@200
+-forney
+@28
+rs_decoder_core.u_forney.i_load
+rs_decoder_core.u_forney.i_step
+@22
+rs_decoder_core.u_forney.i_omega[7:0]
+rs_decoder_core.u_forney.i_odd_sum[11:0]
+rs_decoder_core.u_forney.o_err_val[11:0]
+@28
+rs_decoder_core.u_forney.o_den_zero[2:0]
+[pattern_trace] 1
+[pattern_trace] 0

@@ -1,0 +1,60 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/bch/dv/tests/fub/local_sim_build/test_bch_chien_search_validation_waves/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/bch/dv/tests/fub/GTKW/bch_chien_search/bch_chien_search.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-15.655873 2060000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] bch_chien_search.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@24
+bch_chien_search.FIELD_DIM[31:0]
+bch_chien_search.PRIM_POLY[31:0]
+bch_chien_search.T_BITS[31:0]
+bch_chien_search.N_BITS[31:0]
+bch_chien_search.BITS_PER_BEAT[31:0]
+@28
+bch_chien_search.aclk
+bch_chien_search.aresetn
+@200
+-chien-in
+@28
+bch_chien_search.in_valid
+bch_chien_search.in_ready
+@22
+bch_chien_search.in_lambda[11:0]
+bch_chien_search.in_lambda_degree[0:0]
+@200
+-chien-out
+@28
+bch_chien_search.out_valid
+bch_chien_search.out_ready
+bch_chien_search.out_last
+@22
+bch_chien_search.out_flip_en[7:0]
+bch_chien_search.out_root_count[0:0]
+@200
+-internals
+@28
+bch_chien_search.w_in_fire
+bch_chien_search.w_out_fire
+bch_chien_search.w_last
+bch_chien_search.w_load
+bch_chien_search.w_step
+bch_chien_search.r_out_valid
+@22
+bch_chien_search.r_position[6:0]
+bch_chien_search.r_root_count[0:0]
+bch_chien_search.r_c[0][5:0]
+bch_chien_search.r_c[1][5:0]
+bch_chien_search.w_root[7:0]
+bch_chien_search.w_pos_valid[7:0]
+bch_chien_search.w_beat_root_count[0:0]
+[pattern_trace] 1
+[pattern_trace] 0

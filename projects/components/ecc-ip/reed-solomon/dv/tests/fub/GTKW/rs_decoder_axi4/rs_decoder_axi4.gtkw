@@ -1,0 +1,137 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/local_sim_build/test_rs_axi4_loop_m08_n015_t03_s4_euclid_e0_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/GTKW/rs_decoder_axi4/rs_decoder_axi4.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 3210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] rs_axi4_loop_tb_top.
+[treeopen] rs_axi4_loop_tb_top.u_dec.
+[treeopen] rs_axi4_loop_tb_top.u_dec.u_core.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@22
+rs_axi4_loop_tb_top.u_dec.SYMBOL_WIDTH[31:0]
+rs_axi4_loop_tb_top.u_dec.PRIM_POLY[31:0]
+rs_axi4_loop_tb_top.u_dec.T_SYMBOLS[31:0]
+rs_axi4_loop_tb_top.u_dec.N_SYMBOLS[31:0]
+rs_axi4_loop_tb_top.u_dec.DATA_WIDTH[31:0]
+rs_axi4_loop_tb_top.u_dec.K_SYMBOLS[31:0]
+rs_axi4_loop_tb_top.u_dec.SYMBOLS_PER_BEAT[31:0]
+@28
+rs_axi4_loop_tb_top.u_dec.aclk
+rs_axi4_loop_tb_top.u_dec.aresetn
+@200
+-job
+@28
+rs_axi4_loop_tb_top.u_dec.cfg_start
+@22
+rs_axi4_loop_tb_top.u_dec.cfg_src_addr[31:0]
+rs_axi4_loop_tb_top.u_dec.cfg_dst_addr[31:0]
+rs_axi4_loop_tb_top.u_dec.cfg_blocks[15:0]
+rs_axi4_loop_tb_top.u_dec.cfg_burst_len[7:0]
+rs_axi4_loop_tb_top.u_dec.cfg_axi_id[3:0]
+rs_axi4_loop_tb_top.u_dec.cfg_erasure[14:0]
+@28
+rs_axi4_loop_tb_top.u_dec.cfg_done
+rs_axi4_loop_tb_top.u_dec.resp_err
+@200
+-status
+@28
+rs_axi4_loop_tb_top.u_dec.out_status_ok
+rs_axi4_loop_tb_top.u_dec.out_status_uncorrectable
+rs_axi4_loop_tb_top.u_dec.out_status_frame_err
+@22
+rs_axi4_loop_tb_top.u_dec.out_status_corrected[1:0]
+@22
+rs_axi4_loop_tb_top.u_dec.stat_blocks_ok[31:0]
+rs_axi4_loop_tb_top.u_dec.stat_blocks_corrected[31:0]
+rs_axi4_loop_tb_top.u_dec.stat_blocks_uncorrectable[31:0]
+rs_axi4_loop_tb_top.u_dec.stat_blocks_frame_err[31:0]
+rs_axi4_loop_tb_top.u_dec.stat_symbols_corrected[31:0]
+@200
+-axi
+@28
+rs_axi4_loop_tb_top.u_dec.m_axi_arvalid
+rs_axi4_loop_tb_top.u_dec.m_axi_arready
+@22
+rs_axi4_loop_tb_top.u_dec.m_axi_araddr[31:0]
+rs_axi4_loop_tb_top.u_dec.m_axi_arlen[7:0]
+rs_axi4_loop_tb_top.u_dec.m_axi_arid[3:0]
+@28
+rs_axi4_loop_tb_top.u_dec.m_axi_rvalid
+rs_axi4_loop_tb_top.u_dec.m_axi_rready
+@22
+rs_axi4_loop_tb_top.u_dec.m_axi_rdata[31:0]
+@28
+rs_axi4_loop_tb_top.u_dec.m_axi_rlast
+@28
+rs_axi4_loop_tb_top.u_dec.m_axi_awvalid
+rs_axi4_loop_tb_top.u_dec.m_axi_awready
+@22
+rs_axi4_loop_tb_top.u_dec.m_axi_awaddr[31:0]
+rs_axi4_loop_tb_top.u_dec.m_axi_awlen[7:0]
+rs_axi4_loop_tb_top.u_dec.m_axi_awid[3:0]
+@28
+rs_axi4_loop_tb_top.u_dec.m_axi_wvalid
+rs_axi4_loop_tb_top.u_dec.m_axi_wready
+@22
+rs_axi4_loop_tb_top.u_dec.m_axi_wdata[31:0]
+@28
+rs_axi4_loop_tb_top.u_dec.m_axi_wlast
+rs_axi4_loop_tb_top.u_dec.m_axi_bvalid
+rs_axi4_loop_tb_top.u_dec.m_axi_bready
+@22
+rs_axi4_loop_tb_top.u_dec.m_axi_bresp[1:0]
+@200
+-core
+@28
+rs_axi4_loop_tb_top.u_dec.u_core.in_valid
+rs_axi4_loop_tb_top.u_dec.u_core.in_ready
+@22
+rs_axi4_loop_tb_top.u_dec.u_core.in_data[31:0]
+rs_axi4_loop_tb_top.u_dec.u_core.in_keep[3:0]
+@28
+rs_axi4_loop_tb_top.u_dec.u_core.in_last
+@28
+rs_axi4_loop_tb_top.u_dec.u_core.out_valid
+rs_axi4_loop_tb_top.u_dec.u_core.out_ready
+@22
+rs_axi4_loop_tb_top.u_dec.u_core.out_data[31:0]
+rs_axi4_loop_tb_top.u_dec.u_core.out_keep[3:0]
+@28
+rs_axi4_loop_tb_top.u_dec.u_core.out_last
+@28
+rs_axi4_loop_tb_top.u_dec.u_core.out_status_ok
+rs_axi4_loop_tb_top.u_dec.u_core.out_status_uncorrectable
+rs_axi4_loop_tb_top.u_dec.u_core.out_status_frame_err
+@22
+rs_axi4_loop_tb_top.u_dec.u_core.out_status_corrected[1:0]
+@28
+rs_axi4_loop_tb_top.u_dec.u_core.w_in_fire
+rs_axi4_loop_tb_top.u_dec.u_core.w_block_end
+rs_axi4_loop_tb_top.u_dec.u_core.w_frame_err
+@22
+rs_axi4_loop_tb_top.u_dec.u_core.w_synd_next[47:0]
+@28
+rs_axi4_loop_tb_top.u_dec.u_core.w_all_zero_next
+@28
+rs_axi4_loop_tb_top.u_dec.u_core.w_kes_start
+rs_axi4_loop_tb_top.u_dec.u_core.w_kes_done
+@22
+rs_axi4_loop_tb_top.u_dec.u_core.w_kes_deg[2:0]
+rs_axi4_loop_tb_top.u_dec.u_core.w_kes_lambda[55:0]
+@28
+rs_axi4_loop_tb_top.u_dec.u_core.w_c_load
+rs_axi4_loop_tb_top.u_dec.u_core.w_c_step
+@22
+rs_axi4_loop_tb_top.u_dec.u_core.w_chien_root[3:0]
+rs_axi4_loop_tb_top.u_dec.u_core.w_forney_val[31:0]
+rs_axi4_loop_tb_top.u_dec.u_core.w_c_hit[3:0]
+[pattern_trace] 1
+[pattern_trace] 0

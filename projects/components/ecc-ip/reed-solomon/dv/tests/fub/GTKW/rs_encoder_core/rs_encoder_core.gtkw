@@ -1,0 +1,98 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/local_sim_build/test_rs_encoder_core_m04_n015_t02_s3_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/GTKW/rs_encoder_core/rs_encoder_core.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 3210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] rs_encoder_core.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@22
+rs_encoder_core.SYMBOL_WIDTH[31:0]
+rs_encoder_core.PRIM_POLY[31:0]
+rs_encoder_core.T_SYMBOLS[31:0]
+rs_encoder_core.N_SYMBOLS[31:0]
+rs_encoder_core.DATA_WIDTH[31:0]
+rs_encoder_core.K_SYMBOLS[31:0]
+rs_encoder_core.SYMBOLS_PER_BEAT[31:0]
+@28
+rs_encoder_core.aclk
+rs_encoder_core.aresetn
+@200
+-input
+@28
+rs_encoder_core.in_valid
+rs_encoder_core.in_ready
+@22
+rs_encoder_core.in_data[11:0]
+rs_encoder_core.in_keep[2:0]
+@28
+rs_encoder_core.in_last
+@200
+-output
+@28
+rs_encoder_core.out_valid
+rs_encoder_core.out_ready
+@22
+rs_encoder_core.out_data[11:0]
+rs_encoder_core.out_keep[2:0]
+@28
+rs_encoder_core.out_last
+@200
+-control
+@28
+rs_encoder_core.frame_err
+rs_encoder_core.r_drain
+@22
+rs_encoder_core.r_count[4:0]
+rs_encoder_core.r_drain_left[1:0]
+@28
+rs_encoder_core.w_in_fire
+rs_encoder_core.w_drain_fire
+@22
+rs_encoder_core.w_in_count[1:0]
+rs_encoder_core.w_parity[11:0]
+rs_encoder_core.w_par_keep[2:0]
+rs_encoder_core.w_par_data[11:0]
+rs_encoder_core.w_count_next[4:0]
+@200
+-lfsr
+@28
+rs_encoder_core.u_lfsr.i_step
+rs_encoder_core.u_lfsr.i_shift
+@22
+rs_encoder_core.u_lfsr.i_data[11:0]
+rs_encoder_core.u_lfsr.i_count[1:0]
+rs_encoder_core.u_lfsr.ow_parity[11:0]
+rs_encoder_core.u_lfsr.r_reg[0][3:0]
+rs_encoder_core.u_lfsr.r_reg[1][3:0]
+rs_encoder_core.u_lfsr.r_reg[2][3:0]
+rs_encoder_core.u_lfsr.r_reg[3][3:0]
+rs_encoder_core.u_lfsr.w_next[0][3:0]
+rs_encoder_core.u_lfsr.w_next[1][3:0]
+rs_encoder_core.u_lfsr.w_next[2][3:0]
+rs_encoder_core.u_lfsr.w_next[3][3:0]
+@200
+-output-skid
+@28
+rs_encoder_core.u_out_skid.wr_valid
+rs_encoder_core.u_out_skid.wr_ready
+@22
+rs_encoder_core.u_out_skid.wr_data[15:0]
+@28
+rs_encoder_core.u_out_skid.rd_valid
+rs_encoder_core.u_out_skid.rd_ready
+@22
+rs_encoder_core.u_out_skid.rd_data[15:0]
+rs_encoder_core.u_out_skid.r_data_count[3:0]
+@28
+rs_encoder_core.u_out_skid.w_wr_xfer
+rs_encoder_core.u_out_skid.w_rd_xfer
+[pattern_trace] 1
+[pattern_trace] 0

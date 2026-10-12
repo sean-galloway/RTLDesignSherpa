@@ -1,0 +1,60 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/local_sim_build/test_forney_evaluator_m04_n015_t02_b000_s3_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/GTKW/forney_evaluator/forney_evaluator.gtkw"
+[timestart] 0
+[size] 3268 1344
+[pos] -35 -79
+*-15.655873 380000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] forney_evaluator.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@24
+forney_evaluator.SYMBOL_WIDTH[31:0]
+forney_evaluator.PRIM_POLY[31:0]
+forney_evaluator.T_SYMBOLS[31:0]
+forney_evaluator.N_SYMBOLS[31:0]
+forney_evaluator.FIRST_ROOT[31:0]
+forney_evaluator.OFF[31:0]
+@28
+forney_evaluator.OMEGA_HIGH_HALF
+forney_evaluator.SYMBOLS_PER_BEAT[31:0]
+forney_evaluator.M[31:0]
+forney_evaluator.T[31:0]
+forney_evaluator.N[31:0]
+forney_evaluator.S[31:0]
+forney_evaluator.aclk
+forney_evaluator.aresetn
+@200
+-inputs
+@28
+forney_evaluator.i_load
+forney_evaluator.i_step
+@22
+forney_evaluator.i_omega[7:0]
+forney_evaluator.i_odd_sum[11:0]
+@200
+-outputs
+@28
+forney_evaluator.o_den_zero[2:0]
+@22
+forney_evaluator.o_err_val[11:0]
+@200
+-internals
+@22
+forney_evaluator.LANE_K[23:0]
+forney_evaluator.r_w[0][3:0]
+forney_evaluator.r_w[1][3:0]
+forney_evaluator.w_w_init[0][3:0]
+forney_evaluator.w_w_step[0][3:0]
+forney_evaluator.w_num[0][3:0]
+forney_evaluator.w_num[1][3:0]
+forney_evaluator.w_den_inv[0][3:0]
+forney_evaluator.w_den_inv[1][3:0]
+forney_evaluator.g_lane[0].u_mul.ow_p[3:0]
+[pattern_trace] 1
+[pattern_trace] 0

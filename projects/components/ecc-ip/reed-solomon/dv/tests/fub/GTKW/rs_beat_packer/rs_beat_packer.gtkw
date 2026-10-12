@@ -1,0 +1,69 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/local_sim_build/test_rs_beat_packer_m08_n007_t01_s4_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/GTKW/rs_beat_packer/rs_beat_packer.gtkw"
+[timestart] 0
+[size] 3268 1344
+[pos] -35 -79
+*-15.655873 380000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] rs_beat_packer.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@24
+rs_beat_packer.SYMBOL_WIDTH[31:0]
+rs_beat_packer.SYMBOLS_PER_BEAT[31:0]
+rs_beat_packer.DATA_WIDTH[31:0]
+rs_beat_packer.ACC[31:0]
+rs_beat_packer.M[31:0]
+rs_beat_packer.S[31:0]
+rs_beat_packer.HW[31:0]
+rs_beat_packer.SHW[31:0]
+@28
+rs_beat_packer.aclk
+rs_beat_packer.aresetn
+@200
+-in-channel
+@28
+rs_beat_packer.in_valid
+rs_beat_packer.in_ready
+rs_beat_packer.in_last
+@22
+rs_beat_packer.in_data[31:0]
+rs_beat_packer.in_keep[3:0]
+@200
+-out-channel
+@28
+rs_beat_packer.out_valid
+rs_beat_packer.out_ready
+rs_beat_packer.out_last
+@22
+rs_beat_packer.out_data[31:0]
+rs_beat_packer.out_keep[3:0]
+@200
+-accumulator
+@22
+rs_beat_packer.r_acc[63:0]
+rs_beat_packer.r_held[3:0]
+rs_beat_packer.r_cur[3:0]
+@28
+rs_beat_packer.r_flush
+@200
+-merge-control
+@28
+rs_beat_packer.w_ft
+rs_beat_packer.w_ft_full
+rs_beat_packer.w_ft_last
+@22
+rs_beat_packer.w_ft_total[3:0]
+rs_beat_packer.w_cnt[3:0]
+rs_beat_packer.w_avail[3:0]
+rs_beat_packer.w_emit[3:0]
+rs_beat_packer.w_shift[3:0]
+rs_beat_packer.w_consume[3:0]
+rs_beat_packer.w_base[3:0]
+[pattern_trace] 1
+[pattern_trace] 0

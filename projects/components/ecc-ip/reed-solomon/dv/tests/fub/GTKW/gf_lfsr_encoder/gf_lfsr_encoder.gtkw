@@ -1,0 +1,53 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/local_sim_build/test_gf_lfsr_encoder_m04_t02_b000_s3_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/GTKW/gf_lfsr_encoder/gf_lfsr_encoder.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 1000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] gf_lfsr_encoder.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@24
+gf_lfsr_encoder.SYMBOL_WIDTH[31:0]
+gf_lfsr_encoder.PRIM_POLY[31:0]
+gf_lfsr_encoder.T_SYMBOLS[31:0]
+gf_lfsr_encoder.FIRST_ROOT[31:0]
+gf_lfsr_encoder.SYMBOLS_PER_BEAT[31:0]
+@28
+gf_lfsr_encoder.aclk
+gf_lfsr_encoder.aresetn
+@200
+-controls
+@28
+gf_lfsr_encoder.i_step
+gf_lfsr_encoder.i_shift
+@22
+gf_lfsr_encoder.i_count[1:0]
+@200
+-datapath
+@22
+gf_lfsr_encoder.i_data[11:0]
+gf_lfsr_encoder.ow_parity[11:0]
+@200
+-state
+@22
+gf_lfsr_encoder.r_reg[0][3:0]
+gf_lfsr_encoder.r_reg[1][3:0]
+gf_lfsr_encoder.r_reg[2][3:0]
+gf_lfsr_encoder.r_reg[3][3:0]
+@200
+-next-state
+@22
+gf_lfsr_encoder.w_next[0][3:0]
+gf_lfsr_encoder.w_next[1][3:0]
+gf_lfsr_encoder.w_next[2][3:0]
+gf_lfsr_encoder.w_next[3][3:0]
+gf_lfsr_encoder.GEN[15:0]
+[pattern_trace] 1
+[pattern_trace] 0

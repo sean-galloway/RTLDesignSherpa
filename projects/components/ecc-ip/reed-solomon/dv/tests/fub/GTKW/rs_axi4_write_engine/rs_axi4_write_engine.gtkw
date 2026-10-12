@@ -1,0 +1,95 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/local_sim_build/test_rs_axi4_engines_d032_m2048_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/GTKW/rs_axi4_write_engine/rs_axi4_write_engine.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 3210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] rs_axi4_engines_tb_top.
+[treeopen] rs_axi4_engines_tb_top.u_wr.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@22
+rs_axi4_engines_tb_top.u_wr.ADDR_WIDTH[31:0]
+rs_axi4_engines_tb_top.u_wr.DATA_WIDTH[31:0]
+rs_axi4_engines_tb_top.u_wr.ID_WIDTH[31:0]
+rs_axi4_engines_tb_top.u_wr.MAX_OUTSTANDING[31:0]
+@28
+rs_axi4_engines_tb_top.u_wr.aclk
+rs_axi4_engines_tb_top.u_wr.aresetn
+@200
+-job
+@28
+rs_axi4_engines_tb_top.u_wr.cfg_start
+@22
+rs_axi4_engines_tb_top.u_wr.cfg_dst_addr[31:0]
+rs_axi4_engines_tb_top.u_wr.cfg_beats[31:0]
+rs_axi4_engines_tb_top.u_wr.cfg_burst_len[7:0]
+rs_axi4_engines_tb_top.u_wr.cfg_axi_id[3:0]
+rs_axi4_engines_tb_top.u_wr.cfg_axi_size[2:0]
+@28
+rs_axi4_engines_tb_top.u_wr.cfg_done
+rs_axi4_engines_tb_top.u_wr.resp_err
+@200
+-stream-in
+@28
+rs_axi4_engines_tb_top.u_wr.in_valid
+rs_axi4_engines_tb_top.u_wr.in_ready
+@22
+rs_axi4_engines_tb_top.u_wr.in_data[31:0]
+@28
+rs_axi4_engines_tb_top.u_wr.in_last
+@200
+-axi-aw
+@28
+rs_axi4_engines_tb_top.u_wr.m_axi_awvalid
+rs_axi4_engines_tb_top.u_wr.m_axi_awready
+@22
+rs_axi4_engines_tb_top.u_wr.m_axi_awaddr[31:0]
+rs_axi4_engines_tb_top.u_wr.m_axi_awlen[7:0]
+rs_axi4_engines_tb_top.u_wr.m_axi_awid[3:0]
+rs_axi4_engines_tb_top.u_wr.m_axi_awsize[2:0]
+@200
+-axi-w
+@28
+rs_axi4_engines_tb_top.u_wr.m_axi_wvalid
+rs_axi4_engines_tb_top.u_wr.m_axi_wready
+@22
+rs_axi4_engines_tb_top.u_wr.m_axi_wdata[31:0]
+rs_axi4_engines_tb_top.u_wr.m_axi_wstrb[3:0]
+@28
+rs_axi4_engines_tb_top.u_wr.m_axi_wlast
+@200
+-axi-b
+@28
+rs_axi4_engines_tb_top.u_wr.m_axi_bvalid
+rs_axi4_engines_tb_top.u_wr.m_axi_bready
+rs_axi4_engines_tb_top.u_wr.m_axi_bresp[1:0]
+@200
+-internals
+@28
+rs_axi4_engines_tb_top.u_wr.r_running
+@22
+rs_axi4_engines_tb_top.u_wr.r_aw_addr[31:0]
+rs_axi4_engines_tb_top.u_wr.r_aw_left[31:0]
+rs_axi4_engines_tb_top.u_wr.w_aw_len[8:0]
+@28
+rs_axi4_engines_tb_top.u_wr.w_aw_fire
+@22
+rs_axi4_engines_tb_top.u_wr.r_outstanding[2:0]
+rs_axi4_engines_tb_top.u_wr.r_w_left[31:0]
+rs_axi4_engines_tb_top.u_wr.r_w_in_burst[8:0]
+rs_axi4_engines_tb_top.u_wr.w_w_len[8:0]
+@28
+rs_axi4_engines_tb_top.u_wr.w_w_fire
+@28
+rs_axi4_engines_tb_top.u_wr.r_active
+@28
+rs_axi4_engines_tb_top.u_wr.w_b_fire
+[pattern_trace] 1
+[pattern_trace] 0

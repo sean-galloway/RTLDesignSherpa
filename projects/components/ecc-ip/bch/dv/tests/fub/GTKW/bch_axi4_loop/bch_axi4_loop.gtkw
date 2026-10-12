@@ -1,0 +1,114 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/bch/dv/tests/fub/local_sim_build/test_bch_axi4_loop_m06_n0063_t02_b01_s08_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/bch/dv/tests/fub/GTKW/bch_axi4_loop/bch_axi4_loop.gtkw"
+[treeopen] bch_axi4_loop_tb_top.
+[treeopen] bch_axi4_loop_tb_top.u_enc.
+[treeopen] bch_axi4_loop_tb_top.u_dec.
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 3210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 357
+[signals_width] 500
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@28
+bch_axi4_loop_tb_top.aclk
+bch_axi4_loop_tb_top.aresetn
+@200
+-encoder-job
+@28
+bch_axi4_loop_tb_top.enc_start
+bch_axi4_loop_tb_top.enc_done
+bch_axi4_loop_tb_top.enc_resp_err
+bch_axi4_loop_tb_top.enc_frame_err
+@22
+bch_axi4_loop_tb_top.blocks[15:0]
+@200
+-encoder-axi-master
+@28
+bch_axi4_loop_tb_top.u_enc.m_axi_arvalid
+bch_axi4_loop_tb_top.u_enc.m_axi_arready
+bch_axi4_loop_tb_top.u_enc.m_axi_rvalid
+bch_axi4_loop_tb_top.u_enc.m_axi_rready
+bch_axi4_loop_tb_top.u_enc.m_axi_awvalid
+bch_axi4_loop_tb_top.u_enc.m_axi_awready
+bch_axi4_loop_tb_top.u_enc.m_axi_wvalid
+bch_axi4_loop_tb_top.u_enc.m_axi_wready
+bch_axi4_loop_tb_top.u_enc.m_axi_bvalid
+bch_axi4_loop_tb_top.u_enc.m_axi_bready
+@200
+-encoder-core
+@28
+bch_axi4_loop_tb_top.u_enc.enc_valid
+bch_axi4_loop_tb_top.u_enc.enc_ready
+bch_axi4_loop_tb_top.u_enc.enc_last
+@22
+bch_axi4_loop_tb_top.u_enc.enc_data[7:0]
+@28
+bch_axi4_loop_tb_top.u_enc.pk_valid
+bch_axi4_loop_tb_top.u_enc.pk_ready
+bch_axi4_loop_tb_top.u_enc.pk_last
+@22
+bch_axi4_loop_tb_top.u_enc.u_core.r_lfsr[71:0]
+@28
+bch_axi4_loop_tb_top.u_enc.u_core.r_drain
+@22
+bch_axi4_loop_tb_top.u_enc.u_core.r_parity_count[6:0]
+@200
+-decoder-job
+@28
+bch_axi4_loop_tb_top.dec_start
+bch_axi4_loop_tb_top.dec_done
+bch_axi4_loop_tb_top.dec_resp_err
+@22
+bch_axi4_loop_tb_top.dec_blocks_ok[31:0]
+bch_axi4_loop_tb_top.dec_blocks_corrected[31:0]
+bch_axi4_loop_tb_top.dec_blocks_uncorrectable[31:0]
+bch_axi4_loop_tb_top.dec_blocks_frame_err[31:0]
+bch_axi4_loop_tb_top.dec_bits_corrected[31:0]
+@200
+-decoder-axi-master
+@28
+bch_axi4_loop_tb_top.u_dec.m_axi_arvalid
+bch_axi4_loop_tb_top.u_dec.m_axi_arready
+bch_axi4_loop_tb_top.u_dec.m_axi_rvalid
+bch_axi4_loop_tb_top.u_dec.m_axi_rready
+bch_axi4_loop_tb_top.u_dec.m_axi_awvalid
+bch_axi4_loop_tb_top.u_dec.m_axi_awready
+bch_axi4_loop_tb_top.u_dec.m_axi_wvalid
+bch_axi4_loop_tb_top.u_dec.m_axi_wready
+bch_axi4_loop_tb_top.u_dec.m_axi_bvalid
+bch_axi4_loop_tb_top.u_dec.m_axi_bready
+@200
+-decoder-core
+@22
+bch_axi4_loop_tb_top.u_dec.u_core.r_state[2:0]
+@28
+bch_axi4_loop_tb_top.u_dec.u_core.w_in_fire
+bch_axi4_loop_tb_top.u_dec.u_core.w_synd_result_valid
+bch_axi4_loop_tb_top.u_dec.u_core.w_verdict_correctable
+bch_axi4_loop_tb_top.u_dec.dec_valid
+bch_axi4_loop_tb_top.u_dec.dec_ready
+bch_axi4_loop_tb_top.u_dec.dec_last
+@22
+bch_axi4_loop_tb_top.u_dec.dec_data[7:0]
+bch_axi4_loop_tb_top.u_dec.u_core.u_synd.out_syndromes[11:0]
+bch_axi4_loop_tb_top.u_dec.u_core.u_kes.out_lambda[23:0]
+bch_axi4_loop_tb_top.u_dec.u_core.u_chien.out_flip_en[7:0]
+bch_axi4_loop_tb_top.u_dec.u_core.u_chien.out_root_count[1:0]
+@200
+-drain
+@28
+bch_axi4_loop_tb_top.drain_start
+bch_axi4_loop_tb_top.drain_done
+bch_axi4_loop_tb_top.out_valid
+bch_axi4_loop_tb_top.out_ready
+bch_axi4_loop_tb_top.out_last
+@22
+bch_axi4_loop_tb_top.out_data[7:0]
+[pattern_trace] 1
+[pattern_trace] 0

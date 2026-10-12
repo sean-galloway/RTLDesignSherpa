@@ -1,0 +1,62 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/bch/dv/tests/fub/local_sim_build/test_bch_key_equation_solver_validation_waves/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/bch/dv/tests/fub/GTKW/bch_key_equation_solver/bch_key_equation_solver.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-15.655873 750000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] bch_key_equation_solver.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@24
+bch_key_equation_solver.FIELD_DIM[31:0]
+bch_key_equation_solver.PRIM_POLY[31:0]
+bch_key_equation_solver.T_BITS[31:0]
+bch_key_equation_solver.N_BITS[31:0]
+bch_key_equation_solver.FIRST_ROOT[31:0]
+@28
+bch_key_equation_solver.aclk
+bch_key_equation_solver.aresetn
+@200
+-kes-in
+@28
+bch_key_equation_solver.in_valid
+bch_key_equation_solver.in_ready
+@22
+bch_key_equation_solver.in_syndromes[5:0]
+@200
+-kes-out
+@28
+bch_key_equation_solver.out_valid
+bch_key_equation_solver.out_ready
+bch_key_equation_solver.out_more_than_t
+@22
+bch_key_equation_solver.out_lambda[11:0]
+bch_key_equation_solver.out_lambda_degree[0:0]
+@200
+-internals
+@28
+bch_key_equation_solver.w_start
+bch_key_equation_solver.w_ribm_busy
+bch_key_equation_solver.w_ribm_done
+bch_key_equation_solver.w_ribm_deg_err
+bch_key_equation_solver.r_out_valid
+@22
+bch_key_equation_solver.w_ribm_lambda[17:0]
+bch_key_equation_solver.w_ribm_omega[5:0]
+bch_key_equation_solver.w_ribm_deg[1:0]
+bch_key_equation_solver.w_i_synd[11:0]
+bch_key_equation_solver.w_full[0][5:0]
+bch_key_equation_solver.w_full[1][5:0]
+bch_key_equation_solver.u_ribm.o_lambda[17:0]
+bch_key_equation_solver.u_ribm.o_omega[5:0]
+bch_key_equation_solver.u_ribm.o_deg[1:0]
+@28
+bch_key_equation_solver.u_ribm.o_deg_err
+[pattern_trace] 1
+[pattern_trace] 0

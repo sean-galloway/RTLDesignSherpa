@@ -1,0 +1,125 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/local_sim_build/test_rs_decoder_axis4_m08_n032_t02_s4_id4d2_e0_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/GTKW/rs_decoder_axis4/rs_decoder_axis4.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 3210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] rs_decoder_axis4.
+[treeopen] rs_decoder_axis4.u_core.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@22
+rs_decoder_axis4.SYMBOL_WIDTH[31:0]
+rs_decoder_axis4.PRIM_POLY[31:0]
+rs_decoder_axis4.T_SYMBOLS[31:0]
+rs_decoder_axis4.N_SYMBOLS[31:0]
+rs_decoder_axis4.DATA_WIDTH[31:0]
+rs_decoder_axis4.K_SYMBOLS[31:0]
+rs_decoder_axis4.SYMBOLS_PER_BEAT[31:0]
+@28
+rs_decoder_axis4.aclk
+rs_decoder_axis4.aresetn
+@200
+-axis-in
+@28
+rs_decoder_axis4.s_axis_tvalid
+rs_decoder_axis4.s_axis_tready
+@22
+rs_decoder_axis4.s_axis_tdata[31:0]
+rs_decoder_axis4.s_axis_tstrb[3:0]
+@28
+rs_decoder_axis4.s_axis_tlast
+@22
+rs_decoder_axis4.s_axis_tid[3:0]
+rs_decoder_axis4.s_axis_tdest[1:0]
+rs_decoder_axis4.s_axis_tuser[0:0]
+rs_decoder_axis4.in_erasure[3:0]
+@200
+-axis-out
+@28
+rs_decoder_axis4.m_axis_tvalid
+rs_decoder_axis4.m_axis_tready
+@22
+rs_decoder_axis4.m_axis_tdata[31:0]
+rs_decoder_axis4.m_axis_tstrb[3:0]
+@28
+rs_decoder_axis4.m_axis_tlast
+@22
+rs_decoder_axis4.m_axis_tid[3:0]
+rs_decoder_axis4.m_axis_tdest[1:0]
+rs_decoder_axis4.m_axis_tuser[0:0]
+@200
+-status
+@28
+rs_decoder_axis4.out_status_ok
+rs_decoder_axis4.out_status_uncorrectable
+rs_decoder_axis4.out_status_frame_err
+@22
+rs_decoder_axis4.out_status_corrected[1:0]
+@200
+-wrapper-pipe
+@28
+rs_decoder_axis4.core_valid
+rs_decoder_axis4.core_ready
+@22
+rs_decoder_axis4.core_data[31:0]
+rs_decoder_axis4.core_keep[3:0]
+@28
+rs_decoder_axis4.core_last
+@28
+rs_decoder_axis4.r_have
+@22
+rs_decoder_axis4.r_tid[3:0]
+rs_decoder_axis4.r_tdest[1:0]
+@200
+-core
+@28
+rs_decoder_axis4.u_core.in_valid
+rs_decoder_axis4.u_core.in_ready
+@22
+rs_decoder_axis4.u_core.in_data[31:0]
+rs_decoder_axis4.u_core.in_keep[3:0]
+@28
+rs_decoder_axis4.u_core.in_last
+@28
+rs_decoder_axis4.u_core.out_valid
+rs_decoder_axis4.u_core.out_ready
+@22
+rs_decoder_axis4.u_core.out_data[31:0]
+rs_decoder_axis4.u_core.out_keep[3:0]
+@28
+rs_decoder_axis4.u_core.out_last
+@28
+rs_decoder_axis4.u_core.out_status_ok
+rs_decoder_axis4.u_core.out_status_uncorrectable
+rs_decoder_axis4.u_core.out_status_frame_err
+@22
+rs_decoder_axis4.u_core.out_status_corrected[1:0]
+@28
+rs_decoder_axis4.u_core.w_in_fire
+rs_decoder_axis4.u_core.w_block_end
+@22
+rs_decoder_axis4.u_core.w_synd_next[31:0]
+@28
+rs_decoder_axis4.u_core.w_all_zero_next
+@28
+rs_decoder_axis4.u_core.w_kes_start
+rs_decoder_axis4.u_core.w_kes_done
+@22
+rs_decoder_axis4.u_core.w_kes_deg[2:0]
+rs_decoder_axis4.u_core.w_kes_lambda[39:0]
+@28
+rs_decoder_axis4.u_core.w_c_load
+rs_decoder_axis4.u_core.w_c_step
+@22
+rs_decoder_axis4.u_core.w_chien_root[3:0]
+rs_decoder_axis4.u_core.w_forney_val[31:0]
+rs_decoder_axis4.u_core.w_c_hit[3:0]
+[pattern_trace] 1
+[pattern_trace] 0

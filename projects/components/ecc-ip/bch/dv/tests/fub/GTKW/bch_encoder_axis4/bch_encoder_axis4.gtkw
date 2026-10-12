@@ -1,0 +1,88 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/bch/dv/tests/fub/local_sim_build/test_bch_encoder_axis4_m06_n0063_t01_b00_s08_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/bch/dv/tests/fub/GTKW/bch_encoder_axis4/bch_encoder_axis4.gtkw"
+[treeopen] bch_encoder_axis4.
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 3210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 357
+[signals_width] 450
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@24
+bch_encoder_axis4.FIELD_DIM[31:0]
+bch_encoder_axis4.T_BITS[31:0]
+bch_encoder_axis4.N_BITS[31:0]
+@22
+bch_encoder_axis4.BITS_PER_BEAT[31:0]
+bch_encoder_axis4.K_BITS[31:0]
+@28
+bch_encoder_axis4.aclk
+bch_encoder_axis4.aresetn
+@200
+-s-axis-slave
+@28
+bch_encoder_axis4.s_axis_tvalid
+bch_encoder_axis4.s_axis_tready
+@22
+bch_encoder_axis4.s_axis_tdata[7:0]
+bch_encoder_axis4.s_axis_tstrb[0:0]
+bch_encoder_axis4.s_axis_tuser[7:0]
+@28
+bch_encoder_axis4.s_axis_tlast
+bch_encoder_axis4.s_axis_tid[3:0]
+bch_encoder_axis4.s_axis_tdest[1:0]
+@200
+-m-axis-master
+@28
+bch_encoder_axis4.m_axis_tvalid
+bch_encoder_axis4.m_axis_tready
+@22
+bch_encoder_axis4.m_axis_tdata[7:0]
+bch_encoder_axis4.m_axis_tstrb[0:0]
+bch_encoder_axis4.m_axis_tuser[7:0]
+@28
+bch_encoder_axis4.m_axis_tlast
+bch_encoder_axis4.m_axis_tid[3:0]
+bch_encoder_axis4.m_axis_tdest[1:0]
+@28
+bch_encoder_axis4.frame_err
+@200
+-skid-boundary
+@28
+bch_encoder_axis4.in_tvalid
+bch_encoder_axis4.in_tready
+@22
+bch_encoder_axis4.in_tdata[7:0]
+bch_encoder_axis4.in_tstrb[0:0]
+bch_encoder_axis4.in_tuser[7:0]
+@28
+bch_encoder_axis4.in_tlast
+@28
+bch_encoder_axis4.core_valid
+bch_encoder_axis4.core_ready
+@22
+bch_encoder_axis4.core_data[7:0]
+bch_encoder_axis4.core_keep[7:0]
+@28
+bch_encoder_axis4.core_last
+@200
+-core
+@22
+bch_encoder_axis4.u_core.r_lfsr[41:0]
+bch_encoder_axis4.u_core.w_lfsr_next[41:0]
+@28
+bch_encoder_axis4.u_core.r_drain
+@22
+bch_encoder_axis4.u_core.r_bit_count[6:0]
+bch_encoder_axis4.u_core.r_parity_count[6:0]
+bch_encoder_axis4.u_core.w_par_beat_len[3:0]
+bch_encoder_axis4.u_core.w_parity_bits[7:0]
+@28
+bch_encoder_axis4.u_core.w_enc_out_last
+[pattern_trace] 1
+[pattern_trace] 0

@@ -1,0 +1,89 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/local_sim_build/test_rs_axi4_engines_d032_m2048_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/GTKW/rs_axi4_read_engine/rs_axi4_read_engine.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 3210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] rs_axi4_engines_tb_top.
+[treeopen] rs_axi4_engines_tb_top.u_rd.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@22
+rs_axi4_engines_tb_top.u_rd.ADDR_WIDTH[31:0]
+rs_axi4_engines_tb_top.u_rd.DATA_WIDTH[31:0]
+rs_axi4_engines_tb_top.u_rd.ID_WIDTH[31:0]
+rs_axi4_engines_tb_top.u_rd.MAX_OUTSTANDING[31:0]
+@28
+rs_axi4_engines_tb_top.u_rd.aclk
+rs_axi4_engines_tb_top.u_rd.aresetn
+@200
+-job
+@28
+rs_axi4_engines_tb_top.u_rd.cfg_start
+@22
+rs_axi4_engines_tb_top.u_rd.cfg_src_addr[31:0]
+rs_axi4_engines_tb_top.u_rd.cfg_beats[31:0]
+rs_axi4_engines_tb_top.u_rd.cfg_burst_len[7:0]
+rs_axi4_engines_tb_top.u_rd.cfg_beats_per_block[15:0]
+@28
+@22
+rs_axi4_engines_tb_top.u_rd.cfg_axi_id[3:0]
+rs_axi4_engines_tb_top.u_rd.cfg_axi_size[2:0]
+@28
+rs_axi4_engines_tb_top.u_rd.cfg_done
+rs_axi4_engines_tb_top.u_rd.resp_err
+@200
+-stream-out
+@28
+rs_axi4_engines_tb_top.u_rd.out_valid
+rs_axi4_engines_tb_top.u_rd.out_ready
+@22
+rs_axi4_engines_tb_top.u_rd.out_data[31:0]
+@28
+rs_axi4_engines_tb_top.u_rd.out_last
+@200
+-axi-ar
+@28
+rs_axi4_engines_tb_top.u_rd.m_axi_arvalid
+rs_axi4_engines_tb_top.u_rd.m_axi_arready
+@22
+rs_axi4_engines_tb_top.u_rd.m_axi_araddr[31:0]
+rs_axi4_engines_tb_top.u_rd.m_axi_arlen[7:0]
+rs_axi4_engines_tb_top.u_rd.m_axi_arid[3:0]
+rs_axi4_engines_tb_top.u_rd.m_axi_arsize[2:0]
+@200
+-axi-r
+@28
+rs_axi4_engines_tb_top.u_rd.m_axi_rvalid
+rs_axi4_engines_tb_top.u_rd.m_axi_rready
+@22
+rs_axi4_engines_tb_top.u_rd.m_axi_rdata[31:0]
+rs_axi4_engines_tb_top.u_rd.m_axi_rresp[1:0]
+@28
+rs_axi4_engines_tb_top.u_rd.m_axi_rlast
+@200
+-internals
+@28
+rs_axi4_engines_tb_top.u_rd.r_running
+@22
+rs_axi4_engines_tb_top.u_rd.r_ar_addr[31:0]
+rs_axi4_engines_tb_top.u_rd.r_ar_left[31:0]
+rs_axi4_engines_tb_top.u_rd.w_this_len[8:0]
+@28
+rs_axi4_engines_tb_top.u_rd.w_ar_fire
+@22
+rs_axi4_engines_tb_top.u_rd.r_outstanding[2:0]
+@28
+rs_axi4_engines_tb_top.u_rd.w_r_fire
+@22
+rs_axi4_engines_tb_top.u_rd.r_in_block[15:0]
+rs_axi4_engines_tb_top.u_rd.r_beats_left[31:0]
+rs_axi4_engines_tb_top.u_rd.w_block_len[15:0]
+[pattern_trace] 1
+[pattern_trace] 0

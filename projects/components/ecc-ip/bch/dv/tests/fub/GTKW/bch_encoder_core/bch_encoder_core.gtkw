@@ -1,0 +1,79 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/bch/dv/tests/fub/local_sim_build/test_bch_encoder_core_m06_n0063_t01_b00_s08_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/bch/dv/tests/fub/GTKW/bch_encoder_core/bch_encoder_core.gtkw"
+[treeopen] bch_encoder_core.
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 3210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 357
+[signals_width] 450
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@24
+bch_encoder_core.FIELD_DIM[31:0]
+bch_encoder_core.T_BITS[31:0]
+bch_encoder_core.N_BITS[31:0]
+@22
+bch_encoder_core.BITS_PER_BEAT[31:0]
+bch_encoder_core.K_BITS[31:0]
+@28
+bch_encoder_core.aclk
+bch_encoder_core.aresetn
+@200
+-in-stream
+@28
+bch_encoder_core.in_valid
+bch_encoder_core.in_ready
+@22
+bch_encoder_core.in_data[7:0]
+bch_encoder_core.in_keep[7:0]
+@28
+bch_encoder_core.in_last
+@200
+-out-stream
+@28
+bch_encoder_core.out_valid
+bch_encoder_core.out_ready
+@22
+bch_encoder_core.out_data[7:0]
+bch_encoder_core.out_keep[7:0]
+@28
+bch_encoder_core.out_last
+bch_encoder_core.frame_err
+@200
+-lfsr
+@22
+bch_encoder_core.r_lfsr[41:0]
+bch_encoder_core.w_lfsr_next[41:0]
+@28
+bch_encoder_core.r_drain
+@22
+bch_encoder_core.r_bit_count[6:0]
+bch_encoder_core.r_parity_count[6:0]
+bch_encoder_core.r_data_count[6:0]
+bch_encoder_core.w_in_count[3:0]
+bch_encoder_core.w_par_beat_len[3:0]
+bch_encoder_core.w_par_keep[7:0]
+bch_encoder_core.w_parity_bits[7:0]
+@28
+bch_encoder_core.w_beat_is_parity
+bch_encoder_core.w_parity_phase
+bch_encoder_core.w_enc_out_last
+bch_encoder_core.w_frame_err
+@200
+-output-skid
+@28
+bch_encoder_core.w_skid_wr_valid
+bch_encoder_core.w_skid_wr_ready
+@22
+bch_encoder_core.w_skid_wr_data[16:0]
+bch_encoder_core.w_skid_rd_data[16:0]
+@28
+bch_encoder_core.u_out_skid.rd_valid
+bch_encoder_core.u_out_skid.rd_ready
+[pattern_trace] 1
+[pattern_trace] 0

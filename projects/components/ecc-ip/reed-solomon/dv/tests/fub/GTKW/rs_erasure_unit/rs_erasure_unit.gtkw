@@ -1,0 +1,82 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/local_sim_build/test_rs_erasure_unit_m04_n019_t02_ribm_s3_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/GTKW/rs_erasure_unit/rs_erasure_unit.gtkw"
+[timestart] 0
+[size] 3268 1344
+[pos] -35 -79
+*-15.655873 380000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] rs_erasure_unit.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@24
+rs_erasure_unit.SYMBOL_WIDTH[31:0]
+rs_erasure_unit.PRIM_POLY[31:0]
+rs_erasure_unit.T_SYMBOLS[31:0]
+rs_erasure_unit.N_SYMBOLS[31:0]
+rs_erasure_unit.SYMBOLS_PER_BEAT[31:0]
+rs_erasure_unit.AB_W[31:0]
+rs_erasure_unit.M[31:0]
+rs_erasure_unit.T[31:0]
+rs_erasure_unit.T2[31:0]
+rs_erasure_unit.N[31:0]
+rs_erasure_unit.S[31:0]
+@28
+rs_erasure_unit.aclk
+rs_erasure_unit.aresetn
+@200
+-a-side-inputs
+@28
+rs_erasure_unit.i_rx_fire
+rs_erasure_unit.i_rx_first
+@22
+rs_erasure_unit.i_rx_count[1:0]
+rs_erasure_unit.i_rx_erasure[2:0]
+@200
+-b-side-inputs
+@28
+rs_erasure_unit.i_trans_start
+rs_erasure_unit.i_comb_start
+@22
+rs_erasure_unit.i_synd[15:0]
+rs_erasure_unit.i_ab[23:0]
+rs_erasure_unit.i_lambda_e[19:0]
+rs_erasure_unit.i_deg_e[2:0]
+@200
+-outputs
+@28
+rs_erasure_unit.o_trans_done
+rs_erasure_unit.o_comb_done
+rs_erasure_unit.o_f_over
+rs_erasure_unit.o_t_zero
+@22
+rs_erasure_unit.o_ab[23:0]
+rs_erasure_unit.o_f[2:0]
+rs_erasure_unit.o_kes_synd[15:0]
+rs_erasure_unit.o_lambda_c[19:0]
+rs_erasure_unit.o_omega_c[15:0]
+rs_erasure_unit.o_deg_c[3:0]
+@200
+-internals
+@22
+rs_erasure_unit.r_xpow[3:0]
+rs_erasure_unit.r_f[2:0]
+rs_erasure_unit.r_xfile[0][3:0]
+rs_erasure_unit.r_xfile[1][3:0]
+rs_erasure_unit.r_gs[0][3:0]
+rs_erasure_unit.r_gs[1][3:0]
+rs_erasure_unit.r_gam[0][3:0]
+rs_erasure_unit.r_gam[1][3:0]
+rs_erasure_unit.r_acc_lam[0][3:0]
+rs_erasure_unit.r_acc_lam[1][3:0]
+rs_erasure_unit.r_acc_om[0][3:0]
+rs_erasure_unit.r_acc_om[1][3:0]
+@28
+rs_erasure_unit.r_tr_run
+rs_erasure_unit.r_cb_run
+[pattern_trace] 1
+[pattern_trace] 0

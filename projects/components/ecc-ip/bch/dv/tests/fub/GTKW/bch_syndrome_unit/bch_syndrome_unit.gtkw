@@ -1,0 +1,63 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/bch/dv/tests/fub/local_sim_build/test_bch_syndrome_unit_validation_waves/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/bch/dv/tests/fub/GTKW/bch_syndrome_unit/bch_syndrome_unit.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-15.655873 4660000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] bch_syndrome_unit.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@24
+bch_syndrome_unit.FIELD_DIM[31:0]
+bch_syndrome_unit.PRIM_POLY[31:0]
+bch_syndrome_unit.T_BITS[31:0]
+bch_syndrome_unit.N_BITS[31:0]
+bch_syndrome_unit.BITS_PER_BEAT[31:0]
+bch_syndrome_unit.FIRST_ROOT[31:0]
+@28
+bch_syndrome_unit.aclk
+bch_syndrome_unit.aresetn
+@200
+-bch-in
+@28
+bch_syndrome_unit.in_valid
+bch_syndrome_unit.in_ready
+bch_syndrome_unit.i_clear
+bch_syndrome_unit.in_last
+@22
+bch_syndrome_unit.in_data[7:0]
+bch_syndrome_unit.in_keep[7:0]
+@200
+-bch-out
+@28
+bch_syndrome_unit.out_valid
+bch_syndrome_unit.out_ready
+bch_syndrome_unit.out_no_error
+@22
+bch_syndrome_unit.out_syndromes[5:0]
+@200
+-internals
+@28
+bch_syndrome_unit.w_in_fire
+bch_syndrome_unit.w_last_bit
+bch_syndrome_unit.w_syndrome_done
+bch_syndrome_unit.r_out_valid
+@22
+bch_syndrome_unit.w_in_count[3:0]
+bch_syndrome_unit.r_bit_count[6:0]
+bch_syndrome_unit.w_sym_data[47:0]
+@28
+bch_syndrome_unit.g_lane[0].u_cell.i_step
+bch_syndrome_unit.g_lane[0].u_cell.i_first
+@22
+bch_syndrome_unit.g_lane[0].u_cell.i_count[3:0]
+bch_syndrome_unit.g_lane[0].u_cell.ow_synd[5:0]
+bch_syndrome_unit.g_lane[0].u_cell.ow_next[5:0]
+[pattern_trace] 1
+[pattern_trace] 0

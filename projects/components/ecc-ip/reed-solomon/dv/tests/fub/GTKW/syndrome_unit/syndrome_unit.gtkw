@@ -1,0 +1,53 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/local_sim_build/test_syndrome_unit_m04_n015_t02_b000_s3_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/ecc-ip/reed-solomon/dv/tests/fub/GTKW/syndrome_unit/syndrome_unit.gtkw"
+[timestart] 0
+[size] 3268 1344
+[pos] -35 -79
+*-15.655873 380000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] syndrome_unit.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@24
+syndrome_unit.SYMBOL_WIDTH[31:0]
+syndrome_unit.PRIM_POLY[31:0]
+syndrome_unit.T_SYMBOLS[31:0]
+syndrome_unit.FIRST_ROOT[31:0]
+syndrome_unit.SYMBOLS_PER_BEAT[31:0]
+syndrome_unit.M[31:0]
+syndrome_unit.T2[31:0]
+@28
+syndrome_unit.aclk
+syndrome_unit.aresetn
+@200
+-inputs
+@28
+syndrome_unit.i_step
+syndrome_unit.i_first
+@22
+syndrome_unit.i_data[11:0]
+syndrome_unit.i_count[1:0]
+@200
+-outputs
+@22
+syndrome_unit.ow_synd[15:0]
+syndrome_unit.ow_synd_next[15:0]
+@28
+syndrome_unit.ow_all_zero
+syndrome_unit.ow_all_zero_next
+@200
+-syndrome-cells
+@22
+syndrome_unit.g_cell[0].u_cell.r_s[3:0]
+syndrome_unit.g_cell[0].u_cell.w_next[3:0]
+syndrome_unit.g_cell[0].u_cell.w_chain[0][3:0]
+syndrome_unit.g_cell[3].u_cell.r_s[3:0]
+syndrome_unit.g_cell[3].u_cell.w_next[3:0]
+syndrome_unit.g_cell[3].u_cell.w_chain[0][3:0]
+[pattern_trace] 1
+[pattern_trace] 0
