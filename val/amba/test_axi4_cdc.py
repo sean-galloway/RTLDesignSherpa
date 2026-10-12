@@ -77,7 +77,8 @@ def test_axi4_cdc(request, channel, data_width, s_period, m_period, test_level):
             toplevel=dut_name, module=module, parameters=rtl_parameters, simulator='verilator',
             sim_build=sim_build, extra_env=extra_env, waves=False, keep_files=True,
             compile_args=["--trace", "--trace-structs", "--trace-depth", "99"],
-            sim_args=["--trace", "--trace-structs", "--trace-depth", "99"])
+            sim_args=["--trace", "--trace-structs", "--trace-depth", "99"],
+            plus_args=["--trace"])
         print(f"PASSED {test_level.upper()}")
     except Exception as e:
         print(f"FAILED {test_level.upper()}: {e}\n   Logs: {log_path}\n   Waveforms: {cmd_filename}")

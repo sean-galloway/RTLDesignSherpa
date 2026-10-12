@@ -2,7 +2,7 @@
 
 # math — tasks
 
-**Next ID: TASK-008** — never recycle a number, even when its item closed.
+**Next ID: TASK-012** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,13 +12,18 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 7 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **TASK-008** — val/math: test remaining han_carlson and dadda_4to2 widths
+- **TASK-009** — val/math: max/min/softmax_8 tree families have no tests (15 modules)
+- **TASK-010** — val/math: fp8 and ieee754 exponent_adder / mantissa_mult cell coverage (8 modules)
+- **TASK-011** — val/math: cell-level coverage for prefix/compressor/subtractor cells
 
 (none)
 
