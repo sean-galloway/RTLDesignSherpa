@@ -300,6 +300,13 @@ end
 - **Power Estimation**: Measure power savings using EDA power analysis tools
 - **Efficiency Metrics**: Calculate gating efficiency (% time clock is disabled)
 
+## References
+
+- Benini, L., De Micheli, G. "Automatic Synthesis of Low-Power Gated-Clock Finite-State Machines." *IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems*, 15(6), June 1996. DOI: [10.1109/43.503933](https://doi.org/10.1109/43.503933) — Fig. 1(b) and Sec. II give exactly this structure: a latch transparent while the clock is low captures the enable, and an AND gate combines it with the clock so enable glitches cannot reach the gated clock.
+- Benini, L., Siegel, P., De Micheli, G. "Saving Power by Synthesizing Gated Clocks for Sequential Circuits." *IEEE Design & Test of Computers*, 11(4), 1994. DOI: [10.1109/54.329451](https://doi.org/10.1109/54.329451) — the earlier paper introducing gated-clock synthesis for sequential circuits.
+- Roy, S. *Advanced Digital System Design*, Springer, ch. 15 "Low-Power Digital System Design", §15.5.5 "Logic Level Power Down" — textbook treatment of disabling the clock to idle units (secondary source).
+- Indexed in `rtl/common/references/README.md` (local PDF: `LatchBasedClockGating__Benini1996.pdf`)
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

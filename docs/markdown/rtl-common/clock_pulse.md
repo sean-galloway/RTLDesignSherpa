@@ -502,6 +502,12 @@ module clock_pulse_properties;
 endmodule
 ```
 
+## References
+
+- No peer paper — a modulo-WIDTH counter emitting a one-cycle periodic pulse is a standard technique with no defensible single origin (marked "standard technique" in the references index).
+- Roy, S. *Advanced Digital System Design*, Springer, ch. 4 "Basic Sequential Circuits", §4.6 "Synchronous Counter Design" — textbook treatment (secondary source).
+- Indexed in `rtl/common/references/README.md`
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

@@ -1008,6 +1008,20 @@ section and suite. The whole area runs with
 `make -C val/cdc clean-all && make -C val/cdc run-all-{gate,func,full}-parallel`,
 and every rtl/cdc module carries a passing formal harness under `formal/cdc/`.
 
+## References
+
+- Chaney, T.J., Molnar, C.E. "Anomalous Behavior of Synchronizer and Arbiter Circuits." *IEEE Transactions on Computers*, C-22(4), Apr. 1973. DOI: [10.1109/T-C.1973.223730](https://doi.org/10.1109/T-C.1973.223730) -- synchronizer metastability, the reason every crossing here exists.
+- Veendrick, H.J.M. "The Behaviour of Flip-Flops Used as Synchronizers and Prediction of Their Failure Rate." *IEEE Journal of Solid-State Circuits*, 15(2), Apr. 1980. DOI: [10.1109/JSSC.1980.1051359](https://doi.org/10.1109/JSSC.1980.1051359) -- the MTBF model behind every `SYNC_STAGES` / `FLOP_COUNT` choice.
+- Ginosar, R. "Metastability and Synchronizers: A Tutorial." *IEEE Design & Test of Computers*, 28(5), Sept./Oct. 2011. DOI: [10.1109/MDT.2011.113](https://doi.org/10.1109/MDT.2011.113) -- peer-reviewed tutorial: N-flop synchronizer, req/ack handshake, two-clock FIFO.
+- Ginosar, R. "Fourteen Ways to Fool Your Synchronizer." *Proc. 9th IEEE Int. Symp. on Asynchronous Circuits and Systems (ASYNC)*, pp. 89-96, May 2003. DOI: [10.1109/ASYNC.2003.1199169](https://doi.org/10.1109/ASYNC.2003.1199169) -- four-phase handshake, pulse synchronizer and the common ways synchronizers are broken.
+- Sutherland, I.E. "Micropipelines." *Communications of the ACM*, 32(6), June 1989. DOI: [10.1145/63526.63532](https://doi.org/10.1145/63526.63532) -- two-phase (transition) signalling, the basis of `cdc_2_phase_handshake`.
+- Cummings, C.E. "Clock Domain Crossing (CDC) Design & Verification Techniques Using SystemVerilog." *SNUG Boston*, 2008 -- open-loop sampling (`cdc_open_loop`, sec. 4.4) and toggle-pulse / acknowledged MCP formulations (sec. 5.6).
+- Cummings, C.E. "Synthesis and Scripting Techniques for Designing Multi-Asynchronous Clock Designs." *SNUG San Jose*, 2001 -- synchronizer module partitioning behind `cdc_synchronizer`.
+- Cummings, C.E. "Simulation and Synthesis Techniques for Asynchronous FIFO Design." *SNUG San Jose*, 2002 -- Gray-pointer async FIFO.
+- Harris, S.L., Harris, D. *Digital Design and Computer Architecture, RISC-V Edition*, Morgan Kaufmann, 2022, ch. 3 "Sequential Logic Design", sec. 3.5.4-3.5.6 (metastability, synchronizers, resolution time) -- textbook treatment of synchronizers (secondary source).
+- Deschamps, J.-P., Sutter, G.D., Cantó, E. *Guide to FPGA Implementation of Arithmetic Functions*, Springer (LNEE 149), 2012, ch. 5 "Electronic Aspects of Digital Design" -- sec. 5.3.5 "Interfacing Different Clock Domains", 5.3.5.2 handshake signaling, 5.3.5.3 asynchronous FIFO -- textbook treatment (secondary source).
+- Indexed in `rtl/cdc/references/README.md` (local PDF: `MetastabilitySynchronizers__Ginosar2011.pdf`, `SynchronizerPitfalls__Ginosar2003.pdf`, `ClockDomainCrossing__Cummings2008.pdf`, `MultiAsyncClockDesign__Cummings2001.pdf`, `AsyncFifoGrayPointers__Cummings2002.pdf`)
+
 ## Navigation
 
 - [← Back to CDC Index](index.md)

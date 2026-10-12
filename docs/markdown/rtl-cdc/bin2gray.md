@@ -422,6 +422,13 @@ endcovergroup
 pytest val/cdc/test_bin2gray.py -v
 ```
 
+## References
+
+- Gray, F. "Pulse Code Communication." U.S. Patent 2,632,058, filed Nov. 1947, issued Mar. 1953. [Google Patents](https://patents.google.com/patent/US2632058A/en) -- the reflected binary code and the XOR conversion this module implements.
+- Cummings, C.E. "Simulation and Synthesis Techniques for Asynchronous FIFO Design." *SNUG San Jose*, 2002 -- why a Gray-coded value is the safe way to synchronize a multi-bit counter.
+- Roy, S. *Advanced Digital System Design*, Springer, 2024, ch. 3 "Basic Combinational Circuits", sec. 3.11 (binary/Gray conversion) -- textbook treatment (secondary source).
+- Indexed in `rtl/cdc/references/README.md` (local PDF: `GrayCode__Gray1953.pdf`, `AsyncFifoGrayPointers__Cummings2002.pdf`)
+
 ## Navigation
 
 - [← Back to CDC Index](index.md)

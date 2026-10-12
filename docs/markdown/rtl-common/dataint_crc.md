@@ -379,6 +379,17 @@ cascade_timing: assert property (
 - **Reflection Testing**: Verify bit ordering for REFIN/REFOUT modes
 - **Standards Compliance**: Validate against published CRC standards
 
+## References
+
+- Peterson, W.W., Brown, D.T. "Cyclic Codes for Error Detection." *Proceedings of the IRE*, 49(1), Jan. 1961. DOI: [10.1109/JRPROC.1961.287814](https://doi.org/10.1109/JRPROC.1961.287814) — cyclic redundancy codes and their shift-register realization.
+- Albertengo, G., Sisto, R. "Parallel CRC Generation." *IEEE Micro*, 10(5), Oct. 1990. DOI: [10.1109/40.60527](https://doi.org/10.1109/40.60527) — byte-parallel CRC lineage behind the per-cycle cascade of `DATA_WIDTH/8` stages.
+- Campobello, G., Patanè, G., Russo, M. "Parallel CRC Realization." *IEEE Transactions on Computers*, 52(10), Oct. 2003. DOI: [10.1109/TC.2003.1234528](https://doi.org/10.1109/TC.2003.1234528) — general parallel-CRC formulation; the RTL instead chains unrolled serial stages because `POLY` is a runtime input and no matrix can be precomputed.
+- Williams, R.N. "A Painless Guide to CRC Error Detection Algorithms." Version 3, Rocksoft Pty Ltd, Aug. 1993 (non-peer; canonical) — defines the WIDTH/POLY/INIT/REFIN/REFOUT/XOROUT parameter model this module exposes.
+- Koopman, P., Chakravarty, T. "Cyclic Redundancy Code (CRC) Polynomial Selection for Embedded Networks." *Proc. International Conference on Dependable Systems and Networks (DSN 2004)*, 2004. DOI: [10.1109/DSN.2004.1311885](https://doi.org/10.1109/DSN.2004.1311885) — Hamming-distance-based guidance for choosing the runtime `POLY`.
+- Moon, T.K. *Error Correction Coding*, 2nd ed., Wiley, 2021, ch. 4 "Cyclic Codes, Rings, and Polynomials" (Sec. 4.9 hardware background, Sec. 4.13 Binary CRC Codes) (textbook treatment; secondary source).
+- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 21 "Error Control", Sec. 21.3 Link Level Error Control (textbook treatment; secondary source).
+- Indexed in `rtl/common/references/README.md` (local files: `CrcParameterModel__Williams1993.txt`, `CrcPolynomialSelection__Koopman2004.pdf`).
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

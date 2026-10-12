@@ -368,6 +368,16 @@ Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
 parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 `make -C val/cdc run-all-func-parallel`, never bare pytest for suites.
 
+## References
+
+- Chaney, T.J., Molnar, C.E. "Anomalous Behavior of Synchronizer and Arbiter Circuits." *IEEE Transactions on Computers*, C-22(4), Apr. 1973. DOI: [10.1109/T-C.1973.223730](https://doi.org/10.1109/T-C.1973.223730) — the observation of synchronizer metastability that the flop chain exists to contain.
+- Veendrick, H.J.M. "The Behaviour of Flip-Flops Used as Synchronizers and Prediction of Their Failure Rate." *IEEE Journal of Solid-State Circuits*, 15(2), Apr. 1980. DOI: [10.1109/JSSC.1980.1051359](https://doi.org/10.1109/JSSC.1980.1051359) — the exponential MTBF model behind the `FLOP_COUNT` depth trade.
+- Ginosar, R. "Metastability and Synchronizers: A Tutorial." *IEEE Design & Test of Computers*, 28(5), Sept./Oct. 2011. DOI: [10.1109/MDT.2011.113](https://doi.org/10.1109/MDT.2011.113) — peer-reviewed tutorial on the N-flop synchronizer this module implements.
+- Cummings, C.E. "Synthesis and Scripting Techniques for Designing Multi-Asynchronous Clock Designs." *SNUG San Jose*, 2001 — two-flop synchronizer guidelines for RTL and one-module-per-crossing partitioning.
+- Harris, S.L., Harris, D. *Digital Design and Computer Architecture, RISC-V Edition*, Morgan Kaufmann, 2022, ch. 3 "Sequential Logic Design", sec. 3.5.4-3.5.6 (metastability, synchronizers, resolution time) — textbook treatment (secondary source).
+- Deschamps, J.-P., Sutter, G.D., Cantó, E. *Guide to FPGA Implementation of Arithmetic Functions*, Springer (LNEE 149), 2012, ch. 5 "Electronic Aspects of Digital Design" — sec. 5.2.3 "Metastability", 5.2.3.2 MTBF — textbook treatment (secondary source).
+- Indexed in `rtl/cdc/references/README.md` (local PDF: `MetastabilitySynchronizers__Ginosar2011.pdf`, `MultiAsyncClockDesign__Cummings2001.pdf`)
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

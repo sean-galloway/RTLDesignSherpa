@@ -81,6 +81,10 @@ The APB/APB5 CDC slaves that consume this area live with their protocol
 documentation: [apb4_slave_cdc](../rtl-amba/apb4/apb4_slave_cdc.md),
 [apb5_slave_cdc](../rtl-amba/apb5/apb5_slave_cdc.md).
 
+## References
+
+- Seminal papers, defining documents and textbook chapters for every technique in this area — metastability and MTBF, Gray and Johnson codes, Gray-pointer asynchronous FIFOs, two- and four-phase handshakes, pulse and open-loop transfer, and reset synchronization — are indexed in `rtl/cdc/references/README.md`, with open-access PDFs archived beside it. Per-module pages carry the citations that apply to them; [cdc.md](cdc.md#references) carries the family-level list.
+
 ## Navigation
 
 - **[Overview and decision guide](overview.md)**

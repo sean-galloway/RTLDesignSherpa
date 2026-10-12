@@ -378,6 +378,13 @@ pytest val/cdc/test_counter_bingray.py -v
 pytest val/cdc/test_counter_bingray_wavedrom.py -v
 ```
 
+## References
+
+- Cummings, C.E. "Simulation and Synthesis Techniques for Asynchronous FIFO Design." *SNUG San Jose*, 2002 -- "Gray code counter - Style #2": binary and Gray registers updated together, binary addresses memory, Gray crosses the boundary.
+- Gray, F. "Pulse Code Communication." U.S. Patent 2,632,058, filed Nov. 1947, issued Mar. 1953. [Google Patents](https://patents.google.com/patent/US2632058A/en) -- the reflected binary code.
+- Roy, S. *Advanced Digital System Design*, Springer, 2024, ch. 3 "Basic Combinational Circuits", sec. 3.11 (binary/Gray conversion) -- textbook treatment of the conversion (secondary source).
+- Indexed in `rtl/cdc/references/README.md` (local PDF: `AsyncFifoGrayPointers__Cummings2002.pdf`, `GrayCode__Gray1953.pdf`)
+
 ## Navigation
 
 - [← Back to CDC Index](index.md)

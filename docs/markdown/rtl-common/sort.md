@@ -383,6 +383,11 @@ The module comes with a comprehensive CocoTB testbench that includes:
 - **Temporal**: Pipeline timing and valid signal propagation
 - **Stress**: Back-to-back operations and maximum throughput
 
+## References
+
+- Habermann, A.N. "Parallel Neighbor-Sort (or the Glory of the Induction Principle)." Technical Report, Carnegie-Mellon University, Computer Science Dept., Aug. 1972 (DTIC AD-759 248). DOI: [10.1184/R1/6608258.v1](https://doi.org/10.1184/R1/6608258.v1) — the original odd-even transposition sort: alternating odd/even neighbor compare-exchange passes sort N values in N parallel steps, which is this module's N-stage pipeline.
+- Indexed in `rtl/common/references/README.md` (local PDF: `OddEvenTranspositionSort__Habermann1972.pdf`)
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

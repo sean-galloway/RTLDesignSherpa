@@ -442,6 +442,13 @@ covergroup clock_divider_cg @(posedge clk);
 endcovergroup
 ```
 
+## References
+
+- No peer paper — power-of-2 division by counter-bit pickoff is a standard technique with no defensible single origin (marked "standard technique" in the references index).
+- Roy, S. *Advanced Digital System Design*, Springer, ch. 4 "Basic Sequential Circuits", §4.11 "Clock Divider Circuits" and §4.11.4 "Programmable Clock Divider Circuit" — textbook treatment (secondary source).
+- LaMeres, B.J. *Introduction to Logic Circuits & Logic Design with Verilog*, Springer, ch. 7 "Sequential Logic Design", §7.3.1 "Toggle Flop Clock Divider" — textbook treatment (secondary source).
+- Indexed in `rtl/common/references/README.md`
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

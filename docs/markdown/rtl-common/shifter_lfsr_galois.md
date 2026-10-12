@@ -317,6 +317,13 @@ Use Fibonacci LFSR when:
 - [shifter_lfsr_fibonacci](shifter_lfsr_fibonacci.md) — the single-XOR Fibonacci form. Do **not** pass this page's tap numbers to it; the encoding differs (see Tap Position Mapping above).
 - [shifter_lfsr](shifter_lfsr.md) — the generic XNOR-feedback LFSR.
 
+## References
+
+- Ward, R., Molteno, T.C.A. "Table of Linear Feedback Shift Registers." Electronics Technical Report No. 2012-1, University of Otago, 2012 (non-peer technical report) — open maximal-length tap table whose tap numbers are the polynomial exponents, as this module uses them.
+- Moon, T.K. *Error Correction Coding*, 2nd ed., Wiley, 2021, ch. 4, Appendix 4.A "Linear Feedback Shift Registers" (textbook treatment; secondary source).
+- Roy, S. *Advanced Digital System Design*, Springer, 2024, ch. 4 "Basic Sequential Circuits", Sec. 4.5 Pseudo Noise Sequence Generator (textbook treatment; secondary source).
+- Indexed in `rtl/common/references/README.md` (local PDF: `LfsrTapTable__Ward2012.pdf`).
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

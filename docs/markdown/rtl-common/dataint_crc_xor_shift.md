@@ -208,6 +208,13 @@ parents elaborate. A parameter or mode no parent uses is untested.
 
 Treat any behaviour described on this page as unverified by simulation.
 
+## References
+
+- Peterson, W.W., Brown, D.T. "Cyclic Codes for Error Detection." *Proceedings of the IRE*, 49(1), Jan. 1961. DOI: [10.1109/JRPROC.1961.287814](https://doi.org/10.1109/JRPROC.1961.287814) — origin of cyclic codes for error detection and their shift-register encoder, the per-bit step this module implements.
+- Albertengo, G., Sisto, R. "Parallel CRC Generation." *IEEE Micro*, 10(5), Oct. 1990. DOI: [10.1109/40.60527](https://doi.org/10.1109/40.60527) — byte-parallel CRC lineage; this one-bit stage is the unit the parallel forms unroll.
+- Moon, T.K. *Error Correction Coding*, 2nd ed., Wiley, 2021, ch. 4 "Cyclic Codes, Rings, and Polynomials" (Sec. 4.9 hardware background, Sec. 4.13 Binary CRC Codes) (textbook treatment; secondary source).
+- Indexed in `rtl/common/references/README.md`.
+
 ---
 
 ## Navigation

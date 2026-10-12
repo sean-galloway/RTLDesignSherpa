@@ -245,6 +245,14 @@ source env_python
 pytest val/common/test_shifter_lfsr.py -v
 ```
 
+## References
+
+- Ward, R., Molteno, T.C.A. "Table of Linear Feedback Shift Registers." Electronics Technical Report No. 2012-1, University of Otago, 2012 (non-peer technical report) — open table of maximal-length tap sets (n <= 786) for cross-checking the in-header table; maximal-length LFSR theory itself is standard (Golomb, *Shift Register Sequences*, 1967).
+- Moon, T.K. *Error Correction Coding*, 2nd ed., Wiley, 2021, ch. 4, Appendix 4.A "Linear Feedback Shift Registers" (textbook treatment; secondary source).
+- Roy, S. *Advanced Digital System Design*, Springer, 2024, ch. 4 "Basic Sequential Circuits", Sec. 4.5 Pseudo Noise Sequence Generator (textbook treatment; secondary source).
+- Merrick, R. *Getting Started with FPGAs*, No Starch Press, 2024, ch. 6 "Common FPGA Modules", "The Shift Register" (including "Creating a Linear Feedback Shift Register") (textbook treatment; secondary source).
+- Indexed in `rtl/common/references/README.md` (local PDF: `LfsrTapTable__Ward2012.pdf`).
+
 ---
 
 ## Navigation

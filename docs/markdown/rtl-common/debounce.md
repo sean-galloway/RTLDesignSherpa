@@ -176,6 +176,13 @@ source env_python
 pytest val/common/test_debounce.py -v
 ```
 
+## References
+
+- Ganssle, J. "A Guide to Debouncing." Ganssle Group, Aug. 2004 (rev. 4, Mar. 2014), [ganssle.com/debouncing.htm](https://www.ganssle.com/debouncing.htm) — canonical non-peer measurement study of contact bounce and of the sample-until-N-consecutive-equal-readings debounce this module implements.
+- LaMeres, B.J. *Introduction to Logic Circuits & Logic Design with Verilog*, Springer, ch. 7 "Sequential Logic Design", §7.3.3 "Switch Debouncing" — textbook treatment (secondary source).
+- Merrick, R. *Getting Started with FPGAs*, No Starch Press, ch. 5 "Testing Your Code with Simulation", "Project #4: Debouncing a Switch" — textbook treatment (secondary source).
+- Indexed in `rtl/common/references/README.md`
+
 ---
 
 ## Navigation

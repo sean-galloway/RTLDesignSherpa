@@ -468,6 +468,13 @@ All 4 parameter configurations passing (100% success rate):
 an inverted reset polarity. Exactly the kind of bug that sails through a smoke
 test and ruins someone's bring-up. Thorough verification earns its keep.
 
+## References
+
+- Cummings, C.E., Mills, D., Golson, S. "Asynchronous & Synchronous Reset Design Techniques - Part Deux." *SNUG Boston*, 2003 — sec. 7 "Reset synchronizer": asynchronous assertion, synchronous de-assertion (`ASYNC_ASSERT=1`).
+- Ginosar, R. "Fourteen Ways to Fool Your Synchronizer." *Proc. 9th IEEE Int. Symp. on Asynchronous Circuits and Systems (ASYNC)*, pp. 89-96, May 2003. DOI: [10.1109/ASYNC.2003.1199169](https://doi.org/10.1109/ASYNC.2003.1199169) — "Global Reset Synchronizer": peer-reviewed treatment of synchronizing reset removal per clock domain.
+- Harris, S.L., Harris, D. *Digital Design and Computer Architecture, RISC-V Edition*, Morgan Kaufmann, 2022, ch. 3 "Sequential Logic Design", sec. 3.5.4-3.5.6 (metastability, synchronizers, resolution time) — the synchronizer chain and its resolution-time budget — textbook treatment (secondary source).
+- Indexed in `rtl/cdc/references/README.md` (local PDF: `ResetSynchronizer__Cummings2003.pdf`, `SynchronizerPitfalls__Ginosar2003.pdf`)
+
 ## Navigation
 
 - **[← Back to rtl-cdc Index](index.md)**

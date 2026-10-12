@@ -509,6 +509,12 @@ pytest val/cdc/test_counter_johnson.py -v
 pytest val/cdc/test_counter_johnson_wavedrom.py -v
 ```
 
+## References
+
+- Johnson, R.R. "Electronic Counter." U.S. Patent 3,030,581, issued Apr. 1962 (continuation of a 1953 application). [Google Patents](https://patents.google.com/patent/US3030581A/en) -- provenance of the Johnson-counter name only; the patent's worked example is not the 2N twisted ring, which is treated as a standard technique.
+- Roy, S. *Advanced Digital System Design*, Springer, 2024, ch. 4 "Basic Sequential Circuits", sec. 4.9 "Shift Register Counters" -- textbook treatment of the Johnson (twisted-ring) counter (secondary source).
+- Indexed in `rtl/cdc/references/README.md` (no paper archived for this technique; marked standard technique)
+
 ## Navigation
 
 - [← Back to CDC Index](index.md)

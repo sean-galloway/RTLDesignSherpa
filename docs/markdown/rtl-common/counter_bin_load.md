@@ -540,6 +540,12 @@ Every one of these has bitten someone on a real project. Anti-Pattern 1 is the m
 - **gaxi_drop_fifo_sync.sv** - Uses counter_bin_load for drop-capable FIFO
 - **gaxi_fifo_sync.sv** - Standard synchronous FIFO with this counter
 
+## References
+
+- Cummings, C.E. "Simulation and Synthesis Techniques for Asynchronous FIFO Design." *SNUG San Jose*, 2002 (canonical non-peer conference paper) — FIFO style #1: pointers one bit wider than the address, empty when the pointers are equal, full when they differ only in the wrap (MSB) bit, the full/empty test this counter's wrap bit serves; load and add-value are repo extensions for drop/flush.
+- Roy, S. *Advanced Digital System Design*, Springer, ch. 4 "Basic Sequential Circuits", §4.7.1 "Loadable Up Counter" — textbook treatment (secondary source).
+- Indexed in `rtl/common/references/README.md` (PDF archived once, under `rtl/cdc/references/AsyncFifoGrayPointers__Cummings2002.pdf`)
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

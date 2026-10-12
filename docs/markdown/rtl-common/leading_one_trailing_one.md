@@ -181,6 +181,12 @@ source env_python
 pytest val/common/test_leading_one_trailing_one.py -v
 ```
 
+## References
+
+- Oklobdzija, V.G. "An Algorithmic and Novel Design of a Leading Zero Detector Circuit: Comparison with Logic Synthesis." *IEEE Transactions on VLSI Systems*, 2(1), Mar. 1994. DOI: [10.1109/92.273153](https://doi.org/10.1109/92.273153) — leading-one detection, the function of the leading side of this module (built on `find_last_set`).
+- Chu, P.P. *FPGA Prototyping by SystemVerilog Examples*, Wiley, 2018, ch. 3 "RT-Level Combinational Circuit", Sec. 3.12.3 Dual-priority encoder (textbook treatment; secondary source).
+- Indexed in `rtl/common/references/README.md` (local PDF: `LeadingZeroDetector__Oklobdzija1994.pdf`).
+
 ---
 
 ## Navigation

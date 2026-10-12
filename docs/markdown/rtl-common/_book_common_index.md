@@ -4,8 +4,11 @@
 
 - [rtl-common Library Overview](overview.md)
 - [Deficit Round Robin Arbiter](arbiter_deficit_round_robin.md)
+- [Matrix Arbiter](arbiter_matrix.md)
+- [Weighted Matrix Arbiter](arbiter_matrix_weighted.md)
 - [Priority Encoder Arbiter](arbiter_priority_encoder.md)
 - [Round Robin Arbiter](arbiter_round_robin.md)
+- [Simple Round-Robin Arbiter with Grant/ACK](arbiter_round_robin_simple_ack.md)
 - [Simple Round-Robin Arbiter](arbiter_round_robin_simple.md)
 - [Weighted Round Robin Arbiter](arbiter_round_robin_weighted.md)
 - [Single-Client Arbiter](arbiter_single_client.md)

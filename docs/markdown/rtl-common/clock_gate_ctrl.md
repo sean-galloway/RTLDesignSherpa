@@ -1187,6 +1187,13 @@ endmodule
 
 Done right, the clock gate controller is essential power management: significant dynamic power reduction for minimal area overhead and design complexity. Getting it right means careful attention to timing, safety, and verification — that's what buys you reliable operation and the full power savings.
 
+## References
+
+- Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Transactions on VLSI Systems*, 8(3), June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) — the fixed-timeout shutdown policy (power down after the component has been idle for a timeout) that this module's idle counter implements.
+- Benini, L., De Micheli, G. "Automatic Synthesis of Low-Power Gated-Clock Finite-State Machines." *IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems*, 15(6), June 1996. DOI: [10.1109/43.503933](https://doi.org/10.1109/43.503933) — the latch-plus-AND gated clock realized by the `icg` cell this module instantiates.
+- Roy, S. *Advanced Digital System Design*, Springer, ch. 15 "Low-Power Digital System Design", §15.5.5 "Logic Level Power Down" — textbook treatment of disabling the clock to idle units (secondary source).
+- Indexed in `rtl/common/references/README.md` (local PDFs: `DynamicPowerManagementTimeout__Benini2000.pdf`, `LatchBasedClockGating__Benini1996.pdf`)
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

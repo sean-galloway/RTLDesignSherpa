@@ -247,6 +247,12 @@ source env_python
 pytest val/common/test_cam_tag.py -v
 ```
 
+## References
+
+- Pagiamtzis, K., Sheikholeslami, A. "Content-Addressable Memory (CAM) Circuits and Architectures: A Tutorial and Survey." *IEEE Journal of Solid-State Circuits*, 41(3), Mar. 2006. DOI: [10.1109/JSSC.2005.864128](https://doi.org/10.1109/JSSC.2005.864128) — the standard reference for CAM organization (parallel compare of every stored word against the search key, match-line per entry); this module is a small register-based binary CAM.
+- Sasao, T. *Memory-Based Logic Synthesis*, Springer, ch. 2 "Basic Elements", §2.3 "Content Addressable Memory" — textbook treatment (secondary source).
+- Indexed in `rtl/common/references/README.md` (local PDF: `ContentAddressableMemory__Pagiamtzis2006.pdf`)
+
 ---
 
 ## Navigation

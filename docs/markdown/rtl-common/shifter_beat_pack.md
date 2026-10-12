@@ -220,13 +220,7 @@ pytest val/common/test_shifter_beat_pack.py -v
 
 ## References
 
-### Source Code
-
-- `rtl/common/shifter_beat_pack.sv`
-
-### Documentation
-
-- `docs/markdown/rtl-common/index.md`
+- No peer paper: chunk-to-beat packing (a width gearbox) is a standard technique. Indexed in `rtl/common/references/README.md`.
 
 **Last Updated:** 2026-07-15
 

@@ -169,6 +169,12 @@ source env_python
 pytest val/common/test_encoder.py -v
 ```
 
+## References
+
+- Roy, S. *Advanced Digital System Design*, Springer, 2024, ch. 3 "Basic Combinational Circuits", Sec. 3.9 Encoders (textbook treatment; secondary source).
+- LaMeres, B.J. *Introduction to Logic Circuits & Logic Design with Verilog*, 2nd ed., Springer, 2019, ch. 6 "MSI Logic", Sec. 6.2.1 One-Hot Binary Encoder (textbook treatment; secondary source).
+- No peer paper: the priority (highest-index-wins) encoder is a standard technique. Indexed in `rtl/common/references/README.md`.
+
 ---
 
 ## Navigation

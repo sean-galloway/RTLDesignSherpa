@@ -242,6 +242,12 @@ Know these going in. If you need any of them, you want `counter_load_clear` — 
 - **counter_freq_invariant** - Frequency-independent timing
 - **clock_pulse** - Similar functionality with different interface
 
+## References
+
+- No peer paper — a free-running modulo-(MAX+1) counter with terminal-count tick is a standard technique with no defensible single origin (marked "standard technique" in the references index).
+- Roy, S. *Advanced Digital System Design*, Springer, ch. 4 "Basic Sequential Circuits", §4.6 "Synchronous Counter Design" — textbook treatment (secondary source).
+- Indexed in `rtl/common/references/README.md`
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

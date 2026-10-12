@@ -381,6 +381,15 @@ module <module_name> #(
 - Cite books, papers, standards
 - Provide chapter/section if applicable
 - Only include if truly relevant
+- `rtl/math`, `rtl/cdc` and `rtl/common` each keep a peer-paper archive at
+  `rtl/<area>/references/README.md` (technique -> module -> seminal paper, plus
+  open-access PDFs). Cite from that index. The docs/markdown page ends with a
+  `## References` section just before `## Navigation`: peer papers first, then
+  textbook chapters from [[book-library]] (book, author, chapter only), then an
+  "Indexed in ..." pointer. Cite what the RTL actually implements, not what the
+  module is called: `dataint_checksum` is a plain sum (not Fletcher), the SECDED
+  pair is extended Hamming (not Hsiao), and `glitch_free_n_dff_arn` is a
+  synchronizer (not a clock switch).
 
 ### 13. Version History (OPTIONAL)
 

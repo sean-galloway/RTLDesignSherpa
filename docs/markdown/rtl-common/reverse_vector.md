@@ -325,6 +325,10 @@ assert(reverse_vector_inst2.vector_rev == vector_in);
 - Random patterns
 - Double reversal verification
 
+## References
+
+- No peer paper: bit reversal is a standard technique (it is the REFIN/REFOUT operation of the CRC parameter model; see `dataint_crc.md`). Indexed in `rtl/common/references/README.md`.
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

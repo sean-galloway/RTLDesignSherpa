@@ -157,6 +157,12 @@ source env_python
 pytest val/common/test_dataint_checksum.py -v
 ```
 
+## References
+
+- Maxino, T.C., Koopman, P.J. "The Effectiveness of Checksums for Embedded Control Networks." *IEEE Transactions on Dependable and Secure Computing*, 6(1), Jan. 2009. DOI: [10.1109/TDSC.2007.70216](https://doi.org/10.1109/TDSC.2007.70216) — measures this exact two's-complement modular-sum checksum against one's-complement, Fletcher, Adler and CRC; it is the weakest of the additive options at equal width.
+- Fletcher, J.G. "An Arithmetic Checksum for Serial Transmissions." *IEEE Transactions on Communications*, 30(1), Jan. 1982. DOI: [10.1109/TCOM.1982.1095369](https://doi.org/10.1109/TCOM.1982.1095369) — the stronger position-sensitive arithmetic checksum this module does not implement.
+- Indexed in `rtl/common/references/README.md` (local PDF: `ChecksumEffectiveness__Maxino2009.pdf`).
+
 ---
 
 ## Navigation

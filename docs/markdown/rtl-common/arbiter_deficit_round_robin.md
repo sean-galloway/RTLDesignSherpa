@@ -237,6 +237,12 @@ a client whose deficit did not cover its arbitration-cycle cost.
 pytest val/common/test_arbiter_deficit_round_robin.py -v
 ```
 
+## References
+
+- Shreedhar, M., Varghese, G. "Efficient Fair Queuing Using Deficit Round-Robin." *IEEE/ACM Transactions on Networking*, 4(3), June 1996. DOI: [10.1109/90.502236](https://doi.org/10.1109/90.502236) — the original DRR scheme (quantum added per round, cost charged per service, remainder carried as deficit) that this module's cost-proportional sharing implements. Conference version: *Proc. ACM SIGCOMM '95*, pp. 231–242, DOI: [10.1145/217382.217453](https://doi.org/10.1145/217382.217453).
+- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 18 "Arbitration", §18.4.4 (weighted round-robin) — textbook context for the credit-based family this module extends (secondary source).
+- Indexed in `rtl/common/references/README.md` (local PDF: `DeficitRoundRobin__Shreedhar1996.pdf`)
+
 ## Navigation
 
 - **[Index](index.md)** · **[Overview](overview.md)**

@@ -223,6 +223,14 @@ tests of the modules that instantiate it:
 
 Indirect coverage exercises this module only in the configurations its parents elaborate. A parameter or mode no parent uses is untested.
 
+## References
+
+- Peterson, W.W., Brown, D.T. "Cyclic Codes for Error Detection." *Proceedings of the IRE*, 49(1), Jan. 1961. DOI: [10.1109/JRPROC.1961.287814](https://doi.org/10.1109/JRPROC.1961.287814) — cyclic-code shift-register division, unrolled here eight times per byte.
+- Albertengo, G., Sisto, R. "Parallel CRC Generation." *IEEE Micro*, 10(5), Oct. 1990. DOI: [10.1109/40.60527](https://doi.org/10.1109/40.60527) — the k-bits-per-clock CRC derivation; this module unrolls the serial step directly instead of precomputing the transition matrix.
+- Campobello, G., Patanè, G., Russo, M. "Parallel CRC Realization." *IEEE Transactions on Computers*, 52(10), Oct. 2003. DOI: [10.1109/TC.2003.1234528](https://doi.org/10.1109/TC.2003.1234528) — later general parallel-CRC formulation for arbitrary k and polynomial.
+- Moon, T.K. *Error Correction Coding*, 2nd ed., Wiley, 2021, ch. 4 "Cyclic Codes, Rings, and Polynomials" (Sec. 4.9 hardware background, Sec. 4.13 Binary CRC Codes) (textbook treatment; secondary source).
+- Indexed in `rtl/common/references/README.md`.
+
 ---
 
 ## Navigation

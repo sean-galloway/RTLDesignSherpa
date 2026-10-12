@@ -64,6 +64,10 @@ Picking a crossing is a decision about what the receiver needs, not about how ma
 
 Every module page in this book carries a Testing section naming its suite. The area runs with `make -C val/cdc clean-all && make -C val/cdc run-all-{gate,func,full}-parallel`, and every module carries a passing formal harness under `formal/cdc/`.
 
+## References
+
+- Seminal papers, defining documents and textbook chapters for every technique in this area — metastability and MTBF, Gray and Johnson codes, Gray-pointer asynchronous FIFOs, two- and four-phase handshakes, pulse and open-loop transfer, and reset synchronization — are indexed in `rtl/cdc/references/README.md`, with open-access PDFs archived beside it. Per-module pages carry the citations that apply to them; [cdc.md](cdc.md#references) carries the family-level list.
+
 ## Navigation
 
 - **[Catalogue of every module in this area](index.md)**

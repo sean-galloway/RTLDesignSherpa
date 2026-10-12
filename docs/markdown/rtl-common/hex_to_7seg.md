@@ -339,6 +339,12 @@ end
 assert(all_segments_used == 7'b1111111);  // All segments used somewhere
 ```
 
+## References
+
+- Chu, P.P. *FPGA Prototyping by SystemVerilog Examples*, Wiley, 2018, ch. 3 "RT-Level Combinational Circuit", Sec. 3.10.1 Hexadecimal digit to seven-segment LED decoder (textbook treatment; secondary source).
+- LaMeres, B.J. *Introduction to Logic Circuits & Logic Design with Verilog*, 2nd ed., Springer, 2019, ch. 6 "MSI Logic", Sec. 6.1.2 7-Segment Display Decoder (textbook treatment; secondary source).
+- No peer paper: hex-to-seven-segment decoding is a standard technique. Indexed in `rtl/common/references/README.md`.
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

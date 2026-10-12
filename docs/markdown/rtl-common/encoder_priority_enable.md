@@ -211,6 +211,12 @@ source env_python
 pytest val/common/test_encoder_priority_enable.py -v
 ```
 
+## References
+
+- Chu, P.P. *FPGA Prototyping by SystemVerilog Examples*, Wiley, 2018, ch. 3 "RT-Level Combinational Circuit", Sec. 3.12.3 Dual-priority encoder (textbook treatment; secondary source).
+- Roy, S. *Advanced Digital System Design*, Springer, 2024, ch. 3 "Basic Combinational Circuits", Sec. 3.9 Encoders (textbook treatment; secondary source).
+- No peer paper: the priority encoder with enable is a standard technique. Indexed in `rtl/common/references/README.md`.
+
 ---
 
 ## Navigation

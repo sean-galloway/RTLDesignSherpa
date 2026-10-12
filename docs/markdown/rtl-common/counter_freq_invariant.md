@@ -409,6 +409,12 @@ to 0.
 - **clock_divider** - integer clock division producing a divided clock, not a tick
 - **clock_pulse** - configurable pulse generator
 
+## References
+
+- No peer paper — a LUT-selected prescaler producing a fixed 1 us tick is a standard technique with no defensible single origin (marked "standard technique" in the references index).
+- Roy, S. *Advanced Digital System Design*, Springer, ch. 4 "Basic Sequential Circuits", §4.11 "Clock Divider Circuits" and §4.11.4 "Programmable Clock Divider Circuit" — textbook treatment of programmable division (secondary source).
+- Indexed in `rtl/common/references/README.md`
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

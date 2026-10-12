@@ -235,6 +235,12 @@ source env_python
 pytest val/common/test_arbiter_round_robin.py -v
 ```
 
+## References
+
+- Gupta, P., McKeown, N. "Designing and Implementing a Fast Crossbar Scheduler." *IEEE Micro*, 19(1), Jan.–Feb. 1999. DOI: [10.1109/40.748793](https://doi.org/10.1109/40.748793) — the programmable priority encoder built from two fixed-priority encoders, one fed thermometer-masked requests and one fed unmasked requests; the same masked/unmasked dual-encoder structure this module uses for its masked/unmasked request paths.
+- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 18 "Arbitration", §18.4.2 "Round-Robin Arbiter" and §18.4.3 "Grant-Hold Circuit" (the hold-until-ACK mode) — textbook treatment (secondary source).
+- Indexed in `rtl/common/references/README.md`
+
 ---
 
 ## Navigation

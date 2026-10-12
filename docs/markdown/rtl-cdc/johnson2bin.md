@@ -346,6 +346,12 @@ Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
 parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 `make -C val/cdc run-all-func-parallel`, never bare pytest for suites.
 
+## References
+
+- Johnson, R.R. "Electronic Counter." U.S. Patent 3,030,581, issued Apr. 1962 (continuation of a 1953 application). [Google Patents](https://patents.google.com/patent/US3030581A/en) -- provenance of the Johnson-counter name only; leading/trailing-one decode is repo construction on a standard code.
+- Roy, S. *Advanced Digital System Design*, Springer, 2024, ch. 4 "Basic Sequential Circuits", sec. 4.9 "Shift Register Counters" -- textbook treatment of the Johnson counter sequence (secondary source).
+- Indexed in `rtl/cdc/references/README.md` (no paper archived for this technique; marked standard technique)
+
 ## Navigation
 
 - [← Back to CDC Index](index.md)

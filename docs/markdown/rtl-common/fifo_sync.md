@@ -323,6 +323,12 @@ pytest val/common/test_fifo_buffer.py -v
 pytest val/common/test_fifo_sync_wavedrom.py -v
 ```
 
+## References
+
+- Cummings, C.E. "Simulation and Synthesis Techniques for Asynchronous FIFO Design." *SNUG San Jose*, 2002 (canonical non-peer conference paper) — FIFO style #1: pointers one bit wider than the address, empty when the pointers are equal, full when they differ only in the wrap (MSB) bit; this module applies the same wrap-bit full/empty test to single-clock pointers held in `counter_bin`.
+- Merrick, R. *Getting Started with FPGAs*, No Starch Press, ch. 6 "Common FPGA Modules", "FIFO: First In, First Out" — textbook treatment (secondary source).
+- Indexed in `rtl/common/references/README.md` (PDF archived once, under `rtl/cdc/references/AsyncFifoGrayPointers__Cummings2002.pdf`)
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

@@ -29,7 +29,7 @@ Weighted fairness, matrix style. Every client gets a credit counter, and the pri
 
 ## Overview
 
-This module takes the matrix arbiter from Dally & Towles, *Principles and Practices of Interconnection Networks*, chapter 17 §18.5 and bolts on the weighted-arbiter semantics from §18.4.4. Priority still lives in a `CLIENTS`×`CLIENTS` bit matrix `M`:
+This module takes the matrix arbiter from Dally & Towles, *Principles and Practices of Interconnection Networks*, chapter 18 §18.5 and bolts on the weighted-arbiter semantics from §18.4.4. Priority still lives in a `CLIENTS`×`CLIENTS` bit matrix `M`:
 
 - `M[i][j] = 1` means requester `i` currently outranks requester `j`.
 - `M[i][j] = 0` means requester `i` is outranked by requester `j`.
@@ -254,8 +254,11 @@ The testbench (`bin/TBClasses/common/arbiter_matrix_weighted_tb.py`) sticks to t
 
 ## References
 
-- Dally, William J. and Towles, Brian, *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ISBN 978-0122007514, ch. 17 §18.5 (matrix arbiters). Backs the grant/update scheme and the observation that matrix arbiters are well suited to small arbiters.
-- Dally & Towles, ch. 17 §18.4.4 (weighted arbiters). Backs the credit-based weighting semantics and the trade-off between controlled long-term shares and short-term burstiness.
+- No peer paper — the weighted matrix arbiter is a standard technique with no defensible single origin (marked "standard technique" in the references index).
+- Katevenis, M., Sidiropoulos, S., Courcoubetis, C. "Weighted Round-Robin Cell Multiplexing in a General-Purpose ATM Switch Chip." *IEEE Journal on Selected Areas in Communications*, 9(8), Oct. 1991. DOI: [10.1109/49.105173](https://doi.org/10.1109/49.105173) — the seminal hardware weighted round-robin with interleaved (not bursted) per-weight service, the behavior this module's credit scheme produces.
+- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 18 "Arbitration", §18.5 "Matrix Arbiter". Backs the grant/update scheme and the observation that matrix arbiters are well suited to small arbiters.
+- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 18 "Arbitration", §18.4.4 "Weighted Round-Robin Arbiter". Backs the credit-based weighting semantics and the trade-off between controlled long-term shares and short-term burstiness.
+- Indexed in `rtl/common/references/README.md`
 
 ---
 

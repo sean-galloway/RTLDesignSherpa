@@ -283,6 +283,12 @@ source env_python
 pytest val/common/test_dataint_parity.py -v
 ```
 
+## References
+
+- Hamming, R.W. "Error Detecting and Error Correcting Codes." *Bell System Technical Journal*, 29(2), Apr. 1950. DOI: [10.1002/j.1538-7305.1950.tb00463.x](https://doi.org/10.1002/j.1538-7305.1950.tb00463.x) — the single parity check is the distance-2 starting point of Hamming's construction; per-chunk even/odd parity itself is a standard technique with no single origin.
+- Roy, S. *Advanced Digital System Design*, Springer, 2024, ch. 3 "Basic Combinational Circuits", Sec. 3.13 Parity Generators/Checkers (textbook treatment; secondary source).
+- Indexed in `rtl/common/references/README.md` (local PDF: `HammingCode__Hamming1950.pdf`).
+
 ---
 
 ## Navigation

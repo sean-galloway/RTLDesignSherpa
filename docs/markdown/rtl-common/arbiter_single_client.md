@@ -197,6 +197,12 @@ baseline (common TASK-010, was COMMON-024).
 
 Treat any behaviour described on this page as unverified by simulation.
 
+## References
+
+- No peer paper — a one-client registered grant/ACK holder is a standard technique with no defensible single origin (marked "standard technique" in the references index).
+- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 18 "Arbitration", §18.4.3 "Grant-Hold Circuit" — textbook treatment of holding a grant until release (secondary source).
+- Indexed in `rtl/common/references/README.md`
+
 ---
 
 ## Navigation

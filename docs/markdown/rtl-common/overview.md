@@ -377,3 +377,7 @@ endmodule
 - **Standards Compliance**: Updates for evolving industry standards
 
 That's the library. The blocks are verified, documented, and built to a consistent bar — so you can spend your design effort on the parts of the system that are actually new.
+
+## References
+
+- Seminal papers, defining documents and textbook chapters for every technique in this area — arbitration (round-robin, weighted, deficit round robin, matrix, token bucket), CAM and sorting networks, FIFO wrap-bit pointers, clock gating, CRC/checksum/SECDED, LFSRs, barrel shifters, and leading-zero detection — are indexed in `rtl/common/references/README.md`, with open-access PDFs archived beside it. Per-module pages carry the citations that apply to them.

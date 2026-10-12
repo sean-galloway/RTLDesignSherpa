@@ -355,7 +355,11 @@ The test matrix covers:
 
 ## References
 
-- **Clifford Cummings:** "Simulation and Synthesis Techniques for Asynchronous FIFO Design" (Sunburst Design)
+- Cummings, C.E. "Simulation and Synthesis Techniques for Asynchronous FIFO Design." *SNUG San Jose*, 2002 -- the Gray-pointer async FIFO structure used at `USE_JOHNSON=0`: (AW+1)-bit pointers synchronized into the opposite domain before full/empty.
+- Ginosar, R. "Metastability and Synchronizers: A Tutorial." *IEEE Design & Test of Computers*, 28(5), Sept./Oct. 2011. DOI: [10.1109/MDT.2011.113](https://doi.org/10.1109/MDT.2011.113) -- peer-reviewed treatment of the two-clock FIFO synchronizer and of `N_FLOP_CROSS` depth versus MTBF.
+- Gray, F. "Pulse Code Communication." U.S. Patent 2,632,058, filed Nov. 1947, issued Mar. 1953. [Google Patents](https://patents.google.com/patent/US2632058A/en) -- the Gray code; `USE_JOHNSON=1` substitutes a twisted-ring code, a repo choice with no dedicated paper.
+- Deschamps, J.-P., Sutter, G.D., Cantó, E. *Guide to FPGA Implementation of Arithmetic Functions*, Springer (LNEE 149), 2012, ch. 5 "Electronic Aspects of Digital Design" -- sec. 5.3.5.3 "Asynchronous FIFO" -- textbook treatment (secondary source).
+- Indexed in `rtl/cdc/references/README.md` (local PDF: `AsyncFifoGrayPointers__Cummings2002.pdf`, `MetastabilitySynchronizers__Ginosar2011.pdf`, `GrayCode__Gray1953.pdf`)
 - **Source:** `rtl/cdc/gaxi_fifo_async.sv`
 - **Tests:** `val/cdc/test_gaxi_buffer_async.py`
 

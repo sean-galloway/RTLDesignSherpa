@@ -56,7 +56,8 @@ the three agree.
 #### Arbiters
 - **[arbiter_matrix](arbiter_matrix.md)** - Matrix (distributed-state) fair arbiter
 - **[arbiter_matrix_weighted](arbiter_matrix_weighted.md)** - Weighted matrix arbiter (grant-count shares with deferred rotation)
-- **[arbiter_round_robin_simple](arbiter_round_robin_simple.md)** - Simple round-robin arbiter with rotation
+- **[arbiter_round_robin_simple](arbiter_round_robin_simple.md)** - Simple round-robin arbiter (win-mask priority, single-cycle grant)
+- **[arbiter_round_robin_simple_ack](arbiter_round_robin_simple_ack.md)** - Simple round-robin arbiter with registered grant held until ACK
 - **[arbiter_round_robin](arbiter_round_robin.md)** - Advanced round-robin arbiter
 - **[arbiter_round_robin_weighted](arbiter_round_robin_weighted.md)** - Weighted round-robin arbiter (grant-count shares)
 - **[arbiter_deficit_round_robin](arbiter_deficit_round_robin.md)** - Deficit round-robin arbiter (cost-proportional shares)
@@ -236,6 +237,10 @@ dataint_ecc_hamming_decode_secded #(.WIDTH(64)) u_decode (
     .double_error_detected (ecc_double_error)
 );
 ```
+
+## References
+
+- Seminal papers, defining documents and textbook chapters for every technique in this area — arbitration (round-robin, weighted, deficit round robin, matrix, token bucket), CAM and sorting networks, FIFO wrap-bit pointers, clock gating, CRC/checksum/SECDED, LFSRs, barrel shifters, and leading-zero detection — are indexed in `rtl/common/references/README.md`, with open-access PDFs archived beside it. Per-module pages carry the citations that apply to them.
 
 ## Navigation
 - **[Back to RTL Documentation](../index.md)** - Return to main RTL documentation index

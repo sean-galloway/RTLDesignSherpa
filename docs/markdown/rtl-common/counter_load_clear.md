@@ -497,6 +497,12 @@ end
 - **counter_freq_invariant** - Uses this module for prescaling
 - Standard timer and PWM controller implementations
 
+## References
+
+- No peer paper — a loadable match counter with synchronous clear is a standard technique with no defensible single origin (marked "standard technique" in the references index).
+- Roy, S. *Advanced Digital System Design*, Springer, ch. 4 "Basic Sequential Circuits", §4.7.1 "Loadable Up Counter" — textbook treatment (secondary source).
+- Indexed in `rtl/common/references/README.md`
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

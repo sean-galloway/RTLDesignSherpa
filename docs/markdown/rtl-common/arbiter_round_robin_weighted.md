@@ -467,6 +467,12 @@ From the test suite (`val/common/test_arbiter_round_robin_weighted.py`):
 
 **Test Command**: `pytest val/common/test_arbiter_round_robin_weighted.py -v`
 
+## References
+
+- Katevenis, M., Sidiropoulos, S., Courcoubetis, C. "Weighted Round-Robin Cell Multiplexing in a General-Purpose ATM Switch Chip." *IEEE Journal on Selected Areas in Communications*, 9(8), Oct. 1991. DOI: [10.1109/49.105173](https://doi.org/10.1109/49.105173) — the seminal hardware weighted round-robin with interleaved (not bursted) per-weight service, the behavior this module's credit scheme produces. A preprint is on the author's group site: [archvlsi.ics.forth.gr](http://archvlsi.ics.forth.gr/muqpro/wrr_cam_kate_jsac91.ps) (PostScript).
+- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 18 "Arbitration", §18.4.4 "Weighted Round-Robin Arbiter" — textbook treatment of weighted shares (secondary source).
+- Indexed in `rtl/common/references/README.md`
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

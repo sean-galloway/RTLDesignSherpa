@@ -282,6 +282,12 @@ Width selection:
 - **Pattern coverage**: Representative bit combinations
 - **Boundary cases**: Min/max index values
 
+## References
+
+- Oklobdzija, V.G. "An Algorithmic and Novel Design of a Leading Zero Detector Circuit: Comparison with Logic Synthesis." *IEEE Transactions on VLSI Systems*, 2(1), Mar. 1994. DOI: [10.1109/92.273153](https://doi.org/10.1109/92.273153) — leading-one/zero detector structure; find-first-set is the LSB-side mirror and is otherwise a standard priority scan.
+- Chu, P.P. *FPGA Prototyping by SystemVerilog Examples*, Wiley, 2018, ch. 3 "RT-Level Combinational Circuit", Sec. 3.12.3 Dual-priority encoder (textbook treatment; secondary source).
+- Indexed in `rtl/common/references/README.md` (local PDF: `LeadingZeroDetector__Oklobdzija1994.pdf`).
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

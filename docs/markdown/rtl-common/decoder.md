@@ -147,6 +147,13 @@ source env_python
 pytest val/common/test_decoder.py -v
 ```
 
+## References
+
+- Harris, S.L., Harris, D. *Digital Design and Computer Architecture, RISC-V Edition*, Morgan Kaufmann, 2022, Sec. 2.8.2 Decoders (textbook treatment; secondary source).
+- Roy, S. *Advanced Digital System Design*, Springer, 2024, ch. 3 "Basic Combinational Circuits", Sec. 3.8 Decoders (textbook treatment; secondary source).
+- LaMeres, B.J. *Introduction to Logic Circuits & Logic Design with Verilog*, 2nd ed., Springer, 2019, ch. 6 "MSI Logic", Sec. 6.1.1 One-Hot Decoder (textbook treatment; secondary source).
+- No peer paper: binary-to-one-hot decoding is a standard technique. Indexed in `rtl/common/references/README.md`.
+
 ---
 
 ## Navigation

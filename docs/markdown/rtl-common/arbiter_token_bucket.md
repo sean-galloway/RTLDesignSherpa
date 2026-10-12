@@ -199,6 +199,12 @@ runtime rate cut that drains then fully blocks.
 pytest val/common/test_arbiter_token_bucket.py -v
 ```
 
+## References
+
+- Turner, J. "New Directions in Communications (or Which Way to the Information Age?)." *IEEE Communications Magazine*, 24(10), Oct. 1986. DOI: [10.1109/MCOM.1986.1092946](https://doi.org/10.1109/MCOM.1986.1092946) — origin of the leaky-bucket rate regulator from which the token-bucket shaper derives.
+- Shenker, S., Wroclawski, J. "General Characterization Parameters for Integrated Service Network Elements." RFC 2215, IETF, Sept. 1997. [rfc-editor.org/rfc/rfc2215](https://www.rfc-editor.org/rfc/rfc2215) — defines the token-bucket specification by a token rate *r* and bucket depth *b* (standards document, not a peer paper); this module's per-client rate and burst cap are exactly that (r, b) pair.
+- Indexed in `rtl/common/references/README.md`
+
 ## Navigation
 
 - **[Index](index.md)** · **[Overview](overview.md)**

@@ -198,7 +198,9 @@ The testbench (`bin/TBClasses/common/arbiter_matrix_tb.py`) sticks to the same `
 
 ## References
 
-- Dally, William J. and Towles, Brian, *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ISBN 978-0122007514, ch. 17 §18.5 (matrix arbiters). Backs the grant/update scheme and the observation that matrix arbiters are well suited to small arbiters.
+- No peer paper — the matrix (least-recently-served) arbiter is a standard technique with no defensible single origin (marked "standard technique" in the references index).
+- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 18 "Arbitration", §18.5 "Matrix Arbiter". Backs the grant/update scheme and the observation that matrix arbiters are well suited to small arbiters.
+- Indexed in `rtl/common/references/README.md`
 
 ---
 

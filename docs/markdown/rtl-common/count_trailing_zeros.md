@@ -462,6 +462,12 @@ always @(posedge clk) begin
 end
 ```
 
+## References
+
+- Oklobdzija, V.G. "An Algorithmic and Novel Design of a Leading Zero Detector Circuit: Comparison with Logic Synthesis." *IEEE Transactions on VLSI Systems*, 2(1), Mar. 1994. DOI: [10.1109/92.273153](https://doi.org/10.1109/92.273153) — leading-zero-detector tree; the trailing-zero count is its mirror image (reverse the input).
+- Roy, S. *Advanced Digital System Design*, Springer, 2024, ch. 12 "Floating Point Architectures", Sec. 12.4 Leading Zero Counter (textbook treatment; secondary source).
+- Indexed in `rtl/common/references/README.md` (local PDF: `LeadingZeroDetector__Oklobdzija1994.pdf`).
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

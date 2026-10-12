@@ -324,6 +324,10 @@ pytest val/cdc/test_gaxi_buffer_async.py -k "skid" -k "wr10_rd20" -v
 
 ## References
 
+- Cummings, C.E. "Simulation and Synthesis Techniques for Asynchronous FIFO Design." *SNUG San Jose*, 2002 — the Gray-pointer async FIFO inside the wrapped `gaxi_fifo_async` (`USE_JOHNSON=0`); the skid buffer in front of it is a standard register-slice technique with no dedicated paper.
+- Ginosar, R. "Metastability and Synchronizers: A Tutorial." *IEEE Design & Test of Computers*, 28(5), Sept./Oct. 2011. DOI: [10.1109/MDT.2011.113](https://doi.org/10.1109/MDT.2011.113) — peer-reviewed treatment of the two-clock FIFO synchronizer.
+- Deschamps, J.-P., Sutter, G.D., Cantó, E. *Guide to FPGA Implementation of Arithmetic Functions*, Springer (LNEE 149), 2012, ch. 5 "Electronic Aspects of Digital Design" — sec. 5.3.5.3 "Asynchronous FIFO" — textbook treatment (secondary source).
+- Indexed in `rtl/cdc/references/README.md` (local PDF: `AsyncFifoGrayPointers__Cummings2002.pdf`, `MetastabilitySynchronizers__Ginosar2011.pdf`)
 - **Source:** `rtl/cdc/gaxi_skid_buffer_async.sv`
 - **Dependencies:**
   - `gaxi_skid_buffer.sv`

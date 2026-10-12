@@ -334,6 +334,12 @@ source env_python
 pytest val/common/test_shifter_universal.py -v
 ```
 
+## References
+
+- Harris, S.L., Harris, D. *Digital Design and Computer Architecture, RISC-V Edition*, Morgan Kaufmann, 2022, Sec. 5.4.2 Shift Registers (textbook treatment; secondary source).
+- LaMeres, B.J. *Introduction to Logic Circuits & Logic Design with Verilog*, 2nd ed., Springer, 2019, ch. 7 "Sequential Logic Design", Sec. 7.3.4 Shift Registers (textbook treatment; secondary source).
+- No peer paper: the hold/shift-right/shift-left/parallel-load register is a standard technique. Indexed in `rtl/common/references/README.md`.
+
 ---
 
 ## Navigation

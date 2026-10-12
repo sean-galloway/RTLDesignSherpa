@@ -25,11 +25,11 @@
 
 # Simple Round-Robin Arbiter
 
-A generic rotating-priority arbiter that gives you fair arbitration among multiple requesting agents using masking/rotation — no if/case ladders in the priority path.
+A generic rotating-priority arbiter that gives you fair arbitration among multiple requesting agents using a win-mask — no if/case ladders in the priority path.
 
 ## Overview
 
-The `arbiter_round_robin_simple` module implements round-robin arbitration with fair access to a shared resource among N requesting agents. Fairness comes from remembering the last granted agent and starting the next arbitration from the next agent in sequence.
+The `arbiter_round_robin_simple` module implements round-robin arbitration with fair access to a shared resource among N requesting agents. Fairness comes from remembering the last granted agent and giving priority to the agents above it on the next arbitration. The grant is combinational and lasts one cycle; for a grant that is held until the owner acknowledges it, see [arbiter_round_robin_simple_ack](arbiter_round_robin_simple_ack.md).
 
 ```systemverilog
 module arbiter_round_robin_simple #(
@@ -74,12 +74,12 @@ module arbiter_round_robin_simple #(
 
 ### Round-Robin Algorithm
 
-The arbiter implements a rotating priority scheme using the following approach:
+The arbiter implements a rotating priority scheme with a mask rather than a rotation:
 
-1. **State Memory**: Maintains `r_last_grant` register storing the last granted agent ID
-2. **Rotation**: Rotates the request vector to prioritize agents after the last granted one
-3. **Priority Selection**: Uses lowest-set-bit isolation (`x & (~x + 1)`) for efficient priority selection
-4. **Restoration**: Rotates the result back to original bit positions
+1. **State Memory**: `r_last_grant` holds the index of the last granted agent
+2. **Win-Mask**: requests are ANDed with a mask that keeps only the agents strictly above the last winner
+3. **Wrap**: if no masked request remains, the unmasked request vector is used instead
+4. **Priority Selection**: lowest-set-bit isolation (`x & (~x + 1)`) picks the winner in one step
 
 ### Key Features
 
@@ -98,30 +98,22 @@ The arbiter implements a rotating priority scheme using the following approach:
 - **Active Reset**: All state registers cleared, grant outputs become invalid
 - **Reset Release**: Next arbitration cycle begins with agent 0 having highest priority
 
-### Rotation Logic
+### Win-Mask Logic
 
 ```systemverilog
-// Shift amount = last_grant + 1 (mod N)
-logic [$clog2(N)-1:0] w_shift_amount;
-assign w_shift_amount = (r_last_grant == ($clog2(N))'(N-1)) ? '0 : (r_last_grant + 1);
-
-// Rotate the request vector RIGHT by w_shift_amount, so that agent
-// (last_grant + 1) lands at bit 0 and the lowest-set-bit scan starts there.
-if (w_shift_amount == '0) begin
-    w_rot_req = request;
-end else begin
-    w_rot_req = (request >> w_shift_amount) | (request << ((W)'(N) - w_shift_amount));
+// After agent i wins, only agents above i stay eligible (elaboration-time constants).
+for (genvar i = 0; i < N; i++) begin : gen_mask_lut
+    assign w_win_mask_decode[i] = ~((N'(1) << (i + 1)) - N'(1));
 end
+
+// Agents above the last winner first; if none of them is requesting, wrap to
+// the full request vector.
+assign w_req_masked = request & w_win_mask_decode[r_last_grant];
+assign w_any_masked = |w_req_masked;
+assign w_req_sel    = w_any_masked ? w_req_masked : request;
 ```
 
-The direction is not a free choice. Rotating LEFT by `s` maps rotated bit `j`
-back to agent `(j - s) mod N`, so the scan starts at agent `(N - last - 1)`
-instead of `(last + 1)` -- a reflection of the priority pointer rather than a
-rotation. A reflection composed with itself is the identity, so the pointer
-oscillates between two positions forever: with `N=4` and all four agents
-requesting, the arbiter granted 0, 3, 0, 3, ... and agents 1 and 2 were never
-served. Rotating RIGHT maps rotated bit `j` to agent `(j + s) mod N`, so the
-scan starts at `(last + 1)` and advances, which is what round-robin means.
+After agent N-1 wins, its mask is all zero, so the fallback to the unmasked vector restarts the scan from agent 0. This is the same mask-plus-fallback structure as the programmable priority encoder of Gupta & McKeown (see References), and the same decode as `arbiter_round_robin`. Unlike a rotate-based round-robin, nothing is shifted, so the request vector never has to be rotated into place and the result rotated back.
 
 ### Priority Selection
 
@@ -129,7 +121,7 @@ The module uses lowest-set-bit isolation for efficient one-hot selection:
 
 ```systemverilog
 // Isolate lowest set bit (one-hot)
-w_rot_sel = w_rot_req & ((~w_rot_req) + {{(N-1){1'b0}}, 1'b1});
+w_nxt_grant = w_req_sel & ((~w_req_sel) + {{(N-1){1'b0}}, 1'b1});
 ```
 
 ### Grant Encoding
@@ -140,7 +132,7 @@ A compact one-hot to binary encoder generates the grant ID:
 always_comb begin
     w_grant_id = r_last_grant; // default to last grant
     for (int i = 0; i < N; i++) begin
-        if (w_nxt_grant[i]) w_grant_id = i[$clog2(N)-1:0];
+        if (w_nxt_grant[i]) w_grant_id = i[W-1:0];
     end
 end
 ```
@@ -188,23 +180,21 @@ arbiter_round_robin_simple #(
 
 For N=4 with requests [3:0]:
 
-| Cycle | Last Grant | Requests | Rotated | Selected | Grant | Grant ID |
-|-------|------------|----------|---------|----------|--------|----------|
-| 0 | 3 (init) | 1111 | 1111 | 0001 | 0001 | 0 |
-| 1 | 0 | 1110 | 0111 | 0001 | 0010 | 1 |
-| 2 | 1 | 1101 | 0111 | 0001 | 0100 | 2 |
-| 3 | 2 | 1011 | 0111 | 0001 | 1000 | 3 |
-| 4 | 3 | 1111 | 1111 | 0001 | 0001 | 0 |
+| Cycle | Last Grant | Requests | Win Mask | Masked | Selected | Grant | Grant ID |
+|-------|------------|----------|----------|--------|----------|-------|----------|
+| 0 | 3 (init) | 1111 | 0000 | 0000 | 1111 (wrap) | 0001 | 0 |
+| 1 | 0 | 1110 | 1110 | 1110 | 1110 | 0010 | 1 |
+| 2 | 1 | 1101 | 1100 | 1100 | 1100 | 0100 | 2 |
+| 3 | 2 | 1011 | 1000 | 1000 | 1000 | 1000 | 3 |
+| 4 | 3 | 1111 | 0000 | 0000 | 1111 (wrap) | 0001 | 0 |
 
-`Rotated` is the request vector rotated RIGHT by `last_grant + 1`, which places
-the next agent in priority order at bit 0. `Selected` isolates that vector's
-lowest set bit, and `Grant` rotates it back to the original bit positions.
+`Win Mask` keeps the agents above the last grant. `Selected` is the masked vector, or the full request vector when the masked one is empty (marked "wrap"). `Grant` is the lowest set bit of `Selected`.
 
 ## Design Notes
 
 ### Advantages
 
-- **Simple Logic**: Uses efficient bit manipulation instead of complex priority encoders
+- **Simple Logic**: A constant mask, a 2:1 mux and a lowest-set-bit isolate; no shifter
 - **Scalable**: Works for any number of agents with minimal logic overhead
 - **Fair**: Guarantees round-robin fairness over time
 - **Fast**: Single combinational path from request to grant
@@ -213,18 +203,18 @@ lowest set bit, and `Grant` rotates it back to the original bit positions.
 
 - **Grant Undefined**: `grant_id` is undefined when `grant_valid` is low
 - **Request Requirement**: At least one request must be active for meaningful arbitration
-- **Power Consumption**: Rotational logic may consume more power than simpler priority schemes
+- **Single-Cycle Grant**: The grant is not held; an agent that needs the resource for several cycles should use [arbiter_round_robin_simple_ack](arbiter_round_robin_simple_ack.md)
 
 ### Synthesis Considerations
 
-- **Area**: Scales approximately as O(N log N) due to rotation logic
-- **Timing**: Critical path through rotation and bit isolation logic
-- **Power**: Barrel shifter logic may have higher switching activity
-- **Optimization**: Consider using dedicated arbiter primitives for large N
+- **Area**: N mask constants selected by `r_last_grant` (an N-way mux of N-bit constants), one N-bit 2:1 mux, an N-bit increment-and-AND for the isolate, and the one-hot to index encoder
+- **Timing**: Critical path is `r_last_grant` -> mask select -> AND -> any-reduce -> fallback mux -> carry chain of the isolate -> `grant`
+- **No barrel shifter**: the mask approach avoids the O(N log N) rotate-and-unrotate network of a rotation-based design
 
 ## Related Modules
 
 - `arbiter_round_robin`: Enhanced round-robin arbiter with additional features
+- [arbiter_round_robin_simple_ack](arbiter_round_robin_simple_ack.md): Same datapath with a registered grant held until the owner acks
 - `arbiter_priority_encoder`: Fixed priority arbiter implementation
 - `encoder_priority_enable`: Priority encoding utility module
 
@@ -232,10 +222,23 @@ For most round-robin arbitration needs in digital systems, `arbiter_round_robin_
 
 ## Testing
 
-- **Reset Testing**: Verify proper initialization and first-grant behavior
-- **Fairness Testing**: Confirm round-robin sequence over multiple cycles
-- **Edge Cases**: Test behavior with single request, all requests, and no requests
-- **Timing**: Verify setup/hold requirements for state register updates
+From the test suite (`val/common/test_arbiter_round_robin_simple.py`), parameterized over N:
+
+- **GATE**: N = 4, 8
+- **FUNC / FULL**: N = 2, 3, 4, 5, 6, 8, 16
+- **Key Test Scenarios**:
+  - ARB-01 to ARB-02: grant signal checks and basic arbitration
+  - ARB-03 to ARB-05: request-set fairness, request-set changes, single-client saturation
+  - ARB-06 to ARB-08: walking requests, bursty traffic, rapid request changes
+  - ARB-09: dynamic arbitration liveness
+
+**Test Command**: `make -C val/common clean-all && make -C val/common run-arbiter_round_robin_simple-func`
+
+## References
+
+- Gupta, P., McKeown, N. "Designing and Implementing a Fast Crossbar Scheduler." *IEEE Micro*, 19(1), Jan.–Feb. 1999. DOI: [10.1109/40.748793](https://doi.org/10.1109/40.748793) — the programmable priority encoder built from two fixed-priority encoders, one fed thermometer-masked requests and one fed unmasked requests; the same masked/unmasked dual-encoder structure (here the mask is the win-mask above the last winner, with fallback to the unmasked requests).
+- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 18 "Arbitration", §18.4.2 "Round-Robin Arbiter" — textbook treatment (secondary source).
+- Indexed in `rtl/common/references/README.md`
 
 ## Navigation
 

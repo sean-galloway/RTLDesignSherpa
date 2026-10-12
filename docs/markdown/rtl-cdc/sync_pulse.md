@@ -461,9 +461,11 @@ parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 
 ## References
 
-- Cummings, Clifford E. "Clock Domain Crossing (CDC) Design & Verification Techniques Using SystemVerilog." SNUG 2008.
-- "Synthesis and Scripting Techniques for Designing Multi-Asynchronous Clock Designs." Xilinx WP275.
-- IEEE 1800-2017 SystemVerilog LRM - Clock Domain Crossing
+- Ginosar, R. "Fourteen Ways to Fool Your Synchronizer." *Proc. 9th IEEE Int. Symp. on Asynchronous Circuits and Systems (ASYNC)*, pp. 89-96, May 2003. DOI: [10.1109/ASYNC.2003.1199169](https://doi.org/10.1109/ASYNC.2003.1199169) — "Pulse Synchronizer": the toggle-in-source, edge-detect-in-destination structure this module implements, and its minimum-spacing limit.
+- Cummings, C.E. "Clock Domain Crossing (CDC) Design & Verification Techniques Using SystemVerilog." *SNUG Boston*, 2008 — sec. 5.6, toggle-pulse generation for passing an enable pulse between domains.
+- Cummings, C.E. "Synthesis and Scripting Techniques for Designing Multi-Asynchronous Clock Designs." *SNUG San Jose*, 2001 — the synchronizer chain and one-module-per-crossing guidelines.
+- Harris, S.L., Harris, D. *Digital Design and Computer Architecture, RISC-V Edition*, Morgan Kaufmann, 2022, ch. 3 "Sequential Logic Design", sec. 3.5.5 "Synchronizers" — textbook treatment of the synchronizer stage (secondary source).
+- Indexed in `rtl/cdc/references/README.md` (local PDF: `SynchronizerPitfalls__Ginosar2003.pdf`, `ClockDomainCrossing__Cummings2008.pdf`, `MultiAsyncClockDesign__Cummings2001.pdf`)
 
 ## Navigation
 

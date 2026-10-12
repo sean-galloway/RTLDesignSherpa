@@ -424,6 +424,13 @@ From the test suite (`val/common/test_arbiter_priority_encoder.py`):
 
 **Test Command**: `pytest val/common/test_arbiter_priority_encoder.py -v`
 
+## References
+
+- No peer paper — fixed-priority (lowest index wins) encoding is a standard technique with no defensible single origin (marked "standard technique" in the references index).
+- Gupta, P., McKeown, N. "Designing and Implementing a Fast Crossbar Scheduler." *IEEE Micro*, 19(1), Jan.–Feb. 1999. DOI: [10.1109/40.748793](https://doi.org/10.1109/40.748793) — the programmable priority encoder built from two fixed-priority encoders, one fed thermometer-masked requests and one fed unmasked requests; the same masked/unmasked dual-encoder structure in which this encoder serves as the masked and unmasked halves.
+- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 18 "Arbitration", §18.3 "Fixed Priority Arbiter" — textbook treatment (secondary source).
+- Indexed in `rtl/common/references/README.md`
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

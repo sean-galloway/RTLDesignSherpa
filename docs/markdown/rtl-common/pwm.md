@@ -275,6 +275,12 @@ source env_python
 pytest val/common/test_pwm.py -v
 ```
 
+## References
+
+- No peer paper — counter-compare pulse-width modulation is a standard technique with no defensible single origin (marked "standard technique" in the references index).
+- Harris, D.M., Harris, S.L. *Digital Design and Computer Architecture, RISC-V Edition*, Morgan Kaufmann, ch. e9 "Embedded I/O Systems", §9.3 (PWM peripheral) — textbook treatment (secondary source).
+- Indexed in `rtl/common/references/README.md`
+
 ---
 
 ## Navigation

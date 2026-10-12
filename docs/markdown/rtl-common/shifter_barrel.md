@@ -243,6 +243,13 @@ source env_python
 pytest val/common/test_shifter_barrel.py -v
 ```
 
+## References
+
+- Pillmeier, M.R., Schulte, M.J., Walters, E.G., III. "Design Alternatives for Barrel Shifters." *Proc. SPIE* 4791, Advanced Signal Processing Algorithms, Architectures, and Implementations XII, Dec. 2002. DOI: [10.1117/12.452034](https://doi.org/10.1117/12.452034) — compares mux-based, data-reversal and mask-based shift/rotate structures; this module selects rotates as fixed slices of `{data,data}` and leaves the plain shifts to synthesis.
+- Chu, P.P. *FPGA Prototyping by SystemVerilog Examples*, Wiley, 2018, ch. 3 "RT-Level Combinational Circuit", Sec. 3.10.3 Barrel shifter and Sec. 3.12.1-3.12.2 multi-function / parameterized barrel shifters (textbook treatment; secondary source).
+- Harris, S.L., Harris, D. *Digital Design and Computer Architecture, RISC-V Edition*, Morgan Kaufmann, 2022, Sec. 5.2.5 Shifters and Rotators (textbook treatment; secondary source).
+- Indexed in `rtl/common/references/README.md`.
+
 ---
 
 ## Navigation

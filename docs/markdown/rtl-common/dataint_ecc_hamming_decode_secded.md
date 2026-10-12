@@ -318,6 +318,13 @@ having no coverage. It does.
 
 Treat any behaviour described on this page as unverified by simulation.
 
+## References
+
+- Hamming, R.W. "Error Detecting and Error Correcting Codes." *Bell System Technical Journal*, 29(2), Apr. 1950. DOI: [10.1002/j.1538-7305.1950.tb00463.x](https://doi.org/10.1002/j.1538-7305.1950.tb00463.x) — syndrome-as-error-position decoding plus the overall-parity check that separates single from double errors.
+- Hsiao, M.Y. "A Class of Optimal Minimum Odd-weight-column SEC-DED Codes." *IBM Journal of Research and Development*, 14(4), July 1970. DOI: [10.1147/rd.144.0395](https://doi.org/10.1147/rd.144.0395) — the odd-weight-column SECDED alternative; this decoder is extended Hamming, not Hsiao.
+- Moon, T.K. *Error Correction Coding*, 2nd ed., Wiley, 2021, Sec. 1.9 "Hamming Codes"; ch. 3 "Linear Block Codes" (Sec. 3.6 Binary Hamming Codes, Sec. 3.9 Modifications to Linear Codes, the extended code) (textbook treatment; secondary source).
+- Indexed in `rtl/common/references/README.md` (local PDF: `HammingCode__Hamming1950.pdf`).
+
 ---
 
 ## Navigation

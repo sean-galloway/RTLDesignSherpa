@@ -894,6 +894,12 @@ endmodule
 
 That covers the Binary to BCD converter end to end — algorithm, implementation, verification, and optimization. Double-Dabble is sequential by nature, but it gives you reliable, predictable conversion for a wide range of digital display applications.
 
+## References
+
+- Couleur, J.F. "BIDEC - A Binary-to-Decimal or Decimal-to-Binary Converter." *IRE Transactions on Electronic Computers*, EC-7(4), Dec. 1958. DOI: [10.1109/TEC.1958.5222665](https://doi.org/10.1109/TEC.1958.5222665) — the publication conventionally cited as the origin of the shift-and-add-3 ("double dabble") method this FSM implements.
+- Roy, S. *Advanced Digital System Design*, Springer, 2024, ch. 3 "Basic Combinational Circuits", Sec. 3.12.1 Binary to BCD Conversion (textbook treatment; secondary source).
+- Indexed in `rtl/common/references/README.md`.
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**
