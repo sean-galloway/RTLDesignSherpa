@@ -193,7 +193,7 @@ Everything this MAS leaned on, plus the pointers you'll want when you need to go
 - APB HPET (this component)
 - AMBA AXI4 Monitors (`rtl/amba/`)
 - RAPIDS DMA Engine (`projects/components/dma-ip/rapids/`)
-- Delta Network Arbiter (`projects/components/noc-ip/delta/`)
+- Delta Network Arbiter (`projects/components/fabric-gen-ip/delta/`)
 
 **External Dependencies:**
 - None - APB HPET is fully self-contained within RTL Design Sherpa

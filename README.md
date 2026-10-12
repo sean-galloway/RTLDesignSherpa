@@ -214,7 +214,7 @@ Production-shaped reusable IP, ordered by IP type. Each has its own README + dv/
 | Reed-Solomon | Ready | RS(n,k) over GF(2^m); riBM or Euclidean solver, AXIS/AXI4 adapters, validated in loopback on Nexys A7 | [`projects/components/ecc-ip/reed-solomon/`](projects/components/ecc-ip/reed-solomon/) |
 | BCH | In progress | Binary BCH encoder/decoder importing the reed-solomon GF(2^m) layer (`gf_pkg`, riBM array); syndrome / key-equation / Chien fub blocks + encoder/decoder cores landed, dv gate tests running | [`projects/components/ecc-ip/bch/`](projects/components/ecc-ip/bch/) |
 | HIVE | Planned | Distributed RISC-V control | [`projects/components/riscv-ip/hive-serv/`](projects/components/riscv-ip/hive-serv/) |
-| Delta | Planned | Network-on-Chip mesh | [`projects/components/noc-ip/delta/`](projects/components/noc-ip/delta/) |
+| Delta | In progress | AXI-Stream crossbar generator (Python-generated flat M×N crossbars) | [`projects/components/fabric-gen-ip/delta/`](projects/components/fabric-gen-ip/delta/) |
 | Retro legacy blocks | Ready | HPET, PIC, PIT, RTC, UART, GPIO | [`projects/components/retro_legacy_blocks/`](projects/components/retro_legacy_blocks/) |
 | Converters | Ready | UART↔AXIL, protocol conversion | [`projects/components/utility-ip/converters/`](projects/components/utility-ip/converters/) |
 | Misc | — | Mixed building blocks | [`projects/components/utility-ip/misc/`](projects/components/utility-ip/misc/) |
@@ -468,7 +468,7 @@ Collection of 9 legacy/retro peripherals with full APB interfaces:
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[Delta](projects/components/noc-ip/delta/)** | Planned | 4×4 Network-on-Chip mesh with virtual channels |
+| **[Delta](projects/components/fabric-gen-ip/delta/)** | In progress | AXI-Stream crossbar generator — Python-generated flat M×N crossbars (AMBA stream interconnect family) |
 | **[HIVE](projects/components/riscv-ip/hive-serv/)** | Planned | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
 | **[amber](projects/components/cache-ip/amber-mesi-l1/)** | Planned | Blocking MESI snoopy L1 cache — first of the [`cache-ip/`](projects/components/cache-ip/) gemstone family (sedimentary, vs the volcanic-rock memory controllers); MonBus-instrumented research cache |
 | **[jet](projects/components/cache-ip/jet-mesi-l1/)** | Planned | Lockup-free (MSHR) MESI snoopy L1 — the non-blocking follow-on to amber, same [`cache-ip/`](projects/components/cache-ip/) family |

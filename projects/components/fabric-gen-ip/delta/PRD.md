@@ -36,7 +36,7 @@
 
 **Key Features:**
 - Python-based RTL generation (similar to APB crossbar automation)
-- Dual topology support: Flat crossbar (low latency) and Tree (modular/scalable)
+- Single topology support: flat crossbar (tree topology retired 2026-10-12 — see QUICK_START.md)
 - Performance modeling (analytical + simulation)
 - Complete AXI-Stream protocol compliance
 - Educational focus with rigorous specifications
@@ -106,7 +106,7 @@ Request Matrix      Grant Matrix
 (decode TDEST)      (round-robin)
 ```
 
-### 2.2 Tree Topology
+### 2.2 Tree Topology (retired 2026-10-12 — never implemented in the framework generator)
 
 **Description:** Hierarchical composition of 1:2 splitters and 2:1 mergers
 
@@ -142,10 +142,10 @@ Tree depth: log2(N) stages
 - **Output:** Synthesizable SystemVerilog modules
 - **Verification:** Verilator lint clean, synthesis clean
 
-**REQ-GEN-002:** Generator shall support both flat and tree topologies
+**REQ-GEN-002:** Generator shall support flat crossbar topology (tree topology retired 2026-10-12 — see QUICK_START.md)
 - **Flat:** Single crossbar module
 - **Tree:** Hierarchical node composition
-- **Both:** Generate both variants with `--topology both`
+- **Both:** ~~Generate both variants with `--topology both`~~ (retired 2026-10-12; flat only)
 
 **REQ-GEN-003:** Generated RTL shall be parameterized
 - NUM_MASTERS, NUM_SLAVES (up to 32x256)
@@ -199,7 +199,7 @@ Tree depth: log2(N) stages
 
 **NFR-PERF-001:** Flat crossbar latency <= 2 cycles
 **NFR-PERF-002:** Flat crossbar Fmax >= 300 MHz (UltraScale+)
-**NFR-PERF-003:** Tree topology latency <= 6 cycles
+**NFR-PERF-003:** ~~Tree topology latency <= 6 cycles~~ (retired with tree topology, 2026-10-12)
 **NFR-PERF-004:** Throughput >= 0.7 transfers/cycle under mixed traffic
 
 ### 4.2 Resource Targets
@@ -359,7 +359,7 @@ Tree depth: log2(N) stages
 **Scenario:** Teach students about interconnect design trade-offs
 
 **Configuration:**
-- Generate both flat and tree topologies
+- Generate flat crossbars (tree topology retired 2026-10-12)
 - Compare latency, throughput, resources
 - Show code generation techniques
 - Demonstrate verification methodology
@@ -499,7 +499,7 @@ Tree depth: log2(N) stages
 - [PASS] Specifications
 
 ### Week 2: RTL and Verification
-- Generate RTL variants (flat 4x16, tree 4x16)
+- Generate RTL variants (flat 4x16; tree variant retired 2026-10-12)
 - CocoTB testbench framework
 - Basic functional tests
 - Performance validation
@@ -533,99 +533,19 @@ Tree depth: log2(N) stages
 
 ---
 
-## 16. Documentation Generation
+## 16. Documentation
 
-### 16.1 Generating PDF/DOCX from Specification
-
-**Tool:** `bin/md_to_docx.py` (repo root)
-
-Use this tool to convert the linked specification index into a single all-inclusive PDF or DOCX file. The preferred entry point is the wrapper script `projects/components/noc-ip/delta/docs/generate_pdf.sh`.
-
-**Basic Usage:**
+The aspirational DELTA mesh NoC specification was split out of this component on
+2026-10-12 and lives at `projects/components/noc-ip/delta_spec/` (agent guide:
+`projects/components/noc-ip/CLAUDE.md`). To render it:
 
 ```bash
-# Preferred: use the wrapper script (from the docs/ directory)
-cd projects/components/noc-ip/delta/docs
-./generate_pdf.sh --rev 1.0
-# Outputs: Delta_Specification_v1.0.docx and Delta_Specification_v1.0.pdf
-
-# Direct md_to_docx.py invocation (from repo root)
-python bin/md_to_docx.py \
-    projects/components/noc-ip/delta/docs/delta_spec/delta_index.md \
-    -o projects/components/noc-ip/delta/docs/Delta_Specification_v1.0.docx \
-    --toc \
-    --title-page \
-    --pdf
+cd projects/components/noc-ip
+./generate_pdf.sh --rev 0.25
 ```
 
-**Key Features:**
-- **Recursive Collection:** Follows all markdown links in the index file
-- **Heading Demotion:** Automatically adjusts heading levels for included files
-- **Table of Contents:** `--toc` flag generates automatic ToC
-- **Title Page:** `--title-page` flag creates title page from first heading
-- **PDF Export:** `--pdf` flag generates both DOCX and PDF
-- **Image Support:** Resolves images relative to source directory
-- **Template Support:** Optional custom DOCX/DOTX template via `-t` flag
-
-**Common Workflow:**
-
-```bash
-# 1. Update version number in index file (delta_index.md)
-# 2. Generate documentation (from repo root)
-python bin/md_to_docx.py \
-    projects/components/noc-ip/delta/docs/delta_spec/delta_index.md \
-    -o projects/components/noc-ip/delta/docs/Delta_Specification_v1.0.docx \
-    --toc --title-page --pdf
-
-# 3. Output files created:
-#    - Delta_Specification_v1.0.docx
-#    - Delta_Specification_v1.0.pdf (if --pdf used)
-```
-
-**Debug Mode:**
-
-```bash
-# Generate debug markdown to see combined output
-python bin/md_to_docx.py \
-    projects/components/noc-ip/delta/docs/delta_spec/delta_index.md \
-    -o output.docx \
-    --debug-md
-
-# This creates debug.md showing the complete merged content
-```
-
-**Tool Requirements:**
-- Python 3.6+
-- Pandoc installed and in PATH
-- For PDF generation: LaTeX (e.g., texlive) or use Pandoc's built-in PDF writer
-
-**See:** `bin/md_to_docx.py` for complete implementation details
-
----
-
-## 16.2 PDF Generation Location
-
-**IMPORTANT: PDF files should be generated in the docs directory:**
-```
-projects/components/noc-ip/delta/docs/
-```
-
-**Quick Command:** Use the provided shell script:
-```bash
-cd projects/components/noc-ip/delta/docs
-./generate_pdf.sh
-```
-
-The shell script will automatically:
-1. Use the md_to_docx.py tool from bin/
-2. Process the delta_spec index file
-3. Generate both DOCX and PDF files in the docs/ directory
-4. Create table of contents and title page
-
-**See:** `bin/md_to_docx.py` for complete implementation details
-
----
-
+Rendered DOCX/PDF land in `noc-ip/delta_spec/`. This component — the AXIS crossbar
+generator — is documented by README.md, QUICK_START.md, and `delta_index.md`.
 ## Appendix A: Glossary
 
 - **AXIS:** AXI-Stream (streaming variant of AXI protocol)

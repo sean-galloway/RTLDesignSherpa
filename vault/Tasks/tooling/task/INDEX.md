@@ -2,7 +2,7 @@
 
 # tooling — tasks
 
-**Next ID: TASK-031** — never recycle a number, even when its item closed.
+**Next ID: TASK-032** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 29 | done (kept for history) |
+| [closed/](closed/) | 30 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -29,6 +29,9 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-031** — delta re-home: noc-ip/delta → fabric-gen-ip/delta (component/spec
+  split; NoC draft archived at noc-ip/delta_spec; ~27 refs + statuses +
+  tree-topology scrub; closed 2026-10-12 in the re-home commit)
 - **TASK-025** (P3) — CLOSED 2026-10-08 (owner-confirmed): cocotb 2.x migration
   complete — production venv on 2.1.0 / bus 0.3.0 / coverage 2.0 / framework
   1.2.1, BKM full matrix green (math 431/431, common 950/950, cdc 353/353).

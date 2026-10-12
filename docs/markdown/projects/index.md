@@ -164,10 +164,12 @@ Collection of legacy and retro-computing peripherals for historical SoC designs.
 ### Other Components
 
 #### Delta
-**Location:** [`projects/components/noc-ip/delta/`](../../../projects/components/noc-ip/delta/)
+**Location:** [`projects/components/fabric-gen-ip/delta/`](../../../projects/components/fabric-gen-ip/delta/)
 
 **Documentation:**
-- [Specification](../../../projects/components/noc-ip/delta/docs/)
+- [PRD](../../../projects/components/fabric-gen-ip/delta/PRD.md)
+- [AI Guide](../../../projects/components/fabric-gen-ip/delta/CLAUDE.md)
+- [NoC draft spec (unimplemented design)](../../../projects/components/noc-ip/delta_spec/)
 
 ---
 

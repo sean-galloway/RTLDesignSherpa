@@ -8,7 +8,7 @@
 # Module: CrossbarConfig
 # Purpose: Delta Performance Modeling
 #
-# Documentation: projects/components/noc-ip/delta/PRD.md
+# Documentation: projects/components/fabric-gen-ip/delta/PRD.md
 # Subsystem: delta
 #
 # Author: sean galloway

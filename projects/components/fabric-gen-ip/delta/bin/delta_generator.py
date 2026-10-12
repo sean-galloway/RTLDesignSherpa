@@ -8,7 +8,7 @@
 # Module: DeltaConfig
 # Purpose: Delta: AXI-Stream Crossbar Generator (Framework Version)
 #
-# Documentation: projects/components/noc-ip/delta/PRD.md
+# Documentation: projects/components/fabric-gen-ip/delta/PRD.md
 # Subsystem: delta
 #
 # Author: sean galloway

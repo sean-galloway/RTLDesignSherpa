@@ -1,18 +1,18 @@
 ---
-title: projects/components/noc-ip/delta
+title: projects/components/fabric-gen-ip/delta
 summary: delta component
-repo: projects/components/noc-ip/delta
+repo: projects/components/fabric-gen-ip/delta
 ---
 
-# projects/components/noc-ip/delta
+# projects/components/fabric-gen-ip/delta
 
-**Code:** [`projects/components/noc-ip/delta/`](../../../../../../projects/components/noc-ip/delta)
+**Code:** [`projects/components/fabric-gen-ip/delta/`](../../../../../../projects/components/fabric-gen-ip/delta)
 
 delta component
 
 ## What lives here
 
-Knowledge notes about `projects/components/noc-ip/delta` - design intent, gotchas, decisions and
+Knowledge notes about `projects/components/fabric-gen-ip/delta` - design intent, gotchas, decisions and
 their rationale. Not a duplicate of the code and not a substitute for it.
 
 Method and practice belong in [the handbook](../../../../../../vault/handbook/INDEX.md); work items belong in

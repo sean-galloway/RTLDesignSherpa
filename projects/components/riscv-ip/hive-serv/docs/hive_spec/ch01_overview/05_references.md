@@ -33,7 +33,7 @@
 
 ### Related Component Specifications
 - **[RAPIDS Beats HAS](../../../../../dma-ip/rapids/docs/rapids_beats_has/rapids_beats_has_index.md)** - DMA engine controlled by HIVE-C
-- **[Delta Network Specification](../../../../../noc-ip/delta/docs/delta_spec/delta_index.md)** - 4×4 mesh NoC for compute fabric
+- **[Delta Network Specification](../../../../../noc-ip/delta_spec/delta_index.md)** - 4×4 mesh NoC for compute fabric
 - **[STREAM Specification](../../../../../dma-ip/stream/PRD.md)** - Simplified DMA tutorial project (educational reference)
 
 ---
@@ -249,7 +249,7 @@
 
 ### Related Projects
 - **RAPIDS:** `projects/components/dma-ip/rapids/`
-- **Delta Network:** `projects/components/noc-ip/delta/`
+- **Delta Network:** `projects/components/fabric-gen-ip/delta/`
 - **Common RTL:** `rtl/common/`, `rtl/amba/`
 
 ---

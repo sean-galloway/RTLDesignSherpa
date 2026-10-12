@@ -36,7 +36,7 @@
 **Key Features:**
 -  Python code generation (similar to APB crossbar automation)
 -  Performance modeling (analytical + simulation)
--  Dual topology support (flat crossbar + tree)
+-  Flat crossbar topology (tree generation retired — see QUICK_START.md)
 -  Complete specifications and documentation
 - [PASS] Educational focus with rigor
 
@@ -48,7 +48,7 @@
 
 ```bash
 # Navigate to Delta
-cd projects/components/noc-ip/delta
+cd projects/components/fabric-gen-ip/delta
 
 # Generate flat 4x16 crossbar for RISC cores + DSP arrays
 python bin/delta_generator.py \
@@ -97,7 +97,7 @@ python bin/delta_generator.py \
 ## Project Structure
 
 ```
-projects/components/noc-ip/delta/
+projects/components/fabric-gen-ip/delta/
 +-- bin/                              # Automation and modeling
 |   +-- delta_generator.py            # RTL generator (Python)
 |   +-- delta_performance_model.py    # Performance analysis

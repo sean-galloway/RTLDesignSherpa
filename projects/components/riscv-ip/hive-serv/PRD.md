@@ -486,7 +486,7 @@ The shell script will automatically:
 ### 14.2 Related Subsystems
 
 - **RAPIDS:** `projects/components/dma-ip/rapids/` - DMA engine controlled by HIVE-C
-- **Delta Network:** `projects/components/noc-ip/delta/` - 4×4 mesh NoC
+- **Delta Network:** `projects/components/fabric-gen-ip/delta/` - 4×4 mesh NoC
 - **AMBA:** `rtl/amba/` - Monitor infrastructure
 - **Common:** `rtl/common/` - Building blocks
 

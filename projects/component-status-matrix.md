@@ -45,7 +45,7 @@ design.
 | mem-ctrl-ip/product-ip/granite-ddr2-lpddr2 | Scaffold README "not built"; vault TASK-001 (wrapper dissolution + product top) | pkg + filelist + config only |
 | mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2 | README "implemented and characterized"; vault BUG-024 + TASK-042 open | Board-validated Nexys A7; LPDDR2 runtime ZQ pending |
 | mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3 | README "verified in simulation; board work in progress"; vault TASK-006/007/008 open | HAS v0.8; 221 tests passing, 9 formal blocks; board campaign is the qualifier |
-| noc-ip/delta | README "[PASS] Active Development"; generated RTL exists; DV suite TODO | PRD + perf models present; CocoTB suite not built |
+| fabric-gen-ip/delta | README "[PASS] Active Development"; generated RTL exists; DV suite TODO | PRD + perf models present; CocoTB suite not built; re-homed from noc-ip 2026-10-12 |
 
 ## NS — not started / scaffold only
 

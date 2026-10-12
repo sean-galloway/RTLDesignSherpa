@@ -388,7 +388,7 @@ If compute nodes need direct node-to-node communication, use **flat crossbar** i
 - Fan-out trees: `delta_fanout_1to2.sv`, `delta_fanout_1to4.sv`, `delta_fanout_1to16.sv`
 - Fan-in trees: `delta_fanin_2to1.sv`, `delta_fanin_4to1.sv`, `delta_fanin_16to1.sv`
 
-**All files in:** `projects/components/noc-ip/delta/rtl/`
+**All files in:** `projects/components/fabric-gen-ip/delta/rtl/`
 
 ---
 

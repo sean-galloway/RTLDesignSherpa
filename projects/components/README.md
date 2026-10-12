@@ -64,7 +64,7 @@ tracker. Nothing here is a second copy of either.
 | misc (ROM/RAM wrappers and utilities) | [utility-ip/misc/README.md](utility-ip/misc/README.md) |
 | ecc-ip (error-correction IP family; reed-solomon stood up 2026-09-29, references + draft PRD, no RTL yet) | [ecc-ip/README.md](ecc-ip/README.md), [ecc-ip/reed-solomon/README.md](ecc-ip/reed-solomon/README.md) |
 | retro_legacy_blocks (HPET, 8259, 8254, RTC, SMBus, PM/ACPI, IOAPIC, GPIO, UART) | [retro_legacy_blocks/README.md](retro_legacy_blocks/README.md) |
-| noc-ip/delta | retired 2026-09-27 (see the tracker); moved into the family directory 2026-09-29, contents as they were |
+| fabric-gen-ip/delta | AXI-Stream crossbar generator, active; re-homed from noc-ip 2026-10-12 (its aspirational NoC draft spec stayed behind at noc-ip/delta_spec) |
 | compute-eng-ip/hive | retired 2026-09-27; re-homed to riscv-ip/hive-serv 2026-10-10 (SERV-based, belongs in the falcon suite area) |
 
 ---

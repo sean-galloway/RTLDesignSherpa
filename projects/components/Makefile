@@ -40,7 +40,7 @@ COMPONENTS = utility-ip/converters \
              retro_legacy_blocks
 
 # Components that exist but don't yet expose run-all-* test targets (for reference):
-# - noc-ip/delta, compute-eng-ip/hive       - no dv/tests Makefile (retired 2026-09-27)
+# - fabric-gen-ip/delta, compute-eng-ip/hive - no dv/tests Makefile (delta re-homed from noc-ip 2026-10-12)
 # - mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4 - tests/ dir but no test Makefile
 #
 # scoria joined the list on 2026-09-30, when its dv/tests grew the same

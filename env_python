@@ -29,7 +29,7 @@ export APB_XBAR_ROOT=$REPO_ROOT/projects/components/fabric-gen-ip/apbx-xbar
 export BCH_ROOT=$REPO_ROOT/projects/components/bch
 export BRIDGE_ROOT=$REPO_ROOT/projects/components/fabric-gen-ip/bridge
 export CONVERTERS_ROOT=$REPO_ROOT/projects/components/utility-ip/converters
-export DELTA_ROOT=$REPO_ROOT/projects/components/noc-ip/delta
+export DELTA_ROOT=$REPO_ROOT/projects/components/fabric-gen-ip/delta
 export MISC_ROOT=$REPO_ROOT/projects/components/utility-ip/misc
 export AMBER_ROOT=$REPO_ROOT/projects/components/cache-ip/amber-mesi-l1
 # Shared cache-ip core (amber_pkg + the amber_core leaf FUBs + core filelists).
@@ -119,7 +119,7 @@ export PYTHONPATH="$REPO_ROOT/projects/components/fabric-gen-ip/apbx-xbar/dv:$PY
 export PYTHONPATH="$REPO_ROOT/projects/components/bch/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/fabric-gen-ip/bridge/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/utility-ip/converters/dv:$PYTHONPATH"
-export PYTHONPATH="$REPO_ROOT/projects/components/noc-ip/delta/dv:$PYTHONPATH"
+export PYTHONPATH="$REPO_ROOT/projects/components/fabric-gen-ip/delta/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/utility-ip/misc/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/dma-ip/rapids/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/retro_legacy_blocks/dv:$PYTHONPATH"

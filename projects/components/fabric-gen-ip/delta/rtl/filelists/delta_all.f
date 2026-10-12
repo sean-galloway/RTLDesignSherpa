@@ -12,4 +12,4 @@
 # generated shapes and is deliberately NOT in this closure.
 # ==============================================================================
 
--f $REPO_ROOT/projects/components/noc-ip/delta/rtl/filelists/delta_axis_flat_4x16.f
+-f $REPO_ROOT/projects/components/fabric-gen-ip/delta/rtl/filelists/delta_axis_flat_4x16.f

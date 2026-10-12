@@ -100,7 +100,7 @@ graph TD
 | **[Converters](../../projects/components/utility-ip/converters)** | Ready | UART-to-AXI4-Lite, protocol conversion |
 | **[APB Crossbar](../../projects/components/fabric-gen-ip/apbx-xbar)** | Ready | M×N APB interconnect |
 | **[Retro Legacy](../../projects/components/retro_legacy_blocks)** | Ready | HPET, PIC, PIT, RTC, UART, GPIO, etc. |
-| **[Delta](../../projects/components/noc-ip/delta)** | Planned | Network-on-Chip mesh |
+| **[Delta](../../projects/components/fabric-gen-ip/delta)** | In progress | AXI-Stream crossbar generator |
 | **[HIVE](../../projects/components/riscv-ip/hive-serv)** | Planned | Distributed RISC-V control |
 
 ### Verification
@@ -286,7 +286,7 @@ Collection of 9 legacy/retro peripherals with full APB interfaces:
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[Delta](../../projects/components/noc-ip/delta)** | Planned | 4×4 Network-on-Chip mesh with virtual channels |
+| **[Delta](../../projects/components/fabric-gen-ip/delta)** | In progress | AXI-Stream crossbar generator — Python-generated flat M×N crossbars (AMBA stream interconnect family) |
 | **[HIVE](../../projects/components/riscv-ip/hive-serv)** | Planned | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
 | **BCH** | Planned | BCH error correction encoder/decoder (no RTL yet) |
 

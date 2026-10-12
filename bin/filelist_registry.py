@@ -131,7 +131,7 @@ ROOT_VARS = {
     "BCH_ROOT": "projects/components/bch",
     "BRIDGE_ROOT": "projects/components/fabric-gen-ip/bridge",
     "CONVERTERS_ROOT": "projects/components/utility-ip/converters",
-    "DELTA_ROOT": "projects/components/noc-ip/delta",
+    "DELTA_ROOT": "projects/components/fabric-gen-ip/delta",
     "AMBER_ROOT": "projects/components/cache-ip/amber-mesi-l1",
     "CACHE_COMMON_ROOT": "projects/components/cache-ip/common-ip",
     "KESTREL_ROOT": "projects/components/riscv-ip/kestrel-rv32i",

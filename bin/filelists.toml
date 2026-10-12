@@ -79,8 +79,8 @@ filelist_dirs = ["projects/components/ecc-ip/bch/rtl/filelists"]
 name = "amber"
 kind = "component"
 # cache-ip family. Registered 2026-10-06 with its first RTL, the amber
-# MESI L1 slice (amber_pkg, amber_snoop_kmap, amber_tag_array,
-# amber_data_array), so --check has owned these modules from the first
+# MESI L1 slice (l1_pkg, l1_snoop_kmap, l1_tag_array,
+# l1_data_array), so --check has owned these modules from the first
 # commit rather than discovering them at an audit.
 rtl_roots = ["projects/components/cache-ip/amber-mesi-l1/rtl"]
 filelist_dirs = ["projects/components/cache-ip/amber-mesi-l1/rtl/filelists"]
@@ -89,8 +89,8 @@ filelist_dirs = ["projects/components/cache-ip/amber-mesi-l1/rtl/filelists"]
 name = "cache-common"
 kind = "library"
 # cache-ip family shared home, created 2026-10-11 (owner directive): the MESI
-# L1 core that amber and jet both inherit -- amber_pkg, the amber_core leaf
-# FUBs, and amber_core itself, with their filelists. Module names keep the
+# L1 core that amber and jet both inherit -- l1_pkg, the l1_core leaf
+# FUBs, and l1_core itself, with their filelists. Module names keep the
 # amber_ prefix (a rename, if ever wanted, is its own task). The integration
 # tops that differ per IP (amber_top, amber_ace_top, amber_ace_issue,
 # amber_pair_fabric) stay in their owning component dirs. Same library posture
@@ -162,8 +162,8 @@ kind = "component"
 # either. rtl_test/ holds other shapes from the same generator and is
 # deliberately outside rtl_roots: they are generator output, not this area's
 # compile closure.
-rtl_roots = ["projects/components/noc-ip/delta/rtl"]
-filelist_dirs = ["projects/components/noc-ip/delta/rtl/filelists"]
+rtl_roots = ["projects/components/fabric-gen-ip/delta/rtl"]
+filelist_dirs = ["projects/components/fabric-gen-ip/delta/rtl/filelists"]
 
 [[area]]
 name = "stream"

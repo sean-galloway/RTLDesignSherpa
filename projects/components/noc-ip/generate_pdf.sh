@@ -19,9 +19,9 @@ REV="0.25"
 ASSETS="delta_spec/assets"
 SPEC_INDEX="delta_spec/delta_index.md"
 
-# Detect repository root (go up from docs/ to project root)
+# Detect repository root (go up from noc-ip/ to repo root)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../../.." && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
 
 # ------------------------------------------------------------
 # Parse command line arguments
@@ -70,8 +70,8 @@ done
 # Build filenames dynamically
 # ------------------------------------------------------------
 OUTPUT_BASENAME="Delta_Specification_v${REV}"
-OUTPUT_DOCX="${OUTPUT_BASENAME}.docx"
-OUTPUT_PDF="${OUTPUT_BASENAME}.pdf"
+OUTPUT_DOCX="delta_spec/${OUTPUT_BASENAME}.docx"
+OUTPUT_PDF="delta_spec/${OUTPUT_BASENAME}.pdf"
 
 # ------------------------------------------------------------
 # Run converter

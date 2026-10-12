@@ -48,7 +48,7 @@ This directory contains production-ready and in-development component projects f
 | **pumice (DDR2/LPDDR2 memory controller)** | Production (at rest 2026-09-10) | [mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/](mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/) | [Specification](mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/pumice_mas/pumice_mas_index.md) |
 | **misc** | Production | [utility-ip/misc/](utility-ip/misc/) | [README](utility-ip/misc/README.md) |
 | **ecc-ip / Reed-Solomon** | Stand-up (2026-09-29): references + draft PRD, no RTL | [ecc-ip/reed-solomon/](ecc-ip/reed-solomon/) | [family README](ecc-ip/README.md), [PRD (draft)](ecc-ip/reed-solomon/PRD.md), [References](ecc-ip/reed-solomon/References/README.md) |
-| **Delta** | Retired 2026-09-27 (no tests, spec unwritten) | [noc-ip/delta/](noc-ip/delta/) | [Specification](noc-ip/delta/docs/delta_spec/delta_index.md) |
+| **Delta** | Active — AXI-Stream crossbar generator (RTL generated; DV suite TODO); re-homed from noc-ip 2026-10-12 | [fabric-gen-ip/delta/](fabric-gen-ip/delta/) | [PRD](fabric-gen-ip/delta/PRD.md), [NoC draft spec](noc-ip/delta_spec/delta_index.md) |
 | **hive-serv (SERV compute cluster)** | Re-homed 2026-10-10 from compute-eng-ip/hive (retired 2026-09-27; revived as a riscv-ip area — 1 VexRiscv + 16 SERV cores, spec only, no RTL yet) | [riscv-ip/hive-serv/](riscv-ip/hive-serv/) | [Specification](riscv-ip/hive-serv/docs/hive_spec/hive_index.md) |
 | **amber (blocking MESI snoopy L1 cache)** | Planned — first of the [cache-ip/](cache-ip/) gemstone family; [README](cache-ip/amber-mesi-l1/README.md) + [PRD](cache-ip/amber-mesi-l1/PRD.md) scaffolded | [cache-ip/amber-mesi-l1/](cache-ip/amber-mesi-l1/) | — |
 | **jet (lockup-free MESI snoopy L1)** | Planned — non-blocking (MSHR) follow-on to amber; [README](cache-ip/jet-mesi-l1/README.md) + [PRD](cache-ip/jet-mesi-l1/PRD.md) scaffolded | [cache-ip/jet-mesi-l1/](cache-ip/jet-mesi-l1/) | — |
@@ -81,7 +81,7 @@ This directory contains production-ready and in-development component projects f
 - [dfx-ip](dfx-ip/) - house debug port: JTAG transport (jtag-tap), config poke agent (jtag-axil-agent), riscv override plane (riscv-debug); HAS scaffolded 2026-10-11
 
 **Other:**
-- [Delta](noc-ip/delta/) - retired NoC component, kept as it was
+- [Delta](fabric-gen-ip/delta/) - AXI-Stream crossbar generator (fabric family); its aspirational NoC draft lives at [noc-ip/delta_spec/](noc-ip/delta_spec/)
 - [hive-serv](riscv-ip/hive-serv/) - SERV compute cluster, re-homed from compute-eng-ip 2026-10-10 (retired 2026-09-27, revived)
 
 ---

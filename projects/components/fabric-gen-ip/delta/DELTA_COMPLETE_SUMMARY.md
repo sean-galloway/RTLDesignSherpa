@@ -31,7 +31,8 @@
 > delta now generates flat AXIS crossbars only (`rtl/delta_axis_flat_4x16.sv`, plus
 > test configurations in `rtl_test/delta_axis_flat_*.sv`) via `bin/delta_generator.py`.
 > The `docs/DELTA_VS_APB_GENERATOR.md` guide referenced below was also removed; current
-> documentation is `docs/delta_spec/` and `docs/Delta_Specification_v1.0.pdf`.
+> the NoC design draft moved to `../../noc-ip/delta_spec/` (unimplemented,
+> not this component; rendered PDF kept there).
 > Kept for reference.
 
 ---
@@ -77,7 +78,7 @@
 ### Generate Node Primitives
 
 ```bash
-cd projects/components/noc-ip/delta
+cd projects/components/fabric-gen-ip/delta
 
 # Generate 1:2 splitter
 python bin/delta_generator.py --topology flat --masters 2 --slaves 2 --nodes --output-dir rtl/

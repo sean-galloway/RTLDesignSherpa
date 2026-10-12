@@ -36,7 +36,7 @@ note — it belongs to that block and nowhere else.
 - `cache-ip` — amber-mesi-l1, jet-mesi-l1, onyx-ace-ccu coherent-cache studies; area exists in the repo, no context note written yet
 - [bridge](projects/components/fabric-gen-ip/bridge/INDEX.md) — generated crossbar; v1.0 (2026-10-06)
 - [converters](projects/components/utility-ip/converters/INDEX.md)
-- [delta](projects/components/noc-ip/delta/INDEX.md)
+- [delta](projects/components/fabric-gen-ip/delta/INDEX.md)
 - `ecc-ip/bch` — v1.0 (2026-10-06); area exists in the repo, no context note written yet
 - `ecc-ip/reed-solomon` — v1.0 (2026-10-06); area exists in the repo, no context note written yet
 - [dma-ip/rapids](projects/components/dma-ip/rapids/INDEX.md) — beats rearchitecture; v1.0 (2026-10-06)

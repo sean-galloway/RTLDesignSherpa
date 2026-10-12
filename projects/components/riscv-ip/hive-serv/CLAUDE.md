@@ -234,7 +234,7 @@ Switching Sequence:
 ### Related Component Specifications
 
 - `projects/components/dma-ip/rapids/docs/rapids_beats_has/` and `rapids_beats_mas/` - RAPIDS DMA specification (Beats architecture)
-- `projects/components/noc-ip/delta/docs/delta_spec/` - Delta Network specification
+- `projects/components/noc-ip/delta_spec/` - Delta Network specification
 
 ---
 

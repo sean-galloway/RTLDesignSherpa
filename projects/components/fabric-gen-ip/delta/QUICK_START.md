@@ -31,7 +31,8 @@
 > `bin/delta_generator.py --topology flat ...` -> `rtl/delta_axis_flat_4x16.sv`
 > (test configurations in `rtl_test/`), linted via `rtl/Makefile` (`make verilator`).
 > The `docs/DELTA_VS_APB_GENERATOR.md` migration guide was removed; current
-> documentation is `docs/delta_spec/` and `docs/Delta_Specification_v1.0.pdf`.
+> the NoC design draft moved to `../../noc-ip/delta_spec/` (unimplemented,
+> not this component; rendered PDF kept there).
 
 ---
 
@@ -54,8 +55,8 @@
 ### [PASS] Complete Specifications
 - `PRD.md` (525 lines) - Product requirements document
 - `README.md` (502 lines) - User guide
-- `docs/delta_spec/` - Chaptered specification (see `docs/delta_spec/delta_index.md`);
-  rendered as `docs/Delta_Specification_v1.0.pdf`
+- (NoC design draft — unimplemented, NOT this component: `../../noc-ip/delta_spec/`,
+  rendered PDF alongside)
 
 ### [PASS] Generated RTL Example
 - `rtl/delta_axis_flat_4x16.sv` - Working 4x16 crossbar
@@ -108,7 +109,7 @@ if (s_axis_tvalid[m])
 ### 1. Generate Your First Crossbar (30 seconds)
 
 ```bash
-cd projects/components/noc-ip/delta
+cd projects/components/fabric-gen-ip/delta
 
 # Generate flat 4x16 for RISC cores + DSP arrays
 python bin/delta_generator.py \
@@ -167,7 +168,7 @@ crossbars are generated and kept in the tree now. See
 ## Project Structure
 
 ```
-projects/components/noc-ip/delta/
+projects/components/fabric-gen-ip/delta/
 +-- bin/                              # Automation
 |   +-- delta_generator.py            # RTL generator (framework version)
 |   +-- delta_generator_v1_backup.py  # Previous generator (backup)
@@ -225,7 +226,7 @@ support). The previous version is kept as `bin/delta_generator_v1_backup.py`.
 # 1. Read complete specifications
 cat PRD.md
 cat README.md
-cat docs/delta_spec/delta_index.md
+cat ../../noc-ip/delta_spec/delta_index.md   # NoC draft (unimplemented, reference)
 
 # 2. Review performance models
 python bin/delta_performance_model.py --topology compare
@@ -442,7 +443,7 @@ python bin/delta_performance_model.py --topology compare
 ```bash
 cat PRD.md                            # Requirements
 cat README.md                         # User guide
-cat docs/delta_spec/delta_index.md    # Specification index
+cat ../../noc-ip/delta_spec/delta_index.md   # NoC draft (unimplemented, reference)
 ```
 
 **View Generated RTL:**
